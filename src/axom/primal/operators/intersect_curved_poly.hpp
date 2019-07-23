@@ -38,12 +38,11 @@ template <typename T, int NDIMS>
 bool orient(BezierCurve<T,NDIMS> c1, BezierCurve<T,NDIMS> c2, T s, T t);
 */
 /*!
- * \brief Tests if Bezier Curves c1 and c2 intersect.
- * \return status true iff c1 intersects with c2, otherwise false.
+ * \brief Test whether CurvedPolygons p1 and p2 intersect.
+ * \return status true iff p1 intersects with p2, otherwise false.
  *
- * \param c1, c2 BezierCurve objects to intersect
- * \param sp, tp vector of type T parameter space intersection points (t-values
- * and s-values) for c1 and c2, respectively
+ * \param p1, p2 CurvedPolygon objects to intersect
+ * \param pnew vector of type CurvedPolygon holding intersection regions oriented as the original curves were. 
  */
 template <typename T, int NDIMS>
 bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
@@ -53,8 +52,7 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
   // Object to store intersections
   std::vector<std::vector<IntersectionInfo<T>>> E1IntData(p1.numEdges());
   std::vector<std::vector<IntersectionInfo<T>>> E2IntData(p2.numEdges());
-
-  IntersectionInfo<T> firstinter;
+  IntersectionInfo<T> firstinter;  // Need to do orientation test on first intersection
 
   // Find all intersections and store
   int numinters = 0;
@@ -83,17 +81,21 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
     std::sort(E2IntData[i].begin(), E2IntData[i].end());
   }
 
+  // Orient the first intersection point to be sure we get the intersection
   bool orientation = orient(p1[firstinter.myEdge],
                             p2[firstinter.otherEdge],
                             firstinter.myTime,
                             firstinter.otherTime);
+
+  // Objects to store completely split polygons (split at every intersection point) and vector with unique id for each
+  // intersection and zeros for corners of original polygons.
   std::vector<int> edgelabels[2];
 
   CurvedPolygon<T, NDIMS> psplit[2];
   psplit[0] = p1;
   psplit[1] = p2;
   int addedints = 0;
-  for(int i = 0; i < static_cast<int>(p1.numEdges()); ++i)
+  for(int i = 0; i < p1.numEdges(); ++i)
   {
     edgelabels[0].push_back(0);
     for(int j = 0; j < static_cast<int>(E1IntData[i].size()); ++j)
@@ -110,6 +112,8 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
       }
     }
   }
+
+  // Debugging code
   /*std::cout << psplit[0] << std::endl;
   for (int i=0; i < edgelabels[0].size(); ++i)
   {
@@ -134,11 +138,15 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
       }
     }
   }
+
+  // Debugging code
   /*std::cout << psplit[1] << std::endl;
   for (int i=0; i < edgelabels[1].size(); ++i)
   {
     std::cout << edgelabels[1][i] << std::endl;
   }*/
+
+  // This performs the directional walking method using the completely split polygon
   std::vector<std::vector<int>::iterator> usedlabels;
   if(numinters == 0)
   {
@@ -198,17 +206,19 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
                              nextinter) -
             edgelabels[currentelement].begin();
         }
-        std::cout << aPart << std::endl;
+        //std::cout << aPart << std::endl;
       }
       pnew.push_back(aPart);
     }
     addingcurves = false;
   }
-  std::cout << pnew[0] << std::endl;
+  //std::cout << pnew[0] << std::endl;
 
   return true;
 }
 
+// This determines with curve is "more" counterclockwise using signed distance
+// It could potentially be changed to use a cross product of tangents instead
 template <typename T, int NDIMS>
 bool orient(const BezierCurve<T, NDIMS> c1, const BezierCurve<T, NDIMS> c2, T s, T t)
 {
