@@ -82,10 +82,10 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
   }
 
   // Orient the first intersection point to be sure we get the intersection
-  bool orientation = orient(p1[firstinter.myEdge],
-                            p2[firstinter.otherEdge],
-                            firstinter.myTime,
-                            firstinter.otherTime);
+  bool orientation = !orient(p1[firstinter.myEdge],
+                             p2[firstinter.otherEdge],
+                             firstinter.myTime,
+                             firstinter.otherTime);
 
   // Objects to store completely split polygons (split at every intersection point) and vector with unique id for each
   // intersection and zeros for corners of original polygons.
@@ -114,11 +114,11 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
   }
 
   // Debugging code
-  /*std::cout << psplit[0] << std::endl;
-  for (int i=0; i < edgelabels[0].size(); ++i)
+  std::cout << psplit[0] << std::endl;
+  for(int i = 0; i < static_cast<int>(edgelabels[0].size()); ++i)
   {
     std::cout << edgelabels[0][i] << std::endl;
-  }*/
+  }
 
   addedints = 0;
   for(int i = 0; i < p2.numEdges(); ++i)
@@ -140,11 +140,11 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
   }
 
   // Debugging code
-  /*std::cout << psplit[1] << std::endl;
-  for (int i=0; i < edgelabels[1].size(); ++i)
+  std::cout << psplit[1] << std::endl;
+  for(int i = 0; i < static_cast<int>(edgelabels[1].size()); ++i)
   {
     std::cout << edgelabels[1][i] << std::endl;
-  }*/
+  }
 
   // This performs the directional walking method using the completely split polygon
   std::vector<std::vector<int>::iterator> usedlabels;
@@ -172,7 +172,6 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
       {
         if(nextit == currentit)
         {
-          currentit = nextit;
           nextit = (currentit + 1) % edgelabels[0].size();
         }
         nextinter = edgelabels[currentelement][nextit];
@@ -182,19 +181,21 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
           if(addingcurves)
           {
             aPart.addEdge(psplit[currentelement][nextit]);
+            std::cout << 0;
           }
           nextit = (currentit + 1) % edgelabels[0].size();
           nextinter = edgelabels[currentelement][nextit];
+          std::cout << 0 << std::endl;
         }
         if(addingcurves)
         {
           aPart.addEdge(psplit[currentelement][nextit]);
           currentelement = !currentelement;
-          currentit = nextit;
           nextit = std::find(edgelabels[currentelement].begin(),
                              edgelabels[currentelement].end(),
                              nextinter) -
             edgelabels[currentelement].begin();
+          currentit = nextit;
           numinters -= 1;
         }
         else
@@ -206,13 +207,14 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
                              nextinter) -
             edgelabels[currentelement].begin();
         }
-        //std::cout << aPart << std::endl;
+        std::cout << numinters;
+        std::cout << aPart << std::endl;
       }
       pnew.push_back(aPart);
     }
     addingcurves = false;
   }
-  //std::cout << pnew[0] << std::endl;
+  std::cout << pnew[0] << std::endl;
 
   return true;
 }
