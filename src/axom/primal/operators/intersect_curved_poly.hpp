@@ -62,7 +62,7 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
     {
       std::vector<T> p1times;
       std::vector<T> p2times;
-      intersect(p1[i], p2[j], p1times, p2times);
+      intersect(p1[i], p2[j], p1times, p2times, 1e-15);
       for(int k = 0; k < static_cast<int>(p1times.size()); ++k)
       {
         E1IntData[i].push_back({p1times[k], i, p2times[k], j, numinters + k + 1});
@@ -113,13 +113,6 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
     }
   }
 
-  // Debugging code
-  std::cout << psplit[0] << std::endl;
-  for(int i = 0; i < static_cast<int>(edgelabels[0].size()); ++i)
-  {
-    std::cout << edgelabels[0][i] << std::endl;
-  }
-
   addedints = 0;
   for(int i = 0; i < p2.numEdges(); ++i)
   {
@@ -139,19 +132,12 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
     }
   }
 
-  // Debugging code
-  std::cout << psplit[1] << std::endl;
-  for(int i = 0; i < static_cast<int>(edgelabels[1].size()); ++i)
-  {
-    std::cout << edgelabels[1][i] << std::endl;
-  }
-
   // This performs the directional walking method using the completely split polygon
   std::vector<std::vector<int>::iterator> usedlabels;
   if(numinters == 0)
   {
-    return false;
-  }  // If there are no intersections, return false
+    return false;  // No intersections so return early
+  }
   else
   {
     bool addingcurves = true;
@@ -181,11 +167,9 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
           if(addingcurves)
           {
             aPart.addEdge(psplit[currentelement][nextit]);
-            std::cout << 0;
           }
           nextit = (currentit + 1) % edgelabels[0].size();
           nextinter = edgelabels[currentelement][nextit];
-          std::cout << 0 << std::endl;
         }
         if(addingcurves)
         {
@@ -207,29 +191,23 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
                              nextinter) -
             edgelabels[currentelement].begin();
         }
-        std::cout << numinters;
-        std::cout << aPart << std::endl;
       }
       pnew.push_back(aPart);
     }
     addingcurves = false;
   }
-  std::cout << pnew[0] << std::endl;
-
   return true;
 }
 
-// This determines with curve is "more" counterclockwise using signed distance
-// It could potentially be changed to use a cross product of tangents instead
+// This determines with curve is "more" counterclockwise using the cross product of tangents
 template <typename T, int NDIMS>
 bool orient(const BezierCurve<T, NDIMS> c1, const BezierCurve<T, NDIMS> c2, T s, T t)
 {
-  Point<T, NDIMS> c1val1 = c1.evaluate(s + (1e-13));
-  Point<T, NDIMS> c1val2 = c1.evaluate(s - (1e-13));
-  Point<T, NDIMS> c2val = c2.evaluate(t + (1e-13));
-
-  return ((-(c1val1[0] - c1val2[0]) * (c2val[1] - c1val2[1])) +
-          (c1val1[1] - c1val2[1]) * (c2val[0] - c1val2[0])) > 0;
+  Point<T, NDIMS> dc1s = c1.dt(s);
+  Point<T, NDIMS> dc2t = c2.dt(t);
+  Point<T, NDIMS> origin = primal::Point<T, NDIMS>::make_point(0.0, 0.0);
+  auto orientation = detail::twoDcross(dc1s, dc2t, origin);
+  return (orientation < 0);
 }
 
 // A class for storing intersection points so they can be easily sorted by parameter value
