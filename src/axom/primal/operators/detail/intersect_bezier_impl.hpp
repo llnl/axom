@@ -91,7 +91,7 @@ bool intersect_bezier_curves(const BezierCurve<T, 2> &c1,
  * As such, the we do not consider the lines to intersect if they do so
  * at the endpoints \a b or \d, respectively.
  *
- * \note This function assumes the all intersections have multiplicity
+ * \note This function assumes that all intersections have multiplicity
  * one, i.e. there are no points at which the curves and their derivatives
  * both intersect. Thus, the function does not find tangencies.
  *
