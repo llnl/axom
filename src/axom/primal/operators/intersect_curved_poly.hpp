@@ -75,139 +75,141 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
       numinters += p1times.size();
     }
   }
-  for(int i = 0; i < p1.numEdges(); ++i)
+  if(numinters > 0)
   {
-    std::sort(E1IntData[i].begin(), E1IntData[i].end());
-    std::sort(E2IntData[i].begin(), E2IntData[i].end());
-  }
-
-  // Orient the first intersection point to be sure we get the intersection
-  bool orientation = !orient(p1[firstinter.myEdge],
-                             p2[firstinter.otherEdge],
-                             firstinter.myTime,
-                             firstinter.otherTime);
-
-  // Objects to store completely split polygons (split at every intersection point) and vector with unique id for each
-  // intersection and zeros for corners of original polygons.
-  std::vector<int> edgelabels[2];
-
-  CurvedPolygon<T, NDIMS> psplit[2];
-  psplit[0] = p1;
-  psplit[1] = p2;
-  int addedints = 0;
-  for(int i = 0; i < p1.numEdges(); ++i)
-  {
-    edgelabels[0].push_back(0);
-    for(int j = 0; j < static_cast<int>(E1IntData[i].size()); ++j)
+    for(int i = 0; i < p1.numEdges(); ++i)
     {
-      psplit[0].splitEdge(i + addedints, E1IntData[i][j].myTime);
-      edgelabels[0].insert(edgelabels[0].begin() + i + addedints,
-                           E1IntData[i][j].numinter);
-      addedints += 1;
-      for(int k = j + 1; k < static_cast<int>(E1IntData[i].size()); ++k)
-      {
-        E1IntData[i][k].myTime =
-          (E1IntData[i][k].myTime - E1IntData[i][j].myTime) /
-          (1 - E1IntData[i][j].myTime);
-      }
+      std::sort(E1IntData[i].begin(), E1IntData[i].end());
+      std::sort(E2IntData[i].begin(), E2IntData[i].end());
     }
-  }
 
-  addedints = 0;
-  for(int i = 0; i < p2.numEdges(); ++i)
-  {
-    edgelabels[1].push_back(0);
-    for(int j = 0; j < static_cast<int>(E2IntData[i].size()); ++j)
-    {
-      psplit[1].splitEdge(i + addedints, E2IntData[i][j].myTime);
-      edgelabels[1].insert(edgelabels[1].begin() + i + addedints,
-                           E2IntData[i][j].numinter);
-      addedints += 1;
-      for(int k = j + 1; k < static_cast<int>(E2IntData[i].size()); ++k)
-      {
-        E2IntData[i][k].myTime =
-          (E2IntData[i][k].myTime - E2IntData[i][j].myTime) /
-          (1 - E2IntData[i][j].myTime);
-      }
-    }
-  }
+    // Orient the first intersection point to be sure we get the intersection
+    bool orientation = !orient(p1[firstinter.myEdge],
+                               p2[firstinter.otherEdge],
+                               firstinter.myTime,
+                               firstinter.otherTime);
 
-  // This performs the directional walking method using the completely split polygon
-  std::vector<std::vector<int>::iterator> usedlabels;
-  if(numinters == 0)
-  {
-    return false;  // No intersections so return early
-  }
-  else
-  {
-    bool addingcurves = true;
-    int startinter = 1;  // Start at the first intersection
-    int nextinter;
-    bool currentelement = orientation;
-    int currentit = std::find(edgelabels[currentelement].begin(),
-                              edgelabels[currentelement].end(),
-                              startinter) -
-      edgelabels[currentelement].begin();
-    int startit = currentit;
-    int nextit = (currentit + 1) % edgelabels[0].size();
-    nextinter = edgelabels[currentelement][nextit];
-    while(numinters > 0)
+    // Objects to store completely split polygons (split at every intersection point) and vector with unique id for each
+    // intersection and zeros for corners of original polygons.
+    std::vector<int> edgelabels[2];
+
+    CurvedPolygon<T, NDIMS> psplit[2];
+    psplit[0] = p1;
+    psplit[1] = p2;
+    int addedints = 0;
+    for(int i = 0; i < p1.numEdges(); ++i)
     {
-      CurvedPolygon<T, NDIMS> aPart;  // To store the current intersection polygon (could be multiple)
-      while(!(nextit == startit && currentelement == orientation))
+      edgelabels[0].push_back(0);
+      for(int j = 0; j < static_cast<int>(E1IntData[i].size()); ++j)
       {
-        if(nextit == currentit)
+        psplit[0].splitEdge(i + addedints, E1IntData[i][j].myTime);
+        edgelabels[0].insert(edgelabels[0].begin() + i + addedints,
+                             E1IntData[i][j].numinter);
+        addedints += 1;
+        for(int k = j + 1; k < static_cast<int>(E1IntData[i].size()); ++k)
         {
-          nextit = (currentit + 1) % edgelabels[0].size();
+          E1IntData[i][k].myTime =
+            (E1IntData[i][k].myTime - E1IntData[i][j].myTime) /
+            (1 - E1IntData[i][j].myTime);
         }
-        nextinter = edgelabels[currentelement][nextit];
-        while(nextinter == 0)
+      }
+    }
+
+    addedints = 0;
+    for(int i = 0; i < p2.numEdges(); ++i)
+    {
+      edgelabels[1].push_back(0);
+      for(int j = 0; j < static_cast<int>(E2IntData[i].size()); ++j)
+      {
+        psplit[1].splitEdge(i + addedints, E2IntData[i][j].myTime);
+        edgelabels[1].insert(edgelabels[1].begin() + i + addedints,
+                             E2IntData[i][j].numinter);
+        addedints += 1;
+        for(int k = j + 1; k < static_cast<int>(E2IntData[i].size()); ++k)
         {
-          currentit = nextit;
+          E2IntData[i][k].myTime =
+            (E2IntData[i][k].myTime - E2IntData[i][j].myTime) /
+            (1 - E2IntData[i][j].myTime);
+        }
+      }
+    }
+
+    // This performs the directional walking method using the completely split polygon
+    std::vector<std::vector<int>::iterator> usedlabels;
+    if(numinters == 0)
+    {
+      return false;  // No intersections so return early
+    }
+    else
+    {
+      bool addingcurves = true;
+      int startinter = 1;  // Start at the first intersection
+      int nextinter;
+      bool currentelement = orientation;
+      int currentit = std::find(edgelabels[currentelement].begin(),
+                                edgelabels[currentelement].end(),
+                                startinter) -
+        edgelabels[currentelement].begin();
+      int startit = currentit;
+      int nextit = (currentit + 1) % edgelabels[0].size();
+      nextinter = edgelabels[currentelement][nextit];
+      while(numinters > 0)
+      {
+        CurvedPolygon<T, NDIMS> aPart;  // To store the current intersection polygon (could be multiple)
+        while(!(nextit == startit && currentelement == orientation))
+        {
+          if(nextit == currentit)
+          {
+            nextit = (currentit + 1) % edgelabels[0].size();
+          }
+          nextinter = edgelabels[currentelement][nextit];
+          while(nextinter == 0)
+          {
+            currentit = nextit;
+            if(addingcurves)
+            {
+              aPart.addEdge(psplit[currentelement][nextit]);
+            }
+            nextit = (currentit + 1) % edgelabels[0].size();
+            nextinter = edgelabels[currentelement][nextit];
+          }
           if(addingcurves)
           {
             aPart.addEdge(psplit[currentelement][nextit]);
+            currentelement = !currentelement;
+            nextit = std::find(edgelabels[currentelement].begin(),
+                               edgelabels[currentelement].end(),
+                               nextinter) -
+              edgelabels[currentelement].begin();
+            currentit = nextit;
+            numinters -= 1;
           }
-          nextit = (currentit + 1) % edgelabels[0].size();
-          nextinter = edgelabels[currentelement][nextit];
+          else
+          {
+            addingcurves = true;
+            currentit = nextit;
+            nextit = std::find(edgelabels[currentelement].begin(),
+                               edgelabels[currentelement].end(),
+                               nextinter) -
+              edgelabels[currentelement].begin();
+          }
         }
-        if(addingcurves)
-        {
-          aPart.addEdge(psplit[currentelement][nextit]);
-          currentelement = !currentelement;
-          nextit = std::find(edgelabels[currentelement].begin(),
-                             edgelabels[currentelement].end(),
-                             nextinter) -
-            edgelabels[currentelement].begin();
-          currentit = nextit;
-          numinters -= 1;
-        }
-        else
-        {
-          addingcurves = true;
-          currentit = nextit;
-          nextit = std::find(edgelabels[currentelement].begin(),
-                             edgelabels[currentelement].end(),
-                             nextinter) -
-            edgelabels[currentelement].begin();
-        }
+        pnew.push_back(aPart);
       }
-      pnew.push_back(aPart);
+      addingcurves = false;
     }
-    addingcurves = false;
+    return true;
   }
-  return true;
+  return false;
 }
 
 // This determines with curve is "more" counterclockwise using the cross product of tangents
 template <typename T, int NDIMS>
 bool orient(const BezierCurve<T, NDIMS> c1, const BezierCurve<T, NDIMS> c2, T s, T t)
 {
-  Point<T, NDIMS> dc1s = c1.dt(s);
-  Point<T, NDIMS> dc2t = c2.dt(t);
-  Point<T, NDIMS> origin = primal::Point<T, NDIMS>::make_point(0.0, 0.0);
-  auto orientation = detail::twoDcross(dc1s, dc2t, origin);
-  return (orientation < 0);
+  const auto orientation =
+    primal::Vector<T, 3>::cross_product(c1.dt(s), c2.dt(t))[2];
+  return (orientation > 0);
 }
 
 // A class for storing intersection points so they can be easily sorted by parameter value

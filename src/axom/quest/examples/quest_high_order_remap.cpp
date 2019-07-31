@@ -359,6 +359,7 @@ public:
                 //<< " -- bbox " << tgtMesh.elementBoundingBox(i)
       );
 
+      double A = 0.0;
       for(int srcElem : candidates)
       {
         auto srcPoly = srcMesh.elemAsCurvedPolygon(srcElem);
@@ -367,9 +368,19 @@ public:
                   //<< " -- bbox " << srcMesh.elementBoundingBox(srcElem)
         );
 
+        std::vector<primal::CurvedPolygon<double, 2>> pnew;
+        if(primal::intersect_polygon(tgtPoly, srcPoly, pnew))
+        {
+          for(int i = 0; i < static_cast<int>(pnew.size()); ++i)
+          {
+            A = A + primal::area(pnew[i]);
+            SLIC_INFO("** Intersection area :" << primal::area(pnew[i]));
+          }
+        }
         // TODO: Compute intersections and areas for this pairs
         // Note -- there can be more than one CurvedPolygon in the intersection
       }
+      SLIC_INFO("Calculated Area :" << A);
     }
   }
 
