@@ -37,8 +37,9 @@ class IntersectionInfo;
 template <typename T, int NDIMS>
 bool orient(BezierCurve<T,NDIMS> c1, BezierCurve<T,NDIMS> c2, T s, T t);
 */
+
 /*!
- * \brief Test whether CurvedPolygons p1 and p2 intersect.
+ * \brief Test whether CurvedPolygons p1 and p2 intersect and find intersection points
  * \return status true iff p1 intersects with p2, otherwise false.
  *
  * \param p1, p2 CurvedPolygon objects to intersect
@@ -84,18 +85,19 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
     }
 
     // Orient the first intersection point to be sure we get the intersection
-    bool orientation = !orient(p1[firstinter.myEdge],
-                               p2[firstinter.otherEdge],
-                               firstinter.myTime,
-                               firstinter.otherTime);
+    bool orientation = orient(p1[firstinter.myEdge],
+                              p2[firstinter.otherEdge],
+                              firstinter.myTime,
+                              firstinter.otherTime);
 
     // Objects to store completely split polygons (split at every intersection point) and vector with unique id for each
     // intersection and zeros for corners of original polygons.
-    std::vector<int> edgelabels[2];
-
-    CurvedPolygon<T, NDIMS> psplit[2];
+    std::vector<int> edgelabels[2];  // 0 for curves that end in original vertices, unique id for curves that end in intersection points
+    CurvedPolygon<T, NDIMS> psplit[2];  // The two completely split polygons will be stored in this array
     psplit[0] = p1;
     psplit[1] = p2;
+
+    //split polygon 1 at all the intersection points and store as psplit[0]
     int addedints = 0;
     for(int i = 0; i < p1.numEdges(); ++i)
     {
@@ -115,6 +117,7 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
       }
     }
 
+    //split polygon 2 at all the intersection points and store as psplit[1]
     addedints = 0;
     for(int i = 0; i < p2.numEdges(); ++i)
     {
@@ -134,74 +137,253 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
       }
     }
 
-    // This performs the directional walking method using the completely split polygon
+    // This performs the directional walking method using the completely split polygons
     std::vector<std::vector<int>::iterator> usedlabels;
-    if(numinters == 0)
+    // When this is false, we are walking between intersection regions
+    bool addingcurves = true;
+    int startvertex = 1;  // Start at the vertex with "unique id" 1
+    int nextvertex;       // The next vertex id is unknown at this time
+    // This variable allows us to switch between the two elements
+    bool currentelement = orientation;
+    // This is the iterator pointing to the end vertex of the edge  of the completely split polygon we are on
+    int currentit = std::find(edgelabels[currentelement].begin(),
+                              edgelabels[currentelement].end(),
+                              startvertex) -
+      edgelabels[currentelement].begin();
+    // This is the iterator to the end vertex of the starting edge on the starting polygon
+    int startit = currentit;
+    // This is the iterator to the end vertex of the next edge of whichever polygon we will be on next
+    int nextit = (currentit + 1) % edgelabels[0].size();
+    nextvertex = edgelabels[currentelement][nextit];  // This is the next vertex id
+    while(numinters > 0)
     {
-      return false;  // No intersections so return early
-    }
-    else
-    {
-      bool addingcurves = true;
-      int startinter = 1;  // Start at the first intersection
-      int nextinter;
-      bool currentelement = orientation;
-      int currentit = std::find(edgelabels[currentelement].begin(),
-                                edgelabels[currentelement].end(),
-                                startinter) -
-        edgelabels[currentelement].begin();
-      int startit = currentit;
-      int nextit = (currentit + 1) % edgelabels[0].size();
-      nextinter = edgelabels[currentelement][nextit];
-      while(numinters > 0)
+      CurvedPolygon<T, NDIMS> aPart;  // Object to store the current intersection polygon (could be multiple)
+      // Once the end vertex of the current edge is the start vertex, we need to switch regions
+      while(!(nextit == startit && currentelement == orientation) ||
+            addingcurves == false)
       {
-        CurvedPolygon<T, NDIMS> aPart;  // To store the current intersection polygon (could be multiple)
-        while(!(nextit == startit && currentelement == orientation))
+        if(nextit == currentit)
         {
-          if(nextit == currentit)
-          {
-            nextit = (currentit + 1) % edgelabels[0].size();
-          }
-          nextinter = edgelabels[currentelement][nextit];
-          while(nextinter == 0)
-          {
-            currentit = nextit;
-            if(addingcurves)
-            {
-              aPart.addEdge(psplit[currentelement][nextit]);
-            }
-            nextit = (currentit + 1) % edgelabels[0].size();
-            nextinter = edgelabels[currentelement][nextit];
-          }
+          nextit = (currentit + 1) % edgelabels[0].size();
+        }
+        nextvertex = edgelabels[currentelement][nextit];
+        while(nextvertex == 0)
+        {
+          currentit = nextit;
           if(addingcurves)
           {
             aPart.addEdge(psplit[currentelement][nextit]);
+          }
+          nextit = (currentit + 1) % edgelabels[0].size();
+          nextvertex = edgelabels[currentelement][nextit];
+        }
+        if(edgelabels[currentelement][nextit] > 0)
+        {
+          if(addingcurves)
+          {
+            aPart.addEdge(psplit[currentelement][nextit]);
+            edgelabels[currentelement][nextit] =
+              -edgelabels[currentelement][nextit];
             currentelement = !currentelement;
             nextit = std::find(edgelabels[currentelement].begin(),
                                edgelabels[currentelement].end(),
-                               nextinter) -
+                               nextvertex) -
               edgelabels[currentelement].begin();
+            edgelabels[currentelement][nextit] =
+              -edgelabels[currentelement][nextit];
             currentit = nextit;
             numinters -= 1;
           }
           else
           {
             addingcurves = true;
+            startit = nextit;
             currentit = nextit;
-            nextit = std::find(edgelabels[currentelement].begin(),
-                               edgelabels[currentelement].end(),
-                               nextinter) -
-              edgelabels[currentelement].begin();
+            nextit = (currentit + 1) % edgelabels[0].size();
+            orientation = currentelement;
           }
         }
-        pnew.push_back(aPart);
+        else
+        {
+          currentelement = !currentelement;
+          nextit = std::find(edgelabels[currentelement].begin(),
+                             edgelabels[currentelement].end(),
+                             nextvertex) -
+            edgelabels[currentelement].begin();
+          edgelabels[currentelement][nextit] =
+            -edgelabels[currentelement][nextit];
+          currentit = nextit;
+        }
       }
-      addingcurves = false;
+      pnew.push_back(aPart);
+      currentelement = !currentelement;
+      currentit = std::find(edgelabels[currentelement].begin(),
+                            edgelabels[currentelement].end(),
+                            -nextvertex) -
+        edgelabels[currentelement].begin();
+      nextit = (currentit + 1) % edgelabels[0].size();
+      if(numinters > 0)
+      {
+        addingcurves = false;
+      }
     }
     return true;
   }
+  else
+  {
+    int containment = isContained(p1, p2);
+    if(containment == 0)
+    {
+      return false;
+    }
+    else
+    {
+      if(containment == 1)
+      {
+        pnew.push_back(p1);
+      }
+      else
+      {
+        pnew.push_back(p2);
+      }
+      return true;
+    }
+  }
+  // If there are no intersections, return false
   return false;
 }
+
+/*! 
+ * \brief Checks if two polygons are mutually exclusive or if one includes the other,
+ * assuming that they have no intersection points
+ *
+ * \param [in] p1, p2 CurvedPolygons to be tested
+ * \return 0 if mutually exclusive, 1 if p1 is in p2, 2 if p2 is in p1
+ */
+template <typename T>
+int isContained(const CurvedPolygon<T, 2> p1, const CurvedPolygon<T, 2> p2)
+{
+  const int NDIMS = 2;
+  using PointType = primal::Point<T, NDIMS>;
+  using BCurve = BezierCurve<T, NDIMS>;
+  int p1c = 0;
+  int p2c = 0;
+  T p1t = .5;
+  T p2t = .5;
+  PointType controlPoints[2] = {p1[p1c].evaluate(p1t), p2[p2c].evaluate(p2t)};
+  BCurve LineGuess = BCurve(controlPoints, 1);
+  T line1s = 0.0;
+  T line2s = 0.0;
+  for(int j = 0; j < p1.numEdges(); ++j)
+  {
+    std::vector<T> temps;
+    std::vector<T> tempt;
+    intersect(LineGuess, p1[j], temps, tempt);
+    for(int i = 0; i < temps.size(); ++i)
+    {
+      if(temps[i] > line1s)
+      {
+        line1s = temps[i];
+        p1c = j;
+        p1t = tempt[i];
+      }
+    }
+  }
+  for(int j = 0; j < p2.numEdges(); ++j)
+  {
+    std::vector<T> temps;
+    std::vector<T> tempt;
+    intersect(LineGuess, p2[j], temps, tempt);
+    for(int i = 0; i < temps.size(); ++i)
+    {
+      if(temps[i] < line2s && temps[i] > line1s)
+      {
+        line2s = temps[i];
+        p2c = j;
+        p2t = tempt[i];
+      }
+    }
+  }
+
+  using Vec3 = primal::Vector<T, 3>;
+  bool E1inE2 = Vec3::cross_product(p1[p1c].dt(p1t), LineGuess.dt(line1s))[2] < 0;
+  bool E2inE1 = Vec3::cross_product(p2[p2c].dt(p2t), LineGuess.dt(line2s))[2] < 0;
+  if(E1inE2 && E2inE1)
+  {
+    return 1;
+  }
+  else if(!E1inE2 && !E2inE1)
+  {
+    return 2;
+  }
+  else
+  {
+    return 0;
+  }
+}
+
+/*
+template <typename T>
+bool isContained(const CurvedPolygon<T,2>, p1, const CurvedPolygon<T,2> p2)
+{
+  BezierCurve lineGuess({p1[0].eval(.5), p2[0].eval(.5));a
+  T startTime=0.0;
+  T endTime=1.0;
+  std::vector<IntersectionInfo> lineInts;
+  for (int i=0; i<p1.numEdges(); ++i)
+  {
+     std::vector<T> otherInts;
+     std::vector<T> tempLineInts;
+     intersect(lineGuess[i],p1[j],tempLineInts,otherInts,1e-15);
+     for (int j=0; j<tempLineInts.size(); ++j)
+     {
+       lineInts.push_back({tempLineInts[j],0,otherInts[j],i,0});
+     }
+  }
+  for (int i=0; i<p1.numEdges(); ++i)
+  {
+     std::vector<T> otherInts;
+     std::vector<T> tempLineInts;
+     intersect(lineGuess[i],p2[j],tempLineInts,otherInts,1e-15);
+     for (int j=0; j<tempLineInts.size(); ++j)
+     {
+       lineInts.push_back({tempLineInts[j],1,otherInts[j],i,0});
+     }
+  }
+    std::sort( lineInts.begin(), lineInts.end() );
+    bool correctintsfound =false;
+    int counterint=0;
+    while (correctintsfound==false && counterint<lineInts.size())
+    {
+      if (lineInts[counterint].numinter==0 && lineInts[counterint+1].numinter==1)
+      {
+        correctintsfound=true;
+      }
+      counterint+=1;
+    }
+    if (counterint==0)
+    {
+      Point<T,NDIMS> dc1s = p1[0].dt(.5);
+      Point<T,NDIMS> dc2t = p2[0].dt(.5);
+      Point<T,NDIMS> dc1line = lineGuess.dt(0.0);
+      Point<T,NDIMS> dc2line = lineGuess.dt(1.0);
+      Point<T,NDIMS> origin = primal::Point< T, NDIMS >::make_point(0.0, 0.0);
+      bool contains12 = (detail::twoDcross(dc1s,dc1line,origin)>0);
+      bool contains21 = (detail::twoDcross(dc2t,dc2line,origin)>0);
+    }
+    else
+    {
+      Point<T,NDIMS> dc1s = p1[lineInts[counterint].myEdge].dt(lineInts[counterint].otherTime);
+      Point<T,NDIMS> dc2t = p2[lineInts[counterint+1].myEdge].dt(lineInts[counterint+1].otherTime);
+      Point<T,NDIMS> dc1line = lineGuess.dt(lineInts[counterint].myTime);
+      Point<T,NDIMS> dc2line = lineGuess.dt(lineInts[counterint+1].myTime);
+      Point<T,NDIMS> origin = primal::Point< T, NDIMS >::make_point(0.0, 0.0);
+      bool contains12 = (detail::twoDcross(dc1s,dc1line,origin)>0);
+      bool contains21 = (detail::twoDcross(dc2t,dc2line,origin)>0);
+    }
+    return true;
+}
+*/
 
 // This determines with curve is "more" counterclockwise using the cross product of tangents
 template <typename T, int NDIMS>
