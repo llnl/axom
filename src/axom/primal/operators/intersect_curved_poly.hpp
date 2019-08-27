@@ -63,7 +63,7 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
     {
       std::vector<T> p1times;
       std::vector<T> p2times;
-      intersect(p1[i], p2[j], p1times, p2times, 1e-15);
+      intersect(p1[i], p2[j], p1times, p2times, 1e-10);
       for(int k = 0; k < static_cast<int>(p1times.size()); ++k)
       {
         E1IntData[i].push_back({p1times[k], i, p2times[k], j, numinters + k + 1});
@@ -273,7 +273,7 @@ int isContained(const CurvedPolygon<T, 2> p1, const CurvedPolygon<T, 2> p2)
   PointType controlPoints[2] = {p1[p1c].evaluate(p1t), p2[p2c].evaluate(p2t)};
   BCurve LineGuess = BCurve(controlPoints, 1);
   T line1s = 0.0;
-  T line2s = 0.0;
+  T line2s = 1.0;
   for(int j = 0; j < p1.numEdges(); ++j)
   {
     std::vector<T> temps;
@@ -321,69 +321,6 @@ int isContained(const CurvedPolygon<T, 2> p1, const CurvedPolygon<T, 2> p2)
     return 0;
   }
 }
-
-/*
-template <typename T>
-bool isContained(const CurvedPolygon<T,2>, p1, const CurvedPolygon<T,2> p2)
-{
-  BezierCurve lineGuess({p1[0].eval(.5), p2[0].eval(.5));a
-  T startTime=0.0;
-  T endTime=1.0;
-  std::vector<IntersectionInfo> lineInts;
-  for (int i=0; i<p1.numEdges(); ++i)
-  {
-     std::vector<T> otherInts;
-     std::vector<T> tempLineInts;
-     intersect(lineGuess[i],p1[j],tempLineInts,otherInts,1e-15);
-     for (int j=0; j<tempLineInts.size(); ++j)
-     {
-       lineInts.push_back({tempLineInts[j],0,otherInts[j],i,0});
-     }
-  }
-  for (int i=0; i<p1.numEdges(); ++i)
-  {
-     std::vector<T> otherInts;
-     std::vector<T> tempLineInts;
-     intersect(lineGuess[i],p2[j],tempLineInts,otherInts,1e-15);
-     for (int j=0; j<tempLineInts.size(); ++j)
-     {
-       lineInts.push_back({tempLineInts[j],1,otherInts[j],i,0});
-     }
-  }
-    std::sort( lineInts.begin(), lineInts.end() );
-    bool correctintsfound =false;
-    int counterint=0;
-    while (correctintsfound==false && counterint<lineInts.size())
-    {
-      if (lineInts[counterint].numinter==0 && lineInts[counterint+1].numinter==1)
-      {
-        correctintsfound=true;
-      }
-      counterint+=1;
-    }
-    if (counterint==0)
-    {
-      Point<T,NDIMS> dc1s = p1[0].dt(.5);
-      Point<T,NDIMS> dc2t = p2[0].dt(.5);
-      Point<T,NDIMS> dc1line = lineGuess.dt(0.0);
-      Point<T,NDIMS> dc2line = lineGuess.dt(1.0);
-      Point<T,NDIMS> origin = primal::Point< T, NDIMS >::make_point(0.0, 0.0);
-      bool contains12 = (detail::twoDcross(dc1s,dc1line,origin)>0);
-      bool contains21 = (detail::twoDcross(dc2t,dc2line,origin)>0);
-    }
-    else
-    {
-      Point<T,NDIMS> dc1s = p1[lineInts[counterint].myEdge].dt(lineInts[counterint].otherTime);
-      Point<T,NDIMS> dc2t = p2[lineInts[counterint+1].myEdge].dt(lineInts[counterint+1].otherTime);
-      Point<T,NDIMS> dc1line = lineGuess.dt(lineInts[counterint].myTime);
-      Point<T,NDIMS> dc2line = lineGuess.dt(lineInts[counterint+1].myTime);
-      Point<T,NDIMS> origin = primal::Point< T, NDIMS >::make_point(0.0, 0.0);
-      bool contains12 = (detail::twoDcross(dc1s,dc1line,origin)>0);
-      bool contains21 = (detail::twoDcross(dc2t,dc2line,origin)>0);
-    }
-    return true;
-}
-*/
 
 // This determines with curve is "more" counterclockwise using the cross product of tangents
 template <typename T, int NDIMS>

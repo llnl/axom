@@ -8,6 +8,8 @@
  * \brief Demonstrates conservative field remap on 2D high order meshes
  */
 
+#include <chrono>
+
 // Axom includes
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -183,9 +185,10 @@ public:
 
       // Note: mfem's orientation is reversed w.r.t. primal's
       //SLIC_INFO("Elem " << elemId << " edge " << e << " -- curve: " << curve);
+      //curve.reverseOrientation();
       poly[nEdges - e - 1] = curve;
     }
-
+    //  std::cout << poly << std::endl;
     return poly;
   }
 
@@ -264,20 +267,20 @@ public:
   }
 
   /*! Set up the source and target meshes */
-  void setupMeshes()
+  void setupMeshes(int res1, int res2, int order)
   {
     const auto quadType = mfem::Element::QUADRILATERAL;
     const int dim = 2;
 
-    // paramters for target mesh -- quad mesh covering unit square
-    const int src_res = 2;
-    const int src_ord = 2;
+    // paramters for source  mesh -- quad mesh covering unit square
+    const int src_res = res2;
+    const int src_ord = order;
 
     // paramters for target mesh -- quad mesh covering (part of) unit square
-    const int tgt_res = 3;
-    const int tgt_ord = 3;
-    const double tgt_scale = .9;
-    const double tgt_trans = .05;
+    const int tgt_res = res1;
+    const int tgt_ord = order;
+    const double tgt_scale = .712378102150;
+    const double tgt_trans = .1345747181586;
 
     // create the source mesh
     {
@@ -294,7 +297,7 @@ public:
       fesMap.Register("src_fes", fes, true);
       mesh->SetNodalFESpace(fes);
 
-      SLIC_INFO("Writing to: " << axom::utilities::filesystem::getCWD());
+      // SLIC_INFO("Writing to: " << axom::utilities::filesystem::getCWD());
       {
         std::ofstream file;
         file.open("source_mesh.mfem");
@@ -326,7 +329,77 @@ public:
       tgtMesh.setMesh(mesh);
     }
   }
+  void loadMeshes(int res2, int order)
+  {
+    // create the source mesh
+    const auto quadType = mfem::Element::QUADRILATERAL;
+    const int dim = 2;
 
+    // paramters for target mesh -- quad mesh covering unit square
+    const int src_res = res2;
+    const int src_ord = order;
+    const double src_scale = 6.0;
+    const double src_trans = -3.001;
+
+    // paramters for target mesh -- quad mesh covering (part of) unit square
+    const int tgt_ord = 2;
+
+    {
+      // create mfem mesh
+      auto* mesh = new mfem::Mesh(src_res, src_res, quadType, true);
+      xformMesh(mesh, src_scale, src_trans);
+
+      // create finite element collection for nodes
+      auto* fec =
+        new mfem::H1_FECollection(src_ord, dim, mfem::BasisType::Positive);
+      fecMap.Register("src_fec", fec, true);
+
+      // create finite element space for nodes
+      auto* fes = new mfem::FiniteElementSpace(mesh, fec, dim);
+      fesMap.Register("src_fes", fes, true);
+      mesh->SetNodalFESpace(fes);
+
+      // SLIC_INFO("Writing to: " << axom::utilities::filesystem::getCWD());
+      {
+        std::ofstream file;
+        file.open("source_mesh.mfem");
+        mesh->Print(file);
+      }
+
+      srcMesh.setMesh(mesh);
+    }
+    // create the target mesh
+    {
+      auto* mesh = new mfem::Mesh("./disc-nurbs-80.mesh", 1, 1);
+      if(mesh->NURBSext)
+      {
+        int order = tgt_ord;
+        mesh->SetCurvature(order);
+      }
+      // xformMesh(mesh, tgt_scale, tgt_trans);
+      {
+        std::ofstream file;
+        file.open("target_mesh_orig.mfem");
+        mesh->Print(file);
+      }
+
+      auto* fec =
+        new mfem::H1_FECollection(tgt_ord, dim, mfem::BasisType::Positive);
+      fecMap.Register("tgt_fec", fec, true);
+
+      auto* fes = new mfem::FiniteElementSpace(mesh, fec, dim);
+      fesMap.Register("tgt_fes", fes, true);
+      mesh->SetNodalFESpace(fes);
+
+      {
+        std::ofstream file;
+        file.open("target_mesh_set.mfem");
+        mesh->Print(file);
+      }
+      std::cout << "Got here!" << std::endl;
+      tgtMesh.setMesh(mesh);
+    }
+  }
   /*! Setup the implicit grid spatial index over the source mesh */
   void setupGrid()
   {
@@ -343,45 +416,74 @@ public:
    * Computes the overlap areas between the elements of the target mesh
    * to the elements of the source mesh
    */
-  void computeOverlapAreas()
+  double computeOverlapAreas()
   {
+    double totalArea = 0.0;
+    double correctArea = 0.0;
     const int nTargetElems = tgtMesh.numElements();
+    //  SLIC_INFO("Number of Target Elements: " << nTargetElems);
+    double calcE = 0.0;
     for(int i = 0; i < nTargetElems; ++i)
     {
       // Finds the candidates from the source mesh that
       // can intersect this target element
       auto candidates = getSourceCandidates(i);
-
       if(candidates.empty()) break;
 
       auto tgtPoly = tgtMesh.elemAsCurvedPolygon(i);
-      SLIC_INFO("Target elem " << i << " -- area " << primal::area(tgtPoly)
-                //<< " -- bbox " << tgtMesh.elementBoundingBox(i)
-      );
+      //  SLIC_INFO("Target Element: " << tgtPoly);
+      correctArea += primal::area(tgtPoly);
+      //j  SLIC_INFO("Target elem " << i
+      //j                           << " -- area " << primal::area(tgtPoly)
+      //j            //<< " -- bbox " << tgtMesh.elementBoundingBox(i)
+      //j            );
 
       double A = 0.0;
       for(int srcElem : candidates)
       {
         auto srcPoly = srcMesh.elemAsCurvedPolygon(srcElem);
-        SLIC_INFO("* Source elem " << srcElem << " -- area "
-                                   << primal::area(srcPoly)
-                  //<< " -- bbox " << srcMesh.elementBoundingBox(srcElem)
-        );
+        //   SLIC_INFO("*Source Element: " << srcPoly);
+        //   SLIC_INFO("* Source elem " << srcElem
+        //                              << " -- area " << primal::area(srcPoly)
+        ////             //<< " -- bbox " << srcMesh.elementBoundingBox(srcElem)
+        //             );
 
         std::vector<primal::CurvedPolygon<double, 2>> pnew;
+        tgtPoly.reverseOrientation();
+        srcPoly.reverseOrientation();
         if(primal::intersect_polygon(tgtPoly, srcPoly, pnew))
         {
           for(int i = 0; i < static_cast<int>(pnew.size()); ++i)
           {
-            A = A + primal::area(pnew[i]);
-            SLIC_INFO("** Intersection area :" << primal::area(pnew[i]));
+            A -= primal::area(pnew[i]);
+            //   SLIC_INFO("** Intersection area :" << -primal::area(pnew[i])
+            //            );
           }
         }
-        // TODO: Compute intersections and areas for this pairs
-        // Note -- there can be more than one CurvedPolygon in the intersection
+        srcPoly.reverseOrientation();
+        tgtPoly.reverseOrientation();
+        //  SLIC_INFO("* Calculated area:  " << srcElem
+        //                             << " -- area " << A
+        //            //<< " -- bbox " << srcMesh.elementBoundingBox(srcElem)
+        //            );
       }
-      SLIC_INFO("Calculated Area :" << A);
+      calcE += abs(primal::area(tgtPoly) - A);
+      totalArea += A;
+      //  SLIC_INFO("Calculated Area :" << A);
     }
+    //  std::cout << inclusion << ", ";
+    //  std::cout << calcE << ", ";
+    //  const double tgt_scale = .999712378102150;
+    //  const double tgt_trans = .0001345747181586;
+    //  const double tgt_scale = .9999712378102150;
+    //  const double tgt_trans = .00001345747181586;
+    //  const double tgt_scale = .99999999999712378102150;
+    //  const double tgt_trans = .000000000001345747181586;
+    //  double trueError = (tgt_scale*tgt_scale-totalArea);
+    //  std::cout << trueError << ", ";
+    std::cout << totalArea << std::endl;
+    std::cout << correctArea << std::endl;
+    return (totalArea - correctArea);
   }
 
   /*!
@@ -424,39 +526,87 @@ private:
   // scale and translate the vertices of the given mesh
   void xformMesh(mfem::Mesh* mesh, double sc, double off)
   {
+    std::cout << "Transforming Mesh now" << std::endl;
     for(int v = 0; v < mesh->GetNV(); ++v)
     {
       double* pt = mesh->GetVertex(v);
-      pt[0] = sc * pt[0] + off;
+      //  if (v==0)
+      //  {
+      //    std::cout << pt[0] << " , " << pt[1] << std::endl;
+      //  }
+      //  pt[0] = sc*pt[0] + off;
+      pt[0] = sc * pt[0] + off + .000147582957;
       pt[1] = sc * pt[1] + off;
+
+      /* if (v%3==0)
+      {
+        pt[0] = pt[0]-.01748;
+      }
+      if (v%5==0)
+      {
+        pt[0] = pt[0]+.004;
+      }
+      if (v%7==0)
+      {
+        pt[1] = pt[1]+.0243;
+      }*/
+      //  if (v==0)
+      //  {
+      //    std::cout << pt[0] << " , " << pt[1] << std::endl;
+      //  }
     }
+    //   for (int e =0 ; e < mesh->GetNEdges() ; ++e)
+    //   {
+    //     mfem::array<int> dofs();
+    //     GetEdgeDofs(e, dofs);
+    //   }
   }
 };
 
 //------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-  AXOM_UNUSED_VAR(argc);
-  AXOM_UNUSED_VAR(argv);
-
   axom::slic::SimpleLogger logger;
 
   SLIC_INFO("The application conservatively maps fields from a source \n"
             << "high order mesh to a target high order mesh!");
+  //  int res1=1;
+  //  Remapper remap;
+  //  res1=5;
+  //  int res2=res1+1;
+  //  remap.loadMeshes(res1,2);
+  //  remap.setupGrid();
+  //  double Area = remap.computeOverlapAreas();
+  //  std::cout << std::endl << Area << std::endl;
 
-  Remapper remap;
+  //  return 0;
 
-  // Setup the two meshes in the Bernstein basis
-  // The current implementation hard-codes the two meshes
-  // TODO: Read in two meshes from disk.
-  //       In that case, we will need to convert the FEC to the Bernstein basis
-  remap.setupMeshes();
+  int res1 = 1;
+  std::cout << "[";
+  for(int i = 2; i <= 2; ++i)
+  {
+    Remapper remap;
 
-  // Set up the spatial index
-  remap.setupGrid();
+    // res1= res1*2;
 
-  // Computes the overlaps between elements of the target and source meshes
-  remap.computeOverlapAreas();
+    res1 = 25;
+    int res2 = res1 + 2;
+    // Setup the two meshes in the Bernstein basis
+    // The current implementation hard-codes the two meshes
+    // TODO: Read in two meshes from disk.
+    //       In that case, we will need to convert the FEC to the Bernstein basis
+    //  remap.setupMeshes(res1, res2, i);
+    remap.loadMeshes(res1, i);
 
+    // Set up the spatial index
+    remap.setupGrid();
+    auto start = std::chrono::high_resolution_clock::now();
+    // Computes the overlaps between elements of the target and source meshes
+    double Area = remap.computeOverlapAreas();
+    auto finish = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = finish - start;
+    std::cout << i << ", " << Area << "," << elapsed.count() << std::endl;
+  }
+  std::cout << "]" << std::endl;
   return 0;
 }
