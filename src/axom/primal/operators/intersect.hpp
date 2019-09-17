@@ -33,11 +33,13 @@
 #include "axom/primal/geometry/BezierPatch.hpp"
 #include "axom/primal/geometry/NURBSCurve.hpp"
 #include "axom/primal/geometry/NURBSPatch.hpp"
+#include "axom/primal/geometry/CurvedPolygon.hpp"
 
 #include "axom/primal/operators/detail/intersect_impl.hpp"
 #include "axom/primal/operators/detail/intersect_ray_impl.hpp"
 #include "axom/primal/operators/detail/intersect_bounding_box_impl.hpp"
 #include "axom/primal/operators/detail/intersect_bezier_impl.hpp"
+#include "axom/primal/operators/detail/intersect_curved_poly_impl.hpp"
 #include "axom/primal/operators/detail/intersect_patch_impl.hpp"
 
 namespace axom
@@ -658,6 +660,44 @@ bool intersect(const OrientedBoundingBox<T, 3>& b1,
 
 /// \name Bezier Curve Intersection Routines
 /// @{
+
+/*!
+ * \brief Tests if two CurvedPolygon \a p1 and \a p2 intersect.
+ * \return status true iff \a p1 intersects \a p2, otherwise false.
+ *
+ * \param [in] p1 the first CurvedPolygon 
+ * \param [in] p2 the second CurvedPolygon
+ * \param [out] pnew vector of resulting CurvedPolygons
+ * \return True if the curvedPolygons intersect, false otherwise. 
+ *
+ * Finds the set of curved polygons that bound the region of intersection between p1 and p2.
+ *
+ * \note This function assumes two dimensional curved polygons  in a plane.
+ *
+ * \note This function assumes that the curved polygons are in general 
+ * position. Specifically, we assume that all intersections are at points 
+ * and that the component curves don't overlap.
+ *
+ * \note This function assumes the all intersections have multiplicity 
+ * one, i.e. there are no points at which the component curves and their 
+ * derivatives both intersect. Thus, the function does not find tangencies.
+ *
+ * \note This function assumes that the component curves are half-open, 
+ * i.e. they contain their first endpoint, but not their last endpoint. 
+ * Thus, component curves do not intersect at \f$ s==1 \f$ or at 
+ * \f$ t==1 \f$.
+ */
+template <typename T, int NDIMS>
+bool intersect(CurvedPolygon<T, NDIMS>& p1,
+               CurvedPolygon<T, NDIMS>& p2,
+               std::vector<CurvedPolygon<T, NDIMS>>& pnew,
+               double tol = 1e-7)
+{
+  // for efficiency, linearity check actually uses a squared tolerance
+  const double sq_tol = tol * tol;
+
+  return detail::intersect_polygon(p1, p2, pnew, sq_tol);
+}
 
 /*!
  * \brief Tests if two Bezier Curves \a c1 and \a c2 intersect.

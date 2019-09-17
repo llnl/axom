@@ -451,7 +451,7 @@ public:
         std::vector<primal::CurvedPolygon<double, 2>> pnew;
         tgtPoly.reverseOrientation();
         srcPoly.reverseOrientation();
-        if(primal::intersect_polygon(tgtPoly, srcPoly, pnew))
+        if(primal::intersect(tgtPoly, srcPoly, pnew))
         {
           for(int i = 0; i < static_cast<int>(pnew.size()); ++i)
           {

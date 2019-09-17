@@ -4,13 +4,13 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 /*!
- * \file intersect_curved_poly.hpp
+ * \file intersect_curved_poly_impl.hpp
  *
  * \brief Consists of functions to test intersection among geometric primitives.
  */
 
-#ifndef AXOM_PRIMAL_INTERSECTION_CURVED_POLYGON_HPP_
-#define AXOM_PRIMAL_INTERSECTION_CURVED_POLYGON_HPP_
+#ifndef AXOM_PRIMAL_INTERSECTION_CURVED_POLYGON_IMPL_HPP_
+#define AXOM_PRIMAL_INTERSECTION_CURVED_POLYGON_IMPL_HPP_
 
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
@@ -25,18 +25,27 @@
 #include "axom/core/utilities/Utilities.hpp"
 
 #include "axom/primal/operators/squared_distance.hpp"
-#include "axom/primal/operators/intersect.hpp"
+#include "axom/primal/operators/detail/intersect_bezier_impl.hpp"
 
 namespace axom
 {
 namespace primal
 {
+namespace detail
+{
 template <typename T>
 class IntersectionInfo;
-/*
+
 template <typename T, int NDIMS>
-bool orient(BezierCurve<T,NDIMS> c1, BezierCurve<T,NDIMS> c2, T s, T t);
-*/
+bool orient(const BezierCurve<T, NDIMS> c1,
+            const BezierCurve<T, NDIMS> c2,
+            T s,
+            T t);
+
+template <typename T>
+int isContained(const CurvedPolygon<T, 2> p1,
+                const CurvedPolygon<T, 2> p2,
+                double sq_tol = 1e-10);
 
 /*!
  * \brief Test whether CurvedPolygons p1 and p2 intersect and find intersection points
@@ -48,7 +57,8 @@ bool orient(BezierCurve<T,NDIMS> c1, BezierCurve<T,NDIMS> c2, T s, T t);
 template <typename T, int NDIMS>
 bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
                        CurvedPolygon<T, NDIMS>& p2,
-                       std::vector<CurvedPolygon<T, NDIMS>>& pnew)
+                       std::vector<CurvedPolygon<T, NDIMS>>& pnew,
+                       double sq_tol)
 {
   // Object to store intersections
   std::vector<std::vector<IntersectionInfo<T>>> E1IntData(p1.numEdges());
@@ -63,7 +73,17 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
     {
       std::vector<T> p1times;
       std::vector<T> p2times;
-      intersect(p1[i], p2[j], p1times, p2times, 1e-10);
+      intersect_bezier_curves(p1[i],
+                              p2[j],
+                              p1times,
+                              p2times,
+                              sq_tol,
+                              p1[i].getOrder(),
+                              p2[j].getOrder(),
+                              1.,
+                              0.,
+                              1.,
+                              0.);
       for(int k = 0; k < static_cast<int>(p1times.size()); ++k)
       {
         E1IntData[i].push_back({p1times[k], i, p2times[k], j, numinters + k + 1});
@@ -85,10 +105,10 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
     }
 
     // Orient the first intersection point to be sure we get the intersection
-    bool orientation = orient(p1[firstinter.myEdge],
-                              p2[firstinter.otherEdge],
-                              firstinter.myTime,
-                              firstinter.otherTime);
+    bool orientation = detail::orient(p1[firstinter.myEdge],
+                                      p2[firstinter.otherEdge],
+                                      firstinter.myTime,
+                                      firstinter.otherTime);
 
     // Objects to store completely split polygons (split at every intersection point) and vector with unique id for each
     // intersection and zeros for corners of original polygons.
@@ -231,7 +251,7 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
   }
   else
   {
-    int containment = isContained(p1, p2);
+    int containment = isContained(p1, p2, sq_tol);
     if(containment == 0)
     {
       return false;
@@ -249,7 +269,7 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
       return true;
     }
   }
-  // If there are no intersections, return false
+  // If there are no intersections
   return false;
 }
 
@@ -261,7 +281,9 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
  * \return 0 if mutually exclusive, 1 if p1 is in p2, 2 if p2 is in p1
  */
 template <typename T>
-int isContained(const CurvedPolygon<T, 2> p1, const CurvedPolygon<T, 2> p2)
+int isContained(const CurvedPolygon<T, 2> p1,
+                const CurvedPolygon<T, 2> p2,
+                double sq_tol)
 {
   const int NDIMS = 2;
   using PointType = primal::Point<T, NDIMS>;
@@ -278,7 +300,17 @@ int isContained(const CurvedPolygon<T, 2> p1, const CurvedPolygon<T, 2> p2)
   {
     std::vector<T> temps;
     std::vector<T> tempt;
-    intersect(LineGuess, p1[j], temps, tempt);
+    intersect_bezier_curves(LineGuess,
+                            p1[j],
+                            temps,
+                            tempt,
+                            sq_tol,
+                            1,
+                            p1[j].getOrder(),
+                            1.,
+                            0.,
+                            1.,
+                            0.);
     for(int i = 0; i < temps.size(); ++i)
     {
       if(temps[i] > line1s)
@@ -293,7 +325,18 @@ int isContained(const CurvedPolygon<T, 2> p1, const CurvedPolygon<T, 2> p2)
   {
     std::vector<T> temps;
     std::vector<T> tempt;
-    intersect(LineGuess, p2[j], temps, tempt);
+    intersect_bezier_curves(LineGuess,
+                            p2[j],
+                            temps,
+                            tempt,
+                            sq_tol,
+                            1,
+                            p2[j].getOrder(),
+                            1.,
+                            0.,
+                            1.,
+                            0.);
+    intersect(LineGuess, p2[j], temps, tempt);  // ?
     for(int i = 0; i < temps.size(); ++i)
     {
       if(temps[i] < line2s && temps[i] > line1s)
@@ -344,7 +387,8 @@ public:
   bool operator<(IntersectionInfo other) { return myTime < other.myTime; }
 };
 
+}  // namespace detail
 }  // namespace primal
 }  // namespace axom
 
-#endif  // AXOM_PRIMAL_INTERSECTION_CURVED_POLYGON_HPP_
+#endif  // AXOM_PRIMAL_INTERSECTION_CURVED_POLYGON_IMPL_HPP_
