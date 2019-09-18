@@ -691,7 +691,7 @@ template <typename T, int NDIMS>
 bool intersect(CurvedPolygon<T, NDIMS>& p1,
                CurvedPolygon<T, NDIMS>& p2,
                std::vector<CurvedPolygon<T, NDIMS>>& pnew,
-               double tol = 1e-7)
+               double tol = 1e-8)
 {
   // for efficiency, linearity check actually uses a squared tolerance
   const double sq_tol = tol * tol;

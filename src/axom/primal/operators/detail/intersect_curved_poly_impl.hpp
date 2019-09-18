@@ -1,5 +1,5 @@
 // Copyright (c) 2017-2021, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -48,11 +48,12 @@ int isContained(const CurvedPolygon<T, 2> p1,
                 double sq_tol = 1e-10);
 
 /*!
- * \brief Test whether CurvedPolygons p1 and p2 intersect and find intersection points
+ * \brief Test whether the regions within CurvedPolygons p1 and p2 intersect. 
  * \return status true iff p1 intersects with p2, otherwise false.
  *
- * \param p1, p2 CurvedPolygon objects to intersect
- * \param pnew vector of type CurvedPolygon holding intersection regions oriented as the original curves were. 
+ * \param [in] p1, p2 CurvedPolygon objects to intersect
+ * \param [in] sq_tol tolerance parameter for the base case of intersect_bezier_curve
+ * \param [out] pnew vector of type CurvedPolygon holding CurvedPolygon objects representing boundaries of intersection regions. 
  */
 template <typename T, int NDIMS>
 bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
@@ -80,14 +81,15 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
                               sq_tol,
                               p1[i].getOrder(),
                               p2[j].getOrder(),
-                              1.,
                               0.,
                               1.,
-                              0.);
+                              0.,
+                              1.);
       for(int k = 0; k < static_cast<int>(p1times.size()); ++k)
       {
         E1IntData[i].push_back({p1times[k], i, p2times[k], j, numinters + k + 1});
         E2IntData[j].push_back({p2times[k], j, p1times[k], i, numinters + k + 1});
+        // std::cout << p1times[k] << ',' << p2times[k] << std::endl;
         if(numinters == 0)
         {
           firstinter = {p1times[0], i, p2times[0], j, 1};
@@ -110,52 +112,63 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
                                       firstinter.myTime,
                                       firstinter.otherTime);
 
-    // Objects to store completely split polygons (split at every intersection point) and vector with unique id for each
-    // intersection and zeros for corners of original polygons.
+    // Objects to store completely split polygons (split at every intersection point) and vector with unique id for each intersection and zeros for corners of original polygons.
     std::vector<int> edgelabels[2];  // 0 for curves that end in original vertices, unique id for curves that end in intersection points
     CurvedPolygon<T, NDIMS> psplit[2];  // The two completely split polygons will be stored in this array
     psplit[0] = p1;
     psplit[1] = p2;
 
     //split polygon 1 at all the intersection points and store as psplit[0]
+    /*
     int addedints = 0;
     for(int i = 0; i < p1.numEdges(); ++i)
     {
       edgelabels[0].push_back(0);
       for(int j = 0; j < static_cast<int>(E1IntData[i].size()); ++j)
       {
-        psplit[0].splitEdge(i + addedints, E1IntData[i][j].myTime);
-        edgelabels[0].insert(edgelabels[0].begin() + i + addedints,
-                             E1IntData[i][j].numinter);
-        addedints += 1;
-        for(int k = j + 1; k < static_cast<int>(E1IntData[i].size()); ++k)
+        edgelabels[0].push_back(0);
+        for(int j = 0; j < static_cast<int>(E1IntData[i].size()); ++j)
         {
-          E1IntData[i][k].myTime =
-            (E1IntData[i][k].myTime - E1IntData[i][j].myTime) /
-            (1 - E1IntData[i][j].myTime);
+          psplit[0].splitEdge(i + addedints, E1IntData[i][j].myTime);
+          edgelabels[0].insert(edgelabels[0].begin() + i + addedints,
+                               E1IntData[i][j].numinter);
+          addedints += 1;
+          for(int k = j + 1; k < static_cast<int>(E1IntData[i].size()); ++k)
+          {
+            E1IntData[i][k].myTime =
+              (E1IntData[i][k].myTime - E1IntData[i][j].myTime) /
+              (1 - E1IntData[i][j].myTime);
+          }
         }
       }
     }
-
-    //split polygon 2 at all the intersection points and store as psplit[1]
     addedints = 0;
     for(int i = 0; i < p2.numEdges(); ++i)
     {
       edgelabels[1].push_back(0);
       for(int j = 0; j < static_cast<int>(E2IntData[i].size()); ++j)
       {
-        psplit[1].splitEdge(i + addedints, E2IntData[i][j].myTime);
-        edgelabels[1].insert(edgelabels[1].begin() + i + addedints,
-                             E2IntData[i][j].numinter);
-        addedints += 1;
-        for(int k = j + 1; k < static_cast<int>(E2IntData[i].size()); ++k)
+        edgelabels[1].push_back(0);
+        for(int j = 0; j < static_cast<int>(E2IntData[i].size()); ++j)
         {
-          E2IntData[i][k].myTime =
-            (E2IntData[i][k].myTime - E2IntData[i][j].myTime) /
-            (1 - E2IntData[i][j].myTime);
+          psplit[1].splitEdge(i + addedints, E2IntData[i][j].myTime);
+          edgelabels[1].insert(edgelabels[1].begin() + i + addedints,
+                               E2IntData[i][j].numinter);
+          addedints += 1;
+          for(int k = j + 1; k < static_cast<int>(E2IntData[i].size()); ++k)
+          {
+            E2IntData[i][k].myTime =
+              (E2IntData[i][k].myTime - E2IntData[i][j].myTime) /
+              (1 - E2IntData[i][j].myTime);
+          }
         }
       }
     }
+    */
+
+    splitPolygon(psplit[0], E1IntData, edgelabels[0]);
+    splitPolygon(psplit[1], E2IntData, edgelabels[1]);
+    //split polygon 2 at all the intersection points and store as psplit[1]
 
     // This performs the directional walking method using the completely split polygons
     std::vector<std::vector<int>::iterator> usedlabels;
@@ -249,35 +262,28 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
     }
     return true;
   }
-  else
+  else  // If there are no intersection points, check for containment
   {
     int containment = isContained(p1, p2, sq_tol);
-    if(containment == 0)
+    switch(containment)
     {
+    case 0:
       return false;
-    }
-    else
-    {
-      if(containment == 1)
-      {
-        pnew.push_back(p1);
-      }
-      else
-      {
-        pnew.push_back(p2);
-      }
+    case 1:
+      pnew.push_back(p1);
+      return true;
+    case 2:
+      pnew.push_back(p2);
       return true;
     }
+    return false;  // Catch
   }
-  // If there are no intersections
-  return false;
 }
 
-/*! 
- * \brief Checks if two polygons are mutually exclusive or if one includes the other,
- * assuming that they have no intersection points
+/*! \brief Checks if two polygons are mutually exclusive or if one includes the other, assuming that they have no intersection points
  *
  * \param [in] p1, p2 CurvedPolygons to be tested
+ * \param [in] sq_tol tolerance parameter for the base case of intersect_bezier_curves
  * \return 0 if mutually exclusive, 1 if p1 is in p2, 2 if p2 is in p1
  */
 template <typename T>
@@ -311,7 +317,7 @@ int isContained(const CurvedPolygon<T, 2> p1,
                             0.,
                             1.,
                             0.);
-    for(int i = 0; i < temps.size(); ++i)
+    for(int i = 0; i < static_cast<int>(temps.size()); ++i)
     {
       if(temps[i] > line1s)
       {
@@ -336,8 +342,8 @@ int isContained(const CurvedPolygon<T, 2> p1,
                             0.,
                             1.,
                             0.);
-    intersect(LineGuess, p2[j], temps, tempt);  // ?
-    for(int i = 0; i < temps.size(); ++i)
+    intersect(LineGuess, p2[j], temps, tempt);
+    for(int i = 0; i < static_cast<int>(temps.size()); ++i)
     {
       if(temps[i] < line2s && temps[i] > line1s)
       {
@@ -365,7 +371,44 @@ int isContained(const CurvedPolygon<T, 2> p1,
   }
 }
 
-// This determines with curve is "more" counterclockwise using the cross product of tangents
+/*
+ * \brief Splits a CurvedPolygon p1 at every intersection point stored in IntersectionData
+ */
+template <typename T, int NDIMS>
+void splitPolygon(CurvedPolygon<T, NDIMS>& p1,
+                  std::vector<std::vector<IntersectionInfo<T>>>& IntersectionData,
+                  std::vector<int>& edgelabels)
+{
+  const int nEd = p1.numEdges();
+  //split polygon 2 at all the intersection points and store as psplit[1]
+  int addedints = 0;
+  for(int i = 0; i < nEd; ++i)
+  {
+    edgelabels.push_back(0);
+    for(int j = 0; j < static_cast<int>(IntersectionData[i].size()); ++j)
+    {
+      p1.splitEdge(i + addedints, IntersectionData[i][j].myTime);
+      edgelabels.insert(edgelabels.begin() + i + addedints,
+                        IntersectionData[i][j].numinter);
+      addedints += 1;
+      for(int k = j + 1; k < static_cast<int>(IntersectionData[i].size()); ++k)
+      {
+        IntersectionData[i][k].myTime =
+          (IntersectionData[i][k].myTime - IntersectionData[i][j].myTime) /
+          (1 - IntersectionData[i][j].myTime);
+      }
+    }
+  }
+}
+
+/* \brief Determines orientation of a bezier curve c1 with respect to another bezier curve c2, given that they intersect at parameter values s and t
+ *
+ * \param [in] c1 the first bezier curve
+ * \param [in] c2 the second bezier curve
+ * \param [in] s the parameter value of intersection on c1
+ * \param [in] t the parameter value of intersection on c2
+ * \return True if the c1's positive direction is counterclockwise from c2's positive direction
+ */
 template <typename T, int NDIMS>
 bool orient(const BezierCurve<T, NDIMS> c1, const BezierCurve<T, NDIMS> c2, T s, T t)
 {
@@ -374,16 +417,23 @@ bool orient(const BezierCurve<T, NDIMS> c1, const BezierCurve<T, NDIMS> c2, T s,
   return (orientation > 0);
 }
 
-// A class for storing intersection points so they can be easily sorted by parameter value
+/*! \class IntersectionInfo
+ *
+ * \brief For storing intersection points between CurvedPolygons so they can be easily sorted by parameter value using std::sort
+ */
 template <typename T>
 class IntersectionInfo
 {
 public:
-  T myTime;
-  int myEdge;
-  T otherTime;
-  int otherEdge;
-  int numinter;
+  T myTime;    // parameter value of intersection on curve on first CurvePolygon
+  int myEdge;  // index of curve on first CurvedPolygon
+  T otherTime;  // parameter value of intersection on curve on second CurvedPolygon
+  int otherEdge;  // index of curve on second CurvedPolygon
+  int numinter;   // unique intersection point identifier
+
+  /*!
+   * \brief Comparison operator for sorting by parameter value
+   */
   bool operator<(IntersectionInfo other) { return myTime < other.myTime; }
 };
 
