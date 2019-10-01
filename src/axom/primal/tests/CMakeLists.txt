@@ -20,6 +20,7 @@ set( primal_tests
     primal_cone.cpp
     primal_coord_transform.cpp
     primal_curved_polygon.cpp
+    primal_curved_polygon_intersect.cpp
     primal_hexahedron.cpp
     primal_in_sphere.cpp
     primal_integral.cpp
