@@ -56,8 +56,8 @@ int isContained(const CurvedPolygon<T, 2> p1,
  * \param [out] pnew vector of type CurvedPolygon holding CurvedPolygon objects representing boundaries of intersection regions. 
  */
 template <typename T, int NDIMS>
-bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
-                       CurvedPolygon<T, NDIMS>& p2,
+bool intersect_polygon(const CurvedPolygon<T, NDIMS>& p1,
+                       const CurvedPolygon<T, NDIMS>& p2,
                        std::vector<CurvedPolygon<T, NDIMS>>& pnew,
                        double sq_tol)
 {
@@ -89,7 +89,6 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
       {
         E1IntData[i].push_back({p1times[k], i, p2times[k], j, numinters + k + 1});
         E2IntData[j].push_back({p2times[k], j, p1times[k], i, numinters + k + 1});
-        // std::cout << p1times[k] << ',' << p2times[k] << std::endl;
         if(numinters == 0)
         {
           firstinter = {p1times[0], i, p2times[0], j, 1};
@@ -118,57 +117,8 @@ bool intersect_polygon(CurvedPolygon<T, NDIMS>& p1,
     psplit[0] = p1;
     psplit[1] = p2;
 
-    //split polygon 1 at all the intersection points and store as psplit[0]
-    /*
-    int addedints = 0;
-    for(int i = 0; i < p1.numEdges(); ++i)
-    {
-      edgelabels[0].push_back(0);
-      for(int j = 0; j < static_cast<int>(E1IntData[i].size()); ++j)
-      {
-        edgelabels[0].push_back(0);
-        for(int j = 0; j < static_cast<int>(E1IntData[i].size()); ++j)
-        {
-          psplit[0].splitEdge(i + addedints, E1IntData[i][j].myTime);
-          edgelabels[0].insert(edgelabels[0].begin() + i + addedints,
-                               E1IntData[i][j].numinter);
-          addedints += 1;
-          for(int k = j + 1; k < static_cast<int>(E1IntData[i].size()); ++k)
-          {
-            E1IntData[i][k].myTime =
-              (E1IntData[i][k].myTime - E1IntData[i][j].myTime) /
-              (1 - E1IntData[i][j].myTime);
-          }
-        }
-      }
-    }
-    addedints = 0;
-    for(int i = 0; i < p2.numEdges(); ++i)
-    {
-      edgelabels[1].push_back(0);
-      for(int j = 0; j < static_cast<int>(E2IntData[i].size()); ++j)
-      {
-        edgelabels[1].push_back(0);
-        for(int j = 0; j < static_cast<int>(E2IntData[i].size()); ++j)
-        {
-          psplit[1].splitEdge(i + addedints, E2IntData[i][j].myTime);
-          edgelabels[1].insert(edgelabels[1].begin() + i + addedints,
-                               E2IntData[i][j].numinter);
-          addedints += 1;
-          for(int k = j + 1; k < static_cast<int>(E2IntData[i].size()); ++k)
-          {
-            E2IntData[i][k].myTime =
-              (E2IntData[i][k].myTime - E2IntData[i][j].myTime) /
-              (1 - E2IntData[i][j].myTime);
-          }
-        }
-      }
-    }
-    */
-
     splitPolygon(psplit[0], E1IntData, edgelabels[0]);
     splitPolygon(psplit[1], E2IntData, edgelabels[1]);
-    //split polygon 2 at all the intersection points and store as psplit[1]
 
     // This performs the directional walking method using the completely split polygons
     std::vector<std::vector<int>::iterator> usedlabels;

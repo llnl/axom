@@ -688,10 +688,10 @@ bool intersect(const OrientedBoundingBox<T, 3>& b1,
  * \f$ t==1 \f$.
  */
 template <typename T, int NDIMS>
-bool intersect(CurvedPolygon<T, NDIMS>& p1,
-               CurvedPolygon<T, NDIMS>& p2,
+bool intersect(const CurvedPolygon<T, NDIMS>& p1,
+               const CurvedPolygon<T, NDIMS>& p2,
                std::vector<CurvedPolygon<T, NDIMS>>& pnew,
-               double tol = 1e-8)
+               double tol = 1E-8)
 {
   // for efficiency, linearity check actually uses a squared tolerance
   const double sq_tol = tol * tol;
