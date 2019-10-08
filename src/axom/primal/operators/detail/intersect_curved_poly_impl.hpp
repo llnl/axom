@@ -36,15 +36,12 @@ namespace detail
 template <typename T>
 class IntersectionInfo;
 
-template <typename T, int NDIMS>
-bool orient(const BezierCurve<T, NDIMS> c1,
-            const BezierCurve<T, NDIMS> c2,
-            T s,
-            T t);
+template <typename T>
+bool orient(const BezierCurve<T, 2>& c1, const BezierCurve<T, 2>& c2, T s, T t);
 
 template <typename T>
-int isContained(const CurvedPolygon<T, 2> p1,
-                const CurvedPolygon<T, 2> p2,
+int isContained(const CurvedPolygon<T, 2>& p1,
+                const CurvedPolygon<T, 2>& p2,
                 double sq_tol = 1e-10);
 
 /*!
@@ -237,13 +234,14 @@ bool intersect_polygon(const CurvedPolygon<T, NDIMS>& p1,
  * \return 0 if mutually exclusive, 1 if p1 is in p2, 2 if p2 is in p1
  */
 template <typename T>
-int isContained(const CurvedPolygon<T, 2> p1,
-                const CurvedPolygon<T, 2> p2,
+int isContained(const CurvedPolygon<T, 2>& p1,
+                const CurvedPolygon<T, 2>& p2,
                 double sq_tol)
 {
   const int NDIMS = 2;
-  using PointType = primal::Point<T, NDIMS>;
   using BCurve = BezierCurve<T, NDIMS>;
+  using PointType = typename BCurve::PointType;
+
   int p1c = 0;
   int p2c = 0;
   T p1t = .5;
@@ -267,6 +265,7 @@ int isContained(const CurvedPolygon<T, 2> p1,
                             0.,
                             1.,
                             0.);
+
     for(int i = 0; i < static_cast<int>(temps.size()); ++i)
     {
       if(temps[i] > line1s)
@@ -305,8 +304,10 @@ int isContained(const CurvedPolygon<T, 2> p1,
   }
 
   using Vec3 = primal::Vector<T, 3>;
-  bool E1inE2 = Vec3::cross_product(p1[p1c].dt(p1t), LineGuess.dt(line1s))[2] < 0;
-  bool E2inE1 = Vec3::cross_product(p2[p2c].dt(p2t), LineGuess.dt(line2s))[2] < 0;
+  const bool E1inE2 =
+    Vec3::cross_product(p1[p1c].dt(p1t), LineGuess.dt(line1s))[2] < 0;
+  const bool E2inE1 =
+    Vec3::cross_product(p2[p2c].dt(p2t), LineGuess.dt(line2s))[2] < 0;
   if(E1inE2 && E2inE1)
   {
     return 1;
@@ -359,8 +360,8 @@ void splitPolygon(CurvedPolygon<T, NDIMS>& p1,
  * \param [in] t the parameter value of intersection on c2
  * \return True if the c1's positive direction is counterclockwise from c2's positive direction
  */
-template <typename T, int NDIMS>
-bool orient(const BezierCurve<T, NDIMS> c1, const BezierCurve<T, NDIMS> c2, T s, T t)
+template <typename T>
+bool orient(const BezierCurve<T, 2>& c1, const BezierCurve<T, 2>& c2, T s, T t)
 {
   const auto orientation =
     primal::Vector<T, 3>::cross_product(c1.dt(s), c2.dt(t))[2];
