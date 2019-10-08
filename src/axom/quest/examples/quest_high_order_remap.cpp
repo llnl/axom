@@ -1,5 +1,5 @@
-// Copyright (c) 2017-2019, Lawrence Livermore National Security, LLC and
-// other Axom Project Developers. See the top-level COPYRIGHT file for details.
+// Copyright (c) 2017-2021, Lawrence Livermore National Security, LLC and
+// other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
@@ -370,7 +370,11 @@ public:
     }
     // create the target mesh
     {
-      auto* mesh = new mfem::Mesh("./disc-nurbs-80.mesh", 1, 1);
+      // NOTE (KW): For now, assume we have AXOM_DATA_DIR
+      namespace fs = axom::utilities::filesystem;
+      std::string fname = fs::joinPath(AXOM_DATA_DIR, "mfem/disc-nurbs.mesh");
+
+      auto* mesh = new mfem::Mesh(fname.c_str(), 1, 1);
       if(mesh->NURBSext)
       {
         int order = tgt_ord;
