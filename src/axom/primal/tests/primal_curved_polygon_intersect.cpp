@@ -12,6 +12,8 @@
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 
+#include <numeric>
+
 namespace primal = axom::primal;
 
 /**
@@ -70,8 +72,10 @@ primal::CurvedPolygon<CoordType, DIM> createPolygon(
   const int num_unique_control_points = ControlPoints.size();
 
   //checks if the orders and control points given will yield a valid curved polygon
-  EXPECT_EQ(accumulate(orders.begin(), orders.end(), 0) + 1,
-            num_unique_control_points);
+  {
+    const int sum_of_orders = std::accumulate(orders.begin(), orders.end(), 0);
+    EXPECT_EQ(sum_of_orders + 1, num_unique_control_points);
+  }
 
   //Converts the control points to BezierCurves of specified orders and stores them in a CurvedPolygon object.
   CurvedPolygonType bPolygon;
