@@ -385,7 +385,10 @@ public:
   /*!
    * \brief Comparison operator for sorting by parameter value
    */
-  bool operator<(IntersectionInfo other) { return myTime < other.myTime; }
+  bool operator<(const IntersectionInfo& other) const
+  {
+    return myTime < other.myTime;
+  }
 };
 
 }  // namespace detail
