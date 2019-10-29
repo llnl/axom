@@ -266,6 +266,92 @@ public:
     fesMap.DeleteData(true);
   }
 
+  mfem::GridFunction* project_to_pos_basis(const mfem::GridFunction* gf,
+                                           bool& is_new)
+  {
+    mfem::GridFunction* out_pos_gf = nullptr;
+    is_new = false;
+
+    SLIC_ASSERT(gf != nullptr);
+
+    const mfem::FiniteElementSpace* nodal_fe_space = gf->FESpace();
+    if(nodal_fe_space == nullptr)
+    {
+      std::cerr << "project_to_pos_basis(): nodal_fe_space is NULL!" << std::endl;
+    }
+
+    const mfem::FiniteElementCollection* nodal_fe_coll = nodal_fe_space->FEColl();
+    if(nodal_fe_coll == nullptr)
+    {
+      std::cerr << "project_to_pos_basis(): nodal_fe_coll is NULL!" << std::endl;
+    }
+
+    mfem::Mesh* gf_mesh = nodal_fe_space->GetMesh();
+    if(gf_mesh == nullptr)
+    {
+      std::cerr << "project_to_pos_basis(): gf_mesh is NULL!" << std::endl;
+    }
+
+    int order = nodal_fe_space->GetOrder(0);
+    int dim = gf_mesh->Dimension();
+    mfem::Geometry::Type geom_type = gf_mesh->GetElementBaseGeometry(0);
+    int map_type = (nodal_fe_coll != nullptr)
+      ? nodal_fe_coll->FiniteElementForGeometry(geom_type)->GetMapType()
+      : static_cast<int>(mfem::FiniteElement::VALUE);
+
+    auto* pos_fe_coll =
+      new mfem::H1_FECollection(5, dim, mfem::BasisType::Positive);
+    // fecMap.Register("src_fec", fec, true);
+    // mfem::FiniteElementCollection pos_fe_coll = *nodal_fe_coll;
+    //    detail::get_pos_fec(nodal_fe_coll,
+    //        order,
+    //        dim,
+    //        map_type);
+
+    //SLIC_ASSERT_MSG(
+    //  pos_fe_coll != AXOM_NULLPTR,
+    //  "Problem generating a positive finite element collection "
+    //  << "corresponding to the mesh's '"<< nodal_fe_coll->Name()
+    //  << "' finite element collection.");
+
+    if(pos_fe_coll != nullptr)
+    {
+      //DEBUG
+      //std::cerr << "Good so far... pos_fe_coll is not null. Making FESpace and GridFunction." << std::endl;
+      const int dims = nodal_fe_space->GetVDim();
+      // Create a positive (Bernstein) grid function for the nodes
+      mfem::FiniteElementSpace* pos_fe_space =
+        new mfem::FiniteElementSpace(gf_mesh, pos_fe_coll, dims);
+      mfem::GridFunction* pos_nodes = new mfem::GridFunction(pos_fe_space);
+
+      // m_pos_nodes takes ownership of pos_fe_coll's memory (and pos_fe_space's memory)
+      pos_nodes->MakeOwner(pos_fe_coll);
+
+      // Project the nodal grid function onto this
+      pos_nodes->ProjectGridFunction(*gf);
+
+      out_pos_gf = pos_nodes;
+      is_new = true;
+    }
+    //DEBUG
+    else
+      std::cerr
+        << "BAD... pos_fe_coll is NULL. Could not make FESpace or GridFunction."
+        << std::endl;
+
+    //DEBUG
+    if(!out_pos_gf)
+    {
+      std::cerr
+        << "project_to_pos_basis(): Construction failed;  out_pos_gf is NULL!"
+        << std::endl;
+    }
+
+    // }
+
+    return out_pos_gf;
+  }
+
   /*! Set up the source and target meshes */
   void setupMeshes(int res1, int res2, int order)
   {
@@ -280,7 +366,8 @@ public:
     const int tgt_res = res1;
     const int tgt_ord = order;
     const double tgt_scale = .712378102150;
-    const double tgt_trans = .1345747181586;
+    const double tgt_trans1 = .1345747181586;
+    const double tgt_trans2 = .1345747181586;
 
     // create the source mesh
     {
@@ -310,7 +397,7 @@ public:
     // create the target mesh
     {
       auto* mesh = new mfem::Mesh(tgt_res, tgt_res, quadType, true);
-      xformMesh(mesh, tgt_scale, tgt_trans);
+      xformMesh(mesh, tgt_scale, tgt_trans1, tgt_trans2);
 
       auto* fec =
         new mfem::H1_FECollection(tgt_ord, dim, mfem::BasisType::Positive);
@@ -335,65 +422,100 @@ public:
     const auto quadType = mfem::Element::QUADRILATERAL;
     const int dim = 2;
 
-    // paramters for target mesh -- quad mesh covering unit square
+    // parameters for target mesh -- quad mesh covering unit square
     const int src_res = res2;
     const int src_ord = order;
-    const double src_scale = 6.0;
-    const double src_trans = -3.001;
+    const double src_scale = 1.5;
+    const double src_trans1 = .01517288412347;
+    const double src_trans2 = .02571238506182;
 
-    // paramters for target mesh -- quad mesh covering (part of) unit square
+    // parameters for target mesh -- quad mesh covering (part of) unit square
     const int tgt_ord = 2;
 
     {
-      // create mfem mesh
-      auto* mesh = new mfem::Mesh(src_res, src_res, quadType, true);
-      xformMesh(mesh, src_scale, src_trans);
+      // NOTE (KW): For now, assume we have AXOM_DATA_DIR
+      namespace fs = axom::utilities::filesystem;
+      std::string fname = fs::joinPath(AXOM_DATA_DIR, "mfem/disc-nurbs-80.mesh");
 
-      // create finite element collection for nodes
-      auto* fec =
-        new mfem::H1_FECollection(src_ord, dim, mfem::BasisType::Positive);
-      fecMap.Register("src_fec", fec, true);
-
-      // create finite element space for nodes
-      auto* fes = new mfem::FiniteElementSpace(mesh, fec, dim);
-      fesMap.Register("src_fes", fes, true);
-      mesh->SetNodalFESpace(fes);
-
-      // SLIC_INFO("Writing to: " << axom::utilities::filesystem::getCWD());
+      auto* mesh = new mfem::Mesh(fname.c_str(), 1, 1);
+      xformMesh(mesh, src_scale, src_trans1, src_trans2);
+      if(mesh->NURBSext)
+      {
+        int order = src_ord;
+        mesh->SetCurvature(5);
+      }
+      // xformMesh(mesh, tgt_scale, tgt_trans);
       {
         std::ofstream file;
-        file.open("source_mesh.mfem");
+        file.open("src_mesh_orig.mfem");
         mesh->Print(file);
       }
 
+      bool is_mesh_gf_new;
+      mfem::GridFunction* mesh_nodes = mesh->GetNodes();
+      mfem::GridFunction* pos_mesh_nodes_ptr =
+        project_to_pos_basis(mesh_nodes, is_mesh_gf_new);
+      mfem::GridFunction& pos_mesh_nodes =
+        (is_mesh_gf_new ? *pos_mesh_nodes_ptr : *mesh_nodes);
+      mesh->NewNodes(pos_mesh_nodes, true);
+
+      //auto* fec = new mfem::H1_FECollection(tgt_ord, dim,
+      //                                      mfem::BasisType::Positive);
+      //fecMap.Register("tgt_fec", fec, true);
+
+      //auto* fes = new mfem::FiniteElementSpace(mesh, fec, dim);
+      //fesMap.Register("tgt_fes", fes, true);
+      //mesh->SetNodalFESpace(fes);
+      std::cout << mesh->GetNV() << std::endl;
+      {
+        std::ofstream file;
+        file.open("src_mesh_set.mfem");
+        mesh->Print(file);
+      }
+      //std::cout << "Got here!" << std::endl;
       srcMesh.setMesh(mesh);
     }
+
     // create the target mesh
     {
       // NOTE (KW): For now, assume we have AXOM_DATA_DIR
       namespace fs = axom::utilities::filesystem;
-      std::string fname = fs::joinPath(AXOM_DATA_DIR, "mfem/disc-nurbs.mesh");
+      std::string fname = fs::joinPath(AXOM_DATA_DIR, "mfem/disc-nurbs-80.mesh");
 
       auto* mesh = new mfem::Mesh(fname.c_str(), 1, 1);
       if(mesh->NURBSext)
       {
         int order = tgt_ord;
-        mesh->SetCurvature(order);
+        mesh->SetCurvature(5);
       }
+
       // xformMesh(mesh, tgt_scale, tgt_trans);
+      const double tgt_scale = 1.0;
+      const double tgt_trans1 = .001237586;
+      const double tgt_trans2 = -.06172376;
+      xformMesh(mesh, tgt_scale, tgt_trans1, tgt_trans2);
+
       {
         std::ofstream file;
         file.open("target_mesh_orig.mfem");
         mesh->Print(file);
       }
 
-      auto* fec =
-        new mfem::H1_FECollection(tgt_ord, dim, mfem::BasisType::Positive);
-      fecMap.Register("tgt_fec", fec, true);
+      bool is_mesh_gf_new;
+      mfem::GridFunction* mesh_nodes = mesh->GetNodes();
+      mfem::GridFunction* pos_mesh_nodes_ptr =
+        project_to_pos_basis(mesh_nodes, is_mesh_gf_new);
+      mfem::GridFunction& pos_mesh_nodes =
+        (is_mesh_gf_new ? *pos_mesh_nodes_ptr : *mesh_nodes);
+      mesh->NewNodes(pos_mesh_nodes, true);
 
-      auto* fes = new mfem::FiniteElementSpace(mesh, fec, dim);
-      fesMap.Register("tgt_fes", fes, true);
-      mesh->SetNodalFESpace(fes);
+      //auto* fec = new mfem::H1_FECollection(tgt_ord, dim,
+      //                                      mfem::BasisType::Positive);
+      //fecMap.Register("tgt_fec", fec, true);
+
+      //auto* fes = new mfem::FiniteElementSpace(mesh, fec, dim);
+      //fesMap.Register("tgt_fes", fes, true);
+      //mesh->SetNodalFESpace(fes);
 
       {
         std::ofstream file;
@@ -455,7 +577,7 @@ public:
         std::vector<primal::CurvedPolygon<double, 2>> pnew;
         tgtPoly.reverseOrientation();
         srcPoly.reverseOrientation();
-        if(primal::intersect(tgtPoly, srcPoly, pnew))
+        if(primal::intersect(tgtPoly, srcPoly, pnew, 1e-8))
         {
           for(int i = 0; i < static_cast<int>(pnew.size()); ++i)
           {
@@ -485,8 +607,9 @@ public:
     //  const double tgt_trans = .000000000001345747181586;
     //  double trueError = (tgt_scale*tgt_scale-totalArea);
     //  std::cout << trueError << ", ";
-    std::cout << totalArea << std::endl;
-    std::cout << correctArea << std::endl;
+    std::cout << "Calculated area (supermesh): " << std::fixed << totalArea
+              << std::endl;
+    std::cout << "Calculated area (target mesh): " << correctArea << std::endl;
     return (totalArea - correctArea);
   }
 
@@ -528,42 +651,23 @@ private:
 
 private:
   // scale and translate the vertices of the given mesh
-  void xformMesh(mfem::Mesh* mesh, double sc, double off)
+  void xformMesh(mfem::Mesh* mesh, double sc, double off1, double off2)
   {
-    std::cout << "Transforming Mesh now" << std::endl;
-    for(int v = 0; v < mesh->GetNV(); ++v)
+    // std::cout << "Transforming Mesh now" << std::endl;
+    //for (int v = 0 ; v < NumVerts ; ++v)
+    //  {
+    //  double pt* = mesh->GetVertex(v);
+    //  pt[0] = sc*pt[0] + off1;
+    //  pt[1] = sc*pt[1] + off2;
+    //  }
+    mfem::GridFunction* mesh_nodes = mesh->GetNodes();
+    //std::cout << *mesh_nodes[0] << std::endl;
+    int NumDofs = mesh_nodes->Size();
+    for(int e = 0; e < (NumDofs / 2); ++e)
     {
-      double* pt = mesh->GetVertex(v);
-      //  if (v==0)
-      //  {
-      //    std::cout << pt[0] << " , " << pt[1] << std::endl;
-      //  }
-      //  pt[0] = sc*pt[0] + off;
-      pt[0] = sc * pt[0] + off + .000147582957;
-      pt[1] = sc * pt[1] + off;
-
-      /* if (v%3==0)
-      {
-        pt[0] = pt[0]-.01748;
-      }
-      if (v%5==0)
-      {
-        pt[0] = pt[0]+.004;
-      }
-      if (v%7==0)
-      {
-        pt[1] = pt[1]+.0243;
-      }*/
-      //  if (v==0)
-      //  {
-      //    std::cout << pt[0] << " , " << pt[1] << std::endl;
-      //  }
+      (*mesh_nodes)[2 * e] = sc * (*mesh_nodes)[2 * e] + off1;
+      (*mesh_nodes)[2 * e + 1] = sc * (*mesh_nodes)[2 * e + 1] + off2;
     }
-    //   for (int e =0 ; e < mesh->GetNEdges() ; ++e)
-    //   {
-    //     mfem::array<int> dofs();
-    //     GetEdgeDofs(e, dofs);
-    //   }
   }
 };
 
@@ -591,9 +695,10 @@ int main(int argc, char** argv)
   {
     Remapper remap;
 
+    std::cout.precision(16);
     // res1= res1*2;
 
-    res1 = 25;
+    res1 = i;
     int res2 = res1 + 2;
     // Setup the two meshes in the Bernstein basis
     // The current implementation hard-codes the two meshes
