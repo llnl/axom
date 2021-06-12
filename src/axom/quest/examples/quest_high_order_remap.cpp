@@ -301,6 +301,9 @@ public:
 
     auto* pos_fe_coll =
       new mfem::H1_FECollection(5, dim, mfem::BasisType::Positive);
+
+    AXOM_UNUSED_VAR(map_type);
+    AXOM_UNUSED_VAR(order);
     // fecMap.Register("src_fec", fec, true);
     // mfem::FiniteElementCollection pos_fe_coll = *nodal_fe_coll;
     //    detail::get_pos_fec(nodal_fe_coll,
@@ -432,6 +435,11 @@ public:
     // parameters for target mesh -- quad mesh covering (part of) unit square
     const int tgt_ord = 2;
 
+    AXOM_UNUSED_VAR(quadType);
+    AXOM_UNUSED_VAR(src_res);
+    AXOM_UNUSED_VAR(src_ord);
+    AXOM_UNUSED_VAR(tgt_ord);
+
     {
       // NOTE (KW): For now, assume we have AXOM_DATA_DIR
       namespace fs = axom::utilities::filesystem;
@@ -441,8 +449,8 @@ public:
       xformMesh(mesh, src_scale, src_trans1, src_trans2);
       if(mesh->NURBSext)
       {
-        int order = src_ord;
-        mesh->SetCurvature(5);
+        int ord = 5;  //src_ord;
+        mesh->SetCurvature(ord);
       }
       // xformMesh(mesh, tgt_scale, tgt_trans);
       {
@@ -459,6 +467,7 @@ public:
         (is_mesh_gf_new ? *pos_mesh_nodes_ptr : *mesh_nodes);
       mesh->NewNodes(pos_mesh_nodes, true);
 
+      AXOM_UNUSED_VAR(dim);
       //auto* fec = new mfem::H1_FECollection(tgt_ord, dim,
       //                                      mfem::BasisType::Positive);
       //fecMap.Register("tgt_fec", fec, true);
@@ -485,8 +494,8 @@ public:
       auto* mesh = new mfem::Mesh(fname.c_str(), 1, 1);
       if(mesh->NURBSext)
       {
-        int order = tgt_ord;
-        mesh->SetCurvature(5);
+        int ord = 5;  //tgt_ord;
+        mesh->SetCurvature(ord);
       }
 
       // xformMesh(mesh, tgt_scale, tgt_trans);
@@ -674,6 +683,9 @@ private:
 //------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
+  AXOM_UNUSED_VAR(argc);
+  AXOM_UNUSED_VAR(argv);
+
   axom::slic::SimpleLogger logger;
 
   SLIC_INFO("The application conservatively maps fields from a source \n"
@@ -700,6 +712,8 @@ int main(int argc, char** argv)
 
     res1 = i;
     int res2 = res1 + 2;
+    AXOM_UNUSED_VAR(res2);
+
     // Setup the two meshes in the Bernstein basis
     // The current implementation hard-codes the two meshes
     // TODO: Read in two meshes from disk.
