@@ -8,8 +8,6 @@
  * \brief Demonstrates conservative field remap on 2D high order meshes
  */
 
-#include <chrono>
-
 // Axom includes
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -26,7 +24,6 @@
 
 #include <fstream>
 
-//namespace mint = axom::mint;
 namespace primal = axom::primal;
 namespace spin = axom::spin;
 
@@ -40,10 +37,11 @@ namespace spin = axom::spin;
 class MeshWrapper
 {
 public:
-  using BBox = primal::BoundingBox<double, 2>;
-  using Point = primal::Point<double, 2>;
+  constexpr static int DIM = 2;
+  using BBox = primal::BoundingBox<double, DIM>;
+  using SpacePoint = primal::Point<double, DIM>;
 
-  using CurvedPolygonType = primal::CurvedPolygon<double, 2>;
+  using CurvedPolygonType = primal::CurvedPolygon<double, DIM>;
   using BCurve = CurvedPolygonType::BezierCurveType;
 
 private:
@@ -93,9 +91,7 @@ public:
     }
   }
 
-  /*!
-   * Sets the mfem mesh pointer for this MeshWrapper instance
-   */
+  /// Sets the mfem mesh pointer for this MeshWrapper instance
   void setMesh(mfem::Mesh* mesh)
   {
     SLIC_ASSERT(mesh != nullptr);
@@ -194,12 +190,12 @@ public:
 
 private:
   /*! Get the coordinates of the point from the dof index */
-  Point spacePointFromDof(int idx,
-                          const mfem::FiniteElementSpace* fes,
-                          const mfem::GridFunction* nodes)
+  SpacePoint spacePointFromDof(int idx,
+                               const mfem::FiniteElementSpace* fes,
+                               const mfem::GridFunction* nodes)
   {
-    return Point::make_point((*nodes)(fes->DofToVDof(idx, 0)),
-                             (*nodes)(fes->DofToVDof(idx, 1)));
+    return SpacePoint {(*nodes)(fes->DofToVDof(idx, 0)),
+                       (*nodes)(fes->DofToVDof(idx, 1))};
   }
 
   /*!
@@ -251,11 +247,12 @@ private:
 
 struct Remapper
 {
+public:
+  constexpr static int DIM = 2;
+  using CandidateList = std::vector<int>;
+
 private:
   using GridType = spin::ImplicitGrid<2, axom::SEQ_EXEC, int>;
-
-public:
-  using CandidateList = std::vector<int>;
 
 public:
   Remapper() = default;
@@ -275,82 +272,59 @@ public:
     SLIC_ASSERT(gf != nullptr);
 
     const mfem::FiniteElementSpace* nodal_fe_space = gf->FESpace();
-    if(nodal_fe_space == nullptr)
-    {
-      std::cerr << "project_to_pos_basis(): nodal_fe_space is NULL!" << std::endl;
-    }
+    SLIC_ERROR_IF(nodal_fe_space == nullptr,
+                  "project_to_pos_basis(): nodal_fe_space is NULL!");
 
     const mfem::FiniteElementCollection* nodal_fe_coll = nodal_fe_space->FEColl();
-    if(nodal_fe_coll == nullptr)
-    {
-      std::cerr << "project_to_pos_basis(): nodal_fe_coll is NULL!" << std::endl;
-    }
+    SLIC_ERROR_IF(nodal_fe_coll == nullptr,
+                  "project_to_pos_basis(): nodal_fe_coll is NULL!");
 
     mfem::Mesh* gf_mesh = nodal_fe_space->GetMesh();
-    if(gf_mesh == nullptr)
-    {
-      std::cerr << "project_to_pos_basis(): gf_mesh is NULL!" << std::endl;
-    }
+    SLIC_ERROR_IF(gf_mesh == nullptr,
+                  "project_to_pos_basis(): gf_mesh is NULL!");
 
-    int order = nodal_fe_space->GetOrder(0);
+    int order = 5;  // nodal_fe_space->GetOrder(0);
     int dim = gf_mesh->Dimension();
-    mfem::Geometry::Type geom_type = gf_mesh->GetElementBaseGeometry(0);
-    int map_type = (nodal_fe_coll != nullptr)
-      ? nodal_fe_coll->FiniteElementForGeometry(geom_type)->GetMapType()
-      : static_cast<int>(mfem::FiniteElement::VALUE);
 
     auto* pos_fe_coll =
-      new mfem::H1_FECollection(5, dim, mfem::BasisType::Positive);
+      new mfem::H1_FECollection(order, dim, mfem::BasisType::Positive);
 
-    AXOM_UNUSED_VAR(map_type);
-    AXOM_UNUSED_VAR(order);
-    // fecMap.Register("src_fec", fec, true);
-    // mfem::FiniteElementCollection pos_fe_coll = *nodal_fe_coll;
-    //    detail::get_pos_fec(nodal_fe_coll,
-    //        order,
-    //        dim,
-    //        map_type);
+    // {
+    //   mfem::Geometry::Type geom_type = gf_mesh->GetElementBaseGeometry(0);
+    //   int map_type = (nodal_fe_coll != nullptr)
+    //     ? nodal_fe_coll->FiniteElementForGeometry(geom_type)->GetMapType()
+    //     : static_cast<int>(mfem::FiniteElement::VALUE);
 
-    //SLIC_ASSERT_MSG(
-    //  pos_fe_coll != AXOM_NULLPTR,
-    //  "Problem generating a positive finite element collection "
-    //  << "corresponding to the mesh's '"<< nodal_fe_coll->Name()
-    //  << "' finite element collection.");
-
-    if(pos_fe_coll != nullptr)
-    {
-      //DEBUG
-      //std::cerr << "Good so far... pos_fe_coll is not null. Making FESpace and GridFunction." << std::endl;
-      const int dims = nodal_fe_space->GetVDim();
-      // Create a positive (Bernstein) grid function for the nodes
-      mfem::FiniteElementSpace* pos_fe_space =
-        new mfem::FiniteElementSpace(gf_mesh, pos_fe_coll, dims);
-      mfem::GridFunction* pos_nodes = new mfem::GridFunction(pos_fe_space);
-
-      // m_pos_nodes takes ownership of pos_fe_coll's memory (and pos_fe_space's memory)
-      pos_nodes->MakeOwner(pos_fe_coll);
-
-      // Project the nodal grid function onto this
-      pos_nodes->ProjectGridFunction(*gf);
-
-      out_pos_gf = pos_nodes;
-      is_new = true;
-    }
-    //DEBUG
-    else
-      std::cerr
-        << "BAD... pos_fe_coll is NULL. Could not make FESpace or GridFunction."
-        << std::endl;
-
-    //DEBUG
-    if(!out_pos_gf)
-    {
-      std::cerr
-        << "project_to_pos_basis(): Construction failed;  out_pos_gf is NULL!"
-        << std::endl;
-    }
-
+    //   fecMap.Register("src_fec", fec, true);
+    //   mfem::FiniteElementCollection pos_fe_coll = *nodal_fe_coll;
+    //   detail::get_pos_fec(nodal_fe_coll, order, dim, map_type);
     // }
+
+    SLIC_ERROR_IF(pos_fe_coll == nullptr,
+                  "Problem generating a positive finite element collection "
+                    << "corresponding to the mesh's '" << nodal_fe_coll->Name()
+                    << "' finite element collection.");
+
+    //SLIC_INFO("Good so far... pos_fe_coll is not null. Making FESpace and GridFunction.");
+    const int dims = nodal_fe_space->GetVDim();
+
+    // Create a positive (Bernstein) grid function for the nodes
+    mfem::FiniteElementSpace* pos_fe_space =
+      new mfem::FiniteElementSpace(gf_mesh, pos_fe_coll, dims);
+    mfem::GridFunction* pos_nodes = new mfem::GridFunction(pos_fe_space);
+
+    // m_pos_nodes takes ownership of pos_fe_coll's memory (and pos_fe_space's memory)
+    pos_nodes->MakeOwner(pos_fe_coll);
+
+    // Project the nodal grid function onto this
+    pos_nodes->ProjectGridFunction(*gf);
+
+    out_pos_gf = pos_nodes;
+    is_new = true;
+
+    SLIC_WARNING_IF(
+      out_pos_gf == nullptr,
+      "project_to_pos_basis(): Construction failed;  out_pos_gf is NULL!");
 
     return out_pos_gf;
   }
@@ -361,11 +335,11 @@ public:
     const auto quadType = mfem::Element::QUADRILATERAL;
     const int dim = 2;
 
-    // paramters for source  mesh -- quad mesh covering unit square
+    // parameters for source  mesh -- quad mesh covering unit square
     const int src_res = res2;
     const int src_ord = order;
 
-    // paramters for target mesh -- quad mesh covering (part of) unit square
+    // parameters for target mesh -- quad mesh covering (part of) unit square
     const int tgt_res = res1;
     const int tgt_ord = order;
     const double tgt_scale = .712378102150;
@@ -387,10 +361,10 @@ public:
       fesMap.Register("src_fes", fes, true);
       mesh->SetNodalFESpace(fes);
 
-      // SLIC_INFO("Writing to: " << axom::utilities::filesystem::getCWD());
+      //SLIC_DEBUG("Outputting mesh to: " << axom::utilities::filesystem::getCWD());
       {
         std::ofstream file;
-        file.open("source_mesh.mfem");
+        file.open("ho_field_xfer_source.mfem");
         mesh->Print(file);
       }
 
@@ -412,7 +386,7 @@ public:
 
       {
         std::ofstream file;
-        file.open("target_mesh.mfem");
+        file.open("ho_field_xfer_target.mfem");
         mesh->Print(file);
       }
 
@@ -475,7 +449,7 @@ public:
       //auto* fes = new mfem::FiniteElementSpace(mesh, fec, dim);
       //fesMap.Register("tgt_fes", fes, true);
       //mesh->SetNodalFESpace(fes);
-      std::cout << mesh->GetNV() << std::endl;
+      SLIC_INFO(axom::fmt::format("Source mesh has {} vertices", mesh->GetNV()));
       {
         std::ofstream file;
         file.open("src_mesh_set.mfem");
@@ -531,7 +505,7 @@ public:
         file.open("target_mesh_set.mfem");
         mesh->Print(file);
       }
-      std::cout << "Got here!" << std::endl;
+      //std::cout << "Got here!" << std::endl;
       tgtMesh.setMesh(mesh);
     }
   }
@@ -568,10 +542,10 @@ public:
       auto tgtPoly = tgtMesh.elemAsCurvedPolygon(i);
       //  SLIC_INFO("Target Element: " << tgtPoly);
       correctArea += primal::area(tgtPoly);
-      //j  SLIC_INFO("Target elem " << i
-      //j                           << " -- area " << primal::area(tgtPoly)
-      //j            //<< " -- bbox " << tgtMesh.elementBoundingBox(i)
-      //j            );
+      //SLIC_INFO("Target elem " << i
+      //                         << " -- area " << primal::area(tgtPoly)
+      //          //<< " -- bbox " << tgtMesh.elementBoundingBox(i)
+      //          );
 
       double A = 0.0;
       for(int srcElem : candidates)
@@ -580,7 +554,7 @@ public:
         //   SLIC_INFO("*Source Element: " << srcPoly);
         //   SLIC_INFO("* Source elem " << srcElem
         //                              << " -- area " << primal::area(srcPoly)
-        ////             //<< " -- bbox " << srcMesh.elementBoundingBox(srcElem)
+        // ////            //<< " -- bbox " << srcMesh.elementBoundingBox(srcElem)
         //             );
 
         std::vector<primal::CurvedPolygon<double, 2>> pnew;
@@ -690,46 +664,37 @@ int main(int argc, char** argv)
 
   SLIC_INFO("The application conservatively maps fields from a source \n"
             << "high order mesh to a target high order mesh!");
-  //  int res1=1;
-  //  Remapper remap;
-  //  res1=5;
-  //  int res2=res1+1;
-  //  remap.loadMeshes(res1,2);
-  //  remap.setupGrid();
-  //  double Area = remap.computeOverlapAreas();
-  //  std::cout << std::endl << Area << std::endl;
 
-  //  return 0;
-
-  int res1 = 1;
-  std::cout << "[";
+  SLIC_INFO("Running intersection tests...");
   for(int i = 2; i <= 2; ++i)
   {
     Remapper remap;
 
-    std::cout.precision(16);
-    // res1= res1*2;
-
-    res1 = i;
-    int res2 = res1 + 2;
-    AXOM_UNUSED_VAR(res2);
+    int res1 = i;
+    int res2 = i;
 
     // Setup the two meshes in the Bernstein basis
     // The current implementation hard-codes the two meshes
     // TODO: Read in two meshes from disk.
     //       In that case, we will need to convert the FEC to the Bernstein basis
     //  remap.setupMeshes(res1, res2, i);
-    remap.loadMeshes(res1, i);
+    remap.loadMeshes(res1, res2);
 
     // Set up the spatial index
     remap.setupGrid();
-    auto start = std::chrono::high_resolution_clock::now();
+    axom::utilities::Timer timer(true);
+
     // Computes the overlaps between elements of the target and source meshes
-    double Area = remap.computeOverlapAreas();
-    auto finish = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = finish - start;
-    std::cout << i << ", " << Area << "," << elapsed.count() << std::endl;
+    double area = remap.computeOverlapAreas();
+
+    timer.stop();
+    std::cout.precision(16);
+    SLIC_INFO(axom::fmt::format(
+      "Intersecting meshes at resolution {}: area: {}, time: {}",
+      i,
+      area,
+      timer.elapsed()));
   }
-  std::cout << "]" << std::endl;
+
   return 0;
 }
