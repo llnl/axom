@@ -111,26 +111,26 @@ TEST(primal_curvedpolygon, intersection_triangle_linear)
 
   SLIC_INFO("Test intersection of two linear triangles (single region)");
 
-  std::vector<PointType> CP = {PointType::make_point(0.6, 1.2),
-                               PointType::make_point(0.3, 2.0),
-                               PointType::make_point(0.0, 1.6),
-                               PointType::make_point(0.6, 1.2)};
+  std::vector<PointType> CP = {PointType {0.6, 1.2},
+                               PointType {0.3, 2.0},
+                               PointType {0.0, 1.6},
+                               PointType {0.6, 1.2}};
   std::vector<int> orders = {1, 1, 1};
 
   CurvedPolygonType bPolygon1 = createPolygon(CP, orders);
 
-  std::vector<PointType> CP2 = {PointType::make_point(0.71, 1.31),
-                                PointType::make_point(0.41, 2.11),
-                                PointType::make_point(0.11, 1.71),
-                                PointType::make_point(0.71, 1.31)};
+  std::vector<PointType> CP2 = {PointType {0.71, 1.31},
+                                PointType {0.41, 2.11},
+                                PointType {0.11, 1.71},
+                                PointType {0.71, 1.31}};
 
   CurvedPolygonType bPolygon2 = createPolygon(CP2, orders);
 
   std::vector<PointType> expCP = {
-    PointType::make_point(0.3091666666666666666666, 1.9755555555555555555),
-    PointType::make_point(0.11, 1.71),
-    PointType::make_point(0.5083333333333333333, 1.44444444444444444444),
-    PointType::make_point(0.3091666666666666666666, 1.9755555555555555555)};
+    PointType {0.3091666666666666666666, 1.9755555555555555555},
+    PointType {0.11, 1.71},
+    PointType {0.5083333333333333333, 1.44444444444444444444},
+    PointType {0.3091666666666666666666, 1.9755555555555555555}};
   std::vector<int> exporders = {1, 1, 1};
   CurvedPolygonType expbPolygon = createPolygon(expCP, exporders);
 
@@ -151,35 +151,35 @@ TEST(primal_curvedpolygon, intersection_triangle_quadratic)
   CurvedPolygonType bPolygon;
   EXPECT_EQ(0, bPolygon.numEdges());
 
-  std::vector<PointType> CP = {PointType::make_point(0.6, 1.2),
-                               PointType::make_point(0.4, 1.3),
-                               PointType::make_point(0.3, 2.0),
-                               PointType::make_point(0.27, 1.5),
-                               PointType::make_point(0.0, 1.6),
-                               PointType::make_point(0.1, 1.5),
-                               PointType::make_point(0.6, 1.2)};
+  std::vector<PointType> CP = {PointType {0.6, 1.2},
+                               PointType {0.4, 1.3},
+                               PointType {0.3, 2.0},
+                               PointType {0.27, 1.5},
+                               PointType {0.0, 1.6},
+                               PointType {0.1, 1.5},
+                               PointType {0.6, 1.2}};
   std::vector<int> orders = {2, 2, 2};
   CurvedPolygonType bPolygon1 = createPolygon(CP, orders);
 
-  std::vector<PointType> CP2 = {PointType::make_point(0.71, 1.31),
-                                PointType::make_point(0.51, 1.41),
-                                PointType::make_point(0.41, 2.11),
-                                PointType::make_point(0.38, 1.61),
-                                PointType::make_point(0.11, 1.71),
-                                PointType::make_point(0.21, 1.61),
-                                PointType::make_point(0.71, 1.31)};
+  std::vector<PointType> CP2 = {PointType {0.71, 1.31},
+                                PointType {0.51, 1.41},
+                                PointType {0.41, 2.11},
+                                PointType {0.38, 1.61},
+                                PointType {0.11, 1.71},
+                                PointType {0.21, 1.61},
+                                PointType {0.71, 1.31}};
   CurvedPolygonType bPolygon2 = createPolygon(CP2, orders);
 
   std::vector<PointType> expCP = {
-    PointType::make_point(0.335956890729522, 1.784126953773395),
-    PointType::make_point(0.297344765794753, 1.718171485335525),
-    PointType::make_point(0.2395677533016981, 1.700128235793371),
-    PointType::make_point(0.221884203146682, 1.662410644580941),
-    PointType::make_point(0.199328465398189, 1.636873522352205),
-    PointType::make_point(0.277429214338182, 1.579562422716502),
-    PointType::make_point(0.408882616650578, 1.495574996394597),
-    PointType::make_point(0.368520120719339, 1.616453177259694),
-    PointType::make_point(0.335956890729522, 1.784126953773394)};
+    PointType {0.335956890729522, 1.784126953773395},
+    PointType {0.297344765794753, 1.718171485335525},
+    PointType {0.2395677533016981, 1.700128235793371},
+    PointType {0.221884203146682, 1.662410644580941},
+    PointType {0.199328465398189, 1.636873522352205},
+    PointType {0.277429214338182, 1.579562422716502},
+    PointType {0.408882616650578, 1.495574996394597},
+    PointType {0.368520120719339, 1.616453177259694},
+    PointType {0.335956890729522, 1.784126953773394}};
   std::vector<int> exporders = {2, 2, 2, 2};
   CurvedPolygonType expbPolygon = createPolygon(expCP, exporders);
   std::vector<CurvedPolygonType> expbPolygons = {expbPolygon};
@@ -197,43 +197,42 @@ TEST(primal_curvedpolygon, intersection_triangle_quadratic_two_regions)
 
   SLIC_INFO("Test intersection of two quadratic triangles (two regions)");
 
-  std::vector<PointType> CP1 = {PointType::make_point(0.6, 1.2),
-                                PointType::make_point(0.4, 1.3),
-                                PointType::make_point(0.3, 2.0),
-                                PointType::make_point(0.27, 1.5),
-                                PointType::make_point(0.0, 1.6),
-                                PointType::make_point(0.1, 1.5),
-                                PointType::make_point(0.6, 1.2)};
+  std::vector<PointType> CP1 = {PointType {0.6, 1.2},
+                                PointType {0.4, 1.3},
+                                PointType {0.3, 2.0},
+                                PointType {0.27, 1.5},
+                                PointType {0.0, 1.6},
+                                PointType {0.1, 1.5},
+                                PointType {0.6, 1.2}};
 
-  std::vector<PointType> CP2 = {PointType::make_point(1.0205, 1.6699),
-                                PointType::make_point(0.8339, 1.5467),
-                                PointType::make_point(0.1777, 1.8101),
-                                PointType::make_point(0.5957, 1.5341),
-                                PointType::make_point(0.3741, 1.3503),
-                                PointType::make_point(0.5107, 1.3869),
-                                PointType::make_point(1.0205, 1.6699)};
+  std::vector<PointType> CP2 = {PointType {1.0205, 1.6699},
+                                PointType {0.8339, 1.5467},
+                                PointType {0.1777, 1.8101},
+                                PointType {0.5957, 1.5341},
+                                PointType {0.3741, 1.3503},
+                                PointType {0.5107, 1.3869},
+                                PointType {1.0205, 1.6699}};
   std::vector<int> orders = {2, 2, 2};
 
   std::vector<PointType> expCP1 = {
-    PointType::make_point(0.343364196589264, 1.747080669655736),
-    PointType::make_point(0.305984025190458, 1.760433098612141),
-    PointType::make_point(0.266743999290327, 1.775316659915674),
-    PointType::make_point(0.263419346128088, 1.763343410502168),
-    PointType::make_point(0.259796003065908, 1.752116885838515),
-    PointType::make_point(0.320641367919239, 1.705796408318085),
-    PointType::make_point(0.362111919147859, 1.662268860466508),
-    PointType::make_point(0.352450139541348, 1.702947255097842),
-    PointType::make_point(0.343364196589264, 1.747080669655736),
-  };
+    PointType {0.343364196589264, 1.747080669655736},
+    PointType {0.305984025190458, 1.760433098612141},
+    PointType {0.266743999290327, 1.775316659915674},
+    PointType {0.263419346128088, 1.763343410502168},
+    PointType {0.259796003065908, 1.752116885838515},
+    PointType {0.320641367919239, 1.705796408318085},
+    PointType {0.362111919147859, 1.662268860466508},
+    PointType {0.352450139541348, 1.702947255097842},
+    PointType {0.343364196589264, 1.747080669655736}};
 
   std::vector<PointType> expCP2 = {
-    PointType::make_point(0.454478985809487, 1.379250566393211),
-    PointType::make_point(0.444689566319939, 1.400290430035245),
-    PointType::make_point(0.435276730907216, 1.423589798138227),
-    PointType::make_point(0.416268597450954, 1.385275578571685),
-    PointType::make_point(0.374100000000000, 1.350300000000000),
-    PointType::make_point(0.404839872482010, 1.358536305511285),
-    PointType::make_point(0.454478985809487, 1.379250566393211)};
+    PointType {0.454478985809487, 1.379250566393211},
+    PointType {0.444689566319939, 1.400290430035245},
+    PointType {0.435276730907216, 1.423589798138227},
+    PointType {0.416268597450954, 1.385275578571685},
+    PointType {0.374100000000000, 1.350300000000000},
+    PointType {0.404839872482010, 1.358536305511285},
+    PointType {0.454478985809487, 1.379250566393211}};
 
   std::vector<int> exporder1 = {2, 2, 2, 2};
   std::vector<int> exporder2 = {2, 2, 2};
@@ -255,21 +254,21 @@ TEST(primal_curvedpolygon, area_intersection_triangle_inclusion)
 
   SLIC_INFO("Test intersection of two quadratic triangles (inclusion)");
 
-  std::vector<PointType> CP1 = {PointType::make_point(0.0, 0.0),
-                                PointType::make_point(0.5, 0.0),
-                                PointType::make_point(1.0, 0.0),
-                                PointType::make_point(0.5, 0.5),
-                                PointType::make_point(0.0, 1.0),
-                                PointType::make_point(0.0, 0.5),
-                                PointType::make_point(0.0, 0.0)};
+  std::vector<PointType> CP1 = {PointType {0.0, 0.0},
+                                PointType {0.5, 0.0},
+                                PointType {1.0, 0.0},
+                                PointType {0.5, 0.5},
+                                PointType {0.0, 1.0},
+                                PointType {0.0, 0.5},
+                                PointType {0.0, 0.0}};
 
-  std::vector<PointType> CP2 = {PointType::make_point(0.05, 0.05),
-                                PointType::make_point(0.30, 0.05),
-                                PointType::make_point(0.55, 0.05),
-                                PointType::make_point(0.30, 0.30),
-                                PointType::make_point(0.05, 0.55),
-                                PointType::make_point(0.05, 0.30),
-                                PointType::make_point(0.05, 0.05)};
+  std::vector<PointType> CP2 = {PointType {0.05, 0.05},
+                                PointType {0.30, 0.05},
+                                PointType {0.55, 0.05},
+                                PointType {0.30, 0.30},
+                                PointType {0.05, 0.55},
+                                PointType {0.05, 0.30},
+                                PointType {0.05, 0.05}};
   std::vector<int> orders = {2, 2, 2};
   CurvedPolygonType bPolygon1 = createPolygon(CP1, orders);
   CurvedPolygonType bPolygon2 = createPolygon(CP2, orders);
