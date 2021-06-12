@@ -6,7 +6,7 @@
 /*!
  * \file intersect_curved_poly_impl.hpp
  *
- * \brief Consists of functions to test intersection among geometric primitives.
+ * \brief Consists of functions to test intersections among curved polygons
  */
 
 #ifndef AXOM_PRIMAL_INTERSECTION_CURVED_POLYGON_IMPL_HPP_
@@ -45,8 +45,8 @@ int isContained(const CurvedPolygon<T, 2>& p1,
                 double sq_tol = 1e-10);
 
 /*!
- * \brief Test whether the regions within CurvedPolygons p1 and p2 intersect. 
- * \return status true iff p1 intersects with p2, otherwise false.
+ * \brief Test whether the regions bounded by CurvedPolygons \a p1 and \a p2 intersect
+ * \return status true iff \a p1 intersects with \a p2, otherwise false.
  *
  * \param [in] p1, p2 CurvedPolygon objects to intersect
  * \param [in] sq_tol tolerance parameter for the base case of intersect_bezier_curve
@@ -352,13 +352,15 @@ void splitPolygon(CurvedPolygon<T, NDIMS>& p1,
   }
 }
 
-/* \brief Determines orientation of a bezier curve c1 with respect to another bezier curve c2, given that they intersect at parameter values s and t
+/*!
+ * \brief Determines orientation of a bezier curve \a c1 with respect to another bezier curve \a c2, 
+ *  given that they intersect at parameter values \a s and \a t, respectively
  *
  * \param [in] c1 the first bezier curve
  * \param [in] c2 the second bezier curve
- * \param [in] s the parameter value of intersection on c1
- * \param [in] t the parameter value of intersection on c2
- * \return True if the c1's positive direction is counterclockwise from c2's positive direction
+ * \param [in] s the parameter value of intersection on \a c1
+ * \param [in] t the parameter value of intersection on \a c2
+ * \return True if \a c1's positive direction is counterclockwise from \a c2's positive direction
  */
 template <typename T>
 bool orient(const BezierCurve<T, 2>& c1, const BezierCurve<T, 2>& c2, T s, T t)
@@ -370,7 +372,7 @@ bool orient(const BezierCurve<T, 2>& c1, const BezierCurve<T, 2>& c2, T s, T t)
 
 /*! \class IntersectionInfo
  *
- * \brief For storing intersection points between CurvedPolygons so they can be easily sorted by parameter value using std::sort
+ * \brief For storing intersection points between \a CurvedPolygon instances so they can be easily sorted by parameter value using std::sort
  */
 template <typename T>
 class IntersectionInfo
@@ -382,9 +384,7 @@ public:
   int otherEdge;  // index of curve on second CurvedPolygon
   int numinter;   // unique intersection point identifier
 
-  /*!
-   * \brief Comparison operator for sorting by parameter value
-   */
+  /// \brief Comparison operator for sorting by parameter value
   bool operator<(const IntersectionInfo& other) const
   {
     return myTime < other.myTime;
