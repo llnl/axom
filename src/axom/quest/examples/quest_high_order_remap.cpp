@@ -21,6 +21,7 @@
 #endif
 
 #include "axom/fmt.hpp"
+#include "axom/CLI11.hpp"
 
 #include <fstream>
 
@@ -45,7 +46,7 @@ public:
   using BCurve = CurvedPolygonType::BezierCurveType;
 
 private:
-  /*! \brief Checks if the mesh's nodes are in the Bernstein basis */
+  /// \brief Checks if the mesh's nodes are in the Bernstein basis
   bool isBernsteinBasis() const
   {
     auto* fec = m_mesh->GetNodalFESpace()->FEColl();
@@ -94,15 +95,15 @@ public:
   /// Sets the mfem mesh pointer for this MeshWrapper instance
   void setMesh(mfem::Mesh* mesh)
   {
-    SLIC_ASSERT(mesh != nullptr);
+    SLIC_ERROR_IF(mesh == nullptr, "Mesh was null");
     m_mesh = mesh;
 
-    bool isHighOrder =
-      (m_mesh->GetNodalFESpace() != nullptr) && (m_mesh->GetNE() > 0);
-    SLIC_ASSERT_MSG(isHighOrder, "The mesh must be high order.");
+    // Check that mesh is high order
+    SLIC_ERROR_IF(m_mesh->GetNodes() == nullptr, "The mesh must be high order.");
 
-    bool isBernstein = isBernsteinBasis();
-    SLIC_ASSERT_MSG(isBernstein, "The mesh must be in the Bernstein basis");
+    // Check that mesh nodes are using Bernstein basis
+    SLIC_ERROR_IF(!isBernsteinBasis(),
+                  "The mesh must be in the Bernstein basis");
 
     const double tol = 1E-8;
     computeBoundingBoxes(1 + tol);
@@ -119,7 +120,7 @@ public:
   const BBox& meshBoundingBox() const { return m_meshBBox; }
 
   /*!
-   * \brief Transform the mfem element into a primal CurvedPolygon
+   * \brief Transform the mfem element into a primal::CurvedPolygon
    *
    * \param elemId The index of the element
    * \return The element as a CurvedPolygon composed of BezierCurves
@@ -146,16 +147,6 @@ public:
     {
       // get the dof (degree of freedom) indices for this edge
       fes->GetEdgeDofs(edgeIds[e], dofIndices);
-
-      //SLIC_INFO("Elem " << elemId
-      // << " edge " << edgeIds[e] << " w/ orient " << edgeOrients[e]
-      // << " -- dof inds "
-      // << dofIndices[0] << " " << dofIndices[1] << " "  << dofIndices[2]
-      // << " -- points "
-      // << spacePointFromDof(dofIndices[0], fes, nodes) << " "
-      // << spacePointFromDof(dofIndices[1], fes, nodes) << " "
-      // << spacePointFromDof(dofIndices[2], fes, nodes)
-      // );
 
       // possibly reverse the dofs, based on the orientation
       // Note: The dofs are ordered by vertices, then by edge
@@ -189,7 +180,7 @@ public:
   }
 
 private:
-  /*! Get the coordinates of the point from the dof index */
+  /// Get the coordinates of the point from the dof index
   SpacePoint spacePointFromDof(int idx,
                                const mfem::FiniteElementSpace* fes,
                                const mfem::GridFunction* nodes)
@@ -252,7 +243,7 @@ public:
   using CandidateList = std::vector<int>;
 
 private:
-  using GridType = spin::ImplicitGrid<2, axom::SEQ_EXEC, int>;
+  using GridType = spin::ImplicitGrid<DIM, axom::SEQ_EXEC, int>;
 
 public:
   Remapper() = default;
@@ -283,7 +274,7 @@ public:
     SLIC_ERROR_IF(gf_mesh == nullptr,
                   "project_to_pos_basis(): gf_mesh is NULL!");
 
-    int order = 5;  // nodal_fe_space->GetOrder(0);
+    int order = nodal_fe_space->GetOrder(0);
     int dim = gf_mesh->Dimension();
 
     auto* pos_fe_coll =
@@ -329,188 +320,99 @@ public:
     return out_pos_gf;
   }
 
-  /*! Set up the source and target meshes */
-  void setupMeshes(int res1, int res2, int order)
+  /*!
+   * \brief Loads a mesh (source or target) and applies some simple transformations
+   *
+   * \param isSource Determines is we're loading the source mesh (true) or target mesh (false)
+   * \param fname File pointing to an mfem mesh. If empty, we'll generate a Cartesian mesh over the unit square
+   * \param offset_x Offset for translating the mesh in the x direction
+   * \param offset_y Offset for translating the mesh in the y direction
+   * \param scale  Factor for uniformly scaling the mesh
+   * \param mref Number of uniform refinements to apply to the mesh
+   * \param order Polynomial order for the mesh's nodal grid function
+   */
+  void loadMesh(bool isSource,
+                const std::string& fname,
+                double offset_x,
+                double offset_y,
+                double scale,
+                int mref,
+                int order)
   {
-    const auto quadType = mfem::Element::QUADRILATERAL;
-    const int dim = 2;
+    mfem::Mesh* mesh = nullptr;
 
-    // parameters for source  mesh -- quad mesh covering unit square
-    const int src_res = res2;
-    const int src_ord = order;
-
-    // parameters for target mesh -- quad mesh covering (part of) unit square
-    const int tgt_res = res1;
-    const int tgt_ord = order;
-    const double tgt_scale = .712378102150;
-    const double tgt_trans1 = .1345747181586;
-    const double tgt_trans2 = .1345747181586;
-
-    // create the source mesh
+    // Load mesh from file or as Cartesian mesh
+    if(!fname.empty())
     {
-      // create mfem mesh
-      auto* mesh = new mfem::Mesh(src_res, src_res, quadType, true);
-
-      // create finite element collection for nodes
-      auto* fec =
-        new mfem::H1_FECollection(src_ord, dim, mfem::BasisType::Positive);
-      fecMap.Register("src_fec", fec, true);
-
-      // create finite element space for nodes
-      auto* fes = new mfem::FiniteElementSpace(mesh, fec, dim);
-      fesMap.Register("src_fes", fes, true);
-      mesh->SetNodalFESpace(fes);
-
-      //SLIC_DEBUG("Outputting mesh to: " << axom::utilities::filesystem::getCWD());
-      {
-        std::ofstream file;
-        file.open("ho_field_xfer_source.mfem");
-        mesh->Print(file);
-      }
-
-      srcMesh.setMesh(mesh);
+      mesh = new mfem::Mesh(fname.c_str(), 1, 1);
+    }
+    else
+    {
+      const auto quadType = mfem::Element::QUADRILATERAL;
+      const bool generateEdges = true;
+      const int res = 1;
+      mesh = new mfem::Mesh(res, res, quadType, generateEdges);
     }
 
-    // create the target mesh
+    // Ensure that mesh has high order nodes
+    mesh->SetCurvature(order);
+
+    // Scale and offset mesh
+    xformMesh(mesh, scale, offset_x, offset_y);
+
+    // Apply uniform refinement
+    for(int i = 0; i < mref; ++i)
     {
-      auto* mesh = new mfem::Mesh(tgt_res, tgt_res, quadType, true);
-      xformMesh(mesh, tgt_scale, tgt_trans1, tgt_trans2);
-
-      auto* fec =
-        new mfem::H1_FECollection(tgt_ord, dim, mfem::BasisType::Positive);
-      fecMap.Register("tgt_fec", fec, true);
-
-      auto* fes = new mfem::FiniteElementSpace(mesh, fec, dim);
-      fesMap.Register("tgt_fes", fes, true);
-      mesh->SetNodalFESpace(fes);
-
-      {
-        std::ofstream file;
-        file.open("ho_field_xfer_target.mfem");
-        mesh->Print(file);
-      }
-
-      tgtMesh.setMesh(mesh);
+      mesh->UniformRefinement();
     }
-  }
-  void loadMeshes(int res2, int order)
-  {
-    // create the source mesh
-    const auto quadType = mfem::Element::QUADRILATERAL;
-    const int dim = 2;
 
-    // parameters for target mesh -- quad mesh covering unit square
-    const int src_res = res2;
-    const int src_ord = order;
-    const double src_scale = 1.5;
-    const double src_trans1 = .01517288412347;
-    const double src_trans2 = .02571238506182;
-
-    // parameters for target mesh -- quad mesh covering (part of) unit square
-    const int tgt_ord = 2;
-
-    AXOM_UNUSED_VAR(quadType);
-    AXOM_UNUSED_VAR(src_res);
-    AXOM_UNUSED_VAR(src_ord);
-    AXOM_UNUSED_VAR(tgt_ord);
-
+    // dump original mesh
     {
-      // NOTE (KW): For now, assume we have AXOM_DATA_DIR
-      namespace fs = axom::utilities::filesystem;
-      std::string fname = fs::joinPath(AXOM_DATA_DIR, "mfem/disc-nurbs-80.mesh");
+      std::ofstream file;
+      file.open(axom::fmt::format("{}_mesh_orig.mfem", isSource ? "src" : "tgt"));
+      mesh->Print(file);
+    }
 
-      auto* mesh = new mfem::Mesh(fname.c_str(), 1, 1);
-      xformMesh(mesh, src_scale, src_trans1, src_trans2);
-      if(mesh->NURBSext)
-      {
-        int ord = 5;  //src_ord;
-        mesh->SetCurvature(ord);
-      }
-      // xformMesh(mesh, tgt_scale, tgt_trans);
-      {
-        std::ofstream file;
-        file.open("src_mesh_orig.mfem");
-        mesh->Print(file);
-      }
-
-      bool is_mesh_gf_new;
+    // project nodes to Berstein basis, if necessary
+    {
+      bool is_mesh_gf_new {false};
       mfem::GridFunction* mesh_nodes = mesh->GetNodes();
       mfem::GridFunction* pos_mesh_nodes_ptr =
         project_to_pos_basis(mesh_nodes, is_mesh_gf_new);
+
       mfem::GridFunction& pos_mesh_nodes =
         (is_mesh_gf_new ? *pos_mesh_nodes_ptr : *mesh_nodes);
       mesh->NewNodes(pos_mesh_nodes, true);
+    }
 
-      AXOM_UNUSED_VAR(dim);
-      //auto* fec = new mfem::H1_FECollection(tgt_ord, dim,
-      //                                      mfem::BasisType::Positive);
-      //fecMap.Register("tgt_fec", fec, true);
+    // dump modified mesh
+    {
+      std::ofstream file;
+      file.open(axom::fmt::format("{}_mesh_set.mfem", isSource ? "src" : "tgt"));
+      mesh->Print(file);
+    }
 
-      //auto* fes = new mfem::FiniteElementSpace(mesh, fec, dim);
-      //fesMap.Register("tgt_fes", fes, true);
-      //mesh->SetNodalFESpace(fes);
-      SLIC_INFO(axom::fmt::format("Source mesh has {} vertices", mesh->GetNV()));
-      {
-        std::ofstream file;
-        file.open("src_mesh_set.mfem");
-        mesh->Print(file);
-      }
-      //std::cout << "Got here!" << std::endl;
+    // set as active source/target mesh
+    if(isSource)
+    {
       srcMesh.setMesh(mesh);
     }
-
-    // create the target mesh
+    else
     {
-      // NOTE (KW): For now, assume we have AXOM_DATA_DIR
-      namespace fs = axom::utilities::filesystem;
-      std::string fname = fs::joinPath(AXOM_DATA_DIR, "mfem/disc-nurbs-80.mesh");
-
-      auto* mesh = new mfem::Mesh(fname.c_str(), 1, 1);
-      if(mesh->NURBSext)
-      {
-        int ord = 5;  //tgt_ord;
-        mesh->SetCurvature(ord);
-      }
-
-      // xformMesh(mesh, tgt_scale, tgt_trans);
-      const double tgt_scale = 1.0;
-      const double tgt_trans1 = .001237586;
-      const double tgt_trans2 = -.06172376;
-      xformMesh(mesh, tgt_scale, tgt_trans1, tgt_trans2);
-
-      {
-        std::ofstream file;
-        file.open("target_mesh_orig.mfem");
-        mesh->Print(file);
-      }
-
-      bool is_mesh_gf_new;
-      mfem::GridFunction* mesh_nodes = mesh->GetNodes();
-      mfem::GridFunction* pos_mesh_nodes_ptr =
-        project_to_pos_basis(mesh_nodes, is_mesh_gf_new);
-      mfem::GridFunction& pos_mesh_nodes =
-        (is_mesh_gf_new ? *pos_mesh_nodes_ptr : *mesh_nodes);
-      mesh->NewNodes(pos_mesh_nodes, true);
-
-      //auto* fec = new mfem::H1_FECollection(tgt_ord, dim,
-      //                                      mfem::BasisType::Positive);
-      //fecMap.Register("tgt_fec", fec, true);
-
-      //auto* fes = new mfem::FiniteElementSpace(mesh, fec, dim);
-      //fesMap.Register("tgt_fes", fes, true);
-      //mesh->SetNodalFESpace(fes);
-
-      {
-        std::ofstream file;
-        file.open("target_mesh_set.mfem");
-        mesh->Print(file);
-      }
-      //std::cout << "Got here!" << std::endl;
       tgtMesh.setMesh(mesh);
     }
+
+    SLIC_INFO(axom::fmt::format(
+      "Loaded {} mesh from {} w/ {} elements."
+      "\n\t(Slightly inflated) mesh bounding box: {}",
+      isSource ? "source" : "target",
+      fname.empty() ? "Cartesian grid" : fname,
+      mesh->GetNE(),
+      isSource ? srcMesh.meshBoundingBox() : tgtMesh.meshBoundingBox()));
   }
-  /*! Setup the implicit grid spatial index over the source mesh */
-  void setupGrid()
+
+  /// Setup the implicit grid spatial index over the source mesh
+  void initSpatialIndex()
   {
     const int NE = srcMesh.numElements();
     grid.initialize(srcMesh.meshBoundingBox(), nullptr, NE);
@@ -534,8 +436,7 @@ public:
     double calcE = 0.0;
     for(int i = 0; i < nTargetElems; ++i)
     {
-      // Finds the candidates from the source mesh that
-      // can intersect this target element
+      // Finds the candidates from the source mesh that can intersect this target element
       auto candidates = getSourceCandidates(i);
       if(candidates.empty()) break;
 
@@ -654,47 +555,172 @@ private:
   }
 };
 
+/// Simple struct to hold properties for initializing a mesh instance
+struct MeshProps
+{
+  std::string file;
+  std::vector<double> offset;
+  double scale {1.};
+  int order {2};
+  int refinement {0};
+
+  bool isDefault() const { return file.empty() && offset.empty(); }
+  bool hasOffset() const { return offset.size() == 2; }
+
+  friend std::ostream& operator<<(std::ostream& os, const MeshProps& props)
+  {
+    os << axom::fmt::format(
+      "{{\n"
+      "   file: {} \n"
+      "   offset({}): {} \n"
+      "   order: {} \n"
+      "   scale: {} \n"
+      "   refinement: {} \n"
+      "}}",
+      props.file.empty() ? "<>" : axom::fmt::format("'{}'", props.file),
+      props.offset.size(),
+      axom::fmt::join(props.offset, " "),
+      props.order,
+      props.scale,
+      props.refinement);
+    return os;
+  }
+};
+
 //------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
-  AXOM_UNUSED_VAR(argc);
-  AXOM_UNUSED_VAR(argv);
-
   axom::slic::SimpleLogger logger;
 
   SLIC_INFO("The application conservatively maps fields from a source \n"
             << "high order mesh to a target high order mesh!");
 
-  SLIC_INFO("Running intersection tests...");
-  for(int i = 2; i <= 2; ++i)
+  MeshProps srcMesh;
+  MeshProps tgtMesh;
+
+  // Setup default meshes if user doesn't pass in data
+#ifdef AXOM_DATA_DIR
+  // Use a mesh from a file if we have the data directory
+  namespace fs = axom::utilities::filesystem;
+  MeshProps defaultSrcMesh;
+  defaultSrcMesh.file = fs::joinPath(AXOM_DATA_DIR, "mfem/disc-nurbs-80.mesh");
+  defaultSrcMesh.scale = 1.5;
+  defaultSrcMesh.offset = {.01517288412347, .02571238506182};
+  defaultSrcMesh.order = 3;
+
+  MeshProps defaultTgtMesh;
+  defaultTgtMesh.file = fs::joinPath(AXOM_DATA_DIR, "mfem/disc-nurbs-80.mesh");
+  defaultTgtMesh.offset = {.001237586, -.06172376};
+  defaultTgtMesh.order = 3;
+#else
+  // parameters for a Cartesian mesh
+  MeshProps defaultSrcMesh;
+  defaultSrcMesh.refinement = 1;
+  defaultSrcMesh.order = 5;
+
+  // quad mesh partially covering unit square
+  MeshProps defaultTgtMesh;
+  defaultSrcMesh.refinement = 1;
+  defaultTgtMesh.scale = 712378102150;
+  defaultTgtMesh.offset = {.1345747181586, .1345747181586};
+  defaultTgtMesh.order = 5;
+#endif
+
+  // Set up and parse command line args
+  axom::CLI::App app {"High order mesh intersection application"};
   {
-    Remapper remap;
+    app.add_option("--srcFile", srcMesh.file)
+      ->description("mfem mesh file for source mesh")
+      ->check(axom::CLI::ExistingFile);
+    app.add_option("--srcOffset", srcMesh.offset)
+      ->description("offset for source mesh")
+      ->expected(2);
+    app.add_option("--srcScale", srcMesh.scale)
+      ->description("scale for source mesh")
+      ->capture_default_str();
+    app.add_option("--srcOrder", srcMesh.order)
+      ->description("polynomial order for source mesh")
+      ->capture_default_str();
+    app.add_option("--srcRef", srcMesh.refinement)
+      ->description("refinement levels for source mesh")
+      ->capture_default_str();
 
-    int res1 = i;
-    int res2 = i;
-
-    // Setup the two meshes in the Bernstein basis
-    // The current implementation hard-codes the two meshes
-    // TODO: Read in two meshes from disk.
-    //       In that case, we will need to convert the FEC to the Bernstein basis
-    //  remap.setupMeshes(res1, res2, i);
-    remap.loadMeshes(res1, res2);
-
-    // Set up the spatial index
-    remap.setupGrid();
-    axom::utilities::Timer timer(true);
-
-    // Computes the overlaps between elements of the target and source meshes
-    double area = remap.computeOverlapAreas();
-
-    timer.stop();
-    std::cout.precision(16);
-    SLIC_INFO(axom::fmt::format(
-      "Intersecting meshes at resolution {}: area: {}, time: {}",
-      i,
-      area,
-      timer.elapsed()));
+    app.add_option("--tgtFile", tgtMesh.file)
+      ->description("mfem mesh file for source mesh")
+      ->check(axom::CLI::ExistingFile);
+    app.add_option("--tgtOffset", tgtMesh.offset)
+      ->description("offset for target mesh")
+      ->expected(2);
+    app.add_option("--tgtScale", tgtMesh.scale)
+      ->description("scale for target mesh")
+      ->capture_default_str();
+    app.add_option("--tgtOrder", tgtMesh.order)
+      ->description("polynomial order for target mesh")
+      ->capture_default_str();
+    app.add_option("--tgtRef", tgtMesh.refinement)
+      ->description("refinement levels for target mesh")
+      ->capture_default_str();
   }
+  CLI11_PARSE(app, argc, argv);
+
+  SLIC_INFO("Running intersection tests...");
+  axom::utilities::Timer timer(false);
+
+  Remapper remap;
+
+  // Load the source mesh
+  {
+    const bool isSource = true;
+    if(srcMesh.isDefault())
+    {
+      srcMesh = defaultSrcMesh;
+    }
+    if(!srcMesh.hasOffset())
+    {
+      srcMesh.offset = {0, 0};
+    }
+    SLIC_INFO("Loading source mesh: " << srcMesh);
+    remap.loadMesh(isSource,
+                   srcMesh.file,
+                   srcMesh.offset[0],
+                   srcMesh.offset[1],
+                   srcMesh.scale,
+                   srcMesh.refinement,
+                   srcMesh.order);
+  }
+  // Load the target mesh
+  {
+    const bool isSource = false;
+    if(tgtMesh.isDefault())
+    {
+      tgtMesh = defaultTgtMesh;
+    }
+    if(!tgtMesh.hasOffset())
+    {
+      tgtMesh.offset = {0, 0};
+    }
+    SLIC_INFO("Loading target mesh: " << tgtMesh);
+    remap.loadMesh(isSource,
+                   tgtMesh.file,
+                   tgtMesh.offset[0],
+                   tgtMesh.offset[1],
+                   tgtMesh.scale,
+                   tgtMesh.refinement,
+                   tgtMesh.order);
+  }
+
+  // Set up the spatial index
+  remap.initSpatialIndex();
+
+  // Computes the overlaps between elements of the target and source meshes
+  timer.start();
+  double area = remap.computeOverlapAreas();
+  timer.stop();
+
+  std::cout.precision(16);
+  SLIC_INFO(axom::fmt::format("Intersecting meshes: area: {}, time: {}",
+                              area,
+                              timer.elapsed()));
 
   return 0;
 }
