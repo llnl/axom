@@ -354,17 +354,17 @@ public:
       mesh = new mfem::Mesh(res, res, quadType, generateEdges);
     }
 
-    // Ensure that mesh has high order nodes
-    mesh->SetCurvature(order);
-
-    // Scale and offset mesh
-    xformMesh(mesh, scale, offset_x, offset_y);
-
     // Apply uniform refinement
     for(int i = 0; i < mref; ++i)
     {
       mesh->UniformRefinement();
     }
+
+    // Ensure that mesh has high order nodes
+    mesh->SetCurvature(order);
+
+    // Scale and offset mesh
+    xformMesh(mesh, scale, offset_x, offset_y);
 
     // dump original mesh
     {
@@ -432,16 +432,19 @@ public:
     double totalArea = 0.0;
     double correctArea = 0.0;
     const int nTargetElems = tgtMesh.numElements();
-    //  SLIC_INFO("Number of Target Elements: " << nTargetElems);
+
     double calcE = 0.0;
     for(int i = 0; i < nTargetElems; ++i)
     {
       // Finds the candidates from the source mesh that can intersect this target element
       auto candidates = getSourceCandidates(i);
-      if(candidates.empty()) break;
+      if(candidates.empty())
+      {
+        continue;
+      }
 
       auto tgtPoly = tgtMesh.elemAsCurvedPolygon(i);
-      //  SLIC_INFO("Target Element: " << tgtPoly);
+      //SLIC_INFO("Target Element: " << tgtPoly);
       correctArea += primal::area(tgtPoly);
       //SLIC_INFO("Target elem " << i
       //                         << " -- area " << primal::area(tgtPoly)
@@ -452,11 +455,11 @@ public:
       for(int srcElem : candidates)
       {
         auto srcPoly = srcMesh.elemAsCurvedPolygon(srcElem);
-        //   SLIC_INFO("*Source Element: " << srcPoly);
-        //   SLIC_INFO("* Source elem " << srcElem
-        //                              << " -- area " << primal::area(srcPoly)
-        // ////            //<< " -- bbox " << srcMesh.elementBoundingBox(srcElem)
-        //             );
+        //SLIC_INFO("\tSource Element: " << srcPoly);
+        //SLIC_INFO(
+        //  "\tSource elem \n\t\t" << srcElem << "\n\t\t -- area " << primal::area(srcPoly)
+        //              << " -- bbox " <<  srcMesh.elementBoundingBox(srcElem)
+        //);
 
         std::vector<primal::CurvedPolygon<double, 2>> pnew;
         tgtPoly.reverseOrientation();
@@ -520,6 +523,153 @@ public:
     }
 
     return filteredCandidates;
+  }
+
+  void outputAsSVG()
+  {
+    std::string header = R"html(<svg viewBox='-5 -5 10 10'
+           xmlns='http://www.w3.org/2000/svg'>)html";
+    std::string footer = "</svg>";
+
+    // lambda to convert a CurvedPolygon to an SVG path string
+    auto cpToSVG = [](const MeshWrapper::CurvedPolygonType& cp) {
+      axom::fmt::memory_buffer out;
+      bool is_first = true;
+
+      for(auto& curve : cp.getEdges())
+      {
+        // Only write out first point for first edge
+        if(is_first)
+        {
+          axom::fmt::format_to(out, "M {} {} ", curve[0][0], curve[0][1]);
+          is_first = false;
+        }
+
+        switch(curve.getOrder())
+        {
+        case 1:
+          axom::fmt::format_to(out, "L {} {} ", curve[1][0], curve[1][1]);
+          break;
+        case 2:
+          axom::fmt::format_to(out,
+                               "Q {} {}, {} {} ",
+                               curve[1][0],
+                               curve[1][1],
+                               curve[2][0],
+                               curve[2][1]);
+          break;
+        case 3:
+          axom::fmt::format_to(out,
+                               "C {} {}, {} {}, {} {} ",
+                               curve[1][0],
+                               curve[1][1],
+                               curve[2][0],
+                               curve[2][1],
+                               curve[3][0],
+                               curve[3][1]);
+          break;
+        default:
+          SLIC_WARNING(
+            "Unsupported case: can only output up to cubic curves as SVG.");
+        }
+      }
+      return axom::fmt::format("    <path d='{} Z' />\n",
+                               axom::fmt::to_string(out));
+    };
+
+    std::string srcGroup;
+    std::string tgtGroup;
+    std::string intersectionGroup;
+
+    // output src mesh
+    {
+      axom::fmt::memory_buffer out;
+      axom::fmt::format_to(
+        out,
+        "  <g id='source_mesh' stroke='black' stroke-width='.01' "
+        "fill='red' fill-opacity='.7'>\n");
+      auto& meshWrapper = srcMesh;
+      for(int i = 0; i < meshWrapper.numElements(); ++i)
+      {
+        auto cp = meshWrapper.elemAsCurvedPolygon(i);
+        axom::fmt::format_to(out, cpToSVG(cp));
+      }
+      axom::fmt::format_to(out, "  </g>\n");
+      srcGroup = axom::fmt::to_string(out);
+    }
+
+    //output tgt mesh
+    {
+      axom::fmt::memory_buffer out;
+      axom::fmt::format_to(
+        out,
+        "  <g id='target_mesh' stroke='black' stroke-width='.01' "
+        "fill='blue' fill-opacity='.7'>\n");
+      auto& meshWrapper = tgtMesh;
+      for(int i = 0; i < meshWrapper.numElements(); ++i)
+      {
+        auto cp = meshWrapper.elemAsCurvedPolygon(i);
+        axom::fmt::format_to(out, cpToSVG(cp));
+      }
+      axom::fmt::format_to(out, "  </g>\n");
+      tgtGroup = axom::fmt::to_string(out);
+    }
+
+    //output intersection elements
+    {
+      double EPS = 1e-8;
+      axom::fmt::memory_buffer out;
+      axom::fmt::format_to(
+        out,
+        "  <g id='intersection_mesh' stroke='black' stroke-width='.01' "
+        "fill='green' fill-opacity='.7'>\n");
+
+      // foreach target element, find src intersections and add to group
+      const int nTargetElems = tgtMesh.numElements();
+      for(int i = 0; i < nTargetElems; ++i)
+      {
+        auto candidates = getSourceCandidates(i);
+        if(candidates.empty())
+        {
+          continue;
+        }
+
+        auto tgtPoly = tgtMesh.elemAsCurvedPolygon(i);
+        for(int srcElem : candidates)
+        {
+          auto srcPoly = srcMesh.elemAsCurvedPolygon(srcElem);
+
+          srcPoly.reverseOrientation();
+          tgtPoly.reverseOrientation();
+
+          std::vector<MeshWrapper::CurvedPolygonType> pnew;
+          if(primal::intersect(tgtPoly, srcPoly, pnew, EPS))
+          {
+            for(auto& cp : pnew)
+            {
+              axom::fmt::format_to(out, cpToSVG(cp));
+            }
+          }
+
+          srcPoly.reverseOrientation();
+          tgtPoly.reverseOrientation();
+        }
+      }
+
+      axom::fmt::format_to(out, "  </g>\n");
+      intersectionGroup = axom::fmt::to_string(out);
+    }
+
+    // Write the file
+    {
+      std::string fname = "high_order_intersections.svg";
+      std::ofstream fs(fname);
+      fs << header << std::endl;
+      fs << srcGroup << std::endl;
+      fs << tgtGroup << std::endl;
+      fs << intersectionGroup << std::endl;
+      fs << footer << std::endl;
+    }
   }
 
 public:
@@ -603,13 +753,13 @@ int main(int argc, char** argv)
   // Use a mesh from a file if we have the data directory
   namespace fs = axom::utilities::filesystem;
   MeshProps defaultSrcMesh;
-  defaultSrcMesh.file = fs::joinPath(AXOM_DATA_DIR, "mfem/disc-nurbs-80.mesh");
+  defaultSrcMesh.file = fs::joinPath(AXOM_DATA_DIR, "mfem/disc-nurbs.mesh");
   defaultSrcMesh.scale = 1.5;
   defaultSrcMesh.offset = {.01517288412347, .02571238506182};
   defaultSrcMesh.order = 3;
 
   MeshProps defaultTgtMesh;
-  defaultTgtMesh.file = fs::joinPath(AXOM_DATA_DIR, "mfem/disc-nurbs-80.mesh");
+  defaultTgtMesh.file = fs::joinPath(AXOM_DATA_DIR, "mfem/disc-nurbs.mesh");
   defaultTgtMesh.offset = {.001237586, -.06172376};
   defaultTgtMesh.order = 3;
 #else
@@ -716,6 +866,8 @@ int main(int argc, char** argv)
   timer.start();
   double area = remap.computeOverlapAreas();
   timer.stop();
+
+  remap.outputAsSVG();
 
   std::cout.precision(16);
   SLIC_INFO(axom::fmt::format("Intersecting meshes: area: {}, time: {}",
