@@ -278,6 +278,142 @@ TEST(primal_curvedpolygon, area_intersection_triangle_inclusion)
   checkIntersection(bPolygon2, bPolygon1, expIntersections);
 }
 
+TEST(primal_curvedpolygon, doubleIntersection)
+{
+  const double EPS = 1e-8;
+  const int DIM = 2;
+  using CoordType = double;
+  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using PointType = primal::Point<CoordType, DIM>;
+
+  SLIC_INFO("Tests multiple intersections along an edge");
+
+  {
+    // Unit square
+    std::vector<PointType> CP1 = {PointType {0, 0},
+                                  PointType {1, 0},
+                                  PointType {1, 1},
+                                  PointType {0, 1},
+                                  PointType {0, 0}};
+    std::vector<int> orders1 = {1, 1, 1, 1};
+
+    // Bi-gon defined by a quadratic edge and a straight line
+    std::vector<PointType> CP2 = {PointType {0.8, .25},
+                                  PointType {2.0, .50},
+                                  PointType {0.8, .75},
+                                  PointType {0.8, .25}};
+    std::vector<int> orders2 = {2, 1};
+
+    CurvedPolygonType bPolygon1 = createPolygon(CP1, orders1);
+    CurvedPolygonType bPolygon2 = createPolygon(CP2, orders2);
+
+    // Find intersections using DirectionalWalk class
+    double walkIntersectionArea = 0.;
+    {
+      const bool verbose = true;
+      primal::detail::DirectionalWalk<double, 2> walk(verbose);
+      int numIntersections =
+        walk.splitPolygonsAlongIntersections(bPolygon1, bPolygon2, EPS * EPS);
+
+      EXPECT_EQ(2, numIntersections);
+      EXPECT_NEAR(primal::area(bPolygon1), primal::area(walk.psplit[0]), EPS);
+      EXPECT_NEAR(primal::area(bPolygon2), primal::area(walk.psplit[1]), EPS);
+
+      SLIC_INFO("Checking for intersections between " << bPolygon1 << " and "
+                                                      << bPolygon2);
+
+      std::vector<CurvedPolygonType> regions;
+      walk.findIntersectionRegions(regions);
+      EXPECT_EQ(1, regions.size());
+
+      if(!regions.empty())
+      {
+        EXPECT_EQ(4, regions[0].numEdges());
+        walkIntersectionArea = primal::area(regions[0]);
+      }
+      else
+      {
+        FAIL() << "Expected the two polygons to intersect";
+      }
+
+      SLIC_INFO("Found intersections (directional walk): ");
+      for(auto cp : regions)
+      {
+        SLIC_INFO("\t" << cp);
+      }
+    }
+
+    // Find interesections using primal::intersect
+    double directIntersectionArea = 0.;
+    {
+      std::vector<CurvedPolygonType> regions;
+      bool intersects = intersect(bPolygon1, bPolygon2, regions, EPS);
+      EXPECT_TRUE(intersects);
+      EXPECT_EQ(1, regions.size());
+
+      if(!regions.empty())
+      {
+        EXPECT_EQ(4, regions[0].numEdges());
+        directIntersectionArea = primal::area(regions[0]);
+      }
+      else
+      {
+        FAIL() << "Expected the two polygons to intersect";
+      }
+
+      SLIC_INFO("Found intersections (direct): ");
+      for(auto cp : regions)
+      {
+        SLIC_INFO("\t" << cp);
+      }
+    }
+
+    EXPECT_NEAR(walkIntersectionArea, directIntersectionArea, EPS);
+  }
+}
+
+TEST(primal_curvedpolygon, regression)
+{
+  const double EPS = 1e-8;
+  const int DIM = 2;
+  using CoordType = double;
+  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using PointType = primal::Point<CoordType, DIM>;
+
+  SLIC_INFO("Test intersection of pairs of polygons from regression data");
+
+  // First test: Intersecting a pair of linear quadrilaterals
+  // Note: One of the intersections happens betwen a vertex and edge
+  // and is not yet properly handled by primal::intersect
+  {
+    std::vector<PointType> CP1 = {PointType {1, -2},
+                                  PointType {0, -1},
+                                  PointType {0, 1},
+                                  PointType {1, 2},
+                                  PointType {1, -2}};
+
+    std::vector<PointType> CP2 = {PointType {-.9, -2},
+                                  PointType {0.1, -1},
+                                  PointType {2.1, -1},
+                                  PointType {3.1, -2},
+                                  PointType {-.9, -2}};
+    std::vector<int> orders = {1, 1, 1, 1};
+
+    CurvedPolygonType bPolygon1 = createPolygon(CP1, orders);
+    CurvedPolygonType bPolygon2 = createPolygon(CP2, orders);
+    std::vector<CurvedPolygonType> expIntersections;
+
+    intersect(bPolygon1, bPolygon2, expIntersections, EPS);
+
+    SLIC_INFO("There were " << expIntersections.size()
+                            << " intersection polygons");
+    for(auto cp : expIntersections)
+    {
+      SLIC_INFO("\t" << cp);
+    }
+  }
+}
+
 //----------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
