@@ -180,95 +180,123 @@ public:
     return numinters;
   }
 
+private:
+  using intersection_iterator = int;
+
+  /// Finds the offset to \a intersectionID w.r.t. the active polygon
+  intersection_iterator update_iter(bool active, int intersectionID) const
+  {
+    const auto beg = edgelabels[active].begin();
+    const auto end = edgelabels[active].end();
+    return std::find(beg, end, intersectionID) - beg;
+  }
+
+  void negate_label(bool active, intersection_iterator iter)
+  {
+    edgelabels[active][iter] = -edgelabels[active][iter];
+  }
+
+public:
+  /*!
+   * Finds all intersection regions of the two input polygons
+   *  
+   * This function must be called after splitPolygonsAlongIntersections
+   * which inserts the intersection points into each polygon and generates 
+   * the \a edgelabels structure.
+   * 
+   * The results will be a vector of polygons inserted into OUT parameter \a pnew
+   */
   void findIntersectionRegions(std::vector<CurvedPolygonType>& pnew)
   {
+    const int numEdges[2] = {static_cast<int>(edgelabels[0].size()),
+                             static_cast<int>(edgelabels[1].size())};
+
     // When this is false, we are walking between intersection regions
-    bool addingcurves = true;
-    int startvertex = 1;  // Start at the vertex with "unique id" 1
-    int nextvertex;       // The next vertex id is unknown at this time
-    // This variable allows us to switch between the two elements
-    bool currentelement = orientation;
-    // This is the iterator pointing to the end vertex of the edge  of the completely split polygon we are on
-    int currentit = std::find(edgelabels[currentelement].begin(),
-                              edgelabels[currentelement].end(),
-                              startvertex) -
-      edgelabels[currentelement].begin();
+    bool intersectionsRemaining = true;
+
+    // This variable allows us to switch between the two polygons
+    bool active = orientation;
+
+    // Start at the vertex with "unique id" 1
+    int startvertex = 1;
+
+    // This is the iterator pointing to the end vertex of the edge  of the active polygon
+    intersection_iterator currentit = update_iter(active, startvertex);
+
     // This is the iterator to the end vertex of the starting edge on the starting polygon
-    int startit = currentit;
+    intersection_iterator startit = currentit;
+
     // This is the iterator to the end vertex of the next edge of whichever polygon we will be on next
-    int nextit = (currentit + 1) % edgelabels[0].size();
-    nextvertex = edgelabels[currentelement][nextit];  // This is the next vertex id
+    intersection_iterator nextit = (currentit + 1) % numEdges[active];
+
+    // This is the next vertex id
+    int nextvertex = edgelabels[active][nextit];
+
+    // Find all connected regions of the intersection (we're done when we've found all intersections)
     while(numinters > 0)
     {
-      CurvedPolygon<T, NDIMS> aPart;  // Object to store the current intersection polygon (could be multiple)
+      CurvedPolygonType aPart;  // Object to store the current intersection polygon (could be multiple)
 
       // Once the end vertex of the current edge is the start vertex, we need to switch regions
-      while(!(nextit == startit && currentelement == orientation) ||
-            addingcurves == false)
+      while(!(nextit == startit && active == orientation) ||
+            !intersectionsRemaining)
       {
         if(nextit == currentit)
         {
-          nextit = (currentit + 1) % edgelabels[0].size();
+          nextit = (currentit + 1) % numEdges[active];
         }
-        nextvertex = edgelabels[currentelement][nextit];
+        nextvertex = edgelabels[active][nextit];
+
+        // Accept edges corresponding to original vertices
         while(nextvertex == 0)
         {
           currentit = nextit;
-          if(addingcurves)
+          if(intersectionsRemaining)
           {
-            aPart.addEdge(psplit[currentelement][nextit]);
+            aPart.addEdge(psplit[active][nextit]);
           }
-          nextit = (currentit + 1) % edgelabels[0].size();
-          nextvertex = edgelabels[currentelement][nextit];
+          nextit = (currentit + 1) % numEdges[active];
+          nextvertex = edgelabels[active][nextit];
         }
-        if(edgelabels[currentelement][nextit] > 0)
+
+        // Handle intersection vertex
+        if(edgelabels[active][nextit] > 0)
         {
-          if(addingcurves)
+          if(intersectionsRemaining)
           {
-            aPart.addEdge(psplit[currentelement][nextit]);
-            edgelabels[currentelement][nextit] =
-              -edgelabels[currentelement][nextit];
-            currentelement = !currentelement;
-            nextit = std::find(edgelabels[currentelement].begin(),
-                               edgelabels[currentelement].end(),
-                               nextvertex) -
-              edgelabels[currentelement].begin();
-            edgelabels[currentelement][nextit] =
-              -edgelabels[currentelement][nextit];
+            aPart.addEdge(psplit[active][nextit]);
+
+            negate_label(active, nextit);
+            active = !active;
+            nextit = update_iter(active, nextvertex);
+            negate_label(active, nextit);
             currentit = nextit;
-            numinters -= 1;
+            --numinters;
           }
           else
           {
-            addingcurves = true;
+            intersectionsRemaining = true;
             startit = nextit;
             currentit = nextit;
-            nextit = (currentit + 1) % edgelabels[0].size();
-            orientation = currentelement;
+            nextit = (currentit + 1) % numEdges[active];
+            orientation = active;
           }
         }
         else
         {
-          currentelement = !currentelement;
-          nextit = std::find(edgelabels[currentelement].begin(),
-                             edgelabels[currentelement].end(),
-                             nextvertex) -
-            edgelabels[currentelement].begin();
-          edgelabels[currentelement][nextit] =
-            -edgelabels[currentelement][nextit];
+          active = !active;
+          nextit = update_iter(active, nextvertex);
+          negate_label(active, nextit);
           currentit = nextit;
         }
       }
       pnew.push_back(aPart);
-      currentelement = !currentelement;
-      currentit = std::find(edgelabels[currentelement].begin(),
-                            edgelabels[currentelement].end(),
-                            -nextvertex) -
-        edgelabels[currentelement].begin();
-      nextit = (currentit + 1) % edgelabels[0].size();
+      active = !active;
+      currentit = update_iter(active, -nextvertex);
+      nextit = (currentit + 1) % numEdges[active];
       if(numinters > 0)
       {
-        addingcurves = false;
+        intersectionsRemaining = false;
       }
     }
   }
