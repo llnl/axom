@@ -132,6 +132,9 @@ int splitPolygonsAlongIntersections(const CurvedPolygonType& p1,
     psplit[0] = p1;
     psplit[1] = p2;
 
+    edgelabels[0].reserve(p1.numEdges() + numinters);
+    edgelabels[1].reserve(p2.numEdges() + numinters);
+
     SLIC_INFO("Poly1 before split: " << psplit[0]);
     splitPolygon(psplit[0], E1IntData, edgelabels[0]);
     SLIC_INFO("Poly1 after split: " << psplit[0]);
@@ -378,31 +381,49 @@ int isContained(const CurvedPolygon<T, 2>& p1,
   }
 }
 
-/*
- * \brief Splits a CurvedPolygon p1 at every intersection point stored in IntersectionData
- */
+/// Splits a CurvedPolygon \a p1 at every intersection point stored in \a IntersectionData
+/// \a edgeLabels stores intersection id for new vertices and 0 for original vertices
 template <typename T, int NDIMS>
 void splitPolygon(CurvedPolygon<T, NDIMS>& p1,
                   std::vector<std::vector<EdgeIntersectionInfo<T>>>& IntersectionData,
                   std::vector<int>& edgelabels)
 {
-  const int nEd = p1.numEdges();
-  //split polygon 2 at all the intersection points and store as psplit[1]
-  int addedints = 0;
-  for(int i = 0; i < nEd; ++i)
+  using axom::utilities::isNearlyEqual;
+
+  int addedIntersections = 0;
+  const int numEdges = p1.numEdges();
+  for(int i = 0; i < numEdges; ++i)  // foreach edge
   {
-    edgelabels.push_back(0);
-    for(int j = 0; j < static_cast<int>(IntersectionData[i].size()); ++j)
+    edgelabels.push_back(0);  //    mark start current vertex as 'original'
+    const int nIntersect = IntersectionData[i].size();
+    for(int j = 0; j < nIntersect; ++j)  //    foreach intersection on this edge
     {
-      p1.splitEdge(i + addedints, IntersectionData[i][j].myTime);
-      edgelabels.insert(edgelabels.begin() + i + addedints,
-                        IntersectionData[i][j].numinter);
-      addedints += 1;
-      for(int k = j + 1; k < static_cast<int>(IntersectionData[i].size()); ++k)
+      // split edge at parameter t_j
+      const double t_j = IntersectionData[i][j].myTime;
+      const int edgeIndex = i + addedIntersections;
+      p1.splitEdge(edgeIndex, t_j);
+
+      // update edge label
+      const int label = IntersectionData[i][j].numinter;
+      edgelabels.insert(edgelabels.begin() + edgeIndex, label);
+
+      ++addedIntersections;
+
+      // update remaining intersections on this edge; special case if already at end of curve
+      if(!isNearlyEqual(1., t_j))
       {
-        IntersectionData[i][k].myTime =
-          (IntersectionData[i][k].myTime - IntersectionData[i][j].myTime) /
-          (1 - IntersectionData[i][j].myTime);
+        for(int k = j + 1; k < nIntersect; ++k)
+        {
+          const double t_k = IntersectionData[i][k].myTime;
+          IntersectionData[i][k].myTime = (t_k - t_j) / (1.0 - t_j);
+        }
+      }
+      else
+      {
+        for(int k = j + 1; k < nIntersect; ++k)
+        {
+          IntersectionData[i][k].myTime = 1.;
+        }
       }
     }
   }
