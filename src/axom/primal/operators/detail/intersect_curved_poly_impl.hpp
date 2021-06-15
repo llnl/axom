@@ -27,6 +27,8 @@
 #include "axom/primal/operators/squared_distance.hpp"
 #include "axom/primal/operators/detail/intersect_bezier_impl.hpp"
 
+#include "axom/fmt.hpp"
+
 namespace axom
 {
 namespace primal
@@ -34,7 +36,7 @@ namespace primal
 namespace detail
 {
 template <typename T>
-class IntersectionInfo;
+class EdgeIntersectionInfo;
 
 template <typename T>
 bool orient(const BezierCurve<T, 2>& c1, const BezierCurve<T, 2>& c2, T s, T t);
@@ -45,23 +47,24 @@ int isContained(const CurvedPolygon<T, 2>& p1,
                 double sq_tol = 1e-10);
 
 /*!
- * \brief Test whether the regions bounded by CurvedPolygons \a p1 and \a p2 intersect
- * \return status true iff \a p1 intersects with \a p2, otherwise false.
- *
- * \param [in] p1, p2 CurvedPolygon objects to intersect
- * \param [in] sq_tol tolerance parameter for the base case of intersect_bezier_curve
- * \param [out] pnew vector of type CurvedPolygon holding CurvedPolygon objects representing boundaries of intersection regions. 
+ * Splits edges of each polygon based on the intersections with the other polygon
+ * When the two polygons intersect, the split polygons are returned in \a psplit
+ * The edges are labeled by the types of intersections in \a edgelabels
+ * and \a orientation contains the relative orientation of the first intersection
  */
-template <typename T, int NDIMS>
-bool intersect_polygon(const CurvedPolygon<T, NDIMS>& p1,
-                       const CurvedPolygon<T, NDIMS>& p2,
-                       std::vector<CurvedPolygon<T, NDIMS>>& pnew,
-                       double sq_tol)
+
+template <typename T, typename CurvedPolygonType>
+int splitPolygonsAlongIntersections(const CurvedPolygonType& p1,
+                                    const CurvedPolygonType& p2,
+                                    double sq_tol,
+                                    CurvedPolygonType psplit[2],
+                                    std::vector<int> edgelabels[2],
+                                    bool& orientation)
 {
   // Object to store intersections
-  std::vector<std::vector<IntersectionInfo<T>>> E1IntData(p1.numEdges());
-  std::vector<std::vector<IntersectionInfo<T>>> E2IntData(p2.numEdges());
-  IntersectionInfo<T> firstinter;  // Need to do orientation test on first intersection
+  std::vector<std::vector<EdgeIntersectionInfo<T>>> E1IntData(p1.numEdges());
+  std::vector<std::vector<EdgeIntersectionInfo<T>>> E2IntData(p2.numEdges());
+  EdgeIntersectionInfo<T> firstinter;  // Need to do orientation test on first intersection
 
   // Find all intersections and store
   int numinters = 0;
@@ -82,41 +85,93 @@ bool intersect_polygon(const CurvedPolygon<T, NDIMS>& p1,
                               1.,
                               0.,
                               1.);
-      for(int k = 0; k < static_cast<int>(p1times.size()); ++k)
+      const int edgeIntersections = p1times.size();
+      if(edgeIntersections > 0)
       {
-        E1IntData[i].push_back({p1times[k], i, p2times[k], j, numinters + k + 1});
-        E2IntData[j].push_back({p2times[k], j, p1times[k], i, numinters + k + 1});
         if(numinters == 0)
         {
           firstinter = {p1times[0], i, p2times[0], j, 1};
         }
+
+        for(int k = 0; k < edgeIntersections; ++k, ++numinters)
+        {
+          E1IntData[i].push_back({p1times[k], i, p2times[k], j, numinters + 1});
+          E2IntData[j].push_back({p2times[k], j, p1times[k], i, numinters + 1});
+
+          SLIC_INFO(fmt::format(
+            "Found intersection {} -- on edge {} of polygon1 at t={}"
+            " and edge {} of polygon2 at t={}; intersection point {}",
+            numinters + 1,
+            i,
+            p1times[k],
+            j,
+            p2times[k],
+            p1[i].evaluate(p1times[k])));
+        }
       }
-      numinters += p1times.size();
     }
   }
+
   if(numinters > 0)
   {
+    // Orient the first intersection point to be sure we get the intersection
+    orientation = detail::orient(p1[firstinter.myEdge],
+                                 p2[firstinter.otherEdge],
+                                 firstinter.myTime,
+                                 firstinter.otherTime);
+
     for(int i = 0; i < p1.numEdges(); ++i)
     {
       std::sort(E1IntData[i].begin(), E1IntData[i].end());
+    }
+    for(int i = 0; i < p2.numEdges(); ++i)
+    {
       std::sort(E2IntData[i].begin(), E2IntData[i].end());
     }
 
-    // Orient the first intersection point to be sure we get the intersection
-    bool orientation = detail::orient(p1[firstinter.myEdge],
-                                      p2[firstinter.otherEdge],
-                                      firstinter.myTime,
-                                      firstinter.otherTime);
-
-    // Objects to store completely split polygons (split at every intersection point) and vector with unique id for each intersection and zeros for corners of original polygons.
-    std::vector<int> edgelabels[2];  // 0 for curves that end in original vertices, unique id for curves that end in intersection points
-    CurvedPolygon<T, NDIMS> psplit[2];  // The two completely split polygons will be stored in this array
     psplit[0] = p1;
     psplit[1] = p2;
 
+    SLIC_INFO("Poly1 before split: " << psplit[0]);
     splitPolygon(psplit[0], E1IntData, edgelabels[0]);
-    splitPolygon(psplit[1], E2IntData, edgelabels[1]);
+    SLIC_INFO("Poly1 after split: " << psplit[0]);
 
+    SLIC_INFO("Poly2 before split: " << psplit[1]);
+    splitPolygon(psplit[1], E2IntData, edgelabels[1]);
+    SLIC_INFO("Poly2 after split: " << psplit[1]);
+  }
+
+  return numinters;
+}
+
+/*!
+ * \brief Test whether the regions bounded by CurvedPolygons \a p1 and \a p2 intersect
+ * \return status true iff \a p1 intersects with \a p2, otherwise false.
+ *
+ * \param [in] p1, p2 CurvedPolygon objects to intersect
+ * \param [in] sq_tol tolerance parameter for the base case of intersect_bezier_curve
+ * \param [out] pnew vector of type CurvedPolygon holding CurvedPolygon objects representing boundaries of intersection regions. 
+ */
+template <typename T, int NDIMS>
+bool intersect_polygon(const CurvedPolygon<T, NDIMS>& p1,
+                       const CurvedPolygon<T, NDIMS>& p2,
+                       std::vector<CurvedPolygon<T, NDIMS>>& pnew,
+                       double sq_tol)
+{
+  // Objects to store completely split polygons (split at every intersection point) and vector with unique id for each intersection and zeros for corners of original polygons.
+  std::vector<int> edgelabels[2];  // 0 for curves that end in original vertices, unique id for curves that end in intersection points
+  CurvedPolygon<T, NDIMS> psplit[2];  // The two completely split polygons will be stored in this array
+  bool orientation {false};
+
+  int numinters = splitPolygonsAlongIntersections<T>(p1,
+                                                     p2,
+                                                     sq_tol,
+                                                     psplit,
+                                                     edgelabels,
+                                                     orientation);
+
+  if(numinters > 0)
+  {
     // This performs the directional walking method using the completely split polygons
     std::vector<std::vector<int>::iterator> usedlabels;
     // When this is false, we are walking between intersection regions
@@ -138,6 +193,7 @@ bool intersect_polygon(const CurvedPolygon<T, NDIMS>& p1,
     while(numinters > 0)
     {
       CurvedPolygon<T, NDIMS> aPart;  // Object to store the current intersection polygon (could be multiple)
+
       // Once the end vertex of the current edge is the start vertex, we need to switch regions
       while(!(nextit == startit && currentelement == orientation) ||
             addingcurves == false)
@@ -327,7 +383,7 @@ int isContained(const CurvedPolygon<T, 2>& p1,
  */
 template <typename T, int NDIMS>
 void splitPolygon(CurvedPolygon<T, NDIMS>& p1,
-                  std::vector<std::vector<IntersectionInfo<T>>>& IntersectionData,
+                  std::vector<std::vector<EdgeIntersectionInfo<T>>>& IntersectionData,
                   std::vector<int>& edgelabels)
 {
   const int nEd = p1.numEdges();
@@ -370,12 +426,12 @@ bool orient(const BezierCurve<T, 2>& c1, const BezierCurve<T, 2>& c2, T s, T t)
   return (orientation > 0);
 }
 
-/*! \class IntersectionInfo
+/*! \class EdgeIntersectionInfo
  *
- * \brief For storing intersection points between \a CurvedPolygon instances so they can be easily sorted by parameter value using std::sort
+ * \brief For storing intersection points between edges of \a CurvedPolygon instances so they can be easily sorted by parameter value using std::sort
  */
 template <typename T>
-class IntersectionInfo
+class EdgeIntersectionInfo
 {
 public:
   T myTime;    // parameter value of intersection on curve on first CurvePolygon
@@ -385,7 +441,7 @@ public:
   int numinter;   // unique intersection point identifier
 
   /// \brief Comparison operator for sorting by parameter value
-  bool operator<(const IntersectionInfo& other) const
+  bool operator<(const EdgeIntersectionInfo& other) const
   {
     return myTime < other.myTime;
   }
