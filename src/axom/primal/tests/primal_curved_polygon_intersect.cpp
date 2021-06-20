@@ -159,6 +159,8 @@ void checkIntersection(
   const double test_eps = 1e-13)
 {
   using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using BezierCurveType = typename CurvedPolygonType::BezierCurveType;
+  using PointType = typename BezierCurveType::PointType;
 
   std::vector<CurvedPolygonType> intersectionPolys;
 
@@ -168,20 +170,31 @@ void checkIntersection(
   EXPECT_EQ(expbPolygon.size(), intersectionPolys.size());
 
   //Check that expected intersection curves are found to within test_eps
-  for(int i = 0; i < DIM; ++i)
+  const int nPolygons = expbPolygon.size();
+  for(int p = 0; p < nPolygons; ++p)
   {
-    int sz = intersectionPolys.size();
-    for(int idxcurve = 0; idxcurve < sz; ++idxcurve)
+    const CurvedPolygonType& polyExp = expbPolygon[p];
+    const CurvedPolygonType& polyActual = intersectionPolys[p];
+    EXPECT_EQ(polyExp.numEdges(), polyActual.numEdges());
+
+    const int nEdges = polyExp.numEdges();
+    for(int e = 0; e < nEdges; ++e)
     {
-      int nEd = intersectionPolys[idxcurve].numEdges();
-      for(int k = 0; k < nEd; ++k)
+      const BezierCurveType& curveExp = polyExp[e];
+      const BezierCurveType& curveActual = polyActual[e];
+      EXPECT_EQ(curveExp.getOrder(), curveActual.getOrder());
+
+      const int nPts = curveExp.getOrder() + 1;
+      for(int idx = 0; idx < nPts; ++idx)
       {
-        int ord = intersectionPolys[idxcurve][k].getOrder();
-        for(int j = 0; j <= ord; ++j)
+        const PointType& ptExp = curveExp[idx];
+        const PointType& ptActual = curveActual[idx];
+
+        for(int d = 0; d < DIM; ++d)
         {
-          EXPECT_NEAR(expbPolygon[idxcurve][k][j][i],
-                      intersectionPolys[idxcurve][k][j][i],
-                      test_eps);
+          EXPECT_NEAR(ptExp[d], ptActual[d], test_eps)
+            << "Difference in polygon " << p << " edge " << e
+            << " control point " << idx << " dimension " << d;
         }
       }
     }
