@@ -230,6 +230,60 @@ primal::CurvedPolygon<CoordType, DIM> createPolygon(
 
 //----------------------------------------------------------------------------------
 
+TEST(primal_curvedpolygon, intersection_squares)
+{
+  const int DIM = 2;
+  using CoordType = double;
+  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using PointType = primal::Point<CoordType, DIM>;
+
+  SLIC_INFO("Test intersection of two squares (single region)");
+
+  std::vector<int> orders = {1, 1, 1, 1};
+
+  // Unit square scaled by 2
+  std::vector<PointType> CP = {PointType {0, 0},
+                               PointType {2, 0},
+                               PointType {2, 2},
+                               PointType {0, 2},
+                               PointType {0, 0}};
+
+  CurvedPolygonType bPolygon1 = createPolygon(CP, orders);
+
+  // Unit square scaled by 2 and offset by (-1,-1)
+  std::vector<PointType> CP2 = {PointType {-1, -1},
+                                PointType {1, -1},
+                                PointType {1, 1},
+                                PointType {-1, 1},
+                                PointType {-1, -1}};
+
+  CurvedPolygonType bPolygon2 = createPolygon(CP2, orders);
+
+  // Intersection should be a unit square
+  std::vector<PointType> expCP = {PointType {1, 0},
+                                  PointType {1, 1},
+                                  PointType {0, 1},
+                                  PointType {0, 0},
+                                  PointType {1, 0}};
+  std::vector<int> exporders = {1, 1, 1, 1};
+  CurvedPolygonType expbPolygon = createPolygon(expCP, exporders);
+
+  std::vector<CurvedPolygonType> expbPolygons {expbPolygon};
+  checkIntersection(bPolygon1, bPolygon2, expbPolygons);
+
+  // Output intersections as SVG
+  {
+    std::vector<CurvedPolygonType> intersections;
+    intersect(bPolygon1, bPolygon2, intersections, 1e-15);
+    outputAsSVG("curved_polygon_intersections_linear_squares.svg",
+                bPolygon1,
+                bPolygon2,
+                intersections);
+  }
+}
+
+//----------------------------------------------------------------------------------
+
 TEST(primal_curvedpolygon, intersection_triangle_linear)
 {
   const int DIM = 2;
@@ -264,6 +318,16 @@ TEST(primal_curvedpolygon, intersection_triangle_linear)
 
   std::vector<CurvedPolygonType> expbPolygons {expbPolygon};
   checkIntersection(bPolygon1, bPolygon2, expbPolygons);
+
+  // Output intersections as SVG
+  {
+    std::vector<CurvedPolygonType> intersections;
+    intersect(bPolygon1, bPolygon2, intersections, 1e-15);
+    outputAsSVG("curved_polygon_intersections_linear_triangles.svg",
+                bPolygon1,
+                bPolygon2,
+                intersections);
+  }
 }
 
 //----------------------------------------------------------------------------------
@@ -371,6 +435,17 @@ TEST(primal_curvedpolygon, intersection_triangle_quadratic_two_regions)
   std::vector<CurvedPolygonType> expIntersections = {expbPolygon1, expbPolygon2};
 
   checkIntersection(bPolygon1, bPolygon2, expIntersections);
+
+  // Output intersections as SVG
+  {
+    std::vector<CurvedPolygonType> intersections;
+    intersect(bPolygon1, bPolygon2, intersections, 1e-15);
+    outputAsSVG(
+      "curved_polygon_intersections_quadratic_triangles_two_regions.svg",
+      bPolygon1,
+      bPolygon2,
+      intersections);
+  }
 }
 
 TEST(primal_curvedpolygon, area_intersection_triangle_inclusion)
