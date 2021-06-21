@@ -71,6 +71,97 @@ public:
     }
   };
 
+  /// Enum to represent different Junction states
+  enum class JunctionState : int
+  {
+    UNINITIALIZED = -1,
+    NON_JUNCTION,  /// Not a junction, e.g. a vertex of the original
+    APPLIED,       /// Use after junction has been applied
+    CROSS,         /// Typical case: edges of polygons intersect
+    GRAZE          /// Atypical case: polygons intersecte at a terminal vertex
+  };
+
+  /*!
+   * Helper class for encoding information about the incident edges at an interection
+   */
+  struct Junction
+  {
+    using JunctionIndex = int;
+    using EdgeIndex = int;
+    static const EdgeIndex INVALID_EDGE_INDEX = -1;
+    static const int INVALID_JUNCTION_INDEX = -1;
+
+    // indices of polygon edges leading into junction
+    EdgeIndex edgeIndex[2] {INVALID_EDGE_INDEX, INVALID_EDGE_INDEX};
+    // describes the junction type and status
+    JunctionState junctionState {JunctionState::UNINITIALIZED};
+    JunctionIndex index {INVALID_JUNCTION_INDEX};
+
+    bool isActive() const { return junctionState > JunctionState::APPLIED; }
+
+    EdgeIndex currentEdgeIndex(bool active) const { return edgeIndex[active]; }
+    EdgeIndex nextEdgeIndex(bool active) const { return edgeIndex[active] + 1; }
+
+    bool operator==(const Junction& other) const
+    {
+      return index == other.index;
+    }
+    bool operator!=(const Junction& other) const { return !(*this == other); }
+  };
+
+  /*!
+   * Helper class for indexing an edge of a polygon
+   * Assumption is that the polygon is not empty 
+   */
+  class PolygonEdge
+  {
+  public:
+    using VertexIndex = int;
+    using EdgeIndex = int;
+
+    PolygonEdge(int polygonID, const EdgeLabels& labels)
+      : m_polygonID(polygonID)
+      , m_labels(labels)
+      , m_numEdges(labels.size())
+    {
+      SLIC_ASSERT_MSG(m_numEdges > 0, "Polygon " << polygonID << " was empty");
+    }
+
+    EdgeIndex getIndex() const { return m_index; }
+    void setIndex(EdgeIndex idx) { m_index = (idx % m_numEdges); }
+
+    int getStartLabel() const { return m_labels[prevIndex()]; }
+    int getEndLabel() const { return m_labels[m_index]; }
+    void advance() { m_index = nextIndex(); }
+
+    bool isJunction() const { return getEndLabel() > 0; }
+
+    bool operator==(const PolygonEdge& other)
+    {
+      return m_index == other.m_index && m_polygonID == other.m_polygonID;
+    }
+
+    bool operator!=(const PolygonEdge& other) { return !(*this == other); }
+
+  private:
+    EdgeIndex lastIndex() const { return m_numEdges - 1; }
+    EdgeIndex nextIndex() const
+    {
+      return m_index < lastIndex() ? m_index + 1 : 0;
+    }
+    EdgeIndex prevIndex() const
+    {
+      return m_index > 0 ? m_index - 1 : lastIndex();
+    }
+
+  private:
+    EdgeIndex m_index;
+
+    const int m_polygonID;
+    const EdgeLabels& m_labels;
+    const int m_numEdges;
+  };
+
 public:
   explicit DirectionalWalk(bool verbose = false) : m_verbose(verbose) { }
 
@@ -161,14 +252,16 @@ public:
       edgelabels[0].reserve(p1.numEdges() + numinters);
       edgelabels[1].reserve(p2.numEdges() + numinters);
 
+      junctions = std::vector<Junction>(numinters + 1);
+
       if(m_verbose)
       {
         SLIC_INFO("Poly1 before split: " << psplit[0]);
         SLIC_INFO("Poly2 before split: " << psplit[1]);
       }
 
-      splitPolygon(psplit[0], E1IntData, edgelabels[0]);
-      splitPolygon(psplit[1], E2IntData, edgelabels[1]);
+      splitPolygon(psplit[0], E1IntData, edgelabels[0], 0);
+      splitPolygon(psplit[1], E2IntData, edgelabels[1], 1);
 
       if(m_verbose)
       {
@@ -178,22 +271,6 @@ public:
     }
 
     return numinters;
-  }
-
-private:
-  using intersection_iterator = int;
-
-  /// Finds the offset to \a intersectionID w.r.t. the active polygon
-  intersection_iterator update_iter(bool active, int intersectionID) const
-  {
-    const auto beg = edgelabels[active].begin();
-    const auto end = edgelabels[active].end();
-    return std::find(beg, end, intersectionID) - beg;
-  }
-
-  void negate_label(bool active, intersection_iterator iter)
-  {
-    edgelabels[active][iter] = -edgelabels[active][iter];
   }
 
 public:
@@ -208,110 +285,140 @@ public:
    */
   void findIntersectionRegions(std::vector<CurvedPolygonType>& pnew)
   {
-    const int numEdges[2] = {static_cast<int>(edgelabels[0].size()),
-                             static_cast<int>(edgelabels[1].size())};
+    PolygonEdge currentEdge[2] = {PolygonEdge(0, edgelabels[0]),
+                                  PolygonEdge(1, edgelabels[1])};
 
-    // When this is false, we are walking between intersection regions
-    bool intersectionsRemaining = true;
+    // We use junctionIndex to loop through the active junctions starting with index 1
+    int junctionIndex = 1;
 
-    // This variable allows us to switch between the two polygons
-    bool active = orientation;
-
-    // Start at the vertex with "unique id" 1
-    int startvertex = 1;
-
-    // This is the iterator pointing to the end vertex of the edge  of the active polygon
-    intersection_iterator currentit = update_iter(active, startvertex);
-
-    // This is the iterator to the end vertex of the starting edge on the starting polygon
-    intersection_iterator startit = currentit;
-
-    // This is the iterator to the end vertex of the next edge of whichever polygon we will be on next
-    intersection_iterator nextit = (currentit + 1) % numEdges[active];
-
-    // This is the next vertex id
-    int nextvertex = edgelabels[active][nextit];
-
-    // Find all connected regions of the intersection (we're done when we've found all intersections)
-    while(numinters > 0)
+    // Find all connected regions of the intersection (we're done when we've found all junctions)
+    const int numJunctions = junctions.size();
+    while(junctionIndex < numJunctions)
     {
-      CurvedPolygonType aPart;  // Object to store the current intersection polygon (could be multiple)
-
-      // Once the end vertex of the current edge is the start vertex, we need to switch regions
-      while(!(nextit == startit && active == orientation) ||
-            !intersectionsRemaining)
+      // Attempt to get an initial "active" junction for this polygon
+      Junction* startJunction = nullptr;
+      do
       {
-        if(nextit == currentit)
-        {
-          nextit = (currentit + 1) % numEdges[active];
-        }
-        nextvertex = edgelabels[active][nextit];
+        startJunction = (junctionIndex < numJunctions)
+          ? &(junctions[junctionIndex++])
+          : nullptr;
+      } while(startJunction != nullptr && !startJunction->isActive());
 
-        // Accept edges corresponding to original vertices
-        while(nextvertex == 0)
+      // If we've found all the active junctions, we're done
+      if(startJunction == nullptr)
+      {
+        break;
+      }
+      else
+      {
+        startJunction->junctionState = JunctionState::APPLIED;
+      }
+
+      // This variable allows us to switch between the two polygons
+      bool active = orientation;
+
+      // Set the index of the active edge to that of the start index
+      PolygonEdge* activeEdge = &(currentEdge[active]);
+      const auto startEdgeIndex = startJunction->nextEdgeIndex(active);
+      activeEdge->setIndex(startEdgeIndex);
+
+      if(m_verbose)
+      {
+        SLIC_INFO(""
+                  << "Starting with junction " << startJunction->index
+                  << "\n\t edges[0] {in: " << startJunction->currentEdgeIndex(0)
+                  << " -- " << psplit[0][startJunction->currentEdgeIndex(0)]
+                  << "; out: " << startJunction->nextEdgeIndex(0) << " -- "
+                  << psplit[0][startJunction->nextEdgeIndex(0)] << "}"
+                  << "\n\t edges[1] {in: " << startJunction->currentEdgeIndex(1)
+                  << " -- " << psplit[1][startJunction->currentEdgeIndex(1)]
+                  << "; out: " << startJunction->nextEdgeIndex(1) << " -- "
+                  << psplit[1][startJunction->nextEdgeIndex(1)] << "}"
+                  << "\n\t active: " << (active ? 1 : 0));
+      }
+
+      CurvedPolygonType aPart;  // Tracks the edges of the current intersection polygon
+
+      // Each polygon iterates until it returns to the startJunctions
+      Junction* junction = nullptr;
+      while(junction == nullptr || *junction != *startJunction)
+      {
+        // Add all edges until we find a junction edge
+        while(!activeEdge->isJunction())
         {
-          currentit = nextit;
-          if(intersectionsRemaining)
+          const auto edgeIndex = activeEdge->getIndex();
+          if(m_verbose)
           {
-            aPart.addEdge(psplit[active][nextit]);
+            SLIC_INFO("Adding edge (non-junction): " << psplit[active][edgeIndex]);
           }
-          nextit = (currentit + 1) % numEdges[active];
-          nextvertex = edgelabels[active][nextit];
+          aPart.addEdge(psplit[active][edgeIndex]);
+          activeEdge->advance();
         }
 
-        // Handle intersection vertex
-        if(edgelabels[active][nextit] > 0)
+        // Add last leg of previous segment
         {
-          if(intersectionsRemaining)
+          const auto edgeIndex = activeEdge->getIndex();
+          if(m_verbose)
           {
-            aPart.addEdge(psplit[active][nextit]);
-
-            negate_label(active, nextit);
-            active = !active;
-            nextit = update_iter(active, nextvertex);
-            negate_label(active, nextit);
-            currentit = nextit;
-            --numinters;
+            SLIC_INFO("Adding edge (end of last): " << psplit[active][edgeIndex]);
           }
-          else
-          {
-            intersectionsRemaining = true;
-            startit = nextit;
-            currentit = nextit;
-            nextit = (currentit + 1) % numEdges[active];
-            orientation = active;
-          }
+          aPart.addEdge(psplit[active][edgeIndex]);
         }
-        else
+
+        // Handle junction
+        junction = &(junctions[activeEdge->getEndLabel()]);
+        SLIC_ASSERT(junction != nullptr);
+
+        if(m_verbose)
         {
+          SLIC_INFO(""
+                    << "Swapped to junction " << junction->index
+                    << "\n\t edges[0] {in: " << junction->currentEdgeIndex(0)
+                    << " -- " << psplit[0][junction->currentEdgeIndex(0)]
+                    << "; out: " << junction->nextEdgeIndex(0) << " -- "
+                    << psplit[0][junction->nextEdgeIndex(0)] << "}"
+                    << "\n\t edges[1] {in: " << junction->currentEdgeIndex(1)
+                    << " -- " << psplit[1][junction->currentEdgeIndex(1)]
+                    << "; out: " << junction->nextEdgeIndex(1) << " -- "
+                    << psplit[1][junction->nextEdgeIndex(1)] << "}"
+                    << "\n\t active: " << (active ? 1 : 0));
+        }
+
+        if(junction->isActive())
+        {
+          // swap active edge using junction data
           active = !active;
-          nextit = update_iter(active, nextvertex);
-          negate_label(active, nextit);
-          currentit = nextit;
+          const auto nextEdgeIndex = junction->nextEdgeIndex(active);
+          activeEdge = &(currentEdge[active]);
+          activeEdge->setIndex(nextEdgeIndex);
+
+          junction->junctionState = JunctionState::APPLIED;
+
+          if(m_verbose)
+          {
+            SLIC_INFO("Swapped to other polygon, edge index: "
+                      << nextEdgeIndex
+                      << "; edge: " << psplit[active][activeEdge->getIndex()]);
+          }
         }
       }
+      // Finalize polygon
       pnew.push_back(aPart);
-      active = !active;
-      currentit = update_iter(active, -nextvertex);
-      nextit = (currentit + 1) % numEdges[active];
-      if(numinters > 0)
-      {
-        intersectionsRemaining = false;
-      }
     }
   }
 
 private:
   /// Splits a CurvedPolygon \a p1 at every intersection point stored in \a IntersectionData
   /// \a edgeLabels stores intersection id for new vertices and 0 for original vertices
-  void splitPolygon(CurvedPolygon<T, NDIMS>& p1,
+  void splitPolygon(CurvedPolygon<T, NDIMS>& polygon,
                     std::vector<std::vector<EdgeIntersectionInfo>>& IntersectionData,
-                    std::vector<int>& edgelabels)
+                    std::vector<int>& edgelabels,
+                    int polygonID)
   {
     using axom::utilities::isNearlyEqual;
 
     int addedIntersections = 0;
-    const int numEdges = p1.numEdges();
+    const int numEdges = polygon.numEdges();
     for(int i = 0; i < numEdges; ++i)  // foreach edge
     {
       edgelabels.push_back(0);  //    mark start current vertex as 'original'
@@ -321,11 +428,18 @@ private:
         // split edge at parameter t_j
         const double t_j = IntersectionData[i][j].myTime;
         const int edgeIndex = i + addedIntersections;
-        p1.splitEdge(edgeIndex, t_j);
+
+        // TODO: Handle case where t_j is nearly 0.
+
+        polygon.splitEdge(edgeIndex, t_j);
 
         // update edge label
         const int label = IntersectionData[i][j].numinter;
         edgelabels.insert(edgelabels.begin() + edgeIndex, label);
+        junctions[label].edgeIndex[polygonID] = edgeIndex;
+        junctions[label].junctionState =
+          JunctionState::CROSS;  // TODO: Figure out what junction type needs to be
+        junctions[label].index = label;
 
         ++addedIntersections;
 
@@ -353,6 +467,7 @@ public:
   // Objects to store completely split polygons (split at every intersection point) and vector with unique id for each intersection and zeros for corners of original polygons.
   CurvedPolygonType psplit[2];  // The two completely split polygons will be stored in this array
   EdgeLabels edgelabels[2];  // 0 for curves that end in original vertices, unique id for curves that end in intersection points
+  std::vector<Junction> junctions;
   int numinters {0};
   bool orientation {false};
 
@@ -373,6 +488,12 @@ bool intersect_polygon(const CurvedPolygon<T, NDIMS>& p1,
                        std::vector<CurvedPolygon<T, NDIMS>>& pnew,
                        double sq_tol)
 {
+  // Intersection is empty if either of the two polygons are empty
+  if(p1.empty() || p2.empty())
+  {
+    return false;
+  }
+
   DirectionalWalk<T, NDIMS> walk;
 
   int numinters = walk.splitPolygonsAlongIntersections(p1, p2, sq_tol);
