@@ -431,13 +431,13 @@ TEST(primal_curvedpolygon, intersection_triangle_quadratic_two_regions)
     PointType {0.343364196589264, 1.747080669655736}};
 
   std::vector<PointType> expCP2 = {
-    PointType {0.454478985809487, 1.379250566393211},
-    PointType {0.444689566319939, 1.400290430035245},
     PointType {0.435276730907216, 1.423589798138227},
     PointType {0.416268597450954, 1.385275578571685},
     PointType {0.374100000000000, 1.350300000000000},
     PointType {0.404839872482010, 1.358536305511285},
-    PointType {0.454478985809487, 1.379250566393211}};
+    PointType {0.454478985809487, 1.379250566393211},
+    PointType {0.444689566319939, 1.400290430035245},
+    PointType {0.435276730907216, 1.423589798138227}};
 
   std::vector<int> exporder1 = {2, 2, 2, 2};
   std::vector<int> exporder2 = {2, 2, 2};
