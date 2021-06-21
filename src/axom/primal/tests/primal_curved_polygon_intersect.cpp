@@ -344,6 +344,174 @@ TEST(primal_curvedpolygon, intersection_triangle_linear)
 }
 
 //----------------------------------------------------------------------------------
+
+TEST(primal_curvedpolygon, intersections_triangle_rectangle)
+{
+  const int DIM = 2;
+  using CoordType = double;
+  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using PointType = primal::Point<CoordType, DIM>;
+
+  SLIC_INFO(
+    "Test several intersection cases b/w a linear triangle and rectangle");
+
+  // Rectangle with bounds, -5 <= x < 5 ; and 0 <= y <= 2
+  std::vector<PointType> rectanglePts = {PointType {-5, 0},
+                                         PointType {5, 0},
+                                         PointType {5, 2},
+                                         PointType {-5, 2},
+                                         PointType {-5, 0}};
+  std::vector<int> rectangleOrders = {1, 1, 1, 1};
+
+  // Equilateral triangle with base from -3 <= x <= 3 and height 1
+  CurvedPolygonType bRectangle = createPolygon(rectanglePts, rectangleOrders);
+
+  std::vector<PointType> triPts = {PointType {-3, -2},
+                                   PointType {3, -2},
+                                   PointType {0, -1},
+                                   PointType {-3, -2}};
+  std::vector<int> triOrders = {1, 1, 1};
+
+  const bool bVerbose = true;
+  const double EPS = 1e-7;
+  const double SQ_EPS = EPS * EPS;
+
+  // No intersection case: Triangle is below the rectangle
+  {
+    CurvedPolygonType bTriangle = createPolygon(triPts, triOrders);
+    primal::detail::DirectionalWalk<double, 2> walk(bVerbose);
+    int nIntersections =
+      walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
+    EXPECT_EQ(0, nIntersections);
+
+    std::vector<CurvedPolygonType> intersections;
+    EXPECT_FALSE(primal::intersect(bRectangle, bTriangle, intersections, EPS));
+
+    outputAsSVG("intersection_test_tri_rect_none.svg",
+                bRectangle,
+                bTriangle,
+                intersections);
+  }
+
+  // No intersection case: Triangle apex grazes rectangle
+  {
+    triPts[2][1] = 0;
+    CurvedPolygonType bTriangle = createPolygon(triPts, triOrders);
+
+    primal::detail::DirectionalWalk<double, 2> walk(bVerbose);
+    int nIntersections =
+      walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
+    EXPECT_EQ(1, nIntersections);
+
+    std::vector<CurvedPolygonType> walkIntersections;
+    walk.findIntersectionRegions(walkIntersections);
+
+    // EXPECT_EQ(0, walkIntersections.size());   // Warning: Not properly handled yet
+
+    outputAsSVG("intersection_test_tri_rect_lower_graze.svg",
+                bRectangle,
+                bTriangle,
+                walkIntersections);
+
+    std::vector<CurvedPolygonType> intersections;
+    // Warning: Not properly handled yet
+    // EXPECT_FALSE(
+    primal::intersect(bRectangle, bTriangle, intersections, EPS)
+      //)
+      ;
+  }
+
+  // Simple intersection case: Triangle apex inside rectangle
+  {
+    triPts[2][1] = 1;
+    CurvedPolygonType bTriangle = createPolygon(triPts, triOrders);
+
+    primal::detail::DirectionalWalk<double, 2> walk(bVerbose);
+    int nIntersections =
+      walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
+    EXPECT_EQ(2, nIntersections);
+
+    std::vector<CurvedPolygonType> walkIntersections;
+    walk.findIntersectionRegions(walkIntersections);
+    EXPECT_EQ(1, walkIntersections.size());
+
+    outputAsSVG("intersection_test_tri_rect_intersect_tri.svg",
+                bRectangle,
+                bTriangle,
+                walkIntersections);
+
+    std::vector<PointType> expCP = {PointType {1, 0},
+                                    PointType {0, 1},
+                                    PointType {-1, 0},
+                                    PointType {1, 0}};
+    std::vector<int> exporders = {1, 1, 1};
+
+    std::vector<CurvedPolygonType> expbPolygons = {
+      createPolygon(expCP, exporders)};
+
+    checkIntersection(bRectangle, bTriangle, expbPolygons);
+  }
+
+  // Grazing intersection case: Triangle apex intersects top
+  {
+    triPts[2][1] = 2;
+    CurvedPolygonType bTriangle = createPolygon(triPts, triOrders);
+
+    primal::detail::DirectionalWalk<double, 2> walk(bVerbose);
+    int nIntersections =
+      walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
+    EXPECT_EQ(3, nIntersections);
+
+    std::vector<CurvedPolygonType> walkIntersections;
+    walk.findIntersectionRegions(walkIntersections);
+    EXPECT_EQ(1, walkIntersections.size());
+
+    //EXPECT_EQ(3, walkIntersections[0].numEdges()); // Warning: Not properly handled yet
+
+    outputAsSVG("intersection_test_tri_rect_upper_graze.svg",
+                bRectangle,
+                bTriangle,
+                walkIntersections);
+
+    std::vector<CurvedPolygonType> intersections;
+    // Warning: Not properly handled yet
+    EXPECT_TRUE(primal::intersect(bRectangle, bTriangle, intersections, EPS));
+  }
+
+  // intersection case: Triangle apex above rectangle
+  {
+    triPts[2][1] = 3;
+    CurvedPolygonType bTriangle = createPolygon(triPts, triOrders);
+
+    primal::detail::DirectionalWalk<double, 2> walk(bVerbose);
+    int nIntersections =
+      walk.splitPolygonsAlongIntersections(bRectangle, bTriangle, SQ_EPS);
+    EXPECT_EQ(4, nIntersections);
+
+    std::vector<CurvedPolygonType> walkIntersections;
+    walk.findIntersectionRegions(walkIntersections);
+    EXPECT_EQ(1, walkIntersections.size());
+
+    outputAsSVG("intersection_test_tri_rect_intersect_rect.svg",
+                bRectangle,
+                bTriangle,
+                walkIntersections);
+
+    std::vector<PointType> expCP = {PointType {1.8, 0},
+                                    PointType {0.6, 2},
+                                    PointType {-0.6, 2},
+                                    PointType {-1.8, 0},
+                                    PointType {1.8, 0}};
+    std::vector<int> exporders = {1, 1, 1, 1};
+
+    std::vector<CurvedPolygonType> expbPolygons = {
+      createPolygon(expCP, exporders)};
+
+    checkIntersection(bRectangle, bTriangle, expbPolygons);
+  }
+}
+
+//----------------------------------------------------------------------------------
 TEST(primal_curvedpolygon, intersection_triangle_quadratic)
 {
   const int DIM = 2;
