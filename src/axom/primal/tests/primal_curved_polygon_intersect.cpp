@@ -112,7 +112,7 @@ void outputAsSVG(
     axom::fmt::memory_buffer out;
     axom::fmt::format_to(
       out,
-      "  <g id='source_mesh' stroke='black' stroke-width='.01' "
+      "  <g id='target_mesh' stroke='black' stroke-width='.01' "
       "fill='blue' fill-opacity='.7'>\n");
     axom::fmt::format_to(out, cpToSVG(polygon2));
     axom::fmt::format_to(out, "  </g>\n");
@@ -794,6 +794,139 @@ TEST(primal_curvedpolygon, regression)
     for(auto cp : expIntersections)
     {
       SLIC_INFO("\t" << cp);
+    }
+  }
+}
+
+TEST(primal_curvedpolygon, adjacent_squares)
+{
+  const double EPS = 1e-8;
+  const int DIM = 2;
+  using CoordType = double;
+  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
+  using PointType = primal::Point<CoordType, DIM>;
+
+  SLIC_INFO("Test intersection of pairs of adjacent squares");
+
+  // Sharing an edge
+  {
+    std::vector<PointType> CP1 = {PointType {-1, 0},
+                                  PointType {0, 0},
+                                  PointType {0, 1},
+                                  PointType {-1, 1},
+                                  PointType {-1, 0}};
+
+    std::vector<PointType> CP2 = {PointType {0, 0},
+                                  PointType {0, 1},
+                                  PointType {1, 1},
+                                  PointType {1, 0},
+                                  PointType {0, 0}};
+    std::vector<int> orders = {1, 1, 1, 1};
+
+    CurvedPolygonType bPolygon1 = createPolygon(CP1, orders);
+    CurvedPolygonType bPolygon2 = createPolygon(CP2, orders);
+
+    {
+      std::vector<CurvedPolygonType> expIntersections;
+      intersect(bPolygon1, bPolygon2, expIntersections, EPS);
+
+      EXPECT_TRUE(expIntersections.empty());
+
+      if(!expIntersections.empty())
+      {
+        SLIC_INFO("There were " << expIntersections.size()
+                                << " intersection polygons");
+        for(auto cp : expIntersections)
+        {
+          SLIC_INFO("\t" << cp);
+        }
+        outputAsSVG("adjacent_squares_edge_LR.svg",
+                    bPolygon1,
+                    bPolygon2,
+                    expIntersections);
+      }
+    }
+
+    {
+      std::vector<CurvedPolygonType> expIntersections;
+      intersect(bPolygon2, bPolygon1, expIntersections, EPS);
+
+      EXPECT_TRUE(expIntersections.empty());
+
+      if(!expIntersections.empty())
+      {
+        SLIC_INFO("There were " << expIntersections.size()
+                                << " intersection polygons");
+        for(auto cp : expIntersections)
+        {
+          SLIC_INFO("\t" << cp);
+        }
+        outputAsSVG("adjacent_squares_edge_RL.svg",
+                    bPolygon2,
+                    bPolygon1,
+                    expIntersections);
+      }
+    }
+  }
+
+  // Sharing a vertex
+  {
+    std::vector<PointType> CP1 = {PointType {-1, 0},
+                                  PointType {0, 0},
+                                  PointType {0, 1},
+                                  PointType {-1, 1},
+                                  PointType {-1, 0}};
+
+    std::vector<PointType> CP2 = {PointType {0, 1},
+                                  PointType {0, 2},
+                                  PointType {1, 2},
+                                  PointType {1, 1},
+                                  PointType {0, 1}};
+    std::vector<int> orders = {1, 1, 1, 1};
+
+    CurvedPolygonType bPolygon1 = createPolygon(CP1, orders);
+    CurvedPolygonType bPolygon2 = createPolygon(CP2, orders);
+
+    {
+      std::vector<CurvedPolygonType> expIntersections;
+      intersect(bPolygon1, bPolygon2, expIntersections, EPS);
+
+      EXPECT_TRUE(expIntersections.empty());
+
+      if(!expIntersections.empty())
+      {
+        SLIC_INFO("There were " << expIntersections.size()
+                                << " intersection polygons");
+        for(auto cp : expIntersections)
+        {
+          SLIC_INFO("\t" << cp);
+        }
+        outputAsSVG("adjacent_squares_corner_LR.svg",
+                    bPolygon1,
+                    bPolygon2,
+                    expIntersections);
+      }
+    }
+
+    {
+      std::vector<CurvedPolygonType> expIntersections;
+      intersect(bPolygon2, bPolygon1, expIntersections, EPS);
+
+      EXPECT_TRUE(expIntersections.empty());
+
+      if(!expIntersections.empty())
+      {
+        SLIC_INFO("There were " << expIntersections.size()
+                                << " intersection polygons");
+        for(auto cp : expIntersections)
+        {
+          SLIC_INFO("\t" << cp);
+        }
+        outputAsSVG("adjacent_squares_corner_RL.svg",
+                    bPolygon2,
+                    bPolygon1,
+                    expIntersections);
+      }
     }
   }
 }
