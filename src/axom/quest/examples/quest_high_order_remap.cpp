@@ -9,6 +9,7 @@
  */
 
 // Axom includes
+#include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
@@ -444,12 +445,11 @@ public:
       }
 
       auto tgtPoly = tgtMesh.elemAsCurvedPolygon(i);
-      //SLIC_INFO("Target Element: " << tgtPoly);
+      //SLIC_INFO("Target Element: \n\t" << tgtPoly);
       correctArea += primal::area(tgtPoly);
-      //SLIC_INFO("Target elem " << i
-      //                         << " -- area " << primal::area(tgtPoly)
-      //          //<< " -- bbox " << tgtMesh.elementBoundingBox(i)
-      //          );
+      //SLIC_INFO("Target elem " << i << " -- area " << primal::area(tgtPoly)
+      //        << " -- bbox " << tgtMesh.elementBoundingBox(i)
+      //);
 
       double A = 0.0;
       for(int srcElem : candidates)
@@ -869,7 +869,6 @@ int main(int argc, char** argv)
 
   remap.outputAsSVG();
 
-  std::cout.precision(16);
   SLIC_INFO(axom::fmt::format("Intersecting meshes: area: {}, time: {}",
                               area,
                               timer.elapsed()));
