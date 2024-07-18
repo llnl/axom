@@ -307,6 +307,16 @@ public:
   }
 
   /*!
+   @brief Sets whether to filter partitions to eliminate fruitless searches.
+
+   @param [in] filterFarPartitions Filter out unproductive searches.
+  */
+  void setFilterFarPartitions(bool filterFarPartitions)
+  {
+    m_filterFarPartitions = filterFarPartitions;
+  }
+
+  /*!
     @brief Set which output data fields to generate.
   */
   void setOutputSwitches(bool outputRank,
@@ -569,6 +579,9 @@ protected:
 
   //!@brief Distance threshold specified by user.
   double m_sqUserDistanceThreshold;
+
+  //!@brief Whether to prefilter domains to search.
+  bool m_filterFarPartitions = false;
 
   bool m_outputRank = true;
   bool m_outputIndex = true;
@@ -888,21 +901,31 @@ public:
       number of points in the partitions.
     */
 
-    // Compute the min of the max distance between myQueryBb and each rank's object bounding box.
-    double minMaxSqDist = std::numeric_limits<double>::max();
-    for(int i = 0; i < m_nranks; ++i)
-    {
-      auto maxSqDist = maxSqDistBetweenBoxes(myQueryBb, m_objectPartitionBbs[i]);
-      minMaxSqDist = std::min(minMaxSqDist, maxSqDist);
+    axom::Array<double> allSqDistanceThreshold;
+
+    if (m_filterFarPartitions) {
+      AXOM_ANNOTATE_BEGIN("FilterFarPartitions");
+      // Compute the min of the max distance between myQueryBb and each rank's object bounding box,
+      // and customize the distance threshold using this min-max.
+      double minMaxSqDist = std::numeric_limits<double>::max();
+      for(int i = 0; i < m_nranks; ++i)
+      {
+        auto maxSqDist = maxSqDistBetweenBoxes(myQueryBb, m_objectPartitionBbs[i]);
+        minMaxSqDist = std::min(minMaxSqDist, maxSqDist);
+      }
+
+      const double sqDistanceThreshold =
+        std::min(m_sqUserDistanceThreshold, minMaxSqDist);
+      xferNodes[m_rank]->fetch("sqDistanceThreshold") = sqDistanceThreshold;
+      m_effectiveDistanceThreshold = sqrt(sqDistanceThreshold);
+
+      allSqDistanceThreshold.resize(m_nranks);
+      gatherPrimitiveValue(sqDistanceThreshold, allSqDistanceThreshold);
+      AXOM_ANNOTATE_END("FilterFarPartitions");
     }
-
-    const double sqDistanceThreshold =
-      std::min(m_sqUserDistanceThreshold, minMaxSqDist);
-    xferNodes[m_rank]->fetch("sqDistanceThreshold") = sqDistanceThreshold;
-    m_effectiveDistanceThreshold = sqrt(sqDistanceThreshold);
-
-    axom::Array<double> allSqDistanceThreshold(m_nranks);
-    gatherPrimitiveValue(sqDistanceThreshold, allSqDistanceThreshold);
+    else {
+      xferNodes[m_rank]->fetch("sqDistanceThreshold") = m_sqUserDistanceThreshold;
+    }
 
     {
       conduit::Node& xferNode = *xferNodes[m_rank];
@@ -928,7 +951,8 @@ public:
           {
             double sqDistance =
               axom::primal::squared_distance(otherQueryBb, myObjectBb);
-            if(sqDistance <= allSqDistanceThreshold[r])
+            double sqDistanceThreshold = m_filterFarPartitions ? allSqDistanceThreshold[r] : m_sqUserDistanceThreshold;
+            if(sqDistance <= sqDistanceThreshold)
             {
               ++remainingRecvs;
             }
@@ -964,11 +988,13 @@ public:
       {
         isendRequests.emplace_back(conduit::relay::mpi::Request());
         auto& req = isendRequests.back();
+        AXOM_ANNOTATE_BEGIN("computeClosestPoints send");
         relay::mpi::isend_using_schema(*xferNodes[m_rank],
                                        firstRecipForMyQuery,
                                        tag,
                                        m_mpiComm,
                                        &req);
+        AXOM_ANNOTATE_END("computeClosestPoints send");
         ++remainingRecvs;
       }
     }
@@ -982,10 +1008,12 @@ public:
       // Receive the next xferNode
       std::shared_ptr<conduit::Node> recvXferNodePtr =
         std::make_shared<conduit::Node>();
+      AXOM_ANNOTATE_BEGIN("computeClosestPoints recv");
       conduit::relay::mpi::recv_using_schema(*recvXferNodePtr,
                                              MPI_ANY_SOURCE,
                                              tag,
                                              m_mpiComm);
+      AXOM_ANNOTATE_END("computeClosestPoints recv");
 
       const int homeRank = recvXferNodePtr->fetch_existing("homeRank").as_int();
       --remainingRecvs;
@@ -1008,23 +1036,29 @@ public:
         auto& isendRequest = isendRequests.back();
         int nextRecipient = next_recipient(xferNode);
         SLIC_ASSERT(nextRecipient != -1);
+        AXOM_ANNOTATE_BEGIN("computeClosestPoints send");
         relay::mpi::isend_using_schema(xferNode,
                                        nextRecipient,
                                        tag,
                                        m_mpiComm,
                                        &isendRequest);
+        AXOM_ANNOTATE_END("computeClosestPoints send");
 
         // Check non-blocking sends to free memory.
+        AXOM_ANNOTATE_BEGIN("computeClosestPoints check send req");
         check_send_requests(isendRequests, false);
+        AXOM_ANNOTATE_END("computeClosestPoints check send req");
       }
 
     }  // remainingRecvs loop
 
     // Complete remaining non-blocking sends.
+    AXOM_ANNOTATE_BEGIN("computeClosestPoints check send req");
     while(!isendRequests.empty())
     {
       check_send_requests(isendRequests, true);
     }
+    AXOM_ANNOTATE_END("computeClosestPoints check send req");
 
     MPI_Barrier(m_mpiComm);
     slic::flushStreams();
@@ -1064,6 +1098,7 @@ private:
 public:
   void computeLocalClosestPoints(conduit::Node& xferNode) const
   {
+    AXOM_ANNOTATE_SCOPE("computeLocalClosestPoints()");
     using axom::primal::squared_distance;
 
     // Note: There is some additional computation the first time this function
@@ -1168,7 +1203,7 @@ public:
         auto ptDomainIdsView = m_objectPtDomainIds.view();
 
         {
-          AXOM_ANNOTATE_SCOPE("ComputeClosestPoints");
+          AXOM_ANNOTATE_SCOPE("computeLocalClosestPoints kernel");
           axom::for_all<ExecSpace>(
             qPtCount,
             AXOM_LAMBDA(std::int32_t idx) mutable {

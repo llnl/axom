@@ -81,11 +81,15 @@ public:
 
   double distThreshold {std::numeric_limits<double>::max()};
 
+  bool filterFarPartitions {true};
+
   bool checkResults {false};
 
   bool randomSpacing {true};
 
   std::vector<unsigned int> objDomainCountRange {1, 1};
+
+  std::string annotationMode {"none"};
 
 private:
   bool m_verboseOutput {false};
@@ -172,6 +176,10 @@ public:
       ->description("Distance threshold to search")
       ->capture_default_str();
 
+    app.add_option("-f,--filter-far-partitions", filterFarPartitions)
+      ->description("Whether to filter out partitions that are too far for productive searches")
+      ->capture_default_str();
+
     app.add_option("-p, --policy", policy)
       ->description("Set runtime policy for point query method")
       ->capture_default_str()
@@ -182,6 +190,15 @@ public:
       ->description(
         "Enable/disable checking results against analytical solution")
       ->capture_default_str();
+
+#ifdef AXOM_USE_CALIPER
+    app.add_option("--caliper", annotationMode)
+      ->description(
+        "caliper annotation mode. Valid options include 'none' and 'report'. "
+        "Use 'help' to see full list.")
+      ->capture_default_str()
+      ->check(axom::utilities::ValidCaliperMode);
+#endif
 
     app.get_formatter()->column_width(60);
 
@@ -1412,6 +1429,15 @@ int main(int argc, char** argv)
   umpire::Allocator umpireAllocator = rm.getAllocator(umpireResourceName);
 #endif
 
+#if 1
+  auto annotation_raii_wrapper = std::make_unique<axom::utilities::raii::AnnotationsWrapper>(
+    params.annotationMode);
+#else
+  axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(
+    params.annotationMode);
+#endif
+  AXOM_ANNOTATE_SCOPE("Quest distributed distance query example");
+
   // Storage for meshes.
   sidre::DataStore dataStore;
 
@@ -1420,6 +1446,7 @@ int main(int argc, char** argv)
   // These will be used to query the closest points on the object mesh(es)
   //---------------------------------------------------------------------------
 
+  AXOM_ANNOTATE_BEGIN("Main: set up example");
   QueryMeshWrapper queryMeshWrapper(
     dataStore.getRoot()->createGroup("queryMesh", true),
     params.meshFile);
@@ -1508,6 +1535,7 @@ int main(int argc, char** argv)
       make_coords_contiguous(dom.fetch_existing("coordsets/coords/values"));
     }
   }
+  AXOM_ANNOTATE_END("Main: set up example");
 
   // Create distributed closest point query object and set some parameters
   quest::DistributedClosestPoint query;
@@ -1518,6 +1546,7 @@ int main(int argc, char** argv)
   query.setMpiCommunicator(MPI_COMM_WORLD, true);
   query.setVerbosity(params.isVerbose());
   query.setDistanceThreshold(params.distThreshold);
+  query.setFilterFarPartitions(params.filterFarPartitions);
   // To test support for single-domain format, use single-domain when possible.
   query.setObjectMesh(
     objectMeshNode.number_of_children() == 1 ? objectMeshNode[0] : objectMeshNode,
@@ -1526,18 +1555,24 @@ int main(int argc, char** argv)
   // Build the spatial index over the object on each rank
   SLIC_INFO(init_str);
   slic::flushStreams();
+  MPI_Barrier(MPI_COMM_WORLD);
+  AXOM_ANNOTATE_BEGIN("query.generateBVHTree()");
   initTimer.start();
   query.generateBVHTree();
   initTimer.stop();
+  AXOM_ANNOTATE_END("query.generateBVHTree()");
 
   // Run the distributed closest point query over the nodes of the computational mesh
   // To test support for single-domain format, use single-domain when possible.
   slic::flushStreams();
+  MPI_Barrier(MPI_COMM_WORLD);
+  AXOM_ANNOTATE_BEGIN("query.computeClosestPoints()");
   queryTimer.start();
   query.computeClosestPoints(
     queryMeshNode.number_of_children() == 1 ? queryMeshNode[0] : queryMeshNode,
     queryMeshWrapper.getTopologyName());
   queryTimer.stop();
+  AXOM_ANNOTATE_END("query.computeClosestPoints()");
 
   auto getDoubleMinMax =
     [](double inVal, double& minVal, double& maxVal, double& sumVal) {
@@ -1580,7 +1615,7 @@ int main(int argc, char** argv)
       maxQuery));
     SLIC_INFO(axom::fmt::format(
       "Search counts {{avg:{}, min:{}, max:{}}}",
-      sumSearchCount / num_ranks,
+      double(sumSearchCount) / num_ranks,
       minSearchCount,
       maxSearchCount));
     SLIC_INFO(axom::fmt::format(
@@ -1599,6 +1634,7 @@ int main(int argc, char** argv)
   if(params.checkResults)
   {
     SLIC_INFO(axom::fmt::format("Checking results."));
+    AXOM_ANNOTATE_SCOPE("Main: check results");
     slic::flushStreams();
     if(spatialDim == 2)
     {
@@ -1648,6 +1684,9 @@ int main(int argc, char** argv)
   }
 
   finalizeLogger();
+#if 1
+  annotation_raii_wrapper.reset();
+#endif
   MPI_Finalize();
 
   return errCount != 0;
