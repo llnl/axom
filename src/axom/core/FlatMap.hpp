@@ -13,6 +13,7 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/detail/FlatTable.hpp"
 #include "axom/core/detail/FlatMapOps.hpp"
+#include "axom/core/DeviceHash.hpp"
 
 namespace axom
 {
@@ -44,7 +45,7 @@ namespace axom
  * \pre Hash is invocable with an instance of KeyType, and returns an integer
  *  value (32- or 64-bit)
  */
-template <typename KeyType, typename ValueType, typename Hash = std::hash<KeyType>>
+template <typename KeyType, typename ValueType, typename Hash = DeviceHash<KeyType>>
 class FlatMap : detail::flat_map::SequentialLookupPolicy<typename Hash::result_type>
 {
 private:
