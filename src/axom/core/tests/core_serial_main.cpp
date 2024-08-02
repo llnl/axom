@@ -13,6 +13,7 @@
 #include "core_array_mapping.hpp"
 #include "core_utilities.hpp"
 #include "core_bit_utilities.hpp"
+#include "core_device_hash.hpp"
 #include "core_execution_for_all.hpp"
 #include "core_execution_space.hpp"
 #include "core_map.hpp"
