@@ -45,7 +45,7 @@ namespace axom
  * \pre Hash is invocable with an instance of KeyType, and returns an integer
  *  value (32- or 64-bit)
  */
-template <typename KeyType, typename ValueType, typename Hash = DeviceHash<KeyType>>
+template <typename KeyType, typename ValueType, typename Hash = detail::flat_map::HashMixer64<KeyType, DeviceHash>>
 class FlatMap : detail::flat_map::SequentialLookupPolicy<typename Hash::result_type>
 {
 private:
@@ -61,8 +61,6 @@ private:
 
   template <bool Const>
   friend class IteratorImpl;
-
-  using MixedHash = detail::flat_map::HashMixer64<KeyType, Hash>;
 
 public:
   using key_type = KeyType;
@@ -729,7 +727,7 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType num_elems,
 template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) -> iterator
 {
-  auto hash = MixedHash {}(key);
+  auto hash = Hash {}(key);
   iterator found_iter = end();
   this->probeIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
     if(this->m_buckets[bucket_index].get().first == key)
@@ -746,7 +744,7 @@ auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) -> iterator
 template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) const -> const_iterator
 {
-  auto hash = MixedHash {}(key);
+  auto hash = Hash {}(key);
   const_iterator found_iter = end();
   this->probeIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
     if(this->m_buckets[bucket_index].get().first == key)
@@ -775,7 +773,7 @@ template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::getEmplacePos(const KeyType& key)
   -> std::pair<iterator, bool>
 {
-  auto hash = MixedHash {}(key);
+  auto hash = Hash {}(key);
 
   // If the key already exists, return the existing iterator.
   iterator existing_elem = this->find(key);
@@ -828,7 +826,7 @@ template <typename KeyType, typename ValueType, typename Hash>
 auto FlatMap<KeyType, ValueType, Hash>::erase(const_iterator pos) -> iterator
 {
   assert(pos != end());
-  auto hash = MixedHash {}(pos->first);
+  auto hash = Hash {}(pos->first);
 
   bool midSequence = this->clearBucket(m_metadata, pos.m_internalIdx, hash);
   pos->~KeyValuePair();
