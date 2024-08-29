@@ -7,6 +7,7 @@
 #define Axom_Core_DeviceHash_Hpp
 
 #include "axom/config.hpp"
+#include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
 
 #include <type_traits>
@@ -24,7 +25,7 @@ struct DeviceHashHelper<T, std::enable_if_t<std::is_integral<T>::value>>
 {
   using argument_type = T;
   using result_type = axom::IndexType;
-  axom::IndexType operator()(T value) const { return value; }
+  AXOM_HOST_DEVICE axom::IndexType operator()(T value) const { return value; }
 };
 
 /// \brief Specialization for floating-point types
@@ -33,7 +34,7 @@ struct DeviceHashHelper<T, std::enable_if_t<std::is_floating_point<T>::value>>
 {
   using argument_type = T;
   using result_type = axom::IndexType;
-  axom::IndexType operator()(T value) const
+  AXOM_HOST_DEVICE axom::IndexType operator()(T value) const
   {
     // Special case: -0.0 and 0.0 compare equal but have different byte representations.
     if(value == T {0.})
@@ -50,7 +51,7 @@ struct DeviceHashHelper<T, std::enable_if_t<std::is_enum<T>::value>>
 {
   using argument_type = T;
   using result_type = axom::IndexType;
-  axom::IndexType operator()(T value) const
+  AXOM_HOST_DEVICE axom::IndexType operator()(T value) const
   {
     return static_cast<axom::IndexType>(value);
   }
@@ -62,7 +63,7 @@ struct DeviceHashHelper<T*, void>
 {
   using argument_type = T*;
   using result_type = axom::IndexType;
-  axom::IndexType operator()(T* ptr) const
+  AXOM_HOST_DEVICE axom::IndexType operator()(T* ptr) const
   {
     return static_cast<axom::IndexType>(ptr);
   }
