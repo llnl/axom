@@ -77,6 +77,9 @@ public:
   std::vector<double> latRange {-90.0, 90.0};
   int latPointCount {20};
 
+  // Option to swap the 2 meshes for testing purposes.
+  bool swapMesh {false};
+
   RuntimePolicy policy {RuntimePolicy::seq};
 
   double distThreshold {std::numeric_limits<double>::max()};
@@ -169,6 +172,10 @@ public:
 
     object_options->add_option("--lat-point-count", latPointCount)
       ->description("Number of points in the latitudinal direction (3D only)")
+      ->capture_default_str();
+
+    app.add_flag("--swapMesh,!--no-swapMesh", swapMesh)
+      ->description("Swap the meshes (make spherical mesh into the query mesh)")
       ->capture_default_str();
 
     app.add_option("-d,--dist-threshold", distThreshold)
@@ -494,12 +501,9 @@ public:
     auto* yView = cGroup->getView("values/y");
     auto* zView = DIM >= 3 ? cGroup->getView("values/z") : nullptr;
     const auto ptCount = xView->getNumElements();
-    assert(xView->getStride() == 1);
-    assert(yView->getStride() == 1);
-    assert(zView == nullptr || zView->getStride() == 1);
-    double* xs = xView->getArray();
-    double* ys = yView->getArray();
-    double* zs = zView ? (double*)(zView->getArray()) : nullptr;
+    axom::ArrayView<double> xs{xView->getArray(), {xView->getNumElements()}, xView->getStride()};
+    axom::ArrayView<double> ys{yView->getArray(), {yView->getNumElements()}, yView->getStride()};
+    axom::ArrayView<double> zs = zView ? axom::ArrayView<double>{zView->getArray(), {zView->getNumElements()}, zView->getStride()} : axom::ArrayView<double>{};
 
     using PointType = primal::Point<double, DIM>;
     axom::Array<PointType> pts;
@@ -697,10 +701,10 @@ public:
     sidre::View* yv = cvg->getView("y");
     sidre::View* zv = ndim == 3 ? cvg->getView("z") : nullptr;
     axom::IndexType npts = xv->getNumElements();
-    double* xp = xv->getData();
-    double* yp = yv->getData();
-    double* zp = zv ? (double*)(zv->getData()) : nullptr;
-    double* xyzs[3] {xp, yp, zp};
+    axom::ArrayView<double> xp{xv->getArray(), {xv->getNumElements()}, xv->getStride()};
+    axom::ArrayView<double> yp{yv->getArray(), {yv->getNumElements()}, yv->getStride()};
+    axom::ArrayView<double> zp = zv ? axom::ArrayView<double>{zv->getArray(), {zv->getNumElements()}, zv->getStride()} : axom::ArrayView<double>{};
+    axom::ArrayView<double> xyzs[3] {xp, yp, zp};
     axom::Array<double, 2> rval(npts, ndim);
     for(int i = 0; i < npts; ++i)
     {
@@ -977,6 +981,11 @@ public:
   int checkClosestPoints(const axom::primal::Sphere<double, DIM>& sphere,
                          const Input& params)
   {
+    if (params.swapMesh)
+    {
+      SLIC_INFO("Warning: Skipping checkClosestPoints, which doesn't work when meshes are swapped.");
+      return 0;
+    }
     using PointType = axom::primal::Point<double, DIM>;
 
     m_queryMesh.registerNodalScalarField<axom::IndexType>("error_flag");
@@ -1084,8 +1093,7 @@ public:
                                 cpCoord));
           }
 
-          if(!axom::utilities::isNearlyEqual(sphere.computeSignedDistance(cpCoord),
-                                             0.0))
+          if(!axom::utilities::isNearlyEqual(sphere.computeSignedDistance(cpCoord), 0.0))
           {
             errf = true;
             SLIC_INFO(
@@ -1491,6 +1499,13 @@ int main(int argc, char** argv)
     objectMeshWrapper.getParticleMesh().printMeshSizeStats("Object mesh");
   }
   slic::flushStreams();
+
+  if (params.swapMesh)
+  {
+    SLIC_INFO(axom::fmt::format("Swaping object and query meshes."));
+    std::swap(objectMeshWrapper.getParticleMesh(),
+              queryMeshWrapper.getParticleMesh());
+  }
 
   objectMeshWrapper.saveMesh(params.objectFile);
   slic::flushStreams();

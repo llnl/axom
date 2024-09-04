@@ -398,7 +398,7 @@ public:
     {
       auto& queryDom = isMultidomain ? queryNode.child(domainNum) : queryNode;
       conduit::Node& xferDom = xferDoms.child(domainNum);
-      conduit::Node& fields = queryDom.fetch_existing("fields");
+      conduit::Node& fields = queryDom.fetch("fields");
 
       conduit::Node genericHeaders;
       genericHeaders["association"] = "vertex";
