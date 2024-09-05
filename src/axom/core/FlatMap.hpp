@@ -18,6 +18,12 @@
 namespace axom
 {
 /*!
+ * \brief Forward declaration of FlatMapView.
+ */
+template <typename KeyType, typename ValueType, typename Hash>
+class FlatMapView;
+
+/*!
  * \class FlatMap
  *
  * \brief Provides a generic associative key-value container.
@@ -69,6 +75,8 @@ public:
   using value_type = KeyValuePair;
   using iterator = IteratorImpl<false>;
   using const_iterator = IteratorImpl<true>;
+
+  using View = FlatMapView<KeyType, ValueType, Hash>;
 
   /*!
    * \brief Constructs a FlatMap with no elements.
@@ -595,7 +603,15 @@ public:
    */
   void reserve(IndexType count) { rehash(std::ceil(count / MAX_LOAD_FACTOR)); }
 
+  /*!
+   * \brief Returns a read-only view of the FlatMap.
+   * \see FlatMapView
+   */
+  View view() const;
+
 private:
+  friend class FlatMapView<KeyType, ValueType, Hash>;
+
   template <typename InputIt>
   FlatMap(IndexType num_elems, InputIt first, InputIt last, IndexType bucket_count, Allocator allocator);
 
