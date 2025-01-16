@@ -208,6 +208,17 @@ inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept;
 /// @}
 // _memory_management_routines_end
 
+struct Allocator
+{
+public:
+  explicit Allocator(int alloc_id = axom::getDefaultAllocatorID()) : m_id {alloc_id} { }
+
+  int get() const { return m_id; }
+
+private:
+  int m_id {0};
+};
+
 //------------------------------------------------------------------------------
 //                        IMPLEMENTATION
 //------------------------------------------------------------------------------
