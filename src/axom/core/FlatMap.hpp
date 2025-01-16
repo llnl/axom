@@ -72,15 +72,18 @@ public:
 
   /*!
    * \brief Constructs a FlatMap with no elements.
+   *
+   * \param [in] allocator memory space to store metadata and key-value pairs
    */
-  FlatMap() : FlatMap(MIN_NUM_BUCKETS) { }
+  explicit FlatMap(Allocator allocator = Allocator {}) : FlatMap(MIN_NUM_BUCKETS, allocator) { }
 
   /*!
    * \brief Constructs a FlatMap with at least a given number of buckets.
    *
    * \param [in] bucket_count the minimum number of buckets to allocate
+   * \param [in] allocator memory space to store metadata and key-value pairs
    */
-  explicit FlatMap(IndexType bucket_count);
+  FlatMap(IndexType bucket_count, Allocator allocator = Allocator {});
 
   /*!
    * \brief Constructs a FlatMap with a range of elements.
@@ -127,7 +130,8 @@ public:
    * \pre ValueType must be copy-constructible
    */
   FlatMap(const FlatMap& other)
-    : m_numGroups2(other.m_numGroups2)
+    : m_allocator(other.m_allocator)
+    , m_numGroups2(other.m_numGroups2)
     , m_size(other.m_size)
     , m_metadata(other.m_metadata)
     , m_buckets(other.m_buckets.size())
@@ -171,6 +175,33 @@ public:
       swap(new_map);
     }
     return *this;
+  }
+
+  /*!
+   * \brief Copy constructor for a FlatMap instance with specified allocator.
+   *
+   * \param other the FlatMap to copy data from
+   * \param [in] allocator memory space to move data to
+   *
+   * \pre KeyType must be copy-constructible
+   * \pre ValueType must be copy-constructible
+   */
+  FlatMap(const FlatMap& other, Allocator allocator)
+    : m_allocator(allocator)
+    , m_numGroups2(other.m_numGroups2)
+    , m_size(other.m_size)
+    , m_metadata(other.m_metadata, m_allocator.get())
+    , m_buckets(other.m_buckets.size(), m_allocator.get())
+    , m_loadCount(other.m_loadCount)
+  {
+    // Copy all elements.
+    const auto metadata = m_metadata.view();
+    IndexType index = this->nextValidIndex(metadata, NO_MATCH);
+    while(index < bucket_count())
+    {
+      new(&m_buckets[index].data) KeyValuePair(other.m_buckets[index].get());
+      index = this->nextValidIndex(metadata, index);
+    }
   }
 
   /// \brief Destructor for a FlatMap instance.
@@ -569,6 +600,8 @@ private:
 
   constexpr static IndexType MIN_NUM_BUCKETS {29};
 
+  Allocator m_allocator;
+
   IndexType m_numGroups2;  // Number of groups of 15 buckets, expressed as a power of 2
   IndexType m_size;
   axom::Array<detail::flat_map::GroupBucket> m_metadata;
@@ -649,8 +682,10 @@ private:
 };
 
 template <typename KeyType, typename ValueType, typename Hash>
-FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count) : m_size(0)
-                                                                   , m_loadCount(0)
+FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count, Allocator allocator)
+  : m_allocator(allocator)
+  , m_size(0)
+  , m_loadCount(0)
 {
   IndexType minBuckets = MIN_NUM_BUCKETS;
   bucket_count = axom::utilities::max(minBuckets, bucket_count);
@@ -664,9 +699,11 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count) : m_size(0)
 
   IndexType numGroupsRounded = 1 << m_numGroups2;
   IndexType numBuckets = numGroupsRounded * BucketsPerGroup - 1;
-  m_metadata.resize(numGroupsRounded);
+
+  using BucketType = detail::flat_map::GroupBucket;
+  m_metadata = axom::Array<BucketType>(numGroupsRounded, numGroupsRounded, m_allocator.get());
   m_metadata[numGroupsRounded - 1].setSentinel();
-  m_buckets.resize(numBuckets);
+  m_buckets = axom::Array<PairStorage>(numBuckets, numBuckets, m_allocator.get());
 }
 
 template <typename KeyType, typename ValueType, typename Hash>
