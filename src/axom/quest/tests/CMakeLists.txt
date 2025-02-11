@@ -200,6 +200,50 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
 endif()
 
 #------------------------------------------------------------------------------
+# Geometry clipping tests require Conduit and RAJA
+#------------------------------------------------------------------------------
+if(CONDUIT_FOUND AND RAJA_FOUND)
+    axom_add_executable(
+        NAME        quest_geometry_clipper_test
+        SOURCES     quest_geometry_clipper.cpp
+        OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_tests_depends}
+        FOLDER      axom/quest/tests
+        )
+
+    # 3D shaping tests.  No 2D shaping in this feature, at least for now.
+    set(_nranks 1)
+
+    # Run the geometry clipping test on with each enabled policy
+    set(_policies "seq")
+    if(RAJA_FOUND)
+      blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
+      blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+      blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
+    endif()
+
+    set(_testgeoms "plane")
+    # set(_testgeoms "tetmesh" "tet" "hex" "sphere" "cyl" "cone" "sor" "all" "plane")
+    foreach(_policy ${_policies})
+      foreach(_testgeom ${_testgeoms})
+        set(_testname "quest_geom_clipper_${_policy}_${_testgeom}")
+        axom_add_test(
+          NAME ${_testname}
+          COMMAND quest_geometry_clipper_test
+          --policy ${_policy}
+          --testGeom ${_testgeom}
+          --refinements 2
+          --scale 0.75 0.75 0.75
+          --dir 0.2 0.4 0.8
+          --meshType bpSidre
+          inline_mesh --min -2 -2 -2 --max 2 2 2 --res 1 1 1
+          NUM_MPI_TASKS ${_nranks})
+      endforeach()
+    endforeach()
+
+endif()
+
+#------------------------------------------------------------------------------
 # Regression tests for quest signed distance and inout queries
 #
 # Note: By default we only run a small subset of the quest regression tests.

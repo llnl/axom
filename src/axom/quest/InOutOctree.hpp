@@ -17,7 +17,6 @@
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
 #include "axom/primal.hpp"
-#include "axom/mint.hpp"
 #include "axom/spin.hpp"
 
 #include "detail/inout/BlockData.hpp"

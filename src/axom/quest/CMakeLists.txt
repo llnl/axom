@@ -130,6 +130,18 @@ blt_list_append(
 
 blt_list_append( TO quest_depends_on ELEMENTS conduit::conduit IF CONDUIT_FOUND )
 
+set(_HAS_CLIPPING_MESH (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND)
+if(RAJA_FOUND AND AXOM_ENABLE_KLEE AND _HAS_CLIPPING_MESH)
+    list(APPEND quest_headers ShapeeMesh.hpp
+                              GeometryClipper.hpp
+                              GeometryClipperStrategy.hpp
+                              Plane3DClipper.hpp
+                              detail/GeometryClipperDelegateExec.hpp)
+    list(APPEND quest_sources ShapeeMesh.cpp
+                              Plane3DClipper.cpp
+                              GeometryClipper.cpp)
+endif()
+
 if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND ((MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND))
     list(APPEND quest_headers Shaper.hpp
                               DiscreteShape.hpp)
