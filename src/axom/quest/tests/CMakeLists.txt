@@ -232,10 +232,11 @@ if(CONDUIT_FOUND AND RAJA_FOUND)
           COMMAND quest_geometry_clipper_test
           --policy ${_policy}
           --testGeom ${_testgeom}
+          -o ${_testgeom}
           --refinements 2
           --scale 0.75 0.75 0.75
           --dir 0.2 0.4 0.8
-          --meshType bpSidre
+          --meshType bpConduit
           inline_mesh --min -2 -2 -2 --max 2 2 2 --res 1 1 1
           NUM_MPI_TASKS ${_nranks})
       endforeach()

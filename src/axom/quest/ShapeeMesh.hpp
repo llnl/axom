@@ -28,7 +28,8 @@ namespace quest
   @brief Computational mesh and intermediate data typically used in shaping.
 
   The purpose of this class is to encapsulate mesh-dependent data and
-  avoid redundant work.
+  avoid redundant work.  Also to provide some convenience tools typically
+  used in shaping.
 
   The mesh must have an unstructured 3D hex topology.  That is the only
   topology currently supported.  It can be extended to support 2D.
@@ -48,10 +49,12 @@ public:
     @brief Constructor
 
     @param [in] runtimePolicy
-    @param [in] allocatorId Allocator id for internal memory.
+    @param [in] allocatorId Allocator id for internal and scratch space.
     @param [in/out] bpMesh Blueprint mesh to shape into.
-    @param [in] topo Name of the Blueprint topology.  If empty,
+    @param [in] topoName Name of the Blueprint topology.  If empty,
       use the first topology in @c bpMesh.
+    @param [in] matsetName Name of the Blueprint material set.
+      If empty, use the first material set in @c bpMesh.
 
     It is an error if allocator id is not usable with the runtime policy.
     If @c allocatorId is axom::INVALID_ALLOCATOR_ID, the default
@@ -63,12 +66,29 @@ public:
   ShapeeMesh(RuntimePolicy runtimePolicy,
              int allocatorId,
              conduit::Node& bpMesh,
-             const std::string& topo = {});
+             const std::string& topoName = {},
+             const std::string& matsetName = {});
 
   // TODO: Support other mesh forms: Blueprint Group, MFEM.
 
-  //!@brief The mesh domain.
-  conduit::Node& getMeshDomain(int domainLocalId);
+  /*!
+    @brief Runtime policy set in constructor.
+
+    getAllocatorId() and getRuntimePolicy() are guaranteed to be
+    compatible.
+  */
+  RuntimePolicy getRuntimePolicy() const { return m_runtimePolicy; }
+
+  /*!
+    @brief Allocator id set in constructor.
+
+    getAllocatorId() and getRuntimePolicy() are guaranteed to be
+    compatible.
+  */
+  int getAllocatorId() const { return m_allocId; }
+
+  //!@brief Return mesh as a conduit::Node, or nullptr
+  conduit::Node* getConduitMesh() { return m_bpNodeExt; }
 
   //!@brief Dimension of the mesh (2 or 3)
   int dimension() const { return m_dim; }
@@ -78,22 +98,6 @@ public:
 
   //!@brief Number of vertices in mesh.
   IndexType getVertexCount() const { return m_vertexCount; }
-
-  /*!
-    @brief Expose runtime policy for related code to use.
-
-    getAllocatorId() and getRuntimePolicy() are guaranteed to be
-    compatible.
-  */
-  RuntimePolicy getRuntimePolicy() const { return m_runtimePolicy; }
-
-  /*!
-    @brief Expose allocator id for related code to use.
-
-    getAllocatorId() and getRuntimePolicy() are guaranteed to be
-    compatible.
-  */
-  int getAllocatorId() const { return m_allocId; }
 
   //@{
   //!@name Accessors to mesh data.
@@ -108,7 +112,33 @@ public:
   axom::ArrayView<const BoundingBox3dType> getCellBoundingBoxes();
   axom::ArrayView<const IndexType, 2> getConnectivity();
   const axom::StackArray<axom::ArrayView<const double>, 3>& getVertexCoords3D() const
-    { return m_vertCoordsViews3D; }
+  {
+    return m_vertCoordsViews3D;
+  }
+  //@}
+
+  /*!
+    @brief Check whether mesh meets requirements for shaping.
+    @param whyNot [out] Diagnostic message if mesh is invalid.
+  */
+  bool isValidForShaping(std::string& whyNot) const;
+
+  //@{
+  /*!
+    @brief Create (Blueprint) matset in the mesh for a material.
+    @param materialName [in]
+    @param volumes [in] Cell-centered volumes
+    @param isFraction [in] Says that volumes is actually volume fractions.
+
+    @pre volumes.size() == getCellCount()
+    @pre Mesh's matsets is in multi-buffer, material-dominant
+    form (see https://llnl-conduit.readthedocs.io/en/latest/blueprint_mesh.html#material-sets).
+  */
+  void setMatsetFromVolume(const std::string& materialName,
+                           const axom::ArrayView<double>& volumes,
+                           bool isFraction = false);
+
+  void setFreeVolumeFractions(const std::string& freeName);
   //@}
 
 private:
@@ -116,13 +146,17 @@ private:
 
   int m_allocId;
 
-  //! @brief Mesh represented as Sidre Group
+  //! @brief Mesh topology name.
   const std::string m_bpTopo;
+
+  //! @brief Mesh matset name.
+  const std::string m_bpMatset;
 
   //! @brief Mesh in an external Node, when provided as a Node.
   conduit::Node* m_bpNodeExt {nullptr};
 
   //! @brief Initial copy of mesh in an internal Node storage.
+  // TODO: Do we really need this?
   conduit::Node m_bpNodeInt;
 
   //!@brief Dimension of mesh (2 or 3)
@@ -173,6 +207,25 @@ public:
 
   template <typename ExecSpace>
   void computeHexBbsImpl();
+
+  template <typename ExecSpace, typename T>
+  void elementwiseDivideImpl(const T* numerator,
+                             const T* denominator,
+                             T* quotient,
+                             axom::IndexType n);
+
+  template <typename T>
+  void fillNImpl(axom::ArrayView<T> a, const T& val) const;
+
+  template <typename T>
+  void elementwiseAddImpl(const axom::ArrayView<T> a,
+                          const axom::ArrayView<T> b,
+                          axom::ArrayView<T> result) const;
+
+  template <typename T>
+  void elementwiseComplementImpl(const axom::ArrayView<T> a,
+                                 const T& val,
+                                 axom::ArrayView<T> results) const;
 };
 
 }  // namespace quest

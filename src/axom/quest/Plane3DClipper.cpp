@@ -193,16 +193,13 @@ void Plane3DClipper::specializedClipImpl(quest::ShapeeMesh& shapeeMesh,
 
       TetsInHex tetsInHex;
       hex.triangulate(tetsInHex);
-      double hexVol = hex.volume();
 
       double vol = 0.0;
       for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
         const auto& tet = tetsInHex[ti];
-        double tetVol = tet.volume();
         primal::Polyhedron<double, 3> overlap = primal::clip(tet, m_plane, EPS);
-        double ov = overlap.volume();
-        vol += ov;
+        vol += overlap.volume();
       }
       ovlap[cellId] = vol;
     });

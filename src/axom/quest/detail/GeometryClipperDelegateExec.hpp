@@ -36,10 +36,18 @@ public:
 
     auto cellVolumes = getShapeeMesh().getCellVolumes();
 
-    axom::for_all<ExecSpace>(cellCount, AXOM_LAMBDA(axom::IndexType i) {
+    axom::for_all<ExecSpace>(
+      cellCount,
+      AXOM_LAMBDA(axom::IndexType i) {
         auto& l = labels[i];
-        if(l == 0) {ovlap[i] = cellVolumes[i];}
-        else if(l == 2) {ovlap[i] = 0; }
+        if(l == 0)
+        {
+          ovlap[i] = cellVolumes[i];
+        }
+        else if(l == 2)
+        {
+          ovlap[i] = 0;
+        }
       });
 
     return;
@@ -78,10 +86,11 @@ public:
     if(unlabeledCells.size() < unlabeledCount ||
        unlabeledCells.getAllocatorID() != labels.getAllocatorID())
     {
-      unlabeledCells = axom::Array<axom::IndexType> {axom::ArrayOptions::Uninitialized(),
-                                                     unlabeledCount,
-                                                     unlabeledCount,
-                                                     labels.getAllocatorID()};
+      unlabeledCells =
+        axom::Array<axom::IndexType> {axom::ArrayOptions::Uninitialized(),
+                                      unlabeledCount,
+                                      unlabeledCount,
+                                      labels.getAllocatorID()};
     }
     auto unlabeledCellsView = unlabeledCells.view();
 
@@ -389,8 +398,8 @@ public:
     }
   }  // end of computeClipVolumes3D() function
 
-  void computeClipVolumes3D( const axom::ArrayView<axom::IndexType>& cellIndices,
-                             axom::ArrayView<double> ovlap)
+  void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
+                            axom::ArrayView<double> ovlap)
 
   {
     AXOM_UNUSED_VAR(ovlap);

@@ -72,7 +72,6 @@ public:
     AXOM_UNUSED_VAR(kGeom);
   }
 
-
   //!@brief Optional name strategy.
   virtual std::string name() const { return "UNNAMED"; }
 

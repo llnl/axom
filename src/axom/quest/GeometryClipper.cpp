@@ -47,7 +47,9 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
   if(ovlap.size() < cellCount || ovlap.getAllocatorID() != allocId)
   {
     ovlap = axom::Array<double>(ArrayOptions::Uninitialized(),
-                                cellCount, cellCount, allocId);
+                                cellCount,
+                                cellCount,
+                                allocId);
   }
 
   bool done = false;
@@ -59,11 +61,12 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
     axom::Array<axom::IndexType> unlabeledCells;
     m_delegate->collectUnlabeledCellIndices(labels.view(), unlabeledCells);
 
-    done = m_strategy->specializedClip(m_shapeeMesh, ovlap.view(), unlabeledCells);
+    done =
+      m_strategy->specializedClip(m_shapeeMesh, ovlap.view(), unlabeledCells);
 
     if(!done)
     {
-      m_delegate->computeClipVolumes3D( unlabeledCells.view(), ovlap.view() );
+      m_delegate->computeClipVolumes3D(unlabeledCells.view(), ovlap.view());
     }
   }
   else

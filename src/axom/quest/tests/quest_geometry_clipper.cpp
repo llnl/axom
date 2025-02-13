@@ -321,6 +321,7 @@ void addRotateOperator(axom::klee::CompositeOperator& compositeOp)
 }
 
 const std::string topoName = "mesh";
+const std::string matsetName = "matset";
 const std::string coordsetName = "coords";
 int cellCount = -1;
 
@@ -966,7 +967,8 @@ void saveMesh(const sidre::Group& mesh, const std::string& filename)
   saveMesh(tmpMesh, filename);
 }
 
-axom::ArrayView<double> getFieldAsArrayView(const std::string& fieldName)
+axom::ArrayView<double> getFieldAsArrayView(const std::string& fieldName,
+                                            bool create = false)
 {
   axom::ArrayView<double> fieldDataView;
   if(params.useBlueprintSidre())
@@ -979,8 +981,15 @@ axom::ArrayView<double> getFieldAsArrayView(const std::string& fieldName)
   }
   if(params.useBlueprintConduit())
   {
-    std::string valuesPath = "fields/" + fieldName + "/values";
-    conduit::Node& fieldValues = compMeshNode->fetch_existing(valuesPath);
+    conduit::Node& fieldNode = compMeshNode->fetch("fields")[fieldName];
+    conduit::Node& fieldValues =
+      create ? fieldNode.fetch("values") : fieldNode.fetch_existing("values");
+    if(fieldValues.dtype().number_of_elements() != cellCount)
+    {
+      fieldValues.set_dtype(conduit::DataType::float64(cellCount));
+      fieldNode["association"].set_string("element");
+      fieldNode["topology"].set_string(topoName);
+    }
     double* fieldData = fieldValues.as_double_ptr();
     fieldDataView =
       axom::ArrayView<double>(fieldData,
@@ -1108,7 +1117,8 @@ int main(int argc, char** argv)
   else if(params.testGeom == "plane")
   {
     geomVec.push_back(createGeom_Plane());
-    geomStrategies.push_back(std::make_shared<axom::quest::Plane3DClipper>(geomVec.back()));
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Plane3DClipper>(geomVec.back()));
   }
   else if(params.testGeom == "all")
   {
@@ -1155,6 +1165,7 @@ int main(int argc, char** argv)
 
     createBoxMesh(compMeshGrp);
 
+#if 0
     if(params.useBlueprintConduit())
     {
       // Intersection requires conduit mesh to have array data pre-allocated.
@@ -1174,9 +1185,11 @@ int main(int argc, char** argv)
       makeField("vol_frac_free", 1.0);
       for(const auto& geom : geomVec)
       {
-        makeField("vol_frac_" + geom.getFormat(), 0.0);  // Used in volume fraction computation
+        makeField("vol_frac_" + geom.getFormat(),
+                  0.0);  // Used in volume fraction computation
       }
     }
+#endif
 
     /*
       Shallow-copy compMeshGrp into compMeshNode,
@@ -1192,7 +1205,11 @@ int main(int argc, char** argv)
   // Initialize the shaping query object
   //---------------------------------------------------------------------------
   AXOM_ANNOTATE_BEGIN("setup shaping problem");
-  quest::ShapeeMesh sMesh(params.policy, allocatorId, *compMeshNode);
+  quest::ShapeeMesh sMesh(params.policy,
+                          allocatorId,
+                          *compMeshNode,
+                          topoName,
+                          matsetName);
 
   AXOM_ANNOTATE_END("setup shaping problem");
   AXOM_ANNOTATE_END("init");
@@ -1200,20 +1217,65 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Process each of the shapes
   //---------------------------------------------------------------------------
+
   SLIC_INFO(axom::fmt::format("{:=^80}", "Shaping loop"));
   AXOM_ANNOTATE_BEGIN("shaping");
-  for(axom::IndexType i=0; i<geomStrategies.size(); ++i)
+  for(axom::IndexType i = 0; i < geomStrategies.size(); ++i)
   {
-    quest::GeometryClipper clipper(sMesh, geomStrategies[i]);
-    axom::Array<double> ovlap;
-    clipper.clip(ovlap);
     SLIC_INFO(axom::fmt::format(
       "{:-^80}",
       axom::fmt::format("Processing geometry '{}'", geomStrategies[i]->name())));
+
+    quest::GeometryClipper clipper(sMesh, geomStrategies[i]);
+    axom::Array<double> ovlap;
+    clipper.clip(ovlap);
+
+    // Save volume fractions in mesh, for plotting and checking.
+    sMesh.setMatsetFromVolume(geomStrategies[i]->name(), ovlap.view(), false);
+
+#if 0
+    // Check and plot on host.  Move ovlap there if needed.
+    axom::ArrayView<double> plotVf =
+      getFieldAsArrayView(geomStrategies[i]->name(), true);
+    if(allocatorId != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
+    {
+      ovlap = axom::Array<double>(ovlap);
+    }
+    auto cellVolumes = sMesh.getCellVolumes();
+    axom::for_all<axom::SEQ_EXEC>(
+      sMesh.getCellCount(),
+      AXOM_LAMBDA(axom::IndexType ci) {
+        plotVf[ci] = ovlap[ci] / cellVolumes[ci];
+      });
+#endif
+
     SLIC_WARNING("Incomplete coding: missing correctness checks.");
     // To debug, put the volume fractions into the mesh and plot.
   }
   AXOM_ANNOTATE_END("shaping");
+
+  sMesh.setFreeVolumeFractions("free");
+  compMeshNode->print();
+
+  std::string whyNotValid;
+  if(!sMesh.isValidForShaping(whyNotValid))
+  {
+    SLIC_ERROR("sMesh is invalid after shaping:\n" + whyNotValid);
+  }
+
+  //---------------------------------------------------------------------------
+  // Save meshes and fields
+  //---------------------------------------------------------------------------
+
+  if(!params.outputFile.empty())
+  {
+    std::string fileName = params.outputFile + ".volfracs";
+    if(params.useBlueprintConduit())
+    {
+      saveMesh(*compMeshNode, fileName);
+      SLIC_INFO(axom::fmt::format("{:-^80}", "Wrote output mesh " + fileName));
+    }
+  }
 
   //---------------------------------------------------------------------------
   // Cleanup and exit

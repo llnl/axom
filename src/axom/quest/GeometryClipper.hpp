@@ -101,13 +101,11 @@ public:
     virtual void computeClipVolumes3D(axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Compute clip volumes for cell in an index list.
-    virtual void computeClipVolumes3D( const axom::ArrayView<axom::IndexType>& cellIndices,
-                                       axom::ArrayView<double> ovlap) = 0;
+    virtual void computeClipVolumes3D(
+      const axom::ArrayView<axom::IndexType>& cellIndices,
+      axom::ArrayView<double> ovlap) = 0;
 
-    ShapeeMesh& getShapeeMesh()
-    {
-      return m_delegator.m_shapeeMesh;
-    }
+    ShapeeMesh& getShapeeMesh() { return m_delegator.m_shapeeMesh; }
 
     GeometryClipperStrategy& getGeometryClipperStrategy()
     {

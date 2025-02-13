@@ -17,15 +17,11 @@ namespace axom
 namespace quest
 {
 #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
-  #if defined(AXOM_USE_CONDUIT)
 static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
   conduit::DataType::INT64_ID;
-  #endif
 #else
-  #if defined(AXOM_USE_CONDUIT)
 static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
   conduit::DataType::INT32_ID;
-  #endif
 #endif
 
 constexpr int NUM_TETS_PER_HEX = 24;
@@ -33,42 +29,60 @@ constexpr int NUM_TETS_PER_HEX = 24;
 ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
                        int allocatorId,
                        conduit::Node& bpMesh,
-                       const std::string& topo)
+                       const std::string& topoName,
+                       const std::string& matsetName)
   : m_runtimePolicy(runtimePolicy)
   , m_allocId(allocatorId != axom::INVALID_ALLOCATOR_ID
                 ? allocatorId
                 : axom::policyToDefaultAllocatorID(runtimePolicy))
-  , m_bpTopo(topo.empty() ? bpMesh.fetch_existing("topologies").child(0).name()
-                          : topo)
+  , m_bpTopo(topoName.empty() && bpMesh["topologies"].number_of_children() > 0
+               ? bpMesh["topologies"].child(0).name()
+               : topoName)
+  , m_bpMatset(matsetName.empty() && bpMesh["matsets"].number_of_children() > 0
+                 ? bpMesh.fetch("matsets").child(0).name()
+                 : matsetName)
   , m_bpNodeExt(&bpMesh)
   , m_bpNodeInt()
 {
+  SLIC_ERROR_IF(
+    m_bpTopo.empty(),
+    "Topology name was not provided, and no default topology was found.");
+  SLIC_ERROR_IF(
+    m_bpMatset.empty(),
+    "Matset name was not provided, and no default matset was found.");
+
   // We want unstructured topo but can accomodate structured.
   const std::string topoType = m_bpNodeExt->fetch_existing("topologies")
                                  .fetch_existing(m_bpTopo)
                                  .fetch_existing("type")
                                  .as_string();
-  SLIC_ASSERT_MSG(
-    topoType == "unstructured",
-    "ShapeeMesh currently only works with unstructured mesh, not " + topoType +
-      ".");
+  SLIC_ERROR_IF(topoType != "unstructured",
+                "ShapeeMesh currently only works with unstructured mesh, not " +
+                  topoType + ".");
 
   const conduit::Node& topoNode =
     m_bpNodeExt->fetch_existing("topologies").fetch_existing(m_bpTopo);
-
   const std::string coordsetName =
     topoNode.fetch_existing("coordset").as_string();
   const conduit::Node& coordsetNode =
     m_bpNodeExt->fetch_existing("coordsets").fetch_existing(coordsetName);
+  conduit::Node& matsetNode = m_bpNodeExt->fetch("matsets").fetch(m_bpMatset);
 
-  // Check for unstructured and hexahedral
+  if(!matsetNode.has_child("topology"))
+  {
+    matsetNode.fetch("topology").set_string(m_bpTopo);
+  }
+
+  // Input checks.
   SLIC_ERROR_IF(topoNode["type"].as_string() != "unstructured",
                 "topology type must be 'unstructured'");
   SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "hex",
                 "element shape must be 'hex'");
+  SLIC_ERROR_IF(matsetNode["topology"].as_string() != m_bpTopo,
+                "matset's topology doesn't match the specified topology");
 
   m_dim = conduit::blueprint::mesh::topology::dims(topoNode);
-  SLIC_ASSERT(m_dim == 3); // Will allow 2D when we support it.
+  SLIC_ASSERT(m_dim == 3);  // Will allow 2D when we support it.
 
   m_cellCount = conduit::blueprint::mesh::topology::length(topoNode);
 
@@ -131,6 +145,207 @@ axom::ArrayView<const axom::IndexType, 2> ShapeeMesh::getConnectivity()
     computeConnectivity();
   }
   return m_connectivity;
+}
+
+bool ShapeeMesh::isValidForShaping(std::string& whyNot) const
+{
+  bool rval = true;
+
+  /*
+    Check Blueprint-validity.
+    Conduit's verify should work even if m_bpNodeExt has array data on
+    devices.  The verification doesn't dereference array data.
+    If this changes in the future, this code must adapt.
+  */
+  conduit::Node info;
+  rval = conduit::blueprint::mesh::verify(*m_bpNodeExt, info);
+
+  if(rval)
+  {
+    std::string topoType =
+      m_bpNodeExt->fetch("topologies")[m_bpTopo]["type"].as_string();
+    rval = topoType == "unstructured";
+    info[0].set_string("Topology is not unstructured.");
+  }
+
+  if(rval)
+  {
+    std::string elemShape =
+      m_bpNodeExt->fetch("topologies")[m_bpTopo]["elements/shape"].as_string();
+    rval = elemShape == "hex";
+    info[0].set_string("Topology elements are not hex.");
+  }
+
+  whyNot = info.to_summary_string();
+
+  return rval;
+}
+
+void ShapeeMesh::setMatsetFromVolume(const std::string& materialName,
+                                     const axom::ArrayView<double>& volumes,
+                                     bool isFraction)
+{
+  conduit::Node& matsetNode = m_bpNodeExt->fetch("matsets")[m_bpMatset];
+  conduit::Node& vfValues = matsetNode["volume_fractions"][materialName];
+  vfValues.set(conduit::DataType::float64(m_cellCount));
+  double* vfPtr = vfValues.as_double_ptr();
+  axom::copy(vfPtr, volumes.data(), m_cellCount * sizeof(double));
+  if(!isFraction)
+  {
+    const double* cellVols = getCellVolumes().data();
+    switch(m_runtimePolicy)
+    {
+    case RuntimePolicy::seq:
+      elementwiseDivideImpl<axom::SEQ_EXEC>(vfPtr, cellVols, vfPtr, m_cellCount);
+      break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+    case RuntimePolicy::omp:
+      elementwiseDivideImpl<axom::OMP_EXEC>(vfPtr, cellVols, vfPtr, m_cellCount);
+      break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+    case RuntimePolicy::cuda:
+      elementwiseDivideImpl<axom::CUDA_EXEC<256>>(vfPtr,
+                                                  cellVols,
+                                                  vfPtr,
+                                                  m_cellCount);
+      break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+    case RuntimePolicy::hip:
+      elementwiseDivideImpl<axom::HIP_EXEC<256>>(vfPtr,
+                                                 cellVols,
+                                                 vfPtr,
+                                                 m_cellCount);
+      break;
+#endif
+    default:
+      SLIC_ERROR("ShapeeMesh internal error: Unhandled execution policy.");
+    }
+  }
+}
+
+void ShapeeMesh::setFreeVolumeFractions(const std::string& freeName)
+{
+  conduit::Node& vfsNode =
+    m_bpNodeExt->fetch("matsets")[m_bpMatset]["volume_fractions"];
+
+  SLIC_ERROR_IF(vfsNode.has_child(freeName),
+                "Matset '" + m_bpMatset + "' already has a material named '" +
+                  freeName + "'");
+
+  conduit::Node& newVfNode = vfsNode[freeName];
+  newVfNode.set(conduit::DataType::float64(m_cellCount));
+  axom::ArrayView<double> newVfView(newVfNode.as_double_ptr(), {m_cellCount});
+
+  fillNImpl(newVfView, 0.0);
+
+  for(auto& vfNode : vfsNode.children())
+  {
+    if(vfNode.name() == newVfNode.name()) continue;
+    axom::ArrayView<double> vfView(vfNode.as_double_ptr(), {m_cellCount});
+    elementwiseAddImpl(newVfView, vfView, newVfView);
+  }
+
+  elementwiseComplementImpl(newVfView, 1.0, newVfView);
+}
+
+template <typename T>
+void ShapeeMesh::fillNImpl(axom::ArrayView<T> a, const T& val) const
+{
+  auto kern = AXOM_LAMBDA(axom::IndexType i) { a[i] = val; };
+
+  // Zero the new data for use as VF accumulation space.
+  switch(m_runtimePolicy)
+  {
+  case RuntimePolicy::seq:
+    axom::for_all<axom::SEQ_EXEC>(a.size(), kern);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case RuntimePolicy::omp:
+    axom::for_all<axom::OMP_EXEC>(a.size(), kern);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case RuntimePolicy::cuda:
+    axom::for_all<axom::CUDA_EXEC<256>>(a.size(), kern);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case RuntimePolicy::hip:
+    axom::for_all<axom::HIP_EXEC<256>>(a.size(), kern);
+    break;
+#endif
+  default:
+    SLIC_ERROR("ShapeeMesh internal error: Unhandled execution policy.");
+  }
+}
+
+template <typename T>
+void ShapeeMesh::elementwiseAddImpl(const axom::ArrayView<T> a,
+                                    const axom::ArrayView<T> b,
+                                    axom::ArrayView<T> result) const
+{
+  auto kern = AXOM_LAMBDA(axom::IndexType i) { result[i] = a[i] + b[i]; };
+
+  switch(m_runtimePolicy)
+  {
+  case RuntimePolicy::seq:
+    axom::for_all<axom::SEQ_EXEC>(result.size(), kern);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case RuntimePolicy::omp:
+    axom::for_all<axom::OMP_EXEC>(result.size(), kern);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case RuntimePolicy::cuda:
+    axom::for_all<axom::CUDA_EXEC<256>>(result.size(), kern);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case RuntimePolicy::hip:
+    axom::for_all<axom::HIP_EXEC<256>>(result.size(), kern);
+    break;
+#endif
+  default:
+    SLIC_ERROR("ShapeeMesh internal error: Unhandled execution policy.");
+  }
+}
+
+template <typename T>
+void ShapeeMesh::elementwiseComplementImpl(const axom::ArrayView<T> a,
+                                           const T& val,
+                                           axom::ArrayView<T> results) const
+{
+  auto kern = AXOM_LAMBDA(axom::IndexType i)
+  {
+    results[i] = val >= a[i] ? val - a[i] : 0.0;
+  };
+
+  switch(m_runtimePolicy)
+  {
+  case RuntimePolicy::seq:
+    axom::for_all<axom::SEQ_EXEC>(a.size(), kern);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case RuntimePolicy::omp:
+    axom::for_all<axom::OMP_EXEC>(a.size(), kern);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case RuntimePolicy::cuda:
+    axom::for_all<axom::CUDA_EXEC<256>>(a.size(), kern);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case RuntimePolicy::hip:
+    axom::for_all<axom::HIP_EXEC<256>>(a.size(), kern);
+    break;
+#endif
+  default:
+    SLIC_ERROR("ShapeeMesh internal error: Unhandled execution policy.");
+  }
 }
 
 void ShapeeMesh::computeCellsAsHexes()
@@ -378,6 +593,19 @@ void ShapeeMesh::computeHexBbsImpl()
     m_cellCount,
     AXOM_LAMBDA(axom::IndexType i) {
       hexBbsView[i] = primal::compute_bounding_box<double, 3>(cellsAsHexes[i]);
+    });
+}
+
+template <typename ExecSpace, typename T>
+void ShapeeMesh::elementwiseDivideImpl(const T* numerator,
+                                       const T* denominator,
+                                       T* quotient,
+                                       axom::IndexType n)
+{
+  axom::for_all<ExecSpace>(
+    n,
+    AXOM_LAMBDA(axom::IndexType i) {
+      quotient[i] = numerator[i] / denominator[i];
     });
 }
 
