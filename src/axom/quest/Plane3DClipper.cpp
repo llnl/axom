@@ -18,8 +18,10 @@ namespace axom
 namespace quest
 {
 
-Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom)
+Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom,
+                               const std::string& name)
   : GeometryClipperStrategy(kGeom)
+  , m_name(name.empty() ? std::string("Plane3D") : name)
   , m_plane(kGeom.getPlane())
 { }
 
@@ -108,6 +110,10 @@ void Plane3DClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
                                   vertCount,
                                   allocId};
   auto vertIsInsideView = vertIsInside.view();
+  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vX.getAllocatorID()));
+  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
+  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vZ.getAllocatorID()));
+  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertIsInsideView.getAllocatorID()));
 
   axom::for_all<ExecSpace>(
     vertCount,

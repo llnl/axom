@@ -324,6 +324,7 @@ const std::string topoName = "mesh";
 const std::string matsetName = "matset";
 const std::string coordsetName = "coords";
 int cellCount = -1;
+std::map<std::string, double> exactOverlapVols;
 
 // Computational mesh in different forms, initialized in main
 axom::sidre::Group* compMeshGrp = nullptr;
@@ -667,6 +668,14 @@ axom::klee::Geometry createGeom_Plane()
   const primal::Plane<double, 3> plane {normal, center, true};
 
   axom::klee::Geometry planeGeometry(prop, plane, scaleOp);
+
+  // Exact mesh overlap volume, assuming plane passes through center of box mesh.
+  using Pt3D = primal::Point<double, 3>;
+  Pt3D lower(params.boxMins.data());
+  Pt3D upper(params.boxMaxs.data());
+  auto diag = upper.array() - lower.array();
+  double meshVolume = diag[0] * diag[1] * diag[2];
+  exactOverlapVols["plane"] = 0.5 * meshVolume;
 
   return planeGeometry;
 }
@@ -1073,123 +1082,107 @@ int main(int argc, char** argv)
     params.annotationMode);
 
   const int allocatorId = axom::policyToDefaultAllocatorID(params.policy);
+#if defined(AXOM_USE_UMPIRE)
+  const std::string allocatorName = umpire::ResourceManager::getInstance().getAllocator(allocatorId).getName();
+  std::cout<<"Allocator: " << allocatorId <<  ' ' << allocatorName << std::endl;
+#endif
 
   AXOM_ANNOTATE_BEGIN("quest example for shaping primals");
   AXOM_ANNOTATE_BEGIN("init");
 
-  // Storage for the shape geometry meshes.
+  // Storage for the some geometry meshes.
   sidre::DataStore ds;
 
   //---------------------------------------------------------------------------
   // Create shapes for the test
   //---------------------------------------------------------------------------
-  axom::Array<axom::klee::Geometry> geomVec;
   axom::Array<std::shared_ptr<axom::quest::GeometryClipperStrategy>> geomStrategies;
   SLIC_ERROR_IF(params.getBoxDim() != 3, "This example is only in 3D.");
-  if(params.testGeom == "tetmesh")
+  if(params.testGeom == "plane")
   {
-    geomVec.push_back(createGeom_TetMesh(ds));
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(),
+                                                    params.testGeom));
+  }
+#if 0
+  else if(params.testGeom == "tetmesh")
+  {
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Plane3DClipper>(createGeom_TetMesh(ds),
+                                                    params.testGeom));
   }
   else if(params.testGeom == "tet")
   {
-    geomVec.push_back(createGeom_Tet());
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Tet(),
+                                                    params.testGeom));
   }
   else if(params.testGeom == "hex")
   {
-    geomVec.push_back(createGeom_Hex());
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Hex(),
+                                                    params.testGeom));
   }
   else if(params.testGeom == "sphere")
   {
-    geomVec.push_back(createGeom_Sphere());
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Sphere(),
+                                                    params.testGeom));
   }
   else if(params.testGeom == "cyl")
   {
-    geomVec.push_back(createGeom_Cylinder());
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Cylinder(),
+                                                    params.testGeom));
   }
   else if(params.testGeom == "cone")
   {
-    geomVec.push_back(createGeom_Cone());
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Cone(),
+                                                    params.testGeom));
   }
   else if(params.testGeom == "sor")
   {
-    geomVec.push_back(createGeom_Sor());
-  }
-  else if(params.testGeom == "plane")
-  {
-    geomVec.push_back(createGeom_Plane());
     geomStrategies.push_back(
-      std::make_shared<axom::quest::Plane3DClipper>(geomVec.back()));
-  }
-  else if(params.testGeom == "all")
-  {
-    geomVec.push_back(createGeom_TetMesh(ds));
-    geomVec.push_back(createGeom_Tet());
-    geomVec.push_back(createGeom_Hex());
-    geomVec.push_back(createGeom_Sphere());
-    geomVec.push_back(createGeom_Sor());
-    geomVec.push_back(createGeom_Cylinder());
-    geomVec.push_back(createGeom_Cone());
-  }
-
-#if 0
-  // Save the discrete shapes for viz and testing.
-  auto* shapeMeshGroup = ds.getRoot()->createGroup("shapeMeshGroup");
-  std::vector<std::shared_ptr<axom::mint::Mesh>> discreteShapeMeshes;
-  for(const auto& shape : shapeSet.getShapes())
-  {
-    axom::quest::DiscreteShape dShape(shape, shapeMeshGroup);
-    auto dMesh =
-      std::dynamic_pointer_cast<axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>>(
-        dShape.createMeshRepresentation());
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      axom::fmt::format("Shape '{}' discrete geometry has {} cells",
-                        shape.getName(),
-                        dMesh->getNumberOfCells())));
-
-    discreteShapeMeshes.push_back(dMesh);
-
-    if(!params.outputFile.empty())
-    {
-      std::string shapeFileName = params.outputFile + ".shape";
-      conduit::Node tmpNode, info;
-      dMesh->getSidreGroup()->createNativeLayout(tmpNode);
-      conduit::relay::io::blueprint::save_mesh(tmpNode, shapeFileName, "hdf5");
-    }
+      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Sor(),
+                                                    params.testGeom));
   }
 #endif
+  else if(params.testGeom == "all")
+  {
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(),
+                                                    params.testGeom));
+#if 0
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::TetMesh3DClipper>(createGeom_TetMesh(ds),
+                                                    params.testGeom));
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Tet3DClipper>(createGeom_Tet(),
+                                                    params.testGeom));
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Hex3DClipper>(createGeom_Hex(),
+                                                    params.testGeom));
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Sphere3DClipper>(createGeom_Sphere(),
+                                                    params.testGeom));
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Cylinder3DClipper>(createGeom_Cylinder(),
+                                                    params.testGeom));
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::Cone3DClipper>(createGeom_Cone(),
+                                                    params.testGeom));
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::SOR3DClipper>(createGeom_Sor(),
+                                                    params.testGeom));
+#endif
+  }
 
   {
     compMeshGrp = ds.getRoot()->createGroup("compMesh");
     compMeshGrp->setDefaultAllocator(allocatorId);
 
     createBoxMesh(compMeshGrp);
-
-#if 0
-    if(params.useBlueprintConduit())
-    {
-      // Intersection requires conduit mesh to have array data pre-allocated.
-      auto makeField = [&](const std::string& fieldName, double initValue) {
-        auto fieldGrp = compMeshGrp->createGroup("fields/" + fieldName);
-        axom::IndexType shape[] = {params.getBoxCellCount(), 1};
-        fieldGrp->createViewString("association", "element");
-        fieldGrp->createViewString("topology", topoName);
-        fieldGrp->createViewString("volume_dependent", "true");
-        axom::sidre::View* valuesView = fieldGrp->createViewWithShapeAndAllocate(
-          "values",
-          axom::sidre::detail::SidreTT<double>::id,
-          2,
-          shape);
-        fillSidreViewData(valuesView, initValue);
-      };
-      makeField("vol_frac_free", 1.0);
-      for(const auto& geom : geomVec)
-      {
-        makeField("vol_frac_" + geom.getFormat(),
-                  0.0);  // Used in volume fraction computation
-      }
-    }
-#endif
 
     /*
       Shallow-copy compMeshGrp into compMeshNode,
@@ -1218,13 +1211,17 @@ int main(int argc, char** argv)
   // Process each of the shapes
   //---------------------------------------------------------------------------
 
+  int failCounts = 0;
+
   SLIC_INFO(axom::fmt::format("{:=^80}", "Shaping loop"));
   AXOM_ANNOTATE_BEGIN("shaping");
   for(axom::IndexType i = 0; i < geomStrategies.size(); ++i)
   {
+    const auto geomName = geomStrategies[i]->name();
+
     SLIC_INFO(axom::fmt::format(
       "{:-^80}",
-      axom::fmt::format("Processing geometry '{}'", geomStrategies[i]->name())));
+      axom::fmt::format("Processing geometry '{}'", geomName)));
 
     quest::GeometryClipper clipper(sMesh, geomStrategies[i]);
     axom::Array<double> ovlap;
@@ -1233,24 +1230,37 @@ int main(int argc, char** argv)
     // Save volume fractions in mesh, for plotting and checking.
     sMesh.setMatsetFromVolume(geomStrategies[i]->name(), ovlap.view(), false);
 
-#if 0
-    // Check and plot on host.  Move ovlap there if needed.
-    axom::ArrayView<double> plotVf =
-      getFieldAsArrayView(geomStrategies[i]->name(), true);
-    if(allocatorId != axom::execution_space<axom::SEQ_EXEC>::allocatorID())
+    // Correctness check on overlap volume.
+    if(!axom::execution_space<axom::SEQ_EXEC>::usesAllocId(ovlap.getAllocatorID()))
     {
-      ovlap = axom::Array<double>(ovlap);
+      ovlap = axom::Array<double>(ovlap, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
     }
-    auto cellVolumes = sMesh.getCellVolumes();
+    auto ovlapView = ovlap.view();
+    using reduce_policy = typename axom::execution_space<axom::SEQ_EXEC>::reduce_policy;
+    RAJA::ReduceSum<reduce_policy, double> ovlapSumReduce(0.0);
     axom::for_all<axom::SEQ_EXEC>(
-      sMesh.getCellCount(),
-      AXOM_LAMBDA(axom::IndexType ci) {
-        plotVf[ci] = ovlap[ci] / cellVolumes[ci];
+      ovlap.size(),
+      AXOM_LAMBDA(axom::IndexType i) {
+        ovlapSumReduce += ovlapView[i];
       });
-#endif
+    double computedOverlapVol = ovlapSumReduce.get();
+    double correctOverlapVol = exactOverlapVols[geomName];
 
-    SLIC_WARNING("Incomplete coding: missing correctness checks.");
-    // To debug, put the volume fractions into the mesh and plot.
+    bool err = !axom::utilities::isNearlyEqualRelative(computedOverlapVol,
+                                                       correctOverlapVol,
+                                                       1e-6,
+                                                       1e-8);
+    failCounts += err;
+
+    SLIC_INFO(axom::fmt::format(
+      "{:-^80}",
+      axom::fmt::format(
+        "Shape '{}' has volume {} vs {}, diff of {}, {}.",
+        geomName,
+        computedOverlapVol,
+        correctOverlapVol,
+        computedOverlapVol - correctOverlapVol,
+        (err ? "ERROR" : "OK"))));
   }
   AXOM_ANNOTATE_END("shaping");
 
@@ -1287,5 +1297,5 @@ int main(int argc, char** argv)
 
   finalizeLogger();
 
-  return 0;
+  return failCounts;
 }

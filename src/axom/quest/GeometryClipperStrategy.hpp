@@ -22,7 +22,7 @@ namespace quest
   @brief Strategy base class for geometry-specific operations
   in clipping.
 
-  Key methods to implement.  See below for which are required:
+  Key methods to implement.  Some combination of these is required:
 
   -# getShapesAsTets: Build an array of tetrahedra from the
      mesh cells.
@@ -38,14 +38,14 @@ namespace quest
 
   -# labelInOut: Label whether the cells in a mesh is inside,
      outside or on the shape boundary.  If a cell cannot be
-     determined, you can label it as on the boundary.
+     determined, you can conservatively label it as on the boundary.
 
   Every method returns true if it fulfilled the request, or
   false if it was a no-op.
 
-  Subclass must implement either one of the getShapesAs...() methods
-  or one specializedClip method.  The latter is prefered if the use of
-  geometry-specific information can improve performance.  labelInOut
+  Subclass must implement either a @c specializedClip method or one of
+  the @c getShapesAs...() methods.  The former is prefered if the use
+  of geometry-specific information can make it faster.  @c labelInOut
   is optional but if provided, it can improve performance by limiting
   the slower clipping steps to a subset of cells.
 */
@@ -72,7 +72,7 @@ public:
     AXOM_UNUSED_VAR(kGeom);
   }
 
-  //!@brief Optional name strategy.
+  //!@brief Optional name for strategy.
   virtual std::string name() const { return "UNNAMED"; }
 
   //@{
@@ -85,8 +85,9 @@ public:
     @param [out] labels
 
     The output labels are used in optimizing the clipping algorithm.
-    Subclasses should implementation this if it's cost-effective,
-    and skip if it's not.
+    Subclasses should implementation this if it's cost-effective, and
+    skip if it's not.  It's safe to label cells as on the boundary if
+    it can't be possitively determined as inside or outside.
 
     @return Whether the operation was done.  (A false means
     not done.)
@@ -94,8 +95,8 @@ public:
     The cell labels should be set to
     - 1 if the cell is completely inside the shape,
     - 2 if the cell is completely outside, and
-    - 3 if the cell is both inside and out, or cannot be
-      easily determined.
+    - 3 if the cell is both inside and outside (or
+      cannot be easily determined).
 
     Post-conditions only apply if method returns true.
     @post labels.size() == shapeeMesh.getCellCount()

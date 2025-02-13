@@ -25,15 +25,17 @@ public:
 
     @param [in] kGeom Describes the shape to place
       into the mesh.
+    @param [in] name To override the default strategy name
 
     Clipping operations for a semi-infinite half-space
     on the positive normal direction of a plane.
   */
-  Plane3DClipper(const klee::Geometry& kGeom);
+  Plane3DClipper(const klee::Geometry& kGeom,
+                 const std::string& name="");
 
   virtual ~Plane3DClipper() = default;
 
-  std::string name() const override { return "Plane3D"; }
+  std::string name() const override { return m_name; }
 
   bool labelInOut(quest::ShapeeMesh& shappeMesh,
                   axom::Array<char>& label) override;
@@ -45,6 +47,8 @@ public:
 #if !defined(__CUDACC__)
 private:
 #endif
+  std::string m_name;
+
   axom::primal::Plane<double, 3> m_plane;
 
   template <typename ExecSpace>

@@ -128,11 +128,13 @@ public:
     @brief Create (Blueprint) matset in the mesh for a material.
     @param materialName [in]
     @param volumes [in] Cell-centered volumes
-    @param isFraction [in] Says that volumes is actually volume fractions.
+    @param isFraction [in] Whether @c volumes is actually
+      volume fractions.
 
     @pre volumes.size() == getCellCount()
-    @pre Mesh's matsets is in multi-buffer, material-dominant
+    @pre Mesh's matsets is multi-buffer, material-dominant
     form (see https://llnl-conduit.readthedocs.io/en/latest/blueprint_mesh.html#material-sets).
+    Currently not supporting other matset forms.
   */
   void setMatsetFromVolume(const std::string& materialName,
                            const axom::ArrayView<double>& volumes,

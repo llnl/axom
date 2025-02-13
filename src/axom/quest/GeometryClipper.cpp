@@ -29,12 +29,12 @@ GeometryClipper::GeometryClipper(
 { }
 
 /*
-  Try to use specialized clipping.  If those methods aren't
-  implemented, resort to discretizing geomety into tets or octs
-  for brute-force clipping.
+  If the strategy can label cells as inside/on/outside geometry
+  boundary, use that to reduce the use of expensive clipping methods.
 
-  If the strategy can label cells as in/ou/on geometry boundary,
-  use that to reduce the calls to expensive clipping methods.
+  Regardless of labling, try to use specialized clipping first.
+  If those methods aren't implemented, resort to discretizing
+  geomety into tets or octs for brute-force clipping.
 */
 void GeometryClipper::clip(axom::Array<double>& ovlap)
 {
