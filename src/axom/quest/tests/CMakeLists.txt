@@ -224,21 +224,24 @@ if(CONDUIT_FOUND AND RAJA_FOUND)
 
     set(_testgeoms "plane")
     # set(_testgeoms "tetmesh" "tet" "hex" "sphere" "cyl" "cone" "sor" "all" "plane")
-    foreach(_policy ${_policies})
-      foreach(_testgeom ${_testgeoms})
-        set(_testname "quest_geometry_clipper_${_policy}_${_testgeom}")
-        axom_add_test(
-          NAME ${_testname}
-          COMMAND quest_geometry_clipper_test
-          --policy ${_policy}
-          --testGeom ${_testgeom}
-          -o ${_testgeom}
-          --refinements 2
-          --scale 0.75 0.75 0.75
-          --dir 0.2 0.4 0.8
-          --meshType bpConduit
-          inline_mesh --min -2 -2 -2 --max 2 2 2 --res 30 30 30
-          NUM_MPI_TASKS ${_nranks})
+    set(_meshTypes "bpSidre" "bpConduit")
+    foreach(_meshType ${_meshTypes})
+      foreach(_policy ${_policies})
+        foreach(_testgeom ${_testgeoms})
+          set(_testname "quest_geometry_clipper_${_meshType}_${_policy}_${_testgeom}")
+          axom_add_test(
+            NAME ${_testname}
+            COMMAND quest_geometry_clipper_test
+            --policy ${_policy}
+            --testGeom ${_testgeom}
+            -o ${_testname}
+            --refinements 2
+            --scale 0.75 0.75 0.75
+            --dir 0.2 0.4 0.8
+            --meshType ${_meshType}
+            inline_mesh --min -2 -2 -2 --max 2 2 2 --res 30 30 30
+            NUM_MPI_TASKS ${_nranks})
+        endforeach()
       endforeach()
     endforeach()
 

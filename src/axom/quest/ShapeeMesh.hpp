@@ -16,6 +16,10 @@
 #include "axom/primal/geometry/Hexahedron.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 
+#ifdef AXOM_USE_SIDRE
+#include "axom/sidre.hpp"
+#endif
+
 #include "conduit/conduit_node.hpp"
 #include "conduit_blueprint.hpp"
 
@@ -46,7 +50,37 @@ public:
   using BoundingBox3dType = primal::BoundingBox<double, 3>;
 
   /*!
-    @brief Constructor
+    @brief Constructor with computational mesh in a conduit::Node.
+
+    @param [in] runtimePolicy
+    @param [in] allocatorId Allocator id for internal and scratch space.
+    @param [in/out] bpMesh Blueprint mesh to shape into.
+    @param [in] topoName Name of the Blueprint topology.  If empty,
+      use the first topology in @c bpMesh.
+    @param [in] matsetName Name of the Blueprint material set.
+      If empty, use the first material set in @c bpMesh.
+
+    It is an error if allocator id is not usable with the runtime policy.
+    If @c allocatorId is axom::INVALID_ALLOCATOR_ID, the default
+    allocator for the runtime policy will be used.
+
+    Mesh array data are assumed to be accessible by the runtime policy,
+    but they need not correspond to the allocator id.
+
+    Because @c conduit::Node doesn't support application-specified
+    allocator id for (only) arrays, the incoming @c bpNode must have
+    all arrays pre-allocated in a space accessible by the runtime
+    policy.  Any needed-but-missing space would lead to an exception.
+  */
+  ShapeeMesh(RuntimePolicy runtimePolicy,
+             int allocatorId,
+             conduit::Node& bpMesh,
+             const std::string& topoName = {},
+             const std::string& matsetName = {});
+
+#ifdef AXOM_USE_SIDRE
+  /*!
+    @brief Constructor with computational mesh in a sidre::Group.
 
     @param [in] runtimePolicy
     @param [in] allocatorId Allocator id for internal and scratch space.
@@ -65,9 +99,10 @@ public:
   */
   ShapeeMesh(RuntimePolicy runtimePolicy,
              int allocatorId,
-             conduit::Node& bpMesh,
+             sidre::Group* bpMesh,
              const std::string& topoName = {},
              const std::string& matsetName = {});
+#endif
 
   // TODO: Support other mesh forms: Blueprint Group, MFEM.
 
@@ -87,8 +122,17 @@ public:
   */
   int getAllocatorId() const { return m_allocId; }
 
-  //!@brief Return mesh as a conduit::Node, or nullptr
-  conduit::Node* getConduitMesh() { return m_bpNodeExt; }
+  /*
+    !@brief Return computational mesh as a sidre::Group if it has
+    that form, or nullptr otherwise.
+  */
+  sidre::Group* getMeshAsSidre() { return m_bpGrpExt; }
+
+  /*!
+    @brief Return computational mesh as a conduit::Node if it has
+    that form, or nullptr otherwise.
+  */
+  conduit::Node* getMeshAsConduit() { return m_bpNodeExt; }
 
   //!@brief Dimension of the mesh (2 or 3)
   int dimension() const { return m_dim; }
@@ -120,6 +164,9 @@ public:
   /*!
     @brief Check whether mesh meets requirements for shaping.
     @param whyNot [out] Diagnostic message if mesh is invalid.
+
+    Note: The check is only performed on Blueprint meshes, not
+    on MFEM meshes.
   */
   bool isValidForShaping(std::string& whyNot) const;
 
@@ -149,17 +196,21 @@ private:
   int m_allocId;
 
   //! @brief Mesh topology name.
-  const std::string m_bpTopo;
+  const std::string m_topoName;
 
   //! @brief Mesh matset name.
-  const std::string m_bpMatset;
+  const std::string m_matsetName;
 
-  //! @brief Mesh in an external Node, when provided as a Node.
-  conduit::Node* m_bpNodeExt {nullptr};
+#if defined(AXOM_USE_SIDRE)
+  //! @brief External computational mesh, when provided as a Group.
+  axom::sidre::Group* m_bpGrpExt;
 
-  //! @brief Initial copy of mesh in an internal Node storage.
-  // TODO: Do we really need this?
+  //! @brief Initial shallow copy of m_bpGrp in an internal Node storage.
   conduit::Node m_bpNodeInt;
+#endif
+
+  //! @brief External computational mesh, when provided as a Node.
+  conduit::Node* m_bpNodeExt {nullptr};
 
   //!@brief Dimension of mesh (2 or 3)
   int m_dim;

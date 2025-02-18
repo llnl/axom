@@ -18,6 +18,7 @@
 #include "axom/sidre.hpp"
 #include "axom/klee.hpp"
 #include "axom/quest.hpp"
+#include "axom/core/WhereMacro.hpp"
 
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"
@@ -26,6 +27,7 @@
   #error Shaping functionality requires Axom to be configured with Conduit
 #endif
 
+#include "conduit_blueprint.hpp"
 #include "conduit_relay_io_blueprint.hpp"
 
 #ifdef AXOM_USE_MPI
@@ -328,6 +330,7 @@ std::map<std::string, double> exactOverlapVols;
 
 // Computational mesh in different forms, initialized in main
 axom::sidre::Group* compMeshGrp = nullptr;
+axom::sidre::Group* compMeshGrpOnHost = nullptr;
 std::shared_ptr<conduit::Node> compMeshNode;
 
 axom::sidre::Group* createBoxMesh(axom::sidre::Group* meshGrp)
@@ -976,37 +979,6 @@ void saveMesh(const sidre::Group& mesh, const std::string& filename)
   saveMesh(tmpMesh, filename);
 }
 
-axom::ArrayView<double> getFieldAsArrayView(const std::string& fieldName,
-                                            bool create = false)
-{
-  axom::ArrayView<double> fieldDataView;
-  if(params.useBlueprintSidre())
-  {
-    std::string valuesPath = "fields/" + fieldName + "/values";
-    axom::sidre::View* fieldValues = compMeshGrp->getView(valuesPath);
-    double* fieldData = fieldValues->getArray();
-    fieldDataView =
-      axom::ArrayView<double>(fieldData, fieldValues->getNumElements());
-  }
-  if(params.useBlueprintConduit())
-  {
-    conduit::Node& fieldNode = compMeshNode->fetch("fields")[fieldName];
-    conduit::Node& fieldValues =
-      create ? fieldNode.fetch("values") : fieldNode.fetch_existing("values");
-    if(fieldValues.dtype().number_of_elements() != cellCount)
-    {
-      fieldValues.set_dtype(conduit::DataType::float64(cellCount));
-      fieldNode["association"].set_string("element");
-      fieldNode["topology"].set_string(topoName);
-    }
-    double* fieldData = fieldValues.as_double_ptr();
-    fieldDataView =
-      axom::ArrayView<double>(fieldData,
-                              fieldValues.dtype().number_of_elements());
-  }
-  return fieldDataView;
-}
-
 //!@brief Fill a sidre array View with a value.
 // No error checking.
 template <typename T>
@@ -1081,10 +1053,10 @@ int main(int argc, char** argv)
   axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(
     params.annotationMode);
 
-  const int allocatorId = axom::policyToDefaultAllocatorID(params.policy);
+  const int allocId = axom::policyToDefaultAllocatorID(params.policy);
 #if defined(AXOM_USE_UMPIRE)
-  const std::string allocatorName = umpire::ResourceManager::getInstance().getAllocator(allocatorId).getName();
-  std::cout<<"Allocator: " << allocatorId <<  ' ' << allocatorName << std::endl;
+  const std::string allocatorName = umpire::ResourceManager::getInstance().getAllocator(allocId).getName();
+  std::cout<<"Allocator: " << allocId <<  ' ' << allocatorName << std::endl;
 #endif
 
   AXOM_ANNOTATE_BEGIN("quest example for shaping primals");
@@ -1180,29 +1152,40 @@ int main(int argc, char** argv)
 
   {
     compMeshGrp = ds.getRoot()->createGroup("compMesh");
-    compMeshGrp->setDefaultAllocator(allocatorId);
+    compMeshGrp->setDefaultAllocator(allocId);
 
     createBoxMesh(compMeshGrp);
 
-    /*
-      Shallow-copy compMeshGrp into compMeshNode,
-      so that any change in one is reflected in the other.
-    */
-    compMeshNode = std::make_shared<conduit::Node>();
-    compMeshGrp->createNativeLayout(*compMeshNode);
     SLIC_INFO(axom::fmt::format("{:-^80}", "Generated Blueprint mesh"));
     cellCount = params.getBoxCellCount();
   }
 
   //---------------------------------------------------------------------------
-  // Initialize the shaping query object
+  // Initialize computational mesh.
   //---------------------------------------------------------------------------
+  std::shared_ptr<quest::ShapeeMesh> sMeshPtr;
   AXOM_ANNOTATE_BEGIN("setup shaping problem");
-  quest::ShapeeMesh sMesh(params.policy,
-                          allocatorId,
-                          *compMeshNode,
-                          topoName,
-                          matsetName);
+  if(params.useBlueprintSidre())
+  {
+    sMeshPtr = std::make_shared<quest::ShapeeMesh>(
+      params.policy,
+      allocId,
+      compMeshGrp,
+      topoName,
+      matsetName);
+  }
+  if(params.useBlueprintConduit())
+  {
+    compMeshNode.reset(new conduit::Node);
+    compMeshGrp->createNativeLayout(*compMeshNode);
+    sMeshPtr = std::make_shared<quest::ShapeeMesh>(
+      params.policy,
+      allocId,
+      *compMeshNode,
+      topoName,
+      matsetName);
+  }
+  quest::ShapeeMesh& sMesh = *sMeshPtr;
 
   AXOM_ANNOTATE_END("setup shaping problem");
   AXOM_ANNOTATE_END("init");
@@ -1233,7 +1216,8 @@ int main(int argc, char** argv)
     // Correctness check on overlap volume.
     if(!axom::execution_space<axom::SEQ_EXEC>::usesAllocId(ovlap.getAllocatorID()))
     {
-      ovlap = axom::Array<double>(ovlap, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+      // Move to host for check.
+      ovlap = axom::Array<double>(ovlap);
     }
     auto ovlapView = ovlap.view();
     using reduce_policy = typename axom::execution_space<axom::SEQ_EXEC>::reduce_policy;
@@ -1265,31 +1249,72 @@ int main(int argc, char** argv)
   AXOM_ANNOTATE_END("shaping");
 
   sMesh.setFreeVolumeFractions("free");
-  compMeshNode->print();
 
-  std::string whyNotValid;
-  if(!sMesh.isValidForShaping(whyNotValid))
+#if 0
+std::cout<<__WHERE<<std::endl;
+if(params.useBlueprintConduit()) sMesh.getMeshAsConduit()->print();
+if(params.useBlueprintSidre()) sMesh.getMeshAsSidre()->print();
+#endif
+
+  /*
+    Copy mesh to host check results and plot.
+  */
+
+  int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+
+  if(params.useBlueprintConduit())
   {
-    SLIC_ERROR("sMesh is invalid after shaping:\n" + whyNotValid);
+    compMeshGrpOnHost = ds.getRoot()->createGroup("onHost");
+#if defined(AXOM_USE_UMPIRE)
+    compMeshGrpOnHost->setDefaultAllocator(hostAllocId);
+#endif
+    compMeshGrpOnHost->importConduitTree(*sMesh.getMeshAsConduit());
+  }
+  if(params.useBlueprintSidre())
+  {
+    if (sMesh.getMeshAsSidre()->getDefaultAllocatorID() != hostAllocId)
+    {
+      compMeshGrpOnHost = ds.getRoot()->createGroup("onHost");
+#if defined(AXOM_USE_UMPIRE)
+      compMeshGrpOnHost->setDefaultAllocator(hostAllocId);
+#endif
+      compMeshGrpOnHost->deepCopyGroup(sMesh.getMeshAsSidre(), hostAllocId);
+    }
+    else
+    {
+      SLIC_ASSERT(sMesh.getMeshAsSidre() == compMeshGrp);
+      compMeshGrpOnHost = compMeshGrp;
+    }
   }
 
-  //---------------------------------------------------------------------------
-  // Save meshes and fields
-  //---------------------------------------------------------------------------
+  compMeshNode.reset(new conduit::Node);
+  compMeshGrpOnHost->createNativeLayout(*compMeshNode);
+  compMeshNode->print();
+
+  /*
+    Check blueprint validity.
+  */
+
+  conduit::Node whyNotValid;
+  if(!conduit::blueprint::mesh::verify(*compMeshNode, whyNotValid))
+  {
+    SLIC_ERROR("Computational mesh is invalid after shaping:\n" + whyNotValid.to_summary_string());
+  }
+
+  /*
+    Save meshes and fields
+  */
 
   if(!params.outputFile.empty())
   {
     std::string fileName = params.outputFile + ".volfracs";
-    if(params.useBlueprintConduit())
-    {
-      saveMesh(*compMeshNode, fileName);
-      SLIC_INFO(axom::fmt::format("{:-^80}", "Wrote output mesh " + fileName));
-    }
+    saveMesh(*compMeshNode, fileName);
+    SLIC_INFO(axom::fmt::format("{:-^80}", "Wrote output mesh " + fileName));
   }
 
-  //---------------------------------------------------------------------------
-  // Cleanup and exit
-  //---------------------------------------------------------------------------
+  /*
+    Cleanup and exit
+  */
   SLIC_INFO(axom::fmt::format("{:-^80}", ""));
   slic::flushStreams();
 
