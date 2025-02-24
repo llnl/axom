@@ -596,8 +596,6 @@ axom::klee::Geometry createGeometry_Sor(
     axom::klee::Dimensions::Three,
     axom::klee::LengthUnit::unspecified};
 
-  SLIC_ASSERT(params.scaleFactors.empty() || params.scaleFactors.size() == 3);
-
   const axom::IndexType levelOfRefinement = params.refinementLevel;
   axom::klee::Geometry sorGeometry(prop,
                                    discreteFunction,
@@ -708,8 +706,6 @@ axom::klee::Geometry createGeom_Tet()
     axom::klee::Dimensions::Three,
     axom::klee::LengthUnit::unspecified};
 
-  SLIC_ASSERT(params.scaleFactors.empty() || params.scaleFactors.size() == 3);
-
   // Tetrahedron at origin.
   const double len = params.length < 0 ? 0.8 : params.length;
   const Point3D a {-len, -len, -len};
@@ -733,8 +729,6 @@ axom::klee::Geometry createGeom_Hex()
   axom::klee::TransformableGeometryProperties prop {
     axom::klee::Dimensions::Three,
     axom::klee::LengthUnit::unspecified};
-
-  SLIC_ASSERT(params.scaleFactors.empty() || params.scaleFactors.size() == 3);
 
   const double md = params.length < 0 ? 0.6 : params.length / 2;
   const double lg = 1.2 * md;
@@ -765,16 +759,6 @@ axom::klee::Geometry createGeom_Plane()
     axom::klee::Dimensions::Three,
     axom::klee::LengthUnit::unspecified};
 
-  SLIC_ASSERT(params.scaleFactors.empty() || params.scaleFactors.size() == 3);
-  std::shared_ptr<axom::klee::Scale> scaleOp;
-  if(!params.scaleFactors.empty())
-  {
-    scaleOp = std::make_shared<axom::klee::Scale>(params.scaleFactors[0],
-                                                  params.scaleFactors[1],
-                                                  params.scaleFactors[2],
-                                                  prop);
-  }
-
   // Create a plane crossing center of mesh.  No matter the normal,
   // it cuts the mesh in half.
   Point3D center {0.5 *
@@ -785,7 +769,7 @@ axom::klee::Geometry createGeom_Plane()
     : primal::Vector3D {params.direction.data()}.unitVector();
   const primal::Plane<double, 3> plane {normal, center, true};
 
-  axom::klee::Geometry planeGeometry(prop, plane, scaleOp);
+  axom::klee::Geometry planeGeometry(prop, plane, {nullptr});
 
   // Exact mesh overlap volume, assuming plane passes through center of box mesh.
   using Pt3D = primal::Point<double, 3>;
