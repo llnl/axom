@@ -44,7 +44,7 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
   , m_bpNodeExt(&bpMesh)
 {
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-  SLIC_WARN_IF(m_runtimePolicy == axom::runtime_policy::Policy::cuda,
+  SLIC_WARNING_IF(m_runtimePolicy == axom::runtime_policy::Policy::cuda,
                "ShapeeMesh is initializing to run in the CUDA execution space with a conduit::Node.  Note that Conduit cannot directly allocate memory from Umpire allocator ids.  All required memory must be pre-allocated in the Node.  Attempting to allocate memory for the Node will cause an exception.");
 #endif
 
@@ -282,8 +282,16 @@ void ShapeeMesh::setMatsetFromVolume(const std::string& materialName,
   if(m_bpNodeExt != nullptr)
   {
     conduit::Node& matsetNode = m_bpNodeExt->fetch("matsets")[m_matsetName];
-    conduit::Node& vfValues = matsetNode["volume_fractions"][materialName];
-    vfValues.set(dataType);
+    if(matsetNode.has_child("topology"))
+    {
+      SLIC_ASSERT(matsetNode.fetch_existing("topology").as_string() == m_topoName);
+    }
+    else
+    {
+      matsetNode["topology"].set_string(m_topoName);
+    }
+    const std::string vfValuesPath = "matsets/" + m_matsetName + "/volume_fractions/" + materialName;
+    conduit::Node& vfValues = getMeshConduitPath(*m_bpNodeExt, vfValuesPath, dataType);
     vfPtr = vfValues.as_double_ptr();
   }
   else
@@ -341,23 +349,25 @@ void ShapeeMesh::setFreeVolumeFractions(const std::string& freeName)
   if(m_bpNodeExt != nullptr)
   {
     conduit::Node& matsetNode = m_bpNodeExt->fetch("matsets")[m_matsetName];
-    matsetNode["topology"].set_string(m_topoName);
+    if(matsetNode.has_child("topology"))
+    {
+      SLIC_ASSERT(matsetNode.fetch_existing("topology").as_string() == m_topoName);
+    }
+    else
+    {
+      matsetNode["topology"].set_string(m_topoName);
+    }
 
     conduit::Node& vfsNode = matsetNode["volume_fractions"];
 
-    SLIC_ERROR_IF(vfsNode.has_child(freeName),
-                  "Matset '" + m_matsetName + "' already has a material named '" +
-                  freeName + "'");
-
-    conduit::Node& newVfNode = vfsNode[freeName];
-    newVfNode.set(dataType);
-    newVfPtr = newVfNode.as_double_ptr();
+    conduit::Node& freeVfNode = getMeshConduitPath(vfsNode, freeName, dataType);
+    newVfPtr = freeVfNode.as_double_ptr();
     newVfView = axom::ArrayView<double>(newVfPtr, {m_cellCount});
     fillNImpl(newVfView, 0.0);
 
     for(auto& vfNode : vfsNode.children())
     {
-      if(vfNode.name() == newVfNode.name()) continue;
+      if(vfNode.name() == freeVfNode.name()) continue;
       axom::ArrayView<double> vfView(vfNode.as_double_ptr(), {m_cellCount});
       elementwiseAddImpl(newVfView, vfView, newVfView);
     }
@@ -746,6 +756,54 @@ void ShapeeMesh::elementwiseDivideImpl(const T* numerator,
     AXOM_LAMBDA(axom::IndexType i) {
       quotient[i] = numerator[i] / denominator[i];
     });
+}
+
+conduit::Node& ShapeeMesh::getMeshConduitPath(
+  conduit::Node& node,
+  const std::string& path,
+  const conduit::DataType& dtype)
+{
+  conduit::Node* rval = nullptr;
+
+  if(node.has_path(path))
+  {
+    rval = &node.fetch_existing(path);
+    SLIC_ERROR_IF(rval->dtype().id() != dtype.id() ||
+                  rval->dtype().number_of_elements() != dtype.number_of_elements() ||
+                  rval->dtype().offset() != dtype.offset() ||
+                  rval->dtype().stride() != dtype.stride() ||
+                  rval->dtype().offset() != dtype.offset() ||
+                  rval->dtype().endianness() != dtype.endianness(),
+                  "Blueprint mesh doesn't have correct type for path '" + path + "'");
+  }
+  else {
+    rval = &node.fetch(path);
+    rval->set(dtype);
+  }
+
+  // Verify that data is in memory space usable by m_runtimePolicy.
+  void* dataPtr = rval->data_ptr();
+  int allocId = axom::getAllocatorIDFromPointer(dataPtr);
+
+  bool memoryOkForPolicy =
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+    m_runtimePolicy == axom::runtime_policy::Policy::omp ?
+    axom::execution_space<axom::OMP_EXEC>::usesAllocId(allocId) :
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+    m_runtimePolicy == axom::runtime_policy::Policy::cuda ?
+    axom::execution_space<axom::CUDA_EXEC<256>>::usesAllocId(allocId) :
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+    m_runtimePolicy == axom::runtime_policy::Policy::hip ?
+    axom::execution_space<axom::HIP_EXEC<256>>::usesAllocId(allocId) :
+#endif
+    axom::execution_space<axom::SEQ_EXEC>::usesAllocId(allocId);
+
+  SLIC_ERROR_IF(!memoryOkForPolicy,
+                "Blueprint mesh data at " + axom::fmt::format("{}", dataPtr) + " from path '" + path + "' is not accessible by execution policy " + axom::runtime_policy::policyToName(m_runtimePolicy));
+
+  return *rval;
 }
 
 }  // end namespace quest

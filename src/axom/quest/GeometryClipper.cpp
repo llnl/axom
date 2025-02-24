@@ -38,11 +38,11 @@ GeometryClipper::GeometryClipper(
 */
 void GeometryClipper::clip(axom::Array<double>& ovlap)
 {
+  const int allocId = m_shapeeMesh.getAllocatorId();
+  const axom::IndexType cellCount = m_shapeeMesh.getCellCount();
+
   axom::Array<char> labels;
   bool withInOut = m_strategy->labelInOut(m_shapeeMesh, labels);
-
-  const axom::IndexType cellCount = m_shapeeMesh.getCellCount();
-  const int allocId = m_shapeeMesh.getAllocatorId();
 
   if(ovlap.size() < cellCount || ovlap.getAllocatorID() != allocId)
   {
@@ -56,6 +56,9 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
 
   if(withInOut)
   {
+    SLIC_ERROR_IF(labels.getAllocatorID() != allocId,
+                  "GeometryClipperStrategy '" + m_strategy->name() + "' failed to provide 'labels' data with the required allocator id " + std::to_string(allocId));
+
     m_delegate->setCleanVolumeOverlaps(labels.view(), ovlap);
 
     axom::Array<axom::IndexType> unlabeledCells;
@@ -77,6 +80,11 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
     {
       m_delegate->computeClipVolumes3D(ovlap);
     }
+  }
+  if(done)
+  {
+    SLIC_ERROR_IF(labels.getAllocatorID() != allocId,
+                  "GeometryClipperStrategy '" + m_strategy->name() + "' failed to provide 'ovlap' data with the required allocator id " + std::to_string(allocId));
   }
 
   if(!done)

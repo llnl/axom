@@ -8,7 +8,7 @@
 
 #ifndef AXOM_USE_CONDUIT
   #error "ShapeeMesh requires Conduit"
-// TODO: Support MFEM and Sidre blueprint as well.
+// TODO: Support MFEM as well.
 #endif
 
 #include "axom/core.hpp"
@@ -279,6 +279,19 @@ public:
   void elementwiseComplementImpl(const axom::ArrayView<T> a,
                                  const T& val,
                                  axom::ArrayView<T> results) const;
+
+  /*!
+    @brief Get a Conduit hierarchy within another Conduit hierarchy.
+
+    If specified path doesn't exist, create it.  If it does, verify
+    its conduit::DataType.
+
+    If the node holds array data, verify that the data is compatible
+    with m_runtimePolicy.
+  */
+  conduit::Node& getMeshConduitPath(conduit::Node& node,
+                                    const std::string& path,
+                                    const conduit::DataType& dtype);
 };
 
 }  // namespace quest

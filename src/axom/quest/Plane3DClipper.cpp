@@ -115,11 +115,12 @@ void Plane3DClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vZ.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertIsInsideView.getAllocatorID()));
 
+  auto plane = m_plane;
   axom::for_all<ExecSpace>(
     vertCount,
     AXOM_LAMBDA(axom::IndexType vertId) {
       primal::Point3D vert {vX[vertId], vY[vertId], vZ[vertId]};
-      double signedDist = m_plane.signedDistance(vert);
+      double signedDist = plane.signedDistance(vert);
       vertIsInsideView[vertId] = signedDist > 0;
     });
 
@@ -181,6 +182,7 @@ void Plane3DClipper::specializedClipImpl(quest::ShapeeMesh& shapeeMesh,
   using TetsInHex =
     axom::StackArray<primal::Tetrahedron<double, 3>, NUM_TETS_PER_HEX>;
 
+  auto plane = m_plane;
   axom::for_all<ExecSpace>(
     cellIds.size(),
     AXOM_LAMBDA(axom::IndexType i) {
@@ -204,7 +206,7 @@ void Plane3DClipper::specializedClipImpl(quest::ShapeeMesh& shapeeMesh,
       for(int ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
         const auto& tet = tetsInHex[ti];
-        primal::Polyhedron<double, 3> overlap = primal::clip(tet, m_plane, EPS);
+        primal::Polyhedron<double, 3> overlap = primal::clip(tet, plane, EPS);
         vol += overlap.volume();
       }
       ovlap[cellId] = vol;
