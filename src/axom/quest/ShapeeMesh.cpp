@@ -375,10 +375,18 @@ void ShapeeMesh::setFreeVolumeFractions(const std::string& freeName)
   else
   {
     SLIC_ASSERT(m_bpGrpExt != nullptr);
-    sidre::Group* matsetGrp = m_bpGrpExt->getGroup("matsets/" + m_matsetName);
-    matsetGrp->createView("topology")->setString(m_topoName);
+    sidre::Group* matsetGrp = m_bpGrpExt->createGroup("matsets/" + m_matsetName, false, true);
+    if(matsetGrp->hasView("topology"))
+    {
+      SLIC_ERROR_IF(matsetGrp->getView("topology")->getString() != m_topoName,
+                    "Material set '" + m_matsetName + "' doesn't have expected topology '" + m_topoName + "'");
+    }
+    else
+    {
+      matsetGrp->createView("topology")->setString(m_topoName);
+    }
 
-    sidre::Group* vfsGrp = matsetGrp->getGroup("volume_fractions");
+    sidre::Group* vfsGrp = matsetGrp->createGroup("volume_fractions", false, true);
 
     sidre::View* newVfVu = vfsGrp->createView(freeName);
     newVfVu->allocate(dataType, m_allocId);
