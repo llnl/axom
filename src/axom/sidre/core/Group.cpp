@@ -1094,7 +1094,9 @@ const Group* Group::getGroup(const std::string& path) const
  *
  *************************************************************************
  */
-Group* Group::createGroup(const std::string& path, bool is_list)
+Group* Group::createGroup(const std::string& path,
+                          bool is_list,
+                          bool accept_existing)
 {
   std::string intpath(path);
   bool create_groups_in_path = true;
@@ -1118,7 +1120,7 @@ Group* Group::createGroup(const std::string& path, bool is_list)
     }
     return nullptr;
   }
-  else if(intpath.empty() || group->hasChildGroup(intpath) ||
+  else if(intpath.empty() || (group->hasChildGroup(intpath) && !accept_existing) ||
           group->hasChildView(intpath))
   {
     SLIC_CHECK_MSG(
@@ -1126,8 +1128,8 @@ Group* Group::createGroup(const std::string& path, bool is_list)
       SIDRE_GROUP_LOG_PREPEND << "Cannot create a Group with an empty path.");
     SLIC_CHECK_MSG(!group->hasChildGroup(intpath),
                    SIDRE_GROUP_LOG_PREPEND
-                     << "Cannot create Group with name '" << path
-                     << "'. There is already has a Group with that name.");
+                   << "Cannot create Group with name '" << path
+                   << "'. There is already has a Group with that name.");
     SLIC_CHECK_MSG(!group->hasChildView(intpath),
                    SIDRE_GROUP_LOG_PREPEND
                      << "Cannot create Group with name '" << path
@@ -1136,17 +1138,22 @@ Group* Group::createGroup(const std::string& path, bool is_list)
     return nullptr;
   }
 
-  Group* new_group =
-    new(std::nothrow) Group(intpath, group->getDataStore(), is_list);
-  if(new_group == nullptr)
+  if(!group->hasGroup(intpath))
   {
-    return nullptr;
-  }
+    Group* new_group =
+      new(std::nothrow) Group(intpath, group->getDataStore(), is_list);
+    if(new_group == nullptr)
+    {
+      return nullptr;
+    }
 
 #ifdef AXOM_USE_UMPIRE
-  new_group->setDefaultAllocator(group->getDefaultAllocator());
+    new_group->setDefaultAllocator(group->getDefaultAllocator());
 #endif
-  return group->attachGroup(new_group);
+    return group->attachGroup(new_group);
+  }
+
+  return group->getGroup(intpath);
 }
 
 Group* Group::createUnnamedGroup(bool is_list)

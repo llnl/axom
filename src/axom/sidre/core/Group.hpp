@@ -1165,8 +1165,10 @@ public:
   /*!
    * \brief Create a child Group within this Group with given name or path.
    *
-   * If name is an empty string or Group already has a child Group with
-   * given name or path, method is a no-op.
+   * If name is an empty string, method is a no-op.
+   *
+   * If Group already has a child Group with given name or path
+   * and accept_existing is false, method is a no-op.
    *
    * The optional is_list argument is used to determine if the created
    * child Group will hold items in list format.
@@ -1174,7 +1176,9 @@ public:
    * \return pointer to created Group object or nullptr if new
    * Group is not created.
    */
-  Group* createGroup(const std::string& path, bool is_list = false);
+  Group* createGroup(const std::string& path,
+                     bool is_list = false,
+                     bool accept_existing = false);
 
   /*
    * \brief Create a child Group within this Group with no name.
