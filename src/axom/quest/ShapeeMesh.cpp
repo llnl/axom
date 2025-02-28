@@ -694,8 +694,8 @@ void ShapeeMesh::computeCellsAsTetsImpl()
   using TetsInHex = axom::StackArray<TetrahedronType, NUM_TETS_PER_HEX>;
 
   m_cellsAsTets = axom::Array<TetrahedronType>(ArrayOptions::Uninitialized(),
-                                               m_cellCount,
-                                               m_cellCount,
+                                               NUM_TETS_PER_HEX * m_cellCount,
+                                               NUM_TETS_PER_HEX * m_cellCount,
                                                m_allocId);
   auto cellsAsTetsView = m_cellsAsTets.view();
 

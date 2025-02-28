@@ -230,14 +230,14 @@ private:
   //!@brief Mesh cells as an array of hexes.
   axom::Array<HexahedronType> m_cellsAsHexes;
 
-  //!@brief m_cellsAsHexes, each split into 24 tets.
-  axom::Array<TetrahedronType> m_cellsAsTets;
+  //!@brief Volumes of hex cells.
+  axom::Array<double> m_hexVolumes;
 
   //!@brief Bounding boxes for m_cellsAsHexes.
   axom::Array<BoundingBox3dType> m_hexBbs;
 
-  //!@brief Volumes of hex cells.
-  axom::Array<double> m_hexVolumes;
+  //!@brief m_cellsAsHexes, of length 24*m_cellCount.
+  axom::Array<TetrahedronType> m_cellsAsTets;
 
   void computeCellsAsHexes();
   void computeCellsAsTets();

@@ -81,7 +81,7 @@ public:
     @brief Label the cells in the mesh as inside, outside or
     both/undetermined, if possible.
 
-    @param [in/out] shapeeMesh Blueprint mesh to shape into.
+    @param [in] shapeeMesh Blueprint mesh to shape into.
     @param [out] labels
 
     The output labels are used in optimizing the clipping algorithm.
@@ -114,7 +114,7 @@ public:
     @brief Clip with a fast geometry-specialized method if
     possible.
 
-    @param [in/out] shapeeMesh Blueprint mesh to shape into.
+    @param [in] shapeeMesh Blueprint mesh to shape into.
     @param ovlap [out] Shape overlap volume of each cell
       in the shapee mesh.
 
@@ -142,7 +142,7 @@ public:
     @brief Clip with a fast geometry-specialized method if
     possible.
 
-    @param [in/out] shapeeMesh Blueprint mesh to shape into.
+    @param [in] shapeeMesh Blueprint mesh to shape into.
     @param [out] ovlap Shape overlap volume of each cell
       in the shapee mesh.
     @param [in] cellIds Limit computation to these cell ids.
@@ -171,6 +171,7 @@ public:
 
   /*!
     @brief Get the shape as discrete tetrahedra, or return false.
+    @param [in] shapeeMesh Blueprint mesh to shape into.
     @param [out] tets Array of tetrahedra filling the space of the shape.
 
     All vertex coordinates close to zero should be snapped to zero.
@@ -181,14 +182,18 @@ public:
     @post tets.size() == shapeeMesh.getCellCount()
     @post tets.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool getShapeAsTets(axom::Array<axom::primal::Tetrahedron<double, 3>>& tets)
+  virtual bool getShapeAsTets(quest::ShapeeMesh& shapeeMesh,
+                              axom::Array<axom::primal::Tetrahedron<double, 3>>& tets)
+
   {
+    AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(tets);
     return false;
   }
 
   /*!
     @brief Get the shape as discrete tetrahedra, or return false.
+    @param [in] shapeeMesh Blueprint mesh to shape into.
     @param [out] octs Array of octahedra filling the space of the shape.
 
     All vertex coordinates close to zero should be snapped to zero.
@@ -199,8 +204,10 @@ public:
     @post octs.size() == shapeeMesh.getCellCount()
     @post octs.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool getShapeAsOcts(axom::Array<axom::primal::Octahedron<double, 3>>& octs)
+  virtual bool getShapeAsOcts(quest::ShapeeMesh& shapeeMesh,
+                              axom::Array<axom::primal::Octahedron<double, 3>>& octs)
   {
+    AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(octs);
     return false;
   }

@@ -1177,6 +1177,12 @@ int main(int argc, char** argv)
       std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(),
                                                     params.testGeom));
   }
+  else if(params.testGeom == "sphere")
+  {
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::SphereClipper>(createGeom_Sphere(),
+                                                   params.testGeom));
+  }
 #if 0
   else if(params.testGeom == "tetmesh")
   {
@@ -1194,12 +1200,6 @@ int main(int argc, char** argv)
   {
     geomStrategies.push_back(
       std::make_shared<axom::quest::Plane3DClipper>(createGeom_Hex(),
-                                                    params.testGeom));
-  }
-  else if(params.testGeom == "sphere")
-  {
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Sphere(),
                                                     params.testGeom));
   }
   else if(params.testGeom == "cyl")
@@ -1226,6 +1226,9 @@ int main(int argc, char** argv)
     geomStrategies.push_back(
       std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(),
                                                     params.testGeom));
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::SphereClipper>(createGeom_Sphere(),
+                                                   params.testGeom));
 #if 0
     geomStrategies.push_back(
       std::make_shared<axom::quest::TetMesh3DClipper>(createGeom_TetMesh(ds),
@@ -1235,9 +1238,6 @@ int main(int argc, char** argv)
                                                     params.testGeom));
     geomStrategies.push_back(
       std::make_shared<axom::quest::Hex3DClipper>(createGeom_Hex(),
-                                                    params.testGeom));
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Sphere3DClipper>(createGeom_Sphere(),
                                                     params.testGeom));
     geomStrategies.push_back(
       std::make_shared<axom::quest::Cylinder3DClipper>(createGeom_Cylinder(),
