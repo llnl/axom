@@ -222,7 +222,7 @@ if(CONDUIT_FOUND AND RAJA_FOUND)
       blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
     endif()
 
-    set(_testgeoms "plane" "sphere")
+    set(_testgeoms "plane" "hex" "sphere")
     # set(_testgeoms "tetmesh" "tet" "hex" "sphere" "cyl" "cone" "sor" "all" "plane")
     set(_meshTypes "bpSidre" "bpConduit")
     foreach(_meshType ${_meshTypes})

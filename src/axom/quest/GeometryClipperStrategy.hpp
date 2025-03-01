@@ -58,6 +58,17 @@ public:
   */
   using LabelType = char;
 
+  using HexahedronType = axom::primal::Hexahedron<double, 3>;
+  using OctahedronType = axom::primal::Octahedron<double, 3>;
+  using TetrahedronType = axom::primal::Tetrahedron<double, 3>;
+  using SphereType = axom::primal::Sphere<double, 3>;
+  using Plane3DType = axom::primal::Plane<double, 3>;
+  using Point3DType = axom::primal::Point<double, 3>;
+
+  using CircleType = axom::primal::Sphere<double, 2>;
+  using Plane2DType = axom::primal::Plane<double, 2>;
+  using Point2DType = axom::primal::Point<double, 2>;
+
   /*!
     @brief Construct a shape clipper
 
@@ -183,7 +194,7 @@ public:
     @post tets.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
   virtual bool getShapeAsTets(quest::ShapeeMesh& shapeeMesh,
-                              axom::Array<axom::primal::Tetrahedron<double, 3>>& tets)
+                              axom::Array<TetrahedronType>& tets)
 
   {
     AXOM_UNUSED_VAR(shapeeMesh);
@@ -205,7 +216,7 @@ public:
     @post octs.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
   virtual bool getShapeAsOcts(quest::ShapeeMesh& shapeeMesh,
-                              axom::Array<axom::primal::Octahedron<double, 3>>& octs)
+                              axom::Array<OctahedronType>& octs)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(octs);

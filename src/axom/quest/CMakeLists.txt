@@ -136,10 +136,12 @@ if(RAJA_FOUND AND AXOM_ENABLE_KLEE AND _HAS_CLIPPING_MESH)
                               GeometryClipper.hpp
                               GeometryClipperStrategy.hpp
                               Plane3DClipper.hpp
+                              HexClipper.hpp
                               SphereClipper.hpp
                               detail/GeometryClipperDelegateExec.hpp)
     list(APPEND quest_sources ShapeeMesh.cpp
                               Plane3DClipper.cpp
+                              HexClipper.cpp
                               SphereClipper.cpp
                               GeometryClipper.cpp)
 endif()

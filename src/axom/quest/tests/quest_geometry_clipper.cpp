@@ -442,6 +442,7 @@ const std::string matsetName = "matset";
 const std::string coordsetName = "coords";
 int cellCount = -1;
 std::map<std::string, double> exactOverlapVols;
+double refineTolFactor = 1.0; // To relax tolerance for approximated shapes.
 
 // Computational mesh in different forms, initialized in main
 axom::sidre::Group* compMeshGrp = nullptr;
@@ -519,7 +520,7 @@ axom::klee::Geometry createGeom_Sphere()
 {
   Point3D center =
     params.center.empty() ? Point3D {0, 0, 0} : Point3D {params.center.data()};
-  double radius = params.radius < 0 ? 0.6 : params.radius;
+  double radius = params.radius < 0 ? 1.0 : params.radius;
   axom::primal::Sphere<double, 3> sphere {center, radius};
 
   axom::klee::TransformableGeometryProperties prop {
@@ -533,6 +534,8 @@ axom::klee::Geometry createGeom_Sphere()
 
   const axom::IndexType levelOfRefinement = params.refinementLevel;
   axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
+  exactOverlapVols["sphere"] = 4./3 * M_PI * radius * radius * radius;
+  refineTolFactor = 1.0e3;
 
   return sphereGeometry;
 }
@@ -747,6 +750,7 @@ axom::klee::Geometry createGeom_Hex()
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
   addTranslateOperator(*compositeOp, -1, -1, -1);
+  exactOverlapVols["hex"] = hex.volume();
 
   axom::klee::Geometry hexGeometry(prop, hex, compositeOp);
 
@@ -1177,6 +1181,12 @@ int main(int argc, char** argv)
       std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(),
                                                     params.testGeom));
   }
+  else if(params.testGeom == "hex")
+  {
+    geomStrategies.push_back(
+      std::make_shared<axom::quest::HexClipper>(createGeom_Hex(),
+                                                params.testGeom));
+  }
   else if(params.testGeom == "sphere")
   {
     geomStrategies.push_back(
@@ -1227,6 +1237,9 @@ int main(int argc, char** argv)
       std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(),
                                                     params.testGeom));
     geomStrategies.push_back(
+      std::make_shared<axom::quest::HexClipper>(createGeom_Hex(),
+                                                params.testGeom));
+    geomStrategies.push_back(
       std::make_shared<axom::quest::SphereClipper>(createGeom_Sphere(),
                                                    params.testGeom));
 #if 0
@@ -1235,9 +1248,6 @@ int main(int argc, char** argv)
                                                     params.testGeom));
     geomStrategies.push_back(
       std::make_shared<axom::quest::Tet3DClipper>(createGeom_Tet(),
-                                                    params.testGeom));
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Hex3DClipper>(createGeom_Hex(),
                                                     params.testGeom));
     geomStrategies.push_back(
       std::make_shared<axom::quest::Cylinder3DClipper>(createGeom_Cylinder(),
@@ -1379,8 +1389,8 @@ std::cout<<__WHERE<<std::endl;
 
     bool err = !axom::utilities::isNearlyEqualRelative(computedOverlapVol,
                                                        correctOverlapVol,
-                                                       1e-6,
-                                                       1e-8);
+                                                       1e-6 * refineTolFactor,
+                                                       1e-8 * refineTolFactor);
 std::cout<<__WHERE<<std::endl;
     failCounts += err;
 
@@ -1438,7 +1448,8 @@ if(params.useBlueprintSidre()) sMesh.getMeshAsSidre()->print();
 
   compMeshNode.reset(new conduit::Node);
   compMeshGrpOnHost->createNativeLayout(*compMeshNode);
-  compMeshNode->print();
+  // compMeshGrpOnHost->print();
+  // compMeshNode->print();
 
   /*
     Check blueprint validity.

@@ -11,7 +11,7 @@
 #endif
 
 #include "axom/quest/Discretize.hpp"
-#include "axom/quest/SphereClipper.hpp"
+#include "axom/quest/HexClipper.hpp"
 #include "axom/fmt.hpp"
 
 namespace axom
@@ -19,15 +19,33 @@ namespace axom
 namespace quest
 {
 
-SphereClipper::SphereClipper(const klee::Geometry& kGeom,
+HexClipper::HexClipper(const klee::Geometry& kGeom,
                                const std::string& name)
   : GeometryClipperStrategy(kGeom)
-  , m_name(name.empty() ? std::string("Sphere") : name)
-  , m_sphere(kGeom.getSphere())
-  , m_levelOfRefinement(kGeom.getLevelOfRefinement())
-{ }
+  , m_name(name.empty() ? std::string("Hex") : name)
+  , m_hex(kGeom.getHex())
+{
+  for( int i = 0; i < 8; ++i ) {
+    m_bb.addPoint(m_hex[i]);
+  }
 
-bool SphereClipper::labelInOut(quest::ShapeeMesh& shapeeMesh,
+  m_hex.triangulate(m_tets);
+
+  for( int iTet = 0; iTet < HexahedronType::NUM_TRIANGULATE; ++iTet ) {
+    const auto& tet = m_tets[iTet];
+    for( int iPlane = 0; iPlane < 4; ++iPlane ) {
+      const Point3DType& a = tet[iPlane%4];
+      const Point3DType& b = tet[(iPlane+1)%4];
+      const Point3DType& c = tet[(iPlane+2)%4];
+      m_planes[iTet][iPlane] = axom::primal::make_plane( a, b, c);
+      // For tet points ordered by right hand rule, odd planes
+      // face outside.  Flip them to face inside.
+      if(iPlane%2 == 1) m_planes[iTet][iPlane].flip();
+    }
+  }
+}
+
+bool HexClipper::labelInOut(quest::ShapeeMesh& shapeeMesh,
                                 axom::Array<LabelType>& labels)
 {
   switch(shapeeMesh.getRuntimePolicy())
@@ -57,11 +75,11 @@ bool SphereClipper::labelInOut(quest::ShapeeMesh& shapeeMesh,
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
-                                    axom::Array<LabelType>& labels)
+void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
+                                axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3,
-                "SphereClipper requires a 3D mesh.");
+                "HexClipper requires a 3D mesh.");
 
   constexpr int NUM_VERTS_PER_CELL = 8;
 
@@ -87,13 +105,33 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vZ.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertIsInsideView.getAllocatorID()));
 
-  auto sphere = m_sphere;
+  auto bb = m_bb;
+  auto planes = m_planes;
   axom::for_all<ExecSpace>(
     vertCount,
     AXOM_LAMBDA(axom::IndexType vertId) {
       primal::Point3D vert {vX[vertId], vY[vertId], vZ[vertId]};
-      double signedDist = sphere.computeSignedDistance(vert);
-      vertIsInsideView[vertId] = signedDist < 0;
+      vertIsInsideView[vertId] = false;
+
+      if( bb.contains(vert) )
+      {
+        // Detailed check for verts inside the hex's bounding box.
+        // If vert is in any tet, it's in the hex.
+        // Be conservative: primal::ON_BOUNDARY is considered inside.
+        for(int iTet = 0; iTet < HexahedronType::NUM_TRIANGULATE; ++iTet)
+        {
+          bool isInsideTet = true;
+          for(int iPlane = 0; iPlane < 4; ++iPlane)
+          {
+            const auto& plane = planes[iTet][iPlane];
+            isInsideTet &= plane.getOrientation(vert, 0.0) != primal::ON_NEGATIVE_SIDE;
+          }
+          if(isInsideTet) {
+            vertIsInsideView[vertId] = true;
+            break;
+          }
+        }
+      }
     });
 
   if(labels.size() < cellCount ||
@@ -133,18 +171,17 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
   return;
 }
 
-bool SphereClipper::getShapeAsOcts(quest::ShapeeMesh& shapeeMesh,
-                                   axom::Array<axom::primal::Octahedron<double, 3>>& octs)
+bool HexClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh,
+                                axom::Array<TetrahedronType>& tets)
 {
-  int octCount = 0;
-  axom::quest::discretize(m_sphere, m_levelOfRefinement, octs, octCount);
-
-  // The disretize method uses host data.  Place into proper space if needed.
   int allocId = shapeeMesh.getAllocatorId();
-  if(octs.getAllocatorID() != allocId)
+  if(tets.getAllocatorID() != allocId || tets.size() != HexahedronType::NUM_TRIANGULATE)
   {
-    octs = axom::Array<axom::primal::Octahedron<double, 3>>(octs, allocId);
+    tets = axom::Array<TetrahedronType>(HexahedronType::NUM_TRIANGULATE,
+                                        HexahedronType::NUM_TRIANGULATE,
+                                        allocId);
   }
+  axom::copy(tets.data(), m_tets.data(), m_tets.size() * sizeof(TetrahedronType));
   return true;
 }
 

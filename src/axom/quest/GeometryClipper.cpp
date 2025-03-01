@@ -91,8 +91,8 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
   {
     if(m_shapeeMesh.dimension() == 3)
     {
-      axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
-      axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
+      axom::Array<GeometryClipperStrategy::TetrahedronType> geomAsTets;
+      axom::Array<GeometryClipperStrategy::OctahedronType> geomAsOcts;
       if(m_strategy->getShapeAsTets(m_shapeeMesh, geomAsTets))
       {
         SLIC_ASSERT("Code for clipping tets is incomplete.");
