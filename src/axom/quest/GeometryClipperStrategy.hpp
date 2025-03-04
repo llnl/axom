@@ -53,10 +53,16 @@ class GeometryClipperStrategy
 {
 public:
   /*!
-    @brief A type with possible values of 0, 1 or 2, denoting whether
-    something is inside, on or outside the boundary of a geometry.
+    @brief A type to denote whether something is inside,
+    on or outside the boundary of a geometry.
   */
   using LabelType = char;
+  //!@brief Denotes something inside a shape boundary.
+  static constexpr LabelType LABEL_IN = 0;
+  //!@brief Denotes something on a shape boundary.
+  static constexpr LabelType LABEL_ON = 1;
+  //!@brief Denotes something outside a shape boundary.
+  static constexpr LabelType LABEL_OUT = 2;
 
   using HexahedronType = axom::primal::Hexahedron<double, 3>;
   using OctahedronType = axom::primal::Octahedron<double, 3>;
@@ -104,9 +110,9 @@ public:
     not done.)
 
     The cell labels should be set to
-    - 1 if the cell is completely inside the shape,
-    - 2 if the cell is completely outside, and
-    - 3 if the cell is both inside and outside (or
+    - @c labelIn if the cell is completely inside the shape,
+    - @c labelOut if the cell is completely outside, and
+    - @c labelOn if the cell is both inside and outside (or
       cannot be easily determined).
 
     Post-conditions only apply if method returns true.

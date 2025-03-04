@@ -6,8 +6,13 @@
 #ifndef AXOM_GEOMETRYCLIPPERDELEGATEEXEC_HPP_
 #define AXOM_GEOMETRYCLIPPERDELEGATEEXEC_HPP_
 
+#ifndef AXOM_USE_RAJA
+  #error "quest::GeometryClipper requires RAJA."
+#endif
+
 #include "axom/quest/GeometryClipper.hpp"
 #include "axom/spin/BVH.hpp"
+#include "RAJA/RAJA.hpp"
 
 namespace axom
 {
@@ -28,7 +33,7 @@ public:
 
   void setCleanVolumeOverlaps(
     const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
-    axom::ArrayView<double> ovlap)
+    axom::ArrayView<double> ovlap) override
   {
     const axom::IndexType cellCount = getShapeeMesh().getCellCount();
     SLIC_ASSERT(labels.size() == cellCount);
@@ -62,17 +67,17 @@ public:
        (Handle first cell separately, then loop from second cell on.)
   */
   void collectUnlabeledCellIndices(const axom::ArrayView<LabelType>& labels,
-                                   axom::Array<axom::IndexType>& unlabeledCells)
+                                   axom::Array<axom::IndexType>& unlabeledCells) override
   {
     using ScanPolicy = typename axom::execution_space<ExecSpace>::loop_policy;
 
-    const axom::IndexType cellCount = labels.size();
+    const axom::IndexType labelCount = labels.size();
 
     axom::Array<axom::IndexType> tmpLabels(labels.shape(),
                                            labels.getAllocatorID());
     auto tmpLabelsView = tmpLabels.view();
     axom::for_all<ExecSpace>(
-      cellCount,
+      labelCount,
       AXOM_LAMBDA(axom::IndexType ci) { tmpLabelsView[ci] = labels[ci] == 1; });
 
     RAJA::inclusive_scan_inplace<ScanPolicy>(
@@ -104,7 +109,7 @@ public:
 
     axom::for_all<ExecSpace>(
       1,
-      cellCount,
+      labelCount,
       AXOM_LAMBDA(axom::IndexType i) {
         if(tmpLabelsView[i] != tmpLabelsView[i - 1])
         {
@@ -113,7 +118,7 @@ public:
       });
   }
 
-  void computeClipVolumes3D(axom::ArrayView<double> ovlap)
+  void computeClipVolumes3D(axom::ArrayView<double> ovlap) override
   {
     AXOM_ANNOTATE_SCOPE("IntersectionShaper::runShapeQueryImpl");
 
@@ -134,6 +139,8 @@ public:
     axom::ArrayView<ShapeType> discretizedGeometryView = discretizedGeometry.view();
 #endif
 
+    SLIC_INFO(axom::fmt::format("Getting discrete geometry for shape '{}'",
+                                getGeometryClipperStrategy().name()));
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
     const bool useOcts = getGeometryClipperStrategy().getShapeAsOcts(shapeeMesh, geomAsOcts);
@@ -144,6 +151,9 @@ public:
 
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
+
+    SLIC_INFO(axom::fmt::format("{:-^80}",
+                                " Inserting shapes' bounding boxes into BVH "));
 
     // Generate the BVH tree over the shape's discretized geometry
     // Axis-aligned bounding boxes
@@ -178,7 +188,7 @@ public:
 
     SLIC_INFO(axom::fmt::format("{:-^80}", " Querying the BVH tree "));
 
-    axom::ArrayView<const BoundingBoxType> hex_bbs_device_view =
+    axom::ArrayView<const BoundingBoxType> cellBbsView =
       shapeeMesh.getCellBoundingBoxes();
 
     // Find which shape bounding boxes intersect hexahedron bounding boxes
@@ -194,7 +204,7 @@ public:
                           counts,
                           candidates,
                           cellCount,
-                          hex_bbs_device_view);
+                          cellBbsView);
     AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
 
     // Get the total number of candidates
@@ -293,9 +303,8 @@ public:
       ovlap.size(),
       AXOM_LAMBDA(axom::IndexType i) { ovlap[i] = 0.0; });
 
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      " Calculating element overlap volume from each tet-shape pair "));
+    SLIC_INFO(axom::fmt::format("Running clip loop for {} candidate cells out of all {} cells",
+                                totalCandidatesCount, cellCount));
 
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = true;
@@ -399,7 +408,7 @@ public:
   }  // end of computeClipVolumes3D() function
 
   void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
-                            axom::ArrayView<double> ovlap)
+                            axom::ArrayView<double> ovlap) override
 
   {
     AXOM_UNUSED_VAR(ovlap);
@@ -416,9 +425,8 @@ public:
 
     constexpr int NUM_TETS_PER_HEX = 24;
 
-    SLIC_INFO(axom::fmt::format("{:-^80}",
-                                " Inserting shapes' bounding boxes into BVH "));
-
+    SLIC_INFO(axom::fmt::format("Getting discrete geometry for shape '{}'",
+                                getGeometryClipperStrategy().name()));
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
     const bool useOcts = getGeometryClipperStrategy().getShapeAsOcts(shapeeMesh, geomAsOcts);
@@ -428,6 +436,9 @@ public:
 
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
+
+    SLIC_INFO(axom::fmt::format("{:-^80}",
+                                " Inserting shapes' bounding boxes into BVH "));
 
     // Generate the BVH tree over the shape's discretized geometry
     // axis-aligned bounding boxes.  "pieces" refers to tets or octs.
@@ -462,7 +473,7 @@ public:
 
     SLIC_INFO(axom::fmt::format("{:-^80}", " Querying the BVH tree "));
 
-    axom::ArrayView<const BoundingBoxType> hex_bbs_device_view =
+    axom::ArrayView<const BoundingBoxType> cellBbsView =
       shapeeMesh.getCellBoundingBoxes();
 
     // Find which shape bounding boxes intersect hexahedron bounding boxes
@@ -478,7 +489,7 @@ public:
                           counts,
                           candidates,
                           cellCount,
-                          hex_bbs_device_view);
+                          cellBbsView);
     AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
 
     // Get the total number of candidates
@@ -569,9 +580,8 @@ public:
       ovlap.size(),
       AXOM_LAMBDA(axom::IndexType i) { ovlap[i] = 0.0; });
 
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      " Calculating element overlap volume from each tet-shape pair "));
+    SLIC_INFO(axom::fmt::format("Running clip loop for {} candidate cells out of the select {} of the full {} cells",
+                                totalCandidatesCount, cellIndices.size(), cellCount));
 
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = true;
@@ -646,6 +656,28 @@ public:
     }
   }  // end of computeClipVolumes3D() function
 
+  void getLabelCounts(axom::ArrayView<const LabelType> labels,
+                      axom::IndexType& inCount,
+                      axom::IndexType& onCount,
+                      axom::IndexType& outCount) override
+  {
+    using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
+    using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
+    RAJA::ReduceSum<ReducePolicy, axom::IndexType> inSum(0);
+    RAJA::ReduceSum<ReducePolicy, axom::IndexType> onSum(0);
+    RAJA::ReduceSum<ReducePolicy, axom::IndexType> outSum(0);
+    RAJA::forall<LoopPolicy>(
+      RAJA::RangeSegment(0, labels.size()),
+      AXOM_LAMBDA(axom::IndexType cellId) {
+        const auto& label = labels[cellId];
+        if(label == GeometryClipperStrategy::LABEL_OUT) { outSum += 1; }
+        else if(label == GeometryClipperStrategy::LABEL_IN) { inSum += 1; }
+        else { onSum += 1; }
+      });
+    inCount = static_cast<axom::IndexType>(inSum.get());
+    onCount = static_cast<axom::IndexType>(onSum.get());
+    outCount = static_cast<axom::IndexType>(outSum.get());
+  }
 };
 
 }  // end namespace detail

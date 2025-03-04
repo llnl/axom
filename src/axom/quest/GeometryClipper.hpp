@@ -56,8 +56,10 @@ public:
   //!@brief The mesh.
   ShapeeMesh& getShapeeMesh() { return m_shapeeMesh; }
 
-  //!@@brief User-specified allocator id
+  //!@brief Allocator id to be used for all array data.
   int getAllocatorId() const { return m_shapeeMesh.getAllocatorId(); }
+
+  void setVerbose(bool verbose) { m_verbose = verbose; }
 
   /*!
     @brief Clip
@@ -69,6 +71,17 @@ public:
 
   //!@brief Dimension of the shape (2 or 3)
   int dimension() const { return m_shapeeMesh.dimension(); }
+
+  //@{
+  //!@name Convenience methods
+  void getLabelCounts(const axom::Array<LabelType>& labels,
+                      axom::IndexType& inCount,
+                      axom::IndexType& onCount,
+                      axom::IndexType& outCount)
+    {
+      m_delegate->getLabelCounts(labels, inCount, onCount, outCount);
+    }
+  //@}
 
   /*!
     @brief Single interface for some methods delegated out of
@@ -105,6 +118,12 @@ public:
       const axom::ArrayView<axom::IndexType>& cellIndices,
       axom::ArrayView<double> ovlap) = 0;
 
+    //!@brief Delegate for getLabelCounts.
+    virtual void getLabelCounts( axom::ArrayView<const LabelType> labels,
+                                 axom::IndexType& inCount,
+                                 axom::IndexType& onCount,
+                                 axom::IndexType& outCount) = 0;
+
     ShapeeMesh& getShapeeMesh() { return m_delegator.m_shapeeMesh; }
 
     GeometryClipperStrategy& getGeometryClipperStrategy()
@@ -131,6 +150,8 @@ private:
      implemented externally.  Delegate implements internal algorithms
      for multiple execution spaces.
   */
+
+  bool m_verbose;
 
 #if defined(__CUDACC__)
 public:

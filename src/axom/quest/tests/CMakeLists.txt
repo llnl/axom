@@ -235,7 +235,7 @@ if(CONDUIT_FOUND AND RAJA_FOUND)
             --policy ${_policy}
             --testGeom ${_testgeom}
             -o ${_testname}
-            --refinements 2
+            --refinements 7
             --scale 0.75 0.75 0.75
             --dir 0.2 0.4 0.8
             --meshType ${_meshType}

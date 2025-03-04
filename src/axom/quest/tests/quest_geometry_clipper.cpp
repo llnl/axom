@@ -1358,6 +1358,7 @@ if(0){
       axom::fmt::format("Processing geometry '{}'", geomName)));
 
     quest::GeometryClipper clipper(sMesh, geomStrategies[i]);
+    clipper.setVerbose(true);
     axom::Array<double> ovlap;
 std::cout<<__WHERE<<std::endl;
     clipper.clip(ovlap);

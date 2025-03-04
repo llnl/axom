@@ -148,7 +148,7 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
   */
   axom::ArrayView<const axom::IndexType, 2> connView =
     shapeeMesh.getConnectivity();
-  SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL);
+  SLIC_ASSERT(connView.shape() == (axom::StackArray<axom::IndexType, 2>{cellCount, NUM_VERTS_PER_CELL}));
 
   auto labelsView = labels.view();
 
@@ -165,7 +165,7 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
         hasIn |= isIn;
         hasOut |= !isIn;
       }
-      labelsView[cellId] = !hasOut ? 0 : !hasIn ? 2 : 1;
+      labelsView[cellId] = !hasOut ? LABEL_IN : !hasIn ? LABEL_OUT : LABEL_ON;
     });
 
   return;

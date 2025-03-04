@@ -5,14 +5,11 @@
 
 #include "axom/config.hpp"
 
-#ifndef AXOM_USE_RAJA
-  #error "quest::GeometryClipper requires RAJA."
-#endif
-
 #include "axom/quest/GeometryClipper.hpp"
 #include "axom/quest/detail/GeometryClipperDelegateExec.hpp"
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/execution/runtime_policy.hpp"
+#include "axom/slic/interface/slic_macros.hpp"
 #include "axom/fmt.hpp"
 
 namespace axom
@@ -26,6 +23,7 @@ GeometryClipper::GeometryClipper(
   : m_shapeeMesh(shapeeMesh)
   , m_strategy(strategy)
   , m_delegate(newDelegate())
+  , m_verbose(false)
 { }
 
 /*
@@ -56,8 +54,25 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
 
   if(withInOut)
   {
+    SLIC_ERROR_IF(labels.size() != m_shapeeMesh.getCellCount(),
+                  axom::fmt::format("GeometryClipperStrategy '{}' did not return the correct array size of {}", m_strategy->name(),
+                                    m_shapeeMesh.getCellCount()));
     SLIC_ERROR_IF(labels.getAllocatorID() != allocId,
-                  "GeometryClipperStrategy '" + m_strategy->name() + "' failed to provide 'labels' data with the required allocator id " + std::to_string(allocId));
+                  axom::fmt::format("GeometryClipperStrategy '{}' failed to provide labels data with the required allocator id {}",
+                                    m_strategy->name(), allocId));
+
+    if(m_verbose)
+    {
+      axom::IndexType inCount;
+      axom::IndexType onCount;
+      axom::IndexType outCount;
+      getLabelCounts(labels.view(), inCount, onCount, outCount);
+      std::string msg =
+        axom::fmt::format(
+          "GeometryClipper with strategy '{}' labeled {} inside, {} on and {} outside, out of {} cells",
+          m_strategy->name(), inCount, onCount, outCount, m_shapeeMesh.getCellCount());
+      SLIC_INFO(msg);
+    }
 
     m_delegate->setCleanVolumeOverlaps(labels.view(), ovlap);
 
@@ -72,7 +87,7 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
       m_delegate->computeClipVolumes3D(unlabeledCells.view(), ovlap.view());
     }
   }
-  else
+  else // !withInOut
   {
     done = m_strategy->specializedClip(m_shapeeMesh, ovlap.view());
 
@@ -84,11 +99,16 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
   if(done)
   {
     SLIC_ERROR_IF(labels.getAllocatorID() != allocId,
-                  "GeometryClipperStrategy '" + m_strategy->name() + "' failed to provide 'ovlap' data with the required allocator id " + std::to_string(allocId));
+                  "GeometryClipperStrategy '" + m_strategy->name() +
+                  "' failed to provide 'ovlap' data with the required allocator id " +
+                  std::to_string(allocId));
   }
 
   if(!done)
   {
+    SLIC_INFO(axom::fmt::format("Getting discrete geometry for shape '{}'",
+                                m_strategy->name()));
+
     if(m_shapeeMesh.dimension() == 3)
     {
       axom::Array<GeometryClipperStrategy::TetrahedronType> geomAsTets;
@@ -109,6 +129,7 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
           "GeometryClipperStrategy.");
       }
     }
+
     if(m_shapeeMesh.dimension() == 2)
     {
       SLIC_ERROR("GeometryClipper for 2D mesh is not implemented yet.");
