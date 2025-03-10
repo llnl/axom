@@ -867,132 +867,10 @@ AXOM_HOST_DEVICE bool intersect(const Plane<T, 3>& p,
 
 /// @}
 
-/*!
- * \brief Determines if a ray intersects a Bezier patch.
- * \param [in] patch The Bezier patch to intersect with the ray.
- * \param [in] ray The ray to intersect with the patch.
- * \param [out] u The u parameter(s) of intersection point(s).
- * \param [out] v The v parameter(s) of intersection point(s).
- * \param [out] t The t parameter(s) of intersection point(s).
- * \param [in] tol The tolerance for intersection (for physical distances).
- * \param [in] EPS The tolerance for intersection (for parameter distances).
- * \param [in] isHalfOpen True if the patch is parameterized in [0,1)^2.
- * 
- * For bilinear patches, implements GARP algorithm from Chapter 8 of Ray Tracing Gems (2019)
- * For higher order patches, intersections are found through recursive subdivison
- *  until the subpatch is approximated by a bilinear patch.
- * Assumes that the ray is not tangent to the patch, and that the intersection
- *  is not at a point of degeneracy for which there are *infinitely* many intersections.
- * For such intersections, the method will hang as it tries records an arbitrarily high
- *  number of intersections with distinct parameter values
- *  
- * \return true iff the ray intersects the patch, otherwise false.
- */
-template <typename T>
-bool intersect(const Ray<T, 3>& ray,
-               const BezierPatch<T, 3>& patch,
-               axom::Array<T>& t,
-               axom::Array<T>& u,
-               axom::Array<T>& v,
-               double tol = 1e-8,
-               double EPS = 1e-8,
-               bool isHalfOpen = false)
-{
-  const int order_u = patch.getOrder_u();
-  const int order_v = patch.getOrder_v();
-
-  // for efficiency, linearity check actually uses a squared tolerance
-  const double sq_tol = tol * tol;
-
-  // Store the candidate intersections
-  axom::Array<T> tc, uc, vc;
-
-  if(order_u < 1 || order_v < 1)
-  {
-    // Patch has no surface area, ergo no intersections
-    return false;
-  }
-  else if(order_u == 1 && order_v == 1)
-  {
-    primal::Line<T, 3> line(ray.origin(), ray.direction());
-    detail::intersect_line_bilinear_patch(line,
-                                          patch(0, 0),
-                                          patch(order_u, 0),
-                                          patch(order_u, order_v),
-                                          patch(0, order_v),
-                                          tc,
-                                          uc,
-                                          vc,
-                                          EPS,
-                                          true);
-  }
-  else
-  {
-    primal::Line<T, 3> line(ray.origin(), ray.direction());
-
-    double u_offset = 0., v_offset = 0.;
-    double u_scale = 1., v_scale = 1.;
-
-    detail::intersect_line_patch(line,
-                                 patch,
-                                 tc,
-                                 uc,
-                                 vc,
-                                 order_u,
-                                 order_v,
-                                 u_offset,
-                                 u_scale,
-                                 v_offset,
-                                 v_scale,
-                                 sq_tol,
-                                 EPS,
-                                 true);
-  }
-
-  // Remove duplicates from the (u, v) intersection points
-  //  (Note it's not possible for (u_1, v_1) == (u_2, v_2) and t_1 != t_2)
-  const double sq_EPS = EPS * EPS;
-
-  // The number of reported intersection points will be small,
-  //  so we don't need to fully sort the list
-  SLIC_WARNING_IF(tc.size() > 10,
-                  "Large number of intersections detected, eliminating "
-                  "duplicates may be slow");
-
-  for(int i = 0; i < tc.size(); ++i)
-  {
-    // Also remove any intersections on the half-interval boundaries
-    if(isHalfOpen && (uc[i] >= 1.0 - EPS || vc[i] >= 1.0 - EPS))
-    {
-      continue;
-    }
-
-    Point<T, 2> uv({uc[i], vc[i]});
-
-    bool foundDuplicate = false;
-    for(int j = i + 1; !foundDuplicate && j < tc.size(); ++j)
-    {
-      if(squared_distance(uv, Point<T, 2>({uc[j], vc[j]})) < sq_EPS)
-      {
-        foundDuplicate = true;
-      }
-    }
-
-    if(!foundDuplicate)
-    {
-      t.push_back(tc[i]);
-      u.push_back(uc[i]);
-      v.push_back(vc[i]);
-    }
-  }
-
-  return !t.empty();
-}
-
 /*! 
- * \brief Determines if a ray intersects a NURBS patch.
- * \param [in] patch The Bezier patch to intersect with the ray.
- * \param [in] ray The ray to intersect with the patch.
+ * \brief Determines if a Line or Ray intersects a NURBS patch.
+ * \param [in] linear The linear object to intersect with the patch.
+ * \param [in] patch The NURBS patch to intersect with the ray.
  * \param [out] u The u parameter(s) of intersection point(s).
  * \param [out] v The v parameter(s) of intersection point(s).
  * \param [out] t The t parameter(s) of intersection point(s).
@@ -1007,8 +885,8 @@ bool intersect(const Ray<T, 3>& ray,
  *  
  * \return true iff the ray intersects the patch, otherwise false.
  */
-template <typename T>
-bool intersect(const Ray<T, 3>& ray,
+template <typename T, typename LineType>
+bool intersect(const LineType& linear,
                const NURBSPatch<T, 3>& patch,
                axom::Array<T>& t,
                axom::Array<T>& u,
@@ -1020,7 +898,7 @@ bool intersect(const Ray<T, 3>& ray,
 {
   // Check a bounding box of the entire NURBS first
   Point<T, 3> ip;
-  if(!intersect(ray, patch.boundingBox(), ip))
+  if(!intersect(linear, patch.boundingBox(), ip))
   {
     return false;
   }
@@ -1047,7 +925,7 @@ bool intersect(const Ray<T, 3>& ray,
 
       // Store candidate intersections from each Bezier patch
       axom::Array<T> tcc, ucc, vcc;
-      intersect(ray, bezier, tcc, ucc, vcc, tol, EPS);
+      intersect(linear, bezier, tcc, ucc, vcc, tol, EPS);
 
       // Scale the intersection parameters back into the span of the NURBS patch
       for(int k = 0; k < tcc.size(); ++k)
@@ -1080,6 +958,158 @@ bool intersect(const Ray<T, 3>& ray,
 
     // Also remove any intersections that are trimmed out
     if(!countUntrimmed && !patch.isVisible(uc[i], vc[i]))
+    {
+      continue;
+    }
+
+    Point<T, 2> uv({uc[i], vc[i]});
+
+    bool foundDuplicate = false;
+    for(int j = i + 1; !foundDuplicate && j < tc.size(); ++j)
+    {
+      if(squared_distance(uv, Point<T, 2>({uc[j], vc[j]})) < sq_EPS)
+      {
+        foundDuplicate = true;
+      }
+    }
+
+    if(!foundDuplicate)
+    {
+      t.push_back(tc[i]);
+      u.push_back(uc[i]);
+      v.push_back(vc[i]);
+    }
+  }
+
+  return !t.empty();
+}
+
+/*!
+ * \brief Determines if a ray intersects a Bezier patch.
+ * \param [in] ray The ray to intersect with the patch.
+ * \param [in] patch The NURBS patch to intersect with the ray.
+ * \param [out] u The u parameter(s) of intersection point(s).
+ * \param [out] v The v parameter(s) of intersection point(s).
+ * \param [out] t The t parameter(s) of intersection point(s).
+ * \param [in] tol The tolerance for intersection (for physical distances).
+ * \param [in] EPS The tolerance for intersection (for parameter distances).
+ * \param [in] isHalfOpen True if the patch is parameterized in [0,1)^2.
+ * 
+ * See intersect(ray, patch) for more details
+ *
+ * \return true iff the ray intersects the patch, otherwise false.
+ */
+template <typename T>
+bool intersect(const Ray<T, 3>& ray,
+               const BezierPatch<T, 3>& patch,
+               axom::Array<T>& t,
+               axom::Array<T>& u,
+               axom::Array<T>& v,
+               double tol = 1e-8,
+               double EPS = 1e-8,
+               bool isHalfOpen = false)
+{
+  Line<T, 3> line(ray.origin(), ray.direction());
+
+  constexpr bool isRay = true;
+  return intersect(line, patch, t, u, v, tol, EPS, isHalfOpen, isRay);
+}
+
+/*!
+ * \brief Determines if a line intersects a Bezier patch.
+ * \param [in] line The line to intersect with the patch.
+ * \param [in] patch The NURBS patch to intersect with the ray.
+ * \param [out] u The u parameter(s) of intersection point(s).
+ * \param [out] v The v parameter(s) of intersection point(s).
+ * \param [out] t The t parameter(s) of intersection point(s).
+ * \param [in] tol The tolerance for intersection (for physical distances).
+ * \param [in] EPS The tolerance for intersection (for parameter distances).
+ * \param [in] isHalfOpen True if the patch is parameterized in [0,1)^2.
+ * \param [in] isRay True if the line is a ray (parameterized in [0, inf))
+ * 
+ * For bilinear patches, implements GARP algorithm from Chapter 8 of Ray Tracing Gems (2019)
+ * For higher order patches, intersections are found through recursive subdivison
+ *  until the subpatch is approximated by a bilinear patch.
+ * Assumes that the line is not tangent to the patch, and that the intersection
+ *  is not at a point of degeneracy for which there are *infinitely* many intersections.
+ * For such intersections, the method will hang as it tries records an arbitrarily high
+ *  number of intersections with distinct parameter values
+ *  
+ * \return true iff the line intersects the patch, otherwise false.
+ */
+template <typename T>
+bool intersect(const Line<T, 3>& line,
+               const BezierPatch<T, 3>& patch,
+               axom::Array<T>& t,
+               axom::Array<T>& u,
+               axom::Array<T>& v,
+               double tol = 1e-8,
+               double EPS = 1e-8,
+               bool isHalfOpen = false,
+               bool isRay = false)
+{
+  const int order_u = patch.getOrder_u();
+  const int order_v = patch.getOrder_v();
+
+  // for efficiency, linearity check actually uses a squared tolerance
+  const double sq_tol = tol * tol;
+
+  // Store the candidate intersections
+  axom::Array<T> tc, uc, vc;
+
+  if(order_u < 1 || order_v < 1)
+  {
+    // Patch has no surface area, ergo no intersections
+    return false;
+  }
+  else if(order_u == 1 && order_v == 1)
+  {
+    detail::intersect_line_bilinear_patch(line,
+                                          patch(0, 0),
+                                          patch(order_u, 0),
+                                          patch(order_u, order_v),
+                                          patch(0, order_v),
+                                          tc,
+                                          uc,
+                                          vc,
+                                          EPS,
+                                          isRay);
+  }
+  else
+  {
+    double u_offset = 0., v_offset = 0.;
+    double u_scale = 1., v_scale = 1.;
+
+    detail::intersect_line_patch(line,
+                                 patch,
+                                 tc,
+                                 uc,
+                                 vc,
+                                 order_u,
+                                 order_v,
+                                 u_offset,
+                                 u_scale,
+                                 v_offset,
+                                 v_scale,
+                                 sq_tol,
+                                 EPS,
+                                 isRay);
+  }
+
+  // Remove duplicates from the (u, v) intersection points
+  //  (Note it's not possible for (u_1, v_1) == (u_2, v_2) and t_1 != t_2)
+  const double sq_EPS = EPS * EPS;
+
+  // The number of reported intersection points will be small,
+  //  so we don't need to fully sort the list
+  SLIC_WARNING_IF(tc.size() > 10,
+                  "Large number of intersections detected, eliminating "
+                  "duplicates may be slow");
+
+  for(int i = 0; i < tc.size(); ++i)
+  {
+    // Also remove any intersections on the half-interval boundaries
+    if(isHalfOpen && (uc[i] >= 1.0 - EPS || vc[i] >= 1.0 - EPS))
     {
       continue;
     }

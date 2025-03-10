@@ -2512,6 +2512,43 @@ public:
                  NURBSPatch& the_rest,
                  bool clipDisk = true) const
   {
+    bool isDiskInside, isDiskOutside, ignoreInteriorDisk = false;
+    diskSplit(u,
+              v,
+              r,
+              the_disk,
+              the_rest,
+              isDiskInside,
+              isDiskOutside,
+              ignoreInteriorDisk,
+              clipDisk);
+  }
+
+  /*!
+   * \brief Split a NURBS surface into two by cutting out a disk of radius r centered at (u, v)
+   *
+   * \param [in] u The x-coordinate of the center of the disk
+   * \param [in] v The y-coordinate of the center of the disk
+   * \param [in] r The radius of the disk 
+   * \param [out] the_disk The NURBS surface inside the disk
+   * \param [out] the_rest The NURBS surface outside the disk
+   * \param [out] isDiskInside True if the disk is entirely inside the trimming curves
+   * \param [out] isDiskOutside True if the disk is entirely outside the trimming curves
+   * \param [in] ignoreInteriorDisk If true, don't perform subdivision if disk is entirely inside the trimming curves
+   * \param [in] clipDisk If true, the returned disk is clipped to the disk boundary
+   * 
+   * \note Function arguments suited for use in GWN evaluation
+   */
+  void diskSplit(T u,
+                 T v,
+                 T r,
+                 NURBSPatch& the_disk,
+                 NURBSPatch& the_rest,
+                 bool& isDiskInside,
+                 bool& isDiskOutside,
+                 bool ignoreInteriorDisk,
+                 bool clipDisk) const
+  {
     ParameterPointType uv_param({u, v});
 
     // Copy the control points and weights of the original patch, but not the trimming curves
@@ -2613,12 +2650,21 @@ public:
     }
 
     // Handle special cases where 0 intersections are recorded
+    isDiskInside = isDiskOutside = false;
     if(circle_params.size() == 0)
     {
       // If the circle is entirely inside the trimming curves,
       //  the_disk is a complete disk
       if(isVisible(u, v))
       {
+        isDiskInside = true;
+
+        if(ignoreInteriorDisk)
+        {
+          the_disk.m_trimmingCurves.clear();
+          return;
+        }
+
         TrimmingCurveType c1;
         c1.constructCircularArc(0, 2 * M_PI, uv_param, r);
 
@@ -2638,6 +2684,7 @@ public:
       {
         // If the circle is entirely outside the trimming curves,
         //  the_rest is unchanged and the_disk is empty
+        isDiskOutside = true;
         the_disk.m_trimmingCurves.clear();
 
         return;
