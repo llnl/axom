@@ -613,6 +613,11 @@ public:
   ConstView view() const;
   /// }@
 
+  template <typename ExecSpace>
+  static FlatMap create(axom::ArrayView<KeyType> keys,
+                        axom::ArrayView<ValueType> values,
+                        Allocator allocator = Allocator {});
+
 private:
   friend class FlatMapView<KeyType, ValueType, false, Hash>;
   friend class FlatMapView<KeyType, ValueType, true, Hash>;
@@ -859,5 +864,7 @@ auto FlatMap<KeyType, ValueType, Hash>::erase(const_iterator pos) -> iterator
 }
 
 }  // namespace axom
+
+#include "FlatMapUtil.hpp"
 
 #endif  // Axom_Core_FlatMap_HPP
