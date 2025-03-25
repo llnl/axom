@@ -78,7 +78,7 @@ struct GroupBucket
 
   GroupBucket() : data {0ULL, 0ULL} { }
 
-  int getEmptyBucket() const
+  AXOM_HOST_DEVICE int getEmptyBucket() const
   {
     for(int i = 0; i < Size; i++)
     {
@@ -120,20 +120,55 @@ struct GroupBucket
     return InvalidSlot;
   }
 
-  void setBucket(int index, std::uint8_t hash) { metadata.buckets[index] = reduceHash(hash); }
+  template <bool Atomic = false>
+  AXOM_HOST_DEVICE void setBucket(int index, std::uint8_t hash)
+  {
+    std::uint8_t reduced_hash = reduceHash(hash);
+#if defined(AXOM_USE_RAJA)
+    if(Atomic)  // TODO: should be constexpr
+    {
+      RAJA::atomicStore<RAJA::auto_atomic>(&(metadata.buckets[index]), reduced_hash);
+      return;
+    }
+#endif
+    metadata.buckets[index] = reduced_hash;
+  }
 
   void clearBucket(int index) { metadata.buckets[index] = Empty; }
 
-  void setOverflow(std::uint8_t hash)
+  template <bool Atomic = false>
+  AXOM_HOST_DEVICE void setOverflow(std::uint8_t hash)
   {
     std::uint8_t hashOfwBit = 1 << (hash % 8);
+#if defined(AXOM_USE_RAJA)
+    if(Atomic)  // TODO: should be constexpr
+    {
+      RAJA::atomicOr<RAJA::auto_atomic>(&(metadata.ofw), hashOfwBit);
+      return;
+    }
+#endif
     metadata.ofw |= hashOfwBit;
   }
 
-  bool getMaybeOverflowed(std::uint8_t hash) const
+  template <bool Atomic = false>
+  AXOM_HOST_DEVICE bool getMaybeOverflowed(std::uint8_t hash) const
   {
     std::uint8_t hashOfwBit = 1 << (hash % 8);
-    return (metadata.ofw & hashOfwBit);
+    std::uint8_t curr_ofw;
+#if defined(AXOM_USE_RAJA)
+    if(Atomic)  // TODO: should be constexpr
+    {
+      // TODO: why is the const_cast required? (RAJA issue?)
+      curr_ofw = RAJA::atomicLoad<RAJA::auto_atomic>(const_cast<std::uint8_t*>(&(metadata.ofw)));
+    }
+    else
+    {
+      curr_ofw = metadata.ofw;
+    }
+#else
+    curr_ofw = metadata.ofw;
+#endif
+    return (curr_ofw & hashOfwBit);
   }
 
   bool hasSentinel() const { return metadata.buckets[Size - 1] == Sentinel; }
@@ -142,7 +177,10 @@ struct GroupBucket
 
   // We need to map hashes in the range [0, 255] to [2, 255], since 0 and 1
   // are taken by the "empty" and "sentinel" values respectively.
-  static std::uint8_t reduceHash(std::uint8_t hash) { return (hash < 2) ? (hash + 8) : hash; }
+  AXOM_HOST_DEVICE static std::uint8_t reduceHash(std::uint8_t hash)
+  {
+    return (hash < 2) ? (hash + 8) : hash;
+  }
 
   union alignas(16)
   {
