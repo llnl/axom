@@ -206,3 +206,40 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_and_modify)
     EXPECT_EQ(test_map.count(i), false);
   }
 }
+
+AXOM_TYPED_TEST(core_flatmap_forall, insert_batched)
+{
+  using MapType = typename TestFixture::MapType;
+  using ExecSpace = typename TestFixture::ExecSpace;
+
+  MapType test_map;
+
+  const int NUM_ELEMS = 100;
+
+  axom::Array<int> keys_vec(NUM_ELEMS);
+  axom::Array<double> values_vec(NUM_ELEMS);
+  // Create batch of array elements
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    keys_vec[i] = key;
+    values_vec[i] = value;
+  }
+
+  // Construct a flat map with the key-value pairs.
+  test_map = MapType::template create<ExecSpace>(keys_vec, values_vec);
+
+  // Check contents on the host
+  EXPECT_EQ(NUM_ELEMS, test_map.size());
+
+  // Check that every element we inserted is in the map
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto expected_key = this->getKey(i);
+    auto expected_val = this->getValue(i * 10.0 + 5.0);
+    EXPECT_EQ(1, test_map.count(expected_key));
+    EXPECT_EQ(expected_val, test_map.at(expected_key));
+  }
+}
