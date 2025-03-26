@@ -316,3 +316,50 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_dups)
     EXPECT_TRUE((kv_out[i].second == expected_val1) || (kv_out[i].second == expected_val2));
   }
 }
+
+template <typename KeyType>
+struct ConstantHash
+{
+  using argument_type = KeyType;
+  using result_type = axom::IndexType;
+
+  AXOM_HOST_DEVICE axom::IndexType operator()(KeyType) const { return 0; }
+};
+
+AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_constant_hash)
+{
+  using ExecSpace = typename TestFixture::ExecSpace;
+  using KeyType = typename TestFixture::KeyType;
+  using ValueType = typename TestFixture::ValueType;
+
+  using MapType = axom::FlatMap<KeyType, ValueType, ConstantHash<KeyType>>;
+
+  const int NUM_ELEMS = 100;
+
+  axom::Array<int> keys_vec(NUM_ELEMS);
+  axom::Array<double> values_vec(NUM_ELEMS);
+  // Create batch of array elements
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    keys_vec[i] = key;
+    values_vec[i] = value;
+  }
+
+  // Construct a flat map with the key-value pairs.
+  MapType test_map = MapType::template create<ExecSpace>(keys_vec, values_vec);
+
+  // Check contents on the host
+  EXPECT_EQ(NUM_ELEMS, test_map.size());
+
+  // Check that every element we inserted is in the map
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto expected_key = this->getKey(i);
+    auto expected_val = this->getValue(i * 10.0 + 5.0);
+    EXPECT_EQ(1, test_map.count(expected_key));
+    EXPECT_EQ(expected_val, test_map.at(expected_key));
+  }
+}
