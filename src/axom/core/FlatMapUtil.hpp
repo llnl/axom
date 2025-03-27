@@ -66,6 +66,7 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   FlatMap new_map(allocator);
   new_map.reserve(num_elems);
 
+  using RajaAtomic = typename axom::execution_space<ExecSpace>::atomic_policy;
   using RajaReduce = typename axom::execution_space<ExecSpace>::reduce_policy;
   using HashResult = typename Hash::result_type;
   using GroupBucket = detail::flat_map::GroupBucket;
@@ -83,12 +84,10 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   Array<detail::SpinLock> lock_vec(num_groups, num_groups, allocator.get());
   const auto group_locks = lock_vec.view();
 
-  // Add a counter for failed inserts.
-#ifdef AXOM_USE_RAJA
-  RAJA::ReduceSum<RajaReduce, int> num_failed_inserts(0);
-#else
-  int num_failed_inserts = 0;
-#endif
+  // Track assignment of key indices to bucket slots.
+  Array<IndexType> key_index_dedup_vec(0, 0, allocator.get());
+  key_index_dedup_vec.resize(num_groups * GroupBucket::Size, -1);
+  const auto key_index_dedup = key_index_dedup_vec.view();
 
   for_all<ExecSpace>(
     keys.size(),
@@ -104,80 +103,104 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
 
       std::uint8_t hash_8 = static_cast<std::uint8_t>(hash);
 
-      int group_index = -1;
-      int slot_index = -1;
+      IndexType duplicate_bucket_index = -1;
+      IndexType empty_bucket_index = -1;
       int iteration = 0;
       while(iteration < meta_group.size())
       {
-        // Get the overflow state for the current group.
-        bool overflow_group = meta_group[curr_group].template getMaybeOverflowed<true>(hash_8);
-        bool group_locked = false;
-
-        // Try to lock the group if we haven't overflowed.
-        if(!overflow_group)
-        {
-          group_locked = group_locks[curr_group].tryLock();
-        }
+        // Try to lock the group. We do this in a non-blocking manner to avoid
+        // intra-warp progress hazards.
+        bool group_locked = group_locks[curr_group].tryLock();
 
         if(group_locked)
         {
-          // Re-check overflow state now that we've locked the group.
-          // Other threads may have updated the overflow state before
-          // actaully taking the lock.
-          overflow_group = meta_group[curr_group].template getMaybeOverflowed<true>(hash_8);
-          if(!overflow_group)
+          // Every bucket visit - check prior filled buckets for duplicate
+          // keys.
+          int empty_slot_index =
+            meta_group[curr_group].visitHashOrEmptyBucket(hash_8, [&](int matching_slot) {
+              IndexType bucket_index = curr_group * GroupBucket::Size + matching_slot;
+
+              if(key_index_dedup[bucket_index] != -1 &&
+                 keys[key_index_dedup[bucket_index]] == keys[idx])
+              {
+#if defined(AXOM_USE_RAJA)
+                // Highest-indexed kv pair wins.
+                RAJA::atomicMax<RajaAtomic>(&key_index_dedup[bucket_index], idx);
+#else
+                if(key_index_dedup[bucket_index] < idx)
+                {
+                  key_index_dedup[bucket_index] = idx;
+                }
+#endif
+                duplicate_bucket_index = bucket_index;
+              }
+            });
+
+          if(duplicate_bucket_index == -1)
           {
-            slot_index = meta_group[curr_group].getEmptyBucket();
-            if(slot_index != GroupBucket::InvalidSlot)
-            {
-              // We have an empty slot in this group. Place an element.
-              group_index = curr_group;
-              meta_group[curr_group].template setBucket<true>(slot_index, hash_8);
-            }
-            else
+            if(empty_slot_index == GroupBucket::InvalidSlot)
             {
               // Group is full. Set overflow bit for the group.
               meta_group[curr_group].template setOverflow<true>(hash_8);
             }
+            else
+            {
+              // Got to end of probe sequence without a duplicate.
+              // Update empty bucket index.
+              empty_bucket_index = curr_group * GroupBucket::Size + empty_slot_index;
+              meta_group[curr_group].template setBucket<true>(empty_slot_index, hash_8);
+              key_index_dedup[empty_bucket_index] = idx;
+            }
           }
           // Unlock group once we're done.
           group_locks[curr_group].unlock();
-        }
 
-        // Either we got an empty slot to insert in, or we overflowed
-        // on a group we waited on.
-        if(group_index != -1)
-        {
-          // We have an empty slot. Exit.
-          break;
+          if(duplicate_bucket_index != -1 || empty_bucket_index != -1)
+          {
+            // We've found an empty slot or a duplicate key to place the
+            // value at. Empty slots should only occur at the end of the
+            // probe sequence, since we're only inserting.
+            break;
+          }
+          else
+          {
+            // Move to next group.
+            curr_group = (curr_group + LookupPolicy {}.getNext(iteration)) % meta_group.size();
+            iteration++;
+          }
         }
-        else if(overflow_group)
-        {
-          // Move to next group.
-          curr_group = (curr_group + LookupPolicy {}.getNext(iteration)) % meta_group.size();
-          iteration++;
-        }
-      }
-
-      if(group_index != -1)
-      {
-        IndexType bucket_index = group_index * GroupBucket::Size + slot_index;
-        new(&buckets[bucket_index]) KeyValuePair(keys[idx], values[idx]);
-      }
-      else
-      {
-        // TODO: Is this even possible?
-        num_failed_inserts += 1;
       }
     });
 
-  new_map.m_size = keys.size();
-  new_map.m_loadCount = keys.size();
+  // Add a counter for duplicated inserts.
+#ifdef AXOM_USE_RAJA
+  RAJA::ReduceSum<RajaReduce, int> total_inserts(0);
+#else
+  int total_inserts = 0;
+#endif
+
+  // Using key-deduplication map, assign unique k-v pairs to buckets.
+  for_all<ExecSpace>(
+    num_groups * GroupBucket::Size,
+    AXOM_LAMBDA(IndexType bucket_idx) {
+      IndexType kv_idx = key_index_dedup[bucket_idx];
+      if(kv_idx != -1)
+      {
+        // Place k-v pair at bucket_idx.
+        new(&buckets[bucket_idx]) KeyValuePair(keys[kv_idx], values[kv_idx]);
+        total_inserts += 1;
+      }
+    });
+
+  new_map.m_size = total_inserts.get();
+  new_map.m_loadCount = total_inserts.get();
 
 #ifdef AXOM_DEBUG
-  if(num_failed_inserts > 0)
+  if(keys.size() > new_map.size())
   {
-    axom::fmt::print("FlatMap::create: {} elements failed to insert\n");
+    axom::fmt::print("FlatMap::create: inserted {} elements from input of {} pairs\n",
+                     new_map.size(),
+                     keys.size());
   }
 #endif
 
