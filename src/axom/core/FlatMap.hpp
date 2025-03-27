@@ -119,7 +119,11 @@ public:
    *
    * \param other the FlatMap to move data from
    */
-  FlatMap& operator=(FlatMap&& other) { swap(other); }
+  FlatMap& operator=(FlatMap&& other)
+  {
+    swap(other);
+    return *this;
+  }
 
   /*!
    * \brief Copy constructor for a FlatMap instance.
