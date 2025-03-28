@@ -203,15 +203,6 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   new_map.m_size = total_inserts.get();
   new_map.m_loadCount = total_inserts.get();
 
-#ifdef AXOM_DEBUG
-  if(keys.size() > new_map.size())
-  {
-    axom::fmt::print("FlatMap::create: inserted {} elements from input of {} pairs\n",
-                     new_map.size(),
-                     keys.size());
-  }
-#endif
-
   return new_map;
 }
 
