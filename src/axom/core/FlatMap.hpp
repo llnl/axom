@@ -613,6 +613,25 @@ public:
   ConstView view() const;
   /// }@
 
+  /*!
+   * \brief Constructs and returns a FlatMap given a set of key-value pairs.
+   *
+   *  Duplicate keys are handled by selecting the last value in the values
+   *  array corresponding to the equivalent key.
+   *
+   * \param keys   [in] array of keys for the pairs to insert
+   * \param values [in] array of values for the pairs to insert
+   * \param allocator [in] allocator to use for the constructed FlatMap
+   *
+   * \tparam ExecSpace the execution space in which to perform the batched
+   *                   construction
+   *
+   * \return the constructed FlatMap
+   *
+   * \pre keys.size() == values.size()
+   * \pre {keys, values}.getAllocatorID() is accessible from ExecSpace
+   * \pre allocator is accessible from ExecSpace
+   */
   template <typename ExecSpace>
   static FlatMap create(axom::ArrayView<KeyType> keys,
                         axom::ArrayView<ValueType> values,
