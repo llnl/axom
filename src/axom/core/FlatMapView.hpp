@@ -49,12 +49,12 @@ public:
    * \brief Returns an iterator to the first valid object in the bucket array.
    */
   /// @{
-  const_iterator begin() const
+  AXOM_HOST_DEVICE const_iterator begin() const
   {
     IndexType firstBucketIndex = this->nextValidIndex(m_metadata, NO_MATCH);
     return const_iterator(this, firstBucketIndex);
   }
-  const_iterator cbegin() const
+  AXOM_HOST_DEVICE const_iterator cbegin() const
   {
     IndexType firstBucketIndex = this->nextValidIndex(m_metadata, NO_MATCH);
     return const_iterator(this, firstBucketIndex);
@@ -66,8 +66,8 @@ public:
    *  bucket array.
    */
   /// @{
-  const_iterator end() const { return const_iterator(*this, bucket_count()); }
-  const_iterator cend() const { return const_iterator(*this, bucket_count()); }
+  AXOM_HOST_DEVICE const_iterator end() const { return const_iterator(*this, bucket_count()); }
+  AXOM_HOST_DEVICE const_iterator cend() const { return const_iterator(*this, bucket_count()); }
   /// @}
 
   /*!
@@ -79,7 +79,7 @@ public:
    *  if the key wasn't found.
    */
   /// @{
-  const_iterator find(const KeyType& key) const;
+  AXOM_HOST_DEVICE const_iterator find(const KeyType& key) const;
   /// @}
 
   /*!
@@ -118,7 +118,7 @@ public:
    *  The maximum number of elements that can be stored in the FlatMap without
    *  resizing and rehashing is bucket_count() * max_load_factor().
    */
-  IndexType bucket_count() const { return m_buckets.size(); }
+  AXOM_HOST_DEVICE IndexType bucket_count() const { return m_buckets.size(); }
 
 private:
   IndexType m_numGroups2;
@@ -148,37 +148,39 @@ public:
   using reference = DataType&;
 
 public:
-  IteratorImpl(const MapType& map, IndexType internalIdx) : m_map(map), m_internalIdx(internalIdx)
+  AXOM_HOST_DEVICE IteratorImpl(const MapType& map, IndexType internalIdx)
+    : m_map(map)
+    , m_internalIdx(internalIdx)
   {
     assert(m_internalIdx >= 0 && m_internalIdx <= m_map.bucket_count());
   }
 
-  friend bool operator==(const IteratorImpl& lhs, const IteratorImpl& rhs)
+  AXOM_HOST_DEVICE friend bool operator==(const IteratorImpl& lhs, const IteratorImpl& rhs)
   {
     return lhs.m_internalIdx == rhs.m_internalIdx;
   }
 
-  friend bool operator!=(const IteratorImpl& lhs, const IteratorImpl& rhs)
+  AXOM_HOST_DEVICE friend bool operator!=(const IteratorImpl& lhs, const IteratorImpl& rhs)
   {
     return lhs.m_internalIdx != rhs.m_internalIdx;
   }
 
-  IteratorImpl& operator++()
+  AXOM_HOST_DEVICE IteratorImpl& operator++()
   {
     m_internalIdx = m_map.nextValidIndex(m_map.m_metadata, m_internalIdx);
     return *this;
   }
 
-  IteratorImpl operator++(int)
+  AXOM_HOST_DEVICE IteratorImpl operator++(int)
   {
     IteratorImpl next = *this;
     ++(*this);
     return next;
   }
 
-  reference operator*() const { return m_map.m_buckets[m_internalIdx].get(); }
+  AXOM_HOST_DEVICE reference operator*() const { return m_map.m_buckets[m_internalIdx].get(); }
 
-  pointer operator->() const { return &(m_map.m_buckets[m_internalIdx].get()); }
+  AXOM_HOST_DEVICE pointer operator->() const { return &(m_map.m_buckets[m_internalIdx].get()); }
 
 private:
   MapType m_map;
@@ -186,7 +188,8 @@ private:
 };
 
 template <typename KeyType, typename ValueType, typename Hash>
-auto FlatMapView<KeyType, ValueType, Hash>::find(const KeyType& key) const -> const_iterator
+AXOM_HOST_DEVICE auto FlatMapView<KeyType, ValueType, Hash>::find(const KeyType& key) const
+  -> const_iterator
 {
   auto hash = Hash {}(key);
   iterator found_iter = end();

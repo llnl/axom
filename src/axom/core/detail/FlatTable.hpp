@@ -29,7 +29,7 @@ struct QuadraticProbing
    *
    *  We return the offset from H(i) to H(i+1), which is i+1.
    */
-  int getNext(int iter) const { return iter + 1; }
+  AXOM_HOST_DEVICE int getNext(int iter) const { return iter + 1; }
 };
 
 /*!
@@ -44,7 +44,7 @@ struct HashMixer64
   using argument_type = typename HashFunc<KeyType>::argument_type;
   using result_type = typename HashFunc<KeyType>::result_type;
 
-  uint64_t operator()(const KeyType& key) const
+  AXOM_HOST_DEVICE uint64_t operator()(const KeyType& key) const
   {
     uint64_t hash = HashFunc<KeyType> {}(key);
     hash *= 0xbf58476d1ce4e5b9ULL;
@@ -76,7 +76,7 @@ struct GroupBucket
 
   constexpr static int Size = 15;
 
-  GroupBucket() : data {0ULL, 0ULL} { }
+  AXOM_HOST_DEVICE GroupBucket() : data {0ULL, 0ULL} { }
 
   AXOM_HOST_DEVICE int getEmptyBucket() const
   {
@@ -107,7 +107,7 @@ struct GroupBucket
   }
 
   template <typename Func>
-  int visitHashBucket(std::uint8_t hash, Func&& visitor) const
+  AXOM_HOST_DEVICE int visitHashBucket(std::uint8_t hash, Func&& visitor) const
   {
     std::uint8_t reducedHash = reduceHash(hash);
     for(int i = 0; i < Size; i++)
@@ -143,7 +143,14 @@ struct GroupBucket
 #if defined(AXOM_USE_RAJA)
     if(Atomic)  // TODO: should be constexpr
     {
+  #if defined(AXOM_USE_HIP)
+      // Workaround for a lack of an atomicOr builtin for uint8_t.
+      GroupBucket pack_data {};
+      pack_data.metadata.ofw = hashOfwBit;
+      RAJA::atomicOr<RAJA::auto_atomic>(&data[0], pack_data.data[0]);
+  #else
       RAJA::atomicOr<RAJA::auto_atomic>(&(metadata.ofw), hashOfwBit);
+  #endif
       return;
     }
 #endif
@@ -265,10 +272,10 @@ struct SequentialLookupPolicy : ProbePolicy
    *  matching hash
    */
   template <typename FoundIndex>
-  void probeIndex(int ngroups_pow_2,
-                  ArrayView<const GroupBucket> metadata,
-                  HashType hash,
-                  FoundIndex&& on_hash_found) const
+  AXOM_HOST_DEVICE void probeIndex(int ngroups_pow_2,
+                                   ArrayView<const GroupBucket> metadata,
+                                   HashType hash,
+                                   FoundIndex&& on_hash_found) const
   {
     // We use the k MSBs of the hash as the initial group probe point,
     // where ngroups = 2^k.
@@ -319,7 +326,7 @@ struct SequentialLookupPolicy : ProbePolicy
     return metadata[group_index].getMaybeOverflowed(hash);
   }
 
-  IndexType nextValidIndex(ArrayView<const GroupBucket> metadata, int last_bucket) const
+  AXOM_HOST_DEVICE IndexType nextValidIndex(ArrayView<const GroupBucket> metadata, int last_bucket) const
   {
     if(last_bucket >= metadata.size() * GroupBucket::Size - 1)
     {
@@ -347,9 +354,9 @@ struct alignas(T) TypeErasedStorage
 {
   unsigned char data[sizeof(T)];
 
-  const T& get() const { return *(reinterpret_cast<const T*>(&data)); }
+  AXOM_HOST_DEVICE const T& get() const { return *(reinterpret_cast<const T*>(&data)); }
 
-  T& get() { return *(reinterpret_cast<T*>(&data)); }
+  AXOM_HOST_DEVICE T& get() { return *(reinterpret_cast<T*>(&data)); }
 };
 
 }  // namespace flat_map
