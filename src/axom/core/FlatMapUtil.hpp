@@ -84,10 +84,16 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   Array<detail::SpinLock> lock_vec(num_groups, num_groups, allocator.get());
   const auto group_locks = lock_vec.view();
 
-  // Track assignment of key indices to bucket slots.
+  // Map bucket slots to k-v pair indices. This is used to deduplicate pairs
+  // with the same key value.
   Array<IndexType> key_index_dedup_vec(0, 0, allocator.get());
   key_index_dedup_vec.resize(num_groups * GroupBucket::Size, -1);
   const auto key_index_dedup = key_index_dedup_vec.view();
+
+  // Map k-v pair indices to bucket slots. This is essentially the inverse of
+  // the above mapping.
+  Array<IndexType> key_index_to_bucket_vec(num_elems, num_elems, allocator.get());
+  const auto key_index_to_bucket = key_index_to_bucket_vec.view();
 
   for_all<ExecSpace>(
     keys.size(),
@@ -120,8 +126,7 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
             meta_group[curr_group].visitHashOrEmptyBucket(hash_8, [&](int matching_slot) {
               IndexType bucket_index = curr_group * GroupBucket::Size + matching_slot;
 
-              if(key_index_dedup[bucket_index] != -1 &&
-                 keys[key_index_dedup[bucket_index]] == keys[idx])
+              if(keys[key_index_dedup[bucket_index]] == keys[idx])
               {
 #if defined(AXOM_USE_RAJA)
                 // Highest-indexed kv pair wins.
@@ -132,6 +137,7 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
                   key_index_dedup[bucket_index] = idx;
                 }
 #endif
+                key_index_to_bucket[idx] = bucket_index;
                 duplicate_bucket_index = bucket_index;
               }
             });
@@ -150,6 +156,7 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
               empty_bucket_index = curr_group * GroupBucket::Size + empty_slot_index;
               meta_group[curr_group].template setBucket<true>(empty_slot_index, hash_8);
               key_index_dedup[empty_bucket_index] = idx;
+              key_index_to_bucket[idx] = empty_bucket_index;
             }
           }
           // Unlock group once we're done.
@@ -181,10 +188,11 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
 
   // Using key-deduplication map, assign unique k-v pairs to buckets.
   for_all<ExecSpace>(
-    num_groups * GroupBucket::Size,
-    AXOM_LAMBDA(IndexType bucket_idx) {
-      IndexType kv_idx = key_index_dedup[bucket_idx];
-      if(kv_idx != -1)
+    num_elems,
+    AXOM_LAMBDA(IndexType kv_idx) {
+      IndexType bucket_idx = key_index_to_bucket[kv_idx];
+      IndexType winning_idx = key_index_dedup[bucket_idx];
+      if(kv_idx == winning_idx)
       {
         // Place k-v pair at bucket_idx.
         new(&buckets[bucket_idx]) KeyValuePair(keys[kv_idx], values[kv_idx]);
