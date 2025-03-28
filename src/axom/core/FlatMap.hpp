@@ -94,7 +94,7 @@ public:
    */
   template <typename InputIt>
   FlatMap(InputIt first, InputIt last, IndexType bucket_count = -1)
-    : FlatMap(std::distance(first, last), first, last, bucket_count)
+    : FlatMap(std::distance(first, last), first, last, bucket_count, Allocator {})
   { }
 
   /*!
@@ -581,7 +581,11 @@ public:
    */
   void rehash(IndexType count)
   {
-    FlatMap rehashed(m_size, std::make_move_iterator(begin()), std::make_move_iterator(end()), count);
+    FlatMap rehashed(m_size,
+                     std::make_move_iterator(begin()),
+                     std::make_move_iterator(end()),
+                     count,
+                     m_allocator);
     this->swap(rehashed);
   }
 
@@ -595,7 +599,7 @@ public:
 
 private:
   template <typename InputIt>
-  FlatMap(IndexType num_elems, InputIt first, InputIt last, IndexType bucket_count);
+  FlatMap(IndexType num_elems, InputIt first, InputIt last, IndexType bucket_count, Allocator allocator);
 
   std::pair<iterator, bool> getEmplacePos(const KeyType& key);
 
@@ -715,8 +719,9 @@ template <typename InputIt>
 FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType num_elems,
                                            InputIt first,
                                            InputIt last,
-                                           IndexType bucket_count)
-  : FlatMap(std::max(num_elems, bucket_count))
+                                           IndexType bucket_count,
+                                           Allocator allocator)
+  : FlatMap(std::max(num_elems, bucket_count), allocator)
 {
   insert(first, last);
 }
