@@ -66,8 +66,10 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   FlatMap new_map(allocator);
   new_map.reserve(num_elems);
 
+#ifdef AXOM_USE_RAJA
   using RajaAtomic = typename axom::execution_space<ExecSpace>::atomic_policy;
   using RajaReduce = typename axom::execution_space<ExecSpace>::reduce_policy;
+#endif
   using HashResult = typename Hash::result_type;
   using GroupBucket = detail::flat_map::GroupBucket;
 
@@ -181,9 +183,11 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
 
   // Add a counter for duplicated inserts.
 #ifdef AXOM_USE_RAJA
-  RAJA::ReduceSum<RajaReduce, int> total_inserts(0);
+  RAJA::ReduceSum<RajaReduce, IndexType> total_inserts(0);
 #else
-  int total_inserts = 0;
+  axom::Array<IndexType> total_inserts_vec(1);
+  const auto total_inserts = total_inserts_vec.view();
+  total_inserts[0] = 0;
 #endif
 
   // Using key-deduplication map, assign unique k-v pairs to buckets.
@@ -196,12 +200,21 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
       {
         // Place k-v pair at bucket_idx.
         new(&buckets[bucket_idx]) KeyValuePair(keys[kv_idx], values[kv_idx]);
+#ifdef AXOM_USE_RAJA
         total_inserts += 1;
+#else
+        total_inserts[0]++;
+#endif
       }
     });
 
+#ifdef AXOM_USE_RAJA
   new_map.m_size = total_inserts.get();
   new_map.m_loadCount = total_inserts.get();
+#else
+  new_map.m_size = total_inserts[0];
+  new_map.m_loadCount = total_inserts[0];
+#endif
 
   return new_map;
 }
