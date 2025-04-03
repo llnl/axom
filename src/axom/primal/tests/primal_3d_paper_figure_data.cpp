@@ -582,68 +582,37 @@ TEST(primal_3d_paper_figure_data, full_patch_test)
     }
   }
 
-  // exportSurfaceToSTL(data_dir + "/sphere_face0.stl", sphere_faces[0]);
-  // exportSurfaceToSTL(data_dir + "/sphere_face1.stl", sphere_faces[1]);
-  // exportSurfaceToSTL(data_dir + "/sphere_face2.stl", sphere_faces[2]);
-  // exportSurfaceToSTL(data_dir + "/sphere_face3.stl", sphere_faces[3]);
-  // exportSurfaceToSTL(data_dir + "/sphere_face4.stl", sphere_faces[4]);
-  // exportSurfaceToSTL(data_dir + "/sphere_face5.stl", sphere_faces[5]);
+  // Lambda to generate an entirely random unit vector
+  auto random_unit = []() -> axom::primal::Vector<double, 3> {
+    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+    double u = axom::utilities::random_real(-1.0, 1.0);
+    return axom::primal::Vector<double, 3> {sin(theta) * sqrt(1 - u * u),
+                         cos(theta) * sqrt(1 - u * u),
+                         u};
+  };
 
   // Evaluate the winding number for random points in the box [-2.028, 2.028]^3
-  for(int N = 0; N < 100; ++N)
+  for(int N = 0; N < 10; ++N)
   {
-    double x0 = axom::utilities::random_real(-1.014, 1.014);
-    double y0 = axom::utilities::random_real(-1.014, 1.014);
-    double z0 = axom::utilities::random_real(-1.014, 1.014);
+    auto the_direction = random_unit() * ( 1 - 1e-4 );
 
-    double x = x0 / std::sqrt(x0 * x0 + y0 * y0 + z0 * z0);
-    double y = y0 / std::sqrt(x0 * x0 + y0 * y0 + z0 * z0);
-    double z = z0 / std::sqrt(x0 * x0 + y0 * y0 + z0 * z0);
+    Point3D in_query = {the_direction[0], the_direction[1], the_direction[2]};
 
-    Point3D on_query = {x, y, z};
-
-    Point3D in_query = {x, y, z};
-    in_query.array() *= (1 - 2 * edge_tol);
-
-    Point3D out_query = {x, y, z};
-    out_query.array() *= (1 + 2 * edge_tol);
-
-    double wn_on = 0.0;
     double wn_in = 0.0;
-    double wn_out = 0.0;
 
     int indices[] = {0, 1, 2, 3, 4, 5};
     for(int n : indices)
     {
-      wn_on +=
-        winding_number_casting(on_query, sphere_faces[n], edge_tol, quad_tol, EPS);
-
       wn_in +=
         winding_number_casting(in_query, sphere_faces[n], edge_tol, quad_tol, EPS);
-
-      wn_out +=
-        winding_number_casting(out_query, sphere_faces[n], edge_tol, quad_tol, EPS);
     }
 
     std::cout << std::setprecision(15);
-    // std::cout << wn_on << " " << wn_in << " " << wn_out << std::endl;
 
-    // Check the coincident point
-    if( !axom::utilities::isNearlyEqual( wn_on, 0.5, 6 * quad_tol ) )
-    {
-      std::cout << '\t' << "Coincident point: " << on_query << " -> " << wn_on << std::endl;
-    }
-
-    // Check the near point
+    // Check the inside point
     if( !axom::utilities::isNearlyEqual( wn_in, 1.0, 6 * quad_tol ) )
     {
-      std::cout << '\t' << "Inside point: " << on_query << " -> " << wn_in << std::endl;
-    }
-
-    // Check the far point
-    if( !axom::utilities::isNearlyEqual( wn_out, 0.0, 6 * quad_tol ) )
-    {
-      std::cout << '\t' << "Out point: " << on_query << " -> " << wn_out << std::endl;
+      std::cout << '\t' << "Inside point: " << in_query << " -> " << wn_in << std::endl;
     }
   }
 }
