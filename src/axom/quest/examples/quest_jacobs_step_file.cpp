@@ -1347,7 +1347,7 @@ public:
       // exportSurfaceToSTL("C:\\Users\\Fireh\\Code\\winding_number_code\\misc_patches\\untrimmed_patch_" + std::to_string(patchIndex) + ".stl", patchData.nurbsPatch, 17, 17);
       // patchData.nurbsPatch.expandParameterSpace(0.1);
       // exportSurfaceToSTL("C:\\Users\\Fireh\\Code\\winding_number_code\\misc_patches\\expanded_untrimmed_patch_" + std::to_string(patchIndex) + ".stl", patchData.nurbsPatch, 17, 17);
-      
+
       // if(patchIndex == 40)
       // {
       //   patchData.nurbsPatch.makeUntrimmed();
@@ -2393,10 +2393,7 @@ void nut_3d_example()
   auto elapsed_time = timer.elapsedTimeInSec();
 }
 
-void specific_test()
-{
-
-}
+void specific_test() { }
 
 void nut_2d_example()
 {
@@ -4409,11 +4406,195 @@ void spring_direction_example()
     200);
 }
 
+/**
+ * Generates a given number of sample points near the surface of a unit sphere
+ * 
+ * @param numSamples The number of sample points to generate.
+ * @param EPS Allowed distance to sphere (inside the sphere)
+ * @return A vector of sample points near unit sphere
+ */
+std::vector<axom::primal::Point<double, 3>> generateSamplePointsOnSphere(
+  int numSamples,
+  double EPS = 1e-3)
+{
+  std::vector<axom::primal::Point<double, 3>> samplePoints;
+  samplePoints.reserve(numSamples);
+
+  const double eps_lower = 1. - 1.1 * EPS;
+  const double eps_upper = 1. - 0.9 * EPS;
+  SLIC_INFO(
+    axom::fmt::format("Generating {} sample points near unit sphere with EPS: "
+                      "{} and range: [{}, {}]",
+                      numSamples,
+                      EPS,
+                      eps_lower,
+                      eps_upper));
+
+  for(int i = 0; i < numSamples; ++i)
+  {
+    const double phi = axom::utilities::random_real(0., 2. * M_PI);
+    const double cosTheta = axom::utilities::random_real(-1., 1.);
+    const double sinTheta = std::sqrt(1. - cosTheta * cosTheta);
+
+    const double mag = axom::utilities::random_real(eps_lower, eps_upper);
+
+    samplePoints.emplace_back(
+      axom::primal::Point<double, 3> {mag * sinTheta * std::cos(phi),
+                                      mag * sinTheta * std::sin(phi),
+                                      mag * cosTheta});
+  }
+
+  return samplePoints;
+}
+
+void query_timing_test(const std::string& in_prefix,
+                       const std::string& filename,
+                       const std::string& out_prefix,
+                       const std::vector<axom::primal::Point<double, 3>>& query_points,
+                       const std::string& out_suffix = "")
+{
+  auto stepProcessor = import_step_file(in_prefix, filename);
+
+  constexpr double quad_tol = 1e-12;
+  constexpr double EPS = 1e-12;
+  constexpr double edge_tol = 1e-12;
+
+  int case_patch_totals[4] = {0, 0, 0, 0};
+  int case_curves_totals[4] = {0, 0, 0, 0};
+  double case_time_totals[4] = {0.0, 0.0, 0.0, 0.0};
+
+  AXOM_ANNOTATE_BEGIN("GWN query");
+
+  const int num_query_pts = query_points.size();
+  const int progress_idx = [num_query_pts](int div) {
+    return num_query_pts > div
+      ? static_cast<int>(num_query_pts / static_cast<double>(div))
+      : num_query_pts;
+  }(20);
+  axom::Array<double> gwn(num_query_pts);
+
+  for(int idx = 0; idx < num_query_pts; ++idx)
+  {
+    if(idx % progress_idx == 0)
+    {
+      axom::primal::printLoadingBar(idx, num_query_pts);
+    }
+
+    const auto& query = query_points[idx];
+    int case_code = -1;
+    axom::utilities::Timer timer(false);
+
+    double wn = 0.0;
+    for(const auto& kv : stepProcessor.getPatchDataMap())
+    {
+      int integrated_trimming_curves = 0;
+      timer.start();
+      double the_val =
+        axom::primal::winding_number_casting(query,
+                                             kv.second.nurbsPatchData,
+                                             case_code,
+                                             integrated_trimming_curves,
+                                             edge_tol,
+                                             quad_tol,
+                                             EPS);
+      timer.stop();
+
+      case_patch_totals[case_code]++;
+      case_curves_totals[case_code] += integrated_trimming_curves;
+      case_time_totals[case_code] += timer.elapsedTimeInSec();
+      wn += the_val;
+    }
+    gwn[idx] = wn;
+  }
+  AXOM_ANNOTATE_END("GWN query");
+
+  using axom::utilities::filesystem::joinPath;
+  {
+    // Write query points and GWN field to CSV
+    axom::fmt::memory_buffer csv;
+    axom::fmt::format_to(
+      std::back_inserter(csv),
+      "x, y, z, radius, winding_number, expected_inside, rounded\n");
+
+    int outside_count = 0;
+    for(int idx = 0; idx < num_query_pts; ++idx)
+    {
+      const auto& query = query_points[idx];
+      const double radius = std::sqrt(
+        query[0] * query[0] + query[1] * query[1] + query[2] * query[2]);
+      const bool inside = radius > 1.0 ? false : true;
+      const int rounded = std::lround(gwn[idx]);
+      axom::fmt::format_to(
+        std::back_inserter(csv),
+        "{:.15f}, {:.15f}, {:.15f}, {:.15f}, {:.15f}, {}, {}\n",
+        query[0],
+        query[1],
+        query[2],
+        radius,
+        gwn[idx],
+        inside,
+        rounded);
+
+      if(rounded == 0)
+      {
+        ++outside_count;
+      }
+    }
+
+    std::string csvFilename =
+      joinPath(out_prefix,
+               axom::fmt::format("{}_gwn_field{}.csv", filename, out_suffix));
+    std::ofstream csvFile(csvFilename);
+    csvFile << axom::fmt::to_string(csv);
+    SLIC_INFO(axom::fmt::format("CSV file generated: '{}'", csvFilename));
+    const int inside_count = num_query_pts - outside_count;
+    SLIC_INFO(axom::fmt::format(
+      axom::utilities::locale(),
+      "Out of {:L} query points, {:L} were inside ({:.2f}%) and {:L} were "
+      "outside ({:.2f}%)",
+      num_query_pts,
+      inside_count,
+      (static_cast<double>(inside_count) / num_query_pts) * 100.0,
+      outside_count,
+      (static_cast<double>(outside_count) / num_query_pts) * 100.0));
+  }
+
+  {
+    std::string out_file = joinPath(
+      out_prefix,
+      axom::fmt::format("{}_timing_summary{}.csv", filename, out_suffix));
+
+    SLIC_INFO(axom::fmt::format("Writing results to '{}'", out_file));
+    std::ofstream summary(out_file);
+    summary << "Case, Total patches, Total curves, Time Totals (s)\n";
+    summary << axom::fmt::format("Case 0: Outside AABB: {}, {}, {:.15f}\n",
+                                 case_patch_totals[0],
+                                 case_curves_totals[0],
+                                 case_time_totals[0]);
+
+    summary << axom::fmt::format("Case 1: Outside OBB: {}, {}, {:.15f}\n",
+                                 case_patch_totals[1],
+                                 case_curves_totals[1],
+                                 case_time_totals[1]);
+
+    summary << axom::fmt::format("Case 2: Casting Necessary: {}, {}, {:.15f}\n",
+                                 case_patch_totals[2],
+                                 case_curves_totals[2],
+                                 case_time_totals[2]);
+
+    summary << axom::fmt::format(
+      "Case 3: Trimming Curve Subdivision: {}, {}, {:.15f}\n",
+      case_patch_totals[3],
+      case_curves_totals[3],
+      case_time_totals[3]);
+  }
+}
+
 int main()
 {
   // graphical_abstract_watertight();
   // graphical_abstract_exploded();
-  nut_3d_example();
+  //   nut_3d_example();
   // nut_2d_example();
   // discretized_curve_gwn();
   // discretized_surface_gwn();
@@ -4432,18 +4613,18 @@ int main()
   // Overlap of 9995 and 4196
   // 9979 at varying levels zooming
 
-  std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\spring_"
-    "direction\\";
-  axom::primal::BoundingBox<double, 3> bbox;
-  std::string filename;
+  //   std::string prefix =
+  //     "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\spring_"
+  //     "direction\\";
+  //   axom::primal::BoundingBox<double, 3> bbox;
+  //   std::string filename;
 
-  // Spring
-  filename = "spring_split";
-  bbox.clear();
-  bbox.addPoint(axom::primal::Point<double, 3> {-0.04, -0.04, -0.03});
-  bbox.addPoint(axom::primal::Point<double, 3> {0.04, 0.04, 0.03});
-  bbox.scale(1.01);
+  //   // Spring
+  //   filename = "spring_split";
+  //   bbox.clear();
+  //   bbox.addPoint(axom::primal::Point<double, 3> {-0.04, -0.04, -0.03});
+  //   bbox.addPoint(axom::primal::Point<double, 3> {0.04, 0.04, 0.03});
+  //   bbox.scale(1.01);
   // generic_timing_test(prefix, filename, bbox);
 
   // generic_direction_timing_test(prefix, filename, "x", axom::primal::Vector<double, 3> {1, 0, 0}, bbox);
@@ -4477,5 +4658,8 @@ int main()
   // spring_direction_example();
   // quadrature_on_sphere();
   //   plot_trimming_curves();
+
+  generateSamplePointsOnSphere(100, 1e-4);
+
   return 0;
 }
