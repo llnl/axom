@@ -535,7 +535,7 @@ double winding_number(const Point<T, 3>& query,
   const double edge_tol_sq = edge_tol * edge_tol;
 
   // Fix the number of quadrature points arbitrarily
-  constexpr int quad_npts = 15;
+  constexpr int quad_npts = 50;
 
   // Store the winding number
   double the_gwn = 0.0;
@@ -582,9 +582,10 @@ double winding_number(const Point<T, 3>& query,
   };
 
   // Lambda to generate an entirely random unit vector
-  auto random_unit = []() -> Vector<T, 3> {
-    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-    double u = axom::utilities::random_real(-1.0, 1.0);
+  auto random_unit = [&depth]() -> Vector<T, 3> {
+    unsigned int seed = 140;
+    double theta = axom::utilities::random_real(0.0, 2 * M_PI, seed + depth);
+    double u = axom::utilities::random_real(-1.0, 1.0, seed + depth);
     return Vector<T, 3> {sin(theta) * sqrt(1 - u * u),
                          cos(theta) * sqrt(1 - u * u),
                          u};
@@ -681,6 +682,7 @@ double winding_number(const Point<T, 3>& query,
     // Compute intersections with the *untrimmed and extrapolated* patch
     axom::Array<T> up, vp, tp;
     bool isHalfOpen = false, isTrimmed = false;
+    nPatchTrimmedMore.expandParameterSpace(0.1 * patch_knot_size);
     bool success = intersect(discontinuity_axis,
                              nPatchTrimmedMore,
                              tp,
@@ -728,8 +730,11 @@ double winding_number(const Point<T, 3>& query,
       {
         // If the query point is on the surface, then shrink the disk
         //  to ensure its winding number is known to be near-zero
-        disk_radius = 0.1 * disk_radius;
+        disk_radius = 0.01 * disk_radius;
       }
+
+      // nPatchTrimmedMore.printTrimmingCurves(
+      //     "C:\\Users\\Fireh\\Code\\winding_number_code\\trimming_examples\\original.txt");
 
       // Consider a disk around the intersection point via NURBSPatch::diskSplit.
       //   If the disk intersects any trimming curves, need to do disk subdivision.
@@ -747,7 +752,12 @@ double winding_number(const Point<T, 3>& query,
                                   ignoreInteriorDisk,
                                   clipDisk);
 
-      if(isOnSurface)
+        // the_disk.printTrimmingCurves(
+        //   "C:\\Users\\Fireh\\Code\\winding_number_code\\trimming_examples\\disk.txt");
+        // nPatchTrimmedMore.printTrimmingCurves(
+        //   "C:\\Users\\Fireh\\Code\\winding_number_code\\trimming_examples\\remaining.txt");
+
+        if(isOnSurface)
       {
         // If the query point is on the surface, the contribution of the disk is near-zero
         //  and we only needed to puncture the larger surface to proceed
@@ -793,7 +803,7 @@ double winding_number(const Point<T, 3>& query,
     {
       for(int j = 0; j < patch_shape[1]; ++j)
       {
-        nPatchTrimmedMore(i, j) = rotate_point(rotator, nPatch(i, j));
+        nPatchTrimmedMore(i, j) = rotate_point(rotator, nPatchTrimmedMore(i, j));
       }
     }
   }

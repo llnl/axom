@@ -670,6 +670,9 @@ TEST(primal_integral, bezierpatch_sphere)
   // Iterate over difficult query directions for very close points
   for(int i = 0; i < 12; ++i)
   {
+    // if(i != 3) continue;
+    // std::cout << i << std::endl;
+
     // Pick point close to the surface
     auto inner_query = Point3D((1.0 - edge_offset) * query_directions[i].array());
     auto outer_query = Point3D((1.0 + edge_offset) * query_directions[i].array());
@@ -693,8 +696,7 @@ TEST(primal_integral, bezierpatch_sphere)
     EXPECT_NEAR(outer_wn, 0.0, 6 * quad_tol);
 
     // Pick a point on the surface too.
-    //  Regardless of what tolerances are picked, the winding number
-    //  should lie between the values on either side when rounded
+    //  We can't be as precise in this case, but we can still get close
     auto coincident_query = Point3D(query_directions[i].array());
     double coincident_wn = 0.0;
     for(int k = 0; k < 6; ++k)
@@ -702,8 +704,7 @@ TEST(primal_integral, bezierpatch_sphere)
       coincident_wn +=
         winding_number(coincident_query, sphere_faces[k], edge_tol, quad_tol, EPS);
     }
-    EXPECT_LT(coincident_wn, 1.5);
-    EXPECT_LT(-0.5, coincident_wn);
+    EXPECT_NEAR(coincident_wn, 0.5, 0.01);
   }
 }
 

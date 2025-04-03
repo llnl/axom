@@ -124,7 +124,7 @@ double stokes_winding_number_adaptive(const Point<T, 3>& query,
                                                        quad_rule,
                                                        quad_tol);
 
-  if(refinement_level > 15 ||
+  if(refinement_level > 25 ||
      axom::utilities::isNearlyEqualRelative(quad_coarse,
                                             quad_fine_1 + quad_fine_2,
                                             quad_tol,

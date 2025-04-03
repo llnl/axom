@@ -3070,6 +3070,129 @@ public:
     return beziers;
   }
 
+  /*!
+   * \brief Expand the parameter space of a NURBS patch linearly (along tangents)
+   *
+   * \param [in] buffer The amount to expand the parameter space by
+   */
+  void expandParameterSpace(double buffer)
+  {
+    SLIC_ASSERT(buffer > 0.0);
+
+    auto n = getNumControlPoints_u();
+    auto m = getNumControlPoints_v();
+
+    if(n <= 1 || m <= 1)
+    {
+      return;
+    }
+
+    auto deg_u = getDegree_u();
+    auto deg_v = getDegree_v();
+
+    CoordsMat newControlPoints(n + 2 * deg_u, m + 2 * deg_v);
+    WeightsMat newWeights(0, 0);
+    if(isRational())
+    {
+      newWeights.resize(n + 2 * deg_u, m + 2 * deg_v);
+      newWeights.fill(1.0);
+    }
+
+    axom::Array<T> newKnotVec_u, newKnotVec_v;
+
+    // Copy the original control points
+    for(int i = 0; i < n; ++i)
+    {
+      for(int j = 0; j < m; ++j)
+      {
+        newControlPoints(i + deg_u, j + deg_v) = m_controlPoints(i, j);
+        if(isRational())
+        {
+          newWeights(i + deg_u, j + deg_v) = m_weights(i, j);
+        }
+      }
+    }
+
+    // Add the control points on the u direction
+    for(int i = 0; i < n; ++i)
+    {
+      Vector<T, 3> v(m_controlPoints(i, 1), m_controlPoints(i, 0));
+      for(int j = 0; j < deg_v; ++j)
+      {
+        newControlPoints(i + deg_u, j).array() = m_controlPoints(i, 0).array() +
+          static_cast<T>(deg_v - j) / (deg_v)*buffer * v.array();
+      }
+
+      v = Vector<T, 3>(m_controlPoints(i, m - 2), m_controlPoints(i, m - 1));
+      for(int j = 0; j < deg_v; ++j)
+      {
+        newControlPoints(i + deg_u, m + deg_v + j).array() =
+          m_controlPoints(i, m - 1).array() +
+          static_cast<T>(j + 1) / (deg_v)*buffer * v.array();
+      }
+    }
+
+    // Add the control points on the v direction
+    //  Note that this method uses values added in the u direction,
+    //  making it slightly anisotropic at the corners
+    for(int j = 0; j < m + 2 * deg_v; ++j)
+    {
+      Vector<T, 3> v(newControlPoints(deg_u + 1, j), newControlPoints(deg_u, j));
+      for(int i = 0; i < deg_u; ++i)
+      {
+        newControlPoints(i, j).array() = newControlPoints(deg_u, j).array() +
+          static_cast<T>(deg_u - i) / (deg_u)*buffer * v.array();
+      }
+
+      v = Vector<T, 3>(newControlPoints(n - 2 + deg_u, j),
+                       newControlPoints(n + deg_u - 1, j));
+      for(int i = 0; i < deg_u; ++i)
+      {
+        newControlPoints(n + deg_u + i, j).array() =
+          newControlPoints(n + deg_u - 1, j).array() +
+          static_cast<T>(i + 1) / (deg_u)*buffer * v.array();
+      }
+    }
+
+    // Fix the knot vectors
+    newKnotVec_u.resize(m_knotvec_u.getNumKnots() + 2 * m_knotvec_u.getDegree());
+    for(int i = 0; i <= deg_u; ++i)
+    {
+      newKnotVec_u[i] = m_knotvec_u[0] - buffer;
+    }
+    for(int i = 0; i < m_knotvec_u.getNumKnots() - 2; ++i)
+    {
+      newKnotVec_u[i + deg_u + 1] = m_knotvec_u[i + 1];
+    }
+    for(int i = 0; i <= deg_u; ++i)
+    {
+      newKnotVec_u[i + deg_u + m_knotvec_u.getNumKnots() - 1] =
+        m_knotvec_u[m_knotvec_u.getNumKnots() - 1] + buffer;
+    }
+
+    // Fix the knot vector
+    newKnotVec_v.resize(m_knotvec_v.getNumKnots() + 2 * m_knotvec_v.getDegree());
+    for(int i = 0; i <= deg_v; ++i)
+    {
+      newKnotVec_v[i] = m_knotvec_v[0] - buffer;
+    }
+    for(int i = 0; i < m_knotvec_v.getNumKnots() - 2; ++i)
+    {
+      newKnotVec_v[i + deg_v + 1] = m_knotvec_v[i + 1];
+    }
+    for(int i = 0; i <= deg_v; ++i)
+    {
+      newKnotVec_v[i + deg_v + m_knotvec_v.getNumKnots() - 1] =
+        m_knotvec_v[m_knotvec_v.getNumKnots() - 1] + buffer;
+    }
+
+    m_controlPoints = newControlPoints;
+    m_weights = newWeights;
+
+    m_knotvec_u = KnotVectorType(newKnotVec_u, deg_u);
+    m_knotvec_v = KnotVectorType(newKnotVec_v, deg_v);
+  }
+
   /// \brief Normalize the knot vectors to the span [0, 1]
   void normalize()
   {
