@@ -1176,8 +1176,8 @@ std::pair<double, double> winding_number_casting_split(
       bool retry_cast = false;
 
       // Pick a random cast direction
-      double theta = 1.0;  //axom::utilities::random_real(0.0, 2 * M_PI);
-      double u = 1.0;      //axom::utilities::random_real(-1.0, 1.0);
+      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+      double u = axom::utilities::random_real(-1.0, 1.0);
       singularity_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u),
                                             cos(theta) * sqrt(1 - u * u),
                                             u};
@@ -1353,7 +1353,8 @@ double winding_number_direct(const Point<T, 3>& query,
                              const double EPS = 1e-8)
 {
   // Compute the winding number with a direct 2D surface integral
-  return detail::surface_winding_number(query, bPatch, 100, quad_tol, false);
+//   return detail::surface_winding_number(query, bPatch, 100, quad_tol, false);
+  return detail::surface_winding_number(query, bPatch, 100);
 }
 
 template <typename T>
