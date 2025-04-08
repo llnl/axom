@@ -12,6 +12,7 @@
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/detail/FlatTable.hpp"
+#include "axom/core/detail/FlatMapOps.hpp"
 
 namespace axom
 {
@@ -148,13 +149,9 @@ public:
                   "Cannot copy an axom::FlatMap when value type is not "
                   "copy-constructible.");
     // Copy all elements.
-    const auto metadata = m_metadata.view();
-    IndexType index = this->nextValidIndex(metadata, NO_MATCH);
-    while(index < bucket_count())
-    {
-      new(&m_buckets[index].data) KeyValuePair(other.m_buckets[index].get());
-      index = this->nextValidIndex(metadata, index);
-    }
+    detail::flat_map::copyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(),
+                                                              other.m_buckets.view(),
+                                                              m_buckets.view());
   }
 
   /*!
@@ -199,25 +196,19 @@ public:
     , m_loadCount(other.m_loadCount)
   {
     // Copy all elements.
-    const auto metadata = m_metadata.view();
-    IndexType index = this->nextValidIndex(metadata, NO_MATCH);
-    while(index < bucket_count())
-    {
-      new(&m_buckets[index].data) KeyValuePair(other.m_buckets[index].get());
-      index = this->nextValidIndex(metadata, index);
-    }
+    detail::flat_map::copyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(),
+                                                              other.m_buckets.view(),
+                                                              m_buckets.view());
   }
 
   /// \brief Destructor for a FlatMap instance.
   ~FlatMap()
   {
     // Destroy all elements.
-    const auto metadata = m_metadata.view();
-    IndexType index = this->nextValidIndex(metadata, NO_MATCH);
-    while(index < bucket_count())
+    if(m_size > 0)
     {
-      m_buckets[index].get().~KeyValuePair();
-      index = this->nextValidIndex(metadata, index);
+      detail::flat_map::destroyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(),
+                                                                   m_buckets.view());
     }
 
     // Unlike in clear() we don't need to reset metadata here.
@@ -373,19 +364,14 @@ public:
   void clear()
   {
     // Destroy all elements.
-    IndexType index = this->nextValidIndex(m_metadata, NO_MATCH);
-    while(index < bucket_count())
-    {
-      m_buckets[index].get().~KeyValuePair();
-      index = this->nextValidIndex(m_metadata, index);
-    }
+    detail::flat_map::destroyBuckets<KeyValuePair, LookupPolicy>(m_metadata.view(), m_buckets.view());
 
     // Also reset metadata.
-    for(int group_index = 0; group_index < m_metadata.size(); group_index++)
-    {
-      m_metadata[group_index] = detail::flat_map::GroupBucket {};
-    }
-    m_metadata[m_metadata.size() - 1].setSentinel();
+    IndexType numGroupsRounded = 1 << m_numGroups2;
+    m_metadata.clear();
+    m_metadata.resize(numGroupsRounded, detail::flat_map::GroupBucket {});
+
+    detail::flat_map::setSentinel(m_metadata);
     m_size = 0;
     m_loadCount = 0;
   }
@@ -586,12 +572,20 @@ public:
    */
   void rehash(IndexType count)
   {
-    FlatMap rehashed(m_size,
-                     std::make_move_iterator(begin()),
-                     std::make_move_iterator(end()),
-                     count,
-                     m_allocator);
-    this->swap(rehashed);
+    if(m_size == 0)
+    {
+      FlatMap realloced(count, m_allocator);
+      this->swap(realloced);
+    }
+    else
+    {
+      FlatMap rehashed(m_size,
+                       std::make_move_iterator(begin()),
+                       std::make_move_iterator(end()),
+                       count,
+                       m_allocator);
+      this->swap(rehashed);
+    }
   }
 
   /*!
@@ -715,7 +709,7 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count, Allocator all
 
   using BucketType = detail::flat_map::GroupBucket;
   m_metadata = axom::Array<BucketType>(numGroupsRounded, numGroupsRounded, m_allocator.get());
-  m_metadata[numGroupsRounded - 1].setSentinel();
+  detail::flat_map::setSentinel(m_metadata);
   m_buckets = axom::Array<PairStorage>(numBuckets, numBuckets, m_allocator.get());
 }
 
