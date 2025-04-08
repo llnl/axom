@@ -1714,6 +1714,9 @@ public:
   */
   void prepareShapeQuery(klee::Dimensions shapeDimension, const klee::Shape& shape) override
   {
+    // TODO
+    SLIC_INFO("Computational mesh dimension is " << getCompMeshDim());
+
     AXOM_ANNOTATE_SCOPE("prepareShapeQuery");
     const std::string shapeFormat = shape.getGeometry().getFormat();
 
@@ -2904,6 +2907,40 @@ private:
     bool isTri = m_surfaceMesh != nullptr && m_surfaceMesh->getDimension() == 2 &&
       !m_surfaceMesh->hasMixedCellTypes() && m_surfaceMesh->getCellType() == mint::TRIANGLE;
     return isTri;
+  }
+
+  /*!
+   * \brief Returns the dimension of the computational mesh
+   * \return dim The dimensions of the mesh (expected is 2 or 3, -1 in case of failure)
+   */
+  int getCompMeshDim()
+  {
+    SLIC_ERROR_IF(m_dc == nullptr && m_bpGrp == nullptr, "Computational mesh is not initialized");
+
+    int dim = -1;
+  #if defined(AXOM_USE_MFEM)
+    if(m_dc != nullptr)
+    {
+      dim = this->getDC()->GetMesh()->SpaceDimension();
+    }
+  #endif
+  #if defined(AXOM_USE_CONDUIT)
+    if(m_bpGrp != nullptr)
+    {
+      std::string mesh_type = m_bpGrp->getView("topologies/mesh/elements/shape")->getString();
+      if(mesh_type == "hex")
+      {
+        dim = 3;
+      }
+      else if(mesh_type == "quad")
+      {
+        dim = 2;
+      }
+    }
+  #endif
+
+    SLIC_ERROR_IF(!(dim == 2 || dim == 3), "Invalid computational mesh dimension");
+    return dim;
   }
 
 private:
