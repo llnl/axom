@@ -91,7 +91,7 @@ struct GroupBucket
     return InvalidSlot;
   }
 
-  int nextFilledBucket(int start_index) const
+  AXOM_HOST_DEVICE int nextFilledBucket(int start_index) const
   {
     for(int i = start_index + 1; i < Size; i++)
     {
@@ -127,7 +127,13 @@ struct GroupBucket
 #if defined(AXOM_USE_RAJA)
     if(Atomic)  // TODO: should be constexpr
     {
+  #if defined(AXOM_USE_CUDA)
+      // CUDA workaround for lack of 8-bit atomicStore.
+      volatile std::uint8_t* bucket = &(metadata.buckets[index]);
+      *bucket = reduced_hash;
+  #else
       RAJA::atomicStore<RAJA::auto_atomic>(&(metadata.buckets[index]), reduced_hash);
+  #endif
       return;
     }
 #endif
@@ -143,7 +149,7 @@ struct GroupBucket
 #if defined(AXOM_USE_RAJA)
     if(Atomic)  // TODO: should be constexpr
     {
-  #if defined(AXOM_USE_HIP)
+  #if defined(AXOM_USE_HIP) || defined(AXOM_USE_CUDA)
       // Workaround for a lack of an atomicOr builtin for uint8_t.
       GroupBucket pack_data {};
       pack_data.metadata.ofw = hashOfwBit;
@@ -165,8 +171,13 @@ struct GroupBucket
 #if defined(AXOM_USE_RAJA)
     if(Atomic)  // TODO: should be constexpr
     {
+  #if defined(AXOM_USE_CUDA)
+      // CUDA workaround for lack of 8-bit atomicLoad.
+      curr_ofw = *const_cast<const volatile std::uint8_t*>(&(metadata.ofw));
+  #else
       // TODO: why is the const_cast required? (RAJA issue?)
       curr_ofw = RAJA::atomicLoad<RAJA::auto_atomic>(const_cast<std::uint8_t*>(&(metadata.ofw)));
+  #endif
     }
     else
     {
