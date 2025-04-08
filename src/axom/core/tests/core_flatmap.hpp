@@ -70,6 +70,13 @@ public:
   using KeyType = typename FlatMapType::key_type;
   using ValueType = typename FlatMapType::mapped_type;
 
+#if defined(AXOM_USE_HIP)
+  using DeviceExec = axom::HIP_EXEC<256>;
+#elif defined(AXOM_USE_CUDA)
+  using DeviceExec = axom::CUDA_EXEC<256>;
+#endif
+  using HostExec = axom::SEQ_EXEC;
+
   template <typename T>
   KeyType getKey(T input)
   {
@@ -670,3 +677,66 @@ AXOM_TYPED_TEST(core_flatmap, range_for_loop_write)
     EXPECT_EQ(test_map[key], expected_value);
   }
 }
+#if defined(AXOM_USE_HIP) || defined(AXOM_USE_CUDA)
+
+AXOM_TYPED_TEST(core_flatmap, copy_host_device)
+{
+  using MapType = typename TestFixture::MapType;
+
+  using HostExec = typename TestFixture::HostExec;
+  using DeviceExec = typename TestFixture::DeviceExec;
+
+  const int host_alloc_id = axom::execution_space<HostExec>::allocatorID();
+  const int device_alloc_id = axom::execution_space<DeviceExec>::allocatorID();
+
+  MapType test_map(axom::Allocator {host_alloc_id});
+
+  const int NUM_ELEMS = 100;
+  const int EMPTY_CHECKS = 100;
+
+  // Create map on the host.
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    test_map.insert({key, value});
+  }
+
+  // Copy from the host to the device.
+  MapType test_map_device = MapType(test_map, axom::Allocator {device_alloc_id});
+
+  // Check that maps are equivalent with a different allocator ID.
+  EXPECT_EQ(test_map_device.getAllocatorID(), device_alloc_id);
+  EXPECT_EQ(test_map_device.bucket_count(), test_map.bucket_count());
+  EXPECT_EQ(test_map_device.size(), test_map.size());
+
+  // Copy back to the host.
+  MapType test_map_host = MapType(test_map_device, axom::Allocator {host_alloc_id});
+
+  // Check that maps are equivalent with the same allocator ID.
+  EXPECT_EQ(test_map_host.getAllocatorID(), host_alloc_id);
+  EXPECT_EQ(test_map_host.bucket_count(), test_map.bucket_count());
+  EXPECT_EQ(test_map_host.size(), test_map.size());
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+
+    EXPECT_EQ(test_map_host.contains(key), true);
+    EXPECT_EQ(test_map_host.count(key), 1);
+    EXPECT_EQ(test_map_host.find(key)->first, test_map.find(key)->first);
+    EXPECT_EQ(test_map_host.find(key)->second, test_map.find(key)->second);
+  }
+
+  for(int i = NUM_ELEMS; i < NUM_ELEMS + EMPTY_CHECKS; i++)
+  {
+    auto key = this->getKey(i);
+
+    EXPECT_EQ(test_map_host.contains(key), false);
+    EXPECT_EQ(test_map_host.count(key), 0);
+    EXPECT_EQ(test_map_host.find(key), test_map_host.end());
+  }
+}
+
+#endif
