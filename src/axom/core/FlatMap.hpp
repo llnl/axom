@@ -575,6 +575,11 @@ public:
   double max_load_factor() const { return MAX_LOAD_FACTOR; }
 
   /*!
+   * \brief Returns the allocator ID the FlatMap is allocated with.
+   */
+  int getAllocatorID() const { return m_allocator.get(); }
+
+  /*!
    * \brief Explicitly rehash the FlatMap with a given number of buckets.
    *
    * \param count the minimum number of buckets to allocate for the rehash
