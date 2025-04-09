@@ -242,6 +242,7 @@ void Shaper::loadShapeInternal(const klee::Shape& shape, double percentError, do
 
   // Code for discretizing shapes has been factored into DiscreteShape class.
   DiscreteShape discreteShape(shape, m_dataStore.getRoot(), m_prefixPath);
+  discreteShape.setSamplesPerKnotSpan(m_samplesPerKnotSpan);
   discreteShape.setVertexWeldThreshold(m_vertexWeldThreshold);
   discreteShape.setRefinementType(m_refinementType);
   if(percentError > 0)

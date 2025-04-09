@@ -2915,8 +2915,6 @@ private:
    */
   int getCompMeshDim()
   {
-    SLIC_ERROR_IF(m_dc == nullptr && m_bpGrp == nullptr, "Computational mesh is not initialized");
-
     int dim = -1;
   #if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
