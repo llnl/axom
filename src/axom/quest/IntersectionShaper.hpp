@@ -801,7 +801,9 @@ private:
     }  // end of verbose output for Pro/E
   }
 
-  // Prepares the C2C mesh cells for the spatial index
+  // Prepares the C2C mesh cells for the spatial index.
+  // Produced octahedra for the revolved contour in the 3D case,
+  // or triangles for the contour bounded by the x-axis in the 2D case.
   template <typename ExecSpace>
   void prepareC2CCells()
   {
@@ -811,9 +813,6 @@ private:
     int pointcount = getSurfaceMesh()->getNumberOfNodes();
 
     axom::Array<Point2D> polyline(pointcount, pointcount);
-
-    SLIC_INFO(
-      axom::fmt::format("{:-^80}", axom::fmt::format(" Refinement level set to {} ", m_level)));
 
     SLIC_INFO(axom::fmt::format(
       "{:-^80}",
@@ -829,91 +828,159 @@ private:
     }
     int polyline_size = pointcount;
 
-    // Generate the Octahedra
-    // (octahedra m_octs will be on device)
-    const bool disc_status =
-      axom::quest::discretize<ExecSpace>(polyline, polyline_size, m_level, m_octs, m_octcount);
+    int compMeshDim = getCompMeshDim();
 
-    axom::ArrayView<OctahedronType> octs_device_view = m_octs.view();
-
-    AXOM_UNUSED_VAR(disc_status);  // silence warnings in release configs
-    SLIC_ASSERT_MSG(disc_status,
-                    "Discretization of contour has failed. Check that contour is valid");
-
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "Contour has been discretized into {:L} octahedra ",
-                                m_octcount));
-
-    if(this->isVerbose())
+    // Produce octahedra for revolved contour (3D)
+    if(compMeshDim == 3)
     {
-      // Print out the bounding box containing all the octahedra
-      BoundingBox3D all_oct_bb;
-      axom::Array<OctahedronType> octs_host = axom::Array<OctahedronType>(m_octs, host_allocator);
-      auto octs_host_view = octs_host.view();
-
-      for(int i = 0; i < m_octcount; i++)
-      {
-        all_oct_bb.addBox(primal::compute_bounding_box(octs_host[i]));
-      }
       SLIC_INFO(
-        axom::fmt::format("DEBUG: Bounding box containing all generated octahedra "
-                          "has dimensions:\n\t{}",
-                          all_oct_bb));
+        axom::fmt::format("{:-^80}", axom::fmt::format(" Refinement level set to {} ", m_level)));
 
-      // Print out the total volume of all the octahedra
-      using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-      RAJA::ReduceSum<REDUCE_POL, double> total_oct_vol(0.0);
-      axom::for_all<ExecSpace>(
-        m_octcount,
-        AXOM_LAMBDA(axom::IndexType i) {
-          // Convert Octahedron into Polyhedrom
-          PolyhedronType octPoly;
+      // Generate the Octahedra
+      // (octahedra m_octs will be on device)
+      const bool disc_status =
+        axom::quest::discretize<ExecSpace>(polyline, polyline_size, m_level, m_octs, m_octcount);
 
-          octPoly.addVertex(octs_device_view[i][0]);
-          octPoly.addVertex(octs_device_view[i][1]);
-          octPoly.addVertex(octs_device_view[i][2]);
-          octPoly.addVertex(octs_device_view[i][3]);
-          octPoly.addVertex(octs_device_view[i][4]);
-          octPoly.addVertex(octs_device_view[i][5]);
+      axom::ArrayView<OctahedronType> octs_device_view = m_octs.view();
 
-          octPoly.addNeighbors(0, {1, 5, 4, 2});
-          octPoly.addNeighbors(1, {0, 2, 3, 5});
-          octPoly.addNeighbors(2, {0, 4, 3, 1});
-          octPoly.addNeighbors(3, {1, 2, 4, 5});
-          octPoly.addNeighbors(4, {0, 5, 3, 2});
-          octPoly.addNeighbors(5, {0, 1, 3, 4});
+      AXOM_UNUSED_VAR(disc_status);  // silence warnings in release configs
+      SLIC_ASSERT_MSG(disc_status,
+                      "Discretization of contour has failed. Check that contour is valid");
 
-          total_oct_vol += octPoly.volume();
-        });
+      SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                  "Contour has been discretized into {:L} octahedra ",
+                                  m_octcount));
 
-      SLIC_INFO(axom::fmt::format("DEBUG: Total volume of all generated octahedra is {}",
-                                  total_oct_vol.get()));
+      if(this->isVerbose())
+      {
+        // Print out the bounding box containing all the octahedra
+        BoundingBox3D all_oct_bb;
+        axom::Array<OctahedronType> octs_host = axom::Array<OctahedronType>(m_octs, host_allocator);
+        auto octs_host_view = octs_host.view();
 
-      // Check if any Octahedron are degenerate with all points {0,0,0}
-      RAJA::ReduceSum<REDUCE_POL, int> num_degenerate(0);
-      axom::for_all<ExecSpace>(
-        m_octcount,
-        AXOM_LAMBDA(axom::IndexType i) {
-          OctahedronType degenerate_oct;
-          if(octs_device_view[i].equals(degenerate_oct))
-          {
-            num_degenerate += 1;
-          }
-        });
+        for(int i = 0; i < m_octcount; i++)
+        {
+          all_oct_bb.addBox(primal::compute_bounding_box(octs_host[i]));
+        }
+        SLIC_INFO(
+          axom::fmt::format("DEBUG: Bounding box containing all generated octahedra "
+                            "has dimensions:\n\t{}",
+                            all_oct_bb));
 
-      SLIC_INFO(axom::fmt::format("DEBUG: {} Octahedron found with all points (0,0,0)",
-                                  num_degenerate.get()));
+        // Print out the total volume of all the octahedra
+        using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
+        RAJA::ReduceSum<REDUCE_POL, double> total_oct_vol(0.0);
+        axom::for_all<ExecSpace>(
+          m_octcount,
+          AXOM_LAMBDA(axom::IndexType i) {
+            // Convert Octahedron into Polyhedrom
+            PolyhedronType octPoly;
 
-      // Dump discretized octs as a tet mesh
-      axom::mint::Mesh* tetmesh;
-      axom::quest::mesh_from_discretized_polyline(octs_host_view,
-                                                  m_octcount,
-                                                  polyline_size - 1,
-                                                  tetmesh);
-      axom::mint::write_vtk(tetmesh, "discretized_surface_of_revolution.vtk");
-      delete tetmesh;
+            octPoly.addVertex(octs_device_view[i][0]);
+            octPoly.addVertex(octs_device_view[i][1]);
+            octPoly.addVertex(octs_device_view[i][2]);
+            octPoly.addVertex(octs_device_view[i][3]);
+            octPoly.addVertex(octs_device_view[i][4]);
+            octPoly.addVertex(octs_device_view[i][5]);
 
-    }  // end of verbose output for contour
+            octPoly.addNeighbors(0, {1, 5, 4, 2});
+            octPoly.addNeighbors(1, {0, 2, 3, 5});
+            octPoly.addNeighbors(2, {0, 4, 3, 1});
+            octPoly.addNeighbors(3, {1, 2, 4, 5});
+            octPoly.addNeighbors(4, {0, 5, 3, 2});
+            octPoly.addNeighbors(5, {0, 1, 3, 4});
+
+            total_oct_vol += octPoly.volume();
+          });
+
+        SLIC_INFO(axom::fmt::format("DEBUG: Total volume of all generated octahedra is {}",
+                                    total_oct_vol.get()));
+
+        // Check if any Octahedron are degenerate with all points {0,0,0}
+        RAJA::ReduceSum<REDUCE_POL, int> num_degenerate(0);
+        axom::for_all<ExecSpace>(
+          m_octcount,
+          AXOM_LAMBDA(axom::IndexType i) {
+            OctahedronType degenerate_oct;
+            if(octs_device_view[i].equals(degenerate_oct))
+            {
+              num_degenerate += 1;
+            }
+          });
+
+        SLIC_INFO(axom::fmt::format("DEBUG: {} Octahedron found with all points (0,0,0)",
+                                    num_degenerate.get()));
+
+        // Dump discretized octs as a tet mesh
+        axom::mint::Mesh* tetmesh;
+        axom::quest::mesh_from_discretized_polyline(octs_host_view,
+                                                    m_octcount,
+                                                    polyline_size - 1,
+                                                    tetmesh);
+        axom::mint::write_vtk(tetmesh, "discretized_surface_of_revolution.vtk");
+        delete tetmesh;
+
+      }  // end of verbose output for contour
+    }    // end of 3D case
+
+    // Produce triangles for contour bounded by x-axis (2D)
+    else
+    {
+      SLIC_INFO(
+        axom::fmt::format("{:-^80}",
+                          axom::fmt::format(axom::utilities::locale(),
+                                            "{:L} linear segments to generate per NURBS knot span",
+                                            m_samplesPerKnotSpan)));
+
+      const int device_allocator = axom::execution_space<ExecSpace>::allocatorID();
+
+      // Number of triangles in mesh (2 triangles per segment/quad cell)
+      m_tricount = m_surfaceMesh->getNumberOfCells() * 2;
+
+      axom::Array<PolygonStaticType> tris_host(m_tricount, m_tricount, host_allocator);
+
+      // Initialize 2D triangles from segment mesh (3rd point is on the x-axis)
+      axom::Array<IndexType> nodeIds(2);
+
+      // Buffer to store 2D points
+      axom::Array<Point2D> pts(2);
+
+      for(int i = 0; i < m_tricount / 2; i++)
+      {
+        m_surfaceMesh->getCellNodeIDs(i, nodeIds.data());
+
+        m_surfaceMesh->getNode(nodeIds[0], pts[0].data());
+        m_surfaceMesh->getNode(nodeIds[1], pts[1].data());
+
+        constexpr double EPS = 1e-10;
+        if(axom::primal::detail::isLt(pts[0][1], 0.0, EPS) ||
+           axom::primal::detail::isLt(pts[1][1], 0.0, EPS))
+        {
+          SLIC_ERROR("2D: Contour with non-negative r values expected");
+        }
+
+        SLIC_INFO("Point 0 "
+                  << " is " << pts[0]);
+        SLIC_INFO("Point 1 "
+                  << " is " << pts[1]);
+
+        // Right ear of quad
+        tris_host[i * 2] = PolygonStaticType({pts[1], pts[0], Point2D {pts[0][0], 0}});
+        SLIC_INFO("Triangle " << i * 2 << " is " << tris_host[i * 2]);
+
+        // Left ear of quad
+        tris_host[(i * 2) + 1] = PolygonStaticType({pts[1], pts[0], Point2D {pts[1][0], 0}});
+        SLIC_INFO("Triangle " << (i * 2) + 1 << " is " << tris_host[(i * 2) + 1]);
+      }
+
+      // Copy triangles to device
+      m_tris = axom::Array<PolygonStaticType>(tris_host, device_allocator);
+
+      SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                  "Contour has been discretized into {:L} triangles ",
+                                  m_tricount));
+
+    }  // end of 2D case
   }
 
   /// Initializes the spatial index for shaping
@@ -1714,9 +1781,6 @@ public:
   */
   void prepareShapeQuery(klee::Dimensions shapeDimension, const klee::Shape& shape) override
   {
-    // TODO
-    SLIC_INFO("Computational mesh dimension is " << getCompMeshDim());
-
     AXOM_ANNOTATE_SCOPE("prepareShapeQuery");
     const std::string shapeFormat = shape.getGeometry().getFormat();
 
@@ -1796,7 +1860,7 @@ public:
   #endif  // AXOM_USE_HIP
       }
     }
-    else if(shapeFormat == "c2c")
+    else if(shapeFormat == "c2c" && getCompMeshDim() == 3)
     {
       switch(m_execPolicy)
       {
@@ -1816,6 +1880,30 @@ public:
   #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
       case RuntimePolicy::hip:
         runShapeQuery3DImpl<hip_exec, OctahedronType>(shape, m_octs, m_octcount);
+        break;
+  #endif  // AXOM_USE_HIP
+      }
+    }
+    else if(shapeFormat == "c2c" && getCompMeshDim() == 2)
+    {
+      switch(m_execPolicy)
+      {
+      case RuntimePolicy::seq:
+        runShapeQuery2DImpl<seq_exec>(shape, m_tris, m_tricount);
+        break;
+  #if defined(AXOM_USE_OPENMP)
+      case RuntimePolicy::omp:
+        runShapeQuery2DImpl<omp_exec>(shape, m_tris, m_tricount);
+        break;
+  #endif  // AXOM_USE_OPENMP
+  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+      case RuntimePolicy::cuda:
+        runShapeQuery2DImpl<cuda_exec>(shape, m_tris, m_tricount);
+        break;
+  #endif  // AXOM_USE_CUDA
+  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+      case RuntimePolicy::hip:
+        runShapeQuery2DImpl<hip_exec>(shape, m_tris, m_tricount);
         break;
   #endif  // AXOM_USE_HIP
       }

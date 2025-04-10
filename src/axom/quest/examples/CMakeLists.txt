@@ -231,6 +231,32 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             # leg length 0.25 has analytic volume 0.5
             set_tests_properties(${_testname} PROPERTIES
                 PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 0.5")
+
+            # Tests 2D c2c contour
+            set(_policies "seq")
+            if(RAJA_FOUND)
+                blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
+                blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+                blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
+            endif()
+            foreach(_policy ${_policies})
+                set(_testname quest_shaping_driver_ex_semi_circle_2d_${_policy})
+
+                axom_add_test(
+                    NAME ${_testname}
+                    COMMAND  quest_shaping_driver_ex
+                            -i ${shaping_data_dir}/revolved_circle.yaml
+                            --policy ${_policy}
+                            --segments-per-knot-span 1000
+                            --method intersection
+                            inline_mesh --min 0 0 --max 3 3 --res 3 3 -d 2
+                    NUM_MPI_TASKS ${_nranks})
+                # steel unit semi-circle with an area of pi/2
+                set_tests_properties(${_testname} PROPERTIES
+                    PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 1.57079")
+            endforeach()
+
+            unset(_policies)
         endif()
 
         # 3D shaping tests
