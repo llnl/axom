@@ -95,7 +95,6 @@ struct NURBSPatchData
     : patchIndex(idx)
     , patch(a_patch)
   {
-
     obox = patch.orientedBoundingBox();
 
     beziers = axom::Array<BezierPatch<T, 3>>();
@@ -106,8 +105,14 @@ struct NURBSPatchData
     //  are not visible in the trimming curves
 
     patch.normalizeBySpan();
+
+    pbox_diag = std::sqrt((patch.getMaxKnot_u() - patch.getMinKnot_u()) *
+                            (patch.getMaxKnot_u() - patch.getMinKnot_u()) +
+                          (patch.getMaxKnot_v() - patch.getMinKnot_v()) *
+                            (patch.getMaxKnot_v() - patch.getMinKnot_v()));
+
     patch.makeSimpleTrimmed();
-    patch.expandParameterSpace(0.1);
+    patch.expandParameterSpace(0.1 * pbox_diag);
     auto candidates = patch.extractBezier();
 
     axom::Array<T> knot_vals_u = patch.getKnots_u().getUniqueKnots();
@@ -168,6 +173,44 @@ struct NURBSPatchData
       }
     }
 
+    // Generate a rough approximation of the average normal
+    constexpr int npts = 11;
+    double u_pts[npts], v_pts[npts];
+    axom::numerics::linspace(patch.getMinKnot_u(),
+                             patch.getMaxKnot_u(),
+                             u_pts,
+                             npts);
+    axom::numerics::linspace(patch.getMinKnot_v(),
+                             patch.getMaxKnot_v(),
+                             v_pts,
+                             npts);
+
+    average_normal = axom::primal::Vector<T, 3>({0.0, 0.0, 0.0});
+    for(auto u : u_pts)
+    {
+      for(auto v : v_pts)
+      {
+        auto the_normal = patch.normal(u, v);
+        if(the_normal.norm() > 0.0)
+        {
+          average_normal += the_normal;
+        }
+      }
+    }
+
+    if(average_normal.norm() > 0.0)
+    {
+      average_normal /= average_normal.norm();
+    }
+    else
+    {
+      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+      double u = axom::utilities::random_real(-1.0, 1.0);
+      average_normal = Vector<T, 3> {sin(theta) * sqrt(1 - u * u),
+                                     cos(theta) * sqrt(1 - u * u),
+                                     u};
+    }
+
     bbox = patch.boundingBox();
     curve_quadrature_maps.resize(patch.getNumTrimmingCurves());
   }
@@ -204,6 +247,8 @@ struct NURBSPatchData
   axom::Array<BezierPatch<T, 3>> beziers;
   axom::Array<std::pair<double, double>> u_spans;
   axom::Array<std::pair<double, double>> v_spans;
+  axom::primal::Vector<T, 3> average_normal;
+  double pbox_diag;
 
   // Per trimming curve stuff
   // Keyed by (whichRefinementLevel, whichRefinedSection)
@@ -3245,19 +3290,53 @@ public:
     // Add the control points on the u direction
     for(int i = 0; i < n; ++i)
     {
-      Vector<T, 3> v(m_controlPoints(i, 1), m_controlPoints(i, 0));
-      for(int j = 0; j < deg_v; ++j)
+      if(!isRational())
       {
-        newControlPoints(i + deg_u, j).array() = m_controlPoints(i, 0).array() +
-          static_cast<T>(deg_v - j) / (deg_v)*buffer * v.array();
-      }
+        Vector<T, 3> v(m_controlPoints(i, 1), m_controlPoints(i, 0));
+        for(int j = 0; j < deg_v; ++j)
+        {
+          newControlPoints(i + deg_u, j).array() = m_controlPoints(i, 0).array() +
+            static_cast<T>(deg_v - j) / (deg_v)*buffer * v.array();
+        }
 
-      v = Vector<T, 3>(m_controlPoints(i, m - 2), m_controlPoints(i, m - 1));
-      for(int j = 0; j < deg_v; ++j)
+        v = Vector<T, 3>(m_controlPoints(i, m - 2), m_controlPoints(i, m - 1));
+        for(int j = 0; j < deg_v; ++j)
+        {
+          newControlPoints(i + deg_u, m + deg_v + j).array() =
+            m_controlPoints(i, m - 1).array() +
+            static_cast<T>(j + 1) / (deg_v)*buffer * v.array();
+        }
+      }
+      else
       {
-        newControlPoints(i + deg_u, m + deg_v + j).array() =
-          m_controlPoints(i, m - 1).array() +
-          static_cast<T>(j + 1) / (deg_v)*buffer * v.array();
+        Vector<T, 3> v(
+          Point<T, 3>(m_controlPoints(i, 1).array() * m_weights(i, 1)),
+          Point<T, 3>(m_controlPoints(i, 0).array() * m_weights(i, 0)));
+        double vw = m_weights(i, 1) - m_weights(i, 0);
+
+        for(int j = 0; j < deg_v; ++j)
+        {
+          newWeights(i + deg_u, j) =
+            m_weights(i, 0) + static_cast<T>(deg_v - j) / (deg_v)*buffer * vw;
+          newControlPoints(i + deg_u, j).array() =
+            (m_controlPoints(i, 0).array() * m_weights(i, 0)) +
+            static_cast<T>(deg_v - j) / (deg_v)*buffer * v.array() /
+              m_weights(i + deg_u, j);
+        }
+
+        v = Vector<T, 3>(
+          Point<T, 3>(m_controlPoints(i, m - 2).array() * m_weights(i, m - 2)),
+          Point<T, 3>(m_controlPoints(i, m - 1).array() * m_weights(i, m - 1)));
+        vw = m_weights(i, m - 1) - m_weights(i, m - 2);
+        for(int j = 0; j < deg_v; ++j)
+        {
+          newWeights(i + deg_u, m + deg_v + j) =
+            m_weights(i, m - 1) + static_cast<T>(j + 1) / (deg_v)*buffer * vw;
+          newControlPoints(i + deg_u, m + deg_v + j).array() =
+            (m_controlPoints(i, m - 1).array() * m_weights(i, m - 1)) +
+            static_cast<T>(j + 1) / (deg_v)*buffer * v.array() /
+              m_weights(i + deg_u, m + deg_v + j);
+        }
       }
     }
 
@@ -3266,20 +3345,58 @@ public:
     //  making it slightly anisotropic at the corners
     for(int j = 0; j < m + 2 * deg_v; ++j)
     {
-      Vector<T, 3> v(newControlPoints(deg_u + 1, j), newControlPoints(deg_u, j));
-      for(int i = 0; i < deg_u; ++i)
+      if(!isRational())
       {
-        newControlPoints(i, j).array() = newControlPoints(deg_u, j).array() +
-          static_cast<T>(deg_u - i) / (deg_u)*buffer * v.array();
-      }
+        Vector<T, 3> v(newControlPoints(deg_u + 1, j),
+                       newControlPoints(deg_u, j));
+        for(int i = 0; i < deg_u; ++i)
+        {
+          newControlPoints(i, j).array() = newControlPoints(deg_u, j).array() +
+            static_cast<T>(deg_u - i) / (deg_u)*buffer * v.array();
+        }
 
-      v = Vector<T, 3>(newControlPoints(n - 2 + deg_u, j),
-                       newControlPoints(n + deg_u - 1, j));
-      for(int i = 0; i < deg_u; ++i)
+        v = Vector<T, 3>(newControlPoints(n - 2 + deg_u, j),
+                         newControlPoints(n + deg_u - 1, j));
+        for(int i = 0; i < deg_u; ++i)
+        {
+          newControlPoints(n + deg_u + i, j).array() =
+            newControlPoints(n + deg_u - 1, j).array() +
+            static_cast<T>(i + 1) / (deg_u)*buffer * v.array();
+        }
+      }
+      else
       {
-        newControlPoints(n + deg_u + i, j).array() =
-          newControlPoints(n + deg_u - 1, j).array() +
-          static_cast<T>(i + 1) / (deg_u)*buffer * v.array();
+        Vector<T, 3> v(
+          Point<T, 3>(newControlPoints(deg_u + 1, j).array() *
+                      newWeights(deg_u + 1, j)),
+          Point<T, 3>(newControlPoints(deg_u, j).array() * newWeights(deg_u, j)));
+        double vw = newWeights(deg_u + 1, j) - newWeights(deg_u, j);
+
+        for(int i = 0; i < deg_u; ++i)
+        {
+          newWeights(i, j) = newWeights(deg_u, j) +
+            static_cast<T>(deg_u - i) / (deg_u)*buffer * vw;
+          newControlPoints(i, j).array() =
+            (newControlPoints(deg_u, j).array() * newWeights(deg_u, j)) +
+            static_cast<T>(deg_u - i) / (deg_u)*buffer * v.array() /
+              newWeights(i, j);
+        }
+
+        v = Vector<T, 3>(Point<T, 3>(newControlPoints(n - 2 + deg_u, j).array() *
+                                     newWeights(n - 2 + deg_u, j)),
+                         Point<T, 3>(newControlPoints(n + deg_u - 1, j).array() *
+                                     newWeights(n + deg_u - 1, j)));
+        vw = newWeights(n + deg_u - 1, j) - newWeights(n - 2 + deg_u, j);
+        for(int i = 0; i < deg_u; ++i)
+        {
+          newWeights(n + deg_u + i, j) = newWeights(n + deg_u - 1, j) +
+            static_cast<T>(i + 1) / (deg_u)*buffer * vw;
+          newControlPoints(n + deg_u + i, j).array() =
+            (newControlPoints(n + deg_u - 1, j).array() *
+             newWeights(n + deg_u - 1, j)) +
+            static_cast<T>(i + 1) / (deg_u)*buffer * v.array() /
+              newWeights(n + deg_u + i, j);
+        }
       }
     }
 
