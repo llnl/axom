@@ -119,7 +119,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     variant("raja", default=True, description="Build with raja")
 
-    variant("int64", default=False, description="Use 64bit integers for IndexType")
+    variant("int64", default=True, description="Use 64bit integers for IndexType")
 
     varmsg = "Build development tools (such as Sphinx, Doxygen, etc...)"
     variant("devtools", default=False, description=varmsg)
