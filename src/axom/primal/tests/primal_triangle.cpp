@@ -370,13 +370,13 @@ TEST(primal_triangle, triangle_2D_point_containment)
   failures.push_back(QPoint {1.00001, 1.000001});
 
   // Actually run the tests
-  for(TestVec::const_iterator it = successes.begin(); it != successes.end(); ++it)
+  for(const auto& pt : successes)
   {
-    EXPECT_TRUE(tri.checkInTriangle(*it, EPS));
+    EXPECT_TRUE(tri.contains(pt, EPS));
   }
-  for(TestVec::const_iterator it = failures.begin(); it != failures.end(); ++it)
+  for(const auto& pt : failures)
   {
-    EXPECT_FALSE(tri.checkInTriangle(*it, EPS));
+    EXPECT_FALSE(tri.contains(pt, EPS));
   }
 }
 
@@ -424,13 +424,13 @@ TEST(primal_triangle, triangle_3D_point_containment)
   failures.push_back(QPoint {1.00001, 1.000001, 0});
 
   // Actually run the tests
-  for(TestVec::const_iterator it = successes.begin(); it != successes.end(); ++it)
+  for(const auto& pt : successes)
   {
-    EXPECT_TRUE(tri.checkInTriangle(*it, EPS));
+    EXPECT_TRUE(tri.contains(pt, EPS));
   }
-  for(TestVec::const_iterator it = failures.begin(); it != failures.end(); ++it)
+  for(const auto& pt : failures)
   {
-    EXPECT_FALSE(tri.checkInTriangle(*it, EPS));
+    EXPECT_FALSE(tri.contains(pt, EPS));
   }
 }
 

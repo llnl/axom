@@ -15,6 +15,7 @@
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/Sphere.hpp"
+#include "axom/export/primal.h"
 
 #include <cmath>
 #include <ostream>
@@ -330,18 +331,29 @@ public:
   }
 
   /*!
-   * \brief Returns whether Point P is in the triangle for some 3d Triangle
-   * \return true iff P is in the triangle
-   * \see primal::Point
+   * \brief Returns whether Point \a p is contained within the triangle
+   * 
+   * \return true if P is in the triangle
+   * \deprecated This function is deprecated. Use \a contains() instead
    */
-  bool checkInTriangle(const PointType& p, double eps = 1e-8) const
+  AXOM_PRIMAL_DEPRECATED bool checkInTriangle(const PointType& p, double eps = 1e-8) const
+  {
+    return isInside(p, eps);
+  }
+
+  /*!
+   * \brief Returns whether Point \a p is contained within the triangle (within tolerance \a eps)
+   *
+   * \return true if P is in the triangle
+   */
+  bool contains(const PointType& p, double eps = 1e-8) const
   {
     if(!axom::utilities::isNearlyEqual(ppedVolume(p), 0., eps))
     {
       return false;
     }
 
-    Point<double, 3> bC = physToBarycentric(p);
+    const auto bC = physToBarycentric(p);
     return ((bC[0] >= (0.0 - eps)) && (bC[1] >= (0.0 - eps)) && (bC[2] >= (0.0 - eps)) &&
             (bC[0] <= (1.0 + eps)) && (bC[1] <= (1.0 + eps)) && (bC[2] <= (1.0 + eps)));
   }
