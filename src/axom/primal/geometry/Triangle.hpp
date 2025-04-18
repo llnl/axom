@@ -333,18 +333,18 @@ public:
   /*!
    * \brief Returns whether Point \a p is contained within the triangle
    * 
-   * \return true if P is in the triangle
+   * \return true if \a p is in the triangle
    * \deprecated This function is deprecated. Use \a contains() instead
    */
   AXOM_PRIMAL_DEPRECATED bool checkInTriangle(const PointType& p, double eps = 1e-8) const
   {
-    return isInside(p, eps);
+    return contains(p, eps);
   }
 
   /*!
    * \brief Returns whether Point \a p is contained within the triangle (within tolerance \a eps)
    *
-   * \return true if P is in the triangle
+   * \return true if \a p is in the triangle
    */
   bool contains(const PointType& p, double eps = 1e-8) const
   {

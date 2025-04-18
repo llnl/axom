@@ -435,12 +435,12 @@ void makeTriangles(std::vector<TriangleType>& tris)
                     PointType {0.55, 0.42, 0.055},  // 6
                     PointType {0.61, 0.1, 0.061}};  // 7
 
-  tris.emplace_back(TriangleType(p[0], p[1], p[2]));
-  tris.emplace_back(TriangleType(p[2], p[1], p[3]));
-  tris.emplace_back(TriangleType(p[2], p[3], p[6]));
-  tris.emplace_back(TriangleType(p[6], p[3], p[7]));
-  tris.emplace_back(TriangleType(p[4], p[2], p[6]));
-  tris.emplace_back(TriangleType(p[4], p[5], p[7]));
+  tris.emplace_back(p[0], p[1], p[2]);
+  tris.emplace_back(p[2], p[1], p[3]);
+  tris.emplace_back(p[2], p[3], p[6]);
+  tris.emplace_back(p[6], p[3], p[7]);
+  tris.emplace_back(p[4], p[2], p[6]);
+  tris.emplace_back(p[4], p[5], p[7]);
 }
 
 void makeTriangles(std::vector<Triangle2DType>& tris)
@@ -454,12 +454,12 @@ void makeTriangles(std::vector<Triangle2DType>& tris)
                       Point2DType {0.55, 0.42},  // 6
                       Point2DType {0.61, 0.1}};  // 7
 
-  tris.emplace_back(Triangle2DType(p[0], p[1], p[2]));
-  tris.emplace_back(Triangle2DType(p[2], p[1], p[3]));
-  tris.emplace_back(Triangle2DType(p[2], p[3], p[6]));
-  tris.emplace_back(Triangle2DType(p[6], p[3], p[7]));
-  tris.emplace_back(Triangle2DType(p[4], p[2], p[6]));
-  tris.emplace_back(Triangle2DType(p[4], p[5], p[7]));
+  tris.emplace_back(p[0], p[1], p[2]);
+  tris.emplace_back(p[2], p[1], p[3]);
+  tris.emplace_back(p[2], p[3], p[6]);
+  tris.emplace_back(p[6], p[3], p[7]);
+  tris.emplace_back(p[4], p[2], p[6]);
+  tris.emplace_back(p[4], p[5], p[7]);
 }
 
 void printPairs(std::string title, std::vector<std::pair<int, int>>& clashes)
@@ -576,23 +576,23 @@ void makeTreeTriangles(std::vector<Triangle2DType>& tris)
                        Point2DType {.92, .16},   // 17
                        Point2DType {.93, .09}};  // 18
 
-  tris.emplace_back(Triangle2DType(p[1], p[0], p[3]));
-  tris.emplace_back(Triangle2DType(p[0], p[2], p[3]));
-  tris.emplace_back(Triangle2DType(p[1], p[3], p[5]));
-  tris.emplace_back(Triangle2DType(p[3], p[2], p[4]));
-  tris.emplace_back(Triangle2DType(p[3], p[4], p[5]));
-  tris.emplace_back(Triangle2DType(p[2], p[6], p[4]));
-  tris.emplace_back(Triangle2DType(p[5], p[4], p[6]));
-  tris.emplace_back(Triangle2DType(p[5], p[6], p[7]));
-  tris.emplace_back(Triangle2DType(p[7], p[6], p[8]));
-  tris.emplace_back(Triangle2DType(p[7], p[8], p[9]));
-  tris.emplace_back(Triangle2DType(p[9], p[8], p[10]));
-  tris.emplace_back(Triangle2DType(p[11], p[13], p[14]));
-  tris.emplace_back(Triangle2DType(p[12], p[11], p[14]));
-  tris.emplace_back(Triangle2DType(p[12], p[14], p[15]));
-  tris.emplace_back(Triangle2DType(p[14], p[13], p[16]));
-  tris.emplace_back(Triangle2DType(p[14], p[16], p[17]));
-  tris.emplace_back(Triangle2DType(p[16], p[18], p[17]));
+  tris.emplace_back(p[1], p[0], p[3]);
+  tris.emplace_back(p[0], p[2], p[3]);
+  tris.emplace_back(p[1], p[3], p[5]);
+  tris.emplace_back(p[3], p[2], p[4]);
+  tris.emplace_back(p[3], p[4], p[5]);
+  tris.emplace_back(p[2], p[6], p[4]);
+  tris.emplace_back(p[5], p[4], p[6]);
+  tris.emplace_back(p[5], p[6], p[7]);
+  tris.emplace_back(p[7], p[6], p[8]);
+  tris.emplace_back(p[7], p[8], p[9]);
+  tris.emplace_back(p[9], p[8], p[10]);
+  tris.emplace_back(p[11], p[13], p[14]);
+  tris.emplace_back(p[12], p[11], p[14]);
+  tris.emplace_back(p[12], p[14], p[15]);
+  tris.emplace_back(p[14], p[13], p[16]);
+  tris.emplace_back(p[14], p[16], p[17]);
+  tris.emplace_back(p[16], p[18], p[17]);
 }
 
 void driveBVHTree()

@@ -225,16 +225,11 @@ public:
    */
   bool contains(const PointType& p, double eps = 1e-8) const
   {
-    if(axom::utilities::isNearlyEqual(ppedVolume(), 0., eps))
-    {
-      return false;
-    }
-
     const auto bC = physToBarycentric(p);
-
-    return (bC[0] >= (0.0 - eps)) && (bC[1] >= (0.0 - eps)) && (bC[2] >= (0.0 - eps)) &&
-      (bC[3] >= (0.0 - eps)) && (bC[0] <= (1.0 + eps)) && (bC[1] <= (1.0 + eps)) &&
-      (bC[2] <= (1.0 + eps)) && (bC[3] <= (1.0 + eps));
+    return (bC[0] >= (0.0 - eps)) && (bC[0] <= (1.0 + eps))  //
+      && (bC[1] >= (0.0 - eps)) && (bC[1] <= (1.0 + eps))    //
+      && (bC[2] >= (0.0 - eps)) && (bC[2] <= (1.0 + eps))    //
+      && (bC[3] >= (0.0 - eps)) && (bC[3] <= (1.0 + eps));
   }
 
   /*!
