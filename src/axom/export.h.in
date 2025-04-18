@@ -1,0 +1,13 @@
+
+#ifndef AXOM_@_COMPONENT@_EXPORT_H
+#define AXOM_@_COMPONENT@_EXPORT_H
+
+#if defined(_MSC_VER)
+    #define AXOM_@_COMPONENT@_DEPRECATED __declspec(deprecated)
+#elif defined(__GNUC__) || defined(__clang__)
+    #define AXOM_@_COMPONENT@_DEPRECATED __attribute__((deprecated))
+#else
+    #define AXOM_@_COMPONENT@_DEPRECATED
+#endif
+
+#endif /* AXOM_@_COMPONENT@_EXPORT_H */
