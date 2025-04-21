@@ -191,7 +191,7 @@ TEST(Record, add_child_record_as_library_data_with_curves) {
       "data": { "SINA_librarydata_type": { "value": "test_record_child"},
                 "SINA_librarydata_id": { "value": "child id"}}
    }}})";
-  EXPECT_THAT(parentRecord.toNode(CurveSet::CurveOrder::ALPHABETIC), MatchesJson(expected));
+  EXPECT_THAT(parentRecord.toNode(CurveSet::CurveOrder::ALPHABETIC), MatchesJsonMatcher(expected));
 }
 
 TEST(Record, create_localId_fromNode)
@@ -513,7 +513,7 @@ TEST(Record, toNode_curveSets_customOrder) {
             }
         }
     })";
-    EXPECT_THAT(record.toNode(CurveSet::CurveOrder::REVERSE_ALPHABETIC), MatchesJson(expected));
+    EXPECT_THAT(record.toNode(CurveSet::CurveOrder::REVERSE_ALPHABETIC), MatchesJsonMatcher(expected));
 }
 
 TEST(RecordLoader, load_missingLoader)

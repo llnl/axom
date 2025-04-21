@@ -41,15 +41,15 @@ constexpr auto DEPENDENT_KEY = "dependent";
  * @param nameList the vector of curve names to add the curve's name to.
                    Used for tracking insertion order for codes.
  */
-void addCurve(Curve &&curve, CurveSet::CurveMap &curves, , std::vector<std::string> &nameList)
+void addCurve(Curve &&curve, CurveSet::CurveMap &curves, std::vector<std::string> &nameList)
 {
   auto &curveName = curve.getName();
   auto existing = curves.find(curveName);
   if(existing == curves.end())
   {
     curves.insert(std::make_pair(curveName, curve));
+    nameList.emplace_back(curveName);
   }
-  nameList.emplace_back(curveName);
   else
   {
     existing->second = curve;
@@ -128,7 +128,7 @@ CurveSet::curveNodeInfo extractCurveMap(conduit::Node const &parent, std::string
 CurveSet::CurveSet(std::string name_)
   : name {std::move(name_)}
   , independentCurves {}
-  , dependentCurves {},
+  , dependentCurves {}
   , independentCurveNameOrder{}
   , dependentCurveNameOrder{} {}
 
@@ -141,12 +141,6 @@ CurveSet::CurveSet(std::string name_)
     dependentCurves = std::move(dependentCurveInfo.curveMap);
     dependentCurveNameOrder = std::move(dependentCurveInfo.curveOrder);
 }
-
-CurveSet::CurveSet(std::string name_, conduit::Node const &node)
-  : name {std::move(name_)}
-  , independentCurves {extractCurveMap(node, INDEPENDENT_KEY)}
-  , dependentCurves {extractCurveMap(node, DEPENDENT_KEY)}
-{ }
 
 void CurveSet::addIndependentCurve(Curve curve) { addCurve(std::move(curve), independentCurves, independentCurveNameOrder); }
 
