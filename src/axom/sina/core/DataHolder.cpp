@@ -96,7 +96,7 @@ void DataHolder::setUserDefinedContent(conduit::Node userDefined_)
   userDefined = std::move(userDefined_);
 }
 
-conduit::Node DataHolder::toNode() const
+conduit::Node DataHolder::toNode(CurveSet::CurveOrder curveOrder) const
 {
   conduit::Node asNode;
   asNode.set(conduit::DataType::object());
@@ -106,7 +106,7 @@ conduit::Node DataHolder::toNode() const
     conduit::Node libRef;
     for(auto &lib : libraryData)
     {
-      libRef.add_child(lib.first) = lib.second->toNode();
+      libRef.add_child(lib.first) = lib.second->toNode(curveOrder);
     }
     asNode[LIBRARY_DATA_FIELD] = libRef;
   }
@@ -115,7 +115,7 @@ conduit::Node DataHolder::toNode() const
     conduit::Node curveSetsNode;
     for(auto &entry : curveSets)
     {
-      curveSetsNode.add_child(entry.first) = entry.second.toNode();
+      curveSetsNode.add_child(entry.first) = entry.second.toNode(curveOrder);
     }
     asNode[CURVE_SETS_FIELD] = curveSetsNode;
   }

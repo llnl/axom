@@ -53,7 +53,7 @@ public:
      */
   const T &getValue() const noexcept { return value; }
 
-  conduit::Node toNode() const override;
+  conduit::Node toNode(CurveSet::CurveOrder curveOrder=defaultCurveOrder) const override;
 
 private:
   T value;
@@ -72,9 +72,9 @@ template <>
 TestRecord<int>::TestRecord(conduit::Node const &asJson);
 
 template <typename T>
-conduit::Node TestRecord<T>::toNode() const
+conduit::Node TestRecord<T>::toNode(CurveSet::CurveOrder curveOrder) const
 {
-  auto asJson = Record::toNode();
+  auto asJson = Record::toNode(curveOrder);
   asJson[TEST_RECORD_VALUE_KEY] = value;
   return asJson;
 }

@@ -168,6 +168,38 @@ TEST(CurveSet, createFromNode_curveSetsDefined)
   EXPECT_THAT(curveSet.getIndependentCurves(), ContainerEq(expectedIndependents));
 }
 
+TEST(CurveSet, createFromNode_orderPreserved) {
+    conduit::Node curveSetAsNode = parseJsonValue(R"({
+      "independent": {
+        "blue": { "value": [1, 2, 3]},
+        "purple": { "value": [1, 2, 3]},
+        "green": { "value": [1, 2, 3]},
+        "gold": { "value": [1, 2, 3]},
+        "red": { "value": [1, 2, 3]}
+      },
+      "dependent": {
+        "purple": { "value": [1, 2, 3]},
+        "red": { "value": [1, 2, 3]},
+        "blue": { "value": [1, 2, 3]},
+        "gold": { "value": [1, 2, 3]},
+        "green": { "value": [1, 2, 3]}
+      }
+    })");
+    CurveSet curveSet{"theName", curveSetAsNode};
+
+    std::vector<std::string> expectedDependentsOrder {
+        "purple", "red", "blue", "gold", "green"};
+
+    EXPECT_THAT(curveSet.getDependentCurveOrder(),
+            ContainerEq(expectedDependentsOrder));
+
+    std::vector<std::string> expectedIndependentsOrder {
+        "blue", "purple", "green", "gold", "red"};
+
+    EXPECT_THAT(curveSet.getIndependentCurveOrder(),
+            ContainerEq(expectedIndependentsOrder));
+}
+
 TEST(CurveSet, toNode_empty)
 {
   CurveSet curveSet {"theName"};
@@ -175,7 +207,7 @@ TEST(CurveSet, toNode_empty)
         "independent": {},
         "dependent": {}
     })";
-  EXPECT_THAT(curveSet.toNode(), MatchesJsonMatcher(expected));
+  EXPECT_THAT(curveSet.toNode(CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST), MatchesJsonMatcher(expected));
 }
 
 TEST(CurveSet, toNode_withCurves)
@@ -203,7 +235,87 @@ TEST(CurveSet, toNode_withCurves)
             }
         }
     })";
-  EXPECT_THAT(curveSet.toNode(), MatchesJsonMatcher(expected));
+  EXPECT_THAT(curveSet.toNode(CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST), MatchesJsonMatcher(expected));
+}
+
+TEST(CurveSet, toNode_withCurves_orderIsPreserved) {
+    CurveSet curveSet{"theName"};
+    curveSet.addIndependentCurve(Curve{"blue", {1, 2, 3}});
+    curveSet.addIndependentCurve(Curve{"purple", {1, 2, 3}});
+    curveSet.addIndependentCurve(Curve{"green", {1, 2, 3}});
+    curveSet.addIndependentCurve(Curve{"gold", {1, 2, 3}});
+    curveSet.addIndependentCurve(Curve{"red", {1, 2, 3}});
+    curveSet.addDependentCurve(Curve{"purple", {10, 20, 30}});
+    curveSet.addDependentCurve(Curve{"red", {10, 20, 30}});
+    curveSet.addDependentCurve(Curve{"blue", {10, 20, 30}});
+    curveSet.addDependentCurve(Curve{"gold", {10, 20, 30}});
+    curveSet.addDependentCurve(Curve{"green", {10, 20, 30}});
+    auto expected = R"({
+        "independent": {
+            "blue": { "value": [1.0, 2.0, 3.0] },
+            "purple": { "value": [1.0, 2.0, 3.0] },
+            "green": { "value": [1.0, 2.0, 3.0] },
+            "gold": { "value": [1.0, 2.0, 3.0] },
+            "red": { "value": [1.0, 2.0, 3.0] }
+        },
+        "dependent": {
+            "purple": { "value": [10.0, 20.0, 30.0] },
+            "red": { "value": [10.0, 20.0, 30.0] },
+            "blue": { "value": [10.0, 20.0, 30.0] },
+            "gold": { "value": [10.0, 20.0, 30.0] },
+            "green": { "value": [10.0, 20.0, 30.0] }
+        }
+    })";
+    EXPECT_THAT(curveSet.toNode(CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST), MatchesJson(expected));
+
+    // The order needs to be preserved as we hand it back and forth
+    std::vector<std::string> expectedIndependentsOrder {
+        "blue", "purple", "green", "gold", "red"};
+
+    EXPECT_THAT(curveSet.getIndependentCurveOrder(), ContainerEq(expectedIndependentsOrder));
+
+    CurveSet curveSetBack{"theName", curveSet.toNode(CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST)};
+
+    std::vector<std::string> expectedDependentsOrder {
+        "purple", "red", "blue", "gold", "green"};
+
+    EXPECT_THAT(curveSet.getDependentCurveOrder(), ContainerEq(expectedDependentsOrder));
+}
+
+TEST(CurveSet, toNode_withCurves_sortOrders) {
+    CurveSet curveSet{"theName"};
+    curveSet.addIndependentCurve(Curve{"black", {1, 2, 3}});
+    curveSet.addIndependentCurve(Curve{"white", {1, 2, 3}});
+    curveSet.addIndependentCurve(Curve{"lime", {1, 2, 3}});
+    auto expectedAlphabetic = R"({
+        "independent": {
+            "black": { "value": [1.0, 2.0, 3.0] },
+            "lime": { "value": [1.0, 2.0, 3.0] },
+            "white": { "value": [1.0, 2.0, 3.0] }
+    }, "dependent": {}})";
+    EXPECT_THAT(curveSet.toNode(CurveSet::CurveOrder::ALPHABETIC), MatchesJson(expectedAlphabetic));
+    auto expectedReverseAlphabetic = R"({
+        "independent": {
+            "white": { "value": [1.0, 2.0, 3.0] },
+            "lime": { "value": [1.0, 2.0, 3.0] },
+            "black": { "value": [1.0, 2.0, 3.0] }
+    }, "dependent": {}})";
+    EXPECT_THAT(curveSet.toNode(CurveSet::CurveOrder::REVERSE_ALPHABETIC), MatchesJson(expectedReverseAlphabetic));
+    auto expectedNewestFirst = R"({
+        "independent": {
+            "lime": { "value": [1.0, 2.0, 3.0] },
+            "white": { "value": [1.0, 2.0, 3.0] },
+            "black": { "value": [1.0, 2.0, 3.0] }
+    }, "dependent": {}})";
+    EXPECT_THAT(curveSet.toNode(CurveSet::CurveOrder::REGISTRATION_NEWEST_FIRST), MatchesJson(expectedNewestFirst));
+    // Note this is the "default" order from the user perspective, but Record's in charge of deciding default behavior
+    auto expectedOldestFirst = R"({
+        "independent": {
+            "black": { "value": [1.0, 2.0, 3.0] },
+            "white": { "value": [1.0, 2.0, 3.0] },
+            "lime": { "value": [1.0, 2.0, 3.0] }
+    }, "dependent": {}})";
+    EXPECT_THAT(curveSet.toNode(CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST), MatchesJson(expectedOldestFirst));
 }
 
 }  // namespace
