@@ -113,8 +113,7 @@ axom::sidre::Group* make_structured_blueprint_box_mesh_3d(axom::sidre::Group* me
 
   topoGrp->createView("type")->setString("structured", hostAllocId);
   topoGrp->createView("coordset")->setString(coordsetName, hostAllocId);
-  auto* dimsGrp =
-    topoGrp->createGroup("elements/dims")->setDefaultAllocator(hostAllocId);
+  auto* dimsGrp = topoGrp->createGroup("elements/dims")->setDefaultAllocator(hostAllocId);
 
   constexpr int DIM = 3;
 
@@ -179,8 +178,7 @@ axom::sidre::Group* make_structured_blueprint_box_mesh_2d(axom::sidre::Group* me
 
   topoGrp->createView("type")->setString("structured", hostAllocId);
   topoGrp->createView("coordset")->setString(coordsetName, hostAllocId);
-  auto* dimsGrp =
-    topoGrp->createGroup("elements/dims")->setDefaultAllocator(hostAllocId);
+  auto* dimsGrp = topoGrp->createGroup("elements/dims")->setDefaultAllocator(hostAllocId);
 
   constexpr int DIM = 2;
 

@@ -466,10 +466,12 @@ std::shared_ptr<sidre::MFEMSidreDataCollection> shapingDC;
 axom::sidre::Group* compMeshGrp = nullptr;
 std::shared_ptr<conduit::Node> compMeshNode;
 
-auto selectScalarAndStringViews =
-  [](const axom::sidre::View& v) { return v.isScalar() || v.isString(); };
-auto selectNonHostViews =
-  [](const axom::sidre::View& v) { return v.getVoidPtr() != nullptr && !v.isHostAccessible(); };
+auto selectScalarAndStringViews = [](const axom::sidre::View& v) {
+  return v.isScalar() || v.isString();
+};
+auto selectNonHostViews = [](const axom::sidre::View& v) {
+  return v.getVoidPtr() != nullptr && !v.isHostAccessible();
+};
 
 /*
   Whether View data should live on host or another allocator (like device data).
@@ -477,36 +479,34 @@ auto selectNonHostViews =
   as determined by heuristics.
   Ordered by likeliest to be correct.
 */
-auto viewToStandardAllocator =
-  [](const axom::sidre::View& v) {
-    if(v.isString() || (v.isExternal() && v.getNumElements() == 1))
-    {
-      // String or likely external string
-      return hostAllocId;
-    }
-    if((v.hasBuffer() || v.isExternal()) &&
-       (v.getName() == "offsets" || v.getName() == "strides") &&
-       (v.getNumElements() <= 3))
-    {
-      // Likely Blueprint specification of array offsets or strides.
-      return hostAllocId;
-    }
-    if(v.hasBuffer() && v.getPath().find("/values/") == std::string::npos)
-    {
-      // Likely Blueprint mesh data or coordinate values.
-      return arrayAllocId;
-    }
-    if(v.isScalar() || (v.isExternal() && v.getNumElements() == 1))
-    {
-      // Scalar or likely external scalar
-      return hostAllocId;
-    }
-    if(v.hasBuffer() && v.getNumElements() <= 3)
-    {
-      return hostAllocId;
-    }
+auto viewToStandardAllocator = [](const axom::sidre::View& v) {
+  if(v.isString() || (v.isExternal() && v.getNumElements() == 1))
+  {
+    // String or likely external string
+    return hostAllocId;
+  }
+  if((v.hasBuffer() || v.isExternal()) && (v.getName() == "offsets" || v.getName() == "strides") &&
+     (v.getNumElements() <= 3))
+  {
+    // Likely Blueprint specification of array offsets or strides.
+    return hostAllocId;
+  }
+  if(v.hasBuffer() && v.getPath().find("/values/") == std::string::npos)
+  {
+    // Likely Blueprint mesh data or coordinate values.
     return arrayAllocId;
-  };
+  }
+  if(v.isScalar() || (v.isExternal() && v.getNumElements() == 1))
+  {
+    // Scalar or likely external scalar
+    return hostAllocId;
+  }
+  if(v.hasBuffer() && v.getNumElements() <= 3)
+  {
+    return hostAllocId;
+  }
+  return arrayAllocId;
+};
 
 axom::sidre::Group* createBoxMesh(axom::sidre::Group* meshGrp)
 {
@@ -556,9 +556,9 @@ axom::sidre::Group* createBoxMesh(axom::sidre::Group* meshGrp)
   // State group is optional to blueprint, and we don't use it, but mint checks for it.
   meshGrp->createGroup("state");
 
-  auto hostAllocForScalarAndStringViews =
-    [](const axom::sidre::View& v)
-      { return (v.isScalar() || v.isString()) ? hostAllocId : axom::INVALID_ALLOCATOR_ID; };
+  auto hostAllocForScalarAndStringViews = [](const axom::sidre::View& v) {
+    return (v.isScalar() || v.isString()) ? hostAllocId : axom::INVALID_ALLOCATOR_ID;
+  };
   meshGrp->reallocateTo(hostAllocForScalarAndStringViews);
 
   return meshGrp;
@@ -1802,17 +1802,13 @@ int main(int argc, char** argv)
   std::shared_ptr<quest::IntersectionShaper> shaper = nullptr;
   if(params.useBlueprintSidre())
   {
-    shaper = std::make_shared<quest::IntersectionShaper>(params.policy,
-                                                         arrayAllocId,
-                                                         shapeSet,
-                                                         compMeshGrp);
+    shaper =
+      std::make_shared<quest::IntersectionShaper>(params.policy, arrayAllocId, shapeSet, compMeshGrp);
   }
   if(params.useBlueprintConduit())
   {
-    shaper = std::make_shared<quest::IntersectionShaper>(params.policy,
-                                                         arrayAllocId,
-                                                         shapeSet,
-                                                         *compMeshNode);
+    shaper =
+      std::make_shared<quest::IntersectionShaper>(params.policy, arrayAllocId, shapeSet, *compMeshNode);
   }
 #if defined(AXOM_USE_MFEM)
   if(params.useMfem())
@@ -1903,9 +1899,9 @@ int main(int argc, char** argv)
   if(params.useBlueprintSidre() || params.useBlueprintConduit())
   {
     // The shaper created some blueprint nodes that we need to move to the host.
-    auto hostAllocForScalarAndStringViews =
-      [](const axom::sidre::View& v)
-        { return (v.isScalar() || v.isString()) ? hostAllocId : axom::INVALID_ALLOCATOR_ID; };
+    auto hostAllocForScalarAndStringViews = [](const axom::sidre::View& v) {
+      return (v.isScalar() || v.isString()) ? hostAllocId : axom::INVALID_ALLOCATOR_ID;
+    };
 
     if(compMeshGrp->getDefaultAllocatorID() != hostAllocId)
     {

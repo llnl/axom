@@ -8,8 +8,7 @@
 namespace axom
 {
 std::map<int, std::shared_ptr<ConduitMemory>> ConduitMemory::s_axomToInstance;
-std::map<conduit::index_t, std::shared_ptr<ConduitMemory>>
-  ConduitMemory::s_conduitToInstance;
+std::map<conduit::index_t, std::shared_ptr<ConduitMemory>> ConduitMemory::s_conduitToInstance;
 
 const ConduitMemory& ConduitMemory::instanceForAxomId(int axomAllocId)
 {
@@ -57,8 +56,7 @@ const ConduitMemory& ConduitMemory::instanceForAxomId(int axomAllocId)
   return *it->second;
 }
 
-const ConduitMemory& ConduitMemory::instanceForConduitId(
-  conduit::index_t conduitAllocId)
+const ConduitMemory& ConduitMemory::instanceForConduitId(conduit::index_t conduitAllocId)
 {
   // This method IS thread safe.
 

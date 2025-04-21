@@ -130,8 +130,7 @@ Shaper::Shaper(RuntimePolicy execPolicy,
       return hostAllocId;
     }
     if((v.hasBuffer() || v.isExternal()) &&
-       (v.getName() == "offsets" || v.getName() == "strides") &&
-       (v.getNumElements() <= 3))
+       (v.getName() == "offsets" || v.getName() == "strides") && (v.getNumElements() <= 3))
     {
       // Likely Blueprint specification of array offsets or strides.
       return hostAllocId;

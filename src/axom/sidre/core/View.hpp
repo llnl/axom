@@ -1582,45 +1582,57 @@ private:
   //!@brief Print on host, as a single line.
   template <typename T>
   void hostPrintScalar(std::ostream& os = std::cout) const
+  {
+    if(isHostAccessible())
     {
-      if(isHostAccessible())
-      {
-        os << ' ' << T(m_node.value());
-      }
-      else
-      {
-        os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " data";
-      }
+      os << ' ' << T(m_node.value());
     }
+    else
+    {
+      os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " data";
+    }
+  }
 
   //!@brief Print on host, as a single line.
   template <typename T>
   void hostPrintArray(std::ostream& os = std::cout) const
+  {
+    if(isHostAccessible())
     {
-      if(isHostAccessible())
+      os << " [";
+      auto start = (T*)(getVoidPtr());
+      auto end = (T*)(getVoidPtr()) + getNumElements();
+      if(getNumElements() <= 10)
       {
-        os << " [";
-        auto start = (T*)(getVoidPtr());
-        auto end = (T*)(getVoidPtr()) + getNumElements();
-        if(getNumElements() <= 10)
+        for(auto i = start; i < end; ++i)
         {
-          for(auto i = start; i < end; ++i) { os << *i; if (i != end-1) os << ", "; }
+          os << *i;
+          if(i != end - 1) os << ", ";
         }
-        else
-        {
-          auto a = start + 5;
-          auto b = end - 5;
-          for(auto i = start; i < a; ++i) { os << *i << ", "; }
-          os << "..., ";
-          for(auto i = b; i < end; ++i) { os << *i; if (i != end-1) os << ", "; }
-        }
-        os << "]";
       }
       else
       {
-        os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " array of " << getNumElements() << " elements";
+        auto a = start + 5;
+        auto b = end - 5;
+        for(auto i = start; i < a; ++i)
+        {
+          os << *i << ", ";
+        }
+        os << "..., ";
+        for(auto i = b; i < end; ++i)
+        {
+          os << *i;
+          if(i != end - 1) os << ", ";
+        }
       }
+      os << "]";
     }
+    else
+    {
+      os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " array of "
+         << getNumElements() << " elements";
+    }
+  }
 
   /// Name of this View object.
   std::string m_name;

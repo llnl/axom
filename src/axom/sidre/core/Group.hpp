@@ -463,8 +463,7 @@ public:
    *
    * \brief Return number of views found.
    */
-  axom::IndexType findViews(const std::function<bool(View&)>& criteria,
-                            axom::Array<View*>& found);
+  axom::IndexType findViews(const std::function<bool(View&)>& criteria, axom::Array<View*>& found);
 
   //@}
 
@@ -831,9 +830,7 @@ public:
    * \sa View::setScalar()
    */
   template <typename ScalarType>
-  View* createViewScalar(const std::string& path,
-                         ScalarType value,
-                         int allocID = INVALID_ALLOCATOR_ID)
+  View* createViewScalar(const std::string& path, ScalarType value, int allocID = INVALID_ALLOCATOR_ID)
   {
     View* view = createView(path);
     if(view != nullptr)
@@ -1181,9 +1178,7 @@ public:
    * \return pointer to created Group object or nullptr if new
    * Group is not created.
    */
-  Group* createGroup(const std::string& path,
-                     bool is_list = false,
-                     bool accept_existing = false);
+  Group* createGroup(const std::string& path, bool is_list = false, bool accept_existing = false);
 
   /*
    * \brief Create a child Group within this Group with no name.

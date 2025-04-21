@@ -468,8 +468,7 @@ View* Group::createView(const std::string& path, const DataType& dtype)
   if(view != nullptr)
   {
     view->describe(dtype);
-    assert(view->m_state == View::State::BUFFER ||
-           view->m_state == View::State::EMPTY);
+    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
 
   return view;
@@ -495,8 +494,7 @@ View* Group::createView(const std::string& path, Buffer* buff)
   if(view != nullptr)
   {
     view->attachBuffer(buff);
-    assert(view->m_state == View::State::BUFFER ||
-           view->m_state == View::State::EMPTY);
+    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
   return view;
 }
@@ -515,8 +513,7 @@ View* Group::createView(const std::string& path, TypeID type, IndexType num_elem
   if(view != nullptr)
   {
     view->attachBuffer(buff);
-    assert(view->m_state == View::State::BUFFER ||
-           view->m_state == View::State::EMPTY);
+    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
   return view;
 }
@@ -539,8 +536,7 @@ View* Group::createViewWithShape(const std::string& path,
   if(view != nullptr)
   {
     view->attachBuffer(buff);
-    assert(view->m_state == View::State::BUFFER ||
-           view->m_state == View::State::EMPTY);
+    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
   return view;
 }
@@ -559,8 +555,7 @@ View* Group::createView(const std::string& path, const DataType& dtype, Buffer* 
   if(view != nullptr)
   {
     view->attachBuffer(buff);
-    assert(view->m_state == View::State::BUFFER ||
-           view->m_state == View::State::EMPTY);
+    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
 
   return view;
@@ -670,8 +665,7 @@ View* Group::createViewAndAllocate(const std::string& path, TypeID type, IndexTy
   if(view != nullptr)
   {
     view->allocate(allocID);
-    assert(view->m_state == View::State::BUFFER ||
-           view->m_state == View::State::EMPTY);
+    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
   return view;
 }
@@ -696,8 +690,7 @@ View* Group::createViewWithShapeAndAllocate(const std::string& path,
   if(view != nullptr)
   {
     view->allocate(allocID);
-    assert(view->m_state == View::State::BUFFER ||
-           view->m_state == View::State::EMPTY);
+    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
   return view;
 }
@@ -718,8 +711,7 @@ View* Group::createViewAndAllocate(const std::string& path, const DataType& dtyp
   if(view != nullptr)
   {
     view->allocate(allocID);
-    assert(view->m_state == View::State::BUFFER ||
-           view->m_state == View::State::EMPTY);
+    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
   return view;
 }
@@ -731,9 +723,7 @@ View* Group::createViewAndAllocate(const std::string& path, const DataType& dtyp
  *
  *************************************************************************
  */
-View* Group::createViewString(const std::string& path,
-                              const std::string& value,
-                              int allocID)
+View* Group::createViewString(const std::string& path, const std::string& value, int allocID)
 {
   View* view = createView(path);
   if(view != nullptr)
@@ -1060,9 +1050,7 @@ const Group* Group::getGroup(const std::string& path) const
  *
  *************************************************************************
  */
-Group* Group::createGroup(const std::string& path,
-                          bool is_list,
-                          bool accept_existing)
+Group* Group::createGroup(const std::string& path, bool is_list, bool accept_existing)
 {
   std::string intpath(path);
   bool create_groups_in_path = true;
@@ -1101,8 +1089,7 @@ Group* Group::createGroup(const std::string& path,
 
   if(!group->hasGroup(intpath))
   {
-    Group* new_group =
-      new(std::nothrow) Group(intpath, group->getDataStore(), is_list);
+    Group* new_group = new(std::nothrow) Group(intpath, group->getDataStore(), is_list);
     if(new_group == nullptr)
     {
       return nullptr;
@@ -1414,9 +1401,8 @@ Group* Group::deepCopyGroup(const Group* srcGroup, int allocID)
 Group* Group::deepCopyGroupToSelf(const Group* srcGroup)
 {
   SLIC_ERROR_IF(m_is_list && !srcGroup->m_is_list,
-                "Group::deepCopyToSelf cannot copy from a list Group '" +
-                  srcGroup->getPath() + "' to a non-list Group '" + getPath() +
-                  "'");
+                "Group::deepCopyToSelf cannot copy from a list Group '" + srcGroup->getPath() +
+                  "' to a non-list Group '" + getPath() + "'");
 
   destroyGroupsAndData();
   destroyViewsAndData();
@@ -1498,8 +1484,7 @@ Group* Group::reallocateTo(const std::function<int(const View&)>& viewToAllocato
  *
  *************************************************************************
  */
-axom::IndexType Group::findViews(const std::function<bool(View&)>& criteria,
-                                 axom::Array<View*>& found)
+axom::IndexType Group::findViews(const std::function<bool(View&)>& criteria, axom::Array<View*>& found)
 {
   auto origSize = found.size();
 
@@ -1592,9 +1577,8 @@ bool Group::deepCopyToConduit(Node& n, const Attribute* attr) const
 
     // Check that the view's name is not also a child group name
     SLIC_CHECK_MSG(m_is_list || !hasChildGroup(view->getName()),
-                   SIDRE_GROUP_LOG_PREPEND
-                     << "'" << view->getName()
-                     << "' is the name of both a group and a view.");
+                   SIDRE_GROUP_LOG_PREPEND << "'" << view->getName()
+                                           << "' is the name of both a group and a view.");
 
     if(attr == nullptr || view->hasAttributeValue(attr))
     {
