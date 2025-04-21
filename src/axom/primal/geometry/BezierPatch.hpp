@@ -2055,7 +2055,7 @@ public:
         Segment<T, 3> seg(m_controlPoints(p, 0), m_controlPoints(p, ord_v));
         for(int q = 1; q < ord_v; ++q)
         {
-          if(squared_distance(m_controlPoints(p, q), seg))
+          if(squared_distance(m_controlPoints(p, q), seg) > sq_tol)
           {
             return false;
           }
@@ -2067,7 +2067,7 @@ public:
         Segment<T, 3> seg(m_controlPoints(0, q), m_controlPoints(ord_u, q));
         for(int p = 1; p < ord_u; ++p)
         {
-          if(squared_distance(m_controlPoints(p, q), seg))
+          if(squared_distance(m_controlPoints(p, q), seg) > sq_tol)
           {
             return false;
           }
