@@ -306,8 +306,7 @@ public:
   Group* setDefaultAllocator(int allocId)
   {
 #if !defined(AXOM_USE_UMPIRE)
-    SLIC_ASSERT(allocId == axom::MALLOC_ALLOCATOR_ID ||
-                allocId == axom::DYNAMIC_ALLOCATOR_ID);
+    SLIC_ASSERT(allocId == axom::MALLOC_ALLOCATOR_ID);
 #endif
     m_default_allocator_id = allocId;
     m_default_allocator_id_conduit =
