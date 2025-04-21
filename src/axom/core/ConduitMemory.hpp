@@ -108,8 +108,11 @@ private:
   //!@brief Conduit's allocator id equivalent to m_axomId.
   conduit::index_t m_conduitId;
 
-#if 0
-  // Conduit will support std::function in the near future.
+#if CONDUIT_VERSION_MINOR >= 9 && CONDUIT_VERSION_PATCH >4
+#define AXOM_USE_CONDUIT_STD_FUNCTION 1
+#endif
+
+#if defined(AXOM_USE_CONDUIT_STD_FUNCTION)
   using AllocatorCallback = std::function<void*(size_t, size_t)>;
   using DeallocCallback = std::function<void(void*)>;
 #else
@@ -119,6 +122,12 @@ private:
 
   AllocatorCallback m_allocCallback;
   DeallocCallback m_deallocCallback;
+
+  static void staticDeallocator(void* ptr)
+  {
+    char* cPtr = (char*)(ptr);
+    axom::deallocate<char>(cPtr);
+  }
 
   ConduitMemory() = delete;
 
@@ -134,10 +143,18 @@ private:
       axom::deallocate<char>(cPtr);
     };
     m_deallocCallback = deallocator;
+#if defined(AXOM_USE_CONDUIT_STD_FUNCTION)
+    m_allocCallback = [=](size_t itemCount, size_t itemByteSize) -> void* {
+                        void* ptr =
+                          axom::allocate<char>(itemCount * itemByteSize, axomAllocId);
+                        return ptr;
+                      };
+    m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
+#else
     /*
-      Note: Once Conduit allows the callbacks as std::function types,
-      we can use a single allocator, eliminating the need for these
-      if-else blocks.
+      Note: conduit-0.9.4 allows the callbacks as std::function types.
+      Once we are there, we can use a single allocator, eliminating
+      the need for these if-else blocks.
     */
     if(axomAllocId == MALLOC_ALLOCATOR_ID)
     {
@@ -205,6 +222,7 @@ private:
                 << ".  Please add it to ConduitMemory.hpp.";
       axom::utilities::processAbort();
     }
+#endif
   }
 };
 
