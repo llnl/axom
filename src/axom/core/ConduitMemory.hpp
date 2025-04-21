@@ -113,12 +113,12 @@ private:
   using AllocatorCallback = std::function<void*(size_t, size_t)>;
   using DeallocCallback = std::function<void(void*)>;
 #else
-  typedef void*(AllocatorCallback)(size_t, size_t);
-  typedef void(DeallocCallback)(void*);
+  typedef void*(*AllocatorCallback)(size_t, size_t);
+  typedef void(*DeallocCallback)(void*);
 #endif
 
-  AllocatorCallback* m_allocCallback;
-  DeallocCallback* m_deallocCallback;
+  AllocatorCallback m_allocCallback;
+  DeallocCallback m_deallocCallback;
 
   ConduitMemory() = delete;
 
@@ -129,7 +129,7 @@ private:
   ConduitMemory(int axomAllocId) : m_axomId(axomAllocId)
   {
     using conduit::utils::register_allocator;
-    auto deallocator = [](void* ptr) {
+    auto deallocator = [](void* ptr) -> void {
       char* cPtr = (char*)(ptr);
       axom::deallocate<char>(cPtr);
     };
