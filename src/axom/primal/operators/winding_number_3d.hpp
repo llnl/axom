@@ -572,6 +572,8 @@ std::pair<double, double> winding_number_casting_split(
   const double EPS = 1e-8,
   const int depth = 0)
 {
+  // lamePrinter(nPatch);
+
   const double edge_tol_sq = edge_tol * edge_tol;
 
   // Fix the number of quadrature nodes arbitrarily
@@ -729,6 +731,7 @@ std::pair<double, double> winding_number_casting_split(
     T disk_radius = 0.1 * patch_knot_size;
 
     // Compute intersections with the *untrimmed and extrapolated* patch
+    // Sphere shortcuts
     axom::Array<T> up, vp, tp;
     bool isHalfOpen = false, isTrimmed = false;
     bool success = intersect(discontinuity_axis,
@@ -871,81 +874,7 @@ std::pair<double, double> winding_number_casting_split(
                                isDiskOutside,
                                ignoreInteriorDisk);
 
-        // disk_patch.printTrimmingCurves(
-        //   "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\graphical_"
-        //   "abstract\\trimming_curves\\disk.txt");
-        // rotatedPatch.printTrimmingCurves(
-        //   "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\graphical_"
-        //   "abstract\\trimming_curves\\remaining.txt");
-
-        // axom::Array<T> up_1, vp_1, tp_1;
-        // bool isHalfOpen = false, isTrimmed = false;
-        // intersect(discontinuity_axis,
-        //           disk_patch,
-        //           tp_1,
-        //           up_1,
-        //           vp_1,
-        //           1e-8,  // This is a good heuristic value for accuracy
-        //           EPS,
-        //           isHalfOpen);
-
-        // for(int kk = 0; kk < up_1.size(); ++kk)
-        // {
-        //   Point<T, 3> intersection_point = disk_patch.evaluate(up_1[kk], vp_1[kk]);
-        //   Point<T, 3> line_point = discontinuity_axis.at(tp_1[kk]);
-        //   std::cout << intersection_point << std::endl;
-        //   std::cout << line_point << std::endl;
-        // }
-
-        // std::cout << disk_patch.getKnots_u() << std::endl;
-        // std::cout << disk_patch.getKnots_v() << std::endl;
-        // disk_patch.clip(up[i] - 2 * disk_radius,
-        //                 up[i] + 2 * disk_radius,
-        //                 vp[i] - 2 * disk_radius,
-        //                 vp[i] + 2 * disk_radius);
-        // std::cout << disk_patch.getKnots_u() << std::endl;
-        // std::cout << disk_patch.getKnots_v() << std::endl;
-
-        // axom::Array<T> up_2, vp_2, tp_2;
-        // intersect(discontinuity_axis,
-        //           disk_patch,
-        //           tp_2,
-        //           up_2,
-        //           vp_2,
-        //           1e-8,  // This is a good heuristic value for accuracy
-        //           EPS,
-        //           isHalfOpen);
-
-        // for(int kk = 0; kk < up_2.size(); ++kk)
-        // {
-        //   Point<T, 3> intersection_point = disk_patch.evaluate(up_2[kk], vp_2[kk]);
-        //   Point<T, 3> line_point = discontinuity_axis.at(tp_2[kk]);
-        //   std::cout << intersection_point << std::endl;
-        //   std::cout << line_point << std::endl;
-        // }
-
-        // std::cout << "===========" << std::endl;
-        // std::cout << up_1 << std::endl;
-        // std::cout << up_2 << std::endl;
-        // std::cout << "===========" << std::endl;
-        // std::cout << vp_1 << std::endl;
-        // std::cout << vp_2 << std::endl;
-        // std::cout << "===========" << std::endl;
-        // std::cout << discontinuity_axis.at(tp_e[0]) << std::endl;
-        // std::cout << disk_patch.evaluate(up_e[0], vp_e[0]) << std::endl;
-        // std::cout << rotatedPatch.evaluate(up_e[0], vp_e[0]) << std::endl;
-        // std::cout << rotatedPatch.evaluate(up[i], vp[i]) << std::endl;
-        // std::cout << disk_patch.evaluate(up[i], vp[i]) << std::endl;
-        // disk_patch.clip(up[i] - 2 * disk_radius,
-        //                 up[i] + 2 * disk_radius,
-        //                 vp[i] - 2 * disk_radius,
-        //                 vp[i] + 2 * disk_radius);
-        // std::cout << disk_patch.evaluate(up[i], vp[i]) << std::endl;
-        // std::cout << rotatedPatch.evaluate(up[i], vp[i]) << std::endl;
-        // std::cout << disk_patch.evaluate(up[i], vp[i]) << std::endl;
-        // std::cout << up[i] << ": " << up_e << std::endl;
-        // std::cout << vp[i] << ": " << vp_e << std::endl;
-        // std::cout << std::endl;
+        // lamePrinter(rotatedPatch);
       }
 
       // If the query point is on the surface, the contribution of the disk is near-zero,
@@ -1353,7 +1282,7 @@ double winding_number_direct(const Point<T, 3>& query,
                              const double EPS = 1e-8)
 {
   // Compute the winding number with a direct 2D surface integral
-//   return detail::surface_winding_number(query, bPatch, 100, quad_tol, false);
+  //   return detail::surface_winding_number(query, bPatch, 100, quad_tol, false);
   return detail::surface_winding_number(query, bPatch, 100);
 }
 
@@ -1364,14 +1293,14 @@ double winding_number_casting(const Point<T, 3>& query,
                               int& integrated_trimming_curves,
                               const double edge_tol = 1e-8,
                               const double quad_tol = 1e-8,
+                              const double ls_tol = 1e-8,
                               const double EPS = 1e-8,
                               const int depth = 0)
 {
   double theta = axom::utilities::random_real(0.0, 2 * M_PI);
   double u = axom::utilities::random_real(-1.0, 1.0);
-  auto cast_direction =
+  auto cast_direction = //nPatchData.average_normal;
     Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-  cast_direction = Vector<T, 3>({1, 0.5, 1}).unitVector();
   auto wn_split = winding_number_casting_split(query,
                                                nPatchData,
                                                cast_direction,
@@ -1379,6 +1308,7 @@ double winding_number_casting(const Point<T, 3>& query,
                                                integrated_trimming_curves,
                                                edge_tol,
                                                quad_tol,
+                                               ls_tol,
                                                EPS,
                                                depth);
   return wn_split.first + wn_split.second;
@@ -1393,9 +1323,16 @@ std::pair<double, double> winding_number_casting_split(
   int& integrated_trimming_curves,
   const double edge_tol = 1e-8,
   const double quad_tol = 1e-8,
+  const double ls_tol = 1e-8,
   const double EPS = 1e-8,
   const int depth = 0)
 {
+//   axom::primal::exportSurfaceToSTL(
+//     "C:\\Users\\Fireh\\Code\\winding_number_code\\arxiv_plots\\intersect_"
+//     "tolerance\\individual_surface.stl",
+//     nPatchData.patch, 50, 50);
+//   lamePrinter(nPatchData.patch);
+
   const double edge_tol_sq = edge_tol * edge_tol;
 
   // Fix the number of quadrature nodes arbitrarily
@@ -1544,26 +1481,27 @@ std::pair<double, double> winding_number_casting_split(
     field_direction = detail::DiscontinuityAxis::rotated;
     Line<T, 3> discontinuity_axis(query, discontinuity_direction);
 
-    T patch_knot_size = axom::utilities::max(
-      integralPatch.getKnots_u()[integralPatch.getNumKnots_u() - 1] -
-        integralPatch.getKnots_u()[0],
-      integralPatch.getKnots_v()[integralPatch.getNumKnots_v() - 1] -
-        integralPatch.getKnots_v()[0]);
+    // T patch_knot_size = axom::utilities::max(
+    //   integralPatch.getKnots_u()[integralPatch.getNumKnots_u() - 1] -
+    // integralPatch.getKnots_u()[0],
+    //   integralPatch.getKnots_v()[integralPatch.getNumKnots_v() - 1] -
+    // integralPatch.getKnots_v()[0]);
 
     // Tolerance for what counts as "close to a boundary" in parameter space
-    T disk_radius = 0.1 * patch_knot_size;
+    T disk_radius = 0.1 * nPatchData.pbox_diag;
 
     // Compute intersections with the *untrimmed and extrapolated* patch
     axom::Array<T> up, vp, tp;
     bool isHalfOpen = false, isTrimmed = false;
-    bool success = intersect(discontinuity_axis,
-                             nPatchData,
-                             tp,
-                             up,
-                             vp,
-                             1e-10,  // This is a good heuristic value for accuracy
-                             EPS,
-                             isHalfOpen);
+    bool success =
+      intersect(discontinuity_axis,
+                nPatchData,
+                tp,
+                up,
+                vp,
+                ls_tol,  // This is a good heuristic value for accuracy
+                EPS,
+                isHalfOpen);
 
     if(!success)
     {
@@ -1722,13 +1660,12 @@ std::pair<double, double> winding_number_casting_split(
       // If the disk overlaps with a trimming curve
       else if(!isDiskInside && !isDiskOutside)
       {
-        auto new_direction = random_orthogonal(the_normal);
-        std::cout << std::setprecision(15) << std::endl;
-        std::cout << new_direction[0] << "," << std::endl;
-        std::cout << new_direction[1] << "," << std::endl;
-        std::cout << new_direction[2] << "};" << std::endl;
-        new_direction =
-          Vector<T, 3> {0.183876962693649, -0.850254833796789, 0.493209874389953};
+        // auto new_direction = random_orthogonal(the_normal);
+        auto new_direction = nPatchData.patch.normal(up[i], vp[i]).unitVector();
+        if(new_direction.norm() < 1e-5)
+        {
+          new_direction = random_orthogonal(discontinuity_direction);
+        }
 
         // We compute the contribution of the disk directly,
         //  but with a different direction to avoid repeated subdivision
@@ -1934,6 +1871,7 @@ double sphere_winding_number_casting(const Point<T, 3>& query,
                                      int& integrated_trimming_curves,
                                      const double edge_tol = 1e-8,
                                      const double quad_tol = 1e-8,
+                                     const double ls_tol = 1e-8,
                                      const double EPS = 1e-8,
                                      const int depth = 0)
 {
@@ -2030,16 +1968,18 @@ double sphere_winding_number_casting(const Point<T, 3>& query,
     Line<T, 3> discontinuity_axis(query, discontinuity_direction);
 
     // Compute intersections with the *untrimmed and extrapolated* patch
+    // sphere shortcuts
     axom::Array<T> up, vp, tp;
     bool isHalfOpen = false, isTrimmed = false;
-    bool success = intersect(discontinuity_axis,
-                             nPatchData,
-                             tp,
-                             up,
-                             vp,
-                             1e-10,  // This is a good heuristic value for accuracy
-                             EPS,
-                             isHalfOpen);
+    bool success =
+      intersect(discontinuity_axis,
+                nPatchData,
+                tp,
+                up,
+                vp,
+                ls_tol,  // This is a good heuristic value for accuracy
+                EPS,
+                isHalfOpen);
 
     // Account for each discontinuity in the integrand on the *untrimmed and extrapolated* surface
 

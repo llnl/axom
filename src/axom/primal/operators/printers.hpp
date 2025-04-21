@@ -22,6 +22,7 @@
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 
 #include "axom/primal/operators/winding_number_2d.hpp"
+#include "axom/core/numerics/matvecops.hpp"
 
 #include <stdio.h>
 #include <iostream>
@@ -1424,6 +1425,37 @@ void exportSurfaceToSTL(const std::string& filename,
 {
   auto beziers = patch.extractBezier();
   exportSurfaceToSTL(filename, beziers, u_steps, v_steps);
+}
+
+template <typename T>
+void lamePrinter(const primal::NURBSPatch<T, 3>& patch)
+{
+  const int npts = 20;
+  double u_pts[npts], v_pts[npts];
+  axom::numerics::linspace(patch.getMinKnot_u(),
+                           patch.getMaxKnot_u(),
+                           u_pts,
+                           npts);
+  axom::numerics::linspace(patch.getMinKnot_v(),
+                           patch.getMaxKnot_v(),
+                           v_pts,
+                           npts);
+
+  std::cout << std::fixed;
+  std::cout << "==========================" << std::endl;
+  for(int j = 0; j < npts; ++j)
+  {
+    for(int i = 0; i < npts; ++i)
+    {
+      if(patch.isVisible(u_pts[i], v_pts[j]))
+      {
+        auto pt = patch.evaluate(u_pts[i], v_pts[j]);
+        std::cout << "(" << pt[0] << "," << pt[1] << "," << pt[2] << "), ";
+      }
+    }
+  }
+  std::cout << "==========================" << std::endl;
+
 }
 
 }  // namespace primal
