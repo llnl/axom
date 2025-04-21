@@ -3287,24 +3287,32 @@ public:
       }
     }
 
+    int nkts_v = m_knotvec_v.getNumKnots();
+    int nkts_u = m_knotvec_u.getNumKnots();
+
     // Add the control points on the u direction
     for(int i = 0; i < n; ++i)
     {
       if(!isRational())
       {
         Vector<T, 3> v(m_controlPoints(i, 1), m_controlPoints(i, 0));
+        double alpha = deg_v * buffer / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
+
         for(int j = 0; j < deg_v; ++j)
         {
           newControlPoints(i + deg_u, j).array() = m_controlPoints(i, 0).array() +
-            static_cast<T>(deg_v - j) / (deg_v)*buffer * v.array();
+            static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array();
         }
 
         v = Vector<T, 3>(m_controlPoints(i, m - 2), m_controlPoints(i, m - 1));
+        alpha = deg_v * buffer /
+          (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
+
         for(int j = 0; j < deg_v; ++j)
         {
           newControlPoints(i + deg_u, m + deg_v + j).array() =
             m_controlPoints(i, m - 1).array() +
-            static_cast<T>(j + 1) / (deg_v)*buffer * v.array();
+            static_cast<T>(j + 1) / (deg_v)*alpha * v.array();
         }
       }
       else
@@ -3312,30 +3320,34 @@ public:
         Vector<T, 3> v(
           Point<T, 3>(m_controlPoints(i, 1).array() * m_weights(i, 1)),
           Point<T, 3>(m_controlPoints(i, 0).array() * m_weights(i, 0)));
-        double vw = m_weights(i, 1) - m_weights(i, 0);
+        double weights = m_weights(i, 0) - m_weights(i, 1);
+        double alpha = deg_v * buffer / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
 
         for(int j = 0; j < deg_v; ++j)
         {
-          newWeights(i + deg_u, j) =
-            m_weights(i, 0) + static_cast<T>(deg_v - j) / (deg_v)*buffer * vw;
+          newWeights(i + deg_u, j) = m_weights(i, 0) +
+            static_cast<T>(j - deg_v) / (deg_v)*alpha*weights;
           newControlPoints(i + deg_u, j).array() =
-            (m_controlPoints(i, 0).array() * m_weights(i, 0)) +
-            static_cast<T>(deg_v - j) / (deg_v)*buffer * v.array() /
-              m_weights(i + deg_u, j);
+            (m_controlPoints(i, 0).array() * m_weights(i, 0) +
+             static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array()) /
+            newWeights(i + deg_u, j);
         }
 
         v = Vector<T, 3>(
           Point<T, 3>(m_controlPoints(i, m - 2).array() * m_weights(i, m - 2)),
           Point<T, 3>(m_controlPoints(i, m - 1).array() * m_weights(i, m - 1)));
-        vw = m_weights(i, m - 1) - m_weights(i, m - 2);
+        weights = m_weights(i, m - 1) - m_weights(i, m - 2);
+        alpha = deg_v * buffer /
+          (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
+
         for(int j = 0; j < deg_v; ++j)
         {
-          newWeights(i + deg_u, m + deg_v + j) =
-            m_weights(i, m - 1) + static_cast<T>(j + 1) / (deg_v)*buffer * vw;
+          newWeights(i + deg_u, m + deg_v + j) = m_weights(i, m - 1) +
+            static_cast<T>(j + 1) / (deg_v)*alpha * weights;
           newControlPoints(i + deg_u, m + deg_v + j).array() =
-            (m_controlPoints(i, m - 1).array() * m_weights(i, m - 1)) +
-            static_cast<T>(j + 1) / (deg_v)*buffer * v.array() /
-              m_weights(i + deg_u, m + deg_v + j);
+            (m_controlPoints(i, m - 1).array() * m_weights(i, m - 1) +
+             static_cast<T>(j + 1) / (deg_v)*alpha * v.array()) /
+            newWeights(i + deg_u, m + deg_v + j);
         }
       }
     }
@@ -3349,19 +3361,22 @@ public:
       {
         Vector<T, 3> v(newControlPoints(deg_u + 1, j),
                        newControlPoints(deg_u, j));
+        double alpha = deg_u * buffer / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
         for(int i = 0; i < deg_u; ++i)
         {
           newControlPoints(i, j).array() = newControlPoints(deg_u, j).array() +
-            static_cast<T>(deg_u - i) / (deg_u)*buffer * v.array();
+            static_cast<T>(i - deg_u) / (deg_u)*alpha * v.array();
         }
 
         v = Vector<T, 3>(newControlPoints(n - 2 + deg_u, j),
                          newControlPoints(n + deg_u - 1, j));
+        alpha = deg_u * buffer /
+          (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
         for(int i = 0; i < deg_u; ++i)
         {
           newControlPoints(n + deg_u + i, j).array() =
             newControlPoints(n + deg_u - 1, j).array() +
-            static_cast<T>(i + 1) / (deg_u)*buffer * v.array();
+            static_cast<T>(i + 1) / (deg_u)*alpha * v.array();
         }
       }
       else
@@ -3370,32 +3385,35 @@ public:
           Point<T, 3>(newControlPoints(deg_u + 1, j).array() *
                       newWeights(deg_u + 1, j)),
           Point<T, 3>(newControlPoints(deg_u, j).array() * newWeights(deg_u, j)));
-        double vw = newWeights(deg_u + 1, j) - newWeights(deg_u, j);
-
+        double weights = newWeights(deg_u + 1, j) - newWeights(deg_u, j);
+        double alpha = deg_u * buffer / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
         for(int i = 0; i < deg_u; ++i)
         {
           newWeights(i, j) = newWeights(deg_u, j) +
-            static_cast<T>(deg_u - i) / (deg_u)*buffer * vw;
+            static_cast<T>(i - deg_u) / (deg_u)*alpha * weights;
           newControlPoints(i, j).array() =
-            (newControlPoints(deg_u, j).array() * newWeights(deg_u, j)) +
-            static_cast<T>(deg_u - i) / (deg_u)*buffer * v.array() /
-              newWeights(i, j);
+            (newControlPoints(deg_u, j).array() * newWeights(deg_u, j) +
+             static_cast<T>(i - deg_u) / (deg_u)*alpha * v.array()) /
+            newWeights(i, j);
         }
 
         v = Vector<T, 3>(Point<T, 3>(newControlPoints(n - 2 + deg_u, j).array() *
                                      newWeights(n - 2 + deg_u, j)),
                          Point<T, 3>(newControlPoints(n + deg_u - 1, j).array() *
                                      newWeights(n + deg_u - 1, j)));
-        vw = newWeights(n + deg_u - 1, j) - newWeights(n - 2 + deg_u, j);
+        weights = newWeights(n - 2 + deg_u, j) - newWeights(n + deg_u - 1, j);
+        alpha = deg_u * buffer /
+          (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
+
         for(int i = 0; i < deg_u; ++i)
         {
           newWeights(n + deg_u + i, j) = newWeights(n + deg_u - 1, j) +
-            static_cast<T>(i + 1) / (deg_u)*buffer * vw;
+            static_cast<T>(i + 1) / (deg_u)*weights * alpha;
           newControlPoints(n + deg_u + i, j).array() =
             (newControlPoints(n + deg_u - 1, j).array() *
-             newWeights(n + deg_u - 1, j)) +
-            static_cast<T>(i + 1) / (deg_u)*buffer * v.array() /
-              newWeights(n + deg_u + i, j);
+               newWeights(n + deg_u - 1, j) +
+             static_cast<T>(i + 1) / (deg_u)*alpha * v.array()) /
+            newWeights(n + deg_u + i, j);
         }
       }
     }
