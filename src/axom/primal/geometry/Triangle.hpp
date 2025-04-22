@@ -15,7 +15,6 @@
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/Sphere.hpp"
-#include "axom/export/primal.h"
 
 #include <cmath>
 #include <ostream>
@@ -336,7 +335,8 @@ public:
    * \return true if \a p is in the triangle
    * \deprecated This function is deprecated. Use \a contains() instead
    */
-  AXOM_PRIMAL_DEPRECATED bool checkInTriangle(const PointType& p, double eps = 1e-8) const
+  [[deprecated("Use contains() instead.")]] bool checkInTriangle(const PointType& p,
+                                                                 double eps = 1e-8) const
   {
     return contains(p, eps);
   }

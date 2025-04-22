@@ -26,7 +26,6 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds support for allocations using `malloc` and `free` even when Axom is configured with Umpire support.
 - Adds a new utility tool, `mesh_converter`, which converts between mesh formats. The first conversion
   is from a Pro-E tetrahedral mesh to an STL mesh of its boundary triangles.
-- Adds macros to deprecate functions in header-only components.
 - Primal: Adds a method to determine if a point is contained within a Tetrahedron.
 
 ###  Deprecated

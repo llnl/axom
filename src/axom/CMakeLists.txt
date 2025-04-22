@@ -62,23 +62,18 @@ endforeach()
 include(GenerateExportHeader)
 
 foreach(_component ${AXOM_COMPONENTS_ENABLED})
-    set(_export_header ${PROJECT_BINARY_DIR}/include/axom/export/${_component}.h)
-
+    # Skip header only libraries
     get_property(_targetType TARGET ${_component} PROPERTY TYPE)
     if(${_targetType} STREQUAL "INTERFACE_LIBRARY")
-        # For header-only libraries we only generate macros for deprecated functions
-        string(TOUPPER ${_component} _COMPONENT)
-        configure_file(export.h.in ${_export_header} @ONLY)
-        unset(_COMPONENT)
-    else()
-        # Compiled libraries also get macros for import/export of symbols
-        generate_export_header( ${_component} 
-                                PREFIX_NAME AXOM_
-                                EXPORT_FILE_NAME ${_export_header})
+        continue()
     endif()
 
-    install(FILES ${_export_header} DESTINATION include/axom/export )
-
+    set(_export_header ${PROJECT_BINARY_DIR}/include/axom/export/${_component}.h)
+    generate_export_header( ${_component} 
+                            PREFIX_NAME AXOM_
+                            EXPORT_FILE_NAME ${_export_header})
+    install(FILES ${_export_header} 
+            DESTINATION include/axom/export )
 endforeach()
 
 #------------------------------------------------------------------------------
