@@ -724,9 +724,9 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_edge_cases)
 }
 
 //------------------------------------------------------------------------------
-TEST_F(TrimmingCurveTest, trimming_edge_subdivision_unworked_edge_case)
+TEST_F(TrimmingCurveTest, trimming_edge_subdivision_unworked_split_edge_case)
 {
-  SLIC_INFO("Testing edge cases of disk subdivision of the curve");
+  SLIC_INFO("Testing edge cases of line subdivision of the curve");
 
   NURBSPatchType nPatch(this->nPatch);
 
@@ -751,10 +751,6 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_unworked_edge_case)
   bool normalize = true;
   NURBSPatchType toppatch, bottompatch;
   nPatch.split_v(0.5, toppatch, bottompatch, !normalize);
-
-  nPatch.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//original.txt");
-  toppatch.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//left.txt");
-  bottompatch.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//right.txt");
 }
 
 int main(int argc, char* argv[])
