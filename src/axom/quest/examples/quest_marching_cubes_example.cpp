@@ -610,11 +610,26 @@ void printTimingStats(axom::utilities::Timer& t, const std::string& description)
     double minCompute, maxCompute, sumCompute;
     getDoubleMinMax(t.elapsedTimeInSec(), minCompute, maxCompute, sumCompute);
 
-    SLIC_INFO(axom::fmt::format("'{}' took {{avg:{}, min:{}, max:{}}} seconds",
-                                description,
-                                sumCompute / numRanks,
-                                minCompute,
-                                maxCompute));
+    const auto count = t.cycleCount();
+    if(count > 1)
+    {
+      SLIC_INFO(
+        axom::fmt::format("'{}' took {{avg:{}, min:{}, max:{}}} seconds (avg of {} samples)",
+                          description,
+                          sumCompute / count / numRanks,
+                          minCompute / count,
+                          maxCompute / count,
+                          count));
+    }
+    else
+    {
+      SLIC_INFO(axom::fmt::format("'{}' took {{avg:{}, min:{}, max:{}}} seconds",
+                                  description,
+                                  sumCompute / numRanks,
+                                  minCompute,
+                                  maxCompute,
+                                  count));
+    }
   }
 }
 
@@ -797,24 +812,51 @@ struct ContourTestBase
     }
 #endif
 
+    // One-time initializations
+    axom::utilities::Timer initializationTimer(false);
+
+    // Entire objectRepCount loop.
+    axom::utilities::Timer objectRepLoopTimer(false);
+
+    // All contourGenCount loops.
+    axom::utilities::Timer contourGenLoopTimer(false);
+
+    // params.objectRepCount setMesh calls
+    axom::utilities::Timer setMeshTimer(false);
+
+    // Time steady-state computeIsocontour calls
+    axom::utilities::Timer contourTimer(false);
+
+    // Time first contourIsocontour call after setMesh
+    axom::utilities::Timer contourTimerM(false);
+
     std::unique_ptr<quest::MarchingCubes> mcPtr;
-    axom::utilities::Timer repsTimer(false);
-    repsTimer.start();
+    const auto objectLoopName = axom::fmt::format("objectRepLoop {}", params.objectRepCount);
+    AXOM_ANNOTATE_BEGIN(objectLoopName);
+    objectRepLoopTimer.start();
     for(int j = 0; j < params.objectRepCount; ++j)
     {
       if(!mcPtr)
       {
+        AXOM_ANNOTATE_SCOPE("MCInit");
+        initializationTimer.start();
         mcPtr =
           std::make_unique<quest::MarchingCubes>(params.policy, s_allocatorId, params.dataParallelism);
+        mcPtr->setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
+        initializationTimer.stop();
       }
       auto& mc = *mcPtr;
 
       // Clear and set MarchingCubes object for a "new" mesh.
+      setMeshTimer.start();
       mc.setMesh(computationalMesh.asConduitNode(), "mesh", "mask");
+      setMeshTimer.stop();
 
 #ifdef AXOM_USE_MPI
       MPI_Barrier(MPI_COMM_WORLD);
 #endif
+
+      contourGenLoopTimer.start();
       for(int i = 0; i < params.contourGenCount; ++i)
       {
         SLIC_DEBUG(axom::fmt::format("MarchingCubes object rep {} of {}, contour run {} of {}:",
@@ -831,17 +873,41 @@ struct ContourTestBase
           for(int iMask = 0; iMask < params.maskCount; ++iMask)
           {
             mc.setMaskValue(iMask);
+            if(i == 0)
+            {
+              contourTimerM.start();
+            }
+            else
+            {
+              contourTimer.start();
+            }
             mc.computeIsocontour(params.contourVal);
+            if(i == 0)
+            {
+              contourTimerM.stop();
+            }
+            else
+            {
+              contourTimer.stop();
+            }
           }
           m_strategyFacetPrefixSum.push_back(mc.getContourFacetCount());
         }
       }
+      contourGenLoopTimer.stop();
     }
-    repsTimer.stop();
+    objectRepLoopTimer.stop();
+    AXOM_ANNOTATE_END(objectLoopName);
     SLIC_INFO(axom::fmt::format("Finished {} object reps x {} contour reps",
                                 params.objectRepCount,
                                 params.contourGenCount));
-    printTimingStats(repsTimer, "contour");
+    printTimingStats(initializationTimer, axom::fmt::format("init"));
+    printTimingStats(contourTimerM, axom::fmt::format("setMeshContour"));
+    printTimingStats(setMeshTimer, axom::fmt::format("setMesh"));
+    printTimingStats(contourTimer, axom::fmt::format("steady-contour"));
+    printTimingStats(contourTimerM, axom::fmt::format("first-contour"));
+    printTimingStats(contourGenLoopTimer, axom::fmt::format("contourGenLoop"));
+    printTimingStats(objectRepLoopTimer, axom::fmt::format("objectRepLoop"));
 
     auto& mc = *mcPtr;
     printRunStats(mc);
@@ -1726,6 +1792,8 @@ int main(int argc, char** argv)
   }
 
   axom::utilities::raii::AnnotationsWrapper annotation_raii_wrapper(params.annotationMode);
+  axom::utilities::Timer questMarchingCubesExample(false);
+  questMarchingCubesExample.start();
   AXOM_ANNOTATE_SCOPE("quest marching cubes example");
 
   s_allocatorId = allocatorIdToTest(params.policy);
@@ -1822,6 +1890,8 @@ int main(int argc, char** argv)
   #endif
 #endif
 
+  questMarchingCubesExample.stop();
+  printTimingStats(questMarchingCubesExample, "questMarchingCubesExample");
   finalizeLogger();
 
   return errCount != 0;
