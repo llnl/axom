@@ -156,15 +156,8 @@ void initialize_caliper(const std::string &mode)
 #endif  // AXOM_USE_CALIPER
 }
 
-static const std::set<std::string> axom_valid_caliper_args = {"counts",
-                                                              "file",
-                                                              "gputx",
-                                                              "none",
-                                                              "nvprof",
-                                                              "nvtx",
-                                                              "report",
-                                                              "trace",
-                                                              "roctx"};
+static const std::set<std::string> axom_valid_caliper_args =
+  {"counts", "file", "gputx", "none", "nvprof", "nvtx", "report", "trace", "roctx"};
 
 bool is_mode_valid(const std::string &mode)
 {
@@ -175,10 +168,9 @@ bool is_mode_valid(const std::string &mode)
   const bool result = test_mgr.add(mode.c_str(), app_args);
   if(!result || test_mgr.error())
   {
-    std::cerr << axom::fmt::format(
-      "Bad caliper configuration for mode '{}' -> {}\n",
-      mode,
-      test_mgr.error_msg());
+    std::cerr << axom::fmt::format("Bad caliper configuration for mode '{}' -> {}\n",
+                                   mode,
+                                   test_mgr.error_msg());
     return false;
   }
 
@@ -208,11 +200,10 @@ std::string mode_help_string()
 {
 #ifdef AXOM_USE_CALIPER
   const auto built_in =
-    axom::fmt::format("Built-in configurations: {}",
-                      axom::fmt::join(axom_valid_caliper_args, ","));
-  const auto cali_configs = axom::fmt::format(
-    "Caliper configurations:\n{}",
-    axom::fmt::join(cali::ConfigManager::get_config_docstrings(), "\n"));
+    axom::fmt::format("Built-in configurations: {}", axom::fmt::join(axom_valid_caliper_args, ","));
+  const auto cali_configs =
+    axom::fmt::format("Caliper configurations:\n{}",
+                      axom::fmt::join(cali::ConfigManager::get_config_docstrings(), "\n"));
   return built_in + "\n" + cali_configs;
 #else
   return "Caliper not enabled at build-time, so the only valid mode is 'none'";
@@ -252,8 +243,7 @@ static std::string adiak_value_as_string(adiak_value_t *val, adiak_datatype_t *t
   case adiak_longlong:
     return axom::fmt::format("{}", val->v_longlong);
   case adiak_ulonglong:
-    return axom::fmt::format("{}",
-                             static_cast<unsigned long long>(val->v_longlong));
+    return axom::fmt::format("{}", static_cast<unsigned long long>(val->v_longlong));
   case adiak_int:
     return axom::fmt::format("{}", val->v_int);
   case adiak_uint:
@@ -268,9 +258,9 @@ static std::string adiak_value_as_string(adiak_value_t *val, adiak_datatype_t *t
   case adiak_timeval:
   {
     const auto *tv = static_cast<struct timeval *>(val->v_ptr);
-    return axom::fmt::format("{:%S} seconds:timeval",
-                             std::chrono::seconds {tv->tv_sec} +
-                               std::chrono::microseconds {tv->tv_usec});
+    return axom::fmt::format(
+      "{:%S} seconds:timeval",
+      std::chrono::seconds {tv->tv_sec} + std::chrono::microseconds {tv->tv_usec});
   }
   case adiak_version:
     return axom::fmt::format("{}:version", static_cast<char *>(val->v_ptr));
@@ -281,20 +271,16 @@ static std::string adiak_value_as_string(adiak_value_t *val, adiak_datatype_t *t
   case adiak_path:
     return axom::fmt::format("{}:path", static_cast<char *>(val->v_ptr));
   case adiak_range:
-    return axom::fmt::format("{}",
-                             axom::fmt::join(get_vals_array(t, val, 2), " - "));
+    return axom::fmt::format("{}", axom::fmt::join(get_vals_array(t, val, 2), " - "));
   case adiak_set:
-    return axom::fmt::format(
-      "[{}]",
-      axom::fmt::join(get_vals_array(t, val, adiak_num_subvals(t)), ", "));
+    return axom::fmt::format("[{}]",
+                             axom::fmt::join(get_vals_array(t, val, adiak_num_subvals(t)), ", "));
   case adiak_list:
-    return axom::fmt::format(
-      "{{{}}}",
-      axom::fmt::join(get_vals_array(t, val, adiak_num_subvals(t)), ", "));
+    return axom::fmt::format("{{{}}}",
+                             axom::fmt::join(get_vals_array(t, val, adiak_num_subvals(t)), ", "));
   case adiak_tuple:
-    return axom::fmt::format(
-      "({})",
-      axom::fmt::join(get_vals_array(t, val, adiak_num_subvals(t)), ", "));
+    return axom::fmt::format("({})",
+                             axom::fmt::join(get_vals_array(t, val, adiak_num_subvals(t)), ", "));
   default:
     return std::string("<unknown type>");
   }

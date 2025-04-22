@@ -46,6 +46,7 @@ set(core_headers
     numerics/linear_solve.hpp
     numerics/matvecops.hpp
     numerics/polynomial_solvers.hpp
+    numerics/transforms.hpp
 
     ## detail
     detail/FlatTable.hpp
@@ -102,6 +103,11 @@ set(core_sources
     Path.cpp
     Types.cpp
     )
+
+if (CONDUIT_FOUND)
+  blt_list_append( TO core_headers ELEMENTS ConduitMemory.hpp )
+  blt_list_append( TO core_sources ELEMENTS ConduitMemory.cpp )
+endif()
 
 #------------------------------------------------------------------------------
 # Set library dependencies

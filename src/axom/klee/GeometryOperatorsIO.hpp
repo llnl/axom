@@ -22,8 +22,7 @@ struct TransformableGeometryProperties;
 
 namespace internal
 {
-using NamedOperatorMap =
-  std::unordered_map<std::string, std::shared_ptr<const GeometryOperator>>;
+using NamedOperatorMap = std::unordered_map<std::string, std::shared_ptr<const GeometryOperator>>;
 
 /**
  * The data for a single operator.
@@ -78,9 +77,8 @@ public:
      * @param namedOperators a map of any named operators
      * @return the (possibly null) operator
      */
-  std::shared_ptr<GeometryOperator> makeOperator(
-    const TransformableGeometryProperties &startProperties,
-    const NamedOperatorMap &namedOperators) const;
+  std::shared_ptr<GeometryOperator> makeOperator(const TransformableGeometryProperties &startProperties,
+                                                 const NamedOperatorMap &namedOperators) const;
 
   /**
    * Get the path of this operator in the source document
@@ -158,22 +156,19 @@ private:
 template <>
 struct FromInlet<axom::klee::internal::GeometryOperatorData>
 {
-  axom::klee::internal::GeometryOperatorData operator()(
-    const axom::inlet::Container &base);
+  axom::klee::internal::GeometryOperatorData operator()(const axom::inlet::Container &base);
 };
 
 template <>
 struct FromInlet<axom::klee::internal::NamedOperatorData>
 {
-  axom::klee::internal::NamedOperatorData operator()(
-    const axom::inlet::Container &base);
+  axom::klee::internal::NamedOperatorData operator()(const axom::inlet::Container &base);
 };
 
 template <>
 struct FromInlet<axom::klee::internal::NamedOperatorMapData>
 {
-  axom::klee::internal::NamedOperatorMapData operator()(
-    const axom::inlet::Container &base);
+  axom::klee::internal::NamedOperatorMapData operator()(const axom::inlet::Container &base);
 };
 
 #endif  //AXOM_KLEE_GEOMETRYOPERATORSIO_HPP

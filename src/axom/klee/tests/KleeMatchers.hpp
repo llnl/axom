@@ -30,14 +30,11 @@ class AlmostEqMatrixMatcher
 public:
   using is_gtest_matcher = void;
 
-  explicit AlmostEqMatrixMatcher(const axom::numerics::Matrix<T>& mat)
-    : m_mat(mat)
-  { }
+  explicit AlmostEqMatrixMatcher(const axom::numerics::Matrix<T>& mat) : m_mat(mat) { }
 
   bool MatchAndExplain(const axom::numerics::Matrix<T>& other, std::ostream*) const
   {
-    if(other.getNumRows() != m_mat.getNumRows() ||
-       other.getNumColumns() != m_mat.getNumColumns())
+    if(other.getNumRows() != m_mat.getNumRows() || other.getNumColumns() != m_mat.getNumColumns())
     {
       return false;
     }
@@ -46,8 +43,7 @@ public:
     {
       for(axom::IndexType column = 0; column < other.getNumColumns(); ++column)
       {
-        if(!::testing::Matches(
-             ::testing::DoubleNear(m_mat(row, column), tolerance))(
+        if(!::testing::Matches(::testing::DoubleNear(m_mat(row, column), tolerance))(
              other(row, column)))
         {
           return false;
@@ -61,14 +57,12 @@ public:
   void DescribeTo(std::ostream*) const { }
   void DescribeNegationTo(std::ostream*) const { }
 
-  friend bool operator==(const AlmostEqMatrixMatcher& lhs,
-                         const axom::numerics::Matrix<T>& rhs)
+  friend bool operator==(const AlmostEqMatrixMatcher& lhs, const axom::numerics::Matrix<T>& rhs)
   {
     return lhs.MatchAndExplain(rhs, nullptr);
   }
 
-  friend bool operator==(const axom::numerics::Matrix<T>& lhs,
-                         const AlmostEqMatrixMatcher& rhs)
+  friend bool operator==(const axom::numerics::Matrix<T>& lhs, const AlmostEqMatrixMatcher& rhs)
   {
     return rhs == lhs;
   }
@@ -115,10 +109,7 @@ public:
     return lhs.MatchAndExplain(rhs, nullptr);
   }
 
-  friend bool operator==(const T& lhs, const AlmostEqArrMatcher& rhs)
-  {
-    return rhs == lhs;
-  }
+  friend bool operator==(const T& lhs, const AlmostEqArrMatcher& rhs) { return rhs == lhs; }
 
   explicit operator const T() const { return m_arr; }
 
@@ -146,31 +137,25 @@ class AlmostEqSliceMatcher
 public:
   using is_gtest_matcher = void;
 
-  explicit AlmostEqSliceMatcher(const klee::SliceOperator& slice)
-    : m_slice(slice)
-  { }
+  explicit AlmostEqSliceMatcher(const klee::SliceOperator& slice) : m_slice(slice) { }
 
   bool MatchAndExplain(const klee::SliceOperator& other, std::ostream*) const
   {
-    return ::testing::Matches(AlmostEqPoint(m_slice.getOrigin()))(
-             other.getOrigin()) &&
+    return ::testing::Matches(AlmostEqPoint(m_slice.getOrigin()))(other.getOrigin()) &&
       ::testing::Matches(AlmostEqVector(m_slice.getNormal()))(other.getNormal()) &&
       ::testing::Matches(AlmostEqVector(m_slice.getUp()))(other.getUp()) &&
-      ::testing::Matches(::testing::Eq(m_slice.getStartProperties()))(
-             other.getStartProperties());
+      ::testing::Matches(::testing::Eq(m_slice.getStartProperties()))(other.getStartProperties());
   }
 
   void DescribeTo(std::ostream*) const { }
   void DescribeNegationTo(std::ostream*) const { }
 
-  friend bool operator==(const AlmostEqSliceMatcher& lhs,
-                         const klee::SliceOperator& rhs)
+  friend bool operator==(const AlmostEqSliceMatcher& lhs, const klee::SliceOperator& rhs)
   {
     return lhs.MatchAndExplain(rhs, nullptr);
   }
 
-  friend bool operator==(const klee::SliceOperator& lhs,
-                         const AlmostEqSliceMatcher& rhs)
+  friend bool operator==(const klee::SliceOperator& lhs, const AlmostEqSliceMatcher& rhs)
   {
     return rhs == lhs;
   }
@@ -179,10 +164,7 @@ private:
   const klee::SliceOperator m_slice;
 };
 
-inline auto AlmostEqSlice(const klee::SliceOperator& slice)
-{
-  return AlmostEqSliceMatcher(slice);
-}
+inline auto AlmostEqSlice(const klee::SliceOperator& slice) { return AlmostEqSliceMatcher(slice); }
 
 }  // namespace test
 }  // namespace klee

@@ -222,10 +222,7 @@ public:
    * \brief Returns true if coordinates of the mesh are externally supplied.
    * \return status true if the coordinates point to external buffers.
    */
-  virtual bool isExternal() const final override
-  {
-    return m_coordinates[0]->isExternal();
-  }
+  virtual bool isExternal() const final override { return m_coordinates[0]->isExternal(); }
 
   /*!
    * \brief Copy the coordinates of the given node into the provided buffer.

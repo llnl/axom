@@ -46,8 +46,7 @@ GenericOutputStream::GenericOutputStream(const std::string& stream)
 }
 
 //------------------------------------------------------------------------------
-GenericOutputStream::GenericOutputStream(std::ostream* os,
-                                         const std::string& format)
+GenericOutputStream::GenericOutputStream(std::ostream* os, const std::string& format)
   : m_stream(os)
   , m_file_name()
   , m_opened(true)
@@ -57,8 +56,7 @@ GenericOutputStream::GenericOutputStream(std::ostream* os,
 }
 
 //------------------------------------------------------------------------------
-GenericOutputStream::GenericOutputStream(const std::string& stream,
-                                         const std::string& format)
+GenericOutputStream::GenericOutputStream(const std::string& stream, const std::string& format)
   : GenericOutputStream::GenericOutputStream(stream)
 {
   // Fix newline and tab characters if needed

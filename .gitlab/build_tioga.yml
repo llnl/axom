@@ -34,17 +34,17 @@
 
 ####
 # PR Build jobs
-tioga-rocmcc_6_1_2_hip-src:
+tioga-rocmcc_6_2_1_hip-src:
   variables:
-    COMPILER: "rocmcc@6.1.2_hip"
+    COMPILER: "rocmcc@6.2.1_hip"
     HOST_CONFIG: "tioga-toss_4_x86_64_ib_cray-${COMPILER}.cmake"
   extends: .src_build_on_tioga
 
 ####
 # Full Build jobs
-tioga-rocmcc_6_1_2_hip-full:
+tioga-rocmcc_6_2_1_hip-full:
   variables:
-    COMPILER: "rocmcc@6.1.2_hip"
+    COMPILER: "rocmcc@6.2.1_hip"
     SPEC: "%${COMPILER}~openmp+rocm+mfem+c2c"
-    EXTRASPEC: "amdgpu_target=gfx90a ^hip@6.1.2 ^hsa-rocr-dev@6.1.2 ^llvm-amdgpu@6.1.2 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion"
+    EXTRASPEC: "amdgpu_target=gfx90a ^hip@6.2.1 ^hsa-rocr-dev@6.2.1 ^llvm-amdgpu@6.2.1 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion"
   extends: .full_build_on_tioga

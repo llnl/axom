@@ -19,9 +19,7 @@ namespace axom
 namespace slic
 {
 //------------------------------------------------------------------------------
-LumberjackStream::LumberjackStream(std::ostream* stream,
-                                   MPI_Comm comm,
-                                   int ranksLimit)
+LumberjackStream::LumberjackStream(std::ostream* stream, MPI_Comm comm, int ranksLimit)
   : m_isLJOwnedBySLIC(false)
   , m_isOstreamOwnedBySLIC(false)
   , m_stream(stream)
@@ -47,8 +45,7 @@ LumberjackStream::LumberjackStream(std::ostream* stream,
 }
 
 //------------------------------------------------------------------------------
-LumberjackStream::LumberjackStream(std::ostream* stream,
-                                   axom::lumberjack::Lumberjack* lj)
+LumberjackStream::LumberjackStream(std::ostream* stream, axom::lumberjack::Lumberjack* lj)
   : m_lj(lj)
   , m_isLJOwnedBySLIC(false)
   , m_isOstreamOwnedBySLIC(false)
@@ -72,9 +69,7 @@ LumberjackStream::LumberjackStream(std::ostream* stream,
 }
 
 //------------------------------------------------------------------------------
-LumberjackStream::LumberjackStream(const std::string stream,
-                                   MPI_Comm comm,
-                                   int ranksLimit)
+LumberjackStream::LumberjackStream(const std::string stream, MPI_Comm comm, int ranksLimit)
 {
   this->initializeLumberjack(comm, ranksLimit);
 
@@ -117,8 +112,7 @@ LumberjackStream::LumberjackStream(const std::string stream,
 }
 
 //------------------------------------------------------------------------------
-LumberjackStream::LumberjackStream(const std::string stream,
-                                   axom::lumberjack::Lumberjack* lj)
+LumberjackStream::LumberjackStream(const std::string stream, axom::lumberjack::Lumberjack* lj)
 {
   m_lj = lj;
   m_isLJOwnedBySLIC = false;
@@ -186,8 +180,7 @@ void LumberjackStream::append(message::Level msgLevel,
 {
   if(m_lj == nullptr)
   {
-    std::cerr
-      << "ERROR: NULL Lumberjack instance in LumberjackStream::append!\n";
+    std::cerr << "ERROR: NULL Lumberjack instance in LumberjackStream::append!\n";
     return;
   }
 
@@ -199,8 +192,7 @@ void LumberjackStream::outputLocal()
 {
   if(m_lj == nullptr)
   {
-    std::cerr
-      << "ERROR: NULL Lumberjack instance in LumberjackStream::flush!\n";
+    std::cerr << "ERROR: NULL Lumberjack instance in LumberjackStream::flush!\n";
     return;
   }
 
@@ -213,8 +205,7 @@ void LumberjackStream::flush()
 {
   if(m_lj == nullptr)
   {
-    std::cerr
-      << "ERROR: NULL Lumberjack instance in LumberjackStream::flush!\n";
+    std::cerr << "ERROR: NULL Lumberjack instance in LumberjackStream::flush!\n";
     return;
   }
 
@@ -240,8 +231,7 @@ void LumberjackStream::write(bool local)
 {
   if(m_lj == nullptr)
   {
-    std::cerr
-      << "ERROR: NULL Lumberjack instance in LumberjackStream::write!\n";
+    std::cerr << "ERROR: NULL Lumberjack instance in LumberjackStream::write!\n";
     return;
   }
 
@@ -265,8 +255,7 @@ void LumberjackStream::write(bool local)
       }
 
       (*m_stream) << this->getFormatedMessage(
-        message::getLevelAsString(
-          static_cast<message::Level>(curr_message->level())),
+        message::getLevelAsString(static_cast<message::Level>(curr_message->level())),
         curr_message->text(),
         curr_message->tag(),
         curr_message->stringOfRanks(),

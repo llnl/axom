@@ -275,8 +275,7 @@ public:
    *
    * \param [in] cellID the ID of the cell in question.
    */
-  virtual IndexType getNumberOfCellFaces(
-    IndexType AXOM_UNUSED_PARAM(cellID) = 0) const = 0;
+  virtual IndexType getNumberOfCellFaces(IndexType AXOM_UNUSED_PARAM(cellID) = 0) const = 0;
 
   /*!
    * \brief Populates the given buffer with the IDs of the faces of the given
@@ -374,8 +373,7 @@ public:
    *
    * \param [in] faceID the ID of the face in question.
    */
-  virtual IndexType getNumberOfFaceNodes(
-    IndexType AXOM_UNUSED_PARAM(faceID)) const = 0;
+  virtual IndexType getNumberOfFaceNodes(IndexType AXOM_UNUSED_PARAM(faceID)) const = 0;
 
   /*!
    * \brief Copy the IDs of the nodes that compose the given face into the
@@ -496,10 +494,7 @@ public:
    * \brief Checks if this mesh instance has explicit connectivity.
    * \return status true iff the mesh defines cell connectivity explicitly.
    */
-  inline bool hasExplicitConnectivity() const
-  {
-    return m_explicit_connectivity;
-  }
+  inline bool hasExplicitConnectivity() const { return m_explicit_connectivity; }
 
   /*!
    * \brief Checks if the mesh has mixed cell types, e.g., consisting of both
@@ -514,8 +509,7 @@ public:
    */
   inline bool isStructured() const
   {
-    return ((m_type == STRUCTURED_CURVILINEAR_MESH) ||
-            (m_type == STRUCTURED_RECTILINEAR_MESH) ||
+    return ((m_type == STRUCTURED_CURVILINEAR_MESH) || (m_type == STRUCTURED_RECTILINEAR_MESH) ||
             (m_type == STRUCTURED_UNIFORM_MESH));
   }
 
@@ -594,8 +588,7 @@ public:
    *
    * \see FieldAssociation
    */
-  inline bool hasField(const std::string& name,
-                       int association = ANY_CENTERING) const;
+  inline bool hasField(const std::string& name, int association = ANY_CENTERING) const;
 
   /*!
    * \brief Creates a new field with the given name and specified mesh field
@@ -694,17 +687,13 @@ public:
    */
   /// @{
   template <typename T>
-  inline T* getFieldPtr(const std::string& name,
-                        int association,
-                        IndexType& num_components);
+  inline T* getFieldPtr(const std::string& name, int association, IndexType& num_components);
 
   template <typename T>
   inline T* getFieldPtr(const std::string& name, int association);
 
   template <typename T>
-  inline const T* getFieldPtr(const std::string& name,
-                              int association,
-                              IndexType& num_components) const;
+  inline const T* getFieldPtr(const std::string& name, int association, IndexType& num_components) const;
 
   template <typename T>
   inline const T* getFieldPtr(const std::string& name, int association) const;
@@ -787,11 +776,7 @@ protected:
    *
    * \see sidre::Group
    */
-  Mesh(int ndims,
-       int type,
-       sidre::Group* group,
-       const std::string& topo,
-       const std::string& coordset);
+  Mesh(int ndims, int type, sidre::Group* group, const std::string& topo, const std::string& coordset);
 
   /*!
    * \brief Helper method to return the associated coordset group.
@@ -825,18 +810,13 @@ private:
    * \param [out] num_tuples the number of tuples in the associated FieldData.
    * \param [out] capacity the capacity of the associated FieldData.
    */
-  void getFieldInfo(int association,
-                    IndexType& num_tuples,
-                    IndexType& capacity) const;
+  void getFieldInfo(int association, IndexType& num_tuples, IndexType& capacity) const;
 
   /*!
    * \brief Helper method to check if the mesh type is valid.
    * \return status true if the mesh type is valie, else, false.
    */
-  inline bool validMeshType() const
-  {
-    return ((m_type >= 0) && (m_type < mint::NUM_MESH_TYPES));
-  }
+  inline bool validMeshType() const { return ((m_type >= 0) && (m_type < mint::NUM_MESH_TYPES)); }
 
   /*!
    * \brief Helper method to check if the mesh dimension is valid.
@@ -926,8 +906,7 @@ inline T* Mesh::createField(const std::string& name,
 
   IndexType num_tuples, capacity;
   getFieldInfo(association, num_tuples, capacity);
-  T* ptr =
-    fd->createField<T>(name, num_tuples, num_components, capacity, storeInSidre);
+  T* ptr = fd->createField<T>(name, num_tuples, num_components, capacity, storeInSidre);
   if(num_tuples > 0)
   {
     SLIC_ASSERT(ptr != nullptr);
@@ -987,9 +966,7 @@ inline T* Mesh::getFieldPtr(const std::string& name, int association)
 
 //------------------------------------------------------------------------------
 template <typename T>
-inline T* Mesh::getFieldPtr(const std::string& name,
-                            int association,
-                            IndexType& num_components)
+inline T* Mesh::getFieldPtr(const std::string& name, int association, IndexType& num_components)
 {
   const Mesh* self = const_cast<const Mesh*>(this);
   const T* ptr = self->getFieldPtr<T>(name, association, num_components);
@@ -1021,9 +998,7 @@ inline const T* Mesh::getFieldPtr(const std::string& name,
 }
 
 //------------------------------------------------------------------------------
-inline void Mesh::getFieldInfo(int association,
-                               IndexType& num_tuples,
-                               IndexType& capacity) const
+inline void Mesh::getFieldInfo(int association, IndexType& num_tuples, IndexType& capacity) const
 {
   switch(association)
   {

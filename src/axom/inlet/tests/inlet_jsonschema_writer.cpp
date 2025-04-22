@@ -24,8 +24,7 @@ using axom::inlet::JSONSchemaWriter;
 
 bool hasSchemaUtility()
 {
-  const static bool hasUtility =
-    std::system(JSONSCHEMA_EXECUTABLE " --version") == 0;
+  const static bool hasUtility = std::system(JSONSCHEMA_EXECUTABLE " --version") == 0;
   return hasUtility;
 }
 
@@ -35,15 +34,13 @@ bool validateString(Inlet& inlet, const std::string& luaString)
   const static auto schemaFile = "input_schema.json";
 
   std::ofstream jsonInstance(instanceFile);
-  jsonInstance << axom::inlet::detail::fromLuaTo<axom::inlet::JSONReader>(
-    luaString);
+  jsonInstance << axom::inlet::detail::fromLuaTo<axom::inlet::JSONReader>(luaString);
   jsonInstance.close();
 
   inlet.write(JSONSchemaWriter(schemaFile));
 
-  const std::string cmd = axom::fmt::format(JSONSCHEMA_EXECUTABLE " -i {0} {1}",
-                                            instanceFile,
-                                            schemaFile);
+  const std::string cmd =
+    axom::fmt::format(JSONSCHEMA_EXECUTABLE " -i {0} {1}", instanceFile, schemaFile);
   return std::system(cmd.c_str()) == 0;
 }
 

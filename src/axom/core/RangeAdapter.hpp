@@ -18,10 +18,7 @@ template <typename IteratorType>
 class RangeAdapter
 {
 public:
-  RangeAdapter(IteratorType begin, IteratorType end)
-    : m_begin(begin)
-    , m_end(end)
-  { }
+  RangeAdapter(IteratorType begin, IteratorType end) : m_begin(begin), m_end(end) { }
   /// \brief Returns an iterator to the beginning of the range.
   IteratorType begin() const { return m_begin; }
   /// \brief Returns an iterator to the end of the range.

@@ -96,9 +96,7 @@ public:
   using IADynamicConstantRelation = slam::DynamicConstantRelation<
     PositionType,
     ElementType,
-    slam::policies::ConstantCardinality<
-      PositionType,
-      slam::policies::CompileTimeStride<PositionType, SIZE>>>;
+    slam::policies::ConstantCardinality<PositionType, slam::policies::CompileTimeStride<PositionType, SIZE>>>;
 
   using ElementBoundaryRelation = IADynamicConstantRelation<VERTS_PER_ELEM>;
   using VertexCoboundaryRelation = IADynamicConstantRelation<1>;
@@ -157,10 +155,7 @@ public:
    *      but does not require that the element is in the mesh.
    *      To check if the element is valid, call \a this->isValidElement(element_index)
    */
-  BoundarySubset boundaryVertices(IndexType element_index)
-  {
-    return ev_rel[element_index];
-  }
+  BoundarySubset boundaryVertices(IndexType element_index) { return ev_rel[element_index]; }
   const BoundarySubset boundaryVertices(IndexType element_index) const
   {
     return ev_rel[element_index];
@@ -173,10 +168,7 @@ public:
    *      To check if the vertex is valid, call \a this->isValidVertex(vertex_index)
    * \note To return all elements in the coboundary, call \a this->vertexStar(vertex_index)
    */
-  IndexType& coboundaryElement(IndexType vertex_index)
-  {
-    return ve_rel[vertex_index][0];
-  }
+  IndexType& coboundaryElement(IndexType vertex_index) { return ve_rel[vertex_index][0]; }
   const IndexType& coboundaryElement(IndexType vertex_index) const
   {
     return ve_rel[vertex_index][0];
@@ -188,10 +180,7 @@ public:
    *      but does not require that the element is in the mesh.
    *      To check if the element is valid, call \a this->isValidElement(element_index)
    */
-  AdjacencySubset adjacentElements(IndexType element_index)
-  {
-    return ee_rel[element_index];
-  }
+  AdjacencySubset adjacentElements(IndexType element_index) { return ee_rel[element_index]; }
   const AdjacencySubset adjacentElements(IndexType element_index) const
   {
     return ee_rel[element_index];
@@ -234,20 +223,14 @@ public:
    * \note To get the total number of elements, including invalid and deleted elements, 
    * call \a this->elements().size()
    */
-  IndexType getNumberOfValidElements() const
-  {
-    return element_set.numberOfValidEntries();
-  }
+  IndexType getNumberOfValidElements() const { return element_set.numberOfValidEntries(); }
 
   /**
    * \brief Returns the number of vertices in the mesh
    * \note To get the total number of vertices, including invalid and deleted vertices, 
    * call \a this->vertices().size()
    */
-  IndexType getNumberOfValidVertices() const
-  {
-    return vertex_set.numberOfValidEntries();
-  }
+  IndexType getNumberOfValidVertices() const { return vertex_set.numberOfValidEntries(); }
 
   /**
    * \brief Returns true if \a element_idx is a valid element index in the mesh
@@ -277,8 +260,7 @@ public:
    * Sometimes when modifying the mesh, the mesh becomes non-manifold.
    * Adding elements may result in incorrect element->element data.
    */
-  void fixVertexNeighborhood(IndexType vertex_idx,
-                             const std::vector<IndexType>& new_elements);
+  void fixVertexNeighborhood(IndexType vertex_idx, const std::vector<IndexType>& new_elements);
 
   /**
    * \brief Return a valid element index

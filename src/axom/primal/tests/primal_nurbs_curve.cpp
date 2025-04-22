@@ -228,10 +228,7 @@ TEST(primal_nurbscurve, evaluate)
   using NURBSCurve3D = primal::NURBSCurve<CoordType, 3>;
 
   const int max_degree = 3;
-  Point1D data_1d[max_degree + 1] = {Point1D {0.6},
-                                     Point1D {1.3},
-                                     Point1D {2.9},
-                                     Point1D {3.2}};
+  Point1D data_1d[max_degree + 1] = {Point1D {0.6}, Point1D {1.3}, Point1D {2.9}, Point1D {3.2}};
 
   Point2D data_2d[max_degree + 1] = {Point2D {0.6, 1.2},
                                      Point2D {1.3, 1.6},

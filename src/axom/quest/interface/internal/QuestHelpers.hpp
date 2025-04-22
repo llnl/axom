@@ -255,9 +255,7 @@ int read_stl_mesh_shared(const std::string& file,
  * \see STLReader
  * \see PSTLReader
  */
-int read_stl_mesh(const std::string& file,
-                  mint::Mesh*& m,
-                  MPI_Comm comm = MPI_COMM_SELF);
+int read_stl_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm = MPI_COMM_SELF);
 
 #ifdef AXOM_USE_C2C
 /*!
@@ -360,9 +358,7 @@ int read_c2c_mesh_non_uniform(const std::string& file,
  * \see ProEReader
  * \see PProEReader
  */
-int read_pro_e_mesh(const std::string& file,
-                    mint::Mesh*& m,
-                    MPI_Comm comm = MPI_COMM_SELF);
+int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm = MPI_COMM_SELF);
 
 /// @}
 
@@ -408,10 +404,7 @@ void compute_mesh_bounds(const mint::Mesh* mesh, double* lo, double* hi);
  *
  *  \see logger_finalize
  */
-void logger_init(bool& isInitialized,
-                 bool& mustFinalize,
-                 bool verbose,
-                 MPI_Comm comm);
+void logger_init(bool& isInitialized, bool& mustFinalize, bool verbose, MPI_Comm comm);
 
 /*!
  * \brief Finalizes the Slic logger (if needed)

@@ -131,15 +131,9 @@ TEST(quest_stl_reader, read_stl)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
   }  // END for all nodes
 
   // STEP 4: remove temporary STL file
@@ -173,8 +167,7 @@ TEST(quest_stl_reader, read_stl_external)
   EXPECT_EQ(status, 0);
 
   // STEP 2: reading the STL mesh data into a mint::Mesh
-  mint::UnstructuredMesh<mint::SINGLE_SHAPE>
-    mesh(mint::TRIANGLE, N_FACES, conn, N_NODES, xin, yin, zin);
+  mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(mint::TRIANGLE, N_FACES, conn, N_NODES, xin, yin, zin);
   EXPECT_EQ(mesh.getNumberOfCells(), N_FACES);
   EXPECT_EQ(mesh.getNumberOfNodes(), N_NODES);
 
@@ -190,15 +183,9 @@ TEST(quest_stl_reader, read_stl_external)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
   }  // END for all nodes
 
   // STEP 4: remove temporary STL file

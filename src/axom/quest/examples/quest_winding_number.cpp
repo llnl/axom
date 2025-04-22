@@ -37,27 +37,21 @@ BezierCurve2D segment_to_curve(const mfem::Mesh* mesh, int elem_id)
   const auto* fes = mesh->GetNodes()->FESpace();
   const auto* fec = fes->FEColl();
 
-  const bool isBernstein =
-    dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
-  const bool isNURBS =
-    dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
+  const bool isBernstein = dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
+  const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
 
-  SLIC_ERROR_IF(
-    !(isBernstein || isNURBS),
-    "MFEM mesh elements must be in either the Bernstein or NURBS basis");
+  SLIC_ERROR_IF(!(isBernstein || isNURBS),
+                "MFEM mesh elements must be in either the Bernstein or NURBS basis");
 
   const int NE = isBernstein ? mesh->GetNE() : fes->GetNURBSext()->GetNP();
-  SLIC_ERROR_IF(NE < elem_id,
-                axom::fmt::format("Mesh does not have {} elements", elem_id));
+  SLIC_ERROR_IF(NE < elem_id, axom::fmt::format("Mesh does not have {} elements", elem_id));
 
-  const int order =
-    isBernstein ? fes->GetOrder(elem_id) : mesh->NURBSext->GetOrders()[elem_id];
+  const int order = isBernstein ? fes->GetOrder(elem_id) : mesh->NURBSext->GetOrders()[elem_id];
   SLIC_ERROR_IF(order != 3,
-                axom::fmt::format(
-                  "This example currently requires the input mfem mesh to "
-                  "contain cubic elements, but the order of element {} is {}",
-                  elem_id,
-                  order));
+                axom::fmt::format("This example currently requires the input mfem mesh to "
+                                  "contain cubic elements, but the order of element {} is {}",
+                                  elem_id,
+                                  order));
 
   mfem::Array<int> dofs;
   mfem::Array<int> vdofs;
@@ -113,10 +107,8 @@ bool check_mesh_valid(const mfem::Mesh* mesh)
     return false;
   }
 
-  const bool isBernstein =
-    dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
-  const bool isNURBS =
-    dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
+  const bool isBernstein = dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
+  const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
   const bool isValidFEC = isBernstein || isNURBS;
 
   // TODO: Convert from Lagrange to Bernstein, if/when necessary
@@ -148,10 +140,10 @@ bool check_mesh_valid(const mfem::Mesh* mesh)
 
   if(order != 3)
   {
-    SLIC_WARNING(axom::fmt::format(
-      "This example currently requires the input mfem mesh to contain cubic "
-      "elements, but the provided mesh has order {}",
-      order));
+    SLIC_WARNING(
+      axom::fmt::format("This example currently requires the input mfem mesh to contain cubic "
+                        "elements, but the provided mesh has order {}",
+                        order));
     return false;
   }
 
@@ -191,9 +183,7 @@ int main(int argc, char** argv)
   app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
 
   auto* query_mesh_subcommand =
-    app.add_subcommand("query_mesh")
-      ->description("Options for setting up a query mesh")
-      ->fallthrough();
+    app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
   query_mesh_subcommand->add_option("--min", boxMins)
     ->description("Min bounds for box mesh (x,y)")
     ->expected(2)
@@ -260,13 +250,10 @@ int main(int argc, char** argv)
 
   // Generate a Cartesian (high order) mesh for the query points
   const auto query_res = axom::NumericArray<int, 2>(boxResolution.data());
-  const auto query_box =
-    BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()));
+  const auto query_box = BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()));
 
   auto query_mesh = std::unique_ptr<mfem::Mesh>(
-    axom::quest::util::make_cartesian_mfem_mesh_2D(query_box,
-                                                   query_res,
-                                                   queryOrder));
+    axom::quest::util::make_cartesian_mfem_mesh_2D(query_box, query_res, queryOrder));
   auto fec = mfem::H1_FECollection(queryOrder, 2);
   auto fes = mfem::FiniteElementSpace(query_mesh.get(), &fec, 1);
   auto winding = mfem::GridFunction(&fes);

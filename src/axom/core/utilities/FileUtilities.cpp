@@ -55,10 +55,7 @@ std::string getCWD()
   return std::string(cCurrentPath);
 }
 
-int changeCWD(const std::string& dirName)
-{
-  return ChangeCurrentDir(dirName.c_str());
-}
+int changeCWD(const std::string& dirName) { return ChangeCurrentDir(dirName.c_str()); }
 
 //-----------------------------------------------------------------------------
 bool pathExists(const std::string& fileName)
@@ -75,8 +72,7 @@ std::string joinPath(const std::string& fileDir,
                      const std::string& separator)
 {
   // Check if we need to add a separator
-  bool pathNeedsSep =
-    !fileDir.empty() && (fileDir[fileDir.size() - 1] != separator[0]);
+  bool pathNeedsSep = !fileDir.empty() && (fileDir[fileDir.size() - 1] != separator[0]);
 
   // Concatenate the path with the fileName to create the full path
   std::stringstream fullFileNameStream;

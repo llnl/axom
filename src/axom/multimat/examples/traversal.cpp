@@ -21,8 +21,7 @@ using namespace axom::multimat;
 double getRandomDouble(double low, double high)
 {
   const double delta = high - low;
-  const double c =
-    static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX);
+  const double c = static_cast<double>(std::rand()) / static_cast<double>(RAND_MAX);
   return (delta * c + low);
 }
 
@@ -40,11 +39,7 @@ double getRandomDouble(double low, double high)
  * but are valid index accessing code.
  *
  */
-void various_traversal_methods(int nmats,
-                               int ncells,
-                               int ncomp,
-                               bool use_sparse,
-                               double fill_percentage)
+void various_traversal_methods(int nmats, int ncells, int ncomp, bool use_sparse, double fill_percentage)
 {
   axom::utilities::Timer timer;
 
@@ -121,18 +116,8 @@ void various_traversal_methods(int nmats,
   {
     mm.convertFieldToSparse(0);
   }
-  mm.addField("Cell Array",
-              FieldMapping::PER_CELL,
-              layout,
-              sparsity,
-              cell_arr.view(),
-              ncomp);
-  mm.addField("CellMat Array",
-              FieldMapping::PER_CELL_MAT,
-              layout,
-              sparsity,
-              cellmat_arr.view(),
-              ncomp);
+  mm.addField("Cell Array", FieldMapping::PER_CELL, layout, sparsity, cell_arr.view(), ncomp);
+  mm.addField("CellMat Array", FieldMapping::PER_CELL_MAT, layout, sparsity, cellmat_arr.view(), ncomp);
 
   double sum = 0;
 
@@ -180,8 +165,7 @@ void various_traversal_methods(int nmats,
     SLIC_ASSERT(ncomp == map2d.numComp());
     for(int i = 0; i < map2d.firstSetSize(); i++)
     {
-      const MultiMat::IdSet& rel_set =
-        static_cast<const MultiMat::IdSet&>(map2d.indexSet(i));
+      const MultiMat::IdSet& rel_set = static_cast<const MultiMat::IdSet&>(map2d.indexSet(i));
       auto submap = map2d(i);
       SLIC_ASSERT(rel_set.size() == submap.size());
       for(int k = 0; k < submap.size(); k++)
@@ -194,8 +178,8 @@ void various_traversal_methods(int nmats,
 
         for(int c = 0; c < submap.numComp(); ++c)
         {
-          double val = submap.value(k, c);   //<----------
-          SLIC_ASSERT(val == submap(k, c));  //operator () access
+          double val = submap.value(k, c);                       //<----------
+          SLIC_ASSERT(val == submap(k, c));                      //operator () access
           SLIC_ASSERT(val == submap[k * submap.numComp() + c]);  //bracket access
           sum += val;
         }

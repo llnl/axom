@@ -71,8 +71,7 @@ void InterfaceReconstructor::computeReconstructedInterface(mir::MIRMesh& inputMe
       for(unsigned long vID = 0; vID < elementVertices.size(); ++vID)
       {
         int originalVID = elementVertices[vID];
-        originalElementVertexPositions.push_back(
-          intermediateMesh.m_vertexPositions[originalVID]);
+        originalElementVertexPositions.push_back(intermediateMesh.m_vertexPositions[originalVID]);
       }
 
       generateCleanCells((mir::Shape)intermediateMesh.m_shapeTypes[eID],
@@ -115,11 +114,10 @@ void InterfaceReconstructor::computeReconstructedInterface(mir::MIRMesh& inputMe
 
 //--------------------------------------------------------------------------------
 
-void InterfaceReconstructor::computeReconstructedInterfaceIterative(
-  mir::MIRMesh& inputMesh,
-  const int numIterations,
-  const axom::float64 percent,
-  mir::MIRMesh& outputMesh)
+void InterfaceReconstructor::computeReconstructedInterfaceIterative(mir::MIRMesh& inputMesh,
+                                                                    const int numIterations,
+                                                                    const axom::float64 percent,
+                                                                    mir::MIRMesh& outputMesh)
 {
   int numElems = inputMesh.m_elems.size();
   int numMaterials = inputMesh.m_numMaterials;
@@ -147,11 +145,9 @@ void InterfaceReconstructor::computeReconstructedInterfaceIterative(
       for(int eID = 0; eID < numElems; ++eID)
       {
         axom::float64 difference =
-          inputMesh.m_materialVolumeFractionsElement[matID][eID] -
-          resultingElementVF[matID][eID];
-        improvedElementVF[matID].push_back(
-          inputMesh.m_materialVolumeFractionsElement[matID][eID] +
-          (difference * percent));
+          inputMesh.m_materialVolumeFractionsElement[matID][eID] - resultingElementVF[matID][eID];
+        improvedElementVF[matID].push_back(inputMesh.m_materialVolumeFractionsElement[matID][eID] +
+                                           (difference * percent));
       }
     }
 
@@ -176,16 +172,13 @@ void InterfaceReconstructor::generateCleanCells(
   CellData& out_cellData)
 {
   // Set up data structures needed to compute how element should be clipped
-  std::map<int, std::vector<int>>
-    newElements;  // hashmap of the new elements' vertices | Note: maps are ordered sets
-  std::map<int, std::vector<int>>
-    newVertices;  // hashmap of the new vertices' elements | Note: maps are ordered sets
+  std::map<int, std::vector<int>> newElements;  // hashmap of the new elements' vertices | Note: maps are ordered sets
+  std::map<int, std::vector<int>> newVertices;  // hashmap of the new vertices' elements | Note: maps are ordered sets
   std::vector<int> verticesPresent(
     mir::utilities::maxPossibleNumVerts(shapeType),
     0);  // Vector of flags denoting whether the vertex is present in the current case or not
-  axom::float64* tValues =
-    new axom::float64[mir::utilities::maxPossibleNumVerts(shapeType)] {
-      0};  // Array of t values that denote the percent value of where the edge should be clipped
+  axom::float64* tValues = new axom::float64[mir::utilities::maxPossibleNumVerts(shapeType)] {
+    0};  // Array of t values that denote the percent value of where the edge should be clipped
 
   // Set up the volume fractions for the current element for the two materials currently being considered
   std::vector<std::vector<axom::float64>> vertexVF(2);
@@ -210,11 +203,7 @@ void InterfaceReconstructor::generateCleanCells(
 
   // Clip the element
   CellClipper clipper;
-  clipper.computeClippingPoints(shapeType,
-                                vertexVF,
-                                newElements,
-                                newVertices,
-                                tValues);
+  clipper.computeClippingPoints(shapeType, vertexVF, newElements, newVertices, tValues);
 
   // Determine which vertices are present
   for(auto itr = newVertices.begin(); itr != newVertices.end(); itr++)
@@ -230,8 +219,7 @@ void InterfaceReconstructor::generateCleanCells(
     std::vector<CellData> decomposed_cellData(newElements.size());
     int decompElementID = 0;
     // The clipping is one a tough one, and the element needs to decompose further before splitting with the two materials
-    for(auto itr = newElements.begin(); itr != newElements.end();
-        itr++, decompElementID++)
+    for(auto itr = newElements.begin(); itr != newElements.end(); itr++, decompElementID++)
     {
       // Determine the shape type of the decomposed element
       mir::Shape decomposedShapeType =
@@ -262,8 +250,7 @@ void InterfaceReconstructor::generateCleanCells(
           else
           {
             // Use the values that is at one of the original local vertices
-            materialVertexVF.push_back(
-              originalElementVertexVF[matID][originalVID]);
+            materialVertexVF.push_back(originalElementVertexVF[matID][originalVID]);
           }
         }
         decomposedElementVertexVF.push_back(materialVertexVF);
@@ -277,15 +264,13 @@ void InterfaceReconstructor::generateCleanCells(
         if(mir::utilities::isCenterVertex(shapeType, originalVID))
         {
           // Compute the central vertex position as the centroid of the other
-          mir::Point2 centroid =
-            mir::utilities::computeAveragePoint(originalElementVertexPositions);
+          mir::Point2 centroid = mir::utilities::computeAveragePoint(originalElementVertexPositions);
           decomposedElementVertexPositions.push_back(centroid);
         }
         else
         {
           // Use the vertex position that is at one of the original local vertices
-          decomposedElementVertexPositions.push_back(
-            originalElementVertexPositions[originalVID]);
+          decomposedElementVertexPositions.push_back(originalElementVertexPositions[originalVID]);
         }
       }
 
@@ -300,12 +285,10 @@ void InterfaceReconstructor::generateCleanCells(
     }
 
     // Merge the decomposed cell data with the outermost cellData
-    out_cellData.m_mapData.m_vertexVolumeFractions.resize(
-      originalElementVertexVF.size());
+    out_cellData.m_mapData.m_vertexVolumeFractions.resize(originalElementVertexVF.size());
     out_cellData.m_topology.m_evBegins.push_back(0);
     out_cellData.m_topology.m_veBegins.push_back(0);
-    for(int i = 0; i < decompElementID; i++)
-      out_cellData.mergeCell(decomposed_cellData[i]);
+    for(int i = 0; i < decompElementID; i++) out_cellData.mergeCell(decomposed_cellData[i]);
   }
   else
   {
@@ -334,14 +317,13 @@ void InterfaceReconstructor::generateCleanCells(
     // Determine and store the dominant material of this element
     for(auto itr = newElements.begin(); itr != newElements.end(); itr++)
     {
-      int dominantMaterial = cellGenerator.determineCleanCellMaterial(
-        shapeType,
-        itr->second,
-        matOne,
-        matTwo,
-        out_cellData.m_mapData.m_vertexVolumeFractions);
-      out_cellData.m_mapData.m_elementDominantMaterials.push_back(
-        dominantMaterial);
+      int dominantMaterial =
+        cellGenerator.determineCleanCellMaterial(shapeType,
+                                                 itr->second,
+                                                 matOne,
+                                                 matTwo,
+                                                 out_cellData.m_mapData.m_vertexVolumeFractions);
+      out_cellData.m_mapData.m_elementDominantMaterials.push_back(dominantMaterial);
     }
 
     // Determine and store the parent of this element
@@ -363,11 +345,10 @@ void InterfaceReconstructor::generateCleanCells(
     for(auto itr = newElements.begin(); itr != newElements.end(); itr++)
     {
       int parentElementID = out_cellData.m_mapData.m_elementParents[itr->first];
-      int currentDominantMaterial =
-        out_cellData.m_mapData.m_elementDominantMaterials[itr->first];
+      int currentDominantMaterial = out_cellData.m_mapData.m_elementDominantMaterials[itr->first];
 
-      if(m_originalMesh.m_materialVolumeFractionsElement[currentDominantMaterial]
-                                                        [parentElementID] == 0)
+      if(m_originalMesh.m_materialVolumeFractionsElement[currentDominantMaterial][parentElementID] ==
+         0)
       {
         // This material is not present in the original element from which the current element comes from
         if(currentDominantMaterial == matOne)
@@ -392,8 +373,7 @@ void InterfaceReconstructor::generateCleanCells(
 
     for(unsigned long i = 0; i < out_cellData.m_topology.m_evInds.size(); ++i)
     {
-      out_cellData.m_topology.m_evInds[i] -=
-        evIndexSubtract[out_cellData.m_topology.m_evInds[i]];
+      out_cellData.m_topology.m_evInds[i] -= evIndexSubtract[out_cellData.m_topology.m_evInds[i]];
     }
   }
 

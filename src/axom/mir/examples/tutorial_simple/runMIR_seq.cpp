@@ -5,19 +5,11 @@
 #include "runMIR.hpp"
 
 // Prototypes
-int runMIR_seq_tri(const conduit::Node &mesh,
-                   const conduit::Node &options,
-                   conduit::Node &result);
-int runMIR_seq_quad(const conduit::Node &mesh,
-                    const conduit::Node &options,
-                    conduit::Node &result);
-int runMIR_seq_hex(const conduit::Node &mesh,
-                   const conduit::Node &options,
-                   conduit::Node &result);
+int runMIR_seq_tri(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
+int runMIR_seq_quad(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
+int runMIR_seq_hex(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
 
-int runMIR_seq(const conduit::Node &mesh,
-               const conduit::Node &options,
-               conduit::Node &result)
+int runMIR_seq(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result)
 {
   std::string shape = mesh["topologies/mesh/elements/shape"].as_string();
   int retval = 0;

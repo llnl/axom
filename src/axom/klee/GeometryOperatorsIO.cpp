@@ -26,8 +26,7 @@ namespace
 {
 using OpPtr = CompositeOperator::OpPtr;
 using OperatorParser =
-  std::function<OpPtr(const inlet::Container &,
-                      const TransformableGeometryProperties &)>;
+  std::function<OpPtr(const inlet::Container &, const TransformableGeometryProperties &)>;
 using internal::toDoubleVector;
 using primal::Point3D;
 using primal::Vector3D;
@@ -157,9 +156,8 @@ OpPtr parseTranslate(const inlet::Container &opContainer,
                      const TransformableGeometryProperties &startProperties)
 {
   verifyObjectFields(opContainer, "translate", FieldSet {}, FieldSet {});
-  return std::make_shared<Translation>(
-    toVector(opContainer, "translate", startProperties.dimensions),
-    startProperties);
+  return std::make_shared<Translation>(toVector(opContainer, "translate", startProperties.dimensions),
+                                       startProperties);
 }
 
 /**
@@ -216,8 +214,7 @@ OpPtr makeCheckedSlice(Point3D origin,
   }
   if(!utilities::isNearlyEqual(normal.dot(up), 0.0))
   {
-    throw KleeError(
-      {path, "The 'normal' and 'up' vectors must be perpendicular"});
+    throw KleeError({path, "The 'normal' and 'up' vectors must be perpendicular"});
   }
   return std::make_shared<SliceOperator>(origin, normal, up, startProperties);
 }
@@ -252,12 +249,10 @@ primal::Point3D getPerpendicularSliceOrigin(const inlet::Container &sliceContain
     return defaultOrigin;
   }
 
-  primal::Point3D givenOrigin =
-    toPoint(sliceContainer, "origin", Dimensions::Three);
+  primal::Point3D givenOrigin = toPoint(sliceContainer, "origin", Dimensions::Three);
   if(givenOrigin[nonZeroIndex] != axisIntercept)
   {
-    throw KleeError({sliceContainer["origin"].name(),
-                     "The origin must be on the slice plane"});
+    throw KleeError({sliceContainer["origin"].name(), "The origin must be on the slice plane"});
   }
   return givenOrigin;
 }
@@ -277,8 +272,7 @@ primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContai
     return defaultNormal;
   }
 
-  primal::Vector3D givenNormal =
-    toVector(sliceContainer, "normal", Dimensions::Three);
+  primal::Vector3D givenNormal = toVector(sliceContainer, "normal", Dimensions::Three);
   auto cross = primal::Vector3D::cross_product(givenNormal, defaultNormal);
   bool parallel = cross.is_zero();
   if(!parallel)
@@ -305,22 +299,14 @@ OpPtr readPerpendicularSlice(const inlet::Container &sliceContainer,
                              Vector3D const &defaultUp,
                              const TransformableGeometryProperties &startProperties)
 {
-  verifyObjectFields(sliceContainer,
-                     planeName,
-                     FieldSet {},
-                     {"origin", "normal", "up"});
+  verifyObjectFields(sliceContainer, planeName, FieldSet {}, {"origin", "normal", "up"});
   const primal::Vector3D defaultNormalVec {defaultNormal.data()};
 
-  auto origin =
-    getPerpendicularSliceOrigin(sliceContainer, planeName, defaultNormalVec);
+  auto origin = getPerpendicularSliceOrigin(sliceContainer, planeName, defaultNormalVec);
   auto normal = getPerpendicularSliceNormal(sliceContainer, defaultNormalVec);
   auto up = toVector(sliceContainer, "up", Dimensions::Three, defaultUp);
 
-  return makeCheckedSlice(origin,
-                          normal,
-                          up,
-                          startProperties,
-                          sliceContainer.name());
+  return makeCheckedSlice(origin, normal, up, startProperties, sliceContainer.name());
 }
 
 /**
@@ -338,31 +324,18 @@ OpPtr parseSlice(const inlet::Container &opContainer,
     throw KleeError({opContainer.name(), "Cannot do a slice from 2D"});
   }
   verifyObjectFields(opContainer, "slice", FieldSet {}, FieldSet {});
-  auto &sliceContainer =
-    *opContainer.getChildContainers().at(opContainer.name() + "/slice").get();
+  auto &sliceContainer = *opContainer.getChildContainers().at(opContainer.name() + "/slice").get();
   if(sliceContainer.contains("x"))
   {
-    return readPerpendicularSlice(sliceContainer,
-                                  "x",
-                                  {1, 0, 0},
-                                  {0, 0, 1},
-                                  startProperties);
+    return readPerpendicularSlice(sliceContainer, "x", {1, 0, 0}, {0, 0, 1}, startProperties);
   }
   else if(sliceContainer.contains("y"))
   {
-    return readPerpendicularSlice(sliceContainer,
-                                  "y",
-                                  {0, 1, 0},
-                                  {1, 0, 0},
-                                  startProperties);
+    return readPerpendicularSlice(sliceContainer, "y", {0, 1, 0}, {1, 0, 0}, startProperties);
   }
   else if(sliceContainer.contains("z"))
   {
-    return readPerpendicularSlice(sliceContainer,
-                                  "z",
-                                  {0, 0, 1},
-                                  {0, 1, 0},
-                                  startProperties);
+    return readPerpendicularSlice(sliceContainer, "z", {0, 0, 1}, {0, 1, 0}, startProperties);
   }
 
   verifyObjectFields(sliceContainer, "origin", {"normal", "up"}, FieldSet {});
@@ -388,21 +361,14 @@ OpPtr parseScale(const inlet::Container &opContainer,
   auto factors = opContainer["scale"].get<std::vector<double>>();
   if(factors.size() == 1)
   {
-    return std::make_shared<Scale>(factors[0],
-                                   factors[0],
-                                   factors[0],
-                                   startProperties);
+    return std::make_shared<Scale>(factors[0], factors[0], factors[0], startProperties);
   }
-  factors =
-    toDoubleVector(opContainer["scale"], startProperties.dimensions, "scale");
+  factors = toDoubleVector(opContainer["scale"], startProperties.dimensions, "scale");
   if(startProperties.dimensions == Dimensions::Two)
   {
     factors.emplace_back(1.0);
   }
-  return std::make_shared<Scale>(factors[0],
-                                 factors[1],
-                                 factors[2],
-                                 startProperties);
+  return std::make_shared<Scale>(factors[0], factors[1], factors[2], startProperties);
 }
 
 /**
@@ -444,30 +410,26 @@ OpPtr parseRef(const inlet::Container &opContainer,
     throw KleeError({opContainer["ref"].name(), message});
   }
   auto referencedOperator = opIter->second;
-  bool startUnitsMatch =
-    startProperties.units == referencedOperator->getStartProperties().units;
-  bool endUnitsMatch =
-    startProperties.units == referencedOperator->getEndProperties().units;
+  bool startUnitsMatch = startProperties.units == referencedOperator->getStartProperties().units;
+  bool endUnitsMatch = startProperties.units == referencedOperator->getEndProperties().units;
 
   if(startUnitsMatch && endUnitsMatch)
   {
     return referencedOperator;
   }
 
-  auto compositeWithConversions =
-    std::make_shared<CompositeOperator>(startProperties);
+  auto compositeWithConversions = std::make_shared<CompositeOperator>(startProperties);
   if(!startUnitsMatch)
   {
-    compositeWithConversions->addOperator(std::make_shared<UnitConverter>(
-      referencedOperator->getStartProperties().units,
-      startProperties));
+    compositeWithConversions->addOperator(
+      std::make_shared<UnitConverter>(referencedOperator->getStartProperties().units,
+                                      startProperties));
   }
   compositeWithConversions->addOperator(referencedOperator);
   if(!endUnitsMatch)
   {
     compositeWithConversions->addOperator(
-      std::make_shared<UnitConverter>(startProperties.units,
-                                      referencedOperator->getEndProperties()));
+      std::make_shared<UnitConverter>(startProperties.units, referencedOperator->getEndProperties()));
   }
   return compositeWithConversions;
 }
@@ -516,9 +478,8 @@ GeometryOperatorData::GeometryOperatorData(const Path &path)
   , m_singleOperatorData {}
 { }
 
-GeometryOperatorData::GeometryOperatorData(
-  const Path &path,
-  std::vector<SingleOperatorData> &&singleOperatorData)
+GeometryOperatorData::GeometryOperatorData(const Path &path,
+                                           std::vector<SingleOperatorData> &&singleOperatorData)
   : m_path {path}
   , m_singleOperatorData {singleOperatorData}
 { }
@@ -567,8 +528,7 @@ std::shared_ptr<GeometryOperator> GeometryOperatorData::makeOperator(
   auto composite = std::make_shared<CompositeOperator>(startProperties);
   for(auto &data : m_singleOperatorData)
   {
-    composite->addOperator(
-      convertOperator(data, composite->getEndProperties(), namedOperators));
+    composite->addOperator(convertOperator(data, composite->getEndProperties(), namedOperators));
   }
   return composite;
 }
@@ -576,32 +536,26 @@ std::shared_ptr<GeometryOperator> GeometryOperatorData::makeOperator(
 void NamedOperatorData::defineSchema(inlet::Container &container)
 {
   container.addString("name").required();
-  defineDimensionsField(container,
-                        "start_dimensions",
-                        "The initial dimensions of the operator");
+  defineDimensionsField(container, "start_dimensions", "The initial dimensions of the operator");
   defineUnitsSchema(container,
                     "The units (both start and end) of the operator",
                     "The start units of the operator",
                     "The end units of the operator");
-  GeometryOperatorData::defineSchema(container,
-                                     "value",
+  GeometryOperatorData::defineSchema(container, "value",
                                      "The operation to apply");  //.required();
 }
 
-NamedOperatorMapData::NamedOperatorMapData(
-  std::vector<NamedOperatorData> &&operatorData)
+NamedOperatorMapData::NamedOperatorMapData(std::vector<NamedOperatorData> &&operatorData)
   : m_operatorData {operatorData}
 { }
 
-void NamedOperatorMapData::defineSchema(inlet::Container &parent,
-                                        const std::string &name)
+void NamedOperatorMapData::defineSchema(inlet::Container &parent, const std::string &name)
 {
   auto &container = parent.addStructArray(name);
   NamedOperatorData::defineSchema(container);
 }
 
-NamedOperatorMap NamedOperatorMapData::makeNamedOperatorMap(
-  Dimensions fileDimensions) const
+NamedOperatorMap NamedOperatorMapData::makeNamedOperatorMap(Dimensions fileDimensions) const
 {
   NamedOperatorMap namedOperators;
 
@@ -621,8 +575,7 @@ NamedOperatorMap NamedOperatorMapData::makeNamedOperatorMap(
 
     if(op->getEndProperties().units != opData.endUnits)
     {
-      throw KleeError({opData.value.getPath(),
-                       "Specified end units did not match actual units"});
+      throw KleeError({opData.value.getPath(), "Specified end units did not match actual units"});
     }
     namedOperators.insert({opData.name, op});
   }
@@ -636,36 +589,31 @@ NamedOperatorMap NamedOperatorMapData::makeNamedOperatorMap(
 template <>
 struct FromInlet<axom::klee::internal::SingleOperatorData>
 {
-  axom::klee::internal::SingleOperatorData operator()(
-    const axom::inlet::Container &base)
+  axom::klee::internal::SingleOperatorData operator()(const axom::inlet::Container &base)
   {
     return axom::klee::internal::SingleOperatorData {&base};
   }
 };
 
 axom::klee::internal::GeometryOperatorData
-FromInlet<axom::klee::internal::GeometryOperatorData>::operator()(
-  const axom::inlet::Container &base)
+FromInlet<axom::klee::internal::GeometryOperatorData>::operator()(const axom::inlet::Container &base)
 {
   std::vector<axom::klee::internal::SingleOperatorData> v =
     base.get<std::vector<axom::klee::internal::SingleOperatorData>>();
   return axom::klee::internal::GeometryOperatorData {base.name(), std::move(v)};
 }
 
-axom::klee::internal::NamedOperatorData
-FromInlet<axom::klee::internal::NamedOperatorData>::operator()(
+axom::klee::internal::NamedOperatorData FromInlet<axom::klee::internal::NamedOperatorData>::operator()(
   const axom::inlet::Container &base)
 {
   axom::klee::internal::NamedOperatorData data;
-  std::tie(data.startUnits, data.endUnits) =
-    axom::klee::internal::getStartAndEndUnits(base);
+  std::tie(data.startUnits, data.endUnits) = axom::klee::internal::getStartAndEndUnits(base);
   data.name = base["name"];
   data.value = base["value"].get<axom::klee::internal::GeometryOperatorData>();
   if(base.contains("start_dimensions"))
   {
     data.startDimsSet = true;
-    data.startDims =
-      axom::klee::internal::toDimensions(base["start_dimensions"]);
+    data.startDims = axom::klee::internal::toDimensions(base["start_dimensions"]);
   }
   else
   {
@@ -675,8 +623,7 @@ FromInlet<axom::klee::internal::NamedOperatorData>::operator()(
 }
 
 axom::klee::internal::NamedOperatorMapData
-FromInlet<axom::klee::internal::NamedOperatorMapData>::operator()(
-  const axom::inlet::Container &base)
+FromInlet<axom::klee::internal::NamedOperatorMapData>::operator()(const axom::inlet::Container &base)
 {
   return axom::klee::internal::NamedOperatorMapData {
     base.get<std::vector<axom::klee::internal::NamedOperatorData>>()};

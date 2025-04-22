@@ -39,10 +39,7 @@ bool is_stream_empty() { return test_stream.str().empty(); }
 
 bool is_tag_stream_empty() { return test_tag_stream.str().empty(); }
 
-bool are_all_streams_empty()
-{
-  return (is_stream_empty() && is_tag_stream_empty());
-}
+bool are_all_streams_empty() { return (is_stream_empty() && is_tag_stream_empty()); }
 
 void clear_streams()
 {
@@ -155,8 +152,7 @@ void check_rank(const std::string& msg, int expected_rank)
   size_t end = msg.rfind("&&");
   std::string ranks_string = msg.substr(start, end - start);
 
-  EXPECT_TRUE(ranks_string.find(std::to_string(expected_rank)) !=
-              std::string::npos);
+  EXPECT_TRUE(ranks_string.find(std::to_string(expected_rank)) != std::string::npos);
 }
 
 //------------------------------------------------------------------------------
@@ -170,9 +166,7 @@ void check_ranks(const std::string& msg, int expected_ranks)
 }
 
 //------------------------------------------------------------------------------
-void check_rank_count(const std::string& msg,
-                      const std::string& streamType,
-                      int expected_rank_count)
+void check_rank_count(const std::string& msg, const std::string& streamType, int expected_rank_count)
 {
   EXPECT_FALSE(msg.empty());
 
@@ -222,30 +216,20 @@ public:
     if(stream_type == "Lumberjack")
     {
       slic::addStreamToAllMsgLevels(
-        new slic::LumberjackStream(&slic::internal::test_stream,
-                                   MPI_COMM_WORLD,
-                                   RLIMIT,
-                                   msgfmt));
+        new slic::LumberjackStream(&slic::internal::test_stream, MPI_COMM_WORLD, RLIMIT, msgfmt));
 
       slic::addStreamToTag(
-        new slic::LumberjackStream(&slic::internal::test_tag_stream,
-                                   MPI_COMM_WORLD,
-                                   RLIMIT,
-                                   msgtagfmt),
+        new slic::LumberjackStream(&slic::internal::test_tag_stream, MPI_COMM_WORLD, RLIMIT, msgtagfmt),
         "myTag");
     }
 
     if(stream_type == "Synchronized")
     {
       slic::addStreamToAllMsgLevels(
-        new slic::SynchronizedStream(&slic::internal::test_stream,
-                                     MPI_COMM_WORLD,
-                                     msgfmt));
+        new slic::SynchronizedStream(&slic::internal::test_stream, MPI_COMM_WORLD, msgfmt));
 
       slic::addStreamToTag(
-        new slic::SynchronizedStream(&slic::internal::test_tag_stream,
-                                     MPI_COMM_WORLD,
-                                     msgtagfmt),
+        new slic::SynchronizedStream(&slic::internal::test_tag_stream, MPI_COMM_WORLD, msgtagfmt),
         "myTag");
     }
   }
@@ -390,8 +374,7 @@ TEST_P(SlicMacrosParallel, test_error_macros)
   SLIC_ERROR_ROOT_IF(true, "this message is logged!");
   expected_line_number = __LINE__ - 1;
   slic::flushStreams();
-  if(((rank % 2) == 0 && GetParam() == "Synchronized") ||
-     (rank == 0 && GetParam() == "Lumberjack"))
+  if(((rank % 2) == 0 && GetParam() == "Synchronized") || (rank == 0 && GetParam() == "Lumberjack"))
   {
     EXPECT_FALSE(slic::internal::are_all_streams_empty());
     check_level(slic::internal::test_stream.str(), "ERROR");
@@ -409,9 +392,7 @@ TEST_P(SlicMacrosParallel, test_error_macros)
         check_rank(slic::internal::test_stream.str(), i);
       }
     }
-    check_rank_count(slic::internal::test_stream.str(),
-                     GetParam(),
-                     (nranks / 2) + (nranks % 2));
+    check_rank_count(slic::internal::test_stream.str(), GetParam(), (nranks / 2) + (nranks % 2));
   }
   else
   {
@@ -542,8 +523,7 @@ TEST_P(SlicMacrosParallel, test_warning_macros)
   SLIC_WARNING_ROOT_IF(true, "this message is logged!");
   expected_line_number = __LINE__ - 1;
   slic::flushStreams();
-  if(((rank % 2) == 0 && GetParam() == "Synchronized") ||
-     (rank == 0 && GetParam() == "Lumberjack"))
+  if(((rank % 2) == 0 && GetParam() == "Synchronized") || (rank == 0 && GetParam() == "Lumberjack"))
   {
     EXPECT_FALSE(slic::internal::are_all_streams_empty());
     check_level(slic::internal::test_stream.str(), "WARNING");
@@ -561,9 +541,7 @@ TEST_P(SlicMacrosParallel, test_warning_macros)
         check_rank(slic::internal::test_stream.str(), i);
       }
     }
-    check_rank_count(slic::internal::test_stream.str(),
-                     GetParam(),
-                     (nranks / 2) + (nranks % 2));
+    check_rank_count(slic::internal::test_stream.str(), GetParam(), (nranks / 2) + (nranks % 2));
   }
   else
   {
@@ -769,8 +747,7 @@ TEST_P(SlicMacrosParallel, test_info_macros)
   SLIC_INFO_ROOT_IF(true, "this message is logged!");
   expected_line_number = __LINE__ - 1;
   slic::flushStreams();
-  if(((rank % 2) == 0 && GetParam() == "Synchronized") ||
-     (rank == 0 && GetParam() == "Lumberjack"))
+  if(((rank % 2) == 0 && GetParam() == "Synchronized") || (rank == 0 && GetParam() == "Lumberjack"))
   {
     EXPECT_FALSE(slic::internal::are_all_streams_empty());
     check_level(slic::internal::test_stream.str(), "INFO");
@@ -788,9 +765,7 @@ TEST_P(SlicMacrosParallel, test_info_macros)
         check_rank(slic::internal::test_stream.str(), i);
       }
     }
-    check_rank_count(slic::internal::test_stream.str(),
-                     GetParam(),
-                     (nranks / 2) + (nranks % 2));
+    check_rank_count(slic::internal::test_stream.str(), GetParam(), (nranks / 2) + (nranks % 2));
   }
   else
   {
@@ -942,8 +917,7 @@ TEST_P(SlicMacrosParallel, test_debug_macros)
   expected_line_number = __LINE__ - 1;
   slic::flushStreams();
 #ifdef AXOM_DEBUG
-  if(((rank % 2) == 0 && GetParam() == "Synchronized") ||
-     (rank == 0 && GetParam() == "Lumberjack"))
+  if(((rank % 2) == 0 && GetParam() == "Synchronized") || (rank == 0 && GetParam() == "Lumberjack"))
   {
     EXPECT_FALSE(slic::internal::are_all_streams_empty());
     check_level(slic::internal::test_stream.str(), "DEBUG");
@@ -961,9 +935,7 @@ TEST_P(SlicMacrosParallel, test_debug_macros)
         check_rank(slic::internal::test_stream.str(), i);
       }
     }
-    check_rank_count(slic::internal::test_stream.str(),
-                     GetParam(),
-                     (nranks / 2) + (nranks % 2));
+    check_rank_count(slic::internal::test_stream.str(), GetParam(), (nranks / 2) + (nranks % 2));
   }
   else
   {
@@ -1016,8 +988,7 @@ TEST_P(SlicMacrosParallel, test_abort_error_macros)
         slic::outputLocalMessages();
         EXPECT_EQ(has_aborted, abort_enabled);
         check_level(slic::internal::test_stream.str(), "ERROR");
-        check_msg(slic::internal::test_stream.str(),
-                  "SLIC_ERROR message is logged!");
+        check_msg(slic::internal::test_stream.str(), "SLIC_ERROR message is logged!");
         check_file(slic::internal::test_stream.str());
         check_line(slic::internal::test_stream.str(), expected_line_number);
         check_rank(slic::internal::test_stream.str(), rank);
@@ -1031,8 +1002,7 @@ TEST_P(SlicMacrosParallel, test_abort_error_macros)
         EXPECT_EQ(has_aborted, abort_enabled);
         EXPECT_FALSE(slic::internal::are_all_streams_empty());
         check_level(slic::internal::test_stream.str(), "ERROR");
-        check_msg(slic::internal::test_stream.str(),
-                  "SLIC_ERROR_IF message is logged!");
+        check_msg(slic::internal::test_stream.str(), "SLIC_ERROR_IF message is logged!");
         check_file(slic::internal::test_stream.str());
         check_line(slic::internal::test_stream.str(), expected_line_number);
         check_rank(slic::internal::test_stream.str(), rank);
@@ -1045,8 +1015,7 @@ TEST_P(SlicMacrosParallel, test_abort_error_macros)
         EXPECT_EQ(has_aborted, abort_enabled);
         EXPECT_FALSE(slic::internal::are_all_streams_empty());
         check_level(slic::internal::test_stream.str(), "ERROR");
-        check_msg(slic::internal::test_stream.str(),
-                  "SLIC_ERROR_ROOT message is logged!");
+        check_msg(slic::internal::test_stream.str(), "SLIC_ERROR_ROOT message is logged!");
         check_file(slic::internal::test_stream.str());
         check_line(slic::internal::test_stream.str(), expected_line_number);
         check_rank(slic::internal::test_stream.str(), rank);
@@ -1059,8 +1028,7 @@ TEST_P(SlicMacrosParallel, test_abort_error_macros)
         EXPECT_EQ(has_aborted, abort_enabled);
         EXPECT_FALSE(slic::internal::are_all_streams_empty());
         check_level(slic::internal::test_stream.str(), "ERROR");
-        check_msg(slic::internal::test_stream.str(),
-                  "SLIC_ERROR_ROOT_IF message is logged!");
+        check_msg(slic::internal::test_stream.str(), "SLIC_ERROR_ROOT_IF message is logged!");
         check_file(slic::internal::test_stream.str());
         check_line(slic::internal::test_stream.str(), expected_line_number);
         check_rank(slic::internal::test_stream.str(), rank);
@@ -1154,8 +1122,7 @@ TEST_P(SlicMacrosParallel, test_abort_warning_macros)
         EXPECT_EQ(has_aborted, abort_enabled);
         EXPECT_FALSE(slic::internal::are_all_streams_empty());
         check_level(slic::internal::test_stream.str(), "WARNING");
-        check_msg(slic::internal::test_stream.str(),
-                  "SLIC_WARNING message is logged!");
+        check_msg(slic::internal::test_stream.str(), "SLIC_WARNING message is logged!");
         check_file(slic::internal::test_stream.str());
         check_line(slic::internal::test_stream.str(), expected_line_number);
         check_rank(slic::internal::test_stream.str(), rank);
@@ -1169,8 +1136,7 @@ TEST_P(SlicMacrosParallel, test_abort_warning_macros)
         EXPECT_EQ(has_aborted, abort_enabled);
         EXPECT_FALSE(slic::internal::are_all_streams_empty());
         check_level(slic::internal::test_stream.str(), "WARNING");
-        check_msg(slic::internal::test_stream.str(),
-                  "SLIC_WARNING_IF message is logged!");
+        check_msg(slic::internal::test_stream.str(), "SLIC_WARNING_IF message is logged!");
         check_file(slic::internal::test_stream.str());
         check_line(slic::internal::test_stream.str(), expected_line_number);
         check_rank(slic::internal::test_stream.str(), rank);
@@ -1183,8 +1149,7 @@ TEST_P(SlicMacrosParallel, test_abort_warning_macros)
         EXPECT_EQ(has_aborted, abort_enabled);
         EXPECT_FALSE(slic::internal::are_all_streams_empty());
         check_level(slic::internal::test_stream.str(), "WARNING");
-        check_msg(slic::internal::test_stream.str(),
-                  "SLIC_WARNING_ROOT message is logged!");
+        check_msg(slic::internal::test_stream.str(), "SLIC_WARNING_ROOT message is logged!");
         check_file(slic::internal::test_stream.str());
         check_line(slic::internal::test_stream.str(), expected_line_number);
         check_rank(slic::internal::test_stream.str(), rank);
@@ -1197,8 +1162,7 @@ TEST_P(SlicMacrosParallel, test_abort_warning_macros)
         EXPECT_EQ(has_aborted, abort_enabled);
         EXPECT_FALSE(slic::internal::are_all_streams_empty());
         check_level(slic::internal::test_stream.str(), "WARNING");
-        check_msg(slic::internal::test_stream.str(),
-                  "SLIC_WARNING_ROOT_IF msg logged!");
+        check_msg(slic::internal::test_stream.str(), "SLIC_WARNING_ROOT_IF msg logged!");
         check_file(slic::internal::test_stream.str());
         check_line(slic::internal::test_stream.str(), expected_line_number);
         check_rank(slic::internal::test_stream.str(), rank);
@@ -1298,8 +1262,7 @@ TEST_P(SlicMacrosParallel, test_assert_macros)
   {
     EXPECT_FALSE(slic::internal::are_all_streams_empty());
     check_level(slic::internal::test_stream.str(), "ERROR");
-    check_msg(slic::internal::test_stream.str(),
-              "Failed Assert: val < 0\nval should be negative!");
+    check_msg(slic::internal::test_stream.str(), "Failed Assert: val < 0\nval should be negative!");
     check_file(slic::internal::test_stream.str());
     check_line(slic::internal::test_stream.str(), expected_line_number);
     if(GetParam() == "Synchronized")
@@ -1370,8 +1333,7 @@ TEST_P(SlicMacrosParallel, test_check_macros)
   {
     EXPECT_FALSE(slic::internal::are_all_streams_empty());
     check_level(slic::internal::test_stream.str(), "WARNING");
-    check_msg(slic::internal::test_stream.str(),
-              "Failed Check: val < 0\nval should be negative!");
+    check_msg(slic::internal::test_stream.str(), "Failed Check: val < 0\nval should be negative!");
     check_file(slic::internal::test_stream.str());
     check_line(slic::internal::test_stream.str(), expected_line_number);
     if(GetParam() == "Synchronized")
@@ -1410,11 +1372,9 @@ TEST_P(SlicMacrosParallel, test_macros_file_output)
     no_fmt = "file_ss_rank_" + std::to_string(rank) + "_no_fmt.txt";
     with_fmt = "file_ss_rank_" + std::to_string(rank) + "_with_fmt.txt";
 
-    slic::addStreamToAllMsgLevels(
-      new slic::SynchronizedStream(no_fmt, MPI_COMM_WORLD));
+    slic::addStreamToAllMsgLevels(new slic::SynchronizedStream(no_fmt, MPI_COMM_WORLD));
 
-    slic::addStreamToAllMsgLevels(
-      new slic::SynchronizedStream(with_fmt, MPI_COMM_WORLD, msgfmt));
+    slic::addStreamToAllMsgLevels(new slic::SynchronizedStream(with_fmt, MPI_COMM_WORLD, msgfmt));
   }
 
   else
@@ -1427,8 +1387,7 @@ TEST_P(SlicMacrosParallel, test_macros_file_output)
     no_fmt = "file_lj_rank_" + std::to_string(rank) + "_no_fmt.txt";
     with_fmt = "file_lj_rank_" + std::to_string(rank) + "_with_fmt.txt";
 
-    slic::addStreamToAllMsgLevels(
-      new slic::LumberjackStream(no_fmt, MPI_COMM_WORLD, RLIMIT));
+    slic::addStreamToAllMsgLevels(new slic::LumberjackStream(no_fmt, MPI_COMM_WORLD, RLIMIT));
 
     slic::addStreamToAllMsgLevels(
       new slic::LumberjackStream(with_fmt, MPI_COMM_WORLD, RLIMIT, msgfmt));
@@ -1522,8 +1481,7 @@ TEST_P(SlicMacrosParallel, test_macros_file_output)
     no_fmt_output_expected += __FILE__;
     no_fmt_output_expected += "\n" + std::to_string(expected_line_number_flush);
     no_fmt_output_expected += "\n****\n";
-    no_fmt_output_expected +=
-      "*****\n[INFO]\n\n Test outputLocalMessages() \n\n ";
+    no_fmt_output_expected += "*****\n[INFO]\n\n Test outputLocalMessages() \n\n ";
     no_fmt_output_expected += __FILE__;
     no_fmt_output_expected += "\n" + std::to_string(expected_line_number_local);
     no_fmt_output_expected += "\n****\n";
@@ -1558,8 +1516,7 @@ TEST_P(SlicMacrosParallel, test_macros_file_output)
     no_fmt_output.close();
 
     std::string no_fmt_output_expected;
-    no_fmt_output_expected +=
-      "*****\n[INFO]\n\n Test outputLocalMessages() \n\n ";
+    no_fmt_output_expected += "*****\n[INFO]\n\n Test outputLocalMessages() \n\n ";
     no_fmt_output_expected += __FILE__;
     no_fmt_output_expected += "\n" + std::to_string(expected_line_number_local);
     no_fmt_output_expected += "\n****\n";

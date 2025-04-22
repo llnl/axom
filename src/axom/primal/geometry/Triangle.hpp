@@ -64,9 +64,7 @@ public:
    * \param [in] C point instance corresponding to vertex C of the triangle.
    */
   AXOM_HOST_DEVICE
-  Triangle(const PointType& A, const PointType& B, const PointType& C)
-    : m_points {A, B, C}
-  { }
+  Triangle(const PointType& A, const PointType& B, const PointType& C) : m_points {A, B, C} { }
 
   /*!
    * \brief Index operator to get the i^th vertex
@@ -100,8 +98,7 @@ public:
   template <int TDIM = NDIMS>
   AXOM_HOST_DEVICE typename std::enable_if<TDIM == 3, VectorType>::type normal() const
   {
-    return VectorType::cross_product(m_points[1] - m_points[0],
-                                     m_points[2] - m_points[0]);
+    return VectorType::cross_product(m_points[1] - m_points[0], m_points[2] - m_points[0]);
   }
 
   /// \brief Returns the area of the triangle (3D specialization)
@@ -174,8 +171,7 @@ public:
     const VectorType vy {p1[1] - p0[1], p2[1] - p0[1]};
 
     // We also need their squared norms
-    const VectorType sq {vx[0] * vx[0] + vy[0] * vy[0],
-                         vx[1] * vx[1] + vy[1] * vy[1]};
+    const VectorType sq {vx[0] * vx[0] + vy[0] * vy[0], vx[1] * vx[1] + vy[1] * vy[1]};
 
     // Compute one over denominator using a small value to avoid division by zero
     const double a = determinant(vx[0], vx[1], vy[0], vy[1]);
@@ -184,8 +180,7 @@ public:
 
     // Compute offset from p0 to center
     const auto center_offset = ood *
-      VectorType {determinant(sq[0], sq[1], vy[0], vy[1]),
-                  -determinant(sq[0], sq[1], vx[0], vx[1])};
+      VectorType {determinant(sq[0], sq[1], vy[0], vy[1]), -determinant(sq[0], sq[1], vx[0], vx[1])};
 
     return SphereType(p0 + center_offset, center_offset.norm());
   }
@@ -235,17 +230,16 @@ public:
    *
    * Algorithm adapted from Real Time Collision Detection by Christer Ericson.
    */
-  Point<double, 3> physToBarycentric(const PointType& p,
-                                     bool skipNormalization = false) const
+  Point<double, 3> physToBarycentric(const PointType& p, bool skipNormalization = false) const
   {
     // Query point needs to be in triangle's plane
     SLIC_CHECK(axom::utilities::isNearlyEqual(ppedVolume(p), 0.));
 
     Point<double, 3> bary;
 
-    auto triArea2D =
-      [](double x1, double y1, double x2, double y2, double x3, double y3)
-      -> double { return (x1 - x2) * (y2 - y3) - (x2 - x3) * (y1 - y2); };
+    auto triArea2D = [](double x1, double y1, double x2, double y2, double x3, double y3) -> double {
+      return (x1 - x2) * (y2 - y3) - (x2 - x3) * (y1 - y2);
+    };
 
     // References to triangle vertices for convenience
     const PointType& A = m_points[0];
@@ -293,10 +287,9 @@ public:
     }
     else
     {
-      const double projArea = (pDim == 0)
-        ? triArea2D(A[1], A[2], B[1], B[2], C[1], C[2])
-        : (pDim == 1) ? triArea2D(A[0], A[2], B[0], B[2], C[0], C[2])
-                      : triArea2D(A[0], A[1], B[0], B[1], C[0], C[1]);
+      const double projArea = (pDim == 0) ? triArea2D(A[1], A[2], B[1], B[2], C[1], C[2])
+        : (pDim == 1)                     ? triArea2D(A[0], A[2], B[0], B[2], C[0], C[2])
+                                          : triArea2D(A[0], A[1], B[0], B[1], C[0], C[1]);
 
       bary[0] = nu;
       bary[1] = nv;
@@ -313,9 +306,8 @@ public:
    */
   PointType baryToPhysical(const Point<double, 3>& bary) const
   {
-    SLIC_CHECK_MSG(
-      axom::utilities::isNearlyEqual(1., bary[0] + bary[1] + bary[2]),
-      "Barycentric coordinates must sum to (near) one.");
+    SLIC_CHECK_MSG(axom::utilities::isNearlyEqual(1., bary[0] + bary[1] + bary[2]),
+                   "Barycentric coordinates must sum to (near) one.");
 
     PointType res;
     for(int i = 0; i < NUM_TRI_VERTS; ++i)
@@ -350,9 +342,8 @@ public:
     }
 
     Point<double, 3> bC = physToBarycentric(p);
-    return ((bC[0] >= (0.0 - eps)) && (bC[1] >= (0.0 - eps)) &&
-            (bC[2] >= (0.0 - eps)) && (bC[0] <= (1.0 + eps)) &&
-            (bC[1] <= (1.0 + eps)) && (bC[2] <= (1.0 + eps)));
+    return ((bC[0] >= (0.0 - eps)) && (bC[1] >= (0.0 - eps)) && (bC[2] >= (0.0 - eps)) &&
+            (bC[0] <= (1.0 + eps)) && (bC[1] <= (1.0 + eps)) && (bC[2] <= (1.0 + eps)));
   }
 
   /*!

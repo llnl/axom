@@ -44,8 +44,7 @@ primal::Point<double, NDIMS> randomPt(double beg, double end)
 }  // namespace
 
 template <int DIM>
-primal::Triangle<double, DIM> roll(const primal::Triangle<double, DIM>& t,
-                                   const int i)
+primal::Triangle<double, DIM> roll(const primal::Triangle<double, DIM>& t, const int i)
 {
   return primal::Triangle<double, DIM>(t[i % 3], t[(i + 1) % 3], t[(i + 2) % 3]);
 }
@@ -58,9 +57,7 @@ void permuteCornersTest(const primal::Triangle<double, DIM>& a,
                         const bool testtrue,
                         double EPS = 1E-8)
 {
-  SCOPED_TRACE(
-    whattest +
-    (includeBdry ? " (including boundary)" : " (NOT including boundary)"));
+  SCOPED_TRACE(whattest + (includeBdry ? " (including boundary)" : " (NOT including boundary)"));
 
   int numFailures = 0;
   const int numTests = 3 * 3 * 4;
@@ -128,12 +125,11 @@ void permuteCornersTest(const primal::Triangle<double, DIM>& a,
   }
   else
   {
-    ADD_FAILURE()
-      << (testtrue ? "Triangles should intersect but did not"
-                   : "Triangles should not intersect but did")
-      << "\n\t -- " << numFailures << " of " << numTests
-      << " permutations failed when testing intersection of triangles "
-      << "\n\t a: " << a << "\n\t b: " << b;
+    ADD_FAILURE() << (testtrue ? "Triangles should intersect but did not"
+                               : "Triangles should not intersect but did")
+                  << "\n\t -- " << numFailures << " of " << numTests
+                  << " permutations failed when testing intersection of triangles "
+                  << "\n\t a: " << a << "\n\t b: " << b;
   }
 }
 
@@ -240,11 +236,9 @@ TEST(primal_intersect, more_ray_segment_intersection)
         double ray_param {0};
         double seg_param {0};
         bool expect_intersect = seg_pos >= 0 && ray_height <= seg_height;
-        EXPECT_EQ(expect_intersect,
-                  primal::intersect(ray, seg, ray_param, seg_param, EPS))
+        EXPECT_EQ(expect_intersect, primal::intersect(ray, seg, ray_param, seg_param, EPS))
           << "Ray: " << ray << "; seg: " << seg << "; ray_param: " << ray_param
-          << "; seg_param: " << seg_param << "; expect_intersect? "
-          << expect_intersect;
+          << "; seg_param: " << seg_param << "; expect_intersect? " << expect_intersect;
 
         if(expect_intersect)
         {
@@ -275,8 +269,8 @@ TEST(primal_intersect, more_ray_segment_intersection)
         double param {0};
         bool expect_intersect = seg_pos >= 0 && ray_offset <= seg_width;
         EXPECT_EQ(expect_intersect, primal::intersect(ray, seg, param))
-          << "Ray: " << ray << "; seg: " << seg << "; param: " << param
-          << "; expect_intersect? " << expect_intersect;
+          << "Ray: " << ray << "; seg: " << seg << "; param: " << param << "; expect_intersect? "
+          << expect_intersect;
         if(expect_intersect)
         {
           EXPECT_NEAR(y_val, param, EPS);
@@ -293,9 +287,7 @@ TEST(primal_intersect, triangle_empty_aabb_intersection)
   using TriangleType = primal::Triangle<double, DIM>;
   using BoundingBoxType = primal::BoundingBox<double, DIM>;
 
-  TriangleType unitTri(PointType {1., 0., 0.},
-                       PointType {0., 1., 0.},
-                       PointType {0., 0., 1.});
+  TriangleType unitTri(PointType {1., 0., 0.}, PointType {0., 1., 0.}, PointType {0., 0., 1.});
   BoundingBoxType emptyBB;
 
   EXPECT_FALSE(primal::intersect(unitTri, emptyBB));
@@ -342,31 +334,26 @@ TEST(primal_intersect, triangle_aabb_intersection)
 
   BoundingBoxType mid_BB(PointType::zero());
   mid_BB.addPoint(PointType(0.9));
-  SLIC_INFO(
-    "Testing bounding box: "
-    << mid_BB << " against unit triangle.  Note -- BB should intersect interior of triangle");
+  SLIC_INFO("Testing bounding box: "
+            << mid_BB << " against unit triangle.  Note -- BB should intersect interior of triangle");
   EXPECT_TRUE(primal::intersect(unitTri, mid_BB));
 
   BoundingBoxType high_BB(PointType::ones());
   high_BB.addPoint(PointType(0.5));
-  SLIC_INFO(
-    "Testing bounding box: "
-    << high_BB << " against unit triangle.  Note -- BB should not intersect interior of triangle");
+  SLIC_INFO("Testing bounding box: "
+            << high_BB
+            << " against unit triangle.  Note -- BB should not intersect interior of triangle");
   EXPECT_FALSE(primal::intersect(unitTri, high_BB));
 
   BoundingBoxType out_BB(PointType::ones());
   out_BB.addPoint(PointType(2));
-  SLIC_INFO(
-    "Testing bounding box: "
-    << out_BB
-    << " against unit triangle.  Note -- BB should not intersect triangle");
+  SLIC_INFO("Testing bounding box: "
+            << out_BB << " against unit triangle.  Note -- BB should not intersect triangle");
   EXPECT_FALSE(primal::intersect(unitTri, out_BB));
 
   BoundingBoxType negBB(PointType(-5), PointType(-10));
-  SLIC_INFO(
-    "Testing bounding box: "
-    << negBB
-    << " against unit triangle.  Note -- BB should not intersect triangle");
+  SLIC_INFO("Testing bounding box: "
+            << negBB << " against unit triangle.  Note -- BB should not intersect triangle");
   EXPECT_FALSE(primal::intersect(unitTri, negBB));
 
   // Test new triangle whose edge crosses the BB
@@ -377,52 +364,45 @@ TEST(primal_intersect, triangle_aabb_intersection)
   TriangleType xyTri(t2_0, t2_1, t2_2);
   BoundingBoxType bbOrigin(PointType::zero());
   bbOrigin.expand(1.);
-  SLIC_INFO("Testing bounding box: "
-            << bbOrigin << " against triangle " << xyTri
-            << ".  Note -- BB should not intersect triangle");
+  SLIC_INFO("Testing bounding box: " << bbOrigin << " against triangle " << xyTri
+                                     << ".  Note -- BB should not intersect triangle");
   EXPECT_TRUE(primal::intersect(xyTri, bbOrigin));
 
   BoundingBoxType bbOrigin2(PointType::zero());
   bbOrigin.addPoint(PointType(-1.));
   bbOrigin.addPoint(PointType {-1., 1., 1.});
-  SLIC_INFO("Testing bounding box: "
-            << bbOrigin2 << " against triangle " << xyTri
-            << ".  Note -- BB should not intersect triangle");
+  SLIC_INFO("Testing bounding box: " << bbOrigin2 << " against triangle " << xyTri
+                                     << ".  Note -- BB should not intersect triangle");
   EXPECT_TRUE(primal::intersect(xyTri, bbOrigin2));
 
   BoundingBoxType bbAbove(PointType::ones());
   bbAbove.addPoint(PointType(2.));
-  SLIC_INFO("Testing bounding box: "
-            << bbAbove << " against triangle " << xyTri
-            << ".  Note -- BB should not intersect triangle");
+  SLIC_INFO("Testing bounding box: " << bbAbove << " against triangle " << xyTri
+                                     << ".  Note -- BB should not intersect triangle");
   EXPECT_FALSE(primal::intersect(xyTri, bbAbove));
 
   BoundingBoxType bbBelow;
   bbBelow.addPoint(PointType(-1.));
   bbBelow.addPoint(PointType(-2.));
-  SLIC_INFO("Testing bounding box: "
-            << bbBelow << " against triangle " << xyTri
-            << ".  Note -- BB should not intersect triangle");
+  SLIC_INFO("Testing bounding box: " << bbBelow << " against triangle " << xyTri
+                                     << ".  Note -- BB should not intersect triangle");
   EXPECT_FALSE(primal::intersect(xyTri, bbBelow));
 
   BoundingBoxType bbPoint_OnTri;
   bbPoint_OnTri.addPoint(PointType {0., 1., 0.});
-  SLIC_INFO("Testing point bounding box: "
-            << bbPoint_OnTri << " against triangle " << xyTri
-            << ".  Note -- BB is a point on triangle");
+  SLIC_INFO("Testing point bounding box: " << bbPoint_OnTri << " against triangle " << xyTri
+                                           << ".  Note -- BB is a point on triangle");
   EXPECT_TRUE(primal::intersect(xyTri, bbPoint_OnTri));
 
   BoundingBoxType bbPoint_OutsideTri;
   bbPoint_OutsideTri.addPoint(PointType {1., 1., 1.});
-  SLIC_INFO("Testing point bounding box: "
-            << bbPoint_OutsideTri << " against triangle " << xyTri
-            << ".  Note -- BB is a point outside triangle");
+  SLIC_INFO("Testing point bounding box: " << bbPoint_OutsideTri << " against triangle " << xyTri
+                                           << ".  Note -- BB is a point outside triangle");
   EXPECT_FALSE(primal::intersect(xyTri, bbPoint_OutsideTri));
 
   BoundingBoxType bbInvalid;
-  SLIC_INFO("Testing point bounding box: "
-            << bbInvalid << " against triangle " << xyTri
-            << ".  Note -- BB is invalid (empty)");
+  SLIC_INFO("Testing point bounding box: " << bbInvalid << " against triangle " << xyTri
+                                           << ".  Note -- BB is invalid (empty)");
   EXPECT_FALSE(primal::intersect(xyTri, bbInvalid));
 }
 
@@ -457,33 +437,27 @@ TEST(primal_intersect, triangle_aabb_intersection_fromData)
   BoundingBoxType box5(PointType {-39.2793, 60.1549, 60.6506},
                        PointType {-26.1692, 73.9362, 64.2863});
 
-  SLIC_INFO("Testing point bounding box: " << box0 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box0 << " against triangle " << tri);
   EXPECT_FALSE(primal::intersect(tri, box0));
 
-  SLIC_INFO("Testing point bounding box: " << box1 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box1 << " against triangle " << tri);
   EXPECT_TRUE(primal::intersect(tri, box1));
 
   //
   axom::slic::setLoggingMsgLevel(axom::slic::message::Debug);
 
-  SLIC_INFO("Testing point bounding box: " << box2 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box2 << " against triangle " << tri);
   EXPECT_TRUE(primal::intersect(tri, box2));
 
   axom::slic::setLoggingMsgLevel(axom::slic::message::Warning);
 
-  SLIC_INFO("Testing point bounding box: " << box3 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box3 << " against triangle " << tri);
   EXPECT_TRUE(primal::intersect(tri, box3));
 
-  SLIC_INFO("Testing point bounding box: " << box4 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box4 << " against triangle " << tri);
   EXPECT_FALSE(primal::intersect(tri, box4));
 
-  SLIC_INFO("Testing point bounding box: " << box5 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box5 << " against triangle " << tri);
   EXPECT_TRUE(primal::intersect(tri, box5));
 }
 
@@ -503,8 +477,7 @@ TEST(primal_intersect, triangle_aabb_intersection_fromData2)
   BoundingBoxType box0(PointType {0, 4.375, 0}, PointType {0.625, 5, 0.625});
 
   // {pt: (6,15,7); level: 4}
-  BoundingBoxType box1(PointType {-1.25, 4.375, -0.625},
-                       PointType {-0.625, 5, 0});
+  BoundingBoxType box1(PointType {-1.25, 4.375, -0.625}, PointType {-0.625, 5, 0});
 
   // {pt: (6,15,8); level: 4}
   BoundingBoxType box2(PointType {-1.25, 4.375, 0}, PointType {-0.625, 5, 0.625});
@@ -517,24 +490,19 @@ TEST(primal_intersect, triangle_aabb_intersection_fromData2)
 
   axom::slic::setLoggingMsgLevel(axom::slic::message::Info);
 
-  SLIC_INFO("Testing point bounding box: " << box0 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box0 << " against triangle " << tri);
   EXPECT_TRUE(primal::intersect(tri, box0));
 
-  SLIC_INFO("Testing point bounding box: " << box1 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box1 << " against triangle " << tri);
   EXPECT_TRUE(primal::intersect(tri, box1));
 
-  SLIC_INFO("Testing point bounding box: " << box2 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box2 << " against triangle " << tri);
   EXPECT_TRUE(primal::intersect(tri, box2));
 
-  SLIC_INFO("Testing point bounding box: " << box3 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box3 << " against triangle " << tri);
   EXPECT_TRUE(primal::intersect(tri, box3));
 
-  SLIC_INFO("Testing point bounding box: " << box4 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box4 << " against triangle " << tri);
   EXPECT_TRUE(primal::intersect(tri, box4));
 
   axom::slic::setLoggingMsgLevel(axom::slic::message::Warning);
@@ -582,16 +550,12 @@ TEST(primal_intersect, 2D_triangle_triangle_intersection_barycentric)
   {
     for(int j = i; j < sz; ++j)
     {
-      Triangle2 triB(p0,
-                     triA.baryToPhysical(bary[i]),
-                     triA.baryToPhysical(bary[j]));
+      Triangle2 triB(p0, triA.baryToPhysical(bary[i]), triA.baryToPhysical(bary[j]));
 
       if(!triB.degenerate())
       {
         std::string str =
-          axom::fmt::format("Tri2D-Tri2D from barycenters. b1:{}, b2:{}",
-                            bary[i],
-                            bary[j]);
+          axom::fmt::format("Tri2D-Tri2D from barycenters. b1:{}, b2:{}", bary[i], bary[j]);
         permuteCornersTest(triA, triB, str, !includeBdry, expectIntersect);
         permuteCornersTest(triA, triB, str, includeBdry, expectIntersect);
       }
@@ -627,68 +591,28 @@ TEST(primal_intersect, 2D_triangle_triangle_intersection)
 
   triB = Triangle2(Point2 {1.0, 0.0}, Point2 {6.0, 0.5}, Point2 {4.2, 2.1});
 
-  permuteCornersTest(triA,
-                     triB,
-                     "2D tri B completely contained in tri A",
-                     true,
-                     true);
-  permuteCornersTest(triA,
-                     triB,
-                     "2D tri B completely contained in tri A",
-                     false,
-                     true);
+  permuteCornersTest(triA, triB, "2D tri B completely contained in tri A", true, true);
+  permuteCornersTest(triA, triB, "2D tri B completely contained in tri A", false, true);
 
   triB = Triangle2(Point2 {1.9, -2}, Point2 {6.9, 2.1}, Point2 {0.8, 5.1});
 
-  permuteCornersTest(triA,
-                     triB,
-                     "intersecting 2D triangles, no corner in",
-                     true,
-                     true);
-  permuteCornersTest(triA,
-                     triB,
-                     "intersecting 2D triangles, no corner in",
-                     false,
-                     true);
+  permuteCornersTest(triA, triB, "intersecting 2D triangles, no corner in", true, true);
+  permuteCornersTest(triA, triB, "intersecting 2D triangles, no corner in", false, true);
 
   triB = Triangle2(Point2 {2.9, 1.6}, Point2 {-1.5, 1.5}, Point2 {0.8, 5.1});
 
-  permuteCornersTest(triA,
-                     triB,
-                     "intersecting 2D triangles, one corner in",
-                     true,
-                     true);
-  permuteCornersTest(triA,
-                     triB,
-                     "intersecting 2D triangles, one corner in",
-                     false,
-                     true);
+  permuteCornersTest(triA, triB, "intersecting 2D triangles, one corner in", true, true);
+  permuteCornersTest(triA, triB, "intersecting 2D triangles, one corner in", false, true);
 
   triB = Triangle2(Point2 {2.9, 0}, Point2 {2.1, 0.1}, Point2 {0.8, 5.1});
 
-  permuteCornersTest(triA,
-                     triB,
-                     "intersecting 2D triangles, two corners in",
-                     true,
-                     true);
-  permuteCornersTest(triA,
-                     triB,
-                     "intersecting 2D triangles, two corners in",
-                     false,
-                     true);
+  permuteCornersTest(triA, triB, "intersecting 2D triangles, two corners in", true, true);
+  permuteCornersTest(triA, triB, "intersecting 2D triangles, two corners in", false, true);
 
   triB = Triangle2(Point2 {2, -1}, Point2 {-1.0, -0.06}, Point2 {7.3, -1.3});
 
-  permuteCornersTest(triA,
-                     triB,
-                     "2D t1 and t2 share a complete edge (and nothing else)",
-                     true,
-                     true);
-  permuteCornersTest(triA,
-                     triB,
-                     "2D t1 and t2 share a complete edge (and nothing else)",
-                     false,
-                     false);
+  permuteCornersTest(triA, triB, "2D t1 and t2 share a complete edge (and nothing else)", true, true);
+  permuteCornersTest(triA, triB, "2D t1 and t2 share a complete edge (and nothing else)", false, false);
 
   Triangle2 triD(Point2 {0, 0}, Point2 {1, 0}, Point2 {1, 1});
 
@@ -724,57 +648,31 @@ TEST(primal_intersect, 2D_triangle_triangle_intersection)
 
   triE = Triangle2(Point2 {0.5, 0}, Point2 {1.5, 0}, Point2 {-1, -1});
 
-  permuteCornersTest(triD,
-                     triE,
-                     "2D t1 edge overlaps t2 (no other intersection)",
-                     true,
-                     true);
-  permuteCornersTest(triD,
-                     triE,
-                     "2D t1 edge overlaps t2 (no other intersection)",
-                     false,
-                     false);
+  permuteCornersTest(triD, triE, "2D t1 edge overlaps t2 (no other intersection)", true, true);
+  permuteCornersTest(triD, triE, "2D t1 edge overlaps t2 (no other intersection)", false, false);
 
   triE = Triangle2(Point2 {-0.5, 0}, Point2 {0.5, 0}, Point2 {-1, -1});
 
-  permuteCornersTest(
-    triD,
-    triE,
-    "2D t1 edge overlaps t2 the other way (no other intersection)",
-    true,
-    true);
-  permuteCornersTest(
-    triD,
-    triE,
-    "2D t1 edge overlaps t2 the other way (no other intersection)",
-    false,
-    false);
+  permuteCornersTest(triD,
+                     triE,
+                     "2D t1 edge overlaps t2 the other way (no other intersection)",
+                     true,
+                     true);
+  permuteCornersTest(triD,
+                     triE,
+                     "2D t1 edge overlaps t2 the other way (no other intersection)",
+                     false,
+                     false);
 
   triE = Triangle2(Point2 {-1, 0.5}, Point2 {-1, -1}, Point2 {2, -1});
 
-  permuteCornersTest(triD,
-                     triE,
-                     "2D t1 point lands on t2 edge (no other intersection)",
-                     true,
-                     true);
-  permuteCornersTest(triD,
-                     triE,
-                     "2D t1 point lands on t2 edge (no other intersection)",
-                     false,
-                     false);
+  permuteCornersTest(triD, triE, "2D t1 point lands on t2 edge (no other intersection)", true, true);
+  permuteCornersTest(triD, triE, "2D t1 point lands on t2 edge (no other intersection)", false, false);
 
   triE = Triangle2(Point2 {0, 0}, Point2 {-40, -0.7}, Point2 {-23, 1.3});
 
-  permuteCornersTest(triD,
-                     triE,
-                     "2D t1 point lands on t2 point (no other intersection)",
-                     true,
-                     true);
-  permuteCornersTest(triD,
-                     triE,
-                     "2D t1 point lands on t2 point (no other intersection)",
-                     false,
-                     false);
+  permuteCornersTest(triD, triE, "2D t1 point lands on t2 point (no other intersection)", true, true);
+  permuteCornersTest(triD, triE, "2D t1 point lands on t2 point (no other intersection)", false, false);
 
   // Several non-intersection cases (and a few intersection)
 
@@ -930,20 +828,14 @@ TEST(primal_intersect, 3D_triangle_triangle_intersection)
   using Triangle3 = primal::Triangle<double, 3>;
   using Point3 = primal::Point<double, 3>;
 
-  Triangle3 tri3d_1(Point3 {-1.0, -1.0, -1.0},
-                    Point3 {-2.0, -5.0, -5.0},
-                    Point3 {-4.0, -8.0, -8.0});
+  Triangle3 tri3d_1(Point3 {-1.0, -1.0, -1.0}, Point3 {-2.0, -5.0, -5.0}, Point3 {-4.0, -8.0, -8.0});
 
-  Triangle3 tri3d_2(Point3 {-1.0, -1.0, -1.0},
-                    Point3 {-2.0, -5.0, -5.0},
-                    Point3 {-4.0, -8.0, -8.0});
+  Triangle3 tri3d_2(Point3 {-1.0, -1.0, -1.0}, Point3 {-2.0, -5.0, -5.0}, Point3 {-4.0, -8.0, -8.0});
 
   permuteCornersTest(tri3d_1, tri3d_2, "3D identical triangles", true, true);
   permuteCornersTest(tri3d_1, tri3d_2, "3D identical triangles", false, true);
 
-  Triangle3 tri3d_3(Point3 {1.0, 1.0, 1.0},
-                    Point3 {5.0, 5.0, 5.0},
-                    Point3 {8.0, 7.0, 92.0});
+  Triangle3 tri3d_3(Point3 {1.0, 1.0, 1.0}, Point3 {5.0, 5.0, 5.0}, Point3 {8.0, 7.0, 92.0});
 
   permuteCornersTest(tri3d_1, tri3d_3, "3D disjunct triangles", true, false);
   permuteCornersTest(tri3d_1, tri3d_3, "3D disjunct triangles", false, false);
@@ -973,25 +865,12 @@ TEST(primal_intersect, 3D_triangle_triangle_intersection)
   tri3B = Triangle3(Point3 {0, -1, -1}, Point3 {0.5, 0, 0}, Point3 {1, 1, -1});
 
   permuteCornersTest(tri3A, tri3B, "3D tris, B vertex lands on A's edge", true, true);
-  permuteCornersTest(tri3A,
-                     tri3B,
-                     "3D tris, B vertex lands on A's edge",
-                     false,
-                     false);
+  permuteCornersTest(tri3A, tri3B, "3D tris, B vertex lands on A's edge", false, false);
 
-  tri3B =
-    Triangle3(Point3 {0.5, -1, 0.1}, Point3 {0.5, 1, 0.1}, Point3 {1, 1, -1});
+  tri3B = Triangle3(Point3 {0.5, -1, 0.1}, Point3 {0.5, 1, 0.1}, Point3 {1, 1, -1});
 
-  permuteCornersTest(tri3A,
-                     tri3B,
-                     "3D tris intersect like two links in a chain",
-                     true,
-                     true);
-  permuteCornersTest(tri3A,
-                     tri3B,
-                     "3D tris intersect like two links in a chain",
-                     false,
-                     true);
+  permuteCornersTest(tri3A, tri3B, "3D tris intersect like two links in a chain", true, true);
+  permuteCornersTest(tri3A, tri3B, "3D tris intersect like two links in a chain", false, true);
 
   tri3B = Triangle3(Point3 {-1, -1, 1}, Point3 {0, 2, 1}, Point3 {5, 0, 1});
 
@@ -1005,16 +884,8 @@ TEST(primal_intersect, 3D_triangle_triangle_intersection)
 
   tri3B = Triangle3(Point3 {1.00001, -1, 1}, Point3 {1, 2, 1}, Point3 {1, 0, -1});
 
-  permuteCornersTest(tri3A,
-                     tri3B,
-                     "3D tri A vertex not quite tangent on B",
-                     true,
-                     false);
-  permuteCornersTest(tri3A,
-                     tri3B,
-                     "3D tri A vertex not quite tangent on B",
-                     false,
-                     false);
+  permuteCornersTest(tri3A, tri3B, "3D tri A vertex not quite tangent on B", true, false);
+  permuteCornersTest(tri3A, tri3B, "3D tri A vertex not quite tangent on B", false, false);
 
   // 3D versions of 2D test cases (!)
 
@@ -1125,8 +996,7 @@ TEST(primal_intersect, 3D_triangle_triangle_intersection_regression)
       SLIC_DEBUG("t1 " << i << "\n\t-- distance " << tri3d_1[i]
                        << " to tri2: " << std::setprecision(17)
                        << sqrt(primal::squared_distance(tri3d_1[i], tri3d_2))
-                       << "\n\t-- closest point: "
-                       << primal::closest_point(tri3d_1[i], tri3d_2));
+                       << "\n\t-- closest point: " << primal::closest_point(tri3d_1[i], tri3d_2));
     }
 
     for(int i = 0; i < 3; ++i)
@@ -1134,8 +1004,7 @@ TEST(primal_intersect, 3D_triangle_triangle_intersection_regression)
       SLIC_DEBUG("t2 " << i << "\n\t-- distance " << tri3d_2[i]
                        << " to tri1: " << std::setprecision(17)
                        << sqrt(primal::squared_distance(tri3d_2[i], tri3d_1))
-                       << "\n\t-- closest point: "
-                       << primal::closest_point(tri3d_2[i], tri3d_1));
+                       << "\n\t-- closest point: " << primal::closest_point(tri3d_2[i], tri3d_1));
     }
 
     const bool expectIntersect = true;
@@ -1251,12 +1120,10 @@ TEST(primal_intersect, triangle_aabb_intersection_boundaryFace)
 
   axom::slic::setLoggingMsgLevel(axom::slic::message::Debug);
 
-  SLIC_INFO("Testing point bounding box: " << box0 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box0 << " against triangle " << tri);
   EXPECT_TRUE(primal::intersect(tri, box0));
 
-  SLIC_INFO("Testing point bounding box: " << box1 << " against triangle "
-                                           << tri);
+  SLIC_INFO("Testing point bounding box: " << box1 << " against triangle " << tri);
   EXPECT_TRUE(primal::intersect(tri, box1));
 
   // ---
@@ -1270,9 +1137,9 @@ TEST(primal_intersect, triangle_aabb_intersection_boundaryFace)
   BoundingBoxType box2(PointType {0.0230077, -1, -0.0208459},
                        PointType {0.0268708, -0.992188, -0.0201394});
 
-  SLIC_INFO("Testing point bounding box: "
-            << box2 << " against triangle " << tri2 << "\n\t -- intersects? "
-            << (primal::intersect(tri2, box2) ? "yes" : "no")
+  SLIC_INFO("Testing point bounding box: " << box2 << " against triangle " << tri2
+                                           << "\n\t -- intersects? "
+                                           << (primal::intersect(tri2, box2) ? "yes" : "no")
             //<< "\n\t -- distance: " << (primal::distance(tri2, box2) ?
             // "yes":"no")
   );
@@ -1296,8 +1163,7 @@ TEST(primal_intersect, ray_aabb_intersection_general3D)
 
   BoundingBoxType box0(PointType {5.0, 5.0, 5.0}, PointType {10.0, 10.0, 10.0});
 
-  BoundingBoxType box1(PointType {-5.0, -5.0, -5.0},
-                       PointType {-1.0, -1.0, -1.0});
+  BoundingBoxType box1(PointType {-5.0, -5.0, -5.0}, PointType {-1.0, -1.0, -1.0});
 
   axom::slic::setLoggingMsgLevel(axom::slic::message::Debug);
   PointType ip;
@@ -1330,8 +1196,7 @@ TEST(primal_intersect, ray_aabb_intersection_tinyDirectionVector3D)
 
   BoundingBoxType box0(PointType {5.0, 5.0, 5.0}, PointType {10.0, 10.0, 10.0});
 
-  BoundingBoxType box1(PointType {-5.0, -5.0, -5.0},
-                       PointType {-1.0, -1.0, -1.0});
+  BoundingBoxType box1(PointType {-5.0, -5.0, -5.0}, PointType {-1.0, -1.0, -1.0});
 
   axom::slic::setLoggingMsgLevel(axom::slic::message::Debug);
   PointType ip;
@@ -1462,19 +1327,15 @@ TEST(primal_intersect, segment_aabb_2d_intersection)
   using BoxType = primal::BoundingBox<double, DIM>;
 
   // Helper lambda for printing out intersection details
-  auto print_details = [=](bool expected,
-                           const BoxType& b,
-                           const SegmentType& s,
-                           const PointType& p) {
+  auto print_details = [=](bool expected, const BoxType& b, const SegmentType& s, const PointType& p) {
     if(expected)
     {
-      SLIC_INFO("Found intersection between box " << b << " and line segment "
-                                                  << s << " at point " << p);
+      SLIC_INFO("Found intersection between box " << b << " and line segment " << s << " at point "
+                                                  << p);
     }
     else
     {
-      SLIC_INFO("No expected intersection between box "
-                << b << " and line segment " << s);
+      SLIC_INFO("No expected intersection between box " << b << " and line segment " << s);
     }
   };
 
@@ -1591,19 +1452,15 @@ TEST(primal_intersect, segment_aabb_3d_intersection)
   using BoxType = primal::BoundingBox<double, DIM>;
 
   // Helper lambda for printing out intersection details
-  auto print_details = [=](bool expected,
-                           const BoxType& b,
-                           const SegmentType& s,
-                           const PointType& p) {
+  auto print_details = [=](bool expected, const BoxType& b, const SegmentType& s, const PointType& p) {
     if(expected)
     {
-      SLIC_INFO("Found intersection between box " << b << " and line segment "
-                                                  << s << " at point " << p);
+      SLIC_INFO("Found intersection between box " << b << " and line segment " << s << " at point "
+                                                  << p);
     }
     else
     {
-      SLIC_INFO("No expected intersection between box "
-                << b << " and line segment " << s);
+      SLIC_INFO("No expected intersection between box " << b << " and line segment " << s);
     }
   };
 
@@ -1696,16 +1553,14 @@ TEST(primal_intersect, sphere_aabb_2d_intersection)
 
   // Touching at a tangent
   {
-    BoxType box(PointType {-1, circle.getRadius() + circle.getCenter()[1]},
-                PointType {3, 4});
+    BoxType box(PointType {-1, circle.getRadius() + circle.getCenter()[1]}, PointType {3, 4});
     EXPECT_TRUE(primal::intersect(circle, box));
   }
 
   // Overlap at a corner
   {
-    BoxType box(
-      PointType {circle.getCenter()[0] + 0.1, circle.getCenter()[1] + 0.1},
-      PointType {3, 4});
+    BoxType box(PointType {circle.getCenter()[0] + 0.1, circle.getCenter()[1] + 0.1},
+                PointType {3, 4});
     EXPECT_TRUE(primal::intersect(circle, box));
   }
 
@@ -1717,17 +1572,15 @@ TEST(primal_intersect, sphere_aabb_2d_intersection)
 
   // Box contains circle
   {
-    BoxType box(
-      PointType {circle.getCenter()[0] - 1.5, circle.getCenter()[1] - 1.5},
-      PointType {circle.getCenter()[0] + 1.5, circle.getCenter()[1] + 1.5});
+    BoxType box(PointType {circle.getCenter()[0] - 1.5, circle.getCenter()[1] - 1.5},
+                PointType {circle.getCenter()[0] + 1.5, circle.getCenter()[1] + 1.5});
     EXPECT_TRUE(primal::intersect(circle, box));
   }
 
   // Circle contains box
   {
-    BoxType box(
-      PointType {circle.getCenter()[0] - 0.5, circle.getCenter()[1] - 0.5},
-      PointType {circle.getCenter()[0] + 0.5, circle.getCenter()[1] + 0.5});
+    BoxType box(PointType {circle.getCenter()[0] - 0.5, circle.getCenter()[1] - 0.5},
+                PointType {circle.getCenter()[0] + 0.5, circle.getCenter()[1] + 0.5});
     EXPECT_TRUE(primal::intersect(circle, box));
   }
 }
@@ -1876,33 +1729,23 @@ TEST(primal_intersect, triangle_ray_intersection)
   testRayIntersection(tri, testRay, "hit 3", true);
 
   // Coplanar miss
-  testRay =
-    RayType(SegmentType(PointType {-0.1, 1.1, 0.}, PointType {-0.1, 0., 1.1}));
+  testRay = RayType(SegmentType(PointType {-0.1, 1.1, 0.}, PointType {-0.1, 0., 1.1}));
   testRayIntersection(tri, testRay, "coplanar miss", false);
 
   // Coplanar intersection (reported as miss by function)
   testRay = RayType(SegmentType(PointType {1, 0.5, 0}, PointType {-1, 0.5, 0}));
-  testRayIntersection(tri2,
-                      testRay,
-                      "coplanar intersection, reported as miss by design",
-                      false);
+  testRayIntersection(tri2, testRay, "coplanar intersection, reported as miss by design", false);
 
   // Coplanar, interior ray origin (reported as miss by function)
   testRay = RayType(SegmentType(ptM, PointType {0.5, 0., 0.5}));
-  testRayIntersection(
-    tri,
-    testRay,
-    "coplanar interior ray origin, reported as miss by design",
-    false);
+  testRayIntersection(tri, testRay, "coplanar interior ray origin, reported as miss by design", false);
 
   // Not coplanar, interior ray origin (reported as miss by function)
-  testRay =
-    RayType(SegmentType(PointType {0.2, 0.18, 0}, PointType {0., 0., 0.5}));
-  testRayIntersection(
-    tri2,
-    testRay,
-    "non-coplanar interior ray origin, reported as miss by design",
-    false);
+  testRay = RayType(SegmentType(PointType {0.2, 0.18, 0}, PointType {0., 0., 0.5}));
+  testRayIntersection(tri2,
+                      testRay,
+                      "non-coplanar interior ray origin, reported as miss by design",
+                      false);
 }
 
 TEST(primal_intersect, triangle_ray_intersection_unit_ray)
@@ -1923,9 +1766,7 @@ TEST(primal_intersect, triangle_ray_intersection_unit_ray)
 
   PointType intBary;
   double intersectionParam = 0.;
-  TriangleType t2(PointType {-1, -1, 2},
-                  PointType {-1, 1, 2},
-                  PointType {2, 0, 2});
+  TriangleType t2(PointType {-1, -1, 2}, PointType {-1, 1, 2}, PointType {2, 0, 2});
   EXPECT_TRUE(axom::primal::intersect(t2, r, intersectionParam, intBary));
 
   // Here, intersectionParam is the distance along the ray, with the source
@@ -2365,69 +2206,57 @@ TEST(primal_intersect, plane_tet_test_intersection)
 
   // ---------------------------------------------------------------------------
   // Not even close
-  EXPECT_FALSE(axom::primal::intersect(
-    PlaneType(VectorType {0., 0., 1.}, PointType {0., 0., -10.}),
-    T,
-    poly));
+  EXPECT_FALSE(
+    axom::primal::intersect(PlaneType(VectorType {0., 0., 1.}, PointType {0., 0., -10.}), T, poly));
   EXPECT_EQ(poly.numVertices(), 0);
 
   // ---------------------------------------------------------------------------
   // Tests along X axis
 
   // Plane hits only at point B.
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {1., 0., 0.}, B), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {1., 0., 0.}, B), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], B);
   EXPECT_EQ(poly[1], B);
   EXPECT_EQ(poly[2], B);
 
   // Plane hits only at point B.
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {-1., 0., 0.}, B), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {-1., 0., 0.}, B), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], B);
   EXPECT_EQ(poly[1], B);
   EXPECT_EQ(poly[2], B);
 
   // Plane misses near point B.
-  EXPECT_FALSE(axom::primal::intersect(
-    PlaneType(VectorType {1., 0., 0.}, PointType {1.5, 0., 0.}),
-    T,
-    poly));
+  EXPECT_FALSE(
+    axom::primal::intersect(PlaneType(VectorType {1., 0., 0.}, PointType {1.5, 0., 0.}), T, poly));
   EXPECT_EQ(poly.numVertices(), 0);
 
   // Plane slices at x=0.5
-  EXPECT_TRUE(axom::primal::intersect(
-    PlaneType(VectorType {1., 0., 0.}, PointType {0.5, 0., 0.}),
-    T,
-    poly));
+  EXPECT_TRUE(
+    axom::primal::intersect(PlaneType(VectorType {1., 0., 0.}, PointType {0.5, 0., 0.}), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], PointType::lerp(A, B, 0.5));
   EXPECT_EQ(poly[1], PointType::lerp(B, C, 0.5));
   EXPECT_EQ(poly[2], PointType::lerp(B, D, 0.5));
 
   // Plane slices at x=0.5
-  EXPECT_TRUE(axom::primal::intersect(
-    PlaneType(VectorType {-1., 0., 0.}, PointType {0.5, 0., 0.}),
-    T,
-    poly));
+  EXPECT_TRUE(
+    axom::primal::intersect(PlaneType(VectorType {-1., 0., 0.}, PointType {0.5, 0., 0.}), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], PointType::lerp(B, C, 0.5));
   EXPECT_EQ(poly[1], PointType::lerp(A, B, 0.5));
   EXPECT_EQ(poly[2], PointType::lerp(B, D, 0.5));
 
   // Slice at x=0
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {1., 0., 0.}, origin), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {1., 0., 0.}, origin), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], A);
   EXPECT_EQ(poly[1], C);
   EXPECT_EQ(poly[2], D);
 
   // Slice at x=0
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {-1., 0., 0.}, origin), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {-1., 0., 0.}, origin), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], C);
   EXPECT_EQ(poly[1], A);
@@ -2437,59 +2266,49 @@ TEST(primal_intersect, plane_tet_test_intersection)
   // Tests along Y axis
 
   // Plane hits only at point D.
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {0., 1., 0.}, D), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {0., 1., 0.}, D), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], D);
   EXPECT_EQ(poly[1], D);
   EXPECT_EQ(poly[2], D);
 
   // Plane hits only at point D.
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {0., -1., 0.}, D), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {0., -1., 0.}, D), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], D);
   EXPECT_EQ(poly[1], D);
   EXPECT_EQ(poly[2], D);
 
   // Plane misses near point D.
-  EXPECT_FALSE(axom::primal::intersect(
-    PlaneType(VectorType {0., 1., 0.}, PointType {0., 1.5, 0.}),
-    T,
-    poly));
+  EXPECT_FALSE(
+    axom::primal::intersect(PlaneType(VectorType {0., 1., 0.}, PointType {0., 1.5, 0.}), T, poly));
   EXPECT_EQ(poly.numVertices(), 0);
 
   // Plane slices at y=0.5
-  EXPECT_TRUE(axom::primal::intersect(
-    PlaneType(VectorType {0., 1., 0.}, PointType {0., 0.5, 0.}),
-    T,
-    poly));
+  EXPECT_TRUE(
+    axom::primal::intersect(PlaneType(VectorType {0., 1., 0.}, PointType {0., 0.5, 0.}), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], PointType::lerp(A, D, 0.5));
   EXPECT_EQ(poly[1], PointType::lerp(B, D, 0.5));
   EXPECT_EQ(poly[2], PointType::lerp(C, D, 0.5));
 
   // Plane slices at y=0.5
-  EXPECT_TRUE(axom::primal::intersect(
-    PlaneType(VectorType {0., -1., 0.}, PointType {0., 0.5, 0.}),
-    T,
-    poly));
+  EXPECT_TRUE(
+    axom::primal::intersect(PlaneType(VectorType {0., -1., 0.}, PointType {0., 0.5, 0.}), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], PointType::lerp(C, D, 0.5));
   EXPECT_EQ(poly[1], PointType::lerp(B, D, 0.5));
   EXPECT_EQ(poly[2], PointType::lerp(A, D, 0.5));
 
   // Slice at y=0
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {0., 1., 0.}, origin), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {0., 1., 0.}, origin), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], A);
   EXPECT_EQ(poly[1], B);
   EXPECT_EQ(poly[2], C);
 
   // Slice at y=0
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {0., -1., 0.}, origin), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {0., -1., 0.}, origin), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], C);
   EXPECT_EQ(poly[1], B);
@@ -2499,59 +2318,49 @@ TEST(primal_intersect, plane_tet_test_intersection)
   // Tests along Z axis
 
   // Plane hits only at point A.
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {0., 0., 1.}, A), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {0., 0., 1.}, A), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], A);
   EXPECT_EQ(poly[1], A);
   EXPECT_EQ(poly[2], A);
 
   // Plane hits only at point A.
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {0., 0., -1.}, A), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {0., 0., -1.}, A), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], A);
   EXPECT_EQ(poly[1], A);
   EXPECT_EQ(poly[2], A);
 
   // Plane misses near point A.
-  EXPECT_FALSE(axom::primal::intersect(
-    PlaneType(VectorType {0., 0., -1.}, PointType {0., 0., 1.5}),
-    T,
-    poly));
+  EXPECT_FALSE(
+    axom::primal::intersect(PlaneType(VectorType {0., 0., -1.}, PointType {0., 0., 1.5}), T, poly));
   EXPECT_EQ(poly.numVertices(), 0);
 
   // Plane slices at z=0.5
-  EXPECT_TRUE(axom::primal::intersect(
-    PlaneType(VectorType {0., 0., 1.}, PointType {0., 0., 0.5}),
-    T,
-    poly));
+  EXPECT_TRUE(
+    axom::primal::intersect(PlaneType(VectorType {0., 0., 1.}, PointType {0., 0., 0.5}), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], PointType::lerp(A, C, 0.5));
   EXPECT_EQ(poly[1], PointType::lerp(A, B, 0.5));
   EXPECT_EQ(poly[2], PointType::lerp(A, D, 0.5));
 
   // Plane slices at z=0.5
-  EXPECT_TRUE(axom::primal::intersect(
-    PlaneType(VectorType {0., 0., -1.}, PointType {0., 0., 0.5}),
-    T,
-    poly));
+  EXPECT_TRUE(
+    axom::primal::intersect(PlaneType(VectorType {0., 0., -1.}, PointType {0., 0., 0.5}), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], PointType::lerp(A, B, 0.5));
   EXPECT_EQ(poly[1], PointType::lerp(A, C, 0.5));
   EXPECT_EQ(poly[2], PointType::lerp(A, D, 0.5));
 
   // Slice at z=0
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {0., 0., 1.}, origin), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {0., 0., 1.}, origin), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], C);
   EXPECT_EQ(poly[1], B);
   EXPECT_EQ(poly[2], D);
 
   // Slice at z=0
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {0., 0., -1.}, origin), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {0., 0., -1.}, origin), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], B);
   EXPECT_EQ(poly[1], C);
@@ -2561,39 +2370,33 @@ TEST(primal_intersect, plane_tet_test_intersection)
   // Tests along normal (1,1,1) from point C
 
   // Plane hits only at point C.
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {1., 1., 1.}, C), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {1., 1., 1.}, C), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], C);
   EXPECT_EQ(poly[1], C);
   EXPECT_EQ(poly[2], C);
 
   // Plane hits only at point C.
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {-1., -1., -1.}, C), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {-1., -1., -1.}, C), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], C);
   EXPECT_EQ(poly[1], C);
   EXPECT_EQ(poly[2], C);
 
   // Plane misses near point C.
-  EXPECT_FALSE(axom::primal::intersect(
-    PlaneType(VectorType {1., 1., 1.}, PointType {-0.1, -0.1, -0.1}),
-    T,
-    poly));
+  EXPECT_FALSE(
+    axom::primal::intersect(PlaneType(VectorType {1., 1., 1.}, PointType {-0.1, -0.1, -0.1}), T, poly));
   EXPECT_EQ(poly.numVertices(), 0);
 
   // Plane slices at ACmid
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {1., 1., 1.}, ACmid), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {1., 1., 1.}, ACmid), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], ACmid);
   EXPECT_EQ(poly[1], BCmid);
   EXPECT_EQ(poly[2], CDmid);
 
   // Plane slices at ACmid
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {-1., -1., -1.}, ACmid), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {-1., -1., -1.}, ACmid), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], BCmid);
   EXPECT_EQ(poly[1], ACmid);
@@ -2609,16 +2412,14 @@ TEST(primal_intersect, plane_tet_test_intersection)
   // ---------------------------------------------------------------------------
   // Tests along normal (1,0,1) from point ACmid
 
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {1., 0., 1.}, ACmid), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {1., 0., 1.}, ACmid), T, poly));
   EXPECT_EQ(poly.numVertices(), 4);
   EXPECT_EQ(poly[0], ACmid);
   EXPECT_EQ(poly[1], BCmid);
   EXPECT_EQ(poly[2], BDmid);
   EXPECT_EQ(poly[3], ADmid);
 
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {-1., 0., -1.}, ACmid), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {-1., 0., -1.}, ACmid), T, poly));
   EXPECT_EQ(poly.numVertices(), 4);
   EXPECT_EQ(poly[0], BCmid);
   EXPECT_EQ(poly[1], ACmid);
@@ -2628,16 +2429,14 @@ TEST(primal_intersect, plane_tet_test_intersection)
   // ---------------------------------------------------------------------------
   // Tests along normal (1,1,0) from point BCmid
 
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {1., 1., 0.}, BCmid), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {1., 1., 0.}, BCmid), T, poly));
   EXPECT_EQ(poly.numVertices(), 4);
   EXPECT_EQ(poly[0], ABmid);
   EXPECT_EQ(poly[1], BCmid);
   EXPECT_EQ(poly[2], CDmid);
   EXPECT_EQ(poly[3], ADmid);
 
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {-1., -1., 0.}, BCmid), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {-1., -1., 0.}, BCmid), T, poly));
   EXPECT_EQ(poly.numVertices(), 4);
   EXPECT_EQ(poly[0], BCmid);
   EXPECT_EQ(poly[1], ABmid);
@@ -2647,16 +2446,14 @@ TEST(primal_intersect, plane_tet_test_intersection)
   // ---------------------------------------------------------------------------
   // Tests along normal (0,1,1) from point ACmid
 
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {0., 1., 1.}, ACmid), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {0., 1., 1.}, ACmid), T, poly));
   EXPECT_EQ(poly.numVertices(), 4);
   EXPECT_EQ(poly[0], ACmid);
   EXPECT_EQ(poly[1], ABmid);
   EXPECT_EQ(poly[2], BDmid);
   EXPECT_EQ(poly[3], CDmid);
 
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {0., -1., -1.}, ACmid), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {0., -1., -1.}, ACmid), T, poly));
   EXPECT_EQ(poly.numVertices(), 4);
   EXPECT_EQ(poly[0], ABmid);
   EXPECT_EQ(poly[1], ACmid);
@@ -2666,8 +2463,7 @@ TEST(primal_intersect, plane_tet_test_intersection)
   // ---------------------------------------------------------------------------
   // Cut in half through CD segment
 
-  EXPECT_TRUE(
-    axom::primal::intersect(PlaneType(VectorType {-1., 0., 1.}, C), T, poly));
+  EXPECT_TRUE(axom::primal::intersect(PlaneType(VectorType {-1., 0., 1.}, C), T, poly));
   EXPECT_EQ(poly.numVertices(), 3);
   EXPECT_EQ(poly[0], C);
   EXPECT_EQ(poly[1], ABmid);
@@ -2704,11 +2500,9 @@ void check_plane_bb_intersect()
   // intersection results in unified memory to check results on host.
   BoundingBoxType* unitBB = axom::allocate<BoundingBoxType>(1);
   PlaneType* planes = axom::allocate<PlaneType>(4);
-  bool* res =
-    (axom::execution_space<ExecSpace>::onDevice()
-       ? axom::allocate<bool>(4,
-                              rm.getAllocator(umpire::resource::Unified).getId())
-       : axom::allocate<bool>(4));
+  bool* res = (axom::execution_space<ExecSpace>::onDevice()
+                 ? axom::allocate<bool>(4, rm.getAllocator(umpire::resource::Unified).getId())
+                 : axom::allocate<bool>(4));
 
   axom::for_all<ExecSpace>(
     4,
@@ -2787,16 +2581,13 @@ void check_plane_seg_intersect()
   // intersection results in unified memory to check results on host.
   PlaneType* planes = axom::allocate<PlaneType>(4);
   SegmentType* segments = axom::allocate<SegmentType>(1);
-  double* lerp_val = (axom::execution_space<ExecSpace>::onDevice()
-                        ? axom::allocate<double>(
-                            4,
-                            rm.getAllocator(umpire::resource::Unified).getId())
-                        : axom::allocate<double>(4));
-  bool* res =
+  double* lerp_val =
     (axom::execution_space<ExecSpace>::onDevice()
-       ? axom::allocate<bool>(4,
-                              rm.getAllocator(umpire::resource::Unified).getId())
-       : axom::allocate<bool>(4));
+       ? axom::allocate<double>(4, rm.getAllocator(umpire::resource::Unified).getId())
+       : axom::allocate<double>(4));
+  bool* res = (axom::execution_space<ExecSpace>::onDevice()
+                 ? axom::allocate<bool>(4, rm.getAllocator(umpire::resource::Unified).getId())
+                 : axom::allocate<bool>(4));
 
   axom::for_all<ExecSpace>(
     4,

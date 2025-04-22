@@ -21,16 +21,14 @@ CellClipper::~CellClipper() { }
 
 // Computes the t-values where each edge is clipped, as well as the topology of the new output cells after clipping the original cell
 // Outputs the newElements, newVertices maps and the verticesClippingTValue array[]
-void CellClipper::computeClippingPoints(
-  const mir::Shape shapeType,
-  const std::vector<std::vector<axom::float64>>& vertexVF,
-  std::map<int, std::vector<int>>& newElements,
-  std::map<int, std::vector<int>>& newVertices,
-  axom::float64* tValues)
+void CellClipper::computeClippingPoints(const mir::Shape shapeType,
+                                        const std::vector<std::vector<axom::float64>>& vertexVF,
+                                        std::map<int, std::vector<int>>& newElements,
+                                        std::map<int, std::vector<int>>& newVertices,
+                                        axom::float64* tValues)
 {
   // Determine the clipping case for the current element
-  unsigned int caseIndex =
-    determineClippingCase(shapeType, vertexVF[0], vertexVF[1]);
+  unsigned int caseIndex = determineClippingCase(shapeType, vertexVF[0], vertexVF[1]);
 
   std::vector<std::vector<int>> clipTable = getClipTable(shapeType);
 
@@ -76,10 +74,9 @@ void CellClipper::computeClippingPoints(
 
 //--------------------------------------------------------------------------------
 
-unsigned int CellClipper::determineClippingCase(
-  const mir::Shape shapeType,
-  const std::vector<axom::float64>& matOneVF,
-  const std::vector<axom::float64>& matTwoVF)
+unsigned int CellClipper::determineClippingCase(const mir::Shape shapeType,
+                                                const std::vector<axom::float64>& matOneVF,
+                                                const std::vector<axom::float64>& matTwoVF)
 {
   unsigned int caseIndex = 0;
 
@@ -127,8 +124,8 @@ axom::float64 CellClipper::computeTValueOnEdge(axom::float64 vfMatOneVertexOne,
   };
 
   axom::float64 numerator = vfMatTwoVertexOne - vfMatOneVertexOne;
-  axom::float64 denominator = -vfMatOneVertexOne + vfMatOneVertexTwo +
-    vfMatTwoVertexOne - vfMatTwoVertexTwo;
+  axom::float64 denominator =
+    -vfMatOneVertexOne + vfMatOneVertexTwo + vfMatTwoVertexOne - vfMatTwoVertexTwo;
 
   if(denominator != 0.0)
   {
@@ -150,8 +147,7 @@ axom::float64 CellClipper::computeTValueOnEdge(axom::float64 vfMatOneVertexOne,
 
 //--------------------------------------------------------------------------------
 
-const std::vector<std::vector<int>>& CellClipper::getClipTable(
-  const mir::Shape shapeType)
+const std::vector<std::vector<int>>& CellClipper::getClipTable(const mir::Shape shapeType)
 {
   switch(shapeType)
   {

@@ -25,11 +25,13 @@
 #include "axom/primal/geometry/BezierCurve.hpp"
 #include "axom/primal/geometry/NURBSCurve.hpp"
 #include "axom/primal/geometry/BezierPatch.hpp"
+#include "axom/primal/geometry/NURBSPatch.hpp"
 #include "axom/primal/geometry/CurvedPolygon.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 
-#include "axom/primal/operators/detail/winding_number_impl.hpp"
+#include "axom/primal/operators/detail/winding_number_2d_impl.hpp"
+#include "axom/primal/operators/detail/winding_number_3d_impl.hpp"
 
 // C++ includes
 #include <cmath>
@@ -43,9 +45,6 @@ namespace axom
 {
 namespace primal
 {
-//@{
-//! @name Winding number operations between 2D points and primitives
-
 /*
  * \brief Compute the GWN for a 2D point wrt a 2D line segment
  *
@@ -56,9 +55,7 @@ namespace primal
  * \return The GWN
  */
 template <typename T>
-double winding_number(const Point<T, 2>& q,
-                      const Segment<T, 2>& s,
-                      double edge_tol = 1e-8)
+double winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, double edge_tol = 1e-8)
 {
   return detail::linear_winding_number(q, s[0], s[1], edge_tol);
 }
@@ -81,11 +78,10 @@ int winding_number(const Point<T, 2>& q,
                    bool includeBoundary = false,
                    double edge_tol = 1e-8)
 {
-  return winding_number(
-    q,
-    Polygon<T, 2>(axom::Array<Point<T, 2>>({tri[0], tri[1], tri[2]})),
-    includeBoundary,
-    edge_tol);
+  return winding_number(q,
+                        Polygon<T, 2>(axom::Array<Point<T, 2>>({tri[0], tri[1], tri[2]})),
+                        includeBoundary,
+                        edge_tol);
 }
 
 /*!
@@ -93,19 +89,9 @@ int winding_number(const Point<T, 2>& q,
  *
  * \param [in] R The query point to test
  * \param [in] P The Polygon object to test for containment
+ * \param [out] isOnEdge An optional return parameter if the point is on the boundary
  * \param [in] includeBoundary If true, points on the boundary are considered interior
- * \param [in] isOnEdge An optional return parameter if the point is on the boundary
  * \param [in] edge_tol The distance at which a point is considered on the boundary
- * 
- * Uses an adapted ray-casting approach that counts quarter-rotation
- * of vertices around the query point. Current policy is to return 1 on edges
- * without strict inclusion, 0 on edges with strict inclusion.
- *
- * The polygon is assumed to be closed, so the winding number is an integer
- * 
- * Directly uses algorithm in 
- * Kai Hormann, Alexander Agathos, "The point in polygon problem for arbitrary polygons"
- * Computational Geometry, Volume 20, Issue 3, 2001,
  * 
  * \return The integer winding number
  */
@@ -113,68 +99,10 @@ template <typename T>
 int winding_number(const Point<T, 2>& R,
                    const Polygon<T, 2>& P,
                    bool& isOnEdge,
-                   bool includeBoundary,
-                   double edge_tol)
+                   bool includeBoundary = false,
+                   double edge_tol = 1e-8)
 {
-  const int nverts = P.numVertices();
-  const double edge_tol_2 = edge_tol * edge_tol;
-  isOnEdge = false;
-
-  int winding_num = 0;
-  for(int i = 0; i < nverts; i++)
-  {
-    int j = (i == nverts - 1) ? 0 : i + 1;
-
-    // Check if the point is on the edge up to some tolerance
-    if(squared_distance(R, Segment<T, 2>(P[i], P[j])) <= edge_tol_2)
-    {
-      isOnEdge = true;
-      return includeBoundary ? 1 : 0;
-    }
-
-    // Check if edge crosses horizontal line
-    if((P[i][1] < R[1]) != (P[j][1] < R[1]))
-    {
-      if(P[i][0] >= R[0])
-      {
-        if(P[j][0] > R[0])
-        {
-          winding_num += 2 * (P[j][1] > P[i][1]) - 1;
-        }
-        else
-        {
-          // clang-format off
-          double det = axom::numerics::determinant(P[i][0] - R[0], P[j][0] - R[0],
-                                                   P[i][1] - R[1], P[j][1] - R[1]);
-          // clang-format on
-
-          // Check if edge intersects horitonal ray to the right of R
-          if((det > 0) == (P[j][1] > P[i][1]))
-          {
-            winding_num += 2 * (P[j][1] > P[i][1]) - 1;
-          }
-        }
-      }
-      else
-      {
-        if(P[j][0] > R[0])
-        {
-          // clang-format off
-          double det = axom::numerics::determinant(P[i][0] - R[0], P[j][0] - R[0],
-                                                   P[i][1] - R[1], P[j][1] - R[1]);
-          // clang-format on
-
-          // Check if edge intersects horitonal ray to the right of R
-          if((det > 0) == (P[j][1] > P[i][1]))
-          {
-            winding_num += 2 * (P[j][1] > P[i][1]) - 1;
-          }
-        }
-      }
-    }
-  }
-
-  return winding_num;
+  return detail::polygon_winding_number(R, P, isOnEdge, includeBoundary, edge_tol);
 }
 
 /*!
@@ -197,110 +125,16 @@ int winding_number(const Point<T, 2>& R,
                    double edge_tol = 1e-8)
 {
   bool isOnEdge = false;
-  return winding_number(R, P, isOnEdge, includeBoundary, edge_tol);
-}
-
-/*!
- * \brief Computes the GWN for a 2D point wrt a 2D Bezier curve
- *
- * \param [in] query The query point to test
- * \param [in] c The Bezier curve object 
- * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
- * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
- *
- * Computes the GWN using a recursive, bisection algorithm
- * that constructs a polygon with the same *integer* WN as 
- * the curve closed with a linear segment. The *generalized* WN 
- * of the closing line is then subtracted from the integer WN to
- * return the GWN of the original curve.
- *  
- * Nearly-linear Bezier curves are the base case for recursion.
- * 
- * See Algorithm 2 in
- *  Jacob Spainhour, David Gunderman, and Kenneth Weiss. 2024. 
- *  Robust Containment Queries over Collections of Rational Parametric Curves via Generalized Winding Numbers. 
- *  ACM Trans. Graph. 43, 4, Article 38 (July 2024)
- * 
- * \return The GWN.
- */
-template <typename T>
-double winding_number(const Point<T, 2>& q,
-                      const BezierCurve<T, 2>& c,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
-{
-  const int ord = c.getOrder();
-  if(ord <= 0) return 0.0;
-
-  // Early return is possible for most points + curves
-  if(!c.boundingBox().expand(edge_tol).contains(q))
-  {
-    return detail::linear_winding_number(q, c[0], c[ord], edge_tol);
-  }
-
-  // The first vertex of the polygon is the t=0 point of the curve
-  Polygon<T, 2> approximating_polygon(1);
-  approximating_polygon.addVertex(c[0]);
-
-  // Need to keep a running total of the GWN to account for
-  //  the winding number of coincident points
-  double gwn = 0.0;
-  bool isCoincident = false;
-  detail::construct_approximating_polygon(q,
-                                          c,
-                                          false,
-                                          edge_tol,
-                                          EPS,
-                                          approximating_polygon,
-                                          gwn,
-                                          isCoincident);
-
-  // The last vertex of the polygon is the t=1 point of the curve
-  approximating_polygon.addVertex(c[ord]);
-
-  // Compute the integer winding number of the closed curve
-  bool isOnEdge = false;
-  double closed_curve_wn =
-    winding_number(q, approximating_polygon, isOnEdge, false, edge_tol);
-
-  // Compute the fractional value of the closed curve
-  const int n = approximating_polygon.numVertices();
-  const double closure_wn =
-    detail::linear_winding_number(q,
-                                  approximating_polygon[n - 1],
-                                  approximating_polygon[0],
-                                  edge_tol);
-
-  // If the point is on the boundary of the approximating polygon,
-  //  or coincident with the curve (rare), then winding_number<polygon>
-  //  doesn't return the right half-integer. Have to go edge-by-edge.
-  if(isCoincident || isOnEdge)
-  {
-    closed_curve_wn = closure_wn;
-    for(int i = 1; i < n; ++i)
-    {
-      closed_curve_wn +=
-        detail::linear_winding_number(q,
-                                      approximating_polygon[i - 1],
-                                      approximating_polygon[i],
-                                      edge_tol);
-    }
-  }
-
-  return gwn + closed_curve_wn - closure_wn;
+  return detail::polygon_winding_number(R, P, isOnEdge, includeBoundary, edge_tol);
 }
 
 /*!
  * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] n The NURBS curve object 
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
- *
- * Computes the GWN by decomposing into rational Bezier curves
- *  and summing the resulting GWNs. Far-away curves can be evaluated
- *  without decomposition using direct formula.
  * 
  * \return The GWN.
  */
@@ -310,35 +144,32 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  const int deg = n.getDegree();
-  if(deg <= 0) return 0.0;
+  return detail::nurbs_winding_number(q, n, edge_tol, EPS);
+}
 
-  // Early return is possible for most points + curves
-  if(!n.boundingBox().expand(edge_tol).contains(q))
-  {
-    return detail::linear_winding_number(q,
-                                         n[0],
-                                         n[n.getNumControlPoints() - 1],
-                                         edge_tol);
-  }
-
-  // Decompose the NURBS curve into Bezier segments
-  auto beziers = n.extractBezier();
-
-  // Compute the GWN for each Bezier segment
-  double gwn = 0.0;
-  for(int i = 0; i < beziers.size(); i++)
-  {
-    gwn += winding_number(q, beziers[i], edge_tol, EPS);
-  }
-
-  return gwn;
+/*!
+ * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
+ *
+ * \param [in] q The query point to test
+ * \param [in] bezier The Bezier curve object 
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ * 
+ * \return The GWN.
+ */
+template <typename T>
+double winding_number(const Point<T, 2>& q,
+                      const BezierCurve<T, 2>& bezier,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  return detail::bezier_winding_number(q, bezier, edge_tol, EPS);
 }
 
 /*!
  * \brief Computes the GWN for a 2D point wrt to a 2D curved polygon
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] cpoly The CurvedPolygon object
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -356,7 +187,7 @@ double winding_number(const Point<T, 2>& q,
   double ret_val = 0.0;
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
-    ret_val += winding_number(q, cpoly[i], edge_tol, EPS);
+    ret_val += detail::bezier_winding_number(q, cpoly[i], edge_tol, EPS);
   }
 
   return ret_val;
@@ -365,7 +196,7 @@ double winding_number(const Point<T, 2>& q,
 /*!
  * \brief Computes the GWN for a 2D point wrt to a collection of 2D Bezier curves
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] carray The array of Bezier curves
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -383,7 +214,7 @@ double winding_number(const Point<T, 2>& q,
   double ret_val = 0.0;
   for(int i = 0; i < carray.size(); i++)
   {
-    ret_val += winding_number(q, carray[i], edge_tol, EPS);
+    ret_val += detail::bezier_winding_number(q, carray[i], edge_tol, EPS);
   }
 
   return ret_val;
@@ -392,7 +223,7 @@ double winding_number(const Point<T, 2>& q,
 /*!
  * \brief Computes the GWN for a 2D point wrt to a collection of 2D NURBS curves
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] narray The array of NURBS curves
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -410,13 +241,11 @@ double winding_number(const Point<T, 2>& q,
   double ret_val = 0.0;
   for(int i = 0; i < narray.size(); i++)
   {
-    ret_val += winding_number(q, narray[i], edge_tol, EPS);
+    ret_val += detail::nurbs_winding_number(q, narray[i], edge_tol, EPS);
   }
 
   return ret_val;
 }
-
-//@}
 
 //@{
 //! @name Winding number operations between 3D points and primitives
@@ -424,7 +253,7 @@ double winding_number(const Point<T, 2>& q,
 /*!
  * \brief Computes the GWN for a 3D point wrt a 3D triangle
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] tri The 3D Triangle object
  * \param [in] isOnFace An optional return parameter if the point is on the triangle
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
@@ -472,8 +301,8 @@ double winding_number(const Point<T, 3>& q,
     return 0;
   }
 
-  const double denom = a_norm * b_norm * c_norm + a_norm * b.dot(c) +
-    b_norm * a.dot(c) + c_norm * a.dot(b);
+  const double denom =
+    a_norm * b_norm * c_norm + a_norm * b.dot(c) + b_norm * a.dot(c) + c_norm * a.dot(b);
 
   // Handle direct cases where argument to atan is undefined
   if(axom::utilities::isNearlyEqual(denom, 0.0, EPS))
@@ -496,7 +325,7 @@ double winding_number(const Point<T, 3>& q,
 /*!
  * \brief Computes the GWN for a 3D point wrt a 3D triangle
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] tri The 3D Triangle object
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -518,7 +347,7 @@ double winding_number(const Point<T, 3>& q,
 /*!
  * \brief Computes the GWN for a 3D point wrt a 3D planar polygon
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] poly The Polygon object
  * \param [in] isOnFace Return variable to show if the point is on the polygon
  * \param [in] edge_tol The physical distance level at which objects are 
@@ -547,11 +376,8 @@ double winding_number(const Point<T, 3>& q,
   double wn = 0.0;
   for(int i = 0; i < num_verts - 2; ++i)
   {
-    wn += winding_number(q,
-                         Triangle<T, 3>(poly[0], poly[i + 1], poly[i + 2]),
-                         isOnFace,
-                         edge_tol,
-                         EPS);
+    wn +=
+      winding_number(q, Triangle<T, 3>(poly[0], poly[i + 1], poly[i + 2]), isOnFace, edge_tol, EPS);
   }
 
   return wn;
@@ -560,7 +386,7 @@ double winding_number(const Point<T, 3>& q,
 /*!
  * \brief Computes the GWN for a 3D point wrt a 3D planar polygon
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] poly The Polygon object
  * \param [in] edge_tol The physical distance level at which objects are 
  *                      considered indistinguishable
@@ -585,7 +411,7 @@ double winding_number(const Point<T, 3>& q,
 /*!
  * \brief Computes the winding number for a 3D point wrt a 3D convex polyhedron
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] poly The Polyhedron object
  * \param [in] includeBoundary If true, points on the boundary are considered interior.
  * \param [in] edge_tol The physical distance level at which objects are 
@@ -600,7 +426,7 @@ double winding_number(const Point<T, 3>& q,
  * \return The integer winding number.
  */
 template <typename T>
-int winding_number(const Point<T, 3>& query,
+int winding_number(const Point<T, 3>& q,
                    const Polyhedron<T, 3>& poly,
                    bool includeBoundary = false,
                    double edge_tol = 1e-8,
@@ -609,8 +435,7 @@ int winding_number(const Point<T, 3>& query,
   SLIC_ASSERT(poly.hasNeighbors());
   const int num_verts = poly.numVertices();
 
-  axom::Array<int> faces(num_verts * num_verts), face_size(2 * num_verts),
-    face_offset(2 * num_verts);
+  axom::Array<int> faces(num_verts * num_verts), face_size(2 * num_verts), face_offset(2 * num_verts);
   int face_count;
 
   poly.getFaces(faces.data(), face_size.data(), face_offset.data(), face_count);
@@ -627,7 +452,7 @@ int winding_number(const Point<T, 3>& query,
       the_face.addVertex(poly[faces[i_offset + j]]);
     }
 
-    wn += winding_number(query, the_face, isOnFace, edge_tol, EPS);
+    wn += winding_number(q, the_face, isOnFace, edge_tol, EPS);
 
     if(isOnFace)
     {
@@ -643,7 +468,7 @@ int winding_number(const Point<T, 3>& query,
 /*
  * \brief Computes the GWN for a 3D point wrt a 3D Bezier patch
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] bPatch The Bezier patch object
  * \param [in] edge_tol The physical distance level at which objects are 
  *                      considered indistinguishable
@@ -659,7 +484,7 @@ int winding_number(const Point<T, 3>& query,
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 3>& query,
+double winding_number(const Point<T, 3>& q,
                       const BezierPatch<T, 3>& bPatch,
                       const double edge_tol = 1e-8,
                       const double quad_tol = 1e-8,
@@ -681,7 +506,7 @@ double winding_number(const Point<T, 3>& query,
   if(depth >= MAX_DEPTH || bPatch.isPolygonal(EPS))
   {
     return winding_number(
-      query,
+      q,
       Polygon<T, 3>(axom::Array<Point<T, 3>>(
         {bPatch(0, 0), bPatch(ord_u, 0), bPatch(ord_u, ord_v), bPatch(0, ord_v)})),
       edge_tol,
@@ -692,61 +517,57 @@ double winding_number(const Point<T, 3>& query,
   //  Split the surface closer to the corner, assume smallest patch is polygonal,
   //  and set a new edge_tol so corners of the new patch aren't marked as coincident
   constexpr double edge_offset = 0.01;
-  if(squared_distance(query, bPatch(0, 0)) <= edge_tol_sq)
+  if(squared_distance(q, bPatch(0, 0)) <= edge_tol_sq)
   {
     BezierPatch<T, 3> p1, p2, p3, p4;
     bPatch.split(0.0 + edge_offset, 0.0 + edge_offset, p1, p2, p3, p4);
     double new_edge_tol = 0.5 *
-      sqrt(axom::utilities::min(
-        squared_distance(query, bPatch.evaluate(0.0, 0.0 + edge_offset)),
-        squared_distance(query, bPatch.evaluate(0.0 + edge_offset, 0.0))));
+      sqrt(axom::utilities::min(squared_distance(q, bPatch.evaluate(0.0, 0.0 + edge_offset)),
+                                squared_distance(q, bPatch.evaluate(0.0 + edge_offset, 0.0))));
     new_edge_tol = axom::utilities::min(new_edge_tol, edge_tol);
 
-    return winding_number(query, p2, new_edge_tol, quad_tol, EPS, depth + 1) +
-      winding_number(query, p3, new_edge_tol, quad_tol, EPS, depth + 1) +
-      winding_number(query, p4, new_edge_tol, quad_tol, EPS, depth + 1);
+    return winding_number(q, p2, new_edge_tol, quad_tol, EPS, depth + 1) +
+      winding_number(q, p3, new_edge_tol, quad_tol, EPS, depth + 1) +
+      winding_number(q, p4, new_edge_tol, quad_tol, EPS, depth + 1);
   }
-  if(squared_distance(query, bPatch(ord_u, 0)) <= edge_tol_sq)
+  if(squared_distance(q, bPatch(ord_u, 0)) <= edge_tol_sq)
   {
     BezierPatch<T, 3> p1, p2, p3, p4;
     bPatch.split(1.0 - edge_offset, 0.0 + edge_offset, p1, p2, p3, p4);
     double new_edge_tol = 0.5 *
-      sqrt(axom::utilities::min(
-        squared_distance(query, bPatch.evaluate(1.0, 0.0 + edge_offset)),
-        squared_distance(query, bPatch.evaluate(1.0 - edge_offset, 0.0))));
+      sqrt(axom::utilities::min(squared_distance(q, bPatch.evaluate(1.0, 0.0 + edge_offset)),
+                                squared_distance(q, bPatch.evaluate(1.0 - edge_offset, 0.0))));
     new_edge_tol = axom::utilities::min(new_edge_tol, edge_tol);
 
-    return winding_number(query, p1, new_edge_tol, quad_tol, EPS, depth + 1) +
-      winding_number(query, p3, new_edge_tol, quad_tol, EPS, depth + 1) +
-      winding_number(query, p4, new_edge_tol, quad_tol, EPS, depth + 1);
+    return winding_number(q, p1, new_edge_tol, quad_tol, EPS, depth + 1) +
+      winding_number(q, p3, new_edge_tol, quad_tol, EPS, depth + 1) +
+      winding_number(q, p4, new_edge_tol, quad_tol, EPS, depth + 1);
   }
-  if(squared_distance(query, bPatch(0, ord_v)) <= edge_tol_sq)
+  if(squared_distance(q, bPatch(0, ord_v)) <= edge_tol_sq)
   {
     BezierPatch<T, 3> p1, p2, p3, p4;
     bPatch.split(0.0 + edge_offset, 1.0 - edge_offset, p1, p2, p3, p4);
     double new_edge_tol = 0.5 *
-      sqrt(axom::utilities::min(
-        squared_distance(query, bPatch.evaluate(0.0 + edge_offset, 1.0)),
-        squared_distance(query, bPatch.evaluate(0.0, 1.0 - edge_offset))));
+      sqrt(axom::utilities::min(squared_distance(q, bPatch.evaluate(0.0 + edge_offset, 1.0)),
+                                squared_distance(q, bPatch.evaluate(0.0, 1.0 - edge_offset))));
     new_edge_tol = axom::utilities::min(new_edge_tol, edge_tol);
 
-    return winding_number(query, p1, new_edge_tol, quad_tol, EPS, depth + 1) +
-      winding_number(query, p2, new_edge_tol, quad_tol, EPS, depth + 1) +
-      winding_number(query, p4, new_edge_tol, quad_tol, EPS, depth + 1);
+    return winding_number(q, p1, new_edge_tol, quad_tol, EPS, depth + 1) +
+      winding_number(q, p2, new_edge_tol, quad_tol, EPS, depth + 1) +
+      winding_number(q, p4, new_edge_tol, quad_tol, EPS, depth + 1);
   }
-  if(squared_distance(query, bPatch(ord_u, ord_v)) <= edge_tol_sq)
+  if(squared_distance(q, bPatch(ord_u, ord_v)) <= edge_tol_sq)
   {
     BezierPatch<T, 3> p1, p2, p3, p4;
     bPatch.split(1.0 - edge_offset, 1.0 - edge_offset, p1, p2, p3, p4);
     double new_edge_tol = 0.5 *
-      sqrt(axom::utilities::min(
-        squared_distance(query, bPatch.evaluate(1.0, 1.0 - edge_offset)),
-        squared_distance(query, bPatch.evaluate(1.0 - edge_offset, 1.0))));
+      sqrt(axom::utilities::min(squared_distance(q, bPatch.evaluate(1.0, 1.0 - edge_offset)),
+                                squared_distance(q, bPatch.evaluate(1.0 - edge_offset, 1.0))));
     new_edge_tol = axom::utilities::min(new_edge_tol, edge_tol);
 
-    return winding_number(query, p1, new_edge_tol, quad_tol, EPS, depth + 1) +
-      winding_number(query, p2, new_edge_tol, quad_tol, EPS, depth + 1) +
-      winding_number(query, p3, new_edge_tol, quad_tol, EPS, depth + 1);
+    return winding_number(q, p1, new_edge_tol, quad_tol, EPS, depth + 1) +
+      winding_number(q, p2, new_edge_tol, quad_tol, EPS, depth + 1) +
+      winding_number(q, p3, new_edge_tol, quad_tol, EPS, depth + 1);
   }
 
   /* 
@@ -762,12 +583,9 @@ double winding_number(const Point<T, 3>& query,
 
   // Check an axis-aligned bounding box (most surfaces satisfy this condition)
   BoundingBox<T, 3> bBox(bPatch.boundingBox().expand(edge_tol));
-  const bool exterior_x =
-    bBox.getMin()[0] > query[0] || query[0] > bBox.getMax()[0];
-  const bool exterior_y =
-    bBox.getMin()[1] > query[1] || query[1] > bBox.getMax()[1];
-  const bool exterior_z =
-    bBox.getMin()[2] > query[2] || query[2] > bBox.getMax()[2];
+  const bool exterior_x = bBox.getMin()[0] > q[0] || q[0] > bBox.getMax()[0];
+  const bool exterior_y = bBox.getMin()[1] > q[1] || q[1] > bBox.getMax()[1];
+  const bool exterior_z = bBox.getMin()[2] > q[2] || q[2] > bBox.getMax()[2];
 
   if(exterior_y || exterior_z)
   {
@@ -787,14 +605,14 @@ double winding_number(const Point<T, 3>& query,
     // If we are interior to the oriented bounding box, then we
     //  cannot guarantee a separating plane, and need geometric refinement.
     OrientedBoundingBox<T, 3> oBox(bPatch.orientedBoundingBox().expand(edge_tol));
-    if(oBox.contains(query))
+    if(oBox.contains(q))
     {
       BezierPatch<T, 3> p1, p2, p3, p4;
       bPatch.split(0.5, 0.5, p1, p2, p3, p4);
-      return winding_number(query, p1, edge_tol, quad_tol, EPS, depth + 1) +
-        winding_number(query, p2, edge_tol, quad_tol, EPS, depth + 1) +
-        winding_number(query, p3, edge_tol, quad_tol, EPS, depth + 1) +
-        winding_number(query, p4, edge_tol, quad_tol, EPS, depth + 1);
+      return winding_number(q, p1, edge_tol, quad_tol, EPS, depth + 1) +
+        winding_number(q, p2, edge_tol, quad_tol, EPS, depth + 1) +
+        winding_number(q, p3, edge_tol, quad_tol, EPS, depth + 1) +
+        winding_number(q, p4, edge_tol, quad_tol, EPS, depth + 1);
     }
 
     // Otherwise, we can apply a rotation to a z-aligned field.
@@ -802,8 +620,7 @@ double winding_number(const Point<T, 3>& query,
 
     // Lambda to generate a 3D rotation matrix from an angle and axis
     // Formulation from https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle
-    auto angleAxisRotMatrix =
-      [](double theta, const Vector<T, 3>& axis) -> numerics::Matrix<T> {
+    auto angleAxisRotMatrix = [](double theta, const Vector<T, 3>& axis) -> numerics::Matrix<T> {
       const auto unitized = axis.unitVector();
       const double x = unitized[0], y = unitized[1], z = unitized[2];
       const double c = cos(theta), s = sin(theta), C = 1 - c;
@@ -826,18 +643,16 @@ double winding_number(const Point<T, 3>& query,
     };
 
     // Lambda to rotate the input point using the provided rotation matrix
-    auto rotate_point = [&query](const numerics::Matrix<T>& matx,
-                                 const Point<T, 3> input) -> Point<T, 3> {
-      Vector<T, 3> shifted(query, input);
+    auto rotate_point = [&q](const numerics::Matrix<T>& matx, const Point<T, 3> input) -> Point<T, 3> {
+      Vector<T, 3> shifted(q, input);
       Vector<T, 3> rotated;
       numerics::matrix_vector_multiply(matx, shifted.data(), rotated.data());
-      return Point<T, 3>(
-        {rotated[0] + query[0], rotated[1] + query[1], rotated[2] + query[2]});
+      return Point<T, 3>({rotated[0] + q[0], rotated[1] + q[1], rotated[2] + q[2]});
     };
 
     // Find vector from query to the bounding box
-    Point<T, 3> closest = closest_point(query, oBox);
-    Vector<T, 3> v0 = Vector<T, 3>(query, closest).unitVector();
+    Point<T, 3> closest = closest_point(q, oBox);
+    Vector<T, 3> v0 = Vector<T, 3>(q, closest).unitVector();
 
     // Find the direction of a ray perpendicular to that
     Vector<T, 3> v1;
@@ -918,17 +733,12 @@ double winding_number(const Point<T, 3>& query,
   double wn = 0;
   for(int n = 0; n < 4; ++n)
   {
-    wn += detail::stokes_winding_number(query,
-                                        boundingPoly[n],
-                                        field_direction,
-                                        quad_npts,
-                                        quad_tol);
+    wn += detail::stokes_winding_number(q, boundingPoly[n], field_direction, quad_npts, quad_tol);
   }
 
   return wn;
 }
 #endif
-
 //@}
 
 }  // namespace primal

@@ -269,9 +269,7 @@ public:
    * \param root_file  root file containing input data
    * \param preserve_contents   Preserves group's existing contents if true
    */
-  void read(sidre::Group* group,
-            const std::string& root_file,
-            bool preserve_contents = false);
+  void read(sidre::Group* group, const std::string& root_file, bool preserve_contents = false);
 
   /**
    * \brief Finds conduit relay protocol corresponding to a sidre protocol
@@ -372,15 +370,12 @@ private:
    * The string is read on rank 0 and broadcast to the other ranks.
    * \note Works for all sidre protocols.
    */
-  std::string getFilePatternFromRoot(const std::string& root_name,
-                                     const std::string& protocol);
+  std::string getFilePatternFromRoot(const std::string& root_name, const std::string& protocol);
 
 #ifdef AXOM_USE_HDF5
   std::string getHDF5FilePattern(const std::string& root_name);
 
-  void readSidreHDF5(sidre::Group* group,
-                     const std::string& root_file,
-                     bool preserve_contents = false);
+  void readSidreHDF5(sidre::Group* group, const std::string& root_file, bool preserve_contents = false);
 #endif /* AXOM_USE_HDF5 */
 
   std::string getFileNameForRank(const std::string& file_pattern,

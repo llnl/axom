@@ -14,8 +14,7 @@ namespace axom
 {
 namespace klee
 {
-bool operator==(const TransformableGeometryProperties& lhs,
-                const TransformableGeometryProperties& rhs)
+bool operator==(const TransformableGeometryProperties& lhs, const TransformableGeometryProperties& rhs)
 {
   return lhs.dimensions == rhs.dimensions && lhs.units == rhs.units;
 }
@@ -118,9 +117,8 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
 
 bool Geometry::hasGeometry() const
 {
-  bool isInMemory = m_format == "blueprint-tets" || m_format == "sphere3D" ||
-    m_format == "tet3D" || m_format == "hex3D" || m_format == "plane3D" ||
-    m_format == "cone3D" || m_format == "cylinder3D";
+  bool isInMemory = m_format == "blueprint-tets" || m_format == "sphere3D" || m_format == "tet3D" ||
+    m_format == "hex3D" || m_format == "plane3D" || m_format == "cone3D" || m_format == "cylinder3D";
   if(isInMemory)
   {
     return true;
@@ -139,23 +137,19 @@ TransformableGeometryProperties Geometry::getEndProperties() const
 
 const axom::sidre::Group* Geometry::getBlueprintMesh() const
 {
-  SLIC_ASSERT_MSG(
-    m_meshGroup,
-    axom::fmt::format(
-      "The Geometry format '{}' is not specified "
-      "as a blueprint mesh and/or has not been converted into one.",
-      m_format));
+  SLIC_ASSERT_MSG(m_meshGroup,
+                  axom::fmt::format("The Geometry format '{}' is not specified "
+                                    "as a blueprint mesh and/or has not been converted into one.",
+                                    m_format));
   return m_meshGroup;
 }
 
 const std::string& Geometry::getBlueprintTopology() const
 {
-  SLIC_ASSERT_MSG(
-    m_meshGroup,
-    axom::fmt::format(
-      "The Geometry format '{}' is not specified "
-      "as a blueprint mesh and/or has not been converted into one.",
-      m_format));
+  SLIC_ASSERT_MSG(m_meshGroup,
+                  axom::fmt::format("The Geometry format '{}' is not specified "
+                                    "as a blueprint mesh and/or has not been converted into one.",
+                                    m_format));
   return m_topology;
 }
 

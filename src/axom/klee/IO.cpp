@@ -58,12 +58,11 @@ struct FromInlet<axom::klee::ShapeData>
 {
   axom::klee::ShapeData operator()(const axom::inlet::Container &base)
   {
-    return axom::klee::ShapeData {
-      base.get<std::string>("name"),
-      base.get<std::string>("material"),
-      base["replaces"].get<std::vector<std::string>>(),
-      base["does_not_replace"].get<std::vector<std::string>>(),
-      base.get<axom::klee::GeometryData>("geometry")};
+    return axom::klee::ShapeData {base.get<std::string>("name"),
+                                  base.get<std::string>("material"),
+                                  base["replaces"].get<std::vector<std::string>>(),
+                                  base["does_not_replace"].get<std::vector<std::string>>(),
+                                  base.get<axom::klee::GeometryData>("geometry")};
   }
 };
 
@@ -75,13 +74,11 @@ struct FromInlet<axom::klee::GeometryData>
     axom::klee::GeometryData data;
     data.format = base.contains("format") ? base.get<std::string>("format") : "";
     data.path = base.contains("path") ? base.get<std::string>("path") : "";
-    data.operatorData =
-      base["operators"].get<axom::klee::internal::GeometryOperatorData>();
+    data.operatorData = base["operators"].get<axom::klee::internal::GeometryOperatorData>();
 
     if(base.contains("start_dimensions"))
     {
-      data.startDimensions =
-        axom::klee::internal::toDimensions(base["start_dimensions"]);
+      data.startDimensions = axom::klee::internal::toDimensions(base["start_dimensions"]);
       data.dimensionsSet = true;
     }
     else
@@ -119,21 +116,18 @@ void defineGeometry(Container &geometry)
   geometry.addString("path",
                      "The path of the input file, relative to the yaml file."
                      "Required unless 'format' is 'none'");
-  internal::defineDimensionsField(
-    geometry,
-    "start_dimensions",
-    "The initial dimensions of the geometry file");
-  internal::defineUnitsSchema(
-    geometry,
-    "The units in which the geometry file is expressed if the units "
-    "are not embedded. These will also be the units of the operators "
-    "until they are explicitly changed.",
-    "The start units of the shape",
-    "The end units of the shape");
-  internal::GeometryOperatorData::defineSchema(
-    geometry,
-    "operators",
-    "Operators to apply to this object");
+  internal::defineDimensionsField(geometry,
+                                  "start_dimensions",
+                                  "The initial dimensions of the geometry file");
+  internal::defineUnitsSchema(geometry,
+                              "The units in which the geometry file is expressed if the units "
+                              "are not embedded. These will also be the units of the operators "
+                              "until they are explicitly changed.",
+                              "The start units of the shape",
+                              "The end units of the shape");
+  internal::GeometryOperatorData::defineSchema(geometry,
+                                               "operators",
+                                               "Operators to apply to this object");
 }
 
 /**
@@ -146,25 +140,20 @@ void defineShapeList(Inlet &document)
   Container &shapeList = document.addStructArray("shapes", "The list of shapes");
   shapeList.addString("name", "The shape's name").required();
   shapeList.addString("material", "The shape's material").required();
-  shapeList.addStringArray("replaces",
-                           "The list of materials this shape replaces");
-  shapeList.addStringArray("does_not_replace",
-                           "The list of materials this shape does not replace");
+  shapeList.addStringArray("replaces", "The list of materials this shape replaces");
+  shapeList.addStringArray("does_not_replace", "The list of materials this shape does not replace");
   auto &geometry =
-    shapeList.addStruct("geometry",
-                        "Contains information about the shape's geometry");
+    shapeList.addStruct("geometry", "Contains information about the shape's geometry");
   defineGeometry(geometry);
 
   // Verify syntax here, semantics later!!!
   shapeList.registerVerifier(
-    [](const Container &shape,
-       std::vector<inlet::VerificationError> *errors) -> bool {
+    [](const Container &shape, std::vector<inlet::VerificationError> *errors) -> bool {
       if(shape.contains("replaces") && shape.contains("does_not_replace"))
       {
-        INLET_VERIFICATION_WARNING(
-          shape.name(),
-          "Can't specify both 'replaces' and 'does_not_replace'",
-          errors);
+        INLET_VERIFICATION_WARNING(shape.name(),
+                                   "Can't specify both 'replaces' and 'does_not_replace'",
+                                   errors);
         return false;
       }
 
@@ -173,13 +162,12 @@ void defineShapeList(Inlet &document)
         const auto geom = shape.get<GeometryData>("geometry");
         if(geom.path.empty() && geom.format != "none")
         {
-          INLET_VERIFICATION_WARNING(
-            shape.name(),
-            fmt::format("'geometry/path' field required unless "
-                        "'geometry/format' is 'none'. "
-                        "Provided format was '{}'",
-                        geom.format),
-            errors);
+          INLET_VERIFICATION_WARNING(shape.name(),
+                                     fmt::format("'geometry/path' field required unless "
+                                                 "'geometry/format' is 'none'. "
+                                                 "Provided format was '{}'",
+                                                 geom.format),
+                                     errors);
           return false;
         }
       }
@@ -195,11 +183,9 @@ void defineShapeList(Inlet &document)
  */
 void defineKleeSchema(Inlet &document)
 {
-  internal::defineDimensionsField(document.getGlobalContainer(), "dimensions")
-    .required();
+  internal::defineDimensionsField(document.getGlobalContainer(), "dimensions").required();
   defineShapeList(document);
-  internal::NamedOperatorMapData::defineSchema(document.getGlobalContainer(),
-                                               "named_operators");
+  internal::NamedOperatorMapData::defineSchema(document.getGlobalContainer(), "named_operators");
 }
 
 /**
@@ -226,17 +212,15 @@ Geometry convert(GeometryData const &data,
     startProperties.dimensions = fileDimensions;
   }
 
-  Geometry geometry {
-    startProperties,
-    data.format,
-    data.path,
-    data.operatorData.makeOperator(startProperties, namedOperators)};
+  Geometry geometry {startProperties,
+                     data.format,
+                     data.path,
+                     data.operatorData.makeOperator(startProperties, namedOperators)};
 
   if(geometry.getEndProperties().dimensions != fileDimensions)
   {
     throw KleeError(
-      {data.pathInFile,
-       "Did not end up in the number of dimensions specified by the file"});
+      {data.pathInFile, "Did not end up in the number of dimensions specified by the file"});
   }
   return geometry;
 }
@@ -290,8 +274,7 @@ std::vector<Shape> convert(std::vector<ShapeData> const &shapeData,
  * start at unless otherwise specified
  * \return all named operators read from the document
  */
-internal::NamedOperatorMap getNamedOperators(const inlet::Inlet &doc,
-                                             Dimensions startDimensions)
+internal::NamedOperatorMap getNamedOperators(const inlet::Inlet &doc, Dimensions startDimensions)
 {
   if(doc.contains("named_operators"))
   {
@@ -317,8 +300,8 @@ ShapeSet readShapeSet(std::istream &stream)
   {
     if(errors.empty())
     {
-      throw KleeError({Path {"<unknown path>"},
-                       "Invalid Klee file given. Check the log for details."});
+      throw KleeError(
+        {Path {"<unknown path>"}, "Invalid Klee file given. Check the log for details."});
     }
     throw KleeError(errors);
   }

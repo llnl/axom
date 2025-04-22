@@ -150,10 +150,36 @@ AXOM_HOST_DEVICE Polygon<T, 2, ARRAY_TYPE, MAX_VERTS> clip(
   double eps = 1.e-10,
   bool tryFixOrientation = false)
 {
-  return detail::clipPolygonPolygon(subjectPolygon,
-                                    clipPolygon,
-                                    eps,
-                                    tryFixOrientation);
+  return detail::clipPolygonPolygon(subjectPolygon, clipPolygon, eps, tryFixOrientation);
+}
+
+/*!
+ * \brief Clips a 2D subject polygon against a clip plane in 2D, returning
+ *        their geometric intersection as a polygon.
+ *
+ *  This function makes a clip polygon line segment from the plane and
+ *  delegates clipping to the polygon-polygon clipper.
+ *
+ *
+ * \param [in] subjectPolygon The subject polygon
+ * \param [in] clipPlane The clip plane
+ * \param [in] eps The tolerance for plane point orientation.
+ *                 Defaults to 1.e-10.
+ * \param [in] tryFixOrientation If true, takes each shape with a negative
+ *             signed area and swaps the order of some vertices in that
+ *             shape to try to obtain a nonnegative signed area.
+ *             Defaults to false.
+ *
+ * \return A polygon of the subject polygon clipped against the clip plane.
+ */
+template <typename T, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
+AXOM_HOST_DEVICE Polygon<T, 2, ARRAY_TYPE, MAX_VERTS> clip(
+  const Polygon<T, 2, ARRAY_TYPE, MAX_VERTS>& subjectPolygon,
+  const Plane<T, 2>& clipPlane,
+  double eps = 1.e-10,
+  bool tryFixOrientation = false)
+{
+  return detail::clipPolygonPlane(subjectPolygon, clipPlane, eps, tryFixOrientation);
 }
 
 /*!
@@ -248,6 +274,55 @@ AXOM_HOST_DEVICE Polyhedron<T, 3> clip(const Tetrahedron<T, 3>& tet,
                                        bool tryFixOrientation = false)
 {
   return clip(hex, tet, eps, tryFixOrientation);
+}
+
+/*!
+ * \brief Clips a 3D hexahedron against a hexahedron in 3D, returning
+ *        the geometric intersection of the hexahedron and the hexahedron
+ *        as a polyhedron
+ *
+ *  This function clips the hexahedron by the 6 planes obtained from the
+ *  hexahedron's faces (normals point inward). Clipping the
+ *  hexahedron/polyhedron by each plane gives the polyhedron above that plane.
+ *  Clipping the polyhedron by a plane involves
+ *  finding new vertices at the intersection of the polyhedron edges and
+ *  the plane, removing vertices from the polyhedron that are below the
+ *  plane, and redefining the neighbors for each vertex (a vertex is a
+ *  neighbor of another vertex if there is an edge between them).
+ *
+ *
+ * \param [in] hex1 The hexahedron to clip
+ * \param [in] hex2 The hexahedron to clip against
+ * \param [in] eps The epsilon value
+ * \param [in] tryFixOrientation If true, takes each shape with a negative
+ *             signed volume and swaps the order of some vertices in that
+ *             shape to try to obtain a nonnegative signed volume.
+ *             Defaults to false.
+ *
+ * \return A polyhedron of the hexahedron clipped against the hexahedron.
+ *
+ * \note Function is based off clipPolyhedron() in Mike Owen's PolyClipper.
+ *
+ * \note hex1 and hex2 are assumed to be convex.
+ *
+ * \warning tryFixOrientation flag does not guarantee the shapes' vertex orders
+ *          will be valid. It is the responsiblity of the caller to pass
+ *          shapes with a valid vertex order. Otherwise, if the shapes have
+ *          invalid vertex orders, the returned Polyhedron
+ *          will have a non-positive and/or unexpected volume.
+ *
+ * \warning If tryFixOrientation flag is false and some of the shapes have
+ *          a negative signed volume, the returned Polyhedron
+ *          will have a non-positive and/or unexpected volume.
+ *
+ */
+template <typename T>
+AXOM_HOST_DEVICE Polyhedron<T, 3> clip(const Hexahedron<T, 3>& hex1,
+                                       const Hexahedron<T, 3>& hex2,
+                                       double eps = 1.e-10,
+                                       bool tryFixOrientation = false)
+{
+  return detail::clipHexahedron(hex1, hex2, eps, tryFixOrientation);
 }
 
 /*!

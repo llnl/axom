@@ -8,6 +8,7 @@
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
+#include "axom/mir/views/BasicIndexing.hpp"
 #include "axom/mir/views/Shapes.hpp"
 
 namespace axom
@@ -25,6 +26,7 @@ class UnstructuredTopologyPolyhedralView
 public:
   using ConnectivityType = ConnType;
   using ConnectivityView = axom::ArrayView<ConnectivityType>;
+  using IndexingPolicy = BasicIndexing;
 
   /*!
    * \brief This struct contains views that hold polyhedral connectivity.
@@ -45,9 +47,10 @@ public:
       , m_element_conn(element_conn)
       , m_element_sizes(element_sizes)
       , m_element_offsets(element_offsets)
+      , m_indexing(element_sizes.size())
     { }
 
-    /// Constructor
+    /// Copy Constructor
     AXOM_HOST_DEVICE
     PolyhedronData(const PolyhedronData &obj)
       : m_subelement_conn(obj.m_subelement_conn)
@@ -56,6 +59,7 @@ public:
       , m_element_conn(obj.m_element_conn)
       , m_element_sizes(obj.m_element_sizes)
       , m_element_offsets(obj.m_element_offsets)
+      , m_indexing(obj.m_indexing)
     { }
 
     ConnectivityView m_subelement_conn;
@@ -64,6 +68,7 @@ public:
     ConnectivityView m_element_conn;
     ConnectivityView m_element_sizes;
     ConnectivityView m_element_offsets;
+    IndexingPolicy m_indexing;
   };
 
   /*!
@@ -95,10 +100,7 @@ public:
       return nnodes;
     }
 
-    AXOM_HOST_DEVICE IndexType numberOfFaces() const
-    {
-      return m_data.m_element_sizes[m_zoneIndex];
-    }
+    AXOM_HOST_DEVICE IndexType numberOfFaces() const { return m_data.m_element_sizes[m_zoneIndex]; }
 
     AXOM_HOST_DEVICE IndexType numberOfNodesInFace(int faceIndex) const
     {
@@ -161,9 +163,8 @@ public:
         m_data.m_element_sizes[m_zoneIndex]);
       const auto faceId = element_face_ids[faceIndex];
 
-      return ConnectivityView(
-        m_data.m_subelement_conn.data() + m_data.m_subelement_offsets[faceId],
-        m_data.m_subelement_sizes[faceId]);
+      return ConnectivityView(m_data.m_subelement_conn.data() + m_data.m_subelement_offsets[faceId],
+                              m_data.m_subelement_sizes[faceId]);
     }
 
   private:
@@ -227,6 +228,13 @@ public:
    * \return The dimension of the shape.
    */
   AXOM_HOST_DEVICE static constexpr int dimension() { return 3; }
+
+  /*!
+   * \brief Return the size of the connectivity.
+   *
+   * \return The size of the connectivity.
+   */
+  AXOM_HOST_DEVICE inline const IndexingPolicy &indexing() const { return m_data.m_indexing; }
 
   /*!
    * \brief Return a zone.

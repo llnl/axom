@@ -284,9 +284,7 @@ int getNumStreamsWithTag(const std::string& tag);
  * duplicate messages resulting from running in parallel will be filtered out.
  * Default is false.
  */
-void logMessage(message::Level level,
-                const std::string& message,
-                bool filter_duplicates = false);
+void logMessage(message::Level level, const std::string& message, bool filter_duplicates = false);
 
 /*!
  * \brief Logs the given message to all registered streams.
@@ -352,9 +350,7 @@ void logMessage(message::Level level,
  * \param [in] fileName the name of the file this message is logged from.
  * \param [in] line the line number within the file that the message is logged.
  */
-void logErrorMessage(const std::string& message,
-                     const std::string& fileName,
-                     int line);
+void logErrorMessage(const std::string& message, const std::string& fileName, int line);
 
 /*!
  * \brief Convenience method to log warning messages.
@@ -363,9 +359,7 @@ void logErrorMessage(const std::string& message,
  * \param [in] fileName the name of the file this message is logged from.
  * \param [in] line the line number within the file that the message is logged.
  */
-void logWarningMessage(const std::string& message,
-                       const std::string& fileName,
-                       int line);
+void logWarningMessage(const std::string& message, const std::string& fileName, int line);
 
 /*!
  * \brief For the current rank, outputs messages from all streams to the

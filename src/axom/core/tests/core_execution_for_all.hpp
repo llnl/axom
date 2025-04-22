@@ -24,8 +24,7 @@ template <typename ExecSpace>
 void check_for_all()
 {
   EXPECT_TRUE(axom::execution_space<ExecSpace>::valid());
-  std::cout << "checking axom::for_all() with ["
-            << axom::execution_space<ExecSpace>::name() << "]\n";
+  std::cout << "checking axom::for_all() with [" << axom::execution_space<ExecSpace>::name() << "]\n";
 
   // STEP 0: set some constants
   constexpr int VALUE_1 = -42;

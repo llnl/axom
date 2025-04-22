@@ -3,9 +3,10 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/config.hpp"  // for AXOM_USE_HDF5
+#include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/sidre.hpp"
+#include "axom/sidre/core/SidreTypes.hpp"
 
 #include "gtest/gtest.h"
 
@@ -92,8 +93,7 @@ TEST(sidre_group, group_with_path)
   Group* root = ds->getRoot();
 
   // Test full path access when building incrementally
-  Group* group =
-    root->createGroup("test1")->createGroup("test2")->createGroup("test3");
+  Group* group = root->createGroup("test1")->createGroup("test2")->createGroup("test3");
   Group* group2 = root->getGroup("test1/test2/test3");
 
   EXPECT_TRUE(nullptr != group2);
@@ -101,8 +101,7 @@ TEST(sidre_group, group_with_path)
 
   // Test incremental access when building full path
   Group* groupP = root->createGroup("testA/testB/testC");
-  Group* groupP2 =
-    root->getGroup("testA")->getGroup("testB")->getGroup("testC");
+  Group* groupP2 = root->getGroup("testA")->getGroup("testB")->getGroup("testC");
 
   EXPECT_TRUE(nullptr != groupP2);
   EXPECT_EQ(groupP, groupP2);
@@ -270,8 +269,7 @@ TEST(sidre_group, view_with_path)
   Group* root = ds->getRoot();
 
   // Test with full path access when building incrementally
-  View* view =
-    root->createGroup("group1")->createGroup("group2")->createView("view1");
+  View* view = root->createGroup("group1")->createGroup("group2")->createView("view1");
   View* view2 = root->getView("group1/group2/view1");
 
   EXPECT_TRUE(nullptr != view2);
@@ -318,8 +316,7 @@ TEST(sidre_group, view_with_path)
 
   EXPECT_EQ(exp_no_groups, root->getGroup("group1/group2")->getNumViews());
   EXPECT_FALSE(root->getGroup("group1/group2")->hasView("view1"));
-  EXPECT_EQ(root->getGroup("group1/group2")->getView("view1"),
-            static_cast<void*>(nullptr));
+  EXPECT_EQ(root->getGroup("group1/group2")->getView("view1"), static_cast<void*>(nullptr));
   EXPECT_FALSE(root->hasView("group1/group2/view1"));
   EXPECT_EQ(root->getView("group1/group2/view1"), static_cast<void*>(nullptr));
 
@@ -333,8 +330,7 @@ TEST(sidre_group, view_with_path)
 
   EXPECT_EQ(exp_no_groups, groupA->getGroup("groupB")->getNumViews());
   EXPECT_FALSE(groupA->getGroup("groupB")->hasView("viewA"));
-  EXPECT_EQ(groupA->getGroup("groupB")->getView("viewA"),
-            static_cast<void*>(nullptr));
+  EXPECT_EQ(groupA->getGroup("groupB")->getView("viewA"), static_cast<void*>(nullptr));
   EXPECT_FALSE(groupA->hasView("groupB/viewA"));
   EXPECT_EQ(groupA->getView("groupB/viewA"), static_cast<void*>(nullptr));
   EXPECT_EQ(root->getView("groupA/groupB/viewA"), static_cast<void*>(nullptr));
@@ -796,9 +792,7 @@ TEST(sidre_group, iterate_groups_with_iterator)
   // iterate though groups and views of 'foo' using iterator syntax
   {
     int nGroups = 0;
-    for(auto it = foo_group->groups().begin(), itEnd = foo_group->groups().end();
-        it != itEnd;
-        ++it)
+    for(auto it = foo_group->groups().begin(), itEnd = foo_group->groups().end(); it != itEnd; ++it)
     {
       auto& grp = *it;
       EXPECT_EQ(grp.getPath(), it->getPath());
@@ -810,9 +804,7 @@ TEST(sidre_group, iterate_groups_with_iterator)
     EXPECT_EQ(numExpGroups, nGroups);
 
     int nViews = 0;
-    for(auto it = foo_group->views().begin(), itEnd = foo_group->views().end();
-        it != itEnd;
-        ++it)
+    for(auto it = foo_group->views().begin(), itEnd = foo_group->views().end(); it != itEnd; ++it)
     {
       auto& view = *it;
       EXPECT_EQ(view.getPath(), it->getPath());
@@ -827,10 +819,7 @@ TEST(sidre_group, iterate_groups_with_iterator)
   // iterate though groups and views of 'foo' using const iterator syntax
   {
     int nGroups = 0;
-    for(auto it = foo_group->groups().cbegin(),
-             itEnd = foo_group->groups().cend();
-        it != itEnd;
-        ++it)
+    for(auto it = foo_group->groups().cbegin(), itEnd = foo_group->groups().cend(); it != itEnd; ++it)
     {
       EXPECT_EQ(foo_group, it->getParent());
       EXPECT_TRUE(endsWith(it->getName(), "_group"));
@@ -839,9 +828,7 @@ TEST(sidre_group, iterate_groups_with_iterator)
     EXPECT_EQ(numExpGroups, nGroups);
 
     int nViews = 0;
-    for(auto it = foo_group->views().cbegin(), itEnd = foo_group->views().cend();
-        it != itEnd;
-        ++it)
+    for(auto it = foo_group->views().cbegin(), itEnd = foo_group->views().cend(); it != itEnd; ++it)
     {
       EXPECT_EQ(foo_group, it->getOwningGroup());
       EXPECT_TRUE(endsWith(it->getName(), "_view"));
@@ -1009,19 +996,15 @@ TEST(sidre_group, create_destroy_has_view)
   EXPECT_EQ(iview, iview2);  // reuse slot
 
   // error condition check - try again with duplicate name, should be a no-op
-  EXPECT_TRUE(group->createViewAndAllocate("viewWithLength1", FLOAT64_ID, 50) ==
-              nullptr);
+  EXPECT_TRUE(group->createViewAndAllocate("viewWithLength1", FLOAT64_ID, 50) == nullptr);
   group->destroyViewAndData("viewWithLength1");
   EXPECT_FALSE(group->hasView("viewWithLength1"));
 
-  EXPECT_TRUE(group->createViewAndAllocate("viewWithLengthBadLen",
-                                           FLOAT64_ID,
-                                           -1) == nullptr);
+  EXPECT_TRUE(group->createViewAndAllocate("viewWithLengthBadLen", FLOAT64_ID, -1) == nullptr);
 
   // try api call that specifies data type in another way
   group->createViewAndAllocate("viewWithLength2", DataType::float64(50));
-  EXPECT_TRUE(group->createViewAndAllocate("viewWithLength2",
-                                           DataType::float64(50)) == nullptr);
+  EXPECT_TRUE(group->createViewAndAllocate("viewWithLength2", DataType::float64(50)) == nullptr);
   // destroy view and its buffer using index
   IndexType indx = group->getFirstValidViewIndex();
   IndexType bindx = group->getView(indx)->getBuffer()->getIndex();
@@ -1286,8 +1269,7 @@ TEST(sidre_group, view_copy_move)
   views[0] = flds->createView("empty0");
   views[1] = flds->createView("empty1", INT_ID, 10);
   views[2] = flds->createViewAndAllocate("buffer", INT_ID, 10);
-  views[3] =
-    flds->createView("external", INT_ID, 10)->setExternalDataPtr(extdata);
+  views[3] = flds->createView("external", INT_ID, 10)->setExternalDataPtr(extdata);
   views[4] = flds->createViewScalar("scalar", 25);
   views[5] = flds->createViewString("string", "I am string");
 
@@ -1492,6 +1474,42 @@ TEST(sidre_group, groups_move_copy)
 }
 
 //------------------------------------------------------------------------------
+TEST(sidre_group, scalar_memory_allocator)
+{
+  // Allocator ids to test.
+  std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
+#ifdef AXOM_USE_UMPIRE
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
+  #ifdef AXOM_USE_GPU
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
+    // Does it make sense to check Pinned and Constant memory spaces?
+  #endif
+#endif
+
+  DataStore ds;
+  Group* grp = ds.getRoot()->createGroup("grp");
+
+  for(auto allocId : allocIds)
+  {
+    grp->setDefaultAllocator(allocId);
+
+    std::int32_t scalarInt = 12345;
+    grp->createViewScalar("scalarInt", scalarInt);
+
+    std::int32_t* scalarIntPtr = (std::int32_t*)grp->getView("scalarInt")->getVoidPtr();
+    auto allocIdScalarInt = axom::getAllocatorIDFromPointer(scalarIntPtr);
+    EXPECT_EQ(allocIdScalarInt, allocId);
+
+    std::int32_t scalarIntTmp;
+    axom::copy(&scalarIntTmp, scalarIntPtr, sizeof(scalarInt));
+    EXPECT_EQ(scalarIntTmp, scalarInt);
+
+    grp->destroyViewsAndData();
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST(sidre_group, group_deep_copy)
 {
   DataStore* ds = new DataStore();
@@ -1552,8 +1570,7 @@ TEST(sidre_group, group_deep_copy)
 
   for(int i = 0; i < NUM_VIEWS; ++i)
   {
-    gb->createView(names[i], ext_array)
-      ->apply(FLOAT64_ID, size[i], offset[i], stride[i]);
+    gb->createView(names[i], ext_array)->apply(FLOAT64_ID, size[i], offset[i], stride[i]);
   }
 
   Group* deep_copy = ds->getRoot()->createGroup("deep_copy");
@@ -1618,6 +1635,141 @@ TEST(sidre_group, group_deep_copy)
 }
 
 //------------------------------------------------------------------------------
+TEST(sidre_group, deep_copy_interspace)
+{
+  // Test deep copies with a change in memory space.
+
+  // Allocator ids to test.
+  std::vector<int> allocIds;
+#ifdef AXOM_USE_UMPIRE
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
+  #ifdef AXOM_USE_GPU
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
+    // Does it make sense to check Pinned and Constant memory spaces?
+  #endif
+#else
+  allocIds.push_back(axom::MALLOC_ALLOCATOR_ID);
+#endif
+
+  DataStore ds;
+
+  constexpr int N = 5;
+  auto dtypeDouble = conduit::DataType::float64(1);
+  auto dtypeIntArray = conduit::DataType::int32(N);
+
+  // Original values on host
+  const double doubleValue = 10.13456;
+  axom::Array<std::int32_t> intArray(N, N);
+  for(int i = 0; i < N; ++i)
+  {
+    intArray[i] = 1001.5 + i;
+  }
+  std::string stringValue = "a string";
+
+  // Temporary space for correctness checks
+  double tmpDoubleValue = doubleValue;
+  axom::Array<std::int32_t> tmpIntArray(N, N);
+  axom::Array<char> tmpCharArray;
+
+  Group* srcGrandparent = ds.getRoot()->createGroup("srcGrandparent");
+  Group* dstGrandparent = ds.getRoot()->createGroup("dstGrandparent");
+
+  // For each combination of srcAllocId and dstAllocId,
+  // allocate src and copy to dst.
+
+  for(auto srcAllocId : allocIds)
+  {
+    Group* srcParent = srcGrandparent->createGroup("testParent");
+    srcParent->setDefaultAllocator(srcAllocId);
+    Group* src = srcParent->createGroup("testGrp");
+    EXPECT_EQ(srcParent->getDefaultAllocatorID(), srcAllocId);
+    EXPECT_EQ(src->getDefaultAllocatorID(), srcAllocId);
+
+    //
+    // Create, initialize and sanity-check src objects to test.
+    //
+
+    View* srcString = src->createViewString("aString", stringValue);
+    const char* srcStringPtr = (char*)srcString->getNode().data_ptr();
+    if(srcAllocId == axom::MALLOC_ALLOCATOR_ID)
+    {
+      // Skip this check if srcAllocId is non-MALLOC_ALLOCATOR_ID,
+      // because a current sidre issue results in always
+      // placing strings on Conduit's default alloc id.
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(srcStringPtr), srcAllocId);
+    }
+
+    View* srcScalar = src->createViewAndAllocate("aDouble", dtypeDouble);
+    double* srcScalarPtr = (double*)srcScalar->getNode().data_ptr();
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(srcScalarPtr), srcAllocId);
+    axom::copy(srcScalarPtr, &doubleValue, sizeof(double));
+
+    View* srcArray = src->createViewAndAllocate("aIntArray", dtypeIntArray);
+    std::int32_t* srcArrayPtr = (std::int32_t*)srcArray->getNode().data_ptr();
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(srcArrayPtr), srcAllocId);
+    axom::copy(srcArrayPtr, intArray.data(), N * sizeof(std::int32_t));
+
+    if(axom::execution_space<axom::SEQ_EXEC>::usesAllocId(srcAllocId))
+    {
+      std::cout << "srcGrandparent group:" << std::endl;
+      srcGrandparent->print();
+    }
+
+    //
+    // Copy the source into destinations of different alloc ids
+    //
+
+    for(auto dstAllocId : allocIds)
+    {
+      std::cout << "Testing copying allocator id " << srcAllocId << " to " << dstAllocId << std::endl;
+
+      dstGrandparent->setDefaultAllocator(dstAllocId);
+      dstGrandparent->deepCopyGroup(srcParent);
+
+      axom::sidre::Group* dstParent = dstGrandparent->getGroup(srcParent->getName());
+      Group* dst = dstParent->getGroup(src->getName());
+
+      //
+      // Check pointers.  Copy data to temporary host buffers and check.
+      //
+
+      double* dstScalarPtr = (double*)dst->getView(srcScalar->getName())->getVoidPtr();
+      EXPECT_NE(dstScalarPtr, nullptr);
+      EXPECT_NE(dstScalarPtr, srcScalarPtr);
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(dstScalarPtr), dstAllocId);
+      axom::copy(&tmpDoubleValue, dstScalarPtr, sizeof(double));
+      EXPECT_EQ(tmpDoubleValue, doubleValue);
+
+      std::int32_t* dstArrayPtr = (std::int32_t*)dst->getView(srcArray->getName())->getVoidPtr();
+      EXPECT_NE(dstArrayPtr, nullptr);
+      EXPECT_NE(dstArrayPtr, srcArrayPtr);
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(dstArrayPtr), dstAllocId);
+      axom::copy(tmpIntArray.data(), srcArrayPtr, N * sizeof(std::int32_t));
+      for(int i = 0; i < N; ++i)
+      {
+        EXPECT_EQ(tmpIntArray[i], intArray[i]);
+      }
+
+      char* dstStringPtr = (char*)dst->getView(srcString->getName())->getVoidPtr();
+      EXPECT_NE(dstStringPtr, nullptr);
+      EXPECT_NE(dstStringPtr, srcStringPtr);
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(dstStringPtr), dstAllocId);
+      tmpCharArray.resize(srcString->getNumElements());
+      axom::copy(tmpCharArray.data(), srcStringPtr, srcString->getNumElements());
+      for(int i = 0; i < N; ++i)
+      {
+        EXPECT_EQ(tmpCharArray[i], stringValue[i]);
+      }
+
+      dstGrandparent->destroyGroupAndData(srcParent->getName());
+    }
+
+    srcGrandparent->destroyGroupAndData(srcParent->getName());
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST(sidre_group, create_destroy_view_and_buffer2)
 {
   DataStore* const ds = new DataStore();
@@ -1679,8 +1831,7 @@ TEST(sidre_group, create_destroy_alloc_view_and_buffer)
   }
 
   EXPECT_EQ(view1->getNumElements(), 10u);
-  EXPECT_EQ(view1->getTotalBytes(),
-            static_cast<axom::sidre::IndexType>(10 * sizeof(int)));
+  EXPECT_EQ(view1->getTotalBytes(), static_cast<axom::sidre::IndexType>(10 * sizeof(int)));
 
   grp->destroyViewAndData(viewName1);
 
@@ -1758,10 +1909,8 @@ TEST(sidre_group, copy_to_conduit_node)
 
   // We can directly access group_a by name
   EXPECT_EQ(n["groups/group_a/views/i0/value"].as_string(), std::string("1"));
-  EXPECT_EQ(n["groups/group_a/groups/foo_a/views/i1/value"].as_string(),
-            std::string("5"));
-  EXPECT_EQ(n["groups/group_a/groups/bar_a/views/d0/value"].as_string(),
-            std::string("11.0"));
+  EXPECT_EQ(n["groups/group_a/groups/foo_a/views/i1/value"].as_string(), std::string("5"));
+  EXPECT_EQ(n["groups/group_a/groups/bar_a/views/d0/value"].as_string(), std::string("11.0"));
 
   // group_b has lists, so we iterate
   conduit::Node& b_views = n["groups/group_b/views"];
@@ -1802,6 +1951,77 @@ TEST(sidre_group, copy_to_conduit_node)
 
   delete ds1;
 }
+
+//------------------------------------------------------------------------------
+TEST(sidre_group, copy_array_to_conduit_node)
+{
+  DataStore ds1;
+
+  const axom::IndexType count = 5;
+
+  // group_a uses map format, group_b uses list format.
+  Group* group_a = ds1.getRoot()->createGroup("group_a", false);
+  Group* group_b = ds1.getRoot()->createGroup("group_b", true);
+
+  // add child groups and views to group_a
+  View* view_a =
+    group_a->createViewAndAllocate("i0", axom::sidre::detail::SidreTT<std::int32_t>::id, count);
+  View* view_b =
+    group_b->createViewAndAllocate("d0", axom::sidre::detail::SidreTT<axom::float64>::id, count);
+
+  std::int32_t* v_a = view_a->getArray();
+  axom::float64* v_b = view_b->getArray();
+
+  for(IndexType i = 0; i < count; ++i)
+  {
+    v_a[i] = 100 + i;
+    v_b[i] = 10 + i;
+  }
+  EXPECT_NE(v_a, nullptr);
+  EXPECT_NE(v_b, nullptr);
+
+  conduit::Node shallowDst;
+  ds1.getRoot()->createNativeLayout(shallowDst);
+  EXPECT_TRUE(shallowDst.has_path("group_a/i0"));
+  EXPECT_TRUE(shallowDst.has_path("group_b"));
+  EXPECT_TRUE(shallowDst.fetch_existing("group_b").number_of_children() == 1);
+
+  {
+    std::int32_t* n_a = shallowDst.fetch_existing("group_a/i0").value();
+    axom::float64* n_b = shallowDst.fetch_existing("group_b").child(0).value();
+    EXPECT_NE(n_a, nullptr);
+    EXPECT_NE(n_b, nullptr);
+    EXPECT_EQ(n_a, v_a);
+    EXPECT_EQ(n_b, v_b);
+  }
+
+  conduit::Node deepDst;
+  ds1.getRoot()->deepCopyToConduit(deepDst);
+  EXPECT_TRUE(deepDst.has_path("group_a/i0"));
+  EXPECT_TRUE(deepDst.has_path("group_b"));
+  EXPECT_TRUE(deepDst.fetch_existing("group_b").number_of_children() == 1);
+
+  {
+    std::int32_t* n_a = deepDst.fetch_existing("group_a/i0").value();
+    axom::float64* n_b = deepDst.fetch_existing("group_b").child(0).value();
+    EXPECT_NE(n_a, nullptr);
+    EXPECT_NE(n_b, nullptr);
+    EXPECT_NE(n_a, v_a);
+    EXPECT_NE(n_b, v_b);
+    // Verify correct deep-copy values
+    const int hostAllocId = axom::MALLOC_ALLOCATOR_ID;
+    axom::Array<std::int32_t> n_a_host {axom::ArrayView<std::int32_t> {n_a, {count}}, hostAllocId};
+    axom::Array<axom::float64> n_b_host {axom::ArrayView<axom::float64> {n_b, {count}}, hostAllocId};
+    axom::IndexType errCount = 0;
+    for(IndexType i = 0; i < count; ++i)
+    {
+      errCount += n_a_host[i] != v_a[i];
+      errCount += n_b_host[i] != v_b[i];
+    }
+    EXPECT_EQ(errCount, 0);
+  }
+}
+
 //------------------------------------------------------------------------------
 TEST(sidre_group, save_restore_empty_datastore)
 {
@@ -1858,14 +2078,12 @@ TEST(sidre_group, save_load_via_hdf5_ids)
   // load via path based
   DataStore ds_load_generic;
   EXPECT_TRUE(
-    ds_load_generic.getRoot()->load("out_save_load_via_hdf5_ids.sidre_hdf5",
-                                    "sidre_hdf5"));
+    ds_load_generic.getRoot()->load("out_save_load_via_hdf5_ids.sidre_hdf5", "sidre_hdf5"));
 
   // load via hdf5 id
   DataStore ds_load_hdf5;
 
-  hid_t h5_id =
-    H5Fopen("out_save_load_via_hdf5_ids.sidre_hdf5", H5F_ACC_RDWR, H5P_DEFAULT);
+  hid_t h5_id = H5Fopen("out_save_load_via_hdf5_ids.sidre_hdf5", H5F_ACC_RDWR, H5P_DEFAULT);
   EXPECT_TRUE(h5_id >= 0);
 
   // this implies protocol == "sidre_hdf5"
@@ -1904,8 +2122,7 @@ TEST(sidre_group, save_root_restore_as_child)
 
   const int num_elems = 4;
   int* pa0 = child2->createViewAndAllocate("a0", INT_ID, num_elems)->getArray();
-  double* pa1 =
-    child2->createViewAndAllocate("a1", FLOAT64_ID, num_elems)->getArray();
+  double* pa1 = child2->createViewAndAllocate("a1", FLOAT64_ID, num_elems)->getArray();
 
   const double factor = 2.3;
   const double offset = -0.23;
@@ -1982,8 +2199,7 @@ TEST(sidre_group, save_child_restore_as_root)
   const int num_elems = 4;
   // included in files
   int* pa0 = child2->createViewAndAllocate("a0", INT_ID, num_elems)->getArray();
-  double* pa1 =
-    child2->createViewAndAllocate("a1", FLOAT64_ID, num_elems)->getArray();
+  double* pa1 = child2->createViewAndAllocate("a1", FLOAT64_ID, num_elems)->getArray();
   // not included
   int* pa2 = child1a->createViewAndAllocate("a2", INT_ID, num_elems)->getArray();
   int* pa3 = root->createViewAndAllocate("a3", INT_ID, num_elems)->getArray();
@@ -2108,10 +2324,8 @@ TEST(sidre_group, save_restore_api)
   std::string newgroupname = "in case of blank";
   std::string groupname = newgroupname;
   bool loadSuccess = false;
-  Group* load3 = load2->createGroupAndLoad(groupname,
-                                           "sidre_save_subtree_sidre_json",
-                                           "sidre_json",
-                                           loadSuccess);
+  Group* load3 =
+    load2->createGroupAndLoad(groupname, "sidre_save_subtree_sidre_json", "sidre_json", loadSuccess);
 
   EXPECT_NE(load3, (Group*)nullptr);
   EXPECT_TRUE(loadSuccess);
@@ -2125,10 +2339,8 @@ TEST(sidre_group, save_restore_api)
   std::string anothergroupname = "another group";
   groupname = anothergroupname;
   loadSuccess = false;
-  Group* load4 = load2->createGroupAndLoad(groupname,
-                                           "sidre_save_subtree_sidre_json",
-                                           "sidre_json",
-                                           loadSuccess);
+  Group* load4 =
+    load2->createGroupAndLoad(groupname, "sidre_save_subtree_sidre_json", "sidre_json", loadSuccess);
 
   EXPECT_NE(load4, (Group*)nullptr);
   EXPECT_TRUE(loadSuccess);
@@ -2140,10 +2352,8 @@ TEST(sidre_group, save_restore_api)
 
   groupname = anothergroupname;
   loadSuccess = false;
-  Group* load5 = load2->createGroupAndLoad(groupname,
-                                           "sidre_save_subtree_sidre_json",
-                                           "sidre_json",
-                                           loadSuccess);
+  Group* load5 =
+    load2->createGroupAndLoad(groupname, "sidre_save_subtree_sidre_json", "sidre_json", loadSuccess);
   EXPECT_EQ(load5, (Group*)nullptr);
   EXPECT_FALSE(loadSuccess);
 
@@ -2623,8 +2833,7 @@ TEST(sidre_group, save_restore_other)
   root1->createView("empty_described", INT_ID, ndata);
   root1->createViewWithShape("empty_shape", INT_ID, 2, shape1);
 
-  auto* view =
-    root1->createViewWithShapeAndAllocate("buffer_shape", INT_ID, 2, shape1);
+  auto* view = root1->createViewWithShapeAndAllocate("buffer_shape", INT_ID, 2, shape1);
 
   // fill the data
   {
@@ -2752,9 +2961,7 @@ TEST(sidre_group, save_restore_complex)
     EXPECT_TRUE(flds->hasGroup("c"));
 
     EXPECT_EQ(flds->getGroup("a")->getView("i0")->getData<int>(), 100.0);
-    EXPECT_NEAR(flds->getGroup("a")->getView("d0")->getData<double>(),
-                3000.0,
-                1e-12);
+    EXPECT_NEAR(flds->getGroup("a")->getView("d0")->getData<double>(), 3000.0, 1e-12);
 
     int* new_data_ptr = flds->getGroup("c")->getView("int10")->getArray();
     for(int i = 0; i < ndata; ++i)
@@ -2887,16 +3094,11 @@ TEST(sidre_group, save_load_all_protocols)
     EXPECT_TRUE(ds.getRoot()->isEquivalentTo(ds_load_root));
 
     // check that the values are the same
-    EXPECT_EQ(ds_load_root->getView("fields/a/i0")->getData<conduit::int64>(),
-              100);
-    EXPECT_NEAR(ds_load_root->getView("fields/a/d0")->getData<conduit::float64>(),
-                3000.00,
-                1e-12);
-    EXPECT_EQ(ds_load_root->getView("fields/b/s0")->getString(),
-              std::string("foo"));
+    EXPECT_EQ(ds_load_root->getView("fields/a/i0")->getData<conduit::int64>(), 100);
+    EXPECT_NEAR(ds_load_root->getView("fields/a/d0")->getData<conduit::float64>(), 3000.00, 1e-12);
+    EXPECT_EQ(ds_load_root->getView("fields/b/s0")->getString(), std::string("foo"));
 
-    conduit::int64* load_data_ptr =
-      ds_load_root->getView("fields/c/int10")->getData();
+    conduit::int64* load_data_ptr = ds_load_root->getView("fields/c/int10")->getData();
     for(int j = 0; j < ndata; j++)
     {
       EXPECT_EQ(data_ptr[j], load_data_ptr[j]);
@@ -3042,21 +3244,13 @@ TEST(sidre_group, save_load_preserve_contents)
     Group* ds_load_root = ds_load.getRoot();
 
     // check that the values are the same
-    EXPECT_EQ(ds_load_root->getView("tree1/a/i0")->getData<conduit::int64>(),
-              100);
-    EXPECT_NEAR(ds_load_root->getView("tree1/a/d0")->getData<conduit::float64>(),
-                3000.00,
-                1e-12);
-    EXPECT_EQ(ds_load_root->getView("tree1/b/s0")->getString(),
-              std::string("foo"));
-    EXPECT_EQ(ds_load_root->getView("tree1/y/i0")->getData<conduit::int64>(),
-              400);
-    EXPECT_NEAR(ds_load_root->getView("tree1/z/d0")->getData<conduit::float64>(),
-                17.00,
-                1e-12);
+    EXPECT_EQ(ds_load_root->getView("tree1/a/i0")->getData<conduit::int64>(), 100);
+    EXPECT_NEAR(ds_load_root->getView("tree1/a/d0")->getData<conduit::float64>(), 3000.00, 1e-12);
+    EXPECT_EQ(ds_load_root->getView("tree1/b/s0")->getString(), std::string("foo"));
+    EXPECT_EQ(ds_load_root->getView("tree1/y/i0")->getData<conduit::int64>(), 400);
+    EXPECT_NEAR(ds_load_root->getView("tree1/z/d0")->getData<conduit::float64>(), 17.00, 1e-12);
 
-    conduit::int64* load_data_ptr =
-      ds_load_root->getView("tree1/c/int10")->getData();
+    conduit::int64* load_data_ptr = ds_load_root->getView("tree1/c/int10")->getData();
     for(int j = 0; j < ndata; j++)
     {
       EXPECT_EQ(data_ptr[j], load_data_ptr[j]);
@@ -3147,14 +3341,10 @@ TEST(sidre_group, import_conduit)
   EXPECT_TRUE(ds.getRoot()->importConduitTree(input));
 
   EXPECT_EQ(ds.getRoot()->getView("fields/a/i0")->getData<conduit::int64>(), 100);
-  EXPECT_NEAR(ds.getRoot()->getView("fields/a/d0")->getData<conduit::float64>(),
-              3000.00,
-              1e-12);
-  EXPECT_EQ(ds.getRoot()->getView("fields/b/s0")->getString(),
-            std::string("foo"));
+  EXPECT_NEAR(ds.getRoot()->getView("fields/a/d0")->getData<conduit::float64>(), 3000.00, 1e-12);
+  EXPECT_EQ(ds.getRoot()->getView("fields/b/s0")->getString(), std::string("foo"));
 
-  conduit::int64* sidre_data_ptr =
-    ds.getRoot()->getView("fields/c/int10")->getData();
+  conduit::int64* sidre_data_ptr = ds.getRoot()->getView("fields/c/int10")->getData();
   for(int j = 0; j < ndata; j++)
   {
     EXPECT_EQ(iarray[j], sidre_data_ptr[j]);
@@ -3197,11 +3387,8 @@ TEST(sidre_group, import_conduit_external)
   EXPECT_TRUE(ds.getRoot()->importConduitTreeExternal(input));
 
   EXPECT_EQ(ds.getRoot()->getView("fields/a/i0")->getData<conduit::int64>(), 100);
-  EXPECT_NEAR(ds.getRoot()->getView("fields/a/d0")->getData<conduit::float64>(),
-              3000.00,
-              1e-12);
-  EXPECT_EQ(ds.getRoot()->getView("fields/b/s0")->getString(),
-            std::string("foo"));
+  EXPECT_NEAR(ds.getRoot()->getView("fields/a/d0")->getData<conduit::float64>(), 3000.00, 1e-12);
+  EXPECT_EQ(ds.getRoot()->getView("fields/b/s0")->getString(), std::string("foo"));
 
   //Scalar and string Views are never external.
   EXPECT_FALSE(ds.getRoot()->getView("fields/a/i0")->isExternal());
@@ -3211,8 +3398,7 @@ TEST(sidre_group, import_conduit_external)
   //The View holding an array is external.
   EXPECT_TRUE(ds.getRoot()->getView("fields/c/int10")->isExternal());
 
-  conduit::int64* sidre_data_ptr =
-    ds.getRoot()->getView("fields/c/int10")->getData();
+  conduit::int64* sidre_data_ptr = ds.getRoot()->getView("fields/c/int10")->getData();
   for(int j = 0; j < ndata; j++)
   {
     EXPECT_EQ(iarray[j], sidre_data_ptr[j]);
@@ -3299,16 +3485,11 @@ TEST(sidre_group, import_conduit_lists)
   EXPECT_TRUE(ds.getRoot()->importConduitTree(input));
 
   {
-    EXPECT_EQ(ds.getRoot()->getView("fields/a/i0")->getData<conduit::int64>(),
-              100);
-    EXPECT_NEAR(ds.getRoot()->getView("fields/a/d0")->getData<conduit::float64>(),
-                3000.00,
-                1e-12);
-    EXPECT_EQ(ds.getRoot()->getView("fields/b/s0")->getString(),
-              std::string("foo"));
+    EXPECT_EQ(ds.getRoot()->getView("fields/a/i0")->getData<conduit::int64>(), 100);
+    EXPECT_NEAR(ds.getRoot()->getView("fields/a/d0")->getData<conduit::float64>(), 3000.00, 1e-12);
+    EXPECT_EQ(ds.getRoot()->getView("fields/b/s0")->getString(), std::string("foo"));
 
-    conduit::int64* sidre_data_ptr =
-      ds.getRoot()->getView("fields/c/int10")->getData();
+    conduit::int64* sidre_data_ptr = ds.getRoot()->getView("fields/c/int10")->getData();
 
     for(int j = 0; j < ndata; j++)
     {
@@ -3358,18 +3539,11 @@ TEST(sidre_group, import_conduit_lists)
   EXPECT_TRUE(load_ds.getRoot()->load(lists_file, lists_protocol));
 
   {
-    EXPECT_EQ(
-      load_ds.getRoot()->getView("fields/a/i0")->getData<conduit::int64>(),
-      100);
-    EXPECT_NEAR(
-      load_ds.getRoot()->getView("fields/a/d0")->getData<conduit::float64>(),
-      3000.00,
-      1e-12);
-    EXPECT_EQ(load_ds.getRoot()->getView("fields/b/s0")->getString(),
-              std::string("foo"));
+    EXPECT_EQ(load_ds.getRoot()->getView("fields/a/i0")->getData<conduit::int64>(), 100);
+    EXPECT_NEAR(load_ds.getRoot()->getView("fields/a/d0")->getData<conduit::float64>(), 3000.00, 1e-12);
+    EXPECT_EQ(load_ds.getRoot()->getView("fields/b/s0")->getString(), std::string("foo"));
 
-    conduit::int64* sidre_data_ptr =
-      load_ds.getRoot()->getView("fields/c/int10")->getData();
+    conduit::int64* sidre_data_ptr = load_ds.getRoot()->getView("fields/c/int10")->getData();
 
     for(int j = 0; j < ndata; j++)
     {
@@ -3426,12 +3600,10 @@ TEST(sidre_group, import_conduit_into_mem_space)
 {
 #if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_DEVICE)
   const int hostAllocId = axom::detail::getAllocatorID<axom::MemorySpace::Host>();
-  const int devAllocId =
-    axom::detail::getAllocatorID<axom::MemorySpace::Device>();
+  const int devAllocId = axom::detail::getAllocatorID<axom::MemorySpace::Device>();
 #else
   // Memory space testing is trivial without device memory.
-  const int hostAllocId =
-    axom::detail::getAllocatorID<axom::MemorySpace::Dynamic>();
+  const int hostAllocId = axom::detail::getAllocatorID<axom::MemorySpace::Dynamic>();
   const int devAllocId = hostAllocId;
 #endif
 
@@ -3672,8 +3844,7 @@ TEST(sidre_group, get_data_info)
   num_bytes_assoc_with_views_chk += view_B1->getTotalBytes();
   num_bytes_in_buffers_chk += view_B1->getTotalBytes();
 
-  View* view_B2 =
-    gp_B->createView("dat_B2")->attachBuffer(buff2)->apply(DOUBLE_ID, 5, 5);
+  View* view_B2 = gp_B->createView("dat_B2")->attachBuffer(buff2)->apply(DOUBLE_ID, 5, 5);
   num_views_chk += 1;
   num_views_buffer_chk += 1;
   num_bytes_assoc_with_views_chk += view_B2->getTotalBytes();
@@ -3794,8 +3965,7 @@ TEST(sidre_group, get_data_info)
   //
 
   IndexType num_buffers_datastore_chk = ds->getNumBuffers();
-  IndexType num_buffer_bytes_datastore_chk =
-    ds->getTotalAllocatedBytesInBuffers();
+  IndexType num_buffer_bytes_datastore_chk = ds->getTotalAllocatedBytesInBuffers();
 
   num_bytes_assoc_with_views_chk -= view_A1->getTotalBytes();
   num_bytes_in_buffers_chk -= view_A1->getTotalBytes();
@@ -3955,10 +4125,7 @@ public:
     root = ds.getRoot();
   }
 
-  void TearDown() override
-  {
-    axom::setDefaultAllocator(umpire::resource::Host);
-  }
+  void TearDown() override { axom::setDefaultAllocator(umpire::resource::Host); }
 
   static constexpr int SIZE = 100;
   DataStore ds;
@@ -4002,8 +4169,7 @@ TEST_P(UmpireTest, allocate)
 
   {
     IndexType shape[] = {1, SIZE, 1};
-    View* view =
-      root->createViewWithShapeAndAllocate("v", INT_ID, 3, shape, allocID);
+    View* view = root->createViewWithShapeAndAllocate("v", INT_ID, 3, shape, allocID);
 
     ASSERT_EQ(allocID, rm.getAllocator(view->getVoidPtr()).getId());
     root->destroyViewAndData("v");
@@ -4049,28 +4215,27 @@ TEST_P(UmpireTest, allocate_default)
   }
 }
 
-const int allocators[] = {
-  axom::getUmpireResourceAllocatorID(umpire::resource::Host)
+const int allocators[] = {axom::getUmpireResourceAllocatorID(umpire::resource::Host)
   #ifdef AXOM_USE_GPU
 
     #ifdef UMPIRE_ENABLE_PINNED
-    ,
-  axom::getUmpireResourceAllocatorID(umpire::resource::Pinned)
+                            ,
+                          axom::getUmpireResourceAllocatorID(umpire::resource::Pinned)
     #endif
 
     #ifdef UMPIRE_ENABLE_DEVICE
-    ,
-  axom::getUmpireResourceAllocatorID(umpire::resource::Device)
+                            ,
+                          axom::getUmpireResourceAllocatorID(umpire::resource::Device)
     #endif
 
     #ifdef UMPIRE_ENABLE_CONST
-    ,
-  axom::getUmpireResourceAllocatorID(umpire::resource::Constant)
+                            ,
+                          axom::getUmpireResourceAllocatorID(umpire::resource::Constant)
     #endif
 
     #ifdef UMPIRE_ENABLE_UM
-    ,
-  axom::getUmpireResourceAllocatorID(umpire::resource::Unified)
+                            ,
+                          axom::getUmpireResourceAllocatorID(umpire::resource::Unified)
     #endif
 
   #endif /* defined(AXOM_USE_GPU) */

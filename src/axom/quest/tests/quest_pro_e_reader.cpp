@@ -71,11 +71,8 @@ TEST(quest_pro_e_reader, read_to_invalid_mesh)
   generate_pro_e_file(filename);
 
   // STEP 1: constructs mesh object to read in the mesh to
-  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> trimesh(
-    2,
-    axom::mint::TRIANGLE);
-  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> hexmesh(3,
-                                                                 axom::mint::HEX);
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> trimesh(2, axom::mint::TRIANGLE);
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> hexmesh(3, axom::mint::HEX);
 
   // STEP 2: read in the Pro/E mesh data
   axom::quest::ProEReader reader;
@@ -131,15 +128,9 @@ TEST(quest_pro_e_reader, read_pro_e)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
   }  // END for all nodes
 
   // STEP 4: remove temporary Pro/E file
@@ -185,15 +176,9 @@ TEST(quest_pro_e_reader, read_pro_e_invbbox)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
   }  // END for all nodes
 
   // STEP 4: remove temporary Pro/E file
@@ -241,15 +226,9 @@ TEST(quest_pro_e_reader, read_pro_e_bbox_all)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
   }  // END for all nodes
 
   // STEP 4: remove temporary Pro/E file
@@ -298,15 +277,9 @@ TEST(quest_pro_e_reader, read_pro_e_bbox_some)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
   }  // END for all nodes
 
   // STEP 4: remove temporary Pro/E file
@@ -355,15 +328,9 @@ TEST(quest_pro_e_reader, read_pro_e_bbox_some_incl)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
   }  // END for all nodes
 
   // STEP 4: remove temporary Pro/E file
@@ -414,15 +381,9 @@ TEST(quest_pro_e_reader, read_pro_e_external)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
   }  // END for all nodes
 
   // STEP 4: remove temporary Pro/E file

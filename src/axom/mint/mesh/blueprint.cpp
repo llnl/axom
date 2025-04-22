@@ -40,15 +40,11 @@ bool isValidRootGroup(const sidre::Group* group)
   const bool hasTopologies = group->hasChildGroup("topologies");
   const bool hasFields = group->hasChildGroup("fields");
 
-  SLIC_WARNING_IF(
-    !hasCoordsets,
-    "sidre::Group " << group->getPathName() << " is missing coordsets group!");
-  SLIC_WARNING_IF(
-    !hasTopologies,
-    "sidre::Group " << group->getPathName() << " is missing topologies group!");
-  SLIC_WARNING_IF(
-    !hasFields,
-    "sidre::Group " << group->getPathName() << " is missing fields group!");
+  SLIC_WARNING_IF(!hasCoordsets,
+                  "sidre::Group " << group->getPathName() << " is missing coordsets group!");
+  SLIC_WARNING_IF(!hasTopologies,
+                  "sidre::Group " << group->getPathName() << " is missing topologies group!");
+  SLIC_WARNING_IF(!hasFields, "sidre::Group " << group->getPathName() << " is missing fields group!");
 
   return ((hasCoordsets && hasTopologies && hasFields));
 }
@@ -67,21 +63,16 @@ bool isValidTopologyGroup(const sidre::Group* topo)
   const bool hasTypeView = topo->hasChildView("type");
   SLIC_WARNING_IF(!hasTypeView, "[" << path << "] is missing 'type' view!");
 
-  const bool isTypeAString =
-    (hasTypeView) ? topo->getView("type")->isString() : false;
-  SLIC_WARNING_IF(!isTypeAString,
-                  "'type' view in [" << path << "] is not a string");
+  const bool isTypeAString = (hasTypeView) ? topo->getView("type")->isString() : false;
+  SLIC_WARNING_IF(!isTypeAString, "'type' view in [" << path << "] is not a string");
 
   const bool hasCoordset = topo->hasChildView("coordset");
   SLIC_WARNING_IF(!hasCoordset, "[" << path << "] is missing 'coordset' view!");
 
-  const bool isCoordsetAString =
-    (hasCoordset) ? topo->getView("coordset")->isString() : false;
-  SLIC_WARNING_IF(!isCoordsetAString,
-                  "'coordset' view in [" << path << "] is not a string");
+  const bool isCoordsetAString = (hasCoordset) ? topo->getView("coordset")->isString() : false;
+  SLIC_WARNING_IF(!isCoordsetAString, "'coordset' view in [" << path << "] is not a string");
 
-  const bool status =
-    hasTypeView && hasCoordset && isTypeAString && isCoordsetAString;
+  const bool status = hasTypeView && hasCoordset && isTypeAString && isCoordsetAString;
 
   return (status);
 }
@@ -100,17 +91,14 @@ bool isValidCoordsetGroup(const sidre::Group* coordset)
   const bool hasTypeView = coordset->hasChildView("type");
   SLIC_WARNING_IF(!hasTypeView, "[" << path << "] is missing 'type' view!");
 
-  const bool isTypeAString =
-    (hasTypeView) ? coordset->getView("type")->isString() : false;
-  SLIC_WARNING_IF(!isTypeAString,
-                  "'type' view in [" << path << "] is not a string");
+  const bool isTypeAString = (hasTypeView) ? coordset->getView("type")->isString() : false;
+  SLIC_WARNING_IF(!isTypeAString, "'type' view in [" << path << "] is not a string");
 
   return (hasTypeView && isTypeAString);
 }
 
 //------------------------------------------------------------------------------
-const sidre::Group* getCoordsetGroup(const sidre::Group* group,
-                                     const sidre::Group* topology)
+const sidre::Group* getCoordsetGroup(const sidre::Group* group, const sidre::Group* topology)
 {
   SLIC_ERROR_IF(!blueprint::isValidRootGroup(group),
                 "supplied group does not conform to the blueprint!");
@@ -122,20 +110,17 @@ const sidre::Group* getCoordsetGroup(const sidre::Group* group,
 
   const char* coordset_name = topology->getView("coordset")->getString();
   SLIC_WARNING_IF(!coordsets->hasChildGroup(coordset_name),
-                  "cannot find coordset [" << coordset_name << "] in "
-                                           << coordsets->getPathName());
+                  "cannot find coordset [" << coordset_name << "] in " << coordsets->getPathName());
 
   const sidre::Group* coords = coordsets->getGroup(coordset_name);
-  SLIC_WARNING_IF(
-    coords == nullptr,
-    "null coordset [" << coordset_name << "] in " << coordsets->getPathName());
+  SLIC_WARNING_IF(coords == nullptr,
+                  "null coordset [" << coordset_name << "] in " << coordsets->getPathName());
 
   return coords;
 }
 
 //------------------------------------------------------------------------------
-const sidre::Group* getCoordsetGroup(const sidre::Group* group,
-                                     const std::string& coords)
+const sidre::Group* getCoordsetGroup(const sidre::Group* group, const std::string& coords)
 {
   SLIC_ERROR_IF(!blueprint::isValidRootGroup(group),
                 "supplied group does not conform to the blueprint!");
@@ -147,17 +132,14 @@ const sidre::Group* getCoordsetGroup(const sidre::Group* group,
   const sidre::Group* coordset = nullptr;
   if(coords.empty())
   {
-    SLIC_ERROR_IF(coordsets->getNumGroups() == 0,
-                  "[" << coordsets->getPathName() << "] is empty!");
-    SLIC_WARNING_IF(coordsets->getNumGroups() > 1,
-                    "multiple coordsets found!  ");
+    SLIC_ERROR_IF(coordsets->getNumGroups() == 0, "[" << coordsets->getPathName() << "] is empty!");
+    SLIC_WARNING_IF(coordsets->getNumGroups() > 1, "multiple coordsets found!  ");
     coordset = coordsets->getGroup(0);
   }
   else
   {
     SLIC_ERROR_IF(!coordsets->hasChildGroup(coords),
-                  "[" << path << "] is missing requested coordset group ["
-                      << coords << "]");
+                  "[" << path << "] is missing requested coordset group [" << coords << "]");
 
     coordset = coordsets->getGroup(coords);
   }
@@ -166,8 +148,7 @@ const sidre::Group* getCoordsetGroup(const sidre::Group* group,
 }
 
 //------------------------------------------------------------------------------
-const sidre::Group* getTopologyGroup(const sidre::Group* group,
-                                     const std::string& topo)
+const sidre::Group* getTopologyGroup(const sidre::Group* group, const std::string& topo)
 {
   SLIC_ERROR_IF(!blueprint::isValidRootGroup(group),
                 "supplied group does not conform to the blueprint!");
@@ -179,17 +160,14 @@ const sidre::Group* getTopologyGroup(const sidre::Group* group,
   const sidre::Group* topology = nullptr;
   if(topo.empty())
   {
-    SLIC_ERROR_IF(topologies->getNumGroups() == 0,
-                  "[" << topologies->getPathName() << "] is empty!");
-    SLIC_WARNING_IF(topologies->getNumGroups() > 1,
-                    "multiple topologies found!  ");
+    SLIC_ERROR_IF(topologies->getNumGroups() == 0, "[" << topologies->getPathName() << "] is empty!");
+    SLIC_WARNING_IF(topologies->getNumGroups() > 1, "multiple topologies found!  ");
     topology = topologies->getGroup(0);
   }
   else
   {
-    SLIC_ERROR_IF(
-      !topologies->hasChildGroup(topo),
-      "[" << path << "] is missing requested topology group [" << topo << "]");
+    SLIC_ERROR_IF(!topologies->hasChildGroup(topo),
+                  "[" << path << "] is missing requested topology group [" << topo << "]");
 
     topology = topologies->getGroup(topo);
   }
@@ -237,9 +215,9 @@ void getMeshTypeAndDimension(int& mesh_type,
   // detect mesh type based on the topology type
   if(strcmp(topo_type, "uniform") == 0)
   {
-    SLIC_ERROR_IF(!coords->hasChildGroup("origin"),
-                  "missing [origin] group from ["
-                    << coords->getPathName() << "], required for a uniform mesh");
+    SLIC_ERROR_IF(
+      !coords->hasChildGroup("origin"),
+      "missing [origin] group from [" << coords->getPathName() << "], required for a uniform mesh");
 
     mesh_type = STRUCTURED_UNIFORM_MESH;
     dimension = coords->getGroup("origin")->getNumViews();
@@ -248,9 +226,8 @@ void getMeshTypeAndDimension(int& mesh_type,
   else if(strcmp(topo_type, "rectilinear") == 0)
   {
     SLIC_ERROR_IF(!coords->hasChildGroup("values"),
-                  "missing [values] group from ["
-                    << coords->getPathName()
-                    << "], required for a rectilinear mesh");
+                  "missing [values] group from [" << coords->getPathName()
+                                                  << "], required for a rectilinear mesh");
 
     mesh_type = STRUCTURED_RECTILINEAR_MESH;
     dimension = coords->getGroup("values")->getNumViews();
@@ -259,9 +236,8 @@ void getMeshTypeAndDimension(int& mesh_type,
   else if(strcmp(topo_type, "structured") == 0)
   {
     SLIC_ERROR_IF(!coords->hasChildGroup("values"),
-                  "missing [values] group from ["
-                    << coords->getPathName()
-                    << "], required for a structured mesh");
+                  "missing [values] group from [" << coords->getPathName()
+                                                  << "], required for a structured mesh");
 
     mesh_type = STRUCTURED_CURVILINEAR_MESH;
     dimension = coords->getGroup("values")->getNumViews();
@@ -270,9 +246,8 @@ void getMeshTypeAndDimension(int& mesh_type,
   else if(strcmp(topo_type, "points") == 0)
   {
     SLIC_ERROR_IF(!coords->hasChildGroup("values"),
-                  "missing [values] group from ["
-                    << coords->getPathName()
-                    << "], required for a particle mesh");
+                  "missing [values] group from [" << coords->getPathName()
+                                                  << "], required for a particle mesh");
 
     mesh_type = PARTICLE_MESH;
     dimension = coords->getGroup("values")->getNumViews();
@@ -281,9 +256,8 @@ void getMeshTypeAndDimension(int& mesh_type,
   else if(strcmp(topo_type, "unstructured") == 0)
   {
     SLIC_ERROR_IF(!coords->hasChildGroup("values"),
-                  "missing [values] group from ["
-                    << coords->getPathName()
-                    << "], required for a unstructured mesh");
+                  "missing [values] group from [" << coords->getPathName()
+                                                  << "], required for a unstructured mesh");
 
     // check if this is a particle mesh stored as an unstructured mesh
     const char* shape = topology->getView("elements/shape")->getString();
@@ -319,8 +293,7 @@ bool hasMixedCellTypes(const sidre::Group* group, const std::string& topo)
 
   const sidre::Group* elems_group = topology->getGroup("elements");
 
-  SLIC_ERROR_IF(!elems_group->hasChildView("shape"),
-                "elements group has no 'shape' view.");
+  SLIC_ERROR_IF(!elems_group->hasChildView("shape"), "elements group has no 'shape' view.");
 
   const sidre::View* shape_view = elems_group->getView("shape");
   SLIC_ERROR_IF(!shape_view->isString(), "'shape' view must hold a string.");
@@ -344,8 +317,7 @@ void getStructuredMeshProperties(int dimension,
   SLIC_ERROR_IF(dimension < 1 || dimension > 3, "invalid dimension!");
   SLIC_ERROR_IF(node_dims == nullptr, "supplied extent is null!");
   SLIC_ERROR_IF(node_ext == nullptr, "supplied global extent is null!");
-  SLIC_ERROR_IF(!blueprint::isValidCoordsetGroup(coordset),
-                "invalid coordset group!");
+  SLIC_ERROR_IF(!blueprint::isValidCoordsetGroup(coordset), "invalid coordset group!");
 
   sidre::Group* c = const_cast<sidre::Group*>(coordset);
 
@@ -419,16 +391,12 @@ void setExtent(sidre::Group* coordset, const int64 node_ext[6])
 }
 
 //------------------------------------------------------------------------------
-void getUniformMeshProperties(int dimension,
-                              double* origin,
-                              double* spacing,
-                              const sidre::Group* coordset)
+void getUniformMeshProperties(int dimension, double* origin, double* spacing, const sidre::Group* coordset)
 {
   SLIC_ERROR_IF(dimension < 1 || dimension > 3, "invalid dimension!");
   SLIC_ERROR_IF(origin == nullptr, "supplied null pointer for origin!");
   SLIC_ERROR_IF(spacing == nullptr, "supplied null pointer for spacing!");
-  SLIC_ERROR_IF(!blueprint::isValidCoordsetGroup(coordset),
-                "invalid coordset group!");
+  SLIC_ERROR_IF(!blueprint::isValidCoordsetGroup(coordset), "invalid coordset group!");
 
   sidre::Group* c = const_cast<sidre::Group*>(coordset);
 

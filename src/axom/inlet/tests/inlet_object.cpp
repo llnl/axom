@@ -41,10 +41,7 @@ struct Foo
   bool bar;
   bool baz;
 
-  bool operator==(const Foo& other) const
-  {
-    return bar == other.bar && baz == other.baz;
-  }
+  bool operator==(const Foo& other) const { return bar == other.bar && baz == other.baz; }
 };
 
 template <>
@@ -120,8 +117,7 @@ TYPED_TEST(inlet_object, simple_array_of_struct_by_value)
 
   arr_container.addBool("bar", "bar's description");
   arr_container.addBool("baz", "baz's description");
-  std::unordered_map<int, Foo> expected_foos = {{0, {true, false}},
-                                                {1, {false, true}}};
+  std::unordered_map<int, Foo> expected_foos = {{0, {true, false}}, {1, {false, true}}};
   auto foos = inlet["foo"].get<std::unordered_map<int, Foo>>();
   EXPECT_EQ(foos, expected_foos);
 }
@@ -288,11 +284,11 @@ TYPED_TEST(inlet_object, simple_array_of_struct_verify_lambda_fail)
   arr_container.addBool("baz", "baz's description");
 
   // Can specify either "bar" or "baz" but not both
-  arr_container.registerVerifier([](const axom::inlet::Container& foo,
-                                    std::vector<VerificationError>* errors) {
-    INLET_VERIFICATION_WARNING("foo", "No bar or baz", errors);
-    return !(foo.contains("bar") && foo.contains("baz"));
-  });
+  arr_container.registerVerifier(
+    [](const axom::inlet::Container& foo, std::vector<VerificationError>* errors) {
+      INLET_VERIFICATION_WARNING("foo", "No bar or baz", errors);
+      return !(foo.contains("bar") && foo.contains("baz"));
+    });
 
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
@@ -328,8 +324,7 @@ TYPED_TEST(inlet_object, array_of_struct_containing_array)
 
   arr_container.addIntArray("arr", "arr's description");
   // Contiguous indexing for generality
-  std::unordered_map<int, FooWithArray> expected_foos = {{0, {{{0, 3}}}},
-                                                         {1, {{{0, 2}}}}};
+  std::unordered_map<int, FooWithArray> expected_foos = {{0, {{{0, 3}}}}, {1, {{{0, 2}}}}};
   std::unordered_map<int, FooWithArray> foos_with_arr;
   foos_with_arr = inlet["foo"].get<std::unordered_map<int, FooWithArray>>();
   EXPECT_EQ(foos_with_arr, expected_foos);
@@ -453,8 +448,7 @@ TYPED_TEST(inlet_object, array_from_bracket)
 
 TYPED_TEST(inlet_object, primitive_type_checks)
 {
-  std::string testString =
-    " bar = true; baz = 12; quux = 2.5; corge = 'hello' ";
+  std::string testString = " bar = true; baz = 12; quux = 2.5; corge = 'hello' ";
   Inlet inlet = createBasicInlet<TypeParam>(testString);
 
   // Define schema
@@ -564,10 +558,7 @@ TYPED_TEST(inlet_object, implicit_conversion_primitives)
 struct BarWithFooWithArray
 {
   FooWithArray foo;
-  bool operator==(const BarWithFooWithArray& other) const
-  {
-    return foo == other.foo;
-  }
+  bool operator==(const BarWithFooWithArray& other) const { return foo == other.foo; }
 };
 
 template <>
@@ -593,22 +584,16 @@ TYPED_TEST(inlet_object, nested_array_of_struct_containing_array)
   foo_container.addIntArray("arr", "arr's description");
 
   // Contiguous indexing for generality
-  std::unordered_map<int, BarWithFooWithArray> expected_bars = {
-    {0, {{{{0, 3}}}}},
-    {1, {{{{0, 2}}}}}};
+  std::unordered_map<int, BarWithFooWithArray> expected_bars = {{0, {{{{0, 3}}}}}, {1, {{{{0, 2}}}}}};
   std::unordered_map<int, BarWithFooWithArray> bars_with_foo;
-  bars_with_foo =
-    inlet["bars"].get<std::unordered_map<int, BarWithFooWithArray>>();
+  bars_with_foo = inlet["bars"].get<std::unordered_map<int, BarWithFooWithArray>>();
   EXPECT_EQ(bars_with_foo, expected_bars);
 }
 
 struct QuuxWithFooArray
 {
   std::unordered_map<int, Foo> arr;
-  bool operator==(const QuuxWithFooArray& other) const
-  {
-    return arr == other.arr;
-  }
+  bool operator==(const QuuxWithFooArray& other) const { return arr == other.arr; }
 };
 
 template <>
@@ -666,18 +651,14 @@ TYPED_TEST(inlet_object, nested_dict_of_array_of_struct)
     {"first", {{{0, {true, false}}, {1, {false, true}}}}},
     {"second", {{{0, {false, false}}, {1, {true, true}}}}}};
   std::unordered_map<std::string, QuuxWithFooArray> quuxs_with_arr;
-  quuxs_with_arr =
-    inlet["quux"].get<std::unordered_map<std::string, QuuxWithFooArray>>();
+  quuxs_with_arr = inlet["quux"].get<std::unordered_map<std::string, QuuxWithFooArray>>();
   EXPECT_EQ(quuxs_with_arr, expected_quuxs);
 }
 
 struct CorgeWithQuuxDictionary
 {
   std::unordered_map<std::string, QuuxWithFooArray> dict;
-  bool operator==(const CorgeWithQuuxDictionary& other) const
-  {
-    return dict == other.dict;
-  }
+  bool operator==(const CorgeWithQuuxDictionary& other) const { return dict == other.dict; }
 };
 
 template <>
@@ -686,8 +667,7 @@ struct FromInlet<CorgeWithQuuxDictionary>
   CorgeWithQuuxDictionary operator()(const axom::inlet::Container& base)
   {
     CorgeWithQuuxDictionary c;
-    c.dict =
-      base["dict"].get<std::unordered_map<std::string, QuuxWithFooArray>>();
+    c.dict = base["dict"].get<std::unordered_map<std::string, QuuxWithFooArray>>();
     return c;
   }
 };
@@ -723,18 +703,14 @@ TYPED_TEST(inlet_object, nested_array_of_dict_of_array_of_struct)
      {{{"third", {{{0, {true, false}}, {1, {false, true}}}}},
        {"fourth", {{{0, {false, false}}, {1, {true, true}}}}}}}}};
   std::unordered_map<int, CorgeWithQuuxDictionary> corges_with_dict;
-  corges_with_dict =
-    inlet["corge"].get<std::unordered_map<int, CorgeWithQuuxDictionary>>();
+  corges_with_dict = inlet["corge"].get<std::unordered_map<int, CorgeWithQuuxDictionary>>();
   EXPECT_EQ(corges_with_dict, expected_corges);
 }
 
 struct QuuxWithFooWithArray
 {
   std::unordered_map<int, FooWithArray> arr;
-  bool operator==(const QuuxWithFooWithArray& other) const
-  {
-    return arr == other.arr;
-  }
+  bool operator==(const QuuxWithFooWithArray& other) const { return arr == other.arr; }
 };
 
 template <>
@@ -767,18 +743,14 @@ TYPED_TEST(inlet_object, nested_dict_of_array_of_struct_with_array)
     {"first", {{{0, {{{0, 1}}}}, {1, {{{0, 2}}}}}}},
     {"second", {{{0, {{{0, 3}}}}, {1, {{{0, 4}}}}}}}};
   std::unordered_map<std::string, QuuxWithFooWithArray> quuxs_with_arr;
-  quuxs_with_arr =
-    inlet["quux"].get<std::unordered_map<std::string, QuuxWithFooWithArray>>();
+  quuxs_with_arr = inlet["quux"].get<std::unordered_map<std::string, QuuxWithFooWithArray>>();
   EXPECT_EQ(quuxs_with_arr, expected_quuxs);
 }
 
 struct QuuxWithSingleFoo
 {
   Foo foo;
-  bool operator==(const QuuxWithSingleFoo& other) const
-  {
-    return foo == other.foo;
-  }
+  bool operator==(const QuuxWithSingleFoo& other) const { return foo == other.foo; }
 };
 
 template <>
@@ -806,12 +778,10 @@ TYPED_TEST(inlet_object, nested_array_of_nested_structs)
   foo_schema.addBool("baz", "baz's description");
 
   // Contiguous indexing for generality
-  std::unordered_map<int, QuuxWithSingleFoo> expected_quuxs = {
-    {0, {true, false}},
-    {1, {false, true}}};
+  std::unordered_map<int, QuuxWithSingleFoo> expected_quuxs = {{0, {true, false}},
+                                                               {1, {false, true}}};
   std::unordered_map<int, QuuxWithSingleFoo> quuxs_with_foo;
-  quuxs_with_foo =
-    inlet["quux"].get<std::unordered_map<int, QuuxWithSingleFoo>>();
+  quuxs_with_foo = inlet["quux"].get<std::unordered_map<int, QuuxWithSingleFoo>>();
   EXPECT_EQ(quuxs_with_foo, expected_quuxs);
 }
 
@@ -1113,9 +1083,7 @@ TYPED_TEST(inlet_object_dict, basic_dicts)
 
   inlet.addIntDictionary("foo", "foo's description");
   std::unordered_map<std::string, int> dict = inlet["foo"];
-  std::unordered_map<std::string, int> correct = {{"key1", 4},
-                                                  {"key3", 6},
-                                                  {"key2", 10}};
+  std::unordered_map<std::string, int> correct = {{"key1", 4}, {"key3", 6}, {"key2", 10}};
   EXPECT_EQ(dict, correct);
 }
 
@@ -1163,12 +1131,10 @@ TYPED_TEST(inlet_object_dict, dict_of_struct_containing_dict)
   auto& dict_container = inlet.addStructDictionary("foo");
 
   dict_container.addIntDictionary("arr", "arr's description");
-  std::unordered_map<std::string, FooWithDict> expected_foos = {
-    {"key3", {{{"key1", 3}}}},
-    {"key4", {{{"key2", 2}}}}};
+  std::unordered_map<std::string, FooWithDict> expected_foos = {{"key3", {{{"key1", 3}}}},
+                                                                {"key4", {{{"key2", 2}}}}};
   std::unordered_map<std::string, FooWithDict> foos_with_dict;
-  foos_with_dict =
-    inlet["foo"].get<std::unordered_map<std::string, FooWithDict>>();
+  foos_with_dict = inlet["foo"].get<std::unordered_map<std::string, FooWithDict>>();
   EXPECT_EQ(foos_with_dict, expected_foos);
 }
 
@@ -1182,12 +1148,10 @@ TYPED_TEST(inlet_object_dict, dict_of_struct_containing_array)
   auto& dict_container = inlet.addStructDictionary("foo");
 
   dict_container.addIntArray("arr", "arr's description");
-  std::unordered_map<std::string, FooWithArray> expected_foos = {
-    {"key3", {{{0, 3}}}},
-    {"key4", {{{0, 2}}}}};
+  std::unordered_map<std::string, FooWithArray> expected_foos = {{"key3", {{{0, 3}}}},
+                                                                 {"key4", {{{0, 2}}}}};
   std::unordered_map<std::string, FooWithArray> foos_with_array;
-  foos_with_array =
-    inlet["foo"].get<std::unordered_map<std::string, FooWithArray>>();
+  foos_with_array = inlet["foo"].get<std::unordered_map<std::string, FooWithArray>>();
   EXPECT_EQ(foos_with_array, expected_foos);
 }
 
@@ -1201,8 +1165,7 @@ TYPED_TEST(inlet_object_dict, array_of_struct_containing_dict)
   auto& arr_container = inlet.addStructArray("foo");
 
   arr_container.addIntDictionary("arr", "arr's description");
-  std::unordered_map<int, FooWithDict> expected_foos = {{0, {{{"key1", 3}}}},
-                                                        {1, {{{"key2", 2}}}}};
+  std::unordered_map<int, FooWithDict> expected_foos = {{0, {{{"key1", 3}}}}, {1, {{{"key2", 2}}}}};
   std::unordered_map<int, FooWithDict> foos_with_dict;
   foos_with_dict = inlet["foo"].get<std::unordered_map<int, FooWithDict>>();
   EXPECT_EQ(foos_with_dict, expected_foos);
@@ -1251,8 +1214,7 @@ TEST(inlet_object_lua, array_of_struct_containing_array)
   auto& arr_container = inlet.addStructArray("foo");
 
   arr_container.addIntArray("arr", "arr's description");
-  std::unordered_map<int, FooWithArray> expected_foos = {{4, {{{1, 3}}}},
-                                                         {7, {{{6, 2}}}}};
+  std::unordered_map<int, FooWithArray> expected_foos = {{4, {{{1, 3}}}}, {7, {{{6, 2}}}}};
   std::unordered_map<int, FooWithArray> foos_with_arr;
   foos_with_arr = inlet["foo"].get<std::unordered_map<int, FooWithArray>>();
   EXPECT_EQ(foos_with_arr, expected_foos);
@@ -1368,12 +1330,10 @@ TEST(inlet_object_lua_dict, dict_of_struct_containing_array)
   auto& dict_container = inlet.addStructDictionary("foo");
 
   dict_container.addIntArray("arr", "arr's description");
-  std::unordered_map<std::string, FooWithArray> expected_foos = {
-    {"key3", {{{1, 3}}}},
-    {"key4", {{{6, 2}}}}};
+  std::unordered_map<std::string, FooWithArray> expected_foos = {{"key3", {{{1, 3}}}},
+                                                                 {"key4", {{{6, 2}}}}};
   std::unordered_map<std::string, FooWithArray> foos_with_array;
-  foos_with_array =
-    inlet["foo"].get<std::unordered_map<std::string, FooWithArray>>();
+  foos_with_array = inlet["foo"].get<std::unordered_map<std::string, FooWithArray>>();
   EXPECT_EQ(foos_with_array, expected_foos);
 }
 
@@ -1387,8 +1347,7 @@ TEST(inlet_object_lua_dict, array_of_struct_containing_dict)
   auto& arr_container = inlet.addStructArray("foo");
 
   arr_container.addIntDictionary("arr", "arr's description");
-  std::unordered_map<int, FooWithDict> expected_foos = {{7, {{{"key1", 3}}}},
-                                                        {4, {{{"key2", 2}}}}};
+  std::unordered_map<int, FooWithDict> expected_foos = {{7, {{{"key1", 3}}}}, {4, {{{"key2", 2}}}}};
   std::unordered_map<int, FooWithDict> foos_with_dict;
   foos_with_dict = inlet["foo"].get<std::unordered_map<int, FooWithDict>>();
   EXPECT_EQ(foos_with_dict, expected_foos);
@@ -1438,8 +1397,7 @@ TEST(inlet_object_lua_dict, mixed_keys_object)
 
   dict_container.addBool("bar", "bar's description");
   dict_container.addBool("baz", "baz's description");
-  std::unordered_map<VariantKey, Foo> expected_foos = {{"key1", {true, false}},
-                                                       {1, {false, true}}};
+  std::unordered_map<VariantKey, Foo> expected_foos = {{"key1", {true, false}}, {1, {false, true}}};
   std::unordered_map<VariantKey, Foo> foos;
   foos = inlet["foo"].get<std::unordered_map<VariantKey, Foo>>();
   EXPECT_EQ(foos, expected_foos);

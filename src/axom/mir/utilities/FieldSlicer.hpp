@@ -59,9 +59,7 @@ public:
    *
    * \note We assume for now that n_input != n_output.
    */
-  void execute(const SliceData &slice,
-               const conduit::Node &n_input,
-               conduit::Node &n_output)
+  void execute(const SliceData &slice, const conduit::Node &n_input, conduit::Node &n_output)
   {
     n_output.reset();
     n_output["association"] = n_input["association"];
@@ -107,12 +105,9 @@ private:
     n_output_values.set_allocator(c2a.getConduitAllocatorID());
     n_output_values.set(conduit::DataType(n_values.dtype().id(), outputSize));
 
-    views::Node_to_ArrayView_same(
-      n_values,
-      n_output_values,
-      [&](auto valuesView, auto outputView) {
-        sliceSingleComponentImpl(slice, valuesView, outputView);
-      });
+    views::Node_to_ArrayView_same(n_values, n_output_values, [&](auto valuesView, auto outputView) {
+      sliceSingleComponentImpl(slice, valuesView, outputView);
+    });
   }
 
   /*!
@@ -126,9 +121,7 @@ private:
    *       lambda.
    */
   template <typename ValuesView, typename OutputView>
-  void sliceSingleComponentImpl(const SliceData &slice,
-                                ValuesView valuesView,
-                                OutputView outputView) const
+  void sliceSingleComponentImpl(const SliceData &slice, ValuesView valuesView, OutputView outputView) const
   {
     IndexingPolicy deviceIndexing(m_indexing);
     SliceData deviceSlice(slice);

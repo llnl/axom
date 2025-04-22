@@ -44,16 +44,12 @@ public:
    *
    * \return The number of dimensions.
    */
-  AXOM_HOST_DEVICE constexpr static int dimension()
-  {
-    return IndexingPolicy::dimension();
-  }
+  AXOM_HOST_DEVICE constexpr static int dimension() { return IndexingPolicy::dimension(); }
 
   /*!
    * \brief Constructor
    */
-  AXOM_HOST_DEVICE StructuredTopologyView() : m_zoneIndexing(), m_nodeIndexing()
-  { }
+  AXOM_HOST_DEVICE StructuredTopologyView() : m_zoneIndexing(), m_nodeIndexing() { }
 
   /*!
    * \brief Constructor
@@ -116,10 +112,7 @@ public:
    *
    * \return The indexing object.
    */
-  AXOM_HOST_DEVICE const IndexingPolicy &indexing() const
-  {
-    return m_zoneIndexing;
-  }
+  AXOM_HOST_DEVICE const IndexingPolicy &indexing() const { return m_zoneIndexing; }
 
   /*!
    * \brief Return a zone.
@@ -131,8 +124,7 @@ public:
    * \note 3D implementation.
    */
   template <int _ndims = IndexingPolicy::dimension()>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 3, Shape3D>::type zone(
-    axom::IndexType zoneIndex) const
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 3, Shape3D>::type zone(axom::IndexType zoneIndex) const
   {
     SLIC_ASSERT(zoneIndex < numberOfZones());
 
@@ -142,8 +134,7 @@ public:
 
     Shape3D shape;
     auto &data = shape.getIdsStorage();
-    data[0] =
-      m_nodeIndexing.GlobalToGlobal(m_nodeIndexing.LocalToGlobal(localLogical));
+    data[0] = m_nodeIndexing.GlobalToGlobal(m_nodeIndexing.LocalToGlobal(localLogical));
     data[1] = data[0] + 1;
     data[2] = data[1] + jp;
     data[3] = data[2] - 1;
@@ -165,8 +156,7 @@ public:
    * \note 2D implementation.
    */
   template <int _ndims = IndexingPolicy::dimension()>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 2, Shape2D>::type zone(
-    axom::IndexType zoneIndex) const
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 2, Shape2D>::type zone(axom::IndexType zoneIndex) const
   {
     SLIC_ASSERT(zoneIndex < numberOfZones());
 
@@ -175,8 +165,7 @@ public:
 
     Shape2D shape;
     auto &data = shape.getIdsStorage();
-    data[0] =
-      m_nodeIndexing.GlobalToGlobal(m_nodeIndexing.LocalToGlobal(localLogical));
+    data[0] = m_nodeIndexing.GlobalToGlobal(m_nodeIndexing.LocalToGlobal(localLogical));
     data[1] = data[0] + 1;
     data[2] = data[1] + jp;
     data[3] = data[2] - 1;
@@ -194,8 +183,7 @@ public:
    * \note 1D implementation.
    */
   template <int _ndims = IndexingPolicy::dimension()>
-  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 1, Shape1D>::type zone(
-    axom::IndexType zoneIndex) const
+  AXOM_HOST_DEVICE typename std::enable_if<_ndims == 1, Shape1D>::type zone(axom::IndexType zoneIndex) const
   {
     SLIC_ASSERT(zoneIndex < numberOfZones());
 
@@ -203,8 +191,7 @@ public:
 
     Shape1D shape;
     auto &data = shape.getIdsStorage();
-    data[0] =
-      m_nodeIndexing.GlobalToGlobal(m_nodeIndexing.LocalToGlobal(localLogical));
+    data[0] = m_nodeIndexing.GlobalToGlobal(m_nodeIndexing.LocalToGlobal(localLogical));
     data[1] = data[0] + 1;
 
     return shape;

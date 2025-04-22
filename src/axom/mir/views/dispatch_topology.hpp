@@ -30,9 +30,7 @@ namespace views
  * \param topo     The node that contains the rectilinear topology.
  * \param func     The function to invoke using the view. It should accept a string with the shape name and an auto parameter for the view.
  */
-template <int SelectedDimensions = select_dimensions(1, 2, 3),
-          int ShapeTypes = AnyShape,
-          typename FuncType>
+template <int SelectedDimensions = select_dimensions(1, 2, 3), int ShapeTypes = AnyShape, typename FuncType>
 void dispatch_topology(const conduit::Node &topo, FuncType &&func)
 {
   const auto type = topo.fetch_existing("type").as_string();

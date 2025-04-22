@@ -107,22 +107,14 @@ protected:
     qData2[7] = QPoint {3.5, 1, 1.5};
 
     // Reproducer Test Case
-    qData3[0] =
-      QPoint {-70 - (5.0 / 6.0), -165.0000000000000, -238.0000000000000};
-    qData3[1] =
-      QPoint {-70 - (5.0 / 6.0), -143.0000000000000, -238.0000000000000};
-    qData3[2] =
-      QPoint {-52.0000000000000, -143.0000000000000, -238.0000000000000};
-    qData3[3] =
-      QPoint {-52.0000000000000, -165.0000000000000, -238.0000000000000};
-    qData3[4] =
-      QPoint {-70 - (5.0 / 6.0), -165.0000000000000, -221.0000000000000};
-    qData3[5] =
-      QPoint {-70 - (5.0 / 6.0), -143.0000000000000, -221.0000000000000};
-    qData3[6] =
-      QPoint {-52.0000000000000, -143.0000000000000, -221.0000000000000};
-    qData3[7] =
-      QPoint {-52.0000000000000, -165.0000000000000, -221.0000000000000};
+    qData3[0] = QPoint {-70 - (5.0 / 6.0), -165.0000000000000, -238.0000000000000};
+    qData3[1] = QPoint {-70 - (5.0 / 6.0), -143.0000000000000, -238.0000000000000};
+    qData3[2] = QPoint {-52.0000000000000, -143.0000000000000, -238.0000000000000};
+    qData3[3] = QPoint {-52.0000000000000, -165.0000000000000, -238.0000000000000};
+    qData3[4] = QPoint {-70 - (5.0 / 6.0), -165.0000000000000, -221.0000000000000};
+    qData3[5] = QPoint {-70 - (5.0 / 6.0), -143.0000000000000, -221.0000000000000};
+    qData3[6] = QPoint {-52.0000000000000, -143.0000000000000, -221.0000000000000};
+    qData3[7] = QPoint {-52.0000000000000, -165.0000000000000, -221.0000000000000};
   }
 
   QPoint qData0[8];
@@ -162,8 +154,7 @@ TEST_F(HexahedronTest, constructFromPoints)
   // Access the test data
   const QPoint* pt = this->qData0;
 
-  axom::Array<QPoint> ptArray(
-    {pt[0], pt[1], pt[2], pt[3], pt[4], pt[5], pt[6], pt[7]});
+  axom::Array<QPoint> ptArray({pt[0], pt[1], pt[2], pt[3], pt[4], pt[5], pt[6], pt[7]});
 
   QHex hex1(pt[0], pt[1], pt[2], pt[3], pt[4], pt[5], pt[6], pt[7]);
 
@@ -245,14 +236,7 @@ TEST_F(HexahedronTest, volume)
   QHex hex5(non_planar_pt2, pt0[1], pt0[2], pt0[3], pt0[4], pt0[5], pt0[6], pt0[7]);
 
   // Hexahedron with all nonplanar sides
-  QHex hex6(non_planar_pt2,
-            pt0[1],
-            pt0[2],
-            pt0[3],
-            pt0[4],
-            pt0[5],
-            non_planar_pt3,
-            pt0[7]);
+  QHex hex6(non_planar_pt2, pt0[1], pt0[2], pt0[3], pt0[4], pt0[5], non_planar_pt3, pt0[7]);
 
   // Check volume
   EXPECT_DOUBLE_EQ(hex0.signedVolume(), 1);

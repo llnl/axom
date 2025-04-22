@@ -27,8 +27,7 @@ Container::Container(const std::string& name,
   , m_unexpectedNames(unexpectedNames)
   , m_docEnabled(docEnabled)
 {
-  SLIC_ASSERT_MSG(m_sidreRootGroup != nullptr,
-                  "Inlet's Sidre Datastore class not set");
+  SLIC_ASSERT_MSG(m_sidreRootGroup != nullptr, "Inlet's Sidre Datastore class not set");
 
   if(m_name == "")
   {
@@ -54,30 +53,27 @@ Container::Container(const std::string& name,
       if(group.isUsingMap() && group.hasView("InletType"))
       {
         const std::string inletType = group.getView("InletType")->getString();
-        const std::string childName =
-          utilities::string::appendPrefix(m_name, group.getName());
+        const std::string childName = utilities::string::appendPrefix(m_name, group.getName());
 
         if(inletType == "Container")
         {
-          m_containerChildren.emplace(
-            childName,
-            std::make_unique<Container>(childName,
-                                        "",
-                                        m_reader,
-                                        m_sidreRootGroup,
-                                        m_unexpectedNames,
-                                        m_docEnabled,
-                                        true));
+          m_containerChildren.emplace(childName,
+                                      std::make_unique<Container>(childName,
+                                                                  "",
+                                                                  m_reader,
+                                                                  m_sidreRootGroup,
+                                                                  m_unexpectedNames,
+                                                                  m_docEnabled,
+                                                                  true));
         }
         else if(inletType == "Field")
         {
           // FIXME: We probably need to write the type to the datastore
-          m_fieldChildren.emplace(
-            childName,
-            std::make_unique<Field>(&group,
-                                    m_sidreRootGroup,
-                                    sidre::DataTypeId::NO_TYPE_ID,
-                                    m_docEnabled));
+          m_fieldChildren.emplace(childName,
+                                  std::make_unique<Field>(&group,
+                                                          m_sidreRootGroup,
+                                                          sidre::DataTypeId::NO_TYPE_ID,
+                                                          m_docEnabled));
         }
       }
     }
@@ -104,9 +100,7 @@ void Container::forEachCollectionElement(Func&& func) const
 }
 
 template <typename OutputIt, typename Func>
-bool Container::transformFromNestedElements(OutputIt output,
-                                            const std::string& name,
-                                            Func&& func) const
+bool Container::transformFromNestedElements(OutputIt output, const std::string& name, Func&& func) const
 {
   for(Container& container : m_nested_aggregates)
   {
@@ -123,8 +117,7 @@ bool Container::transformFromNestedElements(OutputIt output,
   return isStructCollection() || !m_nested_aggregates.empty();
 }
 
-Container& Container::addContainer(const std::string& name,
-                                   const std::string& description)
+Container& Container::addContainer(const std::string& name, const std::string& description)
 {
   auto currContainer = this;
   Path path(name);
@@ -140,14 +133,14 @@ Container& Container::addContainer(const std::string& name,
     {
       // Will the copy always be elided here with a move ctor
       // or do we need std::piecewise_construct/std::forward_as_tuple?
-      const auto& emplaceResult = currContainer->m_containerChildren.emplace(
-        currContainerName,
-        std::make_unique<Container>(currContainerName,
-                                    currDescr,
-                                    m_reader,
-                                    m_sidreRootGroup,
-                                    m_unexpectedNames,
-                                    m_docEnabled));
+      const auto& emplaceResult =
+        currContainer->m_containerChildren.emplace(currContainerName,
+                                                   std::make_unique<Container>(currContainerName,
+                                                                               currDescr,
+                                                                               m_reader,
+                                                                               m_sidreRootGroup,
+                                                                               m_unexpectedNames,
+                                                                               m_docEnabled));
       // emplace_result is a pair whose first element is an iterator to the inserted element
       currContainer = emplaceResult.first->second.get();
     }
@@ -160,26 +153,24 @@ Container& Container::addContainer(const std::string& name,
   return *currContainer;
 }
 
-Container& Container::addStruct(const std::string& name,
-                                const std::string& description)
+Container& Container::addStruct(const std::string& name, const std::string& description)
 {
   auto& base_container = addContainer(name, description);
   transformFromNestedElements(
     std::back_inserter(base_container.m_nested_aggregates),
     name,
-    [&name, &description](Container& subcontainer, const std::string&)
-      -> Container& { return subcontainer.addStruct(name, description); });
+    [&name, &description](Container& subcontainer, const std::string&) -> Container& {
+      return subcontainer.addStruct(name, description);
+    });
   return base_container;
 }
 
-Verifiable<Container>& Container::addBoolArray(const std::string& name,
-                                               const std::string& description)
+Verifiable<Container>& Container::addBoolArray(const std::string& name, const std::string& description)
 {
   return addPrimitiveArray<bool>(name, description);
 }
 
-Verifiable<Container>& Container::addIntArray(const std::string& name,
-                                              const std::string& description)
+Verifiable<Container>& Container::addIntArray(const std::string& name, const std::string& description)
 {
   return addPrimitiveArray<int>(name, description);
 }
@@ -197,18 +188,15 @@ Verifiable<Container>& Container::addStringArray(const std::string& name,
 }
 
 template <typename Key>
-Container& Container::addStructCollection(const std::string& name,
-                                          const std::string& description)
+Container& Container::addStructCollection(const std::string& name, const std::string& description)
 {
-  auto& container = addContainer(
-    utilities::string::appendPrefix(name, detail::COLLECTION_GROUP_NAME),
-    description);
+  auto& container =
+    addContainer(utilities::string::appendPrefix(name, detail::COLLECTION_GROUP_NAME), description);
 
   transformFromNestedElements(
     std::back_inserter(container.m_nested_aggregates),
     name,
-    [&name, &description](Container& subcontainer,
-                          const std::string&) -> Container& {
+    [&name, &description](Container& subcontainer, const std::string&) -> Container& {
       return subcontainer.addStructCollection<Key>(name, description);
     });
 
@@ -220,9 +208,7 @@ Container& Container::addStructCollection(const std::string& name,
   {
     std::vector<Key> indices;
     std::string fullName = utilities::string::appendPrefix(m_name, name);
-    fullName =
-      utilities::string::removeAllInstances(fullName,
-                                            detail::COLLECTION_GROUP_NAME + "/");
+    fullName = utilities::string::removeAllInstances(fullName, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(fullName, m_unexpectedNames);
     const auto result = m_reader.getIndices(fullName, indices);
     if(result == ReaderResult::Success)
@@ -235,8 +221,7 @@ Container& Container::addStructCollection(const std::string& name,
   return container;
 }
 
-Container& Container::addStructArray(const std::string& name,
-                                     const std::string& description)
+Container& Container::addStructArray(const std::string& name, const std::string& description)
 {
   return addStructCollection<int>(name, description);
 }
@@ -265,8 +250,7 @@ Verifiable<Container>& Container::addStringDictionary(const std::string& name,
   return addPrimitiveArray<std::string>(name, description, true);
 }
 
-Container& Container::addStructDictionary(const std::string& name,
-                                          const std::string& description)
+Container& Container::addStructDictionary(const std::string& name, const std::string& description)
 {
   return addStructCollection<VariantKey>(name, description);
 }
@@ -274,8 +258,7 @@ Container& Container::addStructDictionary(const std::string& name,
 axom::sidre::Group* Container::createSidreGroup(const std::string& name,
                                                 const std::string& description)
 {
-  SLIC_ASSERT_MSG(m_sidreRootGroup != nullptr,
-                  "[Inlet] Sidre Datastore Group not set");
+  SLIC_ASSERT_MSG(m_sidreRootGroup != nullptr, "[Inlet] Sidre Datastore Group not set");
 
   if(m_sidreRootGroup->hasGroup(name))
   {
@@ -347,9 +330,8 @@ VerifiableScalar& Container::addPrimitive(const std::string& name,
   const bool is_nested = transformFromNestedElements(
     std::back_inserter(fields),
     name,
-    [&name, &description, forArray, &val](
-      Container& subcontainer,
-      const std::string& path) -> VerifiableScalar& {
+    [&name, &description, forArray, &val](Container& subcontainer,
+                                          const std::string& path) -> VerifiableScalar& {
       return subcontainer.addPrimitive<T>(name, description, forArray, val, path);
     });
 
@@ -373,15 +355,13 @@ VerifiableScalar& Container::addPrimitive(const std::string& name,
       return *iter->second;
     }
     axom::sidre::Group* sidreGroup = createSidreGroup(fullName, description);
-    SLIC_ERROR_IF(
-      sidreGroup == nullptr,
-      fmt::format("Failed to create Sidre group with name '{0}'", fullName));
+    SLIC_ERROR_IF(sidreGroup == nullptr,
+                  fmt::format("Failed to create Sidre group with name '{0}'", fullName));
     // If a pathOverride is specified, needed when Inlet-internal groups
     // are part of fullName
     std::string lookupPath = (pathOverride.empty()) ? fullName : pathOverride;
     lookupPath =
-      utilities::string::removeAllInstances(lookupPath,
-                                            detail::COLLECTION_GROUP_NAME + "/");
+      utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
     auto typeId = addPrimitiveHelper(sidreGroup, lookupPath, forArray, val);
     return addField(sidreGroup, typeId, fullName, name);
@@ -389,11 +369,10 @@ VerifiableScalar& Container::addPrimitive(const std::string& name,
 }
 
 template <>
-axom::sidre::DataTypeId Container::addPrimitiveHelper<bool>(
-  axom::sidre::Group* sidreGroup,
-  const std::string& lookupPath,
-  bool forArray,
-  bool val)
+axom::sidre::DataTypeId Container::addPrimitiveHelper<bool>(axom::sidre::Group* sidreGroup,
+                                                            const std::string& lookupPath,
+                                                            bool forArray,
+                                                            bool val)
 {
   const auto result = m_reader.getBool(lookupPath, val);
   if(forArray || result == ReaderResult::Success)
@@ -408,11 +387,10 @@ axom::sidre::DataTypeId Container::addPrimitiveHelper<bool>(
 }
 
 template <>
-axom::sidre::DataTypeId Container::addPrimitiveHelper<int>(
-  axom::sidre::Group* sidreGroup,
-  const std::string& lookupPath,
-  bool forArray,
-  int val)
+axom::sidre::DataTypeId Container::addPrimitiveHelper<int>(axom::sidre::Group* sidreGroup,
+                                                           const std::string& lookupPath,
+                                                           bool forArray,
+                                                           int val)
 {
   const auto result = m_reader.getInt(lookupPath, val);
   if(forArray || result == ReaderResult::Success)
@@ -427,11 +405,10 @@ axom::sidre::DataTypeId Container::addPrimitiveHelper<int>(
 }
 
 template <>
-axom::sidre::DataTypeId Container::addPrimitiveHelper<double>(
-  axom::sidre::Group* sidreGroup,
-  const std::string& lookupPath,
-  bool forArray,
-  double val)
+axom::sidre::DataTypeId Container::addPrimitiveHelper<double>(axom::sidre::Group* sidreGroup,
+                                                              const std::string& lookupPath,
+                                                              bool forArray,
+                                                              double val)
 {
   const auto result = m_reader.getDouble(lookupPath, val);
   if(forArray || result == ReaderResult::Success)
@@ -446,11 +423,10 @@ axom::sidre::DataTypeId Container::addPrimitiveHelper<double>(
 }
 
 template <>
-axom::sidre::DataTypeId Container::addPrimitiveHelper<std::string>(
-  axom::sidre::Group* sidreGroup,
-  const std::string& lookupPath,
-  bool forArray,
-  std::string val)
+axom::sidre::DataTypeId Container::addPrimitiveHelper<std::string>(axom::sidre::Group* sidreGroup,
+                                                                   const std::string& lookupPath,
+                                                                   bool forArray,
+                                                                   std::string val)
 {
   const auto result = m_reader.getString(lookupPath, val);
   if(forArray || result == ReaderResult::Success)
@@ -494,9 +470,8 @@ std::vector<VariantKey> registerCollection(Container& container,
   *****************************************************************************
   */
 template <typename T>
-std::vector<VariantKey> registerCollection(
-  Container& container,
-  const std::unordered_map<VariantKey, T>& collection)
+std::vector<VariantKey> registerCollection(Container& container,
+                                           const std::unordered_map<VariantKey, T>& collection)
 {
   std::vector<VariantKey> result;
   for(const auto& entry : collection)
@@ -504,14 +479,11 @@ std::vector<VariantKey> registerCollection(
     result.push_back(entry.first);
     auto string_key = indexToString(entry.first);
     const auto illegal_char_loc = string_key.find_first_of("/[]");
-    SLIC_ERROR_IF(
-      illegal_char_loc != std::string::npos,
-      fmt::format(
-        "[Inlet] Dictionary key '{0}' contains illegal character '{1}'",
-        string_key,
-        string_key[illegal_char_loc]));
-    SLIC_ERROR_IF(string_key.empty(),
-                  "[Inlet] Dictionary key cannot be the empty string");
+    SLIC_ERROR_IF(illegal_char_loc != std::string::npos,
+                  fmt::format("[Inlet] Dictionary key '{0}' contains illegal character '{1}'",
+                              string_key,
+                              string_key[illegal_char_loc]));
+    SLIC_ERROR_IF(string_key.empty(), "[Inlet] Dictionary key cannot be the empty string");
     container.addPrimitive(string_key, "", true, entry.second);
   }
   return result;
@@ -541,9 +513,7 @@ struct PrimitiveArrayHelper<Key, bool>
    * \return The keys from the collection that was added
    *****************************************************************************
    */
-  static std::vector<VariantKey> add(Container& container,
-                                     Reader& reader,
-                                     const std::string& lookupPath)
+  static std::vector<VariantKey> add(Container& container, Reader& reader, const std::string& lookupPath)
   {
     std::unordered_map<Key, bool> map;
     // Failure to retrieve a map is not necessarily an error
@@ -556,9 +526,7 @@ struct PrimitiveArrayHelper<Key, bool>
 template <typename Key>
 struct PrimitiveArrayHelper<Key, int>
 {
-  static std::vector<VariantKey> add(Container& container,
-                                     Reader& reader,
-                                     const std::string& lookupPath)
+  static std::vector<VariantKey> add(Container& container, Reader& reader, const std::string& lookupPath)
   {
     std::unordered_map<Key, int> map;
     const auto result = reader.getIntMap(lookupPath, map);
@@ -570,9 +538,7 @@ struct PrimitiveArrayHelper<Key, int>
 template <typename Key>
 struct PrimitiveArrayHelper<Key, double>
 {
-  static std::vector<VariantKey> add(Container& container,
-                                     Reader& reader,
-                                     const std::string& lookupPath)
+  static std::vector<VariantKey> add(Container& container, Reader& reader, const std::string& lookupPath)
   {
     std::unordered_map<Key, double> map;
     const auto result = reader.getDoubleMap(lookupPath, map);
@@ -584,9 +550,7 @@ struct PrimitiveArrayHelper<Key, double>
 template <typename Key>
 struct PrimitiveArrayHelper<Key, std::string>
 {
-  static std::vector<VariantKey> add(Container& container,
-                                     Reader& reader,
-                                     const std::string& lookupPath)
+  static std::vector<VariantKey> add(Container& container, Reader& reader, const std::string& lookupPath)
   {
     std::unordered_map<Key, std::string> map;
     const auto result = reader.getStringMap(lookupPath, map);
@@ -637,9 +601,8 @@ void addSignatureToGroup(const FunctionTag ret_type,
                          sidre::Group* group)
 {
   group->createViewScalar("return_type", static_cast<int>(ret_type));
-  auto args_view = group->createViewAndAllocate("function_arguments",
-                                                sidre::INT_ID,
-                                                arg_types.size());
+  auto args_view =
+    group->createViewAndAllocate("function_arguments", sidre::INT_ID, arg_types.size());
   int* args_array = args_view->getArray();
   for(const auto arg_type : arg_types)
   {
@@ -647,8 +610,7 @@ void addSignatureToGroup(const FunctionTag ret_type,
   }
 }
 
-std::vector<VariantKey> collectionIndices(const Container& container,
-                                          bool trimAbsolute)
+std::vector<VariantKey> collectionIndices(const Container& container, bool trimAbsolute)
 {
   std::vector<VariantKey> indices;
   const auto sidreGroup = container.sidreGroup();
@@ -689,9 +651,8 @@ std::vector<VariantKey> collectionIndices(const Container& container,
   return indices;
 }
 
-std::vector<std::pair<std::string, std::string>> collectionIndicesWithPaths(
-  const Container& container,
-  const std::string& name)
+std::vector<std::pair<std::string, std::string>> collectionIndicesWithPaths(const Container& container,
+                                                                            const std::string& name)
 {
   std::vector<std::pair<std::string, std::string>> result;
   for(const auto& index : collectionIndices(container, false))
@@ -707,17 +668,14 @@ std::vector<std::pair<std::string, std::string>> collectionIndicesWithPaths(
   return result;
 }
 
-void updateUnexpectedNames(const std::string& accessedName,
-                           std::vector<std::string>& unexpectedNames)
+void updateUnexpectedNames(const std::string& accessedName, std::vector<std::string>& unexpectedNames)
 {
-  std::vector<std::string> accessed_tokens =
-    axom::utilities::string::split(accessedName, '/');
+  std::vector<std::string> accessed_tokens = axom::utilities::string::split(accessedName, '/');
   for(auto iter = unexpectedNames.begin(); iter != unexpectedNames.end();)
   {
     // Check if the possibly unexpected name is an "ancestor" of the accessed name,
     // if it is, then it gets marked as expected via removal
-    std::vector<std::string> unexpected_tokens =
-      axom::utilities::string::split(*iter, '/');
+    std::vector<std::string> unexpected_tokens = axom::utilities::string::split(*iter, '/');
     // If it's bigger, it can't be an ancestor so we can bail out early
     if(unexpected_tokens.size() > accessed_tokens.size())
     {
@@ -725,9 +683,7 @@ void updateUnexpectedNames(const std::string& accessedName,
     }
     // Check if the beginning of the accessed tokens sequence is equal to the tokens in the possibly
     // unexpected name
-    else if(std::equal(unexpected_tokens.begin(),
-                       unexpected_tokens.end(),
-                       accessed_tokens.begin()))
+    else if(std::equal(unexpected_tokens.begin(), unexpected_tokens.end(), accessed_tokens.begin()))
     {
       iter = unexpectedNames.erase(iter);
     }
@@ -748,32 +704,26 @@ void updateUnexpectedNames(const std::string& accessedName,
  * of unexpected names
  *****************************************************************************
  */
-std::vector<std::string> filterUnexpectedNames(
-  const sidre::Group* group,
-  const std::vector<std::string>& unexpectedNames)
+std::vector<std::string> filterUnexpectedNames(const sidre::Group* group,
+                                               const std::vector<std::string>& unexpectedNames)
 {
   const std::string callerName = group->getPathName();
-  std::vector<std::string> callerTokens =
-    axom::utilities::string::split(callerName, '/');
-  callerTokens.erase(std::remove(callerTokens.begin(),
-                                 callerTokens.end(),
-                                 detail::COLLECTION_GROUP_NAME),
-                     callerTokens.end());
+  std::vector<std::string> callerTokens = axom::utilities::string::split(callerName, '/');
+  callerTokens.erase(
+    std::remove(callerTokens.begin(), callerTokens.end(), detail::COLLECTION_GROUP_NAME),
+    callerTokens.end());
   // The items of unexpected items below/within the Container corresponding
   // to the "group" argument
   std::vector<std::string> unexpectedNamesWithinGroup;
   for(const auto& name : unexpectedNames)
   {
-    std::vector<std::string> unexpectedTokens =
-      axom::utilities::string::split(name, '/');
+    std::vector<std::string> unexpectedTokens = axom::utilities::string::split(name, '/');
     // If it's smaller it can't be a descendant
     if(unexpectedTokens.size() >= callerTokens.size())
     {
       // If the beginning of the unexpected tokens sequence is equal to the tokens
       // of the calling Container's name
-      if(std::equal(callerTokens.begin(),
-                    callerTokens.end(),
-                    unexpectedTokens.begin()))
+      if(std::equal(callerTokens.begin(), callerTokens.end(), unexpectedTokens.begin()))
       {
         unexpectedNamesWithinGroup.push_back(name);
       }
@@ -789,9 +739,8 @@ void Container::addIndicesGroup(const std::vector<Key>& indices,
                                 const std::string& description,
                                 const bool add_containers)
 {
-  sidre::Group* indices_group =
-    m_sidreGroup->createGroup(detail::COLLECTION_INDICES_NAME,
-                              /* list_format = */ true);
+  sidre::Group* indices_group = m_sidreGroup->createGroup(detail::COLLECTION_INDICES_NAME,
+                                                          /* list_format = */ true);
   // For each index, add a container whose name is its index
   // Schema for struct is defined using the returned container
   for(const auto& idx : indices)
@@ -802,11 +751,8 @@ void Container::addIndicesGroup(const std::vector<Key>& indices,
     {
       addContainer(string_idx, description);
     }
-    std::string absolute =
-      utilities::string::appendPrefix(m_name, detail::indexToString(idx));
-    absolute =
-      utilities::string::removeAllInstances(absolute,
-                                            detail::COLLECTION_GROUP_NAME + "/");
+    std::string absolute = utilities::string::appendPrefix(m_name, detail::indexToString(idx));
+    absolute = utilities::string::removeAllInstances(absolute, detail::COLLECTION_GROUP_NAME + "/");
     detail::addIndexViewToGroup(*indices_group, absolute);
   }
 }
@@ -822,9 +768,8 @@ Verifiable<Container>& Container::addPrimitiveArray(const std::string& name,
   const bool is_nested = transformFromNestedElements(
     std::back_inserter(containers),
     name,
-    [&name, &description, isDict](
-      Container& subcontainer,
-      const std::string& path) -> Verifiable<Container>& {
+    [&name, &description, isDict](Container& subcontainer,
+                                  const std::string& path) -> Verifiable<Container>& {
       return subcontainer.addPrimitiveArray<T>(name, description, isDict, path);
     });
 
@@ -838,26 +783,21 @@ Verifiable<Container>& Container::addPrimitiveArray(const std::string& name,
   else
   {
     // "base case", create a container for the field and fill it in with the helper
-    auto& container = addContainer(
-      utilities::string::appendPrefix(name, detail::COLLECTION_GROUP_NAME),
-      description);
+    auto& container =
+      addContainer(utilities::string::appendPrefix(name, detail::COLLECTION_GROUP_NAME), description);
     const std::string& fullName = utilities::string::appendPrefix(m_name, name);
     std::string lookupPath = (pathOverride.empty()) ? fullName : pathOverride;
     lookupPath =
-      utilities::string::removeAllInstances(lookupPath,
-                                            detail::COLLECTION_GROUP_NAME + "/");
+      utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
     std::vector<VariantKey> indices;
     if(isDict)
     {
-      indices = detail::PrimitiveArrayHelper<VariantKey, T>::add(container,
-                                                                 m_reader,
-                                                                 lookupPath);
+      indices = detail::PrimitiveArrayHelper<VariantKey, T>::add(container, m_reader, lookupPath);
     }
     else
     {
-      indices =
-        detail::PrimitiveArrayHelper<int, T>::add(container, m_reader, lookupPath);
+      indices = detail::PrimitiveArrayHelper<int, T>::add(container, m_reader, lookupPath);
     }
     // Copy the indices to the datastore to keep track of integer vs. string indices
     if(!indices.empty())
@@ -868,26 +808,22 @@ Verifiable<Container>& Container::addPrimitiveArray(const std::string& name,
   }
 }
 
-VerifiableScalar& Container::addBool(const std::string& name,
-                                     const std::string& description)
+VerifiableScalar& Container::addBool(const std::string& name, const std::string& description)
 {
   return addPrimitive<bool>(name, description);
 }
 
-VerifiableScalar& Container::addDouble(const std::string& name,
-                                       const std::string& description)
+VerifiableScalar& Container::addDouble(const std::string& name, const std::string& description)
 {
   return addPrimitive<double>(name, description);
 }
 
-VerifiableScalar& Container::addInt(const std::string& name,
-                                    const std::string& description)
+VerifiableScalar& Container::addInt(const std::string& name, const std::string& description)
 {
   return addPrimitive<int>(name, description);
 }
 
-VerifiableScalar& Container::addString(const std::string& name,
-                                       const std::string& description)
+VerifiableScalar& Container::addString(const std::string& name, const std::string& description)
 {
   return addPrimitive<std::string>(name, description);
 }
@@ -906,9 +842,8 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
   const bool is_nested = transformFromNestedElements(
     std::back_inserter(funcs),
     name,
-    [&name, &ret_type, &arg_types, &description](
-      Container& subcontainer,
-      const std::string& path) -> Verifiable<Function>& {
+    [&name, &ret_type, &arg_types, &description](Container& subcontainer,
+                                                 const std::string& path) -> Verifiable<Function>& {
       return subcontainer.addFunction(name, ret_type, arg_types, description, path);
     });
   if(is_nested)
@@ -931,16 +866,14 @@ Verifiable<Function>& Container::addFunction(const std::string& name,
       return *iter->second;
     }
     axom::sidre::Group* sidreGroup = createSidreGroup(fullName, description);
-    SLIC_ERROR_IF(
-      sidreGroup == nullptr,
-      fmt::format("Failed to create Sidre group with name '{0}'", fullName));
+    SLIC_ERROR_IF(sidreGroup == nullptr,
+                  fmt::format("Failed to create Sidre group with name '{0}'", fullName));
     detail::addSignatureToGroup(ret_type, arg_types, sidreGroup);
     // If a pathOverride is specified, needed when Inlet-internal groups
     // are part of fullName
     std::string lookupPath = (pathOverride.empty()) ? fullName : pathOverride;
     lookupPath =
-      utilities::string::removeAllInstances(lookupPath,
-                                            detail::COLLECTION_GROUP_NAME + "/");
+      utilities::string::removeAllInstances(lookupPath, detail::COLLECTION_GROUP_NAME + "/");
     detail::updateUnexpectedNames(lookupPath, m_unexpectedNames);
     auto func = m_reader.getFunction(lookupPath, ret_type, arg_types);
     return addFunctionInternal(sidreGroup, std::move(func), fullName, name);
@@ -954,8 +887,7 @@ Proxy Container::operator[](const std::string& name) const
   const bool has_func = hasFunction(name);
 
   // Ambiguous case - both a container and field exist with the same name
-  if((has_container && has_field) || (has_field && has_func) ||
-     (has_container && has_func))
+  if((has_container && has_field) || (has_field && has_func) || (has_container && has_func))
   {
     const std::string msg = fmt::format(
       "[Inlet] Ambiguous lookup - more than one of a container/field/function "
@@ -983,9 +915,8 @@ Proxy Container::operator[](const std::string& name) const
   // Neither exists
   else
   {
-    std::string msg = fmt::format(
-      "[Inlet] No container, field, or function with name '{0}' exists",
-      name);
+    std::string msg =
+      fmt::format("[Inlet] No container, field, or function with name '{0}' exists", name);
     SLIC_ERROR(msg);
     return Proxy();
   }
@@ -998,8 +929,7 @@ Container& Container::required(bool isRequired)
   // a struct collection as required means that it is non-empty
   if(isStructCollection())
   {
-    forEachCollectionElement(
-      [isRequired](Container& container) { container.required(isRequired); });
+    forEachCollectionElement([isRequired](Container& container) { container.required(isRequired); });
   }
 
   SLIC_ASSERT_MSG(m_sidreGroup != nullptr,
@@ -1031,8 +961,7 @@ Container& Container::strict(bool isStrict)
 {
   if(isStructCollection())
   {
-    forEachCollectionElement(
-      [isStrict](Container& container) { container.strict(isStrict); });
+    forEachCollectionElement([isStrict](Container& container) { container.strict(isStrict); });
   }
   SLIC_ASSERT_MSG(m_sidreGroup != nullptr,
                   "[Inlet] Container specific Sidre Datastore Group not set");
@@ -1044,8 +973,7 @@ Container& Container::registerVerifier(Verifier lambda)
 {
   if(isStructCollection())
   {
-    forEachCollectionElement(
-      [&lambda](Container& container) { container.registerVerifier(lambda); });
+    forEachCollectionElement([&lambda](Container& container) { container.registerVerifier(lambda); });
   }
   else
   {
@@ -1066,15 +994,13 @@ bool Container::verify(std::vector<VerificationError>* errors) const
   const bool this_container_defined = isUserProvided() || m_name.empty();
 
   // If this container was required, make sure something was defined in it
-  bool verified =
-    verifyRequired(*m_sidreGroup, this_container_defined, "Container", errors);
+  bool verified = verifyRequired(*m_sidreGroup, this_container_defined, "Container", errors);
 
   // Verify this Container if a lambda was configured
   if(this_container_defined && m_verifier && !m_verifier(*this, errors))
   {
     verified = false;
-    const std::string msg =
-      fmt::format("[Inlet] Container failed verification: {0}", m_name);
+    const std::string msg = fmt::format("[Inlet] Container failed verification: {0}", m_name);
     INLET_VERIFICATION_WARNING(m_name, msg, errors);
   }
 
@@ -1087,9 +1013,7 @@ bool Container::verify(std::vector<VerificationError>* errors) const
     for(const auto& name : currUnexpectedNames)
     {
       const std::string msg =
-        fmt::format("[Inlet] Container '{0}' contained unexpected child: {1}",
-                    m_name,
-                    name);
+        fmt::format("[Inlet] Container '{0}' contained unexpected child: {1}", m_name, name);
       INLET_VERIFICATION_WARNING(m_name, msg, errors);
     }
   }
@@ -1127,30 +1051,26 @@ bool Container::verify(std::vector<VerificationError>* errors) const
   // may have been applied to the collection group and not the calling group
   else if(hasContainer(detail::COLLECTION_GROUP_NAME))
   {
-    verified =
-      verified && getContainer(detail::COLLECTION_GROUP_NAME).verify(errors);
+    verified = verified && getContainer(detail::COLLECTION_GROUP_NAME).verify(errors);
   }
 
   return verified;
 }
 
 template <>
-std::unordered_map<std::string, std::unique_ptr<Container>> Container::*
-Container::getChildren()
+std::unordered_map<std::string, std::unique_ptr<Container>> Container::*Container::getChildren()
 {
   return &Container::m_containerChildren;
 }
 
 template <>
-std::unordered_map<std::string, std::unique_ptr<Field>> Container::*
-Container::getChildren()
+std::unordered_map<std::string, std::unique_ptr<Field>> Container::*Container::getChildren()
 {
   return &Container::m_fieldChildren;
 }
 
 template <>
-std::unordered_map<std::string, std::unique_ptr<Function>> Container::*
-Container::getChildren()
+std::unordered_map<std::string, std::unique_ptr<Function>> Container::*Container::getChildren()
 {
   return &Container::m_functionChildren;
 }
@@ -1159,8 +1079,7 @@ template <typename T>
 bool Container::hasChild(const std::string& childName) const
 {
   const auto& children = this->*getChildren<T>();
-  return children.find(utilities::string::appendPrefix(m_name, childName)) !=
-    children.end();
+  return children.find(utilities::string::appendPrefix(m_name, childName)) != children.end();
 }
 
 template <typename T>
@@ -1176,9 +1095,8 @@ T* Container::getChildInternal(const std::string& childName) const
   {
     if(currContainer->hasChild<Container>(pathPart))
     {
-      currContainer = currContainer->m_containerChildren
-                        .at(Path::join({currContainer->m_name, pathPart}))
-                        .get();
+      currContainer =
+        currContainer->m_containerChildren.at(Path::join({currContainer->m_name, pathPart})).get();
     }
     else
     {
@@ -1269,27 +1187,22 @@ bool Container::contains(const std::string& name) const
 bool Container::exists() const
 {
   // Check if any of its child containers exist
-  const bool has_containers =
-    std::any_of(m_containerChildren.begin(),
-                m_containerChildren.end(),
-                [](const decltype(m_containerChildren)::value_type& entry) {
-                  return entry.second->exists();
-                });
+  const bool has_containers = std::any_of(
+    m_containerChildren.begin(),
+    m_containerChildren.end(),
+    [](const decltype(m_containerChildren)::value_type& entry) { return entry.second->exists(); });
 
-  const bool has_fields =
-    std::any_of(m_fieldChildren.begin(),
-                m_fieldChildren.end(),
-                [](const decltype(m_fieldChildren)::value_type& entry) {
-                  return entry.second->exists();
-                });
+  const bool has_fields = std::any_of(
+    m_fieldChildren.begin(),
+    m_fieldChildren.end(),
+    [](const decltype(m_fieldChildren)::value_type& entry) { return entry.second->exists(); });
 
   // Functions cannot be defaulted and thus have an unambiguous operator bool
-  const bool has_functions =
-    std::any_of(m_functionChildren.begin(),
-                m_functionChildren.end(),
-                [](const decltype(m_functionChildren)::value_type& entry) {
-                  return static_cast<bool>(*entry.second);
-                });
+  const bool has_functions = std::any_of(m_functionChildren.begin(),
+                                         m_functionChildren.end(),
+                                         [](const decltype(m_functionChildren)::value_type& entry) {
+                                           return static_cast<bool>(*entry.second);
+                                         });
 
   return has_containers || has_fields || has_functions;
 }
@@ -1297,27 +1210,24 @@ bool Container::exists() const
 bool Container::isUserProvided() const
 {
   // Check if any of its child containers had user-provided fields
-  const bool has_containers =
-    std::any_of(m_containerChildren.begin(),
-                m_containerChildren.end(),
-                [](const decltype(m_containerChildren)::value_type& entry) {
-                  return entry.second->isUserProvided();
-                });
+  const bool has_containers = std::any_of(m_containerChildren.begin(),
+                                          m_containerChildren.end(),
+                                          [](const decltype(m_containerChildren)::value_type& entry) {
+                                            return entry.second->isUserProvided();
+                                          });
 
-  const bool has_fields =
-    std::any_of(m_fieldChildren.begin(),
-                m_fieldChildren.end(),
-                [](const decltype(m_fieldChildren)::value_type& entry) {
-                  return entry.second->isUserProvided();
-                });
+  const bool has_fields = std::any_of(m_fieldChildren.begin(),
+                                      m_fieldChildren.end(),
+                                      [](const decltype(m_fieldChildren)::value_type& entry) {
+                                        return entry.second->isUserProvided();
+                                      });
 
   // Functions cannot be defaulted and thus have an unambiguous operator bool
-  const bool has_functions =
-    std::any_of(m_functionChildren.begin(),
-                m_functionChildren.end(),
-                [](const decltype(m_functionChildren)::value_type& entry) {
-                  return static_cast<bool>(*entry.second);
-                });
+  const bool has_functions = std::any_of(m_functionChildren.begin(),
+                                         m_functionChildren.end(),
+                                         [](const decltype(m_functionChildren)::value_type& entry) {
+                                           return static_cast<bool>(*entry.second);
+                                         });
 
   return has_containers || has_fields || has_functions;
 }
@@ -1342,20 +1252,17 @@ bool Container::isUserProvided(const std::string& name) const
   return false;
 }
 
-const std::unordered_map<std::string, std::unique_ptr<Container>>&
-Container::getChildContainers() const
+const std::unordered_map<std::string, std::unique_ptr<Container>>& Container::getChildContainers() const
 {
   return m_containerChildren;
 }
 
-const std::unordered_map<std::string, std::unique_ptr<Field>>&
-Container::getChildFields() const
+const std::unordered_map<std::string, std::unique_ptr<Field>>& Container::getChildFields() const
 {
   return m_fieldChildren;
 }
 
-const std::unordered_map<std::string, std::unique_ptr<Function>>&
-Container::getChildFunctions() const
+const std::unordered_map<std::string, std::unique_ptr<Function>>& Container::getChildFunctions() const
 {
   return m_functionChildren;
 }

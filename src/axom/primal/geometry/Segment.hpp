@@ -28,15 +28,13 @@ class Segment;
  * \brief Equality comparison operator for Segment
  */
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE bool operator==(const Segment<T, NDIMS>& lhs,
-                                 const Segment<T, NDIMS>& rhs);
+AXOM_HOST_DEVICE bool operator==(const Segment<T, NDIMS>& lhs, const Segment<T, NDIMS>& rhs);
 
 /*!
  * \brief Inequality comparison operator for Segment
  */
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE bool operator!=(const Segment<T, NDIMS>& lhs,
-                                 const Segment<T, NDIMS>& rhs);
+AXOM_HOST_DEVICE bool operator!=(const Segment<T, NDIMS>& lhs, const Segment<T, NDIMS>& rhs);
 
 /*!
  * \brief Overloaded output operator for Segment
@@ -76,9 +74,7 @@ public:
    * \param A user-supplied source point
    * \param B user-supplied target point
    */
-  AXOM_HOST_DEVICE Segment(const PointType& A, const PointType& B)
-    : m_source(A)
-    , m_target(B) {};
+  AXOM_HOST_DEVICE Segment(const PointType& A, const PointType& B) : m_source(A), m_target(B) {};
 
   /*!
    * \brief Returns the source point of the segment.
@@ -124,18 +120,12 @@ public:
    * \post If \f$ t = 0, \f$ the return point \f$ P = A. \f$
    * \post If \f$ t = 1, \f$ the return point \f$ P = B. \f$
    */
-  AXOM_HOST_DEVICE PointType at(const T& t) const
-  {
-    return PointType::lerp(m_source, m_target, t);
-  }
+  AXOM_HOST_DEVICE PointType at(const T& t) const { return PointType::lerp(m_source, m_target, t); }
 
   /*!
    * \brief Returns the length of the segment
    */
-  AXOM_HOST_DEVICE double length() const
-  {
-    return VectorType(m_source, m_target).norm();
-  }
+  AXOM_HOST_DEVICE double length() const { return VectorType(m_source, m_target).norm(); }
 
   /*!
    * \brief Returns a vector normal to the segment
@@ -161,10 +151,7 @@ public:
    * \brief Inequality operator for segments
    */
   AXOM_HOST_DEVICE
-  friend inline bool operator!=(const Segment& lhs, const Segment& rhs)
-  {
-    return !(lhs == rhs);
-  }
+  friend inline bool operator!=(const Segment& lhs, const Segment& rhs) { return !(lhs == rhs); }
 
   /*!
    * \brief Simple formatted print of a segment instance

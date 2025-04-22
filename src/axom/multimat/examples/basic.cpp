@@ -135,8 +135,7 @@ void introspection(axom::multimat::MultiMat &mm)
 
     std::cout << name << ":"
               << "\n\tmapping: " << mapping << "\n\tlayout: " << layout
-              << "\n\tsparsity: " << sparsity << "\n\tdataType: " << dataType
-              << "\n";
+              << "\n\tsparsity: " << sparsity << "\n\tdataType: " << dataType << "\n";
   }
   std::cout << "Volfrac index: " << mm.getFieldIdx("Volfrac") << std::endl;
 
@@ -153,8 +152,7 @@ void using_fields_index_sets(axom::multimat::MultiMat &mm)
   for(int i = 0; i < mm.getNumberOfCells(); i++)
   {
     std::cout << "\tcell " << i << " values: ";
-    for(const auto &idx :
-        mm.getIndexingSetOfCell(i, axom::multimat::SparsityLayout::SPARSE))
+    for(const auto &idx : mm.getIndexingSetOfCell(i, axom::multimat::SparsityLayout::SPARSE))
     {
       std::cout << f[idx] << ", ";
     }
@@ -288,11 +286,10 @@ void multimat_to_blueprint(axom::multimat::MultiMat &mm, conduit::Node &mesh)
         SLIC_ASSERT(f.numComp() <= 3);
         for(int c = 0; c < f.numComp(); c++)
         {
-          n_f["values/" + compNames[c]].set_external(
-            dptr,
-            mm.getNumberOfCells(),
-            0,
-            f.numComp() * sizeof(double));
+          n_f["values/" + compNames[c]].set_external(dptr,
+                                                     mm.getNumberOfCells(),
+                                                     0,
+                                                     f.numComp() * sizeof(double));
           dptr++;
         }
       }
@@ -365,8 +362,7 @@ void multimat_to_blueprint(axom::multimat::MultiMat &mm, conduit::Node &mesh)
           }
           for(int comp = 0; comp < f.numComp(); comp++)
           {
-            values[comp].push_back(avg[comp] /
-                                   std::max(double(matsInCell.size()), 1.));
+            values[comp].push_back(avg[comp] / std::max(double(matsInCell.size()), 1.));
           }
         }
 

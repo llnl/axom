@@ -92,8 +92,7 @@ void Record::add(File file)
   files.insert(std::move(file));
 }
 
-void Record::addRecordAsLibraryData(Record const &childRecord,
-                                    std::string const &name)
+void Record::addRecordAsLibraryData(Record const &childRecord, std::string const &name)
 {
   if(!childRecord.files.empty())
   {
@@ -122,10 +121,7 @@ std::unique_ptr<Record> RecordLoader::load(conduit::Node const &recordAsNode) co
   return std::make_unique<Record>(recordAsNode);
 }
 
-bool RecordLoader::canLoad(std::string const &type) const
-{
-  return typeLoaders.count(type) > 0;
-}
+bool RecordLoader::canLoad(std::string const &type) const { return typeLoaders.count(type) > 0; }
 
 RecordLoader createRecordLoaderWithAllKnownTypes()
 {

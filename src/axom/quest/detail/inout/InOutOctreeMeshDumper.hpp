@@ -89,10 +89,7 @@ private:
   /// Utility functions to get a pointer to the derived type (part of CRTP pattern)
   Derived* getDerived() { return static_cast<Derived*>(this); }
   /// Utility functions to get a const pointer to the derived type (part of CRTP pattern)
-  const Derived* getDerived() const
-  {
-    return static_cast<const Derived*>(this);
-  }
+  const Derived* getDerived() const { return static_cast<const Derived*>(this); }
 
 public:
   /// Generates a VTK mesh with all leaf octree blocks
@@ -153,8 +150,7 @@ public:
         {
           for(int i = 0; i < block.numFaceNeighbors(); ++i)
           {
-            BlockIndex neighborBlk =
-              m_octree.coveringLeafBlock(block.faceNeighbor(i));
+            BlockIndex neighborBlk = m_octree.coveringLeafBlock(block.faceNeighbor(i));
             if(neighborBlk != BlockIndex::invalid_index())
             {
               const InOutBlockData& neighborData = m_octree[neighborBlk];
@@ -213,12 +209,9 @@ public:
     // Dump an octree mesh containing all blocks
     std::string fName = fmt::format("{}.vtk", name);
 
-    DebugMesh* debugMesh =
-      new DebugMesh(DIM, (1 << DIM) * blocks.size(), blocks.size());
-    const bool hasCells =
-      (m_generationState >= InOutOctreeType::INOUTOCTREE_ELEMENTS_INSERTED);
-    const bool hasColors =
-      (m_generationState >= InOutOctreeType::INOUTOCTREE_LEAVES_COLORED);
+    DebugMesh* debugMesh = new DebugMesh(DIM, (1 << DIM) * blocks.size(), blocks.size());
+    const bool hasCells = (m_generationState >= InOutOctreeType::INOUTOCTREE_ELEMENTS_INSERTED);
+    const bool hasColors = (m_generationState >= InOutOctreeType::INOUTOCTREE_LEAVES_COLORED);
 
     // Allocate Slam Maps for the field data
     slam::PositionSet<> leafSet(blocks.size());
@@ -241,8 +234,8 @@ public:
 
       const InOutBlockData& leafData = m_octree[block];
 
-      int vIdx = leafData.hasData() ? m_octree.leafVertex(block, leafData)
-                                    : MeshWrapper<DIM>::NO_VERTEX;
+      int vIdx =
+        leafData.hasData() ? m_octree.leafVertex(block, leafData) : MeshWrapper<DIM>::NO_VERTEX;
 
       leafVertID[leafCount] = vIdx;
       leafLevel[leafCount] = block.level();
@@ -250,9 +243,8 @@ public:
 
       if(hasCells)
       {
-        leafVertID_unique[leafCount] = m_octree.blockIndexesVertex(vIdx, block)
-          ? vIdx
-          : MeshWrapper<DIM>::NO_VERTEX;
+        leafVertID_unique[leafCount] =
+          m_octree.blockIndexesVertex(vIdx, block) ? vIdx : MeshWrapper<DIM>::NO_VERTEX;
 
         leafCellCount[leafCount] =
           leafData.hasData() ? m_octree.leafCells(block, leafData).size() : 0;
@@ -327,8 +319,7 @@ protected:
   // Utility function to add an integer-based field
   axom::IndexType* addIntField(DebugMesh* mesh, const std::string& name) const
   {
-    axom::IndexType* fld =
-      mesh->createField<axom::IndexType>(name, mint::CELL_CENTERED);
+    axom::IndexType* fld = mesh->createField<axom::IndexType>(name, mint::CELL_CENTERED);
     SLIC_ASSERT(fld != nullptr);
     return fld;
   }
@@ -342,13 +333,11 @@ protected:
   }
 
   /// Utility function to get the list of cell ids indexing a vertex in a block
-  std::vector<CellIndex> getCellsIndexingVertex(VertexIndex vIdx,
-                                                BlockIndex vertexBlock) const
+  std::vector<CellIndex> getCellsIndexingVertex(VertexIndex vIdx, BlockIndex vertexBlock) const
   {
     std::vector<CellIndex> cells;
 
-    CellIndexSet blockCells =
-      m_octree.leafCells(vertexBlock, m_octree[vertexBlock]);
+    CellIndexSet blockCells = m_octree.leafCells(vertexBlock, m_octree[vertexBlock]);
     for(int i = 0; i < blockCells.size(); ++i)
     {
       CellIndex cIdx = blockCells[i];
@@ -411,8 +400,7 @@ protected:
  * implementation
  */
 template <>
-class InOutOctreeMeshDumper<2>
-  : public InOutOctreeMeshDumperBase<2, InOutOctreeMeshDumper<2>>
+class InOutOctreeMeshDumper<2> : public InOutOctreeMeshDumperBase<2, InOutOctreeMeshDumper<2>>
 {
 private:
   static constexpr int DIM = 2;
@@ -448,18 +436,15 @@ public:
   }
 
   /// Generates a VTK mesh for the InOutOctree restricted to the neighborhood around a given vertex
-  void dumpLocalOctreeMeshesForVertex(const std::string& name,
-                                      VertexIndex vIdx) const
+  void dumpLocalOctreeMeshesForVertex(const std::string& name, VertexIndex vIdx) const
   {
     std::string vertStr = fmt::format("{}vertex_{}", name, vIdx);
 
     BlockIndex vertexBlock = m_octree.m_vertexToBlockMap[vIdx];
 
     // Dump a mesh for the vertex's containing block
-    std::string blockStr = fmt::format("{}_block_{}_{}",
-                                       vertStr,
-                                       vertexBlock.pt()[0],
-                                       vertexBlock.pt()[1]);
+    std::string blockStr =
+      fmt::format("{}_block_{}_{}", vertStr, vertexBlock.pt()[0], vertexBlock.pt()[1]);
     std::vector<BlockIndex> blocks;
     blocks.push_back(vertexBlock);
     dumpOctreeMeshBlocks(blockStr, blocks, true);
@@ -486,12 +471,10 @@ public:
   }
 
   /// Generates a VTK mesh for the InOutOctree restricted to the neighborhood of a given block
-  void dumpLocalOctreeMeshesForBlock(const std::string& name,
-                                     const BlockIndex& block) const
+  void dumpLocalOctreeMeshesForBlock(const std::string& name, const BlockIndex& block) const
   {
     // Dump a mesh with the single block
-    std::string blockStr =
-      fmt::format("{}block_{}_{}", name, block.pt()[0], block.pt()[1]);
+    std::string blockStr = fmt::format("{}block_{}_{}", name, block.pt()[0], block.pt()[1]);
 
     std::vector<BlockIndex> blocks;
     blocks.push_back(block);
@@ -556,9 +539,7 @@ private:
   }
 
   /// Adds a line segment to the provided mesh
-  void addLineSegment(DebugMesh* mesh,
-                      const CellIndex& cIdx,
-                      bool shouldLogSegments) const
+  void addLineSegment(DebugMesh* mesh, const CellIndex& cIdx, bool shouldLogSegments) const
   {
     SpaceCell segPos = m_octree.m_meshWrapper.cellPositions(cIdx);
 
@@ -586,9 +567,7 @@ private:
 
 public:
   /// Adds a 2D octree block to the provided mesh
-  void addOctreeBlock(DebugMesh* mesh,
-                      const BlockIndex& block,
-                      bool shouldLogBlocks) const
+  void addOctreeBlock(DebugMesh* mesh, const BlockIndex& block, bool shouldLogBlocks) const
   {
     GeometricBoundingBox blockBB = m_octree.blockBoundingBox(block);
 
@@ -615,9 +594,8 @@ public:
     {
       static int counter = 0;
       SLIC_INFO("// Block index " << block);
-      SLIC_INFO("BoundingBoxType box"
-                << ++counter << "(PointType::make_point" << bMin << ","
-                << "PointType::make_point" << bMax << ");");
+      SLIC_INFO("BoundingBoxType box" << ++counter << "(PointType::make_point" << bMin << ","
+                                      << "PointType::make_point" << bMax << ");");
     }
   }
 };
@@ -630,8 +608,7 @@ public:
  * implementation
  */
 template <>
-class InOutOctreeMeshDumper<3>
-  : public InOutOctreeMeshDumperBase<3, InOutOctreeMeshDumper<3>>
+class InOutOctreeMeshDumper<3> : public InOutOctreeMeshDumperBase<3, InOutOctreeMeshDumper<3>>
 {
 private:
   static constexpr int DIM = 3;
@@ -666,8 +643,7 @@ public:
   }
 
   /// Generates a VTK mesh for the InOutOctree restricted to the neighborhood around a given vertex
-  void dumpLocalOctreeMeshesForVertex(const std::string& name,
-                                      VertexIndex vIdx) const
+  void dumpLocalOctreeMeshesForVertex(const std::string& name, VertexIndex vIdx) const
   {
     std::string vertStr = fmt::format("{}vertex_{}", name, vIdx);
 
@@ -705,15 +681,11 @@ public:
   }
 
   /// Generates a VTK mesh for the InOutOctree restricted to the neighborhood of a given block
-  void dumpLocalOctreeMeshesForBlock(const std::string& name,
-                                     const BlockIndex& block) const
+  void dumpLocalOctreeMeshesForBlock(const std::string& name, const BlockIndex& block) const
   {
     // Dump a mesh with the single block
-    std::string blockStr = fmt::format("{}block_{}_{}_{}",
-                                       name,
-                                       block.pt()[0],
-                                       block.pt()[1],
-                                       block.pt()[2]);
+    std::string blockStr =
+      fmt::format("{}block_{}_{}_{}", name, block.pt()[0], block.pt()[1], block.pt()[2]);
 
     std::vector<BlockIndex> blocks;
     blocks.push_back(block);
@@ -815,9 +787,7 @@ private:
 
 public:
   /// Adds a 3D octree block to the provided mesh
-  void addOctreeBlock(DebugMesh* mesh,
-                      const BlockIndex& block,
-                      bool shouldLogBlocks) const
+  void addOctreeBlock(DebugMesh* mesh, const BlockIndex& block, bool shouldLogBlocks) const
   {
     GeometricBoundingBox blockBB = m_octree.blockBoundingBox(block);
 
@@ -849,9 +819,8 @@ public:
     {
       static int counter = 0;
       SLIC_INFO("// Block index " << block);
-      SLIC_INFO("BoundingBoxType box"
-                << ++counter << "(PointType::make_point" << bMin << ","
-                << "PointType::make_point" << bMax << ");");
+      SLIC_INFO("BoundingBoxType box" << ++counter << "(PointType::make_point" << bMin << ","
+                                      << "PointType::make_point" << bMax << ");");
     }
   }
 };

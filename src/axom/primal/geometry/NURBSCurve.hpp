@@ -67,13 +67,11 @@ public:
   using BoundingBoxType = BoundingBox<T, NDIMS>;
   using OrientedBoundingBoxType = OrientedBoundingBox<T, NDIMS>;
 
-  AXOM_STATIC_ASSERT_MSG(
-    (NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
-    "A NURBS Curve object may be defined in 1-, 2-, or 3-D");
+  AXOM_STATIC_ASSERT_MSG((NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
+                         "A NURBS Curve object may be defined in 1-, 2-, or 3-D");
 
-  AXOM_STATIC_ASSERT_MSG(
-    std::is_arithmetic<T>::value,
-    "A NURBS Curve must be defined using an arithmetic type");
+  AXOM_STATIC_ASSERT_MSG(std::is_arithmetic<T>::value,
+                         "A NURBS Curve must be defined using an arithmetic type");
 
 public:
   /*!
@@ -282,8 +280,7 @@ public:
    * 
    * \pre Requires npts > degree and degree >= 0
    */
-  NURBSCurve(const axom::Array<PointType>& pts, int degree)
-    : m_controlPoints(pts)
+  NURBSCurve(const axom::Array<PointType>& pts, int degree) : m_controlPoints(pts)
   {
     makeNonrational();
     m_knotvec = KnotVectorType(pts.size(), degree);
@@ -302,9 +299,7 @@ public:
    * 
    * \pre Requires npts > degree, degree >= 0, and npts == nwts
    */
-  NURBSCurve(const axom::Array<PointType>& pts,
-             const axom::Array<T>& weights,
-             int degree)
+  NURBSCurve(const axom::Array<PointType>& pts, const axom::Array<T>& weights, int degree)
     : m_controlPoints(pts)
     , m_weights(weights)
   {
@@ -324,8 +319,7 @@ public:
    * 
    * \pre Requires a valid knot vector and npts > degree
    */
-  NURBSCurve(const axom::Array<PointType>& pts, const axom::Array<T>& knots)
-    : m_controlPoints(pts)
+  NURBSCurve(const axom::Array<PointType>& pts, const axom::Array<T>& knots) : m_controlPoints(pts)
   {
     makeNonrational();
 
@@ -414,9 +408,7 @@ public:
   PointType evaluate(T t) const
   {
     SLIC_ASSERT(m_knotvec.isValidParameter(t));
-    t = axom::utilities::clampVal(t,
-                                  m_knotvec[0],
-                                  m_knotvec[m_knotvec.getNumKnots() - 1]);
+    t = axom::utilities::clampVal(t, m_knotvec[0], m_knotvec[m_knotvec.getNumKnots() - 1]);
 
     const auto span = m_knotvec.findSpan(t);
     const auto N_evals = m_knotvec.calculateBasisFunctionsBySpan(span, t);
@@ -533,10 +525,7 @@ public:
    * 
    * \note If t is outside the knot span up to this tolerance, it is clamped to the span
    */
-  void evaluate_second_derivative(T t,
-                                  PointType& eval,
-                                  VectorType& Dt,
-                                  VectorType& DtDt) const
+  void evaluate_second_derivative(T t, PointType& eval, VectorType& Dt, VectorType& DtDt) const
   {
     axom::Array<VectorType> ders;
 
@@ -560,15 +549,10 @@ public:
    * 
    * \note If t is outside the knot span up to this tolerance, it is clamped to the span
    */
-  void evaluateDerivatives(T t,
-                           int d,
-                           PointType& eval,
-                           axom::Array<VectorType>& ders) const
+  void evaluateDerivatives(T t, int d, PointType& eval, axom::Array<VectorType>& ders) const
   {
     SLIC_ASSERT(m_knotvec.isValidParameter(t));
-    t = axom::utilities::clampVal(t,
-                                  m_knotvec[0],
-                                  m_knotvec[m_knotvec.getNumKnots() - 1]);
+    t = axom::utilities::clampVal(t, m_knotvec[0], m_knotvec[m_knotvec.getNumKnots() - 1]);
 
     const int p = m_knotvec.getDegree();
     ders.resize(d);
@@ -675,9 +659,7 @@ public:
   axom::IndexType insertKnot(T t, int target_multiplicity = 1)
   {
     SLIC_ASSERT(m_knotvec.isValidParameter(t));
-    t = axom::utilities::clampVal(t,
-                                  m_knotvec[0],
-                                  m_knotvec[m_knotvec.getNumKnots() - 1]);
+    t = axom::utilities::clampVal(t, m_knotvec[0], m_knotvec[m_knotvec.getNumKnots() - 1]);
 
     SLIC_ASSERT(target_multiplicity > 0);
 
@@ -725,8 +707,8 @@ public:
     {
       for(int N = 0; N < NDIMS; ++N)
       {
-        tempControlPoints[i][N] = m_controlPoints[span - p + i][N] *
-          (isRational ? m_weights[span - p + i] : 1.0);
+        tempControlPoints[i][N] =
+          m_controlPoints[span - p + i][N] * (isRational ? m_weights[span - p + i] : 1.0);
       }
 
       if(isRational)
@@ -742,26 +724,22 @@ public:
       L = span - p + j;
       for(int i = 0; i <= p - j - s; ++i)
       {
-        T alpha =
-          (t - m_knotvec[L + i]) / (m_knotvec[i + span + 1] - m_knotvec[L + i]);
+        T alpha = (t - m_knotvec[L + i]) / (m_knotvec[i + span + 1] - m_knotvec[L + i]);
 
         tempControlPoints[i].array() =
-          (1.0 - alpha) * tempControlPoints[i].array() +
-          alpha * tempControlPoints[i + 1].array();
+          (1.0 - alpha) * tempControlPoints[i].array() + alpha * tempControlPoints[i + 1].array();
 
         if(isRational)
         {
-          tempWeights[i] =
-            (1.0 - alpha) * tempWeights[i] + alpha * tempWeights[i + 1];
+          tempWeights[i] = (1.0 - alpha) * tempWeights[i] + alpha * tempWeights[i + 1];
         }
       }
 
       for(int N = 0; N < NDIMS; ++N)
       {
-        newControlPoints[L][N] =
-          tempControlPoints[0][N] / (isRational ? tempWeights[0] : 1.0);
-        newControlPoints[span + r - j - s][N] = tempControlPoints[p - j - s][N] /
-          (isRational ? tempWeights[p - j - s] : 1.0);
+        newControlPoints[L][N] = tempControlPoints[0][N] / (isRational ? tempWeights[0] : 1.0);
+        newControlPoints[span + r - j - s][N] =
+          tempControlPoints[p - j - s][N] / (isRational ? tempWeights[p - j - s] : 1.0);
       }
 
       if(isRational)
@@ -806,10 +784,7 @@ public:
    *
    * \pre Requires \a t in the *strict interior* of the span of the knots
    */
-  void split(T t,
-             NURBSCurve<T, NDIMS>& n1,
-             NURBSCurve<T, NDIMS>& n2,
-             bool normalize = false) const
+  void split(T t, NURBSCurve<T, NDIMS>& n1, NURBSCurve<T, NDIMS>& n2, bool normalize = false) const
   {
     SLIC_ASSERT(m_knotvec.isValidInteriorParameter(t));
 
@@ -835,13 +810,11 @@ public:
     n2.m_weights.resize(isCurveRational ? nkts - s - 1 : 0);
     for(int i = 0; i < n2.m_controlPoints.size(); ++i)
     {
-      n2.m_controlPoints[nkts - s - 2 - i] =
-        n1.m_controlPoints[n1.m_controlPoints.size() - 1 - i];
+      n2.m_controlPoints[nkts - s - 2 - i] = n1.m_controlPoints[n1.m_controlPoints.size() - 1 - i];
 
       if(isCurveRational)
       {
-        n2.m_weights[nkts - s - 2 - i] =
-          n1.m_weights[n1.m_weights.size() - 1 - i];
+        n2.m_weights[nkts - s - 2 - i] = n1.m_weights[n1.m_weights.size() - 1 - i];
       }
     }
 
@@ -963,16 +936,13 @@ public:
 
             if(isCurveRational)
             {
-              beziers[nb].setWeight(
-                k,
-                alpha * weight_k + (1.0 - alpha) * weight_km1);
+              beziers[nb].setWeight(k, alpha * weight_k + (1.0 - alpha) * weight_km1);
             }
 
             for(int N = 0; N < NDIMS; ++N)
             {
-              beziers[nb][k][N] =
-                (alpha * beziers[nb][k][N] * weight_k +
-                 (1.0 - alpha) * beziers[nb][k - 1][N] * weight_km1) /
+              beziers[nb][k][N] = (alpha * beziers[nb][k][N] * weight_k +
+                                   (1.0 - alpha) * beziers[nb][k - 1][N] * weight_km1) /
                 (isCurveRational ? beziers[nb].getWeight(k) : 1.0);
             }
           }
@@ -1056,10 +1026,7 @@ public:
   int getOrder() const { return static_cast<int>(m_knotvec.getDegree() + 1); }
 
   /// \brief Returns the number of control poitns in the NURBS Curve
-  int getNumControlPoints() const
-  {
-    return static_cast<int>(m_controlPoints.size());
-  }
+  int getNumControlPoints() const { return static_cast<int>(m_controlPoints.size()); }
 
   /*!
    * \brief Set the number control points
@@ -1201,11 +1168,10 @@ public:
    * 
    * \return True if the two curves are equal, false otherwise
    */
-  friend inline bool operator==(const NURBSCurve<T, NDIMS>& lhs,
-                                const NURBSCurve<T, NDIMS>& rhs)
+  friend inline bool operator==(const NURBSCurve<T, NDIMS>& lhs, const NURBSCurve<T, NDIMS>& rhs)
   {
-    return (lhs.m_controlPoints == rhs.m_controlPoints) &&
-      (lhs.m_knotvec == rhs.m_knotvec) && (lhs.m_weights == rhs.m_weights);
+    return (lhs.m_controlPoints == rhs.m_controlPoints) && (lhs.m_knotvec == rhs.m_knotvec) &&
+      (lhs.m_weights == rhs.m_weights);
   }
 
   /*!
@@ -1216,8 +1182,7 @@ public:
    * 
    * \return True if the two curves are not equal, false otherwise
    */
-  friend inline bool operator!=(const NURBSCurve<T, NDIMS>& lhs,
-                                const NURBSCurve<T, NDIMS>& rhs)
+  friend inline bool operator!=(const NURBSCurve<T, NDIMS>& lhs, const NURBSCurve<T, NDIMS>& rhs)
   {
     return !(lhs == rhs);
   }
@@ -1259,15 +1224,13 @@ public:
   /// \brief Returns an axis-aligned bounding box containing the NURBS curve
   BoundingBoxType boundingBox() const
   {
-    return BoundingBoxType(m_controlPoints.data(),
-                           static_cast<int>(m_controlPoints.size()));
+    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
   /// \brief Returns an oriented bounding box containing the NURBS curve
   OrientedBoundingBoxType orientedBoundingBox() const
   {
-    return OrientedBoundingBoxType(m_controlPoints.data(),
-                                   static_cast<int>(m_controlPoints.size()));
+    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
   /*!

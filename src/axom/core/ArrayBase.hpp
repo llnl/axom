@@ -20,8 +20,7 @@
 #include <iostream>  // for std::cerr and std::ostream
 #include <numeric>   // for std::accumulate
 #if defined(__GLIBCXX__) && !defined(_GLIBCXX_USE_CXX11_ABI)
-  #error \
-    "GNU libstdc++ versions less than 5 do not fully support C++11 and are unsupported by Axom."
+  #error "GNU libstdc++ versions less than 5 do not fully support C++11 and are unsupported by Axom."
 #endif
 
 namespace axom
@@ -78,8 +77,7 @@ struct SubsliceProxy<T, SliceDim, const ArraySubslice<T, OldSliceDim, BaseArray>
  * \return os the updated output stream object.
  */
 template <typename T, int DIM, typename ArrayType>
-std::ostream& operator<<(std::ostream& os,
-                         const ArrayBase<T, DIM, ArrayType>& arr);
+std::ostream& operator<<(std::ostream& os, const ArrayBase<T, DIM, ArrayType>& arr);
 
 /*!
  * \brief Equality comparison operator for Array-likes
@@ -90,8 +88,7 @@ std::ostream& operator<<(std::ostream& os,
  * and have the same elements.
  */
 template <typename T1, typename T2, int DIM, typename LArrayType, typename RArrayType>
-bool operator==(const ArrayBase<T1, DIM, LArrayType>& lhs,
-                const ArrayBase<T2, DIM, RArrayType>& rhs);
+bool operator==(const ArrayBase<T1, DIM, LArrayType>& lhs, const ArrayBase<T2, DIM, RArrayType>& rhs);
 
 /*!
  * \brief Inequality comparison operator for Arrays
@@ -102,8 +99,7 @@ bool operator==(const ArrayBase<T1, DIM, LArrayType>& lhs,
  * equal shape, or do not have the same elements.
  */
 template <typename T1, typename T2, int DIM, typename LArrayType, typename RArrayType>
-bool operator!=(const ArrayBase<T1, DIM, LArrayType>& lhs,
-                const ArrayBase<T2, DIM, RArrayType>& rhs);
+bool operator!=(const ArrayBase<T1, DIM, LArrayType>& lhs, const ArrayBase<T2, DIM, RArrayType>& rhs);
 
 /// @}
 
@@ -144,25 +140,22 @@ public:
   using RealConstT = typename std::conditional<is_array_view, T, const T>::type;
 
   template <int IdxDim>
-  using SliceType = typename std::conditional<
-    DIM == IdxDim,
-    T&,
-    typename detail::SubsliceProxy<T, DIM - IdxDim, ArrayType>::type>::type;
+  using SliceType =
+    typename std::conditional<DIM == IdxDim,
+                              T&,
+                              typename detail::SubsliceProxy<T, DIM - IdxDim, ArrayType>::type>::type;
 
   template <int IdxDim>
-  using ConstSliceType = typename std::conditional<
-    DIM == IdxDim,
-    RealConstT&,
-    typename detail::SubsliceProxy<T, DIM - IdxDim, const ArrayType>::type>::type;
+  using ConstSliceType =
+    typename std::conditional<DIM == IdxDim,
+                              RealConstT&,
+                              typename detail::SubsliceProxy<T, DIM - IdxDim, const ArrayType>::type>::type;
 
   constexpr static int Dims = DIM;
 
   //! @brief Construct row-major, unitnitialized array.
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE ArrayBase() : m_shape(), m_mapping(ArrayStrideOrder::ROW)
-  {
-    updateStrides();
-  }
+  AXOM_HOST_DEVICE ArrayBase() : m_shape(), m_mapping(ArrayStrideOrder::ROW) { updateStrides(); }
 
   /*!
    * \brief Parameterized constructor that sets up the array shape.
@@ -172,8 +165,7 @@ public:
    *  elements in row-major order.
    */
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, DIM>& shape,
-                             int min_stride = 1)
+  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, DIM>& shape, int min_stride = 1)
     : m_shape {shape}
     , m_mapping(shape, ArrayStrideOrder::ROW, min_stride)
     , m_minStride(m_mapping.fastestStrideLength())
@@ -191,8 +183,7 @@ public:
    * not the partial shape information in \c mapping.
    */
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, DIM>& shape,
-                             const MDMapping<DIM>& mapping)
+  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, DIM>& shape, const MDMapping<DIM>& mapping)
     : m_shape {shape}
     , m_mapping(shape, mapping.slowestDirs(), mapping.fastestStrideLength())
     , m_minStride(m_mapping.fastestStrideLength())
@@ -252,8 +243,7 @@ public:
   template <typename... Args>
   AXOM_HOST_DEVICE SliceType<sizeof...(Args)> operator()(Args... args)
   {
-    static_assert(sizeof...(Args) <= DIM,
-                  "Index dimensions different from array dimensions");
+    static_assert(sizeof...(Args) <= DIM, "Index dimensions different from array dimensions");
     constexpr int UDim = sizeof...(Args);
     const StackArray<IndexType, UDim> indices {{static_cast<IndexType>(args)...}};
     return (*this)[indices];
@@ -262,8 +252,7 @@ public:
   template <typename... Args>
   AXOM_HOST_DEVICE ConstSliceType<sizeof...(Args)> operator()(Args... args) const
   {
-    static_assert(sizeof...(Args) <= DIM,
-                  "Index dimensions different from array dimensions");
+    static_assert(sizeof...(Args) <= DIM, "Index dimensions different from array dimensions");
     constexpr int UDim = sizeof...(Args);
     const StackArray<IndexType, UDim> indices {static_cast<IndexType>(args)...};
     return (*this)[indices];
@@ -305,18 +294,15 @@ public:
   template <int UDim>
   AXOM_HOST_DEVICE SliceType<UDim> operator[](const StackArray<IndexType, UDim>& idx)
   {
-    static_assert(UDim <= DIM,
-                  "Index dimensions cannot be larger than array dimensions");
+    static_assert(UDim <= DIM, "Index dimensions cannot be larger than array dimensions");
     return asDerived().sliceImpl(idx);
   }
 
   /// \overload
   template <int UDim>
-  AXOM_HOST_DEVICE ConstSliceType<UDim> operator[](
-    const StackArray<IndexType, UDim>& idx) const
+  AXOM_HOST_DEVICE ConstSliceType<UDim> operator[](const StackArray<IndexType, UDim>& idx) const
   {
-    static_assert(UDim <= DIM,
-                  "Index dimensions cannot be larger than array dimensions");
+    static_assert(UDim <= DIM, "Index dimensions cannot be larger than array dimensions");
     return asDerived().sliceImpl(idx);
   }
 
@@ -354,10 +340,7 @@ public:
   }
 
   /// \brief Returns the dimensions of the Array
-  AXOM_HOST_DEVICE const StackArray<IndexType, DIM>& shape() const
-  {
-    return m_shape;
-  }
+  AXOM_HOST_DEVICE const StackArray<IndexType, DIM>& shape() const { return m_shape; }
 
   /// \brief Returns the multidimensional mapping for the Array
   AXOM_HOST_DEVICE const MDMapping<DIM>& mapping() const { return m_mapping; }
@@ -365,10 +348,7 @@ public:
   /*!
    * \brief Returns the memory strides of the Array.
    */
-  AXOM_HOST_DEVICE const StackArray<IndexType, DIM>& strides() const
-  {
-    return m_mapping.strides();
-  }
+  AXOM_HOST_DEVICE const StackArray<IndexType, DIM>& strides() const { return m_mapping.strides(); }
 
   /*!
    * \brief Returns the minimum stride between adjacent items.
@@ -447,10 +427,7 @@ protected:
 
 private:
   /// \brief Returns a reference to the Derived CRTP object - see https://www.fluentcpp.com/2017/05/12/curiously-recurring-template-pattern/
-  AXOM_HOST_DEVICE ArrayType& asDerived()
-  {
-    return static_cast<ArrayType&>(*this);
-  }
+  AXOM_HOST_DEVICE ArrayType& asDerived() { return static_cast<ArrayType&>(*this); }
   /// \overload
   AXOM_HOST_DEVICE const ArrayType& asDerived() const
   {
@@ -485,8 +462,7 @@ private:
   template <int UDim>
   AXOM_HOST_DEVICE IndexType offset(const StackArray<IndexType, UDim>& idx) const
   {
-    static_assert(UDim <= DIM,
-                  "Index dimensions cannot be larger than array dimensions");
+    static_assert(UDim <= DIM, "Index dimensions cannot be larger than array dimensions");
     assert(mapping().getStrideOrder() & ArrayStrideOrder::ROW);
     return numerics::dot_product(idx.begin(), m_mapping.strides().begin(), UDim);
   }
@@ -501,9 +477,8 @@ private:
   }
 
   /// \brief Checks a shape and stride array for correct bounds.
-  AXOM_HOST_DEVICE inline void validateShapeAndStride(
-    const StackArray<IndexType, DIM>& shape,
-    const StackArray<IndexType, DIM>& stride)
+  AXOM_HOST_DEVICE inline void validateShapeAndStride(const StackArray<IndexType, DIM>& shape,
+                                                      const StackArray<IndexType, DIM>& stride)
   {
     int sorted_dims[DIM];
     for(int dim = 0; dim < DIM; dim++)
@@ -511,11 +486,9 @@ private:
       sorted_dims[dim] = dim;
     }
     // Sort the dimensions by stride.
-    axom::utilities::insertionSort(sorted_dims,
-                                   DIM,
-                                   [&](int dim_a, int dim_b) -> bool {
-                                     return stride[dim_a] < stride[dim_b];
-                                   });
+    axom::utilities::insertionSort(sorted_dims, DIM, [&](int dim_a, int dim_b) -> bool {
+      return stride[dim_a] < stride[dim_b];
+    });
 // Work from the smallest-strided dimension to the largest-strided.
 #ifndef NDEBUG
     for(int dim = 0; dim < DIM - 1; dim++)
@@ -544,8 +517,7 @@ private:
 
   /// \overload
   template <int UDim>
-  AXOM_HOST_DEVICE ConstSliceType<UDim> sliceImpl(
-    const StackArray<IndexType, UDim>& idx) const
+  AXOM_HOST_DEVICE ConstSliceType<UDim> sliceImpl(const StackArray<IndexType, UDim>& idx) const
   {
     return ConstSliceType<UDim>(&asDerived(), idx);
   }
@@ -559,8 +531,7 @@ private:
   }
 
   /// \overload
-  AXOM_HOST_DEVICE ConstSliceType<DIM> sliceImpl(
-    const StackArray<IndexType, DIM>& idx) const
+  AXOM_HOST_DEVICE ConstSliceType<DIM> sliceImpl(const StackArray<IndexType, DIM>& idx) const
   {
     const IndexType baseIdx = offset(idx);
     assert(inBounds(baseIdx));
@@ -602,24 +573,19 @@ public:
 
   AXOM_HOST_DEVICE ArrayBase(IndexType = 0) { }
 
-  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, int stride = 1)
-    : m_stride(stride)
-  { }
+  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, int stride = 1) : m_stride(stride) { }
 
-  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&,
-                             const StackArray<IndexType, 1>& stride)
+  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, const StackArray<IndexType, 1>& stride)
     : m_stride(stride[0])
   { }
 
-  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&,
-                             const MDMapping<1>& mapping)
+  AXOM_HOST_DEVICE ArrayBase(const StackArray<IndexType, 1>&, const MDMapping<1>& mapping)
     : m_stride(mapping.strides()[0])
   { }
 
   // Empty implementation because no member data
   template <typename OtherArrayType>
-  AXOM_HOST_DEVICE ArrayBase(
-    const ArrayBase<typename std::remove_const<T>::type, 1, OtherArrayType>&)
+  AXOM_HOST_DEVICE ArrayBase(const ArrayBase<typename std::remove_const<T>::type, 1, OtherArrayType>&)
   { }
 
   // Empty implementation because no member data
@@ -630,17 +596,11 @@ public:
 
   /// \brief Returns the dimensions of the Array
   // Double curly braces needed for C++11 prior to resolution of CWG issue 1720
-  AXOM_HOST_DEVICE StackArray<IndexType, 1> shape() const
-  {
-    return {{asDerived().size()}};
-  }
+  AXOM_HOST_DEVICE StackArray<IndexType, 1> shape() const { return {{asDerived().size()}}; }
 
   /// \brief Returns the multidimensional mapping for the Array
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE MDMapping<1> mapping() const
-  {
-    return MDMapping<1> {{m_stride}};
-  }
+  AXOM_HOST_DEVICE MDMapping<1> mapping() const { return MDMapping<1> {{m_stride}}; }
 
   /*!
    * \brief Returns the stride between adjacent items.
@@ -716,10 +676,7 @@ protected:
 
 private:
   /// \brief Returns a reference to the Derived CRTP object - see https://www.fluentcpp.com/2017/05/12/curiously-recurring-template-pattern/
-  AXOM_HOST_DEVICE ArrayType& asDerived()
-  {
-    return static_cast<ArrayType&>(*this);
-  }
+  AXOM_HOST_DEVICE ArrayType& asDerived() { return static_cast<ArrayType&>(*this); }
   /// \overload
   AXOM_HOST_DEVICE const ArrayType& asDerived() const
   {
@@ -733,10 +690,7 @@ private:
    * \brief Returns the size of the range of memory in which elements are
    *  located. This is equivalent to size() * minStride().
    */
-  AXOM_HOST_DEVICE IndexType memorySize() const
-  {
-    return m_stride * shape()[0];
-  }
+  AXOM_HOST_DEVICE IndexType memorySize() const { return m_stride * shape()[0]; }
 
   /*! \brief Test if idx is within bounds */
   AXOM_HOST_DEVICE inline bool inBounds(IndexType idx) const
@@ -758,8 +712,7 @@ private:
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM, typename ArrayType>
-inline std::ostream& print(std::ostream& os,
-                           const ArrayBase<T, DIM, ArrayType>& array)
+inline std::ostream& print(std::ostream& os, const ArrayBase<T, DIM, ArrayType>& array)
 {
 #if defined(AXOM_USE_UMPIRE) && defined(UMPIRE_ENABLE_DEVICE)
   const int alloc_id = static_cast<const ArrayType&>(array).getAllocatorID();
@@ -794,12 +747,11 @@ std::ostream& operator<<(std::ostream& os, const ArrayBase<T, DIM, ArrayType>& a
 
 //------------------------------------------------------------------------------
 template <typename T1, typename T2, int DIM, typename LArrayType, typename RArrayType>
-bool operator==(const ArrayBase<T1, DIM, LArrayType>& lhs,
-                const ArrayBase<T2, DIM, RArrayType>& rhs)
+bool operator==(const ArrayBase<T1, DIM, LArrayType>& lhs, const ArrayBase<T2, DIM, RArrayType>& rhs)
 {
-  static_assert(std::is_same<typename std::remove_const<T1>::type,
-                             typename std::remove_const<T2>::type>::value,
-                "Cannot compare Arrays of incompatible type");
+  static_assert(
+    std::is_same<typename std::remove_const<T1>::type, typename std::remove_const<T2>::type>::value,
+    "Cannot compare Arrays of incompatible type");
   if(static_cast<const LArrayType&>(lhs).getAllocatorID() !=
      static_cast<const RArrayType&>(rhs).getAllocatorID())
   {
@@ -824,8 +776,7 @@ bool operator==(const ArrayBase<T1, DIM, LArrayType>& lhs,
 
 //------------------------------------------------------------------------------
 template <typename T1, typename T2, int DIM, typename LArrayType, typename RArrayType>
-bool operator!=(const ArrayBase<T1, DIM, LArrayType>& lhs,
-                const ArrayBase<T2, DIM, RArrayType>& rhs)
+bool operator!=(const ArrayBase<T1, DIM, LArrayType>& lhs, const ArrayBase<T2, DIM, RArrayType>& rhs)
 {
   return !(lhs == rhs);
 }
@@ -861,8 +812,7 @@ bool allNonNegative(const T (&arr)[N])
 template <int N, typename T, int DIM>
 AXOM_HOST_DEVICE StackArray<T, N> takeLastElems(const StackArray<T, DIM>& arr)
 {
-  static_assert(N <= DIM,
-                "Attempting to take more elements than the array holds");
+  static_assert(N <= DIM, "Attempting to take more elements than the array holds");
   StackArray<T, N> ret;
   for(int i = 0; i < N; i++)
   {
@@ -879,8 +829,8 @@ struct all_types_are_integral_impl : std::true_type
 template <typename First, typename... Rest>
 struct all_types_are_integral_impl<First, Rest...>
 {
-  static constexpr bool value = std::is_integral<First>::value &&
-    all_types_are_integral_impl<Rest...>::value;
+  static constexpr bool value =
+    std::is_integral<First>::value && all_types_are_integral_impl<Rest...>::value;
 };
 
 /// \brief Checks if all types in a parameter pack are integral
@@ -962,11 +912,7 @@ struct ArrayOpsBase<T, OperationSpace::Host>
    * \param [in] values the values to set each array element to
    * \param [in] space the memory space in which values resides
    */
-  static void fill_range(T* array,
-                         IndexType begin,
-                         IndexType nelems,
-                         const T* values,
-                         MemorySpace space)
+  static void fill_range(T* array, IndexType begin, IndexType nelems, const T* values, MemorySpace space)
   {
 #if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
     if(std::is_trivially_copyable<T>::value)
@@ -1046,9 +992,7 @@ struct ArrayOpsBase<T, OperationSpace::Host>
       auto rdest = std::reverse_iterator<T*>(array + dst_last);
       // Do an "uninitialized-move" in reverse order, to avoid overwriting
       // any existing elements.
-      std::uninitialized_copy(std::make_move_iterator(rbegin),
-                              std::make_move_iterator(rend),
-                              rdest);
+      std::uninitialized_copy(std::make_move_iterator(rbegin), std::make_move_iterator(rend), rdest);
     }
     else if(src_begin > dst)
     {
@@ -1121,10 +1065,10 @@ struct DeviceInitTag<T, std::enable_if_t<std::is_trivially_default_constructible
 };
 
 template <typename T>
-struct DeviceInitTag<T,
-                     std::enable_if_t<!std::is_trivially_default_constructible<T>::value &&
-                                      std::is_default_constructible<T>::value &&
-                                      std::is_trivially_copyable<T>::value>>
+struct DeviceInitTag<
+  T,
+  std::enable_if_t<!std::is_trivially_default_constructible<T>::value &&
+                   std::is_default_constructible<T>::value && std::is_trivially_copyable<T>::value>>
 {
   using Type = InitTypeOnDeviceWithCopy;
 };
@@ -1145,10 +1089,7 @@ struct DeviceStagingBuffer<T, OperationSpace::Device>
    * \param [in] read_from_data if true, copies existing data range to the
    *  staging buffer during construction
    */
-  DeviceStagingBuffer(T* data,
-                      IndexType begin,
-                      IndexType nelems,
-                      bool read_from_data = false)
+  DeviceStagingBuffer(T* data, IndexType begin, IndexType nelems, bool read_from_data = false)
     : m_data(data)
     , m_begin(begin)
     , m_num_elems(nelems)
@@ -1185,10 +1126,7 @@ struct DeviceStagingBuffer<T, OperationSpace::Device>
 template <typename T>
 struct DeviceStagingBuffer<T, OperationSpace::Unified_Device>
 {
-  DeviceStagingBuffer(T* data,
-                      IndexType begin,
-                      IndexType nelems,
-                      bool read_from_data = false)
+  DeviceStagingBuffer(T* data, IndexType begin, IndexType nelems, bool read_from_data = false)
     : m_data(data)
     , m_begin(begin)
   {
@@ -1253,10 +1191,7 @@ struct ArrayOpsBase
    * \overload
    * \note Specialization for when T is trivially copyable.
    */
-  static void init_impl(T* data,
-                        IndexType begin,
-                        IndexType nelems,
-                        InitTypeOnDeviceWithCopy)
+  static void init_impl(T* data, IndexType begin, IndexType nelems, InitTypeOnDeviceWithCopy)
   {
     T object {};
     for_all<ExecSpace>(
@@ -1286,11 +1221,7 @@ struct ArrayOpsBase
    * \param [in] value the value to set each array element to
    * \note Specialization for when T is not trivially-copyable.
    */
-  static void fill_impl(T* array,
-                        IndexType begin,
-                        IndexType nelems,
-                        const T& value,
-                        std::false_type)
+  static void fill_impl(T* array, IndexType begin, IndexType nelems, const T& value, std::false_type)
   {
     // If we instantiated a fill kernel here it would require
     // that T's copy ctor is device-annotated which is too
@@ -1303,11 +1234,7 @@ struct ArrayOpsBase
    * \overload
    * \note Specialization for when T is trivially-copyable.
    */
-  static void fill_impl(T* array,
-                        IndexType begin,
-                        IndexType nelems,
-                        const T& value,
-                        std::true_type)
+  static void fill_impl(T* array, IndexType begin, IndexType nelems, const T& value, std::true_type)
   {
     for_all<ExecSpace>(
       nelems,
@@ -1336,11 +1263,7 @@ struct ArrayOpsBase
    * \param [in] values the values to set each array element to
    * \param [in] space the memory space in which values resides
    */
-  static void fill_range(T* array,
-                         IndexType begin,
-                         IndexType nelems,
-                         const T* values,
-                         MemorySpace space)
+  static void fill_range(T* array, IndexType begin, IndexType nelems, const T* values, MemorySpace space)
   {
     if(std::is_trivially_copyable<T>::value)
     {
@@ -1406,8 +1329,7 @@ struct ArrayOpsBase
    */
   static void move(T* array, IndexType src_begin, IndexType src_end, IndexType dst)
   {
-    if(!std::is_trivially_copyable<T>::value &&
-       SPACE == OperationSpace::Unified_Device)
+    if(!std::is_trivially_copyable<T>::value && SPACE == OperationSpace::Unified_Device)
     {
       // Type might not be trivially-relocatable, move the range on the host.
       // Note that we only do this for objects in unified/pinned memory, since
@@ -1419,9 +1341,7 @@ struct ArrayOpsBase
       // Since this memory is on the device-side, we copy it to a temporary buffer
       // first.
       IndexType nelems = src_end - src_begin;
-      T* tmp_buf =
-        axom::allocate<T>(nelems,
-                          axom::execution_space<ExecSpace>::allocatorID());
+      T* tmp_buf = axom::allocate<T>(nelems, axom::execution_space<ExecSpace>::allocatorID());
       axom::copy(tmp_buf, array + src_begin, nelems * sizeof(T));
       axom::copy(array + dst, tmp_buf, nelems * sizeof(T));
       axom::deallocate(tmp_buf);
@@ -1437,8 +1357,7 @@ struct ArrayOpsBase
    */
   static void realloc_move(T* array, IndexType nelems, T* values)
   {
-    if(!std::is_trivially_copyable<T>::value &&
-       SPACE == OperationSpace::Unified_Device)
+    if(!std::is_trivially_copyable<T>::value && SPACE == OperationSpace::Unified_Device)
     {
       HostOp::realloc_move(array, nelems, values);
     }
@@ -1498,9 +1417,7 @@ struct MemSpaceTraits<MemorySpace::Dynamic>
 };
 #endif
 
-template <typename T,
-          MemorySpace SPACE,
-          bool IsUVMAccessible = MemSpaceTraits<SPACE>::IsUVMAccessible>
+template <typename T, MemorySpace SPACE, bool IsUVMAccessible = MemSpaceTraits<SPACE>::IsUVMAccessible>
 struct ArrayOps;
 
 template <typename T, MemorySpace SPACE>
@@ -1518,21 +1435,14 @@ public:
     AXOM_UNUSED_VAR(preferDevice);
   }
 
-  void init(T* array, IndexType begin, IndexType nelems)
-  {
-    Base::init(array, begin, nelems);
-  }
+  void init(T* array, IndexType begin, IndexType nelems) { Base::init(array, begin, nelems); }
 
   void fill(T* array, IndexType begin, IndexType nelems, const T& value)
   {
     Base::fill(array, begin, nelems, value);
   }
 
-  void fill_range(T* array,
-                  IndexType begin,
-                  IndexType nelems,
-                  const T* values,
-                  MemorySpace space)
+  void fill_range(T* array, IndexType begin, IndexType nelems, const T* values, MemorySpace space)
   {
     Base::fill_range(array, begin, nelems, values, space);
   }
@@ -1594,8 +1504,7 @@ public:
     }
 
     bool isUnifiedSpace = false;
-    isUnifiedSpace =
-      (space == MemorySpace::Unified || space == MemorySpace::Pinned);
+    isUnifiedSpace = (space == MemorySpace::Unified || space == MemorySpace::Pinned);
   #if defined(AXOM_USE_HIP)
     isUnifiedSpace = (isUnifiedSpace || space == MemorySpace::Device);
   #endif
@@ -1643,11 +1552,7 @@ public:
     Base::fill(array, begin, nelems, value);
   }
 
-  void fill_range(T* array,
-                  IndexType begin,
-                  IndexType nelems,
-                  const T* values,
-                  MemorySpace valueSpace)
+  void fill_range(T* array, IndexType begin, IndexType nelems, const T* values, MemorySpace valueSpace)
   {
 #if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
     if(space == MemorySpace::Device)
@@ -1754,26 +1659,21 @@ struct ArrayTraits<ArraySubslice<T, SliceDim, BaseArray>>
  *  looking up the correct allocator ID from the other ArrayView constructors.
  */
 template <typename T, int SliceDim, typename BaseArray>
-class ArraySubslice
-  : public ArrayBase<T, SliceDim, ArraySubslice<T, SliceDim, BaseArray>>
+class ArraySubslice : public ArrayBase<T, SliceDim, ArraySubslice<T, SliceDim, BaseArray>>
 {
   using BaseClass = ArrayBase<T, SliceDim, ArraySubslice<T, SliceDim, BaseArray>>;
-  using RefType = typename std::conditional<std::is_const<BaseArray>::value,
-                                            typename BaseClass::RealConstT&,
-                                            T&>::type;
+  using RefType =
+    typename std::conditional<std::is_const<BaseArray>::value, typename BaseClass::RealConstT&, T&>::type;
 
   constexpr static int OrigDims = BaseArray::Dims;
   constexpr static int NumIndices = OrigDims - SliceDim;
 
   template <int UDim>
   using SliceType =
-    typename std::conditional<UDim == SliceDim,
-                              RefType,
-                              ArraySubslice<T, SliceDim - UDim, BaseArray>>::type;
+    typename std::conditional<UDim == SliceDim, RefType, ArraySubslice<T, SliceDim - UDim, BaseArray>>::type;
 
 public:
-  AXOM_HOST_DEVICE ArraySubslice(BaseArray* array,
-                                 const StackArray<IndexType, NumIndices>& idxs)
+  AXOM_HOST_DEVICE ArraySubslice(BaseArray* array, const StackArray<IndexType, NumIndices>& idxs)
     : BaseClass(detail::takeLastElems<SliceDim>(array->shape()),
                 detail::takeLastElems<SliceDim>(array->strides()))
     , m_array(array)
@@ -1800,9 +1700,7 @@ public:
 
   AXOM_HOST_DEVICE inline T* data() const
   {
-    IndexType offset = numerics::dot_product(m_inds.begin(),
-                                             m_array->strides().begin(),
-                                             NumIndices);
+    IndexType offset = numerics::dot_product(m_inds.begin(), m_array->strides().begin(), NumIndices);
     return m_array->data() + offset;
   }
 
@@ -1813,17 +1711,13 @@ public:
   /*!
    * \brief Get the ID for the umpire allocator
    */
-  AXOM_HOST_DEVICE int getAllocatorID() const
-  {
-    return m_array->getAllocatorID();
-  }
+  AXOM_HOST_DEVICE int getAllocatorID() const { return m_array->getAllocatorID(); }
 
 protected:
   friend BaseClass;
 
   template <int UDim>
-  AXOM_HOST_DEVICE SliceType<UDim> sliceImpl(
-    const StackArray<IndexType, UDim>& idx) const
+  AXOM_HOST_DEVICE SliceType<UDim> sliceImpl(const StackArray<IndexType, UDim>& idx) const
   {
     StackArray<IndexType, UDim + NumIndices> full_inds;
     for(int i = 0; i < NumIndices; i++)

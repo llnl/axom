@@ -64,10 +64,7 @@ std::string Message::stringOfRanks(std::string delimiter) const
 
 void Message::text(const std::string& newText) { m_text = newText; }
 
-void Message::fileName(const std::string& newFileName)
-{
-  m_fileName = newFileName;
-}
+void Message::fileName(const std::string& newFileName) { m_fileName = newFileName; }
 
 void Message::lineNumber(int newLineNumber) { m_lineNumber = newLineNumber; }
 
@@ -81,16 +78,14 @@ void Message::addRank(int newRank, int ranksLimit)
   if(m_ranks.size() < (std::vector<int>::size_type)ranksLimit)
   {
     // If newRank is already in m_ranks then don't add it
-    std::vector<int>::iterator iter =
-      std::find(m_ranks.begin(), m_ranks.end(), newRank);
+    std::vector<int>::iterator iter = std::find(m_ranks.begin(), m_ranks.end(), newRank);
     if((m_ranks.size() == 0) || (iter == m_ranks.end()))
     {
       m_ranks.push_back(newRank);
     }
   }
 
-  if(!m_ranksLimitReached &&
-     (m_ranks.size() == (std::vector<int>::size_type)ranksLimit))
+  if(!m_ranksLimitReached && (m_ranks.size() == (std::vector<int>::size_type)ranksLimit))
   {
     m_ranksLimitReached = true;
   }
@@ -110,16 +105,14 @@ void Message::addRanks(const std::vector<int>& newRanks, int count, int ranksLim
       break;
     }
     // If newRank is already in m_ranks then don't add it
-    std::vector<int>::iterator iter =
-      std::find(m_ranks.begin(), m_ranks.end(), newRanks[i]);
+    std::vector<int>::iterator iter = std::find(m_ranks.begin(), m_ranks.end(), newRanks[i]);
     if((m_ranks.size() == 0) || (iter == m_ranks.end()))
     {
       m_ranks.push_back(newRanks[i]);
     }
   }
 
-  if(!m_ranksLimitReached &&
-     (m_ranks.size() == (std::vector<int>::size_type)ranksLimit))
+  if(!m_ranksLimitReached && (m_ranks.size() == (std::vector<int>::size_type)ranksLimit))
   {
     m_ranksLimitReached = true;
   }
@@ -300,26 +293,20 @@ const char* packMessages(const std::vector<Message*>& messages)
   char* packedMessagesIndex = (char*)packedMessagesString;
 
   // Copy message count to start of packed message
-  std::memcpy(packedMessagesIndex,
-              messageCountString.c_str(),
-              messageCountString.size());
+  std::memcpy(packedMessagesIndex, messageCountString.c_str(), messageCountString.size());
   packedMessagesIndex += messageCountString.size();
 
   for(int i = 0; i < messageCount; ++i)
   {
     // Copy current message size
-    std::memcpy(packedMessagesIndex,
-                sizeStrings[i].c_str(),
-                sizeStrings[i].size());
+    std::memcpy(packedMessagesIndex, sizeStrings[i].c_str(), sizeStrings[i].size());
     packedMessagesIndex += sizeStrings[i].size();
     // Copy memberDelimiter
     // ToDo: better way to copy this I'm sure
     std::memcpy(packedMessagesIndex, &memberDelimiter, sizeof(char));
     packedMessagesIndex += 1;
     // Copy packed message
-    std::memcpy(packedMessagesIndex,
-                packedMessages[i].c_str(),
-                packedMessages[i].size());
+    std::memcpy(packedMessagesIndex, packedMessages[i].c_str(), packedMessages[i].size());
     packedMessagesIndex += packedMessages[i].size();
   }
 
@@ -327,9 +314,7 @@ const char* packMessages(const std::vector<Message*>& messages)
   return packedMessagesString;
 }
 
-void unpackMessages(std::vector<Message*>& messages,
-                    const char* packedMessages,
-                    const int ranksLimit)
+void unpackMessages(std::vector<Message*>& messages, const char* packedMessages, const int ranksLimit)
 {
   std::string packedMessagesString = std::string(packedMessages);
   std::size_t start, end;

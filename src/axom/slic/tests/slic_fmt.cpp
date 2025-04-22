@@ -30,18 +30,15 @@ TEST(slic_fmt, basic_use)
   // Note: This test seg faults on intel 18
 
   // Python style w/ 'dictionary'
-  SLIC_INFO(axom::fmt::format("Hello, {name}! Goodbye, {name}.",
-                              axom::fmt::arg("name", "Axom")));
+  SLIC_INFO(axom::fmt::format("Hello, {name}! Goodbye, {name}.", axom::fmt::arg("name", "Axom")));
   EXPECT_EQ("Hello, Axom! Goodbye, Axom.",
-            axom::fmt::format("Hello, {name}! Goodbye, {name}.",
-                              axom::fmt::arg("name", "Axom")));
+            axom::fmt::format("Hello, {name}! Goodbye, {name}.", axom::fmt::arg("name", "Axom")));
 #endif
 
   // Python style with additional formatting
   SLIC_INFO(axom::fmt::format("int:{0:d};  hex:{0:x};  oct:{0:o}; bin:{0:b}", 42));
-  EXPECT_EQ(
-    "int:42;  hex:2a;  oct:52; bin:101010",
-    axom::fmt::format("int:{0:d};  hex:{0:x};  oct:{0:o}; bin:{0:b}", 42));
+  EXPECT_EQ("int:42;  hex:2a;  oct:52; bin:101010",
+            axom::fmt::format("int:{0:d};  hex:{0:x};  oct:{0:o}; bin:{0:b}", 42));
 
   // sprintf style
   SLIC_INFO(axom::fmt::sprintf("Two significant digits: %.2f", 1.234567));

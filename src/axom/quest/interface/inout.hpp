@@ -135,11 +135,7 @@ bool inout_evaluate(double x, double y, double z = 0.);
  *  and \a res are not \a nullptr and contain sufficient data/space for
  *  \a npoints points.
  */
-int inout_evaluate(const double* x,
-                   const double* y,
-                   const double* z,
-                   int npoints,
-                   int* res);
+int inout_evaluate(const double* x, const double* y, const double* z, int npoints, int* res);
 
 /*!
  * \brief Returns the lower coordinates of the mesh's bounding box

@@ -23,12 +23,26 @@ namespace lumberjack
 /*!
  *****************************************************************************
  * \brief Receives any Message sent to this rank. Returns null if terminating
- *  message is sent.
+ *  message is sent.  Caller is responsible for deallocating memory returned 
+ *  from this function.
  *
  * \param [in] comm The MPI Communicator.
  *****************************************************************************
  */
 const char* mpiBlockingReceiveMessages(MPI_Comm comm);
+
+/*!
+ *****************************************************************************
+ * \brief Receives any Message sent to this rank, if there are any messages 
+ *  that have arrived. Returns null if no messages have arrived. Caller is 
+ *  responsible for deallocating memory returned from this function.
+ *
+ * \param [in] comm The MPI Communicator.
+ * \param [in] tag The MPI tag to use for communication.  When set to zero, 
+ *  MPI communication uses default LJ_Tag. 
+ *****************************************************************************
+ */
+const char* mpiBlockingReceiveIfMessagesExist(MPI_Comm comm);
 
 /*!
  *****************************************************************************
@@ -40,11 +54,11 @@ const char* mpiBlockingReceiveMessages(MPI_Comm comm);
  * \param [in] destinationRank Where the Message classes is being sent.
  * \param [in,out] packedMessagesToBeSent All of the Message classes to be sent
  *  packed together.
+ * \param [in] tag The MPI tag to use for communication.  When set to zero, 
+ *  MPI communication uses the default Lumberjack Tag.
  *****************************************************************************
  */
-void mpiNonBlockingSendMessages(MPI_Comm comm,
-                                int destinationRank,
-                                const char* packedMessagesToBeSent);
+void mpiNonBlockingSendMessages(MPI_Comm comm, int destinationRank, const char* packedMessagesToBeSent);
 }  // end namespace lumberjack
 }  // end namespace axom
 

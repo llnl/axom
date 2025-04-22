@@ -42,8 +42,7 @@ TEST(slam_set_nullset, subscript_fails)
   using SetPosition = axom::slam::DefaultPositionType;
   axom::slam::NullSet<SetPosition> n;
 
-  EXPECT_EQ(n.size(), SetPosition())
-    << "size of null set is defined to be zero";
+  EXPECT_EQ(n.size(), SetPosition()) << "size of null set is defined to be zero";
 
 #ifdef AXOM_DEBUG
   // NOTE: AXOM_DEBUG is disabled in release mode,
@@ -51,8 +50,7 @@ TEST(slam_set_nullset, subscript_fails)
 
   // add this line to avoid a warning in the output about thread safety
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(n[0], "")
-    << "subscript operator on null set asserts";
+  EXPECT_DEATH_IF_SUPPORTED(n[0], "") << "subscript operator on null set asserts";
 #else
   SLIC_INFO("Skipped assertion failure check in release mode.");
 #endif

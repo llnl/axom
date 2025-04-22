@@ -50,3 +50,23 @@ This Communicator has all nodes directly connecting to the root node which
 is rank 0.  The root node is the only node allowed to output messages.
 Each single push, the child nodes send their currently held messages
 to the root.  After each push the tree is completely flushed.
+
+.. _noncollectiverootcommunicator_class_label:
+
+NonCollectiveRootCommunicator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. note:: This Communicator logs messages non-collectively, which is useful for error-handling.  Note that it will not scale as well as the recommended BinaryTreeCommunicator.
+
+This Communicator has all nodes directly connecting to the root node which
+is rank 0.  The root node is the only node allowed to output messages.
+Each single push, the child nodes send their currently held messages
+to the root.  Unlike the RootCommunicator above, the messages are pushed by
+individual ranks rather than collectively by all ranks.  The root rank
+receives messages sent from other ranks with this communicator when it
+calls push.
+
+.. warning::
+
+   This communicator sends messages non-collectively.  Therefore, the user is
+   responsible for ensuring all sent messages have been received by the root rank.

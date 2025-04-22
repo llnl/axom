@@ -54,9 +54,8 @@ std::vector<std::string> entries_as_vec(const RelOrMap& outer, const SetType& s)
   std::vector<std::string> strs(sz);
   for(auto pos : s.positions())
   {
-    strs[pos] = s.isValidEntry(pos)
-      ? fmt::format("{}: {}", axom::fmt::streamed(pos), outer[pos])
-      : fmt::format("{}: {{}}", axom::fmt::streamed(pos));
+    strs[pos] = s.isValidEntry(pos) ? fmt::format("{}: {}", axom::fmt::streamed(pos), outer[pos])
+                                    : fmt::format("{}: {{}}", axom::fmt::streamed(pos));
   }
 
   return strs;
@@ -65,10 +64,10 @@ std::vector<std::string> entries_as_vec(const RelOrMap& outer, const SetType& s)
 }  //end anonymous namespace
 
 template <int TDIM, int SDIM, typename P>
-typename IAMesh<TDIM, SDIM, P>::ElementAndFaceIdxType
-IAMesh<TDIM, SDIM, P>::ElemNbrFinder(V2EMapType& vertpair_to_elem_map,
-                                     IndexType element_i,
-                                     IndexType side_i)
+typename IAMesh<TDIM, SDIM, P>::ElementAndFaceIdxType IAMesh<TDIM, SDIM, P>::ElemNbrFinder(
+  V2EMapType& vertpair_to_elem_map,
+  IndexType element_i,
+  IndexType side_i)
 {
   // NOTE: V2EMapType maps a sorted tuple of vertex IDs to a face on a given
   //       mesh element. It is used to find the element index of the opposite
@@ -187,8 +186,7 @@ IAMesh<TDIM, SDIM, P>& IAMesh<TDIM, SDIM, P>::operator=(const IAMesh& m)
 }
 
 template <int TDIM, int SDIM, typename P>
-IAMesh<TDIM, SDIM, P>::IAMesh(std::vector<double>& points,
-                              std::vector<IndexType>& tri)
+IAMesh<TDIM, SDIM, P>::IAMesh(std::vector<double>& points, std::vector<IndexType>& tri)
   : vertex_set(points.size() / COORDS_PER_VERT)
   , element_set(tri.size() / VERTS_PER_ELEM)
   , ev_rel(&element_set, &vertex_set)
@@ -205,17 +203,14 @@ IAMesh<TDIM, SDIM, P>::IAMesh(std::vector<double>& points,
       ev_rel.insert(e, tri[offset + idx]);
     }
   }
-  SLIC_ASSERT_MSG(
-    ev_rel.isValid(),
-    "Error creating (dynamic) relation from elements to vertices!");
+  SLIC_ASSERT_MSG(ev_rel.isValid(), "Error creating (dynamic) relation from elements to vertices!");
 
   // The map, vertex to coordinates
   for(auto v : vertex_set)
   {
     vcoord_map[v] = Point(&(points[v * COORDS_PER_VERT]));
   }
-  SLIC_ASSERT_MSG(vcoord_map.isValid(true),
-                  "Error creating map from vertex to coords!");
+  SLIC_ASSERT_MSG(vcoord_map.isValid(true), "Error creating map from vertex to coords!");
 
   //Vertex element relation. 1->1 mapping only 1 element per vertex.
   for(auto e : element_set)
@@ -225,9 +220,8 @@ IAMesh<TDIM, SDIM, P>::IAMesh(std::vector<double>& points,
       ve_rel.modify(v, 0, e);
     }
   }
-  SLIC_ASSERT_MSG(
-    ve_rel.isValid(true),
-    "Error creating (dynamic) relation from vertices to elements!\n");
+  SLIC_ASSERT_MSG(ve_rel.isValid(true),
+                  "Error creating (dynamic) relation from vertices to elements!\n");
 
   //Before making element to element relation, construct the data.
   // For every cell, find the union of triangles for each pair of vertices
@@ -240,8 +234,7 @@ IAMesh<TDIM, SDIM, P>::IAMesh(std::vector<double>& points,
   {
     for(IndexType side_i = 0; side_i < VERTS_PER_ELEM; ++side_i)
     {
-      ElementAndFaceIdxType nst =
-        ElemNbrFinder(vertpair_to_elem_map, element_i, side_i);
+      ElementAndFaceIdxType nst = ElemNbrFinder(vertpair_to_elem_map, element_i, side_i);
 
       IndexType other_element_idx = nst.first;
       IndexType other_side_idx = nst.second;
@@ -265,14 +258,12 @@ IAMesh<TDIM, SDIM, P>::IAMesh(std::vector<double>& points,
       ee_rel.modify(i, j, element_element_vec[i * VERTS_PER_ELEM + j]);
     }
   }
-  SLIC_ASSERT_MSG(
-    ee_rel.isValid(true),
-    "Error creating (dynamic) relation from elements to elements!");
+  SLIC_ASSERT_MSG(ee_rel.isValid(true),
+                  "Error creating (dynamic) relation from elements to elements!");
 }
 
 template <int TDIM, int SDIM, typename P>
-typename IAMesh<TDIM, SDIM, P>::IndexArray IAMesh<TDIM, SDIM, P>::vertexStar(
-  IndexType vertex_idx) const
+typename IAMesh<TDIM, SDIM, P>::IndexArray IAMesh<TDIM, SDIM, P>::vertexStar(IndexType vertex_idx) const
 {
   // reasonable expected size of vertex star in triangle and tet meshes
   constexpr int EXP_SZ = (TDIM == 2) ? 8 : 32;
@@ -283,9 +274,8 @@ typename IAMesh<TDIM, SDIM, P>::IndexArray IAMesh<TDIM, SDIM, P>::vertexStar(
   if(!ve_rel.isValidEntry(vertex_idx))
   {
     //this vertex is not connected to any elements
-    SLIC_WARNING_IF(
-      !vertex_set.isValidEntry(vertex_idx),
-      "Attempting to retrieve data with an invalid vertex id: " << vertex_idx);
+    SLIC_WARNING_IF(!vertex_set.isValidEntry(vertex_idx),
+                    "Attempting to retrieve data with an invalid vertex id: " << vertex_idx);
     return ret;
   }
 
@@ -318,9 +308,8 @@ typename IAMesh<TDIM, SDIM, P>::IndexArray IAMesh<TDIM, SDIM, P>::vertexStar(
 }
 
 template <int TDIM, int SDIM, typename P>
-typename IAMesh<TDIM, SDIM, P>::IndexArray IAMesh<TDIM, SDIM, P>::getElementFace(
-  IndexType element_idx,
-  IndexType face_idx) const
+typename IAMesh<TDIM, SDIM, P>::IndexArray IAMesh<TDIM, SDIM, P>::getElementFace(IndexType element_idx,
+                                                                                 IndexType face_idx) const
 {
   constexpr int VERTS_PER_FACET = VERTS_PER_ELEM - 1;
 
@@ -331,14 +320,12 @@ typename IAMesh<TDIM, SDIM, P>::IndexArray IAMesh<TDIM, SDIM, P>::getElementFace
 
   if(!element_set.isValidEntry(element_idx))
   {
-    SLIC_WARNING(
-      "Attempting to retrieve data with an invalid element: " << element_idx);
+    SLIC_WARNING("Attempting to retrieve data with an invalid element: " << element_idx);
 
     return ret;
   }
 
-  SLIC_ASSERT_MSG(0 <= face_idx && face_idx < VERTS_PER_ELEM,
-                  "Face index is invalid.");
+  SLIC_ASSERT_MSG(0 <= face_idx && face_idx < VERTS_PER_ELEM, "Face index is invalid.");
 
   auto ev = ev_rel[element_idx];
   for(int i = 0; i < VERTS_PER_FACET; ++i)
@@ -350,8 +337,8 @@ typename IAMesh<TDIM, SDIM, P>::IndexArray IAMesh<TDIM, SDIM, P>::getElementFace
 }
 
 template <int TDIM, int SDIM, typename P>
-const typename IAMesh<TDIM, SDIM, P>::Point&
-IAMesh<TDIM, SDIM, P>::getVertexPosition(IndexType vertex_idx) const
+const typename IAMesh<TDIM, SDIM, P>::Point& IAMesh<TDIM, SDIM, P>::getVertexPosition(
+  IndexType vertex_idx) const
 {
   SLIC_ASSERT(isValidVertex(vertex_idx));
 
@@ -433,8 +420,7 @@ void IAMesh<TDIM, SDIM, P>::removeElement(IndexType element_idx)
 }
 
 template <int TDIM, int SDIM, typename P>
-typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addVertex(
-  const Point& p)
+typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addVertex(const Point& p)
 {
   IndexType vertex_idx = vertex_set.insert();
   vcoord_map.insert(vertex_idx, p);
@@ -444,11 +430,10 @@ typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addVertex(
 }
 
 template <int TDIM, int SDIM, typename P>
-typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(
-  IndexType v0,
-  IndexType v1,
-  IndexType v2,
-  IndexType v3)
+typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(IndexType v0,
+                                                                            IndexType v1,
+                                                                            IndexType v2,
+                                                                            IndexType v3)
 {
   SLIC_ASSERT(VERTS_PER_ELEM <= 4);
   IndexType vlist[] = {v0, v1, v2, v3};
@@ -456,8 +441,7 @@ typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(
 }
 
 template <int TDIM, int SDIM, typename P>
-typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(
-  const IndexType* vlist)
+typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(const IndexType* vlist)
 {
   // Implementation note:
   //   This function reconstructs the vertex-element relation
@@ -466,9 +450,8 @@ typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(
 
   for(int i = 0; i < VERTS_PER_ELEM; i++)
   {
-    SLIC_WARNING_IF(
-      !vertex_set.isValidEntry(vlist[i]),
-      "Trying to add an element with invalid vertex index:" << vlist[i]);
+    SLIC_WARNING_IF(!vertex_set.isValidEntry(vlist[i]),
+                    "Trying to add an element with invalid vertex index:" << vlist[i]);
   }
 
   IndexType element_idx = element_set.insert();
@@ -489,8 +472,7 @@ typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(
   //First add each face of this new element into the map
   for(int side_i = 0; side_i < VERTS_PER_ELEM; ++side_i)
   {
-    ElementAndFaceIdxType zs_pair =
-      ElemNbrFinder(vertpair_to_elem_map, element_idx, side_i);
+    ElementAndFaceIdxType zs_pair = ElemNbrFinder(vertpair_to_elem_map, element_idx, side_i);
     SLIC_ASSERT(zs_pair.first == -1);
     AXOM_UNUSED_VAR(zs_pair);
   }
@@ -553,15 +535,13 @@ typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(
 }
 
 template <int TDIM, int SDIM, typename P>
-typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(
-  const IndexType* vlist,
-  const IndexType* neighbors)
+typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(const IndexType* vlist,
+                                                                            const IndexType* neighbors)
 {
   for(int i = 0; i < VERTS_PER_ELEM; ++i)
   {
-    SLIC_ASSERT_MSG(
-      vertex_set.isValidEntry(vlist[i]),
-      "Trying to add an element with invalid vertex index:" << vlist[i]);
+    SLIC_ASSERT_MSG(vertex_set.isValidEntry(vlist[i]),
+                    "Trying to add an element with invalid vertex index:" << vlist[i]);
   }
 
   IndexType element_idx = element_set.insert();
@@ -598,9 +578,8 @@ typename IAMesh<TDIM, SDIM, P>::IndexType IAMesh<TDIM, SDIM, P>::addElement(
 }
 
 template <int TDIM, int SDIM, typename P>
-void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(
-  IndexType vertex_idx,
-  const std::vector<IndexType>& new_elements)
+void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(IndexType vertex_idx,
+                                                  const std::vector<IndexType>& new_elements)
 {
   using FaceLinkVerts = axom::StackArray<IndexType, TDIM - 1>;
 
@@ -608,8 +587,8 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(
   struct FaceLinkMapping
   {
     IndexType boundary_hash;  // unique identifier for collection of face link verts
-    IndexType element_idx;  // the element containing this face
-    IndexType face_idx;     // the index of the face w.r.t. the element
+    IndexType element_idx;    // the element containing this face
+    IndexType face_idx;       // the index of the face w.r.t. the element
   };
 
   const IndexType totalVerts = elements().size();
@@ -618,21 +597,20 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(
 
   // helper lambda for determining if a face on one element (given by boundary verts nbr_verts)
   // is shared with another element (given by boundary verts elem_verts)
-  auto isSharedFace = [](const BoundarySubset& nbr_verts,
-                         IndexType face_idx,
-                         const BoundarySubset& elem_verts) {
-    // v_skip is not a vertex in this face
-    const auto v_skip = (face_idx == 0) ? VERTS_PER_ELEM - 1 : face_idx - 1;
-    for(int v_idx = 0; v_idx < VERTS_PER_ELEM; ++v_idx)
-    {
-      if(v_idx != v_skip &&  // v_idx is a vertex in this face
-         !is_subset(nbr_verts[v_idx], elem_verts))  //and is not in other elem
+  auto isSharedFace =
+    [](const BoundarySubset& nbr_verts, IndexType face_idx, const BoundarySubset& elem_verts) {
+      // v_skip is not a vertex in this face
+      const auto v_skip = (face_idx == 0) ? VERTS_PER_ELEM - 1 : face_idx - 1;
+      for(int v_idx = 0; v_idx < VERTS_PER_ELEM; ++v_idx)
       {
-        return false;
+        if(v_idx != v_skip &&                         // v_idx is a vertex in this face
+           !is_subset(nbr_verts[v_idx], elem_verts))  //and is not in other elem
+        {
+          return false;
+        }
       }
-    }
-    return true;
-  };
+      return true;
+    };
 
   for(auto el : new_elements)
   {
@@ -653,8 +631,7 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(
 
           for(auto face_j : nbr_ev.positions())
           {
-            if(!element_set.isValidEntry(nbr_ee[face_j]) &&
-               isSharedFace(nbr_ev, face_j, bdry))
+            if(!element_set.isValidEntry(nbr_ee[face_j]) && isSharedFace(nbr_ev, face_j, bdry))
             {
               nbr_ee[face_j] = el;
               break;
@@ -700,11 +677,9 @@ void IAMesh<TDIM, SDIM, P>::fixVertexNeighborhood(
   SLIC_ASSERT(mapping.size() == new_elements.size() * TDIM);
 
   // Sort by face vertices
-  std::sort(mapping.begin(),
-            mapping.end(),
-            [](const FaceLinkMapping& lhs, const FaceLinkMapping& rhs) {
-              return lhs.boundary_hash < rhs.boundary_hash;
-            });
+  std::sort(mapping.begin(), mapping.end(), [](const FaceLinkMapping& lhs, const FaceLinkMapping& rhs) {
+    return lhs.boundary_hash < rhs.boundary_hash;
+  });
 
   // Apply neighbor data from matching face pairs
   const int SZ = mapping.size();
@@ -757,8 +732,7 @@ void IAMesh<TDIM, SDIM, P>::compact()
       for(auto i : ev_new.positions())
       {
         const auto old = ev_old[i];
-        ev_new[i] =
-          (old != INVALID_VERTEX) ? vertex_set_map[old] : INVALID_VERTEX;
+        ev_new[i] = (old != INVALID_VERTEX) ? vertex_set_map[old] : INVALID_VERTEX;
       }
     }
   }
@@ -771,8 +745,7 @@ void IAMesh<TDIM, SDIM, P>::compact()
     {
       // cardinality of VE relation is 1
       const auto old = ve_rel[v][0];
-      ve_rel[new_v][0] =
-        (old != INVALID_ELEMENT) ? element_set_map[old] : INVALID_ELEMENT;
+      ve_rel[new_v][0] = (old != INVALID_ELEMENT) ? element_set_map[old] : INVALID_ELEMENT;
     }
   }
 
@@ -787,8 +760,7 @@ void IAMesh<TDIM, SDIM, P>::compact()
       for(auto i : ee_new.positions())
       {
         const auto old = ee_old[i];
-        ee_new[i] =
-          (old != INVALID_ELEMENT) ? element_set_map[old] : INVALID_ELEMENT;
+        ee_new[i] = (old != INVALID_ELEMENT) ? element_set_map[old] : INVALID_ELEMENT;
       }
     }
   }
@@ -885,8 +857,7 @@ bool IAMesh<TDIM, SDIM, P>::isValid(bool verboseOutput) const
   {
     if(verboseOutput)
     {
-      fmt::format_to(std::back_inserter(out),
-                     "\n\t Coboundary relation invalid");
+      fmt::format_to(std::back_inserter(out), "\n\t Coboundary relation invalid");
     }
     bValid = false;
   }

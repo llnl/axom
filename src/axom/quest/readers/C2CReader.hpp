@@ -13,6 +13,7 @@
 #endif
 
 #include "axom/mint.hpp"
+#include "axom/primal.hpp"
 #include "c2c/C2C.hpp"
 
 #include <string>
@@ -32,6 +33,9 @@ namespace quest
 class C2CReader
 {
 public:
+  using NURBSCurve = axom::primal::NURBSCurve<double, 2>;
+
+public:
   C2CReader() = default;
 
   virtual ~C2CReader() = default;
@@ -43,10 +47,7 @@ public:
   void setLengthUnit(c2c::LengthUnit lengthUnit) { m_lengthUnit = lengthUnit; }
 
   /// Sets the threshold for welding vertices of adjacent Pieces of curves
-  void setVertexWeldingThreshold(double thresh)
-  {
-    m_vertexWeldThreshold = thresh;
-  }
+  void setVertexWeldingThreshold(double thresh) { m_vertexWeldThreshold = thresh; }
 
   /// Clears data associated with this reader
   void clear();
@@ -77,8 +78,7 @@ public:
    * \param[in] mesh The mesh object that will contain the linearized line segments.
    * \param[in] percentError A percent of error that is acceptable to stop refinement.
    */
-  void getLinearMeshNonUniform(mint::UnstructuredMesh<mint::SINGLE_SHAPE> *mesh,
-                               double percentError);
+  void getLinearMeshNonUniform(mint::UnstructuredMesh<mint::SINGLE_SHAPE> *mesh, double percentError);
 
   /*!
    * \brief Compute the revolved volume of the shape using quadrature.
@@ -104,7 +104,7 @@ protected:
   c2c::LengthUnit m_lengthUnit {c2c::LengthUnit::cm};
   double m_vertexWeldThreshold {1E-9};
 
-  std::vector<c2c::NURBSData> m_nurbsData;
+  std::vector<NURBSCurve> m_nurbsData;
 };
 
 }  // namespace quest

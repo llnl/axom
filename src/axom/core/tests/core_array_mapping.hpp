@@ -289,9 +289,8 @@ typename std::enable_if<DIM == 3>::type check_arbitrary_strides_nested_loops(
 }
 
 template <int DIM>
-void check_arbitrary_strides(
-  const axom::StackArray<axom::IndexType, DIM>& lengths,
-  const axom::StackArray<axom::IndexType, DIM>& fastestDirs)
+void check_arbitrary_strides(const axom::StackArray<axom::IndexType, DIM>& lengths,
+                             const axom::StackArray<axom::IndexType, DIM>& fastestDirs)
 {
   // fastestDirs should be a permutation.
   // SLIC_INFO(axom::fmt::format("Testing lengths {} with fastestDirs {}", lengths, fastestDirs));

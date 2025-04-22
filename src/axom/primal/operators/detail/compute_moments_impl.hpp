@@ -77,8 +77,7 @@ private:
   {
     const bool memoryIsExternal = true;
     const int SZ = ord + 1;
-    SectorWeights* weights =
-      new SectorWeights(SZ, SZ, new T[SZ * SZ], memoryIsExternal);
+    SectorWeights* weights = new SectorWeights(SZ, SZ, new T[SZ * SZ], memoryIsExternal);
 
     T binom_2n_n = static_cast<T>(utilities::binomialCoefficient(2 * ord, ord));
     for(int i = 0; i <= ord; ++i)
@@ -90,11 +89,9 @@ private:
         if(i != j)
         {
           T binom_ij_i = static_cast<T>(utilities::binomialCoefficient(i + j, i));
-          T binom_2nij_nj = static_cast<T>(
-            utilities::binomialCoefficient(2 * ord - i - j, ord - j));
+          T binom_2nij_nj = static_cast<T>(utilities::binomialCoefficient(2 * ord - i - j, ord - j));
 
-          val = ((j - i) * ord) / binom_2n_n *
-            (binom_ij_i / static_cast<T>(i + j)) *
+          val = ((j - i) * ord) / binom_2n_n * (binom_ij_i / static_cast<T>(i + j)) *
             (binom_2nij_nj / (2. * ord - j - i));
         }
         (*weights)(i, j) = val;  // antisymmetric
@@ -132,8 +129,7 @@ public:
   const SectorWeights& getWeights(int order, int dim) const
   {
     // Compute and cache the weights if they are not already available
-    if(m_sectorWeightsMap.find(std::make_pair(order, dim)) ==
-       m_sectorWeightsMap.end())
+    if(m_sectorWeightsMap.find(std::make_pair(order, dim)) == m_sectorWeightsMap.end())
     {
       auto vec = generateBezierCurveSectorCentroidWeights(order);
       for(int d = 0; d <= order; ++d)
@@ -165,8 +161,7 @@ public:
     weights.resize(SZ);
     for(int k = 0; k <= ord; ++k)
     {
-      SectorWeights* weights_k =
-        new SectorWeights(SZ, SZ, new T[SZ * SZ], memoryIsExternal);
+      SectorWeights* weights_k = new SectorWeights(SZ, SZ, new T[SZ * SZ], memoryIsExternal);
       for(int i = 0; i <= ord; ++i)
       {
         (*weights_k)(i, i) = 0.;  // zero on the diagonal
@@ -178,8 +173,8 @@ public:
             T binom_n_i = static_cast<T>(utilities::binomialCoefficient(ord, i));
             T binom_n_j = static_cast<T>(utilities::binomialCoefficient(ord, j));
             T binom_n_k = static_cast<T>(utilities::binomialCoefficient(ord, k));
-            T binom_3n2_ijk1 = static_cast<T>(
-              utilities::binomialCoefficient(3 * ord - 2, i + j + k - 1));
+            T binom_3n2_ijk1 =
+              static_cast<T>(utilities::binomialCoefficient(3 * ord - 2, i + j + k - 1));
 
             val = (1. * (j - i)) / (3. * (3 * ord - 1)) *
               (1. * binom_n_i * binom_n_j * binom_n_k / (1. * binom_3n2_ijk1));

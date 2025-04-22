@@ -56,6 +56,14 @@ namespace sidre = axom::sidre;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
 
+#if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
+static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
+  conduit::DataType::INT64_ID;
+#else
+static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
+  conduit::DataType::INT32_ID;
+#endif
+
 /// Struct to parse and store the input parameters
 // Some parameters are used to override defaults.
 struct Input
@@ -455,12 +463,12 @@ axom::sidre::Group* createBoxMesh(axom::sidre::Group* meshGrp)
   using Pt3D = primal::Point<double, 3>;
   auto res = axom::NumericArray<int, 3>(params.boxResolution.data());
   auto bbox = BBox3D(Pt3D(params.boxMins.data()), Pt3D(params.boxMaxs.data()));
-  axom::quest::util::make_unstructured_blueprint_box_mesh(meshGrp,
-                                                          bbox,
-                                                          res,
-                                                          topoName,
-                                                          coordsetName,
-                                                          params.policy);
+  axom::quest::util::make_unstructured_blueprint_box_mesh_3d(meshGrp,
+                                                             bbox,
+                                                             res,
+                                                             topoName,
+                                                             coordsetName,
+                                                             params.policy);
 #if defined(AXOM_DEBUG)
   conduit::Node meshNode, info;
   meshGrp->createNativeLayout(meshNode);
@@ -854,7 +862,7 @@ axom::sidre::View* getElementVolumes(
                        ->getGroup("elements")
                        ->getView("connectivity");
     SLIC_ASSERT(connData->getNode().dtype().id() ==
-                axom::quest::conduitDataIdOfAxomIndexType);
+                conduitDataIdOfAxomIndexType);
 
     conduit::Node coordNode;
     meshGrp->getGroup("coordsets")

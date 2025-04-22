@@ -58,15 +58,12 @@ public:
    * \post getNumberOfIDs() == 0
    * \post getNumberOfValues() == 0
    */
-  ConnectivityArray(IndexType ID_capacity = USE_DEFAULT,
-                    IndexType value_capacity = USE_DEFAULT)
+  ConnectivityArray(IndexType ID_capacity = USE_DEFAULT, IndexType value_capacity = USE_DEFAULT)
     : m_storageMode(StorageMode::Native)
     , m_types(std::make_unique<axom::Array<CellType>>(0, ID_capacity))
-    , m_offsets(
-        std::make_unique<axom::Array<IndexType>>(0, m_types->capacity() + 1))
+    , m_offsets(std::make_unique<axom::Array<IndexType>>(0, m_types->capacity() + 1))
   {
-    IndexType new_value_capacity =
-      internal::calcValueCapacity(0, getIDCapacity(), 0, value_capacity);
+    IndexType new_value_capacity = internal::calcValueCapacity(0, getIDCapacity(), 0, value_capacity);
     m_values = std::make_unique<axom::Array<IndexType>>(0, new_value_capacity);
 
     m_offsets->push_back(0);
@@ -113,12 +110,9 @@ public:
     : m_storageMode(StorageMode::External)
     , m_types(std::make_unique<ExternalArray<CellType>>(types, n_IDs, ID_capacity))
     , m_offsets(
-        std::make_unique<ExternalArray<IndexType>>(offsets,
-                                                   n_IDs + 1,
-                                                   m_types->capacity() + 1))
+        std::make_unique<ExternalArray<IndexType>>(offsets, n_IDs + 1, m_types->capacity() + 1))
   {
-    SLIC_ERROR_IF(n_IDs < 0,
-                  "Number of IDs must be positive, not " << n_IDs << ".");
+    SLIC_ERROR_IF(n_IDs < 0, "Number of IDs must be positive, not " << n_IDs << ".");
 
     if(n_IDs == 0)
     {
@@ -129,8 +123,7 @@ public:
                     << "Expected item 0 to be 0 not " << (*m_offsets)[0] << ".");
 
     IndexType n_values = (*m_offsets)[n_IDs];
-    m_values =
-      std::make_unique<ExternalArray<IndexType>>(values, n_values, value_capacity);
+    m_values = std::make_unique<ExternalArray<IndexType>>(values, n_values, value_capacity);
   }
 
   /// @}
@@ -155,15 +148,13 @@ public:
    */
   ConnectivityArray(sidre::Group* group) : m_storageMode(StorageMode::Sidre)
   {
-    CellType cell_type =
-      internal::initializeFromGroup(group, m_values, m_offsets, m_types);
-    SLIC_ERROR_IF(cell_type != UNDEFINED_CELL,
-                  "Mixed topology requires UNDEFINED_CELL cell type.");
+    CellType cell_type = internal::initializeFromGroup(group, m_values, m_offsets, m_types);
+    SLIC_ERROR_IF(cell_type != UNDEFINED_CELL, "Mixed topology requires UNDEFINED_CELL cell type.");
 
     IndexType num_IDs = getNumberOfIDs();
-    SLIC_ERROR_IF(m_types->size() != num_IDs,
-                  "Types array not of correct size. Expected"
-                    << num_IDs << " was " << m_types->size() << ".");
+    SLIC_ERROR_IF(
+      m_types->size() != num_IDs,
+      "Types array not of correct size. Expected" << num_IDs << " was " << m_types->size() << ".");
   }
 
   /*!
@@ -190,11 +181,7 @@ public:
   {
     bool create_offsets = true;
     bool create_types = true;
-    internal::initializeGroup(group,
-                              coordset,
-                              UNDEFINED_CELL,
-                              create_offsets,
-                              create_types);
+    internal::initializeGroup(group, coordset, UNDEFINED_CELL, create_offsets, create_types);
 
     sidre::Group* elems_group = group->getGroup("elements");
     SLIC_ASSERT(elems_group != nullptr);
@@ -207,15 +194,11 @@ public:
     (*m_offsets)[0] = 0;
 
     sidre::View* types_view = elems_group->getView("types");
-    m_types =
-      std::make_unique<sidre::Array<CellType>>(types_view, 0, ID_capacity);
+    m_types = std::make_unique<sidre::Array<CellType>>(types_view, 0, ID_capacity);
 
-    IndexType new_value_capacity =
-      internal::calcValueCapacity(0, getIDCapacity(), 0, value_capacity);
+    IndexType new_value_capacity = internal::calcValueCapacity(0, getIDCapacity(), 0, value_capacity);
     sidre::View* connec_view = elems_group->getView("connectivity");
-    m_values = std::make_unique<sidre::Array<IndexType>>(connec_view,
-                                                         0,
-                                                         new_value_capacity);
+    m_values = std::make_unique<sidre::Array<IndexType>>(connec_view, 0, new_value_capacity);
   }
 
 #endif /* AXOM_MINT_USE_SIDRE */
@@ -259,10 +242,8 @@ public:
   {
     m_offsets->resize(ID_size + 1);
     m_types->resize(ID_size);
-    IndexType newValueSize = internal::calcValueCapacity(getNumberOfIDs(),
-                                                         getIDCapacity(),
-                                                         getNumberOfValues(),
-                                                         value_size);
+    IndexType newValueSize =
+      internal::calcValueCapacity(getNumberOfIDs(), getIDCapacity(), getNumberOfValues(), value_size);
 
     m_values->resize(newValueSize);
   }
@@ -287,11 +268,10 @@ public:
 
     m_offsets->reserve(ID_capacity + 1);
     m_types->reserve(ID_capacity);
-    IndexType new_value_capacity =
-      internal::calcValueCapacity(getNumberOfIDs(),
-                                  getIDCapacity(),
-                                  getNumberOfValues(),
-                                  value_capacity);
+    IndexType new_value_capacity = internal::calcValueCapacity(getNumberOfIDs(),
+                                                               getIDCapacity(),
+                                                               getNumberOfValues(),
+                                                               value_capacity);
     m_values->reserve(new_value_capacity);
   }
 
@@ -362,10 +342,7 @@ public:
       return nullptr;
     }
 
-    return static_cast<sidre::Array<IndexType>*>(m_values.get())
-      ->getView()
-      ->getOwningGroup()
-      ->getParent();
+    return static_cast<sidre::Array<IndexType>*>(m_values.get())->getView()->getOwningGroup()->getParent();
   }
 #endif
 
@@ -495,10 +472,7 @@ public:
    * \pre values != nullptr
    * \pre offsets != nullptr
    */
-  void appendM(const IndexType* values,
-               IndexType n_IDs,
-               const IndexType* offsets,
-               const CellType* types)
+  void appendM(const IndexType* values, IndexType n_IDs, const IndexType* offsets, const CellType* types)
   {
     internal::append(n_IDs, values, offsets, m_values.get(), m_offsets.get());
     m_types->insert(m_types->end(), n_IDs, types);
@@ -551,10 +525,7 @@ public:
    * \pre n_values >= 0
    * \pre values != nullptr
    */
-  void insert(const IndexType* values,
-              IndexType start_ID,
-              IndexType n_values,
-              CellType type)
+  void insert(const IndexType* values, IndexType start_ID, IndexType n_values, CellType type)
   {
     SLIC_ASSERT(start_ID >= 0);
     SLIC_ASSERT(n_values >= 0);
@@ -592,12 +563,7 @@ public:
                const IndexType* offsets,
                const CellType* types)
   {
-    internal::insert(start_ID,
-                     n_IDs,
-                     values,
-                     offsets,
-                     m_values.get(),
-                     m_offsets.get());
+    internal::insert(start_ID, n_IDs, values, offsets, m_values.get(), m_offsets.get());
     m_types->insert(start_ID, n_IDs, types);
   }
 

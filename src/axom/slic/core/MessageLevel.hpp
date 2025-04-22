@@ -48,10 +48,7 @@ enum Level
  */
 static inline std::string getLevelAsString(Level l)
 {
-  const std::string MessageLevelName[Num_Levels] = {"ERROR",
-                                                    "WARNING",
-                                                    "INFO",
-                                                    "DEBUG"};
+  const std::string MessageLevelName[Num_Levels] = {"ERROR", "WARNING", "INFO", "DEBUG"};
   if(l < 0 || l >= Num_Levels)
   {
     return ("UNKNOWN-LEVEL");

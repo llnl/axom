@@ -86,8 +86,8 @@ public:
     inline bool operator==(const iterator &it) const
     {
       // Do not worry about m_offset
-      return m_shapeStart == it.m_shapeStart &&
-        m_currentShape == it.m_currentShape && m_numShapes == it.m_numShapes;
+      return m_shapeStart == it.m_shapeStart && m_currentShape == it.m_currentShape &&
+        m_numShapes == it.m_numShapes;
     }
 
     /*!
@@ -99,8 +99,8 @@ public:
     inline bool operator!=(const iterator &it) const
     {
       // Do not worry about m_offset
-      return m_shapeStart != it.m_shapeStart ||
-        m_currentShape != it.m_currentShape || m_numShapes != it.m_numShapes;
+      return m_shapeStart != it.m_shapeStart || m_currentShape != it.m_currentShape ||
+        m_numShapes != it.m_numShapes;
     }
 
     /*!
@@ -268,9 +268,7 @@ public:
    * \param table   The table data that contains all cases.
    */
   AXOM_HOST_DEVICE
-  TableView(const IndexView &shapes,
-            const IndexView &offsets,
-            const TableDataView &table)
+  TableView(const IndexView &shapes, const IndexView &offsets, const TableDataView &table)
     : m_shapes(shapes)
     , m_offsets(offsets)
     , m_table(table)
@@ -377,10 +375,7 @@ public:
    *
    * \return A view of the table data.
    */
-  TableView view()
-  {
-    return TableView(m_shapes.view(), m_offsets.view(), m_table.view());
-  }
+  TableView view() { return TableView(m_shapes.view(), m_offsets.view(), m_table.view()); }
 
 private:
   IndexDataArray m_shapes;
@@ -433,8 +428,7 @@ public:
     std::vector<size_t> s;
     if(dim == -1 || dim == 2)
     {
-      for(const auto value : std::vector<size_t> {ST_TRI, ST_QUA})
-        s.push_back(value);
+      for(const auto value : std::vector<size_t> {ST_TRI, ST_QUA}) s.push_back(value);
     }
     if(dim == -1 || dim == 3)
     {

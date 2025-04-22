@@ -4,11 +4,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "runMIR.hpp"
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
-  defined(AXOM_USE_OPENMP)
-int runMIR_omp_hex(const conduit::Node &mesh,
-                   const conduit::Node &options,
-                   conduit::Node &result)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_OPENMP)
+int runMIR_omp_hex(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result)
 {
   return runMIR_hex<axom::OMP_EXEC>(mesh, options, result);
 }

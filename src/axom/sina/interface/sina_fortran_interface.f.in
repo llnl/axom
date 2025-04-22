@@ -1,5 +1,8 @@
 module sina_functions
 
+  integer, parameter :: JSON = 0
+  integer, parameter :: HDF5 = 1
+
   interface
     
     subroutine create_document_and_record(id) 
@@ -17,14 +20,6 @@ module sina_functions
     
   end interface
   
-  interface
-    
-    subroutine write_sina_document(file_nm) 
-      character(*) file_nm  
-    end subroutine write_sina_document
-    
-  end interface
-
   interface sina_add
   
     subroutine sina_add_long(key, value, units, tags)
@@ -114,5 +109,44 @@ module sina_functions
     end subroutine sina_add_curve_long
     
   end interface
+  
+  interface
+    
+    subroutine write_sina_document_protocol(file_nm, protocol) 
+      character(*) file_nm  
+      integer protocol
+    end subroutine write_sina_document_protocol
+    
+  end interface
+
+  interface
+    
+    subroutine write_sina_document_noprotocol(file_nm) 
+      character(*) file_nm  
+    end subroutine write_sina_document_noprotocol
+    
+  end interface
+
+
+  interface write_sina_document
+    module procedure save_with_protocol
+    module procedure save_without_protocol
+  end interface
+
+contains
+  subroutine save_with_protocol(fname, proto)
+    character(*) fname
+    integer proto
+    call write_sina_document_protocol(fname, proto)
+  end subroutine save_with_protocol
+  subroutine save_without_protocol(fname)
+    character(*) fname
+    call write_sina_document_noprotocol(fname)
+  end subroutine save_without_protocol
 
 end module 
+
+module hdf5_config
+  implicit none
+  logical, parameter :: use_hdf5 = @AXOM_USE_HDF5_FORTRAN@
+end module hdf5_config

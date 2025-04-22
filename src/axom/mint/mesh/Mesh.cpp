@@ -115,13 +115,11 @@ Mesh::Mesh(sidre::Group* group, const std::string& topo)
   , m_coordset()
 {
   SLIC_ERROR_IF(m_group == nullptr, "NULL sidre group");
-  SLIC_ERROR_IF(!blueprint::isValidRootGroup(m_group),
-                "root group does not conform to blueprint");
+  SLIC_ERROR_IF(!blueprint::isValidRootGroup(m_group), "root group does not conform to blueprint");
 
   blueprint::getMeshTypeAndDimension(m_type, m_ndims, m_group, m_topology);
   m_topology = getTopologyGroup()->getName();
-  m_coordset =
-    blueprint::getCoordsetGroup(m_group, getTopologyGroup())->getName();
+  m_coordset = blueprint::getCoordsetGroup(m_group, getTopologyGroup())->getName();
 
   sidre::Group* state_group = m_group->getGroup("state");
   if(state_group != nullptr && state_group->hasChildGroup(m_topology))
@@ -145,11 +143,7 @@ Mesh::Mesh(sidre::Group* group, const std::string& topo)
 }
 
 //------------------------------------------------------------------------------
-Mesh::Mesh(int ndims,
-           int type,
-           sidre::Group* group,
-           const std::string& topo,
-           const std::string& coordset)
+Mesh::Mesh(int ndims, int type, sidre::Group* group, const std::string& topo, const std::string& coordset)
   : m_ndims(ndims)
   , m_type(type)
   , m_block_idx(-1)

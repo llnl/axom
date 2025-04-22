@@ -37,10 +37,7 @@ int main(int AXOM_UNUSED_PARAM(argc), char** AXOM_UNUSED_PARAM(argv))
   constexpr double PHI = 1.0;
 
   /* STEP 0: create the UnstructuredMesh */
-  mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(DIMENSION,
-                                                  CELL_TYPE,
-                                                  NUM_NODES,
-                                                  NUM_CELLS);
+  mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(DIMENSION, CELL_TYPE, NUM_NODES, NUM_CELLS);
 
   /* STEP 1: Add fields to the nodes and cells.
    * Note that we can only use the pointers below because we specified
@@ -50,10 +47,8 @@ int main(int AXOM_UNUSED_PARAM(argc), char** AXOM_UNUSED_PARAM(argv))
   double* vy = mesh.createField<double>("vy", mint::NODE_CENTERED);
   double* vz = mesh.createField<double>("vz", mint::NODE_CENTERED);
   double* p = mesh.createField<double>("pressure", mint::CELL_CENTERED);
-  double* p_avg =
-    mesh.createField<double>("average_pressure", mint::NODE_CENTERED);
-  int* cells_per_node =
-    mesh.createField<int>("cells_per_node", mint::NODE_CENTERED);
+  double* p_avg = mesh.createField<double>("average_pressure", mint::NODE_CENTERED);
+  int* cells_per_node = mesh.createField<int>("cells_per_node", mint::NODE_CENTERED);
 
   /* STEP 3: Add the nodes. */
   axom::IndexType node_ID = 0;
@@ -82,10 +77,7 @@ int main(int AXOM_UNUSED_PARAM(argc), char** AXOM_UNUSED_PARAM(argv))
       const axom::IndexType bottom_right = bottom_left + 1;
       const axom::IndexType top_right = bottom_right + X_EXTENT;
       const axom::IndexType top_left = bottom_left + X_EXTENT;
-      const axom::IndexType cell[NODES_PER_CELL] = {bottom_left,
-                                                    bottom_right,
-                                                    top_right,
-                                                    top_left};
+      const axom::IndexType cell[NODES_PER_CELL] = {bottom_left, bottom_right, top_right, top_left};
       mesh.appendCell(cell);
 
       p[cell_ID] = utilities::random_real(PLO, PHI);

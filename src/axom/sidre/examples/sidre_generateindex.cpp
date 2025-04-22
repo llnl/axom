@@ -55,18 +55,13 @@ std::unique_ptr<sidre::DataStore> create_tiny_datastore()
 
   // Create views and buffers to hold node positions and field values
   sidre::Group* nodes = ds->getRoot()->createGroup("nodes");
-  sidre::View* xs =
-    nodes->createViewAndAllocate("xs", sidre::DOUBLE_ID, nodecount);
-  sidre::View* ys =
-    nodes->createViewAndAllocate("ys", sidre::DOUBLE_ID, nodecount);
-  sidre::View* zs =
-    nodes->createViewAndAllocate("zs", sidre::DOUBLE_ID, nodecount);
+  sidre::View* xs = nodes->createViewAndAllocate("xs", sidre::DOUBLE_ID, nodecount);
+  sidre::View* ys = nodes->createViewAndAllocate("ys", sidre::DOUBLE_ID, nodecount);
+  sidre::View* zs = nodes->createViewAndAllocate("zs", sidre::DOUBLE_ID, nodecount);
 
   sidre::Group* fields = ds->getRoot()->createGroup("fields");
-  sidre::View* nodefield =
-    fields->createViewAndAllocate("nodefield", sidre::INT_ID, nodecount);
-  sidre::View* eltfield =
-    fields->createViewAndAllocate("eltfield", sidre::DOUBLE_ID, elementcount);
+  sidre::View* nodefield = fields->createViewAndAllocate("nodefield", sidre::INT_ID, nodecount);
+  sidre::View* eltfield = fields->createViewAndAllocate("eltfield", sidre::DOUBLE_ID, elementcount);
 
   // Set node position for two adjacent hexahedrons
   double* xptr = xs->getArray();
@@ -101,20 +96,11 @@ void setup_blueprint_coords(sidre::DataStore* ds, sidre::Group* coords)
   // We use prior knowledge of the layout of the original datastore
   sidre::View* origv = ds->getRoot()->getView("nodes/xs");
   sidre::Group* conduitval = coords->createGroup("values");
-  conduitval->createView("x",
-                         sidre::DOUBLE_ID,
-                         origv->getNumElements(),
-                         origv->getBuffer());
+  conduitval->createView("x", sidre::DOUBLE_ID, origv->getNumElements(), origv->getBuffer());
   origv = ds->getRoot()->getView("nodes/ys");
-  conduitval->createView("y",
-                         sidre::DOUBLE_ID,
-                         origv->getNumElements(),
-                         origv->getBuffer());
+  conduitval->createView("y", sidre::DOUBLE_ID, origv->getNumElements(), origv->getBuffer());
   origv = ds->getRoot()->getView("nodes/zs");
-  conduitval->createView("z",
-                         sidre::DOUBLE_ID,
-                         origv->getNumElements(),
-                         origv->getBuffer());
+  conduitval->createView("z", sidre::DOUBLE_ID, origv->getNumElements(), origv->getBuffer());
 }
 
 void setup_cartesian_coords(sidre::Group* coords, int domain_id)
@@ -146,8 +132,7 @@ void setup_blueprint_topos(sidre::DataStore* ds, sidre::Group* topos)
   elts->createViewString("shape", "hex");
 
   // We have two eight-node hex elements, so we need 2 * 8 = 16 ints.
-  sidre::View* connectivity =
-    elts->createViewAndAllocate("connectivity", sidre::INT_ID, 16);
+  sidre::View* connectivity = elts->createViewAndAllocate("connectivity", sidre::INT_ID, 16);
 
   // The Mesh Blueprint connectivity array for a hexahedron lists four nodes on
   // one face arranged by right-hand rule to indicate a normal pointing into
@@ -201,10 +186,7 @@ void setup_blueprint_fields(sidre::DataStore* ds, sidre::Group* fields)
   nodefield->createViewString("association", "vertex");
   nodefield->createViewString("type", "scalar");
   nodefield->createViewString("topology", "mesh");
-  nodefield->createView("values",
-                        sidre::INT_ID,
-                        origv->getNumElements(),
-                        origv->getBuffer());
+  nodefield->createView("values", sidre::INT_ID, origv->getNumElements(), origv->getBuffer());
 
   // Set up the element-centered field
   // Get the original data
@@ -213,10 +195,7 @@ void setup_blueprint_fields(sidre::DataStore* ds, sidre::Group* fields)
   eltfield->createViewString("association", "element");
   eltfield->createViewString("type", "scalar");
   eltfield->createViewString("topology", "mesh");
-  eltfield->createView("values",
-                       sidre::DOUBLE_ID,
-                       origv->getNumElements(),
-                       origv->getBuffer());
+  eltfield->createView("values", sidre::DOUBLE_ID, origv->getNumElements(), origv->getBuffer());
 }
 
 void setup_cartesian_fields(sidre::Group* fields)
@@ -232,8 +211,7 @@ void setup_cartesian_fields(sidre::Group* fields)
   nodefield->createViewString("association", "vertex");
   nodefield->createViewString("type", "scalar");
   nodefield->createViewString("topology", "cartesian");
-  sidre::View* nodes =
-    nodefield->createViewAndAllocate("values", sidre::DOUBLE_ID, nodecount);
+  sidre::View* nodes = nodefield->createViewAndAllocate("values", sidre::DOUBLE_ID, nodecount);
 
   double* nptr = nodes->getArray();
 
@@ -249,8 +227,7 @@ void setup_cartesian_fields(sidre::Group* fields)
   eltfield->createViewString("association", "element");
   eltfield->createViewString("type", "scalar");
   eltfield->createViewString("topology", "cartesian");
-  sidre::View* elts =
-    eltfield->createViewAndAllocate("values", sidre::DOUBLE_ID, eltcount);
+  sidre::View* elts = eltfield->createViewAndAllocate("values", sidre::DOUBLE_ID, eltcount);
 
   double* eptr = elts->getArray();
 
@@ -302,10 +279,7 @@ void generate_spio_blueprint(sidre::DataStore* ds, bool dense)
   conduit::Node info, mesh_node, root_node;
   ds->getRoot()->createNativeLayout(mesh_node);
   std::string bp_protocol = "mesh";
-  if(conduit::blueprint::mpi::verify(bp_protocol,
-                                     mesh_node[domain_location],
-                                     info,
-                                     MPI_COMM_WORLD))
+  if(conduit::blueprint::mpi::verify(bp_protocol, mesh_node[domain_location], info, MPI_COMM_WORLD))
   {
   #if defined(AXOM_USE_HDF5)
     std::string protocol = "sidre_hdf5";
@@ -332,10 +306,7 @@ void generate_spio_blueprint(sidre::DataStore* ds, bool dense)
 
     writer.write(ds->getRoot()->getGroup("domain_data"), 1, output_name, protocol);
 
-    writer.writeBlueprintIndexToRootFile(ds,
-                                         domain_location,
-                                         bp_rootfile,
-                                         mesh_name);
+    writer.writeBlueprintIndexToRootFile(ds, domain_location, bp_rootfile, mesh_name);
   }
 }
 
@@ -395,10 +366,7 @@ void generate_multidomain_blueprint(sidre::DataStore* ds,
   conduit::Node info, mesh_node, root_node;
   ds->getRoot()->createNativeLayout(mesh_node);
   std::string bp_protocol = "mesh";
-  if(conduit::blueprint::mpi::verify(bp_protocol,
-                                     mesh_node[holder_name],
-                                     info,
-                                     MPI_COMM_WORLD))
+  if(conduit::blueprint::mpi::verify(bp_protocol, mesh_node[holder_name], info, MPI_COMM_WORLD))
   {
   #if defined(AXOM_USE_HDF5)
     std::string protocol = "sidre_hdf5";
@@ -424,9 +392,7 @@ void generate_multidomain_blueprint(sidre::DataStore* ds,
   }
 }
 
-void generate_cartesian_blueprint(sidre::DataStore* ds,
-                                  const std::string& filename,
-                                  int num_files)
+void generate_cartesian_blueprint(sidre::DataStore* ds, const std::string& filename, int num_files)
 {
   int my_rank;
   int comm_size;
@@ -476,10 +442,7 @@ void generate_cartesian_blueprint(sidre::DataStore* ds,
   conduit::Node info, mesh_node, root_node;
   ds->getRoot()->createNativeLayout(mesh_node);
   std::string bp_protocol = "mesh";
-  if(conduit::blueprint::mpi::verify(bp_protocol,
-                                     mesh_node[holder_name],
-                                     info,
-                                     MPI_COMM_WORLD))
+  if(conduit::blueprint::mpi::verify(bp_protocol, mesh_node[holder_name], info, MPI_COMM_WORLD))
   {
   #if defined(AXOM_USE_HDF5)
     std::string protocol = "sidre_hdf5";

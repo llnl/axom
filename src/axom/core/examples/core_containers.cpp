@@ -40,13 +40,11 @@ void showArray(axom::Array<int>& a, const char* name)
 void showTupleArray(axom::MCArray<int>& a, const char* name)
 {
   const auto numComponents = a.shape()[1];
-  std::cout << "MCArray " << name << " with " << a.shape()[0] << " "
-            << numComponents << "-tuples = [" << std::endl;
+  std::cout << "MCArray " << name << " with " << a.shape()[0] << " " << numComponents
+            << "-tuples = [" << std::endl;
   for(int i = 0; i < a.shape()[0]; ++i)
   {
-    std::cout << "  "
-              << axom::ArrayView<int>(a.data() + (i * numComponents),
-                                      numComponents)
+    std::cout << "  " << axom::ArrayView<int>(a.data() + (i * numComponents), numComponents)
               << std::endl;
   }
   std::cout << "]" << std::endl;
@@ -55,13 +53,11 @@ void showTupleArray(axom::MCArray<int>& a, const char* name)
 void showTupleArrayView(axom::MCArrayView<int>& a, const char* name)
 {
   const auto numComponents = a.shape()[1];
-  std::cout << "MCArrayView " << name << " with " << a.shape()[0] << " "
-            << numComponents << "-tuples = [" << std::endl;
+  std::cout << "MCArrayView " << name << " with " << a.shape()[0] << " " << numComponents
+            << "-tuples = [" << std::endl;
   for(int i = 0; i < a.shape()[0]; ++i)
   {
-    std::cout << "  "
-              << axom::ArrayView<int>(a.data() + (i * numComponents),
-                                      numComponents)
+    std::cout << "  " << axom::ArrayView<int>(a.data() + (i * numComponents), numComponents)
               << std::endl;
   }
   std::cout << "]" << std::endl;
@@ -91,8 +87,7 @@ void demoArrayBasic()
 
   // An Array increases in size if a value is pushed back.
   a.push_back(4);
-  std::cout << "After pushing back a value, a's length = " << a.size()
-            << std::endl;
+  std::cout << "After pushing back a value, a's length = " << a.size() << std::endl;
 
   // You can also insert a value in the middle of the Array.
   // Here we insert value 6 at position 2 and value 1 at position 4.
@@ -143,9 +138,7 @@ void demoArrayBasic()
   a[0] = 1;
   c(1, 1) = 9;
 
-  std::cout
-    << "Array a and MCArrayView c use the same memory, a's internal buffer."
-    << std::endl;
+  std::cout << "Array a and MCArrayView c use the same memory, a's internal buffer." << std::endl;
   showArray(a, "a");
   showTupleArrayView(c, "c");
   // _extbuffer_end
@@ -158,8 +151,7 @@ void demoArrayBasic()
     for(int j = 0; j < c.shape()[1]; j++)
     {
       // Note that c's operator() accepts two arguments because it is two-dimensional
-      std::cout << "In ArrayView c, index (" << i << ", " << j << ") yields "
-                << c(i, j) << std::endl;
+      std::cout << "In ArrayView c, index (" << i << ", " << j << ") yields " << c(i, j) << std::endl;
     }
   }
 
@@ -201,18 +193,16 @@ void demoArrayBasic()
     }
   }
   // View the 3rd of the 4-tuples, as if they were in their own array.
-  axom::ArrayView<std::string, 2> viewOfThird(
-    arrayOf4tuples.data() + 2,
-    shape,
-    TUPSIZE);  // 2D array of the third component of each tuple
+  axom::ArrayView<std::string, 2> viewOfThird(arrayOf4tuples.data() + 2,
+                                              shape,
+                                              TUPSIZE);  // 2D array of the third component of each tuple
   std::cout << "Third components of 2D array of 4-tuples:" << std::endl;
   show2DArrayView(viewOfThird);
   // _spacing_end
 }
 
 // The following example requires CUDA or HIP + Umpire + unified memory
-#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU) && \
-  defined(UMPIRE_ENABLE_UM)
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU) && defined(UMPIRE_ENABLE_UM)
   #define AXOM_CONTAINERS_EXAMPLE_ON_DEVICE
 #endif
 
@@ -223,9 +213,7 @@ void demoArrayBasic()
 using UnifiedIntArrayView = axom::ArrayView<int, 1, axom::MemorySpace::Unified>;
 using DeviceIntArrayView = axom::ArrayView<int, 1, axom::MemorySpace::Device>;
 
-__global__ void add(const UnifiedIntArrayView A,
-                    const UnifiedIntArrayView B,
-                    DeviceIntArrayView C)
+__global__ void add(const UnifiedIntArrayView A, const UnifiedIntArrayView B, DeviceIntArrayView C)
 {
   for(int i = 0; i < A.size(); i++)
   {
@@ -245,8 +233,8 @@ void demoArrayDevice()
   // _basic_array_device_create_start
   constexpr int N = 10;
   // An device array can be constructed by either specifying the corresponding allocator ID...
-  const int device_allocator_id = axom::getUmpireResourceAllocatorID(
-    umpire::resource::MemoryResourceType::Device);
+  const int device_allocator_id =
+    axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
   axom::Array<int> device_array_dynamic(N, N, device_allocator_id);
   // ...or by providing the memory space via template parameter:
   axom::Array<int, 1, axom::MemorySpace::Device> device_array_template(N);
@@ -279,8 +267,8 @@ void demoArrayDevice()
   // _basic_array_device_explicit_end
 
   // _device_array_create_start
-  const int unified_alloc_id = axom::getUmpireResourceAllocatorID(
-    umpire::resource::MemoryResourceType::Unified);
+  const int unified_alloc_id =
+    axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
 
   // The last template parameter specifies a memory space.
   // Its default value is Dynamic, which lets the user specify the
@@ -323,18 +311,14 @@ void demoArrayDevice()
   axom::Array<int, 1, axom::MemorySpace::Device> C_explicit_device_copy(C_device);
 
   // Just as before, an allocator ID may be specified explicitly.
-  axom::Array<int, 1, axom::MemorySpace::Unified> C_explicit_unified_copy(
-    C_device,
-    unified_alloc_id);
+  axom::Array<int, 1, axom::MemorySpace::Unified> C_explicit_unified_copy(C_device, unified_alloc_id);
 
   // Note that if an allocator ID is incompatible with a memory space, the default
   // allocator ID for that memory space is used. Both of these examples will copy
   // memory to the host:
   axom::Array<int, 1, axom::MemorySpace::Host> C_use_host_alloc(C_device);
   // The below will also print a warning in debug mode:
-  axom::Array<int, 1, axom::MemorySpace::Host> C_use_host_alloc_2(
-    C_device,
-    unified_alloc_id);
+  axom::Array<int, 1, axom::MemorySpace::Host> C_use_host_alloc_2(C_device, unified_alloc_id);
 
   // _device_array_propagate_end
   // _device_array_call_start

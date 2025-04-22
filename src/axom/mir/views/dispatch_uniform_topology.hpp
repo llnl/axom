@@ -58,10 +58,7 @@ struct make_uniform<3>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo)
-  {
-    return TopoView(indexing(topo));
-  }
+  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
 };
 
 /*!
@@ -96,10 +93,7 @@ struct make_uniform<2>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo)
-  {
-    return TopoView(indexing(topo));
-  }
+  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
 };
 
 /*!
@@ -133,10 +127,7 @@ struct make_uniform<1>
    * \param topo The node containing the topology.
    * \return The topology view.
    */
-  static TopoView view(const conduit::Node &topo)
-  {
-    return TopoView(indexing(topo));
-  }
+  static TopoView view(const conduit::Node &topo) { return TopoView(indexing(topo)); }
 };
 
 namespace internal
@@ -236,22 +227,19 @@ void dispatch_uniform_topology(const conduit::Node &topo, FuncType &&func)
   switch(n_dims.dtype().number_of_elements())
   {
   case 3:
-    internal::dispatch_one_uniform_topology<
-      dimension_selected(SelectedDimensions, 3),
-      3,
-      FuncType>::execute(topo, std::forward<FuncType>(func));
+    internal::dispatch_one_uniform_topology<dimension_selected(SelectedDimensions, 3), 3, FuncType>::execute(
+      topo,
+      std::forward<FuncType>(func));
     break;
   case 2:
-    internal::dispatch_one_uniform_topology<
-      dimension_selected(SelectedDimensions, 2),
-      2,
-      FuncType>::execute(topo, std::forward<FuncType>(func));
+    internal::dispatch_one_uniform_topology<dimension_selected(SelectedDimensions, 2), 2, FuncType>::execute(
+      topo,
+      std::forward<FuncType>(func));
     break;
   case 1:
-    internal::dispatch_one_uniform_topology<
-      dimension_selected(SelectedDimensions, 1),
-      1,
-      FuncType>::execute(topo, std::forward<FuncType>(func));
+    internal::dispatch_one_uniform_topology<dimension_selected(SelectedDimensions, 1), 1, FuncType>::execute(
+      topo,
+      std::forward<FuncType>(func));
     break;
   default:
     break;

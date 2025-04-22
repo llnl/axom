@@ -23,19 +23,15 @@ std::vector<double> toDoubleVector(inlet::Proxy const &field,
   auto actualSize = values.size();
   if(actualSize != expectedSize)
   {
-    throw KleeError({field.name(),
-                     fmt::format("Wrong size for {}. Expected {}. Got {}.",
-                                 fieldName,
-                                 expectedSize,
-                                 actualSize)});
+    throw KleeError(
+      {field.name(),
+       fmt::format("Wrong size for {}. Expected {}. Got {}.", fieldName, expectedSize, actualSize)});
   }
   return values;
 }
 
 template <typename T>
-T toArrayLike(inlet::Proxy const &parent,
-              char const *fieldName,
-              Dimensions expectedDims)
+T toArrayLike(inlet::Proxy const &parent, char const *fieldName, Dimensions expectedDims)
 {
   auto values = toDoubleVector(parent[fieldName], expectedDims, fieldName);
   return T {values.data(), static_cast<int>(expectedDims)};
@@ -54,9 +50,7 @@ T toArrayLike(inlet::Proxy const &parent,
   return defaultValue;
 }
 
-primal::Point3D toPoint(inlet::Container const &parent,
-                        char const *fieldName,
-                        Dimensions expectedDims)
+primal::Point3D toPoint(inlet::Container const &parent, char const *fieldName, Dimensions expectedDims)
 {
   return toArrayLike<primal::Point3D>(parent, fieldName, expectedDims);
 }
@@ -69,9 +63,7 @@ primal::Point3D toPoint(inlet::Container const &parent,
   return toArrayLike(parent, fieldName, expectedDims, defaultValue);
 }
 
-primal::Vector3D toVector(inlet::Container const &parent,
-                          char const *fieldName,
-                          Dimensions expectedDims)
+primal::Vector3D toVector(inlet::Container const &parent, char const *fieldName, Dimensions expectedDims)
 {
   return toArrayLike<primal::Vector3D>(parent, fieldName, expectedDims);
 }
@@ -84,8 +76,7 @@ primal::Vector3D toVector(inlet::Container const &parent,
   return toArrayLike(parent, fieldName, expectedDims, defaultValue);
 }
 
-std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(
-  const inlet::Container &container)
+std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Container &container)
 {
   bool hasStartUnits = container.contains("start_units");
   bool hasEndUnits = container.contains("end_units");
@@ -93,9 +84,7 @@ std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(
   {
     if(hasStartUnits || hasEndUnits)
     {
-      throw KleeError(
-        {container.name(),
-         "Can't specify 'units' with 'start_units' or 'end_units'"});
+      throw KleeError({container.name(), "Can't specify 'units' with 'start_units' or 'end_units'"});
     }
     auto units = parseLengthUnits(container["units"]);
     return std::make_tuple(units, units);
@@ -104,8 +93,7 @@ std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(
   {
     if(!(hasStartUnits && hasEndUnits))
     {
-      throw KleeError(
-        {container.name(), "Must specify both 'start_units' and 'end_units'"});
+      throw KleeError({container.name(), "Must specify both 'start_units' and 'end_units'"});
     }
     auto startUnits = parseLengthUnits(container["start_units"]);
     auto endUnits = parseLengthUnits(container["end_units"]);
@@ -114,8 +102,7 @@ std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(
   return std::make_tuple(LengthUnit::unspecified, LengthUnit::unspecified);
 }
 
-std::tuple<LengthUnit, LengthUnit> getStartAndEndUnits(
-  const inlet::Container &container)
+std::tuple<LengthUnit, LengthUnit> getStartAndEndUnits(const inlet::Container &container)
 {
   auto units = getOptionalStartAndEndUnits(container);
   if(std::get<0>(units) == LengthUnit::unspecified)

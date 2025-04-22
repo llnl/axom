@@ -69,8 +69,7 @@ namespace slam
  *
  * The interface is for constant access to the elements.
  */
-template <typename PosType = slam::DefaultPositionType,
-          typename ElemType = slam::DefaultElementType>
+template <typename PosType = slam::DefaultPositionType, typename ElemType = slam::DefaultElementType>
 class Set
 {
 public:

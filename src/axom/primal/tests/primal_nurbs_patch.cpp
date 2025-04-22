@@ -186,16 +186,10 @@ TEST(primal_nurbspatch, point_array_constructors)
                                              PointType {2.0, 0.0, 0.0},
                                              PointType {2.0, 1.0, 0.0},
                                              PointType {2.0, 2.0, 1.0}});
-  axom::Array<CoordType> weightsArray(
-    {1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0});
+  axom::Array<CoordType> weightsArray({1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0});
 
   NURBSPatchType nPatchArray(controlPointsArray, npts_u, npts_v, degree_u, degree_v);
-  NURBSPatchType wPatchArray(controlPointsArray,
-                             weightsArray,
-                             npts_u,
-                             npts_v,
-                             degree_u,
-                             degree_v);
+  NURBSPatchType wPatchArray(controlPointsArray, weightsArray, npts_u, npts_v, degree_u, degree_v);
 
   EXPECT_EQ(nPatchArray.getDegree_u(), degree_u);
   EXPECT_EQ(nPatchArray.getDegree_v(), degree_v);
@@ -231,10 +225,7 @@ TEST(primal_nurbspatch, point_array_constructors)
   }
 
   NURBSPatchType nPatchArray2D(controlPointsArray2D, degree_u, degree_v);
-  NURBSPatchType wPatchArray2D(controlPointsArray2D,
-                               weightsArray2D,
-                               degree_u,
-                               degree_v);
+  NURBSPatchType wPatchArray2D(controlPointsArray2D, weightsArray2D, degree_u, degree_v);
 
   EXPECT_EQ(nPatchArray2D.getDegree_u(), degree_u);
   EXPECT_EQ(nPatchArray2D.getDegree_v(), degree_v);
@@ -334,23 +325,13 @@ TEST(primal_nurbspatch, knot_array_constructor)
                                              PointType {2.0, 0.0, 0.0},
                                              PointType {2.0, 1.0, 0.0},
                                              PointType {2.0, 2.0, 1.0}});
-  axom::Array<CoordType> weightsArray(
-    {1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0});
+  axom::Array<CoordType> weightsArray({1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0});
 
   axom::Array<double> knots_uArray({0.0, 0.0, 0.5, 1.0, 1.0});
   axom::Array<double> knots_vArray({0.0, 0.0, 0.5, 1.0, 1.0});
 
-  NURBSPatchType nPatchArray(controlPointsArray,
-                             npts_u,
-                             npts_v,
-                             knots_uArray,
-                             knots_vArray);
-  NURBSPatchType wPatchArray(controlPointsArray,
-                             weightsArray,
-                             npts_u,
-                             npts_v,
-                             knots_uArray,
-                             knots_vArray);
+  NURBSPatchType nPatchArray(controlPointsArray, npts_u, npts_v, knots_uArray, knots_vArray);
+  NURBSPatchType wPatchArray(controlPointsArray, weightsArray, npts_u, npts_v, knots_uArray, knots_vArray);
 
   EXPECT_EQ(nPatchArray.getDegree_u(), degree_u);
   EXPECT_EQ(nPatchArray.getDegree_v(), degree_v);
@@ -385,10 +366,7 @@ TEST(primal_nurbspatch, knot_array_constructor)
   }
 
   NURBSPatchType nPatchArray2D(controlPointsArray2D, knots_uArray, knots_vArray);
-  NURBSPatchType wPatchArray2D(controlPointsArray2D,
-                               weightsArray2D,
-                               knots_uArray,
-                               knots_vArray);
+  NURBSPatchType wPatchArray2D(controlPointsArray2D, weightsArray2D, knots_uArray, knots_vArray);
 
   EXPECT_EQ(nPatchArray2D.getDegree_u(), degree_u);
   EXPECT_EQ(nPatchArray2D.getDegree_v(), degree_v);
@@ -413,11 +391,7 @@ TEST(primal_nurbspatch, knot_array_constructor)
   primal::KnotVector<CoordType> knotVector_u(npts_u, degree_u);
   primal::KnotVector<CoordType> knotVector_v(npts_v, degree_v);
 
-  NURBSPatchType nPatchKnotVector(controlPointsArray,
-                                  npts_u,
-                                  npts_v,
-                                  knotVector_u,
-                                  knotVector_v);
+  NURBSPatchType nPatchKnotVector(controlPointsArray, npts_u, npts_v, knotVector_u, knotVector_v);
   NURBSPatchType wPatchKnotVector(controlPointsArray,
                                   weightsArray,
                                   npts_u,
@@ -445,13 +419,8 @@ TEST(primal_nurbspatch, knot_array_constructor)
   }
 
   // Construct from 2D axom::Array and KnotVector object
-  NURBSPatchType nPatchKnotVector2D(controlPointsArray2D,
-                                    knotVector_u,
-                                    knotVector_v);
-  NURBSPatchType wPatchKnotVector2D(controlPointsArray2D,
-                                    weightsArray2D,
-                                    knotVector_u,
-                                    knotVector_v);
+  NURBSPatchType nPatchKnotVector2D(controlPointsArray2D, knotVector_u, knotVector_v);
+  NURBSPatchType wPatchKnotVector2D(controlPointsArray2D, weightsArray2D, knotVector_u, knotVector_v);
 
   EXPECT_EQ(nPatchKnotVector2D.getDegree_u(), degree_u);
   EXPECT_EQ(nPatchKnotVector2D.getDegree_v(), degree_v);
@@ -736,12 +705,7 @@ TEST(primal_nurbspatch, knot_insertion)
 
   NURBSPatchType nPatch(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
 
-  NURBSPatchType nPatchExtraKnots(controlPoints,
-                                  weights,
-                                  npts_u,
-                                  npts_v,
-                                  degree_u,
-                                  degree_v);
+  NURBSPatchType nPatchExtraKnots(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
 
   // Insert knots in the u direction
   nPatchExtraKnots.insertKnot_u(0.3, 2);
@@ -942,9 +906,8 @@ TEST(primal_nurbspatch, bezier_extraction)
         for(auto v : v_pts)
         {
           auto pt1 = nPatch.evaluate(u, v);
-          auto pt2 =
-            bPatch.evaluate((u - u_ranges[i]) / (u_ranges[i + 1] - u_ranges[i]),
-                            (v - v_ranges[j]) / (v_ranges[j + 1] - v_ranges[j]));
+          auto pt2 = bPatch.evaluate((u - u_ranges[i]) / (u_ranges[i + 1] - u_ranges[i]),
+                                     (v - v_ranges[j]) / (v_ranges[j + 1] - v_ranges[j]));
 
           for(int N = 0; N < DIM; ++N)
           {
@@ -1056,9 +1019,8 @@ TEST(primal_nurbspatch, extract_degenerate)
           for(int vi = 1; vi < npts - 1; ++vi)
           {
             auto pt1 = nPatch_u.evaluate(u_pts[ui], v_pts[vi]);
-            auto pt2 = bPatch.evaluate(
-              (u_pts[ui] - u_ranges[i]) / (u_ranges[i + 1] - u_ranges[i]),
-              (v_pts[vi] - v_ranges[j]) / (v_ranges[j + 1] - v_ranges[j]));
+            auto pt2 = bPatch.evaluate((u_pts[ui] - u_ranges[i]) / (u_ranges[i + 1] - u_ranges[i]),
+                                       (v_pts[vi] - v_ranges[j]) / (v_ranges[j + 1] - v_ranges[j]));
 
             for(int N = 0; N < DIM; ++N)
             {
@@ -1102,9 +1064,8 @@ TEST(primal_nurbspatch, extract_degenerate)
           for(int vi = 1; vi < npts - 1; ++vi)
           {
             auto pt1 = nPatch_v.evaluate(u_pts[ui], v_pts[vi]);
-            auto pt2 = bPatch.evaluate(
-              (u_pts[ui] - u_ranges[i]) / (u_ranges[i + 1] - u_ranges[i]),
-              (v_pts[vi] - v_ranges[j]) / (v_ranges[j + 1] - v_ranges[j]));
+            auto pt2 = bPatch.evaluate((u_pts[ui] - u_ranges[i]) / (u_ranges[i + 1] - u_ranges[i]),
+                                       (v_pts[vi] - v_ranges[j]) / (v_ranges[j + 1] - v_ranges[j]));
 
             for(int N = 0; N < DIM; ++N)
             {
@@ -1238,22 +1199,36 @@ TEST(primal_nurbspatch, reverse_orientation)
   // clang-format on
 
   NURBSPatchType original(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
-  NURBSPatchType reversed(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
+
+  // Add some knots to the patch in the u and v directions to make it more interesting
+  original.insertKnot_u(0.3, 2);
+  original.insertKnot_u(0.5, 1);
+
+  original.insertKnot_v(0.4, 1);
+  original.insertKnot_v(0.6, 2);
+
+  double min_u = 1.0, max_u = 2.0;
+  double min_v = -1.0, max_v = 0.5;
+
+  original.rescale_u(min_u, max_u);
+  original.rescale_v(min_v, max_v);
+
+  NURBSPatchType reversed(original);
 
   // Reverse along the u-axis
   reversed.reverseOrientation(0);
 
   constexpr int npts = 11;
   double u_pts[npts], v_pts[npts];
-  axom::numerics::linspace(0.0, 1.0, u_pts, npts);
-  axom::numerics::linspace(0.0, 1.0, v_pts, npts);
+  axom::numerics::linspace(min_u, max_u, u_pts, npts);
+  axom::numerics::linspace(min_v, max_v, v_pts, npts);
 
   for(auto u : u_pts)
   {
     for(auto v : v_pts)
     {
       PointType o_pt = original.evaluate(u, v);
-      PointType r_pt = reversed.evaluate(1 - u, v);
+      PointType r_pt = reversed.evaluate(min_u + max_u - u, v);
 
       for(int N = 0; N < DIM; ++N)
       {
@@ -1285,7 +1260,7 @@ TEST(primal_nurbspatch, reverse_orientation)
     for(auto v : v_pts)
     {
       PointType o_pt = original.evaluate(u, v);
-      PointType r_pt = reversed.evaluate(u, 1 - v);
+      PointType r_pt = reversed.evaluate(u, min_v + max_v - v);
 
       for(int N = 0; N < DIM; ++N)
       {
@@ -1301,7 +1276,7 @@ TEST(primal_nurbspatch, reverse_orientation)
     for(auto v : v_pts)
     {
       PointType o_pt = original.evaluate(u, v);
-      PointType r_pt = reversed.evaluate(1 - u, 1 - v);
+      PointType r_pt = reversed.evaluate(min_u + max_u - u, min_v + max_v - v);
 
       for(int N = 0; N < DIM; ++N)
       {

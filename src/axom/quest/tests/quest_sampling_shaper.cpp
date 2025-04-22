@@ -65,10 +65,7 @@ public:
     ofs << contents;
   }
 
-  ~ScopedTemporaryFile()
-  {
-    EXPECT_EQ(axom::utilities::filesystem::removeFile(m_filename), 0);
-  }
+  ~ScopedTemporaryFile() { EXPECT_EQ(axom::utilities::filesystem::removeFile(m_filename), 0); }
 
   const std::string& getFileName() const { return m_filename; }
 
@@ -117,10 +114,9 @@ public:
       std::vector<std::string> errs;
       for(auto verificationError : error.getErrors())
       {
-        errs.push_back(
-          axom::fmt::format(" - '{}': {}",
-                            static_cast<std::string>(verificationError.path),
-                            verificationError.message));
+        errs.push_back(axom::fmt::format(" - '{}': {}",
+                                         static_cast<std::string>(verificationError.path),
+                                         verificationError.message));
       }
 
       if(!errs.empty())
@@ -136,12 +132,10 @@ public:
   }
 
   /// Initializes the Shaper instance over a shapefile and optionally sets up initial "preshaped" volume fractions
-  void initializeShaping(
-    const std::string& shapefile,
-    const std::map<std::string, mfem::GridFunction*>& init_vf_map = {})
+  void initializeShaping(const std::string& shapefile,
+                         const std::map<std::string, mfem::GridFunction*>& init_vf_map = {})
   {
-    SLIC_INFO_IF(very_verbose_output,
-                 axom::fmt::format("Reading shape set from {}", shapefile));
+    SLIC_INFO_IF(very_verbose_output, axom::fmt::format("Reading shape set from {}", shapefile));
     m_shapeSet = std::make_unique<klee::ShapeSet>(klee::readShapeSet(shapefile));
 
     SLIC_INFO_IF(very_verbose_output, axom::fmt::format("Shaping materials..."));
@@ -155,36 +149,29 @@ public:
 
     if(very_verbose_output)
     {
-      m_shaper->printRegisteredFieldNames(
-        "*** After importing volume fractions");
+      m_shaper->printRegisteredFieldNames("*** After importing volume fractions");
     }
   }
 
   /// Runs the shaping query over a shapefile; must be called after initializeShaping()
   void runShaping()
   {
-    EXPECT_NE(nullptr, m_shaper)
-      << "Shaper needs to be initialized via initializeShaping()";
+    EXPECT_NE(nullptr, m_shaper) << "Shaper needs to be initialized via initializeShaping()";
 
     // Define lambda to override default dimensions, when necessary
-    auto getShapeDim = [defaultDim =
-                          m_shapeSet->getDimensions()](const auto& shape) {
-      static std::map<std::string, klee::Dimensions> format_dim = {
-        {"c2c", klee::Dimensions::Two},
-        {"stl", klee::Dimensions::Three}};
+    auto getShapeDim = [defaultDim = m_shapeSet->getDimensions()](const auto& shape) {
+      static std::map<std::string, klee::Dimensions> format_dim = {{"c2c", klee::Dimensions::Two},
+                                                                   {"stl", klee::Dimensions::Three}};
 
       const auto& format_str = shape.getGeometry().getFormat();
-      return format_dim.find(format_str) != format_dim.end()
-        ? format_dim[format_str]
-        : defaultDim;
+      return format_dim.find(format_str) != format_dim.end() ? format_dim[format_str] : defaultDim;
     };
 
     for(const auto& shape : m_shapeSet->getShapes())
     {
-      SLIC_INFO_IF(very_verbose_output,
-                   axom::fmt::format("\tshape {} -> material {}",
-                                     shape.getName(),
-                                     shape.getMaterial()));
+      SLIC_INFO_IF(
+        very_verbose_output,
+        axom::fmt::format("\tshape {} -> material {}", shape.getName(), shape.getMaterial()));
 
       const auto shapeDim = getShapeDim(shape);
 
@@ -217,8 +204,7 @@ public:
   }
 
   /// Registers and allocates a volume fraction grid function within the datastore
-  mfem::GridFunction* registerVolFracGridFunction(const std::string& name,
-                                                  int vfOrder = 2)
+  mfem::GridFunction* registerVolFracGridFunction(const std::string& name, int vfOrder = 2)
   {
     SLIC_ASSERT(!m_dc.HasField(name));
 
@@ -226,8 +212,7 @@ public:
     const int dim = mesh.Dimension();
 
     // create grid function
-    auto* coll =
-      new mfem::L2_FECollection(vfOrder, dim, mfem::BasisType::Positive);
+    auto* coll = new mfem::L2_FECollection(vfOrder, dim, mfem::BasisType::Positive);
     auto* fes = new mfem::FiniteElementSpace(&mesh, coll);
     auto* vf = new mfem::GridFunction(fes);
     vf->MakeOwner(coll);
@@ -249,8 +234,7 @@ public:
    * The signature of DOFInitializer is [](int idx, Point<double,DIM>>& pt, int attribute) -> double
    */
   template <int DIM, typename DOFInitializer>
-  void initializeVolFracGridFunction(mfem::GridFunction* vf,
-                                     DOFInitializer&& dof_initializer)
+  void initializeVolFracGridFunction(mfem::GridFunction* vf, DOFInitializer&& dof_initializer)
   {
     auto& mesh = this->getMesh();
     const int dim = mesh.Dimension();
@@ -265,8 +249,7 @@ public:
     // Get positions of DOFs
     mfem::DenseTensor pos_coef(dim, nq, NE);
     {
-      const auto* geomFactors =
-        mesh.GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
+      const auto* geomFactors = mesh.GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
 
       // Rearrange positions
       for(int i = 0; i < NE; ++i)
@@ -307,17 +290,16 @@ public:
   {
     auto vf_name = axom::fmt::format("vol_frac_{}", material_name);
 
-    EXPECT_TRUE(m_dc.HasField(vf_name)) << axom::fmt::format(
-      "Did not have expected volume fraction '{:.4}' for material '{}'",
-      material_name,
-      vf_name);
+    EXPECT_TRUE(m_dc.HasField(vf_name))
+      << axom::fmt::format("Did not have expected volume fraction '{:.4}' for material '{}'",
+                           material_name,
+                           vf_name);
 
     const double actual_volume = this->gridFunctionVolume(vf_name);
-    SLIC_INFO(axom::fmt::format(
-      "Shaped volume fraction of '{}' is {:.4}  (expected: {:.4})",
-      material_name,
-      actual_volume,
-      expected_volume));
+    SLIC_INFO(axom::fmt::format("Shaped volume fraction of '{}' is {:.4}  (expected: {:.4})",
+                                material_name,
+                                actual_volume,
+                                expected_volume));
 
     EXPECT_NEAR(expected_volume, actual_volume, EPS);
   }
@@ -345,8 +327,7 @@ public:
     const axom::NumericArray<int, 2> celldims {64, 64};
 
     // memory for mesh will be managed by data collection
-    auto* mesh =
-      quest::util::make_cartesian_mfem_mesh_2D(bbox, celldims, polynomialOrder);
+    auto* mesh = quest::util::make_cartesian_mfem_mesh_2D(bbox, celldims, polynomialOrder);
 
     // Set element attributes based on quadrant where centroid is located
     // These will be used later in some cases when setting volume fractions
@@ -415,8 +396,7 @@ public:
     const axom::NumericArray<int, 3> celldims {8, 8, 8};
 
     // memory for mesh will be managed by data collection
-    auto* mesh =
-      quest::util::make_cartesian_mfem_mesh_3D(bbox, celldims, polynomialOrder);
+    auto* mesh = quest::util::make_cartesian_mfem_mesh_3D(bbox, celldims, polynomialOrder);
 
     // Set element attributes based on octant where centroid is located
     // These will be used later in some cases when setting volume fractions
@@ -507,8 +487,7 @@ TEST_F(SamplingShaperTest2D, check_mesh)
 
 TEST_F(SamplingShaperTest2D, basic_circle)
 {
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
 dimensions: 2
@@ -523,13 +502,11 @@ shapes:
 
   const std::string circle_material = "circleMat";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname),
-                                   unit_circle_contour);
+  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
-                                 axom::fmt::format(shape_template,
-                                                   circle_material,
-                                                   contour_file.getFileName()));
+  ScopedTemporaryFile shape_file(
+    axom::fmt::format("{}.yaml", testname),
+    axom::fmt::format(shape_template, circle_material, contour_file.getFileName()));
 
   if(very_verbose_output)
   {
@@ -557,8 +534,7 @@ TEST_F(SamplingShaperTest2D, basic_circle_projector)
   using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
 
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
 dimensions: 2
@@ -573,13 +549,11 @@ shapes:
 
   const std::string circle_material = "circleMat";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname),
-                                   unit_circle_contour);
+  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
-                                 axom::fmt::format(shape_template,
-                                                   circle_material,
-                                                   contour_file.getFileName()));
+  ScopedTemporaryFile shape_file(
+    axom::fmt::format("{}.yaml", testname),
+    axom::fmt::format(shape_template, circle_material, contour_file.getFileName()));
 
   this->validateShapeFile(shape_file.getFileName());
   this->initializeShaping(shape_file.getFileName());
@@ -589,15 +563,9 @@ shapes:
   this->m_shaper->setPointProjector([](const Point3D& pt) {
     return Point3D {pt[0], pt[1], pt[2]};
   });
-  this->m_shaper->setPointProjector([](const Point2D& pt) {
-    return Point2D {pt[0], pt[1]};
-  });
-  this->m_shaper->setPointProjector([](const Point3D& pt) {
-    return Point2D {pt[0], pt[1]};
-  });
-  this->m_shaper->setPointProjector([](const Point2D& pt) {
-    return Point3D {pt[0], pt[1], 0};
-  });
+  this->m_shaper->setPointProjector([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
+  this->m_shaper->setPointProjector([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
+  this->m_shaper->setPointProjector([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
 
   this->runShaping();
 
@@ -617,8 +585,7 @@ TEST_F(SamplingShaperTest2D, circle_projector_anisotropic)
   using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
 
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
 dimensions: 2
@@ -633,13 +600,11 @@ shapes:
 
   const std::string circle_material = "circleMat";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname),
-                                   unit_circle_contour);
+  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
-                                 axom::fmt::format(shape_template,
-                                                   circle_material,
-                                                   contour_file.getFileName()));
+  ScopedTemporaryFile shape_file(
+    axom::fmt::format("{}.yaml", testname),
+    axom::fmt::format(shape_template, circle_material, contour_file.getFileName()));
 
   this->validateShapeFile(shape_file.getFileName());
   this->initializeShaping(shape_file.getFileName());
@@ -652,9 +617,7 @@ shapes:
     return Point2D {pt[0] / scale_a, pt[1] / scale_b};
   });
   // check that we can register another projector that's not used
-  this->m_shaper->setPointProjector([](const Point3D&) {
-    return Point3D {0., 0.};
-  });
+  this->m_shaper->setPointProjector([](const Point3D&) { return Point3D {0., 0.}; });
 
   this->runShaping();
 
@@ -671,8 +634,7 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, disk_via_replacement)
 {
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
 dimensions: 2
@@ -698,12 +660,10 @@ shapes:
   const std::string outer_material = "outer";
   const std::string inner_material = "inner";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname),
-                                   unit_circle_contour);
+  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
-    axom::fmt::format(shape_template, contour_file.getFileName()));
+  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+                                 axom::fmt::format(shape_template, contour_file.getFileName()));
 
   if(very_verbose_output)
   {
@@ -732,8 +692,7 @@ TEST_F(SamplingShaperTest2D, disk_via_replacement_with_background)
 {
   using Point2D = typename SamplingShaperTest2D::Point2D;
 
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
 dimensions: 2
@@ -760,25 +719,20 @@ shapes:
       - scale: .5
 )";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname),
-                                   unit_circle_contour);
+  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
 
   // Set background material to 'void' (which is not present elsewhere)
   {
-    ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
-                                   axom::fmt::format(shape_template,
-                                                     contour_file.getFileName(),
-                                                     "void",
-                                                     "disk",
-                                                     "hole"));
+    ScopedTemporaryFile shape_file(
+      axom::fmt::format("{}.yaml", testname),
+      axom::fmt::format(shape_template, contour_file.getFileName(), "void", "disk", "hole"));
 
     // Create an initial background material set to 1 everywhere
     std::map<std::string, mfem::GridFunction*> initialGridFunctions;
     {
       auto* vf = this->registerVolFracGridFunction("init_vf_bg");
-      this->initializeVolFracGridFunction<2>(
-        vf,
-        [](int, const Point2D&, int) -> double { return 1.; });
+      this->initializeVolFracGridFunction<2>(vf,
+                                             [](int, const Point2D&, int) -> double { return 1.; });
       initialGridFunctions["void"] = vf;
     }
 
@@ -798,28 +752,23 @@ shapes:
   }
 
   // clean up data collection
-  for(const auto& name :
-      {"vol_frac_void", "vol_frac_hole", "vol_frac_disk", "init_vf_bg"})
+  for(const auto& name : {"vol_frac_void", "vol_frac_hole", "vol_frac_disk", "init_vf_bg"})
   {
     this->getDC().DeregisterField(name);
   }
 
   // Set background and inner hole materials to 'void'
   {
-    ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
-                                   axom::fmt::format(shape_template,
-                                                     contour_file.getFileName(),
-                                                     "void",
-                                                     "disk",
-                                                     "void"));
+    ScopedTemporaryFile shape_file(
+      axom::fmt::format("{}.yaml", testname),
+      axom::fmt::format(shape_template, contour_file.getFileName(), "void", "disk", "void"));
 
     // Create an initial background material set to 1 everywhere
     std::map<std::string, mfem::GridFunction*> initialGridFunctions;
     {
       auto* vf = this->registerVolFracGridFunction("init_vf_bg");
-      this->initializeVolFracGridFunction<2>(
-        vf,
-        [](int, const Point2D&, int) -> double { return 1.; });
+      this->initializeVolFracGridFunction<2>(vf,
+                                             [](int, const Point2D&, int) -> double { return 1.; });
       initialGridFunctions["void"] = vf;
     }
 
@@ -846,8 +795,7 @@ TEST_F(SamplingShaperTest2D, preshaped_materials)
 {
   using Point2D = typename SamplingShaperTest2D::Point2D;
 
-  const std::string& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const std::string& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
 dimensions: 2
@@ -871,9 +819,8 @@ shapes:
   does_not_replace: [{1}]
 )";
 
-  ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
-    axom::fmt::format(shape_template, "void", "left", "odds"));
+  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+                                 axom::fmt::format(shape_template, "void", "left", "odds"));
 
   if(very_verbose_output)
   {
@@ -884,26 +831,20 @@ shapes:
   std::map<std::string, mfem::GridFunction*> initialGridFunctions;
   {
     auto* vf = this->registerVolFracGridFunction("init_vf_bg");
-    this->initializeVolFracGridFunction<2>(
-      vf,
-      [](int, const Point2D&, int) -> double { return 1.; });
+    this->initializeVolFracGridFunction<2>(vf, [](int, const Point2D&, int) -> double { return 1.; });
     initialGridFunctions["void"] = vf;
 
     // Note: element attributes were set earlier based on quadrant of cell's centroid (1, 2, 3 and 4)
     vf = this->registerVolFracGridFunction("init_vf_left");
-    this->initializeVolFracGridFunction<2>(
-      vf,
-      [](int, const Point2D&, int attr) -> double {
-        return (attr == 3 || attr == 4) ? 1. : 0;
-      });
+    this->initializeVolFracGridFunction<2>(vf, [](int, const Point2D&, int attr) -> double {
+      return (attr == 3 || attr == 4) ? 1. : 0;
+    });
     initialGridFunctions["left"] = vf;
 
     vf = this->registerVolFracGridFunction("init_vf_odds");
-    this->initializeVolFracGridFunction<2>(
-      vf,
-      [](int idx, const Point2D&, int) -> double {
-        return idx % 2 == 1 ? 1. : 0;
-      });
+    this->initializeVolFracGridFunction<2>(vf, [](int idx, const Point2D&, int) -> double {
+      return idx % 2 == 1 ? 1. : 0;
+    });
     initialGridFunctions["odds"] = vf;
   }
 
@@ -919,8 +860,7 @@ shapes:
   // Odds should cover half of the right side of the mesh
   const double expected_odds_area = range[0] * range[1] / 4.;
   // The rest should be void
-  const double expected_void_area =
-    range[0] * range[1] - expected_left_area - expected_odds_area;
+  const double expected_void_area = range[0] * range[1] - expected_left_area - expected_odds_area;
 
   this->checkExpectedVolumeFractions("left", expected_left_area);
   this->checkExpectedVolumeFractions("odds", expected_odds_area);
@@ -936,8 +876,7 @@ TEST_F(SamplingShaperTest2D, disk_with_multiple_preshaped_materials)
 {
   using Point2D = typename SamplingShaperTest2D::Point2D;
 
-  const std::string& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const std::string& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
 dimensions: 2
@@ -975,12 +914,10 @@ shapes:
   replaces: [void, hole]
 )";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname),
-                                   unit_circle_contour);
+  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
-    axom::fmt::format(shape_template, contour_file.getFileName()));
+  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+                                 axom::fmt::format(shape_template, contour_file.getFileName()));
 
   if(very_verbose_output)
   {
@@ -993,28 +930,22 @@ shapes:
   {
     // initial background void material is set everywhere
     auto* vf = this->registerVolFracGridFunction("init_vf_bg");
-    this->initializeVolFracGridFunction<2>(
-      vf,
-      [](int, const Point2D&, int) -> double { return 1.; });
+    this->initializeVolFracGridFunction<2>(vf, [](int, const Point2D&, int) -> double { return 1.; });
     initialGridFunctions["void"] = vf;
 
     // initial left material is set based on mesh attributes
     // Note: element attributes were set earlier based on quadrant of cell's centroid (1, 2, 3 and 4)
     vf = this->registerVolFracGridFunction("init_vf_left");
-    this->initializeVolFracGridFunction<2>(
-      vf,
-      [](int, const Point2D&, int attr) -> double {
-        return (attr == 3 || attr == 4) ? 1. : 0;
-      });
+    this->initializeVolFracGridFunction<2>(vf, [](int, const Point2D&, int attr) -> double {
+      return (attr == 3 || attr == 4) ? 1. : 0;
+    });
     initialGridFunctions["left"] = vf;
 
     // initial "odds" material is based on the parity of the element indices
     vf = this->registerVolFracGridFunction("init_vf_odds");
-    this->initializeVolFracGridFunction<2>(
-      vf,
-      [](int idx, const Point2D&, int) -> double {
-        return idx % 2 == 1 ? 1. : 0;
-      });
+    this->initializeVolFracGridFunction<2>(vf, [](int idx, const Point2D&, int) -> double {
+      return idx % 2 == 1 ? 1. : 0;
+    });
     initialGridFunctions["odds"] = vf;
   }
 
@@ -1054,8 +985,7 @@ shapes:
 
 TEST_F(SamplingShaperTest2D, check_underscores)
 {
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
 
@@ -1129,15 +1059,12 @@ shapes:
   {
     regFields.push_back(pr.first);
   }
-  SLIC_INFO(axom::fmt::format("Registered fields: {}",
-                              axom::fmt::join(regFields, ", ")));
+  SLIC_INFO(axom::fmt::format("Registered fields: {}", axom::fmt::join(regFields, ", ")));
 
   // check that output materials are present
   EXPECT_TRUE(this->getDC().HasField(axom::fmt::format("vol_frac_{}", mat_name)));
-  EXPECT_TRUE(this->getDC().HasField(
-    axom::fmt::format("vol_frac_{}", underscored_mat_name)));
-  EXPECT_TRUE(this->getDC().HasField(
-    axom::fmt::format("vol_frac_{}", double_underscored_mat_name)));
+  EXPECT_TRUE(this->getDC().HasField(axom::fmt::format("vol_frac_{}", underscored_mat_name)));
+  EXPECT_TRUE(this->getDC().HasField(axom::fmt::format("vol_frac_{}", double_underscored_mat_name)));
 
   // Save meshes and fields
   if(very_verbose_output)
@@ -1151,8 +1078,7 @@ TEST_F(SamplingShaperTest2D, contour_and_stl_2D)
   using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
 
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
 
@@ -1186,11 +1112,9 @@ shapes:
   const std::string background_material = "luminiferous_ether";
   const std::string circle_material = "steel";
   const std::string sphere_material = "vaccum";
-  const std::string sphere_path =
-    axom::fmt::format("{}/quest/unit_sphere.stl", AXOM_DATA_DIR);
+  const std::string sphere_path = axom::fmt::format("{}/quest/unit_sphere.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname),
-                                   unit_circle_contour);
+  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
 
   ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
                                  axom::fmt::format(shape_template,
@@ -1211,9 +1135,7 @@ shapes:
   std::map<std::string, mfem::GridFunction*> initialGridFunctions;
   {
     auto* vf = this->registerVolFracGridFunction("init_vf_bg");
-    this->initializeVolFracGridFunction<2>(
-      vf,
-      [](int, const Point2D&, int) -> double { return 1.; });
+    this->initializeVolFracGridFunction<2>(vf, [](int, const Point2D&, int) -> double { return 1.; });
     initialGridFunctions[background_material] = vf;
   }
 
@@ -1221,9 +1143,7 @@ shapes:
   this->initializeShaping(shape_file.getFileName(), initialGridFunctions);
 
   // set projector from 2D mesh points to 3D query points within STL
-  this->m_shaper->setPointProjector([](Point2D pt) {
-    return Point3D {pt[0], pt[1], 0.};
-  });
+  this->m_shaper->setPointProjector([](Point2D pt) { return Point3D {pt[0], pt[1], 0.}; });
 
   this->m_shaper->setQuadratureOrder(8);
 
@@ -1232,13 +1152,10 @@ shapes:
   // Check that the result has a volume fraction field associated with circle and sphere materials
   constexpr double exp_volume_contour = M_PI * radius * radius;
   constexpr double exp_volume_sphere = M_PI * 1. * 1.;
-  this->checkExpectedVolumeFractions(circle_material,
-                                     exp_volume_contour - exp_volume_sphere,
-                                     3e-2);
+  this->checkExpectedVolumeFractions(circle_material, exp_volume_contour - exp_volume_sphere, 3e-2);
   this->checkExpectedVolumeFractions(sphere_material, exp_volume_sphere, 3e-2);
 
-  for(const auto& vf_name :
-      {background_material, circle_material, sphere_material})
+  for(const auto& vf_name : {background_material, circle_material, sphere_material})
   {
     EXPECT_TRUE(this->getDC().HasField(axom::fmt::format("vol_frac_{}", vf_name)));
   }
@@ -1254,8 +1171,7 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, basic_tet)
 {
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
 dimensions: 3
@@ -1269,12 +1185,10 @@ shapes:
 )";
 
   const std::string tet_material = "steel";
-  const std::string tet_path =
-    axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
+  const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
-    axom::fmt::format(shape_template, tet_material, tet_path));
+  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+                                 axom::fmt::format(shape_template, tet_material, tet_path));
 
   if(very_verbose_output)
   {
@@ -1301,8 +1215,7 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, tet_preshaped)
 {
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
 dimensions: 3
@@ -1348,12 +1261,10 @@ shapes:
 )";
 
   const std::string tet_material = "steel";
-  const std::string tet_path =
-    axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
+  const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
-    axom::fmt::format(shape_template, tet_material, tet_path));
+  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+                                 axom::fmt::format(shape_template, tet_material, tet_path));
 
   if(very_verbose_output)
   {
@@ -1368,13 +1279,10 @@ shapes:
   {
     for(int attr_i = 0; attr_i < 8; ++attr_i)
     {
-      auto* vf = this->registerVolFracGridFunction(
-        axom::fmt::format("init_vf_octant_{}", attr_i));
-      this->initializeVolFracGridFunction<3>(
-        vf,
-        [attr_i](int, const Point3D&, int attr) -> double {
-          return attr == attr_i ? 1 : 0;
-        });
+      auto* vf = this->registerVolFracGridFunction(axom::fmt::format("init_vf_octant_{}", attr_i));
+      this->initializeVolFracGridFunction<3>(vf, [attr_i](int, const Point3D&, int attr) -> double {
+        return attr == attr_i ? 1 : 0;
+      });
       initialGridFunctions[axom::fmt::format("octant{}", attr_i)] = vf;
     }
   }
@@ -1413,8 +1321,7 @@ shapes:
 
 TEST_F(SamplingShaperTest3D, tet_preshaped_with_replacements)
 {
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   // Use somewhat complex rules: tet's material will replace octants 0-3, but not 4-7
   const std::string shape_template = R"(
@@ -1467,8 +1374,7 @@ shapes:
   does_not_replace: [steel]
 )";
 
-  const std::string tet_path =
-    axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
+  const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
   ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
                                  axom::fmt::format(shape_template, tet_path));
@@ -1485,13 +1391,10 @@ shapes:
   {
     for(int attr_i = 0; attr_i < 8; ++attr_i)
     {
-      auto* vf = this->registerVolFracGridFunction(
-        axom::fmt::format("init_vf_octant_{}", attr_i));
-      this->initializeVolFracGridFunction<3>(
-        vf,
-        [attr_i](int, const Point3D&, int attr) -> double {
-          return attr == attr_i ? 1 : 0;
-        });
+      auto* vf = this->registerVolFracGridFunction(axom::fmt::format("init_vf_octant_{}", attr_i));
+      this->initializeVolFracGridFunction<3>(vf, [attr_i](int, const Point3D&, int attr) -> double {
+        return attr == attr_i ? 1 : 0;
+      });
       initialGridFunctions[axom::fmt::format("octant{}", attr_i)] = vf;
     }
   }
@@ -1518,8 +1421,7 @@ shapes:
   this->checkExpectedVolumeFractions("octant7", 8.);
 
   constexpr double total_volume = 4 * 4 * 4;
-  EXPECT_EQ(total_volume,
-            tet_volume / 2 + 2 * (missing_sixth + missing_half) + 8 * 4);
+  EXPECT_EQ(total_volume, tet_volume / 2 + 2 * (missing_sixth + missing_half) + 8 * 4);
 
   // Save meshes and fields
   if(very_verbose_output)
@@ -1533,8 +1435,7 @@ TEST_F(SamplingShaperTest3D, tet_identity_projector)
   using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
 
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
 dimensions: 3
@@ -1548,12 +1449,10 @@ shapes:
 )";
 
   const std::string tet_material = "steel";
-  const std::string tet_path =
-    axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
+  const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
-    axom::fmt::format(shape_template, tet_material, tet_path));
+  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+                                 axom::fmt::format(shape_template, tet_material, tet_path));
 
   if(very_verbose_output)
   {
@@ -1568,15 +1467,9 @@ shapes:
   this->m_shaper->setPointProjector([](const Point3D& pt) {
     return Point3D {pt[0], pt[1], pt[2]};
   });
-  this->m_shaper->setPointProjector([](const Point2D& pt) {
-    return Point2D {pt[0], pt[1]};
-  });
-  this->m_shaper->setPointProjector([](const Point3D& pt) {
-    return Point2D {pt[0], pt[1]};
-  });
-  this->m_shaper->setPointProjector([](const Point2D& pt) {
-    return Point3D {pt[0], pt[1], 0};
-  });
+  this->m_shaper->setPointProjector([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
+  this->m_shaper->setPointProjector([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
+  this->m_shaper->setPointProjector([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
 
   this->runShaping();
 
@@ -1598,8 +1491,7 @@ TEST_F(SamplingShaperTest3D, tet_doubling_projector)
   using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
 
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   const std::string shape_template = R"(
 dimensions: 3
@@ -1613,12 +1505,10 @@ shapes:
 )";
 
   const std::string tet_material = "steel";
-  const std::string tet_path =
-    axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
+  const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
-    axom::fmt::format(shape_template, tet_material, tet_path));
+  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+                                 axom::fmt::format(shape_template, tet_material, tet_path));
 
   if(very_verbose_output)
   {
@@ -1634,9 +1524,7 @@ shapes:
   });
 
   // for good measure, add a 3D->2D projector that will not be used
-  this->m_shaper->setPointProjector([](const Point3D&) {
-    return Point2D {0, 0};
-  });
+  this->m_shaper->setPointProjector([](const Point3D&) { return Point2D {0, 0}; });
 
   this->runShaping();
 
@@ -1657,8 +1545,7 @@ TEST_F(SamplingShaperTest3D, circle_2D_projector)
   using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
 
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
 
@@ -1681,11 +1568,9 @@ shapes:
   ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname),
                                    unit_semicircle_contour);
 
-  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
-                                 axom::fmt::format(shape_template,
-                                                   circle_material,
-                                                   contour_file.getFileName(),
-                                                   radius));
+  ScopedTemporaryFile shape_file(
+    axom::fmt::format("{}.yaml", testname),
+    axom::fmt::format(shape_template, circle_material, contour_file.getFileName(), radius));
 
   if(very_verbose_output)
   {
@@ -1725,8 +1610,7 @@ TEST_F(SamplingShaperTest3D, contour_and_stl_3D)
   using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
 
-  const auto& testname =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr double radius = 1.5;
 
@@ -1754,8 +1638,7 @@ shapes:
 
   const std::string circle_material = "steel";
   const std::string sphere_material = "void";
-  const std::string sphere_path =
-    axom::fmt::format("{}/quest/unit_sphere.stl", AXOM_DATA_DIR);
+  const std::string sphere_path = axom::fmt::format("{}/quest/unit_sphere.stl", AXOM_DATA_DIR);
 
   ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname),
                                    unit_semicircle_contour);
@@ -1793,9 +1676,7 @@ shapes:
   // Check that the result has a volume fraction field associated with sphere and circle materials
   constexpr double exp_volume_contour = 4. / 3. * M_PI * radius * radius * radius;
   constexpr double exp_volume_sphere = 4. / 3. * M_PI * 1. * 1. * 1.;
-  this->checkExpectedVolumeFractions(circle_material,
-                                     exp_volume_contour - exp_volume_sphere,
-                                     3e-2);
+  this->checkExpectedVolumeFractions(circle_material, exp_volume_contour - exp_volume_sphere, 3e-2);
   this->checkExpectedVolumeFractions(sphere_material, exp_volume_sphere, 3e-2);
 
   // Save meshes and fields

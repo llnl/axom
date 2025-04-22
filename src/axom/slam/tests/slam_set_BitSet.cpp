@@ -178,9 +178,8 @@ TEST_P(SlamBitSet, flipAndTestIndividualBits)
   bitset.flip();
   for(int i = 0; i < NBITS; ++i)
   {
-    const bool exp = (i % STRIDE1 == 0) ^ (i % STRIDE2 == 0)
-      ? false  // note: oppposite of last test
-      : true;
+    const bool exp = (i % STRIDE1 == 0) ^ (i % STRIDE2 == 0) ? false  // note: oppposite of last test
+                                                             : true;
     EXPECT_EQ(exp, bitset.test(i));
   }
   EXPECT_TRUE(bitset.isValid());
@@ -240,8 +239,7 @@ TEST_P(SlamBitSet, iterator)
     EXPECT_EQ(OFFSET, startIdx);
 
     int numFound = 0;
-    for(Index idx = startIdx; idx != slam::BitSet::npos;
-        idx = bitset.find_next(idx))
+    for(Index idx = startIdx; idx != slam::BitSet::npos; idx = bitset.find_next(idx))
     {
       EXPECT_EQ(OFFSET, idx % STRIDE);
       ++numFound;
@@ -423,9 +421,7 @@ TEST_P(SlamBitSet, differenceOperator)
   EXPECT_TRUE(bitset1.isValid());
 }
 
-INSTANTIATE_TEST_SUITE_P(SlamBitSetParam,
-                         SlamBitSet,
-                         ::testing::ValuesIn(testSizes()));
+INSTANTIATE_TEST_SUITE_P(SlamBitSetParam, SlamBitSet, ::testing::ValuesIn(testSizes()));
 
 TEST(slam_set_bitset, settingOutOfRange)
 {
@@ -480,8 +476,7 @@ TEST(slam_set_bitset, settingOutOfRange)
 
 TEST(slam_set_bitset, moreIterators)
 {
-  SLIC_INFO(
-    "More testing of BitSet iteration interface (first_bit(), next_bit())");
+  SLIC_INFO("More testing of BitSet iteration interface (first_bit(), next_bit())");
 
   using Index = slam::BitSet::Index;
 

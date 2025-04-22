@@ -109,22 +109,18 @@ TEST(primal_triangle, triangle_physical_to_bary)
   testData.push_back(std::make_pair(pt[2], QPoint {0., 0., 1.}));
 
   // Test the three edge midpoints
-  testData.push_back(
-    std::make_pair(QPoint::midpoint(pt[0], pt[1]), QPoint {0.5, 0.5, 0.}));
-  testData.push_back(
-    std::make_pair(QPoint::midpoint(pt[0], pt[2]), QPoint {0.5, 0., 0.5}));
-  testData.push_back(
-    std::make_pair(QPoint::midpoint(pt[1], pt[2]), QPoint {0., 0.5, 0.5}));
+  testData.push_back(std::make_pair(QPoint::midpoint(pt[0], pt[1]), QPoint {0.5, 0.5, 0.}));
+  testData.push_back(std::make_pair(QPoint::midpoint(pt[0], pt[2]), QPoint {0.5, 0., 0.5}));
+  testData.push_back(std::make_pair(QPoint::midpoint(pt[1], pt[2]), QPoint {0., 0.5, 0.5}));
 
   // Test the triangle midpoint
-  testData.push_back(std::make_pair(
-    QPoint(1. / 3. * (pt[0].array() + pt[1].array() + pt[2].array())),
-    QPoint {1. / 3., 1. / 3., 1. / 3.}));
+  testData.push_back(std::make_pair(QPoint(1. / 3. * (pt[0].array() + pt[1].array() + pt[2].array())),
+                                    QPoint {1. / 3., 1. / 3., 1. / 3.}));
 
   // Test a point outside the triangle
-  testData.push_back(std::make_pair(
-    QPoint(-0.4 * pt[0].array() + 1.2 * pt[1].array() + 0.2 * pt[2].array()),
-    QPoint {-0.4, 1.2, 0.2}));
+  testData.push_back(
+    std::make_pair(QPoint(-0.4 * pt[0].array() + 1.2 * pt[1].array() + 0.2 * pt[2].array()),
+                   QPoint {-0.4, 1.2, 0.2}));
 
   // Now run the actual tests
   for(TestVec::const_iterator it = testData.begin(); it != testData.end(); ++it)
@@ -134,11 +130,11 @@ TEST(primal_triangle, triangle_physical_to_bary)
     QPoint bary = tri.physToBarycentric(query);
     QPoint phys = tri.baryToPhysical(bary);
 
-    SLIC_DEBUG(axom::fmt::format(
-      "Computed barycentric coordinates for triangle {} and point {} are {}",
-      tri,
-      query,
-      bary));
+    SLIC_DEBUG(
+      axom::fmt::format("Computed barycentric coordinates for triangle {} and point {} are {}",
+                        tri,
+                        query,
+                        bary));
     for(int i = 0; i < 3; ++i)
     {
       EXPECT_NEAR(bary[i], expBary[i], EPS);
@@ -171,22 +167,18 @@ TEST(primal_triangle, triangle_unnormalized_bary)
   testData.push_back(std::make_pair(pt[2], QPoint {0., 0., 1.}));
 
   // Test the three edge midpoints
-  testData.push_back(
-    std::make_pair(QPoint::midpoint(pt[0], pt[1]), QPoint {0.5, 0.5, 0.}));
-  testData.push_back(
-    std::make_pair(QPoint::midpoint(pt[0], pt[2]), QPoint {0.5, 0., 0.5}));
-  testData.push_back(
-    std::make_pair(QPoint::midpoint(pt[1], pt[2]), QPoint {0., 0.5, 0.5}));
+  testData.push_back(std::make_pair(QPoint::midpoint(pt[0], pt[1]), QPoint {0.5, 0.5, 0.}));
+  testData.push_back(std::make_pair(QPoint::midpoint(pt[0], pt[2]), QPoint {0.5, 0., 0.5}));
+  testData.push_back(std::make_pair(QPoint::midpoint(pt[1], pt[2]), QPoint {0., 0.5, 0.5}));
 
   // Test the triangle midpoint
-  testData.push_back(std::make_pair(
-    QPoint(1. / 3. * (pt[0].array() + pt[1].array() + pt[2].array())),
-    QPoint {1. / 3., 1. / 3., 1. / 3.}));
+  testData.push_back(std::make_pair(QPoint(1. / 3. * (pt[0].array() + pt[1].array() + pt[2].array())),
+                                    QPoint {1. / 3., 1. / 3., 1. / 3.}));
 
   // Test a point outside the triangle
-  testData.push_back(std::make_pair(
-    QPoint(-0.4 * pt[0].array() + 1.2 * pt[1].array() + 0.2 * pt[2].array()),
-    QPoint {-0.4, 1.2, 0.2}));
+  testData.push_back(
+    std::make_pair(QPoint(-0.4 * pt[0].array() + 1.2 * pt[1].array() + 0.2 * pt[2].array()),
+                   QPoint {-0.4, 1.2, 0.2}));
 
   // Now run the actual tests
   for(TestVec::const_iterator it = testData.begin(); it != testData.end(); ++it)
@@ -233,22 +225,19 @@ TEST(primal_triangle, triangle_bary_to_physical)
   testData.push_back(std::make_pair(QPoint {0., 0., 1.}, pt[2]));
 
   // Test the three edge midpoints
-  testData.push_back(
-    std::make_pair(QPoint {0.5, 0.5, 0.}, QPoint::midpoint(pt[0], pt[1])));
-  testData.push_back(
-    std::make_pair(QPoint {0.5, 0., 0.5}, QPoint::midpoint(pt[0], pt[2])));
-  testData.push_back(
-    std::make_pair(QPoint {0., 0.5, 0.5}, QPoint::midpoint(pt[1], pt[2])));
+  testData.push_back(std::make_pair(QPoint {0.5, 0.5, 0.}, QPoint::midpoint(pt[0], pt[1])));
+  testData.push_back(std::make_pair(QPoint {0.5, 0., 0.5}, QPoint::midpoint(pt[0], pt[2])));
+  testData.push_back(std::make_pair(QPoint {0., 0.5, 0.5}, QPoint::midpoint(pt[1], pt[2])));
 
   // Test the triangle midpoint
-  testData.push_back(std::make_pair(
-    QPoint {1. / 3., 1. / 3., 1. / 3.},
-    QPoint(1. / 3. * (pt[0].array() + pt[1].array() + pt[2].array()))));
+  testData.push_back(
+    std::make_pair(QPoint {1. / 3., 1. / 3., 1. / 3.},
+                   QPoint(1. / 3. * (pt[0].array() + pt[1].array() + pt[2].array()))));
 
   // Test a point outside the triangle
-  testData.push_back(std::make_pair(
-    QPoint {-0.4, 1.2, 0.2},
-    QPoint(-0.4 * pt[0].array() + 1.2 * pt[1].array() + 0.2 * pt[2].array())));
+  testData.push_back(
+    std::make_pair(QPoint {-0.4, 1.2, 0.2},
+                   QPoint(-0.4 * pt[0].array() + 1.2 * pt[1].array() + 0.2 * pt[2].array())));
 
   // Now run the actual tests
   for(TestVec::const_iterator it = testData.begin(); it != testData.end(); ++it)
@@ -258,11 +247,11 @@ TEST(primal_triangle, triangle_bary_to_physical)
     QPoint phys = tri.baryToPhysical(query);
     QPoint bary = tri.physToBarycentric(phys);
 
-    SLIC_DEBUG(axom::fmt::format(
-      "Computed physical coordinates for triangle {} at barycentric {} are {}",
-      tri,
-      query,
-      phys));
+    SLIC_DEBUG(
+      axom::fmt::format("Computed physical coordinates for triangle {} at barycentric {} are {}",
+                        tri,
+                        query,
+                        phys));
 
     for(int i = 0; i < 3; ++i)
     {
@@ -290,9 +279,7 @@ TEST(primal_triangle, triangle_roundtrip_bary_to_physical)
 
   // test vertices
   {
-    RPoint b_in[3] = {RPoint {1., 0., 0.},
-                      RPoint {0., 1., 0.},
-                      RPoint {0., 0., 1.}};
+    RPoint b_in[3] = {RPoint {1., 0., 0.}, RPoint {0., 1., 0.}, RPoint {0., 0., 1.}};
 
     QPoint p_exp[3] = {tri[0], tri[1], tri[2]};
 
@@ -308,9 +295,7 @@ TEST(primal_triangle, triangle_roundtrip_bary_to_physical)
 
   // test edges
   {
-    RPoint b_in[3] = {RPoint {.5, .5, 0.},
-                      RPoint {.5, 0., .5},
-                      RPoint {0., .5, .5}};
+    RPoint b_in[3] = {RPoint {.5, .5, 0.}, RPoint {.5, 0., .5}, RPoint {0., .5, .5}};
 
     QPoint p_exp[3] = {QPoint::midpoint(tri[0], tri[1]),
                        QPoint::midpoint(tri[0], tri[2]),
@@ -331,8 +316,7 @@ TEST(primal_triangle, triangle_roundtrip_bary_to_physical)
     constexpr double third = 1. / 3.;
     RPoint b_in[1] = {RPoint {third, third, third}};
 
-    QPoint p_exp[1] = {
-      QPoint(third * (tri[0].array() + tri[1].array() + tri[2].array()))};
+    QPoint p_exp[1] = {QPoint(third * (tri[0].array() + tri[1].array() + tri[2].array()))};
 
     for(int i = 0; i < 1; ++i)
     {
@@ -466,10 +450,9 @@ TEST(primal_triangle, triangle_2D_circumsphere)
   using primal::ON_POSITIVE_SIDE;
 
   // Test triangles
-  std::vector<QTri> tris = {
-    QTri(QPoint {1, 0}, QPoint {1, 1}, QPoint {0, 0}),
-    QTri(QPoint {.5, .5}, QPoint {7, 2}, QPoint {-12, 1.23}),
-    QTri(QPoint {-3, -3}, QPoint {3, -3}, QPoint {0, 5})};
+  std::vector<QTri> tris = {QTri(QPoint {1, 0}, QPoint {1, 1}, QPoint {0, 0}),
+                            QTri(QPoint {.5, .5}, QPoint {7, 2}, QPoint {-12, 1.23}),
+                            QTri(QPoint {-3, -3}, QPoint {3, -3}, QPoint {0, 5})};
 
   // Compute circumsphere of test triangles and test some points
   for(const auto& tri : tris)
@@ -539,14 +522,13 @@ TEST(primal_triangle, triangle_3D_normal)
   EXPECT_EQ(QTri(i, j, k).normal(), -QTri(i, k, j).normal());
 
   // More test triangles
-  std::vector<QTri> tris = {
-    QTri(i, j, k),
-    QTri(i, k, j),
-    QTri(o, i, ij),
-    QTri(o, i, j),
-    QTri(o, j, i),
-    QTri(i, j, i),
-    QTri(QPoint {2, 0, 0}, QPoint {0, 2, 0}, QPoint {0, 0, 2})};
+  std::vector<QTri> tris = {QTri(i, j, k),
+                            QTri(i, k, j),
+                            QTri(o, i, ij),
+                            QTri(o, i, j),
+                            QTri(o, j, i),
+                            QTri(i, j, i),
+                            QTri(QPoint {2, 0, 0}, QPoint {0, 2, 0}, QPoint {0, 0, 2})};
 
   // Check that length of normal is twice the triangle area
   for(const auto& tri : tris)

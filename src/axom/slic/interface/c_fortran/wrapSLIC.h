@@ -77,10 +77,7 @@ void SLIC_disableAbortOnWarning(void);
 
 bool SLIC_isAbortOnWarningsEnabled(void);
 
-void SLIC_logMessage_file_line(int level,
-                               const char *message,
-                               const char *fileName,
-                               int line);
+void SLIC_logMessage_file_line(int level, const char *message, const char *fileName, int line);
 
 void SLIC_logMessage_file_line_bufferify(int level,
                                          char *message,

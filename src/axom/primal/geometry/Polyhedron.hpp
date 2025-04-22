@@ -73,7 +73,9 @@ public:
    */
   AXOM_HOST_DEVICE int getNumNeighbors(int vtx) const
   {
+#if !defined(__HIP_DEVICE_COMPILE__)
     SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
+#endif
     return num_nbrs[vtx];
   }
 
@@ -91,7 +93,9 @@ public:
    */
   AXOM_HOST_DEVICE VertexNbrs& operator[](int vtx)
   {
+#if !defined(__HIP_DEVICE_COMPILE__)
     SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
+#endif
     return getNeighbors(vtx);
   }
 
@@ -109,7 +113,9 @@ public:
    */
   AXOM_HOST_DEVICE VertexNbrs& getNeighbors(int vtx)
   {
+#if !defined(__HIP_DEVICE_COMPILE__)
     SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
+#endif
     return nbrs[vtx];
   }
 
@@ -121,10 +127,11 @@ public:
    *
    * \pre vtx < MAX_VERTS
    */
-  AXOM_HOST_DEVICE void addNeighbors(std::int8_t vtx,
-                                     std::initializer_list<std::int8_t> nbrIds)
+  AXOM_HOST_DEVICE void addNeighbors(std::int8_t vtx, std::initializer_list<std::int8_t> nbrIds)
   {
+#if !defined(__HIP_DEVICE_COMPILE__)
     SLIC_ASSERT(num_nbrs[vtx] + nbrIds.size() <= MAX_NBRS_PER_VERT);
+#endif
     SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
     for(std::int8_t nbr : nbrIds)
     {
@@ -144,7 +151,9 @@ public:
    */
   AXOM_HOST_DEVICE void addNeighbors(std::int8_t vtx, std::int8_t nbrId)
   {
+#if !defined(__HIP_DEVICE_COMPILE__)
     SLIC_ASSERT(num_nbrs[vtx] + 1 <= MAX_NBRS_PER_VERT);
+#endif
     SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
     std::int8_t idx_insert = num_nbrs[vtx];
     nbrs[vtx][idx_insert] = nbrId;
@@ -162,13 +171,15 @@ public:
    * \pre vtx < MAX_VERTS
    * \pre pos <= num_nbrs[vtx]
    */
-  AXOM_HOST_DEVICE void insertNeighborAtPos(std::int8_t vtx,
-                                            std::int8_t nbr,
-                                            std::int8_t pos)
+  AXOM_HOST_DEVICE void insertNeighborAtPos(std::int8_t vtx, std::int8_t nbr, std::int8_t pos)
   {
+#if !defined(__HIP_DEVICE_COMPILE__)
     SLIC_ASSERT(num_nbrs[vtx] + 1 <= MAX_NBRS_PER_VERT);
-    SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
     SLIC_ASSERT(pos <= num_nbrs[vtx]);
+#endif
+
+    SLIC_ASSERT(vtx >= 0 && vtx < MAX_VERTS);
+
     std::uint8_t old_nbrs[MAX_NBRS_PER_VERT];
     // copy elements from [pos, nnbrs)
     for(int ip = pos; ip < num_nbrs[vtx]; ip++)
@@ -332,10 +343,7 @@ public:
    * \pre vtxId < getVertices()
    */
   AXOM_HOST_DEVICE
-  void addNeighbors(int vtxId, int nbr)
-  {
-    m_neighbors.addNeighbors(vtxId, nbr);
-  }
+  void addNeighbors(int vtxId, int nbr) { m_neighbors.addNeighbors(vtxId, nbr); }
 
   /*! Clears the list of vertices and neighbors */
   AXOM_HOST_DEVICE void clear()
@@ -350,28 +358,19 @@ public:
   /*! Retrieves the vertex at index idx */
   AXOM_HOST_DEVICE PointType& operator[](int idx) { return m_vertices[idx]; }
   /*! Retrieves the vertex at index idx */
-  AXOM_HOST_DEVICE const PointType& operator[](int idx) const
-  {
-    return m_vertices[idx];
-  }
+  AXOM_HOST_DEVICE const PointType& operator[](int idx) const { return m_vertices[idx]; }
 
   /*! Retrieves the neighbors */
   AXOM_HOST_DEVICE Neighbors& getNeighbors() { return m_neighbors; }
 
-  AXOM_HOST_DEVICE int getNumNeighbors(int i) const
-  {
-    return m_neighbors.getNumNeighbors(i);
-  }
+  AXOM_HOST_DEVICE int getNumNeighbors(int i) const { return m_neighbors.getNumNeighbors(i); }
 
   /*! Retrieves the neighbors for vertex i */
   AXOM_HOST_DEVICE
   typename Neighbors::VertexNbrs& getNeighbors(int i) { return m_neighbors[i]; }
   /*! Retrieves the neighbors for vertex i */
   AXOM_HOST_DEVICE
-  const typename Neighbors::VertexNbrs& getNeighbors(int i) const
-  {
-    return m_neighbors[i];
-  }
+  const typename Neighbors::VertexNbrs& getNeighbors(int i) const { return m_neighbors[i]; }
 
   /*!
    * \brief Computes the vertex mean as the average of the polyhedron's vertex
@@ -519,9 +518,7 @@ public:
    * \sa centroid()
    */
   AXOM_HOST_DEVICE
-  void moments(double& volume,
-               PointType& centroid,
-               bool should_compute_centroid = true) const
+  void moments(double& volume, PointType& centroid, bool should_compute_centroid = true) const
   {
     volume = 0.0;
 
@@ -537,9 +534,7 @@ public:
     // as the centroid of the Polyhedron.
     else
     {
-      SLIC_CHECK_MSG(
-        hasNeighbors(),
-        "Polyhedron::moments() is only valid with vertex neighbors.");
+      SLIC_CHECK_MSG(hasNeighbors(), "Polyhedron::moments() is only valid with vertex neighbors.");
 
       // faces is an overestimation
       int faces[MAX_VERTS * MAX_VERTS];
@@ -574,8 +569,7 @@ public:
 
       if(should_compute_centroid)
       {
-        centroid_vector /=
-          (volume != 0.0) ? (24.0 * volume) : axom::primal::PRIMAL_TINY;
+        centroid_vector /= (volume != 0.0) ? (24.0 * volume) : axom::primal::PRIMAL_TINY;
         centroid = centroid_vector + origin;
       }
     }
@@ -765,8 +759,7 @@ public:
    *
    */
   AXOM_HOST_DEVICE
-  static Polyhedron from_primitive(const Hexahedron<T, NDIMS>& hex,
-                                   bool tryFixOrientation = false)
+  static Polyhedron from_primitive(const Hexahedron<T, NDIMS>& hex, bool tryFixOrientation = false)
   {
     // Initialize our polyhedron to return
     Polyhedron<T, NDIMS> poly;
@@ -845,8 +838,7 @@ public:
    *
    */
   AXOM_HOST_DEVICE
-  static Polyhedron from_primitive(const Octahedron<T, NDIMS>& oct,
-                                   bool tryFixOrientation = false)
+  static Polyhedron from_primitive(const Octahedron<T, NDIMS>& oct, bool tryFixOrientation = false)
   {
     // Initialize our polyhedron to return
     Polyhedron<T, NDIMS> poly;
@@ -920,8 +912,7 @@ public:
    *
    */
   AXOM_HOST_DEVICE
-  static Polyhedron from_primitive(const Tetrahedron<T, NDIMS>& tet,
-                                   bool tryFixOrientation = false)
+  static Polyhedron from_primitive(const Tetrahedron<T, NDIMS>& tet, bool tryFixOrientation = false)
   {
     // Initialize our polyhedron to return
     Polyhedron<T, NDIMS> poly;
@@ -950,14 +941,13 @@ public:
 
 private:
   int m_num_vertices {0};
-  Coords m_vertices {PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {}};
+  Coords m_vertices {PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
+                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
+                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
+                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
+                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
+                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
+                     PointType {}, PointType {}};
   Neighbors m_neighbors {};
 };
 

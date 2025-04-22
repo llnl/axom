@@ -60,8 +60,7 @@ inline double squared_distance(const double* A, const double* B, int N)
  * \return the squared distance from point A to point B.
  */
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE inline double squared_distance(const Point<T, NDIMS>& A,
-                                                const Point<T, NDIMS>& B)
+AXOM_HOST_DEVICE inline double squared_distance(const Point<T, NDIMS>& A, const Point<T, NDIMS>& B)
 {
   Vector<T, NDIMS> v(A, B);
   return (v.squared_norm());
@@ -143,8 +142,7 @@ AXOM_HOST_DEVICE inline double squared_distance(const BoundingBox<T, NDIMS>& A,
  * \return the minimum squared-distance from P to the segment S.
  */
 template <typename T, int NDIMS>
-inline double squared_distance(const Point<T, NDIMS>& P,
-                               const Segment<T, NDIMS>& S)
+inline double squared_distance(const Point<T, NDIMS>& P, const Segment<T, NDIMS>& S)
 {
   return squared_distance(P, closest_point(P, S));
 }
@@ -157,8 +155,7 @@ inline double squared_distance(const Point<T, NDIMS>& P,
  * \return the squared distance from P to the closest point on the triangle T.
  */
 template <typename T, int NDIMS>
-inline double squared_distance(const Point<T, NDIMS>& P,
-                               const Triangle<T, NDIMS>& tri)
+inline double squared_distance(const Point<T, NDIMS>& P, const Triangle<T, NDIMS>& tri)
 {
   return squared_distance(P, closest_point(P, tri));
 }

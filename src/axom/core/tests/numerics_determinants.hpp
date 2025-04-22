@@ -14,8 +14,7 @@ TEST(numerics_determinants, determinant_of_In)
 
   for(int i = 2; i < N; ++i)
   {
-    axom::numerics::Matrix<double> In =
-      axom::numerics::Matrix<double>::identity(i);
+    axom::numerics::Matrix<double> In = axom::numerics::Matrix<double>::identity(i);
     double det = axom::numerics::determinant(In);
     EXPECT_DOUBLE_EQ(1.0, det);
   }

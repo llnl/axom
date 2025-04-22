@@ -82,8 +82,7 @@ void split(const Octahedron<Tp, 3>& oct, axom::Array<Tetrahedron<Tp, 3>>& out)
  * and drawing an edge from each vertex to the centroid.
  */
 template <typename Tp>
-AXOM_HOST_DEVICE void split(const Octahedron<Tp, 3>& oct,
-                            Tetrahedron<Tp, 3>* outPtr)
+AXOM_HOST_DEVICE void split(const Octahedron<Tp, 3>& oct, Tetrahedron<Tp, 3>* outPtr)
 {
   // Type aliases
   using NumArray = NumericArray<Tp, 3>;

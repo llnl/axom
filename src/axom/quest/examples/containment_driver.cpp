@@ -53,8 +53,7 @@ public:
   using SpaceCell = typename InOutOctreeType::SpaceCell;
 
 // Determine an appropriate execution policy
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
   using ExecPolicy = axom::OMP_EXEC;
 #else
   using ExecPolicy = axom::SEQ_EXEC;
@@ -78,8 +77,7 @@ public:
 
     // Create surface mesh
     m_surfaceMesh.reset(new UMesh(2, mint::SEGMENT));
-    reader.getLinearMeshUniform(static_cast<UMesh*>(m_surfaceMesh.get()),
-                                segmentsPerKnotSpan);
+    reader.getLinearMeshUniform(static_cast<UMesh*>(m_surfaceMesh.get()), segmentsPerKnotSpan);
   }
 #else
   void loadContourMesh(const std::string& inputFile, int segmentsPerKnotSpan)
@@ -126,12 +124,10 @@ public:
     SLIC_ASSERT(m_meshBB.isValid());
   }
 
-  void initializeQueryBox(const std::vector<double>& mins,
-                          const std::vector<double>& maxs)
+  void initializeQueryBox(const std::vector<double>& mins, const std::vector<double>& maxs)
   {
-    SLIC_ERROR_IF(
-      m_octree == nullptr,
-      "Need to initialize InOutOctree before setting the bounding box");
+    SLIC_ERROR_IF(m_octree == nullptr,
+                  "Need to initialize InOutOctree before setting the bounding box");
 
     m_queryBB.clear();
     if(mins.size() == DIM && maxs.size() == DIM)
@@ -158,12 +154,9 @@ public:
   * Query the inOutOctree using uniform grid of resolution \a gridRes
   * in region defined by the query bounding box (initialized in \a initializeQueryBox() )
   */
-  void testContainmentOnRegularGrid(int gridRes,
-                                    bool isBatched,
-                                    bool shouldOutputMeshes)
+  void testContainmentOnRegularGrid(int gridRes, bool isBatched, bool shouldOutputMeshes)
   {
-    AXOM_ANNOTATE_SCOPE(
-      axom::fmt::format("test containment regular grid resolution {}", gridRes));
+    AXOM_ANNOTATE_SCOPE(axom::fmt::format("test containment regular grid resolution {}", gridRes));
 
     const double* low = m_queryBB.getMin().data();
     const double* high = m_queryBB.getMax().data();
@@ -172,8 +165,7 @@ public:
       : new mint::UniformMesh(low, high, gridRes, gridRes, gridRes);
 
     const int nnodes = umesh->getNumberOfNodes();
-    int* containment =
-      umesh->createField<int>("containment", mint::NODE_CENTERED);
+    int* containment = umesh->createField<int>("containment", mint::NODE_CENTERED);
     SLIC_ASSERT(containment != nullptr);
 
     axom::utilities::Timer timer;
@@ -195,14 +187,13 @@ public:
                          : batchedPointContainment3D(umesh, timer);
     }
 
-    SLIC_INFO(
-      axom::fmt::format(axom::utilities::locale(),
-                        "\tQuerying {}^{} containment field took {:.3Lf} "
-                        "seconds (@ {:.0Lf} queries per second)",
-                        gridRes,
-                        DIM,
-                        timer.elapsed(),
-                        nnodes / timer.elapsed()));
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "\tQuerying {}^{} containment field took {:.3Lf} "
+                                "seconds (@ {:.0Lf} queries per second)",
+                                gridRes,
+                                DIM,
+                                timer.elapsed(),
+                                nnodes / timer.elapsed()));
 
     if(shouldOutputMeshes)
     {
@@ -214,8 +205,7 @@ public:
     delete umesh;
   }
 
-  void batchedPointContainment2D(mint::UniformMesh* umesh,
-                                 axom::utilities::Timer& timer)
+  void batchedPointContainment2D(mint::UniformMesh* umesh, axom::utilities::Timer& timer)
   {
     SLIC_ASSERT(umesh->getDimension() == 2);
 
@@ -235,8 +225,7 @@ public:
       });
 
     // Loop through the points using ExecPolicy
-    int* containment =
-      umesh->getFieldPtr<int>("containment", mint::NODE_CENTERED);
+    int* containment = umesh->getFieldPtr<int>("containment", mint::NODE_CENTERED);
     SLIC_ASSERT(containment != nullptr);
 
     axom::for_all<ExecPolicy>(0, nnodes, [&](axom::IndexType idx) {
@@ -251,8 +240,7 @@ public:
     timer.stop();
   }
 
-  void batchedPointContainment3D(mint::UniformMesh* umesh,
-                                 axom::utilities::Timer& timer)
+  void batchedPointContainment3D(mint::UniformMesh* umesh, axom::utilities::Timer& timer)
   {
     SLIC_ASSERT(umesh->getDimension() == 3);
 
@@ -274,8 +262,7 @@ public:
       });
 
     // Loop through the points using ExecPolicy
-    int* containment =
-      umesh->getFieldPtr<int>("containment", mint::NODE_CENTERED);
+    int* containment = umesh->getFieldPtr<int>("containment", mint::NODE_CENTERED);
     SLIC_ASSERT(containment != nullptr);
 
     axom::for_all<ExecPolicy>(0, nnodes, [&](axom::IndexType idx) {
@@ -321,14 +308,8 @@ private:
     return cell;
   }
 
-  double cellMeasure(const primal::Segment<double, 2>& cell) const
-  {
-    return cell.length();
-  }
-  double cellMeasure(const primal::Triangle<double, 3>& cell) const
-  {
-    return cell.area();
-  }
+  double cellMeasure(const primal::Segment<double, 2>& cell) const { return cell.length(); }
+  double cellMeasure(const primal::Triangle<double, 3>& cell) const { return cell.area(); }
 
 public:
   /**
@@ -365,7 +346,7 @@ public:
 
     using LogRangeMap = std::map<int, MinMaxRange>;
     LogRangeMap edgeLenRangeMap;  // Tracks range of edge lengths at each scale
-    LogRangeMap areaRangeMap;  // Tracks range of triangle areas at each scale
+    LogRangeMap areaRangeMap;     // Tracks range of triangle areas at each scale
 
     int expBase2;
 
@@ -429,8 +410,7 @@ public:
     if(dimension() == 3)
     {
       axom::fmt::memory_buffer edgeHistStr;
-      axom::fmt::format_to(std::back_inserter(edgeHistStr),
-                           "Edge length histogram (lg-arithmic): ");
+      axom::fmt::format_to(std::back_inserter(edgeHistStr), "Edge length histogram (lg-arithmic): ");
       for(auto it = edgeLenHist.begin(); it != edgeLenHist.end(); ++it)
       {
         axom::fmt::format_to(std::back_inserter(edgeHistStr),
@@ -443,8 +423,7 @@ public:
     }
 
     axom::fmt::memory_buffer cellHistStr;
-    axom::fmt::format_to(std::back_inserter(cellHistStr),
-                         "Cell areas histogram (lg-arithmic): ");
+    axom::fmt::format_to(std::back_inserter(cellHistStr), "Cell areas histogram (lg-arithmic): ");
     for(auto it = areaHist.begin(); it != areaHist.end(); ++it)
     {
       axom::fmt::format_to(std::back_inserter(cellHistStr),
@@ -458,9 +437,8 @@ public:
     if(!badCells.empty())
     {
       axom::fmt::memory_buffer badCellStr;
-      axom::fmt::format_to(
-        std::back_inserter(badCellStr),
-        "The following cell(s) have zero area/edge lengths:");
+      axom::fmt::format_to(std::back_inserter(badCellStr),
+                           "The following cell(s) have zero area/edge lengths:");
       for(auto it = badCells.begin(); it != badCells.end(); ++it)
       {
         axom::fmt::format_to(std::back_inserter(badCellStr), "\n\tCell {}", *it);
@@ -533,8 +511,7 @@ public:
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
-    app.add_option("-i,--input", inputFile, "Path to input file")
-      ->check(axom::CLI::ExistingFile);
+    app.add_option("-i,--input", inputFile, "Path to input file")->check(axom::CLI::ExistingFile);
 
     app
       .add_flag("-v,--verbose",
@@ -544,23 +521,18 @@ public:
       ->capture_default_str();
 
     app
-      .add_option(
-        "-l,--levels",
-        maxQueryLevel,
-        "Max query resolution. \n"
-        "Will query uniform grids at levels 1 through the provided level")
+      .add_option("-l,--levels",
+                  maxQueryLevel,
+                  "Max query resolution. \n"
+                  "Will query uniform grids at levels 1 through the provided level")
       ->capture_default_str()
       ->check(axom::CLI::PositiveNumber);
 
     // Optional bounding box for query region
     auto* minbb =
-      app
-        .add_option("--min", queryBoxMins, "Min bounds for query box (x,y[,z])")
-        ->expected(2, 3);
+      app.add_option("--min", queryBoxMins, "Min bounds for query box (x,y[,z])")->expected(2, 3);
     auto* maxbb =
-      app
-        .add_option("--max", queryBoxMaxs, "Max bounds for query box (x,y[,z])")
-        ->expected(2, 3);
+      app.add_option("--max", queryBoxMaxs, "Max bounds for query box (x,y[,z])")->expected(2, 3);
     minbb->needs(maxbb);
     maxbb->needs(minbb);
 
@@ -572,10 +544,9 @@ public:
       ->capture_default_str();
 
     app
-      .add_option(
-        "-n,--segments-per-knot-span",
-        samplesPerKnotSpan,
-        "(2D only) Number of linear segments to generate per NURBS knot span")
+      .add_option("-n,--segments-per-knot-span",
+                  samplesPerKnotSpan,
+                  "(2D only) Number of linear segments to generate per NURBS knot span")
       ->capture_default_str()
       ->check(axom::CLI::PositiveNumber);
 
@@ -593,8 +564,7 @@ public:
     // could throw an exception
     app.parse(argc, argv);
 
-    slic::setLoggingMsgLevel(m_verboseOutput ? slic::message::Debug
-                                             : slic::message::Info);
+    slic::setLoggingMsgLevel(m_verboseOutput ? slic::message::Debug : slic::message::Info);
   }
 };
 
@@ -619,8 +589,7 @@ int main(int argc, char** argv)
     return app.exit(e);
   }
 
-  axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(
-    params.annotationMode);
+  axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(params.annotationMode);
 
   AXOM_ANNOTATE_BEGIN("quest containment example");
 
@@ -687,9 +656,7 @@ int main(int argc, char** argv)
     for(int i = 1; i < params.maxQueryLevel; ++i)
     {
       const int res = 1 << i;
-      driver2D.testContainmentOnRegularGrid(res,
-                                            params.useBatchedQuery(),
-                                            params.isVerbose());
+      driver2D.testContainmentOnRegularGrid(res, params.useBatchedQuery(), params.isVerbose());
     }
   }
   else
@@ -700,9 +667,7 @@ int main(int argc, char** argv)
     for(int i = 1; i < params.maxQueryLevel; ++i)
     {
       const int res = 1 << i;
-      driver3D.testContainmentOnRegularGrid(res,
-                                            params.useBatchedQuery(),
-                                            params.isVerbose());
+      driver3D.testContainmentOnRegularGrid(res, params.useBatchedQuery(), params.isVerbose());
     }
   }
 

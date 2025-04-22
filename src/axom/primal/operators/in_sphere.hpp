@@ -69,9 +69,7 @@ inline bool in_sphere(const Point<T, 2>& q,
  * \see in_sphere
  */
 template <typename T>
-inline bool in_sphere(const Point<T, 2>& q,
-                      const Triangle<T, 2>& tri,
-                      double EPS = 1e-8)
+inline bool in_sphere(const Point<T, 2>& q, const Triangle<T, 2>& tri, double EPS = 1e-8)
 {
   return in_sphere(q, tri[0], tri[1], tri[2], EPS);
 }
@@ -125,9 +123,7 @@ inline bool in_sphere(const Point<T, 3>& q,
  * \see in_sphere
  */
 template <typename T>
-inline bool in_sphere(const Point<T, 3>& q,
-                      const Tetrahedron<T, 3>& tet,
-                      double EPS = 1e-8)
+inline bool in_sphere(const Point<T, 3>& q, const Tetrahedron<T, 3>& tet, double EPS = 1e-8)
 {
   return in_sphere(q, tet[0], tet[1], tet[2], tet[3], EPS);
 }

@@ -117,10 +117,7 @@ struct GroupBucket
     return InvalidSlot;
   }
 
-  void setBucket(int index, std::uint8_t hash)
-  {
-    metadata.buckets[index] = reduceHash(hash);
-  }
+  void setBucket(int index, std::uint8_t hash) { metadata.buckets[index] = reduceHash(hash); }
 
   void clearBucket(int index) { metadata.buckets[index] = Empty; }
 
@@ -142,10 +139,7 @@ struct GroupBucket
 
   // We need to map hashes in the range [0, 255] to [2, 255], since 0 and 1
   // are taken by the "empty" and "sentinel" values respectively.
-  static std::uint8_t reduceHash(std::uint8_t hash)
-  {
-    return (hash < 2) ? (hash + 8) : hash;
-  }
+  static std::uint8_t reduceHash(std::uint8_t hash) { return (hash < 2) ? (hash + 8) : hash; }
 
   union alignas(16)
   {
@@ -160,8 +154,7 @@ struct GroupBucket
   };
 };
 
-static_assert(sizeof(GroupBucket) == 16,
-              "flat_map::GroupBucket: size != 16 bytes");
+static_assert(sizeof(GroupBucket) == 16, "flat_map::GroupBucket: size != 16 bytes");
 static_assert(std::alignment_of<GroupBucket>::value == 16,
               "flat_map::GroupBucket: alignment != 16 bytes");
 static_assert(std::is_standard_layout<GroupBucket>::value,
@@ -180,9 +173,7 @@ struct SequentialLookupPolicy : ProbePolicy
    * \param [in] metadata the array of metadata for the groups in the hash map
    * \param [in] hash the hash to insert
    */
-  IndexType probeEmptyIndex(int ngroups_pow_2,
-                            ArrayView<GroupBucket> metadata,
-                            HashType hash) const
+  IndexType probeEmptyIndex(int ngroups_pow_2, ArrayView<GroupBucket> metadata, HashType hash) const
   {
     // We use the k MSBs of the hash as the initial group probe point,
     // where ngroups = 2^k.
@@ -196,15 +187,13 @@ struct SequentialLookupPolicy : ProbePolicy
     for(int iteration = 0; iteration < metadata.size(); iteration++)
     {
       int tentative_empty_bucket = metadata[curr_group].getEmptyBucket();
-      if(tentative_empty_bucket != GroupBucket::InvalidSlot &&
-         empty_group == NO_MATCH)
+      if(tentative_empty_bucket != GroupBucket::InvalidSlot && empty_group == NO_MATCH)
       {
         empty_group = curr_group;
         empty_bucket = tentative_empty_bucket;
       }
 
-      if((!metadata[curr_group].getMaybeOverflowed(hash_8) &&
-          empty_group != NO_MATCH))
+      if((!metadata[curr_group].getMaybeOverflowed(hash_8) && empty_group != NO_MATCH))
       {
         // We've reached the last group that might contain the hash.
         // Stop probing.
@@ -269,9 +258,7 @@ struct SequentialLookupPolicy : ProbePolicy
     }
   }
 
-  void setBucketHash(ArrayView<GroupBucket> metadata,
-                     IndexType bucket,
-                     HashType hash)
+  void setBucketHash(ArrayView<GroupBucket> metadata, IndexType bucket, HashType hash)
   {
     int group_index = bucket / GroupBucket::Size;
     int slot_index = bucket % GroupBucket::Size;
@@ -291,8 +278,7 @@ struct SequentialLookupPolicy : ProbePolicy
     return metadata[group_index].getMaybeOverflowed(hash);
   }
 
-  IndexType nextValidIndex(ArrayView<const GroupBucket> metadata,
-                           int last_bucket) const
+  IndexType nextValidIndex(ArrayView<const GroupBucket> metadata, int last_bucket) const
   {
     if(last_bucket >= metadata.size() * GroupBucket::Size - 1)
     {
@@ -309,8 +295,7 @@ struct SequentialLookupPolicy : ProbePolicy
         group_index++;
         slot_index = -1;
       }
-    } while(slot_index == GroupBucket::InvalidSlot &&
-            group_index < metadata.size());
+    } while(slot_index == GroupBucket::InvalidSlot && group_index < metadata.size());
 
     return group_index * GroupBucket::Size + slot_index;
   }

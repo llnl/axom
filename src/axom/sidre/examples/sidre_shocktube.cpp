@@ -53,16 +53,12 @@ using namespace conduit;
 const double gammaa = M_SQRT2;
 const double gammaaInverse = M_SQRT1_2;
 
-void CreateScalarIntViewAndSetVal(Group* const grp,
-                                  const std::string& name,
-                                  int32 const value)
+void CreateScalarIntViewAndSetVal(Group* const grp, const std::string& name, int32 const value)
 {
   grp->createViewScalar(name, value);
 }
 
-void CreateScalarFloatBufferViewAndSetVal(Group* const grp,
-                                          const std::string& name,
-                                          float64 const value)
+void CreateScalarFloatBufferViewAndSetVal(Group* const grp, const std::string& name, float64 const value)
 {
   grp->createViewScalar(name, value);
 }
@@ -141,9 +137,7 @@ void GetUserInput(Group* const prob)
 
     CreateScalarIntViewAndSetVal(prob, "numCyclesPerDump", numCyclesPerDump);
 
-    CreateScalarIntViewAndSetVal(prob,
-                                 "numTotalCycles",
-                                 numUltraDumps * numCyclesPerDump);
+    CreateScalarIntViewAndSetVal(prob, "numTotalCycles", numUltraDumps * numCyclesPerDump);
   }
 
   return;
@@ -196,12 +190,11 @@ void CreateShockTubeMesh(Group* const prob)
   elem->createGroup("outflow");
 
   int32 numTubeElems = numElems - 2;
-  Group* const tube = elem->createGroup(
-    "tube");  //->SetDataShape(DataStoreNS::DataShape(numTubeElems));
+  Group* const tube =
+    elem->createGroup("tube");  //->SetDataShape(DataStoreNS::DataShape(numTubeElems));
 
   int32* const mapToElems =
-    tube->createViewAndAllocate("mapToElems", DataType::int32(numTubeElems))
-      ->getData();
+    tube->createViewAndAllocate("mapToElems", DataType::int32(numTubeElems))->getData();
 
   for(int k = 0u; k < numTubeElems; ++k)
   {
@@ -213,8 +206,7 @@ void CreateShockTubeMesh(Group* const prob)
   /* Each face connects to two elements */
 
   int32* const faceToElem =
-    face->createViewAndAllocate("faceToElem", DataType::int32(2 * numFaces))
-      ->getData();
+    face->createViewAndAllocate("faceToElem", DataType::int32(2 * numFaces))->getData();
 
   for(i = 0; i < numFaces; ++i)
   {
@@ -225,8 +217,7 @@ void CreateShockTubeMesh(Group* const prob)
   /* Each element connects to two faces */  //
   //  Relation &elemToFace = *tube->relationCreate("elemToFace", 2);
   int32* elemToFace =
-    tube->createViewAndAllocate("elemToFace", DataType::int32(2 * numElems))
-      ->getData();
+    tube->createViewAndAllocate("elemToFace", DataType::int32(2 * numElems))->getData();
 
   for(i = 0; i < numElems; ++i)
   {
@@ -255,8 +246,7 @@ void InitializeShockTube(Group* const prob)
   int32 const numElems = prob->getView("numElems")->getData();
   int32 const numFaces = prob->getView("numFaces")->getData();
 
-  float64* const mass =
-    elem->createViewAndAllocate("mass", DataType::float64(numElems))->getData();
+  float64* const mass = elem->createViewAndAllocate("mass", DataType::float64(numElems))->getData();
 
   float64* const momentum =
     elem->createViewAndAllocate("momentum", DataType::float64(numElems))->getData();
@@ -362,8 +352,7 @@ void ComputeFaceInfo(Group* const prob)
     double massf = 0.5 * (mass[upWind] + mass[downWind]);
     double momentumf = 0.5 * (momentum[upWind] + momentum[downWind]);
     double energyf = 0.5 * (energy[upWind] + energy[downWind]);
-    double pressuref =
-      (gammaa - 1.0) * (energyf - 0.5 * momentumf * momentumf / massf);
+    double pressuref = (gammaa - 1.0) * (energyf - 0.5 * momentumf * momentumf / massf);
     double c = sqrt(gammaa * pressuref / massf);
     double v = momentumf / massf;
     double ev;
@@ -470,8 +459,7 @@ void UpdateElemInfo(Group* const prob)
     momentum[elemIdx] -= gammaaInverse * (F1[downWind] - F1[upWind]) * dt / dx;
     energy[elemIdx] -= gammaaInverse * (F2[downWind] - F2[upWind]) * dt / dx;
     pressure[elemIdx] = (gammaa - 1.0) *
-      (energy[elemIdx] -
-       0.5 * momentum[elemIdx] * momentum[elemIdx] / mass[elemIdx]);
+      (energy[elemIdx] - 0.5 * momentum[elemIdx] * momentum[elemIdx] / mass[elemIdx]);
   }
 
   /* update the time */

@@ -39,8 +39,7 @@ public:
   using HexType = axom::primal::Hexahedron<double, 3>;
 
   // Common type for the mesh approximation of the shape.
-  using TetMesh =
-    axom::mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>;
+  using TetMesh = axom::mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>;
 
   static constexpr int DEFAULT_SAMPLES_PER_KNOT_SPAN {25};
   static constexpr double MINIMUM_PERCENT_ERROR {0.};
@@ -77,10 +76,7 @@ public:
     @brief Set the refinement type.
     Refinement type is used for shaping with C2C contours.
   */
-  void setRefinementType(RefinementType refinementType)
-  {
-    m_refinementType = refinementType;
-  }
+  void setRefinementType(RefinementType refinementType) { m_refinementType = refinementType; }
 
   void setSamplesPerKnotSpan(int nSamples);
   void setVertexWeldThreshold(double threshold);
@@ -119,10 +115,7 @@ public:
   std::shared_ptr<mint::Mesh> createMeshRepresentation();
 
   //!@brief Get the discrete mesh representation.
-  std::shared_ptr<mint::Mesh> getMeshRepresentation() const
-  {
-    return m_meshRep;
-  }
+  std::shared_ptr<mint::Mesh> getMeshRepresentation() const { return m_meshRep; }
 
   /*!
      \brief Get the revolved volume for volumes of revolution,

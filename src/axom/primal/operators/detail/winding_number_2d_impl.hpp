@@ -3,16 +3,16 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef PRIMAL_WINDING_NUMBER_IMPL_HPP_
-#define PRIMAL_WINDING_NUMBER_IMPL_HPP_
+#ifndef PRIMAL_WINDING_NUMBER_2D_IMPL_HPP_
+#define PRIMAL_WINDING_NUMBER_2D_IMPL_HPP_
 
 // Axom includes
 #include "axom/config.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/Polygon.hpp"
+#include "axom/primal/geometry/NURBSCurve.hpp"
 #include "axom/primal/geometry/BezierCurve.hpp"
-#include "axom/primal/operators/in_polygon.hpp"
 #include "axom/primal/operators/is_convex.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 
@@ -30,6 +30,95 @@ namespace primal
 {
 namespace detail
 {
+/*!
+ * \brief Computes the winding number for a 2D point wrt a 2D polygon
+ *
+ * \param [in] R The query point to test
+ * \param [in] P The Polygon object to test for containment
+ * \param [in] isOnEdge An optional return parameter if the point is on the boundary
+ * \param [in] includeBoundary If true, points on the boundary are considered interior
+ * \param [in] edge_tol The distance at which a point is considered on the boundary
+ * 
+ * Uses an adapted ray-casting approach that counts quarter-rotation
+ * of vertices around the query point. Current policy is to return 1 on edges
+ * without strict inclusion, 0 on edges with strict inclusion.
+ *
+ * The polygon is assumed to be closed, so the winding number is an integer
+ * 
+ * Directly uses algorithm in 
+ * Kai Hormann, Alexander Agathos, "The point in polygon problem for arbitrary polygons"
+ * Computational Geometry, Volume 20, Issue 3, 2001,
+ * 
+ * \return The integer winding number
+ */
+template <typename T>
+int polygon_winding_number(const Point<T, 2>& R,
+                           const Polygon<T, 2>& P,
+                           bool& isOnEdge,
+                           bool includeBoundary,
+                           double edge_tol)
+{
+  const int nverts = P.numVertices();
+  const double edge_tol_2 = edge_tol * edge_tol;
+  isOnEdge = false;
+
+  int winding_num = 0;
+  for(int i = 0; i < nverts; i++)
+  {
+    int j = (i == nverts - 1) ? 0 : i + 1;
+
+    // Check if the point is on the edge up to some tolerance
+    if(squared_distance(R, Segment<T, 2>(P[i], P[j])) <= edge_tol_2)
+    {
+      isOnEdge = true;
+      return includeBoundary ? 1 : 0;
+    }
+
+    // Check if edge crosses horizontal line
+    if((P[i][1] < R[1]) != (P[j][1] < R[1]))
+    {
+      if(P[i][0] >= R[0])
+      {
+        if(P[j][0] > R[0])
+        {
+          winding_num += 2 * (P[j][1] > P[i][1]) - 1;
+        }
+        else
+        {
+          // clang-format off
+          double det = axom::numerics::determinant(P[i][0] - R[0], P[j][0] - R[0],
+                                                   P[i][1] - R[1], P[j][1] - R[1]);
+          // clang-format on
+
+          // Check if edge intersects horitonal ray to the right of R
+          if((det > 0) == (P[j][1] > P[i][1]))
+          {
+            winding_num += 2 * (P[j][1] > P[i][1]) - 1;
+          }
+        }
+      }
+      else
+      {
+        if(P[j][0] > R[0])
+        {
+          // clang-format off
+          double det = axom::numerics::determinant(P[i][0] - R[0], P[j][0] - R[0],
+                                                   P[i][1] - R[1], P[j][1] - R[1]);
+          // clang-format on
+
+          // Check if edge intersects horitonal ray to the right of R
+          if((det > 0) == (P[j][1] > P[i][1]))
+          {
+            winding_num += 2 * (P[j][1] > P[i][1]) - 1;
+          }
+        }
+      }
+    }
+  }
+
+  return winding_num;
+}
+
 /*
  * \brief Compute the GWN at a 2D point wrt a 2D line segment
  *
@@ -66,10 +155,8 @@ double linear_winding_number(const Point<T, 2>& q,
   }
 
   // Compute signed angle between vectors
-  double dotprod = axom::utilities::clampVal(
-    Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()),
-    -1.0,
-    1.0);
+  double dotprod =
+    axom::utilities::clampVal(Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()), -1.0, 1.0);
 
   return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
 }
@@ -173,10 +260,8 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
   }
 
   // Compute signed angle between vectors
-  double dotprod = axom::utilities::clampVal(
-    Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()),
-    -1.0,
-    1.0);
+  double dotprod =
+    axom::utilities::clampVal(Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()), -1.0, 1.0);
   return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
 }
 
@@ -196,6 +281,8 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
  *   has the same integer winding number as the original closed curve
  * \param [out] endpoint_gwn A running sum for the exact GWN if the point is at the 
  *   endpoint of a subcurve
+ * \param [out] isCoincident A flag to indicate if the query point is coincident with
+ *   the curve (i.e., is on a vertex of the approximating polygon)
  *
  * By the termination of the recursive algorithm, `approximating_polygon` contains
  *  a polygon that has the same *integer* winding number as the original curve.
@@ -236,7 +323,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
   //  If so, all subsequent control polygons will be convex as well
   Polygon<T, 2> controlPolygon(c.getControlPoints());
   const bool includeBoundary = true;
-  const bool useNonzeroRule = true;
+  bool isOnEdge = false;
 
   if(!isConvexControlPolygon)
   {
@@ -247,7 +334,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
   if(isConvexControlPolygon)
   {
     // Bezier curves are always contained in their convex control polygon
-    if(!in_polygon(q, controlPolygon, includeBoundary, useNonzeroRule, edge_tol))
+    if(polygon_winding_number(q, controlPolygon, isOnEdge, includeBoundary, edge_tol) == 0)
     {
       return;
     }
@@ -289,219 +376,139 @@ void construct_approximating_polygon(const Point<T, 2>& q,
   return;
 }
 
-/// Type to indicate orientation of singularities relative to surface
-enum class SingularityAxis
-{
-  x,
-  y,
-  z,
-  rotated
-};
-
-#ifdef AXOM_USE_MFEM
 /*!
- * \brief Evaluates the integral of the "anti-curl" of the GWN integrand
- *        (via Stokes' theorem) at a point wrt to a 3D Bezier curve
+ * \brief Computes the GWN for a 2D point wrt a 2D Bezier curve
  *
- * \param [in] query The query point to test
- * \param [in] curve The BezierCurve object
- * \param [in] ax The axis (relative to query) denoting which anti-curl we use
- * \param [in] npts The number of points used in each Gaussian quadrature
- * \param [in] quad_tol The maximum relative error allowed in each quadrature
- * 
- * Applies a non-adaptive quadrature to a BezierCurve using one of three possible
- * "anti-curl" vector fields, the curl of each of which is equal to <x, y, z>/||x||^3.
- * With the proper "anti-curl" selected, integrating this along a closed curve is equal
- * to evaluating the winding number of a surface with that curve as the boundary.
- * 
- * \note This is only meant to be used for `winding_number<BezierPatch>()`,
- *  and the result does not make sense outside of that context.
+ * \param [in] q The query point to test
+ * \param [in] c The Bezier curve object 
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
- * \return The value of the integral
+ * Computes the GWN using a recursive, bisection algorithm
+ * that constructs a polygon with the same *integer* WN as 
+ * the curve closed with a linear segment. The *generalized* WN 
+ * of the closing line is then subtracted from the integer WN to
+ * return the GWN of the original curve.
+ *  
+ * Nearly-linear Bezier curves are the base case for recursion.
+ * 
+ * See Algorithm 2 in
+ *  Jacob Spainhour, David Gunderman, and Kenneth Weiss. 2024. 
+ *  Robust Containment Queries over Collections of Rational Parametric Curves via Generalized Winding Numbers. 
+ *  ACM Trans. Graph. 43, 4, Article 38 (July 2024)
+ * 
+ * \return The GWN.
  */
 template <typename T>
-double stokes_winding_number(const Point<T, 3>& query,
-                             const BezierCurve<T, 3>& curve,
-                             const SingularityAxis ax,
-                             int npts,
-                             double quad_tol)
+double bezier_winding_number(const Point<T, 2>& q,
+                             const BezierCurve<T, 2>& c,
+                             double edge_tol = 1e-8,
+                             double EPS = 1e-8)
 {
-  // Generate the quadrature rules in parameter space
-  static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
-  const mfem::IntegrationRule& quad_rule =
-    my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
-
-  double quadrature = 0.0;
-  for(int q = 0; q < quad_rule.GetNPoints(); ++q)
+  const int ord = c.getOrder();
+  if(ord <= 0)
   {
-    // Get quadrature points in space (shifted by the query)
-    const Vector<T, 3> node(query, curve.evaluate(quad_rule.IntPoint(q).x));
-    const Vector<T, 3> node_dt(curve.dt(quad_rule.IntPoint(q).x));
-    const double node_norm = node.norm();
+    return 0.0;
+  }
 
-    // Compute one of three vector field line integrals depending on
-    //  the orientation of the original surface, indicated through ax.
-    switch(ax)
+  // Early return is possible for most points + curves
+  if(!c.boundingBox().expand(edge_tol).contains(q))
+  {
+    return detail::linear_winding_number(q, c[0], c[ord], edge_tol);
+  }
+
+  // The first vertex of the polygon is the t=0 point of the curve
+  Polygon<T, 2> approximating_polygon(1);
+  approximating_polygon.addVertex(c[0]);
+
+  // Need to keep a running total of the GWN to account for
+  //  the winding number of coincident points
+  double gwn = 0.0;
+  bool isCoincident = false;
+  detail::construct_approximating_polygon(q,
+                                          c,
+                                          false,
+                                          edge_tol,
+                                          EPS,
+                                          approximating_polygon,
+                                          gwn,
+                                          isCoincident);
+
+  // The last vertex of the polygon is the t=1 point of the curve
+  approximating_polygon.addVertex(c[ord]);
+
+  // Compute the integer winding number of the closed curve
+  bool isOnEdge = false;
+  double closed_curve_wn =
+    detail::polygon_winding_number(q, approximating_polygon, isOnEdge, false, edge_tol);
+
+  // Compute the fractional value of the closed curve
+  const int n = approximating_polygon.numVertices();
+  const double closure_wn =
+    detail::linear_winding_number(q, approximating_polygon[n - 1], approximating_polygon[0], edge_tol);
+
+  // If the point is on the boundary of the approximating polygon,
+  //  or coincident with the curve (rare), then winding_number<polygon>
+  //  doesn't return the right half-integer. Have to go edge-by-edge.
+  if(isCoincident || isOnEdge)
+  {
+    closed_curve_wn = closure_wn;
+    for(int i = 1; i < n; ++i)
     {
-    case(SingularityAxis::x):
-      quadrature += quad_rule.IntPoint(q).weight *
-        (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
-        (node[1] * node[1] + node[2] * node[2]) / node_norm;
-      break;
-    case(SingularityAxis::y):
-      quadrature += quad_rule.IntPoint(q).weight *
-        (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
-        (node[0] * node[0] + node[2] * node[2]) / node_norm;
-      break;
-    case(SingularityAxis::z):
-    case(SingularityAxis::rotated):
-      quadrature += quad_rule.IntPoint(q).weight *
-        (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
-        (node[0] * node[0] + node[1] * node[1]) / node_norm;
-      break;
+      closed_curve_wn += detail::linear_winding_number(q,
+                                                       approximating_polygon[i - 1],
+                                                       approximating_polygon[i],
+                                                       edge_tol);
     }
   }
 
-  // Adaptively refine quadrature over curves if query is not far enough away
-  //  from the singularity axis. If rotated, assume you need to adapt.
-  bool needs_adapt = false;
-  BoundingBox<T, 3> cBox(curve.boundingBox());
-  Point<T, 3> centroid = cBox.getCentroid();
-
-  switch(ax)
-  {
-  case(SingularityAxis::x):
-    needs_adapt = (query[1] - centroid[1]) * (query[1] - centroid[1]) +
-        (query[2] - centroid[2]) * (query[2] - centroid[2]) <=
-      cBox.range().squared_norm();
-    break;
-  case(SingularityAxis::y):
-    needs_adapt = (query[0] - centroid[0]) * (query[0] - centroid[0]) +
-        (query[2] - centroid[2]) * (query[2] - centroid[2]) <=
-      cBox.range().squared_norm();
-    break;
-  case(SingularityAxis::z):
-    needs_adapt = (query[0] - centroid[0]) * (query[0] - centroid[0]) *
-        (query[1] - centroid[1]) * (query[1] - centroid[1]) <=
-      cBox.range().squared_norm();
-    break;
-  case(SingularityAxis::rotated):
-    needs_adapt = true;
-    break;
-  }
-
-  if(needs_adapt)
-  {
-    return stokes_winding_number_adaptive(query,
-                                          curve,
-                                          ax,
-                                          quad_rule,
-                                          quadrature,
-                                          quad_tol);
-  }
-
-  return 0.25 * M_1_PI * quadrature;
+  return gwn + closed_curve_wn - closure_wn;
 }
-#endif
 
-#ifdef AXOM_USE_MFEM
 /*!
- * \brief Accurately evaluates the integral of the "anti-curl" of the GWN integrand
- *        (via Stokes' theorem) at a point wrt to a 3D Bezier curve via recursion
+ * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
  *
- * \param [in] query The query point to test
- * \param [in] curve The BezierCurve object
- * \param [in] ax The axis (relative to query) denoting which anti-curl we use
- * \param [in] quad_rule The mfem quadrature rule object
- * \param [in] quad_coarse The integral evaluated on the original curve
- * \param [in] quad_tol The maximum relative error allowed in each quadrature
- * \param [in] depth The current recursive depth
- * 
- * Recursively apply quadrature for one of three possible integrals along two halfs 
- * of a curve. The sum of this integral along the subcurves should be equal to to
- * quad_coarse. Otherwise, apply this algorithm to each half recursively.
+ * \param [in] q The query point to test
+ * \param [in] n The NURBS curve object 
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
- * \note This is only meant to be used for `winding_number<BezierPatch>()`,
- *  and the result does not make sense outside of that context.
+ * Computes the GWN by decomposing into rational Bezier curves
+ *  and summing the resulting GWNs. Far-away curves can be evaluated
+ *  without decomposition using direct formula.
  * 
- * \return The value of the integral
+ * \return The GWN.
  */
 template <typename T>
-double stokes_winding_number_adaptive(const Point<T, 3>& query,
-                                      const BezierCurve<T, 3>& curve,
-                                      const SingularityAxis ax,
-                                      const mfem::IntegrationRule& quad_rule,
-                                      const double quad_coarse,
-                                      const double quad_tol,
-                                      const int depth = 1)
+double nurbs_winding_number(const Point<T, 2>& q,
+                            const NURBSCurve<T, 2>& n,
+                            double edge_tol = 1e-8,
+                            double EPS = 1e-8)
 {
-  // Split the curve, do the quadrature over both components
-  BezierCurve<T, 3> subcurves[2];
-  curve.split(0.5, subcurves[0], subcurves[1]);
-
-  double quad_fine[2] = {0.0, 0.0};
-  for(int i = 0; i < 2; ++i)
+  const int deg = n.getDegree();
+  if(deg <= 0)
   {
-    for(int q = 0; q < quad_rule.GetNPoints(); ++q)
-    {
-      // Get quad_rulerature points in space (shifted by the query)
-      const Vector<T, 3> node(query,
-                              subcurves[i].evaluate(quad_rule.IntPoint(q).x));
-      const Vector<T, 3> node_dt(subcurves[i].dt(quad_rule.IntPoint(q).x));
-      const double node_norm = node.norm();
-
-      // Compute one of three vector field line integrals depending on
-      //  the orientation of the original surface, indicated through ax.
-      switch(ax)
-      {
-      case(SingularityAxis::x):
-        quad_fine[i] += quad_rule.IntPoint(q).weight *
-          (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
-          (node[1] * node[1] + node[2] * node[2]) / node_norm;
-        break;
-      case(SingularityAxis::y):
-        quad_fine[i] += quad_rule.IntPoint(q).weight *
-          (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
-          (node[0] * node[0] + node[2] * node[2]) / node_norm;
-        break;
-      case(SingularityAxis::z):
-      case(SingularityAxis::rotated):
-        quad_fine[i] += quad_rule.IntPoint(q).weight *
-          (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
-          (node[0] * node[0] + node[1] * node[1]) / node_norm;
-        break;
-      }
-    }
+    return 0.0;
   }
 
-  constexpr int MAX_DEPTH = 12;
-  if(depth >= MAX_DEPTH ||
-     axom::utilities::isNearlyEqualRelative(quad_fine[0] + quad_fine[1],
-                                            quad_coarse,
-                                            quad_tol,
-                                            1e-10))
+  // Early return is possible for most points + curves
+  if(!n.boundingBox().expand(edge_tol).contains(q))
   {
-    return 0.25 * M_1_PI * (quad_fine[0] + quad_fine[1]);
+    return detail::linear_winding_number(q, n[0], n[n.getNumControlPoints() - 1], edge_tol);
   }
-  else
+
+  // Decompose the NURBS curve into Bezier segments
+  auto beziers = n.extractBezier();
+
+  // Compute the GWN for each Bezier segment
+  double gwn = 0.0;
+  for(int i = 0; i < beziers.size(); i++)
   {
-    return stokes_winding_number_adaptive(query,
-                                          subcurves[0],
-                                          ax,
-                                          quad_rule,
-                                          quad_fine[0],
-                                          quad_tol,
-                                          depth + 1) +
-      stokes_winding_number_adaptive(query,
-                                     subcurves[1],
-                                     ax,
-                                     quad_rule,
-                                     quad_fine[1],
-                                     quad_tol,
-                                     depth + 1);
+    gwn += bezier_winding_number(q, beziers[i], edge_tol, EPS);
   }
+
+  return gwn;
 }
-#endif
 
 }  // end namespace detail
 }  // end namespace primal

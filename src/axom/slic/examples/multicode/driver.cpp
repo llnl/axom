@@ -21,16 +21,12 @@ using namespace axom;
 std::ofstream hsp;
 
 //-----------------------------------------------------------------------------
-int getRandInt(const int start, const int end)
-{
-  return (std::rand() % (end - start) + start);
-}
+int getRandInt(const int start, const int end) { return (std::rand() % (end - start) + start); }
 
 //-----------------------------------------------------------------------------
 slic::message::Level getRandomLevel()
 {
-  return (
-    static_cast<slic::message::Level>(getRandInt(0, slic::message::Num_Levels)));
+  return (static_cast<slic::message::Level>(getRandInt(0, slic::message::Num_Levels)));
 }
 
 //-----------------------------------------------------------------------------
@@ -40,8 +36,8 @@ void driver_init()
   slic::setLoggingMsgLevel(slic::message::Debug);
   slic::disableAbortOnError();
 
-  std::string hsp_format = std::string("[<LEVEL>]: <MESSAGE>\n") +
-    std::string("\t FILE:<FILE>\n") + std::string("\t LINE:<LINE>\n");
+  std::string hsp_format = std::string("[<LEVEL>]: <MESSAGE>\n") + std::string("\t FILE:<FILE>\n") +
+    std::string("\t LINE:<LINE>\n");
 
   // setup main hsp output
   hsp.open("hsp.log");
@@ -51,8 +47,7 @@ void driver_init()
   std::string console_format = std::string("[<LEVEL>]: <MESSAGE>\n");
 
   // setup console output
-  slic::LogStream* console =
-    new slic::GenericOutputStream(&std::cout, console_format);
+  slic::LogStream* console = new slic::GenericOutputStream(&std::cout, console_format);
   slic::addStreamToMsgLevel(console, slic::message::Error);
   slic::addStreamToMsgLevel(console, slic::message::Warning);
   slic::addStreamToMsgLevel(console, slic::message::Info);

@@ -93,10 +93,8 @@ void write_points(const Mesh* mesh, std::ofstream& file)
   const double* x = mesh->getCoordinateArray(X_COORDINATE);
   SLIC_ASSERT(x != nullptr);
 
-  const double* y =
-    (mesh_dim > 1) ? mesh->getCoordinateArray(Y_COORDINATE) : nullptr;
-  const double* z =
-    (mesh_dim > 2) ? mesh->getCoordinateArray(Z_COORDINATE) : nullptr;
+  const double* y = (mesh_dim > 1) ? mesh->getCoordinateArray(Y_COORDINATE) : nullptr;
+  const double* z = (mesh_dim > 2) ? mesh->getCoordinateArray(Z_COORDINATE) : nullptr;
 
   fmt::print(file, "POINTS {} double\n", num_nodes);
   for(IndexType nodeIdx = 0; nodeIdx < num_nodes; ++nodeIdx)
@@ -172,10 +170,7 @@ void write_dimensions(const StructuredMesh* mesh, std::ofstream& file)
   }
   else if(ndims == 2)
   {
-    fmt::print(file,
-               "{} {} 1\n",
-               mesh->getNodeResolution(0),
-               mesh->getNodeResolution(1));
+    fmt::print(file, "{} {} 1\n", mesh->getNodeResolution(0), mesh->getNodeResolution(1));
   }
   else
   {
@@ -200,20 +195,13 @@ void write_rectilinear_mesh(const RectilinearMesh* mesh, std::ofstream& file)
 
   write_dimensions(mesh, file);
 
-  std::string coord_names[3] = {"X_COORDINATES",
-                                "Y_COORDINATES",
-                                "Z_COORDINATES"};
+  std::string coord_names[3] = {"X_COORDINATES", "Y_COORDINATES", "Z_COORDINATES"};
 
   for(int dim = 0; dim < mesh->getDimension(); ++dim)
   {
-    fmt::print(file,
-               "{} {} double\n",
-               coord_names[dim],
-               mesh->getNodeResolution(dim));
+    fmt::print(file, "{} {} double\n", coord_names[dim], mesh->getNodeResolution(dim));
     const double* coords = mesh->getCoordinateArray(dim);
-    fmt::print(file,
-               "{}\n",
-               fmt::join(coords, coords + mesh->getNodeResolution(dim), " "));
+    fmt::print(file, "{}\n", fmt::join(coords, coords + mesh->getNodeResolution(dim), " "));
   }
   for(int dim = mesh->getDimension(); dim < 3; ++dim)
   {
@@ -246,9 +234,7 @@ void write_uniform_mesh(const UniformMesh* mesh, std::ofstream& file)
  * See write_scalar_data for information about parameters
  */
 template <typename T>
-void write_scalar_helper(const std::string& type,
-                         const Field* field,
-                         std::ofstream& file)
+void write_scalar_helper(const std::string& type, const Field* field, std::ofstream& file)
 {
   const T* data_ptr = Field::getDataPtr<T>(field);
   SLIC_ASSERT(data_ptr != nullptr);
@@ -288,10 +274,9 @@ void write_scalar_data(const Field* field, std::ofstream& file)
     write_scalar_helper<std::int64_t>("long", field, file);
     break;
   default:
-    SLIC_WARNING(
-      fmt::format("Unsupported scalar field type ({}) for field '{}'",
-                  field->getType(),
-                  field->getName()));
+    SLIC_WARNING(fmt::format("Unsupported scalar field type ({}) for field '{}'",
+                             field->getType(),
+                             field->getName()));
     break;
   }
 }
@@ -301,9 +286,7 @@ void write_scalar_data(const Field* field, std::ofstream& file)
  * See write_vector_data for information about parameters
  */
 template <typename T>
-void write_vector_helper(const std::string& type,
-                         const Field* field,
-                         std::ofstream& file)
+void write_vector_helper(const std::string& type, const Field* field, std::ofstream& file)
 {
   const T* data_ptr = Field::getDataPtr<T>(field);
   SLIC_ASSERT(data_ptr != nullptr);
@@ -353,10 +336,9 @@ void write_vector_data(const Field* field, std::ofstream& file)
     write_vector_helper<std::int64_t>("long", field, file);
     break;
   default:
-    SLIC_WARNING(
-      fmt::format("Unsupported vector field type ({}) for field '{}'",
-                  field->getType(),
-                  field->getName()));
+    SLIC_WARNING(fmt::format("Unsupported vector field type ({}) for field '{}'",
+                             field->getType(),
+                             field->getName()));
     break;
   }
 }
@@ -366,9 +348,7 @@ void write_vector_data(const Field* field, std::ofstream& file)
  * See write_multidim_data for information about parameters
  */
 template <typename T>
-void write_multidim_helper(const std::string& type,
-                           const Field* field,
-                           std::ofstream& file)
+void write_multidim_helper(const std::string& type, const Field* field, std::ofstream& file)
 {
   const T* data_ptr = Field::getDataPtr<T>(field);
   SLIC_ASSERT(data_ptr != nullptr);
@@ -416,10 +396,9 @@ void write_multidim_data(const Field* field, std::ofstream& file)
     write_multidim_helper<std::int64_t>("long", field, file);
     break;
   default:
-    SLIC_WARNING(
-      fmt::format("Unsupported multidim field type ({}) for field '{}'",
-                  field->getType(),
-                  field->getName()));
+    SLIC_WARNING(fmt::format("Unsupported multidim field type ({}) for field '{}'",
+                             field->getType(),
+                             field->getName()));
     break;
   }
 }
@@ -431,9 +410,7 @@ void write_multidim_data(const Field* field, std::ofstream& file)
  * \param [in] file the stream to write to.
  * \pre field_data != nullptr
  */
-void write_data(const FieldData* field_data,
-                IndexType AXOM_DEBUG_PARAM(num_values),
-                std::ofstream& file)
+void write_data(const FieldData* field_data, IndexType AXOM_DEBUG_PARAM(num_values), std::ofstream& file)
 {
   const int numFields = field_data->getNumFields();
   for(int i = 0; i < numFields; ++i)
@@ -444,8 +421,7 @@ void write_data(const FieldData* field_data,
     SLIC_ASSERT(field->getNumTuples() == num_values);
 
     const bool invalidType = (field->getType() >= NUMBER_OF_FIELD_TYPES);
-    SLIC_ERROR_IF(invalidType,
-                  "Field [" << field->getName() << "] has invalid type");
+    SLIC_ERROR_IF(invalidType, "Field [" << field->getName() << "] has invalid type");
 
     if(num_components == 1)
     {

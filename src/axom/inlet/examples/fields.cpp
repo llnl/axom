@@ -66,8 +66,7 @@ int main()
   inlet.addInt("a_defaulted_int", "An int that has a default value").defaultValue(17);
 
   // Add an optional top-level string not defined in the input file for example purposes
-  inlet.addString("does_not_exist",
-                  "Shows that not all fields need to be present in input file");
+  inlet.addString("does_not_exist", "Shows that not all fields need to be present in input file");
   // _inlet_simple_types_fields_add_end
 
   // _inlet_simple_types_fields_access_start
@@ -88,8 +87,7 @@ int main()
   }
 
   // Because this field was marked required, we do not have to call contains before accessing
-  std::cout << "a_simple_double = " << inlet.get<double>("a_simple_double")
-            << std::endl;
+  std::cout << "a_simple_double = " << inlet.get<double>("a_simple_double") << std::endl;
 
   if(inlet.contains("a_simple_string"))
   {
@@ -102,8 +100,8 @@ int main()
   int a_defaulted_int = inlet["a_defaulted_int"];
   std::cout << "a_defaulted_int = " << a_defaulted_int << std::endl;
   // We can also verify that the user did not provided a value
-  std::cout << "a_defaulted_int provided by user: "
-            << inlet.isUserProvided("a_defaulted_int") << std::endl;
+  std::cout << "a_defaulted_int provided by user: " << inlet.isUserProvided("a_defaulted_int")
+            << std::endl;
 
   // _inlet_simple_types_fields_access_end
 

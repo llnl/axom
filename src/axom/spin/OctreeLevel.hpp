@@ -136,8 +136,7 @@ protected:
   };
 
 public:
-  using BlockIter =
-    BlockIterator<OctreeLevel, BlockIteratorHelper, BlockDataType>;
+  using BlockIter = BlockIterator<OctreeLevel, BlockIteratorHelper, BlockDataType>;
   using ConstBlockIter =
     BlockIterator<const OctreeLevel, ConstBlockIteratorHelper, const BlockDataType>;
 
@@ -153,10 +152,7 @@ public:
    *
    * \note This is (2^l -1), where L is the current level
    */
-  CoordType maxCoord() const
-  {
-    return (CoordType(1) << m_level) - CoordType(1);
-  }
+  CoordType maxCoord() const { return (CoordType(1) << m_level) - CoordType(1); }
 
   /**
    * \brief Returns a GridPt whose coordinates are set to maxCoord
@@ -216,8 +212,7 @@ public:
     using reference = DataType&;
     using iterator_category = std::forward_iterator_tag;
 
-    BlockIterator(OctreeLevel* octLevel, bool begin = false)
-      : m_octLevel(octLevel)
+    BlockIterator(OctreeLevel* octLevel, bool begin = false) : m_octLevel(octLevel)
     {
       SLIC_ASSERT(octLevel != nullptr);
       m_iterHelper = octLevel->getIteratorHelper(begin);  // factory
@@ -279,19 +274,13 @@ public:
    * \brief Predicate to check whether the block associated with the
    * given GridPt pt is a leaf block
    */
-  bool isLeaf(const GridPt& pt) const
-  {
-    return this->blockStatus(pt) == LeafBlock;
-  }
+  bool isLeaf(const GridPt& pt) const { return this->blockStatus(pt) == LeafBlock; }
 
   /**
    * \brief Predicate to check whether the block associated with the
    *  given GridPt pt is an internal block
    */
-  bool isInternal(const GridPt& pt) const
-  {
-    return this->blockStatus(pt) == InternalBlock;
-  }
+  bool isInternal(const GridPt& pt) const { return this->blockStatus(pt) == InternalBlock; }
 
   /** \brief Begin iterator to points and data in tree level */
   BlockIter begin() { return BlockIter(this, true); }

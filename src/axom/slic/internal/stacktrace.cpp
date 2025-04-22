@@ -53,11 +53,7 @@ std::string stacktrace()
     char outString[512];
     SymFromAddr(process, (DWORD64)(stack[i]), 0, symbol);
 
-    sprintf_s(outString,
-              "%i: %s - 0x%0X",
-              frames - i - 1,
-              symbol->Name,
-              symbol->Address);
+    sprintf_s(outString, "%i: %s - 0x%0X", frames - i - 1, symbol->Name, symbol->Address);
     oss << outString << std::endl;
   }
 

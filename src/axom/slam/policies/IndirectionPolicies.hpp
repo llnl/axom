@@ -80,30 +80,32 @@ struct IndexedIndirection : public BasePolicy
                       bool verboseOutput = false) const;
 
   template <bool DeviceEnable = BasePolicy::DeviceAccessible>
-  AXOM_HOST_DEVICE static inline std::enable_if_t<DeviceEnable, ResultPtr>
-  getIndirection(IndirectionRefType buf, PositionType pos = 0)
+  AXOM_HOST_DEVICE static inline std::enable_if_t<DeviceEnable, ResultPtr> getIndirection(
+    IndirectionRefType buf,
+    PositionType pos = 0)
   {
     return &buf[pos];
   }
 
   template <bool DeviceEnable = BasePolicy::DeviceAccessible>
-  AXOM_HOST_DEVICE static inline std::enable_if_t<DeviceEnable, ConstResultPtr>
-  getConstIndirection(IndirectionConstRefType buf, PositionType pos = 0)
+  AXOM_HOST_DEVICE static inline std::enable_if_t<DeviceEnable, ConstResultPtr> getConstIndirection(
+    IndirectionConstRefType buf,
+    PositionType pos = 0)
   {
     return &buf[pos];
   }
 
   template <bool DeviceEnable = BasePolicy::DeviceAccessible>
-  AXOM_HOST_DEVICE static inline std::enable_if_t<!DeviceEnable, ResultPtr>
-  getIndirection(IndirectionRefType buf, PositionType pos = 0)
+  AXOM_HOST_DEVICE static inline std::enable_if_t<!DeviceEnable, ResultPtr> getIndirection(
+    IndirectionRefType buf,
+    PositionType pos = 0)
   {
 #ifdef AXOM_DEVICE_CODE
     AXOM_UNUSED_VAR(buf);
     AXOM_UNUSED_VAR(pos);
     SLIC_ASSERT_MSG(
       false,
-      BasePolicy::Name
-        << " -- Attempting to indirect on an unsupported indirection policy.");
+      BasePolicy::Name << " -- Attempting to indirect on an unsupported indirection policy.");
 
   // Disable no-return warnings from device code
   #if defined(__CUDA_ARCH__)
@@ -127,8 +129,7 @@ struct IndexedIndirection : public BasePolicy
     AXOM_UNUSED_VAR(pos);
     SLIC_ASSERT_MSG(
       false,
-      BasePolicy::Name
-        << " -- Attempting to indirect on an unsupported indirection policy.");
+      BasePolicy::Name << " -- Attempting to indirect on an unsupported indirection policy.");
 
   // Disable no-return warnings from device code
   #if defined(__CUDA_ARCH__)
@@ -174,9 +175,8 @@ private:
   {
     AXOM_UNUSED_VAR(pos);
     SLIC_ASSERT_MSG(this->hasIndirection(),
-                    BasePolicy::Name
-                      << " -- Tried to dereference "
-                      << " a null array in an array based indirection set.");
+                    BasePolicy::Name << " -- Tried to dereference "
+                                     << " a null array in an array based indirection set.");
   }
 };
 
@@ -214,20 +214,18 @@ bool IndexedIndirection<BasePolicy>::isValid(PositionType size,
     PositionType lastEltInd = (size - 1) * stride + offset;
     PositionType vecSize = static_cast<PositionType>(BasePolicy::size());
 
-    bool isRangeValid = (0 <= firstEltInd) && (firstEltInd < vecSize) &&
-      (0 <= lastEltInd) && (lastEltInd < vecSize);
+    bool isRangeValid =
+      (0 <= firstEltInd) && (firstEltInd < vecSize) && (0 <= lastEltInd) && (lastEltInd < vecSize);
 
     if(!isRangeValid)
     {
-      SLIC_DEBUG_IF(
-        verboseOutput,
-        "Invalid array-based IndirectionSet -- Data buffer "
-          << "must be large enough to hold all elements of the set. "
-          << "Underlying buffer size is " << vecSize << "."
-          << " Offset of " << offset << " leads to a first index of "
-          << firstEltInd << "."
-          << " Stride of " << stride << " and size of " << size
-          << " leads to a last index of " << lastEltInd << ".");
+      SLIC_DEBUG_IF(verboseOutput,
+                    "Invalid array-based IndirectionSet -- Data buffer "
+                      << "must be large enough to hold all elements of the set. "
+                      << "Underlying buffer size is " << vecSize << "."
+                      << " Offset of " << offset << " leads to a first index of " << firstEltInd << "."
+                      << " Stride of " << stride << " and size of " << size
+                      << " leads to a last index of " << lastEltInd << ".");
 
       bValid = false;
     }
@@ -277,10 +275,7 @@ struct NoIndirection
   AXOM_HOST_DEVICE IndirectionBufferType* ptr() { return nullptr; }
 
   bool hasIndirection() const { return false; }
-  inline bool isValid(PositionType, PositionType, PositionType, bool) const
-  {
-    return true;
-  }
+  inline bool isValid(PositionType, PositionType, PositionType, bool) const { return true; }
 };
 
 template <typename PositionType, typename ElementType>
@@ -301,19 +296,14 @@ struct CArrayIndirectionBase
   static constexpr bool IsMutableBuffer = false;
   static constexpr const char* Name = "SLAM::CArrayIndirection";
 
-  AXOM_HOST_DEVICE CArrayIndirectionBase(IndirectionPtrType buf = nullptr)
-    : m_arrBuf(buf)
-  { }
+  AXOM_HOST_DEVICE CArrayIndirectionBase(IndirectionPtrType buf = nullptr) : m_arrBuf(buf) { }
 
   AXOM_HOST_DEVICE IndirectionBufferType data() const { return m_arrBuf; }
   AXOM_HOST_DEVICE IndirectionBufferType& ptr() { return m_arrBuf; }
 
   bool hasIndirection() const { return m_arrBuf != nullptr; }
 
-  constexpr PositionType size() const
-  {
-    return axom::numeric_limits<PositionType>::max();
-  }
+  constexpr PositionType size() const { return axom::numeric_limits<PositionType>::max(); }
 
 private:
   IndirectionBufferType m_arrBuf;
@@ -346,14 +336,10 @@ struct STLVectorIndirectionBase
   static constexpr const char* Name = "SLAM::STLVectorIndirection";
 
   AXOM_HOST_DEVICE STLVectorIndirectionBase(IndirectionBufferType* buf = nullptr)
-    : m_vecBuf(buf)
-  { }
+    : m_vecBuf(buf) { }
 
   AXOM_HOST_DEVICE IndirectionBufferType& data() { return *m_vecBuf; }
-  AXOM_HOST_DEVICE IndirectionBufferType const& data() const
-  {
-    return *m_vecBuf;
-  }
+  AXOM_HOST_DEVICE IndirectionBufferType const& data() const { return *m_vecBuf; }
 
   AXOM_HOST_DEVICE IndirectionPtrType& ptr() { return m_vecBuf; }
   AXOM_HOST_DEVICE IndirectionPtrType const& ptr() const { return m_vecBuf; }
@@ -362,9 +348,7 @@ struct STLVectorIndirectionBase
 
   PositionType size() const { return m_vecBuf->size(); }
 
-  static IndirectionBufferType create(PositionType size,
-                                      ConstIndirectionResult value,
-                                      int allocatorId)
+  static IndirectionBufferType create(PositionType size, ConstIndirectionResult value, int allocatorId)
   {
     AXOM_UNUSED_VAR(allocatorId);
     return IndirectionBufferType(size, value);
@@ -399,15 +383,10 @@ struct ArrayIndirectionBase
   static constexpr bool IsMutableBuffer = true;
   static constexpr const char* Name = "SLAM::ArrayIndirection";
 
-  AXOM_HOST_DEVICE ArrayIndirectionBase(IndirectionBufferType* buf = nullptr)
-    : m_vecBuf(buf)
-  { }
+  AXOM_HOST_DEVICE ArrayIndirectionBase(IndirectionBufferType* buf = nullptr) : m_vecBuf(buf) { }
 
   AXOM_HOST_DEVICE IndirectionBufferType& data() { return *m_vecBuf; }
-  AXOM_HOST_DEVICE IndirectionBufferType const& data() const
-  {
-    return *m_vecBuf;
-  }
+  AXOM_HOST_DEVICE IndirectionBufferType const& data() const { return *m_vecBuf; }
 
   AXOM_HOST_DEVICE IndirectionPtrType& ptr() { return m_vecBuf; }
   AXOM_HOST_DEVICE IndirectionPtrType const& ptr() const { return m_vecBuf; }
@@ -416,9 +395,7 @@ struct ArrayIndirectionBase
 
   PositionType size() const { return m_vecBuf->size(); }
 
-  static IndirectionBufferType create(PositionType size,
-                                      ConstIndirectionResult value,
-                                      int allocatorID)
+  static IndirectionBufferType create(PositionType size, ConstIndirectionResult value, int allocatorID)
   {
     IndirectionBufferType buf(size, size, allocatorID);
     buf.fill(value);
@@ -433,8 +410,7 @@ private:
  * \brief A policy class for sets with axom::Array-based indirection
  */
 template <typename PositionType, typename ElementType>
-using ArrayIndirection =
-  detail::IndexedIndirection<ArrayIndirectionBase<PositionType, ElementType>>;
+using ArrayIndirection = detail::IndexedIndirection<ArrayIndirectionBase<PositionType, ElementType>>;
 
 template <typename PositionType, typename ElementType>
 struct ArrayViewIndirectionBase
@@ -454,9 +430,7 @@ struct ArrayViewIndirectionBase
   static constexpr bool IsMutableBuffer = false;
   static constexpr const char* Name = "SLAM::ArrayViewIndirection";
 
-  AXOM_HOST_DEVICE ArrayViewIndirectionBase(IndirectionBufferType buf = {})
-    : m_vecBuf(buf)
-  { }
+  AXOM_HOST_DEVICE ArrayViewIndirectionBase(IndirectionBufferType buf = {}) : m_vecBuf(buf) { }
 
   ArrayViewIndirectionBase(ArrayIndirection<PositionType, ElementType> ind)
     : m_vecBuf(ind.data().data(), ind.data().size())

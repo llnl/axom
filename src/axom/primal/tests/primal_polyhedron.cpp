@@ -99,8 +99,7 @@ TEST(primal_polyhedron, polyhedron_unit_cube)
 
   for(int f = 0; f < face_count; ++f)
   {
-    for(int f_index = face_offset[f]; f_index < face_offset[f] + face_size[f];
-        f_index++)
+    for(int f_index = face_offset[f]; f_index < face_offset[f] + face_size[f]; f_index++)
     {
       EXPECT_EQ(faces[f_index], faces_expect[f_index]);
     }
@@ -120,34 +119,23 @@ TEST(primal_polyhedron, polyhedron_unit_cube)
     {
       for(double z = -0.5; z <= 1.5; z += 0.1)
       {
-        if((x >= 0.0 && x <= 1.0) && (y >= 0.0 && y <= 1.0) &&
-           (z >= 0.0 && z <= 1.0))
+        if((x >= 0.0 && x <= 1.0) && (y >= 0.0 && y <= 1.0) && (z >= 0.0 && z <= 1.0))
         {
-          EXPECT_TRUE(in_polyhedron(PointType({x, y, z}),
-                                    poly,
-                                    includeBoundary,
-                                    useNonzeroRule,
-                                    edge_tol,
-                                    EPS));
+          EXPECT_TRUE(
+            in_polyhedron(PointType({x, y, z}), poly, includeBoundary, useNonzeroRule, edge_tol, EPS));
         }
         else
         {
-          EXPECT_FALSE(in_polyhedron(PointType({x, y, z}),
-                                     poly,
-                                     includeBoundary,
-                                     useNonzeroRule,
-                                     edge_tol,
-                                     EPS));
+          EXPECT_FALSE(
+            in_polyhedron(PointType({x, y, z}), poly, includeBoundary, useNonzeroRule, edge_tol, EPS));
         }
       }
     }
   }
 
   // Verify includeBoundary behavior
-  EXPECT_TRUE(
-    in_polyhedron(poly[0], poly, includeBoundary, useNonzeroRule, edge_tol, EPS));
-  EXPECT_FALSE(
-    in_polyhedron(poly[0], poly, !includeBoundary, useNonzeroRule, edge_tol, EPS));
+  EXPECT_TRUE(in_polyhedron(poly[0], poly, includeBoundary, useNonzeroRule, edge_tol, EPS));
+  EXPECT_FALSE(in_polyhedron(poly[0], poly, !includeBoundary, useNonzeroRule, edge_tol, EPS));
 
   EXPECT_EQ(winding_number(poly[0], poly, includeBoundary, edge_tol, EPS), 1);
   EXPECT_EQ(winding_number(poly[0], poly, !includeBoundary, edge_tol, EPS), 0);
@@ -200,21 +188,13 @@ TEST(primal_polyhedron, polyhedron_tetrahedron)
     {
       if((z >= -1.0) && (z <= 1.0))
       {
-        EXPECT_TRUE(in_polyhedron(PointType({0.0, 0.0, z}),
-                                  poly,
-                                  includeBoundary,
-                                  useNonzeroRule,
-                                  edge_tol,
-                                  EPS));
+        EXPECT_TRUE(
+          in_polyhedron(PointType({0.0, 0.0, z}), poly, includeBoundary, useNonzeroRule, edge_tol, EPS));
       }
       else
       {
-        EXPECT_FALSE(in_polyhedron(PointType({0.0, 0.0, z}),
-                                   poly,
-                                   includeBoundary,
-                                   useNonzeroRule,
-                                   edge_tol,
-                                   EPS));
+        EXPECT_FALSE(
+          in_polyhedron(PointType({0.0, 0.0, z}), poly, includeBoundary, useNonzeroRule, edge_tol, EPS));
       }
     }
   }
@@ -354,10 +334,8 @@ void check_volume()
     });
 
   // Copy volume and centroid back to host
-  axom::Array<double> volume_host =
-    axom::Array<double>(volume_device, host_allocator);
-  axom::Array<PointType> centroid_host =
-    axom::Array<PointType>(centroid_device, host_allocator);
+  axom::Array<double> volume_host = axom::Array<double>(volume_device, host_allocator);
+  axom::Array<PointType> centroid_host = axom::Array<PointType>(centroid_device, host_allocator);
 
   EXPECT_EQ(volume_host[0], 1);
 
@@ -366,10 +344,7 @@ void check_volume()
   EXPECT_NEAR(0.5, centroid_host[0][2], EPS);
 }
 
-TEST(primal_polyhedron, check_volume_sequential)
-{
-  check_volume<axom::SEQ_EXEC>();
-}
+TEST(primal_polyhedron, check_volume_sequential) { check_volume<axom::SEQ_EXEC>(); }
 
   #ifdef AXOM_USE_OPENMP
 TEST(primal_polyhedron, check_volume_omp) { check_volume<axom::OMP_EXEC>(); }
@@ -707,8 +682,7 @@ TEST(primal_polyhedron, polygonal_cone)
 
     for(int f = 0; f < face_count; ++f)
     {
-      for(int f_index = face_offset[f]; f_index < face_offset[f] + face_size[f];
-          f_index++)
+      for(int f_index = face_offset[f]; f_index < face_offset[f] + face_size[f]; f_index++)
       {
         EXPECT_EQ(faces[f_index], faces_expect[f_index]);
       }
@@ -796,10 +770,7 @@ TEST(primal_polyhedron, polyhedron_from_primitive)
   EXPECT_NEAR(0.6666, poly.signedVolume(), EPS);
 
   // Valid tetrahedron
-  Tetrahedron3D tet(Point3D {1, 1, 1},
-                    Point3D {-1, 1, -1},
-                    Point3D {1, -1, -1},
-                    Point3D {-1, -1, 1});
+  Tetrahedron3D tet(Point3D {1, 1, 1}, Point3D {-1, 1, -1}, Point3D {1, -1, -1}, Point3D {-1, -1, 1});
 
   poly = Polyhedron3D::from_primitive(tet, false);
   EXPECT_NEAR(2.6666, poly.volume(), EPS);
@@ -873,58 +844,56 @@ TEST(primal_polyhedron, polyhedron_moments)
   EXPECT_NEAR(0.25, centroid[2], EPS);
 
   // lambda to generate an affine transformation matrix for 3D points
-  auto generateTransformMatrix3D = [&EPS](const PointType& scale,
-                                          const PointType& translate,
-                                          const VectorType& axis,
-                                          double angle) {
-    // create scaling matrix
-    auto sc_matx = TransformMatrix::identity(4);
-    {
-      sc_matx(0, 0) = scale[0];
-      sc_matx(1, 1) = scale[1];
-      sc_matx(2, 2) = scale[2];
-    }
+  auto generateTransformMatrix3D =
+    [&EPS](const PointType& scale, const PointType& translate, const VectorType& axis, double angle) {
+      // create scaling matrix
+      auto sc_matx = TransformMatrix::identity(4);
+      {
+        sc_matx(0, 0) = scale[0];
+        sc_matx(1, 1) = scale[1];
+        sc_matx(2, 2) = scale[2];
+      }
 
-    // create rotation matrix
-    auto rot_matx = TransformMatrix::zeros(4, 4);
-    {
-      const double sinT = std::sin(angle);
-      const double cosT = std::cos(angle);
+      // create rotation matrix
+      auto rot_matx = TransformMatrix::zeros(4, 4);
+      {
+        const double sinT = std::sin(angle);
+        const double cosT = std::cos(angle);
 
-      const auto unitAxis = axis.unitVector();
-      const double& ux = unitAxis[0];
-      const double& uy = unitAxis[1];
-      const double& uz = unitAxis[2];
+        const auto unitAxis = axis.unitVector();
+        const double& ux = unitAxis[0];
+        const double& uy = unitAxis[1];
+        const double& uz = unitAxis[2];
 
-      rot_matx(0, 0) = cosT + ux * ux * (1 - cosT);
-      rot_matx(0, 1) = ux * uy * (1 - cosT) - uz * sinT;
-      rot_matx(0, 2) = ux * uz * (1 - cosT) + uy * sinT;
-      rot_matx(1, 0) = uy * ux * (1 - cosT) + uz * sinT;
-      rot_matx(1, 1) = cosT + uy * uy * (1 - cosT);
-      rot_matx(1, 2) = uy * uz * (1 - cosT) - ux * sinT;
-      rot_matx(2, 0) = uz * ux * (1 - cosT) - uy * sinT;
-      rot_matx(2, 1) = uz * uy * (1 - cosT) + ux * sinT;
-      rot_matx(2, 2) = cosT + uz * uz * (1 - cosT);
-      rot_matx(3, 3) = 1;
-    }
+        rot_matx(0, 0) = cosT + ux * ux * (1 - cosT);
+        rot_matx(0, 1) = ux * uy * (1 - cosT) - uz * sinT;
+        rot_matx(0, 2) = ux * uz * (1 - cosT) + uy * sinT;
+        rot_matx(1, 0) = uy * ux * (1 - cosT) + uz * sinT;
+        rot_matx(1, 1) = cosT + uy * uy * (1 - cosT);
+        rot_matx(1, 2) = uy * uz * (1 - cosT) - ux * sinT;
+        rot_matx(2, 0) = uz * ux * (1 - cosT) - uy * sinT;
+        rot_matx(2, 1) = uz * uy * (1 - cosT) + ux * sinT;
+        rot_matx(2, 2) = cosT + uz * uz * (1 - cosT);
+        rot_matx(3, 3) = 1;
+      }
 
-    // create translation matrix
-    auto tr_matx = TransformMatrix::identity(4);
-    {
-      tr_matx(0, 3) = translate[0];
-      tr_matx(1, 3) = translate[1];
-      tr_matx(2, 3) = translate[2];
-    }
+      // create translation matrix
+      auto tr_matx = TransformMatrix::identity(4);
+      {
+        tr_matx(0, 3) = translate[0];
+        tr_matx(1, 3) = translate[1];
+        tr_matx(2, 3) = translate[2];
+      }
 
-    // multiply them to get the final transform
-    TransformMatrix affine_matx1(4, 4);
-    matrix_multiply(rot_matx, sc_matx, affine_matx1);
-    TransformMatrix affine_matx2(4, 4);
-    matrix_multiply(tr_matx, affine_matx1, affine_matx2);
+      // multiply them to get the final transform
+      TransformMatrix affine_matx1(4, 4);
+      matrix_multiply(rot_matx, sc_matx, affine_matx1);
+      TransformMatrix affine_matx2(4, 4);
+      matrix_multiply(tr_matx, affine_matx1, affine_matx2);
 
-    EXPECT_NEAR(scale[0] * scale[1] * scale[2], determinant(affine_matx2), EPS);
-    return affine_matx2;
-  };
+      EXPECT_NEAR(scale[0] * scale[1] * scale[2], determinant(affine_matx2), EPS);
+      return affine_matx2;
+    };
 
   // Omit scaling by zero, as it results in an invalid transformed polyhedron
   const auto scales = axom::Array<double>({-3., -1., -.5, 0.01, 1., 42.3});
@@ -982,10 +951,8 @@ TEST(primal_polyhedron, polyhedron_moments)
                 {
                   const auto sc = PointType {sc_x, sc_y, sc_z};
                   const auto tr = PointType {tr_x, tr_y, tr_z};
-                  auto affine_matx =
-                    generateTransformMatrix3D(sc, tr, axis, theta);
-                  auto xformed_polyhedron =
-                    transformedPolyhedron(poly, affine_matx);
+                  auto affine_matx = generateTransformMatrix3D(sc, tr, axis, theta);
+                  auto xformed_polyhedron = transformedPolyhedron(poly, affine_matx);
 
                   // Get moments of transformed polyhedron
                   centroid = PointType();

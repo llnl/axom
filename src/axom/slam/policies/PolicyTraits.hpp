@@ -57,9 +57,7 @@ struct StrideToSize<CompileTimeStride<IntType, IntType(VAL)>, IntType, VAL>
  *
  * The null pointer for most sets is nullptr
  */
-template <typename SetType,
-          typename P = typename SetType::PositionType,
-          typename E = typename SetType::ElementType>
+template <typename SetType, typename P = typename SetType::PositionType, typename E = typename SetType::ElementType>
 struct EmptySetTraits
 {
   using EmptySetType = SetType;
@@ -124,8 +122,7 @@ struct has_relation_ptr : std::false_type
 { };
 
 template <class T>
-struct has_relation_ptr<T, void_t<decltype(std::declval<T>().getRelation())>>
-  : std::true_type
+struct has_relation_ptr<T, void_t<decltype(std::declval<T>().getRelation())>> : std::true_type
 { };
 
 ///@}
@@ -138,8 +135,7 @@ struct indices_use_indirection : std::true_type
 { };
 
 template <class T>
-struct indices_use_indirection<T, void_t<typename T::ProductSetType>>
-  : std::false_type
+struct indices_use_indirection<T, void_t<typename T::ProductSetType>> : std::false_type
 { };
 
 ///@}

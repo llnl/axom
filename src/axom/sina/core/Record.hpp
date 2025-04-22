@@ -55,10 +55,7 @@ struct FileEqualByURI
  */
 struct FileHashByURI
 {
-  size_t operator()(const File &file) const
-  {
-    return std::hash<std::string>()(file.getUri());
-  }
+  size_t operator()(const File &file) const { return std::hash<std::string>()(file.getUri()); }
 };
 
 /**
@@ -196,8 +193,7 @@ public:
      * A TypeLoader is a function which converts records of a specific type
      * to their corresponding sub classes.
      */
-  using TypeLoader =
-    std::function<std::unique_ptr<Record>(conduit::Node const &)>;
+  using TypeLoader = std::function<std::unique_ptr<Record>(conduit::Node const &)>;
 
   /**
      * \brief Add a function for loading records of the specified type.

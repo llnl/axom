@@ -39,8 +39,7 @@ using float64 = double;
       #pragma message( \
         "warning: Using deprecated Axom types.  Please see CMake variable AXOM_DEPRECATED_TYPES")
     #else
-      #warning \
-        "Using deprecated Axom types.  Please see CMake variable AXOM_DEPRECATED_TYPES"
+      #warning "Using deprecated Axom types.  Please see CMake variable AXOM_DEPRECATED_TYPES"
     #endif
   #endif
 using int8 = std::int8_t;   /*!< 8-bit signed integer type      */

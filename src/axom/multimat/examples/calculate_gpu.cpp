@@ -33,10 +33,7 @@ enum class RuntimePolicy
   raja_cuda = 3
 };
 
-const std::vector<std::string> policy_strs = {"seq",
-                                              "raja_seq",
-                                              "raja_omp",
-                                              "raja_cuda"};
+const std::vector<std::string> policy_strs = {"seq", "raja_seq", "raja_omp", "raja_cuda"};
 
 struct Input
 {
@@ -85,16 +82,10 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
     ->capture_default_str()
     ->transform(axom::CLI::CheckedTransformer(Input::s_validPolicies));
 
-  app
-    .add_option("-c,--num-cells",
-                num_cells,
-                "Sets the number of cells to generate data for.")
+  app.add_option("-c,--num-cells", num_cells, "Sets the number of cells to generate data for.")
     ->capture_default_str();
 
-  app
-    .add_option("-m,--num-mats",
-                num_mats,
-                "Sets the number of materials to generate data for.")
+  app.add_option("-m,--num-mats", num_mats, "Sets the number of materials to generate data for.")
     ->capture_default_str();
 
   app.get_formatter()->column_width(76);
@@ -138,8 +129,7 @@ void avgDensityCompactFlat(mmat::MultiMat& mm)
 
 #if defined(AXOM_USE_RAJA)
       using AtomPolicy = typename axom::execution_space<ExecSpace>::atomic_policy;
-      RAJA::atomicAdd<AtomPolicy>(&densityAvg_view[cell_id],
-                                  density_avg_slot / vol[cell_id]);
+      RAJA::atomicAdd<AtomPolicy>(&densityAvg_view[cell_id], density_avg_slot / vol[cell_id]);
 #else
       densityAvg_view[cell_id] += density_avg_slot / vol[cell_id];
 #endif

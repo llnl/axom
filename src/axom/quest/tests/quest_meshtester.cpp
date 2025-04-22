@@ -67,12 +67,11 @@ void reportVectorMismatch(const std::vector<T>& standard,
                       standard.end(),
                       std::inserter(unexpected, unexpected.begin()));
 
-  EXPECT_TRUE(missing.size() == 0)
-    << "Missing " << missing.size() << " " << label << ":" << std::endl
-    << vecToString(missing);
-  EXPECT_TRUE(unexpected.size() == 0) << "Unexpectedly, " << unexpected.size()
-                                      << " extra " << label << ":" << std::endl
-                                      << vecToString(unexpected);
+  EXPECT_TRUE(missing.size() == 0) << "Missing " << missing.size() << " " << label << ":" << std::endl
+                                   << vecToString(missing);
+  EXPECT_TRUE(unexpected.size() == 0)
+    << "Unexpectedly, " << unexpected.size() << " extra " << label << ":" << std::endl
+    << vecToString(unexpected);
 }
 
 void runIntersectTest(const std::string& tname,
@@ -97,8 +96,7 @@ void runIntersectTest(const std::string& tname,
   reportVectorMismatch(expdegen, degenerate, "degenerate triangles");
 }
 
-void splitStringToIntPairs(std::string& pairs,
-                           std::vector<std::pair<int, int>>& dat)
+void splitStringToIntPairs(std::string& pairs, std::vector<std::pair<int, int>>& dat)
 {
   if(!pairs.empty())
   {
@@ -211,8 +209,7 @@ std::vector<std::string> findIntersectTests()
 
 #ifdef AXOM_DATA_DIR
   namespace fs = axom::utilities::filesystem;
-  std::string catalogue =
-    fs::joinPath(AXOM_DATA_DIR, "quest/meshtester/catalogue.txt");
+  std::string catalogue = fs::joinPath(AXOM_DATA_DIR, "quest/meshtester/catalogue.txt");
   std::string testdir;
   axom::utilities::filesystem::getDirName(testdir, catalogue);
 
@@ -295,8 +292,7 @@ TEST(quest_mesh_tester, surfacemesh_self_intersection_intrinsic)
       "triangles";
 
     // Construct and fill the mesh.
-    surface_mesh =
-      static_cast<UMesh*>(quest::utilities::make_degen_cavedtet_mesh());
+    surface_mesh = static_cast<UMesh*>(quest::utilities::make_degen_cavedtet_mesh());
 
     intersections.clear();
     intersections.push_back(std::make_pair(0, 1));
@@ -364,13 +360,11 @@ TEST(quest_mesh_tester, surfacemesh_watertight_intrinsic)
   {
     SCOPED_TRACE("Closed tetrahedron");
     surface_mesh = static_cast<UMesh*>(quest::utilities::make_tetrahedron_mesh());
-    EXPECT_EQ(quest::WatertightStatus::WATERTIGHT,
-              quest::isSurfaceMeshWatertight(surface_mesh));
+    EXPECT_EQ(quest::WatertightStatus::WATERTIGHT, quest::isSurfaceMeshWatertight(surface_mesh));
     EXPECT_TRUE(surface_mesh->hasField("boundary", mint::CELL_CENTERED));
 
     // check boundary flag
-    int* boundary =
-      surface_mesh->getFieldPtr<int>("boundary", mint::CELL_CENTERED);
+    int* boundary = surface_mesh->getFieldPtr<int>("boundary", mint::CELL_CENTERED);
     const axom::IndexType numCells = surface_mesh->getNumberOfCells();
     for(axom::IndexType icell = 0; icell < numCells; ++icell)
     {
@@ -383,13 +377,11 @@ TEST(quest_mesh_tester, surfacemesh_watertight_intrinsic)
   {
     SCOPED_TRACE("Cracked tetrahedron");
     surface_mesh = static_cast<UMesh*>(quest::utilities::make_crackedtet_mesh());
-    EXPECT_EQ(quest::WatertightStatus::NOT_WATERTIGHT,
-              quest::isSurfaceMeshWatertight(surface_mesh));
+    EXPECT_EQ(quest::WatertightStatus::NOT_WATERTIGHT, quest::isSurfaceMeshWatertight(surface_mesh));
     EXPECT_TRUE(surface_mesh->hasField("boundary", mint::CELL_CENTERED));
 
     // check boundary flag
-    int* boundary =
-      surface_mesh->getFieldPtr<int>("boundary", mint::CELL_CENTERED);
+    int* boundary = surface_mesh->getFieldPtr<int>("boundary", mint::CELL_CENTERED);
 
     const axom::IndexType numCells = surface_mesh->getNumberOfCells();
     EXPECT_EQ(numCells, 4);
@@ -404,13 +396,11 @@ TEST(quest_mesh_tester, surfacemesh_watertight_intrinsic)
   {
     SCOPED_TRACE("Caved-in tetrahedron");
     surface_mesh = static_cast<UMesh*>(quest::utilities::make_cavedtet_mesh());
-    EXPECT_EQ(quest::WatertightStatus::NOT_WATERTIGHT,
-              quest::isSurfaceMeshWatertight(surface_mesh));
+    EXPECT_EQ(quest::WatertightStatus::NOT_WATERTIGHT, quest::isSurfaceMeshWatertight(surface_mesh));
     EXPECT_TRUE(surface_mesh->hasField("boundary", mint::CELL_CENTERED));
 
     // check boundary flag
-    int* boundary =
-      surface_mesh->getFieldPtr<int>("boundary", mint::CELL_CENTERED);
+    int* boundary = surface_mesh->getFieldPtr<int>("boundary", mint::CELL_CENTERED);
 
     const axom::IndexType numCells = surface_mesh->getNumberOfCells();
     EXPECT_EQ(numCells, 4);
@@ -424,10 +414,8 @@ TEST(quest_mesh_tester, surfacemesh_watertight_intrinsic)
 
   {
     SCOPED_TRACE("Caved-in tetrahedron with degenerate triangles");
-    surface_mesh =
-      static_cast<UMesh*>(quest::utilities::make_degen_cavedtet_mesh());
-    EXPECT_EQ(quest::WatertightStatus::CHECK_FAILED,
-              quest::isSurfaceMeshWatertight(surface_mesh));
+    surface_mesh = static_cast<UMesh*>(quest::utilities::make_degen_cavedtet_mesh());
+    EXPECT_EQ(quest::WatertightStatus::CHECK_FAILED, quest::isSurfaceMeshWatertight(surface_mesh));
     EXPECT_FALSE(surface_mesh->hasField("boundary", mint::CELL_CENTERED));
 
     delete surface_mesh;
@@ -509,8 +497,7 @@ TEST(quest_mesh_tester, surfacemesh_watertight_ondisk)
             int expEulerCharacteristic = 2 - 2 * expgenus;
 
             // Computed from mesh element counts as: |V| - |E| + |F|
-            int actualEulerCharacteristic =
-              numWeldedVerts - numWeldedEdges + numWeldedTris;
+            int actualEulerCharacteristic = numWeldedVerts - numWeldedEdges + numWeldedTris;
 
             EXPECT_EQ(expEulerCharacteristic, actualEulerCharacteristic);
           }

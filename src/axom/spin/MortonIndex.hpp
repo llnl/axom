@@ -128,9 +128,8 @@ struct MortonBase
   // static assert to ensure we only instantiate on integral types
   AXOM_STATIC_ASSERT_MSG(std::is_integral<CoordType>::value,
                          "Coordtype must be integral for Morton indexing");
-  AXOM_STATIC_ASSERT_MSG(
-    std::is_integral<MortonIndexType>::value,
-    "MortonIndexType must be integral for Morton indexing");
+  AXOM_STATIC_ASSERT_MSG(std::is_integral<MortonIndexType>::value,
+                         "MortonIndexType must be integral for Morton indexing");
 
 private:
   // Magic numbers for efficient base-2 log-like function -- maxSetBit()
@@ -233,16 +232,15 @@ struct Mortonizer<CoordType, MortonIndexType, 2>
   // Magic numbers in 2D
   AXOM_HOST_DEVICE static MortonIndexType GetB(int i)
   {
-    constexpr MortonIndexType B[] =
-      {static_cast<MortonIndexType>(0x5555555555555555),   // 0101'0101
-       static_cast<MortonIndexType>(0x3333333333333333),   // 0011'0011
-       static_cast<MortonIndexType>(0x0F0F0F0F0F0F0F0F),   // 0000'1111
-       static_cast<MortonIndexType>(0x00FF00FF00FF00FF),   // 0x8
-                                                           //  1x8
-       static_cast<MortonIndexType>(0x0000FFFF0000FFFF),   // 0x16
-                                                           // 1x16
-       static_cast<MortonIndexType>(0x00000000FFFFFFFF)};  //  0x32
-                                                           // 1x32;
+    constexpr MortonIndexType B[] = {static_cast<MortonIndexType>(0x5555555555555555),  // 0101'0101
+                                     static_cast<MortonIndexType>(0x3333333333333333),  // 0011'0011
+                                     static_cast<MortonIndexType>(0x0F0F0F0F0F0F0F0F),  // 0000'1111
+                                     static_cast<MortonIndexType>(0x00FF00FF00FF00FF),  // 0x8
+                                                                                        //  1x8
+                                     static_cast<MortonIndexType>(0x0000FFFF0000FFFF),  // 0x16
+                                                                                        // 1x16
+                                     static_cast<MortonIndexType>(0x00000000FFFFFFFF)};  //  0x32
+                                                                                         // 1x32;
     return B[i];
   }
 
@@ -379,10 +377,10 @@ struct Mortonizer<CoordType, MortonIndexType, 3>
   AXOM_HOST_DEVICE static MortonIndexType GetB(int i)
   {
     constexpr MortonIndexType B[] = {
-      static_cast<MortonIndexType>(0x9249249249249249),  // 0010'0100'1001'0010'0100'1001
-      static_cast<MortonIndexType>(0x30C30C30C30C30C3),  // 0000'1100'0011'0000'1100'0011
-      static_cast<MortonIndexType>(0xF00F00F00F00F00F),  // 0000'0000'1111'0000'0000'1111
-      static_cast<MortonIndexType>(0x00FF0000FF0000FF),  // 0000'0000'0000'0000'1111'1111
+      static_cast<MortonIndexType>(0x9249249249249249),   // 0010'0100'1001'0010'0100'1001
+      static_cast<MortonIndexType>(0x30C30C30C30C30C3),   // 0000'1100'0011'0000'1100'0011
+      static_cast<MortonIndexType>(0xF00F00F00F00F00F),   // 0000'0000'1111'0000'0000'1111
+      static_cast<MortonIndexType>(0x00FF0000FF0000FF),   // 0000'0000'0000'0000'1111'1111
       static_cast<MortonIndexType>(0xFFFF00000000FFFF),   // x16
       static_cast<MortonIndexType>(0x00000000FFFFFFFF)};  // x32
     return B[i];
@@ -478,10 +476,7 @@ struct Mortonizer<CoordType, MortonIndexType, 3>
    * \note The point's coordinates are returned in the x, y and z parameters
    */
   AXOM_HOST_DEVICE
-  static inline void demortonize(MortonIndexType morton,
-                                 CoordType& x,
-                                 CoordType& y,
-                                 CoordType& z)
+  static inline void demortonize(MortonIndexType morton, CoordType& x, CoordType& y, CoordType& z)
   {
     const MortonIndexType b0 = GetB(0);
 
@@ -519,8 +514,7 @@ const CoordType MortonBase<CoordType, MortonIndexType, Derived>::MaxBit_B[] = {
   static_cast<CoordType>(0xFFFFFFFF00000000)};
 
 template <typename CoordType, typename MortonIndexType, typename Derived>
-const int MortonBase<CoordType, MortonIndexType, Derived>::MaxBit_S[] =
-  {1, 2, 4, 8, 16, 32};
+const int MortonBase<CoordType, MortonIndexType, Derived>::MaxBit_S[] = {1, 2, 4, 8, 16, 32};
 
 /*!
  * \brief A helper function to convert a point directly to a MortonIndex
@@ -528,8 +522,7 @@ const int MortonBase<CoordType, MortonIndexType, Derived>::MaxBit_S[] =
  * \return The Morton index of the point
  */
 template <typename MortonIndexType, typename CoordType, int DIM>
-AXOM_HOST_DEVICE inline MortonIndexType convertPointToMorton(
-  const primal::Point<CoordType, DIM>& pt)
+AXOM_HOST_DEVICE inline MortonIndexType convertPointToMorton(const primal::Point<CoordType, DIM>& pt)
 {
   return Mortonizer<CoordType, MortonIndexType, DIM>::mortonize(pt);
 }
@@ -563,10 +556,7 @@ struct PointHash
    * \param [in] coord The coordinate of the
    * \returns The morton index of the 1D point
    */
-  std::size_t operator()(CoordType& coord) const
-  {
-    return static_cast<std::size_t>(coord);
-  }
+  std::size_t operator()(CoordType& coord) const { return static_cast<std::size_t>(coord); }
 
   /*!
    * \brief Mortonizes a 1D point
@@ -614,9 +604,8 @@ struct PointHash
 
     using Pt2M = primal::Point<MortonIndex, 2>;
 
-    Pt2M pMorton = Pt2M::make_point(
-      Mortonizer<CoordType, MortonIndex, 2>::mortonize(pt[0], pt[2]),
-      Mortonizer<CoordType, MortonIndex, 2>::mortonize(pt[1], pt[3]));
+    Pt2M pMorton = Pt2M::make_point(Mortonizer<CoordType, MortonIndex, 2>::mortonize(pt[0], pt[2]),
+                                    Mortonizer<CoordType, MortonIndex, 2>::mortonize(pt[1], pt[3]));
 
     return Mortonizer<MortonIndex, MortonIndex, 2>::mortonize(pMorton);
   }

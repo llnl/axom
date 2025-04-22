@@ -140,12 +140,10 @@ public:
     switch(m_meshWrapper.meshDimension())
     {
     case 2:
-      m_pointFinder2D =
-        new PointFinder2D(&m_meshWrapper, resolution, bboxScaleFactor, allocatorID);
+      m_pointFinder2D = new PointFinder2D(&m_meshWrapper, resolution, bboxScaleFactor, allocatorID);
       break;
     case 3:
-      m_pointFinder3D =
-        new PointFinder3D(&m_meshWrapper, resolution, bboxScaleFactor, allocatorID);
+      m_pointFinder3D = new PointFinder3D(&m_meshWrapper, resolution, bboxScaleFactor, allocatorID);
       break;
     default:
       SLIC_ERROR("Point in Cell query only defined for 2D or 3D meshes.");
@@ -294,10 +292,7 @@ public:
    * 
    *  The grid size is controlled by setInitialGridOrder()
    */
-  void setInitialGuessType(int guessType)
-  {
-    m_meshWrapper.setInitialGuessType(guessType);
-  }
+  void setInitialGuessType(int guessType) { m_meshWrapper.setInitialGuessType(guessType); }
 
   /*!
    * \brief Sets the grid size for the initial guess in the element-based point in cell query
@@ -310,10 +305,7 @@ public:
    * 
    *  \sa setInitialGuessType
    */
-  void setInitialGridOrder(int order)
-  {
-    m_meshWrapper.setInitialGridOrder(order);
-  }
+  void setInitialGridOrder(int order) { m_meshWrapper.setInitialGridOrder(order); }
 
   /*!
    * \brief Sets the solution strategy for the element-based point in cell query
@@ -326,10 +318,7 @@ public:
    *  - 1: Project external iterates to the reference space boundary along their current line
    *  - 2: Project external iterates to the closest reference space boundary location
    */
-  void setSolverProjectionType(int type)
-  {
-    m_meshWrapper.setSolverProjectionType(type);
-  }
+  void setSolverProjectionType(int type) { m_meshWrapper.setSolverProjectionType(type); }
 
   /*!
    * \brief Gets the candidate IDs for the provided query point \a pt
@@ -345,8 +334,7 @@ public:
     case 2:
       return m_pointFinder2D->getCandidates(pt);
     case 3:
-      return m_pointFinder3D->getCandidates(
-        axom::primal::Point<double, 3>(pt.data(), 2));
+      return m_pointFinder3D->getCandidates(axom::primal::Point<double, 3>(pt.data(), 2));
     default:
       SLIC_ERROR("Point in Cell query only defined for 2D or 3D meshes.");
       return std::vector<IndexType> {};
@@ -366,8 +354,7 @@ public:
     switch(m_meshWrapper.meshDimension())
     {
     case 2:
-      return m_pointFinder2D->getCandidates(
-        axom::primal::Point<double, 2>(pt.data(), 2));
+      return m_pointFinder2D->getCandidates(axom::primal::Point<double, 2>(pt.data(), 2));
     case 3:
       return m_pointFinder3D->getCandidates(pt);
     default:

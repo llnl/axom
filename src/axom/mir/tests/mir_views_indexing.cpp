@@ -69,8 +69,7 @@ TEST(mir_views_indexing, strided_structured_indexing_2d)
       EXPECT_EQ(logical, logical2);
 
       // If we're in a valid region for the local window, try some other things.
-      if(i >= origin[0] && i < origin[0] + dims[0] && j >= origin[1] &&
-         j < origin[1] + dims[1])
+      if(i >= origin[0] && i < origin[0] + dims[0] && j >= origin[1] && j < origin[1] + dims[1])
       {
         const auto logicalLocal = indexing.GlobalToLocal(logical);
         const auto flatLocal = indexing.GlobalToLocal(flat);
@@ -95,8 +94,7 @@ TEST(mir_views_indexing, strided_structured_indexing_2d)
 TEST(mir_views_indexing, strided_structured_indexing_3d)
 {
   using Indexing3D = axom::mir::views::StridedStructuredIndexing<int, 3>;
-  using LogicalIndex =
-    typename axom::mir::views::StridedStructuredIndexing<int, 3>::LogicalIndex;
+  using LogicalIndex = typename axom::mir::views::StridedStructuredIndexing<int, 3>::LogicalIndex;
   LogicalIndex dims {4, 3, 3};  // window size in 4*3*3 elements in 6*5*5 overall
   LogicalIndex origin {2, 2, 2};
   LogicalIndex stride {1, 6, 30};
@@ -131,8 +129,7 @@ TEST(mir_views_indexing, strided_structured_indexing_3d)
   }
 
   EXPECT_TRUE(indexing.contains(logical0_0_0));
-  EXPECT_TRUE(
-    indexing.contains(LogicalIndex {dims[0] - 1, dims[1] - 1, dims[2] - 1}));
+  EXPECT_TRUE(indexing.contains(LogicalIndex {dims[0] - 1, dims[1] - 1, dims[2] - 1}));
   EXPECT_FALSE(indexing.contains(LogicalIndex {4, 0, 0}));
   EXPECT_FALSE(indexing.contains(LogicalIndex {4, 3, 0}));
 }

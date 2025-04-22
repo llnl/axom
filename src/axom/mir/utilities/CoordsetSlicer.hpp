@@ -34,9 +34,7 @@ class CoordsetSlicer
 {
 public:
   /// Constructor
-  CoordsetSlicer(const CoordsetView &coordsetView)
-    : m_coordsetView(coordsetView)
-  { }
+  CoordsetSlicer(const CoordsetView &coordsetView) : m_coordsetView(coordsetView) { }
 
   /*!
    * \brief Execute the slice on the \a n_input coordset and store the new sliced coordset in \a n_output.
@@ -47,9 +45,7 @@ public:
    *
    * \note We assume for now that n_input != n_output.
    */
-  void execute(const SliceData &slice,
-               const conduit::Node &n_input,
-               conduit::Node &n_output)
+  void execute(const SliceData &slice, const conduit::Node &n_input, conduit::Node &n_output)
   {
     using value_type = typename CoordsetView::value_type;
     using PointType = typename CoordsetView::PointType;
@@ -90,8 +86,7 @@ public:
       // Allocate data in the Conduit node and make a view.
       conduit::Node &comp = n_values[axes[i]];
       comp.set_allocator(c2a.getConduitAllocatorID());
-      comp.set(
-        conduit::DataType(bputils::cpp2conduit<value_type>::id, outputSize));
+      comp.set(conduit::DataType(bputils::cpp2conduit<value_type>::id, outputSize));
       compViews[i] = bputils::make_array_view<value_type>(comp);
     }
 

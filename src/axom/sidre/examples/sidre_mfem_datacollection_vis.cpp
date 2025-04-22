@@ -39,8 +39,7 @@ int main(int argc, char* argv[])
   mfem::Mesh* mesh = nullptr;
 
   // Built a 2D mesh with 100 square elements
-  auto serial_mesh =
-    mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::QUADRILATERAL);
+  auto serial_mesh = mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::QUADRILATERAL);
   mesh = &serial_mesh;
 
 #ifdef EXAMPLE_USES_MPI

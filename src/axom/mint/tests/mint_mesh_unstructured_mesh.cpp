@@ -126,8 +126,7 @@ void createExternalField(Mesh* mesh, int association, IndexType capacity)
 FieldVariable<double>* getFieldVar(Mesh* mesh, int association)
 {
   const std::string field_name = getFieldName(mesh, association);
-  Field* f =
-    const_cast<Field*>(mesh->getFieldData(association)->getField(field_name));
+  Field* f = const_cast<Field*>(mesh->getFieldData(association)->getField(field_name));
   return dynamic_cast<FieldVariable<double>*>(f);
 }
 
@@ -224,8 +223,7 @@ void check_fields(const Mesh* mesh, int assoc, bool newValues = false)
 
   IndexType num_tuples = -1;
   IndexType num_components = -1;
-  const double* data =
-    fd->getFieldPtr<double>(field_name, num_tuples, num_components);
+  const double* data = fd->getFieldPtr<double>(field_name, num_tuples, num_components);
 
   ASSERT_EQ(num_tuples, expected_n_tuples);
   for(IndexType i = 0; i < num_tuples; ++i)
@@ -624,8 +622,7 @@ void createMeshes(UnstructuredMesh<SINGLE_SHAPE>** meshes,
     }
     cur_mesh++;
 
-    meshes[cur_mesh] =
-      internal::createExternalSingle(dim, QUAD, n_cells, n_nodes);
+    meshes[cur_mesh] = internal::createExternalSingle(dim, QUAD, n_cells, n_nodes);
     if(node_field)
     {
       internal::createExternalField(meshes[cur_mesh], NODE_CENTERED, n_nodes);
@@ -639,8 +636,7 @@ void createMeshes(UnstructuredMesh<SINGLE_SHAPE>** meshes,
 #ifdef AXOM_MINT_USE_SIDRE
     const std::string topo = "t" + std::to_string(dim);
     const std::string coordset = "c" + std::to_string(dim);
-    meshes[cur_mesh] =
-      new UnstructuredMesh<SINGLE_SHAPE>(dim, QUAD, root, topo, coordset);
+    meshes[cur_mesh] = new UnstructuredMesh<SINGLE_SHAPE>(dim, QUAD, root, topo, coordset);
     if(node_field)
     {
       internal::createField(meshes[cur_mesh], NODE_CENTERED);
@@ -681,8 +677,7 @@ void createMeshes(UnstructuredMesh<MIXED_SHAPE>** meshes,
     }
     cur_mesh++;
 
-    meshes[cur_mesh] =
-      internal::createExternalMixed(dim, n_cells, n_nodes, connec_size);
+    meshes[cur_mesh] = internal::createExternalMixed(dim, n_cells, n_nodes, connec_size);
     if(node_field)
     {
       internal::createExternalField(meshes[cur_mesh], NODE_CENTERED, n_nodes);
@@ -696,8 +691,7 @@ void createMeshes(UnstructuredMesh<MIXED_SHAPE>** meshes,
 #ifdef AXOM_MINT_USE_SIDRE
     const std::string topo = "t" + std::to_string(dim);
     const std::string coordset = "c" + std::to_string(dim);
-    meshes[cur_mesh] =
-      new UnstructuredMesh<MIXED_SHAPE>(dim, root, topo, coordset);
+    meshes[cur_mesh] = new UnstructuredMesh<MIXED_SHAPE>(dim, root, topo, coordset);
     if(node_field)
     {
       internal::createField(meshes[cur_mesh], NODE_CENTERED);
@@ -743,8 +737,7 @@ void createMeshesForResize(UnstructuredMesh<SINGLE_SHAPE>** meshes,
   int cur_mesh = 0;
   for(int dim = 1; dim <= 3; ++dim)
   {
-    meshes[cur_mesh] =
-      new UnstructuredMesh<SINGLE_SHAPE>(dim, QUAD, n_nodes, n_cells);
+    meshes[cur_mesh] = new UnstructuredMesh<SINGLE_SHAPE>(dim, QUAD, n_nodes, n_cells);
     if(node_field)
     {
       internal::createField(meshes[cur_mesh], NODE_CENTERED);
@@ -758,13 +751,8 @@ void createMeshesForResize(UnstructuredMesh<SINGLE_SHAPE>** meshes,
 #ifdef AXOM_MINT_USE_SIDRE
     const std::string topo = "t" + std::to_string(dim);
     const std::string coordset = "c" + std::to_string(dim);
-    meshes[cur_mesh] = new UnstructuredMesh<SINGLE_SHAPE>(dim,
-                                                          QUAD,
-                                                          root,
-                                                          topo,
-                                                          coordset,
-                                                          n_nodes,
-                                                          n_cells);
+    meshes[cur_mesh] =
+      new UnstructuredMesh<SINGLE_SHAPE>(dim, QUAD, root, topo, coordset, n_nodes, n_cells);
     if(node_field)
     {
       internal::createField(meshes[cur_mesh], NODE_CENTERED);
@@ -807,8 +795,7 @@ void createMeshesForResize(UnstructuredMesh<MIXED_SHAPE>** meshes,
 #ifdef AXOM_MINT_USE_SIDRE
     const std::string topo = "t" + std::to_string(dim);
     const std::string coordset = "c" + std::to_string(dim);
-    meshes[cur_mesh] =
-      new UnstructuredMesh<MIXED_SHAPE>(dim, root, topo, coordset, n_nodes, n_cells);
+    meshes[cur_mesh] = new UnstructuredMesh<MIXED_SHAPE>(dim, root, topo, coordset, n_nodes, n_cells);
     if(node_field)
     {
       internal::createField(meshes[cur_mesh], NODE_CENTERED);
@@ -854,8 +841,7 @@ void createMeshesForFace(UnstructuredMesh<SINGLE_SHAPE>*& test_mesh,
   switch(dimension)
   {
   case 2:
-    source_mesh =
-      new UniformMesh(lo, hi, resolution, (IndexType)(Y_RES_FACTOR * resolution));
+    source_mesh = new UniformMesh(lo, hi, resolution, (IndexType)(Y_RES_FACTOR * resolution));
     break;
   default:
     EXPECT_TRUE(dimension == 3);
@@ -906,10 +892,7 @@ void deleteMeshes(UnstructuredMesh<TOPO>** meshes, int n_meshes)
  * \param [in] i the nodal index.
  * \param [in] dim the dimension index.
  */
-double getCoordValue(IndexType ndims, IndexType i, int dim)
-{
-  return (ndims * i + dim) * PI;
-}
+double getCoordValue(IndexType ndims, IndexType i, int dim) { return (ndims * i + dim) * PI; }
 
 /*!
  * \brief Return the value of a new nodal coordinate of the given node
@@ -919,10 +902,7 @@ double getCoordValue(IndexType ndims, IndexType i, int dim)
  * \param [in] i the nodal index.
  * \param [in] dim the dimension index.
  */
-double getNewCoordValue(IndexType ndims, IndexType i, int dim)
-{
-  return (ndims * i + dim) * E;
-}
+double getNewCoordValue(IndexType ndims, IndexType i, int dim) { return (ndims * i + dim) * E; }
 
 /*!
  * \brief Check that the nodal coordinates are correct.
@@ -1014,8 +994,7 @@ void append_node_single(UnstructuredMesh<TOPO>* mesh, IndexType n_nodes)
   {
     for(IndexType i = 0; i < n_nodes; ++i)
     {
-      mesh->appendNode(getCoordValue(ndims, cur_n_nodes, 0),
-                       getCoordValue(ndims, cur_n_nodes, 1));
+      mesh->appendNode(getCoordValue(ndims, cur_n_nodes, 0), getCoordValue(ndims, cur_n_nodes, 1));
       EXPECT_EQ(++cur_n_nodes, mesh->getNumberOfNodes());
       setFieldTuple(fv, cur_n_nodes, cur_n_nodes - 1);
     }
@@ -1200,10 +1179,7 @@ CellType getCellType(IndexType cur_cell)
  *
  * \param [in] n_cells the total number of cells.
  */
-constexpr IndexType getConnectivitySize(IndexType n_cells)
-{
-  return (n_cells * (4 + 3)) / 2;
-}
+constexpr IndexType getConnectivitySize(IndexType n_cells) { return (n_cells * (4 + 3)) / 2; }
 
 /*!
  * \brief Check that the cell connectivity is as expected.
@@ -1214,8 +1190,7 @@ constexpr IndexType getConnectivitySize(IndexType n_cells)
  */
 /// @{
 
-void check_append_cells(const UnstructuredMesh<SINGLE_SHAPE>* mesh,
-                        bool newValues = false)
+void check_append_cells(const UnstructuredMesh<SINGLE_SHAPE>* mesh, bool newValues = false)
 {
   IndexType (*connecValue)(IndexType, IndexType) = &getCellConnecValue;
   if(newValues)
@@ -1263,8 +1238,7 @@ void check_append_cells(const UnstructuredMesh<SINGLE_SHAPE>* mesh,
   }
 }
 
-void check_append_cells(const UnstructuredMesh<MIXED_SHAPE>* mesh,
-                        bool newValues = false)
+void check_append_cells(const UnstructuredMesh<MIXED_SHAPE>* mesh, bool newValues = false)
 {
   IndexType (*connecValue)(IndexType, IndexType) = &getCellConnecValue;
   if(newValues)
@@ -1795,9 +1769,7 @@ void insert_nodes(UnstructuredMesh<TOPO>* mesh, IndexType n_nodes)
  */
 /// @{
 
-void insert_cell_single(UnstructuredMesh<SINGLE_SHAPE>* mesh,
-                        IndexType pos,
-                        IndexType final_pos)
+void insert_cell_single(UnstructuredMesh<SINGLE_SHAPE>* mesh, IndexType pos, IndexType final_pos)
 {
   IndexType cur_n_cells = mesh->getNumberOfCells();
   const IndexType nodes_per_cell = mesh->getNumberOfCellNodes();
@@ -1812,9 +1784,7 @@ void insert_cell_single(UnstructuredMesh<SINGLE_SHAPE>* mesh,
   setFieldTuple(fv, cur_n_cells, pos, final_pos);
 }
 
-void insert_cell_single(UnstructuredMesh<MIXED_SHAPE>* mesh,
-                        IndexType pos,
-                        IndexType final_pos)
+void insert_cell_single(UnstructuredMesh<MIXED_SHAPE>* mesh, IndexType pos, IndexType final_pos)
 {
   IndexType cur_n_cells = mesh->getNumberOfCells();
   IndexType cur_connec_size = mesh->getCellNodesSize();
@@ -2200,8 +2170,7 @@ void resize_cells(UnstructuredMesh<TOPO>* mesh)
   /* Append one more, should trigger a resize. */
   append_cell_single(mesh, 1);
   n_cells++;
-  cell_capacity =
-    axom::utilities::max<IndexType>(cell_capacity * resize_ratio + 0.5, n_cells);
+  cell_capacity = axom::utilities::max<IndexType>(cell_capacity * resize_ratio + 0.5, n_cells);
   connec_capacity = mesh->getCellNodesCapacity();
   ASSERT_EQ(n_cells, mesh->getNumberOfCells());
   ASSERT_EQ(cell_capacity, mesh->getCellCapacity());
@@ -2218,8 +2187,7 @@ void resize_cells(UnstructuredMesh<TOPO>* mesh)
   mesh->setCellResizeRatio(resize_ratio);
   append_cell_multiple(mesh, 100);
   n_cells += 100;
-  cell_capacity =
-    axom::utilities::max<IndexType>(cell_capacity * resize_ratio + 0.5, n_cells);
+  cell_capacity = axom::utilities::max<IndexType>(cell_capacity * resize_ratio + 0.5, n_cells);
   ASSERT_EQ(n_cells, mesh->getNumberOfCells());
   ASSERT_EQ(cell_capacity, mesh->getCellCapacity());
 
@@ -2315,12 +2283,8 @@ void check_restoration(UnstructuredMesh<TOPO>** meshes,
 
 struct FaceInfo
 {
-  FaceInfo() : key(), nodeCount(0), faceType(UNDEFINED_CELL), opposingCellID(-1)
-  { }
-  FaceInfo(std::string theKey,
-           IndexType theNodeCount,
-           CellType theFaceType,
-           IndexType oppCellID)
+  FaceInfo() : key(), nodeCount(0), faceType(UNDEFINED_CELL), opposingCellID(-1) { }
+  FaceInfo(std::string theKey, IndexType theNodeCount, CellType theFaceType, IndexType oppCellID)
     : key(theKey)
     , nodeCount(theNodeCount)
     , faceType(theFaceType)
@@ -2335,8 +2299,8 @@ struct FaceInfo
 
 bool operator==(const FaceInfo& a, const FaceInfo& b)
 {
-  return a.key == b.key && a.nodeCount == b.nodeCount &&
-    a.faceType == b.faceType && a.opposingCellID == b.opposingCellID;
+  return a.key == b.key && a.nodeCount == b.nodeCount && a.faceType == b.faceType &&
+    a.opposingCellID == b.opposingCellID;
 }
 
 /*!
@@ -2441,9 +2405,8 @@ bool check_cellFaceNodeType(UniformMesh* s_mesh,
   for(auto d_face : d_info)
   {
     FaceInfo& fi = d_face.second;
-    msg << "  type " << getCellInfo(fi.faceType).name << " node count "
-        << fi.nodeCount << " nodes (" << fi.key << ") opposite cell ID "
-        << fi.opposingCellID << std::endl;
+    msg << "  type " << getCellInfo(fi.faceType).name << " node count " << fi.nodeCount
+        << " nodes (" << fi.key << ") opposite cell ID " << fi.opposingCellID << std::endl;
   }
 
   // Add any s_mesh faces to the error message.
@@ -2454,9 +2417,8 @@ bool check_cellFaceNodeType(UniformMesh* s_mesh,
   for(auto s_face : s_info)
   {
     FaceInfo& fi = s_face.second;
-    msg << "  type " << getCellInfo(fi.faceType).name << " node count "
-        << fi.nodeCount << " nodes (" << fi.key << ") opposite cell ID "
-        << fi.opposingCellID << std::endl;
+    msg << "  type " << getCellInfo(fi.faceType).name << " node count " << fi.nodeCount
+        << " nodes (" << fi.key << ") opposite cell ID " << fi.opposingCellID << std::endl;
   }
   errMesg = msg.str();
 
@@ -2490,8 +2452,7 @@ void check_faces(UnstructuredMesh<SINGLE_SHAPE>* d_mesh, UniformMesh* s_mesh)
 
     // check face nodes and type, and neighbor across face
     std::string errMesg;
-    bool facesMatch =
-      check_cellFaceNodeType(s_mesh, d_mesh, s_facecount, d_facecount, c, errMesg);
+    bool facesMatch = check_cellFaceNodeType(s_mesh, d_mesh, s_facecount, d_facecount, c, errMesg);
     EXPECT_TRUE(facesMatch) << errMesg;
   }
 }
@@ -2524,10 +2485,7 @@ TEST(mint_mesh_unstructured_mesh, appendNodesSingle)
     internal::append_nodes(meshes[i], N_NODES);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::APPEND,
-                              CheckOption::NONE);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::APPEND, CheckOption::NONE);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -2555,10 +2513,7 @@ TEST(mint_mesh_unstructured_mesh, appendNodesMixed)
     internal::append_nodes(meshes[i], N_NODES);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::APPEND,
-                              CheckOption::NONE);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::APPEND, CheckOption::NONE);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -2586,10 +2541,7 @@ TEST(mint_mesh_unstructured_mesh, appendCellsSingle)
     internal::append_cells(meshes[i], N_CELLS);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::APPEND,
-                              CheckOption::APPEND);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::APPEND, CheckOption::APPEND);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -2618,10 +2570,7 @@ TEST(mint_mesh_unstructured_mesh, appendCellsMixed)
     internal::append_cells(meshes[i], N_CELLS);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::APPEND,
-                              CheckOption::APPEND);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::APPEND, CheckOption::APPEND);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -2711,10 +2660,7 @@ TEST(mint_mesh_unstructured_mesh, setCellsSingle)
     internal::set_cells(meshes[i]);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::APPEND,
-                              CheckOption::SET);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::APPEND, CheckOption::SET);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -2744,10 +2690,7 @@ TEST(mint_mesh_unstructured_mesh, setCellsMixed)
     internal::set_cells(meshes[i]);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::APPEND,
-                              CheckOption::SET);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::APPEND, CheckOption::SET);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -2778,10 +2721,7 @@ TEST(mint_mesh_unstructured_mesh, insertNodesSingle)
     internal::insert_nodes(meshes[i], N_NODES);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::APPEND,
-                              CheckOption::NONE);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::APPEND, CheckOption::NONE);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -2809,10 +2749,7 @@ TEST(mint_mesh_unstructured_mesh, insertNodesMixed)
     internal::insert_nodes(meshes[i], N_NODES);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::APPEND,
-                              CheckOption::NONE);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::APPEND, CheckOption::NONE);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -2840,10 +2777,7 @@ TEST(mint_mesh_unstructured_mesh, insertCellsSingle)
     internal::insert_cells(meshes[i], N_CELLS);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::APPEND,
-                              CheckOption::APPEND);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::APPEND, CheckOption::APPEND);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -2872,10 +2806,7 @@ TEST(mint_mesh_unstructured_mesh, insertCellsMixed)
     internal::insert_cells(meshes[i], N_CELLS);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::APPEND,
-                              CheckOption::APPEND);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::APPEND, CheckOption::APPEND);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -3024,10 +2955,7 @@ TEST(mint_mesh_unstructured_mesh, resizeNodesSingle)
     internal::resize_nodes(meshes[i]);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::APPEND,
-                              CheckOption::NONE);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::APPEND, CheckOption::NONE);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -3054,10 +2982,7 @@ TEST(mint_mesh_unstructured_mesh, resizeNodesMixed)
     internal::resize_nodes(meshes[i]);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::APPEND,
-                              CheckOption::NONE);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::APPEND, CheckOption::NONE);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -3084,10 +3009,7 @@ TEST(mint_mesh_unstructured_mesh, resizeCellsSingle)
     internal::resize_cells(meshes[i]);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::NONE,
-                              CheckOption::APPEND);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::NONE, CheckOption::APPEND);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -3114,10 +3036,7 @@ TEST(mint_mesh_unstructured_mesh, resizeCellsMixed)
     internal::resize_cells(meshes[i]);
   }
 
-  internal::check_restoration(meshes,
-                              N_MESHES,
-                              CheckOption::NONE,
-                              CheckOption::APPEND);
+  internal::check_restoration(meshes, N_MESHES, CheckOption::NONE, CheckOption::APPEND);
 
   internal::deleteMeshes(meshes, N_MESHES);
 }
@@ -3249,8 +3168,7 @@ TEST(mint_mesh_unstructured_mesh_DeathTest, invalidExternalOpsSingle)
   int cur_mesh = 0;
   for(int dim = 1; dim <= 3; ++dim)
   {
-    meshes[cur_mesh] =
-      internal::createExternalSingle(dim, QUAD, N_NODES, N_CELLS);
+    meshes[cur_mesh] = internal::createExternalSingle(dim, QUAD, N_NODES, N_CELLS);
     internal::createExternalField(meshes[cur_mesh], NODE_CENTERED, N_NODES);
     internal::createExternalField(meshes[cur_mesh], CELL_CENTERED, N_CELLS);
 
@@ -3268,14 +3186,10 @@ TEST(mint_mesh_unstructured_mesh_DeathTest, invalidExternalOpsSingle)
     meshes[i]->reserveCells(N_CELLS);
 
     /* These are invalid */
-    EXPECT_DEATH_IF_SUPPORTED(internal::append_node_single(meshes[i], 1),
-                              IGNORE_OUTPUT);
-    EXPECT_DEATH_IF_SUPPORTED(internal::append_cell_single(meshes[i], 1),
-                              IGNORE_OUTPUT);
-    EXPECT_DEATH_IF_SUPPORTED(meshes[i]->reserveNodes(N_NODES * 2),
-                              IGNORE_OUTPUT);
-    EXPECT_DEATH_IF_SUPPORTED(meshes[i]->reserveCells(N_NODES * 2),
-                              IGNORE_OUTPUT);
+    EXPECT_DEATH_IF_SUPPORTED(internal::append_node_single(meshes[i], 1), IGNORE_OUTPUT);
+    EXPECT_DEATH_IF_SUPPORTED(internal::append_cell_single(meshes[i], 1), IGNORE_OUTPUT);
+    EXPECT_DEATH_IF_SUPPORTED(meshes[i]->reserveNodes(N_NODES * 2), IGNORE_OUTPUT);
+    EXPECT_DEATH_IF_SUPPORTED(meshes[i]->reserveCells(N_NODES * 2), IGNORE_OUTPUT);
   }
 
   internal::deleteMeshes(meshes, N_MESHES);
@@ -3293,8 +3207,7 @@ TEST(mint_mesh_unstructured_mesh_DeathTest, invalidExternalOpsMixed)
   int cur_mesh = 0;
   for(int dim = 1; dim <= 3; ++dim)
   {
-    meshes[cur_mesh] =
-      internal::createExternalMixed(dim, N_NODES, N_CELLS, CONNEC_SIZE);
+    meshes[cur_mesh] = internal::createExternalMixed(dim, N_NODES, N_CELLS, CONNEC_SIZE);
     internal::createExternalField(meshes[cur_mesh], NODE_CENTERED, N_NODES);
     internal::createExternalField(meshes[cur_mesh], CELL_CENTERED, N_CELLS);
 
@@ -3312,14 +3225,10 @@ TEST(mint_mesh_unstructured_mesh_DeathTest, invalidExternalOpsMixed)
     meshes[i]->reserveCells(N_CELLS);
 
     /* These are invalid */
-    EXPECT_DEATH_IF_SUPPORTED(internal::append_node_single(meshes[i], 1),
-                              IGNORE_OUTPUT);
-    EXPECT_DEATH_IF_SUPPORTED(internal::append_cell_single(meshes[i], 1),
-                              IGNORE_OUTPUT);
-    EXPECT_DEATH_IF_SUPPORTED(meshes[i]->reserveNodes(N_NODES * 2),
-                              IGNORE_OUTPUT);
-    EXPECT_DEATH_IF_SUPPORTED(meshes[i]->reserveCells(N_CELLS * 2),
-                              IGNORE_OUTPUT);
+    EXPECT_DEATH_IF_SUPPORTED(internal::append_node_single(meshes[i], 1), IGNORE_OUTPUT);
+    EXPECT_DEATH_IF_SUPPORTED(internal::append_cell_single(meshes[i], 1), IGNORE_OUTPUT);
+    EXPECT_DEATH_IF_SUPPORTED(meshes[i]->reserveNodes(N_NODES * 2), IGNORE_OUTPUT);
+    EXPECT_DEATH_IF_SUPPORTED(meshes[i]->reserveCells(N_CELLS * 2), IGNORE_OUTPUT);
   }
 
   internal::deleteMeshes(meshes, N_MESHES);
@@ -3354,8 +3263,7 @@ TEST(mint_mesh_unstructured_mesh, check_face_connectivity)
 
       internal::check_faces(test_mesh, source_mesh);
 
-      SLIC_INFO("Tested " << dimension << "D mesh with base resolution "
-                          << resolution);
+      SLIC_INFO("Tested " << dimension << "D mesh with base resolution " << resolution);
 
       delete source_mesh;
       source_mesh = nullptr;

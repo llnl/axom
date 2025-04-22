@@ -191,9 +191,8 @@ struct has_FromInlet_specialization : std::false_type
 template <typename T>
 struct has_FromInlet_specialization<
   T,
-  typename std::enable_if<std::is_same<T,
-                                       decltype(std::declval<FromInlet<T>&>()(
-                                         std::declval<const Container&>()))>::value>::type>
+  typename std::enable_if<
+    std::is_same<T, decltype(std::declval<FromInlet<T>&>()(std::declval<const Container&>()))>::value>::type>
   : std::true_type
 { };
 
@@ -279,8 +278,7 @@ bool matchesKeyType(const VariantKey& key)
  * is absolute, e.g., an absolute path foo/0/bar will be trimmed to "bar"
  *****************************************************************************
  */
-std::vector<VariantKey> collectionIndices(const Container& container,
-                                          bool trimAbsolute = true);
+std::vector<VariantKey> collectionIndices(const Container& container, bool trimAbsolute = true);
 
 /*!
  *****************************************************************************
@@ -293,9 +291,8 @@ std::vector<VariantKey> collectionIndices(const Container& container,
  * \param [in] name The name of the array object in the input file
  *****************************************************************************
  */
-std::vector<std::pair<std::string, std::string>> collectionIndicesWithPaths(
-  const Container& container,
-  const std::string& name);
+std::vector<std::pair<std::string, std::string>> collectionIndicesWithPaths(const Container& container,
+                                                                            const std::string& name);
 
 /*!
  *******************************************************************************
@@ -396,8 +393,7 @@ public:
    * \return Reference to the created struct, as a Container
    *****************************************************************************
    */
-  Container& addStruct(const std::string& name,
-                       const std::string& description = "");
+  Container& addStruct(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -409,8 +405,7 @@ public:
    * \return Reference to the created array
    *****************************************************************************
    */
-  Verifiable<Container>& addBoolArray(const std::string& name,
-                                      const std::string& description = "");
+  Verifiable<Container>& addBoolArray(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -422,8 +417,7 @@ public:
    * \return Reference to the created array
    *****************************************************************************
    */
-  Verifiable<Container>& addIntArray(const std::string& name,
-                                     const std::string& description = "");
+  Verifiable<Container>& addIntArray(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -461,8 +455,7 @@ public:
    * \return Reference to the created array
    *****************************************************************************
    */
-  Container& addStructArray(const std::string& name,
-                            const std::string& description = "");
+  Container& addStructArray(const std::string& name, const std::string& description = "");
   /*!
    *****************************************************************************
    * \brief Add a dictionary of Boolean Fields to the input file schema.
@@ -498,9 +491,8 @@ public:
    * \return Reference to the created dictionary
    *****************************************************************************
    */
-  Verifiable<Container>& addDoubleDictionary(
-    const std::string& name,
-    const std::string& description = "");
+  Verifiable<Container>& addDoubleDictionary(const std::string& name,
+                                             const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -512,9 +504,8 @@ public:
    * \return Reference to the created dictionary
    *****************************************************************************
    */
-  Verifiable<Container>& addStringDictionary(
-    const std::string& name,
-    const std::string& description = "");
+  Verifiable<Container>& addStringDictionary(const std::string& name,
+                                             const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -526,8 +517,7 @@ public:
    * \return Reference to the created dictionary
    *****************************************************************************
    */
-  Container& addStructDictionary(const std::string& name,
-                                 const std::string& description = "");
+  Container& addStructDictionary(const std::string& name, const std::string& description = "");
   /*!
    *****************************************************************************
    * \brief Add a Boolean Field to the input file schema.
@@ -543,8 +533,7 @@ public:
    * \return Reference to the created Field
    *****************************************************************************
    */
-  VerifiableScalar& addBool(const std::string& name,
-                            const std::string& description = "");
+  VerifiableScalar& addBool(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -561,8 +550,7 @@ public:
    * \return Reference to the created Field
    *****************************************************************************
    */
-  VerifiableScalar& addDouble(const std::string& name,
-                              const std::string& description = "");
+  VerifiableScalar& addDouble(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -579,8 +567,7 @@ public:
    * \return Reference to the created Field
    *****************************************************************************
    */
-  VerifiableScalar& addInt(const std::string& name,
-                           const std::string& description = "");
+  VerifiableScalar& addInt(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -597,8 +584,7 @@ public:
    * \return Reference to the created Field
    *****************************************************************************
    */
-  VerifiableScalar& addString(const std::string& name,
-                              const std::string& description = "");
+  VerifiableScalar& addString(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -633,8 +619,7 @@ public:
    *******************************************************************************
    */
   template <typename T>
-  typename std::enable_if<detail::is_inlet_primitive<T>::value, T>::type get(
-    const std::string& name) const
+  typename std::enable_if<detail::is_inlet_primitive<T>::value, T>::type get(const std::string& name) const
   {
     if(!hasField(name))
     {
@@ -662,10 +647,9 @@ public:
    *******************************************************************************
    */
   template <typename T>
-  typename std::enable_if<
-    !detail::is_inlet_primitive<T>::value && !detail::is_inlet_array<T>::value &&
-      !detail::is_inlet_dict<T>::value && !detail::is_std_vector<T>::value,
-    T>::type
+  typename std::enable_if<!detail::is_inlet_primitive<T>::value && !detail::is_inlet_array<T>::value &&
+                            !detail::is_inlet_dict<T>::value && !detail::is_std_vector<T>::value,
+                          T>::type
   get(const std::string& name = "") const
   {
     static_assert(detail::has_FromInlet_specialization<T>::value,
@@ -679,8 +663,7 @@ public:
     {
       if(!hasContainer(name))
       {
-        std::string msg =
-          fmt::format("[Inlet] Container with name '{0}' does not exist", name);
+        std::string msg = fmt::format("[Inlet] Container with name '{0}' does not exist", name);
         SLIC_ERROR(msg);
       }
       return from_inlet(getContainer(name));
@@ -699,9 +682,7 @@ public:
    *******************************************************************************
    */
   template <typename T>
-  typename std::enable_if<detail::is_inlet_array<T>::value ||
-                            detail::is_inlet_dict<T>::value,
-                          T>::type
+  typename std::enable_if<detail::is_inlet_array<T>::value || detail::is_inlet_dict<T>::value, T>::type
   get() const
   {
     using Key = typename T::key_type;
@@ -856,8 +837,7 @@ public:
    * this Container.
    *****************************************************************************
    */
-  const std::unordered_map<std::string, std::unique_ptr<Container>>&
-  getChildContainers() const;
+  const std::unordered_map<std::string, std::unique_ptr<Container>>& getChildContainers() const;
 
   /*!
    *****************************************************************************
@@ -865,8 +845,7 @@ public:
    * this Container.
    *****************************************************************************
    */
-  const std::unordered_map<std::string, std::unique_ptr<Function>>&
-  getChildFunctions() const;
+  const std::unordered_map<std::string, std::unique_ptr<Function>>& getChildFunctions() const;
 
   /*!
    *****************************************************************************
@@ -909,8 +888,7 @@ public:
    */
 
   template <typename T,
-            typename SFINAE =
-              typename std::enable_if<detail::is_inlet_primitive<T>::value>::type>
+            typename SFINAE = typename std::enable_if<detail::is_inlet_primitive<T>::value>::type>
   VerifiableScalar& addPrimitive(const std::string& name,
                                  const std::string& description = "",
                                  bool forArray = false,
@@ -933,8 +911,7 @@ private:
    * \return Reference to the created Container
    *****************************************************************************
    */
-  Container& addContainer(const std::string& name,
-                          const std::string& description = "");
+  Container& addContainer(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -950,8 +927,7 @@ private:
    *****************************************************************************
    */
   template <typename T,
-            typename SFINAE =
-              typename std::enable_if<detail::is_inlet_primitive<T>::value>::type>
+            typename SFINAE = typename std::enable_if<detail::is_inlet_primitive<T>::value>::type>
   Verifiable<Container>& addPrimitiveArray(const std::string& name,
                                            const std::string& description = "",
                                            const bool isDict = false,
@@ -1040,8 +1016,7 @@ private:
    *****************************************************************************
    */
   template <typename T,
-            typename SFINAE =
-              typename std::enable_if<detail::is_inlet_primitive<T>::value>::type>
+            typename SFINAE = typename std::enable_if<detail::is_inlet_primitive<T>::value>::type>
   axom::sidre::DataTypeId addPrimitiveHelper(axom::sidre::Group* sidreGroup,
                                              const std::string& lookupPath,
                                              bool forArray,
@@ -1060,8 +1035,7 @@ private:
    *****************************************************************************
    */
   template <typename T,
-            typename SFINAE =
-              typename std::enable_if<detail::is_inlet_primitive<T>::value>::type>
+            typename SFINAE = typename std::enable_if<detail::is_inlet_primitive<T>::value>::type>
   void addPrimitiveArrayHelper(Container& container,
                                const std::string& lookupPath,
                                bool isDict = false);
@@ -1074,8 +1048,7 @@ private:
    * \return Pointer to the created Sidre Group for this Container
    *****************************************************************************
    */
-  axom::sidre::Group* createSidreGroup(const std::string& name,
-                                       const std::string& description);
+  axom::sidre::Group* createSidreGroup(const std::string& name, const std::string& description);
 
   /*!
    *****************************************************************************
@@ -1165,8 +1138,7 @@ private:
     {
       if(detail::matchesKeyType<Key>(indexLabel))
       {
-        map[detail::toIndex<Key>(indexLabel)] =
-          get<Val>(detail::indexToString(indexLabel));
+        map[detail::toIndex<Key>(indexLabel)] = get<Val>(detail::indexToString(indexLabel));
       }
     }
     return map;
@@ -1199,8 +1171,7 @@ private:
    *****************************************************************************
    */
   template <typename Key>
-  Container& addStructCollection(const std::string& name,
-                                 const std::string& description = "");
+  Container& addStructCollection(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -1208,10 +1179,7 @@ private:
    * i.e., an array or dictionary of user-defined type
    *****************************************************************************
    */
-  bool isStructCollection() const
-  {
-    return m_sidreGroup->hasView(detail::STRUCT_COLLECTION_FLAG);
-  }
+  bool isStructCollection() const { return m_sidreGroup->hasView(detail::STRUCT_COLLECTION_FLAG); }
 
   /*!
    *****************************************************************************
@@ -1254,9 +1222,7 @@ private:
    *****************************************************************************
    */
   template <typename OutputIt, typename Func>
-  bool transformFromNestedElements(OutputIt output,
-                                   const std::string& name,
-                                   Func&& func) const;
+  bool transformFromNestedElements(OutputIt output, const std::string& name, Func&& func) const;
 
   std::string m_name;
   Reader& m_reader;

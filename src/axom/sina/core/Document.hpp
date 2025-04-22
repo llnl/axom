@@ -16,13 +16,14 @@
  ******************************************************************************
  */
 
-#include <memory>
-#include <vector>
+#include "axom/config.hpp"
+#include "axom/sina/core/Record.hpp"
+#include "axom/sina/core/Relationship.hpp"
 
 #include "conduit.hpp"
 
-#include "axom/sina/core/Record.hpp"
-#include "axom/sina/core/Relationship.hpp"
+#include <memory>
+#include <vector>
 
 #define SINA_FILE_FORMAT_VERSION_MAJOR 1
 #define SINA_FILE_FORMAT_VERSION_MINOR 0
@@ -32,12 +33,30 @@ namespace axom
 namespace sina
 {
 
+enum class Protocol
+{
+  JSON,
+  HDF5
+};
+
+const std::vector<std::string> supported_types = {"JSON",
+#ifdef AXOM_USE_HDF5
+                                                  "HDF5"
+#endif
+};
+
 /**
- * \brief An object representing the top-level object of a Sina JSON file
+ * \brief The string used to replace '/' in parent node names when saving to HDF5.
+ */
+const std::string slashSubstitute = "__SINA_SLASHREPLACE__";
+
+/**
+ * \brief An object representing the top-level object of a Sina file
  *
- * A Document represents the top-level object of a JSON file conforming to the
+ * A Document represents the top-level object of a file conforming to the
  * Sina schema. When serialized, these documents can be ingested into a
- * Sina database and used with the Sina tool.
+ * Sina database and used with the Sina tool. Sina files are defaulted to
+ * JSON but optionally support HDF5.
  *
  * Documents contain at most two objects: a list of Records and a list of Relationships. A simple, empty document:
  * \code{.json}
@@ -74,6 +93,13 @@ namespace sina
  * You can also export your Document to file:
  * \code
  *   axom::sina::saveDocument(myDocument, "path/to/outfile.json")
+ * \endcode
+ * 
+ *  Loading and Saving documents will default to the JSON file type, but if an optional file type is
+ *  loaded the Protocol parameter will control your file type. For example with HDF5:
+ * \code
+ *   axom::sina::Document myDocument = axom::sina::loadDocument("path/to/infile.hdf5, Protocol::HDF5");
+ *   axom::sina::saveDocument(myDocument, "path/to/outfile.hdf5", Protocol::HDF5)
  * \endcode
  *
  * Check the Sina file format version with:
@@ -165,10 +191,7 @@ public:
      *
      * \return the list of relationships
      */
-  RelationshipList const &getRelationships() const noexcept
-  {
-    return relationships;
-  }
+  RelationshipList const &getRelationships() const noexcept { return relationships; }
 
   /**
      * \brief Convert this document to a conduit Node.
@@ -176,6 +199,15 @@ public:
      * \return the contents of the document as a Node
      */
   conduit::Node toNode() const;
+
+#ifdef AXOM_USE_HDF5
+  /**
+   *  \brief Dump this document as an HDF5 File
+   * 
+   *  \param filename the location of which to save the file
+   */
+  void toHDF5(const std::string &filename) const;
+#endif
 
   /**
      * \brief Convert this document to a JSON string.
@@ -187,12 +219,18 @@ public:
                      const std::string &pad = "",
                      const std::string &eoe = "") const;
 
+  /**
+    * \brief Get the list of file types currently supported by the implementation.
+    * 
+    * \return a string of supported file types
+    */
+  std::string get_supported_file_types();
+
 private:
   /**
      * Constructor helper method, extracts info from a conduit Node.
      */
-  void createFromNode(conduit::Node const &asNode,
-                      RecordLoader const &recordLoader);
+  void createFromNode(conduit::Node const &asNode, RecordLoader const &recordLoader);
   RecordList records;
   RelationshipList relationships;
 };
@@ -200,12 +238,16 @@ private:
 /**
  * \brief Save the given Document to the specified location. If the given file exists,
  *        it will be overwritten.
- *
+ * 
  * \param document the Document to save
- * \param fileName the location to which to save the file
+ * \param fileName the location of which to save the file
+ * \param protocol the file type requested to save as contained in supported_types, default = JSON
  * \throws std::ios::failure if there are any IO errors
+ *         std::invalid_argument if the protocol given is an undefined, optional protocol
  */
-void saveDocument(Document const &document, std::string const &fileName);
+void saveDocument(Document const &document,
+                  std::string const &fileName,
+                  Protocol protocol = Protocol::JSON);
 
 /**
  * \brief Get the current file format version.
@@ -223,9 +265,10 @@ inline std::string getSinaFileFormatVersion()
  *        knows about will be able to be loaded.
  *
  * \param path the file system path from which to load the document
+ * \param protocol the type of file being loaded, default = JSON
  * \return the loaded Document
  */
-Document loadDocument(std::string const &path);
+Document loadDocument(std::string const &path, Protocol protocol = Protocol::JSON);
 
 /**
  * \brief Load a document from the given path.
@@ -233,9 +276,13 @@ Document loadDocument(std::string const &path);
  * \param path the file system path from which to load the document
  * \param recordLoader the RecordLoader to use to load the different types
  *                     of records
+ * \param protocol the type of file being loaded, default = JSON
+ * \throws std::invalid_argument if the protocol given is an undefined, optional protocol
  * \return the loaded Document
  */
-Document loadDocument(std::string const &path, RecordLoader const &recordLoader);
+Document loadDocument(std::string const &path,
+                      RecordLoader const &recordLoader,
+                      Protocol protocol = Protocol::JSON);
 
 }  // namespace sina
 }  // namespace axom

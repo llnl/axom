@@ -42,9 +42,7 @@ void toUpper(std::string& str)
   });
 }
 
-std::vector<std::string> rsplitN(const std::string& input,
-                                 const std::size_t n,
-                                 const char delim)
+std::vector<std::string> rsplitN(const std::string& input, const std::size_t n, const char delim)
 {
   std::vector<std::string> result;
 
@@ -68,9 +66,7 @@ std::vector<std::string> rsplitN(const std::string& input,
   return result;
 }
 
-std::string appendPrefix(const std::string& prefix,
-                         const std::string& name,
-                         const char delim)
+std::string appendPrefix(const std::string& prefix, const std::string& name, const char delim)
 {
   if(prefix.empty() || name.empty())
   {
@@ -82,9 +78,7 @@ std::string appendPrefix(const std::string& prefix,
   }
 }
 
-std::string removePrefix(const std::string& prefix,
-                         const std::string& name,
-                         const char delim)
+std::string removePrefix(const std::string& prefix, const std::string& name, const char delim)
 {
   if(prefix.empty())
   {
@@ -104,8 +98,7 @@ std::string removeBeforeDelimiter(const std::string& str, const char delim)
   return str.substr(pos + 1);
 }
 
-std::string removeAllInstances(const std::string& target,
-                               const std::string& substr)
+std::string removeAllInstances(const std::string& target, const std::string& substr)
 {
   std::string result = target;
   auto pos = result.find(substr);

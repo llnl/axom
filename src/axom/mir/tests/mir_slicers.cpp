@@ -32,22 +32,16 @@ struct test_matset_slice
     bputils::copy<ExecSpace>(deviceMatset, hostMatset);
 
     axom::Array<axom::IndexType> ids {{1, 3, 5}};
-    axom::Array<axom::IndexType> selectedZones(
-      3,
-      3,
-      axom::execution_space<ExecSpace>::allocatorID());
+    axom::Array<axom::IndexType> selectedZones(3, 3, axom::execution_space<ExecSpace>::allocatorID());
     axom::copy(selectedZones.data(), ids.data(), 3 * sizeof(axom::IndexType));
 
-    using MatsetView =
-      axom::mir::views::UnibufferMaterialView<conduit::int64, conduit::float64, 3>;
+    using MatsetView = axom::mir::views::UnibufferMaterialView<conduit::int64, conduit::float64, 3>;
     MatsetView matsetView;
-    matsetView.set(
-      bputils::make_array_view<conduit::int64>(deviceMatset["material_ids"]),
-      bputils::make_array_view<conduit::float64>(
-        deviceMatset["volume_fractions"]),
-      bputils::make_array_view<conduit::int64>(deviceMatset["sizes"]),
-      bputils::make_array_view<conduit::int64>(deviceMatset["offsets"]),
-      bputils::make_array_view<conduit::int64>(deviceMatset["indices"]));
+    matsetView.set(bputils::make_array_view<conduit::int64>(deviceMatset["material_ids"]),
+                   bputils::make_array_view<conduit::float64>(deviceMatset["volume_fractions"]),
+                   bputils::make_array_view<conduit::int64>(deviceMatset["sizes"]),
+                   bputils::make_array_view<conduit::int64>(deviceMatset["offsets"]),
+                   bputils::make_array_view<conduit::int64>(deviceMatset["indices"]));
 
     // Slice it.
     bputils::MatsetSlicer<ExecSpace, MatsetView> slicer(matsetView);
@@ -65,29 +59,23 @@ struct test_matset_slice
     const axom::Array<conduit::int64> offsets {{0, 2, 3}};
     const axom::Array<conduit::int64> indices {{0, 1, 2, 3, 4}};
     const axom::Array<conduit::int64> material_ids {{1, 2, 2, 2, 3}};
-    const axom::Array<conduit::float64> volume_fractions {
-      {0.5, 0.5, 1.0, 0.8, 0.2}};
+    const axom::Array<conduit::float64> volume_fractions {{0.5, 0.5, 1.0, 0.8, 0.2}};
 
-    EXPECT_EQ(conduit::DataType::INT64_ID,
-              newHostMatset["material_ids"].dtype().id());
-    EXPECT_EQ(conduit::DataType::FLOAT64_ID,
-              newHostMatset["volume_fractions"].dtype().id());
+    EXPECT_EQ(conduit::DataType::INT64_ID, newHostMatset["material_ids"].dtype().id());
+    EXPECT_EQ(conduit::DataType::FLOAT64_ID, newHostMatset["volume_fractions"].dtype().id());
 
-    EXPECT_TRUE(compare_views(
-      sizes.view(),
-      bputils::make_array_view<conduit::int64>(newHostMatset["sizes"])));
-    EXPECT_TRUE(compare_views(
-      offsets.view(),
-      bputils::make_array_view<conduit::int64>(newHostMatset["offsets"])));
-    EXPECT_TRUE(compare_views(
-      indices.view(),
-      bputils::make_array_view<conduit::int64>(newHostMatset["indices"])));
-    EXPECT_TRUE(compare_views(
-      material_ids.view(),
-      bputils::make_array_view<conduit::int64>(newHostMatset["material_ids"])));
-    EXPECT_TRUE(compare_views(volume_fractions.view(),
-                              bputils::make_array_view<conduit::float64>(
-                                newHostMatset["volume_fractions"])));
+    EXPECT_TRUE(compare_views(sizes.view(),
+                              bputils::make_array_view<conduit::int64>(newHostMatset["sizes"])));
+    EXPECT_TRUE(compare_views(offsets.view(),
+                              bputils::make_array_view<conduit::int64>(newHostMatset["offsets"])));
+    EXPECT_TRUE(compare_views(indices.view(),
+                              bputils::make_array_view<conduit::int64>(newHostMatset["indices"])));
+    EXPECT_TRUE(
+      compare_views(material_ids.view(),
+                    bputils::make_array_view<conduit::int64>(newHostMatset["material_ids"])));
+    EXPECT_TRUE(
+      compare_views(volume_fractions.view(),
+                    bputils::make_array_view<conduit::float64>(newHostMatset["volume_fractions"])));
   }
 
   static void create(conduit::Node &matset)
@@ -141,10 +129,9 @@ void test_coordsetslicer(const conduit::Node &hostCoordset, Func &&makeView)
   axom::Array<axom::IndexType> ids {{0, 1, 2, 4, 5, 6}};
 
   const auto nnodes = ids.size();
-  axom::Array<axom::IndexType> selectedNodes(
-    nnodes,
-    nnodes,
-    axom::execution_space<ExecSpace>::allocatorID());
+  axom::Array<axom::IndexType> selectedNodes(nnodes,
+                                             nnodes,
+                                             axom::execution_space<ExecSpace>::allocatorID());
   axom::copy(selectedNodes.data(), ids.data(), nnodes * sizeof(axom::IndexType));
 
   bputils::SliceData slice;
@@ -170,12 +157,10 @@ void test_coordsetslicer(const conduit::Node &hostCoordset, Func &&makeView)
   // We get an explicit coordset out of the slicer.
   const axom::Array<conduit::float64> x {{0., 1., 2., 0., 1., 2.}};
   const axom::Array<conduit::float64> y {{0., 0., 0., 1., 1., 1.}};
-  EXPECT_TRUE(compare_views(
-    x.view(),
-    bputils::make_array_view<conduit::float64>(newHostCoordset["values/x"])));
-  EXPECT_TRUE(compare_views(
-    y.view(),
-    bputils::make_array_view<conduit::float64>(newHostCoordset["values/y"])));
+  EXPECT_TRUE(
+    compare_views(x.view(), bputils::make_array_view<conduit::float64>(newHostCoordset["values/x"])));
+  EXPECT_TRUE(
+    compare_views(y.view(), bputils::make_array_view<conduit::float64>(newHostCoordset["values/y"])));
 }
 
 //------------------------------------------------------------------------------
@@ -202,38 +187,25 @@ values:
     coordset.parse(yaml);
 
     auto makeView = [](const conduit::Node &deviceCoordset) {
-      return axom::mir::views::make_explicit_coordset<conduit::float64, 2>::view(
-        deviceCoordset);
+      return axom::mir::views::make_explicit_coordset<conduit::float64, 2>::view(deviceCoordset);
     };
 
     test_coordsetslicer<seq_exec>(coordset, makeView);
   }
 };
 
-TEST(mir_slicers, coordsetslicer_explicit_seq)
-{
-  coordsetslicer_explicit<seq_exec>::test();
-}
+TEST(mir_slicers, coordsetslicer_explicit_seq) { coordsetslicer_explicit<seq_exec>::test(); }
 
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_slicers, coordsetslicer_explicit_omp)
-{
-  coordsetslicer_explicit<omp_exec>::test();
-}
+TEST(mir_slicers, coordsetslicer_explicit_omp) { coordsetslicer_explicit<omp_exec>::test(); }
 #endif
 
 #if defined(AXOM_USE_CUDA)
-TEST(mir_slicers, coordsetslicer_explicit_cuda)
-{
-  coordsetslicer_explicit<cuda_exec>::test();
-}
+TEST(mir_slicers, coordsetslicer_explicit_cuda) { coordsetslicer_explicit<cuda_exec>::test(); }
 #endif
 
 #if defined(AXOM_USE_HIP)
-TEST(mir_slicers, coordsetslicer_explicit_hip)
-{
-  coordsetslicer_explicit<hip_exec>::test();
-}
+TEST(mir_slicers, coordsetslicer_explicit_hip) { coordsetslicer_explicit<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
@@ -260,23 +232,16 @@ values:
     coordset.parse(yaml);
 
     auto makeView = [](const conduit::Node &deviceCoordset) {
-      return axom::mir::views::make_rectilinear_coordset<conduit::float64, 2>::view(
-        deviceCoordset);
+      return axom::mir::views::make_rectilinear_coordset<conduit::float64, 2>::view(deviceCoordset);
     };
     test_coordsetslicer<ExecSpace>(coordset, makeView);
   }
 };
 
-TEST(mir_slicers, coordsetslicer_rectilinear_seq)
-{
-  coordsetslicer_rectilinear<seq_exec>::test();
-}
+TEST(mir_slicers, coordsetslicer_rectilinear_seq) { coordsetslicer_rectilinear<seq_exec>::test(); }
 
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_slicers, coordsetslicer_rectilinear_omp)
-{
-  coordsetslicer_rectilinear<omp_exec>::test();
-}
+TEST(mir_slicers, coordsetslicer_rectilinear_omp) { coordsetslicer_rectilinear<omp_exec>::test(); }
 #endif
 
 #if defined(AXOM_USE_CUDA)
@@ -287,10 +252,7 @@ TEST(mir_slicers, coordsetslicer_rectilinear_cuda)
 #endif
 
 #if defined(AXOM_USE_HIP)
-TEST(mir_slicers, coordsetslicer_rectilinear_hip)
-{
-  coordsetslicer_rectilinear<hip_exec>::test();
-}
+TEST(mir_slicers, coordsetslicer_rectilinear_hip) { coordsetslicer_rectilinear<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
@@ -323,30 +285,18 @@ dims:
   }
 };
 
-TEST(mir_slicers, coordsetslicer_uniform_seq)
-{
-  coordsetslicer_uniform<seq_exec>::test();
-}
+TEST(mir_slicers, coordsetslicer_uniform_seq) { coordsetslicer_uniform<seq_exec>::test(); }
 
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_slicers, coordsetslicer_uniform_omp)
-{
-  coordsetslicer_uniform<omp_exec>::test();
-}
+TEST(mir_slicers, coordsetslicer_uniform_omp) { coordsetslicer_uniform<omp_exec>::test(); }
 #endif
 
 #if defined(AXOM_USE_CUDA)
-TEST(mir_slicers, coordsetslicer_uniform_cuda)
-{
-  coordsetslicer_uniform<cuda_exec>::test();
-}
+TEST(mir_slicers, coordsetslicer_uniform_cuda) { coordsetslicer_uniform<cuda_exec>::test(); }
 #endif
 
 #if defined(AXOM_USE_HIP)
-TEST(mir_slicers, coordsetslicer_uniform_hip)
-{
-  coordsetslicer_uniform<hip_exec>::test();
-}
+TEST(mir_slicers, coordsetslicer_uniform_hip) { coordsetslicer_uniform<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
@@ -364,13 +314,10 @@ struct test_fieldslicer
 
     // _mir_utilities_fieldslicer_begin
     std::vector<axom::IndexType> indices {0, 1, 2, 7, 8, 9};
-    axom::Array<axom::IndexType> sliceIndices(
-      indices.size(),
-      indices.size(),
-      axom::execution_space<ExecSpace>::allocatorID());
-    axom::copy(sliceIndices.data(),
-               indices.data(),
-               sizeof(axom::IndexType) * indices.size());
+    axom::Array<axom::IndexType> sliceIndices(indices.size(),
+                                              indices.size(),
+                                              axom::execution_space<ExecSpace>::allocatorID());
+    axom::copy(sliceIndices.data(), indices.data(), sizeof(axom::IndexType) * indices.size());
 
     bputils::SliceData slice;
     slice.m_indicesView = sliceIndices.view();
@@ -389,32 +336,22 @@ struct test_fieldslicer
     std::vector<double> resultY {0., 10., 20., 70., 80., 90.};
 
     EXPECT_EQ(hostSlicedMesh["fields/scalar/topology"].as_string(), "mesh");
-    EXPECT_EQ(hostSlicedMesh["fields/scalar/association"].as_string(),
-              "element");
-    EXPECT_EQ(hostSlicedMesh["fields/scalar/values"].dtype().number_of_elements(),
-              indices.size());
+    EXPECT_EQ(hostSlicedMesh["fields/scalar/association"].as_string(), "element");
+    EXPECT_EQ(hostSlicedMesh["fields/scalar/values"].dtype().number_of_elements(), indices.size());
     for(size_t i = 0; i < indices.size(); i++)
     {
-      const auto acc =
-        hostSlicedMesh["fields/scalar/values"].as_double_accessor();
+      const auto acc = hostSlicedMesh["fields/scalar/values"].as_double_accessor();
       EXPECT_EQ(acc[i], resultX[i]);
     }
 
     EXPECT_EQ(hostSlicedMesh["fields/vector/topology"].as_string(), "mesh");
-    EXPECT_EQ(hostSlicedMesh["fields/vector/association"].as_string(),
-              "element");
-    EXPECT_EQ(
-      hostSlicedMesh["fields/vector/values/x"].dtype().number_of_elements(),
-      indices.size());
-    EXPECT_EQ(
-      hostSlicedMesh["fields/vector/values/y"].dtype().number_of_elements(),
-      indices.size());
+    EXPECT_EQ(hostSlicedMesh["fields/vector/association"].as_string(), "element");
+    EXPECT_EQ(hostSlicedMesh["fields/vector/values/x"].dtype().number_of_elements(), indices.size());
+    EXPECT_EQ(hostSlicedMesh["fields/vector/values/y"].dtype().number_of_elements(), indices.size());
     for(size_t i = 0; i < indices.size(); i++)
     {
-      const auto x =
-        hostSlicedMesh["fields/vector/values/x"].as_double_accessor();
-      const auto y =
-        hostSlicedMesh["fields/vector/values/y"].as_double_accessor();
+      const auto x = hostSlicedMesh["fields/vector/values/x"].as_double_accessor();
+      const auto y = hostSlicedMesh["fields/vector/values/y"].as_double_accessor();
       EXPECT_EQ(x[i], resultX[i]);
       EXPECT_EQ(y[i], resultY[i]);
     }

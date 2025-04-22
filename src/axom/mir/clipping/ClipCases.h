@@ -7,9 +7,11 @@
 //---------------------------------------------------------------------------
 // Axom modifications
 // NOTE: The values for EA-EL and N0-N3 were reduced.
+// NOTE: We're using AXOM_MIR_EXPORT instead of VISIT_VTK_LIGHT_API througout
 // clang-format off
-//#include <visit_vtk_light_exports.h>
-#define VISIT_VTK_LIGHT_API
+
+#include "axom/export/mir.h"
+
 #include <cstdlib>
 namespace axom {
 namespace mir {
@@ -88,87 +90,87 @@ namespace visit {
 #define NOCOLOR 122
 
 // Tables
-extern VISIT_VTK_LIGHT_API int numClipCasesHex;
-extern VISIT_VTK_LIGHT_API int numClipShapesHex[256];
-extern VISIT_VTK_LIGHT_API int startClipShapesHex[256];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesHex[];
+extern AXOM_MIR_EXPORT int numClipCasesHex;
+extern AXOM_MIR_EXPORT int numClipShapesHex[256];
+extern AXOM_MIR_EXPORT int startClipShapesHex[256];
+extern AXOM_MIR_EXPORT unsigned char clipShapesHex[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesVox;
-extern VISIT_VTK_LIGHT_API int numClipShapesVox[256];
-extern VISIT_VTK_LIGHT_API int startClipShapesVox[256];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesVox[];
+extern AXOM_MIR_EXPORT int numClipCasesVox;
+extern AXOM_MIR_EXPORT int numClipShapesVox[256];
+extern AXOM_MIR_EXPORT int startClipShapesVox[256];
+extern AXOM_MIR_EXPORT unsigned char clipShapesVox[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesWdg;
-extern VISIT_VTK_LIGHT_API int numClipShapesWdg[64];
-extern VISIT_VTK_LIGHT_API int startClipShapesWdg[64];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesWdg[];
+extern AXOM_MIR_EXPORT int numClipCasesWdg;
+extern AXOM_MIR_EXPORT int numClipShapesWdg[64];
+extern AXOM_MIR_EXPORT int startClipShapesWdg[64];
+extern AXOM_MIR_EXPORT unsigned char clipShapesWdg[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesPyr;
-extern VISIT_VTK_LIGHT_API int numClipShapesPyr[32];
-extern VISIT_VTK_LIGHT_API int startClipShapesPyr[32];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesPyr[];
+extern AXOM_MIR_EXPORT int numClipCasesPyr;
+extern AXOM_MIR_EXPORT int numClipShapesPyr[32];
+extern AXOM_MIR_EXPORT int startClipShapesPyr[32];
+extern AXOM_MIR_EXPORT unsigned char clipShapesPyr[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesTet;
-extern VISIT_VTK_LIGHT_API int numClipShapesTet[16];
-extern VISIT_VTK_LIGHT_API int startClipShapesTet[16];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesTet[];
+extern AXOM_MIR_EXPORT int numClipCasesTet;
+extern AXOM_MIR_EXPORT int numClipShapesTet[16];
+extern AXOM_MIR_EXPORT int startClipShapesTet[16];
+extern AXOM_MIR_EXPORT unsigned char clipShapesTet[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesQua;
-extern VISIT_VTK_LIGHT_API int numClipShapesQua[16];
-extern VISIT_VTK_LIGHT_API int startClipShapesQua[16];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesQua[];
+extern AXOM_MIR_EXPORT int numClipCasesQua;
+extern AXOM_MIR_EXPORT int numClipShapesQua[16];
+extern AXOM_MIR_EXPORT int startClipShapesQua[16];
+extern AXOM_MIR_EXPORT unsigned char clipShapesQua[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesPix;
-extern VISIT_VTK_LIGHT_API int numClipShapesPix[16];
-extern VISIT_VTK_LIGHT_API int startClipShapesPix[16];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesPix[];
+extern AXOM_MIR_EXPORT int numClipCasesPix;
+extern AXOM_MIR_EXPORT int numClipShapesPix[16];
+extern AXOM_MIR_EXPORT int startClipShapesPix[16];
+extern AXOM_MIR_EXPORT unsigned char clipShapesPix[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesTri;
-extern VISIT_VTK_LIGHT_API int numClipShapesTri[8];
-extern VISIT_VTK_LIGHT_API int startClipShapesTri[8];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesTri[];
+extern AXOM_MIR_EXPORT int numClipCasesTri;
+extern AXOM_MIR_EXPORT int numClipShapesTri[8];
+extern AXOM_MIR_EXPORT int startClipShapesTri[8];
+extern AXOM_MIR_EXPORT unsigned char clipShapesTri[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesLin;
-extern VISIT_VTK_LIGHT_API int numClipShapesLin[4];
-extern VISIT_VTK_LIGHT_API int startClipShapesLin[4];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesLin[];
+extern AXOM_MIR_EXPORT int numClipCasesLin;
+extern AXOM_MIR_EXPORT int numClipShapesLin[4];
+extern AXOM_MIR_EXPORT int startClipShapesLin[4];
+extern AXOM_MIR_EXPORT unsigned char clipShapesLin[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesVtx;
-extern VISIT_VTK_LIGHT_API int numClipShapesVtx[2];
-extern VISIT_VTK_LIGHT_API int startClipShapesVtx[2];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesVtx[];
+extern AXOM_MIR_EXPORT int numClipCasesVtx;
+extern AXOM_MIR_EXPORT int numClipShapesVtx[2];
+extern AXOM_MIR_EXPORT int startClipShapesVtx[2];
+extern AXOM_MIR_EXPORT unsigned char clipShapesVtx[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesPoly5;
-extern VISIT_VTK_LIGHT_API int numClipShapesPoly5[32];
-extern VISIT_VTK_LIGHT_API int startClipShapesPoly5[32];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesPoly5[];
+extern AXOM_MIR_EXPORT int numClipCasesPoly5;
+extern AXOM_MIR_EXPORT int numClipShapesPoly5[32];
+extern AXOM_MIR_EXPORT int startClipShapesPoly5[32];
+extern AXOM_MIR_EXPORT unsigned char clipShapesPoly5[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesPoly6;
-extern VISIT_VTK_LIGHT_API int numClipShapesPoly6[64];
-extern VISIT_VTK_LIGHT_API int startClipShapesPoly6[64];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesPoly6[];
+extern AXOM_MIR_EXPORT int numClipCasesPoly6;
+extern AXOM_MIR_EXPORT int numClipShapesPoly6[64];
+extern AXOM_MIR_EXPORT int startClipShapesPoly6[64];
+extern AXOM_MIR_EXPORT unsigned char clipShapesPoly6[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesPoly7;
-extern VISIT_VTK_LIGHT_API int numClipShapesPoly7[128];
-extern VISIT_VTK_LIGHT_API int startClipShapesPoly7[128];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesPoly7[];
+extern AXOM_MIR_EXPORT int numClipCasesPoly7;
+extern AXOM_MIR_EXPORT int numClipShapesPoly7[128];
+extern AXOM_MIR_EXPORT int startClipShapesPoly7[128];
+extern AXOM_MIR_EXPORT unsigned char clipShapesPoly7[];
 
-extern VISIT_VTK_LIGHT_API int numClipCasesPoly8;
-extern VISIT_VTK_LIGHT_API int numClipShapesPoly8[256];
-extern VISIT_VTK_LIGHT_API int startClipShapesPoly8[256];
-extern VISIT_VTK_LIGHT_API unsigned char clipShapesPoly8[];
+extern AXOM_MIR_EXPORT int numClipCasesPoly8;
+extern AXOM_MIR_EXPORT int numClipShapesPoly8[256];
+extern AXOM_MIR_EXPORT int startClipShapesPoly8[256];
+extern AXOM_MIR_EXPORT unsigned char clipShapesPoly8[];
 
 //---------------------------------------------------------------------------
 // Axom modifications
 #define ST_MIN ST_TET
 #define ST_MAX (ST_PNT + 1)
-#undef VISIT_VTK_LIGHT_API
-extern const size_t clipShapesTriSize;
-extern const size_t clipShapesQuaSize;
-extern const size_t clipShapesTetSize;
-extern const size_t clipShapesPyrSize;
-extern const size_t clipShapesWdgSize;
-extern const size_t clipShapesHexSize;
+
+extern AXOM_MIR_EXPORT const size_t clipShapesTriSize;
+extern AXOM_MIR_EXPORT const size_t clipShapesQuaSize;
+extern AXOM_MIR_EXPORT const size_t clipShapesTetSize;
+extern AXOM_MIR_EXPORT const size_t clipShapesPyrSize;
+extern AXOM_MIR_EXPORT const size_t clipShapesWdgSize;
+extern AXOM_MIR_EXPORT const size_t clipShapesHexSize;
 } // namespace visit
 } // namespace clipping
 } // namespace mir

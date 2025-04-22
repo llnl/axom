@@ -285,10 +285,7 @@ public:
    * \param vInd The index of a vertex
    * (optional; default is to not set a vertex)
    */
-  DynamicGrayBlockData(VertexIndex vInd, bool isLeaf)
-    : m_vertIndex(vInd)
-    , m_isLeaf(isLeaf)
-  { }
+  DynamicGrayBlockData(VertexIndex vInd, bool isLeaf) : m_vertIndex(vInd), m_isLeaf(isLeaf) { }
 
   /**
    * \brief Copy constructor for an DynamicGrayBlockData instance
@@ -307,9 +304,7 @@ public:
     this->m_vertIndex = other.m_vertIndex;
 
     this->m_cells.reserve(other.m_cells.size());
-    std::copy(other.m_cells.begin(),
-              other.m_cells.end(),
-              std::back_inserter(this->m_cells));
+    std::copy(other.m_cells.begin(), other.m_cells.end(), std::back_inserter(this->m_cells));
 
     this->m_isLeaf = other.m_isLeaf;
 
@@ -331,12 +326,11 @@ public:
    * \brief Equality operator to determine if two
    * DynamicGrayBlockData instances are equivalent
    */
-  friend bool operator==(const DynamicGrayBlockData& lhs,
-                         const DynamicGrayBlockData& rhs)
+  friend bool operator==(const DynamicGrayBlockData& lhs, const DynamicGrayBlockData& rhs)
   {
     // Note: We are not checking the contents of the cells array, only the size
-    return (lhs.m_vertIndex == rhs.m_vertIndex) &&
-      (lhs.m_cells.size() == rhs.m_cells.size()) && lhs.m_isLeaf == rhs.m_isLeaf;
+    return (lhs.m_vertIndex == rhs.m_vertIndex) && (lhs.m_cells.size() == rhs.m_cells.size()) &&
+      lhs.m_isLeaf == rhs.m_isLeaf;
   }
 
 public:  // Functions related to whether this is a leaf
@@ -397,8 +391,7 @@ private:
 /**
  * Free function to print a DynamicGrayBlockData instance to an output stream
  */
-inline std::ostream& operator<<(std::ostream& os,
-                                const DynamicGrayBlockData& bData)
+inline std::ostream& operator<<(std::ostream& os, const DynamicGrayBlockData& bData)
 {
   os << "DynamicGrayBlockData{";
 

@@ -63,8 +63,7 @@ public:
        * \param inputMesh  The mesh composed of mixed cells.
        * \param outputMesh The mesh composed of clean cells. 
        */
-  void computeReconstructedInterface(mir::MIRMesh& inputMesh,
-                                     mir::MIRMesh& outputMesh);
+  void computeReconstructedInterface(mir::MIRMesh& inputMesh, mir::MIRMesh& outputMesh);
 
   /**
        * \brief Performs material interface reconstruction using an iterative version of the zoo-based algorithm.
@@ -91,15 +90,14 @@ public:
        * \param  originalElementVertexPositions  The original vertex positions associated with the vertices of the element to be split.
        * \param out_cellData  Container to store the data of the generated elements.
        */
-  void generateCleanCells(
-    mir::Shape shapeType,
-    const int parentElementID,
-    const int matOne,
-    const int matTwo,
-    const std::vector<int>& elementVertices,
-    const std::vector<std::vector<axom::float64>>& originalElementVertexVF,
-    const std::vector<mir::Point2>& originalElementVertexPositions,
-    CellData& out_cellData);
+  void generateCleanCells(mir::Shape shapeType,
+                          const int parentElementID,
+                          const int matOne,
+                          const int matTwo,
+                          const std::vector<int>& elementVertices,
+                          const std::vector<std::vector<axom::float64>>& originalElementVertexVF,
+                          const std::vector<mir::Point2>& originalElementVertexPositions,
+                          CellData& out_cellData);
 
 private:
   mir::MIRMesh m_originalMesh;

@@ -17,10 +17,7 @@ void setWarningFlag(axom::sidre::Group* root)
   }
 }
 
-void setFlag(axom::sidre::Group& target,
-             axom::sidre::Group& root,
-             const std::string& flag,
-             bool value)
+void setFlag(axom::sidre::Group& target, axom::sidre::Group& root, const std::string& flag, bool value)
 {
   const std::int8_t bval = value ? 1 : 0;
   if(target.hasView(flag))
@@ -29,9 +26,7 @@ void setFlag(axom::sidre::Group& target,
     if(flagView->getData<std::int8_t>() != bval)
     {
       const std::string msg =
-        fmt::format("[Inlet] '{0}' value has already been defined for: {1}",
-                    flag,
-                    target.getName());
+        fmt::format("[Inlet] '{0}' value has already been defined for: {1}", flag, target.getName());
 
       SLIC_WARNING(msg);
       setWarningFlag(&root);
@@ -50,9 +45,7 @@ void setFlag(axom::sidre::Group& target,
   }
 }
 
-bool checkFlag(const axom::sidre::Group& target,
-               axom::sidre::Group& root,
-               const std::string& flag)
+bool checkFlag(const axom::sidre::Group& target, axom::sidre::Group& root, const std::string& flag)
 {
   if(!target.hasView(flag))
   {
@@ -84,8 +77,8 @@ bool verifyRequired(const axom::sidre::Group& target,
   ReaderResult status = ReaderResult::NotFound;
   if(target.hasView("retrieval_status"))
   {
-    status = static_cast<ReaderResult>(
-      static_cast<int>(target.getView("retrieval_status")->getData()));
+    status =
+      static_cast<ReaderResult>(static_cast<int>(target.getView("retrieval_status")->getData()));
   }
 
   if(target.hasView("required"))
@@ -96,8 +89,7 @@ bool verifyRequired(const axom::sidre::Group& target,
     // information isn't needed here unless it's a collection group - empty collections are permissible,
     // so they shouldn't impede verification if they existed but were empty (hence Success check)
     if(required && !condition &&
-       (!isCollectionGroup(target.getPathName()) ||
-        status != ReaderResult::Success))
+       (!isCollectionGroup(target.getPathName()) || status != ReaderResult::Success))
     {
       const std::string msg = fmt::format(
         "[Inlet] Required {0} not "
@@ -113,9 +105,8 @@ bool verifyRequired(const axom::sidre::Group& target,
   // even if the object wasn't marked as required
   if(status == ReaderResult::WrongType || status == ReaderResult::NotHomogeneous)
   {
-    const std::string reason = (status == ReaderResult::WrongType)
-      ? "of the wrong type"
-      : "not homogeneous";
+    const std::string reason =
+      (status == ReaderResult::WrongType) ? "of the wrong type" : "not homogeneous";
     const std::string msg =
       fmt::format("[Inlet] {0} '{1}' was {2}", type, target.getPathName(), reason);
     INLET_VERIFICATION_WARNING(target.getPathName(), msg, errors);
@@ -130,11 +121,9 @@ void markAsStructCollection(axom::sidre::Group& target)
   {
     // This flag should only ever be one, so we verify that and error otherwise
     const sidre::View* flag = target.getView(detail::STRUCT_COLLECTION_FLAG);
-    SLIC_ERROR_IF(
-      !flag->isScalar(),
-      fmt::format(
-        "[Inlet] Struct collection flag of group '{0}' was not a scalar",
-        target.getName()));
+    SLIC_ERROR_IF(!flag->isScalar(),
+                  fmt::format("[Inlet] Struct collection flag of group '{0}' was not a scalar",
+                              target.getName()));
     const std::int8_t value = flag->getScalar();
     SLIC_ERROR_IF(value != 1,
                   fmt::format("[Inlet] Struct collection flag of group '{0}' "
@@ -143,8 +132,7 @@ void markAsStructCollection(axom::sidre::Group& target)
   }
   else
   {
-    target.createViewScalar(detail::STRUCT_COLLECTION_FLAG,
-                            static_cast<std::int8_t>(1));
+    target.createViewScalar(detail::STRUCT_COLLECTION_FLAG, static_cast<std::int8_t>(1));
   }
 }
 

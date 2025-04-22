@@ -30,8 +30,7 @@ namespace bputils = axom::mir::utilities::blueprint;
 
 std::string baselineDirectory()
 {
-  return pjoin(pjoin(pjoin(dataDirectory(), "mir"), "regression"),
-               "mir_clipfield");
+  return pjoin(dataDirectory(), "mir", "regression", "mir_clipfield");
 }
 //------------------------------------------------------------------------------
 TEST(mir_clipfield, options)
@@ -162,8 +161,7 @@ TEST(mir_clipfield, blend_group_builder)
   axom::Array<IndexType> blendGroupOffsets {{0, 8}};
   axom::Array<IndexType> blendOffsets {{0, blendGroupsLen[0]}};
 
-  axom::Array<KeyType> blendNames {
-    {/*zone 0*/ 6, 0, 1, 3, 4, 7, 8, 9, /*zone 1*/ 1, 2, 4, 5, 9}};
+  axom::Array<KeyType> blendNames {{/*zone 0*/ 6, 0, 1, 3, 4, 7, 8, 9, /*zone 1*/ 1, 2, 4, 5, 9}};
   axom::Array<IndexType> blendGroupSizes {
     {/*zone 0*/ 4, 1, 1, 1, 1, 2, 2, 2, /*zone 1*/ 1, 1, 1, 1, 2}};
   axom::Array<IndexType> blendGroupStart {
@@ -217,8 +215,7 @@ TEST(mir_clipfield, blend_group_builder)
   axom::Array<KeyType> blendUniqueNames {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}};
   axom::Array<KeyType> blendUniqueIndices {{1, 2, 9, 3, 4, 11, 0, 5, 6, 7}};
 
-  using NamingPolicyView =
-    typename axom::mir::utilities::HashNaming<axom::IndexType>::View;
+  using NamingPolicyView = typename axom::mir::utilities::HashNaming<axom::IndexType>::View;
 
   axom::mir::clipping::BlendGroupBuilder<seq_exec, NamingPolicyView> builder;
   builder.setBlendGroupSizes(blendGroups.view(), blendGroupsLen.view());
@@ -261,6 +258,14 @@ bool increasing(const ArrayType &arr)
   return retval;
 }
 
+template <typename ArrayType>
+bool decreasing(const ArrayType &arr)
+{
+  bool retval = true;
+  for(size_t i = 1; i < arr.size(); i++) retval &= (arr[i] <= arr[i - 1]);
+  return retval;
+}
+
 std::vector<int> permute(const std::vector<int> &input)
 {
   std::vector<int> values, indices;
@@ -273,11 +278,9 @@ std::vector<int> permute(const std::vector<int> &input)
   std::iota(indices.begin(), indices.end(), 0);
   for(size_t i = 0; i < input.size(); i++)
   {
-    order[i] = drand48();
+    order[i] = axom::utilities::random_real(0., 1.);
   }
-  std::sort(indices.begin(), indices.end(), [&](int a, int b) {
-    return order[a] < order[b];
-  });
+  std::sort(indices.begin(), indices.end(), [&](int a, int b) { return order[a] < order[b]; });
   for(size_t i = 0; i < input.size(); i++) values[i] = input[indices[i]];
   return values;
 }
@@ -292,29 +295,41 @@ std::vector<int> makeUnsortedArray(int n)
 
 std::vector<int> makeRandomArray(int n)
 {
-  constexpr int largestId = 1 << 28;
+  constexpr double largestId = static_cast<double>(1 << 28);
   std::vector<int> values;
   values.resize(n);
   for(int i = 0; i < n; i++)
   {
-    values[i] = static_cast<int>(largestId * drand48());
+    values[i] = static_cast<int>(axom::utilities::random_real(0., largestId));
   }
-  return permute(values);
+  return values;
+}
+std::vector<double> makeRandomDoubleArray(int n)
+{
+  std::vector<double> values;
+  values.resize(n);
+  for(int i = 0; i < n; i++)
+  {
+    values[i] = axom::utilities::random_real(0., 1000.);
+  }
+  return values;
 }
 
 //------------------------------------------------------------------------------
 TEST(mir_clipfield, sort_values)
 {
-  for(int n = 1; n < 15; n++)
+  constexpr int MaxSize = 15;
+  for(int n = 1; n < MaxSize; n++)
   {
     for(int trial = 1; trial <= n; trial++)
     {
       auto values = makeUnsortedArray(n);
-      axom::utilities::Sorting<int, 15>::sort(values.data(), values.size());
+      axom::utilities::Sorting<int, MaxSize>::sort(values.data(), values.size());
       EXPECT_TRUE(increasing(values));
     }
   }
 }
+
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
 struct test_unique
@@ -330,27 +345,27 @@ struct test_unique
     */
     // _mir_utilities_unique_begin
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    axom::Array<int> ids {{0, 1, 5, 4, 1, 2, 6,  5, 2, 3, 7,  6,
-                           4, 5, 9, 8, 5, 6, 10, 9, 6, 7, 11, 10}};
+    axom::Array<int> ids {
+      {0, 1, 5, 4, 1, 2, 6, 5, 2, 3, 7, 6, 4, 5, 9, 8, 5, 6, 10, 9, 6, 7, 11, 10}};
+    EXPECT_EQ(ids.size(), 24);
+    EXPECT_EQ(ids.view().size(), 24);
+
     // host->device
     axom::Array<int> deviceIds(ids.size(), ids.size(), allocatorID);
     axom::copy(deviceIds.data(), ids.data(), sizeof(int) * ids.size());
+    EXPECT_EQ(deviceIds.size(), 24);
 
     // Make unique ids.
     axom::Array<int> uIds;
     axom::Array<axom::IndexType> uIndices;
-    axom::mir::utilities::Unique<seq_exec, int>::execute(ids.view(),
-                                                         uIds,
-                                                         uIndices);
+    axom::mir::utilities::Unique<ExecSpace, int>::execute(deviceIds.view(), uIds, uIndices);
     // _mir_utilities_unique_end
 
     // device->host
     axom::Array<int> hostuIds(uIds.size());
     axom::Array<axom::IndexType> hostuIndices(uIndices.size());
     axom::copy(hostuIds.data(), uIds.data(), sizeof(int) * uIds.size());
-    axom::copy(hostuIndices.data(),
-               uIndices.data(),
-               sizeof(axom::IndexType) * uIndices.size());
+    axom::copy(hostuIndices.data(), uIndices.data(), sizeof(axom::IndexType) * uIndices.size());
 
     // compare results
     EXPECT_EQ(hostuIds.size(), 12);
@@ -403,15 +418,14 @@ TEST(mir_clipfield, make_name)
 template <typename ExecSpace, typename ShapeType>
 void test_one_shape(const conduit::Node &hostMesh, const std::string &name)
 {
-  using TopoView =
-    axom::mir::views::UnstructuredTopologySingleShapeView<ShapeType>;
+  using TopoView = axom::mir::views::UnstructuredTopologySingleShapeView<ShapeType>;
   using CoordsetView = axom::mir::views::ExplicitCoordsetView<float, 3>;
 
   // Copy mesh to device
   conduit::Node deviceMesh;
   bputils::copy<ExecSpace>(deviceMesh, hostMesh);
 
-  // _mir_utilities_clipfield_start
+  // _mir_utilities_clipfield_begin
   // Make views for the device mesh.
   conduit::Node &n_x = deviceMesh.fetch_existing("coordsets/coords/values/x");
   conduit::Node &n_y = deviceMesh.fetch_existing("coordsets/coords/values/y");
@@ -424,17 +438,14 @@ void test_one_shape(const conduit::Node &hostMesh, const std::string &name)
                                n_z.dtype().number_of_elements());
   CoordsetView coordsetView(xView, yView, zView);
 
-  conduit::Node &n_conn =
-    deviceMesh.fetch_existing("topologies/topo/elements/connectivity");
+  conduit::Node &n_conn = deviceMesh.fetch_existing("topologies/topo/elements/connectivity");
   axom::ArrayView<int> connView(static_cast<int *>(n_conn.data_ptr()),
                                 n_conn.dtype().number_of_elements());
   TopoView topoView(connView);
 
   // Clip the data
   conduit::Node deviceClipMesh, options;
-  axom::mir::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(
-    topoView,
-    coordsetView);
+  axom::mir::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
   options["clipField"] = "distance";
   options["clipValue"] = 0.;
   options["inside"] = 1;
@@ -548,9 +559,7 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
 
   // Clip the data
   conduit::Node deviceClipMesh;
-  axom::mir::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(
-    topoView,
-    coordsetView);
+  axom::mir::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
   clipper.execute(deviceMesh, options, deviceClipMesh);
 
   // Copy device->host
@@ -586,8 +595,7 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
     deviceClipMesh.fetch_existing("coordsets/clipcoords/values/y"));
   ExpCoordsetView expCoordsetView(xView, yView);
 
-  conduit::Node &n_device_topo =
-    deviceClipMesh.fetch_existing("topologies/" + clipTopoName);
+  conduit::Node &n_device_topo = deviceClipMesh.fetch_existing("topologies/" + clipTopoName);
   const auto connView = bputils::make_array_view<axom::IndexType>(
     n_device_topo.fetch_existing("elements/connectivity"));
 
@@ -602,42 +610,38 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
   if(n_device_topo.has_path("elements/shape") &&
      n_device_topo.fetch_existing("elements/shape").as_string() == "mixed")
   {
-    auto shapesView = bputils::make_array_view<axom::IndexType>(
-      n_device_topo.fetch_existing("elements/shapes"));
-    const auto sizesView = bputils::make_array_view<axom::IndexType>(
-      n_device_topo.fetch_existing("elements/sizes"));
-    const auto offsetsView = bputils::make_array_view<axom::IndexType>(
-      n_device_topo.fetch_existing("elements/offsets"));
+    auto shapesView =
+      bputils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/shapes"));
+    const auto sizesView =
+      bputils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/sizes"));
+    const auto offsetsView =
+      bputils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/offsets"));
 
     // Make the shape map.
     volatile int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     axom::Array<axom::IndexType> values, ids;
-    auto shapeMap =
-      axom::mir::views::buildShapeMap(n_device_topo, values, ids, allocatorID);
+    auto shapeMap = axom::mir::views::buildShapeMap(n_device_topo, values, ids, allocatorID);
 
-    using MixedTopoView =
-      axom::mir::views::UnstructuredTopologyMixedShapeView<axom::IndexType>;
-    MixedTopoView mixedTopoView(connView,
-                                shapesView,
-                                sizesView,
-                                offsetsView,
-                                shapeMap);
+    using MixedTopoView = axom::mir::views::UnstructuredTopologyMixedShapeView<axom::IndexType>;
+    MixedTopoView mixedTopoView(connView, shapesView, sizesView, offsetsView, shapeMap);
 
     // Clip the data
-    axom::mir::clipping::ClipField<ExecSpace, MixedTopoView, ExpCoordsetView>
-      mixedClipper(mixedTopoView, expCoordsetView);
+    axom::mir::clipping::ClipField<ExecSpace, MixedTopoView, ExpCoordsetView> mixedClipper(
+      mixedTopoView,
+      expCoordsetView);
     mixedClipper.execute(deviceClipMesh, options, deviceClipMixedMesh);
   }
   else
   {
     // Depending on optimizations, we might get a mesh with just quads.
-    using QuadTopoView = axom::mir::views::UnstructuredTopologySingleShapeView<
-      axom::mir::views::QuadShape<axom::IndexType>>;
+    using QuadTopoView =
+      axom::mir::views::UnstructuredTopologySingleShapeView<axom::mir::views::QuadShape<axom::IndexType>>;
     QuadTopoView quadTopoView(connView);
 
     // Clip the data
-    axom::mir::clipping::ClipField<ExecSpace, QuadTopoView, ExpCoordsetView>
-      quadClipper(quadTopoView, expCoordsetView);
+    axom::mir::clipping::ClipField<ExecSpace, QuadTopoView, ExpCoordsetView> quadClipper(
+      quadTopoView,
+      expCoordsetView);
     quadClipper.execute(deviceClipMesh, options, deviceClipMixedMesh);
   }
 
@@ -708,9 +712,8 @@ void braid_rectilinear_clip_test(const std::string &name)
   bputils::copy<ExecSpace>(deviceMesh, hostMesh);
 
   // Create views
-  auto coordsetView =
-    axom::mir::views::make_rectilinear_coordset<double, NDIMS>::view(
-      deviceMesh["coordsets/coords"]);
+  auto coordsetView = axom::mir::views::make_rectilinear_coordset<double, NDIMS>::view(
+    deviceMesh["coordsets/coords"]);
   using CoordsetView = decltype(coordsetView);
   TopoView topoView(Indexing {zoneDims});
 
@@ -722,9 +725,7 @@ void braid_rectilinear_clip_test(const std::string &name)
 
   // Clip the data
   conduit::Node deviceClipMesh;
-  axom::mir::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(
-    topoView,
-    coordsetView);
+  axom::mir::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
   clipper.execute(deviceMesh, options, deviceClipMesh);
 
   // Copy device->host
@@ -779,8 +780,7 @@ TEST(mir_clipfield, rectilinear3d)
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace, int NDIMS>
-void strided_structured_clip_test(const std::string &name,
-                                  const conduit::Node &options)
+void strided_structured_clip_test(const std::string &name, const conduit::Node &options)
 {
   // Create the data
   conduit::Node hostMesh, deviceMesh;
@@ -788,9 +788,7 @@ void strided_structured_clip_test(const std::string &name,
   //hostMesh.print();
 #if defined(AXOM_TESTING_SAVE_VISUALIZATION) && defined(AXOM_USE_HDF5)
   conduit::relay::io::blueprint::save_mesh(hostMesh, name + "_orig", "hdf5");
-  conduit::relay::io::blueprint::save_mesh(hostMesh,
-                                           name + "_orig_yaml",
-                                           "yaml");
+  conduit::relay::io::blueprint::save_mesh(hostMesh, name + "_orig_yaml", "yaml");
 #endif
 
   conduit::Node deviceOptions, deviceClipMesh, hostClipMesh;
@@ -800,18 +798,15 @@ void strided_structured_clip_test(const std::string &name,
   bputils::copy<ExecSpace>(deviceOptions, options);
 
   // Create views
-  auto coordsetView = axom::mir::views::make_explicit_coordset<double, 2>::view(
-    deviceMesh["coordsets/coords"]);
-  auto topoView = axom::mir::views::make_strided_structured<2>::view(
-    deviceMesh["topologies/mesh"]);
+  auto coordsetView =
+    axom::mir::views::make_explicit_coordset<double, 2>::view(deviceMesh["coordsets/coords"]);
+  auto topoView = axom::mir::views::make_strided_structured<2>::view(deviceMesh["topologies/mesh"]);
 
   using CoordsetView = decltype(coordsetView);
   using TopoView = decltype(topoView);
 
   // Clip the data
-  axom::mir::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(
-    topoView,
-    coordsetView);
+  axom::mir::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
   clipper.execute(deviceMesh, deviceOptions, deviceClipMesh);
 
   // device->host
@@ -829,8 +824,7 @@ void strided_structured_clip_test(const std::string &name,
   }
 }
 
-void strided_structured_clip_test_exec(const std::string &name,
-                                       const conduit::Node &options)
+void strided_structured_clip_test_exec(const std::string &name, const conduit::Node &options)
 {
   strided_structured_clip_test<seq_exec, 2>(name, options);
 
@@ -866,8 +860,7 @@ TEST(mir_clipfield, strided_structured_2d)
 template <typename ExecSpace, typename ShapeType>
 void braid3d_clip_test(const std::string &type, const std::string &name)
 {
-  using TopoView =
-    axom::mir::views::UnstructuredTopologySingleShapeView<ShapeType>;
+  using TopoView = axom::mir::views::UnstructuredTopologySingleShapeView<ShapeType>;
   using CoordsetView = axom::mir::views::ExplicitCoordsetView<double, 3>;
 
   // Create the data
@@ -891,8 +884,7 @@ void braid3d_clip_test(const std::string &type, const std::string &name)
                                   n_z.dtype().number_of_elements());
   CoordsetView coordsetView(x, y, z);
 
-  conduit::Node &n_conn =
-    deviceMesh.fetch_existing("topologies/mesh/elements/connectivity");
+  conduit::Node &n_conn = deviceMesh.fetch_existing("topologies/mesh/elements/connectivity");
   const axom::ArrayView<int> conn(static_cast<int *>(n_conn.data_ptr()),
                                   n_conn.dtype().number_of_elements());
   TopoView topoView(conn);
@@ -905,9 +897,7 @@ void braid3d_clip_test(const std::string &type, const std::string &name)
 
   // Clip the data
   conduit::Node deviceClipMesh;
-  axom::mir::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(
-    topoView,
-    coordsetView);
+  axom::mir::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
   clipper.execute(deviceMesh, options, deviceClipMesh);
 
   // Copy device->host
@@ -943,10 +933,7 @@ void braid3d_clip_test_exec(const std::string &type, const std::string &name)
 #endif
 }
 
-TEST(mir_clipfield, tet)
-{
-  braid3d_clip_test_exec<axom::mir::views::TetShape<int>>("tets", "tet");
-}
+TEST(mir_clipfield, tet) { braid3d_clip_test_exec<axom::mir::views::TetShape<int>>("tets", "tet"); }
 
 TEST(mir_clipfield, pyramid)
 {
@@ -958,10 +945,7 @@ TEST(mir_clipfield, wedge)
   braid3d_clip_test_exec<axom::mir::views::WedgeShape<int>>("wedges", "wdg");
 }
 
-TEST(mir_clipfield, hex)
-{
-  braid3d_clip_test_exec<axom::mir::views::HexShape<int>>("hexs", "hex");
-}
+TEST(mir_clipfield, hex) { braid3d_clip_test_exec<axom::mir::views::HexShape<int>>("hexs", "hex"); }
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -999,22 +983,19 @@ void braid3d_mixed_clip_test(const std::string &name)
   conduit::Node &n_offsets = n_device_topo.fetch_existing("elements/offsets");
   axom::ArrayView<ConnType> connView(static_cast<ConnType *>(n_conn.data_ptr()),
                                      n_conn.dtype().number_of_elements());
-  axom::ArrayView<ConnType> shapesView(
-    static_cast<ConnType *>(n_shapes.data_ptr()),
-    n_shapes.dtype().number_of_elements());
+  axom::ArrayView<ConnType> shapesView(static_cast<ConnType *>(n_shapes.data_ptr()),
+                                       n_shapes.dtype().number_of_elements());
   axom::ArrayView<ConnType> sizesView(static_cast<ConnType *>(n_sizes.data_ptr()),
                                       n_sizes.dtype().number_of_elements());
-  axom::ArrayView<ConnType> offsetsView(
-    static_cast<ConnType *>(n_offsets.data_ptr()),
-    n_offsets.dtype().number_of_elements());
+  axom::ArrayView<ConnType> offsetsView(static_cast<ConnType *>(n_offsets.data_ptr()),
+                                        n_offsets.dtype().number_of_elements());
 
   // Make the shape map.
   axom::Array<axom::IndexType> values, ids;
-  auto shapeMap = axom::mir::views::buildShapeMap(
-    n_device_topo,
-    values,
-    ids,
-    axom::execution_space<ExecSpace>::allocatorID());
+  auto shapeMap = axom::mir::views::buildShapeMap(n_device_topo,
+                                                  values,
+                                                  ids,
+                                                  axom::execution_space<ExecSpace>::allocatorID());
 
   TopoView topoView(connView, shapesView, sizesView, offsetsView, shapeMap);
 
@@ -1027,9 +1008,7 @@ void braid3d_mixed_clip_test(const std::string &name)
 
   // Clip the data
   conduit::Node deviceClipMesh;
-  axom::mir::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(
-    topoView,
-    coordsetView);
+  axom::mir::clipping::ClipField<ExecSpace, TopoView, CoordsetView> clipper(topoView, coordsetView);
   clipper.execute(deviceMesh, options, deviceClipMesh);
 
   // Copy device->host
@@ -1083,14 +1062,11 @@ struct point_merge_test
     hostMesh["topologies/mesh/elements/shape"] = "quad";
     hostMesh["topologies/mesh/elements/connectivity"].set(
       std::vector<int> {{0, 1, 4, 3, 1, 2, 5, 4, 3, 4, 7, 6, 4, 5, 8, 7}});
-    hostMesh["topologies/mesh/elements/sizes"].set(
-      std::vector<int> {{4, 4, 4, 4}});
-    hostMesh["topologies/mesh/elements/offsets"].set(
-      std::vector<int> {{0, 4, 8, 12}});
+    hostMesh["topologies/mesh/elements/sizes"].set(std::vector<int> {{4, 4, 4, 4}});
+    hostMesh["topologies/mesh/elements/offsets"].set(std::vector<int> {{0, 4, 8, 12}});
     hostMesh["fields/clip/topology"] = "mesh";
     hostMesh["fields/clip/association"] = "vertex";
-    hostMesh["fields/clip/values"].set(
-      std::vector<float> {{1., 1., 0.5, 1., 1., 0., 0.5, 0., 0.5}});
+    hostMesh["fields/clip/values"].set(std::vector<float> {{1., 1., 0.5, 1., 1., 0., 0.5, 0., 0.5}});
   }
 
   static void test()
@@ -1105,13 +1081,11 @@ struct point_merge_test
     // Set up views for the mesh.
     using CoordsetView = axom::mir::views::ExplicitCoordsetView<float, 2>;
     CoordsetView coordsetView(
-      bputils::make_array_view<float>(
-        deviceMesh.fetch_existing("coordsets/coords/values/x")),
-      bputils::make_array_view<float>(
-        deviceMesh.fetch_existing("coordsets/coords/values/y")));
+      bputils::make_array_view<float>(deviceMesh.fetch_existing("coordsets/coords/values/x")),
+      bputils::make_array_view<float>(deviceMesh.fetch_existing("coordsets/coords/values/y")));
 
-    using TopologyView = axom::mir::views::UnstructuredTopologySingleShapeView<
-      axom::mir::views::QuadShape<int>>;
+    using TopologyView =
+      axom::mir::views::UnstructuredTopologySingleShapeView<axom::mir::views::QuadShape<int>>;
     TopologyView topologyView(bputils::make_array_view<int>(
       deviceMesh.fetch_existing("topologies/mesh/elements/connectivity")));
 
@@ -1119,8 +1093,7 @@ struct point_merge_test
     conduit::Node options, deviceClipMesh;
     options["clipField"] = "clip";
     options["clipValue"] = 0.5;
-    using Clip =
-      axom::mir::clipping::ClipField<ExecSpace, TopologyView, CoordsetView>;
+    using Clip = axom::mir::clipping::ClipField<ExecSpace, TopologyView, CoordsetView>;
     Clip clip(topologyView, coordsetView);
     clip.execute(deviceMesh, options, deviceClipMesh);
 
@@ -1136,27 +1109,17 @@ struct point_merge_test
     EXPECT_EQ(y.size(), 7);
     for(size_t i = 0; i < x.size(); i++)
     {
-      EXPECT_FLOAT_EQ(
-        hostClipMesh["coordsets/coords/values/x"].as_float_accessor()[i],
-        x[i]);
-      EXPECT_FLOAT_EQ(
-        hostClipMesh["coordsets/coords/values/y"].as_float_accessor()[i],
-        y[i]);
+      EXPECT_FLOAT_EQ(hostClipMesh["coordsets/coords/values/x"].as_float_accessor()[i], x[i]);
+      EXPECT_FLOAT_EQ(hostClipMesh["coordsets/coords/values/y"].as_float_accessor()[i], y[i]);
     }
 
     // Check that the degenerate quads were turned into triangles.
     std::vector<int> shapes {{2, 2, 3, 2}};
     std::vector<int> sizes {{3, 3, 4, 3}};
     std::vector<int> offsets {{0, 4, 8, 12}};
-    compare_values(
-      shapes,
-      hostClipMesh["topologies/mesh/elements/shapes"].as_int_accessor());
-    compare_values(
-      sizes,
-      hostClipMesh["topologies/mesh/elements/sizes"].as_int_accessor());
-    compare_values(
-      offsets,
-      hostClipMesh["topologies/mesh/elements/offsets"].as_int_accessor());
+    compare_values(shapes, hostClipMesh["topologies/mesh/elements/shapes"].as_int_accessor());
+    compare_values(sizes, hostClipMesh["topologies/mesh/elements/sizes"].as_int_accessor());
+    compare_values(offsets, hostClipMesh["topologies/mesh/elements/offsets"].as_int_accessor());
   }
 };
 
@@ -1186,18 +1149,15 @@ struct test_selectedzones
     bputils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     // Wrap the data in views.
-    auto coordsetView =
-      axom::mir::views::make_rectilinear_coordset<conduit::float64, 2>::view(
-        deviceMesh["coordsets/coords"]);
+    auto coordsetView = axom::mir::views::make_rectilinear_coordset<conduit::float64, 2>::view(
+      deviceMesh["coordsets/coords"]);
     using CoordsetView = decltype(coordsetView);
 
-    auto topologyView = axom::mir::views::make_rectilinear<2>::view(
-      deviceMesh["topologies/mesh"]);
+    auto topologyView = axom::mir::views::make_rectilinear<2>::view(deviceMesh["topologies/mesh"]);
     using TopologyView = decltype(topologyView);
 
     conduit::Node hostOptions;
-    hostOptions["selectedZones"].set(
-      std::vector<axom::IndexType> {{1, 3, 4, 5, 7}});
+    hostOptions["selectedZones"].set(std::vector<axom::IndexType> {{1, 3, 4, 5, 7}});
     hostOptions["inside"] = 1;
     hostOptions["outside"] = 1;
     hostOptions["clipField"] = "zero";
@@ -1205,9 +1165,8 @@ struct test_selectedzones
     conduit::Node deviceOptions, deviceResult;
     bputils::copy<ExecSpace>(deviceOptions, hostOptions);
 
-    axom::mir::clipping::ClipField<ExecSpace, TopologyView, CoordsetView> clip(
-      topologyView,
-      coordsetView);
+    axom::mir::clipping::ClipField<ExecSpace, TopologyView, CoordsetView> clip(topologyView,
+                                                                               coordsetView);
     clip.execute(deviceMesh, deviceOptions, deviceResult);
 
     // device->host
@@ -1287,17 +1246,13 @@ TEST(mir_clipfield, selectedzones_seq) { test_selectedzones<seq_exec>::test(); }
 TEST(mir_clipfield, selectedzones_omp) { test_selectedzones<omp_exec>::test(); }
 #endif
 #if defined(AXOM_USE_CUDA)
-TEST(mir_clipfield, selectedzones_cuda)
-{
-  test_selectedzones<cuda_exec>::test();
-}
+TEST(mir_clipfield, selectedzones_cuda) { test_selectedzones<cuda_exec>::test(); }
 #endif
 #if defined(AXOM_USE_HIP)
 TEST(mir_clipfield, selectedzones_hip) { test_selectedzones<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
-#if defined(DEBUGGING_TEST_CASES)
 void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
 {
   std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
@@ -1305,7 +1260,6 @@ void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int
   while(1)
     ;
 }
-#endif
 
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
@@ -1313,12 +1267,8 @@ int main(int argc, char *argv[])
   int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
 
-  axom::slic::SimpleLogger logger;  // create & initialize test logger,
-#if defined(DEBUGGING_TEST_CASES)
-  conduit::utils::set_error_handler(conduit_debug_err_handler);
-#endif
-#if defined(AXOM_USE_CALIPER)
   axom::CLI::App app;
+#if defined(AXOM_USE_CALIPER)
   std::string annotationMode("none");
   app.add_option("--caliper", annotationMode)
     ->description(
@@ -1326,14 +1276,38 @@ int main(int argc, char *argv[])
       "Use 'help' to see full list.")
     ->capture_default_str()
     ->check(axom::utilities::ValidCaliperMode);
+#endif
+  bool handlerEnabled = false;
+  app.add_flag("--handler", handlerEnabled, "Enable Conduit handler.");
 
   // Parse command line options.
-  app.parse(argc, argv);
+  try
+  {
+    app.parse(argc, argv);
 
-  axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(
-    annotationMode);
+#if defined(AXOM_USE_CALIPER)
+    axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(annotationMode);
 #endif
 
-  result = RUN_ALL_TESTS();
+    axom::slic::SimpleLogger logger;  // create & initialize test logger,
+    if(handlerEnabled)
+    {
+      conduit::utils::set_error_handler(conduit_debug_err_handler);
+    }
+
+    result = RUN_ALL_TESTS();
+  }
+  catch(axom::CLI::CallForHelp &e)
+  {
+    std::cout << app.help() << std::endl;
+    result = 0;
+  }
+  catch(axom::CLI::ParseError &e)
+  {
+    // Handle other parsing errors
+    std::cerr << e.what() << std::endl;
+    result = app.exit(e);
+  }
+
   return result;
 }

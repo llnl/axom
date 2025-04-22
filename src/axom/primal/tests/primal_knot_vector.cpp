@@ -159,8 +159,7 @@ TEST(primal_knotvector, make_uniform)
   // Check for uniformity
   for(int i = degree; i < npts - 1; ++i)
   {
-    EXPECT_DOUBLE_EQ(kvector[i + 1] - kvector[i],
-                     kvector[i + 2] - kvector[i + 1]);
+    EXPECT_DOUBLE_EQ(kvector[i + 1] - kvector[i], kvector[i + 2] - kvector[i + 1]);
   }
 }
 

@@ -36,10 +36,7 @@ namespace sidre
  *
  *************************************************************************
  */
-Attribute::Attribute(const std::string& name)
-  : m_name(name)
-  , m_index(InvalidIndex)
-{ }
+Attribute::Attribute(const std::string& name) : m_name(name), m_index(InvalidIndex) { }
 
 /*
  *************************************************************************

@@ -19,8 +19,7 @@ TEST(utils_endianness, print_endianness)
 
   const bool isLittleEndian = axom::utilities::isLittleEndian();
 
-  std::cout << "System is " << (isLittleEndian ? "little" : "big") << " endian."
-            << std::endl;
+  std::cout << "System is " << (isLittleEndian ? "little" : "big") << " endian." << std::endl;
 }
 
 TEST(utils_endianness, basic)
@@ -31,10 +30,7 @@ TEST(utils_endianness, basic)
     const auto revrev = axom::utilities::byteswap(rev);
     EXPECT_EQ(val, revrev);
 
-    std::cout << axom::fmt::format("[{}], orig: '0x{:X}'; swapped '0x{:X}'\n",
-                                   type,
-                                   val,
-                                   rev);
+    std::cout << axom::fmt::format("[{}], orig: '0x{:X}'; swapped '0x{:X}'\n", type, val, rev);
   };
 
   {

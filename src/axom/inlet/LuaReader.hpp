@@ -55,31 +55,24 @@ public:
 
   ReaderResult getString(const std::string& id, std::string& value) override;
 
-  ReaderResult getIntMap(const std::string& id,
-                         std::unordered_map<int, int>& values) override;
-  ReaderResult getIntMap(const std::string& id,
-                         std::unordered_map<VariantKey, int>& values) override;
+  ReaderResult getIntMap(const std::string& id, std::unordered_map<int, int>& values) override;
+  ReaderResult getIntMap(const std::string& id, std::unordered_map<VariantKey, int>& values) override;
 
-  ReaderResult getDoubleMap(const std::string& id,
-                            std::unordered_map<int, double>& values) override;
+  ReaderResult getDoubleMap(const std::string& id, std::unordered_map<int, double>& values) override;
   ReaderResult getDoubleMap(const std::string& id,
                             std::unordered_map<VariantKey, double>& values) override;
 
-  ReaderResult getBoolMap(const std::string& id,
-                          std::unordered_map<int, bool>& values) override;
+  ReaderResult getBoolMap(const std::string& id, std::unordered_map<int, bool>& values) override;
   ReaderResult getBoolMap(const std::string& id,
                           std::unordered_map<VariantKey, bool>& values) override;
 
   ReaderResult getStringMap(const std::string& id,
                             std::unordered_map<int, std::string>& values) override;
-  ReaderResult getStringMap(
-    const std::string& id,
-    std::unordered_map<VariantKey, std::string>& values) override;
+  ReaderResult getStringMap(const std::string& id,
+                            std::unordered_map<VariantKey, std::string>& values) override;
 
-  ReaderResult getIndices(const std::string& id,
-                          std::vector<int>& indices) override;
-  ReaderResult getIndices(const std::string& id,
-                          std::vector<VariantKey>& indices) override;
+  ReaderResult getIndices(const std::string& id, std::vector<int>& indices) override;
+  ReaderResult getIndices(const std::string& id, std::vector<VariantKey>& indices) override;
 
   FunctionVariant getFunction(const std::string& id,
                               const FunctionTag ret_type,

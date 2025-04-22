@@ -59,8 +59,7 @@ public:
   /// Return true if there is an item at index \a idx
   bool hasItem(IndexType idx) const
   {
-    return isInHalfOpenRange(idx) &&
-      m_items[static_cast<unsigned>(idx)] != nullptr;
+    return isInHalfOpenRange(idx) && m_items[static_cast<unsigned>(idx)] != nullptr;
   }
 
   /// Return the \a item at index \idx or nullptr if that index is empty
@@ -76,10 +75,7 @@ public:
   }
 
   /// Insert \a item into the next available free index
-  IndexType insertItem(T* item)
-  {
-    return insertItem(item, getValidEmptyIndex());
-  }
+  IndexType insertItem(T* item) { return insertItem(item, getValidEmptyIndex()); }
 
   /*!
    * \brief Insert \a item into the next available free index
@@ -194,8 +190,7 @@ public:
 #ifdef AXOM_DEBUG
     if(!isInClosedRange(newIndex) || hasItem(newIndex))
     {
-      std::cerr << "Index " << newIndex
-                << " in IndexedCollection is not a valid empty index"
+      std::cerr << "Index " << newIndex << " in IndexedCollection is not a valid empty index"
                 << std::endl;
     }
     assert(isInClosedRange(newIndex) && !hasItem(newIndex));
@@ -245,8 +240,7 @@ template <typename T>
 IndexType IndexedCollection<T>::getFirstValidIndex() const
 {
   IndexType idx = 0;
-  while(static_cast<unsigned>(idx) < m_items.size() &&
-        m_items[static_cast<unsigned>(idx)] == nullptr)
+  while(static_cast<unsigned>(idx) < m_items.size() && m_items[static_cast<unsigned>(idx)] == nullptr)
   {
     ++idx;
   }
@@ -262,8 +256,7 @@ IndexType IndexedCollection<T>::getNextValidIndex(IndexType idx) const
   }
 
   idx++;
-  while(static_cast<unsigned>(idx) < m_items.size() &&
-        m_items[static_cast<unsigned>(idx)] == nullptr)
+  while(static_cast<unsigned>(idx) < m_items.size() && m_items[static_cast<unsigned>(idx)] == nullptr)
   {
     idx++;
   }

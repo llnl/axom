@@ -40,8 +40,7 @@ int main(int argc, char** argv)
 
   // setup log stream for ALL messages, including FATAL, ERROR and WARNING
   std::string console_format = std::string("[<LEVEL>]: <MESSAGE>\n");
-  slic::LogStream* console =
-    new slic::GenericOutputStream(&std::cerr, console_format);
+  slic::LogStream* console = new slic::GenericOutputStream(&std::cerr, console_format);
 
   //----------------------------------------------------------------------------
   // STEP 2: add streams to logger

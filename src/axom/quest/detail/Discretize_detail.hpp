@@ -85,8 +85,7 @@ AXOM_HOST_DEVICE
 Point3D rescale_YZ(const Point3D &p, double new_dst)
 {
   const double cur_dst =
-    axom::utilities::clampLower(sqrt(p[1] * p[1] + p[2] * p[2]),
-                                axom::primal::PRIMAL_TINY);
+    axom::utilities::clampLower(sqrt(p[1] * p[1] + p[2] * p[2]), axom::primal::PRIMAL_TINY);
 
   Point3D retval;
   retval[0] = p[0];
@@ -148,11 +147,7 @@ inline OctType new_inscribed_prism(OctType &old_oct,
  * quadrilateral side-wall.
  */
 template <typename ExecSpace>
-int discrSeg(const Point2D &a,
-             const Point2D &b,
-             int levels,
-             axom::ArrayView<OctType> &out,
-             int idx)
+int discrSeg(const Point2D &a, const Point2D &b, int levels, axom::ArrayView<OctType> &out, int idx)
 {
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
@@ -304,11 +299,8 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
 
   for(int seg = 0; seg < segmentcount; ++seg)
   {
-    int segment_prism_count = discrSeg<ExecSpace>(polyline[seg],
-                                                  polyline[seg + 1],
-                                                  levels,
-                                                  out_view,
-                                                  octcount);
+    int segment_prism_count =
+      discrSeg<ExecSpace>(polyline[seg], polyline[seg + 1], levels, out_view, octcount);
     octcount += segment_prism_count;
   }
 

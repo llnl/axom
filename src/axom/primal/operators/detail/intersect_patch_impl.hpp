@@ -143,8 +143,8 @@ bool intersect_line_patch(const Line<T, 3> &line,
       const T v0 = vc[i];
 
       // Use EPS to record points near the boundary of the bilinear approximation
-      if(u0 >= -EPS / u_scale && u0 <= 1.0 + EPS / u_scale &&
-         v0 >= -EPS / v_scale && v0 <= 1.0 + EPS / v_scale)
+      if(u0 >= -EPS / u_scale && u0 <= 1.0 + EPS / u_scale && v0 >= -EPS / v_scale &&
+         v0 <= 1.0 + EPS / v_scale)
       {
         if(t0 >= -EPS || !isRay)
         {
@@ -160,8 +160,7 @@ bool intersect_line_patch(const Line<T, 3> &line,
     constexpr double splitVal = 0.5;
     constexpr double scaleFac = 0.5;
 
-    BPatch p1(order_u, order_v), p2(order_u, order_v), p3(order_u, order_v),
-      p4(order_u, order_v);
+    BPatch p1(order_u, order_v), p2(order_u, order_v), p3(order_u, order_v), p4(order_u, order_v);
 
     patch.split(splitVal, splitVal, p1, p2, p3, p4);
     u_scale *= scaleFac;

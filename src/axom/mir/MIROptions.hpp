@@ -29,10 +29,7 @@ public:
    * \brief Get the name of the matset on which we'll operate.
    * \return The name of the matset.
    */
-  std::string matset() const
-  {
-    return options().fetch_existing("matset").as_string();
-  }
+  std::string matset() const { return options().fetch_existing("matset").as_string(); }
 
   /**
    * \brief Return the name of the matset to make in the output.
@@ -42,8 +39,7 @@ public:
   std::string matsetName(const std::string &default_value = std::string()) const
   {
     std::string name(default_value.empty() ? matset() : default_value);
-    if(options().has_child("matsetName"))
-      name = options().fetch_existing("matsetName").as_string();
+    if(options().has_child("matsetName")) name = options().fetch_existing("matsetName").as_string();
     return name;
   }
 
