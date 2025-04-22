@@ -6,6 +6,8 @@
 // Axom includes
 #include "axom/quest/MeshTester.hpp"
 
+#include "axom/fmt.hpp"
+
 namespace axom
 {
 namespace quest
@@ -29,7 +31,7 @@ inline detail::SpatialBoundingBox compute_bounds(detail::UMesh* mesh)
     pt[2] = z[i];
 
     meshBB.addPoint(pt);
-  }  // END for all nodes
+  }
 
   if(numNodes > 0)
   {
@@ -46,22 +48,22 @@ inline bool areTriangleIndicesDistinct(axom::IndexType* indices)
   return indices[0] != indices[1] && indices[1] != indices[2] && indices[2] != indices[0];
 }
 
-/* Find and report self-intersections and degenerate triangles
- * in a triangle surface mesh using a Uniform Grid. */
+/// Find and report self-intersections and degenerate triangles in a triangle surface mesh using a Uniform Grid.
 void findTriMeshIntersections(detail::UMesh* surface_mesh,
                               std::vector<std::pair<int, int>>& intersections,
                               std::vector<int>& degenerateIndices,
                               int spatialIndexResolution,
                               double intersectionThreshold)
 {
+  AXOM_ANNOTATE_SCOPE("quest::findTriMeshIntersections");
+
   detail::Triangle3 t1 {};
   detail::Triangle3 t2 {};
   SLIC_INFO("Running mesh_tester with UniformGrid index");
 
   const int ncells = surface_mesh->getNumberOfCells();
 
-  // find the specified resolution.  If we're passed a number less than one,
-  // use the cube root of the number of triangles.
+  // find the specified resolution.  If we're passed a number less than one, use the cube root of the number of triangles.
   if(spatialIndexResolution < 1)
   {
     spatialIndexResolution = (int)(1 + std::pow(ncells, 1 / 3.));
@@ -93,9 +95,9 @@ void findTriMeshIntersections(detail::UMesh* surface_mesh,
   detail::UniformGrid3 ugrid(resolutions, triBboxes, triIdxs);
 
   // Iterate through triangle indices *idx.
-  // Check against each other triangle with index greater than the index *idx
-  // that also shares a UniformGrid bin.
-  SLIC_INFO("Checking mesh with a total of " << ncells << " cells.");
+  // Check against each other triangle with index greater than the index *idx that also shares a UniformGrid bin.
+  SLIC_INFO(
+    axom::fmt::format(axom::utilities::locale(), "Checking mesh with a total of {:L} cells", ncells));
 
   std::vector<int>::iterator idx = nondegenerateIndices.begin(), ndgend = nondegenerateIndices.end();
   for(; idx != ndgend; ++idx)
@@ -104,8 +106,7 @@ void findTriMeshIntersections(detail::UMesh* surface_mesh,
     t1 = detail::getMeshTriangle(*idx, surface_mesh);
     detail::SpatialBoundingBox triBB2 = compute_bounding_box(t1);
 
-    // Get a list of all triangles in bins this triangle will touch,
-    // whose indices are greater than this triangle's index
+    // Get a list of all triangles in bins this triangle will touch, whose indices are greater than this triangle's index
     std::vector<int> neighborTriangles;
     const std::vector<int> binsToCheck = ugrid.getBinsForBbox(triBB2);
     size_t checkcount = binsToCheck.size();
@@ -138,9 +139,11 @@ void findTriMeshIntersections(detail::UMesh* surface_mesh,
   }
 }
 
-/* Check a surface mesh for holes using its face relation. */
+/// Check a surface mesh for holes using its face relation.
 WatertightStatus isSurfaceMeshWatertight(detail::UMesh* surface_mesh)
 {
+  AXOM_ANNOTATE_SCOPE("quest::isSurfaceMeshWatertight");
+
   // Make sure the mesh is reasonable
   SLIC_ASSERT_MSG(surface_mesh != nullptr,
                   "surface_mesh must be a valid pointer to a triangle mesh");
@@ -179,7 +182,7 @@ WatertightStatus isSurfaceMeshWatertight(detail::UMesh* surface_mesh)
     {
       bndry_face[iface] = INTERNAL;
     }
-  }  // END for all faces
+  }
 
   if(retval == WatertightStatus::WATERTIGHT)
   {
@@ -206,15 +209,16 @@ WatertightStatus isSurfaceMeshWatertight(detail::UMesh* surface_mesh)
     {
       boundary[icell] = INTERNAL;
     }
-
-  }  // END for all cells
+  }
 
   return retval;
 }
 
-/* Weld vertices of a triangle mesh that are closer than \a eps  */
+/// Weld vertices of a triangle mesh that are closer than \a eps
 void weldTriMeshVertices(detail::UMesh** surface_mesh, double eps)
 {
+  AXOM_ANNOTATE_SCOPE("quest::weldTriMeshVertices");
+
   // Note: Use 64-bit index to accomodate small values of epsilon
   using IdxType = std::int64_t;
   using Lattice3 = spin::RectangularLattice<3, double, IdxType>;
@@ -258,16 +262,13 @@ void weldTriMeshVertices(detail::UMesh** surface_mesh, double eps)
   detail::SpatialBoundingBox meshBB = compute_bounds(oldMesh).expand(eps);
 
   // Run the algorithm twice -- on the original grid and a translated grid
-  std::vector<double> offsets;
-  offsets.push_back(0);
-  offsets.push_back(eps / 2.);
-  for(std::vector<double>::const_iterator it = offsets.begin(); it != offsets.end(); ++it)
+  for(const auto& offset : {detail::Point3(0.), detail::Point3(eps / 2.)})
   {
     // We will build up a new triangle mesh with the welded indices
     detail::UMesh* newMesh = new detail::UMesh(DIM, mint::TRIANGLE);
 
     // Set up the lattice for quantizing points to an integer lattice
-    detail::Point3 origin(meshBB.getMin().array() - detail::Point3(*it).array());
+    detail::Point3 origin(meshBB.getMin().array() - offset.array());
     Lattice3 lattice(origin, Lattice3::SpaceVector(detail::Point3(eps)));
 
     // First, find unique indices for the welded vertices
