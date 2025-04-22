@@ -2363,25 +2363,20 @@ public:
 
   /*!
    * \brief Split the untrimmed NURBS patch in two along the u direction
-   *
-   * \pre The patch must be untrimmed
    */
-  void split_u(T u,
-               NURBSPatch& p1,
-               NURBSPatch& p2,
-               bool normalizeParameters = false) const
+  void split_u(T u, NURBSPatch& p1, NURBSPatch& p2, bool normalizeParameters = false) const
   {
     SLIC_ASSERT(m_knotvec_u.isValidInteriorParameter(u));
 
     // Split the untrimmed geometry
     uncheckedSplit_u(u, p1, p2);
 
-    // Split the trimming curves
-    constexpr bool splitByU = true;
-    splitTrimmingCurves(u,
-                        splitByU,
-                        p1.getTrimmingCurves(),
-                        p2.getTrimmingCurves());
+    // Split the trimming curves if necessary
+    if(isTrimmed())
+    {
+      constexpr bool splitByU = true;
+      splitTrimmingCurves(u, splitByU, p1.getTrimmingCurves(), p2.getTrimmingCurves());
+    }
 
     if(normalizeParameters)
     {
@@ -2392,25 +2387,20 @@ public:
 
   /*!
    * \brief Split the untrimmed NURBS patch in two along the v direction
-   *
-   * \pre The patch must be untrimmed
    */
-  void split_v(T v,
-               NURBSPatch& p1,
-               NURBSPatch& p2,
-               bool normalizeParameters = false) const
+  void split_v(T v, NURBSPatch& p1, NURBSPatch& p2, bool normalizeParameters = false) const
   {
     SLIC_ASSERT(m_knotvec_v.isValidInteriorParameter(v));
 
     // Split the untrimmed geometry
     uncheckedSplit_v(v, p1, p2);
 
-    // Split the trimming curves
-    constexpr bool splitByU = false;
-    splitTrimmingCurves(v,
-                        splitByU,
-                        p1.getTrimmingCurves(),
-                        p2.getTrimmingCurves());
+    // Split the trimming curves if necessary
+    if(isTrimmed())
+    {
+      constexpr bool splitByU = false;
+      splitTrimmingCurves(v, splitByU, p1.getTrimmingCurves(), p2.getTrimmingCurves());
+    }
 
     if(normalizeParameters)
     {
@@ -2429,12 +2419,7 @@ public:
    * \param [out] the_rest The NURBS surface outside the disk
    * \param [in] clipDisk If true, the returned disk is clipped to the disk boundary
    */
-  void diskSplit(T u,
-                 T v,
-                 T r,
-                 NURBSPatch& the_disk,
-                 NURBSPatch& the_rest,
-                 bool clipDisk = true) const
+  void diskSplit(T u, T v, T r, NURBSPatch& the_disk, NURBSPatch& the_rest, bool clipDisk = true) const
   {
     ParameterPointType uv_param({u, v});
 
@@ -2494,8 +2479,7 @@ public:
               continue;
             }
 
-            curve_params.push_back(
-              knot_vals[i] + temp_curve_p[j] * (knot_vals[i + 1] - knot_vals[i]));
+            curve_params.push_back(knot_vals[i] + temp_curve_p[j] * (knot_vals[i + 1] - knot_vals[i]));
             circle_params.push_back(temp_circle_p[j]);
           }
         }
@@ -2573,9 +2557,8 @@ public:
     std::sort(circle_params.begin(), circle_params.end());
 
     // Determine if the first circle arc is kept by the original surface
-    ParameterPointType mid_arc_point {
-      u + r * std::cos(0.5 * (circle_params[0] + circle_params[1])),
-      v + r * std::sin(0.5 * (circle_params[0] + circle_params[1]))};
+    ParameterPointType mid_arc_point {u + r * std::cos(0.5 * (circle_params[0] + circle_params[1])),
+                                      v + r * std::sin(0.5 * (circle_params[0] + circle_params[1]))};
 
     // If the midpoint of the first arc is visible, keep the first arc
     int start_idx = isVisible(mid_arc_point[0], mid_arc_point[1]) ? 0 : 1;
@@ -2596,10 +2579,7 @@ public:
       // Handle periodicity by adding 2pi to the smaller parameter
       circle_params[0] += 2.0 * M_PI;
 
-      c1.constructCircularArc(circle_params[circle_params.size() - 1],
-                              circle_params[0],
-                              uv_param,
-                              r);
+      c1.constructCircularArc(circle_params[circle_params.size() - 1], circle_params[0], uv_param, r);
 
       circle_trimming_curves.push_back(c1);
     }
@@ -2614,9 +2594,7 @@ public:
 
     for(const auto& curve : split_trimming_curves)
     {
-      if(squared_distance(
-           curve.evaluate(0.5 * (curve.getMinKnot() + curve.getMaxKnot())),
-           uv_param) -
+      if(squared_distance(curve.evaluate(0.5 * (curve.getMinKnot() + curve.getMaxKnot())), uv_param) -
            r * r >
          0)
       {
@@ -2976,10 +2954,8 @@ public:
                     "Expanding patch parameter space is numerically unstable "
                     "for large values of scaleFactor.");
 
-    double expansionAmount_u =
-      (getMaxKnot_u() - getMinKnot_u()) * (scaleFactor - 1.0);
-    double expansionAmount_v =
-      (getMaxKnot_v() - getMinKnot_v()) * (scaleFactor - 1.0);
+    double expansionAmount_u = (getMaxKnot_u() - getMinKnot_u()) * (scaleFactor - 1.0);
+    double expansionAmount_v = (getMaxKnot_v() - getMinKnot_v()) * (scaleFactor - 1.0);
 
     auto n = getNumControlPoints_u();
     auto m = getNumControlPoints_v();
@@ -3044,34 +3020,30 @@ public:
       if(!isRational())
       {
         Vector<T, 3> v(m_controlPoints(i, 1), m_controlPoints(i, 0));
-        double alpha =
-          deg_v * expansionAmount_v / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
+        double alpha = deg_v * expansionAmount_v / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
 
         for(int j = 0; j < deg_v; ++j)
         {
-          newControlPoints(i + deg_u, j).array() = m_controlPoints(i, 0).array() +
-            static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array();
+          newControlPoints(i + deg_u, j).array() =
+            m_controlPoints(i, 0).array() + static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array();
         }
 
         v = Vector<T, 3>(m_controlPoints(i, m - 2), m_controlPoints(i, m - 1));
-        alpha = deg_v * expansionAmount_v /
-          (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
+        alpha =
+          deg_v * expansionAmount_v / (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
 
         for(int j = 0; j < deg_v; ++j)
         {
           newControlPoints(i + deg_u, m + deg_v + j).array() =
-            m_controlPoints(i, m - 1).array() +
-            static_cast<T>(j + 1) / (deg_v)*alpha * v.array();
+            m_controlPoints(i, m - 1).array() + static_cast<T>(j + 1) / (deg_v)*alpha * v.array();
         }
       }
       else
       {
-        Vector<T, 3> v(
-          Point<T, 3>(m_controlPoints(i, 1).array() * m_weights(i, 1)),
-          Point<T, 3>(m_controlPoints(i, 0).array() * m_weights(i, 0)));
+        Vector<T, 3> v(Point<T, 3>(m_controlPoints(i, 1).array() * m_weights(i, 1)),
+                       Point<T, 3>(m_controlPoints(i, 0).array() * m_weights(i, 0)));
         double d_weight = m_weights(i, 0) - m_weights(i, 1);
-        double alpha =
-          deg_v * expansionAmount_v / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
+        double alpha = deg_v * expansionAmount_v / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
 
         // New weights can't be less than min_weight
         if(d_weight != 0 && (m_weights(i, 0) - alpha * d_weight < min_weight))
@@ -3081,8 +3053,8 @@ public:
 
         for(int j = 0; j < deg_v; ++j)
         {
-          newWeights(i + deg_u, j) = m_weights(i, 0) +
-            static_cast<T>(j - deg_v) / (deg_v)*alpha * d_weight;
+          newWeights(i + deg_u, j) =
+            m_weights(i, 0) + static_cast<T>(j - deg_v) / (deg_v)*alpha * d_weight;
 
           newControlPoints(i + deg_u, j).array() =
             (m_controlPoints(i, 0).array() * m_weights(i, 0) +
@@ -3092,12 +3064,11 @@ public:
           //   newWeights(i + deg_u, j) = m_weights(i, 0);
         }
 
-        v = Vector<T, 3>(
-          Point<T, 3>(m_controlPoints(i, m - 2).array() * m_weights(i, m - 2)),
-          Point<T, 3>(m_controlPoints(i, m - 1).array() * m_weights(i, m - 1)));
+        v = Vector<T, 3>(Point<T, 3>(m_controlPoints(i, m - 2).array() * m_weights(i, m - 2)),
+                         Point<T, 3>(m_controlPoints(i, m - 1).array() * m_weights(i, m - 1)));
         d_weight = m_weights(i, m - 1) - m_weights(i, m - 2);
-        alpha = deg_v * expansionAmount_v /
-          (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
+        alpha =
+          deg_v * expansionAmount_v / (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
 
         // New weights can't be less than min_weight
         if(d_weight != 0 && (m_weights(i, m - 1) + alpha * d_weight < min_weight))
@@ -3107,8 +3078,8 @@ public:
 
         for(int j = 0; j < deg_v; ++j)
         {
-          newWeights(i + deg_u, m + deg_v + j) = m_weights(i, m - 1) +
-            static_cast<T>(j + 1) / (deg_v)*alpha * d_weight;
+          newWeights(i + deg_u, m + deg_v + j) =
+            m_weights(i, m - 1) + static_cast<T>(j + 1) / (deg_v)*alpha * d_weight;
 
           newControlPoints(i + deg_u, m + deg_v + j).array() =
             (m_controlPoints(i, m - 1).array() * m_weights(i, m - 1) +
@@ -3127,36 +3098,29 @@ public:
     {
       if(!isRational())
       {
-        Vector<T, 3> v(newControlPoints(deg_u + 1, j),
-                       newControlPoints(deg_u, j));
-        double alpha =
-          deg_u * expansionAmount_v / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
+        Vector<T, 3> v(newControlPoints(deg_u + 1, j), newControlPoints(deg_u, j));
+        double alpha = deg_u * expansionAmount_v / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
         for(int i = 0; i < deg_u; ++i)
         {
           newControlPoints(i, j).array() = newControlPoints(deg_u, j).array() +
             static_cast<T>(i - deg_u) / (deg_u)*alpha * v.array();
         }
 
-        v = Vector<T, 3>(newControlPoints(n - 2 + deg_u, j),
-                         newControlPoints(n + deg_u - 1, j));
-        alpha = deg_u * expansionAmount_v /
-          (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
+        v = Vector<T, 3>(newControlPoints(n - 2 + deg_u, j), newControlPoints(n + deg_u - 1, j));
+        alpha =
+          deg_u * expansionAmount_v / (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
         for(int i = 0; i < deg_u; ++i)
         {
-          newControlPoints(n + deg_u + i, j).array() =
-            newControlPoints(n + deg_u - 1, j).array() +
+          newControlPoints(n + deg_u + i, j).array() = newControlPoints(n + deg_u - 1, j).array() +
             static_cast<T>(i + 1) / (deg_u)*alpha * v.array();
         }
       }
       else
       {
-        Vector<T, 3> v(
-          Point<T, 3>(newControlPoints(deg_u + 1, j).array() *
-                      newWeights(deg_u + 1, j)),
-          Point<T, 3>(newControlPoints(deg_u, j).array() * newWeights(deg_u, j)));
+        Vector<T, 3> v(Point<T, 3>(newControlPoints(deg_u + 1, j).array() * newWeights(deg_u + 1, j)),
+                       Point<T, 3>(newControlPoints(deg_u, j).array() * newWeights(deg_u, j)));
         double d_weight = newWeights(deg_u, j) - newWeights(deg_u + 1, j);
-        double alpha =
-          deg_u * expansionAmount_v / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
+        double alpha = deg_u * expansionAmount_v / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
 
         // New weights can't be less than min_weight
         if(d_weight != 0 && (newWeights(deg_u, j) - alpha * d_weight < min_weight))
@@ -3166,8 +3130,8 @@ public:
 
         for(int i = 0; i < deg_u; ++i)
         {
-          newWeights(i, j) = newWeights(deg_u, j) +
-            static_cast<T>(i - deg_u) / (deg_u)*alpha * d_weight;
+          newWeights(i, j) =
+            newWeights(deg_u, j) + static_cast<T>(i - deg_u) / (deg_u)*alpha * d_weight;
 
           newControlPoints(i, j).array() =
             (newControlPoints(deg_u, j).array() * newWeights(deg_u, j) +
@@ -3177,29 +3141,26 @@ public:
           //   newWeights(i, j) = newWeights(deg_u, j);
         }
 
-        v = Vector<T, 3>(Point<T, 3>(newControlPoints(n - 2 + deg_u, j).array() *
-                                     newWeights(n - 2 + deg_u, j)),
-                         Point<T, 3>(newControlPoints(n + deg_u - 1, j).array() *
-                                     newWeights(n + deg_u - 1, j)));
+        v = Vector<T, 3>(
+          Point<T, 3>(newControlPoints(n - 2 + deg_u, j).array() * newWeights(n - 2 + deg_u, j)),
+          Point<T, 3>(newControlPoints(n + deg_u - 1, j).array() * newWeights(n + deg_u - 1, j)));
         d_weight = newWeights(n + deg_u - 1, j) - newWeights(n - 2 + deg_u, j);
-        alpha = deg_u * expansionAmount_v /
-          (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
+        alpha =
+          deg_u * expansionAmount_v / (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
 
         // New weights can't be less than min_weight
-        if(d_weight != 0 &&
-           (newWeights(n + deg_u - 1, j) + alpha * d_weight < min_weight))
+        if(d_weight != 0 && (newWeights(n + deg_u - 1, j) + alpha * d_weight < min_weight))
         {
           alpha = (min_weight - newWeights(n + deg_u - 1, j)) / d_weight;
         }
 
         for(int i = 0; i < deg_u; ++i)
         {
-          newWeights(n + deg_u + i, j) = newWeights(n + deg_u - 1, j) +
-            static_cast<T>(i + 1) / (deg_u)*d_weight * alpha;
+          newWeights(n + deg_u + i, j) =
+            newWeights(n + deg_u - 1, j) + static_cast<T>(i + 1) / (deg_u)*d_weight * alpha;
 
           newControlPoints(n + deg_u + i, j).array() =
-            (newControlPoints(n + deg_u - 1, j).array() *
-               newWeights(n + deg_u - 1, j) +
+            (newControlPoints(n + deg_u - 1, j).array() * newWeights(n + deg_u - 1, j) +
              static_cast<T>(i + 1) / (deg_u)*alpha * v.array()) /
             newWeights(n + deg_u + i, j);
 
@@ -3464,14 +3425,10 @@ private:
     SLIC_ASSERT(min_v < max_v);
     NURBSPatch dummy_patch;
 
-    if(min_u > getMinKnot_u())
-      this->uncheckedSplit_u(min_u, dummy_patch, *this);
-    if(min_v > getMinKnot_v())
-      this->uncheckedSplit_v(min_v, dummy_patch, *this);
-    if(max_u < getMaxKnot_u())
-      this->uncheckedSplit_u(max_u, *this, dummy_patch);
-    if(max_v < getMaxKnot_v())
-      this->uncheckedSplit_v(max_v, *this, dummy_patch);
+    if(min_u > getMinKnot_u()) this->uncheckedSplit_u(min_u, dummy_patch, *this);
+    if(min_v > getMinKnot_v()) this->uncheckedSplit_v(min_v, dummy_patch, *this);
+    if(max_u < getMaxKnot_u()) this->uncheckedSplit_u(max_u, *this, dummy_patch);
+    if(max_v < getMaxKnot_v()) this->uncheckedSplit_v(max_v, *this, dummy_patch);
   }
 
   /// \brief Private function to split patch geometry at a given u parameter
@@ -3596,8 +3553,7 @@ private:
     {
       for(int j = 0; j < k - q + 1; ++j)
       {
-        p1.m_controlPoints.flatIndex(j + i * (k - q + 1)) =
-          p1.m_controlPoints(i, j);
+        p1.m_controlPoints.flatIndex(j + i * (k - q + 1)) = p1.m_controlPoints(i, j);
         if(isRationalPatch)
         {
           p1.m_weights.flatIndex(j + i * (k - q + 1)) = p1.m_weights(i, j);
@@ -3628,12 +3584,10 @@ private:
     outCurvesSecond.clear();
 
     // Store a ray that is used as the splitting line
-    primal::Ray<T, 2> ray_obj(Point<T, 2> {getMinKnot_u() - 1.0, uv},
-                              Vector<T, 2> {1.0, 0.0});
+    primal::Ray<T, 2> ray_obj(Point<T, 2> {getMinKnot_u() - 1.0, uv}, Vector<T, 2> {1.0, 0.0});
     if(splitByU)
     {
-      ray_obj = primal::Ray<T, 2>(Point<T, 2> {uv, getMinKnot_v() - 1.0},
-                                  Vector<T, 2> {0.0, 1.0});
+      ray_obj = primal::Ray<T, 2>(Point<T, 2> {uv, getMinKnot_v() - 1.0}, Vector<T, 2> {0.0, 1.0});
     }
     TrimmingCurveVec split_trimming_curves;
 
@@ -3677,8 +3631,7 @@ private:
               continue;
             }
 
-            curve_params.push_back(
-              knot_vals[i] + temp_curve_p[j] * (knot_vals[i + 1] - knot_vals[i]));
+            curve_params.push_back(knot_vals[i] + temp_curve_p[j] * (knot_vals[i + 1] - knot_vals[i]));
             ray_params.push_back(temp_ray_p[j]);
           }
         }
@@ -3726,8 +3679,7 @@ private:
       std::sort(ray_params.begin(), ray_params.end());
 
       // Determine if the first ray segment is kept by the original surface
-      ParameterPointType mid_ray_point(
-        ray_obj.at(0.5 * (ray_params[0] + ray_params[1])));
+      ParameterPointType mid_ray_point(ray_obj.at(0.5 * (ray_params[0] + ray_params[1])));
 
       // If the midpoint of the first arc is visible, keep the first arc
       int start_idx = isVisible(mid_ray_point[0], mid_ray_point[1]) ? 0 : 1;
@@ -3735,8 +3687,7 @@ private:
       TrimmingCurveType c1;
       for(int i = start_idx; i < ray_params.size() - 1; i += 2)
       {
-        c1.constructLinearSegment(ray_obj.at(ray_params[i]),
-                                  ray_obj.at(ray_params[i + 1]));
+        c1.constructLinearSegment(ray_obj.at(ray_params[i]), ray_obj.at(ray_params[i + 1]));
 
         splitByU ? outCurvesFirst.push_back(c1) : outCurvesSecond.push_back(c1);
 
@@ -3749,8 +3700,7 @@ private:
     // For the rest of the trimming curves, add them to the right or left depending on the side of the ray
     for(auto& curve : split_trimming_curves)
     {
-      auto eval_pt =
-        curve.evaluate(0.5 * (curve.getMinKnot() + curve.getMaxKnot()));
+      auto eval_pt = curve.evaluate(0.5 * (curve.getMinKnot() + curve.getMaxKnot()));
       if(eval_pt[splitByU ? 0 : 1] < uv)
       {
         outCurvesFirst.push_back(curve);

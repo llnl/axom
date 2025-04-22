@@ -1043,10 +1043,9 @@ bool intersect(const Ray<T, 3>& ray,
 
     // Also remove any intersections that are trimmed out
     if(!countUntrimmed && !patch.isVisible(uc[i], vc[i]))
-      if(!countUntrimmed && !patch.isVisible(uc[i], vc[i]))
-      {
-        continue;
-      }
+    {
+      continue;
+    }
 
     Point<T, 2> uv({uc[i], vc[i]});
 
