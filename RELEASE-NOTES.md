@@ -19,6 +19,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ###  Added
+
+###  Changed
+- Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
+  since the last `reset()`.
 - Adds support for allocations using `malloc` and `free` even when Axom is configured with Umpire support.
 - Adds a new utility tool, `mesh_converter`, which converts between mesh formats. The first conversion
   is from a Pro-E tetrahedral mesh to an STL mesh of its boundary triangles.
