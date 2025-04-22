@@ -67,11 +67,9 @@ AXOM_CUDA_TEST(raja_smoke, basic_use)
   raja_basic_usage_test<RAJA::omp_parallel_for_exec>();
 #endif
 
-#if defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
-  defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
   const int prev_allocator = axom::getDefaultAllocatorID();
-  const int UnifiedAllocatorID =
-    axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
+  const int UnifiedAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
   axom::setDefaultAllocator(UnifiedAllocatorID);
 
   std::cout << "Testing RAJA CUDA execution" << std::endl;
@@ -81,11 +79,9 @@ AXOM_CUDA_TEST(raja_smoke, basic_use)
   axom::setDefaultAllocator(prev_allocator);
 #endif
 
-#if defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
-  defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
   const int prev_allocator = axom::getDefaultAllocatorID();
-  const int UnifiedAllocatorID =
-    axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
+  const int UnifiedAllocatorID = axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
   axom::setDefaultAllocator(UnifiedAllocatorID);
 
   std::cout << "Testing RAJA HIP execution" << std::endl;

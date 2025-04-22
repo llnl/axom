@@ -50,8 +50,7 @@ class Sphere
 public:
   using PointType = primal::Point<T, NDIMS>;
 
-  static_assert((NDIMS == 2 || NDIMS == 3),
-                "A Sphere object may be defined in 2-D or 3-D");
+  static_assert((NDIMS == 2 || NDIMS == 3), "A Sphere object may be defined in 2-D or 3-D");
 
 private:
   using VectorType = primal::Vector<T, NDIMS>;
@@ -66,10 +65,7 @@ public:
    * \note If a radius is not supplied, the default radius is 1.0.
    */
   AXOM_HOST_DEVICE
-  explicit Sphere(T radius = 1.0)
-    : m_center(PointType::zero())
-    , m_radius(radius)
-  { }
+  explicit Sphere(T radius = 1.0) : m_center(PointType::zero()), m_radius(radius) { }
 
   /*!
    * \brief Constructs a Sphere with the given center and radius.
@@ -80,10 +76,7 @@ public:
    * \note If a radius is not supplied, the default radius is 1.0.
    */
   AXOM_HOST_DEVICE
-  explicit Sphere(const PointType& center, T radius = 1.0)
-    : m_center(center)
-    , m_radius(radius)
-  { }
+  explicit Sphere(const PointType& center, T radius = 1.0) : m_center(center), m_radius(radius) { }
 
   /*!
    * \brief Constructs a Sphere with the given center and radius.
@@ -162,8 +155,7 @@ public:
       return primal::ON_BOUNDARY;
     }
 
-    return (signed_distance < T {0}) ? primal::ON_NEGATIVE_SIDE
-                                     : primal::ON_POSITIVE_SIDE;
+    return (signed_distance < T {0}) ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
   }
 
   /*!
@@ -176,8 +168,7 @@ public:
    * \return status true if the sphere intersects, false otherwise.
    */
   AXOM_HOST_DEVICE
-  inline bool intersectsWith(const Sphere<T, NDIMS>& sphere,
-                             double TOL = 1.e-9) const;
+  inline bool intersectsWith(const Sphere<T, NDIMS>& sphere, double TOL = 1.e-9) const;
 
   /*!
    * \brief Prints the Sphere information in the given output stream.
@@ -204,8 +195,7 @@ namespace primal
 {
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE Sphere<T, NDIMS>::Sphere(const T* center, T radius)
-  : m_radius(radius)
+AXOM_HOST_DEVICE Sphere<T, NDIMS>::Sphere(const T* center, T radius) : m_radius(radius)
 {
   SLIC_ASSERT(center != nullptr);
   for(int i = 0; i < NDIMS; ++i)
@@ -224,12 +214,10 @@ std::ostream& Sphere<T, NDIMS>::print(std::ostream& os) const
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::intersectsWith(
-  const Sphere<T, NDIMS>& sphere,
-  double TOL) const
+AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::intersectsWith(const Sphere<T, NDIMS>& sphere,
+                                                              double TOL) const
 {
-  const T distance_squared =
-    VectorType(sphere.getCenter(), m_center).squared_norm();
+  const T distance_squared = VectorType(sphere.getCenter(), m_center).squared_norm();
   const T sum_of_radii = m_radius + sphere.getRadius();
   const T sum_of_radii_2 = sum_of_radii * sum_of_radii;
 

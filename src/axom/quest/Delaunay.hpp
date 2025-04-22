@@ -35,16 +35,13 @@ template <int DIM = 2>
 class Delaunay
 {
 public:
-  AXOM_STATIC_ASSERT_MSG(DIM == 2 || DIM == 3,
-                         "The template parameter DIM can only be 2 or 3. ");
+  AXOM_STATIC_ASSERT_MSG(DIM == 2 || DIM == 3, "The template parameter DIM can only be 2 or 3. ");
 
   using DataType = double;
 
   using PointType = primal::Point<DataType, DIM>;
   using ElementType =
-    typename std::conditional<DIM == 2,
-                              primal::Triangle<DataType, 2>,
-                              primal::Tetrahedron<DataType, 3>>::type;
+    typename std::conditional<DIM == 2, primal::Triangle<DataType, 2>, primal::Tetrahedron<DataType, 3>>::type;
   using BaryCoordType = primal::Point<DataType, DIM + 1>;
   using BoundingBox = primal::BoundingBox<DataType, DIM>;
 
@@ -76,10 +73,7 @@ public:
    * \brief Default constructor
    * \note User must call initializeBoundary(BoundingBox) before adding points.
    */
-  Delaunay()
-    : m_has_boundary(false)
-    , m_num_removed_elements_since_last_compact(0)
-  { }
+  Delaunay() : m_has_boundary(false), m_num_removed_elements_since_last_compact(0) { }
 
   /**
    * \brief Defines the boundary of the triangulation.
@@ -111,9 +105,7 @@ public:
   void insertPoint(const PointType& new_pt)
   {
     //Make sure initializeBoundary(...) is called first
-    SLIC_ASSERT_MSG(
-      m_has_boundary,
-      "Error: Need a predefined boundary box prior to adding points.");
+    SLIC_ASSERT_MSG(m_has_boundary, "Error: Need a predefined boundary box prior to adding points.");
 
     //Make sure the new point is inside the boundary box
     SLIC_ASSERT_MSG(m_bounding_box.contains(new_pt),
@@ -140,8 +132,7 @@ public:
     insertionHelper.delaunayBall(new_pt_i);
 
     m_element_finder.updateBin(new_pt, new_pt_i);
-    m_num_removed_elements_since_last_compact +=
-      insertionHelper.numRemovedElements();
+    m_num_removed_elements_since_last_compact += insertionHelper.numRemovedElements();
 
     // Compact the mesh if there are too many removed elements
     if(shouldCompactMesh())
@@ -151,8 +142,7 @@ public:
   }
 
   template <int TDIM = DIM>
-  typename std::enable_if<TDIM == 2, ElementType>::type getElement(
-    int element_index) const
+  typename std::enable_if<TDIM == 2, ElementType>::type getElement(int element_index) const
   {
     const auto verts = m_mesh.boundaryVertices(element_index);
     const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
@@ -163,8 +153,7 @@ public:
   }
 
   template <int TDIM = DIM>
-  typename std::enable_if<TDIM == 3, ElementType>::type getElement(
-    int element_index) const
+  typename std::enable_if<TDIM == 3, ElementType>::type getElement(int element_index) const
   {
     const auto verts = m_mesh.boundaryVertices(element_index);
     const PointType& p0 = m_mesh.getVertexPosition(verts[0]);
@@ -226,9 +215,7 @@ public:
       for(int v = 0; v < num_boundary_pts; ++v)
       {
         IndexArray elems = m_mesh.vertexStar(v);
-        elements_to_remove.insert(elements_to_remove.end(),
-                                  elems.begin(),
-                                  elems.end());
+        elements_to_remove.insert(elements_to_remove.end(), elems.begin(), elems.end());
       }
       for(auto e : elements_to_remove)
       {
@@ -274,8 +261,7 @@ public:
 
     const IndexType totalVertices = m_mesh.vertices().size();
     const IndexType totalElements = m_mesh.elements().size();
-    const IndexType res =
-      axom::utilities::ceil(0.33 * std::pow(totalVertices, 1. / DIM));
+    const IndexType res = axom::utilities::ceil(0.33 * std::pow(totalVertices, 1. / DIM));
     UniformGridType grid(m_bounding_box, NumericArray<int, DIM>(res).data());
 
     // An array to cache the circumspheres associated with each element
@@ -292,8 +278,7 @@ public:
       {
         if(m_mesh.isValidElement(element_idx))
         {
-          circumspheres[element_idx] =
-            this->getElement(element_idx).circumsphere();
+          circumspheres[element_idx] = this->getElement(element_idx).circumsphere();
           const auto& sphere = circumspheres[element_idx];
           const auto& center = sphere.getCenter().array();
           const auto offset = NumericArrayType(sphere.getRadius());
@@ -346,8 +331,7 @@ public:
         }
 
         // check insphere condition
-        if(circumspheres[element_idx].getOrientation(vertex) ==
-           primal::ON_NEGATIVE_SIDE)
+        if(circumspheres[element_idx].getOrientation(vertex) == primal::ON_NEGATIVE_SIDE)
         {
           valid = false;
 
@@ -399,22 +383,19 @@ public:
   }
 
   /// \brief Find the index of the element that contains the query point, or the element closest to the point.
-  IndexType findContainingElement(const PointType& query_pt,
-                                  bool warnOnInvalid = true) const
+  IndexType findContainingElement(const PointType& query_pt, bool warnOnInvalid = true) const
   {
     if(m_mesh.isEmpty())
     {
-      SLIC_ERROR_IF(
-        warnOnInvalid,
-        "Attempting to insert point into empty Delaunay triangulation."
-        "Delaunay::initializeBoundary() needs to be called first");
+      SLIC_ERROR_IF(warnOnInvalid,
+                    "Attempting to insert point into empty Delaunay triangulation."
+                    "Delaunay::initializeBoundary() needs to be called first");
       return INVALID_INDEX;
     }
     if(!m_bounding_box.contains(query_pt))
     {
-      SLIC_WARNING_IF(
-        warnOnInvalid,
-        "Attempting to locate element at location outside valid domain");
+      SLIC_WARNING_IF(warnOnInvalid,
+                      "Attempting to locate element at location outside valid domain");
       return INVALID_INDEX;
     }
 
@@ -456,12 +437,10 @@ public:
       // Logically, this should never happen.
       if(!m_mesh.isValidElement(element_i))
       {
-        SLIC_WARNING_IF(
-          warnOnInvalid,
-          fmt::format(
-            "Entered invalid element in "
-            "Delaunay::findContainingElement(). Underlying mesh {} valid",
-            m_mesh.isValid() ? "is" : "is not"));
+        SLIC_WARNING_IF(warnOnInvalid,
+                        fmt::format("Entered invalid element in "
+                                    "Delaunay::findContainingElement(). Underlying mesh {} valid",
+                                    m_mesh.isValid() ? "is" : "is not"));
         return INVALID_INDEX;
       }
     }
@@ -521,15 +500,12 @@ private:
       // e.g. for 1,000,000 verts in 2D, sqrt root is 1000, leading to ~ 60^2 grid w/ ~250 verts per bin
       // e.g. for 1,000,000 verts in 3D, cube root is 100, leading to a 20^3 grid w/ ~125 verts per bin
       const double res_root = std::pow(verts.size(), 1.0 / DIM);
-      const IndexType res =
-        axom::utilities::max(2, 2 * static_cast<int>(std::sqrt(res_root)));
+      const IndexType res = axom::utilities::max(2, 2 * static_cast<int>(std::sqrt(res_root)));
 
       auto expandedBB = BoundingBox(bb).scale(1.05);
 
       // regenerate lattice
-      m_lattice =
-        spin::rectangular_lattice_from_bounding_box(expandedBB,
-                                                    NumericArrayType(res));
+      m_lattice = spin::rectangular_lattice_from_bounding_box(expandedBB, NumericArrayType(res));
 
       // resize m_bins
       resizeArray<DIM>(res);
@@ -573,15 +549,13 @@ private:
     /// Returns a reference to the index in the array for the ND point with grid index \a cell
     inline IndexType& flatIndex(const typename LatticeType::GridCell& cell)
     {
-      const IndexType idx =
-        numerics::dot_product(cell.data(), m_bins.strides().begin(), DIM);
+      const IndexType idx = numerics::dot_product(cell.data(), m_bins.strides().begin(), DIM);
       return m_bins.flatIndex(idx);
     }
 
     inline const IndexType& flatIndex(const typename LatticeType::GridCell& cell) const
     {
-      const IndexType idx =
-        numerics::dot_product(cell.data(), m_bins.strides().begin(), DIM);
+      const IndexType idx = numerics::dot_product(cell.data(), m_bins.strides().begin(), DIM);
       return m_bins.flatIndex(idx);
     }
 
@@ -701,8 +675,7 @@ private:
         }
       }
 
-      SLIC_ASSERT_MSG(!cavity_elems.empty(),
-                      "Error: New point is not contained in the mesh");
+      SLIC_ASSERT_MSG(!cavity_elems.empty(), "Error: New point is not contained in the mesh");
       SLIC_ASSERT(!facet_set.empty());
     }
 
@@ -768,8 +741,7 @@ private:
     static constexpr int VERTS_PER_FACET = IAMeshType::VERTS_PER_ELEM - 1;
     using FacetBoundaryRelation =
       typename IAMeshType::template IADynamicConstantRelation<VERTS_PER_FACET>;
-    using FacetCoboundaryRelation =
-      typename IAMeshType::template IADynamicConstantRelation<1>;
+    using FacetCoboundaryRelation = typename IAMeshType::template IADynamicConstantRelation<1>;
 
   public:
     IAMeshType& m_mesh;
@@ -851,9 +823,8 @@ inline void Delaunay<3>::generateInitialMesh(std::vector<DataType>& points,
 
 // 2D specialization for getBaryCoords(...)
 template <>
-inline Delaunay<2>::BaryCoordType Delaunay<2>::getBaryCoords(
-  IndexType element_idx,
-  const PointType& query_pt) const
+inline Delaunay<2>::BaryCoordType Delaunay<2>::getBaryCoords(IndexType element_idx,
+                                                             const PointType& query_pt) const
 {
   const auto verts = m_mesh.boundaryVertices(element_idx);
   const ElementType tri(m_mesh.getVertexPosition(verts[0]),
@@ -865,9 +836,8 @@ inline Delaunay<2>::BaryCoordType Delaunay<2>::getBaryCoords(
 
 // 3D specialization for getBaryCoords(...)
 template <>
-inline Delaunay<3>::BaryCoordType Delaunay<3>::getBaryCoords(
-  IndexType element_idx,
-  const PointType& query_pt) const
+inline Delaunay<3>::BaryCoordType Delaunay<3>::getBaryCoords(IndexType element_idx,
+                                                             const PointType& query_pt) const
 {
   const auto verts = m_mesh.boundaryVertices(element_idx);
   const ElementType tet(m_mesh.getVertexPosition(verts[0]),

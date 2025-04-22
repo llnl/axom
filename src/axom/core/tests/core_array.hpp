@@ -26,8 +26,7 @@ axom::IndexType calc_new_capacity(axom::Array<T>& v, axom::IndexType increase)
   if(new_num_elements > v.capacity())
   {
     axom::IndexType capacity_expanded = v.capacity() * v.getResizeRatio() + 0.5;
-    return axom::utilities::max<axom::IndexType>(capacity_expanded,
-                                                 new_num_elements);
+    return axom::utilities::max<axom::IndexType>(capacity_expanded, new_num_elements);
   }
 
   return v.capacity();
@@ -1147,63 +1146,37 @@ TEST(core_array, checkAlloc)
       // First use the dynamic option
       for(int id : memory_locations)
       {
-        axom::Array<int, 1, axom::MemorySpace::Dynamic> v_int(capacity,
-                                                              capacity,
-                                                              id);
+        axom::Array<int, 1, axom::MemorySpace::Dynamic> v_int(capacity, capacity, id);
         ::check_alloc(v_int, id);
 
-        axom::Array<double, 1, axom::MemorySpace::Dynamic> v_double(capacity,
-                                                                    capacity,
-                                                                    id);
+        axom::Array<double, 1, axom::MemorySpace::Dynamic> v_double(capacity, capacity, id);
         ::check_alloc(v_double, id);
       }
 // Then, if Umpire is available, we can use the space as an explicit template parameter
 #ifdef AXOM_USE_UMPIRE
   #ifdef UMPIRE_ENABLE_DEVICE
-      axom::Array<int, 1, axom::MemorySpace::Device> v_int_device(capacity,
-                                                                  capacity);
-      ::check_alloc(v_int_device,
-                    axom::getUmpireResourceAllocatorID(umpire::resource::Device));
-      axom::Array<double, 1, axom::MemorySpace::Device> v_double_device(capacity,
-                                                                        capacity);
-      ::check_alloc(v_double_device,
-                    axom::getUmpireResourceAllocatorID(umpire::resource::Device));
+      axom::Array<int, 1, axom::MemorySpace::Device> v_int_device(capacity, capacity);
+      ::check_alloc(v_int_device, axom::getUmpireResourceAllocatorID(umpire::resource::Device));
+      axom::Array<double, 1, axom::MemorySpace::Device> v_double_device(capacity, capacity);
+      ::check_alloc(v_double_device, axom::getUmpireResourceAllocatorID(umpire::resource::Device));
   #endif
   #ifdef UMPIRE_ENABLE_UM
-      axom::Array<int, 1, axom::MemorySpace::Unified> v_int_unified(capacity,
-                                                                    capacity);
-      ::check_alloc(
-        v_int_unified,
-        axom::getUmpireResourceAllocatorID(umpire::resource::Unified));
-      axom::Array<double, 1, axom::MemorySpace::Unified> v_double_unified(
-        capacity,
-        capacity);
-      ::check_alloc(
-        v_double_unified,
-        axom::getUmpireResourceAllocatorID(umpire::resource::Unified));
+      axom::Array<int, 1, axom::MemorySpace::Unified> v_int_unified(capacity, capacity);
+      ::check_alloc(v_int_unified, axom::getUmpireResourceAllocatorID(umpire::resource::Unified));
+      axom::Array<double, 1, axom::MemorySpace::Unified> v_double_unified(capacity, capacity);
+      ::check_alloc(v_double_unified, axom::getUmpireResourceAllocatorID(umpire::resource::Unified));
   #endif
   #ifdef UMPIRE_ENABLE_CONST
-      axom::Array<int, 1, axom::MemorySpace::Constant> v_int_const(capacity,
-                                                                   capacity);
-      ::check_alloc(
-        v_int_const,
-        axom::getUmpireResourceAllocatorID(umpire::resource::Constant));
-      axom::Array<double, 1, axom::MemorySpace::Constant> v_double_const(
-        capacity,
-        capacity);
-      ::check_alloc(
-        v_double_const,
-        axom::getUmpireResourceAllocatorID(umpire::resource::Constant));
+      axom::Array<int, 1, axom::MemorySpace::Constant> v_int_const(capacity, capacity);
+      ::check_alloc(v_int_const, axom::getUmpireResourceAllocatorID(umpire::resource::Constant));
+      axom::Array<double, 1, axom::MemorySpace::Constant> v_double_const(capacity, capacity);
+      ::check_alloc(v_double_const, axom::getUmpireResourceAllocatorID(umpire::resource::Constant));
   #endif
   #ifdef UMPIRE_ENABLE_PINNED
-      axom::Array<int, 1, axom::MemorySpace::Pinned> v_int_pinned(capacity,
-                                                                  capacity);
-      ::check_alloc(v_int_pinned,
-                    axom::getUmpireResourceAllocatorID(umpire::resource::Pinned));
-      axom::Array<double, 1, axom::MemorySpace::Pinned> v_double_pinned(capacity,
-                                                                        capacity);
-      ::check_alloc(v_double_pinned,
-                    axom::getUmpireResourceAllocatorID(umpire::resource::Pinned));
+      axom::Array<int, 1, axom::MemorySpace::Pinned> v_int_pinned(capacity, capacity);
+      ::check_alloc(v_int_pinned, axom::getUmpireResourceAllocatorID(umpire::resource::Pinned));
+      axom::Array<double, 1, axom::MemorySpace::Pinned> v_double_pinned(capacity, capacity);
+      ::check_alloc(v_double_pinned, axom::getUmpireResourceAllocatorID(umpire::resource::Pinned));
   #endif
 #endif
     }
@@ -1696,8 +1669,7 @@ TEST(core_array, check_multidimensional_view_subspan)
   EXPECT_EQ(double_view.strides()[2], K_STRIDE);
 
   // Construct a subspan view starting at (1, 1, 1) and spanning 2 x 3 x 4 elements.
-  axom::ArrayView<double, 3> double_view_real =
-    double_view.subspan({1, 1, 1}, {2, 3, 4});
+  axom::ArrayView<double, 3> double_view_real = double_view.subspan({1, 1, 1}, {2, 3, 4});
 
   EXPECT_EQ(double_view_real.size(), 2 * 3 * 4);
   EXPECT_EQ(double_view_real.shape()[0], 2);
@@ -1752,9 +1724,7 @@ TEST(core_array, check_multidimensional_view_subspan_colmaj)
     }
   }
 
-  axom::ArrayView<double, 3> double_view(v_double_arr,
-                                         {4, 5, 6},
-                                         {I_STRIDE, J_STRIDE, K_STRIDE});
+  axom::ArrayView<double, 3> double_view(v_double_arr, {4, 5, 6}, {I_STRIDE, J_STRIDE, K_STRIDE});
 
   EXPECT_EQ(double_view.size(), 4 * 5 * 6);
   EXPECT_EQ(double_view.minStride(), 1);
@@ -1763,8 +1733,7 @@ TEST(core_array, check_multidimensional_view_subspan_colmaj)
   EXPECT_EQ(double_view.strides()[2], K_STRIDE);
 
   // Construct a subspan view starting at (1, 1, 1) and spanning 2 x 3 x 4 elements
-  axom::ArrayView<double, 3> double_view_real =
-    double_view.subspan({1, 1, 1}, {2, 3, 4});
+  axom::ArrayView<double, 3> double_view_real = double_view.subspan({1, 1, 1}, {2, 3, 4});
 
   EXPECT_EQ(double_view_real.size(), 2 * 3 * 4);
   EXPECT_EQ(double_view_real.shape()[0], 2);
@@ -1819,9 +1788,7 @@ TEST(core_array, check_multidimensional_view_subspan_stride)
     }
   }
 
-  axom::ArrayView<double, 3> double_view(v_double_arr,
-                                         {4, 5, 6},
-                                         {I_STRIDE, J_STRIDE, K_STRIDE});
+  axom::ArrayView<double, 3> double_view(v_double_arr, {4, 5, 6}, {I_STRIDE, J_STRIDE, K_STRIDE});
 
   EXPECT_EQ(double_view.size(), 4 * 5 * 6);
   EXPECT_EQ(double_view.minStride(), 1);
@@ -1830,8 +1797,7 @@ TEST(core_array, check_multidimensional_view_subspan_stride)
   EXPECT_EQ(double_view.strides()[2], K_STRIDE);
 
   // Construct a subspan view starting at (1, 1, 1) and spanning 2 x 3 x 4 elements.
-  axom::ArrayView<double, 3> double_view_real =
-    double_view.subspan({1, 1, 1}, {2, 3, 4});
+  axom::ArrayView<double, 3> double_view_real = double_view.subspan({1, 1, 1}, {2, 3, 4});
 
   EXPECT_EQ(double_view_real.size(), 2 * 3 * 4);
   EXPECT_EQ(double_view_real.shape()[0], 2);
@@ -1918,8 +1884,8 @@ TEST(core_array, check_multidimensional_view_spacing)
 //------------------------------------------------------------------------------
 TEST(core_array, checkDevice)
 {
-#if !defined(AXOM_USE_GPU) || !defined(AXOM_GPUCC) || \
-  !defined(AXOM_USE_UMPIRE) || !defined(UMPIRE_ENABLE_DEVICE)
+#if !defined(AXOM_USE_GPU) || !defined(AXOM_GPUCC) || !defined(AXOM_USE_UMPIRE) || \
+  !defined(UMPIRE_ENABLE_DEVICE)
   GTEST_SKIP() << "CUDA or HIP is not available, skipping tests that use Array "
                   "in device code";
 #else
@@ -1941,12 +1907,10 @@ TEST(core_array, checkDevice)
     ::check_device(v_double_dynamic);
 
     // Then allocate an explicitly Device array
-    axom::Array<int, 1, axom::MemorySpace::Device> v_int_device(capacity,
-                                                                capacity);
+    axom::Array<int, 1, axom::MemorySpace::Device> v_int_device(capacity, capacity);
     ::check_device(v_int_device);
 
-    axom::Array<double, 1, axom::MemorySpace::Device> v_double_device(capacity,
-                                                                      capacity);
+    axom::Array<double, 1, axom::MemorySpace::Device> v_double_device(capacity, capacity);
     ::check_device(v_double_device);
   }
 #endif
@@ -1955,20 +1919,18 @@ TEST(core_array, checkDevice)
 //------------------------------------------------------------------------------
 TEST(core_array, checkDevice2D)
 {
-#if !defined(AXOM_USE_GPU) || !defined(AXOM_GPUCC) || \
-  !defined(AXOM_USE_UMPIRE) || !defined(UMPIRE_ENABLE_DEVICE)
+#if !defined(AXOM_USE_GPU) || !defined(AXOM_GPUCC) || !defined(AXOM_USE_UMPIRE) || \
+  !defined(UMPIRE_ENABLE_DEVICE)
   GTEST_SKIP() << "CUDA or HIP is not available, skipping tests that use Array "
                   "in device code";
 #else
   for(axom::IndexType capacity = 2; capacity < 512; capacity *= 2)
   {
     // Allocate an explicitly Device array
-    axom::Array<int, 2, axom::MemorySpace::Device> v_int_device(capacity,
-                                                                capacity);
+    axom::Array<int, 2, axom::MemorySpace::Device> v_int_device(capacity, capacity);
     ::check_device_2D(v_int_device);
 
-    axom::Array<double, 2, axom::MemorySpace::Device> v_double_device(capacity,
-                                                                      capacity);
+    axom::Array<double, 2, axom::MemorySpace::Device> v_double_device(capacity, capacity);
     ::check_device_2D(v_double_device);
   }
 #endif
@@ -1978,10 +1940,7 @@ struct HasDefault
 {
   int member = 255;
 
-  bool operator==(const HasDefault& other) const
-  {
-    return (member == other.member);
-  }
+  bool operator==(const HasDefault& other) const { return (member == other.member); }
 
   friend std::ostream& operator<<(std::ostream& os, const HasDefault& hd)
   {
@@ -2025,8 +1984,8 @@ TEST(core_array, checkDefaultInitialization)
 //------------------------------------------------------------------------------
 TEST(core_array, checkDefaultInitializationDevice)
 {
-#if !defined(AXOM_USE_GPU) || !defined(AXOM_GPUCC) || \
-  !defined(AXOM_USE_UMPIRE) || !defined(UMPIRE_ENABLE_DEVICE)
+#if !defined(AXOM_USE_GPU) || !defined(AXOM_GPUCC) || !defined(AXOM_USE_UMPIRE) || \
+  !defined(UMPIRE_ENABLE_DEVICE)
   GTEST_SKIP() << "CUDA or HIP is not available, skipping tests that use Array "
                   "in device code";
 #else
@@ -2045,12 +2004,10 @@ TEST(core_array, checkDefaultInitializationDevice)
     }
 
     // Allocate an explicitly Device array of a default-constructible type
-    axom::Array<HasDefault, 1, axom::MemorySpace::Device> v_has_default_device(
-      capacity);
+    axom::Array<HasDefault, 1, axom::MemorySpace::Device> v_has_default_device(capacity);
 
     // Then copy it to the host
-    axom::Array<HasDefault, 1, axom::MemorySpace::Host> v_has_default_host(
-      v_has_default_device);
+    axom::Array<HasDefault, 1, axom::MemorySpace::Host> v_has_default_host(v_has_default_device);
 
     for(const auto& ele : v_has_default_host)
     {
@@ -2072,10 +2029,7 @@ struct FailsOnConstruction
 
   FailsOnConstruction() { EXPECT_TRUE(false); }
 
-  bool operator==(const FailsOnConstruction& other) const
-  {
-    return member == other.member;
-  }
+  bool operator==(const FailsOnConstruction& other) const { return member == other.member; }
 };
 
 TEST(core_array, checkUninitialized)
@@ -2084,8 +2038,7 @@ TEST(core_array, checkUninitialized)
   {
     // Test uninitialized functionality with 1D Array using FailsOnConstruction type
     {
-      axom::Array<FailsOnConstruction> arr(axom::ArrayOptions::Uninitialized {},
-                                           capacity);
+      axom::Array<FailsOnConstruction> arr(axom::ArrayOptions::Uninitialized {}, capacity);
 
       EXPECT_LE(capacity, arr.capacity());
       EXPECT_EQ(capacity, arr.size());
@@ -2119,10 +2072,7 @@ TEST(core_array, checkUninitialized)
 
     // Tests uninitialized with 2D Array
     {
-      axom::Array<FailsOnConstruction, 2> arr(
-        axom::ArrayOptions::Uninitialized {},
-        capacity,
-        capacity);
+      axom::Array<FailsOnConstruction, 2> arr(axom::ArrayOptions::Uninitialized {}, capacity, capacity);
 
       EXPECT_LE(capacity * capacity, arr.capacity());
       EXPECT_EQ(capacity * capacity, arr.size());
@@ -2291,10 +2241,7 @@ TEST(core_array, resize_stackarray)
 constexpr static int NONTRIVIAL_RELOC_MAGIC = 123;
 struct NonTriviallyRelocatable
 {
-  NonTriviallyRelocatable()
-    : m_member(NONTRIVIAL_RELOC_MAGIC)
-    , m_localMemberPointer(&m_member)
-  { }
+  NonTriviallyRelocatable() : m_member(NONTRIVIAL_RELOC_MAGIC), m_localMemberPointer(&m_member) { }
 
   NonTriviallyRelocatable(const NonTriviallyRelocatable& other)
     : m_member(other.m_member)
@@ -2367,9 +2314,7 @@ TEST(core_array, reserve_nontrivial_reloc_2)
 TEST(core_array, reserve_nontrivial_reloc_um)
 {
   const int NUM_ELEMS = 1024;
-  axom::Array<NonTriviallyRelocatable, 1, axom::MemorySpace::Unified> array(
-    NUM_ELEMS,
-    NUM_ELEMS);
+  axom::Array<NonTriviallyRelocatable, 1, axom::MemorySpace::Unified> array(NUM_ELEMS, NUM_ELEMS);
 
   for(int i = 0; i < NUM_ELEMS; i++)
   {

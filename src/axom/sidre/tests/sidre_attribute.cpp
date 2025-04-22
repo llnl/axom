@@ -185,8 +185,7 @@ TEST(sidre_attribute, view_attr)
   Attribute* attr_color = ds->createAttributeString(g_name_color, g_color_none);
   EXPECT_TRUE(attr_color != nullptr);
 
-  Attribute* attr_animal =
-    ds->createAttributeString(g_name_animal, g_animal_none);
+  Attribute* attr_animal = ds->createAttributeString(g_name_animal, g_animal_none);
   EXPECT_TRUE(attr_animal != nullptr);
 
   Group* root = ds->getRoot();
@@ -759,10 +758,9 @@ TEST(sidre_attribute, iterate_attributes)
     switch(attr.getIndex())
     {
     default:
-      FAIL() << axom::fmt::format(
-        "Expected no attributes, but found: {{id:{}, name:'{}'}}",
-        attr.getIndex(),
-        attr.getName());
+      FAIL() << axom::fmt::format("Expected no attributes, but found: {{id:{}, name:'{}'}}",
+                                  attr.getIndex(),
+                                  attr.getName());
       break;
     }
   }
@@ -871,8 +869,7 @@ TEST(sidre_attribute, save_attributes)
     EXPECT_TRUE(view2a->hasAttributeValue(g_name_color));
     EXPECT_TRUE(view2a->hasAttributeValue(g_name_dump));
     EXPECT_TRUE(view2a->hasAttributeValue(g_name_size));
-    EXPECT_TRUE(strcmp("color-empty", view2a->getAttributeString(attr_color)) ==
-                0);
+    EXPECT_TRUE(strcmp("color-empty", view2a->getAttributeString(attr_color)) == 0);
     EXPECT_EQ(g_dump_yes, view2a->getAttributeScalar<int>(attr_dump));
     EXPECT_EQ(g_size_small, view2a->getAttributeScalar<double>(attr_size));
 
@@ -880,8 +877,7 @@ TEST(sidre_attribute, save_attributes)
     EXPECT_TRUE(view2b->hasAttributeValue(g_name_color));
     EXPECT_FALSE(view2b->hasAttributeValue(g_name_dump));
     EXPECT_TRUE(view2b->hasAttributeValue(g_name_size));
-    EXPECT_TRUE(strcmp("color-buffer", view2b->getAttributeString(attr_color)) ==
-                0);
+    EXPECT_TRUE(strcmp("color-buffer", view2b->getAttributeString(attr_color)) == 0);
     EXPECT_EQ(g_size_medium, view2b->getAttributeScalar<double>(attr_size));
 
     View* view2c = root2->getView("external");
@@ -894,15 +890,13 @@ TEST(sidre_attribute, save_attributes)
     EXPECT_TRUE(view2d->hasAttributeValue(g_name_color));
     EXPECT_FALSE(view2d->hasAttributeValue(g_name_dump));
     EXPECT_FALSE(view2d->hasAttributeValue(g_name_size));
-    EXPECT_TRUE(strcmp("color-scalar", view2d->getAttributeString(attr_color)) ==
-                0);
+    EXPECT_TRUE(strcmp("color-scalar", view2d->getAttributeString(attr_color)) == 0);
 
     View* view2e = root2->getView("string");
     EXPECT_TRUE(view2e->hasAttributeValue(g_name_color));
     EXPECT_FALSE(view2e->hasAttributeValue(g_name_dump));
     EXPECT_FALSE(view2e->hasAttributeValue(g_name_size));
-    EXPECT_TRUE(strcmp("color-string", view2e->getAttributeString(attr_color)) ==
-                0);
+    EXPECT_TRUE(strcmp("color-string", view2e->getAttributeString(attr_color)) == 0);
 
     View* view2f = root2->getView("empty-no-attributes");
     EXPECT_FALSE(view2f->hasAttributeValue(g_name_color));
@@ -937,8 +931,7 @@ TEST(sidre_attribute, save_by_attribute)
   root1->createViewScalar("grp1a/grp1b/view3", 3);
 
   root1->createViewScalar("grp2a/view4", 4);  // make sure empty "views" not saved
-  root1->createViewScalar("grp2a/grp2b/view5", 5)
-    ->setAttributeScalar(dump, g_dump_yes);
+  root1->createViewScalar("grp2a/grp2b/view5", 5)->setAttributeScalar(dump, g_dump_yes);
 
   root1->createView("view6", INT_ID, 5, idata)->setAttributeScalar(dump, g_dump_yes);
 
@@ -1000,13 +993,11 @@ TEST(sidre_attribute, save_load_group_with_attributes_new_ds)
     axom::sidre::DataStore ds1, ds2;
 
     const std::string ext = endsWith(protocol, "hdf5") ? "hdf5" : "json";
-    const std::string filename =
-      axom::fmt::format("saveFile_{}.{}", protocol, ext);
+    const std::string filename = axom::fmt::format("saveFile_{}.{}", protocol, ext);
 
-    SLIC_INFO(axom::fmt::format(
-      "Checking attribute save/load w/ protocol '{}' using file '{}'",
-      protocol,
-      filename));
+    SLIC_INFO(axom::fmt::format("Checking attribute save/load w/ protocol '{}' using file '{}'",
+                                protocol,
+                                filename));
 
     // set up first datastore and save to disk
     {
@@ -1017,10 +1008,8 @@ TEST(sidre_attribute, save_load_group_with_attributes_new_ds)
       // create groups/views and attach attributes
       auto* gr = ds1.getRoot()->createGroup("gr");
       gr->createViewScalar("scalar1", 1);
-      gr->createViewScalar("scalar2", 2)
-        ->setAttributeString(g_name_color, g_color_red);
-      gr->createViewScalar("scalar3", 3)
-        ->setAttributeString(g_name_color, g_color_blue);
+      gr->createViewScalar("scalar2", 2)->setAttributeString(g_name_color, g_color_red);
+      gr->createViewScalar("scalar3", 3)->setAttributeString(g_name_color, g_color_blue);
 
       EXPECT_EQ(2, ds1.getNumAttributes());
       EXPECT_TRUE(INT32_ID == ds1.getAttribute("attr")->getTypeID() ||
@@ -1030,18 +1019,15 @@ TEST(sidre_attribute, save_load_group_with_attributes_new_ds)
       EXPECT_FALSE(gr->getView("scalar1")->hasAttributeValue(g_name_color));
 
       EXPECT_TRUE(gr->getView("scalar2")->hasAttributeValue(g_name_color));
-      EXPECT_EQ(g_color_red,
-                gr->getView("scalar2")->getAttributeString(g_name_color));
+      EXPECT_EQ(g_color_red, gr->getView("scalar2")->getAttributeString(g_name_color));
 
       EXPECT_TRUE(gr->getView("scalar3")->hasAttributeValue(g_name_color));
-      EXPECT_EQ(g_color_blue,
-                gr->getView("scalar3")->getAttributeString(g_name_color));
+      EXPECT_EQ(g_color_blue, gr->getView("scalar3")->getAttributeString(g_name_color));
 
       gr->save(filename, protocol);
     }
 
-    if(g_protocol_saves_attributes.find(protocol) ==
-       g_protocol_saves_attributes.end())
+    if(g_protocol_saves_attributes.find(protocol) == g_protocol_saves_attributes.end())
     {
       SLIC_INFO(
         axom::fmt::format("Skipping attribute load tests for protocol '{}' -- "
@@ -1066,18 +1052,15 @@ TEST(sidre_attribute, save_load_group_with_attributes_new_ds)
 
       EXPECT_TRUE(gr->hasView("scalar2"));
       EXPECT_TRUE(gr->getView("scalar2")->hasAttributeValue(g_name_color));
-      EXPECT_EQ(g_color_red,
-                gr->getView("scalar2")->getAttributeString(g_name_color));
+      EXPECT_EQ(g_color_red, gr->getView("scalar2")->getAttributeString(g_name_color));
 
       EXPECT_TRUE(gr->hasView("scalar3"));
       EXPECT_TRUE(gr->getView("scalar3")->hasAttributeValue(g_name_color));
-      EXPECT_EQ(g_color_blue,
-                gr->getView("scalar3")->getAttributeString(g_name_color));
+      EXPECT_EQ(g_color_blue, gr->getView("scalar3")->getAttributeString(g_name_color));
     }
 
     EXPECT_EQ(ds1.getNumAttributes(), ds2.getNumAttributes());
-    EXPECT_EQ(ds1.getAttribute(g_name_color)->getName(),
-              ds2.getAttribute(g_name_color)->getName());
+    EXPECT_EQ(ds1.getAttribute(g_name_color)->getName(), ds2.getAttribute(g_name_color)->getName());
     EXPECT_EQ(ds1.getAttribute(g_name_color)->getTypeID(),
               ds2.getAttribute(g_name_color)->getTypeID());
     EXPECT_EQ(ds1.getAttribute(g_name_color)->getDefaultNodeRef().to_string(),
@@ -1094,13 +1077,11 @@ TEST(sidre_attribute, save_load_group_with_attributes_same_ds)
     axom::sidre::DataStore ds;
 
     const std::string ext = endsWith(protocol, "hdf5") ? "hdf5" : "json";
-    const std::string filename =
-      axom::fmt::format("saveFile_{}.{}", protocol, ext);
+    const std::string filename = axom::fmt::format("saveFile_{}.{}", protocol, ext);
 
-    SLIC_INFO(axom::fmt::format(
-      "Checking attribute save/load w/ protocol '{}' using file '{}'",
-      protocol,
-      filename));
+    SLIC_INFO(axom::fmt::format("Checking attribute save/load w/ protocol '{}' using file '{}'",
+                                protocol,
+                                filename));
 
     // create the attributes
     ds.createAttributeScalar("attr", 10);
@@ -1117,17 +1098,14 @@ TEST(sidre_attribute, save_load_group_with_attributes_same_ds)
     EXPECT_FALSE(gr->getView("scalar1")->hasAttributeValue(g_name_color));
 
     EXPECT_TRUE(gr->getView("scalar2")->hasAttributeValue(g_name_color));
-    EXPECT_EQ(g_color_red,
-              gr->getView("scalar2")->getAttributeString(g_name_color));
+    EXPECT_EQ(g_color_red, gr->getView("scalar2")->getAttributeString(g_name_color));
 
     EXPECT_TRUE(gr->getView("scalar3")->hasAttributeValue(g_name_color));
-    EXPECT_EQ(g_color_blue,
-              gr->getView("scalar3")->getAttributeString(g_name_color));
+    EXPECT_EQ(g_color_blue, gr->getView("scalar3")->getAttributeString(g_name_color));
 
     gr->save(filename, protocol);
 
-    if(g_protocol_saves_attributes.find(protocol) ==
-       g_protocol_saves_attributes.end())
+    if(g_protocol_saves_attributes.find(protocol) == g_protocol_saves_attributes.end())
     {
       SLIC_INFO(
         axom::fmt::format("Skipping attribute load tests for protocol '{}' -- "
@@ -1145,12 +1123,10 @@ TEST(sidre_attribute, save_load_group_with_attributes_same_ds)
       EXPECT_FALSE(gr->getView("scalar1")->hasAttributeValue(g_name_color));
 
       EXPECT_TRUE(gr->getView("scalar2")->hasAttributeValue(g_name_color));
-      EXPECT_EQ(g_color_red,
-                gr->getView("scalar2")->getAttributeString(g_name_color));
+      EXPECT_EQ(g_color_red, gr->getView("scalar2")->getAttributeString(g_name_color));
 
       EXPECT_TRUE(gr->getView("scalar3")->hasAttributeValue(g_name_color));
-      EXPECT_EQ(g_color_blue,
-                gr->getView("scalar3")->getAttributeString(g_name_color));
+      EXPECT_EQ(g_color_blue, gr->getView("scalar3")->getAttributeString(g_name_color));
     }
 
     // check that changes to attributes get overwritten when loading
@@ -1172,12 +1148,10 @@ TEST(sidre_attribute, save_load_group_with_attributes_same_ds)
       EXPECT_FALSE(gr->getView("scalar1")->hasAttributeValue(g_name_color));
 
       EXPECT_TRUE(gr->getView("scalar2")->hasAttributeValue(g_name_color));
-      EXPECT_EQ(g_color_red,
-                gr->getView("scalar2")->getAttributeString(g_name_color));
+      EXPECT_EQ(g_color_red, gr->getView("scalar2")->getAttributeString(g_name_color));
 
       EXPECT_TRUE(gr->getView("scalar3")->hasAttributeValue(g_name_color));
-      EXPECT_EQ(g_color_blue,
-                gr->getView("scalar3")->getAttributeString(g_name_color));
+      EXPECT_EQ(g_color_blue, gr->getView("scalar3")->getAttributeString(g_name_color));
     }
   }
 }

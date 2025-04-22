@@ -1,8 +1,9 @@
-from spack import *
-
 import os
 import socket
 
+from spack import *
+from spack.package import *
+from spack.build_systems.cmake import CMakeBuilder
 
 class C2c(CMakePackage):
     """Contour Parser Library"""
@@ -36,7 +37,7 @@ class C2c(CMakePackage):
     depends_on('flex@2.6.0:', type='build', when='+dev')
     depends_on('nlohmann-json', when='+tools')
 
-    phases = ('hostconfig',) + spack.build_systems.cmake.CMakeBuilder.phases
+    phases = ('hostconfig',) + CMakeBuilder.phases
 
     def configure_args(self):
         spec = self.spec if self.spec is not None else ""

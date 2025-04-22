@@ -56,8 +56,7 @@ public:
   /**
      * An unordered map of shared pointers to DataHolder objects.
      */
-  using LibraryDataMap =
-    std::unordered_map<std::string, std::shared_ptr<DataHolder>>;
+  using LibraryDataMap = std::unordered_map<std::string, std::shared_ptr<DataHolder>>;
 
   /**
      * Construct an empty DataHolder.
@@ -166,10 +165,7 @@ public:
      *
      * \return the user-defined content
      */
-  conduit::Node const &getUserDefinedContent() const noexcept
-  {
-    return userDefined;
-  }
+  conduit::Node const &getUserDefinedContent() const noexcept { return userDefined; }
 
   /**
      * \brief Get the user-defined content of the object.

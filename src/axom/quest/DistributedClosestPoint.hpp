@@ -70,8 +70,7 @@ public:
   */
   void setRuntimePolicy(RuntimePolicy policy)
   {
-    SLIC_ASSERT_MSG(!m_impl,
-                    "Runtime policy may not change after setObjectMesh()");
+    SLIC_ASSERT_MSG(!m_impl, "Runtime policy may not change after setObjectMesh()");
     m_runtimePolicy = policy;
   }
 
@@ -134,8 +133,7 @@ public:
    * which locks in the physical dimension and the runtime policy.
    *
    */
-  void setObjectMesh(const conduit::Node& meshNode,
-                     const std::string& topologyName);
+  void setObjectMesh(const conduit::Node& meshNode, const std::string& topologyName);
 
   /**
    * \brief Generates a BVH tree over the object mesh using the runtime execution policy
@@ -171,8 +169,7 @@ public:
    * \note The current implementation assumes that the mesh coordinates
    * are interleaved or contiguous.  The output cp_coords will be contiguous.
    */
-  void computeClosestPoints(conduit::Node& query_node,
-                            const std::string& topology);
+  void computeClosestPoints(conduit::Node& query_node, const std::string& topology);
 
 private:
   /*!
@@ -190,8 +187,7 @@ private:
   /// Check validity of blueprint group
   bool isValidBlueprint(const conduit::Node& mesh_node) const;
 
-  void verifyTopologyName(const conduit::Node& meshNode,
-                          const std::string& topologyName);
+  void verifyTopologyName(const conduit::Node& meshNode, const std::string& topologyName);
 
   void setDimension(int dim);
 

@@ -27,8 +27,7 @@ struct Length
 
 bool convertsTo(Length length1, Length length2)
 {
-  double length2InLength1Units =
-    convert(length2.value, length2.units, length1.units);
+  double length2InLength1Units = convert(length2.value, length2.units, length1.units);
   return Matches(DoubleEq(length1.value))(length2InLength1Units);
 }
 
@@ -78,18 +77,14 @@ TEST(Units, getConversionFactor)
   EXPECT_DOUBLE_EQ(1000, getConversionFactor(LengthUnit::um, LengthUnit::nm));
   EXPECT_DOUBLE_EQ(10, getConversionFactor(LengthUnit::nm, LengthUnit::angstrom));
   EXPECT_DOUBLE_EQ(2.54, getConversionFactor(LengthUnit::inches, LengthUnit::cm));
-  EXPECT_DOUBLE_EQ(1000,
-                   getConversionFactor(LengthUnit::inches, LengthUnit::mils));
+  EXPECT_DOUBLE_EQ(1000, getConversionFactor(LengthUnit::inches, LengthUnit::mils));
   EXPECT_DOUBLE_EQ(12, getConversionFactor(LengthUnit::feet, LengthUnit::inches));
-  EXPECT_DOUBLE_EQ(5280,
-                   getConversionFactor(LengthUnit::miles, LengthUnit::feet));
+  EXPECT_DOUBLE_EQ(5280, getConversionFactor(LengthUnit::miles, LengthUnit::feet));
 
   EXPECT_DOUBLE_EQ(1, getConversionFactor(LengthUnit::miles, LengthUnit::miles));
 
-  EXPECT_THROW(getConversionFactor(LengthUnit::cm, LengthUnit::unspecified),
-               std::invalid_argument);
-  EXPECT_THROW(getConversionFactor(LengthUnit::unspecified, LengthUnit::cm),
-               std::invalid_argument);
+  EXPECT_THROW(getConversionFactor(LengthUnit::cm, LengthUnit::unspecified), std::invalid_argument);
+  EXPECT_THROW(getConversionFactor(LengthUnit::unspecified, LengthUnit::cm), std::invalid_argument);
 }
 
 TEST(Units, convert_adjacent)

@@ -55,6 +55,9 @@ set(mir_headers
     clipping/ClipField.hpp
     clipping/ClipOptions.hpp
     clipping/ClipTableManager.hpp
+    detail/elvira_impl.hpp
+    detail/elvira_detail.hpp
+    ElviraAlgorithm.hpp
     EquiZAlgorithm.hpp
     MIRAlgorithm.hpp
     MIROptions.hpp
@@ -64,15 +67,21 @@ set(mir_headers
     utilities/CoordsetBlender.hpp
     utilities/CoordsetSlicer.hpp
     utilities/ExtractZones.hpp
+    utilities/ExtrudeMesh.hpp
     utilities/FieldBlender.hpp
     utilities/FieldSlicer.hpp
+    utilities/MakeZoneCenters.hpp
+    utilities/MakeZoneVolumes.hpp
     utilities/MakeUnstructured.hpp
     utilities/MatsetSlicer.hpp
     utilities/MergeMeshes.hpp
     utilities/NodeToZoneRelationBuilder.hpp
+    utilities/PrimalAdaptor.hpp
     utilities/RecenterField.hpp
     utilities/SelectedZones.hpp
+    utilities/TopologyMapper.hpp
     utilities/utilities.hpp
+    utilities/VariableShape.hpp
     utilities/ZoneListBuilder.hpp
     views/dispatch_coordset.hpp
     views/dispatch_material.hpp

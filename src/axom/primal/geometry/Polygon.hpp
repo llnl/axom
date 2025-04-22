@@ -13,11 +13,13 @@
 #define AXOM_PRIMAL_POLYGON_HPP_
 
 #include "axom/core/Array.hpp"
+#include "axom/core/numerics/Matrix.hpp"
 #include "axom/core/StaticArray.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 
 #include <ostream>
+#include <cmath>
 
 namespace axom
 {
@@ -43,8 +45,7 @@ class Polygon;
 
 /// \brief Overloaded output operator for polygons
 template <typename T, int NDIMS, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
-std::ostream& operator<<(std::ostream& os,
-                         const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>& poly);
+std::ostream& operator<<(std::ostream& os, const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>& poly);
 
 /*!
  * \class Polygon
@@ -61,10 +62,7 @@ std::ostream& operator<<(std::ostream& os,
  * \note The polygon vertices should be ordered in a counter clockwise
  *       orientation with respect to the polygon's desired normal vector
  */
-template <typename T,
-          int NDIMS,
-          PolygonArray ARRAY_TYPE = PolygonArray::Dynamic,
-          int MAX_VERTS = DEFAULT_MAX_NUM_VERTICES>
+template <typename T, int NDIMS, PolygonArray ARRAY_TYPE = PolygonArray::Dynamic, int MAX_VERTS = DEFAULT_MAX_NUM_VERTICES>
 class Polygon
 {
 public:
@@ -100,11 +98,28 @@ public:
   ~Polygon() { m_vertices.clear(); }
 
   /*!
-   * \brief Copy assignment operator for Polygon. Suppress CUDA warnings for
-   *        dynamic axom::Array.
+   * \brief Copy assignment operator for Polygon (static array specialization).
+   *        Specializations are necessary to remove warnings.
    */
-  AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE
+  template <PolygonArray P_ARRAY_TYPE = ARRAY_TYPE,
+            std::enable_if_t<P_ARRAY_TYPE == PolygonArray::Static, int> = 0>
+  AXOM_HOST_DEVICE Polygon& operator=(const Polygon& other)
+  {
+    if(this == &other)
+    {
+      return *this;
+    }
+
+    m_vertices = other.m_vertices;
+    return *this;
+  }
+
+  /*!
+   * \brief Copy assignment operator for Polygon.
+   *        (dynamic array specialization)
+   */
+  template <PolygonArray P_ARRAY_TYPE = ARRAY_TYPE,
+            std::enable_if_t<P_ARRAY_TYPE == PolygonArray::Dynamic, int> = 0>
   Polygon& operator=(const Polygon& other)
   {
     if(this == &other)
@@ -330,8 +345,7 @@ public:
     const auto O = vertexMean();  // 'O' for (local) origin
     for(int curr = 0, prev = nVerts - 1; curr < nVerts; prev = curr++)
     {
-      sum +=
-        VectorType::cross_product(m_vertices[prev] - O, m_vertices[curr] - O);
+      sum += VectorType::cross_product(m_vertices[prev] - O, m_vertices[curr] - O);
     }
 
     return 0.5 * axom::utilities::abs(sum.norm());
@@ -414,18 +428,58 @@ public:
   bool isValid() const { return m_vertices.size() >= 3; }
 
 private:
-  ArrayType m_vertices;
+  ArrayType m_vertices {};
 };
 
 //------------------------------------------------------------------------------
 /// Free functions implementing Polygon's operators
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
-std::ostream& operator<<(std::ostream& os,
-                         const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>& poly)
+std::ostream& operator<<(std::ostream& os, const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>& poly)
 {
   poly.print(os);
   return os;
+}
+
+/*!
+ * \brief Create a regular polygon.
+ *
+ * \param nSides The number of sides in the polygon.
+ * \param radius The radius of the polgon from the origin to a point.
+ * \param transform An optional transformation matrix, which defaults to the identity
+ *                  matrix for the dimension NDIMS.
+ *
+ * \return A new regular polygon with \a nSides sides and radius \radius,
+ *         transformed by the supplied tranformation matrix.
+ *
+ * \note This is host-only function.
+ */
+template <typename T, int NDIMS, PolygonArray ARRAY_TYPE = PolygonArray::Dynamic, int MAX_VERTS = DEFAULT_MAX_NUM_VERTICES>
+Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS> regular_polygon(
+  int nSides,
+  T radius = T {1},
+  const axom::numerics::Matrix<T>& transform = axom::numerics::Matrix<T>::identity(NDIMS))
+{
+  using PointType = typename axom::primal::Point<T, NDIMS>;
+
+  SLIC_ASSERT(nSides >= 3);
+  SLIC_ASSERT(transform.getNumRows() == transform.getNumColumns());
+
+  const double dA = (2. * M_PI) / static_cast<double>(nSides);
+  const double a0 = dA * 0.5 - M_PI / 2.;
+  double a = a0;
+  Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS> poly;
+  for(int s = 0; s < nSides; s++)
+  {
+    PointType pt {radius * static_cast<T>(cos(a)), radius * static_cast<T>(sin(a))};
+
+    // Add the transformed point to the polygon.
+    poly.addVertex(transform_point(pt, transform));
+
+    a += dA;
+  }
+
+  return poly;
 }
 
 }  // namespace primal
@@ -433,8 +487,7 @@ std::ostream& operator<<(std::ostream& os,
 
 /// Overload to format a primal::Polygon using fmt
 template <typename T, int NDIMS, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
-struct axom::fmt::formatter<axom::primal::Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>>
-  : ostream_formatter
+struct axom::fmt::formatter<axom::primal::Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>> : ostream_formatter
 { };
 
 #endif  // AXOM_PRIMAL_POLYGON_HPP_

@@ -39,8 +39,7 @@ int main(int argc, char* argv[])
   std::string opt_str;
 
   // Add the command line options
-  app.add_flag("-b,--some-bool,!--no-some-bool", opt_bool, "boolean flag")
-    ->capture_default_str();
+  app.add_flag("-b,--some-bool,!--no-some-bool", opt_bool, "boolean flag")->capture_default_str();
 
   app.add_option("-i,--some-int", opt_int, "integer input")->required();
 
@@ -56,8 +55,7 @@ int main(int argc, char* argv[])
 
   // Output information about command line options
   // some-bool is always available
-  std::cout << "Boolean input was '" << std::boolalpha << opt_bool << "'"
-            << std::endl;
+  std::cout << "Boolean input was '" << std::boolalpha << opt_bool << "'" << std::endl;
 
   // some-int is always available
   std::cout << "Integer input was '" << opt_int << "'" << std::endl;

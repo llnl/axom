@@ -86,15 +86,14 @@ static inline T product(const axom::StackArray<T, DIM>& a)
     ghost-padded data.
 */
 template <typename IType, int DIM>
-static void shapesToStridesAndOffsets(
-  const axom::StackArray<IType, DIM>& realShape,
-  const axom::StackArray<IType, DIM>& loPads,
-  const axom::StackArray<IType, DIM>& hiPads,
-  const axom::StackArray<IType, DIM>& strideOrder,
-  IndexType minStride,
-  axom::StackArray<IType, DIM>& offsets,
-  axom::StackArray<IType, DIM>& strides,
-  IndexType& valuesCount)
+static void shapesToStridesAndOffsets(const axom::StackArray<IType, DIM>& realShape,
+                                      const axom::StackArray<IType, DIM>& loPads,
+                                      const axom::StackArray<IType, DIM>& hiPads,
+                                      const axom::StackArray<IType, DIM>& strideOrder,
+                                      IndexType minStride,
+                                      axom::StackArray<IType, DIM>& offsets,
+                                      axom::StackArray<IType, DIM>& strides,
+                                      IndexType& valuesCount)
 {
   axom::StackArray<IType, DIM> paddedShape;
   for(int d = 0; d < DIM; ++d)
@@ -208,10 +207,8 @@ class MeshViewUtil
 {
 public:
   using MdIndices = axom::StackArray<axom::IndexType, DIM>;
-  using CoordsViewsType =
-    axom::StackArray<axom::ArrayView<double, DIM, MemSpace>, DIM>;
-  using ConstCoordsViewsType =
-    axom::StackArray<axom::ArrayView<const double, DIM, MemSpace>, DIM>;
+  using CoordsViewsType = axom::StackArray<axom::ArrayView<double, DIM, MemSpace>, DIM>;
+  using ConstCoordsViewsType = axom::StackArray<axom::ArrayView<const double, DIM, MemSpace>, DIM>;
 
   //@{
   //@name Setting up
@@ -311,8 +308,7 @@ public:
     {
       conduit::Node info;
   #ifdef AXOM_USE_MPI
-      valA =
-        conduit::blueprint::mpi::verify("mesh", *m_cdom, info, MPI_COMM_WORLD);
+      valA = conduit::blueprint::mpi::verify("mesh", *m_cdom, info, MPI_COMM_WORLD);
   #else
       valA = conduit::blueprint::verify("mesh", *m_cdom, info);
   #endif
@@ -371,16 +367,10 @@ public:
   MdIndices getNodeShape() const { return m_nodeShape; }
 
   //! @brief Return number of (real) cells.
-  axom::IndexType getCellCount() const
-  {
-    return axom::quest::internal::product(m_cellShape);
-  }
+  axom::IndexType getCellCount() const { return axom::quest::internal::product(m_cellShape); }
 
   //! @brief Return number of (real) nodes.
-  axom::IndexType getNodeCount() const
-  {
-    return axom::quest::internal::product(m_nodeShape);
-  }
+  axom::IndexType getNodeCount() const { return axom::quest::internal::product(m_nodeShape); }
 
   //! @brief Return the real (ghost-free) shape of mesh data.
   const MdIndices& getRealShape(const std::string& association)
@@ -441,18 +431,14 @@ public:
     for(int d = 0; d < DIM; ++d)
     {
       auto* dataPtr = valuesNode[d].as_double_ptr();
-      rval[d] = axom::ArrayView<double, DIM, MemSpace>(dataPtr,
-                                                       m_coordsPaddedShape,
-                                                       m_coordsStrides);
+      rval[d] = axom::ArrayView<double, DIM, MemSpace>(dataPtr, m_coordsPaddedShape, m_coordsStrides);
     }
 
     if(withGhosts == false)
     {
       // Compute a view without ghosts.
       MdIndices offsets =
-        conduitIndicesToStackArray(m_ctopology->fetch_existing("elements/dims"),
-                                   "offsets",
-                                   0);
+        conduitIndicesToStackArray(m_ctopology->fetch_existing("elements/dims"), "offsets", 0);
       MdIndices counts = m_nodeShape;
       for(int d = 0; d < DIM; ++d)
       {
@@ -472,17 +458,14 @@ public:
     for(int d = 0; d < DIM; ++d)
     {
       auto* dataPtr = valuesNode[d].as_double_ptr();
-      rval[d] = axom::ArrayView<const double, DIM, MemSpace>(dataPtr,
-                                                             m_coordsPaddedShape,
-                                                             m_coordsStrides);
+      rval[d] =
+        axom::ArrayView<const double, DIM, MemSpace>(dataPtr, m_coordsPaddedShape, m_coordsStrides);
     }
 
     if(withGhosts == false)
     {
       MdIndices offsets =
-        conduitIndicesToStackArray(m_ctopology->fetch_existing("elements/dims"),
-                                   "offsets",
-                                   0);
+        conduitIndicesToStackArray(m_ctopology->fetch_existing("elements/dims"), "offsets", 0);
       MdIndices counts = m_cellShape;
       for(int d = 0; d < DIM; ++d)
       {
@@ -509,8 +492,7 @@ public:
     type.
   */
   template <typename T>
-  axom::ArrayView<T, DIM, MemSpace> getFieldView(const std::string& fieldName,
-                                                 bool withGhosts = false)
+  axom::ArrayView<T, DIM, MemSpace> getFieldView(const std::string& fieldName, bool withGhosts = false)
   {
     if(!m_dom)
     {
@@ -519,14 +501,12 @@ public:
         "conduit::Node.  Use getConstFieldView.");
     }
     conduit::Node& fieldNode = m_dom->fetch_existing("fields/" + fieldName);
-    const std::string association =
-      fieldNode.fetch_existing("association").as_string();
+    const std::string association = fieldNode.fetch_existing("association").as_string();
     conduit::Node& valuesNode = fieldNode.fetch_existing("values");
     const axom::IndexType valuesCount = valuesNode.dtype().number_of_elements();
 
-    SLIC_ASSERT_MSG(
-      association == "vertex" || association == "element",
-      "MeshViewUtil only supports vertex and element-based fields right now.");
+    SLIC_ASSERT_MSG(association == "vertex" || association == "element",
+                    "MeshViewUtil only supports vertex and element-based fields right now.");
     const bool onVertex = association == "vertex";
 
     const auto& realShape = onVertex ? m_nodeShape : m_cellShape;
@@ -577,20 +557,16 @@ public:
     type.
   */
   template <typename T>
-  axom::ArrayView<const T, DIM, MemSpace> getConstFieldView(
-    const std::string& fieldName,
-    bool withGhosts = false)
+  axom::ArrayView<const T, DIM, MemSpace> getConstFieldView(const std::string& fieldName,
+                                                            bool withGhosts = false)
   {
-    const conduit::Node& fieldNode =
-      m_cdom->fetch_existing("fields/" + fieldName);
-    const std::string association =
-      fieldNode.fetch_existing("association").as_string();
+    const conduit::Node& fieldNode = m_cdom->fetch_existing("fields/" + fieldName);
+    const std::string association = fieldNode.fetch_existing("association").as_string();
     const conduit::Node& valuesNode = fieldNode.fetch_existing("values");
     const axom::IndexType valuesCount = valuesNode.dtype().number_of_elements();
 
-    SLIC_ASSERT_MSG(
-      association == "vertex" || association == "element",
-      "MeshViewUtil only supports vertex and element-based fields right now.");
+    SLIC_ASSERT_MSG(association == "vertex" || association == "element",
+                    "MeshViewUtil only supports vertex and element-based fields right now.");
     const bool onVertex = association == "vertex";
 
     const auto& realShape = onVertex ? m_nodeShape : m_cellShape;
@@ -661,20 +637,16 @@ public:
                    const MdIndices& strides,
                    const MdIndices& offsets)
   {
-    SLIC_ERROR_IF(
-      m_dom == nullptr,
-      axom::fmt::format(
-        "Cannot create field {}."
-        "  MeshViewUtil was not constructed with a non-const domain.",
-        fieldName));
-    SLIC_ERROR_IF(
-      m_dom->has_path("fields/" + fieldName),
-      axom::fmt::format("Cannot create field {}.  It already exists.", fieldName));
+    SLIC_ERROR_IF(m_dom == nullptr,
+                  axom::fmt::format("Cannot create field {}."
+                                    "  MeshViewUtil was not constructed with a non-const domain.",
+                                    fieldName));
+    SLIC_ERROR_IF(m_dom->has_path("fields/" + fieldName),
+                  axom::fmt::format("Cannot create field {}.  It already exists.", fieldName));
 
     SLIC_ERROR_IF(
       association != "vertex" && association != "element",
-      axom::fmt::format("MeshViewUtil doesn't support association '{}' yet.",
-                        association));
+      axom::fmt::format("MeshViewUtil doesn't support association '{}' yet.", association));
 
     const auto& realShape = getRealShape(association);
     MdIndices loPads, hiPads, paddedShape, strideOrder;
@@ -689,9 +661,7 @@ public:
     for(int d = 0; d < DIM; ++d)
     {
       SLIC_ERROR_IF(offsets[d] < 0 || offsets[d] > paddedShape[d] - 1,
-                    axom::fmt::format("Bad offsets {} for paddedShape {}",
-                                      offsets,
-                                      paddedShape));
+                    axom::fmt::format("Bad offsets {} for paddedShape {}", offsets, paddedShape));
     }
 
     conduit::Node& fieldNode = m_dom->fetch("fields/" + fieldName);
@@ -707,8 +677,8 @@ public:
     fieldNode["offsets"].set(conduitDtype, &tmpOffsets[0]);
 
     axom::IndexType slowDir = strideOrder[DIM - 1];
-    auto extras = dtype.number_of_elements() -
-      strides[slowDir] * (offsets[slowDir] + realShape[slowDir]);
+    auto extras =
+      dtype.number_of_elements() - strides[slowDir] * (offsets[slowDir] + realShape[slowDir]);
     if(extras < 0)
     {
       SLIC_ERROR(
@@ -744,19 +714,15 @@ public:
                    const MdIndices& hiPads,
                    const MdIndices& strideOrder)
   {
-    SLIC_ERROR_IF(
-      m_dom == nullptr,
-      axom::fmt::format(
-        "Cannot create field {}."
-        "  MeshViewUtil was not constructed with a non-const domain.",
-        fieldName));
-    SLIC_ERROR_IF(
-      m_dom->has_path("fields/" + fieldName),
-      axom::fmt::format("Cannot create field {}.  It already exists.", fieldName));
+    SLIC_ERROR_IF(m_dom == nullptr,
+                  axom::fmt::format("Cannot create field {}."
+                                    "  MeshViewUtil was not constructed with a non-const domain.",
+                                    fieldName));
+    SLIC_ERROR_IF(m_dom->has_path("fields/" + fieldName),
+                  axom::fmt::format("Cannot create field {}.  It already exists.", fieldName));
 
-    SLIC_ERROR_IF(
-      association != "vertex" && association != "element",
-      axom::fmt::format("Not yet supporting association '{}'.", association));
+    SLIC_ERROR_IF(association != "vertex" && association != "element",
+                  axom::fmt::format("Not yet supporting association '{}'.", association));
 
     axom::StackArray<axom::IndexType, DIM> offsets;
     axom::StackArray<axom::IndexType, DIM> strides;
@@ -836,19 +802,15 @@ private:
 
   void computeCoordsDataLayout()
   {
-    const conduit::Node& topologyDims =
-      m_ctopology->fetch_existing("elements/dims");
+    const conduit::Node& topologyDims = m_ctopology->fetch_existing("elements/dims");
 
-    const std::string coordsetName =
-      m_ctopology->fetch_existing("coordset").as_string();
-    const conduit::Node& coordsValues = m_cdom->fetch_existing(
-      axom::fmt::format("coordsets/{}/values", coordsetName));
+    const std::string coordsetName = m_ctopology->fetch_existing("coordset").as_string();
+    const conduit::Node& coordsValues =
+      m_cdom->fetch_existing(axom::fmt::format("coordsets/{}/values", coordsetName));
 
-    const axom::IndexType coordValuesCount =
-      coordsValues[0].dtype().number_of_elements();
+    const axom::IndexType coordValuesCount = coordsValues[0].dtype().number_of_elements();
 
-    const bool coordsAreInterleaved =
-      conduit::blueprint::mcarray::is_interleaved(coordsValues);
+    const bool coordsAreInterleaved = conduit::blueprint::mcarray::is_interleaved(coordsValues);
 
     for(int i = 0; i < DIM; ++i)
     {

@@ -1,6 +1,6 @@
 {
   "name": "umpire",
-  "version-string": "2024.07.0",
+  "version-string": "2025.03.0",
   "homepage": "https://github.com/llnl/umpire",
   "description": "An application-focused API for memory management on NUMA and GPU architectures",
   "dependencies": [

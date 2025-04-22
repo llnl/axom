@@ -97,11 +97,10 @@ if (CONDUIT_FOUND AND RAJA_FOUND AND UMPIRE_FOUND)
         FOLDER      axom/quest/examples
         )
 
-    # Add unit tests
-    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+    # Add unit tests; the (current) input meshes are in the hdf5 format
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND HDF5_FOUND)
 
-        # Run the candidates example with the different spatial indices
-        # and raja policies
+        # Run the candidates example with the different spatial indices and raja policies
 
         # Use same file for input and query
         set(input_file "${AXOM_DATA_DIR}/quest/ucart10.cycle_000000.root")
@@ -215,7 +214,21 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                 NUM_MPI_TASKS ${_nranks})
             # steel ball: cirle of radius 5.5 has analytic volume ~696.91
             set_tests_properties(${_testname} PROPERTIES 
-                PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 6[89][0-9].")          
+                PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 6[89][0-9].")
+
+            # Tests 2D stl mesh
+            set(_testname quest_shaping_driver_ex_star_stl_2d)
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND  quest_shaping_driver_ex
+                        -i ${shaping_data_dir}/flat_star.yaml
+                        --method intersection
+                        inline_mesh --min 0 0 --max 1 1 --res 4 4 -d 2
+                NUM_MPI_TASKS ${_nranks})
+            # steel triangle: star composed of 16 right triangles with
+            # leg length 0.25 has analytic volume 0.5
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 0.5")
         endif()
 
         # 3D shaping tests
@@ -333,6 +346,29 @@ if((CONDUIT_FOUND OR
               endforeach()
             endforeach()
         endforeach()
+
+        # Test 2D Triangle shape
+        set(_testshapes "tri")
+        set(_testMeshTypes "bpConduit" "bpSidre")
+        blt_list_append(TO _testMeshTypes ELEMENTS "mfem" IF MFEM_FOUND)
+        foreach(_policy ${_policies})
+            foreach(_testMeshType ${_testMeshTypes})
+              foreach(_testshape ${_testshapes})
+                set(_testname "quest_shape_in_memory_${_policy}_${_testMeshType}_${_testshape}")
+                axom_add_test(
+                  NAME ${_testname}
+                  COMMAND quest_shape_in_memory_ex
+                             --policy ${_policy}
+                             --testShape ${_testshape}
+                             --refinements 2
+                             --scale 0.75 0.75 0.75
+                             --dir 0.2 0.4 0.8
+                             --meshType ${_testMeshType}
+                             inline_mesh --min -2 -2 --max 2 2 --res 2 2
+                  NUM_MPI_TASKS ${_nranks})
+              endforeach()
+            endforeach()
+        endforeach()
     endif()
 endif()
 
@@ -423,7 +459,8 @@ if(CONDUIT_FOUND)
             )
 
     # These examples currently segfault on windows without MPI when loading the test data into conduit
-    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND NOT WIN32)
+    # Also, the input files are hdf5
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND NOT WIN32 AND HDF5_FOUND)
         if (ENABLE_MPI)
             set(_nranks 3)
         endif()

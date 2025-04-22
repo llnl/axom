@@ -109,10 +109,7 @@ OctType new_inscribed_oct(const SphereType& sphere, OctType& o, int s, int t, in
  * This routine allocates an array pointed to by \a out.  The caller is responsible
  * to free the array.
  */
-bool discretize(const SphereType& sphere,
-                int levels,
-                axom::Array<OctType>& out,
-                int& octcount)
+bool discretize(const SphereType& sphere, int levels, axom::Array<OctType>& out, int& octcount)
 {
   // Check input.  Negative radius: return false.
   if(sphere.getRadius() < 0)
@@ -217,25 +214,19 @@ int mesh_from_discretized_polyline(const axom::ArrayView<OctType>& octs,
   const int tetcount = 8 * octcount;
   const int vertcount = 4 * tetcount;
   int octPerSeg = octcount / segcount;
-  SLIC_ASSERT_MSG(
-    (octcount % segcount) == 0,  // remainderOcts
-    "Total octahedron count is not evenly divisible by segment count");
+  SLIC_ASSERT_MSG((octcount % segcount) == 0,  // remainderOcts
+                  "Total octahedron count is not evenly divisible by segment count");
 
   // Step 0: create the UnstructuredMesh
   mint::UnstructuredMesh<mint::SINGLE_SHAPE>* um =
-    new mint::UnstructuredMesh<mint::SINGLE_SHAPE>(3,
-                                                   CELL_TYPE,
-                                                   vertcount,
-                                                   tetcount);
+    new mint::UnstructuredMesh<mint::SINGLE_SHAPE>(3, CELL_TYPE, vertcount, tetcount);
 
   // Step 1: Add fields
-  int* octlevel =
-    um->createField<int>("level_of_refinement", mint::CELL_CENTERED);
+  int* octlevel = um->createField<int>("level_of_refinement", mint::CELL_CENTERED);
   int* octidx = um->createField<int>("octahedron_index", mint::CELL_CENTERED);
   int* segidx = um->createField<int>("segment_index", mint::CELL_CENTERED);
   double* vol = um->createField<double>("octahedron_volume", mint::CELL_CENTERED);
-  double* pvol =
-    um->createField<double>("oct_as_polyhedron_volume", mint::CELL_CENTERED);
+  double* pvol = um->createField<double>("oct_as_polyhedron_volume", mint::CELL_CENTERED);
 
   // Step 2: for each oct,
   //    - split it into tets
@@ -281,8 +272,7 @@ int mesh_from_discretized_polyline(const axom::ArrayView<OctType>& octs,
       {
         um->appendNode(tet[n][0], tet[n][1], tet[n][2]);
       }
-      axom::IndexType nidx =
-        o * (TETS_PER_OCT * NODES_PER_TET) + t * NODES_PER_TET;
+      axom::IndexType nidx = o * (TETS_PER_OCT * NODES_PER_TET) + t * NODES_PER_TET;
       axom::IndexType cell[NODES_PER_TET] = {nidx + 0, nidx + 2, nidx + 1, nidx + 3};
       um->appendCell(cell);
 

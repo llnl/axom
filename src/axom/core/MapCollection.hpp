@@ -288,8 +288,7 @@ template <typename T>
 IndexType MapCollection<T>::getFirstValidIndex() const
 {
   IndexType idx = 0;
-  while(static_cast<unsigned>(idx) < m_items.size() &&
-        m_items[static_cast<unsigned>(idx)] == nullptr)
+  while(static_cast<unsigned>(idx) < m_items.size() && m_items[static_cast<unsigned>(idx)] == nullptr)
   {
     idx++;
   }
@@ -305,8 +304,7 @@ IndexType MapCollection<T>::getNextValidIndex(IndexType idx) const
   }
 
   idx++;
-  while(static_cast<unsigned>(idx) < m_items.size() &&
-        m_items[static_cast<unsigned>(idx)] == nullptr)
+  while(static_cast<unsigned>(idx) < m_items.size() && m_items[static_cast<unsigned>(idx)] == nullptr)
   {
     idx++;
   }

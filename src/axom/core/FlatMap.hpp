@@ -44,12 +44,10 @@ namespace axom
  *  value (32- or 64-bit)
  */
 template <typename KeyType, typename ValueType, typename Hash = std::hash<KeyType>>
-class FlatMap
-  : detail::flat_map::SequentialLookupPolicy<typename Hash::result_type>
+class FlatMap : detail::flat_map::SequentialLookupPolicy<typename Hash::result_type>
 {
 private:
-  using LookupPolicy =
-    detail::flat_map::SequentialLookupPolicy<typename Hash::result_type>;
+  using LookupPolicy = detail::flat_map::SequentialLookupPolicy<typename Hash::result_type>;
   using LookupPolicy::NO_MATCH;
 
   constexpr static int BucketsPerGroup = detail::flat_map::GroupBucket::Size;
@@ -102,8 +100,7 @@ public:
    * \param [in] init a list of pairs to initialize the map with
    * \param [in] bucket_count minimum number of buckets to allocate (optional)
    */
-  explicit FlatMap(std::initializer_list<value_type> init,
-                   IndexType bucket_count = -1)
+  explicit FlatMap(std::initializer_list<value_type> init, IndexType bucket_count = -1)
     : FlatMap(init.begin(), init.end(), bucket_count)
   { }
 
@@ -549,10 +546,7 @@ public:
    */
   void rehash(IndexType count)
   {
-    FlatMap rehashed(m_size,
-                     std::make_move_iterator(begin()),
-                     std::make_move_iterator(end()),
-                     count);
+    FlatMap rehashed(m_size, std::make_move_iterator(begin()), std::make_move_iterator(end()), count);
     this->swap(rehashed);
   }
 
@@ -571,9 +565,7 @@ private:
   std::pair<iterator, bool> getEmplacePos(const KeyType& key);
 
   template <typename... Args>
-  void emplaceImpl(const std::pair<iterator, bool>& pos,
-                   bool assign_on_existence,
-                   Args&&... args);
+  void emplaceImpl(const std::pair<iterator, bool>& pos, bool assign_on_existence, Args&&... args);
 
   constexpr static IndexType MIN_NUM_BUCKETS {29};
 
@@ -613,9 +605,7 @@ public:
   using reference = DataType&;
 
 public:
-  IteratorImpl(MapConstType* map, IndexType internalIdx)
-    : m_map(map)
-    , m_internalIdx(internalIdx)
+  IteratorImpl(MapConstType* map, IndexType internalIdx) : m_map(map), m_internalIdx(internalIdx)
   {
     assert(m_internalIdx >= 0 && m_internalIdx <= m_map->bucket_count());
   }
@@ -651,10 +641,7 @@ public:
 
   reference operator*() const { return m_map->m_buckets[m_internalIdx].get(); }
 
-  pointer operator->() const
-  {
-    return &(m_map->m_buckets[m_internalIdx].get());
-  }
+  pointer operator->() const { return &(m_map->m_buckets[m_internalIdx].get()); }
 
 private:
   MapConstType* m_map;
@@ -662,9 +649,8 @@ private:
 };
 
 template <typename KeyType, typename ValueType, typename Hash>
-FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count)
-  : m_size(0)
-  , m_loadCount(0)
+FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count) : m_size(0)
+                                                                   , m_loadCount(0)
 {
   IndexType minBuckets = MIN_NUM_BUCKETS;
   bucket_count = axom::utilities::max(minBuckets, bucket_count);
@@ -672,8 +658,7 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count)
   // N * GroupSize - 1 >= minBuckets
   // TODO: we should add a countl_zero overload for 64-bit integers
   {
-    std::int32_t numGroups =
-      std::ceil((bucket_count + 1) / (double)BucketsPerGroup);
+    std::int32_t numGroups = std::ceil((bucket_count + 1) / (double)BucketsPerGroup);
     m_numGroups2 = 31 - (axom::utilities::countl_zero(numGroups));
   }
 
@@ -700,39 +685,32 @@ auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) -> iterator
 {
   auto hash = MixedHash {}(key);
   iterator found_iter = end();
-  this->probeIndex(m_numGroups2,
-                   m_metadata,
-                   hash,
-                   [&](IndexType bucket_index) -> bool {
-                     if(this->m_buckets[bucket_index].get().first == key)
-                     {
-                       found_iter = iterator(this, bucket_index);
-                       // Stop tracking.
-                       return false;
-                     }
-                     return true;
-                   });
+  this->probeIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
+    if(this->m_buckets[bucket_index].get().first == key)
+    {
+      found_iter = iterator(this, bucket_index);
+      // Stop tracking.
+      return false;
+    }
+    return true;
+  });
   return found_iter;
 }
 
 template <typename KeyType, typename ValueType, typename Hash>
-auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) const
-  -> const_iterator
+auto FlatMap<KeyType, ValueType, Hash>::find(const KeyType& key) const -> const_iterator
 {
   auto hash = MixedHash {}(key);
   const_iterator found_iter = end();
-  this->probeIndex(m_numGroups2,
-                   m_metadata,
-                   hash,
-                   [&](IndexType bucket_index) -> bool {
-                     if(this->m_buckets[bucket_index].get().first == key)
-                     {
-                       found_iter = const_iterator(this, bucket_index);
-                       // Stop tracking.
-                       return false;
-                     }
-                     return true;
-                   });
+  this->probeIndex(m_numGroups2, m_metadata, hash, [&](IndexType bucket_index) -> bool {
+    if(this->m_buckets[bucket_index].get().first == key)
+    {
+      found_iter = const_iterator(this, bucket_index);
+      // Stop tracking.
+      return false;
+    }
+    return true;
+  });
   return found_iter;
 }
 
@@ -782,10 +760,9 @@ auto FlatMap<KeyType, ValueType, Hash>::getEmplacePos(const KeyType& key)
 
 template <typename KeyType, typename ValueType, typename Hash>
 template <typename... Args>
-void FlatMap<KeyType, ValueType, Hash>::emplaceImpl(
-  const std::pair<iterator, bool>& pos,
-  bool assign_on_existence,
-  Args&&... args)
+void FlatMap<KeyType, ValueType, Hash>::emplaceImpl(const std::pair<iterator, bool>& pos,
+                                                    bool assign_on_existence,
+                                                    Args&&... args)
 {
   IndexType bucketIndex = pos.first.m_internalIdx;
   bool keyExistsAlready = !pos.second;

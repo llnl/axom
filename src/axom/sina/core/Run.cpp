@@ -34,10 +34,7 @@ char const VERSION_FIELD[] = "version";
 char const USER_FIELD[] = "user";
 }  // namespace
 
-Run::Run(sina::ID id,
-         std::string application_,
-         std::string version_,
-         std::string user_)
+Run::Run(sina::ID id, std::string application_, std::string version_, std::string user_)
   : Record {std::move(id), RUN_TYPE}
   , application {std::move(application_)}
   , version {std::move(version_)}
@@ -62,9 +59,8 @@ conduit::Node Run::toNode() const
 
 void addRunLoader(RecordLoader &loader)
 {
-  loader.addTypeLoader(RUN_TYPE, [](conduit::Node const &value) {
-    return std::make_unique<Run>(value);
-  });
+  loader.addTypeLoader(RUN_TYPE,
+                       [](conduit::Node const &value) { return std::make_unique<Run>(value); });
 }
 
 }  // namespace sina

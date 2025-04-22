@@ -25,10 +25,7 @@ using axom::sidre::MFEMSidreDataCollection;
 
 constexpr double EPSILON = 1.0e-6;
 
-std::string testName()
-{
-  return ::testing::UnitTest::GetInstance()->current_test_info()->name();
-}
+std::string testName() { return ::testing::UnitTest::GetInstance()->current_test_info()->name(); }
 
 TEST(sidre_datacollection, dc_alloc_no_mesh)
 {
@@ -156,8 +153,7 @@ TEST(sidre_datacollection, dc_reload_gf)
 {
   const std::string field_name = "test_field";
   // 2D mesh divided into triangles
-  auto* mesh =
-    new mfem::Mesh(mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::TRIANGLE));
+  auto* mesh = new mfem::Mesh(mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::TRIANGLE));
   auto* fec = new mfem::H1_FECollection(1, mesh->Dimension());
   auto* fes = new mfem::FiniteElementSpace(mesh, fec);
 
@@ -183,6 +179,12 @@ TEST(sidre_datacollection, dc_reload_gf)
 
   sdc_writer.SetCycle(0);
   sdc_writer.Save();
+
+#ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+#endif
 
   // No mesh is used here
   MFEMSidreDataCollection sdc_reader(testName());
@@ -236,6 +238,12 @@ TEST(sidre_datacollection, dc_reload_gf_vdim)
   sdc_writer.SetCycle(0);
   sdc_writer.Save();
 
+#ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+#endif
+
   // No mesh is used here
   MFEMSidreDataCollection sdc_reader(testName());
 
@@ -256,48 +264,61 @@ TEST(sidre_datacollection, dc_reload_gf_vdim)
   EXPECT_TRUE(sdc_reader.verifyMeshBlueprint());
 }
 
+// Note: This test use Group::loadExternalData(), which is only valid (implemented)
+// for sidre_hdf5 protocol. Let's skip the test in configs w/o hdf5
 TEST(sidre_datacollection, dc_reload_externaldata)
 {
+#ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::Group::loadExternalData() is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+#endif
+
   const std::string view_name = "external_data";
+  const bool owns_mesh_data = true;
+
+  // Create external arrays for writer and reader
+  axom::Array<int64_t> writer_data {1, 2, 3, 4};
+  axom::Array<int64_t> reader_data {5, 6, 7, 8};
 
   // Create DC
-  auto mesh = mfem::Mesh::MakeCartesian1D(10);
-  const bool owns_mesh_data = true;
-  MFEMSidreDataCollection sdc_writer(testName(), &mesh, owns_mesh_data);
-  // After creation set owning to false so data doesn't get double free'd by reader and writer
-  sdc_writer.SetOwnData(false);
+  {
+    auto mesh = mfem::Mesh::MakeCartesian1D(10);
+    MFEMSidreDataCollection sdc_writer(testName(), &mesh, owns_mesh_data);
+    // After creation set owning to false so data doesn't get double free'd by reader and writer
+    sdc_writer.SetOwnData(false);
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-  sdc_writer.SetComm(MPI_COMM_WORLD);
+    sdc_writer.SetComm(MPI_COMM_WORLD);
 #endif
-  sdc_writer.SetCycle(0);
+    sdc_writer.SetCycle(0);
 
-  // Create external buffer and add it to DC
-  axom::Array<int64_t> writer_data {1, 2, 3, 4};
-  axom::sidre::Group* writer_bp_group = sdc_writer.GetBPGroup();
-  axom::sidre::View* writer_external_view =
-    writer_bp_group->createView(view_name);
-  writer_external_view->setExternalDataPtr(axom::sidre::INT64_ID,
-                                           writer_data.size(),
-                                           writer_data.data());
-  EXPECT_TRUE(writer_bp_group->hasView(view_name));
+    axom::sidre::Group* writer_bp_group = sdc_writer.GetBPGroup();
+    axom::sidre::View* writer_external_view = writer_bp_group->createView(view_name);
+    writer_external_view->setExternalDataPtr(axom::sidre::INT64_ID,
+                                             writer_data.size(),
+                                             writer_data.data());
+    EXPECT_TRUE(writer_bp_group->hasView(view_name));
 
-  sdc_writer.Save();
+    sdc_writer.Save();
+  }
 
   // Load DC from file
-  MFEMSidreDataCollection sdc_reader(testName());
+  {
+    MFEMSidreDataCollection sdc_reader(testName());
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-  sdc_reader.SetComm(MPI_COMM_WORLD);
+    sdc_reader.SetComm(MPI_COMM_WORLD);
 #endif
-  // Note: this will recreate the external view but not load the external data yet
-  sdc_reader.Load();
-  axom::sidre::Group* reader_bp_group = sdc_reader.GetBPGroup();
-  EXPECT_TRUE(reader_bp_group->hasView(view_name));
-  axom::sidre::View* reader_external_view = reader_bp_group->getView(view_name);
+    // Note: this will recreate the external view but not load the external data yet
+    sdc_reader.Load();
+    axom::sidre::Group* reader_bp_group = sdc_reader.GetBPGroup();
+    EXPECT_TRUE(reader_bp_group->hasView(view_name));
+    axom::sidre::View* reader_external_view = reader_bp_group->getView(view_name);
 
-  // Create external buffer with wrong data and load previously saved data into it
-  axom::Array<int64_t> reader_data {5, 6, 7, 8};
-  reader_external_view->setExternalDataPtr(reader_data.data());
-  sdc_reader.LoadExternalData();
+    // Create external buffer with wrong data and load previously saved data into it
+    reader_external_view->setExternalDataPtr(reader_data.data());
+
+    sdc_reader.LoadExternalData();
+  }
 
   EXPECT_TRUE(writer_data.size() == reader_data.size());
   SLIC_INFO(axom::fmt::format("~~~~ {}", writer_data.size()));
@@ -336,6 +357,12 @@ TEST(sidre_datacollection, dc_reload_mesh)
   sdc_writer.SetCycle(0);
   sdc_writer.Save();
 
+#ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+#endif
+
   // No mesh is used here to construct as it will be read in
   MFEMSidreDataCollection sdc_reader(testName());
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
@@ -355,8 +382,7 @@ TEST(sidre_datacollection, dc_reload_mesh)
 TEST(sidre_datacollection, dc_reload_qf)
 {
   //Set up a small mesh and a couple of grid function on that mesh
-  auto mesh =
-    mfem::Mesh::MakeCartesian2D(2, 3, mfem::Element::QUADRILATERAL, 0, 2., 3.);
+  auto mesh = mfem::Mesh::MakeCartesian2D(2, 3, mfem::Element::QUADRILATERAL, 0, 2., 3.);
   mfem::LinearFECollection fec;
   mfem::FiniteElementSpace fes(&mesh, &fec);
 
@@ -399,6 +425,12 @@ TEST(sidre_datacollection, dc_reload_qf)
   sdc_writer.SetCycle(5);
   sdc_writer.SetTime(8.0);
   sdc_writer.Save();
+
+#ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+#endif
 
   MFEMSidreDataCollection sdc_reader(testName());
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
@@ -530,11 +562,10 @@ TEST(sidre_datacollection, create_specset)
   EXPECT_TRUE(bp_grp->hasGroup("specsets"));
   EXPECT_TRUE(bp_grp->hasGroup("specsets/specset"));
   EXPECT_TRUE(bp_grp->hasView("specsets/specset/volume_dependent"));
-  EXPECT_FALSE(static_cast<std::int8_t>(
-    bp_grp->getView("specsets/specset/volume_dependent")->getScalar()));
+  EXPECT_FALSE(
+    static_cast<std::int8_t>(bp_grp->getView("specsets/specset/volume_dependent")->getScalar()));
   EXPECT_TRUE(bp_grp->hasView("specsets/specset/matset"));
-  EXPECT_EQ(std::string(bp_grp->getView("specsets/specset/matset")->getString()),
-            "matset");
+  EXPECT_EQ(std::string(bp_grp->getView("specsets/specset/matset")->getString()), "matset");
   EXPECT_TRUE(bp_grp->hasView("specsets/specset/matset_values/001/001"));
   checkReferentialEquality(bp_grp,
                            "matsets/matset/volume_fractions/001",
@@ -584,11 +615,10 @@ TEST(sidre_datacollection, create_specset_multi_fraction)
   EXPECT_TRUE(bp_grp->hasGroup("specsets"));
   EXPECT_TRUE(bp_grp->hasGroup("specsets/specset"));
   EXPECT_TRUE(bp_grp->hasView("specsets/specset/volume_dependent"));
-  EXPECT_FALSE(static_cast<std::int8_t>(
-    bp_grp->getView("specsets/specset/volume_dependent")->getScalar()));
+  EXPECT_FALSE(
+    static_cast<std::int8_t>(bp_grp->getView("specsets/specset/volume_dependent")->getScalar()));
   EXPECT_TRUE(bp_grp->hasView("specsets/specset/matset"));
-  EXPECT_EQ(std::string(bp_grp->getView("specsets/specset/matset")->getString()),
-            "matset");
+  EXPECT_EQ(std::string(bp_grp->getView("specsets/specset/matset")->getString()), "matset");
   checkReferentialEquality(bp_grp,
                            "matsets/matset/volume_fractions/001",
                            "fields/volume_fraction_001/values");
@@ -642,9 +672,7 @@ TEST(sidre_datacollection, create_material_dependent_field)
   checkReferentialEquality(bp_grp,
                            "matsets/matset/volume_fractions/001",
                            "fields/volume_fraction_001/values");
-  checkReferentialEquality(bp_grp,
-                           "fields/density/matset_values/001",
-                           "fields/density_001/values");
+  checkReferentialEquality(bp_grp, "fields/density/matset_values/001", "fields/density_001/values");
 }
 
 TEST(sidre_datacollection, create_material_dependent_field_multi_fraction)
@@ -690,12 +718,8 @@ TEST(sidre_datacollection, create_material_dependent_field_multi_fraction)
   checkReferentialEquality(bp_grp,
                            "matsets/matset/volume_fractions/002",
                            "fields/volume_fraction_002/values");
-  checkReferentialEquality(bp_grp,
-                           "fields/density/matset_values/001",
-                           "fields/density_001/values");
-  checkReferentialEquality(bp_grp,
-                           "fields/density/matset_values/002",
-                           "fields/density_002/values");
+  checkReferentialEquality(bp_grp, "fields/density/matset_values/001", "fields/density_001/values");
+  checkReferentialEquality(bp_grp, "fields/density/matset_values/002", "fields/density_002/values");
 }
 
 #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
@@ -788,11 +812,9 @@ static std::vector<ParMeshGroupData> getGroupData(const mfem::ParMesh& parmesh)
  * @param [in] base_mesh The serial mesh object to distribute, save, and then reload
  * @param [in] part_method The partitioning method to use - in [0, 5]
  */
-static void testParallelMeshReload(mfem::Mesh& base_mesh,
-                                   const int part_method = 1)
+static void testParallelMeshReload(mfem::Mesh& base_mesh, const int part_method = 1)
 {
-  auto* parmesh =
-    new mfem::ParMesh(MPI_COMM_WORLD, base_mesh, nullptr, part_method);
+  auto* parmesh = new mfem::ParMesh(MPI_COMM_WORLD, base_mesh, nullptr, part_method);
 
   // The mesh must be owned by Sidre to properly manage data in case of
   // a simulated restart (save -> load)
@@ -893,6 +915,12 @@ TEST(sidre_datacollection, dc_par_reload_gf)
   sdc_writer.SetCycle(0);
   sdc_writer.Save();
 
+  #ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+  #endif
+
   MFEMSidreDataCollection sdc_reader(testName());
 
   // Needs to be set "manually" in order for everything to be loaded in properly
@@ -919,18 +947,9 @@ TEST(sidre_datacollection, dc_par_reload_gf_ordering)
   mfem::ParMesh parmesh(MPI_COMM_WORLD, mesh);
 
   mfem::H1_FECollection fec(1, mesh.Dimension());
-  mfem::ParFiniteElementSpace first_parfes(&parmesh,
-                                           &fec,
-                                           1,
-                                           mfem::Ordering::byNODES);
-  mfem::ParFiniteElementSpace second_parfes(&parmesh,
-                                            &fec,
-                                            3,
-                                            mfem::Ordering::byVDIM);
-  mfem::ParFiniteElementSpace third_parfes(&parmesh,
-                                           &fec,
-                                           3,
-                                           mfem::Ordering::byNODES);
+  mfem::ParFiniteElementSpace first_parfes(&parmesh, &fec, 1, mfem::Ordering::byNODES);
+  mfem::ParFiniteElementSpace second_parfes(&parmesh, &fec, 3, mfem::Ordering::byVDIM);
+  mfem::ParFiniteElementSpace third_parfes(&parmesh, &fec, 3, mfem::Ordering::byNODES);
 
   // The mesh must be owned by Sidre to properly manage data in case of
   // a simulated restart (save -> load)
@@ -940,12 +959,9 @@ TEST(sidre_datacollection, dc_par_reload_gf_ordering)
 
   // The mesh and field(s) must be owned by Sidre to properly manage data in case of
   // a simulated restart (save -> load)
-  mfem::ParGridFunction first_gf_write(&first_parfes,
-                                       static_cast<double*>(nullptr));
-  mfem::ParGridFunction second_gf_write(&second_parfes,
-                                        static_cast<double*>(nullptr));
-  mfem::ParGridFunction third_gf_write(&third_parfes,
-                                       static_cast<double*>(nullptr));
+  mfem::ParGridFunction first_gf_write(&first_parfes, static_cast<double*>(nullptr));
+  mfem::ParGridFunction second_gf_write(&second_parfes, static_cast<double*>(nullptr));
+  mfem::ParGridFunction third_gf_write(&third_parfes, static_cast<double*>(nullptr));
 
   // Register to allocate storage internally, then write to it
   sdc_writer.RegisterField(first_field_name, &first_gf_write);
@@ -963,6 +979,12 @@ TEST(sidre_datacollection, dc_par_reload_gf_ordering)
 
   sdc_writer.SetCycle(0);
   sdc_writer.Save();
+
+  #ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+  #endif
 
   MFEMSidreDataCollection sdc_reader(testName());
 
@@ -1011,16 +1033,12 @@ TEST(sidre_datacollection, dc_par_reload_multi_datastore)
   // We want to make sure this isn't restored
   ds_write.getRoot()->createViewString(useless_view_name, "useless_data");
 
-  auto first_global_grp =
-    ds_write.getRoot()->createGroup(first_coll_name + "_global");
-  auto first_bp_index_grp =
-    first_global_grp->createGroup("blueprint_index/" + first_coll_name);
+  auto first_global_grp = ds_write.getRoot()->createGroup(first_coll_name + "_global");
+  auto first_bp_index_grp = first_global_grp->createGroup("blueprint_index/" + first_coll_name);
   auto first_domain_grp = ds_write.getRoot()->createGroup(first_coll_name);
 
-  auto second_global_grp =
-    ds_write.getRoot()->createGroup(second_coll_name + "_global");
-  auto second_bp_index_grp =
-    second_global_grp->createGroup("blueprint_index/" + second_coll_name);
+  auto second_global_grp = ds_write.getRoot()->createGroup(second_coll_name + "_global");
+  auto second_bp_index_grp = second_global_grp->createGroup("blueprint_index/" + second_coll_name);
   auto second_domain_grp = ds_write.getRoot()->createGroup(second_coll_name);
 
   // The mesh must be owned by Sidre to properly manage data in case of
@@ -1042,10 +1060,8 @@ TEST(sidre_datacollection, dc_par_reload_multi_datastore)
 
   // The mesh and field(s) must be owned by Sidre to properly manage data in case of
   // a simulated restart (save -> load)
-  mfem::ParGridFunction first_gf_write(&first_parfes,
-                                       static_cast<double*>(nullptr));
-  mfem::ParGridFunction second_gf_write(&second_parfes,
-                                        static_cast<double*>(nullptr));
+  mfem::ParGridFunction first_gf_write(&first_parfes, static_cast<double*>(nullptr));
+  mfem::ParGridFunction second_gf_write(&second_parfes, static_cast<double*>(nullptr));
 
   // Register to allocate storage internally, then write to it
   first_sdc_writer.RegisterField(field_name, &first_gf_write);
@@ -1063,17 +1079,20 @@ TEST(sidre_datacollection, dc_par_reload_multi_datastore)
   second_sdc_writer.SetCycle(0);
   second_sdc_writer.Save();
 
+  #ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+  #endif
+
   axom::sidre::DataStore ds_read;
 
   first_global_grp = ds_read.getRoot()->createGroup(first_coll_name + "_global");
-  first_bp_index_grp =
-    first_global_grp->createGroup("blueprint_index/" + first_coll_name);
+  first_bp_index_grp = first_global_grp->createGroup("blueprint_index/" + first_coll_name);
   first_domain_grp = ds_read.getRoot()->createGroup(first_coll_name);
 
-  second_global_grp =
-    ds_read.getRoot()->createGroup(second_coll_name + "_global");
-  second_bp_index_grp =
-    second_global_grp->createGroup("blueprint_index/" + second_coll_name);
+  second_global_grp = ds_read.getRoot()->createGroup(second_coll_name + "_global");
+  second_bp_index_grp = second_global_grp->createGroup("blueprint_index/" + second_coll_name);
   second_domain_grp = ds_read.getRoot()->createGroup(second_coll_name);
 
   MFEMSidreDataCollection first_sdc_reader(first_coll_name,
@@ -1093,8 +1112,7 @@ TEST(sidre_datacollection, dc_par_reload_multi_datastore)
   EXPECT_FALSE(ds_read.getRoot()->hasView(useless_view_name));
 
   first_sdc_reader.SetGroupPointers(
-    ds_read.getRoot()->getGroup(first_coll_name + "_global/blueprint_index/" +
-                                first_coll_name),
+    ds_read.getRoot()->getGroup(first_coll_name + "_global/blueprint_index/" + first_coll_name),
     ds_read.getRoot()->getGroup(first_coll_name));
 
   first_sdc_reader.UpdateStateFromDS();
@@ -1104,8 +1122,7 @@ TEST(sidre_datacollection, dc_par_reload_multi_datastore)
   second_sdc_reader.Load();
 
   second_sdc_reader.SetGroupPointers(
-    ds_read.getRoot()->getGroup(second_coll_name + "_global/blueprint_index/" +
-                                second_coll_name),
+    ds_read.getRoot()->getGroup(second_coll_name + "_global/blueprint_index/" + second_coll_name),
     ds_read.getRoot()->getGroup(second_coll_name));
 
   second_sdc_reader.UpdateStateFromDS();
@@ -1127,6 +1144,12 @@ TEST(sidre_datacollection, dc_par_reload_multi_datastore)
 
 TEST(sidre_datacollection, dc_par_reload_mesh_1D_small)
 {
+  #ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+  #endif
+
   // 1D mesh divided into segments
   auto mesh = mfem::Mesh::MakeCartesian1D(10);
   testParallelMeshReloadAllPartitionings(mesh);
@@ -1134,6 +1157,12 @@ TEST(sidre_datacollection, dc_par_reload_mesh_1D_small)
 
 TEST(sidre_datacollection, dc_par_reload_mesh_2D_small)
 {
+  #ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+  #endif
+
   // 2D mesh divided into triangles
   auto mesh = mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::TRIANGLE);
   testParallelMeshReloadAllPartitionings(mesh);
@@ -1141,6 +1170,12 @@ TEST(sidre_datacollection, dc_par_reload_mesh_2D_small)
 
 TEST(sidre_datacollection, dc_par_reload_mesh_2D_large)
 {
+  #ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+  #endif
+
   // 2D mesh divided into triangles
   auto mesh = mfem::Mesh::MakeCartesian2D(100, 100, mfem::Element::TRIANGLE);
   testParallelMeshReloadAllPartitionings(mesh);
@@ -1150,15 +1185,16 @@ TEST(sidre_datacollection, dc_par_reload_mesh_2D_large)
   #if(MFEM_VERSION >= 40300)
 TEST(sidre_datacollection, dc_par_reload_mesh_2D_periodic)
 {
+    #ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+    #endif
+
   // periodic 2D mesh divided into triangles
-  auto base_mesh = mfem::Mesh::MakeCartesian2D(10,
-                                               10,
-                                               mfem::Element::Type::QUADRILATERAL,
-                                               false,
-                                               1.0,
-                                               1.0);
-  std::vector<mfem::Vector> translations = {mfem::Vector({1.0, 0.0}),
-                                            mfem::Vector({0.0, 1.0})};
+  auto base_mesh =
+    mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::Type::QUADRILATERAL, false, 1.0, 1.0);
+  std::vector<mfem::Vector> translations = {mfem::Vector({1.0, 0.0}), mfem::Vector({0.0, 1.0})};
   auto vertex_map = base_mesh.CreatePeriodicVertexMapping(translations);
   auto mesh = mfem::Mesh::MakePeriodic(base_mesh, vertex_map);
   testParallelMeshReloadAllPartitionings(mesh);
@@ -1167,6 +1203,12 @@ TEST(sidre_datacollection, dc_par_reload_mesh_2D_periodic)
 
 TEST(sidre_datacollection, dc_par_reload_mesh_3D_small_tet)
 {
+  #ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+  #endif
+
   // 3D mesh divided into tetrahedra
   auto mesh = mfem::Mesh::MakeCartesian3D(2, 2, 2, mfem::Element::TETRAHEDRON);
   testParallelMeshReloadAllPartitionings(mesh);
@@ -1174,6 +1216,12 @@ TEST(sidre_datacollection, dc_par_reload_mesh_3D_small_tet)
 
 TEST(sidre_datacollection, dc_par_reload_mesh_3D_medium_tet)
 {
+  #ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+  #endif
+
   // 3D mesh divided into tetrahedra
   auto mesh = mfem::Mesh::MakeCartesian3D(10, 10, 10, mfem::Element::TETRAHEDRON);
   testParallelMeshReloadAllPartitionings(mesh);
@@ -1181,6 +1229,12 @@ TEST(sidre_datacollection, dc_par_reload_mesh_3D_medium_tet)
 
 TEST(sidre_datacollection, dc_par_reload_mesh_3D_small_hex)
 {
+  #ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+  #endif
+
   // 3D mesh divided into hexahedra
   auto mesh = mfem::Mesh::MakeCartesian3D(3, 3, 3, mfem::Element::HEXAHEDRON);
   testParallelMeshReloadAllPartitionings(mesh);
@@ -1188,6 +1242,12 @@ TEST(sidre_datacollection, dc_par_reload_mesh_3D_small_hex)
 
 TEST(sidre_datacollection, dc_par_reload_mesh_3D_medium_hex)
 {
+  #ifndef AXOM_USE_HDF5
+  SUCCEED() << "sidre::MFEMSidreDataCollection::load(<cycle>) is only implemented "
+               "for the 'sidre_hdf5' protocol";
+  return;
+  #endif
+
   // 3D mesh divided into hexahedra
   auto mesh = mfem::Mesh::MakeCartesian3D(10, 10, 10, mfem::Element::HEXAHEDRON);
   testParallelMeshReloadAllPartitionings(mesh);

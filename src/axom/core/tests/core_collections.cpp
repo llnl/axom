@@ -72,8 +72,8 @@ protected:
   /// SFINAE function to create a double from a string
   /// Note: caller is responsible for deallocating the associated memory
   template <typename T>
-  typename std::enable_if<std::is_same<double, T>::value, double*>::type
-  create_item(const std::string& str) const
+  typename std::enable_if<std::is_same<double, T>::value, double*>::type create_item(
+    const std::string& str) const
   {
     // creates arbitrary double from the input string's length
     return new double(str.size() * 1.111);
@@ -82,8 +82,8 @@ protected:
   /// SFINAE function to create a NewItem from a string
   /// Note: caller is responsible for deallocating the associated memory
   template <typename T>
-  typename std::enable_if<std::is_same<NamedItem, T>::value, NamedItem*>::type
-  create_item(const std::string& str) const
+  typename std::enable_if<std::is_same<NamedItem, T>::value, NamedItem*>::type create_item(
+    const std::string& str) const
   {
     return new NamedItem(str);
   }
@@ -271,21 +271,10 @@ TYPED_TEST(ItemCollectionTest, removeAndAddItems)
 {
   auto* coll = this->m_coll;
 
-  std::vector<std::string> names {"a",
-                                  "b",
-                                  "c",
-                                  "aa",
-                                  "bb",
-                                  "cc",
-                                  "aaa",
-                                  "bbb",
-                                  "ccc",
-                                  "aaaa",
-                                  "bbbb",
-                                  "cccc"};
-  std::vector<std::string> remove_names {"b", "bb", "bbb", "bbbb"};
   std::vector<std::string>
-    keep_names {"a", "c", "aa", "cc", "aaa", "ccc", "aaaa", "cccc"};
+    names {"a", "b", "c", "aa", "bb", "cc", "aaa", "bbb", "ccc", "aaaa", "bbbb", "cccc"};
+  std::vector<std::string> remove_names {"b", "bb", "bbb", "bbbb"};
+  std::vector<std::string> keep_names {"a", "c", "aa", "cc", "aaa", "ccc", "aaaa", "cccc"};
   std::vector<std::string> add_names {"d", "dd", "ddd", "dddd"};
 
   auto map = this->addItems(names);
@@ -306,14 +295,12 @@ TYPED_TEST(ItemCollectionTest, removeAndAddItems)
   // check that items from 'keep' list are still present and 'remove' are missing
   for(auto kv : map)
   {
-    if(std::find(remove_names.begin(), remove_names.end(), kv.first) !=
-       remove_names.end())
+    if(std::find(remove_names.begin(), remove_names.end(), kv.first) != remove_names.end())
     {
       EXPECT_FALSE(coll->hasItem(kv.second));
     }
 
-    if(std::find(keep_names.begin(), keep_names.end(), kv.first) !=
-       keep_names.end())
+    if(std::find(keep_names.begin(), keep_names.end(), kv.first) != keep_names.end())
     {
       EXPECT_TRUE(coll->hasItem(kv.second));
     }
@@ -327,8 +314,7 @@ TYPED_TEST(ItemCollectionTest, removeAndAddItems)
   // can no longer check remove since indices will be reused
   for(auto kv : map)
   {
-    if(std::find(keep_names.begin(), keep_names.end(), kv.first) !=
-       keep_names.end())
+    if(std::find(keep_names.begin(), keep_names.end(), kv.first) != keep_names.end())
     {
       EXPECT_TRUE(coll->hasItem(kv.second));
     }
@@ -386,8 +372,7 @@ TYPED_TEST(ItemCollectionTest, iterators)
 {
   auto* coll = this->m_coll;
 
-  std::vector<std::string>
-    names {"a", "b", "c", "aa", "bb", "cc", "aaa", "bbb", "ccc"};
+  std::vector<std::string> names {"a", "b", "c", "aa", "bb", "cc", "aaa", "bbb", "ccc"};
 
   auto map = this->addItems(names);
   EXPECT_EQ(names.size(), coll->getNumItems());
@@ -437,8 +422,7 @@ TYPED_TEST(ItemCollectionTest, iterators)
 // ----------------------------------------------------------------------------
 
 template <typename TheValueType>
-class MapCollectionTest
-  : public ItemCollectionTest<axom::MapCollection<TheValueType>>
+class MapCollectionTest : public ItemCollectionTest<axom::MapCollection<TheValueType>>
 {
 public:
   using ValueType = TheValueType;
@@ -450,10 +434,7 @@ protected:
 
   void TearDown() override { ItemCollectionBase::TearDown(); }
 
-  MapCollectionType* getCollection()
-  {
-    return static_cast<MapCollectionType*>(this->m_coll);
-  }
+  MapCollectionType* getCollection() { return static_cast<MapCollectionType*>(this->m_coll); }
 };
 
 using MCollTypes = ::testing::Types<NamedItem>;
@@ -464,8 +445,7 @@ TYPED_TEST(MapCollectionTest, testMapCollection)
   auto* map_coll = this->getCollection();
   if(map_coll != nullptr)
   {
-    std::vector<std::string>
-      names {"a", "b", "c", "aa", "bb", "cc", "aaa", "bbb", "ccc"};
+    std::vector<std::string> names {"a", "b", "c", "aa", "bb", "cc", "aaa", "bbb", "ccc"};
 
     // add some items and check their properties
     this->addItems(names);
@@ -503,8 +483,7 @@ TYPED_TEST(MapCollectionTest, testMapCollection)
 
       // item is in names, but not in removed_names
       EXPECT_NE(names.end(), std::find(names.begin(), names.end(), name));
-      EXPECT_EQ(removed_names.end(),
-                std::find(removed_names.begin(), removed_names.end(), name));
+      EXPECT_EQ(removed_names.end(), std::find(removed_names.begin(), removed_names.end(), name));
     }
 
     // add some items and iterate through collection
@@ -512,11 +491,8 @@ TYPED_TEST(MapCollectionTest, testMapCollection)
       std::vector<std::string> added_names {"dddd", "ddd", "dd", "d"};
       this->addItems(added_names);
       auto amended_names = names;
-      amended_names.insert(amended_names.end(),
-                           added_names.begin(),
-                           added_names.end());
-      EXPECT_EQ(amended_names.size() - removed_names.size(),
-                map_coll->getNumItems());
+      amended_names.insert(amended_names.end(), added_names.begin(), added_names.end());
+      EXPECT_EQ(amended_names.size() - removed_names.size(), map_coll->getNumItems());
 
       // iterate through current items
       for(auto& val : *map_coll)
@@ -528,10 +504,8 @@ TYPED_TEST(MapCollectionTest, testMapCollection)
         EXPECT_TRUE(map_coll->hasItem(idx));
 
         // item is in (ammended) names, but not in removed_names
-        EXPECT_NE(amended_names.end(),
-                  std::find(amended_names.begin(), amended_names.end(), name));
-        EXPECT_EQ(removed_names.end(),
-                  std::find(removed_names.begin(), removed_names.end(), name));
+        EXPECT_NE(amended_names.end(), std::find(amended_names.begin(), amended_names.end(), name));
+        EXPECT_EQ(removed_names.end(), std::find(removed_names.begin(), removed_names.end(), name));
       }
     }
   }
@@ -641,8 +615,7 @@ TYPED_TEST(MapCollectionTest, insertAlreadyPresent)
     {
       const bool hasItem = map_coll->hasItem(str);
       const bool wasRemoved =
-        std::find(names_to_remove.begin(), names_to_remove.end(), str) !=
-        names_to_remove.end();
+        std::find(names_to_remove.begin(), names_to_remove.end(), str) != names_to_remove.end();
       EXPECT_NE(hasItem, wasRemoved);
 
       auto* val = this->template create_item<ValueType>(str);
@@ -673,8 +646,7 @@ TYPED_TEST(MapCollectionTest, insertAlreadyPresent)
 // ----------------------------------------------------------------------------
 
 template <typename TheValueType>
-class IndexedCollectionTest
-  : public ItemCollectionTest<axom::IndexedCollection<TheValueType>>
+class IndexedCollectionTest : public ItemCollectionTest<axom::IndexedCollection<TheValueType>>
 {
 public:
   using ValueType = TheValueType;
@@ -702,8 +674,7 @@ TYPED_TEST(IndexedCollectionTest, testIndexedCollection)
   auto* idx_coll = this->getCollection();
   if(idx_coll != nullptr)
   {
-    std::vector<std::string>
-      names {"a", "b", "c", "aa", "bb", "cc", "aaa", "bbb", "ccc"};
+    std::vector<std::string> names {"a", "b", "c", "aa", "bb", "cc", "aaa", "bbb", "ccc"};
 
     // add some items and check their properties
     auto map = this->addItems(names);
@@ -757,8 +728,7 @@ TYPED_TEST(IndexedCollectionTest, outOfOrderInsert)
   auto* idx_coll = this->getCollection();
   if(idx_coll != nullptr)
   {
-    std::vector<std::string>
-      names {"a", "b", "c", "aa", "bb", "cc", "aaa", "bbb", "ccc"};
+    std::vector<std::string> names {"a", "b", "c", "aa", "bb", "cc", "aaa", "bbb", "ccc"};
 
     // add some items and check their properties
     auto map = this->addItems(names);
@@ -783,11 +753,10 @@ TYPED_TEST(IndexedCollectionTest, outOfOrderInsert)
     {
       auto sz = idx_coll->getNumItems();
       int numAdded = 0;
-      for(auto& pr :
-          {std::make_pair(idx_b, this->template create_item<ValueType>("d")),
-           std::make_pair(idx_bb, this->template create_item<ValueType>("dd")),
-           std::make_pair(idx_end, this->template create_item<ValueType>("dddd")),
-           std::make_pair(idx_bbb, this->template create_item<ValueType>("ddd"))})
+      for(auto& pr : {std::make_pair(idx_b, this->template create_item<ValueType>("d")),
+                      std::make_pair(idx_bb, this->template create_item<ValueType>("dd")),
+                      std::make_pair(idx_end, this->template create_item<ValueType>("dddd")),
+                      std::make_pair(idx_bbb, this->template create_item<ValueType>("ddd"))})
       {
         const auto idx = pr.first;
         auto* val = pr.second;
@@ -859,8 +828,7 @@ TYPED_TEST(IndexedCollectionTest, insertAlreadyPresent)
     {
       const bool hasItem = indexed_coll->hasItem(idx);
       const bool wasRemoved =
-        std::find(inds_to_remove.begin(), inds_to_remove.end(), idx) !=
-        inds_to_remove.end();
+        std::find(inds_to_remove.begin(), inds_to_remove.end(), idx) != inds_to_remove.end();
       EXPECT_NE(hasItem, wasRemoved);
 
       auto str = axom::fmt::format("a_{:08}", idx);

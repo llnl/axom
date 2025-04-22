@@ -71,18 +71,12 @@ public:
 class MeshVar
 {
 public:
-  MeshVar(Centering cent, DType type, int depth = 1)
-    : m_cent(cent)
-    , m_type(type)
-    , m_depth(depth)
+  MeshVar(Centering cent, DType type, int depth = 1) : m_cent(cent), m_type(type), m_depth(depth)
   {
     ;
   }
 
-  int getNumVals(const Extent* ext) const
-  {
-    return (ext->getNumPts(m_cent) * m_depth);
-  }
+  int getNumVals(const Extent* ext) const { return (ext->getNumPts(m_cent) * m_depth); }
 
   Centering m_cent;
   DType m_type;
@@ -227,8 +221,7 @@ TEST(sidre_opaque, meshvar)
   delete node_mv;
   for(int idom = 0; idom < 2; ++idom)
   {
-    delete static_cast<Extent*>(
-      problem_gp->getGroup(dom_name[idom])->getView("ext")->getVoidPtr());
+    delete static_cast<Extent*>(problem_gp->getGroup(dom_name[idom])->getView("ext")->getVoidPtr());
   }
   delete ds;
 }

@@ -132,8 +132,8 @@ constexpr int TILE_SIZE_Y = 8;
 constexpr int TILE_SIZE_Z = 4;
 
 //--------------------------------------------------------| CUDA_EXEC |---------
-#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE) && defined(__CUDACC__)
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  defined(__CUDACC__)
 
 template <int BLOCK_SIZE>
 struct nested_for_exec<CUDA_EXEC<BLOCK_SIZE, SYNCHRONOUS>>
@@ -218,8 +218,8 @@ struct nested_for_exec<CUDA_EXEC<BLOCK_SIZE, ASYNC>>
 #endif
 
 //--------------------------------------------------------| HIP_EXEC |---------
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE) && defined(__HIPCC__)
+#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  defined(__HIPCC__)
 
 template <int BLOCK_SIZE>
 struct nested_for_exec<HIP_EXEC<BLOCK_SIZE, SYNCHRONOUS>>

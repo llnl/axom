@@ -24,9 +24,8 @@ void check_bb_policy()
   using PointType = primal::Point<double, DIM>;
   using VectorType = primal::Vector<double, DIM>;
 
-  BoundingBoxType* box = axom::allocate<BoundingBoxType>(
-    1,
-    axom::execution_space<ExecSpace>::allocatorID());
+  BoundingBoxType* box =
+    axom::allocate<BoundingBoxType>(1, axom::execution_space<ExecSpace>::allocatorID());
 
   axom::for_all<ExecSpace>(
     1,
@@ -229,8 +228,7 @@ TEST(primal_boundingBox, bb_test_clear)
   EXPECT_TRUE(bbox.contains(QPoint::midpoint(pt1, pt2)));
 
   bbox.clear();
-  EXPECT_FALSE(bbox.isValid())
-    << "After clear() the bounding box should be invalid";
+  EXPECT_FALSE(bbox.isValid()) << "After clear() the bounding box should be invalid";
   EXPECT_FALSE(bbox.contains(pt1))
     << "After clear() the bounding box should not contain any points";
   EXPECT_FALSE(bbox.contains(pt2))
@@ -348,16 +346,13 @@ TEST(primal_boundingBox, bb_add_box)
   EXPECT_TRUE(bbox1.contains(QPoint(4)))
     << "After addBox() we should now contain points in between the two "
        "bounding boxes";
-  EXPECT_FALSE(bbox1.contains(QPoint(10)))
-    << "Points outside both ranges are still outside";
+  EXPECT_FALSE(bbox1.contains(QPoint(10))) << "Points outside both ranges are still outside";
   EXPECT_TRUE(bbox1.contains(bbox2));
 
   //
   SLIC_INFO("Testing addBox() for differently arranged boxes");
-  QBBox bbox3(QPoint::make_point(1, 3, 3),
-              QPoint::make_point(3, 1, 1));  // first box in 2nd test
-  QBBox bbox4(QPoint::make_point(7, 5, 7),
-              QPoint::make_point(5, 7, 7));  // second box in 2nd test
+  QBBox bbox3(QPoint::make_point(1, 3, 3), QPoint::make_point(3, 1, 1));  // first box in 2nd test
+  QBBox bbox4(QPoint::make_point(7, 5, 7), QPoint::make_point(5, 7, 7));  // second box in 2nd test
   EXPECT_TRUE(bbox3.isValid());
   EXPECT_TRUE(bbox3.contains(QPoint::make_point(2, 3, 1)));
   EXPECT_FALSE(bbox3.contains(QPoint(4)));
@@ -712,24 +707,23 @@ AXOM_CUDA_TEST(primal_boundingBox, bb_check_policies)
   using seq_exec = axom::SEQ_EXEC;
   check_bb_policy<seq_exec>();
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
 
   using omp_exec = axom::OMP_EXEC;
   check_bb_policy<omp_exec>();
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
+  defined(AXOM_USE_UMPIRE)
 
   using cuda_exec = axom::CUDA_EXEC<512>;
 
   check_bb_policy<cuda_exec>();
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
+  defined(AXOM_USE_UMPIRE)
 
   using hip_exec = axom::HIP_EXEC<512>;
 

@@ -67,19 +67,15 @@ public:
     setLoggingMsgLevel(level);
 
     // Formatting for warning, errors and fatal message
-    std::string wefFormatStr =
-      std::string("\n***********************************\n") +
+    std::string wefFormatStr = std::string("\n***********************************\n") +
       std::string("[<LEVEL> in line <LINE> of file <FILE>]\n") +
-      std::string("MESSAGE=<MESSAGE>\n") +
-      std::string("***********************************\n");
+      std::string("MESSAGE=<MESSAGE>\n") + std::string("***********************************\n");
 
     // Simple formatting for debug and info messages
     std::string diFormatStr = "[<LEVEL>] <MESSAGE> \n";
 
-    GenericOutputStream* wefStream =
-      new GenericOutputStream(&std::cout, wefFormatStr);
-    GenericOutputStream* diStream =
-      new GenericOutputStream(&std::cout, diFormatStr);
+    GenericOutputStream* wefStream = new GenericOutputStream(&std::cout, wefFormatStr);
+    GenericOutputStream* diStream = new GenericOutputStream(&std::cout, diFormatStr);
 
     addStreamToMsgLevel(wefStream, message::Error);
     addStreamToMsgLevel(wefStream, message::Warning);

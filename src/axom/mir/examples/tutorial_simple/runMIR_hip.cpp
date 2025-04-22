@@ -6,19 +6,11 @@
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
 // Prototypes
-int runMIR_hip_tri(const conduit::Node &mesh,
-                   const conduit::Node &options,
-                   conduit::Node &result);
-int runMIR_hip_quad(const conduit::Node &mesh,
-                    const conduit::Node &options,
-                    conduit::Node &result);
-int runMIR_hip_hex(const conduit::Node &mesh,
-                   const conduit::Node &options,
-                   conduit::Node &result);
+int runMIR_hip_tri(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
+int runMIR_hip_quad(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
+int runMIR_hip_hex(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
 
-int runMIR_hip(const conduit::Node &mesh,
-               const conduit::Node &options,
-               conduit::Node &result)
+int runMIR_hip(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result)
 {
   std::string shape = mesh["topologies/mesh/elements/shape"].as_string();
   int retval = 0;

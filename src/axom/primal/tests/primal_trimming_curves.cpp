@@ -49,8 +49,7 @@ protected:
                                                PointType {2.0, 1.0, 0.0},
                                                PointType {2.0, 2.0, 1.0}});
 
-    nPatch =
-      NURBSPatchType(controlPointsArray, npts_u, npts_v, degree_u, degree_v);
+    nPatch = NURBSPatchType(controlPointsArray, npts_u, npts_v, degree_u, degree_v);
   }
 
   NURBSPatchType nPatch;
@@ -90,12 +89,11 @@ TEST_F(TrimmingCurveTest, basic_operations)
   EXPECT_FALSE(nPatch.isTrimmed());
 
   // Add a simple trimming curve from a NURBS curve
-  axom::Array<ParameterPointType> trimmingCurveControlPoints {
-    ParameterPointType {0.25, 0.25},
-    ParameterPointType {0.75, 0.25},
-    ParameterPointType {0.75, 0.75},
-    ParameterPointType {0.25, 0.75},
-    ParameterPointType {0.25, 0.25}};
+  axom::Array<ParameterPointType> trimmingCurveControlPoints {ParameterPointType {0.25, 0.25},
+                                                              ParameterPointType {0.75, 0.25},
+                                                              ParameterPointType {0.75, 0.75},
+                                                              ParameterPointType {0.25, 0.75},
+                                                              ParameterPointType {0.25, 0.25}};
 
   TrimmingCurveType trimmingCurve(trimmingCurveControlPoints, 2);
 
@@ -112,12 +110,24 @@ TEST_F(TrimmingCurveTest, basic_operations)
   EXPECT_TRUE(nPatchCopy.isTrimmed());
   EXPECT_EQ(nPatchCopy.getNumTrimmingCurves(), 1);
 
-  // Delete all trimming curves from the copy
+  // Mark the copy as untrimmed
   nPatchCopy.makeUntrimmed();
   EXPECT_FALSE(nPatchCopy.isTrimmed());
 
   // Check that the two patches are not equal
   EXPECT_NE(nPatchCopy, nPatch);
+
+  // Remove trimming curves from the original
+  nPatch.clearTrimmingCurves();
+
+  // Check that the two patches are still not equal
+  EXPECT_NE(nPatchCopy, nPatch);
+
+  // Mark the original one as untrimmed
+  nPatch.makeUntrimmed();
+
+  // Check that the two patches are now equal
+  EXPECT_EQ(nPatchCopy, nPatch);
 }
 
 //------------------------------------------------------------------------------
@@ -135,12 +145,11 @@ TEST_F(TrimmingCurveTest, visibility_queries)
   EXPECT_FALSE(nPatch.isVisible(0.5, 1.5));
 
   // Add a simple trimming curve from a NURBS curve
-  axom::Array<ParameterPointType> trimmingCurveControlPoints {
-    ParameterPointType {0.25, 0.25},
-    ParameterPointType {0.75, 0.25},
-    ParameterPointType {0.75, 0.75},
-    ParameterPointType {0.25, 0.75},
-    ParameterPointType {0.25, 0.25}};
+  axom::Array<ParameterPointType> trimmingCurveControlPoints {ParameterPointType {0.25, 0.25},
+                                                              ParameterPointType {0.75, 0.25},
+                                                              ParameterPointType {0.75, 0.75},
+                                                              ParameterPointType {0.25, 0.75},
+                                                              ParameterPointType {0.25, 0.25}};
 
   TrimmingCurveType trimmingCurve(trimmingCurveControlPoints, 2);
   nPatch.addTrimmingCurve(trimmingCurve);
@@ -191,12 +200,11 @@ TEST_F(TrimmingCurveTest, visibility_queries_open_curves)
   EXPECT_FALSE(nPatch.isVisible(0.5, 1.5));
 
   // Add an open trimming curve from a NURBS curve
-  axom::Array<ParameterPointType> trimmingCurveControlPoints {
-    ParameterPointType {0.30, 0.25},
-    ParameterPointType {0.75, 0.25},
-    ParameterPointType {0.75, 0.75},
-    ParameterPointType {0.25, 0.75},
-    ParameterPointType {0.25, 0.30}};
+  axom::Array<ParameterPointType> trimmingCurveControlPoints {ParameterPointType {0.30, 0.25},
+                                                              ParameterPointType {0.75, 0.25},
+                                                              ParameterPointType {0.75, 0.75},
+                                                              ParameterPointType {0.25, 0.75},
+                                                              ParameterPointType {0.25, 0.30}};
 
   TrimmingCurveType trimmingCurve(trimmingCurveControlPoints, 2);
   nPatch.addTrimmingCurve(trimmingCurve);
@@ -221,12 +229,11 @@ TEST_F(TrimmingCurveTest, trimming_curve_orientation)
   NURBSPatchType nPatchCopy(nPatch);
 
   // Add a simple trimming curve from a NURBS curve
-  axom::Array<ParameterPointType> trimmingCurveControlPoints {
-    ParameterPointType {0.25, 0.25},
-    ParameterPointType {0.75, 0.25},
-    ParameterPointType {0.75, 0.75},
-    ParameterPointType {0.25, 0.75},
-    ParameterPointType {0.25, 0.25}};
+  axom::Array<ParameterPointType> trimmingCurveControlPoints {ParameterPointType {0.25, 0.25},
+                                                              ParameterPointType {0.75, 0.25},
+                                                              ParameterPointType {0.75, 0.75},
+                                                              ParameterPointType {0.25, 0.75},
+                                                              ParameterPointType {0.25, 0.25}};
 
   TrimmingCurveType trimmingCurve(trimmingCurveControlPoints, 2);
   nPatch.addTrimmingCurve(trimmingCurve);
@@ -279,18 +286,16 @@ TEST_F(TrimmingCurveTest, trimming_curve_orientation)
 //------------------------------------------------------------------------------
 TEST_F(TrimmingCurveTest, knot_vector_manipulation)
 {
-  SLIC_INFO(
-    "Testing position of trimming curves after changing surface orientation");
+  SLIC_INFO("Testing position of trimming curves after changing surface orientation");
 
   NURBSPatchType nPatch(this->nPatch);
 
   // Add a simple, not symmetric trimming curve from a NURBS curve
-  axom::Array<ParameterPointType> trimmingCurveControlPoints {
-    ParameterPointType {0.20, 0.15},
-    ParameterPointType {0.70, 0.15},
-    ParameterPointType {0.70, 0.65},
-    ParameterPointType {0.20, 0.65},
-    ParameterPointType {0.20, 0.15}};
+  axom::Array<ParameterPointType> trimmingCurveControlPoints {ParameterPointType {0.20, 0.15},
+                                                              ParameterPointType {0.70, 0.15},
+                                                              ParameterPointType {0.70, 0.65},
+                                                              ParameterPointType {0.20, 0.65},
+                                                              ParameterPointType {0.20, 0.15}};
   TrimmingCurveType trimmingCurve(trimmingCurveControlPoints, 2);
   nPatch.addTrimmingCurve(trimmingCurve);
 

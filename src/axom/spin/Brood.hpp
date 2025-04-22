@@ -35,8 +35,7 @@ struct Brood
     BROOD_BITMASK = (1 << DIM) - 1
   };
 
-  using MortonizerType =
-    spin::Mortonizer<typename GridPt::CoordType, MortonIndexType, DIM>;
+  using MortonizerType = spin::Mortonizer<typename GridPt::CoordType, MortonIndexType, DIM>;
 
   /**
    * \brief Constructor for a brood offset relative to the given grid point pt
@@ -64,8 +63,8 @@ struct Brood
    */
   static GridPt reconstructGridPt(MortonIndexType morton, int offset)
   {
-    return static_cast<GridPt>(MortonizerType::demortonize(
-      static_cast<MortonIndexType>((morton << DIM) + offset)));
+    return static_cast<GridPt>(
+      MortonizerType::demortonize(static_cast<MortonIndexType>((morton << DIM) + offset)));
   }
 
 private:

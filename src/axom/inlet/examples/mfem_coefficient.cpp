@@ -48,22 +48,17 @@ struct BoundaryCondition
 
   // The object gets constructed with the input info and any user-provided info
   // in this case, the dimension
-  BoundaryCondition(InputInfo&& info, const int dim)
-    : attrs(std::move(info.attrs))
+  BoundaryCondition(InputInfo&& info, const int dim) : attrs(std::move(info.attrs))
   {
     if(info.scalar_func)
     {
-      coef =
-        std::make_unique<mfem::FunctionCoefficient>(std::move(info.scalar_func));
+      coef = std::make_unique<mfem::FunctionCoefficient>(std::move(info.scalar_func));
       SLIC_INFO("Created an mfem::Coefficient");
     }
     else if(info.vec_func)
     {
-      vec_coef = std::make_unique<mfem::VectorFunctionCoefficient>(
-        dim,
-        std::move(info.vec_func));
-      SLIC_INFO("Created an mfem::VectorCoefficient with dimension "
-                << vec_coef->GetVDim());
+      vec_coef = std::make_unique<mfem::VectorFunctionCoefficient>(dim, std::move(info.vec_func));
+      SLIC_INFO("Created an mfem::VectorCoefficient with dimension " << vec_coef->GetVDim());
     }
     else
     {
@@ -78,11 +73,11 @@ struct BoundaryCondition
     // for vector/scalar coefficients
     // Supported function parameter/return types are Double and Vector
 
-    schema.addFunction("vec_coef",
-                       inlet::FunctionTag::Vector,
-                       {inlet::FunctionTag::Vector,
-                        inlet::FunctionTag::Double},  // Multiple argument types
-                       "The function representing the BC coefficient");
+    schema.addFunction(
+      "vec_coef",
+      inlet::FunctionTag::Vector,
+      {inlet::FunctionTag::Vector, inlet::FunctionTag::Double},  // Multiple argument types
+      "The function representing the BC coefficient");
 
     // _inlet_mfem_func_coef_start
     schema
@@ -141,30 +136,25 @@ struct FromInlet<BoundaryCondition::InputInfo>
     {
       // _inlet_mfem_coef_simple_retrieve_start
       // Retrieve the function (makes a copy) to be moved into the lambda
-      auto func =
-        base["coef"].get<std::function<double(FunctionType::Vector, double)>>();
+      auto func = base["coef"].get<std::function<double(FunctionType::Vector, double)>>();
       // _inlet_mfem_coef_simple_retrieve_end
-      result.scalar_func = [func(std::move(func))](const mfem::Vector& vec,
-                                                   double t) {
+      result.scalar_func = [func(std::move(func))](const mfem::Vector& vec, double t) {
         return func(toInletVector(vec), t);
       };
     }
     else if(base.contains("vec_coef"))
     {
       auto func =
-        base["vec_coef"]
-          .get<std::function<FunctionType::Vector(FunctionType::Vector, double)>>();
-      result.vec_func = [func(std::move(func))](const mfem::Vector& input,
-                                                double t,
-                                                mfem::Vector& output) {
-        auto ret = func(toInletVector(input), t);
-        toMFEMVector(ret, output);
-      };
+        base["vec_coef"].get<std::function<FunctionType::Vector(FunctionType::Vector, double)>>();
+      result.vec_func =
+        [func(std::move(func))](const mfem::Vector& input, double t, mfem::Vector& output) {
+          auto ret = func(toInletVector(input), t);
+          toMFEMVector(ret, output);
+        };
     }
     else
     {
-      SLIC_ERROR(
-        "Container did not contain a coefficient function: " << base.name());
+      SLIC_ERROR("Container did not contain a coefficient function: " << base.name());
     }
     return result;
   }
@@ -178,8 +168,7 @@ int main(int argc, char** argv)
   // Inlet requires a SLIC logger to be initialized to output runtime information
   axom::slic::SimpleLogger logger;
 
-  axom::CLI::App app {
-    "Example of Axom's Inlet component with user-defined types"};
+  axom::CLI::App app {"Example of Axom's Inlet component with user-defined types"};
   // Intended to be used with mfem_coef.lua
   std::string inputFileName;
   auto opt = app.add_option("--file", inputFileName, "Path to input file");
@@ -205,8 +194,7 @@ int main(int argc, char** argv)
   }
 
   // Read all the data into a set of boundary conditions
-  auto bc_infos =
-    inlet["bcs"].get<std::unordered_map<int, BoundaryCondition::InputInfo>>();
+  auto bc_infos = inlet["bcs"].get<std::unordered_map<int, BoundaryCondition::InputInfo>>();
 
   // Then construct the actual boundary conditions once the mesh dimension is known
   const int dim = 3;
@@ -222,18 +210,16 @@ int main(int argc, char** argv)
     if(info.second.scalar_func)
     {
       const double result = info.second.scalar_func(input_vec, t);
-      SLIC_INFO(
-        axom::fmt::format("Calling scalar function with {0} returned: {1}",
-                          toInletVector(input_vec),
-                          result));
+      SLIC_INFO(axom::fmt::format("Calling scalar function with {0} returned: {1}",
+                                  toInletVector(input_vec),
+                                  result));
     }
     else if(info.second.vec_func)
     {
       info.second.vec_func(input_vec, t, output_vec);
-      SLIC_INFO(
-        axom::fmt::format("Calling vector function with {0} returned: {1}",
-                          toInletVector(input_vec),
-                          toInletVector(output_vec)));
+      SLIC_INFO(axom::fmt::format("Calling vector function with {0} returned: {1}",
+                                  toInletVector(input_vec),
+                                  toInletVector(output_vec)));
     }
     bcs.emplace(info.first, BoundaryCondition {std::move(info.second), dim});
   }

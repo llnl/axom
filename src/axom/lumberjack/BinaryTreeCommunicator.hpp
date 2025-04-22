@@ -120,8 +120,7 @@ public:
    *
    *****************************************************************************
    */
-  void push(const char* packedMessagesToBeSent,
-            std::vector<const char*>& receivedPackedMessages);
+  void push(const char* packedMessagesToBeSent, std::vector<const char*>& receivedPackedMessages);
 
   /*!
    *****************************************************************************

@@ -44,19 +44,17 @@ void ensureInitialized()
     disableAbortOnError();
     disableAbortOnWarning();
     setLoggingMsgLevel(slic::message::Debug);
-    std::string format = std::string("<TIMESTAMP>\n") +
-      std::string("[<LEVEL>]: <MESSAGE> \n") + std::string("FILE=<FILE>\n") +
-      std::string("LINE=<LINE>\n\n");
+    std::string format = std::string("<TIMESTAMP>\n") + std::string("[<LEVEL>]: <MESSAGE> \n") +
+      std::string("FILE=<FILE>\n") + std::string("LINE=<LINE>\n\n");
     addStreamToAllMsgLevels(new slic::GenericOutputStream(&std::cout, format));
 
-    logMessage(
-      message::Warning,
-      "slic::initialize() must be called before any other calls to SLIC\n."
-      "The SLIC library called slic::initialize() for you and set up a minimal "
-      "configuration\nto allow log messages to print.\n"
-      "Please call slic::initialize() near the beginning of the code\n"
-      "to fix this error and get rid of this message.\n"
-      "Please call slic::finalize() after all other calls to SLIC.\n");
+    logMessage(message::Warning,
+               "slic::initialize() must be called before any other calls to SLIC\n."
+               "The SLIC library called slic::initialize() for you and set up a minimal "
+               "configuration\nto allow log messages to print.\n"
+               "Please call slic::initialize() near the beginning of the code\n"
+               "to fix this error and get rid of this message.\n"
+               "Please call slic::finalize() after all other calls to SLIC.\n");
   }
 }
 
@@ -214,9 +212,7 @@ int getNumStreamsWithTag(const std::string& tag)
 }
 
 //------------------------------------------------------------------------------
-void logMessage(message::Level level,
-                const std::string& message,
-                bool filter_duplicates)
+void logMessage(message::Level level, const std::string& message, bool filter_duplicates)
 {
   ensureInitialized();
   Logger::getActiveLogger()->logMessage(level, message, filter_duplicates);
@@ -230,11 +226,7 @@ void logMessage(message::Level level,
                 bool tag_stream_only)
 {
   ensureInitialized();
-  Logger::getActiveLogger()->logMessage(level,
-                                        message,
-                                        tag,
-                                        filter_duplicates,
-                                        tag_stream_only);
+  Logger::getActiveLogger()->logMessage(level, message, tag, filter_duplicates, tag_stream_only);
 }
 
 //------------------------------------------------------------------------------
@@ -245,11 +237,7 @@ void logMessage(message::Level level,
                 bool filter_duplicates)
 {
   ensureInitialized();
-  Logger::getActiveLogger()->logMessage(level,
-                                        message,
-                                        fileName,
-                                        line,
-                                        filter_duplicates);
+  Logger::getActiveLogger()->logMessage(level, message, fileName, line, filter_duplicates);
 }
 
 //------------------------------------------------------------------------------
@@ -262,19 +250,12 @@ void logMessage(message::Level level,
                 bool tag_stream_only)
 {
   ensureInitialized();
-  Logger::getActiveLogger()->logMessage(level,
-                                        message,
-                                        tag,
-                                        fileName,
-                                        line,
-                                        filter_duplicates,
-                                        tag_stream_only);
+  Logger::getActiveLogger()
+    ->logMessage(level, message, tag, fileName, line, filter_duplicates, tag_stream_only);
 }
 
 //------------------------------------------------------------------------------
-void logErrorMessage(const std::string& message,
-                     const std::string& fileName,
-                     int line)
+void logErrorMessage(const std::string& message, const std::string& fileName, int line)
 {
   std::ostringstream oss;
   oss << message << slic::internal::stacktrace();
@@ -283,9 +264,7 @@ void logErrorMessage(const std::string& message,
 }
 
 //------------------------------------------------------------------------------
-void logWarningMessage(const std::string& message,
-                       const std::string& fileName,
-                       int line)
+void logWarningMessage(const std::string& message, const std::string& fileName, int line)
 {
   slic::logMessage(message::Warning, message, fileName, line);
 }

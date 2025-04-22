@@ -113,10 +113,7 @@ bool operator==(const Path& lhs, const Path& rhs);
  * \param [in] rhs The second Path to compare
  * Two paths are equal if they use the same delimiter and contain the same components
  */
-inline bool operator!=(const Path& lhs, const Path& rhs)
-{
-  return !(lhs == rhs);
-}
+inline bool operator!=(const Path& lhs, const Path& rhs) { return !(lhs == rhs); }
 
 }  // end namespace axom
 

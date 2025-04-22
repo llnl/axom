@@ -58,9 +58,7 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
                            bool reuseExisting = true);
 
 /// Generates a quadrature function corresponding to the mesh positions
-void generatePositionsQFunction(mfem::Mesh* mesh,
-                                QFunctionCollection& inoutQFuncs,
-                                int sampleRes);
+void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFuncs, int sampleRes);
 
 /**
  * \brief Compute volume fractions for a given material using its associated quadrature function

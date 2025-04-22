@@ -64,10 +64,7 @@ public:
    *
    * \sa constructors in PointInCell class for more details about parameters
    */
-  PointFinder(const MeshWrapperType* meshWrapper,
-              const int* res,
-              double bboxScaleFactor,
-              int allocatorID)
+  PointFinder(const MeshWrapperType* meshWrapper, const int* res, double bboxScaleFactor, int allocatorID)
     : m_meshWrapper(meshWrapper)
     , m_allocatorID(allocatorID)
   {
@@ -90,8 +87,7 @@ public:
     if(DeviceExec)
     {
       // Copy the host-side bounding boxes to GPU memory.
-      m_cellBBoxes =
-        axom::Array<SpatialBoundingBox>(cellBBoxesHost, m_allocatorID);
+      m_cellBBoxes = axom::Array<SpatialBoundingBox>(cellBBoxesHost, m_allocatorID);
     }
     else
     {
@@ -129,15 +125,12 @@ public:
 
     if(DeviceExec)
     {
-      axom::Array<SpacePoint> dev_ptr(axom::ArrayView<const SpacePoint>(&pt, 1),
-                                      m_allocatorID);
+      axom::Array<SpacePoint> dev_ptr(axom::ArrayView<const SpacePoint>(&pt, 1), m_allocatorID);
       locatePoints(dev_ptr, &containingCell, &isopar);
     }
     else
     {
-      locatePoints(axom::ArrayView<const SpacePoint>(&pt, 1),
-                   &containingCell,
-                   &isopar);
+      locatePoints(axom::ArrayView<const SpacePoint>(&pt, 1), &containingCell, &isopar);
     }
 
     // Copy data back to input parameter isoparametric, if necessary
@@ -163,8 +156,7 @@ public:
 
     using HostIndexView = axom::ArrayView<IndexType, 1, axom::MemorySpace::Host>;
     using HostPointView = axom::ArrayView<SpacePoint, 1, axom::MemorySpace::Host>;
-    using ConstHostPointView =
-      axom::ArrayView<const SpacePoint, 1, axom::MemorySpace::Host>;
+    using ConstHostPointView = axom::ArrayView<const SpacePoint, 1, axom::MemorySpace::Host>;
   #else
     using HostIndexArray = IndexArray;
     using HostPointArray = axom::Array<SpacePoint>;
@@ -198,8 +190,7 @@ public:
       // Step 2: exclusive scan for offsets in candidate array
       // Intel oneAPI compiler segfaults with OpenMP RAJA scan
   #ifdef __INTEL_LLVM_COMPILER
-    using exec_policy =
-      typename axom::execution_space<axom::SEQ_EXEC>::loop_policy;
+    using exec_policy = typename axom::execution_space<axom::SEQ_EXEC>::loop_policy;
   #else
     using exec_policy = typename axom::execution_space<ExecSpace>::loop_policy;
   #endif
@@ -312,9 +303,7 @@ public:
     if(DeviceExec)
     {
       // Copy back to GPU memory.
-      axom::copy(outCellIds,
-                 outCellIdsHost.data(),
-                 outCellIdsHost.size() * sizeof(IndexType));
+      axom::copy(outCellIds, outCellIdsHost.data(), outCellIdsHost.size() * sizeof(IndexType));
       axom::copy(outIsoparametricCoords,
                  outIsoparHost.data(),
                  outIsoparHost.size() * sizeof(SpacePoint));
@@ -328,9 +317,7 @@ public:
       gridQuery.visitCandidates(pt, [&](int candidateIdx) -> bool {
         if(m_cellBBoxes[candidateIdx].contains(pt))
         {
-          if(m_meshWrapper->locatePointInCell(candidateIdx,
-                                              pt.data(),
-                                              isopar.data()))
+          if(m_meshWrapper->locatePointInCell(candidateIdx, pt.data(), isopar.data()))
           {
             outCellIds[i] = candidateIdx;
             return true;

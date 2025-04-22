@@ -76,10 +76,8 @@ TEST(umpire_smoke, available_allocators)
               << ", id: " << alloc.getId()                  //
               << ", strategy: " << alloc.getStrategyName()  //
     // umpire@2022.10 introduced a function to convert a Platform to a string
-#if(UMPIRE_VERSION_MAJOR > 2022) || \
-  (UMPIRE_VERSION_MAJOR == 2022 && UMPIRE_VERSION_MINOR > 3)
-              << ", platform: "
-              << umpire::platform_to_string(alloc.getPlatform())  //
+#if(UMPIRE_VERSION_MAJOR > 2022) || (UMPIRE_VERSION_MAJOR == 2022 && UMPIRE_VERSION_MINOR > 3)
+              << ", platform: " << umpire::platform_to_string(alloc.getPlatform())  //
 #endif
               << "}\n";
   }

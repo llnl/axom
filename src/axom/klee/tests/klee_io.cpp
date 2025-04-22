@@ -285,12 +285,9 @@ TEST(IOTest, readShapeSet_shapeWithReplacesAndDoesNotReplaceLists)
   }
   catch(const KleeError &error)
   {
-    EXPECT_THAT(error.getErrors(),
-                Contains(Truly([](const inlet::VerificationError &err) {
-                  return err.path ==
-                    axom::Path {"shapes/_inlet_collection/0"} &&
-                    err.messageContains("replaces") &&
-                    err.messageContains("does_not_replace");
+    EXPECT_THAT(error.getErrors(), Contains(Truly([](const inlet::VerificationError &err) {
+                  return err.path == axom::Path {"shapes/_inlet_collection/0"} &&
+                    err.messageContains("replaces") && err.messageContains("does_not_replace");
                 })));
   }
 }
@@ -315,12 +312,10 @@ TEST(IOTest, readShapeSet_geometryOperators)
   auto &shape = shapes[0];
   auto &geometryOperator = shape.getGeometry().getGeometryOperator();
   ASSERT_TRUE(geometryOperator);
-  auto composite =
-    std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
   EXPECT_EQ(2u, composite->getOperators().size());
-  auto translation =
-    dynamic_cast<const Translation *>(composite->getOperators()[1].get());
+  auto translation = dynamic_cast<const Translation *>(composite->getOperators()[1].get());
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
   EXPECT_EQ(LengthUnit::m, translation->getEndProperties().units);
@@ -372,12 +367,10 @@ TEST(IOTest, readShapeSet_geometryOperatorsWithUnits)
   auto &shape = shapes[0];
   auto &geometryOperator = shape.getGeometry().getGeometryOperator();
   ASSERT_TRUE(geometryOperator);
-  auto composite =
-    std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
   EXPECT_EQ(2u, composite->getOperators().size());
-  auto translation =
-    dynamic_cast<const Translation *>(composite->getOperators()[1].get());
+  auto translation = dynamic_cast<const Translation *>(composite->getOperators()[1].get());
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
 }
@@ -402,21 +395,17 @@ TEST(IOTest, readShapeSet_differentDimensions)
   ASSERT_EQ(1u, shapes.size());
   auto &shape = shapes[0];
   auto &geometry = shape.getGeometry();
-  TransformableGeometryProperties expectedStartProperties {Dimensions::Three,
-                                                           LengthUnit::cm};
-  TransformableGeometryProperties expectedEndProperties {Dimensions::Two,
-                                                         LengthUnit::cm};
+  TransformableGeometryProperties expectedStartProperties {Dimensions::Three, LengthUnit::cm};
+  TransformableGeometryProperties expectedEndProperties {Dimensions::Two, LengthUnit::cm};
   EXPECT_EQ(expectedStartProperties, geometry.getStartProperties());
   EXPECT_EQ(expectedEndProperties, geometry.getEndProperties());
   EXPECT_EQ(shapeSet.getDimensions(), geometry.getEndProperties().dimensions);
   auto &geometryOperator = geometry.getGeometryOperator();
   ASSERT_TRUE(geometryOperator);
-  auto composite =
-    std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
   EXPECT_EQ(1u, composite->getOperators().size());
-  auto slice =
-    std::dynamic_pointer_cast<const SliceOperator>(composite->getOperators()[0]);
+  auto slice = std::dynamic_pointer_cast<const SliceOperator>(composite->getOperators()[0]);
   EXPECT_TRUE(slice);
 }
 
@@ -469,15 +458,12 @@ TEST(IOTest, readShapeSet_namedGeometryOperators)
   auto &shape = shapes[0];
   auto &geometryOperator = shape.getGeometry().getGeometryOperator();
   ASSERT_TRUE(geometryOperator);
-  auto composite =
-    std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
+  auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
   EXPECT_EQ(1u, composite->getOperators().size());
-  auto referenced =
-    dynamic_cast<const CompositeOperator *>(composite->getOperators()[0].get());
+  auto referenced = dynamic_cast<const CompositeOperator *>(composite->getOperators()[0].get());
   EXPECT_EQ(2u, referenced->getOperators().size());
-  auto translation =
-    dynamic_cast<const Translation *>(referenced->getOperators()[1].get());
+  auto translation = dynamic_cast<const Translation *>(referenced->getOperators()[1].get());
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
 }

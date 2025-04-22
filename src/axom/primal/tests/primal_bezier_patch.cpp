@@ -166,8 +166,7 @@ TEST(primal_bezierpatch, array_constructors)
       {
         EXPECT_DOUBLE_EQ(controlPoints[p * (order_u + 1) + q][i], pt[i]);
       }
-      EXPECT_DOUBLE_EQ(weights[p * (order_u + 1) + q],
-                       rational_patch.getWeight(p, q));
+      EXPECT_DOUBLE_EQ(weights[p * (order_u + 1) + q], rational_patch.getWeight(p, q));
     }
   }
 }
@@ -224,8 +223,7 @@ TEST(primal_bezierpatch, axom_array_constructors)
       {
         EXPECT_DOUBLE_EQ(controlPoints[p * (order_u + 1) + q][i], pt[i]);
       }
-      EXPECT_DOUBLE_EQ(weights[p * (order_u + 1) + q],
-                       rational_patch.getWeight(p, q));
+      EXPECT_DOUBLE_EQ(weights[p * (order_u + 1) + q], rational_patch.getWeight(p, q));
     }
   }
 
@@ -253,8 +251,7 @@ TEST(primal_bezierpatch, axom_array_constructors)
     {
       for(int i = 0; i < DIM; ++i)
       {
-        EXPECT_DOUBLE_EQ(controlPoints_2D(p, q)[i],
-                         nonrational_patch_2D(p, q)[i]);
+        EXPECT_DOUBLE_EQ(controlPoints_2D(p, q)[i], nonrational_patch_2D(p, q)[i]);
       }
     }
   }
@@ -855,12 +852,7 @@ TEST(primal_bezierpatch, rational_batch_derivatives)
     BezierPatchType patch(controlPoints, weights, order_u, order_v);
 
     patch.evaluate_first_derivatives(u, v, batch1_val, batch1_du, batch1_dv);
-    patch.evaluate_linear_derivatives(u,
-                                      v,
-                                      batch2_val,
-                                      batch2_du,
-                                      batch2_dv,
-                                      batch2_dudv);
+    patch.evaluate_linear_derivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
     patch.evaluate_second_derivatives(u,
                                       v,
                                       batch3_val,
@@ -893,12 +885,7 @@ TEST(primal_bezierpatch, rational_batch_derivatives)
     patch.swapAxes();
 
     patch.evaluate_first_derivatives(u, v, batch1_val, batch1_du, batch1_dv);
-    patch.evaluate_linear_derivatives(u,
-                                      v,
-                                      batch2_val,
-                                      batch2_du,
-                                      batch2_dv,
-                                      batch2_dudv);
+    patch.evaluate_linear_derivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
     patch.evaluate_second_derivatives(u,
                                       v,
                                       batch3_val,
@@ -942,8 +929,7 @@ TEST(primal_bezierpatch, split_degenerate)
   const int order_u = 0;
   const int order_v = 0;
 
-  PointType data[(order_u + 1) * (order_v + 1)] = {
-    PointType::make_point(0.6, 1.2, 0.2)};
+  PointType data[(order_u + 1) * (order_v + 1)] = {PointType::make_point(0.6, 1.2, 0.2)};
 
   BezierPatchType p(data, 0, 0);
 
@@ -1310,12 +1296,7 @@ TEST(primal_bezierpatch, rational_evaluation_split)
 
   // Do it again
   BezierPatchType sub_patches[4];
-  patches[0].split(0.5,
-                   0.5,
-                   sub_patches[0],
-                   sub_patches[1],
-                   sub_patches[2],
-                   sub_patches[3]);
+  patches[0].split(0.5, 0.5, sub_patches[0], sub_patches[1], sub_patches[2], sub_patches[3]);
 
   for(double u = 0; u <= 1.0; u += 0.1)
   {

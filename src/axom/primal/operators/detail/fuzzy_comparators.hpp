@@ -37,17 +37,11 @@ inline bool isLt(double x, double y, double EPS = 1e-12)
 
 /// \brief Checks if x <= y, within a specified tolerance.
 AXOM_HOST_DEVICE
-inline bool isLeq(double x, double y, double EPS = 1e-12)
-{
-  return !(isGt(x, y, EPS));
-}
+inline bool isLeq(double x, double y, double EPS = 1e-12) { return !(isGt(x, y, EPS)); }
 
 /// \brief Checks if x >= y, within a specified tolerance.
 AXOM_HOST_DEVICE
-inline bool isGeq(double x, double y, double EPS = 1e-12)
-{
-  return !(isLt(x, y, EPS));
-}
+inline bool isGeq(double x, double y, double EPS = 1e-12) { return !(isLt(x, y, EPS)); }
 
 /*!
  * \brief Checks if x < y, or possibly x == y, within a specified tolerance.

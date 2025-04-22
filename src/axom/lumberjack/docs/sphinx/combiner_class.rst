@@ -46,3 +46,15 @@ the ranksLimit) and incrementing the Message's count as well.  This is handled b
 Message.addRanks().
 
 .. note:: You can add this Combiner by calling Lumberjack::addCombiner(new TextEqualityCombiner).
+
+.. _linefiletagcombiner_class_label:
+
+LineFileTagCombiner
+^^^^^^^^^^^^^^^^^^^
+
+This Combiner combines the two given Messages if the Message line number, file name,
+and tag are equal.  It does so by adding the second Message's ranks to the first
+Message (if not past the ranksLimit) and incrementing the Message's count as well.
+This is handled by Message.addRanks().
+
+.. note:: You can add this Combiner by calling Lumberjack::addCombiner(new LineFileTagCombiner).  The combiner does not compare the text of the two messages passed in.  Therefore, the message texts do not get combined, and the first message text remains unchanged.

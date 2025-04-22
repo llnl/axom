@@ -18,8 +18,8 @@ General
 ============== ===================
 Name           Description
 ============== ===================
-initialize     Starts up Lumberjack. Must be called before anything else.
-finalize       Cleans up Lumberjack. Must be called when done with Lumberjack.
+initialize     Starts up Lumberjack. Must be called before anything else. Can only be called once per instance.
+finalize       Cleans up Lumberjack. Must be called when done with Lumberjack. Can only be called once per instance.
 isOutputNode   Returns whether this node should output messages.
 ranksLimit     Sets the limit on individually tracked ranks
 ranksLimit     Gets the limit on individually tracked ranks
@@ -49,3 +49,13 @@ pushMessagesOnce   Moves Messages up the communication scheme once
 pushMessagesFully  Moves all Messages through the communication scheme to the output node.
 ================== ===================
 
+Communicators
+^^^^^^^^^^^^^
+
+===================== ===================
+Name                  Description
+===================== ===================
+setCommunicator       Sets communicator instance stored in Lumberjack and sets the communicator ownership status
+getCommunicator       Returns pointer to communicator instance stored in Lumberjack
+isCommunicatorOwned   Returns Boolean flag that controls whether communicator instance is owned by Lumberjack
+===================== ===================

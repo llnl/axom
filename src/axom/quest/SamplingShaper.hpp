@@ -55,8 +55,7 @@ enum class VolFracSampling : int
 /// Alias to function pointer that projects a \a FromDim dimensional input point to
 /// a \a ToDim dimensional query point when sampling the InOut field
 template <int FromDim, int ToDim>
-using PointProjector =
-  std::function<primal::Point<double, ToDim>(primal::Point<double, FromDim>)>;
+using PointProjector = std::function<primal::Point<double, ToDim>(primal::Point<double, FromDim>)>;
 
 template <int NDIMS>
 class InOutSampler
@@ -80,8 +79,7 @@ public:
    *
    * \note Does not take ownership of the surface mesh
    */
-  InOutSampler(const std::string& shapeName,
-               std::shared_ptr<mint::Mesh> surfaceMesh)
+  InOutSampler(const std::string& shapeName, std::shared_ptr<mint::Mesh> surfaceMesh)
     : m_shapeName(shapeName)
     , m_surfaceMesh(surfaceMesh)
   { }
@@ -136,18 +134,16 @@ public:
    * \note \a ToDim must be equal to \a DIM, the dimension of the spatial index
    */
   template <int FromDim, int ToDim = DIM>
-  std::enable_if_t<ToDim == DIM, void> sampleInOutField(
-    mfem::DataCollection* dc,
-    shaping::QFunctionCollection& inoutQFuncs,
-    int sampleRes,
-    PointProjector<FromDim, ToDim> projector = {})
+  std::enable_if_t<ToDim == DIM, void> sampleInOutField(mfem::DataCollection* dc,
+                                                        shaping::QFunctionCollection& inoutQFuncs,
+                                                        int sampleRes,
+                                                        PointProjector<FromDim, ToDim> projector = {})
   {
     using FromPoint = primal::Point<double, FromDim>;
     using ToPoint = primal::Point<double, ToDim>;
 
-    SLIC_ERROR_IF(
-      FromDim != ToDim && !projector,
-      "A projector callback function is required when FromDim != ToDim");
+    SLIC_ERROR_IF(FromDim != ToDim && !projector,
+                  "A projector callback function is required when FromDim != ToDim");
 
     auto* mesh = dc->GetMesh();
     SLIC_ASSERT(mesh != nullptr);
@@ -202,13 +198,12 @@ public:
     }
     timer.stop();
 
-    SLIC_INFO(
-      axom::fmt::format(axom::utilities::locale(),
-                        "\t Sampling inout field '{}' took {:.3Lf} seconds "
-                        "(@ {:L} queries per second)",
-                        inoutName,
-                        timer.elapsed(),
-                        static_cast<int>((NE * nq) / timer.elapsed())));
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "\t Sampling inout field '{}' took {:.3Lf} seconds "
+                                "(@ {:L} queries per second)",
+                                inoutName,
+                                timer.elapsed(),
+                                static_cast<int>((NE * nq) / timer.elapsed())));
   }
 
   /** 
@@ -216,16 +211,14 @@ public:
    * defined to support various callback specializations for the \a PointProjector.
    */
   template <int FromDim, int ToDim>
-  std::enable_if_t<ToDim != DIM, void> sampleInOutField(
-    mfem::DataCollection*,
-    shaping::QFunctionCollection&,
-    int,
-    PointProjector<FromDim, ToDim>)
+  std::enable_if_t<ToDim != DIM, void> sampleInOutField(mfem::DataCollection*,
+                                                        shaping::QFunctionCollection&,
+                                                        int,
+                                                        PointProjector<FromDim, ToDim>)
   {
-    static_assert(
-      ToDim != DIM,
-      "Do not call this function -- it only exists to appease the compiler!"
-      "Projector's return dimension (ToDim), must match class dimension (DIM)");
+    static_assert(ToDim != DIM,
+                  "Do not call this function -- it only exists to appease the compiler!"
+                  "Projector's return dimension (ToDim), must match class dimension (DIM)");
   }
 
   /**
@@ -260,8 +253,7 @@ public:
 
     // Assume all elements have the same integration rule
     const int nq = ir.GetNPoints();
-    const auto* geomFactors =
-      mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
+    const auto* geomFactors = mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
 
     mfem::DenseTensor pos_coef(dim, nq, NE);
 
@@ -316,8 +308,7 @@ private:
 class SamplingShaper : public Shaper
 {
 public:
-  SamplingShaper(const klee::ShapeSet& shapeSet,
-                 sidre::MFEMSidreDataCollection* dc)
+  SamplingShaper(const klee::ShapeSet& shapeSet, sidre::MFEMSidreDataCollection* dc)
     : Shaper(Shaper::RuntimePolicy::seq,
              axom::policyToDefaultAllocatorID(axom::runtime_policy::Policy::seq),
              shapeSet,
@@ -339,44 +330,23 @@ public:
   //@{
   //!  @name Functions to get and set shaping parameters related to sampling; supplements parameters in base class
 
-  void setSamplingType(shaping::VolFracSampling vfSampling)
-  {
-    m_vfSampling = vfSampling;
-  }
+  void setSamplingType(shaping::VolFracSampling vfSampling) { m_vfSampling = vfSampling; }
 
-  void setQuadratureOrder(int quadratureOrder)
-  {
-    m_quadratureOrder = quadratureOrder;
-  }
+  void setQuadratureOrder(int quadratureOrder) { m_quadratureOrder = quadratureOrder; }
 
-  void setVolumeFractionOrder(int volfracOrder)
-  {
-    m_volfracOrder = volfracOrder;
-  }
+  void setVolumeFractionOrder(int volfracOrder) { m_volfracOrder = volfracOrder; }
 
   /// Registers a function to project from 2D input points to 2D query points
-  void setPointProjector(shaping::PointProjector<2, 2> projector)
-  {
-    m_projector22 = projector;
-  }
+  void setPointProjector(shaping::PointProjector<2, 2> projector) { m_projector22 = projector; }
 
   /// Registers a function to project from 3D input points to 2D query points
-  void setPointProjector(shaping::PointProjector<3, 2> projector)
-  {
-    m_projector32 = projector;
-  }
+  void setPointProjector(shaping::PointProjector<3, 2> projector) { m_projector32 = projector; }
 
   /// Registers a function to project from 2D input points to 3D query points
-  void setPointProjector(shaping::PointProjector<2, 3> projector)
-  {
-    m_projector23 = projector;
-  }
+  void setPointProjector(shaping::PointProjector<2, 3> projector) { m_projector23 = projector; }
 
   /// Registers a function to project from 3D input points to 3D query points
-  void setPointProjector(shaping::PointProjector<3, 3> projector)
-  {
-    m_projector33 = projector;
-  }
+  void setPointProjector(shaping::PointProjector<3, 3> projector) { m_projector33 = projector; }
 
   //@}
 
@@ -396,13 +366,12 @@ public:
   //!  @name Functions related to the stages for a given shape
 
   /// Initializes the spatial index for shaping
-  void prepareShapeQuery(klee::Dimensions shapeDimension,
-                         const klee::Shape& shape) override
+  void prepareShapeQuery(klee::Dimensions shapeDimension, const klee::Shape& shape) override
   {
     AXOM_ANNOTATE_SCOPE("prepareShapeQuery");
 
-    internal::ScopedLogLevelChanger logLevelChanger(
-      this->isVerbose() ? slic::message::Debug : slic::message::Warning);
+    internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
+                                                                      : slic::message::Warning);
 
     if(!shape.getGeometry().hasGeometry())
     {
@@ -428,9 +397,8 @@ public:
       break;
 
     default:
-      SLIC_ERROR(
-        "Shaping dimension must be 2 or 3, but requested dimension was "
-        << static_cast<int>(shapeDimension));
+      SLIC_ERROR("Shaping dimension must be 2 or 3, but requested dimension was "
+                 << static_cast<int>(shapeDimension));
       break;
     }
 
@@ -444,12 +412,10 @@ public:
       const int nVerts = m_surfaceMesh->getNumberOfNodes();
       const int nCells = m_surfaceMesh->getNumberOfCells();
 
-      SLIC_INFO(axom::fmt::format(
-        "After welding, surface mesh has {} vertices  and {} triangles.",
-        nVerts,
-        nCells));
-      mint::write_vtk(m_surfaceMesh.get(),
-                      axom::fmt::format("meldedTriMesh_{}.vtk", shapeName));
+      SLIC_INFO(axom::fmt::format("After welding, surface mesh has {} vertices  and {} triangles.",
+                                  nVerts,
+                                  nCells));
+      mint::write_vtk(m_surfaceMesh.get(), axom::fmt::format("meldedTriMesh_{}.vtk", shapeName));
     }
   }
 
@@ -457,17 +423,17 @@ public:
   {
     AXOM_ANNOTATE_SCOPE("runShapeQuery");
 
-    internal::ScopedLogLevelChanger logLevelChanger(
-      this->isVerbose() ? slic::message::Debug : slic::message::Warning);
+    internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
+                                                                      : slic::message::Warning);
 
     if(!shape.getGeometry().hasGeometry())
     {
       return;
     }
 
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      axom::fmt::format(" Querying the octree for shape '{}'", shape.getName())));
+    SLIC_INFO(
+      axom::fmt::format("{:-^80}",
+                        axom::fmt::format(" Querying the octree for shape '{}'", shape.getName())));
 
     switch(getShapeDimension())
     {
@@ -484,37 +450,33 @@ public:
   {
     AXOM_ANNOTATE_SCOPE("applyReplacementRules");
 
-    internal::ScopedLogLevelChanger logLevelChanger(
-      this->isVerbose() ? slic::message::Debug : slic::message::Warning);
+    internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
+                                                                      : slic::message::Warning);
 
     const auto& shapeName = shape.getName();
     const auto& thisMatName = shape.getMaterial();
 
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      axom::fmt::format("Applying replacement rules for shape '{}'", shapeName)));
+    SLIC_INFO(
+      axom::fmt::format("{:-^80}",
+                        axom::fmt::format("Applying replacement rules for shape '{}'", shapeName)));
 
     mfem::QuadratureFunction* shapeQFunc = nullptr;
 
     if(shape.getGeometry().hasGeometry())
     {
       // Get inout qfunc for this shape
-      shapeQFunc =
-        m_inoutShapeQFuncs.Get(axom::fmt::format("inout_{}", shapeName));
+      shapeQFunc = m_inoutShapeQFuncs.Get(axom::fmt::format("inout_{}", shapeName));
 
-      SLIC_ASSERT_MSG(
-        shapeQFunc != nullptr,
-        axom::fmt::format("Missing inout samples for shape '{}'", shapeName));
+      SLIC_ASSERT_MSG(shapeQFunc != nullptr,
+                      axom::fmt::format("Missing inout samples for shape '{}'", shapeName));
     }
     else
     {
       // No input geometry for the shape, get inout qfunc for associated material
-      shapeQFunc =
-        m_inoutMaterialQFuncs.Get(axom::fmt::format("mat_inout_{}", thisMatName));
+      shapeQFunc = m_inoutMaterialQFuncs.Get(axom::fmt::format("mat_inout_{}", thisMatName));
 
-      SLIC_ASSERT_MSG(
-        shapeQFunc != nullptr,
-        axom::fmt::format("Missing inout samples for material '{}'", thisMatName));
+      SLIC_ASSERT_MSG(shapeQFunc != nullptr,
+                      axom::fmt::format("Missing inout samples for material '{}'", thisMatName));
     }
 
     // Create a copy of the inout samples for this shape
@@ -531,26 +493,23 @@ public:
       }
 
       const bool shouldReplace = shape.replaces(otherMatName);
-      SLIC_INFO(axom::fmt::format(
-        "Should we replace material '{}' with shape '{}' of material '{}'? {}",
-        otherMatName,
-        shapeName,
-        thisMatName,
-        shouldReplace ? "yes" : "no"));
+      SLIC_INFO(
+        axom::fmt::format("Should we replace material '{}' with shape '{}' of material '{}'? {}",
+                          otherMatName,
+                          shapeName,
+                          thisMatName,
+                          shouldReplace ? "yes" : "no"));
 
-      auto* otherMatQFunc = m_inoutMaterialQFuncs.Get(
-        axom::fmt::format("mat_inout_{}", otherMatName));
-      SLIC_ASSERT_MSG(
-        otherMatQFunc != nullptr,
-        axom::fmt::format("Missing inout samples for material '{}'",
-                          otherMatName));
+      auto* otherMatQFunc =
+        m_inoutMaterialQFuncs.Get(axom::fmt::format("mat_inout_{}", otherMatName));
+      SLIC_ASSERT_MSG(otherMatQFunc != nullptr,
+                      axom::fmt::format("Missing inout samples for material '{}'", otherMatName));
 
       quest::shaping::replaceMaterial(shapeQFuncCopy, otherMatQFunc, shouldReplace);
     }
 
     // Get inout qfunc for the current material
-    const std::string materialQFuncName =
-      axom::fmt::format("mat_inout_{}", thisMatName);
+    const std::string materialQFuncName = axom::fmt::format("mat_inout_{}", thisMatName);
     if(!m_inoutMaterialQFuncs.Has(materialQFuncName))
     {
       // initialize material from shape inout, the QFunc registry takes ownership
@@ -560,14 +519,11 @@ public:
     {
       // copy shape data into current material and delete the copy
       auto* matQFunc = m_inoutMaterialQFuncs.Get(materialQFuncName);
-      SLIC_ASSERT_MSG(
-        matQFunc != nullptr,
-        axom::fmt::format("Missing inout samples for material '{}'", thisMatName));
+      SLIC_ASSERT_MSG(matQFunc != nullptr,
+                      axom::fmt::format("Missing inout samples for material '{}'", thisMatName));
 
       const bool reuseExisting = shape.getGeometry().hasGeometry();
-      quest::shaping::copyShapeIntoMaterial(shapeQFuncCopy,
-                                            matQFunc,
-                                            reuseExisting);
+      quest::shaping::copyShapeIntoMaterial(shapeQFuncCopy, matQFunc, reuseExisting);
 
       delete shapeQFuncCopy;
       shapeQFuncCopy = nullptr;
@@ -600,20 +556,17 @@ public:
    * The imported grid functions are interpolated at quadrature points and registered
    * with the supplied names as material-based quadrature fields
    */
-  void importInitialVolumeFractions(
-    const std::map<std::string, mfem::GridFunction*>& initialGridFunctions)
+  void importInitialVolumeFractions(const std::map<std::string, mfem::GridFunction*>& initialGridFunctions)
   {
-    internal::ScopedLogLevelChanger logLevelChanger(
-      this->isVerbose() ? slic::message::Debug : slic::message::Warning);
+    internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
+                                                                      : slic::message::Warning);
 
     auto* mesh = m_dc->GetMesh();
 
     // ensure we have a starting quadrature field for the positions
     if(!m_inoutShapeQFuncs.Has("positions"))
     {
-      shaping::generatePositionsQFunction(mesh,
-                                          m_inoutShapeQFuncs,
-                                          m_quadratureOrder);
+      shaping::generatePositionsQFunction(mesh, m_inoutShapeQFuncs, m_quadratureOrder);
     }
     auto* positionsQSpace = m_inoutShapeQFuncs.Get("positions")->GetSpace();
 
@@ -624,15 +577,12 @@ public:
       const auto& name = entry.first;
       auto* gf = entry.second;
 
-      SLIC_INFO(
-        axom::fmt::format("Importing volume fraction field for '{}' material",
-                          name));
+      SLIC_INFO(axom::fmt::format("Importing volume fraction field for '{}' material", name));
 
       if(gf == nullptr)
       {
-        SLIC_WARNING(axom::fmt::format(
-          "Skipping missing volume fraction field for material '{}'",
-          name));
+        SLIC_WARNING(
+          axom::fmt::format("Skipping missing volume fraction field for material '{}'", name));
         continue;
       }
 
@@ -650,24 +600,19 @@ public:
   {
     AXOM_ANNOTATE_SCOPE("adjustVolumeFractions");
 
-    internal::ScopedLogLevelChanger logLevelChanger(
-      this->isVerbose() ? slic::message::Debug : slic::message::Warning);
+    internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
+                                                                      : slic::message::Warning);
 
     for(auto& mat : m_inoutMaterialQFuncs)
     {
       const std::string matName = mat.first;
-      SLIC_INFO(
-        axom::fmt::format("Generating volume fraction fields for '{}' material",
-                          matName));
+      SLIC_INFO(axom::fmt::format("Generating volume fraction fields for '{}' material", matName));
 
       // Sample the InOut field at the mesh quadrature points
       switch(m_vfSampling)
       {
       case shaping::VolFracSampling::SAMPLE_AT_QPTS:
-        quest::shaping::computeVolumeFractions(matName,
-                                               m_dc,
-                                               m_inoutMaterialQFuncs,
-                                               m_volfracOrder);
+        quest::shaping::computeVolumeFractions(matName, m_dc, m_inoutMaterialQFuncs, m_volfracOrder);
         break;
       case shaping::VolFracSampling::SAMPLE_AT_DOFS:
         /* no-op for now */
@@ -692,25 +637,23 @@ public:
 
     axom::fmt::memory_buffer out;
 
-    axom::fmt::format_to(
-      std::back_inserter(out),
-      "List of registered fields in the SamplingShaper {}"
-      "\n\t* Data collection grid funcs: {}"
-      "\n\t* Data collection qfuncs: {}"
-      "\n\t* Known materials: {}",
-      initialMessage,
-      axom::fmt::join(extractKeys(m_dc->GetFieldMap()), ", "),
-      axom::fmt::join(extractKeys(m_dc->GetQFieldMap()), ", "),
-      axom::fmt::join(m_knownMaterials, ", "));
+    axom::fmt::format_to(std::back_inserter(out),
+                         "List of registered fields in the SamplingShaper {}"
+                         "\n\t* Data collection grid funcs: {}"
+                         "\n\t* Data collection qfuncs: {}"
+                         "\n\t* Known materials: {}",
+                         initialMessage,
+                         axom::fmt::join(extractKeys(m_dc->GetFieldMap()), ", "),
+                         axom::fmt::join(extractKeys(m_dc->GetQFieldMap()), ", "),
+                         axom::fmt::join(m_knownMaterials, ", "));
 
     if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_QPTS)
     {
-      axom::fmt::format_to(
-        std::back_inserter(out),
-        "\n\t* Shape qfuncs: {}"
-        "\n\t* Mat qfuncs: {}",
-        axom::fmt::join(extractKeys(m_inoutShapeQFuncs), ", "),
-        axom::fmt::join(extractKeys(m_inoutMaterialQFuncs), ", "));
+      axom::fmt::format_to(std::back_inserter(out),
+                           "\n\t* Shape qfuncs: {}"
+                           "\n\t* Mat qfuncs: {}",
+                           axom::fmt::join(extractKeys(m_inoutShapeQFuncs), ", "),
+                           axom::fmt::join(extractKeys(m_inoutMaterialQFuncs), ", "));
     }
     else if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_DOFS)
     {
@@ -741,9 +684,7 @@ private:
                                                    m_inoutShapeQFuncs,
                                                    m_quadratureOrder,
                                                    m_projector22)
-            : shaper->template sampleInOutField<2>(m_dc,
-                                                   m_inoutShapeQFuncs,
-                                                   m_quadratureOrder);
+            : shaper->template sampleInOutField<2>(m_dc, m_inoutShapeQFuncs, m_quadratureOrder);
         }
         else if(meshDim == 3)
         {
@@ -752,9 +693,7 @@ private:
                                                    m_inoutShapeQFuncs,
                                                    m_quadratureOrder,
                                                    m_projector32)
-            : shaper->template sampleInOutField<3>(m_dc,
-                                                   m_inoutShapeQFuncs,
-                                                   m_quadratureOrder);
+            : shaper->template sampleInOutField<3>(m_dc, m_inoutShapeQFuncs, m_quadratureOrder);
         }
         break;
       case 3:
@@ -765,9 +704,7 @@ private:
                                                    m_inoutShapeQFuncs,
                                                    m_quadratureOrder,
                                                    m_projector23)
-            : shaper->template sampleInOutField<2>(m_dc,
-                                                   m_inoutShapeQFuncs,
-                                                   m_quadratureOrder);
+            : shaper->template sampleInOutField<2>(m_dc, m_inoutShapeQFuncs, m_quadratureOrder);
         }
         else if(meshDim == 3)
         {
@@ -776,17 +713,13 @@ private:
                                                    m_inoutShapeQFuncs,
                                                    m_quadratureOrder,
                                                    m_projector33)
-            : shaper->template sampleInOutField<3>(m_dc,
-                                                   m_inoutShapeQFuncs,
-                                                   m_quadratureOrder);
+            : shaper->template sampleInOutField<3>(m_dc, m_inoutShapeQFuncs, m_quadratureOrder);
         }
         break;
       }
       break;
     case shaping::VolFracSampling::SAMPLE_AT_DOFS:
-      shaper->computeVolumeFractionsBaseline(m_dc,
-                                             m_quadratureOrder,
-                                             m_volfracOrder);
+      shaper->computeVolumeFractionsBaseline(m_dc, m_quadratureOrder, m_volfracOrder);
       break;
     }
   }

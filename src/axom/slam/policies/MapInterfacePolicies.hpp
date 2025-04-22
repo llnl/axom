@@ -37,8 +37,7 @@ struct MapInterfaceSelector<VirtualInterface, PosType>
 }  // namespace detail
 
 template <typename InterfacePolicy, typename SetPositionType>
-using MapInterface =
-  typename detail::MapInterfaceSelector<InterfacePolicy, SetPositionType>::Type;
+using MapInterface = typename detail::MapInterfaceSelector<InterfacePolicy, SetPositionType>::Type;
 
 }  // end namespace policies
 }  // end namespace slam

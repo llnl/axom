@@ -68,8 +68,7 @@ SIDRE_IndexType SIDRE_View_get_index(SIDRE_View *self)
 
 const char *SIDRE_View_get_name(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getName
   const std::string &SHCXX_rv = SH_this->getName();
   const char *SHC_rv = SHCXX_rv.c_str();
@@ -77,12 +76,9 @@ const char *SIDRE_View_get_name(const SIDRE_View *self)
   // splicer end class.View.method.getName
 }
 
-void SIDRE_View_get_name_bufferify(const SIDRE_View *self,
-                                   char *SHC_rv,
-                                   int SHT_rv_len)
+void SIDRE_View_get_name_bufferify(const SIDRE_View *self, char *SHC_rv, int SHT_rv_len)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getName_bufferify
   const std::string &SHCXX_rv = SH_this->getName();
   if(SHCXX_rv.empty())
@@ -96,12 +92,9 @@ void SIDRE_View_get_name_bufferify(const SIDRE_View *self,
   // splicer end class.View.method.getName_bufferify
 }
 
-void SIDRE_View_get_path_bufferify(const SIDRE_View *self,
-                                   char *SHC_rv,
-                                   int SHT_rv_len)
+void SIDRE_View_get_path_bufferify(const SIDRE_View *self, char *SHC_rv, int SHT_rv_len)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getPath_bufferify
   std::string SHCXX_rv = SH_this->getPath();
   if(SHCXX_rv.empty())
@@ -115,12 +108,9 @@ void SIDRE_View_get_path_bufferify(const SIDRE_View *self,
   // splicer end class.View.method.getPath_bufferify
 }
 
-void SIDRE_View_get_path_name_bufferify(const SIDRE_View *self,
-                                        char *SHC_rv,
-                                        int SHT_rv_len)
+void SIDRE_View_get_path_name_bufferify(const SIDRE_View *self, char *SHC_rv, int SHT_rv_len)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getPathName_bufferify
   std::string SHCXX_rv = SH_this->getPathName();
   if(SHCXX_rv.empty())
@@ -147,8 +137,7 @@ SIDRE_Group *SIDRE_View_get_owning_group(SIDRE_View *self, SIDRE_Group *SHC_rv)
 
 bool SIDRE_View_has_buffer(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.hasBuffer
   bool SHC_rv = SH_this->hasBuffer();
   return SHC_rv;
@@ -168,8 +157,7 @@ SIDRE_Buffer *SIDRE_View_get_buffer(SIDRE_View *self, SIDRE_Buffer *SHC_rv)
 
 bool SIDRE_View_is_external(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.isExternal
   bool SHC_rv = SH_this->isExternal();
   return SHC_rv;
@@ -187,8 +175,7 @@ bool SIDRE_View_is_allocated(SIDRE_View *self)
 
 bool SIDRE_View_is_applied(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.isApplied
   bool SHC_rv = SH_this->isApplied();
   return SHC_rv;
@@ -197,8 +184,7 @@ bool SIDRE_View_is_applied(const SIDRE_View *self)
 
 bool SIDRE_View_is_described(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.isDescribed
   bool SHC_rv = SH_this->isDescribed();
   return SHC_rv;
@@ -207,8 +193,7 @@ bool SIDRE_View_is_described(const SIDRE_View *self)
 
 bool SIDRE_View_is_empty(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.isEmpty
   bool SHC_rv = SH_this->isEmpty();
   return SHC_rv;
@@ -217,8 +202,7 @@ bool SIDRE_View_is_empty(const SIDRE_View *self)
 
 bool SIDRE_View_is_opaque(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.isOpaque
   bool SHC_rv = SH_this->isOpaque();
   return SHC_rv;
@@ -227,8 +211,7 @@ bool SIDRE_View_is_opaque(const SIDRE_View *self)
 
 bool SIDRE_View_is_scalar(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.isScalar
   bool SHC_rv = SH_this->isScalar();
   return SHC_rv;
@@ -237,8 +220,7 @@ bool SIDRE_View_is_scalar(const SIDRE_View *self)
 
 bool SIDRE_View_is_string(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.isString
   bool SHC_rv = SH_this->isString();
   return SHC_rv;
@@ -247,8 +229,7 @@ bool SIDRE_View_is_string(const SIDRE_View *self)
 
 SIDRE_TypeIDint SIDRE_View_get_type_id(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getTypeID
   axom::sidre::TypeID SHCXX_rv = SH_this->getTypeID();
   SIDRE_TypeIDint SHC_rv = static_cast<SIDRE_TypeIDint>(SHCXX_rv);
@@ -258,8 +239,7 @@ SIDRE_TypeIDint SIDRE_View_get_type_id(const SIDRE_View *self)
 
 size_t SIDRE_View_get_total_bytes(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getTotalBytes
   size_t SHC_rv = SH_this->getTotalBytes();
   return SHC_rv;
@@ -268,8 +248,7 @@ size_t SIDRE_View_get_total_bytes(const SIDRE_View *self)
 
 size_t SIDRE_View_get_num_elements(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getNumElements
   size_t SHC_rv = SH_this->getNumElements();
   return SHC_rv;
@@ -278,8 +257,7 @@ size_t SIDRE_View_get_num_elements(const SIDRE_View *self)
 
 size_t SIDRE_View_get_bytes_per_element(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getBytesPerElement
   size_t SHC_rv = SH_this->getBytesPerElement();
   return SHC_rv;
@@ -288,8 +266,7 @@ size_t SIDRE_View_get_bytes_per_element(const SIDRE_View *self)
 
 size_t SIDRE_View_get_offset(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getOffset
   size_t SHC_rv = SH_this->getOffset();
   return SHC_rv;
@@ -298,8 +275,7 @@ size_t SIDRE_View_get_offset(const SIDRE_View *self)
 
 size_t SIDRE_View_get_stride(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getStride
   size_t SHC_rv = SH_this->getStride();
   return SHC_rv;
@@ -308,8 +284,7 @@ size_t SIDRE_View_get_stride(const SIDRE_View *self)
 
 int SIDRE_View_get_num_dimensions(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getNumDimensions
   int SHC_rv = SH_this->getNumDimensions();
   return SHC_rv;
@@ -318,8 +293,7 @@ int SIDRE_View_get_num_dimensions(const SIDRE_View *self)
 
 int SIDRE_View_get_shape(const SIDRE_View *self, int ndims, SIDRE_IndexType *shape)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getShape
   int SHC_rv = SH_this->getShape(ndims, shape);
   return SHC_rv;
@@ -334,9 +308,7 @@ void SIDRE_View_allocate_simple(SIDRE_View *self)
   // splicer end class.View.method.allocate_simple
 }
 
-void SIDRE_View_allocate_from_type(SIDRE_View *self,
-                                   SIDRE_TypeID type,
-                                   SIDRE_IndexType num_elems)
+void SIDRE_View_allocate_from_type(SIDRE_View *self, SIDRE_TypeID type, SIDRE_IndexType num_elems)
 {
   axom::sidre::View *SH_this = static_cast<axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.allocate_from_type
@@ -357,8 +329,7 @@ void SIDRE_View_attach_buffer_only(SIDRE_View *self, SIDRE_Buffer *buff)
 {
   axom::sidre::View *SH_this = static_cast<axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.attachBuffer_only
-  axom::sidre::Buffer *SHCXX_buff =
-    static_cast<axom::sidre::Buffer *>(buff->addr);
+  axom::sidre::Buffer *SHCXX_buff = static_cast<axom::sidre::Buffer *>(buff->addr);
   SH_this->attachBuffer(SHCXX_buff);
   // splicer end class.View.method.attachBuffer_only
 }
@@ -371,8 +342,7 @@ void SIDRE_View_attach_buffer_type(SIDRE_View *self,
   axom::sidre::View *SH_this = static_cast<axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.attachBuffer_type
   axom::sidre::TypeID SHCXX_type = static_cast<axom::sidre::TypeID>(type);
-  axom::sidre::Buffer *SHCXX_buff =
-    static_cast<axom::sidre::Buffer *>(buff->addr);
+  axom::sidre::Buffer *SHCXX_buff = static_cast<axom::sidre::Buffer *>(buff->addr);
   SH_this->attachBuffer(SHCXX_type, num_elems, SHCXX_buff);
   // splicer end class.View.method.attachBuffer_type
 }
@@ -385,8 +355,7 @@ void SIDRE_View_attach_buffer_type_int32_t(SIDRE_View *self,
   axom::sidre::View *SH_this = static_cast<axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.attachBuffer_type_int32_t
   axom::sidre::TypeID SHCXX_type = static_cast<axom::sidre::TypeID>(type);
-  axom::sidre::Buffer *SHCXX_buff =
-    static_cast<axom::sidre::Buffer *>(buff->addr);
+  axom::sidre::Buffer *SHCXX_buff = static_cast<axom::sidre::Buffer *>(buff->addr);
   SH_this->attachBuffer(SHCXX_type, num_elems, SHCXX_buff);
   // splicer end class.View.method.attachBuffer_type_int32_t
 }
@@ -399,8 +368,7 @@ void SIDRE_View_attach_buffer_type_int64_t(SIDRE_View *self,
   axom::sidre::View *SH_this = static_cast<axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.attachBuffer_type_int64_t
   axom::sidre::TypeID SHCXX_type = static_cast<axom::sidre::TypeID>(type);
-  axom::sidre::Buffer *SHCXX_buff =
-    static_cast<axom::sidre::Buffer *>(buff->addr);
+  axom::sidre::Buffer *SHCXX_buff = static_cast<axom::sidre::Buffer *>(buff->addr);
   SH_this->attachBuffer(SHCXX_type, num_elems, SHCXX_buff);
   // splicer end class.View.method.attachBuffer_type_int64_t
 }
@@ -414,8 +382,7 @@ void SIDRE_View_attach_buffer_shape(SIDRE_View *self,
   axom::sidre::View *SH_this = static_cast<axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.attachBuffer_shape
   axom::sidre::TypeID SHCXX_type = static_cast<axom::sidre::TypeID>(type);
-  axom::sidre::Buffer *SHCXX_buff =
-    static_cast<axom::sidre::Buffer *>(buff->addr);
+  axom::sidre::Buffer *SHCXX_buff = static_cast<axom::sidre::Buffer *>(buff->addr);
   SH_this->attachBuffer(SHCXX_type, ndims, shape, SHCXX_buff);
   // splicer end class.View.method.attachBuffer_shape
 }
@@ -444,9 +411,7 @@ void SIDRE_View_apply_nelems(SIDRE_View *self, SIDRE_IndexType num_elems)
   // splicer end class.View.method.apply_nelems
 }
 
-void SIDRE_View_apply_nelems_offset(SIDRE_View *self,
-                                    SIDRE_IndexType num_elems,
-                                    SIDRE_IndexType offset)
+void SIDRE_View_apply_nelems_offset(SIDRE_View *self, SIDRE_IndexType num_elems, SIDRE_IndexType offset)
 {
   axom::sidre::View *SH_this = static_cast<axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.apply_nelems_offset
@@ -465,9 +430,7 @@ void SIDRE_View_apply_nelems_offset_stride(SIDRE_View *self,
   // splicer end class.View.method.apply_nelems_offset_stride
 }
 
-void SIDRE_View_apply_type_nelems(SIDRE_View *self,
-                                  SIDRE_TypeID type,
-                                  SIDRE_IndexType num_elems)
+void SIDRE_View_apply_type_nelems(SIDRE_View *self, SIDRE_TypeID type, SIDRE_IndexType num_elems)
 {
   axom::sidre::View *SH_this = static_cast<axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.apply_type_nelems
@@ -554,9 +517,7 @@ void SIDRE_View_set_string(SIDRE_View *self, const char *value)
   // splicer end class.View.method.setString
 }
 
-void SIDRE_View_set_string_bufferify(SIDRE_View *self,
-                                     char *value,
-                                     int SHT_value_len)
+void SIDRE_View_set_string_bufferify(SIDRE_View *self, char *value, int SHT_value_len)
 {
   axom::sidre::View *SH_this = static_cast<axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.setString_bufferify
@@ -678,8 +639,7 @@ double SIDRE_View_get_data_double(SIDRE_View *self)
 
 void *SIDRE_View_get_void_ptr(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.getVoidPtr
   void *SHC_rv = SH_this->getVoidPtr();
   return SHC_rv;
@@ -688,8 +648,7 @@ void *SIDRE_View_get_void_ptr(const SIDRE_View *self)
 
 void SIDRE_View_print(const SIDRE_View *self)
 {
-  const axom::sidre::View *SH_this =
-    static_cast<const axom::sidre::View *>(self->addr);
+  const axom::sidre::View *SH_this = static_cast<const axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.print
   SH_this->print();
   // splicer end class.View.method.print
@@ -705,14 +664,11 @@ bool SIDRE_View_rename(SIDRE_View *self, const char *new_name)
   // splicer end class.View.method.rename
 }
 
-bool SIDRE_View_rename_bufferify(SIDRE_View *self,
-                                 char *new_name,
-                                 int SHT_new_name_len)
+bool SIDRE_View_rename_bufferify(SIDRE_View *self, char *new_name, int SHT_new_name_len)
 {
   axom::sidre::View *SH_this = static_cast<axom::sidre::View *>(self->addr);
   // splicer begin class.View.method.rename_bufferify
-  const std::string SHCXX_new_name(new_name,
-                                   ShroudLenTrim(new_name, SHT_new_name_len));
+  const std::string SHCXX_new_name(new_name, ShroudLenTrim(new_name, SHT_new_name_len));
   bool SHC_rv = SH_this->rename(SHCXX_new_name);
   return SHC_rv;
   // splicer end class.View.method.rename_bufferify

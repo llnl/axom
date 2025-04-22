@@ -281,10 +281,8 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
   }
 
   // Compute signed angle between vectors
-  double dotprod = axom::utilities::clampVal(
-    Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()),
-    -1.0,
-    1.0);
+  double dotprod =
+    axom::utilities::clampVal(Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()), -1.0, 1.0);
   return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
 }
 
@@ -356,8 +354,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
   if(isConvexControlPolygon)
   {
     // Bezier curves are always contained in their convex control polygon
-    if(polygon_winding_number(q, controlPolygon, isOnEdge, includeBoundary, edge_tol) ==
-       0)
+    if(polygon_winding_number(q, controlPolygon, isOnEdge, includeBoundary, edge_tol) == 0)
     {
       return;
     }
@@ -402,7 +399,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
 /*!
  * \brief Computes the GWN for a 2D point wrt a 2D Bezier curve
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] c The Bezier curve object 
  * \param [in] isOnCurve An returned flag if the point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
@@ -431,7 +428,10 @@ double bezier_winding_number(const Point<T, 2>& q,
                              double EPS = 1e-8)
 {
   const int ord = c.getOrder();
-  if(ord <= 0) return 0.0;
+  if(ord <= 0)
+  {
+    return 0.0;
+  }
 
   // Early return is possible for most points + curves
   if(!c.boundingBox().expand(edge_tol).contains(q))
@@ -502,7 +502,7 @@ double bezier_winding_number(const Point<T, 2>& q,
 /*!
  * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] n The NURBS curve object 
  * \param [in] isOnEdge An returned flag if the point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
@@ -522,7 +522,10 @@ double nurbs_winding_number(const Point<T, 2>& q,
                             double EPS = 1e-8)
 {
   const int deg = n.getDegree();
-  if(deg <= 0) return 0.0;
+  if(deg <= 0)
+  {
+    return 0.0;
+  }
 
   // Early return is possible for most points + curves
   if(!n.boundingBox().expand(edge_tol).contains(q))

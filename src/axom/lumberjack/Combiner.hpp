@@ -60,8 +60,7 @@ public:
    * \param [in] rightMessage The right Message to be compared.
    *****************************************************************************
    */
-  virtual bool shouldMessagesBeCombined(const Message& leftMessage,
-                                        const Message& rightMessage) = 0;
+  virtual bool shouldMessagesBeCombined(const Message& leftMessage, const Message& rightMessage) = 0;
 
   /*!
    *****************************************************************************
@@ -73,9 +72,7 @@ public:
    *  in combined Messages. Message::rankCount is always incremented.
    *****************************************************************************
    */
-  virtual void combine(Message& combined,
-                       const Message& combinee,
-                       const int ranksLimit) = 0;
+  virtual void combine(Message& combined, const Message& combinee, const int ranksLimit) = 0;
 };
 
 }  // end namespace lumberjack

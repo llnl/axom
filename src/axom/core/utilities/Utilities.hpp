@@ -282,9 +282,8 @@ constexpr T byteswap(T val) noexcept
 {
   constexpr int NBYTES = sizeof(T);
 
-  AXOM_STATIC_ASSERT_MSG(
-    NBYTES == 1 || NBYTES == 2 || NBYTES == 4 || NBYTES == 8,
-    "byteswap only valid for types of size 1, 2, 4 or 8 bytes.");
+  AXOM_STATIC_ASSERT_MSG(NBYTES == 1 || NBYTES == 2 || NBYTES == 4 || NBYTES == 8,
+                         "byteswap only valid for types of size 1, 2, 4 or 8 bytes.");
 
   AXOM_STATIC_ASSERT_MSG(std::is_arithmetic<T>::value,
                          "byteswap only valid for native arithmetic types");
@@ -316,9 +315,7 @@ constexpr T byteswap(T val) noexcept
  *  false otherwise.
  */
 template <typename RealType>
-inline AXOM_HOST_DEVICE bool isNearlyEqual(RealType a,
-                                           RealType b,
-                                           RealType thresh = 1.0e-8)
+inline AXOM_HOST_DEVICE bool isNearlyEqual(RealType a, RealType b, RealType thresh = 1.0e-8)
 {
   return abs(a - b) <= thresh;
 }
@@ -361,9 +358,7 @@ inline AXOM_HOST_DEVICE bool isNearlyEqualRelative(RealType a,
  */
 AXOM_SUPPRESS_HD_WARN
 template <typename DataType, typename Predicate = std::less<DataType>>
-inline AXOM_HOST_DEVICE void insertionSort(DataType* array,
-                                           IndexType n,
-                                           Predicate cmp = {})
+inline AXOM_HOST_DEVICE void insertionSort(DataType* array, IndexType n, Predicate cmp = {})
 {
   for(int i = 1; i < n; i++)
   {

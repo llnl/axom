@@ -64,7 +64,9 @@ axom_add_library(NAME        inlet
                  FOLDER      axom/inlet )
 
 # Set file back to C++ due to nvcc compiler error
-set_source_files_properties(LuaReader.cpp PROPERTIES LANGUAGE CXX)
+if(NOT AXOM_ENABLE_HIP)
+  set_source_files_properties(LuaReader.cpp PROPERTIES LANGUAGE CXX)
+endif()
 
 axom_write_unified_header(NAME    inlet
                           HEADERS ${inlet_headers} )

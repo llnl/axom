@@ -61,8 +61,7 @@ public:
     double det = covar[0] * covar[1] - covar[2] * covar[2];
     if(covar[0] <= 0 || covar[1] <= 0 || det == 0)
     {
-      SLIC_ERROR("Invalid covariance: (" << covar[0] << ", " << covar[1] << ", "
-                                         << covar[2]
+      SLIC_ERROR("Invalid covariance: (" << covar[0] << ", " << covar[1] << ", " << covar[2]
                                          << ") must be positive definite.");
     }
 
@@ -111,9 +110,7 @@ public:
    * \note the equation we are solving is \f$ \frac{\partial U}{\partial t}
                                           = \alpha \nabla^2 U \f$.
    */
-  HeatEquationSolver(double h,
-                     const double lower_bound[2],
-                     const double upper_bound[2])
+  HeatEquationSolver(double h, const double lower_bound[2], const double upper_bound[2])
     : m_mesh(create_mesh(h, lower_bound, upper_bound))
     , m_h(h)
   { }
@@ -129,9 +126,7 @@ public:
    * \param [in] lower_bound the bottom left corner of the bounding box.
    * \param [in] upper_bound the upper right corner of the bounding box.
    */
-  void setMesh(const double h,
-               const double lower_bound[2],
-               const double upper_bound[2])
+  void setMesh(const double h, const double lower_bound[2], const double upper_bound[2])
   {
     delete m_mesh;
     m_mesh = create_mesh(h, lower_bound, upper_bound);
@@ -172,16 +167,11 @@ public:
    * \param [in] period the number of cycles between dumps.
    * \param [in] path the base path of the dump files.
    */
-  void solve(double alpha,
-             double dt,
-             double t_max,
-             int period,
-             const std::string& path)
+  void solve(double alpha, double dt, double t_max, int period, const std::string& path)
   {
     const IndexType num_nodes = m_mesh->getNumberOfNodes();
     double* new_temp = new double[num_nodes];
-    double* prev_temp =
-      m_mesh->getFieldPtr<double>("temperature", mint::NODE_CENTERED);
+    double* prev_temp = m_mesh->getFieldPtr<double>("temperature", mint::NODE_CENTERED);
 
     /* Copy the boundary conditions into new_temp since they won't be copied
        during the time step. */
@@ -281,8 +271,8 @@ private:
         const IndexType south = idx - jp;
         const IndexType east = idx + 1;
         const IndexType west = idx - 1;
-        const double neighbors_contrib = prev_temp[north] + prev_temp[east] +
-          prev_temp[south] + prev_temp[west];
+        const double neighbors_contrib =
+          prev_temp[north] + prev_temp[east] + prev_temp[south] + prev_temp[west];
 
         new_temp[idx] = neighbors_scale * neighbors_contrib;
         new_temp[idx] += self_scale * prev_temp[idx];
@@ -400,15 +390,13 @@ void parse_arguments(Arguments& args, int argc, const char** argv)
       args.path = argv[i + 1];
       i++;
     }
-    else if(std::strcmp(argv[i], "-s") == 0 ||
-            std::strcmp(argv[i], "-spacing") == 0)
+    else if(std::strcmp(argv[i], "-s") == 0 || std::strcmp(argv[i], "-spacing") == 0)
     {
       SLIC_ERROR_IF(i >= argc - 1, "Not enough arguments.");
       args.h = atof(argv[i + 1]);
       i++;
     }
-    else if(std::strcmp(argv[i], "-b") == 0 ||
-            std::strcmp(argv[i], "-bounds") == 0)
+    else if(std::strcmp(argv[i], "-b") == 0 || std::strcmp(argv[i], "-bounds") == 0)
     {
       SLIC_ERROR_IF(i >= argc - 4, "Not enough arguments.");
       args.lower_bound[0] = atof(argv[i + 1]);
@@ -417,8 +405,7 @@ void parse_arguments(Arguments& args, int argc, const char** argv)
       args.upper_bound[1] = atof(argv[i + 4]);
       i += 4;
     }
-    else if(std::strcmp(argv[i], "-a") == 0 ||
-            std::strcmp(argv[i], "-amplitude") == 0)
+    else if(std::strcmp(argv[i], "-a") == 0 || std::strcmp(argv[i], "-amplitude") == 0)
     {
       SLIC_ERROR_IF(i >= argc - 1, "Not enough arguments.");
       args.amplitude = atof(argv[i + 1]);
@@ -431,8 +418,7 @@ void parse_arguments(Arguments& args, int argc, const char** argv)
       args.mean[1] = atof(argv[i + 2]);
       i += 2;
     }
-    else if(std::strcmp(argv[i], "-c") == 0 ||
-            std::strcmp(argv[i], "-covariance") == 0)
+    else if(std::strcmp(argv[i], "-c") == 0 || std::strcmp(argv[i], "-covariance") == 0)
     {
       SLIC_ERROR_IF(i >= argc - 3, "Not enough arguments.");
       args.covar[0] = atof(argv[i + 1]);
@@ -458,8 +444,7 @@ void parse_arguments(Arguments& args, int argc, const char** argv)
       args.t_max = atof(argv[i + 1]);
       i++;
     }
-    else if(std::strcmp(argv[i], "-d") == 0 ||
-            std::strcmp(argv[i], "-dumpPeriod") == 0)
+    else if(std::strcmp(argv[i], "-d") == 0 || std::strcmp(argv[i], "-dumpPeriod") == 0)
     {
       SLIC_ERROR_IF(i >= argc - 1, "Not enough arguments.");
       args.period = atoi(argv[i + 1]);
@@ -472,19 +457,17 @@ void parse_arguments(Arguments& args, int argc, const char** argv)
   }
 
   /* Validate arguments. */
-  if(args.lower_bound[0] >= args.upper_bound[0] ||
-     args.lower_bound[1] >= args.upper_bound[1])
+  if(args.lower_bound[0] >= args.upper_bound[0] || args.lower_bound[1] >= args.upper_bound[1])
   {
-    SLIC_ERROR("Invalid bounding box: ("
-               << args.lower_bound[0] << ", " << args.lower_bound[1] << ") x ("
-               << args.upper_bound[0] << ", " << args.upper_bound[1] << ")");
+    SLIC_ERROR("Invalid bounding box: (" << args.lower_bound[0] << ", " << args.lower_bound[1]
+                                         << ") x (" << args.upper_bound[0] << ", "
+                                         << args.upper_bound[1] << ")");
   }
   if(args.covar[0] <= 0 || args.covar[1] <= 0 ||
      args.covar[2] * args.covar[2] >= args.covar[0] * args.covar[1])
   {
-    SLIC_ERROR("Invalid covariance: (" << args.covar[0] << ", " << args.covar[1]
-                                       << ", " << args.covar[2]
-                                       << ") must be positive definite.");
+    SLIC_ERROR("Invalid covariance: (" << args.covar[0] << ", " << args.covar[1] << ", "
+                                       << args.covar[2] << ") must be positive definite.");
   }
 
   SLIC_ERROR_IF(args.h <= 0, "Invalid spacing: " << args.h);
@@ -502,19 +485,17 @@ void parse_arguments(Arguments& args, int argc, const char** argv)
   double dt_max = args.h * args.h / (4 * args.alpha);
   if(args.dt >= dt_max)
   {
-    SLIC_WARNING("The chosen time step "
-                 << args.dt << " is larger than " << dt_max
-                 << " this will lead to numerical instability.\n");
+    SLIC_WARNING("The chosen time step " << args.dt << " is larger than " << dt_max
+                                         << " this will lead to numerical instability.\n");
   }
 
-  SLIC_INFO("Mesh bounds: ("
-            << args.lower_bound[0] << ", " << args.lower_bound[1] << ") x ("
-            << args.upper_bound[0] << ", " << args.upper_bound[1] << ")\n");
+  SLIC_INFO("Mesh bounds: (" << args.lower_bound[0] << ", " << args.lower_bound[1] << ") x ("
+                             << args.upper_bound[0] << ", " << args.upper_bound[1] << ")\n");
   SLIC_INFO("Mesh spacing: " << args.h << std::endl);
   SLIC_INFO("Gaussian amplitude: " << args.amplitude << std::endl);
   SLIC_INFO("Gaussian mean: (" << args.mean[0] << ", " << args.mean[1] << ")\n");
-  SLIC_INFO("Gaussian covariance: (" << args.covar[0] << ", " << args.covar[1]
-                                     << ", " << args.covar[2] << ")\n");
+  SLIC_INFO("Gaussian covariance: (" << args.covar[0] << ", " << args.covar[1] << ", "
+                                     << args.covar[2] << ")\n");
   SLIC_INFO("Conductivity: " << args.alpha << std::endl);
   SLIC_INFO("Time step: " << args.dt << std::endl);
   SLIC_INFO("Max stable time step: " << dt_max << std::endl);
@@ -534,8 +515,7 @@ void init()
   axom::slic::setLoggingMsgLevel(axom::slic::message::Debug);
 
   std::string slicFormatStr = "[<LEVEL>] <MESSAGE>";
-  axom::slic::GenericOutputStream* defaultStream =
-    new axom::slic::GenericOutputStream(&std::cout);
+  axom::slic::GenericOutputStream* defaultStream = new axom::slic::GenericOutputStream(&std::cout);
   axom::slic::GenericOutputStream* compactStream =
     new axom::slic::GenericOutputStream(&std::cout, slicFormatStr);
   axom::slic::addStreamToMsgLevel(defaultStream, axom::slic::message::Error);

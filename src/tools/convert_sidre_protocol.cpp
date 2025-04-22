@@ -61,11 +61,7 @@ struct CommandLineArguments
   std::string m_protocol;
   int m_numStripElts;
 
-  CommandLineArguments()
-    : m_inputName("")
-    , m_outputName("")
-    , m_protocol("json")
-    , m_numStripElts(-1)
+  CommandLineArguments() : m_inputName(""), m_outputName(""), m_protocol("json"), m_numStripElts(-1)
   { }
 
   void parse(int argc, char** argv, axom::CLI::App& app);
@@ -79,14 +75,13 @@ struct CommandLineArguments
   }
 };
 
-const std::set<std::string> CommandLineArguments::s_validProtocols(
-  {"json",
-   "sidre_hdf5",
-   "sidre_conduit_json",
-   "sidre_json",
-   "conduit_hdf5",
-   "conduit_bin",
-   "conduit_json"});
+const std::set<std::string> CommandLineArguments::s_validProtocols({"json",
+                                                                    "sidre_hdf5",
+                                                                    "sidre_conduit_json",
+                                                                    "sidre_json",
+                                                                    "conduit_hdf5",
+                                                                    "conduit_bin",
+                                                                    "conduit_json"});
 
 /** Terminates execution */
 void quitProgram(int exitCode = 0)
@@ -99,36 +94,25 @@ void quitProgram(int exitCode = 0)
 /** Parse the command line arguments */
 void CommandLineArguments::parse(int argc, char** argv, axom::CLI::App& app)
 {
-  app
-    .add_option("-i,--input",
-                m_inputName,
-                "Filename of input sidre-hdf5 datastore")
+  app.add_option("-i,--input", m_inputName, "Filename of input sidre-hdf5 datastore")
     ->required()
     ->check(axom::CLI::ExistingFile);
 
-  app
-    .add_option("-o,--output",
-                m_outputName,
-                "Filename of output datastore (without extension)")
+  app.add_option("-o,--output", m_outputName, "Filename of output datastore (without extension)")
     ->required();
 
-  app
-    .add_option("-p,--protocol",
-                m_protocol,
-                "Desired protocol for output datastore")
+  app.add_option("-p,--protocol", m_protocol, "Desired protocol for output datastore")
     ->capture_default_str()
     ->check(axom::CLI::IsMember {CommandLineArguments::s_validProtocols});
 
   app
-    .add_option(
-      "-s,--strip",
-      m_numStripElts,
-      "If provided, output arrays will be stripped to first N entries")
+    .add_option("-s,--strip",
+                m_numStripElts,
+                "If provided, output arrays will be stripped to first N entries")
     ->check(axom::CLI::PositiveNumber);
 
   bool verboseOutput = false;
-  app.add_flag("-v,--verbose", verboseOutput, "Sets output to verbose")
-    ->capture_default_str();
+  app.add_flag("-v,--verbose", verboseOutput, "Sets output to verbose")->capture_default_str();
 
   app.get_formatter()->column_width(35);
 
@@ -162,8 +146,8 @@ void allocateExternalData(sidre::Group* grp, std::vector<void*>& extPtrs)
     sidre::View* view = grp->getView(idx);
     if(view->isExternal())
     {
-      SLIC_DEBUG("External view " << view->getPathName() << " has "
-                                  << view->getNumElements() << " elements "
+      SLIC_DEBUG("External view " << view->getPathName() << " has " << view->getNumElements()
+                                  << " elements "
                                   << "(" << view->getTotalBytes() << " bytes).");
 
       const int idx = extPtrs.size();
@@ -247,10 +231,7 @@ void modifyFinalValuesImpl(sidre::View* view, int origSize)
     axom::fmt::memory_buffer out;
     for(auto i : ViewSet(newSz).positions())
     {
-      axom::fmt::format_to(std::back_inserter(out),
-                           "\n\ti: {0}; arr[{0}] = {1}",
-                           i,
-                           newArr[i]);
+      axom::fmt::format_to(std::back_inserter(out), "\n\ti: {0}; arr[{0}] = {1}", i, newArr[i]);
     }
     SLIC_DEBUG("After truncation" << axom::fmt::to_string(out));
   }
@@ -375,12 +356,8 @@ void setupLogging()
 
 #ifdef AXOM_USE_LUMBERJACK
   const int ranksLimit = 16;
-  wefStream = new slic::LumberjackStream(&std::cout,
-                                         MPI_COMM_WORLD,
-                                         ranksLimit,
-                                         wefFormatStr);
-  diStream =
-    new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, ranksLimit, diFormatStr);
+  wefStream = new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, ranksLimit, wefFormatStr);
+  diStream = new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, ranksLimit, diFormatStr);
 #else
   wefStream = new slic::GenericOutputStream(&std::cout, wefFormatStr);
   diStream = new slic::GenericOutputStream(&std::cout, diFormatStr);
@@ -464,8 +441,7 @@ int main(int argc, char* argv[])
 
   // Write out datastore to the output file in the specified protocol
   SLIC_INFO("Writing out datastore in '"
-            << args.m_protocol << "' protocol to file(s) with base name "
-            << args.m_outputName);
+            << args.m_protocol << "' protocol to file(s) with base name " << args.m_outputName);
   manager.write(ds.getRoot(), num_files, args.m_outputName, args.m_protocol);
 
   // Free up memory associated with external data

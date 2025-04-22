@@ -72,18 +72,12 @@ int jacobi_eigensolve(Matrix<T> A,
 // IMPLEMENTATION
 //------------------------------------------------------------------------------
 template <typename T>
-int jacobi_eigensolve(Matrix<T> A,
-                      Matrix<T>& V,
-                      T* lambdas,
-                      int maxIterations,
-                      int* numIterations,
-                      T TOL)
+int jacobi_eigensolve(Matrix<T> A, Matrix<T>& V, T* lambdas, int maxIterations, int* numIterations, T TOL)
 {
   bool converged = false;
   const int n = A.getNumRows();
 
-  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value,
-                         "pre: T is a floating point type");
+  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value, "pre: T is a floating point type");
   assert("pre: input matrix must be square" && A.isSquare());
   assert("pre: can't have more eigenvectors than rows" && (n <= A.getNumRows()));
   assert("pre: lambdas vector is null" && (lambdas != nullptr));
@@ -143,8 +137,7 @@ int jacobi_eigensolve(Matrix<T> A,
         T termq = gapq + utilities::abs(lambdas[q]);
 
         // the Jacobi iteration ignores off diagonal elements close to zero
-        if(4 < iter && termp == utilities::abs(lambdas[p]) &&
-           termq == utilities::abs(lambdas[q]))
+        if(4 < iter && termp == utilities::abs(lambdas[p]) && termq == utilities::abs(lambdas[q]))
         {
           A(p, q) = 0.0;
         }

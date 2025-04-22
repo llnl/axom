@@ -48,10 +48,7 @@ struct StackArray
   T& operator[](IndexType i) noexcept { return m_data[i]; }
 
   AXOM_HOST_DEVICE
-  constexpr const T& operator[](IndexType i) const noexcept
-  {
-    return m_data[i];
-  }
+  constexpr const T& operator[](IndexType i) const noexcept { return m_data[i]; }
 
   /// @}
 
@@ -94,8 +91,7 @@ struct StackArray
  * \return true if the StackArrays have the same element values
  */
 template <typename T, int N>
-AXOM_HOST_DEVICE bool operator==(const StackArray<T, N>& lhs,
-                                 const StackArray<T, N>& rhs)
+AXOM_HOST_DEVICE bool operator==(const StackArray<T, N>& lhs, const StackArray<T, N>& rhs)
 {
   for(int i = 0; i < N; ++i)
   {
@@ -115,8 +111,7 @@ AXOM_HOST_DEVICE bool operator==(const StackArray<T, N>& lhs,
  * \return true if the StackArrays have different element values
  */
 template <typename T, int N>
-AXOM_HOST_DEVICE bool operator!=(const StackArray<T, N>& lhs,
-                                 const StackArray<T, N>& rhs)
+AXOM_HOST_DEVICE bool operator!=(const StackArray<T, N>& lhs, const StackArray<T, N>& rhs)
 {
   return !(lhs == rhs);
 }
@@ -131,8 +126,7 @@ AXOM_HOST_DEVICE bool operator!=(const StackArray<T, N>& lhs,
  * e.g. when T has an operator<()
  */
 template <typename T, int N>
-AXOM_HOST_DEVICE bool operator<(const StackArray<T, N>& lhs,
-                                const StackArray<T, N>& rhs)
+AXOM_HOST_DEVICE bool operator<(const StackArray<T, N>& lhs, const StackArray<T, N>& rhs)
 {
   for(int i = 0; i < N; ++i)
   {

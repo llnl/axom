@@ -50,9 +50,8 @@ TEST(ShapeTest, replaces_non_replacement_list_given)
 
 TEST(ShapeTest, both_replacement_lists_given)
 {
-  EXPECT_THROW(
-    Shape("name", "material", {"replaced"}, {"not replaced"}, createTestGeometry()),
-    std::logic_error);
+  EXPECT_THROW(Shape("name", "material", {"replaced"}, {"not replaced"}, createTestGeometry()),
+               std::logic_error);
 }
 }  // namespace
 }  // namespace klee

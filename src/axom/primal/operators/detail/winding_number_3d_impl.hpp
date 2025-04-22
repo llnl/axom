@@ -43,7 +43,7 @@ enum class SingularityAxis
  * \brief Evaluates the integral of the "anti-curl" of the GWN integrand
  *        (via Stokes' theorem) at a point wrt to a 3D Bezier curve
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] curve The BezierCurve object
  * \param [in] ax The axis (relative to query) denoting which anti-curl we use
  * \param [in] npts The number of points used in each Gaussian quadrature
@@ -60,7 +60,7 @@ enum class SingularityAxis
  * \return The value of the integral
  */
 template <typename T>
-double stokes_winding_number(const Point<T, 3>& query,
+double stokes_winding_number(const Point<T, 3>& q,
                              const BezierCurve<T, 3>& curve,
                              const SingularityAxis ax,
                              int npts,
@@ -68,15 +68,14 @@ double stokes_winding_number(const Point<T, 3>& query,
 {
   // Generate the quadrature rules in parameter space
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
-  const mfem::IntegrationRule& quad_rule =
-    my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
+  const mfem::IntegrationRule& quad_rule = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
   double quadrature = 0.0;
-  for(int q = 0; q < quad_rule.GetNPoints(); ++q)
+  for(int qi = 0; qi < quad_rule.GetNPoints(); ++qi)
   {
     // Get quadrature points in space (shifted by the query)
-    const Vector<T, 3> node(query, curve.evaluate(quad_rule.IntPoint(q).x));
-    const Vector<T, 3> node_dt(curve.dt(quad_rule.IntPoint(q).x));
+    const Vector<T, 3> node(q, curve.evaluate(quad_rule.IntPoint(qi).x));
+    const Vector<T, 3> node_dt(curve.dt(quad_rule.IntPoint(qi).x));
     const double node_norm = node.norm();
 
     // Compute one of three vector field line integrals depending on
@@ -84,18 +83,18 @@ double stokes_winding_number(const Point<T, 3>& query,
     switch(ax)
     {
     case(SingularityAxis::x):
-      quadrature += quad_rule.IntPoint(q).weight *
+      quadrature += quad_rule.IntPoint(qi).weight *
         (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
         (node[1] * node[1] + node[2] * node[2]) / node_norm;
       break;
     case(SingularityAxis::y):
-      quadrature += quad_rule.IntPoint(q).weight *
+      quadrature += quad_rule.IntPoint(qi).weight *
         (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
         (node[0] * node[0] + node[2] * node[2]) / node_norm;
       break;
     case(SingularityAxis::z):
     case(SingularityAxis::rotated):
-      quadrature += quad_rule.IntPoint(q).weight *
+      quadrature += quad_rule.IntPoint(qi).weight *
         (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
         (node[0] * node[0] + node[1] * node[1]) / node_norm;
       break;
@@ -111,18 +110,18 @@ double stokes_winding_number(const Point<T, 3>& query,
   switch(ax)
   {
   case(SingularityAxis::x):
-    needs_adapt = (query[1] - centroid[1]) * (query[1] - centroid[1]) +
-        (query[2] - centroid[2]) * (query[2] - centroid[2]) <=
+    needs_adapt =
+      (q[1] - centroid[1]) * (q[1] - centroid[1]) + (q[2] - centroid[2]) * (q[2] - centroid[2]) <=
       cBox.range().squared_norm();
     break;
   case(SingularityAxis::y):
-    needs_adapt = (query[0] - centroid[0]) * (query[0] - centroid[0]) +
-        (query[2] - centroid[2]) * (query[2] - centroid[2]) <=
+    needs_adapt =
+      (q[0] - centroid[0]) * (q[0] - centroid[0]) + (q[2] - centroid[2]) * (q[2] - centroid[2]) <=
       cBox.range().squared_norm();
     break;
   case(SingularityAxis::z):
-    needs_adapt = (query[0] - centroid[0]) * (query[0] - centroid[0]) *
-        (query[1] - centroid[1]) * (query[1] - centroid[1]) <=
+    needs_adapt =
+      (q[0] - centroid[0]) * (q[0] - centroid[0]) * (q[1] - centroid[1]) * (q[1] - centroid[1]) <=
       cBox.range().squared_norm();
     break;
   case(SingularityAxis::rotated):
@@ -132,12 +131,7 @@ double stokes_winding_number(const Point<T, 3>& query,
 
   if(needs_adapt)
   {
-    return stokes_winding_number_adaptive(query,
-                                          curve,
-                                          ax,
-                                          quad_rule,
-                                          quadrature,
-                                          quad_tol);
+    return stokes_winding_number_adaptive(q, curve, ax, quad_rule, quadrature, quad_tol);
   }
 
   return 0.25 * M_1_PI * quadrature;
@@ -149,7 +143,7 @@ double stokes_winding_number(const Point<T, 3>& query,
  * \brief Accurately evaluates the integral of the "anti-curl" of the GWN integrand
  *        (via Stokes' theorem) at a point wrt to a 3D Bezier curve via recursion
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] curve The BezierCurve object
  * \param [in] ax The axis (relative to query) denoting which anti-curl we use
  * \param [in] quad_rule The mfem quadrature rule object
@@ -167,7 +161,7 @@ double stokes_winding_number(const Point<T, 3>& query,
  * \return The value of the integral
  */
 template <typename T>
-double stokes_winding_number_adaptive(const Point<T, 3>& query,
+double stokes_winding_number_adaptive(const Point<T, 3>& q,
                                       const BezierCurve<T, 3>& curve,
                                       const SingularityAxis ax,
                                       const mfem::IntegrationRule& quad_rule,
@@ -182,12 +176,11 @@ double stokes_winding_number_adaptive(const Point<T, 3>& query,
   double quad_fine[2] = {0.0, 0.0};
   for(int i = 0; i < 2; ++i)
   {
-    for(int q = 0; q < quad_rule.GetNPoints(); ++q)
+    for(int qi = 0; qi < quad_rule.GetNPoints(); ++qi)
     {
       // Get quad_rulerature points in space (shifted by the query)
-      const Vector<T, 3> node(query,
-                              subcurves[i].evaluate(quad_rule.IntPoint(q).x));
-      const Vector<T, 3> node_dt(subcurves[i].dt(quad_rule.IntPoint(q).x));
+      const Vector<T, 3> node(q, subcurves[i].evaluate(quad_rule.IntPoint(qi).x));
+      const Vector<T, 3> node_dt(subcurves[i].dt(quad_rule.IntPoint(qi).x));
       const double node_norm = node.norm();
 
       // Compute one of three vector field line integrals depending on
@@ -195,18 +188,18 @@ double stokes_winding_number_adaptive(const Point<T, 3>& query,
       switch(ax)
       {
       case(SingularityAxis::x):
-        quad_fine[i] += quad_rule.IntPoint(q).weight *
+        quad_fine[i] += quad_rule.IntPoint(qi).weight *
           (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
           (node[1] * node[1] + node[2] * node[2]) / node_norm;
         break;
       case(SingularityAxis::y):
-        quad_fine[i] += quad_rule.IntPoint(q).weight *
+        quad_fine[i] += quad_rule.IntPoint(qi).weight *
           (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
           (node[0] * node[0] + node[2] * node[2]) / node_norm;
         break;
       case(SingularityAxis::z):
       case(SingularityAxis::rotated):
-        quad_fine[i] += quad_rule.IntPoint(q).weight *
+        quad_fine[i] += quad_rule.IntPoint(qi).weight *
           (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
           (node[0] * node[0] + node[1] * node[1]) / node_norm;
         break;
@@ -216,29 +209,20 @@ double stokes_winding_number_adaptive(const Point<T, 3>& query,
 
   constexpr int MAX_DEPTH = 12;
   if(depth >= MAX_DEPTH ||
-     axom::utilities::isNearlyEqualRelative(quad_fine[0] + quad_fine[1],
-                                            quad_coarse,
-                                            quad_tol,
-                                            1e-10))
+     axom::utilities::isNearlyEqualRelative(quad_fine[0] + quad_fine[1], quad_coarse, quad_tol, 1e-10))
   {
     return 0.25 * M_1_PI * (quad_fine[0] + quad_fine[1]);
   }
   else
   {
-    return stokes_winding_number_adaptive(query,
+    return stokes_winding_number_adaptive(q,
                                           subcurves[0],
                                           ax,
                                           quad_rule,
                                           quad_fine[0],
                                           quad_tol,
                                           depth + 1) +
-      stokes_winding_number_adaptive(query,
-                                     subcurves[1],
-                                     ax,
-                                     quad_rule,
-                                     quad_fine[1],
-                                     quad_tol,
-                                     depth + 1);
+      stokes_winding_number_adaptive(q, subcurves[1], ax, quad_rule, quad_fine[1], quad_tol, depth + 1);
   }
 }
 #endif

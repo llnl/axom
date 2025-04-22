@@ -70,6 +70,7 @@ if(NOT AXOM_FOUND)
   set(AXOM_USE_RAJA           "@AXOM_USE_RAJA@")
   set(AXOM_USE_SCR            "@AXOM_USE_SCR@")
   set(AXOM_USE_UMPIRE         "@AXOM_USE_UMPIRE@")
+  set(AXOM_USE_ZLIB           "@AXOM_USE_ZLIB@")
 
   # Configration for Axom compiler defines
   set(AXOM_DEBUG_DEFINE         "@AXOM_DEBUG_DEFINE@")
@@ -158,6 +159,18 @@ if(NOT AXOM_FOUND)
                     PATHS "${CONDUIT_DIR}"
                           "${CONDUIT_DIR}/lib/cmake/conduit"
                     NO_SYSTEM_ENVIRONMENT_PATH)
+  endif()
+
+  # zlib
+  if(AXOM_USE_ZLIB)
+    set(AXOM_ZLIB_DIR  "@ZLIB_DIR@")
+    if(NOT ZLIB_DIR) 
+      set(ZLIB_DIR ${AXOM_ZLIB_DIR}) 
+    endif()
+    if(ZLIB_DIR)
+        set(ZLIB_ROOT ${ZLIB_DIR})
+    endif()
+    find_package(ZLIB REQUIRED)
   endif()
 
   # hdf5

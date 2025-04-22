@@ -115,8 +115,7 @@ class BitSet
 public:
   using Index = int;
 
-#if(defined(__x86_64__) && defined(__GNUC__)) || \
-  (defined(_WIN64) && (_MSC_VER >= 1600))
+#if(defined(__x86_64__) && defined(__GNUC__)) || (defined(_WIN64) && (_MSC_VER >= 1600))
   using Word = std::uint64_t;
 #else
   using Word = std::uint32_t;
@@ -126,12 +125,10 @@ public:
   using ArrayType = axom::Array<Word, 1>;
 
   static constexpr Index npos = -2;
-  static constexpr int BitsPerWord =
-    axom::utilities::BitTraits<Word>::BITS_PER_WORD;
+  static constexpr int BitsPerWord = axom::utilities::BitTraits<Word>::BITS_PER_WORD;
 
 private:
-  static constexpr int LG_BITS_PER_WORD =
-    axom::utilities::BitTraits<Word>::LG_BITS_PER_WORD;
+  static constexpr int LG_BITS_PER_WORD = axom::utilities::BitTraits<Word>::LG_BITS_PER_WORD;
 
 public:
   /**
@@ -142,21 +139,14 @@ public:
    * \post bset.size() == numBits
    * \post All bits will be off
    */
-  explicit BitSet(int numBits = 0,
-                  int allocatorID = axom::getDefaultAllocatorID())
+  explicit BitSet(int numBits = 0, int allocatorID = axom::getDefaultAllocatorID())
   {
-    SLIC_ASSERT_MSG(
-      numBits >= 0,
-      "slam::BitSet must be initialized with a non-zero number of bits");
+    SLIC_ASSERT_MSG(numBits >= 0, "slam::BitSet must be initialized with a non-zero number of bits");
 
     m_numBits = axom::utilities::max(numBits, 0);
-    axom::IndexType numWords =
-      (m_numBits == 0) ? 1 : 1 + (m_numBits - 1) / BitsPerWord;
+    axom::IndexType numWords = (m_numBits == 0) ? 1 : 1 + (m_numBits - 1) / BitsPerWord;
 
-    m_data = ArrayType(axom::ArrayOptions::Uninitialized {},
-                       numWords,
-                       numWords,
-                       allocatorID);
+    m_data = ArrayType(axom::ArrayOptions::Uninitialized {}, numWords, numWords, allocatorID);
     m_data.fill(0);
   }
 
@@ -432,8 +422,8 @@ private:
   {
     AXOM_UNUSED_VAR(idx);
     SLIC_ASSERT_MSG(idx >= 0 && idx < m_numBits,
-                    "slam::Bitset attempted to out of range bit "
-                      << idx << ". Valid range is [0, " << m_numBits << ").");
+                    "slam::Bitset attempted to out of range bit " << idx << ". Valid range is [0, "
+                                                                  << m_numBits << ").");
   }
 
   /**

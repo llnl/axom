@@ -44,19 +44,16 @@ public:
 
   using RelationVec = std::vector<SetPosition>;
   using RelationVecIterator = typename RelationVec::iterator;
-  using RelationVecIteratorPair =
-    std::pair<RelationVecIterator, RelationVecIterator>;
+  using RelationVecIteratorPair = std::pair<RelationVecIterator, RelationVecIterator>;
   using RelationVecConstIterator = typename RelationVec::const_iterator;
-  using RelationVecConstIteratorPair =
-    std::pair<RelationVecConstIterator, RelationVecConstIterator>;
+  using RelationVecConstIteratorPair = std::pair<RelationVecConstIterator, RelationVecConstIterator>;
   using RelationsContainer = std::vector<RelationVec>;
   using RelationsContainerCIt = typename RelationsContainer::const_iterator;
   using RelationsContainerIt = typename RelationsContainer::iterator;
 
 public:
-  DynamicVariableRelation(
-    FirstSetType* fromSet = policies::EmptySetTraits<FirstSetType>::emptySet(),
-    SecondSetType* toSet = policies::EmptySetTraits<SecondSetType>::emptySet())
+  DynamicVariableRelation(FirstSetType* fromSet = policies::EmptySetTraits<FirstSetType>::emptySet(),
+                          SecondSetType* toSet = policies::EmptySetTraits<SecondSetType>::emptySet())
     : m_fromSet(fromSet)
     , m_toSet(toSet)
   {
@@ -111,17 +108,11 @@ public:
     return sz;
   }
 
-  bool hasFromSet() const
-  {
-    return !policies::EmptySetTraits<FromSetType>::isEmpty(m_fromSet);
-  }
+  bool hasFromSet() const { return !policies::EmptySetTraits<FromSetType>::isEmpty(m_fromSet); }
   FromSetType* fromSet() { return m_fromSet; }
   const FromSetType* fromSet() const { return m_fromSet; }
 
-  bool hasToSet() const
-  {
-    return !policies::EmptySetTraits<ToSetType>::isEmpty(m_toSet);
-  }
+  bool hasToSet() const { return !policies::EmptySetTraits<ToSetType>::isEmpty(m_toSet); }
   ToSetType* toSet() { return m_toSet; }
   const ToSetType* toSet() const { return m_toSet; }
 
@@ -185,10 +176,8 @@ public:
 private:
   inline void verifyPosition(SetPosition AXOM_DEBUG_PARAM(fromSetIndex)) const
   {
-    SLIC_ASSERT_MSG(fromSetIndex >= 0 &&
-                      fromSetIndex < static_cast<SetPosition>(m_fromSet->size()),
-                    "Index " << fromSetIndex << " out of range [0,"
-                             << m_fromSet->size() << ")");
+    SLIC_ASSERT_MSG(fromSetIndex >= 0 && fromSetIndex < static_cast<SetPosition>(m_fromSet->size()),
+                    "Index " << fromSetIndex << " out of range [0," << m_fromSet->size() << ")");
   }
 
   inline RelationVec& fromSetRelationsVec(SetPosition fromSetIndex)
@@ -208,8 +197,7 @@ private:
 };
 
 template <typename FirstSetType, typename SecondSetType>
-bool DynamicVariableRelation<FirstSetType, SecondSetType>::isValid(
-  bool verboseOutput) const
+bool DynamicVariableRelation<FirstSetType, SecondSetType>::isValid(bool verboseOutput) const
 {
   bool bValid = true;
 
@@ -255,8 +243,7 @@ bool DynamicVariableRelation<FirstSetType, SecondSetType>::isValid(
     for(SetPosition fromIdx = 0; fromIdx < m_fromSet->size(); ++fromIdx)
     {
       SetPosition idx = fromIdx;
-      for(RelationVecConstIterator rIt = begin(idx), rEnd = end(idx); rIt < rEnd;
-          ++rIt)
+      for(RelationVecConstIterator rIt = begin(idx), rEnd = end(idx); rIt < rEnd; ++rIt)
       {
         if(*rIt >= m_toSet->size())
         {
@@ -308,9 +295,7 @@ bool DynamicVariableRelation<FirstSetType, SecondSetType>::isValid(
       {
         SetPosition idx = fromIdx;
         sstr2 << "\n\t" << m_fromSet->at(fromIdx) << " (" << size(idx) << "):\t";
-        std::copy(begin(idx),
-                  end(idx),
-                  std::ostream_iterator<SetPosition>(sstr2, " "));
+        std::copy(begin(idx), end(idx), std::ostream_iterator<SetPosition>(sstr2, " "));
         overallCount += size(idx);
       }
       sstr2 << "\n\n\tOverall size of relation" << overallCount << std::endl;

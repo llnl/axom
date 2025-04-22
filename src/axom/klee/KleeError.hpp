@@ -45,10 +45,7 @@ public:
    * Get the list of all the errors.
    * @return all the errors which caused this exception
    */
-  const std::vector<inlet::VerificationError> &getErrors() const
-  {
-    return m_errors;
-  }
+  const std::vector<inlet::VerificationError> &getErrors() const { return m_errors; }
 
 private:
   std::vector<inlet::VerificationError> m_errors;

@@ -56,18 +56,14 @@ public:
   using ZoneSet = slam::PositionSet<PositionType, ElementType>;
 
   /// types for relations
-  using STLIndirection =
-    slam::policies::STLVectorIndirection<PositionType, PositionType>;
-  using VariableCardinality =
-    slam::policies::VariableCardinality<PositionType, STLIndirection>;
+  using STLIndirection = slam::policies::STLVectorIndirection<PositionType, PositionType>;
+  using VariableCardinality = slam::policies::VariableCardinality<PositionType, STLIndirection>;
   using NodeToZoneRelation =
     slam::StaticRelation<PositionType, ElementType, VariableCardinality, STLIndirection, NodeSet, ZoneSet>;
   using NodeZoneIterator = NodeToZoneRelation::RelationConstIterator;
 
-  using ZNStride =
-    slam::policies::CompileTimeStride<PositionType, NODES_PER_ZONE>;
-  using ConstantCardinality =
-    slam::policies::ConstantCardinality<PositionType, ZNStride>;
+  using ZNStride = slam::policies::CompileTimeStride<PositionType, NODES_PER_ZONE>;
+  using ConstantCardinality = slam::policies::ConstantCardinality<PositionType, ZNStride>;
   using ZoneToNodeRelation =
     slam::StaticRelation<PositionType, ElementType, ConstantCardinality, STLIndirection, ZoneSet, NodeSet>;
   using ZoneNodeIterator = ZoneToNodeRelation::RelationConstIterator;
@@ -106,8 +102,7 @@ public:
 /// The repository is a proxy for a data allocator/manager
 struct Repository
 {
-  // Define the explicit instances of our local (key/value) datastore
-  // for int and double
+  // Define the explicit instances of our local (key/value) datastore for int and double
   using SetType = axom::slam::Set<>;
   using IntsRegistry = slam::FieldRegistry<SetType, SetType::ElementType>;
   using RealsRegistry = slam::FieldRegistry<SetType, double>;
@@ -126,8 +121,7 @@ class SimpleVTKHexMeshReader
 {
 public:
   // uses RAII to open/close the file
-  SimpleVTKHexMeshReader(const std::string& fileName)
-    : vtkMesh(fileName.c_str())
+  SimpleVTKHexMeshReader(const std::string& fileName) : vtkMesh(fileName.c_str())
   {
     // Handle errors opening file, if any
     if(!vtkMesh)
@@ -165,8 +159,7 @@ public:
     SLIC_INFO("-- Number of nodes: " << numNodes);
 
     const PositionType numCoords = HexMesh::COORDS_PER_NODE * numNodes;
-    RealBuf& pointData =
-      Repository::realsRegistry.addBuffer("node_positions", numCoords);
+    RealBuf& pointData = Repository::realsRegistry.addBuffer("node_positions", numCoords);
     for(PositionType idx = 0; idx < numCoords; ++idx)
     {
       vtkMesh >> pointData[idx];
@@ -183,15 +176,13 @@ public:
 
     // Note: The VTK format has an extra value per zone for the number of indices
     // This is constant since we're assuming a Hex mesh.  General meshes can be different.
-    SLIC_ASSERT_MSG(
-      (listSize - numZones) == numNodeZoneIndices,
-      axom::fmt::format(
-        "Error while reading mesh!\n "
-        "numZones = {0}; numZones*{1} = {2}; indices in file = {3}",
-        numZones,
-        static_cast<int>(HexMesh::NODES_PER_ZONE),
-        numNodeZoneIndices,
-        listSize - numZones));
+    SLIC_ASSERT_MSG((listSize - numZones) == numNodeZoneIndices,
+                    axom::fmt::format("Error while reading mesh!\n "
+                                      "numZones = {0}; numZones*{1} = {2}; indices in file = {3}",
+                                      numZones,
+                                      static_cast<int>(HexMesh::NODES_PER_ZONE),
+                                      numNodeZoneIndices,
+                                      listSize - numZones));
 
     IndexBuf& zn_indices =
       Repository::intsRegistry.addBuffer("zone_node_indices", numNodeZoneIndices);
@@ -240,18 +231,15 @@ void readHexMesh(std::string fileName, HexMesh* mesh)
 
   /// Create the nodal position field
   mesh->nodePosition = HexMesh::NodalPositions(&mesh->nodes);
-  RealBuf::iterator ptIt =
-    Repository::realsRegistry.getBuffer("node_positions").begin();
+  RealBuf::iterator ptIt = Repository::realsRegistry.getBuffer("node_positions").begin();
   for(PositionType idx = 0; idx < mesh->numNodes(); ++idx)
   {
     mesh->nodePosition[idx] = Point3(*ptIt++, *ptIt++, *ptIt++);
   }
 
   /// Create the topological incidence relation from zones to nodes
-  IndexBuf& zn_indices =
-    Repository::intsRegistry.getBuffer("zone_node_indices");
-  mesh->zoneToNodeRelation =
-    HexMesh::ZoneToNodeRelation(&mesh->zones, &mesh->nodes);
+  IndexBuf& zn_indices = Repository::intsRegistry.getBuffer("zone_node_indices");
+  mesh->zoneToNodeRelation = HexMesh::ZoneToNodeRelation(&mesh->zones, &mesh->nodes);
   mesh->zoneToNodeRelation.bindIndices(zn_indices.size(), &zn_indices);
 
   // Check that the relation is valid
@@ -270,8 +258,7 @@ void generateNodeZoneRelation(HexMesh* mesh)
   using PositionType = HexMesh::PositionType;
 
   /// Step 1: Compute the cardinalities of each node by looping through zone to node relation
-  IndexBuf& nzBegins = Repository::intsRegistry.addBuffer("node_zone_begins",
-                                                          mesh->nodes.size() + 1);
+  IndexBuf& nzBegins = Repository::intsRegistry.addBuffer("node_zone_begins", mesh->nodes.size() + 1);
   for(PositionType zIdx = 0; zIdx < mesh->numZones(); ++zIdx)
   {
     RelationSubset nSet = mesh->zoneToNodeRelation[zIdx];
@@ -294,8 +281,7 @@ void generateNodeZoneRelation(HexMesh* mesh)
 
   /// Step 3: Invert the zone_node relation, use nzBegins[node_index] as offset for next zone
   IndexBuf& zIndices =
-    Repository::intsRegistry.addBuffer("node_zone_indices",
-                                       nzBegins[mesh->numNodes()]);
+    Repository::intsRegistry.addBuffer("node_zone_indices", nzBegins[mesh->numNodes()]);
   for(PositionType zIdx = 0; zIdx < mesh->numZones(); ++zIdx)
   {
     RelationSubset nSet = mesh->zoneToNodeRelation[zIdx];
@@ -315,8 +301,7 @@ void generateNodeZoneRelation(HexMesh* mesh)
   nzBegins[0] = 0;
 
   /// We can finally create the node to zone relation
-  mesh->nodeToZoneRelation =
-    HexMesh::NodeToZoneRelation(&mesh->nodes, &mesh->zones);
+  mesh->nodeToZoneRelation = HexMesh::NodeToZoneRelation(&mesh->nodes, &mesh->zones);
   mesh->nodeToZoneRelation.bindBeginOffsets(mesh->nodes.size(), &nzBegins);
   mesh->nodeToZoneRelation.bindIndices(zIndices.size(), &zIndices);
 
@@ -419,10 +404,7 @@ int main(int argc, char** argv)
 #endif
 
   int fileResolutions[] = {1, 2, 4, 8};
-  DataType expectedResults[] = {0.10736689892,
-                                0.037977237476,
-                                0.013251067479,
-                                0.0046357167735};
+  DataType expectedResults[] = {0.10736689892, 0.037977237476, 0.013251067479, 0.0046357167735};
 
   std::string dataDir;
   if(argc > 1)
@@ -446,11 +428,9 @@ int main(int argc, char** argv)
   int numFailedTests = 0;
   for(int res = 0; res < NUM_RESOLUTIONS; ++res)
   {
-    std::string meshName =
-      axom::fmt::format("{}/ball_{}.vtk", dataDir, fileResolutions[res]);
+    std::string meshName = axom::fmt::format("{}/ball_{}.vtk", dataDir, fileResolutions[res]);
 
-    SLIC_INFO("Loading mesh file '" << meshName
-                                    << "' and generating zone-> node relation");
+    SLIC_INFO("Loading mesh file '" << meshName << "' and generating zone-> node relation");
 
     HexMesh hexMesh;
     readHexMesh(meshName, &hexMesh);
@@ -475,11 +455,11 @@ int main(int argc, char** argv)
     // Some error checking based on precomputed values
     if(!axom::utilities::isNearlyEqual(errVal, expectedResults[res]))
     {
-      SLIC_WARNING("Error differed from expected value -- " << axom::fmt::format(
-                     "Expected {}, but got {} (difference: {}",
-                     expectedResults[res],
-                     errVal,
-                     errVal - expectedResults[res]));
+      SLIC_WARNING("Error differed from expected value -- "
+                   << axom::fmt::format("Expected {}, but got {} (difference: {}",
+                                        expectedResults[res],
+                                        errVal,
+                                        errVal - expectedResults[res]));
 
       ++numFailedTests;
     }

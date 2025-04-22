@@ -74,8 +74,7 @@ TEST(Record, add_curve_set_existing_key)
 
   auto &csAfterFirstInsert = record.getCurveSets();
   ASSERT_THAT(csAfterFirstInsert, Contains(Key("cs1")));
-  EXPECT_THAT(csAfterFirstInsert.at("cs1").getDependentCurves(),
-              Contains(Key("original")));
+  EXPECT_THAT(csAfterFirstInsert.at("cs1").getDependentCurves(), Contains(Key("original")));
 
   CurveSet cs2 {"cs1"};
   cs2.addDependentCurve(Curve {"new", {1, 2, 3}});
@@ -83,10 +82,8 @@ TEST(Record, add_curve_set_existing_key)
 
   auto &csAfterSecondInsert = record.getCurveSets();
   ASSERT_THAT(csAfterSecondInsert, Contains(Key("cs1")));
-  EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(),
-              Not(Contains(Key("original"))));
-  EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(),
-              Contains(Key("new")));
+  EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(), Not(Contains(Key("original"))));
+  EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(), Contains(Key("new")));
 }
 
 TEST(Record, remove_file)
@@ -133,8 +130,7 @@ TEST(Record, add_child_record_as_library_data)
   ASSERT_THAT(childLibContents, Contains(Key(LIBRARY_DATA_ID_DATUM)));
   EXPECT_EQ("child id", childLibContents.at(LIBRARY_DATA_ID_DATUM).getValue());
   ASSERT_THAT(childLibContents, Contains(Key(LIBRARY_DATA_TYPE_DATUM)));
-  EXPECT_EQ("test_record_child",
-            childLibContents.at(LIBRARY_DATA_TYPE_DATUM).getValue());
+  EXPECT_EQ("test_record_child", childLibContents.at(LIBRARY_DATA_TYPE_DATUM).getValue());
 }
 
 TEST(Record, add_child_record_as_library_data_with_data)
@@ -285,9 +281,8 @@ TEST(Record, create_fromNode_userDefined)
   EXPECT_EQ("v1", userDefined["k1"].as_string());
   EXPECT_EQ(123, userDefined["k2"].as_int());
   auto int_array = userDefined["k3"].as_int_ptr();
-  std::vector<double> udef_ints(
-    int_array,
-    int_array + userDefined["k3"].dtype().number_of_elements());
+  std::vector<double> udef_ints(int_array,
+                                int_array + userDefined["k3"].dtype().number_of_elements());
   EXPECT_THAT(udef_ints, ElementsAre(1, 2, 3));
 }
 
@@ -360,9 +355,8 @@ TEST(Record, toNode_userDefined)
   EXPECT_EQ("v1", userDefined["k1"].as_string());
   EXPECT_EQ(123, userDefined["k2"].as_int());
   auto int_array = userDefined["k3"].as_int_ptr();
-  std::vector<double> udef_ints(
-    int_array,
-    int_array + userDefined["k3"].dtype().number_of_elements());
+  std::vector<double> udef_ints(int_array,
+                                int_array + userDefined["k3"].dtype().number_of_elements());
   EXPECT_THAT(udef_ints, ElementsAre(1, 2, 3));
 }
 
@@ -384,8 +378,7 @@ TEST(Record, toNode_data)
   EXPECT_EQ("some units", asNode[EXPECTED_DATA_KEY][name1]["units"].as_string());
   EXPECT_EQ("tag1", asNode[EXPECTED_DATA_KEY][name1]["tags"][0].as_string());
 
-  EXPECT_THAT(asNode[EXPECTED_DATA_KEY][name2]["value"].as_double(),
-              DoubleEq(2.));
+  EXPECT_THAT(asNode[EXPECTED_DATA_KEY][name2]["value"].as_double(), DoubleEq(2.));
   EXPECT_TRUE(asNode[EXPECTED_DATA_KEY][name2]["units"].dtype().is_empty());
   EXPECT_TRUE(asNode[EXPECTED_DATA_KEY][name2]["tags"].dtype().is_empty());
 }
@@ -400,8 +393,7 @@ TEST(Record, toNode_dataWithSlashes)
   record.add(name, datum);
   auto asNode = record.toNode();
   ASSERT_EQ(1u, asNode[EXPECTED_DATA_KEY].number_of_children());
-  EXPECT_EQ("the value",
-            asNode[EXPECTED_DATA_KEY].child(name)["value"].as_string());
+  EXPECT_EQ("the value", asNode[EXPECTED_DATA_KEY].child(name)["value"].as_string());
 }
 
 TEST(Record, toNode_files)
@@ -459,8 +451,7 @@ TEST(RecordLoader, load_missingLoader)
   if(loaded)
   {
     auto &loadedRef = *loaded;
-    EXPECT_EQ(typeid(Record), typeid(loadedRef))
-      << "Type was " << typeid(loadedRef).name();
+    EXPECT_EQ(typeid(Record), typeid(loadedRef)) << "Type was " << typeid(loadedRef).name();
   }
 }
 

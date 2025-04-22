@@ -65,17 +65,7 @@ public:
 
     // Get the axis names for the output coordset. For uniform, prefer x,y,z
     // instead of i,j,k since we're making an explicit coordset.
-    std::vector<std::string> axes;
-    if(n_input["type"].as_string() == "uniform")
-    {
-      if(n_input.has_path("dims/i")) axes.push_back("x");
-      if(n_input.has_path("dims/j")) axes.push_back("y");
-      if(n_input.has_path("dims/k")) axes.push_back("z");
-    }
-    else
-    {
-      axes = conduit::blueprint::mesh::utils::coordset::axes(n_input);
-    }
+    std::vector<std::string> axes(bputils::coordsetAxes(n_input));
 
     const auto nComponents = axes.size();
     SLIC_ASSERT(PointType::DIMENSION == nComponents);
@@ -99,8 +89,7 @@ public:
       // Allocate data in the Conduit node and make a view.
       conduit::Node &comp = n_values[axes[i]];
       comp.set_allocator(c2a.getConduitAllocatorID());
-      comp.set(
-        conduit::DataType(bputils::cpp2conduit<value_type>::id, outputSize));
+      comp.set(conduit::DataType(bputils::cpp2conduit<value_type>::id, outputSize));
       compViews[i] = bputils::make_array_view<value_type>(comp);
     }
 
@@ -126,8 +115,7 @@ public:
       blendSize,
       AXOM_LAMBDA(axom::IndexType bgid) {
         // Get the blend group index we want.
-        const auto selectedIndex =
-          SelectionPolicy::selectedIndex(deviceBlend, bgid);
+        const auto selectedIndex = SelectionPolicy::selectedIndex(deviceBlend, bgid);
         const auto start = deviceBlend.m_blendGroupStartView[selectedIndex];
         const auto nValues = deviceBlend.m_blendGroupSizesView[selectedIndex];
         const auto destIndex = bgid + origSize;
@@ -140,15 +128,13 @@ public:
         }
         else
         {
-          const auto end =
-            start + deviceBlend.m_blendGroupSizesView[selectedIndex];
+          const auto end = start + deviceBlend.m_blendGroupSizesView[selectedIndex];
           // Blend points for this blend group.
           for(IndexType i = start; i < end; i++)
           {
             const auto index = deviceBlend.m_blendIdsView[i];
             const auto weight = deviceBlend.m_blendCoeffView[i];
-            blended +=
-              (VectorType(deviceView[index]) * static_cast<value_type>(weight));
+            blended += (VectorType(deviceView[index]) * static_cast<value_type>(weight));
           }
         }
 

@@ -71,13 +71,11 @@ public:
   using OrientedBoundingBoxType = OrientedBoundingBox<T, NDIMS>;
   using BezierCurveType = primal::BezierCurve<T, NDIMS>;
 
-  AXOM_STATIC_ASSERT_MSG(
-    (NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
-    "A Bezier Patch object may be defined in 1-, 2-, or 3-D");
+  AXOM_STATIC_ASSERT_MSG((NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
+                         "A Bezier Patch object may be defined in 1-, 2-, or 3-D");
 
-  AXOM_STATIC_ASSERT_MSG(
-    std::is_arithmetic<T>::value,
-    "A Bezier Patch must be defined using an arithmetic type");
+  AXOM_STATIC_ASSERT_MSG(std::is_arithmetic<T>::value,
+                         "A Bezier Patch must be defined using an arithmetic type");
 
 public:
   /*!
@@ -309,16 +307,10 @@ public:
   }
 
   /// Returns the order of the Bezier Patch on the first axis
-  int getOrder_u() const
-  {
-    return static_cast<int>(m_controlPoints.shape()[0]) - 1;
-  }
+  int getOrder_u() const { return static_cast<int>(m_controlPoints.shape()[0]) - 1; }
 
   /// Returns the order of the Bezier Patch on the second axis
-  int getOrder_v() const
-  {
-    return static_cast<int>(m_controlPoints.shape()[1]) - 1;
-  }
+  int getOrder_v() const { return static_cast<int>(m_controlPoints.shape()[1]) - 1; }
 
   /// Make trivially rational. If already rational, do nothing
   void makeRational()
@@ -350,10 +342,7 @@ public:
   PointType& operator()(int ui, int vi) { return m_controlPoints(ui, vi); }
 
   /// Retrieves the vector of control points at index \a idx
-  const PointType& operator()(int ui, int vi) const
-  {
-    return m_controlPoints(ui, vi);
-  }
+  const PointType& operator()(int ui, int vi) const { return m_controlPoints(ui, vi); }
 
   /*!
    * \brief Get a specific weight
@@ -386,15 +375,12 @@ public:
   };
 
   /// Checks equality of two Bezier Patches
-  friend inline bool operator==(const BezierPatch<T, NDIMS>& lhs,
-                                const BezierPatch<T, NDIMS>& rhs)
+  friend inline bool operator==(const BezierPatch<T, NDIMS>& lhs, const BezierPatch<T, NDIMS>& rhs)
   {
-    return (lhs.m_controlPoints == rhs.m_controlPoints) &&
-      (lhs.m_weights == rhs.m_weights);
+    return (lhs.m_controlPoints == rhs.m_controlPoints) && (lhs.m_weights == rhs.m_weights);
   }
 
-  friend inline bool operator!=(const BezierPatch<T, NDIMS>& lhs,
-                                const BezierPatch<T, NDIMS>& rhs)
+  friend inline bool operator!=(const BezierPatch<T, NDIMS>& lhs, const BezierPatch<T, NDIMS>& rhs)
   {
     return !(lhs == rhs);
   }
@@ -434,8 +420,7 @@ public:
     {
       for(int i = 0; i < mid_u; ++i)
       {
-        axom::utilities::swap(m_controlPoints(i, q),
-                              m_controlPoints(ord_u - i, q));
+        axom::utilities::swap(m_controlPoints(i, q), m_controlPoints(ord_u - i, q));
       }
 
       if(isRational())
@@ -460,8 +445,7 @@ public:
     {
       for(int i = 0; i < mid_v; ++i)
       {
-        axom::utilities::swap(m_controlPoints(p, i),
-                              m_controlPoints(p, ord_v - i));
+        axom::utilities::swap(m_controlPoints(p, i), m_controlPoints(p, ord_v - i));
       }
 
       if(isRational())
@@ -510,15 +494,13 @@ public:
   /// Returns an axis-aligned bounding box containing the Bezier patch
   BoundingBoxType boundingBox() const
   {
-    return BoundingBoxType(m_controlPoints.data(),
-                           static_cast<int>(m_controlPoints.size()));
+    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
   /// Returns an oriented bounding box containing the Bezier patch
   OrientedBoundingBoxType orientedBoundingBox() const
   {
-    return OrientedBoundingBoxType(m_controlPoints.data(),
-                                   static_cast<int>(m_controlPoints.size()));
+    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
   /*!
@@ -1150,8 +1132,7 @@ public:
         eval[i] = P[i] / W[0];
         Du[i] = (P_u[i] - eval[i] * W_u[0]) / W[0];
         Dv[i] = (P_v[i] - eval[i] * W_v[0]) / W[0];
-        DuDv[i] =
-          (P_uv[i] - Du[i] * W_v[0] - Dv[i] * W_u[0] - eval[i] * W_uv[0]) / W[0];
+        DuDv[i] = (P_uv[i] - Du[i] * W_v[0] - Dv[i] * W_u[0] - eval[i] * W_uv[0]) / W[0];
       }
     }
   }
@@ -1414,8 +1395,7 @@ public:
         Dv[i] = (P_v[i] - eval[i] * W_v[0]) / W[0];
         DuDu[i] = (P_uu[i] - 2 * W_u[0] * Du[i] - eval[i] * W_uu[0]) / W[0];
         DvDv[i] = (P_vv[i] - 2 * W_v[0] * Dv[i] - eval[i] * W_vv[0]) / W[0];
-        DuDv[i] =
-          (P_uv[i] - Du[i] * W_v[0] - Dv[i] * W_u[0] - eval[i] * W_uv[0]) / W[0];
+        DuDv[i] = (P_uv[i] - Du[i] * W_v[0] - Dv[i] * W_u[0] - eval[i] * W_uv[0]) / W[0];
       }
     }
   }
@@ -1615,8 +1595,8 @@ public:
       double weight_cubed = W[0] * W[0] * W[0];
       for(int i = 0; i < NDIMS; ++i)
       {
-        val[i] = W[0] * W[0] * P_uv[i] -
-          W[0] * (P_u[i] * W_v[0] + P_v[i] * W_u[0]) + P[i] * weight_prod;
+        val[i] =
+          W[0] * W[0] * P_uv[i] - W[0] * (P_u[i] * W_v[0] + P_v[i] * W_u[0]) + P[i] * weight_prod;
         val[i] /= weight_cubed;
       }
 
@@ -1706,14 +1686,12 @@ public:
 
           for(int k = 0; k <= end; ++k)
           {
-            double temp_weight =
-              lerp(p2.getWeight(k, q), p2.getWeight(k + 1, q), u);
+            double temp_weight = lerp(p2.getWeight(k, q), p2.getWeight(k + 1, q), u);
 
             for(int i = 0; i < NDIMS; ++i)
             {
-              p2(k, q)[i] = lerp(p2.getWeight(k, q) * p2(k, q)[i],
-                                 p2.getWeight(k + 1, q) * p2(k + 1, q)[i],
-                                 u) /
+              p2(k, q)[i] =
+                lerp(p2.getWeight(k, q) * p2(k, q)[i], p2.getWeight(k + 1, q) * p2(k + 1, q)[i], u) /
                 temp_weight;
             }
 
@@ -1777,14 +1755,12 @@ public:
 
           for(int k = 0; k <= end; ++k)
           {
-            double temp_weight =
-              lerp(p2.getWeight(p, k), p2.getWeight(p, k + 1), v);
+            double temp_weight = lerp(p2.getWeight(p, k), p2.getWeight(p, k + 1), v);
 
             for(int i = 0; i < NDIMS; ++i)
             {
-              p2(p, k)[i] = lerp(p2.getWeight(p, k) * p2(p, k)[i],
-                                 p2.getWeight(p, k + 1) * p2(p, k + 1)[i],
-                                 v) /
+              p2(p, k)[i] =
+                lerp(p2.getWeight(p, k) * p2(p, k)[i], p2.getWeight(p, k + 1) * p2(p, k + 1)[i], v) /
                 temp_weight;
             }
 
@@ -1842,12 +1818,7 @@ public:
    *
    * \pre Parameter \a u and \a v must be between 0 and 1
    */
-  void split(T u,
-             T v,
-             BezierPatch& p1,
-             BezierPatch& p2,
-             BezierPatch& p3,
-             BezierPatch& p4) const
+  void split(T u, T v, BezierPatch& p1, BezierPatch& p2, BezierPatch& p3, BezierPatch& p4) const
   {
     // Bisect the patch along the u direction
     split_u(u, p1, p2);
@@ -1892,10 +1863,7 @@ public:
     VectorType v1(m_controlPoints(0, 0), m_controlPoints(0, ord_v));
     VectorType v2(m_controlPoints(0, 0), m_controlPoints(ord_u, 0));
     VectorType v3(m_controlPoints(0, 0), m_controlPoints(ord_u, ord_v));
-    if(!axom::utilities::isNearlyEqual(
-         VectorType::scalar_triple_product(v1, v2, v3),
-         0.0,
-         EPS))
+    if(!axom::utilities::isNearlyEqual(VectorType::scalar_triple_product(v1, v2, v3), 0.0, EPS))
     {
       return false;
     }
@@ -1917,8 +1885,7 @@ public:
     {
       for(int q = ((p == 0) ? 1 : 0); q <= ord_v; ++q)
       {
-        const double signedDist =
-          plane_normal.dot(m_controlPoints(p, q) - m_controlPoints(0, 0));
+        const double signedDist = plane_normal.dot(m_controlPoints(p, q) - m_controlPoints(0, 0));
 
         if(signedDist * signedDist > sq_tol)
         {
@@ -2017,12 +1984,8 @@ public:
         for(int N = 0; N < NDIMS; ++N)
         {
           val[N] = axom::utilities::lerp(
-            axom::utilities::lerp(m_controlPoints(0, 0)[N],
-                                  m_controlPoints(0, ord_v)[N],
-                                  v),
-            axom::utilities::lerp(m_controlPoints(ord_u, 0)[N],
-                                  m_controlPoints(ord_u, ord_v)[N],
-                                  v),
+            axom::utilities::lerp(m_controlPoints(0, 0)[N], m_controlPoints(0, ord_v)[N], v),
+            axom::utilities::lerp(m_controlPoints(ord_u, 0)[N], m_controlPoints(ord_u, ord_v)[N], v),
             u);
         }
         return val;
@@ -2033,8 +1996,8 @@ public:
         for(int v = 0; v <= ord_v; ++v)
         {
           // Don't need to check the corners
-          if((u == 0 && v == 0) || (u == 0 && v == ord_v) ||
-             (u == ord_u && v == 0) || (u == ord_u && v == ord_v))
+          if((u == 0 && v == 0) || (u == 0 && v == ord_v) || (u == ord_u && v == 0) ||
+             (u == ord_u && v == ord_v))
           {
             continue;
           }

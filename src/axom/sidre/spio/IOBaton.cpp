@@ -61,8 +61,7 @@ IOBaton::IOBaton(MPI_Comm comm, int num_files, int num_groups)
   }
   else if(m_my_rank < active_comm_size)
   {
-    m_set_id =
-      m_num_larger_sets + (m_my_rank - m_first_regular_set_rank) / m_set_size;
+    m_set_id = m_num_larger_sets + (m_my_rank - m_first_regular_set_rank) / m_set_size;
     m_rank_within_set = (m_my_rank - m_first_regular_set_rank) % m_set_size;
     if(m_rank_within_set < m_set_size - 1)
     {
@@ -96,8 +95,7 @@ int IOBaton::wait()
   {
     MPI_Status mpi_stat;
     int baton;
-    int mpi_err =
-      MPI_Recv(&baton, 1, MPI_INT, m_rank_before_me, m_mpi_tag, m_mpi_comm, &mpi_stat);
+    int mpi_err = MPI_Recv(&baton, 1, MPI_INT, m_rank_before_me, m_mpi_tag, m_mpi_comm, &mpi_stat);
     if(mpi_err == MPI_SUCCESS)
     {
       return_val = m_set_id;

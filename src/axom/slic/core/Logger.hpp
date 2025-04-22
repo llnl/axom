@@ -148,9 +148,7 @@ public:
    * \note The Logger takes ownership of the LogStream object.
    * \pre ls != NULL.
    */
-  void addStreamToMsgLevel(LogStream* ls,
-                           message::Level level,
-                           bool pass_ownership = true);
+  void addStreamToMsgLevel(LogStream* ls, message::Level level, bool pass_ownership = true);
 
   /*!
    * \brief Binds the given stream to all the levels for this Logger instance.
@@ -199,9 +197,7 @@ public:
    * \note The Logger takes ownership of the LogStream object.
    * \pre ls != NULL.
    */
-  void addStreamToTag(LogStream* ls,
-                      const std::string& tag,
-                      bool pass_ownership = true);
+  void addStreamToTag(LogStream* ls, const std::string& tag, bool pass_ownership = true);
 
   /*!
    * \brief Binds the given stream to all the tags for this Logger instance.
@@ -248,9 +244,7 @@ public:
    * duplicate messages resulting from running in parallel will be filtered out.
    * Default is false.
    */
-  void logMessage(message::Level level,
-                  const std::string& message,
-                  bool filter_duplicates = false);
+  void logMessage(message::Level level, const std::string& message, bool filter_duplicates = false);
 
   /*!
    * \brief Logs the given message to all registered streams.
@@ -375,8 +369,7 @@ public:
    * \note False is returned if a logger associated with the given name
    *  already exists.
    */
-  static bool createLogger(const std::string& name,
-                           char imask = inherit::nothing);
+  static bool createLogger(const std::string& name, char imask = inherit::nothing);
 
   /*!
    * \brief Activates the logger with the associate name.

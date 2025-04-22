@@ -65,8 +65,7 @@ public:
    * \param [in] rightMessage One of the Messages to be compared.
    *****************************************************************************
    */
-  bool shouldMessagesBeCombined(const Message& leftMessage,
-                                const Message& rightMessage)
+  bool shouldMessagesBeCombined(const Message& leftMessage, const Message& rightMessage)
   {
     return (leftMessage.text().compare(rightMessage.text()) == 0);
   }

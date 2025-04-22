@@ -30,15 +30,84 @@ class StaticArray : public StackArray<T, N>
 {
 public:
   /*!
+   * \brief Constructor
+   */
+  AXOM_HOST_DEVICE StaticArray() : StackArray<T, N>(), m_size(0)
+  {
+#if defined(AXOM_DEBUG)
+    for(int i = 0; i < m_size; i++)
+    {
+      StackArray<T, N>::m_data[i] = T {};
+    }
+#endif
+  }
+
+  /*!
+   * \brief Copy Constructor
+   * \param obj The object to be copied.
+   */
+  AXOM_HOST_DEVICE StaticArray(const StaticArray &obj) : StackArray<T, N>(obj), m_size(obj.m_size)
+  {
+    for(int i = 0; i < obj.m_size; i++)
+    {
+      StackArray<T, N>::m_data[i] = obj.StackArray<T, N>::m_data[i];
+    }
+    m_size = obj.m_size;
+  }
+
+  /*!
+   * \brief Move Constructor
+   * \param obj The object to be moved.
+   */
+  AXOM_HOST_DEVICE StaticArray(StaticArray &&obj) : StackArray<T, N>(obj), m_size(obj.m_size)
+  {
+    for(int i = 0; i < obj.m_size; i++)
+    {
+      StackArray<T, N>::m_data[i] = obj.StackArray<T, N>::m_data[i];
+    }
+    m_size = obj.m_size;
+  }
+
+  /*!
+   * \brief Destructor.
+   */
+  AXOM_HOST_DEVICE ~StaticArray() { }
+
+  /*!
+   * \brief Copy assignment operator.
+   * \param obj The object to be copied.
+   */
+  AXOM_HOST_DEVICE StaticArray operator=(const StaticArray &obj)
+  {
+    for(int i = 0; i < obj.m_size; i++)
+    {
+      StackArray<T, N>::m_data[i] = obj.StackArray<T, N>::m_data[i];
+    }
+    m_size = obj.m_size;
+    return *this;
+  }
+
+  /*!
+   * \brief Move assignment operator.
+   * \param obj The object to be moved.
+   */
+  AXOM_HOST_DEVICE StaticArray operator=(StaticArray &&obj)
+  {
+    for(int i = 0; i < obj.m_size; i++)
+    {
+      StackArray<T, N>::m_data[i] = obj.StackArray<T, N>::m_data[i];
+    }
+    m_size = obj.m_size;
+    return *this;
+  }
+
+  /*!
    * \brief Returns the capacity of the static array
    *
    * \return The capacity of the static array
    */
   AXOM_HOST_DEVICE
-  constexpr axom::IndexType capacity() const
-  {
-    return static_cast<axom::IndexType>(N);
-  }
+  constexpr axom::IndexType capacity() const { return static_cast<axom::IndexType>(N); }
 
   /*!
    * \brief Returns the size of the static array
@@ -79,7 +148,16 @@ public:
    * \brief Clears the data from the static array
    */
   AXOM_HOST_DEVICE
-  void clear() { m_size = 0; }
+  void clear()
+  {
+    m_size = 0;
+#if defined(AXOM_DEBUG)
+    for(int i = 0; i < m_size; i++)
+    {
+      StackArray<T, N>::m_data[i] = T {};
+    }
+#endif
+  }
 
   /**
    * \brief Determines whether the container is empty.

@@ -69,10 +69,7 @@ public:
    * \pre stream != NULL
    * \see LogStream::setFormatString for the format string.
    */
-  LumberjackStream(std::ostream* stream,
-                   MPI_Comm comm,
-                   int ranksLimit,
-                   const std::string& format);
+  LumberjackStream(std::ostream* stream, MPI_Comm comm, int ranksLimit, const std::string& format);
 
   /*!
    * \brief Constructs a LumberjackStream instance with the given stream
@@ -91,9 +88,7 @@ public:
    * \param [in] format the format string.
    * \pre stream != NULL
    */
-  LumberjackStream(std::ostream* stream,
-                   axom::lumberjack::Lumberjack* lj,
-                   const std::string& format);
+  LumberjackStream(std::ostream* stream, axom::lumberjack::Lumberjack* lj, const std::string& format);
 
   /*!
    * \brief Constructs a LumberjackStream instance specified by the given
@@ -131,10 +126,7 @@ public:
    * \note This constructor avoids creating an empty file if this
    *       LumberjackStream never flushes a message.
    */
-  LumberjackStream(std::string stream,
-                   MPI_Comm comm,
-                   int ranksLimit,
-                   const std::string& format);
+  LumberjackStream(std::string stream, MPI_Comm comm, int ranksLimit, const std::string& format);
 
   /*!
    * \brief Constructs a LumberjackStream instance specified by the given
@@ -168,9 +160,7 @@ public:
    * \note This constructor avoids creating an empty file if this
    *       LumberjackStream never flushes a message.
    */
-  LumberjackStream(std::string stream,
-                   axom::lumberjack::Lumberjack* lj,
-                   const std::string& format);
+  LumberjackStream(std::string stream, axom::lumberjack::Lumberjack* lj, const std::string& format);
 
   virtual ~LumberjackStream();
 

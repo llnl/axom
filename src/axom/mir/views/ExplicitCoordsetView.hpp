@@ -43,8 +43,7 @@ public:
    * \param y The second coordinate component.
    */
   AXOM_HOST_DEVICE
-  ExplicitCoordsetView(const axom::ArrayView<DataType> &x,
-                       const axom::ArrayView<DataType> &y)
+  ExplicitCoordsetView(const axom::ArrayView<DataType> &x, const axom::ArrayView<DataType> &y)
     : m_coordinates {x, y}
   {
     SLIC_ASSERT_MSG(x.size() == y.size(), "Coordinate size mismatch.");
@@ -73,11 +72,9 @@ public:
   AXOM_HOST_DEVICE
   PointType getPoint(IndexType vertex_index) const
   {
-    SLIC_ASSERT_MSG(vertex_index < size(),
-                    axom::fmt::format("Out of range index {}.", vertex_index));
+    SLIC_ASSERT_MSG(vertex_index < size(), axom::fmt::format("Out of range index {}.", vertex_index));
 
-    const DataType X[3] = {m_coordinates[0][vertex_index],
-                           m_coordinates[1][vertex_index]};
+    const DataType X[3] = {m_coordinates[0][vertex_index], m_coordinates[1][vertex_index]};
     return PointType(X);
   }
 
@@ -89,10 +86,7 @@ public:
    * \return A point that corresponds to \a vertex_index.
    */
   AXOM_HOST_DEVICE
-  PointType operator[](IndexType vertex_index) const
-  {
-    return getPoint(vertex_index);
-  }
+  PointType operator[](IndexType vertex_index) const { return getPoint(vertex_index); }
 
 private:
   axom::ArrayView<DataType> m_coordinates[2];
@@ -124,8 +118,7 @@ public:
                        const axom::ArrayView<DataType> &z)
     : m_coordinates {x, y, z}
   {
-    SLIC_ASSERT_MSG(x.size() == y.size() && x.size() == z.size(),
-                    "Coordinate size mismatch.");
+    SLIC_ASSERT_MSG(x.size() == y.size() && x.size() == z.size(), "Coordinate size mismatch.");
   }
 
   /*!
@@ -151,8 +144,7 @@ public:
   AXOM_HOST_DEVICE
   PointType getPoint(IndexType vertex_index) const
   {
-    SLIC_ASSERT_MSG(vertex_index < size(),
-                    axom::fmt::format("Out of range index {}.", vertex_index));
+    SLIC_ASSERT_MSG(vertex_index < size(), axom::fmt::format("Out of range index {}.", vertex_index));
 
     const DataType X[3] = {m_coordinates[0][vertex_index],
                            m_coordinates[1][vertex_index],
@@ -168,10 +160,7 @@ public:
    * \return A point that corresponds to \a vertex_index.
    */
   AXOM_HOST_DEVICE
-  PointType operator[](IndexType vertex_index) const
-  {
-    return getPoint(vertex_index);
-  }
+  PointType operator[](IndexType vertex_index) const { return getPoint(vertex_index); }
 
 private:
   axom::ArrayView<DataType> m_coordinates[3];

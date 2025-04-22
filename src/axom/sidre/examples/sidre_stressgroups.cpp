@@ -62,9 +62,7 @@ int main(int argc, char* argv[])
   std::vector<std::string> names(num_groups);
   {
     int i = 0;
-    for(std::set<std::string>::const_iterator itr = name_set.begin();
-        itr != name_set.end();
-        ++itr)
+    for(std::set<std::string>::const_iterator itr = name_set.begin(); itr != name_set.end(); ++itr)
     {
       names[i] = *itr;
       ++i;

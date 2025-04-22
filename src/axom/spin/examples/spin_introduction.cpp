@@ -183,8 +183,7 @@ void demoMorton()
   {
     RLGridCell g = iter.first;
     DataContainer dat = iter.second;
-    std::cout << "Grid cell " << g << " holds " << dat.count << " points."
-              << std::endl;
+    std::cout << "Grid cell " << g << " holds " << dat.count << " points." << std::endl;
   }
   // _morton_use_end
 
@@ -207,20 +206,18 @@ void demoRectangularLattice()
   // Query point (2.0, 1.2) should be in grid cell (2, 1)
   RLSpacePt pA = RLSpacePt::make_point(2.0, 1.2);
   RLGridCell cA = lat.gridCell(pA);
-  std::cout << "Point " << pA << " is in grid cell " << cA
-            << " (should be (2, 1))" << std::endl;
+  std::cout << "Point " << pA << " is in grid cell " << cA << " (should be (2, 1))" << std::endl;
 
   // Query point (2.3, 0.8) should also be in grid cell (2, 1)
   RLSpacePt pB = RLSpacePt::make_point(2.3, 0.8);
   RLGridCell cB = lat.gridCell(pB);
-  std::cout << "Point " << pB << " is in grid cell " << cB
-            << " (should be (2, 1))" << std::endl;
+  std::cout << "Point " << pB << " is in grid cell " << cB << " (should be (2, 1))" << std::endl;
 
   // What is the lowest corner and bounding box of the shared cell?
   RLSpacePt cellcorner = lat.spacePoint(cB);
   RLBBox cellbbox = lat.cellBounds(cB);
-  std::cout << "The lower corner of the grid cell is " << cellcorner
-            << " and its bounding box is " << cellbbox << std::endl;
+  std::cout << "The lower corner of the grid cell is " << cellcorner << " and its bounding box is "
+            << cellbbox << std::endl;
   // _rectlattice_use_end
 
   std::cout << std::endl;
@@ -303,8 +300,7 @@ UniformGridType* buildUniformGrid(std::vector<TriangleType>& tris)
 
   // Construct the UniformGrid with minimum point, maximum point,
   // and number of bins along each side.  Then insert the triangles.
-  UniformGridType* ugrid =
-    new UniformGridType(minBBPt.data(), maxBBPt.data(), ress);
+  UniformGridType* ugrid = new UniformGridType(minBBPt.data(), maxBBPt.data(), ress);
   for(int i = 0; i < tcount; ++i)
   {
     TriangleType& t1 = tris[i];
@@ -317,10 +313,7 @@ UniformGridType* buildUniformGrid(std::vector<TriangleType>& tris)
 // _ugrid_build_end
 
 // _ugrid_candidate_start
-void findNeighborCandidates(TriangleType& t1,
-                            int i,
-                            UniformGridType* ugrid,
-                            std::vector<int>& neighbors)
+void findNeighborCandidates(TriangleType& t1, int i, UniformGridType* ugrid, std::vector<int>& neighbors)
 {
   BoundingBoxType bbox = findBbox(t1);
 
@@ -345,8 +338,7 @@ void findNeighborCandidates(TriangleType& t1,
   // Sort the neighboring triangles, and throw out duplicates.
   // This is not strictly necessary but saves some calls to intersect().
   std::sort(neighbors.begin(), neighbors.end());
-  std::vector<int>::iterator jend =
-    std::unique(neighbors.begin(), neighbors.end());
+  std::vector<int>::iterator jend = std::unique(neighbors.begin(), neighbors.end());
   neighbors.erase(jend, neighbors.end());
 }
 // _ugrid_candidate_end
@@ -432,8 +424,8 @@ void showImplicitGrid()
   // Report on intersection tests
   std::cout << "----- showImplicitGrid -----" << std::endl;
   std::cout << numElts << " total triangles, " << candidates.count()
-            << " triangles expensively tested against query point, "
-            << totalTrue << " found true." << std::endl;
+            << " triangles expensively tested against query point, " << totalTrue << " found true."
+            << std::endl;
 }
 
 void makeTriangles(std::vector<TriangleType>& tris)
@@ -541,9 +533,7 @@ BVH2DType* buildBVHTree(std::vector<Triangle2DType>& tris)
 // _bvh_build_end
 
 // _bvh_candidate_start
-void findCandidateBVHTreeBins(BVH2DType* tree,
-                              Point2DType ppoint,
-                              std::vector<int>& candidates)
+void findCandidateBVHTreeBins(BVH2DType* tree, Point2DType ppoint, std::vector<int>& candidates)
 {
   axom::IndexType offsets;
   axom::IndexType counts;
@@ -559,8 +549,7 @@ void findCandidateBVHTreeBins(BVH2DType* tree,
 
   // Since we are only querying one point, offsets == 0 and
   // len(candidatesPtr) == counts
-  candidates =
-    std::vector<int>(candidatesArray.data(), candidatesArray.data() + counts);
+  candidates = std::vector<int>(candidatesArray.data(), candidatesArray.data() + counts);
 }
 // _bvh_candidate_end
 
@@ -655,8 +644,8 @@ void driveBVHTree()
   tree->writeVtkFile("BVHTree.out.vtk");
 
   std::cout << "----- driveBVHTree -----" << std::endl;
-  std::cout << "Point " << ppoint << " hit the following "
-            << intersections.size() << " triangles (0 expected):" << std::endl;
+  std::cout << "Point " << ppoint << " hit the following " << intersections.size()
+            << " triangles (0 expected):" << std::endl;
   for(size_t i = 0; i < intersections.size(); ++i)
   {
     std::cout << intersections[i] << std::endl;

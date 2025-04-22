@@ -28,9 +28,9 @@
 /*
  * Axom source location
  */
-#define AXOM_SRC_DIR "@AXOM_SRC_DIR@"
-#define AXOM_BIN_DIR "@AXOM_BIN_DIR@"
-#cmakedefine AXOM_DATA_DIR "@AXOM_DATA_DIR@"
+#define AXOM_SRC_DIR "@AXOM_SRC_DIR_NATIVE@"
+#define AXOM_BIN_DIR "@AXOM_BIN_DIR_NATIVE@"
+#cmakedefine AXOM_DATA_DIR "@AXOM_DATA_DIR_NATIVE@"
 
 /*
  * Platform specific definitions

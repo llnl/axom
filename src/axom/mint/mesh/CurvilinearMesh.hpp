@@ -222,10 +222,7 @@ public:
    * \brief Returns true if the mesh points to external coordinate arrays.
    * \return status true iff external coordinate arrays were supplied.
    */
-  virtual bool isExternal() const final override
-  {
-    return m_coordinates->isExternal();
-  }
+  virtual bool isExternal() const final override { return m_coordinates->isExternal(); }
 
   /// \name Nodes
   /// @{

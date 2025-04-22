@@ -77,28 +77,17 @@ struct Arguments
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
-    app
-      .add_option("-i,--input", this->file_name, "specifies the input mesh file")
+    app.add_option("-i,--input", this->file_name, "specifies the input mesh file")
       ->check(axom::CLI::ExistingFile)
       ->required();
 
-    app
-      .add_option("-o,--outfile",
-                  this->outfile_name,
-                  "specifies the output mesh file")
-      ->required();
+    app.add_option("-o,--outfile", this->outfile_name, "specifies the output mesh file")->required();
 
-    app
-      .add_option("--min",
-                  this->bbox_min,
-                  "specifies the minimum of the bounding box")
+    app.add_option("--min", this->bbox_min, "specifies the minimum of the bounding box")
       ->expected(3)
       ->required();
 
-    app
-      .add_option("--max",
-                  this->bbox_max,
-                  "specifies the maximum of the bounding box")
+    app.add_option("--max", this->bbox_max, "specifies the maximum of the bounding box")
       ->expected(3)
       ->required();
 
@@ -158,8 +147,8 @@ int main(int argc, char** argv)
   reader.getMesh(&mesh);
   // _read_proe_file_end
 
-  SLIC_INFO("Mesh has " << mesh.getNumberOfNodes() << " vertices and "
-                        << mesh.getNumberOfCells() << " triangles.");
+  SLIC_INFO("Mesh has " << mesh.getNumberOfNodes() << " vertices and " << mesh.getNumberOfCells()
+                        << " triangles.");
 
   axom::mint::write_vtk(&mesh, args.outfile_name);
 

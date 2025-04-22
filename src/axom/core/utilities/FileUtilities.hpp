@@ -75,8 +75,7 @@ int makeDirsForPath(const std::string& path);
  * \return \c prefix + \c path (with delimiter) if the path is
  * relative or \c prefix is empty, or just \c path otherwise.
  */
-std::string prefixRelativePath(const std::string& path,
-                               const std::string& prefix);
+std::string prefixRelativePath(const std::string& path, const std::string& prefix);
 
 /*!
  * \brief Get parent path name from a filesystem path.

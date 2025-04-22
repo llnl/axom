@@ -139,9 +139,7 @@ TEST(spio_parallel, parallel_writeread)
 
     View* view_test = dsextra->getRoot()->createViewString("word3", "new_view");
 
-    writer.writeViewToRootFileAtPath(view_test,
-                                     root_name,
-                                     "extra/child/path_test");
+    writer.writeViewToRootFileAtPath(view_test, root_name, "extra/child/path_test");
 
     delete dsextra;
   }
@@ -194,20 +192,16 @@ TEST(spio_parallel, parallel_writeread)
 
   // check group "a", which should contain a view with a single scalar
   {
-    int testvalue =
-      ds->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
-    int testvalue2 =
-      ds2->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
+    int testvalue = ds->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
+    int testvalue2 = ds2->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
 
     EXPECT_EQ(testvalue, testvalue2);
   }
 
   // check group "b", which should contain a view with an array of ints
   {
-    View* view_i1_orig =
-      ds->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
-    View* view_i1_restored =
-      ds2->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
+    View* view_i1_orig = ds->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
+    View* view_i1_restored = ds2->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
 
     int num_elems = view_i1_orig->getNumElements();
     EXPECT_EQ(view_i1_restored->getNumElements(), num_elems);
@@ -225,10 +219,8 @@ TEST(spio_parallel, parallel_writeread)
 
   // check group "c", which should contain a view with an array of size 0
   {
-    View* view_i2_orig =
-      ds->getRoot()->getGroup("fields2")->getGroup("c")->getView("i2");
-    View* view_i2_restored =
-      ds2->getRoot()->getGroup("fields2")->getGroup("c")->getView("i2");
+    View* view_i2_orig = ds->getRoot()->getGroup("fields2")->getGroup("c")->getView("i2");
+    View* view_i2_restored = ds2->getRoot()->getGroup("fields2")->getGroup("c")->getView("i2");
 
     int num_elems_orig = view_i2_orig->getNumElements();
     int num_elems_rest = view_i2_restored->getNumElements();
@@ -397,8 +389,7 @@ TEST(spio_parallel, external_writeread)
       }
     }
   }
-  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR,
-                  "External_array was not correctly loaded");
+  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR, "External_array was not correctly loaded");
 
   /*
    * external_undescribed was not written to disk (since it is undescribed)
@@ -413,8 +404,7 @@ TEST(spio_parallel, external_writeread)
       break;
     }
   }
-  SLIC_WARNING_IF(result & EXT_UNDESC_ERROR,
-                  "External_undescribed data was modified.");
+  SLIC_WARNING_IF(result & EXT_UNDESC_ERROR, "External_undescribed data was modified.");
 
   delete ds1;
   delete ds2;
@@ -534,8 +524,7 @@ TEST(spio_parallel, external_piecemeal_writeread)
       }
     }
   }
-  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR,
-                  "External_array was not correctly loaded");
+  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR, "External_array was not correctly loaded");
 
   result = SPIO_TEST_SUCCESS;
 
@@ -564,8 +553,7 @@ TEST(spio_parallel, external_piecemeal_writeread)
       }
     }
   }
-  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR,
-                  "External_array was not correctly loaded");
+  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR, "External_array was not correctly loaded");
 
   /*
    * Create another DataStore to test another way of reading input
@@ -619,8 +607,7 @@ TEST(spio_parallel, external_piecemeal_writeread)
       }
     }
   }
-  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR,
-                  "External_array was not correctly loaded");
+  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR, "External_array was not correctly loaded");
 
   result = SPIO_TEST_SUCCESS;
 
@@ -644,8 +631,7 @@ TEST(spio_parallel, external_piecemeal_writeread)
       }
     }
   }
-  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR,
-                  "External_array was not correctly loaded");
+  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR, "External_array was not correctly loaded");
 
   /*
    * Create another DataStore to test another way of reading input
@@ -709,8 +695,7 @@ TEST(spio_parallel, external_piecemeal_writeread)
       }
     }
   }
-  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR,
-                  "External_array was not correctly loaded");
+  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR, "External_array was not correctly loaded");
 
   result = SPIO_TEST_SUCCESS;
 
@@ -741,8 +726,7 @@ TEST(spio_parallel, external_piecemeal_writeread)
       }
     }
   }
-  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR,
-                  "External_array was not correctly loaded");
+  SLIC_WARNING_IF(result & EXT_ARRAY_ERROR, "External_array was not correctly loaded");
 
   delete ds1;
   delete ds2;
@@ -958,17 +942,13 @@ TEST(spio_parallel, preserve_writeread)
    */
   EXPECT_TRUE(ds2->getRoot()->isEquivalentTo(root));
 
-  int testvalue =
-    ds->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
-  int testvalue2 =
-    ds2->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
+  int testvalue = ds->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
+  int testvalue2 = ds2->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
 
   EXPECT_EQ(testvalue, testvalue2);
 
-  View* view_i1_orig =
-    ds->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
-  View* view_i1_restored =
-    ds2->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
+  View* view_i1_orig = ds->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
+  View* view_i1_restored = ds2->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
 
   int num_elems = view_i1_orig->getNumElements();
   EXPECT_EQ(view_i1_restored->getNumElements(), num_elems);
@@ -1003,11 +983,9 @@ TEST(spio_parallel, preserve_writeread)
   int ival = extra_fields->getView("child/ival")->getData();
   EXPECT_EQ(ival, 7);
 
-  EXPECT_EQ(std::string(extra_fields->getView("child/word0")->getString()),
-            "hello");
+  EXPECT_EQ(std::string(extra_fields->getView("child/word0")->getString()), "hello");
 
-  EXPECT_EQ(std::string(extra_fields->getView("child/word1")->getString()),
-            "world");
+  EXPECT_EQ(std::string(extra_fields->getView("child/word1")->getString()), "world");
 
   delete ds;
   delete ds2;
@@ -1103,17 +1081,13 @@ TEST(spio_parallel, parallel_increase_procs)
   {
     EXPECT_TRUE(my_rank != 0 || ds2->getRoot()->isEquivalentTo(ds->getRoot()));
 
-    int testvalue =
-      ds->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
-    int testvalue2 =
-      ds2->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
+    int testvalue = ds->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
+    int testvalue2 = ds2->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
 
     EXPECT_EQ(testvalue, testvalue2);
 
-    View* view_i1_orig =
-      ds->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
-    View* view_i1_restored =
-      ds2->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
+    View* view_i1_orig = ds->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
+    View* view_i1_restored = ds2->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
 
     int num_elems = view_i1_orig->getNumElements();
     EXPECT_EQ(view_i1_restored->getNumElements(), num_elems);
@@ -1240,24 +1214,17 @@ TEST(spio_parallel, parallel_decrease_procs)
       /*
        * Verify that the contents of ds2 on rank 0 match those written from ds.
        */
-      std::string output_name =
-        axom::fmt::sprintf("rank_%07d/sidre_input", output_rank);
+      std::string output_name = axom::fmt::sprintf("rank_%07d/sidre_input", output_rank);
 
       int testvalue = 101 * output_rank;
-      int testvalue2 = ds2_root->getGroup(output_name)
-                         ->getGroup("fields")
-                         ->getGroup("a")
-                         ->getView("i0")
-                         ->getData();
+      int testvalue2 =
+        ds2_root->getGroup(output_name)->getGroup("fields")->getGroup("a")->getView("i0")->getData();
 
       EXPECT_EQ(testvalue, testvalue2);
 
-      View* view_i1_orig =
-        ds->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
-      View* view_i1_restored = ds2_root->getGroup(output_name)
-                                 ->getGroup("fields2")
-                                 ->getGroup("b")
-                                 ->getView("i1");
+      View* view_i1_orig = ds->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
+      View* view_i1_restored =
+        ds2_root->getGroup(output_name)->getGroup("fields2")->getGroup("b")->getView("i1");
 
       int num_elems = view_i1_orig->getNumElements();
       EXPECT_EQ(view_i1_restored->getNumElements(), num_elems);
@@ -1347,10 +1314,7 @@ TEST(spio_parallel, sidre_simple_blueprint_example)
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Add the bp index to the root file
-  writer.writeBlueprintIndexToRootFile(&ds,
-                                       "mesh",
-                                       file_name + ROOT_EXT,
-                                       "mesh");
+  writer.writeBlueprintIndexToRootFile(&ds, "mesh", file_name + ROOT_EXT, "mesh");
 
 #endif  // AXOM_USE_HDF5
 }

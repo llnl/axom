@@ -84,21 +84,15 @@ struct ConstantCardinality
   // The cardinality of each relational operator is determined by the
   // StridePolicy of the relation
   using RelationalOperatorSizeType =
-    typename StrideToSize<BeginsStridePolicy,
-                          ElementType,
-                          BeginsStridePolicy::DEFAULT_VALUE>::SizeType;
+    typename StrideToSize<BeginsStridePolicy, ElementType, BeginsStridePolicy::DEFAULT_VALUE>::SizeType;
 
   using IndirectionPtrType = typename BeginsIndirectionPolicy::IndirectionPtrType;
 
   ConstantCardinality() : m_begins() { }
   ConstantCardinality(BeginsSet begins) : m_begins(begins) { }
-  ConstantCardinality(ElementType fromSetSize)
-  {
-    m_begins = BeginsSet(fromSetSize);
-  }
+  ConstantCardinality(ElementType fromSetSize) { m_begins = BeginsSet(fromSetSize); }
 
-  ConstantCardinality(ElementType fromSetSize,
-                      typename BeginsSet::SetBuilder& builder)
+  ConstantCardinality(ElementType fromSetSize, typename BeginsSet::SetBuilder& builder)
   {
     // needs a size and a stride (when runtime)
     builder.size(fromSetSize);
@@ -110,10 +104,7 @@ struct ConstantCardinality
     return m_begins.stride();
   }
 
-  AXOM_HOST_DEVICE ElementType offset(ElementType fromPos) const
-  {
-    return m_begins[fromPos];
-  }
+  AXOM_HOST_DEVICE ElementType offset(ElementType fromPos) const { return m_begins[fromPos]; }
 
   AXOM_HOST_DEVICE ElementType firstIndex(ElementType offset) const
   {
@@ -132,8 +123,7 @@ struct ConstantCardinality
   ElementType totalSize() const { return m_begins.stride() * m_begins.size(); }
 
   template <typename FromSetType>
-  bool isValid(const FromSetType* fromSet,
-               bool AXOM_UNUSED_PARAM(verboseOutput) = false) const
+  bool isValid(const FromSetType* fromSet, bool AXOM_UNUSED_PARAM(verboseOutput) = false) const
   {
     return m_begins.size() == fromSet->size();
   }
@@ -159,12 +149,8 @@ struct VariableCardinality
   using BeginsIndirectionPolicy = IndirectionPolicy;
 
   // runtime size (fromSet.size()), striding from template parameter, no offset
-  using BeginsSet = OrderedSet<ElementType,
-                               ElementType,
-                               BeginsSizePolicy,
-                               BeginsOffsetPolicy,
-                               BeginsStridePolicy,
-                               IndirectionPolicy>;
+  using BeginsSet =
+    OrderedSet<ElementType, ElementType, BeginsSizePolicy, BeginsOffsetPolicy, BeginsStridePolicy, IndirectionPolicy>;
 
   // The cardinality of each relational operator is determined by the
   // StridePolicy of the relation
@@ -175,8 +161,7 @@ struct VariableCardinality
 
   VariableCardinality() : m_begins() { }
   VariableCardinality(BeginsSet begins) : m_begins(begins) { }
-  VariableCardinality(ElementType fromSetSize,
-                      typename BeginsSet::SetBuilder& builder)
+  VariableCardinality(ElementType fromSetSize, typename BeginsSet::SetBuilder& builder)
   {
     builder.size(fromSetSize + 1);
     m_begins = builder;
@@ -192,10 +177,7 @@ struct VariableCardinality
     return offset(fromPos + 1) - offset(fromPos);
   }
 
-  AXOM_HOST_DEVICE ElementType offset(ElementType fromPos) const
-  {
-    return m_begins[fromPos];
-  }
+  AXOM_HOST_DEVICE ElementType offset(ElementType fromPos) const { return m_begins[fromPos]; }
 
   AXOM_HOST_DEVICE ElementType firstIndex(ElementType relationOffset) const
   {
@@ -242,8 +224,7 @@ struct VariableCardinality
  * \tparam ElementType the index data type
  * \tparam IndirectionPolicy the policy to use for storing offsets and indices
  */
-template <typename ElementType = int,
-          typename IndirectionPolicy = ArrayIndirection<ElementType, ElementType>>
+template <typename ElementType = int, typename IndirectionPolicy = ArrayIndirection<ElementType, ElementType>>
 struct MappedVariableCardinality
 {
   using BeginsSizePolicy = RuntimeSize<ElementType>;
@@ -252,12 +233,8 @@ struct MappedVariableCardinality
   using BeginsIndirectionPolicy = IndirectionPolicy;
 
   // runtime size (fromSet.size()), striding from template parameter, no offset
-  using IndexSet = OrderedSet<ElementType,
-                              ElementType,
-                              BeginsSizePolicy,
-                              BeginsOffsetPolicy,
-                              BeginsStridePolicy,
-                              IndirectionPolicy>;
+  using IndexSet =
+    OrderedSet<ElementType, ElementType, BeginsSizePolicy, BeginsOffsetPolicy, BeginsStridePolicy, IndirectionPolicy>;
   using BeginsSet = IndexSet;
 
   // The cardinality of each relational operator is determined by the
@@ -269,8 +246,7 @@ struct MappedVariableCardinality
 
   MappedVariableCardinality() : m_begins() { }
   MappedVariableCardinality(BeginsSet begins) : m_begins(begins) { }
-  MappedVariableCardinality(ElementType fromSetSize,
-                            typename BeginsSet::SetBuilder& builder)
+  MappedVariableCardinality(ElementType fromSetSize, typename BeginsSet::SetBuilder& builder)
   {
     builder.size(fromSetSize + 1);
     m_begins = builder;
@@ -281,12 +257,9 @@ struct MappedVariableCardinality
     m_begins = typename BeginsSet::SetBuilder().size(fromSetSize + 1).data(data);
   }
 
-  void bindFirstIndices(ElementType relationSize,
-                        IndirectionPtrType data,
-                        bool fillIndices = true)
+  void bindFirstIndices(ElementType relationSize, IndirectionPtrType data, bool fillIndices = true)
   {
-    m_firstIndexes =
-      typename IndexSet::SetBuilder().size(relationSize + 1).data(data);
+    m_firstIndexes = typename IndexSet::SetBuilder().size(relationSize + 1).data(data);
     if(fillIndices)
     {
       // Construct the flat-to-first mapping.
@@ -306,10 +279,7 @@ struct MappedVariableCardinality
     return offset(fromPos + 1) - offset(fromPos);
   }
 
-  AXOM_HOST_DEVICE ElementType offset(ElementType fromPos) const
-  {
-    return m_begins[fromPos];
-  }
+  AXOM_HOST_DEVICE ElementType offset(ElementType fromPos) const { return m_begins[fromPos]; }
 
   AXOM_HOST_DEVICE ElementType firstIndex(ElementType offset) const
   {

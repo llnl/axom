@@ -55,9 +55,11 @@ public:
    * messages
    * \param [in] ranksLimit Limit on how many ranks are individually tracker per
    * Message.
+   * \param [in] isCommunicatorOwned When set to true, Lumberjack will be 
+   * responsible for freeing communication object when finalize() is called.
    *****************************************************************************
    */
-  void initialize(Communicator* communicator, int ranksLimit);
+  void initialize(Communicator* communicator, int ranksLimit, bool isCommunicatorOwned = false);
 
   /*!
    *****************************************************************************
@@ -229,6 +231,33 @@ public:
    */
   bool isOutputNode();
 
+  /*!
+   *****************************************************************************
+   * \brief set communicator pointer stored in object as well as ownership
+   *
+   *****************************************************************************
+   */
+  void setCommunicator(Communicator* communicator, bool isCommunicatorOwned);
+
+  /*!
+   *****************************************************************************
+   * \brief get communicator pointer stored in object
+   *
+   * \return Communicator pointer
+   *****************************************************************************
+   */
+  Communicator* getCommunicator();
+
+  /*!
+   *****************************************************************************
+   * \brief Returns Boolean flag that controls whether communicator instance is 
+   * owned by Lumberjack
+   *
+   * \return Communicator pointer
+   *****************************************************************************
+   */
+  bool isCommunicatorOwned();
+
 private:
   /*!
    *****************************************************************************
@@ -238,7 +267,10 @@ private:
    */
   void combineMessages();
 
+  bool m_isInitialized = false;
+
   Communicator* m_communicator;
+  bool m_isCommunicatorOwned;
   int m_ranksLimit;
   std::vector<Combiner*> m_combiners;
   std::vector<Message*> m_messages;

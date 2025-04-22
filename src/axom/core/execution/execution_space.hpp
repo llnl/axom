@@ -94,10 +94,7 @@ struct execution_space
     return runtime_policy::Policy::seq;
   }
   //!@brief Returns whether @c ExecSpace can use the given @c MemorySpace.
-  static bool usesMemorySpace(axom::MemorySpace m) noexcept
-  {
-    return m == memory_space;
-  }
+  static bool usesMemorySpace(axom::MemorySpace m) noexcept { return m == memory_space; }
   //!@brief Returns whether @c ExecSpace can use the given allocator id.
   static bool usesAllocId(int allocId) noexcept
   {
@@ -114,13 +111,13 @@ struct execution_space
   #include "axom/core/execution/internal/omp_exec.hpp"
 #endif
 
-#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE) && defined(__CUDACC__)
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  defined(__CUDACC__)
   #include "axom/core/execution/internal/cuda_exec.hpp"
 #endif
 
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE) && defined(__HIPCC__)
+#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  defined(__HIPCC__)
   #include "axom/core/execution/internal/hip_exec.hpp"
 #endif
 

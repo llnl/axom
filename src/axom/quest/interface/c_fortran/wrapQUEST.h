@@ -45,9 +45,7 @@ int QUEST_inout_init_mpi(const char *fileName, MPI_Fint comm);
 #endif
 
 #ifdef AXOM_USE_MPI
-int QUEST_inout_init_mpi_bufferify(char *fileName,
-                                   int SHT_fileName_len,
-                                   MPI_Fint comm);
+int QUEST_inout_init_mpi_bufferify(char *fileName, int SHT_fileName_len, MPI_Fint comm);
 #endif
 
 #ifndef AXOM_USE_MPI
@@ -87,9 +85,7 @@ int QUEST_signed_distance_init_mpi(const char *file, MPI_Fint comm);
 #endif
 
 #ifdef AXOM_USE_MPI
-int QUEST_signed_distance_init_mpi_bufferify(char *file,
-                                             int SHT_file_len,
-                                             MPI_Fint comm);
+int QUEST_signed_distance_init_mpi_bufferify(char *file, int SHT_file_len, MPI_Fint comm);
 #endif
 
 #ifndef AXOM_USE_MPI

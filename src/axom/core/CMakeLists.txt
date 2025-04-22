@@ -46,6 +46,7 @@ set(core_headers
     numerics/linear_solve.hpp
     numerics/matvecops.hpp
     numerics/polynomial_solvers.hpp
+    numerics/transforms.hpp
 
     ## detail
     detail/FlatTable.hpp

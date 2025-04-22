@@ -191,13 +191,11 @@ void read_data(std::ifstream& ifs,
     if(line.substr(0, 6) == "NDIME=")
     {
       ndime = std::stoi(line.substr(6, line.length()));
-      SLIC_ERROR_IF((ndime < 2) || (ndime > 3),
-                    "mesh dimension must be 2 or 3!");
+      SLIC_ERROR_IF((ndime < 2) || (ndime > 3), "mesh dimension must be 2 or 3!");
     }
     else if(line.substr(0, 6) == "NPOIN=")
     {
-      SLIC_ERROR_IF(ndime == -1,
-                    "dimension must be set prior to parsing the mesh points!");
+      SLIC_ERROR_IF(ndime == -1, "dimension must be set prior to parsing the mesh points!");
 
       npoin = std::stoi(line.substr(6, line.length()));
       points = axom::allocate<double>(npoin * ndime);
@@ -205,13 +203,10 @@ void read_data(std::ifstream& ifs,
     }
     else if(line.substr(0, 6) == "NELEM=")
     {
-      SLIC_ERROR_IF(
-        ndime == -1,
-        "dimension must be set prior to parsing mesh connectivity!");
+      SLIC_ERROR_IF(ndime == -1, "dimension must be set prior to parsing mesh connectivity!");
 
       nelem = std::stoi(line.substr(6, line.length()));
-      connectivity =
-        axom::allocate<axom::IndexType>(nelem * mint::MAX_CELL_NODES);
+      connectivity = axom::allocate<axom::IndexType>(nelem * mint::MAX_CELL_NODES);
       cellTypes = axom::allocate<mint::CellType>(nelem);
       read_connectivity(connectivity, cellTypes, nelem, isMixed, ifs);
     }

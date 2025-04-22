@@ -5,9 +5,7 @@
 #include "runMIR.hpp"
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
-int runMIR_cuda_tri(const conduit::Node &mesh,
-                    const conduit::Node &options,
-                    conduit::Node &result)
+int runMIR_cuda_tri(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result)
 {
   constexpr int CUDA_BLOCK_SIZE = 256;
   using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;

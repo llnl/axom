@@ -37,8 +37,7 @@ void add_distance(conduit::Node &mesh, float dist = 6.5f)
   const conduit::Node &n_coordset = mesh["coordsets"][0];
   axom::mir::views::dispatch_coordset(n_coordset, [&](auto coordsetView) {
     using PointType = typename decltype(coordsetView)::PointType;
-    using SphereType =
-      axom::primal::Sphere<typename PointType::CoordType, PointType::DIMENSION>;
+    using SphereType = axom::primal::Sphere<typename PointType::CoordType, PointType::DIMENSION>;
     mesh["fields/distance/topology"] = "mesh";
     mesh["fields/distance/association"] = "vertex";
     conduit::Node &n_values = mesh["fields/distance/values"];

@@ -59,8 +59,7 @@ TEST(primal_beziercurve, set_order)
   EXPECT_EQ(-1, bCurve.getOrder());
 
   const int order = 1;
-  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0},
-                                PointType {0.0, 1.6, 1.8}};
+  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0}, PointType {0.0, 1.6, 1.8}};
 
   bCurve.setOrder(order);
   EXPECT_EQ(order, bCurve.getOrder());
@@ -92,8 +91,7 @@ TEST(primal_beziercurve, point_array_constructor)
   using PointType = primal::Point<CoordType, DIM>;
   using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
 
-  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0},
-                                PointType {0.0, 1.6, 1.8}};
+  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0}, PointType {0.0, 1.6, 1.8}};
 
   BezierCurveType bCurve(controlPoints, 1);
 

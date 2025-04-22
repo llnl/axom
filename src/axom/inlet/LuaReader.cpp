@@ -84,20 +84,17 @@ void nameRetrievalHelper(const std::vector<std::string>& ignores,
                          std::vector<std::string>& names)
 {
   auto toString = [](const VariantKey& key) {
-    return key.type() == InletType::String
-      ? static_cast<std::string>(key)
-      : std::to_string(static_cast<int>(key));
+    return key.type() == InletType::String ? static_cast<std::string>(key)
+                                           : std::to_string(static_cast<int>(key));
   };
   for(const auto& entry : table)
   {
     const auto variantKey = detail::extractAs<VariantKey>(entry.first);
-    const std::string fullName =
-      utilities::string::appendPrefix(prefix, toString(variantKey));
+    const std::string fullName = utilities::string::appendPrefix(prefix, toString(variantKey));
     if(std::find(ignores.begin(), ignores.end(), fullName) == ignores.end())
     {
       names.push_back(fullName);
-      if(entry.second.get_type() == axom::sol::type::table &&
-         (ignores.back() != fullName))
+      if(entry.second.get_type() == axom::sol::type::table && (ignores.back() != fullName))
       {
         nameRetrievalHelper(ignores, entry.second, fullName, names);
       }
@@ -132,9 +129,8 @@ LuaReader::LuaReader()
     // Add vector addition operation
     axom::sol::meta_function::addition,
     [](const FunctionType::Vector& u, const FunctionType::Vector& v) {
-      SLIC_ASSERT_MSG(
-        u.dim == v.dim,
-        "[Inlet] Operands to InletVector addition are of different dimension");
+      SLIC_ASSERT_MSG(u.dim == v.dim,
+                      "[Inlet] Operands to InletVector addition are of different dimension");
       return FunctionType::Vector {u.vec + v.vec, u.dim};
     },
     axom::sol::meta_function::subtraction,
@@ -164,9 +160,7 @@ LuaReader::LuaReader()
     [](const FunctionType::Vector& vec, const int key) { return vec[key - 1]; },
     // A lambda is used here as the set-via-returned reference is insufficient
     axom::sol::meta_function::new_index,
-    [](FunctionType::Vector& vec, const int key, const double value) {
-      vec[key - 1] = value;
-    },
+    [](FunctionType::Vector& vec, const int key, const double value) { vec[key - 1] = value; },
     // Set up the mathematical operations by name
     "norm",
     [](const FunctionType::Vector& u) { return u.vec.norm(); },
@@ -190,8 +184,7 @@ LuaReader::LuaReader()
       SLIC_ASSERT_MSG(u.dim == v.dim,
                       "[Inlet] Operands to InletVector cross product are of "
                       "different dimension");
-      return FunctionType::Vector {primal::Vector3D::cross_product(u.vec, v.vec),
-                                   u.dim};
+      return FunctionType::Vector {primal::Vector3D::cross_product(u.vec, v.vec), u.dim};
     },
     "dim",
     axom::sol::property([](const FunctionType::Vector& u) { return u.dim; }),
@@ -204,26 +197,21 @@ LuaReader::LuaReader()
 
   // Pass the preloaded globals as both the set to ignore and the set to add
   // to, such that only the top-level preloaded globals are added
-  detail::nameRetrievalHelper(m_preloaded_globals,
-                              m_lua->globals(),
-                              "",
-                              m_preloaded_globals);
+  detail::nameRetrievalHelper(m_preloaded_globals, m_lua->globals(), "", m_preloaded_globals);
 }
 
 bool LuaReader::parseFile(const std::string& filePath)
 {
   if(!axom::utilities::filesystem::pathExists(filePath))
   {
-    SLIC_WARNING(
-      fmt::format("Inlet: Given Lua input file does not exist: {0}", filePath));
+    SLIC_WARNING(fmt::format("Inlet: Given Lua input file does not exist: {0}", filePath));
     return false;
   }
 
   auto script = m_lua->script_file(filePath);
   if(!script.valid())
   {
-    SLIC_WARNING(
-      fmt::format("Inlet: Given Lua input file is invalid: {0}", filePath));
+    SLIC_WARNING(fmt::format("Inlet: Given Lua input file is invalid: {0}", filePath));
   }
   return script.valid();
 }
@@ -242,40 +230,31 @@ bool LuaReader::parseString(const std::string& luaString)
 // TODO allow alternate delimiter at sidre level
 #define SCOPE_DELIMITER '/'
 
-ReaderResult LuaReader::getBool(const std::string& id, bool& value)
-{
-  return getValue(id, value);
-}
+ReaderResult LuaReader::getBool(const std::string& id, bool& value) { return getValue(id, value); }
 
 ReaderResult LuaReader::getDouble(const std::string& id, double& value)
 {
   return getValue(id, value);
 }
 
-ReaderResult LuaReader::getInt(const std::string& id, int& value)
-{
-  return getValue(id, value);
-}
+ReaderResult LuaReader::getInt(const std::string& id, int& value) { return getValue(id, value); }
 
 ReaderResult LuaReader::getString(const std::string& id, std::string& value)
 {
   return getValue(id, value);
 }
 
-ReaderResult LuaReader::getIntMap(const std::string& id,
-                                  std::unordered_map<int, int>& values)
+ReaderResult LuaReader::getIntMap(const std::string& id, std::unordered_map<int, int>& values)
 {
   return getMap(id, values, axom::sol::type::number);
 }
 
-ReaderResult LuaReader::getDoubleMap(const std::string& id,
-                                     std::unordered_map<int, double>& values)
+ReaderResult LuaReader::getDoubleMap(const std::string& id, std::unordered_map<int, double>& values)
 {
   return getMap(id, values, axom::sol::type::number);
 }
 
-ReaderResult LuaReader::getBoolMap(const std::string& id,
-                                   std::unordered_map<int, bool>& values)
+ReaderResult LuaReader::getBoolMap(const std::string& id, std::unordered_map<int, bool>& values)
 {
   return getMap(id, values, axom::sol::type::boolean);
 }
@@ -286,8 +265,7 @@ ReaderResult LuaReader::getStringMap(const std::string& id,
   return getMap(id, values, axom::sol::type::string);
 }
 
-ReaderResult LuaReader::getIntMap(const std::string& id,
-                                  std::unordered_map<VariantKey, int>& values)
+ReaderResult LuaReader::getIntMap(const std::string& id, std::unordered_map<VariantKey, int>& values)
 {
   return getMap(id, values, axom::sol::type::number);
 }
@@ -298,15 +276,13 @@ ReaderResult LuaReader::getDoubleMap(const std::string& id,
   return getMap(id, values, axom::sol::type::number);
 }
 
-ReaderResult LuaReader::getBoolMap(const std::string& id,
-                                   std::unordered_map<VariantKey, bool>& values)
+ReaderResult LuaReader::getBoolMap(const std::string& id, std::unordered_map<VariantKey, bool>& values)
 {
   return getMap(id, values, axom::sol::type::boolean);
 }
 
-ReaderResult LuaReader::getStringMap(
-  const std::string& id,
-  std::unordered_map<VariantKey, std::string>& values)
+ReaderResult LuaReader::getStringMap(const std::string& id,
+                                     std::unordered_map<VariantKey, std::string>& values)
 {
   return getMap(id, values, axom::sol::type::string);
 }
@@ -351,14 +327,12 @@ bool LuaReader::traverseToTable(Iter begin, Iter end, axom::sol::table& table)
   return true;
 }
 
-ReaderResult LuaReader::getIndices(const std::string& id,
-                                   std::vector<int>& indices)
+ReaderResult LuaReader::getIndices(const std::string& id, std::vector<int>& indices)
 {
   return getIndicesInternal(id, indices);
 }
 
-ReaderResult LuaReader::getIndices(const std::string& id,
-                                   std::vector<VariantKey>& indices)
+ReaderResult LuaReader::getIndices(const std::string& id, std::vector<VariantKey>& indices)
 {
   return getIndicesInternal(id, indices);
 }
@@ -378,14 +352,12 @@ namespace detail
  *****************************************************************************
  */
 template <typename... Args>
-axom::sol::protected_function_result callWith(
-  const axom::sol::protected_function& func,
-  Args&&... args)
+axom::sol::protected_function_result callWith(const axom::sol::protected_function& func,
+                                              Args&&... args)
 {
   auto tentative_result = func(std::forward<Args>(args)...);
-  SLIC_ERROR_IF(
-    !tentative_result.valid(),
-    "[Inlet] Lua function call failed, argument types possibly incorrect");
+  SLIC_ERROR_IF(!tentative_result.valid(),
+                "[Inlet] Lua function call failed, argument types possibly incorrect");
   return tentative_result;
 }
 
@@ -404,15 +376,12 @@ template <typename Ret>
 Ret extractResult(axom::sol::protected_function_result&& res)
 {
   axom::sol::optional<Ret> option = res;
-  SLIC_ERROR_IF(
-    !option,
-    "[Inlet] Lua function call failed, return types possibly incorrect");
+  SLIC_ERROR_IF(!option, "[Inlet] Lua function call failed, return types possibly incorrect");
   return option.value();
 }
 
 template <>
-FunctionType::Void extractResult<FunctionType::Void>(
-  axom::sol::protected_function_result&&)
+FunctionType::Void extractResult<FunctionType::Void>(axom::sol::protected_function_result&&)
 { }
 
 /*!
@@ -431,12 +400,11 @@ FunctionType::Void extractResult<FunctionType::Void>(
  *****************************************************************************
  */
 template <typename Ret, typename... Args>
-std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)>
-buildStdFunction(axom::sol::protected_function&& func)
+std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)> buildStdFunction(
+  axom::sol::protected_function&& func)
 {
   // Generalized lambda capture needed to move into lambda
-  return [func(std::move(func))](
-           typename detail::inlet_function_arg_type<Args>::type... args) {
+  return [func(std::move(func))](typename detail::inlet_function_arg_type<Args>::type... args) {
     return extractResult<Ret>(callWith(func, args...));
   };
 }
@@ -481,14 +449,11 @@ typename std::enable_if<I <= MAX_NUM_ARGS, FunctionVariant>::type bindArgType(
     switch(arg_types[I])
     {
     case FunctionTag::Vector:
-      return bindArgType<I + 1, Ret, Args..., FunctionType::Vector>(
-        std::move(func),
-        arg_types);
+      return bindArgType<I + 1, Ret, Args..., FunctionType::Vector>(std::move(func), arg_types);
     case FunctionTag::Double:
       return bindArgType<I + 1, Ret, Args..., double>(std::move(func), arg_types);
     case FunctionTag::String:
-      return bindArgType<I + 1, Ret, Args..., std::string>(std::move(func),
-                                                           arg_types);
+      return bindArgType<I + 1, Ret, Args..., std::string>(std::move(func), arg_types);
     default:
       SLIC_ERROR("[Inlet] Unexpected function argument type");
     }
@@ -531,8 +496,7 @@ FunctionVariant LuaReader::getFunction(const std::string& id,
     switch(ret_type)
     {
     case FunctionTag::Vector:
-      return detail::bindArgType<0u, FunctionType::Vector>(std::move(lua_func),
-                                                           arg_types);
+      return detail::bindArgType<0u, FunctionType::Vector>(std::move(lua_func), arg_types);
     case FunctionTag::Double:
       return detail::bindArgType<0u, double>(std::move(lua_func), arg_types);
     case FunctionTag::Void:
@@ -549,8 +513,7 @@ FunctionVariant LuaReader::getFunction(const std::string& id,
 template <typename T>
 ReaderResult LuaReader::getValue(const std::string& id, T& value)
 {
-  std::vector<std::string> tokens =
-    axom::utilities::string::split(id, SCOPE_DELIMITER);
+  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
 
   if(tokens.size() == 1)
   {
@@ -587,8 +550,7 @@ ReaderResult LuaReader::getMap(const std::string& id,
                                axom::sol::type type)
 {
   values.clear();
-  std::vector<std::string> tokens =
-    axom::utilities::string::split(id, SCOPE_DELIMITER);
+  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
 
   axom::sol::table t;
   if(tokens.empty() || !traverseToTable(tokens.begin(), tokens.end(), t))
@@ -614,11 +576,9 @@ ReaderResult LuaReader::getMap(const std::string& id,
   for(const auto& entry : t)
   {
     // Gets only indexed items in the table.
-    if(is_correct_key_type(entry.first.get_type()) &&
-       entry.second.get_type() == type)
+    if(is_correct_key_type(entry.first.get_type()) && entry.second.get_type() == type)
     {
-      values[detail::extractAs<Key>(entry.first)] =
-        detail::extractAs<Val>(entry.second);
+      values[detail::extractAs<Key>(entry.first)] = detail::extractAs<Val>(entry.second);
     }
     else
     {
@@ -629,11 +589,9 @@ ReaderResult LuaReader::getMap(const std::string& id,
 }
 
 template <typename T>
-ReaderResult LuaReader::getIndicesInternal(const std::string& id,
-                                           std::vector<T>& indices)
+ReaderResult LuaReader::getIndicesInternal(const std::string& id, std::vector<T>& indices)
 {
-  std::vector<std::string> tokens =
-    axom::utilities::string::split(id, SCOPE_DELIMITER);
+  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
 
   axom::sol::table t;
 
@@ -654,8 +612,7 @@ ReaderResult LuaReader::getIndicesInternal(const std::string& id,
 
 axom::sol::protected_function LuaReader::getFunctionInternal(const std::string& id)
 {
-  std::vector<std::string> tokens =
-    axom::utilities::string::split(id, SCOPE_DELIMITER);
+  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
   axom::sol::protected_function lua_func;
 
   if(tokens.size() == 1)
@@ -670,8 +627,7 @@ axom::sol::protected_function LuaReader::getFunctionInternal(const std::string& 
   {
     axom::sol::table t;
     // Don't traverse through the last token as it doesn't contain a table
-    if(traverseToTable(tokens.begin(), tokens.end() - 1, t) &&
-       t[tokens.back()].valid())
+    if(traverseToTable(tokens.begin(), tokens.end() - 1, t) && t[tokens.back()].valid())
     {
       detail::checkedGet(t[tokens.back()], lua_func);
     }

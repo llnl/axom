@@ -32,8 +32,7 @@ using IndexType = axom::IndexType;
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
 constexpr int NUM_BLOCKS = 512;
 using ExecPolicy = axom::CUDA_EXEC<NUM_BLOCKS>;
-#elif defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(AXOM_USE_UMPIRE)
+#elif defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
 constexpr int NUM_BLOCKS = 512;
 using ExecPolicy = axom::HIP_EXEC<NUM_BLOCKS>;
 #elif defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
@@ -76,8 +75,7 @@ int main(int argc, char** argv)
 
   // sphinx_tutorial_walkthrough_construct_mesh_start
 
-  mint::Mesh* mesh =
-    (Arguments.useUnstructured) ? getUnstructuredMesh() : getUniformMesh();
+  mint::Mesh* mesh = (Arguments.useUnstructured) ? getUnstructuredMesh() : getUniformMesh();
 
   // sphinx_tutorial_walkthrough_construct_mesh_end
 
@@ -88,8 +86,7 @@ int main(int argc, char** argv)
   double* hc = mesh->createField<double>("hc", mint::CELL_CENTERED);
 
   constexpr int NUM_COMPONENTS = 2;
-  double* xc =
-    mesh->createField<double>("xc", mint::CELL_CENTERED, NUM_COMPONENTS);
+  double* xc = mesh->createField<double>("xc", mint::CELL_CENTERED, NUM_COMPONENTS);
 
   // sphinx_tutorial_walkthrough_add_fields_end
 
@@ -114,9 +111,7 @@ int main(int argc, char** argv)
   // loop over cells and compute cell centers
   mint::for_all_cells<ExecPolicy, xargs::coords>(
     mesh,
-    AXOM_LAMBDA(IndexType cellIdx,
-                const numerics::Matrix<double>& coords,
-                const IndexType* nodeIds) {
+    AXOM_LAMBDA(IndexType cellIdx, const numerics::Matrix<double>& coords, const IndexType* nodeIds) {
       // NOTE: A column vector of the coords matrix corresponds to a nodes coords
 
       // Sum the cell's nodal coordinates
@@ -148,8 +143,7 @@ int main(int argc, char** argv)
   // sphinx_tutorial_walkthrough_vtk_start
 
   // write the mesh in a VTK file for visualization
-  std::string vtkfile =
-    (Arguments.useUnstructured) ? "unstructured_mesh.vtk" : "uniform_mesh.vtk";
+  std::string vtkfile = (Arguments.useUnstructured) ? "unstructured_mesh.vtk" : "uniform_mesh.vtk";
   mint::write_vtk(mesh, vtkfile);
 
   // sphinx_tutorial_walkthrough_vtk_end
@@ -182,9 +176,7 @@ void parse_args(int argc, char** argv)
 
   }  // END for all arguments
 
-  SLIC_ERROR_IF(
-    Arguments.res < 2,
-    "invalid mesh resolution! Please, pick a value greater than 2.");
+  SLIC_ERROR_IF(Arguments.res < 2, "invalid mesh resolution! Please, pick a value greater than 2.");
 }
 
 //------------------------------------------------------------------------------
@@ -229,9 +221,7 @@ mint::Mesh* getUnstructuredMesh()
   // loop over cells, compute cell centers and fill connectivity
   mint::for_all_cells<ExecPolicy, xargs::coords>(
     umesh,
-    AXOM_LAMBDA(IndexType cellIdx,
-                const numerics::Matrix<double>& coords,
-                const IndexType* nodeIds) {
+    AXOM_LAMBDA(IndexType cellIdx, const numerics::Matrix<double>& coords, const IndexType* nodeIds) {
       // NOTE: A column vector of the coords matrix corresponds to a nodes coords
 
       // Sum the cell's nodal coordinates

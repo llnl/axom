@@ -64,10 +64,7 @@ int main(int argc, char** argv)
     std::ostringstream oss;
     oss << "message " << i << "/" << N - 1;
 
-    slic::logMessage(getRandomEvent(0, slic::message::Num_Levels),
-                     oss.str(),
-                     __FILE__,
-                     __LINE__);
+    slic::logMessage(getRandomEvent(0, slic::message::Num_Levels), oss.str(), __FILE__, __LINE__);
 
     ++cycleCount;
     if(cycleCount > CYCLELIMIT)

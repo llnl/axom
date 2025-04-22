@@ -52,23 +52,19 @@ public:
    * \param n_matset The input matset.
    * \param[out] n_newMatset The output matset.
    */
-  void execute(const SliceData &slice,
-               const conduit::Node &n_matset,
-               conduit::Node &n_newMatset)
+  void execute(const SliceData &slice, const conduit::Node &n_matset, conduit::Node &n_newMatset)
   {
     using MatsetIndex = typename MatsetView::IndexType;
     using MatsetFloat = typename MatsetView::FloatType;
     namespace bputils = axom::mir::utilities::blueprint;
-    const axom::ArrayView<axom::IndexType> &selectedZonesView =
-      slice.m_indicesView;
+    const axom::ArrayView<axom::IndexType> &selectedZonesView = slice.m_indicesView;
     SLIC_ASSERT(selectedZonesView.size() > 0);
 
     // Copy the material_map if it exists.
     const char *keys[] = {"topology", "material_map"};
     for(int i = 0; i < 2; i++)
     {
-      if(n_matset.has_child(keys[i]))
-        n_newMatset[keys[i]] = n_matset.fetch_existing(keys[i]);
+      if(n_matset.has_child(keys[i])) n_newMatset[keys[i]] = n_matset.fetch_existing(keys[i]);
     }
 
     bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
@@ -76,25 +72,21 @@ public:
     // Allocate sizes/offsets.
     conduit::Node &n_sizes = n_newMatset["sizes"];
     n_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_sizes.set(conduit::DataType(cpp2conduit<MatsetIndex>::id,
-                                  selectedZonesView.size()));
+    n_sizes.set(conduit::DataType(cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
     auto sizesView = bputils::make_array_view<MatsetIndex>(n_sizes);
 
     conduit::Node &n_offsets = n_newMatset["offsets"];
     n_offsets.set_allocator(c2a.getConduitAllocatorID());
-    n_offsets.set(conduit::DataType(cpp2conduit<MatsetIndex>::id,
-                                    selectedZonesView.size()));
+    n_offsets.set(conduit::DataType(cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
     auto offsetsView = bputils::make_array_view<MatsetIndex>(n_offsets);
 
     // Figure out overall size of the matset zones we're keeping.
     MatsetView deviceMatsetView(m_matsetView);
-    const axom::ArrayView<axom::IndexType> deviceSelectedZonesView(
-      selectedZonesView);
+    const axom::ArrayView<axom::IndexType> deviceSelectedZonesView(selectedZonesView);
     axom::for_all<ExecSpace>(
       selectedZonesView.size(),
       AXOM_LAMBDA(axom::IndexType index) {
-        const auto nmats =
-          deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
+        const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
         sizesView[index] = nmats;
       });
     RAJA::ReduceSum<reduce_policy, MatsetIndex> size_reduce(0);
@@ -119,10 +111,8 @@ public:
 
     conduit::Node &n_volume_fractions = n_newMatset["volume_fractions"];
     n_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
-    n_volume_fractions.set(
-      conduit::DataType(cpp2conduit<MatsetFloat>::id, totalSize));
-    auto volumeFractionsView =
-      bputils::make_array_view<MatsetFloat>(n_volume_fractions);
+    n_volume_fractions.set(conduit::DataType(cpp2conduit<MatsetFloat>::id, totalSize));
+    auto volumeFractionsView = bputils::make_array_view<MatsetFloat>(n_volume_fractions);
 
     // Fill in the matset data with the zones we're keeping.
     axom::for_all<ExecSpace>(
@@ -131,8 +121,8 @@ public:
         const auto size = static_cast<int>(sizesView[index]);
         const auto offset = offsetsView[index];
 
-        typename MatsetView::IDList ids;
-        typename MatsetView::VFList vfs;
+        typename MatsetView::IDList ids {};
+        typename MatsetView::VFList vfs {};
         deviceMatsetView.zoneMaterials(deviceSelectedZonesView[index], ids, vfs);
 
         for(int i = 0; i < size; i++)

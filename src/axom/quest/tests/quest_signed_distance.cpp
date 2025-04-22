@@ -109,10 +109,8 @@ TEST(quest_signed_distance, sphere_test)
   mint::UniformMesh* umesh = nullptr;
   getUniformMesh(surface_mesh, umesh);
 
-  double* phi_computed =
-    umesh->createField<double>("phi_computed", mint::NODE_CENTERED);
-  double* phi_expected =
-    umesh->createField<double>("phi_expected", mint::NODE_CENTERED);
+  double* phi_computed = umesh->createField<double>("phi_computed", mint::NODE_CENTERED);
+  double* phi_expected = umesh->createField<double>("phi_expected", mint::NODE_CENTERED);
   double* phi_diff = umesh->createField<double>("phi_diff", mint::NODE_CENTERED);
   double* phi_err = umesh->createField<double>("phi_err", mint::NODE_CENTERED);
 
@@ -121,9 +119,7 @@ TEST(quest_signed_distance, sphere_test)
   SLIC_INFO("Generate BVHTree...");
   constexpr bool is_watertight = true;
   constexpr bool compute_signs = true;
-  axom::quest::SignedDistance<3> signed_distance(surface_mesh,
-                                                 is_watertight,
-                                                 compute_signs);
+  axom::quest::SignedDistance<3> signed_distance(surface_mesh, is_watertight, compute_signs);
 
   SLIC_INFO("Compute signed distance...");
 
@@ -203,35 +199,25 @@ TEST(quest_signed_distance, sphere_test_with_normals)
   mint::UniformMesh* umesh = nullptr;
   getUniformMesh(surface_mesh, umesh);
 
-  double* phi_computed =
-    umesh->createField<double>("phi_computed", mint::NODE_CENTERED);
-  double* phi_expected =
-    umesh->createField<double>("phi_expected", mint::NODE_CENTERED);
+  double* phi_computed = umesh->createField<double>("phi_computed", mint::NODE_CENTERED);
+  double* phi_expected = umesh->createField<double>("phi_expected", mint::NODE_CENTERED);
   double* phi_diff = umesh->createField<double>("phi_diff", mint::NODE_CENTERED);
   double* phi_err = umesh->createField<double>("phi_err", mint::NODE_CENTERED);
 
-  double* cp_computed_x =
-    umesh->createField<double>("cp_computed_x", mint::NODE_CENTERED);
-  double* cp_computed_y =
-    umesh->createField<double>("cp_computed_y", mint::NODE_CENTERED);
-  double* cp_computed_z =
-    umesh->createField<double>("cp_computed_z", mint::NODE_CENTERED);
+  double* cp_computed_x = umesh->createField<double>("cp_computed_x", mint::NODE_CENTERED);
+  double* cp_computed_y = umesh->createField<double>("cp_computed_y", mint::NODE_CENTERED);
+  double* cp_computed_z = umesh->createField<double>("cp_computed_z", mint::NODE_CENTERED);
 
-  double* normal_computed_x =
-    umesh->createField<double>("normal_computed_x", mint::NODE_CENTERED);
-  double* normal_computed_y =
-    umesh->createField<double>("normal_computed_y", mint::NODE_CENTERED);
-  double* normal_computed_z =
-    umesh->createField<double>("normal_computed_z", mint::NODE_CENTERED);
+  double* normal_computed_x = umesh->createField<double>("normal_computed_x", mint::NODE_CENTERED);
+  double* normal_computed_y = umesh->createField<double>("normal_computed_y", mint::NODE_CENTERED);
+  double* normal_computed_z = umesh->createField<double>("normal_computed_z", mint::NODE_CENTERED);
 
   const int nnodes = umesh->getNumberOfNodes();
 
   SLIC_INFO("Generate BVHTree...");
   constexpr bool is_watertight = true;
   constexpr bool compute_signs = true;
-  axom::quest::SignedDistance<3> signed_distance(surface_mesh,
-                                                 is_watertight,
-                                                 compute_signs);
+  axom::quest::SignedDistance<3> signed_distance(surface_mesh, is_watertight, compute_signs);
 
   SLIC_INFO("Compute signed distance...");
 
@@ -268,9 +254,7 @@ TEST(quest_signed_distance, sphere_test_with_normals)
 
     // Check that the distance (squared) is the same as the distance
     // between the query point and the returned closest point
-    EXPECT_NEAR(phi_computed[inode] * phi_computed[inode],
-                primal::squared_distance(pt, cp),
-                1e-8);
+    EXPECT_NEAR(phi_computed[inode] * phi_computed[inode], primal::squared_distance(pt, cp), 1e-8);
 
     phi_expected[inode] = analytic_sphere.computeSignedDistance(pt);
     EXPECT_NEAR(phi_computed[inode], phi_expected[inode], 1.e-2);
@@ -319,8 +303,7 @@ void run_vectorized_sphere_test()
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
   if(axom::execution_space<ExecSpace>::onDevice())
   {
-    kernel_allocator =
-      axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
+    kernel_allocator = axom::getUmpireResourceAllocatorID(umpire::resource::Unified);
   }
 #endif
 
@@ -350,10 +333,8 @@ void run_vectorized_sphere_test()
   mint::UniformMesh* umesh = nullptr;
   getUniformMesh(surface_mesh, umesh);
 
-  double* phi_computed =
-    umesh->createField<double>("phi_computed", mint::NODE_CENTERED);
-  double* phi_expected =
-    umesh->createField<double>("phi_expected", mint::NODE_CENTERED);
+  double* phi_computed = umesh->createField<double>("phi_computed", mint::NODE_CENTERED);
+  double* phi_expected = umesh->createField<double>("phi_expected", mint::NODE_CENTERED);
   double* phi_diff = umesh->createField<double>("phi_diff", mint::NODE_CENTERED);
   double* phi_err = umesh->createField<double>("phi_err", mint::NODE_CENTERED);
 
@@ -362,9 +343,7 @@ void run_vectorized_sphere_test()
   SLIC_INFO("Generate BVHTree...");
   constexpr bool is_watertight = true;
   constexpr bool compute_signs = true;
-  quest::SignedDistance<3, ExecSpace> signed_distance(surface_mesh,
-                                                      is_watertight,
-                                                      compute_signs);
+  quest::SignedDistance<3, ExecSpace> signed_distance(surface_mesh, is_watertight, compute_signs);
 
   SLIC_INFO("Compute signed distance...");
 
@@ -372,21 +351,17 @@ void run_vectorized_sphere_test()
   double l2norm = 0.0;
   double linf = axom::numeric_limits<double>::min();
 
-  axom::Array<PointType> queryPts =
-    axom::Array<PointType>(nnodes, nnodes, host_allocator);
+  axom::Array<PointType> queryPts = axom::Array<PointType>(nnodes, nnodes, host_allocator);
   for(int inode = 0; inode < nnodes; inode++)
   {
     umesh->getNode(inode, queryPts[inode].data());
   }
 
   // Copy query points to device
-  axom::Array<PointType> queryPtsDevice =
-    axom::Array<PointType>(queryPts, kernel_allocator);
+  axom::Array<PointType> queryPtsDevice = axom::Array<PointType>(queryPts, kernel_allocator);
   double* phi_computed_device = axom::allocate<double>(nnodes, kernel_allocator);
 
-  signed_distance.computeDistances(nnodes,
-                                   queryPtsDevice.view(),
-                                   phi_computed_device);
+  signed_distance.computeDistances(nnodes, queryPtsDevice.view(), phi_computed_device);
 
   // Copy output to host
   axom::copy(phi_computed, phi_computed_device, nnodes * sizeof(double));
@@ -433,17 +408,11 @@ void run_vectorized_sphere_test()
 }
 
 //------------------------------------------------------------------------------
-TEST(quest_signed_distance, sphere_vec_test)
-{
-  run_vectorized_sphere_test<axom::SEQ_EXEC>();
-}
+TEST(quest_signed_distance, sphere_vec_test) { run_vectorized_sphere_test<axom::SEQ_EXEC>(); }
 
 //------------------------------------------------------------------------------
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
-TEST(quest_signed_distance, sphere_vec_omp_test)
-{
-  run_vectorized_sphere_test<axom::OMP_EXEC>();
-}
+TEST(quest_signed_distance, sphere_vec_omp_test) { run_vectorized_sphere_test<axom::OMP_EXEC>(); }
 #endif  // AXOM_USE_OPENMP
 
 //------------------------------------------------------------------------------
@@ -477,8 +446,7 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
 
   using PointType = primal::Point<double, 3>;
 
-  const int host_allocator =
-    axom::getUmpireResourceAllocatorID(umpire::resource::Host);
+  const int host_allocator = axom::getUmpireResourceAllocatorID(umpire::resource::Host);
   constexpr bool on_device = axom::execution_space<exec>::onDevice();
   const int kernel_allocator = on_device
     ? axom::getUmpireResourceAllocatorID(umpire::resource::Unified)
@@ -509,10 +477,8 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
   mint::UniformMesh* umesh = nullptr;
   getUniformMesh(surface_mesh, umesh);
 
-  double* phi_computed =
-    umesh->createField<double>("phi_computed", mint::NODE_CENTERED);
-  double* phi_expected =
-    umesh->createField<double>("phi_expected", mint::NODE_CENTERED);
+  double* phi_computed = umesh->createField<double>("phi_computed", mint::NODE_CENTERED);
+  double* phi_expected = umesh->createField<double>("phi_expected", mint::NODE_CENTERED);
   double* phi_diff = umesh->createField<double>("phi_diff", mint::NODE_CENTERED);
   double* phi_err = umesh->createField<double>("phi_err", mint::NODE_CENTERED);
 
@@ -534,10 +500,9 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
   constexpr size_t PoolSize = 1024 * 1024 * 1024;
   umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
   umpire::Allocator device_allocator =
-    rm.makeAllocator<umpire::strategy::QuickPool>(
-      "DEVICE_POOL",
-      rm.getAllocator(umpire::resource::Device),
-      PoolSize);
+    rm.makeAllocator<umpire::strategy::QuickPool>("DEVICE_POOL",
+                                                  rm.getAllocator(umpire::resource::Device),
+                                                  PoolSize);
   int device_pool_id = device_allocator.getId();
 
   // Set SignedDistance options
@@ -555,8 +520,7 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
   double l2norm = 0.0;
   double linf = axom::numeric_limits<double>::min();
 
-  axom::Array<PointType> queryPts =
-    axom::Array<PointType>(nnodes, nnodes, host_allocator);
+  axom::Array<PointType> queryPts = axom::Array<PointType>(nnodes, nnodes, host_allocator);
   for(int inode = 0; inode < nnodes; inode++)
   {
     umesh->getNode(inode, queryPts[inode].data());
@@ -566,9 +530,7 @@ TEST(quest_signed_distance, sphere_vec_device_custom_alloc)
   axom::Array<PointType> queryPtsDevice(queryPts, kernel_allocator);
   double* phi_computed_device = axom::allocate<double>(nnodes, kernel_allocator);
 
-  signed_distance.computeDistances(nnodes,
-                                   queryPtsDevice.view(),
-                                   phi_computed_device);
+  signed_distance.computeDistances(nnodes, queryPtsDevice.view(), phi_computed_device);
 
   // Copy output to host
   axom::copy(phi_computed, phi_computed_device, nnodes * sizeof(double));

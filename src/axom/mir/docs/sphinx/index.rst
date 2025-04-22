@@ -31,3 +31,4 @@ Doxygen generated API documentation can be found here: `API documentation <../..
    mir_views
    mir_clipping
    mir_utilities
+   mir_building_blueprint

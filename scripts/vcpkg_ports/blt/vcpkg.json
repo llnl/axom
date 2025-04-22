@@ -1,6 +1,6 @@
 {
   "name": "blt",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "homepage": "https://github.com/llnl/blt",
   "description": "A streamlined CMake build system foundation for developing HPC software",
   "supports": "!uwp"

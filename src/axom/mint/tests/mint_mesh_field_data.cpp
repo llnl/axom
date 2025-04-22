@@ -205,14 +205,12 @@ void add_field_to_group(sidre::Group* gp,
                         int centering,
                         T fill_value = T())
 {
-  SLIC_ASSERT(centering == mint::NODE_CENTERED ||
-              centering == mint::CELL_CENTERED);
+  SLIC_ASSERT(centering == mint::NODE_CENTERED || centering == mint::CELL_CENTERED);
   SLIC_ASSERT(!gp->hasGroup(name));
 
   sidre::Group* fg = gp->createGroup(name);
 
-  const std::string association =
-    (centering == mint::NODE_CENTERED) ? "vertex" : "element";
+  const std::string association = (centering == mint::NODE_CENTERED) ? "vertex" : "element";
 
   fg->createView("volume_dependent")->setString("true");
   fg->createView("association")->setString(association);
@@ -261,26 +259,21 @@ TEST(mint_mesh_field_data_DeathTest, invalid_construction)
   sidre::Group* gp = ds.getRoot();
 
   EXPECT_DEATH_IF_SUPPORTED(mint::FieldData(42, gp, "topo"), IGNORE_OUTPUT);
-  EXPECT_DEATH_IF_SUPPORTED(
-    mint::FieldData(mint::NODE_CENTERED, nullptr, "topo"),
-    IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(mint::FieldData(mint::NODE_CENTERED, nullptr, "topo"), IGNORE_OUTPUT);
 
   // create sidre data that does not conform to the blue-print
   sidre::Group* f1 = gp->createGroup("f1");
 
   // should fail-- data does not conform to the blueprint
-  EXPECT_DEATH_IF_SUPPORTED(mint::FieldData(mint::NODE_CENTERED, gp, "topo"),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(mint::FieldData(mint::NODE_CENTERED, gp, "topo"), IGNORE_OUTPUT);
 
   // should still fail -- doesn't have volume_dependent view
   f1->createView("association")->setString("vertex");
-  EXPECT_DEATH_IF_SUPPORTED(mint::FieldData(mint::NODE_CENTERED, gp, "topo"),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(mint::FieldData(mint::NODE_CENTERED, gp, "topo"), IGNORE_OUTPUT);
 
   // should still fail -- doesn't have values view
   f1->createView("volume_dependent")->setString("true");
-  EXPECT_DEATH_IF_SUPPORTED(mint::FieldData(mint::NODE_CENTERED, gp, "topo"),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(mint::FieldData(mint::NODE_CENTERED, gp, "topo"), IGNORE_OUTPUT);
 
   // should still fail -- association is foo/bar
   sidre::View* fv = f1->createView("values");
@@ -288,8 +281,7 @@ TEST(mint_mesh_field_data_DeathTest, invalid_construction)
   data.fill(42);
 
   f1->getView("association")->setString("foobar");
-  EXPECT_DEATH_IF_SUPPORTED(mint::FieldData(mint::NODE_CENTERED, gp, "topo"),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(mint::FieldData(mint::NODE_CENTERED, gp, "topo"), IGNORE_OUTPUT);
 #endif
 }
 
@@ -305,8 +297,7 @@ TEST(mint_mesh_field_data_DeathTest, invalid_operations)
   field_data.createField<int>("test", data, 4);
 
   // creating a duplicate field (field has the same name) should fail
-  EXPECT_DEATH_IF_SUPPORTED(field_data.createField<int>("test", data, 4),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(field_data.createField<int>("test", data, 4), IGNORE_OUTPUT);
 
   // reserve() and resize() operations are not allowed on fields that point
   // to external buffers.
@@ -314,12 +305,10 @@ TEST(mint_mesh_field_data_DeathTest, invalid_operations)
   EXPECT_DEATH_IF_SUPPORTED(field_data.resize(10), IGNORE_OUTPUT);
 
   // creating an external field with a null pointer should fail
-  EXPECT_DEATH_IF_SUPPORTED(field_data.createField<int>("foo", nullptr, 4),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(field_data.createField<int>("foo", nullptr, 4), IGNORE_OUTPUT);
 
   // add a field with an empty name should fail
-  EXPECT_DEATH_IF_SUPPORTED(field_data.createField<int>("", data, 4),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(field_data.createField<int>("", data, 4), IGNORE_OUTPUT);
 
   // remove field that does not exist should fail
   EXPECT_DEATH_IF_SUPPORTED(field_data.removeField("foo"), IGNORE_OUTPUT);
@@ -362,32 +351,12 @@ TEST(mint_mesh_field_data, sidre_constructor)
   sidre::Group* gp = ds.getRoot();
 
   // add node-centered fields
-  add_field_to_group<double>(gp,
-                             "n1",
-                             NUM_TUPLES,
-                             NUM_COMPONENTS,
-                             mint::NODE_CENTERED,
-                             DOUBLE_MAGIC_NUM);
-  add_field_to_group<double>(gp,
-                             "n2",
-                             NUM_TUPLES,
-                             NUM_COMPONENTS,
-                             mint::NODE_CENTERED,
-                             DOUBLE_MAGIC_NUM);
-  add_field_to_group<int>(gp,
-                          "n3",
-                          NUM_TUPLES,
-                          NUM_COMPONENTS,
-                          mint::NODE_CENTERED,
-                          INT_MAGIC_NUM);
+  add_field_to_group<double>(gp, "n1", NUM_TUPLES, NUM_COMPONENTS, mint::NODE_CENTERED, DOUBLE_MAGIC_NUM);
+  add_field_to_group<double>(gp, "n2", NUM_TUPLES, NUM_COMPONENTS, mint::NODE_CENTERED, DOUBLE_MAGIC_NUM);
+  add_field_to_group<int>(gp, "n3", NUM_TUPLES, NUM_COMPONENTS, mint::NODE_CENTERED, INT_MAGIC_NUM);
 
   // add cell-centered fields
-  add_field_to_group<double>(gp,
-                             "c1",
-                             NUM_TUPLES,
-                             NUM_COMPONENTS,
-                             mint::CELL_CENTERED,
-                             DOUBLE_MAGIC_NUM);
+  add_field_to_group<double>(gp, "c1", NUM_TUPLES, NUM_COMPONENTS, mint::CELL_CENTERED, DOUBLE_MAGIC_NUM);
 
   // construct node-centered and cell-centered fields
   mint::FieldData node_data(mint::NODE_CENTERED, gp, "topo");
@@ -462,11 +431,7 @@ TEST(mint_mesh_field_data, create_and_access_fields)
   constexpr double MAGIC_DOUBLE = 3.14;
 
   mint::FieldData native_data(mint::NODE_CENTERED);
-  check_create_and_access_data(native_data,
-                               NUM_TUPLES,
-                               NUM_COMPONENTS,
-                               MAGIC_INT,
-                               MAGIC_DOUBLE);
+  check_create_and_access_data(native_data, NUM_TUPLES, NUM_COMPONENTS, MAGIC_INT, MAGIC_DOUBLE);
   EXPECT_EQ(native_data.getNumFields(), 2);
   EXPECT_FALSE(native_data.hasSidreGroup());
 
@@ -479,11 +444,7 @@ TEST(mint_mesh_field_data, create_and_access_fields)
   // BEGIN SCOPE
   {
     mint::FieldData sidre_data(mint::NODE_CENTERED, fields_group, "topo");
-    check_create_and_access_data(sidre_data,
-                                 NUM_TUPLES,
-                                 NUM_COMPONENTS,
-                                 MAGIC_INT,
-                                 MAGIC_DOUBLE);
+    check_create_and_access_data(sidre_data, NUM_TUPLES, NUM_COMPONENTS, MAGIC_INT, MAGIC_DOUBLE);
 
     EXPECT_EQ(sidre_data.getNumFields(), 2);
     EXPECT_TRUE(sidre_data.hasSidreGroup());
@@ -549,11 +510,7 @@ TEST(mint_mesh_field_data, remove_field)
   int foo[] = {7, 7, 7, 7};
 
   mint::FieldData native_data(mint::NODE_CENTERED);
-  check_create_and_access_data(native_data,
-                               NUM_TUPLES,
-                               NUM_COMPONENTS,
-                               MAGIC_INT,
-                               MAGIC_DOUBLE);
+  check_create_and_access_data(native_data, NUM_TUPLES, NUM_COMPONENTS, MAGIC_INT, MAGIC_DOUBLE);
   EXPECT_EQ(native_data.getNumFields(), 2);
   EXPECT_FALSE(native_data.hasSidreGroup());
 
@@ -585,11 +542,7 @@ TEST(mint_mesh_field_data, remove_field)
   sidre::Group* fields_group = ds.getRoot();
 
   mint::FieldData sidre_data(mint::NODE_CENTERED, fields_group, "topo");
-  check_create_and_access_data(sidre_data,
-                               NUM_TUPLES,
-                               NUM_COMPONENTS,
-                               MAGIC_INT,
-                               MAGIC_DOUBLE);
+  check_create_and_access_data(sidre_data, NUM_TUPLES, NUM_COMPONENTS, MAGIC_INT, MAGIC_DOUBLE);
   EXPECT_EQ(sidre_data.getNumFields(), 2);
   EXPECT_TRUE(sidre_data.hasSidreGroup());
 
@@ -611,11 +564,7 @@ TEST(mint_mesh_field_data, resize)
   constexpr double MAGIC_DOUBLE = 3.14;
 
   mint::FieldData native_data(mint::NODE_CENTERED);
-  check_create_and_access_data(native_data,
-                               NUM_TUPLES,
-                               NUM_COMPONENTS,
-                               MAGIC_INT,
-                               MAGIC_DOUBLE);
+  check_create_and_access_data(native_data, NUM_TUPLES, NUM_COMPONENTS, MAGIC_INT, MAGIC_DOUBLE);
   EXPECT_EQ(native_data.getNumFields(), 2);
   check_resize(native_data, NEW_NUM_TUPLES);
 
@@ -624,11 +573,7 @@ TEST(mint_mesh_field_data, resize)
   sidre::Group* fields_group = ds.getRoot();
 
   mint::FieldData sidre_data(mint::NODE_CENTERED, fields_group, "topo");
-  check_create_and_access_data(sidre_data,
-                               NUM_TUPLES,
-                               NUM_COMPONENTS,
-                               MAGIC_INT,
-                               MAGIC_DOUBLE);
+  check_create_and_access_data(sidre_data, NUM_TUPLES, NUM_COMPONENTS, MAGIC_INT, MAGIC_DOUBLE);
   EXPECT_EQ(sidre_data.getNumFields(), 2);
   EXPECT_TRUE(sidre_data.hasSidreGroup());
   check_resize(sidre_data, NEW_NUM_TUPLES);
@@ -654,11 +599,7 @@ TEST(mint_mesh_field_data, reserve)
   constexpr double MAGIC_DOUBLE = 3.14;
 
   mint::FieldData native_data(mint::NODE_CENTERED);
-  check_create_and_access_data(native_data,
-                               NUM_TUPLES,
-                               NUM_COMPONENTS,
-                               MAGIC_INT,
-                               MAGIC_DOUBLE);
+  check_create_and_access_data(native_data, NUM_TUPLES, NUM_COMPONENTS, MAGIC_INT, MAGIC_DOUBLE);
   EXPECT_EQ(native_data.getNumFields(), 2);
   check_reserve(native_data, NEW_CAPACITY);
 
@@ -667,11 +608,7 @@ TEST(mint_mesh_field_data, reserve)
   sidre::Group* fields_group = ds.getRoot();
 
   mint::FieldData sidre_data(mint::NODE_CENTERED, fields_group, "topo");
-  check_create_and_access_data(sidre_data,
-                               NUM_TUPLES,
-                               NUM_COMPONENTS,
-                               MAGIC_INT,
-                               MAGIC_DOUBLE);
+  check_create_and_access_data(sidre_data, NUM_TUPLES, NUM_COMPONENTS, MAGIC_INT, MAGIC_DOUBLE);
   EXPECT_EQ(sidre_data.getNumFields(), 2);
   EXPECT_TRUE(sidre_data.hasSidreGroup());
   check_reserve(sidre_data, NEW_CAPACITY);
@@ -693,11 +630,7 @@ TEST(mint_mesh_field_data, shrink)
   constexpr double MAGIC_DOUBLE = 3.14;
 
   mint::FieldData native_data(mint::NODE_CENTERED);
-  check_create_and_access_data(native_data,
-                               NUM_TUPLES,
-                               NUM_COMPONENTS,
-                               MAGIC_INT,
-                               MAGIC_DOUBLE);
+  check_create_and_access_data(native_data, NUM_TUPLES, NUM_COMPONENTS, MAGIC_INT, MAGIC_DOUBLE);
   EXPECT_EQ(native_data.getNumFields(), 2);
 
   check_shrink(native_data);
@@ -707,11 +640,7 @@ TEST(mint_mesh_field_data, shrink)
   sidre::Group* fields_group = ds.getRoot();
 
   mint::FieldData sidre_data(mint::NODE_CENTERED, fields_group, "topo");
-  check_create_and_access_data(sidre_data,
-                               NUM_TUPLES,
-                               NUM_COMPONENTS,
-                               MAGIC_INT,
-                               MAGIC_DOUBLE);
+  check_create_and_access_data(sidre_data, NUM_TUPLES, NUM_COMPONENTS, MAGIC_INT, MAGIC_DOUBLE);
   EXPECT_EQ(sidre_data.getNumFields(), 2);
   EXPECT_TRUE(sidre_data.hasSidreGroup());
 

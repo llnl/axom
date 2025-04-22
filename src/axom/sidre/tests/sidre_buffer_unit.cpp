@@ -23,10 +23,7 @@ using axom::sidre::getTypeID;
 
 //------------------------------------------------------------------------------
 
-int countMismatch(unsigned int elts,
-                  int* standard,
-                  int* undertest,
-                  bool printTest = false)
+int countMismatch(unsigned int elts, int* standard, int* undertest, bool printTest = false)
 {
   int retval = 0;
 
@@ -71,11 +68,7 @@ TEST(sidre_buffer, buffer_create)
   delete ds;
 }
 
-void verifyDescribedBuffer(Buffer* buf,
-                           bool isDescribed,
-                           DataTypeId tid,
-                           int eltsize,
-                           int eltcount)
+void verifyDescribedBuffer(Buffer* buf, bool isDescribed, DataTypeId tid, int eltsize, int eltcount)
 {
   EXPECT_FALSE(buf->isAllocated());
   EXPECT_EQ(isDescribed, buf->isDescribed());

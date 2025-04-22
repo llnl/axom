@@ -16,10 +16,7 @@ constexpr int READER_FAILED = -1;
 }  // namespace
 
 //------------------------------------------------------------------------------
-PProEReader::PProEReader(MPI_Comm comm) : m_comm(comm)
-{
-  MPI_Comm_rank(m_comm, &m_my_rank);
-}
+PProEReader::PProEReader(MPI_Comm comm) : m_comm(comm) { MPI_Comm_rank(m_comm, &m_my_rank); }
 
 //------------------------------------------------------------------------------
 PProEReader::~PProEReader()

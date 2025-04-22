@@ -64,8 +64,7 @@ template <typename T,
 class UniformGrid : StoragePolicy
 {
 public:
-  static_assert((NDIMS == 3) || (NDIMS == 2),
-                "Uniform grid dimensions must be 2 or 3.");
+  static_assert((NDIMS == 3) || (NDIMS == 2), "Uniform grid dimensions must be 2 or 3.");
 
   /*! \brief The type used for specifying spatial extent of the contents */
   using BoxType = primal::BoundingBox<double, NDIMS>;
@@ -119,8 +118,7 @@ public:
    * \brief Reinitializes a UniformGrid with an array of objects and associated
    *  bounding boxes.
    */
-  void initialize(axom::ArrayView<const BoxType> bboxes,
-                  axom::ArrayView<const T> objs);
+  void initialize(axom::ArrayView<const BoxType> bboxes, axom::ArrayView<const T> objs);
 
   /*!
    * \brief Returns the index of the bin containing the specified point.
@@ -243,10 +241,9 @@ private:
    * \param [in] pt The query point
    * \return The integer valued grid cell closest to pt
    */
-  static AXOM_HOST_DEVICE GridCell
-  getClampedGridCell(const LatticeType& lattice,
-                     const NumericArray<int, NDIMS>& resolution,
-                     const PointType& pt);
+  static AXOM_HOST_DEVICE GridCell getClampedGridCell(const LatticeType& lattice,
+                                                      const NumericArray<int, NDIMS>& resolution,
+                                                      const PointType& pt);
 
   /*! \brief Adds an object obj to the bin at index index */
   void addObj(const T& obj, int index);
@@ -271,8 +268,7 @@ private:
 };  //end class
 
 template <typename T, int NDIMS, typename ExecSpace, typename StoragePolicy>
-struct UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::QueryObject
-  : StoragePolicy::ConstViewType
+struct UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::QueryObject : StoragePolicy::ConstViewType
 {
 public:
   /*! \brief The type used for specifying spatial extent of the contents */
@@ -281,8 +277,7 @@ public:
   /*! \brief The type used to query the index */
   using PointType = primal::Point<double, NDIMS>;
 
-  using ConstBinType =
-    typename UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::ConstBinType;
+  using ConstBinType = typename UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::ConstBinType;
 
   using LatticeType = RectangularLattice<NDIMS, double, int>;
   using GridCell = typename LatticeType::GridCell;
@@ -360,10 +355,8 @@ private:
       return;
     }
 
-    const GridCell lowerCell =
-      getClampedGridCell(m_lattice, m_resolution, bbox.getMin());
-    const GridCell upperCell =
-      getClampedGridCell(m_lattice, m_resolution, bbox.getMax());
+    const GridCell lowerCell = getClampedGridCell(m_lattice, m_resolution, bbox.getMin());
+    const GridCell upperCell = getClampedGridCell(m_lattice, m_resolution, bbox.getMax());
 
     // Recall that NDIMS is 2 or 3
     const int kLower = (NDIMS == 2) ? 0 : lowerCell[2];
@@ -403,14 +396,11 @@ namespace spin
 {
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS, typename ExecSpace, typename StoragePolicy>
-UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::UniformGrid(
-  const double* lower_bound,
-  const double* upper_bound,
-  const int* res,
-  int allocatorID)
-  : UniformGrid(BoxType {PointType {lower_bound}, PointType {upper_bound}},
-                res,
-                allocatorID)
+UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::UniformGrid(const double* lower_bound,
+                                                             const double* upper_bound,
+                                                             const int* res,
+                                                             int allocatorID)
+  : UniformGrid(BoxType {PointType {lower_bound}, PointType {upper_bound}}, res, allocatorID)
 { }
 
 //------------------------------------------------------------------------------
@@ -432,11 +422,10 @@ UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::UniformGrid(const BoxType& bbox
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS, typename ExecSpace, typename StoragePolicy>
-UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::UniformGrid(
-  const NumericArray<int, NDIMS>& res,
-  axom::ArrayView<const BoxType> bboxes,
-  axom::ArrayView<const T> objs,
-  int allocatorID)
+UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::UniformGrid(const NumericArray<int, NDIMS>& res,
+                                                             axom::ArrayView<const BoxType> bboxes,
+                                                             axom::ArrayView<const T> objs,
+                                                             int allocatorID)
   : StoragePolicy(allocatorID)
   , m_resolution(res)
 {
@@ -468,9 +457,8 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize_grid()
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS, typename ExecSpace, typename StoragePolicy>
-void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(
-  axom::ArrayView<const BoxType> bboxes,
-  axom::ArrayView<const T> objs)
+void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(axom::ArrayView<const BoxType> bboxes,
+                                                                 axom::ArrayView<const T> objs)
 {
   SLIC_ASSERT(bboxes.size() == objs.size());
   // get the global bounding box of all the objects
@@ -517,9 +505,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(
 
   const IndexType numBins = getNumBins();
   // 1. Get number of elements to insert into each bin
-  axom::Array<IndexType> binCounts(numBins,
-                                   numBins,
-                                   StoragePolicy::getAllocatorID());
+  axom::Array<IndexType> binCounts(numBins, numBins, StoragePolicy::getAllocatorID());
   // TODO: There's an error on operator[] if this isn't const and it only
   // happens for GCC 8.1.0
   const axom::ArrayView<IndexType> binCountsView = binCounts;
@@ -536,10 +522,8 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(
     bboxes.size(),
     AXOM_LAMBDA(IndexType idx) {
       const BoxType bbox = bboxes[idx];
-      const GridCell lowerCell =
-        getClampedGridCell(lattice, resolution, bbox.getMin());
-      const GridCell upperCell =
-        getClampedGridCell(lattice, resolution, bbox.getMax());
+      const GridCell lowerCell = getClampedGridCell(lattice, resolution, bbox.getMin());
+      const GridCell upperCell = getClampedGridCell(lattice, resolution, bbox.getMax());
       const int kLower = (NDIMS == 2) ? 0 : lowerCell[2];
       const int kUpper = (NDIMS == 2) ? 0 : upperCell[2];
       const int kStride = (NDIMS == 2) ? 1 : strides[2];
@@ -575,10 +559,8 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(
     bboxes.size(),
     AXOM_LAMBDA(IndexType idx) {
       const BoxType bbox = bboxes[idx];
-      const GridCell lowerCell =
-        getClampedGridCell(lattice, resolution, bbox.getMin());
-      const GridCell upperCell =
-        getClampedGridCell(lattice, resolution, bbox.getMax());
+      const GridCell lowerCell = getClampedGridCell(lattice, resolution, bbox.getMin());
+      const GridCell upperCell = getClampedGridCell(lattice, resolution, bbox.getMax());
       const int kLower = (NDIMS == 2) ? 0 : lowerCell[2];
       const int kUpper = (NDIMS == 2) ? 0 : upperCell[2];
       const int kStride = (NDIMS == 2) ? 1 : strides[2];
@@ -594,8 +576,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(
             const IndexType binIndex = i + jOffset;
             IndexType binCurrOffset;
 #ifdef AXOM_USE_RAJA
-            binCurrOffset = RAJA::atomicAdd<atomic_pol>(&binCountsView[binIndex],
-                                                        IndexType {1});
+            binCurrOffset = RAJA::atomicAdd<atomic_pol>(&binCountsView[binIndex], IndexType {1});
 #else
             binCurrOffset = binCountsView[binIndex];
             binCountsView[binIndex]++;
@@ -609,8 +590,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS, typename ExecSpace, typename StoragePolicy>
-int UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getBinIndex(
-  const PointType& pt) const
+int UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getBinIndex(const PointType& pt) const
 {
   // Index is only valid when the point is within the bounding box
   if(!m_boundingBox.contains(pt))
@@ -655,10 +635,8 @@ const std::vector<int> UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getBinsF
     return retval;
   }
 
-  const GridCell lowerCell =
-    getClampedGridCell(m_lattice, m_resolution, BB.getMin());
-  const GridCell upperCell =
-    getClampedGridCell(m_lattice, m_resolution, BB.getMax());
+  const GridCell lowerCell = getClampedGridCell(m_lattice, m_resolution, BB.getMin());
+  const GridCell upperCell = getClampedGridCell(m_lattice, m_resolution, BB.getMax());
 
   // Recall that NDIMS is 2 or 3
   const int kLower = (NDIMS == 2) ? 0 : lowerCell[2];
@@ -683,8 +661,7 @@ const std::vector<int> UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getBinsF
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS, typename ExecSpace, typename StoragePolicy>
-void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::addObj(const T& obj,
-                                                             int index)
+void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::addObj(const T& obj, int index)
 {
   SLIC_CHECK(isValidIndex(index));
 
@@ -696,8 +673,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::addObj(const T& obj,
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS, typename ExecSpace, typename StoragePolicy>
-void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::insert(const BoxType& BB,
-                                                             const T& obj)
+void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::insert(const BoxType& BB, const T& obj)
 {
   SLIC_ASSERT((NDIMS == 3) || (NDIMS == 2));
 
@@ -761,11 +737,8 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   axom::IndexType totalCount = totalCountReduce.get();
 
   // Step 3: allocate memory for all candidates
-  axom::Array<IndexType> queryIndex(totalCount,
-                                    totalCount,
-                                    this->getAllocatorID());
-  outCandidates =
-    axom::Array<IndexType>(totalCount, totalCount, this->getAllocatorID());
+  axom::Array<IndexType> queryIndex(totalCount, totalCount, this->getAllocatorID());
+  outCandidates = axom::Array<IndexType>(totalCount, totalCount, this->getAllocatorID());
   const auto query_idx_view = queryIndex.view();
   const auto candidates_view = outCandidates.view();
 
@@ -791,12 +764,10 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   {
     // On the GPU, we first sort pairs by candidate index, then stable sort by
     // the query index.
-    RAJA::sort_pairs<exec_policy>(
-      RAJA::make_span(outCandidates.data(), totalCount),
-      RAJA::make_span(queryIndex.data(), totalCount));
-    RAJA::stable_sort_pairs<exec_policy>(
-      RAJA::make_span(queryIndex.data(), totalCount),
-      RAJA::make_span(outCandidates.data(), totalCount));
+    RAJA::sort_pairs<exec_policy>(RAJA::make_span(outCandidates.data(), totalCount),
+                                  RAJA::make_span(queryIndex.data(), totalCount));
+    RAJA::stable_sort_pairs<exec_policy>(RAJA::make_span(queryIndex.data(), totalCount),
+                                         RAJA::make_span(outCandidates.data(), totalCount));
   }
   else
   {
@@ -809,8 +780,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
         {
   #ifndef AXOM_DEVICE_CODE
           int startIdx = offsets_view[i];
-          std::sort(candidates_view.begin() + startIdx,
-                    candidates_view.begin() + startIdx + count);
+          std::sort(candidates_view.begin() + startIdx, candidates_view.begin() + startIdx + count);
   #endif
         }
       });
@@ -819,9 +789,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   // Step 6: Count and flag unique intersection pairs, in order to map them
   // to a deduplicated candidate intersection array.
   RAJA::ReduceSum<reduce_pol, IndexType> dedupCountReduce(0);
-  axom::Array<IndexType> dedupTgtIdx(totalCount,
-                                     totalCount,
-                                     this->getAllocatorID());
+  axom::Array<IndexType> dedupTgtIdx(totalCount, totalCount, this->getAllocatorID());
   const auto dedup_idx_view = dedupTgtIdx.view();
   for_all<ExecSpace>(
     totalCount,
@@ -832,8 +800,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
         // If the previous candidate pair is the same as the current pair,
         // skip counting the current pair.
         const bool sameQueryIdx = (query_idx_view[i - 1] == query_idx_view[i]);
-        const bool sameCandidateIdx =
-          (candidates_view[i - 1] == candidates_view[i]);
+        const bool sameCandidateIdx = (candidates_view[i - 1] == candidates_view[i]);
         duplicate = (sameQueryIdx && sameCandidateIdx);
       }
       if(!duplicate)
@@ -845,16 +812,13 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
 
   // Exclusive scan over the flag array gives us the final index of unique
   // pairs in the deduplicated array.
-  RAJA::exclusive_scan_inplace<exec_policy>(
-    RAJA::make_span(dedupTgtIdx.data(), totalCount),
-    RAJA::operators::plus<IndexType> {});
+  RAJA::exclusive_scan_inplace<exec_policy>(RAJA::make_span(dedupTgtIdx.data(), totalCount),
+                                            RAJA::operators::plus<IndexType> {});
 
   // Step 7: Fill the array of deduplicated candidates based on the index
   // mapping generated previously.
   axom::IndexType dedupSize = dedupCountReduce.get();
-  axom::Array<IndexType> dedupedCandidates(dedupSize,
-                                           dedupSize,
-                                           this->getAllocatorID());
+  axom::Array<IndexType> dedupedCandidates(dedupSize, dedupSize, this->getAllocatorID());
   const auto dedup_cand_view = dedupedCandidates.view();
 
   using atomic_pol = typename axom::execution_space<ExecSpace>::atomic_policy;
@@ -872,8 +836,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
       if(i > 0)
       {
         const bool sameQueryIdx = (query_idx_view[i - 1] == query_idx_view[i]);
-        const bool sameCandidateIdx =
-          (candidates_view[i - 1] == candidates_view[i]);
+        const bool sameCandidateIdx = (candidates_view[i - 1] == candidates_view[i]);
         duplicate = (sameQueryIdx && sameCandidateIdx);
       }
       if(!duplicate)
@@ -910,12 +873,11 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS, typename ExecSpace, typename StoragePolicy>
-AXOM_HOST_DEVICE
-  typename UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::GridCell
-  UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getClampedGridCell(
-    const LatticeType& lattice,
-    const NumericArray<int, NDIMS>& resolution,
-    const PointType& pt)
+AXOM_HOST_DEVICE typename UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::GridCell
+UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getClampedGridCell(
+  const LatticeType& lattice,
+  const NumericArray<int, NDIMS>& resolution,
+  const PointType& pt)
 {
   GridCell cell = lattice.gridCell(pt);
 

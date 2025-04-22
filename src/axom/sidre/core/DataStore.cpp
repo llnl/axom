@@ -38,9 +38,7 @@ namespace sidre
  *
  *************************************************************************
  */
-void DataStoreConduitErrorHandler(const std::string& message,
-                                  const std::string& fileName,
-                                  int line)
+void DataStoreConduitErrorHandler(const std::string& message, const std::string& fileName, int line)
 {
   axom::slic::logErrorMessage(message, fileName, line);
 }
@@ -52,9 +50,7 @@ void DataStoreConduitErrorHandler(const std::string& message,
  *
  *************************************************************************
  */
-void DataStoreConduitWarningHandler(const std::string& message,
-                                    const std::string& fileName,
-                                    int line)
+void DataStoreConduitWarningHandler(const std::string& message, const std::string& fileName, int line)
 {
   axom::slic::logWarningMessage(message, fileName, line);
 }
@@ -67,9 +63,7 @@ void DataStoreConduitWarningHandler(const std::string& message,
  *
  *************************************************************************
  */
-void DataStoreConduitInfoHandler(const std::string& message,
-                                 const std::string& fileName,
-                                 int line)
+void DataStoreConduitInfoHandler(const std::string& message, const std::string& fileName, int line)
 {
   axom::slic::logMessage(axom::slic::message::Info, message, fileName, line);
 }
@@ -92,15 +86,13 @@ DataStore::DataStore()
   {
     axom::slic::initialize();
 
-    std::string format =
-      std::string("\n***********************************\n") +
+    std::string format = std::string("\n***********************************\n") +
       std::string("LEVEL=<LEVEL>\n") + std::string("MESSAGE=<MESSAGE>\n") +
       std::string("FILE=<FILE>\n") + std::string("LINE=<LINE>\n") +
       std::string("***********************************\n");
 
     axom::slic::setLoggingMsgLevel(axom::slic::message::Debug);
-    axom::slic::addStreamToAllMsgLevels(
-      new axom::slic::GenericOutputStream(&std::cout, format));
+    axom::slic::addStreamToAllMsgLevels(new axom::slic::GenericOutputStream(&std::cout, format));
 
     m_need_to_finalize_slic = true;
   }
@@ -175,10 +167,7 @@ void DataStore::setConduitDefaultMessageHandlers()
  *
  *************************************************************************
  */
-IndexType DataStore::getNumBuffers() const
-{
-  return m_buffer_coll->getNumItems();
-}
+IndexType DataStore::getNumBuffers() const { return m_buffer_coll->getNumItems(); }
 
 /*
  *************************************************************************
@@ -232,10 +221,7 @@ IndexType DataStore::getTotalAllocatedBytesInBuffers() const
  *
  *************************************************************************
  */
-bool DataStore::hasBuffer(IndexType idx) const
-{
-  return m_buffer_coll->hasItem(idx);
-}
+bool DataStore::hasBuffer(IndexType idx) const { return m_buffer_coll->hasItem(idx); }
 
 /*
  *************************************************************************
@@ -392,10 +378,7 @@ typename DataStore::BufferCollection::const_iterator_adaptor DataStore::buffers(
  *
  *************************************************************************
  */
-IndexType DataStore::getNumAttributes() const
-{
-  return m_attribute_coll->getNumItems();
-}
+IndexType DataStore::getNumAttributes() const { return m_attribute_coll->getNumItems(); }
 
 /*
  *************************************************************************
@@ -411,8 +394,7 @@ Attribute* DataStore::createAttributeEmpty(const std::string& name)
     SLIC_CHECK(!name.empty());
     SLIC_CHECK_MSG(hasAttribute(name),
                    "Cannot create Attribute with name '"
-                     << name
-                     << " since it already has an Attribute with that name");
+                     << name << " since it already has an Attribute with that name");
     return nullptr;
   }
 
@@ -445,10 +427,7 @@ bool DataStore::hasAttribute(const std::string& name) const
  *
  *************************************************************************
  */
-bool DataStore::hasAttribute(IndexType idx) const
-{
-  return m_attribute_coll->hasItem(idx);
-}
+bool DataStore::hasAttribute(IndexType idx) const { return m_attribute_coll->hasItem(idx); }
 
 /*
  *************************************************************************
@@ -521,8 +500,7 @@ void DataStore::destroyAllAttributes()
  */
 Attribute* DataStore::getAttribute(IndexType idx)
 {
-  SLIC_CHECK_MSG(hasAttribute(idx),
-                 "DataStore has no Attribute with index " << idx);
+  SLIC_CHECK_MSG(hasAttribute(idx), "DataStore has no Attribute with index " << idx);
 
   return m_attribute_coll->getItem(idx);
 }
@@ -538,8 +516,7 @@ Attribute* DataStore::getAttribute(IndexType idx)
  */
 const Attribute* DataStore::getAttribute(IndexType idx) const
 {
-  SLIC_CHECK_MSG(hasAttribute(idx),
-                 "DataStore has no Attribute with index " << idx);
+  SLIC_CHECK_MSG(hasAttribute(idx), "DataStore has no Attribute with index " << idx);
 
   return m_attribute_coll->getItem(idx);
 }
@@ -555,8 +532,7 @@ const Attribute* DataStore::getAttribute(IndexType idx) const
  */
 Attribute* DataStore::getAttribute(const std::string& name)
 {
-  SLIC_CHECK_MSG(hasAttribute(name),
-                 "DataStore has no Attribute with name " << name);
+  SLIC_CHECK_MSG(hasAttribute(name), "DataStore has no Attribute with name " << name);
 
   return m_attribute_coll->getItem(name);
 }
@@ -572,8 +548,7 @@ Attribute* DataStore::getAttribute(const std::string& name)
  */
 const Attribute* DataStore::getAttribute(const std::string& name) const
 {
-  SLIC_CHECK_MSG(hasAttribute(name),
-                 "DataStore has no Attribute with name " << name);
+  SLIC_CHECK_MSG(hasAttribute(name), "DataStore has no Attribute with name " << name);
 
   return m_attribute_coll->getItem(name);
 }
@@ -614,8 +589,7 @@ typename DataStore::AttributeCollection::iterator_adaptor DataStore::attributes(
   return m_attribute_coll->getIteratorAdaptor();
 }
 
-typename DataStore::AttributeCollection::const_iterator_adaptor
-DataStore::attributes() const
+typename DataStore::AttributeCollection::const_iterator_adaptor DataStore::attributes() const
 {
   return m_attribute_coll->getIteratorAdaptor();
 }
@@ -665,8 +639,8 @@ void DataStore::loadAttributeLayout(Node& node)
       Node& n_attr = attrs_itr.next();
       std::string attr_name = attrs_itr.name();
 
-      auto* attr = !hasAttribute(attr_name) ? createAttributeEmpty(attr_name)
-                                            : getAttribute(attr_name);
+      auto* attr =
+        !hasAttribute(attr_name) ? createAttributeEmpty(attr_name) : getAttribute(attr_name);
 
       attr->setDefaultNodeRef(n_attr);
     }
@@ -678,25 +652,20 @@ bool DataStore::generateBlueprintIndex(const std::string& domain_path,
                                        const std::string& index_path,
                                        int num_domains)
 {
-  Group* domain =
-    (domain_path == "/") ? getRoot() : getRoot()->getGroup(domain_path);
+  Group* domain = (domain_path == "/") ? getRoot() : getRoot()->getGroup(domain_path);
 
   conduit::Node mesh_node;
   domain->createNativeLayout(mesh_node);
 
-  Group* bpindex = getRoot()->hasGroup(index_path)
-    ? getRoot()->getGroup(index_path)
-    : getRoot()->createGroup(index_path);
+  Group* bpindex = getRoot()->hasGroup(index_path) ? getRoot()->getGroup(index_path)
+                                                   : getRoot()->createGroup(index_path);
 
   bool success = false;
   conduit::Node info;
   if(conduit::blueprint::verify("mesh", mesh_node, info))
   {
     conduit::Node index;
-    conduit::blueprint::mesh::generate_index(mesh_node,
-                                             mesh_name,
-                                             num_domains,
-                                             index);
+    conduit::blueprint::mesh::generate_index(mesh_node, mesh_name, num_domains, index);
 
     bpindex->importConduitTree(index);
 
@@ -738,9 +707,8 @@ bool DataStore::generateBlueprintIndex(MPI_Comm comm,
     domain->createNativeLayout(mesh_node);
   }
 
-  Group* bpindex = getRoot()->hasGroup(index_path)
-    ? getRoot()->getGroup(index_path)
-    : getRoot()->createGroup(index_path);
+  Group* bpindex = getRoot()->hasGroup(index_path) ? getRoot()->getGroup(index_path)
+                                                   : getRoot()->createGroup(index_path);
 
   bool success = false;
   conduit::Node info;
@@ -750,9 +718,7 @@ bool DataStore::generateBlueprintIndex(MPI_Comm comm,
     conduit::blueprint::mpi::mesh::generate_index(mesh_node, mesh_name, index, comm);
 
     Node& domain_rank_map = index["state/partition_map/datagroup"];
-    conduit::blueprint::mpi::mesh::generate_domain_to_rank_map(mesh_node,
-                                                               domain_rank_map,
-                                                               comm);
+    conduit::blueprint::mpi::mesh::generate_domain_to_rank_map(mesh_node, domain_rank_map, comm);
 
     bpindex->importConduitTree(index);
 

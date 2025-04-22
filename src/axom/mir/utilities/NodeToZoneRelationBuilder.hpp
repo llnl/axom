@@ -53,10 +53,7 @@ struct BuildRelation
    *
    * \note RAJA::sort_pairs can be slow if there are a lot of nodes (depends on ExecSpace too).
    */
-  static void execute(ViewType nodesView,
-                      ViewType zonesView,
-                      ViewType sizesView,
-                      ViewType offsetsView)
+  static void execute(ViewType nodesView, ViewType zonesView, ViewType sizesView, ViewType offsetsView)
   {
     AXOM_ANNOTATE_SCOPE("FillZonesAndOffsets");
     SLIC_ASSERT(nodesView.size() == zonesView.size());
@@ -109,9 +106,8 @@ struct BuildRelation
     axom::for_all<ExecSpace>(
       offsetsView.size(),
       AXOM_LAMBDA(axom::IndexType i) {
-        sizesView[i] = (i < offsetsView.size() - 1)
-          ? (offsetsView[i + 1] - offsetsView[i])
-          : (totalSize - offsetsView[i]);
+        sizesView[i] = (i < offsetsView.size() - 1) ? (offsetsView[i + 1] - offsetsView[i])
+                                                    : (totalSize - offsetsView[i]);
       });
   }
 };
@@ -120,10 +116,7 @@ struct BuildRelation
 template <typename ViewType>
 struct BuildRelation<axom::SEQ_EXEC, ViewType>
 {
-  static void execute(ViewType nodesView,
-                      ViewType zonesView,
-                      ViewType sizesView,
-                      ViewType offsetsView)
+  static void execute(ViewType nodesView, ViewType zonesView, ViewType sizesView, ViewType offsetsView)
   {
     AXOM_ANNOTATE_SCOPE("FillZonesAndOffsets");
     SLIC_ASSERT(nodesView.size() == zonesView.size());
@@ -150,9 +143,7 @@ struct BuildRelation<axom::SEQ_EXEC, ViewType>
 
     // Make a copy of zonesView so we can reorganize zonesView.
     axom::Array<value_type> zcopy(zonesView.size(), zonesView.size(), allocatorID);
-    axom::copy(zcopy.data(),
-               zonesView.data(),
-               zonesView.size() * sizeof(value_type));
+    axom::copy(zcopy.data(), zonesView.data(), zonesView.size() * sizeof(value_type));
     auto zcopyView = zcopy.view();
 
     // Fill in zonesView, sizesView with each node's zones.
@@ -186,9 +177,7 @@ public:
    * \param coordset The topology's coordset.
    * \param[out] The node that will contain the O2M relation.
    */
-  void execute(const conduit::Node &topo,
-               const conduit::Node &coordset,
-               conduit::Node &relation)
+  void execute(const conduit::Node &topo, const conduit::Node &coordset, conduit::Node &relation)
   {
     const std::string type = topo.fetch_existing("type").as_string();
 
@@ -212,20 +201,14 @@ public:
       const auto connSize = n_connectivity.dtype().number_of_elements();
 
       // Use the coordset to get the number of nodes. Conduit should be able to do this using only metadata.
-      const auto nnodes =
-        conduit::blueprint::mesh::utils::coordset::length(coordset);
+      const auto nnodes = conduit::blueprint::mesh::utils::coordset::length(coordset);
 
       if(shape.is_polyhedral())
       {
         views::dispatch_unstructured_polyhedral_topology(
           topo,
           [&](auto AXOM_UNUSED_PARAM(shape), auto topoView) {
-            handlePolyhedralView(topoView,
-                                 n_zones,
-                                 n_sizes,
-                                 n_offsets,
-                                 nnodes,
-                                 intTypeId);
+            handlePolyhedralView(topoView, n_zones, n_sizes, n_offsets, nnodes, intTypeId);
           });
       }
       else if(shape.is_polygonal() || shapeType == "mixed")
@@ -296,11 +279,10 @@ public:
       // These are all structured topos of some sort. Make an unstructured representation and recurse.
 
       conduit::Node mesh;
-      axom::mir::utilities::blueprint::MakeUnstructured<ExecSpace>::execute(
-        topo,
-        coordset,
-        "newtopo",
-        mesh);
+      axom::mir::utilities::blueprint::MakeUnstructured<ExecSpace>::execute(topo,
+                                                                            coordset,
+                                                                            "newtopo",
+                                                                            mesh);
 
       // Recurse using the unstructured mesh.
       execute(mesh.fetch_existing("topologies/newtopo"), coordset, relation);
@@ -335,8 +317,7 @@ private:
                             axom::IndexType nnodes,
                             int intTypeId) const
   {
-    using reduce_policy =
-      typename axom::execution_space<ExecSpace>::reduce_policy;
+    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     utilities::blueprint::ConduitAllocateThroughAxom<ExecSpace> c2a;
     const int conduitAllocatorID = c2a.getConduitAllocatorID();
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
@@ -463,15 +444,11 @@ private:
    *       lambda.
    */
   template <typename IntegerView>
-  void fillZones(IntegerView zonesView,
-                 axom::IndexType connSize,
-                 axom::IndexType nodesPerShape) const
+  void fillZones(IntegerView zonesView, axom::IndexType connSize, axom::IndexType nodesPerShape) const
   {
     axom::for_all<ExecSpace>(
       connSize,
-      AXOM_LAMBDA(axom::IndexType index) {
-        zonesView[index] = index / nodesPerShape;
-      });
+      AXOM_LAMBDA(axom::IndexType index) { zonesView[index] = index / nodesPerShape; });
   }
 };
 

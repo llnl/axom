@@ -76,9 +76,7 @@ void end(const std::string& name);
 
 /// Declares metadata for this run
 template <typename T>
-void declare_metadata(const std::string& name,
-                      const T& value,
-                      std::string category = "")
+void declare_metadata(const std::string& name, const T& value, std::string category = "")
 {
 #ifdef AXOM_USE_ADIAK
   detail::initialize_adiak();

@@ -364,8 +364,7 @@ TEST(primal_curvedpolygon, moments_triangle_mixed_order)
   using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
   using PointType = primal::Point<CoordType, DIM>;
 
-  SLIC_INFO(
-    "Test moment computation for curved triangle with mixed order edges");
+  SLIC_INFO("Test moment computation for curved triangle with mixed order edges");
 
   axom::Array<PointType> CP = {PointType {0.6, 1.2},
                                PointType {0.4, 1.3},
@@ -505,8 +504,7 @@ TEST(primal_curvedpolygon, reverseOrientation)
       EXPECT_EQ(currentEnd, nextStart);
 
       // check that segment midpoints are oriented in same direction (opposite of origin)
-      SegmentType seg(reversed[i].evaluate(0.5),
-                      reversed[(i + 1) % nseg].evaluate(0.5));
+      SegmentType seg(reversed[i].evaluate(0.5), reversed[(i + 1) % nseg].evaluate(0.5));
       EXPECT_EQ(primal::ON_POSITIVE_SIDE, primal::orientation(origin, seg));
     }
 

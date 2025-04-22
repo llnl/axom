@@ -109,15 +109,10 @@ public:
   /// types for Tube and {In,Out}Flow subsets
   using RuntimeOffsetPolicy = slam::policies::RuntimeOffset<PositionType>;
   using StrideOnePolicy = slam::policies::StrideOne<PositionType>;
-  using NoIndirectionPolicy =
-    slam::policies::NoIndirection<PositionType, ElementType>;
+  using NoIndirectionPolicy = slam::policies::NoIndirection<PositionType, ElementType>;
   using TubeSubsetPolicy = slam::policies::ConcreteParentSubset<ElemSet>;
-  using ElemSubset = slam::GenericRangeSet<PositionType,
-                                           ElementType,
-                                           RuntimeOffsetPolicy,
-                                           StrideOnePolicy,
-                                           NoIndirectionPolicy,
-                                           TubeSubsetPolicy>;
+  using ElemSubset =
+    slam::GenericRangeSet<PositionType, ElementType, RuntimeOffsetPolicy, StrideOnePolicy, NoIndirectionPolicy, TubeSubsetPolicy>;
   using RangeSet = slam::RangeSet<PositionType, ElementType>;
 
   /// types for relations
@@ -127,15 +122,12 @@ public:
     FACES_PER_ELEM = 2
   };
 
-  using EFStride =
-    slam::policies::CompileTimeStride<PositionType, FACES_PER_ELEM>;
-  using FEStride =
-    slam::policies::CompileTimeStride<PositionType, ELEMS_PER_FACE>;
+  using EFStride = slam::policies::CompileTimeStride<PositionType, FACES_PER_ELEM>;
+  using FEStride = slam::policies::CompileTimeStride<PositionType, ELEMS_PER_FACE>;
 
   using EFCard = slam::policies::ConstantCardinality<PositionType, EFStride>;
   using FECard = slam::policies::ConstantCardinality<PositionType, FEStride>;
-  using STLIndirection =
-    slam::policies::STLVectorIndirection<PositionType, ElementType>;
+  using STLIndirection = slam::policies::STLVectorIndirection<PositionType, ElementType>;
   using IndexVec = typename STLIndirection::IndirectionBufferType;
 
   using TubeElemToFaceRelation =
@@ -296,8 +288,7 @@ void CreateShockTubeMesh(ShockTubeMesh* mesh)
 
   /// Setup the FaceToElem relation
   IndexVec& feRelVec =
-    intsRegistry.addBuffer("feRel",
-                           ShockTubeMesh::FACES_PER_ELEM * mesh->faces.size());
+    intsRegistry.addBuffer("feRel", ShockTubeMesh::FACES_PER_ELEM * mesh->faces.size());
   IndexVec::iterator relIt = feRelVec.begin();
   for(ShockTubeMesh::IndexType idx = 0;
       idx < static_cast<ShockTubeMesh::IndexType>(mesh->faces.size());
@@ -307,30 +298,24 @@ void CreateShockTubeMesh(ShockTubeMesh* mesh)
     *relIt++ = mesh->faces[idx] + 1;
   }
 
-  mesh->relationFaceElem =
-    ShockTubeMesh::FaceToElemRelation(&mesh->faces, &mesh->elems);
-  mesh->relationFaceElem.bindIndices(static_cast<int>(feRelVec.size()),
-                                     &feRelVec);
+  mesh->relationFaceElem = ShockTubeMesh::FaceToElemRelation(&mesh->faces, &mesh->elems);
+  mesh->relationFaceElem.bindIndices(static_cast<int>(feRelVec.size()), &feRelVec);
   SLIC_ASSERT(mesh->relationFaceElem.isValid(verboseOutput));
 
   /// Setup the TubeElementToFace relation:
   /// A relation from the tubes subset of the elements to their incident faces
   ShockTubeMesh::PositionType numTubeElems = mesh->tubeElems.size();
-  IndexVec& efRelVec =
-    intsRegistry.addBuffer("efRel", ShockTubeMesh::ELEMS_PER_FACE * numTubeElems);
+  IndexVec& efRelVec = intsRegistry.addBuffer("efRel", ShockTubeMesh::ELEMS_PER_FACE * numTubeElems);
   relIt = efRelVec.begin();
-  for(ShockTubeMesh::IndexType idx = 0;
-      idx < static_cast<ShockTubeMesh::IndexType>(numTubeElems);
+  for(ShockTubeMesh::IndexType idx = 0; idx < static_cast<ShockTubeMesh::IndexType>(numTubeElems);
       ++idx)
   {
     *relIt++ = mesh->tubeElems[idx] - 1;
     *relIt++ = mesh->tubeElems[idx];
   }
 
-  mesh->relationTubeFace =
-    ShockTubeMesh::TubeElemToFaceRelation(&mesh->tubeElems, &mesh->faces);
-  mesh->relationTubeFace.bindIndices(static_cast<int>(efRelVec.size()),
-                                     &efRelVec);
+  mesh->relationTubeFace = ShockTubeMesh::TubeElemToFaceRelation(&mesh->tubeElems, &mesh->faces);
+  mesh->relationTubeFace.bindIndices(static_cast<int>(efRelVec.size()), &efRelVec);
   SLIC_ASSERT(mesh->relationTubeFace.isValid(verboseOutput));
 }
 
@@ -442,8 +427,7 @@ void ComputeFaceInfo(ShockTubeMesh const& mesh)
     double massf = 0.5 * (mass[upWind] + mass[downWind]);
     double momentumf = 0.5 * (momentum[upWind] + momentum[downWind]);
     double energyf = 0.5 * (energy[upWind] + energy[downWind]);
-    double pressuref =
-      (gammaa - 1.0) * (energyf - 0.5 * momentumf * momentumf / massf);
+    double pressuref = (gammaa - 1.0) * (energyf - 0.5 * momentumf * momentumf / massf);
     double c = sqrt(gammaa * pressuref / massf);
     double v = momentumf / massf;
 
@@ -530,19 +514,16 @@ void UpdateElemInfo(ShockTubeMesh const& mesh)
     ShockTubeMesh::IndexType elemIdx = mesh.tubeElems[tPos];
 
     // Each element inside the tube has an upwind and downwind face
-    ShockTubeMesh::IndexType upWind =
-      mesh.relationTubeFace[tPos][UPWIND];  // upwind
-                                            // face
-    ShockTubeMesh::IndexType downWind =
-      mesh.relationTubeFace[tPos][DOWNWIND];  // downwind
-                                              // face
+    ShockTubeMesh::IndexType upWind = mesh.relationTubeFace[tPos][UPWIND];      // upwind
+                                                                                // face
+    ShockTubeMesh::IndexType downWind = mesh.relationTubeFace[tPos][DOWNWIND];  // downwind
+                                                                                // face
 
     mass[elemIdx] -= gammaaInverse * (F0[downWind] - F0[upWind]) * dt / dx;
     momentum[elemIdx] -= gammaaInverse * (F1[downWind] - F1[upWind]) * dt / dx;
     energy[elemIdx] -= gammaaInverse * (F2[downWind] - F2[upWind]) * dt / dx;
     pressure[elemIdx] = (gammaa - 1.0) *
-      (energy[elemIdx] -
-       0.5 * momentum[elemIdx] * momentum[elemIdx] / mass[elemIdx]);
+      (energy[elemIdx] - 0.5 * momentum[elemIdx] * momentum[elemIdx] / mass[elemIdx]);
   }
 
   // update the time
@@ -564,10 +545,8 @@ void dumpData(ShockTubeMesh const& mesh)
   begSet = ElemSubsetBuilder()     //
              .parent(&mesh.elems)  //
              .size(maxDumpPerSide);
-  endSet = ElemSubsetBuilder()
-             .parent(&mesh.elems)
-             .size(maxDumpPerSide)
-             .offset(mesh.elems.size() - maxDumpPerSide);
+  endSet =
+    ElemSubsetBuilder().parent(&mesh.elems).size(maxDumpPerSide).offset(mesh.elems.size() - maxDumpPerSide);
 
   SLIC_ASSERT(begSet.isValid(verboseOutput));
   SLIC_ASSERT(endSet.isValid(verboseOutput));
@@ -666,8 +645,7 @@ int main(void)
   {
     if(currCycle % dumpInterval == 0)
     {
-      SLIC_INFO("\tStarting cycle " << currCycle << " at time "
-                                    << realsRegistry.getScalar("time"));
+      SLIC_INFO("\tStarting cycle " << currCycle << " at time " << realsRegistry.getScalar("time"));
       dumpData(mesh);
     }
 
@@ -675,8 +653,7 @@ int main(void)
     UpdateElemInfo(mesh);
   }
 
-  SLIC_INFO("\tFinished cycle " << currCycle << " at time "
-                                << realsRegistry.getScalar("time"));
+  SLIC_INFO("\tFinished cycle " << currCycle << " at time " << realsRegistry.getScalar("time"));
 
   dumpData(mesh);
 

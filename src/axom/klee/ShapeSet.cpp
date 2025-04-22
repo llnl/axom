@@ -14,10 +14,7 @@ namespace axom
 {
 namespace klee
 {
-void ShapeSet::setShapes(std::vector<Shape> shapes)
-{
-  m_shapes = std::move(shapes);
-}
+void ShapeSet::setShapes(std::vector<Shape> shapes) { m_shapes = std::move(shapes); }
 
 void ShapeSet::setPath(const std::string &path) { m_path = path; }
 
@@ -31,8 +28,7 @@ Dimensions ShapeSet::getDimensions() const
 {
   if(!m_dimensionsHaveBeenSet)
   {
-    throw std::logic_error(
-      "Can only query the ShapeSet dimensions after calling setShapes()");
+    throw std::logic_error("Can only query the ShapeSet dimensions after calling setShapes()");
   }
 
   return m_dimensions;

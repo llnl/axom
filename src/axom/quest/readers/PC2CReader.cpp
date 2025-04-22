@@ -9,6 +9,7 @@
   #error PC2CReader should only be included when Axom is configured with C2C
 #endif
 
+#include "axom/core.hpp"
 #include "axom/slic.hpp"
 
 namespace axom
@@ -23,14 +24,14 @@ constexpr int READER_FAILED = -1;
 }  // end anonymous namespace
 
 //------------------------------------------------------------------------------
-PC2CReader::PC2CReader(MPI_Comm comm) : m_comm(comm)
-{
-  MPI_Comm_rank(m_comm, &m_my_rank);
-}
+PC2CReader::PC2CReader(MPI_Comm comm) : m_comm(comm) { MPI_Comm_rank(m_comm, &m_my_rank); }
 
 //------------------------------------------------------------------------------
 int PC2CReader::read()
 {
+  using CoordsVec = typename NURBSCurve::CoordsVec;
+  constexpr int DIM = 2;
+
   SLIC_ASSERT(m_comm != MPI_COMM_NULL);
 
   // Clear internal data-structures
@@ -41,86 +42,89 @@ int PC2CReader::read()
   switch(m_my_rank)
   {
   case 0:
-
     rc = C2CReader::read();
     if(rc == READER_SUCCESS)
     {
-      int numNURBS = m_nurbsData.size();
-      MPI_Bcast(&numNURBS, 1, axom::mpi_traits<int>::type, 0, m_comm);
+      bcast_int(m_nurbsData.size());
 
-      for(int i = 0; i < numNURBS; ++i)
+      for(const auto& curve : m_nurbsData)
       {
-        auto& nd = m_nurbsData[i];
+        // broadcast sizes
+        const int numCP = bcast_int(curve.getNumControlPoints());
+        const int numKnots = bcast_int(curve.getNumKnots());
+        const bool isRational = bcast_bool(curve.isRational());
 
-        // send the order
-        MPI_Bcast(&nd.order, 1, axom::mpi_traits<unsigned>::type, 0, m_comm);
+        AXOM_UNUSED_VAR(numKnots);
 
-        // send the knots, weights and spline interp params vectors
-        bcastVector<double>(nd.knots);
-        bcastVector<double>(nd.weights);
-        bcastVector<double>(nd.splineInterpolationPointParameters);
+        // broadcast control points as an array of doubles
+        auto pt_v = numCP > 0
+          ? axom::ArrayView<double>(const_cast<double*>(curve[0].data()), numCP * DIM)
+          : axom::ArrayView<double>(nullptr, 0);
+        bcast_data(pt_v);
 
-        // pack R and Z coordinates of control points into arrays and bcast
-        // note: when converting to NURBSData, all units are converted to m_lengthUnit
-        // so we do not need to transmit this to the other ranks
-        std::vector<double> r, z;
-        r.reserve(nd.controlPoints.size());
-        z.reserve(nd.controlPoints.size());
-        for(const auto& pt : nd.controlPoints)
+        // broadcast knot vector as an array of doubles
+        bcast_data(curve.getKnotsArray().view());
+
+        // optionally broadcast control point weights
+        if(isRational)
         {
-          r.push_back(pt.getR().getValue());
-          z.push_back(pt.getZ().getValue());
+          auto wts_v = numCP > 0
+            ? axom::ArrayView<double>(const_cast<double*>(&curve.getWeight(0)), numCP)
+            : axom::ArrayView<double>(nullptr, 0);
+          bcast_data(wts_v);
         }
-        bcastVector<double>(r);
-        bcastVector<double>(z);
       }
     }
     else
     {
-      MPI_Bcast(&rc, 1, MPI_INT, 0, m_comm);
+      bcast_int(rc);
     }
     break;
 
   default:
 
-    // Rank 0 broadcasts the number of NURBSData entities, a positive integer, if the
+    // Rank 0 broadcasts the number of NURBSCurve entities, a positive integer, if the
     // C2C file is read successfully, or sends a READER_FAILED flag, indicating
     // that the read was not successful.
-    int numNURBS = -1;
-    MPI_Bcast(&numNURBS, 1, axom::mpi_traits<int>::type, 0, m_comm);
-
-    if(numNURBS != READER_FAILED)
+    rc = bcast_int();
+    if(rc != READER_FAILED)
     {
+      const int numNURBS = rc;
       rc = READER_SUCCESS;
 
+      // Receive and reconstruct each NURBSCurve
       m_nurbsData.reserve(numNURBS);
-
-      // Receive and reconstruct each NURBSData
       for(int i = 0; i < numNURBS; ++i)
       {
-        c2c::NURBSData nd;
+        // receive sizes
+        const int numCP = bcast_int();
+        const int numKnots = bcast_int();
+        const bool isRational = bcast_bool();
 
-        // receive the NURBS order
-        MPI_Bcast(&nd.order, 1, axom::mpi_traits<unsigned>::type, 0, m_comm);
+        // receive control points
+        // since they're contiguous, we can recieve them as array of doubles
+        auto pts = CoordsVec(axom::ArrayOptions::Uninitialized {}, numCP, numCP);
+        auto pts_v = numCP > 0 ? axom::ArrayView<double>(pts[0].data(), numCP * DIM)
+                               : axom::ArrayView<double>(nullptr, 0);
+        bcast_data(pts_v);
 
-        // receive the knots, weights and spline interp params vectors
-        bcastVector<double>(nd.knots);
-        bcastVector<double>(nd.weights);
-        bcastVector<double>(nd.splineInterpolationPointParameters);
+        // receive knot vector
+        auto knots = axom::Array<double>(axom::ArrayOptions::Uninitialized {}, numKnots, numKnots);
+        bcast_data(knots.view());
 
-        // get the points data and reconstruct the control points
-        std::vector<double> r, z;
-        bcastVector<double>(r);
-        bcastVector<double>(z);
-        int ptSize = r.size();
-        for(int j = 0; j < ptSize; ++j)
+        // construct NURBSCurve (w/ optional weights)
+        if(isRational)
         {
-          const c2c::Length rlen {r[j], m_lengthUnit};
-          const c2c::Length zlen {z[j], m_lengthUnit};
-          nd.controlPoints.emplace_back(c2c::Point(rlen, zlen));
-        }
+          // receive weights
+          auto weights = axom::Array<double>(axom::ArrayOptions::Uninitialized {}, numCP, numCP);
+          bcast_data(weights.view());
 
-        m_nurbsData.emplace_back(nd);
+          m_nurbsData.emplace_back(NURBSCurve {pts, weights, knots});
+        }
+        else
+        {
+          m_nurbsData.emplace_back(NURBSCurve {pts, knots});
+        }
       }
     }
   }
@@ -128,24 +132,27 @@ int PC2CReader::read()
   return (rc);
 }
 
-template <typename T>
-void PC2CReader::bcastVector(std::vector<T>& vec)
+/// MPI broadcasts an integer from rank 0
+int PC2CReader::bcast_int(int value)
 {
-  int sz = -1;
+  MPI_Bcast(&value, 1, axom::mpi_traits<int>::type, 0, m_comm);
+  return value;
+}
 
-  switch(m_my_rank)
-  {
-  case 0:
-    sz = vec.size();
-    MPI_Bcast(&sz, 1, axom::mpi_traits<int>::type, 0, m_comm);
-    MPI_Bcast(vec.data(), sz, axom::mpi_traits<T>::type, 0, m_comm);
-    break;
-  default:
-    MPI_Bcast(&sz, 1, axom::mpi_traits<int>::type, 0, m_comm);
-    vec.resize(sz);  // resize to allocate sufficient data
-    MPI_Bcast(vec.data(), sz, axom::mpi_traits<T>::type, 0, m_comm);
-    break;
-  }
+/// MPI broadcasts a bool from rank 0
+bool PC2CReader::bcast_bool(bool value)
+{
+  int intValue = static_cast<int>(value);
+  MPI_Bcast(&intValue, 1, axom::mpi_traits<int>::type, 0, m_comm);
+  return static_cast<bool>(intValue);
+}
+
+/// MPI broadcasts an array of doubles in-place in an axom::ArrayView
+// assume all ranks already have the correct size
+void PC2CReader::bcast_data(axom::ArrayView<double> arr)
+{
+  const int sz = arr.size();
+  MPI_Bcast(arr.data(), sz, axom::mpi_traits<double>::type, 0, m_comm);
 }
 
 }  // namespace quest

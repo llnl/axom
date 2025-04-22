@@ -85,8 +85,7 @@ void getSphereSurfaceMesh(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* mesh,
 
   // Calculate spacing
   const double dphi = (phi_end - phi_start) / (static_cast<double>(PHI_RES - 1));
-  const double dtheta =
-    (theta_end - theta_start) / (static_cast<double>(THETA_RES - 1));
+  const double dtheta = (theta_end - theta_start) / (static_cast<double>(THETA_RES - 1));
 
   // Generate points
   for(int i = 0; i < THETA_RES; ++i)
@@ -185,8 +184,7 @@ primal::Point<double, DIM> getCentroid(const primal::Point<double, DIM>& pt0,
                                        const primal::Point<double, DIM>& pt1,
                                        const primal::Point<double, DIM>& pt2)
 {
-  return primal::Point<double, DIM>((pt0.array() + pt1.array() + pt2.array()) /
-                                    3.);
+  return primal::Point<double, DIM>((pt0.array() + pt1.array() + pt2.array()) / 3.);
 }
 
 /*!
@@ -198,8 +196,7 @@ primal::Point<double, DIM> getCentroid(const primal::Point<double, DIM>& pt0,
                                        const primal::Point<double, DIM>& pt2,
                                        const primal::Point<double, DIM>& pt3)
 {
-  return primal::Point<double, DIM>(
-    (pt0.array() + pt1.array() + pt2.array() + pt3.array()) / 4.);
+  return primal::Point<double, DIM>((pt0.array() + pt1.array() + pt2.array() + pt3.array()) / 4.);
 }
 
 /*!
@@ -238,9 +235,8 @@ axom::mint::Mesh* make_octahedron_mesh()
   const int NUM_TRIS = 8;
   const int VERTS_PER_TRI = 3;
   VertexIndex tvRelation[NUM_TRIS * VERTS_PER_TRI] = {
-    POS_Z, POS_X, POS_Y, POS_Z, POS_Y, NEG_X, POS_Z, NEG_X,
-    NEG_Y, POS_Z, NEG_Y, POS_X, NEG_Z, POS_Y, POS_X, NEG_Z,
-    NEG_X, POS_Y, NEG_Z, NEG_Y, NEG_X, NEG_Z, POS_X, NEG_Y};
+    POS_Z, POS_X, POS_Y, POS_Z, POS_Y, NEG_X, POS_Z, NEG_X, NEG_Y, POS_Z, NEG_Y, POS_X,
+    NEG_Z, POS_Y, POS_X, NEG_Z, NEG_X, POS_Y, NEG_Z, NEG_Y, NEG_X, NEG_Z, POS_X, NEG_Y};
 
   // First, confirm that all triangle normals point away from the origin
   for(int i = 0; i < NUM_TRIS; ++i)

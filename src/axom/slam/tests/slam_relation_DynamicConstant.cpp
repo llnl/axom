@@ -41,16 +41,13 @@ constexpr PositionType ELEM_STRIDE = 6;
 using CTStride = policies::CompileTimeStride<PositionType, ELEM_STRIDE>;
 using RTStride = policies::RuntimeStride<PositionType>;
 
-using ConstantCardinalityCT =
-  policies::ConstantCardinality<PositionType, CTStride>;
-using ConstantCardinalityRT =
-  policies::ConstantCardinality<PositionType, RTStride>;
+using ConstantCardinalityCT = policies::ConstantCardinality<PositionType, CTStride>;
+using ConstantCardinalityRT = policies::ConstantCardinality<PositionType, RTStride>;
 
 using STLIndirection = policies::STLVectorIndirection<PositionType, ElementType>;
 
 using IndexVec = std::vector<PositionType>;
-using RelationType =
-  slam::DynamicConstantRelation<PositionType, ElementType, ConstantCardinalityCT>;
+using RelationType = slam::DynamicConstantRelation<PositionType, ElementType, ConstantCardinalityCT>;
 
 }  //end anonymous namespace
 
@@ -141,8 +138,7 @@ TEST(slam_relation_dynamic_constant, iterators)
     {
       ElementType val = i;
       PositionType idx = 0;
-      for(RelationType::RelationIterator it = rel.begin(i), itEnd = rel.end(i);
-          it != itEnd;
+      for(RelationType::RelationIterator it = rel.begin(i), itEnd = rel.end(i); it != itEnd;
           ++it, ++idx)
       {
         EXPECT_EQ(val, *it);
@@ -150,8 +146,7 @@ TEST(slam_relation_dynamic_constant, iterators)
       }
 
       idx = 0;
-      for(RelationType::RelationIteratorPair itPair = rel.range(i);
-          itPair.first != itPair.second;
+      for(RelationType::RelationIteratorPair itPair = rel.range(i); itPair.first != itPair.second;
           ++itPair.first, ++idx)
       {
         EXPECT_EQ(val, *itPair.first);
@@ -177,9 +172,7 @@ TEST(slam_relation_dynamic_constant, const_iterators)
     {
       const ElementType val = i;
       PositionType idx = 0;
-      for(RelationType::RelationConstIterator it = rel.begin(i),
-                                              itEnd = rel.end(i);
-          it != itEnd;
+      for(RelationType::RelationConstIterator it = rel.begin(i), itEnd = rel.end(i); it != itEnd;
           ++it, ++idx)
       {
         EXPECT_EQ(val, *it);

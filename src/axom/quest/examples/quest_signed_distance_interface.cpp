@@ -87,40 +87,29 @@ struct Arguments
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
-    app
-      .add_option("-f,--file", this->fileName, "specifies the input mesh file")
+    app.add_option("-f,--file", this->fileName, "specifies the input mesh file")
       ->check(axom::CLI::ExistingFile)
       ->required();
 
-    app.add_option("--dimension", this->ndims, "the problem dimension")
-      ->capture_default_str();
+    app.add_option("--dimension", this->ndims, "the problem dimension")->capture_default_str();
 
-    app.add_option("--box-dims", box_dims, "the dimensions of the box mesh")
-      ->expected(3);
+    app.add_option("--box-dims", box_dims, "the dimensions of the box mesh")->expected(3);
 
     // If either box-min or box-max are provided, they must both be present
     auto* minbb =
-      app.add_option("--box-min", box_min, "the lower corner of the box mesh")
-        ->expected(3);
+      app.add_option("--box-min", box_min, "the lower corner of the box mesh")->expected(3);
     auto* maxbb =
-      app.add_option("--box-max", box_max, "the upper corner of the box mesh")
-        ->expected(3);
+      app.add_option("--box-max", box_max, "the upper corner of the box mesh")->expected(3);
     minbb->needs(maxbb);
     maxbb->needs(minbb);
 
-    app.add_flag("!--no-vtk", this->dump_vtk, "disables VTK output")
-      ->capture_default_str();
+    app.add_flag("!--no-vtk", this->dump_vtk, "disables VTK output")->capture_default_str();
 
     app
-      .add_flag("!--not-watertight",
-                this->is_water_tight,
-                "indicates that input is not water-tight")
+      .add_flag("!--not-watertight", this->is_water_tight, "indicates that input is not water-tight")
       ->capture_default_str();
 
-    app
-      .add_flag("--use-shared",
-                this->use_shared,
-                "stores the surface using MPI-3 shared memory")
+    app.add_flag("--use-shared", this->use_shared, "stores the surface using MPI-3 shared memory")
       ->capture_default_str();
 
     app
@@ -130,14 +119,10 @@ struct Arguments
                 "individual queries")
       ->capture_default_str();
 
-    app
-      .add_flag("--ignore-signs",
-                this->ignore_signs,
-                "distance query should ignore signs")
+    app.add_flag("--ignore-signs", this->ignore_signs, "distance query should ignore signs")
       ->capture_default_str();
 
-    std::string pol_info =
-      "Sets execution space of the SignedDistance query.\n";
+    std::string pol_info = "Sets execution space of the SignedDistance query.\n";
     pol_info += "Set to \'seq\' to use sequential execution policy.";
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
     pol_info += "\nSet to \'omp\' to use an OpenMP execution policy.";
@@ -154,8 +139,7 @@ struct Arguments
     // could throw an exception
     app.parse(argc, argv);
 
-    SLIC_ERROR_IF((this->ndims != 3),
-                  "The signed distance is currently only supported in 3-D");
+    SLIC_ERROR_IF((this->ndims != 3), "The signed distance is currently only supported in 3-D");
 
     slic::flushStreams();
   }
@@ -395,8 +379,7 @@ void run_batched_query(mint::UniformMesh*& mesh)
   double* z = axom::allocate<double>(nnodes);
 
   // Determine an appropriate policy
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
   using ExecPolicy = axom::OMP_EXEC;
 #else
   using ExecPolicy = axom::SEQ_EXEC;

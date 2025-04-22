@@ -15,9 +15,9 @@
 #include "axom/core/numerics/matvecops.hpp"     // for matrix/vector operators
 
 // Mint includes
-#include "axom/mint/mesh/CellTypes.hpp"  // for cell type definitions
+#include "axom/mint/mesh/CellTypes.hpp"                // for cell type definitions
 #include "axom/mint/fem/shape_functions/Lagrange.hpp"  //Lagrange ShapeFunctions
-#include "axom/mint/mesh/Mesh.hpp"  // for mesh data structure
+#include "axom/mint/mesh/Mesh.hpp"                     // for mesh data structure
 #include "axom/mint/fem/shape_functions/ShapeFunction.hpp"
 
 // Slic includes
@@ -52,9 +52,7 @@ bool diverged(const double* xi, int N)
 // FINITE ELEMENT CLASS IMPLEMENTATION
 //------------------------------------------------------------------------------
 
-FiniteElement::FiniteElement(numerics::Matrix<double>& M,
-                             CellType cellType,
-                             bool useExternal)
+FiniteElement::FiniteElement(numerics::Matrix<double>& M, CellType cellType, bool useExternal)
   : m_dim(M.getNumRows())
   , m_ctype(cellType)
   , m_shape_func_type(MINT_UNDEFINED_BASIS)
@@ -235,10 +233,7 @@ void FiniteElement::jacobian(const double* lc, numerics::Matrix<double>& J)
 
   // STEP 0: evaluate the derivatives
   this->evaluateDerivatives(lc, m_phidot);
-  numerics::Matrix<double> derivs_matrix(m_numdofs,
-                                         this->getReferenceDimension(),
-                                         m_phidot,
-                                         true);
+  numerics::Matrix<double> derivs_matrix(m_numdofs, this->getReferenceDimension(), m_phidot, true);
 
   // STEP 1: get the coordinates
   numerics::Matrix<double> coords_matrix(m_dim, m_numnodes, m_xyz, true);

@@ -72,10 +72,7 @@ public:
    * \brief Return a view that contains the list of selected zone ids for the mesh.
    * \return A view that contains the list of selected zone ids for the mesh.
    */
-  const axom::ArrayView<axom::IndexType> &view() const
-  {
-    return m_selectedZonesView;
-  }
+  const axom::ArrayView<axom::IndexType> &view() const { return m_selectedZonesView; }
 
 // The following members are protected (unless using CUDA)
 #if !defined(__CUDACC__)
@@ -145,13 +142,10 @@ protected:
   int buildSelectedZones(ZonesViewType zonesView, axom::IndexType nzones)
   {
     using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
-    using reduce_policy =
-      typename axom::execution_space<ExecSpace>::reduce_policy;
+    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
 
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    m_selectedZones = axom::Array<axom::IndexType>(zonesView.size(),
-                                                   zonesView.size(),
-                                                   allocatorID);
+    m_selectedZones = axom::Array<axom::IndexType>(zonesView.size(), zonesView.size(), allocatorID);
     auto szView = m_selectedZonesView = m_selectedZones.view();
     axom::for_all<ExecSpace>(
       szView.size(),

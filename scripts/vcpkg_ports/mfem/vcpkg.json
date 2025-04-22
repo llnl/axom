@@ -1,6 +1,6 @@
 {
   "name": "mfem",
-  "version": "4.6",
+  "version": "4.7",
   "homepage": "http://mfem.org",
   "description": "Lightweight, general, scalable C++ library for finite element methods",
   "supports": "!uwp"

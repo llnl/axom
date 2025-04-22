@@ -49,15 +49,10 @@ constexpr SetPosition TOSET_SIZE = 8;
 
 using STLIndirection = policies::STLVectorIndirection<SetPosition, SetElement>;
 
-using VariableCardinality =
-  policies::VariableCardinality<SetPosition, STLIndirection>;
+using VariableCardinality = policies::VariableCardinality<SetPosition, STLIndirection>;
 
-using StaticVariableRelationType = slam::StaticRelation<SetPosition,
-                                                        SetElement,
-                                                        VariableCardinality,
-                                                        STLIndirection,
-                                                        RangeSetType,
-                                                        RangeSetType>;
+using StaticVariableRelationType =
+  slam::StaticRelation<SetPosition, SetElement, VariableCardinality, STLIndirection, RangeSetType, RangeSetType>;
 
 // Use a slam::ModularInt type for more interesting test data
 using CTSize = policies::CompileTimeSize<SetPosition, TOSET_SIZE>;
@@ -77,9 +72,7 @@ void printVector(StrType const& msg, VecType const& vec)
 
   sstr << "\n** " << msg << "\n\t";
   sstr << "Array of size " << vec.size() << ": ";
-  std::copy(vec.begin(),
-            vec.end(),
-            std::ostream_iterator<SetPosition>(sstr, " "));
+  std::copy(vec.begin(), vec.end(), std::ostream_iterator<SetPosition>(sstr, " "));
 
   SLIC_INFO(sstr.str());
 }
@@ -125,8 +118,8 @@ TEST(slam_set_relation_map, access_pattern)
   SLIC_INFO("-- Looking at relation's stored values...");
   for(auto fromPos = SetPosition(); fromPos < fromSet.size(); ++fromPos)
   {
-    SLIC_INFO("--Inspecting element " << fromSet[fromPos] << " in position "
-                                      << fromPos << " of first set.");
+    SLIC_INFO("--Inspecting element " << fromSet[fromPos] << " in position " << fromPos
+                                      << " of first set.");
 
     for(auto idx = 0; idx < incrementingRel.size(fromPos); ++idx)
     {
@@ -134,9 +127,8 @@ TEST(slam_set_relation_map, access_pattern)
       auto posInToSet_expected = relationData(fromPos, idx);
       EXPECT_EQ(posInToSet_expected, posInToSet_actual);
 
-      SLIC_INFO("-- \t pos: "
-                << idx << " ToSet position: " << incrementingRel[fromPos][idx]
-                << " ToSet element " << toSet[incrementingRel[fromPos][idx]]);
+      SLIC_INFO("-- \t pos: " << idx << " ToSet position: " << incrementingRel[fromPos][idx]
+                              << " ToSet element " << toSet[incrementingRel[fromPos][idx]]);
       ;
     }
   }

@@ -20,8 +20,7 @@ using ::testing::Return;
 
 TEST(GeometryTest, dimensions_noOperators)
 {
-  TransformableGeometryProperties startProperties {Dimensions::Three,
-                                                   LengthUnit::mils};
+  TransformableGeometryProperties startProperties {Dimensions::Three, LengthUnit::mils};
   Geometry geometry {startProperties, "test format", "test path", nullptr};
   EXPECT_EQ(startProperties, geometry.getStartProperties());
   EXPECT_EQ(startProperties, geometry.getEndProperties());
@@ -31,10 +30,8 @@ TEST(GeometryTest, dimensions_noOperators)
 
 TEST(GeometryTest, dimensions_dimensionPreservingOperator)
 {
-  TransformableGeometryProperties startProperties {Dimensions::Two,
-                                                   LengthUnit::mils};
-  TransformableGeometryProperties endProperties {Dimensions::Three,
-                                                 LengthUnit::cm};
+  TransformableGeometryProperties startProperties {Dimensions::Two, LengthUnit::mils};
+  TransformableGeometryProperties endProperties {Dimensions::Three, LengthUnit::cm};
   auto mockOperator = std::make_shared<MockOperator>(startProperties);
   Geometry geometry {startProperties, "test format", "test path", mockOperator};
 
@@ -47,8 +44,7 @@ TEST(GeometryTest, dimensions_dimensionPreservingOperator)
 
 TEST(GeometryTest, emptyPath)
 {
-  TransformableGeometryProperties startProperties {Dimensions::Three,
-                                                   LengthUnit::mils};
+  TransformableGeometryProperties startProperties {Dimensions::Three, LengthUnit::mils};
   Geometry geometry {startProperties, "none", "", nullptr};
 
   EXPECT_FALSE(geometry.hasGeometry());

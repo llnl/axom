@@ -6,7 +6,7 @@
 #ifndef SIDRE_DEPRECATED_MCArray_HPP_
 #define SIDRE_DEPRECATED_MCArray_HPP_
 
-#include "axom/core/Macros.hpp"  // for disable copy/assignment macro
+#include "axom/core/Macros.hpp"               // for disable copy/assignment macro
 #include "axom/core/utilities/Utilities.hpp"  // for memory allocation functions
 #include "axom/core/Types.hpp"
 #include "axom/mint/deprecated/MCArray.hpp"  // to inherit
@@ -184,8 +184,7 @@ protected:
    *  handles when T is not an enum.
    */
   template <typename U = T>
-  static constexpr typename std::enable_if<!std::is_enum<U>::value, TypeID>::type
-  sidreTypeId()
+  static constexpr typename std::enable_if<!std::is_enum<U>::value, TypeID>::type sidreTypeId()
   {
     return detail::SidreTT<U>::id;
   }
@@ -195,8 +194,7 @@ protected:
    *  when T is an enum.
    */
   template <typename U = T>
-  static constexpr typename std::enable_if<std::is_enum<U>::value, TypeID>::type
-  sidreTypeId()
+  static constexpr typename std::enable_if<std::is_enum<U>::value, TypeID>::type sidreTypeId()
   {
     return detail::SidreTT<typename std::underlying_type<U>::type>::id;
   }
@@ -250,10 +248,9 @@ MCArray<T>::MCArray(View* view) : axom::deprecated::MCArray<T>()
 
   axom::IndexType buffer_size = m_view->getBuffer()->getNumElements();
   SLIC_ERROR_IF(buffer_size % this->m_num_components != 0,
-                "The buffer size ("
-                  << buffer_size << ") "
-                  << "is not a multiple of the number of components "
-                  << "(" << this->m_num_components << ").");
+                "The buffer size (" << buffer_size << ") "
+                                    << "is not a multiple of the number of components "
+                                    << "(" << this->m_num_components << ").");
   this->m_capacity = buffer_size / this->m_num_components;
 
   SLIC_ERROR_IF(this->m_num_tuples < 0,
@@ -265,17 +262,15 @@ MCArray<T>::MCArray(View* view) : axom::deprecated::MCArray<T>()
                                          << "must be greater than 0.");
 
   SLIC_ERROR_IF(this->m_num_tuples > this->m_capacity,
-                "Number of tuples ("
-                  << this->m_num_tuples << ") "
-                  << "cannot be greater than the tuple capacity "
-                  << "(" << this->m_capacity << ").");
+                "Number of tuples (" << this->m_num_tuples << ") "
+                                     << "cannot be greater than the tuple capacity "
+                                     << "(" << this->m_capacity << ").");
 
   TypeID view_type = m_view->getTypeID();
   TypeID T_type = sidreTypeId();
   SLIC_ERROR_IF(view_type != T_type,
                 "View data type (" << view_type << ")"
-                                   << "differs from this MCArray type ("
-                                   << T_type << ").");
+                                   << "differs from this MCArray type (" << T_type << ").");
 
   this->m_data = static_cast<T*>(m_view->getVoidPtr());
   SLIC_ERROR_IF(this->m_data == nullptr && this->m_capacity > 0,
@@ -304,10 +299,9 @@ MCArray<T>::MCArray(View* view,
   this->initialize(num_tuples, num_components, capacity);
 
   SLIC_ERROR_IF(this->m_num_tuples > this->m_capacity,
-                "Number of tuples ("
-                  << this->m_num_tuples << ") "
-                  << "cannot be greater than the tuple capacity "
-                  << "(" << this->m_capacity << ").");
+                "Number of tuples (" << this->m_num_tuples << ") "
+                                     << "cannot be greater than the tuple capacity "
+                                     << "(" << this->m_capacity << ").");
 
   // sanity checks
   SLIC_ASSERT(this->m_data != nullptr);
@@ -352,8 +346,7 @@ template <typename T>
 inline void MCArray<T>::dynamicRealloc(axom::IndexType new_num_tuples)
 {
   SLIC_ERROR_IF(this->m_resize_ratio < 1.0,
-                "Resize ratio of " << this->m_resize_ratio
-                                   << " doesn't support dynamic resizing");
+                "Resize ratio of " << this->m_resize_ratio << " doesn't support dynamic resizing");
 
   IndexType new_capacity = new_num_tuples * this->m_resize_ratio + 0.5;
   return reallocViewData(new_capacity);
@@ -404,8 +397,7 @@ inline void MCArray<T>::reallocViewData(IndexType new_capacity)
   describeView();
   this->m_data = static_cast<T*>(m_view->getVoidPtr());
 
-  SLIC_ERROR_IF(this->m_data == nullptr && this->m_capacity > 0,
-                "MCArray reallocation failed.");
+  SLIC_ERROR_IF(this->m_data == nullptr && this->m_capacity > 0, "MCArray reallocation failed.");
 }
 
 } /* namespace deprecated */

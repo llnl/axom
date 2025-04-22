@@ -51,8 +51,7 @@ TEST(DataHolder, add_curve_set_existing_key)
 
   auto &csAfterFirstInsert = dh.getCurveSets();
   ASSERT_THAT(csAfterFirstInsert, Contains(Key("cs1")));
-  EXPECT_THAT(csAfterFirstInsert.at("cs1").getDependentCurves(),
-              Contains(Key("original")));
+  EXPECT_THAT(csAfterFirstInsert.at("cs1").getDependentCurves(), Contains(Key("original")));
 
   CurveSet cs2 {"cs1"};
   cs2.addDependentCurve(Curve {"new", {1, 2, 3}});
@@ -60,10 +59,8 @@ TEST(DataHolder, add_curve_set_existing_key)
 
   auto &csAfterSecondInsert = dh.getCurveSets();
   ASSERT_THAT(csAfterSecondInsert, Contains(Key("cs1")));
-  EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(),
-              Not(Contains(Key("original"))));
-  EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(),
-              Contains(Key("new")));
+  EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(), Not(Contains(Key("original"))));
+  EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(), Contains(Key("new")));
 }
 
 TEST(DataHolder, create_fromNode_userDefined)
@@ -79,9 +76,8 @@ TEST(DataHolder, create_fromNode_userDefined)
   EXPECT_EQ("v1", userDefined["k1"].as_string());
   EXPECT_EQ(123, userDefined["k2"].as_int());
   auto int_array = userDefined["k3"].as_int_ptr();
-  std::vector<double> udef_ints(
-    int_array,
-    int_array + userDefined["k3"].dtype().number_of_elements());
+  std::vector<double> udef_ints(int_array,
+                                int_array + userDefined["k3"].dtype().number_of_elements());
   EXPECT_THAT(udef_ints, ElementsAre(1, 2, 3));
 }
 
@@ -120,8 +116,7 @@ TEST(DataHolder, add_new_library)
   ASSERT_THAT(libDataAfterSecondInsert, Contains(Key("other_outer")));
   outer->addLibraryData("inner");
   auto &libDataAfterThirdInsert = dh.getLibraryData();
-  ASSERT_THAT(libDataAfterThirdInsert.at("outer")->getLibraryData(),
-              Contains(Key("inner")));
+  ASSERT_THAT(libDataAfterThirdInsert.at("outer")->getLibraryData(), Contains(Key("inner")));
   ASSERT_THAT(libDataAfterThirdInsert.at("other_outer")->getLibraryData(),
               Not(Contains(Key("inner"))));
 }
@@ -231,8 +226,7 @@ TEST(DataHolder, toNode_data)
   EXPECT_EQ("some units", asNode[EXPECTED_DATA_KEY][name1]["units"].as_string());
   EXPECT_EQ("tag1", asNode[EXPECTED_DATA_KEY][name1]["tags"][0].as_string());
 
-  EXPECT_THAT(asNode[EXPECTED_DATA_KEY][name2]["value"].as_double(),
-              DoubleEq(2.));
+  EXPECT_THAT(asNode[EXPECTED_DATA_KEY][name2]["value"].as_double(), DoubleEq(2.));
   EXPECT_TRUE(asNode[EXPECTED_DATA_KEY][name2]["units"].dtype().is_empty());
   EXPECT_TRUE(asNode[EXPECTED_DATA_KEY][name2]["tags"].dtype().is_empty());
 }
@@ -246,8 +240,7 @@ TEST(DataHolder, toNode_dataWithSlashes)
   dh.add(name, datum);
   auto asNode = dh.toNode();
   ASSERT_EQ(1u, asNode[EXPECTED_DATA_KEY].number_of_children());
-  EXPECT_EQ("the value",
-            asNode[EXPECTED_DATA_KEY].child(name)["value"].as_string());
+  EXPECT_EQ("the value", asNode[EXPECTED_DATA_KEY].child(name)["value"].as_string());
 }
 
 TEST(DataHolder, toNode_curveSets)
@@ -309,9 +302,8 @@ TEST(DataHolder, toNode_userDefined)
   EXPECT_EQ("v1", userDefined["k1"].as_string());
   EXPECT_EQ(123, userDefined["k2"].as_int());
   auto int_array = userDefined["k3"].as_int_ptr();
-  std::vector<double> udef_ints(
-    int_array,
-    int_array + userDefined["k3"].dtype().number_of_elements());
+  std::vector<double> udef_ints(int_array,
+                                int_array + userDefined["k3"].dtype().number_of_elements());
   EXPECT_THAT(udef_ints, ElementsAre(1, 2, 3));
 }
 

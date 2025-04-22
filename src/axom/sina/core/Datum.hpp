@@ -133,20 +133,14 @@ public:
      *
      * \return the string vector value
      */
-  std::vector<std::string> const &getStringArray() const noexcept
-  {
-    return stringArrayValue;
-  }
+  std::vector<std::string> const &getStringArray() const noexcept { return stringArrayValue; }
 
   /**
      * \brief Get the scalar array value of the Datum.
      *
      * \return the scalar vector value
      */
-  std::vector<double> const &getScalarArray() const noexcept
-  {
-    return scalarArrayValue;
-  }
+  std::vector<double> const &getScalarArray() const noexcept { return scalarArrayValue; }
 
   /**
      * \brief Get the tags of the Datum
