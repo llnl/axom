@@ -30,6 +30,7 @@
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
 #include "axom/quest/detail/shaping/shaping_helpers.hpp"
 #include "axom/quest/detail/shaping/InOutSampler.hpp"
+#include "axom/quest/detail/shaping/PrimitiveSampler.hpp"
 
 #include "mfem.hpp"
 
@@ -89,14 +90,35 @@ public:
   //@}
 
 private:
+  int numSamplersInitialized(int dim) const
+  {
+    int count = 0;
+    switch(dim)
+    {
+    case 2:
+      count += (m_inoutSampler2D != nullptr) ? 1 : 0;
+      break;
+    case 3:
+      count += (m_inoutSampler3D != nullptr) ? 1 : 0;
+      count += (m_primitiveSampler3D != nullptr) ? 1 : 0;
+      break;
+    default:
+      SLIC_ERROR("Invalid dimension " << dim);
+      break;
+    }
+    return count;
+  }
+
   klee::Dimensions getShapeDimension() const
   {
-    const bool has2D = (m_inoutSampler2D != nullptr);
-    const bool has3D = (m_inoutSampler3D != nullptr);
-    SLIC_ERROR_IF(!(has2D || has3D), "Shape not initialized");
-    SLIC_ERROR_IF(has2D && has3D, "Cannot have concurrent 2D and 3D shapes");
+    const int count2D = numSamplersInitialized(2);
+    const int count3D = numSamplersInitialized(3);
+    SLIC_ERROR_IF(count2D + count3D < 1, "Shape not initialized");
+    SLIC_ERROR_IF(count2D > 0 && count3D > 0, "Cannot have concurrent 2D and 3D shapes");
+    SLIC_ERROR_IF(count2D > 1, "Cannot have more than one 2D");
+    SLIC_ERROR_IF(count3D > 1, "Cannot have more than one 3D");
 
-    return has2D ? klee::Dimensions::Two : klee::Dimensions::Three;
+    return count2D > 0 ? klee::Dimensions::Two : klee::Dimensions::Three;
   }
 
 public:
@@ -116,7 +138,7 @@ public:
       return;
     }
 
-    SLIC_INFO(axom::fmt::format("{:-^80}", " Generating the octree "));
+    SLIC_INFO(axom::fmt::format("{:-^80}", " Generating the spatial index "));
 
     const auto& shapeName = shape.getName();
 
@@ -129,9 +151,18 @@ public:
       break;
 
     case klee::Dimensions::Three:
-      m_inoutSampler3D = new shaping::InOutSampler<3>(shapeName, m_surfaceMesh);
-      m_inoutSampler3D->computeBounds();
-      m_inoutSampler3D->initSpatialIndex(this->m_vertexWeldThreshold);
+      if(this->shapeFormat(shape) == "stl")
+      {
+        m_inoutSampler3D = new shaping::InOutSampler<3>(shapeName, m_surfaceMesh);
+        m_inoutSampler3D->computeBounds();
+        m_inoutSampler3D->initSpatialIndex(this->m_vertexWeldThreshold);
+      }
+      else if(this->shapeFormat(shape) == "proe")
+      {
+        m_primitiveSampler3D = new shaping::PrimitiveSampler<3>(shapeName, m_surfaceMesh);
+        m_primitiveSampler3D->computeBounds();
+        m_primitiveSampler3D->initSpatialIndex();
+      }
       break;
 
     default:
@@ -141,19 +172,23 @@ public:
     }
 
     // Check that one of sampling shapers (2D or 3D) is null and the other is not
-    SLIC_ASSERT((m_inoutSampler2D == nullptr && m_inoutSampler3D != nullptr) ||
-                (m_inoutSampler3D == nullptr && m_inoutSampler2D != nullptr));
+    SLIC_ASSERT((numSamplersInitialized(2) + numSamplersInitialized(3)) == 1);
 
     // Output some logging info and dump the mesh
     if(this->isVerbose() && this->getRank() == 0)
     {
       const int nVerts = m_surfaceMesh->getNumberOfNodes();
       const int nCells = m_surfaceMesh->getNumberOfCells();
+      const std::string shapeType = (shapeDimension == klee::Dimensions::Two)
+        ? "segments"
+        : (this->shapeFormat(shape) == "stl" ? "triangles" : "tetrahedra");
 
-      SLIC_INFO(axom::fmt::format("After welding, surface mesh has {} vertices  and {} triangles.",
+      SLIC_INFO(axom::fmt::format("After welding, surface mesh has {} vertices  and {} {}.",
                                   nVerts,
-                                  nCells));
-      mint::write_vtk(m_surfaceMesh.get(), axom::fmt::format("meldedTriMesh_{}.vtk", shapeName));
+                                  nCells,
+                                  shapeType));
+      mint::write_vtk(m_surfaceMesh.get(),
+                      axom::fmt::format("melded_{}_mesh_{}.vtk", shapeType, shapeName));
     }
   }
 
@@ -170,8 +205,7 @@ public:
     }
 
     SLIC_INFO(
-      axom::fmt::format("{:-^80}",
-                        axom::fmt::format(" Querying the octree for shape '{}'", shape.getName())));
+      axom::fmt::format("{:-^80}", axom::fmt::format(" Querying for shape '{}'", shape.getName())));
 
     switch(getShapeDimension())
     {
@@ -179,7 +213,14 @@ public:
       runShapeQueryImpl(m_inoutSampler2D);
       break;
     case klee::Dimensions::Three:
-      runShapeQueryImpl(m_inoutSampler3D);
+      if(this->shapeFormat(shape) == "stl")
+      {
+        runShapeQueryImpl(m_inoutSampler3D);
+      }
+      else if(this->shapeFormat(shape) == "proe")
+      {
+        runShapeQueryImpl(m_primitiveSampler3D);
+      }
       break;
     }
   }
@@ -279,6 +320,9 @@ public:
 
     delete m_inoutSampler3D;
     m_inoutSampler3D = nullptr;
+
+    delete m_primitiveSampler3D;
+    m_primitiveSampler3D = nullptr;
 
     m_surfaceMesh.reset();
   }
@@ -403,16 +447,16 @@ public:
   }
 
 private:
-  // Handles 2D or 3D shaping, based on the template and associated parameter
-  template <typename InOutSamplerType>
-  void runShapeQueryImpl(InOutSamplerType* shaper)
+  // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
+  template <int DIM>
+  void runShapeQueryImpl(shaping::InOutSampler<DIM>* shaper)
   {
     // Sample the InOut field at the mesh quadrature points
     const int meshDim = m_dc->GetMesh()->Dimension();
     switch(m_vfSampling)
     {
     case shaping::VolFracSampling::SAMPLE_AT_QPTS:
-      switch(InOutSamplerType::DIM)
+      switch(DIM)
       {
       case 2:
         if(meshDim == 2)
@@ -462,6 +506,33 @@ private:
     }
   }
 
+  // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
+  template <int DIM>
+  void runShapeQueryImpl(shaping::PrimitiveSampler<DIM>* shaper)
+  {
+    // Sample the InOut field at the mesh quadrature points
+    const int meshDim = m_dc->GetMesh()->Dimension();
+    AXOM_UNUSED_VAR(meshDim);
+    // TODO: Handle the different projections {2d,3d}=>{2d,3d}
+    switch(m_vfSampling)
+    {
+    case shaping::VolFracSampling::SAMPLE_AT_QPTS:
+      switch(DIM)
+      {
+      case 2:
+        SLIC_ERROR("Not implemented yet!");
+        break;
+      case 3:
+        shaper->template sampleInOutField<3>(m_dc, m_inoutShapeQFuncs, m_quadratureOrder);
+        break;
+      }
+      break;
+    case shaping::VolFracSampling::SAMPLE_AT_DOFS:
+      SLIC_ERROR("Not implemented yet!");
+      break;
+    }
+  }
+
 private:
   shaping::QFunctionCollection m_inoutShapeQFuncs;
   shaping::QFunctionCollection m_inoutMaterialQFuncs;
@@ -469,6 +540,7 @@ private:
 
   shaping::InOutSampler<2>* m_inoutSampler2D {nullptr};
   shaping::InOutSampler<3>* m_inoutSampler3D {nullptr};
+  shaping::PrimitiveSampler<3>* m_primitiveSampler3D {nullptr};
 
   std::set<std::string> m_knownMaterials;
 

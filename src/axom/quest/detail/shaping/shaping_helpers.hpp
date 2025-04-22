@@ -29,6 +29,12 @@ namespace shaping
 using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
 
+enum class VolFracSampling : int
+{
+  SAMPLE_AT_DOFS,
+  SAMPLE_AT_QPTS
+};
+
 /**
  * Utility function to zero out inout quadrature points for a material replaced by a shape
  *

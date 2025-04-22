@@ -19,6 +19,7 @@
 #include "axom/mint.hpp"
 #include "axom/spin.hpp"
 #include "axom/quest/InOutOctree.hpp"
+#include "axom/quest/detail/shaping/shaping_helpers.hpp"
 
 #include "axom/fmt.hpp"
 
@@ -32,12 +33,6 @@ namespace shaping
 {
 using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
-
-enum class VolFracSampling : int
-{
-  SAMPLE_AT_DOFS,
-  SAMPLE_AT_QPTS
-};
 
 /// Alias to function pointer that projects a \a FromDim dimensional input point to
 /// a \a ToDim dimensional query point when sampling the InOut field
@@ -59,7 +54,7 @@ public:
 
 public:
   /**
-   * \brief Constructor for a SamplingShaper
+   * \brief Constructor for a InOutSampler
    *
    * \param shapeName The name of the shape; will be used for the field for the associated samples
    * \param surfaceMesh Pointer to the surface mesh
@@ -188,12 +183,13 @@ public:
     }
     timer.stop();
 
-    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                                "\t Sampling inout field '{}' took {:.3Lf} seconds "
-                                "(@ {:L} queries per second)",
-                                inoutName,
-                                timer.elapsed(),
-                                static_cast<int>((NE * nq) / timer.elapsed())));
+    // print stats for rank 0
+    SLIC_INFO_ROOT(axom::fmt::format(
+      axom::utilities::locale(),
+      "\t Sampling inout field '{}' took {:.3Lf} seconds (@ {:L} queries per second)",
+      inoutName,
+      timer.elapsed(),
+      static_cast<int>((NE * nq) / timer.elapsed())));
   }
 
   /** 
@@ -290,10 +286,9 @@ private:
   GeometricBoundingBox m_bbox;
   std::shared_ptr<mint::Mesh> m_surfaceMesh {nullptr};
   InOutOctreeType* m_octree {nullptr};
-};  // class InOutSampler
+};
 
 }  // end namespace shaping
-
 }  // namespace quest
 }  // namespace axom
 

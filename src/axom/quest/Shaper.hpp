@@ -136,6 +136,12 @@ public:
    */
   virtual bool isValidFormat(const std::string& format) const;
 
+  /// \brief Returns the format type of the supplied \a shape
+  std::string shapeFormat(const klee::Shape& shape) const
+  {
+    return shape.getGeometry().getFormat();
+  }
+
 public:
   //@{
   //!  @name Functions related to the stages for a given shape
@@ -167,6 +173,20 @@ public:
    * \note This is the identity function when running without MPI 
    */
   double allReduceSum(double val) const;
+
+  /*!
+   * \brief Helper to apply a parallel min reduction to a quantity
+   *
+   * \note This is the identity function when running without MPI 
+   */
+  double allReduceMin(double val) const;
+
+  /*!
+   * \brief Helper to apply a parallel max reduction to a quantity
+   *
+   * \note This is the identity function when running without MPI 
+   */
+  double allReduceMax(double val) const;
 
 protected:
   /*!
