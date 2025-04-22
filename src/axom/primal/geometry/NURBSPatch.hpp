@@ -2602,14 +2602,15 @@ public:
       }
     }
 
+    // If the ray intersects an odd number of times, this indicates some robustness issue
     if(circle_params.size() % 2 != 0)
     {
-      std::cout << std::endl
-                << "Robustness issue: Not an even number of circle parameters"
-                << std::endl;
+      SLIC_WARNING(
+        "Odd number of intersections found between disk and trimming curves. "
+        "Returning empty disk.");
 
-      // If this is the case, do the closest thing you can to doing nothing.
-      circle_params.clear();
+      the_disk.m_trimmingCurves.clear();
+      return;
     }
 
     // Handle special cases where 0 intersections are recorded
@@ -3808,12 +3809,12 @@ private:
     // If the ray intersects an odd number of times, this indicates some robustness issue
     if(ray_params.size() % 2 != 0)
     {
-      std::cout << std::endl
-                << "Robustness issue: Not an even number of ray parameters"
-                << std::endl;
+      SLIC_WARNING(
+        "Odd number of intersections found between liqne and trimming curves. "
+        "All trimming curves returned with first patch.");
 
-      // If this is the case, do the closest thing you can to doing nothing.
-      ray_params.clear();
+      outCurvesFirst = m_trimmingCurves;
+      return;
     }
 
     if(ray_params.size() != 0)
