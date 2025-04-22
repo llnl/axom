@@ -108,9 +108,8 @@ private:
   //!@brief Conduit's allocator id equivalent to m_axomId.
   conduit::index_t m_conduitId;
 
-#if (CONDUIT_VERSION_MAJOR >= 0 && CONDUIT_VERSION_MINOR >= 9 && CONDUIT_VERSION_PATCH > 4) \
-    || (CONDUIT_VERSION_MAJOR >= 0 && CONDUIT_VERSION_MINOR >= 10) \
-    || CONDUIT_VERSION_MAJOR >= 1
+#if(CONDUIT_VERSION_MAJOR >= 0 && CONDUIT_VERSION_MINOR >= 9 && CONDUIT_VERSION_PATCH > 4) || \
+  (CONDUIT_VERSION_MAJOR >= 0 && CONDUIT_VERSION_MINOR >= 10) || CONDUIT_VERSION_MAJOR >= 1
   #define AXOM_CONDUIT_USES_STD_FUNCTION 1
 #endif
 

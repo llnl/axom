@@ -2104,12 +2104,12 @@ const char* View::getAttributeString(const Attribute* attr) const
  */
 int View::getValidAxomAllocatorID(int allocID)
 {
-  #ifdef AXOM_USE_UMPIRE
+#ifdef AXOM_USE_UMPIRE
   if(allocID == INVALID_ALLOCATOR_ID)
   {
     allocID = getOwningGroup()->getDefaultAllocatorID();
   }
-  #endif
+#endif
 
   return allocID;
 }
