@@ -280,120 +280,6 @@ public:
 };  // struct Input
 Input params;
 
-/*!
-  @brief Registry for objects to handle Conduit memory
-  operations by delegating to Axom.
-*/
-struct AxomConduitMemoryOps {
-  int m_axomAllocId;
-  conduit::index_t m_conduitAllocId;
-
-  static void setAxomAllocIdForConduitNode(int axomAllocId, conduit::Node& node)
-  {
-    auto& object = getInstance(axomAllocId);
-    node.set_allocator(object.m_conduitAllocId);
-  }
-
-  ~AxomConduitMemoryOps()
-  {
-    // delete m_allocCallback;
-    // delete m_deallocCallback;
-  }
-private:
-#if 1
-  typedef void* (AllocatorCallback)(size_t, size_t);
-  typedef void (DeallocCallback)(void *);
-#else
-  using AllocatorCallback = std::function<void*(size_t, size_t)>;
-  using DeallocCallback = std::function<void(void*)>;
-#endif
-  AllocatorCallback *m_allocCallback;
-  DeallocCallback *m_deallocCallback;
-  AxomConduitMemoryOps() = delete;
-  /*!
-    @brief Constructor creates allocator/deallocator function and registers
-    them with Conduit.
-  */
-  AxomConduitMemoryOps(int axomAllocId)
-    : m_axomAllocId(axomAllocId)
-  {
-    auto deallocator =
-      [] (void* ptr) {
-        char* cPtr = (char*)(ptr);
-        axom::deallocate<char>(cPtr);
-      };
-    m_deallocCallback = deallocator; // new DeallocCallback(deallocator);
-#if 0
-    auto allocator =
-      [axomAllocId] (size_t itemCount, size_t itemByteSize) {
-        void* ptr = axom::allocate<char>(itemCount * itemByteSize, axomAllocId);
-        return ptr;
-      };
-
-    // instantiate your allocator and deallocator lambdas as you already did
-
-    m_allocCallback = new AllocatorCallback(allocator);
-    m_deallocCallback = new DeallocCallback(deallocator);
-
-    // store all AllocatorCallback and DeallocCallback objects until the end of your program
-
-    m_conduitAllocId = conduit::utils::register_allocator(m_allocCallback, m_deallocCallback);
-
-    // finally, at the end of the program, delete all the std::functions
-
-    m_conduitAllocId = conduit::utils::register_allocator(allocator, deallocator);
-#else
-    if (axomAllocId == 0) {
-      m_allocCallback = [] (size_t itemCount, size_t itemByteSize) {
-                         void* ptr = axom::allocate<char>(itemCount * itemByteSize, 0);
-                         return ptr;
-                       };
-      m_conduitAllocId = conduit::utils::register_allocator(m_allocCallback, m_deallocCallback);
-    }
-    else if (axomAllocId == 1) {
-      m_allocCallback = [] (size_t itemCount, size_t itemByteSize) {
-                         void* ptr = axom::allocate<char>(itemCount * itemByteSize, 1);
-                         return ptr;
-                       };
-      m_conduitAllocId = conduit::utils::register_allocator(m_allocCallback, m_deallocCallback);
-    }
-    else if (axomAllocId == 2) {
-      m_allocCallback = [] (size_t itemCount, size_t itemByteSize) {
-                         void* ptr = axom::allocate<char>(itemCount * itemByteSize, 2);
-                         return ptr;
-                       };
-      m_conduitAllocId = conduit::utils::register_allocator(m_allocCallback, m_deallocCallback);
-    }
-    else if (axomAllocId == 3) {
-      m_allocCallback = [] (size_t itemCount, size_t itemByteSize) {
-                         void* ptr = axom::allocate<char>(itemCount * itemByteSize, 3);
-                         return ptr;
-                       };
-      m_conduitAllocId = conduit::utils::register_allocator(m_allocCallback, m_deallocCallback);
-    }
-    else {
-      SLIC_ERROR("Work-around for conduit::utils::register_allocator needs case for axomAllocId = " + std::to_string(axomAllocId));
-    }
-#endif
-  }
-
-  static AxomConduitMemoryOps& getInstance(int axomAllocId)
-  {
-    // This function is not thread safe.
-
-    // Mapping from Axom allocator and AxomConduitMemoryOps.
-    static std::map<int, std::shared_ptr<AxomConduitMemoryOps>> s_handlers;
-
-    auto it = s_handlers.find(axomAllocId);
-    if(it == s_handlers.end())
-    {
-      it = s_handlers.emplace(axomAllocId, new AxomConduitMemoryOps(axomAllocId)).first;
-    }
-    SLIC_ASSERT(it->first == axomAllocId);
-    return *it->second;
-  }
-};
-
 // Start property for all 3D shapes.
 axom::klee::TransformableGeometryProperties startProp {
   axom::klee::Dimensions::Three,
@@ -1325,9 +1211,9 @@ int main(int argc, char** argv)
     }
 #endif
     compMeshNode.reset(new conduit::Node);
-    AxomConduitMemoryOps::setAxomAllocIdForConduitNode(allocId, *compMeshNode);
+    compMeshNode->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(allocId));
     compMeshGrp->createNativeLayout(*compMeshNode);
-    AxomConduitMemoryOps::setAxomAllocIdForConduitNode(allocId, *compMeshNode);
+    compMeshNode->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(allocId));
 if(0){
   // I just created a native layout from compMeshGrp to compMeshNode.
   // Now, I want to import that compMeshNode to another group that stores data on host.
