@@ -17,11 +17,9 @@ namespace axom
 namespace quest
 {
 #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
-static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
-  conduit::DataType::INT64_ID;
+static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT64_ID;
 #else
-static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
-  conduit::DataType::INT32_ID;
+static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT32_ID;
 #endif
 
 constexpr int NUM_TETS_PER_HEX = 24;
@@ -36,19 +34,17 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
                 ? allocatorId
                 : axom::policyToDefaultAllocatorID(runtimePolicy))
   , m_topoName(topoName.empty() && bpMesh["topologies"].number_of_children() > 0
-               ? bpMesh["topologies"].child(0).name()
-               : topoName)
+                 ? bpMesh["topologies"].child(0).name()
+                 : topoName)
   , m_matsetName(matsetName.empty() && bpMesh["matsets"].number_of_children() > 0
-                 ? bpMesh.fetch("matsets").child(0).name()
-                 : matsetName)
+                   ? bpMesh.fetch("matsets").child(0).name()
+                   : matsetName)
   , m_bpNodeExt(&bpMesh)
 {
-  SLIC_ERROR_IF(
-    m_topoName.empty(),
-    "Topology name was not provided, and no default topology was found.");
-  SLIC_ERROR_IF(
-    m_matsetName.empty(),
-    "Matset name was not provided, and no default matset was found.");
+  SLIC_ERROR_IF(m_topoName.empty(),
+                "Topology name was not provided, and no default topology was found.");
+  SLIC_ERROR_IF(m_matsetName.empty(),
+                "Matset name was not provided, and no default matset was found.");
 
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
@@ -58,13 +54,11 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
                                  .fetch_existing("type")
                                  .as_string();
   SLIC_ERROR_IF(topoType != "unstructured",
-                "ShapeeMesh currently only works with unstructured mesh, not " +
-                  topoType + ".");
+                "ShapeeMesh currently only works with unstructured mesh, not " + topoType + ".");
 
   const conduit::Node& topoNode =
     m_bpNodeExt->fetch_existing("topologies").fetch_existing(m_topoName);
-  const std::string coordsetName =
-    topoNode.fetch_existing("coordset").as_string();
+  const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
   const conduit::Node& coordsetNode =
     m_bpNodeExt->fetch_existing("coordsets").fetch_existing(coordsetName);
   conduit::Node& matsetNode = m_bpNodeExt->fetch("matsets").fetch(m_matsetName);
@@ -78,8 +72,7 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
   // Input checks.
   SLIC_ERROR_IF(topoNode["type"].as_string() != "unstructured",
                 "topology type must be 'unstructured'");
-  SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "hex",
-                "element shape must be 'hex'");
+  SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "hex", "element shape must be 'hex'");
   SLIC_ERROR_IF(matsetNode["topology"].as_string() != m_topoName,
                 "matset's topology doesn't match the specified topology");
 
@@ -91,16 +84,14 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
   m_vertexCount = conduit::blueprint::mesh::coordset::length(coordsetNode);
 
   const conduit::Node& coordsValues = coordsetNode.fetch_existing("values");
-  const bool isInterleaved =
-    conduit::blueprint::mcarray::is_interleaved(coordsValues);
+  const bool isInterleaved = conduit::blueprint::mcarray::is_interleaved(coordsValues);
   const int stride = isInterleaved ? m_dim : 1;
   const char* dirNames[] = {"x", "y", "z"};
   for(int d = 0; d < m_dim; ++d)
   {
-    m_vertCoordsViews3D[d] =
-      axom::ArrayView<const double>(coordsValues[dirNames[d]].as_double_ptr(),
-                                    {m_vertexCount},
-                                    stride);
+    m_vertCoordsViews3D[d] = axom::ArrayView<const double>(coordsValues[dirNames[d]].as_double_ptr(),
+                                                           {m_vertexCount},
+                                                           stride);
   }
 }
 
@@ -114,40 +105,33 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
   , m_allocId(allocatorId != axom::INVALID_ALLOCATOR_ID
                 ? allocatorId
                 : axom::policyToDefaultAllocatorID(runtimePolicy))
-  , m_topoName(topoName.empty() && bpMesh->hasGroup("topologies")
-             && bpMesh->getGroup("topologies")->getNumGroups() > 0
-               ? bpMesh->getGroup("topologies")->getGroup(0)->getName()
-               : topoName)
-  , m_matsetName(matsetName.empty() && bpMesh->hasGroup("matsets")
-             && bpMesh->getGroup("matsets")->getNumGroups() > 0
-               ? bpMesh->getGroup("matsets")->getGroup(0)->getName()
-               : matsetName)
+  , m_topoName(topoName.empty() && bpMesh->hasGroup("topologies") &&
+                   bpMesh->getGroup("topologies")->getNumGroups() > 0
+                 ? bpMesh->getGroup("topologies")->getGroup(0)->getName()
+                 : topoName)
+  , m_matsetName(matsetName.empty() && bpMesh->hasGroup("matsets") &&
+                     bpMesh->getGroup("matsets")->getNumGroups() > 0
+                   ? bpMesh->getGroup("matsets")->getGroup(0)->getName()
+                   : matsetName)
   , m_bpGrpExt(bpMesh)
   , m_bpNodeInt()
 {
   SLIC_ASSERT(m_topoName != sidre::InvalidName);
-  SLIC_ERROR_IF(
-    m_topoName.empty(),
-    "Topology name was not provided, and no default topology was found.");
-  SLIC_ERROR_IF(
-    m_matsetName.empty(),
-    "Matset name was not provided, and no default matset was found.");
+  SLIC_ERROR_IF(m_topoName.empty(),
+                "Topology name was not provided, and no default topology was found.");
+  SLIC_ERROR_IF(m_matsetName.empty(),
+                "Matset name was not provided, and no default matset was found.");
 
   m_bpGrpExt->createNativeLayout(m_bpNodeInt);
 
   // We want unstructured topo but can accomodate structured.
-  const std::string topoType = m_bpNodeInt.fetch_existing("topologies")
-                                 .fetch_existing(m_topoName)
-                                 .fetch_existing("type")
-                                 .as_string();
+  const std::string topoType =
+    m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("type").as_string();
   SLIC_ERROR_IF(topoType != "unstructured",
-                "ShapeeMesh currently only works with unstructured mesh, not " +
-                  topoType + ".");
+                "ShapeeMesh currently only works with unstructured mesh, not " + topoType + ".");
 
-  const conduit::Node& topoNode =
-    m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_topoName);
-  const std::string coordsetName =
-    topoNode.fetch_existing("coordset").as_string();
+  const conduit::Node& topoNode = m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_topoName);
+  const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
   const conduit::Node& coordsetNode =
     m_bpNodeInt.fetch_existing("coordsets").fetch_existing(coordsetName);
   conduit::Node& matsetNode = m_bpNodeInt.fetch("matsets").fetch(m_matsetName);
@@ -160,8 +144,7 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
   // Input checks.
   SLIC_ERROR_IF(topoNode["type"].as_string() != "unstructured",
                 "topology type must be 'unstructured'");
-  SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "hex",
-                "element shape must be 'hex'");
+  SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "hex", "element shape must be 'hex'");
   SLIC_ERROR_IF(matsetNode["topology"].as_string() != m_topoName,
                 "matset's topology doesn't match the specified topology");
 
@@ -173,16 +156,14 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
   m_vertexCount = conduit::blueprint::mesh::coordset::length(coordsetNode);
 
   const conduit::Node& coordsValues = coordsetNode.fetch_existing("values");
-  const bool isInterleaved =
-    conduit::blueprint::mcarray::is_interleaved(coordsValues);
+  const bool isInterleaved = conduit::blueprint::mcarray::is_interleaved(coordsValues);
   const int stride = isInterleaved ? m_dim : 1;
   const char* dirNames[] = {"x", "y", "z"};
   for(int d = 0; d < m_dim; ++d)
   {
-    m_vertCoordsViews3D[d] =
-      axom::ArrayView<const double>(coordsValues[dirNames[d]].as_double_ptr(),
-                                    {m_vertexCount},
-                                    stride);
+    m_vertCoordsViews3D[d] = axom::ArrayView<const double>(coordsValues[dirNames[d]].as_double_ptr(),
+                                                           {m_vertexCount},
+                                                           stride);
   }
 }
 #endif
@@ -250,16 +231,14 @@ bool ShapeeMesh::isValidForShaping(std::string& whyNot) const
 
   if(rval)
   {
-    std::string topoType =
-      bpMesh.fetch("topologies")[m_topoName]["type"].as_string();
+    std::string topoType = bpMesh.fetch("topologies")[m_topoName]["type"].as_string();
     rval = topoType == "unstructured";
     info[0].set_string("Topology is not unstructured.");
   }
 
   if(rval)
   {
-    std::string elemShape =
-      bpMesh.fetch("topologies")[m_topoName]["elements/shape"].as_string();
+    std::string elemShape = bpMesh.fetch("topologies")[m_topoName]["elements/shape"].as_string();
     rval = elemShape == "hex";
     info[0].set_string("Topology elements are not hex.");
   }
@@ -317,18 +296,12 @@ void ShapeeMesh::setMatsetFromVolume(const std::string& materialName,
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     case RuntimePolicy::cuda:
-      elementwiseDivideImpl<axom::CUDA_EXEC<256>>(vfPtr,
-                                                  cellVols,
-                                                  vfPtr,
-                                                  m_cellCount);
+      elementwiseDivideImpl<axom::CUDA_EXEC<256>>(vfPtr, cellVols, vfPtr, m_cellCount);
       break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     case RuntimePolicy::hip:
-      elementwiseDivideImpl<axom::HIP_EXEC<256>>(vfPtr,
-                                                 cellVols,
-                                                 vfPtr,
-                                                 m_cellCount);
+      elementwiseDivideImpl<axom::HIP_EXEC<256>>(vfPtr, cellVols, vfPtr, m_cellCount);
       break;
 #endif
     default:
@@ -376,8 +349,9 @@ void ShapeeMesh::setFreeVolumeFractions(const std::string& freeName)
     sidre::Group* matsetGrp = m_bpGrpExt->createGroup("matsets/" + m_matsetName, false, true);
     if(matsetGrp->hasView("topology"))
     {
-      SLIC_ERROR_IF(matsetGrp->getView("topology")->getString() != m_topoName,
-                    "Material set '" + m_matsetName + "' doesn't have expected topology '" + m_topoName + "'");
+      SLIC_ERROR_IF(
+        matsetGrp->getView("topology")->getString() != m_topoName,
+        "Material set '" + m_matsetName + "' doesn't have expected topology '" + m_topoName + "'");
     }
     else
     {
@@ -471,10 +445,7 @@ void ShapeeMesh::elementwiseComplementImpl(const axom::ArrayView<T> a,
                                            const T& val,
                                            axom::ArrayView<T> results) const
 {
-  auto kern = AXOM_LAMBDA(axom::IndexType i)
-  {
-    results[i] = val >= a[i] ? val - a[i] : 0.0;
-  };
+  auto kern = AXOM_LAMBDA(axom::IndexType i) { results[i] = val >= a[i] ? val - a[i] : 0.0; };
 
   switch(m_runtimePolicy)
   {
@@ -621,16 +592,14 @@ void ShapeeMesh::computeConnectivity()
 
   const conduit::Node& bpMesh = m_bpNodeExt ? *m_bpNodeExt : m_bpNodeInt;
 
-  const conduit::Node& topoNode =
-    bpMesh.fetch_existing("topologies").fetch_existing(m_topoName);
+  const conduit::Node& topoNode = bpMesh.fetch_existing("topologies").fetch_existing(m_topoName);
   const auto& connNode = topoNode.fetch_existing("elements/connectivity");
   SLIC_ERROR_IF(connNode.dtype().id() != conduitDataIdOfAxomIndexType,
                 "IntersectionShaper error: connectivity data type must be "
                 "axom::IndexType.");
   const auto* connPtr = static_cast<const axom::IndexType*>(connNode.data_ptr());
-  m_connectivity = axom::ArrayView<const axom::IndexType, 2> {connPtr,
-                                                              m_cellCount,
-                                                              NUM_VERTS_PER_HEX};
+  m_connectivity =
+    axom::ArrayView<const axom::IndexType, 2> {connPtr, m_cellCount, NUM_VERTS_PER_HEX};
 }
 
 template <typename ExecSpace>
@@ -648,10 +617,8 @@ void ShapeeMesh::computeCellsAsHexesImpl()
 
   axom::ArrayView<const IndexType, 2> connView = getConnectivity();
 
-  m_cellsAsHexes = axom::Array<HexahedronType>(ArrayOptions::Uninitialized(),
-                                               m_cellCount,
-                                               m_cellCount,
-                                               m_allocId);
+  m_cellsAsHexes =
+    axom::Array<HexahedronType>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
   axom::ArrayView<HexahedronType> cellsAsHexesView = m_cellsAsHexes.view();
 
   constexpr double ZERO_THRESHOLD = 1.e-10;
@@ -718,28 +685,22 @@ void ShapeeMesh::computeCellsAsTetsImpl()
 template <typename ExecSpace>
 void ShapeeMesh::computeHexVolumesImpl()
 {
-  m_hexVolumes = axom::Array<double>(ArrayOptions::Uninitialized(),
-                                     m_cellCount,
-                                     m_cellCount,
-                                     m_allocId);
+  m_hexVolumes =
+    axom::Array<double>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
 
   auto cellsAsHexes = getCellsAsHexes();
 
   auto hexVolumesView = m_hexVolumes.view();
   axom::for_all<ExecSpace>(
     m_cellCount,
-    AXOM_LAMBDA(axom::IndexType i) {
-      hexVolumesView[i] = cellsAsHexes[i].volume();
-    });
+    AXOM_LAMBDA(axom::IndexType i) { hexVolumesView[i] = cellsAsHexes[i].volume(); });
 }
 
 template <typename ExecSpace>
 void ShapeeMesh::computeHexBbsImpl()
 {
-  m_hexBbs = axom::Array<BoundingBox3dType>(ArrayOptions::Uninitialized(),
-                                            m_cellCount,
-                                            m_cellCount,
-                                            m_allocId);
+  m_hexBbs =
+    axom::Array<BoundingBox3dType>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
 
   auto cellsAsHexes = getCellsAsHexes();
 
@@ -759,30 +720,27 @@ void ShapeeMesh::elementwiseDivideImpl(const T* numerator,
 {
   axom::for_all<ExecSpace>(
     n,
-    AXOM_LAMBDA(axom::IndexType i) {
-      quotient[i] = numerator[i] / denominator[i];
-    });
+    AXOM_LAMBDA(axom::IndexType i) { quotient[i] = numerator[i] / denominator[i]; });
 }
 
-conduit::Node& ShapeeMesh::getMeshConduitPath(
-  conduit::Node& node,
-  const std::string& path,
-  const conduit::DataType& dtype)
+conduit::Node& ShapeeMesh::getMeshConduitPath(conduit::Node& node,
+                                              const std::string& path,
+                                              const conduit::DataType& dtype)
 {
   conduit::Node* rval = nullptr;
 
   if(node.has_path(path))
   {
     rval = &node.fetch_existing(path);
-    SLIC_ERROR_IF(rval->dtype().id() != dtype.id() ||
-                  rval->dtype().number_of_elements() != dtype.number_of_elements() ||
-                  rval->dtype().offset() != dtype.offset() ||
-                  rval->dtype().stride() != dtype.stride() ||
-                  rval->dtype().offset() != dtype.offset() ||
-                  rval->dtype().endianness() != dtype.endianness(),
-                  "Blueprint mesh doesn't have correct type for path '" + path + "'");
+    SLIC_ERROR_IF(
+      rval->dtype().id() != dtype.id() ||
+        rval->dtype().number_of_elements() != dtype.number_of_elements() ||
+        rval->dtype().offset() != dtype.offset() || rval->dtype().stride() != dtype.stride() ||
+        rval->dtype().offset() != dtype.offset() || rval->dtype().endianness() != dtype.endianness(),
+      "Blueprint mesh doesn't have correct type for path '" + path + "'");
   }
-  else {
+  else
+  {
     node.set_allocator(axom::ConduitMemory::axomAllocIdToConduit(m_allocId));
     rval = &node.fetch(path);
     // Surprisingly, this fails:
@@ -798,21 +756,26 @@ conduit::Node& ShapeeMesh::getMeshConduitPath(
 
   bool memoryOkForPolicy =
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-    m_runtimePolicy == axom::runtime_policy::Policy::omp ?
-    axom::execution_space<axom::OMP_EXEC>::usesAllocId(allocId) :
+    m_runtimePolicy == axom::runtime_policy::Policy::omp
+    ? axom::execution_space<axom::OMP_EXEC>::usesAllocId(allocId)
+    :
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-    m_runtimePolicy == axom::runtime_policy::Policy::cuda ?
-    axom::execution_space<axom::CUDA_EXEC<256>>::usesAllocId(allocId) :
+    m_runtimePolicy == axom::runtime_policy::Policy::cuda
+    ? axom::execution_space<axom::CUDA_EXEC<256>>::usesAllocId(allocId)
+    :
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-    m_runtimePolicy == axom::runtime_policy::Policy::hip ?
-    axom::execution_space<axom::HIP_EXEC<256>>::usesAllocId(allocId) :
+    m_runtimePolicy == axom::runtime_policy::Policy::hip
+    ? axom::execution_space<axom::HIP_EXEC<256>>::usesAllocId(allocId)
+    :
 #endif
     axom::execution_space<axom::SEQ_EXEC>::usesAllocId(allocId);
 
   SLIC_WARNING_IF(!memoryOkForPolicy,
-                  "Blueprint mesh data at " + axom::fmt::format("{}", dataPtr) + " from path '" + path + "' is not accessible by execution policy " + axom::runtime_policy::policyToName(m_runtimePolicy));
+                  "Blueprint mesh data at " + axom::fmt::format("{}", dataPtr) + " from path '" +
+                    path + "' is not accessible by execution policy " +
+                    axom::runtime_policy::policyToName(m_runtimePolicy));
 
   return *rval;
 }

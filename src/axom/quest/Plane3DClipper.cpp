@@ -18,15 +18,13 @@ namespace axom
 namespace quest
 {
 
-Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom,
-                               const std::string& name)
+Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Plane3D") : name)
   , m_plane(kGeom.getPlane())
 { }
 
-bool Plane3DClipper::labelInOut(quest::ShapeeMesh& shapeeMesh,
-                                axom::Array<LabelType>& labels)
+bool Plane3DClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   switch(shapeeMesh.getRuntimePolicy())
   {
@@ -85,11 +83,9 @@ bool Plane3DClipper::specializedClip(quest::ShapeeMesh& shapeeMesh,
 }
 
 template <typename ExecSpace>
-void Plane3DClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
-                                    axom::Array<LabelType>& labels)
+void Plane3DClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3,
-                "Plane3DClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "Plane3DClipper requires a 3D mesh.");
 
   constexpr int NUM_VERTS_PER_CELL = 8;
 
@@ -105,10 +101,7 @@ void Plane3DClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
   /*
     Compute whether vertices are inside shape.
   */
-  axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(),
-                                  vertCount,
-                                  vertCount,
-                                  allocId};
+  axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
   auto vertIsInsideView = vertIsInside.view();
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vX.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
@@ -124,20 +117,15 @@ void Plane3DClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
       vertIsInsideView[vertId] = signedDist > 0;
     });
 
-  if(labels.size() < cellCount ||
-     labels.getAllocatorID() != shapeeMesh.getAllocatorId())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorId())
   {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
-                                    cellCount,
-                                    cellCount,
-                                    allocId);
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
 
   /*
     Label cell by whether it has vertices inside, outside or both.
   */
-  axom::ArrayView<const axom::IndexType, 2> connView =
-    shapeeMesh.getConnectivity();
+  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
   SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL);
 
   auto labelsView = labels.view();
@@ -170,8 +158,7 @@ void Plane3DClipper::specializedClipImpl(quest::ShapeeMesh& shapeeMesh,
   constexpr int NUM_TETS_PER_HEX = 24;
   constexpr double EPS = 1e-10;
 
-  const axom::ArrayView<const axom::IndexType, 2> connView =
-    shapeeMesh.getConnectivity();
+  const axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
   SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL);
 
   auto& vertCoords = shapeeMesh.getVertexCoords3D();
@@ -179,8 +166,7 @@ void Plane3DClipper::specializedClipImpl(quest::ShapeeMesh& shapeeMesh,
   const auto& y = vertCoords[1];
   const auto& z = vertCoords[2];
 
-  using TetsInHex =
-    axom::StackArray<primal::Tetrahedron<double, 3>, NUM_TETS_PER_HEX>;
+  using TetsInHex = axom::StackArray<primal::Tetrahedron<double, 3>, NUM_TETS_PER_HEX>;
 
   auto plane = m_plane;
   axom::for_all<ExecSpace>(

@@ -27,18 +27,15 @@ public:
       into the mesh.
     @param [in] name To override the default strategy name
   */
-  HexClipper(const klee::Geometry& kGeom,
-             const std::string& name="");
+  HexClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   virtual ~HexClipper() = default;
 
   std::string name() const override { return m_name; }
 
-  bool labelInOut(quest::ShapeeMesh& shappeMesh,
-                  axom::Array<char>& label) override;
+  bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
-  bool getShapeAsTets(quest::ShapeeMesh& shappeMesh,
-                      axom::Array<TetrahedronType>& tets) override;
+  bool getShapeAsTets(quest::ShapeeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
 
 #if !defined(__CUDACC__)
 private:

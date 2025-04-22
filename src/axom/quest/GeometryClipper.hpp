@@ -74,9 +74,9 @@ public:
                       axom::IndexType& inCount,
                       axom::IndexType& onCount,
                       axom::IndexType& outCount)
-    {
-      m_delegate->getLabelCounts(labels, inCount, onCount, outCount);
-    }
+  {
+    m_delegate->getLabelCounts(labels, inCount, onCount, outCount);
+  }
   //@}
 
   /*!
@@ -97,35 +97,29 @@ public:
       @brief Set overlap volumes to full or zero for cells inside or
       outside shape respectively, but don't touch cells on boundary.
     */
-    virtual void setCleanVolumeOverlaps(
-      const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
-      axom::ArrayView<double> ovlap) = 0;
+    virtual void setCleanVolumeOverlaps(const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
+                                        axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Collect unlabeled cells indices into an index list.
-    virtual void collectUnlabeledCellIndices(
-      const axom::ArrayView<LabelType>& labels,
-      axom::Array<axom::IndexType>& unlabeledCells) = 0;
+    virtual void collectUnlabeledCellIndices(const axom::ArrayView<LabelType>& labels,
+                                             axom::Array<axom::IndexType>& unlabeledCells) = 0;
 
     //!@brief Compute clip volumes for every cell.
     virtual void computeClipVolumes3D(axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Compute clip volumes for cell in an index list.
-    virtual void computeClipVolumes3D(
-      const axom::ArrayView<axom::IndexType>& cellIndices,
-      axom::ArrayView<double> ovlap) = 0;
+    virtual void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
+                                      axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Delegate for getLabelCounts.
-    virtual void getLabelCounts( axom::ArrayView<const LabelType> labels,
-                                 axom::IndexType& inCount,
-                                 axom::IndexType& onCount,
-                                 axom::IndexType& outCount) = 0;
+    virtual void getLabelCounts(axom::ArrayView<const LabelType> labels,
+                                axom::IndexType& inCount,
+                                axom::IndexType& onCount,
+                                axom::IndexType& outCount) = 0;
 
     ShapeeMesh& getShapeeMesh() { return m_delegator.m_shapeeMesh; }
 
-    GeometryClipperStrategy& getGeometryClipperStrategy()
-    {
-      return *m_delegator.m_strategy;
-    }
+    GeometryClipperStrategy& getGeometryClipperStrategy() { return *m_delegator.m_strategy; }
 
   protected:
     GeometryClipper& m_delegator;

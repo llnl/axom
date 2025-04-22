@@ -17,9 +17,8 @@ namespace axom
 namespace quest
 {
 
-GeometryClipper::GeometryClipper(
-  quest::ShapeeMesh& shapeeMesh,
-  const std::shared_ptr<quest::GeometryClipperStrategy>& strategy)
+GeometryClipper::GeometryClipper(quest::ShapeeMesh& shapeeMesh,
+                                 const std::shared_ptr<quest::GeometryClipperStrategy>& strategy)
   : m_shapeeMesh(shapeeMesh)
   , m_strategy(strategy)
   , m_delegate(newDelegate())
@@ -44,22 +43,23 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
 
   if(ovlap.size() < cellCount || ovlap.getAllocatorID() != allocId)
   {
-    ovlap = axom::Array<double>(ArrayOptions::Uninitialized(),
-                                cellCount,
-                                cellCount,
-                                allocId);
+    ovlap = axom::Array<double>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
 
   bool done = false;
 
   if(withInOut)
   {
-    SLIC_ERROR_IF(labels.size() != m_shapeeMesh.getCellCount(),
-                  axom::fmt::format("GeometryClipperStrategy '{}' did not return the correct array size of {}", m_strategy->name(),
-                                    m_shapeeMesh.getCellCount()));
+    SLIC_ERROR_IF(
+      labels.size() != m_shapeeMesh.getCellCount(),
+      axom::fmt::format("GeometryClipperStrategy '{}' did not return the correct array size of {}",
+                        m_strategy->name(),
+                        m_shapeeMesh.getCellCount()));
     SLIC_ERROR_IF(labels.getAllocatorID() != allocId,
-                  axom::fmt::format("GeometryClipperStrategy '{}' failed to provide labels data with the required allocator id {}",
-                                    m_strategy->name(), allocId));
+                  axom::fmt::format("GeometryClipperStrategy '{}' failed to provide labels data "
+                                    "with the required allocator id {}",
+                                    m_strategy->name(),
+                                    allocId));
 
     if(m_verbose)
     {
@@ -67,10 +67,14 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
       axom::IndexType onCount;
       axom::IndexType outCount;
       getLabelCounts(labels.view(), inCount, onCount, outCount);
-      std::string msg =
-        axom::fmt::format(
-          "GeometryClipper with strategy '{}' labeled {} inside, {} on and {} outside, out of {} cells",
-          m_strategy->name(), inCount, onCount, outCount, m_shapeeMesh.getCellCount());
+      std::string msg = axom::fmt::format(
+        "GeometryClipper with strategy '{}' labeled {} inside, {} on and {} outside, out of {} "
+        "cells",
+        m_strategy->name(),
+        inCount,
+        onCount,
+        outCount,
+        m_shapeeMesh.getCellCount());
       SLIC_INFO(msg);
     }
 
@@ -79,15 +83,14 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
     axom::Array<axom::IndexType> unlabeledCells;
     m_delegate->collectUnlabeledCellIndices(labels.view(), unlabeledCells);
 
-    done =
-      m_strategy->specializedClip(m_shapeeMesh, ovlap.view(), unlabeledCells);
+    done = m_strategy->specializedClip(m_shapeeMesh, ovlap.view(), unlabeledCells);
 
     if(!done)
     {
       m_delegate->computeClipVolumes3D(unlabeledCells.view(), ovlap.view());
     }
   }
-  else // !withInOut
+  else  // !withInOut
   {
     done = m_strategy->specializedClip(m_shapeeMesh, ovlap.view());
 
@@ -100,14 +103,13 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
   {
     SLIC_ERROR_IF(labels.getAllocatorID() != allocId,
                   "GeometryClipperStrategy '" + m_strategy->name() +
-                  "' failed to provide 'ovlap' data with the required allocator id " +
-                  std::to_string(allocId));
+                    "' failed to provide 'ovlap' data with the required allocator id " +
+                    std::to_string(allocId));
   }
 
   if(!done)
   {
-    SLIC_INFO(axom::fmt::format("Getting discrete geometry for shape '{}'",
-                                m_strategy->name()));
+    SLIC_INFO(axom::fmt::format("Getting discrete geometry for shape '{}'", m_strategy->name()));
 
     if(m_shapeeMesh.dimension() == 3)
     {
@@ -160,22 +162,19 @@ std::unique_ptr<GeometryClipper::Delegate> GeometryClipper::newDelegate()
 #ifdef AXOM_RUNTIME_POLICY_USE_CUDA
   else if(runtimePolicy == RuntimePolicy::cuda)
   {
-    delegate.reset(
-      new detail::GeometryClipperDelegateExec<axom::CUDA_EXEC<256>>(*this));
+    delegate.reset(new detail::GeometryClipperDelegateExec<axom::CUDA_EXEC<256>>(*this));
   }
 #endif
 #ifdef AXOM_RUNTIME_POLICY_USE_HIP
   else if(runtimePolicy == RuntimePolicy::hip)
   {
-    delegate.reset(
-      new detail::GeometryClipperDelegateExec<axom::HIP_EXEC<256>>(*this));
+    delegate.reset(new detail::GeometryClipperDelegateExec<axom::HIP_EXEC<256>>(*this));
   }
 #endif
   else
   {
     SLIC_ERROR(
-      axom::fmt::format("GeometryClipper has no delegate for runtime policy {}",
-                        runtimePolicy));
+      axom::fmt::format("GeometryClipper has no delegate for runtime policy {}", runtimePolicy));
   }
   return delegate;
 }

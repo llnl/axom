@@ -27,13 +27,10 @@ class GeometryClipperDelegateExec : public GeometryClipper::Delegate
 public:
   using LabelType = GeometryClipper::LabelType;
 
-  GeometryClipperDelegateExec(GeometryClipper& delegator)
-    : GeometryClipper::Delegate(delegator)
-  { }
+  GeometryClipperDelegateExec(GeometryClipper& delegator) : GeometryClipper::Delegate(delegator) { }
 
-  void setCleanVolumeOverlaps(
-    const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
-    axom::ArrayView<double> ovlap) override
+  void setCleanVolumeOverlaps(const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
+                              axom::ArrayView<double> ovlap) override
   {
     const axom::IndexType cellCount = getShapeeMesh().getCellCount();
     SLIC_ASSERT(labels.size() == cellCount);
@@ -73,16 +70,14 @@ public:
 
     const axom::IndexType labelCount = labels.size();
 
-    axom::Array<axom::IndexType> tmpLabels(labels.shape(),
-                                           labels.getAllocatorID());
+    axom::Array<axom::IndexType> tmpLabels(labels.shape(), labels.getAllocatorID());
     auto tmpLabelsView = tmpLabels.view();
     axom::for_all<ExecSpace>(
       labelCount,
       AXOM_LAMBDA(axom::IndexType ci) { tmpLabelsView[ci] = labels[ci] == 1; });
 
-    RAJA::inclusive_scan_inplace<ScanPolicy>(
-      RAJA::make_span(tmpLabels.data(), tmpLabels.size()),
-      RAJA::operators::plus<axom::IndexType> {});
+    RAJA::inclusive_scan_inplace<ScanPolicy>(RAJA::make_span(tmpLabels.data(), tmpLabels.size()),
+                                             RAJA::operators::plus<axom::IndexType> {});
 
     axom::IndexType unlabeledCount;
     axom::copy(&unlabeledCount, &tmpLabels.back(), sizeof(unlabeledCount));
@@ -91,11 +86,10 @@ public:
     if(unlabeledCells.size() < unlabeledCount ||
        unlabeledCells.getAllocatorID() != labels.getAllocatorID())
     {
-      unlabeledCells =
-        axom::Array<axom::IndexType> {axom::ArrayOptions::Uninitialized(),
-                                      unlabeledCount,
-                                      unlabeledCount,
-                                      labels.getAllocatorID()};
+      unlabeledCells = axom::Array<axom::IndexType> {axom::ArrayOptions::Uninitialized(),
+                                                     unlabeledCount,
+                                                     unlabeledCount,
+                                                     labels.getAllocatorID()};
     }
     auto unlabeledCellsView = unlabeledCells.view();
 
@@ -132,8 +126,7 @@ public:
 
     constexpr int NUM_TETS_PER_HEX = 24;
 
-    SLIC_INFO(axom::fmt::format("{:-^80}",
-                                " Inserting shapes' bounding boxes into BVH "));
+    SLIC_INFO(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
 
 #if 0
     axom::ArrayView<ShapeType> discretizedGeometryView = discretizedGeometry.view();
@@ -152,13 +145,11 @@ public:
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
 
-    SLIC_INFO(axom::fmt::format("{:-^80}",
-                                " Inserting shapes' bounding boxes into BVH "));
+    SLIC_INFO(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
 
     // Generate the BVH tree over the shape's discretized geometry
     // Axis-aligned bounding boxes
-    const axom::IndexType bbCount =
-      useTets ? geomAsTets.size() : geomAsOcts.size();
+    const axom::IndexType bbCount = useTets ? geomAsTets.size() : geomAsOcts.size();
     axom::Array<BoundingBoxType> pieceBbs(bbCount, bbCount, allocId);
     axom::ArrayView<BoundingBoxType> pieceBbsView = pieceBbs.view();
 
@@ -168,8 +159,7 @@ public:
       axom::for_all<ExecSpace>(
         bbCount,
         AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] =
-            primal::compute_bounding_box<double, 3>(geomTetsView[i]);
+          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
         });
     }
     else
@@ -177,8 +167,7 @@ public:
       axom::for_all<ExecSpace>(
         bbCount,
         AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] =
-            primal::compute_bounding_box<double, 3>(geomOctsView[i]);
+          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomOctsView[i]);
         });
     }
 
@@ -188,23 +177,17 @@ public:
 
     SLIC_INFO(axom::fmt::format("{:-^80}", " Querying the BVH tree "));
 
-    axom::ArrayView<const BoundingBoxType> cellBbsView =
-      shapeeMesh.getCellBoundingBoxes();
+    axom::ArrayView<const BoundingBoxType> cellBbsView = shapeeMesh.getCellBoundingBoxes();
 
     // Find which shape bounding boxes intersect hexahedron bounding boxes
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      " Finding shape candidates for each hexahedral element "));
+    SLIC_INFO(
+      axom::fmt::format("{:-^80}", " Finding shape candidates for each hexahedral element "));
 
     axom::Array<IndexType> offsets(cellCount, cellCount, allocId);
     axom::Array<IndexType> counts(cellCount, cellCount, allocId);
     axom::Array<IndexType> candidates;
     AXOM_ANNOTATE_BEGIN("bvh.findBoundingBoxes");
-    bvh.findBoundingBoxes(offsets,
-                          counts,
-                          candidates,
-                          cellCount,
-                          cellBbsView);
+    bvh.findBoundingBoxes(offsets, counts, candidates, cellCount, cellBbsView);
     AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
 
     // Get the total number of candidates
@@ -216,26 +199,22 @@ public:
     RAJA::ReduceSum<REDUCE_POL, int> totalCandidates(0);
     axom::for_all<ExecSpace>(
       cellCount,
-      AXOM_LAMBDA(axom::IndexType i) {
-        totalCandidates += counts_device_view[i];
-      });
+      AXOM_LAMBDA(axom::IndexType i) { totalCandidates += counts_device_view[i]; });
     AXOM_ANNOTATE_END("populate totalCandidates");
 
     AXOM_ANNOTATE_BEGIN("allocate scratch space");
     // Initialize hexahedron indices and shape candidates
     AXOM_ANNOTATE_BEGIN("allocate hex_indices");
-    axom::Array<IndexType> hex_indices_device(
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      allocId);
+    axom::Array<IndexType> hex_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
+                                              totalCandidates.get() * NUM_TETS_PER_HEX,
+                                              allocId);
     AXOM_ANNOTATE_END("allocate hex_indices");
     auto hex_indices_device_view = hex_indices_device.view();
 
     AXOM_ANNOTATE_BEGIN("allocate shape_candidates");
-    axom::Array<IndexType> shape_candidates_device(
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      allocId);
+    axom::Array<IndexType> shape_candidates_device(totalCandidates.get() * NUM_TETS_PER_HEX,
+                                                   totalCandidates.get() * NUM_TETS_PER_HEX,
+                                                   allocId);
     AXOM_ANNOTATE_END("allocate shape_candidates");
     auto shape_candidates_device_view = shape_candidates_device.view();
 
@@ -244,10 +223,9 @@ public:
 
     // Index into 'tets'
     AXOM_ANNOTATE_BEGIN("allocate tet_indices_device");
-    axom::Array<IndexType> tet_indices_device(
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      allocId);
+    axom::Array<IndexType> tet_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
+                                              totalCandidates.get() * NUM_TETS_PER_HEX,
+                                              allocId);
     AXOM_ANNOTATE_END("allocate tet_indices_device");
     auto tet_indices_device_view = tet_indices_device.view();
     AXOM_ANNOTATE_END("allocate scratch space");
@@ -284,8 +262,7 @@ public:
 
             for(int k = 0; k < NUM_TETS_PER_HEX; k++)
             {
-              IndexType idx = RAJA::atomicAdd<ATOMIC_POL>(totalCandidatesCountPtr,
-                                                          IndexType {1});
+              IndexType idx = RAJA::atomicAdd<ATOMIC_POL>(totalCandidatesCountPtr, IndexType {1});
               hex_indices_device_view[idx] = i;
               shape_candidates_device_view[idx] = shapeIdx;
               tet_indices_device_view[idx] = i * NUM_TETS_PER_HEX + k;
@@ -300,7 +277,8 @@ public:
       AXOM_LAMBDA(axom::IndexType i) { ovlap[i] = 0.0; });
 
     SLIC_INFO(axom::fmt::format("Running clip loop for {} candidate cells out of all {} cells",
-                                totalCandidatesCount, cellCount));
+                                totalCandidatesCount,
+                                cellCount));
 
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = true;
@@ -311,9 +289,7 @@ public:
 #if 1
       if(totalCandidatesCountPtr != &totalCandidatesCount)
       {
-        axom::copy(&totalCandidatesCount,
-                   totalCandidatesCountPtr,
-                   sizeof(IndexType));
+        axom::copy(&totalCandidatesCount, totalCandidatesCountPtr, sizeof(IndexType));
       }
 
       using PolyhedronType = primal::Polyhedron<double, 3>;
@@ -327,11 +303,10 @@ public:
             const int shapeIndex = shape_candidates_device_view[i];
             const int tetIndex = tet_indices_device_view[i];
 
-            const PolyhedronType poly =
-              primal::clip(geomTetsView[shapeIndex],
-                           tets_from_hexes_device_view[tetIndex],
-                           EPS,
-                           tryFixOrientation);
+            const PolyhedronType poly = primal::clip(geomTetsView[shapeIndex],
+                                                     tets_from_hexes_device_view[tetIndex],
+                                                     EPS,
+                                                     tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -352,11 +327,10 @@ public:
             const int shapeIndex = shape_candidates_device_view[i];
             const int tetIndex = tet_indices_device_view[i];
 
-            const PolyhedronType poly =
-              primal::clip(geomOctsView[shapeIndex],
-                           tets_from_hexes_device_view[tetIndex],
-                           EPS,
-                           tryFixOrientation);
+            const PolyhedronType poly = primal::clip(geomOctsView[shapeIndex],
+                                                     tets_from_hexes_device_view[tetIndex],
+                                                     EPS,
+                                                     tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -379,11 +353,10 @@ public:
           const int shapeIndex = shape_candidates_device_view[i];
           const int tetIndex = tet_indices_device_view[i];
 
-          const PolyhedronType poly =
-            primal::clip(discretizedGeometryView[shapeIndex],
-                         tets_from_hexes_device_view[tetIndex],
-                         EPS,
-                         tryFixOrientation);
+          const PolyhedronType poly = primal::clip(discretizedGeometryView[shapeIndex],
+                                                   tets_from_hexes_device_view[tetIndex],
+                                                   EPS,
+                                                   tryFixOrientation);
 
           // Poly is valid
           if(poly.numVertices() >= 4)
@@ -433,13 +406,11 @@ public:
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
 
-    SLIC_INFO(axom::fmt::format("{:-^80}",
-                                " Inserting shapes' bounding boxes into BVH "));
+    SLIC_INFO(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
 
     // Generate the BVH tree over the shape's discretized geometry
     // axis-aligned bounding boxes.  "pieces" refers to tets or octs.
-    const axom::IndexType bbCount =
-      useTets ? geomAsTets.size() : geomAsOcts.size();
+    const axom::IndexType bbCount = useTets ? geomAsTets.size() : geomAsOcts.size();
     axom::Array<BoundingBoxType> pieceBbs(bbCount, bbCount, allocId);
     axom::ArrayView<BoundingBoxType> pieceBbsView = pieceBbs.view();
 
@@ -449,8 +420,7 @@ public:
       axom::for_all<ExecSpace>(
         bbCount,
         AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] =
-            primal::compute_bounding_box<double, 3>(geomTetsView[i]);
+          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
         });
     }
     else
@@ -458,8 +428,7 @@ public:
       axom::for_all<ExecSpace>(
         bbCount,
         AXOM_LAMBDA(axom::IndexType i) {
-          pieceBbsView[i] =
-            primal::compute_bounding_box<double, 3>(geomOctsView[i]);
+          pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomOctsView[i]);
         });
     }
 
@@ -469,23 +438,17 @@ public:
 
     SLIC_INFO(axom::fmt::format("{:-^80}", " Querying the BVH tree "));
 
-    axom::ArrayView<const BoundingBoxType> cellBbsView =
-      shapeeMesh.getCellBoundingBoxes();
+    axom::ArrayView<const BoundingBoxType> cellBbsView = shapeeMesh.getCellBoundingBoxes();
 
     // Find which shape bounding boxes intersect hexahedron bounding boxes
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      " Finding shape candidates for each hexahedral element "));
+    SLIC_INFO(
+      axom::fmt::format("{:-^80}", " Finding shape candidates for each hexahedral element "));
 
     axom::Array<IndexType> offsets(cellCount, cellCount, allocId);
     axom::Array<IndexType> counts(cellCount, cellCount, allocId);
     axom::Array<IndexType> candidates;
     AXOM_ANNOTATE_BEGIN("bvh.findBoundingBoxes");
-    bvh.findBoundingBoxes(offsets,
-                          counts,
-                          candidates,
-                          cellCount,
-                          cellBbsView);
+    bvh.findBoundingBoxes(offsets, counts, candidates, cellCount, cellBbsView);
     AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
 
     // Get the total number of candidates
@@ -497,26 +460,22 @@ public:
     RAJA::ReduceSum<REDUCE_POL, int> totalCandidates(0);
     axom::for_all<ExecSpace>(
       cellCount,
-      AXOM_LAMBDA(axom::IndexType i) {
-        totalCandidates += counts_device_view[i];
-      });
+      AXOM_LAMBDA(axom::IndexType i) { totalCandidates += counts_device_view[i]; });
     AXOM_ANNOTATE_END("populate totalCandidates");
 
     AXOM_ANNOTATE_BEGIN("allocate scratch space");
     // Initialize hexahedron indices and shape candidates
     AXOM_ANNOTATE_BEGIN("allocate hex_indices");
-    axom::Array<IndexType> hex_indices_device(
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      allocId);
+    axom::Array<IndexType> hex_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
+                                              totalCandidates.get() * NUM_TETS_PER_HEX,
+                                              allocId);
     AXOM_ANNOTATE_END("allocate hex_indices");
     auto hex_indices_device_view = hex_indices_device.view();
 
     AXOM_ANNOTATE_BEGIN("allocate shape_candidates");
-    axom::Array<IndexType> shape_candidates_device(
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      allocId);
+    axom::Array<IndexType> shape_candidates_device(totalCandidates.get() * NUM_TETS_PER_HEX,
+                                                   totalCandidates.get() * NUM_TETS_PER_HEX,
+                                                   allocId);
     AXOM_ANNOTATE_END("allocate shape_candidates");
     auto shape_candidates_device_view = shape_candidates_device.view();
 
@@ -525,10 +484,9 @@ public:
 
     // Index into 'tets'
     AXOM_ANNOTATE_BEGIN("allocate tet_indices_device");
-    axom::Array<IndexType> tet_indices_device(
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      allocId);
+    axom::Array<IndexType> tet_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
+                                              totalCandidates.get() * NUM_TETS_PER_HEX,
+                                              allocId);
     AXOM_ANNOTATE_END("allocate tet_indices_device");
     auto tet_indices_device_view = tet_indices_device.view();
     AXOM_ANNOTATE_END("allocate scratch space");
@@ -545,9 +503,7 @@ public:
     }
     AXOM_ANNOTATE_END("newTotalCandidates memory");
 
-    SLIC_INFO(
-      axom::fmt::format("{:-^80}",
-                        " Creating an array of candidate pairs for shaping "));
+    SLIC_INFO(axom::fmt::format("{:-^80}", " Creating an array of candidate pairs for shaping "));
 
     const auto offsets_device_view = offsets.view();
     const auto candidates_device_view = candidates.view();
@@ -562,8 +518,7 @@ public:
 
             for(int k = 0; k < NUM_TETS_PER_HEX; k++)
             {
-              IndexType idx = RAJA::atomicAdd<ATOMIC_POL>(totalCandidatesCountPtr,
-                                                          IndexType {1});
+              IndexType idx = RAJA::atomicAdd<ATOMIC_POL>(totalCandidatesCountPtr, IndexType {1});
               hex_indices_device_view[idx] = i;
               shape_candidates_device_view[idx] = shapeIdx;
               tet_indices_device_view[idx] = i * NUM_TETS_PER_HEX + k;
@@ -577,8 +532,11 @@ public:
       ovlap.size(),
       AXOM_LAMBDA(axom::IndexType i) { ovlap[i] = 0.0; });
 
-    SLIC_INFO(axom::fmt::format("Running clip loop for {} candidate cells out of the select {} of the full {} cells",
-                                totalCandidatesCount, cellIndices.size(), cellCount));
+    SLIC_INFO(axom::fmt::format(
+      "Running clip loop for {} candidate cells out of the select {} of the full {} cells",
+      totalCandidatesCount,
+      cellIndices.size(),
+      cellCount));
 
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = true;
@@ -588,9 +546,7 @@ public:
       // Copy calculated total back to host if needed
       if(totalCandidatesCountPtr != &totalCandidatesCount)
       {
-        axom::copy(&totalCandidatesCount,
-                   totalCandidatesCountPtr,
-                   sizeof(IndexType));
+        axom::copy(&totalCandidatesCount, totalCandidatesCountPtr, sizeof(IndexType));
       }
 
       using PolyhedronType = primal::Polyhedron<double, 3>;
@@ -604,11 +560,10 @@ public:
             const int shapeIndex = shape_candidates_device_view[i];
             const int tetIndex = tet_indices_device_view[i];
 
-            const PolyhedronType poly =
-              primal::clip(geomTetsView[shapeIndex],
-                           tets_from_hexes_device_view[tetIndex],
-                           EPS,
-                           tryFixOrientation);
+            const PolyhedronType poly = primal::clip(geomTetsView[shapeIndex],
+                                                     tets_from_hexes_device_view[tetIndex],
+                                                     EPS,
+                                                     tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -629,11 +584,10 @@ public:
             const int shapeIndex = shape_candidates_device_view[i];
             const int tetIndex = tet_indices_device_view[i];
 
-            const PolyhedronType poly =
-              primal::clip(geomOctsView[shapeIndex],
-                           tets_from_hexes_device_view[tetIndex],
-                           EPS,
-                           tryFixOrientation);
+            const PolyhedronType poly = primal::clip(geomOctsView[shapeIndex],
+                                                     tets_from_hexes_device_view[tetIndex],
+                                                     EPS,
+                                                     tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -667,9 +621,18 @@ public:
       RAJA::RangeSegment(0, labels.size()),
       AXOM_LAMBDA(axom::IndexType cellId) {
         const auto& label = labels[cellId];
-        if(label == GeometryClipperStrategy::LABEL_OUT) { outSum += 1; }
-        else if(label == GeometryClipperStrategy::LABEL_IN) { inSum += 1; }
-        else { onSum += 1; }
+        if(label == GeometryClipperStrategy::LABEL_OUT)
+        {
+          outSum += 1;
+        }
+        else if(label == GeometryClipperStrategy::LABEL_IN)
+        {
+          inSum += 1;
+        }
+        else
+        {
+          onSum += 1;
+        }
       });
     inCount = static_cast<axom::IndexType>(inSum.get());
     onCount = static_cast<axom::IndexType>(onSum.get());

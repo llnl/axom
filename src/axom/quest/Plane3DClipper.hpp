@@ -30,15 +30,13 @@ public:
     Clipping operations for a semi-infinite half-space
     on the positive normal direction of a plane.
   */
-  Plane3DClipper(const klee::Geometry& kGeom,
-                 const std::string& name="");
+  Plane3DClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   virtual ~Plane3DClipper() = default;
 
   std::string name() const override { return m_name; }
 
-  bool labelInOut(quest::ShapeeMesh& shappeMesh,
-                  axom::Array<char>& label) override;
+  bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
   bool specializedClip(quest::ShapeeMesh& shappeMesh,
                        axom::ArrayView<double> ovlap,

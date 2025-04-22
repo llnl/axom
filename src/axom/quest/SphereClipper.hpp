@@ -27,15 +27,13 @@ public:
       into the mesh.
     @param [in] name To override the default strategy name
   */
-  SphereClipper(const klee::Geometry& kGeom,
-                 const std::string& name="");
+  SphereClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   virtual ~SphereClipper() = default;
 
   std::string name() const override { return m_name; }
 
-  bool labelInOut(quest::ShapeeMesh& shappeMesh,
-                  axom::Array<char>& label) override;
+  bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
   bool getShapeAsOcts(quest::ShapeeMesh& shappeMesh,
                       axom::Array<axom::primal::Octahedron<double, 3>>& octs) override;

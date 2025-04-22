@@ -19,16 +19,14 @@ namespace axom
 namespace quest
 {
 
-SphereClipper::SphereClipper(const klee::Geometry& kGeom,
-                             const std::string& name)
+SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Sphere") : name)
   , m_sphere(kGeom.getSphere())
   , m_levelOfRefinement(kGeom.getLevelOfRefinement())
 { }
 
-bool SphereClipper::labelInOut(quest::ShapeeMesh& shapeeMesh,
-                                axom::Array<LabelType>& labels)
+bool SphereClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   switch(shapeeMesh.getRuntimePolicy())
   {
@@ -57,11 +55,9 @@ bool SphereClipper::labelInOut(quest::ShapeeMesh& shapeeMesh,
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
-                                    axom::Array<LabelType>& labels)
+void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3,
-                "SphereClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
 
   constexpr int NUM_VERTS_PER_CELL = 8;
 
@@ -77,10 +73,7 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
   /*
     Compute whether vertices are inside shape.
   */
-  axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(),
-                                  vertCount,
-                                  vertCount,
-                                  allocId};
+  axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
   auto vertIsInsideView = vertIsInside.view();
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vX.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
@@ -96,21 +89,17 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
       vertIsInsideView[vertId] = signedDist < 0;
     });
 
-  if(labels.size() < cellCount ||
-     labels.getAllocatorID() != shapeeMesh.getAllocatorId())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorId())
   {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
-                                    cellCount,
-                                    cellCount,
-                                    allocId);
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
 
   /*
     Label cell by whether it has vertices inside, outside or both.
   */
-  axom::ArrayView<const axom::IndexType, 2> connView =
-    shapeeMesh.getConnectivity();
-  SLIC_ASSERT(connView.shape() == (axom::StackArray<axom::IndexType, 2>{cellCount, NUM_VERTS_PER_CELL}));
+  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
+  SLIC_ASSERT(connView.shape() ==
+              (axom::StackArray<axom::IndexType, 2> {cellCount, NUM_VERTS_PER_CELL}));
 
   auto labelsView = labels.view();
 

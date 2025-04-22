@@ -19,34 +19,35 @@ namespace axom
 namespace quest
 {
 
-HexClipper::HexClipper(const klee::Geometry& kGeom,
-                               const std::string& name)
+HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Hex") : name)
   , m_hex(kGeom.getHex())
 {
-  for( int i = 0; i < 8; ++i ) {
+  for(int i = 0; i < 8; ++i)
+  {
     m_bb.addPoint(m_hex[i]);
   }
 
   m_hex.triangulate(m_tets);
 
-  for( int iTet = 0; iTet < HexahedronType::NUM_TRIANGULATE; ++iTet ) {
+  for(int iTet = 0; iTet < HexahedronType::NUM_TRIANGULATE; ++iTet)
+  {
     const auto& tet = m_tets[iTet];
-    for( int iPlane = 0; iPlane < 4; ++iPlane ) {
-      const Point3DType& a = tet[iPlane%4];
-      const Point3DType& b = tet[(iPlane+1)%4];
-      const Point3DType& c = tet[(iPlane+2)%4];
-      m_planes[iTet][iPlane] = axom::primal::make_plane( a, b, c);
+    for(int iPlane = 0; iPlane < 4; ++iPlane)
+    {
+      const Point3DType& a = tet[iPlane % 4];
+      const Point3DType& b = tet[(iPlane + 1) % 4];
+      const Point3DType& c = tet[(iPlane + 2) % 4];
+      m_planes[iTet][iPlane] = axom::primal::make_plane(a, b, c);
       // For tet points ordered by right hand rule, odd planes
       // face outside.  Flip them to face inside.
-      if(iPlane%2 == 1) m_planes[iTet][iPlane].flip();
+      if(iPlane % 2 == 1) m_planes[iTet][iPlane].flip();
     }
   }
 }
 
-bool HexClipper::labelInOut(quest::ShapeeMesh& shapeeMesh,
-                                axom::Array<LabelType>& labels)
+bool HexClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   switch(shapeeMesh.getRuntimePolicy())
   {
@@ -75,11 +76,9 @@ bool HexClipper::labelInOut(quest::ShapeeMesh& shapeeMesh,
 }
 
 template <typename ExecSpace>
-void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
-                                axom::Array<LabelType>& labels)
+void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3,
-                "HexClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "HexClipper requires a 3D mesh.");
 
   constexpr int NUM_VERTS_PER_CELL = 8;
 
@@ -95,10 +94,7 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
   /*
     Compute whether vertices are inside shape.
   */
-  axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(),
-                                  vertCount,
-                                  vertCount,
-                                  allocId};
+  axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
   auto vertIsInsideView = vertIsInside.view();
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vX.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
@@ -113,7 +109,7 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
       primal::Point3D vert {vX[vertId], vY[vertId], vZ[vertId]};
       vertIsInsideView[vertId] = false;
 
-      if( bb.contains(vert) )
+      if(bb.contains(vert))
       {
         // Detailed check for verts inside the hex's bounding box.
         // If vert is in any tet, it's in the hex.
@@ -126,7 +122,8 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
             const auto& plane = planes[iTet][iPlane];
             isInsideTet &= plane.getOrientation(vert, 0.0) != primal::ON_NEGATIVE_SIDE;
           }
-          if(isInsideTet) {
+          if(isInsideTet)
+          {
             vertIsInsideView[vertId] = true;
             break;
           }
@@ -134,21 +131,17 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
       }
     });
 
-  if(labels.size() < cellCount ||
-     labels.getAllocatorID() != shapeeMesh.getAllocatorId())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorId())
   {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
-                                    cellCount,
-                                    cellCount,
-                                    allocId);
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
 
   /*
     Label cell by whether it has vertices inside, outside or both.
   */
-  axom::ArrayView<const axom::IndexType, 2> connView =
-    shapeeMesh.getConnectivity();
-  SLIC_ASSERT(connView.shape() == (axom::StackArray<axom::IndexType, 2>{cellCount, NUM_VERTS_PER_CELL}));
+  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
+  SLIC_ASSERT(connView.shape() ==
+              (axom::StackArray<axom::IndexType, 2> {cellCount, NUM_VERTS_PER_CELL}));
 
   auto labelsView = labels.view();
 
@@ -171,8 +164,7 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh,
   return;
 }
 
-bool HexClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh,
-                                axom::Array<TetrahedronType>& tets)
+bool HexClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
 {
   int allocId = shapeeMesh.getAllocatorId();
   if(tets.getAllocatorID() != allocId || tets.size() != HexahedronType::NUM_TRIANGULATE)

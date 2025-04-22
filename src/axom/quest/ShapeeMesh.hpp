@@ -17,7 +17,7 @@
 #include "axom/primal/geometry/BoundingBox.hpp"
 
 #ifdef AXOM_USE_SIDRE
-#include "axom/sidre.hpp"
+  #include "axom/sidre.hpp"
 #endif
 
 #include "conduit/conduit_node.hpp"
@@ -262,10 +262,7 @@ public:
   void computeHexBbsImpl();
 
   template <typename ExecSpace, typename T>
-  void elementwiseDivideImpl(const T* numerator,
-                             const T* denominator,
-                             T* quotient,
-                             axom::IndexType n);
+  void elementwiseDivideImpl(const T* numerator, const T* denominator, T* quotient, axom::IndexType n);
 
   template <typename T>
   void fillNImpl(axom::ArrayView<T> a, const T& val) const;
