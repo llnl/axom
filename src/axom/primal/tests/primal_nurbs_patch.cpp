@@ -935,6 +935,109 @@ TEST(primal_nurbspatch, patch_clip)
     }
   }
 }
+//------------------------------------------------------------------------------
+TEST(primal_nurbspatch, nurbs_parameter_space_scaling)
+{
+  SLIC_INFO("Testing NURBS Patch parameter space expansion");
+
+  const int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSPatchType = primal::NURBSPatch<CoordType, DIM>;
+
+  const int npts_u = 5;
+  const int npts_v = 4;
+
+  const int degree_u = 3;
+  const int degree_v = 2;
+
+  // clang-format off
+  PointType controlPoints[5 * 4] = {
+    PointType {0, 0, 0}, PointType {0, 4,  0}, PointType {0, 8, -3}, PointType {0, 12, 0},
+    PointType {2, 0, 3}, PointType {2, 4,  0}, PointType {2, 8,  0}, PointType {2, 12, 0},
+    PointType {4, 0, 0}, PointType {4, 4,  0}, PointType {4, 8,  3}, PointType {4, 12, 0},
+    PointType {6, 0, 0}, PointType {6, 4, -3}, PointType {6, 8,  0}, PointType {6, 12, 0},
+    PointType {8, 0, 0}, PointType {8, 4,  0}, PointType {8, 8,  0}, PointType {8, 12, 0}};
+
+  double weights[5 * 4] = {
+    1.0, 2.0, 3.0, 2.0,
+    2.0, 3.0, 4.0, 3.0,
+    3.0, 4.0, 5.0, 4.0,
+    4.0, 5.0, 6.0, 5.0,
+    5.0, 6.0, 7.0, 6.0};
+  // clang-format on
+
+  NURBSPatchType nPatch(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
+  NURBSPatchType nPatchTriviallyTrimmed(nPatch);
+  nPatchTriviallyTrimmed.makeTriviallyTrimmed();
+
+  NURBSPatchType supPatch(nPatch);
+  NURBSPatchType supPatchTrimmed(nPatchTriviallyTrimmed);
+
+  // Expand the parameter space of the patch
+  constexpr double scaleFactor = 1.05;
+
+  // Two patches have same untrimmed geometry, but the second is trimmed to the weighty_original boundary
+  supPatch.scaleParameterSpace(scaleFactor);
+  supPatchTrimmed.scaleParameterSpace(scaleFactor);
+
+  double min_u = nPatch.getMinKnot_u();
+  double max_u = nPatch.getMaxKnot_u();
+
+  double min_v = nPatch.getMinKnot_v();
+  double max_v = nPatch.getMaxKnot_v();
+
+  // Check the parameter space of the superpatches' knots
+  EXPECT_NEAR(supPatch.getMinKnot_u(), min_u - (scaleFactor - 1.0), 1e-10);
+  EXPECT_NEAR(supPatch.getMaxKnot_u(), max_u + (scaleFactor - 1.0), 1e-10);
+  EXPECT_NEAR(supPatch.getMinKnot_v(), min_v - (scaleFactor - 1.0), 1e-10);
+  EXPECT_NEAR(supPatch.getMaxKnot_v(), max_v + (scaleFactor - 1.0), 1e-10);
+
+  // Check that the patches are equal in the original parameter space
+  constexpr int npts = 15;
+  double u_pts[npts], v_pts[npts];
+  axom::numerics::linspace(min_u - (scaleFactor - 1.0),
+                           max_u + (scaleFactor - 1.0),
+                           u_pts,
+                           npts);
+  axom::numerics::linspace(min_v - (scaleFactor - 1.0),
+                           max_v + (scaleFactor - 1.0),
+                           v_pts,
+                           npts);
+
+  for(auto u : u_pts)
+  {
+    for(auto v : v_pts)
+    {
+      auto pt1 = nPatch.evaluate(axom::utilities::clampVal(u, min_u, max_u),
+                                 axom::utilities::clampVal(v, min_v, max_v));
+      auto pt2 = supPatch.evaluate(u, v);
+      auto pt3 = supPatchTrimmed.evaluate(u, v);
+
+      // If the point is in the original parameter space, the two patches should be equal
+      if((u >= min_u) && (u <= max_u) && (v >= min_v) && (v <= max_v))
+      {
+        for(int N = 0; N < DIM; ++N)
+        {
+          EXPECT_NEAR(pt1[N], pt2[N], 1e-10);
+          EXPECT_NEAR(pt1[N], pt3[N], 1e-10);
+        }
+
+        EXPECT_TRUE(supPatch.isVisible(u, v));
+        EXPECT_TRUE(supPatchTrimmed.isVisible(u, v));
+      }
+      // If not, the points should be "nearby"
+      else
+      {
+        EXPECT_LT(squared_distance(pt1, pt2), 6.0 * 6.0);
+        EXPECT_LT(squared_distance(pt1, pt3), 6.0 * 6.0);
+
+        EXPECT_TRUE(supPatch.isVisible(u, v));
+        EXPECT_FALSE(supPatchTrimmed.isVisible(u, v));
+      }
+    }
+  }
+}
 
 //------------------------------------------------------------------------------
 TEST(primal_nurbspatch, bezier_extraction)
