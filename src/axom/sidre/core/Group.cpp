@@ -3423,25 +3423,5 @@ int Group::getValidAxomAllocatorID(int allocID)
   return allocID;
 }
 
-#if 0
-/*
- *************************************************************************
- *
- * PRIVATE method to return a valid Conduit allocator ID.
- *
- *************************************************************************
- */
-int View::getValidConduitAllocatorID(int allocID)
-{
-  if(allocID == INVALID_ALLOCATOR_ID)
-  {
-    allocID = getOwningGroup()->getDefaultAllocatorID();
-  }
-  auto conduitAllocId = axom::ConduitMemory::axomAllocIdToConduit(allocID);
-
-  return conduitAllocId;
-}
-#endif
-
 } /* end namespace sidre */
 } /* end namespace axom */

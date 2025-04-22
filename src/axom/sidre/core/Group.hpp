@@ -1985,16 +1985,6 @@ private:
    */
   int getValidAxomAllocatorID(int allocatorID);
 
-#if 0
-  /*!
-   * \brief Private method. If allocatorID is a valid allocator ID then return
-   *  it. Otherwise return the ID of the default allocator of the owning group.
-   *  In both cases, return the corresponding Conduit allocator id, not the
-   *  Axom id.
-   */
-  int getValidConduitAllocatorID(int allocatorID);
-#endif
-
   /// Name of this Group object.
   std::string m_name;
 

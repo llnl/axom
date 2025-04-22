@@ -1563,18 +1563,18 @@ private:
    */
   State getStateId(const std::string& name) const;
 
-#if 1
   /*!
-   * \brief Private method. If allocatorID is a valid allocator ID then return
-   *  it. Otherwise return the ID of the default allocator of the owning group.
+   * \brief Private method. If allocatorID is a valid Axom allocator ID then return
+   *  it. Otherwise return the ID of the default Axom allocator of the owning group.
    */
   int getValidAxomAllocatorID(int allocatorID);
 
+#if 1
   /*!
-   * \brief Private method. If allocatorID is a valid allocator ID then return
-   *  it. Otherwise return the ID of the default allocator of the owning group.
-   *  In both cases, return the corresponding Conduit allocator id, not the
-   *  Axom id.
+   * \brief Private method. If allocatorID is a valid Axom allocator
+   *  ID then return its corresponding Conduit allocator ID. Otherwise
+   *  return the corresponding Conduit allocator ID of the default
+   *  allocator of the owning group.
    */
   int getValidConduitAllocatorID(int allocatorID);
 #endif

@@ -2095,7 +2095,6 @@ const char* View::getAttributeString(const Attribute* attr) const
   return m_attr_values.getString(attr);
 }
 
-#if 1
 /*
  *************************************************************************
  *
@@ -2115,6 +2114,7 @@ int View::getValidAxomAllocatorID(int allocID)
   return allocID;
 }
 
+#if 1
 /*
  *************************************************************************
  *
