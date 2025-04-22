@@ -981,7 +981,6 @@ bool intersect(const Ray<T, 3>& ray,
                double tol = 1e-8,
                double EPS = 1e-8,
                bool countUntrimmed = true,
-               bool countUntrimmed = true,
                bool isHalfOpen = false)
 {
   // Check a bounding box of the entire NURBS first
@@ -1044,10 +1043,10 @@ bool intersect(const Ray<T, 3>& ray,
 
     // Also remove any intersections that are trimmed out
     if(!countUntrimmed && !patch.isVisible(uc[i], vc[i]))
-    if(!countUntrimmed && !patch.isVisible(uc[i], vc[i]))
-    {
-      continue;
-    }
+      if(!countUntrimmed && !patch.isVisible(uc[i], vc[i]))
+      {
+        continue;
+      }
 
     Point<T, 2> uv({uc[i], vc[i]});
 

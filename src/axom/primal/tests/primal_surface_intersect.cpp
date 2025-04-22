@@ -60,7 +60,6 @@ void checkIntersections(const primal::Ray<CoordType, 3>& ray,
   // in arrays (u, v) and t, for the patch and ray, respectively
   Array u, v, t;
   bool ray_intersects = intersect(ray, patch, t, u, v, eps, eps, isHalfOpen);
-  bool ray_intersects = intersect(ray, patch, t, u, v, eps, eps, isHalfOpen);
   EXPECT_EQ(exp_intersect, ray_intersects);
   EXPECT_EQ(u.size(), v.size());
   EXPECT_EQ(u.size(), t.size());
@@ -138,7 +137,6 @@ void checkIntersections(const primal::Ray<CoordType, 3>& ray,
                         double eps,
                         double test_eps,
                         bool countUntrimmed = true,
-                        bool countUntrimmed = true,
                         bool isHalfOpen = false,
                         bool shouldPrintIntersections = false)
 {
@@ -156,8 +154,7 @@ void checkIntersections(const primal::Ray<CoordType, 3>& ray,
   // Intersect the ray and the patch, intersection parameters will be
   // in arrays (u, v) and t, for the patch and ray, respectively
   Array u, v, t;
-  bool ray_intersects =
-    intersect(ray, patch, t, u, v, eps, eps, countUntrimmed, isHalfOpen);
+  bool ray_intersects = intersect(ray, patch, t, u, v, eps, eps, countUntrimmed, isHalfOpen);
   EXPECT_EQ(exp_intersect, ray_intersects);
   EXPECT_EQ(u.size(), v.size());
   EXPECT_EQ(u.size(), t.size());
@@ -227,8 +224,6 @@ TEST(primal_surface_inter, bilinear_intersect)
   using BezierPatchType = primal::BezierPatch<CoordType, DIM>;
   using RayType = primal::Ray<CoordType, DIM>;
 
-  const double eps = 1E-10;
-  const double eps_test = 1E-8;
   const double eps = 1E-10;
   const double eps_test = 1E-8;
 
@@ -303,8 +298,6 @@ TEST(primal_surface_inter, bilinear_boundary_treatment)
   using BezierPatchType = primal::BezierPatch<CoordType, DIM>;
   using RayType = primal::Ray<CoordType, DIM>;
 
-  const double eps = 1E-10;
-  const double eps_test = 1E-8;
   const double eps = 1E-10;
   const double eps_test = 1E-8;
   const bool isHalfOpen = true;
@@ -391,8 +384,6 @@ TEST(primal_surface_inter, difficult_garp_case)
 
   const double eps = 1E-10;
   const double eps_test = 1E-8;
-  const double eps = 1E-10;
-  const double eps_test = 1E-8;
 
   SLIC_INFO("primal: testing bilinear patch intersection");
 
@@ -473,8 +464,6 @@ TEST(primal_surface_inter, flat_bilinear_intersect)
 
   const double eps = 1E-10;
   const double eps_test = 1E-8;
-  const double eps = 1E-10;
-  const double eps_test = 1E-8;
 
   SLIC_INFO("primal: testing bilinear patch intersection");
 
@@ -539,8 +528,6 @@ TEST(primal_surface_inter, flat_selfintersect_bilinear_intersect)
   using BezierPatchType = primal::BezierPatch<CoordType, DIM>;
   using RayType = primal::Ray<CoordType, DIM>;
 
-  const double eps = 1E-10;
-  const double eps_test = 1E-8;
   const double eps = 1E-10;
   const double eps_test = 1E-8;
 
@@ -756,7 +743,6 @@ TEST(primal_surface_inter, NURBS_surface_intersect)
   const double eps = 1E-5;
   const double eps_test = 1E-5;
   const bool countUntrimmed = true;
-  const bool countUntrimmed = true;
   const bool isHalfOpen = true;
 
   PointType ray_origin({0.0, 0.0, 0.0});
@@ -852,30 +838,13 @@ TEST(primal_surface_inter, trimmed_surface_intersect)
   const double eps = 1E-5;
   const double eps_test = 1E-5;
   const bool countUntrimmed = true;
-  const bool countUntrimmed = true;
   const bool isHalfOpen = true;
 
   // Intersects the trimmed surface
-  checkIntersections(ray,
-                     nPatch,
-                     {2.0},
-                     {0.5},
-                     {0.5},
-                     eps,
-                     eps_test,
-                     !countUntrimmed,
-                     isHalfOpen);
+  checkIntersections(ray, nPatch, {2.0}, {0.5}, {0.5}, eps, eps_test, !countUntrimmed, isHalfOpen);
 
   // Also intersects the untrimmed surface
-  checkIntersections(ray,
-                     nPatch,
-                     {2.0},
-                     {0.5},
-                     {0.5},
-                     eps,
-                     eps_test,
-                     countUntrimmed,
-                     isHalfOpen);
+  checkIntersections(ray, nPatch, {2.0}, {0.5}, {0.5}, eps, eps_test, countUntrimmed, isHalfOpen);
 
   // Check intersections with a ray that doesn't intersect the trimmed patch
   ray_direction = VectorType(PointType {1.0, 1.0, -3.0}, nPatch.evaluate(0.8, 0.8));
@@ -886,15 +855,7 @@ TEST(primal_surface_inter, trimmed_surface_intersect)
   checkIntersections(ray, nPatch, {}, {}, {}, eps, eps_test, !countUntrimmed, isHalfOpen);
 
   // Does intersect the untrimmed surface
-  checkIntersections(ray,
-                     nPatch,
-                     {3.3105890},
-                     {0.8},
-                     {0.8},
-                     eps,
-                     eps_test,
-                     countUntrimmed,
-                     isHalfOpen);
+  checkIntersections(ray, nPatch, {3.3105890}, {0.8}, {0.8}, eps, eps_test, countUntrimmed, isHalfOpen);
 }
 
 int main(int argc, char* argv[])
