@@ -1569,7 +1569,6 @@ private:
    */
   int getValidAxomAllocatorID(int allocatorID);
 
-#if 1
   /*!
    * \brief Private method. If allocatorID is a valid Axom allocator
    *  ID then return its corresponding Conduit allocator ID. Otherwise
@@ -1577,7 +1576,6 @@ private:
    *  allocator of the owning group.
    */
   int getValidConduitAllocatorID(int allocatorID);
-#endif
 
   //!@brief Print on host, as a single line.
   template <typename T>

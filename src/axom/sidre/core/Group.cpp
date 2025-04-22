@@ -1402,42 +1402,13 @@ Group* Group::deepCopyGroupToSelf(const Group* srcGroup)
   // copy child Groups to new Group
   for(auto& grp : srcGroup->groups())
   {
-#if 1
     deepCopyGroup(&grp);
-#else
-    Group* dst = nullptr;
-    if(m_is_list)
-    {
-      dst = createUnnamedGroup(grp.m_is_list);
-    }
-    else
-    {
-      const std::string& grpName = srcGroup->getName();
-      dst = createGroup(grpName, grp.m_is_list);
-    }
-    dst->deepCopyGroupToSelf(&grp);
-#endif
   }
 
   // copy Views to new Group
   for(auto& view : srcGroup->views())
   {
-#if 1
     deepCopyView(&view);
-#else
-    View* dst = nullptr;
-    if(m_is_list)
-    {
-      dst = createUnnamedGroup(grp.m_is_list);
-    }
-    else
-    {
-      const std::string& grpName = srcGroup->getName();
-      dst = createGroup(grpName, grp.m_is_list);
-    }
-    dst->deepCopyGroupToSelf(&grp);
-    deepCopyView(&view, allocID);
-#endif
   }
 
   return this;

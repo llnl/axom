@@ -2114,7 +2114,6 @@ int View::getValidAxomAllocatorID(int allocID)
   return allocID;
 }
 
-#if 1
 /*
  *************************************************************************
  *
@@ -2132,7 +2131,6 @@ int View::getValidConduitAllocatorID(int allocID)
 
   return conduitAllocId;
 }
-#endif
 
 } /* end namespace sidre */
 } /* end namespace axom */
