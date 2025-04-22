@@ -468,7 +468,6 @@ View* Group::createView(const std::string& path, const DataType& dtype)
   if(view != nullptr)
   {
     view->describe(dtype);
-    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
 
   return view;
@@ -494,7 +493,6 @@ View* Group::createView(const std::string& path, Buffer* buff)
   if(view != nullptr)
   {
     view->attachBuffer(buff);
-    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
   return view;
 }
@@ -513,7 +511,6 @@ View* Group::createView(const std::string& path, TypeID type, IndexType num_elem
   if(view != nullptr)
   {
     view->attachBuffer(buff);
-    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
   return view;
 }
@@ -536,7 +533,6 @@ View* Group::createViewWithShape(const std::string& path,
   if(view != nullptr)
   {
     view->attachBuffer(buff);
-    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
   return view;
 }
@@ -555,7 +551,6 @@ View* Group::createView(const std::string& path, const DataType& dtype, Buffer* 
   if(view != nullptr)
   {
     view->attachBuffer(buff);
-    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
 
   return view;
@@ -665,7 +660,6 @@ View* Group::createViewAndAllocate(const std::string& path, TypeID type, IndexTy
   if(view != nullptr)
   {
     view->allocate(allocID);
-    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
   return view;
 }
@@ -690,7 +684,6 @@ View* Group::createViewWithShapeAndAllocate(const std::string& path,
   if(view != nullptr)
   {
     view->allocate(allocID);
-    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
   return view;
 }
@@ -711,7 +704,6 @@ View* Group::createViewAndAllocate(const std::string& path, const DataType& dtyp
   if(view != nullptr)
   {
     view->allocate(allocID);
-    assert(view->m_state == View::State::BUFFER || view->m_state == View::State::EMPTY);
   }
   return view;
 }
@@ -2885,18 +2877,6 @@ bool Group::importConduitTree(const conduit::Node& node, bool preserve_contents)
   return success;
 }
 
-/*
-  TODO: Fix: This implementation is not fully shallow copying as its comments
-  claim.
-  It only shallow-copies nodes that are arrays of more than 1.
-  For strings and arrays of 1 numeric value, it makes a deep copy.
-  (Conduit doesn't differentiate between array-of-1 and scalars.)
-  We can't do much about the ambiguities of interpreting Conduit
-  data, but we should shallow copy all.
-  But then, what is the state of a string with external storage,
-  STRING or EXTERNAL?  What are resonable alternatives?  Exempt
-  these two types from external pointers and deep copying them?
-*/
 bool Group::importConduitTreeExternal(conduit::Node& node, bool preserve_contents)
 {
   bool success = true;

@@ -79,12 +79,6 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   // This may take too long if there are repeated construction.
   m_bpGrp->createNativeLayout(m_bpNodeInt);
 
-#if defined(AXOM_DEBUG) && 0
-  std::string whyBad;
-  bool goodMesh = verifyInputMesh(whyBad);
-  SLIC_ASSERT_MSG(goodMesh, whyBad);
-#endif
-
   m_cellCount = conduit::blueprint::mesh::topology::length(
     m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_bpTopo));
 
@@ -181,12 +175,6 @@ Shaper::Shaper(RuntimePolicy execPolicy,
   }
 
   m_bpGrp->createNativeLayout(m_bpNodeInt);
-
-#if defined(AXOM_DEBUG) && 0
-  std::string whyBad;
-  bool goodMesh = verifyInputMesh(whyBad);
-  SLIC_ASSERT_MSG(goodMesh, whyBad);
-#endif
 
   m_cellCount = conduit::blueprint::mesh::topology::length(
     bpNode.fetch_existing("topologies").fetch_existing(m_bpTopo));
