@@ -271,10 +271,6 @@ public:
 #endif
     AXOM_ANNOTATE_END("newTotalCandidates memory");
 
-    SLIC_INFO(
-      axom::fmt::format("{:-^80}",
-                        " Creating an array of candidate pairs for shaping "));
-
     const auto offsets_device_view = offsets.view();
     const auto candidates_device_view = candidates.view();
     {
@@ -545,6 +541,7 @@ public:
     {
       // Use temporary space compatible with runtime policy.
       totalCandidatesCountPtr = axom::allocate<IndexType>(1, allocId);
+      axom::copy(totalCandidatesCountPtr, &totalCandidatesCount, sizeof(IndexType));
     }
     AXOM_ANNOTATE_END("newTotalCandidates memory");
 

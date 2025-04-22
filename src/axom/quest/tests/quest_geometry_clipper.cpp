@@ -1373,7 +1373,7 @@ if(params.useBlueprintSidre()) sMesh.getMeshAsSidre()->print();
   SLIC_INFO(axom::fmt::format("{:-^80}", ""));
   slic::flushStreams();
 
-  AXOM_ANNOTATE_END("quest shaping example");
+  AXOM_ANNOTATE_END("quest example for shaping primals");
 
   finalizeLogger();
 

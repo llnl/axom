@@ -28,10 +28,6 @@ namespace quest
   that can run fast on specific geometries.  This allows for
   geometry-specific optimizations.  If no such specialization
   is provided, default methods are used.
-
-  TODO: Consider renaming all GeometryClipper* classes to
-  GeometryClipper*.  We only need the klee::Geometry, not the
-  klee::Geometry.
 */
 class GeometryClipper
 {

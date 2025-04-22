@@ -43,17 +43,14 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
                  : matsetName)
   , m_bpNodeExt(&bpMesh)
 {
-#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-  SLIC_WARNING_IF(m_runtimePolicy == axom::runtime_policy::Policy::cuda,
-               "ShapeeMesh is initializing to run in the CUDA execution space with a conduit::Node.  Note that Conduit cannot directly allocate memory from Umpire allocator ids.  All required memory must be pre-allocated in the Node.  Attempting to allocate memory for the Node will cause an exception.");
-#endif
-
   SLIC_ERROR_IF(
     m_topoName.empty(),
     "Topology name was not provided, and no default topology was found.");
   SLIC_ERROR_IF(
     m_matsetName.empty(),
     "Matset name was not provided, and no default matset was found.");
+
+  const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // We want unstructured topo but can accomodate structured.
   const std::string topoType = m_bpNodeExt->fetch_existing("topologies")
@@ -74,6 +71,7 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
 
   if(!matsetNode.has_child("topology"))
   {
+    matsetNode.set_allocator(axom::ConduitMemory::axomAllocIdToConduit(hostAllocId));
     matsetNode.fetch("topology").set_string(m_topoName);
   }
 
@@ -785,7 +783,12 @@ conduit::Node& ShapeeMesh::getMeshConduitPath(
                   "Blueprint mesh doesn't have correct type for path '" + path + "'");
   }
   else {
+    node.set_allocator(axom::ConduitMemory::axomAllocIdToConduit(m_allocId));
     rval = &node.fetch(path);
+    // Surprisingly, this fails:
+    // SLIC_ASSERT(rval->allocator() == node.allocator());
+    // We therefore have to set rval's allocator manually.
+    rval->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(m_allocId));
     rval->set(dtype);
   }
 
@@ -808,8 +811,8 @@ conduit::Node& ShapeeMesh::getMeshConduitPath(
 #endif
     axom::execution_space<axom::SEQ_EXEC>::usesAllocId(allocId);
 
-  SLIC_ERROR_IF(!memoryOkForPolicy,
-                "Blueprint mesh data at " + axom::fmt::format("{}", dataPtr) + " from path '" + path + "' is not accessible by execution policy " + axom::runtime_policy::policyToName(m_runtimePolicy));
+  SLIC_WARNING_IF(!memoryOkForPolicy,
+                  "Blueprint mesh data at " + axom::fmt::format("{}", dataPtr) + " from path '" + path + "' is not accessible by execution policy " + axom::runtime_policy::policyToName(m_runtimePolicy));
 
   return *rval;
 }
