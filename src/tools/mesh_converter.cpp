@@ -100,7 +100,7 @@ public:
 
   /// \brief Returns the \a OrderedSet of vertex indices for the zone at index \a zone_index
   // \note These are lightweight views on the data, so we return by value
-  const auto zone(PositionType zone_index) const { return m_zn_rel[zone_index]; }
+  auto zone(PositionType zone_index) const { return m_zn_rel[zone_index]; }
   auto zone(PositionType zone_index) { return m_zn_rel[zone_index]; }
 
   /// \brief Returns the position in space of the vertex at index \a vertex_index

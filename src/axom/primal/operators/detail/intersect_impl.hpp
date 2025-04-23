@@ -846,8 +846,7 @@ bool intersect_tri_ray(const Triangle<T, 3>& tri, const Ray<T, 3>& R, T& t, Poin
  * \param [in] tri The input triangle
  * \param [in] S The input segment
  * \param [out] t Intersection point of tri and S, w.r.t. parametrization of S
- * \param [out] p Intersection point of tri and S, in barycentric coordinates
- *   relative to tri
+ * \param [out] p Intersection point of tri and S, in barycentric coordinates relative to tri
  * \return status true iff tri intersects with R, otherwise, false.
  *
  * This routine uses intersect_tri_ray(), which see.
@@ -857,27 +856,24 @@ bool intersect_tri_segment(const Triangle<T, 3>& tri, const Segment<T, 3>& S, T&
 {
   Ray<T, 3> r(S.source(), Vector3(S.source(), S.target()));
 
-  //Ray-triangle intersection does not check endpoints, so we explicitly check
-  // here
-  if(tri.checkInTriangle(S.source()))
+  //Ray-triangle intersection does not check endpoints, so we explicitly check here
+  if(tri.contains(S.source()))
   {
     t = 0;
     p = tri.physToBarycentric(S.source());
     return true;
   }
-  if(tri.checkInTriangle(S.target()))
+  if(tri.contains(S.target()))
   {
     t = 1;
     p = tri.physToBarycentric(S.target());
     return true;
   }
 
-  // The triangle only intersects the segment if it intersects the ray defined
-  // by one
+  // The triangle only intersects the segment if it intersects the ray defined by one
   // of its endpoints and the direction defined by its two endpoints.
   // We can parametrize the line as:  r.origin() + t * r.direction()
-  // Values of the parameter t between 0 and the length of the segment
-  // correspond
+  // Values of the parameter t between 0 and the length of the segment correspond
   // to points on the segment.
   // Note: if intersect_tri_ray() is true, t must be greater than zero
   if(intersect_tri_ray(tri, r, t, p))
