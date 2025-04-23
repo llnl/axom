@@ -414,6 +414,7 @@ public:
   #endif
       default:
         SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+        break;
       }
     }
     // Setup 3D mesh
@@ -441,6 +442,7 @@ public:
   #endif
       default:
         SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+        break;
       }
     }
   }
@@ -468,7 +470,7 @@ public:
     axom::for_all<ExecSpace>(
       m_cellCount,
       AXOM_LAMBDA(axom::IndexType i) { cell_volumes_device_view[i] = quads_device_view[i].area(); });
-    AXOM_ANNOTATE_BEGIN("cell_volume");
+    AXOM_ANNOTATE_END("cell_volume");
 
     AXOM_ANNOTATE_BEGIN("populate m_quad_bbs");
     m_quad_bbs = axom::Array<BoundingBox2D>(m_cellCount, m_cellCount, m_allocatorId);

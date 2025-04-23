@@ -296,6 +296,12 @@ View* View::reshapeArray(int ndims, const IndexType* shape)
     return this;
   }
 
+  if(shape == nullptr)
+  {
+    SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND << "Invalid shape.");
+    return this;
+  }
+
   IndexType newSize = shape[0];
   for(int d = 1; d < ndims; ++d)
   {
@@ -303,7 +309,9 @@ View* View::reshapeArray(int ndims, const IndexType* shape)
   }
   if(newSize != getNumElements())
   {
-    SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND << "View reshape must not change the number of elements.");
+    SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND << "View reshape must not change the number of elements."
+                                        << " Current num elements: " << getNumElements()
+                                        << "; Desired size: " << newSize);
     return this;
   }
 
@@ -725,27 +733,30 @@ bool View::isAllocated() const
  */
 int View::getShape(int ndims, IndexType* shape) const
 {
-  if(static_cast<unsigned>(ndims) < m_shape.size())
+  const int viewDims = getNumDimensions();
+  if(ndims < viewDims)
   {
+    SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND << "getShape(): passed in array is not large enough for "
+                                           "view's shape. Array only has space for "
+                                        << ndims << " dims, but view has " << viewDims);
     return -1;
   }
 
-  const int shapeSize = getNumDimensions();
-  for(int i = 0; i < shapeSize; ++i)
+  for(int i = 0; i < viewDims; ++i)
   {
     shape[i] = m_shape[i];
   }
 
-  // Fill the rest of the array with zeros (when ndims > shapeSize)
-  if(ndims > shapeSize)
+  // Fill the rest of the array with zeros (when ndims > viewDims)
+  if(ndims > viewDims)
   {
-    for(int i = shapeSize; i < ndims; ++i)
+    for(int i = viewDims; i < ndims; ++i)
     {
       shape[i] = 0;
     }
   }
 
-  return m_shape.size();
+  return viewDims;
 }
 
 /*
