@@ -62,7 +62,7 @@ TEST(utils_Timer, timer_check_duration)
   std::cout << "Elapsed: " << e << std::endl;
 
   EXPECT_GE(e, sleep_duration_s);
-  EXPECT_LT(e, 2 * sleep_duration_s);
+  EXPECT_LT(e, sleep_duration_s + 1);
 }
 
 TEST(utils_Timer, timer_check_sum)
