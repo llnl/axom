@@ -97,8 +97,8 @@ TEST(primal_winding_number, simple_cases)
   const bool includeBoundary = true;
   for(double y = -2.0; y < 2.0; y += 0.15)
   {
-    auto q = Point2D {0.0, y};
-    if(tri.checkInTriangle(q))
+    const auto q = Point2D {0.0, y};
+    if(tri.contains(q))
     {
       EXPECT_EQ(winding_number(q, tri, includeBoundary), 1);
     }
@@ -112,8 +112,8 @@ TEST(primal_winding_number, simple_cases)
   tri = Triangle(Point2D {1.0, -1.0}, Point2D {2.0, 0.5}, Point2D {0.5, -2.0});
   for(double y = -2.0; y < 2.0; y += 0.15)
   {
-    auto q = Point2D {0.0, y};
-    if(tri.checkInTriangle(q))
+    const auto q = Point2D {0.0, y};
+    if(tri.contains(q))
     {
       EXPECT_EQ(winding_number(q, tri, includeBoundary), -1);
     }
