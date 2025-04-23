@@ -139,7 +139,9 @@ public:
     m_shapeSet = std::make_unique<klee::ShapeSet>(klee::readShapeSet(shapefile));
 
     SLIC_INFO_IF(very_verbose_output, axom::fmt::format("Shaping materials..."));
-    m_shaper = std::make_unique<quest::SamplingShaper>(*m_shapeSet, &m_dc);
+    const auto policy = axom::runtime_policy::Policy::seq;
+    const auto alloc = axom::policyToDefaultAllocatorID(policy);
+    m_shaper = std::make_unique<quest::SamplingShaper>(policy, alloc, *m_shapeSet, &m_dc);
     m_shaper->setVerbosity(very_verbose_output);
 
     if(!init_vf_map.empty())

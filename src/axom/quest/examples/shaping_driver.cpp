@@ -201,8 +201,7 @@ public:
 
     app.add_option("-e,--percent-error", percentError)
       ->description(
-        "Percent error used for calculating curve refinement and revolved "
-        "volume.\n"
+        "Percent error used for calculating curve refinement and revolved volume.\n"
         "If this value is provided then dynamic curve refinement will be used\n"
         "instead of segment-based curve refinement.")
       ->check(axom::CLI::PositiveNumber)
@@ -276,8 +275,7 @@ public:
       sampling_options->add_option("-q,--quadrature-order", quadratureOrder)
         ->description(
           "Quadrature order for sampling the inout field. \n"
-          "Determines number of samples per element in determining "
-          "volume fraction field")
+          "Determines number of samples per element in determining volume fraction field")
         ->capture_default_str()
         ->check(axom::CLI::PositiveNumber);
 
@@ -287,8 +285,7 @@ public:
       sampling_options->add_option("-s,--sampling-type", vfSampling)
         ->description(
           "Sampling strategy. \n"
-          "Sampling either at quadrature points or collocated with "
-          "degrees of freedom")
+          "Sampling either at quadrature points or collocated with degrees of freedom")
         ->capture_default_str()
         ->transform(axom::CLI::CheckedTransformer(vfsamplingMap, axom::CLI::ignore_case));
     }
@@ -536,7 +533,10 @@ int main(int argc, char** argv)
   switch(params.shapingMethod)
   {
   case ShapingMethod::Sampling:
-    shaper = new quest::SamplingShaper(params.shapeSet, &shapingDC);
+    shaper = new quest::SamplingShaper(params.policy,
+                                       axom::policyToDefaultAllocatorID(params.policy),
+                                       params.shapeSet,
+                                       &shapingDC);
     break;
   case ShapingMethod::Intersection:
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
@@ -727,7 +727,10 @@ int main(int argc, char** argv)
   }
 
 #ifdef MFEM_USE_MPI
-  shaper->getDC()->Save();
+  {
+    AXOM_ANNOTATE_SCOPE("save shaping results");
+    shaper->getDC()->Save();
+  }
 #endif
 
   delete shaper;

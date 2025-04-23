@@ -38,12 +38,11 @@ using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
 template <int FromDim, int ToDim>
 using PointProjector = std::function<primal::Point<double, ToDim>(primal::Point<double, FromDim>)>;
 
-template <int NDIMS>
+template <int NDIMS, typename ExecSpace>
 class PrimitiveSampler
 {
 public:
   static constexpr int DIM = NDIMS;
-  using ExecSpace = axom::SEQ_EXEC;
   using BVHType = spin::BVH<DIM, ExecSpace, double>;
   using GeometricBoundingBox = primal::BoundingBox<double, DIM>;
   using SpacePt = primal::Point<double, DIM>;
@@ -172,8 +171,6 @@ public:
                                                         int sampleRes,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
-    AXOM_UNUSED_VAR(dc);
-
     // using FromPoint = primal::Point<double, FromDim>;
     // using ToPoint = primal::Point<double, ToDim>;
     AXOM_ANNOTATE_SCOPE("sample containment");
@@ -215,7 +212,9 @@ public:
     axom::ArrayView<const SpacePt> query_view(reinterpret_cast<const SpacePt*>(pos_coef->HostRead()),
                                               nq);
     axom::ArrayView<double> inout_view(const_cast<double*>(inout->HostRead()), nq);
-    *inout = 0.;
+    axom::for_all<ExecSpace>(
+      nq,
+      AXOM_LAMBDA(axom::IndexType i) { inout_view[i] = 0.; });
 
     axom::Array<IndexType> offsets(nq, nq);
     axom::Array<IndexType> counts(nq, nq);

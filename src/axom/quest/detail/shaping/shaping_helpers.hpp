@@ -13,19 +13,46 @@
 #define AXOM_QUEST_SHAPING_HELPERS__HPP_
 
 #include "axom/config.hpp"
+#include "axom/core.hpp"
 
-#if !defined(AXOM_USE_MFEM)
-  #error Sampling-shaping functionality requires Axom to be configured with MFEM and the AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION option
+#if defined(AXOM_USE_MFEM)
+  #include "mfem.hpp"
 #endif
-
-#include "mfem.hpp"
 
 namespace axom
 {
 namespace quest
 {
+
+// clang-format off
+using seq_exec = axom::SEQ_EXEC;
+
+#if defined(AXOM_USE_OPENMP)
+  using omp_exec = axom::OMP_EXEC;
+#else
+  using omp_exec = seq_exec;
+#endif
+
+#if defined(AXOM_USE_CUDA) && defined (AXOM_USE_UMPIRE)
+  constexpr int CUDA_BLOCK_SIZE = 256;
+  using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
+#else
+  using cuda_exec = seq_exec;
+#endif
+
+#if defined(AXOM_USE_HIP) && defined (AXOM_USE_UMPIRE)
+  constexpr int HIP_BLOCK_SIZE = 64;
+  using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;
+#else
+  using hip_exec = seq_exec;
+#endif
+// clang-format on
+
 namespace shaping
 {
+
+#if defined(AXOM_USE_MFEM)
+
 using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
 
@@ -108,6 +135,8 @@ void FCT_project(mfem::DenseMatrix& M,
 void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
                                     mfem::QuadratureFunction* inout,
                                     const std::string& name);
+
+#endif  // defined(AXOM_USE_MFEM)
 
 }  // end namespace shaping
 }  // end namespace quest

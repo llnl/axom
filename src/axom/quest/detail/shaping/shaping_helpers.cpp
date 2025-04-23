@@ -17,6 +17,8 @@ namespace quest
 {
 namespace shaping
 {
+#if defined(AXOM_USE_MFEM)
+
 void replaceMaterial(mfem::QuadratureFunction* shapeQFunc,
                      mfem::QuadratureFunction* materialQFunc,
                      bool shapeReplacesMaterial)
@@ -275,11 +277,11 @@ void FCT_project(mfem::DenseMatrix& M,
 
   const double y_avg = m.Sum() / dMLX;
 
-#ifdef AXOM_DEBUG
+  #ifdef AXOM_DEBUG
   SLIC_WARNING_IF(
     !(y_min < y_avg + 1e-12 && y_avg < y_max + 1e-12),
     axom::fmt::format("Average ({}) is out of bounds [{},{}]: ", y_avg, y_min - 1e-12, y_max + 1e-12));
-#endif
+  #endif
 
   Vector z(s);
   Vector beta(s);
@@ -392,6 +394,8 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
 
   (*volFrac) = (*inout);
 }
+
+#endif  // defined(AXOM_USE_MFEM)
 
 }  // end namespace shaping
 }  // end namespace quest

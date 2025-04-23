@@ -142,6 +142,9 @@ public:
     return shape.getGeometry().getFormat();
   }
 
+  /// \brief Returns the execution policy used by the Shaper
+  RuntimePolicy getExecutionPolicy() const { return m_execPolicy; }
+
 public:
   //@{
   //!  @name Functions related to the stages for a given shape
@@ -249,10 +252,10 @@ protected:
 
 #if defined(AXOM_USE_CONDUIT)
   //! @brief Version of the mesh for computations.
-  axom::sidre::Group* m_bpGrp;
+  axom::sidre::Group* m_bpGrp {nullptr};
   const std::string m_bpTopo;
   //! @brief Mesh in an external Node, when provided as a Node.
-  conduit::Node* m_bpNodeExt;
+  conduit::Node* m_bpNodeExt {nullptr};
   //! @brief Initial copy of mesh in an internal Node storage.
   conduit::Node m_bpNodeInt;
 #endif

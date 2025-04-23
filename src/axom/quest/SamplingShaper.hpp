@@ -47,11 +47,11 @@ namespace quest
 class SamplingShaper : public Shaper
 {
 public:
-  SamplingShaper(const klee::ShapeSet& shapeSet, sidre::MFEMSidreDataCollection* dc)
-    : Shaper(Shaper::RuntimePolicy::seq,
-             axom::policyToDefaultAllocatorID(axom::runtime_policy::Policy::seq),
-             shapeSet,
-             dc)
+  SamplingShaper(RuntimePolicy execPolicy,
+                 int allocatorId,
+                 const klee::ShapeSet& shapeSet,
+                 sidre::MFEMSidreDataCollection* dc)
+    : Shaper(execPolicy, allocatorId, shapeSet, dc)
   { }
 
   ~SamplingShaper()
@@ -100,7 +100,10 @@ private:
       break;
     case 3:
       count += (m_inoutSampler3D != nullptr) ? 1 : 0;
-      count += (m_primitiveSampler3D != nullptr) ? 1 : 0;
+      count += (m_primitiveSampler3D_seq != nullptr) ? 1 : 0;
+      count += (m_primitiveSampler3D_omp != nullptr) ? 1 : 0;
+      count += (m_primitiveSampler3D_cuda != nullptr) ? 1 : 0;
+      count += (m_primitiveSampler3D_hip != nullptr) ? 1 : 0;
       break;
     default:
       SLIC_ERROR("Invalid dimension " << dim);
@@ -159,9 +162,42 @@ public:
       }
       else if(this->shapeFormat(shape) == "proe")
       {
-        m_primitiveSampler3D = new shaping::PrimitiveSampler<3>(shapeName, m_surfaceMesh);
-        m_primitiveSampler3D->computeBounds();
-        m_primitiveSampler3D->initSpatialIndex();
+        switch(this->getExecutionPolicy())
+        {
+        case runtime_policy::Policy::seq:
+          m_primitiveSampler3D_seq =
+            new shaping::PrimitiveSampler<3, seq_exec>(shapeName, m_surfaceMesh);
+          m_primitiveSampler3D_seq->computeBounds();
+          m_primitiveSampler3D_seq->initSpatialIndex();
+          break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+        case runtime_policy::Policy::omp:
+          m_primitiveSampler3D_omp =
+            new shaping::PrimitiveSampler<3, omp_exec>(shapeName, m_surfaceMesh);
+          m_primitiveSampler3D_omp->computeBounds();
+          m_primitiveSampler3D_omp->initSpatialIndex();
+          break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+        case runtime_policy::Policy::cuda:
+          m_primitiveSampler3D_cuda =
+            new shaping::PrimitiveSampler<3, cuda_exec>(shapeName, m_surfaceMesh);
+          m_primitiveSampler3D_cuda->computeBounds();
+          m_primitiveSampler3D_cuda->initSpatialIndex();
+          break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+        case runtime_policy::Policy::hip:
+          m_primitiveSampler3D_hip =
+            new shaping::PrimitiveSampler<3, hip_exec>(shapeName, m_surfaceMesh);
+          m_primitiveSampler3D_hip->computeBounds();
+          m_primitiveSampler3D_hip->initSpatialIndex();
+          break;
+#endif
+        default:
+          SLIC_ERROR("Unsupported execution policy for PrimitiveSampler3D");
+          break;
+        }
       }
       break;
 
@@ -219,7 +255,30 @@ public:
       }
       else if(this->shapeFormat(shape) == "proe")
       {
-        runShapeQueryImpl(m_primitiveSampler3D);
+        switch(this->getExecutionPolicy())
+        {
+        case runtime_policy::Policy::seq:
+          runShapeQueryImpl(m_primitiveSampler3D_seq);
+          break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+        case runtime_policy::Policy::omp:
+          runShapeQueryImpl(m_primitiveSampler3D_omp);
+          break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+        case runtime_policy::Policy::cuda:
+          runShapeQueryImpl(m_primitiveSampler3D_cuda);
+          break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+        case runtime_policy::Policy::hip:
+          runShapeQueryImpl(m_primitiveSampler3D_hip);
+          break;
+#endif
+        default:
+          SLIC_ERROR("Unsupported execution policy for PrimitiveSampler3D");
+          break;
+        }
       }
       break;
     }
@@ -321,8 +380,17 @@ public:
     delete m_inoutSampler3D;
     m_inoutSampler3D = nullptr;
 
-    delete m_primitiveSampler3D;
-    m_primitiveSampler3D = nullptr;
+    delete m_primitiveSampler3D_seq;
+    m_primitiveSampler3D_seq = nullptr;
+
+    delete m_primitiveSampler3D_omp;
+    m_primitiveSampler3D_omp = nullptr;
+
+    delete m_primitiveSampler3D_cuda;
+    m_primitiveSampler3D_cuda = nullptr;
+
+    delete m_primitiveSampler3D_hip;
+    m_primitiveSampler3D_hip = nullptr;
 
     m_surfaceMesh.reset();
   }
@@ -507,8 +575,8 @@ private:
   }
 
   // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
-  template <int DIM>
-  void runShapeQueryImpl(shaping::PrimitiveSampler<DIM>* shaper)
+  template <int DIM, typename ExecSpace>
+  void runShapeQueryImpl(shaping::PrimitiveSampler<DIM, ExecSpace>* shaper)
   {
     // Sample the InOut field at the mesh quadrature points
     const int meshDim = m_dc->GetMesh()->Dimension();
@@ -538,9 +606,16 @@ private:
   shaping::QFunctionCollection m_inoutMaterialQFuncs;
   shaping::DenseTensorCollection m_inoutDofs;
 
+  // add pointers to all possible samplers for the various dimensions and execution spaces
+  // Note: the omp, cuda and hip pointers can only be instantiated with appropriate axom congigs
+  // Note: only one of these can be instantiated within a SamplingShaper
+  // TODO: This will be a lot cleaner with a std::variant
   shaping::InOutSampler<2>* m_inoutSampler2D {nullptr};
   shaping::InOutSampler<3>* m_inoutSampler3D {nullptr};
-  shaping::PrimitiveSampler<3>* m_primitiveSampler3D {nullptr};
+  shaping::PrimitiveSampler<3, seq_exec>* m_primitiveSampler3D_seq {nullptr};
+  shaping::PrimitiveSampler<3, omp_exec>* m_primitiveSampler3D_omp {nullptr};
+  shaping::PrimitiveSampler<3, cuda_exec>* m_primitiveSampler3D_cuda {nullptr};
+  shaping::PrimitiveSampler<3, hip_exec>* m_primitiveSampler3D_hip {nullptr};
 
   std::set<std::string> m_knownMaterials;
 
