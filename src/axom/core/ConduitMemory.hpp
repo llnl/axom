@@ -108,11 +108,12 @@ private:
   //!@brief Conduit's allocator id equivalent to m_axomId.
   conduit::index_t m_conduitId;
 
-#if CONDUIT_VERSION_MINOR >= 9 && CONDUIT_VERSION_PATCH > 4
-  #define AXOM_USE_CONDUIT_STD_FUNCTION 1
+#if(CONDUIT_VERSION_MAJOR >= 0 && CONDUIT_VERSION_MINOR >= 9 && CONDUIT_VERSION_PATCH > 4) || \
+  (CONDUIT_VERSION_MAJOR >= 0 && CONDUIT_VERSION_MINOR >= 10) || CONDUIT_VERSION_MAJOR >= 1
+  #define AXOM_CONDUIT_USES_STD_FUNCTION 1
 #endif
 
-#if defined(AXOM_USE_CONDUIT_STD_FUNCTION)
+#if defined(AXOM_CONDUIT_USES_STD_FUNCTION)
   using AllocatorCallback = std::function<void*(size_t, size_t)>;
   using DeallocCallback = std::function<void(void*)>;
 #else

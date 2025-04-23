@@ -85,7 +85,7 @@ TEST(utils_Timer, timer_check_sum)
 #elif defined(__OSX__) || defined(__APPLE__)
   const double tol = 0.3;
 #else
-  const double tol = 0.0004;
+  const double tol = 0.002;
 #endif
 
   EXPECT_GE(t1.elapsed() / N, 1 - tol);

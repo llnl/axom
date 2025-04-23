@@ -1775,26 +1775,6 @@ int main(int argc, char** argv)
     cellCount = params.getBoxCellCount();
   }
 
-  {
-    // Check for mesh info needed on host but isn't.
-#if 0
-    axom::sidre::Group* tmpMeshGrp = ds.getRoot()->createGroup("tmpMeshGrp",
-                                                               compMeshGrp->isUsingList(),
-                                                               false);
-    tmpMeshGrp->setDefaultAllocator(hostAllocId);
-    tmpMeshGrp->deepCopyGroupToSelf(compMeshGrp);
-    tmpMeshGrp->print();
-    axom::Array<axom::sidre::View*> foundViews;
-    compMeshGrp->findViews(selectNonHostViews, foundViews);
-    std::cout << "Found " << foundViews.size()
-              << " views with data inaccessible by host:" << std::endl;
-    for(auto* view : foundViews)
-    {
-      std::cout << view->getPath() << '/' << view->getName() << " has data at " << view->getVoidPtr() << std::endl;
-    }
-#endif
-  }
-
   //---------------------------------------------------------------------------
   // Initialize the shaping query object
   //---------------------------------------------------------------------------

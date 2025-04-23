@@ -2095,7 +2095,6 @@ const char* View::getAttributeString(const Attribute* attr) const
   return m_attr_values.getString(attr);
 }
 
-#if 1
 /*
  *************************************************************************
  *
@@ -2105,12 +2104,12 @@ const char* View::getAttributeString(const Attribute* attr) const
  */
 int View::getValidAxomAllocatorID(int allocID)
 {
-  #ifdef AXOM_USE_UMPIRE
+#ifdef AXOM_USE_UMPIRE
   if(allocID == INVALID_ALLOCATOR_ID)
   {
     allocID = getOwningGroup()->getDefaultAllocatorID();
   }
-  #endif
+#endif
 
   return allocID;
 }
@@ -2132,7 +2131,6 @@ int View::getValidConduitAllocatorID(int allocID)
 
   return conduitAllocId;
 }
-#endif
 
 } /* end namespace sidre */
 } /* end namespace axom */
