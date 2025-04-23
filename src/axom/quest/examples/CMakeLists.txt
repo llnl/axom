@@ -215,8 +215,10 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
             # steel ball: cirle of radius 5.5 has analytic volume ~696.91
             set_tests_properties(${_testname} PROPERTIES 
                 PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 6[89][0-9].")
+        endif()
 
-            # Tests 2D stl mesh
+        if (UMPIRE_FOUND AND RAJA_FOUND)
+            # Tests 2D stl mesh with intersection-based shaper
             set(_testname quest_shaping_driver_ex_star_stl_2d)
             axom_add_test(
                 NAME ${_testname}
