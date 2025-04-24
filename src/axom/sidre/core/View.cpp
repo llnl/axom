@@ -338,9 +338,10 @@ View* View::reallocateTo(int newAllocId)
     }
     else if(m_state == EXTERNAL)
     {
-      SLIC_ERROR("reallocating EXTERNAL View data is not supported,"
-                 " because we haven't had a use case yet and haven't"
-                 " determined what the desired behavior should be.");
+      SLIC_ERROR(
+        "reallocating EXTERNAL View data is not supported,"
+        " because we haven't had a use case yet and haven't"
+        " determined what the desired behavior should be.");
     }
   }
 
@@ -1570,21 +1571,6 @@ View::State View::getStateId(const std::string& name) const
   }
 
   return res;
-}
-
-/*
- * Return whether view data is on device.
- */
-bool View::isDeviceData() const
-{
-  bool rval = false;
-  void* dataPtr = getVoidPtr();
-  if(dataPtr != nullptr)
-  {
-    int allocId = axom::getAllocatorIDFromPointer(dataPtr);
-    rval = axom::isDeviceAllocator(allocId);
-  }
-  return rval;
 }
 
 /*
