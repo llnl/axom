@@ -122,7 +122,7 @@ bool intersect_line_patch(const Line<T, 3> &line,
   if(patch.isBilinear(sq_tol, true))
   {
     // Store candidate intersection points
-    axom::Array<T> tc, uc, vc;
+    axom::StaticArray<T, 2> tc, uc, vc;
 
     detail::intersect_line_bilinear_patch(line,
                                           patch(0, 0),

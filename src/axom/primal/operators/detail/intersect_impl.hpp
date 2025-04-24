@@ -1598,7 +1598,7 @@ AXOM_HOST_DEVICE bool intersect_plane_tet3d(const Plane<T, 3>& p,
  * 
  * \note Always returns false if the line is coplanar to a planar polygon
  * 
- * \return true iff the line intersects the bilinear patch, otherwise false.
+ * \return true if the line intersects the bilinear patch, otherwise false.
  */
 AXOM_HOST_DEVICE
 inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
@@ -1606,9 +1606,9 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
                                           const Point3& p10,
                                           const Point3& p11,
                                           const Point3& p01,
-                                          axom::Array<double>& t,
-                                          axom::Array<double>& u,
-                                          axom::Array<double>& v,
+                                          axom::StaticArray<double, 2>& t,
+                                          axom::StaticArray<double, 2>& u,
+                                          axom::StaticArray<double, 2>& v,
                                           double EPS = 1e-8,
                                           bool isRay = false)
 {
@@ -1627,7 +1627,9 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
   double bu = Vector3::scalar_triple_product(q10, line.direction(), e11) - au - cu;
 
   // Rescale the coefficients to avoid (some) numerical issues
-  double su = std::max(std::fabs(au), std::max(fabs(bu), fabs(cu)));
+  double su =
+    axom::utilities::max(axom::utilities::abs(au),
+                         axom::utilities::max(axom::utilities::abs(bu), axom::utilities::abs(cu)));
   au /= su;
   bu /= su;
   cu /= su;
@@ -1701,7 +1703,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
           const double t1 = Vector3::dot_product(pa, line.direction());
           const double t2 = Vector3::dot_product(pa + pb, line.direction());
 
-          if(!isRay || std::min(t1, t2) > 0.0)
+          if(!isRay || axom::utilities::min(t1, t2) > 0.0)
           {
             // Always an intersection in this case
             t.push_back(0.5 * (t1 + t2));
@@ -1755,7 +1757,9 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
     double cv = Vector3::dot_product(qm, line.direction());
     double bv = Vector3::scalar_triple_product(q01, line.direction(), e01) - av - cv;
 
-    double sv = std::max(std::fabs(av), std::max(fabs(bv), fabs(cv)));
+    double sv =
+      axom::utilities::max(axom::utilities::abs(av),
+                           axom::utilities::max(axom::utilities::abs(bv), axom::utilities::abs(cv)));
     av /= sv;
     bv /= sv;
     cv /= sv;
@@ -1835,7 +1839,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
           const double t1 = Vector3::dot_product(pa, line.direction());
           const double t2 = Vector3::dot_product(pa + pb, line.direction());
 
-          if(!isRay || std::min(t1, t2) > 0.0)
+          if(!isRay || axom::utilities::min(t1, t2) > 0.0)
           {
             // Always an intersection in this case
             t.push_back(0.5 * (t1 + t2));
@@ -1852,7 +1856,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
             if(t1 == t2)
             {
               t.push_back(0.5 * t1);
-              v.push_back(0.5);
+              u.push_back(0.5);
             }
             else if(t1 < t2)
             {
@@ -1875,6 +1879,74 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
           }
         }
       }
+    }
+  }
+
+  return !t.empty();
+}
+
+/*!
+ * \brief Examine candidate (t,u,v) values and select the ones that are not
+ *        duplicates, storing them in the supplied output arrays.
+ *
+ * \param [in] tc Candidate t values of intersection points.
+ * \param [in] uc Candidate u values of intersection points.
+ * \param [in] vc Candidate v values of intersection points.
+ * \param [out] t Selected t values of intersection points.
+ * \param [out] u Selected u values of intersection points.
+ * \param [out] v Selected v values of intersection points.
+ * \param [in] EPS The tolerance for intersection (for parameter distances).
+ * \param [in] isHalfOpen True if the patch is parameterized in [0,1)^2.
+ *
+ * \note Moved from intersect for Ray/BezierPatch and templated it so it
+ *       supports different candidate and output array types.
+ */
+template <typename CandidateArrayType, typename ArrayType>
+bool select_candidates(const CandidateArrayType& tc,
+                       const CandidateArrayType& uc,
+                       const CandidateArrayType& vc,
+                       ArrayType& t,
+                       ArrayType& u,
+                       ArrayType& v,
+                       double EPS = 1e-8,
+                       bool isHalfOpen = false)
+{
+  using T = typename ArrayType::value_type;
+
+  // Remove duplicates from the (u, v) intersection points
+  //  (Note it's not possible for (u_1, v_1) == (u_2, v_2) and t_1 != t_2)
+  const double sq_EPS = EPS * EPS;
+
+  // The number of reported intersection points will be small,
+  //  so we don't need to fully sort the list
+  SLIC_WARNING_IF(tc.size() > 10,
+                  "Large number of intersections detected, eliminating "
+                  "duplicates may be slow");
+
+  for(int i = 0; i < tc.size(); ++i)
+  {
+    // Also remove any intersections on the half-interval boundaries
+    if(isHalfOpen && (uc[i] >= 1.0 - EPS || vc[i] >= 1.0 - EPS))
+    {
+      continue;
+    }
+
+    Point<T, 2> uv({uc[i], vc[i]});
+
+    bool foundDuplicate = false;
+    for(int j = i + 1; !foundDuplicate && j < tc.size(); ++j)
+    {
+      if(squared_distance(uv, Point<T, 2>({uc[j], vc[j]})) < sq_EPS)
+      {
+        foundDuplicate = true;
+      }
+    }
+
+    if(!foundDuplicate)
+    {
+      t.push_back(tc[i]);
+      u.push_back(uc[i]);
+      v.push_back(vc[i]);
     }
   }
 
