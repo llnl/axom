@@ -1443,33 +1443,6 @@ Group* Group::reallocateTo(const std::function<int(const View&)>& viewToAllocato
 /*
  *************************************************************************
  *
- * Find hierarchy's views that match some criteria.
- *
- *************************************************************************
- */
-axom::IndexType Group::findViews(const std::function<bool(View&)>& criteria, axom::Array<View*>& found)
-{
-  auto origSize = found.size();
-
-  for(auto& view : views())
-  {
-    if(criteria(view))
-    {
-      found.push_back(&view);
-    }
-  }
-
-  for(auto& grp : groups())
-  {
-    grp.findViews(criteria, found);
-  }
-
-  return found.size() - origSize;
-}
-
-/*
- *************************************************************************
- *
  * Copy Group native layout to given Conduit node.
  *
  *************************************************************************

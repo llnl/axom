@@ -466,13 +466,6 @@ std::shared_ptr<sidre::MFEMSidreDataCollection> shapingDC;
 axom::sidre::Group* compMeshGrp = nullptr;
 std::shared_ptr<conduit::Node> compMeshNode;
 
-auto selectScalarAndStringViews = [](const axom::sidre::View& v) {
-  return v.isScalar() || v.isString();
-};
-auto selectNonHostViews = [](const axom::sidre::View& v) {
-  return v.getVoidPtr() != nullptr && !v.isHostAccessible();
-};
-
 /*
   Whether View data should live on host or another allocator (like device data).
   Return the "right" choice based on View type, using a heuristic.

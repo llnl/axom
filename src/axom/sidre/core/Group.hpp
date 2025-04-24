@@ -457,14 +457,6 @@ public:
    */
   const View* getView(IndexType idx) const;
 
-  /*!
-   * \brief Find hierarchy's views that match some criteria,
-   * and append their addresses to an Array.
-   *
-   * \brief Return number of views found.
-   */
-  axom::IndexType findViews(const std::function<bool(View&)>& criteria, axom::Array<View*>& found);
-
   //@}
 
   //@{
