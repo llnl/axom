@@ -1412,7 +1412,7 @@ public:
    * deep-copied.
    *
    * The destination's allocator id should be preserved and used for
-   * array allocations.  However, I'm still checking on this.
+   * array allocations.
    *
    * \return True if the Group or any of its children were added to the Node,
    * false otherwise.

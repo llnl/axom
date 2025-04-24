@@ -302,10 +302,6 @@ View* View::reallocateTo(int newAllocId)
     return this;
   }
 
-  // TODO: Probably wrong to use owning group's default allocator.
-  // Group can allocate View with non-default allocator.
-  // int currentAllocId = getOwningGroup()->getDefaultAllocatorID();
-
   if(m_state == STRING || m_state == SCALAR)
   {
     // Data is stored in m_node.
@@ -334,14 +330,17 @@ View* View::reallocateTo(int newAllocId)
       m_data_buffer->copyBytesIntoBuffer(currentBuffer->getVoidPtr(), currentBuffer->getTotalBytes());
       m_data_buffer->attachToView(this);
       apply();
-      // TODO: delete currentBuffer; // Delete currentBuffer?
-      // delete currentBuffer; // ? ... or ...
-      // if(currentBuffer->getNumViews() == 0)
-      //   getOwningGroup()->getDataStore()->destroyBuffer(currentBuffer); // ?
+      // Destroy the buffer only if it is attached to no other Views.
+      if(currentBuffer->getNumViews() == 0)
+      {
+        getOwningGroup()->getDataStore()->destroyBuffer(currentBuffer);
+      }
     }
     else if(m_state == EXTERNAL)
     {
-      SLIC_ERROR("Unfinished code for reallocating EXTERNAL view data");
+      SLIC_ERROR("reallocating EXTERNAL View data is not supported,"
+                 " because we haven't had a use case yet and haven't"
+                 " determined what the desired behavior should be.");
     }
   }
 
