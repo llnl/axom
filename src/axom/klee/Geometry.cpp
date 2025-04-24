@@ -28,7 +28,9 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
   , m_path(std::move(path))
   , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
-{ }
+{
+  populateGeomInfo();
+}
 
 Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    const axom::sidre::Group* simplexMeshGroup,
@@ -41,7 +43,9 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
   , m_topology(topology)
   , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
-{ }
+{
+  populateGeomInfo();
+}
 
 Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    const axom::primal::Tetrahedron<double, 3>& tet,
@@ -54,7 +58,9 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
   , m_tet(tet)
   , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
-{ }
+{
+  populateGeomInfo();
+}
 
 Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    const axom::primal::Hexahedron<double, 3>& hex,
@@ -67,7 +73,9 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
   , m_hex(hex)
   , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
-{ }
+{
+  populateGeomInfo();
+}
 
 Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    const Sphere3D& sphere,
@@ -81,7 +89,9 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
   , m_sphere(sphere)
   , m_levelOfRefinement(levelOfRefinement)
   , m_operator(std::move(operator_))
-{ }
+{
+  populateGeomInfo();
+}
 
 Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    const axom::Array<double, 2>& discreteFunction,
@@ -100,7 +110,9 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
   , m_sorDirection(sorDirection)
   , m_levelOfRefinement(levelOfRefinement)
   , m_operator(std::move(operator_))
-{ }
+{
+  populateGeomInfo();
+}
 
 Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    const axom::primal::Plane<double, 3>& plane,
@@ -113,7 +125,27 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
   , m_plane(plane)
   , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
-{ }
+{
+  populateGeomInfo();
+}
+
+void Geometry::populateGeomInfo()
+{
+  if(m_format == "blueprint-tets")
+  {
+    m_meshGroup->deepCopyToConduit(m_geomInfo["klee::Geometry:tetMesh"]);
+    m_geomInfo["topologyName"].set(getBlueprintTopology());
+  }
+
+  else if(m_format == "sphere3D")
+  {
+    const Sphere3D& sphere = getSphere();
+    m_geomInfo["center"].set(sphere.getCenter().data(), 3);
+    m_geomInfo["radius"].set(sphere.getRadius());
+  }
+
+  // TODO: other formats.
+}
 
 bool Geometry::hasGeometry() const
 {

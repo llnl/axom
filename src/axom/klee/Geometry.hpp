@@ -171,6 +171,15 @@ public:
            const axom::primal::Plane<double, 3> &plane,
            std::shared_ptr<GeometryOperator const> operator_);
 
+  /*!
+    @brief Geometry definition in hierarchical format.
+
+    This hierarchy should be reproducible from its Geometry object,
+    and an identical Geometry should be reconstructible from this
+    hierarchy.
+  */
+  const conduit::Node &asHierarchy() const { return m_geomInfo; }
+
   /**
    * @brief Get the format in which the geometry was specified.
    *
@@ -300,6 +309,9 @@ public:
 private:
   TransformableGeometryProperties m_startProperties;
 
+  //!@brief Geometry info in hierarchical format.
+  conduit::Node m_geomInfo;
+
   //!@brief Geometry format.
   std::string m_format;
 
@@ -338,6 +350,15 @@ private:
   axom::IndexType m_levelOfRefinement = 0;
 
   std::shared_ptr<const GeometryOperator> m_operator;
+
+  /*!
+    @brief Populate m_geomInfo with the geometry definition.
+
+    This helps transition away from geometry-specific constructors and
+    methods like @c getTet(), @c getHex() and @c getSphere() and
+    toward a uniform interface for providing geometry info.
+  */
+  void populateGeomInfo();
 };
 
 }  // namespace klee

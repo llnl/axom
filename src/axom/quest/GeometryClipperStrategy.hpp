@@ -22,21 +22,21 @@ namespace quest
   @brief Strategy base class for geometry-specific operations
   in clipping.
 
-  Key methods to implement.  Some combination of these is required:
+  Key methods to implement:  (Some combination of these is required.)
 
-  -# getShapesAsTets: Build an array of tetrahedra from the
-     mesh cells.
+  -# @c getShapesAsTets: Build an array of tetrahedra to approximate
+     the shape.
 
-  -# getShapesAsOcts: Build an array of octahedra from the
-     mesh cells.
+  -# @c getShapesAsOcts: Build an array of octahedra to approximate
+     the shape.
 
-  -# specializedClip: Use a fast clipping algorithm to clip
-     the cells in a mesh.  Implementation may use special
-     knowledge of the geometry.  One version of this method
-     clips all cells in the mesh and the other clips only
-     specified cells.
+  -# @c specializedClip: Use a fast clipping algorithm (if one is
+     available) to clip the cells in a mesh.  Implementation should
+     use special knowledge of the geometry.  One version of this
+     method clips all cells in the mesh and the other clips only
+     cells in a provided index list.
 
-  -# labelInOut: Label whether the cells in a mesh is inside,
+  -# @c labelInOut: Label whether the cells in a mesh is inside,
      outside or on the shape boundary.  If a cell cannot be
      determined, you can conservatively label it as on the boundary.
 
@@ -80,23 +80,24 @@ public:
 
     @param [in] kGeom Describes the shape to place
       into the mesh.
-
-    @c bpMesh must be an unstructured hex mesh.
-    That is the only type currently supported.
   */
-  GeometryClipperStrategy(const klee::Geometry& kGeom) { AXOM_UNUSED_VAR(kGeom); }
+  GeometryClipperStrategy(const klee::Geometry& kGeom);
 
-  //!@brief Optional name for strategy.
-  virtual std::string name() const { return "UNNAMED"; }
+  /*!
+    @brief Optional name for strategy.
+
+    The base implementation returns "UNNAMED".
+  */
+  virtual const std::string& name() const;
 
   //@{
-  //!@name Interface for geometry-specialized implementations
+  //!@name Geometry-specialized methods
   /*!
     @brief Label the cells in the mesh as inside, outside or
     both/undetermined, if possible.
 
     @param [in] shapeeMesh Blueprint mesh to shape into.
-    @param [out] labels
+    @param [out] labels Output
 
     The output labels are used in optimizing the clipping algorithm.
     Subclasses should implementation this if it's cost-effective, and
@@ -112,7 +113,8 @@ public:
     - @c labelOn if the cell is both inside and outside (or
       cannot be easily determined).
 
-    Post-conditions only apply if method returns true.
+    If implemenation returns true, it should ensure these
+    post-conditions hold:
     @post labels.size() == shapeeMesh.getCellCount()
     @post labels.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
@@ -135,11 +137,12 @@ public:
     so it's a no-op and returns false.
 
     If this method returns false, then exactly one of the
-    shape discretization methods must be provided.
+    @c getShapesAs...() methods must be provided.
 
     @return True if clipping was done and false if a no-op.
 
-    Post-conditions only apply if method returns true.
+    If implemenation returns true, it should ensure these
+    post-conditions hold:
     @post ovlap.size() == shapeeMesh.getCellCount()
     @post ovlap.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
@@ -167,7 +170,8 @@ public:
 
     @return True if clipping was done and false if a no-op.
 
-    Post-conditions only apply if method returns true.
+    If implemenation returns true, it should ensure these
+    post-conditions hold:
     @post ovlap.size() == shapeeMesh.getCellCount()
     @post ovlap.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
@@ -190,7 +194,8 @@ public:
 
     @return Whether the shape can be represented as tetrahedra.
 
-    Post-conditions only apply if method returns true.
+    If implemenation returns true, it should ensure these
+    post-conditions hold:
     @post tets.size() == shapeeMesh.getCellCount()
     @post tets.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
@@ -203,7 +208,7 @@ public:
   }
 
   /*!
-    @brief Get the shape as discrete tetrahedra, or return false.
+    @brief Get the shape as discrete octahedra, or return false.
     @param [in] shapeeMesh Blueprint mesh to shape into.
     @param [out] octs Array of octahedra filling the space of the shape.
 
@@ -224,6 +229,26 @@ public:
 
   // Note: in 2D, we should have a getShapeAsSegments().
   //@}
+
+protected:
+  /*!
+    @brief Free-form representation of the concrete object.
+
+    The constructor initializes this as a deep copy of the source
+    klee::Geometry hierarchy data.  Subclasses may use and change this
+    data as needed.
+
+    The base class owns this hierachy, but subclasses use it
+    for their specific data.
+
+    Use cases:
+    - Construct object from Klee input in the form of hierarchy
+      data.
+    - Print the object.
+
+    Most if not all data should be in host memory.
+  */
+  conduit::Node m_info;
 };
 
 }  // namespace quest

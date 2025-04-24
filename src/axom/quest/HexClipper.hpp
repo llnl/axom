@@ -31,7 +31,7 @@ public:
 
   virtual ~HexClipper() = default;
 
-  std::string name() const override { return m_name; }
+  const std::string& name() const override { return m_name; }
 
   bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 

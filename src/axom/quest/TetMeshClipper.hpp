@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_SPHERECLIPPER_HPP
-#define AXOM_QUEST_SPHERECLIPPER_HPP
+#ifndef AXOM_QUEST_TETMESHCLIPPER_HPP
+#define AXOM_QUEST_TETMESHCLIPPER_HPP
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/GeometryClipperStrategy.hpp"
@@ -15,9 +15,9 @@ namespace quest
 {
 
 /*!
-  @brief GeometryClipper specialized for sphere geometries.
+  @brief GeometryClipper specialized for tetrahedral mesh geometries.
 */
-class SphereClipper : public GeometryClipperStrategy
+class TetMeshClipper : public GeometryClipperStrategy
 {
 public:
   /*!
@@ -27,31 +27,37 @@ public:
       into the mesh.
     @param [in] name To override the default strategy name
   */
-  SphereClipper(const klee::Geometry& kGeom, const std::string& name = "");
+  TetMeshClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
-  virtual ~SphereClipper() = default;
+  virtual ~TetMeshClipper() = default;
 
   const std::string& name() const override { return m_name; }
 
   bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
-  bool getShapeAsOcts(quest::ShapeeMesh& shappeMesh,
-                      axom::Array<axom::primal::Octahedron<double, 3>>& octs) override;
+  bool getShapeAsTets(quest::ShapeeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
 
 #if !defined(__CUDACC__)
 private:
 #endif
   std::string m_name;
 
-  axom::primal::Sphere<double, 3> m_sphere;
+  std::string m_topoName;
 
-  int m_levelOfRefinement;
+  conduit::Node* m_bpMesh;
+
+  axom::IndexType m_cellCount;
+
+  axom::Array<TetrahedronType> m_tets;
 
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+
+  // Extract clipper info from GeometryClipperStrategy::m_info.
+  void extractClipperInfo();
 };
 
 }  // namespace quest
 }  // namespace axom
 
-#endif  // AXOM_QUEST_SPHERECLIPPER_HPP
+#endif  // AXOM_QUEST_TETMESHCLIPPER_HPP

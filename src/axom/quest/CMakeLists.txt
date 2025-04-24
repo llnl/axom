@@ -138,12 +138,15 @@ if(RAJA_FOUND AND AXOM_ENABLE_KLEE AND _HAS_CLIPPING_MESH)
                               Plane3DClipper.hpp
                               HexClipper.hpp
                               SphereClipper.hpp
+                              TetMeshClipper.hpp
                               detail/GeometryClipperDelegateExec.hpp)
     list(APPEND quest_sources ShapeeMesh.cpp
+                              GeometryClipper.cpp
+                              GeometryClipperStrategy.cpp
                               Plane3DClipper.cpp
                               HexClipper.cpp
                               SphereClipper.cpp
-                              GeometryClipper.cpp)
+                              TetMeshClipper.cpp)
 endif()
 
 if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND ((MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND))
