@@ -632,12 +632,8 @@ void fill_cartesian_coords_3d_impl(const primal::BoundingBox<double, 3>& domainB
 #endif
 
   const auto& shape = xView.shape();
-  const auto& mapping = xView.mapping();
-
   SLIC_ASSERT(shape == yView.shape());
   SLIC_ASSERT(shape == zView.shape());
-  SLIC_ASSERT(mapping == yView.mapping());
-  SLIC_ASSERT(mapping == zView.mapping());
 
   // Mesh resolution
   const axom::NumericArray<axom::IndexType, 3> res {shape[0] - 1, shape[1] - 1, shape[2] - 1};
@@ -652,6 +648,10 @@ void fill_cartesian_coords_3d_impl(const primal::BoundingBox<double, 3>& domainB
   RAJA::RangeSegment jRange(0, shape[1]);
   RAJA::RangeSegment iRange(0, shape[0]);
   using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop3d_policy;
+
+  const auto& mapping = xView.mapping();
+  SLIC_ASSERT(mapping == yView.mapping());
+  SLIC_ASSERT(mapping == zView.mapping());
   auto order = mapping.getStrideOrder();
   if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
   {
@@ -706,10 +706,7 @@ void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainB
 #endif
 
   const auto& shape = xView.shape();
-  const auto& mapping = xView.mapping();
-
   SLIC_ASSERT(shape == yView.shape());
-  SLIC_ASSERT(mapping == yView.mapping());
 
   // Mesh resolution
   const axom::NumericArray<axom::IndexType, 2> res {shape[0] - 1, shape[1] - 1};
@@ -719,9 +716,13 @@ void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainB
   double dy = (domainBox.getMax()[1] - domainBox.getMin()[1]) / res[1];
 
 #if defined(AXOM_USE_RAJA)
+
   RAJA::RangeSegment jRange(0, shape[1]);
   RAJA::RangeSegment iRange(0, shape[0]);
   using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
+
+  const auto& mapping = xView.mapping();
+  SLIC_ASSERT(mapping == yView.mapping());
   auto order = mapping.getStrideOrder();
   if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
   {
