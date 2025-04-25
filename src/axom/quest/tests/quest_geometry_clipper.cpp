@@ -92,7 +92,7 @@ public:
   int getBoxCellCount() const { return boxResolution[0] * boxResolution[1] * boxResolution[2]; }
 
   // The shape to run.
-  std::vector<std::string> testGeom; // {"tetmesh"};
+  std::vector<std::string> testGeom;  // {"tetmesh"};
   // The shapes this example is set up to run.
   const std::set<std::string>
     availableShapes {"tetmesh", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane", "all"};
@@ -1007,34 +1007,28 @@ int main(int argc, char** argv)
   axom::Array<std::shared_ptr<axom::quest::GeometryClipperStrategy>> geomStrategies;
   geomStrategies.reserve(params.testGeom.size());
   SLIC_ERROR_IF(params.getBoxDim() != 3, "This example is only in 3D.");
-  for( const auto& tg : params.testGeom )
+  for(const auto& tg : params.testGeom)
   {
     if(tg == "plane")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(), tg));
+      geomStrategies.push_back(std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(), tg));
     }
     else if(tg == "hex")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::HexClipper>(createGeom_Hex(), tg));
+      geomStrategies.push_back(std::make_shared<axom::quest::HexClipper>(createGeom_Hex(), tg));
     }
     else if(tg == "sphere")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::SphereClipper>(createGeom_Sphere(), tg));
+      geomStrategies.push_back(std::make_shared<axom::quest::SphereClipper>(createGeom_Sphere(), tg));
     }
     else if(tg == "tetmesh")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::TetMeshClipper>(createGeom_TetMesh(ds),
-                                                      tg));
+        std::make_shared<axom::quest::TetMeshClipper>(createGeom_TetMesh(ds), tg));
     }
     else if(tg == "tet")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::TetClipper>(createGeom_Tet(),
-                                                      tg));
+      geomStrategies.push_back(std::make_shared<axom::quest::TetClipper>(createGeom_Tet(), tg));
     }
 #if 0
     else if(tg == "cyl")

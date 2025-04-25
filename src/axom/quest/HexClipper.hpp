@@ -46,7 +46,8 @@ private:
   axom::primal::BoundingBox<double, 3> m_bb;
   axom::StackArray<TetrahedronType, HexahedronType::NUM_TRIANGULATE> m_tets;
   //!@brief 4 planes per tet, each oriented to the interior of the tet.
-  axom::StackArray<axom::StackArray<Plane3DType, TetrahedronType::NUM_VERTS>, HexahedronType::NUM_TRIANGULATE> m_planes;
+  axom::StackArray<axom::StackArray<Plane3DType, TetrahedronType::NUM_VERTS>, HexahedronType::NUM_TRIANGULATE>
+    m_planes;
 
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);

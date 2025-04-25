@@ -132,8 +132,9 @@ public:
     axom::ArrayView<ShapeType> discretizedGeometryView = discretizedGeometry.view();
 #endif
 
-    SLIC_INFO(axom::fmt::format("GeometryClipperDelegateExec::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
-                                getGeometryClipperStrategy().name()));
+    SLIC_INFO(axom::fmt::format(
+      "GeometryClipperDelegateExec::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
+      getGeometryClipperStrategy().name()));
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
     const bool useOcts = getGeometryClipperStrategy().getShapeAsOcts(shapeeMesh, geomAsOcts);
@@ -395,8 +396,9 @@ public:
 
     constexpr int NUM_TETS_PER_HEX = 24;
 
-    SLIC_INFO(axom::fmt::format("GeometryClipperDelegateExec::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
-                                getGeometryClipperStrategy().name()));
+    SLIC_INFO(axom::fmt::format(
+      "GeometryClipperDelegateExec::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
+      getGeometryClipperStrategy().name()));
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
     const bool useOcts = getGeometryClipperStrategy().getShapeAsOcts(shapeeMesh, geomAsOcts);

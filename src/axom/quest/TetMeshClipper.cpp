@@ -84,7 +84,8 @@ bool TetMeshClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<T
     */
     auto* topoGrp = bpMeshGrp->getGroup("topologies")->getGroup(m_topoName);
     const std::string coordsetName = topoGrp->getView("coordset")->getString();
-    auto* coordValuesGrp = bpMeshGrp->getGroup("coordsets")->getGroup(coordsetName)->getGroup("values");
+    auto* coordValuesGrp =
+      bpMeshGrp->getGroup("coordsets")->getGroup(coordsetName)->getGroup("values");
     /*
       Make the coordinate arrays 2D to use mint::Mesh.
       For some reason, mint::Mesh requires the arrays to be
@@ -119,25 +120,34 @@ bool TetMeshClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<T
     }
 
     // mint::Mesh requires field group, even though Blueprint doesn't.
-    if(!bpMeshGrp->hasGroup("fields")) {bpMeshGrp->createGroup("fields");}
+    if(!bpMeshGrp->hasGroup("fields"))
+    {
+      bpMeshGrp->createGroup("fields");
+    }
   }
-  if(0){
+  if(0)
+  {
     /*
       Conform to extra requirements from mint.
       - Requires "fields" group.
       - coord must be 2D array, even though 2nd dimension is 1.
     */
-    if(!bpMeshGrp->hasGroup("fields")) {bpMeshGrp->createGroup("fields");}
-    const std::string coordsetName = bpMeshGrp->getGroup("topologies")->getGroup(m_topoName)->getView("coordset")->getString();
+    if(!bpMeshGrp->hasGroup("fields"))
+    {
+      bpMeshGrp->createGroup("fields");
+    }
+    const std::string coordsetName =
+      bpMeshGrp->getGroup("topologies")->getGroup(m_topoName)->getView("coordset")->getString();
     std::string dirs[3] = {"x", "y", "z"};
     IndexType shape[2] = {0, 1};
-    for(int d=0; d<3; ++d)
+    for(int d = 0; d < 3; ++d)
     {
-      auto* coordValues = bpMeshGrp->getGroup("coordsets")->getGroup(coordsetName)->getGroup("values")->getView(dirs[d]);
+      auto* coordValues =
+        bpMeshGrp->getGroup("coordsets")->getGroup(coordsetName)->getGroup("values")->getView(dirs[d]);
       coordValues->getShape(3, shape);
       shape[1] = 1;
       coordValues->reshapeArray(2, shape);
-assert(coordValues->getNumDimensions() == 2);
+      assert(coordValues->getNumDimensions() == 2);
     }
   }
   std::shared_ptr<mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>> mintMesh {
@@ -169,9 +179,9 @@ assert(coordValues->getNumDimensions() == 2);
 
 void TetMeshClipper::extractClipperInfo()
 {
-m_info.print();
+  m_info.print();
   m_topoName = m_info.fetch_existing("topologyName").to_string();
-  m_topoName = m_topoName.substr(1, m_topoName.size() - 2); // Remove unwanted quotes.
+  m_topoName = m_topoName.substr(1, m_topoName.size() - 2);  // Remove unwanted quotes.
 
   m_bpMesh = &m_info.fetch_existing("klee::Geometry:tetMesh");
 
