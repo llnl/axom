@@ -136,6 +136,7 @@ if(RAJA_FOUND AND AXOM_ENABLE_KLEE AND _HAS_CLIPPING_MESH)
                               GeometryClipper.hpp
                               GeometryClipperStrategy.hpp
                               Plane3DClipper.hpp
+                              TetClipper.hpp
                               HexClipper.hpp
                               SphereClipper.hpp
                               TetMeshClipper.hpp
@@ -144,6 +145,7 @@ if(RAJA_FOUND AND AXOM_ENABLE_KLEE AND _HAS_CLIPPING_MESH)
                               GeometryClipper.cpp
                               GeometryClipperStrategy.cpp
                               Plane3DClipper.cpp
+                              TetClipper.cpp
                               HexClipper.cpp
                               SphereClipper.cpp
                               TetMeshClipper.cpp)

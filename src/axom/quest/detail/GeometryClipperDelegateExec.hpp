@@ -132,7 +132,7 @@ public:
     axom::ArrayView<ShapeType> discretizedGeometryView = discretizedGeometry.view();
 #endif
 
-    SLIC_INFO(axom::fmt::format("Getting discrete geometry for shape '{}'",
+    SLIC_INFO(axom::fmt::format("GeometryClipperDelegateExec::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
                                 getGeometryClipperStrategy().name()));
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
@@ -239,6 +239,7 @@ public:
     {
       // Use temporary space compatible with runtime policy.
       totalCandidatesCountPtr = axom::allocate<IndexType>(1, allocId);
+      axom::copy(totalCandidatesCountPtr, &totalCandidatesCount, sizeof(totalCandidatesCount));
     }
 #else
     axom::Array<IndexType> newTotalCandidates_host(1, 1, host_allocator);
@@ -394,7 +395,7 @@ public:
 
     constexpr int NUM_TETS_PER_HEX = 24;
 
-    SLIC_INFO(axom::fmt::format("Getting discrete geometry for shape '{}'",
+    SLIC_INFO(axom::fmt::format("GeometryClipperDelegateExec::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
                                 getGeometryClipperStrategy().name()));
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;

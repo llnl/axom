@@ -10,8 +10,7 @@
   #include "conduit_blueprint.hpp"
 #endif
 
-#include "axom/quest/Discretize.hpp"
-#include "axom/quest/HexClipper.hpp"
+#include "axom/quest/TetClipper.hpp"
 #include "axom/fmt.hpp"
 
 namespace axom
@@ -19,35 +18,29 @@ namespace axom
 namespace quest
 {
 
-HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
+TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
-  , m_name(name.empty() ? std::string("Hex") : name)
-  , m_hex(kGeom.getHex())
+  , m_name(name.empty() ? std::string("Tet") : name)
+  , m_tet(kGeom.getTet())
 {
-  for(int i = 0; i < HexahedronType::NUM_HEX_VERTS; ++i)
+  for(int i = 0; i < TetrahedronType::NUM_VERTS; ++i)
   {
-    m_bb.addPoint(m_hex[i]);
+    m_bb.addPoint(m_tet[i]);
   }
 
-  m_hex.triangulate(m_tets);
-
-  for(int iTet = 0; iTet < HexahedronType::NUM_TRIANGULATE; ++iTet)
+  for(int iPlane = 0; iPlane < 4; ++iPlane)
   {
-    const auto& tet = m_tets[iTet];
-    for(int iPlane = 0; iPlane < 4; ++iPlane)
-    {
-      const Point3DType& a = tet[iPlane % 4];
-      const Point3DType& b = tet[(iPlane + 1) % 4];
-      const Point3DType& c = tet[(iPlane + 2) % 4];
-      m_planes[iTet][iPlane] = axom::primal::make_plane(a, b, c);
-      // For tet points ordered by right hand rule, odd planes
-      // face outside.  Flip them to face inside.
-      if(iPlane % 2 == 1) m_planes[iTet][iPlane].flip();
-    }
+    const Point3DType& a = m_tet[iPlane % 4];
+    const Point3DType& b = m_tet[(iPlane + 1) % 4];
+    const Point3DType& c = m_tet[(iPlane + 2) % 4];
+    m_planes[iPlane] = axom::primal::make_plane(a, b, c);
+    // For tet points ordered by right hand rule, odd planes
+    // face outside.  Flip them to face inside.
+    if(iPlane % 2 == 1) m_planes[iPlane].flip();
   }
 }
 
-bool HexClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool TetClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   switch(shapeeMesh.getRuntimePolicy())
   {
@@ -76,9 +69,9 @@ bool HexClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType
 }
 
 template <typename ExecSpace>
-void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "HexClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
 
   constexpr int NUM_VERTS_PER_CELL = 8;
 
@@ -115,19 +108,15 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
         // If vert is in any tet, it's in the hex.
         // Be conservative: primal::ON_BOUNDARY is considered inside.
         // TODO: See if using Tetrahedron::physToBarycentric is faster.
-        for(int iTet = 0; iTet < HexahedronType::NUM_TRIANGULATE; ++iTet)
+        bool isInsideTet = true;
+        for(int iPlane = 0; iPlane < 4; ++iPlane)
         {
-          bool isInsideTet = true;
-          for(int iPlane = 0; iPlane < 4; ++iPlane)
-          {
-            const auto& plane = planes[iTet][iPlane];
-            isInsideTet &= plane.getOrientation(vert, 0.0) != primal::ON_NEGATIVE_SIDE;
-          }
-          if(isInsideTet)
-          {
-            vertIsInsideView[vertId] = true;
-            break;
-          }
+          const auto& plane = planes[iPlane];
+          isInsideTet &= plane.getOrientation(vert, 0.0) != primal::ON_NEGATIVE_SIDE;
+        }
+        if(isInsideTet)
+        {
+          vertIsInsideView[vertId] = true;
         }
       }
     });
@@ -165,16 +154,14 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   return;
 }
 
-bool HexClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
+bool TetClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
 {
   int allocId = shapeeMesh.getAllocatorId();
-  if(tets.getAllocatorID() != allocId || tets.size() != HexahedronType::NUM_TRIANGULATE)
+  if(tets.getAllocatorID() != allocId || tets.size() != 1)
   {
-    tets = axom::Array<TetrahedronType>(HexahedronType::NUM_TRIANGULATE,
-                                        HexahedronType::NUM_TRIANGULATE,
-                                        allocId);
+    tets = axom::Array<TetrahedronType>(1, 1, allocId);
   }
-  axom::copy(tets.data(), m_tets.data(), m_tets.size() * sizeof(TetrahedronType));
+  axom::copy(tets.data(), &m_tet, sizeof(TetrahedronType));
   return true;
 }
 

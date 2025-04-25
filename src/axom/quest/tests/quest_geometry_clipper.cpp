@@ -92,7 +92,7 @@ public:
   int getBoxCellCount() const { return boxResolution[0] * boxResolution[1] * boxResolution[2]; }
 
   // The shape to run.
-  std::string testGeom {"tetmesh"};
+  std::vector<std::string> testGeom; // {"tetmesh"};
   // The shapes this example is set up to run.
   const std::set<std::string>
     availableShapes {"tetmesh", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane", "all"};
@@ -161,7 +161,9 @@ public:
 
     app.add_option("-s,--testGeom", testGeom)
       ->description("The shape to run")
-      ->check(axom::CLI::IsMember(availableShapes));
+      ->check(axom::CLI::IsMember(availableShapes))
+      ->delimiter('+')
+      ->expected(1, 5);
 
 #ifdef AXOM_USE_CALIPER
     app.add_option("--caliper", annotationMode)
@@ -390,6 +392,32 @@ void finalizeLogger()
   }
 }
 
+double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& tetMesh)
+{
+  using TetType = axom::primal::Tetrahedron<double, 3>;
+  axom::StackArray<axom::IndexType, 1> nodesShape {tetMesh.getNumberOfNodes()};
+  axom::ArrayView<const double> x(tetMesh.getCoordinateArray(0), nodesShape);
+  axom::ArrayView<const double> y(tetMesh.getCoordinateArray(1), nodesShape);
+  axom::ArrayView<const double> z(tetMesh.getCoordinateArray(2), nodesShape);
+  const axom::IndexType tetCount = tetMesh.getNumberOfCells();
+  axom::Array<double> tetVolumes(tetCount, tetCount);
+  double meshVolume = 0.0;
+  for(axom::IndexType ic = 0; ic < tetCount; ++ic)
+  {
+    const axom::IndexType* nodeIds = tetMesh.getCellNodeIDs(ic);
+    TetType tet;
+    for(int j = 0; j < 4; ++j)
+    {
+      auto cornerNodeId = nodeIds[j];
+      tet[j][0] = x[cornerNodeId];
+      tet[j][1] = y[cornerNodeId];
+      tet[j][2] = z[cornerNodeId];
+    }
+    meshVolume += tet.volume();
+  }
+  return meshVolume;
+}
+
 axom::klee::Geometry createGeom_Sphere()
 {
   Point3D center = params.center.empty() ? Point3D {0, 0, 0} : Point3D {params.center.data()};
@@ -452,6 +480,8 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds)
   addTranslateOperator(*compositeOp, -1, 1, 1);
 
   axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
+
+  exactOverlapVols["tetmesh"] = volumeOfTetMesh(tetMesh);
 
   return tetMeshGeometry;
 }
@@ -581,6 +611,7 @@ axom::klee::Geometry createGeom_Tet()
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
   addTranslateOperator(*compositeOp, -1, 1, -1);
+  exactOverlapVols["tet"] = tet.volume();
 
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
 
@@ -642,32 +673,6 @@ axom::klee::Geometry createGeom_Plane()
   exactOverlapVols["plane"] = 0.5 * meshVolume;
 
   return planeGeometry;
-}
-
-double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& tetMesh)
-{
-  using TetType = axom::primal::Tetrahedron<double, 3>;
-  axom::StackArray<axom::IndexType, 1> nodesShape {tetMesh.getNumberOfNodes()};
-  axom::ArrayView<const double> x(tetMesh.getCoordinateArray(0), nodesShape);
-  axom::ArrayView<const double> y(tetMesh.getCoordinateArray(1), nodesShape);
-  axom::ArrayView<const double> z(tetMesh.getCoordinateArray(2), nodesShape);
-  const axom::IndexType tetCount = tetMesh.getNumberOfCells();
-  axom::Array<double> tetVolumes(tetCount, tetCount);
-  double meshVolume = 0.0;
-  for(axom::IndexType ic = 0; ic < tetCount; ++ic)
-  {
-    const axom::IndexType* nodeIds = tetMesh.getCellNodeIDs(ic);
-    TetType tet;
-    for(int j = 0; j < 4; ++j)
-    {
-      auto cornerNodeId = nodeIds[j];
-      tet[j][0] = x[cornerNodeId];
-      tet[j][1] = y[cornerNodeId];
-      tet[j][2] = z[cornerNodeId];
-    }
-    meshVolume += tet.volume();
-  }
-  return meshVolume;
 }
 
 /*!
@@ -987,7 +992,7 @@ int main(int argc, char** argv)
 #if defined(AXOM_USE_UMPIRE)
   const std::string allocatorName =
     umpire::ResourceManager::getInstance().getAllocator(allocId).getName();
-  std::cout << "Allocator: " << allocId << ' ' << allocatorName << std::endl;
+  SLIC_INFO(axom::fmt::format("Using allocator id {}, '{}'", allocId, allocatorName));
 #endif
 
   AXOM_ANNOTATE_BEGIN("quest example for shaping primals");
@@ -1000,84 +1005,56 @@ int main(int argc, char** argv)
   // Create shapes for the test
   //---------------------------------------------------------------------------
   axom::Array<std::shared_ptr<axom::quest::GeometryClipperStrategy>> geomStrategies;
+  geomStrategies.reserve(params.testGeom.size());
   SLIC_ERROR_IF(params.getBoxDim() != 3, "This example is only in 3D.");
-  if(params.testGeom == "plane")
+  for( const auto& tg : params.testGeom )
   {
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(), params.testGeom));
-  }
-  else if(params.testGeom == "hex")
-  {
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::HexClipper>(createGeom_Hex(), params.testGeom));
-  }
-  else if(params.testGeom == "sphere")
-  {
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::SphereClipper>(createGeom_Sphere(), params.testGeom));
-  }
+    if(tg == "plane")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(), tg));
+    }
+    else if(tg == "hex")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::HexClipper>(createGeom_Hex(), tg));
+    }
+    else if(tg == "sphere")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::SphereClipper>(createGeom_Sphere(), tg));
+    }
+    else if(tg == "tetmesh")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::TetMeshClipper>(createGeom_TetMesh(ds),
+                                                      tg));
+    }
+    else if(tg == "tet")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::TetClipper>(createGeom_Tet(),
+                                                      tg));
+    }
 #if 0
-  else if(params.testGeom == "tetmesh")
-  {
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Plane3DClipper>(createGeom_TetMesh(ds),
-                                                    params.testGeom));
-  }
-  else if(params.testGeom == "tet")
-  {
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Tet(),
-                                                    params.testGeom));
-  }
-  else if(params.testGeom == "hex")
-  {
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Hex(),
-                                                    params.testGeom));
-  }
-  else if(params.testGeom == "cyl")
-  {
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Cylinder(),
-                                                    params.testGeom));
-  }
-  else if(params.testGeom == "cone")
-  {
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Cone(),
-                                                    params.testGeom));
-  }
-  else if(params.testGeom == "sor")
-  {
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Sor(),
-                                                    params.testGeom));
-  }
-#endif
-  else if(params.testGeom == "all")
-  {
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(), params.testGeom));
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::HexClipper>(createGeom_Hex(), params.testGeom));
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::SphereClipper>(createGeom_Sphere(), params.testGeom));
-#if 0
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::TetMesh3DClipper>(createGeom_TetMesh(ds),
-                                                    params.testGeom));
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Tet3DClipper>(createGeom_Tet(),
-                                                    params.testGeom));
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Cylinder3DClipper>(createGeom_Cylinder(),
-                                                    params.testGeom));
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::Cone3DClipper>(createGeom_Cone(),
-                                                    params.testGeom));
-    geomStrategies.push_back(
-      std::make_shared<axom::quest::SOR3DClipper>(createGeom_Sor(),
-                                                    params.testGeom));
+    else if(tg == "cyl")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::Plane3DClipper>(createGeom_Cylinder(),
+                                                      tg));
+    }
+    else if(tg == "cone")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::Plane3DClipper>(createGeom_Cone(),
+                                                      tg));
+    }
+    else if(tg == "sor")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::Plane3DClipper>(createGeom_Sor(),
+                                                      tg));
+    }
 #endif
   }
 
@@ -1141,7 +1118,7 @@ int main(int argc, char** argv)
       // I just created a native layout from compMeshGrp to compMeshNode.
       // Now, I want to import that compMeshNode to another group that stores data on host.
       // But it failed.  Why?
-      auto* compMeshGrpOnHost = ds.getRoot()->createGroup("onHost1");
+      auto* compMeshGrpOnHost = ds.getRoot()->createGroup("compMeshOnHost");
       compMeshGrpOnHost->setDefaultAllocator(hostAllocId);
       compMeshGrpOnHost->importConduitTree(*compMeshNode);  // Fail on GPU.  Problem with the pointers.
     }
@@ -1171,13 +1148,10 @@ int main(int argc, char** argv)
     quest::GeometryClipper clipper(sMesh, geomStrategies[i]);
     clipper.setVerbose(true);
     axom::Array<double> ovlap;
-    std::cout << __WHERE << std::endl;
     clipper.clip(ovlap);
-    std::cout << __WHERE << std::endl;
 
     // Save volume fractions in mesh, for plotting and checking.
     sMesh.setMatsetFromVolume(geomStrategies[i]->name(), ovlap.view(), false);
-    std::cout << __WHERE << std::endl;
 
     // Correctness check on overlap volume.
     if(!axom::execution_space<axom::SEQ_EXEC>::usesAllocId(ovlap.getAllocatorID()))
@@ -1188,20 +1162,16 @@ int main(int argc, char** argv)
     auto ovlapView = ovlap.view();
     using reduce_policy = typename axom::execution_space<axom::SEQ_EXEC>::reduce_policy;
     RAJA::ReduceSum<reduce_policy, double> ovlapSumReduce(0.0);
-    std::cout << __WHERE << std::endl;
     axom::for_all<axom::SEQ_EXEC>(
       ovlap.size(),
       AXOM_LAMBDA(axom::IndexType i) { ovlapSumReduce += ovlapView[i]; });
-    std::cout << __WHERE << std::endl;
     double computedOverlapVol = ovlapSumReduce.get();
     double correctOverlapVol = exactOverlapVols[geomName];
-    std::cout << __WHERE << std::endl;
 
     bool err = !axom::utilities::isNearlyEqualRelative(computedOverlapVol,
                                                        correctOverlapVol,
                                                        1e-6 * refineTolFactor,
                                                        1e-8 * refineTolFactor);
-    std::cout << __WHERE << std::endl;
     failCounts += err;
 
     SLIC_INFO(axom::fmt::format("{:-^80}",
@@ -1212,18 +1182,9 @@ int main(int argc, char** argv)
                                                   computedOverlapVol - correctOverlapVol,
                                                   (err ? "ERROR" : "OK"))));
   }
-  std::cout << __WHERE << std::endl;
   AXOM_ANNOTATE_END("shaping");
 
-  std::cout << __WHERE << std::endl;
   sMesh.setFreeVolumeFractions("free");
-  std::cout << __WHERE << std::endl;
-
-#if 0
-std::cout<<__WHERE<<std::endl;
-if(params.useBlueprintConduit()) sMesh.getMeshAsConduit()->print();
-if(params.useBlueprintSidre()) sMesh.getMeshAsSidre()->print();
-#endif
 
   /*
     Copy mesh to host check results and plot.
@@ -1232,9 +1193,7 @@ if(params.useBlueprintSidre()) sMesh.getMeshAsSidre()->print();
   if(params.useBlueprintConduit())
   {
     compMeshGrpOnHost = ds.getRoot()->createGroup("onHost");
-#if defined(AXOM_USE_UMPIRE)
     compMeshGrpOnHost->setDefaultAllocator(hostAllocId);
-#endif
     compMeshGrpOnHost->importConduitTree(*sMesh.getMeshAsConduit());
   }
   if(params.useBlueprintSidre())
@@ -1242,9 +1201,7 @@ if(params.useBlueprintSidre()) sMesh.getMeshAsSidre()->print();
     if(sMesh.getMeshAsSidre()->getDefaultAllocatorID() != hostAllocId)
     {
       compMeshGrpOnHost = ds.getRoot()->createGroup("onHost");
-#if defined(AXOM_USE_UMPIRE)
       compMeshGrpOnHost->setDefaultAllocator(hostAllocId);
-#endif
       compMeshGrpOnHost->deepCopyGroup(sMesh.getMeshAsSidre(), hostAllocId);
     }
     else
@@ -1256,8 +1213,6 @@ if(params.useBlueprintSidre()) sMesh.getMeshAsSidre()->print();
 
   compMeshNode.reset(new conduit::Node);
   compMeshGrpOnHost->createNativeLayout(*compMeshNode);
-  // compMeshGrpOnHost->print();
-  // compMeshNode->print();
 
   /*
     Check blueprint validity.

@@ -109,7 +109,7 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
 
   if(!done)
   {
-    SLIC_INFO(axom::fmt::format("Getting discrete geometry for shape '{}'", m_strategy->name()));
+    SLIC_INFO(axom::fmt::format("GeometryClipper::clip Getting discrete geometry for shape '{}'", m_strategy->name()));
 
     if(m_shapeeMesh.dimension() == 3)
     {
