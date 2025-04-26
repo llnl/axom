@@ -538,6 +538,18 @@ axom::klee::Geometry createGeom_Sor()
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
+  // Compute SOR volume.
+  using ConeType = axom::primal::Cone<double, 3>;
+  axom::IndexType segmentCount = discreteFunction.shape()[0];
+  double vol = 0.0;
+  for (axom::IndexType s = 0; s < segmentCount-1; ++s)
+  {
+    ConeType cone(discreteFunction[s][1], discreteFunction[s+1][1],
+                  std::fabs(discreteFunction[s][0] - discreteFunction[s+1][0]));
+    vol += cone.volume();
+  }
+  exactOverlapVols["sor"] = vol;
+
   return sorGeometry;
 }
 
@@ -1030,6 +1042,11 @@ int main(int argc, char** argv)
     {
       geomStrategies.push_back(std::make_shared<axom::quest::TetClipper>(createGeom_Tet(), tg));
     }
+    else if(tg == "sor")
+    {
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::SorClipper>(createGeom_Sor(), tg));
+    }
 #if 0
     else if(tg == "cyl")
     {
@@ -1041,12 +1058,6 @@ int main(int argc, char** argv)
     {
       geomStrategies.push_back(
         std::make_shared<axom::quest::Plane3DClipper>(createGeom_Cone(),
-                                                      tg));
-    }
-    else if(tg == "sor")
-    {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::Plane3DClipper>(createGeom_Sor(),
                                                       tg));
     }
 #endif

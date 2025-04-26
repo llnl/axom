@@ -144,6 +144,14 @@ void Geometry::populateGeomInfo()
     m_geomInfo["radius"].set(sphere.getRadius());
   }
 
+  else if(m_format == "sor3D")
+  {
+    m_geomInfo["sorBase"].set(m_sorBase.data(), 3);
+    m_geomInfo["sorDirection"].set(m_sorDirection.data(), 3);
+    m_geomInfo["discreteFunction"].set(m_discreteFunction.data(), m_discreteFunction.size());
+    m_geomInfo["levelOfRefinement"].set(m_levelOfRefinement);
+  }
+
   // TODO: other formats.
 }
 

@@ -37,6 +37,7 @@ set( primal_headers
     geometry/Ray.hpp
     geometry/Segment.hpp
     geometry/Sphere.hpp
+    geometry/Cone.hpp
     geometry/Polyhedron.hpp
     geometry/Tetrahedron.hpp
     geometry/Octahedron.hpp
