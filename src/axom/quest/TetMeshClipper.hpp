@@ -42,13 +42,14 @@ private:
 #endif
   std::string m_name;
 
+  //! @brief Topology to use in the Blueprint tet mesh.
   std::string m_topoName;
 
+  //! @brief Tet mesh in Blueprint format.
   conduit::Node* m_bpMesh;
 
+  //! @brief Number of cells in the tet mesh.
   axom::IndexType m_cellCount;
-
-  axom::Array<TetrahedronType> m_tets;
 
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);

@@ -336,7 +336,7 @@ private:
   //!@brief The analytical sphere, if used.
   Sphere3D m_sphere;
 
-  //! @brief The discrete 2D function, as an Nx2 array, if used.
+  //! @brief The discrete r(z) function, as an Nx2 array, if used.
   axom::Array<double, 2> m_discreteFunction;
 
   //!@brief The point corresponding to z=0 on the SOR axis.

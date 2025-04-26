@@ -118,7 +118,7 @@ public:
 
     using BoundingBoxType = primal::BoundingBox<double, 3>;
 
-    ShapeeMesh& shapeeMesh = m_delegator.getShapeeMesh();
+    ShapeeMesh& shapeeMesh = getDelegator().getShapeeMesh();
 
     const int allocId = shapeeMesh.getAllocatorId();
 
@@ -134,11 +134,11 @@ public:
 
     SLIC_INFO(axom::fmt::format(
       "GeometryClipperDelegateExec::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
-      getGeometryClipperStrategy().name()));
+      getStrategy().name()));
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    const bool useOcts = getGeometryClipperStrategy().getShapeAsOcts(shapeeMesh, geomAsOcts);
-    const bool useTets = getGeometryClipperStrategy().getShapeAsTets(shapeeMesh, geomAsTets);
+    const bool useOcts = getStrategy().getShapeAsOcts(shapeeMesh, geomAsOcts);
+    const bool useTets = getStrategy().getShapeAsTets(shapeeMesh, geomAsTets);
     SLIC_ASSERT(useTets != useOcts);
     SLIC_ASSERT(useOcts || geomAsOcts.empty());
     SLIC_ASSERT(useTets || geomAsTets.empty());
@@ -388,7 +388,7 @@ public:
 
     using BoundingBoxType = primal::BoundingBox<double, 3>;
 
-    ShapeeMesh& shapeeMesh = m_delegator.getShapeeMesh();
+    ShapeeMesh& shapeeMesh = getDelegator().getShapeeMesh();
 
     const int allocId = shapeeMesh.getAllocatorId();
 
@@ -398,11 +398,11 @@ public:
 
     SLIC_INFO(axom::fmt::format(
       "GeometryClipperDelegateExec::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
-      getGeometryClipperStrategy().name()));
+      getStrategy().name()));
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    const bool useOcts = getGeometryClipperStrategy().getShapeAsOcts(shapeeMesh, geomAsOcts);
-    const bool useTets = getGeometryClipperStrategy().getShapeAsTets(shapeeMesh, geomAsTets);
+    const bool useOcts = getStrategy().getShapeAsOcts(shapeeMesh, geomAsOcts);
+    const bool useTets = getStrategy().getShapeAsTets(shapeeMesh, geomAsTets);
     SLIC_ASSERT(useTets != useOcts);
     SLIC_ASSERT(useTets + useOcts == 1);
 

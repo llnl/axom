@@ -119,9 +119,11 @@ public:
 
     ShapeeMesh& getShapeeMesh() { return m_delegator.m_shapeeMesh; }
 
-    GeometryClipperStrategy& getGeometryClipperStrategy() { return *m_delegator.m_strategy; }
+    GeometryClipperStrategy& getStrategy() { return *m_delegator.m_strategy; }
 
-  protected:
+    GeometryClipper& getDelegator() { return m_delegator; }
+
+  private:
     GeometryClipper& m_delegator;
   };
 

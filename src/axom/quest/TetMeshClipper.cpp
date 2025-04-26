@@ -125,41 +125,16 @@ bool TetMeshClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<T
       bpMeshGrp->createGroup("fields");
     }
   }
-  if(0)
-  {
-    /*
-      Conform to extra requirements from mint.
-      - Requires "fields" group.
-      - coord must be 2D array, even though 2nd dimension is 1.
-    */
-    if(!bpMeshGrp->hasGroup("fields"))
-    {
-      bpMeshGrp->createGroup("fields");
-    }
-    const std::string coordsetName =
-      bpMeshGrp->getGroup("topologies")->getGroup(m_topoName)->getView("coordset")->getString();
-    std::string dirs[3] = {"x", "y", "z"};
-    IndexType shape[2] = {0, 1};
-    for(int d = 0; d < 3; ++d)
-    {
-      auto* coordValues =
-        bpMeshGrp->getGroup("coordsets")->getGroup(coordsetName)->getGroup("values")->getView(dirs[d]);
-      coordValues->getShape(3, shape);
-      shape[1] = 1;
-      coordValues->reshapeArray(2, shape);
-      assert(coordValues->getNumDimensions() == 2);
-    }
-  }
   std::shared_ptr<mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>> mintMesh {
     (mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>*)axom::mint::getMesh(bpMeshGrp,
                                                                                      m_topoName)};
 
   // Initialize tetrahedra
-  axom::Array<IndexType> nodeIds(4);
-  axom::Array<Point3D> pts(4);
+  IndexType nodeIds[4];
+  Point3D pts[4];
   for(int i = 0; i < m_cellCount; i++)
   {
-    mintMesh->getCellNodeIDs(i, nodeIds.data());
+    mintMesh->getCellNodeIDs(i, nodeIds);
 
     mintMesh->getNode(nodeIds[0], pts[0].data());
     mintMesh->getNode(nodeIds[1], pts[1].data());

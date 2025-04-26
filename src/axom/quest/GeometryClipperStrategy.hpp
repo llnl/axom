@@ -24,6 +24,10 @@ namespace quest
 
   Key methods to implement:  (Some combination of these is required.)
 
+  -# @c labelInOut: Label whether the cells in a mesh is inside,
+     outside or on the shape boundary.  If a cell cannot be
+     determined, you can conservatively label it as on the boundary.
+
   -# @c getShapesAsTets: Build an array of tetrahedra to approximate
      the shape.
 
@@ -36,18 +40,15 @@ namespace quest
      method clips all cells in the mesh and the other clips only
      cells in a provided index list.
 
-  -# @c labelInOut: Label whether the cells in a mesh is inside,
-     outside or on the shape boundary.  If a cell cannot be
-     determined, you can conservatively label it as on the boundary.
-
   Every method returns true if it fulfilled the request, or
   false if it was a no-op.
 
-  Subclass must implement either a @c specializedClip method or one of
-  the @c getShapesAs...() methods.  The former is prefered if the use
-  of geometry-specific information can make it faster.  @c labelInOut
-  is optional but if provided, it can improve performance by limiting
-  the slower clipping steps to a subset of cells.
+  Implementations of this strategy must provide either a
+  @c specializedClip method or one of the @c getShapesAs...() methods.
+  The former is prefered if the use of geometry-specific information
+  can make it faster.  @c labelInOut is optional but if provided,
+  it can improve performance by limiting the slower clipping steps
+  to a subset of cells.
 */
 class GeometryClipperStrategy
 {
@@ -70,6 +71,7 @@ public:
   using SphereType = axom::primal::Sphere<double, 3>;
   using Plane3DType = axom::primal::Plane<double, 3>;
   using Point3DType = axom::primal::Point<double, 3>;
+  using Vector3DType = axom::primal::Vector<double, 3>;
 
   using CircleType = axom::primal::Sphere<double, 2>;
   using Plane2DType = axom::primal::Plane<double, 2>;
@@ -141,6 +143,9 @@ public:
 
     @return True if clipping was done and false if a no-op.
 
+    This method need not be implemented if labelInOut()
+    returns true.
+
     If implemenation returns true, it should ensure these
     post-conditions hold:
     @post ovlap.size() == shapeeMesh.getCellCount()
@@ -169,6 +174,9 @@ public:
     shape discretization methods must be provided.
 
     @return True if clipping was done and false if a no-op.
+
+    This method need not be implemented if labelInOut()
+    returns false.
 
     If implemenation returns true, it should ensure these
     post-conditions hold:
