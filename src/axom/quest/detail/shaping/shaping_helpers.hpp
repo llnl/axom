@@ -115,13 +115,16 @@ void computeVolumeFractions(const std::string& matField,
  * to a grid function on the degrees of freedom such that the volume fractions are doubles
  * between 0 and 1 ( \a y_min and \a y_max )
  */
-void FCT_project(mfem::DenseMatrix& M,
-                 mfem::DenseMatrixInverse& M_inv,
-                 mfem::Vector& m,
-                 mfem::Vector& x,    // indicators
-                 double y_min,       // 0
-                 double y_max,       // 1
-                 mfem::Vector& xy);  // indicators * rho
+void FCT_project(const double* M,
+                 const double* M_inv,
+                 const int* P,
+                 const int s,
+                 const double* m,
+                 const double* x,     // indicators
+                 const double y_min,  // 0
+                 const double y_max,  // 1
+                 double* xy,
+                 double* fct_mat);  // scratch buffer
 
 /**
  * \brief Identity transform for volume fractions from inout samples

@@ -11,6 +11,10 @@
 
 #include "axom/fmt.hpp"
 
+#if defined(AXOM_USE_MFEM)
+  #include "mfem/linalg/dtensor.hpp"
+#endif
+
 namespace axom
 {
 namespace quest
@@ -144,6 +148,7 @@ void computeVolumeFractions(const std::string& matField,
   SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
 
   const auto volFracName = axom::fmt::format("vol_frac_{}", matField.substr(10));
+  AXOM_ANNOTATE_SCOPE("computeVolumeFractions");
 
   // Grab a pointer to the inout samples QFunc
   mfem::QuadratureFunction* inout = inoutQFuncs.Get(matField);
@@ -189,40 +194,76 @@ void computeVolumeFractions(const std::string& matField,
   // to keep the range of values between 0 and 1
   axom::utilities::Timer timer(true);
   {
-    mfem::MassIntegrator mass_integrator;
+    const auto& ir = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
+
     mfem::QuadratureFunctionCoefficient qfc(*inout);
     mfem::DomainLFIntegrator rhs(qfc);
-
-    const auto& ir = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
     rhs.SetIntRule(&ir);
+    //rhs.UseDevice(true);
 
-    mfem::DenseMatrix m;
-    mfem::DenseMatrixInverse mInv;
-    mfem::Vector b, x;
-    mfem::Array<int> dofs;
-    mfem::Vector one;
-    const double minY = 0.;
-    const double maxY = 1.;
+    mfem::ConstantCoefficient one_coef(1.0);
+    mfem::MassIntegrator mass_integrator(one_coef, &ir);
 
-    for(int i = 0; i < NE; ++i)
+    const int dofs = fes->GetFE(0)->GetDof();
+    mfem::DenseTensor mass_mat(dofs, dofs, NE);
+    mass_mat = 0.;
+
     {
-      auto* T = mesh->GetElementTransformation(i);
-      auto* el = fes->GetFE(i);
-
-      mass_integrator.AssembleElementMatrix(*el, *T, m);
-      rhs.AssembleRHSElementVect(*el, *T, b);
-      mInv.Factor(m);
-
-      if(one.Size() != b.Size())
-      {
-        one.SetSize(b.Size());
-        one = 1.0;
-      }
-      FCT_project(m, mInv, b, one, minY, maxY, x);
-
-      fes->GetElementDofs(i, dofs);
-      volFrac->SetSubVector(dofs, x);
+      AXOM_ANNOTATE_SCOPE("mass integrator assemble");
+      // wrap mass_mat data as vector for AssembleEA call
+      mfem::Vector mass_vec(mass_mat.HostReadWrite(), mass_mat.TotalSize());
+      mass_integrator.AssembleEA(*fes, mass_vec, false);
     }
+
+    // Perform batched LU factorization on the mass tensor
+    // Note: This was written against mfem@4.7 and should be updated for mfem@4.8 when we upgrade
+    AXOM_ANNOTATE_BEGIN("batch lu factor");
+    mfem::Array<int> pivots(NE * dofs);
+    mfem::DenseTensor mInv = mass_mat;
+    mfem::BatchLUFactor(mInv, pivots);
+    AXOM_ANNOTATE_END("batch lu factor");
+
+    mfem::Vector b(fes->GetVSize());
+    {
+      AXOM_ANNOTATE_SCOPE("domain lf integrator assemble");
+      mfem::Array<int> elem_marker(fes->GetNE());
+      elem_marker = 1;
+      b = 0.;
+      rhs.AssembleDevice(*fes, elem_marker, b);
+    }
+
+    const int s = dofs;
+    mfem::Vector one(s);
+    one = 1.;
+
+    constexpr double minY = 0.;
+    constexpr double maxY = 1.;
+
+    axom::Array<double> fct_mat(s * s);
+    auto fct_mat_view = fct_mat.view();
+
+    // Reshape returns an indexable view of a multidimensional array
+    const auto m_d = mfem::Reshape(mass_mat.HostRead(), dofs, dofs, NE);
+    const auto mInv_d = mfem::Reshape(mInv.HostRead(), dofs, dofs, NE);
+    const auto P_d = mfem::Reshape(pivots.HostRead(), dofs, NE);
+    const auto b_d = mfem::Reshape(b.HostRead(), dofs, NE);
+    const auto one_d = mfem::Reshape(one.HostRead(), dofs);
+    auto x_d = mfem::Reshape(volFrac->HostWrite(), dofs, NE);
+
+    AXOM_ANNOTATE_BEGIN("fct project");
+    axom::for_all<axom::SEQ_EXEC>(0, NE, [&](int i) {
+      FCT_project(&m_d(0, 0, i),
+                  &mInv_d(0, 0, i),
+                  &P_d(0, i),
+                  s,
+                  &b_d(0, i),
+                  &one_d(0),
+                  minY,
+                  maxY,
+                  &x_d(0, i),
+                  fct_mat_view.data());
+    });
+    AXOM_ANNOTATE_END("fct project");
   }
   timer.stop();
   SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
@@ -238,136 +279,185 @@ void computeVolumeFractions(const std::string& matField,
  * to a grid function on the degrees of freedom such that the volume fractions are doubles
  * between 0 and 1 ( \a y_min and \a y_max )
  */
-void FCT_project(mfem::DenseMatrix& M,
-                 mfem::DenseMatrixInverse& M_inv,
-                 mfem::Vector& m,
-                 mfem::Vector& x,  // indicators
-                 double y_min,
-                 double y_max,
-                 mfem::Vector& xy)  // indicators * rho
+void FCT_project(const double* M,
+                 const double* M_inv,
+                 const int* P,
+                 const int s,
+                 const double* m,
+                 const double* x,  // indicators
+                 const double y_min,
+                 const double y_max,
+                 double* xy,
+                 double* fct_mat)  // use as scratch buffer
 {
-  // [IN]  - M, M_inv, m, x, y_min, y_max
+  // [IN]  - M, M_inv, P, s, m, x, y_min, y_max
   // [OUT] - xy
 
-  using namespace mfem;
+  constexpr int ND = 64;
+  using StackArray = axom::StackArray<double, ND>;
+  SLIC_ASSERT(s <= ND);
 
-  const int s = M.Size();
+  // Compute the lumped mass matrix in ML:  GetRowSums(M, s, s, ML);
+  StackArray ML;
+  for(int r = 0; r < s; ++r)
+  {
+    double dot {0.};
+    for(int c = 0; c < s; ++c)
+    {
+      dot += M[r + c * s];
+    }
+    ML[r] = dot;
+  }
 
-  xy.SetSize(s);
+  // Compute the high-order projection in xy: M_inv.Mult(m, xy);
+  {
+    for(int t = 0; t < s; ++t)
+    {
+      xy[t] = m[t];
+    }
 
-  // Compute the high-order projection in xy
-  M_inv.Mult(m, xy);
+    // xy <- P xy
+    for(int i = 0; i < s; ++i)
+    {
+      axom::utilities::swap(xy[i], xy[P[i]]);
+    }
+
+    // xy <- L^{-1} xy
+    for(int j = 0; j < s; ++j)
+    {
+      const double x_j = xy[j];
+      for(int i = j + 1; i < s; ++i)
+      {
+        xy[i] -= M_inv[i + j * s] * x_j;
+      }
+    }
+
+    // xy <- U^{-1} xy
+    for(int j = s - 1; j >= 0; --j)
+    {
+      const double x_j = (xy[j] /= M_inv[j + j * s]);
+      for(int i = 0; i < j; ++i)
+      {
+        xy[i] -= M_inv[i + j * s] * x_j;
+      }
+    }
+  }
 
   // Q0 solutions can't be adjusted conservatively. It's what it is.
-  if(xy.Size() == 1)
+  if(s == 1)
   {
     return;
   }
 
-  // Compute the lumped mass matrix in ML
-  Vector ML(s);
-  M.GetRowSums(ML);
-
-  //Ensure dot product is done on the CPU
-  double dMLX(0);
-  for(int i = 0; i < x.Size(); ++i)
+  double dMLX = 0.;
+  double mSum = 0.;
+  for(int i = 0; i < s; ++i)
   {
-    dMLX += ML(i) * x(i);
+    dMLX += ML[i] * x[i];
+    mSum += m[i];
   }
 
-  const double y_avg = m.Sum() / dMLX;
+  const double y_avg = mSum / dMLX;
 
   #ifdef AXOM_DEBUG
-  SLIC_WARNING_IF(
-    !(y_min < y_avg + 1e-12 && y_avg < y_max + 1e-12),
-    axom::fmt::format("Average ({}) is out of bounds [{},{}]: ", y_avg, y_min - 1e-12, y_max + 1e-12));
+  constexpr double EPS = 1e-12;
+  if(!(y_min < y_avg + EPS && y_avg < y_max + EPS))
+  {
+    SLIC_WARNING(
+      axom::fmt::format("Average ({}) is out of bounds [{},{}]: ", y_avg, y_min - EPS, y_max + EPS));
+  }
   #endif
 
-  Vector z(s);
-  Vector beta(s);
-  Vector Mxy(s);
-  M.Mult(xy, Mxy);
+  StackArray z;
+  StackArray beta;
+  double betaSum = 0.;
   for(int i = 0; i < s; i++)
   {
     // Some different options for beta:
-    //beta(i) = 1.0;
-    beta(i) = ML(i) * x(i);
-    //beta(i) = ML(i)*(x(i) + 1e-14);
-    //beta(i) = ML(i);
-    //beta(i) = Mxy(i);
+    //beta[i] = 1.0;
+    beta[i] = ML[i] * x[i];
+    //beta[i] = ML[i]*(x[i] + 1e-14);
+    //beta[i] = ML[i];
 
     // The low order flux correction
-    z(i) = m(i) - ML(i) * x(i) * y_avg;
+    z[i] = m[i] - ML[i] * x[i] * y_avg;
+    betaSum += beta[i];
   }
 
   // Make beta_i sum to 1
-  beta /= beta.Sum();
-
-  DenseMatrix F(s);
-  // Note: indexing F(i,j) where  0 <= j < i < s
-  for(int i = 1; i < s; i++)
+  for(int i = 0; i < s; ++i)
   {
-    for(int j = 0; j < i; j++)
+    beta[i] /= betaSum;
+  }
+
+  for(int i = 1; i < s; ++i)
+  {
+    for(int j = 0; j < i; ++j)
     {
-      F(i, j) = M(i, j) * (xy(i) - xy(j)) + (beta(j) * z(i) - beta(i) * z(j));
+      const int idx = i + j * s;
+      fct_mat[idx] = M[idx] * (xy[i] - xy[j]) + (beta[j] * z[i] - beta[i] * z[j]);
     }
   }
 
-  Vector gp(s), gm(s);
-  gp = 0.0;
-  gm = 0.0;
-  for(int i = 1; i < s; i++)
+  // NOTE: `z' and `beta' are no longer used.
+  // Zero them out and reuse their memory under different aliases: gp and gm
+  auto& gp = z;
+  auto& gm = beta;
+  for(int t = 0; t < s; ++t)
   {
-    for(int j = 0; j < i; j++)
+    gp[t] = 0.0;
+    gm[t] = 0.0;
+  };
+
+  for(int i = 1; i < s; ++i)
+  {
+    for(int j = 0; j < i; ++j)
     {
-      double fij = F(i, j);
+      const int idx = i + j * s;
+      double fij = fct_mat[idx];
       if(fij >= 0.0)
       {
-        gp(i) += fij;
-        gm(j) -= fij;
+        gp[i] += fij;
+        gm[j] -= fij;
       }
       else
       {
-        gm(i) += fij;
-        gp(j) -= fij;
+        gm[i] += fij;
+        gp[j] -= fij;
       }
     }
   }
 
-  for(int i = 0; i < s; i++)
+  for(int i = 0; i < s; ++i)
   {
-    xy(i) = x(i) * y_avg;
+    xy[i] = x[i] * y_avg;
   }
 
-  for(int i = 0; i < s; i++)
+  for(int i = 0; i < s; ++i)
   {
-    double mi = ML(i), xyLi = xy(i);
-    double rp = std::max(mi * (x(i) * y_max - xyLi), 0.0);
-    double rm = std::min(mi * (x(i) * y_min - xyLi), 0.0);
-    double sp = gp(i), sm = gm(i);
+    const double mi = ML[i];
+    const double xyLi = xy[i];
+    const double rp = axom::utilities::max(mi * (x[i] * y_max - xyLi), 0.0);
+    const double rm = axom::utilities::min(mi * (x[i] * y_min - xyLi), 0.0);
+    const double sp = gp[i];
+    const double sm = gm[i];
 
-    gp(i) = (rp < sp) ? rp / sp : 1.0;
-    gm(i) = (rm > sm) ? rm / sm : 1.0;
+    gp[i] = (rp < sp) ? rp / sp : 1.0;
+    gm[i] = (rm > sm) ? rm / sm : 1.0;
   }
 
-  for(int i = 1; i < s; i++)
+  for(int i = 1; i < s; ++i)
   {
-    for(int j = 0; j < i; j++)
+    for(int j = 0; j < i; ++j)
     {
-      double fij = F(i, j), aij;
+      const int idx = i + j * s;
+      double fij = fct_mat[idx];
 
-      if(fij >= 0.0)
-      {
-        aij = std::min(gp(i), gm(j));
-      }
-      else
-      {
-        aij = std::min(gm(i), gp(j));
-      }
-
+      const double aij =
+        fij >= 0.0 ? axom::utilities::min(gp[j], gm[j]) : axom::utilities::min(gm[i], gp[j]);
       fij *= aij;
-      xy(i) += fij / ML(i);
-      xy(j) -= fij / ML(j);
+      xy[i] += fij / ML[i];
+      xy[j] -= fij / ML[j];
     }
   }
 }
