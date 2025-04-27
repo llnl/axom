@@ -585,6 +585,41 @@ TEST(primal_bezier_inter, ray_linear_bezier)
     const double eps = 1E-3;
     checkIntersectionsRay(ray, curve, exp_intersections1, exp_intersections2, eps, eps);
   }
+
+  // case 4 -- A ray that is collinear with the curve
+  {
+    SCOPED_TRACE("linear bezier collinear");
+
+    PointType data[order + 1] = {PointType {0.0, 0.0}, PointType {1.0, 1.0}};
+    BezierCurveType curve(data, order);
+
+    PointType ray_origin({0.5, 0.5});
+    VectorType ray_direction({1.0, 1.0});
+    RayType ray(ray_origin, ray_direction);
+
+    const double eps = 1E-3;
+
+    // Because defining the "correct" behavior is ambiguous, we only enforce now that
+    //  1) at least one intersection is found, and
+    //  2) all returned points match
+    axom::Array<double> r, c;
+    bool curves_intersect = intersect(ray, curve, r, c, eps);
+
+    EXPECT_TRUE(curves_intersect);
+    EXPECT_GE(c.size(), 1);
+
+    EXPECT_EQ(r.size(), c.size());
+    for(int i = 0; i < c.size(); ++i)
+    {
+      auto p1 = curve.evaluate(c[i]);
+      auto p2 = ray.at(r[i]);
+
+      for(int d = 0; d < DIM; ++d)
+      {
+        EXPECT_NEAR(p1[d], p2[d], eps);
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -829,6 +864,47 @@ TEST(primal_bezier_inter, ray_cubic_bezier_four_intersections)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_bezier_inter, ray_bezier_tangent_intersections)
+{
+  static const int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using VectorType = primal::Vector<CoordType, DIM>;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+  using RayType = primal::Ray<CoordType, DIM>;
+
+  const int order = 3;
+
+  // Ray
+  PointType ray_origin({0.0, 0.5});
+  VectorType ray_direction({1.0, 0.0});
+  RayType ray(ray_origin, ray_direction);
+
+  // Cubic curve
+  PointType data[order + 1] = {PointType {1.0, 1.0},
+                               PointType {0.75, 0.0},
+                               PointType {0.25, 1.0},
+                               PointType {0.0, 0.0}};
+  BezierCurveType curve(data, order), shorter_curve, dummy_curve;
+
+  const double eps = 1E-10;
+  const double eps_test = 1E-4; // Currently can't be found to better precision
+  
+  // Tangent intersection at inflection point
+  axom::Array<CoordType> exp_r = {0.5};
+  axom::Array<CoordType> exp_c = {0.5};
+
+  checkIntersectionsRay(ray, curve, exp_r, exp_c, eps, eps_test);
+
+  // Subdivide the curve so that the tangent intersection
+  //  isn't at a curve subdivision
+  curve.split( 7.0 / 9.0, shorter_curve, dummy_curve );
+  exp_c[0] *= 9.0 / 7.0;
+  
+  checkIntersectionsRay(ray, shorter_curve, exp_r, exp_c, eps, eps_test);
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_bezier_inter, ray_nurbs_intersections)
 {
   static const int DIM = 2;
@@ -1068,6 +1144,48 @@ TEST(primal_bezier_inter, circle_endpoint_intersections)
   exp_curve_intersections = {0.0};
 
   checkIntersectionsCircle(circle, curve, exp_circle_intersections, exp_curve_intersections, eps, eps_test);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_bezier_inter, ray_circle_tangent_intersections)
+{
+  static const int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using VectorType = primal::Vector<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+  using CircleType = primal::Sphere<CoordType, DIM>;
+
+  const int degree = 3;
+
+  // Circle 1 - Record intersections at the t = 0 endpoint
+  PointType center({0.5, -0.5});
+  CoordType radius = 1.0;
+  CircleType circle(center, radius);
+
+  // Cubic curve
+  PointType data[degree + 1] = {PointType {1.0, 1.0},
+                               PointType {0.75, 0.0},
+                               PointType {0.25, 1.0},
+                               PointType {0.0, 0.0}};
+  NURBSCurveType curve(data, degree + 1, degree), shorter_curve, dummy_curve;
+
+  const double eps = 1E-10;
+  const double eps_test = 1E-4; // Currently can't be found to better precision
+  
+  // Tangent intersection at inflection point
+  axom::Array<CoordType> exp_circle_intersections = {0.5 * M_PI, 1.7452645457566491};
+  axom::Array<CoordType> exp_curve_intersections = {0.5, 0.65598407174666928};
+
+  checkIntersectionsCircle(circle, curve, exp_circle_intersections, exp_curve_intersections, eps, eps_test);
+
+  // Tangent intersection at inflection point, but not at a curve subdivision point
+  constexpr bool normalize = true;
+  curve.split( 7.0 / 9.0, shorter_curve, dummy_curve, normalize );
+  exp_curve_intersections[0] *= 9.0 / 7.0;
+  exp_curve_intersections[1] *= 9.0 / 7.0;
+
+  checkIntersectionsCircle(circle, shorter_curve, exp_circle_intersections, exp_curve_intersections, eps, eps_test);
 }
 
 //------------------------------------------------------------------------------

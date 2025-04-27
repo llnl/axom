@@ -127,9 +127,8 @@ bool intersect_2d_linear(const Point<T, 2> &a,
  * \note A BezierCurve is parametrized in [0,1). The scale and offset parameters
  * are used to track the local curve parameters during subdivisions
  *
- * \note This function assumes the all intersections have multiplicity
- * one, i.e. there are no points at which the curves and their derivatives
- * both intersect. Thus, the function does not find tangencies.
+ * \note This function can't be used to identify tangents at local a min/max
+ *   of Bezier curves.
  * 
  * \return True if the two curves intersect, False otherwise
  * \sa intersect_bezier
@@ -167,9 +166,8 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
  * \note A BezierCurve is parametrized in [0,1). The scale and offset parameters
  * are used to track the local curve parameters during subdivisions
  *
- * \note This function assumes the all intersections have multiplicity
- * one, i.e. there are no points at which the curves and their derivatives
- * both intersect. Thus, this function does not find tangencies.
+ * \note This function can't be used to identify tangents at local a min/max
+ *   of Bezier curves.
  * 
  * \return True if the two curves intersect, False otherwise
  * \sa intersect_bezier
@@ -355,13 +353,13 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
 
     // Need to check intersection with zero tolerance
     //  to handle cases where `intersect` treats the ray as collinear
-    bool isParallel = false;
-    detail::intersect_ray(r, seg, r0, s0, EPS, isParallel);
-    if(!isParallel && r0 > 0.0 - EPS && s0 > 0.0 - EPS && s0 < 1.0 - EPS)
+    bool foundIntersection = detail::intersect_ray(r, seg, r0, s0, EPS);
+    if(foundIntersection && s0 < 1.0 - EPS)
     {
       rp.push_back(r0);
       cp.push_back(c_offset + c_scale * s0);
-      foundIntersection = true;
+
+      return true;
     }
   }
   else
@@ -473,10 +471,31 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
 
   T disc = circ.getRadius() * circ.getRadius() * dr * dr - D * D;
 
-  // Treat tangencies as *not* intersecting
+  // Identify near-tangent cases
   if(disc <= EPS * EPS)
   {
-    return false;
+    T ct;
+    Segment<T, 2> seg(a, b);
+
+    // Because the line is known to be tangent, there's only one intersection point,
+    //  and it would have to be at the closest point on the line to the circle center.
+    Point<T, 2> cp = closest_point(circ.getCenter(), seg, &ct);
+    T dist = primal::squared_distance(cp, circ.getCenter());
+
+    if(axom::utilities::isNearlyEqual(dist, circ.getRadius(), EPS))
+    {
+      c1 = std::atan2(cp[1] - circ.getCenter()[1], cp[0] - circ.getCenter()[0]);
+      c1 = (c1 < 0.0) ? c1 + 2.0 * M_PI : c1;
+      t1 = ct;
+
+      c2 = 0.0;
+      t2 = -1.0;
+      return true;
+    }
+    else
+    {
+      return false;
+    }
   }
 
   disc = std::sqrt(disc);

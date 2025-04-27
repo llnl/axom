@@ -410,9 +410,7 @@ TEST(primal_ray_intersect, ray_segment_edge_cases)
 
   for(auto& seg : intersecting_segs)
   {
-    EXPECT_TRUE(
-      intersect_ray(the_ray, seg, ray_param, seg_param, EPS, isParallel));
-    EXPECT_TRUE(isParallel);
+    EXPECT_TRUE(intersect_ray(the_ray, seg, ray_param, seg_param, EPS));
     EXPECT_NEAR(the_ray.at(ray_param)[0], seg.at(seg_param)[0], EPS);
     EXPECT_NEAR(the_ray.at(ray_param)[1], seg.at(seg_param)[1], EPS);
   }
@@ -427,9 +425,7 @@ TEST(primal_ray_intersect, ray_segment_edge_cases)
 
   for(auto& seg : not_intersecting_segs)
   {
-    EXPECT_FALSE(
-      intersect_ray(the_ray, seg, ray_param, seg_param, EPS, isParallel));
-    EXPECT_TRUE(isParallel);
+    EXPECT_FALSE(intersect_ray(the_ray, seg, ray_param, seg_param, EPS));
   }
 }
 
