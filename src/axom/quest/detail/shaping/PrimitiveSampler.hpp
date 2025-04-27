@@ -138,6 +138,18 @@ public:
     }
 
     SLIC_INFO("Mesh bounding box: " << m_bbox);
+
+    // Print out the total volume of all the tetrahedra
+    auto prim_view = m_primitives.view();
+    using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
+    RAJA::ReduceSum<REDUCE_POL, double> total_tet_vol(0.0);
+    axom::for_all<ExecSpace>(
+      num_cells,
+      AXOM_LAMBDA(axom::IndexType i) { total_tet_vol += prim_view[i].volume(); });
+
+    SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                     "Total volume of all generated tetrahedra is {:.2Lf}",
+                                     total_tet_vol.get()));
   }
 
   void initSpatialIndex()
@@ -239,6 +251,7 @@ public:
     auto aabbs_view = m_aabbs.view();
     AXOM_UNUSED_VAR(aabbs_view);
 
+    AXOM_ANNOTATE_BEGIN("checking containment");
     axom::for_all<ExecSpace>(
       nq,
       AXOM_LAMBDA(axom::IndexType i) {
@@ -254,6 +267,7 @@ public:
           }
         }
       });
+    AXOM_ANNOTATE_END("checking containment");
 
     timer.stop();
 
