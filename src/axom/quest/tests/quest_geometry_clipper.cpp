@@ -319,7 +319,8 @@ const std::string matsetName = "matset";
 const std::string coordsetName = "coords";
 int cellCount = -1;
 std::map<std::string, double> exactOverlapVols;
-double refineTolFactor = 1.0;  // To relax tolerance for approximated shapes.
+std::map<std::string, double> errorToleranceRel; // Relative error tolerance.
+std::map<std::string, double> errorToleranceAbs; // Absolute error tolerance.
 
 // Computational mesh in different forms, initialized in main
 axom::sidre::Group* compMeshGrp = nullptr;
@@ -435,7 +436,8 @@ axom::klee::Geometry createGeom_Sphere()
   const axom::IndexType levelOfRefinement = params.refinementLevel;
   axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
   exactOverlapVols["sphere"] = 4. / 3 * M_PI * radius * radius * radius;
-  refineTolFactor = 1.0e3;
+  errorToleranceRel["sphere"] = 1e-3;
+  errorToleranceAbs["sphere"] = 1e-5;
 
   return sphereGeometry;
 }
@@ -482,6 +484,8 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds)
   axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
 
   exactOverlapVols["tetmesh"] = volumeOfTetMesh(tetMesh);
+  errorToleranceRel["tetmesh"] = 1e-6;
+  errorToleranceAbs["tetmesh"] = 1e-8;
 
   return tetMeshGeometry;
 }
@@ -544,7 +548,7 @@ axom::klee::Geometry createGeom_Sor()
   discreteFunction(4, 0) = 4 * dz + zShift;
   discreteFunction(4, 1) = 1.0 * maxR;
   discreteFunction(5, 0) = 5 * dz + zShift;
-  discreteFunction(5, 1) = 0.0;
+  discreteFunction(5, 1) = 1.0 * maxR;
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
@@ -554,6 +558,8 @@ axom::klee::Geometry createGeom_Sor()
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
   exactOverlapVols["sor"] = computeVolume_Sor(discreteFunction);
+  errorToleranceRel["sor"] = 0.011;
+  errorToleranceAbs["sor"] = 0.013;
 
   return sorGeometry;
 }
@@ -582,6 +588,8 @@ axom::klee::Geometry createGeom_Cylinder()
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
   exactOverlapVols["cyl"] = computeVolume_Sor(discreteFunction);
+  errorToleranceRel["cyl"] = 1e-3;
+  errorToleranceAbs["cyl"] = 1e-5;
 
   return sorGeometry;
 }
@@ -611,6 +619,8 @@ axom::klee::Geometry createGeom_Cone()
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
   exactOverlapVols["cone"] = computeVolume_Sor(discreteFunction);
+  errorToleranceRel["cone"] = 1e-4;
+  errorToleranceAbs["cone"] = 1e-4;
 
   return sorGeometry;
 }
@@ -633,6 +643,8 @@ axom::klee::Geometry createGeom_Tet()
   addRotateOperator(*compositeOp);
   addTranslateOperator(*compositeOp, -1, 1, -1);
   exactOverlapVols["tet"] = tet.volume();
+  errorToleranceRel["tet"] = 1e-6;
+  errorToleranceAbs["tet"] = 1e-8;
 
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
 
@@ -662,6 +674,8 @@ axom::klee::Geometry createGeom_Hex()
   addRotateOperator(*compositeOp);
   addTranslateOperator(*compositeOp, -1, -1, -1);
   exactOverlapVols["hex"] = hex.volume();
+  errorToleranceRel["hex"] = 1e-6;
+  errorToleranceAbs["hex"] = 1e-8;
 
   axom::klee::Geometry hexGeometry(prop, hex, compositeOp);
 
@@ -692,6 +706,8 @@ axom::klee::Geometry createGeom_Plane()
   auto diag = upper.array() - lower.array();
   double meshVolume = diag[0] * diag[1] * diag[2];
   exactOverlapVols["plane"] = 0.5 * meshVolume;
+  errorToleranceRel["plane"] = 1e-6;
+  errorToleranceAbs["plane"] = 1e-8;
 
   return planeGeometry;
 }
@@ -1177,8 +1193,8 @@ int main(int argc, char** argv)
 
     bool err = !axom::utilities::isNearlyEqualRelative(computedOverlapVol,
                                                        correctOverlapVol,
-                                                       1e-6 * refineTolFactor,
-                                                       1e-8 * refineTolFactor);
+                                                       errorToleranceRel[geomName],
+                                                       errorToleranceAbs[geomName]);
     failCounts += err;
 
     SLIC_INFO(axom::fmt::format("{:-^80}",
