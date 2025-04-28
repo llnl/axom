@@ -529,41 +529,33 @@ private:
       case 2:
         if(meshDim == 2)
         {
-          m_projector22
-            ? shaper->template sampleInOutField<2>(m_dc,
-                                                   m_inoutShapeQFuncs,
-                                                   m_quadratureOrder,
-                                                   m_projector22)
-            : shaper->template sampleInOutField<2>(m_dc, m_inoutShapeQFuncs, m_quadratureOrder);
+          shaper->template sampleInOutField<2>(m_dc,
+                                               m_inoutShapeQFuncs,
+                                               m_quadratureOrder,
+                                               m_projector22);
         }
         else if(meshDim == 3)
         {
-          m_projector32
-            ? shaper->template sampleInOutField<3>(m_dc,
-                                                   m_inoutShapeQFuncs,
-                                                   m_quadratureOrder,
-                                                   m_projector32)
-            : shaper->template sampleInOutField<3>(m_dc, m_inoutShapeQFuncs, m_quadratureOrder);
+          shaper->template sampleInOutField<3>(m_dc,
+                                               m_inoutShapeQFuncs,
+                                               m_quadratureOrder,
+                                               m_projector32);
         }
         break;
       case 3:
         if(meshDim == 2)
         {
-          m_projector23
-            ? shaper->template sampleInOutField<2>(m_dc,
-                                                   m_inoutShapeQFuncs,
-                                                   m_quadratureOrder,
-                                                   m_projector23)
-            : shaper->template sampleInOutField<2>(m_dc, m_inoutShapeQFuncs, m_quadratureOrder);
+          shaper->template sampleInOutField<2>(m_dc,
+                                               m_inoutShapeQFuncs,
+                                               m_quadratureOrder,
+                                               m_projector23);
         }
         else if(meshDim == 3)
         {
-          m_projector33
-            ? shaper->template sampleInOutField<3>(m_dc,
-                                                   m_inoutShapeQFuncs,
-                                                   m_quadratureOrder,
-                                                   m_projector33)
-            : shaper->template sampleInOutField<3>(m_dc, m_inoutShapeQFuncs, m_quadratureOrder);
+          shaper->template sampleInOutField<3>(m_dc,
+                                               m_inoutShapeQFuncs,
+                                               m_quadratureOrder,
+                                               m_projector33);
         }
         break;
       }
@@ -574,14 +566,12 @@ private:
     }
   }
 
-  // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
+  // Handles 2D or 3D shaping for PrimitiveSampler, based on the template and associated parameter
   template <int DIM, typename ExecSpace>
   void runShapeQueryImpl(shaping::PrimitiveSampler<DIM, ExecSpace>* shaper)
   {
     // Sample the InOut field at the mesh quadrature points
     const int meshDim = m_dc->GetMesh()->Dimension();
-    AXOM_UNUSED_VAR(meshDim);
-    // TODO: Handle the different projections {2d,3d}=>{2d,3d}
     switch(m_vfSampling)
     {
     case shaping::VolFracSampling::SAMPLE_AT_QPTS:
@@ -591,7 +581,20 @@ private:
         SLIC_ERROR("Not implemented yet!");
         break;
       case 3:
-        shaper->template sampleInOutField<3>(m_dc, m_inoutShapeQFuncs, m_quadratureOrder);
+        if(meshDim == 2)
+        {
+          shaper->template sampleInOutField<2>(m_dc,
+                                               m_inoutShapeQFuncs,
+                                               m_quadratureOrder,
+                                               m_projector23);
+        }
+        else if(meshDim == 3)
+        {
+          shaper->template sampleInOutField<3>(m_dc,
+                                               m_inoutShapeQFuncs,
+                                               m_quadratureOrder,
+                                               m_projector33);
+        }
         break;
       }
       break;

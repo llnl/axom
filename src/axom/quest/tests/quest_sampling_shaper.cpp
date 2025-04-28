@@ -50,6 +50,15 @@ const std::string unit_semicircle_contour = R"(
   piece = circle(origin=(0cm, 0cm), radius=1cm, start=0deg, end=180deg)
   piece = line(end=(0cm, 1cm)))";
 
+const std::string proe_tet_fmt_str = R"(
+4 1
+1 {} {} {}
+2 {} {} {}
+3 {} {} {}
+4 {} {} {}
+1 1 2 3 4
+)";
+
 // Set the following to true for verbose output and for saving vis files
 constexpr bool very_verbose_output = false;
 
@@ -85,6 +94,48 @@ public:
 private:
   const std::string m_filename;
 };
+
+// Utility function to slice a tetrahedron along a plane
+primal::Polygon<double, 3> slice(const primal::Tetrahedron<double, 3>& tet,
+                                 const primal::Plane<double, 3>& plane)
+{
+  primal::Polygon<double, 3> intersectionPolygon;
+
+  // find intersection vertices
+  for(int i = 0; i < 4; ++i)
+  {
+    for(int j = i + 1; j < 4; ++j)
+    {
+      primal::Segment<double, 3> edge(tet[i], tet[j]);
+      double t {};
+      if(primal::intersect(plane, edge, t))
+      {
+        intersectionPolygon.addVertex(edge.at(t));
+      }
+    }
+  }
+  SLIC_ASSERT(intersectionPolygon.numVertices() <= 4);
+
+  // fix the polygon if it bowties
+  if(intersectionPolygon.numVertices() == 4)
+  {
+    // note: using BezierCurve since Axom doesn't currently have intersect(segment, segment)
+    primal::BezierCurve<double, 2> seg1(1);
+    seg1[0] = Point2D(intersectionPolygon[0][0], intersectionPolygon[0][1]);
+    seg1[1] = Point2D(intersectionPolygon[1][0], intersectionPolygon[1][1]);
+    primal::BezierCurve<double, 2> seg2(1);
+    seg2[0] = Point2D(intersectionPolygon[2][0], intersectionPolygon[2][1]);
+    seg2[1] = Point2D(intersectionPolygon[3][0], intersectionPolygon[3][1]);
+    axom::Array<double> sp, tp;
+
+    if(!primal::intersect(seg1, seg2, sp, tp))
+    {
+      axom::utilities::swap(intersectionPolygon[2], intersectionPolygon[3]);
+    }
+  }
+  return intersectionPolygon;
+}
+
 }  // namespace
 
 /// Test fixture for SamplingShaper tests on MFEM meshes
@@ -153,6 +204,25 @@ public:
     {
       m_shaper->printRegisteredFieldNames("*** After importing volume fractions");
     }
+  }
+
+  void resetShaping()
+  {
+    std::vector<std::string> dereg;
+    for(const auto& kv : m_dc.GetFieldMap())
+    {
+      if(axom::utilities::string::startsWith(kv.first, "vol_"))
+      {
+        dereg.push_back(kv.first);
+      }
+    }
+    for(const auto& fld : dereg)
+    {
+      m_dc.DeregisterField(fld);
+    }
+
+    m_shaper.release();
+    m_shapeSet.release();
   }
 
   /// Runs the shaping query over a shapefile; must be called after initializeShaping()
@@ -1171,7 +1241,7 @@ shapes:
 
 //-----------------------------------------------------------------------------
 
-TEST_F(SamplingShaperTest3D, basic_tet)
+TEST_F(SamplingShaperTest3D, basic_tet_boundary)
 {
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
@@ -1321,7 +1391,7 @@ shapes:
   }
 }
 
-TEST_F(SamplingShaperTest3D, tet_preshaped_with_replacements)
+TEST_F(SamplingShaperTest3D, tet_boundary_preshaped_with_replacements)
 {
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
@@ -1432,7 +1502,7 @@ shapes:
   }
 }
 
-TEST_F(SamplingShaperTest3D, tet_identity_projector)
+TEST_F(SamplingShaperTest3D, tet_boundary_identity_projector)
 {
   using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
@@ -1688,25 +1758,105 @@ shapes:
   }
 }
 
+TEST_F(SamplingShaperTest2D, shape_proe_tet_with_2D_projection)
+{
+  using Point2D = primal::Point<double, 2>;
+  using Point3D = primal::Point<double, 3>;
+
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 3
+
+shapes:
+- name: tet_shape
+  material: {1}
+  geometry:
+    format: proe
+    path: {0}
+    units: cm
+)";
+
+  // regular tet w/ vertices at corners of cube
+  const auto tet = primal::Tetrahedron<double, 3> {Point3D {-1, -1, -1},
+                                                   Point3D {1, 1, -1},
+                                                   Point3D {-1, -1, 1},
+                                                   Point3D {-1, 1, 1}};
+
+  // Check that the volume of the tetrahedron is 4/3
+  double tetVolume = tet.volume();
+  constexpr double expectedTetVolume = 4.0 / 3.0;
+  EXPECT_NEAR(tetVolume, expectedTetVolume, 1e-6);
+  SLIC_INFO(axom::fmt::format("Computed tetrahedron volume: {}", tetVolume));
+
+  // Write out tet as a proe file
+  // clang-format off
+  const std::string proe_tet_str 
+    = axom::fmt::format(proe_tet_fmt_str, tet[0][0], tet[0][1], tet[0][2],
+                                          tet[1][0], tet[1][1], tet[1][2],
+                                          tet[2][0], tet[2][1], tet[2][2],
+                                          tet[3][0], tet[3][1], tet[3][2]);
+  // clang-format on
+
+  const std::string tet_material = "steel";
+  ScopedTemporaryFile tet_file(axom::fmt::format("{}.proe", testname), proe_tet_str);
+
+  ScopedTemporaryFile shape_file(
+    axom::fmt::format("{}.yaml", testname),
+    axom::fmt::format(shape_template, tet_file.getFileName(), tet_material));
+
+  if(very_verbose_output)
+  {
+    SLIC_INFO("Tet file: \n" << tet_file.getFileContents());
+    SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
+  }
+
+  this->validateShapeFile(shape_file.getFileName());
+
+  // exercise the point projector by running at several XY planes
+  for(const double z : {-1.2, -.9, -.75, -.1, 0., .25, 1. / 3., .5})
+  {
+    this->resetShaping();
+
+    this->initializeShaping(shape_file.getFileName());
+
+    primal::Plane<double, 3> plane({0, 0, 1}, z);
+    const auto polygon = slice(tet, plane);
+    const double intersectionArea = polygon.area();
+    SLIC_INFO(axom::fmt::format("Area of intersection polygon: {}", intersectionArea));
+
+    // set projector from 2D points to 3-space, z-coord is lambda captured
+    this->m_shaper->setPointProjector([z](Point2D pt) -> Point3D {
+      const double& x = pt[0];
+      const double& y = pt[1];
+      return Point3D {x, y, z};
+    });
+
+    // we need a higher quadrature order to resolve this shape at the (low) testing resolution
+    this->m_shaper->setQuadratureOrder(8);
+
+    this->runShaping();
+
+    // Check that the result has a volume fraction field associated with sphere and circle materials
+    this->checkExpectedVolumeFractions(tet_material, intersectionArea, 3e-2);
+
+    // Save meshes and fields
+    if(very_verbose_output)
+    {
+      this->getDC().Save(axom::fmt::format("{}_{}", testname, z),
+                         axom::sidre::Group::getDefaultIOProtocol());
+    }
+  }
+}
+
 //-----------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-  int result = 0;
-#ifdef AXOM_USE_MPI
-  // This is needed because of Axom's c2c reader.
-  MPI_Init(&argc, &argv);
-  // See if this aborts right away.
-  int my_rank, num_ranks;
-  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
-#endif
+  axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
 
   ::testing::InitGoogleTest(&argc, argv);
   slic::SimpleLogger logger(slic::message::Info);
 
-  result = RUN_ALL_TESTS();
-#ifdef AXOM_USE_MPI
-  MPI_Finalize();
-#endif
+  const int result = RUN_ALL_TESTS();
   return result;
 }

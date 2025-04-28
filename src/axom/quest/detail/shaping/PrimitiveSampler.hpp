@@ -101,7 +101,7 @@ public:
 
     constexpr double EPS = 1e-8;
 
-    // Optimization opportunity -- only consider primitives within the boundinb box of this domain
+    // Optimization opportunity -- only consider primitives within the bounding box of this domain
 
     // extract the primitives and their bounding boxes
     const int num_cells = pmesh->getNumberOfCells();
@@ -183,8 +183,8 @@ public:
                                                         int sampleRes,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
-    // using FromPoint = primal::Point<double, FromDim>;
-    // using ToPoint = primal::Point<double, ToDim>;
+    using FromPoint = primal::Point<double, FromDim>;
+    using ToPoint = primal::Point<double, ToDim>;
     AXOM_ANNOTATE_SCOPE("sample containment");
 
     SLIC_ERROR_IF(FromDim != ToDim && !projector,
@@ -221,8 +221,26 @@ public:
 
     SLIC_INFO(axom::fmt::format("{:-^80}", " Finding shape candidates for each quad element "));
 
-    axom::ArrayView<const SpacePt> query_view(reinterpret_cast<const SpacePt*>(pos_coef->HostRead()),
-                                              nq);
+    // Get the positions of the query points, project them if needed
+    axom::ArrayView<FromPoint> orig_qpts_v(reinterpret_cast<FromPoint*>(pos_coef->HostReadWrite()),
+                                           nq);
+    axom::Array<ToPoint> projected_qpts(0);
+    if(projector)
+    {
+      AXOM_ANNOTATE_SCOPE("project query points");
+      projected_qpts.resize(nq);
+      auto proj_pts_v = projected_qpts.view();
+      axom::for_all<ExecSpace>(
+        nq,
+        AXOM_LAMBDA(axom::IndexType i) { proj_pts_v[i] = projector(orig_qpts_v[i]); });
+    }
+    // We need to reinterpret_cast since the compiler can't rule out that FromPoint is a different type from ToPoint
+    // in the else case, despite our SLIC_ERROR above that checks for this.
+    // This should look a lot cleaner w/ `if constexpr` when we move to C++17
+    const auto query_view = projector
+      ? projected_qpts.view()
+      : axom::ArrayView<ToPoint>(reinterpret_cast<ToPoint*>(pos_coef->HostReadWrite()), nq);
+
     axom::ArrayView<double> inout_view(const_cast<double*>(inout->HostRead()), nq);
     axom::for_all<ExecSpace>(
       nq,
