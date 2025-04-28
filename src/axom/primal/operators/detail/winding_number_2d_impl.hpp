@@ -174,10 +174,8 @@ double linear_winding_number(const Point<T, 2>& q,
   }
 
   // Compute signed angle between vectors
-  double dotprod = axom::utilities::clampVal(
-    Vector<T, 2>::dot_product(V0.unitVector(), V1.unitVector()),
-    -1.0,
-    1.0);
+  double dotprod =
+    axom::utilities::clampVal(Vector<T, 2>::dot_product(V0.unitVector(), V1.unitVector()), -1.0, 1.0);
 
   return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
 }
@@ -434,7 +432,7 @@ double bezier_winding_number(const Point<T, 2>& q,
   }
 
   // Early return is possible for most points + curves
-  if(!c.boundingBox().expand(edge_tol).contains(q))
+  if(!c.boundingBox().expand(edge_tol).contains(q) || c.isLinear(EPS))
   {
     return detail::linear_winding_number(q, c[0], c[ord], isOnCurve, edge_tol);
   }
@@ -446,7 +444,7 @@ double bezier_winding_number(const Point<T, 2>& q,
   // Need to keep a running total of the GWN to account for
   //  the winding number of coincident points
   double gwn = 0.0;
-  bool isOnPolygonEndpoint = false;
+  bool isOnPolygonEndpoint = false;  // Indicates coincidence with curve
   detail::construct_approximating_polygon(q,
                                           c,
                                           false,
@@ -461,24 +459,20 @@ double bezier_winding_number(const Point<T, 2>& q,
 
   // Compute the integer winding number of the closed curve
   bool isOnPolygonEdge = false;
-  double closed_curve_wn = detail::polygon_winding_number(q,
-                                                          approximating_polygon,
-                                                          isOnPolygonEdge,
-                                                          false,
-                                                          edge_tol);
+  double closed_curve_wn =
+    detail::polygon_winding_number(q, approximating_polygon, isOnPolygonEdge, false, edge_tol);
 
   // Compute the fractional value of the closed curve
   bool isOnClosure = false;
   const int n = approximating_polygon.numVertices();
-  const double closure_wn =
-    detail::linear_winding_number(q,
-                                  approximating_polygon[n - 1],
-                                  approximating_polygon[0],
-                                  isOnClosure,
-                                  edge_tol);
+  const double closure_wn = detail::linear_winding_number(q,
+                                                          approximating_polygon[n - 1],
+                                                          approximating_polygon[0],
+                                                          isOnClosure,
+                                                          edge_tol);
 
   // If the point is on the boundary of the approximating polygon,
-  //  or coincident with the curve (rare), then winding_number<polygon>
+  //  or coincident with the curve (isOnPolygonEndpoint), then winding_number<polygon>
   //  doesn't return the right half-integer. Have to go edge-by-edge.
   if(isOnPolygonEndpoint || isOnPolygonEdge)
   {
@@ -486,16 +480,15 @@ double bezier_winding_number(const Point<T, 2>& q,
     for(int i = 1; i < n; ++i)
     {
       bool isOnThisEdge = false;
-      closed_curve_wn +=
-        detail::linear_winding_number(q,
-                                      approximating_polygon[i - 1],
-                                      approximating_polygon[i],
-                                      isOnThisEdge,
-                                      edge_tol);
+      closed_curve_wn += detail::linear_winding_number(q,
+                                                       approximating_polygon[i - 1],
+                                                       approximating_polygon[i],
+                                                       isOnThisEdge,
+                                                       edge_tol);
     }
   }
 
-  isOnCurve = isOnPolygonEdge;
+  isOnCurve = isOnPolygonEndpoint;
   return gwn + closed_curve_wn - closure_wn;
 }
 
@@ -530,11 +523,7 @@ double nurbs_winding_number(const Point<T, 2>& q,
   // Early return is possible for most points + curves
   if(!n.boundingBox().expand(edge_tol).contains(q))
   {
-    return detail::linear_winding_number(q,
-                                         n[0],
-                                         n[n.getNumControlPoints() - 1],
-                                         isOnEdge,
-                                         edge_tol);
+    return detail::linear_winding_number(q, n[0], n[n.getNumControlPoints() - 1], isOnEdge, edge_tol);
   }
 
   // Decompose the NURBS curve into Bezier segments
