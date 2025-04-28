@@ -989,43 +989,6 @@ bool intersect(const Ray<T, 3>& ray,
         vc.push_back(axom::utilities::lerp(knot_vals_v[j], knot_vals_v[j + 1], vcc[k]));
       }
     }
-  if(order_u < 1 || order_v < 1)
-  {
-    // Patch has no surface area, ergo no intersections
-    return false;
-  }
-  else if(order_u == 1 && order_v == 1)
-  {
-    detail::intersect_line_bilinear_patch(line,
-                                          patch(0, 0),
-                                          patch(order_u, 0),
-                                          patch(order_u, order_v),
-                                          patch(0, order_v),
-                                          tc,
-                                          uc,
-                                          vc,
-                                          EPS,
-                                          isRay);
-  }
-  else
-  {
-    double u_offset = 0., v_offset = 0.;
-    double u_scale = 1., v_scale = 1.;
-
-    detail::intersect_line_patch(line,
-                                 patch,
-                                 tc,
-                                 uc,
-                                 vc,
-                                 order_u,
-                                 order_v,
-                                 u_offset,
-                                 u_scale,
-                                 v_offset,
-                                 v_scale,
-                                 sq_tol,
-                                 EPS,
-                                 isRay);
   }
 
   // Do a second pass to remove duplicates from uc, vc
