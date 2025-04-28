@@ -408,7 +408,7 @@ public:
    * 
    * \pre Requires a 2D NURBS curve, theta_0 < theta_1, and the arc is less than a full circle
    */
-  void constructCircularArc(T theta_0, T theta_1, const PointType& center, T radius)
+  static NURBSCurve constructCircularArc(T theta_0, T theta_1, const PointType& center, T radius)
   {
     SLIC_ASSERT(NDIMS == 2);
     SLIC_ASSERT(theta_0 < theta_1);
@@ -417,12 +417,12 @@ public:
     T pi23 = 2.0 * M_PI / 3.0;
     int n_segments = std::ceil((theta_1 - theta_0) / pi23);
 
-    setParameters(1 + 2 * n_segments, 2);
-    makeRational();
+    NURBSCurve arc_curve(1 + 2 * n_segments, 2);
+    arc_curve.makeRational();
 
     // Define the first control point
-    m_controlPoints[0] = PointType({std::cos(theta_0), std::sin(theta_0)});
-    m_weights[0] = 1.0;
+    arc_curve[0] = PointType({std::cos(theta_0), std::sin(theta_0)});
+    arc_curve.setWeight(0, 1.0);
 
     // Need to split up the curve if it spans more than 120 degrees, possibly twice
     for(int idx = 0; idx < n_segments; ++idx)
@@ -430,35 +430,31 @@ public:
       T theta_start = theta_0 + pi23 * idx;
       T theta_end = std::min(theta_start + pi23, theta_1);
 
-      m_controlPoints[1 + 2 * idx + 1] =
-        PointType({std::cos(theta_end), std::sin(theta_end)});
+      arc_curve[1 + 2 * idx + 1] = PointType({std::cos(theta_end), std::sin(theta_end)});
 
       T weight_num = std::sin(theta_end - theta_start);
       T weight_denom = 2.0 * std::sin((theta_end - theta_start) / 2.0);
-      m_weights[1 + 2 * idx + 0] = weight_num / weight_denom;
-      m_weights[1 + 2 * idx + 1] = 1.0;
+      arc_curve.setWeight(1 + 2 * idx + 0, weight_num / weight_denom);
+      arc_curve.setWeight(1 + 2 * idx + 1, 1.0);
 
-      m_controlPoints[1 + 2 * idx + 0] =
-        PointType({(m_controlPoints[1 + 2 * idx + 1][1] -
-                    m_controlPoints[1 + 2 * idx - 1][1]) /
-                     weight_num,
-                   (m_controlPoints[1 + 2 * idx - 1][0] -
-                    m_controlPoints[1 + 2 * idx + 1][0]) /
-                     weight_num});
+      arc_curve[1 + 2 * idx + 0] =
+        PointType({(arc_curve[1 + 2 * idx + 1][1] - arc_curve[1 + 2 * idx - 1][1]) / weight_num,
+                   (arc_curve[1 + 2 * idx - 1][0] - arc_curve[1 + 2 * idx + 1][0]) / weight_num});
     }
 
     // Scale all the control points to the right radius and center
-    for(int i = 0; i < getNumControlPoints(); ++i)
+    for(int i = 0; i < 1 + 2 * n_segments; ++i)
     {
-      m_controlPoints[i].array() =
-        center.array() + radius * m_controlPoints[i].array();
+      arc_curve[i].array() = center.array() + radius * arc_curve[i].array();
     }
 
     for(int i = 0; i < n_segments - 1; ++i)
     {
-      m_knotvec[3 + 2 * i + 0] = static_cast<T>(i + 1) / n_segments;
-      m_knotvec[3 + 2 * i + 1] = m_knotvec[3 + 2 * i + 0];
+      arc_curve.setKnot(3 + 2 * i + 0, static_cast<T>(i + 1) / n_segments);
+      arc_curve.setKnot(3 + 2 * i + 1, static_cast<T>(i + 1) / n_segments);
     }
+
+    return arc_curve;
   }
 
   /*!
@@ -469,17 +465,16 @@ public:
    *  
    * \pre Requires a 2D NURBS curve
    */
-  void constructLinearSegment(const PointType& start, const PointType& end)
+  static NURBSCurve constructLinearSegment(const PointType& start, const PointType& end)
   {
     SLIC_ASSERT(NDIMS == 2);
 
-    setParameters(2, 1);
-    m_weights.clear();
+    NURBSCurve line(2, 1);
 
-    m_controlPoints[0] = start;
-    m_controlPoints[1] = end;
+    line[0] = start;
+    line[1] = end;
 
-    m_knotvec = KnotVectorType(2, 1);
+    return line;
   }
 
   /*!
