@@ -396,11 +396,11 @@ public:
   }
 
   /*!
-   * \brief Construct a NURBS curve from the angles of a circular arc
+   * \brief Construct a multi-span, degree 2 NURBS curve from the angles of a circular arc
    *
    * \param [in] theta_0 The starting angle of the arc
    * \param [in] theta_1 The ending angle of the arc
-   * \param [in] center The center of the circle
+   * \param [in] u, v The center of the 2D circle
    * \param [in] radius The radius of the circle
    * 
    * The curve's knots will span [0, 1], but the parameterization is not
@@ -408,7 +408,7 @@ public:
    * 
    * \pre Requires a 2D NURBS curve, theta_0 < theta_1, and the arc is less than a full circle
    */
-  static NURBSCurve constructCircularArc(T theta_0, T theta_1, const PointType& center, T radius)
+  static NURBSCurve makeCircularArc(T theta_0, T theta_1, T u, T v, T radius)
   {
     SLIC_ASSERT(NDIMS == 2);
     SLIC_ASSERT(theta_0 < theta_1);
@@ -445,7 +445,8 @@ public:
     // Scale all the control points to the right radius and center
     for(int i = 0; i < 1 + 2 * n_segments; ++i)
     {
-      arc_curve[i].array() = center.array() + radius * arc_curve[i].array();
+      arc_curve[i][0] = u + radius * arc_curve[i][0];
+      arc_curve[i][1] = v + radius * arc_curve[i][1];
     }
 
     for(int i = 0; i < n_segments - 1; ++i)
@@ -465,7 +466,7 @@ public:
    *  
    * \pre Requires a 2D NURBS curve
    */
-  static NURBSCurve constructLinearSegment(const PointType& start, const PointType& end)
+  static NURBSCurve makeLinearSegment(const PointType& start, const PointType& end)
   {
     SLIC_ASSERT(NDIMS == 2);
 

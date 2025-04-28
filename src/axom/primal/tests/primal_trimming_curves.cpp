@@ -670,10 +670,10 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_edge_cases)
   nPatch = this->nPatch;
 
   // Add trimming curves to the patch with a straight edge at u=0.5
-  nPatch.addTrimmingCurve(TrimmingCurveType::constructLinearSegment({0.5, 0.75}, {0.5, 0.25}));
+  nPatch.addTrimmingCurve(TrimmingCurveType::makeLinearSegment({0.5, 0.75}, {0.5, 0.25}));
 
   nPatch.addTrimmingCurve(
-    TrimmingCurveType::constructCircularArc(-M_PI / 2.0, M_PI / 2.0, {0.5, 0.5}, 0.25));
+    TrimmingCurveType::makeCircularArc(-M_PI / 2.0, M_PI / 2.0, {0.5, 0.5}, 0.25));
 
   // Split the patch along the same edge
   NURBSPatchType leftpatch2, rightpatch2;
@@ -714,8 +714,8 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_tangent_edge_cases)
   TrimmingCurveType interestingCurve(trimmingCurveControlPoints, 3);
 
   trimmingCurves.push_back(interestingCurve);
-  trimmingCurves.push_back(TrimmingCurveType::constructLinearSegment({0.0, 0.0}, {1.0, 0.0}));
-  trimmingCurves.push_back(TrimmingCurveType::constructLinearSegment({1.0, 0.0}, {1.0, 1.0}));
+  trimmingCurves.push_back(TrimmingCurveType::makeLinearSegment({0.0, 0.0}, {1.0, 0.0}));
+  trimmingCurves.push_back(TrimmingCurveType::makeLinearSegment({1.0, 0.0}, {1.0, 1.0}));
 
   nPatch.addTrimmingCurves(trimmingCurves);
 
