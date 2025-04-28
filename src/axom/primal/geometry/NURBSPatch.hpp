@@ -762,8 +762,8 @@ public:
     SLIC_ASSERT(m_knotvec_u.isValidParameter(u));
     SLIC_ASSERT(m_knotvec_v.isValidParameter(v));
 
-    u = axom::utilities::clampVal(u, m_knotvec_u[0], m_knotvec_u[m_knotvec_u.getNumKnots() - 1]);
-    v = axom::utilities::clampVal(v, m_knotvec_v[0], m_knotvec_v[m_knotvec_v.getNumKnots() - 1]);
+    u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
+    v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
 
     const auto span_u = m_knotvec_u.findSpan(u);
     const auto span_v = m_knotvec_v.findSpan(v);
@@ -1181,24 +1181,25 @@ public:
     // For each min/max u/v, add a straight trimming curve along the boundary
 
     // Bottom
-    addTrimmingCurve(TrimmingCurveType::constructLinearSegment({min_u, min_v}, {max_u, min_v}));
+    addTrimmingCurve(TrimmingCurveType::makeLinearSegment({min_u, min_v}, {max_u, min_v}));
 
     // Top
-    addTrimmingCurve(TrimmingCurveType::constructLinearSegment({max_u, max_v}, {min_u, max_v}));
+    addTrimmingCurve(TrimmingCurveType::makeLinearSegment({max_u, max_v}, {min_u, max_v}));
 
     // Left
-    addTrimmingCurve(TrimmingCurveType::constructLinearSegment({min_u, max_v}, {min_u, min_v}));
+    addTrimmingCurve(TrimmingCurveType::makeLinearSegment({min_u, max_v}, {min_u, min_v}));
 
     // Right
-    addTrimmingCurve(TrimmingCurveType::constructLinearSegment({max_u, min_v}, {max_u, max_v}));
+    addTrimmingCurve(TrimmingCurveType::makeLinearSegment({max_u, min_v}, {max_u, max_v}));
 
     markAsTrimmed();
   }
 
   /*!
-   * \brief Check if a parameter point is visible on the NURBS patch
+   * \brief Check if a parameter point is visible on the NURBS patch via a trim test
    *
-   * \param [in] uv The parameter point to check
+   * \param [in] u The parameter value on the first axis
+   * \param [in] v The parameter value on the second axis
    * 
    * Checks for containment of the parameter point in 
    *  the collection of trimming curves via an even-odd rule.
@@ -1222,10 +1223,14 @@ public:
     {
       bool isOnThisCurve = false;
       gwn += detail::nurbs_winding_number(uv, curve, isOnThisCurve);
-      isOnCurve = isOnCurve || isOnThisCurve;
+
+      if(isOnThisCurve)
+      {
+        return true;
+      }
     }
 
-    return isOnCurve || (std::lround(gwn) % 2 != 0);
+    return std::lround(gwn) % 2 != 0;
   }
 
   /// Clears the list of control points, make nonrational
@@ -1974,7 +1979,7 @@ public:
   axom::IndexType insertKnot_u(T u, int target_multiplicity = 1)
   {
     SLIC_ASSERT(m_knotvec_u.isValidParameter(u));
-    u = axom::utilities::clampVal(u, m_knotvec_u[0], m_knotvec_u[m_knotvec_u.getNumKnots() - 1]);
+    u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
 
     SLIC_ASSERT(target_multiplicity > 0);
 
@@ -2134,7 +2139,7 @@ public:
   axom::IndexType insertKnot_v(T v, int target_multiplicity = 1)
   {
     SLIC_ASSERT(m_knotvec_v.isValidParameter(v));
-    v = axom::utilities::clampVal(v, m_knotvec_v[0], m_knotvec_v[m_knotvec_v.getNumKnots() - 1]);
+    v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
 
     SLIC_ASSERT(target_multiplicity > 0);
 
@@ -2274,7 +2279,7 @@ public:
   }
 
   /*!
-   * \brief Retract the edges of the patch to the given parameter values, if necessary
+   * \brief Restrict the edges of a (possibly trimmed) patch to the given parameter values, if necessary
    *
    * \param [in] min_u The minimum value of the u parameter
    * \param [in] max_u The maximum value of the u parameter
@@ -2286,6 +2291,8 @@ public:
    *  then the patch is not changed along that direction and axis
    * 
    * \pre Requires that min_u < max_u and min_v < max_v  
+   *
+   * \sa NURBSPatch::split()
    */
   void clip(T min_u, T max_u, T min_v, T max_v, bool normalizeParameters = false)
   {
@@ -2293,10 +2300,22 @@ public:
     SLIC_ASSERT(min_v < max_v);
     NURBSPatch dummy_patch;
 
-    if(min_u > getMinKnot_u()) this->split_u(min_u, dummy_patch, *this);
-    if(min_v > getMinKnot_v()) this->split_v(min_v, dummy_patch, *this);
-    if(max_u < getMaxKnot_u()) this->split_u(max_u, *this, dummy_patch);
-    if(max_v < getMaxKnot_v()) this->split_v(max_v, *this, dummy_patch);
+    if(min_u > getMinKnot_u())
+    {
+      this->split_u(min_u, dummy_patch, *this);
+    }
+    if(min_v > getMinKnot_v())
+    {
+      this->split_v(min_v, dummy_patch, *this);
+    }
+    if(max_u < getMaxKnot_u())
+    {
+      this->split_u(max_u, *this, dummy_patch);
+    }
+    if(max_v < getMaxKnot_v())
+    {
+      this->split_v(max_v, *this, dummy_patch);
+    }
 
     if(normalizeParameters)
     {
@@ -2313,19 +2332,21 @@ public:
     * \param [out] p2 Second output NURBS patch
     * \param [out] p3 Third output NURBS patch
     * \param [out] p4 Fourth output NURBS patch
-    * \param [in] normalizeParameters If true, normalize output patches to the range [0, 1]^2
+    * \param [in] normalizeParameters If true, normalize the knot span of the
+    *                                   output patches to the range [0, 1]^2
     *
-    *   v = 1
-    *   ----------------------
-    *   |         |          |
-    *   |   p3    |    p4    |
-    *   |         |          |
-    *   --------(u,v)---------
-    *   |         |          |
-    *   |   p1    |    p2    |
-    *   |         |          |
-    *   ---------------------- u = 1
-    *
+    *          v = v_max
+    *          ----------------------
+    *          |         |          |
+    *          |   p3    |    p4    |
+    *          |         |          |
+    *          --------(u,v)---------
+    *          |         |          |
+    *          |   p1    |    p2    |
+    *          |         |          |
+    *          ---------------------- u = u_max
+    *  u/v_min
+    * 
     * \pre Parameter \a u and \a v must be *strictly interior* to the knot span
     */
   void split(T u,
@@ -2371,8 +2392,8 @@ public:
     // Split the trimming curves if necessary
     if(isTrimmed())
     {
-      constexpr bool splitByU = true;
-      splitTrimmingCurves(u, splitByU, p1.getTrimmingCurves(), p2.getTrimmingCurves());
+      constexpr bool splitInU = true;
+      splitTrimmingCurves(u, splitInU, p1.getTrimmingCurves(), p2.getTrimmingCurves());
     }
 
     if(normalizeParameters)
@@ -2395,8 +2416,8 @@ public:
     // Split the trimming curves if necessary
     if(isTrimmed())
     {
-      constexpr bool splitByU = false;
-      splitTrimmingCurves(v, splitByU, p1.getTrimmingCurves(), p2.getTrimmingCurves());
+      constexpr bool splitInU = false;
+      splitTrimmingCurves(v, splitInU, p1.getTrimmingCurves(), p2.getTrimmingCurves());
     }
 
     if(normalizeParameters)
@@ -2418,8 +2439,6 @@ public:
    */
   void diskSplit(T u, T v, T r, NURBSPatch& the_disk, NURBSPatch& the_rest, bool clipDisk = true) const
   {
-    ParameterPointType uv_param({u, v});
-
     // Copy the control points and weights of the original patch, but not the trimming curves
     the_disk = NURBSPatch(m_controlPoints, m_weights, m_knotvec_u, m_knotvec_v);
     the_disk.markAsTrimmed();
@@ -2434,7 +2453,7 @@ public:
 
     // Intersect all trimming curves with a circle of radius r, centered at (u, v).
     //  Record each intersection with the circle, and split the trimming curve at each intersection
-    primal::Sphere<T, 2> circle_obj(uv_param, r);
+    primal::Sphere<T, 2> circle_obj(ParameterPointType {u, v}, r);
     TrimmingCurveVec split_trimming_curves;
     TrimmingCurveVec circle_trimming_curves;
 
@@ -2517,7 +2536,7 @@ public:
       //  the_disk is a complete disk
       if(isVisible(u, v))
       {
-        TrimmingCurveType c1 = TrimmingCurveType::constructCircularArc(0.0, 2 * M_PI, uv_param, r);
+        TrimmingCurveType c1 = TrimmingCurveType::makeCircularArc(0.0, 2 * M_PI, u, v, r);
 
         the_disk.m_trimmingCurves.clear();
         the_disk.addTrimmingCurve(c1);
@@ -2555,9 +2574,9 @@ public:
       if(isArcVisible)
       {
         auto c1 =
-          TrimmingCurveType::constructCircularArc(circle_params[i], circle_params[i + 1], uv_param, r);
+          TrimmingCurveType::makeCircularArc(circle_params[i], circle_params[i + 1], u, v, r);
         circle_trimming_curves.push_back(
-          TrimmingCurveType::constructCircularArc(circle_params[i], circle_params[i + 1], uv_param, r));
+          TrimmingCurveType::makeCircularArc(circle_params[i], circle_params[i + 1], u, v, r));
       }
     }
 
@@ -2571,15 +2590,16 @@ public:
 
     for(const auto& curve : split_trimming_curves)
     {
-      if(squared_distance(curve.evaluate(0.5 * (curve.getMinKnot() + curve.getMaxKnot())), uv_param) -
-           r * r >
-         0)
+      bool isInDisk =
+        circle_obj.computeSignedDistance(0.5 * (curve.getMinKnot() + curve.getMaxKnot())) < 0;
+
+      if(isInDisk)
       {
-        the_rest.addTrimmingCurve(curve);
+        the_disk.addTrimmingCurve(curve);
       }
       else
       {
-        the_disk.addTrimmingCurve(curve);
+        the_rest.addTrimmingCurve(curve);
       }
     }
 
@@ -2913,23 +2933,40 @@ public:
   }
 
   /*!
-   * \brief Scale the parameter space of the NURBS surface linearly (by tangents) in all directions
+   * \brief Scale the (untrimmed) parameter space of the NURBS surface linearly (by tangents) in all directions
    *
    * \param [in] scaleFactor The multiplicative factor to expand each knot vector by
+   * \param [in] removeTrimmingCurves If true, the resulting patch has no trimming curves
    *
+   * Algorithm from Wolters, Hans J., "Extensions: Extrapolation Methods for CAD", 1999
+   * 
    * \note This function only affects the geometry of the untrimmed NURBS patch. 
    *        If the patch is trimmed, the trimming curves are not modified.
    *        If the patch is untrimmed, no new trimming curves are created. 
    * 
+   * \post If removeTrimmingCurves is false, the resulting patch will be trimmed.
+   * 
    * \warning Method becomes numerically unstable for large values of scaleFactor,
    *           or for rational patches with a large range of weights.
    */
-  void scaleParameterSpace(double scaleFactor)
+  void scaleParameterSpace(double scaleFactor, bool removeTrimmingCurves = false)
   {
     SLIC_ASSERT(scaleFactor >= 1.0);
     SLIC_WARNING_IF(scaleFactor > 1.15,
                     "Expanding patch parameter space is numerically unstable "
                     "for large values of scaleFactor.");
+
+  
+    if( removeTrimmingCurves )
+    {
+      m_trimmingCurves.clear();
+    }
+    else if( !isTrimmed() )
+    {
+      // If the patch is untrimmed, we need to create new trimming curves
+      //  to match the original parameter space
+      makeTriviallyTrimmed();
+    }
 
     double expansionAmount_u = (getMaxKnot_u() - getMinKnot_u()) * (scaleFactor - 1.0);
     double expansionAmount_v = (getMaxKnot_v() - getMinKnot_v()) * (scaleFactor - 1.0);
@@ -3037,8 +3074,6 @@ public:
             (m_controlPoints(i, 0).array() * m_weights(i, 0) +
              static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array()) /
             newWeights(i + deg_u, j);
-
-          //   newWeights(i + deg_u, j) = m_weights(i, 0);
         }
 
         v = Vector<T, 3>(Point<T, 3>(m_controlPoints(i, m - 2).array() * m_weights(i, m - 2)),
@@ -3062,8 +3097,6 @@ public:
             (m_controlPoints(i, m - 1).array() * m_weights(i, m - 1) +
              static_cast<T>(j + 1) / (deg_v)*alpha * v.array()) /
             newWeights(i + deg_u, m + deg_v + j);
-
-          //   newWeights(i + deg_u, m + deg_v + j) = m_weights(i, m - 1);
         }
       }
     }
@@ -3114,8 +3147,6 @@ public:
             (newControlPoints(deg_u, j).array() * newWeights(deg_u, j) +
              static_cast<T>(i - deg_u) / (deg_u)*alpha * v.array()) /
             newWeights(i, j);
-
-          //   newWeights(i, j) = newWeights(deg_u, j);
         }
 
         v = Vector<T, 3>(
@@ -3140,8 +3171,6 @@ public:
             (newControlPoints(n + deg_u - 1, j).array() * newWeights(n + deg_u - 1, j) +
              static_cast<T>(i + 1) / (deg_u)*alpha * v.array()) /
             newWeights(n + deg_u + i, j);
-
-          //   newWeights(n + deg_u + i, j) = newWeights(n + deg_u - 1, j);
         }
       }
     }
@@ -3396,6 +3425,7 @@ private:
 
   /// \brief Clip the edges of the patch along the given knot values, if necessary
   ///  but do so *without* checking any of the existing trimming curves for efficiency
+  /// \sa NURBSPatch::clip()
   void uncheckedClip(T min_u, T max_u, T min_v, T max_v)
   {
     SLIC_ASSERT(min_u < max_u);
@@ -3408,8 +3438,9 @@ private:
     if(max_v < getMaxKnot_v()) this->uncheckedSplit_v(max_v, *this, dummy_patch);
   }
 
-  /// \brief Private function to split patch geometry at a given u parameter
+  /// \brief Private function to split patch geometry at a given u isoline,
   ///   without checking the trimming curves or normalizing the resulting knot vectors
+  /// \sa NURBSPatch::split_u()
   void uncheckedSplit_u(T u, NURBSPatch& p1, NURBSPatch& p2) const
   {
     SLIC_ASSERT(m_knotvec_u.isValidInteriorParameter(u));
@@ -3472,8 +3503,9 @@ private:
     }
   }
 
-  /// \brief Private function to split patch geometry at a given v parameter
+  /// \brief Private function to split patch geometry at a given v isoline,
   ///   without checking the trimming curves or normalizing the resulting knot vectors
+  /// \sa NURBSPatch::split_v()
   void uncheckedSplit_v(T v, NURBSPatch& p1, NURBSPatch& p2) const
   {
     SLIC_ASSERT(m_knotvec_v.isValidInteriorParameter(v));
@@ -3550,9 +3582,9 @@ private:
     }
   }
 
-  /// \brief Private function to split the trimming curves at a given u parameter
+  /// \brief Private function to split a patch's trimming curves along a u/v isoline
   void splitTrimmingCurves(T uv,
-                           bool splitByU,
+                           bool splitInU,
                            TrimmingCurveVec& outCurvesFirst,
                            TrimmingCurveVec& outCurvesSecond) const
   {
@@ -3562,7 +3594,7 @@ private:
 
     // Store a ray that is used as the splitting line
     primal::Ray<T, 2> ray_obj(Point<T, 2> {getMaxKnot_u() + 1.0, uv}, Vector<T, 2> {-1.0, 0.0});
-    if(splitByU)
+    if(splitInU)
     {
       ray_obj = primal::Ray<T, 2>(Point<T, 2> {uv, getMinKnot_v() - 1.0}, Vector<T, 2> {0.0, 1.0});
     }
@@ -3653,7 +3685,7 @@ private:
 
         if(isSegmentVisible)
         {
-          auto c1 = TrimmingCurveType::constructLinearSegment(ray_obj.at(ray_params[i]),
+          auto c1 = TrimmingCurveType::makeLinearSegment(ray_obj.at(ray_params[i]),
                                                               ray_obj.at(ray_params[i + 1]));
 
           outCurvesFirst.push_back(c1);
@@ -3669,7 +3701,7 @@ private:
     for(auto& curve : split_trimming_curves)
     {
       auto eval_pt = curve.evaluate(0.5 * (curve.getMinKnot() + curve.getMaxKnot()));
-      if(eval_pt[splitByU ? 0 : 1] < uv)
+      if(eval_pt[splitInU ? 0 : 1] < uv)
       {
         outCurvesFirst.push_back(curve);
       }

@@ -931,31 +931,43 @@ TEST(primal_nurbspatch, nurbs_parameter_space_scaling)
     5.0, 6.0, 7.0, 6.0};
   // clang-format on
 
-  NURBSPatchType nPatch(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
-  NURBSPatchType nPatchTriviallyTrimmed(nPatch);
-  nPatchTriviallyTrimmed.makeTriviallyTrimmed();
+  NURBSPatchType nPatchUntrimmed(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
+  NURBSPatchType nPatchTrimmed(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
+  nPatchTrimmed.addTrimmingCurve(
+    primal::NURBSCurve<CoordType, 2>::makeCircularArc(0.0, 2.0 * M_PI, 0.5, 0.5, 0.25));
 
-  NURBSPatchType supPatch(nPatch);
-  NURBSPatchType supPatchTrimmed(nPatchTriviallyTrimmed);
+  NURBSPatchType supPatchOriginallyUntrimmed(nPatchUntrimmed);
+  NURBSPatchType supPatchUntrimmed(nPatchUntrimmed);
+  NURBSPatchType supPatchTrimmed(nPatchTrimmed);
 
   // Expand the parameter space of the patch
   constexpr double scaleFactor = 1.05;
 
-  // Two patches have same untrimmed geometry, but the second is trimmed to the weighty_original boundary
-  supPatch.scaleParameterSpace(scaleFactor);
+  // All patches have the same geometry, but different trimming curves
+  constexpr bool removeTrimmingCurves = true;
+  supPatchOriginallyUntrimmed.scaleParameterSpace(scaleFactor);
+  supPatchUntrimmed.scaleParameterSpace(scaleFactor, removeTrimmingCurves);
   supPatchTrimmed.scaleParameterSpace(scaleFactor);
 
-  double min_u = nPatch.getMinKnot_u();
-  double max_u = nPatch.getMaxKnot_u();
+  // Both should be trimmed after this procedure UNLESS the flag is set
+  EXPECT_TRUE(supPatchOriginallyUntrimmed.isTrimmed());
+  EXPECT_FALSE(supPatchUntrimmed.isTrimmed());
+  EXPECT_TRUE(supPatchTrimmed.isTrimmed());
 
-  double min_v = nPatch.getMinKnot_v();
-  double max_v = nPatch.getMaxKnot_v();
+  double min_u = nPatchUntrimmed.getMinKnot_u();
+  double max_u = nPatchUntrimmed.getMaxKnot_u();
+
+  double min_v = nPatchUntrimmed.getMinKnot_v();
+  double max_v = nPatchUntrimmed.getMaxKnot_v();
 
   // Check the parameter space of the superpatches' knots
-  EXPECT_NEAR(supPatch.getMinKnot_u(), min_u - (scaleFactor - 1.0), 1e-10);
-  EXPECT_NEAR(supPatch.getMaxKnot_u(), max_u + (scaleFactor - 1.0), 1e-10);
-  EXPECT_NEAR(supPatch.getMinKnot_v(), min_v - (scaleFactor - 1.0), 1e-10);
-  EXPECT_NEAR(supPatch.getMaxKnot_v(), max_v + (scaleFactor - 1.0), 1e-10);
+  for(auto& the_patch : {supPatchOriginallyUntrimmed, supPatchUntrimmed, supPatchTrimmed})
+  {
+    EXPECT_NEAR(the_patch.getMinKnot_u(), min_u - (scaleFactor - 1.0), 1e-10);
+    EXPECT_NEAR(the_patch.getMaxKnot_u(), max_u + (scaleFactor - 1.0), 1e-10);
+    EXPECT_NEAR(the_patch.getMinKnot_v(), min_v - (scaleFactor - 1.0), 1e-10);
+    EXPECT_NEAR(the_patch.getMaxKnot_v(), max_v + (scaleFactor - 1.0), 1e-10);
+  }
 
   // Check that the patches are equal in the original parameter space
   constexpr int npts = 15;
@@ -967,31 +979,41 @@ TEST(primal_nurbspatch, nurbs_parameter_space_scaling)
   {
     for(auto v : v_pts)
     {
-      auto pt1 = nPatch.evaluate(axom::utilities::clampVal(u, min_u, max_u),
-                                 axom::utilities::clampVal(v, min_v, max_v));
-      auto pt2 = supPatch.evaluate(u, v);
-      auto pt3 = supPatchTrimmed.evaluate(u, v);
+      auto orig_pt = nPatchUntrimmed.evaluate(axom::utilities::clampVal(u, min_u, max_u),
+                                              axom::utilities::clampVal(v, min_v, max_v));
+
+      auto ext_pt1 = supPatchOriginallyUntrimmed.evaluate(u, v);
+      auto ext_pt2 = supPatchUntrimmed.evaluate(u, v);
+      auto ext_pt3 = supPatchTrimmed.evaluate(u, v);
 
       // If the point is in the original parameter space, the two patches should be equal
       if((u >= min_u) && (u <= max_u) && (v >= min_v) && (v <= max_v))
       {
         for(int N = 0; N < DIM; ++N)
         {
-          EXPECT_NEAR(pt1[N], pt2[N], 1e-10);
-          EXPECT_NEAR(pt1[N], pt3[N], 1e-10);
+          EXPECT_NEAR(orig_pt[N], ext_pt1[N], 1e-10);
+          EXPECT_NEAR(orig_pt[N], ext_pt2[N], 1e-10);
+          EXPECT_NEAR(orig_pt[N], ext_pt3[N], 1e-10);
         }
 
-        EXPECT_TRUE(supPatch.isVisible(u, v));
-        EXPECT_TRUE(supPatchTrimmed.isVisible(u, v));
+        // Visibility on the original parameters should be unchanged after the patch is extended
+        EXPECT_EQ(nPatchTrimmed.isVisible(u, v), supPatchTrimmed.isVisible(u, v));
+        EXPECT_TRUE(supPatchOriginallyUntrimmed.isVisible(u, v));
+        EXPECT_TRUE(supPatchUntrimmed.isVisible(u, v));
       }
+
       // If not, the points should be "nearby"
       else
       {
-        EXPECT_LT(squared_distance(pt1, pt2), 6.0 * 6.0);
-        EXPECT_LT(squared_distance(pt1, pt3), 6.0 * 6.0);
+        // Check that the points are within a certain distance of each other
+        EXPECT_LT(squared_distance(orig_pt, ext_pt1), 6.0 * 6.0);
+        EXPECT_LT(squared_distance(orig_pt, ext_pt2), 6.0 * 6.0);
+        EXPECT_LT(squared_distance(orig_pt, ext_pt3), 6.0 * 6.0);
 
-        EXPECT_TRUE(supPatch.isVisible(u, v));
+        // Only the flagged patch should be visible in the extended parameters
+        EXPECT_TRUE(supPatchUntrimmed.isVisible(u, v));
         EXPECT_FALSE(supPatchTrimmed.isVisible(u, v));
+        EXPECT_FALSE(supPatchOriginallyUntrimmed.isVisible(u, v));
       }
     }
   }
