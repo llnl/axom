@@ -882,8 +882,7 @@ TEST(primal_nurbscurve, circular_arc_constructor)
 
   for(int i = 0; i < 5; ++i)
   {
-    NURBSCurveType circle;
-    circle.constructCircularArc(start_theta[i], end_theta[i], center, radius);
+    auto circle = NURBSCurveType::constructCircularArc(start_theta[i], end_theta[i], center, radius);
 
     // Check the first endpoint of the curve
     PointType start = circle.evaluate(0.0);
@@ -924,15 +923,14 @@ TEST(primal_nurbscurve, linear_segment_constructor)
   using PointType = primal::Point<CoordType, DIM>;
   using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
 
-  NURBSCurveType line;
-
+  
   constexpr int npts = 11;
   double t_pts[npts];
   axom::numerics::linspace(0.0, 1.0, t_pts, npts);
-
+  
   PointType start {1.0, 2.0};
   PointType end {3.0, 4.0};
-  line.constructLinearSegment(start, end);
+  NURBSCurveType line = NURBSCurveType::constructLinearSegment(start, end);
 
   // Check points along the curve
   for(int j = 0; j < npts; ++j)
@@ -947,7 +945,7 @@ TEST(primal_nurbscurve, linear_segment_constructor)
 
   // Check a curve with start == end
   end = start;
-  line.constructLinearSegment(start, end);
+  line = NURBSCurveType::constructLinearSegment(start, end);
 
   for(int j = 0; j < npts; ++j)
   {

@@ -400,14 +400,8 @@ TEST_F(TrimmingCurveTest, trimming_disk_subdivision)
 
   constexpr int npts = 10;
   double u_pts[npts], v_pts[npts];
-  axom::numerics::linspace(the_disk.getMinKnot_u(),
-                           the_disk.getMaxKnot_u(),
-                           u_pts,
-                           npts);
-  axom::numerics::linspace(the_disk.getMinKnot_v(),
-                           the_disk.getMaxKnot_v(),
-                           v_pts,
-                           npts);
+  axom::numerics::linspace(the_disk.getMinKnot_u(), the_disk.getMaxKnot_u(), u_pts, npts);
+  axom::numerics::linspace(the_disk.getMinKnot_v(), the_disk.getMaxKnot_v(), v_pts, npts);
 
   for(auto u : u_pts)
   {
@@ -521,25 +515,14 @@ TEST_F(TrimmingCurveTest, trimming_disk_subdivision_edge_cases)
   // Get the rest of the disks
   for(int i = 1; i < 7; ++i)
   {
-    the_rest.diskSplit(centers[i][0],
-                       centers[i][1],
-                       radius,
-                       disks[i],
-                       the_rest,
-                       !clipDisk);
+    the_rest.diskSplit(centers[i][0], centers[i][1], radius, disks[i], the_rest, !clipDisk);
   }
 
   constexpr int npts = 10;
   double u_pts[npts], v_pts[npts];
-  axom::numerics::linspace(the_rest.getMinKnot_u(),
-                           the_rest.getMaxKnot_u(),
-                           u_pts,
-                           npts);
+  axom::numerics::linspace(the_rest.getMinKnot_u(), the_rest.getMaxKnot_u(), u_pts, npts);
 
-  axom::numerics::linspace(the_rest.getMinKnot_v(),
-                           the_rest.getMaxKnot_v(),
-                           v_pts,
-                           npts);
+  axom::numerics::linspace(the_rest.getMinKnot_v(), the_rest.getMaxKnot_v(), v_pts, npts);
 
   for(auto u : u_pts)
   {
@@ -549,8 +532,7 @@ TEST_F(TrimmingCurveTest, trimming_disk_subdivision_edge_cases)
       for(int i = 0; i < 7; ++i)
       {
         // Ensure it's in the disk that was punctured out
-        if((u - centers[i][0]) * (u - centers[i][0]) +
-             (v - centers[i][1]) * (v - centers[i][1]) <
+        if((u - centers[i][0]) * (u - centers[i][0]) + (v - centers[i][1]) * (v - centers[i][1]) <
            radius * radius)
         {
           EXPECT_TRUE(disks[i].isVisible(u, v));
@@ -618,15 +600,9 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision)
 
   constexpr int npts = 10;
   double u_pts[npts], v_pts[npts];
-  axom::numerics::linspace(the_rest.getMinKnot_u(),
-                           the_rest.getMaxKnot_u(),
-                           u_pts,
-                           npts);
+  axom::numerics::linspace(the_rest.getMinKnot_u(), the_rest.getMaxKnot_u(), u_pts, npts);
 
-  axom::numerics::linspace(the_rest.getMinKnot_v(),
-                           the_rest.getMaxKnot_v(),
-                           v_pts,
-                           npts);
+  axom::numerics::linspace(the_rest.getMinKnot_v(), the_rest.getMaxKnot_v(), v_pts, npts);
 
   for(auto u : u_pts)
   {
@@ -672,15 +648,8 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_edge_cases)
 
   constexpr int npts = 10;
   double u_pts[npts], v_pts[npts];
-  axom::numerics::linspace(the_rest.getMinKnot_u(),
-                           the_rest.getMaxKnot_u(),
-                           u_pts,
-                           npts);
-
-  axom::numerics::linspace(the_rest.getMinKnot_v(),
-                           the_rest.getMaxKnot_v(),
-                           v_pts,
-                           npts);
+  axom::numerics::linspace(the_rest.getMinKnot_u(), the_rest.getMaxKnot_u(), u_pts, npts);
+  axom::numerics::linspace(the_rest.getMinKnot_v(), the_rest.getMaxKnot_v(), v_pts, npts);
 
   for(auto u : u_pts)
   {
@@ -699,14 +668,12 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_edge_cases)
   }
 
   nPatch = this->nPatch;
-  TrimmingCurveType the_curve;
 
   // Add trimming curves to the patch with a straight edge at u=0.5
-  the_curve.constructLinearSegment({0.5, 0.75}, {0.5, 0.25});
-  nPatch.addTrimmingCurve(the_curve);
+  nPatch.addTrimmingCurve(TrimmingCurveType::constructLinearSegment({0.5, 0.75}, {0.5, 0.25}));
 
-  the_curve.constructCircularArc(-M_PI / 2.0, M_PI / 2.0, {0.5, 0.5}, 0.25);
-  nPatch.addTrimmingCurve(the_curve);
+  nPatch.addTrimmingCurve(
+    TrimmingCurveType::constructCircularArc(-M_PI / 2.0, M_PI / 2.0, {0.5, 0.5}, 0.25));
 
   // Split the patch along the same edge
   NURBSPatchType leftpatch2, rightpatch2;
@@ -717,8 +684,7 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_edge_cases)
     for(auto v : v_pts)
     {
       // Figure out if a point is inside either of the disks
-      bool inHalfDisk = (u > 0.5) &&
-        (u - 0.5) * (u - 0.5) + (v - 0.5) * (v - 0.5) < 0.25 * 0.25;
+      bool inHalfDisk = (u > 0.5) && (u - 0.5) * (u - 0.5) + (v - 0.5) * (v - 0.5) < 0.25 * 0.25;
 
       // The point should only be in the right patch if it's in the half disk,
       //  and should never be in the left patch
@@ -729,33 +695,77 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_edge_cases)
 }
 
 //------------------------------------------------------------------------------
-TEST_F(TrimmingCurveTest, trimming_edge_subdivision_unworked_split_edge_case)
+TEST_F(TrimmingCurveTest, trimming_edge_subdivision_tangent_edge_cases)
 {
-  SLIC_INFO("Testing edge cases of line subdivision of the curve");
+  SLIC_INFO("Testing edge cases of subdivision at tangent points to trimming curves");
 
   NURBSPatchType nPatch(this->nPatch);
+  constexpr int npts = 10;
+  double u_pts[npts], v_pts[npts];
+  axom::numerics::linspace(nPatch.getMinKnot_u(), nPatch.getMaxKnot_u(), u_pts, npts);
+  axom::numerics::linspace(nPatch.getMinKnot_v(), nPatch.getMaxKnot_v(), v_pts, npts);
 
-  // This is a case where the trimming curve is tangent to the subdivision edge,
-  //  and so the current intersection routines won't record them
-  
-  axom::Array<ParameterPointType> trimmingCurveControlPoints {
-    ParameterPointType {1.0, 1.0},
-    ParameterPointType {0.75, 0.0},
-    ParameterPointType {0.25, 1.0},
-    ParameterPointType {0.0, 0.0}};
+  axom::Array<TrimmingCurveType> trimmingCurves;
+  axom::Array<ParameterPointType> trimmingCurveControlPoints {ParameterPointType {1.0, 1.0},
+                                                              ParameterPointType {0.75, 0.0},
+                                                              ParameterPointType {0.25, 1.0},
+                                                              ParameterPointType {0.0, 0.0}};
 
-  TrimmingCurveType trimmingCurve(trimmingCurveControlPoints, 3);
-  nPatch.addTrimmingCurve(trimmingCurve);
+  TrimmingCurveType interestingCurve(trimmingCurveControlPoints, 3);
 
-  trimmingCurve.constructLinearSegment({1.0, 0.0}, {1.0, 1.0});
-  nPatch.addTrimmingCurve(trimmingCurve);
+  trimmingCurves.push_back(interestingCurve);
+  trimmingCurves.push_back(TrimmingCurveType::constructLinearSegment({0.0, 0.0}, {1.0, 0.0}));
+  trimmingCurves.push_back(TrimmingCurveType::constructLinearSegment({1.0, 0.0}, {1.0, 1.0}));
 
-  trimmingCurve.constructLinearSegment({0.0, 0.0}, {1.0, 0.0});
-  nPatch.addTrimmingCurve(trimmingCurve);
+  nPatch.addTrimmingCurves(trimmingCurves);
 
   bool normalize = true;
   NURBSPatchType toppatch, bottompatch;
-  nPatch.split_v(0.5, toppatch, bottompatch, !normalize);
+  nPatch.split_v(0.5, bottompatch, toppatch, !normalize);
+
+  for(auto u : u_pts)
+  {
+    for(auto v : v_pts)
+    {
+      if(v <= 0.5)
+      {
+        EXPECT_EQ(nPatch.isVisible(u, v), bottompatch.isVisible(u, v));
+      }
+      else
+      {
+        EXPECT_EQ(nPatch.isVisible(u, v), toppatch.isVisible(u, v));
+      }
+    }
+  }
+
+  // Reset the original patch
+  nPatch = this->nPatch;
+  nPatch.addTrimmingCurves(trimmingCurves);
+
+  bool clipDisk = true;
+  NURBSPatchType the_rest, the_disk;
+
+  nPatch.diskSplit(0.5, -0.5, 1.0, the_disk, the_rest, !clipDisk);
+
+  for(auto u : u_pts)
+  {
+    for(auto v : v_pts)
+    {
+      if(nPatch.isVisible(u, v))
+      {
+        // Figure out if a point is inside either of the disks
+        bool inDisk = (u - 0.5) * (u - 0.5) + (v + 0.5) * (v + 0.5) < 1.0 * 1.0;
+
+        EXPECT_EQ(inDisk, the_disk.isVisible(u, v));
+        EXPECT_EQ(!inDisk, the_rest.isVisible(u, v));
+      }
+      else
+      {
+        EXPECT_EQ(the_disk.isVisible(u, v), false);
+        EXPECT_EQ(the_rest.isVisible(u, v), false);
+      }
+    }
+  }
 }
 
 int main(int argc, char* argv[])

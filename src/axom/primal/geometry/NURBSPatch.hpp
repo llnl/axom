@@ -1139,7 +1139,10 @@ public:
   void addTrimmingCurves(const TrimmingCurveVec& curves)
   {
     m_isTrimmed = true;
-    m_trimmingCurves.insert(m_trimmingCurves.end(), curves.begin(), curves.end());
+    for(int i = 0; i < curves.size(); ++i)
+    {
+      m_trimmingCurves.push_back(curves[i]);
+    }
   }
 
   /// \brief Clear trimming curves, but DON'T mark as untrimmed
@@ -1176,23 +1179,18 @@ public:
     const double max_v = m_knotvec_v[m_knotvec_v.getNumKnots() - 1];
 
     // For each min/max u/v, add a straight trimming curve along the boundary
-    TrimmingCurveType curve;
 
     // Bottom
-    curve.constructLinearSegment({min_u, min_v}, {max_u, min_v});
-    addTrimmingCurve(curve);
+    addTrimmingCurve(TrimmingCurveType::constructLinearSegment({min_u, min_v}, {max_u, min_v}));
 
     // Top
-    curve.constructLinearSegment({max_u, max_v}, {min_u, max_v});
-    addTrimmingCurve(curve);
+    addTrimmingCurve(TrimmingCurveType::constructLinearSegment({max_u, max_v}, {min_u, max_v}));
 
     // Left
-    curve.constructLinearSegment({min_u, max_v}, {min_u, min_v});
-    addTrimmingCurve(curve);
+    addTrimmingCurve(TrimmingCurveType::constructLinearSegment({min_u, max_v}, {min_u, min_v}));
 
     // Right
-    curve.constructLinearSegment({max_u, min_v}, {max_u, max_v});
-    addTrimmingCurve(curve);
+    addTrimmingCurve(TrimmingCurveType::constructLinearSegment({max_u, min_v}, {max_u, max_v}));
 
     markAsTrimmed();
   }
@@ -2362,7 +2360,7 @@ public:
   }
 
   /*!
-   * \brief Split the untrimmed NURBS patch in two along the u direction
+   * \brief Split the NURBS patch in two along the u direction
    */
   void split_u(T u, NURBSPatch& p1, NURBSPatch& p2, bool normalizeParameters = false) const
   {
@@ -2439,8 +2437,10 @@ public:
     //  Record each intersection with the circle, and split the trimming curve at each intersection
     primal::Sphere<T, 2> circle_obj(uv_param, r);
     TrimmingCurveVec split_trimming_curves;
+    TrimmingCurveVec circle_trimming_curves;
 
     axom::Array<T> circle_params;
+    circle_params.push_back(0.0);
     for(const auto& curve : the_rest.m_trimmingCurves)
     {
       axom::Array<T> curve_params;
@@ -2509,27 +2509,16 @@ public:
         split_trimming_curves.push_back(curve);
       }
     }
-
-    // If the ray intersects an odd number of times, this indicates some robustness issue
-    if(circle_params.size() % 2 != 0)
-    {
-      SLIC_WARNING(
-        "Odd number of intersections found between disk and trimming curves. "
-        "Returning empty disk.");
-
-      the_disk.m_trimmingCurves.clear();
-      return;
-    }
+    circle_params.push_back(2 * M_PI);
 
     // Handle special cases where 0 intersections are recorded
-    if(circle_params.size() == 0)
+    if(circle_params.size() == 2)
     {
       // If the circle is entirely inside the trimming curves,
       //  the_disk is a complete disk
       if(isVisible(u, v))
       {
-        TrimmingCurveType c1;
-        c1.constructCircularArc(0, 2 * M_PI, uv_param, r);
+        TrimmingCurveType c1 = TrimmingCurveType::constructCircularArc(0.0, 2 * M_PI, uv_param, r);
 
         the_disk.m_trimmingCurves.clear();
         the_disk.addTrimmingCurve(c1);
@@ -2556,32 +2545,18 @@ public:
     // Sort the circle parameters
     std::sort(circle_params.begin(), circle_params.end());
 
-    // Determine if the first circle arc is kept by the original surface
-    ParameterPointType mid_arc_point {u + r * std::cos(0.5 * (circle_params[0] + circle_params[1])),
-                                      v + r * std::sin(0.5 * (circle_params[0] + circle_params[1]))};
-
-    // If the midpoint of the first arc is visible, keep the first arc
-    int start_idx = isVisible(mid_arc_point[0], mid_arc_point[1]) ? 0 : 1;
-
-    // Define circular arcs for each *other* trimming curve
-    TrimmingCurveVec circle_trimming_curves;
-    TrimmingCurveType c1;
-
-    for(int i = start_idx; i < circle_params.size() - 1; i += 2)
+    for(int i = 0; i < circle_params.size() - 1; ++i)
     {
-      c1.constructCircularArc(circle_params[i], circle_params[i + 1], uv_param, r);
-      circle_trimming_curves.push_back(c1);
-    }
+      // Determine if the circle arc is kept by the original surface
+      ParameterPointType mid_arc_point {u + r * std::cos(0.5 * (circle_params[i] + circle_params[i + 1])),
+                                        v + r * std::sin(0.5 * (circle_params[i] + circle_params[i + 1]))};
+      bool isArcVisible = isVisible(mid_arc_point[0], mid_arc_point[1]);
 
-    // If we skipped the first segment, add it back here
-    if(start_idx == 1)
-    {
-      // Handle periodicity by adding 2pi to the smaller parameter
-      circle_params[0] += 2.0 * M_PI;
-
-      c1.constructCircularArc(circle_params[circle_params.size() - 1], circle_params[0], uv_param, r);
-
-      circle_trimming_curves.push_back(c1);
+      if( isArcVisible )
+      {
+        auto c1 = TrimmingCurveType::constructCircularArc(circle_params[i], circle_params[i + 1], uv_param, r);
+        circle_trimming_curves.push_back(TrimmingCurveType::constructCircularArc(circle_params[i], circle_params[i + 1], uv_param, r));
+      }
     }
 
     // Clear the trimming curves from each patch.
@@ -3584,7 +3559,7 @@ private:
     outCurvesSecond.clear();
 
     // Store a ray that is used as the splitting line
-    primal::Ray<T, 2> ray_obj(Point<T, 2> {getMinKnot_u() - 1.0, uv}, Vector<T, 2> {1.0, 0.0});
+    primal::Ray<T, 2> ray_obj(Point<T, 2> {getMaxKnot_u() + 1.0, uv}, Vector<T, 2> {-1.0, 0.0});
     if(splitByU)
     {
       ray_obj = primal::Ray<T, 2>(Point<T, 2> {uv, getMinKnot_v() - 1.0}, Vector<T, 2> {0.0, 1.0});
@@ -3612,6 +3587,7 @@ private:
         {
           axom::Array<T> temp_curve_p;
           axom::Array<T> temp_ray_p;
+
           detail::intersect_ray_bezier(ray_obj,
                                        beziers[i],
                                        temp_ray_p,
@@ -3662,38 +3638,27 @@ private:
       }
     }
 
-    // If the ray intersects an odd number of times, this indicates some robustness issue
-    if(ray_params.size() % 2 != 0)
-    {
-      SLIC_WARNING(
-        "Odd number of intersections found between liqne and trimming curves. "
-        "All trimming curves returned with first patch.");
-
-      outCurvesFirst = m_trimmingCurves;
-      return;
-    }
-
     if(ray_params.size() != 0)
     {
       // Sort the ray parameters
       std::sort(ray_params.begin(), ray_params.end());
 
-      // Determine if the first ray segment is kept by the original surface
-      ParameterPointType mid_ray_point(ray_obj.at(0.5 * (ray_params[0] + ray_params[1])));
-
-      // If the midpoint of the first arc is visible, keep the first arc
-      int start_idx = isVisible(mid_ray_point[0], mid_ray_point[1]) ? 0 : 1;
-
-      TrimmingCurveType c1;
-      for(int i = start_idx; i < ray_params.size() - 1; i += 2)
+      for(int i = 0; i < ray_params.size() - 1; ++i)
       {
-        c1.constructLinearSegment(ray_obj.at(ray_params[i]), ray_obj.at(ray_params[i + 1]));
+        // Determine if the ray segment is kept by the original surface
+        ParameterPointType mid_ray_point(ray_obj.at(0.5 * (ray_params[i] + ray_params[i + 1])));
+        bool isSegmentVisible = isVisible(mid_ray_point[0], mid_ray_point[1]);
 
-        splitByU ? outCurvesFirst.push_back(c1) : outCurvesSecond.push_back(c1);
+        if(isSegmentVisible)
+        {
+          auto c1 = TrimmingCurveType::constructLinearSegment(ray_obj.at(ray_params[i]), ray_obj.at(ray_params[i + 1]));
 
-        c1.reverseOrientation();
+          outCurvesFirst.push_back(c1);
 
-        splitByU ? outCurvesSecond.push_back(c1) : outCurvesFirst.push_back(c1);
+          c1.reverseOrientation();
+
+          outCurvesSecond.push_back(c1);
+        }
       }
     }
 
