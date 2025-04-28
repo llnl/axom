@@ -396,7 +396,7 @@ public:
   }
 
   /*!
-   * \brief Construct a multi-span, degree 2 NURBS curve from the angles of a circular arc
+   * \brief Construct a multi-span, rational, degree 2 NURBS curve from the angles of a circular arc
    *
    * \param [in] theta_0 The starting angle of the arc
    * \param [in] theta_1 The ending angle of the arc
