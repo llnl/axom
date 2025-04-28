@@ -186,16 +186,15 @@ bool intersect_circle_bezier(const Ray<T, 2> &r,
 /*!
  * \brief Tests intersection of a line and a cirlce
  *
- * \param [in] a,d,c,b the endpoints of a segment which defines the line
- * \param [out] The parametrized curve values (c) and line values (t) at 
- *  which intersection occurs.
+ * \param [in] a, b the endpoints of a segment which defines the line
+ * \param [out] c1, c2, t1, t2 The parametrized curve values (c) and 
+ *   line values (t) at which intersection occurs.
  * Range of output values for \a c is [0, 2pi) and \a t is [-inf, inf).
  *
  * \return True, if the line segment intersects, false otherwise.
  *
- * \note This function assumes the all intersections have multiplicity
- * one, i.e. there are no points at which the curves and their derivatives
- * both intersect. Thus, the function does not find tangencies.
+ * \note This function can't be used to identify tangents at local a min/max
+ *   of Bezier curves.
  */
 template <typename T>
 bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
@@ -204,7 +203,8 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
                               T &c1,
                               T &c2,
                               T &t1,
-                              T &t2);
+                              T &t2,
+                              double EPS);
 //------------------------------ IMPLEMENTATIONS ------------------------------
 
 template <typename T>

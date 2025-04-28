@@ -2141,7 +2141,6 @@ public:
     const bool isRationalPatch = isRational();
 
     const int np = getNumControlPoints_u() - 1;
-    const int p = getDegree_u();
 
     const int nq = getNumControlPoints_v() - 1;
     const int q = getDegree_v();
