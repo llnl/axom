@@ -2943,8 +2943,6 @@ public:
 
       if(isArcVisible)
       {
-        auto c1 =
-          TrimmingCurveType::make_circular_arc_nurbs(circle_params[i], circle_params[i + 1], u, v, r);
         circle_trimming_curves.push_back(
           TrimmingCurveType::make_circular_arc_nurbs(circle_params[i], circle_params[i + 1], u, v, r));
       }
