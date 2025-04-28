@@ -68,8 +68,7 @@ View* View::allocate(int allocID)
     if(m_state == EMPTY)
     {
       SLIC_ASSERT_MSG(m_data_buffer == nullptr,
-                      SIDRE_VIEW_LOG_PREPEND
-                        << "State was EMPTY, but data buffer was not null.");
+                      SIDRE_VIEW_LOG_PREPEND << "State was EMPTY, but data buffer was not null.");
       m_data_buffer = m_owning_group->getDataStore()->createBuffer();
       m_data_buffer->attachToView(this);
       m_state = BUFFER;
@@ -98,12 +97,10 @@ View* View::allocate(TypeID type, IndexType num_elems, int allocID)
   if(type == NO_TYPE_ID || num_elems < 0)
   {
     SLIC_CHECK_MSG(type != NO_TYPE_ID,
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "Could not allocate: Data type was 'NO_TYPE_ID'.");
+                   SIDRE_VIEW_LOG_PREPEND << "Could not allocate: Data type was 'NO_TYPE_ID'.");
     SLIC_CHECK_MSG(
       num_elems >= 0,
-      SIDRE_VIEW_LOG_PREPEND
-        << "Could not allocate: num_elems cannot be less than zero.");
+      SIDRE_VIEW_LOG_PREPEND << "Could not allocate: num_elems cannot be less than zero.");
 
     return this;
   }
@@ -125,26 +122,21 @@ View* View::allocate(TypeID type, int ndims, const IndexType* shape, int allocID
 {
   allocID = getValidAllocatorID(allocID);
 
-  SLIC_CHECK_MSG(
-    ndims > 0,
-    SIDRE_VIEW_LOG_PREPEND << "Could not allocate: ndim is non-positive.");
+  SLIC_CHECK_MSG(ndims > 0, SIDRE_VIEW_LOG_PREPEND << "Could not allocate: ndim is non-positive.");
 
   SLIC_CHECK_MSG(type != NO_TYPE_ID,
-                 SIDRE_VIEW_LOG_PREPEND
-                   << "Could not allocate: Data type was 'NO_TYPE_ID'.");
+                 SIDRE_VIEW_LOG_PREPEND << "Could not allocate: Data type was 'NO_TYPE_ID'.");
 
   SLIC_CHECK_MSG(shape != nullptr,
-                 SIDRE_VIEW_LOG_PREPEND
-                   << "Could not allocate: specified shape is nullptr.");
+                 SIDRE_VIEW_LOG_PREPEND << "Could not allocate: specified shape is nullptr.");
 
   IndexType num_elems = 1;
   if(shape != nullptr)
   {
     for(int d = 0; d < ndims; ++d)
     {
-      SLIC_CHECK_MSG(
-        shape[d] > 0,
-        SIDRE_VIEW_LOG_PREPEND << "Could not allocate: shape is non-positive.");
+      SLIC_CHECK_MSG(shape[d] > 0,
+                     SIDRE_VIEW_LOG_PREPEND << "Could not allocate: shape is non-positive.");
       num_elems *= shape[d];
       if(num_elems <= 0)
       {
@@ -176,8 +168,7 @@ View* View::allocate(const DataType& dtype, int allocID)
   if(dtype.is_empty())
   {
     SLIC_CHECK_MSG(!dtype.is_empty(),
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "Unable to allocate View with empty data type.");
+                   SIDRE_VIEW_LOG_PREPEND << "Unable to allocate View with empty data type.");
     return this;
   }
 
@@ -203,9 +194,7 @@ View* View::reallocate(IndexType num_elems)
 
   if(num_elems < 0)
   {
-    SLIC_CHECK_MSG(
-      false,
-      SIDRE_VIEW_LOG_PREPEND << "Unable to reallocate, num_elems must be >= 0");
+    SLIC_CHECK_MSG(false, SIDRE_VIEW_LOG_PREPEND << "Unable to reallocate, num_elems must be >= 0");
   }
   else if(isAllocateValid())
   {
@@ -240,9 +229,8 @@ View* View::deallocate()
   if(!isAllocateValid())
   {
     SLIC_CHECK_MSG(isAllocateValid(),
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "View's state " << getStateStringName(m_state)
-                     << " does not allow data deallocation");
+                   SIDRE_VIEW_LOG_PREPEND << "View's state " << getStateStringName(m_state)
+                                          << " does not allow data deallocation");
     return this;
   }
 
@@ -275,15 +263,12 @@ View* View::reallocate(const DataType& dtype)
   if(dtype.is_empty() || !isAllocateValid() || type != view_type)
   {
     SLIC_CHECK_MSG(!dtype.is_empty(),
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "Unable to re-allocate View with empty data type.");
+                   SIDRE_VIEW_LOG_PREPEND << "Unable to re-allocate View with empty data type.");
     SLIC_CHECK_MSG(isAllocateValid(),
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "View's state " << getStateStringName(m_state)
-                     << " does not allow data re-allocation");
+                   SIDRE_VIEW_LOG_PREPEND << "View's state " << getStateStringName(m_state)
+                                          << " does not allow data re-allocation");
     SLIC_CHECK_MSG(type == view_type,
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "Attempting to re-allocate view with different type.");
+                   SIDRE_VIEW_LOG_PREPEND << "Attempting to re-allocate view with different type.");
     return this;
   }
 
@@ -318,8 +303,7 @@ View* View::reshapeArray(int ndims, const IndexType* shape)
   }
   if(newSize != getNumElements())
   {
-    SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND
-                 << "View reshape must not change the number of elements.");
+    SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND << "View reshape must not change the number of elements.");
     return this;
   }
 
@@ -417,9 +401,9 @@ void View::clear()
     undescribe();
     break;
   default:
-    SLIC_ASSERT_MSG(false,
-                    SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: "
-                                           << getStateStringName(m_state));
+    SLIC_ASSERT_MSG(
+      false,
+      SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: " << getStateStringName(m_state));
   }
 
   m_attr_values.clear();
@@ -438,9 +422,8 @@ View* View::apply()
   if(!isApplyValid())
   {
     SLIC_CHECK_MSG(isApplyValid(),
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "View's state, '" << getStateStringName(m_state)
-                     << "', does not allow apply operation");
+                   SIDRE_VIEW_LOG_PREPEND << "View's state, '" << getStateStringName(m_state)
+                                          << "', does not allow apply operation");
     return this;
   }
 
@@ -474,8 +457,7 @@ View* View::apply(IndexType num_elems, IndexType offset, IndexType stride)
   if(num_elems < 0)
   {
     SLIC_CHECK_MSG(num_elems >= 0,
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "Could not apply -- num_elems was less than zero.");
+                   SIDRE_VIEW_LOG_PREPEND << "Could not apply -- num_elems was less than zero.");
     return this;
   }
 
@@ -509,13 +491,10 @@ View* View::apply(TypeID type, IndexType num_elems, IndexType offset, IndexType 
 {
   if(type == NO_TYPE_ID || num_elems < 0)
   {
-    SLIC_CHECK_MSG(
-      type != NO_TYPE_ID,
-      SIDRE_VIEW_LOG_PREPEND << "Could not apply -- invalid type.");
+    SLIC_CHECK_MSG(type != NO_TYPE_ID, SIDRE_VIEW_LOG_PREPEND << "Could not apply -- invalid type.");
 
     SLIC_CHECK_MSG(num_elems >= 0,
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "Could not apply -- num_elems was less than zero.");
+                   SIDRE_VIEW_LOG_PREPEND << "Could not apply -- num_elems was less than zero.");
 
     return this;
   }
@@ -546,15 +525,10 @@ View* View::apply(TypeID type, int ndims, const IndexType* shape)
 {
   if(type == NO_TYPE_ID || ndims < 1 || shape == nullptr)
   {
-    SLIC_CHECK_MSG(
-      type != NO_TYPE_ID,
-      SIDRE_VIEW_LOG_PREPEND << "Could not apply -- invalid type.");
-    SLIC_CHECK_MSG(
-      ndims >= 1,
-      SIDRE_VIEW_LOG_PREPEND << "Could not apply -- ndims was less than one.");
-    SLIC_CHECK_MSG(
-      shape != nullptr,
-      SIDRE_VIEW_LOG_PREPEND << "Could not apply -- shape was null.");
+    SLIC_CHECK_MSG(type != NO_TYPE_ID, SIDRE_VIEW_LOG_PREPEND << "Could not apply -- invalid type.");
+    SLIC_CHECK_MSG(ndims >= 1,
+                   SIDRE_VIEW_LOG_PREPEND << "Could not apply -- ndims was less than one.");
+    SLIC_CHECK_MSG(shape != nullptr, SIDRE_VIEW_LOG_PREPEND << "Could not apply -- shape was null.");
 
     return this;
   }
@@ -577,8 +551,7 @@ View* View::apply(const DataType& dtype)
   if(dtype.is_empty())
   {
     SLIC_CHECK_MSG(!dtype.is_empty(),
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "Unable to apply description, data type is empty.");
+                   SIDRE_VIEW_LOG_PREPEND << "Unable to apply description, data type is empty.");
     return this;
   }
 
@@ -620,8 +593,7 @@ void* View::getVoidPtr() const
     }
     else
     {
-      SLIC_CHECK_MSG(false,
-                     SIDRE_VIEW_LOG_PREPEND << "View has no applied data.");
+      SLIC_CHECK_MSG(false, SIDRE_VIEW_LOG_PREPEND << "View has no applied data.");
     }
     break;
   case STRING:
@@ -629,9 +601,9 @@ void* View::getVoidPtr() const
     rv = const_cast<void*>(m_node.data_ptr());
     break;
   default:
-    SLIC_ASSERT_MSG(false,
-                    SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: "
-                                           << getStateStringName(m_state));
+    SLIC_ASSERT_MSG(
+      false,
+      SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: " << getStateStringName(m_state));
   }
 
   return rv;
@@ -668,9 +640,8 @@ View* View::setExternalDataPtr(void* external_ptr)
   else
   {
     SLIC_CHECK_MSG(m_state == EMPTY || m_state == EXTERNAL,
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "Calling setExternalDataPtr on View with "
-                     << getStateStringName(m_state) << " data is not allowed.");
+                   SIDRE_VIEW_LOG_PREPEND << "Calling setExternalDataPtr on View with "
+                                          << getStateStringName(m_state) << " data is not allowed.");
   }
 
   return this;
@@ -687,17 +658,15 @@ View* View::updateFrom(const View* other)
 {
   if(!isUpdateableFrom(other))
   {
-    SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND
-                 << "View '" << getPathName() << "' is not updateable "
-                 << "from View '" << other->getPathName() << "'");
+    SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND << "View '" << getPathName() << "' is not updateable "
+                                        << "from View '" << other->getPathName() << "'");
     return this;
   }
 
   SLIC_WARNING_IF(getTypeID() != other->getTypeID(),
-                  SIDRE_VIEW_LOG_PREPEND
-                    << "Updating View " << getPathName() << " with type "
-                    << getTypeID() << " from View " << other->getPathName()
-                    << " with type " << other->getTypeID());
+                  SIDRE_VIEW_LOG_PREPEND << "Updating View " << getPathName() << " with type "
+                                         << getTypeID() << " from View " << other->getPathName()
+                                         << " with type " << other->getTypeID());
 
   char* dst = static_cast<char*>(getVoidPtr());
   dst += getOffset() * getBytesPerElement();
@@ -739,9 +708,9 @@ bool View::isAllocated() const
     rv = true;
     break;
   default:
-    SLIC_ASSERT_MSG(false,
-                    SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: "
-                                           << getStateStringName(m_state));
+    SLIC_ASSERT_MSG(
+      false,
+      SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: " << getStateStringName(m_state));
   }
 
   return rv;
@@ -798,15 +767,14 @@ IndexType View::getOffset() const
     const int bytes_per_elem = getBytesPerElement();
     if(bytes_per_elem != 0)
     {
-      SLIC_ERROR_IF(
-        offset % bytes_per_elem != 0,
-        SIDRE_VIEW_LOG_PREPEND
-          << "Error calculating offset. "
-          << "Sidre assumes that offsets are given as integral number "
-          << "of elements into the array.  In this View, the offset was "
-          << offset << " bytes and each element is " << bytes_per_elem
-          << " bytes. If you have a need for "
-          << "non-integral offsets, please contact the Sidre team");
+      SLIC_ERROR_IF(offset % bytes_per_elem != 0,
+                    SIDRE_VIEW_LOG_PREPEND
+                      << "Error calculating offset. "
+                      << "Sidre assumes that offsets are given as integral number "
+                      << "of elements into the array.  In this View, the offset was " << offset
+                      << " bytes and each element is " << bytes_per_elem
+                      << " bytes. If you have a need for "
+                      << "non-integral offsets, please contact the Sidre team");
 
       offset /= bytes_per_elem;
     }
@@ -834,15 +802,14 @@ IndexType View::getStride() const
     const int bytes_per_elem = getBytesPerElement();
     if(bytes_per_elem != 0)
     {
-      SLIC_ERROR_IF(
-        stride % bytes_per_elem != 0,
-        SIDRE_VIEW_LOG_PREPEND
-          << "Error caclulating stride. "
-          << "Sidre assumes that strides are given as integral number "
-          << "of elements into the array. In this View, the stride was "
-          << stride << " bytes and each element is " << bytes_per_elem
-          << " bytes. If you have a need for "
-          << "non-integral strides, please contact the Sidre team");
+      SLIC_ERROR_IF(stride % bytes_per_elem != 0,
+                    SIDRE_VIEW_LOG_PREPEND
+                      << "Error caclulating stride. "
+                      << "Sidre assumes that strides are given as integral number "
+                      << "of elements into the array. In this View, the stride was " << stride
+                      << " bytes and each element is " << bytes_per_elem
+                      << " bytes. If you have a need for "
+                      << "non-integral strides, please contact the Sidre team");
 
       stride /= bytes_per_elem;
     }
@@ -876,8 +843,7 @@ bool View::isEquivalentTo(const View* other) const
 bool View::isUpdateableFrom(const View* other) const
 {
   const bool valid_state = (m_state == BUFFER) || (m_state == EXTERNAL);
-  const bool other_valid_state =
-    (other->m_state == BUFFER) || (other->m_state == EXTERNAL);
+  const bool other_valid_state = (other->m_state == BUFFER) || (other->m_state == EXTERNAL);
   const bool same_length = (getTotalBytes() == other->getTotalBytes());
   const bool unit_stride = (getStride() == 1) && (other->getStride() == 1);
 
@@ -1023,8 +989,7 @@ void View::describe(TypeID type, IndexType num_elems)
 void View::describe(TypeID type, int ndims, const IndexType* shape)
 {
   SLIC_CHECK_MSG(shape != nullptr,
-                 SIDRE_VIEW_LOG_PREPEND
-                   << "Could not allocate: specified shape is nullptr.");
+                 SIDRE_VIEW_LOG_PREPEND << "Could not allocate: specified shape is nullptr.");
   if(shape == nullptr)
   {
     return;
@@ -1083,8 +1048,7 @@ void View::describeShape()
 void View::describeShape(int ndims, const IndexType* shape)
 {
   SLIC_CHECK_MSG(shape != nullptr,
-                 SIDRE_VIEW_LOG_PREPEND
-                   << "Could not allocate: specified shape is nullptr.");
+                 SIDRE_VIEW_LOG_PREPEND << "Could not allocate: specified shape is nullptr.");
   if(shape == nullptr)
   {
     return;
@@ -1107,9 +1071,8 @@ void View::describeShape(int ndims, const IndexType* shape)
 void View::copyView(View* copy) const
 {
   SLIC_ASSERT_MSG(copy->m_state == EMPTY && !copy->isDescribed(),
-                  SIDRE_VIEW_LOG_PREPEND
-                    << "copyView can only copy into undescribed view "
-                    << "with empty state.");
+                  SIDRE_VIEW_LOG_PREPEND << "copyView can only copy into undescribed view "
+                                         << "with empty state.");
 
   if(isDescribed())
   {
@@ -1134,9 +1097,9 @@ void View::copyView(View* copy) const
     copy->attachBuffer(m_data_buffer);
     break;
   default:
-    SLIC_ASSERT_MSG(false,
-                    SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: "
-                                           << getStateStringName(m_state));
+    SLIC_ASSERT_MSG(
+      false,
+      SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: " << getStateStringName(m_state));
   }
 }
 
@@ -1150,9 +1113,8 @@ void View::copyView(View* copy) const
 void View::deepCopyView(View* copy, int allocID) const
 {
   SLIC_ASSERT_MSG(copy->m_state == EMPTY && !copy->isDescribed(),
-                  SIDRE_VIEW_LOG_PREPEND
-                    << "deepCopyView can only copy into undescribed view "
-                    << "with empty state.");
+                  SIDRE_VIEW_LOG_PREPEND << "deepCopyView can only copy into undescribed view "
+                                         << "with empty state.");
 
   if(isDescribed())
   {
@@ -1194,10 +1156,8 @@ void View::deepCopyView(View* copy, int allocID) const
       IndexType j = 0;
       for(IndexType i = 0; i < getNumElements(); ++i)
       {
-        char* copy_dst =
-          static_cast<char*>(copy->getVoidPtr()) + (dst_offset + i) * num_bytes;
-        const char* copy_src =
-          static_cast<const char*>(getVoidPtr()) + (src_offset + j) * num_bytes;
+        char* copy_dst = static_cast<char*>(copy->getVoidPtr()) + (dst_offset + i) * num_bytes;
+        const char* copy_src = static_cast<const char*>(getVoidPtr()) + (src_offset + j) * num_bytes;
         axom::copy(copy_dst, copy_src, num_bytes);
 
         j += stride;
@@ -1222,10 +1182,8 @@ void View::deepCopyView(View* copy, int allocID) const
       IndexType j = 0;
       for(IndexType i = 0; i < getNumElements(); ++i)
       {
-        char* copy_dst =
-          static_cast<char*>(copy->getVoidPtr()) + (dst_offset + i) * num_bytes;
-        const char* copy_src =
-          static_cast<const char*>(getVoidPtr()) + (src_offset + j) * num_bytes;
+        char* copy_dst = static_cast<char*>(copy->getVoidPtr()) + (dst_offset + i) * num_bytes;
+        const char* copy_src = static_cast<const char*>(getVoidPtr()) + (src_offset + j) * num_bytes;
         axom::copy(copy_dst, copy_src, num_bytes);
 
         j += stride;
@@ -1233,9 +1191,9 @@ void View::deepCopyView(View* copy, int allocID) const
     }
     break;
   default:
-    SLIC_ASSERT_MSG(false,
-                    SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: "
-                                           << getStateStringName(m_state));
+    SLIC_ASSERT_MSG(
+      false,
+      SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: " << getStateStringName(m_state));
   }
 }
 
@@ -1262,17 +1220,16 @@ bool View::isAllocateValid() const
   case SCALAR:
   case EXTERNAL:
     SLIC_CHECK_MSG(false,
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "Allocate is not valid for view in '"
-                     << getStateStringName(m_state) << "' state.");
+                   SIDRE_VIEW_LOG_PREPEND << "Allocate is not valid for view in '"
+                                          << getStateStringName(m_state) << "' state.");
     break;
   case BUFFER:
     rv = isDescribed() && m_data_buffer->getNumViews() == 1;
     break;
   default:
-    SLIC_ASSERT_MSG(false,
-                    SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: "
-                                           << getStateStringName(m_state));
+    SLIC_ASSERT_MSG(
+      false,
+      SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: " << getStateStringName(m_state));
   }
 
   return rv;
@@ -1297,8 +1254,7 @@ bool View::isApplyValid() const
   {
     SLIC_CHECK_MSG(
       false,
-      SIDRE_VIEW_LOG_PREPEND
-        << "Apply is not valid. View does not have a description.");
+      SIDRE_VIEW_LOG_PREPEND << "Apply is not valid. View does not have a description.");
     return rv;
   }
 
@@ -1308,29 +1264,25 @@ bool View::isApplyValid() const
   case STRING:
   case SCALAR:
     SLIC_CHECK_MSG(false,
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "Apply is not valid for View with state '"
-                     << getStateStringName(m_state) << "'.'");
+                   SIDRE_VIEW_LOG_PREPEND << "Apply is not valid for View with state '"
+                                          << getStateStringName(m_state) << "'.'");
     break;
   case EXTERNAL:
     SLIC_ASSERT(m_external_ptr != nullptr);
     rv = isDescribed();
     break;
   case BUFFER:
-    rv =
-      0 <= getTotalBytes() && getTotalBytes() <= m_data_buffer->getTotalBytes();
-    SLIC_CHECK_MSG(
-      0 <= getTotalBytes(),
-      SIDRE_VIEW_LOG_PREPEND << "Apply is not valid on data with zero length.");
+    rv = 0 <= getTotalBytes() && getTotalBytes() <= m_data_buffer->getTotalBytes();
+    SLIC_CHECK_MSG(0 <= getTotalBytes(),
+                   SIDRE_VIEW_LOG_PREPEND << "Apply is not valid on data with zero length.");
     SLIC_CHECK_MSG(getTotalBytes() <= m_data_buffer->getTotalBytes(),
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "Apply is not valid. "
-                     << "View's datatype length exceeds bytes in buffer.");
+                   SIDRE_VIEW_LOG_PREPEND << "Apply is not valid. "
+                                          << "View's datatype length exceeds bytes in buffer.");
     break;
   default:
-    SLIC_ASSERT_MSG(false,
-                    SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: "
-                                           << getStateStringName(m_state));
+    SLIC_ASSERT_MSG(
+      false,
+      SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: " << getStateStringName(m_state));
   }
 
   return rv;
@@ -1419,8 +1371,7 @@ View::State View::getStateId(const std::string& name) const
  *
  *************************************************************************
  */
-void View::exportTo(conduit::Node& data_holder,
-                    std::set<IndexType>& buffer_indices) const
+void View::exportTo(conduit::Node& data_holder, std::set<IndexType>& buffer_indices) const
 {
   data_holder["state"] = getStateStringName(m_state);
   exportAttribute(data_holder);
@@ -1461,9 +1412,9 @@ void View::exportTo(conduit::Node& data_holder,
     data_holder["value"] = getNode();
     break;
   default:
-    SLIC_ASSERT_MSG(false,
-                    SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: "
-                                           << getStateStringName(m_state));
+    SLIC_ASSERT_MSG(
+      false,
+      SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: " << getStateStringName(m_state));
   }
 }
 
@@ -1473,8 +1424,7 @@ void View::exportTo(conduit::Node& data_holder,
  *
  *************************************************************************
  */
-void View::importFrom(conduit::Node& data_holder,
-                      const std::map<IndexType, IndexType>& buffer_id_map)
+void View::importFrom(conduit::Node& data_holder, const std::map<IndexType, IndexType>& buffer_id_map)
 {
   m_state = getStateId(data_holder["state"].as_string());
   importAttribute(data_holder);
@@ -1496,11 +1446,9 @@ void View::importFrom(conduit::Node& data_holder,
 
     SLIC_ASSERT_MSG(buffer_id_map.find(old_buffer_id) != buffer_id_map.end(),
                     SIDRE_VIEW_LOG_PREPEND << "Buffer id map is old."
-                                           << "New id entry for buffer "
-                                           << old_buffer_id);
+                                           << "New id entry for buffer " << old_buffer_id);
 
-    Buffer* buffer =
-      m_owning_group->getDataStore()->getBuffer(buffer_id_map.at(old_buffer_id));
+    Buffer* buffer = m_owning_group->getDataStore()->getBuffer(buffer_id_map.at(old_buffer_id));
 
     importDescription(data_holder);
     attachBuffer(buffer);
@@ -1520,9 +1468,9 @@ void View::importFrom(conduit::Node& data_holder,
     m_is_applied = true;
     break;
   default:
-    SLIC_ASSERT_MSG(false,
-                    SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: "
-                                           << getStateStringName(m_state));
+    SLIC_ASSERT_MSG(
+      false,
+      SIDRE_VIEW_LOG_PREPEND << "View is in unexpected state: " << getStateStringName(m_state));
   }
 }
 
@@ -1572,17 +1520,15 @@ View* View::importArrayNode(const Node& array)
     else
     {
       SLIC_CHECK_MSG(m_state == EMPTY,
-                     SIDRE_VIEW_LOG_PREPEND
-                       << "Unable to import array Node to View with state: "
-                       << getStateStringName(m_state));
+                     SIDRE_VIEW_LOG_PREPEND << "Unable to import array Node to View with state: "
+                                            << getStateStringName(m_state));
     }
   }
   else
   {
-    SLIC_CHECK_MSG(array_dtype.is_number(),
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "Unable to import array from Node of type: "
-                     << array_dtype.name());
+    SLIC_CHECK_MSG(
+      array_dtype.is_number(),
+      SIDRE_VIEW_LOG_PREPEND << "Unable to import array from Node of type: " << array_dtype.name());
   }
 
   return this;
@@ -1702,24 +1648,22 @@ bool View::rename(const std::string& new_name)
 
     if(new_name.empty())
     {
-      SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND
-                   << "Cannot rename View to an empty string.");
+      SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND << "Cannot rename View to an empty string.");
       do_rename = false;
     }
     else if(new_name.find(parent->getPathDelimiter()) != std::string::npos)
     {
-      SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND
-                   << "Cannot rename View " << getPathName() << " to path name '"
-                   << new_name << "'. Only strings without path delimiters can "
-                   << "be passed into the rename method.");
+      SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND << "Cannot rename View " << getPathName()
+                                          << " to path name '" << new_name
+                                          << "'. Only strings without path delimiters can "
+                                          << "be passed into the rename method.");
       do_rename = false;
     }
     else if(parent->hasGroup(new_name) || parent->hasView(new_name))
     {
-      SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND
-                   << "Parent group '" << parent->getPathName()
-                   << "' already has a child object named " << new_name << ". "
-                   << "View " << getPathName() << " will not be renamed.");
+      SLIC_WARNING(SIDRE_VIEW_LOG_PREPEND << "Parent group '" << parent->getPathName()
+                                          << "' already has a child object named " << new_name << ". "
+                                          << "View " << getPathName() << " will not be renamed.");
       do_rename = false;
     }
     else
@@ -1840,8 +1784,7 @@ bool View::setAttributeString(const Attribute* attr, const std::string& value)
   if(attr == nullptr)
   {
     SLIC_CHECK_MSG(attr != nullptr,
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "setAttributeString: called with a null Attribute");
+                   SIDRE_VIEW_LOG_PREPEND << "setAttributeString: called with a null Attribute");
     return false;
   }
 
@@ -1904,8 +1847,7 @@ const char* View::getAttributeString(const Attribute* attr) const
   if(attr == nullptr)
   {
     SLIC_CHECK_MSG(attr != nullptr,
-                   SIDRE_VIEW_LOG_PREPEND
-                     << "getAttributeString: called with a null Attribute");
+                   SIDRE_VIEW_LOG_PREPEND << "getAttributeString: called with a null Attribute");
     return nullptr;
   }
 

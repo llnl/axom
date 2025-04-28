@@ -123,9 +123,7 @@ void Logger::setLoggingMsgLevel(message::Level level)
 }
 
 //------------------------------------------------------------------------------
-void Logger::addStreamToMsgLevel(LogStream* ls,
-                                 message::Level level,
-                                 bool pass_ownership)
+void Logger::addStreamToMsgLevel(LogStream* ls, message::Level level, bool pass_ownership)
 {
   if(ls == nullptr)
   {
@@ -142,9 +140,7 @@ void Logger::addStreamToMsgLevel(LogStream* ls,
 }
 
 //------------------------------------------------------------------------------
-void Logger::addStreamToTag(LogStream* ls,
-                            const std::string& tag,
-                            bool pass_ownership)
+void Logger::addStreamToTag(LogStream* ls, const std::string& tag, bool pass_ownership)
 {
   if(ls == nullptr)
   {
@@ -178,9 +174,7 @@ void Logger::addStreamToAllMsgLevels(LogStream* ls, bool pass_ownership)
 
   for(int level = message::Error; level < message::Num_Levels; ++level)
   {
-    this->addStreamToMsgLevel(ls,
-                              static_cast<message::Level>(level),
-                              pass_ownership);
+    this->addStreamToMsgLevel(ls, static_cast<message::Level>(level), pass_ownership);
   }
 }
 
@@ -258,9 +252,7 @@ LogStream* Logger::getStream(const std::string& tag, int i)
 }
 
 //------------------------------------------------------------------------------
-void Logger::logMessage(message::Level level,
-                        const std::string& message,
-                        bool filter_duplicates)
+void Logger::logMessage(message::Level level, const std::string& message, bool filter_duplicates)
 {
   this->logMessage(level,
                    message,
@@ -294,13 +286,7 @@ void Logger::logMessage(message::Level level,
                         int line,
                         bool filter_duplicates)
 {
-  this->logMessage(level,
-                   message,
-                   MSG_IGNORE_TAG,
-                   fileName,
-                   line,
-                   filter_duplicates,
-                   false);
+  this->logMessage(level, message, MSG_IGNORE_TAG, fileName, line, filter_duplicates, false);
 }
 
 //------------------------------------------------------------------------------
@@ -323,8 +309,7 @@ void Logger::logMessage(message::Level level,
     return;
   }
 
-  if(tag_stream_only == true &&
-     m_taggedStreams.find(tagName) == m_taggedStreams.end())
+  if(tag_stream_only == true && m_taggedStreams.find(tagName) == m_taggedStreams.end())
   {
     std::cerr << "ERROR: tag does not exist!\n";
     return;
@@ -336,13 +321,8 @@ void Logger::logMessage(message::Level level,
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      m_logStreams[level][istream]->append(level,
-                                           message,
-                                           tagName,
-                                           fileName,
-                                           line,
-                                           filter_duplicates,
-                                           tag_stream_only);
+      m_logStreams[level][istream]
+        ->append(level, message, tagName, fileName, line, filter_duplicates, tag_stream_only);
     }
   }
 
@@ -351,13 +331,8 @@ void Logger::logMessage(message::Level level,
   {
     for(unsigned int i = 0; i < m_taggedStreams[tagName].size(); i++)
     {
-      m_taggedStreams[tagName][i]->append(level,
-                                          message,
-                                          tagName,
-                                          fileName,
-                                          line,
-                                          filter_duplicates,
-                                          tag_stream_only);
+      m_taggedStreams[tagName][i]
+        ->append(level, message, tagName, fileName, line, filter_duplicates, tag_stream_only);
     }
   }
 }
@@ -493,10 +468,9 @@ bool Logger::createLogger(const std::string& name, char imask)
     {
       for(int istream = 0; istream < nstreams; ++istream)
       {
-        loggers[name]->addStreamToMsgLevel(
-          rootLogger->getStream(current_level, istream),
-          current_level,
-          /* pass_ownership */ false);
+        loggers[name]->addStreamToMsgLevel(rootLogger->getStream(current_level, istream),
+                                           current_level,
+                                           /* pass_ownership */ false);
 
       }  // END for all streams at this level
 

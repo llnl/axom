@@ -60,8 +60,7 @@ TEST(core_Utilities, random_real)
       EXPECT_GE(d_val, cur_min);
       EXPECT_LT(d_val, cur_max);
 
-      long double ld_val =
-        axom::utilities::random_real<long double>(cur_min, cur_max);
+      long double ld_val = axom::utilities::random_real<long double>(cur_min, cur_max);
       EXPECT_GE(ld_val, cur_min);
       EXPECT_LT(ld_val, cur_max);
     }

@@ -135,12 +135,11 @@ private:
   /** \brief Debug check that the index is not out of range    */
   inline void verifyPosition(SetPosition AXOM_DEBUG_PARAM(setIndex)) const
   {
-    SLIC_ASSERT_MSG(setIndex >= 0 && setIndex < (int)m_data.size(),
-                    "Attempted to access entry "
-                      << setIndex << " but map's set has size " << m_data.size());
+    SLIC_ASSERT_MSG(
+      setIndex >= 0 && setIndex < (int)m_data.size(),
+      "Attempted to access entry " << setIndex << " but map's set has size " << m_data.size());
 
-    SLIC_ASSERT_MSG(isValidEntry(setIndex),
-                    "Attempted to access invalid set entry " << setIndex);
+    SLIC_ASSERT_MSG(isValidEntry(setIndex), "Attempted to access invalid set entry " << setIndex);
   }
 
 public:
@@ -167,10 +166,7 @@ public:
    *
    * \note Increases the map size if position is out of range
    */
-  void insert(SetPosition position, DataType value)
-  {
-    operator[](position) = value;
-  }
+  void insert(SetPosition position, DataType value) { operator[](position) = value; }
 
   /**
    * \brief Resizes the map to have at least \a s positions
@@ -185,8 +181,7 @@ public:
     // Note (KW): Do we want this to shrink the size of the map
     // when s < size() ?
 
-    SLIC_ASSERT_MSG(s >= 0,
-                    "Attempted to resize vector with a negative size " << s);
+    SLIC_ASSERT_MSG(s >= 0, "Attempted to resize vector with a negative size " << s);
 
     m_data.resize(s);
   }
@@ -226,8 +221,8 @@ bool DynamicMap<SetType, DataType>::isValid(bool verboseOutput) const
       if(verboseOutput)
       {
         errStr << "\n\t* the underlying set and its associated mapped data"
-               << " have different sizes, underlying set has size "
-               << m_set->size() << " , data has size " << m_data.size();
+               << " have different sizes, underlying set has size " << m_set->size()
+               << " , data has size " << m_data.size();
         ;
       }
 

@@ -257,12 +257,20 @@ endif()
 # SCR
 #------------------------------------------------------------------------------
 if (SCR_DIR)
+    # SCR depends on zlib, but this can be masked by hdf5's zlib dependency
+    if(NOT TARGET ZLIB::ZLIB)
+        if(ZLIB_DIR)
+            set(ZLIB_ROOT ${ZLIB_DIR})
+        endif()
+        find_package(ZLIB REQUIRED) # creates ZLIB::ZLIB target
+    endif()
+
     axom_assert_is_directory(DIR_VARIABLE SCR_DIR)
 
     include(cmake/thirdparty/FindSCR.cmake)
     blt_import_library( NAME       scr
                         INCLUDES   ${SCR_INCLUDE_DIRS}
-                        LIBRARIES  ${SCR_LIBRARIES}
+                        LIBRARIES  ${SCR_LIBRARIES} ZLIB::ZLIB
                         TREAT_INCLUDES_AS_SYSTEM ON
                         EXPORTABLE ON)
     blt_list_append(TO TPL_DEPS ELEMENTS scr)

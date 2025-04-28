@@ -63,8 +63,7 @@ TEST(ConduitUtil, getRequiredString_valid)
 {
   conduit::Node parent;
   parent["fieldName"] = "field value";
-  EXPECT_EQ("field value",
-            getRequiredString("fieldName", parent, "parent name"));
+  EXPECT_EQ("field value", getRequiredString("fieldName", parent, "parent name"));
 }
 
 TEST(ConduitUtil, getRequiredString_missing)
@@ -104,16 +103,14 @@ TEST(ConduitUtil, getRequiredString_slashes)
   conduit::Node parent;
   parent["some/name"] = "undesired value";
   parent.add_child("some/name") = "desired value";
-  EXPECT_EQ("desired value",
-            getRequiredString("some/name", parent, "parent name"));
+  EXPECT_EQ("desired value", getRequiredString("some/name", parent, "parent name"));
 }
 
 TEST(ConduitUtil, getRequiredDouble_valid)
 {
   conduit::Node parent;
   parent["fieldName"] = 3.14;
-  EXPECT_THAT(3.14,
-              DoubleEq(getRequiredDouble("fieldName", parent, "parent name")));
+  EXPECT_THAT(3.14, DoubleEq(getRequiredDouble("fieldName", parent, "parent name")));
 }
 
 TEST(ConduitUtil, getRequiredDouble_missing)
@@ -200,9 +197,8 @@ TEST(ConduitUtil, toDoubleVector_empty)
 
 TEST(ConduitUtil, toDoubleVector_validValues)
 {
-  conduit::Node nonEmptyList = parseJsonValue("[1, 2.0, 3, 4]");
-  EXPECT_THAT(toDoubleVector(nonEmptyList, "testNode"),
-              ElementsAre(1.0, 2.0, 3.0, 4.0));
+  conduit::Node nonEmptyList = parseJsonValue("[1.0, 2.0, 3.0, 4.0]");
+  EXPECT_THAT(toDoubleVector(nonEmptyList, "testNode"), ElementsAre(1.0, 2.0, 3.0, 4.0));
 }
 
 TEST(ConduitUtil, toDoubleVector_NotList)
@@ -222,15 +218,13 @@ TEST(ConduitUtil, toDoubleVector_NotList)
 TEST(ConduitUtil, toStringVector_empty)
 {
   conduit::Node emptyList = parseJsonValue("[]");
-  EXPECT_THAT(toStringVector(emptyList, "testNode"),
-              ContainerEq(std::vector<std::string> {}));
+  EXPECT_THAT(toStringVector(emptyList, "testNode"), ContainerEq(std::vector<std::string> {}));
 }
 
 TEST(ConduitUtil, toStringVector_validValues)
 {
   conduit::Node nonEmptyList = parseJsonValue(R"(["s1", "s2", "s3"])");
-  EXPECT_THAT(toStringVector(nonEmptyList, "testNode"),
-              ElementsAre("s1", "s2", "s3"));
+  EXPECT_THAT(toStringVector(nonEmptyList, "testNode"), ElementsAre("s1", "s2", "s3"));
 }
 
 TEST(ConduitUtil, toStringVector_NotList)

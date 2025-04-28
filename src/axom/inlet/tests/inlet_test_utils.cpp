@@ -12,14 +12,12 @@ namespace inlet
 {
 namespace detail
 {
-void LuaTranslator::add_token(std::string&& token,
-                              std::vector<std::string>& tokens)
+void LuaTranslator::add_token(std::string&& token, std::vector<std::string>& tokens)
 {
   const static std::string punctuation = "{}[];,=";
   std::vector<std::string> parsed_after;
   std::size_t pos;
-  while(token.length() > 1 &&
-        ((pos = token.find_first_of(punctuation)) != std::string::npos))
+  while(token.length() > 1 && ((pos = token.find_first_of(punctuation)) != std::string::npos))
   {
     if(pos == 0)
     {
@@ -202,8 +200,8 @@ std::string LuaTranslator::convertJSON(const std::string& luaString)
     {
       result += indent + '"' + token + '"' + ": ";
       // Curly brace if it's a string-keyed table (not integer-keyed) and not implicitly indexed
-      const char open_bracket = (i + 4 >= tokens.size()) ||
-          (!isdigit(tokens[i + 4].front()) && (tokens[i + 3] != "{"))
+      const char open_bracket =
+        (i + 4 >= tokens.size()) || (!isdigit(tokens[i + 4].front()) && (tokens[i + 3] != "{"))
         ? '{'
         : '[';
       delim_stack.push(open_bracket);

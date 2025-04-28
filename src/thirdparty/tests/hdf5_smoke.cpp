@@ -63,13 +63,8 @@ TEST(hdf5_smoke, create_dset)
   EXPECT_GE(dataspace_id, 0);
 
   // Create the dataset.
-  dataset_id = H5Dcreate2(file_id,
-                          "/dset",
-                          H5T_STD_I32BE,
-                          dataspace_id,
-                          H5P_DEFAULT,
-                          H5P_DEFAULT,
-                          H5P_DEFAULT);
+  dataset_id =
+    H5Dcreate2(file_id, "/dset", H5T_STD_I32BE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   EXPECT_GE(dataset_id, 0);
 
   // End access to the dataset and release resources used by it.

@@ -65,7 +65,7 @@ mfem::Mesh* make_cartesian_mfem_mesh_3D(const primal::BoundingBox<double, 3>& bb
 
 #if defined(AXOM_USE_SIDRE)
 /*!
-  /brief Creates a 3D Cartesian mfem mesh lying within a given bounding box
+  /brief Creates a 3D Cartesian blueprint mesh lying within a given bounding box
 
   \param meshGrp Put the mesh in this Group
   \param bbox The bounding box for the mesh
@@ -78,7 +78,7 @@ mfem::Mesh* make_cartesian_mfem_mesh_3D(const primal::BoundingBox<double, 3>& bb
 
   \return The meshGrp pointer
 */
-axom::sidre::Group* make_structured_blueprint_box_mesh(
+axom::sidre::Group* make_structured_blueprint_box_mesh_3d(
   axom::sidre::Group* meshGrp,
   const primal::BoundingBox<double, 3>& bbox,
   const NumericArray<int, 3>& res,
@@ -86,10 +86,40 @@ axom::sidre::Group* make_structured_blueprint_box_mesh(
   const std::string& coordsetName = "coords",
   axom::runtime_policy::Policy runtimePolicy = axom::runtime_policy::Policy::seq);
 
-axom::sidre::Group* make_unstructured_blueprint_box_mesh(
+axom::sidre::Group* make_unstructured_blueprint_box_mesh_3d(
   axom::sidre::Group* meshGrp,
   const primal::BoundingBox<double, 3>& bbox,
   const NumericArray<int, 3>& res,
+  const std::string& topologyName = "mesh",
+  const std::string& coordsetName = "coords",
+  axom::runtime_policy::Policy runtimePolicy = axom::runtime_policy::Policy::seq);
+
+/*!
+  /brief Creates a 2D Cartesian blueprint mesh lying within a given bounding box
+
+  \param meshGrp Put the mesh in this Group
+  \param bbox The bounding box for the mesh
+  \param res The resolution of the mesh
+  \param topologyName Name of the blueprint topoloyy to use.
+  \param coordsetName Name of the blueprint coordset to use.
+  \param runtimePolicy Runtime policy, see axom::runtime_policy.
+         Memory in \c meshGrp must be compatible with the
+         specified policy.
+
+  \return The meshGrp pointer
+*/
+axom::sidre::Group* make_structured_blueprint_box_mesh_2d(
+  axom::sidre::Group* meshGrp,
+  const primal::BoundingBox<double, 2>& bbox,
+  const NumericArray<int, 2>& res,
+  const std::string& topologyName = "mesh",
+  const std::string& coordsetName = "coords",
+  axom::runtime_policy::Policy runtimePolicy = axom::runtime_policy::Policy::seq);
+
+axom::sidre::Group* make_unstructured_blueprint_box_mesh_2d(
+  axom::sidre::Group* meshGrp,
+  const primal::BoundingBox<double, 2>& bbox,
+  const NumericArray<int, 2>& res,
   const std::string& topologyName = "mesh",
   const std::string& coordsetName = "coords",
   axom::runtime_policy::Policy runtimePolicy = axom::runtime_policy::Policy::seq);
@@ -107,15 +137,21 @@ axom::sidre::Group* make_unstructured_blueprint_box_mesh(
   the same allocator id, even if the intermediate steps have to
   transfers memory to and from another space.
 */
-void convert_blueprint_structured_explicit_to_unstructured(
-  axom::sidre::Group* meshGrp,
-  const std::string& topoName,
-  axom::runtime_policy::Policy runtimePolicy);
+void convert_blueprint_structured_explicit_to_unstructured_3d(axom::sidre::Group* meshGrp,
+                                                              const std::string& topoName,
+                                                              axom::runtime_policy::Policy runtimePolicy);
 
 template <typename ExecSpace>
-void convert_blueprint_structured_explicit_to_unstructured_impl(
-  axom::sidre::Group* meshGrp,
-  const std::string& topoName);
+void convert_blueprint_structured_explicit_to_unstructured_impl_3d(axom::sidre::Group* meshGrp,
+                                                                   const std::string& topoName);
+
+void convert_blueprint_structured_explicit_to_unstructured_2d(axom::sidre::Group* meshGrp,
+                                                              const std::string& topoName,
+                                                              axom::runtime_policy::Policy runtimePolicy);
+
+template <typename ExecSpace>
+void convert_blueprint_structured_explicit_to_unstructured_impl_2d(axom::sidre::Group* meshGrp,
+                                                                   const std::string& topoName);
 
   #if defined(AXOM_USE_CONDUIT)
 /*!
@@ -127,7 +163,7 @@ bool verifyBlueprintMesh(const axom::sidre::Group* meshGrp, conduit::Node info);
 #endif
 
 /*!
-  @brief Fill in structured mesh cartesian coordinates.
+  @brief Fill in 3D structured mesh cartesian coordinates.
   \param runtimePolicy Runtime execution space selector
   \param xView Vertex x-values array
   \param yView Vertex y-values array
@@ -144,7 +180,22 @@ void fill_cartesian_coords_3d(axom::runtime_policy::Policy runtimePolicy,
                               axom::ArrayView<double, 3>& zView);
 
 /*!
-  @brief Fill in structured mesh cartesian coordinates.
+  @brief Fill in 2D structured mesh cartesian coordinates.
+  \param runtimePolicy Runtime execution space selector
+  \param xView Vertex x-values array
+  \param yView Vertex y-values array
+  \param domainBox Physical domain
+
+  Array data must be in a memory space accessible by the
+  selected \c runtimePolicy.
+*/
+void fill_cartesian_coords_2d(axom::runtime_policy::Policy runtimePolicy,
+                              const primal::BoundingBox<double, 2>& domainBox,
+                              axom::ArrayView<double, 2>& xView,
+                              axom::ArrayView<double, 2>& yView);
+
+/*!
+  @brief Fill in 3D structured mesh cartesian coordinates.
   \tparam ExecSpace Execution space, e.g. \c axom::SEQ_EXEC.
           @see axom::execution_space
   \param xView Vertex x-values array
@@ -157,6 +208,19 @@ void fill_cartesian_coords_3d_impl(const primal::BoundingBox<double, 3>& domainB
                                    axom::ArrayView<double, 3>& xView,
                                    axom::ArrayView<double, 3>& yView,
                                    axom::ArrayView<double, 3>& zView);
+
+/*!
+  @brief Fill in 2D structured mesh cartesian coordinates.
+  \tparam ExecSpace Execution space, e.g. \c axom::SEQ_EXEC.
+          @see axom::execution_space
+  \param xView Vertex x-values array
+  \param yView Vertex y-values array
+  \param domainBox Physical domain
+*/
+template <typename ExecSpace>
+void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainBox,
+                                   axom::ArrayView<double, 2>& xView,
+                                   axom::ArrayView<double, 2>& yView);
 
 }  // namespace util
 }  // namespace quest

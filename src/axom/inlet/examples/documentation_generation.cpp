@@ -62,8 +62,7 @@ void findDouble(std::string path, const Inlet& inlet)
 void defineSchema(Inlet& inlet)
 {
   // Add the description to the thermal_solver/mesh/filename Field
-  auto& filename_field =
-    inlet.addString("thermal_solver/mesh/filename", "mesh filename");
+  auto& filename_field = inlet.addString("thermal_solver/mesh/filename", "mesh filename");
   // Set the field's required property to true
   filename_field.required();
 
@@ -72,21 +71,17 @@ void defineSchema(Inlet& inlet)
     .defaultValue(1);
 
   // The description for thermal_solver/mesh/parallel is left unspecified
-  inlet.addInt("thermal_solver/mesh/parallel")
-    .range(1, axom::numeric_limits<int>::max())
-    .defaultValue(1);
+  inlet.addInt("thermal_solver/mesh/parallel").range(1, axom::numeric_limits<int>::max()).defaultValue(1);
 
   inlet.addInt("thermal_solver/order", "polynomial order")
     .required()
     .range(1, axom::numeric_limits<int>::max());
 
-  auto& timestep_field =
-    inlet.addString("thermal_solver/timestepper", "thermal solver timestepper");
+  auto& timestep_field = inlet.addString("thermal_solver/timestepper", "thermal solver timestepper");
   timestep_field.defaultValue("quasistatic")
     .validValues({"quasistatic", "forwardeuler", "backwardeuler"});
 
-  auto& coef_type_field =
-    inlet.addString("thermal_solver/u0/type", "description for u0 type");
+  auto& coef_type_field = inlet.addString("thermal_solver/u0/type", "description for u0 type");
   coef_type_field.defaultValue("constant").validValues({"constant", "function"});
 
   inlet.addString("thermal_solver/u0/func", "description for u0 func").required();
@@ -95,36 +90,29 @@ void defineSchema(Inlet& inlet)
     .required()
     .validValues({"constant", "function"});
 
-  inlet
-    .addDouble("thermal_solver/kappa/constant", "thermal conductivity constant")
-    .required();
+  inlet.addDouble("thermal_solver/kappa/constant", "thermal conductivity constant").required();
 
   // Add description to solver container by using the addStruct function
-  auto& solver_schema =
-    inlet.addStruct("thermal_solver/solver", "linear equation solver options");
+  auto& solver_schema = inlet.addStruct("thermal_solver/solver", "linear equation solver options");
 
   // You can also add fields through a container
 
-  auto& rel_tol_field =
-    solver_schema.addDouble("rel_tol", "solver relative tolerance");
+  auto& rel_tol_field = solver_schema.addDouble("rel_tol", "solver relative tolerance");
   rel_tol_field.required(false);
   rel_tol_field.defaultValue(1.e-6);
   rel_tol_field.range(0.0, axom::numeric_limits<double>::max());
 
-  auto& abs_tol_field =
-    solver_schema.addDouble("abs_tol", "solver absolute tolerance");
+  auto& abs_tol_field = solver_schema.addDouble("abs_tol", "solver absolute tolerance");
   abs_tol_field.required(true);
   abs_tol_field.defaultValue(1.e-12);
   abs_tol_field.range(0.0, axom::numeric_limits<double>::max());
 
-  auto& print_level_field =
-    solver_schema.addInt("print_level", "solver print/debug level");
+  auto& print_level_field = solver_schema.addInt("print_level", "solver print/debug level");
   print_level_field.required(true);
   print_level_field.defaultValue(0);
   print_level_field.range(0, 3);
 
-  auto& max_iter_field =
-    solver_schema.addInt("max_iter", "maximum iteration limit");
+  auto& max_iter_field = solver_schema.addInt("max_iter", "maximum iteration limit");
   max_iter_field.required(false);
   max_iter_field.defaultValue(100);
   max_iter_field.range(1, axom::numeric_limits<int>::max());
@@ -134,8 +122,7 @@ void defineSchema(Inlet& inlet)
   dt_field.defaultValue(1);
   dt_field.range(0.0, axom::numeric_limits<double>::max());
 
-  auto& steps_field =
-    solver_schema.addInt("steps", "number of steps/cycles to take");
+  auto& steps_field = solver_schema.addInt("steps", "number of steps/cycles to take");
   steps_field.required(true);
   steps_field.defaultValue(1);
   steps_field.range(1, axom::numeric_limits<int>::max());

@@ -42,20 +42,16 @@ int main(int argc, char** argv)
   std::ofstream hspStream;
   hspStream.open("HSP.dat");
 
-  std::string hsp_format =
-    std::string("***********************************\n") +
+  std::string hsp_format = std::string("***********************************\n") +
     std::string("* <TIMESTAMP>\n\n") + std::string("* LEVEL=<LEVEL>\n") +
     std::string("* MESSAGE=<MESSAGE>\n") + std::string("* FILE=<FILE>\n") +
-    std::string("* LINE=<LINE>\n") +
-    std::string("***********************************\n");
+    std::string("* LINE=<LINE>\n") + std::string("***********************************\n");
 
-  slic::LogStream* hspLogStream =
-    new slic::GenericOutputStream(&hspStream, hsp_format);
+  slic::LogStream* hspLogStream = new slic::GenericOutputStream(&hspStream, hsp_format);
 
   // setup log stream for ALL messages, including ERROR and WARNING
   std::string console_format = std::string("[<LEVEL>]: <MESSAGE>\n");
-  slic::LogStream* console =
-    new slic::GenericOutputStream(&std::cerr, console_format);
+  slic::LogStream* console = new slic::GenericOutputStream(&std::cerr, console_format);
 
   //----------------------------------------------------------------------------
   // STEP 2: add streams to logger

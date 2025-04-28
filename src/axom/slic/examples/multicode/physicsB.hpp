@@ -23,8 +23,7 @@ inline int getRandInt(const int start, const int end)
 
 inline slic::message::Level getRandomLevel()
 {
-  return (
-    static_cast<slic::message::Level>(getRandInt(0, slic::message::Num_Levels)));
+  return (static_cast<slic::message::Level>(getRandInt(0, slic::message::Num_Levels)));
 }
 //------------------------------------------------------------------------------
 void init()
@@ -39,8 +38,7 @@ void init()
     std::string("\t LINE:<LINE>\n");
 
   physicsB_log.open("physicsB.log");
-  slic::LogStream* ls =
-    new slic::GenericOutputStream(&physicsB_log, physicsB_format);
+  slic::LogStream* ls = new slic::GenericOutputStream(&physicsB_log, physicsB_format);
 
   slic::createLogger("physicsB", slic::inherit::errors_and_warnings);
   slic::activateLogger("physicsB");

@@ -119,8 +119,7 @@ namespace primal
 {
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE Line<T, NDIMS>::Line(const PointType& origin,
-                                      const VectorType& direction)
+AXOM_HOST_DEVICE Line<T, NDIMS>::Line(const PointType& origin, const VectorType& direction)
   : m_origin(origin)
   , m_direction(direction.unitVector())
 {

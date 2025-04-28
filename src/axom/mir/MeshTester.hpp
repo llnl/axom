@@ -55,6 +55,13 @@ public:
    */
   ~MeshTester() = default;
 
+  /*!
+   * \brief Make a structured mesh instead of an unstructured mesh.
+   *
+   * \param structured True for structured; false otherwise.
+   */
+  void setStructured(bool structured);
+
 public:
   /*!
    * \brief Initializes an MIRMesh based on the example from Meredith 2004 paper.
@@ -179,6 +186,8 @@ private:
                                 const Point2 &quadP1,
                                 const Point2 &quadP2,
                                 const Point2 &quadP3);
+
+  bool m_structured {false};
 };
 
 }  // namespace mir

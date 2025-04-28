@@ -45,17 +45,15 @@ namespace axom
  *
  */
 template <typename ExecSpace, typename ContiguousMemoryContainer>
-inline void exclusive_scan(const ContiguousMemoryContainer &input,
-                           ContiguousMemoryContainer &output)
+inline void exclusive_scan(const ContiguousMemoryContainer &input, ContiguousMemoryContainer &output)
 {
   assert(input.size() == output.size());
 
 #ifdef AXOM_USE_RAJA
 
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
-  RAJA::exclusive_scan<loop_policy>(
-    RAJA::make_span(input.data(), input.size()),
-    RAJA::make_span(output.data(), output.size()));
+  RAJA::exclusive_scan<loop_policy>(RAJA::make_span(input.data(), input.size()),
+                                    RAJA::make_span(output.data(), output.size()));
 
 #else
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
@@ -95,17 +93,15 @@ inline void exclusive_scan(const ContiguousMemoryContainer &input,
  *
  */
 template <typename ExecSpace, typename ContiguousMemoryContainer>
-inline void inclusive_scan(const ContiguousMemoryContainer &input,
-                           ContiguousMemoryContainer &output)
+inline void inclusive_scan(const ContiguousMemoryContainer &input, ContiguousMemoryContainer &output)
 {
   assert(input.size() == output.size());
 
 #ifdef AXOM_USE_RAJA
 
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
-  RAJA::inclusive_scan<loop_policy>(
-    RAJA::make_span(input.data(), input.size()),
-    RAJA::make_span(output.data(), output.size()));
+  RAJA::inclusive_scan<loop_policy>(RAJA::make_span(input.data(), input.size()),
+                                    RAJA::make_span(output.data(), output.size()));
 
 #else
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;

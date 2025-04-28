@@ -81,13 +81,11 @@ TEST(CurveSet, addIndependentCurves_replaceExisting)
 
   Curve i1 {"theName", {1, 2, 3}};
   cs.addIndependentCurve(i1);
-  EXPECT_THAT(cs.getIndependentCurves().at("theName").getValues(),
-              ElementsAre(1, 2, 3));
+  EXPECT_THAT(cs.getIndependentCurves().at("theName").getValues(), ElementsAre(1, 2, 3));
 
   Curve i2 {"theName", {4, 5, 6}};
   cs.addIndependentCurve(i2);
-  EXPECT_THAT(cs.getIndependentCurves().at("theName").getValues(),
-              ElementsAre(4, 5, 6));
+  EXPECT_THAT(cs.getIndependentCurves().at("theName").getValues(), ElementsAre(4, 5, 6));
 }
 
 TEST(CurveSet, addDpendentCurves)
@@ -112,13 +110,11 @@ TEST(CurveSet, addDependentCurves_replaceExisting)
 
   Curve d1 {"theName", {1, 2, 3}};
   cs.addDependentCurve(d1);
-  EXPECT_THAT(cs.getDependentCurves().at("theName").getValues(),
-              ElementsAre(1, 2, 3));
+  EXPECT_THAT(cs.getDependentCurves().at("theName").getValues(), ElementsAre(1, 2, 3));
 
   Curve d2 {"theName", {4, 5, 6}};
   cs.addDependentCurve(d2);
-  EXPECT_THAT(cs.getDependentCurves().at("theName").getValues(),
-              ElementsAre(4, 5, 6));
+  EXPECT_THAT(cs.getDependentCurves().at("theName").getValues(), ElementsAre(4, 5, 6));
 }
 
 TEST(CurveSet, createFromNode_empty)

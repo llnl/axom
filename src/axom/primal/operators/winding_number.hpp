@@ -55,9 +55,7 @@ namespace primal
  * \return The GWN
  */
 template <typename T>
-double winding_number(const Point<T, 2>& q,
-                      const Segment<T, 2>& s,
-                      double edge_tol = 1e-8)
+double winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, double edge_tol = 1e-8)
 {
   bool dummy_isOnEdge = false;
   return detail::linear_winding_number(q, s[0], s[1], dummy_isOnEdge, edge_tol);
@@ -81,11 +79,10 @@ int winding_number(const Point<T, 2>& q,
                    bool includeBoundary = false,
                    double edge_tol = 1e-8)
 {
-  return winding_number(
-    q,
-    Polygon<T, 2>(axom::Array<Point<T, 2>>({tri[0], tri[1], tri[2]})),
-    includeBoundary,
-    edge_tol);
+  return winding_number(q,
+                        Polygon<T, 2>(axom::Array<Point<T, 2>>({tri[0], tri[1], tri[2]})),
+                        includeBoundary,
+                        edge_tol);
 }
 
 /*!
@@ -135,7 +132,7 @@ int winding_number(const Point<T, 2>& R,
 /*!
  * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] n The NURBS curve object 
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -155,7 +152,7 @@ double winding_number(const Point<T, 2>& q,
 /*!
  * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] bezier The Bezier curve object 
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -175,7 +172,7 @@ double winding_number(const Point<T, 2>& q,
 /*!
  * \brief Computes the GWN for a 2D point wrt to a 2D curved polygon
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] cpoly The CurvedPolygon object
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -205,7 +202,7 @@ double winding_number(const Point<T, 2>& q,
 /*!
  * \brief Computes the GWN for a 2D point wrt to a collection of 2D Bezier curves
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] carray The array of Bezier curves
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -234,7 +231,7 @@ double winding_number(const Point<T, 2>& q,
 /*!
  * \brief Computes the GWN for a 2D point wrt to a collection of 2D NURBS curves
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] narray The array of NURBS curves
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -266,7 +263,7 @@ double winding_number(const Point<T, 2>& q,
 /*!
  * \brief Computes the GWN for a 3D point wrt a 3D triangle
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] tri The 3D Triangle object
  * \param [in] isOnFace An optional return parameter if the point is on the triangle
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
@@ -314,8 +311,8 @@ double winding_number(const Point<T, 3>& q,
     return 0;
   }
 
-  const double denom = a_norm * b_norm * c_norm + a_norm * b.dot(c) +
-    b_norm * a.dot(c) + c_norm * a.dot(b);
+  const double denom =
+    a_norm * b_norm * c_norm + a_norm * b.dot(c) + b_norm * a.dot(c) + c_norm * a.dot(b);
 
   // Handle direct cases where argument to atan is undefined
   if(axom::utilities::isNearlyEqual(denom, 0.0, EPS))
@@ -338,7 +335,7 @@ double winding_number(const Point<T, 3>& q,
 /*!
  * \brief Computes the GWN for a 3D point wrt a 3D triangle
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] tri The 3D Triangle object
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -360,7 +357,7 @@ double winding_number(const Point<T, 3>& q,
 /*!
  * \brief Computes the GWN for a 3D point wrt a 3D planar polygon
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] poly The Polygon object
  * \param [in] isOnFace Return variable to show if the point is on the polygon
  * \param [in] edge_tol The physical distance level at which objects are 
@@ -389,11 +386,8 @@ double winding_number(const Point<T, 3>& q,
   double wn = 0.0;
   for(int i = 0; i < num_verts - 2; ++i)
   {
-    wn += winding_number(q,
-                         Triangle<T, 3>(poly[0], poly[i + 1], poly[i + 2]),
-                         isOnFace,
-                         edge_tol,
-                         EPS);
+    wn +=
+      winding_number(q, Triangle<T, 3>(poly[0], poly[i + 1], poly[i + 2]), isOnFace, edge_tol, EPS);
   }
 
   return wn;
@@ -402,7 +396,7 @@ double winding_number(const Point<T, 3>& q,
 /*!
  * \brief Computes the GWN for a 3D point wrt a 3D planar polygon
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] poly The Polygon object
  * \param [in] edge_tol The physical distance level at which objects are 
  *                      considered indistinguishable
@@ -427,7 +421,7 @@ double winding_number(const Point<T, 3>& q,
 /*!
  * \brief Computes the winding number for a 3D point wrt a 3D convex polyhedron
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] poly The Polyhedron object
  * \param [in] includeBoundary If true, points on the boundary are considered interior.
  * \param [in] edge_tol The physical distance level at which objects are 
@@ -442,7 +436,7 @@ double winding_number(const Point<T, 3>& q,
  * \return The integer winding number.
  */
 template <typename T>
-int winding_number(const Point<T, 3>& query,
+int winding_number(const Point<T, 3>& q,
                    const Polyhedron<T, 3>& poly,
                    bool includeBoundary = false,
                    double edge_tol = 1e-8,
@@ -451,8 +445,7 @@ int winding_number(const Point<T, 3>& query,
   SLIC_ASSERT(poly.hasNeighbors());
   const int num_verts = poly.numVertices();
 
-  axom::Array<int> faces(num_verts * num_verts), face_size(2 * num_verts),
-    face_offset(2 * num_verts);
+  axom::Array<int> faces(num_verts * num_verts), face_size(2 * num_verts), face_offset(2 * num_verts);
   int face_count;
 
   poly.getFaces(faces.data(), face_size.data(), face_offset.data(), face_count);
@@ -469,7 +462,7 @@ int winding_number(const Point<T, 3>& query,
       the_face.addVertex(poly[faces[i_offset + j]]);
     }
 
-    wn += winding_number(query, the_face, isOnFace, edge_tol, EPS);
+    wn += winding_number(q, the_face, isOnFace, edge_tol, EPS);
 
     if(isOnFace)
     {
@@ -485,7 +478,7 @@ int winding_number(const Point<T, 3>& query,
 /*
  * \brief Computes the GWN for a 3D point wrt a 3D Bezier patch
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] bPatch The Bezier patch object
  * \param [in] edge_tol The physical distance level at which objects are 
  *                      considered indistinguishable
@@ -644,8 +637,8 @@ double winding_number(const Point<T, 3>& query,
     field_direction = detail::DiscontinuityAxis::rotated;
 
     // Find vector from query to the bounding box
-    Point<T, 3> closest = closest_point(query, oBox);
-    Vector<T, 3> v0 = Vector<T, 3>(query, closest).unitVector();
+    Point<T, 3> closest = closest_point(q, oBox);
+    Vector<T, 3> v0 = Vector<T, 3>(q, closest).unitVector();
 
     // Find the direction of a ray perpendicular to that
     Vector<T, 3> v1;

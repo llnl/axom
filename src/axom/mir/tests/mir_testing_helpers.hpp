@@ -74,9 +74,20 @@ struct execution_name<hip_exec>
 #endif
 
 //------------------------------------------------------------------------------
-std::string pjoin(const std::string &path, const std::string &filename)
+std::string pjoin(const std::string &str) { return str; }
+
+std::string pjoin(const char *str) { return std::string(str); }
+
+template <typename... Args>
+std::string pjoin(const std::string &str, Args... args)
 {
-  return axom::utilities::filesystem::joinPath(path, filename);
+  return axom::utilities::filesystem::joinPath(str, pjoin(args...));
+}
+
+template <typename... Args>
+std::string pjoin(const char *str, Args... args)
+{
+  return axom::utilities::filesystem::joinPath(std::string(str), pjoin(args...));
 }
 
 void psplit(const std::string &filepath, std::string &path, std::string &filename)
@@ -88,10 +99,7 @@ void psplit(const std::string &filepath, std::string &path, std::string &filenam
 
 std::string dataDirectory() { return AXOM_DATA_DIR; }
 
-std::string testData(const std::string &filename)
-{
-  return pjoin(dataDirectory(), filename);
-}
+std::string testData(const std::string &filename) { return pjoin(dataDirectory(), filename); }
 
 std::string baselineDirectory();
 
@@ -137,8 +145,7 @@ bool compareConduit(const conduit::Node &n1,
       same &= diff <= tolerance;
       if(!same)
       {
-        info.append().set(
-          axom::fmt::format("\"{}\" fields differ at index {}.", n1.name(), i));
+        info.append().set(axom::fmt::format("\"{}\" fields differ at index {}.", n1.name(), i));
       }
     }
     info["maxdiff"][n1.name()] = maxdiff;
@@ -166,7 +173,7 @@ void saveBaseline(const std::string &filename, const conduit::Node &n)
 #if defined(AXOM_TESTING_SAVE_VISUALIZATION) && defined(AXOM_USE_HDF5)
     SLIC_INFO(axom::fmt::format("Save visualization files..."));
     conduit::relay::io::blueprint::save_mesh(n, filename + "_hdf5", "hdf5");
-    axom::mir::utilities::blueprint::save_vtk(n, filename + "_vtk.vtk");
+      //axom::mir::utilities::blueprint::save_vtk(n, filename + "_vtk.vtk");
 #endif
   }
   catch(...)
@@ -246,9 +253,7 @@ bool compareBaseline(const std::vector<std::string> &baselinePaths,
 #if defined(AXOM_USE_HDF5)
           conduit::relay::io::blueprint::save_mesh(current, errFile, "hdf5");
 #endif
-          conduit::relay::io::blueprint::save_mesh(current,
-                                                   errFile + "_yaml",
-                                                   "yaml");
+          conduit::relay::io::blueprint::save_mesh(current, errFile + "_yaml", "yaml");
         }
         // We found a baseline so we can exit
         break;
@@ -256,8 +261,7 @@ bool compareBaseline(const std::vector<std::string> &baselinePaths,
     }
     catch(...)
     {
-      SLIC_INFO(
-        axom::fmt::format("Could not load {} from {}!", baselineName, path));
+      SLIC_INFO(axom::fmt::format("Could not load {} from {}!", baselineName, path));
     }
   }
   if(!success && count == 0)
@@ -278,9 +282,7 @@ bool compare_views(const Container1 &a, const Container2 &b)
   }
   if(!eq)
   {
-    axom::fmt::format("a={{{}}}\nb={{{}}}",
-                      axom::fmt::join(a, ","),
-                      axom::fmt::join(b, ","));
+    axom::fmt::format("a={{{}}}\nb={{{}}}", axom::fmt::join(a, ","), axom::fmt::join(b, ","));
   }
   return eq;
 }

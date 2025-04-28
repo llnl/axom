@@ -88,9 +88,7 @@ void node_traversals()
     IndexType* ID = mesh.getFieldPtr<IndexType>("ID", mint::NODE_CENTERED);
     mint::for_all_nodes<exec_policy, mint::xargs::ij>(
       &mesh,
-      AXOM_LAMBDA(IndexType nodeIdx, IndexType i, IndexType j) {
-        ID[nodeIdx] = i + j * jp;
-      });
+      AXOM_LAMBDA(IndexType nodeIdx, IndexType i, IndexType j) { ID[nodeIdx] = i + j * jp; });
 
     // sphinx_tutorial_for_all_nodes_ij_end
   }
@@ -153,9 +151,7 @@ void cell_traversals()
 
     mint::for_all_cells<exec_policy>(
       &mesh,
-      AXOM_LAMBDA(IndexType cellIdx) {
-        den[cellIdx] = mass[cellIdx] / vol[cellIdx];
-      });
+      AXOM_LAMBDA(IndexType cellIdx) { den[cellIdx] = mass[cellIdx] / vol[cellIdx]; });
 
     // sphinx_tutorial_for_all_cells_index_end
   }
@@ -169,9 +165,7 @@ void cell_traversals()
     IndexType* ID = mesh.getFieldPtr<IndexType>("ID", mint::CELL_CENTERED);
     mint::for_all_cells<exec_policy, mint::xargs::ij>(
       &mesh,
-      AXOM_LAMBDA(IndexType cellIdx, IndexType i, IndexType j) {
-        ID[cellIdx] = i + j * jp;
-      });
+      AXOM_LAMBDA(IndexType cellIdx, IndexType i, IndexType j) { ID[cellIdx] = i + j * jp; });
 
     // sphinx_tutorial_for_all_cells_ij_end
   }
@@ -244,8 +238,7 @@ void cell_traversals()
     // sphinx_tutorial_for_all_cells_faceids_start
 
     const double* area = mesh.getFieldPtr<double>("area", mint::FACE_CENTERED);
-    double* perimeter =
-      mesh.getFieldPtr<double>("perimeter", mint::CELL_CENTERED);
+    double* perimeter = mesh.getFieldPtr<double>("perimeter", mint::CELL_CENTERED);
 
     mint::for_all_cells<exec_policy, mint::xargs::faceids>(
       &mesh,
@@ -377,8 +370,7 @@ void face_traversals()
     constexpr IndexType ON_BOUNDARY = 1;
     constexpr IndexType INTERIOR = 0;
 
-    IndexType* boundary =
-      mesh.getFieldPtr<IndexType>("boundary", mint::FACE_CENTERED);
+    IndexType* boundary = mesh.getFieldPtr<IndexType>("boundary", mint::FACE_CENTERED);
 
     mint::for_all_faces<exec_policy, mint::xargs::cellids>(
       &mesh,
@@ -740,8 +732,7 @@ void using_external_storage()
 
   // construct mesh object with external buffers
   using MeshType = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
-  MeshType* mesh =
-    new MeshType(mint::TRIANGLE, NUM_CELLS, cell_connectivity, NUM_NODES, x, y);
+  MeshType* mesh = new MeshType(mint::TRIANGLE, NUM_CELLS, cell_connectivity, NUM_NODES, x, y);
 
   // register external field
   mesh->createField<double>("den", mint::CELL_CENTERED, den);

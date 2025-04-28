@@ -124,12 +124,10 @@ void run_delaunay(const Input& params)
   const std::string& outputVTKFile = removeSuffix(params.outputVTKFile, ".vtk");
 
   // Use a slam::ModularInt to help with bookkeeping
-  const int dumpFreq =
-    params.shouldOutputSteps() ? numPoints / numOutputVTKsteps : numPoints;
+  const int dumpFreq = params.shouldOutputSteps() ? numPoints / numOutputVTKsteps : numPoints;
   axom::slam::ModularInt<> dumperMod(0, dumpFreq);
 
-  BoundingBox bbox {PointType(params.boundsMin.data()),
-                    PointType(params.boundsMax.data())};
+  BoundingBox bbox {PointType(params.boundsMin.data()), PointType(params.boundsMax.data())};
 
   axom::utilities::Timer timer(true);
 
@@ -162,14 +160,14 @@ void run_delaunay(const Input& params)
 
   timer.stop();
 
-  SLIC_INFO(axom::fmt::format(
-    "It took {} seconds to create a Delaunay complex with {} "
-    "points. Mesh has {} {}. Insertion rate of {:.1f} points per second.",
-    timer.elapsedTimeInSec(),
-    dt.getMeshData()->getNumberOfValidVertices(),
-    dt.getMeshData()->getNumberOfValidElements(),
-    DIM == 2 ? "triangles" : "tetrahedra",
-    numPoints / timer.elapsedTimeInSec()));
+  SLIC_INFO(
+    axom::fmt::format("It took {} seconds to create a Delaunay complex with {} "
+                      "points. Mesh has {} {}. Insertion rate of {:.1f} points per second.",
+                      timer.elapsedTimeInSec(),
+                      dt.getMeshData()->getNumberOfValidVertices(),
+                      dt.getMeshData()->getNumberOfValidElements(),
+                      DIM == 2 ? "triangles" : "tetrahedra",
+                      numPoints / timer.elapsedTimeInSec()));
 
   // Check that the Delaunay complex is valid
   SLIC_INFO("Checking validity of Delaunay complex and underlying mesh...");
@@ -178,15 +176,13 @@ void run_delaunay(const Input& params)
     dt.getMeshData()->isValid(true);
     dt.isValid(true);
     timer.stop();
-    SLIC_INFO(axom::fmt::format("Validation took {} seconds",
-                                timer.elapsedTimeInSec()));
+    SLIC_INFO(axom::fmt::format("Validation took {} seconds", timer.elapsedTimeInSec()));
   }
 
   // Write the final mesh to a vtk file
   {
     std::string fname = axom::fmt::format("{}.vtk", outputVTKFile);
-    SLIC_INFO(
-      axom::fmt::format("Writing out final Delaunay complex to file '{}'", fname));
+    SLIC_INFO(axom::fmt::format("Writing out final Delaunay complex to file '{}'", fname));
     dt.writeToVTKFile(fname);
   }
 

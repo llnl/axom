@@ -24,8 +24,7 @@ namespace
  * \return whether the container contains the value
  */
 template <typename Container>
-bool contains(const Container &container,
-              const typename Container::value_type &value)
+bool contains(const Container &container, const typename Container::value_type &value)
 {
   using std::begin;
   using std::end;

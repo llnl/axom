@@ -33,8 +33,7 @@ struct SelectAllPolicy
   }
 
   AXOM_HOST_DEVICE
-  static inline IndexType selectedIndex(const BlendData & /*blend*/,
-                                        IndexType index)
+  static inline IndexType selectedIndex(const BlendData & /*blend*/, IndexType index)
   {
     return index;
   }
@@ -88,9 +87,7 @@ public:
    * \param n_input The input field that we're blending.
    * \param n_output The output node that will contain the new field.
    */
-  void execute(const BlendData &blend,
-               const conduit::Node &n_input,
-               conduit::Node &n_output) const
+  void execute(const BlendData &blend, const conduit::Node &n_input, conduit::Node &n_output) const
   {
     n_output.reset();
     n_output["association"] = n_input["association"];
@@ -140,12 +137,9 @@ private:
     n_output_values.set_allocator(c2a.getConduitAllocatorID());
     n_output_values.set(conduit::DataType(n_values.dtype().id(), outputSize));
 
-    views::Node_to_ArrayView_same(
-      n_values,
-      n_output_values,
-      [&](auto compView, auto outView) {
-        blendSingleComponentImpl(blend, compView, outView);
-      });
+    views::Node_to_ArrayView_same(n_values, n_output_values, [&](auto compView, auto outView) {
+      blendSingleComponentImpl(blend, compView, outView);
+    });
   }
 
   /*!
@@ -159,13 +153,10 @@ private:
    *       lambda.
    */
   template <typename SrcView, typename OutputView>
-  void blendSingleComponentImpl(const BlendData &blend,
-                                SrcView compView,
-                                OutputView outView) const
+  void blendSingleComponentImpl(const BlendData &blend, SrcView compView, OutputView outView) const
   {
     using value_type = typename decltype(compView)::value_type;
-    using accum_type =
-      typename axom::mir::utilities::accumulation_traits<value_type>::type;
+    using accum_type = typename axom::mir::utilities::accumulation_traits<value_type>::type;
 
     // We're allowing selectedIndicesView to be used to select specific blend
     // groups. If the user did not provide that, use all blend groups.
@@ -189,8 +180,7 @@ private:
       blendSize,
       AXOM_LAMBDA(axom::IndexType bgid) {
         // Get the blend group index we want.
-        const auto selectedIndex =
-          SelectionPolicy::selectedIndex(deviceBlend, bgid);
+        const auto selectedIndex = SelectionPolicy::selectedIndex(deviceBlend, bgid);
         const auto start = deviceBlend.m_blendGroupStartView[selectedIndex];
         const auto nValues = deviceBlend.m_blendGroupSizesView[selectedIndex];
         const auto destIndex = origSize + bgid;

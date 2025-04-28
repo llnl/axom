@@ -85,8 +85,7 @@ int main(int, char**)
   {
     auto it = hSet.begin() + i;
 
-    SLIC_INFO("  " << i << ": " << hSet[i]
-                   << " -- double of index is: " << it->twiceIndex());
+    SLIC_INFO("  " << i << ": " << hSet[i] << " -- double of index is: " << it->twiceIndex());
   }
 
   // Check equality

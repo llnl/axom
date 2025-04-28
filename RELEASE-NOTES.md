@@ -10,8 +10,7 @@
 
 # Axom Software Release Notes
 
-Notes describing significant changes in each Axom release are documented
-in this file.
+Notes describing significant changes in each Axom release are documented in this file.
 
 The format of this file is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
@@ -20,13 +19,29 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ###  Added
+
+###  Changed
+- Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
+  since the last `reset()`.
+- Adds support for allocations using `malloc` and `free` even when Axom is configured with Umpire support.
+- Adds a new utility tool, `mesh_converter`, which converts between mesh formats. The first conversion
+  is from a Pro-E tetrahedral mesh to an STL mesh of its boundary triangles.
+- Primal: Adds a method to determine if a point is contained within a Tetrahedron.
+
+###  Deprecated
+- Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
+
+## [Version 0.11.0] - Release date 2025-04-02
+
+###  Added
 - Added a new "Mir" Axom component for accelerated Material Interface Reconstruction (MIR) algorithms.
   MIR algorithms take Blueprint meshes with a matset and they use the matset's material information
   to split any input zones that contain multiple materials into zones that contain a single material.
   The Mir component provides an implementation of the Equi-Z MIR algorithm, which is a visualization-
-  oriented algorithm that produces smooth interfaces between zones and their neighbors.
-- Support in `quest::IntersectionShaper` for Blueprint mesh stored in a `conduit::Node`
-  or `sidre::Group`.
+  oriented algorithm that produces smooth interfaces between zones and their neighbors. The Mir
+  component also provides a 2D ELVIRA algorithm, which reconstructs polygonal shapes and preserves
+  volume fractions.
+- Support in `quest::IntersectionShaper` for Blueprint mesh stored in a `conduit::Node` or `sidre::Group`.
 - Adds new CMake configuration options, `AXOM_ENABLE_ASAN` and `AXOM_ENABLE_UBSAN`, to enable/disable AddressSanitizer and UndefinedBehaviorSanitizer respectively in Axom. Default is OFF for both.
 - A number of new `klee::Geometry` constructors are added, for the different shapes now supported.
   This is a temporary change.  The class will be subclassed in the future to support a diversity of geometries.
@@ -37,12 +52,25 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds optional dependency on [Open Cascade](https://dev.opencascade.org). The initial intention is 
 to use Open Cascade's file I/O capabilities in support of Quest applications.
 - Adds `primal::NURBSCurve` and `primal::NURBSPatch` classes, supported by `primal::KnotVector`.
+- Adds trimming curve support for `primal::NURBSPatch` via an array of parameter space `primal::NURBSCurve` objects,
+  where portions of the surface not bound by trimming curves in parameter space are invisible.
 - Adds a Quest example that reads in a STEP file using Open Cascade and processes its geometry
 - Adds a piecewise method to load external data using `sidre::IOManager`.  This adds new overloaded methods
   of `loadExternalData` in `sidre::IOManager` and `sidre::Group`.
 - Adds intersection routines between `primal::Ray` objects and `primal::NURBSCurve`/`primal::NURBSPatch` objects.
+- Adds LineFileTagCombiner to Lumberjack to allow combining messages if line number, file, and tag are equal.
+- Adds some support for 2D shaping in `quest::IntersectionShaper`, using STL meshes with zero for z-coordinates or in-memory triangles as input.
+- Adds ability in Lumberjack to own and set communicators.
+- Adds `NonCollectiveRootCommunicator` to Lumberjack to provide an MPI-based communicator for logging messages non-collectively.
 
 ###  Changed
+- Updates blt submodule to [BLT version 0.7.0][https://github.com/LLNL/blt/releases/tag/v0.7.0]
+- Updates to [MFEM version 4.7.0][https://github.com/mfem/mfem/releases/tag/v4.7]
+- Updates to [Caliper version 2.12.1][https://github.com/LLNL/Caliper/releases/tag/v2.12.1]
+- Updates to [Conduit version 0.9.3][https://github.com/LLNL/conduit/releases/tag/v0.9.3]
+- Updates to [RAJA version 2025.03.0][https://github.com/LLNL/RAJA/releases/tag/v2025.03.0]
+- Updates to [camp version 2025.03.0][https://github.com/LLNL/camp/releases/tag/v2025.03.0]
+- Updates to [Umpire version 2025.03.0][https://github.com/LLNL/Umpire/releases/tag/v2025.03.0]
 - `primal::NumericArray` has been moved to `core`.  The header is `core/NumericArray.hpp`.
 - `quest::Shaper` and `quest::IntersectionShaper` constructors require a runtime policy.
   Changing the policy after construction is no longer supported.
@@ -58,15 +86,11 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
   the Data Collection itself (defaults to the root of the `DataStore`).
 - `SLIC_ASSERT`,`SLIC_ASSERT_MSG`,`SLIC_CHECK`, and `SLIC_CHECK_MSG` macros delegate to assert() within HIP device kernels.
 
-###  Deprecated
-
-###  Removed
-
 ###  Fixed
 - Fixes compilation issue with RAJA@2024.07 on 32-bit Windows configurations. 
   This required a [RAJA fix to avoid 64-bit intrinsics](https://github.com/LLNL/RAJA/pull/1746), 
   as well as support for 32-bit `Word`s in Slam's `BitSet` class.
-- Minor bugfix to `primal::intersect(segment, ray)` to better handle cases when segment and ray overlap.
+- Minor bugfix to `primal::intersect(segment, ray)` to better handle cases when segment and ray overlap or are nearly parallel.
 - Fixes a memory leak in `axom::Array` copy constructor.
 - Fixes robustness issue with the `axom::primal::clip` overload for clipping a 2D polygon against another 2D polygon.
 
@@ -1170,7 +1194,8 @@ fractions for the associated materials must be supplied before shaping.
 - Use this section in case of vulnerabilities
 
 
-[Unreleased]:     https://github.com/LLNL/axom/compare/v0.10.1...develop
+[Unreleased]:     https://github.com/LLNL/axom/compare/v0.11.0...develop
+[Version 0.11.0]: https://github.com/LLNL/axom/compare/v0.10.1...v0.11.0
 [Version 0.10.1]: https://github.com/LLNL/axom/compare/v0.10.0...v0.10.1
 [Version 0.10.0]: https://github.com/LLNL/axom/compare/v0.9.0...v0.10.0
 [Version 0.9.0]:  https://github.com/LLNL/axom/compare/v0.8.1...v0.9.0

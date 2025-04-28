@@ -94,8 +94,7 @@ std::string getOptionalString(std::string const &fieldName,
  * \return the node as a list of doubles
  * \throws std::invalid_argument if the node is not a list of doubles
  */
-std::vector<double> toDoubleVector(conduit::Node const &node,
-                                   std::string const &name);
+std::vector<double> toDoubleVector(conduit::Node const &node, std::string const &name);
 
 /**
  * \brief Convert the given node to a vector of strings.
@@ -105,8 +104,7 @@ std::vector<double> toDoubleVector(conduit::Node const &node,
  * \return the node as a list of strings
  * \throws std::invalid_argument if the node is not a list of strings
  */
-std::vector<std::string> toStringVector(conduit::Node const &node,
-                                        std::string const &name);
+std::vector<std::string> toStringVector(conduit::Node const &node, std::string const &name);
 
 /**
  * \brief Add a vector of strings to a Node. This operation's not natively

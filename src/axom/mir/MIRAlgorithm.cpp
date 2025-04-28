@@ -5,10 +5,13 @@
 
 #include "axom/mir/MIRAlgorithm.hpp"
 #include "axom/mir/MIROptions.hpp"
+#include "axom/mir/utilities/blueprint_utilities.hpp"
 #include "axom/slic.hpp"
 
 #include <conduit_blueprint_mesh.hpp>
 #include <conduit_blueprint_mesh_utils.hpp>
+#include <conduit_relay_io.hpp>
+#include <conduit_relay_io_blueprint.hpp>
 
 namespace axom
 {
@@ -72,8 +75,7 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   newMatset["topology"] = newTopoName;
 
   // Execute the algorithm on the domain.
-  if(n_domain.has_path("state"))
-    copyState(n_domain["state"], n_newDomain["state"]);
+  if(n_domain.has_path("state")) copyState(n_domain["state"], n_newDomain["state"]);
   if(n_domain.has_path("fields"))
   {
     conduit::Node &newFields = n_newDomain["fields"];
@@ -106,11 +108,34 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   }
 }
 
-void MIRAlgorithm::copyState(const conduit::Node &srcState,
-                             conduit::Node &destState) const
+void MIRAlgorithm::copyState(const conduit::Node &srcState, conduit::Node &destState) const
 {
   for(conduit::index_t i = 0; i < srcState.number_of_children(); i++)
     destState[srcState[i].name()].set(srcState[i]);
+}
+
+void MIRAlgorithm::printNode(const conduit::Node &n) const
+{
+  conduit::Node options;
+  options["num_children_threshold"] = 10000;
+  options["num_elements_threshold"] = 10000;
+
+  // Make sure data are on host.
+  conduit::Node n_host;
+  axom::mir::utilities::blueprint::copy<axom::SEQ_EXEC>(n_host, n);
+  n_host.to_summary_string_stream(std::cout, options);
+}
+
+void MIRAlgorithm::saveMesh(const conduit::Node &n_mesh, const std::string &filebase) const
+{
+  // Make sure data are on host.
+  conduit::Node n_mesh_host;
+  axom::mir::utilities::blueprint::copy<axom::SEQ_EXEC>(n_mesh_host, n_mesh);
+
+  conduit::relay::io::save(n_mesh_host, filebase + ".yaml", "yaml");
+#if defined(AXOM_USE_HDF5)
+  conduit::relay::io::blueprint::save_mesh(n_mesh_host, filebase, "hdf5");
+#endif
 }
 
 }  // namespace mir

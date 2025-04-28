@@ -39,11 +39,9 @@ TYPED_TEST(inlet_errors, required_field)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "Required"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo"}) &&
-        err.messageContains("Required");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo"}) && err.messageContains("Required");
+  }));
 }
 
 TYPED_TEST(inlet_errors, wrong_type)
@@ -56,11 +54,9 @@ TYPED_TEST(inlet_errors, wrong_type)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "wrong type"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo"}) &&
-        err.messageContains("wrong type");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo"}) && err.messageContains("wrong type");
+  }));
 }
 
 TYPED_TEST(inlet_errors, wrong_type_nested)
@@ -75,11 +71,9 @@ TYPED_TEST(inlet_errors, wrong_type_nested)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo/bar/baz" and "wrong type"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo/bar/baz"}) &&
-        err.messageContains("wrong type");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo/bar/baz"}) && err.messageContains("wrong type");
+  }));
 }
 
 TYPED_TEST(inlet_errors, heterogeneous_array)
@@ -92,21 +86,17 @@ TYPED_TEST(inlet_errors, heterogeneous_array)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "not homogeneous"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      // FIXME: Do we want to strip out the _inlet_collection from the error messages?
-      return (err.path ==
-              axom::utilities::string::appendPrefix(
-                "foo",
-                axom::inlet::detail::COLLECTION_GROUP_NAME)) &&
-        err.messageContains("not homogeneous");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    // FIXME: Do we want to strip out the _inlet_collection from the error messages?
+    return (err.path ==
+            axom::utilities::string::appendPrefix("foo", axom::inlet::detail::COLLECTION_GROUP_NAME)) &&
+      err.messageContains("not homogeneous");
+  }));
 }
 
 TYPED_TEST(inlet_errors, heterogeneous_array_nested)
 {
-  std::string testString =
-    "foo = { bar = { baz = { [0] = 1, [1] = 2, [2] = 'hello' } } }";
+  std::string testString = "foo = { bar = { baz = { [0] = 1, [1] = 2, [2] = 'hello' } } }";
   Inlet inlet = createBasicInlet<TypeParam>(testString);
 
   auto& foo = inlet.addStruct("foo", "foo's description");
@@ -116,14 +106,12 @@ TYPED_TEST(inlet_errors, heterogeneous_array_nested)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo/bar/baz" and "not homogeneous"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path ==
-              axom::utilities::string::appendPrefix(
-                "foo/bar/baz",
-                axom::inlet::detail::COLLECTION_GROUP_NAME)) &&
-        err.messageContains("not homogeneous");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path ==
+            axom::utilities::string::appendPrefix("foo/bar/baz",
+                                                  axom::inlet::detail::COLLECTION_GROUP_NAME)) &&
+      err.messageContains("not homogeneous");
+  }));
 }
 
 TYPED_TEST(inlet_errors, invalid_range)
@@ -136,10 +124,9 @@ TYPED_TEST(inlet_errors, invalid_range)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "range"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo"}) && err.messageContains("range");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo"}) && err.messageContains("range");
+  }));
 }
 
 TYPED_TEST(inlet_errors, invalid_range_nested)
@@ -154,11 +141,9 @@ TYPED_TEST(inlet_errors, invalid_range_nested)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo/bar/baz" and "range"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo/bar/baz"}) &&
-        err.messageContains("range");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo/bar/baz"}) && err.messageContains("range");
+  }));
 }
 
 TYPED_TEST(inlet_errors, invalid_value)
@@ -171,11 +156,9 @@ TYPED_TEST(inlet_errors, invalid_value)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "valid value"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo"}) &&
-        err.messageContains("valid value");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo"}) && err.messageContains("valid value");
+  }));
 }
 
 TYPED_TEST(inlet_errors, invalid_value_nested)
@@ -190,11 +173,9 @@ TYPED_TEST(inlet_errors, invalid_value_nested)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo/bar/baz" and "valid value"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo/bar/baz"}) &&
-        err.messageContains("valid value");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo/bar/baz"}) && err.messageContains("valid value");
+  }));
 }
 
 TYPED_TEST(inlet_errors, field_verifier)
@@ -202,18 +183,16 @@ TYPED_TEST(inlet_errors, field_verifier)
   std::string testString = "foo = 7";
   Inlet inlet = createBasicInlet<TypeParam>(testString);
 
-  inlet.addInt("foo", "foo's description")
-    .registerVerifier([](const axom::inlet::Field& field) {
-      return (field.get<int>() % 2) == 0;
-    });
+  inlet.addInt("foo", "foo's description").registerVerifier([](const axom::inlet::Field& field) {
+    return (field.get<int>() % 2) == 0;
+  });
 
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "lambda"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo"}) && err.messageContains("lambda");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo"}) && err.messageContains("lambda");
+  }));
 }
 
 TYPED_TEST(inlet_errors, field_verifier_nested)
@@ -223,19 +202,16 @@ TYPED_TEST(inlet_errors, field_verifier_nested)
 
   auto& foo = inlet.addStruct("foo", "foo's description");
   auto& bar = foo.addStruct("bar", "bar's description");
-  bar.addInt("baz", "baz's description")
-    .registerVerifier([](const axom::inlet::Field& field) {
-      return (field.get<int>() % 2) == 0;
-    });
+  bar.addInt("baz", "baz's description").registerVerifier([](const axom::inlet::Field& field) {
+    return (field.get<int>() % 2) == 0;
+  });
 
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo/bar/baz" and "lambda"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo/bar/baz"}) &&
-        err.messageContains("lambda");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo/bar/baz"}) && err.messageContains("lambda");
+  }));
 }
 
 TYPED_TEST(inlet_errors, container_required)
@@ -249,11 +225,9 @@ TYPED_TEST(inlet_errors, container_required)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "Required"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo"}) &&
-        err.messageContains("Required");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo"}) && err.messageContains("Required");
+  }));
 }
 
 TYPED_TEST(inlet_errors, container_verifier)
@@ -265,18 +239,14 @@ TYPED_TEST(inlet_errors, container_verifier)
   foo.addInt("bar", "bar's description");
 
   // Bogus verifier, will fail because "bar" exists
-  foo.registerVerifier([](const axom::inlet::Container& container) {
-    return !container.exists();
-  });
+  foo.registerVerifier([](const axom::inlet::Container& container) { return !container.exists(); });
 
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "verification"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo"}) &&
-        err.messageContains("verification");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo"}) && err.messageContains("verification");
+  }));
 }
 
 TYPED_TEST(inlet_errors, container_strict)
@@ -290,11 +260,10 @@ TYPED_TEST(inlet_errors, container_strict)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "unexpected" and "baz"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo"}) &&
-        err.messageContains("unexpected") && err.messageContains("baz");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo"}) && err.messageContains("unexpected") &&
+      err.messageContains("baz");
+  }));
 }
 
 TYPED_TEST(inlet_errors, helpful_range)
@@ -313,17 +282,15 @@ TYPED_TEST(inlet_errors, helpful_range)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "range" and "3" and "5"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo"}) && err.messageContains("range") &&
-        err.messageContains("3") && err.messageContains("5");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo"}) && err.messageContains("range") &&
+      err.messageContains("3") && err.messageContains("5");
+  }));
   // Need something about "bar" and "range" and "-4.2" and "5.6"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"bar"}) && err.messageContains("range") &&
-        err.messageContains("-4.2") && err.messageContains("5.6");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"bar"}) && err.messageContains("range") &&
+      err.messageContains("-4.2") && err.messageContains("5.6");
+  }));
 }
 
 TYPED_TEST(inlet_errors, helpful_valid_values)
@@ -333,33 +300,26 @@ TYPED_TEST(inlet_errors, helpful_valid_values)
 
   inlet.addInt("foo", "foo's description").validValues({3, 5});
   inlet.addDouble("bar", "bar's description").validValues({2.0, 4.0});
-  inlet.addString("baz", "baz's description")
-    .validValues({"moe", "larry", "curly"});
+  inlet.addString("baz", "baz's description").validValues({"moe", "larry", "curly"});
 
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "valid value" and "3" and "5" and "7"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo"}) &&
-        err.messageContains("valid value") && err.messageContains("3") &&
-        err.messageContains("5") && err.messageContains("7");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo"}) && err.messageContains("valid value") &&
+      err.messageContains("3") && err.messageContains("5") && err.messageContains("7");
+  }));
   // Need something about "bar" and "valid value" and "2" and "4" and "16"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"bar"}) &&
-        err.messageContains("valid value") && err.messageContains("16") &&
-        err.messageContains("2") && err.messageContains("4");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"bar"}) && err.messageContains("valid value") &&
+      err.messageContains("16") && err.messageContains("2") && err.messageContains("4");
+  }));
   // Need something about "baz" and "valid value" and "shemp" and "moe" and "larry" and "curly"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"baz"}) &&
-        err.messageContains("valid value") && err.messageContains("shemp") &&
-        err.messageContains("moe") && err.messageContains("larry") &&
-        err.messageContains("curly");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"baz"}) && err.messageContains("valid value") &&
+      err.messageContains("shemp") && err.messageContains("moe") && err.messageContains("larry") &&
+      err.messageContains("curly");
+  }));
 }
 
 #ifdef AXOM_USE_SOL
@@ -372,10 +332,8 @@ TEST(inlet_errors_lua, function_verifier)
 
   using axom::inlet::FunctionTag;
   using axom::inlet::FunctionType;
-  auto& func = inlet.addFunction("foo",
-                                 FunctionTag::Vector,
-                                 {FunctionTag::Vector},
-                                 "foo's description");
+  auto& func =
+    inlet.addFunction("foo", FunctionTag::Vector, {FunctionTag::Vector}, "foo's description");
 
   func.registerVerifier([](const axom::inlet::Function& func) {
     auto result = func.call<FunctionType::Vector>(FunctionType::Vector {1, 1, 1});
@@ -385,11 +343,9 @@ TEST(inlet_errors_lua, function_verifier)
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "verification"
-  EXPECT_TRUE(
-    std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
-      return (err.path == axom::Path {"foo"}) &&
-        err.messageContains("verification");
-    }));
+  EXPECT_TRUE(std::any_of(errors.begin(), errors.end(), [](const VerificationError& err) {
+    return (err.path == axom::Path {"foo"}) && err.messageContains("verification");
+  }));
 }
 
 #endif

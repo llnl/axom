@@ -45,10 +45,7 @@ using Point2D = primal::Point<double, 2>;
  *
  * This routine initializes an Array, \a out.
  */
-bool discretize(const SphereType& s,
-                int levels,
-                axom::Array<OctType>& out,
-                int& octcount);
+bool discretize(const SphereType& s, int levels, axom::Array<OctType>& out, int& octcount);
 
 /*!
  * \brief Given a 2D polyline revolved around the positive X-axis, allocate

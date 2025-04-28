@@ -347,9 +347,7 @@ const char* packMessages(const std::vector<Message*>& messages);
  * \param [in]  ranksLimit Limits how many ranks are tracked per Message.
  *****************************************************************************
  */
-void unpackMessages(std::vector<Message*>& messages,
-                    const char* packedMessages,
-                    const int ranksLimit);
+void unpackMessages(std::vector<Message*>& messages, const char* packedMessages, const int ranksLimit);
 
 /*!
  *****************************************************************************

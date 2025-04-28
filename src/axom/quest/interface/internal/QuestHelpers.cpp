@@ -84,18 +84,10 @@ int read_and_exchange_mesh_metadata(int global_rank_id,
       mesh_metadata[NUM_NODES] = READ_FAILED;
       mesh_metadata[NUM_FACES] = READ_FAILED;
     }
-    MPI_Bcast(mesh_metadata,
-              2,
-              axom::mpi_traits<axom::IndexType>::type,
-              ROOT_RANK,
-              global_comm);
+    MPI_Bcast(mesh_metadata, 2, axom::mpi_traits<axom::IndexType>::type, ROOT_RANK, global_comm);
     break;
   default:
-    MPI_Bcast(mesh_metadata,
-              2,
-              axom::mpi_traits<axom::IndexType>::type,
-              ROOT_RANK,
-              global_comm);
+    MPI_Bcast(mesh_metadata, 2, axom::mpi_traits<axom::IndexType>::type, ROOT_RANK, global_comm);
   }
 
   int rc = (mesh_metadata[NUM_NODES] == READ_FAILED) ? READ_FAILED : READ_SUCCESS;
@@ -127,11 +119,7 @@ void create_communicators(MPI_Comm global_comm,
   MPI_Comm_rank(global_comm, &global_rank_id);
 
   // STEP 1: create the intra-node communicator
-  MPI_Comm_split_type(global_comm,
-                      MPI_COMM_TYPE_SHARED,
-                      IGNORE_KEY,
-                      MPI_INFO_NULL,
-                      &intra_node_comm);
+  MPI_Comm_split_type(global_comm, MPI_COMM_TYPE_SHARED, IGNORE_KEY, MPI_INFO_NULL, &intra_node_comm);
   MPI_Comm_rank(intra_node_comm, &local_rank_id);
   SLIC_ASSERT(local_rank_id >= 0);
 
@@ -169,16 +157,10 @@ MPI_Aint allocate_shared_buffer(int local_rank_id,
   const int nfaces = mesh_metadata[1];
 
   int disp = sizeof(unsigned char);
-  MPI_Aint bytesize =
-    nnodes * 3 * sizeof(double) + nfaces * 3 * sizeof(axom::IndexType);
+  MPI_Aint bytesize = nnodes * 3 * sizeof(double) + nfaces * 3 * sizeof(axom::IndexType);
   MPI_Aint window_size = (local_rank_id != ROOT_RANK) ? 0 : bytesize;
 
-  MPI_Win_allocate_shared(window_size,
-                          disp,
-                          MPI_INFO_NULL,
-                          intra_node_comm,
-                          &mesh_buffer,
-                          &shared_window);
+  MPI_Win_allocate_shared(window_size, disp, MPI_INFO_NULL, intra_node_comm, &mesh_buffer, &shared_window);
   MPI_Win_shared_query(shared_window, ROOT_RANK, &bytesize, &disp, &mesh_buffer);
 
   // calculate offset to the coordinates & cell connectivity in the buffer
@@ -250,10 +232,7 @@ int read_stl_mesh_shared(const std::string& file,
 
   quest::STLReader reader;
   reader.setFileName(file);
-  int rc = read_and_exchange_mesh_metadata(global_rank_id,
-                                           global_comm,
-                                           reader,
-                                           mesh_metadata);
+  int rc = read_and_exchange_mesh_metadata(global_rank_id, global_comm, reader, mesh_metadata);
   if(rc != READ_SUCCESS)
   {
     return READ_FAILED;
@@ -279,13 +258,8 @@ int read_stl_mesh_shared(const std::string& file,
   SLIC_ASSERT(conn != nullptr);
 
   // STEP 5: allocate corresponding mesh object with external pointers.
-  m = new TriangleMesh(mint::TRIANGLE,
-                       mesh_metadata[NUM_FACES],
-                       conn,
-                       mesh_metadata[NUM_NODES],
-                       x,
-                       y,
-                       z);
+  m =
+    new TriangleMesh(mint::TRIANGLE, mesh_metadata[NUM_FACES], conn, mesh_metadata[NUM_NODES], x, y, z);
 
   // STEP 4: read in data to shared buffer
   if(global_rank_id == 0)
@@ -581,8 +555,7 @@ void logger_init(bool& isInitialized, bool& mustFinalize, bool verbose, MPI_Comm
 #endif
 
   slic::addStreamToAllMsgLevels(ls);
-  slic::setLoggingMsgLevel((verbose) ? slic::message::Info
-                                     : slic::message::Error);
+  slic::setLoggingMsgLevel((verbose) ? slic::message::Info : slic::message::Error);
 }
 
 /*

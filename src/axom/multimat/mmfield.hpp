@@ -69,10 +69,7 @@ public:
   using BiVarMapType::operator();  //why is this needed?
 
   //subfield (instead of SubMap)
-  SubFieldType getSubfield(SetPosition firstIdx)
-  {
-    return operator()(firstIdx);
-  }
+  SubFieldType getSubfield(SetPosition firstIdx) { return operator()(firstIdx); }
   AXOM_HOST_DEVICE SubFieldType operator()(SetPosition firstIdx)
   {
     const bool hasInd = this->submapIndicesHaveIndirection();
@@ -85,10 +82,7 @@ public:
   }
 
   //Mimic BivariateMap operator(i) and return slam submap
-  SubMapType getSlamSubMap(SetPosition firstIdx)
-  {
-    return BiVarMapType::operator()(firstIdx);
-  }
+  SubMapType getSlamSubMap(SetPosition firstIdx) { return BiVarMapType::operator()(firstIdx); }
 
   std::string getName() { return m_mm->getFieldName(m_fieldIdx); };
 
@@ -166,15 +160,8 @@ class MMField2DTemplated : public MMField2D<DataType, BiSet>
   using Field2DType = MMField2D<DataType, BiSet>;
 
 public:
-  MMField2DTemplated(MultiMat& mm,
-                     int fieldIdx,
-                     axom::ArrayView<DataType> data_arr = {},
-                     int stride = 1)
-    : Field2DType(mm,
-                  mm.getCompatibleBivarSet<BiSet>(fieldIdx),
-                  fieldIdx,
-                  data_arr,
-                  stride)
+  MMField2DTemplated(MultiMat& mm, int fieldIdx, axom::ArrayView<DataType> data_arr = {}, int stride = 1)
+    : Field2DType(mm, mm.getCompatibleBivarSet<BiSet>(fieldIdx), fieldIdx, data_arr, stride)
   { }
 };
 

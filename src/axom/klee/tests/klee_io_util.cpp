@@ -66,35 +66,28 @@ InletTestData::InletTestData(const std::string &input, DefOp defOp)
   }
 }
 
-std::vector<double> parseDoubleVector(const std::string &vectorInput,
-                                      Dimensions dims)
+std::vector<double> parseDoubleVector(const std::string &vectorInput, Dimensions dims)
 {
   std::string fullInput = "values: ";
   fullInput += vectorInput;
-  InletTestData data {fullInput,
-                      [](Container &c) { c.addDoubleArray("values"); }};
+  InletTestData data {fullInput, [](Container &c) { c.addDoubleArray("values"); }};
   return toDoubleVector(data.doc["values"], dims, "values");
 }
 
 TEST(io_util, toDoubleVector)
 {
-  EXPECT_THAT(parseDoubleVector("[1.2, 3.4]", Dimensions::Two),
-              ElementsAre(1.2, 3.4));
-  EXPECT_THAT(parseDoubleVector("[1, 2]", Dimensions::Two),
-              ElementsAre(1.0, 2.0));
-  EXPECT_THROW(parseDoubleVector("[1, 2]", Dimensions::Three), KleeError)
-    << "Wrong length";
-  EXPECT_THROW(parseDoubleVector("[a, b]", Dimensions::Three), KleeError)
-    << "Wrong type";
+  EXPECT_THAT(parseDoubleVector("[1.2, 3.4]", Dimensions::Two), ElementsAre(1.2, 3.4));
+  EXPECT_THAT(parseDoubleVector("[1, 2]", Dimensions::Two), ElementsAre(1.0, 2.0));
+  EXPECT_THROW(parseDoubleVector("[1, 2]", Dimensions::Three), KleeError) << "Wrong length";
+  EXPECT_THROW(parseDoubleVector("[a, b]", Dimensions::Three), KleeError) << "Wrong type";
 }
 
 Dimensions defineAndParseDimension(const char *input)
 {
   std::string fullInput = "dims: ";
   fullInput += input;
-  InletTestData data {fullInput, [](Container &c) {
-                        defineDimensionsField(c, "dims", "some description");
-                      }};
+  InletTestData data {fullInput,
+                      [](Container &c) { defineDimensionsField(c, "dims", "some description"); }};
   return toDimensions(data.doc["dims"]);
 }
 
@@ -111,10 +104,7 @@ TEST(io_util, defineAndConvertDimensions)
  *
  * @param container the Container on which to define the units fields
  */
-void defineUnitsSchemaWithDefaults(Container &container)
-{
-  defineUnitsSchema(container);
-}
+void defineUnitsSchemaWithDefaults(Container &container) { defineUnitsSchema(container); }
 
 TEST(io_util, getOptionalStartAndEndUnits_nothingSpecified)
 {
@@ -148,11 +138,9 @@ TEST(io_util, getOptionalStartAndEndUnits_startAndEndSpecified)
 TEST(io_util, getOptionalStartAndEndUnits_partialSpecification)
 {
   InletTestData startOnly {"start_units: cm", defineUnitsSchemaWithDefaults};
-  EXPECT_THROW(getOptionalStartAndEndUnits(startOnly.doc.getGlobalContainer()),
-               KleeError);
+  EXPECT_THROW(getOptionalStartAndEndUnits(startOnly.doc.getGlobalContainer()), KleeError);
   InletTestData endOnly {"end_units: cm", defineUnitsSchemaWithDefaults};
-  EXPECT_THROW(getOptionalStartAndEndUnits(endOnly.doc.getGlobalContainer()),
-               KleeError);
+  EXPECT_THROW(getOptionalStartAndEndUnits(endOnly.doc.getGlobalContainer()), KleeError);
 }
 
 TEST(io_util, getOptionalStartAndEndUnits_startEndAndUnits)
@@ -163,8 +151,7 @@ TEST(io_util, getOptionalStartAndEndUnits_startEndAndUnits)
         units: cm
     )",
                       defineUnitsSchemaWithDefaults};
-  EXPECT_THROW(getOptionalStartAndEndUnits(data.doc.getGlobalContainer()),
-               KleeError);
+  EXPECT_THROW(getOptionalStartAndEndUnits(data.doc.getGlobalContainer()), KleeError);
 }
 
 TEST(io_util, getStartAndEndUnits_unitsPresent)
@@ -214,8 +201,7 @@ Point3D parsePoint(const char *value, Dimensions dims)
   return parseArray<Point3D>(
     value,
     dims,
-    static_cast<Point3D (*)(const inlet::Container &, char const *, Dimensions)>(
-      toPoint));
+    static_cast<Point3D (*)(const inlet::Container &, char const *, Dimensions)>(toPoint));
 }
 
 Point3D parsePoint(const char *value, Dimensions dims, Point3D defaultValue)
@@ -224,8 +210,7 @@ Point3D parsePoint(const char *value, Dimensions dims, Point3D defaultValue)
     value,
     dims,
     defaultValue,
-    static_cast<Point3D (
-        *)(const inlet::Container &, char const *, Dimensions, const Point3D &)>(
+    static_cast<Point3D (*)(const inlet::Container &, char const *, Dimensions, const Point3D &)>(
       toPoint));
 }
 
@@ -234,8 +219,7 @@ Vector3D parseVector(const char *value, Dimensions dims)
   return parseArray<Vector3D>(
     value,
     dims,
-    static_cast<Vector3D (*)(const inlet::Container &, char const *, Dimensions)>(
-      toVector));
+    static_cast<Vector3D (*)(const inlet::Container &, char const *, Dimensions)>(toVector));
 }
 
 Vector3D parseVector(const char *value, Dimensions dims, Vector3D defaultValue)
@@ -244,27 +228,22 @@ Vector3D parseVector(const char *value, Dimensions dims, Vector3D defaultValue)
     value,
     dims,
     defaultValue,
-    static_cast<Vector3D (
-        *)(const inlet::Container &, char const *, Dimensions, const Vector3D &)>(
+    static_cast<Vector3D (*)(const inlet::Container &, char const *, Dimensions, const Vector3D &)>(
       toVector));
 }
 
 TEST(io_util, toPoint)
 {
-  EXPECT_THAT(parsePoint("[1, 2]", Dimensions::Two),
-              AlmostEqPoint(Point3D {1, 2, 0}));
-  EXPECT_THAT(parsePoint("[1, 2, 3]", Dimensions::Three),
-              AlmostEqPoint(Point3D {1, 2, 3}));
+  EXPECT_THAT(parsePoint("[1, 2]", Dimensions::Two), AlmostEqPoint(Point3D {1, 2, 0}));
+  EXPECT_THAT(parsePoint("[1, 2, 3]", Dimensions::Three), AlmostEqPoint(Point3D {1, 2, 3}));
   EXPECT_THROW(parsePoint("[1, 2]", Dimensions::Three), KleeError);
   EXPECT_THROW(parsePoint("[1, 2, 3]", Dimensions::Two), KleeError);
 }
 
 TEST(io_util, toVector)
 {
-  EXPECT_THAT(parseVector("[1, 2]", Dimensions::Two),
-              AlmostEqVector(Vector3D {1, 2, 0}));
-  EXPECT_THAT(parseVector("[1, 2, 3]", Dimensions::Three),
-              AlmostEqVector(Vector3D {1, 2, 3}));
+  EXPECT_THAT(parseVector("[1, 2]", Dimensions::Two), AlmostEqVector(Vector3D {1, 2, 0}));
+  EXPECT_THAT(parseVector("[1, 2, 3]", Dimensions::Three), AlmostEqVector(Vector3D {1, 2, 3}));
   EXPECT_THROW(parseVector("[1, 2]", Dimensions::Three), KleeError);
   EXPECT_THROW(parseVector("[1, 2, 3]", Dimensions::Two), KleeError);
 }

@@ -62,8 +62,7 @@ public:
   std::string coordsName() const { return m_coordName; }
 
   /// Loads the point mesh from a conduit hierarchy
-  bool loadFromConduitNode(const conduit::Node& mesh_node,
-                           bool verboseOutput = false)
+  bool loadFromConduitNode(const conduit::Node& mesh_node, bool verboseOutput = false)
   {
     conduit::Node info;
     if(!conduit::blueprint::verify("mesh", mesh_node, info))
@@ -125,8 +124,7 @@ public:
       {
         SLIC_INFO("Coords name is: " << m_coordName);
       }
-      SLIC_ERROR_IF(!coords->hasGroup(m_coordName),
-                    "Missing required coordinates: " << m_coordName);
+      SLIC_ERROR_IF(!coords->hasGroup(m_coordName), "Missing required coordinates: " << m_coordName);
 
       m_coordsGroup = coords->getGroup(m_coordName);
     }
@@ -145,27 +143,22 @@ public:
       {
         SLIC_INFO("Mesh name is: " << m_meshName);
       }
-      SLIC_ERROR_IF(!topos->hasGroup(m_meshName),
-                    "Missing required mesh: " << m_meshName);
+      SLIC_ERROR_IF(!topos->hasGroup(m_meshName), "Missing required mesh: " << m_meshName);
 
       m_topoGroup = topos->getGroup(m_meshName);
     }
 
     // extract fields group
     {
-      m_fieldsGroup = m_group->hasGroup("fields")
-        ? m_group->getGroup("fields")
-        : m_group->createGroup("fields");
+      m_fieldsGroup =
+        m_group->hasGroup("fields") ? m_group->getGroup("fields") : m_group->createGroup("fields");
     }
 
     return true;
   }
 
   /// Returns true if points have been added to the particle mesh
-  bool hasPoints() const
-  {
-    return m_coordsGroup != nullptr && m_coordsGroup->hasGroup("values");
-  }
+  bool hasPoints() const { return m_coordsGroup != nullptr && m_coordsGroup->hasGroup("values"); }
 
   /// Returns the number of points in the particle mesh
   int numPoints() const
@@ -177,9 +170,7 @@ public:
   {
     if(hasPoints())
     {
-      return m_coordsGroup->hasView("values/z")
-        ? 3
-        : (m_coordsGroup->hasView("values/y") ? 2 : 1);
+      return m_coordsGroup->hasView("values/z") ? 3 : (m_coordsGroup->hasView("values/y") ? 2 : 1);
     }
     return 0;
   }
@@ -208,14 +199,12 @@ public:
   template <int NDIMS>
   void setPoints(const axom::Array<primal::Point<double, NDIMS>>& pts)
   {
-    SLIC_ASSERT_MSG(m_group != nullptr,
-                    "Must set blueprint group before setPoints()");
+    SLIC_ASSERT_MSG(m_group != nullptr, "Must set blueprint group before setPoints()");
 
     const int SZ = pts.size();
 
     // create views into a shared buffer for the coordinates, with stride NDIMS
-    auto* buf =
-      m_group->getDataStore()->createBuffer(sidre::DOUBLE_ID, NDIMS * SZ)->allocate();
+    auto* buf = m_group->getDataStore()->createBuffer(sidre::DOUBLE_ID, NDIMS * SZ)->allocate();
     switch(NDIMS)
     {
     case 3:
@@ -254,9 +243,7 @@ public:
     auto* fld = m_fieldsGroup->createGroup(fieldName);
     fld->createViewString("association", "vertex");
     fld->createViewString("topology", m_topoGroup->getName());
-    fld->createViewAndAllocate("values",
-                               sidre::detail::SidreTT<T>::id,
-                               numPoints());
+    fld->createViewAndAllocate("values", sidre::detail::SidreTT<T>::id, numPoints());
   }
 
   template <typename T>
@@ -274,9 +261,8 @@ public:
     fld->createViewString("topology", m_topoGroup->getName());
 
     // create views into a shared buffer for the coordinates, with stride NDIMS
-    auto* buf = m_group->getDataStore()
-                  ->createBuffer(sidre::detail::SidreTT<T>::id, DIM * SZ)
-                  ->allocate();
+    auto* buf =
+      m_group->getDataStore()->createBuffer(sidre::detail::SidreTT<T>::id, DIM * SZ)->allocate();
     switch(DIM)
     {
     case 3:
@@ -294,10 +280,7 @@ public:
     }
   }
 
-  bool hasField(const std::string& fieldName) const
-  {
-    return m_fieldsGroup->hasGroup(fieldName);
-  }
+  bool hasField(const std::string& fieldName) const { return m_fieldsGroup->hasGroup(fieldName); }
 
   template <typename T>
   axom::ArrayView<T> getNodalScalarField(const std::string& fieldName) const
@@ -308,8 +291,7 @@ public:
 
     T* data = hasField(fieldName)
       ? static_cast<T*>(
-          m_fieldsGroup->getView(axom::fmt::format("{}/values", fieldName))
-            ->getVoidPtr())
+          m_fieldsGroup->getView(axom::fmt::format("{}/values", fieldName))->getVoidPtr())
       : nullptr;
 
     return axom::ArrayView<T>(data, numPoints());
@@ -324,8 +306,7 @@ public:
 
     T* data = hasField(fieldName)
       ? static_cast<T*>(
-          m_fieldsGroup->getView(axom::fmt::format("{}/values/x", fieldName))
-            ->getVoidPtr())
+          m_fieldsGroup->getView(axom::fmt::format("{}/values/x", fieldName))->getVoidPtr())
       : nullptr;
 
     return axom::ArrayView<T>(data, numPoints());
@@ -390,8 +371,7 @@ public:
   {
     std::vector<std::string> names;
 
-    for(auto idx = m_fieldsGroup->getFirstValidGroupIndex();
-        sidre::indexIsValid(idx);
+    for(auto idx = m_fieldsGroup->getFirstValidGroupIndex(); sidre::indexIsValid(idx);
         idx = m_fieldsGroup->getNextValidGroupIndex(idx))
     {
       names.push_back(m_fieldsGroup->getGroup(idx)->getName());
@@ -460,17 +440,15 @@ public:
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
     app.add_flag("-v,--verbose", verboseOutput)
-      ->description(
-        "Increases the output verbosity while running the application")
+      ->description("Increases the output verbosity while running the application")
       ->capture_default_str();
 
     // Options for input data
     // Either provide `-n` and `-d`; or `-i` (input mesh)
-    auto input_grp =
-      app.add_option_group("Input",
-                           "Parameters associated with input data.\n"
-                           "If an input mesh is provided, it will override the "
-                           "`-n` and `-d` options.");
+    auto input_grp = app.add_option_group("Input",
+                                          "Parameters associated with input data.\n"
+                                          "If an input mesh is provided, it will override the "
+                                          "`-n` and `-d` options.");
 
     input_grp->add_option("-n,--nrandpt", numRandPoints)
       ->description("The number of points to generate for the input mesh")
@@ -487,12 +465,12 @@ public:
       ->check(axom::CLI::ExistingFile);
 
     // Options for defining the query data
-    auto query_grp = app.add_option_group(
-      "Query",
-      "Parameters associated with query data. "
-      "Query box defaults to unit square/cube when not provided.\n"
-      "If no input mesh is provided, the input points "
-      "will lie in query bounding box.");
+    auto query_grp =
+      app.add_option_group("Query",
+                           "Parameters associated with query data. "
+                           "Query box defaults to unit square/cube when not provided.\n"
+                           "If no input mesh is provided, the input points "
+                           "will lie in query bounding box.");
 
     query_grp->add_option("-q,--nquerypt", numQueryPoints)
       ->description("The number of query points")
@@ -508,8 +486,7 @@ public:
     maxbb->needs(minbb);
 
     // Options for outputting the mesh
-    auto output_grp =
-      app.add_option_group("Output", "Parameters associated with output");
+    auto output_grp = app.add_option_group("Output", "Parameters associated with output");
     output_grp->add_option("-o,--outfile", outputFile)
       ->description("The output file")
       ->capture_default_str();
@@ -564,10 +541,9 @@ public:
 };
 
 template <int DIM>
-axom::Array<primal::Point<double, DIM>> generatePts(
-  int numPts,
-  const std::vector<double>& bb_min,
-  const std::vector<double>& bb_max)
+axom::Array<primal::Point<double, DIM>> generatePts(int numPts,
+                                                    const std::vector<double>& bb_min,
+                                                    const std::vector<double>& bb_max)
 {
   using axom::utilities::random_real;
 
@@ -603,9 +579,7 @@ void initializeInputMesh(Input& params, internal::blueprint::PointMesh& inputMes
     conduit::relay::io::blueprint::read_mesh(params.inputFile, mesh);
 
     bool validMesh = inputMesh.loadFromConduitNode(mesh, params.verboseOutput);
-    SLIC_ERROR_IF(
-      !validMesh,
-      axom::fmt::format("Could not read mesh '{}'", params.inputFile));
+    SLIC_ERROR_IF(!validMesh, axom::fmt::format("Could not read mesh '{}'", params.inputFile));
 
     // recompute and reset bounding box based on input mesh
     const int nPts = inputMesh.numPoints();
@@ -633,8 +607,7 @@ void initializeInputMesh(Input& params, internal::blueprint::PointMesh& inputMes
   }
   else
   {
-    inputMesh.setPoints(
-      generatePts<DIM>(params.numRandPoints, params.boundsMin, params.boundsMax));
+    inputMesh.setPoints(generatePts<DIM>(params.numRandPoints, params.boundsMin, params.boundsMax));
 
     // Extract coordinate positions as scalar fields
     const int nPts = inputMesh.numPoints();
@@ -671,8 +644,7 @@ void initializeQueryMesh(const Input& params,
                          internal::blueprint::PointMesh& queryMesh,
                          std::vector<std::string>&& fieldNames)
 {
-  queryMesh.setPoints(
-    generatePts<DIM>(params.numQueryPoints, params.boundsMin, params.boundsMax));
+  queryMesh.setPoints(generatePts<DIM>(params.numQueryPoints, params.boundsMin, params.boundsMax));
 
   // Register and allocate required fields for query mesh
   queryMesh.registerNodalScalarField<axom::IndexType>("cell_idx");
@@ -690,10 +662,9 @@ void initializeQueryMesh(const Input& params,
  * returns the interpolation weights and indexes for the user to apply themselves.
  */
 template <int DIM>
-bool checkInterpolation(
-  std::unique_ptr<quest::ScatteredInterpolation<DIM>>& scattered_interp,
-  const internal::blueprint::PointMesh& inputMesh,
-  const internal::blueprint::PointMesh& queryMesh)
+bool checkInterpolation(std::unique_ptr<quest::ScatteredInterpolation<DIM>>& scattered_interp,
+                        const internal::blueprint::PointMesh& inputMesh,
+                        const internal::blueprint::PointMesh& queryMesh)
 {
   using axom::utilities::isNearlyEqual;
   using quest::detail::InterleavedOrStridedPoints;
@@ -718,9 +689,7 @@ bool checkInterpolation(
   for(int i = 0; i < nQueryPts; ++i)
   {
     interp_valid[i] =
-      scattered_interp->getInterpolationWeights(queryPts[i],
-                                                interp_indices[i],
-                                                interp_weights[i]);
+      scattered_interp->getInterpolationWeights(queryPts[i], interp_indices[i], interp_weights[i]);
   }
 
   // Interpolate points on each field and check against previously interpolated values
@@ -737,13 +706,13 @@ bool checkInterpolation(
       {
         if(!std::isnan(query_val))
         {
-          SLIC_WARNING(axom::fmt::format(
-            "Bad interpolation: Query point {} had value {} for field `{}` "
-            "using `ScatteredInterpolation::interpolateField()` but was not "
-            "found for `ScatteredInterpolation::getInterpolationWeights()`",
-            i,
-            query_val,
-            fld));
+          SLIC_WARNING(
+            axom::fmt::format("Bad interpolation: Query point {} had value {} for field `{}` "
+                              "using `ScatteredInterpolation::interpolateField()` but was not "
+                              "found for `ScatteredInterpolation::getInterpolationWeights()`",
+                              i,
+                              query_val,
+                              fld));
           interpolationsAgree = false;
         }
       }
@@ -762,15 +731,15 @@ bool checkInterpolation(
         // stored in query mesh's blueprint fields
         if(!isNearlyEqual(query_val, val, EPS))
         {
-          SLIC_WARNING(axom::fmt::format(
-            "Bad interpolation: Query point {} had value {} for field `{}` "
-            "using `ScatteredInterpolation::interpolateField()` but {} when "
-            "interpolating using "
-            "`ScatteredInterpolation::getInterpolationWeights()`",
-            i,
-            query_val,
-            fld,
-            val));
+          SLIC_WARNING(
+            axom::fmt::format("Bad interpolation: Query point {} had value {} for field `{}` "
+                              "using `ScatteredInterpolation::interpolateField()` but {} when "
+                              "interpolating using "
+                              "`ScatteredInterpolation::getInterpolationWeights()`",
+                              i,
+                              query_val,
+                              fld,
+                              val));
           interpolationsAgree = false;
         }
 
@@ -783,13 +752,13 @@ bool checkInterpolation(
 
         if(!isNearlyEqual(primal::squared_distance(interp_pt, queryPts[i]), EPS))
         {
-          SLIC_WARNING(axom::fmt::format(
-            "Bad interpolation: When interpolating position of query point {} "
-            "@ {}, got {} with distance {}.",
-            i,
-            queryPts[i],
-            interp_pt,
-            sqrt(primal::squared_distance(interp_pt, queryPts[i]))));
+          SLIC_WARNING(
+            axom::fmt::format("Bad interpolation: When interpolating position of query point {} "
+                              "@ {}, got {} with distance {}.",
+                              i,
+                              queryPts[i],
+                              interp_pt,
+                              sqrt(primal::squared_distance(interp_pt, queryPts[i]))));
 
           interpolationsAgree = false;
         }
@@ -825,11 +794,8 @@ int main(int argc, char** argv)
 
   const std::string input_coords_name = "input_coords";
   const std::string input_mesh_name = "input_mesh";
-  auto* input_pt_mesh_group =
-    input_ds.getRoot()->createGroup("input_point_mesh");
-  internal::blueprint::PointMesh inputMesh(input_pt_mesh_group,
-                                           input_coords_name,
-                                           input_mesh_name);
+  auto* input_pt_mesh_group = input_ds.getRoot()->createGroup("input_point_mesh");
+  internal::blueprint::PointMesh inputMesh(input_pt_mesh_group, input_coords_name, input_mesh_name);
 
   // Initialize the mesh points
   switch(params.dimension)
@@ -846,9 +812,8 @@ int main(int argc, char** argv)
   if(params.verboseOutput)
   {
     std::string file = params.outputFile + "_input_mesh";
-    SLIC_INFO(axom::fmt::format("Writing input mesh to '{}/{}'",
-                                axom::utilities::filesystem::getCWD(),
-                                file));
+    SLIC_INFO(
+      axom::fmt::format("Writing input mesh to '{}/{}'", axom::utilities::filesystem::getCWD(), file));
     inputMesh.saveMesh(file, params.outputProtocol);
   }
 
@@ -857,11 +822,8 @@ int main(int argc, char** argv)
   sidre::DataStore query_ds;
   const std::string query_coords_name = "query_coords";
   const std::string query_mesh_name = "query_mesh";
-  auto* query_pt_mesh_group =
-    query_ds.getRoot()->createGroup("query_point_mesh");
-  internal::blueprint::PointMesh queryMesh(query_pt_mesh_group,
-                                           query_coords_name,
-                                           query_mesh_name);
+  auto* query_pt_mesh_group = query_ds.getRoot()->createGroup("query_point_mesh");
+  internal::blueprint::PointMesh queryMesh(query_pt_mesh_group, query_coords_name, query_mesh_name);
 
   // Initialize the mesh points
   switch(params.dimension)
@@ -978,12 +940,12 @@ int main(int argc, char** argv)
     break;
   }
   timer.stop();
-  SLIC_INFO(axom::fmt::format(
-    "It took {} seconds to interpolate the data on {} fields. "
-    "Interpolation rate of {:.1f} points per second.",
-    timer.elapsedTimeInSec(),
-    numFields,
-    numQueryPts * numFields / timer.elapsedTimeInSec()));
+  SLIC_INFO(
+    axom::fmt::format("It took {} seconds to interpolate the data on {} fields. "
+                      "Interpolation rate of {:.1f} points per second.",
+                      timer.elapsedTimeInSec(),
+                      numFields,
+                      numQueryPts * numFields / timer.elapsedTimeInSec()));
 
   // Check interpolation using local interpolation from weights
   timer.start();

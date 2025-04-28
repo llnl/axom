@@ -143,8 +143,7 @@ public:
   /// Loads the shape from file into m_surfaceMesh
   virtual void loadShape(const klee::Shape& shape);
 
-  virtual void prepareShapeQuery(klee::Dimensions shapeDimension,
-                                 const klee::Shape& shape) = 0;
+  virtual void prepareShapeQuery(klee::Dimensions shapeDimension, const klee::Shape& shape) = 0;
 
   virtual void runShapeQuery(const klee::Shape& shape) = 0;
 
@@ -180,9 +179,7 @@ protected:
    * \param[out] revolvedvolume A revolved volume for the shape, if the shape
    *             is from a C2C contour.
    */
-  void loadShapeInternal(const klee::Shape& shape,
-                         double percentError,
-                         double& revolvedVolume);
+  void loadShapeInternal(const klee::Shape& shape, double percentError, double& revolvedVolume);
 
   /*!
    * \brief Computes transforms for the shape and applies them to the surface mesh.

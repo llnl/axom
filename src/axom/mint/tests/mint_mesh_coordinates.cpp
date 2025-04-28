@@ -97,10 +97,7 @@ void create_sidre_data(sidre::DataStore& ds, int dimension)
 
     // NOTE: even though the array goes out-of-scope here, the data
     // remains persistent in sidre
-    sidre::deprecated::MCArray<double> coord_array(coord_view,
-                                                   SMALL_NUM_NODES,
-                                                   1,
-                                                   SMALL_NUM_NODES);
+    sidre::deprecated::MCArray<double> coord_array(coord_view, SMALL_NUM_NODES, 1, SMALL_NUM_NODES);
 
     coord_array.set(ptrs[idim], SMALL_NUM_NODES, 0);
   }  // END for all dimensions
@@ -153,9 +150,7 @@ void check_constructor(int dimension)
  * \param [in] numNodes the number of nodes in the mesh
  * \param [in] capacity max initial capacity (optional)
  */
-void check_constructor(int dimension,
-                       IndexType numNodes,
-                       IndexType capacity = IGNORE_CAPACITY)
+void check_constructor(int dimension, IndexType numNodes, IndexType capacity = IGNORE_CAPACITY)
 {
   EXPECT_TRUE(dimension >= 1 && dimension <= 3);
 
@@ -186,8 +181,7 @@ void check_constructor(int dimension,
 
   const double ratio = deprecated::MCArray<double>::DEFAULT_RESIZE_RATIO;
   const IndexType expected_computed_capacity =
-    utilities::max(DEFAULT_CAPACITY,
-                   static_cast<IndexType>(numNodes * ratio + 0.5));
+    utilities::max(DEFAULT_CAPACITY, static_cast<IndexType>(numNodes * ratio + 0.5));
 
   if(capacity == IGNORE_CAPACITY)
   {
@@ -214,10 +208,7 @@ void check_constructor(int dimension,
  * \param [in] i the nodal index.
  * \param [in] dim the dimension index.
  */
-double getCoordValue(IndexType ndims, IndexType i, int dim)
-{
-  return (ndims * i + dim) * PI;
-}
+double getCoordValue(IndexType ndims, IndexType i, int dim) { return (ndims * i + dim) * PI; }
 
 /*!
  * \brief Check that the nodal coordinates are correct.
@@ -297,8 +288,7 @@ void append_node_single(MeshCoordinates* mesh_coords, IndexType n_nodes)
   {
     for(IndexType i = 0; i < n_nodes; ++i)
     {
-      mesh_coords->append(getCoordValue(ndims, cur_n_nodes, 0),
-                          getCoordValue(ndims, cur_n_nodes, 1));
+      mesh_coords->append(getCoordValue(ndims, cur_n_nodes, 0), getCoordValue(ndims, cur_n_nodes, 1));
       EXPECT_EQ(++cur_n_nodes, mesh_coords->numNodes());
     }
   }
@@ -441,9 +431,7 @@ void insert_single(MeshCoordinates* mesh_coords, IndexType pos, IndexType final_
   }
   else if(ndims == 2)
   {
-    mesh_coords->insert(pos,
-                        getCoordValue(ndims, final_pos, 0),
-                        getCoordValue(ndims, final_pos, 1));
+    mesh_coords->insert(pos, getCoordValue(ndims, final_pos, 0), getCoordValue(ndims, final_pos, 1));
   }
   else
   {
@@ -465,10 +453,7 @@ void insert_single(MeshCoordinates* mesh_coords, IndexType pos, IndexType final_
  * \param [in] final_pos the expected final position of this node after all
  *  insertions have taken place.
  */
-void insert_structs(MeshCoordinates* mesh_coords,
-                    IndexType n_nodes,
-                    IndexType pos,
-                    IndexType final_pos)
+void insert_structs(MeshCoordinates* mesh_coords, IndexType n_nodes, IndexType pos, IndexType final_pos)
 {
   const int ndims = mesh_coords->dimension();
   IndexType cur_n_nodes = mesh_coords->numNodes();
@@ -498,10 +483,7 @@ void insert_structs(MeshCoordinates* mesh_coords,
  * \param [in] final_pos the expected final position of this node after all
  *  insertions have taken place.
  */
-void insert_arrays(MeshCoordinates* mesh_coords,
-                   IndexType n_nodes,
-                   IndexType pos,
-                   IndexType final_pos)
+void insert_arrays(MeshCoordinates* mesh_coords, IndexType n_nodes, IndexType pos, IndexType final_pos)
 {
   const int ndims = mesh_coords->dimension();
   IndexType cur_n_nodes = mesh_coords->numNodes();
@@ -1055,8 +1037,7 @@ TEST(mint_mesh_coordinates, shrink)
 TEST(mint_mesh_coordinates, change_resize_ratio)
 {
   constexpr int NDIMS = 3;
-  constexpr double DEFAULT_RESIZE_RATIO =
-    deprecated::MCArray<double>::DEFAULT_RESIZE_RATIO;
+  constexpr double DEFAULT_RESIZE_RATIO = deprecated::MCArray<double>::DEFAULT_RESIZE_RATIO;
   constexpr double NEW_RESIZE_RATIO = 2.5;
 
   MeshCoordinates mc(NDIMS);
@@ -1183,9 +1164,7 @@ TEST(mint_mesh_coordinates, sidre_pull_constructor)
 
       for(int j = 0; j < dim; ++j)
       {
-        internal::check_array_values(coords.getCoordinateArray(j),
-                                     expected_data[j],
-                                     SMALL_NUM_NODES);
+        internal::check_array_values(coords.getCoordinateArray(j), expected_data[j], SMALL_NUM_NODES);
       }
     }
     // END SCOPE
@@ -1199,8 +1178,7 @@ TEST(mint_mesh_coordinates, sidre_pull_constructor)
     EXPECT_TRUE(values_group != nullptr);
     for(int j = 0; j < dim; ++j)
     {
-      sidre::View* coords_view =
-        values_group->getView(std::string(coord_names[j]));
+      sidre::View* coords_view = values_group->getView(std::string(coord_names[j]));
 
       double* coord_data = static_cast<double*>(coords_view->getVoidPtr());
 
@@ -1342,22 +1320,17 @@ TEST(mint_mesh_coordinates_DeathTest, invalid_construction)
   // STEP 0: test construction with invalid dimension
   EXPECT_DEATH_IF_SUPPORTED(MeshCoordinates(0), IGNORE_OUTPUT);
   EXPECT_DEATH_IF_SUPPORTED(MeshCoordinates(4), IGNORE_OUTPUT);
-  EXPECT_DEATH_IF_SUPPORTED(
-    MeshCoordinates(0, SMALL_NUM_NODES, SMALL_NODE_CAPACITY),
-    IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(MeshCoordinates(0, SMALL_NUM_NODES, SMALL_NODE_CAPACITY), IGNORE_OUTPUT);
 
   // STEP 1: test construction with invalid numNodes,max_capacity settings
-  EXPECT_DEATH_IF_SUPPORTED(
-    MeshCoordinates(2, LARGE_NUM_NODES, SMALL_NODE_CAPACITY),
-    IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(MeshCoordinates(2, LARGE_NUM_NODES, SMALL_NODE_CAPACITY), IGNORE_OUTPUT);
 
   // STEP 2: test invalid construction with null external buffers
   EXPECT_DEATH_IF_SUPPORTED(MeshCoordinates(10, 10, nullptr), IGNORE_OUTPUT);
 
   // STEP 3: test invalid construction from external buffers with 0 nodes
   double x[SMALL_NUM_NODES] = {1.0, 2.0, 3.0, 4.0};
-  EXPECT_DEATH_IF_SUPPORTED(MeshCoordinates(ZERO_NUM_NODES, ZERO_NUM_NODES, x),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(MeshCoordinates(ZERO_NUM_NODES, ZERO_NUM_NODES, x), IGNORE_OUTPUT);
 
 #ifdef AXOM_MINT_USE_SIDRE
 
@@ -1371,8 +1344,7 @@ TEST(mint_mesh_coordinates_DeathTest, invalid_construction)
 
   // STEP 6: test sidre push-constructor with with a non-empty group
   internal::create_sidre_data(ds, 2);
-  EXPECT_DEATH_IF_SUPPORTED(MeshCoordinates(ds.getRoot(), 2, 5, 5),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(MeshCoordinates(ds.getRoot(), 2, 5, 5), IGNORE_OUTPUT);
 
 #endif /* AXOM_MINT_USE_SIDRE */
 }

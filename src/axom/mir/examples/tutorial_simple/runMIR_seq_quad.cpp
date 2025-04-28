@@ -4,9 +4,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "runMIR.hpp"
 
-int runMIR_seq_quad(const conduit::Node &mesh,
-                    const conduit::Node &options,
-                    conduit::Node &result)
+int runMIR_seq_quad(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result)
 {
   return runMIR_quad<axom::SEQ_EXEC>(mesh, options, result);
 }

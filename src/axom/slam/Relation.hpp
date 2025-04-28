@@ -25,8 +25,7 @@ namespace slam
 template <typename PosType, typename ElemType>
 class NullSet;
 
-template <typename PosType = slam::DefaultPositionType,
-          typename ElemType = slam::DefaultElementType>
+template <typename PosType = slam::DefaultPositionType, typename ElemType = slam::DefaultElementType>
 class Relation
 {
 public:
@@ -35,11 +34,9 @@ public:
 
   using RelationVec = std::vector<SetPosition>;
   using RelationVecIterator = typename RelationVec::iterator;
-  using RelationVecIteratorPair =
-    std::pair<RelationVecIterator, RelationVecIterator>;
+  using RelationVecIteratorPair = std::pair<RelationVecIterator, RelationVecIterator>;
   using RelationVecConstIterator = typename RelationVec::const_iterator;
-  using RelationVecConstIteratorPair =
-    std::pair<RelationVecConstIterator, RelationVecConstIterator>;
+  using RelationVecConstIteratorPair = std::pair<RelationVecConstIterator, RelationVecConstIterator>;
 
   static NullSet<PosType, ElemType> s_nullSet;
 

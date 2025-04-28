@@ -30,11 +30,10 @@ Path::Path(const std::string& path, const char delim) : m_delim(delim)
     m_components = utilities::string::split(path, delim);
 
     // Remove empty parts
-    m_components.erase(
-      std::remove_if(m_components.begin(),
-                     m_components.end(),
-                     [](std::string const& s) { return s.empty(); }),
-      m_components.end());
+    m_components.erase(std::remove_if(m_components.begin(),
+                                      m_components.end(),
+                                      [](std::string const& s) { return s.empty(); }),
+                       m_components.end());
   }
   else if(!path.empty())
   {

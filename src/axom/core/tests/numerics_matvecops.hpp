@@ -273,8 +273,7 @@ TEST(numerics_matvecops, matrix_norm)
   EXPECT_DOUBLE_EQ(inftynorm, EXPECTED_INFTY_NORM);
 
   // STEP 3: test frobenius norm
-  double frobnorm =
-    axom::numerics::matrix_norm(A, axom::numerics::FROBENIUS_NORM);
+  double frobnorm = axom::numerics::matrix_norm(A, axom::numerics::FROBENIUS_NORM);
   EXPECT_DOUBLE_EQ(frobnorm, EXPECTED_FROBENIOUS_NORM);
 }
 

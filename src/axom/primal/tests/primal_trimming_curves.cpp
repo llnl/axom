@@ -49,8 +49,7 @@ protected:
                                                PointType {2.0, 1.0, 0.0},
                                                PointType {2.0, 2.0, 1.0}});
 
-    nPatch =
-      NURBSPatchType(controlPointsArray, npts_u, npts_v, degree_u, degree_v);
+    nPatch = NURBSPatchType(controlPointsArray, npts_u, npts_v, degree_u, degree_v);
   }
 
   NURBSPatchType nPatch;
@@ -90,12 +89,11 @@ TEST_F(TrimmingCurveTest, basic_operations)
   EXPECT_FALSE(nPatch.isTrimmed());
 
   // Add a simple trimming curve from a NURBS curve
-  axom::Array<ParameterPointType> trimmingCurveControlPoints {
-    ParameterPointType {0.25, 0.25},
-    ParameterPointType {0.75, 0.25},
-    ParameterPointType {0.75, 0.75},
-    ParameterPointType {0.25, 0.75},
-    ParameterPointType {0.25, 0.25}};
+  axom::Array<ParameterPointType> trimmingCurveControlPoints {ParameterPointType {0.25, 0.25},
+                                                              ParameterPointType {0.75, 0.25},
+                                                              ParameterPointType {0.75, 0.75},
+                                                              ParameterPointType {0.25, 0.75},
+                                                              ParameterPointType {0.25, 0.25}};
 
   TrimmingCurveType trimmingCurve(trimmingCurveControlPoints, 2);
 
@@ -112,12 +110,24 @@ TEST_F(TrimmingCurveTest, basic_operations)
   EXPECT_TRUE(nPatchCopy.isTrimmed());
   EXPECT_EQ(nPatchCopy.getNumTrimmingCurves(), 1);
 
-  // Delete all trimming curves from the copy
+  // Mark the copy as untrimmed
   nPatchCopy.makeUntrimmed();
   EXPECT_FALSE(nPatchCopy.isTrimmed());
 
   // Check that the two patches are not equal
   EXPECT_NE(nPatchCopy, nPatch);
+
+  // Remove trimming curves from the original
+  nPatch.clearTrimmingCurves();
+
+  // Check that the two patches are still not equal
+  EXPECT_NE(nPatchCopy, nPatch);
+
+  // Mark the original one as untrimmed
+  nPatch.makeUntrimmed();
+
+  // Check that the two patches are now equal
+  EXPECT_EQ(nPatchCopy, nPatch);
 }
 
 //------------------------------------------------------------------------------
@@ -135,12 +145,11 @@ TEST_F(TrimmingCurveTest, visibility_queries)
   EXPECT_FALSE(nPatch.isVisible(0.5, 1.5));
 
   // Add a simple trimming curve from a NURBS curve
-  axom::Array<ParameterPointType> trimmingCurveControlPoints {
-    ParameterPointType {0.25, 0.25},
-    ParameterPointType {0.75, 0.25},
-    ParameterPointType {0.75, 0.75},
-    ParameterPointType {0.25, 0.75},
-    ParameterPointType {0.25, 0.25}};
+  axom::Array<ParameterPointType> trimmingCurveControlPoints {ParameterPointType {0.25, 0.25},
+                                                              ParameterPointType {0.75, 0.25},
+                                                              ParameterPointType {0.75, 0.75},
+                                                              ParameterPointType {0.25, 0.75},
+                                                              ParameterPointType {0.25, 0.25}};
 
   TrimmingCurveType trimmingCurve(trimmingCurveControlPoints, 2);
   nPatch.addTrimmingCurve(trimmingCurve);
@@ -191,12 +200,11 @@ TEST_F(TrimmingCurveTest, visibility_queries_open_curves)
   EXPECT_FALSE(nPatch.isVisible(0.5, 1.5));
 
   // Add an open trimming curve from a NURBS curve
-  axom::Array<ParameterPointType> trimmingCurveControlPoints {
-    ParameterPointType {0.30, 0.25},
-    ParameterPointType {0.75, 0.25},
-    ParameterPointType {0.75, 0.75},
-    ParameterPointType {0.25, 0.75},
-    ParameterPointType {0.25, 0.30}};
+  axom::Array<ParameterPointType> trimmingCurveControlPoints {ParameterPointType {0.30, 0.25},
+                                                              ParameterPointType {0.75, 0.25},
+                                                              ParameterPointType {0.75, 0.75},
+                                                              ParameterPointType {0.25, 0.75},
+                                                              ParameterPointType {0.25, 0.30}};
 
   TrimmingCurveType trimmingCurve(trimmingCurveControlPoints, 2);
   nPatch.addTrimmingCurve(trimmingCurve);
@@ -221,12 +229,11 @@ TEST_F(TrimmingCurveTest, trimming_curve_orientation)
   NURBSPatchType nPatchCopy(nPatch);
 
   // Add a simple trimming curve from a NURBS curve
-  axom::Array<ParameterPointType> trimmingCurveControlPoints {
-    ParameterPointType {0.25, 0.25},
-    ParameterPointType {0.75, 0.25},
-    ParameterPointType {0.75, 0.75},
-    ParameterPointType {0.25, 0.75},
-    ParameterPointType {0.25, 0.25}};
+  axom::Array<ParameterPointType> trimmingCurveControlPoints {ParameterPointType {0.25, 0.25},
+                                                              ParameterPointType {0.75, 0.25},
+                                                              ParameterPointType {0.75, 0.75},
+                                                              ParameterPointType {0.25, 0.75},
+                                                              ParameterPointType {0.25, 0.25}};
 
   TrimmingCurveType trimmingCurve(trimmingCurveControlPoints, 2);
   nPatch.addTrimmingCurve(trimmingCurve);
@@ -279,18 +286,16 @@ TEST_F(TrimmingCurveTest, trimming_curve_orientation)
 //------------------------------------------------------------------------------
 TEST_F(TrimmingCurveTest, knot_vector_manipulation)
 {
-  SLIC_INFO(
-    "Testing position of trimming curves after changing surface orientation");
+  SLIC_INFO("Testing position of trimming curves after changing surface orientation");
 
   NURBSPatchType nPatch(this->nPatch);
 
   // Add a simple, not symmetric trimming curve from a NURBS curve
-  axom::Array<ParameterPointType> trimmingCurveControlPoints {
-    ParameterPointType {0.20, 0.15},
-    ParameterPointType {0.70, 0.15},
-    ParameterPointType {0.70, 0.65},
-    ParameterPointType {0.20, 0.65},
-    ParameterPointType {0.20, 0.15}};
+  axom::Array<ParameterPointType> trimmingCurveControlPoints {ParameterPointType {0.20, 0.15},
+                                                              ParameterPointType {0.70, 0.15},
+                                                              ParameterPointType {0.70, 0.65},
+                                                              ParameterPointType {0.20, 0.65},
+                                                              ParameterPointType {0.20, 0.15}};
   TrimmingCurveType trimmingCurve(trimmingCurveControlPoints, 2);
   nPatch.addTrimmingCurve(trimmingCurve);
 
@@ -395,14 +400,8 @@ TEST_F(TrimmingCurveTest, trimming_disk_subdivision)
 
   constexpr int npts = 10;
   double u_pts[npts], v_pts[npts];
-  axom::numerics::linspace(the_disk.getMinKnot_u(),
-                           the_disk.getMaxKnot_u(),
-                           u_pts,
-                           npts);
-  axom::numerics::linspace(the_disk.getMinKnot_v(),
-                           the_disk.getMaxKnot_v(),
-                           v_pts,
-                           npts);
+  axom::numerics::linspace(the_disk.getMinKnot_u(), the_disk.getMaxKnot_u(), u_pts, npts);
+  axom::numerics::linspace(the_disk.getMinKnot_v(), the_disk.getMaxKnot_v(), v_pts, npts);
 
   for(auto u : u_pts)
   {
@@ -516,25 +515,14 @@ TEST_F(TrimmingCurveTest, trimming_disk_subdivision_edge_cases)
   // Get the rest of the disks
   for(int i = 1; i < 7; ++i)
   {
-    the_rest.diskSplit(centers[i][0],
-                       centers[i][1],
-                       radius,
-                       disks[i],
-                       the_rest,
-                       !clipDisk);
+    the_rest.diskSplit(centers[i][0], centers[i][1], radius, disks[i], the_rest, !clipDisk);
   }
 
   constexpr int npts = 10;
   double u_pts[npts], v_pts[npts];
-  axom::numerics::linspace(the_rest.getMinKnot_u(),
-                           the_rest.getMaxKnot_u(),
-                           u_pts,
-                           npts);
+  axom::numerics::linspace(the_rest.getMinKnot_u(), the_rest.getMaxKnot_u(), u_pts, npts);
 
-  axom::numerics::linspace(the_rest.getMinKnot_v(),
-                           the_rest.getMaxKnot_v(),
-                           v_pts,
-                           npts);
+  axom::numerics::linspace(the_rest.getMinKnot_v(), the_rest.getMaxKnot_v(), v_pts, npts);
 
   for(auto u : u_pts)
   {
@@ -544,8 +532,7 @@ TEST_F(TrimmingCurveTest, trimming_disk_subdivision_edge_cases)
       for(int i = 0; i < 7; ++i)
       {
         // Ensure it's in the disk that was punctured out
-        if((u - centers[i][0]) * (u - centers[i][0]) +
-             (v - centers[i][1]) * (v - centers[i][1]) <
+        if((u - centers[i][0]) * (u - centers[i][0]) + (v - centers[i][1]) * (v - centers[i][1]) <
            radius * radius)
         {
           EXPECT_TRUE(disks[i].isVisible(u, v));
@@ -613,15 +600,9 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision)
 
   constexpr int npts = 10;
   double u_pts[npts], v_pts[npts];
-  axom::numerics::linspace(the_rest.getMinKnot_u(),
-                           the_rest.getMaxKnot_u(),
-                           u_pts,
-                           npts);
+  axom::numerics::linspace(the_rest.getMinKnot_u(), the_rest.getMaxKnot_u(), u_pts, npts);
 
-  axom::numerics::linspace(the_rest.getMinKnot_v(),
-                           the_rest.getMaxKnot_v(),
-                           v_pts,
-                           npts);
+  axom::numerics::linspace(the_rest.getMinKnot_v(), the_rest.getMaxKnot_v(), v_pts, npts);
 
   for(auto u : u_pts)
   {
@@ -667,15 +648,8 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_edge_cases)
 
   constexpr int npts = 10;
   double u_pts[npts], v_pts[npts];
-  axom::numerics::linspace(the_rest.getMinKnot_u(),
-                           the_rest.getMaxKnot_u(),
-                           u_pts,
-                           npts);
-
-  axom::numerics::linspace(the_rest.getMinKnot_v(),
-                           the_rest.getMaxKnot_v(),
-                           v_pts,
-                           npts);
+  axom::numerics::linspace(the_rest.getMinKnot_u(), the_rest.getMaxKnot_u(), u_pts, npts);
+  axom::numerics::linspace(the_rest.getMinKnot_v(), the_rest.getMaxKnot_v(), v_pts, npts);
 
   for(auto u : u_pts)
   {
@@ -694,14 +668,12 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_edge_cases)
   }
 
   nPatch = this->nPatch;
-  TrimmingCurveType the_curve;
 
   // Add trimming curves to the patch with a straight edge at u=0.5
-  the_curve.constructLinearSegment({0.5, 0.75}, {0.5, 0.25});
-  nPatch.addTrimmingCurve(the_curve);
+  nPatch.addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({0.5, 0.75}, {0.5, 0.25}));
 
-  the_curve.constructCircularArc(-M_PI / 2.0, M_PI / 2.0, {0.5, 0.5}, 0.25);
-  nPatch.addTrimmingCurve(the_curve);
+  nPatch.addTrimmingCurve(
+    TrimmingCurveType::make_circular_arc_nurbs(-M_PI / 2.0, M_PI / 2.0, 0.5, 0.5, 0.25));
 
   // Split the patch along the same edge
   NURBSPatchType leftpatch2, rightpatch2;
@@ -712,8 +684,7 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_edge_cases)
     for(auto v : v_pts)
     {
       // Figure out if a point is inside either of the disks
-      bool inHalfDisk = (u > 0.5) &&
-        (u - 0.5) * (u - 0.5) + (v - 0.5) * (v - 0.5) < 0.25 * 0.25;
+      bool inHalfDisk = (u > 0.5) && (u - 0.5) * (u - 0.5) + (v - 0.5) * (v - 0.5) < 0.25 * 0.25;
 
       // The point should only be in the right patch if it's in the half disk,
       //  and should never be in the left patch
@@ -724,37 +695,77 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_edge_cases)
 }
 
 //------------------------------------------------------------------------------
-TEST_F(TrimmingCurveTest, trimming_edge_subdivision_unworked_edge_case)
+TEST_F(TrimmingCurveTest, trimming_edge_subdivision_tangent_edge_cases)
 {
-  SLIC_INFO("Testing edge cases of disk subdivision of the curve");
+  SLIC_INFO("Testing edge cases of subdivision at tangent points to trimming curves");
 
   NURBSPatchType nPatch(this->nPatch);
+  constexpr int npts = 10;
+  double u_pts[npts], v_pts[npts];
+  axom::numerics::linspace(nPatch.getMinKnot_u(), nPatch.getMaxKnot_u(), u_pts, npts);
+  axom::numerics::linspace(nPatch.getMinKnot_v(), nPatch.getMaxKnot_v(), v_pts, npts);
 
-  // This is a case where the trimming curve is tangent to the subdivision edge,
-  //  and so the current intersection routines won't record them
-  
-  axom::Array<ParameterPointType> trimmingCurveControlPoints {
-    ParameterPointType {1.0, 1.0},
-    ParameterPointType {0.75, 0.0},
-    ParameterPointType {0.25, 1.0},
-    ParameterPointType {0.0, 0.0}};
+  axom::Array<TrimmingCurveType> trimmingCurves;
+  axom::Array<ParameterPointType> trimmingCurveControlPoints {ParameterPointType {1.0, 1.0},
+                                                              ParameterPointType {0.75, 0.0},
+                                                              ParameterPointType {0.25, 1.0},
+                                                              ParameterPointType {0.0, 0.0}};
 
-  TrimmingCurveType trimmingCurve(trimmingCurveControlPoints, 3);
-  nPatch.addTrimmingCurve(trimmingCurve);
+  TrimmingCurveType interestingCurve(trimmingCurveControlPoints, 3);
 
-  trimmingCurve.constructLinearSegment({1.0, 0.0}, {1.0, 1.0});
-  nPatch.addTrimmingCurve(trimmingCurve);
+  trimmingCurves.push_back(interestingCurve);
+  trimmingCurves.push_back(TrimmingCurveType::make_linear_segment_nurbs({0.0, 0.0}, {1.0, 0.0}));
+  trimmingCurves.push_back(TrimmingCurveType::make_linear_segment_nurbs({1.0, 0.0}, {1.0, 1.0}));
 
-  trimmingCurve.constructLinearSegment({0.0, 0.0}, {1.0, 0.0});
-  nPatch.addTrimmingCurve(trimmingCurve);
+  nPatch.addTrimmingCurves(trimmingCurves);
 
   bool normalize = true;
   NURBSPatchType toppatch, bottompatch;
-  nPatch.split_v(0.5, toppatch, bottompatch, !normalize);
+  nPatch.split_v(0.5, bottompatch, toppatch, !normalize);
 
-  nPatch.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//original.txt");
-  toppatch.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//left.txt");
-  bottompatch.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//right.txt");
+  for(auto u : u_pts)
+  {
+    for(auto v : v_pts)
+    {
+      if(v <= 0.5)
+      {
+        EXPECT_EQ(nPatch.isVisible(u, v), bottompatch.isVisible(u, v));
+      }
+      else
+      {
+        EXPECT_EQ(nPatch.isVisible(u, v), toppatch.isVisible(u, v));
+      }
+    }
+  }
+
+  // Reset the original patch
+  nPatch = this->nPatch;
+  nPatch.addTrimmingCurves(trimmingCurves);
+
+  bool clipDisk = true;
+  NURBSPatchType the_rest, the_disk;
+
+  nPatch.diskSplit(0.5, -0.5, 1.0, the_disk, the_rest, !clipDisk);
+
+  for(auto u : u_pts)
+  {
+    for(auto v : v_pts)
+    {
+      if(nPatch.isVisible(u, v))
+      {
+        // Figure out if a point is inside either of the disks
+        bool inDisk = (u - 0.5) * (u - 0.5) + (v + 0.5) * (v + 0.5) < 1.0 * 1.0;
+
+        EXPECT_EQ(inDisk, the_disk.isVisible(u, v));
+        EXPECT_EQ(!inDisk, the_rest.isVisible(u, v));
+      }
+      else
+      {
+        EXPECT_EQ(the_disk.isVisible(u, v), false);
+        EXPECT_EQ(the_rest.isVisible(u, v), false);
+      }
+    }
+  }
 }
 
 int main(int argc, char* argv[])

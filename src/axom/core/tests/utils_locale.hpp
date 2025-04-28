@@ -47,8 +47,7 @@ std::string execute_command(const std::string& cmd)
   std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"), pclose);
   if(!pipe)
   {
-    throw std::runtime_error(
-      axom::fmt::format("popen() failed for command '{}'", cmd));
+    throw std::runtime_error(axom::fmt::format("popen() failed for command '{}'", cmd));
   }
 
   while(fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
@@ -90,8 +89,7 @@ TEST(utils_locale, check_en_US_locale)
   try
   {
     std::locale loc("en_US.UTF-8");
-    std::cout << "Name after setting locale to 'en_US.UTF-8': " << loc.name()
-              << std::endl;
+    std::cout << "Name after setting locale to 'en_US.UTF-8': " << loc.name() << std::endl;
   }
   catch(std::runtime_error&)
   {
@@ -121,8 +119,7 @@ TEST(utils_locale, axom_locale_default)
   try
   {
     const auto loc = axom::utilities::locale();
-    std::cout << axom::fmt::format("Axom's default locale is: '{}'\n",
-                                   loc.name());
+    std::cout << axom::fmt::format("Axom's default locale is: '{}'\n", loc.name());
   }
   catch(std::runtime_error&)
   {
@@ -149,32 +146,18 @@ TEST(utils_locale, axom_locale_variations)
   {
     try
     {
-      const auto loc = (loc_str == std::string("<DEFAULT>"))
-        ? axom::utilities::locale()
-        : axom::utilities::locale(loc_str);
+      const auto loc = (loc_str == std::string("<DEFAULT>")) ? axom::utilities::locale()
+                                                             : axom::utilities::locale(loc_str);
 
-      std::cout << axom::fmt::format("Locale for '{}' is '{}'\n",
-                                     loc_str,
-                                     loc.name());
+      std::cout << axom::fmt::format("Locale for '{}' is '{}'\n", loc_str, loc.name());
 
-      std::cout << axom::fmt::format(
-        loc,
-        "Formatting an int32 using the locale {:L}\n",
-        ii);
-      std::cout << axom::fmt::format(
-        loc,
-        "Formatting an int64 using the locale {:L}\n",
-        ll);
-      std::cout << axom::fmt::format(
-        loc,
-        "Formatting a double using the locale {:L}\n",
-        dd);
+      std::cout << axom::fmt::format(loc, "Formatting an int32 using the locale {:L}\n", ii);
+      std::cout << axom::fmt::format(loc, "Formatting an int64 using the locale {:L}\n", ll);
+      std::cout << axom::fmt::format(loc, "Formatting a double using the locale {:L}\n", dd);
     }
     catch(std::runtime_error&)
     {
-      FAIL() << axom::fmt::format(
-        "Could not initialize a valid locale for '{}'\n",
-        loc_str);
+      FAIL() << axom::fmt::format("Could not initialize a valid locale for '{}'\n", loc_str);
     }
   }
 }
@@ -198,18 +181,16 @@ TEST(utils_locale, enumerate_locales_linux)
 
   // remove non-ascii strings since they're causing problems on blueos
   auto is_non_ascii = [](char c) { return static_cast<unsigned char>(c) > 127; };
-  locale_list.erase(
-    std::remove_if(locale_list.begin(),
-                   locale_list.end(),
-                   [=](const std::string& s) {
-                     return std::any_of(s.begin(), s.end(), is_non_ascii);
-                   }),
-    locale_list.end());
+  locale_list.erase(std::remove_if(locale_list.begin(),
+                                   locale_list.end(),
+                                   [=](const std::string& s) {
+                                     return std::any_of(s.begin(), s.end(), is_non_ascii);
+                                   }),
+                    locale_list.end());
 
   // sort and unique-ify the list
   std::sort(locale_list.begin(), locale_list.end());
-  locale_list.erase(std::unique(locale_list.begin(), locale_list.end()),
-                    locale_list.end());
+  locale_list.erase(std::unique(locale_list.begin(), locale_list.end()), locale_list.end());
 
   // check if each item can successfully be used to create a locale
   for(const auto& loc_str : locale_list)
@@ -244,8 +225,7 @@ TEST(utils_locale, enumerate_locales_windows)
 
   // sort and unique-ify the list
   std::sort(locale_list.begin(), locale_list.end());
-  locale_list.erase(std::unique(locale_list.begin(), locale_list.end()),
-                    locale_list.end());
+  locale_list.erase(std::unique(locale_list.begin(), locale_list.end()), locale_list.end());
 
   // check if each item can successfully be used to create a locale
   for(const auto& loc_str : locale_list)

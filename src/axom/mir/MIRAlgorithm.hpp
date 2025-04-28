@@ -56,7 +56,7 @@ options:
     "new_matset" is the name of the new matset that will be created in the output node. If it is not provided then the name of the topology's matset will be used.  
     "fields" is the name of the fields to map to the new topology. If fields is specified but empty, no fields will be mapped. If fields is not present then all fields will be mapped.
     "zones" is a list of zone indices from the topology that need to be reconstructed. If not present then all zones will be considered.
-    "mapping" indicates whether we should include an original_element_numbers field on the new topology to indicate where each new zone came from in the original topology.
+    "mapping" indicates whether we should include an originalElements field on the new topology to indicate where each new zone came from in the original topology.
 
     \param[out] n_output A node that will contain the new entities.
 
@@ -109,6 +109,22 @@ protected:
    * \param destState The node that contains the state in the destination domain.
    */
   void copyState(const conduit::Node &srcState, conduit::Node &destState) const;
+
+  /*!
+   * \brief This is a utility method for printing a Conduit node with large limits
+   *        for lines and element counts.
+   *
+   * \param n The Conduit node to print.
+   */
+  void printNode(const conduit::Node &n) const;
+
+  /*!
+   * \brief Save a Blueprint mesh to disk (YAML and HDF5, if available).
+   *
+   * \param n_mesh The mesh to save.
+   * \param filebase The base filename to use when writing files. Extensions may be added.
+   */
+  void saveMesh(const conduit::Node &n_mesh, const std::string &filebase) const;
 };
 
 }  // end namespace mir

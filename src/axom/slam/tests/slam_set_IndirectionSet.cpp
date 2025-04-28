@@ -128,8 +128,7 @@ public:
   void getDataBuffer(axom::ArrayView<ElemType>& ptr, int index = 0)
   {
     checkIndex(index);
-    ptr =
-      axom::ArrayView<ElemType>(mDataVec[index].data(), mDataVec[index].size());
+    ptr = axom::ArrayView<ElemType>(mDataVec[index].data(), mDataVec[index].size());
   }
 
 private:
@@ -164,11 +163,10 @@ bool compareData(axom::ArrayView<ElemType> a, axom::ArrayView<ElemType> b)
 }
 
 // Tests several types of indirection sets
-using MyTypes =
-  ::testing::Types<slam::CArrayIndirectionSet<std::int32_t, std::int64_t>,
-                   slam::VectorIndirectionSet<std::int32_t, std::int64_t>,
-                   slam::ArrayIndirectionSet<std::int32_t, std::int64_t>,
-                   slam::ArrayViewIndirectionSet<std::int32_t, std::int64_t>>;
+using MyTypes = ::testing::Types<slam::CArrayIndirectionSet<std::int32_t, std::int64_t>,
+                                 slam::VectorIndirectionSet<std::int32_t, std::int64_t>,
+                                 slam::ArrayIndirectionSet<std::int32_t, std::int64_t>,
+                                 slam::ArrayViewIndirectionSet<std::int32_t, std::int64_t>>;
 
 TYPED_TEST_SUITE(IndirectionSetTester, MyTypes);
 
@@ -195,8 +193,7 @@ TYPED_TEST(IndirectionSetTester, constuct)
     EXPECT_FALSE(s.empty());
     EXPECT_EQ(MAX_SET_SIZE, s.size());
     EXPECT_FALSE(s.hasIndirection());
-    EXPECT_FALSE(s.isValid())
-      << "IndirectionSet not valid until we set the indirection buffer";
+    EXPECT_FALSE(s.isValid()) << "IndirectionSet not valid until we set the indirection buffer";
 
     // Add data to the set
     this->getDataBuffer(s.ptr());
@@ -334,9 +331,7 @@ TYPED_TEST(IndirectionSetTester, iterate)
   {
     this->permuteData();
     std::stringstream sstr;
-    std::copy(s.begin(),
-              s.end(),
-              std::ostream_iterator<SetPosition>(sstr, "\t"));
+    std::copy(s.begin(), s.end(), std::ostream_iterator<SetPosition>(sstr, "\t"));
     SLIC_INFO("Permutation " << i << ":\t" << sstr.str());
   }
 }
@@ -486,11 +481,9 @@ TEST(slam_set_indirectionset, negative_stride)
   using VecIndPol = policies::STLVectorIndirection<SetPosition, SetElement>;
   using CArrIndPol = policies::CArrayIndirection<SetPosition, SetElement>;
 
-  using VecSet =
-    slam::OrderedSet<SetPosition, SetElement, SizePol, OffPol, StridePol, VecIndPol>;
+  using VecSet = slam::OrderedSet<SetPosition, SetElement, SizePol, OffPol, StridePol, VecIndPol>;
 
-  using CArrSet =
-    slam::OrderedSet<SetPosition, SetElement, SizePol, OffPol, StridePol, CArrIndPol>;
+  using CArrSet = slam::OrderedSet<SetPosition, SetElement, SizePol, OffPol, StridePol, CArrIndPol>;
 
   // Set up data -- an array of incrementing integers
   std::vector<SetElement> intVec(MAX_SET_SIZE);

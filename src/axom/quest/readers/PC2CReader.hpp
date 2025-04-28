@@ -38,9 +38,17 @@ public:
   int read() final override;
 
 private:
-  /// Utility function to broadcast a vector of primitive types
-  template <typename T>
-  void bcastVector(std::vector<T>& vec);
+  /// MPI broadcasts an integer from rank 0 and returns the value to all ranks
+  /// (other ranks do not need to supply a value)
+  int bcast_int(int value = 0);
+
+  /// MPI broadcasts a bool from rank 0 and returns the value to all ranks
+  /// (other ranks do not need to supply a value)
+  bool bcast_bool(bool value = false);
+
+  /// MPI broadcasts an array of doubles in an axom::ArrayView
+  /// Assumes all ranks already have the correct size
+  void bcast_data(axom::ArrayView<double> arr);
 
 private:
   MPI_Comm m_comm {MPI_COMM_NULL};

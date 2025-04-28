@@ -57,10 +57,8 @@ TEST(spio_serial, basic_writeread)
 
   EXPECT_EQ(testvalue1, testvalue2);
 
-  testvalue1 =
-    ds1->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1")->getData();
-  testvalue2 =
-    ds2->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1")->getData();
+  testvalue1 = ds1->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1")->getData();
+  testvalue2 = ds2->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1")->getData();
 
   EXPECT_EQ(testvalue1, testvalue2);
 
@@ -120,10 +118,8 @@ TEST(spio_serial, basic_writeread_protocols)
 
     EXPECT_EQ(testvalue1, testvalue2);
 
-    testvalue1 =
-      ds1->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1")->getData();
-    testvalue2 =
-      ds2->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1")->getData();
+    testvalue1 = ds1->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1")->getData();
+    testvalue2 = ds2->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1")->getData();
 
     EXPECT_EQ(testvalue1, testvalue2);
 

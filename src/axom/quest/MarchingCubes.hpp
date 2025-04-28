@@ -195,10 +195,9 @@ public:
     data to host memory.  To access the data without deep-copying, see
     the other output methods in this name group.
   */
-  void populateContourMesh(
-    axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> &mesh,
-    const std::string &cellIdField = {},
-    const std::string &domainIdField = {}) const;
+  void populateContourMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> &mesh,
+                           const std::string &cellIdField = {},
+                           const std::string &domainIdField = {}) const;
 
   /*!
     @brief Return view of facet corner node indices (connectivity) Array.
@@ -217,10 +216,7 @@ public:
     The array shape is (getContourNodeCount(), <spatial dimension>), where
     the second index is the spatial index.
   */
-  axom::ArrayView<const double, 2> getContourNodeCoords() const
-  {
-    return m_facetNodeCoords.view();
-  }
+  axom::ArrayView<const double, 2> getContourNodeCoords() const { return m_facetNodeCoords.view(); }
 
   /*!
     @brief Return view of parent cell indices Array.
@@ -292,13 +288,21 @@ public:
   // Allow single-domain code to share common scratch space.
   friend detail::marching_cubes::MarchingCubesSingleDomain;
 
+  /*
+    TODO: CrossingFlagType can be a boolean value but is wastefully
+    stored in 32 bits because of a ROCM scan implementation that adds
+    them in the input type without promoting them to our 32-bit output
+    type.  When ROCM supports the promotion and RAJA uses it, we can
+    change this type to something more efficient.
+  */
+  using CrossingFlagType = std::uint32_t;
+
 private:
   RuntimePolicy m_runtimePolicy;
   int m_allocatorID = axom::INVALID_ALLOCATOR_ID;
 
   //@brief Choice of full or partial data-parallelism, or byPolicy.
-  MarchingCubesDataParallelism m_dataParallelism =
-    MarchingCubesDataParallelism::byPolicy;
+  MarchingCubesDataParallelism m_dataParallelism = MarchingCubesDataParallelism::byPolicy;
 
   //!@brief Number of domains.
   axom::IndexType m_domainCount;
@@ -327,7 +331,8 @@ private:
   //!@name Scratch space from m_allocatorID, shared among singles
   // Memory alloc is slow on CUDA, so this optimizes space AND time.
   axom::Array<std::uint16_t> m_caseIdsFlat;
-  axom::Array<std::uint16_t> m_crossingFlags;
+
+  axom::Array<CrossingFlagType> m_crossingFlags;
   axom::Array<axom::IndexType> m_scannedFlags;
   axom::Array<axom::IndexType> m_facetIncrs;
   //@}

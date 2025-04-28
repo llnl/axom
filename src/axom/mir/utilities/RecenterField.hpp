@@ -37,12 +37,9 @@ public:
    * \param relation    The node that contains an o2mrelation with nodes to zones.
    * \param outField[out] The node that will contain the new field.
    */
-  void execute(const conduit::Node &field,
-               const conduit::Node &relation,
-               conduit::Node &outField) const
+  void execute(const conduit::Node &field, const conduit::Node &relation, conduit::Node &outField) const
   {
-    const std::string association =
-      field.fetch_existing("association").as_string();
+    const std::string association = field.fetch_existing("association").as_string();
 
     // Assume that we're flipping the association.
     outField["association"] = (association == "element") ? "vertex" : "element";
@@ -55,9 +52,7 @@ public:
       for(conduit::index_t c = 0; c < n_values.number_of_children(); c++)
       {
         const conduit::Node &n_comp = n_values[c];
-        recenterSingleComponent(n_comp,
-                                relation,
-                                outField["values"][n_comp.name()]);
+        recenterSingleComponent(n_comp, relation, outField["values"][n_comp.name()]);
       }
     }
     else
@@ -100,15 +95,9 @@ private:
         n_out.set_allocator(c2a.getConduitAllocatorID());
         n_out.set(conduit::DataType(n_comp.dtype().id(), relSize));
 
-        views::Node_to_ArrayView_same(n_out,
-                                      n_comp,
-                                      [&](auto outView, auto compView) {
-                                        recenterSingleComponentImpl(relView,
-                                                                    sizesView,
-                                                                    offsetsView,
-                                                                    outView,
-                                                                    compView);
-                                      });
+        views::Node_to_ArrayView_same(n_out, n_comp, [&](auto outView, auto compView) {
+          recenterSingleComponentImpl(relView, sizesView, offsetsView, outView, compView);
+        });
       });
   }
 
@@ -129,8 +118,7 @@ private:
                                    DataView compView) const
   {
     using Precision = typename DataView::value_type;
-    using AccumType =
-      typename axom::mir::utilities::accumulation_traits<Precision>::type;
+    using AccumType = typename axom::mir::utilities::accumulation_traits<Precision>::type;
     const auto relSize = sizesView.size();
     axom::for_all<ExecSpace>(
       relSize,

@@ -62,8 +62,7 @@ std::vector<std::string> case3 {"shaping/case3/case3_012.yaml",
                                 "shaping/case3/case3_201.yaml",
                                 "shaping/case3/case3_210.yaml"};
 
-std::vector<std::string> case4 {"shaping/case4/case4.yaml",
-                                "shaping/case4/case4_overwrite.yaml"};
+std::vector<std::string> case4 {"shaping/case4/case4.yaml", "shaping/case4/case4_overwrite.yaml"};
 
 std::vector<std::string> proeCase {"shaping/proeCase/proeCase1.yaml",
                                    "shaping/proeCase/proeCase2.yaml"};
@@ -90,15 +89,11 @@ void psplit(const std::string &filepath, std::string &path, std::string &filenam
 
 std::string dataDirectory() { return AXOM_DATA_DIR; }
 
-std::string testData(const std::string &filename)
-{
-  return pjoin(dataDirectory(), filename);
-}
+std::string testData(const std::string &filename) { return pjoin(dataDirectory(), filename); }
 
 std::string baselineDirectory()
 {
-  return pjoin(pjoin(pjoin(dataDirectory(), "quest"), "regression"),
-               "quest_intersection_shaper");
+  return pjoin(pjoin(pjoin(dataDirectory(), "quest"), "regression"), "quest_intersection_shaper");
 }
 
 std::string yamlRoot(const std::string &filepath)
@@ -122,8 +117,7 @@ mfem::GridFunction *newGridFunction(mfem::Mesh *mesh)
 {
   const int vfOrder = 0;
   const int dim = mesh->Dimension();
-  mfem::L2_FECollection *coll =
-    new mfem::L2_FECollection(vfOrder, dim, mfem::BasisType::Positive);
+  mfem::L2_FECollection *coll = new mfem::L2_FECollection(vfOrder, dim, mfem::BasisType::Positive);
   mfem::FiniteElementSpace *fes = new mfem::FiniteElementSpace(mesh, coll);
   mfem::GridFunction *gf = new mfem::GridFunction(fes);
   gf->MakeOwner(coll);
@@ -138,10 +132,7 @@ void makeTestMesh(sidre::MFEMSidreDataCollection &dc, bool initialMats)
   const auto celldims = axom::NumericArray<int, 3> {20, 20, 1};
   const auto bbox = primal::BoundingBox<double, 3> {{0., 0., 0.}, {1., 1., .25}};
 
-  auto mesh = quest::util::make_cartesian_mfem_mesh_3D(bbox,
-                                                       celldims,
-                                                       polynomialOrder,
-                                                       false);
+  auto mesh = quest::util::make_cartesian_mfem_mesh_3D(bbox, celldims, polynomialOrder, false);
 
   dc.SetMeshNodesName("positions");
   dc.SetMesh(mesh);
@@ -170,9 +161,7 @@ void makeTestMesh(sidre::MFEMSidreDataCollection &dc, bool initialMats)
 }
 
 // Save Sidre as VisIt
-void saveVisIt(const std::string &path,
-               const std::string &filename,
-               sidre::MFEMSidreDataCollection &dc)
+void saveVisIt(const std::string &path, const std::string &filename, sidre::MFEMSidreDataCollection &dc)
 {
   // Wrap mesh and grid functions in a VisItDataCollection and save it.
   mfem::VisItDataCollection vdc(filename, dc.GetMesh());
@@ -241,8 +230,7 @@ bool compareConduit(const conduit::Node &n1,
       same &= diff <= tolerance;
       if(!same)
       {
-        info.append().set(
-          axom::fmt::format("\"{}\" fields differ at index {}.", n1.name(), i));
+        info.append().set(axom::fmt::format("\"{}\" fields differ at index {}.", n1.name(), i));
       }
     }
     info["maxdiff"][n1.name()] = maxdiff;
@@ -324,19 +312,14 @@ void replacementRuleTest(const std::string &shapeFile,
   // the C2C reader.
   dc.SetComm(MPI_COMM_WORLD);
   #endif
-  quest::IntersectionShaper shaper(policy,
-                                   axom::INVALID_ALLOCATOR_ID,
-                                   shapeSet,
-                                   &dc);
+  quest::IntersectionShaper shaper(policy, axom::INVALID_ALLOCATOR_ID, shapeSet, &dc);
   shaper.setLevel(refinementLevel);
 
   // Borrowed from shaping_driver.
   const klee::Dimensions shapeDim = shapeSet.getDimensions();
   for(const auto &shape : shapeSet.getShapes())
   {
-    SLIC_INFO(axom::fmt::format("\tshape {} -> material {}",
-                                shape.getName(),
-                                shape.getMaterial()));
+    SLIC_INFO(axom::fmt::format("\tshape {} -> material {}", shape.getName(), shape.getMaterial()));
 
     // Load the shape from file
     shaper.loadShape(shape);
@@ -398,8 +381,7 @@ void replacementRuleTest(const std::string &shapeFile,
     }
     catch(...)
     {
-      SLIC_INFO(
-        axom::fmt::format("Could not load {} from {}!", baselineName, path));
+      SLIC_INFO(axom::fmt::format("Could not load {} from {}!", baselineName, path));
     }
   }
   EXPECT_EQ(success, true);
@@ -462,10 +444,7 @@ void IntersectionWithErrorTolerances(const std::string &filebase,
   // the C2C reader.
   dc.SetComm(MPI_COMM_WORLD);
   #endif
-  quest::IntersectionShaper shaper(policy,
-                                   axom::INVALID_ALLOCATOR_ID,
-                                   shapeSet,
-                                   &dc);
+  quest::IntersectionShaper shaper(policy, axom::INVALID_ALLOCATOR_ID, shapeSet, &dc);
   shaper.setLevel(refinementLevel);
   shaper.setPercentError(targetPercentError);
   shaper.setRefinementType(quest::DiscreteShape::RefinementDynamic);
@@ -474,9 +453,7 @@ void IntersectionWithErrorTolerances(const std::string &filebase,
   const klee::Dimensions shapeDim = shapeSet.getDimensions();
   for(const auto &shape : shapeSet.getShapes())
   {
-    SLIC_INFO(axom::fmt::format("\tshape {} -> material {}",
-                                shape.getName(),
-                                shape.getMaterial()));
+    SLIC_INFO(axom::fmt::format("\tshape {} -> material {}", shape.getName(), shape.getMaterial()));
 
     // Load the shape from file
     shaper.loadShape(shape);
@@ -493,14 +470,12 @@ void IntersectionWithErrorTolerances(const std::string &filebase,
     // Now check the analytical revolved volume vs the value we expect. This makes
     // sure the quadrature-computed value is "close enough".
     double revolvedVolume = shaper.getRevolvedVolume();
-    EXPECT_TRUE(axom::utilities::isNearlyEqual(revolvedVolume,
-                                               expectedRevolvedVolume,
-                                               revolvedVolumeEPS));
+    EXPECT_TRUE(
+      axom::utilities::isNearlyEqual(revolvedVolume, expectedRevolvedVolume, revolvedVolumeEPS));
 
     // Now check the precent error derived from the revolved volume and the
     // linearized revolved volume
-    double actualPercentError =
-      100. * (1. - shaper.getApproximateRevolvedVolume() / revolvedVolume);
+    double actualPercentError = 100. * (1. - shaper.getApproximateRevolvedVolume() / revolvedVolume);
     EXPECT_LT(actualPercentError, targetPercentError);
 
     // Finalize data structures associated with this shape and spatial index
@@ -516,8 +491,7 @@ void IntersectionWithErrorTolerances(const std::string &filebase,
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_Line(const std::string &policyName,
-                                RuntimePolicy policy)
+void dynamicRefinementTest_Line(const std::string &policyName, RuntimePolicy policy)
 {
   const std::string contour = R"(piece = line(start=(2cm,0cm), end=(2cm,2cm))
 )";
@@ -551,8 +525,7 @@ shapes:
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_Cone(const std::string &policyName,
-                                RuntimePolicy policy)
+void dynamicRefinementTest_Cone(const std::string &policyName, RuntimePolicy policy)
 {
   const std::string contour = R"(piece = line(start=(2cm,0cm), end=(3cm,2cm))
 )";
@@ -586,8 +559,7 @@ shapes:
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_Spline(const std::string &policyName,
-                                  RuntimePolicy policy)
+void dynamicRefinementTest_Spline(const std::string &policyName, RuntimePolicy policy)
 {
   const std::string contour = R"(piece = rz(units=cm,
   rz=2 0
@@ -626,8 +598,7 @@ shapes:
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_Circle(const std::string &policyName,
-                                  RuntimePolicy policy)
+void dynamicRefinementTest_Circle(const std::string &policyName, RuntimePolicy policy)
 {
   const std::string contour =
     R"(piece = circle(origin=(0cm,0cm), radius=8cm, start=0deg, end=180deg)
@@ -663,8 +634,7 @@ shapes:
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_LineTranslate(const std::string &policyName,
-                                         RuntimePolicy policy)
+void dynamicRefinementTest_LineTranslate(const std::string &policyName, RuntimePolicy policy)
 {
   const std::string contour = R"(piece = line(start=(2cm,0cm), end=(2cm,2cm))
 )";
@@ -702,8 +672,7 @@ shapes:
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_LineScale(const std::string &policyName,
-                                     RuntimePolicy policy)
+void dynamicRefinementTest_LineScale(const std::string &policyName, RuntimePolicy policy)
 {
   const std::string contour = R"(piece = line(start=(2cm,0cm), end=(2cm,2cm))
 )";
@@ -741,8 +710,7 @@ shapes:
 }
 
 //---------------------------------------------------------------------------
-void dynamicRefinementTest_LineRotate(const std::string &policyName,
-                                      RuntimePolicy policy)
+void dynamicRefinementTest_LineRotate(const std::string &policyName, RuntimePolicy policy)
 {
   const std::string contour = R"(piece = line(start=(2cm,0cm), end=(2cm,2cm))
 )";
@@ -950,28 +918,16 @@ TEST(IntersectionShaperTest, proeCase_hip)
 // Line
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
   #if defined(RUN_AXOM_SEQ_TESTS)
-TEST(IntersectionShaperTest, line_seq)
-{
-  dynamicRefinementTest_Line("seq", RuntimePolicy::seq);
-}
+TEST(IntersectionShaperTest, line_seq) { dynamicRefinementTest_Line("seq", RuntimePolicy::seq); }
   #endif
   #if defined(AXOM_USE_OPENMP)
-TEST(IntersectionShaperTest, line_omp)
-{
-  dynamicRefinementTest_Line("omp", RuntimePolicy::omp);
-}
+TEST(IntersectionShaperTest, line_omp) { dynamicRefinementTest_Line("omp", RuntimePolicy::omp); }
   #endif
   #if defined(AXOM_USE_CUDA)
-TEST(IntersectionShaperTest, line_cuda)
-{
-  dynamicRefinementTest_Line("cuda", RuntimePolicy::cuda);
-}
+TEST(IntersectionShaperTest, line_cuda) { dynamicRefinementTest_Line("cuda", RuntimePolicy::cuda); }
   #endif
   #if defined(AXOM_USE_HIP)
-TEST(IntersectionShaperTest, line_hip)
-{
-  dynamicRefinementTest_Line("hip", RuntimePolicy::hip);
-}
+TEST(IntersectionShaperTest, line_hip) { dynamicRefinementTest_Line("hip", RuntimePolicy::hip); }
   #endif
 #endif
 
@@ -979,28 +935,16 @@ TEST(IntersectionShaperTest, line_hip)
 // Cone
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
   #if defined(RUN_AXOM_SEQ_TESTS)
-TEST(IntersectionShaperTest, cone_seq)
-{
-  dynamicRefinementTest_Cone("seq", RuntimePolicy::seq);
-}
+TEST(IntersectionShaperTest, cone_seq) { dynamicRefinementTest_Cone("seq", RuntimePolicy::seq); }
   #endif
   #if defined(AXOM_USE_OPENMP)
-TEST(IntersectionShaperTest, cone_omp)
-{
-  dynamicRefinementTest_Cone("omp", RuntimePolicy::omp);
-}
+TEST(IntersectionShaperTest, cone_omp) { dynamicRefinementTest_Cone("omp", RuntimePolicy::omp); }
   #endif
   #if defined(AXOM_USE_CUDA)
-TEST(IntersectionShaperTest, cone_cuda)
-{
-  dynamicRefinementTest_Cone("cuda", RuntimePolicy::cuda);
-}
+TEST(IntersectionShaperTest, cone_cuda) { dynamicRefinementTest_Cone("cuda", RuntimePolicy::cuda); }
   #endif
   #if defined(AXOM_USE_HIP)
-TEST(IntersectionShaperTest, cone_hip)
-{
-  dynamicRefinementTest_Cone("hip", RuntimePolicy::hip);
-}
+TEST(IntersectionShaperTest, cone_hip) { dynamicRefinementTest_Cone("hip", RuntimePolicy::hip); }
   #endif
 #endif
 

@@ -69,32 +69,28 @@ void DistributedClosestPoint::setDefaultAllocatorID()
 #ifdef __CUDACC__
   #ifdef AXOM_RUNTIME_POLICY_USE_CUDA
   case RuntimePolicy::cuda:
-    defaultAllocatorID =
-      axom::execution_space<axom::CUDA_EXEC<256>>::allocatorID();
+    defaultAllocatorID = axom::execution_space<axom::CUDA_EXEC<256>>::allocatorID();
     break;
   #endif
 #endif
 
 #ifdef AXOM_RUNTIME_POLICY_USE_HIP
   case RuntimePolicy::hip:
-    defaultAllocatorID =
-      axom::execution_space<axom::HIP_EXEC<256>>::allocatorID();
+    defaultAllocatorID = axom::execution_space<axom::HIP_EXEC<256>>::allocatorID();
     break;
 #endif
   }
   if(defaultAllocatorID == axom::INVALID_ALLOCATOR_ID)
   {
     SLIC_ERROR(
-      axom::fmt::format("There is no default allocator for runtime policy {}",
-                        m_runtimePolicy));
+      axom::fmt::format("There is no default allocator for runtime policy {}", m_runtimePolicy));
   }
   setAllocatorID(defaultAllocatorID);
 }
 
 void DistributedClosestPoint::setAllocatorID(int allocatorID)
 {
-  SLIC_ASSERT_MSG(allocatorID != axom::INVALID_ALLOCATOR_ID,
-                  "Invalid allocator id.");
+  SLIC_ASSERT_MSG(allocatorID != axom::INVALID_ALLOCATOR_ID, "Invalid allocator id.");
   m_allocatorID = allocatorID;
 
   if(m_impl)
@@ -123,8 +119,7 @@ void DistributedClosestPoint::setMpiCommunicator(MPI_Comm mpiComm, bool duplicat
 
 void DistributedClosestPoint::setDimension(int dim)
 {
-  SLIC_ERROR_IF(dim < 2 || dim > 3,
-                "DistributedClosestPoint query only supports 2D or 3D queries");
+  SLIC_ERROR_IF(dim < 2 || dim > 3, "DistributedClosestPoint query only supports 2D or 3D queries");
   m_dimension = dim;
 }
 
@@ -146,10 +141,9 @@ void DistributedClosestPoint::setOutput(const std::string& field, bool on)
     : nullptr;
   // clang-format on
   SLIC_ERROR_IF(f == nullptr,
-                axom::fmt::format(
-                  "Invalid field '{}' should be one of these: "
-                  "cp_rank, cp_index, cp_distance, cp_coords, cp_domain_index",
-                  field));
+                axom::fmt::format("Invalid field '{}' should be one of these: "
+                                  "cp_rank, cp_index, cp_distance, cp_coords, cp_domain_index",
+                                  field));
   *f = on;
 }
 
@@ -182,12 +176,9 @@ void DistributedClosestPoint::setObjectMesh(const conduit::Node& meshNode,
     if(domainCount > 0)
     {
       const conduit::Node& domain0 = mdMeshNode.child(0);
-      const conduit::Node& topology =
-        domain0.fetch_existing("topologies/" + topologyName);
-      const std::string coordsetName =
-        topology.fetch_existing("coordset").as_string();
-      const conduit::Node& coordset =
-        domain0.fetch_existing("coordsets/" + coordsetName);
+      const conduit::Node& topology = domain0.fetch_existing("topologies/" + topologyName);
+      const std::string coordsetName = topology.fetch_existing("coordset").as_string();
+      const conduit::Node& coordset = domain0.fetch_existing("coordsets/" + coordsetName);
       const conduit::Node& coordsetValues = coordset.fetch_existing("values");
       localDim = internal::extractDimension(coordsetValues);
     }
@@ -205,8 +196,7 @@ void DistributedClosestPoint::setObjectMesh(const conduit::Node& meshNode,
 
 bool DistributedClosestPoint::generateBVHTree()
 {
-  SLIC_ASSERT_MSG(m_impl,
-                  "Must call 'setObjectMesh' before calling generateBVHTree");
+  SLIC_ASSERT_MSG(m_impl, "Must call 'setObjectMesh' before calling generateBVHTree");
 
   bool success = m_impl->generateBVHTree();
   return success;
@@ -215,8 +205,7 @@ bool DistributedClosestPoint::generateBVHTree()
 void DistributedClosestPoint::computeClosestPoints(conduit::Node& query_node,
                                                    const std::string& topology)
 {
-  SLIC_ASSERT_MSG(m_impl,
-                  "Must call 'setObjectMesh' before calling generateBVHTree");
+  SLIC_ASSERT_MSG(m_impl, "Must call 'setObjectMesh' before calling generateBVHTree");
 
   SLIC_ASSERT(this->isValidBlueprint(query_node));
 
@@ -261,20 +250,18 @@ void DistributedClosestPoint::allocateQueryInstance()
 #endif
 
   default:
-    SLIC_ERROR(axom::fmt::format(
-      "DistriburedClosestPoint: axom was not built for runtime policy {}."
-      "  Please select another policy.",
-      axom::runtime_policy::s_policyToName.at(m_runtimePolicy)));
+    SLIC_ERROR(
+      axom::fmt::format("DistriburedClosestPoint: axom was not built for runtime policy {}."
+                        "  Please select another policy.",
+                        axom::runtime_policy::s_policyToName.at(m_runtimePolicy)));
   }
 }
 
 template <int DIM, typename ExecSpace>
 void DistributedClosestPoint::allocateQueryInstance()
 {
-  m_impl =
-    std::make_unique<internal::DistributedClosestPointExec<DIM, ExecSpace>>(
-      m_allocatorID,
-      m_isVerbose);
+  m_impl = std::make_unique<internal::DistributedClosestPointExec<DIM, ExecSpace>>(m_allocatorID,
+                                                                                   m_isVerbose);
 }
 
 bool DistributedClosestPoint::isValidBlueprint(const conduit::Node& mesh_node) const
@@ -294,8 +281,7 @@ void DistributedClosestPoint::verifyTopologyName(const conduit::Node& meshNode,
                                                  const std::string& topologyName)
 {
   std::string coordsetPath;
-  const std::string topologyPath =
-    axom::fmt::format("topologies/{}", topologyName);
+  const std::string topologyPath = axom::fmt::format("topologies/{}", topologyName);
   for(axom::IndexType d = 0; d < meshNode.number_of_children(); ++d)
   {
     const auto& domain = meshNode.child(d);

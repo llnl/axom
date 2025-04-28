@@ -58,8 +58,7 @@ bool constructAndTestMap()
   EXPECT_EQ(s.size(), MAX_SET_SIZE);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string()
-                        << " map on the set ");
+  SLIC_INFO("Creating " << slam::util::TypeToString<T>::to_string() << " map on the set ");
 
   slam::Map<T, BaseSet> m(&s);
   EXPECT_TRUE(m.isValid());
@@ -86,10 +85,7 @@ bool constructAndTestMap()
 
 TEST(slam_map, construct_int_map) { EXPECT_TRUE(constructAndTestMap<int>()); }
 
-TEST(slam_map, construct_double_map)
-{
-  EXPECT_TRUE(constructAndTestMap<double>());
-}
+TEST(slam_map, construct_double_map) { EXPECT_TRUE(constructAndTestMap<double>()); }
 
 TEST(slam_map, out_of_bounds)
 {
@@ -108,8 +104,7 @@ TEST(slam_map, out_of_bounds)
   SLIC_INFO("Testing Map element access "
             << "-- out of bounds access; Expecting the test to fail");
 #ifdef AXOM_DEBUG
-  EXPECT_DEATH_IF_SUPPORTED(m[-1], "")
-    << " Accessed element -1 of Map -- out of bounds";
+  EXPECT_DEATH_IF_SUPPORTED(m[-1], "") << " Accessed element -1 of Map -- out of bounds";
   EXPECT_DEATH_IF_SUPPORTED(m[m.size()], "")
     << " Accessed element " << m.size() << " of Map -- out of bounds";
 
@@ -159,8 +154,8 @@ void constructAndTestMapWithStride(int stride)
   EXPECT_EQ(s.size(), MAX_SET_SIZE);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("\nCreating " << slam::util::TypeToString<T>::to_string()
-                          << " map with stride " << stride << " on the set ");
+  SLIC_INFO("\nCreating " << slam::util::TypeToString<T>::to_string() << " map with stride "
+                          << stride << " on the set ");
 
   using MapType = slam::Map<T, BaseSet, VecIndirection<T>, StrideType>;
   MapType m(&s, 0, stride);
@@ -215,8 +210,7 @@ TEST(slam_map, iterate)
   SetType s(MAX_SET_SIZE);
   EXPECT_TRUE(s.isValid());
 
-  SLIC_INFO("Creating '" << slam::util::TypeToString<double>::to_string()
-                         << "' map on the set ");
+  SLIC_INFO("Creating '" << slam::util::TypeToString<double>::to_string() << "' map on the set ");
   RealMap m(&s);
   EXPECT_TRUE(m.isValid());
 
@@ -303,8 +297,7 @@ TEST(slam_map, iterate)
 template <typename StrideType>
 void constructAndTestMapIteratorWithStride(int stride)
 {
-  using RealMap =
-    slam::Map<double, slam::Set<>, VecIndirection<double>, StrideType>;
+  using RealMap = slam::Map<double, slam::Set<>, VecIndirection<double>, StrideType>;
 
   SetType s(MAX_SET_SIZE);
 
@@ -346,8 +339,7 @@ void constructAndTestMapIteratorWithStride(int stride)
     {
       for(auto idx2 = 0; idx2 < submap.size(); ++idx2)
       {
-        EXPECT_DOUBLE_EQ(submap[idx2],
-                         static_cast<double>(idx * multFac + idx2 * multFac2));
+        EXPECT_DOUBLE_EQ(submap[idx2], static_cast<double>(idx * multFac + idx2 * multFac2));
       }
       idx++;
     }
@@ -385,8 +377,7 @@ struct ExecTraits
   static int getAllocatorId()
   {
 #ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Host);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
 #else
     return axom::getDefaultAllocatorID();
 #endif
@@ -395,8 +386,7 @@ struct ExecTraits
   static int getUnifiedAllocatorId()
   {
 #ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Host);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
 #else
     return axom::getDefaultAllocatorID();
 #endif
@@ -411,14 +401,12 @@ struct ExecTraits<axom::CUDA_EXEC<BLK_SZ>>
 
   static int getAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
   }
 
   static int getUnifiedAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Unified);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
   }
 };
 #endif
@@ -431,14 +419,12 @@ struct ExecTraits<axom::HIP_EXEC<BLK_SZ>>
 
   static int getAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
   }
 
   static int getUnifiedAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Unified);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
   }
 };
 #endif
@@ -451,12 +437,10 @@ class slam_map_templated : public ::testing::Test
 {
 public:
   using ExecSpace = ExecutionSpace;
-  using ConcreteSetType =
-    typename slam::RangeSet<SetPosition, SetElement>::ConcreteSet;
+  using ConcreteSetType = typename slam::RangeSet<SetPosition, SetElement>::ConcreteSet;
 
   using RealData = axom::Array<double>;
-  using IndirectionPolicy =
-    slam::policies::ArrayViewIndirection<SetPosition, double>;
+  using IndirectionPolicy = slam::policies::ArrayViewIndirection<SetPosition, double>;
   using StridePolicy = slam::policies::RuntimeStride<axom::IndexType>;
   using InterfacePolicy = slam::policies::ConcreteInterface;
 
@@ -725,8 +709,7 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTest3DStride)
         {
           for(int k = 0; k < shape[2]; k++)
           {
-            m(index, i, j, k) =
-              index * multFac + i * multFac2 + j * multFac3 + k * multFac4;
+            m(index, i, j, k) = index * multFac + i * multFac2 + j * multFac3 + k * multFac4;
           }
         }
       }
@@ -742,8 +725,7 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTest3DStride)
       {
         for(int k = 0; k < shape[2]; k++)
         {
-          double expectedValue =
-            setIdx * multFac + i * multFac2 + j * multFac3 + k * multFac4;
+          double expectedValue = setIdx * multFac + i * multFac2 + j * multFac3 + k * multFac4;
           EXPECT_DOUBLE_EQ(m(setIdx, i, j, k), expectedValue);
           EXPECT_DOUBLE_EQ(m.value(setIdx, i, j, k), expectedValue);
 
@@ -768,8 +750,7 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTest3DStride)
       {
         for(int k = 0; k < shape[2]; k++)
         {
-          double expectedValue =
-            setIdx * multFac + i * multFac2 + j * multFac3 + k * multFac4;
+          double expectedValue = setIdx * multFac + i * multFac2 + j * multFac3 + k * multFac4;
           EXPECT_DOUBLE_EQ(expectedValue, (*it)(i, j, k));
           EXPECT_DOUBLE_EQ(expectedValue, it(i, j, k));
           EXPECT_DOUBLE_EQ(expectedValue, it.value(i, j, k));

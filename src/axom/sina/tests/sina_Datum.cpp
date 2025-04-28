@@ -171,8 +171,7 @@ TEST(Datum, toJson)
   EXPECT_EQ("Datum value", datumRef1["value"].as_string());
   std::vector<std::string> node_tags;
   auto tags_itr = datumRef1["tags"].children();
-  while(tags_itr.has_next())
-    node_tags.emplace_back(tags_itr.next().as_string());
+  while(tags_itr.has_next()) node_tags.emplace_back(tags_itr.next().as_string());
   EXPECT_EQ(tags, node_tags);
 
   EXPECT_EQ("Datum units", datumRef2["units"].as_string());
@@ -181,13 +180,11 @@ TEST(Datum, toJson)
   // Conduit will pack vectors of numbers into arrays, but
   // strings can only live as lists of Nodes
   auto doub_array = datumRef3["value"].as_double_ptr();
-  std::vector<double> scal_child_vals(
-    doub_array,
-    doub_array + datumRef3["value"].dtype().number_of_elements());
+  std::vector<double> scal_child_vals(doub_array,
+                                      doub_array + datumRef3["value"].dtype().number_of_elements());
   std::vector<std::string> str_child_vals;
   auto str_itr = datumRef4["value"].children();
-  while(str_itr.has_next())
-    str_child_vals.emplace_back(str_itr.next().as_string());
+  while(str_itr.has_next()) str_child_vals.emplace_back(str_itr.next().as_string());
   EXPECT_EQ(scal_list, scal_child_vals);
   EXPECT_EQ(val_list, str_child_vals);
 }

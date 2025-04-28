@@ -62,13 +62,12 @@ IDField::IDField(ID value_, std::string localName_, std::string globalName_)
   , globalName {std::move(globalName_)}
 { }
 
-IDField::IDField(conduit::Node const &parentObject,
-                 std::string localName_,
-                 std::string globalName_)
-  : IDField {extractIDFromObject(parentObject, localName_, globalName_),
-             std::move(localName_),
-             std::move(globalName_)}
-{ }
+IDField::IDField(conduit::Node const &parentObject, std::string localName_, std::string globalName_)
+  : value(extractIDFromObject(parentObject, localName_, globalName_))
+{
+  std::swap(localName, localName_);
+  std::swap(globalName, globalName_);
+}
 
 void IDField::addTo(conduit::Node &object) const
 {

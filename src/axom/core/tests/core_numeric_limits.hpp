@@ -21,26 +21,18 @@ TEST(core_NumericLimits, check_CPU)
   // Tests to compare axom::numeric_limits to std::numeric_limits
   // to ensure that Axom type aliasing is correct.
   //
-  EXPECT_TRUE(axom::numeric_limits<int>::lowest() ==
-              std::numeric_limits<int>::lowest());
+  EXPECT_TRUE(axom::numeric_limits<int>::lowest() == std::numeric_limits<int>::lowest());
   EXPECT_TRUE(axom::numeric_limits<int>::min() == std::numeric_limits<int>::min());
   EXPECT_TRUE(axom::numeric_limits<int>::max() == std::numeric_limits<int>::max());
-  EXPECT_TRUE(axom::numeric_limits<int>::is_signed ==
-              std::numeric_limits<int>::is_signed);
+  EXPECT_TRUE(axom::numeric_limits<int>::is_signed == std::numeric_limits<int>::is_signed);
 
-  EXPECT_TRUE(axom::numeric_limits<float>::lowest() ==
-              std::numeric_limits<float>::lowest());
-  EXPECT_TRUE(axom::numeric_limits<float>::min() ==
-              std::numeric_limits<float>::min());
-  EXPECT_TRUE(axom::numeric_limits<float>::max() ==
-              std::numeric_limits<float>::max());
+  EXPECT_TRUE(axom::numeric_limits<float>::lowest() == std::numeric_limits<float>::lowest());
+  EXPECT_TRUE(axom::numeric_limits<float>::min() == std::numeric_limits<float>::min());
+  EXPECT_TRUE(axom::numeric_limits<float>::max() == std::numeric_limits<float>::max());
 
-  EXPECT_TRUE(axom::numeric_limits<double>::lowest() ==
-              std::numeric_limits<double>::lowest());
-  EXPECT_TRUE(axom::numeric_limits<double>::min() ==
-              std::numeric_limits<double>::min());
-  EXPECT_TRUE(axom::numeric_limits<double>::max() ==
-              std::numeric_limits<double>::max());
+  EXPECT_TRUE(axom::numeric_limits<double>::lowest() == std::numeric_limits<double>::lowest());
+  EXPECT_TRUE(axom::numeric_limits<double>::min() == std::numeric_limits<double>::min());
+  EXPECT_TRUE(axom::numeric_limits<double>::max() == std::numeric_limits<double>::max());
 }
 
 //------------------------------------------------------------------------------

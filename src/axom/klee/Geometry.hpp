@@ -242,20 +242,14 @@ public:
    *
    * \return a potentially null operator to apply to the geometry
    */
-  std::shared_ptr<GeometryOperator const> const &getGeometryOperator() const
-  {
-    return m_operator;
-  }
+  std::shared_ptr<GeometryOperator const> const &getGeometryOperator() const { return m_operator; }
 
   /**
    * Get the initial transformable properties of this geometry
    *
    * \return the initial transformable properties of this geometry
    */
-  const TransformableGeometryProperties &getStartProperties() const
-  {
-    return m_startProperties;
-  }
+  const TransformableGeometryProperties &getStartProperties() const { return m_startProperties; }
 
   /**
    * Get the final transformable properties of this geometry after
@@ -301,10 +295,7 @@ public:
   /**
    @brief Get the discrete function used in surfaces of revolution.
   */
-  axom::ArrayView<const double, 2> getDiscreteFunction() const
-  {
-    return m_discreteFunction.view();
-  }
+  axom::ArrayView<const double, 2> getDiscreteFunction() const { return m_discreteFunction.view(); }
 
 private:
   TransformableGeometryProperties m_startProperties;

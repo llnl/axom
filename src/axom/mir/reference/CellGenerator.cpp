@@ -19,10 +19,9 @@ CellGenerator::~CellGenerator() { }
 
 //--------------------------------------------------------------------------------
 
-void CellGenerator::generateTopologyData(
-  const std::map<int, std::vector<int>>& newElements,
-  const std::map<int, std::vector<int>>& newVertices,
-  CellData& out_cellData)
+void CellGenerator::generateTopologyData(const std::map<int, std::vector<int>>& newElements,
+                                         const std::map<int, std::vector<int>>& newVertices,
+                                         CellData& out_cellData)
 {
   // Store the evInds and evBegins data in the output vectors
   int currentEVBeginIndex = 0;
@@ -63,12 +62,11 @@ void CellGenerator::generateTopologyData(
 
 //--------------------------------------------------------------------------------
 
-void CellGenerator::generateVertexPositions(
-  const mir::Shape shapeType,
-  const std::map<int, std::vector<int>>& newVertices,
-  const std::vector<mir::Point2>& vertexPositions,
-  axom::float64* tValues,
-  CellData& out_cellData)
+void CellGenerator::generateVertexPositions(const mir::Shape shapeType,
+                                            const std::map<int, std::vector<int>>& newVertices,
+                                            const std::vector<mir::Point2>& vertexPositions,
+                                            axom::float64* tValues,
+                                            CellData& out_cellData)
 {
   for(auto itr = newVertices.begin(); itr != newVertices.end(); itr++)
   {
@@ -93,21 +91,18 @@ void CellGenerator::generateVertexPositions(
       int vIDTo = mir::utilities::getEdgeEndpoint(shapeType, vID, false);
 
       out_cellData.m_mapData.m_vertexPositions.push_back(
-        mir::Point2::lerp(vertexPositions[vIDFrom],
-                          vertexPositions[vIDTo],
-                          tValues[vID]));
+        mir::Point2::lerp(vertexPositions[vIDFrom], vertexPositions[vIDTo], tValues[vID]));
     }
   }
 }
 
 //--------------------------------------------------------------------------------
 
-void CellGenerator::generateVertexVolumeFractions(
-  const mir::Shape shapeType,
-  const std::map<int, std::vector<int>>& newVertices,
-  const std::vector<std::vector<axom::float64>>& vertexVF,
-  axom::float64* tValues,
-  CellData& out_cellData)
+void CellGenerator::generateVertexVolumeFractions(const mir::Shape shapeType,
+                                                  const std::map<int, std::vector<int>>& newVertices,
+                                                  const std::vector<std::vector<axom::float64>>& vertexVF,
+                                                  axom::float64* tValues,
+                                                  CellData& out_cellData)
 {
   out_cellData.m_mapData.m_vertexVolumeFractions.resize(
     vertexVF.size());  // vertexVF size is the number of materials
@@ -121,17 +116,14 @@ void CellGenerator::generateVertexVolumeFractions(
       if(vID < mir::utilities::numVerts(shapeType))
       {
         // This vertex is one of the shape's original vertices
-        out_cellData.m_mapData.m_vertexVolumeFractions[matID].push_back(
-          vertexVF[matID][vID]);
+        out_cellData.m_mapData.m_vertexVolumeFractions[matID].push_back(vertexVF[matID][vID]);
       }
       else if(mir::utilities::isCenterVertex(shapeType, vID))
       {
         // Average the vertex volume fractions values at the corners of the shape
-        axom::float64 averageValue =
-          mir::utilities::computeAverageFloat(vertexVF[matID]);
+        axom::float64 averageValue = mir::utilities::computeAverageFloat(vertexVF[matID]);
 
-        out_cellData.m_mapData.m_vertexVolumeFractions[matID].push_back(
-          averageValue);
+        out_cellData.m_mapData.m_vertexVolumeFractions[matID].push_back(averageValue);
       }
       else
       {
@@ -140,9 +132,7 @@ void CellGenerator::generateVertexVolumeFractions(
         int vIDTo = mir::utilities::getEdgeEndpoint(shapeType, vID, false);
 
         out_cellData.m_mapData.m_vertexVolumeFractions[matID].push_back(
-          axom::utilities::lerp(vertexVF[matID][vIDFrom],
-                                vertexVF[matID][vIDTo],
-                                tValues[vID]));
+          axom::utilities::lerp(vertexVF[matID][vIDFrom], vertexVF[matID][vIDTo], tValues[vID]));
       }
     }
   }
@@ -150,12 +140,11 @@ void CellGenerator::generateVertexVolumeFractions(
 
 //--------------------------------------------------------------------------------
 
-int CellGenerator::determineCleanCellMaterial(
-  const Shape elementShape,
-  const std::vector<int>& vertexIDs,
-  const int matOne,
-  const int matTwo,
-  const std::vector<std::vector<axom::float64>>& vertexVF)
+int CellGenerator::determineCleanCellMaterial(const Shape elementShape,
+                                              const std::vector<int>& vertexIDs,
+                                              const int matOne,
+                                              const int matTwo,
+                                              const std::vector<std::vector<axom::float64>>& vertexVF)
 {
   int dominantMaterial = matOne;
 

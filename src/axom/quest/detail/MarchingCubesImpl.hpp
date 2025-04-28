@@ -47,6 +47,8 @@ public:
   using MIdx = axom::StackArray<axom::IndexType, DIM>;
   using MDMapper = axom::MDMapping<DIM>;
   using FacetIdType = int;
+  using CrossingFlagType = axom::quest::MarchingCubes::CrossingFlagType;
+
   using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
   using ReducePolicy = typename execution_space<ExecSpace>::reduce_policy;
 #if defined(AXOM_USE_RAJA)
@@ -57,13 +59,12 @@ public:
   using ScanPolicy = typename axom::execution_space<ExecSpace>::loop_policy;
   #endif
 #endif
-  using SequentialLoopPolicy =
-    typename execution_space<SequentialExecSpace>::loop_policy;
+  using SequentialLoopPolicy = typename execution_space<SequentialExecSpace>::loop_policy;
   static constexpr auto MemorySpace = execution_space<ExecSpace>::memory_space;
 
   AXOM_HOST MarchingCubesImpl(int allocatorID,
                               axom::Array<std::uint16_t>& caseIdsFlat,
-                              axom::Array<std::uint16_t>& crossingFlags,
+                              axom::Array<CrossingFlagType>& crossingFlags,
                               axom::Array<axom::IndexType>& scannedFlags,
                               axom::Array<axom::IndexType>& facetIncrs)
     : m_allocatorID(allocatorID)
@@ -104,8 +105,8 @@ public:
     AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::initialize");
     clearDomain();
 
-    SLIC_ASSERT(conduit::blueprint::mesh::topology::dims(dom.fetch_existing(
-                  axom::fmt::format("topologies/{}", topologyName))) == DIM);
+    SLIC_ASSERT(conduit::blueprint::mesh::topology::dims(
+                  dom.fetch_existing(axom::fmt::format("topologies/{}", topologyName))) == DIM);
 
     m_mvu = axom::quest::MeshViewUtil<DIM, MemorySpace>(dom, topologyName);
 
@@ -120,13 +121,11 @@ public:
   AXOM_HOST void setDataParallelism(MarchingCubesDataParallelism dataPar) override
   {
     constexpr MarchingCubesDataParallelism autoPolicy =
-      std::is_same<ExecSpace, axom::SEQ_EXEC>::value
-      ? MarchingCubesDataParallelism::hybridParallel
+      std::is_same<ExecSpace, axom::SEQ_EXEC>::value ? MarchingCubesDataParallelism::hybridParallel
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
-      : std::is_same<ExecSpace, axom::OMP_EXEC>::value
-      ? MarchingCubesDataParallelism::hybridParallel
+      : std::is_same<ExecSpace, axom::OMP_EXEC>::value ? MarchingCubesDataParallelism::hybridParallel
 #endif
-      : MarchingCubesDataParallelism::fullParallel;
+                                                       : MarchingCubesDataParallelism::fullParallel;
 
     m_dataParallelism = dataPar;
 
@@ -145,10 +144,7 @@ public:
     m_fcnView = m_mvu.template getConstFieldView<double>(fcnFieldName, false);
   }
 
-  void setContourValue(double contourVal) override
-  {
-    m_contourVal = contourVal;
-  }
+  void setContourValue(double contourVal) override { m_contourVal = contourVal; }
 
   void setMaskValue(int maskVal) override { m_maskVal = maskVal; }
 
@@ -168,12 +164,10 @@ public:
     // Choose caseIds stride order to match function stride order.
     MDMapper fcnMDMapper(m_fcnView.strides());
     m_caseIdsMDMapper.initializeShape(m_bShape, fcnMDMapper.slowestDirs());
-    m_caseIds = axom::ArrayView<std::uint16_t, DIM, MemorySpace>(
-      m_caseIdsFlat.data(),
-      m_bShape,
-      m_caseIdsMDMapper.strides());
-    SLIC_ASSERT_MSG(MDMapper(m_caseIds.strides()).getStrideOrder() ==
-                      fcnMDMapper.getStrideOrder(),
+    m_caseIds = axom::ArrayView<std::uint16_t, DIM, MemorySpace>(m_caseIdsFlat.data(),
+                                                                 m_bShape,
+                                                                 m_caseIdsMDMapper.strides());
+    SLIC_ASSERT_MSG(MDMapper(m_caseIds.strides()).getStrideOrder() == fcnMDMapper.getStrideOrder(),
                     "Mismatched order is inefficient.");
 
     markCrossings_dim();
@@ -189,23 +183,18 @@ public:
 #if defined(AXOM_USE_RAJA)
     RAJA::RangeSegment jRange(0, m_bShape[1]);
     RAJA::RangeSegment iRange(0, m_bShape[0]);
-    using EXEC_POL =
-      typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
+    using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
     if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
     {
       RAJA::kernel<EXEC_POL>(
         RAJA::make_tuple(iRange, jRange),
-        AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) {
-          mcu.computeCaseId(i, j);
-        });
+        AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) { mcu.computeCaseId(i, j); });
     }
     else
     {
       RAJA::kernel<EXEC_POL>(
         RAJA::make_tuple(jRange, iRange),
-        AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) {
-          mcu.computeCaseId(i, j);
-        });
+        AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) { mcu.computeCaseId(i, j); });
     }
 #else
     if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
@@ -243,8 +232,7 @@ public:
     RAJA::RangeSegment kRange(0, m_bShape[2]);
     RAJA::RangeSegment jRange(0, m_bShape[1]);
     RAJA::RangeSegment iRange(0, m_bShape[0]);
-    using EXEC_POL =
-      typename axom::internal::nested_for_exec<ExecSpace>::loop3d_policy;
+    using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop3d_policy;
     if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
     {
       RAJA::kernel<EXEC_POL>(
@@ -331,8 +319,8 @@ public:
     }
 
     template <int TDIM = DIM>
-    AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 2>::type
-    computeCaseId(axom::IndexType i, axom::IndexType j) const
+    AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 2>::type computeCaseId(axom::IndexType i,
+                                                                                   axom::IndexType j) const
     {
       const bool useZone = maskView.empty() || (maskView(i, j) == maskVal);
       if(useZone)
@@ -350,8 +338,9 @@ public:
 
     //!@brief Populate m_caseIds with crossing indices.
     template <int TDIM = DIM>
-    AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 3>::type
-    computeCaseId(axom::IndexType i, axom::IndexType j, axom::IndexType k) const
+    AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 3>::type computeCaseId(axom::IndexType i,
+                                                                                   axom::IndexType j,
+                                                                                   axom::IndexType k) const
     {
       const bool useZone = maskView.empty() || (maskView(i, j, k) == maskVal);
       if(useZone)
@@ -375,14 +364,12 @@ public:
   void scanCrossings() override
   {
     AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::scanCrossings");
-    if(m_dataParallelism ==
-       axom::quest::MarchingCubesDataParallelism::hybridParallel)
+    if(m_dataParallelism == axom::quest::MarchingCubesDataParallelism::hybridParallel)
     {
       AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::scanCrossings:hybridParallel");
       scanCrossings_hybridParallel();
     }
-    else if(m_dataParallelism ==
-            axom::quest::MarchingCubesDataParallelism::fullParallel)
+    else if(m_dataParallelism == axom::quest::MarchingCubesDataParallelism::fullParallel)
     {
       AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::scanCrossings:fullParallel");
       scanCrossings_fullParallel();
@@ -418,8 +405,7 @@ public:
         0,
         parentCellCount,
         AXOM_LAMBDA(axom::IndexType parentCellId) {
-          auto numContourCells =
-            num_contour_cells(caseIdsView.flatIndex(parentCellId));
+          auto numContourCells = num_contour_cells(caseIdsView.flatIndex(parentCellId));
           crossingFlagsView[parentCellId] = bool(numContourCells);
         });
     }
@@ -429,10 +415,9 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::scanCrossings:scan_flags");
 #if defined(AXOM_USE_RAJA)
-      RAJA::inclusive_scan<ScanPolicy>(
-        RAJA::make_span(m_crossingFlags.data(), parentCellCount),
-        RAJA::make_span(m_scannedFlags.data() + 1, parentCellCount),
-        RAJA::operators::plus<axom::IndexType> {});
+      RAJA::inclusive_scan<ScanPolicy>(RAJA::make_span(m_crossingFlags.data(), parentCellCount),
+                                       RAJA::make_span(m_scannedFlags.data() + 1, parentCellCount),
+                                       RAJA::operators::plus<axom::IndexType> {});
 
 #else
       for(axom::IndexType n = 0; n < parentCellCount; ++n)
@@ -482,12 +467,11 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::scanCrossings:scan_incrs");
 #if defined(AXOM_USE_RAJA)
-      RAJA::inclusive_scan<ScanPolicy>(
-        RAJA::make_span(m_facetIncrs.data(), m_crossingCount),
-        RAJA::make_span(m_firstFacetIds.data() + 1, m_crossingCount),
-        RAJA::operators::plus<axom::IndexType> {});
+      RAJA::inclusive_scan<ScanPolicy>(RAJA::make_span(m_facetIncrs.data(), m_crossingCount),
+                                       RAJA::make_span(m_firstFacetIds.data() + 1, m_crossingCount),
+                                       RAJA::operators::plus<axom::IndexType> {});
 #else
-      for(axom::IndexType n = 0; n < parentCellCount; ++n)
+      for(axom::IndexType n = 0; n < m_crossingCount; ++n)
       {
         m_firstFacetIds[n + 1] = m_firstFacetIds[n] + m_facetIncrs[n];
       }
@@ -511,9 +495,7 @@ public:
     RAJA::ReduceSum<ReducePolicy, axom::IndexType> vsum(0);
     RAJA::forall<LoopPolicy>(
       RAJA::RangeSegment(0, parentCellCount),
-      AXOM_LAMBDA(RAJA::Index_type n) {
-        vsum += bool(num_contour_cells(caseIdsView.flatIndex(n)));
-      });
+      AXOM_LAMBDA(RAJA::Index_type n) { vsum += bool(num_contour_cells(caseIdsView.flatIndex(n))); });
     m_crossingCount = static_cast<axom::IndexType>(vsum.get());
 #else
     axom::IndexType vsum = 0;
@@ -532,9 +514,8 @@ public:
     auto crossingCasesView = m_crossingCases.view();
     auto facetIncrsView = m_facetIncrs.view();
 
-    axom::IndexType* crossingId = axom::allocate<axom::IndexType>(
-      1,
-      axom::detail::getAllocatorID<MemorySpace>());
+    axom::IndexType* crossingId =
+      axom::allocate<axom::IndexType>(1, axom::detail::getAllocatorID<MemorySpace>());
 
     auto loopBody = AXOM_LAMBDA(axom::IndexType n)
     {
@@ -554,15 +535,13 @@ public:
       loopBody isn't data-parallel and shouldn't be parallelized.
       This contrived RAJA::forall forces it to run sequentially.
     */
-    RAJA::forall<SequentialLoopPolicy>(
-      RAJA::RangeSegment(0, 1),
-      [=] AXOM_HOST_DEVICE(int /* i */) {
-        *crossingId = 0;
-        for(axom::IndexType n = 0; n < parentCellCount; ++n)
-        {
-          loopBody(n);
-        }
-      });
+    RAJA::forall<SequentialLoopPolicy>(RAJA::RangeSegment(0, 1), [=] AXOM_HOST_DEVICE(int /* i */) {
+      *crossingId = 0;
+      for(axom::IndexType n = 0; n < parentCellCount; ++n)
+      {
+        loopBody(n);
+      }
+    });
 #else
     *crossingId = 0;
     for(axom::IndexType n = 0; n < parentCellCount; ++n)
@@ -578,10 +557,9 @@ public:
 
     const auto firstFacetIdsView = m_firstFacetIds.view();
 #if defined(AXOM_USE_RAJA)
-    RAJA::inclusive_scan<ScanPolicy>(
-      RAJA::make_span(facetIncrsView.data(), m_crossingCount),
-      RAJA::make_span(firstFacetIdsView.data() + 1, m_crossingCount),
-      RAJA::operators::plus<axom::IndexType> {});
+    RAJA::inclusive_scan<ScanPolicy>(RAJA::make_span(facetIncrsView.data(), m_crossingCount),
+                                     RAJA::make_span(firstFacetIdsView.data() + 1, m_crossingCount),
+                                     RAJA::operators::plus<axom::IndexType> {});
 #else
     for(axom::IndexType i = 1; i < 1 + m_crossingCount; ++i)
     {
@@ -607,10 +585,7 @@ public:
     axom::ArrayView<axom::IndexType> facetParentIdsView = m_facetParentIds;
     const axom::IndexType facetIndexOffset = m_facetIndexOffset;
 
-    ComputeFacets_Util cfu(m_contourVal,
-                           m_caseIdsMDMapper,
-                           m_fcnView,
-                           m_coordsViews);
+    ComputeFacets_Util cfu(m_contourVal, m_caseIdsMDMapper, m_fcnView, m_coordsViews);
 
     auto gen_for_parent_cell = AXOM_LAMBDA(axom::IndexType crossingId)
     {
@@ -620,8 +595,7 @@ public:
       double cornerValues[CELL_CORNER_COUNT];
       cfu.get_corner_coords_and_values(parentCellId, cornerCoords, cornerValues);
 
-      auto additionalFacets =
-        firstFacetIdsView[crossingId + 1] - firstFacetIdsView[crossingId];
+      auto additionalFacets = firstFacetIdsView[crossingId + 1] - firstFacetIdsView[crossingId];
       auto firstFacetId = facetIndexOffset + firstFacetIdsView[crossingId];
 
       for(axom::IndexType fId = 0; fId < additionalFacets; ++fId)
@@ -637,10 +611,7 @@ public:
           facetNodeIdsView[newFacetId][d] = newCornerId;
 
           int edge = cases_table(caseId, fId * DIM + d);
-          cfu.linear_interp(edge,
-                            cornerCoords,
-                            cornerValues,
-                            &facetNodeCoordsView(newCornerId, 0));
+          cfu.linear_interp(edge, cornerCoords, cornerValues, &facetNodeCoordsView(newCornerId, 0));
         }
       }
     };
@@ -663,8 +634,7 @@ public:
       double contourVal_,
       const axom::MDMapping<DIM>& parentMDMapper,
       const axom::ArrayView<const double, DIM, MemorySpace>& fcnView_,
-      const axom::StackArray<axom::ArrayView<const double, DIM, MemorySpace>, DIM>
-        coordsViews_)
+      const axom::StackArray<axom::ArrayView<const double, DIM, MemorySpace>, DIM> coordsViews_)
       : contourVal(contourVal_)
       , mapping(parentMDMapper)
       , fcnView(fcnView_)
@@ -672,10 +642,10 @@ public:
     { }
 
     template <int TDIM = DIM>
-    AXOM_HOST_DEVICE typename std::enable_if<TDIM == 2>::type
-    get_corner_coords_and_values(IndexType parentCellId,
-                                 Point cornerCoords[],
-                                 double cornerValues[]) const
+    AXOM_HOST_DEVICE typename std::enable_if<TDIM == 2>::type get_corner_coords_and_values(
+      IndexType parentCellId,
+      Point cornerCoords[],
+      double cornerValues[]) const
     {
       const auto& x = coordsViews[0];
       const auto& y = coordsViews[1];
@@ -697,10 +667,10 @@ public:
       // clang-format on
     }
     template <int TDIM = DIM>
-    AXOM_HOST_DEVICE typename std::enable_if<TDIM == 3>::type
-    get_corner_coords_and_values(IndexType parentCellId,
-                                 Point cornerCoords[],
-                                 double cornerValues[]) const
+    AXOM_HOST_DEVICE typename std::enable_if<TDIM == 3>::type get_corner_coords_and_values(
+      IndexType parentCellId,
+      Point cornerCoords[],
+      double cornerValues[]) const
     {
       const auto& x = coordsViews[0];
       const auto& y = coordsViews[1];
@@ -756,8 +726,7 @@ public:
       const Point& p2 = cornerCoords[n2];
 
       // STEP 2: check whether the interpolated point is at one of the two corners.
-      if(axom::utilities::isNearlyEqual(contourVal, f1) ||
-         axom::utilities::isNearlyEqual(f1, f2))
+      if(axom::utilities::isNearlyEqual(contourVal, f1) || axom::utilities::isNearlyEqual(f1, f2))
       {
         crossingPt[0] = p1[0];
         crossingPt[1] = p1[1];  // crossingPt = p1;
@@ -811,8 +780,7 @@ public:
       const Point& p2 = cornerCoords[n2];
 
       // STEP 2: check whether the interpolated point is at one of the two corners.
-      if(axom::utilities::isNearlyEqual(contourVal, f1) ||
-         axom::utilities::isNearlyEqual(f1, f2))
+      if(axom::utilities::isNearlyEqual(contourVal, f1) || axom::utilities::isNearlyEqual(f1, f2))
       {
         crossingPt[0] = p1[0];
         crossingPt[1] = p1[1];
@@ -844,8 +812,7 @@ public:
   // to put static 1D and 2D arrays on both host and device?  BTNG.
 
   template <int TDIM = DIM>
-  static AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 2, int>::type
-  num_contour_cells(int iCase)
+  static AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 2, int>::type num_contour_cells(int iCase)
   {
 #define _MC_LOOKUP_NUM_SEGMENTS
 #include "marching_cubes_lookup.hpp"
@@ -855,8 +822,8 @@ public:
   }
 
   template <int TDIM = DIM>
-  static AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 2, int>::type
-  cases_table(int iCase, int iEdge)
+  static AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 2, int>::type cases_table(int iCase,
+                                                                                           int iEdge)
   {
 #define _MC_LOOKUP_CASES2D
 #include "marching_cubes_lookup.hpp"
@@ -866,8 +833,7 @@ public:
   }
 
   template <int TDIM = DIM>
-  static AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 3, int>::type
-  num_contour_cells(int iCase)
+  static AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 3, int>::type num_contour_cells(int iCase)
   {
 #define _MC_LOOKUP_NUM_TRIANGLES
 #include "marching_cubes_lookup.hpp"
@@ -877,8 +843,8 @@ public:
   }
 
   template <int TDIM = DIM>
-  static AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 3, int>::type
-  cases_table(int iCase, int iEdge)
+  static AXOM_HOST_DEVICE inline typename std::enable_if<TDIM == 3, int>::type cases_table(int iCase,
+                                                                                           int iEdge)
   {
 #define _MC_LOOKUP_CASES3D
 #include "marching_cubes_lookup.hpp"
@@ -933,8 +899,7 @@ private:
 
   // Views of parent domain data.
   // DIM coordinate components, each on a DIM-dimensional mesh.
-  using CoordViews =
-    axom::StackArray<axom::ArrayView<const double, DIM, MemorySpace>, DIM>;
+  using CoordViews = axom::StackArray<axom::ArrayView<const double, DIM, MemorySpace>, DIM>;
   CoordViews m_coordsViews;
   axom::ArrayView<const double, DIM, MemorySpace> m_fcnView;
   axom::ArrayView<const int, DIM, MemorySpace> m_maskView;
@@ -963,13 +928,21 @@ private:
   axom::Array<std::uint16_t>& m_caseIdsFlat;
 
   //!@brief Whether a parent cell crosses the contour.
-  axom::Array<std::uint16_t>& m_crossingFlags;
+  axom::Array<CrossingFlagType>& m_crossingFlags;
 
   //!@brief Prefix sum of m_crossingFlags
   axom::Array<axom::IndexType>& m_scannedFlags;
 
+  /*!
+    TODO: Facet increment values lie in [0, 5], but are wastefully
+    stored in 32 bits because of a ROCM scan implementation that adds
+    them in the input type without promoting them to the bigger output
+    type.  When ROCM supports the promotion and RAJA uses it, we can
+    change this type to something more efficient.
+  */
+  using FacetIncrsType = axom::IndexType;
   //!@brief Number of surface mesh facets added by each crossing.
-  axom::Array<axom::IndexType>& m_facetIncrs;
+  axom::Array<FacetIncrsType>& m_facetIncrs;
 
   //!@brief Number of parent cells crossing the contour surface.
   axom::IndexType m_crossingCount = 0;

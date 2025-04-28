@@ -80,8 +80,8 @@ TYPED_TEST(inlet_Reader, getInsideBools)
 TYPED_TEST(inlet_Reader, getTopLevelStrings)
 {
   TypeParam reader;
-  reader.parseString(fromLuaTo<TypeParam>(
-    "foo = \"this is a test string\"; bar = \"TesT StrInG\""));
+  reader.parseString(
+    fromLuaTo<TypeParam>("foo = \"this is a test string\"; bar = \"TesT StrInG\""));
 
   ReaderResult retValue;
   std::string value;
@@ -100,8 +100,8 @@ TYPED_TEST(inlet_Reader, getTopLevelStrings)
 TYPED_TEST(inlet_Reader, getInsideStrings)
 {
   TypeParam reader;
-  reader.parseString(fromLuaTo<TypeParam>(
-    "foo = { bar = \"this is a test string\"; baz = \"TesT StrInG\" }"));
+  reader.parseString(
+    fromLuaTo<TypeParam>("foo = { bar = \"this is a test string\"; baz = \"TesT StrInG\" }"));
 
   ReaderResult retValue;
   std::string value;
@@ -120,8 +120,8 @@ TYPED_TEST(inlet_Reader, getInsideStrings)
 TYPED_TEST(inlet_Reader, mixLevelContainers)
 {
   TypeParam reader;
-  reader.parseString(fromLuaTo<TypeParam>(
-    "t = { innerT = { foo = 1 }, anotherInnerT = {baz = 3}}"));
+  reader.parseString(
+    fromLuaTo<TypeParam>("t = { innerT = { foo = 1 }, anotherInnerT = {baz = 3}}"));
 
   ReaderResult retValue;
   int value;
@@ -160,10 +160,7 @@ TYPED_TEST(inlet_Reader, getMap)
   std::unordered_map<int, double> doubles;
   retValue = reader.getDoubleMap("luaArray", doubles);
   EXPECT_EQ(retValue, ReaderResult::NotHomogeneous);
-  std::unordered_map<int, double> expectedDoubles {{0, 4},
-                                                   {1, 5},
-                                                   {2, 6},
-                                                   {5, 2.4}};
+  std::unordered_map<int, double> expectedDoubles {{0, 4}, {1, 5}, {2, 6}, {5, 2.4}};
   EXPECT_EQ(expectedDoubles, doubles);
 
   std::unordered_map<int, bool> bools;
@@ -203,8 +200,8 @@ TYPED_TEST(inlet_Reader, emptyCollections)
 TYPED_TEST(inlet_Reader, simple_name_retrieval)
 {
   TypeParam reader;
-  reader.parseString(fromLuaTo<TypeParam>(
-    "t = { innerT = { foo = 1 }, anotherInnerT = {baz = 3}}"));
+  reader.parseString(
+    fromLuaTo<TypeParam>("t = { innerT = { foo = 1 }, anotherInnerT = {baz = 3}}"));
 
   auto found_names = reader.getAllNames();
   std::vector<std::string> expected_names {"t",
@@ -220,8 +217,8 @@ TYPED_TEST(inlet_Reader, simple_name_retrieval)
 TYPED_TEST(inlet_Reader, simple_name_retrieval_arrays)
 {
   TypeParam reader;
-  reader.parseString(fromLuaTo<TypeParam>(
-    "t = { [0] = { foo = 1, bar = 2}, [1] = { foo = 3, bar = 4} }"));
+  reader.parseString(
+    fromLuaTo<TypeParam>("t = { [0] = { foo = 1, bar = 2}, [1] = { foo = 3, bar = 4} }"));
 
   auto found_names = reader.getAllNames();
   std::vector<std::string> expected_names {
@@ -402,10 +399,7 @@ TEST(inlet_Reader_lua, getDiscontiguousMap)
   std::unordered_map<int, double> doubles;
   retValue = reader.getDoubleMap("luaArray", doubles);
   EXPECT_EQ(retValue, ReaderResult::NotHomogeneous);
-  std::unordered_map<int, double> expectedDoubles {{1, 4},
-                                                   {2, 5},
-                                                   {3, 6},
-                                                   {12, 2.4}};
+  std::unordered_map<int, double> expectedDoubles {{1, 4}, {2, 5}, {3, 6}, {12, 2.4}};
   EXPECT_EQ(expectedDoubles, doubles);
 
   std::unordered_map<int, bool> bools;
@@ -417,8 +411,7 @@ TEST(inlet_Reader_lua, getDiscontiguousMap)
   std::unordered_map<int, std::string> strs;
   retValue = reader.getStringMap("luaArray", strs);
   EXPECT_EQ(retValue, ReaderResult::NotHomogeneous);
-  std::unordered_map<int, std::string> expectedStrs {{33, "hello"},
-                                                     {200, "bye"}};
+  std::unordered_map<int, std::string> expectedStrs {{33, "hello"}, {200, "bye"}};
   EXPECT_EQ(expectedStrs, strs);
 }
 #endif

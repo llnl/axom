@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#include "axom/config.hpp"
 #include "axom/sina.hpp"
 
 int main(void)
@@ -17,5 +18,12 @@ int main(void)
   // Add the run to the document
   document.add(std::move(run));
   // Save the document directly to a file.
-  axom::sina::saveDocument(document, "MySinaData.json");
+  // by specifying Protocol::JSON, we set the file to save as a JSON.
+  // The third argument is optional here, it defaults to JSON.
+  axom::sina::saveDocument(document, "MySinaData.json", axom::sina::Protocol::JSON);
+
+#ifdef AXOM_USE_HDF5
+  // by specifying Protocol::HDF5, we also save a copy as an HDF5 file.
+  axom::sina::saveDocument(document, "MySinaData.hdf5", axom::sina::Protocol::HDF5);
+#endif
 }

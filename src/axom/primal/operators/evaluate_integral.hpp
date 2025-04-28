@@ -63,17 +63,14 @@ double evaluate_scalar_line_integral(const primal::CurvedPolygon<T, NDIMS> cpoly
   //  Use the same one for every curve in the polygon
   //  Quadrature order is equal to 2*N - 1
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
-  const mfem::IntegrationRule& quad =
-    my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
+  const mfem::IntegrationRule& quad = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
   double total_integral = 0.0;
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
     // Compute the line integral along each component.
     total_integral +=
-      detail::evaluate_scalar_line_integral_component(cpoly[i],
-                                                      scalar_integrand,
-                                                      quad);
+      detail::evaluate_scalar_line_integral_component(cpoly[i], scalar_integrand, quad);
   }
 
   return total_integral;
@@ -97,8 +94,7 @@ double evaluate_scalar_line_integral(const primal::BezierCurve<T, NDIMS>& c,
   //  Use the same one for every curve in the polygon
   //  Gaussian quadrature order is equal to 2*Npts - 1
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
-  const mfem::IntegrationRule& quad =
-    my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
+  const mfem::IntegrationRule& quad = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
   return detail::evaluate_scalar_line_integral_component(c, scalar_integrand, quad);
 }
@@ -127,17 +123,14 @@ double evaluate_vector_line_integral(const primal::CurvedPolygon<T, NDIMS> cpoly
   //  Use the same one for every curve in the polygon
   //  Quadrature order is equal to 2*N - 1
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
-  const mfem::IntegrationRule& quad =
-    my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
+  const mfem::IntegrationRule& quad = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
   double total_integral = 0.0;
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
     // Compute the line integral along each component.
     total_integral +=
-      detail::evaluate_vector_line_integral_component(cpoly[i],
-                                                      vector_integrand,
-                                                      quad);
+      detail::evaluate_vector_line_integral_component(cpoly[i], vector_integrand, quad);
   }
 
   return total_integral;
@@ -161,8 +154,7 @@ double evaluate_vector_line_integral(const primal::BezierCurve<T, NDIMS>& c,
   //  Use the same one for every curve in the polygon
   //  Gaussian quadrature order is equal to 2*Npts - 1
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
-  const mfem::IntegrationRule& quad =
-    my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
+  const mfem::IntegrationRule& quad = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
   return detail::evaluate_vector_line_integral_component(c, vector_integrand, quad);
 }
@@ -196,10 +188,8 @@ double evaluate_area_integral(const primal::CurvedPolygon<T, 2> cpoly,
 
   // Get the quadrature for the line integral.
   //  Quadrature order is equal to 2*N - 1
-  const mfem::IntegrationRule& quad_Q =
-    my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts_Q - 1);
-  const mfem::IntegrationRule& quad_P =
-    my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts_P - 1);
+  const mfem::IntegrationRule& quad_Q = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts_Q - 1);
+  const mfem::IntegrationRule& quad_P = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts_P - 1);
 
   // Use minimum y-coord of control nodes as lower bound for integration
   double int_lb = cpoly[0][0][1];
@@ -215,11 +205,8 @@ double evaluate_area_integral(const primal::CurvedPolygon<T, 2> cpoly,
   double total_integral = 0.0;
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
-    total_integral += detail::evaluate_area_integral_component(cpoly[i],
-                                                               integrand,
-                                                               int_lb,
-                                                               quad_Q,
-                                                               quad_P);
+    total_integral +=
+      detail::evaluate_area_integral_component(cpoly[i], integrand, int_lb, quad_Q, quad_P);
   }
 
   return total_integral;

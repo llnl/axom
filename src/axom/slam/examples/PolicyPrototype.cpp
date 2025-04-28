@@ -89,18 +89,12 @@ struct OrderedSet : public Set, TranslationPolicy, IndirectionPolicy, StridePoli
   OrderedSet(int sz) : TranslationPolicy(0, sz) { }
   OrderedSet(int lo, int hi) : TranslationPolicy(lo, hi) { }
 
-  inline int at(int pos) const
-  {
-    return indirection(pos * stride() + offset());
-  }
+  inline int at(int pos) const { return indirection(pos * stride() + offset()); }
 
   inline int size() const { return TranslationPolicy::size(); }
   inline int offset() const { return TranslationPolicy::offset(); }
   inline int stride() const { return StridePolicy::stride(); }
-  inline int indirection(int pos) const
-  {
-    return IndirectionPolicy::indirection(pos);
-  }
+  inline int indirection(int pos) const { return IndirectionPolicy::indirection(pos); }
 };
 
 ////  Define concrete Set types as combinations of the above

@@ -26,34 +26,31 @@ namespace bputils = axom::mir::utilities::blueprint;
 
 #include "axom/mir/tests/mir_testing_helpers.hpp"
 
-std::string baselineDirectory()
-{
-  return pjoin(pjoin(pjoin(dataDirectory(), "mir"), "regression"), "mir_views");
-}
+std::string baselineDirectory() { return pjoin(dataDirectory(), "mir", "regression", "mir_views"); }
 //------------------------------------------------------------------------------
 
 TEST(mir_views, shape2conduitName)
 {
-  EXPECT_EQ(axom::mir::views::LineShape<int>::name(), "line");
-  EXPECT_EQ(axom::mir::views::LineShape<long>::name(), "line");
+  EXPECT_STREQ(axom::mir::views::LineShape<int>::name(), "line");
+  EXPECT_STREQ(axom::mir::views::LineShape<long>::name(), "line");
 
-  EXPECT_EQ(axom::mir::views::TriShape<int>::name(), "tri");
-  EXPECT_EQ(axom::mir::views::TriShape<long>::name(), "tri");
+  EXPECT_STREQ(axom::mir::views::TriShape<int>::name(), "tri");
+  EXPECT_STREQ(axom::mir::views::TriShape<long>::name(), "tri");
 
-  EXPECT_EQ(axom::mir::views::QuadShape<int>::name(), "quad");
-  EXPECT_EQ(axom::mir::views::QuadShape<long>::name(), "quad");
+  EXPECT_STREQ(axom::mir::views::QuadShape<int>::name(), "quad");
+  EXPECT_STREQ(axom::mir::views::QuadShape<long>::name(), "quad");
 
-  EXPECT_EQ(axom::mir::views::TetShape<int>::name(), "tet");
-  EXPECT_EQ(axom::mir::views::TetShape<long>::name(), "tet");
+  EXPECT_STREQ(axom::mir::views::TetShape<int>::name(), "tet");
+  EXPECT_STREQ(axom::mir::views::TetShape<long>::name(), "tet");
 
-  EXPECT_EQ(axom::mir::views::PyramidShape<int>::name(), "pyramid");
-  EXPECT_EQ(axom::mir::views::PyramidShape<long>::name(), "pyramid");
+  EXPECT_STREQ(axom::mir::views::PyramidShape<int>::name(), "pyramid");
+  EXPECT_STREQ(axom::mir::views::PyramidShape<long>::name(), "pyramid");
 
-  EXPECT_EQ(axom::mir::views::WedgeShape<int>::name(), "wedge");
-  EXPECT_EQ(axom::mir::views::WedgeShape<long>::name(), "wedge");
+  EXPECT_STREQ(axom::mir::views::WedgeShape<int>::name(), "wedge");
+  EXPECT_STREQ(axom::mir::views::WedgeShape<long>::name(), "wedge");
 
-  EXPECT_EQ(axom::mir::views::HexShape<int>::name(), "hex");
-  EXPECT_EQ(axom::mir::views::HexShape<long>::name(), "hex");
+  EXPECT_STREQ(axom::mir::views::HexShape<int>::name(), "hex");
+  EXPECT_STREQ(axom::mir::views::HexShape<long>::name(), "hex");
 }
 
 //------------------------------------------------------------------------------
@@ -89,9 +86,8 @@ struct test_node_to_arrayview
       n_data.set(conduit::DataType(dtype, n));
 
       int sumValues = 0;
-      axom::mir::views::Node_to_ArrayView(n_data, [&](auto dataView) {
-        sumValues = testBody(dataView, n);
-      });
+      axom::mir::views::Node_to_ArrayView(n_data,
+                                          [&](auto dataView) { sumValues = testBody(dataView, n); });
 
       EXPECT_EQ(sumValues, sum(n));
     }
@@ -100,19 +96,15 @@ struct test_node_to_arrayview
   template <typename DataView>
   static int testBody(DataView dataView, int n)
   {
-    using reduce_policy =
-      typename axom::execution_space<ExecSpace>::reduce_policy;
+    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     using value_type = typename DataView::value_type;
 
-    std::cout << axom::mir::views::array_view_traits<DataView>::name()
-              << std::endl;
+    std::cout << axom::mir::views::array_view_traits<DataView>::name() << std::endl;
 
     // Make sure we can store values in dataView
     axom::for_all<ExecSpace>(
       n,
-      AXOM_LAMBDA(axom::IndexType index) {
-        dataView[index] = static_cast<value_type>(index);
-      });
+      AXOM_LAMBDA(axom::IndexType index) { dataView[index] = static_cast<value_type>(index); });
 
     // Read the values and sum them.
     RAJA::ReduceSum<reduce_policy, value_type> sumValues_reduce(0);
@@ -123,27 +115,15 @@ struct test_node_to_arrayview
   }
 };
 
-TEST(mir_views, node_to_arrayview_seq)
-{
-  test_node_to_arrayview<seq_exec>::test();
-}
+TEST(mir_views, node_to_arrayview_seq) { test_node_to_arrayview<seq_exec>::test(); }
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_views, node_to_arrayview_omp)
-{
-  test_node_to_arrayview<omp_exec>::test();
-}
+TEST(mir_views, node_to_arrayview_omp) { test_node_to_arrayview<omp_exec>::test(); }
 #endif
 #if defined(AXOM_USE_CUDA)
-TEST(mir_views, node_to_arrayview_cuda)
-{
-  test_node_to_arrayview<cuda_exec>::test();
-}
+TEST(mir_views, node_to_arrayview_cuda) { test_node_to_arrayview<cuda_exec>::test(); }
 #endif
 #if defined(AXOM_USE_HIP)
-TEST(mir_views, node_to_arrayview_hip)
-{
-  test_node_to_arrayview<hip_exec>::test();
-}
+TEST(mir_views, node_to_arrayview_hip) { test_node_to_arrayview<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
@@ -162,9 +142,7 @@ TEST(mir_views, explicit_coordsetview)
     EXPECT_EQ(view2d[i], P);
   }
 
-  axom::mir::views::ExplicitCoordsetView<float, 3> view3d(x.view(),
-                                                          y.view(),
-                                                          z.view());
+  axom::mir::views::ExplicitCoordsetView<float, 3> view3d(x.view(), y.view(), z.view());
   EXPECT_EQ(view3d.size(), 6);
   for(axom::IndexType i = 0; i < view3d.size(); i++)
   {
@@ -189,15 +167,13 @@ struct test_structured_topology_view_rectilinear
 
     // Make results view on device.
     constexpr int nzones = 9;
-    axom::Array<axom::IndexType> results(
-      nzones,
-      nzones,
-      axom::execution_space<ExecSpace>::allocatorID());
+    axom::Array<axom::IndexType> results(nzones,
+                                         nzones,
+                                         axom::execution_space<ExecSpace>::allocatorID());
     auto resultsView = results.view();
 
     // Execute the kernel for each zone (find max node number in zone).
-    auto topoView = axom::mir::views::make_rectilinear<2>::view(
-      deviceMesh["topologies/mesh"]);
+    auto topoView = axom::mir::views::make_rectilinear<2>::view(deviceMesh["topologies/mesh"]);
     axom::for_all<ExecSpace>(
       topoView.numberOfZones(),
       AXOM_LAMBDA(axom::IndexType zoneIndex) {
@@ -211,13 +187,10 @@ struct test_structured_topology_view_rectilinear
       });
 
     // device->host
-    axom::Array<axom::IndexType> hostResults(
-      nzones,
-      nzones,
-      axom::execution_space<axom::SEQ_EXEC>::allocatorID());
-    axom::copy(hostResults.data(),
-               results.data(),
-               nzones * sizeof(axom::IndexType));
+    axom::Array<axom::IndexType> hostResults(nzones,
+                                             nzones,
+                                             axom::execution_space<axom::SEQ_EXEC>::allocatorID());
+    axom::copy(hostResults.data(), results.data(), nzones * sizeof(axom::IndexType));
 
     // Compare.
     const axom::IndexType expected[] = {5, 6, 7, 9, 10, 11, 13, 14, 15};
@@ -266,16 +239,13 @@ struct test_strided_structured
     axom::mir::testing::data::strided_structured<2>(hostMesh);
     //  hostMesh.print();
 
-    axom::mir::views::dispatch_explicit_coordset(
-      hostMesh["coordsets/coords"],
-      [&](auto coordsetView) {
-        axom::mir::views::dispatch_structured_topology<
-          axom::mir::views::select_dimensions(2)>(
-          hostMesh["topologies/mesh"],
-          [&](const std::string &AXOM_UNUSED_PARAM(shape), auto topoView) {
-            execute(coordsetView, topoView);
-          });
-      });
+    axom::mir::views::dispatch_explicit_coordset(hostMesh["coordsets/coords"], [&](auto coordsetView) {
+      axom::mir::views::dispatch_structured_topology<axom::mir::views::select_dimensions(2)>(
+        hostMesh["topologies/mesh"],
+        [&](const std::string &AXOM_UNUSED_PARAM(shape), auto topoView) {
+          execute(coordsetView, topoView);
+        });
+    });
   }
 
   template <typename CoordsetView, typename TopologyView>
@@ -403,32 +373,24 @@ struct test_braid2d_mat
     {
       axom::mir::views::dispatch_material_multibuffer(
         deviceMesh["matsets/mat"],
-        [&](auto matsetView) {
-          test_matsetview(nzones, matsetView, allocatorID);
-        });
+        [&](auto matsetView) { test_matsetview(nzones, matsetView, allocatorID); });
     }
     else if(mattype == "element_dominant")
     {
       axom::mir::views::dispatch_material_element_dominant(
         deviceMesh["matsets/mat"],
-        [&](auto matsetView) {
-          test_matsetview(nzones, matsetView, allocatorID);
-        });
+        [&](auto matsetView) { test_matsetview(nzones, matsetView, allocatorID); });
     }
     else if(mattype == "material_dominant")
     {
       axom::mir::views::dispatch_material_material_dominant(
         deviceMesh["matsets/mat"],
-        [&](auto matsetView) {
-          test_matsetview(nzones, matsetView, allocatorID);
-        });
+        [&](auto matsetView) { test_matsetview(nzones, matsetView, allocatorID); });
     }
   }
 
   template <typename MatsetView>
-  static void test_matsetview(axom::IndexType nzones,
-                              MatsetView matsetView,
-                              int allocatorID)
+  static void test_matsetview(axom::IndexType nzones, MatsetView matsetView, int allocatorID)
   {
     // These values are used in that material_map.
     constexpr int MATA = 22;
@@ -468,15 +430,11 @@ struct test_braid2d_mat
         }
         const int offset = 1 + nResultsPerZone * index;
         // contains mat
-        resultsView[offset + 0] =
-          matsetView.zoneContainsMaterial(zoneidsView[index], MATA) ? 1 : 0;
-        resultsView[offset + 1] =
-          matsetView.zoneContainsMaterial(zoneidsView[index], MATB) ? 1 : 0;
-        resultsView[offset + 2] =
-          matsetView.zoneContainsMaterial(zoneidsView[index], MATC) ? 1 : 0;
+        resultsView[offset + 0] = matsetView.zoneContainsMaterial(zoneidsView[index], MATA) ? 1 : 0;
+        resultsView[offset + 1] = matsetView.zoneContainsMaterial(zoneidsView[index], MATB) ? 1 : 0;
+        resultsView[offset + 2] = matsetView.zoneContainsMaterial(zoneidsView[index], MATC) ? 1 : 0;
         // nmats in zone
-        resultsView[offset + 3] =
-          matsetView.numberOfMaterials(zoneidsView[index]);
+        resultsView[offset + 3] = matsetView.numberOfMaterials(zoneidsView[index]);
 
         typename MatsetView::IDList ids {};
         typename MatsetView::VFList vfs {};
@@ -486,8 +444,7 @@ struct test_braid2d_mat
         // mats in zone
         for(axom::IndexType i = 0; i < 3; i++)
         {
-          resultsView[offset + 5 + i] =
-            (i < ids.size()) ? static_cast<int>(ids[i]) : -1;
+          resultsView[offset + 5 + i] = (i < ids.size()) ? static_cast<int>(ids[i]) : -1;
         }
       });
     // Get containsView data to the host and compare results
@@ -503,128 +460,96 @@ struct test_braid2d_mat
 // Unibuffer
 TEST(mir_views, matset_unibuffer_seq)
 {
-  test_braid2d_mat<seq_exec>::test("uniform",
-                                   "unibuffer",
-                                   "uniform2d_unibuffer");
+  test_braid2d_mat<seq_exec>::test("uniform", "unibuffer", "uniform2d_unibuffer");
 }
 #if defined(AXOM_USE_OPENMP)
 TEST(mir_views, matset_unibuffer_omp)
 {
-  test_braid2d_mat<omp_exec>::test("uniform",
-                                   "unibuffer",
-                                   "uniform2d_unibuffer");
+  test_braid2d_mat<omp_exec>::test("uniform", "unibuffer", "uniform2d_unibuffer");
 }
 #endif
 #if defined(AXOM_USE_CUDA)
 TEST(mir_views, matset_unibuffer_cuda)
 {
-  test_braid2d_mat<cuda_exec>::test("uniform",
-                                    "unibuffer",
-                                    "uniform2d_unibuffer");
+  test_braid2d_mat<cuda_exec>::test("uniform", "unibuffer", "uniform2d_unibuffer");
 }
 #endif
 #if defined(AXOM_USE_HIP)
 TEST(mir_views, matset_unibuffer_hip)
 {
-  test_braid2d_mat<hip_exec>::test("uniform",
-                                   "unibuffer",
-                                   "uniform2d_unibuffer");
+  test_braid2d_mat<hip_exec>::test("uniform", "unibuffer", "uniform2d_unibuffer");
 }
 #endif
 
 // Multibuffer
 TEST(mir_views, matset_multibuffer_seq)
 {
-  test_braid2d_mat<seq_exec>::test("uniform",
-                                   "multibuffer",
-                                   "uniform2d_multibuffer");
+  test_braid2d_mat<seq_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
 }
 #if defined(AXOM_USE_OPENMP)
 TEST(mir_views, matset_multibuffer_omp)
 {
-  test_braid2d_mat<omp_exec>::test("uniform",
-                                   "multibuffer",
-                                   "uniform2d_multibuffer");
+  test_braid2d_mat<omp_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
 }
 #endif
 #if defined(AXOM_USE_CUDA)
 TEST(mir_views, matset_multibuffer_cuda)
 {
-  test_braid2d_mat<cuda_exec>::test("uniform",
-                                    "multibuffer",
-                                    "uniform2d_multibuffer");
+  test_braid2d_mat<cuda_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
 }
 #endif
 #if defined(AXOM_USE_HIP)
 TEST(mir_views, matset_multibuffer_hip)
 {
-  test_braid2d_mat<hip_exec>::test("uniform",
-                                   "multibuffer",
-                                   "uniform2d_multibuffer");
+  test_braid2d_mat<hip_exec>::test("uniform", "multibuffer", "uniform2d_multibuffer");
 }
 #endif
 
 // Element-dominant
 TEST(mir_views, matset_element_dominant_seq)
 {
-  test_braid2d_mat<seq_exec>::test("uniform",
-                                   "element_dominant",
-                                   "uniform2d_element_dominant");
+  test_braid2d_mat<seq_exec>::test("uniform", "element_dominant", "uniform2d_element_dominant");
 }
 #if defined(AXOM_USE_OPENMP)
 TEST(mir_views, matset_element_dominant_omp)
 {
-  test_braid2d_mat<omp_exec>::test("uniform",
-                                   "element_dominant",
-                                   "uniform2d_element_dominant");
+  test_braid2d_mat<omp_exec>::test("uniform", "element_dominant", "uniform2d_element_dominant");
 }
 #endif
 #if defined(AXOM_USE_CUDA)
 TEST(mir_views, matset_element_dominant_cuda)
 {
-  test_braid2d_mat<cuda_exec>::test("uniform",
-                                    "element_dominant",
-                                    "uniform2d_element_dominant");
+  test_braid2d_mat<cuda_exec>::test("uniform", "element_dominant", "uniform2d_element_dominant");
 }
 #endif
 #if defined(AXOM_USE_HIP)
 TEST(mir_views, matset_element_dominant_hip)
 {
-  test_braid2d_mat<hip_exec>::test("uniform",
-                                   "element_dominant",
-                                   "uniform2d_element_dominant");
+  test_braid2d_mat<hip_exec>::test("uniform", "element_dominant", "uniform2d_element_dominant");
 }
 #endif
 
 // Material-dominant
 TEST(mir_views, matset_material_dominant_seq)
 {
-  test_braid2d_mat<seq_exec>::test("uniform",
-                                   "material_dominant",
-                                   "uniform2d_material_dominant");
+  test_braid2d_mat<seq_exec>::test("uniform", "material_dominant", "uniform2d_material_dominant");
 }
 #if defined(AXOM_USE_OPENMP)
 TEST(mir_views, matset_material_dominant_omp)
 {
-  test_braid2d_mat<omp_exec>::test("uniform",
-                                   "material_dominant",
-                                   "uniform2d_material_dominant");
+  test_braid2d_mat<omp_exec>::test("uniform", "material_dominant", "uniform2d_material_dominant");
 }
 #endif
 #if defined(AXOM_USE_CUDA)
 TEST(mir_views, matset_material_dominant_cuda)
 {
-  test_braid2d_mat<cuda_exec>::test("uniform",
-                                    "material_dominant",
-                                    "uniform2d_material_dominant");
+  test_braid2d_mat<cuda_exec>::test("uniform", "material_dominant", "uniform2d_material_dominant");
 }
 #endif
 #if defined(AXOM_USE_HIP)
 TEST(mir_views, matset_material_dominant_hip)
 {
-  test_braid2d_mat<hip_exec>::test("uniform",
-                                   "material_dominant",
-                                   "uniform2d_material_dominant");
+  test_braid2d_mat<hip_exec>::test("uniform", "material_dominant", "uniform2d_material_dominant");
 }
 #endif
 

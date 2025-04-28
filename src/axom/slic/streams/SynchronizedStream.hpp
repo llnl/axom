@@ -62,9 +62,7 @@ public:
    * \pre stream != NULL
    * \see LogStream::setFormatString for the format string.
    */
-  SynchronizedStream(std::ostream* stream,
-                     MPI_Comm comm,
-                     const std::string& format);
+  SynchronizedStream(std::ostream* stream, MPI_Comm comm, const std::string& format);
 
   /*!
    * \brief Constructs a SynchronizedStream instance specified by the given

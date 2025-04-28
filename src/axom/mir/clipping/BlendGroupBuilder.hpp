@@ -72,10 +72,7 @@ public:
    *
    * \param nnodes The number of nodes in the input mesh.
    */
-  void setNamingPolicy(const NamingPolicyView &view)
-  {
-    m_state.m_namingView = view;
-  }
+  void setNamingPolicy(const NamingPolicyView &view) { m_state.m_namingView = view; }
 
   /*!
    * \brief Set the number of zones.
@@ -100,8 +97,7 @@ public:
   void computeBlendGroupSizes(IndexType &bgSum, IndexType &bgLenSum)
   {
     AXOM_ANNOTATE_SCOPE("computeBlendGroupSizes");
-    using reduce_policy =
-      typename axom::execution_space<ExecSpace>::reduce_policy;
+    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     RAJA::ReduceSum<reduce_policy, IndexType> blendGroups_sum(0);
     RAJA::ReduceSum<reduce_policy, IndexType> blendGroupLen_sum(0);
     const auto localBlendGroupsView = m_state.m_blendGroupsView;
@@ -135,10 +131,8 @@ public:
   void computeBlendGroupOffsets()
   {
     AXOM_ANNOTATE_SCOPE("computeBlendGroupOffsets");
-    axom::exclusive_scan<ExecSpace>(m_state.m_blendGroupsLenView,
-                                    m_state.m_blendOffsetView);
-    axom::exclusive_scan<ExecSpace>(m_state.m_blendGroupsView,
-                                    m_state.m_blendGroupOffsetsView);
+    axom::exclusive_scan<ExecSpace>(m_state.m_blendGroupsLenView, m_state.m_blendOffsetView);
+    axom::exclusive_scan<ExecSpace>(m_state.m_blendGroupsView, m_state.m_blendGroupOffsetsView);
   }
 
   /*!
@@ -174,10 +168,7 @@ public:
    * \brief Get the blend names view.
    * \return The blend names view.
    */
-  const axom::ArrayView<KeyType> &blendNames() const
-  {
-    return m_state.m_blendNamesView;
-  }
+  const axom::ArrayView<KeyType> &blendNames() const { return m_state.m_blendNamesView; }
 
   /*!
    * \brief This class helps us manage blend group creation and usage for blend groups within a single zone.
@@ -190,10 +181,7 @@ public:
      * \return The number of blend groups for this zone.
      */
     AXOM_HOST_DEVICE
-    inline IndexType numGroups() const
-    {
-      return m_state->m_blendGroupsView[m_zoneIndex];
-    }
+    inline IndexType numGroups() const { return m_state->m_blendGroupsView[m_zoneIndex]; }
 
     /*!
      * \brief Set the number of blend groups and total size of the blend groups for a zone.
@@ -244,9 +232,8 @@ public:
       m_state->m_blendGroupSizesView[m_blendGroupId] = numIds;
 
       // Store "name" of blend group.
-      KeyType blendName = m_state->m_namingView.makeName(
-        m_state->m_blendIdsView.data() + m_startOffset,
-        numIds);
+      KeyType blendName =
+        m_state->m_namingView.makeName(m_state->m_blendIdsView.data() + m_startOffset, numIds);
 
       m_state->m_blendNamesView[m_blendGroupId] = blendName;
 #if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
@@ -273,8 +260,7 @@ public:
       const auto numIds = m_state->m_blendGroupSizesView[m_blendGroupId];
       const auto start = m_state->m_blendGroupStartView[m_blendGroupId];
       float w = 0.f;
-      for(IndexType i = 0; i < numIds; i++)
-        w += m_state->m_blendCoeffView[start + i];
+      for(IndexType i = 0; i < numIds; i++) w += m_state->m_blendCoeffView[start + i];
       return w;
     }
 
@@ -284,10 +270,7 @@ public:
      * \return The size of the current blend group.
      */
     AXOM_HOST_DEVICE
-    inline IndexType size() const
-    {
-      return m_state->m_blendGroupSizesView[m_blendGroupId];
-    }
+    inline IndexType size() const { return m_state->m_blendGroupSizesView[m_blendGroupId]; }
 
     /*!
      * \brief Return the index'th weight in the blend group.
@@ -318,10 +301,7 @@ public:
      * \return The name of the current blend group.
      */
     AXOM_HOST_DEVICE
-    inline KeyType name() const
-    {
-      return m_state->m_blendNamesView[m_blendGroupId];
-    }
+    inline KeyType name() const { return m_state->m_blendNamesView[m_blendGroupId]; }
 
     /*!
      * \brief Return index of the current blend group in the unique blend groups.
@@ -330,8 +310,7 @@ public:
     AXOM_HOST_DEVICE
     inline IndexType uniqueBlendGroupIndex() const
     {
-      return axom::mir::utilities::bsearch(name(),
-                                           m_state->m_blendUniqueNamesView);
+      return axom::mir::utilities::bsearch(name(), m_state->m_blendUniqueNamesView);
     }
 
     /*!
@@ -392,8 +371,7 @@ public:
     {
       const auto n = m_state->m_blendGroupSizesView[m_blendGroupId];
       const auto offset = m_state->m_blendGroupStartView[m_blendGroupId];
-      return axom::ArrayView<IndexType>(m_state->m_blendIdsView.data() + offset,
-                                        n);
+      return axom::ArrayView<IndexType>(m_state->m_blendIdsView.data() + offset, n);
     }
 
     /*!
@@ -405,16 +383,15 @@ public:
     {
       const auto n = m_state->m_blendGroupSizesView[m_blendGroupId];
       const auto offset = m_state->m_blendGroupStartView[m_blendGroupId];
-      return axom::ArrayView<float>(m_state->m_blendCoeffsView.data() + offset,
-                                    n);
+      return axom::ArrayView<float>(m_state->m_blendCoeffsView.data() + offset, n);
     }
 
   private:
     friend class BlendGroupBuilder;
 
-    IndexType m_zoneIndex;  // The zone that owns this set of blend groups.
+    IndexType m_zoneIndex;     // The zone that owns this set of blend groups.
     IndexType m_blendGroupId;  // The global blend group index within this current zone.
-    IndexType m_startOffset;  // The data offset for the first ids/weights in this blend group.
+    IndexType m_startOffset;   // The data offset for the first ids/weights in this blend group.
     IndexType m_currentDataOffset;  // The current data offset.
     State *m_state;                 // Pointer to the main state.
   };
@@ -438,8 +415,7 @@ public:
     // Global blend group id for the first blend group in this zone.
     groups.m_blendGroupId = m_state.m_blendGroupOffsetsView[zoneIndex];
     // Global start
-    groups.m_startOffset = groups.m_currentDataOffset =
-      m_state.m_blendOffsetView[zoneIndex];
+    groups.m_startOffset = groups.m_currentDataOffset = m_state.m_blendOffsetView[zoneIndex];
 
     groups.m_state = const_cast<State *>(&m_state);
     return groups;
@@ -456,8 +432,7 @@ public:
                     axom::Array<axom::IndexType> &newUniqueIndices)
   {
     AXOM_ANNOTATE_SCOPE("filterUnique");
-    using reduce_policy =
-      typename axom::execution_space<ExecSpace>::reduce_policy;
+    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     const auto nIndices = m_state.m_blendUniqueIndicesView.size();
 
     if(nIndices > 0)
@@ -473,8 +448,7 @@ public:
         nIndices,
         AXOM_LAMBDA(axom::IndexType index) {
           const auto uniqueIndex = deviceState.m_blendUniqueIndicesView[index];
-          const int m =
-            (deviceState.m_blendGroupSizesView[uniqueIndex] > 1) ? 1 : 0;
+          const int m = (deviceState.m_blendGroupSizesView[uniqueIndex] > 1) ? 1 : 0;
           maskView[index] = m;
           mask_reduce += m;
         });
@@ -489,10 +463,8 @@ public:
         axom::exclusive_scan<ExecSpace>(maskView, offsetView);
 
         // Make new unique data where we compress out blend groups that had 1 node.
-        newUniqueNames =
-          axom::Array<KeyType>(mask_count, mask_count, allocatorID);
-        newUniqueIndices =
-          axom::Array<IndexType>(mask_count, mask_count, allocatorID);
+        newUniqueNames = axom::Array<KeyType>(mask_count, mask_count, allocatorID);
+        newUniqueIndices = axom::Array<IndexType>(mask_count, mask_count, allocatorID);
 
         auto newUniqueNamesView = newUniqueNames.view();
         auto newUniqueIndicesView = newUniqueIndices.view();
@@ -502,10 +474,8 @@ public:
             if(maskView[index] > 0)
             {
               const auto offset = offsetView[index];
-              newUniqueNamesView[offset] =
-                deviceState.m_blendUniqueNamesView[index];
-              newUniqueIndicesView[offset] =
-                deviceState.m_blendUniqueIndicesView[index];
+              newUniqueNamesView[offset] = deviceState.m_blendUniqueNamesView[index];
+              newUniqueIndicesView[offset] = deviceState.m_blendUniqueIndicesView[index];
             }
           });
 

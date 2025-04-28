@@ -17,8 +17,10 @@ set(lumberjack_headers
     Message.hpp
     MPIUtility.hpp
     RootCommunicator.hpp
+    NonCollectiveRootCommunicator.hpp
     TextEqualityCombiner.hpp
     TextTagCombiner.hpp
+    LineFileTagCombiner.hpp
     )
 
 set(lumberjack_sources
@@ -27,6 +29,7 @@ set(lumberjack_sources
     Message.cpp
     MPIUtility.cpp
     RootCommunicator.cpp
+    NonCollectiveRootCommunicator.cpp
     )
 
 

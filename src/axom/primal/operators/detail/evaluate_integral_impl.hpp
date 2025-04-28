@@ -38,10 +38,9 @@ namespace detail
  * \return the value of the integral
  */
 template <class Lambda, typename T, int NDIMS>
-inline double evaluate_scalar_line_integral_component(
-  const primal::BezierCurve<T, NDIMS>& c,
-  Lambda&& scalar_integrand,
-  const mfem::IntegrationRule& quad)
+inline double evaluate_scalar_line_integral_component(const primal::BezierCurve<T, NDIMS>& c,
+                                                      Lambda&& scalar_integrand,
+                                                      const mfem::IntegrationRule& quad)
 {
   // Store/compute quadrature result
   double full_quadrature = 0.0;
@@ -52,8 +51,7 @@ inline double evaluate_scalar_line_integral_component(
     auto x_q = c.evaluate(quad.IntPoint(q).x);
     auto dx_q = c.dt(quad.IntPoint(q).x);
 
-    full_quadrature +=
-      quad.IntPoint(q).weight * scalar_integrand(x_q) * dx_q.norm();
+    full_quadrature += quad.IntPoint(q).weight * scalar_integrand(x_q) * dx_q.norm();
   }
 
   return full_quadrature;
@@ -71,10 +69,9 @@ inline double evaluate_scalar_line_integral_component(
  * \return the value of the integral
  */
 template <class Lambda, typename T, int NDIMS>
-inline double evaluate_vector_line_integral_component(
-  const primal::BezierCurve<T, NDIMS>& c,
-  Lambda&& vec_field,
-  const mfem::IntegrationRule& quad)
+inline double evaluate_vector_line_integral_component(const primal::BezierCurve<T, NDIMS>& c,
+                                                      Lambda&& vec_field,
+                                                      const mfem::IntegrationRule& quad)
 {
   // Store/compute quadrature result
   double full_quadrature = 0.0;
@@ -86,8 +83,7 @@ inline double evaluate_vector_line_integral_component(
     auto dx_q = c.dt(quad.IntPoint(q).x);
     auto func_val = vec_field(x_q);
 
-    full_quadrature +=
-      quad.IntPoint(q).weight * Vector<T, NDIMS>::dot_product(func_val, dx_q);
+    full_quadrature += quad.IntPoint(q).weight * Vector<T, NDIMS>::dot_product(func_val, dx_q);
   }
   return full_quadrature;
 }
@@ -131,14 +127,11 @@ double evaluate_area_integral_component(const primal::BezierCurve<T, 2>& c,
     for(int xi = 0; xi < quad_P.GetNPoints(); xi++)
     {
       // Define interior quadrature points
-      auto x_qxi =
-        Point2D({x_q[0], (x_q[1] - int_lb) * quad_P.IntPoint(xi).x + int_lb});
+      auto x_qxi = Point2D({x_q[0], (x_q[1] - int_lb) * quad_P.IntPoint(xi).x + int_lb});
 
-      antiderivative =
-        quad_P.IntPoint(xi).weight * (x_q[1] - int_lb) * integrand(x_qxi);
+      antiderivative = quad_P.IntPoint(xi).weight * (x_q[1] - int_lb) * integrand(x_qxi);
 
-      full_quadrature += quad_Q.IntPoint(q).weight *
-        c.dt(quad_Q.IntPoint(q).x)[0] * -antiderivative;
+      full_quadrature += quad_Q.IntPoint(q).weight * c.dt(quad_Q.IntPoint(q).x)[0] * -antiderivative;
     }
   }
 

@@ -20,10 +20,7 @@
 
 using namespace axom;
 
-inline bool appendQuad(axom::IndexType i, axom::IndexType j)
-{
-  return (i + j) % 2 == 0;
-}
+inline bool appendQuad(axom::IndexType i, axom::IndexType j) { return (i + j) % 2 == 0; }
 
 //------------------------------------------------------------------------------
 int main(int AXOM_UNUSED_PARAM(argc), char** AXOM_UNUSED_PARAM(argv))
@@ -53,10 +50,8 @@ int main(int AXOM_UNUSED_PARAM(argc), char** AXOM_UNUSED_PARAM(argv))
   double* vy = mesh.createField<double>("vy", mint::NODE_CENTERED);
   double* vz = mesh.createField<double>("vz", mint::NODE_CENTERED);
   double* p = mesh.createField<double>("pressure", mint::CELL_CENTERED);
-  double* p_avg =
-    mesh.createField<double>("average_pressure", mint::NODE_CENTERED);
-  int* cells_per_node =
-    mesh.createField<int>("cells_per_node", mint::NODE_CENTERED);
+  double* p_avg = mesh.createField<double>("average_pressure", mint::NODE_CENTERED);
+  int* cells_per_node = mesh.createField<int>("cells_per_node", mint::NODE_CENTERED);
 
   /* STEP 3: Add the nodes */
   axom::IndexType node_ID = 0;
@@ -89,10 +84,7 @@ int main(int AXOM_UNUSED_PARAM(argc), char** AXOM_UNUSED_PARAM(argv))
       if(appendQuad(i, j))
       {
         /* Append a quad. */
-        const axom::IndexType quad[4] = {bottom_left,
-                                         bottom_right,
-                                         top_right,
-                                         top_left};
+        const axom::IndexType quad[4] = {bottom_left, bottom_right, top_right, top_left};
         mesh.appendCell(quad, mint::QUAD);
 
         p[cell_ID] = utilities::random_real(PLO, PHI);

@@ -222,8 +222,7 @@ public:
   axom::IndexType numberOfZones() const
   {
     axom::IndexType nzones = 0;
-    for(int i = 0; i < m_size; i++)
-      nzones = axom::utilities::max(nzones, m_indices[i].size());
+    for(int i = 0; i < m_size; i++) nzones = axom::utilities::max(nzones, m_indices[i].size());
     return nzones;
   }
 

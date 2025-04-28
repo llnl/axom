@@ -542,10 +542,7 @@ public:
    *
    * \return pointer to new View object or nullptr if one is not created.
    */
-  View* createViewWithShape(const std::string& path,
-                            TypeID type,
-                            int ndims,
-                            const IndexType* shape);
+  View* createViewWithShape(const std::string& path, TypeID type, int ndims, const IndexType* shape);
 
   /*!
    * \brief Create View object with given name or path in this Group that
@@ -610,10 +607,7 @@ public:
    *
    * \sa View::attachBuffer()
    */
-  View* createView(const std::string& path,
-                   TypeID type,
-                   IndexType num_elems,
-                   Buffer* buff);
+  View* createView(const std::string& path, TypeID type, IndexType num_elems, Buffer* buff);
 
   /*!
    * \brief Create View object with given name or path in this Group that
@@ -700,10 +694,7 @@ public:
    *
    * \sa View::setExternalDataPtr()
    */
-  View* createView(const std::string& path,
-                   TypeID type,
-                   IndexType num_elems,
-                   void* external_ptr);
+  View* createView(const std::string& path, TypeID type, IndexType num_elems, void* external_ptr);
 
   /*!
    * \brief Create View object with given name or path in this Group that
@@ -741,9 +732,7 @@ public:
    *
    * \sa View::attachBuffer()
    */
-  View* createView(const std::string& path,
-                   const DataType& dtype,
-                   void* external_ptr);
+  View* createView(const std::string& path, const DataType& dtype, void* external_ptr);
 
   //@}
 
@@ -1115,9 +1104,7 @@ private:
    *
    * \sa getDataInfo
    */
-  void getDataInfoHelper(Node& n,
-                         std::set<IndexType>& buffer_ids,
-                         bool recursive) const;
+  void getDataInfoHelper(Node& n, std::set<IndexType>& buffer_ids, bool recursive) const;
 
 public:
   //@{
@@ -1362,15 +1349,12 @@ public:
   /*!
    * \brief Copy Group's native layout to given Conduit node.
    *
-   * The native layout is a Conduit Node hierarchy that maps the Conduit Node
-   * data
+   * The native layout is a Conduit Node hierarchy that maps the Conduit Node data
    * externally to the Sidre View data so that it can be filled in from the data
-   * in the file (independent of file format) and can be accessed as a Conduit
-   * tree.
+   * in the file (independent of file format) and can be accessed as a Conduit tree.
    *
    * \return True if the Group or any of its children were added to the Node,
    * false otherwise.
-   *
    */
   bool createNativeLayout(Node& n, const Attribute* attr = nullptr) const;
 
@@ -1724,8 +1708,7 @@ public:
    * \return                   true for success, false if the full conduit
    *                           tree is not succesfully imported.
    */
-  bool importConduitTree(const conduit::Node& node,
-                         bool preserve_contents = false);
+  bool importConduitTree(const conduit::Node& node, bool preserve_contents = false);
 
   /*!
    * \brief Import data from a conduit Node into a Group without copying arrays
@@ -1750,8 +1733,7 @@ public:
    * \return                   true for success, false if the full conduit
    *                           tree is not succesfully imported.
    */
-  bool importConduitTreeExternal(conduit::Node& node,
-                                 bool preserve_contents = false);
+  bool importConduitTreeExternal(conduit::Node& node, bool preserve_contents = false);
 
 private:
   DISABLE_DEFAULT_CTOR(Group);
@@ -1860,9 +1842,7 @@ private:
    * \return True if the group or any of its children have saved Views,
    * false otherwise.
    */
-  bool exportTo(conduit::Node& result,
-                const Attribute* attr,
-                bool export_buffers = true) const;
+  bool exportTo(conduit::Node& result, const Attribute* attr, bool export_buffers = true) const;
 
   /*!
    * \brief Private method to copy Group to Conduit Node.
@@ -1898,8 +1878,7 @@ private:
    * to remain the same when a tree is restored.
    *
    */
-  void importFrom(conduit::Node& node,
-                  const std::map<IndexType, IndexType>& buffer_id_map);
+  void importFrom(conduit::Node& node, const std::map<IndexType, IndexType>& buffer_id_map);
 
   //@}
 

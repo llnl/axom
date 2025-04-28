@@ -318,7 +318,7 @@ endmacro(axom_assert_find_succeeded)
 ## convert_to_native_escaped_file_path( path output )
 ##
 ## This macro converts a cmake path to a platform specific string literal
-## usable in C++.  (For example, on windows C:/Path will be come C:\\Path)
+## usable in C++.  (For example, on windows C:/Path will become C:\\Path)
 ##------------------------------------------------------------------------------
 
 macro(convert_to_native_escaped_file_path path output)

@@ -15,9 +15,9 @@
 #define AXOM_NUMERICS_MATVECOPS_HPP_
 
 #include "axom/config.hpp"
-#include "axom/core/numerics/Determinants.hpp"  // numerics::determinant()
-#include "axom/core/numerics/Matrix.hpp"        // for numerics::Matrix
-#include "axom/core/utilities/Utilities.hpp"    // for isNearlyEqual()
+#include "axom/core/numerics/Determinants.hpp"           // numerics::determinant()
+#include "axom/core/numerics/Matrix.hpp"                 // for numerics::Matrix
+#include "axom/core/utilities/Utilities.hpp"             // for isNearlyEqual()
 #include "axom/core/numerics/internal/matrix_norms.hpp"  // matrix norm
                                                          // functions
 
@@ -521,8 +521,7 @@ inline T matrix_norm(const Matrix<T>& A, MatrixNorm normType)
 template <typename T>
 inline bool linspace(const T& x0, const T& x1, T* v, int N)
 {
-  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value,
-                         "pre: T is a floating point type");
+  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value, "pre: T is a floating point type");
   assert("pre: v pointer is null" && (v != nullptr));
 
   if(N <= 1)
@@ -578,8 +577,7 @@ inline AXOM_HOST_DEVICE T dot_product(const T* u, const T* v, int dim)
 template <typename T>
 void make_orthogonal(T* u, T* v, int dim, double tol)
 {
-  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value,
-                         "pre: T is a floating point type");
+  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value, "pre: T is a floating point type");
   assert("pre: u pointer is null" && (u != nullptr));
   assert("pre: v pointer is null" && (v != nullptr));
   assert("pre: dim >= 1" && (dim >= 1));
@@ -605,8 +603,7 @@ void make_orthogonal(T* u, T* v, int dim, double tol)
 template <typename T>
 bool orthonormalize(T* basis, int size, int dim, double eps)
 {
-  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value,
-                         "pre: T is a floating point type");
+  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value, "pre: T is a floating point type");
   assert("pre: basis pointer is null" && (basis != nullptr));
   assert("pre: dim >= 1" && (dim >= 1));
   assert("pre: size >= 1" && (size >= 1));
@@ -640,8 +637,7 @@ bool orthonormalize(T* basis, int size, int dim, double eps)
 template <typename T>
 inline AXOM_HOST_DEVICE bool normalize(T* v, int dim, double eps)
 {
-  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value,
-                         "pre: T is a floating point type");
+  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value, "pre: T is a floating point type");
   assert("pre: v pointer is null" && (v != nullptr));
   assert("pre: dim >= 1" && (dim >= 1));
 

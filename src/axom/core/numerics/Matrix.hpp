@@ -598,10 +598,9 @@ namespace axom
 namespace numerics
 {
 template <typename T>
-Matrix<T>::Matrix(int rows, int cols, T val)
-  : m_rows(rows)
-  , m_cols(cols)
-  , m_usingExternal(false)
+Matrix<T>::Matrix(int rows, int cols, T val) : m_rows(rows)
+                                             , m_cols(cols)
+                                             , m_usingExternal(false)
 {
   // sanity checks
   assert(m_rows > 0);
@@ -927,8 +926,7 @@ Matrix<T> Matrix<T>::ones(int nrows, int ncols)
 template <typename T>
 void Matrix<T>::copy(const Matrix<T>& rhs)
 {
-  bool do_allocate =
-    m_usingExternal || (m_rows != rhs.m_rows) || (m_cols != rhs.m_cols);
+  bool do_allocate = m_usingExternal || (m_rows != rhs.m_rows) || (m_cols != rhs.m_cols);
 
   if(do_allocate)
   {

@@ -31,17 +31,14 @@ namespace detail
  */
 bool isTrivial(const Container& container)
 {
-  if(!container.getChildFields().empty() ||
-     !container.getChildFunctions().empty())
+  if(!container.getChildFields().empty() || !container.getChildFunctions().empty())
   {
     return false;
   }
-  using value_type =
-    std::decay<decltype(container.getChildContainers())>::type::value_type;
-  return std::all_of(
-    container.getChildContainers().begin(),
-    container.getChildContainers().end(),
-    [](const value_type& entry) { return isTrivial(*entry.second); });
+  using value_type = std::decay<decltype(container.getChildContainers())>::type::value_type;
+  return std::all_of(container.getChildContainers().begin(),
+                     container.getChildContainers().end(),
+                     [](const value_type& entry) { return isTrivial(*entry.second); });
 }
 
 /**
@@ -59,13 +56,9 @@ constexpr typename std::underlying_type<E>::type to_underlying(const E e)
 }  // namespace detail
 
 SphinxWriter::SphinxWriter(const std::string& fileName)
-  : m_fieldColLabels({"Field Name",
-                      "Description",
-                      "Default Value",
-                      "Range/Valid Values",
-                      "Required"})
-  , m_functionColLabels(
-      {"Function Name", "Description", "Signature", "Required"})
+  : m_fieldColLabels(
+      {"Field Name", "Description", "Default Value", "Range/Valid Values", "Required"})
+  , m_functionColLabels({"Function Name", "Description", "Signature", "Required"})
 {
   m_fileName = fileName;
   m_oss << ".. |uncheck|    unicode:: U+2610 .. UNCHECKED BOX\n";
@@ -97,16 +90,13 @@ void SphinxWriter::documentContainer(const Container& container)
   if(sidreGroup->getParent()->getName() == detail::COLLECTION_GROUP_NAME)
   {
     // The collection that this Container is a part of
-    const std::string collectionName =
-      sidreGroup->getParent()->getParent()->getPathName();
+    const std::string collectionName = sidreGroup->getParent()->getParent()->getPathName();
     isSelectedElement = true;
   }
 
   m_inletContainerPathNames.push_back(pathName);
   auto& currContainer =
-    m_rstTables
-      .emplace(pathName, ContainerData {m_fieldColLabels, m_functionColLabels})
-      .first->second;
+    m_rstTables.emplace(pathName, ContainerData {m_fieldColLabels, m_functionColLabels}).first->second;
   currContainer.containerName = containerName;
   currContainer.isSelectedElement = isSelectedElement;
   if(containerName != "" && sidreGroup->hasView("description"))
@@ -154,9 +144,8 @@ void SphinxWriter::writeSubtitle(const std::string& sub)
 void SphinxWriter::writeTable(const std::string& title,
                               const std::vector<std::vector<std::string>>& rstTable)
 {
-  SLIC_WARNING_IF(
-    rstTable.size() <= 1,
-    "[Inlet] Vector for corresponding rst table must be nonempty");
+  SLIC_WARNING_IF(rstTable.size() <= 1,
+                  "[Inlet] Vector for corresponding rst table must be nonempty");
   std::string result = ".. list-table:: " + title;
   std::string widths = ":widths:";
   // This would be easier with an iterator adaptor like back_inserter but for
@@ -298,8 +287,7 @@ void SphinxWriter::extractFieldMetadata(const axom::sidre::Group* sidreGroup,
 
   if(sidreGroup->hasView("description"))
   {
-    fieldAttributes[1] =
-      std::string(sidreGroup->getView("description")->getString());
+    fieldAttributes[1] = std::string(sidreGroup->getView("description")->getString());
   }
 
   if(sidreGroup->hasView("defaultValue"))
@@ -313,13 +301,11 @@ void SphinxWriter::extractFieldMetadata(const axom::sidre::Group* sidreGroup,
   }
   else if(sidreGroup->hasView("validValues"))
   {
-    fieldAttributes[3] =
-      getValidValuesAsString(sidreGroup->getView("validValues"));
+    fieldAttributes[3] = getValidValuesAsString(sidreGroup->getView("validValues"));
   }
   else if(sidreGroup->hasGroup("validStringValues"))
   {
-    fieldAttributes[3] =
-      getValidStringValues(sidreGroup->getGroup("validStringValues"));
+    fieldAttributes[3] = getValidStringValues(sidreGroup->getGroup("validStringValues"));
   }
 
   if(sidreGroup->hasView("required"))
@@ -348,8 +334,7 @@ std::string SphinxWriter::getSignatureAsString(const axom::sidre::Group* sidreGr
   }();
 
   // View::getData<T> does not have a const version...
-  const auto ret_type =
-    static_cast<underlying>(sidreGroup->getView("return_type")->getData());
+  const auto ret_type = static_cast<underlying>(sidreGroup->getView("return_type")->getData());
 
   const auto args_view = sidreGroup->getView("function_arguments");
   const underlying* arg_tags = args_view->getData();
@@ -359,9 +344,7 @@ std::string SphinxWriter::getSignatureAsString(const axom::sidre::Group* sidreGr
   {
     arg_types[i] = type_names.at(arg_tags[i]);
   }
-  return fmt::format("{0}({1})",
-                     type_names.at(ret_type),
-                     fmt::join(arg_types, ", "));
+  return fmt::format("{0}({1})", type_names.at(ret_type), fmt::join(arg_types, ", "));
 }
 
 void SphinxWriter::extractFunctionMetadata(const axom::sidre::Group* sidreGroup,
@@ -373,8 +356,7 @@ void SphinxWriter::extractFunctionMetadata(const axom::sidre::Group* sidreGroup,
 
   if(sidreGroup->hasView("description"))
   {
-    functionAttributes[1] =
-      std::string(sidreGroup->getView("description")->getString());
+    functionAttributes[1] = std::string(sidreGroup->getView("description")->getString());
   }
 
   functionAttributes[2] = getSignatureAsString(sidreGroup);

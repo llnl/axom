@@ -43,9 +43,8 @@ struct ConcreteBivariateSet
    * \param set1  Pointer to the first Set.
    * \param set2  Pointer to the second Set.
    */
-  ConcreteBivariateSet(
-    const Set1* set1 = policies::EmptySetTraits<Set1>::emptySet(),
-    const Set2* set2 = policies::EmptySetTraits<Set2>::emptySet())
+  ConcreteBivariateSet(const Set1* set1 = policies::EmptySetTraits<Set1>::emptySet(),
+                       const Set2* set2 = policies::EmptySetTraits<Set2>::emptySet())
     : m_set1(set1)
     , m_set2(set2)
   { }
@@ -77,23 +76,21 @@ struct ConcreteBivariateSet
       }
       return false;
     }
-    return getFirstSet()->isValid(verboseOutput) &&
-      getSecondSet()->isValid(verboseOutput);
+    return getFirstSet()->isValid(verboseOutput) && getSecondSet()->isValid(verboseOutput);
   }
 
 private:
   template <typename SetType>
-  typename std::enable_if<std::is_abstract<SetType>::value, PositionType>::type
-  getSize(const SetType* s) const
+  typename std::enable_if<std::is_abstract<SetType>::value, PositionType>::type getSize(
+    const SetType* s) const
   {
     SLIC_ASSERT_MSG(s != nullptr, "nullptr in BivariateSet::getSize()");
     return s->size();
   }
 
   template <typename SetType>
-  AXOM_HOST_DEVICE
-    typename std::enable_if<!std::is_abstract<SetType>::value, PositionType>::type
-    getSize(const SetType* s) const
+  AXOM_HOST_DEVICE typename std::enable_if<!std::is_abstract<SetType>::value, PositionType>::type
+  getSize(const SetType* s) const
   {
     SLIC_ASSERT_MSG(s != nullptr, "nullptr in BivariateSet::getSize()");
     return static_cast<SetType>(*s).size();

@@ -58,9 +58,7 @@ public:
 
   static constexpr IntType DefaultSize() { return DEFAULT_VALUE; }
 
-  AXOM_HOST_DEVICE RuntimeStride(IntType stride = DEFAULT_VALUE)
-    : m_stride(stride)
-  { }
+  AXOM_HOST_DEVICE RuntimeStride(IntType stride = DEFAULT_VALUE) : m_stride(stride) { }
 
   /// \brief Returns the stride between consecutive elements.
   AXOM_HOST_DEVICE inline IntType stride() const { return m_stride; }
@@ -100,10 +98,7 @@ struct CompileTimeStride
 
   static constexpr IntType DefaultSize() { return DEFAULT_VALUE; }
 
-  AXOM_HOST_DEVICE CompileTimeStride(IntType val = DEFAULT_VALUE)
-  {
-    setStride(val);
-  }
+  AXOM_HOST_DEVICE CompileTimeStride(IntType val = DEFAULT_VALUE) { setStride(val); }
 
   AXOM_HOST_DEVICE inline IntType stride() const { return INT_VAL; }
   AXOM_HOST_DEVICE inline IntType shape() const { return INT_VAL; }
@@ -111,11 +106,10 @@ struct CompileTimeStride
 
   AXOM_HOST_DEVICE void setStride(IntType AXOM_DEBUG_PARAM(val))
   {
-    SLIC_ASSERT_MSG(
-      val == INT_VAL,
-      "slam::CompileTimeStride -- tried to set a compile time stride"
-        << " with value (" << val << " ) that differs from the template"
-        << " parameter of " << INT_VAL << ".");
+    SLIC_ASSERT_MSG(val == INT_VAL,
+                    "slam::CompileTimeStride -- tried to set a compile time stride"
+                      << " with value (" << val << " ) that differs from the template"
+                      << " parameter of " << INT_VAL << ".");
   }
 
   /** All non-zero strides are valid     */
@@ -149,8 +143,7 @@ struct MultiDimStride
     return array;
   }
 
-  AXOM_HOST_DEVICE MultiDimStride(StackArray<IntType, Dims> shape)
-    : m_shape(shape)
+  AXOM_HOST_DEVICE MultiDimStride(StackArray<IntType, Dims> shape) : m_shape(shape)
   {
     m_strides[Dims - 1] = 1;
     for(int i = Dims - 2; i >= 0; i--)
@@ -160,10 +153,7 @@ struct MultiDimStride
   }
 
   /// \brief Returns the "flat" stride of all the subcomponents.
-  AXOM_HOST_DEVICE inline IntType stride() const
-  {
-    return m_shape[0] * m_strides[0];
-  }
+  AXOM_HOST_DEVICE inline IntType stride() const { return m_shape[0] * m_strides[0]; }
 
   inline IntType operator()() const { return stride(); }
   inline IntType& operator()() { return stride(); }

@@ -46,8 +46,7 @@ enum class LengthUnit
  * \throws KleeError if the string does not represent known
  * units
  */
-LengthUnit parseLengthUnits(const std::string &unitsAsString,
-                            const std::string &path);
+LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string &path);
 
 /**
  * Convert a proxy to a LengthUnit.

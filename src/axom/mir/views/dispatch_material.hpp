@@ -8,6 +8,7 @@
 
 #include "axom/mir/views/MaterialView.hpp"
 #include "axom/mir/views/NodeArrayView.hpp"
+#include "axom/mir/utilities/blueprint_utilities.hpp"
 
 #include <conduit/conduit_blueprint.hpp>
 
@@ -17,6 +18,34 @@ namespace mir
 {
 namespace views
 {
+
+/*!
+ * \brief Make a unibuffer matset view from a Conduit node.
+ */
+template <typename IntType, typename FloatType, size_t MAXMATERIALS = 20>
+struct make_unibuffer_matset
+{
+  using MatsetView = UnibufferMaterialView<IntType, FloatType, MAXMATERIALS>;
+
+  /*!
+   * \brief Wrap the Conduit node as a unibuffer matset view.
+   *
+   * \param n_matset The Conduit node that contains the matset.
+   *
+   * \return A UnibufferMaterialView.
+   */
+  static MatsetView view(const conduit::Node &n_matset)
+  {
+    namespace bputils = axom::mir::utilities::blueprint;
+    MatsetView m;
+    m.set(bputils::make_array_view<IntType>(n_matset["material_ids"]),
+          bputils::make_array_view<FloatType>(n_matset["volume_fractions"]),
+          bputils::make_array_view<IntType>(n_matset["sizes"]),
+          bputils::make_array_view<IntType>(n_matset["offsets"]),
+          bputils::make_array_view<IntType>(n_matset["indices"]));
+    return m;
+  }
+};
 
 /*!
  * \brief Dispatch a Conduit node containing a unibuffer matset to a function as the appropriate type of matset view.
@@ -92,14 +121,11 @@ bool dispatch_material_multibuffer(const conduit::Node &matset, FuncType &&func)
   bool retval = false;
   if(conduit::blueprint::mesh::matset::is_multi_buffer(matset))
   {
-    const conduit::Node &volume_fractions =
-      matset.fetch_existing("volume_fractions");
+    const conduit::Node &volume_fractions = matset.fetch_existing("volume_fractions");
     if(volume_fractions.number_of_children() > 0)
     {
-      const conduit::Node &n_firstValues =
-        volume_fractions[0].fetch_existing("values");
-      const conduit::Node &n_firstIndices =
-        volume_fractions[0].fetch_existing("indices");
+      const conduit::Node &n_firstValues = volume_fractions[0].fetch_existing("values");
+      const conduit::Node &n_firstIndices = volume_fractions[0].fetch_existing("indices");
       IndexNode_to_ArrayView(n_firstIndices, [&](auto firstIndices) {
         FloatNode_to_ArrayView(n_firstValues, [&](auto firstValues) {
           using IntElement =
@@ -111,13 +137,10 @@ bool dispatch_material_multibuffer(const conduit::Node &matset, FuncType &&func)
 
           MultiBufferMaterialView<IntElement, FloatElement, MAXMATERIALS> matsetView;
 
-          for(conduit::index_t i = 0; i < volume_fractions.number_of_children();
-              i++)
+          for(conduit::index_t i = 0; i < volume_fractions.number_of_children(); i++)
           {
-            const conduit::Node &values =
-              volume_fractions[i].fetch_existing("values");
-            const conduit::Node &indices =
-              volume_fractions[i].fetch_existing("indices");
+            const conduit::Node &values = volume_fractions[i].fetch_existing("values");
+            const conduit::Node &indices = volume_fractions[i].fetch_existing("indices");
 
             const IntElement *indices_ptr = indices.value();
             const FloatElement *values_ptr = values.value();
@@ -128,10 +151,9 @@ bool dispatch_material_multibuffer(const conduit::Node &matset, FuncType &&func)
                                   values.dtype().number_of_elements());
 
             // Get the material number if we can.
-            IntElement matno =
-              getMaterialID<IntElement>(matset,
-                                        volume_fractions[i].name(),
-                                        static_cast<IntElement>(i));
+            IntElement matno = getMaterialID<IntElement>(matset,
+                                                         volume_fractions[i].name(),
+                                                         static_cast<IntElement>(i));
 
             matsetView.add(matno, indices_view, values_view);
           }
@@ -154,14 +176,12 @@ bool dispatch_material_multibuffer(const conduit::Node &matset, FuncType &&func)
  * \param func   The function/lambda that will operate on the matset view.
  */
 template <typename FuncType, size_t MAXMATERIALS = 20>
-bool dispatch_material_element_dominant(const conduit::Node &matset,
-                                        FuncType &&func)
+bool dispatch_material_element_dominant(const conduit::Node &matset, FuncType &&func)
 {
   bool retval = false;
   if(conduit::blueprint::mesh::matset::is_element_dominant(matset))
   {
-    const conduit::Node &volume_fractions =
-      matset.fetch_existing("volume_fractions");
+    const conduit::Node &volume_fractions = matset.fetch_existing("volume_fractions");
     if(volume_fractions.number_of_children() > 0)
     {
       const conduit::Node &n_firstValues = volume_fractions[0];
@@ -182,9 +202,7 @@ bool dispatch_material_element_dominant(const conduit::Node &matset,
 
           // Get the material number if we can.
           IntElement matno =
-            getMaterialID<IntElement>(matset,
-                                      volume_fractions[i].name(),
-                                      static_cast<IntElement>(i));
+            getMaterialID<IntElement>(matset, volume_fractions[i].name(), static_cast<IntElement>(i));
 
           matsetView.add(matno, values_view);
         }
@@ -206,14 +224,12 @@ bool dispatch_material_element_dominant(const conduit::Node &matset,
  * \param func   The function/lambda that will operate on the matset view.
  */
 template <typename FuncType, size_t MAXMATERIALS = 20>
-bool dispatch_material_material_dominant(const conduit::Node &matset,
-                                         FuncType &&func)
+bool dispatch_material_material_dominant(const conduit::Node &matset, FuncType &&func)
 {
   bool retval = false;
   if(conduit::blueprint::mesh::matset::is_material_dominant(matset))
   {
-    const conduit::Node &volume_fractions =
-      matset.fetch_existing("volume_fractions");
+    const conduit::Node &volume_fractions = matset.fetch_existing("volume_fractions");
     const conduit::Node &element_ids = matset.fetch_existing("element_ids");
     if(volume_fractions.number_of_children() > 0 &&
        volume_fractions.number_of_children() == element_ids.number_of_children())
@@ -232,8 +248,7 @@ bool dispatch_material_material_dominant(const conduit::Node &matset,
 
           MaterialDominantMaterialView<IntElement, FloatElement, MAXMATERIALS> matsetView;
 
-          for(conduit::index_t i = 0; i < volume_fractions.number_of_children();
-              i++)
+          for(conduit::index_t i = 0; i < volume_fractions.number_of_children(); i++)
           {
             const conduit::Node &indices = element_ids[i];
             const conduit::Node &values = volume_fractions[i];
@@ -248,9 +263,7 @@ bool dispatch_material_material_dominant(const conduit::Node &matset,
 
             // Get the material number if we can.
             IntElement matno =
-              getMaterialID<IntElement>(matset,
-                                        values.name(),
-                                        static_cast<IntElement>(i));
+              getMaterialID<IntElement>(matset, values.name(), static_cast<IntElement>(i));
 
             matsetView.add(matno, indices_view, values_view);
           }
@@ -275,24 +288,20 @@ bool dispatch_material_material_dominant(const conduit::Node &matset,
 template <typename FuncType, size_t MAXMATERIALS = 20>
 bool dispatch_material(const conduit::Node &matset, FuncType &&func)
 {
-  bool retval = dispatch_material_unibuffer<FuncType, MAXMATERIALS>(
-    matset,
-    std::forward<FuncType>(func));
-  if(!retval)
-  {
-    retval = dispatch_material_multibuffer<FuncType, MAXMATERIALS>(
-      matset,
-      std::forward<FuncType>(func));
-  }
+  bool retval =
+    dispatch_material_unibuffer<FuncType, MAXMATERIALS>(matset, std::forward<FuncType>(func));
   if(!retval)
   {
     retval =
-      dispatch_material_element_dominant(matset, std::forward<FuncType>(func));
+      dispatch_material_multibuffer<FuncType, MAXMATERIALS>(matset, std::forward<FuncType>(func));
   }
   if(!retval)
   {
-    retval =
-      dispatch_material_material_dominant(matset, std::forward<FuncType>(func));
+    retval = dispatch_material_element_dominant(matset, std::forward<FuncType>(func));
+  }
+  if(!retval)
+  {
+    retval = dispatch_material_material_dominant(matset, std::forward<FuncType>(func));
   }
   return retval;
 }

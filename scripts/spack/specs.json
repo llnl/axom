@@ -23,9 +23,9 @@
     "__comment__":"# Use amdgpu_target=gfx908 for rznevada",
     "__comment__":"# -Wno-int-conversion flag needed for building HDF5",
     "toss_4_x86_64_ib_cray":
-    [ "rocmcc@6.1.2+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a ^hip@6.1.2 ^hsa-rocr-dev@6.1.2 ^llvm-amdgpu@6.1.2 ^rocprim@6.1.2 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
-      "rocmcc@6.2.1+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a ^hip@6.2.1 ^hsa-rocr-dev@6.2.1 ^llvm-amdgpu@6.2.1 ^rocprim@6.2.1 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
-      "cce@18.0.0+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a ^hip@6.1.2 ^hsa-rocr-dev@6.1.2 ^llvm-amdgpu@6.1.2 ^rocprim@6.1.2 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion" ],
+    [ "rocmcc@6.3.1+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a ^hip@6.3.1 ^hipsparse@6.3.1 ^hsa-rocr-dev@6.3.1 ^llvm-amdgpu@6.3.1 ^rocprim@6.3.1 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
+      "rocmcc@6.2.1+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a ^hip@6.2.1 ^hipsparse@6.2.1 ^hsa-rocr-dev@6.2.1 ^llvm-amdgpu@6.2.1 ^rocprim@6.2.1 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
+      "cce@19.0.0+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a ^hip@6.3.1 ^hipsparse@6.3.1 ^hsa-rocr-dev@6.3.1 ^llvm-amdgpu@6.3.1 ^rocprim@6.3.1 ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion" ],
 
     "__comment__":"# Note: clang-ibm + raja+openmp causes runtime failures, turning it off until there is an alternative",
     "blueos_3_ppc64le_ib_p9":

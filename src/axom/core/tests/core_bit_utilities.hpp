@@ -55,8 +55,7 @@ TEST(core_bit_utilities, trailingZeroes)
     for(int j = i + 1; j < BITS; ++j)
     {
       std::uint64_t val2 = ::shifted(i) + ::shifted(j);
-      EXPECT_EQ(axom::utilities::countr_zero(val),
-                axom::utilities::countr_zero(val2));
+      EXPECT_EQ(axom::utilities::countr_zero(val), axom::utilities::countr_zero(val2));
     }
   }
 
@@ -159,8 +158,7 @@ TEST(core_bit_utilities, countl_zero)
     for(int j = 0; j < i; ++j)
     {
       std::int32_t val2 = ::shifted(i) + ::shifted(j);
-      EXPECT_EQ(axom::utilities::countl_zero(val),
-                axom::utilities::countl_zero(val2));
+      EXPECT_EQ(axom::utilities::countl_zero(val), axom::utilities::countl_zero(val2));
     }
   }
 
@@ -185,17 +183,14 @@ TEST(core_bit_utilities, countl_zero)
 TEST(core_bit_utilities, setbit_bitisset)
 {
   const std::uint32_t pattern = 0xaaaaaaaa;
-  for(size_t bit = 0;
-      bit < axom::utilities::BitTraits<std::uint32_t>::BITS_PER_WORD;
-      bit++)
+  for(size_t bit = 0; bit < axom::utilities::BitTraits<std::uint32_t>::BITS_PER_WORD; bit++)
   {
     EXPECT_EQ(axom::utilities::bitIsSet(pattern, bit), ((bit & 1) == 1));
   }
 
   const bool bitvals[] = {false, true, true, false, true, true, false, true};
   std::uint8_t value = 0;
-  for(size_t i = 0; i < axom::utilities::BitTraits<std::uint8_t>::BITS_PER_WORD;
-      i++)
+  for(size_t i = 0; i < axom::utilities::BitTraits<std::uint8_t>::BITS_PER_WORD; i++)
   {
     axom::utilities::setBit(value, i, bitvals[i]);
     for(size_t b = 0; b <= i; b++)
@@ -204,8 +199,7 @@ TEST(core_bit_utilities, setbit_bitisset)
     }
   }
 
-  for(size_t i = 0; i < axom::utilities::BitTraits<std::uint8_t>::BITS_PER_WORD;
-      i++)
+  for(size_t i = 0; i < axom::utilities::BitTraits<std::uint8_t>::BITS_PER_WORD; i++)
   {
     axom::utilities::setBit(value, i, false);
     EXPECT_EQ(axom::utilities::bitIsSet(value, i), false);

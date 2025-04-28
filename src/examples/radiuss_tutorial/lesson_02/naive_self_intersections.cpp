@@ -41,14 +41,11 @@ struct BasicLogger
     // Customize logging levels and formatting
     const std::string slicFormatStr = "[lesson_02: <LEVEL>] <MESSAGE> \n";
 
-    slic::addStreamToMsgLevel(new slic::GenericOutputStream(&std::cerr),
-                              slic::message::Error);
-    slic::addStreamToMsgLevel(
-      new slic::GenericOutputStream(&std::cerr, slicFormatStr),
-      slic::message::Warning);
+    slic::addStreamToMsgLevel(new slic::GenericOutputStream(&std::cerr), slic::message::Error);
+    slic::addStreamToMsgLevel(new slic::GenericOutputStream(&std::cerr, slicFormatStr),
+                              slic::message::Warning);
 
-    auto* compactStream =
-      new slic::GenericOutputStream(&std::cout, slicFormatStr);
+    auto* compactStream = new slic::GenericOutputStream(&std::cout, slicFormatStr);
     slic::addStreamToMsgLevel(compactStream, slic::message::Info);
     slic::addStreamToMsgLevel(compactStream, slic::message::Debug);
   }
@@ -134,27 +131,16 @@ struct TriangleMesh
   axom::IndexType numDegenerateTriangles() const
   {
     return static_cast<axom::IndexType>(
-      std::count_if(m_degeneracies.begin(), m_degeneracies.end(), [](bool b) {
-        return b == true;
-      }));
+      std::count_if(m_degeneracies.begin(), m_degeneracies.end(), [](bool b) { return b == true; }));
   }
 
-  bool isTriangleDegenerate(axom::IndexType idx) const
-  {
-    return m_degeneracies[idx];
-  }
+  bool isTriangleDegenerate(axom::IndexType idx) const { return m_degeneracies[idx]; }
 
   BoundingBox& meshBoundingBox() { return m_meshBoundingBox; }
   const BoundingBox& meshBoundingBox() const { return m_meshBoundingBox; }
 
-  axom::Array<BoundingBox>& triangleBoundingBoxes()
-  {
-    return m_triangleBoundingBoxes;
-  }
-  const axom::Array<BoundingBox>& triangleBoundingBoxes() const
-  {
-    return m_triangleBoundingBoxes;
-  }
+  axom::Array<BoundingBox>& triangleBoundingBoxes() { return m_triangleBoundingBoxes; }
+  const axom::Array<BoundingBox>& triangleBoundingBoxes() const { return m_triangleBoundingBoxes; }
 
   axom::Array<Triangle> m_triangles;
   axom::Array<bool> m_degeneracies;
@@ -162,15 +148,13 @@ struct TriangleMesh
   BoundingBox m_meshBoundingBox;
 };
 
-TriangleMesh makeTriangleMesh(const std::string& stl_mesh_path,
-                              double weldThreshold)
+TriangleMesh makeTriangleMesh(const std::string& stl_mesh_path, double weldThreshold)
 {
   TriangleMesh triMesh;
 
   // load STL mesh into a mint unstructured mesh
-  auto* surface_mesh = new axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>(
-    3,
-    axom::mint::TRIANGLE);
+  auto* surface_mesh =
+    new axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>(3, axom::mint::TRIANGLE);
   {
     axom::utilities::Timer timer(true);
 
@@ -180,8 +164,7 @@ TriangleMesh makeTriangleMesh(const std::string& stl_mesh_path,
     reader->getMesh(surface_mesh);
 
     timer.stop();
-    SLIC_INFO(axom::fmt::format("Loading the mesh took {:4.3} seconds.",
-                                timer.elapsedTimeInSec()));
+    SLIC_INFO(axom::fmt::format("Loading the mesh took {:4.3} seconds.", timer.elapsedTimeInSec()));
   }
 
   // optionally weld triangle mesh
@@ -191,13 +174,11 @@ TriangleMesh makeTriangleMesh(const std::string& stl_mesh_path,
     axom::quest::weldTriMeshVertices(&surface_mesh, weldThreshold);
     timer.stop();
 
-    SLIC_INFO(axom::fmt::format("Vertex welding took {:4.3} seconds.",
-                                timer.elapsedTimeInSec()));
-    SLIC_INFO(axom::fmt::format(
-      axom::utilities::locale(),
-      "After welding, mesh has {:L} vertices and {:L} triangles.",
-      surface_mesh->getNumberOfNodes(),
-      surface_mesh->getNumberOfCells()));
+    SLIC_INFO(axom::fmt::format("Vertex welding took {:4.3} seconds.", timer.elapsedTimeInSec()));
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "After welding, mesh has {:L} vertices and {:L} triangles.",
+                                surface_mesh->getNumberOfNodes(),
+                                surface_mesh->getNumberOfCells()));
   }
 
   // extract triangles into an axom::Array
@@ -234,13 +215,11 @@ TriangleMesh makeTriangleMesh(const std::string& stl_mesh_path,
   triMesh.m_triangleBoundingBoxes.reserve(numCells);
   for(const auto& tri : triMesh.triangles())
   {
-    triMesh.m_triangleBoundingBoxes.emplace_back(
-      axom::primal::compute_bounding_box(tri));
+    triMesh.m_triangleBoundingBoxes.emplace_back(axom::primal::compute_bounding_box(tri));
     triMesh.m_meshBoundingBox.addBox(triMesh.m_triangleBoundingBoxes.back());
   }
 
-  SLIC_INFO(
-    axom::fmt::format("Mesh bounding box is {}.", triMesh.meshBoundingBox()));
+  SLIC_INFO(axom::fmt::format("Mesh bounding box is {}.", triMesh.meshBoundingBox()));
 
   return triMesh;
 }
@@ -263,9 +242,8 @@ axom::Array<IndexPair> naiveFindIntersections(const TriangleMesh& triMesh,
       continue;
     }
 
-    SLIC_INFO_IF(
-      verboseOutput && idx1 % 100 == 0,
-      axom::fmt::format(axom::utilities::locale(), "Outer index {:L}", idx1));
+    SLIC_INFO_IF(verboseOutput && idx1 % 100 == 0,
+                 axom::fmt::format(axom::utilities::locale(), "Outer index {:L}", idx1));
 
     for(axom::IndexType idx2 = idx1 + 1; idx2 < numTriangles; ++idx2)
     {
@@ -312,9 +290,8 @@ int main(int argc, char** argv)
   TriangleMesh mesh = makeTriangleMesh(params.mesh_file, params.weldThreshold);
 
   // Define a lambda to perform the intersection test on a pair of triangles in the mesh
-  auto checkIntersect = [=,
-                         tol = params.intersectionThreshold,
-                         &mesh](axom::IndexType idx1, axom::IndexType idx2) {
+  auto checkIntersect = [=, tol = params.intersectionThreshold, &mesh](axom::IndexType idx1,
+                                                                       axom::IndexType idx2) {
     constexpr bool includeBoundaries = false;  // only use triangle interiors
     const auto& tris = mesh.triangles();
 
@@ -322,8 +299,7 @@ int main(int argc, char** argv)
   };
 
   auto checkIntersectWithBoundingBoxes =
-    [=, tol = params.intersectionThreshold, &mesh](axom::IndexType idx1,
-                                                   axom::IndexType idx2) {
+    [=, tol = params.intersectionThreshold, &mesh](axom::IndexType idx1, axom::IndexType idx2) {
       constexpr bool includeBoundaries = false;  // only use triangle interiors
       const auto& tris = mesh.triangles();
       const auto& bboxes = mesh.triangleBoundingBoxes();
@@ -335,22 +311,19 @@ int main(int argc, char** argv)
   // Check for self-intersections; results are returned as an array of index pairs
   axom::utilities::Timer timer(true);
   auto intersectionPairs = params.useBoundingBoxes
-    ? naiveFindIntersections(mesh,
-                             checkIntersectWithBoundingBoxes,
-                             params.isVerbose())
+    ? naiveFindIntersections(mesh, checkIntersectWithBoundingBoxes, params.isVerbose())
     : naiveFindIntersections(mesh, checkIntersect, params.isVerbose());
   timer.stop();
 
-  SLIC_INFO(axom::fmt::format(
-    "Computing intersections {} took {:4.3} seconds.",
-    params.useBoundingBoxes ? "with bounding boxes" : "without bounding boxes",
-    timer.elapsedTimeInSec()));
-  SLIC_INFO(axom::fmt::format("Mesh had {} intersection pairs",
-                              intersectionPairs.size()));
+  SLIC_INFO(
+    axom::fmt::format("Computing intersections {} took {:4.3} seconds.",
+                      params.useBoundingBoxes ? "with bounding boxes" : "without bounding boxes",
+                      timer.elapsedTimeInSec()));
+  SLIC_INFO(axom::fmt::format("Mesh had {} intersection pairs", intersectionPairs.size()));
 
-  SLIC_INFO_IF(intersectionPairs.size() > 0 && params.isVerbose(),
-               axom::fmt::format("Intersecting pairs: {}\n",
-                                 axom::fmt::join(intersectionPairs, ", ")));
+  SLIC_INFO_IF(
+    intersectionPairs.size() > 0 && params.isVerbose(),
+    axom::fmt::format("Intersecting pairs: {}\n", axom::fmt::join(intersectionPairs, ", ")));
 
   return 0;
 }

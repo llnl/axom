@@ -9,6 +9,7 @@
 #include "lumberjack_Message.hpp"
 #include "lumberjack_TextEqualityCombiner.hpp"
 #include "lumberjack_TextTagCombiner.hpp"
+#include "lumberjack_LineFileTagCombiner.hpp"
 
 int main(int argc, char** argv)
 {

@@ -45,15 +45,32 @@ set(sina_sources
     core/Run.cpp
     )
 
+
 # Add Adiak header and source
 blt_list_append( TO sina_headers ELEMENTS core/AdiakWriter.hpp IF AXOM_USE_ADIAK )
 blt_list_append( TO sina_sources ELEMENTS core/AdiakWriter.cpp IF AXOM_USE_ADIAK )
 
 # Add fortran interface for Sina
+if(AXOM_USE_HDF5 AND ENABLE_FORTRAN)
+  set(AXOM_USE_HDF5_FORTRAN ".true.")
+else()
+  set(AXOM_USE_HDF5_FORTRAN ".false.")
+endif()
+
 if (ENABLE_FORTRAN)
-  blt_list_append( TO sina_headers ELEMENTS interface/sina_fortran_interface.h)
-  blt_list_append( TO sina_sources
-                   ELEMENTS interface/sina_fortran_interface.cpp interface/sina_fortran_interface.f)
+  configure_file(interface/sina_fortran_interface.f.in 
+                 interface/sina_fortran_interface.f 
+                 @ONLY)
+
+  blt_list_append(TO sina_headers 
+                  ELEMENTS interface/sina_fortran_interface.h)
+  blt_list_append(TO sina_sources 
+                  ELEMENTS interface/sina_fortran_interface.cpp
+                           ${CMAKE_CURRENT_BINARY_DIR}/interface/sina_fortran_interface.f)
+  
+  install(FILES ${CMAKE_Fortran_MODULE_DIRECTORY}/sina_functions.mod
+                ${CMAKE_Fortran_MODULE_DIRECTORY}/hdf5_config.mod
+          DESTINATION interface)
 endif()
 
 #------------------------------------------------------------------------------

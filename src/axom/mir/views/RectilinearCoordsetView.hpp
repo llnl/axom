@@ -41,8 +41,7 @@ public:
    * \param y The second coordinate component.
    */
   AXOM_HOST_DEVICE
-  RectilinearCoordsetView2(const axom::ArrayView<DataType> &x,
-                           const axom::ArrayView<DataType> &y)
+  RectilinearCoordsetView2(const axom::ArrayView<DataType> &x, const axom::ArrayView<DataType> &y)
     : m_coordinates {x, y}
     , m_indexing(LogicalIndex {{x.size(), y.size()}})
   { }
@@ -70,8 +69,7 @@ public:
   AXOM_HOST_DEVICE
   PointType getPoint(LogicalIndex vertex_index) const
   {
-    const DataType X[2] = {m_coordinates[0][vertex_index[0]],
-                           m_coordinates[1][vertex_index[1]]};
+    const DataType X[2] = {m_coordinates[0][vertex_index[0]], m_coordinates[1][vertex_index[1]]};
     return PointType(X);
   }
 
@@ -96,10 +94,7 @@ public:
    * \return A point that corresponds to \a vertex_index.
    */
   AXOM_HOST_DEVICE
-  PointType operator[](LogicalIndex vertex_index) const
-  {
-    return getPoint(vertex_index);
-  }
+  PointType operator[](LogicalIndex vertex_index) const { return getPoint(vertex_index); }
 
   /*!
    * \brief Return the requested point from the coordset.
@@ -199,10 +194,7 @@ public:
    * \return A point that corresponds to \a vertex_index.
    */
   AXOM_HOST_DEVICE
-  PointType operator[](LogicalIndex vertex_index) const
-  {
-    return getPoint(vertex_index);
-  }
+  PointType operator[](LogicalIndex vertex_index) const { return getPoint(vertex_index); }
 
   /*!
    * \brief Return the requested point from the coordset.

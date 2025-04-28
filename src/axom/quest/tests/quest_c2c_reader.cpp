@@ -42,9 +42,7 @@ const std::string C2C_SPLINE_FILENAME = "test_spline.contour";
 void writeSimpleCircle(const std::string& filename)
 {
   std::ofstream c2cFile(filename, std::ios::out);
-  c2cFile
-    << "piece = circle(origin=(0cm, 0cm), radius=1cm, start=0deg, end=360deg)"
-    << std::endl;
+  c2cFile << "piece = circle(origin=(0cm, 0cm), radius=1cm, start=0deg, end=360deg)" << std::endl;
 }
 
 /// Writes out a c2c file for a line
@@ -94,8 +92,7 @@ void writeSpline(const std::string& filename)
 
   // add straight edges within first quadrant
   c2cFile << "piece = line(end=(0cm,0cm))" << std::endl;
-  c2cFile << axom::fmt::format("piece = line(end=(0cm,{}cm))", 2 * M_PI)
-          << std::endl;
+  c2cFile << axom::fmt::format("piece = line(end=(0cm,{}cm))", 2 * M_PI) << std::endl;
   c2cFile << "piece = line(end=spline_start)" << std::endl;
 }
 

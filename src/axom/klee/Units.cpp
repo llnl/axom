@@ -24,15 +24,11 @@ namespace
  */
 struct LengthUnitHash
 {
-  std::size_t operator()(LengthUnit unit) const
-  {
-    return static_cast<std::size_t>(unit);
-  }
+  std::size_t operator()(LengthUnit unit) const { return static_cast<std::size_t>(unit); }
 };
 }  // namespace
 
-LengthUnit parseLengthUnits(const std::string &unitsAsString,
-                            const std::string &path)
+LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string &path)
 {
   static const std::unordered_map<std::string, LengthUnit> UNITS_BY_NAME {
     {"km", LengthUnit::km},
@@ -83,8 +79,7 @@ double getConversionFactor(LengthUnit sourceUnits, LengthUnit targetUnits)
     {LengthUnit::inches, 2.54},
     {LengthUnit::mils, 2.54e-3}};
 
-  if(sourceUnits == LengthUnit::unspecified ||
-     targetUnits == LengthUnit::unspecified)
+  if(sourceUnits == LengthUnit::unspecified || targetUnits == LengthUnit::unspecified)
   {
     throw std::invalid_argument("Cannot convert with unspecified units");
   }

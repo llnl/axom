@@ -31,10 +31,7 @@ public:
    * \brief Return the name of the field used for clipping.
    * \return The name of the field used for clipping.
    */
-  std::string clipField() const
-  {
-    return options().fetch_existing("clipField").as_string();
-  }
+  std::string clipField() const { return options().fetch_existing("clipField").as_string(); }
 
   /**
    * \brief Return the clip value.
@@ -42,9 +39,7 @@ public:
    */
   float clipValue() const
   {
-    return options().has_child("clipValue")
-      ? options().fetch_existing("clipValue").to_float()
-      : 0.f;
+    return options().has_child("clipValue") ? options().fetch_existing("clipValue").to_float() : 0.f;
   }
 
   /**
@@ -54,8 +49,7 @@ public:
   std::string colorField() const
   {
     std::string name("color");
-    if(options().has_child("colorField"))
-      name = options().fetch_existing("colorField").as_string();
+    if(options().has_child("colorField")) name = options().fetch_existing("colorField").as_string();
     return name;
   }
 
@@ -90,9 +84,7 @@ public:
    */
   bool inside() const
   {
-    return options().has_path("inside")
-      ? (options().fetch_existing("inside").to_int() > 0)
-      : true;
+    return options().has_path("inside") ? (options().fetch_existing("inside").to_int() > 0) : true;
   }
 
   /**
@@ -101,9 +93,7 @@ public:
    */
   bool outside() const
   {
-    return options().has_path("outside")
-      ? (options().fetch_existing("outside").to_int() > 0)
-      : false;
+    return options().has_path("outside") ? (options().fetch_existing("outside").to_int() > 0) : false;
   }
 
 private:

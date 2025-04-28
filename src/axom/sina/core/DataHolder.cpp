@@ -76,9 +76,8 @@ std::shared_ptr<DataHolder> DataHolder::addLibraryData(std::string const &name)
   return libraryData.at(name);
 }
 
-std::shared_ptr<DataHolder> DataHolder::addLibraryData(
-  std::string const &name,
-  conduit::Node existingLibraryData)
+std::shared_ptr<DataHolder> DataHolder::addLibraryData(std::string const &name,
+                                                       conduit::Node existingLibraryData)
 {
   auto existing = libraryData.find(name);
   if(existing == libraryData.end())
@@ -168,8 +167,7 @@ DataHolder::DataHolder(conduit::Node const &asNode)
       auto &libraryDataNode = libraryIter.next();
       std::string name = libraryIter.name();
       libraryData.emplace(
-        std::make_pair(std::move(name),
-                       std::make_shared<DataHolder>(libraryDataNode)));
+        std::make_pair(std::move(name), std::make_shared<DataHolder>(libraryDataNode)));
     }
   }
   if(asNode.has_child(USER_DEFINED_FIELD))

@@ -66,8 +66,7 @@ double stokes_winding_number_evaluate(const Point<T, 3>& query,
 {
   // Generate the quadrature rules in parameter space
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
-  const mfem::IntegrationRule& quad_rule =
-    my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
+  const mfem::IntegrationRule& quad_rule = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
   double quad = 0;
   for(int n = 0; n < patch.getNumTrimmingCurves(); ++n)

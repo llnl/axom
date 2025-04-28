@@ -14,20 +14,35 @@
  */
 
 #include "axom/lumberjack/Lumberjack.hpp"
+#include <iostream>
 
 namespace axom
 {
 namespace lumberjack
 {
-void Lumberjack::initialize(Communicator* communicator, int ranksLimit)
+void Lumberjack::initialize(Communicator* communicator, int ranksLimit, bool isCommunicatorOwned)
 {
-  m_communicator = communicator;
-  m_ranksLimit = ranksLimit;
-  m_combiners.push_back(new TextTagCombiner);
+  if(m_isInitialized == false)
+  {
+    m_isInitialized = true;
+    m_communicator = communicator;
+    m_isCommunicatorOwned = isCommunicatorOwned;
+    m_ranksLimit = ranksLimit;
+    m_combiners.push_back(new TextTagCombiner);
+  }
+  else
+  {
+    std::cerr << "Lumberjack::initialize called more than once" << std::endl;
+  }
 }
 
 void Lumberjack::finalize()
 {
+  if(m_isCommunicatorOwned && m_communicator != nullptr)
+  {
+    m_communicator->finalize();
+    delete m_communicator;
+  }
   m_communicator = nullptr;
   clearCombiners();
   clearMessages();
@@ -77,10 +92,7 @@ void Lumberjack::clearCombiners()
   m_combiners.clear();
 }
 
-const std::vector<Message*>& Lumberjack::getMessages() const
-{
-  return m_messages;
-}
+const std::vector<Message*>& Lumberjack::getMessages() const { return m_messages; }
 
 void Lumberjack::ranksLimit(int value)
 {
@@ -99,10 +111,7 @@ void Lumberjack::clearMessages()
   m_messages.clear();
 }
 
-void Lumberjack::queueMessage(const std::string& text)
-{
-  queueMessage(text, "", -1, 0, "");
-}
+void Lumberjack::queueMessage(const std::string& text) { queueMessage(text, "", -1, 0, ""); }
 
 void Lumberjack::queueMessage(const std::string& text,
                               const std::string& fileName,
@@ -110,8 +119,7 @@ void Lumberjack::queueMessage(const std::string& text,
                               int level,
                               const std::string& tag)
 {
-  Message* mi =
-    new Message(text, m_communicator->rank(), fileName, lineNumber, level, tag);
+  Message* mi = new Message(text, m_communicator->rank(), fileName, lineNumber, level, tag);
   m_messages.push_back(mi);
 }
 
@@ -128,8 +136,7 @@ void Lumberjack::pushMessagesOnce()
 
   m_communicator->push(packedMessagesToBeSent, receivedPackedMessages);
 
-  if(!m_communicator->isOutputNode() &&
-     !isPackedMessagesEmpty(packedMessagesToBeSent))
+  if(!m_communicator->isOutputNode() && !isPackedMessagesEmpty(packedMessagesToBeSent))
   {
     delete[] packedMessagesToBeSent;
   }
@@ -160,8 +167,7 @@ void Lumberjack::pushMessagesFully()
 
     m_communicator->push(packedMessagesToBeSent, receivedPackedMessages);
 
-    if(!m_communicator->isOutputNode() &&
-       !isPackedMessagesEmpty(packedMessagesToBeSent))
+    if(!m_communicator->isOutputNode() && !isPackedMessagesEmpty(packedMessagesToBeSent))
     {
       delete[] packedMessagesToBeSent;
     }
@@ -178,6 +184,21 @@ void Lumberjack::pushMessagesFully()
 }
 
 bool Lumberjack::isOutputNode() { return m_communicator->isOutputNode(); }
+
+void Lumberjack::setCommunicator(Communicator* communicator, bool isCommunicatorOwned)
+{
+  if(m_isCommunicatorOwned && m_communicator != nullptr)
+  {
+    m_communicator->finalize();
+    delete m_communicator;
+  }
+  m_isCommunicatorOwned = isCommunicatorOwned;
+  m_communicator = communicator;
+}
+
+Communicator* Lumberjack::getCommunicator() { return m_communicator; }
+
+bool Lumberjack::isCommunicatorOwned() { return m_isCommunicatorOwned; }
 
 void Lumberjack::combineMessages()
 {
@@ -199,9 +220,8 @@ void Lumberjack::combineMessages()
     {
       for(int combinerIndex = 0; combinerIndex < combinersSize; ++combinerIndex)
       {
-        if(m_combiners[combinerIndex]->shouldMessagesBeCombined(
-             *finalMessages[finalIndex],
-             *m_messages[allIndex]))
+        if(m_combiners[combinerIndex]->shouldMessagesBeCombined(*finalMessages[finalIndex],
+                                                                *m_messages[allIndex]))
         {
           m_combiners[combinerIndex]->combine(*finalMessages[finalIndex],
                                               *m_messages[allIndex],

@@ -1,5 +1,6 @@
 program example
   use sina_functions
+  use hdf5_config
   implicit none
 
   ! data types
@@ -28,6 +29,7 @@ program example
   character(:), allocatable :: tag
   character(:), allocatable :: units 
   character(20) :: json_fn
+  character(20) :: hdf5_fn
   character(15) :: name
   character(25) :: curve
   
@@ -56,6 +58,9 @@ program example
   full_path = make_cstring(wrk_dir//''//fle_nme)
   ofull_path = make_cstring(wrk_dir//''//ofle_nme)
   json_fn = make_cstring('sina_dump.json')
+  if (use_hdf5) then
+    hdf5_fn = make_cstring('sina_dump.hdf5')
+  end if
   
   
   mime_type = make_cstring('')
@@ -149,6 +154,9 @@ program example
   ! write out the Sina Document
   print *,'Writing out the Sina Document'
   call write_sina_document(json_fn)
+  if (use_hdf5) then
+    call write_sina_document(hdf5_fn, 1)
+  end if
 
   
 contains

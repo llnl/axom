@@ -24,10 +24,8 @@ int main(int argc, char** argv)
   {
     std::cout << "Error: Wrong amount of command line arguments given. "
               << "Usage:" << std::endl
-              << "   " << argv[0]
-              << " <b|r depending on binary or root communicator>"
-              << " <num messages before push once> <file to be read>"
-              << std::endl;
+              << "   " << argv[0] << " <b|r depending on binary or root communicator>"
+              << " <num messages before push once> <file to be read>" << std::endl;
     return 1;
   }
   std::string communicatorName = "";
@@ -45,16 +43,14 @@ int main(int argc, char** argv)
   else
   {
     std::cout << "Error: First parameter must be either 'b' or 'r' for "
-              << "BinaryTreeCommunicator or RootCommunicator respectively."
-              << std::endl;
+              << "BinaryTreeCommunicator or RootCommunicator respectively." << std::endl;
     return 1;
   }
 
   std::ifstream file(fileName);
   if(!file.good())
   {
-    std::cout << "Error: Given file was unable to open: " << fileName
-              << std::endl;
+    std::cout << "Error: Given file was unable to open: " << fileName << std::endl;
     return 1;
   }
 
@@ -137,8 +133,7 @@ int main(int argc, char** argv)
   // Output elapsed time
   if(commRank == 0)
   {
-    std::cout << "Elapsed time: "
-              << ((double)(end - begin) * 1000) / CLOCKS_PER_SEC << std::endl;
+    std::cout << "Elapsed time: " << ((double)(end - begin) * 1000) / CLOCKS_PER_SEC << std::endl;
   }
 
   // Finalize lumberjack

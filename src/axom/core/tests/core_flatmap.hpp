@@ -48,25 +48,13 @@ TEST(core_flatmap_unit, quadratic_probing)
   }
 }
 
-inline void flatmap_get_value(double key, std::string& out)
-{
-  out = std::to_string(key);
-}
+inline void flatmap_get_value(double key, std::string& out) { out = std::to_string(key); }
 
-inline void flatmap_get_value(int key, std::string& out)
-{
-  out = std::to_string(key);
-}
+inline void flatmap_get_value(int key, std::string& out) { out = std::to_string(key); }
 
-inline void flatmap_get_value(const std::string& key, double& out)
-{
-  out = std::stod(key);
-}
+inline void flatmap_get_value(const std::string& key, double& out) { out = std::stod(key); }
 
-inline void flatmap_get_value(const std::string& key, int& out)
-{
-  out = std::stoi(key);
-}
+inline void flatmap_get_value(const std::string& key, int& out) { out = std::stoi(key); }
 
 template <typename T, typename U>
 inline void flatmap_get_value(T key, U& out)
@@ -360,8 +348,7 @@ TEST(core_flatmap_moveonly, init_and_move_moveonly)
     test_map.emplace(i, new double {i + 10.0});
   }
 
-  axom::FlatMap<int, std::unique_ptr<double>> int_to_dbl_move =
-    std::move(test_map);
+  axom::FlatMap<int, std::unique_ptr<double>> int_to_dbl_move = std::move(test_map);
 
   EXPECT_EQ(test_map.size(), 0);
   EXPECT_EQ(test_map.load_factor(), 0);
@@ -525,9 +512,7 @@ AXOM_TYPED_TEST(core_flatmap, iterator_loop)
 
   int iter_count = 0;
   // Test constant iteration
-  for(typename MapType::const_iterator it = test_map.begin();
-      it != test_map.end();
-      ++it)
+  for(typename MapType::const_iterator it = test_map.begin(); it != test_map.end(); ++it)
   {
     auto pair = *it;
     auto iter_key = pair.first;

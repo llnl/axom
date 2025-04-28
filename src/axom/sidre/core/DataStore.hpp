@@ -279,8 +279,7 @@ public:
    *        Attribute object is owned by the DataStore object.
    */
   template <typename ScalarType>
-  Attribute* createAttributeScalar(const std::string& name,
-                                   ScalarType default_value)
+  Attribute* createAttributeScalar(const std::string& name, ScalarType default_value)
   {
     Attribute* new_attribute = createAttributeEmpty(name);
     if(new_attribute != nullptr)
@@ -296,8 +295,7 @@ public:
    *        The Attribute object is assigned a unique index when created and the
    *        Attribute object is owned by the DataStore object.
    */
-  Attribute* createAttributeString(const std::string& name,
-                                   const std::string& default_value)
+  Attribute* createAttributeString(const std::string& name, const std::string& default_value)
   {
     Attribute* new_attribute = createAttributeEmpty(name);
     if(new_attribute != nullptr)

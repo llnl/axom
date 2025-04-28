@@ -48,17 +48,14 @@ namespace axom
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(const IndexType& begin,
-                    const IndexType& end,
-                    KernelType&& kernel) noexcept
+inline void for_all(const IndexType& begin, const IndexType& end, KernelType&& kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
 
 #ifdef AXOM_USE_RAJA
 
   using loop_exec = typename execution_space<ExecSpace>::loop_policy;
-  RAJA::forall<loop_exec>(RAJA::RangeSegment(begin, end),
-                          std::forward<KernelType>(kernel));
+  RAJA::forall<loop_exec>(RAJA::RangeSegment(begin, end), std::forward<KernelType>(kernel));
 
 #else
 

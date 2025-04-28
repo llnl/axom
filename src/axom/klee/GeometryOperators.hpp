@@ -47,10 +47,7 @@ public:
    *
    * \return the properties which must be true before this operator is applied
    */
-  const TransformableGeometryProperties &getStartProperties() const
-  {
-    return m_startProperties;
-  }
+  const TransformableGeometryProperties &getStartProperties() const { return m_startProperties; }
 
   /**
    * Get the properties after this operator is applied
@@ -141,8 +138,7 @@ public:
    * class. If the number of dimensions is 2, the 3rd entry in the offset
    * should be zero, but this is not checked.
    */
-  Translation(const primal::Vector3D &offset,
-              const TransformableGeometryProperties &startProperties);
+  Translation(const primal::Vector3D &offset, const TransformableGeometryProperties &startProperties);
 
   /**
    * Get the amount by which to offset points.
@@ -279,8 +275,7 @@ public:
    * @param endUnits the units at the end of the operation
    * @param startProperties the properties before the operation
    */
-  UnitConverter(LengthUnit endUnits,
-                const TransformableGeometryProperties &startProperties);
+  UnitConverter(LengthUnit endUnits, const TransformableGeometryProperties &startProperties);
 
   TransformableGeometryProperties getEndProperties() const override;
 

@@ -62,11 +62,10 @@ struct test_node_to_zone_relation_builder
     // clang-format on
 
     // Compare answers.
-    compareRelation(
-      hostRelation,
-      axom::ArrayView<const int>(zones, sizeof(zones) / sizeof(int)),
-      axom::ArrayView<const int>(sizes, sizeof(sizes) / sizeof(int)),
-      axom::ArrayView<const int>(offsets, sizeof(offsets) / sizeof(int)));
+    compareRelation(hostRelation,
+                    axom::ArrayView<const int>(zones, sizeof(zones) / sizeof(int)),
+                    axom::ArrayView<const int>(sizes, sizeof(sizes) / sizeof(int)),
+                    axom::ArrayView<const int>(offsets, sizeof(offsets) / sizeof(int)));
   }
 
   static void compareRelation(const conduit::Node &hostRelation,
@@ -74,12 +73,9 @@ struct test_node_to_zone_relation_builder
                               const axom::ArrayView<const int> &sizes,
                               const axom::ArrayView<const int> &offsets)
   {
-    const auto zonesView =
-      bputils::make_array_view<IndexT>(hostRelation["zones"]);
-    const auto sizesView =
-      bputils::make_array_view<IndexT>(hostRelation["sizes"]);
-    const auto offsetsView =
-      bputils::make_array_view<IndexT>(hostRelation["offsets"]);
+    const auto zonesView = bputils::make_array_view<IndexT>(hostRelation["zones"]);
+    const auto sizesView = bputils::make_array_view<IndexT>(hostRelation["sizes"]);
+    const auto offsetsView = bputils::make_array_view<IndexT>(hostRelation["offsets"]);
     EXPECT_EQ(sizesView.size(), sizes.size());
     EXPECT_EQ(offsetsView.size(), offsets.size());
     for(axom::IndexType i = 0; i < sizesView.size(); i++)
@@ -255,11 +251,10 @@ struct test_node_to_zone_relation_builder_polyhedral
     // clang-format on
 
     // Compare answers.
-    SuperClass::compareRelation(
-      hostRelation,
-      axom::ArrayView<const int>(zones, sizeof(zones) / sizeof(int)),
-      axom::ArrayView<const int>(sizes, sizeof(sizes) / sizeof(int)),
-      axom::ArrayView<const int>(offsets, sizeof(offsets) / sizeof(int)));
+    SuperClass::compareRelation(hostRelation,
+                                axom::ArrayView<const int>(zones, sizeof(zones) / sizeof(int)),
+                                axom::ArrayView<const int>(sizes, sizeof(sizes) / sizeof(int)),
+                                axom::ArrayView<const int>(offsets, sizeof(offsets) / sizeof(int)));
   }
 
   static void create(conduit::Node &mesh)
@@ -281,41 +276,42 @@ struct test_node_to_zone_relation_builder_polyhedral
 TEST(mir_node_to_zone_relation, n2zrel_polyhedral_seq)
 {
   conduit::Node mesh;
-  test_node_to_zone_relation_builder_polyhedral<seq_exec, conduit::int32>::create(
-    mesh);
-  test_node_to_zone_relation_builder_polyhedral<seq_exec, conduit::int32>::test(
-    mesh);
+  test_node_to_zone_relation_builder_polyhedral<seq_exec, conduit::int32>::create(mesh);
+  test_node_to_zone_relation_builder_polyhedral<seq_exec, conduit::int32>::test(mesh);
 }
 #if defined(AXOM_USE_OPENMP)
 TEST(mir_node_to_zone_relation, n2zrel_polyhedral_omp)
 {
   conduit::Node mesh;
-  test_node_to_zone_relation_builder_polyhedral<omp_exec, conduit::int32>::create(
-    mesh);
-  test_node_to_zone_relation_builder_polyhedral<omp_exec, conduit::int32>::test(
-    mesh);
+  test_node_to_zone_relation_builder_polyhedral<omp_exec, conduit::int32>::create(mesh);
+  test_node_to_zone_relation_builder_polyhedral<omp_exec, conduit::int32>::test(mesh);
 }
 #endif
 #if defined(AXOM_USE_CUDA)
 TEST(mir_node_to_zone_relation, n2zrel_polyhedral_cuda)
 {
   conduit::Node mesh;
-  test_node_to_zone_relation_builder_polyhedral<cuda_exec, conduit::int32>::create(
-    mesh);
-  test_node_to_zone_relation_builder_polyhedral<cuda_exec, conduit::int32>::test(
-    mesh);
+  test_node_to_zone_relation_builder_polyhedral<cuda_exec, conduit::int32>::create(mesh);
+  test_node_to_zone_relation_builder_polyhedral<cuda_exec, conduit::int32>::test(mesh);
 }
 #endif
 #if defined(AXOM_USE_HIP)
 TEST(mir_node_to_zone_relation, n2zrel_polyhedral_hip)
 {
   conduit::Node mesh;
-  test_node_to_zone_relation_builder_polyhedral<hip_exec, conduit::int32>::create(
-    mesh);
-  test_node_to_zone_relation_builder_polyhedral<hip_exec, conduit::int32>::test(
-    mesh);
+  test_node_to_zone_relation_builder_polyhedral<hip_exec, conduit::int32>::create(mesh);
+  test_node_to_zone_relation_builder_polyhedral<hip_exec, conduit::int32>::test(mesh);
 }
 #endif
+
+//------------------------------------------------------------------------------
+void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
+{
+  std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
+  // This is on purpose.
+  while(1)
+    ;
+}
 
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
@@ -323,8 +319,47 @@ int main(int argc, char *argv[])
   int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
 
-  axom::slic::SimpleLogger logger;  // create & initialize test logger,
+  axom::CLI::App app;
+#if defined(AXOM_USE_CALIPER)
+  std::string annotationMode("none");
+  app.add_option("--caliper", annotationMode)
+    ->description(
+      "caliper annotation mode. Valid options include 'none' and 'report'. "
+      "Use 'help' to see full list.")
+    ->capture_default_str()
+    ->check(axom::utilities::ValidCaliperMode);
+#endif
+  bool handlerEnabled = false;
+  app.add_flag("--handler", handlerEnabled, "Enable Conduit handler.");
 
-  result = RUN_ALL_TESTS();
+  // Parse command line options.
+  try
+  {
+    app.parse(argc, argv);
+
+#if defined(AXOM_USE_CALIPER)
+    axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(annotationMode);
+#endif
+
+    axom::slic::SimpleLogger logger;  // create & initialize test logger,
+    if(handlerEnabled)
+    {
+      conduit::utils::set_error_handler(conduit_debug_err_handler);
+    }
+
+    result = RUN_ALL_TESTS();
+  }
+  catch(axom::CLI::CallForHelp &e)
+  {
+    std::cout << app.help() << std::endl;
+    result = 0;
+  }
+  catch(axom::CLI::ParseError &e)
+  {
+    // Handle other parsing errors
+    std::cerr << e.what() << std::endl;
+    result = app.exit(e);
+  }
+
   return result;
 }

@@ -66,8 +66,7 @@ void test_copy(LAMBDA&& getValue)
 template <typename T, typename LAMBDA>
 void test_list_initilization(LAMBDA&& getValue)
 {
-  const StackArray<T, 5> arr = {
-    {getValue(0), getValue(1), getValue(2), getValue(3), getValue(4)}};
+  const StackArray<T, 5> arr = {{getValue(0), getValue(1), getValue(2), getValue(3), getValue(4)}};
 
   check(arr, std::forward<LAMBDA>(getValue));
 }
@@ -171,8 +170,7 @@ TEST(core_stack_array, list_initilization)
 
   internal::test_list_initilization<Tensor>([](int i) { return Tensor(i); });
 
-  internal::test_list_initilization<std::string>(
-    [](int i) { return std::to_string(i); });
+  internal::test_list_initilization<std::string>([](int i) { return std::to_string(i); });
 }
 
 TEST(core_stack_array, less_than)
@@ -190,8 +188,7 @@ TEST(core_stack_array, less_than)
   //internal::test_less_than<Tensor, N>([](int i) { return Tensor(i + 1); });
 
 #if !defined(AXOM_USE_GPU) || !defined(AXOM_GPUCC)
-  internal::test_less_than<std::string, N>(
-    [](int i) { return std::to_string(i + 1); });
+  internal::test_less_than<std::string, N>([](int i) { return std::to_string(i + 1); });
 #endif
 }
 

@@ -54,10 +54,7 @@ public:
      * \param version (optional) the version of the application
      * \param user (optional) the user who executed the run
      */
-  Run(ID id,
-      std::string application,
-      std::string version = "",
-      std::string user = "");
+  Run(ID id, std::string application, std::string version = "", std::string user = "");
 
   /**
      * \brief Create a Run from its representation as a conduit Node

@@ -104,7 +104,7 @@ spack:
     cray-mpich:
       buildable: false
       externals:
-      - spec: cray-mpich@8.1.29%gcc@10.3.1+slurm
+      - spec: cray-mpich@8.1.29+slurm %gcc@10.3.1
         prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-gcc-10.3.1/
 
     # blas is a bit more complicated because its a virtual package so fake it with

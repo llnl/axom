@@ -40,12 +40,10 @@ namespace slam
 template <typename SetType1 = slam::Set<>,
           typename SetType2 = slam::Set<>,
           typename InterfaceType = policies::VirtualInterface>
-class ProductSet final
-  : public policies::BivariateSetInterface<InterfaceType, SetType1, SetType2>
+class ProductSet final : public policies::BivariateSetInterface<InterfaceType, SetType1, SetType2>
 {
 private:
-  using BaseType =
-    policies::BivariateSetInterface<InterfaceType, SetType1, SetType2>;
+  using BaseType = policies::BivariateSetInterface<InterfaceType, SetType1, SetType2>;
 
 public:
   using RangeSetType = typename BaseType::RangeSetType;
@@ -71,10 +69,7 @@ private:
       //         goes from 0 to secondSetSize()
       // This requires a change to the return type of BivariateSet::getElements()
       std::iota(m_data.begin(), m_data.end(), 0);
-      m_set = typename SetType::SetBuilder()
-                .size(secondSetSize)
-                .offset(0)
-                .data(m_data.view());
+      m_set = typename SetType::SetBuilder().size(secondSetSize).offset(0).data(m_data.view());
     }
 
     Type get(PositionType) const { return m_set; }
@@ -101,9 +96,7 @@ public:
   using VirtualSet = ProductSet<SetType1, SetType2, policies::VirtualInterface>;
 
   using OtherSet =
-    std::conditional_t<std::is_same<InterfaceType, policies::VirtualInterface>::value,
-                       ConcreteSet,
-                       VirtualSet>;
+    std::conditional_t<std::is_same<InterfaceType, policies::VirtualInterface>::value, ConcreteSet, VirtualSet>;
 
   ProductSet(const OtherSet& other)
     : BaseType(other.getFirstSet(), other.getSecondSet())
@@ -154,8 +147,7 @@ public:
    *
    * \return  The element's FlatIndex.
    */
-  AXOM_HOST_DEVICE PositionType findElementFlatIndex(PositionType pos1,
-                                                     PositionType pos2) const
+  AXOM_HOST_DEVICE PositionType findElementFlatIndex(PositionType pos1, PositionType pos2) const
   {
 #ifndef AXOM_DEVICE_CODE
     verifyPositionImpl(pos1, pos2);
@@ -226,10 +218,7 @@ public:
     return m_rowSet.get(this->secondSetSize());
   }
 
-  AXOM_HOST_DEVICE ElementType at(PositionType pos) const
-  {
-    return pos % this->secondSetSize();
-  }
+  AXOM_HOST_DEVICE ElementType at(PositionType pos) const { return pos % this->secondSetSize(); }
 
   AXOM_HOST_DEVICE PositionType size() const
   {
@@ -263,10 +252,7 @@ public:
     return s1 >= 0 && s1 < size1 && s2 >= 0 && s2 < size2;
   }
 
-  bool isValid(bool verboseOutput = false) const
-  {
-    return BaseType::isValid(verboseOutput);
-  }
+  bool isValid(bool verboseOutput = false) const { return BaseType::isValid(verboseOutput); }
 
 private:
   /** \brief verify the FlatIndex \a pos is within the valid range. */
@@ -278,10 +264,9 @@ private:
   /** \brief implementation for verifyPosition */
   inline void verifyPositionImpl(PositionType AXOM_DEBUG_PARAM(pos)) const
   {  //from RangeSet, overloading to avoid warning in compiler
-    SLIC_ASSERT_MSG(
-      pos >= 0 && pos < size(),
-      "SLAM::ProductSet -- requested out-of-range element at position "
-        << pos << ", but set only has " << size() << " elements.");
+    SLIC_ASSERT_MSG(pos >= 0 && pos < size(),
+                    "SLAM::ProductSet -- requested out-of-range element at position "
+                      << pos << ", but set only has " << size() << " elements.");
   }
 
   /** \brief verify the SparseIndex (which is the same as its DenseIndex) is
@@ -296,11 +281,10 @@ private:
   inline void verifyPositionImpl(PositionType AXOM_DEBUG_PARAM(pos1),
                                  PositionType AXOM_DEBUG_PARAM(pos2)) const
   {
-    SLIC_ASSERT_MSG(
-      isValidIndex(pos1, pos2),
-      "SLAM::ProductSet -- requested out-of-range element at position ("
-        << pos1 << "," << pos2 << "), but set only has " << this->firstSetSize()
-        << "x" << this->secondSetSize() << " elements.");
+    SLIC_ASSERT_MSG(isValidIndex(pos1, pos2),
+                    "SLAM::ProductSet -- requested out-of-range element at position ("
+                      << pos1 << "," << pos2 << "), but set only has " << this->firstSetSize()
+                      << "x" << this->secondSetSize() << " elements.");
   }
 
 private:

@@ -78,9 +78,7 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
 }
 
 /// Generates a quadrature function corresponding to the mesh "positions" field
-void generatePositionsQFunction(mfem::Mesh* mesh,
-                                QFunctionCollection& inoutQFuncs,
-                                int sampleRes)
+void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFuncs, int sampleRes)
 {
   SLIC_ASSERT(mesh != nullptr);
   const int NE = mesh->GetNE();
@@ -108,8 +106,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
   // Assume all elements have the same integration rule
   const auto& ir = sp->GetElementIntRule(0);
   const int nq = ir.GetNPoints();
-  const auto* geomFactors =
-    mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
+  const auto* geomFactors = mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
   geomFactors->X.HostRead();
 
   mfem::QuadratureFunction* pos_coef = new mfem::QuadratureFunction(sp, dim);
@@ -126,8 +123,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh,
         for(int k = 0; k < nq; ++k)
         {
           //X has dims nqpts x sdim x ne
-          (*pos_coef)(elStartIdx + (k * dim) + j) =
-            geomFactors->X(elStartIdx + (j * nq) + k);
+          (*pos_coef)(elStartIdx + (k * dim) + j) = geomFactors->X(elStartIdx + (j * nq) + k);
         }
       }
     }
@@ -164,10 +160,8 @@ void computeVolumeFractions(const std::string& matField,
   const int dim = mesh->Dimension();
   const int NE = mesh->GetNE();
 
-  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "Mesh has dim {} and {:L} elements",
-                              dim,
-                              NE));
+  SLIC_INFO(
+    axom::fmt::format(axom::utilities::locale(), "Mesh has dim {} and {:L} elements", dim, NE));
 
   // Access or create a registered volume fraction grid function from the data collection
   mfem::FiniteElementSpace* fes = nullptr;
@@ -197,8 +191,7 @@ void computeVolumeFractions(const std::string& matField,
     mfem::QuadratureFunctionCoefficient qfc(*inout);
     mfem::DomainLFIntegrator rhs(qfc);
 
-    const auto& ir =
-      inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
+    const auto& ir = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
     rhs.SetIntRule(&ir);
 
     mfem::DenseMatrix m;
@@ -230,13 +223,12 @@ void computeVolumeFractions(const std::string& matField,
     }
   }
   timer.stop();
-  SLIC_INFO(axom::fmt::format(
-    axom::utilities::locale(),
-    "\t Generating volume fractions '{}' took {:.3f} seconds (@ "
-    "{:L} dofs processed per second)",
-    volFracName,
-    timer.elapsed(),
-    static_cast<int>(fes->GetNDofs() / timer.elapsed())));
+  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                              "\t Generating volume fractions '{}' took {:.3f} seconds (@ "
+                              "{:L} dofs processed per second)",
+                              volFracName,
+                              timer.elapsed(),
+                              static_cast<int>(fes->GetNDofs() / timer.elapsed())));
 }
 
 /** 
@@ -284,11 +276,9 @@ void FCT_project(mfem::DenseMatrix& M,
   const double y_avg = m.Sum() / dMLX;
 
 #ifdef AXOM_DEBUG
-  SLIC_WARNING_IF(!(y_min < y_avg + 1e-12 && y_avg < y_max + 1e-12),
-                  axom::fmt::format("Average ({}) is out of bounds [{},{}]: ",
-                                    y_avg,
-                                    y_min - 1e-12,
-                                    y_max + 1e-12));
+  SLIC_WARNING_IF(
+    !(y_min < y_avg + 1e-12 && y_avg < y_max + 1e-12),
+    axom::fmt::format("Average ({}) is out of bounds [{},{}]: ", y_avg, y_min - 1e-12, y_max + 1e-12));
 #endif
 
   Vector z(s);
@@ -391,11 +381,9 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
   const int dim = mesh->Dimension();
   const int NE = mesh->GetNE();
 
-  std::cout << axom::fmt::format("Mesh has dim {} and {} elements", dim, NE)
-            << std::endl;
+  std::cout << axom::fmt::format("Mesh has dim {} and {} elements", dim, NE) << std::endl;
 
-  mfem::L2_FECollection* fec =
-    new mfem::L2_FECollection(order, dim, mfem::BasisType::Positive);
+  mfem::L2_FECollection* fec = new mfem::L2_FECollection(order, dim, mfem::BasisType::Positive);
   mfem::FiniteElementSpace* fes = new mfem::FiniteElementSpace(mesh, fec);
   mfem::GridFunction* volFrac = new mfem::GridFunction(fes);
   volFrac->MakeOwner(fec);

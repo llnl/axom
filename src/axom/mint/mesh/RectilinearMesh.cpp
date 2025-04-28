@@ -28,12 +28,7 @@ RectilinearMesh::RectilinearMesh(IndexType Ni, IndexType Nj, IndexType Nk)
 }
 
 //------------------------------------------------------------------------------
-RectilinearMesh::RectilinearMesh(IndexType Ni,
-                                 double* x,
-                                 IndexType Nj,
-                                 double* y,
-                                 IndexType Nk,
-                                 double* z)
+RectilinearMesh::RectilinearMesh(IndexType Ni, double* x, IndexType Nj, double* y, IndexType Nk, double* z)
   : StructuredMesh(STRUCTURED_RECTILINEAR_MESH, Ni, Nj, Nk)
 {
   initialize();
@@ -45,8 +40,7 @@ RectilinearMesh::RectilinearMesh(IndexType Ni,
 
   for(int dim = 0; dim < m_ndims; ++dim)
   {
-    SLIC_ERROR_IF(ptrs[dim] == nullptr,
-                  "encountered null coordinate array for dim=" << dim);
+    SLIC_ERROR_IF(ptrs[dim] == nullptr, "encountered null coordinate array for dim=" << dim);
     const IndexType N = getNodeResolution(dim);
     m_coordinates[dim] = new axom::deprecated::MCArray<double>(ptrs[dim], N);
   }
@@ -58,9 +52,8 @@ RectilinearMesh::RectilinearMesh(IndexType Ni,
 RectilinearMesh::RectilinearMesh(sidre::Group* group, const std::string& topo)
   : StructuredMesh(group, topo)
 {
-  SLIC_ERROR_IF(
-    m_type != STRUCTURED_RECTILINEAR_MESH,
-    "supplied Sidre group does not correspond to a RectilinearMesh");
+  SLIC_ERROR_IF(m_type != STRUCTURED_RECTILINEAR_MESH,
+                "supplied Sidre group does not correspond to a RectilinearMesh");
 
   initialize();
 
@@ -72,8 +65,7 @@ RectilinearMesh::RectilinearMesh(sidre::Group* group, const std::string& topo)
   // initialize coordinates
   for(int dim = 0; dim < m_ndims; ++dim)
   {
-    m_coordinates[dim] =
-      new sidre::deprecated::MCArray<double>(c->getView(coords[dim]));
+    m_coordinates[dim] = new sidre::deprecated::MCArray<double>(c->getView(coords[dim]));
     SLIC_ERROR_IF(getNodeResolution(dim) != m_coordinates[dim]->size(),
                   "coordinates size does not match rectilinear mesh extent");
   }
@@ -110,8 +102,7 @@ void RectilinearMesh::allocateCoordsOnSidre()
     m_coordinates[dim]->setResizeRatio(0.0);
   }
 
-  SLIC_ERROR_IF(!blueprint::isValidCoordsetGroup(getCoordsetGroup()),
-                "invalid coordset group!");
+  SLIC_ERROR_IF(!blueprint::isValidCoordsetGroup(getCoordsetGroup()), "invalid coordset group!");
 }
 
 #endif /* AXOM_MINT_USE_SIDRE */

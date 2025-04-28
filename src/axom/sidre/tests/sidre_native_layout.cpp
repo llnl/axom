@@ -158,13 +158,10 @@ TEST(sidre_native_layout, generate_native_layout)
   root->createView("Ga/Vb")->attachBuffer(realBuf)->apply(20, 50);
 
   root->createView("Ga/Gc/Ve", DOUBLE_ID, 10)->allocate();
-  root->createView("Ga/Gc/Vf")
-    ->setExternalDataPtr(DOUBLE_ID, EXT_REAL_BUF_SIZE, extRealPtr);
+  root->createView("Ga/Gc/Vf")->setExternalDataPtr(DOUBLE_ID, EXT_REAL_BUF_SIZE, extRealPtr);
 
   root->createView("Gb/Vc", INT32_ID, 10)->allocate();
-  root->createView("Gb/Vd")->setExternalDataPtr(INT32_ID,
-                                                EXT_INT_BUF_SIZE,
-                                                extIntPtr);
+  root->createView("Gb/Vd")->setExternalDataPtr(INT32_ID, EXT_INT_BUF_SIZE, extIntPtr);
 
   // Set some data in the attached buffers so we can distinguish in our tests
   setData<double>(root->getView("Ga/Gc/Ve")->getData(), 10, 0., 1, 1.1);
@@ -404,10 +401,7 @@ TEST(sidre_native_layout, import_conduit_and_verify_protocol)
     conduit::Node node1, node2;
 
     // Simple lambda to get/check expected value at index (i,j)
-    auto expValue = AXOM_HOST_LAMBDA(int i, int j)
-    {
-      return j * SZ + (SZ - i);
-    };
+    auto expValue = AXOM_HOST_LAMBDA(int i, int j) { return j * SZ + (SZ - i); };
     // Simple lambda to get the name of the i^th component group
     auto viewName = AXOM_HOST_LAMBDA(int j)
     {
@@ -539,8 +533,7 @@ TEST(sidre_native_layout, basic_demo_compare)
 
   // one basic array
   Group* group3 = root->createGroup("my_arrays");
-  View* a5_view =
-    group3->createViewAndAllocate("a5_i64", axom::sidre::DataType::int64(5));
+  View* a5_view = group3->createViewAndAllocate("a5_i64", axom::sidre::DataType::int64(5));
 
   std::int64_t* a5_view_ptr = a5_view->getData();
 
@@ -553,8 +546,7 @@ TEST(sidre_native_layout, basic_demo_compare)
   group3->createViewAndAllocate("a0_i64", axom::sidre::DataType::int64(0));
 
   // one external array
-  group3->createView("a5_i64_ext", conduit::DataType::int64(5))
-    ->setExternalDataPtr(sidre_vals_1);
+  group3->createView("a5_i64_ext", conduit::DataType::int64(5))->setExternalDataPtr(sidre_vals_1);
 
   // change val to make sure this is reflected as external
   sidre_vals_1[4] = -5;
@@ -584,9 +576,7 @@ TEST(sidre_native_layout, basic_demo_compare)
 
   // with these settings, bv2 should have 2.0 as all vals
   v2->attachBuffer(buff);
-  v2->apply(conduit::DataType::float64(3,
-                                       sizeof(conduit::float64),
-                                       2 * sizeof(conduit::float64)));
+  v2->apply(conduit::DataType::float64(3, sizeof(conduit::float64), 2 * sizeof(conduit::float64)));
   //
   // save the data store using several protocols
   //
@@ -638,10 +628,7 @@ TEST(sidre_native_layout, basic_demo_compare)
   n["my_arrays/a5_i64_ext"].set_external(conduit_vals_1, 5);
   n["my_arrays/b_v0"].set(conduit_vals_2, 0);
   n["my_arrays/b_v1"].set(conduit_vals_2, 3, 0, 2 * sizeof(conduit::float64));
-  n["my_arrays/b_v2"].set(conduit_vals_2,
-                          3,
-                          sizeof(conduit::float64),
-                          2 * sizeof(conduit::float64));
+  n["my_arrays/b_v2"].set(conduit_vals_2, 3, sizeof(conduit::float64), 2 * sizeof(conduit::float64));
 
   // change val to make sure this is reflected as external
   conduit_vals_1[4] = -5;

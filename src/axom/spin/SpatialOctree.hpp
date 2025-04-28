@@ -101,10 +101,7 @@ public:
    * Returns the width of an octree block at level of resolution level
    * \param level The level of resolution that we are checking
    */
-  const SpaceVector& spacingAtLevel(int level) const
-  {
-    return m_deltaLevelMap[level];
-  }
+  const SpaceVector& spacingAtLevel(int level) const { return m_deltaLevelMap[level]; }
 
   /**
    * \brief Finds the index of the leaf block covering the query point pt
@@ -123,9 +120,9 @@ public:
    */
   BlockIndex findLeafBlock(const SpacePt& pt, int startingLevel = -1) const
   {
-    SLIC_ASSERT_MSG(m_boundingBox.contains(pt),
-                    "SpatialOctree::findLeafNode -- Did not find "
-                      << pt << " in bounding box " << m_boundingBox);
+    SLIC_ASSERT_MSG(
+      m_boundingBox.contains(pt),
+      "SpatialOctree::findLeafNode -- Did not find " << pt << " in bounding box " << m_boundingBox);
 
     // Perform binary search on levels to find the leaf block containing the
     // point
@@ -153,8 +150,7 @@ public:
       }
     }
 
-    SLIC_ASSERT_MSG(false,
-                    "Point " << pt << " not found in a leaf block of the octree");
+    SLIC_ASSERT_MSG(false, "Point " << pt << " not found in a leaf block of the octree");
 
     return BlockIndex::invalid_index();
   }
@@ -186,8 +182,7 @@ public:
       //       so truncating is equivalent to the floor function
       // Note: we need to clamp to avoid setting coordinates past the upper
       // boundaries
-      const CoordType quantCell =
-        static_cast<CoordType>((pt[i] - bbMin[i]) * invDelta[i]);
+      const CoordType quantCell = static_cast<CoordType>((pt[i] - bbMin[i]) * invDelta[i]);
       quantizedPt[i] = std::min(quantCell, highestCell);
     }
 

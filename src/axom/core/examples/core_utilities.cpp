@@ -69,12 +69,11 @@ void demoFileSystemAndString(const char* argv0)
       matchcount += 1;
     }
   }
-  std::cout << "Found " << matchcount << " path components starting with "
-            << prefix << " or ending with " << suffix << "." << std::endl;
+  std::cout << "Found " << matchcount << " path components starting with " << prefix
+            << " or ending with " << suffix << "." << std::endl;
 
   // Append "hello.txt"
-  std::string hellofile =
-    filesystem::joinPath(cwd, "hello.txt", std::string {pathsep});
+  std::string hellofile = filesystem::joinPath(cwd, "hello.txt", std::string {pathsep});
 
   // Does this exist?
   std::cout << "The file \"hello.txt\" ";
@@ -110,8 +109,8 @@ int main(int argc, char** argv)
   std::cout << "Here is a message telling you about Axom." << std::endl;
   axom::about();
 
-  std::cout << "The version string '" << axom::getVersion()
-            << "' is part of the previous message, " << std::endl
+  std::cout << "The version string '" << axom::getVersion() << "' is part of the previous message, "
+            << std::endl
             << " and is also available separately." << std::endl;
   // _about_end
 
@@ -132,8 +131,7 @@ int main(int argc, char** argv)
 
   t.stop();
 
-  std::cout << "The tests took " << t.elapsedTimeInMilliSec() << " ms."
-            << std::endl;
+  std::cout << "The tests took " << t.elapsedTimeInMilliSec() << " ms." << std::endl;
   // _timer_end
 
   return 0;

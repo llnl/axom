@@ -13,6 +13,14 @@ for Blueprint meshes.
  * Structured as classes with an ``execute()`` method
  * Often templated on execution space and views
 
+Blueprint meshes consist of various parts such as coordsets, topologies, fields, and matsets.
+These constructs are organized as various paths within a root Conduit node. Elements such
+as strings and scalar values can be stored as usual within a Conduit node in host memory.
+Conduit nodes that contain bulk data such as coordinate or field data should point to
+memory blocks that are valid for the execution environment in which algorithms will run.
+To achieve this, entire Conduit node hierarchies can be copied to the proper memory space
+or they can be constructed by forcing Conduit to allocate memory in the proper memory space.
+
 #######################
 Copying Blueprint Data
 #######################
@@ -73,7 +81,7 @@ based intersection method, though other intersectors could be created to perform
 or sphere intersections.
 
 .. literalinclude:: ../../tests/mir_clipfield.cpp
-   :start-after: _mir_utilities_clipfield_start
+   :start-after: _mir_utilities_clipfield_begin
    :end-before: _mir_utilities_clipfield_end
    :language: C++
 
@@ -91,7 +99,7 @@ and summing them together to produce the new point for the output coordset. Clas
 combination of multiple points in the input coordset.
 
 .. literalinclude:: ../../clipping/ClipField.hpp
-   :start-after: _mir_utilities_coordsetblender_start
+   :start-after: _mir_utilities_coordsetblender_begin
    :end-before: _mir_utilities_coordsetblender_end
    :language: C++
 
@@ -113,13 +121,26 @@ in a coordset, or repeat nodes in a coordset.
 ExtractZones
 ##################
 
-The ``axom::mir::utilities::ExtractZones`` class takes a list of selected zone ids and extracts
+The ``axom::mir::utilities::blueprint::ExtractZones`` class takes a list of selected zone ids and extracts
 a new mesh from a source mesh that includes only the selected zones. There is a derived class
 ``ExtractZonesAndMatset`` that also extracts a matset, if present.
 
 .. literalinclude:: ../../utilities/ExtractZones.hpp
    :start-after: _mir_utilities_extractzones_begin
    :end-before: _mir_utilities_extractzones_end
+   :language: C++
+
+##################
+ExtrudeMesh
+##################
+
+The ``axom::mir::utilities::blueprint::ExtrudeMesh`` class extrudes a 2D Blueprint mesh composed
+of triangles and quad shapes *(polygons are not yet supported)* and produces 3D zones repeated some
+number of times in the Z direction. Fields and matsets are also extruded.
+
+.. literalinclude:: ../../tests/mir_topology_mapper.cpp
+   :start-after: _mir_utilities_extrudemesh_begin
+   :end-before: _mir_utilities_extrudemesh_end
    :language: C++
 
 #############
@@ -154,6 +175,30 @@ structured topology.
    :start-after: _mir_utilities_makeunstructured_begin
    :end-before: _mir_utilities_makeunstructured_end
    :language: C++
+
+##################
+MakeZoneCenters
+##################
+
+The ``axom::mir::utilities::blueprint::MakeZoneCenters`` class takes an input Blueprint
+topology and produces a new element-associated Blueprint vector field that contains the zone
+centers. The number of components in the vector will match the number of components for the
+topology's coordset. The zone center is computed as the average of the node coordinates used
+in the zone. Likewise, the type *(e.g. float, double)* used to compute and represent the zone
+centers will match the type of the values that define the coordset.
+
+.. literalinclude:: ../../ElviraAlgorithm.hpp
+   :start-after: _mir_utilities_makezonecenters_begin
+   :end-before: _mir_utilities_makezonecenters_end
+   :language: C++
+
+##################
+MakeZoneVolumes
+##################
+
+The ``axom::mir::utilities::blueprint::MakeZoneVolumes`` class takes an input Blueprint
+topology and produces a new element-associated Blueprint vector field that contains the zone
+volumes for 3D, or areas for 2D.
 
 ##################
 MatsetSlicer
@@ -198,10 +243,29 @@ relation is useful for recentering data from the zones to the nodes.
    :language: C++
 
 ###############
-RecenterFields
+PrimalAdaptor
 ############### 
 
-The ``axom::mir::utilities::blueprint::RecenterFields`` class uses an O2M relation to average
+The ``axom::mir::utilities::blueprint::PrimalAdaptor`` class takes a topology view and a
+coordset view and makes it possible to retrieve a zone as a shape from Axom's primal
+component. For example, the PrimalAdaptor class can wrap a topology view that contains 2D
+shapes such as triangles, quads, polygons and allow them to be accessed as an
+``axom::primal::Polygon``. For 3D, primal shapes are returned for meshes that contain
+tetrahedra or hexahedra. For meshes that contain pyramids or wedges, or contain mixed
+shapes, a VariableShape is returned that allows those shapes to be represented using
+one or more primal shapes.
+
+.. literalinclude:: ../../utilities/MakeZoneVolumes.hpp
+   :start-after: _mir_utilities_makezonevolumes_begin
+   :end-before: _mir_utilities_makezonevolumes_end
+   :language: C++
+
+
+###############
+RecenterField
+############### 
+
+The ``axom::mir::utilities::blueprint::RecenterField`` class uses an O2M relation to average
 field data from multiple values to an averaged value. In Axom, this is used to convert a field
 associated with the elements to a new field associated with the nodes.
 
@@ -209,6 +273,43 @@ associated with the elements to a new field associated with the nodes.
    :start-after: _mir_utilities_recenterfield_begin
    :end-before: _mir_utilities_recenterfield_end
    :language: C++
+
+##################
+SelectedZones
+##################
+
+The ``axom::mir::utilities::blueprint::SelectedZones`` class creates an array view that
+represents selected zone ids. The zone ids are obtained either from a Conduit options
+node containing a *"selectedZones"* array, if the array is present. If the "selectedZones"
+array is not present, the class makes an array of zone ids that selects all zones in the
+associated topology.
+
+.. literalinclude:: ../../ElviraAlgorithm.hpp
+   :start-after: _mir_utilities_selectedzones_begin
+   :end-before: _mir_utilities_selectedzones_end
+   :language: C++
+
+
+##################
+TopologyMapper
+##################
+
+The ``axom::mir::utilities::blueprint::TopologyMapper`` class intersects a source mesh
+with a target mesh and maps materials from the source mesh onto a new matset on the 
+target mesh. The source mesh must contain a "clean" matset, which is a matset where there
+are no mixed-material zones. The matset identifies the unique material for each zone in
+the source mesh. The source mesh could be the output of one of the MIR algorithms.
+
+The source and target meshes should overlap spatially. The zones in the source mesh are
+intersected with the zones in the target mesh and their overlaps are determined and are
+used to build a new matset on the target mesh. Each zone in the target mesh may recieve
+contributions from multiple zones and materials in the source mesh.
+
+.. literalinclude:: ../../tests/mir_topology_mapper.cpp
+   :start-after: _mir_utilities_topologymapper_begin
+   :end-before: _mir_utilities_topologymapper_end
+   :language: C++
+
 
 ##################
 Unique
@@ -225,12 +326,21 @@ merge points.
    :language: C++
 
 ##################
+VariableShape
+##################
+
+The ``axom::mir::utilities::blueprint::VariableShape`` class behaves like a primal shape
+but it can represent various 3D shapes, some not present in primal.
+
+##################
 ZoneListBuilder
 ##################
 
 The ``axom::mir::utilities::blueprint::ZoneListBuilder`` class takes a matset view and a list
 of selected zone ids and makes two output lists of zone ids that correspond to clean zones and
-mixed zones (more than 1 material in the zone).
+mixed zones (more than 1 material in the zone). There are also methods that take into consideration
+how zones are connected through their nodes so algorithms that operate on node-centered volume
+fractions can operate on adjacent zones that may not be mixed but must participate in MIR.
 
 .. literalinclude:: ../../EquiZAlgorithm.hpp
    :start-after: _mir_utilities_zlb_begin

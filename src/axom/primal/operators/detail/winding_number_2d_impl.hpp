@@ -174,10 +174,8 @@ double linear_winding_number(const Point<T, 2>& q,
   }
 
   // Compute signed angle between vectors
-  double dotprod = axom::utilities::clampVal(
-    Vector<T, 2>::dot_product(V0.unitVector(), V1.unitVector()),
-    -1.0,
-    1.0);
+  double dotprod =
+    axom::utilities::clampVal(Vector<T, 2>::dot_product(V0.unitVector(), V1.unitVector()), -1.0, 1.0);
 
   return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
 }
@@ -281,10 +279,8 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
   }
 
   // Compute signed angle between vectors
-  double dotprod = axom::utilities::clampVal(
-    Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()),
-    -1.0,
-    1.0);
+  double dotprod =
+    axom::utilities::clampVal(Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()), -1.0, 1.0);
   return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
 }
 
@@ -356,8 +352,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
   if(isConvexControlPolygon)
   {
     // Bezier curves are always contained in their convex control polygon
-    if(polygon_winding_number(q, controlPolygon, isOnEdge, includeBoundary, edge_tol) ==
-       0)
+    if(polygon_winding_number(q, controlPolygon, isOnEdge, includeBoundary, edge_tol) == 0)
     {
       return;
     }
@@ -402,7 +397,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
 /*!
  * \brief Computes the GWN for a 2D point wrt a 2D Bezier curve
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] c The Bezier curve object 
  * \param [in] isOnCurve An returned flag if the point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
@@ -431,10 +426,13 @@ double bezier_winding_number(const Point<T, 2>& q,
                              double EPS = 1e-8)
 {
   const int ord = c.getOrder();
-  if(ord <= 0) return 0.0;
+  if(ord <= 0)
+  {
+    return 0.0;
+  }
 
   // Early return is possible for most points + curves
-  if(!c.boundingBox().expand(edge_tol).contains(q))
+  if(!c.boundingBox().expand(edge_tol).contains(q) || c.isLinear(EPS))
   {
     return detail::linear_winding_number(q, c[0], c[ord], isOnCurve, edge_tol);
   }
@@ -446,7 +444,7 @@ double bezier_winding_number(const Point<T, 2>& q,
   // Need to keep a running total of the GWN to account for
   //  the winding number of coincident points
   double gwn = 0.0;
-  bool isOnPolygonEndpoint = false;
+  bool isOnPolygonEndpoint = false;  // Indicates coincidence with curve
   detail::construct_approximating_polygon(q,
                                           c,
                                           false,
@@ -461,24 +459,20 @@ double bezier_winding_number(const Point<T, 2>& q,
 
   // Compute the integer winding number of the closed curve
   bool isOnPolygonEdge = false;
-  double closed_curve_wn = detail::polygon_winding_number(q,
-                                                          approximating_polygon,
-                                                          isOnPolygonEdge,
-                                                          false,
-                                                          edge_tol);
+  double closed_curve_wn =
+    detail::polygon_winding_number(q, approximating_polygon, isOnPolygonEdge, false, edge_tol);
 
   // Compute the fractional value of the closed curve
   bool isOnClosure = false;
   const int n = approximating_polygon.numVertices();
-  const double closure_wn =
-    detail::linear_winding_number(q,
-                                  approximating_polygon[n - 1],
-                                  approximating_polygon[0],
-                                  isOnClosure,
-                                  edge_tol);
+  const double closure_wn = detail::linear_winding_number(q,
+                                                          approximating_polygon[n - 1],
+                                                          approximating_polygon[0],
+                                                          isOnClosure,
+                                                          edge_tol);
 
   // If the point is on the boundary of the approximating polygon,
-  //  or coincident with the curve (rare), then winding_number<polygon>
+  //  or coincident with the curve (isOnPolygonEndpoint), then winding_number<polygon>
   //  doesn't return the right half-integer. Have to go edge-by-edge.
   if(isOnPolygonEndpoint || isOnPolygonEdge)
   {
@@ -486,23 +480,22 @@ double bezier_winding_number(const Point<T, 2>& q,
     for(int i = 1; i < n; ++i)
     {
       bool isOnThisEdge = false;
-      closed_curve_wn +=
-        detail::linear_winding_number(q,
-                                      approximating_polygon[i - 1],
-                                      approximating_polygon[i],
-                                      isOnThisEdge,
-                                      edge_tol);
+      closed_curve_wn += detail::linear_winding_number(q,
+                                                       approximating_polygon[i - 1],
+                                                       approximating_polygon[i],
+                                                       isOnThisEdge,
+                                                       edge_tol);
     }
   }
 
-  isOnCurve = isOnPolygonEdge;
+  isOnCurve = isOnPolygonEndpoint;
   return gwn + closed_curve_wn - closure_wn;
 }
 
 /*!
  * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
  *
- * \param [in] query The query point to test
+ * \param [in] q The query point to test
  * \param [in] n The NURBS curve object 
  * \param [in] isOnEdge An returned flag if the point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
@@ -522,16 +515,15 @@ double nurbs_winding_number(const Point<T, 2>& q,
                             double EPS = 1e-8)
 {
   const int deg = n.getDegree();
-  if(deg <= 0) return 0.0;
+  if(deg <= 0)
+  {
+    return 0.0;
+  }
 
   // Early return is possible for most points + curves
   if(!n.boundingBox().expand(edge_tol).contains(q))
   {
-    return detail::linear_winding_number(q,
-                                         n[0],
-                                         n[n.getNumControlPoints() - 1],
-                                         isOnEdge,
-                                         edge_tol);
+    return detail::linear_winding_number(q, n[0], n[n.getNumControlPoints() - 1], isOnEdge, edge_tol);
   }
 
   // Decompose the NURBS curve into Bezier segments

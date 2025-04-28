@@ -5,9 +5,7 @@
 #include "runMIR.hpp"
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
-int runMIR_hip_hex(const conduit::Node &mesh,
-                   const conduit::Node &options,
-                   conduit::Node &result)
+int runMIR_hip_hex(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result)
 {
   constexpr int HIP_BLOCK_SIZE = 64;
   using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;

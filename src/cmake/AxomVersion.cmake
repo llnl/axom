@@ -9,8 +9,8 @@
 #       otherwise, the hard-coded values will go in to the config.
 #------------------------------------------------------------------------------
 set(AXOM_VERSION_MAJOR 0)
-set(AXOM_VERSION_MINOR 10)
-set(AXOM_VERSION_PATCH 1)
+set(AXOM_VERSION_MINOR 11)
+set(AXOM_VERSION_PATCH 0)
 string(CONCAT AXOM_VERSION_FULL
     "v${AXOM_VERSION_MAJOR}"
     ".${AXOM_VERSION_MINOR}"

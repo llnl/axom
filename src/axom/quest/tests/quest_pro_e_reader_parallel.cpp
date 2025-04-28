@@ -106,15 +106,9 @@ TEST(quest_pro_e_reader_parallel, read_file)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
   }  // END for all nodes
 
   // // STEP 4: remove temporary Pro/E file
@@ -173,15 +167,9 @@ TEST(quest_pro_e_reader_parallel, read_file_bbox)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
   }  // END for all nodes
 
   // // STEP 4: remove temporary Pro/E file
@@ -240,15 +228,9 @@ TEST(quest_pro_e_reader_parallel, read_file_bbox_incl)
   axom::IndexType numNodes = mesh.getNumberOfNodes();
   for(axom::IndexType inode = 0; inode < numNodes; ++inode)
   {
-    EXPECT_NEAR(x[inode],
-                x_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode],
-                y_expected[inode],
-                axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode],
-                z_expected[inode],
-                axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
+    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
   }  // END for all nodes
 
   // // STEP 4: remove temporary Pro/E file

@@ -57,8 +57,7 @@ inline bool endsWith(const std::string& str, const char suffix)
  */
 inline bool startsWith(const std::string& str, const std::string& prefix)
 {
-  return str.size() >= prefix.size() &&
-    0 == str.compare(0, prefix.size(), prefix);
+  return str.size() >= prefix.size() && 0 == str.compare(0, prefix.size(), prefix);
 }
 
 /*!
@@ -119,9 +118,7 @@ void toUpper(std::string& str);
  * 
  * Splits a string starting from the end of the string into a maximum of \a n tokens
  */
-std::vector<std::string> rsplitN(const std::string& input,
-                                 const std::size_t n,
-                                 const char delim);
+std::vector<std::string> rsplitN(const std::string& input, const std::size_t n, const char delim);
 
 /*!
 *****************************************************************************
@@ -134,9 +131,7 @@ std::vector<std::string> rsplitN(const std::string& input,
 * \return The appended string.  If @a prefix is empty, then just @a name is returned.
 *****************************************************************************
 */
-std::string appendPrefix(const std::string& prefix,
-                         const std::string& name,
-                         const char delim = '/');
+std::string appendPrefix(const std::string& prefix, const std::string& name, const char delim = '/');
 
 /*!
 *****************************************************************************
@@ -152,9 +147,7 @@ std::string appendPrefix(const std::string& prefix,
 * If the prefix is empty or not found the full @a name string is returned.
 *****************************************************************************
 */
-std::string removePrefix(const std::string& prefix,
-                         const std::string& name,
-                         const char delim = '/');
+std::string removePrefix(const std::string& prefix, const std::string& name, const char delim = '/');
 
 /*!
 *****************************************************************************
@@ -180,8 +173,7 @@ std::string removeBeforeDelimiter(const std::string& str, const char delim = '/'
 * \return The filtered string.
 *****************************************************************************
 */
-std::string removeAllInstances(const std::string& target,
-                               const std::string& substr);
+std::string removeAllInstances(const std::string& target, const std::string& substr);
 
 /*!
 *****************************************************************************

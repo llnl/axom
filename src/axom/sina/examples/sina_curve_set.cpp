@@ -47,9 +47,8 @@ BounceData generateBounceData(double initialY,
     // Check for bounce (when y position becomes negative)
     if(yPosition < 0)
     {
-      yPosition = 0;  // Set y position to 0 at the ground
-      yVelocity *=
-        -coefficientOfRestitution;  // Reverse y velocity with energy loss
+      yPosition = 0;                           // Set y position to 0 at the ground
+      yVelocity *= -coefficientOfRestitution;  // Reverse y velocity with energy loss
     }
 
     // Add data points for this time step
@@ -65,9 +64,7 @@ BounceData generateBounceData(double initialY,
   return data;
 }
 
-void addCurveSet(axom::sina::Record &record,
-                 BounceData bounceData,
-                 std::string curveName)
+void addCurveSet(axom::sina::Record &record, BounceData bounceData, std::string curveName)
 {
   // Create the curve set object
   axom::sina::CurveSet bounceCurveSet {curveName};
@@ -78,10 +75,8 @@ void addCurveSet(axom::sina::Record &record,
   bounceCurveSet.addIndependentCurve(timeCurve);
 
   // Add the dependent variables
-  bounceCurveSet.addDependentCurve(
-    axom::sina::Curve {"x_position", bounceData.xPosition});
-  bounceCurveSet.addDependentCurve(
-    axom::sina::Curve {"y_position", bounceData.yPosition});
+  bounceCurveSet.addDependentCurve(axom::sina::Curve {"x_position", bounceData.xPosition});
+  bounceCurveSet.addDependentCurve(axom::sina::Curve {"y_position", bounceData.yPosition});
   axom::sina::Curve xVelCurve {"x_velocity", bounceData.xVelocity};
   xVelCurve.setUnits("m/s");
   bounceCurveSet.addDependentCurve(xVelCurve);
@@ -112,8 +107,7 @@ int main()
   axom::sina::Document doc;
 
   axom::sina::ID id {"ball_bounce_run", axom::sina::IDType::Global};
-  std::unique_ptr<axom::sina::Record> study {
-    new axom::sina::Record {id, "ball bounce study"}};
+  std::unique_ptr<axom::sina::Record> study {new axom::sina::Record {id, "ball bounce study"}};
 
   addCurveSet(*study, bounceData, "ball_bounce");
   doc.add(move(study));

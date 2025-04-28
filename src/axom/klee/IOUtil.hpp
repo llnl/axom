@@ -48,9 +48,7 @@ std::vector<double> toDoubleVector(inlet::Proxy const &field,
  * @param expectedDims the expected dimensionality of the point
  * @return the field as a primal::Point3D
  */
-primal::Point3D toPoint(inlet::Container const &parent,
-                        char const *fieldName,
-                        Dimensions expectedDims);
+primal::Point3D toPoint(inlet::Container const &parent, char const *fieldName, Dimensions expectedDims);
 
 /**
  * Convert the specified field to a Point3D, ensuring that it
@@ -109,8 +107,7 @@ primal::Vector3D toVector(inlet::Container const &parent,
  * \return the start and end units
  * \throws KleeError if an invalid combination of fields is specified
  */
-std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(
-  const inlet::Container &container);
+std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(const inlet::Container &container);
 
 /**
  * Get the start and end units in a Container.
@@ -124,8 +121,7 @@ std::tuple<LengthUnit, LengthUnit> getOptionalStartAndEndUnits(
  * \throws KleeError if an invalid combination of fields is
  * specified or if no units are specified.
  */
-std::tuple<LengthUnit, LengthUnit> getStartAndEndUnits(
-  const inlet::Container &container);
+std::tuple<LengthUnit, LengthUnit> getStartAndEndUnits(const inlet::Container &container);
 
 /**
  * Define the schema for units. This is the schema that will be

@@ -38,9 +38,7 @@ public:
    *
    * \note The clipField field must currently be vertex-associated.
    */
-  void execute(const conduit::Node &n_input,
-               const conduit::Node &n_options,
-               conduit::Node &n_output)
+  void execute(const conduit::Node &n_input, const conduit::Node &n_options, conduit::Node &n_output)
   {
     ClipOptions opts(n_options);
     const std::string clipFieldName = opts.clipField();
@@ -48,11 +46,9 @@ public:
     const conduit::Node &n_fields = n_input.fetch_existing("fields");
     const conduit::Node &n_clipField = n_fields.fetch_existing(clipFieldName);
     const std::string &topoName = n_clipField["topology"].as_string();
-    const conduit::Node &n_topo =
-      n_input.fetch_existing("topologies/" + topoName);
+    const conduit::Node &n_topo = n_input.fetch_existing("topologies/" + topoName);
     const std::string &coordsetName = n_topo["coordset"].as_string();
-    const conduit::Node &n_coordset =
-      n_input.fetch_existing("coordsets/" + coordsetName);
+    const conduit::Node &n_coordset = n_input.fetch_existing("coordsets/" + coordsetName);
 
     execute(n_topo,
             n_coordset,

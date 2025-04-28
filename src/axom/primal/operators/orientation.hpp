@@ -48,9 +48,7 @@ namespace primal
  * \sa OrientationResult
  */
 template <typename T>
-inline int orientation(const Point<T, 3>& p,
-                       const Triangle<T, 3>& tri,
-                       double EPS = 1e-9)
+inline int orientation(const Point<T, 3>& p, const Triangle<T, 3>& tri, double EPS = 1e-9)
 {
   const Vector<T, 3> A(p, tri[0]);
   const Vector<T, 3> B(p, tri[1]);
@@ -89,9 +87,7 @@ inline int orientation(const Point<T, 3>& p,
  * \sa OrientationResult
  */
 template <typename T>
-inline int orientation(const Point<T, 2>& p,
-                       const Segment<T, 2>& seg,
-                       double EPS = 1e-9)
+inline int orientation(const Point<T, 2>& p, const Segment<T, 2>& seg, double EPS = 1e-9)
 {
   const Vector<T, 2> A(p, seg[0]);
   const Vector<T, 2> B(p, seg[1]);

@@ -45,8 +45,7 @@ void check_sidre_group(sidre::Group* root_group,
   EXPECT_EQ(topology->getParent()->getNumGroups(), 1);
   EXPECT_EQ(topology->getParent()->getNumViews(), 0);
 
-  const sidre::Group* coordset =
-    blueprint::getCoordsetGroup(root_group, topology);
+  const sidre::Group* coordset = blueprint::getCoordsetGroup(root_group, topology);
   EXPECT_TRUE(blueprint::isValidCoordsetGroup(coordset));
   EXPECT_EQ(coordset->getParent()->getNumGroups(), 1);
   EXPECT_EQ(coordset->getParent()->getNumViews(), 0);
@@ -59,10 +58,7 @@ void check_sidre_group(sidre::Group* root_group,
 
   double mesh_origin[3];
   double mesh_spacing[3];
-  blueprint::getUniformMeshProperties(dimension,
-                                      mesh_origin,
-                                      mesh_spacing,
-                                      coordset);
+  blueprint::getUniformMeshProperties(dimension, mesh_origin, mesh_spacing, coordset);
 
   for(int i = 0; i < dimension; ++i)
   {
@@ -103,17 +99,13 @@ TEST(mint_mesh_uniform_mesh_DeathTest, invalid_construction)
   EXPECT_DEATH_IF_SUPPORTED(UniformMesh(particle_mesh, ""), IGNORE_OUTPUT);
 
   // check push constructor
-  EXPECT_DEATH_IF_SUPPORTED(UniformMesh(particle_mesh, lo, hi, Ni, Nj, Nk),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(UniformMesh(particle_mesh, lo, hi, Ni, Nj, Nk), IGNORE_OUTPUT);
 
-  EXPECT_DEATH_IF_SUPPORTED(UniformMesh(nullptr, lo, hi, Ni, Nj, Nk),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(UniformMesh(nullptr, lo, hi, Ni, Nj, Nk), IGNORE_OUTPUT);
 
-  EXPECT_DEATH_IF_SUPPORTED(UniformMesh(valid_group, lo, nullptr, Ni, Nj, Nk),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(UniformMesh(valid_group, lo, nullptr, Ni, Nj, Nk), IGNORE_OUTPUT);
 
-  EXPECT_DEATH_IF_SUPPORTED(UniformMesh(valid_group, nullptr, hi, Ni, Nj, Nk),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(UniformMesh(valid_group, nullptr, hi, Ni, Nj, Nk), IGNORE_OUTPUT);
 
   EXPECT_DEATH_IF_SUPPORTED(UniformMesh(valid_group, lo, hi, -1), IGNORE_OUTPUT);
 

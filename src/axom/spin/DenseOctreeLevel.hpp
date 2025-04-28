@@ -45,8 +45,7 @@ public:
   class IteratorHelper;
 
   using IterHelper = IteratorHelper<DenseOctreeLevel, BaseBlockIteratorHelper>;
-  using ConstIterHelper =
-    IteratorHelper<const DenseOctreeLevel, ConstBaseBlockIteratorHelper>;
+  using ConstIterHelper = IteratorHelper<const DenseOctreeLevel, ConstBaseBlockIteratorHelper>;
 
   using BroodType = Brood<GridPt, MortonIndexType>;
 
@@ -104,15 +103,9 @@ public:
     }
 
     /** Accessor for data associated with the iterator's block */
-    BlockDataType* data()
-    {
-      return &m_octreeLevel->m_data[m_currentIdx][m_offset];
-    }
+    BlockDataType* data() { return &m_octreeLevel->m_data[m_currentIdx][m_offset]; }
     /** Const accessor for data associated with the iterator's block */
-    const BlockDataType* data() const
-    {
-      return &m_octreeLevel->m_data[m_currentIdx][m_offset];
-    }
+    const BlockDataType* data() const { return &m_octreeLevel->m_data[m_currentIdx][m_offset]; }
 
     /** \brief Predicate to determine if two block iterators are the same */
     bool equal(const BaseBlockItType* other)
@@ -184,10 +177,7 @@ public:
    *  \param begin A boolean to determine if this is to be
    * a begin (true) or end (false) iterator
    */
-  BaseBlockIteratorHelper* getIteratorHelper(bool begin)
-  {
-    return new IterHelper(this, begin);
-  }
+  BaseBlockIteratorHelper* getIteratorHelper(bool begin) { return new IterHelper(this, begin); }
 
   /**
    * \brief Factory function to return a ConstGridBlockIterHelper for this level
@@ -222,10 +212,8 @@ public:
   {
     SLIC_ASSERT_MSG(this->inBounds(pt),
                     "Problem while inserting children of point "
-                      << pt << " into octree level " << this->m_level
-                      << ". Point was out of bounds -- "
-                      << "each coordinate must be between 0 and "
-                      << this->maxCoord() << ".");
+                      << pt << " into octree level " << this->m_level << ". Point was out of bounds -- "
+                      << "each coordinate must be between 0 and " << this->maxCoord() << ".");
 
     getBroodData(pt) = BroodData();
 
@@ -255,8 +243,7 @@ public:
   const BlockDataType& operator[](const GridPt& pt) const
   {
     SLIC_ASSERT_MSG(hasBlock(pt),
-                    "(" << pt << ", " << this->m_level
-                        << ") was not a block in the tree at level.");
+                    "(" << pt << ", " << this->m_level << ") was not a block in the tree at level.");
 
     const BroodType brood(pt);
     return m_data[brood.base()][brood.offset()];
@@ -324,8 +311,7 @@ public:
     const BroodType brood(pt);
     const BlockDataType& blockData = m_data[brood.base()][brood.offset()];
 
-    return blockData.isBlock() ? (blockData.isLeaf() ? LeafBlock : InternalBlock)
-                               : BlockNotInTree;
+    return blockData.isBlock() ? (blockData.isLeaf() ? LeafBlock : InternalBlock) : BlockNotInTree;
   }
 
 private:

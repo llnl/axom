@@ -23,7 +23,7 @@ enum class ReaderResult
   Success,         // Found with no issue
   NotFound,        // Path does not exist in the input file
   NotHomogeneous,  // Found, but elements of other type exist
-  WrongType  // Found, but item at specified path was not of requested type
+  WrongType        // Found, but item at specified path was not of requested type
 };
 
 /*!
@@ -87,10 +87,7 @@ void setWarningFlag(axom::sidre::Group* root);
 * \param [in] value The value of the flag
 *****************************************************************************
 */
-void setFlag(axom::sidre::Group& target,
-             axom::sidre::Group& root,
-             const std::string& flag,
-             bool value);
+void setFlag(axom::sidre::Group& target, axom::sidre::Group& root, const std::string& flag, bool value);
 
 /*!
 *****************************************************************************
@@ -105,9 +102,7 @@ void setFlag(axom::sidre::Group& target,
 * \return The value of the flag
 *****************************************************************************
 */
-bool checkFlag(const axom::sidre::Group& target,
-               axom::sidre::Group& root,
-               const std::string& flag);
+bool checkFlag(const axom::sidre::Group& target, axom::sidre::Group& root, const std::string& flag);
 
 /*!
 *****************************************************************************

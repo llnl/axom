@@ -13,7 +13,8 @@ set(lumberjack_serial_tests
     lumberjack_Lumberjack.hpp
     lumberjack_Message.hpp
     lumberjack_TextEqualityCombiner.hpp
-    lumberjack_TextTagCombiner.hpp )
+    lumberjack_TextTagCombiner.hpp
+    lumberjack_LineFileTagCombiner.hpp )
 
 axom_add_executable(NAME       lumberjack_serial_tests
                     SOURCES    lumberjack_serial_main.cpp
@@ -34,7 +35,8 @@ endforeach()
 #------------------------------------------------------------------------------
 set(lumberjack_mpi_tests
     lumberjack_BinaryCommunicator.hpp
-    lumberjack_RootCommunicator.hpp )
+    lumberjack_RootCommunicator.hpp
+    lumberjack_NonCollectiveRootCommunicator.hpp )
 
 axom_add_executable(NAME       lumberjack_mpi_tests
                     SOURCES    lumberjack_mpi_main.cpp

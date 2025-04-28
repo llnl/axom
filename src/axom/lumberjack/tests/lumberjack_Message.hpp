@@ -43,34 +43,13 @@ std::vector<TestData> getTestData()
   std::vector<TestData> testStrings;
   //<ranks delimited by ,>*<rank count>*<file name>*
   //  <line number>*<level>*<tag>*<text>
-  testStrings.emplace_back("test empty filename",
-                           123,
-                           5,
-                           0,
-                           "tag",
-                           "",
-                           "123*1**5*0*tag*test empty filename");
-  testStrings.emplace_back("",
-                           123,
-                           5,
-                           1,
-                           "tag",
-                           "test empty message",
-                           "123*1*test empty message*5*1*tag*");
-  testStrings.emplace_back("test",
-                           123,
-                           5,
-                           1,
-                           "",
-                           "test tag message",
-                           "123*1*test tag message*5*1**test");
-  testStrings.emplace_back("test",
-                           123,
-                           5,
-                           1,
-                           "tag123",
-                           "foo.cpp",
-                           "123*1*foo.cpp*5*1*tag123*test");
+  testStrings
+    .emplace_back("test empty filename", 123, 5, 0, "tag", "", "123*1**5*0*tag*test empty filename");
+  testStrings
+    .emplace_back("", 123, 5, 1, "tag", "test empty message", "123*1*test empty message*5*1*tag*");
+  testStrings
+    .emplace_back("test", 123, 5, 1, "", "test tag message", "123*1*test tag message*5*1**test");
+  testStrings.emplace_back("test", 123, 5, 1, "tag123", "foo.cpp", "123*1*foo.cpp*5*1*tag123*test");
   testStrings.emplace_back("abcdef",
                            1,
                            164,
@@ -78,14 +57,13 @@ std::vector<TestData> getTestData()
                            "123tag",
                            "bar/baz.cpp",
                            "1*1*bar/baz.cpp*164*1*123tag*abcdef");
-  testStrings.emplace_back(
-    "this is a test string",
-    0,
-    999999,
-    3,
-    "&^Hg",
-    "/test/path.hpp",
-    "0*1*/test/path.hpp*999999*3*&^Hg*this is a test string");
+  testStrings.emplace_back("this is a test string",
+                           0,
+                           999999,
+                           3,
+                           "&^Hg",
+                           "/test/path.hpp",
+                           "0*1*/test/path.hpp*999999*3*&^Hg*this is a test string");
   testStrings.emplace_back("123456789",
                            55555,
                            6543,
@@ -102,30 +80,27 @@ std::vector<TestData> getTestData()
                            "notimportantfilename",
                            "654987*1*notimportantfilename*1*2*mytag*           "
                            "              asdf               ");
-  testStrings.emplace_back(
-    "//comment",
-    158794,
-    9090,
-    4,
-    "tag12",
-    "running out of ideas.cpp",
-    "158794*1*running out of ideas.cpp*9090*4*tag12*//comment");
-  testStrings.emplace_back(
-    "/* test string */",
-    12,
-    876543,
-    1,
-    "tag",
-    "234234234.file",
-    "12*1*234234234.file*876543*1*tag*/* test string */");
-  testStrings.emplace_back(
-    "~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-='",
-    12,
-    654987,
-    1,
-    "tag",
-    "filenameyepp",
-    "12*1*filenameyepp*654987*1*tag*~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-='");
+  testStrings.emplace_back("//comment",
+                           158794,
+                           9090,
+                           4,
+                           "tag12",
+                           "running out of ideas.cpp",
+                           "158794*1*running out of ideas.cpp*9090*4*tag12*//comment");
+  testStrings.emplace_back("/* test string */",
+                           12,
+                           876543,
+                           1,
+                           "tag",
+                           "234234234.file",
+                           "12*1*234234234.file*876543*1*tag*/* test string */");
+  testStrings.emplace_back("~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-='",
+                           12,
+                           654987,
+                           1,
+                           "tag",
+                           "filenameyepp",
+                           "12*1*filenameyepp*654987*1*tag*~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-='");
   return testStrings;
 }
 
@@ -135,12 +110,8 @@ TEST(lumberjack_Message, getSet)
 
   for(auto& td : testData)
   {
-    axom::lumberjack::Message* m = new axom::lumberjack::Message(td.text,
-                                                                 td.rank,
-                                                                 td.fileName,
-                                                                 td.lineNumber,
-                                                                 td.level,
-                                                                 td.tag);
+    axom::lumberjack::Message* m =
+      new axom::lumberjack::Message(td.text, td.rank, td.fileName, td.lineNumber, td.level, td.tag);
 
     EXPECT_EQ(m->text(), td.text);
     EXPECT_EQ(m->ranks().size(), (std::vector<int>::size_type)1);
@@ -158,8 +129,7 @@ TEST(lumberjack_Message, getSet)
 TEST(lumberjack_Message, getSetCaseConstCharToString)
 {
   //Test that const char* will convert fine to string
-  const char* textConstCharPointer =
-    "Testing if const char* will convert fine.";
+  const char* textConstCharPointer = "Testing if const char* will convert fine.";
   std::string textString = "Testing if const char* will convert fine.";
   axom::lumberjack::Message m;
   m.text(textConstCharPointer);
@@ -421,14 +391,8 @@ TEST(lumberjack_Message, stringOfRanks03)
     ranks.push_back(i * 2);
   }
 
-  axom::lumberjack::Message m("Unimportant message",
-                              ranks,
-                              ranksLimit,
-                              ranksLimit,
-                              "test/foo.cpp",
-                              987654321,
-                              0,
-                              "");
+  axom::lumberjack::Message
+    m("Unimportant message", ranks, ranksLimit, ranksLimit, "test/foo.cpp", 987654321, 0, "");
 
   EXPECT_EQ(m.text(), "Unimportant message");
   EXPECT_EQ(m.fileName(), "test/foo.cpp");
@@ -452,14 +416,8 @@ TEST(lumberjack_Message, pack01)
     ranks.push_back(i * 2);
   }
 
-  axom::lumberjack::Message m("Unimportant message",
-                              ranks,
-                              ranksLimit,
-                              ranksLimit,
-                              "test/foo.cpp",
-                              987654321,
-                              0,
-                              "");
+  axom::lumberjack::Message
+    m("Unimportant message", ranks, ranksLimit, ranksLimit, "test/foo.cpp", 987654321, 0, "");
 
   EXPECT_EQ(m.text(), "Unimportant message");
   EXPECT_EQ(m.fileName(), "test/foo.cpp");
@@ -472,8 +430,7 @@ TEST(lumberjack_Message, pack01)
   }
 
   std::string packedMessage = m.pack();
-  EXPECT_EQ(packedMessage,
-            "0,2,4,6,8*5*test/foo.cpp*987654321*0**Unimportant message");
+  EXPECT_EQ(packedMessage, "0,2,4,6,8*5*test/foo.cpp*987654321*0**Unimportant message");
 }
 
 TEST(lumberjack_Message, unpack01)
@@ -482,8 +439,7 @@ TEST(lumberjack_Message, unpack01)
   const int ranksLimit = 5;
 
   axom::lumberjack::Message m;
-  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*1*gtest*Unimportant message",
-           ranksLimit);
+  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*1*gtest*Unimportant message", ranksLimit);
 
   EXPECT_EQ(m.text(), "Unimportant message");
   EXPECT_EQ(m.fileName(), "test/foo.cpp");
@@ -504,8 +460,7 @@ TEST(lumberjack_Message, unpack02)
   const int ranksLimit = 5;
 
   axom::lumberjack::Message m;
-  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*0**Unimportant message",
-           ranksLimit);
+  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*0**Unimportant message", ranksLimit);
 
   EXPECT_EQ(m.text(), "Unimportant message");
   EXPECT_EQ(m.fileName(), "test/foo.cpp");
@@ -532,12 +487,7 @@ TEST(lumberjack_Message, packEmptyMessage)
 TEST(lumberjack_Message, packEmptyTag)
 {
   //Test case: pack empty Tag
-  axom::lumberjack::Message m("asdfMessageadsf",
-                              1,
-                              "test/foo.cpp",
-                              987654321,
-                              0,
-                              "");
+  axom::lumberjack::Message m("asdfMessageadsf", 1, "test/foo.cpp", 987654321, 0, "");
 
   std::string packedMessage = m.pack();
   EXPECT_EQ(packedMessage, "1*1*test/foo.cpp*987654321*0**asdfMessageadsf");
@@ -579,8 +529,7 @@ TEST(lumberjack_Message, unpackEmptyTag)
   const int ranksLimit = 5;
 
   axom::lumberjack::Message m;
-  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*0**123unimportant123",
-           ranksLimit);
+  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*0**123unimportant123", ranksLimit);
 
   EXPECT_EQ(m.text(), "123unimportant123");
   EXPECT_EQ(m.fileName(), "test/foo.cpp");
@@ -622,18 +571,13 @@ TEST(lumberjack_Message, packMessagesIndividually)
   std::vector<TestData> testData = getTestData();
   for(auto& td : testData)
   {
-    axom::lumberjack::Message* m = new axom::lumberjack::Message(td.text,
-                                                                 td.rank,
-                                                                 td.fileName,
-                                                                 td.lineNumber,
-                                                                 td.level,
-                                                                 td.tag);
+    axom::lumberjack::Message* m =
+      new axom::lumberjack::Message(td.text, td.rank, td.fileName, td.lineNumber, td.level, td.tag);
     messages.push_back(m);
 
     const char* packedMessage = axom::lumberjack::packMessages(messages);
 
-    std::string answer =
-      "1*" + std::to_string((int)td.packed.length()) + "*" + td.packed;
+    std::string answer = "1*" + std::to_string((int)td.packed.length()) + "*" + td.packed;
 
     EXPECT_EQ(packedMessage, answer);
 
@@ -651,12 +595,8 @@ TEST(lumberjack_Message, packMessages)
   std::string answer = "";
   for(auto& td : testData)
   {
-    axom::lumberjack::Message* m = new axom::lumberjack::Message(td.text,
-                                                                 td.rank,
-                                                                 td.fileName,
-                                                                 td.lineNumber,
-                                                                 td.level,
-                                                                 td.tag);
+    axom::lumberjack::Message* m =
+      new axom::lumberjack::Message(td.text, td.rank, td.fileName, td.lineNumber, td.level, td.tag);
     messages.push_back(m);
 
     answer += std::to_string((int)td.packed.length()) + "*" + td.packed;
@@ -682,8 +622,7 @@ TEST(lumberjack_Message, unpackMessagesIndividually)
   std::vector<TestData> testData = getTestData();
   for(auto& td : testData)
   {
-    std::string answer =
-      "1*" + std::to_string((int)td.packed.length()) + "*" + td.packed;
+    std::string answer = "1*" + std::to_string((int)td.packed.length()) + "*" + td.packed;
     axom::lumberjack::unpackMessages(messages, answer.c_str(), 100);
 
     axom::lumberjack::Message* m = messages[0];

@@ -42,8 +42,7 @@ bool eigen_sort(T* lamdas, Matrix<T>& eigen_vectors);
 template <typename T>
 bool eigen_sort(T* lambdas, Matrix<T>& eigen_vectors)
 {
-  if(lambdas == nullptr || eigen_vectors.getNumRows() < 1 ||
-     eigen_vectors.getNumColumns() < 1)
+  if(lambdas == nullptr || eigen_vectors.getNumRows() < 1 || eigen_vectors.getNumColumns() < 1)
   {
     return false;
   }

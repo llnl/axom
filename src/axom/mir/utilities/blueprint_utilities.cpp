@@ -29,6 +29,22 @@ const char *cpp2conduit<conduit::uint64>::name = "uint64";
 const char *cpp2conduit<conduit::float32>::name = "float32";
 const char *cpp2conduit<conduit::float64>::name = "float64";
 
+std::vector<std::string> coordsetAxes(const conduit::Node &n_input)
+{
+  std::vector<std::string> axes;
+  if(n_input.fetch_existing("type").as_string() == "uniform")
+  {
+    if(n_input.has_path("dims/i")) axes.push_back("x");
+    if(n_input.has_path("dims/j")) axes.push_back("y");
+    if(n_input.has_path("dims/k")) axes.push_back("z");
+  }
+  else
+  {
+    axes = conduit::blueprint::mesh::utils::coordset::axes(n_input);
+  }
+  return axes;
+}
+
 /**
  * \brief Turns a ShapeID to a VTK cell type value.
  *
@@ -58,8 +74,7 @@ static int ShapeID_to_vtk_cell(int shape_value)
   return vtktype;
 }
 
-static void save_unstructured_vtk(const conduit::Node &mesh,
-                                  const std::string &path)
+static void save_unstructured_vtk(const conduit::Node &mesh, const std::string &path)
 {
   FILE *file = fopen(path.c_str(), "wt");
   if(file == nullptr)
@@ -102,10 +117,7 @@ static void save_unstructured_vtk(const conduit::Node &mesh,
       for(size_t i = 0; i < num_points; ++i)
       {
         const auto p = coordsetView[i];
-        fprintf(file,
-                "%f %f 0\n",
-                static_cast<float>(p[0]),
-                static_cast<float>(p[1]));
+        fprintf(file, "%f %f 0\n", static_cast<float>(p[0]), static_cast<float>(p[1]));
       }
     }
   });
@@ -119,16 +131,33 @@ static void save_unstructured_vtk(const conduit::Node &mesh,
   size_t total_num_indices = connectivity.dtype().number_of_elements();
 
   fprintf(file, "CELLS %zu %zu\n", num_cells, total_num_indices + num_cells);
-  size_t index = 0;
-  for(size_t i = 0; i < num_cells; ++i)
+  if(elements.has_path("offsets"))
   {
-    size_t cell_size = elements["sizes"].as_int32_array()[i];
-    fprintf(file, "%zu", cell_size);
-    for(size_t j = 0; j < cell_size; ++j)
+    for(size_t i = 0; i < num_cells; ++i)
     {
-      fprintf(file, " %d", connectivity.as_int32_array()[index++]);
+      size_t cell_size = elements["sizes"].as_int32_array()[i];
+      size_t index = elements["offsets"].as_int32_array()[i];
+      fprintf(file, "%zu", cell_size);
+      for(size_t j = 0; j < cell_size; ++j)
+      {
+        fprintf(file, " %d", connectivity.as_int32_array()[index++]);
+      }
+      fprintf(file, "\n");
     }
-    fprintf(file, "\n");
+  }
+  else
+  {
+    size_t index = 0;
+    for(size_t i = 0; i < num_cells; ++i)
+    {
+      size_t cell_size = elements["sizes"].as_int32_array()[i];
+      fprintf(file, "%zu", cell_size);
+      for(size_t j = 0; j < cell_size; ++j)
+      {
+        fprintf(file, " %d", connectivity.as_int32_array()[index++]);
+      }
+      fprintf(file, "\n");
+    }
   }
 
   // Write the cell types
@@ -144,8 +173,8 @@ static void save_unstructured_vtk(const conduit::Node &mesh,
   }
   else
   {
-    const auto type = ShapeID_to_vtk_cell(
-      axom::mir::views::shapeNameToID(elements["shape"].as_string()));
+    const auto type =
+      ShapeID_to_vtk_cell(axom::mir::views::shapeNameToID(elements["shape"].as_string()));
     for(size_t i = 0; i < num_cells; ++i)
     {
       fprintf(file, "%d\n", type);

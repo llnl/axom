@@ -184,10 +184,7 @@ using TypeID = DataTypeId;
  *
  *  Used to convert C defines to C++ enumerations.
  */
-inline TypeID getTypeID(const int typeID)
-{
-  return static_cast<TypeID>(typeID);
-}
+inline TypeID getTypeID(const int typeID) { return static_cast<TypeID>(typeID); }
 
 } /* end namespace sidre */
 } /* end namespace axom */

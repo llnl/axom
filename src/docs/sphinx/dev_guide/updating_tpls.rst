@@ -368,11 +368,15 @@ other Axom developers to use during development, in Axom GitLab CI testing, etc.
 
    Run the corresponding command for the system you are on::
 
-     # blueos
+     # blueos_3_ppc64le_ib_p9 (default cmake is 3.14, need >=3.21 for using-with-cmake example)
+     $ module load cmake/3.29.2
      $ lalloc 1 -W 240 scripts/llnl_scripts/build_tpls.py
      
-     # toss_4
-     $ srun -N1 --interactive -t 180 scripts/llnl_scripts/build_tpls.py
+     # toss_4_x86_64_ib
+     $ srun -N1 -n 36 --interactive -t 180 scripts/llnl_scripts/build_tpls.py
+
+     # toss_4_x86_64_ib_cray
+     $ flux run -N 1 -t 240 scripts/llnl_scripts/build_tpls.py
 
    .. note:: You may have to adjust the allocation times you ask for the script to complete.
 
@@ -390,6 +394,16 @@ other Axom developers to use during development, in Axom GitLab CI testing, etc.
    .. note:: If this step fails, delete the time date stamped directory that was created.
              If you forget to do this, it will eventually be deleted when it is past a certain
              age and no longer needed.
+
+#. **Update and test new Windows builds.**
+   We use uberenv with Vcpkg to manage dependencies for our Windows TPL builds.
+   The third-party package files, ``portfile.cmake`` and ``vcpkg.json``, may need to be updated
+   to reflect the new dependencies.
+   To test the Windows updates, go to our
+   `GitHub Actions <https://github.com/LLNL/axom/actions/workflows/test_windows_tpls.yml>`_
+   page. Click on "Actions" and then on "Manual test for Axom's TPLs on Windows" in the "Workflows" menu.
+   Find the "Run Workflow" drop-down menu, select your branch, and click on the "Run workflow"
+   button. This will launch the tests for Windows.
 
 #. **Build new Docker images.**
    We use pre-built Docker images containing TPLs in our GitHub CI checks.

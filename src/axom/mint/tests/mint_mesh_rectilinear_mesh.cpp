@@ -9,7 +9,7 @@
 #include "axom/mint/mesh/CellTypes.hpp"        // for CellType enum
 #include "axom/mint/mesh/RectilinearMesh.hpp"  // for RectilinearMesh
 #include "axom/mint/mesh/ParticleMesh.hpp"     // for ParticleMesh
-#include "StructuredMesh_helpers.hpp"  // for StructuredMesh test helpers
+#include "StructuredMesh_helpers.hpp"          // for StructuredMesh test helpers
 
 // Slic includes
 #include "axom/slic.hpp"
@@ -270,10 +270,7 @@ TEST(mint_mesh_rectilinear_mesh, sidre_constructor)
       break;
     default:
       EXPECT_EQ(idim, 3);
-      m = new RectilinearMesh(meshGroup,
-                              N[I_DIRECTION],
-                              N[J_DIRECTION],
-                              N[K_DIRECTION]);
+      m = new RectilinearMesh(meshGroup, N[I_DIRECTION], N[J_DIRECTION], N[K_DIRECTION]);
     }  // END switch
 
     axom::mint::internal::check_constructor(m, STRUCTURED_RECTILINEAR_MESH, idim, N);
@@ -296,9 +293,7 @@ TEST(mint_mesh_rectilinear_mesh, sidre_constructor)
 
     for(int ii = 0; ii < idim; ++ii)
     {
-      check_coordinate(m->getCoordinateArray(ii),
-                       expected_coords,
-                       m->getNodeResolution(ii));
+      check_coordinate(m->getCoordinateArray(ii), expected_coords, m->getNodeResolution(ii));
     }
 
     axom::mint::internal::check_fields(m, true);

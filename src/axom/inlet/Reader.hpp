@@ -152,8 +152,7 @@ public:
    * \return The status of the retrieval, \see ReaderResult
    *****************************************************************************
    */
-  virtual ReaderResult getIntMap(const std::string& id,
-                                 std::unordered_map<int, int>& values) = 0;
+  virtual ReaderResult getIntMap(const std::string& id, std::unordered_map<int, int>& values) = 0;
   /// \overload
   virtual ReaderResult getIntMap(const std::string& id,
                                  std::unordered_map<VariantKey, int>& values) = 0;
@@ -171,8 +170,7 @@ public:
    * \return The status of the retrieval, \see ReaderResult
    *****************************************************************************
    */
-  virtual ReaderResult getBoolMap(const std::string& id,
-                                  std::unordered_map<int, bool>& values) = 0;
+  virtual ReaderResult getBoolMap(const std::string& id, std::unordered_map<int, bool>& values) = 0;
   /// \overload
   virtual ReaderResult getBoolMap(const std::string& id,
                                   std::unordered_map<VariantKey, bool>& values) = 0;
@@ -193,9 +191,8 @@ public:
   virtual ReaderResult getDoubleMap(const std::string& id,
                                     std::unordered_map<int, double>& values) = 0;
   /// \overload
-  virtual ReaderResult getDoubleMap(
-    const std::string& id,
-    std::unordered_map<VariantKey, double>& values) = 0;
+  virtual ReaderResult getDoubleMap(const std::string& id,
+                                    std::unordered_map<VariantKey, double>& values) = 0;
 
   /*!
    *****************************************************************************
@@ -213,9 +210,8 @@ public:
   virtual ReaderResult getStringMap(const std::string& id,
                                     std::unordered_map<int, std::string>& values) = 0;
   /// \overload
-  virtual ReaderResult getStringMap(
-    const std::string& id,
-    std::unordered_map<VariantKey, std::string>& values) = 0;
+  virtual ReaderResult getStringMap(const std::string& id,
+                                    std::unordered_map<VariantKey, std::string>& values) = 0;
 
   /*!
    *****************************************************************************
@@ -227,11 +223,9 @@ public:
    * \return The status of the retrieval, \see ReaderResult
    *****************************************************************************
    */
-  virtual ReaderResult getIndices(const std::string& id,
-                                  std::vector<int>& indices) = 0;
+  virtual ReaderResult getIndices(const std::string& id, std::vector<int>& indices) = 0;
   /// \overload
-  virtual ReaderResult getIndices(const std::string& id,
-                                  std::vector<VariantKey>& indices) = 0;
+  virtual ReaderResult getIndices(const std::string& id, std::vector<VariantKey>& indices) = 0;
 
   /*!
    *****************************************************************************

@@ -20,8 +20,7 @@ ShapeMap buildShapeMap(const conduit::Node &n_topo,
   // The shape_map nodes should be in host memory since the int values can fit
   // in a Conduit::Node.
   std::map<IndexType, IndexType> sm;
-  const conduit::Node &n_shape_map =
-    n_topo.fetch_existing("elements/shape_map");
+  const conduit::Node &n_shape_map = n_topo.fetch_existing("elements/shape_map");
   for(conduit::index_t i = 0; i < n_shape_map.number_of_children(); i++)
   {
     const auto value = static_cast<IndexType>(n_shape_map[i].to_int());
@@ -40,10 +39,8 @@ ShapeMap buildShapeMap(const conduit::Node &n_topo,
 
   // Copy the map values to the device memory.
   const axom::IndexType n = static_cast<axom::IndexType>(sm.size());
-  values =
-    axom::Array<IndexType>(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
-  ids =
-    axom::Array<IndexType>(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
+  values = axom::Array<IndexType>(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
+  ids = axom::Array<IndexType>(axom::ArrayOptions::Uninitialized(), n, n, allocatorID);
   axom::copy(values.data(), valuesvec.data(), n * sizeof(IndexType));
   axom::copy(ids.data(), idsvec.data(), n * sizeof(IndexType));
 

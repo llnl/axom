@@ -99,6 +99,10 @@ struct Input
     {
       m_app.parse(argc, argv);
     }
+    catch(const axom::CLI::CallForHelp &e)
+    {
+      std::cout << m_app.help() << std::endl;
+    }
     catch(const axom::CLI::ParseError &e)
     {
       return m_app.exit(e);
@@ -139,8 +143,7 @@ int main(int argc, char **argv)
     return retval;
   }
 #if defined(AXOM_USE_CALIPER)
-  axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(
-    params.m_annotationMode);
+  axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(params.m_annotationMode);
 #endif
 
   // Make the mesh
@@ -189,8 +192,7 @@ int main(int argc, char **argv)
   if(params.writeFiles())
   {
     std::string filepath, filename("inputMesh");
-    filepath =
-      axom::utilities::filesystem::joinPath(params.m_output_dir, filename);
+    filepath = axom::utilities::filesystem::joinPath(params.m_output_dir, filename);
     conduit::relay::io::blueprint::save_mesh(mesh, filepath, protocol);
   }
   if(params.m_verbose)
@@ -250,8 +252,7 @@ int main(int argc, char **argv)
   if(retval == 0 && params.writeFiles())
   {
     std::string filepath, filename("processedMesh");
-    filepath =
-      axom::utilities::filesystem::joinPath(params.m_output_dir, filename);
+    filepath = axom::utilities::filesystem::joinPath(params.m_output_dir, filename);
     conduit::relay::io::blueprint::save_mesh(resultMesh, filepath, protocol);
   }
 

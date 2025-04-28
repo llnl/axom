@@ -92,9 +92,7 @@ public:
    * \post getNumParticles() <= capacity()
    * \post hasSidreGroup() == false
    */
-  ParticleMesh(int dimension,
-               IndexType numParticles,
-               IndexType capacity = USE_DEFAULT);
+  ParticleMesh(int dimension, IndexType numParticles, IndexType capacity = USE_DEFAULT);
 
   /// @}
 
@@ -127,10 +125,7 @@ public:
    * \post 1 <= getDimension() <= 3
    * \post getNumParticles() == numParticles
    */
-  ParticleMesh(IndexType numParticles,
-               double* x,
-               double* y = nullptr,
-               double* z = nullptr);
+  ParticleMesh(IndexType numParticles, double* x, double* y = nullptr, double* z = nullptr);
 
   /// @}
 
@@ -221,21 +216,14 @@ public:
   /*!
    * \brief Return the number of cells in the mesh.
    */
-  virtual IndexType getNumberOfCells() const final override
-  {
-    return getNumberOfNodes();
-  }
+  virtual IndexType getNumberOfCells() const final override { return getNumberOfNodes(); }
 
   /*!
    * \brief Return the capacity for cells.
    */
-  virtual IndexType getCellCapacity() const final override
-  {
-    return getNodeCapacity();
-  }
+  virtual IndexType getCellCapacity() const final override { return getNodeCapacity(); }
 
-  virtual IndexType getNumberOfCellNodes(
-    IndexType AXOM_UNUSED_PARAM(cellID) = 0) const final override
+  virtual IndexType getNumberOfCellNodes(IndexType AXOM_UNUSED_PARAM(cellID) = 0) const final override
   {
     return 1;
   }
@@ -245,8 +233,7 @@ public:
     return VERTEX;
   }
 
-  virtual IndexType getCellNodeIDs(IndexType cellID,
-                                   IndexType* cell) const final override;
+  virtual IndexType getCellNodeIDs(IndexType cellID, IndexType* cell) const final override;
 
   /*!
    * \brief Return the number of faces associated with the given cell. For the
@@ -254,8 +241,7 @@ public:
    *
    * \param [in] cellID the ID of the cell in question.
    */
-  virtual IndexType getNumberOfCellFaces(
-    IndexType AXOM_UNUSED_PARAM(cellID) = 0) const final override
+  virtual IndexType getNumberOfCellFaces(IndexType AXOM_UNUSED_PARAM(cellID) = 0) const final override
   {
     return 0;
   }
@@ -284,18 +270,12 @@ public:
   /*!
    * \brief Return the number of nodes in the mesh.
    */
-  virtual IndexType getNumberOfNodes() const final override
-  {
-    return m_positions->numNodes();
-  }
+  virtual IndexType getNumberOfNodes() const final override { return m_positions->numNodes(); }
 
   /*!
    * \brief Return the capacity for nodes.
    */
-  virtual IndexType getNodeCapacity() const final override
-  {
-    return m_positions->capacity();
-  }
+  virtual IndexType getNodeCapacity() const final override { return m_positions->capacity(); }
 
   /*!
    * \brief Copy the coordinates of the given node into the provided buffer.
@@ -365,8 +345,7 @@ public:
    * 
    * \note The particle mesh does not have any faces so this call errors out.
    */
-  virtual IndexType getNumberOfFaceNodes(
-    IndexType AXOM_UNUSED_PARAM(faceID)) const final override
+  virtual IndexType getNumberOfFaceNodes(IndexType AXOM_UNUSED_PARAM(faceID)) const final override
   {
     SLIC_ERROR("ParticleMesh does not implement this method.");
     return -1;
@@ -430,10 +409,7 @@ public:
    * \brief Return true iff particle positions are stored in external arrays.
    * \return status true iff the particle positions point to external buffers.
    */
-  virtual bool isExternal() const final override
-  {
-    return m_positions->isExternal();
-  }
+  virtual bool isExternal() const final override { return m_positions->isExternal(); }
 
   /// @}
 
@@ -527,8 +503,7 @@ private:
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-inline IndexType ParticleMesh::getCellNodeIDs(IndexType cellID,
-                                              IndexType* cell) const
+inline IndexType ParticleMesh::getCellNodeIDs(IndexType cellID, IndexType* cell) const
 {
   SLIC_ASSERT(cell != nullptr);
   SLIC_ASSERT(0 <= cellID && cellID <= getNumberOfCells());
@@ -564,8 +539,7 @@ inline void ParticleMesh::append(double x, double y)
 inline void ParticleMesh::append(double x, double y, double z)
 {
   SLIC_ASSERT(m_positions != nullptr);
-  SLIC_ERROR_IF(m_ndims != 3,
-                "ParticleMesh::append(x,y,z) is only valid in 3-D");
+  SLIC_ERROR_IF(m_ndims != 3, "ParticleMesh::append(x,y,z) is only valid in 3-D");
 
   m_positions->append(x, y, z);
   m_mesh_fields[NODE_CENTERED]->resize(m_positions->numNodes());

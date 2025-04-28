@@ -100,10 +100,8 @@ struct make_uniform_coordset<3>
     for(int i = 0; i < 3; i++)
     {
       dims[i] = n_dims.fetch_existing(keys[i]).to_int();
-      if(coordset.has_child("origin"))
-        origin[i] = coordset["origin"][i].to_double();
-      if(coordset.has_child("spacing"))
-        spacing[i] = coordset["spacing"][i].to_double();
+      if(coordset.has_child("origin")) origin[i] = coordset["origin"][i].to_double();
+      if(coordset.has_child("spacing")) spacing[i] = coordset["spacing"][i].to_double();
     }
     return CoordsetView(dims, origin, spacing);
   }
@@ -131,10 +129,8 @@ struct make_uniform_coordset<2>
     for(int i = 0; i < 2; i++)
     {
       dims[i] = n_dims.fetch_existing(keys[i]).to_int();
-      if(coordset.has_child("origin"))
-        origin[i] = coordset["origin"][i].to_double();
-      if(coordset.has_child("spacing"))
-        spacing[i] = coordset["spacing"][i].to_double();
+      if(coordset.has_child("origin")) origin[i] = coordset["origin"][i].to_double();
+      if(coordset.has_child("spacing")) spacing[i] = coordset["spacing"][i].to_double();
     }
     return CoordsetView(dims, origin, spacing);
   }
@@ -181,15 +177,10 @@ void dispatch_rectilinear_coordset(const conduit::Node &coordset, FuncType &&fun
   const conduit::Node &values = coordset["values"];
   if(values.number_of_children() == 2)
   {
-    axom::mir::views::FloatNode_to_ArrayView_same(
-      values[0],
-      values[1],
-      [&](auto xView, auto yView) {
-        RectilinearCoordsetView2<typename decltype(xView)::value_type> coordView(
-          xView,
-          yView);
-        func(coordView);
-      });
+    axom::mir::views::FloatNode_to_ArrayView_same(values[0], values[1], [&](auto xView, auto yView) {
+      RectilinearCoordsetView2<typename decltype(xView)::value_type> coordView(xView, yView);
+      func(coordView);
+    });
   }
   else if(values.number_of_children() == 3)
   {
@@ -198,10 +189,7 @@ void dispatch_rectilinear_coordset(const conduit::Node &coordset, FuncType &&fun
       values[1],
       values[2],
       [&](auto xView, auto yView, auto zView) {
-        RectilinearCoordsetView3<typename decltype(xView)::value_type> coordView(
-          xView,
-          yView,
-          zView);
+        RectilinearCoordsetView3<typename decltype(xView)::value_type> coordView(xView, yView, zView);
         func(coordView);
       });
   }
@@ -276,15 +264,10 @@ void dispatch_explicit_coordset(const conduit::Node &coordset, FuncType &&func)
   const conduit::Node &values = coordset["values"];
   if(values.number_of_children() == 2)
   {
-    axom::mir::views::FloatNode_to_ArrayView_same(
-      values[0],
-      values[1],
-      [&](auto xView, auto yView) {
-        ExplicitCoordsetView<typename decltype(xView)::value_type, 2> coordView(
-          xView,
-          yView);
-        func(coordView);
-      });
+    axom::mir::views::FloatNode_to_ArrayView_same(values[0], values[1], [&](auto xView, auto yView) {
+      ExplicitCoordsetView<typename decltype(xView)::value_type, 2> coordView(xView, yView);
+      func(coordView);
+    });
   }
   else if(values.number_of_children() == 3)
   {
@@ -293,10 +276,7 @@ void dispatch_explicit_coordset(const conduit::Node &coordset, FuncType &&func)
       values[1],
       values[2],
       [&](auto xView, auto yView, auto zView) {
-        ExplicitCoordsetView<typename decltype(xView)::value_type, 3> coordView(
-          xView,
-          yView,
-          zView);
+        ExplicitCoordsetView<typename decltype(xView)::value_type, 3> coordView(xView, yView, zView);
         func(coordView);
       });
   }

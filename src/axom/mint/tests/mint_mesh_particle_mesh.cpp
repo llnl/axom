@@ -108,9 +108,7 @@ void check_reserve(mint::ParticleMesh* particles)
 }
 
 //------------------------------------------------------------------------------
-void check_shrink(mint::ParticleMesh* particles,
-                  axom::IndexType NUM_PARTICLES,
-                  axom::IndexType CAPACITY)
+void check_shrink(mint::ParticleMesh* particles, axom::IndexType NUM_PARTICLES, axom::IndexType CAPACITY)
 {
   EXPECT_TRUE(particles != nullptr);
   EXPECT_TRUE(NUM_PARTICLES > 0);
@@ -211,9 +209,7 @@ void check_append(mint::ParticleMesh* particles)
   }
 }
 //------------------------------------------------------------------------------
-void check_create_field(mint::ParticleMesh* particles,
-                        const std::string& name,
-                        int numComponents)
+void check_create_field(mint::ParticleMesh* particles, const std::string& name, int numComponents)
 {
   EXPECT_TRUE(particles != nullptr);
 
@@ -239,10 +235,8 @@ TEST(mint_mesh_particle_mesh_DeathTest, invalid_construction)
 {
   const int INVALID_DIMENSION = -1;
   const int INVALID_NUM_PARTICLES = -10;
-  EXPECT_DEATH_IF_SUPPORTED(mint::ParticleMesh(INVALID_DIMENSION, 10),
-                            IGNORE_OUTPUT);
-  EXPECT_DEATH_IF_SUPPORTED(mint::ParticleMesh(3, INVALID_NUM_PARTICLES),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(mint::ParticleMesh(INVALID_DIMENSION, 10), IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(mint::ParticleMesh(3, INVALID_NUM_PARTICLES), IGNORE_OUTPUT);
 
   // capacity cannot be smaller than specified num particles
   EXPECT_DEATH_IF_SUPPORTED(mint::ParticleMesh(3, 10, 5), IGNORE_OUTPUT);
@@ -266,16 +260,13 @@ TEST(mint_mesh_particle_mesh_DeathTest, invalid_operations)
 {
   const axom::IndexType numParticles = 10;
   mint::ParticleMesh particles(2, numParticles);
-  EXPECT_DEATH_IF_SUPPORTED(particles.getCoordinateArray(mint::Z_COORDINATE),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(particles.getCoordinateArray(mint::Z_COORDINATE), IGNORE_OUTPUT);
 
   // creating/accessing anything other than node-centered fields on a particle
   // mesh does not make sense and should fail
-  EXPECT_DEATH_IF_SUPPORTED(particles.getFieldData(mint::CELL_CENTERED),
+  EXPECT_DEATH_IF_SUPPORTED(particles.getFieldData(mint::CELL_CENTERED), IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(particles.createField<double>("foobar", mint::CELL_CENTERED),
                             IGNORE_OUTPUT);
-  EXPECT_DEATH_IF_SUPPORTED(
-    particles.createField<double>("foobar", mint::CELL_CENTERED),
-    IGNORE_OUTPUT);
 
   // append a particle to a 2-D ParticleMesh using a 1-D append()
   EXPECT_DEATH_IF_SUPPORTED(particles.append(42.0), IGNORE_OUTPUT);
@@ -403,8 +394,7 @@ TEST(mint_mesh_particle_mesh, sidre_constructor)
       EXPECT_EQ(particles.getPartitionId(), PART_ID);
 
       axom::IndexType numComp = -1;
-      const double* foo =
-        particles.getFieldPtr<double>("foo", mint::NODE_CENTERED, numComp);
+      const double* foo = particles.getFieldPtr<double>("foo", mint::NODE_CENTERED, numComp);
       EXPECT_TRUE(foo != nullptr);
       EXPECT_EQ(numComp, 3);
 
@@ -422,9 +412,8 @@ TEST(mint_mesh_particle_mesh, sidre_constructor)
 
         for(axom::IndexType i = 0; i < numParticles; ++i)
         {
-          const double expected_val = ((i == 0) || (i == numParticles - 1))
-            ? 42.0
-            : static_cast<double>(i + 1);
+          const double expected_val =
+            ((i == 0) || (i == numParticles - 1)) ? 42.0 : static_cast<double>(i + 1);
           EXPECT_DOUBLE_EQ(pos[i], expected_val);
         }
       }
