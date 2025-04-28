@@ -504,6 +504,21 @@ axom::klee::Geometry createGeometry_Sor(axom::primal::Point<double, 3>& sorBase,
   return sorGeometry;
 }
 
+double computeVolume_Sor(axom::Array<double, 2>& discreteFunction)
+{
+  using ConeType = axom::primal::Cone<double, 3>;
+  axom::IndexType segmentCount = discreteFunction.shape()[0];
+  double vol = 0.0;
+  for(axom::IndexType s = 0; s < segmentCount - 1; ++s)
+  {
+    ConeType cone(discreteFunction(s, 1),
+                  discreteFunction(s + 1, 1),
+                  discreteFunction(s + 1, 0) - discreteFunction(s, 0));
+    vol += cone.volume();
+  }
+  return vol;
+}
+
 axom::klee::Geometry createGeom_Sor()
 {
   Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
@@ -518,18 +533,18 @@ axom::klee::Geometry createGeom_Sor()
   double zShift = -zLen / 2;
   double maxR = params.radius < 0 ? 0.75 : params.radius;
   double dz = zLen / numIntervals;
-  discreteFunction[0][0] = 0 * dz + zShift;
-  discreteFunction[0][1] = 0.0 * maxR;
-  discreteFunction[1][0] = 1 * dz + zShift;
-  discreteFunction[1][1] = 0.8 * maxR;
-  discreteFunction[2][0] = 2 * dz + zShift;
-  discreteFunction[2][1] = 0.4 * maxR;
-  discreteFunction[3][0] = 3 * dz + zShift;
-  discreteFunction[3][1] = 0.5 * maxR;
-  discreteFunction[4][0] = 4 * dz + zShift;
-  discreteFunction[4][1] = 1.0 * maxR;
-  discreteFunction[5][0] = 5 * dz + zShift;
-  discreteFunction[5][1] = 0.0;
+  discreteFunction(0, 0) = 0 * dz + zShift;
+  discreteFunction(0, 1) = 0.0 * maxR;
+  discreteFunction(1, 0) = 1 * dz + zShift;
+  discreteFunction(1, 1) = 0.8 * maxR;
+  discreteFunction(2, 0) = 2 * dz + zShift;
+  discreteFunction(2, 1) = 0.4 * maxR;
+  discreteFunction(3, 0) = 3 * dz + zShift;
+  discreteFunction(3, 1) = 0.5 * maxR;
+  discreteFunction(4, 0) = 4 * dz + zShift;
+  discreteFunction(4, 1) = 1.0 * maxR;
+  discreteFunction(5, 0) = 5 * dz + zShift;
+  discreteFunction(5, 1) = 0.0;
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
@@ -538,17 +553,7 @@ axom::klee::Geometry createGeom_Sor()
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
-  // Compute SOR volume.
-  using ConeType = axom::primal::Cone<double, 3>;
-  axom::IndexType segmentCount = discreteFunction.shape()[0];
-  double vol = 0.0;
-  for (axom::IndexType s = 0; s < segmentCount-1; ++s)
-  {
-    ConeType cone(discreteFunction[s][1], discreteFunction[s+1][1],
-                  std::fabs(discreteFunction[s][0] - discreteFunction[s+1][0]));
-    vol += cone.volume();
-  }
-  exactOverlapVols["sor"] = vol;
+  exactOverlapVols["sor"] = computeVolume_Sor(discreteFunction);
 
   return sorGeometry;
 }
@@ -564,10 +569,10 @@ axom::klee::Geometry createGeom_Cylinder()
   axom::Array<double, 2> discreteFunction({2, 2}, axom::ArrayStrideOrder::ROW);
   double radius = params.radius < 0 ? 0.5 : params.radius;
   double height = params.length < 0 ? 1.2 : params.length;
-  discreteFunction[0][0] = -height / 2;
-  discreteFunction[0][1] = radius;
-  discreteFunction[1][0] = height / 2;
-  discreteFunction[1][1] = radius;
+  discreteFunction(0, 0) = -height / 2;
+  discreteFunction(0, 1) = radius;
+  discreteFunction(1, 0) = height / 2;
+  discreteFunction(1, 1) = radius;
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
@@ -575,6 +580,8 @@ axom::klee::Geometry createGeom_Cylinder()
 
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
+
+  exactOverlapVols["cyl"] = computeVolume_Sor(discreteFunction);
 
   return sorGeometry;
 }
@@ -591,10 +598,10 @@ axom::klee::Geometry createGeom_Cone()
   double baseRadius = params.radius < 0 ? 0.7 : params.radius;
   double topRadius = params.radius2 < 0 ? 0.1 : params.radius2;
   double height = params.length < 0 ? 1.3 : params.length;
-  discreteFunction[0][0] = -height / 2;
-  discreteFunction[0][1] = baseRadius;
-  discreteFunction[1][0] = height / 2;
-  discreteFunction[1][1] = topRadius;
+  discreteFunction(0, 0) = -height / 2;
+  discreteFunction(0, 1) = baseRadius;
+  discreteFunction(1, 0) = height / 2;
+  discreteFunction(1, 1) = topRadius;
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
@@ -602,6 +609,8 @@ axom::klee::Geometry createGeom_Cone()
 
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
+
+  exactOverlapVols["cone"] = computeVolume_Sor(discreteFunction);
 
   return sorGeometry;
 }
@@ -1044,23 +1053,16 @@ int main(int argc, char** argv)
     }
     else if(tg == "sor")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::SorClipper>(createGeom_Sor(), tg));
+      geomStrategies.push_back(std::make_shared<axom::quest::SorClipper>(createGeom_Sor(), tg));
     }
-#if 0
     else if(tg == "cyl")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::Plane3DClipper>(createGeom_Cylinder(),
-                                                      tg));
+      geomStrategies.push_back(std::make_shared<axom::quest::SorClipper>(createGeom_Cylinder(), tg));
     }
     else if(tg == "cone")
     {
-      geomStrategies.push_back(
-        std::make_shared<axom::quest::Plane3DClipper>(createGeom_Cone(),
-                                                      tg));
+      geomStrategies.push_back(std::make_shared<axom::quest::SorClipper>(createGeom_Cone(), tg));
     }
-#endif
   }
 
   {

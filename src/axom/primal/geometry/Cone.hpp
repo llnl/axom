@@ -44,7 +44,7 @@ public:
     , m_length(0.0)
     , m_base(0.0, NDIMS)
     , m_direction(0.0, NDIMS)
-    { }
+  { }
 
   /*!
     \brief Construct a cone with a base at the origin,
@@ -59,10 +59,10 @@ public:
     , m_length(length)
     , m_base(0.0, NDIMS)
     , m_direction(0.0, NDIMS)
-    {
-      m_direction[0] = 1.0;
-      assertValid();
-    }
+  {
+    m_direction[0] = 1.0;
+    assertValid();
+  }
 
   /*!
     \brief Construct a cone rotated to a given direction
@@ -73,55 +73,44 @@ public:
     \param [in] base Coordinates of the base
     \param [in] direction Direction of axis, from base to top.
    */
-  AXOM_HOST_DEVICE Cone(T baseRadius, T topRadius, T length, const PointType& base, const VectorType& direction)
+  AXOM_HOST_DEVICE Cone(T baseRadius,
+                        T topRadius,
+                        T length,
+                        const PointType& base,
+                        const VectorType& direction)
     : m_baseRadius(baseRadius)
     , m_topRadius(topRadius)
     , m_length(length)
     , m_base(base)
     , m_direction(direction.unitVector())
-    {
-      assertValid();
-    }
+  {
+    assertValid();
+  }
 
   /*!
    * \brief Return the base coordinates.
    */
-  AXOM_HOST_DEVICE PointType& getBase()
-  {
-    return m_base;
-  }
+  AXOM_HOST_DEVICE PointType& getBase() { return m_base; }
 
   /*!
     \brief Return the base coordinates.
   */
-  AXOM_HOST_DEVICE const PointType& getBase() const
-  {
-    return m_base;
-  }
+  AXOM_HOST_DEVICE const PointType& getBase() const { return m_base; }
 
   /*!
     \brief Return the base radius.
   */
-  AXOM_HOST_DEVICE T getBaseRadius()
-  {
-    return m_baseRadius;
-  }
+  AXOM_HOST_DEVICE T getBaseRadius() { return m_baseRadius; }
 
   /*!
     \brief Return the top radius.
   */
-  AXOM_HOST_DEVICE T getTopRadius()
-  {
-    return m_topRadius;
-  }
+  AXOM_HOST_DEVICE T getTopRadius() { return m_topRadius; }
 
   /*!
     \brief Return the axis direction.
   */
-  AXOM_HOST_DEVICE const VectorType& getDirection() const
-  {
-    return m_direction;
-  }
+  AXOM_HOST_DEVICE const VectorType& getDirection() const { return m_direction; }
 
   /*!
     \brief Simple formatted print of a cone instance
@@ -130,7 +119,8 @@ public:
   */
   std::ostream& print(std::ostream& os) const
   {
-    os << "{" << m_baseRadius << '-' << m_topRadius << "x" << m_length << " at " << m_base << " along " << m_direction << "}";
+    os << "{" << m_baseRadius << '-' << m_topRadius << "x" << m_length << " at " << m_base
+       << " along " << m_direction << "}";
 
     return os;
   }
@@ -144,9 +134,8 @@ public:
   template <int TDIM = NDIMS>
   typename std::enable_if<TDIM == 3, T>::type volume() const
   {
-    T vol =
-      (m_baseRadius*m_baseRadius + m_baseRadius*m_topRadius + m_topRadius*m_topRadius)
-      * 1/3.0 * M_PI * m_length;
+    T vol = (m_baseRadius * m_baseRadius + m_baseRadius * m_topRadius + m_topRadius * m_topRadius) *
+      1 / 3.0 * M_PI * m_length;
     return vol;
   }
 

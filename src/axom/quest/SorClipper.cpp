@@ -62,12 +62,11 @@ bool SorClipper::getShapeAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Octah
   // Generate the Octahedra
   int octCount = 0;
   axom::ArrayView<Point2D> polyline((Point2D*)m_discreteFcn.data(), m_discreteFcn.shape()[0]);
-  const bool good =
-    axom::quest::discretize<axom::SEQ_EXEC>(polyline,
-                                            int(polyline.size()),
-                                            m_levelOfRefinement,
-                                            octsOnHost,
-                                            octCount);
+  const bool good = axom::quest::discretize<axom::SEQ_EXEC>(polyline,
+                                                            int(polyline.size()),
+                                                            m_levelOfRefinement,
+                                                            octsOnHost,
+                                                            octCount);
   AXOM_UNUSED_VAR(good);
   SLIC_ASSERT(good);
   SLIC_ASSERT(octCount == octsOnHost.size());
@@ -154,9 +153,13 @@ void SorClipper::extractClipperInfo()
   auto discreteFunctionArray = m_info.fetch_existing("discreteFunction").as_double_array();
   auto n = discreteFunctionArray.number_of_elements();
 
-  SLIC_ERROR_IF(n%2 != 0, axom::fmt::format("***SorClipper: Discrete function must have an even number of values.  It has {}.", n));
+  SLIC_ERROR_IF(
+    n % 2 != 0,
+    axom::fmt::format(
+      "***SorClipper: Discrete function must have an even number of values.  It has {}.",
+      n));
 
-  m_discreteFcn.resize(axom::ArrayOptions::Uninitialized(), n/2, 2);
+  m_discreteFcn.resize(axom::ArrayOptions::Uninitialized(), n / 2, 2);
   for(int i = 0; i < n; ++i)
   {
     m_discreteFcn.flatIndex(i) = discreteFunctionArray[i];
