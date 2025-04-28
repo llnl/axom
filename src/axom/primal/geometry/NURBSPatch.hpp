@@ -2977,8 +2977,8 @@ public:
 
     for(const auto& curve : split_trimming_curves)
     {
-      bool isInDisk =
-        circle_obj.computeSignedDistance(0.5 * (curve.getMinKnot() + curve.getMaxKnot())) < 0;
+      auto curve_midpoint = curve.evaluate(0.5 * (curve.getMinKnot() + curve.getMaxKnot()));
+      bool isInDisk = circle_obj.computeSignedDistance(curve_midpoint) < 0;
 
       if(isInDisk)
       {

@@ -673,7 +673,7 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_edge_cases)
   nPatch.addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({0.5, 0.75}, {0.5, 0.25}));
 
   nPatch.addTrimmingCurve(
-    TrimmingCurveType::make_circular_arc_nurbs(-M_PI / 2.0, M_PI / 2.0, {0.5, 0.5}, 0.25));
+    TrimmingCurveType::make_circular_arc_nurbs(-M_PI / 2.0, M_PI / 2.0, 0.5, 0.5, 0.25));
 
   // Split the patch along the same edge
   NURBSPatchType leftpatch2, rightpatch2;
