@@ -2810,15 +2810,7 @@ public:
   void diskSplit(T u, T v, T r, NURBSPatch& the_disk, NURBSPatch& the_rest, bool clipDisk = true) const
   {
     bool isDiskInside, isDiskOutside, ignoreInteriorDisk = false;
-    diskSplit(u,
-              v,
-              r,
-              the_disk,
-              the_rest,
-              isDiskInside,
-              isDiskOutside,
-              ignoreInteriorDisk,
-              clipDisk);
+    diskSplit(u, v, r, the_disk, the_rest, isDiskInside, isDiskOutside, ignoreInteriorDisk, clipDisk);
   }
 
   /*!
@@ -2940,7 +2932,7 @@ public:
 
     // Handle special cases where 0 intersections are recorded
     isDiskInside = isDiskOutside = false;
-    if(circle_params.size() == 0)
+    if(circle_params.size() == 2)
     {
       // If the circle is entirely inside the trimming curves,
       //  the_disk is a complete disk
@@ -2992,8 +2984,6 @@ public:
 
       if(isArcVisible)
       {
-        auto c1 =
-          TrimmingCurveType::make_circular_arc_nurbs(circle_params[i], circle_params[i + 1], u, v, r);
         circle_trimming_curves.push_back(
           TrimmingCurveType::make_circular_arc_nurbs(circle_params[i], circle_params[i + 1], u, v, r));
       }
