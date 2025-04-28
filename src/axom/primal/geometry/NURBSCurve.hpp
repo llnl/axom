@@ -403,15 +403,30 @@ public:
    * \param [in] u, v The center of the 2D circle
    * \param [in] radius The radius of the circle
    * 
-   * The curve's knots will span [0, 1], but the parameterization is not
+   * \note The curve's knots will span [0, 1], but the parameterization is not
    *  uniform with respect to the arc length
    * 
-   * \pre Requires a 2D NURBS curve, theta_0 < theta_1, and the arc is less than a full circle
+   * \note The arc is assumed to be counter-clockwise, unless \p theta_1 < \p theta_0,
+   *   in which case the arc is clockwise.
+   *        
+   * \pre Requires a 2D NURBS curve, and the arc is less than a full circle
    */
   static NURBSCurve make_circular_arc_nurbs(T theta_0, T theta_1, T u, T v, T radius)
   {
     SLIC_ASSERT(NDIMS == 2);
-    SLIC_ASSERT(theta_0 < theta_1);
+
+    bool is_cw = false;
+    if(theta_0 == theta_1)
+    {
+      // Return an invalid NURBS curve
+      return NURBSCurve();
+    }
+    if(theta_1 < theta_0)
+    {
+      is_cw = true;
+      std::swap(theta_0, theta_1);
+    }
+
     SLIC_ASSERT(theta_1 - theta_0 <= 2.0 * M_PI);
 
     T pi23 = 2.0 * M_PI / 3.0;
@@ -453,6 +468,11 @@ public:
     {
       arc_curve.setKnot(3 + 2 * i + 0, static_cast<T>(i + 1) / n_segments);
       arc_curve.setKnot(3 + 2 * i + 1, static_cast<T>(i + 1) / n_segments);
+    }
+
+    if(is_cw)
+    {
+      arc_curve.reverseOrientation();
     }
 
     return arc_curve;

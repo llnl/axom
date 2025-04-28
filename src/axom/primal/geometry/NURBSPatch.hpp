@@ -2815,7 +2815,7 @@ public:
   }
 
   /*!
-   * \brief Split a NURBS surface into two by cutting out a disk of radius r centered at (u, v)
+   * \brief For a disk of radius r and center (u, v), split a NURBS surface into the portion inside/outside
    *
    * \param [in] u The x-coordinate of the center of the disk
    * \param [in] v The y-coordinate of the center of the disk
