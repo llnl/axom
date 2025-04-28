@@ -408,7 +408,7 @@ public:
    * 
    * \pre Requires a 2D NURBS curve, theta_0 < theta_1, and the arc is less than a full circle
    */
-  static NURBSCurve makeCircularArc(T theta_0, T theta_1, T u, T v, T radius)
+  static NURBSCurve make_circular_arc_nurbs(T theta_0, T theta_1, T u, T v, T radius)
   {
     SLIC_ASSERT(NDIMS == 2);
     SLIC_ASSERT(theta_0 < theta_1);
@@ -466,7 +466,7 @@ public:
    *  
    * \pre Requires a 2D NURBS curve
    */
-  static NURBSCurve makeLinearSegment(const PointType& start, const PointType& end)
+  static NURBSCurve make_linear_segment_nurbs(const PointType& start, const PointType& end)
   {
     SLIC_ASSERT(NDIMS == 2);
 

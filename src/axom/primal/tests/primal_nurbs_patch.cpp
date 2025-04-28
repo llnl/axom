@@ -934,7 +934,7 @@ TEST(primal_nurbspatch, nurbs_parameter_space_scaling)
   NURBSPatchType nPatchUntrimmed(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
   NURBSPatchType nPatchTrimmed(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
   nPatchTrimmed.addTrimmingCurve(
-    primal::NURBSCurve<CoordType, 2>::makeCircularArc(0.0, 2.0 * M_PI, 0.5, 0.5, 0.25));
+    primal::NURBSCurve<CoordType, 2>::make_circular_arc_nurbs(0.0, 2.0 * M_PI, 0.5, 0.5, 0.25));
 
   NURBSPatchType supPatchOriginallyUntrimmed(nPatchUntrimmed);
   NURBSPatchType supPatchUntrimmed(nPatchUntrimmed);

@@ -1181,16 +1181,16 @@ public:
     // For each min/max u/v, add a straight trimming curve along the boundary
 
     // Bottom
-    addTrimmingCurve(TrimmingCurveType::makeLinearSegment({min_u, min_v}, {max_u, min_v}));
+    addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({min_u, min_v}, {max_u, min_v}));
 
     // Top
-    addTrimmingCurve(TrimmingCurveType::makeLinearSegment({max_u, max_v}, {min_u, max_v}));
+    addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({max_u, max_v}, {min_u, max_v}));
 
     // Left
-    addTrimmingCurve(TrimmingCurveType::makeLinearSegment({min_u, max_v}, {min_u, min_v}));
+    addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({min_u, max_v}, {min_u, min_v}));
 
     // Right
-    addTrimmingCurve(TrimmingCurveType::makeLinearSegment({max_u, min_v}, {max_u, max_v}));
+    addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({max_u, min_v}, {max_u, max_v}));
 
     markAsTrimmed();
   }
@@ -2536,7 +2536,7 @@ public:
       //  the_disk is a complete disk
       if(isVisible(u, v))
       {
-        TrimmingCurveType c1 = TrimmingCurveType::makeCircularArc(0.0, 2 * M_PI, u, v, r);
+        TrimmingCurveType c1 = TrimmingCurveType::make_circular_arc_nurbs(0.0, 2 * M_PI, u, v, r);
 
         the_disk.m_trimmingCurves.clear();
         the_disk.addTrimmingCurve(c1);
@@ -2574,9 +2574,9 @@ public:
       if(isArcVisible)
       {
         auto c1 =
-          TrimmingCurveType::makeCircularArc(circle_params[i], circle_params[i + 1], u, v, r);
+          TrimmingCurveType::make_circular_arc_nurbs(circle_params[i], circle_params[i + 1], u, v, r);
         circle_trimming_curves.push_back(
-          TrimmingCurveType::makeCircularArc(circle_params[i], circle_params[i + 1], u, v, r));
+          TrimmingCurveType::make_circular_arc_nurbs(circle_params[i], circle_params[i + 1], u, v, r));
       }
     }
 
@@ -3685,7 +3685,7 @@ private:
 
         if(isSegmentVisible)
         {
-          auto c1 = TrimmingCurveType::makeLinearSegment(ray_obj.at(ray_params[i]),
+          auto c1 = TrimmingCurveType::make_linear_segment_nurbs(ray_obj.at(ray_params[i]),
                                                               ray_obj.at(ray_params[i + 1]));
 
           outCurvesFirst.push_back(c1);

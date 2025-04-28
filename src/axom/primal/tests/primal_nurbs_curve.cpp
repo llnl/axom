@@ -882,7 +882,7 @@ TEST(primal_nurbscurve, circular_arc_constructor)
 
   for(int i = 0; i < 5; ++i)
   {
-    auto circle = NURBSCurveType::makeCircularArc(start_theta[i], end_theta[i], center[0], center[1], radius);
+    auto circle = NURBSCurveType::make_circular_arc_nurbs(start_theta[i], end_theta[i], center[0], center[1], radius);
 
     // Check the first endpoint of the curve
     PointType start = circle.evaluate(0.0);
@@ -928,7 +928,7 @@ TEST(primal_nurbscurve, linear_segment_constructor)
 
   PointType start {1.0, 2.0};
   PointType end {3.0, 4.0};
-  NURBSCurveType line = NURBSCurveType::makeLinearSegment(start, end);
+  NURBSCurveType line = NURBSCurveType::make_linear_segment_nurbs(start, end);
 
   // Check points along the curve
   for(int j = 0; j < npts; ++j)
@@ -943,7 +943,7 @@ TEST(primal_nurbscurve, linear_segment_constructor)
 
   // Check a curve with start == end
   end = start;
-  line = NURBSCurveType::makeLinearSegment(start, end);
+  line = NURBSCurveType::make_linear_segment_nurbs(start, end);
 
   for(int j = 0; j < npts; ++j)
   {
