@@ -1106,16 +1106,14 @@ AXOM_HOST_DEVICE bool intersect_plane_seg(const Plane<T, DIM>& plane,
  * \return true iff sphere intersects a bounding box, false otherwise.
  */
 template <typename T>
-AXOM_HOST_DEVICE bool intersect_circle_bbox(const Sphere<T, 2>& circle,
-                                            const BoundingBox<T, 2>& bbox)
+AXOM_HOST_DEVICE bool intersect_circle_bbox(const Sphere<T, 2>& circle, const BoundingBox<T, 2>& bbox)
 {
   auto center = circle.getCenter();
   auto radius = circle.getRadius();
   T dx = axom::utilities::clampVal(center[0], bbox.getMin()[0], bbox.getMax()[0]);
   T dy = axom::utilities::clampVal(center[1], bbox.getMin()[1], bbox.getMax()[1]);
 
-  if((center[0] - dx) * (center[0] - dx) + (center[1] - dy) * (center[1] - dy) >=
-     radius * radius)
+  if((center[0] - dx) * (center[0] - dx) + (center[1] - dy) * (center[1] - dy) >= radius * radius)
   {
     return false;
   }

@@ -2548,14 +2548,17 @@ public:
     for(int i = 0; i < circle_params.size() - 1; ++i)
     {
       // Determine if the circle arc is kept by the original surface
-      ParameterPointType mid_arc_point {u + r * std::cos(0.5 * (circle_params[i] + circle_params[i + 1])),
-                                        v + r * std::sin(0.5 * (circle_params[i] + circle_params[i + 1]))};
+      ParameterPointType mid_arc_point {
+        u + r * std::cos(0.5 * (circle_params[i] + circle_params[i + 1])),
+        v + r * std::sin(0.5 * (circle_params[i] + circle_params[i + 1]))};
       bool isArcVisible = isVisible(mid_arc_point[0], mid_arc_point[1]);
 
-      if( isArcVisible )
+      if(isArcVisible)
       {
-        auto c1 = TrimmingCurveType::constructCircularArc(circle_params[i], circle_params[i + 1], uv_param, r);
-        circle_trimming_curves.push_back(TrimmingCurveType::constructCircularArc(circle_params[i], circle_params[i + 1], uv_param, r));
+        auto c1 =
+          TrimmingCurveType::constructCircularArc(circle_params[i], circle_params[i + 1], uv_param, r);
+        circle_trimming_curves.push_back(
+          TrimmingCurveType::constructCircularArc(circle_params[i], circle_params[i + 1], uv_param, r));
       }
     }
 
@@ -3651,7 +3654,8 @@ private:
 
         if(isSegmentVisible)
         {
-          auto c1 = TrimmingCurveType::constructLinearSegment(ray_obj.at(ray_params[i]), ray_obj.at(ray_params[i + 1]));
+          auto c1 = TrimmingCurveType::constructLinearSegment(ray_obj.at(ray_params[i]),
+                                                              ray_obj.at(ray_params[i + 1]));
 
           outCurvesFirst.push_back(c1);
 

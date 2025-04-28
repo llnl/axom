@@ -886,9 +886,8 @@ TEST(primal_nurbscurve, circular_arc_constructor)
 
     // Check the first endpoint of the curve
     PointType start = circle.evaluate(0.0);
-    PointType start_ex =
-      PointType {center[0] + radius * std::cos(start_theta[i]),
-                 center[1] + radius * std::sin(start_theta[i])};
+    PointType start_ex = PointType {center[0] + radius * std::cos(start_theta[i]),
+                                    center[1] + radius * std::sin(start_theta[i])};
 
     EXPECT_NEAR(start[0], start_ex[0], 1e-13);
     EXPECT_NEAR(start[1], start_ex[1], 1e-13);
@@ -906,8 +905,8 @@ TEST(primal_nurbscurve, circular_arc_constructor)
     {
       PointType p = circle.evaluate(t_pts[j]);
 
-      double distance = std::sqrt((p[0] - center[0]) * (p[0] - center[0]) +
-                                  (p[1] - center[1]) * (p[1] - center[1]));
+      double distance =
+        std::sqrt((p[0] - center[0]) * (p[0] - center[0]) + (p[1] - center[1]) * (p[1] - center[1]));
 
       EXPECT_NEAR(distance, radius, 1e-13);
     }
@@ -923,11 +922,10 @@ TEST(primal_nurbscurve, linear_segment_constructor)
   using PointType = primal::Point<CoordType, DIM>;
   using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
 
-  
   constexpr int npts = 11;
   double t_pts[npts];
   axom::numerics::linspace(0.0, 1.0, t_pts, npts);
-  
+
   PointType start {1.0, 2.0};
   PointType end {3.0, 4.0};
   NURBSCurveType line = NURBSCurveType::constructLinearSegment(start, end);

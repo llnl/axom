@@ -181,7 +181,7 @@ TEST(primal_ray_intersect, ray_aabb_intersection_3D)
         EXPECT_TRUE(intersect_ray(sx, nx, sy, ny, sz, nz, TEST_BOX3D, tmin, tmax));
         EXPECT_FALSE(intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
       }  // END for all j
-    }  // END for all i
+    }    // END for all i
   }
 
   // test TOP (+z)
@@ -205,7 +205,7 @@ TEST(primal_ray_intersect, ray_aabb_intersection_3D)
         EXPECT_TRUE(intersect_ray(sx, nx, sy, ny, sz, nz, TEST_BOX3D, tmin, tmax));
         EXPECT_FALSE(intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
       }  // END for all j
-    }  // END for all i
+    }    // END for all i
   }
 
   // test LEFT (-y)
@@ -229,7 +229,7 @@ TEST(primal_ray_intersect, ray_aabb_intersection_3D)
         EXPECT_TRUE(intersect_ray(sx, nx, sy, ny, sz, nz, TEST_BOX3D, tmin, tmax));
         EXPECT_FALSE(intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
       }  // END for all j
-    }  // END for all i
+    }    // END for all i
   }
 
   // test RIGHT (+y)
@@ -253,7 +253,7 @@ TEST(primal_ray_intersect, ray_aabb_intersection_3D)
         EXPECT_TRUE(intersect_ray(sx, nx, sy, ny, sz, nz, TEST_BOX3D, tmin, tmax));
         EXPECT_FALSE(intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
       }  // END for all j
-    }  // END for all i
+    }    // END for all i
   }
 
   // test BACK (-x)
@@ -277,7 +277,7 @@ TEST(primal_ray_intersect, ray_aabb_intersection_3D)
         EXPECT_TRUE(intersect_ray(sx, nx, sy, ny, sz, nz, TEST_BOX3D, tmin, tmax));
         EXPECT_FALSE(intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
       }  // END for all j
-    }  // END for all i
+    }    // END for all i
   }
 
   // test FRONT (+x)
@@ -301,7 +301,7 @@ TEST(primal_ray_intersect, ray_aabb_intersection_3D)
         EXPECT_TRUE(intersect_ray(sx, nx, sy, ny, sz, nz, TEST_BOX3D, tmin, tmax));
         EXPECT_FALSE(intersect_ray(sx, -nx, sy, -ny, sz, -nz, TEST_BOX3D, tmin, tmax));
       }  // END for all j
-    }  // END for all i
+    }    // END for all i
   }
 
   // Test a bunch of rays emitted from the box center

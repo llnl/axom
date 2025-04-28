@@ -888,8 +888,8 @@ TEST(primal_bezier_inter, ray_bezier_tangent_intersections)
   BezierCurveType curve(data, order), shorter_curve, dummy_curve;
 
   const double eps = 1E-10;
-  const double eps_test = 1E-4; // Currently can't be found to better precision
-  
+  const double eps_test = 1E-4;  // Currently can't be found to better precision
+
   // Tangent intersection at inflection point
   axom::Array<CoordType> exp_r = {0.5};
   axom::Array<CoordType> exp_c = {0.5};
@@ -898,9 +898,9 @@ TEST(primal_bezier_inter, ray_bezier_tangent_intersections)
 
   // Subdivide the curve so that the tangent intersection
   //  isn't at a curve subdivision
-  curve.split( 7.0 / 9.0, shorter_curve, dummy_curve );
+  curve.split(7.0 / 9.0, shorter_curve, dummy_curve);
   exp_c[0] *= 9.0 / 7.0;
-  
+
   checkIntersectionsRay(ray, shorter_curve, exp_r, exp_c, eps, eps_test);
 }
 
@@ -1165,14 +1165,14 @@ TEST(primal_bezier_inter, ray_circle_tangent_intersections)
 
   // Cubic curve
   PointType data[degree + 1] = {PointType {1.0, 1.0},
-                               PointType {0.75, 0.0},
-                               PointType {0.25, 1.0},
-                               PointType {0.0, 0.0}};
+                                PointType {0.75, 0.0},
+                                PointType {0.25, 1.0},
+                                PointType {0.0, 0.0}};
   NURBSCurveType curve(data, degree + 1, degree), shorter_curve, dummy_curve;
 
   const double eps = 1E-10;
-  const double eps_test = 1E-4; // Currently can't be found to better precision
-  
+  const double eps_test = 1E-4;  // Currently can't be found to better precision
+
   // Tangent intersection at inflection point
   axom::Array<CoordType> exp_circle_intersections = {0.5 * M_PI, 1.7452645457566491};
   axom::Array<CoordType> exp_curve_intersections = {0.5, 0.65598407174666928};
@@ -1181,11 +1181,16 @@ TEST(primal_bezier_inter, ray_circle_tangent_intersections)
 
   // Tangent intersection at inflection point, but not at a curve subdivision point
   constexpr bool normalize = true;
-  curve.split( 7.0 / 9.0, shorter_curve, dummy_curve, normalize );
+  curve.split(7.0 / 9.0, shorter_curve, dummy_curve, normalize);
   exp_curve_intersections[0] *= 9.0 / 7.0;
   exp_curve_intersections[1] *= 9.0 / 7.0;
 
-  checkIntersectionsCircle(circle, shorter_curve, exp_circle_intersections, exp_curve_intersections, eps, eps_test);
+  checkIntersectionsCircle(circle,
+                           shorter_curve,
+                           exp_circle_intersections,
+                           exp_curve_intersections,
+                           eps,
+                           eps_test);
 }
 
 //------------------------------------------------------------------------------

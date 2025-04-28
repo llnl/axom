@@ -960,14 +960,8 @@ TEST(primal_nurbspatch, nurbs_parameter_space_scaling)
   // Check that the patches are equal in the original parameter space
   constexpr int npts = 15;
   double u_pts[npts], v_pts[npts];
-  axom::numerics::linspace(min_u - (scaleFactor - 1.0),
-                           max_u + (scaleFactor - 1.0),
-                           u_pts,
-                           npts);
-  axom::numerics::linspace(min_v - (scaleFactor - 1.0),
-                           max_v + (scaleFactor - 1.0),
-                           v_pts,
-                           npts);
+  axom::numerics::linspace(min_u - (scaleFactor - 1.0), max_u + (scaleFactor - 1.0), u_pts, npts);
+  axom::numerics::linspace(min_v - (scaleFactor - 1.0), max_v + (scaleFactor - 1.0), v_pts, npts);
 
   for(auto u : u_pts)
   {
