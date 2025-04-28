@@ -802,10 +802,10 @@ public:
    * \note We typically evaluate the patch at \a u and \a v between 0 and 1
    */
   void evaluateFirstDerivatives(T u,
-                                  T v,
-                                  Point<T, NDIMS>& eval,
-                                  Vector<T, NDIMS>& Du,
-                                  Vector<T, NDIMS>& Dv) const
+                                T v,
+                                Point<T, NDIMS>& eval,
+                                Vector<T, NDIMS>& Du,
+                                Vector<T, NDIMS>& Dv) const
   {
     using axom::utilities::lerp;
     const int ord_u = getOrder_u();
@@ -1152,13 +1152,13 @@ public:
    * \note We typically evaluate the patch at \a u and \a v between 0 and 1
    */
   void evaluateSecondDerivatives(T u,
-                                   T v,
-                                   Point<T, NDIMS>& eval,
-                                   Vector<T, NDIMS>& Du,
-                                   Vector<T, NDIMS>& Dv,
-                                   Vector<T, NDIMS>& DuDu,
-                                   Vector<T, NDIMS>& DvDv,
-                                   Vector<T, NDIMS>& DuDv) const
+                                 T v,
+                                 Point<T, NDIMS>& eval,
+                                 Vector<T, NDIMS>& Du,
+                                 Vector<T, NDIMS>& Dv,
+                                 Vector<T, NDIMS>& DuDu,
+                                 Vector<T, NDIMS>& DvDv,
+                                 Vector<T, NDIMS>& DuDv) const
   {
     using axom::utilities::lerp;
     const int ord_u = getOrder_u();
