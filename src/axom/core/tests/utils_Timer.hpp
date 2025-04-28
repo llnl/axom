@@ -8,15 +8,20 @@
 #include "axom/core/utilities/Timer.hpp"
 
 #ifdef WIN32
-  #include "windows.h"
-void sleep(int numSeconds)
-{
-  int numMilliSecs = numSeconds * 1000;
-  Sleep(numMilliSecs);
-}
+  #include "windows.h"  // for Sleep(), in milliseconds
 #else
-  #include <unistd.h>  // for sleep()
+  #include <unistd.h>  // for usleep(), in microseconds
 #endif
+
+// cross-platform utility for calling sleep function, in milliseconds
+void sleep_ms(std::uint32_t ms)
+{
+#ifdef WIN32
+  Sleep(ms);  // already in milliseconds
+#else
+  usleep(ms * 1000);  // convert to microseconds
+#endif
+}
 
 TEST(utils_Timer, timer_check)
 {
@@ -27,13 +32,14 @@ TEST(utils_Timer, timer_check)
 
   t.start();
 
-  sleep(1);
+  const std::uint32_t sleep_duration_ms = 100;
+  sleep_ms(sleep_duration_ms);
 
   t.stop();
 
   std::cout << "Simple test for elapsed time in different units." << std::endl;
-  EXPECT_GT(t.elapsedTimeInMicroSec(), t.elapsedTimeInMilliSec());
-  EXPECT_GT(t.elapsedTimeInMilliSec(), t.elapsedTimeInSec());
+  EXPECT_DOUBLE_EQ(t.elapsedTimeInMicroSec(), 1000. * t.elapsedTimeInMilliSec());
+  EXPECT_DOUBLE_EQ(t.elapsedTimeInMilliSec(), 1000. * t.elapsedTimeInSec());
   EXPECT_EQ(t.elapsed(), t.elapsedTimeInSec());
 
   std::cout << "Testing that reset() indicates 0 elapsed time." << std::endl;
@@ -43,53 +49,49 @@ TEST(utils_Timer, timer_check)
 
 TEST(utils_Timer, timer_check_duration)
 {
+  const std::uint32_t sleep_duration_ms = 100;
+  const double sleep_duration_s = sleep_duration_ms / 1000.;
+
   axom::utilities::Timer t;
   t.start();
 
-  sleep(1);
+  sleep_ms(sleep_duration_ms);
 
   t.stop();
-  double e = t.elapsed();
+  const double e = t.elapsed();
   std::cout << "Elapsed: " << e << std::endl;
 
-  EXPECT_GE(e, 1.0);
-  EXPECT_LT(e, 2.0);
+  EXPECT_GE(e, sleep_duration_s);
+  EXPECT_LT(e, sleep_duration_s + 1);
 }
 
 TEST(utils_Timer, timer_check_sum)
 {
   const int N = 3;
+  const std::uint32_t sleep_duration_ms = 100;
+  const double sleep_duration_s = sleep_duration_ms / 1000.;
+
   axom::utilities::Timer t1(false);
   axom::utilities::Timer t2(false);
   for(int n = 0; n < N; ++n)
   {
     t2.start();
     t1.start();
-    sleep(1);
+    sleep_ms(sleep_duration_ms);
     t1.stop();
-    sleep(1);
+    sleep_ms(sleep_duration_ms);
     t2.stop();
   }
 
-  std::cout << "t1 measured: " << t1.elapsed() << "s in " << t1.cycleCount() << " cycles"
-            << std::endl;
-  std::cout << "t2 measured: " << t2.elapsed() << "s in " << t2.cycleCount() << " cycles"
-            << std::endl;
+  std::cout << "t1 measured: " << t1.elapsed() << "s in " << t1.cycleCount() << " cycles\n";
+  std::cout << "t2 measured: " << t2.elapsed() << "s in " << t2.cycleCount() << " cycles\n";
 
   EXPECT_EQ(t1.cycleCount(), N);
   EXPECT_EQ(t2.cycleCount(), N);
 
-  // Inaccuracy per start-stop cycle, estimated from sample runs.
-#if defined(_WIN32)
-  const double tol = 0.03;
-#elif defined(__OSX__) || defined(__APPLE__)
-  const double tol = 0.3;
-#else
-  const double tol = 0.0004;
-#endif
+  EXPECT_GE(t1.elapsed(), N * sleep_duration_s);
+  EXPECT_LT(t1.elapsed(), N * sleep_duration_s + 1);
 
-  EXPECT_GE(t1.elapsed() / N, 1 - tol);
-  EXPECT_LE(t1.elapsed() / N, 1 + tol);
-  EXPECT_GE(t2.elapsed() / N, 2 - tol);
-  EXPECT_LE(t2.elapsed() / N, 2 + tol);
+  EXPECT_GE(t2.elapsed(), 2 * N * sleep_duration_s);
+  EXPECT_LT(t2.elapsed(), 2 * N * sleep_duration_s + 1);
 }
