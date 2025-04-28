@@ -610,7 +610,7 @@ public:
    * 
    * \note If t is outside the knot span up to this tolerance, it is clamped to the span
    */
-  void evaluate_first_derivative(T t, PointType& eval, VectorType& Dt) const
+  void evaluateFirstDerivative(T t, PointType& eval, VectorType& Dt) const
   {
     axom::Array<VectorType> ders;
 
@@ -630,7 +630,7 @@ public:
    * 
    * \note If t is outside the knot span up to this tolerance, it is clamped to the span
    */
-  void evaluate_second_derivative(T t, PointType& eval, VectorType& Dt, VectorType& DtDt) const
+  void evaluateSecondDerivative(T t, PointType& eval, VectorType& Dt, VectorType& DtDt) const
   {
     axom::Array<VectorType> ders;
 

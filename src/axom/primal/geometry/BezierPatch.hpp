@@ -801,7 +801,7 @@ public:
    *
    * \note We typically evaluate the patch at \a u and \a v between 0 and 1
    */
-  void evaluate_first_derivatives(T u,
+  void evaluateFirstDerivatives(T u,
                                   T v,
                                   Point<T, NDIMS>& eval,
                                   Vector<T, NDIMS>& Du,
@@ -948,8 +948,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_u, W_v, W_uu, W_vv, W_uv;
 
-      projective.evaluate_second_derivatives(u, v, P, P_u, P_v, P_uu, P_vv, P_uv);
-      weights.evaluate_second_derivatives(u, v, W, W_u, W_v, W_uu, W_vv, W_uv);
+      projective.evaluateSecondDerivatives(u, v, P, P_u, P_v, P_uu, P_vv, P_uv);
+      weights.evaluateSecondDerivatives(u, v, W, W_u, W_v, W_uu, W_vv, W_uv);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -1124,8 +1124,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_u, W_v, W_uu, W_vv, W_uv;
 
-      projective.evaluate_second_derivatives(u, v, P, P_u, P_v, P_uu, P_vv, P_uv);
-      weights.evaluate_second_derivatives(u, v, W, W_u, W_v, W_uu, W_vv, W_uv);
+      projective.evaluateSecondDerivatives(u, v, P, P_u, P_v, P_uu, P_vv, P_uv);
+      weights.evaluateSecondDerivatives(u, v, W, W_u, W_v, W_uu, W_vv, W_uv);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -1151,7 +1151,7 @@ public:
    *
    * \note We typically evaluate the patch at \a u and \a v between 0 and 1
    */
-  void evaluate_second_derivatives(T u,
+  void evaluateSecondDerivatives(T u,
                                    T v,
                                    Point<T, NDIMS>& eval,
                                    Vector<T, NDIMS>& Du,
@@ -1385,8 +1385,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_u, W_v, W_uu, W_vv, W_uv;
 
-      projective.evaluate_second_derivatives(u, v, P, P_u, P_v, P_uu, P_vv, P_uv);
-      weights.evaluate_second_derivatives(u, v, W, W_u, W_v, W_uu, W_vv, W_uv);
+      projective.evaluateSecondDerivatives(u, v, P, P_u, P_v, P_uu, P_vv, P_uv);
+      weights.evaluateSecondDerivatives(u, v, W, W_u, W_v, W_uu, W_vv, W_uv);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -1628,7 +1628,7 @@ public:
   {
     Point<T, NDIMS> eval;
     Vector<T, NDIMS> Du, Dv;
-    evaluate_first_derivatives(u, v, eval, Du, Dv);
+    evaluateFirstDerivatives(u, v, eval, Du, Dv);
     return VectorType::cross_product(Du, Dv);
   }
 
