@@ -2633,7 +2633,6 @@ public:
     }
 
     ParameterPointType uv = {u, v};
-    bool isOnCurve = false;
 
     double gwn = 0.0;
     for(const auto& curve : m_trimmingCurves)
