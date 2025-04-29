@@ -90,6 +90,7 @@ bool SorClipper::getShapeAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Octah
 
   if(&octs != &octsOnHost)
   {
+    octs.resize(octsOnHost.size());
     axom::copy(octs.data(), octsOnHost.data(), sizeof(OctahedronType) * octs.size());
   }
 

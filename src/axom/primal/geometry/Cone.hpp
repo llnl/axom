@@ -119,7 +119,7 @@ public:
   */
   std::ostream& print(std::ostream& os) const
   {
-    os << "{" << m_baseRadius << '-' << m_topRadius << "x" << m_length << " at " << m_base
+    os << "{" << m_length << "x (" << m_baseRadius << '-' << m_topRadius << ") at " << m_base
        << " along " << m_direction << "}";
 
     return os;
@@ -130,8 +130,8 @@ public:
 
    Volume is only defined when NDIMS == 3.
   */
-  AXOM_HOST_DEVICE
   template <int TDIM = NDIMS>
+  AXOM_HOST_DEVICE
   typename std::enable_if<TDIM == 3, T>::type volume() const
   {
     T vol = (m_baseRadius * m_baseRadius + m_baseRadius * m_topRadius + m_topRadius * m_topRadius) *
