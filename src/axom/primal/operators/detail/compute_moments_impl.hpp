@@ -85,14 +85,14 @@ private:
       (*weights)(i, i) = 0.;  // zero on the diagonal
       for(int j = i + 1; j <= ord; ++j)
       {
-        double val = 0.;
+        T val = 0.;
         if(i != j)
         {
           T binom_ij_i = static_cast<T>(utilities::binomialCoefficient(i + j, i));
           T binom_2nij_nj = static_cast<T>(utilities::binomialCoefficient(2 * ord - i - j, ord - j));
 
           val = ((j - i) * ord) / binom_2n_n * (binom_ij_i / static_cast<T>(i + j)) *
-            (binom_2nij_nj / (2. * ord - j - i));
+            (binom_2nij_nj / static_cast<T>(2.0 * ord - j - i));
         }
         (*weights)(i, j) = val;  // antisymmetric
         (*weights)(j, i) = -val;
@@ -167,7 +167,7 @@ public:
         (*weights_k)(i, i) = 0.;  // zero on the diagonal
         for(int j = i + 1; j <= ord; ++j)
         {
-          double val = 0.;
+          T val = 0.;
           if(i != j)
           {
             T binom_n_i = static_cast<T>(utilities::binomialCoefficient(ord, i));
@@ -176,8 +176,8 @@ public:
             T binom_3n2_ijk1 =
               static_cast<T>(utilities::binomialCoefficient(3 * ord - 2, i + j + k - 1));
 
-            val = (1. * (j - i)) / (3. * (3 * ord - 1)) *
-              (1. * binom_n_i * binom_n_j * binom_n_k / (1. * binom_3n2_ijk1));
+            val = static_cast<T>((1. * (j - i)) / (3. * (3 * ord - 1)) *
+              (1. * binom_n_i * binom_n_j * binom_n_k / (1. * binom_3n2_ijk1)));
           }
           (*weights_k)(i, j) = val;  // antisymmetric
           (*weights_k)(j, i) = -val;

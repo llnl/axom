@@ -174,8 +174,11 @@ double linear_winding_number(const Point<T, 2>& q,
   }
 
   // Compute signed angle between vectors
+  constexpr T castOne = static_cast<T>(1.0);
   double dotprod =
-    axom::utilities::clampVal(Vector<T, 2>::dot_product(V0.unitVector(), V1.unitVector()), -1.0, 1.0);
+    axom::utilities::clampVal(Vector<T, 2>::dot_product(V0.unitVector(), V1.unitVector()),
+                              -castOne,
+                              castOne);
 
   return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
 }
@@ -279,8 +282,9 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
   }
 
   // Compute signed angle between vectors
+  constexpr T castOne = static_cast<T>(1.0);
   double dotprod =
-    axom::utilities::clampVal(Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()), -1.0, 1.0);
+    axom::utilities::clampVal(Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()), -castOne, castOne);
   return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
 }
 
