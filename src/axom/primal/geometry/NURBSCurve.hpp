@@ -421,6 +421,7 @@ public:
       // Return an invalid NURBS curve
       return NURBSCurve();
     }
+
     if(theta_1 < theta_0)
     {
       is_cw = true;
@@ -889,7 +890,7 @@ public:
    *
    * \pre Requires \a t in the *strict interior* of the span of the knots
    * 
-   * \return True iff the curve was split (i.e., t is in the knot span)
+   * \return True if and only if the curve was split (i.e., t is in the knot span)
    */
   bool split(T t,
              NURBSCurve<T, NDIMS>& n1,

@@ -2721,7 +2721,7 @@ public:
     * 
     * \pre Parameter \a u and \a v must be *strictly interior* to the knot span
     * 
-    * \return True iff the patch was split (i.e., u, v is in the knot span)
+    * \return True if and only if the patch was split (i.e., u, v is in the knot span)
     */
   bool split(T u,
              T v,
@@ -2760,7 +2760,7 @@ public:
   /*!
    * \brief Split the NURBS surface in two along the u direction
    *
-   * \return True iff the patch was split (i.e., u is in the knot span)
+   * \return True if and only if the patch was split (i.e., u is in the knot span)
    */
   bool split_u(T u, NURBSPatch& p1, NURBSPatch& p2, bool normalizeParameters = false) const
   {
@@ -2820,7 +2820,7 @@ public:
   /*!
    * \brief Split the NURBS surface in two along the v direction
    *
-   * \return True iff the patch was split (i.e., v is in the knot span)
+   * \return True if and only if the patch was split (i.e., v is in the knot span)
    */
   bool split_v(T v, NURBSPatch& p1, NURBSPatch& p2, bool normalizeParameters = false) const
   {
