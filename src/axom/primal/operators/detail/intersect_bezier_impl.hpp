@@ -67,10 +67,10 @@ bool intersect_bezier_curves(const BezierCurve<T, 2> &c1,
                              double sq_tol,
                              int order1,
                              int order2,
-                             double s_offset,
-                             double s_scale,
-                             double t_offset,
-                             double t_scale);
+                             T s_offset,
+                             T s_scale,
+                             T t_offset,
+                             T t_scale);
 
 /*!
  * \brief Tests intersection of two line segments defined by
@@ -139,10 +139,10 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
                           axom::Array<T> &rp,
                           axom::Array<T> &cp,
                           double sq_tol,
-                          double EPS,
+                          T EPS,
                           int order,
-                          double c_offset,
-                          double c_scale);
+                          T c_offset,
+                          T c_scale);
 
 /*!
  * \brief Recursive function to find intersections between a 2D sphere (circle)
@@ -178,10 +178,10 @@ bool intersect_circle_bezier(const Ray<T, 2> &r,
                              axom::Array<T> &rp,
                              axom::Array<T> &cp,
                              double sq_tol,
-                             double EPS,
+                             T EPS,
                              int order,
-                             double c_offset,
-                             double c_scale);
+                             T c_offset,
+                             T c_scale);
 
 /*!
  * \brief Tests intersection of a line and a cirlce
@@ -204,7 +204,7 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
                               T &c2,
                               T &t1,
                               T &t2,
-                              double EPS);
+                              T EPS);
 //------------------------------ IMPLEMENTATIONS ------------------------------
 
 template <typename T>
@@ -215,10 +215,10 @@ bool intersect_bezier_curves(const BezierCurve<T, 2> &c1,
                              double sq_tol,
                              int order1,
                              int order2,
-                             double s_offset,
-                             double s_scale,
-                             double t_offset,
-                             double t_scale)
+                             T s_offset,
+                             T s_scale,
+                             T t_offset,
+                             T t_scale)
 {
   using BCurve = BezierCurve<T, 2>;
 
@@ -323,16 +323,16 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
                           axom::Array<T> &rp,
                           axom::Array<T> &cp,
                           double sq_tol,
-                          double EPS,
+                          T EPS,
                           int order,
-                          double c_offset,
-                          double c_scale)
+                          T c_offset,
+                          T c_scale)
 {
   using BCurve = BezierCurve<T, 2>;
 
   // Check bounding box to short-circuit the intersection
   T r0, s0;
-  constexpr T factor = 1e-8;
+  constexpr auto factor = static_cast<T>(1e-8);
 
   // Need to expand the bounding box, since this ray-bb intersection routine
   //  only parameterizes the ray on (0, inf)
@@ -364,8 +364,8 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
   }
   else
   {
-    constexpr double splitVal = 0.5;
-    constexpr double scaleFac = 0.5;
+    constexpr T splitVal = 0.5;
+    constexpr T scaleFac = 0.5;
 
     BCurve c1(order);
     BCurve c2(order);
@@ -392,11 +392,14 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
                              axom::Array<T> &circle_p,
                              axom::Array<T> &curve_p,
                              double sq_tol,
-                             double EPS,
+                             T EPS,
                              int order,
-                             double c_offset,
-                             double c_scale)
+                             T c_offset,
+                             T c_scale)
 {
+  constexpr auto twopi = static_cast<T>(2.0 * M_PI);
+  constexpr auto castZero = static_cast<T>(0.0);
+
   using BCurve = BezierCurve<T, 2>;
 
   // Other function put here to avoid circular dependency
@@ -415,14 +418,14 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
     {
       if(t1 >= -EPS && t1 < 1.0 - EPS)
       {
-        circle_p.push_back(axom::utilities::isNearlyEqual(c1, 2.0 * M_PI, EPS) ? 0.0 : c1);
+        circle_p.push_back(axom::utilities::isNearlyEqual(c1, twopi, EPS) ? castZero : c1);
         curve_p.push_back(c_offset + c_scale * t1);
         foundIntersection = true;
       }
 
       if(t2 >= -EPS && t2 < 1.0 - EPS)
       {
-        circle_p.push_back(axom::utilities::isNearlyEqual(c2, 2.0 * M_PI, EPS) ? 0.0 : c2);
+        circle_p.push_back(axom::utilities::isNearlyEqual(c2, twopi, EPS) ? castZero : c2);
         curve_p.push_back(c_offset + c_scale * t2);
         foundIntersection = true;
       }
@@ -460,8 +463,12 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
                               T &c2,
                               T &t1,
                               T &t2,
-                              double EPS)
+                              T EPS)
 {
+  constexpr auto cast2pi = static_cast<T>(2.0 * M_PI);
+  constexpr auto castZero = static_cast<T>(0.0);
+  constexpr auto castOne = static_cast<T>(1.0);
+
   T dx = b[0] - a[0];
   T dy = b[1] - a[1];
   T dr = std::sqrt(dx * dx + dy * dy);
@@ -480,16 +487,16 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
     // Because the line is known to be tangent, there's only one intersection point,
     //  and it would have to be at the closest point on the line to the circle center.
     Point<T, 2> cp = closest_point(circ.getCenter(), seg, &ct);
-    T dist = primal::squared_distance(cp, circ.getCenter());
+    auto dist = static_cast<T>(primal::squared_distance(cp, circ.getCenter()));
 
     if(axom::utilities::isNearlyEqual(dist, circ.getRadius(), EPS))
     {
       c1 = std::atan2(cp[1] - circ.getCenter()[1], cp[0] - circ.getCenter()[0]);
-      c1 = (c1 < 0.0) ? c1 + 2.0 * M_PI : c1;
+      c1 = (c1 < castZero) ? c1 + cast2pi : c1;
       t1 = ct;
 
-      c2 = 0.0;
-      t2 = -1.0;
+      c2 = castZero;
+      t2 = -castOne;
       return true;
     }
     else
@@ -508,10 +515,10 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
 
   // Find the parameter values for the circle
   c1 = std::atan2(y1, x1);
-  c1 = (c1 < 0.0) ? c1 + 2.0 * M_PI : c1;
+  c1 = (c1 < castZero) ? c1 + cast2pi : c1;
 
   c2 = std::atan2(y2, x2);
-  c2 = (c2 < 0.0) ? c2 + 2.0 * M_PI : c2;
+  c2 = (c2 < castZero) ? c2 + cast2pi : c2;
 
   // Find the parameter values for the line
   if(std::abs(dx) > std::abs(dy))

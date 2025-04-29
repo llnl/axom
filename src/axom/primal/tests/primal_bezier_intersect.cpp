@@ -201,11 +201,11 @@ TEST(primal_bezier_inter, linear_bezier_interp_params)
   // NOTE: Skipping endpoints for now.
   for(int i = 0; i < num_i_samples; ++i)
   {
-    double t = i / static_cast<double>(num_i_samples + 1);
+    auto t = i / static_cast<CoordType>(num_i_samples + 1);
 
     for(int j = 0; j < num_j_samples; ++j)
     {
-      double s = j / static_cast<double>(num_j_samples + 1);
+      auto s = j / static_cast<CoordType>(num_j_samples + 1);
 
       std::stringstream sstr;
       sstr << "linear bezier perpendicular (s,t) = (" << s << "," << t << ")";
@@ -302,7 +302,7 @@ TEST(primal_bezier_inter, cubic_bezier)
     curve1.setOrder(otherorder);
     for(int i = 0; i < otherorder; ++i)
     {
-      curve1[i][0] = curve1[i][0] * (otherorder - 1) / (1.0 * otherorder);
+      curve1[i][0] = curve1[i][0] * (otherorder - 1) / (static_cast<CoordType>(otherorder));
     }
     curve1[otherorder] = PointType {3.0, 0};
     SLIC_INFO("Testing w/ order 3 and " << otherorder);
@@ -521,7 +521,7 @@ TEST(primal_bezier_inter, ray_linear_bezier)
     PointType data[order + 1] = {PointType {1.0, 0.0}, PointType {0.0, 1.0}};
     BezierCurveType curve(data, order);
 
-    axom::Array<CoordType> exp_intersections1 = {std::sqrt(0.5)};
+    axom::Array<CoordType> exp_intersections1 = {static_cast<CoordType>(std::sqrt(0.5))};
     axom::Array<CoordType> exp_intersections2 = {0.5};
 
     const double eps = 1E-3;
@@ -579,7 +579,7 @@ TEST(primal_bezier_inter, ray_linear_bezier)
     VectorType ray_direction({1.0, 2.0});
     RayType ray(ray_origin, ray_direction);
 
-    axom::Array<CoordType> exp_intersections1 = {std::sqrt(5) / 3.0};
+    axom::Array<CoordType> exp_intersections1 = {static_cast<CoordType>(std::sqrt(5) / 3.0)};
     axom::Array<CoordType> exp_intersections2 = {2.0 / 3.0};
 
     const double eps = 1E-3;
@@ -602,7 +602,7 @@ TEST(primal_bezier_inter, ray_linear_bezier)
     // Because defining the "correct" behavior is ambiguous, we only enforce now that
     //  1) at least one intersection is found, and
     //  2) all returned points match
-    axom::Array<double> r, c;
+    axom::Array<CoordType> r, c;
     bool curves_intersect = intersect(ray, curve, r, c, eps);
 
     EXPECT_TRUE(curves_intersect);
@@ -676,11 +676,11 @@ TEST(primal_bezier_inter, ray_linear_bezier_interp_params)
   // NOTE: Skipping endpoints for now.
   for(int i = 0; i < num_i_samples; ++i)
   {
-    double t = i / static_cast<double>(num_i_samples + 1);
+    auto t = i / static_cast<CoordType>(num_i_samples + 1);
 
     for(int j = 0; j < num_j_samples; ++j)
     {
-      double s = j / static_cast<double>(num_j_samples + 1);
+      auto s = j / static_cast<CoordType>(num_j_samples + 1);
 
       std::stringstream sstr;
       sstr << "linear bezier perpendicular (s,t) = (" << s << "," << t << ")";
@@ -927,9 +927,8 @@ TEST(primal_bezier_inter, ray_nurbs_intersections)
                        PointType {-1.0, -2.0},
                        PointType {1.0, -2.0},
                        PointType {1.0, 0.0}};
-  double weights[7] = {1.0, 1. / 3., 1. / 3., 1.0, 1. / 3., 1. / 3., 1.0};
-
-  double knots[11] = {-1.0, -1.0, -1.0, -1.0, 0.5, 0.5, 0.5, 2.0, 2.0, 2.0, 2.0};
+  CoordType weights[7] = {1.0, 1. / 3., 1. / 3., 1.0, 1. / 3., 1. / 3., 1.0};
+  CoordType knots[11] = {-1.0, -1.0, -1.0, -1.0, 0.5, 0.5, 0.5, 2.0, 2.0, 2.0, 2.0};
   NURBSCurveType circle(data, weights, 7, knots, 11);
 
   // Insert some extra knots to make the Bezier extraction more interesting
@@ -937,8 +936,8 @@ TEST(primal_bezier_inter, ray_nurbs_intersections)
   circle.insertKnot(1.0, 2);
 
   // These parameters include the extra knots at 0.0 and 1.0
-  double params[10];
-  axom::numerics::linspace(-1.0, 2.0, params, 10);
+  CoordType params[10], min_param = -1.0, max_param = 2.0;
+  axom::numerics::linspace(min_param, max_param, params, 10);
 
   PointType ray_origin({0.0, 0.0});
   for(int i = 0; i < 9; ++i)  // Skip the last parameter, which is equal to i=0
@@ -1215,8 +1214,8 @@ TEST(primal_bezier_inter, circle_nurbs_knot_intersections)
                        PointType {-1.0, -2.0},
                        PointType {1.0, -2.0},
                        PointType {1.0, 0.0}};
-  double weights[7] = {1.0, 1. / 3., 1. / 3., 1.0, 1. / 3., 1. / 3., 1.0};
-  double knots[11] = {0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0};
+  CoordType weights[7] = {1.0, 1. / 3., 1. / 3., 1.0, 1. / 3., 1. / 3., 1.0};
+  CoordType knots[11] = {0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0};
   NURBSCurveType curve(data, weights, 7, knots, 11);
 
   // Circle 1 - Intersect at the 0.5 knot of the NURBS

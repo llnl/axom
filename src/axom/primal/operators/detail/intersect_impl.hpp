@@ -55,8 +55,8 @@ bool oneZeroOthersMatch(double x, double y, double z, double EPS = 1E-12);
 AXOM_HOST_DEVICE
 int countZeros(double x, double y, double z, double EPS = 1E-12);
 
-AXOM_HOST_DEVICE
-double twoDcross(const Point2& A, const Point2& B, const Point2& C);
+template <typename T>
+AXOM_HOST_DEVICE T twoDcross(const Point<T, 2>& A, const Point<T, 2>& B, const Point<T, 2>& C);
 
 /*!
  * This function finds where p1 lies in relation to the vertices of t2
@@ -535,8 +535,8 @@ inline bool checkVertex(const Point2& p1,
  * \note The result is equal to twice the signed area of a 2D triangle
  * with vertices (A,B,C) (in CCW order).
  */
-AXOM_HOST_DEVICE
-inline double twoDcross(const Point2& A, const Point2& B, const Point2& C)
+template <typename T>
+AXOM_HOST_DEVICE inline T twoDcross(const Point<T, 2>& A, const Point<T, 2>& B, const Point<T, 2>& C)
 {
   return (((A[0] - C[0]) * (B[1] - C[1]) - (A[1] - C[1]) * (B[0] - C[0])));
 }

@@ -83,8 +83,8 @@ inline bool intersect_ray(const primal::Ray<T, 2>& R,
       {
         // The origin is outside the segment,
         //  but the ray intersects
-        ray_param = 0.5 * (t1 + t2);
-        seg_param = 0.5;
+        ray_param = static_cast<T>(0.5 * (t1 + t2));
+        seg_param = static_cast<T>(0.5);
       }
       else if(t1 * t2 <= 0)
       {
@@ -93,18 +93,18 @@ inline bool intersect_ray(const primal::Ray<T, 2>& R,
         // Switch based on orientation of segment
         if(t1 == t2)
         {
-          ray_param = 0.5 * t1;
-          seg_param = 0.5;
+          ray_param = static_cast<T>(0.5 * t1);
+          seg_param = static_cast<T>(0.5);
         }
         else if(t1 < t2)
         {
-          ray_param = 0.5 * t2;
-          seg_param = (t1 - 0.5 * t2) / (t1 - t2);
+          ray_param = static_cast<T>(0.5 * t2);
+          seg_param = static_cast<T>((t1 - 0.5 * t2) / (t1 - t2));
         }
         else
         {
-          ray_param = 0.5 * t1;
-          seg_param = -0.5 * t1 / (t2 - t1);
+          ray_param = static_cast<T>(0.5 * t1);
+          seg_param = static_cast<T>(-0.5 * t1 / (t2 - t1));
         }
       }
       else
@@ -140,10 +140,10 @@ inline bool intersect_ray(const primal::Ray<T, 2>& R,
   const auto sol = S.source().array() - R.origin().array();
 
   // Note: ray_param is an OUT parameter of this function
-  ray_param = numerics::determinant(sol[0], -seg_dir[0], sol[1], -seg_dir[1]) / denom;
+  ray_param = static_cast<T>(numerics::determinant(sol[0], -seg_dir[0], sol[1], -seg_dir[1]) / denom);
 
   // Note: seg_param is an OUT parameter of this function
-  seg_param = numerics::determinant(ray_dir[0], sol[0], ray_dir[1], sol[1]) / denom;
+  seg_param = static_cast<T>(numerics::determinant(ray_dir[0], sol[0], ray_dir[1], sol[1]) / denom);
 
   // Necessary and sufficient criteria for an intersection between
   // ray, R(t0),  and a finite segment S(t1) are:

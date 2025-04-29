@@ -527,7 +527,7 @@ bool intersect(const Sphere<T, 2>& circle,
                axom::Array<T>& circle_params,
                axom::Array<T>& curve_params,
                double tol = 1e-8,
-               double EPS = 1e-8)
+               T EPS = 1e-8)
 {
   const double sq_tol = tol * tol;
   bool foundIntersection = false;
@@ -548,10 +548,10 @@ bool intersect(const Sphere<T, 2>& circle,
                                     sq_tol,
                                     EPS,
                                     beziers[i].getOrder(),
-                                    0.,
-                                    1.);
+                                    static_cast<T>(0.0),
+                                    static_cast<T>(1.0));
 
-    foundIntersection |= temp_curve_p.size() > 0;
+    foundIntersection = foundIntersection || (temp_curve_p.size() > 0);
 
     // Scale the intersection parameters back into the span of the NURBS curve
     for(int j = 0; j < temp_curve_p.size(); ++j)
@@ -642,8 +642,8 @@ bool intersect(const BezierCurve<T, 2>& c1,
                axom::Array<T>& tp,
                double tol = 1E-8)
 {
-  const double offset = 0.;
-  const double scale = 1.;
+  const auto offset = static_cast<T>(0.0);
+  const auto scale = static_cast<T>(1.0);
 
   // for efficiency, linearity check actually uses a squared tolerance
   const double sq_tol = tol * tol;
@@ -683,10 +683,10 @@ bool intersect(const Ray<T, 2>& r,
                axom::Array<T>& rp,
                axom::Array<T>& cp,
                double tol = 1E-8,
-               double EPS = 1E-8)
+               T EPS = 1E-8)
 {
-  const double offset = 0.;
-  const double scale = 1.;
+  const auto offset = static_cast<T>(0.0);
+  const auto scale = static_cast<T>(1.0);
 
   // for efficiency, linearity check actually uses a squared tolerance
   const double sq_tol = tol * tol;
@@ -715,7 +715,7 @@ bool intersect(const Ray<T, 2>& r,
                axom::Array<T>& rp,
                axom::Array<T>& np,
                double tol = 1E-8,
-               double EPS = 1E-8)
+               T EPS = 1E-8)
 {
   // Check a bounding box of the entire NURBS first
   Point<T, 2> ip;

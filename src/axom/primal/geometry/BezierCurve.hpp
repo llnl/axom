@@ -770,7 +770,7 @@ public:
         for(int k = 0; k <= end; ++k)
         {
           // Do linear interpolation on weights
-          double temp_weight = axom::utilities::lerp(c2.getWeight(k), c2.getWeight(k + 1), t);
+          T temp_weight = axom::utilities::lerp(c2.getWeight(k), c2.getWeight(k + 1), t);
 
           for(int i = 0; i < NDIMS; ++i)
           {
@@ -830,7 +830,7 @@ public:
       //  AND that they are evenly spaced along the line
       for(int p = 1; p < ord; ++p)
       {
-        double t = p / static_cast<T>(ord);
+        auto t = p / static_cast<T>(ord);
         PointType the_pt = PointType::lerp(m_controlPoints[0], m_controlPoints[ord], t);
 
         if(squared_distance(m_controlPoints[p], the_pt) > tol)

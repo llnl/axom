@@ -430,8 +430,8 @@ public:
 
     SLIC_ASSERT(theta_1 - theta_0 <= 2.0 * M_PI);
 
-    T pi23 = 2.0 * M_PI / 3.0;
-    int n_segments = std::ceil((theta_1 - theta_0) / pi23);
+    constexpr T pi23 = static_cast<T>(2.0 * M_PI / 3.0);
+    int n_segments = std::ceill((theta_1 - theta_0) / pi23);
 
     NURBSCurve arc_curve(1 + 2 * n_segments, 2);
     arc_curve.makeRational();
@@ -449,7 +449,7 @@ public:
       arc_curve[1 + 2 * idx + 1] = PointType({std::cos(theta_end), std::sin(theta_end)});
 
       T weight_num = std::sin(theta_end - theta_start);
-      T weight_denom = 2.0 * std::sin((theta_end - theta_start) / 2.0);
+      T weight_denom = static_cast<T>(2.0 * std::sin((theta_end - theta_start) / 2.0));
       arc_curve.setWeight(1 + 2 * idx + 0, weight_num / weight_denom);
       arc_curve.setWeight(1 + 2 * idx + 1, 1.0);
 
@@ -679,7 +679,7 @@ public:
       for(int j = 0; j <= p; j++)
       {
         auto offset = span - p + j;
-        const double weight = isCurveRational ? m_weights[offset] : 1.0;
+        const T weight = isCurveRational ? m_weights[offset] : static_cast<T>(1.0);
 
         // Compute the weighted point.
         for(int i = 0; i < NDIMS; ++i)
@@ -785,6 +785,8 @@ public:
       return span;  // Early exit if no knots to add
     }
 
+    constexpr auto typedOne = static_cast<T>(1.0);
+
     // Save unaltered control points
     CoordsVec newControlPoints(m_controlPoints.size() + r);
     WeightsVec newWeights(isRational ? m_weights.size() + r : 0);
@@ -814,7 +816,7 @@ public:
       for(int N = 0; N < NDIMS; ++N)
       {
         tempControlPoints[i][N] =
-          m_controlPoints[span - p + i][N] * (isRational ? m_weights[span - p + i] : 1.0);
+          m_controlPoints[span - p + i][N] * (isRational ? m_weights[span - p + i] : typedOne);
       }
 
       if(isRational)
@@ -837,15 +839,15 @@ public:
 
         if(isRational)
         {
-          tempWeights[i] = (1.0 - alpha) * tempWeights[i] + alpha * tempWeights[i + 1];
+          tempWeights[i] = (typedOne - alpha) * tempWeights[i] + alpha * tempWeights[i + 1];
         }
       }
 
       for(int N = 0; N < NDIMS; ++N)
       {
-        newControlPoints[L][N] = tempControlPoints[0][N] / (isRational ? tempWeights[0] : 1.0);
+        newControlPoints[L][N] = tempControlPoints[0][N] / (isRational ? tempWeights[0] : typedOne);
         newControlPoints[span + r - j - s][N] =
-          tempControlPoints[p - j - s][N] / (isRational ? tempWeights[p - j - s] : 1.0);
+          tempControlPoints[p - j - s][N] / (isRational ? tempWeights[p - j - s] : typedOne);
       }
 
       if(isRational)
@@ -860,7 +862,7 @@ public:
       for(int N = 0; N < NDIMS; ++N)
       {
         newControlPoints[i][N] =
-          tempControlPoints[i - L][N] / (isRational ? tempWeights[i - L] : 1.0);
+          tempControlPoints[i - L][N] / (isRational ? tempWeights[i - L] : typedOne);
       }
 
       if(isRational)
@@ -998,6 +1000,8 @@ public:
     int n = getNumControlPoints() - 1;
     int ks = m_knotvec.getNumKnotSpans();
 
+    constexpr auto typedOne = static_cast<T>(1.0);
+
     axom::Array<BezierCurve<T, NDIMS>> beziers(ks);
     for(auto& bezier : beziers)
     {
@@ -1067,20 +1071,20 @@ public:
           int s = mult + j;
           for(int k = p; k >= s; k--)
           {
-            T weight_k = isCurveRational ? beziers[nb].getWeight(k) : 1.0;
-            T weight_km1 = isCurveRational ? beziers[nb].getWeight(k - 1) : 1.0;
+            T weight_k = isCurveRational ? beziers[nb].getWeight(k) : typedOne;
+            T weight_km1 = isCurveRational ? beziers[nb].getWeight(k - 1) : typedOne;
             T alpha = alphas[k - s];
 
             if(isCurveRational)
             {
-              beziers[nb].setWeight(k, alpha * weight_k + (1.0 - alpha) * weight_km1);
+              beziers[nb].setWeight(k, alpha * weight_k + (typedOne - alpha) * weight_km1);
             }
 
             for(int N = 0; N < NDIMS; ++N)
             {
               beziers[nb][k][N] = (alpha * beziers[nb][k][N] * weight_k +
-                                   (1.0 - alpha) * beziers[nb][k - 1][N] * weight_km1) /
-                (isCurveRational ? beziers[nb].getWeight(k) : 1.0);
+                                   (typedOne - alpha) * beziers[nb][k - 1][N] * weight_km1) /
+                (isCurveRational ? beziers[nb].getWeight(k) : typedOne);
             }
           }
 

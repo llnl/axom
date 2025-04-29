@@ -104,7 +104,7 @@ TEST(primal_nurbscurve, point_array_constructor)
                                    PointType {0.0, 1.6, 1.8},
                                    PointType {0.2, 1.4, 2.0}};
 
-  double weights[npts] = {1.0, 2.0, 3.0};
+  CoordType weights[npts] = {1.0, 2.0, 3.0};
 
   NURBSCurveType nCurve(controlPoints, npts, degree);
   NURBSCurveType wCurve(controlPoints, weights, npts, degree);
@@ -128,7 +128,7 @@ TEST(primal_nurbscurve, point_array_constructor)
   axom::Array<PointType> controlPointsArray {PointType {0.6, 1.2, 1.0},
                                              PointType {0.0, 1.6, 1.8},
                                              PointType {0.2, 1.4, 2.0}};
-  axom::Array<double> weightsArray {1.0, 2.0, 3.0};
+  axom::Array<CoordType> weightsArray {1.0, 2.0, 3.0};
 
   NURBSCurveType nCurveArray(controlPointsArray, degree);
   NURBSCurveType wCurveArray(controlPointsArray, weightsArray, degree);
@@ -167,8 +167,8 @@ TEST(primal_nurbscurve, knot_array_constructor)
                                    PointType {0.0, 1.6, 1.8},
                                    PointType {0.2, 1.4, 2.0}};
 
-  double weights[npts] = {1.0, 2.0, 3.0};
-  double knots[npts + degree + 1] = {0.0, 0.0, 0.2, 1.0, 1.0};
+  CoordType weights[npts] = {1.0, 2.0, 3.0};
+  CoordType knots[npts + degree + 1] = {0.0, 0.0, 0.2, 1.0, 1.0};
 
   NURBSCurveType nCurve(controlPoints, npts, knots, npts + degree + 1);
   NURBSCurveType wCurve(controlPoints, weights, npts, knots, npts + degree + 1);
@@ -178,7 +178,7 @@ TEST(primal_nurbscurve, knot_array_constructor)
   {
     auto& pt1 = nCurve[p];
     auto& pt2 = wCurve[p];
-    double w = wCurve.getWeight(p);
+    auto w = wCurve.getWeight(p);
 
     EXPECT_DOUBLE_EQ(weights[p], w);
     for(int i = 0; i < DIM; ++i)
@@ -192,8 +192,8 @@ TEST(primal_nurbscurve, knot_array_constructor)
   axom::Array<PointType> controlPointsArray {PointType {0.6, 1.2, 1.0},
                                              PointType {0.0, 1.6, 1.8},
                                              PointType {0.2, 1.4, 2.0}};
-  axom::Array<double> weightsArray {1.0, 2.0, 3.0};
-  axom::Array<double> knotsArray {0.0, 0.0, 0.2, 1.0, 1.0};
+  axom::Array<CoordType> weightsArray {1.0, 2.0, 3.0};
+  axom::Array<CoordType> knotsArray {0.0, 0.0, 0.2, 1.0, 1.0};
 
   NURBSCurveType nCurveArray(controlPointsArray, knotsArray);
   NURBSCurveType wCurveArray(controlPointsArray, weightsArray, knotsArray);
@@ -203,7 +203,7 @@ TEST(primal_nurbscurve, knot_array_constructor)
   {
     auto& pt1 = nCurveArray[p];
     auto& pt2 = wCurveArray[p];
-    double w = wCurveArray.getWeight(p);
+    auto w = wCurveArray.getWeight(p);
 
     EXPECT_DOUBLE_EQ(weightsArray[p], w);
     for(int i = 0; i < DIM; ++i)
@@ -241,7 +241,7 @@ TEST(primal_nurbscurve, evaluate)
                                      Point3D {2.9, 2.4, 2.3},
                                      Point3D {3.2, 3.5, 3.0}};
 
-  double weights[4] = {1.0, 2.0, 3.0, 4.0};
+  CoordType weights[4] = {1.0, 2.0, 3.0, 4.0};
 
   // clang-format off
   Point3D exp_start_vals[4][4] =  // degree 0                  degree 1                   degree 2                   degree 3
@@ -331,7 +331,7 @@ TEST(primal_nurbscurve, first_derivatives)
                                     PointType {2.9, 2.4, 2.3},
                                     PointType {3.2, 3.5, 3.0}};
 
-  double weights[4] = {1.0, 2.0, 3.0, 4.0};
+  CoordType weights[4] = {1.0, 2.0, 3.0, 4.0};
 
   // clang-format off
   VectorType exp_start_vals[4][4] =  // degree 0                  degree 1                      degree 2                   degree 3
@@ -392,7 +392,7 @@ TEST(primal_nurbscurve, second_derivatives)
                                     PointType {2.9, 2.4, 2.3},
                                     PointType {3.2, 3.5, 3.0}};
 
-  double weights[4] = {1.0, 2.0, 3.0, 4.0};
+  CoordType weights[4] = {1.0, 2.0, 3.0, 4.0};
 
   // clang-format off
   VectorType exp_start_vals[4][4] =  // degree 0                  degree 1                   degree 2                   degree 3
@@ -451,7 +451,7 @@ TEST(primal_nurbscurve, knot_insertion)
                        PointType {2.9, 2.4, 2.3},
                        PointType {3.2, 3.5, 3.0}};
 
-  double weights[4] = {1.0, 2.0, 3.0, 4.0};
+  CoordType weights[4] = {1.0, 2.0, 3.0, 4.0};
 
   NURBSCurveType curve(data, weights, 4, 3);
   NURBSCurveType curve_knots(data, weights, 4, 3);
@@ -541,7 +541,7 @@ TEST(primal_nurbscurve, curve_splitting)
                        PointType {2.9, 2.4, 2.3},
                        PointType {3.2, 3.5, 3.0}};
 
-  double weights[4] = {1.0, 2.0, 3.0, 4.0};
+  CoordType weights[4] = {1.0, 2.0, 3.0, 4.0};
 
   for(int deg = 1; deg <= 3; ++deg)
   {
@@ -607,7 +607,7 @@ TEST(primal_nurbscurve, bezier_extraction)
                        PointType {2.9, 2.4, 2.3},
                        PointType {3.2, 3.5, 3.0}};
 
-  double weights[4] = {1.0, 2.0, 3.0, 4.0};
+  CoordType weights[4] = {1.0, 2.0, 3.0, 4.0};
 
   NURBSCurveType curve(data, weights, 4, 3);
 
@@ -678,7 +678,7 @@ TEST(primal_nurbscurve, bezier_extraction_zero)
                        PointType {2.9, 2.4, 2.3},
                        PointType {3.2, 3.5, 3.0}};
 
-  double weights[4] = {1.0, 2.0, 3.0, 4.0};
+  CoordType weights[4] = {1.0, 2.0, 3.0, 4.0};
 
   NURBSCurveType curve(data, weights, 4, 0);
 
@@ -744,7 +744,7 @@ TEST(primal_nurbscurve, bezier_extraction_full)
                        PointType {2.9, 2.4, 2.3},
                        PointType {3.2, 3.5, 3.0}};
 
-  double weights[4] = {1.0, 2.0, 3.0, 4.0};
+  CoordType weights[4] = {1.0, 2.0, 3.0, 4.0};
 
   NURBSCurveType curve(data, weights, 4, 3);
 
@@ -780,7 +780,7 @@ TEST(primal_nurbscurve, nurbs_reverse_orientation)
                        PointType {2.9, 2.4, 2.3},
                        PointType {3.2, 3.5, 3.0}};
 
-  double weights[4] = {1.0, 2.0, 3.0, 4.0};
+  CoordType weights[4] = {1.0, 2.0, 3.0, 4.0};
 
   NURBSCurveType curve(data, weights, 4, 3);
 
@@ -820,10 +820,10 @@ TEST(primal_nurbscurve, nurbs_knot_normalization)
                        PointType {-1.0, -2.0},
                        PointType {1.0, -2.0},
                        PointType {1.0, 0.0}};
-  double weights[7] = {1.0, 1. / 3., 1. / 3., 1.0, 1. / 3., 1. / 3., 1.0};
+  CoordType weights[7] = {1.0, 1. / 3., 1. / 3., 1.0, 1. / 3., 1. / 3., 1.0};
 
-  double knots[11] = {0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0};
-  double scaled_knots[11];
+  CoordType knots[11] = {0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0};
+  CoordType scaled_knots[11];
 
   for(int i = 0; i < 11; ++i)
   {
@@ -869,7 +869,7 @@ TEST(primal_nurbscurve, circular_arc_constructor)
   using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
 
   PointType center {1.0, 2.0};
-  double radius = 2.3;
+  CoordType radius = 2.3;
 
   // Check trivial arc (start_theta == end_theta)
   auto invalid_circle =
@@ -877,8 +877,8 @@ TEST(primal_nurbscurve, circular_arc_constructor)
   EXPECT_FALSE(invalid_circle.isValidNURBS());
 
   // clang-format off
-  double start_theta[] = {0.0,     -1.0, 1.0,            2.0,            2.0};
-  double end_theta[]   = {2.0*M_PI, 1.0, 1.0 + 2*M_PI/3, 2.0 + 4*M_PI/3, 5.0};
+  CoordType start_theta[] = {0.0,     -1.0, 1.0,            2.0,            2.0};
+  CoordType end_theta[]   = {2.0*M_PI, 1.0, 1.0 + 2*M_PI/3, 2.0 + 4*M_PI/3, 5.0};
   // clang-format on
 
   constexpr int npts = 11;

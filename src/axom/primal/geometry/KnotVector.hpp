@@ -127,7 +127,7 @@ public:
     // Interior knots (if any)
     for(int i = 0; i < npts - deg - 1; ++i)
     {
-      m_knots[deg + 1 + i] = (i + 1.0) / static_cast<T>(npts - deg);
+      m_knots[deg + 1 + i] = static_cast<T>((i + 1.0) / (npts - deg));
     }
   }
 

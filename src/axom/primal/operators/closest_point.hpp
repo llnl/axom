@@ -40,7 +40,7 @@ template <typename T, int NDIMS>
 AXOM_HOST_DEVICE inline Point<T, NDIMS> closest_point(const Point<T, NDIMS>& P,
                                                       const Segment<T, NDIMS>& seg,
                                                       T* loc,
-                                                      double EPS = PRIMAL_TINY)
+                                                      T EPS = PRIMAL_TINY)
 {
   using PointType = Point<T, NDIMS>;
   using VectorType = Vector<T, NDIMS>;
@@ -70,7 +70,7 @@ AXOM_HOST_DEVICE inline Point<T, NDIMS> closest_point(const Point<T, NDIMS>& P,
   }
   else
   {
-    const T squaredNormAB = AB.squared_norm();
+    const T squaredNormAB = static_cast<T>(AB.squared_norm());
 
     if(isGeq(t, squaredNormAB, EPS))
     {
@@ -118,7 +118,7 @@ AXOM_HOST_DEVICE inline Point<T, NDIMS> closest_point(const Point<T, NDIMS>& P,
 template <typename T, int NDIMS>
 AXOM_HOST_DEVICE inline Point<T, NDIMS> closest_point(const Point<T, NDIMS>& P,
                                                       const Segment<T, NDIMS>& seg,
-                                                      double EPS = PRIMAL_TINY)
+                                                      T EPS = PRIMAL_TINY)
 {
   T* loc = nullptr;
   return closest_point(P, seg, loc, EPS);
