@@ -535,7 +535,7 @@ double nurbs_winding_number(const Point<T, 2>& q,
   {
     bool isOnThisEdge = false;
     gwn += bezier_winding_number(q, beziers[i], isOnThisEdge, edge_tol, EPS);
-    isOnEdge |= isOnThisEdge;
+    isOnEdge = isOnEdge || isOnThisEdge;
   }
 
   return gwn;

@@ -882,16 +882,45 @@ public:
    * \param [in] t parameter value at which to evaluate
    * \param [out] n1 First output NURBS curve
    * \param [out] n2 Second output NURBS curve
-   * \param [in] normalize Whether to normalize the output curves
+   * \param [in] normalizeParameters Whether to normalize the output curves
    * 
    * If t is at the knot u_0 or u_max, will return the original curve and
    *  a degenerate curve with the first or last control point
    *
    * \pre Requires \a t in the *strict interior* of the span of the knots
+   * 
+   * \return True iff the curve was split (i.e., t is in the knot span)
    */
-  void split(T t, NURBSCurve<T, NDIMS>& n1, NURBSCurve<T, NDIMS>& n2, bool normalize = false) const
+  bool split(T t,
+             NURBSCurve<T, NDIMS>& n1,
+             NURBSCurve<T, NDIMS>& n2,
+             bool normalizeParameters = false) const
   {
     SLIC_ASSERT(m_knotvec.isValidInteriorParameter(t));
+
+    if(!m_knotvec.isValidInteriorParameter(t))
+    {
+      // If t is outside the knot span, return the original curve
+      //  and an invalid NURBS curve
+      if(t <= getMinKnot())
+      {
+        n1 = NURBSCurve();
+        n2 = *this;
+      }
+      else if(t >= getMaxKnot())
+      {
+        n1 = *this;
+        n2 = NURBSCurve();
+      }
+
+      if(normalizeParameters)
+      {
+        n1.normalize();
+        n2.normalize();
+      }
+
+      return false;
+    }
 
     const bool isCurveRational = this->isRational();
     const int p = getDegree();
@@ -926,11 +955,13 @@ public:
     n1.m_controlPoints.resize(s - p + 1);
     n1.m_weights.resize(isCurveRational ? s - p + 1 : 0);
 
-    if(normalize)
+    if(normalizeParameters)
     {
       n1.normalize();
       n2.normalize();
     }
+
+    return true;
   }
 
   /// \brief Normalize the knot vector to the span of [0, 1]
