@@ -854,13 +854,13 @@ TEST(primal_bezierpatch, rational_batch_derivatives)
     patch.evaluateFirstDerivatives(u, v, batch1_val, batch1_du, batch1_dv);
     patch.evaluate_linear_derivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
     patch.evaluateSecondDerivatives(u,
-                                      v,
-                                      batch3_val,
-                                      batch3_du,
-                                      batch3_dv,
-                                      batch3_dudu,
-                                      batch3_dvdv,
-                                      batch3_dudv);
+                                    v,
+                                    batch3_val,
+                                    batch3_du,
+                                    batch3_dv,
+                                    batch3_dudu,
+                                    batch3_dvdv,
+                                    batch3_dudv);
 
     for(int i = 0; i < DIM; ++i)
     {
@@ -887,13 +887,13 @@ TEST(primal_bezierpatch, rational_batch_derivatives)
     patch.evaluateFirstDerivatives(u, v, batch1_val, batch1_du, batch1_dv);
     patch.evaluate_linear_derivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
     patch.evaluateSecondDerivatives(u,
-                                      v,
-                                      batch3_val,
-                                      batch3_du,
-                                      batch3_dv,
-                                      batch3_dudu,
-                                      batch3_dvdv,
-                                      batch3_dudv);
+                                    v,
+                                    batch3_val,
+                                    batch3_du,
+                                    batch3_dv,
+                                    batch3_dudu,
+                                    batch3_dvdv,
+                                    batch3_dudv);
 
     for(int i = 0; i < DIM; ++i)
     {

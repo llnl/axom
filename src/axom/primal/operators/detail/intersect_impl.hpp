@@ -1102,7 +1102,7 @@ AXOM_HOST_DEVICE bool intersect_plane_seg(const Plane<T, DIM>& plane,
  * \return true iff sphere intersects a bounding box, false otherwise.
  */
 template <typename T>
-AXOM_HOST_DEVICE bool intersect_circle_bbox(const Sphere<T, 2>& circle, const BoundingBox<T, 2>& bbox)
+bool intersect_circle_bbox(const Sphere<T, 2>& circle, const BoundingBox<T, 2>& bbox)
 {
   auto center = circle.getCenter();
   auto radius = circle.getRadius();

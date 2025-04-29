@@ -2535,7 +2535,9 @@ public:
   //!  as defined by the patch geometry and the trimming curves
   //!  which define visibility.
 
-  /// \brief Get array of trimming curvse
+  /*!
+   * \brief Get array of trimming curves
+   */
   const TrimmingCurveVec& getTrimmingCurves() const { return m_trimmingCurves; }
 
   /// \brief Get mutable array of trimming curves
@@ -2636,7 +2638,6 @@ public:
     }
 
     ParameterPointType uv = {u, v};
-    bool isOnCurve = false;
 
     double gwn = 0.0;
     for(const auto& curve : m_trimmingCurves)
@@ -2723,8 +2724,10 @@ public:
     *  u/v_min
     * 
     * \pre Parameter \a u and \a v must be *strictly interior* to the knot span
+    * 
+    * \return True if and only if the patch was split (i.e., u, v is in the knot span)
     */
-  void split(T u,
+  bool split(T u,
              T v,
              NURBSPatch& p1,
              NURBSPatch& p2,
@@ -2735,15 +2738,17 @@ public:
     SLIC_ASSERT(m_knotvec_u.isValidInteriorParameter(u));
     SLIC_ASSERT(m_knotvec_v.isValidInteriorParameter(v));
 
+    bool wasSplit = true;
+
     // Bisect the patch along the u direction
-    split_u(u, p1, p2, false);
+    wasSplit = split_u(u, p1, p2, false) && wasSplit;
 
     // Temporarily store the result in each half and split again
     NURBSPatch p0(p1);
-    p0.split_v(v, p1, p3, false);
+    wasSplit = p0.split_v(v, p1, p3, false) && wasSplit;
 
     p0 = p2;
-    p0.split_v(v, p2, p4, false);
+    wasSplit = p0.split_v(v, p2, p4, false) && wasSplit;
 
     if(normalizeParameters)
     {
@@ -2752,14 +2757,50 @@ public:
       p3.normalize();
       p4.normalize();
     }
+
+    return wasSplit;
   }
 
   /*!
    * \brief Split the NURBS surface in two along the u direction
+   *
+   * \return True if and only if the patch was split (i.e., u is in the knot span)
    */
-  void split_u(T u, NURBSPatch& p1, NURBSPatch& p2, bool normalizeParameters = false) const
+  bool split_u(T u, NURBSPatch& p1, NURBSPatch& p2, bool normalizeParameters = false) const
   {
     SLIC_ASSERT(m_knotvec_u.isValidInteriorParameter(u));
+
+    // If the patch is not valid, return two invalid patches
+    if(m_controlPoints.size() == 0)
+    {
+      p1 = NURBSPatch();
+      p2 = NURBSPatch();
+      return false;
+    }
+
+    // If u is outside hte knot span, return the original patch
+    //  and an invalid NURBS patch
+    if(!m_knotvec_u.isValidInteriorParameter(u))
+    {
+      if(u <= getMinKnot_u())
+      {
+        p1 = NURBSPatch();
+        p2 = *this;
+      }
+      else if(u >= getMaxKnot_u())
+      {
+        p1 = *this;
+        p2 = NURBSPatch();
+      }
+
+      if(normalizeParameters)
+      {
+        p1.normalize_u();
+        p2.normalize_u();
+      }
+
+      return false;
+    }
 
     // Split the untrimmed geometry
     uncheckedSplit_u(u, p1, p2);
@@ -2776,14 +2817,50 @@ public:
       p1.normalize_u();
       p2.normalize_u();
     }
+
+    return true;
   }
 
   /*!
    * \brief Split the NURBS surface in two along the v direction
+   *
+   * \return True if and only if the patch was split (i.e., v is in the knot span)
    */
-  void split_v(T v, NURBSPatch& p1, NURBSPatch& p2, bool normalizeParameters = false) const
+  bool split_v(T v, NURBSPatch& p1, NURBSPatch& p2, bool normalizeParameters = false) const
   {
     SLIC_ASSERT(m_knotvec_v.isValidInteriorParameter(v));
+
+    // If the patch is not valid, return two invalid patches
+    if(m_controlPoints.size() == 0)
+    {
+      p1 = NURBSPatch();
+      p2 = NURBSPatch();
+      return false;
+    }
+
+    // If v is outside the knot span, return the original patch
+    //  and an invalid NURBS patch
+    if(!m_knotvec_v.isValidInteriorParameter(v))
+    {
+      if(v <= getMinKnot_v())
+      {
+        p1 = NURBSPatch();
+        p2 = *this;
+      }
+      else if(v >= getMaxKnot_v())
+      {
+        p1 = *this;
+        p2 = NURBSPatch();
+      }
+
+      if(normalizeParameters)
+      {
+        p1.normalize_v();
+        p2.normalize_v();
+      }
+
+      return false;
+    }
 
     // Split the untrimmed geometry
     uncheckedSplit_v(v, p1, p2);
@@ -2800,6 +2877,8 @@ public:
       p1.normalize_v();
       p2.normalize_v();
     }
+
+    return true;
   }
 
   /*!
