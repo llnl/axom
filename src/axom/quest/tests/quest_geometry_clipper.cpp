@@ -1103,48 +1103,10 @@ int main(int argc, char** argv)
   }
   if(params.useBlueprintConduit())
   {
-#if 0
-    if(axom::isDeviceAllocator(allocId))
-    {
-      /*
-        If using Conduit with device data, pre-allocate arrays in
-        compMeshGrp.  We don't need it in compMeshGrp but it causes
-        createNativeLayout to create pre-allocate device memory in
-        compMeshNode.  We do this because we don't have a good way to
-        manage device memory for Conduit.  Actual apps will have to
-        either pre-allocate or set up the Conduit Node with the
-        appropriate Conduit (not Umpire) allocator.
-      */
-      for(auto& gs : geomStrategies)
-      {
-        // std::string path{"matsets/" + matsetName + "/" + gs->name() + "/volume_fractions"};
-        std::string path{"matsets/" + matsetName + "/volume_fractions/" + gs->name()};
-        compMeshGrp->createViewAndAllocate(
-          path,
-          axom::sidre::detail::SidreTT<double>::id,
-          cellCount,
-          allocId);
-      }
-      compMeshGrp->createViewAndAllocate(
-        "matsets/" + matsetName + "/volume_fractions/free",
-        axom::sidre::detail::SidreTT<double>::id,
-        cellCount,
-        allocId);
-    }
-#endif
     compMeshNode.reset(new conduit::Node);
     compMeshNode->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(allocId));
     compMeshGrp->createNativeLayout(*compMeshNode);
     compMeshNode->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(allocId));
-    if(0)
-    {
-      // I just created a native layout from compMeshGrp to compMeshNode.
-      // Now, I want to import that compMeshNode to another group that stores data on host.
-      // But it failed.  Why?
-      auto* compMeshGrpOnHost = ds.getRoot()->createGroup("compMeshOnHost");
-      compMeshGrpOnHost->setDefaultAllocator(hostAllocId);
-      compMeshGrpOnHost->importConduitTree(*compMeshNode);  // Fail on GPU.  Problem with the pointers.
-    }
 
     sMeshPtr =
       std::make_shared<quest::ShapeeMesh>(params.policy, allocId, *compMeshNode, topoName, matsetName);
