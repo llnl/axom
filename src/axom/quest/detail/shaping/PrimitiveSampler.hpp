@@ -139,6 +139,7 @@ public:
 
     SLIC_INFO("Mesh bounding box: " << m_bbox);
 
+#if defined(AXOM_USE_RAJA)
     // Print out the total volume of all the tetrahedra
     auto prim_view = m_primitives.view();
     using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
@@ -150,6 +151,7 @@ public:
     SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
                                      "Total volume of all generated tetrahedra is {:.2Lf}",
                                      total_tet_vol.get()));
+#endif  //defined(AXOM_USE_RAJA)
   }
 
   void initSpatialIndex()
