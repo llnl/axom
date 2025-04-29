@@ -160,9 +160,9 @@ public:
       ->capture_default_str();
 
     app.add_option("-s,--testGeom", testGeom)
-      ->description("The shape to run")
+      ->description("The shape(s) to run")
       ->check(axom::CLI::IsMember(availableShapes))
-      ->delimiter('+')
+      ->delimiter(',')
       ->expected(1, 5);
 
 #ifdef AXOM_USE_CALIPER
