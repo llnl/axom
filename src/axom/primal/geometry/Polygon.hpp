@@ -13,11 +13,13 @@
 #define AXOM_PRIMAL_POLYGON_HPP_
 
 #include "axom/core/Array.hpp"
+#include "axom/core/numerics/Matrix.hpp"
 #include "axom/core/StaticArray.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 
 #include <ostream>
+#include <cmath>
 
 namespace axom
 {
@@ -437,6 +439,47 @@ std::ostream& operator<<(std::ostream& os, const Polygon<T, NDIMS, ARRAY_TYPE, M
 {
   poly.print(os);
   return os;
+}
+
+/*!
+ * \brief Create a regular polygon.
+ *
+ * \param nSides The number of sides in the polygon.
+ * \param radius The radius of the polgon from the origin to a point.
+ * \param transform An optional transformation matrix, which defaults to the identity
+ *                  matrix for the dimension NDIMS.
+ *
+ * \return A new regular polygon with \a nSides sides and radius \radius,
+ *         transformed by the supplied tranformation matrix.
+ *
+ * \note This is host-only function.
+ */
+template <typename T, int NDIMS, PolygonArray ARRAY_TYPE = PolygonArray::Dynamic, int MAX_VERTS = DEFAULT_MAX_NUM_VERTICES>
+Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS> regular_polygon(
+  int nSides,
+  T radius = T {1},
+  const axom::numerics::Matrix<T>& transform = axom::numerics::Matrix<T>::identity(NDIMS))
+{
+  using PointType = typename axom::primal::Point<T, NDIMS>;
+
+  SLIC_ASSERT(nSides >= 3);
+  SLIC_ASSERT(transform.getNumRows() == transform.getNumColumns());
+
+  const double dA = (2. * M_PI) / static_cast<double>(nSides);
+  const double a0 = dA * 0.5 - M_PI / 2.;
+  double a = a0;
+  Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS> poly;
+  for(int s = 0; s < nSides; s++)
+  {
+    PointType pt {radius * static_cast<T>(cos(a)), radius * static_cast<T>(sin(a))};
+
+    // Add the transformed point to the polygon.
+    poly.addVertex(transform_point(pt, transform));
+
+    a += dA;
+  }
+
+  return poly;
 }
 
 }  // namespace primal

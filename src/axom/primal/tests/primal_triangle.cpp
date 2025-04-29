@@ -104,23 +104,25 @@ TEST(primal_triangle, triangle_physical_to_bary)
   TestVec testData;
 
   // Test the three vertices
-  testData.push_back(std::make_pair(pt[0], QPoint {1., 0., 0.}));
-  testData.push_back(std::make_pair(pt[1], QPoint {0., 1., 0.}));
-  testData.push_back(std::make_pair(pt[2], QPoint {0., 0., 1.}));
+  constexpr double one = 1.;
+  testData.emplace_back(pt[0], QPoint {one, 0., 0.});
+  testData.emplace_back(pt[1], QPoint {0., one, 0.});
+  testData.emplace_back(pt[2], QPoint {0., 0., one});
 
   // Test the three edge midpoints
-  testData.push_back(std::make_pair(QPoint::midpoint(pt[0], pt[1]), QPoint {0.5, 0.5, 0.}));
-  testData.push_back(std::make_pair(QPoint::midpoint(pt[0], pt[2]), QPoint {0.5, 0., 0.5}));
-  testData.push_back(std::make_pair(QPoint::midpoint(pt[1], pt[2]), QPoint {0., 0.5, 0.5}));
+  constexpr double half = 1. / 2.;
+  testData.emplace_back(QPoint::midpoint(pt[0], pt[1]), QPoint {half, half, 0.});
+  testData.emplace_back(QPoint::midpoint(pt[0], pt[2]), QPoint {half, 0., half});
+  testData.emplace_back(QPoint::midpoint(pt[1], pt[2]), QPoint {0., half, half});
 
   // Test the triangle midpoint
-  testData.push_back(std::make_pair(QPoint(1. / 3. * (pt[0].array() + pt[1].array() + pt[2].array())),
-                                    QPoint {1. / 3., 1. / 3., 1. / 3.}));
+  constexpr double third = 1. / 3.;
+  testData.emplace_back(QPoint(third * (pt[0].array() + pt[1].array() + pt[2].array())),
+                        QPoint {third, third, third});
 
   // Test a point outside the triangle
-  testData.push_back(
-    std::make_pair(QPoint(-0.4 * pt[0].array() + 1.2 * pt[1].array() + 0.2 * pt[2].array()),
-                   QPoint {-0.4, 1.2, 0.2}));
+  testData.emplace_back(QPoint(-0.4 * pt[0].array() + 1.2 * pt[1].array() + 0.2 * pt[2].array()),
+                        QPoint {-0.4, 1.2, 0.2});
 
   // Now run the actual tests
   for(TestVec::const_iterator it = testData.begin(); it != testData.end(); ++it)
@@ -162,23 +164,24 @@ TEST(primal_triangle, triangle_unnormalized_bary)
   TestVec testData;
 
   // Test the three vertices
-  testData.push_back(std::make_pair(pt[0], QPoint {1., 0., 0.}));
-  testData.push_back(std::make_pair(pt[1], QPoint {0., 1., 0.}));
-  testData.push_back(std::make_pair(pt[2], QPoint {0., 0., 1.}));
+  constexpr double one = 1.;
+  testData.emplace_back(pt[0], QPoint {one, 0., 0.});
+  testData.emplace_back(pt[1], QPoint {0., one, 0.});
+  testData.emplace_back(pt[2], QPoint {0., 0., one});
 
-  // Test the three edge midpoints
-  testData.push_back(std::make_pair(QPoint::midpoint(pt[0], pt[1]), QPoint {0.5, 0.5, 0.}));
-  testData.push_back(std::make_pair(QPoint::midpoint(pt[0], pt[2]), QPoint {0.5, 0., 0.5}));
-  testData.push_back(std::make_pair(QPoint::midpoint(pt[1], pt[2]), QPoint {0., 0.5, 0.5}));
+  constexpr double half = 1. / 2.;
+  testData.emplace_back(QPoint::midpoint(pt[0], pt[1]), QPoint {half, half, 0.});
+  testData.emplace_back(QPoint::midpoint(pt[0], pt[2]), QPoint {half, 0., half});
+  testData.emplace_back(QPoint::midpoint(pt[1], pt[2]), QPoint {0., half, half});
 
   // Test the triangle midpoint
-  testData.push_back(std::make_pair(QPoint(1. / 3. * (pt[0].array() + pt[1].array() + pt[2].array())),
-                                    QPoint {1. / 3., 1. / 3., 1. / 3.}));
+  constexpr double third = 1. / 3.;
+  testData.emplace_back(QPoint(third * (pt[0].array() + pt[1].array() + pt[2].array())),
+                        QPoint {third, third, third});
 
   // Test a point outside the triangle
-  testData.push_back(
-    std::make_pair(QPoint(-0.4 * pt[0].array() + 1.2 * pt[1].array() + 0.2 * pt[2].array()),
-                   QPoint {-0.4, 1.2, 0.2}));
+  testData.emplace_back(QPoint(-0.4 * pt[0].array() + 1.2 * pt[1].array() + 0.2 * pt[2].array()),
+                        QPoint {-0.4, 1.2, 0.2});
 
   // Now run the actual tests
   for(TestVec::const_iterator it = testData.begin(); it != testData.end(); ++it)
@@ -220,24 +223,24 @@ TEST(primal_triangle, triangle_bary_to_physical)
   TestVec testData;
 
   // Test the three vertices
-  testData.push_back(std::make_pair(QPoint {1., 0., 0.}, pt[0]));
-  testData.push_back(std::make_pair(QPoint {0., 1., 0.}, pt[1]));
-  testData.push_back(std::make_pair(QPoint {0., 0., 1.}, pt[2]));
+  constexpr double one = 1.;
+  testData.emplace_back(pt[0], QPoint {one, 0., 0.});
+  testData.emplace_back(pt[1], QPoint {0., one, 0.});
+  testData.emplace_back(pt[2], QPoint {0., 0., one});
 
-  // Test the three edge midpoints
-  testData.push_back(std::make_pair(QPoint {0.5, 0.5, 0.}, QPoint::midpoint(pt[0], pt[1])));
-  testData.push_back(std::make_pair(QPoint {0.5, 0., 0.5}, QPoint::midpoint(pt[0], pt[2])));
-  testData.push_back(std::make_pair(QPoint {0., 0.5, 0.5}, QPoint::midpoint(pt[1], pt[2])));
+  constexpr double half = 1. / 2.;
+  testData.emplace_back(QPoint::midpoint(pt[0], pt[1]), QPoint {half, half, 0.});
+  testData.emplace_back(QPoint::midpoint(pt[0], pt[2]), QPoint {half, 0., half});
+  testData.emplace_back(QPoint::midpoint(pt[1], pt[2]), QPoint {0., half, half});
 
   // Test the triangle midpoint
-  testData.push_back(
-    std::make_pair(QPoint {1. / 3., 1. / 3., 1. / 3.},
-                   QPoint(1. / 3. * (pt[0].array() + pt[1].array() + pt[2].array()))));
+  constexpr double third = 1. / 3.;
+  testData.emplace_back(QPoint(third * (pt[0].array() + pt[1].array() + pt[2].array())),
+                        QPoint {third, third, third});
 
   // Test a point outside the triangle
-  testData.push_back(
-    std::make_pair(QPoint {-0.4, 1.2, 0.2},
-                   QPoint(-0.4 * pt[0].array() + 1.2 * pt[1].array() + 0.2 * pt[2].array())));
+  testData.emplace_back(QPoint {-0.4, 1.2, 0.2},
+                        QPoint(-0.4 * pt[0].array() + 1.2 * pt[1].array() + 0.2 * pt[2].array()));
 
   // Now run the actual tests
   for(TestVec::const_iterator it = testData.begin(); it != testData.end(); ++it)
@@ -354,29 +357,29 @@ TEST(primal_triangle, triangle_2D_point_containment)
   successes.push_back(pt[1]);
   successes.push_back(pt[2]);
   // Test points on the edges
-  successes.push_back(QPoint {0.3, 0.3});
-  successes.push_back(QPoint {0.5, 0.0});
-  successes.push_back(QPoint {1.0, 0.7});
+  successes.push_back({0.3, 0.3});
+  successes.push_back({0.5, 0.0});
+  successes.push_back({1.0, 0.7});
   // Test some points in the interior
-  successes.push_back(QPoint {0.2, 0.15});
-  successes.push_back(QPoint {0.6, 0.3});
+  successes.push_back({0.2, 0.15});
+  successes.push_back({0.6, 0.3});
 
   // Tests that should fail:
   // Point not coplanar with tri (only applicable in 3D)
   // Points outside triangle boundaries
-  failures.push_back(QPoint {1, 1.01});
-  failures.push_back(QPoint {50, 1000});
+  failures.push_back({1, 1.01});
+  failures.push_back({50, 1000});
   // Points very close to vertices
-  failures.push_back(QPoint {1.00001, 1.000001});
+  failures.push_back({1.00001, 1.000001});
 
   // Actually run the tests
-  for(TestVec::const_iterator it = successes.begin(); it != successes.end(); ++it)
+  for(const auto& pt : successes)
   {
-    EXPECT_TRUE(tri.checkInTriangle(*it, EPS));
+    EXPECT_TRUE(tri.contains(pt, EPS));
   }
-  for(TestVec::const_iterator it = failures.begin(); it != failures.end(); ++it)
+  for(const auto& pt : failures)
   {
-    EXPECT_FALSE(tri.checkInTriangle(*it, EPS));
+    EXPECT_FALSE(tri.contains(pt, EPS));
   }
 }
 
@@ -405,32 +408,32 @@ TEST(primal_triangle, triangle_3D_point_containment)
   successes.push_back(pt[1]);
   successes.push_back(pt[2]);
   // Test points on the edges
-  successes.push_back(QPoint {0.3, 0.3, 0});
-  successes.push_back(QPoint {0.5, 0.0, 0});
-  successes.push_back(QPoint {1.0, 0.7, 0});
+  successes.push_back({0.3, 0.3, 0});
+  successes.push_back({0.5, 0.0, 0});
+  successes.push_back({1.0, 0.7, 0});
   // Test some points in the interior
-  successes.push_back(QPoint {0.2, 0.15, 0});
-  successes.push_back(QPoint {0.6, 0.3, 0});
+  successes.push_back({0.2, 0.15, 0});
+  successes.push_back({0.6, 0.3, 0});
 
   // Tests that should fail:
   // Point not coplanar with tri (only applicable in 3D)
-  failures.push_back(QPoint {0.2, 0.15, 0.00001});
-  failures.push_back(QPoint {0.6, 0.3, 0.1});
-  failures.push_back(QPoint {0.9999, 0.99, -0.0000001});
+  failures.push_back({0.2, 0.15, 0.00001});
+  failures.push_back({0.6, 0.3, 0.1});
+  failures.push_back({0.9999, 0.99, -0.0000001});
   // Points outside triangle boundaries
-  failures.push_back(QPoint {1, 1.01, 0});
-  failures.push_back(QPoint {50, 1000, 0});
+  failures.push_back({1, 1.01, 0});
+  failures.push_back({50, 1000, 0});
   // Points very close to vertices
-  failures.push_back(QPoint {1.00001, 1.000001, 0});
+  failures.push_back({1.00001, 1.000001, 0});
 
   // Actually run the tests
-  for(TestVec::const_iterator it = successes.begin(); it != successes.end(); ++it)
+  for(const auto& pt : successes)
   {
-    EXPECT_TRUE(tri.checkInTriangle(*it, EPS));
+    EXPECT_TRUE(tri.contains(pt, EPS));
   }
-  for(TestVec::const_iterator it = failures.begin(); it != failures.end(); ++it)
+  for(const auto& pt : failures)
   {
-    EXPECT_FALSE(tri.checkInTriangle(*it, EPS));
+    EXPECT_FALSE(tri.contains(pt, EPS));
   }
 }
 

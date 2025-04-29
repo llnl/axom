@@ -39,7 +39,7 @@ if ( RAJA_FOUND )
   axom_add_executable(NAME raja_smoke_test
                       SOURCES raja_smoke.cpp
                       OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
-                      DEPENDS_ON ${raja_smoke_dependencies}
+                      DEPENDS_ON ${raja_smoke_dependencies} core
                       FOLDER axom/thirdparty/tests )
 
   target_include_directories(raja_smoke_test PUBLIC 

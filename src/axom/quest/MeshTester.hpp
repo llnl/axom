@@ -62,7 +62,6 @@ enum class WatertightStatus : signed char
  * Triangles that share vertex pairs (adjacent triangles in a watertight
  * surface mesh) are not reported as intersecting.  Degenerate triangles
  * are not reported as intersecting other triangles.
- *
  */
 template <typename ExecSpace, typename FloatType>
 void findTriMeshIntersectionsBVH(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* surface_mesh,
@@ -70,7 +69,7 @@ void findTriMeshIntersectionsBVH(mint::UnstructuredMesh<mint::SINGLE_SHAPE>* sur
                                  std::vector<int>& degenerateIndices,
                                  double intersectionThreshold = 1E-8)
 {
-  AXOM_ANNOTATE_SCOPE("findTriMeshIntersectionsBVH");
+  AXOM_ANNOTATE_SCOPE("quest::findTriMeshIntersectionsBVH");
 
   SLIC_INFO("Running BVH intersection algorithm "
             << " in execution Space: " << axom::execution_space<ExecSpace>::name());
@@ -120,7 +119,7 @@ void findTriMeshIntersectionsImplicitGrid(mint::UnstructuredMesh<mint::SINGLE_SH
                                           int spatialIndexResolution = 0,
                                           double intersectionThreshold = 1E-8)
 {
-  AXOM_ANNOTATE_SCOPE("findTriMeshIntersectionsImplicitGrid");
+  AXOM_ANNOTATE_SCOPE("quest::findTriMeshIntersectionsImplicitGrid");
 
   SLIC_INFO("Running ImplicitGrid intersection algorithm "
             << " in execution Space: " << axom::execution_space<ExecSpace>::name());
@@ -170,7 +169,7 @@ void findTriMeshIntersectionsUniformGrid(mint::UnstructuredMesh<mint::SINGLE_SHA
                                          int spatialIndexResolution = 0,
                                          double intersectionThreshold = 1E-8)
 {
-  AXOM_ANNOTATE_SCOPE("findTriMeshIntersectionsUniformGrid");
+  AXOM_ANNOTATE_SCOPE("quest::findTriMeshIntersectionsUniformGrid");
 
   SLIC_INFO("Running UniformGrid intersection algorithm "
             << " in execution Space: " << axom::execution_space<ExecSpace>::name());

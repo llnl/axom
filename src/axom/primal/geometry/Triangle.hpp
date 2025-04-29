@@ -330,18 +330,30 @@ public:
   }
 
   /*!
-   * \brief Returns whether Point P is in the triangle for some 3d Triangle
-   * \return true iff P is in the triangle
-   * \see primal::Point
+   * \brief Returns whether Point \a p is contained within the triangle
+   * 
+   * \return true if \a p is in the triangle
+   * \deprecated This function is deprecated. Use \a contains() instead
    */
-  bool checkInTriangle(const PointType& p, double eps = 1e-8) const
+  [[deprecated("Use contains() instead.")]] bool checkInTriangle(const PointType& p,
+                                                                 double eps = 1e-8) const
+  {
+    return contains(p, eps);
+  }
+
+  /*!
+   * \brief Returns whether Point \a p is contained within the triangle (within tolerance \a eps)
+   *
+   * \return true if \a p is in the triangle
+   */
+  bool contains(const PointType& p, double eps = 1e-8) const
   {
     if(!axom::utilities::isNearlyEqual(ppedVolume(p), 0., eps))
     {
       return false;
     }
 
-    Point<double, 3> bC = physToBarycentric(p);
+    const auto bC = physToBarycentric(p);
     return ((bC[0] >= (0.0 - eps)) && (bC[1] >= (0.0 - eps)) && (bC[2] >= (0.0 - eps)) &&
             (bC[0] <= (1.0 + eps)) && (bC[1] <= (1.0 + eps)) && (bC[2] <= (1.0 + eps)));
   }

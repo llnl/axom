@@ -139,15 +139,11 @@ public:
 
 std::vector<RLSpacePt> generatePoints()
 {
-  std::vector<RLSpacePt> retval;
-
-  retval.push_back(RLSpacePt::make_point(2.8, 3.1));
-  retval.push_back(RLSpacePt::make_point(2.9, 1.9));
-  retval.push_back(RLSpacePt::make_point(1.0, 3.6));
-  retval.push_back(RLSpacePt::make_point(.28, 310));
-  retval.push_back(RLSpacePt::make_point(-460, -0.9));
-
-  return retval;
+  return std::vector<RLSpacePt> {RLSpacePt {2.8, 3.1},
+                                 RLSpacePt {2.9, 1.9},
+                                 RLSpacePt {1.0, 3.6},
+                                 RLSpacePt {.28, 310},
+                                 RLSpacePt {-460, -0.9}};
 }
 
 void demoMorton()
@@ -204,12 +200,12 @@ void demoRectangularLattice()
   RectLatticeType lat(origin, spacing);
 
   // Query point (2.0, 1.2) should be in grid cell (2, 1)
-  RLSpacePt pA = RLSpacePt::make_point(2.0, 1.2);
+  RLSpacePt pA {2.0, 1.2};
   RLGridCell cA = lat.gridCell(pA);
   std::cout << "Point " << pA << " is in grid cell " << cA << " (should be (2, 1))" << std::endl;
 
   // Query point (2.3, 0.8) should also be in grid cell (2, 1)
-  RLSpacePt pB = RLSpacePt::make_point(2.3, 0.8);
+  RLSpacePt pB {2.3, 0.8};
   RLGridCell cB = lat.gridCell(pB);
   std::cout << "Point " << pB << " is in grid cell " << cB << " (should be (2, 1))" << std::endl;
 
@@ -375,7 +371,7 @@ void findTriIntersectionsAccel(std::vector<TriangleType>& tris,
 bool expensiveTest(ISpacePt& query, Triangle2DType& tri)
 {
   // This is supposed to be really expensive.  Thankfully it isn't quite.
-  return tri.checkInTriangle(query);
+  return tri.contains(query);
 }
 
 void showImplicitGrid()
@@ -403,7 +399,7 @@ void showImplicitGrid()
 
   // _igrid_query_start
   // Here is our query point
-  ISpacePt qpt = ISpacePt::make_point(0.63, 0.42);
+  ISpacePt qpt {0.63, 0.42};
 
   // Which triangles might it intersect?
   IBitsetType candidates = grid.getCandidates(qpt);
@@ -430,54 +426,40 @@ void showImplicitGrid()
 
 void makeTriangles(std::vector<TriangleType>& tris)
 {
-  PointType p[8];
-  p[0] = PointType::make_point(0.3, 0.93, 0.03);
-  p[1] = PointType::make_point(0.1, 0.85, 0.01);
-  p[2] = PointType::make_point(0.3, 0.78, 0.03);
-  p[3] = PointType::make_point(0.18, 0.36, 0.018);
-  p[4] = PointType::make_point(0.8, 0.58, 0.08);
-  p[5] = PointType::make_point(0.6, 0.5, 0.06);
-  p[6] = PointType::make_point(0.55, 0.42, 0.055);
-  p[7] = PointType::make_point(0.61, 0.1, 0.061);
+  PointType p[8] = {PointType {0.3, 0.93, 0.03},    // 0
+                    PointType {0.1, 0.85, 0.01},    // 1
+                    PointType {0.3, 0.78, 0.03},    // 2
+                    PointType {0.18, 0.36, 0.018},  // 3
+                    PointType {0.8, 0.58, 0.08},    // 4
+                    PointType {0.6, 0.5, 0.06},     // 5
+                    PointType {0.55, 0.42, 0.055},  // 6
+                    PointType {0.61, 0.1, 0.061}};  // 7
 
-  TriangleType t0(p[0], p[1], p[2]);
-  tris.push_back(t0);
-  TriangleType t1(p[2], p[1], p[3]);
-  tris.push_back(t1);
-  TriangleType t2(p[2], p[3], p[6]);
-  tris.push_back(t2);
-  TriangleType t3(p[6], p[3], p[7]);
-  tris.push_back(t3);
-  TriangleType t4(p[4], p[2], p[6]);
-  tris.push_back(t4);
-  TriangleType t5(p[4], p[5], p[7]);
-  tris.push_back(t5);
+  tris.emplace_back(p[0], p[1], p[2]);
+  tris.emplace_back(p[2], p[1], p[3]);
+  tris.emplace_back(p[2], p[3], p[6]);
+  tris.emplace_back(p[6], p[3], p[7]);
+  tris.emplace_back(p[4], p[2], p[6]);
+  tris.emplace_back(p[4], p[5], p[7]);
 }
 
 void makeTriangles(std::vector<Triangle2DType>& tris)
 {
-  Point2DType p[8];
-  p[0] = Point2DType::make_point(0.3, 0.93);
-  p[1] = Point2DType::make_point(0.1, 0.85);
-  p[2] = Point2DType::make_point(0.3, 0.78);
-  p[3] = Point2DType::make_point(0.18, 0.36);
-  p[4] = Point2DType::make_point(0.8, 0.58);
-  p[5] = Point2DType::make_point(0.6, 0.5);
-  p[6] = Point2DType::make_point(0.55, 0.42);
-  p[7] = Point2DType::make_point(0.61, 0.1);
+  Point2DType p[8] = {Point2DType {0.3, 0.93},   // 0
+                      Point2DType {0.1, 0.85},   // 1
+                      Point2DType {0.3, 0.78},   // 2
+                      Point2DType {0.18, 0.36},  // 3
+                      Point2DType {0.8, 0.58},   // 4
+                      Point2DType {0.6, 0.5},    // 5
+                      Point2DType {0.55, 0.42},  // 6
+                      Point2DType {0.61, 0.1}};  // 7
 
-  Triangle2DType t0(p[0], p[1], p[2]);
-  tris.push_back(t0);
-  Triangle2DType t1(p[2], p[1], p[3]);
-  tris.push_back(t1);
-  Triangle2DType t2(p[2], p[3], p[6]);
-  tris.push_back(t2);
-  Triangle2DType t3(p[6], p[3], p[7]);
-  tris.push_back(t3);
-  Triangle2DType t4(p[4], p[2], p[6]);
-  tris.push_back(t4);
-  Triangle2DType t5(p[4], p[5], p[7]);
-  tris.push_back(t5);
+  tris.emplace_back(p[0], p[1], p[2]);
+  tris.emplace_back(p[2], p[1], p[3]);
+  tris.emplace_back(p[2], p[3], p[6]);
+  tris.emplace_back(p[6], p[3], p[7]);
+  tris.emplace_back(p[4], p[2], p[6]);
+  tris.emplace_back(p[4], p[5], p[7]);
 }
 
 void printPairs(std::string title, std::vector<std::pair<int, int>>& clashes)
@@ -564,7 +546,7 @@ void findIntersectionsWithCandidates(std::vector<Triangle2DType>& tris,
   for(int i = 0; i < csize; ++i)
   {
     Triangle2DType& t = tris[candidates[i]];
-    if(t.checkInTriangle(ppoint))
+    if(t.contains(ppoint))
     {
       intersections.push_back(candidates[i]);
     }
@@ -574,61 +556,43 @@ void findIntersectionsWithCandidates(std::vector<Triangle2DType>& tris,
 
 void makeTreeTriangles(std::vector<Triangle2DType>& tris)
 {
-  Point2DType p[19];
-  p[0] = Point2DType::make_point(.13, .88);
-  p[1] = Point2DType::make_point(.26, .87);
-  p[2] = Point2DType::make_point(.11, .77);
-  p[3] = Point2DType::make_point(.18, .78);
-  p[4] = Point2DType::make_point(.13, .74);
-  p[5] = Point2DType::make_point(.37, .75);
-  p[6] = Point2DType::make_point(.12, .61);
-  p[7] = Point2DType::make_point(.25, .51);
-  p[8] = Point2DType::make_point(.11, .44);
-  p[9] = Point2DType::make_point(.26, .40);
-  p[10] = Point2DType::make_point(.12, .25);
-  p[11] = Point2DType::make_point(.85, .38);
-  p[12] = Point2DType::make_point(.94, .37);
-  p[13] = Point2DType::make_point(.84, .26);
-  p[14] = Point2DType::make_point(.92, .27);
-  p[15] = Point2DType::make_point(.96, .28);
-  p[16] = Point2DType::make_point(.84, .16);
-  p[17] = Point2DType::make_point(.92, .16);
-  p[18] = Point2DType::make_point(.93, .09);
+  Point2DType p[19] = {Point2DType {.13, .88},   //  0
+                       Point2DType {.26, .87},   //  1
+                       Point2DType {.11, .77},   //  2
+                       Point2DType {.18, .78},   //  3
+                       Point2DType {.13, .74},   //  4
+                       Point2DType {.37, .75},   //  5
+                       Point2DType {.12, .61},   //  6
+                       Point2DType {.25, .51},   //  7
+                       Point2DType {.11, .44},   //  8
+                       Point2DType {.26, .40},   //  9
+                       Point2DType {.12, .25},   // 10
+                       Point2DType {.85, .38},   // 11
+                       Point2DType {.94, .37},   // 12
+                       Point2DType {.84, .26},   // 13
+                       Point2DType {.92, .27},   // 14
+                       Point2DType {.96, .28},   // 15
+                       Point2DType {.84, .16},   // 16
+                       Point2DType {.92, .16},   // 17
+                       Point2DType {.93, .09}};  // 18
 
-  Triangle2DType t0(p[1], p[0], p[3]);
-  tris.push_back(t0);
-  Triangle2DType t1(p[0], p[2], p[3]);
-  tris.push_back(t1);
-  Triangle2DType t2(p[1], p[3], p[5]);
-  tris.push_back(t2);
-  Triangle2DType t3(p[3], p[2], p[4]);
-  tris.push_back(t3);
-  Triangle2DType t4(p[3], p[4], p[5]);
-  tris.push_back(t4);
-  Triangle2DType t5(p[2], p[6], p[4]);
-  tris.push_back(t5);
-  Triangle2DType t6(p[5], p[4], p[6]);
-  tris.push_back(t6);
-  Triangle2DType t7(p[5], p[6], p[7]);
-  tris.push_back(t7);
-  Triangle2DType t8(p[7], p[6], p[8]);
-  tris.push_back(t8);
-  Triangle2DType t9(p[7], p[8], p[9]);
-  tris.push_back(t9);
-  Triangle2DType t10(p[9], p[8], p[10]);
-  tris.push_back(t10);
-  Triangle2DType t11(p[11], p[13], p[14]);
-  tris.push_back(t11);
-  Triangle2DType t12(p[12], p[11], p[14]);
-  tris.push_back(t12);
-  Triangle2DType t13(p[12], p[14], p[15]);
-  tris.push_back(t13);
-  Triangle2DType t14(p[14], p[13], p[16]);
-  tris.push_back(t14);
-  Triangle2DType t15(p[14], p[16], p[17]);
-  tris.push_back(t15);
-  Triangle2DType t16(p[16], p[18], p[17]);
-  tris.push_back(t16);
+  tris.emplace_back(p[1], p[0], p[3]);
+  tris.emplace_back(p[0], p[2], p[3]);
+  tris.emplace_back(p[1], p[3], p[5]);
+  tris.emplace_back(p[3], p[2], p[4]);
+  tris.emplace_back(p[3], p[4], p[5]);
+  tris.emplace_back(p[2], p[6], p[4]);
+  tris.emplace_back(p[5], p[4], p[6]);
+  tris.emplace_back(p[5], p[6], p[7]);
+  tris.emplace_back(p[7], p[6], p[8]);
+  tris.emplace_back(p[7], p[8], p[9]);
+  tris.emplace_back(p[9], p[8], p[10]);
+  tris.emplace_back(p[11], p[13], p[14]);
+  tris.emplace_back(p[12], p[11], p[14]);
+  tris.emplace_back(p[12], p[14], p[15]);
+  tris.emplace_back(p[14], p[13], p[16]);
+  tris.emplace_back(p[14], p[16], p[17]);
+  tris.emplace_back(p[16], p[18], p[17]);
 }
 
 void driveBVHTree()

@@ -395,30 +395,13 @@ TEST(primal_polygon, area_2d_3d_affine_transforms)
   auto generateTransformMatrix2D =
     [](const Point2D& scale, const Point2D& translate, double rotation_angle) {
       // create scaling matrix
-      auto sc_matx = TransformMatrix::identity(3);
-      {
-        sc_matx(0, 0) = scale[0];
-        sc_matx(1, 1) = scale[1];
-      }
+      auto sc_matx = axom::numerics::transforms::scale(scale[0], scale[1], 3);
 
       // create rotation matrix
-      auto rot_matx = TransformMatrix::identity(3);
-      {
-        const double sinT = std::sin(rotation_angle);
-        const double cosT = std::cos(rotation_angle);
-
-        rot_matx(0, 0) = cosT;
-        rot_matx(0, 1) = -sinT;
-        rot_matx(1, 0) = sinT;
-        rot_matx(1, 1) = cosT;
-      }
+      auto rot_matx = axom::numerics::transforms::zRotation(rotation_angle, 3);
 
       // create translation matrix
-      auto tr_matx = TransformMatrix::identity(3);
-      {
-        tr_matx(0, 2) = translate[0];
-        tr_matx(1, 2) = translate[1];
-      }
+      auto tr_matx = axom::numerics::transforms::translate(translate[0], translate[1]);
 
       // multiply them to get the final transform
       TransformMatrix affine_matx1(3, 3);
@@ -435,12 +418,7 @@ TEST(primal_polygon, area_2d_3d_affine_transforms)
   auto generateTransformMatrix3D =
     [](const Point3D& scale, const Point3D& translate, const Vector3D& axis, double angle) {
       // create scaling matrix
-      auto sc_matx = TransformMatrix::identity(4);
-      {
-        sc_matx(0, 0) = scale[0];
-        sc_matx(1, 1) = scale[1];
-        sc_matx(2, 2) = scale[2];
-      }
+      auto sc_matx = axom::numerics::transforms::scale(scale[0], scale[1], scale[2], 4);
 
       // create rotation matrix
       auto rot_matx = TransformMatrix::zeros(4, 4);
@@ -466,12 +444,7 @@ TEST(primal_polygon, area_2d_3d_affine_transforms)
       }
 
       // create translation matrix
-      auto tr_matx = TransformMatrix::identity(4);
-      {
-        tr_matx(0, 3) = translate[0];
-        tr_matx(1, 3) = translate[1];
-        tr_matx(2, 3) = translate[2];
-      }
+      auto tr_matx = axom::numerics::transforms::translate(translate[0], translate[1], translate[2]);
 
       // multiply them to get the final transform
       TransformMatrix affine_matx1(4, 4);
@@ -501,10 +474,8 @@ TEST(primal_polygon, area_2d_3d_affine_transforms)
     Polygon3D xformed(poly.numVertices());
     for(int i = 0; i < poly.numVertices(); ++i)
     {
-      const double vec_in[4] = {poly[i][0], poly[i][1], 0., 1.};
-      double vec_out[4] = {0., 0., 0., 0.};
-      axom::numerics::matrix_vector_multiply(matx, vec_in, vec_out);
-      xformed.addVertex(Point3D {vec_out[0], vec_out[1], vec_out[2]});
+      Point3D in {poly[i][0], poly[i][1], 0.};
+      xformed.addVertex(axom::primal::transform_point(in, matx));
     }
     return xformed;
   };
@@ -850,6 +821,177 @@ TEST(primal_clip, polygon_check_hip) { check_polygon_policy<axom::HIP_EXEC<256>>
   #endif /* AXOM_USE_HIP */
 
 #endif /* AXOM_USE_RAJA && AXOM_USE_UMPIRE */
+
+//------------------------------------------------------------------------------
+
+template <axom::primal::PolygonArray Storage>
+struct test_regular_polygon
+{
+  static constexpr int MAXVERTS = 10;
+
+  static void test()
+  {
+    // 2D scaling matrix to scale x and y by 2.
+    const auto scale2 = axom::numerics::transforms::scale(2., 2);
+
+    // 2D rotation matrix to rotate the coordinate system counter-clockwise.
+    constexpr double rotationAngle = M_PI / 4.;
+    const auto rot2 = axom::numerics::transforms::zRotation(rotationAngle, 2);
+
+    // translation matrix
+    const auto trans2 = axom::numerics::transforms::translate(-1., -1.);
+
+    // 3D scaling matrix to scale x,y,z by 2.
+    const auto scale3 = axom::numerics::transforms::scale(2., 3);
+
+    // 3D rotation matrix to rotate about the Y axis.
+    const auto rot3 = axom::numerics::transforms::yRotation(M_PI / 12., 3);
+
+    // translation matrix
+    const auto trans3 = axom::numerics::transforms::translate(-1., -1., -1.);
+
+    // 2D shapes.
+    int index = 0;
+    for(int nSides : std::vector<int> {3, 4, 5, 8})
+    {
+      // Make shape.
+      const auto s1 = axom::primal::regular_polygon<double, 2, Storage, MAXVERTS>(nSides);
+      comparePolygons(s1, result2d(index++));
+      // std::cout << s1 << // std::endl;
+
+      // Make shape scaled 2.
+      const auto s2 = axom::primal::regular_polygon<double, 2, Storage, MAXVERTS>(nSides, 1., scale2);
+      comparePolygons(s2, result2d(index++));
+      // std::cout << s2 << // std::endl;
+
+      // Make shape rotated
+      const auto s3 = axom::primal::regular_polygon<double, 2, Storage, MAXVERTS>(nSides, 1., rot2);
+      comparePolygons(s3, result2d(index++));
+      // std::cout << s3 << // std::endl;
+
+      // Make shape translated
+      const auto s4 = axom::primal::regular_polygon<double, 2, Storage, MAXVERTS>(nSides, 1., trans2);
+      comparePolygons(s4, result2d(index++));
+      // std::cout << s4 << // std::endl;
+    }
+
+    // 3D shapes
+    index = 0;
+    for(int nSides : std::vector<int> {3, 4, 5, 8})
+    {
+      // Make shape.
+      const auto s1 = axom::primal::regular_polygon<double, 3, Storage, MAXVERTS>(nSides);
+      comparePolygons(s1, result3d(index++));
+      // std::cout << s1 << // std::endl;
+
+      // Make shape scaled 2.
+      const auto s2 = axom::primal::regular_polygon<double, 3, Storage, MAXVERTS>(nSides, 1., scale3);
+      comparePolygons(s2, result3d(index++));
+      // std::cout << s2 << // std::endl;
+
+      // Make shape rotated
+      const auto s3 = axom::primal::regular_polygon<double, 3, Storage, MAXVERTS>(nSides, 1., rot3);
+      comparePolygons(s3, result3d(index++));
+      // std::cout << s3 << // std::endl;
+
+      // Make shape translated
+      const auto s4 = axom::primal::regular_polygon<double, 3, Storage, MAXVERTS>(nSides, 1., trans3);
+      comparePolygons(s4, result3d(index++));
+      // std::cout << s4 << // std::endl;
+    }
+  }
+
+  static axom::primal::Polygon<double, 2, Storage, MAXVERTS> result2d(int index)
+  {
+    // clang-format off
+    const int sizes[] = {3,3,3,3, 4,4,4,4, 5,5,5,5, 8,8,8,8};
+    const int offsets[] = {0, 3, 6, 9, 12, 16, 20, 24, 28, 33, 38, 43, 48, 56, 64, 72};
+    // This table was made from the polygons output in the test() method.
+    const double pts[] = {
+      /*3-gon*/0.866025,-0.5/**/,2.83277e-16,1/**/,-0.866025,-0.5,
+      /*3-gon*/1.73205,-1/**/,5.66554e-16,2/**/,-1.73205,-1,
+      /*3-gon*/0.965926,0.258819/**/,-0.707107,0.707107/**/,-0.258819,-0.965926,
+      /*3-gon*/-0.133975,-1.5/**/,-1,0/**/,-1.86603,-1.5,
+      /*4-gon*/0.707107,-0.707107/**/,0.707107,0.707107/**/,-0.707107,0.707107/**/,-0.707107,-0.707107,
+      /*4-gon*/1.41421,-1.41421/**/,1.41421,1.41421/**/,-1.41421,1.41421/**/,-1.41421,-1.41421,
+      /*4-gon*/1,0/**/,2.22045e-16,1/**/,-1,2.22045e-16/**/,-2.22045e-16,-1,
+      /*4-gon*/-0.292893,-1.70711/**/,-0.292893,-0.292893/**/,-1.70711,-0.292893/**/,-1.70711,-1.70711,
+      /*5-gon*/0.587785,-0.809017/**/,0.951057,0.309017/**/,6.12323e-17,1/**/,-0.951057,0.309017/**/,-0.587785,-0.809017,
+      /*5-gon*/1.17557,-1.61803/**/,1.90211,0.618034/**/,1.22465e-16,2/**/,-1.90211,0.618034/**/,-1.17557,-1.61803,
+      /*5-gon*/0.987688,-0.156434/**/,0.45399,0.891007/**/,-0.707107,0.707107/**/,-0.891007,-0.45399/**/,0.156434,-0.987688,
+      /*5-gon*/-0.412215,-1.80902/**/,-0.0489435,-0.690983/**/,-1,0/**/,-1.95106,-0.690983/**/,-1.58779,-1.80902,
+      /*8-gon*/0.382683,-0.92388/**/,0.92388,-0.382683/**/,0.92388,0.382683/**/,0.382683,0.92388/**/,-0.382683,0.92388/**/,-0.92388,0.382683/**/,-0.92388,-0.382683/**/,-0.382683,-0.92388,
+      /*8-gon*/0.765367,-1.84776/**/,1.84776,-0.765367/**/,1.84776,0.765367/**/,0.765367,1.84776/**/,-0.765367,1.84776/**/,-1.84776,0.765367/**/,-1.84776,-0.765367/**/,-0.765367,-1.84776,
+      /*8-gon*/0.92388,-0.382683/**/,0.92388,0.382683/**/,0.382683,0.92388/**/,-0.382683,0.92388/**/,-0.92388,0.382683/**/,-0.92388,-0.382683/**/,-0.382683,-0.92388/**/,0.382683,-0.92388,
+      /*8-gon*/-0.617317,-1.92388/**/,-0.0761205,-1.38268/**/,-0.0761205,-0.617317/**/,-0.617317,-0.0761205/**/,-1.38268,-0.0761205/**/,-1.92388,-0.617317/**/,-1.92388,-1.38268/**/,-1.38268,-1.92388
+    };
+    // clang-format on
+    axom::primal::Polygon<double, 2, Storage, MAXVERTS> poly;
+    for(int i = 0; i < sizes[index]; i++)
+    {
+      poly.addVertex(axom::primal::Point<double, 2>(pts + 2 * offsets[index] + 2 * i));
+    }
+    return poly;
+  }
+
+  static axom::primal::Polygon<double, 3, Storage, MAXVERTS> result3d(int index)
+  {
+    // clang-format off
+    const int sizes[] = {3,3,3,3, 4,4,4,4, 5,5,5,5, 8,8,8,8};
+    const int offsets[] = {0, 3, 6, 9, 12, 16, 20, 24, 28, 33, 38, 43, 48, 56, 64, 72};
+    // This table was made from the polygons output in the test() method.
+    const double pts[] = {
+      /*3-gon*/0.866025,-0.5,0/**/,2.83277e-16,1,0/**/,-0.866025,-0.5,0,
+      /*3-gon*/1.73205,-1,0/**/,5.66554e-16,2,0/**/,-1.73205,-1,0,
+      /*3-gon*/0.836516,-0.5,-0.224144/**/,2.73625e-16,1,-7.33175e-17/**/,-0.836516,-0.5,0.224144,
+      /*3-gon*/-0.133975,-1.5,-1/**/,-1,0,-1/**/,-1.86603,-1.5,-1,
+      /*4-gon*/0.707107,-0.707107,0/**/,0.707107,0.707107,0/**/,-0.707107,0.707107,0/**/,-0.707107,-0.707107,0,
+      /*4-gon*/1.41421,-1.41421,0/**/,1.41421,1.41421,0/**/,-1.41421,1.41421,0/**/,-1.41421,-1.41421,0,
+      /*4-gon*/0.683013,-0.707107,-0.183013/**/,0.683013,0.707107,-0.183013/**/,-0.683013,0.707107,0.183013/**/,-0.683013,-0.707107,0.183013,
+      /*4-gon*/-0.292893,-1.70711,-1/**/,-0.292893,-0.292893,-1/**/,-1.70711,-0.292893,-1/**/,-1.70711,-1.70711,-1,
+      /*5-gon*/0.587785,-0.809017,0/**/,0.951057,0.309017,0/**/,6.12323e-17,1,0/**/,-0.951057,0.309017,0/**/,-0.587785,-0.809017,0,
+      /*5-gon*/1.17557,-1.61803,0/**/,1.90211,0.618034,0/**/,1.22465e-16,2,0/**/,-1.90211,0.618034,0/**/,-1.17557,-1.61803,0,
+      /*5-gon*/0.567757,-0.809017,-0.15213/**/,0.91865,0.309017,-0.246152/**/,5.91459e-17,1,-1.58481e-17/**/,-0.91865,0.309017,0.246152/**/,-0.567757,-0.809017,0.15213,
+      /*5-gon*/-0.412215,-1.80902,-1/**/,-0.0489435,-0.690983,-1/**/,-1,0,-1/**/,-1.95106,-0.690983,-1/**/,-1.58779,-1.80902,-1,
+      /*8-gon*/0.382683,-0.92388,0/**/,0.92388,-0.382683,0/**/,0.92388,0.382683,0/**/,0.382683,0.92388,0/**/,-0.382683,0.92388,0/**/,-0.92388,0.382683,0/**/,-0.92388,-0.382683,0/**/,-0.382683,-0.92388,0,
+      /*8-gon*/0.765367,-1.84776,0/**/,1.84776,-0.765367,0/**/,1.84776,0.765367,0/**/,0.765367,1.84776,0/**/,-0.765367,1.84776,0/**/,-1.84776,0.765367,0/**/,-1.84776,-0.765367,0/**/,-0.765367,-1.84776,0,
+      /*8-gon*/0.369644,-0.92388,-0.0990458/**/,0.892399,-0.382683,-0.239118/**/,0.892399,0.382683,-0.239118/**/,0.369644,0.92388,-0.0990458/**/,-0.369644,0.92388,0.0990458/**/,-0.892399,0.382683,0.239118/**/,-0.892399,-0.382683,0.239118/**/,-0.369644,-0.92388,0.0990458,
+      /*8-gon*/-0.617317,-1.92388,-1/**/,-0.0761205,-1.38268,-1/**/,-0.0761205,-0.617317,-1/**/,-0.617317,-0.0761205,-1/**/,-1.38268,-0.0761205,-1/**/,-1.92388,-0.617317,-1/**/,-1.92388,-1.38268,-1/**/,-1.38268,-1.92388,-1
+    };
+    // clang-format on
+    axom::primal::Polygon<double, 3, Storage, MAXVERTS> poly;
+    for(int i = 0; i < sizes[index]; i++)
+    {
+      poly.addVertex(axom::primal::Point<double, 3>(pts + 3 * offsets[index] + 3 * i));
+    }
+    return poly;
+  }
+
+  template <int _ndims>
+  static void comparePolygons(const axom::primal::Polygon<double, _ndims, Storage, MAXVERTS>& p1,
+                              const axom::primal::Polygon<double, _ndims, Storage, MAXVERTS>& p2,
+                              double eps = 5.e-6)
+  {
+    EXPECT_EQ(p1.numVertices(), p2.numVertices());
+    for(int i = 0; i < p1.numVertices(); i++)
+    {
+      for(int d = 0; d < _ndims; d++)
+      {
+        EXPECT_NEAR(p1[i][d], p2[i][d], eps);
+      }
+    }
+  }
+};
+
+TEST(primal_polygon, regular_polygon_dynamic)
+{
+  test_regular_polygon<axom::primal::PolygonArray::Dynamic>::test();
+}
+
+TEST(primal_polygon, regular_polygon_static)
+{
+  test_regular_polygon<axom::primal::PolygonArray::Static>::test();
+}
 
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])

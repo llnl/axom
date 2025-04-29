@@ -10,14 +10,26 @@
 
 # Axom Software Release Notes
 
-Notes describing significant changes in each Axom release are documented
-in this file.
+Notes describing significant changes in each Axom release are documented in this file.
 
 The format of this file is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
 The Axom project release numbers follow [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - Release date yyyy-mm-dd
+
+###  Added
+
+###  Changed
+- Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
+  since the last `reset()`.
+- Adds support for allocations using `malloc` and `free` even when Axom is configured with Umpire support.
+- Adds a new utility tool, `mesh_converter`, which converts between mesh formats. The first conversion
+  is from a Pro-E tetrahedral mesh to an STL mesh of its boundary triangles.
+- Primal: Adds a method to determine if a point is contained within a Tetrahedron.
+
+###  Deprecated
+- Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
 
 ## [Version 0.11.0] - Release date 2025-04-02
 
@@ -29,8 +41,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   oriented algorithm that produces smooth interfaces between zones and their neighbors. The Mir
   component also provides a 2D ELVIRA algorithm, which reconstructs polygonal shapes and preserves
   volume fractions.
-- Support in `quest::IntersectionShaper` for Blueprint mesh stored in a `conduit::Node`
-  or `sidre::Group`.
+- Support in `quest::IntersectionShaper` for Blueprint mesh stored in a `conduit::Node` or `sidre::Group`.
 - Adds new CMake configuration options, `AXOM_ENABLE_ASAN` and `AXOM_ENABLE_UBSAN`, to enable/disable AddressSanitizer and UndefinedBehaviorSanitizer respectively in Axom. Default is OFF for both.
 - A number of new `klee::Geometry` constructors are added, for the different shapes now supported.
   This is a temporary change.  The class will be subclassed in the future to support a diversity of geometries.
@@ -72,10 +83,6 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
   filename (defaults to the `name` member variable) and the other is a `Group` path relative to the base of
   the Data Collection itself (defaults to the root of the `DataStore`).
 - `SLIC_ASSERT`,`SLIC_ASSERT_MSG`,`SLIC_CHECK`, and `SLIC_CHECK_MSG` macros delegate to assert() within HIP device kernels.
-
-###  Deprecated
-
-###  Removed
 
 ###  Fixed
 - Fixes compilation issue with RAJA@2024.07 on 32-bit Windows configurations. 

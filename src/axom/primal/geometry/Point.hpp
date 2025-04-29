@@ -8,6 +8,8 @@
 
 #include "axom/core/NumericArray.hpp"
 #include "axom/core/Macros.hpp"
+#include "axom/core/numerics/Matrix.hpp"
+#include "axom/core/numerics/matvecops.hpp"
 #include "axom/slic/interface/slic.hpp"
 
 // C/C++ includes
@@ -325,6 +327,45 @@ std::ostream& operator<<(std::ostream& os, const Point<T, NDIMS>& pt)
 {
   pt.print(os);
   return os;
+}
+
+/*!
+ * \brief Transform a point using a transformation matrix.
+ *
+ * \param pt The point to be transformed.
+ * \param transform The transformation matrix.
+ *
+ * \return The transformed point.
+ *
+ * \note We allow a matrix 1 rank larger than NDIMS so we can perform translations.
+ */
+template <typename T, int NDIMS>
+Point<T, NDIMS> transform_point(
+  const Point<T, NDIMS>& pt,
+  const axom::numerics::Matrix<T>& transform = axom::numerics::Matrix<T>::identity(NDIMS))
+{
+  const int nr = transform.getNumRows();
+  SLIC_ASSERT(nr == transform.getNumColumns());
+  SLIC_ASSERT(nr == NDIMS || nr == (NDIMS + 1));
+  SLIC_ASSERT(nr > 0 && nr <= 4);
+
+  // Make a column vector to hold the point.
+  T vec[4] = {0, 0, 0, 0};
+  for(int row = 0; row < NDIMS; row++)
+  {
+    vec[row] = pt[row];
+  }
+  if(nr > NDIMS)
+  {
+    vec[nr - 1] = T {1};
+  }
+
+  // Transform the point.
+  T transformedPt[4] = {0, 0, 0, 0};
+  axom::numerics::matrix_vector_multiply(transform, vec, transformedPt);
+
+  // Return the transformed point.
+  return Point<T, NDIMS>(transformedPt);
 }
 
 }  // namespace primal
