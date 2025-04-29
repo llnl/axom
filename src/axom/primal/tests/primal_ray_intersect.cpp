@@ -392,10 +392,6 @@ TEST(primal_ray_intersect, ray_segment_edge_cases)
   double ray_param = -1, seg_param = -1;
   const double EPS = 1e-8;
 
-  // Method should return isParallel if true,
-  //  even if an intersection isn't recorded
-  bool isParallel;
-
   // Check segments oriented in same direction as ray
   //  and in opposite direction
   SegmentType intersecting_segs[] = {SegmentType(PointType({1, 2.1}), PointType({2, 4.1})),

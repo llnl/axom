@@ -2530,7 +2530,9 @@ public:
   //!  as defined by the patch geometry and the trimming curves
   //!  which define visibility.
 
-  /// \brief Get array of trimming curvse
+  /*!
+   * \brief Get array of trimming curves
+   */
   const TrimmingCurveVec& getTrimmingCurves() const { return m_trimmingCurves; }
 
   /// \brief Get mutable array of trimming curves
