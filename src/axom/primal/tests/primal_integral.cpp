@@ -322,6 +322,65 @@ TEST(primal_integral, evaluate_integral_rational)
   EXPECT_NEAR(evaluate_vector_line_integral(quarter_ellipse, conservative_field, npts), 0, abs_tol);
 }
 
+TEST(primal_integral, evaluate_integral_nurbs)
+{
+  using Point2D = primal::Point<double, 2>;
+  using Vector2D = primal::Vector<double, 2>;
+  using NCurve = primal::NURBSCurve<double, 2>;
+  double abs_tol = 1e-10;
+
+  // Quadrature nodes. Should be sufficiently high to pass tests
+  int npts = 20;
+
+  // Test integrals with same integrand and curves as `evaluate_integral_rational`, 
+  //  but insert some knots to make the Bezier extraction more interesting
+
+  // Elliptical arc shape
+  Point2D ellipse_nodes[] = {Point2D {2.0, 0.0}, Point2D {2.0, 1.0}, Point2D {0.0, 1.0}};
+  double weights[] = {2.0, 1.0, 1.0};
+  NCurve ellipse_arc(ellipse_nodes, weights, 3, 2);
+  ellipse_arc.insertKnot(0.3, 2);
+  ellipse_arc.insertKnot(0.7, 1);
+
+  Point2D leg1_nodes[] = {Point2D {0.0, 1.0}, {0.0, 0.0}};
+  NCurve leg1(leg1_nodes, 2, 1);
+  leg1.insertKnot(0.4, 1);
+
+  Point2D leg2_nodes[] = {Point2D {0.0, 0.0}, {2.0, 0.0}};
+  NCurve leg2(leg2_nodes, 2, 1);
+  leg2.insertKnot(0.6, 1);
+
+  axom::Array<NCurve> quarter_ellipse;
+  quarter_ellipse.push_back(ellipse_arc);
+  quarter_ellipse.push_back(leg1);
+  quarter_ellipse.push_back(leg2);
+
+  auto const_integrand = [](Point2D /*x*/) -> double { return 1.0; };
+  auto transc_integrand = [](Point2D x) -> double { return std::sin(x[0] * x[1]); };
+
+  auto area_field = [](Point2D x) -> Vector2D { return Vector2D({-0.5 * x[1], 0.5 * x[0]}); };
+  auto conservative_field = [](Point2D x) -> Vector2D {
+    return Vector2D({2 * x[0] * x[1] * x[1], 2 * x[0] * x[0] * x[1]});
+  };
+
+  EXPECT_NEAR(evaluate_area_integral(quarter_ellipse, const_integrand, npts),
+              M_PI * 2 * 1 / 4.0,
+              abs_tol);
+  EXPECT_NEAR(evaluate_area_integral(quarter_ellipse, transc_integrand, npts), 0.472951736306, abs_tol);
+
+  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, const_integrand, npts),
+              2.42211205514,
+              abs_tol);
+  EXPECT_NEAR(evaluate_scalar_line_integral(ellipse_arc, transc_integrand, npts),
+              1.38837959326,
+              abs_tol);
+
+  EXPECT_NEAR(evaluate_vector_line_integral(ellipse_arc, area_field, npts),
+              M_PI * 2 * 1 / 4.0,
+              abs_tol);
+  EXPECT_NEAR(evaluate_vector_line_integral(quarter_ellipse, conservative_field, npts), 0, abs_tol);
+}
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

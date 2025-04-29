@@ -2231,6 +2231,11 @@ public:
     return VectorType::cross_product(Du, Dv);
   }
 
+// #ifdef AXOM_USE_MFEM
+//   VectorType approximateAveragePatchNormal(T)
+
+// #endif
+
   /*!
    * \brief Splits the NURBS patch geometry (at each internal knot) into several Bezier patches
    * 
