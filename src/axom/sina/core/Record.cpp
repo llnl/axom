@@ -104,7 +104,8 @@ void Record::addRecordAsLibraryData(Record const &childRecord, std::string const
   // Note: the toNode is being used as an intermediary here. As such, we force the CurveOrder to be oldest
   // first, aka "don't reorder". If the user wants the curves in a specific order, that's decided at dump time,
   // else the Record will have no way to know the "original" order within the library.
-  auto newLibData = addLibraryData(name, childRecord.toNode(CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST));
+  auto newLibData =
+    addLibraryData(name, childRecord.toNode(CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST));
   newLibData->add(LIBRARY_DATA_ID_DATUM, Datum {childRecord.getId().getId()});
   newLibData->add(LIBRARY_DATA_TYPE_DATUM, Datum {childRecord.type});
 }

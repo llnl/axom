@@ -94,7 +94,8 @@ public:
   /**
     * An enum member representing the default ordering of Curves within CurveSets.
     */
-  static const CurveSet::CurveOrder defaultCurveOrder = CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST;
+  static const CurveSet::CurveOrder defaultCurveOrder =
+    CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST;
   /**
      * \brief Construct a new Record.
      *
@@ -167,7 +168,7 @@ public:
      *
      * \return the Node representation of this record.
      */
-  conduit::Node toNode(CurveSet::CurveOrder curveOrder=defaultCurveOrder) const override;
+  conduit::Node toNode(CurveSet::CurveOrder curveOrder = defaultCurveOrder) const override;
 
   /**
     * \brief Add another record to this one as library data.

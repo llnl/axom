@@ -70,7 +70,7 @@ CurveSet::curveNodeInfo extractCurveMap(conduit::Node const &parent, std::string
 
   if(!parent.has_child(childNodeName))
   {
-    return CurveSet::curveNodeInfo{curveMap, curveNames};
+    return CurveSet::curveNodeInfo {curveMap, curveNames};
   }
 
   auto &mapAsNode = parent.child(childNodeName);
@@ -83,7 +83,7 @@ CurveSet::curveNodeInfo extractCurveMap(conduit::Node const &parent, std::string
     curveMap.insert(std::make_pair(std::move(curveName), std::move(curve)));
   }
 
-  return CurveSet::curveNodeInfo{std::move(curveMap), std::move(curveNames)};
+  return CurveSet::curveNodeInfo {std::move(curveMap), std::move(curveNames)};
 };
 
 /**
@@ -94,29 +94,34 @@ CurveSet::curveNodeInfo extractCurveMap(conduit::Node const &parent, std::string
  * @param curveOrder how nameList should be sorted if not oldest-first, ex: alphabetical.
  * @return the map as a node
  */
- conduit::Node createCurveMapNode(CurveSet::CurveMap const &curveMap, std::vector<std::string> const &nameList,
-                                  CurveSet::CurveOrder const curveOrder) {
+conduit::Node createCurveMapNode(CurveSet::CurveMap const &curveMap,
+                                 std::vector<std::string> const &nameList,
+                                 CurveSet::CurveOrder const curveOrder)
+{
   conduit::Node mapNode;
   mapNode.set_dtype(conduit::DataType::object());
   // Copy for sorting
   std::vector<std::string> orderedNameList = nameList;
-  switch(curveOrder){
-    case CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST:
-      break;
-    case CurveSet::CurveOrder::REGISTRATION_NEWEST_FIRST:
-      std::reverse(orderedNameList.begin(), orderedNameList.end());
-      break;
-    case CurveSet::CurveOrder::ALPHABETIC:
-      std::sort(orderedNameList.begin(), orderedNameList.end());
-      break;
-    case CurveSet::CurveOrder::REVERSE_ALPHABETIC:
-      std::sort(orderedNameList.begin(), orderedNameList.end(), std::greater<std::string>());
-      break;
+  switch(curveOrder)
+  {
+  case CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST:
+    break;
+  case CurveSet::CurveOrder::REGISTRATION_NEWEST_FIRST:
+    std::reverse(orderedNameList.begin(), orderedNameList.end());
+    break;
+  case CurveSet::CurveOrder::ALPHABETIC:
+    std::sort(orderedNameList.begin(), orderedNameList.end());
+    break;
+  case CurveSet::CurveOrder::REVERSE_ALPHABETIC:
+    std::sort(orderedNameList.begin(), orderedNameList.end(), std::greater<std::string>());
+    break;
   }
-  for (auto &curveName : orderedNameList) {
+  for(auto &curveName : orderedNameList)
+  {
     auto expectedCurve = curveMap.find(curveName);
     // Warn if not found? Should this be allowed to happen?
-    if (expectedCurve != curveMap.end()) {
+    if(expectedCurve != curveMap.end())
+    {
       mapNode.add_child(curveName) = expectedCurve->second.toNode();
     }
   }
@@ -129,28 +134,38 @@ CurveSet::CurveSet(std::string name_)
   : name {std::move(name_)}
   , independentCurves {}
   , dependentCurves {}
-  , independentCurveNameOrder{}
-  , dependentCurveNameOrder{} {}
+  , independentCurveNameOrder {}
+  , dependentCurveNameOrder {}
+{ }
 
-  CurveSet::CurveSet(std::string name_, conduit::Node const &node) {
-    name = std::move(name_);
-    auto independentCurveInfo = extractCurveMap(node, INDEPENDENT_KEY);
-    independentCurves = std::move(independentCurveInfo.curveMap);
-    independentCurveNameOrder = std::move(independentCurveInfo.curveOrder);
-    auto dependentCurveInfo = extractCurveMap(node, DEPENDENT_KEY);
-    dependentCurves = std::move(dependentCurveInfo.curveMap);
-    dependentCurveNameOrder = std::move(dependentCurveInfo.curveOrder);
+CurveSet::CurveSet(std::string name_, conduit::Node const &node)
+{
+  name = std::move(name_);
+  auto independentCurveInfo = extractCurveMap(node, INDEPENDENT_KEY);
+  independentCurves = std::move(independentCurveInfo.curveMap);
+  independentCurveNameOrder = std::move(independentCurveInfo.curveOrder);
+  auto dependentCurveInfo = extractCurveMap(node, DEPENDENT_KEY);
+  dependentCurves = std::move(dependentCurveInfo.curveMap);
+  dependentCurveNameOrder = std::move(dependentCurveInfo.curveOrder);
 }
 
-void CurveSet::addIndependentCurve(Curve curve) { addCurve(std::move(curve), independentCurves, independentCurveNameOrder); }
+void CurveSet::addIndependentCurve(Curve curve)
+{
+  addCurve(std::move(curve), independentCurves, independentCurveNameOrder);
+}
 
-void CurveSet::addDependentCurve(Curve curve) { addCurve(std::move(curve), dependentCurves, dependentCurveNameOrder); }
+void CurveSet::addDependentCurve(Curve curve)
+{
+  addCurve(std::move(curve), dependentCurves, dependentCurveNameOrder);
+}
 
-conduit::Node CurveSet::toNode(CurveOrder curveOrder) const {
-    conduit::Node asNode;
-    asNode[INDEPENDENT_KEY] = createCurveMapNode(independentCurves, independentCurveNameOrder, curveOrder);
-    asNode[DEPENDENT_KEY] = createCurveMapNode(dependentCurves, dependentCurveNameOrder, curveOrder);
-    return asNode;
+conduit::Node CurveSet::toNode(CurveOrder curveOrder) const
+{
+  conduit::Node asNode;
+  asNode[INDEPENDENT_KEY] =
+    createCurveMapNode(independentCurves, independentCurveNameOrder, curveOrder);
+  asNode[DEPENDENT_KEY] = createCurveMapNode(dependentCurves, dependentCurveNameOrder, curveOrder);
+  return asNode;
 }
 
 }  // namespace sina

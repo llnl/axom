@@ -84,7 +84,7 @@ public:
      */
   std::string const &getUser() const { return user; }
 
-  conduit::Node toNode(CurveSet::CurveOrder curveOrder=defaultCurveOrder) const override;
+  conduit::Node toNode(CurveSet::CurveOrder curveOrder = defaultCurveOrder) const override;
 
 private:
   std::string application;

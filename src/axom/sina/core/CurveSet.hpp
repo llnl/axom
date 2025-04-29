@@ -50,14 +50,22 @@ public:
   /**
     * An enum representing supported orderings for curves within a CurveSet.
     */
-  enum class CurveOrder {REGISTRATION_OLDEST_FIRST, REGISTRATION_NEWEST_FIRST,
-                         ALPHABETIC, REVERSE_ALPHABETIC};
+  enum class CurveOrder
+  {
+    REGISTRATION_OLDEST_FIRST,
+    REGISTRATION_NEWEST_FIRST,
+    ALPHABETIC,
+    REVERSE_ALPHABETIC
+  };
 
   /**
     * A struct used to return ordered names from a Conduit node.
     */
-  struct curveNodeInfo{CurveSet::CurveMap curveMap;
-                       std::vector<std::string> curveOrder;};
+  struct curveNodeInfo
+  {
+    CurveSet::CurveMap curveMap;
+    std::vector<std::string> curveOrder;
+  };
 
   /**
      * \brief Create a CurveSet with the given name
@@ -86,14 +94,14 @@ public:
    *
    * @return a vector of curve names in the order of insertion.
    */
-  std::vector<std::string> const &getIndependentCurveOrder() { return independentCurveNameOrder;}
+  std::vector<std::string> const &getIndependentCurveOrder() { return independentCurveNameOrder; }
 
   /**
    * Get the insertion order of this curveset's dependents.
    *
    * @return a vector of curve names in the order of insertion.
    */
-  std::vector<std::string> const &getDependentCurveOrder() { return dependentCurveNameOrder;}
+  std::vector<std::string> const &getDependentCurveOrder() { return dependentCurveNameOrder; }
 
   /**
      * \brief Add an independent curve.

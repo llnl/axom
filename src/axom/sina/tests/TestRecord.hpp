@@ -53,7 +53,7 @@ public:
      */
   const T &getValue() const noexcept { return value; }
 
-  conduit::Node toNode(CurveSet::CurveOrder curveOrder=defaultCurveOrder) const override;
+  conduit::Node toNode(CurveSet::CurveOrder curveOrder = defaultCurveOrder) const override;
 
 private:
   T value;
