@@ -193,8 +193,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
   else
   {
     field_direction = DiscontinuityAxis::rotated;
-    Vector<T, 3> discontinuity_direction = random_unit();
-    Line<T, 3> discontinuity_axis(query, discontinuity_direction);
+    Line<T, 3> discontinuity_axis(query, cast_direction);
 
     // Tolerance for what counts as "close to a boundary" in parameter space
     T disk_radius = 0.1 * nPatch.getParameterSpaceDiagonal();
@@ -231,7 +230,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
       //  > There normal is poorly defined (cusp)
       //  > The normal is tangent to the axis of discontinuity
       bool bad_intersection = axom::utilities::isNearlyEqual(the_normal.norm(), 0.0, EPS) ||
-        axom::utilities::isNearlyEqual(the_normal.unitVector().dot(discontinuity_direction), 0.0, EPS);
+        axom::utilities::isNearlyEqual(the_normal.unitVector().dot(cast_direction), 0.0, EPS);
 
       bool isOnSurface = squared_distance(query, the_point) <= edge_tol_sq;
 
@@ -239,7 +238,8 @@ double nurbs_winding_number(const Point<T, 3>& query,
       {
         // If a non-coincident ray intersects the surface at a tangent/cusp,
         //  can recast and try again
-        return winding_number(query, nPatch, edge_tol, quad_tol, EPS, depth + 1);
+        auto new_cast_direction = random_unit();
+        return nurbs_winding_number(query, nPatch, new_cast_direction, edge_tol, ls_tol, quad_tol, EPS, depth + 1);
       }
 
       if(isOnSurface)
@@ -259,14 +259,14 @@ double nurbs_winding_number(const Point<T, 3>& query,
       bool isDiskInside, isDiskOutside;
       NURBSPatch<T, 3> the_disk;
       nPatch.diskSplit(up[i],
-                                  vp[i],
-                                  disk_radius,
-                                  the_disk,
-                                  nPatchWithBoundaries,
-                                  isDiskInside,
-                                  isDiskOutside,
-                                  ignoreInteriorDisk,
-                                  clipDisk);
+                       vp[i],
+                       disk_radius,
+                       the_disk,
+                       nPatchWithBoundaries,
+                       isDiskInside,
+                       isDiskOutside,
+                       ignoreInteriorDisk,
+                       clipDisk);
 
       // the_disk.printTrimmingCurves(
       //   "C:\\Users\\Fireh\\Code\\winding_number_code\\trimming_examples\\disk.txt");
@@ -282,7 +282,8 @@ double nurbs_winding_number(const Point<T, 3>& query,
       else if(!isDiskInside && !isDiskOutside)
       {
         // If the disk overlapped with the trimming curves, evaluate the winding number for the disk
-        the_gwn += winding_number(query, the_disk, edge_tol, quad_tol, EPS, depth + 1);
+        auto new_cast_direction = random_unit();
+        the_gwn += nurbs_winding_number(query, the_disk, new_cast_direction, edge_tol, ls_tol, quad_tol, EPS, depth + 1);
       }
       else if(isDiskOutside)
       {
@@ -299,9 +300,9 @@ double nurbs_winding_number(const Point<T, 3>& query,
     }
 
     // Rotate the patch so that the discontinuity is aligned with the z-axis
-    Vector<T, 3> axis = {discontinuity_direction[1], -discontinuity_direction[0], 0};
+    Vector<T, 3> axis = {cast_direction[1], -cast_direction[0], 0};
 
-    double ang = std::acos(axom::utilities::clampVal(discontinuity_direction[2], -1.0, 1.0));
+    double ang = std::acos(axom::utilities::clampVal(cast_direction[2], -1.0, 1.0));
 
     rotator = angleAxisRotMatrix(ang, axis);
   }

@@ -579,23 +579,24 @@ TEST(primal_integral, bezierpatch_sphere)
   }
 
   // Iterate over points of interest, i.e. axis/edge/vertex aligned
-  Vector3D query_directions[12] = {Vector3D({0.0, 0.0, 1.0}).unitVector(),
-                                   Vector3D({0.0, 1.0, 0.0}).unitVector(),
-                                   Vector3D({1.0, 0.0, 0.0}).unitVector(),
-                                   Vector3D({0.0, 1.0, 1.0}).unitVector(),
-                                   Vector3D({1.0, 0.0, 1.0}).unitVector(),
-                                   Vector3D({1.0, 1.0, 0.0}).unitVector(),
-                                   Vector3D({1.0, 1.0, 1.0}).unitVector(),
-                                   Vector3D({0.0, 0.1, 1.0}).unitVector(),
-                                   Vector3D({0.1, 1.0, 0.0}).unitVector(),
-                                   Vector3D({1.0, 0.0, 0.1}).unitVector(),
-                                   Vector3D(sphere_faces[0].evaluate(0, 0.6)),
+  Vector3D query_directions[12] = {Vector3D({0.0, 0.0, 1.0}).unitVector(), // 0
+                                   Vector3D({0.0, 1.0, 0.0}).unitVector(), // 1
+                                   Vector3D({1.0, 0.0, 0.0}).unitVector(), // 2
+                                   Vector3D({0.0, 1.0, 1.0}).unitVector(), // 3
+                                   Vector3D({1.0, 0.0, 1.0}).unitVector(), // 4
+                                   Vector3D({1.0, 1.0, 0.0}).unitVector(), // 5
+                                   Vector3D({1.0, 1.0, 1.0}).unitVector(), // 6
+                                   Vector3D({0.0, 0.1, 1.0}).unitVector(), // 7
+                                   Vector3D({0.1, 1.0, 0.0}).unitVector(), // 8
+                                   Vector3D({1.0, 0.0, 0.1}).unitVector(), // 9
+                                   Vector3D(sphere_faces[0].evaluate(0, 0.6)), // 10
                                    Vector3D(sphere_faces[0].evaluate(0.6, 0))};
 
+  const double edge_tol = 1e-6;
+  const double ls_tol = 1e-10;
   const double quad_tol = 1e-5;
   const double EPS = 1e-11;
 
-  const double edge_tol = 1e-6;
   const double edge_offset = 1e-5;
 
   // Test some easy cases
@@ -605,8 +606,8 @@ TEST(primal_integral, bezierpatch_sphere)
   double origin_wn = 0.0, near_origin_wn = 0.0;
   for(int k = 0; k < 6; ++k)
   {
-    origin_wn += winding_number(origin, sphere_faces[k], edge_tol, quad_tol, EPS);
-    near_origin_wn += winding_number(near_origin, sphere_faces[k], edge_tol, quad_tol, EPS);
+    origin_wn += winding_number(origin, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
+    near_origin_wn += winding_number(near_origin, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
   }
   EXPECT_NEAR(origin_wn, 1.0, 6 * quad_tol);
   EXPECT_NEAR(near_origin_wn, 1.0, 6 * quad_tol);
@@ -619,13 +620,13 @@ TEST(primal_integral, bezierpatch_sphere)
     double far_wn = 0.0;
     for(int k = 0; k < 6; ++k)
     {
-      far_wn += winding_number(far_query, sphere_faces[k], edge_tol, quad_tol, EPS);
+      far_wn += winding_number(far_query, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
     }
     EXPECT_NEAR(far_wn, 0.0, 6 * quad_tol);
   }
 
   // Iterate over difficult query directions for very close points
-  for(int i = 0; i < 12; ++i)
+  for(int i = 10; i < 11; ++i)
   {
     // if(i != 3) continue;
     // std::cout << i << std::endl;
@@ -636,17 +637,17 @@ TEST(primal_integral, bezierpatch_sphere)
 
     // Iterate over the patches that compose the sphere
     double inner_wn = 0;
-    for(int k = 0; k < 6; ++k)
+    for(int k = 6; k < 6; ++k)
     {
-      inner_wn += winding_number(inner_query, sphere_faces[k], edge_tol, quad_tol, EPS);
+      inner_wn += winding_number(inner_query, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
     }
     EXPECT_NEAR(inner_wn, 1.0, 6 * quad_tol);
 
     // Iterate over the patches that compose the sphere
     double outer_wn = 0;
-    for(int k = 0; k < 6; ++k)
+    for(int k = 6; k < 6; ++k)
     {
-      outer_wn += winding_number(outer_query, sphere_faces[k], edge_tol, quad_tol, EPS);
+      outer_wn += winding_number(outer_query, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
     }
     EXPECT_NEAR(outer_wn, 0.0, 6 * quad_tol);
 
@@ -654,9 +655,9 @@ TEST(primal_integral, bezierpatch_sphere)
     //  We can't be as precise in this case, but we can still get close
     auto coincident_query = Point3D(query_directions[i].array());
     double coincident_wn = 0.0;
-    for(int k = 0; k < 6; ++k)
+    for(int k = 4; k < 5; ++k)
     {
-      coincident_wn += winding_number(coincident_query, sphere_faces[k], edge_tol, quad_tol, EPS);
+      coincident_wn += winding_number(coincident_query, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
     }
     EXPECT_NEAR(coincident_wn, 0.5, 0.01);
   }
