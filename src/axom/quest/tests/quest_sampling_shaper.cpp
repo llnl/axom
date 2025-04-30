@@ -1536,12 +1536,18 @@ shapes:
 
   // check that we can set several projectors in 2D and 3D
   // uses simplest projectors, e.g. identity in 2D and 3D
-  this->m_shaper->setPointProjector([](const Point3D& pt) {
+  this->m_shaper->setPointProjector(AXOM_LAMBDA[](const Point3D& pt) {
     return Point3D {pt[0], pt[1], pt[2]};
   });
-  this->m_shaper->setPointProjector([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
+  this->m_shaper->setPointProjector(AXOM_LAMBDA(const Point2D& pt) {
+    return Point2D {pt[0], pt[1]};
+  });
+  this->m_shaper->setPointProjector(AXOM_LAMBDA(const Point3D& pt) {
+    return Point2D {pt[0], pt[1]};
+  });
+  this->m_shaper->setPointProjector(AXOM_LAMBDA(const Point2D& pt) {
+    return Point3D {pt[0], pt[1], 0};
+  });
 
   this->runShaping();
 

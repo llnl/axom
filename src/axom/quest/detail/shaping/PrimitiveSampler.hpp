@@ -232,9 +232,16 @@ public:
       AXOM_ANNOTATE_SCOPE("project query points");
       projected_qpts.resize(nq);
       auto proj_pts_v = projected_qpts.view();
+#if 0
       axom::for_all<ExecSpace>(
         nq,
         AXOM_LAMBDA(axom::IndexType i) { proj_pts_v[i] = projector(orig_qpts_v[i]); });
+#else
+      for(int i = 0; i < nq; ++i)
+      {
+        proj_pts_v[i] = projector(orig_qpts_v[i]);
+      }
+#endif
     }
     // We need to reinterpret_cast since the compiler can't rule out that FromPoint is a different type from ToPoint
     // in the else case, despite our SLIC_ERROR above that checks for this.
@@ -269,6 +276,7 @@ public:
     auto offsets_view = offsets.view();
     auto candidates_view = candidates.view();
     auto aabbs_view = m_aabbs.view();
+    auto prims_view = m_primitives.view();
     AXOM_UNUSED_VAR(aabbs_view);
 
     AXOM_ANNOTATE_BEGIN("checking containment");
@@ -281,7 +289,7 @@ public:
 
           SLIC_ASSERT(aabbs_view[shapeIdx].scale(1.05).contains(query_view[i]));
 
-          if(m_primitives[shapeIdx].contains(query_view[i]))
+          if(prims_view[shapeIdx].contains(query_view[i]))
           {
             inout_view[i] = 1.;
           }
