@@ -128,10 +128,6 @@ public:
 
     SLIC_INFO(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
 
-#if 0
-    axom::ArrayView<ShapeType> discretizedGeometryView = discretizedGeometry.view();
-#endif
-
     SLIC_INFO(axom::fmt::format(
       "GeometryClipperDelegateExec::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
       getStrategy().name()));
@@ -235,20 +231,12 @@ public:
     AXOM_ANNOTATE_BEGIN("newTotalCandidates memory");
     IndexType totalCandidatesCount = 0;
     IndexType* totalCandidatesCountPtr = &totalCandidatesCount;
-#if 1
     if(!axom::execution_space<ExecSpace>::usesMemorySpace(MemorySpace::Dynamic))
     {
       // Use temporary space compatible with runtime policy.
       totalCandidatesCountPtr = axom::allocate<IndexType>(1, allocId);
       axom::copy(totalCandidatesCountPtr, &totalCandidatesCount, sizeof(totalCandidatesCount));
     }
-#else
-    axom::Array<IndexType> newTotalCandidates_host(1, 1, host_allocator);
-    newTotalCandidates_host[0] = 0;
-    axom::Array<IndexType> newTotalCandidates_device =
-      axom::Array<IndexType>(newTotalCandidates_host, allocId);
-    auto newTotalCandidates_device_view = newTotalCandidates_device.view();
-#endif
     AXOM_ANNOTATE_END("newTotalCandidates memory");
 
     const auto offsets_device_view = offsets.view();
@@ -288,7 +276,6 @@ public:
     {
       AXOM_ANNOTATE_SCOPE("clipLoop");
       // Copy calculated total back to host if needed
-#if 1
       if(totalCandidatesCountPtr != &totalCandidatesCount)
       {
         axom::copy(&totalCandidatesCount, totalCandidatesCountPtr, sizeof(IndexType));
@@ -320,7 +307,7 @@ public:
             }
           });
       }
-      else
+      else // useOcts
       {
         axom::for_all<ExecSpace>(
           totalCandidatesCount,
@@ -344,32 +331,6 @@ public:
             }
           });
       }
-#else
-      axom::Array<IndexType> newTotalCandidates_calc_host =
-        axom::Array<IndexType>(newTotalCandidates_device, host_allocator);
-
-      axom::for_all<ExecSpace>(
-        newTotalCandidates_calc_host[0],  // Number of candidates found.
-        AXOM_LAMBDA(axom::IndexType i) {
-          const int index = hex_indices_device_view[i];
-          const int shapeIndex = shape_candidates_device_view[i];
-          const int tetIndex = tet_indices_device_view[i];
-
-          const PolyhedronType poly = primal::clip(discretizedGeometryView[shapeIndex],
-                                                   tets_from_hexes_device_view[tetIndex],
-                                                   EPS,
-                                                   tryFixOrientation);
-
-          // Poly is valid
-          if(poly.numVertices() >= 4)
-          {
-            // Workaround - intermediate volume variable needed for
-            // CUDA Pro/E test case correctness
-            double volume = poly.volume();
-            RAJA::atomicAdd<ATOMIC_POL>(ovlapView.data() + index, volume);
-          }
-        });
-#endif
     }
 
     if(totalCandidatesCountPtr != &totalCandidatesCount)
