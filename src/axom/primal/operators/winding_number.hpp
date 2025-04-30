@@ -495,14 +495,15 @@ double winding_number(const Point<T, 3>& query,
                       const double quad_tol = 1e-8,
                       const double EPS = 1e-8)
 {
-  NURBSPatch<T, 3> nPatch(bPatch);
-  nPatch.makeTriviallyTrimmed();
+  NURBSPatch<T, 3> nPatch_tested(bPatch);
+  nPatch_tested.makeTriviallyTrimmed();
+  nPatch_tested.scaleParameterSpace(1.0 + 0.05 * nPatch_tested.getParameterSpaceDiagonal());
 
-  double theta = axom::utilities::random_real(0.0, 2 * M_PI, seed + depth);
-  double u = axom::utilities::random_real(-1.0, 1.0, seed + depth);
-  auto cast_direction Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+  double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+  double u = axom::utilities::random_real(-1.0, 1.0);
+  auto cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
 
-  return detail::nurbs_winding_number(query, nPatch, cast_direction, edge_tol, ls_tol, quad_tol, EPS);
+  return detail::nurbs_winding_number(query, nPatch_tested, cast_direction, edge_tol, ls_tol, quad_tol, EPS);
 }
 
 /*
@@ -528,11 +529,15 @@ double winding_number(const Point<T, 3>& query,
                       const double quad_tol = 1e-8,
                       const double EPS = 1e-8)
 {
-  double theta = axom::utilities::random_real(0.0, 2 * M_PI, seed + depth);
-  double u = axom::utilities::random_real(-1.0, 1.0, seed + depth);
-  auto cast_direction Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+  NURBSPatch<T, 3> nPatch_tested(nPatch);
+  nPatch_tested.makeTriviallyTrimmed();
+  nPatch_tested.scaleParameterSpace(1.0 + 0.05 * nPatch_tested.getParameterSpaceDiagonal());
 
-  return detail::nurbs_winding_number(query, nPatch, cast_direction, edge_tol, ls_tol, quad_tol, EPS);
+  double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+  double u = axom::utilities::random_real(-1.0, 1.0);
+  auto cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+
+  return detail::nurbs_winding_number(query, nPatch_tested, cast_direction, edge_tol, ls_tol, quad_tol, EPS);
 }
 
 // #endif

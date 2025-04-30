@@ -38,7 +38,7 @@ enum class DiscontinuityAxis
   rotated
 };
 
-#ifdef AXOM_USE_MFEM
+// #ifdef AXOM_USE_MFEM
 /*
  * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch
  *
@@ -71,7 +71,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
   const double edge_tol_sq = edge_tol * edge_tol;
 
   // Fix the number of quadrature points arbitrarily
-  constexpr int quad_npts = 50;
+  constexpr int quad_npts = 15;
 
   // Store the winding number
   double the_gwn = 0.0;
@@ -116,22 +116,17 @@ double nurbs_winding_number(const Point<T, 3>& query,
   };
 
   // Lambda to generate an entirely random unit vector
-  auto random_unit = [&depth]() -> Vector<T, 3> {
-    unsigned int seed = 140;
-    double theta = axom::utilities::random_real(0.0, 2 * M_PI, seed + depth);
-    double u = axom::utilities::random_real(-1.0, 1.0, seed + depth);
+  auto random_unit = []() -> Vector<T, 3> {
+    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+    double u = axom::utilities::random_real(-1.0, 1.0);
     return Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
   };
 
   // Rotation matrix for the patch
   numerics::Matrix<T> rotator;
 
-  // Make the patch trivially trimmed, if necessary
-  NURBSPatch<T, 3> nPatchTrimmedMore(nPatch);
-  if(!nPatch.isTrimmed())
-  {
-    nPatchTrimmedMore.makeTriviallyTrimmed();
-  }
+  // Allocate space for the patch which contains all surface boundaries
+  NURBSPatch<T, 3> nPatchWithBoundaries(nPatch), the_disk;
 
   // Define vector fields whose curl gives us the winding number
   DiscontinuityAxis field_direction;
@@ -173,8 +168,8 @@ double nurbs_winding_number(const Point<T, 3>& query,
     field_direction = DiscontinuityAxis::rotated;
 
     // Find vector from query to the bounding box
-    Point<T, 3> closest = closest_point(q, oBox);
-    Vector<T, 3> v0 = Vector<T, 3>(q, closest).unitVector();
+    Point<T, 3> closest = closest_point(query, oBox);
+    Vector<T, 3> v0 = Vector<T, 3>(query, closest).unitVector();
 
     // Find the direction of a ray perpendicular to that
     Vector<T, 3> v1;
@@ -201,18 +196,15 @@ double nurbs_winding_number(const Point<T, 3>& query,
     Vector<T, 3> discontinuity_direction = random_unit();
     Line<T, 3> discontinuity_axis(query, discontinuity_direction);
 
-    T patch_knot_size = axom::utilities::max(nPatch.getMaxKnot_u() - nPatch.getMinKnot_u(),
-                                             nPatch.getMaxKnot_v() - nPatch.getMinKnot_v());
-
     // Tolerance for what counts as "close to a boundary" in parameter space
-    T disk_radius = 0.1 * patch_knot_size;
+    T disk_radius = 0.1 * nPatch.getParameterSpaceDiagonal();
 
     // Compute intersections with the *untrimmed and extrapolated* patch
     axom::Array<T> up, vp, tp;
     bool isHalfOpen = false, isTrimmed = false;
-    nPatchTrimmedMore.expandParameterSpace(0.1 * patch_knot_size);
+
     bool success = intersect(discontinuity_axis,
-                             nPatchTrimmedMore,
+                             nPatch,
                              tp,
                              up,
                              vp,
@@ -266,11 +258,11 @@ double nurbs_winding_number(const Point<T, 3>& query,
       const bool ignoreInteriorDisk = true, clipDisk = true;
       bool isDiskInside, isDiskOutside;
       NURBSPatch<T, 3> the_disk;
-      nPatchTrimmedMore.diskSplit(up[i],
+      nPatch.diskSplit(up[i],
                                   vp[i],
                                   disk_radius,
                                   the_disk,
-                                  nPatchTrimmedMore,
+                                  nPatchWithBoundaries,
                                   isDiskInside,
                                   isDiskOutside,
                                   ignoreInteriorDisk,
@@ -318,18 +310,18 @@ double nurbs_winding_number(const Point<T, 3>& query,
   {
     // The trimming curves for rotatedPatch have been changed as needed,
     //  but we need to rotate the control points
-    auto patch_shape = nPatchTrimmedMore.getControlPoints().shape();
+    auto patch_shape = nPatchWithBoundaries.getControlPoints().shape();
     for(int i = 0; i < patch_shape[0]; ++i)
     {
       for(int j = 0; j < patch_shape[1]; ++j)
       {
-        nPatchTrimmedMore(i, j) = rotate_point(rotator, nPatchTrimmedMore(i, j));
+        nPatchWithBoundaries(i, j) = rotate_point(rotator, nPatchWithBoundaries(i, j));
       }
     }
   }
 
   the_gwn +=
-    stokes_winding_number_evaluate(query, nPatchTrimmedMore, field_direction, quad_npts, quad_tol);
+    stokes_winding_number_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
 
   return the_gwn;
 }
@@ -457,7 +449,7 @@ double stokes_winding_number_component(const Point<T, 3>& query,
 
     Point<T, 2> c_eval;
     Vector<T, 2> c_Dt;
-    curve.evaluate_first_derivative(quad_x, c_eval, c_Dt);
+    curve.evaluateFirstDerivative(quad_x, c_eval, c_Dt);
 
     Point<T, 3> s_eval;
     Vector<T, 3> s_Du, s_Dv;
@@ -489,7 +481,7 @@ double stokes_winding_number_component(const Point<T, 3>& query,
 
   return this_quad;
 }
-#endif
+// #endif
 
 }  // end namespace detail
 }  // end namespace primal

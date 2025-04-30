@@ -968,6 +968,15 @@ public:
   /// \brief Get the maximum knot value in the u-axis
   T getMaxKnot_u() const { return m_knotvec_u[m_knotvec_u.getNumKnots() - 1]; }
 
+  /// \brief Get the length of the parameter space bounding box
+  T getParameterSpaceDiagonal() const
+  {
+    T u_length = getMaxKnot_u() - getMinKnot_u();
+    T v_length = getMaxKnot_v() - getMinKnot_v();
+
+    return std::sqrt(u_length * u_length + v_length * v_length);
+  }
+
   /// \brief Return a copy of the KnotVector instance on the second axis
   KnotVectorType getKnots_v() const { return m_knotvec_v; }
 
