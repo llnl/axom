@@ -23,8 +23,9 @@ SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& nam
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Sphere") : name)
   , m_sphere(kGeom.getSphere())
-  , m_levelOfRefinement(kGeom.getLevelOfRefinement())
-{ }
+{
+  extractClipperInfo();
+}
 
 bool SphereClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
@@ -135,6 +136,19 @@ bool SphereClipper::getShapeAsOcts(quest::ShapeeMesh& shapeeMesh,
     octs = axom::Array<axom::primal::Octahedron<double, 3>>(octs, allocId);
   }
   return true;
+}
+
+void SphereClipper::extractClipperInfo()
+{
+  const auto c = m_info.fetch_existing("center").as_double_array();
+  const double radius = m_info.fetch_existing("radius").as_double();
+  Point3DType center;
+  for(int d = 0; d < 3; ++d)
+  {
+    center[d] = c[d];
+  }
+  m_sphere = SphereType(center, radius);
+  m_levelOfRefinement = m_info.fetch_existing("levelOfRefinement").to_int32();
 }
 
 }  // end namespace quest

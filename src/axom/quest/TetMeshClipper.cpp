@@ -114,7 +114,7 @@ bool TetMeshClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<T
     }
 
     // mint::Mesh requires connectivity strides, even though Blueprint doesn't.
-    if(!elementsGrp->hasGroup("stride"))
+    if(!elementsGrp->hasView("stride"))
     {
       elementsGrp->createViewScalar("stride", NUM_VERTS_PER_TET, hostAllocId);
     }
@@ -154,7 +154,6 @@ bool TetMeshClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<T
 
 void TetMeshClipper::extractClipperInfo()
 {
-  m_info.print();
   m_topoName = m_info.fetch_existing("topologyName").to_string();
   m_topoName = m_topoName.substr(1, m_topoName.size() - 2);  // Remove unwanted quotes.
 

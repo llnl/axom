@@ -56,6 +56,8 @@ private:
   void specializedClipImpl(quest::ShapeeMesh& shapeeMesh,
                            axom::ArrayView<double>& ovlap,
                            const axom::ArrayView<IndexType>& cellIds);
+
+  void extractClipperInfo();
 };
 
 }  // namespace quest

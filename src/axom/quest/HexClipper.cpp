@@ -22,8 +22,9 @@ namespace quest
 HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Hex") : name)
-  , m_hex(kGeom.getHex())
 {
+  extractClipperInfo();
+
   for(int i = 0; i < HexahedronType::NUM_HEX_VERTS; ++i)
   {
     m_bb.addPoint(m_hex[i]);
@@ -176,6 +177,29 @@ bool HexClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<Tetra
   }
   axom::copy(tets.data(), m_tets.data(), m_tets.size() * sizeof(TetrahedronType));
   return true;
+}
+
+void HexClipper::extractClipperInfo()
+{
+  const auto v0 = m_info.fetch_existing("v0").as_double_array();
+  const auto v1 = m_info.fetch_existing("v1").as_double_array();
+  const auto v2 = m_info.fetch_existing("v2").as_double_array();
+  const auto v3 = m_info.fetch_existing("v3").as_double_array();
+  const auto v4 = m_info.fetch_existing("v4").as_double_array();
+  const auto v5 = m_info.fetch_existing("v5").as_double_array();
+  const auto v6 = m_info.fetch_existing("v6").as_double_array();
+  const auto v7 = m_info.fetch_existing("v7").as_double_array();
+  for(int d = 0; d < 3; ++d)
+  {
+    m_hex[0][d] = v0[d];
+    m_hex[1][d] = v1[d];
+    m_hex[2][d] = v2[d];
+    m_hex[3][d] = v3[d];
+    m_hex[4][d] = v4[d];
+    m_hex[5][d] = v5[d];
+    m_hex[6][d] = v6[d];
+    m_hex[7][d] = v7[d];
+  }
 }
 
 }  // end namespace quest

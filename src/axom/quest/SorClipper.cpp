@@ -24,7 +24,6 @@ namespace quest
 SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Sor") : name)
-  , m_cellCount(0)
 {
   extractClipperInfo();
 }
@@ -43,9 +42,9 @@ bool SorClipper::getShapeAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Octah
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   const int allocId = shapeeMesh.getAllocatorId();
 
-  if(octs.getAllocatorID() != allocId || octs.size() != m_cellCount)
+  if(octs.getAllocatorID() != allocId || octs.size() != 0)
   {
-    octs = axom::Array<OctahedronType>(m_cellCount, m_cellCount, allocId);
+    octs = axom::Array<OctahedronType>(0, 0, allocId);
   }
 
   axom::Array<OctahedronType> tmpOcts(0, 0, hostAllocId);
@@ -56,7 +55,7 @@ bool SorClipper::getShapeAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Octah
 
   if(&octsOnHost == &tmpOcts)
   {
-    tmpOcts.resize(m_cellCount, OctahedronType());
+    tmpOcts.resize(0, OctahedronType());
   }
 
   // Generate the Octahedra
@@ -141,8 +140,6 @@ numerics::Matrix<double> SorClipper::sorAxisRotMatrix(const Vector3DType& dir)
 
 void SorClipper::extractClipperInfo()
 {
-  m_info.print();
-
   auto sorBaseArray = m_info.fetch_existing("sorBase").as_double_array();
   auto sorDirectionArray = m_info.fetch_existing("sorDirection").as_double_array();
   for(int d = 0; d < 3; ++d)

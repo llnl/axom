@@ -49,6 +49,9 @@ private:
 
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+
+  // Extract clipper info from GeometryClipperStrategy::m_info.
+  void extractClipperInfo();
 };
 
 }  // namespace quest

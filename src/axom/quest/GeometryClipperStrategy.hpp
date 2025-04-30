@@ -92,6 +92,16 @@ public:
   */
   virtual const std::string& name() const;
 
+  /*!
+    @brief Free-form representation of geometry.
+
+    The exact information depends on the implementation.
+  */
+  const conduit::Node info() const
+  {
+    return m_info;
+  }
+
   //@{
   //!@name Geometry-specialized methods
   /*!

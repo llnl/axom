@@ -137,11 +137,21 @@ void Geometry::populateGeomInfo()
     m_geomInfo["topologyName"].set(getBlueprintTopology());
   }
 
+  else if(m_format == "tet3D")
+  {
+    const auto& tet = getTet();
+    m_geomInfo["v0"].set(tet[0].data(), 3);
+    m_geomInfo["v1"].set(tet[1].data(), 3);
+    m_geomInfo["v2"].set(tet[2].data(), 3);
+    m_geomInfo["v3"].set(tet[3].data(), 3);
+  }
+
   else if(m_format == "sphere3D")
   {
     const Sphere3D& sphere = getSphere();
     m_geomInfo["center"].set(sphere.getCenter().data(), 3);
     m_geomInfo["radius"].set(sphere.getRadius());
+    m_geomInfo["levelOfRefinement"].set(m_levelOfRefinement);
   }
 
   else if(m_format == "sor3D")
@@ -150,6 +160,26 @@ void Geometry::populateGeomInfo()
     m_geomInfo["sorDirection"].set(m_sorDirection.data(), 3);
     m_geomInfo["discreteFunction"].set(m_discreteFunction.data(), m_discreteFunction.size());
     m_geomInfo["levelOfRefinement"].set(m_levelOfRefinement);
+  }
+
+  else if(m_format == "hex3D")
+  {
+    const auto& hex = getHex();
+    m_geomInfo["v0"].set(hex[0].data(), 3);
+    m_geomInfo["v1"].set(hex[1].data(), 3);
+    m_geomInfo["v2"].set(hex[2].data(), 3);
+    m_geomInfo["v3"].set(hex[3].data(), 3);
+    m_geomInfo["v4"].set(hex[4].data(), 3);
+    m_geomInfo["v5"].set(hex[5].data(), 3);
+    m_geomInfo["v6"].set(hex[6].data(), 3);
+    m_geomInfo["v7"].set(hex[7].data(), 3);
+  }
+
+  else if(m_format == "plane3D")
+  {
+    const auto& plane = getPlane();
+    m_geomInfo["normal"].set(plane.getNormal().data(), 3);
+    m_geomInfo["offset"].set(plane.getOffset());
   }
 
   // TODO: other formats.

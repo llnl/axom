@@ -21,8 +21,9 @@ namespace quest
 Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Plane3D") : name)
-  , m_plane(kGeom.getPlane())
-{ }
+{
+  extractClipperInfo();
+}
 
 bool Plane3DClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
@@ -197,6 +198,18 @@ void Plane3DClipper::specializedClipImpl(quest::ShapeeMesh& shapeeMesh,
       }
       ovlap[cellId] = vol;
     });
+}
+
+void Plane3DClipper::extractClipperInfo()
+{
+  const auto normal = m_info.fetch_existing("normal").as_double_array();
+  const double offset = m_info.fetch_existing("offset").as_double();
+  Vector3DType nVec;
+  for(int d = 0; d < 3; ++d)
+  {
+    nVec[d] = normal[d];
+  }
+  m_plane = Plane3DType(nVec, offset);
 }
 
 }  // end namespace quest

@@ -21,8 +21,9 @@ namespace quest
 TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Tet") : name)
-  , m_tet(kGeom.getTet())
 {
+  extractClipperInfo();
+
   for(int i = 0; i < TetrahedronType::NUM_VERTS; ++i)
   {
     m_bb.addPoint(m_tet[i]);
@@ -163,6 +164,21 @@ bool TetClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<Tetra
   }
   axom::copy(tets.data(), &m_tet, sizeof(TetrahedronType));
   return true;
+}
+
+void TetClipper::extractClipperInfo()
+{
+  const auto v0 = m_info.fetch_existing("v0").as_double_array();
+  const auto v1 = m_info.fetch_existing("v1").as_double_array();
+  const auto v2 = m_info.fetch_existing("v2").as_double_array();
+  const auto v3 = m_info.fetch_existing("v3").as_double_array();
+  for(int d = 0; d < 3; ++d)
+  {
+    m_tet[0][d] = v0[d];
+    m_tet[1][d] = v1[d];
+    m_tet[2][d] = v2[d];
+    m_tet[3][d] = v3[d];
+  }
 }
 
 }  // end namespace quest

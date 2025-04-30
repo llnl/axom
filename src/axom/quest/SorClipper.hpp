@@ -55,9 +55,6 @@ private:
   // analytical shapes and surfaces of revolutions.
   axom::IndexType m_levelOfRefinement = 0;
 
-  //! @brief Number of octahedral cells in the discrete SOR.
-  axom::IndexType m_cellCount;
-
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
