@@ -163,7 +163,7 @@ public:
       ->description("The shape(s) to run")
       ->check(axom::CLI::IsMember(availableShapes))
       ->delimiter(',')
-      ->expected(1, 5);
+      ->expected(1, 8);
 
 #ifdef AXOM_USE_CALIPER
     app.add_option("--caliper", annotationMode)
@@ -455,7 +455,7 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds)
                                                                  topo,
                                                                  coordset);
 
-  double lll = params.length < 0 ? 0.7 : params.length;
+  double lll = params.length < 0 ? 1.17 : params.length;
 
   // Insert tets around origin.
   tetMesh.appendNode(-lll, -lll, -lll);
@@ -533,9 +533,9 @@ axom::klee::Geometry createGeom_Sor()
   // discreteFunction are discrete z-r pairs describing the function
   // to be rotated around the z axis.
   axom::Array<double, 2> discreteFunction({numIntervals + 1, 2}, axom::ArrayStrideOrder::ROW);
-  double zLen = params.length < 0 ? 1.6 : params.length;
+  double zLen = params.length < 0 ? 2.40: params.length;
   double zShift = -zLen / 2;
-  double maxR = params.radius < 0 ? 0.75 : params.radius;
+  double maxR = params.radius < 0 ? 1.10 : params.radius;
   double dz = zLen / numIntervals;
   discreteFunction(0, 0) = 0 * dz + zShift;
   discreteFunction(0, 1) = 0.0 * maxR;
@@ -573,8 +573,8 @@ axom::klee::Geometry createGeom_Cylinder()
   // discreteFunction are discrete z-r pairs describing the function
   // to be rotated around the z axis.
   axom::Array<double, 2> discreteFunction({2, 2}, axom::ArrayStrideOrder::ROW);
-  double radius = params.radius < 0 ? 0.5 : params.radius;
-  double height = params.length < 0 ? 1.2 : params.length;
+  double radius = params.radius < 0 ? 0.695 : params.radius;
+  double height = params.length < 0 ? 2.78 : params.length;
   discreteFunction(0, 0) = -height / 2;
   discreteFunction(0, 1) = radius;
   discreteFunction(1, 0) = height / 2;
@@ -603,9 +603,9 @@ axom::klee::Geometry createGeom_Cone()
   // discreteFunction are discrete z-r pairs describing the function
   // to be rotated around the z axis.
   axom::Array<double, 2> discreteFunction({2, 2}, axom::ArrayStrideOrder::ROW);
-  double baseRadius = params.radius < 0 ? 0.7 : params.radius;
-  double topRadius = params.radius2 < 0 ? 0.1 : params.radius2;
-  double height = params.length < 0 ? 1.3 : params.length;
+  double baseRadius = params.radius < 0 ? 1.23 : params.radius;
+  double topRadius = params.radius2 < 0 ? 0.176 : params.radius2;
+  double height = params.length < 0 ? 2.3 : params.length;
   discreteFunction(0, 0) = -height / 2;
   discreteFunction(0, 1) = baseRadius;
   discreteFunction(1, 0) = height / 2;
@@ -631,7 +631,7 @@ axom::klee::Geometry createGeom_Tet()
                                                     axom::klee::LengthUnit::unspecified};
 
   // Tetrahedron at origin.
-  const double len = params.length < 0 ? 0.8 : params.length;
+  const double len = params.length < 0 ? 1.5 : params.length;
   const Point3D a {-len, -len, -len};
   const Point3D b {+len, -len, -len};
   const Point3D c {+len, +len, -len};
@@ -656,7 +656,7 @@ axom::klee::Geometry createGeom_Hex()
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
 
-  const double md = params.length < 0 ? 0.6 : params.length / 2;
+  const double md = params.length < 0 ? 0.82 : params.length / 2;
   const double lg = 1.2 * md;
   const double sm = 0.8 * md;
   const Point3D p {-lg, -md, -sm};
@@ -1129,6 +1129,12 @@ int main(int argc, char** argv)
     const auto geomName = geomStrategies[i]->name();
 
     SLIC_INFO(axom::fmt::format("{:-^80}", axom::fmt::format("Processing geometry '{}'", geomName)));
+
+    if(my_rank == 0)
+    {
+      std::cout << "Info for geometry '" << geomName << "':" << std::endl;
+      geomStrategies[i]->info().print();
+    }
 
     quest::GeometryClipper clipper(sMesh, geomStrategies[i]);
     clipper.setVerbose(true);
