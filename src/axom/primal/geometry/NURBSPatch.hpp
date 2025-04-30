@@ -3015,6 +3015,12 @@ public:
 
     for(int i = 0; i < circle_params.size() - 1; ++i)
     {
+      // Skip any duplicate parameters
+      if(circle_params[i + 1] - circle_params[i] < 1e-10)
+      {
+        continue;
+      }
+
       // Determine if the circle arc is kept by the original surface
       ParameterPointType mid_arc_point {
         u + r * std::cos(0.5 * (circle_params[i] + circle_params[i + 1])),
@@ -3766,6 +3772,12 @@ private:
 
       for(int i = 0; i < ray_params.size() - 1; ++i)
       {
+        // Skip any duplicate parameters
+        if(ray_params[i + 1] - ray_params[i] < 1e-10)
+        {
+          continue;
+        }
+
         // Determine if the ray segment is kept by the original surface
         ParameterPointType mid_ray_point(ray_obj.at(0.5 * (ray_params[i] + ray_params[i + 1])));
         bool isSegmentVisible = isVisible(mid_ray_point[0], mid_ray_point[1]);
