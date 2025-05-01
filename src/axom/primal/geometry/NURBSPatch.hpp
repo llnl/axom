@@ -2676,7 +2676,8 @@ public:
    *  then the patch is not changed along that direction and axis
    * 
    * \pre Requires that min_u < max_u and min_v < max_v  
-   *
+   * \post A patch whose parameter space is a subset of [min_u, max_u] x [min_v, max_v]
+   * 
    * \sa NURBSPatch::split()
    */
   void clip(T min_u, T max_u, T min_v, T max_v, bool normalizeParameters = false)
