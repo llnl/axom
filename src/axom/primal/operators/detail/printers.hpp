@@ -1424,6 +1424,56 @@ void exportSurfaceToSTL(const std::string& filename,
   exportSurfaceToSTL(filename, beziers, u_steps, v_steps);
 }
 
+template <typename T>
+void printPatchBoundaries(
+    const primal::NURBSPatch<T, 3>& patch)
+{
+  const int n_pts = 20;
+  double t_pts[n_pts];
+
+  std::cout << "=============" << std::endl;
+
+  if(!patch.isTrimmed())
+  {
+    axom::numerics::linspace(0.0, 1.0, t_pts, n_pts);
+    
+    // Print the u/v = 0/1 isocurves
+    for(int i = 0; i < n_pts; ++i)
+    {
+      auto pt1 = patch.evaluate(t_pts[i], 0.0);
+      auto pt2 = patch.evaluate(t_pts[i], 1.0);
+      auto pt3 = patch.evaluate(0.0, t_pts[i]);
+      auto pt4 = patch.evaluate(1.0, t_pts[i]);
+
+      
+      std::cout << "(" << pt1[0] << ", " << pt1[1] << ", " << pt1[2] << "), ";
+      std::cout << "(" << pt2[0] << ", " << pt2[1] << ", " << pt2[2] << "), ";
+      std::cout << "(" << pt3[0] << ", " << pt3[1] << ", " << pt3[2] << "), ";
+      std::cout << "(" << pt4[0] << ", " << pt4[1] << ", " << pt4[2] << "), ";
+    }
+    
+    std::cout << std::endl;
+  }
+  else
+  {
+    for( auto& curve : patch.getTrimmingCurves() )
+    {
+      axom::numerics::linspace(curve.getMinKnot(), curve.getMaxKnot(), t_pts, n_pts);
+
+      for(int i = 0; i < n_pts; ++i)
+      {
+        auto ppt = curve.evaluate(t_pts[i]);
+        auto spt = patch.evaluate(ppt[0], ppt[1]);
+        std::cout << "(" << spt[0] << ", " << spt[1] << ", " << spt[2] << "), ";
+      }
+    }
+
+    std::cout << std::endl;
+  }
+  
+  std::cout << "=============" << std::endl;
+}
+
 }  // namespace primal
 
 }  // namespace axom
