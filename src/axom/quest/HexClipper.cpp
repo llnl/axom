@@ -50,6 +50,7 @@ HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
 
 bool HexClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
+  AXOM_ANNOTATE_BEGIN("HexClipper::labelInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -73,6 +74,7 @@ bool HexClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType
   default:
     SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
   }
+  AXOM_ANNOTATE_END("HexClipper::labelInOut");
   return true;
 }
 
@@ -166,8 +168,9 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   return;
 }
 
-bool HexClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
+bool HexClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
 {
+  AXOM_ANNOTATE_BEGIN("HexClipper::getGeometryAsTets");
   int allocId = shapeeMesh.getAllocatorId();
   if(tets.getAllocatorID() != allocId || tets.size() != HexahedronType::NUM_TRIANGULATE)
   {
@@ -176,6 +179,7 @@ bool HexClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<Tetra
                                         allocId);
   }
   axom::copy(tets.data(), m_tets.data(), m_tets.size() * sizeof(TetrahedronType));
+  AXOM_ANNOTATE_END("HexClipper::getGeometryAsTets");
   return true;
 }
 

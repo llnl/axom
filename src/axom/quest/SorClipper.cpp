@@ -37,8 +37,9 @@ bool SorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType
 
 // TODO: Factor out execution-space-specific computations into a template method,
 // instead of computing on host and copying to GPU.
-bool SorClipper::getShapeAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
+bool SorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
 {
+  AXOM_ANNOTATE_BEGIN("SorClipper::getGeometryAsOcts");
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   const int allocId = shapeeMesh.getAllocatorId();
 
@@ -93,6 +94,7 @@ bool SorClipper::getShapeAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Octah
     axom::copy(octs.data(), octsOnHost.data(), sizeof(OctahedronType) * octs.size());
   }
 
+  AXOM_ANNOTATE_END("SorClipper::getGeometryAsOcts");
   return true;
 }
 

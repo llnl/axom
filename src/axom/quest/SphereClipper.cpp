@@ -29,6 +29,7 @@ SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& nam
 
 bool SphereClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
+  AXOM_ANNOTATE_BEGIN("SphereClipper::labelInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -52,6 +53,7 @@ bool SphereClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelT
   default:
     SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
   }
+  AXOM_ANNOTATE_END("SphereClipper::labelInOut");
   return true;
 }
 
@@ -123,9 +125,10 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
   return;
 }
 
-bool SphereClipper::getShapeAsOcts(quest::ShapeeMesh& shapeeMesh,
+bool SphereClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh,
                                    axom::Array<axom::primal::Octahedron<double, 3>>& octs)
 {
+  AXOM_ANNOTATE_BEGIN("SphereClipper::getGeometryAsOcts");
   int octCount = 0;
   axom::quest::discretize(m_sphere, m_levelOfRefinement, octs, octCount);
 
@@ -135,6 +138,7 @@ bool SphereClipper::getShapeAsOcts(quest::ShapeeMesh& shapeeMesh,
   {
     octs = axom::Array<axom::primal::Octahedron<double, 3>>(octs, allocId);
   }
+  AXOM_ANNOTATE_END("SphereClipper::getGeometryAsOcts");
   return true;
 }
 

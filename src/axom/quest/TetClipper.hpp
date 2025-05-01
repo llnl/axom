@@ -35,7 +35,7 @@ public:
 
   bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
-  bool getShapeAsTets(quest::ShapeeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
+  bool getGeometryAsTets(quest::ShapeeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
 
 #if !defined(__CUDACC__)
 private:

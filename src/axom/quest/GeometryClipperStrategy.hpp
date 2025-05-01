@@ -204,7 +204,7 @@ public:
   }
 
   /*!
-    @brief Get the shape as discrete tetrahedra, or return false.
+    @brief Get the geometry as discrete tetrahedra, or return false.
     @param [in] shapeeMesh Blueprint mesh to shape into.
     @param [out] tets Array of tetrahedra filling the space of the shape.
 
@@ -217,7 +217,7 @@ public:
     @post tets.size() == shapeeMesh.getCellCount()
     @post tets.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
+  virtual bool getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
 
   {
     AXOM_UNUSED_VAR(shapeeMesh);
@@ -226,7 +226,7 @@ public:
   }
 
   /*!
-    @brief Get the shape as discrete octahedra, or return false.
+    @brief Get the geometry as discrete octahedra, or return false.
     @param [in] shapeeMesh Blueprint mesh to shape into.
     @param [out] octs Array of octahedra filling the space of the shape.
 
@@ -238,14 +238,14 @@ public:
     @post octs.size() == shapeeMesh.getCellCount()
     @post octs.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool getShapeAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
+  virtual bool getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(octs);
     return false;
   }
 
-  // Note: in 2D, we should have a getShapeAsSegments().
+  // Note: in 2D, we should have a getGeometryAsSegments().
   //@}
 
 protected:

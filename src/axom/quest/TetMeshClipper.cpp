@@ -39,8 +39,9 @@ bool TetMeshClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   return false;  // TODO: implement TetMeshClipper::labelInOut
 }
 
-bool TetMeshClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
+bool TetMeshClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
 {
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::getGeometryAsTets");
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   const int allocId = shapeeMesh.getAllocatorId();
 
@@ -149,6 +150,7 @@ bool TetMeshClipper::getShapeAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<T
     axom::copy(tets.data(), tetsOnHost.data(), sizeof(TetrahedronType) * tets.size());
   }
 
+  AXOM_ANNOTATE_END("TetMeshClipper::getGeometryAsTets");
   return true;
 }
 

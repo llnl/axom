@@ -80,15 +80,18 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
       SLIC_INFO(msg);
     }
 
+    AXOM_ANNOTATE_BEGIN("GeometryClipper::processInOut");
     m_delegate->setCleanVolumeOverlaps(labels.view(), ovlap);
 
     axom::Array<axom::IndexType> unlabeledCells;
     m_delegate->collectUnlabeledCellIndices(labels.view(), unlabeledCells);
+    AXOM_ANNOTATE_END("GeometryClipper::processInOut");
 
     done = m_strategy->specializedClip(m_shapeeMesh, ovlap.view(), unlabeledCells);
 
     if(!done)
     {
+      AXOM_ANNOTATE_SCOPE("GeometryClipper::clip3D_limited");
       m_delegate->computeClipVolumes3D(unlabeledCells.view(), ovlap.view());
     }
   }
@@ -98,6 +101,7 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
 
     if(!done)
     {
+      AXOM_ANNOTATE_SCOPE("GeometryClipper::clip3D");
       m_delegate->computeClipVolumes3D(ovlap);
     }
   }

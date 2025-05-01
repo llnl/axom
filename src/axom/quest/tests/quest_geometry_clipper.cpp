@@ -1123,10 +1123,11 @@ int main(int argc, char** argv)
   int failCounts = 0;
 
   SLIC_INFO(axom::fmt::format("{:=^80}", "Shaping loop"));
-  AXOM_ANNOTATE_BEGIN("shaping");
+  AXOM_ANNOTATE_BEGIN("clipping");
   for(axom::IndexType i = 0; i < geomStrategies.size(); ++i)
   {
     const auto geomName = geomStrategies[i]->name();
+    const auto annotationName = "clipping:" + geomName;
 
     SLIC_INFO(axom::fmt::format("{:-^80}", axom::fmt::format("Processing geometry '{}'", geomName)));
 
@@ -1139,7 +1140,9 @@ int main(int argc, char** argv)
     quest::GeometryClipper clipper(sMesh, geomStrategies[i]);
     clipper.setVerbose(true);
     axom::Array<double> ovlap;
+    AXOM_ANNOTATE_BEGIN(annotationName);
     clipper.clip(ovlap);
+    AXOM_ANNOTATE_END(annotationName);
 
     // Save volume fractions in mesh, for plotting and checking.
     sMesh.setMatsetFromVolume(geomStrategies[i]->name(), ovlap.view(), false);
@@ -1173,13 +1176,18 @@ int main(int argc, char** argv)
                                                   computedOverlapVol - correctOverlapVol,
                                                   (err ? "ERROR" : "OK"))));
   }
-  AXOM_ANNOTATE_END("shaping");
+  AXOM_ANNOTATE_END("clipping");
 
+  AXOM_ANNOTATE_BEGIN("setFreeVolumeFractions");
   sMesh.setFreeVolumeFractions("free");
+  AXOM_ANNOTATE_END("setFreeVolumeFractions");
 
   /*
     Copy mesh to host check results and plot.
   */
+  SLIC_INFO(axom::fmt::format("{:-^80}", "Copying mesh to host and write out"));
+
+  AXOM_ANNOTATE_BEGIN("Copy results to host and write out");
 
   if(params.useBlueprintConduit())
   {
@@ -1225,6 +1233,8 @@ int main(int argc, char** argv)
     saveMesh(*compMeshNode, fileName);
     SLIC_INFO(axom::fmt::format("{:-^80}", "Wrote output mesh " + fileName));
   }
+
+  AXOM_ANNOTATE_END("Copy results to host and write out");
 
   /*
     Cleanup and exit

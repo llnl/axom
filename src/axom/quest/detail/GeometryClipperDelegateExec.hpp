@@ -114,7 +114,7 @@ public:
 
   void computeClipVolumes3D(axom::ArrayView<double> ovlap) override
   {
-    AXOM_ANNOTATE_SCOPE("IntersectionShaper::runShapeQueryImpl");
+    AXOM_ANNOTATE_SCOPE("GeometryClipper::computeClipVolumes3D");
 
     using BoundingBoxType = primal::BoundingBox<double, 3>;
 
@@ -126,15 +126,14 @@ public:
 
     constexpr int NUM_TETS_PER_HEX = 24;
 
-    SLIC_INFO(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
-
     SLIC_INFO(axom::fmt::format(
-      "GeometryClipperDelegateExec::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
+      "GeometryClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
       getStrategy().name()));
+
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    const bool useOcts = getStrategy().getShapeAsOcts(shapeeMesh, geomAsOcts);
-    const bool useTets = getStrategy().getShapeAsTets(shapeeMesh, geomAsTets);
+    const bool useOcts = getStrategy().getGeometryAsOcts(shapeeMesh, geomAsOcts);
+    const bool useTets = getStrategy().getGeometryAsTets(shapeeMesh, geomAsTets);
     SLIC_ASSERT(useTets != useOcts);
     SLIC_ASSERT(useOcts || geomAsOcts.empty());
     SLIC_ASSERT(useTets || geomAsTets.empty());
@@ -201,29 +200,23 @@ public:
 
     AXOM_ANNOTATE_BEGIN("allocate scratch space");
     // Initialize hexahedron indices and shape candidates
-    AXOM_ANNOTATE_BEGIN("allocate hex_indices");
     axom::Array<IndexType> hex_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
                                               totalCandidates.get() * NUM_TETS_PER_HEX,
                                               allocId);
-    AXOM_ANNOTATE_END("allocate hex_indices");
     auto hex_indices_device_view = hex_indices_device.view();
 
-    AXOM_ANNOTATE_BEGIN("allocate shape_candidates");
     axom::Array<IndexType> shape_candidates_device(totalCandidates.get() * NUM_TETS_PER_HEX,
                                                    totalCandidates.get() * NUM_TETS_PER_HEX,
                                                    allocId);
-    AXOM_ANNOTATE_END("allocate shape_candidates");
     auto shape_candidates_device_view = shape_candidates_device.view();
 
     // Tetrahedrons from hexes (24 for each hex)
     auto tets_from_hexes_device_view = shapeeMesh.getCellsAsTets();
 
     // Index into 'tets'
-    AXOM_ANNOTATE_BEGIN("allocate tet_indices_device");
     axom::Array<IndexType> tet_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
                                               totalCandidates.get() * NUM_TETS_PER_HEX,
                                               allocId);
-    AXOM_ANNOTATE_END("allocate tet_indices_device");
     auto tet_indices_device_view = tet_indices_device.view();
     AXOM_ANNOTATE_END("allocate scratch space");
 
@@ -261,7 +254,6 @@ public:
         });
     }
 
-    // ovlap.fill(0.0);
     axom::for_all<ExecSpace>(
       ovlap.size(),
       AXOM_LAMBDA(axom::IndexType i) { ovlap[i] = 0.0; });
@@ -274,7 +266,7 @@ public:
     constexpr bool tryFixOrientation = true;
 
     {
-      AXOM_ANNOTATE_SCOPE("clipLoop");
+      AXOM_ANNOTATE_SCOPE("GeometryClipper::clipLoop");
       // Copy calculated total back to host if needed
       if(totalCandidatesCountPtr != &totalCandidatesCount)
       {
@@ -345,7 +337,7 @@ public:
   {
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(cellIndices);
-    AXOM_ANNOTATE_SCOPE("GeometryClipper::clip_volumes_3D");
+    AXOM_ANNOTATE_SCOPE("GeometryClipper::computeClipVolumes3D:limited");
 
     using BoundingBoxType = primal::BoundingBox<double, 3>;
 
@@ -358,14 +350,16 @@ public:
     constexpr int NUM_TETS_PER_HEX = 24;
 
     SLIC_INFO(axom::fmt::format(
-      "GeometryClipperDelegateExec::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
+      "GeometryClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
       getStrategy().name()));
+
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    const bool useOcts = getStrategy().getShapeAsOcts(shapeeMesh, geomAsOcts);
-    const bool useTets = getStrategy().getShapeAsTets(shapeeMesh, geomAsTets);
+    const bool useOcts = getStrategy().getGeometryAsOcts(shapeeMesh, geomAsOcts);
+    const bool useTets = getStrategy().getGeometryAsTets(shapeeMesh, geomAsTets);
     SLIC_ASSERT(useTets != useOcts);
-    SLIC_ASSERT(useTets + useOcts == 1);
+    SLIC_ASSERT(useOcts || geomAsOcts.empty());
+    SLIC_ASSERT(useTets || geomAsTets.empty());
 
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
@@ -429,29 +423,23 @@ public:
 
     AXOM_ANNOTATE_BEGIN("allocate scratch space");
     // Initialize hexahedron indices and shape candidates
-    AXOM_ANNOTATE_BEGIN("allocate hex_indices");
     axom::Array<IndexType> hex_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
                                               totalCandidates.get() * NUM_TETS_PER_HEX,
                                               allocId);
-    AXOM_ANNOTATE_END("allocate hex_indices");
     auto hex_indices_device_view = hex_indices_device.view();
 
-    AXOM_ANNOTATE_BEGIN("allocate shape_candidates");
     axom::Array<IndexType> shape_candidates_device(totalCandidates.get() * NUM_TETS_PER_HEX,
                                                    totalCandidates.get() * NUM_TETS_PER_HEX,
                                                    allocId);
-    AXOM_ANNOTATE_END("allocate shape_candidates");
     auto shape_candidates_device_view = shape_candidates_device.view();
 
     // Tetrahedrons from hexes (24 for each hex)
     auto tets_from_hexes_device_view = shapeeMesh.getCellsAsTets();
 
     // Index into 'tets'
-    AXOM_ANNOTATE_BEGIN("allocate tet_indices_device");
     axom::Array<IndexType> tet_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
                                               totalCandidates.get() * NUM_TETS_PER_HEX,
                                               allocId);
-    AXOM_ANNOTATE_END("allocate tet_indices_device");
     auto tet_indices_device_view = tet_indices_device.view();
     AXOM_ANNOTATE_END("allocate scratch space");
 
@@ -466,8 +454,6 @@ public:
       axom::copy(totalCandidatesCountPtr, &totalCandidatesCount, sizeof(IndexType));
     }
     AXOM_ANNOTATE_END("newTotalCandidates memory");
-
-    SLIC_INFO(axom::fmt::format("{:-^80}", " Creating an array of candidate pairs for shaping "));
 
     const auto offsets_device_view = offsets.view();
     const auto candidates_device_view = candidates.view();
@@ -491,7 +477,6 @@ public:
         });
     }
 
-    // ovlap.fill(0.0);
     axom::for_all<ExecSpace>(
       ovlap.size(),
       AXOM_LAMBDA(axom::IndexType i) { ovlap[i] = 0.0; });
@@ -506,7 +491,7 @@ public:
     constexpr bool tryFixOrientation = true;
 
     {
-      AXOM_ANNOTATE_SCOPE("clipLoop");
+      AXOM_ANNOTATE_SCOPE("GeometryClipper::clipLoop_limited");
       // Copy calculated total back to host if needed
       if(totalCandidatesCountPtr != &totalCandidatesCount)
       {
@@ -539,7 +524,7 @@ public:
             }
           });
       }
-      else
+      else // useOcts
       {
         axom::for_all<ExecSpace>(
           totalCandidatesCount,

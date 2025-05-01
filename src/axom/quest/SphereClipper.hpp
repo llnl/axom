@@ -35,8 +35,8 @@ public:
 
   bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
-  bool getShapeAsOcts(quest::ShapeeMesh& shappeMesh,
-                      axom::Array<axom::primal::Octahedron<double, 3>>& octs) override;
+  bool getGeometryAsOcts(quest::ShapeeMesh& shappeMesh,
+                         axom::Array<axom::primal::Octahedron<double, 3>>& octs) override;
 
 #if !defined(__CUDACC__)
 private:
