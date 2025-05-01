@@ -496,12 +496,11 @@ TEST(primal_solid_angle, planar_bezierpatch)
   }
 }
 
-//------------------------------------------------------------------------------
-TEST(primal_integral, bezierpatch_sphere)
+axom::Array<primal::NURBSPatch<double, 3>> make_sphere_biquintic()
 {
   using Point3D = primal::Point<double, 3>;
   using Vector3D = primal::Vector<double, 3>;
-  using BPatch = primal::BezierPatch<double, 3>;
+  using NPatch = primal::NURBSPatch<double, 3>;
 
   double rt2 = sqrt(2), rt3 = sqrt(3), rt6 = sqrt(6);
 
@@ -512,29 +511,28 @@ TEST(primal_integral, bezierpatch_sphere)
   //  James E. Cobb, University of Utah, 1988
 
   // clang-format off
-  axom::Array<Point3D> node_data = {
-    Point3D {4*(1-rt3),     4*(1-rt3),     4*(1-rt3)}, Point3D {rt2*(rt3-4),            -rt2, rt2*(rt3-4)}, Point3D {4*(1-2*rt3)/3,   0, 4*(1-2*rt3)/3}, Point3D {rt2*(rt3-4),           rt2,   rt2*(rt3-4)}, Point3D {4*(1-rt3),     4*(rt3-1),     4*(1-rt3)},
-    Point3D {     -rt2, rt2*(rt3 - 4), rt2*(rt3 - 4)}, Point3D {(2-3*rt3)/2,     (2-3*rt3)/2,  -(rt3+6)/2}, Point3D {rt2*(2*rt3-7)/3, 0,      -5*rt6/3}, Point3D {(2-3*rt3)/2,   (3*rt3-2)/2,    -(rt3+6)/2}, Point3D {     -rt2,   rt2*(4-rt3),   rt2*(rt3-4)},
-    Point3D {        0, 4*(1-2*rt3)/3, 4*(1-2*rt3)/3}, Point3D {          0, rt2*(2*rt3-7)/3,    -5*rt6/3}, Point3D {0,               0,   4*(rt3-5)/3}, Point3D {          0, rt2*(7-2*rt3)/3,    -5*rt6/3}, Point3D {        0, 4*(2*rt3-1)/3, 4*(1-2*rt3)/3},
-    Point3D {      rt2, rt2*(rt3 - 4), rt2*(rt3 - 4)}, Point3D {(3*rt3-2)/2,     (2-3*rt3)/2,  -(rt3+6)/2}, Point3D {rt2*(7-2*rt3)/3, 0,      -5*rt6/3}, Point3D {(3*rt3-2)/2,   (3*rt3-2)/2,    -(rt3+6)/2}, Point3D {      rt2,   rt2*(4-rt3),   rt2*(rt3-4)},
-    Point3D {4*(rt3-1),     4*(1-rt3),     4*(1-rt3)}, Point3D {rt2*(4-rt3),            -rt2, rt2*(rt3-4)}, Point3D {4*(2*rt3-1)/3,   0, 4*(1-2*rt3)/3}, Point3D {rt2*(4-rt3),           rt2,   rt2*(rt3-4)}, Point3D {4*(rt3-1),     4*(rt3-1),     4*(1-rt3)}};
-
-  axom::Array<double> weight_data = {
-         4*(3-rt3), rt2*(3*rt3-2),   4*(5-rt3)/3, rt2*(3*rt3-2),     4*(3-rt3),
-     rt2*(3*rt3-2),     (rt3+6)/2, rt2*(rt3+6)/3,     (rt3+6)/2, rt2*(3*rt3-2),
-       4*(5-rt3)/3, rt2*(rt3+6)/3, 4*(5*rt3-1)/9, rt2*(rt3+6)/3,   4*(5-rt3)/3,
-     rt2*(3*rt3-2),     (rt3+6)/2, rt2*(rt3+6)/3,     (rt3+6)/2, rt2*(3*rt3-2),
-         4*(3-rt3), rt2*(3*rt3-2),   4*(5-rt3)/3, rt2*(3*rt3-2),     4*(3-rt3)};
+    axom::Array<Point3D> node_data = {
+      Point3D {4*(1-rt3),     4*(1-rt3),     4*(1-rt3)}, Point3D {rt2*(rt3-4),            -rt2, rt2*(rt3-4)}, Point3D {4*(1-2*rt3)/3,   0, 4*(1-2*rt3)/3}, Point3D {rt2*(rt3-4),           rt2,   rt2*(rt3-4)}, Point3D {4*(1-rt3),     4*(rt3-1),     4*(1-rt3)},
+      Point3D {     -rt2, rt2*(rt3 - 4), rt2*(rt3 - 4)}, Point3D {(2-3*rt3)/2,     (2-3*rt3)/2,  -(rt3+6)/2}, Point3D {rt2*(2*rt3-7)/3, 0,      -5*rt6/3}, Point3D {(2-3*rt3)/2,   (3*rt3-2)/2,    -(rt3+6)/2}, Point3D {     -rt2,   rt2*(4-rt3),   rt2*(rt3-4)},
+      Point3D {        0, 4*(1-2*rt3)/3, 4*(1-2*rt3)/3}, Point3D {          0, rt2*(2*rt3-7)/3,    -5*rt6/3}, Point3D {0,               0,   4*(rt3-5)/3}, Point3D {          0, rt2*(7-2*rt3)/3,    -5*rt6/3}, Point3D {        0, 4*(2*rt3-1)/3, 4*(1-2*rt3)/3},
+      Point3D {      rt2, rt2*(rt3 - 4), rt2*(rt3 - 4)}, Point3D {(3*rt3-2)/2,     (2-3*rt3)/2,  -(rt3+6)/2}, Point3D {rt2*(7-2*rt3)/3, 0,      -5*rt6/3}, Point3D {(3*rt3-2)/2,   (3*rt3-2)/2,    -(rt3+6)/2}, Point3D {      rt2,   rt2*(4-rt3),   rt2*(rt3-4)},
+      Point3D {4*(rt3-1),     4*(1-rt3),     4*(1-rt3)}, Point3D {rt2*(4-rt3),            -rt2, rt2*(rt3-4)}, Point3D {4*(2*rt3-1)/3,   0, 4*(1-2*rt3)/3}, Point3D {rt2*(4-rt3),           rt2,   rt2*(rt3-4)}, Point3D {4*(rt3-1),     4*(rt3-1),     4*(1-rt3)}};
+  
+    axom::Array<double> weight_data = {
+           4*(3-rt3), rt2*(3*rt3-2),   4*(5-rt3)/3, rt2*(3*rt3-2),     4*(3-rt3),
+       rt2*(3*rt3-2),     (rt3+6)/2, rt2*(rt3+6)/3,     (rt3+6)/2, rt2*(3*rt3-2),
+         4*(5-rt3)/3, rt2*(rt3+6)/3, 4*(5*rt3-1)/9, rt2*(rt3+6)/3,   4*(5-rt3)/3,
+       rt2*(3*rt3-2),     (rt3+6)/2, rt2*(rt3+6)/3,     (rt3+6)/2, rt2*(3*rt3-2),
+           4*(3-rt3), rt2*(3*rt3-2),   4*(5-rt3)/3, rt2*(3*rt3-2),     4*(3-rt3)};
   // clang-format on
 
-  BPatch sphere_faces[6];
+  axom::Array<NPatch> sphere_faces(6);
   for(int n = 0; n < 6; ++n)
   {
-    sphere_faces[n].setOrder(4, 4);
+    sphere_faces[n].setParameters(5, 5, 4, 4);
     sphere_faces[n].makeRational();
   }
 
-  sphere_faces[0].setOrder(4, 4);
   for(int i = 0; i < 5; ++i)
   {
     for(int j = 0; j < 5; ++j)
@@ -578,85 +576,65 @@ TEST(primal_integral, bezierpatch_sphere)
     }
   }
 
-  // Iterate over points of interest, i.e. axis/edge/vertex aligned
-  Vector3D query_directions[12] = {Vector3D({0.0, 0.0, 1.0}).unitVector(), // 0
-                                   Vector3D({0.0, 1.0, 0.0}).unitVector(), // 1
-                                   Vector3D({1.0, 0.0, 0.0}).unitVector(), // 2
-                                   Vector3D({0.0, 1.0, 1.0}).unitVector(), // 3
-                                   Vector3D({1.0, 0.0, 1.0}).unitVector(), // 4
-                                   Vector3D({1.0, 1.0, 0.0}).unitVector(), // 5
-                                   Vector3D({1.0, 1.0, 1.0}).unitVector(), // 6
-                                   Vector3D({0.0, 0.1, 1.0}).unitVector(), // 7
-                                   Vector3D({0.1, 1.0, 0.0}).unitVector(), // 8
-                                   Vector3D({1.0, 0.0, 0.1}).unitVector(), // 9
-                                   Vector3D(sphere_faces[0].evaluate(0, 0.6)), // 10
-                                   Vector3D(sphere_faces[0].evaluate(0.6, 0))};
+  return sphere_faces;
+}
 
+//------------------------------------------------------------------------------
+TEST(primal_integral, bezierpatch_sphere)
+{
+  using Point3D = primal::Point<double, 3>;
+  using Vector3D = primal::Vector<double, 3>;
+  using NPatch = primal::NURBSPatch<double, 3>;
+
+  auto sphere_faces = make_sphere_biquintic();
+
+  // Set up an array of points to test against
+  axom::Array<Point3D> inner_points(24), outer_points(24), coincident_points(12);
+
+  // Iterate over points of interest, i.e. axis/edge/vertex aligned
+  Vector3D query_directions[12] = {Vector3D({0.0, 0.0, 1.0}).unitVector(),       // 0
+                                   Vector3D({0.0, 1.0, 0.0}).unitVector(),       // 1
+                                   Vector3D({1.0, 0.0, 0.0}).unitVector(),       // 2
+                                   Vector3D({0.0, 1.0, 1.0}).unitVector(),       // 3
+                                   Vector3D({1.0, 0.0, 1.0}).unitVector(),       // 4
+                                   Vector3D({1.0, 1.0, 0.0}).unitVector(),       // 5
+                                   Vector3D({1.0, 1.0, 1.0}).unitVector(),       // 6
+                                   Vector3D({0.0, 0.1, 1.0}).unitVector(),       // 7
+                                   Vector3D({0.1, 1.0, 0.0}).unitVector(),       // 8
+                                   Vector3D({1.0, 0.0, 0.1}).unitVector(),       // 9
+                                   Vector3D(sphere_faces[0].evaluate(0, 0.6)),   // 10
+                                   Vector3D(sphere_faces[0].evaluate(0.6, 0))};  // 11
+
+  const double edge_offset = 1e-5;
+  for(int i = 0; i < 12; ++i)
+  {
+    // Pick points that are far from the surface, and close to the surface
+    inner_points[i] = Point3D(0.1 * query_directions[i].array());
+    inner_points[i + 12] = Point3D((1.0 - edge_offset) * query_directions[i].array());
+
+    outer_points[i] = Point3D(2.1 * query_directions[i].array());
+    outer_points[i + 12] = Point3D((1.0 + edge_offset) * query_directions[i].array());
+
+    coincident_points[i] = Point3D(query_directions[i].array());
+  }
+
+  // Evaluate the winding number for each point
   const double edge_tol = 1e-6;
   const double ls_tol = 1e-10;
   const double quad_tol = 1e-5;
   const double EPS = 1e-11;
 
-  const double edge_offset = 1e-5;
+  auto inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  auto outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  auto coincident_gwn =
+    winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
 
-  // Test some easy cases
-  auto origin = Point3D({0.0, 0.0, 0.0});
-  auto near_origin = Point3D({0.1, -0.2, 0.15});
-
-  double origin_wn = 0.0, near_origin_wn = 0.0;
-  for(int k = 0; k < 6; ++k)
-  {
-    origin_wn += winding_number(origin, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
-    near_origin_wn += winding_number(near_origin, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
-  }
-  EXPECT_NEAR(origin_wn, 1.0, 6 * quad_tol);
-  EXPECT_NEAR(near_origin_wn, 1.0, 6 * quad_tol);
-
+  // Check the resulting winding number
   for(int i = 0; i < 12; ++i)
   {
-    // Pick point close to the surface
-    auto far_query = Point3D(10 * query_directions[i].array());
-
-    double far_wn = 0.0;
-    for(int k = 0; k < 6; ++k)
-    {
-      far_wn += winding_number(far_query, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
-    }
-    EXPECT_NEAR(far_wn, 0.0, 6 * quad_tol);
-  }
-
-  // Iterate over difficult query directions for very close points
-  for(int i = 0; i < 12; ++i)
-  {
-    // Pick point close to the surface
-    auto inner_query = Point3D((1.0 - edge_offset) * query_directions[i].array());
-    auto outer_query = Point3D((1.0 + edge_offset) * query_directions[i].array());
-
-    // Iterate over the patches that compose the sphere
-    double inner_wn = 0;
-    for(int k = 0; k < 6; ++k)
-    {
-      inner_wn += winding_number(inner_query, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
-    }
-    EXPECT_NEAR(inner_wn, 1.0, 6 * quad_tol);
-
-    // Iterate over the patches that compose the sphere
-    double outer_wn = 0;
-    for(int k = 0; k < 6; ++k)
-    {
-      outer_wn += winding_number(outer_query, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
-    }
-    EXPECT_NEAR(outer_wn, 0.0, 6 * quad_tol);
-
-    // Pick a point on the surface too.
-    //  We can't be as precise in this case, but we can still get close
-    auto coincident_query = Point3D(query_directions[i].array());
-    double coincident_wn = 0.0;
-    for(int k = 0; k < 6; ++k)
-    {
-      coincident_wn += winding_number(coincident_query, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
-    }
-    EXPECT_NEAR(coincident_wn, 0.5, 0.01);
+    EXPECT_NEAR(inner_gwn[i], 1.0, 6 * quad_tol);
+    EXPECT_NEAR(outer_gwn[i], 0.0, 6 * quad_tol);
+    EXPECT_NEAR(coincident_gwn[i], 0.5, 6 * quad_tol);
   }
 }
 

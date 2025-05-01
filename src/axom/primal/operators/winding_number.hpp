@@ -501,10 +501,16 @@ double winding_number(const Point<T, 3>& query,
 
   double theta = axom::utilities::random_real(0.0, 2 * M_PI);
   double u = axom::utilities::random_real(-1.0, 1.0);
-//   auto cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+  //   auto cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
   auto cast_direction = bPatch.normal(0.5, 0.5).unitVector();
 
-  return detail::nurbs_winding_number(query, nPatch_tested, cast_direction, edge_tol, ls_tol, quad_tol, EPS);
+  return detail::nurbs_winding_number(query,
+                                      nPatch_tested,
+                                      cast_direction,
+                                      edge_tol,
+                                      ls_tol,
+                                      quad_tol,
+                                      EPS);
 }
 
 /*
@@ -538,9 +544,72 @@ double winding_number(const Point<T, 3>& query,
   double u = axom::utilities::random_real(-1.0, 1.0);
   auto cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
 
-  return detail::nurbs_winding_number(query, nPatch_tested, cast_direction, edge_tol, ls_tol, quad_tol, EPS);
+  return detail::nurbs_winding_number(query,
+                                      nPatch_tested,
+                                      cast_direction,
+                                      edge_tol,
+                                      ls_tol,
+                                      quad_tol,
+                                      EPS);
 }
 
+/*
+ * \brief Computes the GWN for an array of 3D point wrt an array of 3D NURBS patches
+ *
+ * \param [in] query_arr The query point to test
+ * \param [in] nPatch_arr The NURBS patch object
+ * \param [in] edge_tol The physical distance level at which objects are 
+ *                      considered indistinguishable
+ * \param [in] ls_tol The tolerance for the line-surface intersection routine
+ * \param [in] quad_tol The maximum relative error allowed in the quadrature
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ * 
+ * Computes the generalized winding number for a NURBS patch using Stokes theorem.
+ * Saves on computation time by precomputing and storing intermediates for each patch
+ * 
+ * \return The GWN.
+ */
+template <typename T>
+axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
+                                   const axom::Array<NURBSPatch<T, 3>>& nPatch_arr,
+                                   const double edge_tol = 1e-8,
+                                   const double ls_tol = 1e-8,
+                                   const double quad_tol = 1e-8,
+                                   const double EPS = 1e-8)
+{
+  // Precompute the expansions for each patch
+  axom::Array<NURBSPatch<T, 3>> nPatch_arr_tested(nPatch_arr.size());
+  axom::Array<Vector<T, 3>> cast_direction_arr(nPatch_arr.size());
+  for(int i = 0; i < nPatch_arr.size(); ++i)
+  {
+    nPatch_arr_tested[i] = nPatch_arr[i];
+    nPatch_arr_tested[i].makeTriviallyTrimmed();
+    nPatch_arr_tested[i].scaleParameterSpace(
+      1.0 + 0.05 * nPatch_arr_tested[i].getParameterSpaceDiagonal());
+
+    // Will later be replaced with a direction based on a mean normal vector
+    cast_direction_arr[i] = nPatch_arr[i].normal(0.5, 0.5).unitVector();
+  }
+
+  axom::Array<double> ret_val(query_arr.size());
+  for(int n = 0; n < query_arr.size(); ++n)
+  {
+    ret_val[n] = 0.0;
+
+    for(int i = 0; i < nPatch_arr.size(); ++i)
+    {
+      ret_val[n] += detail::nurbs_winding_number(query_arr[n],
+                                                 nPatch_arr_tested[i],
+                                                 cast_direction_arr[i],
+                                                 edge_tol,
+                                                 ls_tol,
+                                                 quad_tol,
+                                                 EPS);
+    }
+  }
+
+  return ret_val;
+}
 // #endif
 //@}
 
