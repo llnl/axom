@@ -3,8 +3,6 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "gtest/gtest.h"
-
 #include "axom/config.hpp"
 #include "axom/slic.hpp"
 
@@ -26,6 +24,8 @@
 
 #include <limits>
 #include <cmath>
+
+#include "gtest/gtest.h"
 
 namespace Primal3D
 {
