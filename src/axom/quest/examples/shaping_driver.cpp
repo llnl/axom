@@ -399,6 +399,11 @@ void initializeLogger()
 #ifdef AXOM_USE_MPI
   int num_ranks = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+
+  int my_rank = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+  slic::setIsRoot(my_rank == 0);
+
   if(num_ranks > 1)
   {
     std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";

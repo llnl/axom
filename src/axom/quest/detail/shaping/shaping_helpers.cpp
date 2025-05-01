@@ -266,12 +266,14 @@ void computeVolumeFractions(const std::string& matField,
     AXOM_ANNOTATE_END("fct project");
   }
   timer.stop();
-  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "\t Generating volume fractions '{}' took {:.3f} seconds (@ "
-                              "{:L} dofs processed per second)",
-                              volFracName,
-                              timer.elapsed(),
-                              static_cast<int>(fes->GetNDofs() / timer.elapsed())));
+
+  // print stats for root rank
+  SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                   "\t Generating volume fractions '{}' took {:.3f} seconds (@ "
+                                   "{:L} dofs processed per second)",
+                                   volFracName,
+                                   timer.elapsed(),
+                                   static_cast<int>(fes->GetNDofs() / timer.elapsed())));
 }
 
 /** 

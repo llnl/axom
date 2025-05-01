@@ -287,7 +287,7 @@ public:
 
     timer.stop();
 
-    // print stats for rank 0
+    // print stats for root rank
     SLIC_INFO_ROOT(axom::fmt::format(
       axom::utilities::locale(),
       "\t Sampling inout field '{}' took {:.3Lf} seconds (@ {:L} queries per second)",
