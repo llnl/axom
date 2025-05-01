@@ -575,7 +575,7 @@ int main(int argc, char** argv)
     // register a point projector
     if(shapingDC.GetMesh()->Dimension() == 3 && shapeDim == klee::Dimensions::Two)
     {
-      samplingShaper->setPointProjector([](primal::Point<double, 3> pt) {
+      samplingShaper->setPointProjector32([](primal::Point<double, 3> pt) {
         const double& x = pt[0];
         const double& y = pt[1];
         const double& z = pt[2];

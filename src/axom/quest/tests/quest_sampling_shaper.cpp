@@ -632,12 +632,12 @@ shapes:
 
   // check that we can set several projectors in 2D and 3D
   // uses simplest projectors, e.g. identity in 2D and 3D
-  this->m_shaper->setPointProjector([](const Point3D& pt) {
+  this->m_shaper->setPointProjector33([](const Point3D& pt) {
     return Point3D {pt[0], pt[1], pt[2]};
   });
-  this->m_shaper->setPointProjector([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
+  this->m_shaper->setPointProjector22([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
+  this->m_shaper->setPointProjector32([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
+  this->m_shaper->setPointProjector23([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
 
   this->runShaping();
 
@@ -685,11 +685,11 @@ shapes:
   // creating an ellipse by scaling input x and y by scale_a and scale_b
   constexpr double scale_a = 3. / 2.;
   constexpr double scale_b = 3. / 4.;
-  this->m_shaper->setPointProjector([](const Point2D& pt) {
+  this->m_shaper->setPointProjector22([](const Point2D& pt) {
     return Point2D {pt[0] / scale_a, pt[1] / scale_b};
   });
   // check that we can register another projector that's not used
-  this->m_shaper->setPointProjector([](const Point3D&) { return Point3D {0., 0.}; });
+  this->m_shaper->setPointProjector33([](const Point3D&) { return Point3D {0., 0.}; });
 
   this->runShaping();
 
@@ -1215,7 +1215,7 @@ shapes:
   this->initializeShaping(shape_file.getFileName(), initialGridFunctions);
 
   // set projector from 2D mesh points to 3D query points within STL
-  this->m_shaper->setPointProjector([](Point2D pt) { return Point3D {pt[0], pt[1], 0.}; });
+  this->m_shaper->setPointProjector23([](Point2D pt) { return Point3D {pt[0], pt[1], 0.}; });
 
   this->m_shaper->setQuadratureOrder(8);
 
@@ -1536,18 +1536,12 @@ shapes:
 
   // check that we can set several projectors in 2D and 3D
   // uses simplest projectors, e.g. identity in 2D and 3D
-  this->m_shaper->setPointProjector(AXOM_LAMBDA[](const Point3D& pt) {
+  this->m_shaper->setPointProjector33([](const Point3D& pt) {
     return Point3D {pt[0], pt[1], pt[2]};
   });
-  this->m_shaper->setPointProjector(AXOM_LAMBDA(const Point2D& pt) {
-    return Point2D {pt[0], pt[1]};
-  });
-  this->m_shaper->setPointProjector(AXOM_LAMBDA(const Point3D& pt) {
-    return Point2D {pt[0], pt[1]};
-  });
-  this->m_shaper->setPointProjector(AXOM_LAMBDA(const Point2D& pt) {
-    return Point3D {pt[0], pt[1], 0};
-  });
+  this->m_shaper->setPointProjector22([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
+  this->m_shaper->setPointProjector32([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
+  this->m_shaper->setPointProjector23([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
 
   this->runShaping();
 
@@ -1597,12 +1591,12 @@ shapes:
   this->initializeShaping(shape_file.getFileName());
 
   // scale input points by a factor of 1/2 in each dimension
-  this->m_shaper->setPointProjector([](const Point3D& pt) {
+  this->m_shaper->setPointProjector33([](const Point3D& pt) {
     return Point3D {pt[0] / 2, pt[1] / 2, pt[2] / 2};
   });
 
   // for good measure, add a 3D->2D projector that will not be used
-  this->m_shaper->setPointProjector([](const Point3D&) { return Point2D {0, 0}; });
+  this->m_shaper->setPointProjector32([](const Point3D&) { return Point2D {0, 0}; });
 
   this->runShaping();
 
@@ -1660,7 +1654,7 @@ shapes:
   this->initializeShaping(shape_file.getFileName());
 
   // set projector from 3D points to axisymmetric plane
-  this->m_shaper->setPointProjector([](Point3D pt) {
+  this->m_shaper->setPointProjector32([](Point3D pt) {
     const double& x = pt[0];
     const double& y = pt[1];
     const double& z = pt[2];
@@ -1739,7 +1733,7 @@ shapes:
   this->initializeShaping(shape_file.getFileName());
 
   // set projector from 3D points to axisymmetric plane
-  this->m_shaper->setPointProjector([](Point3D pt) {
+  this->m_shaper->setPointProjector32([](Point3D pt) {
     const double& x = pt[0];
     const double& y = pt[1];
     const double& z = pt[2];
@@ -1832,7 +1826,7 @@ shapes:
     SLIC_INFO(axom::fmt::format("Area of intersection polygon: {}", intersectionArea));
 
     // set projector from 2D points to 3-space, z-coord is lambda captured
-    this->m_shaper->setPointProjector([z](Point2D pt) -> Point3D {
+    this->m_shaper->setPointProjector23([z](Point2D pt) -> Point3D {
       const double& x = pt[0];
       const double& y = pt[1];
       return Point3D {x, y, z};

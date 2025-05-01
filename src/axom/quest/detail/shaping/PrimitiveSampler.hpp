@@ -33,11 +33,6 @@ namespace shaping
 using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
 
-/// Alias to function pointer that projects a \a FromDim dimensional input point to
-/// a \a ToDim dimensional query point when sampling the InOut field
-template <int FromDim, int ToDim>
-using PointProjector = std::function<primal::Point<double, ToDim>(primal::Point<double, FromDim>)>;
-
 template <int NDIMS, typename ExecSpace>
 class PrimitiveSampler
 {
@@ -232,16 +227,9 @@ public:
       AXOM_ANNOTATE_SCOPE("project query points");
       projected_qpts.resize(nq);
       auto proj_pts_v = projected_qpts.view();
-#if 0
       axom::for_all<ExecSpace>(
         nq,
         AXOM_LAMBDA(axom::IndexType i) { proj_pts_v[i] = projector(orig_qpts_v[i]); });
-#else
-      for(int i = 0; i < nq; ++i)
-      {
-        proj_pts_v[i] = projector(orig_qpts_v[i]);
-      }
-#endif
     }
     // We need to reinterpret_cast since the compiler can't rule out that FromPoint is a different type from ToPoint
     // in the else case, despite our SLIC_ERROR above that checks for this.

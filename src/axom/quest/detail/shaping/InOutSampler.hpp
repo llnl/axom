@@ -34,11 +34,6 @@ namespace shaping
 using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
 
-/// Alias to function pointer that projects a \a FromDim dimensional input point to
-/// a \a ToDim dimensional query point when sampling the InOut field
-template <int FromDim, int ToDim>
-using PointProjector = std::function<primal::Point<double, ToDim>(primal::Point<double, FromDim>)>;
-
 template <int NDIMS>
 class InOutSampler
 {

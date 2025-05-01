@@ -76,16 +76,16 @@ public:
   void setVolumeFractionOrder(int volfracOrder) { m_volfracOrder = volfracOrder; }
 
   /// Registers a function to project from 2D input points to 2D query points
-  void setPointProjector(shaping::PointProjector<2, 2> projector) { m_projector22 = projector; }
+  void setPointProjector22(shaping::PointProjector<2, 2> projector) { m_projector22 = projector; }
 
   /// Registers a function to project from 3D input points to 2D query points
-  void setPointProjector(shaping::PointProjector<3, 2> projector) { m_projector32 = projector; }
+  void setPointProjector32(shaping::PointProjector<3, 2> projector) { m_projector32 = projector; }
 
   /// Registers a function to project from 2D input points to 3D query points
-  void setPointProjector(shaping::PointProjector<2, 3> projector) { m_projector23 = projector; }
+  void setPointProjector23(shaping::PointProjector<2, 3> projector) { m_projector23 = projector; }
 
   /// Registers a function to project from 3D input points to 3D query points
-  void setPointProjector(shaping::PointProjector<3, 3> projector) { m_projector33 = projector; }
+  void setPointProjector33(shaping::PointProjector<3, 3> projector) { m_projector33 = projector; }
 
   //@}
 
