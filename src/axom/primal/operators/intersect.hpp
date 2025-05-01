@@ -1001,7 +1001,7 @@ bool intersect(const Line<T, 3>& line,
                                  v_scale,
                                  sq_tol,
                                  EPS,
-                                 true);
+                                 false);
 
     retval = detail::select_candidates(tc, uc, vc, t, u, v, EPS, isHalfOpen);
   }

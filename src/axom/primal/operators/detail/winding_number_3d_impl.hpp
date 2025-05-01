@@ -15,6 +15,8 @@
 #include "axom/primal/operators/is_convex.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 
+#include "axom/primal/operators/detail/printers.hpp"
+
 // C++ includes
 #include <math.h>
 
@@ -196,11 +198,11 @@ double nurbs_winding_number(const Point<T, 3>& query,
     Line<T, 3> discontinuity_axis(query, cast_direction);
 
     // Tolerance for what counts as "close to a boundary" in parameter space
-    T disk_radius = 0.1 * nPatch.getParameterSpaceDiagonal();
+    T disk_radius = 0.01 * nPatch.getParameterSpaceDiagonal();
 
     // Compute intersections with the *untrimmed and extrapolated* patch
     axom::Array<T> up, vp, tp;
-    bool isHalfOpen = false, isTrimmed = false;
+    bool isHalfOpen = false, countUntrimmed = true;
 
     bool success = intersect(discontinuity_axis,
                              nPatch,
@@ -209,6 +211,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
                              vp,
                              ls_tol,  // This is a good heuristic value for accuracy
                              EPS,
+                             countUntrimmed,
                              isHalfOpen);
 
     if(!success)
@@ -251,6 +254,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
 
       // nPatchTrimmedMore.printTrimmingCurves(
       //     "C:\\Users\\Fireh\\Code\\winding_number_code\\trimming_examples\\original.txt");
+      // printPatchBoundaries( nPatch );
 
       // Consider a disk around the intersection point via NURBSPatch::diskSplit.
       //   If the disk intersects any trimming curves, need to do disk subdivision.
@@ -267,6 +271,9 @@ double nurbs_winding_number(const Point<T, 3>& query,
                        isDiskOutside,
                        ignoreInteriorDisk,
                        clipDisk);
+
+      // printPatchBoundaries( nPatchWithBoundaries );
+      // printPatchBoundaries( the_disk );
 
       // the_disk.printTrimmingCurves(
       //   "C:\\Users\\Fireh\\Code\\winding_number_code\\trimming_examples\\disk.txt");

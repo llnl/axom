@@ -626,18 +626,15 @@ TEST(primal_integral, bezierpatch_sphere)
   }
 
   // Iterate over difficult query directions for very close points
-  for(int i = 10; i < 11; ++i)
+  for(int i = 0; i < 12; ++i)
   {
-    // if(i != 3) continue;
-    // std::cout << i << std::endl;
-
     // Pick point close to the surface
     auto inner_query = Point3D((1.0 - edge_offset) * query_directions[i].array());
     auto outer_query = Point3D((1.0 + edge_offset) * query_directions[i].array());
 
     // Iterate over the patches that compose the sphere
     double inner_wn = 0;
-    for(int k = 6; k < 6; ++k)
+    for(int k = 0; k < 6; ++k)
     {
       inner_wn += winding_number(inner_query, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
     }
@@ -645,7 +642,7 @@ TEST(primal_integral, bezierpatch_sphere)
 
     // Iterate over the patches that compose the sphere
     double outer_wn = 0;
-    for(int k = 6; k < 6; ++k)
+    for(int k = 0; k < 6; ++k)
     {
       outer_wn += winding_number(outer_query, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
     }
@@ -655,7 +652,7 @@ TEST(primal_integral, bezierpatch_sphere)
     //  We can't be as precise in this case, but we can still get close
     auto coincident_query = Point3D(query_directions[i].array());
     double coincident_wn = 0.0;
-    for(int k = 4; k < 5; ++k)
+    for(int k = 0; k < 6; ++k)
     {
       coincident_wn += winding_number(coincident_query, sphere_faces[k], edge_tol, ls_tol, quad_tol, EPS);
     }

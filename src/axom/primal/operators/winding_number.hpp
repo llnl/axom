@@ -501,7 +501,8 @@ double winding_number(const Point<T, 3>& query,
 
   double theta = axom::utilities::random_real(0.0, 2 * M_PI);
   double u = axom::utilities::random_real(-1.0, 1.0);
-  auto cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+//   auto cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+  auto cast_direction = bPatch.normal(0.5, 0.5).unitVector();
 
   return detail::nurbs_winding_number(query, nPatch_tested, cast_direction, edge_tol, ls_tol, quad_tol, EPS);
 }

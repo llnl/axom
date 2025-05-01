@@ -3067,7 +3067,6 @@ public:
     // Sort the circle parameters
     std::sort(circle_params.begin(), circle_params.end());
 
-    std::cout << "Circle params: " << circle_params << std::endl;
     for(int i = 0; i < circle_params.size() - 1; ++i)
     {
       // Skip any duplicate parameters
