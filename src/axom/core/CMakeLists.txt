@@ -39,7 +39,6 @@ set(core_headers
     numerics/Determinants.hpp
     numerics/LU.hpp
     numerics/Matrix.hpp
-    numerics/constants.hpp
     numerics/eigen_solve.hpp
     numerics/eigen_sort.hpp
     numerics/floating_point_limits.hpp
