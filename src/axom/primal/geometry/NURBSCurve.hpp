@@ -27,6 +27,8 @@
 
 #include <vector>
 #include <ostream>
+#include <math.h>
+
 #include "axom/fmt.hpp"
 
 namespace axom
@@ -394,6 +396,110 @@ public:
   }
 
   /*!
+   * \brief Construct a multi-span, rational, degree 2 NURBS curve from the angles of a circular arc
+   *
+   * \param [in] theta_0 The starting angle of the arc
+   * \param [in] theta_1 The ending angle of the arc
+   * \param [in] u, v The center of the 2D circle
+   * \param [in] radius The radius of the circle
+   * 
+   * \note The curve's knots will span [0, 1], but the parameterization is not
+   *  uniform with respect to the arc length
+   * 
+   * \note The arc is assumed to be counter-clockwise, unless \p theta_1 < \p theta_0,
+   *   in which case the arc is clockwise.
+   *        
+   * \pre Requires a 2D NURBS curve, and the arc is less than a full circle
+   */
+  static NURBSCurve make_circular_arc_nurbs(T theta_0, T theta_1, T u, T v, T radius)
+  {
+    SLIC_ASSERT(NDIMS == 2);
+
+    bool is_cw = false;
+    if(theta_0 == theta_1)
+    {
+      // Return an invalid NURBS curve
+      return NURBSCurve();
+    }
+
+    if(theta_1 < theta_0)
+    {
+      is_cw = true;
+      std::swap(theta_0, theta_1);
+    }
+
+    SLIC_ASSERT(theta_1 - theta_0 <= 2.0 * M_PI);
+
+    T pi23 = 2.0 * M_PI / 3.0;
+    int n_segments = std::ceil((theta_1 - theta_0) / pi23);
+
+    NURBSCurve arc_curve(1 + 2 * n_segments, 2);
+    arc_curve.makeRational();
+
+    // Define the first control point
+    arc_curve[0] = PointType({std::cos(theta_0), std::sin(theta_0)});
+    arc_curve.setWeight(0, 1.0);
+
+    // Need to split up the curve if it spans more than 120 degrees, possibly twice
+    for(int idx = 0; idx < n_segments; ++idx)
+    {
+      T theta_start = theta_0 + pi23 * idx;
+      T theta_end = std::min(theta_start + pi23, theta_1);
+
+      arc_curve[1 + 2 * idx + 1] = PointType({std::cos(theta_end), std::sin(theta_end)});
+
+      T weight_num = std::sin(theta_end - theta_start);
+      T weight_denom = 2.0 * std::sin((theta_end - theta_start) / 2.0);
+      arc_curve.setWeight(1 + 2 * idx + 0, weight_num / weight_denom);
+      arc_curve.setWeight(1 + 2 * idx + 1, 1.0);
+
+      arc_curve[1 + 2 * idx + 0] =
+        PointType({(arc_curve[1 + 2 * idx + 1][1] - arc_curve[1 + 2 * idx - 1][1]) / weight_num,
+                   (arc_curve[1 + 2 * idx - 1][0] - arc_curve[1 + 2 * idx + 1][0]) / weight_num});
+    }
+
+    // Scale all the control points to the right radius and center
+    for(int i = 0; i < 1 + 2 * n_segments; ++i)
+    {
+      arc_curve[i][0] = u + radius * arc_curve[i][0];
+      arc_curve[i][1] = v + radius * arc_curve[i][1];
+    }
+
+    for(int i = 0; i < n_segments - 1; ++i)
+    {
+      arc_curve.setKnot(3 + 2 * i + 0, static_cast<T>(i + 1) / n_segments);
+      arc_curve.setKnot(3 + 2 * i + 1, static_cast<T>(i + 1) / n_segments);
+    }
+
+    if(is_cw)
+    {
+      arc_curve.reverseOrientation();
+    }
+
+    return arc_curve;
+  }
+
+  /*!
+   * \brief Construct a NURBS curve from the endpoints of a line segment
+   *
+   * \param [in] start The starting point of the arc
+   * \param [in] end The ending point of the arc
+   *  
+   * \pre Requires a 2D NURBS curve
+   */
+  static NURBSCurve make_linear_segment_nurbs(const PointType& start, const PointType& end)
+  {
+    SLIC_ASSERT(NDIMS == 2);
+
+    NURBSCurve line(2, 1);
+
+    line[0] = start;
+    line[1] = end;
+
+    return line;
+  }
+
+  /*!
    * \brief Evaluate a NURBS Curve at a particular parameter value \a t
    *
    * \param [in] t The parameter value at which to evaluate
@@ -408,7 +514,7 @@ public:
   PointType evaluate(T t) const
   {
     SLIC_ASSERT(m_knotvec.isValidParameter(t));
-    t = axom::utilities::clampVal(t, m_knotvec[0], m_knotvec[m_knotvec.getNumKnots() - 1]);
+    t = axom::utilities::clampVal(t, getMinKnot(), getMaxKnot());
 
     const auto span = m_knotvec.findSpan(t);
     const auto N_evals = m_knotvec.calculateBasisFunctionsBySpan(span, t);
@@ -505,7 +611,7 @@ public:
    * 
    * \note If t is outside the knot span up to this tolerance, it is clamped to the span
    */
-  void evaluate_first_derivative(T t, PointType& eval, VectorType& Dt) const
+  void evaluateFirstDerivative(T t, PointType& eval, VectorType& Dt) const
   {
     axom::Array<VectorType> ders;
 
@@ -525,7 +631,7 @@ public:
    * 
    * \note If t is outside the knot span up to this tolerance, it is clamped to the span
    */
-  void evaluate_second_derivative(T t, PointType& eval, VectorType& Dt, VectorType& DtDt) const
+  void evaluateSecondDerivative(T t, PointType& eval, VectorType& Dt, VectorType& DtDt) const
   {
     axom::Array<VectorType> ders;
 
@@ -552,7 +658,7 @@ public:
   void evaluateDerivatives(T t, int d, PointType& eval, axom::Array<VectorType>& ders) const
   {
     SLIC_ASSERT(m_knotvec.isValidParameter(t));
-    t = axom::utilities::clampVal(t, m_knotvec[0], m_knotvec[m_knotvec.getNumKnots() - 1]);
+    t = axom::utilities::clampVal(t, getMinKnot(), getMaxKnot());
 
     const int p = m_knotvec.getDegree();
     ders.resize(d);
@@ -659,7 +765,7 @@ public:
   axom::IndexType insertKnot(T t, int target_multiplicity = 1)
   {
     SLIC_ASSERT(m_knotvec.isValidParameter(t));
-    t = axom::utilities::clampVal(t, m_knotvec[0], m_knotvec[m_knotvec.getNumKnots() - 1]);
+    t = axom::utilities::clampVal(t, getMinKnot(), getMaxKnot());
 
     SLIC_ASSERT(target_multiplicity > 0);
 
@@ -777,16 +883,45 @@ public:
    * \param [in] t parameter value at which to evaluate
    * \param [out] n1 First output NURBS curve
    * \param [out] n2 Second output NURBS curve
-   * \param [in] normalize Whether to normalize the output curves
+   * \param [in] normalizeParameters Whether to normalize the output curves
    * 
    * If t is at the knot u_0 or u_max, will return the original curve and
    *  a degenerate curve with the first or last control point
    *
    * \pre Requires \a t in the *strict interior* of the span of the knots
+   * 
+   * \return True if and only if the curve was split (i.e., t is in the knot span)
    */
-  void split(T t, NURBSCurve<T, NDIMS>& n1, NURBSCurve<T, NDIMS>& n2, bool normalize = false) const
+  bool split(T t,
+             NURBSCurve<T, NDIMS>& n1,
+             NURBSCurve<T, NDIMS>& n2,
+             bool normalizeParameters = false) const
   {
     SLIC_ASSERT(m_knotvec.isValidInteriorParameter(t));
+
+    if(!m_knotvec.isValidInteriorParameter(t))
+    {
+      // If t is outside the knot span, return the original curve
+      //  and an invalid NURBS curve
+      if(t <= getMinKnot())
+      {
+        n1 = NURBSCurve();
+        n2 = *this;
+      }
+      else if(t >= getMaxKnot())
+      {
+        n1 = *this;
+        n2 = NURBSCurve();
+      }
+
+      if(normalizeParameters)
+      {
+        n1.normalize();
+        n2.normalize();
+      }
+
+      return false;
+    }
 
     const bool isCurveRational = this->isRational();
     const int p = getDegree();
@@ -821,11 +956,13 @@ public:
     n1.m_controlPoints.resize(s - p + 1);
     n1.m_weights.resize(isCurveRational ? s - p + 1 : 0);
 
-    if(normalize)
+    if(normalizeParameters)
     {
       n1.normalize();
       n2.normalize();
     }
+
+    return true;
   }
 
   /// \brief Normalize the knot vector to the span of [0, 1]
@@ -1198,6 +1335,12 @@ public:
 
   /// \brief Return a copy of the knot vector as an array
   axom::Array<T> getKnotsArray() const { return m_knotvec.getArray(); }
+
+  /// \brief Get minimum knot
+  T getMinKnot() const { return m_knotvec[0]; }
+
+  /// \brief Get maximum knot
+  T getMaxKnot() const { return m_knotvec[m_knotvec.getNumKnots() - 1]; }
 
   /// \brief Reverses the order of the NURBS curve's control points and weights
   void reverseOrientation()
