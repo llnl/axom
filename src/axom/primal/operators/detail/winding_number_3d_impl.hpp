@@ -204,19 +204,44 @@ double nurbs_winding_number(const Point<T, 3>& query,
     axom::Array<T> up, vp, tp;
     bool isHalfOpen = false, countUntrimmed = true;
 
-    bool success = intersect(discontinuity_axis,
-                             nPatch,
-                             tp,
-                             up,
-                             vp,
-                             ls_tol,
-                             EPS,
-                             countUntrimmed,
-                             isHalfOpen);
+    bool success =
+      intersect(discontinuity_axis, nPatch, tp, up, vp, ls_tol, EPS, countUntrimmed, isHalfOpen);
 
     if(!success)
     {
-      // This is the part where we haven't figured it out exactly
+      // Look at the intersection points
+      int num_noncoincident = 0;
+      for(int i = 0; i < tp.size(); ++i)
+      {
+        Point<T, 3> the_point(nPatch.evaluate(up[i], vp[i]));
+        // If any of the intersection points are coincident with the surface,
+        //  then revert to adaptive surface method
+        if(squared_distance(query, the_point) <= edge_tol_sq)
+        {
+          return  // Surface formula
+        }
+        else
+        {
+          num_noncoincident++;
+        }
+
+        // If more than 5 (arbitrary) are *not* coincident with the surface,
+        //  re-cast and try again. This is to avoid cases where the point *is*
+        //  coincident with the surface, but the first recorded point of
+        //  intersection is not after multiple re-casts.
+        if(num_noncoincident > 5)
+        {
+          auto new_cast_direction = random_unit();
+          return nurbs_winding_number(query,
+                                      nPatch,
+                                      new_cast_direction,
+                                      edge_tol,
+                                      ls_tol,
+                                      quad_tol,
+                                      EPS,
+                                      depth + 1);
+        }
+      }
     }
 
     // If no intersections are recorded, then nothing extra to account for
@@ -242,7 +267,14 @@ double nurbs_winding_number(const Point<T, 3>& query,
         // If a non-coincident ray intersects the surface at a tangent/cusp,
         //  can recast and try again
         auto new_cast_direction = random_unit();
-        return nurbs_winding_number(query, nPatch, new_cast_direction, edge_tol, ls_tol, quad_tol, EPS, depth + 1);
+        return nurbs_winding_number(query,
+                                    nPatch,
+                                    new_cast_direction,
+                                    edge_tol,
+                                    ls_tol,
+                                    quad_tol,
+                                    EPS,
+                                    depth + 1);
       }
 
       if(isOnSurface)
@@ -290,7 +322,14 @@ double nurbs_winding_number(const Point<T, 3>& query,
       {
         // If the disk overlapped with the trimming curves, evaluate the winding number for the disk
         auto new_cast_direction = random_unit();
-        the_gwn += nurbs_winding_number(query, the_disk, new_cast_direction, edge_tol, ls_tol, quad_tol, EPS, depth + 1);
+        the_gwn += nurbs_winding_number(query,
+                                        the_disk,
+                                        new_cast_direction,
+                                        edge_tol,
+                                        ls_tol,
+                                        quad_tol,
+                                        EPS,
+                                        depth + 1);
       }
       else if(isDiskOutside)
       {
