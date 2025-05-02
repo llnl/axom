@@ -21,8 +21,14 @@ namespace quest
 TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Tet") : name)
+  , m_transformer(m_transMat)
 {
   extractClipperInfo();
+
+  for(int i = 0; i < TetrahedronType::NUM_VERTS; ++i)
+  {
+    m_tet[i] = m_transformer.getTransform(m_tetBeforeTrans[i]);
+  }
 
   for(int i = 0; i < TetrahedronType::NUM_VERTS; ++i)
   {
@@ -39,6 +45,7 @@ TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
     // face outside.  Flip them to face inside.
     if(iPlane % 2 == 1) m_planes[iPlane].flip();
   }
+
 }
 
 bool TetClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
@@ -178,10 +185,10 @@ void TetClipper::extractClipperInfo()
   const auto v3 = m_info.fetch_existing("v3").as_double_array();
   for(int d = 0; d < 3; ++d)
   {
-    m_tet[0][d] = v0[d];
-    m_tet[1][d] = v1[d];
-    m_tet[2][d] = v2[d];
-    m_tet[3][d] = v3[d];
+    m_tetBeforeTrans[0][d] = v0[d];
+    m_tetBeforeTrans[1][d] = v1[d];
+    m_tetBeforeTrans[2][d] = v2[d];
+    m_tetBeforeTrans[3][d] = v3[d];
   }
 }
 

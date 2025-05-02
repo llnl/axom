@@ -24,8 +24,11 @@ namespace quest
 SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Sor") : name)
+  , m_transformer(m_transMat)
 {
   extractClipperInfo();
+
+  m_inverseTransformer = m_transformer.getInverse();
 }
 
 bool SorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
@@ -72,22 +75,26 @@ bool SorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Oc
   SLIC_ASSERT(octCount == octsOnHost.size());
 
   // Rotate to the SOR axis direction and translate to the base location.
+  // Then apply the external transformation.
   numerics::Matrix<double> rotate = sorAxisRotMatrix(m_sorDirection);
   const auto& translate = m_sorBase;
   auto octsView = octsOnHost.view();
+  auto transformer = m_transformer;
   axom::for_all<axom::SEQ_EXEC>(
     octCount,
     AXOM_LAMBDA(axom::IndexType iOct) {
-      auto& oct = octsView[iOct];
+      OctahedronType& oct = octsView[iOct];
       for(int iVert = 0; iVert < OctType::NUM_VERTS; ++iVert)
       {
-        auto& newCoords = oct[iVert];
-        auto oldCoords = newCoords;
+        Point3DType& newCoords = oct[iVert];
+        Point3DType oldCoords = newCoords;
         numerics::matrix_vector_multiply(rotate, oldCoords.data(), newCoords.data());
         newCoords.array() += translate.array();
+        transformer.transform(newCoords);
       }
     });
 
+  // The disretize method uses host data.  Place into proper space if needed.
   if(&octs != &octsOnHost)
   {
     octs.resize(octsOnHost.size());

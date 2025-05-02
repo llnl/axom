@@ -8,6 +8,7 @@
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/GeometryClipperStrategy.hpp"
+#include "axom/quest/CoordinateTransformer.hpp"
 
 namespace axom
 {
@@ -43,7 +44,11 @@ private:
 #endif
   std::string m_name;
 
+  axom::primal::Sphere<double, 3> m_sphereBeforeTrans;
+
   axom::primal::Sphere<double, 3> m_sphere;
+
+  axom::quest::CoordinateTransformer<double> m_transformer;
 
   int m_levelOfRefinement;
 
@@ -51,6 +56,8 @@ private:
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
   void extractClipperInfo();
+
+  void transformSphere();
 };
 
 }  // namespace quest

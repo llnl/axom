@@ -95,10 +95,9 @@ public:
   std::vector<std::string> testGeom;  // {"tetmesh"};
   // The shapes this example is set up to run.
   const std::set<std::string>
-    availableShapes {"tetmesh", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane", "all"};
+    availableShapes {"tetmesh", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
-  int outputOrder {2};
   int refinementLevel {7};
   double weldThresh {1e-9};
   double percentError {-1.};
@@ -265,6 +264,32 @@ public:
 };  // struct Input
 Input params;
 
+/************************************************************
+ * Shared variables.
+ ************************************************************/
+
+const std::string topoName = "mesh";
+const std::string matsetName = "matset";
+const std::string coordsetName = "coords";
+int cellCount = -1;
+// Translation to individual octants (override) when running multiple shapes
+// for ease of visualization.
+// Except that the plane is never moved.
+std::map<std::string, axom::NumericArray<double, 3>> translations
+{ {"tet", {1, 1, -1}}
+, {"tetmesh", {-1, 1, -1}}
+, {"hex", {-1, -1, -1}}
+, {"cyl", {1, -1, -1}}
+, {"cone", {1, 1, 1}}
+, {"sor", {-1, 1, 1}}
+, {"sphere", {-1, -1, 1}}
+, {"plane", {0, 0, 0}}
+};
+std::map<std::string, double> exactGeomVols;
+std::map<std::string, double> errorToleranceRel; // Relative error tolerance.
+std::map<std::string, double> errorToleranceAbs; // Absolute error tolerance.
+double vScale = 1.0; // Volume scale due to geometry scale.
+
 // Start property for all 3D shapes.
 axom::klee::TransformableGeometryProperties startProp {axom::klee::Dimensions::Three,
                                                        axom::klee::LengthUnit::unspecified};
@@ -286,13 +311,22 @@ void addScaleOperator(axom::klee::CompositeOperator& compositeOp)
 
 // Add translate operator.
 void addTranslateOperator(axom::klee::CompositeOperator& compositeOp,
-                          double shiftx,
-                          double shifty,
-                          double shiftz)
+                          const std::string& geomName)
 {
-  primal::Vector3D shift({shiftx, shifty, shiftz});
-  auto translateOp = std::make_shared<axom::klee::Translation>(shift, startProp);
-  compositeOp.addOperator(translateOp);
+  if(params.testGeom.size() > 1)
+  {
+    const auto& shifts = translations.at(geomName);
+    primal::Vector3D shift({shifts[0], shifts[1], shifts[2]});
+    auto translateOp = std::make_shared<axom::klee::Translation>(shift, startProp);
+    compositeOp.addOperator(translateOp);
+  }
+  else
+  {
+    // Use zero shift.
+    primal::Vector3D shift({0, 0, 0});
+    auto translateOp = std::make_shared<axom::klee::Translation>(shift, startProp);
+    compositeOp.addOperator(translateOp);
+  }
 }
 
 // Add operator to rotate x-axis to params.direction, if it is given.
@@ -313,14 +347,6 @@ void addRotateOperator(axom::klee::CompositeOperator& compositeOp)
     compositeOp.addOperator(rotateOp);
   }
 }
-
-const std::string topoName = "mesh";
-const std::string matsetName = "matset";
-const std::string coordsetName = "coords";
-int cellCount = -1;
-std::map<std::string, double> exactOverlapVols;
-std::map<std::string, double> errorToleranceRel; // Relative error tolerance.
-std::map<std::string, double> errorToleranceAbs; // Absolute error tolerance.
 
 // Computational mesh in different forms, initialized in main
 axom::sidre::Group* compMeshGrp = nullptr;
@@ -419,6 +445,11 @@ double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHA
   return meshVolume;
 }
 
+/*
+  For the test shapes, try to get good volume with compact shape
+  that stays in domain when rotated (else volume check is invalid).
+*/
+
 axom::klee::Geometry createGeom_Sphere()
 {
   Point3D center = params.center.empty() ? Point3D {0, 0, 0} : Point3D {params.center.data()};
@@ -431,11 +462,11 @@ axom::klee::Geometry createGeom_Sphere()
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, 1, 1, 1);
+  addTranslateOperator(*compositeOp, "sphere");
 
   const axom::IndexType levelOfRefinement = params.refinementLevel;
   axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
-  exactOverlapVols["sphere"] = 4. / 3 * M_PI * radius * radius * radius;
+  exactGeomVols["sphere"] = vScale * 4. / 3 * M_PI * radius * radius * radius;
   errorToleranceRel["sphere"] = 1e-3;
   errorToleranceAbs["sphere"] = 1e-5;
 
@@ -479,11 +510,11 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds)
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, -1, 1, 1);
+  addTranslateOperator(*compositeOp, "tetmesh");
 
   axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
 
-  exactOverlapVols["tetmesh"] = volumeOfTetMesh(tetMesh);
+  exactGeomVols["tetmesh"] = vScale * volumeOfTetMesh(tetMesh);
   errorToleranceRel["tetmesh"] = 1e-6;
   errorToleranceAbs["tetmesh"] = 1e-8;
 
@@ -552,12 +583,12 @@ axom::klee::Geometry createGeom_Sor()
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, -1, -1, 1);
+  addTranslateOperator(*compositeOp, "sor");
 
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
-  exactOverlapVols["sor"] = computeVolume_Sor(discreteFunction);
+  exactGeomVols["sor"] = vScale * computeVolume_Sor(discreteFunction);
   errorToleranceRel["sor"] = 0.011;
   errorToleranceAbs["sor"] = 0.013;
 
@@ -582,12 +613,12 @@ axom::klee::Geometry createGeom_Cylinder()
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, 1, -1, 1);
+  addTranslateOperator(*compositeOp, "cyl");
 
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
-  exactOverlapVols["cyl"] = computeVolume_Sor(discreteFunction);
+  exactGeomVols["cyl"] = vScale * computeVolume_Sor(discreteFunction);
   errorToleranceRel["cyl"] = 1e-3;
   errorToleranceAbs["cyl"] = 1e-5;
 
@@ -613,12 +644,12 @@ axom::klee::Geometry createGeom_Cone()
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, 1, 1, -1);
+  addTranslateOperator(*compositeOp, "cone");
 
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
-  exactOverlapVols["cone"] = computeVolume_Sor(discreteFunction);
+  exactGeomVols["cone"] = vScale * computeVolume_Sor(discreteFunction);
   errorToleranceRel["cone"] = 1e-4;
   errorToleranceAbs["cone"] = 1e-4;
 
@@ -631,18 +662,26 @@ axom::klee::Geometry createGeom_Tet()
                                                     axom::klee::LengthUnit::unspecified};
 
   // Tetrahedron at origin.
+#if 1
+  const double len = params.length < 0 ? 1.55 : params.length;
+  const Point3D a { Point3D::NumericArray{1., 0., -1.} * len };
+  const Point3D b { Point3D::NumericArray{-.8, 1, -1.} * len };
+  const Point3D c { Point3D::NumericArray{-.8, -1, -1.} * len };
+  const Point3D d { Point3D::NumericArray{0., 0., +1.} * len };
+#else
   const double len = params.length < 0 ? 1.5 : params.length;
   const Point3D a {-len, -len, -len};
   const Point3D b {+len, -len, -len};
   const Point3D c {+len, +len, -len};
-  const Point3D d {-len, +len, +len};
+  const Point3D d {+len, +len, +len};
+#endif
   const primal::Tetrahedron<double, 3> tet {a, b, c, d};
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, -1, 1, -1);
-  exactOverlapVols["tet"] = tet.volume();
+  addTranslateOperator(*compositeOp, "tet");
+  exactGeomVols["tet"] = vScale * tet.volume();
   errorToleranceRel["tet"] = 1e-6;
   errorToleranceAbs["tet"] = 1e-8;
 
@@ -669,11 +708,12 @@ axom::klee::Geometry createGeom_Hex()
   const Point3D w {-lg, +md, +sm};
   const primal::Hexahedron<double, 3> hex {p, q, r, s, t, u, v, w};
 
+// TODO: I plan to use the translate/scale operator to run multiple geometries on the same grid.  So those methods should be rewritten and check a flag whehter they should do that.  Each shape would be moved to a specific octant.
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, -1, -1, -1);
-  exactOverlapVols["hex"] = hex.volume();
+  addTranslateOperator(*compositeOp, "hex");
+  exactGeomVols["hex"] = vScale * hex.volume();
   errorToleranceRel["hex"] = 1e-6;
   errorToleranceAbs["hex"] = 1e-8;
 
@@ -705,7 +745,7 @@ axom::klee::Geometry createGeom_Plane()
   Pt3D upper(params.boxMaxs.data());
   auto diag = upper.array() - lower.array();
   double meshVolume = diag[0] * diag[1] * diag[2];
-  exactOverlapVols["plane"] = 0.5 * meshVolume;
+  exactGeomVols["plane"] = 0.5 * meshVolume;
   errorToleranceRel["plane"] = 1e-6;
   errorToleranceAbs["plane"] = 1e-8;
 
@@ -1022,6 +1062,17 @@ int main(int argc, char** argv)
     exit(retval);
   }
 
+  if(params.testGeom.size() > 1)
+  {
+    SLIC_WARNING("Multiple test configurations specified.\n"
+                 "Scaling by half to shrink the geometries\n"
+                 "and move them to individual octants so they don't overlap\n"
+                 "with each other.");
+    params.scaleFactors.resize(3, 1.0);
+    for( auto& f : params.scaleFactors ) f *= 0.5;
+  }
+  vScale = params.scaleFactors[0] * params.scaleFactors[1] * params.scaleFactors[2];
+
   axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(params.annotationMode);
 
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
@@ -1160,20 +1211,20 @@ int main(int argc, char** argv)
       ovlap.size(),
       AXOM_LAMBDA(axom::IndexType i) { ovlapSumReduce += ovlapView[i]; });
     double computedOverlapVol = ovlapSumReduce.get();
-    double correctOverlapVol = exactOverlapVols[geomName];
+    double exactGeomVol = exactGeomVols[geomName];
 
     bool err = !axom::utilities::isNearlyEqualRelative(computedOverlapVol,
-                                                       correctOverlapVol,
-                                                       errorToleranceRel[geomName],
-                                                       errorToleranceAbs[geomName]);
+                                                       exactGeomVol,
+                                                       errorToleranceRel.at(geomName),
+                                                       errorToleranceAbs.at(geomName));
     failCounts += err;
 
     SLIC_INFO(axom::fmt::format("{:-^80}",
                                 axom::fmt::format("Shape '{}' has volume {} vs {}, diff of {}, {}.",
                                                   geomName,
                                                   computedOverlapVol,
-                                                  correctOverlapVol,
-                                                  computedOverlapVol - correctOverlapVol,
+                                                  exactGeomVol,
+                                                  computedOverlapVol - exactGeomVol,
                                                   (err ? "ERROR" : "OK"))));
   }
   AXOM_ANNOTATE_END("clipping");

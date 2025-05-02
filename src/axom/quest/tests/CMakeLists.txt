@@ -236,8 +236,8 @@ if(CONDUIT_FOUND AND RAJA_FOUND)
             --testGeom ${_testgeom}
             -o ${_testname}
             --refinements 7
-            --scale 0.75 0.75 0.75
-            --dir 0.2 0.4 0.8
+            --scale 1 1 1
+            --dir 8 4 2
             --meshType ${_meshType}
             inline_mesh --min -2 -2 -2 --max 2 2 2 --res 30 30 30
             NUM_MPI_TASKS ${_nranks})

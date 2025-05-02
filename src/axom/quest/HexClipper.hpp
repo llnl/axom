@@ -8,6 +8,7 @@
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/GeometryClipperStrategy.hpp"
+#include "axom/quest/CoordinateTransformer.hpp"
 
 namespace axom
 {
@@ -42,12 +43,19 @@ private:
 #endif
   std::string m_name;
 
+  //!@brief Hexahedron before transformation.
+  HexahedronType m_hexBeforeTrans;
+
+  //!@brief Hexahedron after transformation.
   HexahedronType m_hex;
+
   axom::primal::BoundingBox<double, 3> m_bb;
   axom::StackArray<TetrahedronType, HexahedronType::NUM_TRIANGULATE> m_tets;
   //!@brief 4 planes per tet, each oriented to the interior of the tet.
   axom::StackArray<axom::StackArray<Plane3DType, TetrahedronType::NUM_VERTS>, HexahedronType::NUM_TRIANGULATE>
     m_planes;
+
+  axom::quest::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);

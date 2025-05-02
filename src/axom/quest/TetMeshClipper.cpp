@@ -26,10 +26,13 @@ TetMeshClipper::TetMeshClipper(const klee::Geometry& kGeom, const std::string& n
   , m_name(name.empty() ? std::string("TetMesh") : name)
   , m_topoName(kGeom.getBlueprintTopology())
   , m_cellCount(0)
+  , m_transformer(m_transMat)
 {
   SLIC_ASSERT(!m_topoName.empty());
 
   extractClipperInfo();
+
+  transformCoordset();
 }
 
 bool TetMeshClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
@@ -84,9 +87,8 @@ bool TetMeshClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Arra
       or we should write better blueprint support utilities.
     */
     auto* topoGrp = bpMeshGrp->getGroup("topologies")->getGroup(m_topoName);
-    const std::string coordsetName = topoGrp->getView("coordset")->getString();
     auto* coordValuesGrp =
-      bpMeshGrp->getGroup("coordsets")->getGroup(coordsetName)->getGroup("values");
+      bpMeshGrp->getGroup("coordsets")->getGroup(m_coordsetName)->getGroup("values");
     /*
       Make the coordinate arrays 2D to use mint::Mesh.
       For some reason, mint::Mesh requires the arrays to be
@@ -156,8 +158,7 @@ bool TetMeshClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Arra
 
 void TetMeshClipper::extractClipperInfo()
 {
-  m_topoName = m_info.fetch_existing("topologyName").to_string();
-  m_topoName = m_topoName.substr(1, m_topoName.size() - 2);  // Remove unwanted quotes.
+  m_topoName = m_info.fetch_existing("topologyName").as_string();
 
   m_bpMesh = &m_info.fetch_existing("klee::Geometry:tetMesh");
 
@@ -173,6 +174,26 @@ void TetMeshClipper::extractClipperInfo()
   SLIC_ASSERT(conduit::blueprint::mesh::topology::dims(topoNode) == 3);
 
   m_cellCount = conduit::blueprint::mesh::topology::length(topoNode);
+
+  m_coordsetName = topoNode.fetch_existing("coordset").as_string();
+}
+
+void TetMeshClipper::transformCoordset()
+{
+  // Apply transformations
+  auto& oldCoordset = m_bpMesh->fetch_existing("coordsets").fetch_existing(m_coordsetName);
+  const std::string newCoordsetName = m_coordsetName + ".trans";
+  conduit::Node& coordset = m_bpMesh->fetch("coordsets")[newCoordsetName];
+  coordset.set_node(oldCoordset);
+  auto transformer = m_transformer;
+  conduit::index_t count = conduit::blueprint::mesh::coordset::length(coordset);
+  axom::ArrayView<double> xV(coordset.fetch_existing("values/x").as_double_ptr(), count);
+  axom::ArrayView<double> yV(coordset.fetch_existing("values/y").as_double_ptr(), count);
+  axom::ArrayView<double> zV(coordset.fetch_existing("values/z").as_double_ptr(), count);
+  axom::for_all<axom::SEQ_EXEC>(count, AXOM_LAMBDA(axom::IndexType i) {
+      transformer.transform(xV[i], yV[i], zV[i]); });
+  m_bpMesh->fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("coordset").set_string(newCoordsetName);
+  m_coordsetName = newCoordsetName;
 }
 
 }  // end namespace quest

@@ -22,9 +22,11 @@ namespace quest
 SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Sphere") : name)
-  , m_sphere(kGeom.getSphere())
+  , m_transformer(m_transMat)
 {
   extractClipperInfo();
+
+  transformSphere();
 }
 
 bool SphereClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
@@ -130,10 +132,23 @@ bool SphereClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh,
 {
   AXOM_ANNOTATE_BEGIN("SphereClipper::getGeometryAsOcts");
   int octCount = 0;
-  axom::quest::discretize(m_sphere, m_levelOfRefinement, octs, octCount);
+  axom::quest::discretize(m_sphereBeforeTrans, m_levelOfRefinement, octs, octCount);
+
+  auto octsView = octs.view();
+  auto transformer = m_transformer;
+  int allocId = shapeeMesh.getAllocatorId();
+  axom::for_all<axom::SEQ_EXEC>(
+    octCount,
+    AXOM_LAMBDA(axom::IndexType iOct) {
+      OctahedronType& oct = octsView[iOct];
+      for(int iVert = 0; iVert < OctType::NUM_VERTS; ++iVert)
+      {
+        Point3DType& ptCoords = oct[iVert];
+        transformer.transform(ptCoords);
+      }
+    });
 
   // The disretize method uses host data.  Place into proper space if needed.
-  int allocId = shapeeMesh.getAllocatorId();
   if(octs.getAllocatorID() != allocId)
   {
     octs = axom::Array<axom::primal::Octahedron<double, 3>>(octs, allocId);
@@ -151,8 +166,22 @@ void SphereClipper::extractClipperInfo()
   {
     center[d] = c[d];
   }
-  m_sphere = SphereType(center, radius);
+  m_sphereBeforeTrans = SphereType(center, radius);
   m_levelOfRefinement = m_info.fetch_existing("levelOfRefinement").to_int32();
+}
+
+void SphereClipper::transformSphere()
+{
+  const auto& centerBeforeTrans = m_sphereBeforeTrans.getCenter();
+  const double radiusBeforeTrans = m_sphereBeforeTrans.getRadius();
+  Point3DType surfacePtBeforeTrans { centerBeforeTrans.array() +
+                                     Point3DType::NumericArray{radiusBeforeTrans, 0, 0} };
+
+  auto center = m_transformer.getTransform(centerBeforeTrans);
+  Point3DType surfacePoint = m_transformer.getTransform(surfacePtBeforeTrans);
+  const double radius = Vector3DType(center, surfacePoint).norm();
+  m_sphere = SphereType(center, radius);
+std::cout << m_sphereBeforeTrans << ' ' << m_sphere<<std::endl;
 }
 
 }  // end namespace quest

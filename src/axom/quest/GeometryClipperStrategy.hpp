@@ -19,8 +19,8 @@ namespace quest
 {
 
 /*!
-  @brief Strategy base class for geometry-specific operations
-  in clipping.
+  @brief Strategy base class for clipping operations for specific
+  geometry instances.
 
   Key methods to implement:  (Some combination of these is required.)
 
@@ -204,7 +204,8 @@ public:
   }
 
   /*!
-    @brief Get the geometry as discrete tetrahedra, or return false.
+    @brief Get the fully transformed geometry as discrete tetrahedra,
+    or return false.
     @param [in] shapeeMesh Blueprint mesh to shape into.
     @param [out] tets Array of tetrahedra filling the space of the shape.
 
@@ -226,7 +227,8 @@ public:
   }
 
   /*!
-    @brief Get the geometry as discrete octahedra, or return false.
+    @brief Get the fully transformed geometry as discrete octahedra,
+    or return false.
     @param [in] shapeeMesh Blueprint mesh to shape into.
     @param [out] octs Array of octahedra filling the space of the shape.
 
@@ -267,6 +269,30 @@ protected:
     Most if not all data should be in host memory.
   */
   conduit::Node m_info;
+
+  /*!
+    @brief Transformation due to the GeometryOperator.
+
+    This is a direct result of the klee::Geometry::getGeometryOperator().
+  */
+  numerics::Matrix<double> m_transMat;
+
+private:
+  /*!
+    @brief Compute the transformation matrix of a GeometryOperator.
+
+    TODO: The matrix is equivalent to the operator.  This code is
+    duplicated in several classes.  Should it be moved to
+    GeometryOperator?
+
+    TODO: I've not implemented coordinate transformations for any
+    subclasses.  When the transform matrix is not identity, their
+    results are wrong until the transformations take place.  Transformations
+    need to happen in getGeometryAsTets, getGeometryAsOcts, labelInOut
+    and specializedClip.  Basically everything.
+  */
+  numerics::Matrix<double> computeTransformationMatrix(
+    const std::shared_ptr<const axom::klee::GeometryOperator>& op) const;
 };
 
 }  // namespace quest

@@ -8,6 +8,8 @@
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/GeometryClipperStrategy.hpp"
+#include "axom/quest/GeometryClipperStrategy.hpp"
+#include "axom/quest/CoordinateTransformer.hpp"
 
 namespace axom
 {
@@ -45,17 +47,24 @@ private:
   //! @brief Topology to use in the Blueprint tet mesh.
   std::string m_topoName;
 
+  //! @brief Coordset to use in the Blueprint tet mesh.
+  std::string m_coordsetName;
+
   //! @brief Tet mesh in Blueprint format.
   conduit::Node* m_bpMesh;
 
   //! @brief Number of cells in the tet mesh.
   axom::IndexType m_cellCount;
 
+  axom::quest::CoordinateTransformer<double> m_transformer;
+
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
   // Extract clipper info from GeometryClipperStrategy::m_info.
   void extractClipperInfo();
+
+  void transformCoordset();
 };
 
 }  // namespace quest

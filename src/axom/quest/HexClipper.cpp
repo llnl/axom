@@ -13,6 +13,7 @@
 #include "axom/quest/Discretize.hpp"
 #include "axom/quest/HexClipper.hpp"
 #include "axom/fmt.hpp"
+#include "axom/core/WhereMacro.hpp"
 
 namespace axom
 {
@@ -22,15 +23,22 @@ namespace quest
 HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Hex") : name)
+  , m_transformer(m_transMat)
 {
   extractClipperInfo();
 
   for(int i = 0; i < HexahedronType::NUM_HEX_VERTS; ++i)
   {
-    m_bb.addPoint(m_hex[i]);
+    m_hex[i] = m_transformer.getTransform(m_hexBeforeTrans[i]);
   }
 
   m_hex.triangulate(m_tets);
+
+  for(int i = 0; i < HexahedronType::NUM_HEX_VERTS; ++i)
+  {
+    m_bb.addPoint(m_hex[i]);
+  }
+std::cout<<__WHERE<<m_hexBeforeTrans<<' '<<m_hex<<' '<<m_hex<<' '<<m_bb<<std::endl;
 
   for(int iTet = 0; iTet < HexahedronType::NUM_TRIANGULATE; ++iTet)
   {
@@ -195,14 +203,14 @@ void HexClipper::extractClipperInfo()
   const auto v7 = m_info.fetch_existing("v7").as_double_array();
   for(int d = 0; d < 3; ++d)
   {
-    m_hex[0][d] = v0[d];
-    m_hex[1][d] = v1[d];
-    m_hex[2][d] = v2[d];
-    m_hex[3][d] = v3[d];
-    m_hex[4][d] = v4[d];
-    m_hex[5][d] = v5[d];
-    m_hex[6][d] = v6[d];
-    m_hex[7][d] = v7[d];
+    m_hexBeforeTrans[0][d] = v0[d];
+    m_hexBeforeTrans[1][d] = v1[d];
+    m_hexBeforeTrans[2][d] = v2[d];
+    m_hexBeforeTrans[3][d] = v3[d];
+    m_hexBeforeTrans[4][d] = v4[d];
+    m_hexBeforeTrans[5][d] = v5[d];
+    m_hexBeforeTrans[6][d] = v6[d];
+    m_hexBeforeTrans[7][d] = v7[d];
   }
 }
 
