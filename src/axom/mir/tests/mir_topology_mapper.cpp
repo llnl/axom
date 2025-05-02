@@ -293,7 +293,7 @@ public:
     EXPECT_TRUE(TestApp.test<ExecSpace>("test3D", hostResult));
   }
 
-  static void testPH()
+  static void testPolyhedral()
   {
     // Make the 2D input mesh.
     conduit::Node n_mesh;
@@ -307,9 +307,9 @@ public:
     extrude(n_dev);
 
     // Make the source mesh polyhedral
-    makePH(n_dev);
+    makePolyhedral(n_dev);
 
-    mappingPH(n_dev);
+    mappingPolyhedral(n_dev);
 
     // device->host
     conduit::Node hostResult;
@@ -495,7 +495,7 @@ private:
     mapper.execute(n_dev, n_opts, n_dev);
   }
 
-  static void makePH(conduit::Node &n_dev)
+  static void makePolyhedral(conduit::Node &n_dev)
   {
     // Wrap coarse/epm mesh in a view.
     using SrcTopologyView = views::UnstructuredTopologyMixedShapeView<conduit::index_t>;
@@ -521,7 +521,7 @@ private:
     n_dev["matsets/ph_matset/topology"] = "phmesh";
   }
 
-  static void mappingPH(conduit::Node &n_dev)
+  static void mappingPolyhedral(conduit::Node &n_dev)
   {
     // Wrap coarse/post_mir mesh in views.
     auto srcCoordset =
@@ -529,15 +529,9 @@ private:
     using SrcCoordsetView = decltype(srcCoordset);
 
     // Make polyhedral topology view.
-    using SrcTopologyView = views::UnstructuredTopologyPolyhedralView<conduit::index_t>;
     const conduit::Node &n_srcTopo = n_dev["topologies/phmesh"];
-    SrcTopologyView srcTopo(
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["subelements/connectivity"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["subelements/sizes"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["subelements/offsets"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/sizes"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]));
+    auto srcTopo = views::make_unstructured_polyhedral_topology<conduit::index_t>::view(n_srcTopo);  
+    using SrcTopologyView = decltype(srcTopo);
 
     const conduit::Node &n_srcMatset = n_dev["matsets/ph_matset"];
     auto srcMatset = views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_srcMatset);
@@ -622,30 +616,30 @@ TEST(mir_topology_mapper, TopologyMapper_3D_hip)
 #endif
 
 //------------------------------------------------------------------------------
-TEST(mir_topology_mapper, TopologyMapper_PH_seq)
+TEST(mir_topology_mapper, TopologyMapper_Polyhedral_seq)
 {
-  AXOM_ANNOTATE_SCOPE("TopologyMapper_PH_seq");
-  test_TopologyMapper<seq_exec>::testPH();
+  AXOM_ANNOTATE_SCOPE("TopologyMapper_Polyhedral_seq");
+  test_TopologyMapper<seq_exec>::testPolyhedral();
 }
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_topology_mapper, TopologyMapper_PH_omp)
+TEST(mir_topology_mapper, TopologyMapper_Polyhedral_omp)
 {
-  AXOM_ANNOTATE_SCOPE("TopologyMapper_PH_omp");
-  test_TopologyMapper<omp_exec>::testPH();
+  AXOM_ANNOTATE_SCOPE("TopologyMapper_Polyhedral_omp");
+  test_TopologyMapper<omp_exec>::testPolyhedral();
 }
 #endif
 #if defined(AXOM_USE_CUDA)
-TEST(mir_topology_mapper, TopologyMapper_PH_cuda)
+TEST(mir_topology_mapper, TopologyMapper_Polyhedral_cuda)
 {
-  AXOM_ANNOTATE_SCOPE("TopologyMapper_PH_cuda");
-  test_TopologyMapper<cuda_exec>::testPH();
+  AXOM_ANNOTATE_SCOPE("TopologyMapper_Polyhedral_cuda");
+  test_TopologyMapper<cuda_exec>::testPolyhedral();
 }
 #endif
 #if defined(AXOM_USE_HIP)
-TEST(mir_topology_mapper, TopologyMapper_PH_hip)
+TEST(mir_topology_mapper, TopologyMapper_Polyhedral_hip)
 {
-  AXOM_ANNOTATE_SCOPE("TopologyMapper_PH_hip");
-  test_TopologyMapper<hip_exec>::testPH();
+  AXOM_ANNOTATE_SCOPE("TopologyMapper_Polyhedral_hip");
+  test_TopologyMapper<hip_exec>::testPolyhedral();
 }
 #endif
 
