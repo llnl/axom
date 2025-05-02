@@ -186,16 +186,13 @@ public:
   }
 
   /**
-   * \brief Constructor for Map using a Set passed by-value and data passed in
-   *        by-value.
+   * \brief Constructor for Map using a Set passed by-value and data passed in by-value.
    *
    * \param theSet  A reference to the map's set
    * \param data    Pointer to the externally-owned data
-   * \param shape   (Optional) The number of DataType that each element in the
-   *                set will be mapped to.
-   *                When using a \a RuntimeStridePolicy, the default is 1.
-   * \note  When using a compile time StridePolicy, \a stride must be equal to
-   *        \a stride(), when provided.
+   * \param shape   (Optional) The number of DataType that each element in the set 
+   *                will be mapped to. When using a \a RuntimeStridePolicy, the default is 1.
+   * \note  When using a compile time StridePolicy, \a stride must be equal to \a stride(), when provided.
    */
   template <typename USet,
             typename TSet = SetType,
@@ -808,21 +805,11 @@ bool Map<T, S, IndPol, StrPol, IfacePol>::isValid(bool verboseOutput) const
     }
   }
 
-  if(verboseOutput)
+  if(verboseOutput && !bValid)
   {
-    std::stringstream sstr;
-
-    sstr << "\n*** Detailed results of isValid on the map.\n";
-    if(bValid)
-    {
-      sstr << "Map was valid." << std::endl;
-    }
-    else
-    {
-      sstr << "Map was NOT valid.\n" << sstr.str() << std::endl;
-    }
-
-    std::cout << sstr.str() << std::endl;
+    std::cout << "\n*** Detailed results of isValid on the map.\n"
+              << "Map was NOT valid.\n"
+              << errStr.str() << std::endl;
   }
 
   return bValid;

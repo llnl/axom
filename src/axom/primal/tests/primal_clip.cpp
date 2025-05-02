@@ -3,19 +3,19 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "gtest/gtest.h"
-
 #include "axom/config.hpp"
 #include "axom/slic.hpp"
 
 #include "axom/core/Types.hpp"
 #include "axom/core/execution/for_all.hpp"
 #include "axom/core/memory_management.hpp"
+#include "axom/core/numerics/transforms.hpp"
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/Triangle.hpp"
 #include "axom/primal/geometry/Plane.hpp"
+#include "axom/primal/geometry/construct.hpp"
 
 #include "axom/primal/operators/clip.hpp"
 #include "axom/primal/operators/intersection_volume.hpp"
@@ -24,6 +24,8 @@
 
 #include <limits>
 #include <cmath>
+
+#include "gtest/gtest.h"
 
 namespace Primal3D
 {
@@ -1669,56 +1671,17 @@ TEST(primal_clip, polyhedron_plane)
 {
   // Use float (float uncovered compilation problems in Polyhedron)
   using Precision = float;
-  using PolyhedronType = axom::primal::Polyhedron<Precision, 3>;
   using PlaneType = axom::primal::Plane<Precision, 3>;
   using VectorType = typename PlaneType::VectorType;
-  using PointType = typename PlaneType::PointType;
 
   constexpr double EPS = 2e-7;
 
-  PolyhedronType poly;
-
-  // Add vertices for 10-gon to the polyhedron.
   constexpr int nSides = 8;
-  constexpr double dA = (2. * M_PI) / static_cast<double>(nSides);
-  constexpr double a0 = dA * 0.5;
-  std::int8_t verts[nSides * 2];
-  for(int zi = 0; zi < 2; zi++)
-  {
-    const Precision z = zi;
-    double a = a0;
-    for(int s = 0; s < nSides; s++)
-    {
-      const Precision x = static_cast<Precision>(cos(a));
-      const Precision y = static_cast<Precision>(sin(a));
-
-      verts[zi * nSides + s] = static_cast<std::int8_t>(poly.addVertex(PointType {x, y, z}));
-      a += dA;
-    }
-  }
-
-  // Define the vertex neighbors.
-  for(int s = 0; s < nSides; s++)
-  {
-    int current = s;
-    int prev = (s == 0) ? (nSides - 1) : (s - 1);
-    int next = (s == (nSides - 1)) ? 0 : (s + 1);
-    int z = s + nSides;
-    poly.addNeighbors(current, {verts[next], verts[z], verts[prev]});
-  }
-  for(int s = 0; s < nSides; s++)
-  {
-    int current = nSides + s;
-    int prev = nSides + ((s == 0) ? (nSides - 1) : (s - 1));
-    int next = nSides + ((s == (nSides - 1)) ? 0 : (s + 1));
-    int z = s;
-    poly.addNeighbors(current, {verts[prev], verts[z], verts[next]});
-  }
-
+  const auto poly = axom::primal::regular_prism<Precision>(nSides);
   PlaneType plane(VectorType {1.f, 0.f, 0.f}, 0.f);
 
   // Clip away half of the polyhedron.
-  PolyhedronType clipped = axom::primal::clip(plane, poly, EPS);
+  const auto clipped = axom::primal::clip(plane, poly, EPS);
 
   const double V = poly.signedVolume();
   const double V_2 = V / 2.0;
@@ -1729,6 +1692,22 @@ TEST(primal_clip, polyhedron_plane)
 
   // We clipped away half of the volume.
   EXPECT_NEAR(V_2, Vc, EPS);
+
+  //----------------------------------------------------------------------------
+  // Make the same shape tipped over (to test transforms)
+  const auto poly2 = axom::primal::regular_prism<Precision>(
+    nSides,
+    1.f,
+    1.f,
+    axom::numerics::transforms::xRotation<Precision>(-M_PI / 2, 4));
+  PlaneType plane2(VectorType {0.f, 1.f, 0.f}, 0.5f);
+
+  // Clip away half of the polyhedron.
+  const auto clipped2 = axom::primal::clip(plane2, poly2, EPS);
+  const double Vc2 = clipped2.signedVolume();
+
+  // We clipped away half of the volume.
+  EXPECT_NEAR(Vc2, sqrt(2.), EPS);
 }
 
 TEST(primal_clip, empty_polygons)
@@ -2115,7 +2094,7 @@ TEST(primal_clip, polygon_clip_regression)
   expectedPoly.addVertex(Point2D {148.f, 142.f});
 
   // Comparisons
-  constexpr float EPS = 1.6e-5;
+  constexpr float EPS = 1.6e-5f;
   EXPECT_EQ(clippedShape.numVertices(), 4);
   for(int i = 0; i < 4; i++)
   {

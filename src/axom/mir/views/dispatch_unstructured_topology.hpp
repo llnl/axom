@@ -26,13 +26,13 @@ namespace views
 constexpr int AnyShape = -1;
 
 /*!
- * \brief This class instantiates a topology view for an unstructured mesh that contains a
- *        single shape.
+ * \brief This struct instantiates a topology view for an unstructured mesh that
+ *        contains a single shape.
  *
  * \tparam ShapeType A shape class such as axom::mir::views::TriShape<int>
  */
 template <typename ShapeType>
-struct make_unstructured_single_shape
+struct make_unstructured_single_shape_topology
 {
   using TopologyView = UnstructuredTopologySingleShapeView<ShapeType>;
   using ConnectivityType = typename TopologyView::ConnectivityType;
@@ -67,6 +67,46 @@ struct make_unstructured_single_shape
     SLIC_ASSERT(std::string("shape") != axom::mir::views::PolygonTraits::name());
 
     return TopologyView(connView);
+  }
+};
+
+/*!
+ * \brief This struct instantiates a topology view for an unstructured mesh that
+ *        contains polyhedra.
+ *
+ * \tparam ConnType An integer type.
+ */
+template <typename ConnType>
+struct make_unstructured_polyhedral_topology
+{
+  using TopologyView = UnstructuredTopologyPolyhedralView<ConnType>;
+  using ConnectivityType = typename TopologyView::ConnectivityType;
+
+  /*!
+   * \brief Instantiate a topology view from a Conduit node.
+   *
+   * \param n_topo The node that contains the topology.
+   *
+   * \return The topology view that wraps the Conduit data.
+   */
+  static TopologyView view(const conduit::Node &n_topo)
+  {
+    namespace bputils = axom::mir::utilities::blueprint;
+
+    const std::string shape = n_topo["elements/shape"].as_string();
+    SLIC_ASSERT(n_topo["type"].as_string() == "unstructured");
+    SLIC_ASSERT(shape == TopologyView::ShapeType::name());
+
+    // _mir_views_ph_topoview_begin
+    auto topoView =
+      TopologyView(bputils::make_array_view<ConnectivityType>(n_topo["subelements/connectivity"]),
+                   bputils::make_array_view<ConnectivityType>(n_topo["subelements/sizes"]),
+                   bputils::make_array_view<ConnectivityType>(n_topo["subelements/offsets"]),
+                   bputils::make_array_view<ConnectivityType>(n_topo["elements/connectivity"]),
+                   bputils::make_array_view<ConnectivityType>(n_topo["elements/sizes"]),
+                   bputils::make_array_view<ConnectivityType>(n_topo["elements/offsets"]));
+    // _mir_views_ph_topoview_end
+    return topoView;
   }
 };
 
@@ -117,21 +157,7 @@ void typed_dispatch_unstructured_polyhedral_topology(const conduit::Node &topo, 
   const std::string shape = topo["elements/shape"].as_string();
   if(shape == "polyhedral")
   {
-    // _mir_views_ph_topoview_begin
-    auto seConnView = bputils::make_array_view<ConnType>(topo["subelements/connectivity"]);
-    auto seSizesView = bputils::make_array_view<ConnType>(topo["subelements/sizes"]);
-    auto seOffsetsView = bputils::make_array_view<ConnType>(topo["subelements/offsets"]);
-    auto connView = bputils::make_array_view<ConnType>(topo["elements/connectivity"]);
-    auto sizesView = bputils::make_array_view<ConnType>(topo["elements/sizes"]);
-    auto offsetsView = bputils::make_array_view<ConnType>(topo["elements/offsets"]);
-
-    UnstructuredTopologyPolyhedralView<ConnType> ugView(seConnView,
-                                                        seSizesView,
-                                                        seOffsetsView,
-                                                        connView,
-                                                        sizesView,
-                                                        offsetsView);
-    // _mir_views_ph_topoview_end
+    auto ugView = make_unstructured_polyhedral_topology<ConnType>::view(topo);
     func(shape, ugView);
   }
 }

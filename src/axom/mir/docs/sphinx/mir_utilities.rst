@@ -13,6 +13,11 @@ for Blueprint meshes.
  * Structured as classes with an ``execute()`` method
  * Often templated on execution space and views
 
+Classes are used so algorithms can contain state such as view objects and so various
+algorithm stages or utility functions can be written as helper methods. Classes also
+allow algorithms to be modified using inheritance and overriding methods. Finally,
+classes allow the MIR component to provide specialized versions of templated algorithms.
+
 Blueprint meshes consist of various parts such as coordsets, topologies, fields, and matsets.
 These constructs are organized as various paths within a root Conduit node. Elements such
 as strings and scalar values can be stored as usual within a Conduit node in host memory.

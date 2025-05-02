@@ -160,3 +160,35 @@ if( AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND
             )
 
 endif()
+
+#------------------------------------------------------------------------------
+# mesh_converter is a utility that converts between mesh formats
+#------------------------------------------------------------------------------
+if(AXOM_ENABLE_QUEST)
+    set(mesh_converter_sources
+        mesh_converter.cpp
+    )
+    set(mesh_converter_depends
+        axom
+        )
+
+    axom_add_executable(
+        NAME        mesh_converter
+        SOURCES     ${mesh_converter_sources}
+        OUTPUT_DIR  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${mesh_converter_depends}
+        FOLDER      axom/examples
+        )
+    install(TARGETS              mesh_converter
+            DESTINATION          bin
+            )
+
+    # Add unit tests
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+        axom_add_test(
+            NAME    mesh_converter_cup
+            COMMAND mesh_converter -i "${AXOM_DATA_DIR}/quest/cup.proe" -o cup.stl)
+        set_tests_properties(mesh_converter_cup 
+            PROPERTIES PASS_REGULAR_EXPRESSION  "Retained 272 boundary faces")
+    endif()
+endif()

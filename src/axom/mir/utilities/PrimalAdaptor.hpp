@@ -72,7 +72,7 @@ struct AveragePoints
    */
   AXOM_HOST_DEVICE inline void add(const PointType &pt)
   {
-    sum = sum + VectorType(pt);
+    sum += VectorType(pt);
     numPoints++;
   }
 
@@ -92,14 +92,9 @@ struct AveragePoints
    */
   AXOM_HOST_DEVICE inline PointType get() const
   {
-    PointType result;
-    if(numPoints > 0)
-    {
-      const T weight = static_cast<T>(1.) / static_cast<T>(numPoints);
-      VectorType weightedSum(sum * weight);
-      result = PointType(weightedSum.data(), NDIMS);
-    }
-    return result;
+    return (numPoints > 0)
+      ? PointType(sum.array() * (static_cast<T>(1.) / static_cast<T>(numPoints)))
+      : PointType {};
   }
 
   VectorType sum {};
@@ -224,9 +219,10 @@ struct AdaptPolyhedron
 };
 
 /*!
- * \brief Template specialization that allows us to make a polyhedron from a polyhedron
- *        shape from a Blueprint view. We do this one if we only want faces instead of a
- *        true primal Polyhedron.
+ * \brief Make PolyhedralFaces from a polyhedron shape.
+ *
+ * \note This is a partial template specialization for makeFaces=true that makes
+ *       a PolyhedralFaces object instead of a primal::Polyhedron.
  */
 template <typename TopologyView, typename CoordsetView>
 struct AdaptPolyhedron<TopologyView, CoordsetView, true>
@@ -250,6 +246,7 @@ struct AdaptPolyhedron<TopologyView, CoordsetView, true>
     PolyhedralRepresentation faces;
     const auto zone = topologyView.zone(zoneIndex);
     const int numFaces = static_cast<int>(zone.numberOfFaces());
+    const value_type eps = std::is_same<value_type, float>::value ? 1.e-6 : 1.e-10;
 
     // Make a zone center.
     AveragePoints<value_type, 3> avg;
@@ -264,6 +261,8 @@ struct AdaptPolyhedron<TopologyView, CoordsetView, true>
     for(int f = 0; f < numFaces; f++)
     {
       const auto faceIds = zone.getFace(f);
+
+      // Make the first plane in the face.
       const auto p0 = coordsetView[faceIds[0]];
       const auto p1 = coordsetView[faceIds[1]];
       const auto p2 = coordsetView[faceIds[2]];
@@ -277,6 +276,31 @@ struct AdaptPolyhedron<TopologyView, CoordsetView, true>
       }
 
       faces.push_back(plane);
+
+      // We've already made 1 plane for the face. Treat the face as a triangle
+      // fan and add the rest of the planes, if they are different enough from
+      // the previous plane.
+      const int extraPlanes = faceIds.size() - 3;
+      for(int ep = 0; ep < extraPlanes; ep++)
+      {
+        // Get the last point in the triangle.
+        const auto ep2 = coordsetView[faceIds[3 + ep]];
+
+        // Check its signed distance vs the previous plane. If the point is far
+        // enough away, we make the plane.
+        const auto dist = plane.signedDistance(ep2);
+        if(axom::utilities::abs(dist) > eps)
+        {
+          const auto ep1 = coordsetView[faceIds[2 + ep]];
+          auto plane2 = axom::primal::make_plane(p0, ep1, ep2);
+          if(plane2.signedDistance(center) < 0.)
+          {
+            plane2.flip();
+          }
+          faces.push_back(plane2);
+          plane = plane2;
+        }
+      }
     }
 
     return faces;

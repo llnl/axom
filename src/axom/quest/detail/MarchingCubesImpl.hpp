@@ -471,7 +471,7 @@ public:
                                        RAJA::make_span(m_firstFacetIds.data() + 1, m_crossingCount),
                                        RAJA::operators::plus<axom::IndexType> {});
 #else
-      for(axom::IndexType n = 0; n < parentCellCount; ++n)
+      for(axom::IndexType n = 0; n < m_crossingCount; ++n)
       {
         m_firstFacetIds[n + 1] = m_firstFacetIds[n] + m_facetIncrs[n];
       }

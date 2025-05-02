@@ -10,8 +10,7 @@
 
 # Axom Software Release Notes
 
-Notes describing significant changes in each Axom release are documented
-in this file.
+Notes describing significant changes in each Axom release are documented in this file.
 
 The format of this file is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 
@@ -20,6 +19,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
+- New `axom::MALLOC_ALLOCATOR_ID` is for using malloc and free
+  even when axom is configured with Umpire support.
 - The ``axom::mir::ElviraAlgorithm`` class, which performs material interface reconstruction using
   the ELVIRA algorithm, was enhanced so it supports 3D structured mesh inputs. The output mesh is a
   Blueprint mesh with a 3D unstructured polyhedral topology.
@@ -36,6 +37,17 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   be used to revise fields.
 - Exposed primal clip operations for clipping various shapes with a plane.
 
+###  Changed
+- Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
+  since the last `reset()`.
+- Adds support for allocations using `malloc` and `free` even when Axom is configured with Umpire support.
+- Adds a new utility tool, `mesh_converter`, which converts between mesh formats. The first conversion
+  is from a Pro-E tetrahedral mesh to an STL mesh of its boundary triangles.
+- Primal: Adds a method to determine if a point is contained within a Tetrahedron.
+
+###  Deprecated
+- Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
+
 ## [Version 0.11.0] - Release date 2025-04-02
 
 ###  Added
@@ -46,8 +58,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   oriented algorithm that produces smooth interfaces between zones and their neighbors. The Mir
   component also provides a 2D ELVIRA algorithm, which reconstructs polygonal shapes and preserves
   volume fractions.
-- Support in `quest::IntersectionShaper` for Blueprint mesh stored in a `conduit::Node`
-  or `sidre::Group`.
+- Support in `quest::IntersectionShaper` for Blueprint mesh stored in a `conduit::Node` or `sidre::Group`.
 - Adds new CMake configuration options, `AXOM_ENABLE_ASAN` and `AXOM_ENABLE_UBSAN`, to enable/disable AddressSanitizer and UndefinedBehaviorSanitizer respectively in Axom. Default is OFF for both.
 - A number of new `klee::Geometry` constructors are added, for the different shapes now supported.
   This is a temporary change.  The class will be subclassed in the future to support a diversity of geometries.
@@ -58,6 +69,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds optional dependency on [Open Cascade](https://dev.opencascade.org). The initial intention is 
 to use Open Cascade's file I/O capabilities in support of Quest applications.
 - Adds `primal::NURBSCurve` and `primal::NURBSPatch` classes, supported by `primal::KnotVector`.
+- Adds trimming curve support for `primal::NURBSPatch` via an array of parameter space `primal::NURBSCurve` objects,
+  where portions of the surface not bound by trimming curves in parameter space are invisible.
 - Adds a Quest example that reads in a STEP file using Open Cascade and processes its geometry
 - Adds a piecewise method to load external data using `sidre::IOManager`.  This adds new overloaded methods
   of `loadExternalData` in `sidre::IOManager` and `sidre::Group`.
@@ -90,15 +103,11 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
   the Data Collection itself (defaults to the root of the `DataStore`).
 - `SLIC_ASSERT`,`SLIC_ASSERT_MSG`,`SLIC_CHECK`, and `SLIC_CHECK_MSG` macros delegate to assert() within HIP device kernels.
 
-###  Deprecated
-
-###  Removed
-
 ###  Fixed
 - Fixes compilation issue with RAJA@2024.07 on 32-bit Windows configurations. 
   This required a [RAJA fix to avoid 64-bit intrinsics](https://github.com/LLNL/RAJA/pull/1746), 
   as well as support for 32-bit `Word`s in Slam's `BitSet` class.
-- Minor bugfix to `primal::intersect(segment, ray)` to better handle cases when segment and ray overlap.
+- Minor bugfix to `primal::intersect(segment, ray)` to better handle cases when segment and ray overlap or are nearly parallel.
 - Fixes a memory leak in `axom::Array` copy constructor.
 - Fixes robustness issue with the `axom::primal::clip` overload for clipping a 2D polygon against another 2D polygon.
 

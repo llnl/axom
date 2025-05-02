@@ -690,6 +690,8 @@ AXOM_HOST_DEVICE axom::ArrayView<PlaneType> getHexahedronPlanes(const ShapeType&
  * \param [in] tryFixOrientation Check if the signed volume of each shape is positive.
  *
  * \note hex1 and hex2 are assumed to be convex.
+ * \note If hex2's faces are not planar then each quad face will be divided into
+ *       2 cutting planes.
  *
  * \return The Polyhedron formed from clipping the hexahedron with a hexahedron.
  *
@@ -710,7 +712,7 @@ AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipHexahedron(const Hexahedron<T, NDIMS>&
   // Get clipping planes from hex2.
   constexpr int MAX_PLANES = 12;
   PlaneType planes[MAX_PLANES];
-  auto planesView = getHexahedronPlanes(hex2, planes, eps);
+  axom::ArrayView<PlaneType> planesView;
 
   // Adjusts planes in case hexhedron signed volume is negative
   if(tryFixOrientation)
@@ -719,6 +721,10 @@ AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipHexahedron(const Hexahedron<T, NDIMS>&
     // Get planes from the Polyhedral version of the plane, which could have
     // reordered the points.
     planesView = getHexahedronPlanes(hex2_poly, planes, eps);
+  }
+  else
+  {
+    planesView = getHexahedronPlanes(hex2, planes, eps);
   }
 
   clipPolyhedron(poly, planesView, eps);

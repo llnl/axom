@@ -506,17 +506,7 @@ bool intersect(const Sphere<T, DIM>& s1, const Sphere<T, DIM>& s2, double TOL = 
 template <typename T>
 bool intersect(const Sphere<T, 2>& circle, const BoundingBox<T, 2>& bb)
 {
-  auto center = circle.getCenter();
-  auto radius = circle.getRadius();
-  T dx = axom::utilities::clampVal(center[0], bb.getMin()[0], bb.getMax()[0]);
-  T dy = axom::utilities::clampVal(center[1], bb.getMin()[1], bb.getMax()[1]);
-
-  if((center[0] - dx) * (center[0] - dx) + (center[1] - dy) * (center[1] - dy) >= radius * radius)
-  {
-    return false;
-  }
-
-  return true;
+  return detail::intersect_circle_bbox(circle, bb);
 }
 
 /*!
@@ -540,6 +530,7 @@ bool intersect(const Sphere<T, 2>& circle,
                double EPS = 1e-8)
 {
   const double sq_tol = tol * tol;
+  bool foundIntersection = false;
 
   // Extract the Bezier curves of the NURBS curve
   auto beziers = curve.extractBezier();
@@ -560,6 +551,8 @@ bool intersect(const Sphere<T, 2>& circle,
                                     0.,
                                     1.);
 
+    foundIntersection |= temp_curve_p.size() > 0;
+
     // Scale the intersection parameters back into the span of the NURBS curve
     for(int j = 0; j < temp_curve_p.size(); ++j)
     {
@@ -568,7 +561,7 @@ bool intersect(const Sphere<T, 2>& circle,
     }
   }
 
-  return curve_params.size() > 0;
+  return foundIntersection;
 }
 /// @}
 
@@ -731,6 +724,8 @@ bool intersect(const Ray<T, 2>& r,
     return false;
   }
 
+  bool foundIntersection = false;
+
   // Decompose the NURBS curve into Bezier segments
   auto beziers = n.extractBezier();
   axom::Array<T> knot_vals = n.getKnots().getUniqueKnots();
@@ -742,6 +737,8 @@ bool intersect(const Ray<T, 2>& r,
     axom::Array<T> rc, nc;
     intersect(r, beziers[i], rc, nc, tol, EPS);
 
+    foundIntersection |= !rc.empty();
+
     // Scale the intersection parameters back into the span of the NURBS curve
     for(int j = 0; j < rc.size(); ++j)
     {
@@ -750,7 +747,7 @@ bool intersect(const Ray<T, 2>& r,
     }
   }
 
-  return !rp.empty();
+  return foundIntersection;
 }
 /// @}
 
@@ -834,7 +831,9 @@ AXOM_HOST_DEVICE bool intersect(const Plane<T, 3>& p,
 
 /// @}
 
-/*! \brief Determines if a ray intersects a Bezier patch.
+/*!
+ * \brief Determines if a ray intersects a Bezier patch.
+ * \param [in] patch The Bezier patch to intersect with the ray.
  * \param [in] ray The ray to intersect with the patch.
  * \param [in] patch The Bezier patch to intersect with the ray.
  * \param [out] t The t parameter(s) of intersection point(s).
@@ -852,7 +851,7 @@ AXOM_HOST_DEVICE bool intersect(const Plane<T, 3>& p,
  * For such intersections, the method will hang as it tries records an arbitrarily high
  *  number of intersections with distinct parameter values
  *  
- * \return true iff the ray intersects the patch, otherwise false.
+ * \return true if the ray intersects the patch, otherwise false.
  */
 template <typename T>
 bool intersect(const Ray<T, 3>& ray,
@@ -866,20 +865,17 @@ bool intersect(const Ray<T, 3>& ray,
 {
   const int order_u = patch.getOrder_u();
   const int order_v = patch.getOrder_v();
-
-  // for efficiency, linearity check actually uses a squared tolerance
-  const double sq_tol = tol * tol;
-
-  // Store the candidate intersections
-  axom::Array<T> tc, uc, vc;
+  bool retval = false;
 
   if(order_u < 1 || order_v < 1)
   {
     // Patch has no surface area, ergo no intersections
-    return false;
+    retval = false;
   }
   else if(order_u == 1 && order_v == 1)
   {
+    // Store the candidate intersections
+    StaticArray<T, 2> tc, uc, vc;
     primal::Line<T, 3> line(ray.origin(), ray.direction());
     detail::intersect_line_bilinear_patch(line,
                                           patch(0, 0),
@@ -891,13 +887,19 @@ bool intersect(const Ray<T, 3>& ray,
                                           vc,
                                           EPS,
                                           true);
+
+    retval = detail::select_candidates(tc, uc, vc, t, u, v, EPS, isHalfOpen);
   }
   else
   {
+    // Store the candidate intersections
+    axom::Array<T> tc, uc, vc;
     primal::Line<T, 3> line(ray.origin(), ray.direction());
 
     double u_offset = 0., v_offset = 0.;
     double u_scale = 1., v_scale = 1.;
+    // For efficiency, linearity check actually uses a squared tolerance
+    const double sq_tol = tol * tol;
 
     detail::intersect_line_patch(line,
                                  patch,
@@ -913,55 +915,20 @@ bool intersect(const Ray<T, 3>& ray,
                                  sq_tol,
                                  EPS,
                                  true);
+
+    retval = detail::select_candidates(tc, uc, vc, t, u, v, EPS, isHalfOpen);
   }
 
-  // Remove duplicates from the (u, v) intersection points
-  //  (Note it's not possible for (u_1, v_1) == (u_2, v_2) and t_1 != t_2)
-  const double sq_EPS = EPS * EPS;
-
-  // The number of reported intersection points will be small,
-  //  so we don't need to fully sort the list
-  SLIC_WARNING_IF(tc.size() > 10,
-                  "Large number of intersections detected, eliminating "
-                  "duplicates may be slow");
-
-  for(int i = 0; i < tc.size(); ++i)
-  {
-    // Also remove any intersections on the half-interval boundaries
-    if(isHalfOpen && (uc[i] >= 1.0 - EPS || vc[i] >= 1.0 - EPS))
-    {
-      continue;
-    }
-
-    Point<T, 2> uv({uc[i], vc[i]});
-
-    bool foundDuplicate = false;
-    for(int j = i + 1; !foundDuplicate && j < tc.size(); ++j)
-    {
-      if(squared_distance(uv, Point<T, 2>({uc[j], vc[j]})) < sq_EPS)
-      {
-        foundDuplicate = true;
-      }
-    }
-
-    if(!foundDuplicate)
-    {
-      t.push_back(tc[i]);
-      u.push_back(uc[i]);
-      v.push_back(vc[i]);
-    }
-  }
-
-  return !t.empty();
+  return retval;
 }
 
 /*! 
  * \brief Determines if a ray intersects a NURBS patch.
- * \param [in] ray The ray to intersect with the patch.
  * \param [in] patch The Bezier patch to intersect with the ray.
- * \param [out] t The t parameter(s) of intersection point(s).
+ * \param [in] ray The ray to intersect with the patch.
  * \param [out] u The u parameter(s) of intersection point(s).
  * \param [out] v The v parameter(s) of intersection point(s).
+ * \param [out] t The t parameter(s) of intersection point(s).
  * \param [in] tol The tolerance for intersection (for physical distances).
  * \param [in] EPS The tolerance for intersection (for parameter distances).
  * \param [in] countUntrimmed True if intersections with the untrimmed patch should also be recorded.

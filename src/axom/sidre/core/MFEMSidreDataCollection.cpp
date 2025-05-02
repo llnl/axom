@@ -919,15 +919,6 @@ void MFEMSidreDataCollection::LoadExternalData(const std::string& filename,
   Group* grp = m_bp_grp->getDataStore()->getRoot();
   if(!group_name.empty())
   {
-  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-    if(m_comm != MPI_COMM_NULL)
-    {
-      SLIC_ERROR(
-        "Loading external data with a group name is not supported in "
-        "parallel.");
-    }
-  #endif
-
     SLIC_ERROR_IF(
       !m_bp_grp->hasGroup(group_name),
       axom::fmt::format("MFEMSidreDataCollection does not have a Sidre Group '{}'", group_name));
@@ -950,7 +941,7 @@ void MFEMSidreDataCollection::LoadExternalData(const std::string& filename,
     using axom::utilities::string::endsWith;
     std::string suffixedPath = endsWith(path, ".root") ? path : path + ".root";
     IOManager reader(m_comm);
-    reader.loadExternalData(grp, suffixedPath);
+    reader.loadExternalData(grp->getDataStore()->getRoot(), grp, suffixedPath);
   }
   else
   #endif

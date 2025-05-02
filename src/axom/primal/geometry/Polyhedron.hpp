@@ -513,10 +513,14 @@ public:
    * \brief Get the polyhedron's faces as planes.
    *
    * \param[out] The number of faces.
+   * \param divideNonPlanarFaces Whether to divide non-planar faces into separate planes.
+   * \param eps The tolerance used to decide whether points are close enough to a plane.
    *
    * \return An array of planes that describe the faces.
    */
-  AXOM_HOST_DEVICE PlaneArrayType getFaces(axom::IndexType& numFaces) const
+  AXOM_HOST_DEVICE PlaneArrayType getFaces(axom::IndexType& numFaces,
+                                           bool divideNonPlanarFaces = true,
+                                           double eps = 1.e-8) const
   {
     PlaneArrayType facePlanes;
     numFaces = 0;
@@ -525,17 +529,55 @@ public:
     int faces[MAX_VERTS * MAX_VERTS];
     int face_size[MAX_VERTS * 2];
     int face_offset[MAX_VERTS * 2];
-    getFaces<int>(faces, face_size, face_offset, numFaces);
+    axom::IndexType face_count;
+    getFaces<int>(faces, face_size, face_offset, face_count);
 
     // Turn the faces to planes.
-    for(axom::IndexType i = 0; i < numFaces; ++i)
+    numFaces = 0;
+    for(axom::IndexType i = 0; i < face_count; ++i)
     {
       const int i_offset = face_offset[i];
       const auto p0 = m_vertices[faces[i_offset]];
       const auto p1 = m_vertices[faces[i_offset + 1]];
       const auto p2 = m_vertices[faces[i_offset + 2]];
 
-      facePlanes[i] = axom::primal::make_plane(p0, p1, p2);
+      // Make a plane.
+      auto plane = axom::primal::make_plane(p0, p1, p2);
+
+      // We've already made 1 plane for the face. Treat the face as a triangle
+      // fan and add the rest of the planes, if they are different enough from
+      // the previous plane.
+      if(divideNonPlanarFaces)
+      {
+        facePlanes[numFaces] = plane;
+        numFaces = (numFaces + 1 < MAX_PLANES) ? (numFaces + 1) : numFaces;
+
+        const int extraPlanes = face_size[i] - 3;
+        for(int ep = 0; ep < extraPlanes; ep++)
+        {
+          // Get the last point in the triangle.
+          const auto ep2 = m_vertices[faces[i_offset + 3 + ep]];
+
+          // Check its signed distance vs the previous plane. If the point is far
+          // enough away, we make the plane.
+          const auto dist = plane.signedDistance(ep2);
+          if(axom::utilities::abs(dist) > eps)
+          {
+            const auto ep1 = m_vertices[faces[i_offset + 2 + ep]];
+            const auto plane2 = axom::primal::make_plane(p0, ep1, ep2);
+
+            facePlanes[numFaces] = plane2;
+            numFaces = (numFaces + 1 < MAX_PLANES) ? (numFaces + 1) : numFaces;
+
+            plane = plane2;
+          }
+        }
+      }
+      else
+      {
+        facePlanes[numFaces] = plane;
+        numFaces = (numFaces + 1 < MAX_PLANES) ? (numFaces + 1) : numFaces;
+      }
     }
     return facePlanes;
   }

@@ -92,11 +92,19 @@ template <typename ExecSpace, typename KeyType>
 struct Unique
 {
   /*!
-   * \brief This function makes a unique array of values from an input list of keys.
+   * \brief This function makes a unique array of values from an input list of keys. The
+   *        output set of unique keys is sorted.
    *
    * \param[in] keys_orig_view The input view that contains the input keys to be made unique.
-   * \param[out] skeys     A sorted unique array of keys produced from keys_orig_view.
-   * \param[out] sindices  An array of indices that indicate where in the original view the keys came from.
+   * \param[out] skeys     A sorted unique array of keys produced from \a keys_orig_view.
+   *                       If there were duplicates in \a keys_orig_view then the size
+   *                       will be smaller since duplicates will have been removed.
+   * \param[out] sindices  An array of indices that indicate where in the original
+   *                       view the keys came from (the index of the key that was used
+   *                       the unique key). This array contains the same number of elements
+   *                       as \a skeys. This array is useful when the calling algorithm
+   *                       needs to select data out of other arrays associated with the
+   *                       keys.
    *
    * \note key_orig_view is passed by value so it does not require a local copy to capture it.
    */

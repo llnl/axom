@@ -259,12 +259,12 @@ private:
 
     if(stridedStructured)
     {
-      auto topologyView = axom::mir::views::make_strided_structured<2>::view(n_topology);
+      auto topologyView = axom::mir::views::make_strided_structured_topology<2>::view(n_topology);
       mir2D(topologyView, input_prefix, n_input, output_prefix, n_output, selectedZones, stridedStructured);
     }
     else
     {
-      auto topologyView = axom::mir::views::make_structured<2>::view(n_topology);
+      auto topologyView = axom::mir::views::make_structured_topology<2>::view(n_topology);
       mir2D(topologyView, input_prefix, n_input, output_prefix, n_output, selectedZones, stridedStructured);
     }
   }
@@ -365,7 +365,7 @@ private:
     // 2D Elvira makes polygonal meshes
     using SrcShapeType = axom::mir::views::PolygonShape<axom::IndexType>;
     auto srcTopologyView =
-      axom::mir::views::make_unstructured_single_shape<SrcShapeType>::view(n_src_topology);
+      axom::mir::views::make_unstructured_single_shape_topology<SrcShapeType>::view(n_src_topology);
     using SrcTopologyView = decltype(srcTopologyView);
 
     auto srcMatsetView =
@@ -379,7 +379,7 @@ private:
     auto targetCoordsetView = axom::mir::views::make_uniform_coordset<2>::view(n_target_coordset);
     using TargetCoordsetView = decltype(targetCoordsetView);
 
-    auto targetTopologyView = axom::mir::views::make_structured<2>::view(n_target_topology);
+    auto targetTopologyView = axom::mir::views::make_structured_topology<2>::view(n_target_topology);
     using TargetTopologyView = decltype(targetTopologyView);
 
     // Make new a new matset on the target topology to record material overlaps.

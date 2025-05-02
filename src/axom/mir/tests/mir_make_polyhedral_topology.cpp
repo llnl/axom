@@ -46,7 +46,7 @@ struct make_polyhedral
     conduit::Node &n_output = deviceMesh["topologies/polymesh"];
     if(type == "uniform")
     {
-      auto topologyView = views::make_uniform<3>::view(n_input);
+      auto topologyView = views::make_uniform_topology<3>::view(n_input);
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
@@ -57,7 +57,8 @@ struct make_polyhedral
     //_mir_utilities_makepolyhedraltopology_end
     else if(type == "tets")
     {
-      auto topologyView = views::make_unstructured_single_shape<views::TetShape<int>>::view(n_input);
+      using TetShape = views::TetShape<int>;
+      auto topologyView = views::make_unstructured_single_shape_topology<TetShape>::view(n_input);
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
@@ -67,8 +68,8 @@ struct make_polyhedral
     }
     else if(type == "pyramids")
     {
-      auto topologyView =
-        views::make_unstructured_single_shape<views::PyramidShape<int>>::view(n_input);
+      using PyramidShape = views::PyramidShape<int>;
+      auto topologyView = views::make_unstructured_single_shape_topology<PyramidShape>::view(n_input);
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
@@ -78,8 +79,8 @@ struct make_polyhedral
     }
     else if(type == "wedges")
     {
-      auto topologyView =
-        views::make_unstructured_single_shape<views::WedgeShape<int>>::view(n_input);
+      using WedgeShape = views::WedgeShape<int>;
+      auto topologyView = views::make_unstructured_single_shape_topology<WedgeShape>::view(n_input);
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
@@ -89,7 +90,8 @@ struct make_polyhedral
     }
     else if(type == "hexs")
     {
-      auto topologyView = views::make_unstructured_single_shape<views::HexShape<int>>::view(n_input);
+      using HexShape = views::HexShape<int>;
+      auto topologyView = views::make_unstructured_single_shape_topology<HexShape>::view(n_input);
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 

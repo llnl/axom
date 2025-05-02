@@ -717,30 +717,30 @@ protected:
 
           if(shape == "tet")
           {
+            using TetShape = views::TetShape<ConnectivityType>;
             auto topologyView =
-              views::make_unstructured_single_shape<views::TetShape<ConnectivityType>>::view(
-                n_srcTopo);
+              views::make_unstructured_single_shape_topology<TetShape>::view(n_srcTopo);
             makePolyhedralMesh(topologyView, n_srcTopo, n_phTopo);
           }
           else if(shape == "pyramid")
           {
+            using PyramidShape = views::PyramidShape<ConnectivityType>;
             auto topologyView =
-              views::make_unstructured_single_shape<views::PyramidShape<ConnectivityType>>::view(
-                n_srcTopo);
+              views::make_unstructured_single_shape_topology<PyramidShape>::view(n_srcTopo);
             makePolyhedralMesh(topologyView, n_srcTopo, n_phTopo);
           }
           else if(shape == "wedge")
           {
+            using WedgeShape = views::WedgeShape<ConnectivityType>;
             auto topologyView =
-              views::make_unstructured_single_shape<views::WedgeShape<ConnectivityType>>::view(
-                n_srcTopo);
+              views::make_unstructured_single_shape_topology<WedgeShape>::view(n_srcTopo);
             makePolyhedralMesh(topologyView, n_srcTopo, n_phTopo);
           }
           else if(shape == "hex")
           {
+            using HexShape = views::HexShape<ConnectivityType>;
             auto topologyView =
-              views::make_unstructured_single_shape<views::HexShape<ConnectivityType>>::view(
-                n_srcTopo);
+              views::make_unstructured_single_shape_topology<HexShape>::view(n_srcTopo);
             makePolyhedralMesh(topologyView, n_srcTopo, n_phTopo);
           }
           else if(shape == "mixed")

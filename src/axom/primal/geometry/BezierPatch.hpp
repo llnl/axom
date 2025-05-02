@@ -801,11 +801,11 @@ public:
    *
    * \note We typically evaluate the patch at \a u and \a v between 0 and 1
    */
-  void evaluate_first_derivatives(T u,
-                                  T v,
-                                  Point<T, NDIMS>& eval,
-                                  Vector<T, NDIMS>& Du,
-                                  Vector<T, NDIMS>& Dv) const
+  void evaluateFirstDerivatives(T u,
+                                T v,
+                                Point<T, NDIMS>& eval,
+                                Vector<T, NDIMS>& Du,
+                                Vector<T, NDIMS>& Dv) const
   {
     using axom::utilities::lerp;
     const int ord_u = getOrder_u();
@@ -948,8 +948,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_u, W_v, W_uu, W_vv, W_uv;
 
-      projective.evaluate_second_derivatives(u, v, P, P_u, P_v, P_uu, P_vv, P_uv);
-      weights.evaluate_second_derivatives(u, v, W, W_u, W_v, W_uu, W_vv, W_uv);
+      projective.evaluateSecondDerivatives(u, v, P, P_u, P_v, P_uu, P_vv, P_uv);
+      weights.evaluateSecondDerivatives(u, v, W, W_u, W_v, W_uu, W_vv, W_uv);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -1124,8 +1124,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_u, W_v, W_uu, W_vv, W_uv;
 
-      projective.evaluate_second_derivatives(u, v, P, P_u, P_v, P_uu, P_vv, P_uv);
-      weights.evaluate_second_derivatives(u, v, W, W_u, W_v, W_uu, W_vv, W_uv);
+      projective.evaluateSecondDerivatives(u, v, P, P_u, P_v, P_uu, P_vv, P_uv);
+      weights.evaluateSecondDerivatives(u, v, W, W_u, W_v, W_uu, W_vv, W_uv);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -1151,14 +1151,14 @@ public:
    *
    * \note We typically evaluate the patch at \a u and \a v between 0 and 1
    */
-  void evaluate_second_derivatives(T u,
-                                   T v,
-                                   Point<T, NDIMS>& eval,
-                                   Vector<T, NDIMS>& Du,
-                                   Vector<T, NDIMS>& Dv,
-                                   Vector<T, NDIMS>& DuDu,
-                                   Vector<T, NDIMS>& DvDv,
-                                   Vector<T, NDIMS>& DuDv) const
+  void evaluateSecondDerivatives(T u,
+                                 T v,
+                                 Point<T, NDIMS>& eval,
+                                 Vector<T, NDIMS>& Du,
+                                 Vector<T, NDIMS>& Dv,
+                                 Vector<T, NDIMS>& DuDu,
+                                 Vector<T, NDIMS>& DvDv,
+                                 Vector<T, NDIMS>& DuDv) const
   {
     using axom::utilities::lerp;
     const int ord_u = getOrder_u();
@@ -1385,8 +1385,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_u, W_v, W_uu, W_vv, W_uv;
 
-      projective.evaluate_second_derivatives(u, v, P, P_u, P_v, P_uu, P_vv, P_uv);
-      weights.evaluate_second_derivatives(u, v, W, W_u, W_v, W_uu, W_vv, W_uv);
+      projective.evaluateSecondDerivatives(u, v, P, P_u, P_v, P_uu, P_vv, P_uv);
+      weights.evaluateSecondDerivatives(u, v, W, W_u, W_v, W_uu, W_vv, W_uv);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -1628,7 +1628,7 @@ public:
   {
     Point<T, NDIMS> eval;
     Vector<T, NDIMS> Du, Dv;
-    evaluate_first_derivatives(u, v, eval, Du, Dv);
+    evaluateFirstDerivatives(u, v, eval, Du, Dv);
     return VectorType::cross_product(Du, Dv);
   }
 
@@ -2020,7 +2020,7 @@ public:
         Segment<T, 3> seg(m_controlPoints(p, 0), m_controlPoints(p, ord_v));
         for(int q = 1; q < ord_v; ++q)
         {
-          if(squared_distance(m_controlPoints(p, q), seg))
+          if(squared_distance(m_controlPoints(p, q), seg) > sq_tol)
           {
             return false;
           }
@@ -2032,7 +2032,7 @@ public:
         Segment<T, 3> seg(m_controlPoints(0, q), m_controlPoints(ord_u, q));
         for(int p = 1; p < ord_u; ++p)
         {
-          if(squared_distance(m_controlPoints(p, q), seg))
+          if(squared_distance(m_controlPoints(p, q), seg) > sq_tol)
           {
             return false;
           }

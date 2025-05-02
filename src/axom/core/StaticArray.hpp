@@ -34,8 +34,8 @@ public:
    */
   AXOM_HOST_DEVICE StaticArray() : StackArray<T, N>(), m_size(0)
   {
-#if !defined(NDEBUG)
-    for(int i = 0; i < m_size; i++)
+#if defined(AXOM_DEBUG)
+    for(axom::IndexType i = 0; i < m_size; i++)
     {
       StackArray<T, N>::m_data[i] = T {};
     }
@@ -48,11 +48,10 @@ public:
    */
   AXOM_HOST_DEVICE StaticArray(const StaticArray &obj) : StackArray<T, N>(obj), m_size(obj.m_size)
   {
-    for(int i = 0; i < obj.m_size; i++)
+    for(axom::IndexType i = 0; i < obj.m_size; i++)
     {
       StackArray<T, N>::m_data[i] = obj.StackArray<T, N>::m_data[i];
     }
-    m_size = obj.m_size;
   }
 
   /*!
@@ -66,7 +65,7 @@ public:
    */
   AXOM_HOST_DEVICE StaticArray operator=(const StaticArray &obj)
   {
-    for(int i = 0; i < obj.m_size; i++)
+    for(axom::IndexType i = 0; i < obj.m_size; i++)
     {
       StackArray<T, N>::m_data[i] = obj.StackArray<T, N>::m_data[i];
     }
@@ -124,8 +123,8 @@ public:
   void clear()
   {
     m_size = 0;
-#if !defined(NDEBUG)
-    for(int i = 0; i < m_size; i++)
+#if defined(AXOM_DEBUG)
+    for(int i = 0; i < N; i++)
     {
       StackArray<T, N>::m_data[i] = T {};
     }

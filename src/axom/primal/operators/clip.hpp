@@ -491,6 +491,9 @@ AXOM_HOST_DEVICE Polyhedron<T, 3> clip(const Tetrahedron<T, 3>& tet1,
  *
  * \return A polyhedron of the clip results
  *
+ * \note poly is assumed to be convex. Any non-planar faces in poly will result
+ *       in multiple clipping planes for the face.
+ *
  * \warning tryFixOrientation flag does not guarantee the shapes' vertex orders
  *          will be valid. It is the responsiblity of the caller to pass
  *          shapes with a valid vertex order. Otherwise, if the shapes have
@@ -534,6 +537,9 @@ AXOM_HOST_DEVICE Polyhedron<T, 3> clip(const Tetrahedron<T, 3>& tet,
  *
  * \return A polyhedron of the clip results
  *
+ * \note poly is assumed to be convex. Any non-planar faces in poly will result
+ *       in multiple clipping planes for the face.
+ *
  * \warning tryFixOrientation flag does not guarantee the shapes' vertex orders
  *          will be valid. It is the responsiblity of the caller to pass
  *          shapes with a valid vertex order. Otherwise, if the shapes have
@@ -576,6 +582,12 @@ AXOM_HOST_DEVICE Polyhedron<T, 3> clip(const Polyhedron<T, 3>& poly,
  *
  * \return A polyhedron of the clip results
  *
+ * \note \a hex and \a poly shapes are assumed to be convex. The \a hex shape
+ *       is clipped as a polyhedron. Any non-planar faces may give rise to
+ *       non-planar clipped faces. The \a poly shape's faces are used as
+ *       clipping planes for \a hex. Any non-planar faces in \a poly will
+ *       result in multiple clipping planes for the face.
+ *
  * \warning tryFixOrientation flag does not guarantee the shapes' vertex orders
  *          will be valid. It is the responsiblity of the caller to pass
  *          shapes with a valid vertex order. Otherwise, if the shapes have
@@ -608,8 +620,8 @@ AXOM_HOST_DEVICE Polyhedron<T, 3> clip(const Hexahedron<T, 3>& hex,
  *  plane, and redefining the neighbors for each vertex (a vertex is a
  *  neighbor of another vertex if there is an edge between them).
  *
- * \param [in] hex The hexahedron to clip
  * \param [in] poly The polyhedron to clip against
+ * \param [in] hex The hexahedron to clip
  * \param [in] eps The epsilon value
  * \param [in] tryFixOrientation If true, takes each shape with a negative
  *             signed volume and swaps the order of some vertices in that
@@ -617,6 +629,11 @@ AXOM_HOST_DEVICE Polyhedron<T, 3> clip(const Hexahedron<T, 3>& hex,
  *             Defaults to false.
  *
  * \return A polyhedron of the clip results
+ *
+ * \note \a hex and \a poly shapes are assumed to be convex. Any non-planar
+ *       faces may give rise to non-planar clipped faces. The \a hex shape's
+ *       faces are used as clipping planes for \a poly. Any non-planar faces
+ *       in \a hex will result in multiple clipping planes for the face.
  *
  * \warning tryFixOrientation flag does not guarantee the shapes' vertex orders
  *          will be valid. It is the responsiblity of the caller to pass
@@ -656,6 +673,11 @@ AXOM_HOST_DEVICE Polyhedron<T, 3> clip(const Polyhedron<T, 3>& poly,
  * \param [in] eps The epsilon value
  *
  * \return A polyhedron of the clip results
+ *
+ * \note \a poly1 and \a poly2 shapes are assumed to be convex. Any non-planar
+ *       faces may give rise to non-planar clipped faces. The \a poly2 shape's
+ *       faces are used as clipping planes for \a poly1. Any non-planar faces
+ *       in \a poly2 will result in multiple clipping planes for the face.
  */
 template <typename T>
 AXOM_HOST_DEVICE Polyhedron<T, 3> clip(const Polyhedron<T, 3>& poly1,

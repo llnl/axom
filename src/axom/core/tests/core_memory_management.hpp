@@ -482,9 +482,77 @@ TEST(core_memory_management, allocator_id_from_pointer)
   axom::deallocate<int>(buf);
 
   // Allocate directly (not through allocator).
-  buf = new int[N];
+  buf = (int*)std::malloc(N * sizeof(int));
   id = axom::getAllocatorIDFromPointer(buf);
-  EXPECT_EQ(id, axom::DYNAMIC_ALLOCATOR_ID);
-  delete[] buf;
+  EXPECT_EQ(id, axom::MALLOC_ALLOCATOR_ID);
+  std::free(buf);
 }
 #endif
+
+//------------------------------------------------------------------------------
+TEST(core_memory_management, interspace_reallocation)
+{
+  // Allocator ids to test.
+  std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
+#ifdef AXOM_USE_UMPIRE
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
+  #ifdef AXOM_USE_GPU
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
+    // Does it make sense to check Pinned and Constant memory spaces?
+  #endif
+#endif
+
+  // We'll allocate N items, reallocate to K items, reallocate back to N.
+  constexpr std::size_t N = 5;
+  constexpr std::size_t K = 8;
+  constexpr std::size_t maxNK = std::max(N, K);
+  constexpr std::size_t minNK = std::min(N, K);
+
+  // origOnHost and tempOnHost are for initialization and results-checking on host.
+  int* origOnHost = axom::allocate<int>(maxNK, axom::MALLOC_ALLOCATOR_ID);
+  for(std::size_t i = 0; i < maxNK; ++i)
+  {
+    origOnHost[i] = 100 + i;
+  }
+  int* tempOnHost = axom::allocate<int>(maxNK, axom::MALLOC_ALLOCATOR_ID);
+
+  // Count differences between origOnHost and tempOnHost.
+  auto countDiffs = [=]() {
+    std::size_t diffCount = 0;
+    for(std::size_t j = 0; j < minNK; ++j)
+    {
+      diffCount += tempOnHost[j] != origOnHost[j];
+    }
+    return diffCount;
+  };
+
+  std::size_t diffCount = 0;
+  for(auto srcAllocId : allocIds)
+  {
+    for(auto dstAllocId : allocIds)
+    {
+      std::cout << "Testing allocator ids " << srcAllocId << " and " << dstAllocId << std::endl;
+      // For each combination of srcAllocId and dstAllocId,
+      // allocate src, reallocate to dst, reallocate back to src.
+
+      int* src = axom::allocate<int>(N, srcAllocId);
+      axom::copy(src, origOnHost, N * sizeof(int));
+
+      int* dst = axom::reallocate(src, K, dstAllocId);
+      axom::copy(tempOnHost, dst, N * sizeof(int));
+      diffCount = countDiffs();
+      EXPECT_EQ(diffCount, 0);
+
+      src = axom::reallocate(dst, N, srcAllocId);
+      axom::copy(tempOnHost, src, N * sizeof(int));
+      diffCount = countDiffs();
+      EXPECT_EQ(diffCount, 0);
+
+      axom::deallocate(src);
+    }
+  }
+
+  axom::deallocate(origOnHost);
+  axom::deallocate(tempOnHost);
+}

@@ -102,8 +102,7 @@ public:
 /// The repository is a proxy for a data allocator/manager
 struct Repository
 {
-  // Define the explicit instances of our local (key/value) datastore
-  // for int and double
+  // Define the explicit instances of our local (key/value) datastore for int and double
   using SetType = axom::slam::Set<>;
   using IntsRegistry = slam::FieldRegistry<SetType, SetType::ElementType>;
   using RealsRegistry = slam::FieldRegistry<SetType, double>;

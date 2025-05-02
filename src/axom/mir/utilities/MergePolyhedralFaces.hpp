@@ -26,8 +26,18 @@ namespace utilities
 namespace blueprint
 {
 /*!
- * \brief Take a Blueprint polyhedral mesh and merge like faces and rewrite the
+ * \brief Take a Blueprint polyhedral mesh and merge faces and rewrite the
  *        element and subelement connectivity.
+ * 
+ *        Faces are lists of nodes that define a polygonal face of a polyhedron
+ *        and they are defined in the subelement connectivity. Blueprint's
+ *        polyhedral topologies define zones using a list of face ids where each
+ *        face id refers to a polygonal face in the subelement connectivity.
+ *
+ *        Faces are considered duplicates when they contain the same list of node
+ *        ids, disregarding any difference in node ordering. When a face is found
+ *        to have a duplicate, a single face definition is kept and adjacent
+ *        polyhedral zones are updated to use the single shared face definition.
  *
  * \tparam ExecSpace The execution space where the algorithm will execute.
  * \tparam ConnectivityType The type used in the topology connectivity arrays.
@@ -37,7 +47,7 @@ class MergePolyhedralFaces
 {
 public:
   /*!
-   * \brief Merge like faces using the face definitions and rewrite the element
+   * \brief Merge faces using the face definitions and rewrite the element
    *        and subelement connectivity. The old definitions are replaced with
    *        new data.
    *

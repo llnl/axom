@@ -410,9 +410,7 @@ public:
   View view() { return m_view; }
 
   /*!
-   * \brief Clean the mesh, merging coordinates and faces.
-   *
-   * \note This method invalidates the views in m_view by causing some of their backing arrays to be replaced.
+   * \brief Clean the mesh (no-op for 2D)
    */
   void cleanMesh(conduit::Node &AXOM_UNUSED_PARAM(n_coordset),
                  double AXOM_UNUSED_PARAM(point_tolerance),

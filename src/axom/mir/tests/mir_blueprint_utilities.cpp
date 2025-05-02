@@ -603,7 +603,8 @@ struct test_zonelistbuilder
     auto coordsetView = axom::mir::views::make_rectilinear_coordset<conduit::float64, 2>::view(
       deviceMesh["coordsets/coords"]);
 
-    auto topologyView = axom::mir::views::make_rectilinear<2>::view(deviceMesh["topologies/mesh"]);
+    auto topologyView =
+      axom::mir::views::make_rectilinear_topology<2>::view(deviceMesh["topologies/mesh"]);
     using TopologyView = decltype(topologyView);
 
     // Do the material too.
@@ -751,7 +752,7 @@ struct test_makezonecenters
     bputils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     const conduit::Node &n_rmesh = deviceMesh["topologies/rmesh"];
-    auto rmeshView = axom::mir::views::make_rectilinear<2>::view(n_rmesh);
+    auto rmeshView = axom::mir::views::make_rectilinear_topology<2>::view(n_rmesh);
     testTopo(deviceMesh, rmeshView, n_rmesh);
 
     const conduit::Node &n_umesh = deviceMesh["topologies/umesh"];

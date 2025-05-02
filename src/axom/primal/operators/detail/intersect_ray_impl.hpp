@@ -26,7 +26,7 @@ namespace detail
 {
 /*!
  * \brief Computes the intersection of the given ray \a R with the segment \a S.
- *
+ * 
  * When there is a valid intersection (within tolerance \a EPS), 
  * \a ray_param returns the parametric coordinate of the intersection point along \a R
  * and \a seg_param returns the parametric coordinate of the intersection point along \a S.
@@ -58,18 +58,25 @@ inline bool intersect_ray(const primal::Ray<T, 2>& R,
   // If denom is (nearly) zero (within a numerical tolerance), the ray and segment are parallel
   if(axom::utilities::isNearlyEqual(denom, 0.0, EPS))
   {
-    // Check if ray and segment are collinear
-    const primal::Vector<T, 2> col(R.origin(), S.source());
-    const double col_norm = col.norm();
+    // Alternate logic for nearly parallel lines
+    const primal::Vector<T, 2> col1(R.origin(), S.source());
+    double orientation1 = numerics::determinant(col1[0], ray_dir[0], col1[1], ray_dir[1]);
 
-    const double cross = numerics::determinant(col[0], ray_dir[0], col[1], ray_dir[1]);
+    const primal::Vector<T, 2> col2(R.origin(), S.target());
+    double orientation2 = numerics::determinant(col2[0], ray_dir[0], col2[1], ray_dir[1]);
 
-    // Normalize the cross product by the norm of col
-    if(axom::utilities::isNearlyEqual(col_norm, 0.0, primal::PRIMAL_TINY) ||
-       axom::utilities::isNearlyEqual(cross / col_norm, 0.0, EPS))
+    if(orientation1 * orientation2 > 0.0)
     {
+      // The two segment endpoints are on the same side of the ray
+      return false;
+    }
+    else if(axom::utilities::isNearlyEqual(orientation1, 0.0, primal::PRIMAL_TINY) &&
+            axom::utilities::isNearlyEqual(orientation2, 0.0, primal::PRIMAL_TINY))
+    {
+      // Both endpoints are on the ray's line (but maybe not the ray itself)
+
       // Check orientation of segment relative to ray
-      const double t1 = col[0] * ray_dir[0] + col[1] * ray_dir[1];
+      const double t1 = col1[0] * ray_dir[0] + col1[1] * ray_dir[1];
       const double t2 = t1 + seg_dir.dot(ray_dir);
 
       if(std::min(t1, t2) > 0.0)
@@ -106,12 +113,27 @@ inline bool intersect_ray(const primal::Ray<T, 2>& R,
         return false;
       }
 
-      return ((ray_param >= tlow) && (seg_param >= tlow) && (seg_param <= thigh));
+      return true;
     }
-    else
-    {  // Not collinear, no intersection
-      return false;
+    else if(axom::utilities::isNearlyEqual(orientation1, 0.0, primal::PRIMAL_TINY))
+    {
+      // One of the endpoints is on the ray's line (but maybe not the ray itself)
+      ray_param = col1[0] * ray_dir[0] + col1[1] * ray_dir[1];
+      seg_param = 0.0;
+
+      return true;
     }
+    else if(axom::utilities::isNearlyEqual(orientation2, 0.0, primal::PRIMAL_TINY))
+    {
+      // One of the endpoints is on the ray's line (but maybe not the ray itself)
+      ray_param = col2[0] * ray_dir[0] + col2[1] * ray_dir[1];
+      seg_param = 1.0;
+
+      return true;
+    }
+
+    // If the two endpoints *are* on opposite sides of the ray, then Cramer's rule
+    //  will be stable enough to work, since the intersection won't be at infinity.
   }
 
   // Solve for the ray_param and seg_param directly using Cramer's rule
