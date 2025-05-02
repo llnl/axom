@@ -63,7 +63,8 @@ void braid2d_mat_test(const std::string &type, const std::string &mattype, const
   // Make views.
   auto coordsetView =
     axom::mir::views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);
-  auto topologyView = axom::mir::views::make_uniform<2>::view(deviceMesh["topologies/mesh"]);
+  auto topologyView =
+    axom::mir::views::make_uniform_topology<2>::view(deviceMesh["topologies/mesh"]);
   using CoordsetView = decltype(coordsetView);
   using TopologyView = decltype(topologyView);
 

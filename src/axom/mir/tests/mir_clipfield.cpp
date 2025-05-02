@@ -725,9 +725,10 @@ void strided_structured_clip_test(const std::string &name, const conduit::Node &
   bputils::copy<ExecSpace>(deviceOptions, options);
 
   // Create views
-  auto coordsetView =
-    axom::mir::views::make_explicit_coordset<double, 2>::view(deviceMesh["coordsets/coords"]);
-  auto topoView = axom::mir::views::make_strided_structured<2>::view(deviceMesh["topologies/mesh"]);
+  const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
+  const conduit::Node &n_topo = deviceMesh["topologies/mesh"];
+  auto coordsetView = axom::mir::views::make_explicit_coordset<double, 2>::view(n_coordset);
+  auto topoView = axom::mir::views::make_strided_structured_topology<2>::view(n_topo);
 
   using CoordsetView = decltype(coordsetView);
   using TopoView = decltype(topoView);
@@ -1056,7 +1057,8 @@ struct test_selectedzones
       deviceMesh["coordsets/coords"]);
     using CoordsetView = decltype(coordsetView);
 
-    auto topologyView = axom::mir::views::make_rectilinear<2>::view(deviceMesh["topologies/mesh"]);
+    auto topologyView =
+      axom::mir::views::make_rectilinear_topology<2>::view(deviceMesh["topologies/mesh"]);
     using TopologyView = decltype(topologyView);
 
     conduit::Node hostOptions;

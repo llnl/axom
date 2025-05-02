@@ -373,7 +373,8 @@ private:
 
     const conduit::Node &n_targetTopo = n_dev["topologies/fine"];
     using TargetShapeType = views::QuadShape<int>;
-    auto targetTopo = views::make_unstructured_single_shape<TargetShapeType>::view(n_targetTopo);
+    auto targetTopo =
+      views::make_unstructured_single_shape_topology<TargetShapeType>::view(n_targetTopo);
     using TargetTopologyView = decltype(targetTopo);
 
     //_mir_utilities_extrudemesh_begin
@@ -435,7 +436,8 @@ private:
 
     const conduit::Node &n_targetTopo = n_dev["topologies/fine"];
     using TargetShapeType = views::QuadShape<int>;
-    auto targetTopo = views::make_unstructured_single_shape<TargetShapeType>::view(n_targetTopo);
+    auto targetTopo =
+      views::make_unstructured_single_shape_topology<TargetShapeType>::view(n_targetTopo);
     using TargetTopologyView = decltype(targetTopo);
 
     // _mir_utilities_topologymapper_begin
@@ -481,7 +483,8 @@ private:
 
     const conduit::Node &n_targetTopo = n_dev["topologies/efm"];
     using TargetShapeType = views::HexShape<int>;
-    auto targetTopo = views::make_unstructured_single_shape<TargetShapeType>::view(n_targetTopo);
+    auto targetTopo =
+      views::make_unstructured_single_shape_topology<TargetShapeType>::view(n_targetTopo);
     using TargetTopologyView = decltype(targetTopo);
 
     // Make new VFs via mapper.
@@ -530,7 +533,7 @@ private:
 
     // Make polyhedral topology view.
     const conduit::Node &n_srcTopo = n_dev["topologies/phmesh"];
-    auto srcTopo = views::make_unstructured_polyhedral_topology<conduit::index_t>::view(n_srcTopo);  
+    auto srcTopo = views::make_unstructured_polyhedral_topology<conduit::index_t>::view(n_srcTopo);
     using SrcTopologyView = decltype(srcTopo);
 
     const conduit::Node &n_srcMatset = n_dev["matsets/ph_matset"];
@@ -544,7 +547,8 @@ private:
 
     const conduit::Node &n_targetTopo = n_dev["topologies/efm"];
     using TargetShapeType = views::HexShape<int>;
-    auto targetTopo = views::make_unstructured_single_shape<TargetShapeType>::view(n_targetTopo);
+    auto targetTopo =
+      views::make_unstructured_single_shape_topology<TargetShapeType>::view(n_targetTopo);
     using TargetTopologyView = decltype(targetTopo);
 
     // Make new VFs via mapper.

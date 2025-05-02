@@ -86,7 +86,7 @@ struct test_Elvira3D
     auto coordsetView = views::make_explicit_coordset<float, 3>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
-    auto topologyView = views::make_structured<3>::view(n_topology);
+    auto topologyView = views::make_structured_topology<3>::view(n_topology);
     using TopologyView = decltype(topologyView);
     using IndexingPolicy = typename TopologyView::IndexingPolicy;
 
@@ -122,15 +122,10 @@ struct test_Elvira3D
     using MirCoordsetView = decltype(mirCoordsetView);
 
     // Make polyhedral topology view.
-    using MirTopologyView = views::UnstructuredTopologyPolyhedralView<axom::IndexType>;
     const conduit::Node &n_mir_topology = deviceMIRMesh["topologies/mesh"];
-    MirTopologyView mirTopoView(
-      bputils::make_array_view<axom::IndexType>(n_mir_topology["subelements/connectivity"]),
-      bputils::make_array_view<axom::IndexType>(n_mir_topology["subelements/sizes"]),
-      bputils::make_array_view<axom::IndexType>(n_mir_topology["subelements/offsets"]),
-      bputils::make_array_view<axom::IndexType>(n_mir_topology["elements/connectivity"]),
-      bputils::make_array_view<axom::IndexType>(n_mir_topology["elements/sizes"]),
-      bputils::make_array_view<axom::IndexType>(n_mir_topology["elements/offsets"]));
+    auto mirTopoView =
+      views::make_unstructured_polyhedral_topology<axom::IndexType>::view(n_mir_topology);
+    using MirTopologyView = decltype(mirTopoView);
 
     const conduit::Node &n_mir_matset = deviceMIRMesh["matsets/mat"];
     auto mirMatsetView = views::make_unibuffer_matset<int, float, 3>::view(n_mir_matset);

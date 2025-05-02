@@ -381,7 +381,8 @@ struct test_structured_topology_view_rectilinear
     auto resultsView = results.view();
 
     // Execute the kernel for each zone (find max node number in zone).
-    auto topoView = axom::mir::views::make_rectilinear<2>::view(deviceMesh["topologies/mesh"]);
+    auto topoView =
+      axom::mir::views::make_rectilinear_topology<2>::view(deviceMesh["topologies/mesh"]);
     axom::for_all<ExecSpace>(
       topoView.numberOfZones(),
       AXOM_LAMBDA(axom::IndexType zoneIndex) {
