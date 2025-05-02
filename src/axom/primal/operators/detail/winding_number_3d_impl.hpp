@@ -198,7 +198,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
     Line<T, 3> discontinuity_axis(query, cast_direction);
 
     // Tolerance for what counts as "close to a boundary" in parameter space
-    T disk_radius = 0.01 * nPatch.getParameterSpaceDiagonal();
+    T disk_radius = 0.001 * nPatch.getParameterSpaceDiagonal();
 
     // Compute intersections with the *untrimmed and extrapolated* patch
     axom::Array<T> up, vp, tp;
@@ -209,7 +209,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
                              tp,
                              up,
                              vp,
-                             ls_tol,  // This is a good heuristic value for accuracy
+                             ls_tol,
                              EPS,
                              countUntrimmed,
                              isHalfOpen);

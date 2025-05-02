@@ -1605,9 +1605,9 @@ AXOM_HOST_DEVICE bool intersect_plane_tet3d(const Plane<T, 3>& p,
  * \param [in] p1 The second corner in ccw order.
  * \param [in] p2 The third corner.
  * \param [in] p3 The fourth corner.
- * \param [out] t The t parameter(s) of the intersection point wrt the ray.
- * \param [out] u The u parameter(s) of the intersection point wrt the patch.
- * \param [out] v The v parameter(s) of the intersection point wrt the patch.
+ * \param [out] t Array to append the t parameters of intersections wrt the ray.
+ * \param [out] u Array to append the u parameters of intersections wrt the patch.
+ * \param [out] v Array to append the v parameters of intersections wrt the patch.
  * \param [in] EPS The parameter space tolerance for intersection.
  * \param [in] isRay If true, only return intersections with t >= 0.
  *
