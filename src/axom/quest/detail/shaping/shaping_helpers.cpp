@@ -211,8 +211,10 @@ void computeVolumeFractions(const std::string& matField,
     {
       AXOM_ANNOTATE_SCOPE("mass integrator assemble");
       // wrap mass_mat data as vector for AssembleEA call
-      mfem::Vector mass_vec(mass_mat.HostReadWrite(), mass_mat.TotalSize());
+      mfem::Vector mass_vec;
+      mfem::Swap(mass_mat.GetMemory(), mass_vec.GetMemory());
       mass_integrator.AssembleEA(*fes, mass_vec, false);
+      mfem::Swap(mass_mat.GetMemory(), mass_vec.GetMemory());
     }
 
     // Perform batched LU factorization on the mass tensor
