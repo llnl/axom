@@ -145,66 +145,58 @@ public:
 
     const auto& shapeName = shape.getName();
 
-    switch(shapeDimension)
+    // note: ignoring the global shapeDimension for now since it's causing problems
+    // reading c2c when the dimension is Three
+    if(this->shapeFormat(shape) == "c2c")
     {
-    case klee::Dimensions::Two:
       m_inoutSampler2D = new shaping::InOutSampler<2>(shapeName, m_surfaceMesh);
       m_inoutSampler2D->computeBounds();
       m_inoutSampler2D->initSpatialIndex(this->m_vertexWeldThreshold);
-      break;
-
-    case klee::Dimensions::Three:
-      if(this->shapeFormat(shape) == "stl")
+    }
+    else if(this->shapeFormat(shape) == "stl")
+    {
+      m_inoutSampler3D = new shaping::InOutSampler<3>(shapeName, m_surfaceMesh);
+      m_inoutSampler3D->computeBounds();
+      m_inoutSampler3D->initSpatialIndex(this->m_vertexWeldThreshold);
+    }
+    else if(this->shapeFormat(shape) == "proe")
+    {
+      switch(this->getExecutionPolicy())
       {
-        m_inoutSampler3D = new shaping::InOutSampler<3>(shapeName, m_surfaceMesh);
-        m_inoutSampler3D->computeBounds();
-        m_inoutSampler3D->initSpatialIndex(this->m_vertexWeldThreshold);
-      }
-      else if(this->shapeFormat(shape) == "proe")
-      {
-        switch(this->getExecutionPolicy())
-        {
-        case runtime_policy::Policy::seq:
-          m_primitiveSampler3D_seq =
-            new shaping::PrimitiveSampler<3, seq_exec>(shapeName, m_surfaceMesh);
-          m_primitiveSampler3D_seq->computeBounds();
-          m_primitiveSampler3D_seq->initSpatialIndex();
-          break;
+      case runtime_policy::Policy::seq:
+        m_primitiveSampler3D_seq =
+          new shaping::PrimitiveSampler<3, seq_exec>(shapeName, m_surfaceMesh);
+        m_primitiveSampler3D_seq->computeBounds();
+        m_primitiveSampler3D_seq->initSpatialIndex();
+        break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-        case runtime_policy::Policy::omp:
-          m_primitiveSampler3D_omp =
-            new shaping::PrimitiveSampler<3, omp_exec>(shapeName, m_surfaceMesh);
-          m_primitiveSampler3D_omp->computeBounds();
-          m_primitiveSampler3D_omp->initSpatialIndex();
-          break;
+      case runtime_policy::Policy::omp:
+        m_primitiveSampler3D_omp =
+          new shaping::PrimitiveSampler<3, omp_exec>(shapeName, m_surfaceMesh);
+        m_primitiveSampler3D_omp->computeBounds();
+        m_primitiveSampler3D_omp->initSpatialIndex();
+        break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-        case runtime_policy::Policy::cuda:
-          m_primitiveSampler3D_cuda =
-            new shaping::PrimitiveSampler<3, cuda_exec>(shapeName, m_surfaceMesh);
-          m_primitiveSampler3D_cuda->computeBounds();
-          m_primitiveSampler3D_cuda->initSpatialIndex();
-          break;
+      case runtime_policy::Policy::cuda:
+        m_primitiveSampler3D_cuda =
+          new shaping::PrimitiveSampler<3, cuda_exec>(shapeName, m_surfaceMesh);
+        m_primitiveSampler3D_cuda->computeBounds();
+        m_primitiveSampler3D_cuda->initSpatialIndex();
+        break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-        case runtime_policy::Policy::hip:
-          m_primitiveSampler3D_hip =
-            new shaping::PrimitiveSampler<3, hip_exec>(shapeName, m_surfaceMesh);
-          m_primitiveSampler3D_hip->computeBounds();
-          m_primitiveSampler3D_hip->initSpatialIndex();
-          break;
+      case runtime_policy::Policy::hip:
+        m_primitiveSampler3D_hip =
+          new shaping::PrimitiveSampler<3, hip_exec>(shapeName, m_surfaceMesh);
+        m_primitiveSampler3D_hip->computeBounds();
+        m_primitiveSampler3D_hip->initSpatialIndex();
+        break;
 #endif
-        default:
-          SLIC_ERROR("Unsupported execution policy for PrimitiveSampler3D");
-          break;
-        }
+      default:
+        SLIC_ERROR("Unsupported execution policy for PrimitiveSampler3D");
+        break;
       }
-      break;
-
-    default:
-      SLIC_ERROR("Shaping dimension must be 2 or 3, but requested dimension was "
-                 << static_cast<int>(shapeDimension));
-      break;
     }
 
     // Check that one of sampling shapers (2D or 3D) is null and the other is not
@@ -215,16 +207,10 @@ public:
     {
       const int nVerts = m_surfaceMesh->getNumberOfNodes();
       const int nCells = m_surfaceMesh->getNumberOfCells();
-      const std::string shapeType = (shapeDimension == klee::Dimensions::Two)
-        ? "segments"
-        : (this->shapeFormat(shape) == "stl" ? "triangles" : "tetrahedra");
-
-      SLIC_INFO(axom::fmt::format("After welding, surface mesh has {} vertices  and {} {}.",
+      SLIC_INFO(axom::fmt::format("After welding, surface mesh has {} vertices  and {} elements.",
                                   nVerts,
-                                  nCells,
-                                  shapeType));
-      mint::write_vtk(m_surfaceMesh.get(),
-                      axom::fmt::format("melded_{}_mesh_{}.vtk", shapeType, shapeName));
+                                  nCells));
+      mint::write_vtk(m_surfaceMesh.get(), axom::fmt::format("melded_shape_mesh_{}.vtk", shapeName));
     }
   }
 
