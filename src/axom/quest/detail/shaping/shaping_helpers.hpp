@@ -61,7 +61,7 @@ public:
     static_assert(sizeof(Callable) <= MaxSize, "Callable object too large!");
     static_assert(std::is_trivially_copyable<Callable>::value,
                   "Callable must be trivially copyable!");
-    SLIC_WARNING("sizeof(Callable): " << sizeof(Callable));
+    //SLIC_WARNING("sizeof(Callable): " << sizeof(Callable));
 
     invoke = [](const void* storage, Args... args) -> R {
       return (*reinterpret_cast<const Callable*>(storage))(std::forward<Args>(args)...);
