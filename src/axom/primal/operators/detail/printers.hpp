@@ -1426,6 +1426,13 @@ void exportSurfaceToSTL(const std::string& filename,
 
 template <typename T>
 void printPatchBoundaries(
+    const primal::BezierPatch<T, 3>& patch)
+{
+  printPatchBoundaries<T>(primal::NURBSPatch<T, 3>( patch) );
+}
+
+template <typename T>
+void printPatchBoundaries(
     const primal::NURBSPatch<T, 3>& patch)
 {
   const int n_pts = 20;

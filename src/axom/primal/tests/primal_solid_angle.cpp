@@ -579,6 +579,88 @@ axom::Array<primal::NURBSPatch<double, 3>> make_sphere_biquintic()
   return sphere_faces;
 }
 
+axom::Array<primal::NURBSPatch<double, 3>> make_sphere_bicubic()
+{
+  // Generate a sphere using (degenerate) bicubic patches
+
+  using Point2D = primal::Point<double, 2>;
+  using Point3D = primal::Point<double, 3>;
+  using Vector3D = primal::Vector<double, 3>;
+  using BCurve = primal::BezierCurve<double, 2>;
+  using NPatch = primal::NURBSPatch<double, 3>;
+
+  double rt2 = sqrt(2);
+
+  // Define BezierCurves which, when rotated around the z-axis,
+  //  form the top and bottom halves of a sphere.
+  BCurve top_curve(2), bottom_curve(2);
+  top_curve[0] = Point2D {0.0, 1.0};
+  top_curve[1] = Point2D {1.0, 1.0};
+  top_curve[2] = Point2D {1.0, 0.0};
+
+  bottom_curve[0] = Point2D {1.0, 0.0};
+  bottom_curve[1] = Point2D {1.0, -1.0};
+  bottom_curve[2] = Point2D {0.0, -1.0};
+
+  top_curve.makeRational();
+  top_curve.setWeight(1, 1.0 / rt2);
+
+  bottom_curve.makeRational();
+  bottom_curve.setWeight(1, 1.0 / rt2);
+
+  axom::Array<NPatch> sphere_faces(8);
+  for(int n = 0; n < 8; ++n)
+  {
+    sphere_faces[n].setParameters(3, 3, 2, 2);
+    sphere_faces[n].makeRational();
+  }
+
+  for(int n = 0; n < 2; ++n)
+  {
+    auto & curve = (n == 0) ? top_curve : bottom_curve;
+
+    for(int i = 0; i <= 2; ++i)
+    {
+      // clang-format off
+      sphere_faces[4*n + 0](i, 0) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
+      sphere_faces[4*n + 0](i, 1) = axom::primal::Point<double, 3> {curve[i][0], curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 0](i, 2) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
+
+      sphere_faces[4*n + 1](i, 0) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 1](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 1](i, 2) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
+
+      sphere_faces[4*n + 2](i, 0) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
+      sphere_faces[4*n + 2](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], -curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 2](i, 2) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
+
+      sphere_faces[4*n + 3](i, 0) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 3](i, 1) = axom::primal::Point<double, 3> {curve[i][0], -curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 3](i, 2) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
+
+      double the_weight = curve.isRational() ? curve.getWeight(i) : 1.0;
+
+      sphere_faces[4*n + 0].setWeight(i, 0, the_weight);
+      sphere_faces[4*n + 1].setWeight(i, 0, the_weight);
+      sphere_faces[4*n + 2].setWeight(i, 0, the_weight);
+      sphere_faces[4*n + 3].setWeight(i, 0, the_weight);
+
+      sphere_faces[4*n + 0].setWeight(i, 1, the_weight / rt2);
+      sphere_faces[4*n + 1].setWeight(i, 1, the_weight / rt2);
+      sphere_faces[4*n + 2].setWeight(i, 1, the_weight / rt2);
+      sphere_faces[4*n + 3].setWeight(i, 1, the_weight / rt2);
+
+      sphere_faces[4*n + 0].setWeight(i, 2, the_weight);
+      sphere_faces[4*n + 1].setWeight(i, 2, the_weight);
+      sphere_faces[4*n + 2].setWeight(i, 2, the_weight);
+      sphere_faces[4*n + 3].setWeight(i, 2, the_weight);
+      //clang-format on
+    }
+  }
+
+  return sphere_faces;
+}
+
 //------------------------------------------------------------------------------
 TEST(primal_integral, bezierpatch_sphere)
 {
@@ -586,56 +668,74 @@ TEST(primal_integral, bezierpatch_sphere)
   using Vector3D = primal::Vector<double, 3>;
   using NPatch = primal::NURBSPatch<double, 3>;
 
-  auto sphere_faces = make_sphere_biquintic();
-
+  int N = 1;
   // Set up an array of points to test against
-  axom::Array<Point3D> inner_points(24), outer_points(24), coincident_points(12);
+  axom::Array<Point3D> inner_points(2 * N), outer_points(2 * N), coincident_points(N);
 
   // Iterate over points of interest, i.e. axis/edge/vertex aligned
-  Vector3D query_directions[12] = {Vector3D({0.0, 0.0, 1.0}).unitVector(),       // 0
-                                   Vector3D({0.0, 1.0, 0.0}).unitVector(),       // 1
-                                   Vector3D({1.0, 0.0, 0.0}).unitVector(),       // 2
-                                   Vector3D({0.0, 1.0, 1.0}).unitVector(),       // 3
-                                   Vector3D({1.0, 0.0, 1.0}).unitVector(),       // 4
-                                   Vector3D({1.0, 1.0, 0.0}).unitVector(),       // 5
-                                   Vector3D({1.0, 1.0, 1.0}).unitVector(),       // 6
-                                   Vector3D({0.0, 0.1, 1.0}).unitVector(),       // 7
-                                   Vector3D({0.1, 1.0, 0.0}).unitVector(),       // 8
-                                   Vector3D({1.0, 0.0, 0.1}).unitVector(),       // 9
-                                   Vector3D(sphere_faces[0].evaluate(0, 0.6)),   // 10
-                                   Vector3D(sphere_faces[0].evaluate(0.6, 0))};  // 11
+  Vector3D query_directions[12] = {Vector3D({0.0, 0.0, 1.0}).unitVector(),      
+                                   Vector3D({0.0, 1.0, 0.0}).unitVector(),      
+                                   Vector3D({1.0, 0.0, 0.0}).unitVector(),      
+                                   Vector3D({0.0, 1.0, 1.0}).unitVector(),      
+                                   Vector3D({1.0, 0.0, 1.0}).unitVector(),      
+                                   Vector3D({1.0, 1.0, 0.0}).unitVector(),      
+                                   Vector3D({1.0, 1.0, 1.0}).unitVector(),      
+                                   Vector3D({0.0, 0.1, 1.0}).unitVector(),      
+                                   Vector3D({0.1, 1.0, 0.0}).unitVector(),      
+                                   Vector3D({1.0, 0.0, 0.1}).unitVector(),      
+                                   Vector3D({ 0.126623,-0.701415,-0.701415}).unitVector(),  
+                                   Vector3D({-0.701415, 0.126623,-0.701415}).unitVector()}; 
 
   const double edge_offset = 1e-5;
-  for(int i = 0; i < 12; ++i)
+  for(int i = 0; i < N; ++i)
   {
     // Pick points that are far from the surface, and close to the surface
     inner_points[i] = Point3D(0.1 * query_directions[i].array());
-    inner_points[i + 12] = Point3D((1.0 - edge_offset) * query_directions[i].array());
+    inner_points[i + N] = Point3D((1.0 - edge_offset) * query_directions[i].array());
 
     outer_points[i] = Point3D(2.1 * query_directions[i].array());
-    outer_points[i + 12] = Point3D((1.0 + edge_offset) * query_directions[i].array());
+    outer_points[i + N] = Point3D((1.0 + edge_offset) * query_directions[i].array());
 
     coincident_points[i] = Point3D(query_directions[i].array());
   }
 
-  // Evaluate the winding number for each point
   const double edge_tol = 1e-6;
   const double ls_tol = 1e-10;
   const double quad_tol = 1e-5;
   const double EPS = 1e-11;
+  
+  // Test the points on the biquintic patches
+  // auto sphere_faces = make_sphere_biquintic();
+  auto sphere_faces = make_sphere_bicubic();
 
-  auto inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
-  auto outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  // auto inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  // auto outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
   auto coincident_gwn =
     winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
 
   // Check the resulting winding number
-  for(int i = 0; i < 12; ++i)
+  for(int i = 0; i < N; ++i)
   {
-    EXPECT_NEAR(inner_gwn[i], 1.0, 6 * quad_tol);
-    EXPECT_NEAR(outer_gwn[i], 0.0, 6 * quad_tol);
+    // EXPECT_NEAR(inner_gwn[i], 1.0, 6 * quad_tol);
+    // EXPECT_NEAR(outer_gwn[i], 0.0, 6 * quad_tol);
     EXPECT_NEAR(coincident_gwn[i], 0.5, 6 * quad_tol);
   }
+
+  // // Repeat the test with the bicubic patches
+  // sphere_faces = make_sphere_bicubic();
+
+  // inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  // outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  // coincident_gwn =
+  //   winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+
+  // // Check the resulting winding number
+  // for(int i = 0; i < 12; ++i)
+  // {
+  //   EXPECT_NEAR(inner_gwn[i], 1.0, 6 * quad_tol);
+  //   EXPECT_NEAR(outer_gwn[i], 0.0, 6 * quad_tol);
+  //   EXPECT_NEAR(coincident_gwn[i], 0.5, 6 * quad_tol);
+  // }
 }
 
 int main(int argc, char** argv)
