@@ -648,7 +648,7 @@ if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
     endif()
 endif()
 
-if (ENABLE_FORTRAN)
+if (ENABLE_FORTRAN AND FALSE)
 
     set(quest_fortran_examples quest_signed_distance_interface)
     
