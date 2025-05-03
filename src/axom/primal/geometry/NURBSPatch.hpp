@@ -3736,10 +3736,6 @@ private:
                            TrimmingCurveVec& outCurvesFirst,
                            TrimmingCurveVec& outCurvesSecond) const
   {
-    // Clear the output vectors
-    outCurvesFirst.clear();
-    outCurvesSecond.clear();
-
     // Store a ray that is used as the splitting line
     primal::Ray<T, 2> ray_obj(Point<T, 2> {getMaxKnot_u() + 1.0, uv}, Vector<T, 2> {-1.0, 0.0});
     if(splitInU)
@@ -3747,6 +3743,7 @@ private:
       ray_obj = primal::Ray<T, 2>(Point<T, 2> {uv, getMinKnot_v() - 1.0}, Vector<T, 2> {0.0, 1.0});
     }
     TrimmingCurveVec split_trimming_curves;
+    TrimmingCurveVec ray_trimming_curves;
 
     axom::Array<T> ray_params;
     for(const auto& curve : m_trimmingCurves)
@@ -3839,19 +3836,19 @@ private:
 
         if(isSegmentVisible)
         {
-          auto c1 = TrimmingCurveType::make_linear_segment_nurbs(ray_obj.at(ray_params[i]),
-                                                                 ray_obj.at(ray_params[i + 1]));
-
-          outCurvesFirst.push_back(c1);
-
-          c1.reverseOrientation();
-
-          outCurvesSecond.push_back(c1);
+          ray_trimming_curves.push_back(
+            TrimmingCurveType::make_linear_segment_nurbs(ray_obj.at(ray_params[i]),
+                                                         ray_obj.at(ray_params[i + 1])));
         }
       }
     }
 
-    // For the rest of the trimming curves, add them to the right or left depending on the side of the ray
+    // Clear the output vectors
+    outCurvesFirst.clear();
+    outCurvesSecond.clear();
+
+    // For all of the resulting trimming curves,
+    //   add them to the right or left depending on the side of the ray
     for(auto& curve : split_trimming_curves)
     {
       auto eval_pt = curve.evaluate(0.5 * (curve.getMinKnot() + curve.getMaxKnot()));
@@ -3863,6 +3860,13 @@ private:
       {
         outCurvesSecond.push_back(curve);
       }
+    }
+
+    for(auto& line : ray_trimming_curves)
+    {
+      outCurvesFirst.push_back(line);
+      line.reverseOrientation();
+      outCurvesSecond.push_back(line);
     }
   }
 };
