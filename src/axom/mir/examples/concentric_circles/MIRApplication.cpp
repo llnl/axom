@@ -27,6 +27,7 @@ MIRApplication::MIRApplication()
   , gridSize(5)
   , numCircles(2)
   , dimension(2)
+  , numTrials(1)
   , writeFiles(true)
   , outputFilePath("output")
   , method("equiz")
@@ -54,6 +55,9 @@ int MIRApplication::initialize(int argc, char **argv)
     ->check(axom::CLI::Range(2, 3));  // Restrict the value to the range [2, 3]
   bool disable_write = !writeFiles;
   app.add_flag("--disable-write", disable_write)->description("Disable writing data files");
+  app.add_option("--trials", numTrials)
+    ->check(axom::CLI::PositiveNumber)
+    ->description("The number of MIR trials to run on the mesh.");
 
 #if defined(AXOM_USE_CALIPER)
   app.add_option("--caliper", annotationMode)
@@ -175,6 +179,7 @@ int MIRApplication::runMIR()
   conduit::Node options, resultMesh;
   options["matset"] = "mat";
   options["method"] = method;  // pass method via options.
+  options["trials"] = numTrials;
 
   int retval = 0;
   if(policy == RuntimePolicy::seq)

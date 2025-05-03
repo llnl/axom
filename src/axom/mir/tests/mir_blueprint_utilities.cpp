@@ -511,7 +511,7 @@ struct test_extractzones_ph
     auto coordsetView = views::make_explicit_coordset<float, 3>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
-    auto topologyView = views::make_structured<3>::view(n_topology);
+    auto topologyView = views::make_structured_topology<3>::view(n_topology);
     using TopologyView = decltype(topologyView);
     using IndexingPolicy = typename TopologyView::IndexingPolicy;
 

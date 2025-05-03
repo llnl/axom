@@ -41,6 +41,7 @@ def generate(params):
     f.write("CONCENTRIC_CIRCLES_MPI=./examples/mir_concentric_circles_mpi\n\n")
 
     dimension = params["dimension"]
+    trials = params["trials"]
     for s in params["sizes"]:
       f.write(f"# Size {s}\n")
       if len(params["parallel"]) > 0:
@@ -48,13 +49,13 @@ def generate(params):
         for np in params["parallel"]:
           launch = runs[r]["launch"](np)
           for policy in runs[r]["policies"]:
-            f.write(f'echo "Running {launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --disable-write"\n')
-            f.write(f'{launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --disable-write > result_{policy}_np{np}_s{s}.txt\n\n')
+            f.write(f'echo "Running {launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
+            f.write(f'{launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_np{np}_s{s}.txt\n\n')
       else:
         # serial
         for policy in runs[r]["policies"]:
-          f.write(f'echo "Running --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --disable-write"\n')
-          f.write(f'$CONCENTRIC_CIRCLES --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --disable-write > result_{policy}_s{s}.txt\n\n')
+          f.write(f'echo "Running --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
+          f.write(f'$CONCENTRIC_CIRCLES --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_s{s}.txt\n\n')
 
     f.close()
     os.chmod(filename, 0o700)
@@ -105,6 +106,13 @@ def make_columns(params):
           break
     return selected 
 
+  def average(value, trials):
+    try:
+      avg = str(float(value) / float(trials))
+    except ValueError:
+      avg = value
+    return avg
+
   # Measure just the MIR algorithm
   searchKey = "EquiZAlgorithm"
   if params["method"] == "elvira":
@@ -120,6 +128,8 @@ def make_columns(params):
     for s in params["sizes"]:
       sc.append(s*s)
   columns.append(sc)
+
+  trials = params["trials"]
 
   # Gather data.
   for r in sorted(runs.keys()):
@@ -140,7 +150,9 @@ def make_columns(params):
           for s in params["sizes"]:
             filename = os.path.join(r, f"result_{policy}_np{np}_s{s}.txt")
             value = read_timings(filename, searchKey)
-            data.append(value)
+            # Timings contain #trials values so average the value.
+            avgValue = average(value, trials)
+            data.append(avgValue)
           columns.append(data)
       else:
         name = f"{buildname} {policy.upper()}"
@@ -148,7 +160,9 @@ def make_columns(params):
         for s in params["sizes"]:
           filename = os.path.join(r, f"result_{policy}_s{s}.txt")
           value = read_timings(filename, searchKey)
-          data.append(value)
+          # Timings contain #trials values so average the value.
+          avgValue = average(value, trials)
+          data.append(avgValue)
         columns.append(data)
   return columns
 
@@ -267,6 +281,13 @@ def get_params():
     required=False
   )
 
+  parser.add_argument(
+    "--trials",
+    type=int,
+    help="Number of times to run MIR",
+    required=False
+    )
+
   args = parser.parse_args()
 
   # Convert the comma-separated string into a tuple of integers
@@ -304,6 +325,11 @@ def get_params():
     params["dimension"] = args.dimension
   else:
     params["dimension"] = 2
+
+  if args.trials is not None:
+    params["trials"] = max(1, args.trials)
+  else:
+    params["trials"] = 1
 
   # Generate some sizes.
   sides = (50, 100, 200, 500, 1000, 1500, 2000, 4000, 8000)

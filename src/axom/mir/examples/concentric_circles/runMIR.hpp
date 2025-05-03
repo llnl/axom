@@ -12,7 +12,7 @@
 template <typename ExecSpace, int NDIMS>
 int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit::Node &hostResult)
 {
-  AXOM_ANNOTATE_BEGIN("runMIR");
+  AXOM_ANNOTATE_SCOPE("runMIR");
 
   namespace bputils = axom::mir::utilities::blueprint;
   using namespace axom::mir::views;
@@ -27,6 +27,13 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
                               axom::execution_space<ExecSpace>::name(),
                               method,
                               NDIMS));
+
+  // Get the number of times we want to run MIR.
+  int trials = 1;
+  if(options.has_child("trials"))
+  {
+    trials = std::max(1, options["trials"].to_int());
+  }
 
   // Check materials.
   constexpr int MAXMATERIALS = 20;
@@ -50,46 +57,49 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
   const conduit::Node &n_topology = deviceMesh["topologies/mesh"];
   const conduit::Node &n_matset = deviceMesh["matsets/mat"];
   conduit::Node deviceResult;
-
-  if(method == "equiz")
+  for(int trial = 0; trial < trials; trial++)
   {
-    // _equiz_mir_start
-    // Make views (we know beforehand which types to make)
-    auto coordsetView = make_explicit_coordset<float, NDIMS>::view(n_coordset);
-    using CoordsetView = decltype(coordsetView);
+    deviceResult.reset();
+    if(method == "equiz")
+    {
+      // _equiz_mir_start
+      // Make views (we know beforehand which types to make)
+      auto coordsetView = make_explicit_coordset<float, NDIMS>::view(n_coordset);
+      using CoordsetView = decltype(coordsetView);
 
-    using ShapeType = typename std::conditional<NDIMS == 3, HexShape<int>, QuadShape<int>>::type;
-    auto topologyView = make_unstructured_single_shape_topology<ShapeType>::view(n_topology);
-    using TopologyView = decltype(topologyView);
+      using ShapeType = typename std::conditional<NDIMS == 3, HexShape<int>, QuadShape<int>>::type;
+      auto topologyView = make_unstructured_single_shape_topology<ShapeType>::view(n_topology);
+      using TopologyView = decltype(topologyView);
 
-    auto matsetView = make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
-    using MatsetView = decltype(matsetView);
+      auto matsetView = make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
+      using MatsetView = decltype(matsetView);
 
-    using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
-    MIR m(topologyView, coordsetView, matsetView);
-    m.execute(deviceMesh, options, deviceResult);
-    // _equiz_mir_end
-  }
-  else if(method == "elvira")
-  {
-    // Make views (we know beforehand which types to make)
-    auto coordsetView = make_explicit_coordset<float, NDIMS>::view(n_coordset);
-    using CoordsetView = decltype(coordsetView);
+      using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
+      MIR m(topologyView, coordsetView, matsetView);
+      m.execute(deviceMesh, options, deviceResult);
+      // _equiz_mir_end
+    }
+    else if(method == "elvira")
+    {
+      // Make views (we know beforehand which types to make)
+      auto coordsetView = make_explicit_coordset<float, NDIMS>::view(n_coordset);
+      using CoordsetView = decltype(coordsetView);
 
-    auto topologyView = make_structured_topology<NDIMS>::view(n_topology);
-    using TopologyView = decltype(topologyView);
-    using IndexingPolicy = typename TopologyView::IndexingPolicy;
+      auto topologyView = make_structured_topology<NDIMS>::view(n_topology);
+      using TopologyView = decltype(topologyView);
+      using IndexingPolicy = typename TopologyView::IndexingPolicy;
 
-    auto matsetView = make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
-    using MatsetView = decltype(matsetView);
+      auto matsetView = make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
+      using MatsetView = decltype(matsetView);
 
-    using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
-    MIR m(topologyView, coordsetView, matsetView);
-    m.execute(deviceMesh, options, deviceResult);
-  }
-  else
-  {
-    SLIC_ERROR(axom::fmt::format("Unsupported MIR method {}", method));
+      using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
+      MIR m(topologyView, coordsetView, matsetView);
+      m.execute(deviceMesh, options, deviceResult);
+    }
+    else
+    {
+      SLIC_ERROR(axom::fmt::format("Unsupported MIR method {}", method));
+    }
   }
 
   {
