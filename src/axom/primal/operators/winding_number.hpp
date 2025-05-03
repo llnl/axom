@@ -470,7 +470,7 @@ int winding_number(const Point<T, 3>& q,
   return std::lround(wn);
 }
 
-// #ifdef AXOM_USE_MFEM
+#ifdef AXOM_USE_MFEM
 
 /*
  * \brief Computes the GWN for a 3D point wrt a 3D Bezier patch
@@ -583,7 +583,14 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
   for(int i = 0; i < nPatch_arr.size(); ++i)
   {
     nPatch_arr_tested[i] = nPatch_arr[i];
-    nPatch_arr_tested[i].makeTriviallyTrimmed();
+    
+    // Ensure the patch is trimmed
+    if(!nPatch_arr[i].isTrimmed())
+    {
+      nPatch_arr_tested[i].makeTriviallyTrimmed();
+    }
+
+    // Slightly expand the parameter space to catch near misses with the patch
     nPatch_arr_tested[i].scaleParameterSpace(
       1.0 + 0.05 * nPatch_arr_tested[i].getParameterSpaceDiagonal());
 
@@ -610,7 +617,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
 
   return ret_val;
 }
-// #endif
+#endif
 //@}
 
 }  // namespace primal

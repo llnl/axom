@@ -40,7 +40,7 @@ enum class DiscontinuityAxis
   rotated
 };
 
-// #ifdef AXOM_USE_MFEM
+#ifdef AXOM_USE_MFEM
 /*
  * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch
  *
@@ -70,6 +70,18 @@ double nurbs_winding_number(const Point<T, 3>& query,
                             const double EPS = 1e-8,
                             const int depth = 0)
 {
+  // Skip processing of degenerate surfaces
+  if(nPatch.getNumControlPoints_u() <= 1 || nPatch.getNumControlPoints_v() <= 1)
+  {
+    return 0.0;
+  }
+
+  // Also skip processing of surfaces with zero trimming curves
+  if(nPatch.getNumTrimmingCurves() == 0)
+  {
+    return 0.0;
+  }
+
   const double edge_tol_sq = edge_tol * edge_tol;
 
   // Fix the number of quadrature points arbitrarily
@@ -215,10 +227,29 @@ double nurbs_winding_number(const Point<T, 3>& query,
       {
         Point<T, 3> the_point(nPatch.evaluate(up[i], vp[i]));
         // If any of the intersection points are coincident with the surface,
-        //  then revert to adaptive surface method
+        //  then attempt to clip out all degenerate intersections, and retry
         if(squared_distance(query, the_point) <= edge_tol_sq)
         {
-          return  // Surface formula
+          NURBSPatch<T, 3> clipped_patch1, clipped_patch2;
+
+          degenerate_surface_processing(nPatch, up, vp, 0.01 * disk_radius, clipped_patch1, clipped_patch2);
+
+          return nurbs_winding_number(query,
+                                      clipped_patch1,
+                                      cast_direction,
+                                      edge_tol,
+                                      ls_tol,
+                                      quad_tol * 1e-5,
+                                      EPS,
+                                      depth + 1) +
+            nurbs_winding_number(query,
+                                 clipped_patch2,
+                                 cast_direction,
+                                 edge_tol,
+                                 ls_tol,
+                                 quad_tol * 1e-5,
+                                 EPS,
+                                 depth + 1);
         }
         else
         {
@@ -284,10 +315,6 @@ double nurbs_winding_number(const Point<T, 3>& query,
         disk_radius = 0.01 * disk_radius;
       }
 
-      // nPatchTrimmedMore.printTrimmingCurves(
-      //     "C:\\Users\\Fireh\\Code\\winding_number_code\\trimming_examples\\original.txt");
-      // printPatchBoundaries( nPatch );
-
       // Consider a disk around the intersection point via NURBSPatch::diskSplit.
       //   If the disk intersects any trimming curves, need to do disk subdivision.
       //   If not, we can compute the winding number without changing the trimming curvse
@@ -303,14 +330,6 @@ double nurbs_winding_number(const Point<T, 3>& query,
                        isDiskOutside,
                        ignoreInteriorDisk,
                        clipDisk);
-
-      // printPatchBoundaries( nPatchWithBoundaries );
-      // printPatchBoundaries( the_disk );
-
-      // the_disk.printTrimmingCurves(
-      //   "C:\\Users\\Fireh\\Code\\winding_number_code\\trimming_examples\\disk.txt");
-      // nPatchTrimmedMore.printTrimmingCurves(
-      //   "C:\\Users\\Fireh\\Code\\winding_number_code\\trimming_examples\\remaining.txt");
 
       if(isOnSurface)
       {
@@ -528,7 +547,94 @@ double stokes_winding_number_component(const Point<T, 3>& query,
 
   return this_quad;
 }
-// #endif
+
+/*!
+ * \brief Identify the u/v isoline on which all degenerate intersections occur, 
+ *         and clip it from the surface
+ *
+ * \param [in] patch The NURBS patch
+ * \param [in] up, vp The arrays of intersection coordinates in parameter space 
+ * \param [in] clip_radius The width of the strip which is removed in parameter space 
+ * \param [out] out_patch1, out_patch2 The patches which are returned on either side of the strip
+ * 
+ * \note If the relevant isoline occurs within `clip_radius` of a patch edge, 
+ *         the correspondong out_patch will be invalid
+ * 
+ * \return The clipped patch
+ */
+template <typename T>
+void degenerate_surface_processing(const NURBSPatch<T, 3>& patch,
+                                   const axom::Array<double> up,
+                                   const axom::Array<double> vp,
+                                   const double clip_radius,
+                                   NURBSPatch<T, 3>& out_patch1,
+                                   NURBSPatch<T, 3>& out_patch2)
+{
+  double mean_u = up[0], var_u = 0.0;
+  double mean_v = vp[0], var_v = 0.0;
+
+  // Iterate through the coordinates to identify the correct u/v line
+  for(int i = 1; i < up.size(); ++i)
+  {
+    double new_mean_u = mean_u + (up[i] - mean_u) / static_cast<T>(i + 1);
+    double new_mean_v = mean_v + (vp[i] - mean_v) / static_cast<T>(i + 1);
+
+    double new_var_u = var_u + (up[i] - mean_u) * (up[i] - new_mean_u);
+    double new_var_v = var_v + (vp[i] - mean_v) * (vp[i] - new_mean_v);
+
+    mean_u = new_mean_u;
+    mean_v = new_mean_v;
+
+    var_u = new_var_u;
+    var_v = new_var_v;
+  }
+
+  NURBSPatch<T, 3> dummy_patch(patch);
+
+  // Indicates a u isocurve
+  if(var_u < var_v)
+  {
+    if(mean_u - clip_radius > patch.getMinKnot_u())
+    {
+      dummy_patch.split_u(mean_u - clip_radius, out_patch1, dummy_patch);
+    }
+    else
+    {
+      out_patch1 = NURBSPatch<T, 3>();
+    }
+
+    if(mean_u + clip_radius < patch.getMaxKnot_u())
+    {
+      dummy_patch.split_u(mean_u + clip_radius, dummy_patch, out_patch2);
+    }
+    else
+    {
+      out_patch2 = NURBSPatch<T, 3>();
+    }
+  }
+  else
+  {
+    if(mean_v - clip_radius > patch.getMinKnot_v())
+    {
+      dummy_patch.split_v(mean_v - clip_radius, out_patch1, dummy_patch);
+    }
+    else
+    {
+      out_patch1 = NURBSPatch<T, 3>();
+    }
+
+    if(mean_v + clip_radius < patch.getMaxKnot_v())
+    {
+      dummy_patch.split_v(mean_v + clip_radius, dummy_patch, out_patch2);
+    }
+    else
+    {
+      out_patch2 = NURBSPatch<T, 3>();
+    }
+  }
+}
+
+#endif
 
 }  // end namespace detail
 }  // end namespace primal

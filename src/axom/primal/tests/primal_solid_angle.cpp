@@ -617,7 +617,7 @@ axom::Array<primal::NURBSPatch<double, 3>> make_sphere_bicubic()
 
   for(int n = 0; n < 2; ++n)
   {
-    auto & curve = (n == 0) ? top_curve : bottom_curve;
+    auto& curve = (n == 0) ? top_curve : bottom_curve;
 
     for(int i = 0; i <= 2; ++i)
     {
@@ -668,7 +668,7 @@ TEST(primal_integral, bezierpatch_sphere)
   using Vector3D = primal::Vector<double, 3>;
   using NPatch = primal::NURBSPatch<double, 3>;
 
-  int N = 1;
+  int N = 12;
   // Set up an array of points to test against
   axom::Array<Point3D> inner_points(2 * N), outer_points(2 * N), coincident_points(N);
 
@@ -704,38 +704,39 @@ TEST(primal_integral, bezierpatch_sphere)
   const double quad_tol = 1e-5;
   const double EPS = 1e-11;
   
-  // Test the points on the biquintic patches
-  // auto sphere_faces = make_sphere_biquintic();
-  auto sphere_faces = make_sphere_bicubic();
+  NPatch discarded;
 
-  // auto inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
-  // auto outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  // Test the points on the biquintic patches
+  auto sphere_faces = make_sphere_biquintic();
+
+  auto inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  auto outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
   auto coincident_gwn =
     winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
 
   // Check the resulting winding number
   for(int i = 0; i < N; ++i)
   {
-    // EXPECT_NEAR(inner_gwn[i], 1.0, 6 * quad_tol);
-    // EXPECT_NEAR(outer_gwn[i], 0.0, 6 * quad_tol);
+    EXPECT_NEAR(inner_gwn[i], 1.0, 6 * quad_tol);
+    EXPECT_NEAR(outer_gwn[i], 0.0, 6 * quad_tol);
     EXPECT_NEAR(coincident_gwn[i], 0.5, 6 * quad_tol);
   }
 
-  // // Repeat the test with the bicubic patches
-  // sphere_faces = make_sphere_bicubic();
+  // Repeat the test with the bicubic patches
+  sphere_faces = make_sphere_bicubic();
 
-  // inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
-  // outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
-  // coincident_gwn =
-  //   winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  coincident_gwn =
+    winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
 
-  // // Check the resulting winding number
-  // for(int i = 0; i < 12; ++i)
-  // {
-  //   EXPECT_NEAR(inner_gwn[i], 1.0, 6 * quad_tol);
-  //   EXPECT_NEAR(outer_gwn[i], 0.0, 6 * quad_tol);
-  //   EXPECT_NEAR(coincident_gwn[i], 0.5, 6 * quad_tol);
-  // }
+  // Check the resulting winding number
+  for(int i = 0; i < 12; ++i)
+  {
+    EXPECT_NEAR(inner_gwn[i], 1.0, 8 * quad_tol);
+    EXPECT_NEAR(outer_gwn[i], 0.0, 8 * quad_tol);
+    EXPECT_NEAR(coincident_gwn[i], 0.5, 8 * quad_tol);
+  }
 }
 
 int main(int argc, char** argv)
