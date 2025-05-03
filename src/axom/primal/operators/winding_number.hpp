@@ -499,10 +499,20 @@ double winding_number(const Point<T, 3>& query,
   nPatch_tested.makeTriviallyTrimmed();
   nPatch_tested.scaleParameterSpace(1.0 + 0.05 * nPatch_tested.getParameterSpaceDiagonal());
 
-  double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-  double u = axom::utilities::random_real(-1.0, 1.0);
-  //   auto cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-  auto cast_direction = bPatch.normal(0.5, 0.5).unitVector();
+  auto cast_direction = bPatch.calculateUntrimmedPatchNormal();
+
+  // Select the cast direction as an average normal of the untrimmed surface
+  if(cast_direction.norm() < 1e-10)
+  {
+    // ...unless the average direction is zero
+    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+    double u = axom::utilities::random_real(-1.0, 1.0);
+    cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+  }
+  else
+  {
+    cast_direction = cast_direction.unitVector();
+  }
 
   return detail::nurbs_winding_number(query,
                                       nPatch_tested,
@@ -540,9 +550,18 @@ double winding_number(const Point<T, 3>& query,
   nPatch_tested.makeTriviallyTrimmed();
   nPatch_tested.scaleParameterSpace(1.0 + 0.05 * nPatch_tested.getParameterSpaceDiagonal());
 
-  double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-  double u = axom::utilities::random_real(-1.0, 1.0);
-  auto cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+  // Select the cast direction as an average normal of the untrimmed surface
+  if(cast_direction.norm() < 1e-10)
+  {
+    // ...unless the average direction is zero
+    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+    double u = axom::utilities::random_real(-1.0, 1.0);
+    cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+  }
+  else
+  {
+    cast_direction = cast_direction.unitVector();
+  }
 
   return detail::nurbs_winding_number(query,
                                       nPatch_tested,
@@ -583,7 +602,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
   for(int i = 0; i < nPatch_arr.size(); ++i)
   {
     nPatch_arr_tested[i] = nPatch_arr[i];
-    
+
     // Ensure the patch is trimmed
     if(!nPatch_arr[i].isTrimmed())
     {
@@ -594,8 +613,18 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
     nPatch_arr_tested[i].scaleParameterSpace(
       1.0 + 0.05 * nPatch_arr_tested[i].getParameterSpaceDiagonal());
 
-    // Will later be replaced with a direction based on a mean normal vector
-    cast_direction_arr[i] = nPatch_arr[i].normal(0.5, 0.5).unitVector();
+    // Select the cast direction as an average normal of the untrimmed surface
+    if(cast_direction.norm() < 1e-10)
+    {
+      // ...unless the average direction is zero
+      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+      double u = axom::utilities::random_real(-1.0, 1.0);
+      cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+    }
+    else
+    {
+      cast_direction = cast_direction.unitVector();
+    }
   }
 
   axom::Array<double> ret_val(query_arr.size());

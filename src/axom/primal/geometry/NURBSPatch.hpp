@@ -2240,11 +2240,6 @@ public:
     return VectorType::cross_product(Du, Dv);
   }
 
-  // #ifdef AXOM_USE_MFEM
-  //   VectorType approximateAveragePatchNormal(T)
-
-  // #endif
-
   /*!
    * \brief Splits the NURBS patch geometry (at each internal knot) into several Bezier patches
    * 
@@ -2535,6 +2530,100 @@ public:
 
     return beziers;
   }
+
+#ifdef AXOM_USE_MFEM
+  /*!
+   * \brief Calculate the average normal for the (untrimmed) patch
+   * 
+   * \param [in] npts The number of quadrature nodes used in each component integral
+   *
+   * Algorithm from "Mean normal vector to a surface bounded by Bézier curves"
+   *  by Kenji Ueda, 1996
+   * 
+   * Projects the 4 boundary curves of the patch along each coordiante axis, 
+   *  then computes the 2D area of that projection to get the corresponding
+   *  component of the average surface normal.
+   *  
+   * \return The calculated mean surface normal
+   */
+  VectorType calculateUntrimmedPatchNormal(int npts = 20)
+  {
+    SLIC_ASSERT(NDIMS == 3);
+
+    VectorType ret_vec;
+    auto const_integrand = [](Point2D /*x*/) -> double { return 1.0; };
+
+    // Set up the correct sizes and weights of the bounding curves
+    axom::Array<NURBSCurve<T, 2>> boundingPoly(4);
+
+    const int npts_u = getNumControlPoints_u();
+    const int npts_v = getNumControlPoints_v();
+
+    boundingPoly[0].setParameters(npts_v, getDegree_v());  // isocurve_u(0), Reversed
+    boundingPoly[0].setKnots(getKnots_v());
+
+    boundingPoly[1].setParameters(npts_u, getDegree_u());  // isocurve_v(1), Reversed
+    boundingPoly[1].setKnots(getKnots_u());
+
+    boundingPoly[2].setParameters(npts_v, getDegree_v());  // isocurve_u(1)
+    boundingPoly[2].setKnots(getKnots_v());
+
+    boundingPoly[3].setParameters(npts_u, getDegree_u());  // isocurve_v(0)
+    boundingPoly[3].setKnots(getKnots_u());
+
+    if(isRational())
+    {
+      for(int i = 0; i < 4; ++i)
+      {
+        boundingPoly[i].makeRational();
+      }
+
+      for(int m = 0; m < npts_v; ++m)
+      {
+        boundingPoly[0].setWeight(m, m_weights(0, npts_v - 1 - m));
+        boundingPoly[2].setWeight(m, m_weights(npts_u - 1, m));
+      }
+
+      for(int n = 0; n < npts_u; ++n)
+      {
+        boundingPoly[1].setWeight(n, m_weights(npts_u - 1 - n, npts_v - 1));
+        boundingPoly[3].setWeight(n, m_weights(n, 0));
+      }
+    }
+
+    // Get each component by projecting boundaries onto the other coordinate axes
+    for(int N = 0; N < 3; ++N)
+    {
+      int ind_3d = 0;
+      for(int i = 0; i < 2; ++i, ++ind_3d)
+      {
+        // Skip the corresponding coordinate used to access the 3D point
+        if(ind_3d == N)
+        {
+          --i;
+          continue;
+        }
+
+        for(int m = 0; m < npts_v; ++m)
+        {
+          boundingPoly[0][m][i] = m_controlPoints(0, npts_v - 1 - m)[ind_3d];
+          boundingPoly[2][m][i] = m_controlPoints(npts_u - 1, m)[ind_3d];
+        }
+
+        for(int n = 0; n < npts_u; ++n)
+        {
+          boundingPoly[1][n][i] = m_controlPoints(npts_u - 1 - n, npts_v - 1)[ind_3d];
+          boundingPoly[3][n][i] = m_controlPoints(n, 0)[ind_3d];
+        }
+      }
+
+      // Find the area of the resulting projection
+      ret_vec[N] = evaluate_area_integral(boundingPoly, const_integrand, 20);
+    }
+
+    return ret_vec;
+  }
+#endif
   //@}
 
   //@{
