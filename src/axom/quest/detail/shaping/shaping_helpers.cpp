@@ -8,6 +8,7 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
+#include "axom/sidre.hpp"
 
 #include "axom/fmt.hpp"
 
@@ -22,6 +23,92 @@ namespace quest
 namespace shaping
 {
 #if defined(AXOM_USE_MFEM)
+
+// Utility function to either return a gf from the dc, or to allocate the
+// gf through the dc, ensuring the memory doesn't leak
+// The function properly handles parallel grid functions and spaces when using MPI
+mfem::GridFunction* getOrAllocateL2GridFunction(mfem::DataCollection* dc,
+                                                const std::string& gf_name,
+                                                int order,
+                                                int dim,
+                                                const int basis)
+{
+  if(dc == nullptr)
+  {
+    SLIC_WARNING("Cannot allocate grid function into null data collection");
+    return nullptr;
+  }
+
+  mfem::GridFunction* gf = nullptr;
+
+  if(dc->HasField(gf_name))
+  {
+    gf = dc->GetField(gf_name);
+  }
+  else
+  {
+    auto* fec = new mfem::L2_FECollection(order, dim, basis);
+    auto* mesh = dc->GetMesh();
+
+    // allocate a (par) finite element space on the mesh
+    mfem::FiniteElementSpace* fes = nullptr;
+    {
+  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+      auto* pmesh = dynamic_cast<mfem::ParMesh*>(mesh);
+      if(pmesh)
+      {
+        fes = new mfem::ParFiniteElementSpace(pmesh, fec);
+      }
+      else
+      {
+        fes = new mfem::FiniteElementSpace(mesh, fec);
+      }
+  #else
+      fes = new mfem::FiniteElementSpace(mesh, fec);
+  #endif
+    }
+
+    // allocate data through sidre and tell the grid function to use it
+    // the grid function will manage memory for the fec and fes
+    auto* sidreDC = dynamic_cast<sidre::MFEMSidreDataCollection*>(dc);
+    if(sidreDC)
+    {
+      const int sz = fes->GetVSize();
+      auto* vw = sidreDC->AllocNamedBuffer(gf_name, sz);
+      mfem::Vector v(vw->getData(), sz);
+  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+      gf = new mfem::ParGridFunction();
+  #else
+      gf = new mfem::GridFunction();
+  #endif
+      gf->MakeRef(fes, v, 0);
+    }
+    else
+    {
+  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+      auto* pfes = dynamic_cast<mfem::ParFiniteElementSpace*>(fes);
+      if(pfes)
+      {
+        gf = new mfem::ParGridFunction(pfes);
+      }
+      else
+      {
+        gf = new mfem::GridFunction(fes);
+      }
+  #else
+      gf = new mfem::GridFunction(fes);
+  #endif
+    }
+
+    gf->MakeOwner(fec);
+    gf->HostReadWrite();
+
+    dc->RegisterField(gf_name, gf);
+    *gf = 0.;
+  }
+
+  return gf;
+}
 
 void replaceMaterial(mfem::QuadratureFunction* shapeQFunc,
                      mfem::QuadratureFunction* materialQFunc,
@@ -171,24 +258,9 @@ void computeVolumeFractions(const std::string& matField,
     axom::fmt::format(axom::utilities::locale(), "Mesh has dim {} and {:L} elements", dim, NE));
 
   // Access or create a registered volume fraction grid function from the data collection
-  mfem::FiniteElementSpace* fes = nullptr;
-  mfem::GridFunction* volFrac = nullptr;
-  if(dc->HasField(volFracName))
-  {
-    volFrac = dc->GetField(volFracName);
-    fes = volFrac->FESpace();
-  }
-  else
-  {
-    const auto basis = mfem::BasisType::Positive;
-    auto* fec = new mfem::L2_FECollection(outputOrder, dim, basis);
-    fes = new mfem::FiniteElementSpace(mesh, fec);
-    volFrac = new mfem::GridFunction(fes);
-    volFrac->MakeOwner(fec);
-    volFrac->HostReadWrite();
-
-    dc->RegisterField(volFracName, volFrac);
-  }
+  mfem::GridFunction* volFrac =
+    getOrAllocateL2GridFunction(dc, volFracName, outputOrder, dim, mfem::BasisType::Positive);
+  const mfem::FiniteElementSpace* fes = volFrac->FESpace();
 
   // Project QField onto volume fractions field using flux corrected transport (FCT)
   // to keep the range of values between 0 and 1
@@ -207,7 +279,6 @@ void computeVolumeFractions(const std::string& matField,
     const int dofs = fes->GetFE(0)->GetDof();
     mfem::DenseTensor mass_mat(dofs, dofs, NE);
     mass_mat = 0.;
-
     {
       AXOM_ANNOTATE_SCOPE("mass integrator assemble");
       // wrap mass_mat data as vector for AssembleEA call

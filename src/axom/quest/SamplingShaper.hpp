@@ -147,6 +147,7 @@ public:
 
     // note: ignoring the global shapeDimension for now since it's causing problems
     // reading c2c when the dimension is Three
+    AXOM_UNUSED_VAR(shapeDimension);
     if(this->shapeFormat(shape) == "c2c")
     {
       m_inoutSampler2D = new shaping::InOutSampler<2>(shapeName, m_surfaceMesh);
@@ -377,6 +378,13 @@ public:
 
     delete m_primitiveSampler3D_hip;
     m_primitiveSampler3D_hip = nullptr;
+
+    SLIC_WARNING_IF(
+      m_surfaceMesh.use_count() > 1,
+      axom::fmt::format(
+        "in finalizeShapeQuery -- Surface mesh pointer has {} references -- should be at most 1",
+        m_surfaceMesh.use_count()));
+    slic::flushStreams();
 
     m_surfaceMesh.reset();
   }
