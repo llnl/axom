@@ -640,13 +640,13 @@ bool intersect(const BezierCurve<T, 2>& c1,
                const BezierCurve<T, 2>& c2,
                axom::Array<T>& sp,
                axom::Array<T>& tp,
-               double tol = 1E-8)
+               T tol = 1E-8)
 {
   const auto offset = static_cast<T>(0.0);
   const auto scale = static_cast<T>(1.0);
 
   // for efficiency, linearity check actually uses a squared tolerance
-  const double sq_tol = tol * tol;
+  const T sq_tol = tol * tol;
 
   return detail::intersect_bezier_curves(c1,
                                          c2,
@@ -682,14 +682,14 @@ bool intersect(const Ray<T, 2>& r,
                const BezierCurve<T, 2>& c,
                axom::Array<T>& rp,
                axom::Array<T>& cp,
-               double tol = 1E-8,
+               T tol = 1E-8,
                T EPS = 1E-8)
 {
   const auto offset = static_cast<T>(0.0);
   const auto scale = static_cast<T>(1.0);
 
   // for efficiency, linearity check actually uses a squared tolerance
-  const double sq_tol = tol * tol;
+  const T sq_tol = tol * tol;
 
   return detail::intersect_ray_bezier(r, c, rp, cp, sq_tol, EPS, c.getOrder(), offset, scale);
 }
@@ -714,7 +714,7 @@ bool intersect(const Ray<T, 2>& r,
                const NURBSCurve<T, 2>& n,
                axom::Array<T>& rp,
                axom::Array<T>& np,
-               double tol = 1E-8,
+               T tol = 1E-8,
                T EPS = 1E-8)
 {
   // Check a bounding box of the entire NURBS first

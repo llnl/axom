@@ -998,7 +998,7 @@ public:
     bool isCurveRational = this->isRational();
     int p = getDegree();
     int n = getNumControlPoints() - 1;
-    int ks = m_knotvec.getNumKnotSpans();
+    auto ks = m_knotvec.getNumKnotSpans();
 
     constexpr auto typedOne = static_cast<T>(1.0);
 
@@ -1389,7 +1389,7 @@ public:
   std::ostream& print(std::ostream& os) const
   {
     int npts = getNumControlPoints();
-    int nkts = m_knotvec.getNumKnots();
+    auto nkts = m_knotvec.getNumKnots();
 
     int deg = m_knotvec.getDegree();
 

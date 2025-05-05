@@ -39,8 +39,8 @@ void checkIntersections(const primal::BezierCurve<CoordType, 2>& curve1,
                         const primal::BezierCurve<CoordType, 2>& curve2,
                         const axom::Array<CoordType>& exp_s,
                         const axom::Array<CoordType>& exp_t,
-                        double eps,
-                        double test_eps,
+                        CoordType eps,
+                        CoordType test_eps,
                         bool shouldPrintIntersections = false)
 {
   constexpr int DIM = 2;
@@ -201,11 +201,11 @@ TEST(primal_bezier_inter, linear_bezier_interp_params)
   // NOTE: Skipping endpoints for now.
   for(int i = 0; i < num_i_samples; ++i)
   {
-    auto t = i / static_cast<CoordType>(num_i_samples + 1);
+    auto t = i / static_cast<double>(num_i_samples + 1);
 
     for(int j = 0; j < num_j_samples; ++j)
     {
-      auto s = j / static_cast<CoordType>(num_j_samples + 1);
+      auto s = j / static_cast<double>(num_j_samples + 1);
 
       std::stringstream sstr;
       sstr << "linear bezier perpendicular (s,t) = (" << s << "," << t << ")";
@@ -302,7 +302,7 @@ TEST(primal_bezier_inter, cubic_bezier)
     curve1.setOrder(otherorder);
     for(int i = 0; i < otherorder; ++i)
     {
-      curve1[i][0] = curve1[i][0] * (otherorder - 1) / (static_cast<CoordType>(otherorder));
+      curve1[i][0] = curve1[i][0] * (otherorder - 1) / (static_cast<double>(otherorder));
     }
     curve1[otherorder] = PointType {3.0, 0};
     SLIC_INFO("Testing w/ order 3 and " << otherorder);
@@ -409,6 +409,57 @@ TEST(primal_bezier_inter, cubic_bezier_nine_intersections)
   checkIntersections(curve1, curve2, exp_s, exp_t, eps, eps_test);
 }
 
+TEST(primal_bezier_inter, cubic_bezier_nine_intersections_float)
+{
+  static const int DIM = 2;
+  using CoordType = float;
+  using PointType = primal::Point<CoordType, DIM>;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+
+  SLIC_INFO("primal: testing bezier intersection");
+  SCOPED_TRACE("cubic bezier -- 9 intersections");
+
+  // A configuration of two cubic bezier curves that intersect at nine points
+  const int order = 3;
+  PointType data1[order + 1] = {PointType {100, 90},
+                                PointType {125, 260},
+                                PointType {125, 0},
+                                PointType {140, 145}};
+
+  BezierCurveType curve1(data1, order);
+
+  PointType data2[order + 1] = {PointType {75, 110},
+                                PointType {265, 120},
+                                PointType {0, 130},
+                                PointType {145, 135}};
+  BezierCurveType curve2(data2, order);
+
+  const float eps = static_cast<float>(1E-5);
+  const float eps_test = static_cast<float>(1E-4);
+
+  axom::Array<float> exp_s = {static_cast<float>(0.0483212),
+                              static_cast<float>(0.0969129),
+                              static_cast<float>(0.1149546),
+                              static_cast<float>(0.4525395),
+                              static_cast<float>(0.5130753),
+                              static_cast<float>(0.5874279),
+                              static_cast<float>(0.9096761),
+                              static_cast<float>(0.9373476),
+                              static_cast<float>(0.9747492)};
+
+  axom::Array<float> exp_t = {static_cast<float>(0.0575642),
+                              static_cast<float>(0.1237935),
+                              static_cast<float>(0.1676610),
+                              static_cast<float>(0.4229476),
+                              static_cast<float>(0.5185809),
+                              static_cast<float>(0.6475905),
+                              static_cast<float>(0.8722025),
+                              static_cast<float>(0.9370948),
+                              static_cast<float>(0.9853581)};
+
+  checkIntersections(curve1, curve2, exp_s, exp_t, eps, eps_test);
+}
+
 /*
  * Helper function to compute the intersections of a curve and a ray and check that
  * their intersection points match our expectations, stored in \a exp_s
@@ -423,8 +474,8 @@ void checkIntersectionsRay(const primal::Ray<CoordType, 2>& ray,
                            const CurveType& curve,
                            const axom::Array<CoordType>& exp_r,
                            const axom::Array<CoordType>& exp_c,
-                           double eps,
-                           double test_eps,
+                           CoordType eps,
+                           CoordType test_eps,
                            bool shouldPrintIntersections = false)
 {
   constexpr int DIM = 2;
@@ -440,7 +491,7 @@ void checkIntersectionsRay(const primal::Ray<CoordType, 2>& ray,
   // Intersect the curve and ray, intersection parameters will be
   // in arrays r and c, for ray and curve, respectively
   Array r, c;
-  bool curves_intersect = intersect(ray, curve, r, c, eps);
+  bool curves_intersect = intersect(ray, curve, r, c, eps, eps);
   EXPECT_EQ(exp_intersect, curves_intersect);
   EXPECT_EQ(r.size(), c.size());
 
@@ -521,8 +572,8 @@ TEST(primal_bezier_inter, ray_linear_bezier)
     PointType data[order + 1] = {PointType {1.0, 0.0}, PointType {0.0, 1.0}};
     BezierCurveType curve(data, order);
 
-    axom::Array<CoordType> exp_intersections1 = {static_cast<CoordType>(std::sqrt(0.5))};
-    axom::Array<CoordType> exp_intersections2 = {0.5};
+    axom::Array<double> exp_intersections1 = {std::sqrt(0.5)};
+    axom::Array<double> exp_intersections2 = {0.5};
 
     const double eps = 1E-3;
     checkIntersectionsRay(ray, curve, exp_intersections1, exp_intersections2, eps, eps);
@@ -541,31 +592,21 @@ TEST(primal_bezier_inter, ray_linear_bezier)
     RayType ray1(ray_origin1, ray_direction1);
 
     const double eps = 1E-3;
-    checkIntersectionsRay(ray1,
-                          curve,
-                          axom::Array<CoordType>({1.0}),
-                          axom::Array<CoordType>({0.0}),
-                          eps,
-                          eps);
+    checkIntersectionsRay(ray1, curve, axom::Array<double>({1.0}), axom::Array<double>({0.0}), eps, eps);
 
     // Don't count intersections at the t = 1 parameter of the curve
     PointType ray_origin2 = PointType::zero();
     VectorType ray_direction2({0.0, 1.0});
     RayType ray2(ray_origin2, ray_direction2);
 
-    checkIntersectionsRay(ray2, curve, axom::Array<CoordType>(), axom::Array<CoordType>(), eps, eps);
+    checkIntersectionsRay(ray2, curve, axom::Array<double>(), axom::Array<double>(), eps, eps);
 
     // Count intersections at the t = 0 parameter of the ray
     PointType ray_origin3({0.5, 0.5});
     VectorType ray_direction3({1.0, 1.0});
     RayType ray3(ray_origin3, ray_direction3);
 
-    checkIntersectionsRay(ray3,
-                          curve,
-                          axom::Array<CoordType>({0.0}),
-                          axom::Array<CoordType>({0.5}),
-                          eps,
-                          eps);
+    checkIntersectionsRay(ray3, curve, axom::Array<double>({0.0}), axom::Array<double>({0.5}), eps, eps);
   }
 
   // case 3 -- A ray that intersects a curve at an interior point
@@ -579,8 +620,8 @@ TEST(primal_bezier_inter, ray_linear_bezier)
     VectorType ray_direction({1.0, 2.0});
     RayType ray(ray_origin, ray_direction);
 
-    axom::Array<CoordType> exp_intersections1 = {static_cast<CoordType>(std::sqrt(5) / 3.0)};
-    axom::Array<CoordType> exp_intersections2 = {2.0 / 3.0};
+    axom::Array<double> exp_intersections1 = {std::sqrt(5) / 3.0};
+    axom::Array<double> exp_intersections2 = {2.0 / 3.0};
 
     const double eps = 1E-3;
     checkIntersectionsRay(ray, curve, exp_intersections1, exp_intersections2, eps, eps);
@@ -602,7 +643,7 @@ TEST(primal_bezier_inter, ray_linear_bezier)
     // Because defining the "correct" behavior is ambiguous, we only enforce now that
     //  1) at least one intersection is found, and
     //  2) all returned points match
-    axom::Array<CoordType> r, c;
+    axom::Array<double> r, c;
     bool curves_intersect = intersect(ray, curve, r, c, eps);
 
     EXPECT_TRUE(curves_intersect);
@@ -649,7 +690,7 @@ TEST(primal_bezier_inter, ray_no_intersections_bezier)
                                PointType {3.0, 1.5}};
   BezierCurveType curve(data, order);
 
-  axom::Array<CoordType> exp_intersections;
+  axom::Array<double> exp_intersections;
 
   const double eps = 1E-10;
   const double eps_test = 1E-8;
@@ -676,11 +717,11 @@ TEST(primal_bezier_inter, ray_linear_bezier_interp_params)
   // NOTE: Skipping endpoints for now.
   for(int i = 0; i < num_i_samples; ++i)
   {
-    auto t = i / static_cast<CoordType>(num_i_samples + 1);
+    auto t = i / static_cast<double>(num_i_samples + 1);
 
     for(int j = 0; j < num_j_samples; ++j)
     {
-      auto s = j / static_cast<CoordType>(num_j_samples + 1);
+      auto s = j / static_cast<double>(num_j_samples + 1);
 
       std::stringstream sstr;
       sstr << "linear bezier perpendicular (s,t) = (" << s << "," << t << ")";
@@ -693,8 +734,8 @@ TEST(primal_bezier_inter, ray_linear_bezier_interp_params)
       VectorType ray_direction1({0.0, 1.0});
       RayType ray1(ray_origin1, ray_direction1);
 
-      axom::Array<CoordType> exp_intersections_t = {t};
-      axom::Array<CoordType> exp_intersections_s = {s};
+      axom::Array<double> exp_intersections_t = {t};
+      axom::Array<double> exp_intersections_s = {s};
 
       // test for intersections
       checkIntersectionsRay(ray1, curve1, exp_intersections_s, exp_intersections_t, eps, eps);
@@ -736,12 +777,12 @@ TEST(primal_bezier_inter, ray_cubic_bezier)
                                PointType {3.0, -0.5}};
   BezierCurveType curve(data, order);
 
-  axom::Array<CoordType> all_intersections = {0.17267316464601146, 0.5, 0.827326835353989};
+  axom::Array<double> all_intersections = {0.17267316464601146, 0.5, 0.827326835353989};
 
   const double eps = 1E-10;
   const double eps_test = 1E-8;
 
-  for(CoordType origin = 0.0; origin <= 1.0; origin += 0.05)
+  for(double origin = 0.0; origin <= 1.0; origin += 0.05)
   {
     PointType ray_origin({origin, 0.0});
     SLIC_INFO("Testing w/ origin at " << ray_origin);
@@ -752,8 +793,8 @@ TEST(primal_bezier_inter, ray_cubic_bezier)
     auto curve_pt_1 = curve.evaluate(all_intersections[1]);
     auto curve_pt_2 = curve.evaluate(all_intersections[2]);
 
-    axom::Array<CoordType> exp_intersections;
-    axom::Array<CoordType> ray_intersections;
+    axom::Array<double> exp_intersections;
+    axom::Array<double> ray_intersections;
     if(origin < curve_pt_0[0])
     {
       exp_intersections.push_back(all_intersections[0]);
@@ -803,7 +844,7 @@ TEST(primal_bezier_inter, ray_cubic_bezier_varying_eps)
   BezierCurveType curve(data, order);
 
   // Note: same intersection params for curve and line
-  axom::Array<CoordType> exp_intersections = {0.17267316464601146, 0.5, 0.827326835353989};
+  axom::Array<double> exp_intersections = {0.17267316464601146, 0.5, 0.827326835353989};
 
   for(int exp = 1; exp <= 14; ++exp)
   {
@@ -850,15 +891,57 @@ TEST(primal_bezier_inter, ray_cubic_bezier_four_intersections)
   const double eps = 1E-10;
   const double eps_test = 1E-8;
 
-  axom::Array<CoordType> exp_s = {21.19004780170474,
-                                  45.76845689117871,
-                                  35.9416068276128,
-                                  45.76845689117871};
+  axom::Array<double> exp_s = {21.19004780170474,
+                               45.76845689117871,
+                               35.9416068276128,
+                               45.76845689117871};
 
-  axom::Array<CoordType> exp_t = {0.0264232742968,
-                                  0.2047732691922508,
-                                  0.813490954734,
-                                  0.96880275626114684};
+  axom::Array<double> exp_t = {0.0264232742968, 0.2047732691922508, 0.813490954734, 0.96880275626114684};
+
+  checkIntersectionsRay(ray, curve, exp_s, exp_t, eps, eps_test);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_bezier_inter, ray_cubic_bezier_four_intersections_float)
+{
+  static const int DIM = 2;
+  using CoordType = float;
+  using PointType = primal::Point<CoordType, DIM>;
+  using VectorType = primal::Vector<CoordType, DIM>;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+  using RayType = primal::Ray<CoordType, DIM>;
+
+  SLIC_INFO("primal: testing bezier intersection");
+
+  // An intersection of a ray and a high-order Bezier curve,
+  //  with one intersection repeated in physical space
+  const int order = 7;
+  PointType data[order + 1] = {PointType {100, 90},
+                               PointType {125, 260},
+                               PointType {125, 0},
+                               PointType {140, 145},
+                               PointType {75, 110},
+                               PointType {265, 120},
+                               PointType {0, 130},
+                               PointType {145, 135}};
+  BezierCurveType curve(data, order);
+
+  PointType ray_origin({90.0, 100.0});
+  VectorType ray_direction({1.0, static_cast<float>(1.09616)});
+  RayType ray(ray_origin, ray_direction);
+
+  const float eps = static_cast<float>(1E-4);
+  const float eps_test = static_cast<float>(1E-3);
+
+  axom::Array<float> exp_s = {static_cast<float>(21.19004),
+                              static_cast<float>(45.76845),
+                              static_cast<float>(35.94160),
+                              static_cast<float>(45.76845)};
+
+  axom::Array<float> exp_t = {static_cast<float>(0.026423),
+                              static_cast<float>(0.204773),
+                              static_cast<float>(0.813490),
+                              static_cast<float>(0.968802)};
 
   checkIntersectionsRay(ray, curve, exp_s, exp_t, eps, eps_test);
 }
@@ -891,8 +974,8 @@ TEST(primal_bezier_inter, ray_bezier_tangent_intersections)
   const double eps_test = 1E-4;  // Currently can't be found to better precision
 
   // Tangent intersection at inflection point
-  axom::Array<CoordType> exp_r = {0.5};
-  axom::Array<CoordType> exp_c = {0.5};
+  axom::Array<double> exp_r = {0.5};
+  axom::Array<double> exp_c = {0.5};
 
   checkIntersectionsRay(ray, curve, exp_r, exp_c, eps, eps_test);
 
@@ -936,7 +1019,7 @@ TEST(primal_bezier_inter, ray_nurbs_intersections)
   circle.insertKnot(1.0, 2);
 
   // These parameters include the extra knots at 0.0 and 1.0
-  CoordType params[10], min_param = -1.0, max_param = 2.0;
+  double params[10], min_param = -1.0, max_param = 2.0;
   axom::numerics::linspace(min_param, max_param, params, 10);
 
   PointType ray_origin({0.0, 0.0});
@@ -1067,9 +1150,9 @@ TEST(primal_bezier_inter, circle_simple_intersections)
   CoordType radius = 0.25;
   CircleType circle(center, radius);
 
-  axom::Array<CoordType> exp_circle_intersections = {3.4903149340753532, 0.34872228048556042};
+  axom::Array<double> exp_circle_intersections = {3.4903149340753532, 0.34872228048556042};
 
-  axom::Array<CoordType> exp_curve_intersections = {0.26504748171155107, 0.73495251828844887};
+  axom::Array<double> exp_curve_intersections = {0.26504748171155107, 0.73495251828844887};
 
   checkIntersectionsCircle(circle, curve, exp_circle_intersections, exp_curve_intersections, eps, eps_test);
 
@@ -1088,6 +1171,60 @@ TEST(primal_bezier_inter, circle_simple_intersections)
 
   exp_circle_intersections = {4.9652075490522343};
   exp_curve_intersections = {0.062533479775860282};
+
+  checkIntersectionsCircle(circle, curve, exp_circle_intersections, exp_curve_intersections, eps, eps_test);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_bezier_inter, circle_simple_intersections_float)
+{
+  static const int DIM = 2;
+  using CoordType = float;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+  using CircleType = primal::Sphere<CoordType, DIM>;
+
+  SLIC_INFO("primal: testing nurbs-circle intersection");
+  const float eps = static_cast<float>(1E-5);
+  const float eps_test = static_cast<float>(1E-4);
+
+  const int degree = 3;
+
+  // Cubic curve
+  PointType data[degree + 1] = {PointType {static_cast<float>(0.0 / 3.0), 0.5},
+                                PointType {static_cast<float>(1.0 / 3.0), -1.0},
+                                PointType {static_cast<float>(2.0 / 3.0), 1.0},
+                                PointType {static_cast<float>(3.0 / 3.0), -0.5}};
+  NURBSCurveType curve(data, degree + 1, degree);
+
+  // Circle 1 - Two intersections
+  PointType center({0.5, 0.0});
+  CoordType radius = 0.25;
+  CircleType circle(center, radius);
+
+  axom::Array<float> exp_circle_intersections = {static_cast<float>(3.49031),
+                                                 static_cast<float>(0.34872)};
+
+  axom::Array<float> exp_curve_intersections = {static_cast<float>(0.26504),
+                                                static_cast<float>(0.73495)};
+
+  checkIntersectionsCircle(circle, curve, exp_circle_intersections, exp_curve_intersections, eps, eps_test);
+
+  // Circle 2 - Two different intersections
+  center = PointType({0.75, static_cast<float>(0.3)});
+  circle = CircleType(center, radius);
+
+  exp_circle_intersections = {static_cast<float>(4.20482), static_cast<float>(4.85005)};
+  exp_curve_intersections = {static_cast<float>(0.62848), static_cast<float>(0.78430)};
+
+  checkIntersectionsCircle(circle, curve, exp_circle_intersections, exp_curve_intersections, eps, eps_test);
+
+  // Circle 3 - One intersection
+  center = PointType({0.0, 0.5});
+  circle = CircleType(center, radius);
+
+  exp_circle_intersections = {static_cast<float>(4.96520)};
+  exp_curve_intersections = {static_cast<float>(0.06253)};
 
   checkIntersectionsCircle(circle, curve, exp_circle_intersections, exp_curve_intersections, eps, eps_test);
 }
