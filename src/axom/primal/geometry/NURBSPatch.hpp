@@ -2546,7 +2546,7 @@ public:
    *  
    * \return The calculated mean surface normal
    */
-  VectorType calculateUntrimmedPatchNormal(int npts = 20)
+  VectorType calculateUntrimmedPatchNormal(int npts = 20) const
   {
     SLIC_ASSERT(NDIMS == 3);
 

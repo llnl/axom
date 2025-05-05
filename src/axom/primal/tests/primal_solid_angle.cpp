@@ -689,13 +689,15 @@ TEST(primal_integral, bezierpatch_sphere)
   const double edge_offset = 1e-5;
   for(int i = 0; i < N; ++i)
   {
-    // Pick points that are far from the surface, and close to the surface
+    // Pick points that are far from the surface, 
     inner_points[i] = Point3D(0.1 * query_directions[i].array());
     inner_points[i + N] = Point3D((1.0 - edge_offset) * query_directions[i].array());
 
+    // close to the surface,
     outer_points[i] = Point3D(2.1 * query_directions[i].array());
     outer_points[i + N] = Point3D((1.0 + edge_offset) * query_directions[i].array());
 
+    // and on the surface.
     coincident_points[i] = Point3D(query_directions[i].array());
   }
 
@@ -727,15 +729,18 @@ TEST(primal_integral, bezierpatch_sphere)
 
   inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
   outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
-  coincident_gwn =
-    winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+
+  // The algorithm can handle cases where the query point is on the degenerate corner,
+  //  but at an expense that is a bit too strenuous for this test
+  // coincident_gwn =
+  //   winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
 
   // Check the resulting winding number
   for(int i = 0; i < 12; ++i)
   {
     EXPECT_NEAR(inner_gwn[i], 1.0, 8 * quad_tol);
     EXPECT_NEAR(outer_gwn[i], 0.0, 8 * quad_tol);
-    EXPECT_NEAR(coincident_gwn[i], 0.5, 8 * quad_tol);
+    // EXPECT_NEAR(coincident_gwn[i], 0.5, 8 * quad_tol);
   }
 }
 

@@ -496,10 +496,10 @@ double winding_number(const Point<T, 3>& query,
                       const double EPS = 1e-8)
 {
   NURBSPatch<T, 3> nPatch_tested(bPatch);
+  auto cast_direction = nPatch_tested.calculateUntrimmedPatchNormal();
+
   nPatch_tested.makeTriviallyTrimmed();
   nPatch_tested.scaleParameterSpace(1.0 + 0.05 * nPatch_tested.getParameterSpaceDiagonal());
-
-  auto cast_direction = bPatch.calculateUntrimmedPatchNormal();
 
   // Select the cast direction as an average normal of the untrimmed surface
   if(cast_direction.norm() < 1e-10)
@@ -614,16 +614,18 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
       1.0 + 0.05 * nPatch_arr_tested[i].getParameterSpaceDiagonal());
 
     // Select the cast direction as an average normal of the untrimmed surface
-    if(cast_direction.norm() < 1e-10)
+    cast_direction_arr[i] = nPatch_arr[i].calculateUntrimmedPatchNormal();
+    if(cast_direction_arr[i].norm() < 1e-10)
     {
       // ...unless the average direction is zero
       double theta = axom::utilities::random_real(0.0, 2 * M_PI);
       double u = axom::utilities::random_real(-1.0, 1.0);
-      cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+      cast_direction_arr[i] =
+        Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
     }
     else
     {
-      cast_direction = cast_direction.unitVector();
+      cast_direction_arr[i] = cast_direction_arr[i].unitVector();
     }
   }
 
