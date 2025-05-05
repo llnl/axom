@@ -431,7 +431,7 @@ public:
     SLIC_ASSERT(theta_1 - theta_0 <= 2.0 * M_PI);
 
     constexpr T pi23 = static_cast<T>(2.0 * M_PI / 3.0);
-    int n_segments = std::ceill((theta_1 - theta_0) / pi23);
+    int n_segments = static_cast<int>(std::ceil((theta_1 - theta_0) / pi23));
 
     NURBSCurve arc_curve(1 + 2 * n_segments, 2);
     arc_curve.makeRational();

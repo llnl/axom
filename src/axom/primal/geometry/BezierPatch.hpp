@@ -1841,7 +1841,7 @@ public:
    * \param [in] EPS Threshold for nearness to zero
    * \return True if the object is planar up to tolerance \a sq_tol
    */
-  bool isPlanar(double sq_tol = 1e-8, double EPS = 1e-8) const
+  bool isPlanar(T sq_tol = 1e-8, T EPS = 1e-8) const
   {
     const int ord_u = getOrder_u();
     const int ord_v = getOrder_v();
@@ -1859,22 +1859,25 @@ public:
       return true;
     }
 
+    constexpr T castZero = static_cast<T>(0.0);
+
     // Check that the four corners aren't coplanar
     VectorType v1(m_controlPoints(0, 0), m_controlPoints(0, ord_v));
     VectorType v2(m_controlPoints(0, 0), m_controlPoints(ord_u, 0));
     VectorType v3(m_controlPoints(0, 0), m_controlPoints(ord_u, ord_v));
-    if(!axom::utilities::isNearlyEqual(VectorType::scalar_triple_product(v1, v2, v3), 0.0, EPS))
+    if(!axom::utilities::isNearlyEqual(VectorType::scalar_triple_product(v1, v2, v3), castZero, EPS))
     {
       return false;
     }
 
     // Find three points that produce a nonzero normal
-    Vector3D plane_normal = VectorType::cross_product(v1, v2);
-    if(axom::utilities::isNearlyEqual(plane_normal.norm(), 0.0, EPS))
+    VectorType plane_normal = VectorType::cross_product(v1, v2);
+    const T plane_normal_norm = static_cast<T>(plane_normal.norm());
+    if(axom::utilities::isNearlyEqual(plane_normal_norm, castZero, EPS))
     {
       plane_normal = VectorType::cross_product(v1, v3);
     }
-    if(axom::utilities::isNearlyEqual(plane_normal.norm(), 0.0, EPS))
+    if(axom::utilities::isNearlyEqual(plane_normal_norm, castZero, EPS))
     {
       plane_normal = VectorType::cross_product(v2, v3);
     }
@@ -1885,7 +1888,7 @@ public:
     {
       for(int q = ((p == 0) ? 1 : 0); q <= ord_v; ++q)
       {
-        const double signedDist = plane_normal.dot(m_controlPoints(p, q) - m_controlPoints(0, 0));
+        const T signedDist = plane_normal.dot(m_controlPoints(p, q) - m_controlPoints(0, 0));
 
         if(signedDist * signedDist > sq_tol)
         {

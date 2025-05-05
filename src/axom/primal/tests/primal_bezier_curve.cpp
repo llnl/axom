@@ -603,14 +603,26 @@ TEST(primal_beziercurve, beziercurve_float)
 
   const int DIM = 2;
   using CoordType = float;
+  using PointType = primal::Point<CoordType, DIM>;
+  using VectorType = primal::Vector<CoordType, DIM>;
   using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
 
   BezierCurveType simple_curve(3), d1, d2;
+  PointType out_point;
+  VectorType out_vec1, out_vec2;
 
   // This test is not meant to verify correctness,
   //  only that the methods compile and are warning-free
   simple_curve.split( 0.5, d1, d2 );
   simple_curve.isLinear();
+  simple_curve.reverseOrientation();
+  simple_curve.boundingBox();
+  simple_curve.orientedBoundingBox();
+  simple_curve.dt(0.5);
+  simple_curve.dtdt(0.5);
+  simple_curve.evaluate(0.5);
+  simple_curve.evaluateFirstDerivative(0.5, out_point, out_vec1);
+  simple_curve.evaluateSecondDerivative(0.5, out_point, out_vec1, out_vec2);
 }
 
 int main(int argc, char* argv[])

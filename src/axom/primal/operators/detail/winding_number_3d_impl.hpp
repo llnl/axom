@@ -20,7 +20,7 @@
 
 // MFEM includes
 #ifdef AXOM_USE_MFEM
-  #include "mfem.hpp"
+    #include "mfem.hpp"
 #endif
 
 namespace axom
@@ -60,23 +60,23 @@ enum class SingularityAxis
  * \return The value of the integral
  */
 template <typename T>
-double stokes_winding_number(const Point<T, 3>& q,
+T stokes_winding_number(const Point<T, 3>& q,
                              const BezierCurve<T, 3>& curve,
                              const SingularityAxis ax,
                              int npts,
-                             double quad_tol)
+                             T quad_tol)
 {
   // Generate the quadrature rules in parameter space
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
   const mfem::IntegrationRule& quad_rule = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
-  double quadrature = 0.0;
+  T quadrature = 0.0;
   for(int qi = 0; qi < quad_rule.GetNPoints(); ++qi)
   {
     // Get quadrature points in space (shifted by the query)
     const Vector<T, 3> node(q, curve.evaluate(quad_rule.IntPoint(qi).x));
     const Vector<T, 3> node_dt(curve.dt(quad_rule.IntPoint(qi).x));
-    const double node_norm = node.norm();
+    const T node_norm = static_cast<T>( node.norm() );
 
     // Compute one of three vector field line integrals depending on
     //  the orientation of the original surface, indicated through ax.
@@ -161,19 +161,19 @@ double stokes_winding_number(const Point<T, 3>& q,
  * \return The value of the integral
  */
 template <typename T>
-double stokes_winding_number_adaptive(const Point<T, 3>& q,
+T stokes_winding_number_adaptive(const Point<T, 3>& q,
                                       const BezierCurve<T, 3>& curve,
                                       const SingularityAxis ax,
                                       const mfem::IntegrationRule& quad_rule,
-                                      const double quad_coarse,
-                                      const double quad_tol,
+                                      const T quad_coarse,
+                                      const T quad_tol,
                                       const int depth = 1)
 {
   // Split the curve, do the quadrature over both components
   BezierCurve<T, 3> subcurves[2];
   curve.split(0.5, subcurves[0], subcurves[1]);
 
-  double quad_fine[2] = {0.0, 0.0};
+  T quad_fine[2] = {0.0, 0.0};
   for(int i = 0; i < 2; ++i)
   {
     for(int qi = 0; qi < quad_rule.GetNPoints(); ++qi)
@@ -181,7 +181,7 @@ double stokes_winding_number_adaptive(const Point<T, 3>& q,
       // Get quad_rulerature points in space (shifted by the query)
       const Vector<T, 3> node(q, subcurves[i].evaluate(quad_rule.IntPoint(qi).x));
       const Vector<T, 3> node_dt(subcurves[i].dt(quad_rule.IntPoint(qi).x));
-      const double node_norm = node.norm();
+      const T node_norm = node.norm();
 
       // Compute one of three vector field line integrals depending on
       //  the orientation of the original surface, indicated through ax.
@@ -209,9 +209,9 @@ double stokes_winding_number_adaptive(const Point<T, 3>& q,
 
   constexpr int MAX_DEPTH = 12;
   if(depth >= MAX_DEPTH ||
-     axom::utilities::isNearlyEqualRelative(quad_fine[0] + quad_fine[1], quad_coarse, quad_tol, 1e-10))
+     axom::utilities::isNearlyEqualRelative(quad_fine[0] + quad_fine[1], quad_coarse, quad_tol, static_cast<T>(1e-10)))
   {
-    return 0.25 * M_1_PI * (quad_fine[0] + quad_fine[1]);
+    return static_cast<T>(0.25 * M_1_PI * (quad_fine[0] + quad_fine[1]));
   }
   else
   {

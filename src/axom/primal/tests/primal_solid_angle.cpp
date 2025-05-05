@@ -661,6 +661,61 @@ TEST(primal_integral, bezierpatch_sphere)
   }
 }
 
+//------------------------------------------------------------------------------
+TEST(primal_solid_angle, planar_bezierpatch_float)
+{
+  using CoordType = float;
+  using Point3D = primal::Point<CoordType, 3>;
+  using Vector3D = primal::Vector<CoordType, 3>;
+  using Polygon = primal::Polygon<CoordType, 3>;
+  using BezierPatch = primal::BezierPatch<CoordType, 3>;
+
+  // Define normal vector for the quadrilateral
+  Vector3D v1 = Vector3D({0.0, 1.0, 2.0}).unitVector();
+  Vector3D v2 = Vector3D({2.0, -1.0, 0.5}).unitVector();
+  Vector3D v3 = Vector3D::cross_product(v1, v2);
+
+  Polygon quad(4);
+
+  float angles[5] = {1.0, 1.5, 2.5, 3.0};
+  // Add vertices to quadrilateral
+  for(int i = 0; i < 4; ++i)
+  {
+    quad.addVertex(Point3D {cos(angles[i]) * v1[0] + sin(angles[i]) * v2[0],
+                            cos(angles[i]) * v1[1] + sin(angles[i]) * v2[1],
+                            cos(angles[i]) * v1[2] + sin(angles[i]) * v2[2]});
+  }
+
+  // Construct a first order Bezier patch out of the same vertices
+  Point3D controlPoints[4] = {quad[1], quad[0], quad[2], quad[3]};
+  BezierPatch quad_patch(controlPoints, 1, 1);
+
+  Point3D queries[5] = {Point3D {0.0, 4.0, 1.0},
+                        Point3D {-1.0, 2.0, 2.0},
+                        Point3D {0.0, -5.0, 3.0},
+                        Point3D {0.0, 0.0, 4.0},
+                        Point3D {3.0, 2.0, 5.0}};
+
+  // Should be equal with both kinds of primitive
+  for(int n = 0; n < 5; ++n)
+  {
+    EXPECT_NEAR(winding_number(queries[n], quad), winding_number(queries[n], quad_patch), 1e-10);
+  }
+
+  // The winding numbers computed should be the same even if
+  //  we use quadrature instead of resorting to the direct formula.
+  // Ensure this by shrinking our tolerances.
+  const float quad_tol = 1e-10;
+  const float edge_tol = 1e-10;
+  const float EPS = 0;
+  for(int n = 0; n < 5; ++n)
+  {
+    EXPECT_NEAR(winding_number(queries[n], quad_patch),
+                winding_number(queries[n], quad_patch, quad_tol, edge_tol, EPS),
+                1e-10);
+  }
+}
+
 int main(int argc, char** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);

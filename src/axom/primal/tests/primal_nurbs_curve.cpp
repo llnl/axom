@@ -977,6 +977,48 @@ TEST(primal_nurbscurve, linear_segment_constructor)
   }
 }
 
+//------------------------------------------------------------------------------
+TEST(primal_beziercurve, beziercurve_float)
+{
+  SLIC_INFO("Testing compilation of curves with float type");
+
+  const int DIM = 2;
+  using CoordType = float;
+  using PointType = primal::Point<CoordType, DIM>;
+  using VectorType = primal::Vector<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  NURBSCurveType simple_curve(3, 2), d1, d2;
+  PointType out_point;
+  VectorType out_vec1, out_vec2;
+  axom::Array<VectorType> out_vectors;
+
+  // This test is not meant to verify correctness,
+  //  only that the methods compile and are warning-free
+  simple_curve =
+    NURBSCurveType::make_linear_segment_nurbs(PointType {0.0, 0.0}, PointType {0.5, 0.5});
+  simple_curve = NURBSCurveType::make_circular_arc_nurbs(0.0, 4.0, 0.5, 0.5, 1.0);
+
+  simple_curve.evaluate(0.5);
+  simple_curve.dt(0.5);
+  simple_curve.dtdt(0.5);
+  simple_curve.evaluateFirstDerivative(0.5, out_point, out_vec1);
+  simple_curve.evaluateSecondDerivative(0.5, out_point, out_vec1, out_vec2);
+  simple_curve.evaluateDerivatives(0.5, 3, out_point, out_vectors);
+  
+  simple_curve.isValidNURBS();
+  simple_curve.split(0.5, d1, d2);
+  simple_curve.reverseOrientation();
+
+  simple_curve.boundingBox();
+  simple_curve.orientedBoundingBox();
+
+  simple_curve.extractBezier();
+  simple_curve.insertKnot(1.0);
+  simple_curve.rescale(-1.0, 2.0);
+  simple_curve.normalize();
+}
+
 int main(int argc, char* argv[])
 {
   int result = 0;

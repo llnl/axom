@@ -55,7 +55,7 @@ namespace primal
  * \return The GWN
  */
 template <typename T>
-double winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, double edge_tol = 1e-8)
+T winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, T edge_tol = 1e-8)
 {
   bool dummy_isOnEdge = false;
   return detail::linear_winding_number(q, s[0], s[1], dummy_isOnEdge, edge_tol);
@@ -77,7 +77,7 @@ template <typename T>
 int winding_number(const Point<T, 2>& q,
                    const Triangle<T, 2>& tri,
                    bool includeBoundary = false,
-                   double edge_tol = 1e-8)
+                   T edge_tol = 1e-8)
 {
   return winding_number(q,
                         Polygon<T, 2>(axom::Array<Point<T, 2>>({tri[0], tri[1], tri[2]})),
@@ -101,7 +101,7 @@ int winding_number(const Point<T, 2>& R,
                    const Polygon<T, 2>& P,
                    bool& isOnEdge,
                    bool includeBoundary = false,
-                   double edge_tol = 1e-8)
+                   T edge_tol = 1e-8)
 {
   return detail::polygon_winding_number(R, P, isOnEdge, includeBoundary, edge_tol);
 }
@@ -123,7 +123,7 @@ template <typename T>
 int winding_number(const Point<T, 2>& R,
                    const Polygon<T, 2>& P,
                    bool includeBoundary = false,
-                   double edge_tol = 1e-8)
+                   T edge_tol = 1e-8)
 {
   bool isOnEdge = false;
   return detail::polygon_winding_number(R, P, isOnEdge, includeBoundary, edge_tol);
@@ -140,10 +140,7 @@ int winding_number(const Point<T, 2>& R,
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 2>& q,
-                      const NURBSCurve<T, 2>& n,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
+T winding_number(const Point<T, 2>& q, const NURBSCurve<T, 2>& n, T edge_tol = 1e-8, T EPS = 1e-8)
 {
   bool dummy_isOnCurve = false;
   return detail::nurbs_winding_number(q, n, dummy_isOnCurve, edge_tol, EPS);
@@ -160,10 +157,7 @@ double winding_number(const Point<T, 2>& q,
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 2>& q,
-                      const BezierCurve<T, 2>& bezier,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
+T winding_number(const Point<T, 2>& q, const BezierCurve<T, 2>& bezier, T edge_tol = 1e-8, T EPS = 1e-8)
 {
   bool dummy_isOnCurve = false;
   return detail::bezier_winding_number(q, bezier, dummy_isOnCurve, edge_tol, EPS);
@@ -182,14 +176,11 @@ double winding_number(const Point<T, 2>& q,
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 2>& q,
-                      const CurvedPolygon<T, 2>& cpoly,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
+T winding_number(const Point<T, 2>& q, const CurvedPolygon<T, 2>& cpoly, T edge_tol = 1e-8, T EPS = 1e-8)
 {
   bool dummy_isOnCurve = false;
 
-  double ret_val = 0.0;
+  T ret_val = 0.0;
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
     ret_val += detail::bezier_winding_number(q, cpoly[i], dummy_isOnCurve, edge_tol, EPS);
@@ -211,13 +202,13 @@ double winding_number(const Point<T, 2>& q,
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 2>& q,
-                      const axom::Array<BezierCurve<T, 2>>& carray,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
+T winding_number(const Point<T, 2>& q,
+                 const axom::Array<BezierCurve<T, 2>>& carray,
+                 T edge_tol = 1e-8,
+                 T EPS = 1e-8)
 {
   bool dummy_isOnCurve = false;
-  double ret_val = 0.0;
+  T ret_val = 0.0;
   for(int i = 0; i < carray.size(); i++)
   {
     ret_val += detail::bezier_winding_number(q, carray[i], dummy_isOnCurve, edge_tol, EPS);
@@ -239,13 +230,13 @@ double winding_number(const Point<T, 2>& q,
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 2>& q,
-                      const axom::Array<NURBSCurve<T, 2>>& narray,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
+T winding_number(const Point<T, 2>& q,
+                 const axom::Array<NURBSCurve<T, 2>>& narray,
+                 T edge_tol = 1e-8,
+                 T EPS = 1e-8)
 {
   bool dummy_isOnCurve = false;
-  double ret_val = 0.0;
+  T ret_val = 0.0;
   for(int i = 0; i < narray.size(); i++)
   {
     ret_val += detail::nurbs_winding_number(q, narray[i], dummy_isOnCurve, edge_tol, EPS);
@@ -274,11 +265,11 @@ double winding_number(const Point<T, 2>& q,
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 3>& q,
-                      const Triangle<T, 3>& tri,
-                      bool& isOnFace,
-                      const double edge_tol = 1e-8,
-                      const double EPS = 1e-8)
+T winding_number(const Point<T, 3>& q,
+                 const Triangle<T, 3>& tri,
+                 bool& isOnFace,
+                 const T edge_tol = 1e-8,
+                 const T EPS = 1e-8)
 {
   using Vec3 = Vector<T, 3>;
 
@@ -292,27 +283,27 @@ double winding_number(const Point<T, 3>& q,
   const Vec3 c = tri[2] - q;
 
   // Compute norms. Possibly return early
-  const double a_norm = a.norm();
-  const double b_norm = b.norm();
-  const double c_norm = c.norm();
+  const T a_norm = a.norm();
+  const T b_norm = b.norm();
+  const T c_norm = c.norm();
 
   if(a_norm < edge_tol || b_norm < edge_tol || c_norm < edge_tol)
   {
     return 0;
   }
 
-  const double num = Vec3::scalar_triple_product(a, b, c);
-  if(axom::utilities::isNearlyEqual(num, 0.0, EPS))
+  const T num = Vec3::scalar_triple_product(a, b, c);
+  if(axom::utilities::isNearlyEqual(num, castZero, EPS))
   {
     isOnFace = true;
     return 0;
   }
 
-  const double denom =
+  const T denom =
     a_norm * b_norm * c_norm + a_norm * b.dot(c) + b_norm * a.dot(c) + c_norm * a.dot(b);
 
   // Handle direct cases where argument to atan is undefined
-  if(axom::utilities::isNearlyEqual(denom, 0.0, EPS))
+  if(axom::utilities::isNearlyEqual(denom, castZero, EPS))
   {
     return (num > 0) ? 0.25 : -0.25;
   }
@@ -342,10 +333,10 @@ double winding_number(const Point<T, 3>& q,
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 3>& q,
-                      const Triangle<T, 3>& tri,
-                      const double edge_tol = 1e-8,
-                      const double EPS = 1e-8)
+T winding_number(const Point<T, 3>& q,
+                 const Triangle<T, 3>& tri,
+                 const T edge_tol = 1e-8,
+                 const T EPS = 1e-8)
 {
   bool isOnFace = false;
   return winding_number(q, tri, isOnFace, edge_tol, EPS);
@@ -368,11 +359,11 @@ double winding_number(const Point<T, 3>& q,
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 3>& q,
-                      const Polygon<T, 3>& poly,
-                      bool& isOnFace,
-                      const double edge_tol = 1e-8,
-                      const double EPS = 1e-8)
+T winding_number(const Point<T, 3>& q,
+                 const Polygon<T, 3>& poly,
+                 bool& isOnFace,
+                 const T edge_tol = 1e-8,
+                 const T EPS = 1e-8)
 {
   const int num_verts = poly.numVertices();
   if(num_verts < 3)
@@ -380,7 +371,7 @@ double winding_number(const Point<T, 3>& q,
     return 0;
   }
 
-  double wn = 0.0;
+  T wn = 0.0;
   for(int i = 0; i < num_verts - 2; ++i)
   {
     wn +=
@@ -406,10 +397,10 @@ double winding_number(const Point<T, 3>& q,
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 3>& q,
-                      const Polygon<T, 3>& poly,
-                      const double edge_tol = 1e-8,
-                      const double EPS = 1e-8)
+T winding_number(const Point<T, 3>& q,
+                 const Polygon<T, 3>& poly,
+                 const T edge_tol = 1e-8,
+                 const T EPS = 1e-8)
 {
   bool isOnFace = false;
   return winding_number(q, poly, isOnFace, edge_tol, EPS);
@@ -436,8 +427,8 @@ template <typename T>
 int winding_number(const Point<T, 3>& q,
                    const Polyhedron<T, 3>& poly,
                    bool includeBoundary = false,
-                   double edge_tol = 1e-8,
-                   double EPS = 1e-8)
+                   T edge_tol = 1e-8,
+                   T EPS = 1e-8)
 {
   SLIC_ASSERT(poly.hasNeighbors());
   const int num_verts = poly.numVertices();
@@ -448,7 +439,7 @@ int winding_number(const Point<T, 3>& q,
   poly.getFaces(faces.data(), face_size.data(), face_offset.data(), face_count);
 
   bool isOnFace = false;
-  double wn = 0;
+  T wn = 0;
   for(int i = 0; i < face_count; ++i)
   {
     const int N = face_size[i];
@@ -491,17 +482,19 @@ int winding_number(const Point<T, 3>& q,
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 3>& q,
-                      const BezierPatch<T, 3>& bPatch,
-                      const double edge_tol = 1e-8,
-                      const double quad_tol = 1e-8,
-                      const double EPS = 1e-8,
-                      const int depth = 0)
+T winding_number(const Point<T, 3>& q,
+                 const BezierPatch<T, 3>& bPatch,
+                 const T edge_tol = 1e-8,
+                 const T quad_tol = 1e-8,
+                 const T EPS = 1e-8,
+                 const int depth = 0)
 {
   const int ord_u = bPatch.getOrder_u();
   const int ord_v = bPatch.getOrder_v();
   const bool patchIsRational = bPatch.isRational();
-  const double edge_tol_sq = edge_tol * edge_tol;
+  const T edge_tol_sq = edge_tol * edge_tol;
+
+  constexpr T castZero = static_cast<T>(0.0);
 
   // Fix the number of quadrature nodes arbitrarily, but high enough
   //  to `catch` near singularities for refinement
@@ -517,18 +510,18 @@ double winding_number(const Point<T, 3>& q,
       Polygon<T, 3>(axom::Array<Point<T, 3>>(
         {bPatch(0, 0), bPatch(ord_u, 0), bPatch(ord_u, ord_v), bPatch(0, ord_v)})),
       edge_tol,
-      PRIMAL_TINY);
+      static_cast<T>(PRIMAL_TINY));
   }
 
   // Use a specific kind of recursion if we are within tol of an endpoint.
   //  Split the surface closer to the corner, assume smallest patch is polygonal,
   //  and set a new edge_tol so corners of the new patch aren't marked as coincident
-  constexpr double edge_offset = 0.01;
+  constexpr T edge_offset = 0.01;
   if(squared_distance(q, bPatch(0, 0)) <= edge_tol_sq)
   {
     BezierPatch<T, 3> p1, p2, p3, p4;
     bPatch.split(0.0 + edge_offset, 0.0 + edge_offset, p1, p2, p3, p4);
-    double new_edge_tol = 0.5 *
+    T new_edge_tol = 0.5 *
       sqrt(axom::utilities::min(squared_distance(q, bPatch.evaluate(0.0, 0.0 + edge_offset)),
                                 squared_distance(q, bPatch.evaluate(0.0 + edge_offset, 0.0))));
     new_edge_tol = axom::utilities::min(new_edge_tol, edge_tol);
@@ -541,7 +534,7 @@ double winding_number(const Point<T, 3>& q,
   {
     BezierPatch<T, 3> p1, p2, p3, p4;
     bPatch.split(1.0 - edge_offset, 0.0 + edge_offset, p1, p2, p3, p4);
-    double new_edge_tol = 0.5 *
+    T new_edge_tol = 0.5 *
       sqrt(axom::utilities::min(squared_distance(q, bPatch.evaluate(1.0, 0.0 + edge_offset)),
                                 squared_distance(q, bPatch.evaluate(1.0 - edge_offset, 0.0))));
     new_edge_tol = axom::utilities::min(new_edge_tol, edge_tol);
@@ -554,7 +547,7 @@ double winding_number(const Point<T, 3>& q,
   {
     BezierPatch<T, 3> p1, p2, p3, p4;
     bPatch.split(0.0 + edge_offset, 1.0 - edge_offset, p1, p2, p3, p4);
-    double new_edge_tol = 0.5 *
+    T new_edge_tol = 0.5 *
       sqrt(axom::utilities::min(squared_distance(q, bPatch.evaluate(0.0 + edge_offset, 1.0)),
                                 squared_distance(q, bPatch.evaluate(0.0, 1.0 - edge_offset))));
     new_edge_tol = axom::utilities::min(new_edge_tol, edge_tol);
@@ -567,7 +560,7 @@ double winding_number(const Point<T, 3>& q,
   {
     BezierPatch<T, 3> p1, p2, p3, p4;
     bPatch.split(1.0 - edge_offset, 1.0 - edge_offset, p1, p2, p3, p4);
-    double new_edge_tol = 0.5 *
+    T new_edge_tol = 0.5 *
       sqrt(axom::utilities::min(squared_distance(q, bPatch.evaluate(1.0, 1.0 - edge_offset)),
                                 squared_distance(q, bPatch.evaluate(1.0 - edge_offset, 1.0))));
     new_edge_tol = axom::utilities::min(new_edge_tol, edge_tol);
@@ -627,10 +620,10 @@ double winding_number(const Point<T, 3>& q,
 
     // Lambda to generate a 3D rotation matrix from an angle and axis
     // Formulation from https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle
-    auto angleAxisRotMatrix = [](double theta, const Vector<T, 3>& axis) -> numerics::Matrix<T> {
+    auto angleAxisRotMatrix = [](T theta, const Vector<T, 3>& axis) -> numerics::Matrix<T> {
       const auto unitized = axis.unitVector();
-      const double x = unitized[0], y = unitized[1], z = unitized[2];
-      const double c = cos(theta), s = sin(theta), C = 1 - c;
+      const T x = unitized[0], y = unitized[1], z = unitized[2];
+      const T c = cos(theta), s = sin(theta), C = 1 - c;
 
       auto matx = numerics::Matrix<T>::zeros(3, 3);
 
@@ -673,11 +666,12 @@ double winding_number(const Point<T, 3>& q,
     }
 
     // Rotate v0 around v1 until it is perpendicular to the plane spanned by k and v1
-    double ang = (v0[2] < 0 ? 1.0 : -1.0) *
-      acos(axom::utilities::clampVal(
-        -(v0[0] * v1[1] - v0[1] * v1[0]) / sqrt(v1[0] * v1[0] + v1[1] * v1[1]),
-        -1.0,
-        1.0));
+    constexpr T castOne = static_cast<T>(1.0);
+    T ang = (v0[2] < 0 ? 1.0 : -1.0) *
+                           acos(axom::utilities::clampVal(
+                            -(v0[0] * v1[1] - v0[1] * v1[0]) / sqrt(v1[0] * v1[0] + v1[1] * v1[1]),
+                             -castOne,
+                             castOne));
     auto rotator = angleAxisRotMatrix(ang, v1);
 
     // Collect rotated curves into the curved Polygon
@@ -737,7 +731,7 @@ double winding_number(const Point<T, 3>& q,
   }
 
   // Iterate over the edges of the bounding curved polygon, add up the results
-  double wn = 0;
+  T wn = 0;
   for(int n = 0; n < 4; ++n)
   {
     wn += detail::stokes_winding_number(q, boundingPoly[n], field_direction, quad_npts, quad_tol);

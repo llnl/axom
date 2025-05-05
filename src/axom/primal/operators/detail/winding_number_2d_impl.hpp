@@ -56,10 +56,10 @@ int polygon_winding_number(const Point<T, 2>& R,
                            const Polygon<T, 2>& P,
                            bool& isOnEdge,
                            bool includeBoundary,
-                           double edge_tol)
+                           T edge_tol)
 {
   const int nverts = P.numVertices();
-  const double edge_tol_2 = edge_tol * edge_tol;
+  const T edge_tol_2 = edge_tol * edge_tol;
   isOnEdge = false;
 
   int winding_num = 0;
@@ -86,7 +86,7 @@ int polygon_winding_number(const Point<T, 2>& R,
         else
         {
           // clang-format off
-          double det = axom::numerics::determinant(P[i][0] - R[0], P[j][0] - R[0],
+          T det = axom::numerics::determinant(P[i][0] - R[0], P[j][0] - R[0],
                                                    P[i][1] - R[1], P[j][1] - R[1]);
           // clang-format on
 
@@ -102,7 +102,7 @@ int polygon_winding_number(const Point<T, 2>& R,
         if(P[j][0] > R[0])
         {
           // clang-format off
-          double det = axom::numerics::determinant(P[i][0] - R[0], P[j][0] - R[0],
+          T det = axom::numerics::determinant(P[i][0] - R[0], P[j][0] - R[0],
                                                    P[i][1] - R[1], P[j][1] - R[1]);
           // clang-format on
 
@@ -135,35 +135,38 @@ int polygon_winding_number(const Point<T, 2>& R,
  * \return The GWN
  */
 template <typename T>
-double linear_winding_number(const Point<T, 2>& q,
-                             const Point<T, 2>& c0,
-                             const Point<T, 2>& c1,
-                             bool& isOnEdge,
-                             double edge_tol)
+T linear_winding_number(const Point<T, 2>& q,
+                        const Point<T, 2>& c0,
+                        const Point<T, 2>& c1,
+                        bool& isOnEdge,
+                        T edge_tol)
 {
+  constexpr T castZero = static_cast<T>(0.0);
+  constexpr T castOne = static_cast<T>(1.0);
+
   Vector<T, 2> V0(q, c0);
   Vector<T, 2> V1(q, c1);
 
   // clang-format off
   // Measures the signed area of the triangle with vertices q, c0, c1
-  double tri_area = axom::numerics::determinant(V0[0] - V1[0], V1[0], 
+  T tri_area = axom::numerics::determinant(V0[0] - V1[0], V1[0], 
                                                 V0[1] - V1[1], V1[1]);
   // clang-format on
 
-  double segment_sq_len = (V0 - V1).squared_norm();
+  T segment_sq_len = static_cast<T>((V0 - V1).squared_norm());
 
   // Compute distance from line connecting endpoints to query
   isOnEdge = false;
   if(tri_area * tri_area <= edge_tol * edge_tol * segment_sq_len)
   {
     // Project the query point onto the line segment to see if they're coincident
-    if(axom::utilities::isNearlyEqual(segment_sq_len, 0.0))
+    if(axom::utilities::isNearlyEqual(segment_sq_len, castZero))
     {
       isOnEdge = (V0.squared_norm() <= edge_tol * edge_tol);
     }
     else
     {
-      double proj_val = Vector<T, 2>::dot_product(V0, V0 - V1) / segment_sq_len;
+      T proj_val = Vector<T, 2>::dot_product(V0, V0 - V1) / segment_sq_len;
       if((proj_val >= 0) && (proj_val <= 1))
       {
         isOnEdge = true;
@@ -174,13 +177,11 @@ double linear_winding_number(const Point<T, 2>& q,
   }
 
   // Compute signed angle between vectors
-  constexpr T castOne = static_cast<T>(1.0);
-  double dotprod =
-    axom::utilities::clampVal(Vector<T, 2>::dot_product(V0.unitVector(), V1.unitVector()),
-                              -castOne,
-                              castOne);
+  T dotprod = axom::utilities::clampVal(Vector<T, 2>::dot_product(V0.unitVector(), V1.unitVector()),
+                                        -castOne,
+                                        castOne);
 
-  return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
+  return static_cast<T>(0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1));
 }
 
 /*!
@@ -210,10 +211,7 @@ double linear_winding_number(const Point<T, 2>& q,
  * \return The GWN
  */
 template <typename T>
-double convex_endpoint_winding_number(const Point<T, 2>& q,
-                                      const BezierCurve<T, 2>& c,
-                                      double edge_tol,
-                                      double EPS)
+T convex_endpoint_winding_number(const Point<T, 2>& q, const BezierCurve<T, 2>& c, T edge_tol, T EPS)
 {
   const int ord = c.getOrder();
   if(ord == 1)
@@ -221,7 +219,11 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
     return 0;
   }
 
-  double edge_tol_sq = edge_tol * edge_tol;
+  constexpr T castZero = static_cast<T>(0.0);
+  constexpr T castHalf = static_cast<T>(0.5);
+  constexpr T castOne = static_cast<T>(1.0);
+
+  T edge_tol_sq = edge_tol * edge_tol;
 
   // Verify that the shape is convex, and that the query point is at an endpoint
   SLIC_ASSERT(is_convex(Polygon<T, 2>(c.getControlPoints()), EPS));
@@ -252,13 +254,13 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
 
   // clang-format off
   // Measures the signed area of the triangle spanned by V1 and V2
-  double tri_area = axom::numerics::determinant(V1[0] - V2[0], V2[0], 
+  T tri_area = axom::numerics::determinant(V1[0] - V2[0], V2[0], 
                                                 V1[1] - V2[1], V2[1]);
   // clang-format on
 
   // This means the bounding vectors are anti-parallel.
   //  Parallel tangents can't happen with nontrivial convex control polygons
-  if((ord > 3) && axom::utilities::isNearlyEqual(tri_area, 0.0, EPS))
+  if((ord > 3) && axom::utilities::isNearlyEqual(tri_area, castZero, EPS))
   {
     for(int i = 1; i < ord; ++i)
     {
@@ -271,21 +273,21 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
       // clang-format on
 
       // Because we are convex, a single non-collinear vertex tells us the orientation
-      if(!axom::utilities::isNearlyEqual(tri_area, 0.0, EPS))
+      if(!axom::utilities::isNearlyEqual(tri_area, castZero, EPS))
       {
-        return (tri_area > 0) ? 0.5 : -0.5;
+        return (tri_area > 0) ? castHalf : -castHalf;
       }
     }
 
     // If all vectors are parallel, the curve is linear and return 0
-    return 0;
+    return 0.0;
   }
 
   // Compute signed angle between vectors
-  constexpr T castOne = static_cast<T>(1.0);
-  double dotprod =
-    axom::utilities::clampVal(Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()), -castOne, castOne);
-  return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
+  T dotprod = axom::utilities::clampVal(Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()),
+                                        -castOne,
+                                        castOne);
+  return static_cast<T>(0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1));
 }
 
 /*!
@@ -321,10 +323,10 @@ template <typename T>
 void construct_approximating_polygon(const Point<T, 2>& q,
                                      const BezierCurve<T, 2>& c,
                                      bool isConvexControlPolygon,
-                                     double edge_tol,
-                                     double EPS,
+                                     T edge_tol,
+                                     T EPS,
                                      Polygon<T, 2>& approximating_polygon,
-                                     double& endpoint_gwn,
+                                     T& endpoint_gwn,
                                      bool& isOnPolygonEndpoint)
 {
   const int ord = c.getOrder();
@@ -423,11 +425,11 @@ void construct_approximating_polygon(const Point<T, 2>& q,
  * \return The GWN.
  */
 template <typename T>
-double bezier_winding_number(const Point<T, 2>& q,
-                             const BezierCurve<T, 2>& c,
-                             bool& isOnCurve,
-                             double edge_tol = 1e-8,
-                             double EPS = 1e-8)
+T bezier_winding_number(const Point<T, 2>& q,
+                        const BezierCurve<T, 2>& c,
+                        bool& isOnCurve,
+                        T edge_tol = 1e-8,
+                        T EPS = 1e-8)
 {
   const int ord = c.getOrder();
   if(ord <= 0)
@@ -447,7 +449,7 @@ double bezier_winding_number(const Point<T, 2>& q,
 
   // Need to keep a running total of the GWN to account for
   //  the winding number of coincident points
-  double gwn = 0.0;
+  T gwn = 0.0;
   bool isOnPolygonEndpoint = false;  // Indicates coincidence with curve
   detail::construct_approximating_polygon(q,
                                           c,
@@ -463,17 +465,17 @@ double bezier_winding_number(const Point<T, 2>& q,
 
   // Compute the integer winding number of the closed curve
   bool isOnPolygonEdge = false;
-  double closed_curve_wn =
-    detail::polygon_winding_number(q, approximating_polygon, isOnPolygonEdge, false, edge_tol);
+  T closed_curve_wn = static_cast<T>(
+    detail::polygon_winding_number(q, approximating_polygon, isOnPolygonEdge, false, edge_tol));
 
   // Compute the fractional value of the closed curve
   bool isOnClosure = false;
   const int n = approximating_polygon.numVertices();
-  const double closure_wn = detail::linear_winding_number(q,
-                                                          approximating_polygon[n - 1],
-                                                          approximating_polygon[0],
-                                                          isOnClosure,
-                                                          edge_tol);
+  const T closure_wn = detail::linear_winding_number(q,
+                                                     approximating_polygon[n - 1],
+                                                     approximating_polygon[0],
+                                                     isOnClosure,
+                                                     edge_tol);
 
   // If the point is on the boundary of the approximating polygon,
   //  or coincident with the curve (isOnPolygonEndpoint), then winding_number<polygon>
@@ -512,11 +514,11 @@ double bezier_winding_number(const Point<T, 2>& q,
  * \return The GWN.
  */
 template <typename T>
-double nurbs_winding_number(const Point<T, 2>& q,
-                            const NURBSCurve<T, 2>& n,
-                            bool& isOnEdge,
-                            double edge_tol = 1e-8,
-                            double EPS = 1e-8)
+T nurbs_winding_number(const Point<T, 2>& q,
+                       const NURBSCurve<T, 2>& n,
+                       bool& isOnEdge,
+                       T edge_tol = 1e-8,
+                       T EPS = 1e-8)
 {
   const int deg = n.getDegree();
   if(deg <= 0)
@@ -534,7 +536,7 @@ double nurbs_winding_number(const Point<T, 2>& q,
   auto beziers = n.extractBezier();
 
   // Compute the GWN for each Bezier segment
-  double gwn = 0.0;
+  T gwn = 0.0;
   for(int i = 0; i < beziers.size(); i++)
   {
     bool isOnThisEdge = false;

@@ -464,9 +464,9 @@ TEST(primal_winding_number, nurbs_winding_numbers)
                        PointType {-1.0, -2.0},
                        PointType {1.0, -2.0},
                        PointType {1.0, 0.0}};
-  double weights[7] = {1.0, 1. / 3., 1. / 3., 1.0, 1. / 3., 1. / 3., 1.0};
+  CoordType weights[7] = {1.0, 1. / 3., 1. / 3., 1.0, 1. / 3., 1. / 3., 1.0};
 
-  double knots[11] = {0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0};
+  CoordType knots[11] = {0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0};
 
   NURBSCurveType circle(data, weights, 7, knots, 11);
 
@@ -477,6 +477,52 @@ TEST(primal_winding_number, nurbs_winding_numbers)
     {
       PointType query {x, y};
       double gwn = winding_number(query, circle);
+      if(x * x + y * y > 1.0)
+      {
+        EXPECT_DOUBLE_EQ(std::lround(gwn), 0.0);
+      }
+      else
+      {
+        EXPECT_DOUBLE_EQ(std::lround(gwn), 1.0);
+      }
+    }
+  }
+}
+
+TEST(primal_winding_number, nurbs_winding_numbers_float)
+{
+  // Define a nurbs curve that represents a circle
+  const int DIM = 2;
+  using CoordType = float;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  PointType data[7] = {PointType {1.0, 0.0},
+                       PointType {1.0, 2.0},
+                       PointType {-1.0, 2.0},
+                       PointType {-1.0, 0.0},
+                       PointType {-1.0, -2.0},
+                       PointType {1.0, -2.0},
+                       PointType {1.0, 0.0}};
+  CoordType weights[7] = {1.0,
+                          static_cast<float>(1. / 3.),
+                          static_cast<float>(1. / 3.),
+                          1.0,
+                          static_cast<float>(1. / 3.),
+                          static_cast<float>(1. / 3.),
+                          1.0};
+
+  CoordType knots[11] = {0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 1.0, 1.0, 1.0, 1.0};
+
+  NURBSCurveType circle(data, weights, 7, knots, 11);
+
+  // Check the winding number on a simple grid of points
+  for(float x = -2.0; x <= 2.0; x += static_cast<float>(0.201))
+  {
+    for(float y = -2.0; y <= 2.0; y += static_cast<float>(0.201))
+    {
+      PointType query {x, y};
+      float gwn = winding_number(query, circle);
       if(x * x + y * y > 1.0)
       {
         EXPECT_DOUBLE_EQ(std::lround(gwn), 0.0);
