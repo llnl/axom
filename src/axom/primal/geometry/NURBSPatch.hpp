@@ -2544,6 +2544,8 @@ public:
    *  then computes the 2D area of that projection to get the corresponding
    *  component of the average surface normal.
    *  
+   * \note This requires the MFEM third-party library
+   * 
    * \return The calculated mean surface normal
    */
   VectorType calculateUntrimmedPatchNormal(int npts = 20) const
@@ -2559,16 +2561,16 @@ public:
     const int npts_u = getNumControlPoints_u();
     const int npts_v = getNumControlPoints_v();
 
-    boundingPoly[0].setParameters(npts_v, getDegree_v());  // isocurve_u(0), Reversed
+    boundingPoly[0].setParameters(npts_v, getDegree_v());
     boundingPoly[0].setKnots(getKnots_v());
 
-    boundingPoly[1].setParameters(npts_u, getDegree_u());  // isocurve_v(1), Reversed
+    boundingPoly[1].setParameters(npts_u, getDegree_u());
     boundingPoly[1].setKnots(getKnots_u());
 
-    boundingPoly[2].setParameters(npts_v, getDegree_v());  // isocurve_u(1)
+    boundingPoly[2].setParameters(npts_v, getDegree_v());
     boundingPoly[2].setKnots(getKnots_v());
 
-    boundingPoly[3].setParameters(npts_u, getDegree_u());  // isocurve_v(0)
+    boundingPoly[3].setParameters(npts_u, getDegree_u());
     boundingPoly[3].setKnots(getKnots_u());
 
     if(isRational())

@@ -41,7 +41,7 @@ enum class DiscontinuityAxis
 #ifdef AXOM_USE_MFEM
 /*!
  * \brief Identify the u/v isoline on which all degenerate intersections occur, 
- *         and clip it from the surface
+ *         and "clip out" patches that do not contain this line
  *
  * \param [in] patch The NURBS patch
  * \param [in] up, vp The arrays of intersection coordinates in parameter space 
