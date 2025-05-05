@@ -221,8 +221,8 @@ public:
       m_dc.DeregisterField(fld);
     }
 
-    m_shaper.release();
-    m_shapeSet.release();
+    m_shaper.reset();
+    m_shapeSet.reset();
   }
 
   /// Runs the shaping query over a shapefile; must be called after initializeShaping()

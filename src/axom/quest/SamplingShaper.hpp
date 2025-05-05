@@ -96,14 +96,14 @@ private:
     switch(dim)
     {
     case 2:
-      count += (m_inoutSampler2D != nullptr) ? 1 : 0;
+      count += m_inoutSampler2D ? 1 : 0;
       break;
     case 3:
-      count += (m_inoutSampler3D != nullptr) ? 1 : 0;
-      count += (m_primitiveSampler3D_seq != nullptr) ? 1 : 0;
-      count += (m_primitiveSampler3D_omp != nullptr) ? 1 : 0;
-      count += (m_primitiveSampler3D_cuda != nullptr) ? 1 : 0;
-      count += (m_primitiveSampler3D_hip != nullptr) ? 1 : 0;
+      count += m_inoutSampler3D ? 1 : 0;
+      count += m_primitiveSampler3D_seq ? 1 : 0;
+      count += m_primitiveSampler3D_omp ? 1 : 0;
+      count += m_primitiveSampler3D_cuda ? 1 : 0;
+      count += m_primitiveSampler3D_hip ? 1 : 0;
       break;
     default:
       SLIC_ERROR("Invalid dimension " << dim);
@@ -150,13 +150,13 @@ public:
     AXOM_UNUSED_VAR(shapeDimension);
     if(this->shapeFormat(shape) == "c2c")
     {
-      m_inoutSampler2D = new shaping::InOutSampler<2>(shapeName, m_surfaceMesh);
+      m_inoutSampler2D = std::make_unique<shaping::InOutSampler<2>>(shapeName, m_surfaceMesh);
       m_inoutSampler2D->computeBounds();
       m_inoutSampler2D->initSpatialIndex(this->m_vertexWeldThreshold);
     }
     else if(this->shapeFormat(shape) == "stl")
     {
-      m_inoutSampler3D = new shaping::InOutSampler<3>(shapeName, m_surfaceMesh);
+      m_inoutSampler3D = std::make_unique<shaping::InOutSampler<3>>(shapeName, m_surfaceMesh);
       m_inoutSampler3D->computeBounds();
       m_inoutSampler3D->initSpatialIndex(this->m_vertexWeldThreshold);
     }
@@ -166,14 +166,14 @@ public:
       {
       case runtime_policy::Policy::seq:
         m_primitiveSampler3D_seq =
-          new shaping::PrimitiveSampler<3, seq_exec>(shapeName, m_surfaceMesh);
+          std::make_unique<shaping::PrimitiveSampler<3, seq_exec>>(shapeName, m_surfaceMesh);
         m_primitiveSampler3D_seq->computeBounds();
         m_primitiveSampler3D_seq->initSpatialIndex();
         break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case runtime_policy::Policy::omp:
         m_primitiveSampler3D_omp =
-          new shaping::PrimitiveSampler<3, omp_exec>(shapeName, m_surfaceMesh);
+          std::make_unique<shaping::PrimitiveSampler<3, omp_exec>>(shapeName, m_surfaceMesh);
         m_primitiveSampler3D_omp->computeBounds();
         m_primitiveSampler3D_omp->initSpatialIndex();
         break;
@@ -181,7 +181,7 @@ public:
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case runtime_policy::Policy::cuda:
         m_primitiveSampler3D_cuda =
-          new shaping::PrimitiveSampler<3, cuda_exec>(shapeName, m_surfaceMesh);
+          std::make_unique<shaping::PrimitiveSampler<3, cuda_exec>>(shapeName, m_surfaceMesh);
         m_primitiveSampler3D_cuda->computeBounds();
         m_primitiveSampler3D_cuda->initSpatialIndex();
         break;
@@ -189,7 +189,7 @@ public:
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case runtime_policy::Policy::hip:
         m_primitiveSampler3D_hip =
-          new shaping::PrimitiveSampler<3, hip_exec>(shapeName, m_surfaceMesh);
+          std::make_unique<shaping::PrimitiveSampler<3, hip_exec>>(shapeName, m_surfaceMesh);
         m_primitiveSampler3D_hip->computeBounds();
         m_primitiveSampler3D_hip->initSpatialIndex();
         break;
@@ -233,33 +233,33 @@ public:
     switch(getShapeDimension())
     {
     case klee::Dimensions::Two:
-      runShapeQueryImpl(m_inoutSampler2D);
+      runShapeQueryImpl(m_inoutSampler2D.get());
       break;
     case klee::Dimensions::Three:
       if(this->shapeFormat(shape) == "stl")
       {
-        runShapeQueryImpl(m_inoutSampler3D);
+        runShapeQueryImpl(m_inoutSampler3D.get());
       }
       else if(this->shapeFormat(shape) == "proe")
       {
         switch(this->getExecutionPolicy())
         {
         case runtime_policy::Policy::seq:
-          runShapeQueryImpl(m_primitiveSampler3D_seq);
+          runShapeQueryImpl(m_primitiveSampler3D_seq.get());
           break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
         case runtime_policy::Policy::omp:
-          runShapeQueryImpl(m_primitiveSampler3D_omp);
+          runShapeQueryImpl(m_primitiveSampler3D_omp.get());
           break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
         case runtime_policy::Policy::cuda:
-          runShapeQueryImpl(m_primitiveSampler3D_cuda);
+          runShapeQueryImpl(m_primitiveSampler3D_cuda.get());
           break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
         case runtime_policy::Policy::hip:
-          runShapeQueryImpl(m_primitiveSampler3D_hip);
+          runShapeQueryImpl(m_primitiveSampler3D_hip.get());
           break;
 #endif
         default:
@@ -361,23 +361,12 @@ public:
   {
     AXOM_ANNOTATE_SCOPE("finalizeShapeQuery");
 
-    delete m_inoutSampler2D;
-    m_inoutSampler2D = nullptr;
-
-    delete m_inoutSampler3D;
-    m_inoutSampler3D = nullptr;
-
-    delete m_primitiveSampler3D_seq;
-    m_primitiveSampler3D_seq = nullptr;
-
-    delete m_primitiveSampler3D_omp;
-    m_primitiveSampler3D_omp = nullptr;
-
-    delete m_primitiveSampler3D_cuda;
-    m_primitiveSampler3D_cuda = nullptr;
-
-    delete m_primitiveSampler3D_hip;
-    m_primitiveSampler3D_hip = nullptr;
+    m_inoutSampler2D.reset();
+    m_inoutSampler3D.reset();
+    m_primitiveSampler3D_seq.reset();
+    m_primitiveSampler3D_omp.reset();
+    m_primitiveSampler3D_cuda.reset();
+    m_primitiveSampler3D_hip.reset();
 
     SLIC_WARNING_IF(
       m_surfaceMesh.use_count() > 1,
@@ -607,12 +596,12 @@ private:
   // Note: the omp, cuda and hip pointers can only be instantiated with appropriate axom congigs
   // Note: only one of these can be instantiated within a SamplingShaper
   // TODO: This will be a lot cleaner with a std::variant
-  shaping::InOutSampler<2>* m_inoutSampler2D {nullptr};
-  shaping::InOutSampler<3>* m_inoutSampler3D {nullptr};
-  shaping::PrimitiveSampler<3, seq_exec>* m_primitiveSampler3D_seq {nullptr};
-  shaping::PrimitiveSampler<3, omp_exec>* m_primitiveSampler3D_omp {nullptr};
-  shaping::PrimitiveSampler<3, cuda_exec>* m_primitiveSampler3D_cuda {nullptr};
-  shaping::PrimitiveSampler<3, hip_exec>* m_primitiveSampler3D_hip {nullptr};
+  std::unique_ptr<shaping::InOutSampler<2>> m_inoutSampler2D;
+  std::unique_ptr<shaping::InOutSampler<3>> m_inoutSampler3D;
+  std::unique_ptr<shaping::PrimitiveSampler<3, seq_exec>> m_primitiveSampler3D_seq;
+  std::unique_ptr<shaping::PrimitiveSampler<3, omp_exec>> m_primitiveSampler3D_omp;
+  std::unique_ptr<shaping::PrimitiveSampler<3, cuda_exec>> m_primitiveSampler3D_cuda;
+  std::unique_ptr<shaping::PrimitiveSampler<3, hip_exec>> m_primitiveSampler3D_hip;
 
   std::set<std::string> m_knownMaterials;
 
