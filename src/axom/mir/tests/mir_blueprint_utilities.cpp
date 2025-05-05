@@ -457,12 +457,12 @@ TEST(mir_blueprint_utilities, extractzones_hip) { test_extractzones<hip_exec>::t
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
-struct test_extractzones_ph
+struct test_extractzones_polyhedral
 {
   static void test(const std::string &name, bool selectZones)
   {
     constexpr int MAXMATERIALS = 5;
-    const int gridSize = 7;  // TODO: up this
+    const int gridSize = 7;
     const int numCircles = 2;
     SLIC_ASSERT(numCircles + 1 <= MAXMATERIALS);
 
@@ -544,45 +544,45 @@ struct test_extractzones_ph
   }
 };
 
-TEST(mir_blueprint_utilities, extractzones_ph_seq)
+TEST(mir_blueprint_utilities, extractzones_polyhedral_seq)
 {
-  test_extractzones_ph<seq_exec>::test("extractzones_ph", false);
+  test_extractzones_polyhedral<seq_exec>::test("extractzones_polyhedral", false);
 }
-TEST(mir_blueprint_utilities, extractzones_ph_sel_seq)
+TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_seq)
 {
-  test_extractzones_ph<seq_exec>::test("extractzones_ph_sel", true);
+  test_extractzones_polyhedral<seq_exec>::test("extractzones_polyhedral_sel", true);
 }
 
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_blueprint_utilities, extractzones_ph_omp)
+TEST(mir_blueprint_utilities, extractzones_polyhedral_omp)
 {
-  test_extractzones_ph<omp_exec>::test("extractzones_ph", false);
+  test_extractzones_polyhedral<omp_exec>::test("extractzones_polyhedral", false);
 }
-TEST(mir_blueprint_utilities, extractzones_ph_sel_omp)
+TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_omp)
 {
-  test_extractzones_ph<omp_exec>::test("extractzones_ph_sel", true);
+  test_extractzones_polyhedral<omp_exec>::test("extractzones_polyhedral_sel", true);
 }
 #endif
 
 #if defined(AXOM_USE_CUDA)
-TEST(mir_blueprint_utilities, extractzones_ph_cuda)
+TEST(mir_blueprint_utilities, extractzones_polyhedral_cuda)
 {
-  test_extractzones_ph<cuda_exec>::test("extractzones_ph", false);
+  test_extractzones_polyhedral<cuda_exec>::test("extractzones_polyhedral", false);
 }
-TEST(mir_blueprint_utilities, extractzones_ph_sel_cuda)
+TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_cuda)
 {
-  test_extractzones_ph<cuda_exec>::test("extractzones_ph_sel", true);
+  test_extractzones_polyhedral<cuda_exec>::test("extractzones_polyhedral_sel", true);
 }
 #endif
 
 #if defined(AXOM_USE_HIP)
-TEST(mir_blueprint_utilities, extractzones_ph_hip)
+TEST(mir_blueprint_utilities, extractzones_polyhedral_hip)
 {
-  test_extractzones_ph<hip_exec>::test("extractzones_ph", false);
+  test_extractzones_polyhedral<hip_exec>::test("extractzones_polyhedral", false);
 }
-TEST(mir_blueprint_utilities, extractzones_ph_sel_hip)
+TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_hip)
 {
-  test_extractzones_ph<hip_exec>::test("extractzones_ph_sel", true);
+  test_extractzones_polyhedral<hip_exec>::test("extractzones_polyhedral_sel", true);
 }
 #endif
 

@@ -835,19 +835,6 @@ private:
  */
 template <typename ExecSpace, typename TopologyView, typename CoordsetView, typename MatsetView, int NDIMS>
 struct MakeCleanOutput
-{ };
-
-/*!
- * \brief Partial specialization for making clean zones for 2D zones.
- *
- * \tparam ExecSpace The execution space where the algorithm will run.
- * \tparam TopologyView The view type that describes the Blueprint input mesh.
- * \tparam CoordsetView The view type that describes the coordinates.
- * \tparam MatsetView The view type that describes matset.
- * \tparam NDIMS The dimension of the topology.
- */
-template <typename ExecSpace, typename TopologyView, typename CoordsetView, typename MatsetView>
-struct MakeCleanOutput<ExecSpace, TopologyView, CoordsetView, MatsetView, 2>
 {
   /*!
    * \brief Make a new mesh containing the selected clean zones.
