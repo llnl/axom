@@ -174,7 +174,9 @@ TEST(primal_integral, evaluate_line_integral_vector)
   int npts = 30;
 
   // Test on a single line segment
-  auto vec_field = [](Point2D x) -> Vector2D { return Vector2D({x[1] * x[1], 3 * x[0] - 6 * x[1]}); };
+  auto vec_field = [](Point2D x) -> Vector2D {
+    return Vector2D({x[1] * x[1], 3 * x[0] - 6 * x[1]});
+  };
 
   Point2D segnodes[] = {Point2D {3.0, 7.0}, Point2D {0.0, 12.0}};
   BCurve linear_segment(segnodes, 1);
