@@ -816,7 +816,7 @@ public:
    *   evenly spaced along the line
    * \return True if curve is near-linear
    */
-  bool isLinear(double tol = 1e-8, bool useStrictLinear = false) const
+  bool isLinear(T tol = 1e-8, bool useStrictLinear = false) const
   {
     const int ord = getOrder();
     if(ord <= 1)

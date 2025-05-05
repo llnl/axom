@@ -45,6 +45,35 @@ TEST(primal_beziercurve, constructor)
   }
 }
 
+//------------------------------------------------------------------------------
+TEST(primal_beziercurve, constructor_float)
+{
+  const int DIM = 3;
+  using CoordType = float;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+  using CoordsVec = BezierCurveType::CoordsVec;
+
+  {
+    SLIC_INFO("Testing default BezierCurve constructor ");
+    BezierCurveType bCurve;
+
+    int expOrder = -1;
+    EXPECT_EQ(expOrder, bCurve.getOrder());
+    EXPECT_EQ(expOrder + 1, bCurve.getControlPoints().size());
+    EXPECT_EQ(CoordsVec(), bCurve.getControlPoints());
+  }
+
+  {
+    SLIC_INFO("Testing BezierCurve order constructor ");
+
+    BezierCurveType bCurve(1);
+
+    int expOrder = 1;
+    EXPECT_EQ(expOrder, bCurve.getOrder());
+    EXPECT_EQ(expOrder + 1, static_cast<int>(bCurve.getControlPoints().size()));
+  }
+}
+
 //----------------------------------------------------------------------------------
 TEST(primal_beziercurve, set_order)
 {
@@ -568,6 +597,21 @@ TEST(primal_beziercurve, reverseOrientation)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_beziercurve, beziercurve_float)
+{
+  SLIC_INFO("Testing compilation of curves with float type");
+
+  const int DIM = 2;
+  using CoordType = float;
+  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
+
+  BezierCurveType simple_curve(3), d1, d2;
+
+  // This test is not meant to verify correctness,
+  //  only that the methods compile and are warning-free
+  simple_curve.split( 0.5, d1, d2 );
+  simple_curve.isLinear();
+}
 
 int main(int argc, char* argv[])
 {
