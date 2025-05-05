@@ -272,6 +272,8 @@ T winding_number(const Point<T, 3>& q,
                  const T EPS = 1e-8)
 {
   using Vec3 = Vector<T, 3>;
+  constexpr T castQuarter = static_cast<T>(0.25);
+  constexpr T castZero = static_cast<T>(0.0);
 
   if(tri.area() == 0)
   {
@@ -283,9 +285,9 @@ T winding_number(const Point<T, 3>& q,
   const Vec3 c = tri[2] - q;
 
   // Compute norms. Possibly return early
-  const T a_norm = a.norm();
-  const T b_norm = b.norm();
-  const T c_norm = c.norm();
+  const T a_norm = static_cast<T>(a.norm());
+  const T b_norm = static_cast<T>(b.norm());
+  const T c_norm = static_cast<T>(c.norm());
 
   if(a_norm < edge_tol || b_norm < edge_tol || c_norm < edge_tol)
   {
@@ -305,18 +307,18 @@ T winding_number(const Point<T, 3>& q,
   // Handle direct cases where argument to atan is undefined
   if(axom::utilities::isNearlyEqual(denom, castZero, EPS))
   {
-    return (num > 0) ? 0.25 : -0.25;
+    return (num > 0) ? castQuarter : -castQuarter;
   }
 
   // Note: denom==0 and num==0 handled above
   if(denom > 0)
   {
-    return 0.5 * M_1_PI * atan(num / denom);
+    return static_cast<T>(0.5 * M_1_PI * atan(num / denom));
   }
   else
   {
-    return (num > 0) ? 0.5 * M_1_PI * atan(num / denom) + 0.5
-                     : 0.5 * M_1_PI * atan(num / denom) - 0.5;
+    return (num > 0) ? static_cast<T>(0.5 * M_1_PI * atan(num / denom) + 0.5)
+                     : static_cast<T>(0.5 * M_1_PI * atan(num / denom) - 0.5);
   }
 }
 
@@ -495,6 +497,7 @@ T winding_number(const Point<T, 3>& q,
   const T edge_tol_sq = edge_tol * edge_tol;
 
   constexpr T castZero = static_cast<T>(0.0);
+  constexpr T castOne = static_cast<T>(1.0);
 
   // Fix the number of quadrature nodes arbitrarily, but high enough
   //  to `catch` near singularities for refinement
@@ -516,14 +519,15 @@ T winding_number(const Point<T, 3>& q,
   // Use a specific kind of recursion if we are within tol of an endpoint.
   //  Split the surface closer to the corner, assume smallest patch is polygonal,
   //  and set a new edge_tol so corners of the new patch aren't marked as coincident
-  constexpr T edge_offset = 0.01;
+  constexpr T edge_offset = static_cast<T>(0.01);
   if(squared_distance(q, bPatch(0, 0)) <= edge_tol_sq)
   {
     BezierPatch<T, 3> p1, p2, p3, p4;
     bPatch.split(0.0 + edge_offset, 0.0 + edge_offset, p1, p2, p3, p4);
-    T new_edge_tol = 0.5 *
+    T new_edge_tol = static_cast<T>(
+      0.5 *
       sqrt(axom::utilities::min(squared_distance(q, bPatch.evaluate(0.0, 0.0 + edge_offset)),
-                                squared_distance(q, bPatch.evaluate(0.0 + edge_offset, 0.0))));
+                                squared_distance(q, bPatch.evaluate(0.0 + edge_offset, 0.0)))));
     new_edge_tol = axom::utilities::min(new_edge_tol, edge_tol);
 
     return winding_number(q, p2, new_edge_tol, quad_tol, EPS, depth + 1) +
@@ -533,10 +537,10 @@ T winding_number(const Point<T, 3>& q,
   if(squared_distance(q, bPatch(ord_u, 0)) <= edge_tol_sq)
   {
     BezierPatch<T, 3> p1, p2, p3, p4;
-    bPatch.split(1.0 - edge_offset, 0.0 + edge_offset, p1, p2, p3, p4);
-    T new_edge_tol = 0.5 *
+    bPatch.split(castOne - edge_offset, 0.0 + edge_offset, p1, p2, p3, p4);
+    T new_edge_tol = static_cast<T>(0.5 *
       sqrt(axom::utilities::min(squared_distance(q, bPatch.evaluate(1.0, 0.0 + edge_offset)),
-                                squared_distance(q, bPatch.evaluate(1.0 - edge_offset, 0.0))));
+                                squared_distance(q, bPatch.evaluate(1.0 - edge_offset, 0.0)))));
     new_edge_tol = axom::utilities::min(new_edge_tol, edge_tol);
 
     return winding_number(q, p1, new_edge_tol, quad_tol, EPS, depth + 1) +
@@ -546,10 +550,10 @@ T winding_number(const Point<T, 3>& q,
   if(squared_distance(q, bPatch(0, ord_v)) <= edge_tol_sq)
   {
     BezierPatch<T, 3> p1, p2, p3, p4;
-    bPatch.split(0.0 + edge_offset, 1.0 - edge_offset, p1, p2, p3, p4);
-    T new_edge_tol = 0.5 *
+    bPatch.split(0.0 + edge_offset, castOne - edge_offset, p1, p2, p3, p4);
+    T new_edge_tol =static_cast<T>( 0.5 *
       sqrt(axom::utilities::min(squared_distance(q, bPatch.evaluate(0.0 + edge_offset, 1.0)),
-                                squared_distance(q, bPatch.evaluate(0.0, 1.0 - edge_offset))));
+                                squared_distance(q, bPatch.evaluate(0.0, 1.0 - edge_offset)))));
     new_edge_tol = axom::utilities::min(new_edge_tol, edge_tol);
 
     return winding_number(q, p1, new_edge_tol, quad_tol, EPS, depth + 1) +
@@ -560,9 +564,9 @@ T winding_number(const Point<T, 3>& q,
   {
     BezierPatch<T, 3> p1, p2, p3, p4;
     bPatch.split(1.0 - edge_offset, 1.0 - edge_offset, p1, p2, p3, p4);
-    T new_edge_tol = 0.5 *
+    T new_edge_tol = static_cast<T>(0.5 *
       sqrt(axom::utilities::min(squared_distance(q, bPatch.evaluate(1.0, 1.0 - edge_offset)),
-                                squared_distance(q, bPatch.evaluate(1.0 - edge_offset, 1.0))));
+                                squared_distance(q, bPatch.evaluate(1.0 - edge_offset, 1.0)))));
     new_edge_tol = axom::utilities::min(new_edge_tol, edge_tol);
 
     return winding_number(q, p1, new_edge_tol, quad_tol, EPS, depth + 1) +
@@ -668,10 +672,10 @@ T winding_number(const Point<T, 3>& q,
     // Rotate v0 around v1 until it is perpendicular to the plane spanned by k and v1
     constexpr T castOne = static_cast<T>(1.0);
     T ang = (v0[2] < 0 ? 1.0 : -1.0) *
-                           acos(axom::utilities::clampVal(
-                            -(v0[0] * v1[1] - v0[1] * v1[0]) / sqrt(v1[0] * v1[0] + v1[1] * v1[1]),
-                             -castOne,
-                             castOne));
+      acos(axom::utilities::clampVal(
+        -(v0[0] * v1[1] - v0[1] * v1[0]) / sqrt(v1[0] * v1[0] + v1[1] * v1[1]),
+        -castOne,
+        castOne));
     auto rotator = angleAxisRotMatrix(ang, v1);
 
     // Collect rotated curves into the curved Polygon

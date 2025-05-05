@@ -20,7 +20,7 @@
 
 // MFEM includes
 #ifdef AXOM_USE_MFEM
-    #include "mfem.hpp"
+  #include "mfem.hpp"
 #endif
 
 namespace axom
@@ -61,10 +61,10 @@ enum class SingularityAxis
  */
 template <typename T>
 T stokes_winding_number(const Point<T, 3>& q,
-                             const BezierCurve<T, 3>& curve,
-                             const SingularityAxis ax,
-                             int npts,
-                             T quad_tol)
+                        const BezierCurve<T, 3>& curve,
+                        const SingularityAxis ax,
+                        int npts,
+                        T quad_tol)
 {
   // Generate the quadrature rules in parameter space
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
@@ -74,28 +74,28 @@ T stokes_winding_number(const Point<T, 3>& q,
   for(int qi = 0; qi < quad_rule.GetNPoints(); ++qi)
   {
     // Get quadrature points in space (shifted by the query)
-    const Vector<T, 3> node(q, curve.evaluate(quad_rule.IntPoint(qi).x));
-    const Vector<T, 3> node_dt(curve.dt(quad_rule.IntPoint(qi).x));
-    const T node_norm = static_cast<T>( node.norm() );
+    auto quad_point = static_cast<T>(quad_rule.IntPoint(qi).x);
+    auto quad_weight = static_cast<T>(quad_rule.IntPoint(qi).weight);
+
+    const Vector<T, 3> node(q, curve.evaluate(quad_point));
+    const Vector<T, 3> node_dt(curve.dt(quad_point));
+    const T node_norm = static_cast<T>(node.norm());
 
     // Compute one of three vector field line integrals depending on
     //  the orientation of the original surface, indicated through ax.
     switch(ax)
     {
     case(SingularityAxis::x):
-      quadrature += quad_rule.IntPoint(qi).weight *
-        (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
+      quadrature += quad_weight * (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
         (node[1] * node[1] + node[2] * node[2]) / node_norm;
       break;
     case(SingularityAxis::y):
-      quadrature += quad_rule.IntPoint(qi).weight *
-        (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
+      quadrature += quad_weight * (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
         (node[0] * node[0] + node[2] * node[2]) / node_norm;
       break;
     case(SingularityAxis::z):
     case(SingularityAxis::rotated):
-      quadrature += quad_rule.IntPoint(qi).weight *
-        (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
+      quadrature += quad_weight * (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
         (node[0] * node[0] + node[1] * node[1]) / node_norm;
       break;
     }
@@ -134,7 +134,7 @@ T stokes_winding_number(const Point<T, 3>& q,
     return stokes_winding_number_adaptive(q, curve, ax, quad_rule, quadrature, quad_tol);
   }
 
-  return 0.25 * M_1_PI * quadrature;
+  return static_cast<T>(0.25 * M_1_PI * quadrature);
 }
 #endif
 
@@ -162,12 +162,12 @@ T stokes_winding_number(const Point<T, 3>& q,
  */
 template <typename T>
 T stokes_winding_number_adaptive(const Point<T, 3>& q,
-                                      const BezierCurve<T, 3>& curve,
-                                      const SingularityAxis ax,
-                                      const mfem::IntegrationRule& quad_rule,
-                                      const T quad_coarse,
-                                      const T quad_tol,
-                                      const int depth = 1)
+                                 const BezierCurve<T, 3>& curve,
+                                 const SingularityAxis ax,
+                                 const mfem::IntegrationRule& quad_rule,
+                                 const T quad_coarse,
+                                 const T quad_tol,
+                                 const int depth = 1)
 {
   // Split the curve, do the quadrature over both components
   BezierCurve<T, 3> subcurves[2];
@@ -179,27 +179,30 @@ T stokes_winding_number_adaptive(const Point<T, 3>& q,
     for(int qi = 0; qi < quad_rule.GetNPoints(); ++qi)
     {
       // Get quad_rulerature points in space (shifted by the query)
-      const Vector<T, 3> node(q, subcurves[i].evaluate(quad_rule.IntPoint(qi).x));
-      const Vector<T, 3> node_dt(subcurves[i].dt(quad_rule.IntPoint(qi).x));
-      const T node_norm = node.norm();
+      auto quad_point = static_cast<T>(quad_rule.IntPoint(qi).x);
+      auto quad_weight = static_cast<T>(quad_rule.IntPoint(qi).weight);
+
+      const Vector<T, 3> node(q, subcurves[i].evaluate(quad_point));
+      const Vector<T, 3> node_dt(subcurves[i].dt(quad_point));
+      const T node_norm = static_cast<T>(node.norm());
 
       // Compute one of three vector field line integrals depending on
       //  the orientation of the original surface, indicated through ax.
       switch(ax)
       {
       case(SingularityAxis::x):
-        quad_fine[i] += quad_rule.IntPoint(qi).weight *
+        quad_fine[i] += quad_weight *
           (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
           (node[1] * node[1] + node[2] * node[2]) / node_norm;
         break;
       case(SingularityAxis::y):
-        quad_fine[i] += quad_rule.IntPoint(qi).weight *
+        quad_fine[i] += quad_weight *
           (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
           (node[0] * node[0] + node[2] * node[2]) / node_norm;
         break;
       case(SingularityAxis::z):
       case(SingularityAxis::rotated):
-        quad_fine[i] += quad_rule.IntPoint(qi).weight *
+        quad_fine[i] += quad_weight *
           (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
           (node[0] * node[0] + node[1] * node[1]) / node_norm;
         break;
@@ -209,7 +212,10 @@ T stokes_winding_number_adaptive(const Point<T, 3>& q,
 
   constexpr int MAX_DEPTH = 12;
   if(depth >= MAX_DEPTH ||
-     axom::utilities::isNearlyEqualRelative(quad_fine[0] + quad_fine[1], quad_coarse, quad_tol, static_cast<T>(1e-10)))
+     axom::utilities::isNearlyEqualRelative(quad_fine[0] + quad_fine[1],
+                                            quad_coarse,
+                                            quad_tol,
+                                            static_cast<T>(1e-10)))
   {
     return static_cast<T>(0.25 * M_1_PI * (quad_fine[0] + quad_fine[1]));
   }

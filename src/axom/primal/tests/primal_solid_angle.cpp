@@ -699,20 +699,20 @@ TEST(primal_solid_angle, planar_bezierpatch_float)
   // Should be equal with both kinds of primitive
   for(int n = 0; n < 5; ++n)
   {
-    EXPECT_NEAR(winding_number(queries[n], quad), winding_number(queries[n], quad_patch), 1e-10);
+    EXPECT_NEAR(winding_number(queries[n], quad), winding_number(queries[n], quad_patch), 1e-7);
   }
 
   // The winding numbers computed should be the same even if
   //  we use quadrature instead of resorting to the direct formula.
   // Ensure this by shrinking our tolerances.
-  const float quad_tol = 1e-10;
-  const float edge_tol = 1e-10;
+  const float quad_tol = 1e-7;
+  const float edge_tol = 1e-7;
   const float EPS = 0;
   for(int n = 0; n < 5; ++n)
   {
     EXPECT_NEAR(winding_number(queries[n], quad_patch),
                 winding_number(queries[n], quad_patch, quad_tol, edge_tol, EPS),
-                1e-10);
+                1e-7);
   }
 }
 

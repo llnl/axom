@@ -1686,7 +1686,7 @@ public:
 
           for(int k = 0; k <= end; ++k)
           {
-            double temp_weight = lerp(p2.getWeight(k, q), p2.getWeight(k + 1, q), u);
+            T temp_weight = lerp(p2.getWeight(k, q), p2.getWeight(k + 1, q), u);
 
             for(int i = 0; i < NDIMS; ++i)
             {
@@ -1755,7 +1755,7 @@ public:
 
           for(int k = 0; k <= end; ++k)
           {
-            double temp_weight = lerp(p2.getWeight(p, k), p2.getWeight(p, k + 1), v);
+            T temp_weight = lerp(p2.getWeight(p, k), p2.getWeight(p, k + 1), v);
 
             for(int i = 0; i < NDIMS; ++i)
             {
@@ -1909,7 +1909,7 @@ public:
    * \param [in] EPS Threshold for nearness to zero
    * \return True if c1 is planar-polygonal up to tolerance \a sq_tol
    */
-  bool isPolygonal(double sq_tol = 1e-8, double EPS = 1e-8) const
+  bool isPolygonal(T sq_tol = 1e-8, T EPS = 1e-8) const
   {
     const int ord_u = getOrder_u();
     const int ord_v = getOrder_v();
