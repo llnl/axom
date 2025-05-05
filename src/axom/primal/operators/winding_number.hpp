@@ -551,7 +551,7 @@ double winding_number(const Point<T, 3>& query,
   nPatch_tested.scaleParameterSpace(1.0 + 0.05 * nPatch_tested.getParameterSpaceDiagonal());
 
   // Select the cast direction as an average normal of the untrimmed surface
-  cast_direction = nPatch.calculateUntrimmedPatchNormal();
+  auto cast_direction = nPatch.calculateUntrimmedPatchNormal();
   if(cast_direction.norm() < 1e-10)
   {
     // ...unless the average direction is zero
