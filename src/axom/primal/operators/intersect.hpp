@@ -910,20 +910,20 @@ bool intersect(const Ray<T, 3>& ray,
     // For efficiency, linearity check actually uses a squared tolerance
     const double sq_tol = tol * tol;
 
-    detail::intersect_line_patch(line,
-                                 patch,
-                                 tc,
-                                 uc,
-                                 vc,
-                                 order_u,
-                                 order_v,
-                                 u_offset,
-                                 u_scale,
-                                 v_offset,
-                                 v_scale,
-                                 sq_tol,
-                                 EPS,
-                                 true);
+    success = detail::intersect_line_patch(line,
+                                           patch,
+                                           tc,
+                                           uc,
+                                           vc,
+                                           order_u,
+                                           order_v,
+                                           u_offset,
+                                           u_scale,
+                                           v_offset,
+                                           v_scale,
+                                           sq_tol,
+                                           EPS,
+                                           true);
 
     // Don't select candidates if we're in a failure state
     if(success)
