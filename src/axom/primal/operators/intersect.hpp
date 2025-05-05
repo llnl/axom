@@ -896,7 +896,7 @@ bool intersect(const Ray<T, 3>& ray,
                                           true);
 
     detail::select_candidates(tc, uc, vc, t, u, v, EPS, isHalfOpen);
-  
+
     success = true;
   }
   else

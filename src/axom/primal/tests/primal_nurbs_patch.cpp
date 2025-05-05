@@ -1082,11 +1082,11 @@ TEST(primal_nurbspatch, nurbs_parameter_expansion)
     for(auto v : v_pts)
     {
       auto pt2 = supPatch.evaluate(u, v);
-      auto pt1 = nPatch.evaluate(axom::utilities::clampVal(u, min_u, max_u), 
+      auto pt1 = nPatch.evaluate(axom::utilities::clampVal(u, min_u, max_u),
                                  axom::utilities::clampVal(v, min_v, max_v));
 
       // If the point is in the original parameter space, the two patches should be equal
-      if( (u >= min_u) && (u <= max_u) && (v >= min_v) && (v <= max_v) )
+      if((u >= min_u) && (u <= max_u) && (v >= min_v) && (v <= max_v))
       {
         for(int N = 0; N < DIM; ++N)
         {
@@ -1096,7 +1096,7 @@ TEST(primal_nurbspatch, nurbs_parameter_expansion)
       // If not, the points should be nearby
       else
       {
-        EXPECT_LT( squared_distance(pt1, pt2), 2.0);
+        EXPECT_LT(squared_distance(pt1, pt2), 2.0);
       }
     }
   }
