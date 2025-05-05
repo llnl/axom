@@ -1,0 +1,143 @@
+name: CI Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+    - develop
+
+# Cancel previous jobs if an update has been made to the pull request
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/develop' }}
+
+env:
+  CLANG_DOCKER_IMAGE: axom/tpls:clang-14_04-01-25_17h-34m
+  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_04-01-25_17h-35m
+
+jobs:
+  # Hacky solution to reference env variables outside of `run` steps https://stackoverflow.com/a/74217028
+  set_image_vars:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Do Nothing
+      run: echo
+    outputs:
+      clang_docker_image: ${{ env.CLANG_DOCKER_IMAGE }}
+      gcc_docker_image: ${{ env.GCC_DOCKER_IMAGE }}
+  build_and_test:
+    runs-on: ubuntu-22.04
+    needs:
+    - set_image_vars
+    strategy:
+      fail-fast: true
+      matrix:
+        # TODO: add osx and windows builds
+        build_type: [ Debug, Release ]
+        config:
+        - job_name: gcc@13.1.0, shared, benchmarks
+          host_config: gcc@13.1.0.cmake
+          compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
+          cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION:BOOL=ON -DENABLE_BENCHMARKS:BOOL=ON'
+          do_build: 'yes'
+          do_benchmarks: 'yes'
+        - job_name: gcc@13.1.0, shared, 64bit
+          host_config: gcc@13.1.0.cmake
+          compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
+          cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_USE_64BIT_INDEXTYPE:BOOL=ON'
+          do_build: 'yes'
+          do_benchmarks: 'no'
+        - job_name: clang@14.0.0, shared, benchmarks, quest regression
+          host_config: clang@14.0.0.cmake
+          compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
+          cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DENABLE_BENCHMARKS:BOOL=ON'
+          do_build: 'yes'
+          do_benchmarks: 'yes'
+        include:
+        - build_type: Debug
+          config:
+            job_name: clang@14.0.0, shared, no raja
+            host_config: clang@14.0.0.cmake
+            compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
+            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -U RAJA_DIR'
+            do_build: 'yes'
+            do_benchmarks: 'no'
+        - build_type: Debug
+          config:
+            job_name: clang@14.0.0, shared, no umpire
+            host_config: clang@14.0.0.cmake
+            compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
+            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -U UMPIRE_DIR'
+            do_build: 'yes'
+            do_benchmarks: 'no'
+        - build_type: Debug
+          config:
+            job_name: clang@14.0.0, shared, no raja/umpire
+            host_config: clang@14.0.0.cmake
+            compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
+            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -U RAJA_DIR -U UMPIRE_DIR'
+            do_build: 'yes'
+            do_benchmarks: 'no'
+        - build_type: Debug
+          config:
+            job_name: clang@14.0.0, shared, no profiling
+            host_config: clang@14.0.0.cmake
+            compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
+            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -U CALIPER_DIR -U ADIAK_DIR'
+            do_build: 'yes'
+            do_benchmarks: 'no'
+    name: ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
+    container:
+      image: ${{ matrix.config.compiler_image }}
+      volumes:
+      - /home/axom/axom
+    steps:
+      - name: Checkout Axom
+        uses: actions/checkout@v4
+        with: 
+          submodules: recursive
+      - name: Print Matrix Variables
+        run: |
+          echo "build_type     ${{ matrix.build_type }}"
+          echo "cmake_opts     ${{ matrix.config.cmake_opts }}"
+          echo "compiler_image ${{ matrix.config.compiler_image }}"
+          echo "host_config    ${{ matrix.config.host_config }}"
+      - name: Build and Test ${{ matrix.config.host_config }} ${{ matrix.build_type }}
+        timeout-minutes: 30
+        run: |
+          DO_BUILD=${{ matrix.config.do_build }} \
+          DO_BENCHMARKS=${{ matrix.config.do_benchmarks }} \
+          HOST_CONFIG=${{ matrix.config.host_config }} \
+          CMAKE_EXTRA_FLAGS=${{ matrix.config.cmake_opts }} \
+          BUILD_TYPE=${{ matrix.build_type }} \
+          ./axom/scripts/github-actions/linux-build_and_test.sh
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: Test Results ${{ matrix.config.host_config }} ${{ matrix.build_type }} ${{ matrix.config.cmake_opts }}
+          path: "**/Test.xml"
+  check_code:
+    runs-on: ubuntu-22.04
+    needs:
+    - set_image_vars
+    strategy:
+      # If any of checks (e.g. style) fail, allow other jobs to continue running.
+      fail-fast: false
+      matrix:
+        check_type: [style]
+    container:
+      image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
+      volumes:
+      - /home/axom/axom
+      env:
+        CHECK_TYPE: ${{ matrix.check_type }}
+        HOST_CONFIG: clang@14.0.0.cmake
+    steps:
+    - name: Checkout Axom
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: Check ${{ matrix.check_type }}
+      run: ./scripts/github-actions/linux-check.sh 
+
+

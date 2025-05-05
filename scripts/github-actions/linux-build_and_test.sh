@@ -40,10 +40,10 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
     else
         or_die make -j $NUM_BUILD_PROCS VERBOSE=1
     fi
-    if [[ "${DO_TEST}" == "yes" ]] ; then
-        echo "~~~~~~ RUNNING TESTS ~~~~~~~~"
-        make CTEST_OUTPUT_ON_FAILURE=1 test ARGS='-T Test -VV -j$NUM_BUILD_PROCS'
-    fi
+
+    echo "~~~~~~ RUNNING TESTS ~~~~~~~~"
+    make CTEST_OUTPUT_ON_FAILURE=1 test ARGS='-T Test -VV -j$NUM_BUILD_PROCS'
+
     if [[ "${DO_BENCHMARKS}" == "yes" ]] ; then
         echo "~~~~~~ RUNNING BENCHMARKS ~~~~~~~~"
         make CTEST_OUTPUT_ON_FAILURE=1 run_benchmarks
@@ -54,13 +54,7 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
     fi
 fi
 
-# Note: Azure pipelines requires read/write access for everyone between steps
-find ./axom -type d -exec chmod 755 {} \;
-find ./axom -type f -exec chmod 644 {} \;
-
-if [[ "$DO_CLEAN" == "yes" ]] ; then
-    echo "~~~~~~ CLEANING BUILD DIRECTORY ~~~~~~~~"
-    make clean
-fi
+echo "~~~~~~ CLEANING BUILD DIRECTORY ~~~~~~~~"
+make clean
 
 exit 0
