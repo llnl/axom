@@ -312,76 +312,19 @@ public:
   }
 
   /**
-   * Compute volume fractions function for shape on a grid of resolution \a gridRes
-   * in region defined by bounding box \a queryBounds
+   * Compute "baseline" volume fractions by sampling at grid function degrees of freedom
+   * (instead of at quadrature points)
+   * \warning Not yet implemented
    */
-  void computeVolumeFractionsBaseline(mfem::DataCollection* dc,
-                                      int AXOM_UNUSED_PARAM(sampleRes),
-                                      int outputOrder)
+  void computeVolumeFractionsBaseline(mfem::DataCollection* dc, int sampleRes, int outputOrder)
   {
     AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
 
     AXOM_UNUSED_VAR(dc);
+    AXOM_UNUSED_VAR(sampleRes);
     AXOM_UNUSED_VAR(outputOrder);
 
-    // // Step 1 -- generate a QField w/ the spatial coordinates
-    // mfem::Mesh* mesh = dc->GetMesh();
-    // const int NE = mesh->GetNE();
-    // const int dim = mesh->Dimension();
-
-    // if(NE < 1)
-    // {
-    //   SLIC_WARNING("Mesh has no elements!");
-    //   return;
-    // }
-
-    // mfem::L2_FECollection* coll =
-    //   new mfem::L2_FECollection(outputOrder, dim, mfem::BasisType::Positive);
-    // mfem::FiniteElementSpace* fes = new mfem::FiniteElementSpace(mesh, coll);
-    // mfem::GridFunction* volFrac = new mfem::GridFunction(fes);
-    // volFrac->MakeOwner(coll);
-    // auto volFracName = axom::fmt::format("vol_frac_{}", m_shapeName);
-    // dc->RegisterField(volFracName, volFrac);
-
-    // auto* fe = fes->GetFE(0);
-    // auto& ir = fe->GetNodes();
-
-    // // Assume all elements have the same integration rule
-    // const int nq = ir.GetNPoints();
-    // const auto* geomFactors = mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
-
-    // mfem::DenseTensor pos_coef(dim, nq, NE);
-
-    // // Rearrange positions into quadrature function
-    // {
-    //   for(int i = 0; i < NE; ++i)
-    //   {
-    //     for(int j = 0; j < dim; ++j)
-    //     {
-    //       for(int k = 0; k < nq; ++k)
-    //       {
-    //         pos_coef(j, k, i) = geomFactors->X((i * nq * dim) + (j * nq) + k);
-    //       }
-    //     }
-    //   }
-    // }
-
-    // // Step 2 -- sample the in/out field at each point -- store directly in volFrac grid function
-    // mfem::Vector res(nq);
-    // mfem::Array<int> dofs;
-    // for(int i = 0; i < NE; ++i)
-    // {
-    //   mfem::DenseMatrix& m = pos_coef(i);
-    //   for(int p = 0; p < nq; ++p)
-    //   {
-    //     const SpacePt pt(m.GetColumn(p), dim);
-    //     const bool in = m_octree->within(pt);
-    //     res(p) = in ? 1. : 0.;
-    //   }
-
-    //   fes->GetElementDofs(i, dofs);
-    //   volFrac->SetSubVector(dofs, res);
-    // }
+    SLIC_WARNING_ROOT("computeVolumeFractionsBaseline() not implemented yet");
   }
 
 private:
@@ -399,7 +342,7 @@ private:
   std::shared_ptr<mint::Mesh> m_surfaceMesh {nullptr};
 };
 
-}  // end namespace shaping
+}  // namespace shaping
 }  // namespace quest
 }  // namespace axom
 

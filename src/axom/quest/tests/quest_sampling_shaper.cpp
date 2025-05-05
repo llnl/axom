@@ -283,19 +283,12 @@ public:
     auto& mesh = getMesh();
     const int dim = mesh.Dimension();
 
-    // create grid function
-    auto* coll = new mfem::L2_FECollection(vfOrder, dim, mfem::BasisType::Positive);
-    auto* fes = new mfem::FiniteElementSpace(&mesh, coll);
-    auto* vf = new mfem::GridFunction(fes);
-    vf->MakeOwner(coll);
-
-    // allocate grid function via sidre
-    const int sz = fes->GetVSize();
-    mfem::Vector v(m_dc.AllocNamedBuffer(name, sz)->getData(), sz);
-    vf->MakeRef(fes, v, 0);
-
-    // register grid function w/ data collection
-    m_dc.RegisterField(name, vf);
+    mfem::GridFunction* vf =
+      axom::quest::shaping::getOrAllocateL2GridFunction(&m_dc,
+                                                        name,
+                                                        vfOrder,
+                                                        dim,
+                                                        mfem::BasisType::Positive);
 
     return vf;
   }

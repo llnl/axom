@@ -154,6 +154,19 @@ enum class VolFracSampling : int
 };
 
 /**
+ * \brief Utility function to either return a grid function from the DataCollection \a dc, 
+ * or to allocate the grud function through the dc, ensuring the memory doesn't leak
+ * 
+ * \return A pointer to the (allocated) grid function. nullptr if it cannot be allocated
+ * \note The function properly handles parallel grid functions and spaces when using MPI
+ */
+mfem::GridFunction* getOrAllocateL2GridFunction(mfem::DataCollection* dc,
+                                                const std::string& gf_name,
+                                                int order,
+                                                int dim,
+                                                const int basis);
+
+/**
  * Utility function to zero out inout quadrature points for a material replaced by a shape
  *
  * Each location in space can only be covered by one material.

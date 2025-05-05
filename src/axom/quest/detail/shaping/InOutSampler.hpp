@@ -203,8 +203,8 @@ public:
   }
 
   /**
-  * Compute volume fractions function for shape on a grid of resolution \a gridRes
-  * in region defined by bounding box \a queryBounds
+   * Compute "baseline" volume fractions by sampling at grid function degrees of freedom
+   * (instead of at quadrature points)
   */
   void computeVolumeFractionsBaseline(mfem::DataCollection* dc,
                                       int AXOM_UNUSED_PARAM(sampleRes),
@@ -223,13 +223,10 @@ public:
       return;
     }
 
-    mfem::L2_FECollection* coll =
-      new mfem::L2_FECollection(outputOrder, dim, mfem::BasisType::Positive);
-    mfem::FiniteElementSpace* fes = new mfem::FiniteElementSpace(mesh, coll);
-    mfem::GridFunction* volFrac = new mfem::GridFunction(fes);
-    volFrac->MakeOwner(coll);
-    auto volFracName = axom::fmt::format("vol_frac_{}", m_shapeName);
-    dc->RegisterField(volFracName, volFrac);
+    const auto volFracName = axom::fmt::format("vol_frac_{}", m_shapeName);
+    mfem::GridFunction* volFrac =
+      shaping::getOrAllocateL2GridFunction(dc, volFracName, outputOrder, dim, mfem::BasisType::Positive);
+    const mfem::FiniteElementSpace* fes = volFrac->FESpace();
 
     auto* fe = fes->GetFE(0);
     auto& ir = fe->GetNodes();
@@ -283,7 +280,7 @@ private:
   InOutOctreeType* m_octree {nullptr};
 };
 
-}  // end namespace shaping
+}  // namespace shaping
 }  // namespace quest
 }  // namespace axom
 

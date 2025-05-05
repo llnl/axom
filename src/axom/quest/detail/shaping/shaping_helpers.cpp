@@ -24,9 +24,7 @@ namespace shaping
 {
 #if defined(AXOM_USE_MFEM)
 
-// Utility function to either return a gf from the dc, or to allocate the
-// gf through the dc, ensuring the memory doesn't leak
-// The function properly handles parallel grid functions and spaces when using MPI
+// Utility function to either return a gf from the dc, or to allocate it through the dc
 mfem::GridFunction* getOrAllocateL2GridFunction(mfem::DataCollection* dc,
                                                 const std::string& gf_name,
                                                 int order,
