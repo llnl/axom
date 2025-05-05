@@ -16,7 +16,6 @@
 #include "axom/primal/geometry/BezierPatch.hpp"
 #include "axom/primal/geometry/NURBSPatch.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
-#include "axom/primal/operators/detail/printers.hpp"
 
 #include "axom/core/numerics/matvecops.hpp"
 
