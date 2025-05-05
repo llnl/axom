@@ -174,9 +174,7 @@ TEST(primal_integral, evaluate_line_integral_vector)
   int npts = 30;
 
   // Test on a single line segment
-  auto vec_field = [](Point2D x) -> Vector2D {
-    return Vector2D({x[1] * x[1], 3 * x[0] - 6 * x[1]});
-  };
+  auto vec_field = [](Point2D x) -> Vector2D { return Vector2D({x[1] * x[1], 3 * x[0] - 6 * x[1]}); };
 
   Point2D segnodes[] = {Point2D {3.0, 7.0}, Point2D {0.0, 12.0}};
   BCurve linear_segment(segnodes, 1);
@@ -332,7 +330,7 @@ TEST(primal_integral, evaluate_integral_nurbs)
   // Quadrature nodes. Should be sufficiently high to pass tests
   int npts = 20;
 
-  // Test integrals with same integrand and curves as `evaluate_integral_rational`, 
+  // Test integrals with same integrand and curves as `evaluate_integral_rational`,
   //  but insert some knots to make the Bezier extraction more interesting
 
   // Elliptical arc shape
@@ -379,6 +377,74 @@ TEST(primal_integral, evaluate_integral_nurbs)
               M_PI * 2 * 1 / 4.0,
               abs_tol);
   EXPECT_NEAR(evaluate_vector_line_integral(quarter_ellipse, conservative_field, npts), 0, abs_tol);
+}
+
+TEST(primal_integral, evaluate_nurbs_surface_normal)
+{
+  const int DIM = 3;
+  using Point2D = primal::Point<double, 2>;
+  using Point3D = primal::Point<double, 3>;
+  using Vector2D = primal::Vector<double, 2>;
+  using Vector3D = primal::Vector<double, 3>;
+  using NURBSPatchType = primal::NURBSPatch<double, DIM>;
+
+  const int npts_u = 5;
+  const int npts_v = 4;
+
+  const int degree_u = 3;
+  const int degree_v = 2;
+
+  // clang-format off
+  Point3D controlPoints[5 * 4] = {
+    Point3D {0, 0, 0}, Point3D {0, 4,  0}, Point3D {0, 8,  0}, Point3D {0, 12, 0},
+    Point3D {2, 0, 0}, Point3D {2, 4,  0}, Point3D {2, 8,  0}, Point3D {2, 12, 0},
+    Point3D {4, 0, 0}, Point3D {4, 4,  0}, Point3D {4, 8,  0}, Point3D {4, 12, 0},
+    Point3D {6, 0, 0}, Point3D {6, 4,  0}, Point3D {6, 8,  0}, Point3D {6, 12, 0},
+    Point3D {8, 0, 0}, Point3D {8, 4,  0}, Point3D {8, 8,  0}, Point3D {8, 12, 0}};
+    
+  double weights[5 * 4] = {
+    1.0, 2.0, 3.0, 2.0,
+    2.0, 3.0, 4.0, 3.0,
+    3.0, 4.0, 5.0, 4.0,
+    4.0, 5.0, 6.0, 5.0,
+    5.0, 6.0, 7.0, 6.0};
+  // clang-format on
+
+  NURBSPatchType nPatch(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
+  nPatch.makeTriviallyTrimmed();
+
+  int npts = 20;
+  double abs_tol = 1e-10;
+
+  // Calculate the average surface normal using boundary formulation
+  auto ueda_formula = nPatch.calculateUntrimmedPatchNormal(npts);
+
+  // Calculate the average surface normal component by component,
+  //  i.e. \int_S \hat{n}(x) dA, where \hat{n} is the unit normal at surface point x
+
+  // Because the NURBS surface has discontinuous derivatives at u, v = 0.5,
+  //  this integrand does too, and we need to split to get accurate results
+  //  using Gaussian quadrature
+
+  NURBSPatchType split_patch[4];
+  nPatch.split(0.5, 0.5, split_patch[0], split_patch[1], split_patch[2], split_patch[3]);
+
+  for(int N = 0; N < 3; ++N)
+  {
+    auto avg_surface_normal_integrand = [&nPatch, &N](Point2D x) -> double {
+      return nPatch.normal(x[0], x[1])[N];
+    };
+
+    // Integrate over each patch
+    double direct_formula = 0.0;
+    for(int i = 0; i < 4; ++i)
+    {
+      direct_formula +=
+        evaluate_area_integral(split_patch[i].getTrimmingCurves(), avg_surface_normal_integrand, npts);
+    }
+
+    EXPECT_NEAR(ueda_formula[N], direct_formula, abs_tol);
+  }
 }
 
 int main(int argc, char* argv[])
