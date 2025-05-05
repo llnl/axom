@@ -236,6 +236,43 @@ TEST(primal_compute_moments, sector_weights)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_compute_moments, sector_weights_float)
+{
+  SLIC_INFO("Testing weights for BezierCurve::sectorArea()");
+
+  // NOTE: Expected weights are provided in the reference paper [Ueda99]
+  // See doxygen comment for primal::sector_area(BezierCurve)
+
+  using CoordType = float;
+  primal::detail::MemoizedSectorAreaWeights<CoordType> memoizedSectorWeights;
+
+  // order 5
+  {
+    const int ord = 5;
+    auto weights = memoizedSectorWeights.getWeights(ord);
+
+    double binomInv = 1. / axom::utilities::binomialCoefficient(10, 5);
+    axom::numerics::Matrix<CoordType> exp(ord + 1, ord + 1);
+    // clang-format off
+    exp(0,0) =  0; exp(0,1) = 70; exp(0,2) = 35; exp(0,3) = 15; exp(0,4) =  5; exp(0,5) =  1;
+    exp(1,0) =-70; exp(1,1) =  0; exp(1,2) = 25; exp(1,3) = 25; exp(1,4) = 15; exp(1,5) =  5;
+    exp(2,0) =-35; exp(2,1) =-25; exp(2,2) =  0; exp(2,3) = 20; exp(2,4) = 25; exp(2,5) = 15;
+    exp(3,0) =-15; exp(3,1) =-25; exp(3,2) =-20; exp(3,3) =  0; exp(3,4) = 25; exp(3,5) = 35;
+    exp(4,0) = -5; exp(4,1) =-15; exp(4,2) =-25; exp(4,3) =-25; exp(4,4) =  0; exp(4,5) = 70;
+    exp(5,0) = -1; exp(5,1) = -5; exp(5,2) =-15; exp(5,3) =-35; exp(5,4) =-70; exp(5,5) =  0;
+    // clang-format on
+
+    for(int i = 0; i <= ord; ++i)
+    {
+      for(int j = 0; j <= ord; ++j)
+      {
+        EXPECT_NEAR(exp(i, j) * binomInv, weights(i, j), 1e-5);
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 
 int main(int argc, char* argv[])
 {

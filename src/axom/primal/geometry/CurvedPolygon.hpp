@@ -97,7 +97,7 @@ public:
   /// @{
 
   /// Return the number of edges in the polygon
-  int numEdges() const { return m_edges.size(); }
+  int numEdges() const { return static_cast<int>(m_edges.size()); }
 
   void setNumEdges(int ngon)
   {
