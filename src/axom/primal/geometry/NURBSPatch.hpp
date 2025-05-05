@@ -2618,7 +2618,7 @@ public:
       }
 
       // Find the area of the resulting projection
-      ret_vec[N] = evaluate_area_integral(boundingPoly, const_integrand, 20);
+      ret_vec[N] = evaluate_area_integral(boundingPoly, const_integrand, npts);
     }
 
     return ret_vec;

@@ -15,8 +15,6 @@
 #include "axom/primal/operators/is_convex.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 
-#include "axom/primal/operators/detail/printers.hpp"
-
 // C++ includes
 #include <math.h>
 
