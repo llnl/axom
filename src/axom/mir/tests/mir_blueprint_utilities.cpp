@@ -476,7 +476,7 @@ struct test_extractzones_polyhedral
     conduit::Node deviceMesh;
     bputils::copy<ExecSpace>(deviceMesh, hostMesh);
 
-    // Make seelected zones.
+    // Make selected zones.
     axom::Array<axom::IndexType> ids;
     for(int k = 0; k < gridSize; k++)
     {
