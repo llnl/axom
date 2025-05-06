@@ -8,9 +8,9 @@ set(CMAKE_PREFIX_PATH "/usr/WS1/han12/axom/uberenv_nanobind/gcc-10.3.1/blt-0.7.0
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH "ON" CACHE STRING "")
 
-set(CMAKE_BUILD_RPATH "/usr/WS1/han12/axom/uberenv_nanobind/gcc-10.3.1/axom-develop-jwgtfketwpbqhiibkb4jmnrdfbwwpurs/lib;/usr/WS1/han12/axom/uberenv_nanobind/gcc-10.3.1/axom-develop-jwgtfketwpbqhiibkb4jmnrdfbwwpurs/lib64;;/collab/usr/global/tools/tce4/packages/gcc/gcc-10.3.1/lib/gcc/x86_64-redhat-linux/10" CACHE STRING "")
+set(CMAKE_BUILD_RPATH "/usr/WS1/han12/axom/uberenv_nanobind/gcc-10.3.1/axom-develop-zssbcvhmng3nd34paymri4wsyoc3oxrj/lib;/usr/WS1/han12/axom/uberenv_nanobind/gcc-10.3.1/axom-develop-zssbcvhmng3nd34paymri4wsyoc3oxrj/lib64;;/collab/usr/global/tools/tce4/packages/gcc/gcc-10.3.1/lib/gcc/x86_64-redhat-linux/10" CACHE STRING "")
 
-set(CMAKE_INSTALL_RPATH "/usr/WS1/han12/axom/uberenv_nanobind/gcc-10.3.1/axom-develop-jwgtfketwpbqhiibkb4jmnrdfbwwpurs/lib;/usr/WS1/han12/axom/uberenv_nanobind/gcc-10.3.1/axom-develop-jwgtfketwpbqhiibkb4jmnrdfbwwpurs/lib64;;/collab/usr/global/tools/tce4/packages/gcc/gcc-10.3.1/lib/gcc/x86_64-redhat-linux/10" CACHE STRING "")
+set(CMAKE_INSTALL_RPATH "/usr/WS1/han12/axom/uberenv_nanobind/gcc-10.3.1/axom-develop-zssbcvhmng3nd34paymri4wsyoc3oxrj/lib;/usr/WS1/han12/axom/uberenv_nanobind/gcc-10.3.1/axom-develop-zssbcvhmng3nd34paymri4wsyoc3oxrj/lib64;;/collab/usr/global/tools/tce4/packages/gcc/gcc-10.3.1/lib/gcc/x86_64-redhat-linux/10" CACHE STRING "")
 
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "")
 
@@ -125,16 +125,7 @@ set(DEVTOOLS_ROOT "/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/2023_10_17_1
 
 set(CLANGFORMAT_EXECUTABLE "/usr/tce/packages/clang/clang-14.0.6/bin/clang-format" CACHE PATH "")
 
-#set(Python_ROOT_DIR "/usr/WS1/han12/axom/devtools_nanobind/gcc-10.3.1/python-3.12.5-ifx4byqsxyec4zegcjie3xmq2ysconq2" CACHE PATH "")
-#set(PYTHON_EXECUTABLE "/usr/WS1/han12/axom/devtools_nanobind/gcc-10.3.1/python-3.12.5-ifx4byqsxyec4zegcjie3xmq2ysconq2/bin/python3.12" CACHE PATH "")
-#set(Python_EXECUTABLE "/usr/WS1/han12/axom/devtools_nanobind/gcc-10.3.1/python-3.12.5-ifx4byqsxyec4zegcjie3xmq2ysconq2/bin/python3.12" CACHE PATH "")
-
-set(Python_ROOT_DIR "/usr/workspace/han12/axom/devtools_nanobind/._view/grtaettd7am57i52r36qn2anxjpb5obt/python-3.12.5" CACHE PATH "")
-set(Python_EXECUTABLE "/usr/workspace/han12/axom/devtools_nanobind/._view/grtaettd7am57i52r36qn2anxjpb5obt/python-3.12.5/bin/python3.12" CACHE PATH "")
-set(PYTHON_EXECUTABLE "/usr/workspace/han12/axom/devtools_nanobind/._view/grtaettd7am57i52r36qn2anxjpb5obt/python-3.12.5/bin/python3.12" CACHE PATH "")
-
-#set(nanobind_DIR "/usr/workspace/han12/axom/devtools_nanobind/gcc-10.3.1/py-nanobind-2.0.0-twr5gieidykafu2jik635l37vhzcs7j4/lib/python3.12/site-packages/nanobind/cmake")
-set(nanobind_ROOT "/usr/workspace/han12/axom/devtools_nanobind/._view/grtaettd7am57i52r36qn2anxjpb5obt/python-3.12.5/lib/python3.12/site-packages/nanobind/cmake" CACHE PATH "")
+set(Python_EXECUTABLE "/usr/WS1/han12/axom/devtools_nanobind/._view/grtaettd7am57i52r36qn2anxjpb5obt/python-3.12.5/bin/python3" CACHE PATH "")
 
 set(JSONSCHEMA_EXECUTABLE "${TPL_ROOT}/py-jsonschema-4.17.3-pjihw6k6fkyn7jg4ehmh6zap6jg66xzt/bin/jsonschema" CACHE PATH "")
 
