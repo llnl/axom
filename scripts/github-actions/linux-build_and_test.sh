@@ -33,8 +33,8 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
     NUM_BUILD_PROCS=`python3 -c "import os; print(f'{max(2, os.cpu_count() * 8 // 10)}')"`
 
     echo "~~~~~~ RUNNING CMAKE ~~~~~~~~"
-    or_die python3 ./config-build.py -hc ./host-configs/docker/${HOST_CONFIG} -bt ${BUILD_TYPE} -DENABLE_GTEST_DEATH_TESTS=ON ${CMAKE_EXTRA_FLAGS}
-    or_die cd build-$HOST_CONFIG-${BUILD_TYPE,,}
+    or_die python3 ./config-build.py -bp builddir -hc ./host-configs/docker/${HOST_CONFIG} -bt ${BUILD_TYPE} -DENABLE_GTEST_DEATH_TESTS=ON ${CMAKE_EXTRA_FLAGS}
+    or_die cd builddir
 
     echo "~~~~~~ BUILDING ~~~~~~~~"
     if [[ ${CMAKE_EXTRA_FLAGS} == *COVERAGE* ]] ; then

@@ -108,7 +108,7 @@ jobs:
           DO_BUILD=${{ matrix.config.do_build }} \
           DO_BENCHMARKS=${{ matrix.config.do_benchmarks }} \
           HOST_CONFIG=${{ matrix.config.host_config }} \
-          CMAKE_EXTRA_FLAGS=${{ matrix.config.cmake_opts }} \
+          CMAKE_EXTRA_FLAGS=" ${{ matrix.config.cmake_opts }} " \
           BUILD_TYPE=${{ matrix.build_type }} \
           ./axom/scripts/github-actions/linux-build_and_test.sh
       - name: Upload Test Results
