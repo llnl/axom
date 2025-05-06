@@ -37,13 +37,13 @@ jobs:
         config:
         - job_name: gcc@13.1.0, shared, benchmarks
           host_config: gcc@13.1.0.cmake
-          compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
+          compiler_image: ${{ needs.set_image_vars.outputs.gcc_docker_image }}
           cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION:BOOL=ON -DENABLE_BENCHMARKS:BOOL=ON'
           do_build: 'yes'
           do_benchmarks: 'yes'
         - job_name: gcc@13.1.0, shared, 64bit
           host_config: gcc@13.1.0.cmake
-          compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
+          compiler_image: ${{ needs.set_image_vars.outputs.gcc_docker_image }}
           cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_USE_64BIT_INDEXTYPE:BOOL=ON'
           do_build: 'yes'
           do_benchmarks: 'no'
