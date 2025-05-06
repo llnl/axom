@@ -17,12 +17,12 @@ function or_die () {
     fi
 }
 
-or_die cd axom
-git submodule init
-git submodule update
-
-echo HOST_CONFIG
-echo $HOST_CONFIG
+echo "~~~~ helpful info ~~~~"
+echo "USER="`id -u -n`
+echo "PWD="`pwd`
+echo "HOST_CONFIG=$HOST_CONFIG"
+echo "CMAKE_EXTRA_FLAGS=$CMAKE_EXTRA_FLAGS"
+echo "~~~~~~~~~~~~~~~~~~~~~~"
 
 export BUILD_TYPE=${BUILD_TYPE:-Debug}
 
@@ -31,9 +31,11 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
     echo "~~~~~~ FIND NUMPROCS ~~~~~~~~"
     NUMPROCS=`python3 -c "import os; print(f'{os.cpu_count()}')"`
     NUM_BUILD_PROCS=`python3 -c "import os; print(f'{max(2, os.cpu_count() * 8 // 10)}')"`
+
     echo "~~~~~~ RUNNING CMAKE ~~~~~~~~"
-    or_die python3 ./config-build.py -hc /home/axom/axom/host-configs/docker/${HOST_CONFIG}.cmake -bt ${BUILD_TYPE} -DENABLE_GTEST_DEATH_TESTS=ON ${CMAKE_EXTRA_FLAGS}
+    or_die python3 ./config-build.py -hc ./host-configs/docker/${HOST_CONFIG}.cmake -bt ${BUILD_TYPE} -DENABLE_GTEST_DEATH_TESTS=ON ${CMAKE_EXTRA_FLAGS}
     or_die cd build-$HOST_CONFIG-${BUILD_TYPE,,}
+
     echo "~~~~~~ BUILDING ~~~~~~~~"
     if [[ ${CMAKE_EXTRA_FLAGS} == *COVERAGE* ]] ; then
         or_die make -j $NUM_BUILD_PROCS
@@ -48,13 +50,10 @@ if [[ "$DO_BUILD" == "yes" ]] ; then
         echo "~~~~~~ RUNNING BENCHMARKS ~~~~~~~~"
         make CTEST_OUTPUT_ON_FAILURE=1 run_benchmarks
     fi
+
     if [[ "${DO_MEMCHECK}" == "yes" ]] ; then
         echo "~~~~~~ RUNNING MEMCHECK ~~~~~~~~"
         or_die ctest -T memcheck
     fi
 fi
 
-echo "~~~~~~ CLEANING BUILD DIRECTORY ~~~~~~~~"
-make clean
-
-exit 0

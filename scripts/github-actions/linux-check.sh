@@ -24,19 +24,6 @@ echo "HOST_CONFIG=$HOST_CONFIG"
 echo "CMAKE_EXTRA_FLAGS=$CMAKE_EXTRA_FLAGS"
 echo "~~~~~~~~~~~~~~~~~~~~~~"
 
-echo "~~~~~~~~~ls -al /~~~~~~~~~~"
-ls -al /
-echo "~~~~~~~~~~~~~~~~~~~~~~"
-echo "~~~~~~~~~ls -al /home~~~~~~~~~~"
-ls -al /home
-echo "~~~~~~~~~~~~~~~~~~~~~~"
-echo "~~~~~~~~~ls -al /home/axom~~~~~~~~~~"
-ls -al /home/axom
-echo "~~~~~~~~~~~~~~~~~~~~~~"
-echo "~~~~~~~~~ls -al /home/axom/axom~~~~~~~~~~"
-ls -al /home/axom/axom
-echo "~~~~~~~~~~~~~~~~~~~~~~"
-
 echo "~~~~~~ RUNNING CMAKE ~~~~~~~~"
 or_die ./config-build.py -hc ./host-configs/docker/${HOST_CONFIG}.cmake ${CMAKE_EXTRA_FLAGS}
 or_die cd build-$HOST_CONFIG-debug
