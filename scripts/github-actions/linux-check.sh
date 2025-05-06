@@ -25,7 +25,7 @@ echo "CMAKE_EXTRA_FLAGS=$CMAKE_EXTRA_FLAGS"
 echo "~~~~~~~~~~~~~~~~~~~~~~"
 
 echo "~~~~~~ RUNNING CMAKE ~~~~~~~~"
-or_die ./config-build.py -hc ./host-configs/docker/${HOST_CONFIG}.cmake ${CMAKE_EXTRA_FLAGS}
+or_die ./config-build.py -hc ./host-configs/docker/${HOST_CONFIG} ${CMAKE_EXTRA_FLAGS}
 or_die cd build-$HOST_CONFIG-debug
 echo "~~~~~~ RUNNING make check ~~~~~~~~"
 or_die make VERBOSE=1 check
