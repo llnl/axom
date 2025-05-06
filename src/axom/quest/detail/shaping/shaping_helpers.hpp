@@ -197,23 +197,6 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
 /// Generates a quadrature function corresponding to the mesh positions
 void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFuncs, int sampleRes);
 
-/**
- * \brief Compute volume fractions for a given material using its associated quadrature function
- *
- * \param [in] matField The name of the material
- * \param [in] dc The DataCollection containing the specified material
- * \param [in] inoutQFuncs A collection of quadrature functions containing the quadrature
- * values associated with the specified material
- * \param [in] outputOrder The order the grid function that we're generating
- *
- * The generated grid function will be prefixed by `vol_frac_`
- * 
- */
-void computeVolumeFractions(const std::string& matField,
-                            mfem::DataCollection* dc,
-                            QFunctionCollection& inoutQFuncs,
-                            int outputOrder);
-
 /** 
  * Implements flux-corrected transport (FCT) to convert the inout samples (ones and zeros)
  * to a grid function on the degrees of freedom such that the volume fractions are doubles

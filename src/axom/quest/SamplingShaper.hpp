@@ -33,6 +33,7 @@
 #include "axom/quest/detail/shaping/PrimitiveSampler.hpp"
 
 #include "mfem.hpp"
+#include "mfem/linalg/dtensor.hpp"
 
 #include "axom/fmt.hpp"
 
@@ -445,7 +446,7 @@ public:
       switch(m_vfSampling)
       {
       case shaping::VolFracSampling::SAMPLE_AT_QPTS:
-        quest::shaping::computeVolumeFractions(matName, m_dc, m_inoutMaterialQFuncs, m_volfracOrder);
+        this->computeVolumeFractionsForMaterial(matName);
         break;
       case shaping::VolFracSampling::SAMPLE_AT_DOFS:
         /* no-op for now */
@@ -585,6 +586,141 @@ private:
       SLIC_ERROR("Not implemented yet!");
       break;
     }
+  }
+
+  /**
+   * \brief Compute volume fractions for a given material using its associated quadrature function.
+   * 
+   * The generated grid function will be registered in the data collection and prefixed by `vol_frac_`
+   *
+   * \param [in] matField The name of the material
+   */
+  void computeVolumeFractionsForMaterial(const std::string& matField)
+  {
+    AXOM_ANNOTATE_SCOPE("computeVolumeFractionsForMaterial");
+
+    // Retrieve the inout samples QFunc
+    SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
+    mfem::QuadratureFunction* inout = m_inoutMaterialQFuncs.Get(matField);
+
+    const int sampleOrder = inout->GetSpace()->GetIntRule(0).GetOrder();
+    const int sampleNQ = inout->GetSpace()->GetIntRule(0).GetNPoints();
+    const int sampleSZ = inout->GetSpace()->GetSize();
+    // print info about sampling on rank 0
+    // TODO: mpi reduce this for stats on all ranks
+    SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                     "In computeVolumeFractions(): sample order {} | "
+                                     "sample num qpts {} |  total samples {:L}",
+                                     sampleOrder,
+                                     sampleNQ,
+                                     sampleSZ));
+
+    // extract some properties from computational mesh
+    mfem::Mesh* mesh = m_dc->GetMesh();
+    const int dim = mesh->Dimension();
+    const int NE = mesh->GetNE();
+    SLIC_INFO_ROOT(
+      axom::fmt::format(axom::utilities::locale(), "Mesh has dim {} and {:L} elements", dim, NE));
+
+    // Access or create a registered volume fraction grid function from the data collection
+    const auto volFracName = axom::fmt::format("vol_frac_{}", matField.substr(10));
+    mfem::GridFunction* volFrac = shaping::getOrAllocateL2GridFunction(m_dc,
+                                                                       volFracName,
+                                                                       m_volfracOrder,
+                                                                       dim,
+                                                                       mfem::BasisType::Positive);
+    const mfem::FiniteElementSpace* fes = volFrac->FESpace();
+
+    // Project QField onto volume fractions field using flux corrected transport (FCT)
+    // to keep the range of values between 0 and 1
+    axom::utilities::Timer timer(true);
+    {
+      const auto& ir = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
+
+      const int dofs = fes->GetFE(0)->GetDof();
+      mfem::DenseTensor mass_mat(dofs, dofs, NE);
+      mass_mat = 0.;
+      {
+        AXOM_ANNOTATE_SCOPE("mass integrator assemble");
+
+        const int sz = mass_mat.TotalSize();
+        mfem::ConstantCoefficient one_coef(1.0);
+        mfem::MassIntegrator mass_integrator(one_coef, &ir);
+
+        // wrap mass_mat data as vector for AssembleEA call
+        // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
+        mfem::Vector mass_vec;
+        mfem::Swap(mass_mat.GetMemory(), mass_vec.GetMemory());
+        mass_vec.SetSize(sz);
+        mass_integrator.AssembleEA(*fes, mass_vec, false);
+        mfem::Swap(mass_mat.GetMemory(), mass_vec.GetMemory());
+      }
+
+      // Perform batched LU factorization on the mass tensor
+      // Note: This was written against mfem@4.7 and should be updated for mfem@4.8 when we upgrade
+      mfem::Array<int> pivots(NE * dofs);
+      mfem::DenseTensor mInv = mass_mat;
+      {
+        AXOM_ANNOTATE_SCOPE("batch lu factor");
+        mfem::BatchLUFactor(mInv, pivots);
+      }
+
+      mfem::Vector b(fes->GetVSize());
+      {
+        AXOM_ANNOTATE_SCOPE("domain lf integrator assemble");
+
+        mfem::QuadratureFunctionCoefficient qfc(*inout);
+        mfem::DomainLFIntegrator rhs(qfc);
+        rhs.SetIntRule(&ir);
+
+        mfem::Array<int> elem_marker(fes->GetNE());
+        elem_marker = 1;
+        b = 0.;
+        rhs.AssembleDevice(*fes, elem_marker, b);
+      }
+
+      mfem::Vector one(dofs);
+      one = 1.;
+
+      constexpr double minY = 0.;
+      constexpr double maxY = 1.;
+
+      mfem::Vector fct_mat(dofs * dofs * NE);
+      fct_mat = 0.;
+
+      // Reshape returns an indexable view of a multidimensional array
+      const auto m_d = mfem::Reshape(mass_mat.HostRead(), dofs, dofs, NE);
+      const auto mInv_d = mfem::Reshape(mInv.HostRead(), dofs, dofs, NE);
+      const auto P_d = mfem::Reshape(pivots.HostRead(), dofs, NE);
+      const auto b_d = mfem::Reshape(b.HostRead(), dofs, NE);
+      const auto one_d = mfem::Reshape(one.HostRead(), dofs);
+      auto fct_mat_d = mfem::Reshape(fct_mat.HostReadWrite(), dofs, dofs, NE);
+      auto x_d = mfem::Reshape(volFrac->HostWrite(), dofs, NE);
+
+      AXOM_ANNOTATE_BEGIN("fct project");
+      axom::for_all<axom::SEQ_EXEC>(0, NE, [&](int i) {
+        shaping::FCT_project(&m_d(0, 0, i),
+                             &mInv_d(0, 0, i),
+                             &P_d(0, i),
+                             dofs,
+                             &b_d(0, i),
+                             &one_d(0),
+                             minY,
+                             maxY,
+                             &x_d(0, i),
+                             &fct_mat_d(0, 0, i));
+      });
+      AXOM_ANNOTATE_END("fct project");
+    }
+    timer.stop();
+
+    // print stats for root rank
+    SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                     "\t Generating volume fractions '{}' took {:.3f} seconds (@ "
+                                     "{:L} dofs processed per second)",
+                                     volFracName,
+                                     timer.elapsed(),
+                                     static_cast<int>(fes->GetNDofs() / timer.elapsed())));
   }
 
 private:
