@@ -102,7 +102,7 @@ jobs:
           echo "cmake_opts     ${{ matrix.config.cmake_opts }}"
           echo "compiler_image ${{ matrix.config.compiler_image }}"
           echo "host_config    ${{ matrix.config.host_config }}"
-      - name: Build and Test ${{ matrix.config.host_config }} ${{ matrix.build_type }}
+      - name: Build and Test ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
         timeout-minutes: 60
         run: |
           DO_BUILD=${{ matrix.config.do_build }} \
