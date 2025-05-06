@@ -72,7 +72,7 @@ jobs:
             do_benchmarks: 'no'
         - build_type: Debug
           config:
-            job_name: clang@14.0.0, shared, no raja or umpire
+            job_name: clang@14.0.0, shared, no raja and umpire
             host_config: clang@14.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -U RAJA_DIR -U UMPIRE_DIR'
