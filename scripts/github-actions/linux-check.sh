@@ -17,10 +17,6 @@ function or_die () {
     fi
 }
 
-or_die cd axom
-git submodule init 
-git submodule update 
-
 echo "~~~~ helpful info ~~~~"
 echo "USER="`id -u -n`
 echo "PWD="`pwd`
@@ -41,6 +37,8 @@ echo "~~~~~~~~~ls -al /home/axom/axom~~~~~~~~~~"
 ls -al /home/axom/axom
 echo "~~~~~~~~~~~~~~~~~~~~~~"
 
+or_die cd axom
+git submodule update --init --recursive 
 
 echo "~~~~~~ RUNNING CMAKE ~~~~~~~~"
 or_die ./config-build.py -hc /home/axom/axom/host-configs/docker/${HOST_CONFIG}.cmake ${CMAKE_EXTRA_FLAGS}
