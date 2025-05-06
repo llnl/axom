@@ -959,18 +959,11 @@ private:
           SLIC_ERROR("2D: Contour with non-negative r values expected");
         }
 
-        SLIC_INFO("Point 0 "
-                  << " is " << pts[0]);
-        SLIC_INFO("Point 1 "
-                  << " is " << pts[1]);
-
         // Right ear of quad
         tris_host[i * 2] = PolygonStaticType({pts[1], pts[0], Point2D {pts[0][0], 0}});
-        SLIC_INFO("Triangle " << i * 2 << " is " << tris_host[i * 2]);
 
         // Left ear of quad
         tris_host[(i * 2) + 1] = PolygonStaticType({pts[1], pts[0], Point2D {pts[1][0], 0}});
-        SLIC_INFO("Triangle " << (i * 2) + 1 << " is " << tris_host[(i * 2) + 1]);
       }
 
       // Copy triangles to device
