@@ -73,13 +73,12 @@ mfem::GridFunction* getOrAllocateL2GridFunction(mfem::DataCollection* dc,
     {
       const int sz = fes->GetVSize();
       auto* vw = sidreDC->AllocNamedBuffer(gf_name, sz);
-      mfem::Vector v(vw->getData(), sz);
   #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
       gf = new mfem::ParGridFunction();
   #else
       gf = new mfem::GridFunction();
   #endif
-      gf->MakeRef(fes, v, 0);
+      gf->MakeRef(fes, vw->getData());
     }
     else
     {
