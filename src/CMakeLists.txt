@@ -136,31 +136,10 @@ axom_add_code_checks()
 #------------------------------------------------------------------------------
 add_subdirectory(thirdparty)
 
-# Get the right CMake component for Python
-if (CMAKE_VERSION VERSION_LESS 3.18)
-  set(DEV_MODULE Development)
-else()
-  set(DEV_MODULE Development.Module)
-endif()
-
-find_package(Python 3.8 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
-
-# Debug Print the paths to the found Python artifacts
-message(STATUS "Python version: ${Python_VERSION}")
-message(STATUS "Python executable: ${Python_EXECUTABLE}")
-message(STATUS "Python include dir: ${Python_INCLUDE_DIRS}")
-message(STATUS "Python library: ${Python_LIBRARIES}")
-
-# Get nanobind root directory
-execute_process(
-  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
-  OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
-
-# Find nanobind
-find_package(nanobind CONFIG REQUIRED)
-
 # Example nanobind module
-nanobind_add_module(my_ext my_ext.cpp)
+if(NANOBIND_FOUND)
+    nanobind_add_module(my_ext my_ext.cpp)
+endif()
 
 include(cmake/AxomVersion.cmake)
 add_subdirectory(axom)

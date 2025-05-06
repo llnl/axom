@@ -254,6 +254,50 @@ endif()
 
 
 #------------------------------------------------------------------------------
+# Nanobind - Generates Python bindings
+#------------------------------------------------------------------------------
+if(EXISTS ${Python_EXECUTABLE})
+    # Get the right CMake component for Python
+    if (CMAKE_VERSION VERSION_LESS 3.18)
+      set(DEV_MODULE Development)
+    else()
+      set(DEV_MODULE Development.Module)
+    endif()
+
+    find_package(Python 3.8 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
+
+    # Debug print the paths to the found Python artifacts
+    message(STATUS "Python version: ${Python_VERSION}")
+    message(STATUS "Python executable: ${Python_EXECUTABLE}")
+    message(STATUS "Python include dir: ${Python_INCLUDE_DIRS}")
+    message(STATUS "Python library: ${Python_LIBRARIES}")
+
+    # Check for nanobind package
+    execute_process(
+        COMMAND "${Python_EXECUTABLE}" -c "import nanobind"
+        RESULT_VARIABLE NANOBIND_IMPORT_CODE
+        OUTPUT_QUIET
+    )
+
+    # Get nanobind root directory
+    if(NANOBIND_IMPORT_CODE EQUAL 0)
+        execute_process(
+          COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+          OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+    endif()
+endif()
+
+if(nanobind_ROOT)
+    axom_assert_is_directory(DIR_VARIABLE nanobind_ROOT)
+    find_package(nanobind CONFIG REQUIRED)
+    message(STATUS "Nanobind support is ON")
+    set(NANOBIND_FOUND TRUE)
+else()
+    message(STATUS "Nanobind support is OFF")
+endif()
+
+
+#------------------------------------------------------------------------------
 # SCR
 #------------------------------------------------------------------------------
 if (SCR_DIR)
