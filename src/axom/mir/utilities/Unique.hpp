@@ -18,6 +18,8 @@
 #endif
 
 #include <cstdint>
+#include <unordered_map>
+#include <vector>
 
 // Uncomment this to print debug data.
 // #define AXOM_DEBUG_UNIQUE
@@ -215,41 +217,38 @@ struct Unique<axom::SEQ_EXEC, KeyType>
                       axom::Array<KeyType> &skeys,
                       axom::Array<axom::IndexType> &sindices)
   {
-    std::map<KeyType, axom::IndexType> unique;
+    // Make unique values and store the indices.
+    std::unordered_map<KeyType, axom::IndexType> unique_map;
     const axom::IndexType n = keys_orig_view.size();
-    axom::IndexType index = 0;
-    for(; index < n; index++)
+    for(axom::IndexType index = 0; index < n; ++index)
     {
       const auto k = keys_orig_view[index];
-      // Just define it once. (So it matches the base algorithm)
-      if(unique.find(k) == unique.end())
+      if(unique_map.find(k) == unique_map.end())
       {
-        unique[k] = index;
+        unique_map[k] = index;
       }
     }
-#if defined(AXOM_DEBUG_UNIQUE)
-    // Input values
-    detail::printContainer("keys", keys_orig_view);
-    // Sorted values.
-    detail::printMap("sorted_keys", unique, true);
-    detail::printMap("sorted_indices", unique, false);
-#endif
-    // Allocate the output arrays.
-    const axom::IndexType newsize = unique.size();
+
+    // Store the unordered_map into a vector.
+    std::vector<std::pair<KeyType, axom::IndexType>> unique_vector(unique_map.begin(), unique_map.end());
+
+    // Sort the vector by the keys.
+    std::sort(unique_vector.begin(), unique_vector.end(),
+              [](const std::pair<KeyType, axom::IndexType> &a, const std::pair<KeyType, axom::IndexType> &b) {
+                return a.first < b.first;
+              });
+
+    // Allocate the output arrays and populate them
+    const axom::IndexType newsize = unique_vector.size();
     const int allocatorID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
     skeys = axom::Array<KeyType>(newsize, newsize, allocatorID);
     sindices = axom::Array<axom::IndexType>(newsize, newsize, allocatorID);
-    index = 0;
-    for(auto it = unique.begin(); it != unique.end(); it++, index++)
+
+    for(axom::IndexType index = 0; index < newsize; ++index)
     {
-      skeys[index] = it->first;
-      sindices[index] = it->second;
+      skeys[index] = unique_vector[index].first;
+      sindices[index] = unique_vector[index].second;
     }
-#if defined(AXOM_DEBUG_UNIQUE)
-    // Output values.
-    detail::printContainer("skeys", skeys);
-    detail::printContainer("sindices", sindices);
-#endif
   }
 };
 
