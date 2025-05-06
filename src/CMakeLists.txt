@@ -138,7 +138,7 @@ add_subdirectory(thirdparty)
 
 # Example nanobind module
 if(NANOBIND_FOUND)
-    nanobind_add_module(my_ext my_ext.cpp)
+    nanobind_add_module(my_ext my_ext.cpp ext.cpp)
 endif()
 
 include(cmake/AxomVersion.cmake)

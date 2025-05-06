@@ -1,5 +1,7 @@
 #include <nanobind/nanobind.h>
 
+#include "ext.h"
+
 /*
 // Minimal example
 NB_MODULE(my_ext, m) {
@@ -9,8 +11,6 @@ NB_MODULE(my_ext, m) {
 
 namespace nb = nanobind;
 using namespace nb::literals;
-
-int add(int a, int b = 1) { return a + b; }
 
 NB_MODULE(my_ext, m) {
     m.doc() = "A simple example python extension";
