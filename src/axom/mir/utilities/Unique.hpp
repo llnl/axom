@@ -230,13 +230,14 @@ struct Unique<axom::SEQ_EXEC, KeyType>
     }
 
     // Store the unordered_map into a vector.
-    std::vector<std::pair<KeyType, axom::IndexType>> unique_vector(unique_map.begin(), unique_map.end());
+    std::vector<std::pair<KeyType, axom::IndexType>> unique_vector(unique_map.begin(),
+                                                                   unique_map.end());
 
     // Sort the vector by the keys.
-    std::sort(unique_vector.begin(), unique_vector.end(),
-              [](const std::pair<KeyType, axom::IndexType> &a, const std::pair<KeyType, axom::IndexType> &b) {
-                return a.first < b.first;
-              });
+    std::sort(unique_vector.begin(),
+              unique_vector.end(),
+              [](const std::pair<KeyType, axom::IndexType> &a,
+                 const std::pair<KeyType, axom::IndexType> &b) { return a.first < b.first; });
 
     // Allocate the output arrays and populate them
     const axom::IndexType newsize = unique_vector.size();
