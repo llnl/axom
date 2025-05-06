@@ -114,7 +114,7 @@ jobs:
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         with:
-          name: Test Results ${{ matrix.config.host_config }} ${{ matrix.build_type }} ${{ matrix.config.cmake_opts }}
+          name: Test Results ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
           path: "**/Test.xml"
   check_code:
     runs-on: ubuntu-22.04
