@@ -265,37 +265,42 @@ void computeVolumeFractions(const std::string& matField,
   {
     const auto& ir = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
 
-    mfem::QuadratureFunctionCoefficient qfc(*inout);
-    mfem::DomainLFIntegrator rhs(qfc);
-    rhs.SetIntRule(&ir);
-    //rhs.UseDevice(true);
-
-    mfem::ConstantCoefficient one_coef(1.0);
-    mfem::MassIntegrator mass_integrator(one_coef, &ir);
-
     const int dofs = fes->GetFE(0)->GetDof();
     mfem::DenseTensor mass_mat(dofs, dofs, NE);
     mass_mat = 0.;
     {
       AXOM_ANNOTATE_SCOPE("mass integrator assemble");
+
+      const int sz = mass_mat.TotalSize();
+      mfem::ConstantCoefficient one_coef(1.0);
+      mfem::MassIntegrator mass_integrator(one_coef, &ir);
+
       // wrap mass_mat data as vector for AssembleEA call
+      // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
       mfem::Vector mass_vec;
       mfem::Swap(mass_mat.GetMemory(), mass_vec.GetMemory());
+      mass_vec.SetSize(sz);
       mass_integrator.AssembleEA(*fes, mass_vec, false);
       mfem::Swap(mass_mat.GetMemory(), mass_vec.GetMemory());
     }
 
     // Perform batched LU factorization on the mass tensor
     // Note: This was written against mfem@4.7 and should be updated for mfem@4.8 when we upgrade
-    AXOM_ANNOTATE_BEGIN("batch lu factor");
     mfem::Array<int> pivots(NE * dofs);
     mfem::DenseTensor mInv = mass_mat;
-    mfem::BatchLUFactor(mInv, pivots);
-    AXOM_ANNOTATE_END("batch lu factor");
+    {
+      AXOM_ANNOTATE_SCOPE("batch lu factor");
+      mfem::BatchLUFactor(mInv, pivots);
+    }
 
     mfem::Vector b(fes->GetVSize());
     {
       AXOM_ANNOTATE_SCOPE("domain lf integrator assemble");
+
+      mfem::QuadratureFunctionCoefficient qfc(*inout);
+      mfem::DomainLFIntegrator rhs(qfc);
+      rhs.SetIntRule(&ir);
+
       mfem::Array<int> elem_marker(fes->GetNE());
       elem_marker = 1;
       b = 0.;
@@ -309,8 +314,8 @@ void computeVolumeFractions(const std::string& matField,
     constexpr double minY = 0.;
     constexpr double maxY = 1.;
 
-    axom::Array<double> fct_mat(s * s);
-    auto fct_mat_view = fct_mat.view();
+    mfem::Vector fct_mat(dofs * dofs * NE);
+    fct_mat = 0.;
 
     // Reshape returns an indexable view of a multidimensional array
     const auto m_d = mfem::Reshape(mass_mat.HostRead(), dofs, dofs, NE);
@@ -318,6 +323,7 @@ void computeVolumeFractions(const std::string& matField,
     const auto P_d = mfem::Reshape(pivots.HostRead(), dofs, NE);
     const auto b_d = mfem::Reshape(b.HostRead(), dofs, NE);
     const auto one_d = mfem::Reshape(one.HostRead(), dofs);
+    auto fct_mat_d = mfem::Reshape(fct_mat.HostReadWrite(), dofs, dofs, NE);
     auto x_d = mfem::Reshape(volFrac->HostWrite(), dofs, NE);
 
     AXOM_ANNOTATE_BEGIN("fct project");
@@ -331,7 +337,7 @@ void computeVolumeFractions(const std::string& matField,
                   minY,
                   maxY,
                   &x_d(0, i),
-                  fct_mat_view.data());
+                  &fct_mat_d(0, 0, i));
     });
     AXOM_ANNOTATE_END("fct project");
   }
@@ -443,7 +449,7 @@ void FCT_project(const double* M,
   StackArray z;
   StackArray beta;
   double betaSum = 0.;
-  for(int i = 0; i < s; i++)
+  for(int i = 0; i < s; ++i)
   {
     // Some different options for beta:
     //beta[i] = 1.0;
