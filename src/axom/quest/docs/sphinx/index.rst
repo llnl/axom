@@ -11,13 +11,14 @@ on a ``mint::Mesh``.
 
   - Operations
 
-    - :ref:`Read a surface mesh<reading-mesh>` from an STL file
+    - :ref:`Read a surface mesh<reading-mesh>` from STL or ProE files
     - :ref:`Check for some common mesh errors; deduplicate vertices<check-and-repair>`
 
       - vertex welding: merge vertices closer than a specified distance
         "epsilon"
       - find self-intersections and degenerate triangles in a surface mesh
       - watertightness test: is a surface mesh a watertight manifold?
+    - Create :ref:`surface mesh from points'
 
   - Point queries
 
@@ -37,6 +38,12 @@ on a ``mint::Mesh``.
     - :ref:`Isosurface detection<isosurface-detection>`: generate an
       isosurface mesh from a nodal scalar field and an isovalue.
 
+  - Shaping
+
+   - :ref:`Shaping Overview<shaping-overview>`
+   - How to set up a :ref:`Shaping Pipeline<_shaping-pipeline>`
+   - Using the :ref:`Sampling Shaper<_sampling-shaper>`
+   - Using the :ref:`Intersection Shaper<_intersection-shaper>`
 
 API Documentation
 -----------------
@@ -55,4 +62,7 @@ Doxygen generated API documentation can be found here: `API documentation <../..
    point_in_cell
    all_nearest_neighbors
    isosurface_detection
+   shaping
+
+
 
