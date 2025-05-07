@@ -28,7 +28,7 @@ NB_MODULE(pysidre, m_sidre)
 
   // Bindings for the DataStore class
   nb::class_<DataStore>(m_sidre, "DataStore")
-    .def(nb::init<>())  // Bind the default constructor
+    .def(nb::init<>())
     .def("getRoot",
          nb::overload_cast<>(&DataStore::getRoot),
          nb::rv_policy::reference,
@@ -240,52 +240,99 @@ NB_MODULE(pysidre, m_sidre)
 
   // Bindings for the Group class
   nb::class_<Group>(m_sidre, "Group")
-    .def("getIndex", &Group::getIndex)
-    .def("getName", &Group::getName)
-    .def("getPath", &Group::getPath)
-    .def("getPathName", &Group::getPathName)
-    .def("getParent", nb::overload_cast<>(&Group::getParent, nb::const_), nb::rv_policy::reference)
-    .def("getNumGroups", &Group::getNumGroups)
-    .def("getNumViews", &Group::getNumViews)
-    .def("getDataStore", nb::overload_cast<>(&Group::getDataStore, nb::const_), nb::rv_policy::reference)
+    .def("getIndex", &Group::getIndex, "Return index of Group object within parent Group.")
+    .def("getName", &Group::getName, "Return const reference to name of Group object.")
+    .def("getPath", &Group::getPath, "Return path of Group object, not including its name.")
+    .def("getPathName", &Group::getPathName, "Return full path of Group object, including its name.")
+    .def("getParent",
+         nb::overload_cast<>(&Group::getParent, nb::const_),
+         nb::rv_policy::reference,
+         "Return pointer to non-const parent Group of a Group.")
+    .def("getNumGroups", &Group::getNumGroups, "Return number of child Groups in a Group object.")
+    .def("getNumViews", &Group::getNumViews, "Return number of Views owned by a Group object.")
+    .def("getDataStore",
+         nb::overload_cast<>(&Group::getDataStore, nb::const_),
+         nb::rv_policy::reference,
+         "Return pointer to non-const DataStore object that owns this object.")
 
-    .def("hasView", nb::overload_cast<const std::string&>(&Group::hasView, nb::const_))
-    .def("hasChildView", &Group::hasChildView)
-    .def("getViewIndex", &Group::getViewIndex)
-    .def("getViewName", &Group::getViewName)
+    .def("hasView",
+         nb::overload_cast<const std::string&>(&Group::hasView, nb::const_),
+         "Return true if Group includes a descendant View with given name or path; else false.")
+    .def("hasChildView",
+         &Group::hasChildView,
+         "Return true if this Group owns a View with given name (not path); else false.")
+    .def("getViewIndex",
+         &Group::getViewIndex,
+         "Return index of View with given name owned by this Group object.")
+    .def("getViewName",
+         &Group::getViewName,
+         "Return name of View with given index owned by Group object.")
 
     .def("getView",
          nb::overload_cast<const std::string&>(&Group::getView, nb::const_),
-         nb::rv_policy::reference)
-    .def("getView", nb::overload_cast<IndexType>(&Group::getView, nb::const_), nb::rv_policy::reference)
-    .def("getFirstValidViewIndex", &Group::getFirstValidViewIndex)
-    .def("getNextValidViewIndex", &Group::getNextValidViewIndex)
+         nb::rv_policy::reference,
+         "Return pointer to const View with given name or path.")
+    .def("getView",
+         nb::overload_cast<IndexType>(&Group::getView, nb::const_),
+         nb::rv_policy::reference,
+         "Return pointer to non-const View with given index.")
+    .def("getFirstValidViewIndex",
+         &Group::getFirstValidViewIndex,
+         "Return first valid View index in Group object.")
+    .def("getNextValidViewIndex",
+         &Group::getNextValidViewIndex,
+         "Return next valid View index in Group object after given index.")
 
-    .def("createView", nb::overload_cast<const std::string&>(&Group::createView))
-    .def("createView", nb::overload_cast<const std::string&, TypeID, IndexType>(&Group::createView))
+    .def("createView",
+         nb::overload_cast<const std::string&>(&Group::createView),
+         "Create an undescribed (i.e., empty) View object with given name or path in this Group.")
+    .def("createView",
+         nb::overload_cast<const std::string&, TypeID, IndexType>(&Group::createView),
+         "Create View object with given name or path in this Group that has a data description "
+         "with data type and number of elements.")
     .def("createViewWithShape",
          nb::overload_cast<const std::string&, TypeID, int, const IndexType*>(
-           &Group::createViewWithShape))
-    .def("createView", nb::overload_cast<const std::string&, Buffer*>(&Group::createView))
+           &Group::createViewWithShape),
+         "Create View object with given name or path in this Group that has a data description "
+         "with data type and shape.")
     .def("createView",
-         nb::overload_cast<const std::string&, TypeID, IndexType, Buffer*>(&Group::createView))
+         nb::overload_cast<const std::string&, Buffer*>(&Group::createView),
+         "Create an undescribed View object with given name or path in this Group and attach given "
+         "Buffer to it.")
+    .def("createView",
+         nb::overload_cast<const std::string&, TypeID, IndexType, Buffer*>(&Group::createView),
+         "Create View object with given name or path in this Group that has a data description "
+         "with data type and number of elements and attach given Buffer to it.")
     .def("createViewWithShape",
          nb::overload_cast<const std::string&, TypeID, int, const IndexType*, Buffer*>(
-           &Group::createViewWithShape))
-    .def("createView", nb::overload_cast<const std::string&, void*>(&Group::createView))
+           &Group::createViewWithShape),
+         "Create View object with given name or path in this Group that has a data description "
+         "with data type and shape and attach given Buffer to it.")
     .def("createView",
-         nb::overload_cast<const std::string&, TypeID, IndexType, void*>(&Group::createView))
+         nb::overload_cast<const std::string&, void*>(&Group::createView),
+         "Create View object with given name with given name or path in this Group and attach "
+         "external data ptr to it.")
+    .def("createView",
+         nb::overload_cast<const std::string&, TypeID, IndexType, void*>(&Group::createView),
+         "Create View object with given name or path in this Group that has a data description "
+         "with data type and number of elements and attach externally-owned data to it.")
     .def("createViewWithShape",
          nb::overload_cast<const std::string&, TypeID, int, const IndexType*, void*>(
-           &Group::createViewWithShape))
+           &Group::createViewWithShape),
+         "Create View object with given name or path in this Group that has a data description "
+         "with data type and shape and attach externally-owned data to it.")
     .def("createViewAndAllocate",
          nb::overload_cast<const std::string&, TypeID, IndexType, int>(&Group::createViewAndAllocate),
-         "todo description",
+         "Create View object with given name or path in this Group that has a data description "
+         "with data type and number of elements and allocate data for it.",
          nb::arg("path"),
          nb::arg("type"),
          nb::arg("num_elems"),
          nb::arg("allocID") = INVALID_ALLOCATOR_ID)
-    .def("createViewWithShapeAndAllocate", &Group::createViewWithShapeAndAllocate)
+    .def("createViewWithShapeAndAllocate",
+         &Group::createViewWithShapeAndAllocate,
+         "Create View object with given name or path in this Group that has a data description "
+         "with data type and shape and allocate data for it.")
 
     .def("createViewScalar",
          &Group::createViewScalar<int>,
@@ -303,46 +350,90 @@ NB_MODULE(pysidre, m_sidre)
          &Group::createViewScalar<double>,
          "Create View object with given name or path in this Group set its data to given scalar "
          "value (double).")
-    .def("createViewString", &Group::createViewString)
+    .def("createViewString", &Group::createViewString, "")
 
-    .def("destroyView", nb::overload_cast<const std::string&>(&Group::destroyView))
-    .def("destroyViewAndData", nb::overload_cast<const std::string&>(&Group::destroyViewAndData))
-    .def("destroyViewAndData", nb::overload_cast<IndexType>(&Group::destroyViewAndData))
+    .def("destroyView",
+         nb::overload_cast<const std::string&>(&Group::destroyView),
+         "Destroy View with given name or path owned by this Group, but leave its data intact.")
+    .def("destroyViewAndData",
+         nb::overload_cast<const std::string&>(&Group::destroyViewAndData),
+         "Destroy View with given name or path owned by this Group and deallocate")
+    .def("destroyViewAndData",
+         nb::overload_cast<IndexType>(&Group::destroyViewAndData),
+         "Destroy View with given index owned by this Group and deallocate its data if it's the "
+         "only View associated with that data.")
 
-    .def("moveView", &Group::moveView)
-    .def("copyView", &Group::copyView)
+    .def("moveView",
+         &Group::moveView,
+         "Remove given View object from its owning Group and move it to this Group.")
+    .def("copyView",
+         &Group::copyView,
+         "Create a (shallow) copy of given View object and add it to this Group.")
 
-    .def("hasGroup", nb::overload_cast<const std::string&>(&Group::hasGroup, nb::const_))
-    .def("hasChildGroup", &Group::hasChildGroup)
-    .def("getGroupIndex", &Group::getGroupIndex)
-    .def("getGroupName", &Group::getGroupName)
-    .def("getGroup", nb::overload_cast<const std::string&>(&Group::getGroup), nb::rv_policy::reference)
-    .def("getGroup", nb::overload_cast<IndexType>(&Group::getGroup), nb::rv_policy::reference)
-    .def("getFirstValidGroupIndex", &Group::getFirstValidGroupIndex)
-    .def("getNextValidGroupIndex", &Group::getNextValidGroupIndex)
-    .def("createGroup", &Group::createGroup, nb::arg("path"), nb::arg("is_list") = false)
-    .def("destroyGroup", nb::overload_cast<const std::string&>(&Group::destroyGroup))
-    .def("destroyGroup", nb::overload_cast<IndexType>(&Group::destroyGroup))
-    .def("moveGroup", &Group::moveGroup)
+    .def("hasGroup",
+         nb::overload_cast<const std::string&>(&Group::hasGroup, nb::const_),
+         "Return true if this Group has a descendant Group with given name or path; else false.")
+    .def("hasChildGroup",
+         &Group::hasChildGroup,
+         "Return true if this Group has a child Group with given name; else false.")
+    .def("getGroupIndex",
+         &Group::getGroupIndex,
+         "Return the index of immediate child Group with given name.")
+    .def("getGroupName",
+         &Group::getGroupName,
+         "Return the name of immediate child Group with given index.")
+    .def("getGroup",
+         nb::overload_cast<const std::string&>(&Group::getGroup),
+         nb::rv_policy::reference,
+         "Return pointer to non-const child Group with given name or path.")
+    .def("getGroup",
+         nb::overload_cast<IndexType>(&Group::getGroup),
+         nb::rv_policy::reference,
+         "Return pointer to non-const immediate child Group with given index.")
+    .def("getFirstValidGroupIndex",
+         &Group::getFirstValidGroupIndex,
+         "Return first valid child Group index (i.e., smallest index over all child Groups).")
+    .def("getNextValidGroupIndex",
+         &Group::getNextValidGroupIndex,
+         "Return next valid child Group index after given index.")
+    .def("createGroup",
+         &Group::createGroup,
+         "Create a child Group within this Group with given name or path.",
+         nb::arg("path"),
+         nb::arg("is_list") = false)
+    .def("destroyGroup",
+         nb::overload_cast<const std::string&>(&Group::destroyGroup),
+         "Destroy child Group in this Group with given name or path.")
+    .def("destroyGroup",
+         nb::overload_cast<IndexType>(&Group::destroyGroup),
+         "Destroy child Group within this Group with given index.")
+    .def("moveGroup",
+         &Group::moveGroup,
+         "Remove given Group object from its parent Group and make it a child of this Group.")
 
-    .def("print", nb::overload_cast<>(&Group::print, nb::const_))
+    .def("print",
+         nb::overload_cast<>(&Group::print, nb::const_),
+         "Print JSON description of data Group to stdout.")
     .def("isEquivalentTo",
          &Group::isEquivalentTo,
-         "todo description",
+         "Return true if this Group is equivalent to given Group; else false.",
          nb::arg("other"),
          nb::arg("checkName") = true)
     .def("save",
          nb::overload_cast<const std::string&, const std::string&, const Attribute*>(&Group::save,
-                                                                                     nb::const_))
+                                                                                     nb::const_),
+         "Save the Group to a file.")
     .def("load",
          nb::overload_cast<const std::string&, const std::string&, bool>(&Group::load),
-         "TODO description",
+         "Load a Group hierarchy from a file into this Group",
          nb::arg("path"),
          nb::arg("protocol"),
          nb::arg("preserve_contents") = false)
 
-    .def("loadExternalData", nb::overload_cast<const std::string&>(&Group::loadExternalData))
-    .def("rename", &Group::rename);
+    .def("loadExternalData",
+         nb::overload_cast<const std::string&>(&Group::loadExternalData),
+         "Load data into the Group's external views from a file.")
+    .def("rename", &Group::rename, "Change the name of this Group.");
 }
 
 } /* end namespace sidre */
