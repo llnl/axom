@@ -95,7 +95,7 @@ void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   const auto& vZ = vertCoords[2];
 
   /*
-    Compute whether vertices are inside shape.
+    Compute whether mesh vertices are inside shape.
   */
   axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
   auto vertIsInsideView = vertIsInside.view();

@@ -94,11 +94,11 @@ public:
     virtual ~Delegate() = default;
 
     /*!
-      @brief Set overlap volumes to full or zero for cells inside or
-      outside shape respectively, but don't touch cells on boundary.
+      @brief Initialize overlap volumes to full for cells completely
+      inside the shape and zero for cells outside or on shape boundary.
     */
-    virtual void setCleanVolumeOverlaps(const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
-                                        axom::ArrayView<double> ovlap) = 0;
+    virtual void initVolumeOverlaps(const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
+                                    axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Collect unlabeled cells indices into an index list.
     virtual void collectUnlabeledCellIndices(const axom::ArrayView<LabelType>& labels,

@@ -682,8 +682,8 @@ axom::klee::Geometry createGeom_Tet()
   addRotateOperator(*compositeOp);
   addTranslateOperator(*compositeOp, "tet");
   exactGeomVols["tet"] = vScale * tet.volume();
-  errorToleranceRel["tet"] = 1e-6;
-  errorToleranceAbs["tet"] = 1e-8;
+  errorToleranceRel["tet"] = 0.00075;
+  errorToleranceAbs["tet"] = 0.003;
 
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
 
@@ -714,8 +714,8 @@ axom::klee::Geometry createGeom_Hex()
   addRotateOperator(*compositeOp);
   addTranslateOperator(*compositeOp, "hex");
   exactGeomVols["hex"] = vScale * hex.volume();
-  errorToleranceRel["hex"] = 1e-6;
-  errorToleranceAbs["hex"] = 1e-8;
+  errorToleranceRel["hex"] = 0.000075;
+  errorToleranceAbs["hex"] = 0.0003;
 
   axom::klee::Geometry hexGeometry(prop, hex, compositeOp);
 

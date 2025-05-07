@@ -81,7 +81,7 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
     }
 
     AXOM_ANNOTATE_BEGIN("GeometryClipper::processInOut");
-    m_delegate->setCleanVolumeOverlaps(labels.view(), ovlap);
+    m_delegate->initVolumeOverlaps(labels.view(), ovlap);
 
     axom::Array<axom::IndexType> unlabeledCells;
     m_delegate->collectUnlabeledCellIndices(labels.view(), unlabeledCells);
