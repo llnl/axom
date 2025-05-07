@@ -258,7 +258,7 @@ public:
       cellCount));
 
     constexpr double EPS = 1e-10;
-    constexpr bool tryFixOrientation = true;
+    constexpr bool tryFixOrientation = false;
 
     {
       AXOM_ANNOTATE_SCOPE("GeometryClipper::clipLoop");
@@ -290,6 +290,7 @@ public:
               // Workaround - intermediate volume variable needed for
               // CUDA Pro/E test case correctness
               double volume = poly.volume();
+              SLIC_ASSERT(volume >= 0);
               RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
             }
           });
@@ -314,6 +315,7 @@ public:
               // Workaround - intermediate volume variable needed for
               // CUDA Pro/E test case correctness
               double volume = poly.volume();
+              SLIC_ASSERT(volume >= 0);
               RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
             }
           });
@@ -488,7 +490,7 @@ assert(totalCandidates.get() == candidates.size());
       cellCount));
 
     constexpr double EPS = 1e-10;
-    constexpr bool tryFixOrientation = true;
+    constexpr bool tryFixOrientation = false;
 
     {
       AXOM_ANNOTATE_SCOPE("GeometryClipper::clipLoop_limited");
@@ -530,6 +532,7 @@ assert(totalCandidatesCount == NUM_TETS_PER_HEX*candidates.size());
               // Workaround - intermediate volume variable needed for
               // CUDA Pro/E test case correctness
               double volume = poly.volume();
+              SLIC_ASSERT(volume >= 0);
               RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
             }
           });
@@ -559,6 +562,7 @@ assert(totalCandidatesCount == NUM_TETS_PER_HEX*candidates.size());
               // Workaround - intermediate volume variable needed for
               // CUDA Pro/E test case correctness
               double volume = poly.volume();
+              SLIC_ASSERT(volume >= 0);
               RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + index, volume);
             }
           });
