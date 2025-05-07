@@ -132,6 +132,12 @@ if(ENABLE_FORTRAN AND AXOM_ENABLE_MPI)
     install(FILES ${CMAKE_Fortran_MODULE_DIRECTORY}/axom_spio.mod DESTINATION lib/fortran)
 endif()
 
+if(NANOBIND_FOUND)
+    nanobind_add_module(pysidre nanobind_sidre.cpp)
+    target_link_libraries(pysidre PRIVATE sidre)
+endif()
+
+
 #------------------------------------------------------------------------------
 # Add tests and examples
 #------------------------------------------------------------------------------
