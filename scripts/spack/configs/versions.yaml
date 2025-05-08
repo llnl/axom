@@ -21,7 +21,7 @@ packages:
       - spec: "@2.24.0"
   mfem:
     require:
-      - spec: "@4.7.0"
+      - spec: "@4.8"
   opencascade:
     require:
       - spec: "@7.8.1"
