@@ -50,6 +50,10 @@ spack:
   # Regular TPLs do not need views
   view: false
 
+  include:
+  - ../defaults.yaml
+  - ../versions.yaml
+
   packages:
     all:
       target: [x86_64]
@@ -144,30 +148,15 @@ spack:
       - spec: openblas@0.3.20
         prefix: /usr
 
-    # Globally lock version of third party libraries
-    adiak:
-      require: "@0.4.0"
-    caliper:
-      require: "@2.12.1~kokkos"
-    camp:
-      require: "@2025.03.0"
-    # v0.9.3
-    conduit:
-      require: "@git.2eec1ad9548cf6d629e2145181ff7b8cef0a38fa~shared~test~examples~utilities"
-    hdf5:
-      variants: ~shared~mpi
-    hypre:
-      version: [2.24.0]
+    # Add some additional contraints to third party libraries
     # do shared mfem to allow PIC flag in mfem
     mfem:
-      require: "@4.7.0+shared~static"
-    raja:
-      require: "@2025.03.0~shared~examples~exercises"
-    scr:
-      require: "@3.0.1~shared~tests~examples"
+      require: 
+      - spec: "+shared~static"
     # Umpire must be shared when building Axom as a shared library. See PR #1271 for more details.
     umpire:
-      require: "@2025.03.0+shared~examples~werror"
+      require:
+      - spec: "+shared"
 
     # Globally lock in version of devtools
     cmake:
