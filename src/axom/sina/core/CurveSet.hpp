@@ -63,8 +63,8 @@ public:
     */
   struct curveNodeInfo
   {
-    CurveSet::CurveMap curveMap;
-    std::vector<std::string> curveOrder;
+      CurveSet::CurveMap curveMap;
+      std::vector<std::string> orderedCurveNames;
   };
 
   /**
@@ -94,14 +94,32 @@ public:
    *
    * @return a vector of curve names in the order of insertion.
    */
-  std::vector<std::string> const &getIndependentCurveOrder() { return independentCurveNameOrder; }
+  std::vector<std::string> const &getOrderedIndependentCurveNames() { return orderedIndependentCurveNames;}
 
   /**
    * Get the insertion order of this curveset's dependents.
    *
    * @return a vector of curve names in the order of insertion.
    */
-  std::vector<std::string> const &getDependentCurveOrder() { return dependentCurveNameOrder; }
+  std::vector<std::string> const &getOrderedDependentCurveNames() { return orderedDependentCurveNames;}
+
+  /**
+   * Set the insertion order of this curveset's independents.
+   *
+   * Note that this overwrites the INSERTION ORDER, meaning this is treated as the new "oldest first".
+   *
+   * @return a bool for whether the reorder went through. Name lists must match exactly 
+   */
+  bool applyCustomIndependentCurveOrder(const std::vector<std::string> newOrderedCurveNames);
+
+  /**
+   * Set the insertion order of this curveset's independents.
+   *
+   * Note that this overwrites the INSERTION ORDER, meaning this is treated as the new "oldest first".
+   *
+   * @return a bool for whether the reorder went through. Name lists must match exactly 
+   */
+  bool applyCustomDependentCurveOrder(const std::vector<std::string> newOrderedCurveNames);
 
   /**
      * \brief Add an independent curve.
@@ -144,8 +162,8 @@ private:
   std::string name;
   CurveMap independentCurves;
   CurveMap dependentCurves;
-  std::vector<std::string> independentCurveNameOrder;
-  std::vector<std::string> dependentCurveNameOrder;
+  std::vector<std::string> orderedIndependentCurveNames;
+  std::vector<std::string> orderedDependentCurveNames;
 };
 
 }  // namespace sina
