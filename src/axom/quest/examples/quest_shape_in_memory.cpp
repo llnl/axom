@@ -1257,7 +1257,7 @@ axom::sidre::View* getElementVolumes(
   Most of this is lifted from IntersectionShaper::runShapeQueryImpl.
 */
 template <typename ExecSpace>
-axom::sidre::View* getElementVolumes(
+axom::sidre::View* getElementVolumesImpl(
   sidre::Group* meshGrp,
   const std::string& volFieldName = std::string("elementVolumes"))
 {
@@ -1467,6 +1467,38 @@ axom::sidre::View* getElementVolumes(
 
   return volSidreView;
 }
+axom::sidre::View* getElementVolumes(
+  sidre::Group* meshGrp,
+  const std::string& volFieldName = std::string("elementVolumes"))
+{
+  switch(params.policy)
+  {
+#if defined(AXOM_USE_CUDA)
+  case RuntimePolicy::cuda:
+    return getElementVolumesImpl<axom::CUDA_EXEC<256>>(
+      meshGrp, volFieldName);
+    break;
+#endif
+#if defined(AXOM_USE_HIP)
+  case RuntimePolicy::hip:
+    return getElementVolumesImpl<axom::HIP_EXEC<256>>(
+      meshGrp, volFieldName);
+    break;
+#endif
+#if defined(AXOM_USE_OMP)
+  case RuntimePolicy::omp:
+    return getElementVolumesImpl<axom::OMP_EXEC>(
+      meshGrp, volFieldName);
+    break;
+#endif
+  case RuntimePolicy::seq:
+  default:
+    return getElementVolumesImpl<axom::SEQ_EXEC>(
+      meshGrp, volFieldName);
+    break;
+  }
+  return nullptr;
+}
 
 #if defined(AXOM_USE_MFEM)
 /*!
@@ -1521,7 +1553,7 @@ double sumMaterialVolumesImpl(sidre::Group* meshGrp, const std::string& material
 
   // Get cell volumes from meshGrp.
   const std::string volsName = "vol_" + material;
-  axom::sidre::View* elementVols = getElementVolumes<ExecSpace>(meshGrp, volsName);
+  axom::sidre::View* elementVols = getElementVolumesImpl<ExecSpace>(meshGrp, volsName);
   axom::ArrayView<double> elementVolsView(elementVols->getData(), elementVols->getNumElements());
 
   // Get material volume fractions
@@ -2146,10 +2178,6 @@ int main(int argc, char** argv)
   // shape mesh for closes shape.  As long as the shapes don't overlap, this
   // should be a good correctness check.
   //---------------------------------------------------------------------------
-if(params.useBlueprintSidre() || params.useBlueprintConduit())
-{
-  compMeshGrp->hostPrint();
-}
   auto* meshVerificationGroup = ds.getRoot()->createGroup("meshVerification");
   for(const auto& shape : shapeSet.getShapes())
   {
@@ -2158,20 +2186,22 @@ if(params.useBlueprintSidre() || params.useBlueprintConduit())
     axom::ArrayView<double> vfView = getFieldAsArrayView(fieldName);
     axom::Array<double> vfHostArray(vfView, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
     vfView = vfHostArray.view();
-    axom::sidre::View* elementVols = nullptr;
+    axom::sidre::View* elementVolsVu = nullptr;
 #if defined(AXOM_USE_MFEM)
     if(params.useMfem())
     {
-      elementVols = getElementVolumes<axom::SEQ_EXEC>(shapingDC.get(), "elementVolumes");
+      elementVolsVu = getElementVolumes<axom::SEQ_EXEC>(shapingDC.get(), "elementVolumes");
     }
     else
     {
-      elementVols = getElementVolumes<axom::SEQ_EXEC>(compMeshGrp, "elementVolumes");
+      elementVolsVu = getElementVolumes(compMeshGrp, "elementVolumes");
     }
 #else
-    elementVols = getElementVolumes<axom::SEQ_EXEC>(compMeshGrp, "elementVolumes");
+    elementVolsVu = getElementVolumes(compMeshGrp, "elementVolumes");
 #endif
-    axom::ArrayView<double> elementVolsView(elementVols->getData(), elementVols->getNumElements());
+    axom::ArrayView<double> elementVolsView(elementVolsVu->getData(), elementVolsVu->getNumElements());
+    axom::Array<double> elementVols(elementVolsView, hostAllocId);
+    elementVolsView = elementVols.view();
     using ReducePolicy = typename axom::execution_space<axom::SEQ_EXEC>::reduce_policy;
     RAJA::ReduceSum<ReducePolicy, double> shapedVolume(0);
     axom::for_all<ExecSpace>(
