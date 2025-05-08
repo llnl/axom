@@ -18,7 +18,6 @@
 #include "axom/sidre.hpp"
 #include "axom/klee.hpp"
 #include "axom/quest.hpp"
-#include "axom/core/WhereMacro.hpp"
 
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"
@@ -322,7 +321,7 @@ void addTranslateOperator(axom::klee::CompositeOperator& compositeOp,
   }
   else
   {
-    // Use zero shift.
+    // Use zero shift as a smoke test.
     primal::Vector3D shift({0, 0, 0});
     auto translateOp = std::make_shared<axom::klee::Translation>(shift, startProp);
     compositeOp.addOperator(translateOp);
@@ -452,6 +451,7 @@ double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHA
 
 axom::klee::Geometry createGeom_Sphere()
 {
+  const std::string geomName = "sphere";
   Point3D center = params.center.empty() ? Point3D {0, 0, 0} : Point3D {params.center.data()};
   double radius = params.radius < 0 ? 1.0 : params.radius;
   axom::primal::Sphere<double, 3> sphere {center, radius};
@@ -462,19 +462,20 @@ axom::klee::Geometry createGeom_Sphere()
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, "sphere");
+  addTranslateOperator(*compositeOp, geomName);
 
   const axom::IndexType levelOfRefinement = params.refinementLevel;
   axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
-  exactGeomVols["sphere"] = vScale * 4. / 3 * M_PI * radius * radius * radius;
-  errorToleranceRel["sphere"] = 1e-3;
-  errorToleranceAbs["sphere"] = 1e-5;
+  exactGeomVols[geomName] = vScale * 4. / 3 * M_PI * radius * radius * radius;
+  errorToleranceRel[geomName] = 1e-3;
+  errorToleranceAbs[geomName] = 1e-5;
 
   return sphereGeometry;
 }
 
 axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds)
 {
+  const std::string geomName = "tetmesh";
   // Shape a tetrahedal mesh.
   sidre::Group* meshGroup = ds.getRoot()->createGroup("tetMesh");
   AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
@@ -510,13 +511,13 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds)
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, "tetmesh");
+  addTranslateOperator(*compositeOp, geomName);
 
   axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
 
-  exactGeomVols["tetmesh"] = vScale * volumeOfTetMesh(tetMesh);
-  errorToleranceRel["tetmesh"] = 1e-6;
-  errorToleranceAbs["tetmesh"] = 1e-8;
+  exactGeomVols[geomName] = vScale * volumeOfTetMesh(tetMesh);
+  errorToleranceRel[geomName] = 1e-6;
+  errorToleranceAbs[geomName] = 1e-8;
 
   return tetMeshGeometry;
 }
@@ -556,6 +557,7 @@ double computeVolume_Sor(axom::Array<double, 2>& discreteFunction)
 
 axom::klee::Geometry createGeom_Sor()
 {
+  const std::string geomName = "sor";
   Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
   axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
     ? primal::Vector3D {0.1, 0.2, 0.4}
@@ -583,20 +585,21 @@ axom::klee::Geometry createGeom_Sor()
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, "sor");
+  addTranslateOperator(*compositeOp, geomName);
 
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
-  exactGeomVols["sor"] = vScale * computeVolume_Sor(discreteFunction);
-  errorToleranceRel["sor"] = 0.011;
-  errorToleranceAbs["sor"] = 0.013;
+  exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
+  errorToleranceRel[geomName] = 0.011;
+  errorToleranceAbs[geomName] = 0.013;
 
   return sorGeometry;
 }
 
 axom::klee::Geometry createGeom_Cylinder()
 {
+  const std::string geomName = "cyl";
   Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
   axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
     ? primal::Vector3D {0.1, 0.2, 0.4}
@@ -613,20 +616,21 @@ axom::klee::Geometry createGeom_Cylinder()
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, "cyl");
+  addTranslateOperator(*compositeOp, geomName);
 
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
-  exactGeomVols["cyl"] = vScale * computeVolume_Sor(discreteFunction);
-  errorToleranceRel["cyl"] = 1e-3;
-  errorToleranceAbs["cyl"] = 1e-5;
+  exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
+  errorToleranceRel[geomName] = 1e-3;
+  errorToleranceAbs[geomName] = 1e-5;
 
   return sorGeometry;
 }
 
 axom::klee::Geometry createGeom_Cone()
 {
+  const std::string geomName = "cone";
   Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
   axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
     ? primal::Vector3D {0.1, 0.2, 0.4}
@@ -644,20 +648,21 @@ axom::klee::Geometry createGeom_Cone()
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, "cone");
+  addTranslateOperator(*compositeOp, geomName);
 
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
-  exactGeomVols["cone"] = vScale * computeVolume_Sor(discreteFunction);
-  errorToleranceRel["cone"] = 1e-4;
-  errorToleranceAbs["cone"] = 1e-4;
+  exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
+  errorToleranceRel[geomName] = 1e-4;
+  errorToleranceAbs[geomName] = 1e-4;
 
   return sorGeometry;
 }
 
 axom::klee::Geometry createGeom_Tet()
 {
+  const std::string geomName = "tet";
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
 
@@ -680,10 +685,10 @@ axom::klee::Geometry createGeom_Tet()
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, "tet");
-  exactGeomVols["tet"] = vScale * tet.volume();
-  errorToleranceRel["tet"] = 0.00075;
-  errorToleranceAbs["tet"] = 0.003;
+  addTranslateOperator(*compositeOp, geomName);
+  exactGeomVols[geomName] = vScale * tet.volume();
+  errorToleranceRel[geomName] = 0.00075;
+  errorToleranceAbs[geomName] = 0.003;
 
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
 
@@ -692,6 +697,7 @@ axom::klee::Geometry createGeom_Tet()
 
 axom::klee::Geometry createGeom_Hex()
 {
+  const std::string geomName = "hex";
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
 
@@ -708,14 +714,13 @@ axom::klee::Geometry createGeom_Hex()
   const Point3D w {-lg, +md, +sm};
   const primal::Hexahedron<double, 3> hex {p, q, r, s, t, u, v, w};
 
-// TODO: I plan to use the translate/scale operator to run multiple geometries on the same grid.  So those methods should be rewritten and check a flag whehter they should do that.  Each shape would be moved to a specific octant.
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, "hex");
-  exactGeomVols["hex"] = vScale * hex.volume();
-  errorToleranceRel["hex"] = 0.000075;
-  errorToleranceAbs["hex"] = 0.0003;
+  addTranslateOperator(*compositeOp, geomName);
+  exactGeomVols[geomName] = vScale * hex.volume();
+  errorToleranceRel[geomName] = 0.000075;
+  errorToleranceAbs[geomName] = 0.0003;
 
   axom::klee::Geometry hexGeometry(prop, hex, compositeOp);
 
@@ -724,6 +729,7 @@ axom::klee::Geometry createGeom_Hex()
 
 axom::klee::Geometry createGeom_Plane()
 {
+  const std::string geomName = "plane";
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
 
@@ -745,9 +751,9 @@ axom::klee::Geometry createGeom_Plane()
   Pt3D upper(params.boxMaxs.data());
   auto diag = upper.array() - lower.array();
   double meshVolume = diag[0] * diag[1] * diag[2];
-  exactGeomVols["plane"] = 0.5 * meshVolume;
-  errorToleranceRel["plane"] = 1e-6;
-  errorToleranceAbs["plane"] = 1e-8;
+  exactGeomVols[geomName] = 0.5 * meshVolume;
+  errorToleranceRel[geomName] = 1e-6;
+  errorToleranceAbs[geomName] = 1e-8;
 
   return planeGeometry;
 }
