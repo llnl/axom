@@ -12,7 +12,7 @@ packages:
   camp:
     require:
       - spec: "@2025.03.0"
-  # v0.9.3
+  # Commit for conduit@0.9.3, which was not yet a 'version' in our commit of spack
   conduit:
     require:
       - spec: "@git.2eec1ad9548cf6d629e2145181ff7b8cef0a38fa"
