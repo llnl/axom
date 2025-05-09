@@ -1185,6 +1185,15 @@ public:
   /// \brief Get the maximum knot value in the u-axis
   T getMaxKnot_u() const { return m_knotvec_u[m_knotvec_u.getNumKnots() - 1]; }
 
+  /// \brief Get the length of the parameter space bounding box
+  T getParameterSpaceDiagonal() const
+  {
+    T u_length = getMaxKnot_u() - getMinKnot_u();
+    T v_length = getMaxKnot_v() - getMinKnot_v();
+
+    return std::sqrt(u_length * u_length + v_length * v_length);
+  }
+
   /// \brief Return a copy of the KnotVector instance on the second axis
   KnotVectorType getKnots_v() const { return m_knotvec_v; }
 
@@ -2758,6 +2767,102 @@ public:
 
     return beziers;
   }
+
+#ifdef AXOM_USE_MFEM
+  /*!
+   * \brief Calculate the average normal for the (untrimmed) patch
+   * 
+   * \param [in] npts The number of quadrature nodes used in each component integral
+   *
+   * Algorithm from "Mean normal vector to a surface bounded by Bézier curves"
+   *  by Kenji Ueda, 1996
+   * 
+   * Projects the 4 boundary curves of the patch along each coordiante axis, 
+   *  then computes the 2D area of that projection to get the corresponding
+   *  component of the average surface normal.
+   *  
+   * \note This requires the MFEM third-party library
+   * 
+   * \return The calculated mean surface normal
+   */
+  VectorType calculateUntrimmedPatchNormal(int npts = 20) const
+  {
+    SLIC_ASSERT(NDIMS == 3);
+
+    VectorType ret_vec;
+    auto const_integrand = [](Point2D /*x*/) -> double { return 1.0; };
+
+    // Set up the correct sizes and weights of the bounding curves
+    axom::Array<NURBSCurve<T, 2>> boundingPoly(4);
+
+    const int npts_u = getNumControlPoints_u();
+    const int npts_v = getNumControlPoints_v();
+
+    boundingPoly[0].setParameters(npts_v, getDegree_v());
+    boundingPoly[0].setKnots(getKnots_v());
+
+    boundingPoly[1].setParameters(npts_u, getDegree_u());
+    boundingPoly[1].setKnots(getKnots_u());
+
+    boundingPoly[2].setParameters(npts_v, getDegree_v());
+    boundingPoly[2].setKnots(getKnots_v());
+
+    boundingPoly[3].setParameters(npts_u, getDegree_u());
+    boundingPoly[3].setKnots(getKnots_u());
+
+    if(isRational())
+    {
+      for(int i = 0; i < 4; ++i)
+      {
+        boundingPoly[i].makeRational();
+      }
+
+      for(int m = 0; m < npts_v; ++m)
+      {
+        boundingPoly[0].setWeight(m, m_weights(0, npts_v - 1 - m));
+        boundingPoly[2].setWeight(m, m_weights(npts_u - 1, m));
+      }
+
+      for(int n = 0; n < npts_u; ++n)
+      {
+        boundingPoly[1].setWeight(n, m_weights(npts_u - 1 - n, npts_v - 1));
+        boundingPoly[3].setWeight(n, m_weights(n, 0));
+      }
+    }
+
+    // Get each component by projecting boundaries onto the other coordinate axes
+    for(int N = 0; N < 3; ++N)
+    {
+      int ind_3d = 0;
+      for(int i = 0; i < 2; ++i, ++ind_3d)
+      {
+        // Skip the corresponding coordinate used to access the 3D point
+        if(ind_3d == N)
+        {
+          --i;
+          continue;
+        }
+
+        for(int m = 0; m < npts_v; ++m)
+        {
+          boundingPoly[0][m][i] = m_controlPoints(0, npts_v - 1 - m)[ind_3d];
+          boundingPoly[2][m][i] = m_controlPoints(npts_u - 1, m)[ind_3d];
+        }
+
+        for(int n = 0; n < npts_u; ++n)
+        {
+          boundingPoly[1][n][i] = m_controlPoints(npts_u - 1 - n, npts_v - 1)[ind_3d];
+          boundingPoly[3][n][i] = m_controlPoints(n, 0)[ind_3d];
+        }
+      }
+
+      // Find the area of the resulting projection
+      ret_vec[N] = evaluate_area_integral(boundingPoly, const_integrand, npts);
+    }
+
+    return ret_vec;
+  }
+#endif
   //@}
 
   //@{
@@ -3149,6 +3254,37 @@ public:
    */
   void diskSplit(T u, T v, T r, NURBSPatch& the_disk, NURBSPatch& the_rest, bool clipDisk = true) const
   {
+    bool isDiskInside, isDiskOutside, ignoreInteriorDisk = false;
+    diskSplit(u, v, r, the_disk, the_rest, isDiskInside, isDiskOutside, ignoreInteriorDisk, clipDisk);
+  }
+
+  /*!
+   * \brief Split a NURBS surface into two by cutting out a disk of radius r centered at (u, v)
+   *
+   * \param [in] u The x-coordinate of the center of the disk
+   * \param [in] v The y-coordinate of the center of the disk
+   * \param [in] r The radius of the disk 
+   * \param [out] the_disk The NURBS surface inside the disk
+   * \param [out] the_rest The NURBS surface outside the disk
+   * \param [out] isDiskInside True if the disk is entirely inside the trimming curves
+   * \param [out] isDiskOutside True if the disk is entirely outside the trimming curves
+   * \param [in] ignoreInteriorDisk If true, don't perform subdivision if disk is entirely inside the trimming curves
+   * \param [in] clipDisk If true, the returned disk is clipped to the disk boundary
+   * 
+   * \note Function arguments suited for use in GWN evaluation
+   */
+  void diskSplit(T u,
+                 T v,
+                 T r,
+                 NURBSPatch& the_disk,
+                 NURBSPatch& the_rest,
+                 bool& isDiskInside,
+                 bool& isDiskOutside,
+                 bool ignoreInteriorDisk,
+                 bool clipDisk) const
+  {
+    ParameterPointType uv_param({u, v});
+
     // Copy the control points and weights of the original patch, but not the trimming curves
     the_disk = NURBSPatch(m_controlPoints, m_weights, m_knotvec_u, m_knotvec_v);
     the_disk.markAsTrimmed();
@@ -3240,12 +3376,21 @@ public:
     circle_params.push_back(2 * M_PI);
 
     // Handle special cases where 0 intersections are recorded
+    isDiskInside = isDiskOutside = false;
     if(circle_params.size() == 2)
     {
       // If the circle is entirely inside the trimming curves,
       //  the_disk is a complete disk
       if(isVisible(u, v))
       {
+        isDiskInside = true;
+
+        if(ignoreInteriorDisk)
+        {
+          the_disk.m_trimmingCurves.clear();
+          return;
+        }
+
         TrimmingCurveType c1 = TrimmingCurveType::make_circular_arc_nurbs(0.0, 2 * M_PI, u, v, r);
 
         the_disk.m_trimmingCurves.clear();
@@ -3264,6 +3409,7 @@ public:
       {
         // If the circle is entirely outside the trimming curves,
         //  the_rest is unchanged and the_disk is empty
+        isDiskOutside = true;
         the_disk.m_trimmingCurves.clear();
 
         return;
@@ -3941,10 +4087,6 @@ private:
                            TrimmingCurveVec& outCurvesFirst,
                            TrimmingCurveVec& outCurvesSecond) const
   {
-    // Clear the output vectors
-    outCurvesFirst.clear();
-    outCurvesSecond.clear();
-
     // Store a ray that is used as the splitting line
     primal::Ray<T, 2> ray_obj(Point<T, 2> {getMaxKnot_u() + 1.0, uv}, Vector<T, 2> {-1.0, 0.0});
     if(splitInU)
@@ -3952,6 +4094,7 @@ private:
       ray_obj = primal::Ray<T, 2>(Point<T, 2> {uv, getMinKnot_v() - 1.0}, Vector<T, 2> {0.0, 1.0});
     }
     TrimmingCurveVec split_trimming_curves;
+    TrimmingCurveVec ray_trimming_curves;
 
     axom::Array<T> ray_params;
     for(const auto& curve : m_trimmingCurves)
@@ -4044,19 +4187,19 @@ private:
 
         if(isSegmentVisible)
         {
-          auto c1 = TrimmingCurveType::make_linear_segment_nurbs(ray_obj.at(ray_params[i]),
-                                                                 ray_obj.at(ray_params[i + 1]));
-
-          outCurvesFirst.push_back(c1);
-
-          c1.reverseOrientation();
-
-          outCurvesSecond.push_back(c1);
+          ray_trimming_curves.push_back(
+            TrimmingCurveType::make_linear_segment_nurbs(ray_obj.at(ray_params[i]),
+                                                         ray_obj.at(ray_params[i + 1])));
         }
       }
     }
 
-    // For the rest of the trimming curves, add them to the right or left depending on the side of the ray
+    // Clear the output vectors
+    outCurvesFirst.clear();
+    outCurvesSecond.clear();
+
+    // For all of the resulting trimming curves,
+    //   add them to the right or left depending on the side of the ray
     for(auto& curve : split_trimming_curves)
     {
       auto eval_pt = curve.evaluate(0.5 * (curve.getMinKnot() + curve.getMaxKnot()));
@@ -4068,6 +4211,13 @@ private:
       {
         outCurvesSecond.push_back(curve);
       }
+    }
+
+    for(auto& line : ray_trimming_curves)
+    {
+      outCurvesFirst.push_back(line);
+      line.reverseOrientation();
+      outCurvesSecond.push_back(line);
     }
   }
 };

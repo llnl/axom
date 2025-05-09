@@ -100,6 +100,61 @@ double evaluate_scalar_line_integral(const primal::BezierCurve<T, NDIMS>& c,
 }
 
 /*!
+ * \brief Evaluate a line integral on a single NURBS curve on a scalar field
+ *
+ * \param [in] n the NURBS curve object
+ * \param [in] scalar_integrand the lambda function representing the integrand. 
+ * Must accept a Point<T, NDIMS> as input, and return a double.
+ * \param [in] npts the number of quadrature nodes
+ * \return the value of the integral
+ */
+template <typename Lambda, typename T, int NDIMS>
+double evaluate_scalar_line_integral(const primal::NURBSCurve<T, NDIMS>& n,
+                                     Lambda&& scalar_integrand,
+                                     int npts)
+{
+  // Generate quadrature library, defaulting to GaussLegendre quadrature.
+  //  Use the same one for every curve in the polygon
+  //  Gaussian quadrature order is equal to 2*Npts - 1
+  static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
+  const mfem::IntegrationRule& quad = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
+
+  // Compute the line integral along each component.
+  auto beziers = n.extractBezier();
+  double total_integral = 0.0;
+  for(int i = 0; i < beziers.size(); i++)
+  {
+    total_integral +=
+      detail::evaluate_scalar_line_integral_component(beziers[i], scalar_integrand, quad);
+  }
+
+  return total_integral;
+}
+
+/*!
+ * \brief Evaluate a line integral on an array of NURBS curves on a scalar field
+ *
+ * \param [in] narray the array of NURBS curve object
+ * \param [in] scalar_integrand the lambda function representing the integrand. 
+ * Must accept a Point<T, NDIMS> as input, and return a double.
+ * \param [in] npts the number of quadrature nodes
+ * \return the value of the integral
+ */
+template <typename Lambda, typename T, int NDIMS>
+double evaluate_scalar_line_integral(const axom::Array<primal::NURBSCurve<T, NDIMS>>& narray,
+                                     Lambda&& scalar_integrand,
+                                     int npts)
+{
+  double total_integral = 0.0;
+  for(int i = 0; i < narray.size(); i++)
+  {
+    total_integral += evaluate_scalar_line_integral(narray[i], scalar_integrand, npts);
+  }
+
+  return total_integral;
+}
+
+/*!
  * \brief Evaluate a line integral along the boundary of a CurvedPolygon object 
  *        on a vector field.
  *
@@ -160,6 +215,61 @@ double evaluate_vector_line_integral(const primal::BezierCurve<T, NDIMS>& c,
 }
 
 /*!
+ * \brief Evaluate a line integral on a single NURBS curve on a vector field
+ *
+ * \param [in] n the NURBS curve object
+ * \param [in] vector_integrand the lambda function representing the integrand. 
+ * Must accept a Point<T, NDIMS> as input, and return a Vector<double, NDIMS>.
+ * \param [in] npts the number of quadrature nodes
+ * \return the value of the integral
+ */
+template <typename Lambda, typename T, int NDIMS>
+double evaluate_vector_line_integral(const primal::NURBSCurve<T, NDIMS>& n,
+                                     Lambda&& vector_integrand,
+                                     int npts)
+{
+  // Generate quadrature library, defaulting to GaussLegendre quadrature.
+  //  Use the same one for every curve in the polygon
+  //  Gaussian quadrature order is equal to 2*Npts - 1
+  static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
+  const mfem::IntegrationRule& quad = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
+
+  // Compute the line integral along each component.
+  auto beziers = n.extractBezier();
+  double total_integral = 0.0;
+  for(int i = 0; i < beziers.size(); i++)
+  {
+    total_integral +=
+      detail::evaluate_vector_line_integral_component(beziers[i], vector_integrand, quad);
+  }
+
+  return total_integral;
+}
+
+/*!
+ * \brief Evaluate a line integral on an array of NURBS curves on a vector field
+ *
+ * \param [in] narray the array of NURBS curve object
+ * \param [in] vector_integrand the lambda function representing the integrand. 
+ * Must accept a Point<T, NDIMS> as input and return a Vector<double, NDIMS>.
+ * \param [in] npts the number of quadrature nodes
+ * \return the value of the integral
+ */
+template <typename Lambda, typename T, int NDIMS>
+double evaluate_vector_line_integral(const axom::Array<primal::NURBSCurve<T, NDIMS>>& narray,
+                                     Lambda&& vector_integrand,
+                                     int npts)
+{
+  double total_integral = 0.0;
+  for(int i = 0; i < narray.size(); i++)
+  {
+    total_integral += evaluate_vector_line_integral(narray[i], vector_integrand, npts);
+  }
+
+  return total_integral;
+}
+
+/*!
  * \brief Evaluate an integral on the interior of a CurvedPolygon object.
  *
  * See above definition for details.
@@ -207,6 +317,64 @@ double evaluate_area_integral(const primal::CurvedPolygon<T, 2> cpoly,
   {
     total_integral +=
       detail::evaluate_area_integral_component(cpoly[i], integrand, int_lb, quad_Q, quad_P);
+  }
+
+  return total_integral;
+}
+
+/*!
+ * \brief Evaluate an integral on the interior of a CurvedPolygon object.
+ *
+ * See above definition for details.
+ * 
+ * \param [in] narray the array of NURBS curve objects that bound the region
+ * \param [in] integrand the lambda function representing the integrand. 
+ * Must accept a 2D point as input and return a double
+ * \param [in] npts_Q the number of quadrature points to evaluate the line integral
+ * \param [in] npts_P the number of quadrature points to evaluate the antiderivative
+ * \return the value of the integral
+ */
+template <class Lambda, typename T>
+double evaluate_area_integral(const axom::Array<primal::NURBSCurve<T, 2>> narray,
+                              Lambda&& integrand,
+                              int npts_Q,
+                              int npts_P = 0)
+{
+  // Generate quadrature library, defaulting to GaussLegendre quadrature.
+  //  Use the same one for every curve in the polygon
+  static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
+
+  if(npts_P <= 0)
+  {
+    npts_P = npts_Q;
+  }
+
+  // Get the quadrature for the line integral.
+  //  Quadrature order is equal to 2*N - 1
+  const mfem::IntegrationRule& quad_Q = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts_Q - 1);
+  const mfem::IntegrationRule& quad_P = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts_P - 1);
+
+  // Use minimum y-coord of control nodes as lower bound for integration
+  double int_lb = narray[0][0][1];
+  for(int i = 0; i < narray.size(); i++)
+  {
+    for(int j = 1; j < narray[i].getNumControlPoints(); j++)
+    {
+      int_lb = std::min(int_lb, narray[i][j][1]);
+    }
+  }
+
+  // Evaluate the antiderivative line integral along each component
+  double total_integral = 0.0;
+  for(int i = 0; i < narray.size(); i++)
+  {
+    auto beziers = narray[i].extractBezier();
+
+    for(int j = 0; j < beziers.size(); j++)
+    {
+      total_integral +=
+        detail::evaluate_area_integral_component(beziers[j], integrand, int_lb, quad_Q, quad_P);
+    }
   }
 
   return total_integral;
