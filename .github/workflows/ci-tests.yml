@@ -130,7 +130,7 @@ jobs:
         submodules: recursive
     - name: Windows - CMake
       run: |
-        cmake $env:CMAKE_EXTRA_FLAGS -B build -S .
+        cmake $env:CMAKE_EXTRA_FLAGS -B build -S src
       shell: pwsh
     - name: Windows - Build
       run: |
