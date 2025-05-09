@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -194,8 +194,7 @@ template <typename T>
 IndexType ListCollection<T>::getFirstValidIndex() const
 {
   IndexType idx = 0;
-  while(static_cast<unsigned>(idx) < m_items.size() &&
-        m_items[static_cast<unsigned>(idx)] == nullptr)
+  while(static_cast<unsigned>(idx) < m_items.size() && m_items[static_cast<unsigned>(idx)] == nullptr)
   {
     idx++;
   }
@@ -211,8 +210,7 @@ IndexType ListCollection<T>::getNextValidIndex(IndexType idx) const
   }
 
   idx++;
-  while(static_cast<unsigned>(idx) < m_items.size() &&
-        m_items[static_cast<unsigned>(idx)] == nullptr)
+  while(static_cast<unsigned>(idx) < m_items.size() && m_items[static_cast<unsigned>(idx)] == nullptr)
   {
     idx++;
   }

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -65,8 +65,7 @@ public:
   bool setDefaultScalar(ScalarType value)
   {
     DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
-    if(m_default_value.dtype().is_empty() ||
-       arg_id == m_default_value.dtype().id())
+    if(m_default_value.dtype().is_empty() || arg_id == m_default_value.dtype().id())
     {
       m_default_value = value;
       return true;
@@ -75,8 +74,8 @@ public:
     {
       SLIC_CHECK_MSG(arg_id == m_default_value.dtype().id(),
                      "setDefaultScalar: Cannot change type of attribute '"
-                       << m_name << "' from " << m_default_value.dtype().name()
-                       << " to " << DataType::id_to_name(arg_id) << ".");
+                       << m_name << "' from " << m_default_value.dtype().name() << " to "
+                       << DataType::id_to_name(arg_id) << ".");
       return false;
     }
   }
@@ -89,8 +88,7 @@ public:
   bool setDefaultString(const std::string& value)
   {
     DataTypeId arg_id = CHAR8_STR_ID;
-    if(m_default_value.dtype().is_empty() ||
-       arg_id == m_default_value.dtype().id())
+    if(m_default_value.dtype().is_empty() || arg_id == m_default_value.dtype().id())
     {
       m_default_value = value;
       return true;
@@ -99,8 +97,8 @@ public:
     {
       SLIC_CHECK_MSG(arg_id == m_default_value.dtype().id(),
                      "setDefaultString: Cannot change type of attribute '"
-                       << m_name << "' from " << m_default_value.dtype().name()
-                       << " to " << DataType::id_to_name(arg_id) << ".");
+                       << m_name << "' from " << m_default_value.dtype().name() << " to "
+                       << DataType::id_to_name(arg_id) << ".");
       return false;
     }
   }
@@ -122,10 +120,7 @@ public:
   /*!
    * \brief Return type of Attribute.
    */
-  TypeID getTypeID() const
-  {
-    return static_cast<TypeID>(m_default_value.dtype().id());
-  }
+  TypeID getTypeID() const { return static_cast<TypeID>(m_default_value.dtype().id()); }
 
 private:
   DISABLE_DEFAULT_CTOR(Attribute);

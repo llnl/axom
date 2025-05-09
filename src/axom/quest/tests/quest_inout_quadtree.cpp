@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -40,18 +40,18 @@ using BlockIndex = Octree2D::BlockIndex;
 }  // namespace
 
 /// Returns a SpacePt corresponding to the given vertex id \a vIdx  in \a mesh
-SpacePt getVertex(axom::mint::Mesh*& mesh, int vIdx)
+SpacePt getVertex(axom::mint::Mesh& mesh, int vIdx)
 {
   SpacePt pt;
-  mesh->getNode(vIdx, pt.data());
+  mesh.getNode(vIdx, pt.data());
 
   return pt;
 }
 
-GeometricBoundingBox computeBoundingBox(axom::mint::Mesh*& mesh)
+GeometricBoundingBox computeBoundingBox(axom::mint::Mesh& mesh)
 {
   GeometricBoundingBox bbox;
-  for(int i = 0; i < mesh->getNumberOfNodes(); ++i)
+  for(int i = 0; i < mesh.getNumberOfNodes(); ++i)
   {
     bbox.addPoint(getVertex(mesh, i));
   }
@@ -71,9 +71,8 @@ TEST(quest_inout_quadtree, triangle_boundary_mesh)
   for(auto thresh : thresholds)
   {
     // create a simple mesh on the boundary of an equilateral triangle
-    mint::Mesh* mesh = [=]() {
-      auto* mesh =
-        new mint::UnstructuredMesh<mint::SINGLE_SHAPE>(DIM, mint::SEGMENT);
+    std::shared_ptr<mint::Mesh> mesh = [=]() {
+      auto mesh = std::make_shared<mint::UnstructuredMesh<mint::SINGLE_SHAPE>>(DIM, mint::SEGMENT);
       mesh->appendNode(1, 1);
       mesh->appendNode(4, 1);
       mesh->appendNode(2.5, 3 * sqrt(3) / 2.);
@@ -86,22 +85,19 @@ TEST(quest_inout_quadtree, triangle_boundary_mesh)
       return mesh;
     }();
 
-    GeometricBoundingBox bbox = computeBoundingBox(mesh);
+    GeometricBoundingBox bbox = computeBoundingBox(*mesh);
 
     Octree2D octree(bbox, mesh);
     octree.setVertexWeldThreshold(thresh);
 
     octree.generateIndex();
 
-    SpacePt queryInside = quest::utilities::getCentroid(getVertex(mesh, 0),
-                                                        getVertex(mesh, 1),
-                                                        getVertex(mesh, 2));
+    SpacePt queryInside =
+      quest::utilities::getCentroid(getVertex(*mesh, 0), getVertex(*mesh, 1), getVertex(*mesh, 2));
     SpacePt queryOutside = SpacePt(2. * bbox.getMax().array());
 
     EXPECT_TRUE(octree.within(queryInside));
     EXPECT_FALSE(octree.within(queryOutside));
-
-    delete mesh;
   }
 }
 
@@ -117,11 +113,10 @@ TEST(quest_inout_quadtree, circle_mesh)
     for(double radius : {1. / 3., 1., sqrt(2.), 1234.5678})
     {
       ASSERT_TRUE(num_segments >= 3);
-      mint::Mesh* mesh =
-        quest::utilities::make_circle_mesh_2d(radius, num_segments);
+      std::shared_ptr<mint::Mesh> mesh {quest::utilities::make_circle_mesh_2d(radius, num_segments)};
       //mint::write_vtk(mesh,axom::fmt::format("circle_mesh_r{:.3f}_s{:06}.vtk", radius, num_segments));
 
-      GeometricBoundingBox bbox = computeBoundingBox(mesh).scale(1.2);
+      GeometricBoundingBox bbox = computeBoundingBox(*mesh).scale(1.2);
 
       Octree2D octree(bbox, mesh);
       octree.generateIndex();
@@ -161,14 +156,12 @@ TEST(quest_inout_quadtree, circle_mesh)
 
         if(expectInside)
         {
-          EXPECT_TRUE(octree.within(queryPt))
-            << "Query point: " << queryPt << "; norm: " << mag;
+          EXPECT_TRUE(octree.within(queryPt)) << "Query point: " << queryPt << "; norm: " << mag;
           ++insideCount;
         }
         else if(expectOutside)
         {
-          EXPECT_FALSE(octree.within(queryPt))
-            << "Query point: " << queryPt << "; norm: " << mag;
+          EXPECT_FALSE(octree.within(queryPt)) << "Query point: " << queryPt << "; norm: " << mag;
           ++outsideCount;
         }
         else
@@ -179,20 +172,18 @@ TEST(quest_inout_quadtree, circle_mesh)
       }
 
       // Output some stats about the query
-      SLIC_INFO(axom::fmt::format(
-        "Queried quadtree over circle mesh of radius {}"
-        " defined by {} segments using {} query points. \n "
-        "Of which: "
-        " {:.2f}% were known to be inside; {:.2f}% were known to be outside; "
-        " and {:.2f}% were too close to the boundary for our simple model.",
-        radius,
-        num_segments,
-        NUM_PT_TESTS,
-        100. * (static_cast<double>(insideCount) / NUM_PT_TESTS),
-        100. * (static_cast<double>(outsideCount) / NUM_PT_TESTS),
-        100. * (static_cast<double>(uncertainCount) / NUM_PT_TESTS)));
-
-      delete mesh;
+      SLIC_INFO(
+        axom::fmt::format("Queried quadtree over circle mesh of radius {}"
+                          " defined by {} segments using {} query points. \n "
+                          "Of which: "
+                          " {:.2f}% were known to be inside; {:.2f}% were known to be outside; "
+                          " and {:.2f}% were too close to the boundary for our simple model.",
+                          radius,
+                          num_segments,
+                          NUM_PT_TESTS,
+                          100. * (static_cast<double>(insideCount) / NUM_PT_TESTS),
+                          100. * (static_cast<double>(outsideCount) / NUM_PT_TESTS),
+                          100. * (static_cast<double>(uncertainCount) / NUM_PT_TESTS)));
     }
   }
 }

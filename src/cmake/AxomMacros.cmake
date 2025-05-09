@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -318,7 +318,7 @@ endmacro(axom_assert_find_succeeded)
 ## convert_to_native_escaped_file_path( path output )
 ##
 ## This macro converts a cmake path to a platform specific string literal
-## usable in C++.  (For example, on windows C:/Path will be come C:\\Path)
+## usable in C++.  (For example, on windows C:/Path will become C:\\Path)
 ##------------------------------------------------------------------------------
 
 macro(convert_to_native_escaped_file_path path output)
@@ -499,7 +499,7 @@ macro(axom_write_unified_header)
     set(_header ${PROJECT_BINARY_DIR}/include/axom/${_lcname}.hpp)
     set(_tmp_header ${_header}.tmp)
 
-    file(WRITE ${_tmp_header} "\/\/ Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+    file(WRITE ${_tmp_header} "\/\/ Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 \/\/ other Axom Project Developers. See the top-level LICENSE file for details.
 \/\/
 \/\/ SPDX-License-Identifier: (BSD-3-Clause)

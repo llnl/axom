@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -121,10 +121,7 @@ public:
    * \brief Return total number of data elements (of its type) owned by
    *        this Buffer object.
    */
-  IndexType getNumElements() const
-  {
-    return m_node.dtype().number_of_elements();
-  }
+  IndexType getNumElements() const { return m_node.dtype().number_of_elements(); }
 
   /*!
    * \brief Return total number of bytes of data owned by this Buffer object.
@@ -134,10 +131,7 @@ public:
   /*!
    * \brief Return the number of bytes per element owned by this Buffer object.
    */
-  IndexType getBytesPerElement() const
-  {
-    return m_node.dtype().element_bytes();
-  }
+  IndexType getBytesPerElement() const { return m_node.dtype().element_bytes(); }
 
   /*!
    * \brief Return true if Buffer has been (re)allocated with length >= 0, else
@@ -185,9 +179,7 @@ public:
    *
    * \return pointer to this Buffer object.
    */
-  Buffer* allocate(TypeID type,
-                   IndexType num_elems,
-                   int allocID = INVALID_ALLOCATOR_ID);
+  Buffer* allocate(TypeID type, IndexType num_elems, int allocID = INVALID_ALLOCATOR_ID);
 
   /*!
    * \brief Reallocate data to given number of elements.

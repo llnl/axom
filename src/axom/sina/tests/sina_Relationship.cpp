@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -33,9 +33,7 @@ TEST(Relationship, create)
   std::string objectID = "the object";
   std::string predicate = "is somehow related to";
 
-  Relationship relationship {ID {subjectID, IDType::Global},
-                             predicate,
-                             ID {objectID, IDType::Local}};
+  Relationship relationship {ID {subjectID, IDType::Global}, predicate, ID {objectID, IDType::Local}};
 
   EXPECT_EQ(subjectID, relationship.getSubject().getId());
   EXPECT_EQ(IDType::Global, relationship.getSubject().getType());
@@ -143,9 +141,7 @@ TEST(Relationship, toNode_localIds)
   std::string objectID = "the object";
   std::string predicate = "is somehow related to";
 
-  Relationship relationship {ID {subjectID, IDType::Local},
-                             predicate,
-                             ID {objectID, IDType::Local}};
+  Relationship relationship {ID {subjectID, IDType::Local}, predicate, ID {objectID, IDType::Local}};
 
   conduit::Node asNode = relationship.toNode();
 
@@ -162,9 +158,7 @@ TEST(Relationship, toNode_globalIds)
   std::string objectID = "the object";
   std::string predicate = "is somehow related to";
 
-  Relationship relationship {ID {subjectID, IDType::Global},
-                             predicate,
-                             ID {objectID, IDType::Global}};
+  Relationship relationship {ID {subjectID, IDType::Global}, predicate, ID {objectID, IDType::Global}};
 
   conduit::Node asNode = relationship.toNode();
 

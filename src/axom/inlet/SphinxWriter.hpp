@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -93,8 +93,7 @@ private:
    *
    *****************************************************************************
    */
-  void writeTable(const std::string& title,
-                  const std::vector<std::vector<std::string>>& rstTable);
+  void writeTable(const std::string& title, const std::vector<std::vector<std::string>>& rstTable);
 
   /*!
    *****************************************************************************
@@ -140,7 +139,7 @@ private:
 
     std::string containerName;
     std::string description;
-    bool isSelectedElement;
+    bool isSelectedElement = false;
     std::vector<std::vector<std::string>> fieldTable;
     std::vector<std::vector<std::string>> functionTable;
   };
@@ -159,8 +158,7 @@ private:
   * \param [inout] currentTable The ContainerData object to write field information to
   *******************************************************************************
   */
-  void extractFieldMetadata(const axom::sidre::Group* sidreGroup,
-                            ContainerData& currentContainer);
+  void extractFieldMetadata(const axom::sidre::Group* sidreGroup, ContainerData& currentContainer);
 
   /*!
   *******************************************************************************
@@ -176,8 +174,7 @@ private:
   * \param [inout] currentTable The TableData object to write function information to
   *******************************************************************************
   */
-  void extractFunctionMetadata(const axom::sidre::Group* sidreGroup,
-                               ContainerData& currentContainer);
+  void extractFunctionMetadata(const axom::sidre::Group* sidreGroup, ContainerData& currentContainer);
 
   /*!
   *******************************************************************************

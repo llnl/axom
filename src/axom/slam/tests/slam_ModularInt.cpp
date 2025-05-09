@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -42,10 +42,8 @@ TEST(slam_modInt, runtime_modular_int_unitialized_and_full)
     << " SIZE of Modular int not allowed to be zero";
   EXPECT_DEATH_IF_SUPPORTED(ModularIntType(1, 0), "")
     << " SIZE of Modular int not allowed to be zero";
-  EXPECT_DEATH_IF_SUPPORTED(ModularIntType(), "")
-    << " SIZE of Modular int not allowed to be zero";
-  EXPECT_DEATH_IF_SUPPORTED(ModularIntType(1), "")
-    << " SIZE of Modular int not allowed to be zero";
+  EXPECT_DEATH_IF_SUPPORTED(ModularIntType(), "") << " SIZE of Modular int not allowed to be zero";
+  EXPECT_DEATH_IF_SUPPORTED(ModularIntType(1), "") << " SIZE of Modular int not allowed to be zero";
 #else
   SLIC_INFO("Skipped assertion failure check in release mode.");
 #endif
@@ -76,10 +74,8 @@ TEST(slam_modInt, compile_modular_int_unitialized_and_full)
     << " SIZE of Modular int not allowed to be zero";
   EXPECT_DEATH_IF_SUPPORTED(ModularIntZero(1, 0), "")
     << " SIZE of Modular int not allowed to be zero";
-  EXPECT_DEATH_IF_SUPPORTED(ModularIntZero(), "")
-    << " SIZE of Modular int not allowed to be zero";
-  EXPECT_DEATH_IF_SUPPORTED(ModularIntZero(1), "")
-    << " SIZE of Modular int not allowed to be zero";
+  EXPECT_DEATH_IF_SUPPORTED(ModularIntZero(), "") << " SIZE of Modular int not allowed to be zero";
+  EXPECT_DEATH_IF_SUPPORTED(ModularIntZero(1), "") << " SIZE of Modular int not allowed to be zero";
 #else
   SLIC_INFO("Skipped assertion failure check in release mode.");
 #endif

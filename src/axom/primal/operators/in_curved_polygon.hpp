@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -53,9 +53,8 @@ bool in_curved_polygon(const Point<T, 2>& query,
                        double edge_tol = 1e-8,
                        double EPS = 1e-8)
 {
-  return useNonzeroRule
-    ? (std::lround(winding_number(query, cpoly, edge_tol, EPS)) != 0)
-    : (std::lround(winding_number(query, cpoly, edge_tol, EPS)) % 2) == 1;
+  return useNonzeroRule ? (std::lround(winding_number(query, cpoly, edge_tol, EPS)) != 0)
+                        : (std::lround(winding_number(query, cpoly, edge_tol, EPS)) % 2) != 0;
 }
 
 }  // namespace primal

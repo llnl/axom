@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -7,7 +7,7 @@
 # This is the shared configuration of jobs for ruby
 .on_ruby:
   variables:
-    SCHEDULER_PARAMETERS: "--res=ci --exclusive=user --deadline=now+1hour -N1 -t ${ALLOC_TIME}"
+    SCHEDULER_PARAMETERS: "--reservation=ci --exclusive=user --deadline=now+1hour -N1 -t ${ALLOC_TIME}"
   tags:
     - batch
     - ruby
@@ -24,13 +24,13 @@
 # Template
 .src_build_on_ruby:
   variables:
-    ALLOC_TIME: "30"
+    ALLOC_TIME: "40"
   extends: [.src_build_script, .on_ruby, .src_workflow]
   needs: []
 
 .full_build_on_ruby:
   variables:
-    ALLOC_TIME: "60"
+    ALLOC_TIME: "70"
   extends: [.full_build_script, .on_ruby, .full_workflow]
   needs: []
 
@@ -54,6 +54,14 @@ ruby-gcc_10_3_1-src:
   variables:
     COMPILER: "gcc@10.3.1"
     HOST_CONFIG: "ruby-toss_4_x86_64_ib-${COMPILER}.cmake"
+  extends: .src_build_on_ruby
+
+ruby-sanitizers-gcc_10_3_1-src:
+  variables:
+    COMPILER: "gcc@10.3.1"
+    HOST_CONFIG: "ruby-toss_4_x86_64_ib-${COMPILER}.cmake"
+    LSAN_OPTIONS: suppressions=${CI_PROJECT_DIR}/suppressions.asan
+    EXTRA_CMAKE_OPTIONS: "-DAXOM_ENABLE_ASAN=ON -DAXOM_ENABLE_UBSAN=ON"
   extends: .src_build_on_ruby
 
 # TODO: turn back on

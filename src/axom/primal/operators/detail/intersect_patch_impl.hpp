@@ -62,10 +62,7 @@ namespace detail
  * \note This function assumes that all intersections have multiplicity 
  *  one, i.e. does not find tangencies. 
  *
- * \warning This function returns early if we record excessive intersections.
- *    This implies the patch is degenerate at the point of intersection.
- * 
- * \return False if an early return was triggered (failure). True otherwise
+ * \return True if the line intersects the patch, False otherwise
  */
 template <typename T>
 bool intersect_line_patch(const Line<T, 3> &line,
@@ -122,7 +119,6 @@ bool intersect_line_patch(const Line<T, 3> &line,
     return true;
   }
 
-  bool success = true;
   if(patch.isBilinear(sq_tol, true))
   {
     // Store candidate intersection points
@@ -147,8 +143,8 @@ bool intersect_line_patch(const Line<T, 3> &line,
       const T v0 = vc[i];
 
       // Use EPS to record points near the boundary of the bilinear approximation
-      if(u0 >= -EPS / u_scale && u0 <= 1.0 + EPS / u_scale &&
-         v0 >= -EPS / v_scale && v0 <= 1.0 + EPS / v_scale)
+      if(u0 >= -EPS / u_scale && u0 <= 1.0 + EPS / u_scale && v0 >= -EPS / v_scale &&
+         v0 <= 1.0 + EPS / v_scale)
       {
         if(t0 >= -EPS || !isRay)
         {
@@ -164,81 +160,75 @@ bool intersect_line_patch(const Line<T, 3> &line,
     constexpr double splitVal = 0.5;
     constexpr double scaleFac = 0.5;
 
-    BPatch p1(order_u, order_v), p2(order_u, order_v), p3(order_u, order_v),
-      p4(order_u, order_v);
+    BPatch p1(order_u, order_v), p2(order_u, order_v), p3(order_u, order_v), p4(order_u, order_v);
 
     patch.split(splitVal, splitVal, p1, p2, p3, p4);
     u_scale *= scaleFac;
     v_scale *= scaleFac;
 
     // Note: we want to find all intersections, so don't short-circuit
-    //   *unless* we're already in a failure state
-    success = success &&
-      intersect_line_patch(line,
-                           p1,
-                           tp,
-                           up,
-                           vp,
-                           order_u,
-                           order_v,
-                           u_offset,
-                           u_scale,
-                           v_offset,
-                           v_scale,
-                           sq_tol,
-                           EPS,
-                           isRay);
+    intersect_line_patch(line,
+                         p1,
+                         tp,
+                         up,
+                         vp,
+                         order_u,
+                         order_v,
+                         u_offset,
+                         u_scale,
+                         v_offset,
+                         v_scale,
+                         sq_tol,
+                         EPS,
+                         isRay);
 
-    success = success &&
-      intersect_line_patch(line,
-                           p2,
-                           tp,
-                           up,
-                           vp,
-                           order_u,
-                           order_v,
-                           u_offset + u_scale,
-                           u_scale,
-                           v_offset,
-                           v_scale,
-                           sq_tol,
-                           EPS,
-                           isRay);
+    intersect_line_patch(line,
+                         p2,
+                         tp,
+                         up,
+                         vp,
+                         order_u,
+                         order_v,
+                         u_offset + u_scale,
+                         u_scale,
+                         v_offset,
+                         v_scale,
+                         sq_tol,
+                         EPS,
+                         isRay);
 
-    success = success &&
-      intersect_line_patch(line,
-                           p3,
-                           tp,
-                           up,
-                           vp,
-                           order_u,
-                           order_v,
-                           u_offset,
-                           u_scale,
-                           v_offset + v_scale,
-                           v_scale,
-                           sq_tol,
-                           EPS,
-                           isRay);
+    intersect_line_patch(line,
+                         p3,
+                         tp,
+                         up,
+                         vp,
+                         order_u,
+                         order_v,
+                         u_offset,
+                         u_scale,
+                         v_offset + v_scale,
+                         v_scale,
+                         sq_tol,
+                         EPS,
+                         isRay);
 
-    success = success &&
-      intersect_line_patch(line,
-                           p4,
-                           tp,
-                           up,
-                           vp,
-                           order_u,
-                           order_v,
-                           u_offset + u_scale,
-                           u_scale,
-                           v_offset + v_scale,
-                           v_scale,
-                           sq_tol,
-                           EPS,
-                           isRay);
+    intersect_line_patch(line,
+                         p4,
+                         tp,
+                         up,
+                         vp,
+                         order_u,
+                         order_v,
+                         u_offset + u_scale,
+                         u_scale,
+                         v_offset + v_scale,
+                         v_scale,
+                         sq_tol,
+                         EPS,
+                         isRay);
   }
 
-  return success;
+  return tp.size() > 0;
 }
 
 }  // end namespace detail

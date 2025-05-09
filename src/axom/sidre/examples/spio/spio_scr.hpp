@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -102,17 +102,13 @@ TEST(spio_scr, spio_scr_writeread)
    */
   EXPECT_TRUE(ds2->getRoot()->isEquivalentTo(root));
 
-  int testvalue =
-    ds->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
-  int testvalue2 =
-    ds2->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
+  int testvalue = ds->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
+  int testvalue2 = ds2->getRoot()->getGroup("fields")->getGroup("a")->getView("i0")->getData();
 
   EXPECT_EQ(testvalue, testvalue2);
 
-  View* view_i1_orig =
-    ds->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
-  View* view_i1_restored =
-    ds2->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
+  View* view_i1_orig = ds->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
+  View* view_i1_restored = ds2->getRoot()->getGroup("fields2")->getGroup("b")->getView("i1");
 
   int num_elems = view_i1_orig->getNumElements();
   EXPECT_EQ(view_i1_restored->getNumElements(), num_elems);

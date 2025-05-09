@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -207,6 +207,11 @@ Domain::~Domain()
     delete [] m_regElemlist[i];
   }
   delete [] m_regElemlist;
+
+#ifdef _OPENMP
+  delete [] m_nodeElemStart ;
+  delete [] m_nodeElemCornerList ;
+#endif
 
 }
 

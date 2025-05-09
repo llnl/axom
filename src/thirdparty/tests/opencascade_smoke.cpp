@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -26,14 +26,14 @@
 #include "opencascade/STEPControl_Reader.hxx"
 
 //------------------------------------------------------------------------------
-// Some basic smoke tests for OpenCASCADE
+// Some basic smoke tests for Open Cascade
 // including checks that we can read and write STEP files
 //------------------------------------------------------------------------------
 TEST(opencascade_smoke, check_version)
 {
-  std::cout << "Using OpenCASCADE version: "  //
-            << OCC_VERSION_MAJOR << "."       //
-            << OCC_VERSION_MINOR << "."       //
+  std::cout << "Using Open Cascade version: "  //
+            << OCC_VERSION_MAJOR << "."        //
+            << OCC_VERSION_MINOR << "."        //
             << OCC_VERSION_MAINTENANCE << std::endl;
 
   EXPECT_TRUE(OCC_VERSION_MAJOR >= 0);
@@ -43,13 +43,12 @@ TEST(opencascade_smoke, check_version)
 
 TEST(opencascade_smoke, make_box)
 {
-  // Basic test of OpenCASCADE API -- create a box and check its dimensions
+  // Basic test of Open Cascade API -- create a box and check its dimensions
   constexpr int box_length = 200;
   constexpr int box_width = 100;
   constexpr int box_depth = 50;
 
-  TopoDS_Shape box =
-    BRepPrimAPI_MakeBox(box_length, box_width, box_depth).Shape();
+  TopoDS_Shape box = BRepPrimAPI_MakeBox(box_length, box_width, box_depth).Shape();
   EXPECT_FALSE(box.IsNull());
 
   Bnd_Box boundingBox;

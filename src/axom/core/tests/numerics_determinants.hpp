@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -14,8 +14,7 @@ TEST(numerics_determinants, determinant_of_In)
 
   for(int i = 2; i < N; ++i)
   {
-    axom::numerics::Matrix<double> In =
-      axom::numerics::Matrix<double>::identity(i);
+    axom::numerics::Matrix<double> In = axom::numerics::Matrix<double>::identity(i);
     double det = axom::numerics::determinant(In);
     EXPECT_DOUBLE_EQ(1.0, det);
   }

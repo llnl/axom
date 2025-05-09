@@ -1,6 +1,6 @@
 {
   "name": "conduit",
-  "version": "0.9.2",
+  "version": "0.9.3",
   "homepage": "https://github.com/llnl/conduit",
   "description": "Simplified Data Exchange for HPC Simulations",
   "dependencies": [

@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -109,6 +109,20 @@ if (ENABLE_FORTRAN AND DEFINED PYTHON_EXECUTABLE)
         ${TEST_OUTPUT_DIRECTORY}/sina_schema.json
         COPYONLY
     )
+
+        # Define Python-friendly boolean for HDF5 guarding in Fortran Test.
+        if(AXOM_USE_HDF5)
+            set(AXOM_USE_HDF5_PY "True")
+        else()
+            set(AXOM_USE_HDF5_PY "False")
+        endif()
+
+        # Generate config.py in the test output directory
+        configure_file(
+            ${CMAKE_CURRENT_SOURCE_DIR}/config.py.in
+            ${TEST_OUTPUT_DIRECTORY}/config.py
+            @ONLY
+        )
 
     axom_add_test( NAME     sina_fortran_integration_test
                 COMMAND  ${PYTHON_EXECUTABLE} ${TEST_OUTPUT_DIRECTORY}/test_fortran_integration.py -bd ${PROJECT_BINARY_DIR}

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -63,12 +63,7 @@ inline bool leaf_node(const std::int32_t& nodeIdx) { return (nodeIdx < 0); }
  * device and unified memory.
  *
  */
-template <int NDIMS,
-          typename FloatType,
-          typename PrimitiveType,
-          typename InBinCheck,
-          typename LeafAction,
-          typename TraversePref>
+template <int NDIMS, typename FloatType, typename PrimitiveType, typename InBinCheck, typename LeafAction, typename TraversePref>
 AXOM_HOST_DEVICE inline void bvh_traverse(
   axom::ArrayView<const primal::BoundingBox<FloatType, NDIMS>> inner_nodes,
   axom::ArrayView<const std::int32_t> inner_node_children,

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -59,8 +59,7 @@ TEST(primal_beziercurve, set_order)
   EXPECT_EQ(-1, bCurve.getOrder());
 
   const int order = 1;
-  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0},
-                                PointType {0.0, 1.6, 1.8}};
+  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0}, PointType {0.0, 1.6, 1.8}};
 
   bCurve.setOrder(order);
   EXPECT_EQ(order, bCurve.getOrder());
@@ -92,8 +91,7 @@ TEST(primal_beziercurve, point_array_constructor)
   using PointType = primal::Point<CoordType, DIM>;
   using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
 
-  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0},
-                                PointType {0.0, 1.6, 1.8}};
+  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0}, PointType {0.0, 1.6, 1.8}};
 
   BezierCurveType bCurve(controlPoints, 1);
 
@@ -262,8 +260,8 @@ TEST(primal_beziercurve_, batch_derivatives)
   {
     BezierCurveType curve(data, ord);
 
-    curve.evaluate_first_derivative(t, batch1_val, batch1_dt);
-    curve.evaluate_second_derivative(t, batch2_val, batch2_dt, batch2_dtdt);
+    curve.evaluateFirstDerivative(t, batch1_val, batch1_dt);
+    curve.evaluateSecondDerivative(t, batch2_val, batch2_dt, batch2_dtdt);
     for(int i = 0; i < DIM; ++i)
     {
       EXPECT_NEAR(curve.evaluate(t)[i], batch1_val[i], 1e-15);

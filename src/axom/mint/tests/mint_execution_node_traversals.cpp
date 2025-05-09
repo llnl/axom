@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -29,13 +29,11 @@ namespace mint
 //------------------------------------------------------------------------------
 namespace
 {
-
 template <typename ExecPolicy, int MeshType, int Topology = SINGLE_SHAPE>
 void check_for_all_nodes_idx(int dimension)
 {
   constexpr char* mesh_name = internal::mesh_type<MeshType, Topology>::name();
-  SLIC_INFO("dimension=" << dimension
-                         << ", policy=" << execution_space<ExecPolicy>::name()
+  SLIC_INFO("dimension=" << dimension << ", policy=" << execution_space<ExecPolicy>::name()
                          << ", mesh_type=" << mesh_name);
 
   // Get ids of necessary allocators
@@ -53,8 +51,7 @@ void check_for_all_nodes_idx(int dimension)
   UniformMesh uniform_mesh(lo, hi, Ni, Nj, Nk);
 
   using MESH = typename internal::mesh_type<MeshType, Topology>::MeshType;
-  MESH* test_mesh =
-    dynamic_cast<MESH*>(internal::create_mesh<MeshType, Topology>(uniform_mesh));
+  MESH* test_mesh = dynamic_cast<MESH*>(internal::create_mesh<MeshType, Topology>(uniform_mesh));
   EXPECT_TRUE(test_mesh != nullptr);
 
   const IndexType numNodes = test_mesh->getNumberOfNodes();
@@ -70,8 +67,7 @@ void check_for_all_nodes_idx(int dimension)
   axom::Array<int> field_h = axom::Array<int>(field_d, host_allocator);
 
   // Create mesh field from buffer
-  int* n1_field =
-    test_mesh->template createField<int>("n1", NODE_CENTERED, field_h.data());
+  int* n1_field = test_mesh->template createField<int>("n1", NODE_CENTERED, field_h.data());
 
   for(IndexType inode = 0; inode < numNodes; ++inode)
   {
@@ -86,8 +82,8 @@ void check_for_all_nodes_idx(int dimension)
 template <typename ExecPolicy, int MeshType>
 void check_for_all_nodes_ij()
 {
-  SLIC_INFO("policy=" << execution_space<ExecPolicy>::name() << ", mesh_type="
-                      << internal::mesh_type<MeshType>::name());
+  SLIC_INFO("policy=" << execution_space<ExecPolicy>::name()
+                      << ", mesh_type=" << internal::mesh_type<MeshType>::name());
 
   // Get ids of necessary allocators
   const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
@@ -100,8 +96,7 @@ void check_for_all_nodes_ij()
 
   // STEP 0: create the test mesh
   using MESH = typename internal::mesh_type<MeshType>::MeshType;
-  MESH* test_mesh =
-    dynamic_cast<MESH*>(internal::create_mesh<MeshType>(uniform_mesh));
+  MESH* test_mesh = dynamic_cast<MESH*>(internal::create_mesh<MeshType>(uniform_mesh));
   EXPECT_TRUE(test_mesh != nullptr);
 
   const IndexType numNodes = test_mesh->getNumberOfNodes();
@@ -120,10 +115,8 @@ void check_for_all_nodes_ij()
     });
 
   // Copy data back to host
-  axom::Array<IndexType> icoords_h =
-    axom::Array<IndexType>(icoords_d, host_allocator);
-  axom::Array<IndexType> jcoords_h =
-    axom::Array<IndexType>(jcoords_d, host_allocator);
+  axom::Array<IndexType> icoords_h = axom::Array<IndexType>(icoords_d, host_allocator);
+  axom::Array<IndexType> jcoords_h = axom::Array<IndexType>(jcoords_d, host_allocator);
 
   IndexType inode = 0;
   for(IndexType j = 0; j < N; ++j)
@@ -145,8 +138,8 @@ void check_for_all_nodes_ij()
 template <typename ExecPolicy, int MeshType>
 void check_for_all_nodes_ijk()
 {
-  SLIC_INFO("policy=" << execution_space<ExecPolicy>::name() << ", mesh_type="
-                      << internal::mesh_type<MeshType>::name());
+  SLIC_INFO("policy=" << execution_space<ExecPolicy>::name()
+                      << ", mesh_type=" << internal::mesh_type<MeshType>::name());
 
   // Get ids of necessary allocators
   const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
@@ -159,8 +152,7 @@ void check_for_all_nodes_ijk()
 
   // STEP 0: create the test mesh
   using MESH = typename internal::mesh_type<MeshType>::MeshType;
-  MESH* test_mesh =
-    dynamic_cast<MESH*>(internal::create_mesh<MeshType>(uniform_mesh));
+  MESH* test_mesh = dynamic_cast<MESH*>(internal::create_mesh<MeshType>(uniform_mesh));
   EXPECT_TRUE(test_mesh != nullptr);
 
   const IndexType numNodes = test_mesh->getNumberOfNodes();
@@ -182,12 +174,9 @@ void check_for_all_nodes_ijk()
     });
 
   // Copy data back to host
-  axom::Array<IndexType> icoords_h =
-    axom::Array<IndexType>(icoords_d, host_allocator);
-  axom::Array<IndexType> jcoords_h =
-    axom::Array<IndexType>(jcoords_d, host_allocator);
-  axom::Array<IndexType> kcoords_h =
-    axom::Array<IndexType>(kcoords_d, host_allocator);
+  axom::Array<IndexType> icoords_h = axom::Array<IndexType>(icoords_d, host_allocator);
+  axom::Array<IndexType> jcoords_h = axom::Array<IndexType>(jcoords_d, host_allocator);
+  axom::Array<IndexType> kcoords_h = axom::Array<IndexType>(kcoords_d, host_allocator);
 
   IndexType inode = 0;
   for(IndexType k = 0; k < N; ++k)
@@ -214,8 +203,7 @@ template <typename ExecPolicy, int MeshType, int Topology = SINGLE_SHAPE>
 void check_for_all_nodes_xyz()
 {
   constexpr char* mesh_name = internal::mesh_type<MeshType, Topology>::name();
-  SLIC_INFO("policy=" << execution_space<ExecPolicy>::name()
-                      << ", mesh_type=" << mesh_name);
+  SLIC_INFO("policy=" << execution_space<ExecPolicy>::name() << ", mesh_type=" << mesh_name);
 
   // Get ids of necessary allocators
   const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
@@ -228,8 +216,7 @@ void check_for_all_nodes_xyz()
 
   // STEP 0: create the test mesh
   using MESH = typename internal::mesh_type<MeshType, Topology>::MeshType;
-  MESH* test_mesh =
-    dynamic_cast<MESH*>(internal::create_mesh<MeshType, Topology>(uniform_mesh));
+  MESH* test_mesh = dynamic_cast<MESH*>(internal::create_mesh<MeshType, Topology>(uniform_mesh));
   EXPECT_TRUE(test_mesh != nullptr);
 
   // STEP 1: generate test coordinate arrays
@@ -276,8 +263,7 @@ template <typename ExecPolicy, int MeshType, int Topology = SINGLE_SHAPE>
 void check_for_all_nodes_xy()
 {
   constexpr char* mesh_name = internal::mesh_type<MeshType, Topology>::name();
-  SLIC_INFO("policy=" << execution_space<ExecPolicy>::name()
-                      << ", mesh_type=" << mesh_name);
+  SLIC_INFO("policy=" << execution_space<ExecPolicy>::name() << ", mesh_type=" << mesh_name);
 
   // Get ids of necessary allocators
   const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
@@ -290,8 +276,7 @@ void check_for_all_nodes_xy()
 
   // STEP 0: create the test mesh
   using MESH = typename internal::mesh_type<MeshType, Topology>::MeshType;
-  MESH* test_mesh =
-    dynamic_cast<MESH*>(internal::create_mesh<MeshType, Topology>(uniform_mesh));
+  MESH* test_mesh = dynamic_cast<MESH*>(internal::create_mesh<MeshType, Topology>(uniform_mesh));
   EXPECT_TRUE(test_mesh != nullptr);
 
   // STEP 1: generate test coordinate arrays
@@ -333,8 +318,7 @@ template <typename ExecPolicy, int MeshType, int Topology = SINGLE_SHAPE>
 void check_for_all_nodes_x()
 {
   constexpr char* mesh_name = internal::mesh_type<MeshType, Topology>::name();
-  SLIC_INFO("policy=" << execution_space<ExecPolicy>::name()
-                      << ", mesh_type=" << mesh_name);
+  SLIC_INFO("policy=" << execution_space<ExecPolicy>::name() << ", mesh_type=" << mesh_name);
 
   // Get ids of necessary allocators
   const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
@@ -347,8 +331,7 @@ void check_for_all_nodes_x()
 
   // STEP 0: create the test mesh
   using MESH = typename internal::mesh_type<MeshType, Topology>::MeshType;
-  MESH* test_mesh =
-    dynamic_cast<MESH*>(internal::create_mesh<MeshType, Topology>(uniform_mesh));
+  MESH* test_mesh = dynamic_cast<MESH*>(internal::create_mesh<MeshType, Topology>(uniform_mesh));
   EXPECT_TRUE(test_mesh != nullptr);
 
   if(MeshType != PARTICLE_MESH)
@@ -398,8 +381,7 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_xyz)
   check_for_all_nodes_xyz<seq_exec, UNSTRUCTURED_MESH, SINGLE_SHAPE>();
   check_for_all_nodes_xyz<seq_exec, UNSTRUCTURED_MESH, MIXED_SHAPE>();
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
 
   using openmp_exec = axom::OMP_EXEC;
   check_for_all_nodes_xyz<openmp_exec, STRUCTURED_UNIFORM_MESH>();
@@ -411,8 +393,8 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_xyz)
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
+  defined(AXOM_USE_UMPIRE)
 
   using cuda_exec = axom::CUDA_EXEC<512>;
 
@@ -425,8 +407,8 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_xyz)
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
+  defined(AXOM_USE_UMPIRE)
 
   using hip_exec = axom::HIP_EXEC<512>;
 
@@ -451,8 +433,7 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_xy)
   check_for_all_nodes_xy<seq_exec, UNSTRUCTURED_MESH, SINGLE_SHAPE>();
   check_for_all_nodes_xy<seq_exec, UNSTRUCTURED_MESH, MIXED_SHAPE>();
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
 
   using openmp_exec = axom::OMP_EXEC;
   check_for_all_nodes_xy<openmp_exec, STRUCTURED_UNIFORM_MESH>();
@@ -464,8 +445,8 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_xy)
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
+  defined(AXOM_USE_UMPIRE)
 
   using cuda_exec = axom::CUDA_EXEC<512>;
 
@@ -478,8 +459,8 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_xy)
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
+  defined(AXOM_USE_UMPIRE)
 
   using hip_exec = axom::HIP_EXEC<512>;
 
@@ -504,8 +485,7 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_x)
   check_for_all_nodes_x<seq_exec, UNSTRUCTURED_MESH, SINGLE_SHAPE>();
   check_for_all_nodes_x<seq_exec, UNSTRUCTURED_MESH, MIXED_SHAPE>();
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
 
   using openmp_exec = axom::OMP_EXEC;
   check_for_all_nodes_x<openmp_exec, STRUCTURED_UNIFORM_MESH>();
@@ -517,8 +497,8 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_x)
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
+  defined(AXOM_USE_UMPIRE)
 
   using cuda_exec = axom::CUDA_EXEC<512>;
 
@@ -531,8 +511,8 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_x)
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
+  defined(AXOM_USE_UMPIRE)
 
   using hip_exec = axom::HIP_EXEC<512>;
 
@@ -554,8 +534,7 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_ijk)
   check_for_all_nodes_ijk<seq_exec, STRUCTURED_CURVILINEAR_MESH>();
   check_for_all_nodes_ijk<seq_exec, STRUCTURED_RECTILINEAR_MESH>();
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
 
   using openmp_exec = axom::OMP_EXEC;
   check_for_all_nodes_ijk<openmp_exec, STRUCTURED_UNIFORM_MESH>();
@@ -564,8 +543,8 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_ijk)
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
+  defined(AXOM_USE_UMPIRE)
 
   using cuda_exec = axom::CUDA_EXEC<512>;
 
@@ -575,8 +554,8 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_ijk)
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
+  defined(AXOM_USE_UMPIRE)
 
   using hip_exec = axom::HIP_EXEC<512>;
 
@@ -595,8 +574,7 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_ij)
   check_for_all_nodes_ij<seq_exec, STRUCTURED_CURVILINEAR_MESH>();
   check_for_all_nodes_ij<seq_exec, STRUCTURED_RECTILINEAR_MESH>();
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
 
   using openmp_exec = axom::OMP_EXEC;
   check_for_all_nodes_ij<openmp_exec, STRUCTURED_UNIFORM_MESH>();
@@ -605,8 +583,8 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_ij)
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
+  defined(AXOM_USE_UMPIRE)
 
   using cuda_exec = axom::CUDA_EXEC<512>;
 
@@ -616,8 +594,8 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_ij)
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
+  defined(AXOM_USE_UMPIRE)
 
   using hip_exec = axom::HIP_EXEC<512>;
 
@@ -642,8 +620,7 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_index)
     check_for_all_nodes_idx<seq_exec, UNSTRUCTURED_MESH, SINGLE_SHAPE>(i);
     check_for_all_nodes_idx<seq_exec, UNSTRUCTURED_MESH, MIXED_SHAPE>(i);
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
 
     using omp_exec = axom::OMP_EXEC;
     check_for_all_nodes_idx<omp_exec, STRUCTURED_UNIFORM_MESH>(i);
@@ -655,8 +632,8 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_index)
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
+  defined(AXOM_USE_UMPIRE)
 
     using cuda_exec = axom::CUDA_EXEC<512>;
 
@@ -669,8 +646,8 @@ AXOM_CUDA_TEST(mint_execution_node_traversals, for_all_nodes_index)
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
+  defined(AXOM_USE_UMPIRE)
 
     using hip_exec = axom::HIP_EXEC<512>;
 

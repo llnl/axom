@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 
 #include "axom/primal/geometry/Point.hpp"
+#include "axom/core/NumericArray.hpp"
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/execution/for_all.hpp"
 #include "axom/slic.hpp"
@@ -19,8 +20,7 @@ void check_point_policy()
   const int DIM = 3;
   using PointType = primal::Point<double, DIM>;
 
-  double* coords =
-    axom::allocate<double>(DIM, axom::execution_space<ExecSpace>::allocatorID());
+  double* coords = axom::allocate<double>(DIM, axom::execution_space<ExecSpace>::allocatorID());
 
   double coords_host[DIM];
 
@@ -40,13 +40,15 @@ void check_point_policy()
 //------------------------------------------------------------------------------
 TEST(primal_point, point_default_constructor)
 {
-  static const int DIM = 2;
+  static const int DIM = 3;
   using CoordType = double;
   using QPoint = primal::Point<CoordType, DIM>;
 
   QPoint pt;
 
   EXPECT_EQ(pt[0], CoordType());
+  EXPECT_EQ(pt[1], CoordType());
+  EXPECT_EQ(pt[2], CoordType());
   EXPECT_EQ(pt.dimension(), DIM);
 }
 
@@ -148,10 +150,9 @@ TEST(primal_point, point_array_constructor)
   }
 
   //
-  SLIC_INFO(
-    "\nprimal: testing constructor that sets *some* values to a singleVal. "
-    << "Using explicit second parameter set less than DIM. "
-    << "Other values should be set to zero. ");
+  SLIC_INFO("\nprimal: testing constructor that sets *some* values to a singleVal. "
+            << "Using explicit second parameter set less than DIM. "
+            << "Other values should be set to zero. ");
 
   int numVals = DIM / 2;
   QPoint pt4(arr, numVals);
@@ -172,7 +173,7 @@ TEST(primal_point, point_numericArray_constructor)
 {
   static const int DIM = 5;
   using CoordType = int;
-  using QArray = primal::NumericArray<CoordType, DIM>;
+  using QArray = axom::NumericArray<CoordType, DIM>;
   using QPoint = primal::Point<CoordType, DIM>;
 
   // Set elt i of input array to i
@@ -382,24 +383,23 @@ AXOM_CUDA_TEST(primal_point, point_check_policies)
   using seq_exec = axom::SEQ_EXEC;
   check_point_policy<seq_exec>();
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
 
   using omp_exec = axom::OMP_EXEC;
   check_point_policy<omp_exec>();
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
+  defined(AXOM_USE_UMPIRE)
 
   using cuda_exec = axom::CUDA_EXEC<512>;
 
   check_point_policy<cuda_exec>();
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
+  defined(AXOM_USE_UMPIRE)
 
   using hip_exec = axom::HIP_EXEC<512>;
 

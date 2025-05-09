@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -69,11 +69,10 @@ public:
    *
    * \pre sizeof...(Args) == DIM
    */
-  template <
-    typename... Args,
-    typename Enable = typename std::enable_if<
-      sizeof...(Args) == DIM && detail::all_types_are_integral<Args...>::value>::type>
-  ArrayView(T* data, Args... args);
+  template <typename... Args,
+            typename Enable = typename std::enable_if<
+              sizeof...(Args) == DIM && detail::all_types_are_integral<Args...>::value>::type>
+  AXOM_HOST_DEVICE ArrayView(T* data, Args... args);
 
   /*!
    * \brief Generic constructor for an ArrayView of arbitrary dimension with external data
@@ -232,20 +231,17 @@ using MCArrayView = ArrayView<T, 2>;
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE>
 template <typename... Args, typename Enable>
-ArrayView<T, DIM, SPACE>::ArrayView(T* data, Args... args)
-  : ArrayView(data,
-              StackArray<IndexType, DIM> {{static_cast<IndexType>(args)...}})
+AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(T* data, Args... args)
+  : ArrayView(data, StackArray<IndexType, DIM> {{static_cast<IndexType>(args)...}})
 {
-  static_assert(sizeof...(Args) == DIM,
-                "Array size must match number of dimensions");
+  static_assert(sizeof...(Args) == DIM, "Array size must match number of dimensions");
 }
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE>
-AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
-  T* data,
-  const StackArray<IndexType, DIM>& shape,
-  IndexType min_stride)
+AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(T* data,
+                                                     const StackArray<IndexType, DIM>& shape,
+                                                     IndexType min_stride)
   : ArrayBase<T, DIM, ArrayView<T, DIM, SPACE>>(shape, min_stride)
   , m_data(data)
 #ifndef AXOM_DEVICE_CODE
@@ -291,10 +287,9 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE>
-AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
-  T* data,
-  const StackArray<IndexType, DIM>& shape,
-  const StackArray<IndexType, DIM>& stride)
+AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(T* data,
+                                                     const StackArray<IndexType, DIM>& shape,
+                                                     const StackArray<IndexType, DIM>& stride)
   : ArrayBase<T, DIM, ArrayView<T, DIM, SPACE>>(shape, stride)
   , m_data(data)
 #ifndef AXOM_DEVICE_CODE
@@ -341,8 +336,7 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE>
 template <typename OtherArrayType>
-AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
-  ArrayBase<T, DIM, OtherArrayType>& other)
+AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(ArrayBase<T, DIM, OtherArrayType>& other)
   : ArrayBase<T, DIM, ArrayView<T, DIM, SPACE>>(other)
   , m_data(static_cast<OtherArrayType&>(other).data())
   , m_num_elements(static_cast<OtherArrayType&>(other).size())
@@ -351,8 +345,7 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
 #if !defined(AXOM_DEVICE_CODE) && defined(AXOM_DEBUG)
   // If it's not dynamic, the allocator ID from the argument array has to match the template param.
   // If that's not the case then things have gone horribly wrong somewhere.
-  if(SPACE != MemorySpace::Dynamic &&
-     SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
   {
     std::cerr << "Input argument allocator does not match the explicitly "
                  "provided memory space\n";
@@ -371,14 +364,12 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
   , m_num_elements(static_cast<const OtherArrayType&>(other).size())
   , m_allocator_id(static_cast<const OtherArrayType&>(other).getAllocatorID())
 {
-  static_assert(
-    std::is_const<T>::value || detail::ArrayTraits<OtherArrayType>::is_view,
-    "Cannot create an ArrayView of non-const type from a const Array");
+  static_assert(std::is_const<T>::value || detail::ArrayTraits<OtherArrayType>::is_view,
+                "Cannot create an ArrayView of non-const type from a const Array");
 #if !defined(AXOM_DEVICE_CODE) && defined(AXOM_DEBUG)
   // If it's not dynamic, the allocator ID from the argument array has to match the template param.
   // If that's not the case then things have gone horribly wrong somewhere.
-  if(SPACE != MemorySpace::Dynamic &&
-     SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
   {
     std::cerr << "Input argument allocator does not match the explicitly "
                  "provided memory space\n";
@@ -405,8 +396,7 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE> ArrayView<T, DIM, SPACE>::subspan(
   }
 #endif
   // Compute flat offset into existing data.
-  IndexType offset =
-    numerics::dot_product(offsets.m_data, this->strides().m_data, DIM);
+  IndexType offset = numerics::dot_product(offsets.m_data, this->strides().m_data, DIM);
 
   // Setup new shape array.
   StackArray<IndexType, DIM> newShape;

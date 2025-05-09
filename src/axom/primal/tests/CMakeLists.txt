@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -23,7 +23,6 @@ set( primal_tests
     primal_intersect.cpp
     primal_intersect_impl.cpp
     primal_knot_vector.cpp
-    primal_numeric_array.cpp
     primal_nurbs_curve.cpp
     primal_nurbs_patch.cpp
     primal_orientation.cpp
@@ -40,6 +39,7 @@ set( primal_tests
     primal_squared_distance.cpp
     primal_surface_intersect.cpp
     primal_tetrahedron.cpp
+    primal_trimming_curves.cpp
     primal_octahedron.cpp
     primal_triangle.cpp
     primal_quadrilateral.cpp

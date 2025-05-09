@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -15,7 +15,6 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 
-#include "axom/primal/geometry/NumericArray.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/Segment.hpp"
@@ -69,13 +68,11 @@ public:
   using BoundingBoxType = BoundingBox<T, NDIMS>;
   using OrientedBoundingBoxType = OrientedBoundingBox<T, NDIMS>;
 
-  AXOM_STATIC_ASSERT_MSG(
-    (NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
-    "A Bezier Curve object may be defined in 1-, 2-, or 3-D");
+  AXOM_STATIC_ASSERT_MSG((NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
+                         "A Bezier Curve object may be defined in 1-, 2-, or 3-D");
 
-  AXOM_STATIC_ASSERT_MSG(
-    std::is_arithmetic<T>::value,
-    "A Bezier Curve must be defined using an arithmetic type");
+  AXOM_STATIC_ASSERT_MSG(std::is_arithmetic<T>::value,
+                         "A Bezier Curve must be defined using an arithmetic type");
 
 public:
   /*!
@@ -183,9 +180,7 @@ public:
    * \pre order is greater than or equal to zero
    *
    */
-  BezierCurve(const axom::Array<PointType>& pts,
-              const axom::Array<T>& weights,
-              int ord)
+  BezierCurve(const axom::Array<PointType>& pts, const axom::Array<T>& weights, int ord)
   {
     SLIC_ASSERT(ord >= 0);
     SLIC_ASSERT(pts.size() == weights.size());
@@ -272,15 +267,12 @@ public:
   };
 
   /// Checks equality of two Bezier Curve
-  friend inline bool operator==(const BezierCurve<T, NDIMS>& lhs,
-                                const BezierCurve<T, NDIMS>& rhs)
+  friend inline bool operator==(const BezierCurve<T, NDIMS>& lhs, const BezierCurve<T, NDIMS>& rhs)
   {
-    return (lhs.m_controlPoints == rhs.m_controlPoints) &&
-      (lhs.m_weights == rhs.m_weights);
+    return (lhs.m_controlPoints == rhs.m_controlPoints) && (lhs.m_weights == rhs.m_weights);
   }
 
-  friend inline bool operator!=(const BezierCurve<T, NDIMS>& lhs,
-                                const BezierCurve<T, NDIMS>& rhs)
+  friend inline bool operator!=(const BezierCurve<T, NDIMS>& lhs, const BezierCurve<T, NDIMS>& rhs)
   {
     return !(lhs == rhs);
   }
@@ -313,15 +305,13 @@ public:
   /// Returns an axis-aligned bounding box containing the Bezier curve
   BoundingBoxType boundingBox() const
   {
-    return BoundingBoxType(m_controlPoints.data(),
-                           static_cast<int>(m_controlPoints.size()));
+    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
   /// Returns an oriented bounding box containing the Bezier curve
   OrientedBoundingBoxType orientedBoundingBox() const
   {
-    return OrientedBoundingBoxType(m_controlPoints.data(),
-                                   static_cast<int>(m_controlPoints.size()));
+    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
   /*!
@@ -402,7 +392,7 @@ public:
    * \param [out] eval The value of the curve at \a t
    * \param [out] Dt The tangent vector of the curve at \a t
    */
-  void evaluate_first_derivative(T t, PointType& eval, VectorType& Dt) const
+  void evaluateFirstDerivative(T t, PointType& eval, VectorType& Dt) const
   {
     using axom::utilities::lerp;
     VectorType val;
@@ -468,8 +458,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_t;
 
-      projective.evaluate_first_derivative(t, P, P_t);
-      weights.evaluate_first_derivative(t, W, W_t);
+      projective.evaluateFirstDerivative(t, P, P_t);
+      weights.evaluateFirstDerivative(t, W, W_t);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -553,8 +543,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_t;
 
-      projective.evaluate_first_derivative(t, P, P_t);
-      weights.evaluate_first_derivative(t, W, W_t);
+      projective.evaluateFirstDerivative(t, P, P_t);
+      weights.evaluateFirstDerivative(t, W, W_t);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -572,10 +562,7 @@ public:
    * \param [out] eval The value of the curve at \a t
    * \param [out] Dt The tangent vector of the curve at \a t
    */
-  void evaluate_second_derivative(T t,
-                                  PointType& eval,
-                                  VectorType& Dt,
-                                  VectorType& DtDt) const
+  void evaluateSecondDerivative(T t, PointType& eval, VectorType& Dt, VectorType& DtDt) const
   {
     using axom::utilities::lerp;
     VectorType val;
@@ -618,10 +605,9 @@ public:
         }
         else
         {
-          eval[i] = (1 - t) * (1 - t) * dCarray[0] +
-            2 * (1 - t) * t * dCarray[1] + t * t * dCarray[2];
-          Dt[i] = ord *
-            ((1 - t) * (dCarray[1] - dCarray[0]) + t * (dCarray[2] - dCarray[1]));
+          eval[i] =
+            (1 - t) * (1 - t) * dCarray[0] + 2 * (1 - t) * t * dCarray[1] + t * t * dCarray[2];
+          Dt[i] = ord * ((1 - t) * (dCarray[1] - dCarray[0]) + t * (dCarray[2] - dCarray[1]));
           DtDt[i] = ord * (ord - 1) * (dCarray[2] - 2 * dCarray[1] + dCarray[0]);
         }
       }
@@ -651,8 +637,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_t, W_tt;
 
-      projective.evaluate_second_derivative(t, P, P_t, P_tt);
-      weights.evaluate_second_derivative(t, W, W_t, W_tt);
+      projective.evaluateSecondDerivative(t, P, P_t, P_tt);
+      weights.evaluateSecondDerivative(t, W, W_t, W_tt);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -737,13 +723,13 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_t, W_tt;
 
-      projective.evaluate_second_derivative(t, P, P_t, P_tt);
-      weights.evaluate_second_derivative(t, W, W_t, W_tt);
+      projective.evaluateSecondDerivative(t, P, P_t, P_tt);
+      weights.evaluateSecondDerivative(t, W, W_t, W_tt);
 
       for(int i = 0; i < NDIMS; ++i)
       {
-        val[i] = W[0] * W[0] * P_tt[i] -
-          2 * (W[0] * P_t[i] - P[i] * W_t[0]) * W_t[0] - P[i] * W[0] * W_tt[0];
+        val[i] = W[0] * W[0] * P_tt[i] - 2 * (W[0] * P_t[i] - P[i] * W_t[0]) * W_t[0] -
+          P[i] * W[0] * W_tt[0];
         val[i] /= (W[0] * W[0] * W[0]);
       }
 
@@ -784,8 +770,7 @@ public:
         for(int k = 0; k <= end; ++k)
         {
           // Do linear interpolation on weights
-          double temp_weight =
-            axom::utilities::lerp(c2.getWeight(k), c2.getWeight(k + 1), t);
+          double temp_weight = axom::utilities::lerp(c2.getWeight(k), c2.getWeight(k + 1), t);
 
           for(int i = 0; i < NDIMS; ++i)
           {
@@ -827,10 +812,11 @@ public:
    * are approximately on the line defined by its two endpoints
    *
    * \param [in] tol Threshold for sum of squared distances
-   * \param [in] useStrictLinear If true, the control points must be evenly spaced
-   * \return True if c1 is near-linear
+   * \param [in] useStrictLinear If true, checks that the control points are
+   *   evenly spaced along the line
+   * \return True if curve is near-linear
    */
-  bool isLinear(double tol = 1E-8, bool useStrictLinear = false) const
+  bool isLinear(double tol = 1e-8, bool useStrictLinear = false) const
   {
     const int ord = getOrder();
     if(ord <= 1)
@@ -946,8 +932,7 @@ std::ostream& operator<<(std::ostream& os, const BezierCurve<T, NDIMS>& bCurve)
 
 /// Overload to format a primal::BezierCurve using fmt
 template <typename T, int NDIMS>
-struct axom::fmt::formatter<axom::primal::BezierCurve<T, NDIMS>>
-  : ostream_formatter
+struct axom::fmt::formatter<axom::primal::BezierCurve<T, NDIMS>> : ostream_formatter
 { };
 
 #endif  // AXOM_PRIMAL_BEZIERCURVE_HPP_

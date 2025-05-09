@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -186,16 +186,10 @@ TEST(primal_nurbspatch, point_array_constructors)
                                              PointType {2.0, 0.0, 0.0},
                                              PointType {2.0, 1.0, 0.0},
                                              PointType {2.0, 2.0, 1.0}});
-  axom::Array<CoordType> weightsArray(
-    {1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0});
+  axom::Array<CoordType> weightsArray({1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0});
 
   NURBSPatchType nPatchArray(controlPointsArray, npts_u, npts_v, degree_u, degree_v);
-  NURBSPatchType wPatchArray(controlPointsArray,
-                             weightsArray,
-                             npts_u,
-                             npts_v,
-                             degree_u,
-                             degree_v);
+  NURBSPatchType wPatchArray(controlPointsArray, weightsArray, npts_u, npts_v, degree_u, degree_v);
 
   EXPECT_EQ(nPatchArray.getDegree_u(), degree_u);
   EXPECT_EQ(nPatchArray.getDegree_v(), degree_v);
@@ -231,10 +225,7 @@ TEST(primal_nurbspatch, point_array_constructors)
   }
 
   NURBSPatchType nPatchArray2D(controlPointsArray2D, degree_u, degree_v);
-  NURBSPatchType wPatchArray2D(controlPointsArray2D,
-                               weightsArray2D,
-                               degree_u,
-                               degree_v);
+  NURBSPatchType wPatchArray2D(controlPointsArray2D, weightsArray2D, degree_u, degree_v);
 
   EXPECT_EQ(nPatchArray2D.getDegree_u(), degree_u);
   EXPECT_EQ(nPatchArray2D.getDegree_v(), degree_v);
@@ -334,23 +325,13 @@ TEST(primal_nurbspatch, knot_array_constructor)
                                              PointType {2.0, 0.0, 0.0},
                                              PointType {2.0, 1.0, 0.0},
                                              PointType {2.0, 2.0, 1.0}});
-  axom::Array<CoordType> weightsArray(
-    {1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0});
+  axom::Array<CoordType> weightsArray({1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0});
 
   axom::Array<double> knots_uArray({0.0, 0.0, 0.5, 1.0, 1.0});
   axom::Array<double> knots_vArray({0.0, 0.0, 0.5, 1.0, 1.0});
 
-  NURBSPatchType nPatchArray(controlPointsArray,
-                             npts_u,
-                             npts_v,
-                             knots_uArray,
-                             knots_vArray);
-  NURBSPatchType wPatchArray(controlPointsArray,
-                             weightsArray,
-                             npts_u,
-                             npts_v,
-                             knots_uArray,
-                             knots_vArray);
+  NURBSPatchType nPatchArray(controlPointsArray, npts_u, npts_v, knots_uArray, knots_vArray);
+  NURBSPatchType wPatchArray(controlPointsArray, weightsArray, npts_u, npts_v, knots_uArray, knots_vArray);
 
   EXPECT_EQ(nPatchArray.getDegree_u(), degree_u);
   EXPECT_EQ(nPatchArray.getDegree_v(), degree_v);
@@ -385,10 +366,7 @@ TEST(primal_nurbspatch, knot_array_constructor)
   }
 
   NURBSPatchType nPatchArray2D(controlPointsArray2D, knots_uArray, knots_vArray);
-  NURBSPatchType wPatchArray2D(controlPointsArray2D,
-                               weightsArray2D,
-                               knots_uArray,
-                               knots_vArray);
+  NURBSPatchType wPatchArray2D(controlPointsArray2D, weightsArray2D, knots_uArray, knots_vArray);
 
   EXPECT_EQ(nPatchArray2D.getDegree_u(), degree_u);
   EXPECT_EQ(nPatchArray2D.getDegree_v(), degree_v);
@@ -413,11 +391,7 @@ TEST(primal_nurbspatch, knot_array_constructor)
   primal::KnotVector<CoordType> knotVector_u(npts_u, degree_u);
   primal::KnotVector<CoordType> knotVector_v(npts_v, degree_v);
 
-  NURBSPatchType nPatchKnotVector(controlPointsArray,
-                                  npts_u,
-                                  npts_v,
-                                  knotVector_u,
-                                  knotVector_v);
+  NURBSPatchType nPatchKnotVector(controlPointsArray, npts_u, npts_v, knotVector_u, knotVector_v);
   NURBSPatchType wPatchKnotVector(controlPointsArray,
                                   weightsArray,
                                   npts_u,
@@ -445,13 +419,8 @@ TEST(primal_nurbspatch, knot_array_constructor)
   }
 
   // Construct from 2D axom::Array and KnotVector object
-  NURBSPatchType nPatchKnotVector2D(controlPointsArray2D,
-                                    knotVector_u,
-                                    knotVector_v);
-  NURBSPatchType wPatchKnotVector2D(controlPointsArray2D,
-                                    weightsArray2D,
-                                    knotVector_u,
-                                    knotVector_v);
+  NURBSPatchType nPatchKnotVector2D(controlPointsArray2D, knotVector_u, knotVector_v);
+  NURBSPatchType wPatchKnotVector2D(controlPointsArray2D, weightsArray2D, knotVector_u, knotVector_v);
 
   EXPECT_EQ(nPatchKnotVector2D.getDegree_u(), degree_u);
   EXPECT_EQ(nPatchKnotVector2D.getDegree_v(), degree_v);
@@ -736,12 +705,7 @@ TEST(primal_nurbspatch, knot_insertion)
 
   NURBSPatchType nPatch(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
 
-  NURBSPatchType nPatchExtraKnots(controlPoints,
-                                  weights,
-                                  npts_u,
-                                  npts_v,
-                                  degree_u,
-                                  degree_v);
+  NURBSPatchType nPatchExtraKnots(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
 
   // Insert knots in the u direction
   nPatchExtraKnots.insertKnot_u(0.3, 2);
@@ -874,6 +838,188 @@ TEST(primal_nurbspatch, patch_split)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_nurbspatch, patch_clip)
+{
+  SLIC_INFO("Testing NURBS Patch clipping");
+
+  const int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSPatchType = primal::NURBSPatch<CoordType, DIM>;
+
+  const int npts_u = 5;
+  const int npts_v = 4;
+
+  const int degree_u = 3;
+  const int degree_v = 2;
+
+  // clang-format off
+  PointType controlPoints[5 * 4] = {
+    PointType {0, 0, 0}, PointType {0, 4,  0}, PointType {0, 8, -3}, PointType {0, 12, 0},
+    PointType {2, 0, 6}, PointType {2, 4,  0}, PointType {2, 8,  0}, PointType {2, 12, 0},
+    PointType {4, 0, 0}, PointType {4, 4,  0}, PointType {4, 8,  3}, PointType {4, 12, 0},
+    PointType {6, 0, 0}, PointType {6, 4, -3}, PointType {6, 8,  0}, PointType {6, 12, 0},
+    PointType {8, 0, 0}, PointType {8, 4,  0}, PointType {8, 8,  0}, PointType {8, 12, 0}};
+
+  double weights[5 * 4] = {
+    1.0, 2.0, 3.0, 2.0,
+    2.0, 3.0, 4.0, 3.0,
+    3.0, 4.0, 5.0, 4.0,
+    4.0, 5.0, 6.0, 5.0,
+    5.0, 6.0, 7.0, 6.0};
+  // clang-format on
+
+  NURBSPatchType nPatch(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
+  NURBSPatchType subPatch(nPatch);
+
+  // Clip the patch to the region 0.3 <= u <= 0.7, 0.4 <= v <= 0.6
+  subPatch.clip(0.3, 0.7, 0.4, 0.6);
+
+  EXPECT_NEAR(subPatch.getMinKnot_u(), 0.3, 1e-10);
+  EXPECT_NEAR(subPatch.getMaxKnot_u(), 0.7, 1e-10);
+  EXPECT_NEAR(subPatch.getMinKnot_v(), 0.4, 1e-10);
+  EXPECT_NEAR(subPatch.getMaxKnot_v(), 0.6, 1e-10);
+
+  constexpr int npts = 11;
+  double u_pts[npts], v_pts[npts];
+  axom::numerics::linspace(0.3, 0.7, u_pts, npts);
+  axom::numerics::linspace(0.4, 0.6, v_pts, npts);
+
+  for(auto u : u_pts)
+  {
+    for(auto v : v_pts)
+    {
+      auto pt1 = nPatch.evaluate(u, v);
+      auto pt2 = subPatch.evaluate(u, v);
+
+      for(int N = 0; N < DIM; ++N)
+      {
+        EXPECT_NEAR(pt1[N], pt2[N], 1e-10);
+      }
+    }
+  }
+}
+//------------------------------------------------------------------------------
+TEST(primal_nurbspatch, nurbs_parameter_space_scaling)
+{
+  SLIC_INFO("Testing NURBS Patch parameter space expansion");
+
+  const int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSPatchType = primal::NURBSPatch<CoordType, DIM>;
+
+  const int npts_u = 5;
+  const int npts_v = 4;
+
+  const int degree_u = 3;
+  const int degree_v = 2;
+
+  // clang-format off
+  PointType controlPoints[5 * 4] = {
+    PointType {0, 0, 0}, PointType {0, 4,  0}, PointType {0, 8, -3}, PointType {0, 12, 0},
+    PointType {2, 0, 3}, PointType {2, 4,  0}, PointType {2, 8,  0}, PointType {2, 12, 0},
+    PointType {4, 0, 0}, PointType {4, 4,  0}, PointType {4, 8,  3}, PointType {4, 12, 0},
+    PointType {6, 0, 0}, PointType {6, 4, -3}, PointType {6, 8,  0}, PointType {6, 12, 0},
+    PointType {8, 0, 0}, PointType {8, 4,  0}, PointType {8, 8,  0}, PointType {8, 12, 0}};
+
+  double weights[5 * 4] = {
+    1.0, 2.0, 3.0, 2.0,
+    2.0, 3.0, 4.0, 3.0,
+    3.0, 4.0, 5.0, 4.0,
+    4.0, 5.0, 6.0, 5.0,
+    5.0, 6.0, 7.0, 6.0};
+  // clang-format on
+
+  NURBSPatchType nPatchUntrimmed(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
+  NURBSPatchType nPatchTrimmed(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
+  nPatchTrimmed.addTrimmingCurve(
+    primal::NURBSCurve<CoordType, 2>::make_circular_arc_nurbs(0.0, 2.0 * M_PI, 0.5, 0.5, 0.25));
+
+  NURBSPatchType supPatchOriginallyUntrimmed(nPatchUntrimmed);
+  NURBSPatchType supPatchUntrimmed(nPatchUntrimmed);
+  NURBSPatchType supPatchTrimmed(nPatchTrimmed);
+
+  // Expand the parameter space of the patch
+  constexpr double scaleFactor = 1.05;
+
+  // All patches have the same geometry, but different trimming curves
+  constexpr bool removeTrimmingCurves = true;
+  supPatchOriginallyUntrimmed.scaleParameterSpace(scaleFactor);
+  supPatchUntrimmed.scaleParameterSpace(scaleFactor, removeTrimmingCurves);
+  supPatchTrimmed.scaleParameterSpace(scaleFactor);
+
+  // Both should be trimmed after this procedure UNLESS the flag is set
+  EXPECT_TRUE(supPatchOriginallyUntrimmed.isTrimmed());
+  EXPECT_FALSE(supPatchUntrimmed.isTrimmed());
+  EXPECT_TRUE(supPatchTrimmed.isTrimmed());
+
+  double min_u = nPatchUntrimmed.getMinKnot_u();
+  double max_u = nPatchUntrimmed.getMaxKnot_u();
+
+  double min_v = nPatchUntrimmed.getMinKnot_v();
+  double max_v = nPatchUntrimmed.getMaxKnot_v();
+
+  // Check the parameter space of the superpatches' knots
+  for(auto& the_patch : {supPatchOriginallyUntrimmed, supPatchUntrimmed, supPatchTrimmed})
+  {
+    EXPECT_NEAR(the_patch.getMinKnot_u(), min_u - (scaleFactor - 1.0), 1e-10);
+    EXPECT_NEAR(the_patch.getMaxKnot_u(), max_u + (scaleFactor - 1.0), 1e-10);
+    EXPECT_NEAR(the_patch.getMinKnot_v(), min_v - (scaleFactor - 1.0), 1e-10);
+    EXPECT_NEAR(the_patch.getMaxKnot_v(), max_v + (scaleFactor - 1.0), 1e-10);
+  }
+
+  // Check that the patches are equal in the original parameter space
+  constexpr int npts = 15;
+  double u_pts[npts], v_pts[npts];
+  axom::numerics::linspace(min_u - (scaleFactor - 1.0), max_u + (scaleFactor - 1.0), u_pts, npts);
+  axom::numerics::linspace(min_v - (scaleFactor - 1.0), max_v + (scaleFactor - 1.0), v_pts, npts);
+
+  for(auto u : u_pts)
+  {
+    for(auto v : v_pts)
+    {
+      auto orig_pt = nPatchUntrimmed.evaluate(axom::utilities::clampVal(u, min_u, max_u),
+                                              axom::utilities::clampVal(v, min_v, max_v));
+
+      auto ext_pt1 = supPatchOriginallyUntrimmed.evaluate(u, v);
+      auto ext_pt2 = supPatchUntrimmed.evaluate(u, v);
+      auto ext_pt3 = supPatchTrimmed.evaluate(u, v);
+
+      // If the point is in the original parameter space, the two patches should be equal
+      if((u >= min_u) && (u <= max_u) && (v >= min_v) && (v <= max_v))
+      {
+        for(int N = 0; N < DIM; ++N)
+        {
+          EXPECT_NEAR(orig_pt[N], ext_pt1[N], 1e-10);
+          EXPECT_NEAR(orig_pt[N], ext_pt2[N], 1e-10);
+          EXPECT_NEAR(orig_pt[N], ext_pt3[N], 1e-10);
+        }
+
+        // Visibility on the original parameters should be unchanged after the patch is extended
+        EXPECT_EQ(nPatchTrimmed.isVisible(u, v), supPatchTrimmed.isVisible(u, v));
+        EXPECT_TRUE(supPatchOriginallyUntrimmed.isVisible(u, v));
+        EXPECT_TRUE(supPatchUntrimmed.isVisible(u, v));
+      }
+
+      // If not, the points should be "nearby"
+      else
+      {
+        // Check that the points are within a certain distance of each other
+        EXPECT_LT(squared_distance(orig_pt, ext_pt1), 6.0 * 6.0);
+        EXPECT_LT(squared_distance(orig_pt, ext_pt2), 6.0 * 6.0);
+        EXPECT_LT(squared_distance(orig_pt, ext_pt3), 6.0 * 6.0);
+
+        // Only the flagged patch should be visible in the extended parameters
+        EXPECT_TRUE(supPatchUntrimmed.isVisible(u, v));
+        EXPECT_FALSE(supPatchTrimmed.isVisible(u, v));
+        EXPECT_FALSE(supPatchOriginallyUntrimmed.isVisible(u, v));
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_nurbspatch, bezier_extraction)
 {
   SLIC_INFO("Testing NURBS Patch Bezier extraction");
@@ -942,9 +1088,8 @@ TEST(primal_nurbspatch, bezier_extraction)
         for(auto v : v_pts)
         {
           auto pt1 = nPatch.evaluate(u, v);
-          auto pt2 =
-            bPatch.evaluate((u - u_ranges[i]) / (u_ranges[i + 1] - u_ranges[i]),
-                            (v - v_ranges[j]) / (v_ranges[j + 1] - v_ranges[j]));
+          auto pt2 = bPatch.evaluate((u - u_ranges[i]) / (u_ranges[i + 1] - u_ranges[i]),
+                                     (v - v_ranges[j]) / (v_ranges[j + 1] - v_ranges[j]));
 
           for(int N = 0; N < DIM; ++N)
           {
@@ -1056,9 +1201,8 @@ TEST(primal_nurbspatch, extract_degenerate)
           for(int vi = 1; vi < npts - 1; ++vi)
           {
             auto pt1 = nPatch_u.evaluate(u_pts[ui], v_pts[vi]);
-            auto pt2 = bPatch.evaluate(
-              (u_pts[ui] - u_ranges[i]) / (u_ranges[i + 1] - u_ranges[i]),
-              (v_pts[vi] - v_ranges[j]) / (v_ranges[j + 1] - v_ranges[j]));
+            auto pt2 = bPatch.evaluate((u_pts[ui] - u_ranges[i]) / (u_ranges[i + 1] - u_ranges[i]),
+                                       (v_pts[vi] - v_ranges[j]) / (v_ranges[j + 1] - v_ranges[j]));
 
             for(int N = 0; N < DIM; ++N)
             {
@@ -1102,9 +1246,8 @@ TEST(primal_nurbspatch, extract_degenerate)
           for(int vi = 1; vi < npts - 1; ++vi)
           {
             auto pt1 = nPatch_v.evaluate(u_pts[ui], v_pts[vi]);
-            auto pt2 = bPatch.evaluate(
-              (u_pts[ui] - u_ranges[i]) / (u_ranges[i + 1] - u_ranges[i]),
-              (v_pts[vi] - v_ranges[j]) / (v_ranges[j + 1] - v_ranges[j]));
+            auto pt2 = bPatch.evaluate((u_pts[ui] - u_ranges[i]) / (u_ranges[i + 1] - u_ranges[i]),
+                                       (v_pts[vi] - v_ranges[j]) / (v_ranges[j + 1] - v_ranges[j]));
 
             for(int N = 0; N < DIM; ++N)
             {
@@ -1238,22 +1381,36 @@ TEST(primal_nurbspatch, reverse_orientation)
   // clang-format on
 
   NURBSPatchType original(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
-  NURBSPatchType reversed(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
+
+  // Add some knots to the patch in the u and v directions to make it more interesting
+  original.insertKnot_u(0.3, 2);
+  original.insertKnot_u(0.5, 1);
+
+  original.insertKnot_v(0.4, 1);
+  original.insertKnot_v(0.6, 2);
+
+  double min_u = 1.0, max_u = 2.0;
+  double min_v = -1.0, max_v = 0.5;
+
+  original.rescale_u(min_u, max_u);
+  original.rescale_v(min_v, max_v);
+
+  NURBSPatchType reversed(original);
 
   // Reverse along the u-axis
   reversed.reverseOrientation(0);
 
   constexpr int npts = 11;
   double u_pts[npts], v_pts[npts];
-  axom::numerics::linspace(0.0, 1.0, u_pts, npts);
-  axom::numerics::linspace(0.0, 1.0, v_pts, npts);
+  axom::numerics::linspace(min_u, max_u, u_pts, npts);
+  axom::numerics::linspace(min_v, max_v, v_pts, npts);
 
   for(auto u : u_pts)
   {
     for(auto v : v_pts)
     {
       PointType o_pt = original.evaluate(u, v);
-      PointType r_pt = reversed.evaluate(1 - u, v);
+      PointType r_pt = reversed.evaluate(min_u + max_u - u, v);
 
       for(int N = 0; N < DIM; ++N)
       {
@@ -1285,7 +1442,7 @@ TEST(primal_nurbspatch, reverse_orientation)
     for(auto v : v_pts)
     {
       PointType o_pt = original.evaluate(u, v);
-      PointType r_pt = reversed.evaluate(u, 1 - v);
+      PointType r_pt = reversed.evaluate(u, min_v + max_v - v);
 
       for(int N = 0; N < DIM; ++N)
       {
@@ -1301,7 +1458,7 @@ TEST(primal_nurbspatch, reverse_orientation)
     for(auto v : v_pts)
     {
       PointType o_pt = original.evaluate(u, v);
-      PointType r_pt = reversed.evaluate(1 - u, 1 - v);
+      PointType r_pt = reversed.evaluate(min_u + max_u - u, min_v + max_v - v);
 
       for(int N = 0; N < DIM; ++N)
       {

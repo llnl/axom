@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -46,9 +46,8 @@ template <typename T>
 class KnotVector
 {
 public:
-  AXOM_STATIC_ASSERT_MSG(
-    std::is_arithmetic<T>::value,
-    "A knot vector must be defined using an arithmetic type");
+  AXOM_STATIC_ASSERT_MSG(std::is_arithmetic<T>::value,
+                         "A knot vector must be defined using an arithmetic type");
 
 public:
   /// \brief Default constructor for an empty (invalid) knot vector
@@ -94,9 +93,7 @@ public:
    * 
    * \pre Assumes that the knot vector is valid
    */
-  KnotVector(const axom::Array<T>& knots, int degree)
-    : m_deg(degree)
-    , m_knots(knots)
+  KnotVector(const axom::Array<T>& knots, int degree) : m_deg(degree), m_knots(knots)
   {
     SLIC_ASSERT(isValid());
   }
@@ -157,8 +154,8 @@ public:
    */
   T& operator[](axom::IndexType i)
   {
-    return m_knots[i];
     SLIC_ASSERT(isValid());
+    return m_knots[i];
   }
 
   /// \brief Return the degree of the knot vector
@@ -222,10 +219,7 @@ public:
   }
 
   /// \brief Return the number of control points implied by the knot vector
-  axom::IndexType getNumControlPoints() const
-  {
-    return m_knots.size() - m_deg - 1;
-  }
+  axom::IndexType getNumControlPoints() const { return m_knots.size() - m_deg - 1; }
 
   /// \brief Clear the list of knots
   void clear()
@@ -403,9 +397,7 @@ public:
     auto span = findSpan(t, multiplicity);
 
     // Compute how many knots should be inserted
-    int r = axom::utilities::clampVal(target_multiplicity - multiplicity,
-                                      0,
-                                      m_deg - multiplicity);
+    int r = axom::utilities::clampVal(target_multiplicity - multiplicity, 0, m_deg - multiplicity);
 
     insertKnotBySpan(span, t, r);
   }
@@ -422,10 +414,7 @@ public:
    *  the vector will be split is equal to the degree, or the
    *  returned knot vectors will be invalid
    */
-  void splitBySpan(axom::IndexType span,
-                   KnotVector& k1,
-                   KnotVector& k2,
-                   bool normalize = false) const
+  void splitBySpan(axom::IndexType span, KnotVector& k1, KnotVector& k2, bool normalize = false) const
   {
     SLIC_ASSERT(isValidSpan(span));
 
@@ -555,13 +544,9 @@ public:
    * 
    * \return An array of the `n + 1` derivatives evaluated at t
    */
-  axom::Array<axom::Array<T>> derivativeBasisFunctionsBySpan(axom::IndexType span,
-                                                             T t,
-                                                             int n) const
+  axom::Array<axom::Array<T>> derivativeBasisFunctionsBySpan(axom::IndexType span, T t, int n) const
   {
     SLIC_ASSERT(isValidSpan(span, t));
-
-    const int m_deg = getDegree();
 
     axom::Array<axom::Array<T>> ders(n + 1);
 
@@ -753,8 +738,7 @@ public:
    */
   bool isValidSpan(axom::IndexType span) const
   {
-    return span >= m_deg && span < m_knots.size() - m_deg - 1 &&
-      m_knots[span] != m_knots[span + 1];
+    return span >= m_deg && span < m_knots.size() - m_deg - 1 && m_knots[span] != m_knots[span + 1];
   }
 
   /*!

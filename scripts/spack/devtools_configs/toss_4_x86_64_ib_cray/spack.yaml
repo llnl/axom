@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -104,7 +104,7 @@ spack:
     cray-mpich:
       buildable: false
       externals:
-      - spec: cray-mpich@8.1.29%gcc@10.3.1+slurm
+      - spec: cray-mpich@8.1.29+slurm %gcc@10.3.1
         prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-gcc-10.3.1/
 
     # blas is a bit more complicated because its a virtual package so fake it with

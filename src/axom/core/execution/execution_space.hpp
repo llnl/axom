@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -8,6 +8,7 @@
 
 #include "axom/config.hpp"
 #include "axom/core/memory_management.hpp"
+#include "axom/core/execution/runtime_policy.hpp"
 
 /*!
  * \file execution_space.hpp
@@ -88,6 +89,17 @@ struct execution_space
   static constexpr bool onDevice() noexcept { return false; }
   static constexpr char* name() noexcept { return (char*)"[UNDEFINED]"; }
   static int allocatorID() noexcept { return axom::INVALID_ALLOCATOR_ID; }
+  static constexpr runtime_policy::Policy runtimePolicy() noexcept
+  {
+    return runtime_policy::Policy::seq;
+  }
+  //!@brief Returns whether @c ExecSpace can use the given @c MemorySpace.
+  static bool usesMemorySpace(axom::MemorySpace m) noexcept { return m == memory_space; }
+  //!@brief Returns whether @c ExecSpace can use the given allocator id.
+  static bool usesAllocId(int allocId) noexcept
+  {
+    return usesMemorySpace(axom::detail::getAllocatorSpace(allocId));
+  }
 };
 
 }  // namespace axom
@@ -99,14 +111,43 @@ struct execution_space
   #include "axom/core/execution/internal/omp_exec.hpp"
 #endif
 
-#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE) && defined(__CUDACC__)
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  defined(__CUDACC__)
   #include "axom/core/execution/internal/cuda_exec.hpp"
 #endif
 
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE) && defined(__HIPCC__)
+#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  defined(__HIPCC__)
   #include "axom/core/execution/internal/hip_exec.hpp"
 #endif
+
+namespace axom
+{
+
+/// \brief Return default allocator id for a runtime policy.
+inline int policyToDefaultAllocatorID(axom::runtime_policy::Policy policy)
+{
+  return policy == axom::runtime_policy::Policy::seq
+    ? axom::execution_space<axom::SEQ_EXEC>::allocatorID()
+    :
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+    policy == axom::runtime_policy::Policy::omp
+    ? axom::execution_space<axom::OMP_EXEC>::allocatorID()
+    :
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+    policy == axom::runtime_policy::Policy::cuda
+    ? axom::execution_space<axom::CUDA_EXEC<256>>::allocatorID()
+    :
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+    policy == axom::runtime_policy::Policy::hip
+    ? axom::execution_space<axom::HIP_EXEC<256>>::allocatorID()
+    :
+#endif
+    INVALID_ALLOCATOR_ID;
+}
+
+}  // namespace axom
 
 #endif  // AXOM_EXECUTIONSPACE_HPP_

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -542,10 +542,7 @@ public:
    *
    * \return pointer to new View object or nullptr if one is not created.
    */
-  View* createViewWithShape(const std::string& path,
-                            TypeID type,
-                            int ndims,
-                            const IndexType* shape);
+  View* createViewWithShape(const std::string& path, TypeID type, int ndims, const IndexType* shape);
 
   /*!
    * \brief Create View object with given name or path in this Group that
@@ -610,10 +607,7 @@ public:
    *
    * \sa View::attachBuffer()
    */
-  View* createView(const std::string& path,
-                   TypeID type,
-                   IndexType num_elems,
-                   Buffer* buff);
+  View* createView(const std::string& path, TypeID type, IndexType num_elems, Buffer* buff);
 
   /*!
    * \brief Create View object with given name or path in this Group that
@@ -700,10 +694,7 @@ public:
    *
    * \sa View::setExternalDataPtr()
    */
-  View* createView(const std::string& path,
-                   TypeID type,
-                   IndexType num_elems,
-                   void* external_ptr);
+  View* createView(const std::string& path, TypeID type, IndexType num_elems, void* external_ptr);
 
   /*!
    * \brief Create View object with given name or path in this Group that
@@ -741,9 +732,7 @@ public:
    *
    * \sa View::attachBuffer()
    */
-  View* createView(const std::string& path,
-                   const DataType& dtype,
-                   void* external_ptr);
+  View* createView(const std::string& path, const DataType& dtype, void* external_ptr);
 
   //@}
 
@@ -862,13 +851,13 @@ public:
 
   /*!
    * \brief Destroy View with given name or path owned by this Group, but leave
-   * its data intect.
+   * its data intact.
    */
   void destroyView(const std::string& path);
 
   /*!
    * \brief Destroy View with given index owned by this Group, but leave
-   * its data intect.
+   * its data intact.
    */
   void destroyView(IndexType idx);
 
@@ -950,7 +939,7 @@ public:
    * \return pointer to the new copied View object or nullptr if a View
    * is not copied into this Group.
    */
-  View* deepCopyView(View* view, int allocID = INVALID_ALLOCATOR_ID);
+  View* deepCopyView(const View* view, int allocID = INVALID_ALLOCATOR_ID);
 
   //@}
 
@@ -1115,9 +1104,7 @@ private:
    *
    * \sa getDataInfo
    */
-  void getDataInfoHelper(Node& n,
-                         std::set<IndexType>& buffer_ids,
-                         bool recursive) const;
+  void getDataInfoHelper(Node& n, std::set<IndexType>& buffer_ids, bool recursive) const;
 
 public:
   //@{
@@ -1277,7 +1264,7 @@ public:
 
   /*!
    * \brief Create a (shallow) copy of Group hierarchy rooted at given
-   *        Group and make it a child of this Group.
+   *        Group and make the copy a child of this Group.
    *
    * Note that all Views in the Group hierarchy are copied as well.
    *
@@ -1319,7 +1306,7 @@ public:
    * \return pointer to the new copied Group object or nullptr if a Group
    * is not copied into this Group.
    */
-  Group* deepCopyGroup(Group* srcGroup, int allocID = INVALID_ALLOCATOR_ID);
+  Group* deepCopyGroup(const Group* srcGroup, int allocID = INVALID_ALLOCATOR_ID);
 
   //@}
 
@@ -1346,7 +1333,7 @@ public:
    * \brief Print given number of levels of Group sub-tree
    *        starting at this Group object to an output stream.
    */
-  void printTree(const int nlevels, std::ostream& os) const;
+  void printTree(const int nlevels, std::ostream& os = std::cout) const;
 
   //@}
 
@@ -1362,15 +1349,12 @@ public:
   /*!
    * \brief Copy Group's native layout to given Conduit node.
    *
-   * The native layout is a Conduit Node hierarchy that maps the Conduit Node
-   * data
+   * The native layout is a Conduit Node hierarchy that maps the Conduit Node data
    * externally to the Sidre View data so that it can be filled in from the data
-   * in the file (independent of file format) and can be accessed as a Conduit
-   * tree.
+   * in the file (independent of file format) and can be accessed as a Conduit tree.
    *
    * \return True if the Group or any of its children were added to the Node,
    * false otherwise.
-   *
    */
   bool createNativeLayout(Node& n, const Attribute* attr = nullptr) const;
 
@@ -1650,7 +1634,7 @@ public:
             std::string& name_from_file);
 
   /*!
-   * \brief Load data into the Group's external views from a hdf5 handle.
+   * \brief Load data into the Group's external views from an hdf5 handle.
    *
    * No protocol argument is needed, as this only is used with the sidre_hdf5
    * protocol.  Returns true (success) if no Conduit I/O error occurred since
@@ -1661,6 +1645,22 @@ public:
    * \return           True if no error occurred, otherwise false.
    */
   bool loadExternalData(const hid_t& h5_id);
+
+  /*!
+   * \brief Load data into the Group's external views from a path into
+   *        hdf5 handle
+   *
+   * No protocol argument is needed, as this only is used with the sidre_hdf5
+   * protocol.  Returns true (success) if no Conduit I/O error occurred since
+   * this Group's DataStore was created or had its error flag cleared; false,
+   * if an error occurred at some point.
+   *
+   * \param h5_id        hdf5 handle
+   * \param group_path   Path pointing to this Group. This path must be the
+   *                     relative path from the top Group that was written
+   *                     to a file to this Group.
+   */
+  bool loadExternalData(const hid_t& h5_id, const std::string& group_path);
 
 #endif /* AXOM_USE_HDF5 */
 
@@ -1708,8 +1708,7 @@ public:
    * \return                   true for success, false if the full conduit
    *                           tree is not succesfully imported.
    */
-  bool importConduitTree(const conduit::Node& node,
-                         bool preserve_contents = false);
+  bool importConduitTree(const conduit::Node& node, bool preserve_contents = false);
 
   /*!
    * \brief Import data from a conduit Node into a Group without copying arrays
@@ -1734,8 +1733,7 @@ public:
    * \return                   true for success, false if the full conduit
    *                           tree is not succesfully imported.
    */
-  bool importConduitTreeExternal(conduit::Node& node,
-                                 bool preserve_contents = false);
+  bool importConduitTreeExternal(conduit::Node& node, bool preserve_contents = false);
 
 private:
   DISABLE_DEFAULT_CTOR(Group);
@@ -1802,11 +1800,13 @@ private:
 
   /*!
    * \brief Detach Child Group with given name from this Group.
+   * \return the detached Group.
    */
   Group* detachGroup(const std::string& name);
 
   /*!
    * \brief Detach Child Group with given index from this Group.
+   * \return the detached Group.
    */
   Group* detachGroup(IndexType idx);
 
@@ -1842,9 +1842,7 @@ private:
    * \return True if the group or any of its children have saved Views,
    * false otherwise.
    */
-  bool exportTo(conduit::Node& result,
-                const Attribute* attr,
-                bool export_buffers = true) const;
+  bool exportTo(conduit::Node& result, const Attribute* attr, bool export_buffers = true) const;
 
   /*!
    * \brief Private method to copy Group to Conduit Node.
@@ -1880,8 +1878,7 @@ private:
    * to remain the same when a tree is restored.
    *
    */
-  void importFrom(conduit::Node& node,
-                  const std::map<IndexType, IndexType>& buffer_id_map);
+  void importFrom(conduit::Node& node, const std::map<IndexType, IndexType>& buffer_id_map);
 
   //@}
 

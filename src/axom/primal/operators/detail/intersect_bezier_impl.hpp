@@ -173,15 +173,15 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
  * \sa intersect_bezier
  */
 template <typename T>
-bool intersect_circle_bezier(const Sphere<T, 2> &circle,
-                          const BezierCurve<T, 2> &curve,
-                          axom::Array<T> &circle_params,
-                          axom::Array<T> &curve_params,
-                          double sq_tol,
-                          double EPS,
-                          int order,
-                          double c_offset,
-                          double c_scale);
+bool intersect_circle_bezier(const Ray<T, 2> &r,
+                             const BezierCurve<T, 2> &c,
+                             axom::Array<T> &rp,
+                             axom::Array<T> &cp,
+                             double sq_tol,
+                             double EPS,
+                             int order,
+                             double c_offset,
+                             double c_scale);
 
 /*!
  * \brief Tests intersection of a line and a cirlce
@@ -252,17 +252,7 @@ bool intersect_bezier_curves(const BezierCurve<T, 2> &c1,
     s_scale *= scaleFac;
 
     // Note: we want to find all intersections, so don't short-circuit
-    if(intersect_bezier_curves(c2,
-                               c3,
-                               tp,
-                               sp,
-                               sq_tol,
-                               order2,
-                               order1,
-                               t_offset,
-                               t_scale,
-                               s_offset,
-                               s_scale))
+    if(intersect_bezier_curves(c2, c3, tp, sp, sq_tol, order2, order1, t_offset, t_scale, s_offset, s_scale))
     {
       foundIntersection = true;
     }
@@ -425,16 +415,14 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
     {
       if(t1 >= -EPS && t1 < 1.0 - EPS)
       {
-        circle_p.push_back(
-          axom::utilities::isNearlyEqual(c1, 2.0 * M_PI, EPS) ? 0.0 : c1);
+        circle_p.push_back(axom::utilities::isNearlyEqual(c1, 2.0 * M_PI, EPS) ? 0.0 : c1);
         curve_p.push_back(c_offset + c_scale * t1);
         foundIntersection = true;
       }
 
       if(t2 >= -EPS && t2 < 1.0 - EPS)
       {
-        circle_p.push_back(
-          axom::utilities::isNearlyEqual(c2, 2.0 * M_PI, EPS) ? 0.0 : c2);
+        circle_p.push_back(axom::utilities::isNearlyEqual(c2, 2.0 * M_PI, EPS) ? 0.0 : c2);
         curve_p.push_back(c_offset + c_scale * t2);
         foundIntersection = true;
       }
@@ -451,27 +439,11 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
     c_scale *= scaleFac;
 
     // Note: we want to find all intersections, so don't short-circuit
-    if(intersect_circle_bezier(circle,
-                               c1,
-                               circle_p,
-                               curve_p,
-                               sq_tol,
-                               EPS,
-                               order,
-                               c_offset,
-                               c_scale))
+    if(intersect_circle_bezier(circle, c1, circle_p, curve_p, sq_tol, EPS, order, c_offset, c_scale))
     {
       foundIntersection = true;
     }
-    if(intersect_circle_bezier(circle,
-                               c2,
-                               circle_p,
-                               curve_p,
-                               sq_tol,
-                               EPS,
-                               order,
-                               c_offset + c_scale,
-                               c_scale))
+    if(intersect_circle_bezier(circle, c2, circle_p, curve_p, sq_tol, EPS, order, c_offset + c_scale, c_scale))
     {
       foundIntersection = true;
     }

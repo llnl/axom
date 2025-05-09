@@ -1,4 +1,4 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+.. ## Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 .. ## other Axom Project Developers. See the top-level LICENSE file for details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
@@ -121,19 +121,43 @@ or "protected" data members **must** be scrutinized by other team members.
       direct access to class data enforces encapsulation and facilitates 
       design changes through refactoring.
 
+6.10 Guard protected/private access qualifiers when hiding methods that contain
+kernel launches.
+
+      When building algorithms that are templated for execution on the GPU,
+      methods that instantiate kernels via `axom::for_all()` cannot be marked
+      as protected or private when building for certain backends. In these
+      situations, add conditional compilation around the access qualifiers.
+
+      For example::
+
+         class Algorithm
+         {
+         #if !defined(__CUDACC__)
+         private:
+         #endif
+           void helperMethod()
+           {
+             axom::for_all<ExecSpace>(100,
+               AXOM_LAMBDA(axom::IndexType index)
+               {
+                 // do something
+               });
+           }
+         };
 
 ---------------------------------------------------------
 Use 'friend' and 'static' rarely
 ---------------------------------------------------------
 
-6.10 "Friend" declarations **should** be used rarely. When used, they 
+6.11 "Friend" declarations **should** be used rarely. When used, they 
 **must** appear within the body of a class definition before any class 
 member declarations. This helps make the friend relationship obvious.
 
       Note that placing "friend" declarations before the "public:" keyword 
       makes them private, which preserves encapsulation.
 
-6.11 Static class members (methods or data) **must** be used rarely. In 
+6.12 Static class members (methods or data) **must** be used rarely. In 
 every case, their usage **should** be carefully reviewed by the team.
 
       When it is determined that a static member is needed, it **must** appear 
@@ -148,7 +172,7 @@ every case, their usage **should** be carefully reviewed by the team.
 Hide nested classes when possible
 ---------------------------------------------------------
 
-6.12 Nested classes **should** be private unless they are part of the 
+6.13 Nested classes **should** be private unless they are part of the 
 enclosing class interface.
 
       For example::
@@ -190,7 +214,7 @@ enclosing class interface.
 Limit scope of local variables
 ---------------------------------------------------------
 
-6.13 Local variables **should** be declared in the narrowest scope possible 
+6.14 Local variables **should** be declared in the narrowest scope possible 
 and as close to first use as possible.
 
       Minimizing variable scope makes source code easier to comprehend and
@@ -225,7 +249,7 @@ and as close to first use as possible.
             f.doSomethingCool(ii);
          }
 
-6.14 A local reference to any item in the global namespace (which should be 
+6.15 A local reference to any item in the global namespace (which should be 
 rare if needed at all) **should** use the scope operator ("::") to make 
 the fact that it resides in the global namespace clear.
 

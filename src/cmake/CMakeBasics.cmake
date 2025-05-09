@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -193,6 +193,13 @@ if(AXOM_ENABLE_ASAN)
     message(STATUS "AddressSanitizer is ON (ENABLE_ASAN)")
     foreach(_flagvar CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_EXE_LINKER_FLAGS)
         string(APPEND ${_flagvar} " -fsanitize=address -fno-omit-frame-pointer")
+    endforeach()
+endif()
+
+if(AXOM_ENABLE_UBSAN)
+    message(STATUS "UndefinedBehaviorSanitizer is ON (ENABLE_UBSAN)")
+    foreach(_flagvar CMAKE_C_FLAGS CMAKE_CXX_FLAGS CMAKE_EXE_LINKER_FLAGS)
+        string(APPEND ${_flagvar} " -fsanitize=undefined -fno-sanitize-recover=all")
     endforeach()
 endif()
 

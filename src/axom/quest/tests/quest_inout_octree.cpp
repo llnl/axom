@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -46,18 +46,18 @@ using BlockIndex = Octree3D::BlockIndex;
 #endif
 
 /// Returns a SpacePt corresponding to the given vertex id \a vIdx  in \a mesh
-SpacePt getVertex(axom::mint::Mesh*& mesh, int vIdx)
+SpacePt getVertex(axom::mint::Mesh& mesh, int vIdx)
 {
   SpacePt pt;
-  mesh->getNode(vIdx, pt.data());
+  mesh.getNode(vIdx, pt.data());
 
   return pt;
 }
 
-GeometricBoundingBox computeBoundingBox(axom::mint::Mesh*& mesh)
+GeometricBoundingBox computeBoundingBox(axom::mint::Mesh& mesh)
 {
   GeometricBoundingBox bbox;
-  for(int i = 0; i < mesh->getNumberOfNodes(); ++i)
+  for(int i = 0; i < mesh.getNumberOfNodes(); ++i)
   {
     bbox.addPoint(getVertex(mesh, i));
   }
@@ -66,7 +66,7 @@ GeometricBoundingBox computeBoundingBox(axom::mint::Mesh*& mesh)
 }
 
 /// Runs randomized inout queries on an octahedron mesh
-void queryOctahedronMesh(axom::mint::Mesh*& mesh, const GeometricBoundingBox& bbox)
+void queryOctahedronMesh(std::shared_ptr<axom::mint::Mesh>& mesh, const GeometricBoundingBox& bbox)
 {
   const double bbMin = bbox.getMin()[0];
   const double bbMax = bbox.getMax()[0];
@@ -96,7 +96,7 @@ void queryOctahedronMesh(axom::mint::Mesh*& mesh, const GeometricBoundingBox& bb
     case 3:
     case 4:
     case 5:
-      pt = getVertex(mesh, i);
+      pt = getVertex(*mesh, i);
       break;
     case 6:
     case 7:
@@ -111,9 +111,9 @@ void queryOctahedronMesh(axom::mint::Mesh*& mesh, const GeometricBoundingBox& bb
       GridPt vertInds;
       mesh->getCellNodeIDs(tIdx, vertInds.data());
 
-      pt = axom::quest::utilities::getCentroid(getVertex(mesh, vertInds[0]),
-                                               getVertex(mesh, vertInds[1]),
-                                               getVertex(mesh, vertInds[2]));
+      pt = axom::quest::utilities::getCentroid(getVertex(*mesh, vertInds[0]),
+                                               getVertex(*mesh, vertInds[1]),
+                                               getVertex(*mesh, vertInds[2]));
     }
     break;
 
@@ -135,8 +135,8 @@ void queryOctahedronMesh(axom::mint::Mesh*& mesh, const GeometricBoundingBox& bb
       const int v2[] = {1, 2, 3, 4, 2, 3, 4, 1, 1, 2, 3, 4};
 
       int eIdx = (i - 14);
-      pt = axom::quest::utilities::getCentroid(getVertex(mesh, v1[eIdx]),
-                                               getVertex(mesh, v2[eIdx]));
+      pt =
+        axom::quest::utilities::getCentroid(getVertex(*mesh, v1[eIdx]), getVertex(*mesh, v2[eIdx]));
     }
     break;
 
@@ -161,8 +161,7 @@ void queryOctahedronMesh(axom::mint::Mesh*& mesh, const GeometricBoundingBox& bb
     // For the time being, we allow the within() test to fail when the
     // query point is sufficiently close to the surface
     bool expectInside = absCoordSum < 1.;
-    EXPECT_TRUE(octree.within(pt) == expectInside ||
-                axom::utilities::isNearlyEqual(absCoordSum, 1.))
+    EXPECT_TRUE(octree.within(pt) == expectInside || axom::utilities::isNearlyEqual(absCoordSum, 1.))
       << "Point " << pt << " was not " << (expectInside ? "inside" : "outside")
       << " surface of octahedron as expected."
       << " Sum of absolute values of coords was: " << absCoordSum
@@ -171,8 +170,8 @@ void queryOctahedronMesh(axom::mint::Mesh*& mesh, const GeometricBoundingBox& bb
   timer.stop();
   SLIC_INFO("--]==]");
 
-  SLIC_INFO("-- querying octahedron with " << NUM_PT_TESTS << " points took "
-                                           << timer.elapsed() << " seconds.");
+  SLIC_INFO("-- querying octahedron with " << NUM_PT_TESTS << " points took " << timer.elapsed()
+                                           << " seconds.");
   SLIC_INFO("***");
 }
 
@@ -182,7 +181,7 @@ TEST(quest_inout_octree, octahedron_mesh)
             << " and tests point containment.\n");
 
   // Generate the InOutOctree
-  axom::mint::Mesh* mesh = axom::quest::utilities::make_octahedron_mesh();
+  std::shared_ptr<axom::mint::Mesh> mesh(axom::quest::utilities::make_octahedron_mesh());
   // axom::mint::write_vtk(mesh, "octahedron.vtk");
 
   ///
@@ -200,12 +199,8 @@ TEST(quest_inout_octree, octahedron_mesh)
   queryOctahedronMesh(mesh, bbox2);
 
   bbox2.shift(SpaceVector(0.01));
-  SLIC_INFO("Testing InOutOctree on octahedron mesh with shifted bounding box "
-            << bbox2);
+  SLIC_INFO("Testing InOutOctree on octahedron mesh with shifted bounding box " << bbox2);
   queryOctahedronMesh(mesh, bbox2);
-
-  delete mesh;
-  mesh = nullptr;
 }
 
 TEST(quest_inout_octree, tetrahedron_mesh)
@@ -219,24 +214,22 @@ TEST(quest_inout_octree, tetrahedron_mesh)
 
   for(auto thresh : thresholds)
   {
-    mint::Mesh* mesh = quest::utilities::make_tetrahedron_mesh();
-    GeometricBoundingBox bbox = computeBoundingBox(mesh);
+    std::shared_ptr<mint::Mesh> mesh {quest::utilities::make_tetrahedron_mesh()};
+    GeometricBoundingBox bbox = computeBoundingBox(*mesh);
 
     Octree3D octree(bbox, mesh);
     octree.setVertexWeldThreshold(thresh);
 
     octree.generateIndex();
 
-    SpacePt queryInside = quest::utilities::getCentroid(getVertex(mesh, 0),
-                                                        getVertex(mesh, 1),
-                                                        getVertex(mesh, 2),
-                                                        getVertex(mesh, 3));
+    SpacePt queryInside = quest::utilities::getCentroid(getVertex(*mesh, 0),
+                                                        getVertex(*mesh, 1),
+                                                        getVertex(*mesh, 2),
+                                                        getVertex(*mesh, 3));
     SpacePt queryOutside = SpacePt(2. * bbox.getMax().array());
 
     EXPECT_TRUE(octree.within(queryInside));
     EXPECT_FALSE(octree.within(queryOutside));
-
-    delete mesh;
   }
 }
 

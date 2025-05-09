@@ -1,10 +1,11 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "gtest/gtest.h"
 #include <fstream>
+#include <exception>
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/FileUtilities.hpp"
@@ -102,4 +103,29 @@ TEST(utils_fileUtilities, changeCWD_smoke)
 
   EXPECT_EQ(origCWD, fs::getCWD());
   std::cout << "[cwd after change]: '" << fs::getCWD() << "'" << std::endl;
+}
+
+TEST(utils_fileUtilities, prefixRelativePath)
+{
+  using namespace axom::utilities::filesystem;
+  EXPECT_EQ(prefixRelativePath("rel/path", "/pre/fix"), "/pre/fix/rel/path");
+  EXPECT_EQ(prefixRelativePath("rel/path", ""), "rel/path");
+  EXPECT_THROW(prefixRelativePath("", "/pre/fix"), std::invalid_argument);
+
+  // These full paths should not change.
+  EXPECT_EQ(prefixRelativePath("/full/path", "/pre/fix"), "/full/path");
+  EXPECT_EQ(prefixRelativePath("/full/path", ""), "/full/path");
+}
+
+TEST(utils_fileUtilities, getParentPath)
+{
+  using namespace axom::utilities::filesystem;
+  EXPECT_EQ(getParentPath("/full/multi/level/path"), "/full/multi/level");
+  EXPECT_EQ(getParentPath("/full/multi/level"), "/full/multi");
+  EXPECT_EQ(getParentPath("rel/multi/level/path"), "rel/multi/level");
+  EXPECT_EQ(getParentPath("rel/multi/level"), "rel/multi");
+  EXPECT_EQ(getParentPath("level"), "");
+  EXPECT_EQ(getParentPath("/level0/level1"), "/level0");
+  EXPECT_EQ(getParentPath("/level0"), "/");
+  EXPECT_EQ(getParentPath("/"), "");
 }

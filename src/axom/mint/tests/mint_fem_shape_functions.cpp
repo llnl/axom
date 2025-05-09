@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -36,8 +36,7 @@ void reference_element(double TOL = axom::numeric_limits<double>::epsilon())
   using ShapeFunctionType = typename FEMType::ShapeFunctionType;
   ShapeFunctionType sf;
 
-  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / "
-                        << mint::getCellInfo(CELLTYPE).name);
+  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / " << mint::getCellInfo(CELLTYPE).name);
 
   const mint::CellType ctype = sf.cellType();
   int ctype_val = mint::cellTypeToInt(ctype);
@@ -86,8 +85,7 @@ void kronecker_delta()
   using ShapeFunctionType = typename FEMType::ShapeFunctionType;
   ShapeFunctionType sf;
 
-  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / "
-                        << mint::getCellInfo(CELLTYPE).name);
+  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / " << mint::getCellInfo(CELLTYPE).name);
 
   int ndims = sf.dimension();
   int ndofs = sf.numDofs();
@@ -124,8 +122,7 @@ void partition_of_unity()
   using ShapeFunctionType = typename FEMType::ShapeFunctionType;
   ShapeFunctionType sf;
 
-  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / "
-                        << mint::getCellInfo(CELLTYPE).name);
+  SLIC_INFO("checking " << mint::basis_name[BasisType] << " / " << mint::getCellInfo(CELLTYPE).name);
 
   int ndims = sf.dimension();
   int ndofs = sf.numDofs();

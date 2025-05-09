@@ -1,17 +1,17 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
-# Setup OpenCASCADE
+# Setup Open Cascade
 #------------------------------------------------------------------------------
 # This file defines:
-#  OPENCASCADE_FOUND - If OpenCASCADE was found
-#  OPENCASCADE_INCLUDE_DIRS - The OpenCASCADE include directories
-#  OPENCASCADE_LIBRARIES - The OpenCASCADE libraries
+#  OPENCASCADE_FOUND - If Open Cascade was found
+#  OPENCASCADE_INCLUDE_DIRS - The Open Cascade include directories
+#  OPENCASCADE_LIBRARIES - The Open Cascade libraries
 #------------------------------------------------------------------------------
 
-# Note: Axom is using OpenCASCADE for its data exchange component
+# Note: Axom is using Open Cascade for its data exchange component
 axom_assert_is_directory(DIR_VARIABLE OPENCASCADE_DIR)
 find_package(OpenCASCADE CONFIG QUIET NO_DEFAULT_PATH
     HINTS ${OPENCASCADE_DIR}/lib/cmake
@@ -29,8 +29,8 @@ find_package_handle_standard_args(OpenCASCADE DEFAULT_MSG
                                   OpenCASCADE_LIBRARIES )
 
 if(NOT OpenCASCADE_FOUND)
-    message(FATAL_ERROR "OPENCASCADE_DIR is not a path to a valid OpenCASCADE install: ${OPENCASCADE_DIR}")
+    message(FATAL_ERROR "OPENCASCADE_DIR is not a path to a valid Open Cascade install: ${OPENCASCADE_DIR}")
 endif()
 
-message(STATUS "OpenCASCADE includes: ${OpenCASCADE_INCLUDE_DIR}")
-message(STATUS "OpenCASCADE libraries: ${OpenCASCADE_LIBRARIES}")
+message(STATUS "Open Cascade includes: ${OpenCASCADE_INCLUDE_DIR}")
+message(STATUS "Open Cascade libraries: ${OpenCASCADE_LIBRARIES}")

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -83,6 +83,8 @@ void demoMemoryManageBasic()
   {
     std::cout << i << " Current value: " << dynamic_memory_array[i] << std::endl;
   }
+
+  axom::deallocate(dynamic_memory_array);
   // _membasic_end
 }
 
@@ -122,12 +124,12 @@ void demoAxomExecution()
 // _exebasic_end
 
 //Now, let's say we want to try out use of CUDA or HIP. We just change that execution space.
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
-  defined(AXOM_USE_GPU) && defined(AXOM_GPUCC)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU) && \
+  defined(AXOM_GPUCC)
   // _deviceexebasic_start
   //This example requires Umpire to be in use, and Unified memory available.
-  const int allocator_id = axom::getUmpireResourceAllocatorID(
-    umpire::resource::MemoryResourceType::Unified);
+  const int allocator_id =
+    axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
   A = axom::allocate<int>(N, allocator_id);
   B = axom::allocate<int>(N, allocator_id);
   C = axom::allocate<int>(N, allocator_id);
@@ -152,8 +154,7 @@ void demoAxomExecution()
     N,
     AXOM_LAMBDA(axom::IndexType i) { C[i] = A[i] + B[i]; });
 
-  std::cout << "\nSums (" << axom::execution_space<ExecSpace>::name()
-            << ") :" << std::endl;
+  std::cout << "\nSums (" << axom::execution_space<ExecSpace>::name() << ") :" << std::endl;
   for(int i = 0; i < N; i++)
   {
     std::cout << C[i] << " ";
@@ -174,8 +175,7 @@ void demoAxomExecution()
     100,
     AXOM_LAMBDA(axom::IndexType i) { totalSum += i; });
 
-  std::cout << "\nTotal Reduction Sum ("
-            << axom::execution_space<ExecSpace>::name()
+  std::cout << "\nTotal Reduction Sum (" << axom::execution_space<ExecSpace>::name()
             << ") :" << totalSum.get() << std::endl;
   //_gpu_reduce_end
 
@@ -190,8 +190,8 @@ void demoAxomExecution()
     100,
     AXOM_LAMBDA(axom::IndexType) { RAJA::atomicAdd<atomic_pol>(sum, 1); });
 
-  std::cout << "\nTotal Atomic Sum (" << axom::execution_space<ExecSpace>::name()
-            << ") :" << sum[0] << std::endl;
+  std::cout << "\nTotal Atomic Sum (" << axom::execution_space<ExecSpace>::name() << ") :" << sum[0]
+            << std::endl;
 
   axom::deallocate(sum);
   //_gpu_atomic_end

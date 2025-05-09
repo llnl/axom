@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -13,12 +13,7 @@ namespace quest
 namespace detail
 {
 //------------------------------------------------------------------------------
-inline double squared_distance(double x1,
-                               double y1,
-                               double z1,
-                               double x2,
-                               double y2,
-                               double z2)
+inline double squared_distance(double x1, double y1, double z1, double x2, double y2, double z2)
 {
   double dx = x2 - x1;
   double dy = y2 - y1;

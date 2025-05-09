@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -17,15 +17,13 @@ namespace multimat
  */
 
 template <typename Field2DType>
-class MMSubField2D : public slam::SubMap<typename Field2DType::BiVarMapType,
-                                         MultiMat::RangeSetType,
-                                         slam::policies::ConcreteInterface>
+class MMSubField2D
+  : public slam::SubMap<typename Field2DType::BiVarMapType, MultiMat::RangeSetType, slam::policies::ConcreteInterface>
 {
 public:
   using SubSetType = MultiMat::RangeSetType;
-  using SubMapType = slam::SubMap<typename Field2DType::BiVarMapType,
-                                  SubSetType,
-                                  slam::policies::ConcreteInterface>;
+  using SubMapType =
+    slam::SubMap<typename Field2DType::BiVarMapType, SubSetType, slam::policies::ConcreteInterface>;
   using SuperMapType = typename Field2DType::BiVarMapType;
   using BiVarSetType = typename Field2DType::BiVarSetType;
 
@@ -59,8 +57,7 @@ class MMSubField2DWrap : public MMSubField2D<Field2DType>
 
 // specialization for Cell Dom
 template <typename Field2DType>
-class MMSubField2DWrap<Field2DType, DataLayout::CELL_DOM>
-  : public MMSubField2D<Field2DType>
+class MMSubField2DWrap<Field2DType, DataLayout::CELL_DOM> : public MMSubField2D<Field2DType>
 {
 public:
   using SFB = MMSubField2D<Field2DType>;
@@ -75,8 +72,7 @@ public:
 
 // specialization for Mat Dom
 template <typename Field2DType>
-class MMSubField2DWrap<Field2DType, DataLayout::MAT_DOM>
-  : public MMSubField2D<Field2DType>
+class MMSubField2DWrap<Field2DType, DataLayout::MAT_DOM> : public MMSubField2D<Field2DType>
 {
 public:
   using SFB = MMSubField2D<Field2DType>;

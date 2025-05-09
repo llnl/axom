@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -130,14 +130,20 @@ blt_list_append(
 
 blt_list_append( TO quest_depends_on ELEMENTS conduit::conduit IF CONDUIT_FOUND )
 
-if(MFEM_FOUND AND AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND ((MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND))
     list(APPEND quest_headers Shaper.hpp
-                              SamplingShaper.hpp
-                              IntersectionShaper.hpp
-                              detail/shaping/shaping_helpers.hpp)
+                              DiscreteShape.hpp)
     list(APPEND quest_sources Shaper.cpp
-                              detail/shaping/shaping_helpers.cpp)
+                              DiscreteShape.cpp)
     list(APPEND quest_depends_on klee)
+    if(RAJA_FOUND)
+        list(APPEND quest_headers IntersectionShaper.hpp)
+    endif()
+endif()
+
+if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION))
+    list(APPEND quest_headers SamplingShaper.hpp detail/shaping/shaping_helpers.hpp)
+    list(APPEND quest_sources detail/shaping/shaping_helpers.cpp)
 endif()
 
 if(C2C_FOUND)

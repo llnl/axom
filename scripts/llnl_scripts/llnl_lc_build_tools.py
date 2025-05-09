@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -169,7 +169,11 @@ def uberenv_build(prefix, spec, project_file, mirror_path):
     if project_file:
         cmd += "--project-json=\"{0}\" ".format(project_file)
 
-    spack_tpl_build_log = pjoin(prefix,"output.log.spack.tpl.build.%s.txt" % spec.replace(" ", "_"))
+    # File names have a 255 character limit - take the first 200 characters if spec is too long
+    truncated_spec = spec[:200]
+
+    spack_tpl_build_log = pjoin(prefix,"output.log.spack.tpl.build.%s.txt" % truncated_spec.replace(" ", "_"))
+
     print("[starting tpl install of spec %s]" % spec)
     print("[log file: %s]" % spack_tpl_build_log)
     res = sexe(cmd,
@@ -181,7 +185,7 @@ def uberenv_build(prefix, spec, project_file, mirror_path):
     repo_dir = get_repo_dir()
     for file in ["spack-build-env.txt", "spack-build-out.txt", "spack-configure-args.txt"]:
         src = pjoin(repo_dir, file)
-        dst = pjoin(prefix, "{0}-{1}".format(spec.replace(" ", "_"),file))
+        dst = pjoin(prefix, "{0}-{1}".format(truncated_spec.replace(" ", "_"),file))
         if os.path.exists(src) and not os.path.exists(dst):
             shutil.move(src, dst)
 

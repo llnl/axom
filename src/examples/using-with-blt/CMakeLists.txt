@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -57,9 +57,15 @@ find_dependency(axom REQUIRED
 # Set up example target that depends on axom
 #------------------------------------------------------------------------------
 
+set(example_depends axom axom::fmt)
+
+if(ENABLE_HIP)
+  set(example_depends ${example_depends} blt::hip)
+endif ()
+
 blt_add_executable(NAME       example 
                    SOURCES    example.cpp
-                   DEPENDS_ON axom axom::fmt)
+                   DEPENDS_ON ${example_depends})
 # _zerotoaxom_docs_end
 
 #------------------------------------------------------------------------------

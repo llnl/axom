@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -14,8 +14,7 @@ TEST(numerics_linear_solve, linear_solve_with_identity_matrix)
 
   for(int i = 1; i < N; ++i)
   {
-    axom::numerics::Matrix<double> A =
-      axom::numerics::Matrix<double>::identity(i);
+    axom::numerics::Matrix<double> A = axom::numerics::Matrix<double>::identity(i);
 
     // form right-hand side
     double* b = new double[i];

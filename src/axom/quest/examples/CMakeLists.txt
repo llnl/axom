@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -97,11 +97,10 @@ if (CONDUIT_FOUND AND RAJA_FOUND AND UMPIRE_FOUND)
         FOLDER      axom/quest/examples
         )
 
-    # Add unit tests
-    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+    # Add unit tests; the (current) input meshes are in the hdf5 format
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND HDF5_FOUND)
 
-        # Run the candidates example with the different spatial indices
-        # and raja policies
+        # Run the candidates example with the different spatial indices and raja policies
 
         # Use same file for input and query
         set(input_file "${AXOM_DATA_DIR}/quest/ucart10.cycle_000000.root")
@@ -215,7 +214,23 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                 NUM_MPI_TASKS ${_nranks})
             # steel ball: cirle of radius 5.5 has analytic volume ~696.91
             set_tests_properties(${_testname} PROPERTIES 
-                PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 6[89][0-9].")          
+                PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 6[89][0-9].")
+        endif()
+
+        if (UMPIRE_FOUND AND RAJA_FOUND)
+            # Tests 2D stl mesh with intersection-based shaper
+            set(_testname quest_shaping_driver_ex_star_stl_2d)
+            axom_add_test(
+                NAME ${_testname}
+                COMMAND  quest_shaping_driver_ex
+                        -i ${shaping_data_dir}/flat_star.yaml
+                        --method intersection
+                        inline_mesh --min 0 0 --max 1 1 --res 4 4 -d 2
+                NUM_MPI_TASKS ${_nranks})
+            # steel triangle: star composed of 16 right triangles with
+            # leg length 0.25 has analytic volume 0.5
+            set_tests_properties(${_testname} PROPERTIES
+                PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 0.5")
         endif()
 
         # 3D shaping tests
@@ -261,6 +276,101 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
         # actual value is accurate to about 1% at coarse resolution
         set_tests_properties(${_testname} PROPERTIES 
             PASS_REGULAR_EXPRESSION  "Volume of material 'air' is 182,?227,?963")
+    endif()
+endif()
+
+# Shaping in-memory example ------------------------------------------------------
+if((CONDUIT_FOUND OR
+      (AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
+        AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION))
+    AND AXOM_ENABLE_KLEE
+    AND UMPIRE_FOUND AND RAJA_FOUND)
+    if(MFEM_FOUND)
+        set(optional_dependency, "mfem")
+    endif()
+    axom_add_executable(
+        NAME        quest_shape_in_memory_ex
+        SOURCES     quest_shape_in_memory.cpp
+        OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${quest_example_depends} ${optional_dependency}
+        FOLDER      axom/quest/examples
+        )
+
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+        # 3D shaping tests.  No 2D shaping in this feature, at least for now.
+        set(_nranks 1)
+
+        # Run the in-memory shaping example on with each enabled policy
+        set(_policies "seq")
+        if(RAJA_FOUND)
+            blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
+            blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+            blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
+        endif()
+
+        set(_testshapes "tetmesh" "tet" "hex" "sphere" "cyl" "cone" "sor" "all" "plane")
+        foreach(_policy ${_policies})
+            foreach(_testshape ${_testshapes})
+              set(_testname "quest_shape_in_memory_${_policy}_${_testshape}")
+              axom_add_test(
+                NAME ${_testname}
+                COMMAND quest_shape_in_memory_ex
+                           --policy ${_policy}
+                           --testShape ${_testshape}
+                           --refinements 2
+                           --scale 0.75 0.75 0.75
+                           --dir 0.2 0.4 0.8
+                           --meshType bpSidre
+                           inline_mesh --min -2 -2 -2 --max 2 2 2 --res 30 30 30
+                NUM_MPI_TASKS ${_nranks})
+            endforeach()
+        endforeach()
+
+        # Test Conduit and MFEM mesh types with a subset of shapes (so it doesn't take too long)
+        set(_testshapes "tetmesh" "sphere" "cyl")
+        set(_testMeshTypes "bpConduit")
+        blt_list_append(TO _testMeshTypes ELEMENTS "mfem" IF MFEM_FOUND)
+        foreach(_policy ${_policies})
+            foreach(_testMeshType ${_testMeshTypes})
+              foreach(_testshape ${_testshapes})
+                set(_testname "quest_shape_in_memory_${_policy}_${_testMeshType}_${_testshape}")
+                axom_add_test(
+                  NAME ${_testname}
+                  COMMAND quest_shape_in_memory_ex
+                             --policy ${_policy}
+                             --testShape ${_testshape}
+                             --refinements 2
+                             --scale 0.75 0.75 0.75
+                             --dir 0.2 0.4 0.8
+                             --meshType ${_testMeshType}
+                             inline_mesh --min -2 -2 -2 --max 2 2 2 --res 8 8 8
+                  NUM_MPI_TASKS ${_nranks})
+              endforeach()
+            endforeach()
+        endforeach()
+
+        # Test 2D Triangle shape
+        set(_testshapes "tri")
+        set(_testMeshTypes "bpConduit" "bpSidre")
+        blt_list_append(TO _testMeshTypes ELEMENTS "mfem" IF MFEM_FOUND)
+        foreach(_policy ${_policies})
+            foreach(_testMeshType ${_testMeshTypes})
+              foreach(_testshape ${_testshapes})
+                set(_testname "quest_shape_in_memory_${_policy}_${_testMeshType}_${_testshape}")
+                axom_add_test(
+                  NAME ${_testname}
+                  COMMAND quest_shape_in_memory_ex
+                             --policy ${_policy}
+                             --testShape ${_testshape}
+                             --refinements 2
+                             --scale 0.75 0.75 0.75
+                             --dir 0.2 0.4 0.8
+                             --meshType ${_testMeshType}
+                             inline_mesh --min -2 -2 --max 2 2 --res 2 2
+                  NUM_MPI_TASKS ${_nranks})
+              endforeach()
+            endforeach()
+        endforeach()
     endif()
 endif()
 
@@ -328,6 +438,7 @@ if(AXOM_ENABLE_MPI AND AXOM_ENABLE_SIDRE AND HDF5_FOUND)
             endforeach()
         endforeach()
 
+        unset(optional_dependency)
         unset(_nranks)
         unset(_policies)
         unset(_test)
@@ -350,7 +461,8 @@ if(CONDUIT_FOUND)
             )
 
     # These examples currently segfault on windows without MPI when loading the test data into conduit
-    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND NOT WIN32)
+    # Also, the input files are hdf5
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND NOT WIN32 AND HDF5_FOUND)
         if (ENABLE_MPI)
             set(_nranks 3)
         endif()

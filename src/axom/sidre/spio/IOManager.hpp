@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -269,9 +269,7 @@ public:
    * \param root_file  root file containing input data
    * \param preserve_contents   Preserves group's existing contents if true
    */
-  void read(sidre::Group* group,
-            const std::string& root_file,
-            bool preserve_contents = false);
+  void read(sidre::Group* group, const std::string& root_file, bool preserve_contents = false);
 
   /**
    * \brief Finds conduit relay protocol corresponding to a sidre protocol
@@ -289,10 +287,47 @@ public:
    * This currently only works if the root file was created for protocol
    * sidre_hdf5.
    *
+   * The call to this method must follow a call to the IOManager::read with the
+   * same group and root file.
+   *
+   * This is intended as the third step of the three step process to load
+   * external data.  The first step is the call to IOManager::read; the
+   * second step is to set valid pointers on all external views in the
+   * hierarchy under the passed-in group; the third step is the call to
+   * this method.
+   *
    * \param group         Group to fill with external data from input
    * \param root_file     root file containing input data
    */
   void loadExternalData(sidre::Group* group, const std::string& root_file);
+
+  /*!
+   * \brief piecewise load of external data into a group
+   *
+   * This currently only works if the root file was created for protocol
+   * sidre_hdf5.
+   *
+   * This is intended as an alternative way to load external data, in a
+   * piecewise manner rather than loading all external data of a Sidre
+   * hierarchy at once.  load_group is a Group somewhere in the hierarchy
+   * under parent_group, and only the external data for views in the
+   * subtree under load_group will be loaded.  In the second step of the
+   * three step process, the calling code should set valid pointers on all
+   * external views in the subtree under load_group.  The third step is
+   * to call this method.  parent_group must be the same group that was
+   * passed to IOManager::read with the same root file.
+   *
+   * This method may be called multiple times with different instances of
+   * load_group representing different subtrees of the hierachy under
+   * parent_group.
+   *
+   * \param parent_group  Group that was passed to IOManager::read
+   * \param load_group    Group holding views to be filled with external data
+   * \param root_file     root file containing input data
+   */
+  void loadExternalData(sidre::Group* parent_group,
+                        sidre::Group* load_group,
+                        const std::string& root_file);
 
   /*!
    * \brief gets the number of files in the dataset from the specified root file
@@ -335,15 +370,12 @@ private:
    * The string is read on rank 0 and broadcast to the other ranks.
    * \note Works for all sidre protocols.
    */
-  std::string getFilePatternFromRoot(const std::string& root_name,
-                                     const std::string& protocol);
+  std::string getFilePatternFromRoot(const std::string& root_name, const std::string& protocol);
 
 #ifdef AXOM_USE_HDF5
   std::string getHDF5FilePattern(const std::string& root_name);
 
-  void readSidreHDF5(sidre::Group* group,
-                     const std::string& root_file,
-                     bool preserve_contents = false);
+  void readSidreHDF5(sidre::Group* group, const std::string& root_file, bool preserve_contents = false);
 #endif /* AXOM_USE_HDF5 */
 
   std::string getFileNameForRank(const std::string& file_pattern,

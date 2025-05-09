@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -25,8 +25,7 @@ namespace slam
 template <typename PosType, typename ElemType>
 class NullSet;
 
-template <typename PosType = slam::DefaultPositionType,
-          typename ElemType = slam::DefaultElementType>
+template <typename PosType = slam::DefaultPositionType, typename ElemType = slam::DefaultElementType>
 class Relation
 {
 public:
@@ -35,11 +34,9 @@ public:
 
   using RelationVec = std::vector<SetPosition>;
   using RelationVecIterator = typename RelationVec::iterator;
-  using RelationVecIteratorPair =
-    std::pair<RelationVecIterator, RelationVecIterator>;
+  using RelationVecIteratorPair = std::pair<RelationVecIterator, RelationVecIterator>;
   using RelationVecConstIterator = typename RelationVec::const_iterator;
-  using RelationVecConstIteratorPair =
-    std::pair<RelationVecConstIterator, RelationVecConstIterator>;
+  using RelationVecConstIteratorPair = std::pair<RelationVecConstIterator, RelationVecConstIterator>;
 
   static NullSet<PosType, ElemType> s_nullSet;
 

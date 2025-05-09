@@ -1,10 +1,11 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "gtest/gtest.h"
 #include "axom/slic.hpp"
+#include "axom/core/NumericArray.hpp"
 
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/Point.hpp"
@@ -23,9 +24,7 @@ void check_vector_policy()
   const int DIM = 3;
   using VectorType = primal::Vector<double, DIM>;
 
-  VectorType* vec =
-    axom::allocate<VectorType>(1,
-                               axom::execution_space<ExecSpace>::allocatorID());
+  VectorType* vec = axom::allocate<VectorType>(1, axom::execution_space<ExecSpace>::allocatorID());
 
   VectorType vec_host;
 
@@ -47,7 +46,7 @@ TEST(primal_vector, vector_constructors)
 {
   constexpr int DIM = 5;
   using CoordType = double;
-  using QArray = primal::NumericArray<CoordType, DIM>;
+  using QArray = axom::NumericArray<CoordType, DIM>;
   using QVec = primal::Vector<CoordType, DIM>;
 
   QVec vec1;
@@ -365,13 +364,12 @@ TEST(primal_vector, scalar_triple_product)
   EXPECT_DOUBLE_EQ(-10, QVec::scalar_triple_product(-e_0, 2.5 * e_1, 4. * e_2));
 
   // test properties for a few examples
-  std::vector<QVecTriple> data = {
-    QVecTriple {e_0, e_1, e_2},
-    QVecTriple {e_0, e_2, e_1},
-    QVecTriple {e_0, e_0, e_1},
-    QVecTriple {o, e_0, e_1},
-    QVecTriple {e_0, e_0 + e_1, e_0 + e_1 + e_2},
-    QVecTriple {-3.33 * e_0, 2.25 * e_1, .1111 * e_2}};
+  std::vector<QVecTriple> data = {QVecTriple {e_0, e_1, e_2},
+                                  QVecTriple {e_0, e_2, e_1},
+                                  QVecTriple {e_0, e_0, e_1},
+                                  QVecTriple {o, e_0, e_1},
+                                  QVecTriple {e_0, e_0 + e_1, e_0 + e_1 + e_2},
+                                  QVecTriple {-3.33 * e_0, 2.25 * e_1, .1111 * e_2}};
 
   for(auto triplet : data)
   {
@@ -380,19 +378,15 @@ TEST(primal_vector, scalar_triple_product)
     const auto& k = triplet[2];
 
     // check definition
-    EXPECT_EQ(QVec::dot_product(i, QVec::cross_product(j, k)),
-              QVec::scalar_triple_product(i, j, k));
+    EXPECT_EQ(QVec::dot_product(i, QVec::cross_product(j, k)), QVec::scalar_triple_product(i, j, k));
 
     // check rotations
-    EXPECT_EQ(QVec::scalar_triple_product(i, j, k),
-              QVec::scalar_triple_product(j, k, i));
+    EXPECT_EQ(QVec::scalar_triple_product(i, j, k), QVec::scalar_triple_product(j, k, i));
 
-    EXPECT_EQ(QVec::scalar_triple_product(i, j, k),
-              QVec::scalar_triple_product(k, i, j));
+    EXPECT_EQ(QVec::scalar_triple_product(i, j, k), QVec::scalar_triple_product(k, i, j));
 
     // check swap permutation
-    EXPECT_EQ(-QVec::scalar_triple_product(i, j, k),
-              QVec::scalar_triple_product(i, k, j));
+    EXPECT_EQ(-QVec::scalar_triple_product(i, j, k), QVec::scalar_triple_product(i, k, j));
   }
 }
 
@@ -487,24 +481,23 @@ AXOM_CUDA_TEST(primal_numeric_array, numeric_array_check_policies)
   using seq_exec = axom::SEQ_EXEC;
   check_vector_policy<seq_exec>();
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
 
   using omp_exec = axom::OMP_EXEC;
   check_vector_policy<omp_exec>();
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
+  defined(AXOM_USE_UMPIRE)
 
   using cuda_exec = axom::CUDA_EXEC<512>;
 
   check_vector_policy<cuda_exec>();
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
+  defined(AXOM_USE_UMPIRE)
 
   using hip_exec = axom::HIP_EXEC<512>;
 

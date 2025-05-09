@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -20,7 +20,7 @@
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Polygon.hpp"
-#include "axom/primal/operators/winding_number_2d.hpp"
+#include "axom/primal/operators/detail/winding_number_2d_impl.hpp"
 
 // C++ includes
 #include <cmath>
@@ -53,9 +53,10 @@ bool in_polygon(const Point<T, 2>& query,
                 bool useNonzeroRule = true,
                 double edge_tol = 1e-8)
 {
+  bool isOnEdge = false;
   return useNonzeroRule
-    ? winding_number(query, poly, includeBoundary, edge_tol) != 0
-    : (winding_number(query, poly, includeBoundary, edge_tol) % 2) == 1;
+    ? detail::polygon_winding_number(query, poly, isOnEdge, includeBoundary, edge_tol) != 0
+    : (detail::polygon_winding_number(query, poly, isOnEdge, includeBoundary, edge_tol) % 2) != 0;
 }
 
 }  // namespace primal

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -115,30 +115,25 @@ Mesh::Mesh(sidre::Group* group, const std::string& topo)
   , m_coordset()
 {
   SLIC_ERROR_IF(m_group == nullptr, "NULL sidre group");
-  SLIC_ERROR_IF(!blueprint::isValidRootGroup(m_group),
-                "root group does not conform to blueprint");
+  SLIC_ERROR_IF(!blueprint::isValidRootGroup(m_group), "root group does not conform to blueprint");
 
   blueprint::getMeshTypeAndDimension(m_type, m_ndims, m_group, m_topology);
   m_topology = getTopologyGroup()->getName();
-  m_coordset =
-    blueprint::getCoordsetGroup(m_group, getTopologyGroup())->getName();
-
-  SLIC_ERROR_IF(!m_group->hasChildGroup("state"),
-                "root group does not have a state group.");
+  m_coordset = blueprint::getCoordsetGroup(m_group, getTopologyGroup())->getName();
 
   sidre::Group* state_group = m_group->getGroup("state");
-  SLIC_ERROR_IF(!state_group->hasChildGroup(m_topology),
-                "state group has no " << m_topology << " child group.");
-
-  state_group = state_group->getGroup(m_topology);
-  if(state_group->hasChildView("block_id"))
+  if(state_group != nullptr && state_group->hasChildGroup(m_topology))
   {
-    m_block_idx = state_group->getView("block_id")->getScalar();
-  }
+    state_group = state_group->getGroup(m_topology);
+    if(state_group->hasChildView("block_id"))
+    {
+      m_block_idx = state_group->getView("block_id")->getScalar();
+    }
 
-  if(state_group->hasChildView("partition_id"))
-  {
-    m_part_idx = state_group->getView("partition_id")->getScalar();
+    if(state_group->hasChildView("partition_id"))
+    {
+      m_part_idx = state_group->getView("partition_id")->getScalar();
+    }
   }
 
   SLIC_ERROR_IF(!validMeshType(), "invalid mesh type=" << m_type);
@@ -148,11 +143,7 @@ Mesh::Mesh(sidre::Group* group, const std::string& topo)
 }
 
 //------------------------------------------------------------------------------
-Mesh::Mesh(int ndims,
-           int type,
-           sidre::Group* group,
-           const std::string& topo,
-           const std::string& coordset)
+Mesh::Mesh(int ndims, int type, sidre::Group* group, const std::string& topo, const std::string& coordset)
   : m_ndims(ndims)
   , m_type(type)
   , m_block_idx(-1)

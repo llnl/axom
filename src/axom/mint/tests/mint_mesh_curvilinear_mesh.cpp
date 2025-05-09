@@ -1,16 +1,16 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "axom/mint/config.hpp"  // for compile-time type definitions
 
 // Mint includes
-#include "axom/mint/mesh/blueprint.hpp"        // for blueprint functions
-#include "axom/mint/mesh/CellTypes.hpp"        // for CellTypes enum definition
-#include "axom/mint/mesh/CurvilinearMesh.hpp"  // for CurivilinearMesh
-#include "axom/mint/mesh/ParticleMesh.hpp"     // for ParticleMesh
+#include "axom/mint/mesh/blueprint.hpp"             // for blueprint functions
+#include "axom/mint/mesh/CellTypes.hpp"             // for CellTypes enum definition
+#include "axom/mint/mesh/CurvilinearMesh.hpp"       // for CurivilinearMesh
+#include "axom/mint/mesh/ParticleMesh.hpp"          // for ParticleMesh
 #include "axom/mint/mesh/internal/MeshHelpers.hpp"  // for axom::mint::internal::dim
-#include "StructuredMesh_helpers.hpp"  // for StructuredMesh test helpers
+#include "StructuredMesh_helpers.hpp"               // for StructuredMesh test helpers
 
 // Slic includes
 #include "axom/slic.hpp"
@@ -293,10 +293,7 @@ TEST(mint_mesh_curvilinear_mesh, sidre_constructor)
       break;
     default:
       EXPECT_EQ(idim, 3);
-      m = new CurvilinearMesh(meshGroup,
-                              N[I_DIRECTION],
-                              N[J_DIRECTION],
-                              N[K_DIRECTION]);
+      m = new CurvilinearMesh(meshGroup, N[I_DIRECTION], N[J_DIRECTION], N[K_DIRECTION]);
     }  // END switch
 
     EXPECT_TRUE(m->hasSidreGroup());

@@ -1,4 +1,4 @@
-.. ## Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+.. ## Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 .. ## other Axom Project Developers. See the top-level LICENSE file for details.
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
@@ -458,6 +458,10 @@ Tools and features primarily intended for developers
 +------------------------------------------+---------+----------------------------------------+
 | AXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS | OFF     | Enable an expanded set of tests for    |
 |                                          |         | the Axom Quest component               |
++------------------------------------------+---------+----------------------------------------+
+| AXOM_ENABLE_ASAN                         | OFF     | Enable AddressSanitizer                |
++------------------------------------------+---------+----------------------------------------+
+| AXOM_ENABLE_UBSAN                        | OFF     | Enable UndefinedBehaviorSanitizer      |
 +------------------------------------------+---------+----------------------------------------+
 
 Axom source code macro constants

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -59,8 +59,7 @@ void addCurve(Curve &&curve, CurveSet::CurveMap &curves)
  * @param childNodeName the name of the child node
  * @return a CurveMap representing the specified child
  */
-CurveSet::CurveMap extractCurveMap(conduit::Node const &parent,
-                                   std::string const &childNodeName)
+CurveSet::CurveMap extractCurveMap(conduit::Node const &parent, std::string const &childNodeName)
 {
   CurveSet::CurveMap curveMap;
   if(!parent.has_child(childNodeName))
@@ -111,15 +110,9 @@ CurveSet::CurveSet(std::string name_, conduit::Node const &node)
   , dependentCurves {extractCurveMap(node, DEPENDENT_KEY)}
 { }
 
-void CurveSet::addIndependentCurve(Curve curve)
-{
-  addCurve(std::move(curve), independentCurves);
-}
+void CurveSet::addIndependentCurve(Curve curve) { addCurve(std::move(curve), independentCurves); }
 
-void CurveSet::addDependentCurve(Curve curve)
-{
-  addCurve(std::move(curve), dependentCurves);
-}
+void CurveSet::addDependentCurve(Curve curve) { addCurve(std::move(curve), dependentCurves); }
 
 conduit::Node CurveSet::toNode() const
 {

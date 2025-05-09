@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -72,8 +72,7 @@ TEST(utils_config, config_openmp)
   {
     sum += i;
   }
-  EXPECT_EQ(N * (N + 1) / 2, sum)
-    << "Bad reduction on first " << N << " integers";
+  EXPECT_EQ(N * (N + 1) / 2, sum) << "Bad reduction on first " << N << " integers";
   std::cout << "Sum of first " << N << " numbers is: " << sum << std::endl;
 }
 
@@ -81,10 +80,9 @@ TEST(utils_config, config_openmp)
 TEST(utils_config, mfem_configuration)
 {
   #ifdef MFEM_VERSION
-  std::cout << "Using mfem version " << MFEM_VERSION_MAJOR
-            << "."                        // major version
-            << MFEM_VERSION_MINOR << "."  // minor version
-            << MFEM_VERSION_PATCH         // patch level
+  std::cout << "Using mfem version " << MFEM_VERSION_MAJOR << "."  // major version
+            << MFEM_VERSION_MINOR << "."                           // minor version
+            << MFEM_VERSION_PATCH                                  // patch level
             << std::endl;
   #endif  // MFEM_VERSION
 
@@ -94,15 +92,13 @@ TEST(utils_config, mfem_configuration)
   #ifdef AXOM_USE_MPI
     axomHasMPI = true;
   #endif
-    std::cout << "Axom is built " << (axomHasMPI ? "with" : "without") << " MPI"
-              << std::endl;
+    std::cout << "Axom is built " << (axomHasMPI ? "with" : "without") << " MPI" << std::endl;
 
     bool mfemHasMPI = false;
   #ifdef MFEM_USE_MPI
     mfemHasMPI = true;
   #endif
-    std::cout << "mfem is built " << (mfemHasMPI ? "with" : "without") << " MPI"
-              << std::endl;
+    std::cout << "mfem is built " << (mfemHasMPI ? "with" : "without") << " MPI" << std::endl;
 
     if(!axomHasMPI)
     {

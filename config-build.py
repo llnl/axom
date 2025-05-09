@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -82,6 +82,10 @@ def parse_arguments():
         "--eclipse",
         action="store_true",
         help="Create an eclipse project file.",
+    )
+
+    parser.add_argument(
+        "-n", "--ninja", action="store_true", help="Create a Ninja project."
     )
 
     parser.add_argument(
@@ -269,6 +273,9 @@ def create_cmake_command_line(
 
     if args.eclipse:
         cmakeline += ' -G "Eclipse CDT4 - Unix Makefiles"'
+
+    if args.ninja:
+        cmakeline += ' -G "Ninja"'
 
     if args.xcode:
         cmakeline += ' -G "Xcode"'

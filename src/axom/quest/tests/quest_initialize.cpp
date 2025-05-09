@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -29,7 +29,7 @@ TEST(quest_initialize, inout_pointer_initialize)
 {
   int rc = quest::QUEST_INOUT_SUCCESS;
 
-  mint::Mesh* input_mesh = axom::quest::utilities::make_tetrahedron_mesh();
+  std::shared_ptr<mint::Mesh> input_mesh {axom::quest::utilities::make_tetrahedron_mesh()};
 
   // Note: the following call updates the input_mesh pointer
 #ifdef AXOM_USE_MPI
@@ -47,8 +47,6 @@ TEST(quest_initialize, inout_pointer_initialize)
 
   rc = quest::inout_finalize();
   EXPECT_EQ(quest::QUEST_INOUT_SUCCESS, rc);
-
-  delete input_mesh;
 }
 
 // Test initializing quest signed_distance from a preloaded mesh
@@ -115,8 +113,7 @@ TEST(quest_initialize, buffer_reallocations)
 {
   axom::sidre::DataStore dataStore;
 
-  axom::sidre::Buffer* b1 =
-    dataStore.createBuffer(axom::sidre::DataTypeId::INT32_ID, 10);
+  axom::sidre::Buffer* b1 = dataStore.createBuffer(axom::sidre::DataTypeId::INT32_ID, 10);
   b1->allocate();
   EXPECT_NE(b1->getVoidPtr(), nullptr);
 
@@ -148,10 +145,9 @@ TEST(quest_initialize, immediate_ug_reserve)
 {
   axom::sidre::DataStore dataStore;
   axom::sidre::Group* meshGroup = dataStore.getRoot()->createGroup("myGroup");
-  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> contourMesh(
-    2,
-    axom::mint::CellType::SEGMENT,
-    meshGroup);
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> contourMesh(2,
+                                                                     axom::mint::CellType::SEGMENT,
+                                                                     meshGroup);
   contourMesh.reserveCells(10);  // This may unexpectedly crash.
 }
   #endif

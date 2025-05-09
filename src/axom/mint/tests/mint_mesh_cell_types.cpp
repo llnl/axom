@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -61,15 +61,15 @@ TEST(mint_mesh_cell_types, check_cell_types)
   };
 
   const mint::CellType face_types[mint::NUM_CELL_TYPES][mint::MAX_FACE_NODES] = {
-    {mint::UNDEFINED_CELL},                                        // VERTEX
-    {mint::UNDEFINED_CELL},                                        // SEGMENT
-    {mint::SEGMENT, mint::SEGMENT, mint::SEGMENT},                 // TRIANGLE
-    {mint::SEGMENT, mint::SEGMENT, mint::SEGMENT, mint::SEGMENT},  // QUAD
-    {mint::TRIANGLE, mint::TRIANGLE, mint::TRIANGLE, mint::TRIANGLE},  // TET
-    {mint::QUAD, mint::QUAD, mint::QUAD, mint::QUAD, mint::QUAD, mint::QUAD},  // HEX
-    {mint::TRIANGLE, mint::QUAD, mint::QUAD, mint::QUAD, mint::TRIANGLE},  // PRISM
-    {mint::QUAD, mint::TRIANGLE, mint::TRIANGLE, mint::TRIANGLE, mint::TRIANGLE},  // PYRAMID
-    {mint::SEGMENT, mint::SEGMENT, mint::SEGMENT, mint::SEGMENT},  // QUAD9
+    {mint::UNDEFINED_CELL},                                                          // VERTEX
+    {mint::UNDEFINED_CELL},                                                          // SEGMENT
+    {mint::SEGMENT, mint::SEGMENT, mint::SEGMENT},                                   // TRIANGLE
+    {mint::SEGMENT, mint::SEGMENT, mint::SEGMENT, mint::SEGMENT},                    // QUAD
+    {mint::TRIANGLE, mint::TRIANGLE, mint::TRIANGLE, mint::TRIANGLE},                // TET
+    {mint::QUAD, mint::QUAD, mint::QUAD, mint::QUAD, mint::QUAD, mint::QUAD},        // HEX
+    {mint::TRIANGLE, mint::QUAD, mint::QUAD, mint::QUAD, mint::TRIANGLE},            // PRISM
+    {mint::QUAD, mint::TRIANGLE, mint::TRIANGLE, mint::TRIANGLE, mint::TRIANGLE},    // PYRAMID
+    {mint::SEGMENT, mint::SEGMENT, mint::SEGMENT, mint::SEGMENT},                    // QUAD9
     {mint::QUAD9, mint::QUAD9, mint::QUAD9, mint::QUAD9, mint::QUAD9, mint::QUAD9},  // HEX27
   };
 

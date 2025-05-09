@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -133,20 +133,14 @@ public:
      *
      * \return the string vector value
      */
-  std::vector<std::string> const &getStringArray() const noexcept
-  {
-    return stringArrayValue;
-  }
+  std::vector<std::string> const &getStringArray() const noexcept { return stringArrayValue; }
 
   /**
      * \brief Get the scalar array value of the Datum.
      *
      * \return the scalar vector value
      */
-  std::vector<double> const &getScalarArray() const noexcept
-  {
-    return scalarArrayValue;
-  }
+  std::vector<double> const &getScalarArray() const noexcept { return scalarArrayValue; }
 
   /**
      * \brief Get the tags of the Datum

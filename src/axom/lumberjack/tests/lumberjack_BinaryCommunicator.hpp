@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -90,8 +90,7 @@ TEST(lumberjack_BinaryCommunicator, basic)
       }
     }
     EXPECT_EQ(found, true) << "Error: Rank: " << commRank
-                           << ": Message not received: " << currMessage
-                           << std::endl;
+                           << ": Message not received: " << currMessage << std::endl;
   }
 
   if(numChildren > 0)
@@ -106,8 +105,7 @@ TEST(lumberjack_BinaryCommunicator, basic)
       }
     }
     EXPECT_EQ(found, true) << "Error: Rank: " << commRank
-                           << ": Message not received: " << currMessage
-                           << std::endl;
+                           << ": Message not received: " << currMessage << std::endl;
   }
 
   c.finalize();
@@ -117,7 +115,7 @@ TEST(lumberjack_BinaryCommunicator, basic)
   // cleanup allocated memory from received messages
   for(auto& rm : receivedPackedMessages)
   {
-    delete rm;
+    delete[] rm;
   }
   receivedPackedMessages.clear();
 }

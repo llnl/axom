@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -14,6 +14,7 @@
 
 // C/C++ includes
 #include <string>
+#include <memory>
 
 /*!
  * \file inout.hpp
@@ -78,7 +79,7 @@ int inout_init(const std::string& file, MPI_Comm comm = MPI_COMM_SELF);
  * by welding vertices) and updates the \a mesh pointer. It is the user's
  * responsibility to update any other pointers to this same mesh.
  */
-int inout_init(mint::Mesh*& mesh, MPI_Comm comm = MPI_COMM_SELF);
+int inout_init(std::shared_ptr<mint::Mesh>& mesh, MPI_Comm comm = MPI_COMM_SELF);
 
 /*!
  * \brief Finalizes the inout query
@@ -134,11 +135,7 @@ bool inout_evaluate(double x, double y, double z = 0.);
  *  and \a res are not \a nullptr and contain sufficient data/space for
  *  \a npoints points.
  */
-int inout_evaluate(const double* x,
-                   const double* y,
-                   const double* z,
-                   int npoints,
-                   int* res);
+int inout_evaluate(const double* x, const double* y, const double* z, int npoints, int* res);
 
 /*!
  * \brief Returns the lower coordinates of the mesh's bounding box

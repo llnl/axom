@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -17,8 +17,7 @@ int main(void)
   // Create a record of this specific study
   // This study has an ID of "study1", which has to be unique to this file
   axom::sina::ID studyID {"study1", axom::sina::IDType::Local};
-  std::unique_ptr<axom::sina::Record> study {
-    new axom::sina::Record {studyID, "UQ study"}};
+  std::unique_ptr<axom::sina::Record> study {new axom::sina::Record {studyID, "UQ study"}};
 
   // Create a run of "My Sim Code" version "1.2.3", which was run by "jdoe".
   // The run has an ID of "run1", which has to be unique to this file.
@@ -41,8 +40,7 @@ int main(void)
 
   SLIC_ASSERT_MSG(records.size() == 2, "Unexpected number of records found.");
   std::cout << "Number of Records: " << records.size() << std::endl;
-  SLIC_ASSERT_MSG(relationships.size() == 1,
-                  "Unexpected number of relationships found.");
+  SLIC_ASSERT_MSG(relationships.size() == 1, "Unexpected number of relationships found.");
   std::cout << "Number of Relationships: " << relationships.size() << std::endl;
 
   // Finalize slic

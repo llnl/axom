@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -59,6 +59,22 @@ struct execution_space<OMP_EXEC>
 #else
     return axom::getDefaultAllocatorID();
 #endif
+  }
+  static constexpr runtime_policy::Policy runtimePolicy() noexcept
+  {
+    return runtime_policy::Policy::omp;
+  }
+  static bool usesMemorySpace(axom::MemorySpace m) noexcept
+  {
+    return m == MemorySpace::Dynamic
+#ifdef AXOM_USE_UMPIRE
+      || m == MemorySpace::Host || m == MemorySpace::Unified
+#endif
+      ;
+  }
+  static bool usesAllocId(int allocId) noexcept
+  {
+    return usesMemorySpace(axom::detail::getAllocatorSpace(allocId));
   }
 };
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -13,6 +13,7 @@
 #include "axom/primal/geometry/Tetrahedron.hpp"
 #include "axom/primal/geometry/Sphere.hpp"
 #include "axom/primal/geometry/OrientationResult.hpp"
+#include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/operators/in_sphere.hpp"
 
 #include "axom/fmt.hpp"
@@ -126,17 +127,16 @@ TEST(primal_in_sphere, compare_to_sphere_orientation)
 
   // define some constants for regular tetrahedron
   const double c[3] = {std::sqrt(2) / 3, std::sqrt(6) / 3, 1. / 3};
-  std::vector<TetrahedronType> tets = {
-    // A regular tetrahedron centered at the origin
-    TetrahedronType {PointType {0, 0, 1},
-                     PointType {2 * c[0], 0, -c[2]},
-                     PointType {-c[0], -c[1], -c[2]},
-                     PointType {-c[0], c[1], -c[2]}},
+  std::vector<TetrahedronType> tets = {// A regular tetrahedron centered at the origin
+                                       TetrahedronType {PointType {0, 0, 1},
+                                                        PointType {2 * c[0], 0, -c[2]},
+                                                        PointType {-c[0], -c[1], -c[2]},
+                                                        PointType {-c[0], c[1], -c[2]}},
 
-    TetrahedronType {PointType {0.942188, 0.211634, 0.395159},
-                     PointType {0.9105, 0.114406, 0.83865},
-                     PointType {0.855718, 0.660449, 0.911065},
-                     PointType {0.393771, 0.572654, 0.471824}}};
+                                       TetrahedronType {PointType {0.942188, 0.211634, 0.395159},
+                                                        PointType {0.9105, 0.114406, 0.83865},
+                                                        PointType {0.855718, 0.660449, 0.911065},
+                                                        PointType {0.393771, 0.572654, 0.471824}}};
 
   std::vector<primal::OrientationResult> orientations = {
     primal::ON_POSITIVE_SIDE,
@@ -176,6 +176,47 @@ TEST(primal_in_sphere, compare_to_sphere_orientation)
     const bool oper_in_sphere = in_sphere(query, tet);
     const bool geom_in_sphere = (res == primal::ON_NEGATIVE_SIDE);
     EXPECT_EQ(oper_in_sphere, geom_in_sphere);
+  }
+}
+
+TEST(primal_in_sphere, bounding_box_in_sphere)
+{
+  constexpr int DIM = 2;
+  using PointType = primal::Point<double, DIM>;
+  using SphereType = primal::Sphere<double, DIM>;
+  using BoxType = primal::BoundingBox<double, DIM>;
+
+  SphereType circle(PointType {1.0, 2.0}, 1.3);
+
+  // Circle contains box: All 4 corners inside
+  {
+    BoxType box(PointType {circle.getCenter()[0] - 0.5, circle.getCenter()[1] - 0.5},
+                PointType {circle.getCenter()[0] + 0.5, circle.getCenter()[1] + 0.5});
+    EXPECT_TRUE(primal::in_sphere(box, circle));
+  }
+
+  // One corner outside
+  {
+    BoxType box(PointType {0, 1}, PointType {circle.getCenter()[0], circle.getCenter()[1]});
+    EXPECT_FALSE(primal::in_sphere(box, circle));
+  }
+
+  // Two corners outside
+  {
+    BoxType box(PointType {0, 1}, PointType {2, 2});
+    EXPECT_FALSE(primal::in_sphere(box, circle));
+  }
+
+  // Three corners outside
+  {
+    BoxType box(PointType {0, 1}, PointType {2.2, 2.6});
+    EXPECT_FALSE(primal::in_sphere(box, circle));
+  }
+
+  // All four corners outside
+  {
+    BoxType box(PointType {0, 1}, PointType {3, 3});
+    EXPECT_FALSE(primal::in_sphere(box, circle));
   }
 }
 

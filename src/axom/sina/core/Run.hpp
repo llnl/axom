@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -54,10 +54,7 @@ public:
      * \param version (optional) the version of the application
      * \param user (optional) the user who executed the run
      */
-  Run(ID id,
-      std::string application,
-      std::string version = "",
-      std::string user = "");
+  Run(ID id, std::string application, std::string version = "", std::string user = "");
 
   /**
      * \brief Create a Run from its representation as a conduit Node

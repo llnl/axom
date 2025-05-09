@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -83,20 +83,7 @@ if(AXOM_ENABLE_QUEST)
         set (_policies "raja_seq")
         blt_list_append(TO _policies ELEMENTS "raja_omp" IF AXOM_ENABLE_OPENMP)
         blt_list_append(TO _policies ELEMENTS "raja_cuda" IF AXOM_ENABLE_CUDA)
-
-        # Test with HIP policy for select optimization flags.
-        # Check for Debug flags that have been overwritten.
-        if(AXOM_ENABLE_HIP)
-            if((CMAKE_BUILD_TYPE MATCHES "(Release|RelWithDebInfo)") OR
-              (CMAKE_BUILD_TYPE MATCHES "Debug" AND
-              CMAKE_CXX_FLAGS_DEBUG MATCHES "\-O1 \-g \-DNDEBUG"))
-                list(APPEND _policies "raja_hip")
-            else()
-              message(STATUS
-                "HIP policy for mesh_tester executable is not being tested"
-              )
-            endif()
-        endif()
+        blt_list_append(TO _policies ELEMENTS "raja_hip" IF AXOM_ENABLE_HIP)
 
         foreach(_method ${_methods})
             foreach(_policy ${_policies})
@@ -172,4 +159,36 @@ if( AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND
             DESTINATION          bin
             )
 
+endif()
+
+#------------------------------------------------------------------------------
+# mesh_converter is a utility that converts between mesh formats
+#------------------------------------------------------------------------------
+if(AXOM_ENABLE_QUEST)
+    set(mesh_converter_sources
+        mesh_converter.cpp
+    )
+    set(mesh_converter_depends
+        axom
+        )
+
+    axom_add_executable(
+        NAME        mesh_converter
+        SOURCES     ${mesh_converter_sources}
+        OUTPUT_DIR  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${mesh_converter_depends}
+        FOLDER      axom/examples
+        )
+    install(TARGETS              mesh_converter
+            DESTINATION          bin
+            )
+
+    # Add unit tests
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+        axom_add_test(
+            NAME    mesh_converter_cup
+            COMMAND mesh_converter -i "${AXOM_DATA_DIR}/quest/cup.proe" -o cup.stl)
+        set_tests_properties(mesh_converter_cup 
+            PROPERTIES PASS_REGULAR_EXPRESSION  "Retained 272 boundary faces")
+    endif()
 endif()

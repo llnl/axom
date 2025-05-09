@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -137,7 +137,7 @@ TYPED_TEST(InOutInterfaceTest, initialize_from_mesh)
 
   EXPECT_TRUE(axom::utilities::filesystem::pathExists(this->meshfile));
 
-  axom::mint::Mesh* mesh {nullptr};
+  axom::mint::Mesh* tmpMeshPtr {nullptr};
 
   int rc = failCode;
 
@@ -152,14 +152,17 @@ TYPED_TEST(InOutInterfaceTest, initialize_from_mesh)
                                                       identity,
                                                       segmentsPerKnotSpan,
                                                       weldThreshold,
-                                                      mesh,
+                                                      tmpMeshPtr,
                                                       revolvedVolume);
 #endif  // AXOM_USE_C2C
   }
   else  // DIM == 3
   {
-    rc = axom::quest::internal::read_stl_mesh(this->meshfile, mesh);
+    rc = axom::quest::internal::read_stl_mesh(this->meshfile, tmpMeshPtr);
   }
+
+  std::shared_ptr<axom::mint::Mesh> mesh {tmpMeshPtr};
+  tmpMeshPtr = nullptr;
 
   EXPECT_EQ(0, rc);
 
@@ -179,8 +182,6 @@ TYPED_TEST(InOutInterfaceTest, initialize_from_mesh)
 
   // InOut should no longer  be initialized
   EXPECT_FALSE(axom::quest::inout_initialized());
-
-  delete mesh;
 }
 
 TYPED_TEST(InOutInterfaceTest, query_properties)

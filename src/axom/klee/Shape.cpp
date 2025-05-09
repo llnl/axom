@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -24,8 +24,7 @@ namespace
  * \return whether the container contains the value
  */
 template <typename Container>
-bool contains(const Container &container,
-              const typename Container::value_type &value)
+bool contains(const Container &container, const typename Container::value_type &value)
 {
   using std::begin;
   using std::end;

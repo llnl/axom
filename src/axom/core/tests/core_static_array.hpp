@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -25,9 +25,7 @@ void check_static_array_policy()
   const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   const int kernel_allocator = axom::execution_space<ExecSpace>::allocatorID();
 
-  axom::Array<StaticArrayType> s_arrays_device(MAX_SIZE,
-                                               MAX_SIZE,
-                                               kernel_allocator);
+  axom::Array<StaticArrayType> s_arrays_device(MAX_SIZE, MAX_SIZE, kernel_allocator);
   auto s_arrays_view = s_arrays_device.view();
 
   axom::Array<StaticArrayType> sizes_device(1, 1, kernel_allocator);
@@ -71,16 +69,10 @@ void check_static_array_policy()
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-TEST(core_static_array, check_static_array_seq)
-{
-  check_static_array_policy<axom::SEQ_EXEC>();
-}
+TEST(core_static_array, check_static_array_seq) { check_static_array_policy<axom::SEQ_EXEC>(); }
 
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
-TEST(core_static_array, check_static_array_omp)
-{
-  check_static_array_policy<axom::OMP_EXEC>();
-}
+TEST(core_static_array, check_static_array_omp) { check_static_array_policy<axom::OMP_EXEC>(); }
 #endif
 
 #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)

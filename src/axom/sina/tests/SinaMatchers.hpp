@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -28,8 +28,7 @@ class MatchesJson
 public:
   explicit MatchesJson(const std::string& expectedJsonString);
 
-  bool MatchAndExplain(const conduit::Node& node,
-                       ::testing::MatchResultListener* listener) const;
+  bool MatchAndExplain(const conduit::Node& node, ::testing::MatchResultListener* listener) const;
 
   void DescribeTo(std::ostream* os) const;
 
@@ -40,8 +39,7 @@ private:
 };
 
 // Helper function to create the matcher
-inline ::testing::PolymorphicMatcher<MatchesJson> MatchesJsonMatcher(
-  const std::string& expectedJsonString)
+inline ::testing::PolymorphicMatcher<MatchesJson> MatchesJsonMatcher(const std::string& expectedJsonString)
 {
   return ::testing::MakePolymorphicMatcher(MatchesJson(expectedJsonString));
 }

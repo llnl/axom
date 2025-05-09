@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -89,18 +89,12 @@ struct OrderedSet : public Set, TranslationPolicy, IndirectionPolicy, StridePoli
   OrderedSet(int sz) : TranslationPolicy(0, sz) { }
   OrderedSet(int lo, int hi) : TranslationPolicy(lo, hi) { }
 
-  inline int at(int pos) const
-  {
-    return indirection(pos * stride() + offset());
-  }
+  inline int at(int pos) const { return indirection(pos * stride() + offset()); }
 
   inline int size() const { return TranslationPolicy::size(); }
   inline int offset() const { return TranslationPolicy::offset(); }
   inline int stride() const { return StridePolicy::stride(); }
-  inline int indirection(int pos) const
-  {
-    return IndirectionPolicy::indirection(pos);
-  }
+  inline int indirection(int pos) const { return IndirectionPolicy::indirection(pos); }
 };
 
 ////  Define concrete Set types as combinations of the above

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -55,9 +55,7 @@ SynchronizedStream::SynchronizedStream(std::ostream* stream, MPI_Comm comm)
 { }
 
 //------------------------------------------------------------------------------
-SynchronizedStream::SynchronizedStream(std::ostream* stream,
-                                       MPI_Comm comm,
-                                       const std::string& format)
+SynchronizedStream::SynchronizedStream(std::ostream* stream, MPI_Comm comm, const std::string& format)
   : m_comm(comm)
   , m_cache(new MessageCache)
   , m_stream(stream)
@@ -142,14 +140,13 @@ void SynchronizedStream::append(message::Level msgLevel,
   MPI_Comm_rank(m_comm, &rank);
 
   // STEP 1: cache formatted message
-  m_cache->messages.push_back(
-    this->getFormatedMessage(message::getLevelAsString(msgLevel),
-                             message,
-                             tagName,
-                             std::to_string(rank),
-                             "1",
-                             fileName,
-                             line));
+  m_cache->messages.push_back(this->getFormatedMessage(message::getLevelAsString(msgLevel),
+                                                       message,
+                                                       tagName,
+                                                       std::to_string(rank),
+                                                       "1",
+                                                       fileName,
+                                                       line));
 }
 
 //------------------------------------------------------------------------------

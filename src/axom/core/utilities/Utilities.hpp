@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -109,15 +109,6 @@ inline AXOM_HOST_DEVICE void swap(T& a, T& b)
   b = tmp;
 }
 
-/*! 
- * \brief returns the linear interpolation of \a A and \a B at \a t. i.e. (1-t)A+tB
- */
-template <typename T>
-inline AXOM_HOST_DEVICE T lerp(T A, T B, T t)
-{
-  return (1 - t) * A + t * B;
-}
-
 /*!
  * \brief Returns the base 2 logarithm of the input.
  * \param [in] val The input value
@@ -126,6 +117,20 @@ template <typename T>
 inline T log2(T val)
 {
   return static_cast<T>(std::log2(val));
+}
+
+/*!
+ * \brief Linearly interpolates between two values
+ * \param [in] val0 The first value
+ * \param [in] val2 The second value
+ * \param [in] t The interpolation parameter.
+ * \return The interpolated value
+ */
+template <typename T>
+inline AXOM_HOST_DEVICE T lerp(T v0, T v1, T t)
+{
+  constexpr T one = T(1);
+  return (one - t) * v0 + t * v1;
 }
 
 /*!
@@ -277,9 +282,8 @@ constexpr T byteswap(T val) noexcept
 {
   constexpr int NBYTES = sizeof(T);
 
-  AXOM_STATIC_ASSERT_MSG(
-    NBYTES == 1 || NBYTES == 2 || NBYTES == 4 || NBYTES == 8,
-    "byteswap only valid for types of size 1, 2, 4 or 8 bytes.");
+  AXOM_STATIC_ASSERT_MSG(NBYTES == 1 || NBYTES == 2 || NBYTES == 4 || NBYTES == 8,
+                         "byteswap only valid for types of size 1, 2, 4 or 8 bytes.");
 
   AXOM_STATIC_ASSERT_MSG(std::is_arithmetic<T>::value,
                          "byteswap only valid for native arithmetic types");
@@ -311,9 +315,7 @@ constexpr T byteswap(T val) noexcept
  *  false otherwise.
  */
 template <typename RealType>
-inline AXOM_HOST_DEVICE bool isNearlyEqual(RealType a,
-                                           RealType b,
-                                           RealType thresh = 1.0e-8)
+inline AXOM_HOST_DEVICE bool isNearlyEqual(RealType a, RealType b, RealType thresh = 1.0e-8)
 {
   return abs(a - b) <= thresh;
 }
@@ -356,9 +358,7 @@ inline AXOM_HOST_DEVICE bool isNearlyEqualRelative(RealType a,
  */
 AXOM_SUPPRESS_HD_WARN
 template <typename DataType, typename Predicate = std::less<DataType>>
-inline AXOM_HOST_DEVICE void insertionSort(DataType* array,
-                                           IndexType n,
-                                           Predicate cmp = {})
+inline AXOM_HOST_DEVICE void insertionSort(DataType* array, IndexType n, Predicate cmp = {})
 {
   for(int i = 1; i < n; i++)
   {

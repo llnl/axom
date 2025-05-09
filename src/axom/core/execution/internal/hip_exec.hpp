@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -63,6 +63,18 @@ struct execution_space<HIP_EXEC<BLOCK_SIZE, SYNCHRONOUS>>
   {
     return axom::getUmpireResourceAllocatorID(umpire::resource::Device);
   }
+  static constexpr runtime_policy::Policy runtimePolicy() noexcept
+  {
+    return runtime_policy::Policy::hip;
+  }
+  static bool usesMemorySpace(axom::MemorySpace m) noexcept
+  {
+    return m == memory_space || m == MemorySpace::Unified;
+  }
+  static bool usesAllocId(int allocId) noexcept
+  {
+    return usesMemorySpace(axom::detail::getAllocatorSpace(allocId));
+  }
 };
 
 /*!
@@ -89,6 +101,18 @@ struct execution_space<HIP_EXEC<BLOCK_SIZE, ASYNC>>
   static int allocatorID() noexcept
   {
     return axom::getUmpireResourceAllocatorID(umpire::resource::Device);
+  }
+  static constexpr runtime_policy::Policy runtimePolicy() noexcept
+  {
+    return runtime_policy::Policy::hip;
+  }
+  static bool usesMemorySpace(axom::MemorySpace m) noexcept
+  {
+    return m == memory_space || m == MemorySpace::Unified;
+  }
+  static bool usesAllocId(int allocId) noexcept
+  {
+    return usesMemorySpace(axom::detail::getAllocatorSpace(allocId));
   }
 };
 }  // namespace axom

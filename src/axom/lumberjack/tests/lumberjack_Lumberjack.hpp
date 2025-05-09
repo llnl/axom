@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -436,4 +436,78 @@ TEST(lumberjack_Lumberjack, combineMessagesLargeMessages)
 
   lumberjack.finalize();
   communicator.finalize();
+}
+
+TEST(lumberjack_Lumberjack, setNonOwnedCommunicator)
+{
+  int ranksLimit = 5;
+  auto communicator1 = new TestCommunicator();
+  communicator1->initialize(MPI_COMM_NULL, ranksLimit);
+
+  auto communicator2 = new TestCommunicator();
+  communicator2->initialize(MPI_COMM_NULL, ranksLimit);
+
+  axom::lumberjack::Lumberjack lumberjack;
+
+  lumberjack.initialize(communicator1, ranksLimit);
+
+  EXPECT_EQ(communicator1, lumberjack.getCommunicator());
+  EXPECT_EQ(lumberjack.isCommunicatorOwned(), false);
+
+  lumberjack.setCommunicator(communicator2, false);
+
+  /* communicator1 should still be valid after set
+     because it's not owned by Lumberjack*/
+  EXPECT_NE(communicator1, nullptr);
+  EXPECT_EQ(communicator2, lumberjack.getCommunicator());
+
+  lumberjack.finalize();
+  communicator1->finalize();
+  communicator2->finalize();
+  delete communicator1;
+  delete communicator2;
+}
+
+TEST(lumberjack_Lumberjack, setOwnedCommunicator)
+{
+  int ranksLimit = 5;
+  auto communicator = new TestCommunicator();
+  communicator->initialize(MPI_COMM_NULL, ranksLimit);
+
+  axom::lumberjack::Lumberjack lumberjack;
+
+  lumberjack.initialize(new TestCommunicator(), ranksLimit, true);
+
+  EXPECT_NE(lumberjack.getCommunicator(), nullptr);
+  EXPECT_EQ(lumberjack.isCommunicatorOwned(), true);
+
+  lumberjack.setCommunicator(communicator, true);
+
+  EXPECT_EQ(lumberjack.getCommunicator(), communicator);
+  EXPECT_EQ(lumberjack.isCommunicatorOwned(), true);
+
+  lumberjack.finalize();
+}
+
+TEST(lumberjack_Lumberjack, setOwnedAndNonOwnedCommunicator)
+{
+  int ranksLimit = 5;
+  auto communicator = new TestCommunicator();
+  communicator->initialize(MPI_COMM_NULL, ranksLimit);
+
+  axom::lumberjack::Lumberjack lumberjack;
+
+  lumberjack.initialize(new TestCommunicator(), ranksLimit, true);
+
+  EXPECT_NE(lumberjack.getCommunicator(), nullptr);
+  EXPECT_EQ(lumberjack.isCommunicatorOwned(), true);
+
+  lumberjack.setCommunicator(communicator, false);
+
+  EXPECT_EQ(lumberjack.getCommunicator(), communicator);
+  EXPECT_EQ(lumberjack.isCommunicatorOwned(), false);
+
+  lumberjack.finalize();
+  communicator->finalize();
+  delete communicator;
 }

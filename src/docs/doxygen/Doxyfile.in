@@ -786,9 +786,15 @@ INPUT                  = @PROJECT_SOURCE_DIR@/axom/doxygen_mainpage.md \
                          @PROJECT_SOURCE_DIR@/axom/mint/mesh \
                          @PROJECT_SOURCE_DIR@/axom/mint/utils \
                          @PROJECT_SOURCE_DIR@/axom/mint/execution \
+                         @PROJECT_SOURCE_DIR@/axom/mir/doxygen_mainpage.md \
+                         @PROJECT_SOURCE_DIR@/axom/mir/ \
+                         @PROJECT_SOURCE_DIR@/axom/mir/clipping \
+                         @PROJECT_SOURCE_DIR@/axom/mir/utilities \
+                         @PROJECT_SOURCE_DIR@/axom/mir/views \
                          @PROJECT_SOURCE_DIR@/axom/multimat/doxygen_mainpage.md \
                          @PROJECT_SOURCE_DIR@/axom/multimat \
                          @PROJECT_SOURCE_DIR@/axom/primal/doxygen_mainpage.md \
+                         @PROJECT_SOURCE_DIR@/axom/primal/README.md \
                          @PROJECT_SOURCE_DIR@/axom/primal/geometry \
                          @PROJECT_SOURCE_DIR@/axom/primal/operators \
                          @PROJECT_SOURCE_DIR@/axom/quest \

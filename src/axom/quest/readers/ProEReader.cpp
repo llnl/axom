@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -156,8 +156,7 @@ void ProEReader::getMesh(axom::mint::UnstructuredMesh<mint::SINGLE_SHAPE>* mesh)
   SLIC_ERROR_IF(static_cast<axom::IndexType>(m_tets.size()) != m_num_tets * 4,
                 "tets vector size doesn't match expected size!");
   SLIC_ERROR_IF(mesh->getDimension() != 3, "Pro/E reader expects a 3D mesh!");
-  SLIC_ERROR_IF(mesh->getCellType() != mint::TET,
-                "Pro/E reader expects a tetrahedra mesh!");
+  SLIC_ERROR_IF(mesh->getCellType() != mint::TET, "Pro/E reader expects a tetrahedra mesh!");
 
   // pre-allocate space to store the mesh
   if(!mesh->isExternal())

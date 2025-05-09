@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -24,8 +24,7 @@ template <typename ExecSpace>
 void check_for_all()
 {
   EXPECT_TRUE(axom::execution_space<ExecSpace>::valid());
-  std::cout << "checking axom::for_all() with ["
-            << axom::execution_space<ExecSpace>::name() << "]\n";
+  std::cout << "checking axom::for_all() with [" << axom::execution_space<ExecSpace>::name() << "]\n";
 
   // STEP 0: set some constants
   constexpr int VALUE_1 = -42;

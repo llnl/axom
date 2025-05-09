@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -52,8 +52,7 @@ TEST(mintMesh_field_DeathTest, invalid_operations)
   constexpr axom::IndexType NUM_TUPLES = 4;
   constexpr axom::IndexType NUM_COMPONENTS = 1;
 
-  mint::Field* f =
-    new mint::FieldVariable<double>("f", NUM_TUPLES, NUM_COMPONENTS);
+  mint::Field* f = new mint::FieldVariable<double>("f", NUM_TUPLES, NUM_COMPONENTS);
   EXPECT_DEATH_IF_SUPPORTED(mint::Field::getDataPtr<int>(f), IGNORE_OUTPUT);
 
   delete f;
@@ -74,8 +73,7 @@ TEST(mint_mesh_field, set_basis)
   constexpr axom::IndexType NUM_TUPLES = 4;
   constexpr axom::IndexType NUM_COMPONENTS = 1;
 
-  mint::Field* f =
-    new mint::FieldVariable<double>("f", NUM_TUPLES, NUM_COMPONENTS);
+  mint::Field* f = new mint::FieldVariable<double>("f", NUM_TUPLES, NUM_COMPONENTS);
   EXPECT_TRUE(f != nullptr);
   EXPECT_EQ(f->getBasis(), MINT_UNDEFINED_BASIS);
 
@@ -93,8 +91,7 @@ TEST(mint_mesh_field, get_dataptr)
   constexpr axom::IndexType NUM_COMPONENTS = 1;
 
   double f[] = {1.0, 2.0, 3.0, 4.0};
-  mint::Field* field =
-    new mint::FieldVariable<double>("f", f, NUM_TUPLES, NUM_COMPONENTS);
+  mint::Field* field = new mint::FieldVariable<double>("f", f, NUM_TUPLES, NUM_COMPONENTS);
 
   const double* data = mint::Field::getDataPtr<double>(field);
   EXPECT_TRUE(data != nullptr);

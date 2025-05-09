@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -12,10 +12,9 @@
 #ifndef AXOM_PRIMAL_COMPUTE_BOUNDING_BOX_HPP_
 #define AXOM_PRIMAL_COMPUTE_BOUNDING_BOX_HPP_
 
-#include "axom/primal/geometry/NumericArray.hpp"  // for numeric arrays
-#include "axom/core/numerics/Matrix.hpp"          // for Matrix
-#include "axom/core/Macros.hpp"                   // for AXOM_HOST__DEVICE
-#include "axom/core/numerics/eigen_solve.hpp"     // for eigen_solve
+#include "axom/core/numerics/Matrix.hpp"       // for Matrix
+#include "axom/core/Macros.hpp"                // for AXOM_HOST__DEVICE
+#include "axom/core/numerics/eigen_solve.hpp"  // for eigen_solve
 #include "axom/primal/geometry/Polyhedron.hpp"
 #include "axom/primal/geometry/Octahedron.hpp"
 #include "axom/primal/geometry/Hexahedron.hpp"
@@ -42,9 +41,7 @@ namespace primal
  * \note if n <= 0, invokes default constructor
  */
 template <typename T, int NDIMS>
-OrientedBoundingBox<T, NDIMS> compute_oriented_bounding_box(
-  const Point<T, NDIMS> *pts,
-  int n)
+OrientedBoundingBox<T, NDIMS> compute_oriented_bounding_box(const Point<T, NDIMS> *pts, int n)
 {
   return OrientedBoundingBox<T, NDIMS>(pts, n);
 }
@@ -98,8 +95,7 @@ OrientedBoundingBox<T, NDIMS> merge_boxes(const OrientedBoundingBox<T, NDIMS> &l
  */
 
 template <typename T, int NDIMS>
-BoundingBox<T, NDIMS> merge_boxes(const BoundingBox<T, NDIMS> &l,
-                                  const BoundingBox<T, NDIMS> &r)
+BoundingBox<T, NDIMS> merge_boxes(const BoundingBox<T, NDIMS> &l, const BoundingBox<T, NDIMS> &r)
 {
   BoundingBox<T, NDIMS> res(l);
   res.addBox(r);
@@ -112,8 +108,7 @@ BoundingBox<T, NDIMS> merge_boxes(const BoundingBox<T, NDIMS> &l,
  * \param [in] tri The Triangle
  */
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
-  const Triangle<T, NDIMS> &tri)
+AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(const Triangle<T, NDIMS> &tri)
 {
   return BoundingBox<T, NDIMS> {tri[0], tri[1], tri[2]};
 }
@@ -124,8 +119,7 @@ AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
  * \param [in] quad The Quadrilateral
  */
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
-  const Quadrilateral<T, NDIMS> &quad)
+AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(const Quadrilateral<T, NDIMS> &quad)
 {
   return BoundingBox<T, NDIMS> {quad[0], quad[1], quad[2], quad[3]};
 }
@@ -136,8 +130,7 @@ AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
  * \param [in] oct The Octahedron
  */
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
-  const Octahedron<T, NDIMS> &oct)
+AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(const Octahedron<T, NDIMS> &oct)
 {
   return BoundingBox<T, NDIMS> {oct[0], oct[1], oct[2], oct[3], oct[4], oct[5]};
 }
@@ -148,17 +141,9 @@ AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
  * \param [in] hex The Hexahedron
  */
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
-  const Hexahedron<T, NDIMS> &hex)
+AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(const Hexahedron<T, NDIMS> &hex)
 {
-  return BoundingBox<T, NDIMS> {hex[0],
-                                hex[1],
-                                hex[2],
-                                hex[3],
-                                hex[4],
-                                hex[5],
-                                hex[6],
-                                hex[7]};
+  return BoundingBox<T, NDIMS> {hex[0], hex[1], hex[2], hex[3], hex[4], hex[5], hex[6], hex[7]};
 }
 
 /*!
@@ -167,8 +152,7 @@ AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
  * \param [in] poly The Polyhedron
  */
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
-  const Polyhedron<T, NDIMS> &poly)
+AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(const Polyhedron<T, NDIMS> &poly)
 {
   BoundingBox<T, NDIMS> res;
   for(int i = 0; i < poly.numVertices(); i++)
@@ -184,8 +168,7 @@ AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
  * \param [in] tet The tetrahedron
  */
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
-  const Tetrahedron<T, NDIMS> &tet)
+AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(const Tetrahedron<T, NDIMS> &tet)
 {
   return BoundingBox<T, NDIMS> {tet[0], tet[1], tet[2], tet[3]};
 }
@@ -195,9 +178,9 @@ AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
  *
  * \param [in] poly The polygon
  */
-template <typename T, int NDIMS>
+template <typename T, int NDIMS, PolygonArray ARRAY_TYPE = PolygonArray::Dynamic, int MAX_VERTS = DEFAULT_MAX_NUM_VERTICES>
 AXOM_HOST_DEVICE BoundingBox<T, NDIMS> compute_bounding_box(
-  const Polygon<T, NDIMS> &poly)
+  const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS> &poly)
 {
   BoundingBox<T, NDIMS> res;
   for(int i = 0; i < poly.numVertices(); ++i)

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -178,8 +178,7 @@ public:
    *
    * \note This method is implemented in specialized instances.
    */
-  static void computeShape(const double* AXOM_UNUSED_PARAM(nc),
-                           double* AXOM_UNUSED_PARAM(phi))
+  static void computeShape(const double* AXOM_UNUSED_PARAM(nc), double* AXOM_UNUSED_PARAM(phi))
   {
     constexpr int cell_value = mint::cellTypeToInt(CELLTYPE);
     AXOM_STATIC_ASSERT(cell_value >= 0 && cell_value < mint::NUM_CELL_TYPES);

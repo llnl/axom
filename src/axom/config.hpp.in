@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+ * Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
  * other Axom Project Developers. See the top-level LICENSE file for details.
  *
  * SPDX-License-Identifier: (BSD-3-Clause)
@@ -28,9 +28,9 @@
 /*
  * Axom source location
  */
-#define AXOM_SRC_DIR "@AXOM_SRC_DIR@"
-#define AXOM_BIN_DIR "@AXOM_BIN_DIR@"
-#cmakedefine AXOM_DATA_DIR "@AXOM_DATA_DIR@"
+#define AXOM_SRC_DIR "@AXOM_SRC_DIR_NATIVE@"
+#define AXOM_BIN_DIR "@AXOM_BIN_DIR_NATIVE@"
+#cmakedefine AXOM_DATA_DIR "@AXOM_DATA_DIR_NATIVE@"
 
 /*
  * Platform specific definitions
@@ -100,6 +100,7 @@
 #cmakedefine AXOM_USE_KLEE
 #cmakedefine AXOM_USE_LUMBERJACK
 #cmakedefine AXOM_USE_MINT
+#cmakedefine AXOM_USE_MIR
 #cmakedefine AXOM_USE_PRIMAL
 #cmakedefine AXOM_USE_QUEST
 #cmakedefine AXOM_USE_SIDRE

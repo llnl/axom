@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -257,12 +257,20 @@ endif()
 # SCR
 #------------------------------------------------------------------------------
 if (SCR_DIR)
+    # SCR depends on zlib, but this can be masked by hdf5's zlib dependency
+    if(NOT TARGET ZLIB::ZLIB)
+        if(ZLIB_DIR)
+            set(ZLIB_ROOT ${ZLIB_DIR})
+        endif()
+        find_package(ZLIB REQUIRED) # creates ZLIB::ZLIB target
+    endif()
+
     axom_assert_is_directory(DIR_VARIABLE SCR_DIR)
 
     include(cmake/thirdparty/FindSCR.cmake)
     blt_import_library( NAME       scr
                         INCLUDES   ${SCR_INCLUDE_DIRS}
-                        LIBRARIES  ${SCR_LIBRARIES}
+                        LIBRARIES  ${SCR_LIBRARIES} ZLIB::ZLIB
                         TREAT_INCLUDES_AS_SYSTEM ON
                         EXPORTABLE ON)
     blt_list_append(TO TPL_DEPS ELEMENTS scr)
@@ -312,7 +320,7 @@ else()
 endif()
 
 #------------------------------------------------------------------------------
-# OpenCASCADE
+# Open Cascade
 #------------------------------------------------------------------------------
 if (OPENCASCADE_DIR)
     axom_assert_is_directory(DIR_VARIABLE OPENCASCADE_DIR)
@@ -325,7 +333,7 @@ if (OPENCASCADE_DIR)
         EXPORTABLE    ON)
     blt_list_append(TO TPL_DEPS ELEMENTS opencascade)
 else()
-    message(STATUS "OpenCASCADE support is OFF")
+    message(STATUS "Open Cascade support is OFF")
     set(OPENCASCADE_FOUND FALSE)
 endif()
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -32,15 +32,11 @@ TEST(primal_solid_angle, triangle)
   Point3D origin {0.0, 0.0, 0.0};
 
   // Test on octant
-  Triangle octant(Point3D {1.0, 0.0, 0.0},
-                  Point3D {0.0, 1.0, 0.0},
-                  Point3D {0.0, 0.0, 1.0});
+  Triangle octant(Point3D {1.0, 0.0, 0.0}, Point3D {0.0, 1.0, 0.0}, Point3D {0.0, 0.0, 1.0});
   EXPECT_NEAR(1.0 / 8.0, winding_number(origin, octant), 1e-10);
 
   // Test on various points with alternate formula (L'Huilier's)
-  Triangle tri(Point3D {2, 4, 3},
-               Point3D {0.0, -1.0, 0.0},
-               Point3D {-1.0, 0.0, 0.0});
+  Triangle tri(Point3D {2, 4, 3}, Point3D {0.0, -1.0, 0.0}, Point3D {-1.0, 0.0, 0.0});
 
   Point3D queries[10] = {
     Point3D {0.0, 0.0, 0.0},
@@ -72,23 +68,17 @@ TEST(primal_solid_angle, triangle)
     if(primal::orientation(queries[n], tri) == primal::ON_NEGATIVE_SIDE)
     {
       // Means query point is interior
-      EXPECT_NEAR(0.25 * M_1_PI * solid_angle,
-                  winding_number(queries[n], tri),
-                  1e-10);
+      EXPECT_NEAR(0.25 * M_1_PI * solid_angle, winding_number(queries[n], tri), 1e-10);
     }
     else
     {
       // Means query point is exterior
-      EXPECT_NEAR(-0.25 * M_1_PI * solid_angle,
-                  winding_number(queries[n], tri),
-                  1e-10);
+      EXPECT_NEAR(-0.25 * M_1_PI * solid_angle, winding_number(queries[n], tri), 1e-10);
     }
   }
 
   // Test with simple degenerate triangle
-  Triangle deg(Point3D {1.0, 2.0, 3.0},
-               Point3D {2.0, 3.0, 4.0},
-               Point3D {1.0, 2.0, 3.0});
+  Triangle deg(Point3D {1.0, 2.0, 3.0}, Point3D {2.0, 3.0, 4.0}, Point3D {1.0, 2.0, 3.0});
   for(int n = 0; n < 5; ++n)
   {
     EXPECT_DOUBLE_EQ(0.0, winding_number(queries[n], deg));
@@ -154,8 +144,7 @@ TEST(primal_solid_angle, simple_polygon)
   for(int n = 0; n < 5; ++n)
   {
     EXPECT_NEAR(winding_number(queries[n], square),
-                winding_number(queries[n], square_tri1) +
-                  winding_number(queries[n], square_tri2),
+                winding_number(queries[n], square_tri1) + winding_number(queries[n], square_tri2),
                 1e-10);
   }
 
@@ -206,8 +195,7 @@ TEST(primal_solid_angle, nonconvex_polygon)
   for(int n = 0; n < 5; ++n)
   {
     EXPECT_NEAR(winding_number(queries[n], pentagon),
-                winding_number(queries[n], pentagon_tri1) +
-                  winding_number(queries[n], pentagon_tri2),
+                winding_number(queries[n], pentagon_tri1) + winding_number(queries[n], pentagon_tri2),
                 1e-10);
   }
 
@@ -249,31 +237,28 @@ TEST(primal_solid_angle, degenerate_polygon)
   // Add vertices to good polygon
   for(int i = 0; i < 5; ++i)
   {
-    good_pentagon.addVertex(
-      Point3D {cos(good_angles[i]) * v1[0] + sin(good_angles[i]) * v2[0],
-               cos(good_angles[i]) * v1[1] + sin(good_angles[i]) * v2[1],
-               cos(good_angles[i]) * v1[2] + sin(good_angles[i]) * v2[2]});
+    good_pentagon.addVertex(Point3D {cos(good_angles[i]) * v1[0] + sin(good_angles[i]) * v2[0],
+                                     cos(good_angles[i]) * v1[1] + sin(good_angles[i]) * v2[1],
+                                     cos(good_angles[i]) * v1[2] + sin(good_angles[i]) * v2[2]});
   }
 
   // Create bad polygon with degeneracies
   // Add point at angle 0
-  bad_pentagon.addVertex(
-    Point3D {cos(bad_angles[0]) * v1[0] + sin(bad_angles[0]) * v2[0],
-             cos(bad_angles[0]) * v1[1] + sin(bad_angles[0]) * v2[1],
-             cos(bad_angles[0]) * v1[2] + sin(bad_angles[0]) * v2[2]});
+  bad_pentagon.addVertex(Point3D {cos(bad_angles[0]) * v1[0] + sin(bad_angles[0]) * v2[0],
+                                  cos(bad_angles[0]) * v1[1] + sin(bad_angles[0]) * v2[1],
+                                  cos(bad_angles[0]) * v1[2] + sin(bad_angles[0]) * v2[2]});
   // Add a midpoint between angles 0 and 1
-  bad_pentagon.addVertex(Point3D::midpoint(
-    bad_pentagon[0],
-    Point3D {cos(bad_angles[1]) * v1[0] + sin(bad_angles[1]) * v2[0],
-             cos(bad_angles[1]) * v1[1] + sin(bad_angles[1]) * v2[1],
-             cos(bad_angles[1]) * v1[2] + sin(bad_angles[1]) * v2[2]}));
+  bad_pentagon.addVertex(
+    Point3D::midpoint(bad_pentagon[0],
+                      Point3D {cos(bad_angles[1]) * v1[0] + sin(bad_angles[1]) * v2[0],
+                               cos(bad_angles[1]) * v1[1] + sin(bad_angles[1]) * v2[1],
+                               cos(bad_angles[1]) * v1[2] + sin(bad_angles[1]) * v2[2]}));
   // Add the rest of the vertices
   for(int i = 1; i < 9; ++i)
   {
-    bad_pentagon.addVertex(
-      Point3D {cos(bad_angles[i]) * v1[0] + sin(bad_angles[i]) * v2[0],
-               cos(bad_angles[i]) * v1[1] + sin(bad_angles[i]) * v2[1],
-               cos(bad_angles[i]) * v1[2] + sin(bad_angles[i]) * v2[2]});
+    bad_pentagon.addVertex(Point3D {cos(bad_angles[i]) * v1[0] + sin(bad_angles[i]) * v2[0],
+                                    cos(bad_angles[i]) * v1[1] + sin(bad_angles[i]) * v2[1],
+                                    cos(bad_angles[i]) * v1[2] + sin(bad_angles[i]) * v2[2]});
   }
 
   Point3D queries[5] = {
@@ -333,51 +318,37 @@ TEST(primal_solid_angle, selfintersecting_star)
   Vector3D v2 = Vector3D({2.0, -1.0, 0.5}).unitVector();
 
   Polygon pentagram(5);
-  double outer_angles[5] = {1 * M_PI / 10,
-                            9 * M_PI / 10,
-                            17 * M_PI / 10,
-                            5 * M_PI / 10,
-                            13 * M_PI / 10};
+  double outer_angles[5] = {1 * M_PI / 10, 9 * M_PI / 10, 17 * M_PI / 10, 5 * M_PI / 10, 13 * M_PI / 10};
 
   Polygon pentagon(5);
-  double inner_angles[5] {3 * M_PI / 10,
-                          7 * M_PI / 10,
-                          11 * M_PI / 10,
-                          15 * M_PI / 10,
-                          19 * M_PI / 10};
+  double inner_angles[5] {3 * M_PI / 10, 7 * M_PI / 10, 11 * M_PI / 10, 15 * M_PI / 10, 19 * M_PI / 10};
 
   double r0 = sin(M_PI / 10) / sin(7 * M_PI / 10);
 
   // Add vertices to pentagram
   for(int i = 0; i < 5; ++i)
   {
-    pentagram.addVertex(
-      Point3D {cos(outer_angles[i]) * v1[0] + sin(outer_angles[i]) * v2[0],
-               cos(outer_angles[i]) * v1[1] + sin(outer_angles[i]) * v2[1],
-               cos(outer_angles[i]) * v1[2] + sin(outer_angles[i]) * v2[2]});
+    pentagram.addVertex(Point3D {cos(outer_angles[i]) * v1[0] + sin(outer_angles[i]) * v2[0],
+                                 cos(outer_angles[i]) * v1[1] + sin(outer_angles[i]) * v2[1],
+                                 cos(outer_angles[i]) * v1[2] + sin(outer_angles[i]) * v2[2]});
   }
 
   // Construct the inner pentagon
   for(int i = 0; i < 5; ++i)
   {
-    pentagon.addVertex(Point3D {
-      r0 * cos(inner_angles[i]) * v1[0] + r0 * sin(inner_angles[i]) * v2[0],
-      r0 * cos(inner_angles[i]) * v1[1] + r0 * sin(inner_angles[i]) * v2[1],
-      r0 * cos(inner_angles[i]) * v1[2] + r0 * sin(inner_angles[i]) * v2[2]});
+    pentagon.addVertex(
+      Point3D {r0 * cos(inner_angles[i]) * v1[0] + r0 * sin(inner_angles[i]) * v2[0],
+               r0 * cos(inner_angles[i]) * v1[1] + r0 * sin(inner_angles[i]) * v2[1],
+               r0 * cos(inner_angles[i]) * v1[2] + r0 * sin(inner_angles[i]) * v2[2]});
   }
 
   // Construct the stars of the pentagram
   Polygon star_tips[5];
-  star_tips[0] =
-    Polygon(axom::Array<Point3D>({pentagram[0], pentagon[0], pentagon[4]}));
-  star_tips[1] =
-    Polygon(axom::Array<Point3D>({pentagram[1], pentagon[2], pentagon[1]}));
-  star_tips[2] =
-    Polygon(axom::Array<Point3D>({pentagram[2], pentagon[4], pentagon[3]}));
-  star_tips[3] =
-    Polygon(axom::Array<Point3D>({pentagram[3], pentagon[1], pentagon[0]}));
-  star_tips[4] =
-    Polygon(axom::Array<Point3D>({pentagram[4], pentagon[3], pentagon[2]}));
+  star_tips[0] = Polygon(axom::Array<Point3D>({pentagram[0], pentagon[0], pentagon[4]}));
+  star_tips[1] = Polygon(axom::Array<Point3D>({pentagram[1], pentagon[2], pentagon[1]}));
+  star_tips[2] = Polygon(axom::Array<Point3D>({pentagram[2], pentagon[4], pentagon[3]}));
+  star_tips[3] = Polygon(axom::Array<Point3D>({pentagram[3], pentagon[1], pentagon[0]}));
+  star_tips[4] = Polygon(axom::Array<Point3D>({pentagram[4], pentagon[3], pentagon[2]}));
 
   // Get a non-convex, but non-self intersecting version of the star
   // clang-format off
@@ -402,8 +373,8 @@ TEST(primal_solid_angle, selfintersecting_star)
   Polygon pentagram_tris[5 - 2];
   for(int i = 0; i < 5 - 2; ++i)
   {
-    pentagram_tris[i] = Polygon(
-      axom::Array<Point3D>({pentagram[0], pentagram[i + 1], pentagram[i + 2]}));
+    pentagram_tris[i] =
+      Polygon(axom::Array<Point3D>({pentagram[0], pentagram[i + 1], pentagram[i + 2]}));
   }
 
   // Add up components of the pentagram triangulation
@@ -419,15 +390,12 @@ TEST(primal_solid_angle, selfintersecting_star)
     EXPECT_NEAR(star_components, winding_number(single_query, full_star), 1e-10);
 
     // Pentagram should be full star + extra pentagon
-    EXPECT_NEAR(winding_number(single_query, full_star) +
-                  winding_number(single_query, pentagon),
+    EXPECT_NEAR(winding_number(single_query, full_star) + winding_number(single_query, pentagon),
                 pentagram_triangulation,
                 1e-10);
 
     // Pentagram should equal it's triangulation
-    EXPECT_NEAR(winding_number(single_query, pentagram),
-                pentagram_triangulation,
-                1e-10);
+    EXPECT_NEAR(winding_number(single_query, pentagram), pentagram_triangulation, 1e-10);
   }
 }
 
@@ -476,9 +444,7 @@ TEST(primal_solid_angle, selfintersecting_quadrilateral)
   // Area of overlapping square should be twice that of nonoverlapping
   for(int n = 0; n < 5; ++n)
   {
-    EXPECT_NEAR(2 * winding_number(queries[n], square),
-                winding_number(queries[n], squareish),
-                1e-10);
+    EXPECT_NEAR(2 * winding_number(queries[n], square), winding_number(queries[n], squareish), 1e-10);
   }
 
   // Test on non-uniformly oriented hourglass shape
@@ -490,18 +456,13 @@ TEST(primal_solid_angle, selfintersecting_quadrilateral)
   });
   Polygon hourglass(hourglass_vertices);
 
-  Triangle top_bulb(Point3D {1.0, 0.0, 0.0},
-                    Point3D {0.5, 0.5, 0},
-                    Point3D {0.0, 0.0, 0.0});
-  Triangle bot_bulb(Point3D {0.0, 1.0, 0.0},
-                    Point3D {1.0, 1.0, 0},
-                    Point3D {0.5, 0.5, 0.0});
+  Triangle top_bulb(Point3D {1.0, 0.0, 0.0}, Point3D {0.5, 0.5, 0}, Point3D {0.0, 0.0, 0.0});
+  Triangle bot_bulb(Point3D {0.0, 1.0, 0.0}, Point3D {1.0, 1.0, 0}, Point3D {0.5, 0.5, 0.0});
 
   // Area of overlapping square should be twice that of nonoverlapping
   for(int n = 0; n < 5; ++n)
   {
-    EXPECT_NEAR(winding_number(queries[n], top_bulb) +
-                  winding_number(queries[n], bot_bulb),
+    EXPECT_NEAR(winding_number(queries[n], top_bulb) + winding_number(queries[n], bot_bulb),
                 winding_number(queries[n], hourglass),
                 1e-10);
   }
@@ -671,7 +632,7 @@ TEST(primal_integral, bezierpatch_sphere)
     Vector3D(sphere_faces[0].evaluate(0.6, 0))};  // 11
 
   const double quad_tol = 1e-5;
-  const double EPS = 1e-10;
+  const double EPS = 1e-11;
 
   const double edge_tol = 1e-6;
   const double edge_offset = 1e-5;

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -50,9 +50,8 @@ TEST(ShapeTest, replaces_non_replacement_list_given)
 
 TEST(ShapeTest, both_replacement_lists_given)
 {
-  EXPECT_THROW(
-    Shape("name", "material", {"replaced"}, {"not replaced"}, createTestGeometry()),
-    std::logic_error);
+  EXPECT_THROW(Shape("name", "material", {"replaced"}, {"not replaced"}, createTestGeometry()),
+               std::logic_error);
 }
 }  // namespace
 }  // namespace klee

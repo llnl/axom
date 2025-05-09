@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -39,8 +39,7 @@ int main(int argc, char* argv[])
   mfem::Mesh* mesh = nullptr;
 
   // Built a 2D mesh with 100 square elements
-  auto serial_mesh =
-    mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::QUADRILATERAL);
+  auto serial_mesh = mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::QUADRILATERAL);
   mesh = &serial_mesh;
 
 #ifdef EXAMPLE_USES_MPI

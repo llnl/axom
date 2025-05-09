@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -38,9 +38,7 @@ int main(int argc, char** argv)
   // STEP 1: create an array with some data
   constexpr axom::IndexType NUM_NODES = 10;
   constexpr axom::IndexType DIMENSION = 4;
-  sidre::MCArray<int> nodes_1(root1->createView("nodes_1/data"),
-                              NUM_NODES,
-                              DIMENSION);
+  sidre::MCArray<int> nodes_1(root1->createView("nodes_1/data"), NUM_NODES, DIMENSION);
 
   int value = 0;
   for(axom::IndexType i = 0; i < NUM_NODES; ++i)

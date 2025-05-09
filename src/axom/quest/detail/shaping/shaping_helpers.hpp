@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -14,8 +14,8 @@
 
 #include "axom/config.hpp"
 
-#ifndef AXOM_USE_MFEM
-  #error Shaping functionality requires Axom to be configured with MFEM and the AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION option
+#if !defined(AXOM_USE_MFEM)
+  #error Sampling-shaping functionality requires Axom to be configured with MFEM and the AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION option
 #endif
 
 #include "mfem.hpp"
@@ -58,9 +58,7 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
                            bool reuseExisting = true);
 
 /// Generates a quadrature function corresponding to the mesh positions
-void generatePositionsQFunction(mfem::Mesh* mesh,
-                                QFunctionCollection& inoutQFuncs,
-                                int sampleRes);
+void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFuncs, int sampleRes);
 
 /**
  * \brief Compute volume fractions for a given material using its associated quadrature function

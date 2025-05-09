@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -23,7 +23,7 @@ TEST(sparsehash_smoke, basic_use)
   const std::string emptyKey = "EMPTY";
 
   MapType map;
-  map.set_empty_key(emptyKey);  // always need to set this for dense_hash_map
+  map.set_empty_key(emptyKey);      // always need to set this for dense_hash_map
   map.set_deleted_key(deletedKey);  // need to set this to enable erasing
 
   EXPECT_EQ(0, map.size());

@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -72,7 +72,7 @@ spack:
     mvapich2:
       buildable: false
       externals:
-      - spec: mvapich2@2.3.6%gcc@10.3.1 process_managers=slurm arch=linux-rhel8-ivybridge
+      - spec: mvapich2@2.3.6 process_managers=slurm arch=linux-rhel8-ivybridge %gcc@10.3.1
         prefix: /usr/tce/packages/mvapich2/mvapich2-2.3.6-gcc-10.3.1
 
     netlib-lapack:

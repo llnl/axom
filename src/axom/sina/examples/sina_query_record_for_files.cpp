@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -15,8 +15,7 @@ int main(void)
 
   // Create a record to store the files
   axom::sina::ID myID {"my_record", axom::sina::IDType::Local};
-  std::unique_ptr<axom::sina::Record> myRecord {
-    new axom::sina::Record {myID, "my_type"}};
+  std::unique_ptr<axom::sina::Record> myRecord {new axom::sina::Record {myID, "my_type"}};
 
   // Add the files to the record
   myRecord->add(myFile);
@@ -26,8 +25,8 @@ int main(void)
   auto& files = myRecord->getFiles();
   for(const auto& file : files)
   {
-    std::cout << "File with URI '" << file.getUri() << "' has mimetype '"
-              << file.getMimeType() << "' and tags '";
+    std::cout << "File with URI '" << file.getUri() << "' has mimetype '" << file.getMimeType()
+              << "' and tags '";
     for(const auto& tag : file.getTags())
     {
       std::cout << tag << " ";

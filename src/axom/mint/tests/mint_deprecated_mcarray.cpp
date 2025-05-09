@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -44,8 +44,7 @@ IndexType calc_new_capacity(deprecated::MCArray<T>& v, IndexType increase)
  * \return the new capacity.
  */
 template <typename T>
-void check_copy(const deprecated::MCArray<T>& lhs,
-                const deprecated::MCArray<T>& rhs)
+void check_copy(const deprecated::MCArray<T>& lhs, const deprecated::MCArray<T>& rhs)
 {
   EXPECT_EQ(lhs.size(), rhs.size());
   EXPECT_EQ(lhs.numComponents(), rhs.numComponents());

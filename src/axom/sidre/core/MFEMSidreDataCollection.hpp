@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -282,8 +282,7 @@ public:
   /** This method is a shortcut for the call
        `RegisterQField(field_name, qf, field_name, 0)`.
     */
-  virtual void RegisterQField(const std::string& field_name,
-                              mfem::QuadratureFunction* qf)
+  virtual void RegisterQField(const std::string& field_name, mfem::QuadratureFunction* qf)
   {
     RegisterQField(field_name, qf, field_name, 0);
   }
@@ -326,10 +325,7 @@ public:
   }
 
   /** Checks if there is an attribute field associated with @a field_name */
-  bool HasAttributeField(const std::string& field_name) const
-  {
-    return attr_map.Has(field_name);
-  }
+  bool HasAttributeField(const std::string& field_name) const { return attr_map.Has(field_name); }
 
   /** Checks if any rank in the mesh has boundary elements */
   bool HasBoundaryMesh() const;
@@ -472,12 +468,23 @@ public:
    */
   virtual void Load(int cycle_ = 0)
   {
+  #ifndef AXOM_USE_HDF5
+    SLIC_ERROR(
+      "MFEMSidreDataCollection::Load(<cycle>) is only implemented for the "
+      "'sidre_hdf5' protocol");
+  #endif
+
     SetCycle(cycle_);
     Load(get_file_path(name), "sidre_hdf5");
   }
 
-  /// Load external data after registering externally owned fields.
-  void LoadExternalData(const std::string& path);
+  /** @brief Load external data for the whole MFEMSidreDataCollection unless a specific group name is given.
+   *  @note This must happen after registering externally owned fields.
+   *
+   *  @param filename Optional base filename to be loaded, function will add prefix path and cycle
+   *  @param group_name Optional group name to load external data, relative to base of MFEMSidreDataCollection
+   **/
+  void LoadExternalData(const std::string& filename = "", const std::string& group_name = "");
 
   /** @brief Updates the DataCollection's cycle, time, and time-step variables
       with the values from the data store. */
@@ -498,9 +505,8 @@ public:
    */
   View* GetNamedBuffer(const std::string& buffer_name) const
   {
-    return named_buffers_grp()->hasView(buffer_name)
-      ? named_buffers_grp()->getView(buffer_name)
-      : nullptr;
+    return named_buffers_grp()->hasView(buffer_name) ? named_buffers_grp()->getView(buffer_name)
+                                                     : nullptr;
   }
 
   /// Return newly allocated or existing named buffer for @a buffer_name.
@@ -509,9 +515,7 @@ public:
       reallocated with size @a sz, destroying its contents.
       @note To access the underlying pointer, use View::getData().
    */
-  View* AllocNamedBuffer(const std::string& buffer_name,
-                         IndexType sz,
-                         TypeID type = DOUBLE_ID);
+  View* AllocNamedBuffer(const std::string& buffer_name, IndexType sz, TypeID type = DOUBLE_ID);
 
   /// Deallocate the named buffer @a buffer_name, if allocated.
   void FreeNamedBuffer(const std::string& buffer_name)
@@ -597,8 +601,7 @@ private:
 
   // Private helper functions
 
-  void RegisterFieldInBPIndex(const std::string& field_name,
-                              const int number_of_components);
+  void RegisterFieldInBPIndex(const std::string& field_name, const int number_of_components);
   void DeregisterFieldInBPIndex(const std::string& field_name);
 
   void RegisterAttributeFieldInBPIndex(const std::string& attr_name);

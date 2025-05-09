@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -54,8 +54,7 @@ struct SetInterfaceSelector<VirtualInterface, PosType, ElemType>
 }  // namespace detail
 
 template <typename InterfacePolicy, typename PosType, typename ElemType>
-using SetInterface =
-  typename detail::SetInterfaceSelector<InterfacePolicy, PosType, ElemType>::Type;
+using SetInterface = typename detail::SetInterfaceSelector<InterfacePolicy, PosType, ElemType>::Type;
 
 }  // end namespace policies
 }  // end namespace slam

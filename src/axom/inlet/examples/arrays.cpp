@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -41,8 +41,7 @@ int main()
   });
 
   // We expect verfication to pass since values array has 3 elements
-  inlet.verify() ? std::cout << "Verification passed\n"
-                 : std::cout << "Verification failed\n";
+  inlet.verify() ? std::cout << "Verification passed\n" : std::cout << "Verification failed\n";
 
   // Print contents of map
   std::unordered_map<int, std::string> map = inlet["values"];

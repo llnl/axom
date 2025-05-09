@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -24,7 +24,7 @@ using SphereType = axom::quest::SphereType;
 using OctType = axom::quest::OctType;
 using Point2D = axom::quest::Point2D;
 using Point3D = axom::primal::Point<double, 3>;
-using NAType = axom::primal::NumericArray<double, 3>;
+using NAType = axom::NumericArray<double, 3>;
 
 /* Return an octahedron whose six points lie on the truncated cone
  * described by rotating the line segment ab around the positive X-axis
@@ -85,8 +85,7 @@ AXOM_HOST_DEVICE
 Point3D rescale_YZ(const Point3D &p, double new_dst)
 {
   const double cur_dst =
-    axom::utilities::clampLower(sqrt(p[1] * p[1] + p[2] * p[2]),
-                                axom::primal::PRIMAL_TINY);
+    axom::utilities::clampLower(sqrt(p[1] * p[1] + p[2] * p[2]), axom::primal::PRIMAL_TINY);
 
   Point3D retval;
   retval[0] = p[0];
@@ -148,11 +147,7 @@ inline OctType new_inscribed_prism(OctType &old_oct,
  * quadrilateral side-wall.
  */
 template <typename ExecSpace>
-int discrSeg(const Point2D &a,
-             const Point2D &b,
-             int levels,
-             axom::ArrayView<OctType> &out,
-             int idx)
+int discrSeg(const Point2D &a, const Point2D &b, int levels, axom::ArrayView<OctType> &out, int idx)
 {
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
@@ -264,7 +259,7 @@ namespace quest
  * This routine initializes an Array pointed to by \a out.
  */
 template <typename ExecSpace>
-bool discretize(axom::Array<Point2D> &polyline,
+bool discretize(const axom::ArrayView<Point2D> &polyline,
                 int pointcount,
                 int levels,
                 axom::Array<OctType> &out,
@@ -276,8 +271,8 @@ bool discretize(axom::Array<Point2D> &polyline,
   int segmentcount = pointcount - 1;
   for(int seg = 0; seg < segmentcount && stillValid; ++seg)
   {
-    Point2D &a = polyline[seg];
-    Point2D &b = polyline[seg + 1];
+    const Point2D &a = polyline[seg];
+    const Point2D &b = polyline[seg + 1];
     // invalid if a.x > b.x
     if(a[0] > b[0])
     {
@@ -304,11 +299,8 @@ bool discretize(axom::Array<Point2D> &polyline,
 
   for(int seg = 0; seg < segmentcount; ++seg)
   {
-    int segment_prism_count = discrSeg<ExecSpace>(polyline[seg],
-                                                  polyline[seg + 1],
-                                                  levels,
-                                                  out_view,
-                                                  octcount);
+    int segment_prism_count =
+      discrSeg<ExecSpace>(polyline[seg], polyline[seg + 1], levels, out_view, octcount);
     octcount += segment_prism_count;
   }
 

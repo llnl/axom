@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -16,8 +16,7 @@ int main(void)
 
   // Create a record to store the datum
   axom::sina::ID myID {"my_record", axom::sina::IDType::Local};
-  std::unique_ptr<axom::sina::Record> myRecord {
-    new axom::sina::Record {myID, "my_type"}};
+  std::unique_ptr<axom::sina::Record> myRecord {new axom::sina::Record {myID, "my_type"}};
 
   // Add the datum instances to the record
   myRecord->add("datum1", std::move(myDatum));
@@ -31,8 +30,7 @@ int main(void)
   for(const auto& pair : data)
   {
     std::cout << pair.first << " is type: "
-              << static_cast<std::underlying_type<axom::sina::ValueType>::type>(
-                   pair.second.getType())
+              << static_cast<std::underlying_type<axom::sina::ValueType>::type>(pair.second.getType())
               << std::endl;
   }
 }

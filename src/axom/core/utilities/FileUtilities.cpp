@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -30,6 +30,9 @@
   #define Unlink unlink
 #endif
 
+// Note: The hard-wired path separator character in this file
+// should be set to the backslash when on Windows.
+
 namespace axom
 {
 namespace utilities
@@ -52,10 +55,7 @@ std::string getCWD()
   return std::string(cCurrentPath);
 }
 
-int changeCWD(const std::string& dirName)
-{
-  return ChangeCurrentDir(dirName.c_str());
-}
+int changeCWD(const std::string& dirName) { return ChangeCurrentDir(dirName.c_str()); }
 
 //-----------------------------------------------------------------------------
 bool pathExists(const std::string& fileName)
@@ -72,8 +72,7 @@ std::string joinPath(const std::string& fileDir,
                      const std::string& separator)
 {
   // Check if we need to add a separator
-  bool pathNeedsSep =
-    !fileDir.empty() && (fileDir[fileDir.size() - 1] != separator[0]);
+  bool pathNeedsSep = !fileDir.empty() && (fileDir[fileDir.size() - 1] != separator[0]);
 
   // Concatenate the path with the fileName to create the full path
   std::stringstream fullFileNameStream;
@@ -104,6 +103,53 @@ int makeDirsForPath(const std::string& path)
   } while(pos != std::string::npos);
 
   return err;
+}
+
+//-----------------------------------------------------------------------------
+std::string prefixRelativePath(const std::string& path, const std::string& prefix)
+{
+  if(path.empty())
+  {
+    throw std::invalid_argument("path must not be empty");
+  };
+  if(path[0] == '/' || prefix.empty())
+  {
+    return path;
+  }
+  return utilities::filesystem::joinPath(prefix, path);
+}
+
+//-----------------------------------------------------------------------------
+std::string getParentPath(const std::string& path)
+{
+  if(path.empty())
+  {
+    throw std::invalid_argument("path must not be empty");
+  };
+
+  char separator = '/';
+
+  std::string parent;
+
+  if(path.size() == 1 && path[0] == separator)
+  {
+    // path is root, so parent is blank.
+  }
+  else
+  {
+    std::size_t found = path.rfind(separator);
+
+    if(found != std::string::npos)
+    {
+      if(found == 0)
+      {
+        ++found;
+      }
+      parent = path.substr(0, found);
+    }
+  }
+
+  return parent;
 }
 
 //-----------------------------------------------------------------------------

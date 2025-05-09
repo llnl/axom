@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -20,7 +20,7 @@ using GridCell = LatticeT::GridCell;
 using SpacePt = LatticeT::SpacePoint;
 using SpaceVector = LatticeT::SpaceVector;
 using BBox = LatticeT::SpatialBoundingBox;
-using IntArray = axom::primal::NumericArray<int, DIM>;
+using IntArray = axom::NumericArray<int, DIM>;
 }  // namespace lattice_1D
 
 // Define some helpful typedefs for 2D rectangular lattices
@@ -34,7 +34,7 @@ using GridCell = LatticeT::GridCell;
 using SpacePt = LatticeT::SpacePoint;
 using SpaceVector = LatticeT::SpaceVector;
 using BBox = LatticeT::SpatialBoundingBox;
-using IntArray = axom::primal::NumericArray<int, DIM>;
+using IntArray = axom::NumericArray<int, DIM>;
 }  // namespace lattice_2D
 
 // Define some helpful typedefs for 3D rectangular lattices
@@ -48,7 +48,7 @@ using GridCell = LatticeT::GridCell;
 using SpacePt = LatticeT::SpacePoint;
 using SpaceVector = LatticeT::SpaceVector;
 using BBox = LatticeT::SpatialBoundingBox;
-using IntArray = axom::primal::NumericArray<int, DIM>;
+using IntArray = axom::NumericArray<int, DIM>;
 }  // namespace lattice_3D
 
 TEST(spin_rectangle_lattice, lattice_ctor)
@@ -366,8 +366,7 @@ TEST(spin_rectangle_lattice, from_bounding_box)
 
     BBox bbox(SpacePt(1.25), SpacePt(2.5));
     IntArray res(5);
-    LatticeT lattice =
-      axom::spin::rectangular_lattice_from_bounding_box(bbox, res);
+    LatticeT lattice = axom::spin::rectangular_lattice_from_bounding_box(bbox, res);
 
     EXPECT_DOUBLE_EQ(1.25, lattice.origin()[0]);
     EXPECT_DOUBLE_EQ(.25, lattice.spacing()[0]);
@@ -379,8 +378,7 @@ TEST(spin_rectangle_lattice, from_bounding_box)
 
     BBox bbox(SpacePt(1.25), SpacePt(2.5));
     IntArray res(5);
-    LatticeT lattice =
-      axom::spin::rectangular_lattice_from_bounding_box(bbox, res);
+    LatticeT lattice = axom::spin::rectangular_lattice_from_bounding_box(bbox, res);
 
     EXPECT_DOUBLE_EQ(1.25, lattice.origin()[0]);
     EXPECT_DOUBLE_EQ(1.25, lattice.origin()[1]);
@@ -399,8 +397,7 @@ TEST(spin_rectangle_lattice, from_bounding_box)
 
     int resData[3] = {5, 50, 500};
     IntArray res(resData);
-    LatticeT lattice =
-      axom::spin::rectangular_lattice_from_bounding_box(bbox, res);
+    LatticeT lattice = axom::spin::rectangular_lattice_from_bounding_box(bbox, res);
 
     EXPECT_DOUBLE_EQ(1.25, lattice.origin()[0]);
     EXPECT_DOUBLE_EQ(2.5, lattice.origin()[1]);
@@ -416,11 +413,9 @@ TEST(spin_rectangle_lattice, from_bounding_box)
     using namespace lattice_2D;
 
     constexpr double EPS = 1E-100;
-    BBox bbox(SpacePt::make_point(1.25, 1.25),
-              SpacePt::make_point(2.5, 1.25 + EPS));
+    BBox bbox(SpacePt::make_point(1.25, 1.25), SpacePt::make_point(2.5, 1.25 + EPS));
     IntArray res(5);
-    LatticeT lattice =
-      axom::spin::rectangular_lattice_from_bounding_box(bbox, res);
+    LatticeT lattice = axom::spin::rectangular_lattice_from_bounding_box(bbox, res);
 
     EXPECT_DOUBLE_EQ(1.25, lattice.origin()[0]);
     EXPECT_DOUBLE_EQ(1.25, lattice.origin()[1]);
@@ -438,8 +433,7 @@ TEST(spin_rectangle_lattice, from_bounding_box)
     res[0] = 5;
     res[1] = 0;
 
-    LatticeT lattice =
-      axom::spin::rectangular_lattice_from_bounding_box(bbox, res);
+    LatticeT lattice = axom::spin::rectangular_lattice_from_bounding_box(bbox, res);
 
     EXPECT_DOUBLE_EQ(1.25, lattice.origin()[0]);
     EXPECT_DOUBLE_EQ(1.25, lattice.origin()[1]);
@@ -620,11 +614,11 @@ TEST(spin_rectangle_lattice, zero_spacing_2D)
     GridCell cell = lattice.gridCell(pt);
     EXPECT_EQ(GridCell::make_point(-2, 0), cell);  // cell[1] == 0
 
-    SLIC_INFO("For lattice " << lattice << "\n\t Bounding box of cell " << testCell
-                             << " is " << lattice.cellBounds(testCell));
+    SLIC_INFO("For lattice " << lattice << "\n\t Bounding box of cell " << testCell << " is "
+                             << lattice.cellBounds(testCell));
 
-    SLIC_INFO("For lattice " << lattice << "\n\t Bounding box of cell " << cell
-                             << " is " << lattice.cellBounds(cell));
+    SLIC_INFO("For lattice " << lattice << "\n\t Bounding box of cell " << cell << " is "
+                             << lattice.cellBounds(cell));
   }
 }
 

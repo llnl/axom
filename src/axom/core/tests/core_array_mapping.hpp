@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -289,9 +289,8 @@ typename std::enable_if<DIM == 3>::type check_arbitrary_strides_nested_loops(
 }
 
 template <int DIM>
-void check_arbitrary_strides(
-  const axom::StackArray<axom::IndexType, DIM>& lengths,
-  const axom::StackArray<axom::IndexType, DIM>& fastestDirs)
+void check_arbitrary_strides(const axom::StackArray<axom::IndexType, DIM>& lengths,
+                             const axom::StackArray<axom::IndexType, DIM>& fastestDirs)
 {
   // fastestDirs should be a permutation.
   // SLIC_INFO(axom::fmt::format("Testing lengths {} with fastestDirs {}", lengths, fastestDirs));

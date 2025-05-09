@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -26,7 +26,7 @@ namespace detail
 {
 /*!
  * \brief Computes the intersection of the given ray \a R with the segment \a S.
- *
+ * 
  * When there is a valid intersection (within tolerance \a EPS), 
  * \a ray_param returns the parametric coordinate of the intersection point along \a R
  * and \a seg_param returns the parametric coordinate of the intersection point along \a S.
@@ -53,25 +53,30 @@ inline bool intersect_ray(const primal::Ray<T, 2>& R,
 
   // Equating R(ray_param)=S(seg_param) yields a system of two equations and
   // two unknowns, namely, t0 and t1. We can solve this system directly using Cramer's Rule.
-  const double denom =
-    numerics::determinant(ray_dir[0], -seg_dir[0], ray_dir[1], -seg_dir[1]);
+  const double denom = numerics::determinant(ray_dir[0], -seg_dir[0], ray_dir[1], -seg_dir[1]);
 
   // If denom is (nearly) zero (within a numerical tolerance), the ray and segment are parallel
   if(axom::utilities::isNearlyEqual(denom, 0.0, EPS))
   {
-    // Check if ray and segment are collinear
-    const primal::Vector<T, 2> col(R.origin(), S.source());
-    const double col_norm = col.norm();
+    // Alternate logic for nearly parallel lines
+    const primal::Vector<T, 2> col1(R.origin(), S.source());
+    double orientation1 = numerics::determinant(col1[0], ray_dir[0], col1[1], ray_dir[1]);
 
-    const double cross =
-      numerics::determinant(col[0], ray_dir[0], col[1], ray_dir[1]);
+    const primal::Vector<T, 2> col2(R.origin(), S.target());
+    double orientation2 = numerics::determinant(col2[0], ray_dir[0], col2[1], ray_dir[1]);
 
-    // Normalize the cross product by the norm of col
-    if(axom::utilities::isNearlyEqual(col_norm, 0.0, primal::PRIMAL_TINY) ||
-       axom::utilities::isNearlyEqual(cross / col_norm, 0.0, EPS))
+    if(orientation1 * orientation2 > 0.0)
     {
+      // The two segment endpoints are on the same side of the ray
+      return false;
+    }
+    else if(axom::utilities::isNearlyEqual(orientation1, 0.0, primal::PRIMAL_TINY) &&
+            axom::utilities::isNearlyEqual(orientation2, 0.0, primal::PRIMAL_TINY))
+    {
+      // Both endpoints are on the ray's line (but maybe not the ray itself)
+
       // Check orientation of segment relative to ray
-      const double t1 = col[0] * ray_dir[0] + col[1] * ray_dir[1];
+      const double t1 = col1[0] * ray_dir[0] + col1[1] * ray_dir[1];
       const double t2 = t1 + seg_dir.dot(ray_dir);
 
       if(std::min(t1, t2) > 0.0)
@@ -108,24 +113,37 @@ inline bool intersect_ray(const primal::Ray<T, 2>& R,
         return false;
       }
 
-      return ((ray_param >= tlow) && (seg_param >= tlow) && (seg_param <= thigh));
+      return true;
     }
-    else
-    {  // Not collinear, no intersection
-      return false;
+    else if(axom::utilities::isNearlyEqual(orientation1, 0.0, primal::PRIMAL_TINY))
+    {
+      // One of the endpoints is on the ray's line (but maybe not the ray itself)
+      ray_param = col1[0] * ray_dir[0] + col1[1] * ray_dir[1];
+      seg_param = 0.0;
+
+      return true;
     }
+    else if(axom::utilities::isNearlyEqual(orientation2, 0.0, primal::PRIMAL_TINY))
+    {
+      // One of the endpoints is on the ray's line (but maybe not the ray itself)
+      ray_param = col2[0] * ray_dir[0] + col2[1] * ray_dir[1];
+      seg_param = 1.0;
+
+      return true;
+    }
+
+    // If the two endpoints *are* on opposite sides of the ray, then Cramer's rule
+    //  will be stable enough to work, since the intersection won't be at infinity.
   }
 
   // Solve for the ray_param and seg_param directly using Cramer's rule
   const auto sol = S.source().array() - R.origin().array();
 
   // Note: ray_param is an OUT parameter of this function
-  ray_param =
-    numerics::determinant(sol[0], -seg_dir[0], sol[1], -seg_dir[1]) / denom;
+  ray_param = numerics::determinant(sol[0], -seg_dir[0], sol[1], -seg_dir[1]) / denom;
 
   // Note: seg_param is an OUT parameter of this function
-  seg_param =
-    numerics::determinant(ray_dir[0], sol[0], ray_dir[1], sol[1]) / denom;
+  seg_param = numerics::determinant(ray_dir[0], sol[0], ray_dir[1], sol[1]) / denom;
 
   // Necessary and sufficient criteria for an intersection between
   // ray, R(t0),  and a finite segment S(t1) are:
@@ -207,17 +225,16 @@ AXOM_HOST_DEVICE inline bool intersect_ray_bbox_test(const T& x0,
  * \return status true if the ray intersects the bounding box, otherwise, false.
  */
 template <typename T>
-AXOM_HOST_DEVICE inline bool intersect_ray(
-  const T& x0,
-  const T& nx,
-  const T& y0,
-  const T& ny,
-  const T& xmin,
-  const T& xmax,
-  const T& ymin,
-  const T& ymax,
-  T& t,
-  T EPS = numerics::floating_point_limits<T>::epsilon())
+AXOM_HOST_DEVICE inline bool intersect_ray(const T& x0,
+                                           const T& nx,
+                                           const T& y0,
+                                           const T& ny,
+                                           const T& xmin,
+                                           const T& xmax,
+                                           const T& ymin,
+                                           const T& ymax,
+                                           T& t,
+                                           T EPS = numerics::floating_point_limits<T>::epsilon())
 {
   AXOM_STATIC_ASSERT(std::is_floating_point<T>::value);
 
@@ -252,21 +269,20 @@ AXOM_HOST_DEVICE inline bool intersect_ray(
  * \return status true if the ray intersects the bounding box, otherwise, false.
  */
 template <typename T>
-AXOM_HOST_DEVICE inline bool intersect_ray(
-  const T& x0,
-  const T& nx,
-  const T& y0,
-  const T& ny,
-  const T& z0,
-  const T& nz,
-  const T& xmin,
-  const T& xmax,
-  const T& ymin,
-  const T& ymax,
-  const T& zmin,
-  const T& zmax,
-  T& t,
-  T EPS = numerics::floating_point_limits<T>::epsilon())
+AXOM_HOST_DEVICE inline bool intersect_ray(const T& x0,
+                                           const T& nx,
+                                           const T& y0,
+                                           const T& ny,
+                                           const T& z0,
+                                           const T& nz,
+                                           const T& xmin,
+                                           const T& xmax,
+                                           const T& ymin,
+                                           const T& ymax,
+                                           const T& zmin,
+                                           const T& zmax,
+                                           T& t,
+                                           T EPS = numerics::floating_point_limits<T>::epsilon())
 {
   AXOM_STATIC_ASSERT(std::is_floating_point<T>::value);
 
@@ -325,11 +341,10 @@ AXOM_HOST_DEVICE inline bool intersect_ray(const primal::Ray<T, DIM>& R,
 }
 
 template <typename T, int DIM>
-AXOM_HOST_DEVICE inline bool intersect_ray(
-  const primal::Ray<T, DIM>& R,
-  const primal::BoundingBox<T, DIM>& bb,
-  primal::Point<T, DIM>& ip,
-  T EPS = numerics::floating_point_limits<T>::epsilon())
+AXOM_HOST_DEVICE inline bool intersect_ray(const primal::Ray<T, DIM>& R,
+                                           const primal::BoundingBox<T, DIM>& bb,
+                                           primal::Point<T, DIM>& ip,
+                                           T EPS = numerics::floating_point_limits<T>::epsilon())
 {
   AXOM_STATIC_ASSERT(std::is_floating_point<T>::value);
 
@@ -358,11 +373,10 @@ AXOM_HOST_DEVICE inline bool intersect_ray(
 }
 
 template <typename T, int DIM>
-AXOM_HOST_DEVICE inline bool intersect_line(
-  const primal::Line<T, DIM>& L,
-  const primal::BoundingBox<T, DIM>& bb,
-  primal::Point<T, DIM>& ip,
-  T EPS = numerics::floating_point_limits<T>::epsilon())
+AXOM_HOST_DEVICE inline bool intersect_line(const primal::Line<T, DIM>& L,
+                                            const primal::BoundingBox<T, DIM>& bb,
+                                            primal::Point<T, DIM>& ip,
+                                            T EPS = numerics::floating_point_limits<T>::epsilon())
 {
   AXOM_STATIC_ASSERT(std::is_floating_point<T>::value);
 

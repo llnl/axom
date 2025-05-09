@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -50,16 +50,6 @@ public:
    * \return the path of the file. Can be empty.
    */
   const std::string &getPath() const { return m_path; }
-
-  /**
-   * Resolves a path relative to the path of this ShapeSet.
-   *
-   * \param filePath the path to resolve
-   * \return if the given path is absolute, then the given path. Otherwise,
-   * the path is interpreted as being relative to the directory containing
-   * this ShapeSet, and that is is returned.
-   */
-  std::string resolvePath(const std::string &filePath) const;
 
   /**
    * Sets the dimensions for all shapes in the ShapeSet.

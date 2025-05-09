@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 # other Axom Project Developers. See the top-level LICENSE file for details.
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
@@ -43,19 +43,7 @@ if (ENABLE_CUDA)
 endif()
 
 if (ENABLE_HIP)
-    if (NOT ROCM_PATH)
-        find_path(ROCM_PATH
-            hip
-            ENV{ROCM_DIR}
-            ENV{ROCM_PATH}
-            ENV{HIP_PATH}
-            ${HIP_PATH}/..
-            ${HIP_ROOT_DIR}/../
-            ${ROCM_ROOT_DIR}
-            /opt/rocm)
-    endif()
-    set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${ROCM_PATH}")
-    find_package(hip REQUIRED CONFIG PATHS ${ROCM_PATH})
+    enable_language(HIP)
 endif()
 
 include(CMakeFindDependencyMacro)
@@ -79,6 +67,11 @@ endif()
 # Set up example target that depends on axom
 #------------------------------------------------------------------------------
 add_executable(example example.cpp)
+
+# Compile as HIP source if enabled
+if (ENABLE_HIP)
+    set_source_files_properties(example.cpp PROPERTIES LANGUAGE HIP)
+endif()
 
 # setup the axom include path
 target_include_directories(example PRIVATE ${AXOM_INCLUDE_DIRS})
