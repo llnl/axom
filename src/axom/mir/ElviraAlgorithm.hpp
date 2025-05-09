@@ -898,6 +898,7 @@ protected:
 #endif
         PointType pt {};
         VectorType normal {};
+        double planeOffset;
         for(axom::IndexType m = 0; m < matCount - 1; m++)
         {
           const auto fragmentIndex = offset + m;
@@ -963,9 +964,10 @@ protected:
 
           // Make clipping plane for remaining fragment.
           const auto P = PlaneType(normal, pt, false);
+          planeOffset = P.getOffset();
 
           // Emit clippedShape as material matId
-          buildView.addShape(zoneIndex, fragmentIndex, clippedShape, matId, pt, P.getOffset(), normalPtr);
+          buildView.addShape(zoneIndex, fragmentIndex, clippedShape, matId, pt, planeOffset, normalPtr);
 
           // Clip in the other direction to get the remaining fragment for the next material.
           if(m == 0)
@@ -996,14 +998,12 @@ protected:
         // The last fragment's normals are just (1,0,0).
         //const double *normalPtr = fragmentVectorsView.data() + (fragmentIndex * numVectorComponents);
         // It seems more useful to emit the opposite of the last fragment's normal instead.
-        normal = -normal;
         double lastNormal[NDIMS];
         for(int d = 0; d < NDIMS; d++)
         {
-          lastNormal[d] = normal[d];
+          lastNormal[d] = -normal[d];
         }
-        const auto P = PlaneType(normal, pt, false);
-        buildView.addShape(zoneIndex, fragmentIndex, remaining, matId, pt, P.getOffset(), lastNormal);
+        buildView.addShape(zoneIndex, fragmentIndex, remaining, matId, pt, -planeOffset, lastNormal);
       });
   }
 
