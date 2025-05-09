@@ -301,7 +301,7 @@ private:
     conduit::Node options;
     // Select that matset we'll operate on.
     options["matset"] = axom::fmt::format("{}_matset", input_prefix);
-    options["normal"] = 1;
+    options["plane"] = 1;
     // Change the names of the topology, coordset, and matset in the output.
     options["topologyName"] = output_prefix;
     options["coordsetName"] = axom::fmt::format("{}_coords", output_prefix);

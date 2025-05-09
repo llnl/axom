@@ -141,6 +141,26 @@ of interest are identified and are classified as clean or mixed. Clean zones con
 material and are extracted into their own mesh while mixed zones are passed through the ELVIRA
 algorithm to produce polygonal or polyhedral output. In the end, the two meshes are merged.
 
+Axom's ELVIRA algorithm accepts a Conduit node containing MIR options that influence the
+algorithm. The MIR options in the table above are accepted, as well as the following options
+that are specific to ELVIRA.
+
++---------------------------------+------------------------------------------------------+
+| Option                          | Description                                          |
++=================================+======================================================+
+|``plane: 0 | 1``                 | If ``plane`` is set to 1 then the MIR output will    |
+|                                 | contain "planeNormal" and "planeOffset" fields that  |
+|                                 | contain the normal and offset, respectively, for the |
+|                                 | clipping plane used to produce each zone fragment. If|
+|                                 | ``plane`` is set to 0 then these fields are not      |
+|                                 | created.                                             |
++---------------------------------+------------------------------------------------------+
+|``pointmesh: 0 | 1``             | If ``pointmesh`` is set to 1 then the algorithm will |
+|                                 | produce point mesh output instead of polygonal or    |
+|                                 | polyhedral output. The point mesh coordinates will be|
+|                                 | located at the origin of the fragment slice planes.  |
++---------------------------------+------------------------------------------------------+
+
 .. literalinclude:: ../../tests/mir_elvira2d.cpp
    :start-after: _elvira_mir_start
    :end-before: _elvira_mir_end

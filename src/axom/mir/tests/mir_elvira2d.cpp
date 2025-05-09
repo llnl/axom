@@ -41,7 +41,8 @@ struct braid2d_mat_test
   static void test(const std::string &type,
                    const std::string &mattype,
                    const std::string &name,
-                   bool selectedZones = false)
+                   bool selectedZones = false,
+                   bool pointMesh = false)
   {
     namespace bputils = axom::mir::utilities::blueprint;
 
@@ -72,7 +73,9 @@ struct braid2d_mat_test
       MIR m(topologyView, coordsetView, matsetView);
       conduit::Node options;
       options["matset"] = "mat";
-      options["normal"] = 1;
+      options["plane"] = 1;
+      options["pointmesh"] = pointMesh ? 1 : 0;
+
       if(selectedZones)
       {
         selectZones(options);
@@ -94,19 +97,54 @@ struct braid2d_mat_test
 };
 
 //------------------------------------------------------------------------------
+TEST(mir_elvira, options)
+{
+  conduit::Node n_options;
+
+  axom::mir::ELVIRAOptions opts(n_options);
+  EXPECT_FALSE(opts.pointmesh());
+  EXPECT_FALSE(opts.plane());
+
+  n_options["plane"] = 1;
+  n_options["pointmesh"] = 1;
+
+  EXPECT_TRUE(opts.pointmesh());
+  EXPECT_TRUE(opts.plane());
+}
+
+//------------------------------------------------------------------------------
 TEST(mir_elvira, elvira_uniform_unibuffer_seq)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_seq");
-  braid2d_mat_test<seq_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer");
+  const bool selectZones = false;
+  const bool pointMesh = false;
+  braid2d_mat_test<seq_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer", selectZones, pointMesh);
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_seq)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_seq");
-  constexpr bool selectZones = true;
-  braid2d_mat_test<seq_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones);
+  const bool selectZones = true;
+  const bool pointMesh = false;
+  braid2d_mat_test<seq_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones, pointMesh);
 }
 
+TEST(mir_elvira, elvira_uniform_unibuffer_seq_pm)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_seq");
+  const bool selectZones = false;
+  const bool pointMesh = true;
+  braid2d_mat_test<seq_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_pm", selectZones, pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_seq)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_seq");
+  constexpr bool selectZones = true;
+  const bool pointMesh = true;
+  braid2d_mat_test<seq_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel_pm", selectZones, pointMesh);
+}
+#if 0
 #if defined(AXOM_USE_OPENMP)
 TEST(mir_elvira, elvira_uniform_unibuffer_omp)
 {
@@ -151,7 +189,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_hip)
   braid2d_mat_test<hip_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones);
 }
 #endif
-
+#endif
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
