@@ -285,12 +285,12 @@ struct test_extractzones
     axom::copy(selectedZones.data(), ids.data(), nzones * sizeof(axom::IndexType));
 
     // Wrap the data in views.
-    auto coordsetView = axom::mir::views::make_explicit_coordset<conduit::float64, 2>::view(
+    auto coordsetView = views::make_explicit_coordset<conduit::float64, 2>::view(
       deviceMesh["coordsets/coords"]);
     using CoordsetView = decltype(coordsetView);
 
     using TopologyView =
-      axom::mir::views::UnstructuredTopologySingleShapeView<axom::mir::views::QuadShape<conduit::int64>>;
+      views::UnstructuredTopologySingleShapeView<views::QuadShape<conduit::int64>>;
     TopologyView topoView(
       bputils::make_array_view<conduit::int64>(deviceMesh["topologies/mesh/elements/connectivity"]),
       bputils::make_array_view<conduit::int64>(deviceMesh["topologies/mesh/elements/sizes"]),
@@ -340,7 +340,7 @@ struct test_extractzones
       bputils::make_array_view<conduit::float64>(newHostMesh["fields/nodal/values"])));
 
     // Do the material too.
-    using MatsetView = axom::mir::views::UnibufferMaterialView<conduit::int64, conduit::float64, 3>;
+    using MatsetView = views::UnibufferMaterialView<conduit::int64, conduit::float64, 3>;
     MatsetView matsetView;
     matsetView.set(
       bputils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/material_ids"]),
@@ -600,15 +600,15 @@ struct test_zonelistbuilder
     bputils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     // Wrap the data in views.
-    auto coordsetView = axom::mir::views::make_rectilinear_coordset<conduit::float64, 2>::view(
+    auto coordsetView = views::make_rectilinear_coordset<conduit::float64, 2>::view(
       deviceMesh["coordsets/coords"]);
 
     auto topologyView =
-      axom::mir::views::make_rectilinear_topology<2>::view(deviceMesh["topologies/mesh"]);
+      views::make_rectilinear_topology<2>::view(deviceMesh["topologies/mesh"]);
     using TopologyView = decltype(topologyView);
 
     // Do the material too.
-    using MatsetView = axom::mir::views::UnibufferMaterialView<conduit::int64, conduit::float64, 2>;
+    using MatsetView = views::UnibufferMaterialView<conduit::int64, conduit::float64, 2>;
     MatsetView matsetView;
     matsetView.set(
       bputils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/material_ids"]),
@@ -752,11 +752,11 @@ struct test_makezonecenters
     bputils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     const conduit::Node &n_rmesh = deviceMesh["topologies/rmesh"];
-    auto rmeshView = axom::mir::views::make_rectilinear_topology<2>::view(n_rmesh);
+    auto rmeshView = views::make_rectilinear_topology<2>::view(n_rmesh);
     testTopo(deviceMesh, rmeshView, n_rmesh);
 
     const conduit::Node &n_umesh = deviceMesh["topologies/umesh"];
-    axom::mir::views::UnstructuredTopologySingleShapeView<axom::mir::views::QuadShape<conduit::index_t>>
+    views::UnstructuredTopologySingleShapeView<views::QuadShape<conduit::index_t>>
       umeshView(bputils::make_array_view<conduit::index_t>(n_umesh["elements/connectivity"]),
                 bputils::make_array_view<conduit::index_t>(n_umesh["elements/sizes"]),
                 bputils::make_array_view<conduit::index_t>(n_umesh["elements/offsets"]));
@@ -769,7 +769,7 @@ struct test_makezonecenters
                        const conduit::Node &n_topo)
   {
     const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
-    auto coordsetView = axom::mir::views::make_rectilinear_coordset<double, 2>::view(n_coordset);
+    auto coordsetView = views::make_rectilinear_coordset<double, 2>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
     bputils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(topoView, coordsetView);
@@ -877,7 +877,7 @@ struct test_mergecoordsetpoints
     bputils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
-    auto coordsetView = axom::mir::views::make_explicit_coordset<double, 2>::view(n_coordset);
+    auto coordsetView = views::make_explicit_coordset<double, 2>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
     bputils::MergeCoordsetPoints<ExecSpace, CoordsetView> mcp(coordsetView);
@@ -973,6 +973,170 @@ TEST(mir_blueprint_utilities, mergecoordsetpoints_hip)
 {
   AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_hip");
   test_mergecoordsetpoints<hip_exec>::test();
+}
+#endif
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
+struct test_makepointmesh
+{
+  static void test()
+  {
+    conduit::Node hostMesh;
+    create(hostMesh);
+
+    // host->device
+    conduit::Node deviceMesh;
+    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+
+    const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
+    const conduit::Node &n_topology = deviceMesh["topologies/mesh"];
+
+    // Wrap the data in views.
+    auto coordsetView = views::make_explicit_coordset<conduit::float64, 2>::view(n_coordset);
+    using CoordsetView = decltype(coordsetView);
+    auto topoView = views::make_unstructured_single_shape_topology<views::QuadShape<conduit::int64>>::view(n_topology);
+    using TopologyView = decltype(topoView);
+
+    bputils::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(topoView, coordsetView);
+    conduit::Node options, newDeviceMesh;
+    options["topologyName"] = "pointmesh";
+    options["coordsetName"] = "points";
+    for(int i = 0; i < 2; i++)
+    {
+      if(i == 1)
+      {
+        axom::Array<axom::IndexType> ids {{1, 3, 5}};
+        const auto nzones = ids.size();
+        axom::Array<axom::IndexType> selectedZones(nzones,
+                                                   nzones,
+                                                   axom::execution_space<ExecSpace>::allocatorID());
+        axom::copy(selectedZones.data(), ids.data(), nzones * sizeof(axom::IndexType));
+
+        pm.execute(selectedZones.view(), n_topology, n_coordset, options, newDeviceMesh);
+
+        // device->host
+        conduit::Node newHostMesh;
+        bputils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
+
+        EXPECT_TRUE(newHostMesh.has_path("coordsets/points"));
+        EXPECT_TRUE(newHostMesh.has_path("topologies/pointmesh"));
+        EXPECT_EQ(newHostMesh["topologies/pointmesh/elements/shape"].as_string(), "point");
+
+        // Compare answer
+        const axom::Array<conduit::float64> x {{1.5, 0.5, 2.5}};
+        const axom::Array<conduit::float64> y {{0.5, 1.5, 1.5}};
+        const axom::Array<conduit::int64> connectivity {{0, 1, 2}};
+        const axom::Array<conduit::int64> sizes {{1, 1, 1}};
+        const axom::Array<conduit::int64> offsets {{0, 1, 2}};
+        compare(newHostMesh, x, y, connectivity, sizes, offsets);
+      }
+      else
+      {
+        pm.execute(n_topology, n_coordset, options, newDeviceMesh);
+    
+        // device->host
+        conduit::Node newHostMesh;
+        bputils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
+    
+        EXPECT_TRUE(newHostMesh.has_path("coordsets/points"));
+        EXPECT_TRUE(newHostMesh.has_path("topologies/pointmesh"));
+        EXPECT_EQ(newHostMesh["topologies/pointmesh/elements/shape"].as_string(), "point");
+
+        // Compare answer
+        const axom::Array<conduit::float64> x {{0.5, 1.5, 2.5, 0.5, 1.5, 2.5}};
+        const axom::Array<conduit::float64> y {{0.5, 0.5, 0.5, 1.5, 1.5, 1.5}};
+        const axom::Array<conduit::int64> connectivity {{0, 1, 2, 3, 4, 5}};
+        const axom::Array<conduit::int64> sizes {{1, 1, 1, 1, 1, 1}};
+        const axom::Array<conduit::int64> offsets {{0, 1, 2, 3, 4, 5}};
+        compare(newHostMesh, x, y, connectivity, sizes, offsets);
+      }
+    }
+  }
+
+  static void compare(const conduit::Node &n_mesh,
+        const axom::Array<conduit::float64> &x,
+        const axom::Array<conduit::float64> &y,
+        const axom::Array<conduit::int64> &connectivity,
+        const axom::Array<conduit::int64> &sizes,
+        const axom::Array<conduit::int64> &offsets)
+  {
+        EXPECT_TRUE(compare_views(
+          x.view(),
+          bputils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/x"])));
+        EXPECT_TRUE(compare_views(
+          y.view(),
+          bputils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/y"])));
+        EXPECT_TRUE(compare_views(connectivity.view(),
+                              bputils::make_array_view<conduit::int64>(
+                                n_mesh["topologies/pointmesh/elements/connectivity"])));
+        EXPECT_TRUE(compare_views(
+          sizes.view(),
+          bputils::make_array_view<conduit::int64>(n_mesh["topologies/pointmesh/elements/sizes"])));
+        EXPECT_TRUE(compare_views(
+          offsets.view(),
+          bputils::make_array_view<conduit::int64>(n_mesh["topologies/pointmesh/elements/offsets"])));
+  }
+
+  static void create(conduit::Node &hostMesh)
+  {
+    /*
+      8-------9------10------11
+      |  2/1  | 1/0.1 | 2/0.8 |
+      |       | 2/0.5 | 3/0.2 |
+      |       | 3/0.4 |       |
+      4-------5-------6-------7
+      |       | 1/0.5 | 1/0.2 |
+      |  1/1  | 2/0.5 | 2/0.8 |
+      |       |       |       |
+      0-------1-------2-------3
+      */
+    const char *yaml = R"xx(
+coordsets:
+  coords:
+    type: explicit
+    values:
+      x: [0., 1., 2., 3., 0., 1., 2., 3., 0., 1., 2., 3.]
+      y: [0., 0., 0., 0., 1., 1., 1., 1., 2., 2., 2., 2.]
+topologies:
+  mesh:
+    coordset: coords
+    type: unstructured
+    elements:
+      shape: quad
+      connectivity: [0,1,5,4, 1,2,6,5, 2,3,7,6, 4,5,9,8, 5,6,10,9, 6,7,11,10]
+      sizes: [4,4,4,4,4,4]
+      offsets: [0,4,8,12,16,20]
+)xx";
+
+    hostMesh.parse(yaml);
+  }
+};
+
+TEST(mir_blueprint_utilities, makepointmesh_seq)
+{
+  AXOM_ANNOTATE_SCOPE("makepointmesh_seq");
+  test_makepointmesh<seq_exec>::test();
+}
+#if defined(AXOM_USE_OPENMP)
+TEST(mir_blueprint_utilities, makepointmesh_omp)
+{
+  AXOM_ANNOTATE_SCOPE("makepointmesh_omp");
+  test_makepointmesh<omp_exec>::test();
+}
+#endif
+#if defined(AXOM_USE_CUDA)
+TEST(mir_blueprint_utilities, makepointmesh_cuda)
+{
+  AXOM_ANNOTATE_SCOPE("makepointmesh_cuda");
+  test_makepointmesh<cuda_exec>::test();
+}
+#endif
+#if defined(AXOM_USE_HIP)
+TEST(mir_blueprint_utilities, makepointmesh_hip)
+{
+  AXOM_ANNOTATE_SCOPE("makepointmesh_hip");
+  test_makepointmesh<hip_exec>::test();
 }
 #endif
 
