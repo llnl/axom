@@ -116,6 +116,31 @@ jobs:
         with:
           name: Test Results ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
           path: "**/Test.xml"
+  build_and_test_windows:
+    runs-on: windows-latest
+    strategy:
+      # If any of checks (e.g. style) fail, allow other jobs to continue running.
+      fail-fast: false
+    env:
+      CMAKE_EXTRA_FLAGS: '-DAXOM_ENABLE_SIDRE:BOOL=OFF -DAXOM_ENABLE_INLET:BOOL=OFF -DAXOM_ENABLE_KLEE:BOOL=OFF -DAXOM_ENABLE_SINA:BOOL=OFF -DAXOM_ENABLE_MIR:BOOL=OFF'
+    steps:
+    - name: Checkout Axom
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: Windows - CMake
+      run: |
+        cmake $env:CMAKE_EXTRA_FLAGS -B build -S .
+      shell: pwsh
+    - name: Windows - Build
+      run: |
+        cmake --build build
+      shell: pwsh
+    - name: Windows - Test
+      run: |
+        cd build
+        ctest -T Test --output-on-failure -V
+      shell: pwsh
   check_code:
     runs-on: ubuntu-22.04
     needs:
