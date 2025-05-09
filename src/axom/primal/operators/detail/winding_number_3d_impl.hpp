@@ -41,6 +41,92 @@ enum class DiscontinuityAxis
 
 #ifdef AXOM_USE_MFEM
 /*!
+ * \brief Identify the u/v isoline on which all degenerate intersections occur, 
+ *         and "clip out" patches that do not contain this line
+ *
+ * \param [in] patch The NURBS patch
+ * \param [in] up, vp The arrays of intersection coordinates in parameter space 
+ * \param [in] clip_radius The width of the strip which is removed in parameter space 
+ * \param [out] out_patch1, out_patch2 The patches which are returned on either side of the strip
+ * 
+ * \note If the relevant isoline occurs within `clip_radius` of a patch edge, 
+ *         the correspondong out_patch will be invalid
+ * 
+ * \return The clipped patch
+ */
+template <typename T>
+void degenerate_surface_processing(const NURBSPatch<T, 3>& patch,
+                                   const axom::Array<T> up,
+                                   const axom::Array<T> vp,
+                                   const T clip_radius,
+                                   NURBSPatch<T, 3>& out_patch1,
+                                   NURBSPatch<T, 3>& out_patch2)
+{
+  T mean_u = up[0], var_u = 0.0;
+  T mean_v = vp[0], var_v = 0.0;
+
+  // Iterate through the coordinates to identify the correct u/v line
+  for(int i = 1; i < up.size(); ++i)
+  {
+    T new_mean_u = mean_u + (up[i] - mean_u) / static_cast<T>(i + 1);
+    T new_mean_v = mean_v + (vp[i] - mean_v) / static_cast<T>(i + 1);
+
+    T new_var_u = var_u + (up[i] - mean_u) * (up[i] - new_mean_u);
+    T new_var_v = var_v + (vp[i] - mean_v) * (vp[i] - new_mean_v);
+
+    mean_u = new_mean_u;
+    mean_v = new_mean_v;
+
+    var_u = new_var_u;
+    var_v = new_var_v;
+  }
+
+  NURBSPatch<T, 3> dummy_patch(patch);
+
+  // Indicates a u isocurve
+  if(var_u < var_v)
+  {
+    if(mean_u - clip_radius > patch.getMinKnot_u())
+    {
+      dummy_patch.split_u(mean_u - clip_radius, out_patch1, dummy_patch);
+    }
+    else
+    {
+      out_patch1 = NURBSPatch<T, 3>();
+    }
+
+    if(mean_u + clip_radius < patch.getMaxKnot_u())
+    {
+      dummy_patch.split_u(mean_u + clip_radius, dummy_patch, out_patch2);
+    }
+    else
+    {
+      out_patch2 = NURBSPatch<T, 3>();
+    }
+  }
+  else
+  {
+    if(mean_v - clip_radius > patch.getMinKnot_v())
+    {
+      dummy_patch.split_v(mean_v - clip_radius, out_patch1, dummy_patch);
+    }
+    else
+    {
+      out_patch1 = NURBSPatch<T, 3>();
+    }
+
+    if(mean_v + clip_radius < patch.getMaxKnot_v())
+    {
+      dummy_patch.split_v(mean_v + clip_radius, dummy_patch, out_patch2);
+    }
+    else
+    {
+      out_patch2 = NURBSPatch<T, 3>();
+    }
+  }
+}
+
+/*!
  * \brief Evaluates the integral of the "anti-curl" of the GWN integrand
  *        (via Stokes' theorem) at a point wrt to a 3D Bezier curve
  *

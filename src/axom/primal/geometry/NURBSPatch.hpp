@@ -25,7 +25,6 @@
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 
 #include "axom/primal/operators/squared_distance.hpp"
-#include "axom/primal/operators/detail/intersect_bezier_sphere_impl.hpp"
 #include "axom/primal/operators/winding_number_2d.hpp"
 
 #include <ostream>

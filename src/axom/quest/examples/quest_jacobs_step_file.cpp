@@ -5211,14 +5211,14 @@ int main()
   //                           test_suffix);
   // }
 
-  for(int i = 1; i < 11; ++i)
+  for(int i = 3; i < 4; ++i)
   {
     std::cout << "i: " << i << std::endl;
 
     double ls_tol = std::pow(10, -i);
 
     std::string test_prefix = axom::fmt::format("1em{}", i);
-    std::string test_suffix = "ls_random_stupid";
+    std::string test_suffix = "ls_random_super_stupid";
 
     axom::primal::BoundingBox<double, 3> bbox;
     bbox.addPoint(axom::primal::Point<double, 3> {1.0, 1.0, 1.0});

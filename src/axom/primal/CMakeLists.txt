@@ -29,8 +29,6 @@ set( primal_headers
     geometry/Line.hpp
     geometry/OrientedBoundingBox.hpp
     geometry/OrientationResult.hpp
-    geometry/Line.hpp
-    geometry/NumericArray.hpp
     geometry/NURBSCurve.hpp
     geometry/NURBSPatch.hpp
     geometry/Plane.hpp
@@ -70,7 +68,6 @@ set( primal_headers
     operators/detail/compute_moments_impl.hpp
     operators/detail/fuzzy_comparators.hpp
     operators/detail/intersect_bezier_impl.hpp
-    operators/detail/intersect_bezier_sphere_impl.hpp
     operators/detail/intersect_patch_impl.hpp
     operators/detail/intersect_bounding_box_impl.hpp
     operators/detail/intersect_patch_impl.hpp

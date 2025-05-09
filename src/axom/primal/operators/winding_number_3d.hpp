@@ -753,56 +753,62 @@ std::pair<double, double> winding_number_casting_split(
 
     if(!success)
     {
-      // If too many intersections with the untrimmed patch are recorded, then either
-
-      // 1. The ray is parallel to a the surface
-      if(up.size() >= 20)
+      // Look at the intersection points
+      int num_noncoincident = 0;
+      for(int i = 0; i < tp.size(); ++i)
       {
-        // Can't handle this case. Need to start over with a different cast direction
-        auto new_direction = random_orthogonal(discontinuity_direction);
-
-        // std::cout << "Recasting (very derogatory) at " << depth << std::endl;
-        // std::cout << "Degenerate intersection point" << std::endl;
-        return winding_number_casting_split(query,
-                                            rotatedPatch,
-                                            new_direction,
-                                            edge_tol,
-                                            quad_tol,
-                                            EPS,
-                                            depth + 1);
-      }
-
-      // 2. The surface is degenerate, and so all intersections were recorded
-      //  with the same t parameter, and pruned by `intersect()`.
-
-      // Treating this case requires some implementation I don't have yet,
-      //  namely clipping trimming curves along u/v isocurves
-
-      // For now, if *any* of the reported intersection points are coincident with the query,
-      //  just return a zero
-      for(int i = 0; i < up.size(); ++i)
-      {
-        Point<T, 3> intersection_point = rotatedPatch.evaluate(up[i], vp[i]);
-        if(squared_distance(query, intersection_point) <= edge_tol_sq)
+        Point<T, 3> the_point(nPatch.evaluate(up[i], vp[i]));
+        // If any of the intersection points are coincident with the surface,
+        //  then attempt to clip out all degenerate intersections, and retry
+        if(squared_distance(query, the_point) <= edge_tol_sq)
         {
-          wn_split.first = 0.0;
-          wn_split.second = 0.0;
-          return wn_split;
+          NURBSPatch<T, 3> clipped_patch1, clipped_patch2;
+
+          detail::degenerate_surface_processing(nPatch,
+                                        up,
+                                        vp,
+                                        0.01 * disk_radius,
+                                        clipped_patch1,
+                                        clipped_patch2);
+
+          return winding_number_casting_split(query,
+                                              clipped_patch1,
+                                              cast_direction,
+                                              edge_tol,
+                                              ls_tol,
+                                              quad_tol * 1e-5,
+                                              EPS,
+                                              depth + 1) +
+            winding_number_casting_split(query,
+                                         clipped_patch2,
+                                         cast_direction,
+                                         edge_tol,
+                                         ls_tol,
+                                         quad_tol * 1e-5,
+                                         EPS,
+                                         depth + 1);
         }
-      }
+        else
+        {
+          num_noncoincident++;
+        }
 
-      // Otherwise, we can cast again with a different direction
-      {
-        auto new_direction = random_orthogonal(discontinuity_direction);
-
-        // std::cout << "Degenerate intersection point" << std::endl;
-        // std::cout << "Recasting (derogatory) at " << depth << std::endl;
-        return winding_number_casting_split(query,
-                                            rotatedPatch,
-                                            new_direction,
-                                            edge_tol,
-                                            quad_tol,
-                                            EPS);
+        // If more than 5 (arbitrary) are *not* coincident with the surface,
+        //  re-cast and try again. This is to avoid cases where the point *is*
+        //  coincident with the surface, but the first recorded point of
+        //  intersection is not after multiple re-casts.
+        if(num_noncoincident > 5)
+        {
+          auto new_cast_direction = random_unit();
+          return winding_number_casting_split(query,
+                                              nPatch,
+                                              new_cast_direction,
+                                              edge_tol,
+                                              ls_tol,
+                                              quad_tol,
+                                              EPS,
+                                              depth + 1);
+        }
       }
     }
 
@@ -1299,7 +1305,7 @@ double winding_number_casting(const Point<T, 3>& query,
 {
   double theta = axom::utilities::random_real(0.0, 2 * M_PI);
   double u = axom::utilities::random_real(-1.0, 1.0);
-  auto cast_direction = //nPatchData.average_normal;
+  auto cast_direction =  //nPatchData.average_normal;
     Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
   auto wn_split = winding_number_casting_split(query,
                                                nPatchData,
@@ -1327,11 +1333,11 @@ std::pair<double, double> winding_number_casting_split(
   const double EPS = 1e-8,
   const int depth = 0)
 {
-//   axom::primal::exportSurfaceToSTL(
-//     "C:\\Users\\Fireh\\Code\\winding_number_code\\arxiv_plots\\intersect_"
-//     "tolerance\\individual_surface.stl",
-//     nPatchData.patch, 50, 50);
-//   lamePrinter(nPatchData.patch);
+  //   axom::primal::exportSurfaceToSTL(
+  //     "C:\\Users\\Fireh\\Code\\winding_number_code\\arxiv_plots\\intersect_"
+  //     "tolerance\\individual_surface.stl",
+  //     nPatchData.patch, 50, 50);
+  //   lamePrinter(nPatchData.patch);
 
   const double edge_tol_sq = edge_tol * edge_tol;
 

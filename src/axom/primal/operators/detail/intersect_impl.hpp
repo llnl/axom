@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, Lawrence Livermore National Security, LLC and
+// Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
@@ -22,11 +22,11 @@
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 #include "axom/primal/geometry/Plane.hpp"
 #include "axom/primal/geometry/Point.hpp"
+#include "axom/primal/geometry/Polygon.hpp"
 #include "axom/primal/geometry/Ray.hpp"
 #include "axom/primal/geometry/Line.hpp"
 #include "axom/primal/geometry/Segment.hpp"
 #include "axom/primal/geometry/Triangle.hpp"
-#include "axom/primal/geometry/Polygon.hpp"
 #include "axom/primal/geometry/Tetrahedron.hpp"
 
 namespace axom
@@ -161,8 +161,6 @@ AXOM_HOST_DEVICE bool intersect_tri3D_tri3D(const Triangle<T, 3>& t1,
                                             bool includeBoundary,
                                             double EPS)
 {
-  using Vector3 = primal::Vector<T, 3>;
-
   SLIC_CHECK_MSG(!t1.degenerate(),
                  "\n\n WARNING \n\n Triangle " << t1 << " is degenerate");
   SLIC_CHECK_MSG(!t2.degenerate(),
@@ -771,7 +769,7 @@ bool intersect_tri_ray(const Triangle<T, 3>& tri,
   //find out dimension where ray direction is maximal
   int kx, ky, kz;
 
-  NumArray r = primal::abs(R.direction().array());
+  NumArray r = axom::abs(R.direction().array());
 
   //z-direction largest
   if((r[2] >= r[0]) && (r[2] >= r[1]))
@@ -865,8 +863,7 @@ bool intersect_tri_ray(const Triangle<T, 3>& tri,
  * \param [in] tri The input triangle
  * \param [in] S The input segment
  * \param [out] t Intersection point of tri and S, w.r.t. parametrization of S
- * \param [out] p Intersection point of tri and S, in barycentric coordinates
- *   relative to tri
+ * \param [out] p Intersection point of tri and S, in barycentric coordinates relative to tri
  * \return status true iff tri intersects with R, otherwise, false.
  *
  * This routine uses intersect_tri_ray(), which see.
@@ -877,30 +874,26 @@ bool intersect_tri_segment(const Triangle<T, 3>& tri,
                            T& t,
                            Point<double, 3>& p)
 {
-  using Vector3 = Vector<T, 3>;
   Ray<T, 3> r(S.source(), Vector3(S.source(), S.target()));
 
-  //Ray-triangle intersection does not check endpoints, so we explicitly check
-  // here
-  if(tri.checkInTriangle(S.source()))
+  //Ray-triangle intersection does not check endpoints, so we explicitly check here
+  if(tri.contains(S.source()))
   {
     t = 0;
     p = tri.physToBarycentric(S.source());
     return true;
   }
-  if(tri.checkInTriangle(S.target()))
+  if(tri.contains(S.target()))
   {
     t = 1;
     p = tri.physToBarycentric(S.target());
     return true;
   }
 
-  // The triangle only intersects the segment if it intersects the ray defined
-  // by one
+  // The triangle only intersects the segment if it intersects the ray defined by one
   // of its endpoints and the direction defined by its two endpoints.
   // We can parametrize the line as:  r.origin() + t * r.direction()
-  // Values of the parameter t between 0 and the length of the segment
-  // correspond
+  // Values of the parameter t between 0 and the length of the segment correspond
   // to points on the segment.
   // Note: if intersect_tri_ray() is true, t must be greater than zero
   if(intersect_tri_ray(tri, r, t, p))
@@ -1101,19 +1094,21 @@ AXOM_HOST_DEVICE bool intersect_plane_bbox(const Plane<T, 3>& p,
 }
 
 /*!
- * \brief Determines if a 3D plane intersects a 3D segment.
- * \param [in] b1 A 3D plane
- * \param [in] b2 A 3D segment
+ * \brief Determines if a plane intersects a segment.
+ * \param [in] plane A plane
+ * \param [in] seg A segment
  * \param [out] t Intersection point of plane and seg, w.r.t. 
  *   parametrization of seg
+ * \param [in] EPS tolerance parameter for determining if 0.0 <= t <= 1.0
  * \return true iff plane intersects with segment, otherwise, false.
  */
-template <typename T>
-AXOM_HOST_DEVICE bool intersect_plane_seg(const Plane<T, 3>& plane,
-                                          const Segment<T, 3>& seg,
-                                          T& t)
+template <typename T, int DIM>
+AXOM_HOST_DEVICE bool intersect_plane_seg(const Plane<T, DIM>& plane,
+                                          const Segment<T, DIM>& seg,
+                                          T& t,
+                                          double EPS = 1E-12)
 {
-  using VectorType = Vector<T, 3>;
+  using VectorType = Vector<T, DIM>;
 
   VectorType ab(seg.source(), seg.target());
   VectorType normal = plane.getNormal();
@@ -1121,12 +1116,36 @@ AXOM_HOST_DEVICE bool intersect_plane_seg(const Plane<T, 3>& plane,
   t = (plane.getOffset() - normal.dot(VectorType(seg.source()))) /
     (normal.dot(ab));
 
-  if(t >= 0.0 && t <= 1.0)
+  if(isGeq(t, 0.0, EPS) && isLeq(t, 1.0, EPS))
   {
     return true;
   }
 
   return false;
+}
+
+/*!
+ * \brief Determines if a 2D sphere intersects a bounding box.
+ * \param [in] circle A 2D sphere
+ * \param [in] bb A 2D bounding box
+ * \return true iff sphere intersects a bounding box, false otherwise.
+ */
+template <typename T>
+bool intersect_circle_bbox(const Sphere<T, 2>& circle,
+                           const BoundingBox<T, 2>& bbox)
+{
+  auto center = circle.getCenter();
+  auto radius = circle.getRadius();
+  T dx = axom::utilities::clampVal(center[0], bbox.getMin()[0], bbox.getMax()[0]);
+  T dy = axom::utilities::clampVal(center[1], bbox.getMin()[1], bbox.getMax()[1]);
+
+  if((center[0] - dx) * (center[0] - dx) + (center[1] - dy) * (center[1] - dy) >=
+     radius * radius)
+  {
+    return false;
+  }
+
+  return true;
 }
 
 AXOM_HOST_DEVICE
@@ -1613,6 +1632,7 @@ inline bool intervalsDisjoint(double d0, double d1, double d2, double r)
   return d1 < -r || d0 > r;
 }
 
+AXOM_SUPPRESS_HD_WARN
 template <typename T>
 AXOM_HOST_DEVICE bool intersect_plane_tet3d(const Plane<T, 3>& p,
                                             const Tetrahedron<T, 3>& tet,
@@ -1691,23 +1711,27 @@ AXOM_HOST_DEVICE bool intersect_plane_tet3d(const Plane<T, 3>& p,
 }
 
 /*! \brief Determines if a line intersects a bilinear patch.
+ * \param [in] line The line to intersect with the bilinear patch.
  * \param [in] p0 The first corner of the bilinear patch.
  * \param [in] p1 The second corner in ccw order.
  * \param [in] p2 The third corner.
  * \param [in] p3 The fourth corner.
- * \param [in] line The line to intersect with the bilinear patch.
- * \param [out] u The u parameter(s) of the intersection point.
- * \param [out] v The v parameter(s) of the intersection point.
- * \param [out] t The t parameter(s) of the intersection point.
+ * \param [out] t Array to append the t parameters of intersections wrt the ray.
+ * \param [out] u Array to append the u parameters of intersections wrt the patch.
+ * \param [out] v Array to append the v parameters of intersections wrt the patch.
+ * \param [in] EPS The parameter space tolerance for intersection.
  * \param [in] isRay If true, only return intersections with t >= 0.
  *
  * Implements GARP algorithm from Chapter 8 of Ray Tracing Gems (2019)
  *
- * \note A bilinear patch is parameterized in [0, 1) x [0, 1) 
+ * \note A bilinear patch is parameterized in [0 - EPS, 1 + EPS]^2 
  * 
- * \warning Always returns false if the line is coplanar to a planar polygon
+ * \note There can be either 0, 1, 2 discrete intersections, or a continuous segment
+ *  of intersections, in which case the method returns the ceneter of this segment as one point.
  * 
- * \return true iff the line intersects the bilinear patch, otherwise false.
+ * \note Always returns false if the line is coplanar to a planar polygon
+ * 
+ * \return true if the line intersects the bilinear patch, otherwise false.
  */
 AXOM_HOST_DEVICE
 inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
@@ -1715,22 +1739,19 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
                                           const Point3& p10,
                                           const Point3& p11,
                                           const Point3& p01,
-                                          axom::Array<double>& t,
-                                          axom::Array<double>& u,
-                                          axom::Array<double>& v,
+                                          axom::StaticArray<double, 2>& t,
+                                          axom::StaticArray<double, 2>& u,
+                                          axom::StaticArray<double, 2>& v,
                                           double EPS = 1e-8,
                                           bool isRay = false)
 {
-  Vector3 q00(p00), q10(p10), q11(p11), q01(p01);
+  Vector3 e10(p00, p10);
+  Vector3 e11(p10, p11);
+  Vector3 e00(p00, p01);
 
-  Vector3 e10 = q10 - q00;
-  Vector3 e11 = q11 - q10;
-  Vector3 e00 = q01 - q00;
+  Vector3 qn = Vector3::cross_product(e10, Vector3(p11, p01));
 
-  Vector3 qn = Vector3::cross_product(e10, q01 - q11);
-
-  q00.array() -= line.origin().array();
-  q10.array() -= line.origin().array();
+  Vector3 q00(line.origin(), p00), q10(line.origin(), p10);
 
   // Solve a quadratic to find the parameters u0 of the B(u0, v) isocurves
   //  that are closest to the line
@@ -1740,7 +1761,9 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
     Vector3::scalar_triple_product(q10, line.direction(), e11) - au - cu;
 
   // Rescale the coefficients to avoid (some) numerical issues
-  double su = std::max(std::fabs(au), std::max(fabs(bu), fabs(cu)));
+  double su = axom::utilities::max(
+    axom::utilities::abs(au),
+    axom::utilities::max(axom::utilities::abs(bu), axom::utilities::abs(cu)));
   au /= su;
   bu /= su;
   cu /= su;
@@ -1776,7 +1799,10 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
     // Find the point on the isocurve that is closest to the ray
     for(auto u0 : {u1, u2})
     {
-      if(u0 < -EPS || u0 >= 1.0 + EPS) continue;
+      if(u0 < -EPS || u0 > 1.0 + EPS)
+      {
+        continue;
+      }
 
       Vector3 pa = (1 - u0) * q00 + u0 * q10;
       Vector3 pb = (1 - u0) * e00 + u0 * e11;  // actually stores pb - pa
@@ -1811,7 +1837,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
           const double t1 = Vector3::dot_product(pa, line.direction());
           const double t2 = Vector3::dot_product(pa + pb, line.direction());
 
-          if(!isRay || std::min(t1, t2) > 0.0)
+          if(!isRay || axom::utilities::min(t1, t2) > 0.0)
           {
             // Always an intersection in this case
             t.push_back(0.5 * (t1 + t2));
@@ -1856,9 +1882,9 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
   else
   {
     // Switch to finding B(u, v0) isocurves instead
-    Vector3 e01 = q11 - q01;
+    Vector3 e01(p01, p11);
     Vector3 qm = Vector3::cross_product(e00, -e11);
-    q01.array() -= line.origin().array();
+    Vector3 q01(line.origin(), p01);
 
     // Find the analogous coefficients for B(u, v0) isocurves
     double av = Vector3::scalar_triple_product(q00, line.direction(), e10);
@@ -1866,7 +1892,9 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
     double bv =
       Vector3::scalar_triple_product(q01, line.direction(), e01) - av - cv;
 
-    double sv = std::max(std::fabs(av), std::max(fabs(bv), fabs(cv)));
+    double sv = axom::utilities::max(
+      axom::utilities::abs(av),
+      axom::utilities::max(axom::utilities::abs(bv), axom::utilities::abs(cv)));
     av /= sv;
     bv /= sv;
     cv /= sv;
@@ -1907,7 +1935,10 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
     // Find the point on the isocurve that is closest to the ray
     for(auto v0 : {v1, v2})
     {
-      if(v0 < -EPS || v0 >= 1.0 + EPS) continue;
+      if(v0 < -EPS || v0 > 1.0 + EPS)
+      {
+        continue;
+      }
 
       Vector3 pa = (1.0 - v0) * q00 + v0 * q01;
       Vector3 pb = (1.0 - v0) * e10 + v0 * e01;  // actually stores pb - pa
@@ -1943,7 +1974,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
           const double t1 = Vector3::dot_product(pa, line.direction());
           const double t2 = Vector3::dot_product(pa + pb, line.direction());
 
-          if(!isRay || std::min(t1, t2) > 0.0)
+          if(!isRay || axom::utilities::min(t1, t2) > 0.0)
           {
             // Always an intersection in this case
             t.push_back(0.5 * (t1 + t2));
@@ -1960,7 +1991,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
             if(t1 == t2)
             {
               t.push_back(0.5 * t1);
-              v.push_back(0.5);
+              u.push_back(0.5);
             }
             else if(t1 < t2)
             {
@@ -1986,7 +2017,75 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
     }
   }
 
-  return true;
+  return !t.empty();
+}
+
+/*!
+ * \brief Examine candidate (t,u,v) values and select the ones that are not
+ *        duplicates, storing them in the supplied output arrays.
+ *
+ * \param [in] tc Candidate t values of intersection points.
+ * \param [in] uc Candidate u values of intersection points.
+ * \param [in] vc Candidate v values of intersection points.
+ * \param [out] t Selected t values of intersection points.
+ * \param [out] u Selected u values of intersection points.
+ * \param [out] v Selected v values of intersection points.
+ * \param [in] EPS The tolerance for intersection (for parameter distances).
+ * \param [in] isHalfOpen True if the patch is parameterized in [0,1)^2.
+ *
+ * \note Moved from intersect for Ray/BezierPatch and templated it so it
+ *       supports different candidate and output array types.
+ */
+template <typename CandidateArrayType, typename ArrayType>
+bool select_candidates(const CandidateArrayType& tc,
+                       const CandidateArrayType& uc,
+                       const CandidateArrayType& vc,
+                       ArrayType& t,
+                       ArrayType& u,
+                       ArrayType& v,
+                       double EPS = 1e-8,
+                       bool isHalfOpen = false)
+{
+  using T = typename ArrayType::value_type;
+
+  // Remove duplicates from the (u, v) intersection points
+  //  (Note it's not possible for (u_1, v_1) == (u_2, v_2) and t_1 != t_2)
+  const double sq_EPS = EPS * EPS;
+
+  // The number of reported intersection points will be small,
+  //  so we don't need to fully sort the list
+  SLIC_WARNING_IF(tc.size() > 10,
+                  "Large number of intersections detected, eliminating "
+                  "duplicates may be slow");
+
+  for(int i = 0; i < tc.size(); ++i)
+  {
+    // Also remove any intersections on the half-interval boundaries
+    if(isHalfOpen && (uc[i] >= 1.0 - EPS || vc[i] >= 1.0 - EPS))
+    {
+      continue;
+    }
+
+    Point<T, 2> uv({uc[i], vc[i]});
+
+    bool foundDuplicate = false;
+    for(int j = i + 1; !foundDuplicate && j < tc.size(); ++j)
+    {
+      if(squared_distance(uv, Point<T, 2>({uc[j], vc[j]})) < sq_EPS)
+      {
+        foundDuplicate = true;
+      }
+    }
+
+    if(!foundDuplicate)
+    {
+      t.push_back(tc[i]);
+      u.push_back(uc[i]);
+      v.push_back(vc[i]);
+    }
+  }
+
+  return !t.empty();
 }
 
 }  // end namespace detail
