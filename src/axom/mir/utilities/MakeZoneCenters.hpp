@@ -65,10 +65,9 @@ public:
     // Select all zones.
     axom::Array<axom::IndexType> selectedZones(numZones, numZones, allocatorID);
     auto selectedZonesView = selectedZones.view();
-    axom::for_all<ExecSpace>(numZones, AXOM_LAMBDA(axom::IndexType index)
-    {
-      selectedZonesView[index] = index;
-    });
+    axom::for_all<ExecSpace>(
+      numZones,
+      AXOM_LAMBDA(axom::IndexType index) { selectedZonesView[index] = index; });
     // Make the zone centers.
     execute(selectedZonesView, n_topology, n_coordset, n_outputField);
   }

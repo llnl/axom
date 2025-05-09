@@ -40,19 +40,13 @@ public:
    * \brief Get whether the plane equation fields should appear in the output.
    * \return True if plane equation fields should appear, false otherwise.
    */
-  bool plane() const
-  {
-    return flagValue("plane");
-  }
+  bool plane() const { return flagValue("plane"); }
 
   /**
    * \brief Get whether the output should be a point mesh.
    * \return True if the output should be a point mesh, false otherwise.
    */
-  bool pointmesh() const
-  {
-    return flagValue("pointmesh");
-  }
+  bool pointmesh() const { return flagValue("pointmesh"); }
 
 protected:
   /**
@@ -286,7 +280,8 @@ public:
 
     // Vary the number of coord values depending on whether or not we're making
     // a point mesh.
-    const auto numCoordValues = m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_MAX_POINTS_PER_FRAGMENT);
+    const auto numCoordValues =
+      m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_MAX_POINTS_PER_FRAGMENT);
 
     // Set up coordset and allocate data arrays.
     // Note that we overallocate the number of nodes to numCoordValues.
@@ -567,7 +562,8 @@ public:
 
     // Set up coordset and allocate data arrays.
     // Note that we overallocate the number of nodes to numCoordValues.
-    const auto numCoordValues = m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_MAX_POINTS_PER_FRAGMENT);
+    const auto numCoordValues =
+      m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_MAX_POINTS_PER_FRAGMENT);
     n_coordset["type"] = "explicit";
     n_coordset["values/x"].set_allocator(c2a.getConduitAllocatorID());
     n_coordset["values/x"].set(conduit::DataType(bputils::cpp2conduit<CoordType>::id, numCoordValues));
@@ -584,16 +580,17 @@ public:
     axom::mir::utilities::fill<ExecSpace>(m_view.m_z, CoordType(0));
 
     // elements (zone definitions)
-    constexpr ConnectivityType UnusedValue =
-      axom::numeric_limits<ConnectivityType>::is_signed ? -1 : axom::numeric_limits<ConnectivityType>::max();
+    constexpr ConnectivityType UnusedValue = axom::numeric_limits<ConnectivityType>::is_signed
+      ? -1
+      : axom::numeric_limits<ConnectivityType>::max();
     {
-      const auto numConnValues = m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_MAX_FACES_PER_FRAGMENT);
+      const auto numConnValues =
+        m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_MAX_FACES_PER_FRAGMENT);
       n_topology["type"] = "unstructured";
       n_topology["elements/shape"] = m_view.m_makePointMesh ? "point" : "polyhedral";
       conduit::Node &n_conn = n_topology["elements/connectivity"];
       n_conn.set_allocator(c2a.getConduitAllocatorID());
-      n_conn.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id,
-                                   numConnValues));
+      n_conn.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numConnValues));
       m_view.m_connectivity = bputils::make_array_view<ConnectivityType>(n_conn);
       axom::mir::utilities::fill<ExecSpace>(m_view.m_connectivity, UnusedValue);
 

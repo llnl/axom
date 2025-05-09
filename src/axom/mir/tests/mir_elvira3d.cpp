@@ -116,12 +116,20 @@ struct test_Elvira3D
     }
     else
     {
-      compare(name, selectedZones, deviceMesh, topologyView, coordsetView, n_topology, n_coordset, deviceMIRMesh, expectedVolume, mirExpectedVolume);
+      compare(name,
+              selectedZones,
+              deviceMesh,
+              topologyView,
+              coordsetView,
+              n_topology,
+              n_coordset,
+              deviceMIRMesh,
+              expectedVolume,
+              mirExpectedVolume);
     }
   }
 
-  static void comparePointMesh(const std::string &name,
-                               const conduit::Node &deviceMIRMesh)
+  static void comparePointMesh(const std::string &name, const conduit::Node &deviceMIRMesh)
   {
     // device->host
     conduit::Node hostMIRMesh;

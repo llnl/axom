@@ -285,12 +285,11 @@ struct test_extractzones
     axom::copy(selectedZones.data(), ids.data(), nzones * sizeof(axom::IndexType));
 
     // Wrap the data in views.
-    auto coordsetView = views::make_explicit_coordset<conduit::float64, 2>::view(
-      deviceMesh["coordsets/coords"]);
+    auto coordsetView =
+      views::make_explicit_coordset<conduit::float64, 2>::view(deviceMesh["coordsets/coords"]);
     using CoordsetView = decltype(coordsetView);
 
-    using TopologyView =
-      views::UnstructuredTopologySingleShapeView<views::QuadShape<conduit::int64>>;
+    using TopologyView = views::UnstructuredTopologySingleShapeView<views::QuadShape<conduit::int64>>;
     TopologyView topoView(
       bputils::make_array_view<conduit::int64>(deviceMesh["topologies/mesh/elements/connectivity"]),
       bputils::make_array_view<conduit::int64>(deviceMesh["topologies/mesh/elements/sizes"]),
@@ -600,11 +599,10 @@ struct test_zonelistbuilder
     bputils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     // Wrap the data in views.
-    auto coordsetView = views::make_rectilinear_coordset<conduit::float64, 2>::view(
-      deviceMesh["coordsets/coords"]);
+    auto coordsetView =
+      views::make_rectilinear_coordset<conduit::float64, 2>::view(deviceMesh["coordsets/coords"]);
 
-    auto topologyView =
-      views::make_rectilinear_topology<2>::view(deviceMesh["topologies/mesh"]);
+    auto topologyView = views::make_rectilinear_topology<2>::view(deviceMesh["topologies/mesh"]);
     using TopologyView = decltype(topologyView);
 
     // Do the material too.
@@ -756,10 +754,10 @@ struct test_makezonecenters
     testTopo(deviceMesh, rmeshView, n_rmesh);
 
     const conduit::Node &n_umesh = deviceMesh["topologies/umesh"];
-    views::UnstructuredTopologySingleShapeView<views::QuadShape<conduit::index_t>>
-      umeshView(bputils::make_array_view<conduit::index_t>(n_umesh["elements/connectivity"]),
-                bputils::make_array_view<conduit::index_t>(n_umesh["elements/sizes"]),
-                bputils::make_array_view<conduit::index_t>(n_umesh["elements/offsets"]));
+    views::UnstructuredTopologySingleShapeView<views::QuadShape<conduit::index_t>> umeshView(
+      bputils::make_array_view<conduit::index_t>(n_umesh["elements/connectivity"]),
+      bputils::make_array_view<conduit::index_t>(n_umesh["elements/sizes"]),
+      bputils::make_array_view<conduit::index_t>(n_umesh["elements/offsets"]));
     testTopo(deviceMesh, umeshView, n_umesh);
   }
 
@@ -995,7 +993,9 @@ struct test_makepointmesh
     // Wrap the data in views.
     auto coordsetView = views::make_explicit_coordset<conduit::float64, 2>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
-    auto topoView = views::make_unstructured_single_shape_topology<views::QuadShape<conduit::int64>>::view(n_topology);
+    auto topoView =
+      views::make_unstructured_single_shape_topology<views::QuadShape<conduit::int64>>::view(
+        n_topology);
     using TopologyView = decltype(topoView);
 
     bputils::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(topoView, coordsetView);
@@ -1034,11 +1034,11 @@ struct test_makepointmesh
       else
       {
         pm.execute(n_topology, n_coordset, options, newDeviceMesh);
-    
+
         // device->host
         conduit::Node newHostMesh;
         bputils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
-    
+
         EXPECT_TRUE(newHostMesh.has_path("coordsets/points"));
         EXPECT_TRUE(newHostMesh.has_path("topologies/pointmesh"));
         EXPECT_EQ(newHostMesh["topologies/pointmesh/elements/shape"].as_string(), "point");
@@ -1055,27 +1055,27 @@ struct test_makepointmesh
   }
 
   static void compare(const conduit::Node &n_mesh,
-        const axom::Array<conduit::float64> &x,
-        const axom::Array<conduit::float64> &y,
-        const axom::Array<conduit::int64> &connectivity,
-        const axom::Array<conduit::int64> &sizes,
-        const axom::Array<conduit::int64> &offsets)
+                      const axom::Array<conduit::float64> &x,
+                      const axom::Array<conduit::float64> &y,
+                      const axom::Array<conduit::int64> &connectivity,
+                      const axom::Array<conduit::int64> &sizes,
+                      const axom::Array<conduit::int64> &offsets)
   {
-        EXPECT_TRUE(compare_views(
-          x.view(),
-          bputils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/x"])));
-        EXPECT_TRUE(compare_views(
-          y.view(),
-          bputils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/y"])));
-        EXPECT_TRUE(compare_views(connectivity.view(),
+    EXPECT_TRUE(compare_views(
+      x.view(),
+      bputils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/x"])));
+    EXPECT_TRUE(compare_views(
+      y.view(),
+      bputils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/y"])));
+    EXPECT_TRUE(compare_views(connectivity.view(),
                               bputils::make_array_view<conduit::int64>(
                                 n_mesh["topologies/pointmesh/elements/connectivity"])));
-        EXPECT_TRUE(compare_views(
-          sizes.view(),
-          bputils::make_array_view<conduit::int64>(n_mesh["topologies/pointmesh/elements/sizes"])));
-        EXPECT_TRUE(compare_views(
-          offsets.view(),
-          bputils::make_array_view<conduit::int64>(n_mesh["topologies/pointmesh/elements/offsets"])));
+    EXPECT_TRUE(compare_views(
+      sizes.view(),
+      bputils::make_array_view<conduit::int64>(n_mesh["topologies/pointmesh/elements/sizes"])));
+    EXPECT_TRUE(compare_views(
+      offsets.view(),
+      bputils::make_array_view<conduit::int64>(n_mesh["topologies/pointmesh/elements/offsets"])));
   }
 
   static void create(conduit::Node &hostMesh)

@@ -34,10 +34,10 @@ struct MakePointMesh
    * \param topologyView The topology view that describes the input topology.
    * \param coordsetView The coordset view that describes the input coordset.
    */
-  MakePointMesh(const TopologyView &topologyView, const CoordsetView &coordsetView) :
-    m_topologyView(topologyView), m_coordsetView(coordsetView)
-  {
-  }
+  MakePointMesh(const TopologyView &topologyView, const CoordsetView &coordsetView)
+    : m_topologyView(topologyView)
+    , m_coordsetView(coordsetView)
+  { }
 
   /*!
    * \brief Create a new field from the input topology and place it in \a n_output.
@@ -60,10 +60,9 @@ struct MakePointMesh
     // Select all zones.
     axom::Array<axom::IndexType> selectedZones(numZones, numZones, allocatorID);
     auto selectedZonesView = selectedZones.view();
-    axom::for_all<ExecSpace>(numZones, AXOM_LAMBDA(axom::IndexType index)
-    {
-      selectedZonesView[index] = index;
-    });
+    axom::for_all<ExecSpace>(
+      numZones,
+      AXOM_LAMBDA(axom::IndexType index) { selectedZonesView[index] = index; });
     // Make the zone centers.
     execute(selectedZonesView, n_topology, n_coordset, n_options, n_output);
   }
@@ -90,7 +89,8 @@ struct MakePointMesh
     axom::mir::Options opts(n_options);
 
     // Make zone centers to use for the new coordset.
-    bputils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView, m_coordsetView);
+    bputils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView,
+                                                                       m_coordsetView);
     conduit::Node zcfield;
     zc.execute(selectedZonesView, n_topology, n_coordset, zcfield);
 
@@ -110,8 +110,7 @@ struct MakePointMesh
     n_output_topo["elements/shape"] = "point";
     conduit::Node &n_conn = n_output_topo["elements/connectivity"];
     n_conn.set_allocator(c2a.getConduitAllocatorID());
-    n_conn.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id,
-                                 numPoints));
+    n_conn.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numPoints));
     auto connectivity = bputils::make_array_view<ConnectivityType>(n_conn);
 
     conduit::Node &n_sizes = n_output_topo["elements/sizes"];
@@ -127,11 +126,12 @@ struct MakePointMesh
 
     // Build the point mesh
     AXOM_ANNOTATE_BEGIN("build");
-    axom::for_all<ExecSpace>(numPoints, AXOM_LAMBDA(axom::IndexType index)
-    {
-      connectivity[index] = index;
-      sizes[index] = 1;
-    });
+    axom::for_all<ExecSpace>(
+      numPoints,
+      AXOM_LAMBDA(axom::IndexType index) {
+        connectivity[index] = index;
+        sizes[index] = 1;
+      });
     axom::exclusive_scan<ExecSpace>(sizes, offsets);
     AXOM_ANNOTATE_END("build");
   }

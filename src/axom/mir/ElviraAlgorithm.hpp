@@ -271,10 +271,7 @@ protected:
 
       // Add an originalElements array.
       const std::string originalElementsField(ELVIRAOptions(n_options).originalElementsField());
-      addOriginal(n_newFields[originalElementsField],
-                  n_topo.name(),
-                  "element",
-                  cleanZones);
+      addOriginal(n_newFields[originalElementsField], n_topo.name(), "element", cleanZones);
     }
   }
 
@@ -380,7 +377,8 @@ protected:
     if(opts.pointmesh())
     {
       // Make a point mesh of the selected zones.
-      bputils::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(m_topologyView, m_coordsetView);
+      bputils::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(m_topologyView,
+                                                                       m_coordsetView);
       pm.execute(cleanZones, n_topology, n_coordset, n_options, n_cleanOutput);
 
       // Slice the input material.
