@@ -173,10 +173,10 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
  * \sa intersect_bezier
  */
 template <typename T>
-bool intersect_circle_bezier(const Ray<T, 2> &r,
-                             const BezierCurve<T, 2> &c,
-                             axom::Array<T> &rp,
-                             axom::Array<T> &cp,
+bool intersect_circle_bezier(const Sphere<T, 2> &circle,
+                             const BezierCurve<T, 2> &curve,
+                             axom::Array<T> &circle_params,
+                             axom::Array<T> &curve_params,
                              double sq_tol,
                              double EPS,
                              int order,
