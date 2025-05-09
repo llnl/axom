@@ -303,7 +303,7 @@ public:
 
     // Set up connectivity and allocate data arrays.
     n_topology["type"] = "unstructured";
-    n_topology["elements/shape"] = m_view.m_makePointMesh ? "vertex" : "polygonal";
+    n_topology["elements/shape"] = m_view.m_makePointMesh ? "point" : "polygonal";
     conduit::Node &n_conn = n_topology["elements/connectivity"];
     n_conn.set_allocator(c2a.getConduitAllocatorID());
     n_conn.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numCoordValues));
@@ -585,11 +585,11 @@ public:
 
     // elements (zone definitions)
     constexpr ConnectivityType UnusedValue =
-      std::numeric_limits<ConnectivityType>::is_signed ? -1 : 99999999;
+      axom::numeric_limits<ConnectivityType>::is_signed ? -1 : axom::numeric_limits<ConnectivityType>::max();
     {
       const auto numConnValues = m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_MAX_FACES_PER_FRAGMENT);
       n_topology["type"] = "unstructured";
-      n_topology["elements/shape"] = m_view.m_makePointMesh ? "vertex" : "polyhedral";
+      n_topology["elements/shape"] = m_view.m_makePointMesh ? "point" : "polyhedral";
       conduit::Node &n_conn = n_topology["elements/connectivity"];
       n_conn.set_allocator(c2a.getConduitAllocatorID());
       n_conn.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id,

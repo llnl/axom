@@ -39,7 +39,7 @@
 #include <string>
 
 // Uncomment to save inputs and outputs.
-#define AXOM_ELVIRA_DEBUG
+//#define AXOM_ELVIRA_DEBUG
 
 // Uncomment to debug make fragments.
 //#define AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS
@@ -897,6 +897,7 @@ protected:
         SLIC_DEBUG("makeFragments: zoneIndex=" << zoneIndex << ", matCount=" << matCount);
 #endif
         PointType pt {};
+        VectorType normal {};
         for(axom::IndexType m = 0; m < matCount - 1; m++)
         {
           const auto fragmentIndex = offset + m;
@@ -912,7 +913,6 @@ protected:
           const auto matVolume = zoneVol * fragmentVFStencilView[si];
 
           // Make the normal
-          VectorType normal;
           for(int d = 0; d < NDIMS; d++)
           {
             normal[d] = static_cast<CoordType>(normalPtr[d]);
@@ -993,8 +993,17 @@ protected:
         // Emit the last leftover fragment.
         const auto fragmentIndex = offset + matCount - 1;
         const auto matId = sortedMaterialIdsView[fragmentIndex];
-        const double *normalPtr = fragmentVectorsView.data() + (fragmentIndex * numVectorComponents);
-        buildView.addShape(zoneIndex, fragmentIndex, remaining, matId, pt, 0., normalPtr);
+        // The last fragment's normals are just (1,0,0).
+        //const double *normalPtr = fragmentVectorsView.data() + (fragmentIndex * numVectorComponents);
+        // It seems more useful to emit the opposite of the last fragment's normal instead.
+        normal = -normal;
+        double lastNormal[NDIMS];
+        for(int d = 0; d < NDIMS; d++)
+        {
+          lastNormal[d] = normal[d];
+        }
+        const auto P = PlaneType(normal, pt, false);
+        buildView.addShape(zoneIndex, fragmentIndex, remaining, matId, pt, P.getOffset(), lastNormal);
       });
   }
 

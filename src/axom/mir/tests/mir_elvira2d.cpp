@@ -140,23 +140,42 @@ TEST(mir_elvira, elvira_uniform_unibuffer_seq_pm)
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_seq)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_seq");
-  constexpr bool selectZones = true;
+  const bool selectZones = true;
   const bool pointMesh = true;
   braid2d_mat_test<seq_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel_pm", selectZones, pointMesh);
 }
-#if 0
+
 #if defined(AXOM_USE_OPENMP)
 TEST(mir_elvira, elvira_uniform_unibuffer_omp)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_omp");
-  braid2d_mat_test<omp_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer");
+  const bool selectZones = false;
+  const bool pointMesh = false;
+  braid2d_mat_test<omp_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer", selectZones, pointMesh);
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_omp)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_omp");
-  constexpr bool selectZones = true;
-  braid2d_mat_test<omp_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones);
+  const bool selectZones = true;
+  const bool pointMesh = false;
+  braid2d_mat_test<omp_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones, pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_pm_omp)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_omp");
+  const bool selectZones = false;
+  const bool pointMesh = true;
+  braid2d_mat_test<omp_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_pm", selectZones, pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_omp)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_omp");
+  const bool selectZones = true;
+  const bool pointMesh = true;
+  braid2d_mat_test<omp_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel_pm", selectZones, pointMesh);
 }
 #endif
 
@@ -164,14 +183,33 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_omp)
 TEST(mir_elvira, elvira_uniform_unibuffer_cuda)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_cuda");
-  braid2d_mat_test<cuda_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer");
+  const bool selectZones = false;
+  const bool pointMesh = false;
+  braid2d_mat_test<cuda_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer", selectZones, pointMesh);
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_cuda)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_cuda");
-  constexpr bool selectZones = true;
-  braid2d_mat_test<cuda_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones);
+  const bool selectZones = true;
+  const bool pointMesh = false;
+  braid2d_mat_test<cuda_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones, pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_pm_cuda)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_cuda");
+  const bool selectZones = false;
+  const bool pointMesh = true;
+  braid2d_mat_test<cuda_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_pm", selectZones, pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_cuda)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_cuda");
+  const bool selectZones = true;
+  const bool pointMesh = true;
+  braid2d_mat_test<cuda_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel_pm", selectZones, pointMesh);
 }
 #endif
 
@@ -179,17 +217,36 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_cuda)
 TEST(mir_elvira, elvira_uniform_unibuffer_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_hip");
-  braid2d_mat_test<hip_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer");
+  const bool selectZones = false;
+  const bool pointMesh = false;
+  braid2d_mat_test<hip_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer", selectZones, pointMesh);
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_hip");
-  constexpr bool selectZones = true;
-  braid2d_mat_test<hip_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones);
+  const bool selectZones = true;
+  const bool pointMesh = false;
+  braid2d_mat_test<hip_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones, pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_pm_hip)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_hip");
+  const bool selectZones = false;
+  const bool pointMesh = true;
+  braid2d_mat_test<hip_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_pm", selectZones, pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_hip)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_hip");
+  const bool selectZones = true;
+  const bool pointMesh = true;
+  braid2d_mat_test<hip_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel_pm", selectZones, pointMesh);
 }
 #endif
-#endif
+
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
