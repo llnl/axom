@@ -133,8 +133,15 @@ data from neighbor zones. This means that each zone is cut multiple times using 
 with different orientations, resulting in potentially jagged interfaces. ELVIRA prioritizes
 conservation of material volume fractions over the appearance of the resulting material
 interfaces so it is highly accurate but it can be less visually appealing. Since ELVIRA
-output is comprised of shapes that result from several cuts of the input zones, the resulting
-topology is not necessarily water-tight and it consists of polygons for 2D and polyhedra for 3D.
+output is typically comprised of shapes that result from several cuts of the input zones,
+the resulting topology is not necessarily water-tight and it consists of polygons for 2D
+and polyhedra for 3D.
+
+The ELVIRA algorithm also supports a mode where it instead creates a mesh consisting of
+points at the centers of the polygonal/polyhedral zone centers and emits the points in
+place of the other zones. This output mode is used to save work when the algorithm is
+being used to output clipping planes rather than the clipped geometry. This mode is
+activated using the "pointmesh" option.
 
 Axom's implementation of ELVIRA is data parallel and can run on the CPU and the GPU. Zones
 of interest are identified and are classified as clean or mixed. Clean zones contain a single
@@ -149,7 +156,7 @@ that are specific to ELVIRA.
 | Option                          | Description                                          |
 +=================================+======================================================+
 |``plane: 0 | 1``                 | If ``plane`` is set to 1 then the MIR output will    |
-|                                 | contain "planeNormal" and "planeOffset" fields that  |
+|                                 | contain "normal" and "offset" fields that            |
 |                                 | contain the normal and offset, respectively, for the |
 |                                 | clipping plane used to produce each zone fragment. If|
 |                                 | ``plane`` is set to 0 then these fields are not      |
