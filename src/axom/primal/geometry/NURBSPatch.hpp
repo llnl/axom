@@ -108,13 +108,10 @@ struct NURBSPatchData
 
     patch.normalizeBySpan();
 
-    pbox_diag = std::sqrt((patch.getMaxKnot_u() - patch.getMinKnot_u()) *
-                            (patch.getMaxKnot_u() - patch.getMinKnot_u()) +
-                          (patch.getMaxKnot_v() - patch.getMinKnot_v()) *
-                            (patch.getMaxKnot_v() - patch.getMinKnot_v()));
+    pbox_diag = patch.getParameterSpaceDiagonal();
 
-    patch.makeSimpleTrimmed();
-    patch.expandParameterSpace(0.1 * pbox_diag);
+    patch.makeTriviallyTrimmed();
+    patch.scaleParameterSpace(1.0 + 0.1 * pbox_diag);
     auto candidates = patch.extractBezier();
 
     axom::Array<T> knot_vals_u = patch.getKnots_u().getUniqueKnots();
@@ -175,43 +172,8 @@ struct NURBSPatchData
       }
     }
 
-    // Generate a rough approximation of the average normal
-    constexpr int npts = 11;
-    double u_pts[npts], v_pts[npts];
-    axom::numerics::linspace(patch.getMinKnot_u(),
-                             patch.getMaxKnot_u(),
-                             u_pts,
-                             npts);
-    axom::numerics::linspace(patch.getMinKnot_v(),
-                             patch.getMaxKnot_v(),
-                             v_pts,
-                             npts);
-
-    average_normal = axom::primal::Vector<T, 3>({0.0, 0.0, 0.0});
-    for(auto u : u_pts)
-    {
-      for(auto v : v_pts)
-      {
-        auto the_normal = patch.normal(u, v);
-        if(the_normal.norm() > 0.0)
-        {
-          average_normal += the_normal;
-        }
-      }
-    }
-
-    if(average_normal.norm() > 0.0)
-    {
-      average_normal /= average_normal.norm();
-    }
-    else
-    {
-      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-      double u = axom::utilities::random_real(-1.0, 1.0);
-      average_normal = Vector<T, 3> {sin(theta) * sqrt(1 - u * u),
-                                     cos(theta) * sqrt(1 - u * u),
-                                     u};
-    }
+    // Calculate the average normal for the untrimmed patch
+    average_normal = patch.calculateUntrimmedPatchNormal();
 
     bbox = patch.boundingBox();
     curve_quadrature_maps.resize(patch.getNumTrimmingCurves());

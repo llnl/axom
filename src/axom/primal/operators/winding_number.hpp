@@ -524,6 +524,56 @@ double winding_number(const Point<T, 3>& query,
 }
 
 /*
+  * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch with precomputed data
+  *
+  * \param [in] query The query point to test
+  * \param [in] nPatchData The NURBS patch object with data
+  * \param [in] edge_tol The physical distance level at which objects are 
+  *                      considered indistinguishable
+  * \param [in] ls_tol The tolerance for the line-surface intersection routine
+  * \param [in] quad_tol The maximum relative error allowed in the quadrature
+  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+  * 
+  * Computes the generalized winding number for a NURBS patch using Stokes theorem.
+  *
+  * \return The GWN.
+  */
+template <typename T>
+double winding_number(const Point<T, 3>& query,
+                      const NURBSPatchData<T>& nPatchData,
+                      int& case_code,
+                      int& integrated_curves,
+                      const double edge_tol = 1e-8,
+                      const double ls_tol = 1e-8,
+                      const double quad_tol = 1e-8,
+                      const double EPS = 1e-8)
+{
+  // Select the cast direction as an average normal of the untrimmed surface
+  auto cast_direction = nPatchData.average_normal;
+  if(cast_direction.norm() < 1e-10)
+  {
+    // ...unless the average direction is zero
+    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+    double u = axom::utilities::random_real(-1.0, 1.0);
+    cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+  }
+  else
+  {
+    cast_direction = cast_direction.unitVector();
+  }
+
+  return detail::nurbs_data_winding_number(query,
+                                           nPatchData,
+                                           cast_direction,
+                                           case_code,
+                                           integrated_curves,
+                                           edge_tol,
+                                           ls_tol,
+                                           quad_tol,
+                                           EPS);
+}
+
+/*
  * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch
  *
  * \param [in] query The query point to test

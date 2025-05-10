@@ -1343,15 +1343,15 @@ public:
       }
 
       // patchData.nurbsPatch.normalizeBySpan();
-      // patchData.nurbsPatch.makeSimpleTrimmed();
+      // patchData.nurbsPatch.makeTriviallyTrimmed();
       // exportSurfaceToSTL("C:\\Users\\Fireh\\Code\\winding_number_code\\misc_patches\\untrimmed_patch_" + std::to_string(patchIndex) + ".stl", patchData.nurbsPatch, 17, 17);
-      // patchData.nurbsPatch.expandParameterSpace(0.1);
+      // patchData.nurbsPatch.scaleParameterSpace(1.0 + 0.1);
       // exportSurfaceToSTL("C:\\Users\\Fireh\\Code\\winding_number_code\\misc_patches\\expanded_untrimmed_patch_" + std::to_string(patchIndex) + ".stl", patchData.nurbsPatch, 17, 17);
 
       // if(patchIndex == 40)
       // {
       //   patchData.nurbsPatch.makeUntrimmed();
-      //   patchData.nurbsPatch.makeSimpleTrimmed();
+      //   patchData.nurbsPatch.makeTriviallyTrimmed();
       // }
 
       if(patchData.nurbsPatch.isTrimmed())
@@ -1368,8 +1368,14 @@ public:
           double test_v = axom::utilities::random_real(min_v, max_v);
 
           axom::primal::Point2D p {test_u, test_v};
-          auto gwn = std::lround(patchData.nurbsPatch.parameterGWN(p[0], p[1]));
 
+          double gwn = 0.0;
+          for(const auto& curve : patchData.nurbsPatch.getTrimmingCurves())
+          {
+            bool isOnThisCurve = false;
+            gwn += winding_number(p, curve, isOnThisCurve);
+          }
+          
           if(gwn < 0)
           {
             patchData.nurbsPatch.flipNormals();
@@ -3018,7 +3024,7 @@ void quadrature_on_sphere()
   for(int i = 0; i < 6; ++i)
   {
     nurbs_faces[i] = axom::primal::NURBSPatch<double, 3>(sphere_faces[i]);
-    nurbs_faces[i].makeSimpleTrimmed();
+    nurbs_faces[i].makeTriviallyTrimmed();
     nurbs_faces_data[i] = axom::primal::NURBSPatchData<double>(i, nurbs_faces[i]);
   }
 
@@ -4688,13 +4694,13 @@ void tear_parameter_tol_test(
   for(int i = 0; i < 4; ++i)
   {
     nurbs_surfaces[i] = axom::primal::NURBSPatch<double, 3>(teardrop1_patches[i]);
-    nurbs_surfaces[i].makeSimpleTrimmed();
+    nurbs_surfaces[i].makeTriviallyTrimmed();
     nurbs_surfaces_data[i] =
       axom::primal::NURBSPatchData<double>(i, nurbs_surfaces[i]);
 
     nurbs_surfaces[i + 4] =
       axom::primal::NURBSPatch<double, 3>(teardrop2_patches[i]);
-    nurbs_surfaces[i + 4].makeSimpleTrimmed();
+    nurbs_surfaces[i + 4].makeTriviallyTrimmed();
     nurbs_surfaces_data[i + 4] =
       axom::primal::NURBSPatchData<double>(i + 4, nurbs_surfaces[i + 4]);
 
@@ -4966,7 +4972,7 @@ void query_timing_test(const std::string& test_prefix,
   for(int i = 0; i < 6; ++i)
   {
     nurbs_faces[i] = axom::primal::NURBSPatch<double, 3>(sphere_faces[i]);
-    nurbs_faces[i].makeSimpleTrimmed();
+    nurbs_faces[i].makeTriviallyTrimmed();
     nurbs_faces_data[i] = axom::primal::NURBSPatchData<double>(i, nurbs_faces[i]);
   }
 
