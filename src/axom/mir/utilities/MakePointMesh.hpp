@@ -63,7 +63,7 @@ struct MakePointMesh
     axom::for_all<ExecSpace>(
       numZones,
       AXOM_LAMBDA(axom::IndexType index) { selectedZonesView[index] = index; });
-    // Make the zone centers.
+    // Make the point mesh.
     execute(selectedZonesView, n_topology, n_coordset, n_options, n_output);
   }
 

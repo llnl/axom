@@ -376,10 +376,12 @@ protected:
     ELVIRAOptions opts(n_options);
     if(opts.pointmesh())
     {
+      // _mir_utilities_makepointmesh_begin
       // Make a point mesh of the selected zones.
       bputils::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(m_topologyView,
                                                                        m_coordsetView);
       pm.execute(cleanZones, n_topology, n_coordset, n_options, n_cleanOutput);
+      // _mir_utilities_makepointmesh_end
 
       // Slice the input material.
       bputils::MatsetSlicer<ExecSpace, MatsetView> mslicer(m_matsetView);
@@ -847,7 +849,7 @@ protected:
   }
 
   /*!
-   * \brief Use the normal vectors for each fragment to bulid the fragment shapes.
+   * \brief Use the normal vectors for each fragment to build the fragment shapes.
    *
    * \param buildView A view that lets us add a shape to the Blueprint output.
    * \param matZoneView A view containing zone ids sorted by material count in the zone.
