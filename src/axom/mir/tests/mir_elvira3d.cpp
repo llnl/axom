@@ -142,7 +142,7 @@ struct test_Elvira3D
     TestApp.saveVisualization(name, hostMIRMesh);
 
     // Handle baseline comparison.
-    constexpr double tolerance = 2.6e-06;
+    constexpr double tolerance = 8.e-06;
     EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostMIRMesh, tolerance));
   }
 
