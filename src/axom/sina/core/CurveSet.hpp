@@ -63,8 +63,8 @@ public:
     */
   struct curveNodeInfo
   {
-      CurveSet::CurveMap curveMap;
-      std::vector<std::string> orderedCurveNames;
+    CurveSet::CurveMap curveMap;
+    std::vector<std::string> orderedCurveNames;
   };
 
   /**
@@ -94,14 +94,20 @@ public:
    *
    * @return a vector of curve names in the order of insertion.
    */
-  std::vector<std::string> const &getOrderedIndependentCurveNames() { return orderedIndependentCurveNames;}
+  std::vector<std::string> const &getOrderedIndependentCurveNames()
+  {
+    return orderedIndependentCurveNames;
+  }
 
   /**
    * Get the insertion order of this curveset's dependents.
    *
    * @return a vector of curve names in the order of insertion.
    */
-  std::vector<std::string> const &getOrderedDependentCurveNames() { return orderedDependentCurveNames;}
+  std::vector<std::string> const &getOrderedDependentCurveNames()
+  {
+    return orderedDependentCurveNames;
+  }
 
   /**
    * Set the insertion order of this curveset's independents.
