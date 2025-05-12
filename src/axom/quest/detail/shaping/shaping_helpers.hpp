@@ -146,6 +146,7 @@ using PointProjector =
 
 using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
+using MFEMArrayCollection = mfem::NamedFieldsMap<mfem::Array<int>>;
 
 enum class VolFracSampling : int
 {

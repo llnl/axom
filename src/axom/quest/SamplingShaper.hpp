@@ -63,8 +63,11 @@ public:
     m_inoutMaterialQFuncs.DeleteData(true);
     m_inoutMaterialQFuncs.clear();
 
-    m_inoutDofs.DeleteData(true);
-    m_inoutDofs.clear();
+    m_inoutTensors.DeleteData(true);
+    m_inoutTensors.clear();
+
+    m_inoutArrays.DeleteData(true);
+    m_inoutArrays.clear();
   }
 
   //@{
@@ -492,8 +495,8 @@ public:
     else if(m_vfSampling == shaping::VolFracSampling::SAMPLE_AT_DOFS)
     {
       axom::fmt::format_to(std::back_inserter(out),
-                           "\n\t* Shape samples at DOFs: {}",
-                           axom::fmt::join(extractKeys(m_inoutDofs), ", "));
+                           "\n\t* Shaping tensors: {}",
+                           axom::fmt::join(extractKeys(m_inoutTensors), ", "));
     }
     SLIC_INFO(axom::fmt::to_string(out));
   }
@@ -603,9 +606,11 @@ private:
     SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
     mfem::QuadratureFunction* inout = m_inoutMaterialQFuncs.Get(matField);
 
-    const int sampleOrder = inout->GetSpace()->GetIntRule(0).GetOrder();
-    const int sampleNQ = inout->GetSpace()->GetIntRule(0).GetNPoints();
+    const auto& ir = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
+    const int sampleOrder = ir.GetOrder();
+    const int sampleNQ = ir.GetNPoints();
     const int sampleSZ = inout->GetSpace()->GetSize();
+
     // print info about sampling on rank 0
     // TODO: mpi reduce this for stats on all ranks
     SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
@@ -623,59 +628,130 @@ private:
       axom::fmt::format(axom::utilities::locale(), "Mesh has dim {} and {:L} elements", dim, NE));
 
     // Access or create a registered volume fraction grid function from the data collection
-    const auto volFracName = axom::fmt::format("vol_frac_{}", matField.substr(10));
-    mfem::GridFunction* volFrac = shaping::getOrAllocateL2GridFunction(m_dc,
-                                                                       volFracName,
-                                                                       m_volfracOrder,
-                                                                       dim,
-                                                                       mfem::BasisType::Positive);
-    const mfem::FiniteElementSpace* fes = volFrac->FESpace();
+    const auto vf_name = axom::fmt::format("vol_frac_{}", matField.substr(10));
+    mfem::GridFunction* vf = shaping::getOrAllocateL2GridFunction(m_dc,
+                                                                  vf_name,
+                                                                  m_volfracOrder,
+                                                                  dim,
+                                                                  mfem::BasisType::Positive);
+    const mfem::FiniteElementSpace* fes = vf->FESpace();
+    const int dofs = fes->GetFE(0)->GetDof();
+
+    // access or compute the mass matrix
+    mfem::DenseTensor* mass_mat {nullptr};
+    const std::string mass_matrix_name = "shaping_mass_matrix";
+    if(this->m_inoutTensors.Has(mass_matrix_name))
+    {
+      mass_mat = m_inoutTensors.Get(mass_matrix_name);
+    }
+    else
+    {
+      AXOM_ANNOTATE_SCOPE("mass integrator assemble");
+
+      mass_mat = new mfem::DenseTensor(dofs, dofs, NE);
+      mass_mat->HostWrite();
+      (*mass_mat) = 0.;
+      //const int N = mass_mat->TotalSize();
+      mass_mat->ReadWrite();
+
+      const int sz = mass_mat->TotalSize();
+      mfem::ConstantCoefficient one_coef(1.0);
+      mfem::MassIntegrator mass_integrator(one_coef, &ir);
+
+      // wrap mass_mat data as vector for AssembleEA call
+      // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
+      mfem::Vector mass_vec;
+      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+      mass_vec.SetSize(sz);
+      mass_integrator.AssembleEA(*fes, mass_vec, false);
+      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+
+      m_inoutTensors.Register(mass_matrix_name, mass_mat, true);
+    }
+    SLIC_ASSERT(mass_mat->SizeI() == dofs);
+    SLIC_ASSERT(mass_mat->SizeJ() == dofs);
+    SLIC_ASSERT(mass_mat->SizeK() == NE);
+
+    // access or compute LU factorization of the mass matrix
+    mfem::DenseTensor* mass_mat_inv {nullptr};
+    mfem::Array<int>* mass_mat_pivots {nullptr};
+    const std::string minv_name = "shaping_mass_matrix_inv";
+    const std::string pivots_name = "shaping_mass_matrix_pivots";
+    if(this->m_inoutTensors.Has(minv_name) && this->m_inoutArrays.Has(pivots_name))
+    {
+      mass_mat_inv = this->m_inoutTensors.Get(minv_name);
+      mass_mat_pivots = this->m_inoutArrays.Get(pivots_name);
+    }
+    else
+    {
+      // Perform batched LU factorization on the mass tensor
+      // Note: This was written against mfem@4.7 and should be updated for mfem@4.8 when we upgrade
+      mass_mat->HostRead();
+      mass_mat_inv = new mfem::DenseTensor(*mass_mat);
+      mass_mat_pivots = new mfem::Array<int>(dofs * NE);
+      mass_mat_pivots->UseDevice();
+
+      mass_mat->Read();
+      mass_mat_inv->ReadWrite();
+
+      AXOM_ANNOTATE_SCOPE("batch lu factor");
+
+      mass_mat_inv->ReadWrite();
+      mass_mat_pivots->Write();
+      mfem::BatchLUFactor(*mass_mat_inv, *mass_mat_pivots);
+
+      m_inoutTensors.Register(minv_name, mass_mat_inv, true);
+      m_inoutArrays.Register(pivots_name, mass_mat_pivots, true);
+    }
+    SLIC_ASSERT(mass_mat_inv->SizeJ() == dofs);
+    SLIC_ASSERT(mass_mat_inv->SizeI() == dofs);
+    SLIC_ASSERT(mass_mat_inv->SizeK() == NE);
+    SLIC_ASSERT(mass_mat_pivots->Size() == dofs * NE);
+
+    mfem::DenseTensor* shaping_scratch_buffer {nullptr};
+    const std::string scratch_buffer_name = "shaping_scratch_buffer";
+    if(this->m_inoutTensors.Has(scratch_buffer_name))
+    {
+      shaping_scratch_buffer = this->m_inoutTensors.Get(scratch_buffer_name);
+    }
+    else
+    {
+      shaping_scratch_buffer = new mfem::DenseTensor(dofs, dofs, NE);
+      // TODO -- we only need this buffer to be Write
+      // and only in the space that FCT_project is called
+      shaping_scratch_buffer->HostWrite();
+      (*shaping_scratch_buffer) = 0.;
+
+      m_inoutTensors.Register(scratch_buffer_name, shaping_scratch_buffer, true);
+    }
+    SLIC_ASSERT(shaping_scratch_buffer->SizeJ() == dofs);
+    SLIC_ASSERT(shaping_scratch_buffer->SizeI() == dofs);
+    SLIC_ASSERT(shaping_scratch_buffer->SizeK() == NE);
 
     // Project QField onto volume fractions field using flux corrected transport (FCT)
     // to keep the range of values between 0 and 1
     axom::utilities::Timer timer(true);
     {
-      const auto& ir = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
-
-      const int dofs = fes->GetFE(0)->GetDof();
-      mfem::DenseTensor mass_mat(dofs, dofs, NE);
-      mass_mat = 0.;
-      {
-        AXOM_ANNOTATE_SCOPE("mass integrator assemble");
-
-        const int sz = mass_mat.TotalSize();
-        mfem::ConstantCoefficient one_coef(1.0);
-        mfem::MassIntegrator mass_integrator(one_coef, &ir);
-
-        // wrap mass_mat data as vector for AssembleEA call
-        // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
-        mfem::Vector mass_vec;
-        mfem::Swap(mass_mat.GetMemory(), mass_vec.GetMemory());
-        mass_vec.SetSize(sz);
-        mass_integrator.AssembleEA(*fes, mass_vec, false);
-        mfem::Swap(mass_mat.GetMemory(), mass_vec.GetMemory());
-      }
-
-      // Perform batched LU factorization on the mass tensor
-      // Note: This was written against mfem@4.7 and should be updated for mfem@4.8 when we upgrade
-      mfem::Array<int> pivots(NE * dofs);
-      mfem::DenseTensor mInv = mass_mat;
-      {
-        AXOM_ANNOTATE_SCOPE("batch lu factor");
-        mfem::BatchLUFactor(mInv, pivots);
-      }
-
+      // assemble the right hand side integral, incorporating the inout samples
       mfem::Vector b(fes->GetVSize());
+      SLIC_ASSERT(fes->GetVSize() == dofs * NE);
       {
         AXOM_ANNOTATE_SCOPE("domain lf integrator assemble");
+
+        inout->Read();
+
+        b.HostWrite();
+        b = 0.;
+        b.ReadWrite();
 
         mfem::QuadratureFunctionCoefficient qfc(*inout);
         mfem::DomainLFIntegrator rhs(qfc);
         rhs.SetIntRule(&ir);
 
         mfem::Array<int> elem_marker(fes->GetNE());
+        elem_marker.HostWrite();
         elem_marker = 1;
-        b = 0.;
+        elem_marker.Read();
         rhs.AssembleDevice(*fes, elem_marker, b);
       }
 
@@ -689,13 +765,13 @@ private:
       fct_mat = 0.;
 
       // Reshape returns an indexable view of a multidimensional array
-      const auto m_d = mfem::Reshape(mass_mat.HostRead(), dofs, dofs, NE);
-      const auto mInv_d = mfem::Reshape(mInv.HostRead(), dofs, dofs, NE);
-      const auto P_d = mfem::Reshape(pivots.HostRead(), dofs, NE);
+      const auto m_d = mfem::Reshape(mass_mat->HostRead(), dofs, dofs, NE);
+      const auto mInv_d = mfem::Reshape(mass_mat_inv->HostRead(), dofs, dofs, NE);
+      const auto P_d = mfem::Reshape(mass_mat_pivots->HostRead(), dofs, NE);
       const auto b_d = mfem::Reshape(b.HostRead(), dofs, NE);
       const auto one_d = mfem::Reshape(one.HostRead(), dofs);
-      auto fct_mat_d = mfem::Reshape(fct_mat.HostReadWrite(), dofs, dofs, NE);
-      auto x_d = mfem::Reshape(volFrac->HostWrite(), dofs, NE);
+      auto fct_mat_d = mfem::Reshape(shaping_scratch_buffer->HostReadWrite(), dofs, dofs, NE);
+      auto vf_d = mfem::Reshape(vf->HostWrite(), dofs, NE);
 
       AXOM_ANNOTATE_BEGIN("fct project");
       axom::for_all<axom::SEQ_EXEC>(0, NE, [&](int i) {
@@ -707,18 +783,20 @@ private:
                              &one_d(0),
                              minY,
                              maxY,
-                             &x_d(0, i),
+                             &vf_d(0, i),
                              &fct_mat_d(0, 0, i));
       });
       AXOM_ANNOTATE_END("fct project");
     }
     timer.stop();
 
+    vf->Read();
+
     // print stats for root rank
     SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
                                      "\t Generating volume fractions '{}' took {:.3f} seconds (@ "
                                      "{:L} dofs processed per second)",
-                                     volFracName,
+                                     vf_name,
                                      timer.elapsed(),
                                      static_cast<int>(fes->GetNDofs() / timer.elapsed())));
   }
@@ -726,7 +804,8 @@ private:
 private:
   shaping::QFunctionCollection m_inoutShapeQFuncs;
   shaping::QFunctionCollection m_inoutMaterialQFuncs;
-  shaping::DenseTensorCollection m_inoutDofs;
+  shaping::DenseTensorCollection m_inoutTensors;
+  shaping::MFEMArrayCollection m_inoutArrays;
 
   // add pointers to all possible samplers for the various dimensions and execution spaces
   // Note: the omp, cuda and hip pointers can only be instantiated with appropriate axom congigs
