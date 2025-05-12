@@ -405,15 +405,15 @@ double nurbs_winding_number(const Point<T, 3>& query,
       const bool ignoreInteriorDisk = true, clipDisk = true;
       bool isDiskInside, isDiskOutside;
       NURBSPatch<T, 3> the_disk;
-      nPatch.diskSplit(up[i],
-                       vp[i],
-                       disk_radius,
-                       the_disk,
-                       nPatchWithBoundaries,
-                       isDiskInside,
-                       isDiskOutside,
-                       ignoreInteriorDisk,
-                       clipDisk);
+      nPatchWithBoundaries.diskSplit(up[i],
+                                     vp[i],
+                                     disk_radius,
+                                     the_disk,
+                                     nPatchWithBoundaries,
+                                     isDiskInside,
+                                     isDiskOutside,
+                                     ignoreInteriorDisk,
+                                     clipDisk);
 
       if(isOnSurface)
       {
