@@ -223,22 +223,16 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
   inoutQFuncs.Register("positions", pos_coef, true);
 }
 
-/** 
- * Implements flux-corrected transport (FCT) to convert the inout samples (ones and zeros)
- * to a grid function on the degrees of freedom such that the volume fractions are doubles
- * between 0 and 1 ( \a y_min and \a y_max )
- */
-void FCT_project(const double* M,
-                 const int s,
-                 const double* m,
-                 const double* x,  // indicators
-                 const double y_min,
-                 const double y_max,
-                 double* xy,
-                 double* fct_mat)  // use as scratch buffer
+void FCT_project(const double* M,     // Mass matrix
+                 const int s,         // num dofs
+                 const double* m,     // rhs (incorporating the inout samples)
+                 const double y_min,  // lower bound for FCT
+                 const double y_max,  // upper bound for FCt
+                 double* xy,          // uncorrected volume fraction dofs
+                 double* fct_mat)     // use as scratch buffer
 {
-  // [IN]  - M, s, m, x, y_min, y_max
-  // [OUT] - xy
+  // [IN]  - M, s, m, y_min, y_max
+  // [INOUT] - xy
 
   constexpr int ND = 64;
   using StackArray = axom::StackArray<double, ND>;
@@ -262,45 +256,43 @@ void FCT_project(const double* M,
     ML[r] = dot;
   }
 
-  double dMLX = 0.;
-  double mSum = 0.;
+  double sum_ML = 0.;
+  double sum_m = 0.;
   for(int i = 0; i < s; ++i)
   {
-    dMLX += ML[i] * x[i];
-    mSum += m[i];
+    sum_ML += ML[i];
+    sum_m += m[i];
   }
 
-  const double y_avg = mSum / dMLX;
+  const double y_avg = sum_m / sum_ML;
 
   #ifdef AXOM_DEBUG
   constexpr double EPS = 1e-12;
-  if(!(y_min < y_avg + EPS && y_avg < y_max + EPS))
-  {
-    SLIC_WARNING(
-      axom::fmt::format("Average ({}) is out of bounds [{},{}]: ", y_avg, y_min - EPS, y_max + EPS));
-  }
+  SLIC_WARNING_IF(
+    !(y_min < y_avg + EPS && y_avg < y_max + EPS),
+    axom::fmt::format("Average ({}) is out of bounds [{},{}]: ", y_avg, y_min - EPS, y_max + EPS));
   #endif
 
   StackArray z;
   StackArray beta;
-  double betaSum = 0.;
+  double sum_beta = 0.;
   for(int i = 0; i < s; ++i)
   {
     // Some different options for beta:
     //beta[i] = 1.0;
-    beta[i] = ML[i] * x[i];
-    //beta[i] = ML[i]*(x[i] + 1e-14);
+    beta[i] = ML[i];
+    //beta[i] = ML[i]*(1. + 1e-14);
     //beta[i] = ML[i];
 
     // The low order flux correction
-    z[i] = m[i] - ML[i] * x[i] * y_avg;
-    betaSum += beta[i];
+    z[i] = m[i] - ML[i] * y_avg;
+    sum_beta += beta[i];
   }
 
   // Make beta_i sum to 1
   for(int i = 0; i < s; ++i)
   {
-    beta[i] /= betaSum;
+    beta[i] /= sum_beta;
   }
 
   for(int i = 1; i < s; ++i)
@@ -343,15 +335,15 @@ void FCT_project(const double* M,
 
   for(int i = 0; i < s; ++i)
   {
-    xy[i] = x[i] * y_avg;
+    xy[i] = y_avg;
   }
 
   for(int i = 0; i < s; ++i)
   {
     const double mi = ML[i];
     const double xyLi = xy[i];
-    const double rp = axom::utilities::max(mi * (x[i] * y_max - xyLi), 0.0);
-    const double rm = axom::utilities::min(mi * (x[i] * y_min - xyLi), 0.0);
+    const double rp = axom::utilities::max(mi * (y_max - xyLi), 0.0);
+    const double rm = axom::utilities::min(mi * (y_min - xyLi), 0.0);
     const double sp = gp[i];
     const double sm = gm[i];
 
@@ -363,8 +355,7 @@ void FCT_project(const double* M,
   {
     for(int j = 0; j < i; ++j)
     {
-      const int idx = i + j * s;
-      double fij = fct_mat[idx];
+      double fij = fct_mat[i + j * s];
 
       const double aij =
         fij >= 0.0 ? axom::utilities::min(gp[j], gm[j]) : axom::utilities::min(gm[i], gp[j]);

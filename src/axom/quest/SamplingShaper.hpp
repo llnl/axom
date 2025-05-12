@@ -763,19 +763,12 @@ private:
         mfem::BatchLUSolve(*mass_mat_inv, *mass_mat_pivots, *vf);
       }
 
-      mfem::Vector one(dofs);
-      one = 1.;
-
       constexpr double minY = 0.;
       constexpr double maxY = 1.;
-
-      mfem::Vector fct_mat(dofs * dofs * NE);
-      fct_mat = 0.;
 
       // Reshape returns an indexable view of a multidimensional array
       const auto m_d = mfem::Reshape(mass_mat->HostRead(), dofs, dofs, NE);
       const auto b_d = mfem::Reshape(b.HostRead(), dofs, NE);
-      const auto one_d = mfem::Reshape(one.HostRead(), dofs);
       auto fct_mat_d = mfem::Reshape(shaping_scratch_buffer->HostReadWrite(), dofs, dofs, NE);
       auto vf_d = mfem::Reshape(vf->HostWrite(), dofs, NE);
 
@@ -784,7 +777,6 @@ private:
         shaping::FCT_project(&m_d(0, 0, i),
                              dofs,
                              &b_d(0, i),
-                             &one_d(0),
                              minY,
                              maxY,
                              &vf_d(0, i),
