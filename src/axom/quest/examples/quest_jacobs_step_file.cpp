@@ -4384,6 +4384,104 @@ void test_rotate_curve()
   std::cout << "Inside: " << inside << std::endl;
 }
 
+void box_parameter_tol_test(const std::string& test_prefix,
+                            const std::string& out_prefix,
+                            double ls_tol,
+                            double quad_tol,
+                            const std::string& out_suffix = "")
+{
+  // Make a box out of bilinear patches
+  axom::primal::NURBSPatch<double, 3> nurbs_surfaces[6];
+  axom::primal::NURBSPatchData<double> nurbs_surfaces_data[6];
+
+  for(int i = 0; i < 6; ++i)
+  {
+    nurbs_surfaces[i].setParameters(2, 2, 1, 1);
+  }
+
+  nurbs_surfaces[0](0, 0) = axom::primal::Point<double, 3> {0.0, 0.0, 0.0};
+  nurbs_surfaces[0](1, 0) = axom::primal::Point<double, 3> {0.0, 1.0, 0.0};
+  nurbs_surfaces[0](1, 1) = axom::primal::Point<double, 3> {1.0, 1.0, 0.0};
+  nurbs_surfaces[0](0, 1) = axom::primal::Point<double, 3> {1.0, 0.0, 0.0};
+
+  nurbs_surfaces[1](0, 0) = axom::primal::Point<double, 3> {0.0, 0.0, 1.0};
+  nurbs_surfaces[1](1, 0) = axom::primal::Point<double, 3> {1.0, 0.0, 1.0};
+  nurbs_surfaces[1](1, 1) = axom::primal::Point<double, 3> {1.0, 1.0, 1.0};
+  nurbs_surfaces[1](0, 1) = axom::primal::Point<double, 3> {0.0, 1.0, 1.0};
+
+  nurbs_surfaces[2](0, 0) = axom::primal::Point<double, 3> {0.0, 0.0, 0.0};
+  nurbs_surfaces[2](1, 0) = axom::primal::Point<double, 3> {0.0, 0.0, 1.0};
+  nurbs_surfaces[2](1, 1) = axom::primal::Point<double, 3> {0.0, 1.0, 1.0};
+  nurbs_surfaces[2](0, 1) = axom::primal::Point<double, 3> {0.0, 1.0, 0.0};
+
+  nurbs_surfaces[3](0, 0) = axom::primal::Point<double, 3> {1.0, 0.0, 0.0};
+  nurbs_surfaces[3](1, 0) = axom::primal::Point<double, 3> {1.0, 1.0, 0.0};
+  nurbs_surfaces[3](1, 1) = axom::primal::Point<double, 3> {1.0, 1.0, 1.0};
+  nurbs_surfaces[3](0, 1) = axom::primal::Point<double, 3> {1.0, 0.0, 1.0};
+
+  nurbs_surfaces[4](0, 0) = axom::primal::Point<double, 3> {0.0, 0.0, 0.0};
+  nurbs_surfaces[4](1, 0) = axom::primal::Point<double, 3> {1.0, 0.0, 0.0};
+  nurbs_surfaces[4](1, 1) = axom::primal::Point<double, 3> {1.0, 0.0, 1.0};
+  nurbs_surfaces[4](0, 1) = axom::primal::Point<double, 3> {0.0, 0.0, 1.0};
+
+  nurbs_surfaces[5](0, 0) = axom::primal::Point<double, 3> {0.0, 1.0, 0.0};
+  nurbs_surfaces[5](1, 0) = axom::primal::Point<double, 3> {0.0, 1.0, 1.0};
+  nurbs_surfaces[5](1, 1) = axom::primal::Point<double, 3> {1.0, 1.0, 1.0};
+  nurbs_surfaces[5](0, 1) = axom::primal::Point<double, 3> {1.0, 1.0, 0.0};
+
+  for(int i = 0; i < 6; ++i)
+  {
+    nurbs_surfaces_data[i] = axom::primal::NURBSPatchData<double>(i, nurbs_surfaces[i]);
+  }
+
+  constexpr double EPS = 1e-12;
+  constexpr double edge_tol = 1e-16;
+
+  // Keep looping over points in the bounding box until we misclassify a point
+  axom::primal::BoundingBox<double, 3> bbox;
+  bbox.addPoint(axom::primal::Point<double, 3> {-0.1, -0.1, -0.1});
+  bbox.addPoint(axom::primal::Point<double, 3> {1.1, 1.1, 1.1});
+
+  axom::primal::BoundingBox<double, 3> true_bbox;
+  bbox.addPoint(axom::primal::Point<double, 3> {0.0, 0.0, 0.0});
+  bbox.addPoint(axom::primal::Point<double, 3> {1.0, 1.0, 1.0});
+
+  long num_correct = 0;
+  while(true)
+  {
+    const double x0 = axom::utilities::random_real(bbox.getMin()[0], bbox.getMax()[0]);
+    const double y0 = axom::utilities::random_real(bbox.getMin()[1], bbox.getMax()[1]);
+    const double z0 = axom::utilities::random_real(bbox.getMin()[2], bbox.getMax()[2]);
+
+    // Only check points that are within 0.1 of the bounding box
+    if((x0 > 0.1 && x0 < 0.9) && (y0 > 0.1 && y0 < 0.9) && (z0 > 0.1 && z0 < 0.9))
+    {
+      continue;
+    }
+
+    axom::primal::Point<double, 3> query = axom::primal::Point<double, 3> {x0, y0, z0};
+
+    // test the winding number at the center of the box
+    double gwn = 0.0;
+    int case_code = -1;
+    int integrated_trimming_curves = 0;
+    for(int i = 0; i < 6; ++i)
+    {
+      gwn += axom::primal::winding_number(query,
+                                          nurbs_surfaces_data[i],
+                                          case_code,
+                                          integrated_trimming_curves,
+                                          edge_tol,
+                                          quad_tol,
+                                          ls_tol,
+                                          EPS);
+    }
+
+    int shouldBeInside = true_bbox.contains(query);
+    
+  }
+}
+
 void tear_parameter_tol_test(const std::string& test_prefix,
                              const std::string& out_prefix,
                              double ls_tol,
@@ -4956,6 +5054,7 @@ int main()
     axom::utilities::filesystem::makeDirsForPath(out_prefix);
   }
 
+  box_parameter_tol_test("1em3", out_prefix, 1e-3, 1e-6);
   int num_query_pts = 1e3;
 
   double fixed_ls_tol = 1e-6;
@@ -4982,21 +5081,21 @@ int main()
   //                           test_suffix);
   // }
 
-  for(int i = 3; i < 4; ++i)
-  {
-    std::cout << "i: " << i << std::endl;
+  // for(int i = 3; i < 4; ++i)
+  // {
+  //   std::cout << "i: " << i << std::endl;
 
-    double ls_tol = std::pow(10, -i);
+  //   double ls_tol = std::pow(10, -i);
 
-    std::string test_prefix = axom::fmt::format("1em{}", i);
-    std::string test_suffix = "ls_random_super_stupid";
+  //   std::string test_prefix = axom::fmt::format("1em{}", i);
+  //   std::string test_suffix = "ls_random_super_stupid";
 
-    axom::primal::BoundingBox<double, 3> bbox;
-    bbox.addPoint(axom::primal::Point<double, 3> {1.0, 1.0, 1.0});
-    bbox.addPoint(axom::primal::Point<double, 3> {-1.0, -1.0, -2.0});
-    auto query_pts = generateSamplePointsOnBBox(bbox, num_query_pts);
-    tear_parameter_tol_test(test_prefix, out_prefix, ls_tol, fixed_quad_tol, query_pts, test_suffix);
-  }
+  //   axom::primal::BoundingBox<double, 3> bbox;
+  //   bbox.addPoint(axom::primal::Point<double, 3> {1.0, 1.0, 1.0});
+  //   bbox.addPoint(axom::primal::Point<double, 3> {-1.0, -1.0, -2.0});
+  //   auto query_pts = generateSamplePointsOnBBox(bbox, num_query_pts);
+  //   tear_parameter_tol_test(test_prefix, out_prefix, ls_tol, fixed_quad_tol, query_pts, test_suffix);
+  // }
 
   // test_rotate_curve();
 
