@@ -21,7 +21,7 @@
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Polygon.hpp"
 #include "axom/primal/geometry/Polyhedron.hpp"
-#include "axom/primal/operators/winding_number_3d.hpp"
+#include "axom/primal/operators/winding_number.hpp"
 
 // C++ includes
 #include <cmath>

@@ -130,8 +130,7 @@ private:
   public:
     PatchProcessor() = delete;
 
-    PatchProcessor(const Handle(Geom_BSplineSurface) & surface,
-                   bool verbose = false)
+    PatchProcessor(const Handle(Geom_BSplineSurface) & surface, bool verbose = false)
       : m_surface(surface)
       , m_verbose(verbose)
     {
@@ -153,27 +152,19 @@ private:
                     "Axom's NURBSPatch only supports non-periodic patches");
 
       // Extract weights, if the surface is rational
-      const bool isRational =
-        m_surface->IsURational() || m_surface->IsVRational();
+      const bool isRational = m_surface->IsURational() || m_surface->IsVRational();
 
       // Create the NURBSPatch from control points, weights, and knots
-      return isRational ? NPatch(extractControlPoints(),
-                                 extractWeights(),
-                                 extractCombinedKnots_u(),
-                                 extractCombinedKnots_v())
-                        : NPatch(extractControlPoints(),
-                                 extractCombinedKnots_u(),
-                                 extractCombinedKnots_v());
+      return isRational
+        ? NPatch(extractControlPoints(),
+                 extractWeights(),
+                 extractCombinedKnots_u(),
+                 extractCombinedKnots_v())
+        : NPatch(extractControlPoints(), extractCombinedKnots_u(), extractCombinedKnots_v());
     }
 
-    bool patchWasOriginallyPeriodic_u() const
-    {
-      return m_inputSurfaceWasPeriodic_u;
-    }
-    bool patchWasOriginallyPeriodic_v() const
-    {
-      return m_inputSurfaceWasPeriodic_v;
-    }
+    bool patchWasOriginallyPeriodic_u() const { return m_inputSurfaceWasPeriodic_u; }
+    bool patchWasOriginallyPeriodic_v() const { return m_inputSurfaceWasPeriodic_v; }
 
     /**
      * Utility function to compare the represented surface to \a otherSurface
@@ -191,17 +182,11 @@ private:
 
       auto knot_vals_u = extractKnotValues_u();
       axom::Array<double> params_u(numSamples);
-      axom::numerics::linspace(knot_vals_u.front(),
-                               knot_vals_u.back(),
-                               params_u.data(),
-                               numSamples);
+      axom::numerics::linspace(knot_vals_u.front(), knot_vals_u.back(), params_u.data(), numSamples);
 
       auto knot_vals_v = extractKnotValues_v();
       axom::Array<double> params_v(numSamples);
-      axom::numerics::linspace(knot_vals_v.front(),
-                               knot_vals_v.back(),
-                               params_v.data(),
-                               numSamples);
+      axom::numerics::linspace(knot_vals_v.front(), knot_vals_v.back(), params_v.data(), numSamples);
 
       auto evaluateSurface = [](auto surface, double u, double v) {
         gp_Pnt point;
@@ -217,22 +202,20 @@ private:
           auto my_val = evaluateSurface(m_surface, u, v);
           auto other_val = evaluateSurface(otherSurface, u, v);
 
-          const double sq_dist =
-            axom::primal::squared_distance(my_val, other_val);
+          const double sq_dist = axom::primal::squared_distance(my_val, other_val);
           squared_sum += sq_dist;
-          SLIC_WARNING_IF(
-            m_verbose && sq_dist > sq_tol,
-            axom::fmt::format("Distance between surfaces at evaluated param "
-                              "({},{}) exceeded tolerance {}.\n"
-                              "Point on my surface {}; Point on other surface "
-                              "{}; Squared distance {}  (running sum {})",
-                              u,
-                              v,
-                              sq_tol,
-                              my_val,
-                              other_val,
-                              sq_dist,
-                              squared_sum));
+          SLIC_WARNING_IF(m_verbose && sq_dist > sq_tol,
+                          axom::fmt::format("Distance between surfaces at evaluated param "
+                                            "({},{}) exceeded tolerance {}.\n"
+                                            "Point on my surface {}; Point on other surface "
+                                            "{}; Squared distance {}  (running sum {})",
+                                            u,
+                                            v,
+                                            sq_tol,
+                                            my_val,
+                                            other_val,
+                                            sq_dist,
+                                            squared_sum));
         }
       }
 
@@ -254,8 +237,7 @@ private:
                                   patch_control_points.shape()[1],
                                   patch_control_points));
 
-      const bool isRational =
-        m_surface->IsURational() || m_surface->IsVRational();
+      const bool isRational = m_surface->IsURational() || m_surface->IsVRational();
 
       if(isRational)
       {
@@ -282,8 +264,7 @@ private:
         return;  // nothing to do, return
       }
 
-      const bool isRational =
-        m_surface->IsURational() || m_surface->IsVRational();
+      const bool isRational = m_surface->IsURational() || m_surface->IsVRational();
 
       const int uDegree = m_surface->UDegree();
       const int vDegree = m_surface->VDegree();
@@ -387,10 +368,7 @@ private:
       int vDegree)
     {
       // Convert control points to OpenCascade array
-      TColgp_Array2OfPnt poles(1,
-                               controlPoints.shape()[0],
-                               1,
-                               controlPoints.shape()[1]);
+      TColgp_Array2OfPnt poles(1, controlPoints.shape()[0], 1, controlPoints.shape()[1]);
       for(int i = 0; i < controlPoints.shape()[0]; ++i)
       {
         for(int j = 0; j < controlPoints.shape()[1]; ++j)
@@ -422,10 +400,7 @@ private:
       Handle(Geom_BSplineSurface) bsplineSurface;
       if(!weights.empty())
       {
-        TColStd_Array2OfReal occWeights(1,
-                                        controlPoints.shape()[0],
-                                        1,
-                                        controlPoints.shape()[1]);
+        TColStd_Array2OfReal occWeights(1, controlPoints.shape()[0], 1, controlPoints.shape()[1]);
         for(int i = 0; i < controlPoints.shape()[0]; ++i)
         {
           for(int j = 0; j < controlPoints.shape()[1]; ++j)
@@ -476,8 +451,7 @@ private:
         for(int j = poles.LowerCol(); j <= poles.UpperCol(); ++j)
         {
           gp_Pnt pole = poles(i, j);
-          patch_control_points(i - 1, j - 1) =
-            PointType3D {pole.X(), pole.Y(), pole.Z()};
+          patch_control_points(i - 1, j - 1) = PointType3D {pole.X(), pole.Y(), pole.Z()};
         }
       }
 
@@ -490,10 +464,7 @@ private:
     {
       axom::Array<double, 2> patch_weights;
 
-      TColStd_Array2OfReal weights(1,
-                                   m_surface->NbUPoles(),
-                                   1,
-                                   m_surface->NbVPoles());
+      TColStd_Array2OfReal weights(1, m_surface->NbUPoles(), 1, m_surface->NbVPoles());
       m_surface->Weights(weights);
 
       patch_weights.resize(axom::ArrayOptions::Uninitialized {},
@@ -644,18 +615,14 @@ private:
     NCurve nurbsCurve() const
     {
       const bool isPeriodic = m_curve->IsPeriodic();
-      SLIC_ERROR_IF(isPeriodic,
-                    "Axom's NURBSCurve only supports non-periodic curves");
+      SLIC_ERROR_IF(isPeriodic, "Axom's NURBSCurve only supports non-periodic curves");
 
       return m_curve->IsRational()
         ? NCurve(extractControlPoints(), extractWeights(), extractCombinedKnots())
         : NCurve(extractControlPoints(), extractCombinedKnots());
     }
 
-    bool curveWasOriginallyPeriodic() const
-    {
-      return m_inputSurfaceWasPeriodic;
-    }
+    bool curveWasOriginallyPeriodic() const { return m_inputSurfaceWasPeriodic; }
 
     /**
      * Utility function to compare the represented curve to \a otherCurve
@@ -674,10 +641,7 @@ private:
       auto knot_vals = extractKnotValues();
 
       axom::Array<double> params(numSamples);
-      axom::numerics::linspace(knot_vals.front(),
-                               knot_vals.back(),
-                               params.data(),
-                               numSamples);
+      axom::numerics::linspace(knot_vals.front(), knot_vals.back(), params.data(), numSamples);
 
       auto evaluateCurve = [](auto curve, double t) {
         const gp_Pnt2d knot_point = curve->Value(t);
@@ -692,18 +656,17 @@ private:
 
         const double sq_dist = axom::primal::squared_distance(my_val, other_val);
         squared_sum += sq_dist;
-        SLIC_WARNING_IF(
-          m_verbose && sq_dist > sq_tol,
-          axom::fmt::format("Distance between curves at evaluated param {} "
-                            "exceeded tolerance {}.\n"
-                            "Point on my curve {}; Point on other curve {}; "
-                            "Squared distance {}  (running sum {})",
-                            val,
-                            sq_tol,
-                            my_val,
-                            other_val,
-                            sq_dist,
-                            squared_sum));
+        SLIC_WARNING_IF(m_verbose && sq_dist > sq_tol,
+                        axom::fmt::format("Distance between curves at evaluated param {} "
+                                          "exceeded tolerance {}.\n"
+                                          "Point on my curve {}; Point on other curve {}; "
+                                          "Squared distance {}  (running sum {})",
+                                          val,
+                                          sq_tol,
+                                          my_val,
+                                          other_val,
+                                          sq_dist,
+                                          squared_sum));
       }
 
       return squared_sum <= sq_tol;
@@ -743,12 +706,12 @@ private:
       try
       {
         // Create a new BSpline surface from the modified knots and control points
-        m_curve = createBSplineCurveFromAxomArrays(
-          extractControlPoints(),
-          isRational ? extractWeights() : axom::Array<double>(),
-          mod_knots,
-          mod_mults,
-          degree);
+        m_curve =
+          createBSplineCurveFromAxomArrays(extractControlPoints(),
+                                           isRational ? extractWeights() : axom::Array<double>(),
+                                           mod_knots,
+                                           mod_mults,
+                                           degree);
       }
       catch(const Standard_Failure& e)
       {
@@ -769,8 +732,7 @@ private:
       TColgp_Array1OfPnt2d occPoles(1, controlPoints.size());
       for(int i = 0; i < controlPoints.size(); ++i)
       {
-        occPoles.SetValue(i + 1,
-                          gp_Pnt2d(controlPoints[i][0], controlPoints[i][1]));
+        occPoles.SetValue(i + 1, gp_Pnt2d(controlPoints[i][0], controlPoints[i][1]));
       }
 
       // Convert knots and mults to OpenCascade arrays
@@ -793,13 +755,11 @@ private:
           occWeights.SetValue(i + 1, weights[i]);
         }
 
-        clamped_curve =
-          new Geom2d_BSplineCurve(occPoles, occWeights, occKnots, occMults, degree);
+        clamped_curve = new Geom2d_BSplineCurve(occPoles, occWeights, occKnots, occMults, degree);
       }
       else
       {
-        clamped_curve =
-          new Geom2d_BSplineCurve(occPoles, occKnots, occMults, degree);
+        clamped_curve = new Geom2d_BSplineCurve(occPoles, occKnots, occMults, degree);
       }
 
       return clamped_curve;
@@ -898,8 +858,7 @@ private:
 public:
   StepFileProcessor() = delete;
 
-  StepFileProcessor(const std::string& filename, bool verbose = false)
-    : m_verbose(verbose)
+  StepFileProcessor(const std::string& filename, bool verbose = false) : m_verbose(verbose)
   {
     m_shape = loadStepFile(filename);
   }
@@ -932,19 +891,15 @@ public:
 
       const double sum = std::accumulate(data.begin(), data.end(), 0.0);
       const double sumSquared =
-        std::accumulate(data.begin(), data.end(), 0.0, [](double a, double b) {
-          return a + b * b;
-        });
+        std::accumulate(data.begin(), data.end(), 0.0, [](double a, double b) { return a + b * b; });
       stats.mean = sum / data.size();
-      stats.stddev =
-        std::sqrt(sumSquared / data.size() - stats.mean * stats.mean);
+      stats.stddev = std::sqrt(sumSquared / data.size() - stats.mean * stats.mean);
       return stats;
     };
 
     axom::fmt::memory_buffer out;
 
-    axom::fmt::format_to(std::back_inserter(out),
-                         "Details about loaded mesh:\n");
+    axom::fmt::format_to(std::back_inserter(out), "Details about loaded mesh:\n");
 
     // summarize the number of patches and trimming curves
     {
@@ -954,11 +909,10 @@ public:
         totalTrimmingCurves += kv.second.nurbsPatch.getNumTrimmingCurves();
       }
 
-      axom::fmt::format_to(
-        std::back_inserter(out),
-        " - Mesh has {} patches with a total of {} trimming curves\n",
-        m_patchData.size(),
-        totalTrimmingCurves);
+      axom::fmt::format_to(std::back_inserter(out),
+                           " - Mesh has {} patches with a total of {} trimming curves\n",
+                           m_patchData.size(),
+                           totalTrimmingCurves);
     }
 
     // compute and print the bounding box of the mesh in physical space
@@ -974,11 +928,10 @@ public:
         //   kv.second.physicalBBox);
       }
 
-      axom::fmt::format_to(
-        std::back_inserter(out),
-        " - Bounding box of the mesh in physical space (in {}): {}\n",
-        m_fileUnits,
-        meshBBox);
+      axom::fmt::format_to(std::back_inserter(out),
+                           " - Bounding box of the mesh in physical space (in {}): {}\n",
+                           m_fileUnits,
+                           meshBBox);
     }
 
     // compute a histogram of the patch degrees w/ some additional info
@@ -995,8 +948,7 @@ public:
       for(const auto& kv : m_patchData)
       {
         const auto& patch = kv.second.nurbsPatch;
-        auto& c =
-          patchDegrees[std::make_pair(patch.getDegree_u(), patch.getDegree_v())];
+        auto& c = patchDegrees[std::make_pair(patch.getDegree_u(), patch.getDegree_v())];
         c.total++;
         if(patch.isRational())
         {
@@ -1012,8 +964,7 @@ public:
         }
       }
 
-      axom::fmt::format_to(std::back_inserter(out),
-                           " - Patch degree histogram:\n");
+      axom::fmt::format_to(std::back_inserter(out), " - Patch degree histogram:\n");
       for(const auto& entry : patchDegrees)
       {
         axom::fmt::format_to(
@@ -1024,12 +975,10 @@ public:
           entry.second.total,
           entry.second.rational,
           entry.second.periodic_u > 0
-            ? axom::fmt::format("; {} originally periodic in u",
-                                entry.second.periodic_u)
+            ? axom::fmt::format("; {} originally periodic in u", entry.second.periodic_u)
             : "",
           entry.second.periodic_v > 0
-            ? axom::fmt::format("; {} originally periodic in v",
-                                entry.second.periodic_v)
+            ? axom::fmt::format("; {} originally periodic in v", entry.second.periodic_v)
             : "");
       }
     }
@@ -1070,12 +1019,10 @@ public:
       std::vector<int> trimmingCurvesPerPatch;
       for(const auto& kv : m_patchData)
       {
-        trimmingCurvesPerPatch.push_back(
-          kv.second.nurbsPatch.getNumTrimmingCurves());
+        trimmingCurvesPerPatch.push_back(kv.second.nurbsPatch.getNumTrimmingCurves());
       }
 
-      AccumStatistics trimmingCurvesStats =
-        computeStatistics(trimmingCurvesPerPatch);
+      AccumStatistics trimmingCurvesStats = computeStatistics(trimmingCurvesPerPatch);
 
       axom::fmt::format_to(std::back_inserter(out),
                            " - Number of trimming curves per patch:  min: {}, "
@@ -1120,8 +1067,7 @@ public:
       AccumStatistics curveDegreeStats = computeStatistics(curveDegreeList);
 
       // Output the results for curve orders
-      axom::fmt::format_to(std::back_inserter(out),
-                           " - Mesh trimming curve degree histogram:\n");
+      axom::fmt::format_to(std::back_inserter(out), " - Mesh trimming curve degree histogram:\n");
       for(const auto& entry : curveDegreeCounts)
       {
         axom::fmt::format_to(std::back_inserter(out),
@@ -1130,16 +1076,14 @@ public:
                              entry.second.total,
                              entry.second.rational,
                              entry.second.periodic > 0
-                               ? axom::fmt::format("; {} originally periodic",
-                                                   entry.second.periodic)
+                               ? axom::fmt::format("; {} originally periodic", entry.second.periodic)
                                : "");
       }
 
-      axom::fmt::format_to(
-        std::back_inserter(out),
-        "   - Average trimming curve order: {:.2f} (stdev: {:.2f})\n",
-        curveDegreeStats.mean,
-        curveDegreeStats.stddev);
+      axom::fmt::format_to(std::back_inserter(out),
+                           "   - Average trimming curve order: {:.2f} (stdev: {:.2f})\n",
+                           curveDegreeStats.mean,
+                           curveDegreeStats.stddev);
     }
 
     // Compute statistics on the number of spans in the trimming curves
@@ -1172,16 +1116,14 @@ public:
   void extractPatches()
   {
     int patchIndex = 0;
-    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More();
-        faceExp.Next(), ++patchIndex)
+    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       const TopoDS_Face& face = TopoDS::Face(faceExp.Current());
 
       Handle(Geom_Surface) surface = BRep_Tool::Surface(face);
       if(surface->IsKind(STANDARD_TYPE(Geom_BSplineSurface)))
       {
-        Handle(Geom_BSplineSurface) bsplineSurface =
-          Handle(Geom_BSplineSurface)::DownCast(surface);
+        Handle(Geom_BSplineSurface) bsplineSurface = Handle(Geom_BSplineSurface)::DownCast(surface);
 
         PatchProcessor patchProcessor(bsplineSurface);
 
@@ -1192,19 +1134,15 @@ public:
         PatchData& patchData = m_patchData[patchIndex];
         patchData.patchIndex = patchIndex;
         patchData.nurbsPatch = patchProcessor.nurbsPatch();
-        patchData.wasOriginallyPeriodic_u =
-          patchProcessor.patchWasOriginallyPeriodic_u();
-        patchData.wasOriginallyPeriodic_v =
-          patchProcessor.patchWasOriginallyPeriodic_v();
+        patchData.wasOriginallyPeriodic_u = patchProcessor.patchWasOriginallyPeriodic_u();
+        patchData.wasOriginallyPeriodic_v = patchProcessor.patchWasOriginallyPeriodic_v();
         patchData.parametricBBox = faceBoundingBox(face);
         patchData.physicalBBox = patchData.nurbsPatch.boundingBox();
 
         if(patchData.wasOriginallyPeriodic_u || patchData.wasOriginallyPeriodic_v)
         {
-          Handle(Geom_BSplineSurface) origSurface =
-            Handle(Geom_BSplineSurface)::DownCast(surface);
-          const bool withinThreshold =
-            patchProcessor.compareToSurface(origSurface, 25);
+          Handle(Geom_BSplineSurface) origSurface = Handle(Geom_BSplineSurface)::DownCast(surface);
+          const bool withinThreshold = patchProcessor.compareToSurface(origSurface, 25);
 
           SLIC_WARNING_IF(!withinThreshold,
                           axom::fmt::format("[Patch {}] Patch geometry was not "
@@ -1221,19 +1159,17 @@ public:
   {
     int patchIndex = 0;
 
-    std::map<GeomAbs_CurveType, std::string> curveTypeMap = {
-      {GeomAbs_Line, "Line"},
-      {GeomAbs_Circle, "Circle"},
-      {GeomAbs_Ellipse, "Ellipse"},
-      {GeomAbs_Hyperbola, "Hyperbola"},
-      {GeomAbs_Parabola, "Parabola"},
-      {GeomAbs_BezierCurve, "Bezier Curve"},
-      {GeomAbs_BSplineCurve, "BSpline Curve"},
-      {GeomAbs_OffsetCurve, "Offset Curve"},
-      {GeomAbs_OtherCurve, "Other Curve"}};
+    std::map<GeomAbs_CurveType, std::string> curveTypeMap = {{GeomAbs_Line, "Line"},
+                                                             {GeomAbs_Circle, "Circle"},
+                                                             {GeomAbs_Ellipse, "Ellipse"},
+                                                             {GeomAbs_Hyperbola, "Hyperbola"},
+                                                             {GeomAbs_Parabola, "Parabola"},
+                                                             {GeomAbs_BezierCurve, "Bezier Curve"},
+                                                             {GeomAbs_BSplineCurve, "BSpline Curve"},
+                                                             {GeomAbs_OffsetCurve, "Offset Curve"},
+                                                             {GeomAbs_OtherCurve, "Other Curve"}};
 
-    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More();
-        faceExp.Next(), ++patchIndex)
+    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       PatchData& patchData = m_patchData[patchIndex];
       NCurveArray& curves = patchData.nurbsPatch.getTrimmingCurves();
@@ -1243,13 +1179,11 @@ public:
       auto expandedPatchBbox = patchBbox;
       expandedPatchBbox.scale(1. + 1e-3);
 
-      SLIC_INFO_IF(
-        m_verbose,
-        axom::fmt::format(
-          "[Patch {}]: BBox in parametric space: {}; expanded BBox {}",
-          patchIndex,
-          patchBbox,
-          expandedPatchBbox));
+      SLIC_INFO_IF(m_verbose,
+                   axom::fmt::format("[Patch {}]: BBox in parametric space: {}; expanded BBox {}",
+                                     patchIndex,
+                                     patchBbox,
+                                     expandedPatchBbox));
 
       int wireIndex = 0;
       for(TopExp_Explorer wireExp(faceExp.Current(), TopAbs_WIRE); wireExp.More();
@@ -1258,8 +1192,7 @@ public:
         const TopoDS_Wire& wire = TopoDS::Wire(wireExp.Current());
 
         int edgeIndex = 0;
-        for(TopExp_Explorer edgeExp(wire, TopAbs_EDGE); edgeExp.More();
-            edgeExp.Next(), ++edgeIndex)
+        for(TopExp_Explorer edgeExp(wire, TopAbs_EDGE); edgeExp.More(); edgeExp.Next(), ++edgeIndex)
         {
           const TopoDS_Edge& edge = TopoDS::Edge(edgeExp.Current());
 
@@ -1270,22 +1203,18 @@ public:
           GeomAbs_CurveType curveType = curveAdaptor.GetType();
 
           std::string curveTypeStr = curveTypeMap[curveType];
-          SLIC_INFO_IF(
-            m_verbose,
-            axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Processing "
-                              "edge with curve type: {}",
-                              patchIndex,
-                              wireIndex,
-                              edgeIndex,
-                              curves.size(),
-                              curveTypeStr));
+          SLIC_INFO_IF(m_verbose,
+                       axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Processing "
+                                         "edge with curve type: {}",
+                                         patchIndex,
+                                         wireIndex,
+                                         edgeIndex,
+                                         curves.size(),
+                                         curveTypeStr));
 
           Standard_Real first, last;
           Handle(Geom2d_Curve) parametricCurve =
-            BRep_Tool::CurveOnSurface(edge,
-                                      TopoDS::Face(faceExp.Current()),
-                                      first,
-                                      last);
+            BRep_Tool::CurveOnSurface(edge, TopoDS::Face(faceExp.Current()), first, last);
           Handle(Geom2d_BSplineCurve) bsplineCurve =
             Geom2dConvert::CurveToBSplineCurve(parametricCurve);
 
@@ -1310,33 +1239,29 @@ public:
             SLIC_ASSERT(curves.back().isValidNURBS());
             SLIC_ASSERT(curves.back().getDegree() == bsplineCurve->Degree());
 
-            SLIC_INFO_IF(
-              m_verbose,
-              axom::fmt::format(
-                "[Patch {} Wire {} Edge {} Curve {}] Added curve: {}",
-                patchIndex,
-                wireIndex,
-                edgeIndex,
-                curves.size(),
-                curves.back()));
+            SLIC_INFO_IF(m_verbose,
+                         axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Added curve: {}",
+                                           patchIndex,
+                                           wireIndex,
+                                           edgeIndex,
+                                           curves.size(),
+                                           curves.back()));
 
             // Check to ensure that curve did not change geometrically after making non-periodic
             if(originalCurvePeriodic)
             {
               Handle(Geom2d_BSplineCurve) origCurve =
                 Geom2dConvert::CurveToBSplineCurve(parametricCurve);
-              const bool withinThreshold =
-                curveProcessor.compareToCurve(origCurve, 25);
+              const bool withinThreshold = curveProcessor.compareToCurve(origCurve, 25);
               SLIC_WARNING_IF(
                 !withinThreshold,
-                axom::fmt::format(
-                  "[Patch {} Wire {} Edge {} Curve {}] Trimming curve was not "
-                  "within threshold after clamping.",
-                  patchIndex,
-                  wireIndex,
-                  edgeIndex,
-                  curves.size(),
-                  curves.back()));
+                axom::fmt::format("[Patch {} Wire {} Edge {} Curve {}] Trimming curve was not "
+                                  "within threshold after clamping.",
+                                  patchIndex,
+                                  wireIndex,
+                                  edgeIndex,
+                                  curves.size(),
+                                  curves.back()));
             }
           }
         }
@@ -1375,7 +1300,7 @@ public:
             bool isOnThisCurve = false;
             gwn += winding_number(p, curve, isOnThisCurve);
           }
-          
+
           if(gwn < 0)
           {
             patchData.nurbsPatch.flipNormals();
@@ -1390,8 +1315,8 @@ public:
             // patchData.nurbsPatch.printTrimmingCurves(
             // "C:\\Users\\Fireh\\Code\\winding_number_code\\figures_2d\\trimming_"
             // "curve_examples\\unsure_" + std::to_string(patchIndex) + ".txt");
-            std::cout << "Unsure if it's the right orientation! Trying again..."
-                      << patchIndex << std::endl;
+            std::cout << "Unsure if it's the right orientation! Trying again..." << patchIndex
+                      << std::endl;
           }
         }
       }
@@ -1402,8 +1327,7 @@ public:
   {
     for(auto& kv : m_patchData)
     {
-      kv.second.nurbsPatchData =
-        axom::primal::NURBSPatchData<double>(kv.first, kv.second.nurbsPatch);
+      kv.second.nurbsPatchData = axom::primal::NURBSPatchData<double>(kv.first, kv.second.nurbsPatch);
     }
   }
 
@@ -1470,8 +1394,7 @@ private:
    * \note Converts the units to their canonical form
    * \sa getCanonicalUnit
    */
-  double getConversionFactor(const std::string& fileUnits,
-                             const std::string& defaultUnits = "mm") const
+  double getConversionFactor(const std::string& fileUnits, const std::string& defaultUnits = "mm") const
   {
     std::map<std::string, double> unitConversionMap = {{"am", 1e-15},
                                                        {"fm", 1e-12},
@@ -1490,8 +1413,7 @@ private:
                                                        {"mi", 1609344.0}};
 
     const double fileUnitFactor = unitConversionMap[getCanonicalUnit(fileUnits)];
-    const double defaultUnitFactor =
-      unitConversionMap[getCanonicalUnit(defaultUnits)];
+    const double defaultUnitFactor = unitConversionMap[getCanonicalUnit(defaultUnits)];
 
     return fileUnitFactor / defaultUnitFactor;
   };
@@ -1545,10 +1467,8 @@ private:
     }
 
     m_loadStatus = LoadStatus::SUCEESS;
-    SLIC_INFO_IF(
-      m_verbose,
-      axom::fmt::format("Successfully read the STEP file with {} roots",
-                        numRoots));
+    SLIC_INFO_IF(m_verbose,
+                 axom::fmt::format("Successfully read the STEP file with {} roots", numRoots));
 
     // Initialize m_faceMap with faces from nurbsShape
     TopExp::MapShapes(nurbsShape, TopAbs_FACE, m_faceMap);
@@ -1595,9 +1515,7 @@ public:
     const auto& parametricBBox = patchData.parametricBBox;
 
     SLIC_INFO_IF(m_verbose,
-                 axom::fmt::format("Parametric BBox for patch {}: {}",
-                                   patchIndex,
-                                   parametricBBox));
+                 axom::fmt::format("Parametric BBox for patch {}: {}", patchIndex, parametricBBox));
 
     const auto& curves = patchData.nurbsPatch.getTrimmingCurves();
     axom::fmt::memory_buffer svgContent;
@@ -1607,22 +1525,20 @@ public:
     scaledParametricBBox.scale(1.25);
 
     SLIC_INFO_IF(m_verbose,
-                 axom::fmt::format(
-                   "Scaled and translated parametric BBox for patch {}: {}",
-                   patchIndex,
-                   scaledParametricBBox));
+                 axom::fmt::format("Scaled and translated parametric BBox for patch {}: {}",
+                                   patchIndex,
+                                   scaledParametricBBox));
 
     // add the SVG header
-    axom::fmt::format_to(
-      std::back_inserter(svgContent),
-      "<svg xmlns='http://www.w3.org/2000/svg' version='1.1' \n"
-      "     width='{0}{2}' height='{1}{2}' \n"
-      "     viewBox='{3} {4} {0} {1}' >\n",
-      scaledParametricBBox.range()[0],
-      scaledParametricBBox.range()[1],
-      m_units,
-      scaledParametricBBox.getMin()[0],
-      scaledParametricBBox.getMin()[1]);
+    axom::fmt::format_to(std::back_inserter(svgContent),
+                         "<svg xmlns='http://www.w3.org/2000/svg' version='1.1' \n"
+                         "     width='{0}{2}' height='{1}{2}' \n"
+                         "     viewBox='{3} {4} {0} {1}' >\n",
+                         scaledParametricBBox.range()[0],
+                         scaledParametricBBox.range()[1],
+                         m_units,
+                         scaledParametricBBox.getMin()[0],
+                         scaledParametricBBox.getMin()[1]);
 
     // add some CSS styles
     axom::fmt::format_to(std::back_inserter(svgContent), R"raw(
@@ -1650,14 +1566,13 @@ public:
     )raw");
 
     // add a rectangle for the parametric bounding box and a comment for its bounding boxes
-    axom::fmt::format_to(
-      std::back_inserter(svgContent),
-      "  <!-- Bounding box of ({},{})-degree patch in parametric space: {}; \n"
-      "       BBox in physical space: {} -->\n",
-      patchData.nurbsPatch.getDegree_u(),
-      patchData.nurbsPatch.getDegree_v(),
-      patchData.parametricBBox,
-      patchData.physicalBBox);
+    axom::fmt::format_to(std::back_inserter(svgContent),
+                         "  <!-- Bounding box of ({},{})-degree patch in parametric space: {}; \n"
+                         "       BBox in physical space: {} -->\n",
+                         patchData.nurbsPatch.getDegree_u(),
+                         patchData.nurbsPatch.getDegree_v(),
+                         patchData.parametricBBox,
+                         patchData.physicalBBox);
 
     axom::fmt::format_to(std::back_inserter(svgContent),
                          "  <rect x='{}' y='{}' width='{}' height='{}' />\n",
@@ -1667,59 +1582,53 @@ public:
                          parametricBBox.range()[1]);
 
     // add lines for the u- and v- knots
-    axom::fmt::format_to(std::back_inserter(svgContent),
-                         "  <!-- Lines for u- and v- knots -->\n");
+    axom::fmt::format_to(std::back_inserter(svgContent), "  <!-- Lines for u- and v- knots -->\n");
 
-    auto unique_knots_and_multiplicities =
-      [](const axom::Array<double>& knots_vector) {
-        axom::Array<std::pair<double, int>> uniqueCounts;
-        if(knots_vector.size() == 0) return uniqueCounts;
+    auto unique_knots_and_multiplicities = [](const axom::Array<double>& knots_vector) {
+      axom::Array<std::pair<double, int>> uniqueCounts;
+      if(knots_vector.size() == 0) return uniqueCounts;
 
-        double currentValue = knots_vector[0];
-        int count = 1;
+      double currentValue = knots_vector[0];
+      int count = 1;
 
-        for(int i = 1; i < knots_vector.size(); ++i)
+      for(int i = 1; i < knots_vector.size(); ++i)
+      {
+        if(knots_vector[i] == currentValue)
         {
-          if(knots_vector[i] == currentValue)
-          {
-            ++count;
-          }
-          else
-          {
-            uniqueCounts.emplace_back(currentValue, count);
-            currentValue = knots_vector[i];
-            count = 1;
-          }
+          ++count;
         }
-        uniqueCounts.emplace_back(currentValue, count);
+        else
+        {
+          uniqueCounts.emplace_back(currentValue, count);
+          currentValue = knots_vector[i];
+          count = 1;
+        }
+      }
+      uniqueCounts.emplace_back(currentValue, count);
 
-        return uniqueCounts;
-      };
+      return uniqueCounts;
+    };
 
-    for(const auto& u :
-        unique_knots_and_multiplicities(patchData.nurbsPatch.getKnotsArray_u()))
+    for(const auto& u : unique_knots_and_multiplicities(patchData.nurbsPatch.getKnotsArray_u()))
     {
-      axom::fmt::format_to(
-        std::back_inserter(svgContent),
-        "  <line class='u-line mult-{}' x1='{}' y1='{}' x2='{}' y2='{}' />\n",
-        u.second,
-        u.first,
-        parametricBBox.getMin()[1],
-        u.first,
-        parametricBBox.getMax()[1]);
+      axom::fmt::format_to(std::back_inserter(svgContent),
+                           "  <line class='u-line mult-{}' x1='{}' y1='{}' x2='{}' y2='{}' />\n",
+                           u.second,
+                           u.first,
+                           parametricBBox.getMin()[1],
+                           u.first,
+                           parametricBBox.getMax()[1]);
     }
 
-    for(const auto& v :
-        unique_knots_and_multiplicities(patchData.nurbsPatch.getKnotsArray_v()))
+    for(const auto& v : unique_knots_and_multiplicities(patchData.nurbsPatch.getKnotsArray_v()))
     {
-      axom::fmt::format_to(
-        std::back_inserter(svgContent),
-        "  <line class='v-line mult-{}' x1='{}' y1='{}' x2='{}' y2='{}' />\n",
-        v.second,
-        parametricBBox.getMin()[0],
-        v.first,
-        parametricBBox.getMax()[0],
-        v.first);
+      axom::fmt::format_to(std::back_inserter(svgContent),
+                           "  <line class='v-line mult-{}' x1='{}' y1='{}' x2='{}' y2='{}' />\n",
+                           v.second,
+                           parametricBBox.getMin()[0],
+                           v.first,
+                           parametricBBox.getMax()[0],
+                           v.first);
     }
 
     // add a path for each trimming curve
@@ -1747,8 +1656,7 @@ public:
     }
     else
     {
-      std::cerr << "Error: Unable to open file " << svgFilename
-                << " for writing." << std::endl;
+      std::cerr << "Error: Unable to open file " << svgFilename << " for writing." << std::endl;
     }
   }
 
@@ -1782,23 +1690,16 @@ private:
 
       for(int i = 0; i <= numSamples; ++i)
       {
-        const double t =
-          axom::utilities::lerp(tMin, tMax, static_cast<double>(i) / numSamples);
+        const double t = axom::utilities::lerp(tMin, tMax, static_cast<double>(i) / numSamples);
 
         PointType pt = curve.evaluate(t);
         if(i == 0)
         {
-          axom::fmt::format_to(std::back_inserter(svgPath),
-                               "M {} {} ",
-                               pt[0],
-                               pt[1]);
+          axom::fmt::format_to(std::back_inserter(svgPath), "M {} {} ", pt[0], pt[1]);
         }
         else
         {
-          axom::fmt::format_to(std::back_inserter(svgPath),
-                               "L {} {} ",
-                               pt[0],
-                               pt[1]);
+          axom::fmt::format_to(std::back_inserter(svgPath), "L {} {} ", pt[0], pt[1]);
         }
       }
     }
@@ -1815,10 +1716,7 @@ private:
             const PointType& pt = bezierControlPoints[i];
             if(i == 0)
             {
-              axom::fmt::format_to(std::back_inserter(svgPath),
-                                   "M {} {} ",
-                                   pt[0],
-                                   pt[1]);
+              axom::fmt::format_to(std::back_inserter(svgPath), "M {} {} ", pt[0], pt[1]);
             }
             else if(i == 2)
             {
@@ -1838,10 +1736,7 @@ private:
             const PointType& pt = bezierControlPoints[i];
             if(i == 0)
             {
-              axom::fmt::format_to(std::back_inserter(svgPath),
-                                   "M {} {} ",
-                                   pt[0],
-                                   pt[1]);
+              axom::fmt::format_to(std::back_inserter(svgPath), "M {} {} ", pt[0], pt[1]);
             }
             else if(i == 3)
             {
@@ -1863,17 +1758,11 @@ private:
             const PointType& pt = bezierControlPoints[i];
             if(i == 0)
             {
-              axom::fmt::format_to(std::back_inserter(svgPath),
-                                   "M {} {} ",
-                                   pt[0],
-                                   pt[1]);
+              axom::fmt::format_to(std::back_inserter(svgPath), "M {} {} ", pt[0], pt[1]);
             }
             else
             {
-              axom::fmt::format_to(std::back_inserter(svgPath),
-                                   "L {} {} ",
-                                   pt[0],
-                                   pt[1]);
+              axom::fmt::format_to(std::back_inserter(svgPath), "L {} {} ", pt[0], pt[1]);
             }
           }
         }
@@ -1908,19 +1797,13 @@ class PatchTriangulator
 public:
   PatchTriangulator() = delete;
 
-  PatchTriangulator(const TopoDS_Shape& shape,
-                    double deflection,
-                    double angularDeflection,
-                    bool verbose)
+  PatchTriangulator(const TopoDS_Shape& shape, double deflection, double angularDeflection, bool verbose)
     : m_shape(shape)
     , m_deflection(deflection)
     , m_angularDeflection(angularDeflection)
     , m_verbose(verbose)
   {
-    BRepMesh_IncrementalMesh mesh(m_shape,
-                                  m_deflection,
-                                  Standard_False,
-                                  m_angularDeflection);
+    BRepMesh_IncrementalMesh mesh(m_shape, m_deflection, Standard_False, m_angularDeflection);
     if(!mesh.IsDone())
     {
       throw std::runtime_error("Mesh generation failed.");
@@ -1940,8 +1823,7 @@ public:
   void triangulateTrimmedPatches()
   {
     int patchIndex = 0;
-    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More();
-        faceExp.Next(), ++patchIndex)
+    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       if(USE_SUBSET)
       {
@@ -1961,21 +1843,16 @@ public:
 
       // Create a triangulation of this patch and write its triangles in the STL format
       TopLoc_Location loc;
-      Handle(Poly_Triangulation) triangulation =
-        BRep_Tool::Triangulation(face, loc);
+      Handle(Poly_Triangulation) triangulation = BRep_Tool::Triangulation(face, loc);
 
       if(triangulation.IsNull())
       {
-        SLIC_WARNING(
-          axom::fmt::format("Error: STL could not be generated for patch {}",
-                            patchIndex));
+        SLIC_WARNING(axom::fmt::format("Error: STL could not be generated for patch {}", patchIndex));
         break;
       }
 
       axom::fmt::memory_buffer stlContent;
-      axom::fmt::format_to(std::back_inserter(stlContent),
-                           "solid patch_{}\n",
-                           patchIndex);
+      axom::fmt::format_to(std::back_inserter(stlContent), "solid patch_{}\n", patchIndex);
 
       const int numTriangles = triangulation->NbTriangles();
       for(int i = 1; i <= numTriangles; ++i)
@@ -1989,9 +1866,7 @@ public:
                                                  triangulation->Node(n3)));
       }
 
-      axom::fmt::format_to(std::back_inserter(stlContent),
-                           "endsolid patch_{}\n",
-                           patchIndex);
+      axom::fmt::format_to(std::back_inserter(stlContent), "endsolid patch_{}\n", patchIndex);
 
       // write the STL file
       std::string stlFilename = axom::utilities::filesystem::joinPath(
@@ -2001,8 +1876,7 @@ public:
         std::ofstream stlFile(stlFilename);
         if(!stlFile.is_open())
         {
-          std::cerr << "Error: Unable to open file " << stlFilename
-                    << " for writing." << std::endl;
+          std::cerr << "Error: Unable to open file " << stlFilename << " for writing." << std::endl;
           break;
         }
         stlFile << axom::fmt::to_string(stlContent);
@@ -2015,8 +1889,7 @@ public:
   void triangulateUntrimmedPatches()
   {
     int patchIndex = 0;
-    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More();
-        faceExp.Next(), ++patchIndex)
+    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       if(USE_SUBSET)
       {
@@ -2045,32 +1918,23 @@ public:
         new Geom_RectangularTrimmedSurface(surface, u1, u2, v1, v2);
 
       // Create a new face from the untrimmed surface
-      TopoDS_Face newFace =
-        BRepBuilderAPI_MakeFace(untrimmedSurface, Precision::Confusion());
+      TopoDS_Face newFace = BRepBuilderAPI_MakeFace(untrimmedSurface, Precision::Confusion());
 
       // Mesh the new face
-      BRepMesh_IncrementalMesh mesh(newFace,
-                                    m_deflection,
-                                    Standard_False,
-                                    m_angularDeflection);
+      BRepMesh_IncrementalMesh mesh(newFace, m_deflection, Standard_False, m_angularDeflection);
 
       // Now you can access the triangulation of the new face
       TopLoc_Location loc;
-      Handle(Poly_Triangulation) triangulation =
-        BRep_Tool::Triangulation(newFace, loc);
+      Handle(Poly_Triangulation) triangulation = BRep_Tool::Triangulation(newFace, loc);
 
       if(triangulation.IsNull())
       {
-        SLIC_WARNING(
-          axom::fmt::format("Error: STL could not be generated for patch {}",
-                            patchIndex));
+        SLIC_WARNING(axom::fmt::format("Error: STL could not be generated for patch {}", patchIndex));
         break;
       }
 
       axom::fmt::memory_buffer stlContent;
-      axom::fmt::format_to(std::back_inserter(stlContent),
-                           "solid patch_{}\n",
-                           patchIndex);
+      axom::fmt::format_to(std::back_inserter(stlContent), "solid patch_{}\n", patchIndex);
 
       const int numTriangles = triangulation->NbTriangles();
       for(int i = 1; i <= numTriangles; ++i)
@@ -2085,22 +1949,17 @@ public:
                                                  triangulation->Node(n3)));
       }
 
-      axom::fmt::format_to(std::back_inserter(stlContent),
-                           "endsolid patch_{}\n",
-                           patchIndex);
+      axom::fmt::format_to(std::back_inserter(stlContent), "endsolid patch_{}\n", patchIndex);
 
       // write the STL file
       std::string stlFilename = axom::utilities::filesystem::joinPath(
         m_outputDirectory,
-        axom::fmt::format("patch_untrimmed_{:0{}}.stl",
-                          patchIndex,
-                          m_numFillZeros));
+        axom::fmt::format("patch_untrimmed_{:0{}}.stl", patchIndex, m_numFillZeros));
       {
         std::ofstream stlFile(stlFilename);
         if(!stlFile.is_open())
         {
-          std::cerr << "Error: Unable to open file " << stlFilename
-                    << " for writing." << std::endl;
+          std::cerr << "Error: Unable to open file " << stlFilename << " for writing." << std::endl;
           break;
         }
         stlFile << axom::fmt::to_string(stlContent);
@@ -2115,15 +1974,12 @@ public:
   void triangulateFullMesh()
   {
     // Create an unstructured mesh with 3D vertices and triangular cells
-    axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> mesh(
-      3,
-      axom::mint::TRIANGLE);
+    axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> mesh(3, axom::mint::TRIANGLE);
 
     std::vector<int> patch_id;
 
     int patchIndex = 0;
-    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More();
-        faceExp.Next(), ++patchIndex)
+    for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       if(USE_SUBSET)
       {
@@ -2143,14 +1999,12 @@ public:
 
       // Create a triangulation of this patch
       TopLoc_Location loc;
-      Handle(Poly_Triangulation) triangulation =
-        BRep_Tool::Triangulation(face, loc);
+      Handle(Poly_Triangulation) triangulation = BRep_Tool::Triangulation(face, loc);
 
       if(triangulation.IsNull())
       {
-        SLIC_WARNING(axom::fmt::format(
-          "Error: Triangulation could not be generated for patch {}",
-          patchIndex));
+        SLIC_WARNING(axom::fmt::format("Error: Triangulation could not be generated for patch {}",
+                                       patchIndex));
         continue;
       }
 
@@ -2176,8 +2030,7 @@ public:
     }
 
     // Add a field to store the patch index for each cell
-    auto* patchIndexField =
-      mesh.createField<int>("patch_index", axom::mint::CELL_CENTERED);
+    auto* patchIndexField = mesh.createField<int>("patch_index", axom::mint::CELL_CENTERED);
 
     for(axom::IndexType i = 0; i < mesh.getNumberOfCells(); ++i)
     {
@@ -2185,11 +2038,9 @@ public:
     }
 
     const std::string filename =
-      axom::utilities::filesystem::joinPath(m_outputDirectory,
-                                            "triangulated_mesh.vtk");
+      axom::utilities::filesystem::joinPath(m_outputDirectory, "triangulated_mesh.vtk");
     axom::mint::write_vtk(&mesh, filename);
-    SLIC_INFO_IF(m_verbose,
-                 "VTK triangle mesh of entire model generated: " << filename);
+    SLIC_INFO_IF(m_verbose, "VTK triangle mesh of entire model generated: " << filename);
   }
 
 private:
@@ -2293,10 +2144,7 @@ StepFileProcessor import_step_file(std::string prefix,
   }
 
   auto& nurbs_shape = stepProcessor.getShape();
-  PatchTriangulator patchTriangulator(nurbs_shape,
-                                      deflection,
-                                      angular_deflection,
-                                      false);
+  PatchTriangulator patchTriangulator(nurbs_shape, deflection, angular_deflection, false);
   patchTriangulator.setOutputDirectory(output_dir);
   patchTriangulator.setNumFillZeros(numFillZeros);
   SLIC_INFO(
@@ -2328,13 +2176,12 @@ void nut_3d_example()
   auto wn_field = [&stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
                     axom::primal::Point<double, 3> query) -> double {
     double wn = 0.0;
-    auto new_query = axom::primal::Point<double, 3> {-0.002348480048,
-                                                     0.0009630179848,
-                                                     0.001429939992};
+    auto new_query =
+      axom::primal::Point<double, 3> {-0.002348480048, 0.0009630179848, 0.001429939992};
     for(int i = 0; i < NUM_SUBSET; ++i)
     {
       int integrated_trimming_curves;
-      double the_val = axom::primal::winding_number_casting(
+      double the_val = axom::primal::winding_number(
         new_query,
         stepProcessor.getPatchDataMap().at(RELEVANT_INDICES[i]).nurbsPatchData,
         case_code,
@@ -2349,7 +2196,7 @@ void nut_3d_example()
     // {
     //   int integrated_trimming_curves;
     //   double the_val =
-    //     axom::primal::winding_number_casting(new_query,
+    //     axom::primal::winding_number(new_query,
     //                                          kv.second.nurbsPatchData,
     //                                          case_code,
     //                                          integrated_trimming_curves,
@@ -2387,9 +2234,7 @@ void nut_3d_example()
     prefix + filename + "nut_slice.vtk",
     wn_field,
     axom::primal::Point<double, 3> {0.0, 0.0, 0.79375 / 1000},
-    axom::primal::Vector<double, 3> {-0.10624472993169809,
-                                     0.35459739950848745,
-                                     -0.928963261718976},
+    axom::primal::Vector<double, 3> {-0.10624472993169809, 0.35459739950848745, -0.928963261718976},
     1.5 * the_range,
     1.5 * the_range,
     100,
@@ -2448,14 +2293,13 @@ void graphical_abstract_watertight()
       auto new_query =
 
         axom::primal::Point<double, 3> {-0.000705868, 0.0389087, -0.00646476};
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       wn += the_val;
     }
 
@@ -2535,14 +2379,13 @@ void graphical_abstract_exploded()
       auto new_query =
 
         axom::primal::Point<double, 3> {-0.000705868, 0.0389087, -0.00646476};
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       wn += the_val;
     }
 
@@ -2622,14 +2465,13 @@ void graphical_abstract_hollow()
       auto new_query =
 
         axom::primal::Point<double, 3> {-0.000705868, 0.0389087, -0.00646476};
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       wn += the_val;
     }
 
@@ -2671,15 +2513,14 @@ void graphical_abstract_hollow()
     100,
     100);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_hollow_slice3.vtk",
-    wn_field,
-    axom::primal::Point<double, 3> {0.0, 0.0404, 0.0},
-    axom::primal::Vector<double, 3> {0, 1, 0},
-    the_range,
-    the_range,
-    100,
-    100);
+  axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_hollow_slice3.vtk",
+                                                    wn_field,
+                                                    axom::primal::Point<double, 3> {0.0, 0.0404, 0.0},
+                                                    axom::primal::Vector<double, 3> {0, 1, 0},
+                                                    the_range,
+                                                    the_range,
+                                                    100,
+                                                    100);
   timer.stop();
 
   auto elapsed_time = timer.elapsedTimeInSec();
@@ -2726,8 +2567,7 @@ void graphical_abstract_hollow()
 
 void discretized_surface_gwn()
 {
-  std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\wn_comparison\\";
+  std::string prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\wn_comparison\\";
 
   std::string filename = "floppy_surface";
   auto stepProcessor = import_step_file(prefix, filename);
@@ -2744,14 +2584,13 @@ void discretized_surface_gwn()
     for(const auto& kv : stepProcessor.getPatchDataMap())
     {
       int integrated_trimming_curves;
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       wn += the_val;
     }
 
@@ -2777,9 +2616,7 @@ void discretized_surface_gwn()
     // axom::primal::Point<double, 3> {0.0005490059848,
     // -2.757400034e-05,
     // 0.00310928002},
-    axom::primal::Vector<double, 3> {-0.13465792265548568,
-                                     0.9906402898209166,
-                                     -0.022339651958791562},
+    axom::primal::Vector<double, 3> {-0.13465792265548568, 0.9906402898209166, -0.022339651958791562},
     9 * the_range,
     9 * the_range,
     100,
@@ -2797,14 +2634,13 @@ void discretized_surface_gwn()
     for(const auto& kv : stepProcessor2.getPatchDataMap())
     {
       int integrated_trimming_curves;
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       wn += the_val;
     }
 
@@ -2826,466 +2662,464 @@ void discretized_surface_gwn()
     // axom::primal::Point<double, 3> {0.0005490059848,
     // -2.757400034e-05,
     // 0.00310928002},
-    axom::primal::Vector<double, 3> {-0.13465792265548568,
-                                     0.9906402898209166,
-                                     -0.022339651958791562},
+    axom::primal::Vector<double, 3> {-0.13465792265548568, 0.9906402898209166, -0.022339651958791562},
     9 * the_range,
     9 * the_range,
     100,
     100);
 }
 
-void quadrature_is_bad()
-{
-  std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\quadrature_bad\\";
+// void quadrature_is_bad()
+// {
+//   std::string prefix =
+//     "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\quadrature_bad\\";
 
-  std::string filename = "random_surface";
-  auto stepProcessor = import_step_file(prefix, filename);
+//   std::string filename = "random_surface";
+//   auto stepProcessor = import_step_file(prefix, filename);
 
-  constexpr double quad_tol = 1e-5;
-  constexpr double EPS = 1e-10;
-  constexpr double edge_tol = 1e-6;
+//   constexpr double quad_tol = 1e-5;
+//   constexpr double EPS = 1e-10;
+//   constexpr double edge_tol = 1e-6;
 
-  // (!bBox, !oBox, casting, noCache)
-  int case_code = -1;
-  auto wn_field_quad = [&stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
-                         axom::primal::Point<double, 3> query) -> double {
-    double wn = 0.0;
-    for(const auto& kv : stepProcessor.getPatchDataMap())
-    {
-      int integrated_trimming_curves;
-      double the_val =
-        axom::primal::detail::surface_winding_number(query,
-                                                     kv.second.nurbsPatch,
-                                                     30);
-      wn += the_val;
-    }
+//   // (!bBox, !oBox, casting, noCache)
+//   int case_code = -1;
+//   auto wn_field_quad = [&stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
+//                          axom::primal::Point<double, 3> query) -> double {
+//     double wn = 0.0;
+//     for(const auto& kv : stepProcessor.getPatchDataMap())
+//     {
+//       int integrated_trimming_curves;
+//       double the_val =
+//         axom::primal::detail::surface_winding_number(query,
+//                                                      kv.second.nurbsPatch,
+//                                                      30);
+//       wn += the_val;
+//     }
 
-    return wn;
-  };
+//     return wn;
+//   };
 
-  auto wn_field = [&stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
-                    axom::primal::Point<double, 3> query) -> double {
-    double wn = 0.0;
-    for(const auto& kv : stepProcessor.getPatchDataMap())
-    {
-      int integrated_trimming_curves;
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
-      wn += the_val;
-    }
+//   auto wn_field = [&stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
+//                     axom::primal::Point<double, 3> query) -> double {
+//     double wn = 0.0;
+//     for(const auto& kv : stepProcessor.getPatchDataMap())
+//     {
+//       int integrated_trimming_curves;
+//       double the_val =
+//         axom::primal::winding_number(query,
+//                                              kv.second.nurbsPatchData,
+//                                              case_code,
+//                                              integrated_trimming_curves,
+//                                              edge_tol,
+//                                              quad_tol,
+//                                              EPS);
+//       wn += the_val;
+//     }
 
-    return wn;
-  };
+//     return wn;
+//   };
 
-  axom::primal::BoundingBox<double, 3> meshBBox;
-  for(const auto& kv : stepProcessor.getPatchDataMap())
-  {
-    meshBBox.addBox(kv.second.physicalBBox);
-  }
+//   axom::primal::BoundingBox<double, 3> meshBBox;
+//   for(const auto& kv : stepProcessor.getPatchDataMap())
+//   {
+//     meshBBox.addBox(kv.second.physicalBBox);
+//   }
 
-  auto the_range = 0.5 * meshBBox.range().norm();
+//   auto the_range = 0.5 * meshBBox.range().norm();
 
-  // Use this for u
-  // u = Vector<T, 3>( {-0.6536123100031038, -0.10738450531201763, -0.7491725543766935});
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_quadrature_slice_1.vtk",
-    wn_field_quad,
-    axom::primal::Point<double, 3> {0, 0, 0},
-    axom::primal::Vector<double, 3> {1, 0, 0},
-    axom::primal::Vector<double, 3> {0, 1, 0},
-    meshBBox.getMax()[0] - meshBBox.getMin()[0],
-    meshBBox.getMax()[1] - meshBBox.getMin()[1],
-    200,
-    100);
+//   // Use this for u
+//   // u = Vector<T, 3>( {-0.6536123100031038, -0.10738450531201763, -0.7491725543766935});
+//   axom::primal::exportSliceScalarFieldToVTK<double>(
+//     prefix + filename + "_quadrature_slice_1.vtk",
+//     wn_field_quad,
+//     axom::primal::Point<double, 3> {0, 0, 0},
+//     axom::primal::Vector<double, 3> {1, 0, 0},
+//     axom::primal::Vector<double, 3> {0, 1, 0},
+//     meshBBox.getMax()[0] - meshBBox.getMin()[0],
+//     meshBBox.getMax()[1] - meshBBox.getMin()[1],
+//     200,
+//     100);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_quadrature_slice_3.vtk",
-    wn_field_quad,
-    axom::primal::Point<double, 3> {0, 0, 0},
-    axom::primal::Vector<double, 3> {1, 0, 0},
-    axom::primal::Vector<double, 3> {0, 0, 1},
-    meshBBox.getMax()[0] - meshBBox.getMin()[0],
-    meshBBox.getMax()[2] - meshBBox.getMin()[2],
-    200,
-    100);
+//   axom::primal::exportSliceScalarFieldToVTK<double>(
+//     prefix + filename + "_quadrature_slice_3.vtk",
+//     wn_field_quad,
+//     axom::primal::Point<double, 3> {0, 0, 0},
+//     axom::primal::Vector<double, 3> {1, 0, 0},
+//     axom::primal::Vector<double, 3> {0, 0, 1},
+//     meshBBox.getMax()[0] - meshBBox.getMin()[0],
+//     meshBBox.getMax()[2] - meshBBox.getMin()[2],
+//     200,
+//     100);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_casting_slice_1.vtk",
-    wn_field,
-    axom::primal::Point<double, 3> {0, 0, 0},
-    axom::primal::Vector<double, 3> {1, 0, 0},
-    axom::primal::Vector<double, 3> {0, 1, 0},
-    meshBBox.getMax()[0] - meshBBox.getMin()[0],
-    meshBBox.getMax()[1] - meshBBox.getMin()[1],
-    200,
-    100);
+//   axom::primal::exportSliceScalarFieldToVTK<double>(
+//     prefix + filename + "_casting_slice_1.vtk",
+//     wn_field,
+//     axom::primal::Point<double, 3> {0, 0, 0},
+//     axom::primal::Vector<double, 3> {1, 0, 0},
+//     axom::primal::Vector<double, 3> {0, 1, 0},
+//     meshBBox.getMax()[0] - meshBBox.getMin()[0],
+//     meshBBox.getMax()[1] - meshBBox.getMin()[1],
+//     200,
+//     100);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_casting_slice_3.vtk",
-    wn_field,
-    axom::primal::Point<double, 3> {0, 0, 0},
-    axom::primal::Vector<double, 3> {1, 0, 0},
-    axom::primal::Vector<double, 3> {0, 0, 1},
-    meshBBox.getMax()[0] - meshBBox.getMin()[0],
-    meshBBox.getMax()[2] - meshBBox.getMin()[2],
-    200,
-    100);
-}
+//   axom::primal::exportSliceScalarFieldToVTK<double>(
+//     prefix + filename + "_casting_slice_3.vtk",
+//     wn_field,
+//     axom::primal::Point<double, 3> {0, 0, 0},
+//     axom::primal::Vector<double, 3> {1, 0, 0},
+//     axom::primal::Vector<double, 3> {0, 0, 1},
+//     meshBBox.getMax()[0] - meshBBox.getMin()[0],
+//     meshBBox.getMax()[2] - meshBBox.getMin()[2],
+//     200,
+//     100);
+// }
 
-void quadrature_on_sphere()
-{
-  double rt2 = sqrt(2), rt3 = sqrt(3), rt6 = sqrt(6);
+// void quadrature_on_sphere()
+// {
+//   double rt2 = sqrt(2), rt3 = sqrt(3), rt6 = sqrt(6);
 
-  // Define the nodes and weights for one of six rational, biquartic Bezier patches
-  //  that compose the unit sphere. These will be rotated to form the other 5.
-  // Nodes and weights obtained from the technical report
-  // "Tiling the Sphere with Rational Bezier Patches",
-  //  James E. Cobb, University of Utah, 1988
+//   // Define the nodes and weights for one of six rational, biquartic Bezier patches
+//   //  that compose the unit sphere. These will be rotated to form the other 5.
+//   // Nodes and weights obtained from the technical report
+//   // "Tiling the Sphere with Rational Bezier Patches",
+//   //  James E. Cobb, University of Utah, 1988
 
-  using Point3D = axom::primal::Point<double, 3>;
-  // clang-format off
-  axom::Array<Point3D> node_data = {
-    Point3D {4*(1-rt3),     4*(1-rt3),     4*(1-rt3)}, Point3D {rt2*(rt3-4),            -rt2, rt2*(rt3-4)}, Point3D {4*(1-2*rt3)/3,   0, 4*(1-2*rt3)/3}, Point3D {rt2*(rt3-4),           rt2,   rt2*(rt3-4)}, Point3D {4*(1-rt3),     4*(rt3-1),     4*(1-rt3)},
-    Point3D {     -rt2, rt2*(rt3 - 4), rt2*(rt3 - 4)}, Point3D {(2-3*rt3)/2,     (2-3*rt3)/2,  -(rt3+6)/2}, Point3D {rt2*(2*rt3-7)/3, 0,      -5*rt6/3}, Point3D {(2-3*rt3)/2,   (3*rt3-2)/2,    -(rt3+6)/2}, Point3D {     -rt2,   rt2*(4-rt3),   rt2*(rt3-4)},
-    Point3D {        0, 4*(1-2*rt3)/3, 4*(1-2*rt3)/3}, Point3D {          0, rt2*(2*rt3-7)/3,    -5*rt6/3}, Point3D {0,               0,   4*(rt3-5)/3}, Point3D {          0, rt2*(7-2*rt3)/3,    -5*rt6/3}, Point3D {        0, 4*(2*rt3-1)/3, 4*(1-2*rt3)/3},
-    Point3D {      rt2, rt2*(rt3 - 4), rt2*(rt3 - 4)}, Point3D {(3*rt3-2)/2,     (2-3*rt3)/2,  -(rt3+6)/2}, Point3D {rt2*(7-2*rt3)/3, 0,      -5*rt6/3}, Point3D {(3*rt3-2)/2,   (3*rt3-2)/2,    -(rt3+6)/2}, Point3D {      rt2,   rt2*(4-rt3),   rt2*(rt3-4)},
-    Point3D {4*(rt3-1),     4*(1-rt3),     4*(1-rt3)}, Point3D {rt2*(4-rt3),            -rt2, rt2*(rt3-4)}, Point3D {4*(2*rt3-1)/3,   0, 4*(1-2*rt3)/3}, Point3D {rt2*(4-rt3),           rt2,   rt2*(rt3-4)}, Point3D {4*(rt3-1),     4*(rt3-1),     4*(1-rt3)}};
+//   using Point3D = axom::primal::Point<double, 3>;
+//   // clang-format off
+//   axom::Array<Point3D> node_data = {
+//     Point3D {4*(1-rt3),     4*(1-rt3),     4*(1-rt3)}, Point3D {rt2*(rt3-4),            -rt2, rt2*(rt3-4)}, Point3D {4*(1-2*rt3)/3,   0, 4*(1-2*rt3)/3}, Point3D {rt2*(rt3-4),           rt2,   rt2*(rt3-4)}, Point3D {4*(1-rt3),     4*(rt3-1),     4*(1-rt3)},
+//     Point3D {     -rt2, rt2*(rt3 - 4), rt2*(rt3 - 4)}, Point3D {(2-3*rt3)/2,     (2-3*rt3)/2,  -(rt3+6)/2}, Point3D {rt2*(2*rt3-7)/3, 0,      -5*rt6/3}, Point3D {(2-3*rt3)/2,   (3*rt3-2)/2,    -(rt3+6)/2}, Point3D {     -rt2,   rt2*(4-rt3),   rt2*(rt3-4)},
+//     Point3D {        0, 4*(1-2*rt3)/3, 4*(1-2*rt3)/3}, Point3D {          0, rt2*(2*rt3-7)/3,    -5*rt6/3}, Point3D {0,               0,   4*(rt3-5)/3}, Point3D {          0, rt2*(7-2*rt3)/3,    -5*rt6/3}, Point3D {        0, 4*(2*rt3-1)/3, 4*(1-2*rt3)/3},
+//     Point3D {      rt2, rt2*(rt3 - 4), rt2*(rt3 - 4)}, Point3D {(3*rt3-2)/2,     (2-3*rt3)/2,  -(rt3+6)/2}, Point3D {rt2*(7-2*rt3)/3, 0,      -5*rt6/3}, Point3D {(3*rt3-2)/2,   (3*rt3-2)/2,    -(rt3+6)/2}, Point3D {      rt2,   rt2*(4-rt3),   rt2*(rt3-4)},
+//     Point3D {4*(rt3-1),     4*(1-rt3),     4*(1-rt3)}, Point3D {rt2*(4-rt3),            -rt2, rt2*(rt3-4)}, Point3D {4*(2*rt3-1)/3,   0, 4*(1-2*rt3)/3}, Point3D {rt2*(4-rt3),           rt2,   rt2*(rt3-4)}, Point3D {4*(rt3-1),     4*(rt3-1),     4*(1-rt3)}};
 
-  axom::Array<double> weight_data = {
-         4*(3-rt3), rt2*(3*rt3-2),   4*(5-rt3)/3, rt2*(3*rt3-2),     4*(3-rt3),
-     rt2*(3*rt3-2),     (rt3+6)/2, rt2*(rt3+6)/3,     (rt3+6)/2, rt2*(3*rt3-2),
-       4*(5-rt3)/3, rt2*(rt3+6)/3, 4*(5*rt3-1)/9, rt2*(rt3+6)/3,   4*(5-rt3)/3,
-     rt2*(3*rt3-2),     (rt3+6)/2, rt2*(rt3+6)/3,     (rt3+6)/2, rt2*(3*rt3-2),
-         4*(3-rt3), rt2*(3*rt3-2),   4*(5-rt3)/3, rt2*(3*rt3-2),     4*(3-rt3)};
-  // clang-format on
+//   axom::Array<double> weight_data = {
+//          4*(3-rt3), rt2*(3*rt3-2),   4*(5-rt3)/3, rt2*(3*rt3-2),     4*(3-rt3),
+//      rt2*(3*rt3-2),     (rt3+6)/2, rt2*(rt3+6)/3,     (rt3+6)/2, rt2*(3*rt3-2),
+//        4*(5-rt3)/3, rt2*(rt3+6)/3, 4*(5*rt3-1)/9, rt2*(rt3+6)/3,   4*(5-rt3)/3,
+//      rt2*(3*rt3-2),     (rt3+6)/2, rt2*(rt3+6)/3,     (rt3+6)/2, rt2*(3*rt3-2),
+//          4*(3-rt3), rt2*(3*rt3-2),   4*(5-rt3)/3, rt2*(3*rt3-2),     4*(3-rt3)};
+//   // clang-format on
 
-  axom::primal::BezierPatch<double, 3> sphere_faces[6];
-  for(int n = 0; n < 6; ++n)
-  {
-    sphere_faces[n].setOrder(4, 4);
-    sphere_faces[n].makeRational();
-  }
+//   axom::primal::BezierPatch<double, 3> sphere_faces[6];
+//   for(int n = 0; n < 6; ++n)
+//   {
+//     sphere_faces[n].setOrder(4, 4);
+//     sphere_faces[n].makeRational();
+//   }
 
-  sphere_faces[0].setOrder(4, 4);
-  for(int i = 0; i < 5; ++i)
-  {
-    for(int j = 0; j < 5; ++j)
-    {
-      const int idx = 5 * i + j;
-      for(int n = 0; n < 6; ++n)
-      {
-        sphere_faces[n].setWeight(i, j, weight_data[idx]);
-      }
+//   sphere_faces[0].setOrder(4, 4);
+//   for(int i = 0; i < 5; ++i)
+//   {
+//     for(int j = 0; j < 5; ++j)
+//     {
+//       const int idx = 5 * i + j;
+//       for(int n = 0; n < 6; ++n)
+//       {
+//         sphere_faces[n].setWeight(i, j, weight_data[idx]);
+//       }
 
-      // Set up each face by rotating one of the patch faces
-      sphere_faces[0](i, j)[0] = node_data[idx][1];
-      sphere_faces[0](i, j)[1] = node_data[idx][0];
-      sphere_faces[0](i, j)[2] = node_data[idx][2];
-      sphere_faces[0](i, j).array() /= weight_data[idx];
+//       // Set up each face by rotating one of the patch faces
+//       sphere_faces[0](i, j)[0] = node_data[idx][1];
+//       sphere_faces[0](i, j)[1] = node_data[idx][0];
+//       sphere_faces[0](i, j)[2] = node_data[idx][2];
+//       sphere_faces[0](i, j).array() /= weight_data[idx];
 
-      sphere_faces[1](i, j)[0] = -node_data[idx][0];
-      sphere_faces[1](i, j)[1] = -node_data[idx][1];
-      sphere_faces[1](i, j)[2] = -node_data[idx][2];
-      sphere_faces[1](i, j).array() /= weight_data[idx];
+//       sphere_faces[1](i, j)[0] = -node_data[idx][0];
+//       sphere_faces[1](i, j)[1] = -node_data[idx][1];
+//       sphere_faces[1](i, j)[2] = -node_data[idx][2];
+//       sphere_faces[1](i, j).array() /= weight_data[idx];
 
-      sphere_faces[2](i, j)[0] = node_data[idx][2];
-      sphere_faces[2](i, j)[1] = node_data[idx][1];
-      sphere_faces[2](i, j)[2] = node_data[idx][0];
-      sphere_faces[2](i, j).array() /= weight_data[idx];
+//       sphere_faces[2](i, j)[0] = node_data[idx][2];
+//       sphere_faces[2](i, j)[1] = node_data[idx][1];
+//       sphere_faces[2](i, j)[2] = node_data[idx][0];
+//       sphere_faces[2](i, j).array() /= weight_data[idx];
 
-      sphere_faces[3](i, j)[0] = -node_data[idx][1];
-      sphere_faces[3](i, j)[1] = -node_data[idx][2];
-      sphere_faces[3](i, j)[2] = -node_data[idx][0];
-      sphere_faces[3](i, j).array() /= weight_data[idx];
+//       sphere_faces[3](i, j)[0] = -node_data[idx][1];
+//       sphere_faces[3](i, j)[1] = -node_data[idx][2];
+//       sphere_faces[3](i, j)[2] = -node_data[idx][0];
+//       sphere_faces[3](i, j).array() /= weight_data[idx];
 
-      sphere_faces[4](i, j)[0] = node_data[idx][0];
-      sphere_faces[4](i, j)[1] = node_data[idx][2];
-      sphere_faces[4](i, j)[2] = node_data[idx][1];
-      sphere_faces[4](i, j).array() /= weight_data[idx];
+//       sphere_faces[4](i, j)[0] = node_data[idx][0];
+//       sphere_faces[4](i, j)[1] = node_data[idx][2];
+//       sphere_faces[4](i, j)[2] = node_data[idx][1];
+//       sphere_faces[4](i, j).array() /= weight_data[idx];
 
-      sphere_faces[5](i, j)[0] = -node_data[idx][2];
-      sphere_faces[5](i, j)[1] = -node_data[idx][0];
-      sphere_faces[5](i, j)[2] = -node_data[idx][1];
-      sphere_faces[5](i, j).array() /= weight_data[idx];
-    }
-  }
+//       sphere_faces[5](i, j)[0] = -node_data[idx][2];
+//       sphere_faces[5](i, j)[1] = -node_data[idx][0];
+//       sphere_faces[5](i, j)[2] = -node_data[idx][1];
+//       sphere_faces[5](i, j).array() /= weight_data[idx];
+//     }
+//   }
 
-  axom::primal::NURBSPatch<double, 3> nurbs_faces[6];
-  axom::primal::NURBSPatchData<double> nurbs_faces_data[6];
+//   axom::primal::NURBSPatch<double, 3> nurbs_faces[6];
+//   axom::primal::NURBSPatchData<double> nurbs_faces_data[6];
 
-  for(int i = 0; i < 6; ++i)
-  {
-    nurbs_faces[i] = axom::primal::NURBSPatch<double, 3>(sphere_faces[i]);
-    nurbs_faces[i].makeTriviallyTrimmed();
-    nurbs_faces_data[i] = axom::primal::NURBSPatchData<double>(i, nurbs_faces[i]);
-  }
+//   for(int i = 0; i < 6; ++i)
+//   {
+//     nurbs_faces[i] = axom::primal::NURBSPatch<double, 3>(sphere_faces[i]);
+//     nurbs_faces[i].makeTriviallyTrimmed();
+//     nurbs_faces_data[i] = axom::primal::NURBSPatchData<double>(i, nurbs_faces[i]);
+//   }
 
-  constexpr double quad_tol = 1e-5;
-  constexpr double EPS = 1e-10;
-  constexpr double edge_tol = 1e-6;
+//   constexpr double quad_tol = 1e-5;
+//   constexpr double EPS = 1e-10;
+//   constexpr double edge_tol = 1e-6;
 
-  // (!bBox, !oBox, casting, noCache)
-  int case_code = -1;
-  auto wn_field_surf_quad =
-    [&sphere_faces, &edge_tol, &quad_tol, &EPS, &case_code](
-      axom::primal::Point<double, 3> query) -> double {
-    auto query_norm =
-      std::sqrt(query[0] * query[0] + query[1] * query[1] + query[2] * query[2]);
+//   // (!bBox, !oBox, casting, noCache)
+//   int case_code = -1;
+//   auto wn_field_surf_quad =
+//     [&sphere_faces, &edge_tol, &quad_tol, &EPS, &case_code](
+//       axom::primal::Point<double, 3> query) -> double {
+//     auto query_norm =
+//       std::sqrt(query[0] * query[0] + query[1] * query[1] + query[2] * query[2]);
 
-    double wn = 0.0;
-    for(int k = 0; k < 1; ++k)
-    {
-      double the_val =
-        axom::primal::detail::surface_winding_number(query, sphere_faces[k], 20);
-      wn += the_val;
-    }
+//     double wn = 0.0;
+//     for(int k = 0; k < 1; ++k)
+//     {
+//       double the_val =
+//         axom::primal::detail::surface_winding_number(query, sphere_faces[k], 20);
+//       wn += the_val;
+//     }
 
-    return wn;
-  };
+//     return wn;
+//   };
 
-  auto wn_field_boundary_quad =
-    [&nurbs_faces_data, &edge_tol, &quad_tol, &EPS, &case_code](
-      axom::primal::Point<double, 3> query) -> double {
-    double wn = 0.0;
-    int integrated_trimming_curves = 0;
-    for(int k = 0; k < 1; ++k)
-    {
-      auto the_val =
-        axom::primal::sphere_winding_number_casting(query,
-                                                    nurbs_faces_data[k],
-                                                    case_code,
-                                                    integrated_trimming_curves,
-                                                    edge_tol,
-                                                    quad_tol,
-                                                    EPS);
-      wn += the_val;
-    }
+//   auto wn_field_boundary_quad =
+//     [&nurbs_faces_data, &edge_tol, &quad_tol, &EPS, &case_code](
+//       axom::primal::Point<double, 3> query) -> double {
+//     double wn = 0.0;
+//     int integrated_trimming_curves = 0;
+//     for(int k = 0; k < 1; ++k)
+//     {
+//       auto the_val =
+//         axom::primal::sphere_winding(query,
+//                                                     nurbs_faces_data[k],
+//                                                     case_code,
+//                                                     integrated_trimming_curves,
+//                                                     edge_tol,
+//                                                     quad_tol,
+//                                                     EPS);
+//       wn += the_val;
+//     }
 
-    return wn;
-  };
+//     return wn;
+//   };
 
-  auto wn_field_exact = [&sphere_faces, &edge_tol, &quad_tol, &EPS, &case_code](
-                          axom::primal::Point<double, 3> query) -> double {
-    auto query_norm =
-      std::sqrt(query[0] * query[0] + query[1] * query[1] + query[2] * query[2]);
+//   auto wn_field_exact = [&sphere_faces, &edge_tol, &quad_tol, &EPS, &case_code](
+//                           axom::primal::Point<double, 3> query) -> double {
+//     auto query_norm =
+//       std::sqrt(query[0] * query[0] + query[1] * query[1] + query[2] * query[2]);
 
-    if(query_norm > 1.0)
-    {
-      return 0.0;
-    }
+//     if(query_norm > 1.0)
+//     {
+//       return 0.0;
+//     }
 
-    if(query_norm == 1.0)
-    {
-      return 0.5;
-    }
+//     if(query_norm == 1.0)
+//     {
+//       return 0.5;
+//     }
 
-    if(query_norm < 1.0)
-    {
-      return 1.0;
-    }
-  };
+//     if(query_norm < 1.0)
+//     {
+//       return 1.0;
+//     }
+//   };
 
-  std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\quadrature_"
-    "bad\\";
+//   std::string prefix =
+//     "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\quadrature_"
+//     "bad\\";
 
-  for(int k = 0; k < 6; ++k)
-  {
-    axom::primal::exportSurfaceToSTL(
-      prefix + "sphere_face_" + std::to_string(k) + ".stl",
-      sphere_faces[k],
-      20,
-      20);
-  }
+//   for(int k = 0; k < 6; ++k)
+//   {
+//     axom::primal::exportSurfaceToSTL(
+//       prefix + "sphere_face_" + std::to_string(k) + ".stl",
+//       sphere_faces[k],
+//       20,
+//       20);
+//   }
 
-  axom::primal::BoundingBox<double, 3> bbox;
-  bbox.addPoint(axom::primal::Point<double, 3> {1.0 / std::sqrt(3) + 0.1,
-                                                1.0 / std::sqrt(3) + 0.1,
-                                                1.0 / std::sqrt(3) + 0.1});
-  bbox.addPoint(axom::primal::Point<double, 3> {1.0 / std::sqrt(3) - 0.1,
-                                                1.0 / std::sqrt(3) - 0.1,
-                                                1.0 / std::sqrt(3) - 0.1});
-  // bbox.addPoint(axom::primal::Point<double, 3> {1.2, 1.2, 1.2});
-  // bbox.addPoint(axom::primal::Point<double, 3> {-1.2, -1.2, -1.2});
+//   axom::primal::BoundingBox<double, 3> bbox;
+//   bbox.addPoint(axom::primal::Point<double, 3> {1.0 / std::sqrt(3) + 0.1,
+//                                                 1.0 / std::sqrt(3) + 0.1,
+//                                                 1.0 / std::sqrt(3) + 0.1});
+//   bbox.addPoint(axom::primal::Point<double, 3> {1.0 / std::sqrt(3) - 0.1,
+//                                                 1.0 / std::sqrt(3) - 0.1,
+//                                                 1.0 / std::sqrt(3) - 0.1});
+//   // bbox.addPoint(axom::primal::Point<double, 3> {1.2, 1.2, 1.2});
+//   // bbox.addPoint(axom::primal::Point<double, 3> {-1.2, -1.2, -1.2});
 
-  // axom::primal::exportScalarFieldToVTK<double>(prefix + "sphere_field_subset_20_interrupted.vtk",
-  //                                              wn_field_quad,
-  //                                              bbox,
-  //                                              100,
-  //                                              100,
-  //                                              100);
+//   // axom::primal::exportScalarFieldToVTK<double>(prefix + "sphere_field_subset_20_interrupted.vtk",
+//   //                                              wn_field_quad,
+//   //                                              bbox,
+//   //                                              100,
+//   //                                              100,
+//   //                                              100);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + "sphere_surface_slice_20.vtk",
-    wn_field_surf_quad,
-    axom::primal::Point<double, 3> {0, 0, -0.75},
-    axom::primal::Vector<double, 3> {0, 1, 0},
-    axom::primal::Vector<double, 3> {1, 0, 0},
-    2,
-    2,
-    300,
-    300);
+//   axom::primal::exportSliceScalarFieldToVTK<double>(
+//     prefix + "sphere_surface_slice_20.vtk",
+//     wn_field_surf_quad,
+//     axom::primal::Point<double, 3> {0, 0, -0.75},
+//     axom::primal::Vector<double, 3> {0, 1, 0},
+//     axom::primal::Vector<double, 3> {1, 0, 0},
+//     2,
+//     2,
+//     300,
+//     300);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + "sphere_surface_slice_20_orth.vtk",
-    wn_field_surf_quad,
-    axom::primal::Point<double, 3> {0, 0, -0.75},
-    axom::primal::Vector<double, 3> {0, 0, 1},
-    axom::primal::Vector<double, 3> {1, 1.2, 0},
-    2 * 0.4,
-    2,
-    300 * 0.4,
-    300);
+//   axom::primal::exportSliceScalarFieldToVTK<double>(
+//     prefix + "sphere_surface_slice_20_orth.vtk",
+//     wn_field_surf_quad,
+//     axom::primal::Point<double, 3> {0, 0, -0.75},
+//     axom::primal::Vector<double, 3> {0, 0, 1},
+//     axom::primal::Vector<double, 3> {1, 1.2, 0},
+//     2 * 0.4,
+//     2,
+//     300 * 0.4,
+//     300);
 
-  // axom::primal::exportSliceScalarFieldToVTK<double>(
-  //   prefix + "sphere_exact_20.vtk",
-  //   wn_field_exact,
-  //   axom::primal::Point<double, 3> {0, 0, -0.75},
-  //   axom::primal::Vector<double, 3> {0, 0, 1},
-  //   axom::primal::Vector<double, 3> {1, 1.1, 0},
-  //   0.5,
-  //   2.4,
-  //   50,
-  //   200);
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + "sphere_boundary_slice_20.vtk",
-    wn_field_boundary_quad,
-    axom::primal::Point<double, 3> {0, 0, -0.75},
-    axom::primal::Vector<double, 3> {0, 1, 0},
-    axom::primal::Vector<double, 3> {1, 0, 0},
-    2,
-    2,
-    300,
-    300);
+//   // axom::primal::exportSliceScalarFieldToVTK<double>(
+//   //   prefix + "sphere_exact_20.vtk",
+//   //   wn_field_exact,
+//   //   axom::primal::Point<double, 3> {0, 0, -0.75},
+//   //   axom::primal::Vector<double, 3> {0, 0, 1},
+//   //   axom::primal::Vector<double, 3> {1, 1.1, 0},
+//   //   0.5,
+//   //   2.4,
+//   //   50,
+//   //   200);
+//   axom::primal::exportSliceScalarFieldToVTK<double>(
+//     prefix + "sphere_boundary_slice_20.vtk",
+//     wn_field_boundary_quad,
+//     axom::primal::Point<double, 3> {0, 0, -0.75},
+//     axom::primal::Vector<double, 3> {0, 1, 0},
+//     axom::primal::Vector<double, 3> {1, 0, 0},
+//     2,
+//     2,
+//     300,
+//     300);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + "sphere_boundary_slice_20_orth.vtk",
-    wn_field_boundary_quad,
-    axom::primal::Point<double, 3> {0, 0, -0.75},
-    axom::primal::Vector<double, 3> {0, 0, 1},
-    axom::primal::Vector<double, 3> {1, 1.2, 0},
-    2 * 0.4,
-    2,
-    300 * 0.4,
-    300);
-}
+//   axom::primal::exportSliceScalarFieldToVTK<double>(
+//     prefix + "sphere_boundary_slice_20_orth.vtk",
+//     wn_field_boundary_quad,
+//     axom::primal::Point<double, 3> {0, 0, -0.75},
+//     axom::primal::Vector<double, 3> {0, 0, 1},
+//     axom::primal::Vector<double, 3> {1, 1.2, 0},
+//     2 * 0.4,
+//     2,
+//     300 * 0.4,
+//     300);
+// }
 
-void closure_intuition_3d()
-{
-  std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\stokes_"
-    "intuition\\";
+// void closure_intuition_3d()
+// {
+//   std::string prefix =
+//     "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\stokes_"
+//     "intuition\\";
 
-  std::string filename = "intuition_3d";
-  auto stepProcessor = import_step_file(prefix, filename);
+//   std::string filename = "intuition_3d";
+//   auto stepProcessor = import_step_file(prefix, filename);
 
-  constexpr double quad_tol = 1e-5;
-  constexpr double EPS = 1e-10;
-  constexpr double edge_tol = 1e-6;
+//   constexpr double quad_tol = 1e-5;
+//   constexpr double EPS = 1e-10;
+//   constexpr double edge_tol = 1e-6;
 
-  // (!bBox, !oBox, casting, noCache)
-  int case_code = -1;
-  auto wn_field_boundary =
-    [&stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
-      axom::primal::Point<double, 3> query) -> double {
-    double wn = 0.0;
-    for(const auto& kv : stepProcessor.getPatchDataMap())
-    {
-      int integrated_trimming_curves;
-      double the_val = axom::primal::detail::stokes_winding_number_cached(
-        query,
-        kv.second.nurbsPatchData,
-        axom::primal::detail::DiscontinuityAxis::z,
-        15,
-        quad_tol);
-      wn += the_val;
-    }
+//   // (!bBox, !oBox, casting, noCache)
+//   int case_code = -1;
+//   auto wn_field_boundary =
+//     [&stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
+//       axom::primal::Point<double, 3> query) -> double {
+//     double wn = 0.0;
+//     for(const auto& kv : stepProcessor.getPatchDataMap())
+//     {
+//       int integrated_trimming_curves;
+//       double the_val = axom::primal::detail::stokes_winding_number_cached(
+//         query,
+//         kv.second.nurbsPatchData,
+//         axom::primal::detail::DiscontinuityAxis::z,
+//         15,
+//         quad_tol);
+//       wn += the_val;
+//     }
 
-    return wn;
-  };
+//     return wn;
+//   };
 
-  auto wn_field = [&stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
-                    axom::primal::Point<double, 3> query) -> double {
-    double wn = 0.0;
-    for(const auto& kv : stepProcessor.getPatchDataMap())
-    {
-      int integrated_trimming_curves;
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
-      wn += the_val;
-    }
+//   auto wn_field = [&stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
+//                     axom::primal::Point<double, 3> query) -> double {
+//     double wn = 0.0;
+//     for(const auto& kv : stepProcessor.getPatchDataMap())
+//     {
+//       int integrated_trimming_curves;
+//       double the_val =
+//         axom::primal::winding_number(query,
+//                                              kv.second.nurbsPatchData,
+//                                              case_code,
+//                                              integrated_trimming_curves,
+//                                              edge_tol,
+//                                              quad_tol,
+//                                              EPS);
+//       wn += the_val;
+//     }
 
-    return wn;
-  };
+//     return wn;
+//   };
 
-  axom::primal::BoundingBox<double, 3> meshBBox;
-  for(const auto& kv : stepProcessor.getPatchDataMap())
-  {
-    meshBBox.addBox(kv.second.physicalBBox);
-  }
+//   axom::primal::BoundingBox<double, 3> meshBBox;
+//   for(const auto& kv : stepProcessor.getPatchDataMap())
+//   {
+//     meshBBox.addBox(kv.second.physicalBBox);
+//   }
 
-  auto the_range = 0.5 * meshBBox.range().norm();
+//   auto the_range = 0.5 * meshBBox.range().norm();
 
-  // Use this for u
-  // u = Vector<T, 3>( {-0.6536123100031038, -0.10738450531201763, -0.7491725543766935});
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_gwn_slice_1.vtk",
-    wn_field,
-    axom::primal::Point<double, 3> {0, 0, 0},
-    axom::primal::Vector<double, 3> {0.18489071073484686, 0.9824752787680089, 0},
-    axom::primal::Vector<double, 3> {0, 0, 1},
-    meshBBox.getMax()[0] - meshBBox.getMin()[0],
-    2 * (meshBBox.getMax()[1] - meshBBox.getMin()[1]),
-    100,
-    200);
+//   // Use this for u
+//   // u = Vector<T, 3>( {-0.6536123100031038, -0.10738450531201763, -0.7491725543766935});
+//   axom::primal::exportSliceScalarFieldToVTK<double>(
+//     prefix + filename + "_gwn_slice_1.vtk",
+//     wn_field,
+//     axom::primal::Point<double, 3> {0, 0, 0},
+//     axom::primal::Vector<double, 3> {0.18489071073484686, 0.9824752787680089, 0},
+//     axom::primal::Vector<double, 3> {0, 0, 1},
+//     meshBBox.getMax()[0] - meshBBox.getMin()[0],
+//     2 * (meshBBox.getMax()[1] - meshBBox.getMin()[1]),
+//     100,
+//     200);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_boundary_slice_1.vtk",
-    wn_field_boundary,
-    axom::primal::Point<double, 3> {0, 0, 0},
-    axom::primal::Vector<double, 3> {0.18489071073484686, 0.9824752787680089, 0},
-    axom::primal::Vector<double, 3> {0, 0, 1},
-    meshBBox.getMax()[0] - meshBBox.getMin()[0],
-    2 * (meshBBox.getMax()[1] - meshBBox.getMin()[1]),
-    100,
-    200);
+//   axom::primal::exportSliceScalarFieldToVTK<double>(
+//     prefix + filename + "_boundary_slice_1.vtk",
+//     wn_field_boundary,
+//     axom::primal::Point<double, 3> {0, 0, 0},
+//     axom::primal::Vector<double, 3> {0.18489071073484686, 0.9824752787680089, 0},
+//     axom::primal::Vector<double, 3> {0, 0, 1},
+//     meshBBox.getMax()[0] - meshBBox.getMin()[0],
+//     2 * (meshBBox.getMax()[1] - meshBBox.getMin()[1]),
+//     100,
+//     200);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_gwn_slice_2.vtk",
-    wn_field,
-    axom::primal::Point<double, 3> {0, 0, -4.5},
-    axom::primal::Vector<double, 3> {1, 0, 0},
-    axom::primal::Vector<double, 3> {0, 1, 0},
-    meshBBox.getMax()[0] - meshBBox.getMin()[0],
-    meshBBox.getMax()[0] - meshBBox.getMin()[0],
-    100,
-    100);
+//   axom::primal::exportSliceScalarFieldToVTK<double>(
+//     prefix + filename + "_gwn_slice_2.vtk",
+//     wn_field,
+//     axom::primal::Point<double, 3> {0, 0, -4.5},
+//     axom::primal::Vector<double, 3> {1, 0, 0},
+//     axom::primal::Vector<double, 3> {0, 1, 0},
+//     meshBBox.getMax()[0] - meshBBox.getMin()[0],
+//     meshBBox.getMax()[0] - meshBBox.getMin()[0],
+//     100,
+//     100);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_boundary_slice_2.vtk",
-    wn_field_boundary,
-    axom::primal::Point<double, 3> {0, 0, -4.5},
-    axom::primal::Vector<double, 3> {1, 0, 0},
-    axom::primal::Vector<double, 3> {0, 1, 0},
-    meshBBox.getMax()[0] - meshBBox.getMin()[0],
-    meshBBox.getMax()[0] - meshBBox.getMin()[0],
-    100,
-    100);
-}
+//   axom::primal::exportSliceScalarFieldToVTK<double>(
+//     prefix + filename + "_boundary_slice_2.vtk",
+//     wn_field_boundary,
+//     axom::primal::Point<double, 3> {0, 0, -4.5},
+//     axom::primal::Vector<double, 3> {1, 0, 0},
+//     axom::primal::Vector<double, 3> {0, 1, 0},
+//     meshBBox.getMax()[0] - meshBBox.getMin()[0],
+//     meshBBox.getMax()[0] - meshBBox.getMin()[0],
+//     100,
+//     100);
+// }
 
 void closure_intuition_2d()
 {
@@ -3340,9 +3174,9 @@ void plot_trimming_curves()
   // axom::primal::NURBSPatch<double, 3> n1, n2;
   // the_patch.diskSplit(0.4, 0.2, 0.08, n1, n2);
 
-  the_patch.printTrimmingCurves(
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\trimming_"
-    "subdivision\\wack.txt");
+  // the_patch.printTrimmingCurves(
+  //   "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\trimming_"
+  //   "subdivision\\wack.txt");
   // n1.printTrimmingCurves(
   //   "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\trimming_"
   //   "subdivision\\disk.txt");
@@ -3357,10 +3191,9 @@ void plot_trimming_curves()
 
 void coincident_point()
 {
-  axom::primal::Point<double, 2> centers[3] = {
-    axom::primal::Point<double, 2> {3.86209, 3.73582},
-    axom::primal::Point<double, 2> {1.29495, 1.83515},
-    axom::primal::Point<double, 2> {2.58151, 0.52798}};
+  axom::primal::Point<double, 2> centers[3] = {axom::primal::Point<double, 2> {3.86209, 3.73582},
+                                               axom::primal::Point<double, 2> {1.29495, 1.83515},
+                                               axom::primal::Point<double, 2> {2.58151, 0.52798}};
 
   std::string prefix =
     "C:\\Users\\Fireh\\Code\\winding_number_"
@@ -3379,8 +3212,7 @@ void coincident_point()
   }
 
   const int N = 10;
-  double radii[N] =
-    {0.125, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001, 0.00005, 0.00001};
+  double radii[N] = {0.125, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001, 0.00005, 0.00001};
 
   std::ofstream radii_out(prefix + "radii.txt");
   for(int i = 0; i < N; ++i)
@@ -3393,13 +3225,11 @@ void coincident_point()
     axom::primal::Vector<double, 3> direction =  //axom::primal::Vector<double, 3> {0.0, 0.0, 1.0};
       -the_patch.normal(centers[i][0], centers[i][1]);
 
-    axom::primal::Point<double, 3> point =
-      the_patch.evaluate(centers[i][0], centers[i][1]);
+    axom::primal::Point<double, 3> point = the_patch.evaluate(centers[i][0], centers[i][1]);
 
     // std::cout << point << std::endl;
 
-    std::ofstream out(prefix + "coincident_point_" + std::to_string(i + 1) +
-                      ".txt");
+    std::ofstream out(prefix + "coincident_point_" + std::to_string(i + 1) + ".txt");
 
     for(int j = 0; j < N; ++j)
     {
@@ -3407,22 +3237,21 @@ void coincident_point()
       axom::primal::NURBSPatch<double, 3> disk, n1;
       the_patch.diskSplit(centers[i][0], centers[i][1], radii[j], n1, disk);
 
-      the_patch.printTrimmingCurves(prefix + "original.txt");
-      disk.printTrimmingCurves(prefix + "disk.txt");
-      n1.printTrimmingCurves(prefix + "remaining.txt");
+      // the_patch.printTrimmingCurves(prefix + "original.txt");
+      // disk.printTrimmingCurves(prefix + "disk.txt");
+      // n1.printTrimmingCurves(prefix + "remaining.txt");
 
       // Requires setting onSurface to true
-      out << simple_coincident_wn(point, disk, direction, 0) << std::endl;
+      // out << simple_coincident_wn(point, disk, direction, 0) << std::endl;
     }
   }
 }
 
 void nearby_point()
 {
-  axom::primal::Point<double, 2> centers[3] = {
-    axom::primal::Point<double, 2> {3.86209, 3.73582},
-    axom::primal::Point<double, 2> {1.29495, 1.83515},
-    axom::primal::Point<double, 2> {2.58151, 0.52798}};
+  axom::primal::Point<double, 2> centers[3] = {axom::primal::Point<double, 2> {3.86209, 3.73582},
+                                               axom::primal::Point<double, 2> {1.29495, 1.83515},
+                                               axom::primal::Point<double, 2> {2.58151, 0.52798}};
 
   std::string prefix =
     "C:\\Users\\Fireh\\Code\\winding_number_"
@@ -3441,8 +3270,7 @@ void nearby_point()
   }
 
   const int N = 10;
-  double radii[N] =
-    {0.125, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001, 0.00005, 0.00001};
+  double radii[N] = {0.125, 0.1, 0.05, 0.01, 0.005, 0.001, 0.0005, 0.0001, 0.00005, 0.00001};
 
   std::ofstream radii_out(prefix + "radii.txt");
   for(int i = 0; i < N; ++i)
@@ -3455,8 +3283,7 @@ void nearby_point()
     axom::primal::Vector<double, 3> direction =  //axom::primal::Vector<double, 3> {0.0, 0.0, 1.0};
       -the_patch.normal(centers[i][0], centers[i][1]);
 
-    axom::primal::Vector<double, 3> other_direction =
-      the_patch.du(centers[i][0], centers[i][1]);
+    axom::primal::Vector<double, 3> other_direction = the_patch.du(centers[i][0], centers[i][1]);
 
     the_patch.evaluate(centers[i][0], centers[i][1]);
 
@@ -3482,7 +3309,7 @@ void nearby_point()
       // n1.printTrimmingCurves(prefix + "remaining.txt");
 
       // Requires setting onSurface to true
-      out << simple_coincident_wn(random_point, disk, direction, 0) << std::endl;
+      // out << simple_coincident_wn(random_point, disk, direction, 0) << std::endl;
     }
   }
 }
@@ -3490,8 +3317,7 @@ void nearby_point()
 void spring_example(bool process_only = false)
 {
   // ABC example 86
-  std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
+  std::string prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
 
   std::string filename = "spring_split";
   auto stepProcessor = import_step_file(prefix, filename);
@@ -3513,14 +3339,13 @@ void spring_example(bool process_only = false)
     for(const auto& kv : stepProcessor.getPatchDataMap())
     {
       int integrated_trimming_curves;
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       wn += the_val;
     }
 
@@ -3574,16 +3399,15 @@ void spring_example(bool process_only = false)
     200,
     200);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_slice_4.vtk",
-    wn_field,
-    axom::primal::Point<double, 3> {0, 0, 0},
-    axom::primal::Vector<double, 3> {0, 0, 1},
-    axom::primal::Vector<double, 3> {0, 1, 0},
-    meshBBox.getMax()[2] - meshBBox.getMin()[2],
-    meshBBox.getMax()[1] - meshBBox.getMin()[1],
-    200,
-    200);
+  axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_slice_4.vtk",
+                                                    wn_field,
+                                                    axom::primal::Point<double, 3> {0, 0, 0},
+                                                    axom::primal::Vector<double, 3> {0, 0, 1},
+                                                    axom::primal::Vector<double, 3> {0, 1, 0},
+                                                    meshBBox.getMax()[2] - meshBBox.getMin()[2],
+                                                    meshBBox.getMax()[1] - meshBBox.getMin()[1],
+                                                    200,
+                                                    200);
 }
 
 void generic_timing_test(std::string prefix,
@@ -3605,12 +3429,9 @@ void generic_timing_test(std::string prefix,
   int ySteps = 50;
   int zSteps = 50;
 
-  double dx =
-    (xSteps > 1) ? (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1) : 0.0;
-  double dy =
-    (ySteps > 1) ? (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1) : 0.0;
-  double dz =
-    (zSteps > 1) ? (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1) : 0.0;
+  double dx = (xSteps > 1) ? (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1) : 0.0;
+  double dy = (ySteps > 1) ? (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1) : 0.0;
+  double dz = (zSteps > 1) ? (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1) : 0.0;
 
   int case_patch_totals[4] = {0, 0, 0, 0};
   int case_curves_totals[4] = {0, 0, 0, 0};
@@ -3622,8 +3443,8 @@ void generic_timing_test(std::string prefix,
   gwn_field << "ASCII\n";
   gwn_field << "DATASET STRUCTURED_POINTS\n";
   gwn_field << "DIMENSIONS " << xSteps << " " << ySteps << " " << zSteps << "\n";
-  gwn_field << "ORIGIN " << bbox.getMin()[0] << " " << bbox.getMin()[1] << " "
-            << bbox.getMin()[2] << "\n";
+  gwn_field << "ORIGIN " << bbox.getMin()[0] << " " << bbox.getMin()[1] << " " << bbox.getMin()[2]
+            << "\n";
   gwn_field << "SPACING " << dx << " " << dy << " " << dz << "\n";
   gwn_field << "POINT_DATA " << xSteps * ySteps * zSteps << "\n";
   gwn_field << "SCALARS scalars float\n";
@@ -3658,14 +3479,13 @@ void generic_timing_test(std::string prefix,
         {
           int integrated_trimming_curves;
           timer.start();
-          double the_val =
-            axom::primal::winding_number_casting(query,
-                                                 kv.second.nurbsPatchData,
-                                                 case_code,
-                                                 integrated_trimming_curves,
-                                                 edge_tol,
-                                                 quad_tol,
-                                                 EPS);
+          double the_val = axom::primal::winding_number(query,
+                                                        kv.second.nurbsPatchData,
+                                                        case_code,
+                                                        integrated_trimming_curves,
+                                                        edge_tol,
+                                                        quad_tol,
+                                                        EPS);
           timer.stop();
 
           case_patch_totals[case_code]++;
@@ -3674,8 +3494,8 @@ void generic_timing_test(std::string prefix,
           wn += the_val;
 
           results << x << ", " << y << ", " << z << ", " << kv.first << ", "
-                  << integrated_trimming_curves << ", " << the_val << ", "
-                  << case_code << ", " << timer.elapsedTimeInSec() << "\n";
+                  << integrated_trimming_curves << ", " << the_val << ", " << case_code << ", "
+                  << timer.elapsedTimeInSec() << "\n";
 
           gwn_field << the_val << "\n";
         }
@@ -3688,18 +3508,17 @@ void generic_timing_test(std::string prefix,
   // Case 2: Casting Necessary (near-field)
   // Case 3: Trimming Curve Subdivision (edge case)
 
-  summary << "Case 0: Outside AABB: " << case_patch_totals[0] << ", "
-          << case_curves_totals[0] << ", " << case_time_totals[0] << "\n";
+  summary << "Case 0: Outside AABB: " << case_patch_totals[0] << ", " << case_curves_totals[0]
+          << ", " << case_time_totals[0] << "\n";
 
-  summary << "Case 1: Outside OBB: " << case_patch_totals[1] << ", "
-          << case_curves_totals[1] << ", " << case_time_totals[1] << "\n";
+  summary << "Case 1: Outside OBB: " << case_patch_totals[1] << ", " << case_curves_totals[1]
+          << ", " << case_time_totals[1] << "\n";
 
-  summary << "Case 2: Casting Necessary: " << case_patch_totals[2] << ", "
-          << case_curves_totals[2] << ", " << case_time_totals[2] << "\n";
+  summary << "Case 2: Casting Necessary: " << case_patch_totals[2] << ", " << case_curves_totals[2]
+          << ", " << case_time_totals[2] << "\n";
 
-  summary << "Case 3: Trimming Curve Subdivision: " << case_patch_totals[3]
-          << ", " << case_curves_totals[3] << ", " << case_time_totals[3]
-          << "\n";
+  summary << "Case 3: Trimming Curve Subdivision: " << case_patch_totals[3] << ", "
+          << case_curves_totals[3] << ", " << case_time_totals[3] << "\n";
 
   gwn_field.close();
   results.close();
@@ -3714,10 +3533,8 @@ void generic_direction_timing_test(std::string prefix,
 {
   auto stepProcessor = import_step_file(prefix, filename);
 
-  std::ofstream results(prefix + filename + "_timing_results_" + file_tag +
-                        ".csv");
-  std::ofstream summary(prefix + filename + "_timing_summary_" + file_tag +
-                        ".csv");
+  std::ofstream results(prefix + filename + "_timing_results_" + file_tag + ".csv");
+  std::ofstream summary(prefix + filename + "_timing_summary_" + file_tag + ".csv");
   std::ofstream gwn_field(prefix + filename + "_gwn_field_" + file_tag + ".csv");
 
   constexpr double quad_tol = 1e-5;
@@ -3728,12 +3545,9 @@ void generic_direction_timing_test(std::string prefix,
   int ySteps = 50;
   int zSteps = 50;
 
-  double dx =
-    (xSteps > 1) ? (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1) : 0.0;
-  double dy =
-    (ySteps > 1) ? (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1) : 0.0;
-  double dz =
-    (zSteps > 1) ? (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1) : 0.0;
+  double dx = (xSteps > 1) ? (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1) : 0.0;
+  double dy = (ySteps > 1) ? (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1) : 0.0;
+  double dz = (zSteps > 1) ? (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1) : 0.0;
 
   int case_patch_totals[4] = {0, 0, 0, 0};
   int case_curves_totals[4] = {0, 0, 0, 0};
@@ -3745,8 +3559,8 @@ void generic_direction_timing_test(std::string prefix,
   gwn_field << "ASCII\n";
   gwn_field << "DATASET STRUCTURED_POINTS\n";
   gwn_field << "DIMENSIONS " << xSteps << " " << ySteps << " " << zSteps << "\n";
-  gwn_field << "ORIGIN " << bbox.getMin()[0] << " " << bbox.getMin()[1] << " "
-            << bbox.getMin()[2] << "\n";
+  gwn_field << "ORIGIN " << bbox.getMin()[0] << " " << bbox.getMin()[1] << " " << bbox.getMin()[2]
+            << "\n";
   gwn_field << "SPACING " << dx << " " << dy << " " << dz << "\n";
   gwn_field << "POINT_DATA " << xSteps * ySteps * zSteps << "\n";
   gwn_field << "SCALARS scalars float\n";
@@ -3781,28 +3595,26 @@ void generic_direction_timing_test(std::string prefix,
         {
           int integrated_trimming_curves;
           timer.start();
-          auto split_val = axom::primal::winding_number_casting_split(
-            query,
-            kv.second.nurbsPatchData,
-            direction,
-            case_code,
-            integrated_trimming_curves,
-            edge_tol,
-            quad_tol,
-            EPS);
+          auto the_val = axom::primal::winding_number(query,
+                                                      kv.second.nurbsPatchData,
+                                                      case_code,
+                                                      integrated_trimming_curves,
+                                                      edge_tol,
+                                                      1e-6,
+                                                      quad_tol,
+                                                      EPS);
           timer.stop();
 
           case_patch_totals[case_code]++;
           case_curves_totals[case_code] += integrated_trimming_curves;
           case_time_totals[case_code] += timer.elapsedTimeInSec();
-          wn += split_val.first + split_val.second;
+          wn += the_val;
 
           results << x << ", " << y << ", " << z << ", " << kv.first << ", "
-                  << integrated_trimming_curves << ", "
-                  << split_val.first + split_val.second << ", " << case_code
-                  << ", " << timer.elapsedTimeInSec() << "\n";
+                  << integrated_trimming_curves << ", " << the_val << ", " << case_code << ", "
+                  << timer.elapsedTimeInSec() << "\n";
 
-          gwn_field << split_val.first + split_val.second << "\n";
+          gwn_field << the_val << "\n";
         }
       }
     }
@@ -3813,18 +3625,17 @@ void generic_direction_timing_test(std::string prefix,
   // Case 2: Casting Necessary (near-field)
   // Case 3: Trimming Curve Subdivision (edge case)
 
-  summary << "Case 0: Outside AABB: " << case_patch_totals[0] << ", "
-          << case_curves_totals[0] << ", " << case_time_totals[0] << "\n";
+  summary << "Case 0: Outside AABB: " << case_patch_totals[0] << ", " << case_curves_totals[0]
+          << ", " << case_time_totals[0] << "\n";
 
-  summary << "Case 1: Outside OBB: " << case_patch_totals[1] << ", "
-          << case_curves_totals[1] << ", " << case_time_totals[1] << "\n";
+  summary << "Case 1: Outside OBB: " << case_patch_totals[1] << ", " << case_curves_totals[1]
+          << ", " << case_time_totals[1] << "\n";
 
-  summary << "Case 2: Casting Necessary: " << case_patch_totals[2] << ", "
-          << case_curves_totals[2] << ", " << case_time_totals[2] << "\n";
+  summary << "Case 2: Casting Necessary: " << case_patch_totals[2] << ", " << case_curves_totals[2]
+          << ", " << case_time_totals[2] << "\n";
 
-  summary << "Case 3: Trimming Curve Subdivision: " << case_patch_totals[3]
-          << ", " << case_curves_totals[3] << ", " << case_time_totals[3]
-          << "\n";
+  summary << "Case 3: Trimming Curve Subdivision: " << case_patch_totals[3] << ", "
+          << case_curves_totals[3] << ", " << case_time_totals[3] << "\n";
 
   gwn_field.close();
   results.close();
@@ -3834,8 +3645,7 @@ void generic_direction_timing_test(std::string prefix,
 void van_example(bool process_only = false)
 {
   // ABC example 4192 i think
-  std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
+  std::string prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
 
   std::string filename = "van";
   auto stepProcessor = import_step_file(prefix, filename);
@@ -3857,14 +3667,13 @@ void van_example(bool process_only = false)
     for(const auto& kv : stepProcessor.getPatchDataMap())
     {
       int integrated_trimming_curves;
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       wn += the_val;
     }
 
@@ -3911,8 +3720,7 @@ void van_example(bool process_only = false)
 void spring_example_volume(bool process_only = false)
 {
   // ABC example 4192 i think
-  std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
+  std::string prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
 
   std::string filename = "spring_subset";
   auto stepProcessor = import_step_file(prefix, filename);
@@ -3934,14 +3742,13 @@ void spring_example_volume(bool process_only = false)
     for(const auto& kv : stepProcessor.getPatchDataMap())
     {
       int integrated_trimming_curves;
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       wn += the_val;
     }
 
@@ -3963,10 +3770,8 @@ void spring_example_volume(bool process_only = false)
   axom::utilities::Timer timer(false);
 
   axom::primal::BoundingBox<double, 3> smaller_box;
-  smaller_box.addPoint(
-    axom::primal::Point<double, 3> {-0.0385 + 0.005, 0.0 + 0.005, 0.025 + 0.005});
-  smaller_box.addPoint(
-    axom::primal::Point<double, 3> {-0.0385 - 0.005, 0.0 - 0.005, 0.025 - 0.005});
+  smaller_box.addPoint(axom::primal::Point<double, 3> {-0.0385 + 0.005, 0.0 + 0.005, 0.025 + 0.005});
+  smaller_box.addPoint(axom::primal::Point<double, 3> {-0.0385 - 0.005, 0.0 - 0.005, 0.025 - 0.005});
 
   axom::primal::exportScalarFieldToVTK<double>(prefix + filename + "_volume.vtk",
                                                wn_field,
@@ -3979,8 +3784,7 @@ void spring_example_volume(bool process_only = false)
 void bobbin_example_volume(bool process_only = false)
 {
   // ABC example 4192 i think
-  std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
+  std::string prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
 
   std::string filename = "bobbin";
   auto stepProcessor = import_step_file(prefix, filename);
@@ -4002,14 +3806,13 @@ void bobbin_example_volume(bool process_only = false)
     for(const auto& kv : stepProcessor.getPatchDataMap())
     {
       int integrated_trimming_curves;
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       wn += the_val;
     }
 
@@ -4031,10 +3834,8 @@ void bobbin_example_volume(bool process_only = false)
   axom::utilities::Timer timer(false);
 
   axom::primal::BoundingBox<double, 3> smaller_box;
-  smaller_box.addPoint(
-    axom::primal::Point<double, 3> {0.047 + 0.008, -0.005 + 0.008, 0.05 + 0.002});
-  smaller_box.addPoint(
-    axom::primal::Point<double, 3> {0.047 - 0.008, -0.005 - 0.008, 0.05 - 0.002});
+  smaller_box.addPoint(axom::primal::Point<double, 3> {0.047 + 0.008, -0.005 + 0.008, 0.05 + 0.002});
+  smaller_box.addPoint(axom::primal::Point<double, 3> {0.047 - 0.008, -0.005 - 0.008, 0.05 - 0.002});
 
   axom::primal::exportScalarFieldToVTK<double>(prefix + filename + "_volume.vtk",
                                                wn_field,
@@ -4048,8 +3849,7 @@ void bobbin_example_volume(bool process_only = false)
 void bobbin_example(bool process_only = false)
 {
   // ABC example 4192 i think
-  std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
+  std::string prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
 
   std::string filename = "bobbin";
   auto stepProcessor = import_step_file(prefix, filename);
@@ -4073,14 +3873,13 @@ void bobbin_example(bool process_only = false)
       // 14
 
       int integrated_trimming_curves;  // 0.062689486818427134, 0, -0.00067335004127314774
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       wn += the_val;
     }
 
@@ -4137,8 +3936,7 @@ void bobbin_example(bool process_only = false)
 
 void complex_gear_example(bool process_only = false)
 {
-  std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
+  std::string prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
 
   std::string filename = "complex_gear";
   auto stepProcessor = import_step_file(prefix, filename);
@@ -4162,14 +3960,13 @@ void complex_gear_example(bool process_only = false)
       // 14
 
       int integrated_trimming_curves;  // 0.062689486818427134, 0, -0.00067335004127314774
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       wn += the_val;
     }
 
@@ -4204,8 +4001,7 @@ void complex_gear_example(bool process_only = false)
 
 void complex_gear_subset_example(bool process_only = false)
 {
-  std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
+  std::string prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
 
   std::string filename = "complex_gear";
   auto stepProcessor = import_step_file(prefix, filename);
@@ -4229,14 +4025,13 @@ void complex_gear_subset_example(bool process_only = false)
       // 14
 
       int integrated_trimming_curves;  // 0.062689486818427134, 0, -0.00067335004127314774
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       wn += the_val;
     }
 
@@ -4260,12 +4055,8 @@ void complex_gear_subset_example(bool process_only = false)
   axom::primal::exportSliceScalarFieldToVTK<double>(
     prefix + filename + "_subset_slice_1_hires.vtk",
     wn_field,
-    axom::primal::Point<double, 3> {0.044658458307408416,
-                                    0.015908217648718987,
-                                    0.0076132148484121575},
-    axom::primal::Vector<double, 3> {0.9815644542845647,
-                                     0.051996087231145134,
-                                     0.183922888727031},
+    axom::primal::Point<double, 3> {0.044658458307408416, 0.015908217648718987, 0.0076132148484121575},
+    axom::primal::Vector<double, 3> {0.9815644542845647, 0.051996087231145134, 0.183922888727031},
     0.02,
     0.02,
     300,
@@ -4274,12 +4065,8 @@ void complex_gear_subset_example(bool process_only = false)
   axom::primal::exportSliceScalarFieldToVTK<double>(
     prefix + filename + "_subset_slice_3_hires.vtk",
     wn_field,
-    axom::primal::Point<double, 3> {0.043513682724686795,
-                                    0.016015024578763956,
-                                    0.007885157983450936},
-    axom::primal::Vector<double, 3> {0.15398755023658012,
-                                     -0.9090236554643468,
-                                     -0.3872516341842515},
+    axom::primal::Point<double, 3> {0.043513682724686795, 0.016015024578763956, 0.007885157983450936},
+    axom::primal::Vector<double, 3> {0.15398755023658012, -0.9090236554643468, -0.3872516341842515},
     0.02 * 0.075,
     0.02 * 0.075,
     300,
@@ -4304,9 +4091,8 @@ void spring_direction_example()
   int case_code = -1;
   axom::primal::Vector<double, 3> direction = {1.0, 0.0, 0.0};
 
-  auto wn_field =
-    [&direction, &stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
-      axom::primal::Point<double, 3> query) -> std::pair<double, double> {
+  auto wn_field = [&direction, &stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
+                    axom::primal::Point<double, 3> query) -> std::pair<double, double> {
     double wn = 0.0;
     axom::utilities::Timer timer(false);
 
@@ -4314,16 +4100,14 @@ void spring_direction_example()
     for(const auto& kv : stepProcessor.getPatchDataMap())
     {
       int integrated_trimming_curves;
-      auto split_val =
-        axom::primal::winding_number_casting_split(query,
-                                                   kv.second.nurbsPatchData,
-                                                   direction,
-                                                   case_code,
-                                                   integrated_trimming_curves,
-                                                   edge_tol,
-                                                   quad_tol,
-                                                   EPS);
-      wn += split_val.first + split_val.second;
+      auto the_val = axom::primal::winding_number(query,
+                                                  kv.second.nurbsPatchData,
+                                                  case_code,
+                                                  integrated_trimming_curves,
+                                                  edge_tol,
+                                                  quad_tol,
+                                                  EPS);
+      wn += the_val;
     }
     timer.stop();
 
@@ -4331,9 +4115,8 @@ void spring_direction_example()
     return result;
   };
 
-  auto wn_random_field =
-    [&direction, &stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
-      axom::primal::Point<double, 3> query) -> std::pair<double, double> {
+  auto wn_random_field = [&direction, &stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
+                           axom::primal::Point<double, 3> query) -> std::pair<double, double> {
     double wn = 0.0;
     axom::utilities::Timer timer(false);
 
@@ -4341,15 +4124,14 @@ void spring_direction_example()
     for(const auto& kv : stepProcessor.getPatchDataMap())
     {
       int integrated_trimming_curves;
-      auto split_val =
-        axom::primal::winding_number_casting(query,
-                                             kv.second.nurbsPatchData,
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
-      wn += split_val;
+      auto the_val = axom::primal::winding_number(query,
+                                                  kv.second.nurbsPatchData,
+                                                  case_code,
+                                                  integrated_trimming_curves,
+                                                  edge_tol,
+                                                  quad_tol,
+                                                  EPS);
+      wn += the_val;
     }
     timer.stop();
 
@@ -4419,9 +4201,8 @@ void spring_direction_example()
  * @param EPS Allowed distance to sphere (inside the sphere)
  * @return A vector of sample points near unit sphere
  */
-std::vector<axom::primal::Point<double, 3>> generateSamplePointsOnSphere(
-  int numSamples,
-  double EPS = 1e-3)
+std::vector<axom::primal::Point<double, 3>> generateSamplePointsOnSphere(int numSamples,
+                                                                         double EPS = 1e-3)
 {
   std::vector<axom::primal::Point<double, 3>> samplePoints;
   samplePoints.reserve(numSamples);
@@ -4444,10 +4225,9 @@ std::vector<axom::primal::Point<double, 3>> generateSamplePointsOnSphere(
 
     const double mag = axom::utilities::random_real(eps_lower, eps_upper);
 
-    samplePoints.emplace_back(
-      axom::primal::Point<double, 3> {mag * sinTheta * std::cos(phi),
-                                      mag * sinTheta * std::sin(phi),
-                                      mag * cosTheta});
+    samplePoints.emplace_back(axom::primal::Point<double, 3> {mag * sinTheta * std::cos(phi),
+                                                              mag * sinTheta * std::sin(phi),
+                                                              mag * cosTheta});
   }
 
   return samplePoints;
@@ -4478,19 +4258,15 @@ std::vector<axom::primal::Point<double, 3>> generateSamplePointsOnBBox(
                       bbox.getMin()[2],
                       bbox.getMax()[2]));
 
-  auto fixed_point = axom::primal::Point<double, 3> {0.173410095373064,
-                                                     -0.553443515142974,
-                                                     -0.482196662013814};
+  auto fixed_point =
+    axom::primal::Point<double, 3> {0.173410095373064, -0.553443515142974, -0.482196662013814};
   bool useFixedPoint = false;
 
   for(int i = 0; i < numSamples; ++i)
   {
-    const double x0 =
-      axom::utilities::random_real(bbox.getMin()[0], bbox.getMax()[0]);
-    const double y0 =
-      axom::utilities::random_real(bbox.getMin()[1], bbox.getMax()[1]);
-    const double z0 =
-      axom::utilities::random_real(bbox.getMin()[2], bbox.getMax()[2]);
+    const double x0 = axom::utilities::random_real(bbox.getMin()[0], bbox.getMax()[0]);
+    const double y0 = axom::utilities::random_real(bbox.getMin()[1], bbox.getMax()[1]);
+    const double z0 = axom::utilities::random_real(bbox.getMin()[2], bbox.getMax()[2]);
 
     if(useFixedPoint)
       samplePoints.emplace_back(fixed_point);
@@ -4590,8 +4366,7 @@ void test_rotate_curve()
   }
   else
   {
-    double fun =
-      3 * std::sin(1.0 / 3.0 * std::asin(1 - 2 * radius)) + radius - 0.5;
+    double fun = 3 * std::sin(1.0 / 3.0 * std::asin(1 - 2 * radius)) + radius - 0.5;
 
     std::cout << (query[2] <= fun) << std::endl;
     std::cout << (query[2] > -1.0) << std::endl;
@@ -4602,21 +4377,19 @@ void test_rotate_curve()
 
     inside = (query[2] <= fun) &&
       ((query[2] > -1.0) ||
-       std::sqrt(query[0] * query[0] + query[1] * query[1] +
-                   (query[2] + 1.0) * (query[2] + 1.0) <=
+       std::sqrt(query[0] * query[0] + query[1] * query[1] + (query[2] + 1.0) * (query[2] + 1.0) <=
                  1.0));
   }
 
   std::cout << "Inside: " << inside << std::endl;
 }
 
-void tear_parameter_tol_test(
-  const std::string& test_prefix,
-  const std::string& out_prefix,
-  double ls_tol,
-  double quad_tol,
-  const std::vector<axom::primal::Point<double, 3>>& query_points,
-  const std::string& out_suffix = "")
+void tear_parameter_tol_test(const std::string& test_prefix,
+                             const std::string& out_prefix,
+                             double ls_tol,
+                             double quad_tol,
+                             const std::vector<axom::primal::Point<double, 3>>& query_points,
+                             const std::string& out_suffix = "")
 {
   // lambda function that rotates a given BezierCurve around the z-axis
   auto rotate_curve = [](const axom::primal::BezierCurve<double, 2>& curve)
@@ -4722,8 +4495,6 @@ void tear_parameter_tol_test(
     }
   }
 
-  return;
-
   constexpr double EPS = 1e-12;
   constexpr double edge_tol = 1e-16;
 
@@ -4759,7 +4530,7 @@ void tear_parameter_tol_test(
       int integrated_trimming_curves = 0;
       timer.start();
       double the_val =
-        axom::primal::winding_number_casting(query,
+        axom::primal::winding_number(query,
                                              nurbs_surfaces_data[i],
                                              case_code,
                                              integrated_trimming_curves,
@@ -4988,9 +4759,8 @@ void query_timing_test(const std::string& test_prefix,
 
   const int num_query_pts = query_points.size();
   const int progress_idx = [num_query_pts](int div) {
-    return num_query_pts > div
-      ? static_cast<int>(num_query_pts / static_cast<double>(div))
-      : num_query_pts;
+    return num_query_pts > div ? static_cast<int>(num_query_pts / static_cast<double>(div))
+                               : num_query_pts;
   }(20);
   axom::Array<double> gwn(num_query_pts);
 
@@ -5011,14 +4781,13 @@ void query_timing_test(const std::string& test_prefix,
     {
       int integrated_trimming_curves = 0;
       timer.start();
-      double the_val =
-        axom::primal::winding_number_casting(query,
-                                             nurbs_faces_data[i],
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             EPS);
+      double the_val = axom::primal::winding_number(query,
+                                                    nurbs_faces_data[i],
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    quad_tol,
+                                                    EPS);
       timer.stop();
 
       case_patch_totals[case_code]++;
@@ -5034,28 +4803,26 @@ void query_timing_test(const std::string& test_prefix,
   {
     // Write query points and GWN field to CSV
     axom::fmt::memory_buffer csv;
-    axom::fmt::format_to(
-      std::back_inserter(csv),
-      "x, y, z, radius, winding_number, expected_inside, rounded\n");
+    axom::fmt::format_to(std::back_inserter(csv),
+                         "x, y, z, radius, winding_number, expected_inside, rounded\n");
 
     int outside_count = 0;
     for(int idx = 0; idx < num_query_pts; ++idx)
     {
       const auto& query = query_points[idx];
-      const double radius = std::sqrt(
-        query[0] * query[0] + query[1] * query[1] + query[2] * query[2]);
+      const double radius =
+        std::sqrt(query[0] * query[0] + query[1] * query[1] + query[2] * query[2]);
       const bool inside = radius > 1.0 ? false : true;
       const int rounded = std::lround(gwn[idx]);
-      axom::fmt::format_to(
-        std::back_inserter(csv),
-        "{:.15f}, {:.15f}, {:.15f}, {:.15f}, {:.15f}, {}, {}\n",
-        query[0],
-        query[1],
-        query[2],
-        radius,
-        gwn[idx],
-        inside,
-        rounded);
+      axom::fmt::format_to(std::back_inserter(csv),
+                           "{:.15f}, {:.15f}, {:.15f}, {:.15f}, {:.15f}, {}, {}\n",
+                           query[0],
+                           query[1],
+                           query[2],
+                           radius,
+                           gwn[idx],
+                           inside,
+                           rounded);
 
       if(rounded == 0)
       {
@@ -5063,28 +4830,27 @@ void query_timing_test(const std::string& test_prefix,
       }
     }
 
-    std::string csvFilename = joinPath(
-      out_prefix,
-      axom::fmt::format("{}_sphere_gwn_field{}.csv", test_prefix, out_suffix));
+    std::string csvFilename =
+      joinPath(out_prefix, axom::fmt::format("{}_sphere_gwn_field{}.csv", test_prefix, out_suffix));
     std::ofstream csvFile(csvFilename);
     csvFile << axom::fmt::to_string(csv);
     SLIC_INFO(axom::fmt::format("CSV file generated: '{}'", csvFilename));
     const int inside_count = num_query_pts - outside_count;
-    SLIC_INFO(axom::fmt::format(
-      axom::utilities::locale(),
-      "Out of {:L} query points, {:L} were inside ({:.2f}%) and {:L} were "
-      "outside ({:.2f}%)",
-      num_query_pts,
-      inside_count,
-      (static_cast<double>(inside_count) / num_query_pts) * 100.0,
-      outside_count,
-      (static_cast<double>(outside_count) / num_query_pts) * 100.0));
+    SLIC_INFO(
+      axom::fmt::format(axom::utilities::locale(),
+                        "Out of {:L} query points, {:L} were inside ({:.2f}%) and {:L} were "
+                        "outside ({:.2f}%)",
+                        num_query_pts,
+                        inside_count,
+                        (static_cast<double>(inside_count) / num_query_pts) * 100.0,
+                        outside_count,
+                        (static_cast<double>(outside_count) / num_query_pts) * 100.0));
   }
 
   {
-    std::string out_file = joinPath(
-      out_prefix,
-      axom::fmt::format("{}_sphere_timing_summary{}.csv", test_prefix, out_suffix));
+    std::string out_file =
+      joinPath(out_prefix,
+               axom::fmt::format("{}_sphere_timing_summary{}.csv", test_prefix, out_suffix));
 
     SLIC_INFO(axom::fmt::format("Writing results to '{}'", out_file));
     std::ofstream summary(out_file);
@@ -5104,11 +4870,10 @@ void query_timing_test(const std::string& test_prefix,
                                  case_curves_totals[2],
                                  case_time_totals[2]);
 
-    summary << axom::fmt::format(
-      "Case 3: Trimming Curve Subdivision: {}, {}, {:.15f}\n",
-      case_patch_totals[3],
-      case_curves_totals[3],
-      case_time_totals[3]);
+    summary << axom::fmt::format("Case 3: Trimming Curve Subdivision: {}, {}, {:.15f}\n",
+                                 case_patch_totals[3],
+                                 case_curves_totals[3],
+                                 case_time_totals[3]);
   }
 }
 
@@ -5191,7 +4956,7 @@ int main()
     axom::utilities::filesystem::makeDirsForPath(out_prefix);
   }
 
-  int num_query_pts = 1e5;
+  int num_query_pts = 1e3;
 
   double fixed_ls_tol = 1e-6;
   double fixed_quad_tol = 1e-6;
@@ -5230,12 +4995,7 @@ int main()
     bbox.addPoint(axom::primal::Point<double, 3> {1.0, 1.0, 1.0});
     bbox.addPoint(axom::primal::Point<double, 3> {-1.0, -1.0, -2.0});
     auto query_pts = generateSamplePointsOnBBox(bbox, num_query_pts);
-    tear_parameter_tol_test(test_prefix,
-                            out_prefix,
-                            ls_tol,
-                            fixed_quad_tol,
-                            query_pts,
-                            test_suffix);
+    tear_parameter_tol_test(test_prefix, out_prefix, ls_tol, fixed_quad_tol, query_pts, test_suffix);
   }
 
   // test_rotate_curve();

@@ -750,6 +750,57 @@ bool intersect(const Ray<T, 2>& r,
   return foundIntersection;
 }
 
+/*!
+ * \brief Function to determine *if* a NURBS curve intersects a bounding box
+ * \note Does not attempt to compute the actual points of intersection
+ */
+template <typename T>
+bool intersects(const BoundingBox<T, 2>& bb, const NURBSCurve<T, 2>& n)
+{
+  // If the bounding boxes don't intersect, no intersection is possible
+  if(!intersect(bb, n.boundingBox()))
+  {
+    return false;
+  }
+
+  // If the bounding box contains the entire curve, no intersection is possible
+  if(bb.contains(n.boundingBox()))
+  {
+    return false;
+  }
+
+  // If the first control point or the last control point *touches* the bounding box,
+  //  then that counts as an intersection
+  auto first = n[0];
+  if(first[0] == bb.getMin()[0] || first[0] == bb.getMax()[0] || first[1] == bb.getMin()[1] ||
+     first[1] == bb.getMax()[1])
+  {
+    return true;
+  }
+
+  auto last = n[n.getNumControlPoints() - 1];
+  if(last[0] == bb.getMin()[0] || last[0] == bb.getMax()[0] || last[1] == bb.getMin()[1] ||
+     last[1] == bb.getMax()[1])
+  {
+    return true;
+  }
+
+  // If the first control point is in the bounding box and the last control point is outside,
+  //  or vice versa, then there is guaranteed to be an intersection
+  bool first_in = bb.contains(first);
+  bool last_in = bb.contains(last);
+  if((first_in && !last_in) || (!first_in && last_in))
+  {
+    return true;
+  }
+
+  // Otherwise, need to split the curve in two and check each half
+  NURBSCurve<T, 2> n1, n2;
+  n.bisect(n1, n2);
+
+  // Since we are only looking if intersections exist, can short circuit
+  return intersects(bb, n1) || intersects(bb, n2);
+}
 /// @}
 
 /// \name Plane Intersection Routines

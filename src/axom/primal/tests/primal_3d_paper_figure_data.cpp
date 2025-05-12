@@ -15,8 +15,7 @@
 
 #include "axom/primal/geometry/BezierCurve.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
-#include "axom/primal/operators/winding_number_2d.hpp"
-#include "axom/primal/operators/winding_number_3d.hpp"
+#include "axom/primal/operators/winding_number.hpp"
 #include "axom/primal/operators/detail/winding_number_2d_impl.hpp"
 #include "axom/primal/operators/detail/winding_number_3d_impl.hpp"
 

@@ -14,7 +14,7 @@
 #include "axom/primal/geometry/Polyhedron.hpp"
 
 #include "axom/primal/operators/in_polyhedron.hpp"
-#include "axom/primal/operators/winding_number_3d.hpp"
+#include "axom/primal/operators/winding_number.hpp"
 
 #include <math.h>
 #include "gtest/gtest.h"

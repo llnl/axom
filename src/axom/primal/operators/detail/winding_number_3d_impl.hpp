@@ -471,7 +471,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
   }
 
   the_gwn +=
-    stokes_winding_number_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
+    stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
 
   return the_gwn;
 }
@@ -507,13 +507,13 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
                                  const int depth = 0)
 {
   // Skip processing of degenerate surfaces
-  if(nPatch.getNumControlPoints_u() <= 1 || nPatch.getNumControlPoints_v() <= 1)
+  if(nPatchData.patch.getNumControlPoints_u() <= 1 || nPatchData.patch.getNumControlPoints_v() <= 1)
   {
     return 0.0;
   }
 
   // Also skip processing of surfaces with zero trimming curves
-  if(nPatch.getNumTrimmingCurves() == 0)
+  if(nPatchData.patch.getNumTrimmingCurves() == 0)
   {
     return 0.0;
   }
@@ -656,7 +656,7 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
     Line<T, 3> discontinuity_axis(query, cast_direction);
 
     // Tolerance for what counts as "close to a boundary" in parameter space
-    T disk_radius = 0.01 * patch.pbox_diag;
+    T disk_radius = 0.01 * nPatchData.pbox_diag;
 
     // Compute intersections with the *untrimmed and extrapolated* patch
     axom::Array<T> up, vp, tp;
@@ -671,7 +671,7 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
       int num_noncoincident = 0;
       for(int i = 0; i < tp.size(); ++i)
       {
-        Point<T, 3> the_point(nPatch.evaluate(up[i], vp[i]));
+        Point<T, 3> the_point(nPatchData.patch.evaluate(up[i], vp[i]));
         // If any of the intersection points are coincident with the surface,
         //  then attempt to clip out all degenerate intersections, and retry
         if(squared_distance(query, the_point) <= edge_tol_sq)
@@ -771,7 +771,7 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
       //   If not, we can compute the winding number without changing the trimming curvse
       const bool ignoreInteriorDisk = true, clipDisk = true;
       bool isDiskInside, isDiskOutside;
-      int old_num_trim = integralPatch.getNumTrimmingCurves();
+      int old_num_trim = nPatchWithBoundaries.getNumTrimmingCurves();
 
       NURBSPatch<T, 3> the_disk;
       nPatchWithBoundaries.diskSplit(up[i],
@@ -789,8 +789,8 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
       if(extraTrimming)
       {
         case_code = 3;
-        integrated_curves +=
-          disk_patch.getNumTrimmingCurves() + (integralPatch.getNumTrimmingCurves() - old_num_trim);
+        integrated_curves += the_disk.getNumTrimmingCurves() +
+          (nPatchWithBoundaries.getNumTrimmingCurves() - old_num_trim);
       }
 
       if(isOnSurface)
@@ -843,31 +843,28 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
     {
       // The trimming curves for rotatedPatch have been changed as needed,
       //  but we need to rotate the control points
-      auto patch_shape = integralPatch.getControlPoints().shape();
+      auto patch_shape = nPatchWithBoundaries.getControlPoints().shape();
       for(int i = 0; i < patch_shape[0]; ++i)
       {
         for(int j = 0; j < patch_shape[1]; ++j)
         {
-          integralPatch(i, j) = detail::rotate_point(rotator, query, nPatchData.patch(i, j));
+          nPatchWithBoundaries(i, j) = detail::rotate_point(rotator, query, nPatchData.patch(i, j));
         }
       }
     }
 
-    wn_split.first +=
-      stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
+    the_gwn += stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
   }
   else
   {
     // It's easier if we don't need to rotate the patch
     if(field_direction != detail::DiscontinuityAxis::rotated)
     {
-      wn_split.first +=
-        stokes_gwn_cached(query, nPatchData, field_direction, quad_npts, quad_tol);
+      the_gwn += stokes_gwn_evaluate_cached(query, nPatchData, field_direction, quad_npts, quad_tol);
     }
     else
     {
-      wn_split.first +=
-        stokes_gwn_evaluate_cached_rotated(query, nPatchData, rotator, quad_npts, quad_tol);
+      the_gwn += stokes_gwn_evaluate_cached_rotated(query, nPatchData, rotator, quad_npts, quad_tol);
     }
   }
 

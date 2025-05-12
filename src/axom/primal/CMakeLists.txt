@@ -59,8 +59,7 @@ set( primal_headers
     operators/in_sphere.hpp
     operators/is_convex.hpp
     operators/split.hpp
-    operators/winding_number_2d.hpp
-    operators/winding_number_3d.hpp
+    operators/winding_number.hpp
 
     operators/printers.hpp
 

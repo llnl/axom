@@ -21,7 +21,7 @@
 #include "axom/primal/geometry/BezierPatch.hpp"
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 
-#include "axom/primal/operators/winding_number_2d.hpp"
+#include "axom/primal/operators/winding_number.hpp"
 #include "axom/core/numerics/matvecops.hpp"
 
 #include <stdio.h>

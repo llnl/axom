@@ -7,7 +7,7 @@
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
 #include "axom/primal/operators/evaluate_integral.hpp"
-#include "axom/primal/operators/winding_number_2d.hpp"
+#include "axom/primal/operators/winding_number.hpp"
 #include <iostream>
 
 #include "gtest/gtest.h"

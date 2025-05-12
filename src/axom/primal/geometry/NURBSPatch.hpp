@@ -71,7 +71,7 @@ struct TrimmingCurveQuadratureData
 
       Point<T, 2> c_eval;
       Vector<T, 2> c_Dt;
-      a_curve.evaluate_first_derivative(quad_x, c_eval, c_Dt);
+      a_curve.evaluateFirstDerivative(quad_x, c_eval, c_Dt);
 
       Point<T, 3> s_eval;
       Vector<T, 3> s_Du, s_Dv;
@@ -1628,7 +1628,7 @@ public:
     auto min_u = m_knotvec_u[0];
     auto max_u = m_knotvec_u[m_knotvec_u.getNumKnots() - 1];
 
-    for(auto& curve : m_trimming_curves)
+    for(auto& curve : m_trimmingCurves)
     {
       // For each trimming curve, mirror the control points over the midpoint
       //  of the knot span
@@ -1783,6 +1783,30 @@ public:
   {
     m_knotvec_v.normalize();
     rescaleTrimmingCurves_v(0.0, 1.0);
+  }
+
+  /// \brief Normalize to the span [0, N] x [0, M] where N and M are the number of spans in u and v
+  void normalizeBySpan()
+  {
+    auto min_u = getMinKnot_u();
+    auto max_u = getMaxKnot_u();
+    auto min_v = getMinKnot_v();
+    auto max_v = getMaxKnot_v();
+
+    auto n = m_knotvec_u.getNumKnotSpans();
+    auto m = m_knotvec_v.getNumKnotSpans();
+
+    m_knotvec_u.rescale(0, n);
+    m_knotvec_v.rescale(0, m);
+
+    for(auto& curve : m_trimmingCurves)
+    {
+      for(int i = 0; i < curve.getNumControlPoints(); ++i)
+      {
+        curve[i][0] = n * (curve[i][0] - min_u) / (max_u - min_u);
+        curve[i][1] = m * (curve[i][1] - min_v) / (max_v - min_v);
+      }
+    }
   }
 
   /*!
@@ -2994,29 +3018,6 @@ public:
     }
 
     if(normalizeParameters)
-    {
-      normalize();
-    }
-  }
-
-  /// \brief Clip the edges of the patch to be in the domain, if necessary
-  void clip(T min_u, T max_u, T min_v, T max_v, bool a_normalize = false)
-  {
-    SLIC_ASSERT(min_u < max_u);
-    SLIC_ASSERT(min_v < max_v);
-    NURBSPatch dummy_patch;
-
-    T min_knot_u = m_knotvec_u[0];
-    T max_knot_u = m_knotvec_u[m_knotvec_u.getNumKnots() - 1];
-    T min_knot_v = m_knotvec_v[0];
-    T max_knot_v = m_knotvec_v[m_knotvec_v.getNumKnots() - 1];
-
-    if(min_u > min_knot_u) this->split_u(min_u, dummy_patch, *this);
-    if(min_v > min_knot_v) this->split_v(min_v, dummy_patch, *this);
-    if(max_u < max_knot_u) this->split_u(max_u, *this, dummy_patch);
-    if(max_v < max_knot_v) this->split_v(max_v, *this, dummy_patch);
-
-    if(a_normalize)
     {
       normalize();
     }
