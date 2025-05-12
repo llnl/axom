@@ -18,8 +18,8 @@
 #include "axom/primal/geometry/BezierCurve.hpp"
 
 #include "axom/primal/operators/in_sphere.hpp"
-#include "axom/primal/operators/intersect.hpp"
 #include "axom/primal/operators/detail/intersect_impl.hpp"
+#include "axom/primal/operators/detail/intersect_ray_impl.hpp"
 
 #include <vector>
 #include <math.h>
@@ -127,9 +127,8 @@ bool intersect_2d_linear(const Point<T, 2> &a,
  * \note A BezierCurve is parametrized in [0,1). The scale and offset parameters
  * are used to track the local curve parameters during subdivisions
  *
- * \note This function assumes the all intersections have multiplicity
- * one, i.e. there are no points at which the curves and their derivatives
- * both intersect. Thus, the function does not find tangencies.
+ * \note This function can't be used to identify tangents at local a min/max
+ *   of Bezier curves.
  * 
  * \return True if the two curves intersect, False otherwise
  * \sa intersect_bezier
@@ -167,9 +166,8 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
  * \note A BezierCurve is parametrized in [0,1). The scale and offset parameters
  * are used to track the local curve parameters during subdivisions
  *
- * \note This function assumes the all intersections have multiplicity
- * one, i.e. there are no points at which the curves and their derivatives
- * both intersect. Thus, this function does not find tangencies.
+ * \note This function can't be used to identify tangents at local a min/max
+ *   of Bezier curves.
  * 
  * \return True if the two curves intersect, False otherwise
  * \sa intersect_bezier
@@ -188,16 +186,15 @@ bool intersect_circle_bezier(const Ray<T, 2> &r,
 /*!
  * \brief Tests intersection of a line and a cirlce
  *
- * \param [in] a,d,c,b the endpoints of a segment which defines the line
- * \param [out] The parametrized curve values (c) and line values (t) at 
- *  which intersection occurs.
+ * \param [in] a, b the endpoints of a segment which defines the line
+ * \param [out] c1, c2, t1, t2 The parametrized curve values (c) and 
+ *   line values (t) at which intersection occurs.
  * Range of output values for \a c is [0, 2pi) and \a t is [-inf, inf).
  *
  * \return True, if the line segment intersects, false otherwise.
  *
- * \note This function assumes the all intersections have multiplicity
- * one, i.e. there are no points at which the curves and their derivatives
- * both intersect. Thus, the function does not find tangencies.
+ * \note This function can't be used to identify tangents at local a min/max
+ *   of Bezier curves.
  */
 template <typename T>
 bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
@@ -206,7 +203,8 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
                               T &c1,
                               T &c2,
                               T &t1,
-                              T &t2);
+                              T &t2,
+                              double EPS);
 //------------------------------ IMPLEMENTATIONS ------------------------------
 
 template <typename T>
@@ -338,7 +336,10 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
 
   // Need to expand the bounding box, since this ray-bb intersection routine
   //  only parameterizes the ray on (0, inf)
-  if(!intersect(r, c.boundingBox().expand(factor)))
+  T tmin = axom::numerics::floating_point_limits<T>::min();
+  T tmax = axom::numerics::floating_point_limits<T>::max();
+
+  if(!detail::intersect_ray(r, c.boundingBox().expand(factor), tmin, tmax, EPS))
   {
     return false;
   }
@@ -352,12 +353,13 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
 
     // Need to check intersection with zero tolerance
     //  to handle cases where `intersect` treats the ray as collinear
-    intersect(r, seg, r0, s0, 0.0);
-    if(r0 > 0.0 - EPS && s0 > 0.0 - EPS && s0 < 1.0 - EPS)
+    bool foundIntersection = detail::intersect_ray(r, seg, r0, s0, EPS);
+    if(foundIntersection && s0 < 1.0 - EPS)
     {
       rp.push_back(r0);
       cp.push_back(c_offset + c_scale * s0);
-      foundIntersection = true;
+
+      return true;
     }
   }
   else
@@ -399,7 +401,7 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
 
   // Other function put here to avoid circular dependency
   primal::BoundingBox<T, 2> bb = curve.boundingBox().scale(1.1);
-  if(!intersect(circle, bb) || in_sphere(bb, circle))
+  if(!detail::intersect_circle_bbox(circle, bb) || in_sphere(bb, circle))
   {
     return false;
   }
@@ -409,7 +411,7 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
   if(curve.isLinear(sq_tol))
   {
     T c1, c2, t1, t2;
-    if(intersect_2d_circle_line(circle, curve[0], curve[order], c1, c2, t1, t2))
+    if(intersect_2d_circle_line(circle, curve[0], curve[order], c1, c2, t1, t2, EPS))
     {
       if(t1 >= -EPS && t1 < 1.0 - EPS)
       {
@@ -457,7 +459,8 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
                               T &c1,
                               T &c2,
                               T &t1,
-                              T &t2)
+                              T &t2,
+                              double EPS)
 {
   T dx = b[0] - a[0];
   T dy = b[1] - a[1];
@@ -468,10 +471,31 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
 
   T disc = circ.getRadius() * circ.getRadius() * dr * dr - D * D;
 
-  // Treat tangencies as *not* intersecting
-  if(disc <= 0.0)
+  // Identify near-tangent cases
+  if(disc <= EPS * EPS)
   {
-    return false;
+    T ct;
+    Segment<T, 2> seg(a, b);
+
+    // Because the line is known to be tangent, there's only one intersection point,
+    //  and it would have to be at the closest point on the line to the circle center.
+    Point<T, 2> cp = closest_point(circ.getCenter(), seg, &ct);
+    T dist = primal::squared_distance(cp, circ.getCenter());
+
+    if(axom::utilities::isNearlyEqual(dist, circ.getRadius(), EPS))
+    {
+      c1 = std::atan2(cp[1] - circ.getCenter()[1], cp[0] - circ.getCenter()[0]);
+      c1 = (c1 < 0.0) ? c1 + 2.0 * M_PI : c1;
+      t1 = ct;
+
+      c2 = 0.0;
+      t2 = -1.0;
+      return true;
+    }
+    else
+    {
+      return false;
+    }
   }
 
   disc = std::sqrt(disc);

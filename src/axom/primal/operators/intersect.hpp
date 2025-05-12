@@ -506,17 +506,7 @@ bool intersect(const Sphere<T, DIM>& s1, const Sphere<T, DIM>& s2, double TOL = 
 template <typename T>
 bool intersect(const Sphere<T, 2>& circle, const BoundingBox<T, 2>& bb)
 {
-  auto center = circle.getCenter();
-  auto radius = circle.getRadius();
-  T dx = axom::utilities::clampVal(center[0], bb.getMin()[0], bb.getMax()[0]);
-  T dy = axom::utilities::clampVal(center[1], bb.getMin()[1], bb.getMax()[1]);
-
-  if((center[0] - dx) * (center[0] - dx) + (center[1] - dy) * (center[1] - dy) >= radius * radius)
-  {
-    return false;
-  }
-
-  return true;
+  return detail::intersect_circle_bbox(circle, bb);
 }
 
 /*!
@@ -540,6 +530,7 @@ bool intersect(const Sphere<T, 2>& circle,
                double EPS = 1e-8)
 {
   const double sq_tol = tol * tol;
+  bool foundIntersection = false;
 
   // Extract the Bezier curves of the NURBS curve
   auto beziers = curve.extractBezier();
@@ -560,6 +551,8 @@ bool intersect(const Sphere<T, 2>& circle,
                                     0.,
                                     1.);
 
+    foundIntersection |= temp_curve_p.size() > 0;
+
     // Scale the intersection parameters back into the span of the NURBS curve
     for(int j = 0; j < temp_curve_p.size(); ++j)
     {
@@ -568,7 +561,7 @@ bool intersect(const Sphere<T, 2>& circle,
     }
   }
 
-  return curve_params.size() > 0;
+  return foundIntersection;
 }
 /// @}
 
@@ -731,6 +724,8 @@ bool intersect(const Ray<T, 2>& r,
     return false;
   }
 
+  bool foundIntersection = false;
+
   // Decompose the NURBS curve into Bezier segments
   auto beziers = n.extractBezier();
   axom::Array<T> knot_vals = n.getKnots().getUniqueKnots();
@@ -742,6 +737,8 @@ bool intersect(const Ray<T, 2>& r,
     axom::Array<T> rc, nc;
     intersect(r, beziers[i], rc, nc, tol, EPS);
 
+    foundIntersection |= !rc.empty();
+
     // Scale the intersection parameters back into the span of the NURBS curve
     for(int j = 0; j < rc.size(); ++j)
     {
@@ -750,7 +747,7 @@ bool intersect(const Ray<T, 2>& r,
     }
   }
 
-  return !rp.empty();
+  return foundIntersection;
 }
 /// @}
 
@@ -834,7 +831,9 @@ AXOM_HOST_DEVICE bool intersect(const Plane<T, 3>& p,
 
 /// @}
 
-/*! \brief Determines if a ray intersects a Bezier patch.
+/*!
+ * \brief Determines if a ray intersects a Bezier patch.
+ * \param [in] patch The Bezier patch to intersect with the ray.
  * \param [in] ray The ray to intersect with the patch.
  * \param [in] patch The Bezier patch to intersect with the ray.
  * \param [out] t The t parameter(s) of intersection point(s).
@@ -925,11 +924,11 @@ bool intersect(const Ray<T, 3>& ray,
 
 /*! 
  * \brief Determines if a ray intersects a NURBS patch.
- * \param [in] ray The ray to intersect with the patch.
  * \param [in] patch The Bezier patch to intersect with the ray.
- * \param [out] t The t parameter(s) of intersection point(s).
+ * \param [in] ray The ray to intersect with the patch.
  * \param [out] u The u parameter(s) of intersection point(s).
  * \param [out] v The v parameter(s) of intersection point(s).
+ * \param [out] t The t parameter(s) of intersection point(s).
  * \param [in] tol The tolerance for intersection (for physical distances).
  * \param [in] EPS The tolerance for intersection (for parameter distances).
  * \param [in] countUntrimmed True if intersections with the untrimmed patch should also be recorded.

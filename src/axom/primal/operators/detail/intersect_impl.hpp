@@ -1095,6 +1095,28 @@ AXOM_HOST_DEVICE bool intersect_plane_seg(const Plane<T, DIM>& plane,
   return false;
 }
 
+/*!
+ * \brief Determines if a 2D sphere intersects a bounding box.
+ * \param [in] circle A 2D sphere
+ * \param [in] bb A 2D bounding box
+ * \return true iff sphere intersects a bounding box, false otherwise.
+ */
+template <typename T>
+bool intersect_circle_bbox(const Sphere<T, 2>& circle, const BoundingBox<T, 2>& bbox)
+{
+  auto center = circle.getCenter();
+  auto radius = circle.getRadius();
+  T dx = axom::utilities::clampVal(center[0], bbox.getMin()[0], bbox.getMax()[0]);
+  T dy = axom::utilities::clampVal(center[1], bbox.getMin()[1], bbox.getMax()[1]);
+
+  if((center[0] - dx) * (center[0] - dx) + (center[1] - dy) * (center[1] - dy) >= radius * radius)
+  {
+    return false;
+  }
+
+  return true;
+}
+
 AXOM_HOST_DEVICE
 inline bool intersectOnePermutedTriangle(const Point3& p1,
                                          const Point3& q1,
