@@ -317,9 +317,9 @@ if((CONDUIT_FOUND OR
                 COMMAND quest_shape_in_memory_ex
                            --policy ${_policy}
                            --testShape ${_testshape}
-                           --refinements 2
-                           --scale 0.75 0.75 0.75
-                           --dir 0.2 0.4 0.8
+                           --refinements 5
+                           --scale .99 .99 .99
+                           --dir 8 4 2
                            --meshType bpSidre
                            inline_mesh --min -2 -2 -2 --max 2 2 2 --res 30 30 30
                 NUM_MPI_TASKS ${_nranks})
@@ -339,9 +339,9 @@ if((CONDUIT_FOUND OR
                   COMMAND quest_shape_in_memory_ex
                              --policy ${_policy}
                              --testShape ${_testshape}
-                             --refinements 2
-                             --scale 0.75 0.75 0.75
-                             --dir 0.2 0.4 0.8
+                             --refinements 5
+                             --scale .99 .99 .99
+                             --dir 8 4 2
                              --meshType ${_testMeshType}
                              inline_mesh --min -2 -2 -2 --max 2 2 2 --res 8 8 8
                   NUM_MPI_TASKS ${_nranks})

@@ -235,8 +235,8 @@ if(CONDUIT_FOUND AND RAJA_FOUND)
             --policy ${_policy}
             --testGeom ${_testgeom}
             -o ${_testname}
-            --refinements 7
-            --scale 1 1 1
+            --refinements 5
+            --scale .99 .99 .99
             --dir 8 4 2
             --meshType ${_meshType}
             inline_mesh --min -2 -2 -2 --max 2 2 2 --res 30 30 30
