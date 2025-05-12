@@ -105,12 +105,11 @@ public:
   std::string backgroundMaterial;
 
   // clang-format off
-  enum class MeshType { bpSidre = 0, bpConduit = 1, mfem = 2 };
+  enum class MeshType { bpSidre = 0, bpConduit = 1 };
   const std::map<std::string, MeshType> meshTypeChoices
-    { {"bpSidre", MeshType::bpSidre} , {"bpConduit", MeshType::bpConduit}, {"mfem", MeshType::mfem} };
+    { {"bpSidre", MeshType::bpSidre} , {"bpConduit", MeshType::bpConduit} };
   // clang-format on
   MeshType meshType {MeshType::bpSidre};
-  bool useMfem() { return meshType == MeshType::mfem; }
   bool useBlueprintSidre() { return meshType == MeshType::bpSidre; }
   bool useBlueprintConduit() { return meshType == MeshType::bpConduit; }
 
@@ -667,19 +666,11 @@ axom::klee::Geometry createGeom_Tet()
                                                     axom::klee::LengthUnit::unspecified};
 
   // Tetrahedron at origin.
-#if 1
   const double len = params.length < 0 ? 1.55 : params.length;
   const Point3D a { Point3D::NumericArray{1., 0., -1.} * len };
   const Point3D b { Point3D::NumericArray{-.8, 1, -1.} * len };
   const Point3D c { Point3D::NumericArray{-.8, -1, -1.} * len };
   const Point3D d { Point3D::NumericArray{0., 0., +1.} * len };
-#else
-  const double len = params.length < 0 ? 1.5 : params.length;
-  const Point3D a {-len, -len, -len};
-  const Point3D b {+len, -len, -len};
-  const Point3D c {+len, +len, -len};
-  const Point3D d {+len, +len, +len};
-#endif
   const primal::Tetrahedron<double, 3> tet {a, b, c, d};
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
@@ -1300,6 +1291,8 @@ int main(int argc, char** argv)
   slic::flushStreams();
 
   AXOM_ANNOTATE_END("quest example for shaping primals");
+
+  SLIC_INFO(axom::fmt::format("exiting with failure count {}", failCounts));
 
   finalizeLogger();
 

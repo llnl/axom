@@ -394,7 +394,6 @@ void addScaleOperator(axom::klee::CompositeOperator& compositeOp)
 }
 
 // Add translate operator.
-#if 1
 void addTranslateOperator(axom::klee::CompositeOperator& compositeOp,
                           const std::string& geomName)
 {
@@ -413,18 +412,6 @@ void addTranslateOperator(axom::klee::CompositeOperator& compositeOp,
     compositeOp.addOperator(translateOp);
   }
 }
-#else
-void addTranslateOperator(axom::klee::CompositeOperator& compositeOp,
-                          double shiftx,
-                          double shifty,
-                          double shiftz)
-{
-  return; // Temporarily disable translation to make comparable to geometry clipper results.
-  primal::Vector3D shift({shiftx, shifty, shiftz});
-  auto translateOp = std::make_shared<axom::klee::Translation>(shift, startProp);
-  compositeOp.addOperator(translateOp);
-}
-#endif
 
 // Add operator to rotate x-axis to params.direction, if it is given.
 void addRotateOperator(axom::klee::CompositeOperator& compositeOp)
@@ -987,19 +974,11 @@ axom::klee::Shape createShape_Tet()
   SLIC_ASSERT(params.scaleFactors.empty() || params.scaleFactors.size() == 3);
 
   // Tetrahedron at origin.
-#if 1
   const double len = params.length < 0 ? 1.55 : params.length;
   const Point3D a { Point3D::NumericArray{1., 0., -1.} * len };
   const Point3D b { Point3D::NumericArray{-.8, 1, -1.} * len };
   const Point3D c { Point3D::NumericArray{-.8, -1, -1.} * len };
   const Point3D d { Point3D::NumericArray{0., 0., +1.} * len };
-#else
-  const double len = params.length < 0 ? 1.5 : params.length;
-  const Point3D a {-len, -len, -len};
-  const Point3D b {+len, -len, -len};
-  const Point3D c {+len, +len, -len};
-  const Point3D d {-len, +len, +len};
-#endif
   const primal::Tetrahedron<double, 3> tet {a, b, c, d};
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
@@ -2006,6 +1985,8 @@ int main(int argc, char** argv)
                                           shape.getMaterial(),
                                           shapeFormat)));
 
+    const auto annotationName = "shaping:" + shape.getName();
+    AXOM_ANNOTATE_BEGIN(annotationName);
     // Load the shape from file. This also applies any transformations.
     shaper->loadShape(shape);
     slic::flushStreams();
@@ -2016,6 +1997,7 @@ int main(int argc, char** argv)
 
     // Query the mesh against this shape
     shaper->runShapeQuery(shape);
+    AXOM_ANNOTATE_END(annotationName);
     slic::flushStreams();
 
     // Apply the replacement rules for this shape against the existing materials
@@ -2181,7 +2163,6 @@ int main(int argc, char** argv)
   auto* meshVerificationGroup = ds.getRoot()->createGroup("meshVerification");
   for(const auto& shape : shapeSet.getShapes())
   {
-#if 1
     std::string fieldName = "shape_vol_frac_" + shape.getName();
     axom::ArrayView<double> vfView = getFieldAsArrayView(fieldName);
     axom::Array<double> vfHostArray(vfView, axom::execution_space<axom::SEQ_EXEC>::allocatorID());
@@ -2208,29 +2189,6 @@ int main(int argc, char** argv)
       cellCount,
       AXOM_LAMBDA(axom::IndexType i) { shapedVolume += vfView[i] * elementVolsView[i]; });
     double shapeVol = shapedVolume.get();
-#else
-    axom::quest::DiscreteShape dShape(shape, meshVerificationGroup);
-    auto shapeMesh =
-      std::dynamic_pointer_cast<axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>>(
-        dShape.createMeshRepresentation());
-    SLIC_INFO(axom::fmt::format("{:-^80}",
-                                axom::fmt::format("Shape '{}' discrete geometry has {} cells",
-                                                  shape.getName(),
-                                                  shapeMesh->getNumberOfCells())));
-
-    const std::string& materialName = shape.getMaterial();
-    double shapeVol = -1;
-    if(params.useBlueprintSidre() || params.useBlueprintConduit())
-    {
-      shapeVol = sumMaterialVolumes(compMeshGrp, materialName);
-    }
-#if defined(AXOM_USE_MFEM)
-    if(params.useMfem())
-    {
-      shapeVol = sumMaterialVolumes<axom::SEQ_EXEC>(shapingDC.get(), materialName);
-    }
-#endif
-#endif
     double correctShapeVol = exactOverlapVols.at(shape.getName());
     SLIC_ASSERT(correctShapeVol > 0.0);  // Indicates error in the test setup.
     double diff = shapeVol - correctShapeVol;
