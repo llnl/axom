@@ -1989,11 +1989,11 @@ int main(int argc, char** argv)
     AXOM_ANNOTATE_BEGIN(annotationName);
     // Load the shape from file. This also applies any transformations.
     shaper->loadShape(shape);
-    slic::flushStreams();
+    // slic::flushStreams();
 
     // Generate a spatial index over the shape
     shaper->prepareShapeQuery(shapeSet.getDimensions(), shape);
-    slic::flushStreams();
+    // slic::flushStreams();
 
     // Query the mesh against this shape
     shaper->runShapeQuery(shape);
