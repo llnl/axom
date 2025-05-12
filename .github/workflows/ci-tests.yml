@@ -32,7 +32,6 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        # TODO: add osx and windows builds
         build_type: [ Debug, Release ]
         config:
         - job_name: gcc@13.1.0, shared, benchmarks
@@ -116,7 +115,7 @@ jobs:
         with:
           name: Test Results ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
           path: "**/Test.xml"
-  build_and_test_windows:
+  windows_build_and_test:
     runs-on: windows-latest
     strategy:
       # If any of checks (e.g. style) fail, allow other jobs to continue running.
@@ -141,6 +140,34 @@ jobs:
         cd build
         ctest -C Debug -T Test --output-on-failure -V
       shell: pwsh
+  macos_build_and_test:
+    runs-on: macos-latest
+    strategy:
+      # If any of checks (e.g. style) fail, allow other jobs to continue running.
+      fail-fast: false
+    env:
+      CMAKE_EXTRA_FLAGS: '-DAXOM_ENABLE_SIDRE:BOOL=OFF -DAXOM_ENABLE_INLET:BOOL=OFF -DAXOM_ENABLE_KLEE:BOOL=OFF -DAXOM_ENABLE_SINA:BOOL=OFF -DAXOM_ENABLE_MIR:BOOL=OFF'
+    steps:
+      - name: Checkout Axom
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: macOS - CMake
+        run: |
+          cmake ${{ env.CMAKE_EXTRA_FLAGS }} -B build -S src
+        shell: bash
+
+      - name: macOS - Build
+        run: |
+          cmake --build build
+        shell: bash
+
+      - name: macOS - Test
+        run: |
+          cd build
+          ctest -C Debug -T Test --output-on-failure -V
+        shell: bash
   check_code:
     runs-on: ubuntu-22.04
     needs:
