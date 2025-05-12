@@ -139,7 +139,7 @@ jobs:
     - name: Windows - Test
       run: |
         cd build
-        ctest -T Test --output-on-failure -V
+        ctest -C Debug -T Test --output-on-failure -V
       shell: pwsh
   check_code:
     runs-on: ubuntu-22.04
