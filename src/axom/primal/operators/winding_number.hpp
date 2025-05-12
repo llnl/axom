@@ -57,7 +57,8 @@ namespace primal
 template <typename T>
 double winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, double edge_tol = 1e-8)
 {
-  return detail::linear_winding_number(q, s[0], s[1], edge_tol);
+  bool dummy_isOnEdge = false;
+  return detail::linear_winding_number(q, s[0], s[1], dummy_isOnEdge, edge_tol);
 }
 
 /*
@@ -144,7 +145,8 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  return detail::nurbs_winding_number(q, n, edge_tol, EPS);
+  bool dummy_isOnCurve = false;
+  return detail::nurbs_winding_number(q, n, dummy_isOnCurve, edge_tol, EPS);
 }
 
 /*!
@@ -163,7 +165,8 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  return detail::bezier_winding_number(q, bezier, edge_tol, EPS);
+  bool dummy_isOnCurve = false;
+  return detail::bezier_winding_number(q, bezier, dummy_isOnCurve, edge_tol, EPS);
 }
 
 /*!
@@ -184,10 +187,12 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
+  bool dummy_isOnCurve = false;
+
   double ret_val = 0.0;
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
-    ret_val += detail::bezier_winding_number(q, cpoly[i], edge_tol, EPS);
+    ret_val += detail::bezier_winding_number(q, cpoly[i], dummy_isOnCurve, edge_tol, EPS);
   }
 
   return ret_val;
@@ -211,10 +216,11 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
+  bool dummy_isOnCurve = false;
   double ret_val = 0.0;
   for(int i = 0; i < carray.size(); i++)
   {
-    ret_val += detail::bezier_winding_number(q, carray[i], edge_tol, EPS);
+    ret_val += detail::bezier_winding_number(q, carray[i], dummy_isOnCurve, edge_tol, EPS);
   }
 
   return ret_val;
@@ -238,10 +244,11 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
+  bool dummy_isOnCurve = false;
   double ret_val = 0.0;
   for(int i = 0; i < narray.size(); i++)
   {
-    ret_val += detail::nurbs_winding_number(q, narray[i], edge_tol, EPS);
+    ret_val += detail::nurbs_winding_number(q, narray[i], dummy_isOnCurve, edge_tol, EPS);
   }
 
   return ret_val;

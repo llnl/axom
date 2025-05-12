@@ -260,8 +260,8 @@ TEST(primal_beziercurve_, batch_derivatives)
   {
     BezierCurveType curve(data, ord);
 
-    curve.evaluate_first_derivative(t, batch1_val, batch1_dt);
-    curve.evaluate_second_derivative(t, batch2_val, batch2_dt, batch2_dtdt);
+    curve.evaluateFirstDerivative(t, batch1_val, batch1_dt);
+    curve.evaluateSecondDerivative(t, batch2_val, batch2_dt, batch2_dtdt);
     for(int i = 0; i < DIM; ++i)
     {
       EXPECT_NEAR(curve.evaluate(t)[i], batch1_val[i], 1e-15);

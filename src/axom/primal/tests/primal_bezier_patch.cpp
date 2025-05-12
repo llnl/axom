@@ -851,16 +851,16 @@ TEST(primal_bezierpatch, rational_batch_derivatives)
   {
     BezierPatchType patch(controlPoints, weights, order_u, order_v);
 
-    patch.evaluate_first_derivatives(u, v, batch1_val, batch1_du, batch1_dv);
+    patch.evaluateFirstDerivatives(u, v, batch1_val, batch1_du, batch1_dv);
     patch.evaluate_linear_derivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
-    patch.evaluate_second_derivatives(u,
-                                      v,
-                                      batch3_val,
-                                      batch3_du,
-                                      batch3_dv,
-                                      batch3_dudu,
-                                      batch3_dvdv,
-                                      batch3_dudv);
+    patch.evaluateSecondDerivatives(u,
+                                    v,
+                                    batch3_val,
+                                    batch3_du,
+                                    batch3_dv,
+                                    batch3_dudu,
+                                    batch3_dvdv,
+                                    batch3_dudv);
 
     for(int i = 0; i < DIM; ++i)
     {
@@ -884,16 +884,16 @@ TEST(primal_bezierpatch, rational_batch_derivatives)
     // Swap the axes and check that the derivatives are correct
     patch.swapAxes();
 
-    patch.evaluate_first_derivatives(u, v, batch1_val, batch1_du, batch1_dv);
+    patch.evaluateFirstDerivatives(u, v, batch1_val, batch1_du, batch1_dv);
     patch.evaluate_linear_derivatives(u, v, batch2_val, batch2_du, batch2_dv, batch2_dudv);
-    patch.evaluate_second_derivatives(u,
-                                      v,
-                                      batch3_val,
-                                      batch3_du,
-                                      batch3_dv,
-                                      batch3_dudu,
-                                      batch3_dvdv,
-                                      batch3_dudv);
+    patch.evaluateSecondDerivatives(u,
+                                    v,
+                                    batch3_val,
+                                    batch3_du,
+                                    batch3_dv,
+                                    batch3_dudu,
+                                    batch3_dvdv,
+                                    batch3_dudv);
 
     for(int i = 0; i < DIM; ++i)
     {
