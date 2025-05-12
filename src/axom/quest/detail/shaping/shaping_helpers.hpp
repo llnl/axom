@@ -204,8 +204,6 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
  * between 0 and 1 ( \a y_min and \a y_max )
  */
 void FCT_project(const double* M,
-                 const double* M_inv,
-                 const int* P,
                  const int s,
                  const double* m,
                  const double* x,     // indicators

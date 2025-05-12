@@ -755,6 +755,14 @@ private:
         rhs.AssembleDevice(*fes, elem_marker, b);
       }
 
+      {
+        AXOM_ANNOTATE_SCOPE("batch lu solve");
+        mass_mat_inv->Read();
+        mass_mat_pivots->Read();
+        vf->Write();
+        mfem::BatchLUSolve(*mass_mat_inv, *mass_mat_pivots, *vf);
+      }
+
       mfem::Vector one(dofs);
       one = 1.;
 
@@ -766,8 +774,6 @@ private:
 
       // Reshape returns an indexable view of a multidimensional array
       const auto m_d = mfem::Reshape(mass_mat->HostRead(), dofs, dofs, NE);
-      const auto mInv_d = mfem::Reshape(mass_mat_inv->HostRead(), dofs, dofs, NE);
-      const auto P_d = mfem::Reshape(mass_mat_pivots->HostRead(), dofs, NE);
       const auto b_d = mfem::Reshape(b.HostRead(), dofs, NE);
       const auto one_d = mfem::Reshape(one.HostRead(), dofs);
       auto fct_mat_d = mfem::Reshape(shaping_scratch_buffer->HostReadWrite(), dofs, dofs, NE);
@@ -776,8 +782,6 @@ private:
       AXOM_ANNOTATE_BEGIN("fct project");
       axom::for_all<axom::SEQ_EXEC>(0, NE, [&](int i) {
         shaping::FCT_project(&m_d(0, 0, i),
-                             &mInv_d(0, 0, i),
-                             &P_d(0, i),
                              dofs,
                              &b_d(0, i),
                              &one_d(0),

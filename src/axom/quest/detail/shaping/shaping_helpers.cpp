@@ -229,8 +229,6 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
  * between 0 and 1 ( \a y_min and \a y_max )
  */
 void FCT_project(const double* M,
-                 const double* M_inv,
-                 const int* P,
                  const int s,
                  const double* m,
                  const double* x,  // indicators
@@ -239,63 +237,29 @@ void FCT_project(const double* M,
                  double* xy,
                  double* fct_mat)  // use as scratch buffer
 {
-  // [IN]  - M, M_inv, P, s, m, x, y_min, y_max
+  // [IN]  - M, s, m, x, y_min, y_max
   // [OUT] - xy
 
   constexpr int ND = 64;
   using StackArray = axom::StackArray<double, ND>;
   SLIC_ASSERT(s <= ND);
 
+  // Q0 solutions can't be adjusted conservatively. It's what it is.
+  if(s == 1)
+  {
+    return;
+  }
+
   // Compute the lumped mass matrix in ML:  GetRowSums(M, s, s, ML);
   StackArray ML;
   for(int r = 0; r < s; ++r)
   {
-    double dot {0.};
+    double dot = 0.;
     for(int c = 0; c < s; ++c)
     {
       dot += M[r + c * s];
     }
     ML[r] = dot;
-  }
-
-  // Compute the high-order projection in xy: M_inv.Mult(m, xy);
-  {
-    for(int t = 0; t < s; ++t)
-    {
-      xy[t] = m[t];
-    }
-
-    // xy <- P xy
-    for(int i = 0; i < s; ++i)
-    {
-      axom::utilities::swap(xy[i], xy[P[i]]);
-    }
-
-    // xy <- L^{-1} xy
-    for(int j = 0; j < s; ++j)
-    {
-      const double x_j = xy[j];
-      for(int i = j + 1; i < s; ++i)
-      {
-        xy[i] -= M_inv[i + j * s] * x_j;
-      }
-    }
-
-    // xy <- U^{-1} xy
-    for(int j = s - 1; j >= 0; --j)
-    {
-      const double x_j = (xy[j] /= M_inv[j + j * s]);
-      for(int i = 0; i < j; ++i)
-      {
-        xy[i] -= M_inv[i + j * s] * x_j;
-      }
-    }
-  }
-
-  // Q0 solutions can't be adjusted conservatively. It's what it is.
-  if(s == 1)
-  {
-    return;
   }
 
   double dMLX = 0.;
@@ -356,7 +320,7 @@ void FCT_project(const double* M,
   {
     gp[t] = 0.0;
     gm[t] = 0.0;
-  };
+  }
 
   for(int i = 1; i < s; ++i)
   {
