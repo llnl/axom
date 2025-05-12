@@ -21,5 +21,6 @@ class Axomdevtools(BundlePackage):
     depends_on("py-sphinxcontrib-jquery")
     depends_on("py-jsonschema")
     depends_on("py-nanobind")
+    depends_on("py-pytest")
 
     depends_on("llvm+clang@14.0.6")

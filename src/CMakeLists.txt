@@ -136,13 +136,22 @@ axom_add_code_checks()
 #------------------------------------------------------------------------------
 add_subdirectory(thirdparty)
 
+include(cmake/AxomVersion.cmake)
+add_subdirectory(axom)
+
 # Example nanobind module
 if(NANOBIND_FOUND)
     nanobind_add_module(my_ext my_ext.cpp ext.cpp)
-endif()
 
-include(cmake/AxomVersion.cmake)
-add_subdirectory(axom)
+    # Run unit test with pytest
+    # "-p no:cacheprovider" disables caching
+    # Need to invoke with "python3 -m pytest" to get generated nanobind library added to path:
+    # https://docs.pytest.org/en/latest/explanation/pythonpath.html#invoking-pytest-versus-python-m-pytest
+    add_test (NAME python_my_ext_test
+      COMMAND ${Python_EXECUTABLE} -m pytest -p no:cacheprovider ${CMAKE_CURRENT_SOURCE_DIR}/test_my_ext.py
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+    )
+endif()
 
 if(AXOM_ENABLE_TOOLS)
     add_subdirectory(tools)

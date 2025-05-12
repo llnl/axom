@@ -206,6 +206,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("python")
         depends_on("py-sphinx")
         depends_on("py-shroud")
+        depends_on("py-pytest")
         depends_on("py-jsonschema")
 
         # Need clang@14 for clang-format
@@ -603,6 +604,10 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         if spec.satisfies("^py-shroud"):
             shroud_bin_dir = get_spec_path(spec, "py-shroud", path_replacements, use_bin=True)
             entries.append(cmake_cache_path("SHROUD_EXECUTABLE", pjoin(shroud_bin_dir, "shroud")))
+
+        if spec.satisfies("^py-pytest"):
+            pytest_bin_dir = get_spec_path(spec, "py-pytest", path_replacements, use_bin=True)
+            entries.append(cmake_cache_path("PYTEST_EXECUTABLE", pjoin(pytest_bin_dir, "pytest")))
 
         for dep in ("cppcheck", "doxygen"):
             if spec.satisfies("^%s" % dep):
