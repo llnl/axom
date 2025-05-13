@@ -152,21 +152,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
       - name: macOS - CMake
         run: |
           cmake ${{ env.CMAKE_EXTRA_FLAGS }} -B build -S src
         shell: bash
-
       - name: macOS - Build
         run: |
           cmake --build build
         shell: bash
-
       - name: macOS - Test
         run: |
           cd build
-          ctest -C Debug -T Test --output-on-failure -V
+          ctest -T Test --output-on-failure -V
         shell: bash
   check_code:
     runs-on: ubuntu-22.04
