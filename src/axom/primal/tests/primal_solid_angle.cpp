@@ -706,8 +706,6 @@ TEST(primal_integral, bezierpatch_sphere)
   const double quad_tol = 1e-5;
   const double EPS = 1e-11;
   
-  NPatch discarded;
-
   // Test the points on the biquintic patches
   auto sphere_faces = make_sphere_biquintic();
 
@@ -731,12 +729,12 @@ TEST(primal_integral, bezierpatch_sphere)
   outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
 
   // The algorithm can handle cases where the query point is on the degenerate corner,
-  //  but at an expense that is a bit too strenuous for this test
+  //  but at an expense that is impractical to test here
   // coincident_gwn =
   //   winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
 
   // Check the resulting winding number
-  for(int i = 0; i < 12; ++i)
+  for(int i = 0; i < N; ++i)
   {
     EXPECT_NEAR(inner_gwn[i], 1.0, 8 * quad_tol);
     EXPECT_NEAR(outer_gwn[i], 0.0, 8 * quad_tol);
