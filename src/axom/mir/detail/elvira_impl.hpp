@@ -25,7 +25,7 @@ enum class Direction
   HORIZONTAL = 1
 };
 
-enum Difference
+enum class Difference
 {
   BACKWARD = 0,
   CENTRAL = 1,
@@ -37,10 +37,39 @@ template <typename FloatType>
 struct Result2D
 {
   int plane {2};
-  int difference_used {0};
+  Difference difference_used {Difference::BACKWARD};
   FloatType columns[3] {0., 0., 0.};
   FloatType normal[3][2] {{0., 0.}, {0., 0.}, {0., 0.}};
 };
+
+/*!
+ * \brief Convert int value to Difference.
+ * \param value The input value to convert to Difference.
+ * \return The converted Difference value.
+ */
+inline AXOM_HOST_DEVICE Difference IntToDifference(int value)
+{
+  return (value == 0) ? Difference::BACKWARD : ((value == 2) ? Difference::FORWARD : Difference::CENTRAL);
+}
+
+/*!
+ * \brief Convert Difference value to int.
+ * \param value The input value to convert to int.
+ * \return The converted int value.
+ */
+inline AXOM_HOST_DEVICE int DifferenceToInt(Difference value)
+{
+  return (value == Difference::BACKWARD) ? 0 : ((value == Difference::FORWARD) ? 2 : 1);
+}
+/*!
+ * \brief Reverse the difference direction.
+ * \param value The input value to reverse.
+ * \return The reversed direction.
+ */
+inline AXOM_HOST_DEVICE Difference Reverse(Difference value)
+{
+  return (value == Difference::BACKWARD) ? Difference::FORWARD : ((value == Difference::FORWARD) ? Difference::BACKWARD : Difference::CENTRAL);
+}
 
 /*!
  * \brief 2nd order 2-d mir function: returns the normal to the slope in 
@@ -941,8 +970,8 @@ AXOM_HOST_DEVICE void pick_elv(Result2D<FloatType> elv2d[2], const FloatType *vf
   }
 
   // Record which differences were used.
-  elv2d[0].difference_used = imin;
-  elv2d[1].difference_used = jmin;
+  elv2d[0].difference_used = IntToDifference(imin);
+  elv2d[1].difference_used = IntToDifference(jmin);
 }
 
 /*!
@@ -1051,7 +1080,7 @@ AXOM_HOST_DEVICE void missvol1(FloatType c00,  // Center column sum.
  */
 template <typename FloatType>
 AXOM_HOST_DEVICE void crc_sides(const FloatType upcol[2][3],
-                                const int diff[2],
+                                const Difference diff[2],
                                 FloatType n2a[2][2],
                                 FloatType n3a[3])
 {
@@ -1069,13 +1098,13 @@ AXOM_HOST_DEVICE void crc_sides(const FloatType upcol[2][3],
 
   int ncrc = 1;
   int is[2] = {0, 0};
-  if(diff[0] == FORWARD)
+  if(diff[0] == Difference::FORWARD)
   {
-    is[0] = (diff[1] == FORWARD) ? 0 : 3;
+    is[0] = (diff[1] == Difference::FORWARD) ? 0 : 3;
   }
-  else if(diff[0] == BACKWARD)
+  else if(diff[0] == Difference::BACKWARD)
   {
-    is[0] = (diff[1] == FORWARD) ? 1 : 2;
+    is[0] = (diff[1] == Difference::FORWARD) ? 1 : 2;
   }
   else
   {             // Central-Central
@@ -1132,13 +1161,13 @@ AXOM_HOST_DEVICE void crc_sides(const FloatType upcol[2][3],
   {
     switch(diff[i])
     {
-    case FORWARD:
+    case Difference::FORWARD:
       n2a[i][i] = axom::utilities::abs(c00 - side[i]);
       break;
-    case BACKWARD:
+    case Difference::BACKWARD:
       n2a[i][i] = axom::utilities::abs(c00 - side[2 + i]);
       break;
-    case CENTRAL:
+    case Difference::CENTRAL:
       n2a[i][i] = 0.5 * axom::utilities::abs(side[i] - side[2 + i]);
       break;
     default:
@@ -1230,17 +1259,17 @@ AXOM_HOST_DEVICE FloatType missvol2(FloatType vf, FloatType c0, FloatType cx, Fl
 template <typename FloatType>
 AXOM_HOST_DEVICE void crc_cen(const FloatType upcen[3],
                               const FloatType upcol[2][3],
-                              const int diff[2],
+                              const Difference diff[2],
                               FloatType n2a[2][2],
                               FloatType n3a[3])
 {
   // No correction for central difference.
-  if((diff[0] != CENTRAL) && (diff[1] != CENTRAL))
+  if((diff[0] != Difference::CENTRAL) && (diff[1] != Difference::CENTRAL))
   {
     FloatType cside[2];
     for(int i = 0; i < 2; i++)
     {
-      cside[i] = (diff[i] == FORWARD) ? upcol[i][2] : upcol[i][0];
+      cside[i] = (diff[i] == Difference::FORWARD) ? upcol[i][2] : upcol[i][0];
     }
 
     FloatType c0 = upcol[0][1];
@@ -1252,7 +1281,7 @@ AXOM_HOST_DEVICE void crc_cen(const FloatType upcen[3],
     // Find the gradient.
     for(int i = 0; i < 2; i++)
     {
-      if(diff[i] == FORWARD)
+      if(diff[i] == Difference::FORWARD)
       {
         n2a[i][i] = axom::utilities::abs(upcol[i][2] - c0);
       }
@@ -1289,7 +1318,7 @@ AXOM_HOST_DEVICE void correct1(Result2D<FloatType> elv2d[2],
   const int p2 = 3 - p0 - p1;
 
   FloatType n30[3];
-  norm3d(elv2d[0].normal[elv2d[0].difference_used], elv2d[1].normal[elv2d[1].difference_used], n30);
+  norm3d(elv2d[0].normal[DifferenceToInt(elv2d[0].difference_used)], elv2d[1].normal[DifferenceToInt(elv2d[1].difference_used)], n30);
 
   // Ensure correct order.
   if((n30[2] * n30[2] >= n30[1] * n30[1]) && (n30[2] * n30[2] >= n30[0] * n30[0]) &&
@@ -1308,7 +1337,7 @@ AXOM_HOST_DEVICE void correct1(Result2D<FloatType> elv2d[2],
       }
     }
 
-    int diff[2];
+    Difference diff[2];
     for(int i = 0; i < 2; i++)
     {
       diff[i] = elv2d[i].difference_used;
@@ -1321,7 +1350,7 @@ AXOM_HOST_DEVICE void correct1(Result2D<FloatType> elv2d[2],
     {
       axom::utilities::swap(upcen[0], upcen[2]);
 
-      diff[0] = 2 - diff[0];  // Forward <--> Backward
+      diff[0] = Reverse(diff[0]); // Forward <--> Backward
 
       axom::utilities::swap(upcol[0][0], upcol[0][2]);
     }
@@ -1330,7 +1359,7 @@ AXOM_HOST_DEVICE void correct1(Result2D<FloatType> elv2d[2],
     FloatType n2a[2][2];
     for(int i = 0; i < 2; i++)
     {
-      const FloatType *n2 = elv2d[i].normal[elv2d[i].difference_used];
+      const FloatType *n2 = elv2d[i].normal[DifferenceToInt(elv2d[i].difference_used)];
       for(int k = 0; k < 2; k++)
       {
         n2a[i][k] = axom::utilities::abs(n2[k]);
