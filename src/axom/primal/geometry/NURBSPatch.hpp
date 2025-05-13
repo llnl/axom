@@ -3091,17 +3091,25 @@ public:
                                           0.,
                                           1.);
 
+          // If the number of recorded intersection points is too great (as defined by Bezout's theorem),
+          //   then they can be assumed to be completely overlapping, and no intersections are recorded.
+          if(temp_curve_p.size() > 6 * beziers[i].getOrder())
+          {
+            continue;
+          }
+
           // Scale the intersection parameters back into the span of the NURBS curve
           for(int j = 0; j < temp_curve_p.size(); ++j)
           {
-            // Skip any intersection point recorded at an endpoint
+            circle_params.push_back(temp_circle_p[j]);
+
+            // Skip any curve intersection point recorded at an endpoint
             if(temp_curve_p[j] <= 0.0 || temp_curve_p[j] >= 1.0)
             {
               continue;
             }
 
             curve_params.push_back(knot_vals[i] + temp_curve_p[j] * (knot_vals[i + 1] - knot_vals[i]));
-            circle_params.push_back(temp_circle_p[j]);
           }
         }
       }
@@ -3875,6 +3883,14 @@ private:
           axom::Array<T> temp_curve_p;
           axom::Array<T> temp_ray_p;
 
+          // Perform an initial check to see if the curve is linear and completely overlaps the ray
+          if(beziers[i].isLinear(sq_tol) &&
+             axom::utilities::isNearlyEqual(beziers[i][0][splitInU ? 0 : 1], uv) &&
+             axom::utilities::isNearlyEqual(beziers[i][beziers[i].getOrder()][splitInU ? 0 : 1], uv))
+          {
+            continue;
+          }
+
           detail::intersect_ray_bezier(ray_obj,
                                        beziers[i],
                                        temp_ray_p,
@@ -3888,14 +3904,15 @@ private:
           // Scale the intersection parameters back into the span of the NURBS curve
           for(int j = 0; j < temp_curve_p.size(); ++j)
           {
-            // Skip any intersection point recorded at an endpoint
+            ray_params.push_back(temp_ray_p[j]);
+
+            // Skip any curve intersection point recorded at an endpoint
             if(temp_curve_p[j] <= 0.0 || temp_curve_p[j] >= 1.0)
             {
               continue;
             }
 
             curve_params.push_back(knot_vals[i] + temp_curve_p[j] * (knot_vals[i + 1] - knot_vals[i]));
-            ray_params.push_back(temp_ray_p[j]);
           }
         }
       }
