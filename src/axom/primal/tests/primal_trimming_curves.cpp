@@ -560,7 +560,11 @@ TEST_F(TrimmingCurveTest, trimming_disk_subdivision_edge_cases)
   NURBSPatchType disk1, disk2;
 
   nPatch.diskSplit(0.5, 0.5, radius, disk1, the_rest, !clipDisk);
+  
+  the_rest.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//original.txt");
   the_rest.diskSplit(0.5, 0.5, radius, disk2, the_rest, !clipDisk);
+  disk2.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//the_disk.txt");
+  the_rest.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//the_rest.txt");
 
   for(auto u : u_pts)
   {

@@ -2630,6 +2630,21 @@ public:
 #endif
   //@}
 
+  /// \brief Print the trimming curves
+  void printTrimmingCurves(std::string filename) const
+  {
+    std::ofstream ofs(filename);
+    for(auto& curve : m_trimmingCurves)
+    {
+      auto bezier = curve.extractBezier();
+      for(auto& patch : bezier)
+      {
+        patch.print(ofs);
+        ofs << std::endl;
+      }
+    }
+  }
+
   //@{
   //!  @name Methods for (trimmed) Surface Geometry.
   //!
