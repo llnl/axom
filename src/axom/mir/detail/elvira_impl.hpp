@@ -49,7 +49,8 @@ struct Result2D
  */
 inline AXOM_HOST_DEVICE Difference IntToDifference(int value)
 {
-  return (value == 0) ? Difference::BACKWARD : ((value == 2) ? Difference::FORWARD : Difference::CENTRAL);
+  return (value == 0) ? Difference::BACKWARD
+                      : ((value == 2) ? Difference::FORWARD : Difference::CENTRAL);
 }
 
 /*!
@@ -68,7 +69,9 @@ inline AXOM_HOST_DEVICE int DifferenceToInt(Difference value)
  */
 inline AXOM_HOST_DEVICE Difference Reverse(Difference value)
 {
-  return (value == Difference::BACKWARD) ? Difference::FORWARD : ((value == Difference::FORWARD) ? Difference::BACKWARD : Difference::CENTRAL);
+  return (value == Difference::BACKWARD)
+    ? Difference::FORWARD
+    : ((value == Difference::FORWARD) ? Difference::BACKWARD : Difference::CENTRAL);
 }
 
 /*!
@@ -168,9 +171,9 @@ AXOM_HOST_DEVICE void elvira2d(Result2D<FloatType> &result,
  */
 template <typename FloatType>
 AXOM_HOST_DEVICE inline FloatType elvira_chisq(const FloatType *vf,
-                                                const FloatType *vfs,
-                                                const int *ivf,
-                                                int k)
+                                               const FloatType *vfs,
+                                               const int *ivf,
+                                               int k)
 {
   FloatType chisq = 0.0;
   for(; k--;)
@@ -1318,7 +1321,9 @@ AXOM_HOST_DEVICE void correct1(Result2D<FloatType> elv2d[2],
   const int p2 = 3 - p0 - p1;
 
   FloatType n30[3];
-  norm3d(elv2d[0].normal[DifferenceToInt(elv2d[0].difference_used)], elv2d[1].normal[DifferenceToInt(elv2d[1].difference_used)], n30);
+  norm3d(elv2d[0].normal[DifferenceToInt(elv2d[0].difference_used)],
+         elv2d[1].normal[DifferenceToInt(elv2d[1].difference_used)],
+         n30);
 
   // Ensure correct order.
   if((n30[2] * n30[2] >= n30[1] * n30[1]) && (n30[2] * n30[2] >= n30[0] * n30[0]) &&
@@ -1350,7 +1355,7 @@ AXOM_HOST_DEVICE void correct1(Result2D<FloatType> elv2d[2],
     {
       axom::utilities::swap(upcen[0], upcen[2]);
 
-      diff[0] = Reverse(diff[0]); // Forward <--> Backward
+      diff[0] = Reverse(diff[0]);  // Forward <--> Backward
 
       axom::utilities::swap(upcol[0][0], upcol[0][2]);
     }
