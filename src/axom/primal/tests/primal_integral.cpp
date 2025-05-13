@@ -398,10 +398,10 @@ TEST(primal_integral, evaluate_nurbs_surface_normal)
 
   // clang-format off
   Point3D controlPoints[5 * 4] = {
-    Point3D {0, 0, 0}, Point3D {0, 4,  0}, Point3D {0, 8,  0}, Point3D {0, 12, 0},
-    Point3D {2, 0, 0}, Point3D {2, 4,  0}, Point3D {2, 8,  0}, Point3D {2, 12, 0},
-    Point3D {4, 0, 0}, Point3D {4, 4,  0}, Point3D {4, 8,  0}, Point3D {4, 12, 0},
-    Point3D {6, 0, 0}, Point3D {6, 4,  0}, Point3D {6, 8,  0}, Point3D {6, 12, 0},
+    Point3D {0, 0, 0}, Point3D {0, 4,  0}, Point3D {0, 8, -3}, Point3D {0, 12, 0},
+    Point3D {2, 0, 6}, Point3D {2, 4,  0}, Point3D {2, 8,  0}, Point3D {2, 12, 0},
+    Point3D {4, 0, 0}, Point3D {4, 4,  0}, Point3D {4, 8,  3}, Point3D {4, 12, 0},
+    Point3D {6, 0, 0}, Point3D {6, 4, -3}, Point3D {6, 8,  0}, Point3D {6, 12, 0},
     Point3D {8, 0, 0}, Point3D {8, 4,  0}, Point3D {8, 8,  0}, Point3D {8, 12, 0}};
     
   double weights[5 * 4] = {

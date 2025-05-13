@@ -2623,6 +2623,8 @@ public:
       ret_vec[N] = evaluate_area_integral(boundingPoly, const_integrand, npts);
     }
 
+    // Need to flip the y-component to account for the flipped projection
+    ret_vec[1] = -ret_vec[1];
     return ret_vec;
   }
 #endif
