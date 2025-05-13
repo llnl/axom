@@ -15,7 +15,7 @@ namespace elvira
 
 // NOTE: Many of the functions below were adapted from code originally
 //       written by Jeff Grandy. The functions have been templated on
-//       "value_type" instead of using double so we can generate host
+//       "FloatType" instead of using double so we can generate host
 //       and device code for HIP without resulting in  multiple function
 //       definitions at link time.
 
@@ -33,13 +33,13 @@ enum Difference
 };
 
 /// This struct stores the normal computed for a plane of stencil data.
-template <typename value_type>
+template <typename FloatType>
 struct Result2D
 {
   int plane {2};
   int difference_used {0};
-  value_type columns[3] {0., 0., 0.};
-  value_type normal[3][2] {{0., 0.}, {0., 0.}, {0., 0.}};
+  FloatType columns[3] {0., 0., 0.};
+  FloatType normal[3][2] {{0., 0.}, {0., 0.}, {0., 0.}};
 };
 
 /*!
@@ -70,22 +70,22 @@ struct Result2D
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE void elvira2d(Result2D<value_type> &result,
-                               const value_type *vf,
+template <typename FloatType>
+AXOM_HOST_DEVICE void elvira2d(Result2D<FloatType> &result,
+                               const FloatType *vf,
                                const int *ivf,
                                Direction direction)
 {
-  const value_type jb = vf[ivf[0]] + vf[ivf[1]] + vf[ivf[2]];  // bottom row
-  const value_type jm = vf[ivf[3]] + vf[ivf[4]] + vf[ivf[5]];  // middle row
-  const value_type jt = vf[ivf[6]] + vf[ivf[7]] + vf[ivf[8]];  // top row
+  const FloatType jb = vf[ivf[0]] + vf[ivf[1]] + vf[ivf[2]];  // bottom row
+  const FloatType jm = vf[ivf[3]] + vf[ivf[4]] + vf[ivf[5]];  // middle row
+  const FloatType jt = vf[ivf[6]] + vf[ivf[7]] + vf[ivf[8]];  // top row
 
-  const value_type il = vf[ivf[0]] + vf[ivf[3]] + vf[ivf[6]];  // left column
-  const value_type im = vf[ivf[1]] + vf[ivf[4]] + vf[ivf[7]];  // middle column
-  const value_type ir = vf[ivf[2]] + vf[ivf[5]] + vf[ivf[8]];  // right column
+  const FloatType il = vf[ivf[0]] + vf[ivf[3]] + vf[ivf[6]];  // left column
+  const FloatType im = vf[ivf[1]] + vf[ivf[4]] + vf[ivf[7]];  // middle column
+  const FloatType ir = vf[ivf[2]] + vf[ivf[5]] + vf[ivf[8]];  // right column
 
-  value_type slope[3] {0., 0., 0.};  // backward, cent, and forward differencing
-  value_type slopev = 0.;            // Sets overall sign of normal.
+  FloatType slope[3] {0., 0., 0.};  // backward, cent, and forward differencing
+  FloatType slopev = 0.;            // Sets overall sign of normal.
   int ihv;
   if(direction == Direction::VERTICAL)
   {
@@ -114,7 +114,7 @@ AXOM_HOST_DEVICE void elvira2d(Result2D<value_type> &result,
     ihv = 1;
   }
 
-  const value_type sign = (slopev > 0.0) ? (1.) : (-1.);
+  const FloatType sign = (slopev > 0.0) ? (1.) : (-1.);
 
   // return the normal in the direction away from the material
   // i = loop over three difference schemes.
@@ -137,16 +137,16 @@ AXOM_HOST_DEVICE void elvira2d(Result2D<value_type> &result,
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE inline value_type elvira_chisq(const value_type *vf,
-                                                const value_type *vfs,
+template <typename FloatType>
+AXOM_HOST_DEVICE inline FloatType elvira_chisq(const FloatType *vf,
+                                                const FloatType *vfs,
                                                 const int *ivf,
                                                 int k)
 {
-  value_type chisq = 0.0;
+  FloatType chisq = 0.0;
   for(; k--;)
   {
-    const value_type c = vf[ivf[k]] - vfs[ivf[k]];
+    const FloatType c = vf[ivf[k]] - vfs[ivf[k]];
     chisq += c * c;
   }
   return chisq;
@@ -159,14 +159,14 @@ AXOM_HOST_DEVICE inline value_type elvira_chisq(const value_type *vf,
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE inline void norm2d(value_type n2[2], value_type n3[3])
+template <typename FloatType>
+AXOM_HOST_DEVICE inline void norm2d(FloatType n2[2], FloatType n3[3])
 {
-  constexpr value_type PTINY = 1.e-15;
+  constexpr FloatType PTINY = 1.e-15;
   // Compute 2D vector magnitude.
-  value_type magnitude = sqrt(n2[0] * n2[0] + n2[1] * n2[1]);
-  value_type magnitude2 = magnitude * magnitude;
-  value_type magnitudeReciprocal = magnitude / (magnitude2 + PTINY);
+  FloatType magnitude = sqrt(n2[0] * n2[0] + n2[1] * n2[1]);
+  FloatType magnitude2 = magnitude * magnitude;
+  FloatType magnitudeReciprocal = magnitude / (magnitude2 + PTINY);
   // normalize vector, make it 3D
   n3[0] = n2[0] * magnitudeReciprocal;
   n3[1] = n2[1] * magnitudeReciprocal;
@@ -185,19 +185,19 @@ AXOM_HOST_DEVICE inline void norm2d(value_type n2[2], value_type n3[3])
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE void norm3d(const value_type A[2], const value_type B[2], value_type n3[3])
+template <typename FloatType>
+AXOM_HOST_DEVICE void norm3d(const FloatType A[2], const FloatType B[2], FloatType n3[3])
 {
-  constexpr value_type PTINY = 1.e-15;
+  constexpr FloatType PTINY = 1.e-15;
 
   n3[0] = A[1] * B[1];
   n3[1] = A[0] * B[0];
   n3[2] = A[1] * B[0];  // "largest" component.
 
-  value_type mag = sqrt(n3[0] * n3[0] + n3[1] * n3[1] + n3[2] * n3[2]);
-  value_type mag2 = mag * mag;
+  FloatType mag = sqrt(n3[0] * n3[0] + n3[1] * n3[1] + n3[2] * n3[2]);
+  FloatType mag2 = mag * mag;
   // rmag = reciprocal of magnitude
-  value_type rmag = mag / (mag2 + PTINY);
+  FloatType rmag = mag / (mag2 + PTINY);
 
   // check sign and make unit normal
   if((A[1] + B[0]) < 0)
@@ -220,9 +220,9 @@ AXOM_HOST_DEVICE void norm3d(const value_type A[2], const value_type B[2], value
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE inline void n_sort(const value_type n[3],  // input vector
-                                    value_type na[3])       // output vector
+template <typename FloatType>
+AXOM_HOST_DEVICE inline void n_sort(const FloatType n[3],  // input vector
+                                    FloatType na[3])       // output vector
 {
   na[0] = axom::utilities::abs(n[0]);
   na[1] = axom::utilities::abs(n[1]);
@@ -259,10 +259,10 @@ AXOM_HOST_DEVICE inline void n_sort(const value_type n[3],  // input vector
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE value_type vf_1cube(value_type d, value_type n1, value_type n2, value_type n3)
+template <typename FloatType>
+AXOM_HOST_DEVICE FloatType vf_1cube(FloatType d, FloatType n1, FloatType n2, FloatType n3)
 {
-  value_type vf = 0.0, dd1, dd2, dd3;
+  FloatType vf = 0.0, dd1, dd2, dd3;
   enum
   {
     cut_triangle,
@@ -271,8 +271,8 @@ AXOM_HOST_DEVICE value_type vf_1cube(value_type d, value_type n1, value_type n2,
     cut_hex,
     cut_quadb
   } xsec;
-  constexpr value_type one6 = 1. / 6.;
-  value_type nbd = n1 + n2 + n3;
+  constexpr FloatType one6 = 1. / 6.;
+  FloatType nbd = n1 + n2 + n3;
 
   int ifdhi = 0;
   if(d > 0.5 * nbd)
@@ -354,9 +354,9 @@ AXOM_HOST_DEVICE value_type vf_1cube(value_type d, value_type n1, value_type n2,
   {
     vf = 1.0 - vf;
   }  // vf=0.5 symmetry.
-  constexpr value_type eps = 1.0e-15;
-  constexpr value_type lower = eps;
-  constexpr value_type upper = 1. - eps;
+  constexpr FloatType eps = 1.0e-15;
+  constexpr FloatType lower = eps;
+  constexpr FloatType upper = 1. - eps;
   if(vf < lower) vf = 0.0;  // Truncate.
   if(vf > upper) vf = 1.0;  // Truncate.
   return (vf);
@@ -376,18 +376,18 @@ AXOM_HOST_DEVICE value_type vf_1cube(value_type d, value_type n1, value_type n2,
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE value_type cub4p(const value_type *x, const value_type *y)
+template <typename FloatType>
+AXOM_HOST_DEVICE FloatType cub4p(const FloatType *x, const FloatType *y)
 {
-  value_type dstar;
-  value_type e0 = 0.0, e1 = 0.0, e2 = 0.0, ep, em, ea, eb;
-  value_type de0, dde0, de0sq, dde0sq;
-  value_type de1, dde1, de1sq, dde1sq, demin, ddemax;
-  value_type y0, y1, y2, y3;
-  value_type w0 = 0.0, w1 = 0.0, w2;
-  value_type b, y30, y12, a;
-  value_type tolsec = 1.0e-28;
-  constexpr value_type one6 = 1. / 6.;
+  FloatType dstar;
+  FloatType e0 = 0.0, e1 = 0.0, e2 = 0.0, ep, em, ea, eb;
+  FloatType de0, dde0, de0sq, dde0sq;
+  FloatType de1, dde1, de1sq, dde1sq, demin, ddemax;
+  FloatType y0, y1, y2, y3;
+  FloatType w0 = 0.0, w1 = 0.0, w2;
+  FloatType b, y30, y12, a;
+  FloatType tolsec = 1.0e-28;
+  constexpr FloatType one6 = 1. / 6.;
   int ifsec, ifbis;
 
   y0 = y[0];
@@ -395,7 +395,7 @@ AXOM_HOST_DEVICE value_type cub4p(const value_type *x, const value_type *y)
   y2 = y[2];
   y3 = y[3];
 
-  const value_type tol2 = (y0 * y0 + y1 * y1 + y2 * y2 + y3 * y3) * tolsec;
+  const FloatType tol2 = (y0 * y0 + y1 * y1 + y2 * y2 + y3 * y3) * tolsec;
 
   /* Initialize secant search.   */
   /* The default covers end cases where vks never 
@@ -599,14 +599,14 @@ AXOM_HOST_DEVICE value_type cub4p(const value_type *x, const value_type *y)
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE value_type d_3cube(const value_type n[3], value_type vf13)
+template <typename FloatType>
+AXOM_HOST_DEVICE FloatType d_3cube(const FloatType n[3], FloatType vf13)
 {
   int i, ik, ifdhi;
-  value_type d[5], vc[5], v[4], x[4];
-  value_type na[3], n1, n2, n3, nbd, dstar;
-  value_type one3 = 0.3333333333333333;
-  value_type two3 = 2.0 * one3;
+  FloatType d[5], vc[5], v[4], x[4];
+  FloatType na[3], n1, n2, n3, nbd, dstar;
+  FloatType one3 = 0.3333333333333333;
+  FloatType two3 = 2.0 * one3;
 
   // Get sorted positive normal components.
   n_sort(n, na);
@@ -737,32 +737,32 @@ AXOM_HOST_DEVICE value_type d_3cube(const value_type n[3], value_type vf13)
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE void vf_3cube(value_type n[3], value_type pd, value_type *vfs, const int *ivf, int k)
+template <typename FloatType>
+AXOM_HOST_DEVICE void vf_3cube(FloatType n[3], FloatType pd, FloatType *vfs, const int *ivf, int k)
 {
   // Find node of lowest d
   // as 0 or 1 offset for each coord.
-  const value_type delx0 = (n[0] < 0.0) ? 1.0 : 0.0;
-  const value_type dely0 = (n[1] < 0.0) ? 1.0 : 0.0;
-  const value_type delz0 = (n[2] < 0.0) ? 1.0 : 0.0;
+  const FloatType delx0 = (n[0] < 0.0) ? 1.0 : 0.0;
+  const FloatType dely0 = (n[1] < 0.0) ? 1.0 : 0.0;
+  const FloatType delz0 = (n[2] < 0.0) ? 1.0 : 0.0;
 
-  value_type na[3];
+  FloatType na[3];
   n_sort(n, na);
 
   for(int i = 0; i < k; i++)
   {
     // Compute lower left coordinate of stencil box.
     // The values are 0,1,2
-    const value_type sx = static_cast<value_type>(ivf[i] % 3);
-    const value_type sy = static_cast<value_type>((ivf[i] % 9) / 3);
-    const value_type sz = static_cast<value_type>(ivf[i] / 9);
+    const FloatType sx = static_cast<FloatType>(ivf[i] % 3);
+    const FloatType sy = static_cast<FloatType>((ivf[i] % 9) / 3);
+    const FloatType sz = static_cast<FloatType>(ivf[i] / 9);
 
-    const value_type x0 = sx + delx0;
-    const value_type y0 = sy + dely0;
-    const value_type z0 = sz + delz0;
-    const value_type d = -(pd + (n[0] * x0 + n[1] * y0 + n[2] * z0));
+    const FloatType x0 = sx + delx0;
+    const FloatType y0 = sy + dely0;
+    const FloatType z0 = sz + delz0;
+    const FloatType d = -(pd + (n[0] * x0 + n[1] * y0 + n[2] * z0));
 
-    const value_type vf = vf_1cube(d, na[0], na[1], na[2]);
+    const FloatType vf = vf_1cube(d, na[0], na[1], na[2]);
 
     vfs[ivf[i]] = vf;
   }
@@ -776,8 +776,8 @@ AXOM_HOST_DEVICE void vf_3cube(value_type n[3], value_type pd, value_type *vfs, 
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE void elvira2xy(const value_type *vf, value_type n[3])
+template <typename FloatType>
+AXOM_HOST_DEVICE void elvira2xy(const FloatType *vf, FloatType n[3])
 {
   // These are indices into the volume fractions that pull out values in the XY plane.
   const int ivf[9] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
@@ -789,7 +789,7 @@ AXOM_HOST_DEVICE void elvira2xy(const value_type *vf, value_type n[3])
   constexpr int right = 5;
 
   // Pick a direction.
-  value_type variance[2];
+  FloatType variance[2];
   variance[0] = ((vf[center] - vf[bottom]) * (vf[center] - vf[bottom]) +
                  (vf[center] - vf[top]) * (vf[center] - vf[top]));
   variance[1] = ((vf[center] - vf[left]) * (vf[center] - vf[left]) +
@@ -797,29 +797,29 @@ AXOM_HOST_DEVICE void elvira2xy(const value_type *vf, value_type n[3])
   const auto direction = (variance[0] < variance[1]) ? Direction::HORIZONTAL : Direction::VERTICAL;
 
   // Compute normals
-  Result2D<value_type> result;
+  Result2D<FloatType> result;
   elvira2d(result, vf, ivf, direction);
   result.plane = 2;
 
-  value_type chmin = 0.0;
-  value_type vfs[9];
-  const value_type chfac[3] = {1.0, 0.25, 1.0};
+  FloatType chmin = 0.0;
+  FloatType vfs[9];
+  const FloatType chfac[3] = {1.0, 0.25, 1.0};
 
   // Choose difference schemes.
   for(int diff = 0; diff < 3; diff++)
   {
     // Turn the normal into normalized 3D vector.
-    value_type n3[3];
+    FloatType n3[3];
     norm2d(result.normal[diff], n3);
 
     // Compute displacement for center stencil for this normal.
-    value_type d = d_3cube(n3, vf[center]);
+    FloatType d = d_3cube(n3, vf[center]);
 
     // Compute the vfs for the various boxes in the stencil using current n3.
     vf_3cube(n3, d, vfs, ivf, 9);
 
     // Compute diffs between computed, actual vf's.
-    value_type chisq = elvira_chisq(vf, vfs, ivf, 9);
+    FloatType chisq = elvira_chisq(vf, vfs, ivf, 9);
     // Prefer central difference (since a low value will lower the error)
     chisq *= chfac[diff];
 
@@ -846,8 +846,8 @@ AXOM_HOST_DEVICE void elvira2xy(const value_type *vf, value_type n[3])
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE value_type det_variance(const value_type *vf, const int *ivf)
+template <typename FloatType>
+AXOM_HOST_DEVICE FloatType det_variance(const FloatType *vf, const int *ivf)
 {
   /* "andfn" selects these zones from the ivf stencil.
    *  *---*---*---*
@@ -861,19 +861,19 @@ AXOM_HOST_DEVICE value_type det_variance(const value_type *vf, const int *ivf)
   const int andfn[5] = {1, 3, 4, 5, 7};
   const int len = 5;
 
-  value_type avg = 0.0;
-  value_type avg2 = 0.0;
+  FloatType avg = 0.0;
+  FloatType avg2 = 0.0;
   for(int i = 0; i < len; i++)
   {
     // Pull out certain values from the plane selected by ivf.
-    const value_type x = vf[ivf[andfn[i]]];
+    const FloatType x = vf[ivf[andfn[i]]];
     avg += x;
     avg2 += x * x;
   }
   avg /= len;
   avg2 /= len;
 
-  const value_type var = ((double)len / (len - 1.0)) * (avg2 - avg * avg);
+  const FloatType var = ((double)len / (len - 1.0)) * (avg2 - avg * avg);
   return var;
 }
 
@@ -889,13 +889,13 @@ AXOM_HOST_DEVICE value_type det_variance(const value_type *vf, const int *ivf)
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE void pick_elv(Result2D<value_type> elv2d[2], const value_type *vf)
+template <typename FloatType>
+AXOM_HOST_DEVICE void pick_elv(Result2D<FloatType> elv2d[2], const FloatType *vf)
 {
   const int ivf[19] = {1, 3, 4, 5, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 21, 22, 23, 25};
   const int idiff[5] = {0, 0, 1, 2, 2};
   const int jdiff[5] = {0, 2, 1, 0, 2};
-  const value_type chfac[5] = {1.0, 1.0, 0.25, 1.0, 1.0};
+  const FloatType chfac[5] = {1.0, 1.0, 0.25, 1.0, 1.0};
 
   const int p0 = elv2d[0].plane;
   const int p1 = elv2d[1].plane;
@@ -903,7 +903,7 @@ AXOM_HOST_DEVICE void pick_elv(Result2D<value_type> elv2d[2], const value_type *
 
   int imin = 0;
   int jmin = 0;
-  value_type chmin = 0.0;
+  FloatType chmin = 0.0;
 
   // Only use differences symmetric over two planes.
   for(int diff = 0; diff < 5; diff++)
@@ -912,7 +912,7 @@ AXOM_HOST_DEVICE void pick_elv(Result2D<value_type> elv2d[2], const value_type *
     const int j = jdiff[diff];
 
     // Get 3d trial slope.
-    value_type n30[3], n3[3];
+    FloatType n30[3], n3[3];
     norm3d(elv2d[0].normal[i], elv2d[1].normal[j], n30);
     n3[p0] = n30[0];
     n3[p1] = n30[1];
@@ -922,11 +922,11 @@ AXOM_HOST_DEVICE void pick_elv(Result2D<value_type> elv2d[2], const value_type *
     const auto d = d_3cube(n3, vf[13]);
 
     // Find volume fractions vfs
-    value_type vfs[27];
+    FloatType vfs[27];
     vf_3cube(n3, d, vfs, ivf, 19);
 
     // Compute diffs between computed, actual vf's.
-    value_type chisq = elvira_chisq(vf, vfs, ivf, 19);
+    FloatType chisq = elvira_chisq(vf, vfs, ivf, 19);
 
     // Preferentially use central difference.
     chisq *= chfac[diff];
@@ -966,24 +966,24 @@ AXOM_HOST_DEVICE void pick_elv(Result2D<value_type> elv2d[2], const value_type *
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE void missvol1(value_type c00,  // Center column sum.
-                               value_type c10,
-                               value_type v10,
-                               value_type c01,
-                               value_type v01,
-                               value_type &vma,
+template <typename FloatType>
+AXOM_HOST_DEVICE void missvol1(FloatType c00,  // Center column sum.
+                               FloatType c10,
+                               FloatType v10,
+                               FloatType c01,
+                               FloatType v01,
+                               FloatType &vma,
                                int far)
 {
-  constexpr value_type one6 = 1. / 6.;
+  constexpr FloatType one6 = 1. / 6.;
 
-  const value_type k10 = c10 + v10;
-  const value_type k01 = c01 + v01;
-  const value_type d10 = c00 - k10;
-  const value_type d01 = c00 - k01;
-  const value_type dd1 = 6.0 * d10 * d01;
+  const FloatType k10 = c10 + v10;
+  const FloatType k01 = c01 + v01;
+  const FloatType d10 = c00 - k10;
+  const FloatType d01 = c00 - k01;
+  const FloatType dd1 = 6.0 * d10 * d01;
 
-  value_type h1, vsign;
+  FloatType h1, vsign;
   if(far)
   {
     h1 = 1.5 * k10 - 0.5 * k01;
@@ -996,15 +996,15 @@ AXOM_HOST_DEVICE void missvol1(value_type c00,  // Center column sum.
   }
 
   // Max tetrahedron height.
-  value_type hmax;
+  FloatType hmax;
   {
-    const value_type hmax2 = axom::utilities::abs(d01);
+    const FloatType hmax2 = axom::utilities::abs(d01);
     hmax = axom::utilities::abs(d10);
     hmax = axom::utilities::min(hmax, hmax2);
     hmax = axom::utilities::min(hmax, 1.);
   }
 
-  value_type lb = 0.0, ub = 0.0;
+  FloatType lb = 0.0, ub = 0.0;
   bool correction = true;
   if(c10 > c00 + 0.5)
   {
@@ -1027,11 +1027,11 @@ AXOM_HOST_DEVICE void missvol1(value_type c00,  // Center column sum.
 
   if(correction)
   {
-    const value_type h2 = h1 * h1;
-    const value_type d = 4.5 * h2 - vsign * (dd1 - 6.0 * v10 * d01);
+    const FloatType h2 = h1 * h1;
+    const FloatType d = 4.5 * h2 - vsign * (dd1 - 6.0 * v10 * d01);
 
     // d should be between 0 and -6.
-    const value_type va = (d < 0.0) ? ((h2 * h1 - vsign * v10 * dd1) / d) : 0;
+    const FloatType va = (d < 0.0) ? ((h2 * h1 - vsign * v10 * dd1) / d) : 0;
 
     vma -= va;
     vma = axom::utilities::max(vma, lb);
@@ -1049,15 +1049,15 @@ AXOM_HOST_DEVICE void missvol1(value_type c00,  // Center column sum.
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE void crc_sides(const value_type upcol[2][3],
+template <typename FloatType>
+AXOM_HOST_DEVICE void crc_sides(const FloatType upcol[2][3],
                                 const int diff[2],
-                                value_type n2a[2][2],
-                                value_type n3a[3])
+                                FloatType n2a[2][2],
+                                FloatType n3a[3])
 {
   constexpr int MAX_ITERATIONS = 100;
-  value_type c00, c10, c01;
-  value_type side[4];
+  FloatType c00, c10, c01;
+  FloatType side[4];
 
   // central column.
   c00 = upcol[0][1];
@@ -1087,11 +1087,11 @@ AXOM_HOST_DEVICE void crc_sides(const value_type upcol[2][3],
   // Loop over one or two corrections.
   for(int i = 0; i < ncrc; i++)
   {
-    constexpr value_type tol = 1.0e-24;
-    value_type del = 1.0;
+    constexpr FloatType tol = 1.0e-24;
+    FloatType del = 1.0;
 
     // Missing volumes, b ccw from a.
-    value_type vma, vmb, vmaold, vmbold;
+    FloatType vma, vmb, vmaold, vmbold;
     vma = vmb = vmaold = vmbold = 0.0;
 
     int isp = is[i] + 1;
@@ -1159,13 +1159,13 @@ AXOM_HOST_DEVICE void crc_sides(const value_type upcol[2][3],
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE value_type missvol2(value_type vf, value_type c0, value_type cx, value_type cy)
+template <typename FloatType>
+AXOM_HOST_DEVICE FloatType missvol2(FloatType vf, FloatType c0, FloatType cx, FloatType cy)
 {
-  value_type v[4], f[4], vm;
-  value_type cs, sign;
-  constexpr value_type one3 = 1. / 3.;
-  constexpr value_type two3 = 2. / 3.;
+  FloatType v[4], f[4], vm;
+  FloatType cs, sign;
+  constexpr FloatType one3 = 1. / 3.;
+  constexpr FloatType two3 = 2. / 3.;
 
   if(vf > 0.5)
   {
@@ -1227,26 +1227,26 @@ AXOM_HOST_DEVICE value_type missvol2(value_type vf, value_type c0, value_type cx
  * \note Adapted from code by Jeff Grandy
  *
  */
-template <typename value_type>
-AXOM_HOST_DEVICE void crc_cen(const value_type upcen[3],
-                              const value_type upcol[2][3],
+template <typename FloatType>
+AXOM_HOST_DEVICE void crc_cen(const FloatType upcen[3],
+                              const FloatType upcol[2][3],
                               const int diff[2],
-                              value_type n2a[2][2],
-                              value_type n3a[3])
+                              FloatType n2a[2][2],
+                              FloatType n3a[3])
 {
   // No correction for central difference.
   if((diff[0] != CENTRAL) && (diff[1] != CENTRAL))
   {
-    value_type cside[2];
+    FloatType cside[2];
     for(int i = 0; i < 2; i++)
     {
       cside[i] = (diff[i] == FORWARD) ? upcol[i][2] : upcol[i][0];
     }
 
-    value_type c0 = upcol[0][1];
+    FloatType c0 = upcol[0][1];
 
     // Get the missing volume.
-    const value_type vm = missvol2(upcen[1], c0, cside[0], cside[1]);
+    const FloatType vm = missvol2(upcen[1], c0, cside[0], cside[1]);
     c0 += vm;
 
     // Find the gradient.
@@ -1276,19 +1276,19 @@ AXOM_HOST_DEVICE void crc_cen(const value_type upcen[3],
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE void correct1(Result2D<value_type> elv2d[2],
-                               const value_type vf_cen[3],
-                               value_type n3[3])
+template <typename FloatType>
+AXOM_HOST_DEVICE void correct1(Result2D<FloatType> elv2d[2],
+                               const FloatType vf_cen[3],
+                               FloatType n3[3])
 {
-  constexpr value_type one6 = 1. / 6.;
-  constexpr value_type five6 = 5. / 6.;
+  constexpr FloatType one6 = 1. / 6.;
+  constexpr FloatType five6 = 5. / 6.;
 
   const int p0 = elv2d[0].plane;
   const int p1 = elv2d[1].plane;
   const int p2 = 3 - p0 - p1;
 
-  value_type n30[3];
+  FloatType n30[3];
   norm3d(elv2d[0].normal[elv2d[0].difference_used], elv2d[1].normal[elv2d[1].difference_used], n30);
 
   // Ensure correct order.
@@ -1298,7 +1298,7 @@ AXOM_HOST_DEVICE void correct1(Result2D<value_type> elv2d[2],
      (n30[1] * n30[1] > 0.0))
   {
     // Load columns, central column vol fractions.
-    value_type upcol[2][3], upcen[3];
+    FloatType upcol[2][3], upcen[3];
     for(int j = 0; j < 3; j++)
     {
       upcen[j] = vf_cen[j];
@@ -1327,10 +1327,10 @@ AXOM_HOST_DEVICE void correct1(Result2D<value_type> elv2d[2],
     }
 
     // Magnitudes of normals.
-    value_type n2a[2][2];
+    FloatType n2a[2][2];
     for(int i = 0; i < 2; i++)
     {
-      const value_type *n2 = elv2d[i].normal[elv2d[i].difference_used];
+      const FloatType *n2 = elv2d[i].normal[elv2d[i].difference_used];
       for(int k = 0; k < 2; k++)
       {
         n2a[i][k] = axom::utilities::abs(n2[k]);
@@ -1338,13 +1338,13 @@ AXOM_HOST_DEVICE void correct1(Result2D<value_type> elv2d[2],
     }
 
     // Signs of components.
-    value_type nsgn[3];
+    FloatType nsgn[3];
     for(int k = 0; k < 3; k++)
     {
       nsgn[k] = ((n30[k] >= 0) ? 1.0 : -1.0);
     }
 
-    value_type n30a[3];
+    FloatType n30a[3];
     if((vf_cen[1] >= one6) && (vf_cen[1] <= five6))
     {
       crc_sides(upcol, diff, n2a, n30a);
@@ -1376,8 +1376,8 @@ AXOM_HOST_DEVICE void correct1(Result2D<value_type> elv2d[2],
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE void elvira3d(const value_type *vf, value_type n[3])
+template <typename FloatType>
+AXOM_HOST_DEVICE void elvira3d(const FloatType *vf, FloatType n[3])
 {
   const int stencil2d[3][9] = {{1, 4, 7, 10, 13, 16, 19, 22, 25},     // yz
                                {3, 12, 21, 4, 13, 22, 5, 14, 23},     // zx
@@ -1386,7 +1386,7 @@ AXOM_HOST_DEVICE void elvira3d(const value_type *vf, value_type n[3])
   // central columns.
   const int ccol[3][3] = {{12, 13, 14}, {10, 13, 16}, {4, 13, 22}};
 
-  value_type variance[3];
+  FloatType variance[3];
   for(int i = 0; i < 3; i++)
   {
     variance[i] = det_variance(vf, stencil2d[i]);
@@ -1399,7 +1399,7 @@ AXOM_HOST_DEVICE void elvira3d(const value_type *vf, value_type n[3])
 
   // Get 2d normals to slopes in direction away from material
   // plane 0=yz, 1=zx, 2=xy.
-  Result2D<value_type> elv2d[2];
+  Result2D<FloatType> elv2d[2];
   int plane = small;
   for(int dir = 0; dir < 2; dir++)
   {
@@ -1409,7 +1409,7 @@ AXOM_HOST_DEVICE void elvira3d(const value_type *vf, value_type n[3])
   }
 
   // Pull out data of the selected central column
-  value_type vf_col[3];
+  FloatType vf_col[3];
   for(int i = 0; i < 3; i++)
   {
     vf_col[i] = vf[ccol[small][i]];
@@ -1430,14 +1430,14 @@ AXOM_HOST_DEVICE void elvira3d(const value_type *vf, value_type n[3])
  *
  * \note Adapted from code by Jeff Grandy
  */
-template <typename value_type>
-AXOM_HOST_DEVICE void transform(value_type *normal, const value_type jac[3][3])
+template <typename FloatType>
+AXOM_HOST_DEVICE void transform(FloatType *normal, const FloatType jac[3][3])
 {
   SLIC_ASSERT(normal != nullptr);
 
-  value_type norm = 0.0;
-  value_type dfvsum = 0.0;  // stores nx^2 + ny^2 + nz^2
-  value_type dfv[3], delfv[3];
+  FloatType norm = 0.0;
+  FloatType dfvsum = 0.0;  // stores nx^2 + ny^2 + nz^2
+  FloatType dfv[3], delfv[3];
 
   dfv[0] = normal[0];
   dfv[1] = normal[1];
@@ -1485,14 +1485,14 @@ AXOM_HOST_DEVICE void transform(value_type *normal, const value_type jac[3][3])
  *
  * \note  Adapted from code by Jeff Grandy.
  */
-template <typename value_type>
-AXOM_HOST_DEVICE void computeJacobian(const value_type *xcst,
-                                      const value_type *ycst,
-                                      const value_type *zcst,
+template <typename FloatType>
+AXOM_HOST_DEVICE void computeJacobian(const FloatType *xcst,
+                                      const FloatType *ycst,
+                                      const FloatType *zcst,
                                       int ndims,
-                                      value_type jac[3][3])
+                                      FloatType jac[3][3])
 {
-  value_type del[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}}, det;
+  FloatType del[3][3] = {{1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.}}, det;
   int f, f0, f1, f2, g0, g1, g2;
   const int perm1[3] = {1, 2, 0};
   const int perm2[3] = {2, 0, 1};
