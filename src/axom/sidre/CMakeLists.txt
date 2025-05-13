@@ -135,6 +135,7 @@ endif()
 if(NANOBIND_FOUND)
     nanobind_add_module(pysidre nanobind_sidre.cpp)
     target_link_libraries(pysidre PRIVATE sidre)
+
 endif()
 
 

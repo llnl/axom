@@ -7,6 +7,8 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
+#include "axom/core/Types.hpp"
+#include "core/SidreTypes.hpp"
 #include "core/Buffer.hpp"
 #include "core/View.hpp"
 #include "core/DataStore.hpp"
@@ -25,6 +27,40 @@ namespace sidre
 NB_MODULE(pysidre, m_sidre)
 {
   m_sidre.doc() = "A python extension for Axom's Sidre component";
+
+  m_sidre.attr("InvalidIndex") = axom::InvalidIndex;
+  m_sidre.attr("InvalidName") = axom::utilities::string::InvalidName;
+
+  m_sidre.def("nameIsValid", &nameIsValid, "Returns true if name is valid, else false.");
+
+  // Expose IndexType as an alias (bad cast error...)
+  // #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
+  // m_sidre.attr("IndexType") = nb::type<std::int64_t>();
+  // #else
+  // m_sidre.attr("IndexType") = nb::type<int>();
+  // #endif
+
+  // Bind the DataTypeId enum (TypeID alias)
+  nb::enum_<DataTypeId>(m_sidre, "TypeID")
+    .value("NO_TYPE_ID", NO_TYPE_ID)
+    .value("INT8_ID", INT8_ID)
+    .value("INT16_ID", INT16_ID)
+    .value("INT32_ID", INT32_ID)
+    .value("INT64_ID", INT64_ID)
+    .value("UINT8_ID", UINT8_ID)
+    .value("UINT16_ID", UINT16_ID)
+    .value("UINT32_ID", UINT32_ID)
+    .value("UINT64_ID", UINT64_ID)
+    .value("FLOAT32_ID", FLOAT32_ID)
+    .value("FLOAT64_ID", FLOAT64_ID)
+    .value("CHAR8_STR_ID", CHAR8_STR_ID)
+    .value("INT_ID", INT_ID)
+    .value("UINT_ID", UINT_ID)
+    .value("LONG_ID", LONG_ID)
+    .value("ULONG_ID", ULONG_ID)
+    .value("FLOAT_ID", FLOAT_ID)
+    .value("DOUBLE_ID", DOUBLE_ID)
+    .export_values();
 
   // Bindings for the DataStore class
   nb::class_<DataStore>(m_sidre, "DataStore")

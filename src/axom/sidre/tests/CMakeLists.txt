@@ -47,6 +47,16 @@ set(fruit_sidre_tests
    sidre_allocatable_F.f
    )
 
+set(python_sidre_tests
+   sidre_smoke_Py.py
+   #sidre_group_Py.py
+   #sidre_buffer_Py.py
+   #sidre_view_Py.py
+   #sidre_external_Py.py
+   #sidre_opaque_Py.py
+   #sidre_allocatable_Py.py
+   )
+
 set(sidre_gtests_depends_on sidre fmt gtest)
 
 #------------------------------------------------------------------------------
@@ -100,6 +110,25 @@ if (ENABLE_FORTRAN)
         axom_add_test( NAME    ${test_name}
                        COMMAND ${test_name}_test
                        )
+    endforeach()
+endif()
+
+#------------------------------------------------------------------------------
+# Add Python tests
+#------------------------------------------------------------------------------
+if (NANOBIND_FOUND)
+    foreach(test ${python_sidre_tests})
+        get_filename_component( test_name ${test} NAME_WE )
+
+        # Run unit test with pytest
+        # "-p no:cacheprovider" disables caching
+        #
+        # Need to invoke with "python3 -m pytest" to get generated nanobind library added to search path:
+        # https://docs.pytest.org/en/latest/explanation/pythonpath.html#invoking-pytest-versus-python-m-pytest
+        add_test (NAME    ${test_name}
+          COMMAND ${Python_EXECUTABLE} -m pytest -p no:cacheprovider ${CMAKE_CURRENT_SOURCE_DIR}/${test}
+          WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/lib
+        )
     endforeach()
 endif()
 
