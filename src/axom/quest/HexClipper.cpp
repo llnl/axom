@@ -171,6 +171,13 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
         hasOut |= !isIn;
       }
       labelsView[cellId] = !hasOut ? LABEL_IN : !hasIn ? LABEL_OUT : LABEL_ON;
+      if(labelsView[cellId] == LABEL_OUT)
+      {
+        // Look for possible shallow intersection of cell edges may make with hex.
+        // Will need to compute convex edges of the hex: 12 regular edges and
+        // 6 diagonal edges.  The 6 alternate diagnoal edges are concave so they
+        // don't need checking.  TODO:
+      }
     });
 
   return;

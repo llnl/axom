@@ -57,9 +57,13 @@ private:
   //!@brief Hexahedron after transformation.
   HexahedronType m_hex;
 
+  //!@brief Bounding box of m_hex.
   axom::primal::BoundingBox<double, 3> m_bb;
+
+  //!@brief Tetrahedralized version of of m_hex.
   axom::StackArray<TetrahedronType, HexahedronType::NUM_TRIANGULATE> m_tets;
-  //!@brief 4 planes per tet, each oriented to the interior of the tet.
+
+  //!@brief 4 planes per tet in m_tets, each oriented to the interior of the tet.
   axom::StackArray<axom::StackArray<Plane3DType, TetrahedronType::NUM_VERTS>, HexahedronType::NUM_TRIANGULATE>
     m_planes;
 
