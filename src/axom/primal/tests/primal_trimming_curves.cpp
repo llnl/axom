@@ -560,7 +560,6 @@ TEST_F(TrimmingCurveTest, trimming_disk_subdivision_edge_cases)
   NURBSPatchType disk1, disk2;
 
   nPatch.diskSplit(0.5, 0.5, radius, disk1, the_rest, !clipDisk);
-  
   the_rest.diskSplit(0.5, 0.5, radius, disk2, the_rest, !clipDisk);
 
   for(auto u : u_pts)
@@ -796,7 +795,7 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_overlapping_edge)
   for(int i = 0; i < 6; ++i)
   {
     connecting_curve[i] = ParameterPointType {0.75 - 0.5 * (i / 5.0) * (i / 5.0), 0.5};
-  }  
+  }
   trimmingCurves.push_back(connecting_curve);
 
   axom::Array<ParameterPointType> rightTrimmingControlPoints {
