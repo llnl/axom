@@ -497,6 +497,13 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
 
     c2 = 0.0;
     t2 = -1.0;
+
+    return true;
+  }
+  else if(disc < 0.0)
+  {
+    // No intersection
+    return false;
   }
 
   disc = std::sqrt(disc);
