@@ -461,7 +461,8 @@ protected:
     AXOM_ANNOTATE_SCOPE("processMixedZones");
     namespace bputils = axom::mir::utilities::blueprint;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    constexpr int NDIMS = TopologyView::dimension();
+    // Note: MSVC needs constexpr lambda capture to be marked `static` even though constexpr should suffice
+    static constexpr int NDIMS = TopologyView::dimension();
 
     // Handle options.
     // When coordinates have float value, we can't necessarily get beyond a
