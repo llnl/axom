@@ -18,6 +18,15 @@
 namespace mir = axom::mir;
 namespace bputils = axom::mir::utilities::blueprint;
 
+std::string baselineDirectory()
+{
+  return pjoin(dataDirectory(), "mir", "regression", "mir_blueprint_utilities");
+}
+
+//------------------------------------------------------------------------------
+// Global test application object.
+MIRTestApplication TestApp;
+
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
 struct test_conduit_allocate
@@ -147,32 +156,16 @@ struct test_make_unstructured
     conduit::Node hostResult;
     bputils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
 
-    // Result
-    conduit::Node expectedResult;
-    result(expectedResult);
+    TestApp.saveVisualization("unstructured", hostResult);
 
-    // Compare just the topologies
-    constexpr double tolerance = 1.e-7;
-    conduit::Node info;
-    bool success =
-      compareConduit(expectedResult["topologies/mesh"], hostResult["topologies/mesh"], tolerance, info);
-    if(!success)
-    {
-      info.print();
-    }
-    EXPECT_TRUE(success);
+    // Handle baseline comparison.
+    EXPECT_TRUE(TestApp.test<ExecSpace>("unstructured", hostResult));
   }
 
   static void create(conduit::Node &mesh)
   {
     std::vector<int> dims {4, 4};
     axom::mir::testing::data::braid("uniform", dims, mesh);
-  }
-
-  static void result(conduit::Node &mesh)
-  {
-    std::vector<int> dims {4, 4};
-    axom::mir::testing::data::braid("quads", dims, mesh);
   }
 };
 
@@ -478,7 +471,8 @@ struct test_zonelistbuilder
     auto coordsetView = axom::mir::views::make_rectilinear_coordset<conduit::float64, 2>::view(
       deviceMesh["coordsets/coords"]);
 
-    auto topologyView = axom::mir::views::make_rectilinear<2>::view(deviceMesh["topologies/mesh"]);
+    auto topologyView =
+      axom::mir::views::make_rectilinear_topology<2>::view(deviceMesh["topologies/mesh"]);
     using TopologyView = decltype(topologyView);
 
     // Do the material too.
@@ -626,7 +620,7 @@ struct test_makezonecenters
     bputils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     const conduit::Node &n_rmesh = deviceMesh["topologies/rmesh"];
-    auto rmeshView = axom::mir::views::make_rectilinear<2>::view(n_rmesh);
+    auto rmeshView = axom::mir::views::make_rectilinear_topology<2>::view(n_rmesh);
     testTopo(deviceMesh, rmeshView, n_rmesh);
 
     const conduit::Node &n_umesh = deviceMesh["topologies/umesh"];
@@ -738,61 +732,121 @@ TEST(mir_blueprint_utilities, makezonecenters_hip)
 #endif
 
 //------------------------------------------------------------------------------
-void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
+template <typename ExecSpace>
+struct test_mergecoordsetpoints
 {
-  std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
-  // This is on purpose.
-  while(1)
-    ;
+  static void test()
+  {
+    conduit::Node hostMesh;
+    create(hostMesh);
+
+    // host->device
+    conduit::Node deviceMesh;
+    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+
+    conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
+    auto coordsetView = axom::mir::views::make_explicit_coordset<double, 2>::view(n_coordset);
+    using CoordsetView = decltype(coordsetView);
+
+    bputils::MergeCoordsetPoints<ExecSpace, CoordsetView> mcp(coordsetView);
+    conduit::Node n_newCoordset;
+    axom::Array<axom::IndexType> selectedIds, old2new;
+    // Make anything closer than 0.005 match
+    const double eps = 0.005;
+    conduit::Node n_options;
+    n_options["tolerance"] = eps;
+    mcp.execute(n_coordset, n_options, selectedIds, old2new);
+
+    // Stash the selectedIds and old2new in the coordset node so we can bring it to the host easier.
+    n_coordset["selectedIds"].set_external(selectedIds.data(), selectedIds.size());
+    n_coordset["old2new"].set_external(old2new.data(), old2new.size());
+
+    // device->host
+    conduit::Node n_hostCoordset;
+    bputils::copy<axom::SEQ_EXEC>(n_hostCoordset, n_coordset);
+    //printNode(n_hostCoordset);
+
+    // Compare results.
+    const double res_x[] = {2.0, -0.0001, 1.0001, 0.0, 2.0, 1.0, 2.0, 1.0, 0.0};
+    const double res_y[] = {2.0, 1.0, 1.0, 0.0001, -0.0001, 0.0, 1.0001, 2.0001, 2.0};
+    const int res_old2new[] = {3, 5, 2, 1, 5, 4, 6, 2, 1, 2, 7, 8, 2, 6, 0, 7};
+
+    const auto x = n_hostCoordset["values/x"].as_double_accessor();
+    const auto y = n_hostCoordset["values/y"].as_double_accessor();
+    const auto o2n = n_hostCoordset["old2new"].as_int_accessor();
+    EXPECT_EQ(x.number_of_elements(), 9);
+    EXPECT_EQ(y.number_of_elements(), 9);
+    EXPECT_EQ(o2n.number_of_elements(), 16);
+    for(int i = 0; i < 9; i++)
+    {
+      EXPECT_NEAR(x[i], res_x[i], eps);
+      EXPECT_NEAR(y[i], res_y[i], eps);
+    }
+    for(int i = 0; i < 16; i++)
+    {
+      EXPECT_EQ(o2n[i], res_old2new[i]);
+    }
+  }
+
+  static void create(conduit::Node &hostMesh)
+  {
+    /*
+    We have nodes that are given such that each zone corner is repeated and may have some
+    small tolerance variations. We want to make sure the nodes get joined.
+
+    8-------9--------10
+    |       |        |
+    |       |        |
+    |z3     |z4      |
+    4-------5--------6
+    |       |        |
+    |       |        |
+    |z0     |z1      |
+    0-------1--------2
+    */
+    const char *yaml = R"xx(
+coordsets:
+  coords:
+    type: explicit
+    values:
+      x: [0.,     1.0001, 1., 0.,       1.,  2.,     2., 1.0001,       -0.0001, 1., 1.,     0.,       1.0001, 2.,     2., 1.]
+      y: [0.0001, 0.,     1., 1.,       0., -0.0001, 1., 1.,            1.,     1., 2.0001, 2.,       1.,     1.0001, 2., 2.0001]
+)xx";
+
+    hostMesh.parse(yaml);
+  }
+};
+
+TEST(mir_blueprint_utilities, mergecoordsetpoints_seq)
+{
+  AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_seq");
+  test_mergecoordsetpoints<seq_exec>::test();
 }
+#if defined(AXOM_USE_OPENMP)
+TEST(mir_blueprint_utilities, mergecoordsetpoints_omp)
+{
+  AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_omp");
+  test_mergecoordsetpoints<omp_exec>::test();
+}
+#endif
+#if defined(AXOM_USE_CUDA)
+TEST(mir_blueprint_utilities, mergecoordsetpoints_cuda)
+{
+  AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_cuda");
+  test_mergecoordsetpoints<cuda_exec>::test();
+}
+#endif
+#if defined(AXOM_USE_HIP)
+TEST(mir_blueprint_utilities, mergecoordsetpoints_hip)
+{
+  AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_hip");
+  test_mergecoordsetpoints<hip_exec>::test();
+}
+#endif
 
 //------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-  int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
-
-  axom::CLI::App app;
-#if defined(AXOM_USE_CALIPER)
-  std::string annotationMode("none");
-  app.add_option("--caliper", annotationMode)
-    ->description(
-      "caliper annotation mode. Valid options include 'none' and 'report'. "
-      "Use 'help' to see full list.")
-    ->capture_default_str()
-    ->check(axom::utilities::ValidCaliperMode);
-#endif
-  bool handlerEnabled = false;
-  app.add_flag("--handler", handlerEnabled, "Enable Conduit handler.");
-
-  // Parse command line options.
-  try
-  {
-    app.parse(argc, argv);
-
-#if defined(AXOM_USE_CALIPER)
-    axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(annotationMode);
-#endif
-
-    axom::slic::SimpleLogger logger;  // create & initialize test logger,
-    if(handlerEnabled)
-    {
-      conduit::utils::set_error_handler(conduit_debug_err_handler);
-    }
-
-    result = RUN_ALL_TESTS();
-  }
-  catch(axom::CLI::CallForHelp &e)
-  {
-    std::cout << app.help() << std::endl;
-    result = 0;
-  }
-  catch(axom::CLI::ParseError &e)
-  {
-    // Handle other parsing errors
-    std::cerr << e.what() << std::endl;
-    result = app.exit(e);
-  }
-
-  return result;
+  return TestApp.execute(argc, argv);
 }

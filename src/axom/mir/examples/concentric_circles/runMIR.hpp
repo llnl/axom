@@ -9,14 +9,24 @@
 #include "axom/slic.hpp"
 #include "axom/mir.hpp"  // for Mir classes & functions
 
-template <typename ExecSpace>
+template <typename ExecSpace, int NDIMS>
 int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit::Node &hostResult)
 {
   AXOM_ANNOTATE_BEGIN("runMIR");
 
   namespace bputils = axom::mir::utilities::blueprint;
   using namespace axom::mir::views;
-  SLIC_INFO(axom::fmt::format("Using policy {}", axom::execution_space<ExecSpace>::name()));
+
+  // Pick the method out of the options.
+  std::string method("equiz");
+  if(options.has_child("method"))
+  {
+    method = options["method"].as_string();
+  }
+  SLIC_INFO(axom::fmt::format("Using policy {} for {} {}D",
+                              axom::execution_space<ExecSpace>::name(),
+                              method,
+                              NDIMS));
 
   // Check materials.
   constexpr int MAXMATERIALS = 20;
@@ -41,22 +51,15 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
   const conduit::Node &n_matset = deviceMesh["matsets/mat"];
   conduit::Node deviceResult;
 
-  // Pick the method out of the options.
-  std::string method("equiz");
-  if(options.has_child("method"))
-  {
-    method = options["method"].as_string();
-  }
-
   if(method == "equiz")
   {
     // _equiz_mir_start
     // Make views (we know beforehand which types to make)
-    auto coordsetView = make_explicit_coordset<float, 2>::view(n_coordset);
+    auto coordsetView = make_explicit_coordset<float, NDIMS>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
-    using ShapeType = QuadShape<int>;
-    auto topologyView = make_unstructured_single_shape<ShapeType>::view(n_topology);
+    using ShapeType = typename std::conditional<NDIMS == 3, HexShape<int>, QuadShape<int>>::type;
+    auto topologyView = make_unstructured_single_shape_topology<ShapeType>::view(n_topology);
     using TopologyView = decltype(topologyView);
 
     auto matsetView = make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
@@ -70,10 +73,10 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
   else if(method == "elvira")
   {
     // Make views (we know beforehand which types to make)
-    auto coordsetView = make_explicit_coordset<float, 2>::view(n_coordset);
+    auto coordsetView = make_explicit_coordset<float, NDIMS>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
-    auto topologyView = make_structured<2>::view(n_topology);
+    auto topologyView = make_structured_topology<NDIMS>::view(n_topology);
     using TopologyView = decltype(topologyView);
     using IndexingPolicy = typename TopologyView::IndexingPolicy;
 
@@ -98,9 +101,21 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 }
 
 // Prototypes.
-int runMIR_seq(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
-int runMIR_omp(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
-int runMIR_cuda(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
-int runMIR_hip(const conduit::Node &mesh, const conduit::Node &options, conduit::Node &result);
+int runMIR_seq(int dimension,
+               const conduit::Node &mesh,
+               const conduit::Node &options,
+               conduit::Node &result);
+int runMIR_omp(int dimension,
+               const conduit::Node &mesh,
+               const conduit::Node &options,
+               conduit::Node &result);
+int runMIR_cuda(int dimension,
+                const conduit::Node &mesh,
+                const conduit::Node &options,
+                conduit::Node &result);
+int runMIR_hip(int dimension,
+               const conduit::Node &mesh,
+               const conduit::Node &options,
+               conduit::Node &result);
 
 #endif

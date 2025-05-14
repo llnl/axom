@@ -455,7 +455,7 @@ struct Sorting<T, 3>
    * \param[inout] values The array to be sorted.
    */
   AXOM_HOST_DEVICE
-  inline static void sort(T *values)
+  inline static void sort(T *values, int AXOM_UNUSED_PARAM(n))
   {
     detail::ifswap(values[0], values[1]);
     detail::ifswap(values[1], values[2]);
@@ -476,7 +476,7 @@ struct Sorting<T, 4>
    * \param[inout] values The array to be sorted.
    */
   AXOM_HOST_DEVICE
-  inline static void sort(T *values)
+  inline static void sort(T *values, int AXOM_UNUSED_PARAM(n))
   {
     detail::ifswap(values[0], values[1]);
     detail::ifswap(values[2], values[3]);

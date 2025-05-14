@@ -456,7 +456,8 @@ protected:
       }
 
       // Add an originalElements array.
-      addOriginal(n_newFields["originalElements"],
+      const std::string originalElementsField(MIROptions(n_options).originalElementsField());
+      addOriginal(n_newFields[originalElementsField],
                   n_topo.name(),
                   "element",
                   m_topologyView.numberOfZones());
@@ -612,6 +613,7 @@ protected:
     conduit::Node n_ezopts;
     n_ezopts["topology"] = topoName;
     n_ezopts["compact"] = 0;
+    n_ezopts["originalElementsField"] = Options(n_options).originalElementsField();
     // Forward some options involved in naming the objects.
     const std::vector<std::string> keys {"topologyName", "coordsetName", "matsetName"};
     for(const auto &key : keys)

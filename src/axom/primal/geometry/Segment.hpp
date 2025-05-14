@@ -89,6 +89,13 @@ public:
   AXOM_HOST_DEVICE const PointType& target() const { return m_target; };
 
   /*!
+   * \brief Return the number of vertices in a Segment.
+   *
+   * \return The number of vertices in a Segment.
+   */
+  AXOM_HOST_DEVICE static constexpr int numVertices() { return NUM_SEG_VERTS; }
+
+  /*!
    * \brief Index operator to get the i^th vertex
    * \param idx The index of the desired vertex
    * \pre idx is 0 or 1

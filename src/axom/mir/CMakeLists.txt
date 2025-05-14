@@ -65,22 +65,27 @@ set(mir_headers
     utilities/blueprint_utilities.hpp
     utilities/BlendData.hpp
     utilities/CoordsetBlender.hpp
+    utilities/CoordsetExtents.hpp
     utilities/CoordsetSlicer.hpp
     utilities/ExtractZones.hpp
     utilities/ExtrudeMesh.hpp
     utilities/FieldBlender.hpp
     utilities/FieldSlicer.hpp
+    utilities/MakePolyhedralTopology.hpp
     utilities/MakeZoneCenters.hpp
     utilities/MakeZoneVolumes.hpp
     utilities/MakeUnstructured.hpp
     utilities/MatsetSlicer.hpp
+    utilities/MergeCoordsetPoints.hpp
     utilities/MergeMeshes.hpp
+    utilities/MergePolyhedralFaces.hpp
     utilities/NodeToZoneRelationBuilder.hpp
     utilities/PrimalAdaptor.hpp
     utilities/RecenterField.hpp
     utilities/SelectedZones.hpp
     utilities/TopologyMapper.hpp
     utilities/utilities.hpp
+    utilities/Unique.hpp
     utilities/VariableShape.hpp
     utilities/ZoneListBuilder.hpp
     views/dispatch_coordset.hpp

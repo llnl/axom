@@ -135,7 +135,7 @@ public:
       conduit::Node &n_newFields = n_output["fields"];
       SliceData zSlice;
       zSlice.m_indicesView = zoneSliceView(selectedZonesView, extra);
-      makeOriginalZones = !n_fields.has_child("originalElements");
+      makeOriginalZones = !n_fields.has_child(opts.originalElementsField());
       makeFields(nSlice, zSlice, newTopoName, n_fields, n_newFields);
     }
 
@@ -144,7 +144,8 @@ public:
     {
       bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
-      conduit::Node &n_origElements = n_output["fields/originalElements"];
+      conduit::Node &n_outFields = n_output["fields"];
+      conduit::Node &n_origElements = n_outFields[opts.originalElementsField()];
       n_origElements["topology"] = newTopoName;
       n_origElements["association"] = "element";
       n_origElements["values"].set_allocator(c2a.getConduitAllocatorID());
