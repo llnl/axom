@@ -10,7 +10,6 @@
 #include "axom/slic.hpp"
 
 #include "axom/mir/MIRAlgorithm.hpp"
-#include "axom/mir/utilities/ExtractZones.hpp"
 #include "axom/mir/utilities/MakeZoneCenters.hpp"
 #include "axom/mir/utilities/MergeMeshes.hpp"
 #include "axom/mir/utilities/PrimalAdaptor.hpp"
@@ -62,6 +61,15 @@ namespace mir
 //------------------------------------------------------------------------------
 /*!
  * \brief Implements Elvira algorithm for structured meshes.
+ *
+ * \tparam ExecSpace The execution space where the algorithm will run.
+ * \tparam IndexPolicy The structured mesh indexing policy.
+ * \tparam CoordsetView The view type that describes the coordinates.
+ * \tparam MatsetView The view type that describes matset.
+ *
+ * \note We template on IndexPolicy instead of TopologyView so we can enforce a
+ *       StructuredTopologyView on the algorithm. This is done because ELVIRA
+ *       assumes a structured mesh for stencils, etc.
  */
 template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typename MatsetView>
 class ElviraAlgorithm : public axom::mir::MIRAlgorithm
@@ -71,7 +79,7 @@ public:
   using ConnectivityType = typename TopologyView::ConnectivityType;
 
 protected:
-  static constexpr int NDIMS = CoordsetView::dimension();
+  static constexpr int NDIMS = IndexPolicy::dimension();
   static constexpr int StencilSize = elvira::getStencilSize(NDIMS);
   static constexpr int numVectorComponents = 3;
 
@@ -351,13 +359,8 @@ protected:
                        conduit::Node &n_cleanOutput) const
   {
     AXOM_ANNOTATE_SCOPE("makeCleanOutput");
-    namespace bputils = axom::mir::utilities::blueprint;
 
-    // Make the clean mesh.
-    bputils::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView> ez(
-      m_topologyView,
-      m_coordsetView,
-      m_matsetView);
+    // Make options for the ExtractZones* algorithms.
     conduit::Node n_ezopts;
     n_ezopts["topology"] = topoName;
     n_ezopts["compact"] = 1;
@@ -371,7 +374,18 @@ protected:
         n_ezopts[key].set(n_options[key]);
       }
     }
-    ez.execute(cleanZones, n_root, n_ezopts, n_cleanOutput);
+
+    // Make the clean mesh.
+    using CleanOutput =
+      detail::MakeCleanOutput<ExecSpace, TopologyView, CoordsetView, MatsetView, IndexPolicy::dimension()>;
+    CleanOutput::execute(cleanZones,
+                         n_root,
+                         n_ezopts,
+                         m_topologyView,
+                         m_coordsetView,
+                         m_matsetView,
+                         n_cleanOutput);
+
 #if defined(AXOM_ELVIRA_DEBUG)
     {
       AXOM_ANNOTATE_SCOPE("saveClean");

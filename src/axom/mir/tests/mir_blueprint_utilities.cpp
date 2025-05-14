@@ -16,6 +16,7 @@
 #include <algorithm>
 
 namespace mir = axom::mir;
+namespace views = axom::mir::views;
 namespace bputils = axom::mir::utilities::blueprint;
 
 std::string baselineDirectory()
@@ -452,6 +453,137 @@ TEST(mir_blueprint_utilities, extractzones_cuda) { test_extractzones<cuda_exec>:
 
 #if defined(AXOM_USE_HIP)
 TEST(mir_blueprint_utilities, extractzones_hip) { test_extractzones<hip_exec>::test(); }
+#endif
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
+struct test_extractzones_polyhedral
+{
+  static void test(const std::string &name, bool selectZones)
+  {
+    constexpr int MAXMATERIALS = 5;
+    const int gridSize = 7;
+    const int numCircles = 2;
+    SLIC_ASSERT(numCircles + 1 <= MAXMATERIALS);
+
+    conduit::Node hostMesh;
+    create(gridSize, numCircles, hostMesh);
+
+    // Save visualization, if enabled.
+    TestApp.saveVisualization(name + "_orig", hostMesh);
+
+    // host->device
+    conduit::Node deviceMesh;
+    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+
+    // Make selected zones.
+    axom::Array<axom::IndexType> ids;
+    for(int k = 0; k < gridSize; k++)
+    {
+      for(int j = 0; j < gridSize; j++)
+      {
+        for(int i = 0; i < gridSize; i++)
+        {
+          // Halfway up on Y, checkerboard the zones
+          if(selectZones && (j > gridSize / 2) && ((i + j + k) % 2 == 0))
+          {
+            continue;
+          }
+
+          int zoneIndex = k * gridSize * gridSize + j * gridSize + i;
+          ids.push_back(zoneIndex);
+        }
+      }
+    }
+
+    // Put selected zones on device.
+    const auto nzones = ids.size();
+    axom::Array<axom::IndexType> selectedZones(nzones,
+                                               nzones,
+                                               axom::execution_space<ExecSpace>::allocatorID());
+    axom::copy(selectedZones.data(), ids.data(), nzones * sizeof(axom::IndexType));
+
+    const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
+    const conduit::Node &n_topology = deviceMesh["topologies/mesh"];
+    const conduit::Node &n_matset = deviceMesh["matsets/mat"];
+
+    // Wrap the data in views.
+    auto coordsetView = views::make_explicit_coordset<float, 3>::view(n_coordset);
+    using CoordsetView = decltype(coordsetView);
+
+    auto topologyView = views::make_structured_topology<3>::view(n_topology);
+    using TopologyView = decltype(topologyView);
+    using IndexingPolicy = typename TopologyView::IndexingPolicy;
+
+    auto matsetView = views::make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
+    using MatsetView = decltype(matsetView);
+
+    // Pull out selected zones as polyhedral zones
+    bputils::ExtractZonesAndMatsetPolyhedral<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>
+      extract(topologyView, coordsetView, matsetView);
+    conduit::Node newDeviceMesh, options;
+    extract.execute(selectedZones.view(), deviceMesh, options, newDeviceMesh);
+
+    // device->host
+    conduit::Node newHostMesh;
+    bputils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
+
+    // Save visualization, if enabled.
+    TestApp.saveVisualization(name, newHostMesh);
+
+    // Test against baseline.
+    EXPECT_TRUE(TestApp.test<ExecSpace>(name, newHostMesh));
+  }
+
+  static void create(int gridSize, int numCircles, conduit::Node &hostMesh)
+  {
+    AXOM_ANNOTATE_SCOPE("generate");
+    mir::MeshTester tester;
+    tester.setStructured(true);
+    tester.initTestCaseSix(gridSize, numCircles, hostMesh);
+  }
+};
+
+TEST(mir_blueprint_utilities, extractzones_polyhedral_seq)
+{
+  test_extractzones_polyhedral<seq_exec>::test("extractzones_polyhedral", false);
+}
+TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_seq)
+{
+  test_extractzones_polyhedral<seq_exec>::test("extractzones_polyhedral_sel", true);
+}
+
+#if defined(AXOM_USE_OPENMP)
+TEST(mir_blueprint_utilities, extractzones_polyhedral_omp)
+{
+  test_extractzones_polyhedral<omp_exec>::test("extractzones_polyhedral", false);
+}
+TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_omp)
+{
+  test_extractzones_polyhedral<omp_exec>::test("extractzones_polyhedral_sel", true);
+}
+#endif
+
+#if defined(AXOM_USE_CUDA)
+TEST(mir_blueprint_utilities, extractzones_polyhedral_cuda)
+{
+  test_extractzones_polyhedral<cuda_exec>::test("extractzones_polyhedral", false);
+}
+TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_cuda)
+{
+  test_extractzones_polyhedral<cuda_exec>::test("extractzones_polyhedral_sel", true);
+}
+#endif
+
+#if defined(AXOM_USE_HIP)
+TEST(mir_blueprint_utilities, extractzones_polyhedral_hip)
+{
+  test_extractzones_polyhedral<hip_exec>::test("extractzones_polyhedral", false);
+}
+TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_hip)
+{
+  test_extractzones_polyhedral<hip_exec>::test("extractzones_polyhedral_sel", true);
+}
 #endif
 
 //------------------------------------------------------------------------------

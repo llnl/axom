@@ -68,6 +68,7 @@ set(mir_headers
     utilities/CoordsetExtents.hpp
     utilities/CoordsetSlicer.hpp
     utilities/ExtractZones.hpp
+    utilities/ExtractZonesAndMatsetPolyhedral.hpp
     utilities/ExtrudeMesh.hpp
     utilities/FieldBlender.hpp
     utilities/FieldSlicer.hpp

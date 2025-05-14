@@ -7,6 +7,8 @@
 
 // Most includes happen in the ElviraAlgorithm.hpp header file that includes this file.
 
+#include "axom/mir/utilities/ExtractZones.hpp"
+#include "axom/mir/utilities/ExtractZonesAndMatsetPolyhedral.hpp"
 #include "axom/mir/utilities/MergeCoordsetPoints.hpp"
 #include "axom/mir/utilities/MergePolyhedralFaces.hpp"
 #include "axom/mir/views/dispatch_coordset.hpp"
@@ -819,6 +821,96 @@ public:
 
 private:
   View m_view;
+};
+
+//------------------------------------------------------------------------------
+/*!
+ * \brief Base template for letting us pick different behaviors for making clean zones.
+ *
+ * \tparam ExecSpace The execution space where the algorithm will run.
+ * \tparam TopologyView The view type that describes the Blueprint input mesh.
+ * \tparam CoordsetView The view type that describes the coordinates.
+ * \tparam MatsetView The view type that describes matset.
+ * \tparam NDIMS The dimension of the topology.
+ */
+template <typename ExecSpace, typename TopologyView, typename CoordsetView, typename MatsetView, int NDIMS>
+struct MakeCleanOutput
+{
+  /*!
+   * \brief Make a new mesh containing the selected clean zones.
+   *
+   * \param cleanZones The clean zone numbers to extract.
+   * \param n_mesh The input mesh.
+   * \param n_options The algorithm options.
+   * \param topologyView The view that wraps the mesh topology.
+   * \param coordsetView The view that wraps the coordinates.
+   * \param matsetView The view that wraps the matset.
+   * \param[out] n_cleanOutput The node that will contain the new mesh.
+   */
+  static void execute(const axom::ArrayView<axom::IndexType> &cleanZones,
+                      const conduit::Node &n_mesh,
+                      const conduit::Node &n_options,
+                      const TopologyView &topologyView,
+                      const CoordsetView &coordsetView,
+                      const MatsetView &matsetView,
+                      conduit::Node &n_cleanOutput)
+  {
+    namespace bputils = axom::mir::utilities::blueprint;
+
+    // Make the clean mesh.
+    bputils::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView> ez(
+      topologyView,
+      coordsetView,
+      matsetView);
+    ez.execute(cleanZones, n_mesh, n_options, n_cleanOutput);
+  }
+};
+
+/*!
+ * \brief Partial specialization for making clean zones for 3D zones. We do this to
+ *        make better polyhedra upfront, rather than converting to polyhedral at
+ *        greater expense later when we merge meshes.
+ *
+ * \tparam ExecSpace The execution space where the algorithm will run.
+ * \tparam TopologyView The view type that describes the Blueprint input mesh.
+ * \tparam CoordsetView The view type that describes the coordinates.
+ * \tparam MatsetView The view type that describes matset.
+ * \tparam NDIMS The dimension of the topology.
+ */
+template <typename ExecSpace, typename TopologyView, typename CoordsetView, typename MatsetView>
+struct MakeCleanOutput<ExecSpace, TopologyView, CoordsetView, MatsetView, 3>
+{
+  /*!
+   * \brief Make a new mesh containing the selected clean zones.
+   *
+   * \param cleanZones The clean zone numbers to extract.
+   * \param n_mesh The input mesh.
+   * \param n_options The algorithm options.
+   * \param topologyView The view that wraps the mesh topology.
+   * \param coordsetView The view that wraps the coordinates.
+   * \param matsetView The view that wraps the matset.
+   * \param[out] n_cleanOutput The node that will contain the new mesh.
+   */
+  static void execute(const axom::ArrayView<axom::IndexType> &cleanZones,
+                      const conduit::Node &n_mesh,
+                      const conduit::Node &n_options,
+                      const TopologyView &topologyView,
+                      const CoordsetView &coordsetView,
+                      const MatsetView &matsetView,
+                      conduit::Node &n_cleanOutput)
+  {
+    namespace bputils = axom::mir::utilities::blueprint;
+    using IndexingPolicy = typename TopologyView::IndexingPolicy;
+
+    // Make the clean mesh. We directly make polyhedral output so we can skip
+    // mesh improvement stages later when we merge the output with the mixed
+    // zone polyhedra.
+    bputils::ExtractZonesAndMatsetPolyhedral<ExecSpace, IndexingPolicy, CoordsetView, MatsetView> ez(
+      topologyView,
+      coordsetView,
+      matsetView);
+    ez.execute(cleanZones, n_mesh, n_options, n_cleanOutput);
+  }
 };
 
 }  // end namespace detail
