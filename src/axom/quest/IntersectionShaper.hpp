@@ -296,7 +296,7 @@ AXOM_HOST_DEVICE inline void TempArrayView<hip_exec>::finalize()
  *   mesh first.  Sphere and surfaces-of-revolution discretization uses
  *   the refinement level specified in the \c Geometry.
  *
- * - (2D) For c2c, support is a work-in-progress. Initially support for a
+ * - (2D) For c2c, support is a work-in-progress. Initial support for a
  *   single contour that covers an area from the curve down to the x-axis (z-axis).
  *   The contour cannot overlap, and is expected to be entirely above the x-axis.
  *   The contour is refined into smaller linear segments that form triangles with the
@@ -884,7 +884,7 @@ private:
         axom::for_all<ExecSpace>(
           m_octcount,
           AXOM_LAMBDA(axom::IndexType i) {
-            // Convert Octahedron into Polyhedrom
+            // Convert Octahedron into Polyhedron
             PolyhedronType octPoly;
 
             octPoly.addVertex(octs_device_view[i][0]);
