@@ -898,11 +898,18 @@ private:
 
         // Check if any Octahedron are degenerate with all points {0,0,0}
         RAJA::ReduceSum<REDUCE_POL, int> num_degenerate(0);
+
+        const int device_allocator = m_allocatorId;
+        axom::Array<OctahedronType> degenerate_oct_host(1, 1, host_allocator);
+        degenerate_oct_host[0] = OctahedronType();
+        axom::Array<OctahedronType> degenerate_oct_device =
+          axom::Array<OctahedronType>(degenerate_oct_host, device_allocator);
+        auto degenerate_oct_device_view = degenerate_oct_device.view();
+
         axom::for_all<ExecSpace>(
           m_octcount,
           AXOM_LAMBDA(axom::IndexType i) {
-            OctahedronType degenerate_oct;
-            if(octs_device_view[i].equals(degenerate_oct))
+            if(octs_device_view[i].equals(degenerate_oct_device_view[0]))
             {
               num_degenerate += 1;
             }
