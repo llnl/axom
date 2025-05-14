@@ -441,6 +441,7 @@ NB_MODULE(pysidre, m_sidre)
          "Return next valid child Group index after given index.")
     .def("createGroup",
          &Group::createGroup,
+         nb::rv_policy::reference,
          "Create a child Group within this Group with given name or path.",
          nb::arg("path"),
          nb::arg("is_list") = false)

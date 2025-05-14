@@ -50,10 +50,10 @@ set(fruit_sidre_tests
 set(python_sidre_tests
    sidre_smoke_Py.py
    #sidre_group_Py.py # 4000/1258 lines
-   #sidre_buffer_Py.py # 556/194 lines
+   sidre_buffer_Py.py # 556/194 lines
    #sidre_view_Py.py #2390/1177 lines
    sidre_external_Py.py #375/158 lines
-   #sidre_opaque_Py.py # 227/286 lines
+   sidre_opaque_Py.py # 227/286 lines
    #sidre_allocatable_Py.py # 302 lines
    )
 
@@ -126,7 +126,7 @@ if (NANOBIND_FOUND)
         # Need to invoke with "python3 -m pytest" to get generated nanobind library added to search path:
         # https://docs.pytest.org/en/latest/explanation/pythonpath.html#invoking-pytest-versus-python-m-pytest
         add_test (NAME    ${test_name}
-          COMMAND ${Python_EXECUTABLE} -m pytest -p no:cacheprovider ${CMAKE_CURRENT_SOURCE_DIR}/${test}
+          COMMAND ${Python_EXECUTABLE} -m pytest -s -p no:cacheprovider ${CMAKE_CURRENT_SOURCE_DIR}/${test}
           WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/lib
         )
     endforeach()
