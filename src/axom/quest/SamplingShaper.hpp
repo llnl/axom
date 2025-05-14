@@ -651,7 +651,6 @@ private:
       mass_mat = new mfem::DenseTensor(dofs, dofs, NE);
       mass_mat->HostWrite();
       (*mass_mat) = 0.;
-      //const int N = mass_mat->TotalSize();
       mass_mat->ReadWrite();
 
       const int sz = mass_mat->TotalSize();
@@ -684,17 +683,12 @@ private:
     }
     else
     {
+      AXOM_ANNOTATE_SCOPE("batch lu factor");
+
       // Perform batched LU factorization on the mass tensor
-      // Note: This was written against mfem@4.7 and should be updated for mfem@4.8 when we upgrade
-      mass_mat->HostRead();
+      mass_mat->ReadWrite();
       mass_mat_inv = new mfem::DenseTensor(*mass_mat);
       mass_mat_pivots = new mfem::Array<int>(dofs * NE);
-      mass_mat_pivots->UseDevice();
-
-      mass_mat->Read();
-      mass_mat_inv->ReadWrite();
-
-      AXOM_ANNOTATE_SCOPE("batch lu factor");
 
       mass_mat_inv->ReadWrite();
       mass_mat_pivots->Write();
@@ -738,7 +732,7 @@ private:
       {
         AXOM_ANNOTATE_SCOPE("domain lf integrator assemble");
 
-        inout->Read();
+        inout->ReadWrite();
 
         b.HostWrite();
         b = 0.;
@@ -751,29 +745,32 @@ private:
         mfem::Array<int> elem_marker(fes->GetNE());
         elem_marker.HostWrite();
         elem_marker = 1;
-        elem_marker.Read();
+        elem_marker.ReadWrite();
         rhs.AssembleDevice(*fes, elem_marker, b);
       }
+      inout->HostReadWrite();
 
       {
         AXOM_ANNOTATE_SCOPE("batch lu solve");
-        mass_mat_inv->Read();
-        mass_mat_pivots->Read();
-        vf->Write();
+        mass_mat_inv->ReadWrite();
+        mass_mat_pivots->ReadWrite();
+        vf->ReadWrite();
         mfem::BatchLUSolve(*mass_mat_inv, *mass_mat_pivots, *vf);
       }
+      mass_mat_inv->HostReadWrite();
+      mass_mat_pivots->HostReadWrite();
 
       constexpr double minY = 0.;
       constexpr double maxY = 1.;
 
       // Reshape returns an indexable view of a multidimensional array
-      const auto m_d = mfem::Reshape(mass_mat->HostRead(), dofs, dofs, NE);
-      const auto b_d = mfem::Reshape(b.HostRead(), dofs, NE);
+      auto m_d = mfem::Reshape(mass_mat->HostReadWrite(), dofs, dofs, NE);
+      auto b_d = mfem::Reshape(b.HostReadWrite(), dofs, NE);
+      auto vf_d = mfem::Reshape(vf->HostReadWrite(), dofs, NE);
       auto fct_mat_d = mfem::Reshape(shaping_scratch_buffer->HostReadWrite(), dofs, dofs, NE);
-      auto vf_d = mfem::Reshape(vf->HostWrite(), dofs, NE);
 
       AXOM_ANNOTATE_BEGIN("fct project");
-      axom::for_all<axom::SEQ_EXEC>(0, NE, [&](int i) {
+      axom::for_all<axom::SEQ_EXEC>(0, NE, [=](int i) {
         shaping::FCT_project(&m_d(0, 0, i),
                              dofs,
                              &b_d(0, i),
@@ -786,8 +783,6 @@ private:
     }
     timer.stop();
 
-    vf->Read();
-
     // print stats for root rank
     SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
                                      "\t Generating volume fractions '{}' took {:.3f} seconds (@ "
@@ -795,6 +790,8 @@ private:
                                      vf_name,
                                      timer.elapsed(),
                                      static_cast<int>(fes->GetNDofs() / timer.elapsed())));
+
+    vf->HostReadWrite();
   }
 
 private:

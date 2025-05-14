@@ -47,24 +47,7 @@ mfem::GridFunction* getOrAllocateL2GridFunction(mfem::DataCollection* dc,
   {
     auto* fec = new mfem::L2_FECollection(order, dim, basis);
     auto* mesh = dc->GetMesh();
-
-    // allocate a (par) finite element space on the mesh
-    mfem::FiniteElementSpace* fes = nullptr;
-    {
-  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-      auto* pmesh = dynamic_cast<mfem::ParMesh*>(mesh);
-      if(pmesh)
-      {
-        fes = new mfem::ParFiniteElementSpace(pmesh, fec);
-      }
-      else
-      {
-        fes = new mfem::FiniteElementSpace(mesh, fec);
-      }
-  #else
-      fes = new mfem::FiniteElementSpace(mesh, fec);
-  #endif
-    }
+    mfem::FiniteElementSpace* fes = new mfem::FiniteElementSpace(mesh, fec);
 
     // allocate data through sidre and tell the grid function to use it
     // the grid function will manage memory for the fec and fes
@@ -73,35 +56,19 @@ mfem::GridFunction* getOrAllocateL2GridFunction(mfem::DataCollection* dc,
     {
       const int sz = fes->GetVSize();
       auto* vw = sidreDC->AllocNamedBuffer(gf_name, sz);
-  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-      gf = new mfem::ParGridFunction();
-  #else
       gf = new mfem::GridFunction();
-  #endif
       gf->MakeRef(fes, vw->getData());
     }
     else
     {
-  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-      auto* pfes = dynamic_cast<mfem::ParFiniteElementSpace*>(fes);
-      if(pfes)
-      {
-        gf = new mfem::ParGridFunction(pfes);
-      }
-      else
-      {
-        gf = new mfem::GridFunction(fes);
-      }
-  #else
       gf = new mfem::GridFunction(fes);
-  #endif
     }
 
     gf->MakeOwner(fec);
     gf->HostReadWrite();
+    *gf = 0.;
 
     dc->RegisterField(gf_name, gf);
-    *gf = 0.;
   }
 
   return gf;
@@ -218,6 +185,8 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
       }
     }
   }
+  // Delete the geometric factors associated w/ our custom quadrature rule
+  mesh->DeleteGeometricFactors();
 
   // register positions with the QFunction collection, which wil handle its deletion
   inoutQFuncs.Register("positions", pos_coef, true);

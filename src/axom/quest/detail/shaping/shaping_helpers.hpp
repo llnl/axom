@@ -159,7 +159,6 @@ enum class VolFracSampling : int
  * or to allocate the grud function through the dc, ensuring the memory doesn't leak
  * 
  * \return A pointer to the (allocated) grid function. nullptr if it cannot be allocated
- * \note The function properly handles parallel grid functions and spaces when using MPI
  */
 mfem::GridFunction* getOrAllocateL2GridFunction(mfem::DataCollection* dc,
                                                 const std::string& gf_name,
