@@ -419,16 +419,16 @@ other Axom developers to use during development, in Axom GitLab CI testing, etc.
    ``axom/host-configs/docker`` subdirectory. Rename them to match the corresponding
    host-config.
 
-#. **Update Azure Pipelines to the new Docker images.**
+#. **Update GitHub Actions to the new Docker images.**
    To complete the setup of the new docker images, the ``Compiler_ImageName``
-   entries in ``azure-pipelines.yaml`` at the top-level directory must be updated
+   entries in ``.github/workflows/ci-tests.yml`` at the top-level directory must be updated
    with the timestamped names of the new images. The new names can be found in
    the log files from the successful GitHub action. On the left of the page for
    the successful action is a "Jobs" menu. Click on each job and then find
    the "Get dockerhub repo name" section of the log. The second line of the
    section there should be an entry of the form ``axom/tpls:clang-10_12-18-20_00h-10m``.
    Copy the name beginning with ``axom/tpls`` to the appropriate locations
-   in the ``axom/azure-pipelines.yaml`` file. Repeat this with the names from each compiler
+   in the ``.github/workflows/ci-tests.yml`` file. Repeat this with the names from each compiler
    job used in the GitHub action. 
    Axom's docker images are hosted on our `DockerHub <https://hub.docker.com/r/axom/tpls/tags>`_ page.
 

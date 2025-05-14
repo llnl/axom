@@ -99,7 +99,7 @@ struct test_Elvira3D
     conduit::Node deviceMIRMesh;
     conduit::Node options;
     options["matset"] = "mat";
-    // Be more lenient in how away far points are in order to combine them.
+    // Be more lenient in how far away points are in order to combine them.
     options["point_tolerance"] = 1.e-4;
     if(selectedZones)
     {
