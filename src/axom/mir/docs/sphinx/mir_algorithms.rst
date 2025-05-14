@@ -167,6 +167,13 @@ that are specific to ELVIRA.
 |                                 | polyhedral output. The point mesh coordinates will be|
 |                                 | located at the origin of the fragment slice planes.  |
 +---------------------------------+------------------------------------------------------+
+|``point_tolerance: float``       | The ``point_tolerance`` option is used to set the    |
+|                                 | tolerance used to merge points together in 3D ELVIRA.|
+|                                 | Points closer than the tolerance will be merged      |
+|                                 | together in the coordset created from the clipped    |
+|                                 | fragments. The polyhedral topology is updated to use |
+|                                 | the modified coordset.                               |
++---------------------------------+------------------------------------------------------+
 
 .. literalinclude:: ../../tests/mir_elvira2d.cpp
    :start-after: _elvira_mir_start
