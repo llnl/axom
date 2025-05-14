@@ -219,11 +219,18 @@ NB_MODULE(pysidre, m_sidre)
     .def("apply",
          nb::overload_cast<IndexType, IndexType, IndexType>(&View::apply),
          nb::rv_policy::reference,
-         "Apply data description with number of elements, offset, and stride.")
+         "Apply data description with number of elements, offset, and stride.",
+         nb::arg("num_elems"),
+         nb::arg("offset") = 0,
+         nb::arg("stride") = 1)
     .def("apply",
          nb::overload_cast<TypeID, IndexType, IndexType, IndexType>(&View::apply),
          nb::rv_policy::reference,
-         "Apply data description with type, number of elements, offset, and stride.")
+         "Apply data description with type, number of elements, offset, and stride.",
+         nb::arg("type"),
+         nb::arg("num_elems"),
+         nb::arg("offset") = 0,
+         nb::arg("stride") = 1)
     .def("apply",
          nb::overload_cast<TypeID, int, const IndexType*>(&View::apply),
          nb::rv_policy::reference,

@@ -49,12 +49,12 @@ set(fruit_sidre_tests
 
 set(python_sidre_tests
    sidre_smoke_Py.py
-   #sidre_group_Py.py
-   #sidre_buffer_Py.py
-   #sidre_view_Py.py
-   #sidre_external_Py.py
-   #sidre_opaque_Py.py
-   #sidre_allocatable_Py.py
+   #sidre_group_Py.py # 4000/1258 lines
+   #sidre_buffer_Py.py # 556/194 lines
+   #sidre_view_Py.py #2390/1177 lines
+   sidre_external_Py.py #375/158 lines
+   #sidre_opaque_Py.py # 227/286 lines
+   #sidre_allocatable_Py.py # 302 lines
    )
 
 set(sidre_gtests_depends_on sidre fmt gtest)
