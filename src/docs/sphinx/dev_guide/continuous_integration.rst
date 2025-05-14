@@ -10,14 +10,14 @@ Continuous Integration
 *******************************
 
 The Axom project uses two CI tools,
-`Azure Pipelines <https://azure.microsoft.com/en-us/services/devops/pipelines/>`_
-via GitHub and `GitLab CI <https://docs.gitlab.com/ee/ci/>`_ 
+`GitHub Actions <https://github.com/LLNL/axom/actions>`_
+and `GitLab CI <https://docs.gitlab.com/ee/ci/>`_ 
 on the LLNL LC Collaboration Zone (CZ).
 
-.. _azure_pipelines-label:
+.. _github_actions-label:
 
 ===============
-Azure Pipelines 
+GitHub Actions 
 ===============
 
 Every Pull Request created on GitHub is automatically run through a series of
@@ -44,7 +44,7 @@ Build and Test Axom in a Docker Container
 
 		docker pull <image name>
 
-	* Checkout Azure Pipelines `configuration file <https://github.com/LLNL/axom/blob/develop/azure-pipelines.yml>`_ for latest images (denoted by ``<Compiler>_IMAGENAME``).
+	* Checkout the GitHub Actions `configuration file <https://github.com/LLNL/axom/blob/develop/.github/workflows/ci-tests.yml>`_ for latest images (denoted by ``<Compiler>_IMAGENAME``).
 
 	.. code-block:: bash
 
@@ -105,7 +105,7 @@ Build and Test Axom in a Docker Container
 		python3 ./config-build.py -hc host-configs/docker/<CMake host-config for container> -bt Release -DENABLE_GTEST_DEATH_TESTS=ON -DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DENABLE_BENCHMARKS:BOOL=ON
 
 	* The host-config for your Docker container can be found in the ``host-configs/docker/`` directory.
-	* The CMake flags (marked with ``-D``) are derived from a job in the Azure Pipelines `configuration file <https://github.com/LLNL/axom/blob/develop/azure-pipelines.yml>`_. The CMake flags are for mimicking a specific job setup, but are not required to configure Axom.
+	* The CMake flags (marked with ``-D``) are derived from a job in the GitHub Actions `configuration file <https://github.com/LLNL/axom/blob/develop/.github/workflows/ci-tests.yml>`_. The CMake flags are for mimicking a specific job setup, but are not required to configure Axom.
 
 11. Build Axom
 

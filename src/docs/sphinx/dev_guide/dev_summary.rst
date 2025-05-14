@@ -209,7 +209,7 @@ getting started with them.
 
   * See :ref:`gitlab-label` for more information about how we use GitLab.
 
-* **Azure Pipelines.** We use Azure Pipelines for continuous integration to ensure every code change passes a
-  level of quality before being merged.:  `Azure Pipelines <https://azure.microsoft.com/en-us/services/devops/pipelines/>`_
+* **GitHub Actions.** We use GitHub Actions for continuous integration to ensure every code change passes a
+  level of quality before being merged.:  `GitHub Actions <https://github.com/LLNL/axom/actions>`_
 
-  * See :ref:`azure_pipelines-label` for more information about how we use Azure Pipelines.
+  * See :ref:`github_actions-label` for more information about how we use GitHub Actions.

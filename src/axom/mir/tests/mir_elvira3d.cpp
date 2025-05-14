@@ -101,7 +101,7 @@ struct test_Elvira3D
     options["matset"] = "mat";
     options["plane"] = pointMesh ? 1 : 0;
     options["pointmesh"] = pointMesh ? 1 : 0;
-    // Be more lenient in how away far points are in order to combine them.
+    // Be more lenient in how far away points are in order to combine them.
     options["point_tolerance"] = 1.e-4;
     if(selectedZones)
     {
