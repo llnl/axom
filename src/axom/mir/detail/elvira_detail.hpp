@@ -954,7 +954,7 @@ private:
  * \tparam NDIMS The dimension of the topology.
  */
 template <typename ExecSpace, typename TopologyView, typename CoordsetView, typename MatsetView, int NDIMS>
-struct MakeCleanOutput
+struct MakeCleanZones
 {
   /*!
    * \brief Make a new mesh containing the selected clean zones.
@@ -998,7 +998,7 @@ struct MakeCleanOutput
  * \tparam NDIMS The dimension of the topology.
  */
 template <typename ExecSpace, typename TopologyView, typename CoordsetView, typename MatsetView>
-struct MakeCleanOutput<ExecSpace, TopologyView, CoordsetView, MatsetView, 3>
+struct MakeCleanZones<ExecSpace, TopologyView, CoordsetView, MatsetView, 3>
 {
   /*!
    * \brief Make a new mesh containing the selected clean zones.

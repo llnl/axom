@@ -193,13 +193,13 @@ protected:
 
       // Make the clean mesh.
       conduit::Node n_cleanOutput;
-      makeCleanOutput(cleanZones.view(),
-                      n_root,
-                      n_root_topo,
-                      n_root_coordset,
-                      n_root_matset,
-                      n_options_copy,
-                      n_cleanOutput);
+      makeCleanZones(cleanZones.view(),
+                     n_root,
+                     n_root_topo,
+                     n_root_coordset,
+                     n_root_matset,
+                     n_options_copy,
+                     n_cleanOutput);
 
       // Process the mixed part of the mesh.
       processMixedZones(mixedZones.view(),
@@ -361,15 +361,15 @@ protected:
    *
    * \return The number of nodes in the clean mesh output.
    */
-  void makeCleanOutput(const axom::ArrayView<axom::IndexType> &cleanZones,
-                       const conduit::Node &n_root,
-                       const conduit::Node &n_topology,
-                       const conduit::Node &n_coordset,
-                       const conduit::Node &n_matset,
-                       const conduit::Node &n_options,
-                       conduit::Node &n_cleanOutput) const
+  void makeCleanZones(const axom::ArrayView<axom::IndexType> &cleanZones,
+                      const conduit::Node &n_root,
+                      const conduit::Node &n_topology,
+                      const conduit::Node &n_coordset,
+                      const conduit::Node &n_matset,
+                      const conduit::Node &n_options,
+                      conduit::Node &n_cleanOutput) const
   {
-    AXOM_ANNOTATE_SCOPE("makeCleanOutput");
+    AXOM_ANNOTATE_SCOPE("makeCleanZones");
     namespace bputils = axom::mir::utilities::blueprint;
 
     // Make the clean mesh (it might be a point mesh).
@@ -412,15 +412,15 @@ protected:
         }
       }
 
-      using CleanOutput =
-        detail::MakeCleanOutput<ExecSpace, TopologyView, CoordsetView, MatsetView, IndexPolicy::dimension()>;
-      CleanOutput::execute(cleanZones,
-                           n_root,
-                           n_ezopts,
-                           m_topologyView,
-                           m_coordsetView,
-                           m_matsetView,
-                           n_cleanOutput);
+      using MakeCleanZones =
+        detail::MakeCleanZones<ExecSpace, TopologyView, CoordsetView, MatsetView, IndexPolicy::dimension()>;
+      MakeCleanZones::execute(cleanZones,
+                              n_root,
+                              n_ezopts,
+                              m_topologyView,
+                              m_coordsetView,
+                              m_matsetView,
+                              n_cleanOutput);
     }
 
 #if defined(AXOM_ELVIRA_DEBUG)
