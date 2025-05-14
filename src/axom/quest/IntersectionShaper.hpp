@@ -280,7 +280,7 @@ AXOM_HOST_DEVICE inline void TempArrayView<hip_exec>::finalize()
  *
  * The IntersectionShaper generates material volume fractions:
  *
- * - For c2c, an input set of 2D contours and replacement rules. Each contour
+ * - (3D) For c2c, an input set of 2D contours and replacement rules. Each contour
  *   covers an area from the curve down to the axis of revolution about which
  *   the area is revolved to produce a volume. Contours are refined into smaller
  *   linear spans that are revolved to produce a set of truncated cones, which
@@ -288,13 +288,24 @@ AXOM_HOST_DEVICE inline void TempArrayView<hip_exec>::finalize()
  *   intersected with the mesh. The octahedra are intersected with the input
  *   mesh to produce volume fractions.
  *
- * - For tetrahedral mesh (including Pro/E), an input mesh of 3D tetrahedra is loaded in.
+ * - (3D) For tetrahedral mesh (including Pro/E), an input mesh of 3D tetrahedra is loaded in.
  *   Each tetrahedron has its own respective volume. The tetrahedra are
  *   intersected with the input mesh to produce volume fractions.
  *
- * - For analytical geometries, the shapes are discretized into a tetrahedral
+ * - (3D) For analytical geometries, the shapes are discretized into a tetrahedral
  *   mesh first.  Sphere and surfaces-of-revolution discretization uses
  *   the refinement level specified in the \c Geometry.
+ *
+ * - (2D) For c2c, support is a work-in-progress. Initially support for a
+ *   single contour that covers an area from the curve down to the x-axis (z-axis).
+ *   The contour cannot overlap, and is expected to be entirely above the x-axis.
+ *   The contour is refined into smaller linear segments that form triangles with the
+ *   x-axis. The trianges are intersected with the input mesh to product volume fractions.
+ *
+ * - (2D) For triangle mesh, an input STL mesh is loaded in (z-coordinates must be 0).
+ *   Each triangle has its own respective area/volume. The triangles are
+ *   intersected with the input mesh to produce volume fractions.
+ *
  *
  * The input mesh can be an MFEM mesh stored as a \c
  * sidre::MFEMSidreDataCollection or be a Blueprint mesh stored as a
