@@ -339,7 +339,7 @@ spack:
       - spec: pdsh@2.33
         prefix: /usr
 
-    # Add some additional contraints to third party libraries
+    # Some additional platform-specific constraints for third party libraries
     hypre:
       require:
       - spec: "~shared"

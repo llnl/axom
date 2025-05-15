@@ -148,7 +148,7 @@ spack:
       - spec: openblas@0.3.20
         prefix: /usr
 
-    # Add some additional contraints to third party libraries
+    # Some additional platform-specific constraints for third party libraries
     # do shared mfem to allow PIC flag in mfem
     mfem:
       require: 
