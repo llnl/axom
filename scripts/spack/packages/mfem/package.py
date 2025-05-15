@@ -15,7 +15,7 @@ class Mfem(BuiltinMfem):
 
     ## Hack (KW,14May2024): We needed to add the `hipblas` library to the hip_libs
     ## I've copied the entire `get_make_config_options` function
-    ## to inject the apprpriate call below.
+    ## to inject the appropriate call below.
     ## We should remove this entire function once we can update 
     ## to a spack package that contains this change.
     ## It looks like spack@develop already has a fix for this
