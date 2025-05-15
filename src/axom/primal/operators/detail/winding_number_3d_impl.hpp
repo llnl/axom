@@ -15,6 +15,8 @@
 #include "axom/primal/operators/is_convex.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 
+#include "axom/core/numerics/transforms.hpp"
+
 // C++ includes
 #include <math.h>
 
@@ -38,7 +40,7 @@ enum class DiscontinuityAxis
   rotated
 };
 
-#ifdef AXOM_USE_MFEM
+// #ifdef AXOM_USE_MFEM
 /*!
  * \brief Identify the u/v isoline on which all degenerate intersections occur, 
  *         and "clip out" patches that do not contain this line
@@ -143,6 +145,9 @@ void degenerate_surface_processing(const NURBSPatch<T, 3>& patch,
  * \pre Assumes that the NURBS patch is trimmed, and has been slightly extended in 
  *       parameter space so that trimming curves arent't on the boundary of the untrimmed patch
  * \return The GWN.
+ * 
+ * \sa NURBSPatch::makeTriviallyTrimmed
+ * \sa NURBSPatch::scaleParameterSpace
  */
 template <typename T>
 double nurbs_winding_number(const Point<T, 3>& query,
@@ -179,30 +184,6 @@ double nurbs_winding_number(const Point<T, 3>& query,
    * query that does not intersect the surface, or one that intersects the *interior*
    * of the surface at known locations.
    */
-
-  // Lambda to generate a 3D rotation matrix from an angle and axis
-  // Formulation from https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle
-  auto angleAxisRotMatrix = [](double theta, const Vector<T, 3>& axis) -> numerics::Matrix<T> {
-    const auto unitized = axis.unitVector();
-    const double x = unitized[0], y = unitized[1], z = unitized[2];
-    const double c = cos(theta), s = sin(theta), C = 1 - c;
-
-    auto matx = numerics::Matrix<T>::zeros(3, 3);
-
-    matx(0, 0) = x * x * C + c;
-    matx(0, 1) = x * y * C - z * s;
-    matx(0, 2) = x * z * C + y * s;
-
-    matx(1, 0) = y * x * C + z * s;
-    matx(1, 1) = y * y * C + c;
-    matx(1, 2) = y * z * C - x * s;
-
-    matx(2, 0) = z * x * C - y * s;
-    matx(2, 1) = z * y * C + x * s;
-    matx(2, 2) = z * z * C + c;
-
-    return matx;
-  };
 
   // Lambda to rotate the input point using the provided rotation matrix
   auto rotate_point = [&query](const numerics::Matrix<T>& matx,
@@ -286,7 +267,8 @@ double nurbs_winding_number(const Point<T, 3>& query,
         -(v0[0] * v1[1] - v0[1] * v1[0]) / sqrt(v1[0] * v1[0] + v1[1] * v1[1]),
         -1.0,
         1.0));
-    rotator = angleAxisRotMatrix(ang, v1);
+    
+    rotator = numerics::transforms::axisRotation(ang, v1[0], v1[1], v1[2]);
   }
   else
   {
@@ -449,11 +431,8 @@ double nurbs_winding_number(const Point<T, 3>& query,
     }
 
     // Rotate the patch so that the discontinuity is aligned with the z-axis
-    Vector<T, 3> axis = {cast_direction[1], -cast_direction[0], 0};
-
     double ang = std::acos(axom::utilities::clampVal(cast_direction[2], -1.0, 1.0));
-
-    rotator = angleAxisRotMatrix(ang, axis);
+    rotator = numerics::transforms::axisRotation(ang, cast_direction[1], -cast_direction[0], 0);
   }
 
   if(field_direction == DiscontinuityAxis::rotated)
@@ -632,7 +611,7 @@ double stokes_winding_number_component(const Point<T, 3>& query,
   return this_quad;
 }
 
-#endif
+// #endif
 
 }  // end namespace detail
 }  // end namespace primal
