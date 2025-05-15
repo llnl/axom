@@ -494,15 +494,14 @@ assert(totalCandidates.get() == candidates.size());
 
     {
       AXOM_ANNOTATE_SCOPE("GeometryClipper::clipLoop_limited");
-#if 1
       totalCandidatesCount = NUM_TETS_PER_HEX*candidates.size();
-#else
-      // Copy calculated total back to host if needed
+#if 0
+      // Verifying: this should always pass.
       if(totalCandidatesCountPtr != &totalCandidatesCount)
       {
         axom::copy(&totalCandidatesCount, totalCandidatesCountPtr, sizeof(IndexType));
       }
-assert(totalCandidatesCount == NUM_TETS_PER_HEX*candidates.size());
+      SLIC_ASSERT(totalCandidatesCount == NUM_TETS_PER_HEX*candidates.size());
 #endif
 
       using PolyhedronType = primal::Polyhedron<double, 3>;

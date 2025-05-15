@@ -494,13 +494,6 @@ void printMfemMeshInfo(mfem::Mesh* mesh, const std::string& prefixMessage = "")
 }
 #endif
 
-auto selectScalarAndStringViews = [](const axom::sidre::View& v) {
-  return v.isScalar() || v.isString();
-};
-auto selectNonHostViews = [](const axom::sidre::View& v) {
-  return v.getVoidPtr() != nullptr && !v.isHostAccessible();
-};
-
 /*
   Whether View data should live on host or another allocator (like device data).
   Return the "right" choice based on View type, using a heuristic.
@@ -2160,7 +2153,6 @@ int main(int argc, char** argv)
   // shape mesh for closes shape.  As long as the shapes don't overlap, this
   // should be a good correctness check.
   //---------------------------------------------------------------------------
-  auto* meshVerificationGroup = ds.getRoot()->createGroup("meshVerification");
   for(const auto& shape : shapeSet.getShapes())
   {
     std::string fieldName = "shape_vol_frac_" + shape.getName();
