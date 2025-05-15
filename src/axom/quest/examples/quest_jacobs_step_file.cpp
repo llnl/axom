@@ -4384,6 +4384,276 @@ void test_rotate_curve()
   std::cout << "Inside: " << inside << std::endl;
 }
 
+void strict_tear_parameter_tol_test(const std::string& test_prefix,
+                                        const std::string& out_prefix,
+                                        double quad_tol,
+                                        const std::string& out_suffix = "")
+{
+  // lambda function that rotates a given BezierCurve around the z-axis
+  auto rotate_curve = [](const axom::primal::BezierCurve<double, 2>& curve)
+    -> axom::Array<axom::primal::BezierPatch<double, 3>> {
+    const int ord = curve.getOrder();
+    axom::Array<axom::primal::BezierPatch<double, 3>> rs(4);
+    for(int i = 0; i < 4; ++i)
+    {
+      rs[i].setOrder(ord, 2);
+      rs[i].makeRational();
+    }
+
+    for(int i = 0; i <= ord; ++i)
+    {
+      // clang-format off
+   rs[0](i, 0) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
+   rs[0](i, 1) = axom::primal::Point<double, 3> {curve[i][0], curve[i][0], curve[i][1]};
+   rs[0](i, 2) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
+
+   rs[1](i, 0) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
+   rs[1](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], curve[i][0], curve[i][1]};
+   rs[1](i, 2) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
+
+   rs[2](i, 0) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
+   rs[2](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], -curve[i][0], curve[i][1]};
+   rs[2](i, 2) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
+
+   rs[3](i, 0) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
+   rs[3](i, 1) = axom::primal::Point<double, 3> {curve[i][0], -curve[i][0], curve[i][1]};
+   rs[3](i, 2) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
+
+   double the_weight = curve.isRational() ? curve.getWeight(i) : 1.0;
+
+   rs[0].setWeight(i, 0, the_weight);
+   rs[1].setWeight(i, 0, the_weight);
+   rs[2].setWeight(i, 0, the_weight);
+   rs[3].setWeight(i, 0, the_weight);
+
+   rs[0].setWeight(i, 1, the_weight / std::sqrt(2));
+   rs[1].setWeight(i, 1, the_weight / std::sqrt(2));
+   rs[2].setWeight(i, 1, the_weight / std::sqrt(2));
+   rs[3].setWeight(i, 1, the_weight / std::sqrt(2));
+
+   rs[0].setWeight(i, 2, the_weight);
+   rs[1].setWeight(i, 2, the_weight);
+   rs[2].setWeight(i, 2, the_weight);
+   rs[3].setWeight(i, 2, the_weight);
+   //clang-format on
+ }
+
+ return rs;
+};
+
+axom::primal::BezierCurve<double, 2> teardrop1(3);
+teardrop1[0] = axom::primal::Point<double, 2> {0.0, 1.0};
+teardrop1[1] = axom::primal::Point<double, 2> {0.0, 0.0};
+teardrop1[2] = axom::primal::Point<double, 2> {1.0, 0.0};
+teardrop1[3] = axom::primal::Point<double, 2> {1.0, -1.0};
+
+axom::primal::BezierCurve<double, 2> teardrop2(2);
+teardrop2[0] = axom::primal::Point<double, 2> {1.0, -1.0};
+teardrop2[1] = axom::primal::Point<double, 2> {1.0, -2.0};
+teardrop2[2] = axom::primal::Point<double, 2> {0.0, -2.0};
+
+teardrop2.makeRational();
+teardrop2.setWeight(1, 1.0 / std::sqrt(2.0));
+
+auto teardrop1_patches = rotate_curve(teardrop1);
+auto teardrop2_patches = rotate_curve(teardrop2);
+
+axom::primal::NURBSPatch<double, 3> nurbs_surfaces[8];
+axom::primal::NURBSPatchData<double> nurbs_surfaces_data[8];
+axom::Array<axom::primal::BezierPatch<double, 3>> nurbs_surfaces_array(8);
+
+for(int i = 0; i < 4; ++i)
+{
+ nurbs_surfaces[i] = axom::primal::NURBSPatch<double, 3>(teardrop1_patches[i]);
+ nurbs_surfaces[i].makeTriviallyTrimmed();
+ nurbs_surfaces_data[i] =
+   axom::primal::NURBSPatchData<double>(i, nurbs_surfaces[i]);
+
+ nurbs_surfaces[i + 4] =
+   axom::primal::NURBSPatch<double, 3>(teardrop2_patches[i]);
+ nurbs_surfaces[i + 4].makeTriviallyTrimmed();
+ nurbs_surfaces_data[i + 4] =
+   axom::primal::NURBSPatchData<double>(i + 4, nurbs_surfaces[i + 4]);
+
+ nurbs_surfaces_array[i] = teardrop1_patches[i];
+ nurbs_surfaces_array[i + 4] = teardrop2_patches[i];
+}
+
+using axom::utilities::filesystem::joinPath;
+{
+ axom::primal::exportSurfaceToSTL(
+   joinPath(out_prefix, axom::fmt::format("{}_teardrop.stl", test_prefix)),
+   nurbs_surfaces_array, 50, 50);
+ for( int i = 0; i < 8; ++i)
+ {
+   axom::primal::exportSurfaceToSTL(
+     joinPath(out_prefix,
+              axom::fmt::format("{}_teardrop_{}.stl", test_prefix, i)),
+     nurbs_surfaces[i], 50, 50);
+ }
+}
+
+constexpr double EPS = 1e-12;
+constexpr double edge_tol = 1e-16;
+
+int case_patch_totals[4] = {0, 0, 0, 0};
+int case_curves_totals[4] = {0, 0, 0, 0};
+double case_time_totals[4] = {0.0, 0.0, 0.0, 0.0};
+
+AXOM_ANNOTATE_BEGIN("GWN query");
+
+const int num_query_pts = query_points.size();
+const int progress_idx = [num_query_pts](int div) {
+ return num_query_pts > div
+   ? static_cast<int>(num_query_pts / static_cast<double>(div))
+   : num_query_pts;
+}(20);
+axom::Array<double> gwn(num_query_pts);
+
+for(int idx = 0; idx < num_query_pts; ++idx)
+{
+ if(idx % progress_idx == 0)
+ {
+   axom::primal::printLoadingBar(idx, num_query_pts);
+ }
+
+ const auto& query = query_points[idx];
+
+ int case_code = -1;
+ axom::utilities::Timer timer(false);
+
+ double wn = 0.0;
+ for(int i = 0; i < 8; ++i)
+ {
+   int integrated_trimming_curves = 0;
+   timer.start();
+   double the_val =
+     axom::primal::winding_number(query,
+                                          nurbs_surfaces_data[i],
+                                          case_code,
+                                          integrated_trimming_curves,
+                                          edge_tol,
+                                          quad_tol,
+                                          ls_tol,
+                                          EPS);
+   timer.stop();
+   
+   case_patch_totals[case_code] += 1;
+   case_curves_totals[case_code] += integrated_trimming_curves;
+   case_time_totals[case_code] += timer.elapsedTimeInSec();
+   wn += the_val;
+ }
+
+ gwn[idx] = wn;
+}
+AXOM_ANNOTATE_END("GWN query");
+
+int misclassified_count = 0;
+using axom::utilities::filesystem::joinPath;
+{
+ // Write query points and GWN field to CSV
+ axom::fmt::memory_buffer csv;
+ axom::fmt::format_to(std::back_inserter(csv),
+                      "x, y, z, winding_number, expected_inside, rounded\n");
+
+ for(int idx = 0; idx < num_query_pts; ++idx)
+ {
+   const auto& query = query_points[idx];
+   const double radius = std::sqrt(query[0] * query[0] + query[1] * query[1]);
+   bool inside = false;
+
+   if(radius > 1.0)
+   {
+     inside = false;
+   }
+   else
+   {
+     double fun =
+       3 * std::sin(1.0 / 3.0 * std::asin(1 - 2 * radius)) + radius - 0.5;
+     inside = (query[2] <= fun) &&
+       ((query[2] > -1.0) ||
+        std::sqrt(query[0] * query[0] + query[1] * query[1] +
+                    (query[2] + 1.0) * (query[2] + 1.0) <=
+                  1.0));
+   }
+
+   const int rounded = std::lround(gwn[idx]);
+   const bool computed_inside = (rounded % 2) != 0;
+   axom::fmt::format_to(std::back_inserter(csv),
+                        "{:.15f}, {:.15f}, {:.15f}, {:.15f}, {}, {}\n",
+                        query[0],
+                        query[1],
+                        query[2],
+                        gwn[idx],
+                        inside,
+                        rounded);
+
+   if(computed_inside != inside)
+   {
+     ++misclassified_count;
+   }
+ }
+
+ std::string csvFilename = joinPath(
+   out_prefix,
+   axom::fmt::format("{}_teardrop_gwn_field_{}.csv", test_prefix, out_suffix));
+ std::ofstream csvFile(csvFilename);
+ csvFile << axom::fmt::to_string(csv);
+ SLIC_INFO(axom::fmt::format("CSV file generated: '{}'", csvFilename));
+ const int correct_classification = num_query_pts - misclassified_count;
+ SLIC_INFO(axom::fmt::format(
+   axom::utilities::locale(),
+   "Out of {:L} query points, {:L} were correctly classified ({:.2f}%) and "
+   "{:L} were "
+   "misclassified ({:.2f}%)",
+   num_query_pts,
+   correct_classification,
+   (static_cast<double>(correct_classification) / num_query_pts) * 100.0,
+   misclassified_count,
+   (static_cast<double>(misclassified_count) / num_query_pts) * 100.0));
+}
+
+{
+ std::string out_file =
+   joinPath(out_prefix,
+            axom::fmt::format("{}_teardrop_timing_summary_{}.csv",
+                              test_prefix,
+                              out_suffix));
+
+ SLIC_INFO(axom::fmt::format("Writing results to '{}'", out_file));
+ std::ofstream summary(out_file);
+ summary << "Case, Total patches, Total curves, Time Totals (s)\n";
+ summary << axom::fmt::format("Case 0: Outside AABB: {}, {}, {:.15f}\n",
+                              case_patch_totals[0],
+                              case_curves_totals[0],
+                              case_time_totals[0]);
+
+ summary << axom::fmt::format("Case 1: Outside OBB: {}, {}, {:.15f}\n",
+                              case_patch_totals[1],
+                              case_curves_totals[1],
+                              case_time_totals[1]);
+
+ summary << axom::fmt::format("Case 2: Casting Necessary: {}, {}, {:.15f}\n",
+                              case_patch_totals[2],
+                              case_curves_totals[2],
+                              case_time_totals[2]);
+
+ summary << axom::fmt::format(
+   "Case 3: Trimming Curve Subdivision: {}, {}, {:.15f}\n",
+   case_patch_totals[3],
+   case_curves_totals[3],
+   case_time_totals[3]);
+
+ summary << axom::fmt::format("\n");
+
+ summary << axom::fmt::format(
+   "Misclassified points: {:L} out of {:L} ({:.2f}%)\n",
+   misclassified_count,
+   num_query_pts,
+   (static_cast<double>(misclassified_count) / num_query_pts) * 100.0);
+ }
+}
+
 void box_parameter_tol_test(const std::string& test_prefix,
                             const std::string& out_prefix,
                             double ls_tol,
@@ -4439,26 +4709,31 @@ void box_parameter_tol_test(const std::string& test_prefix,
 
   // Keep looping over points in the bounding box until we misclassify a point
   axom::primal::BoundingBox<double, 3> bbox;
-  bbox.addPoint(axom::primal::Point<double, 3> {-0.1, -0.1, -0.1});
-  bbox.addPoint(axom::primal::Point<double, 3> {1.1, 1.1, 1.1});
+  double buffer = 1e-5;
+
+  bbox.addPoint(axom::primal::Point<double, 3> {0.0 - buffer, 0.0 - buffer, 0.0 - buffer});
+  bbox.addPoint(axom::primal::Point<double, 3> {1.0 + buffer, 1.0 + buffer, 1.0 + buffer});
 
   axom::primal::BoundingBox<double, 3> true_bbox;
-  bbox.addPoint(axom::primal::Point<double, 3> {0.0, 0.0, 0.0});
-  bbox.addPoint(axom::primal::Point<double, 3> {1.0, 1.0, 1.0});
+  true_bbox.addPoint(axom::primal::Point<double, 3> {0.0, 0.0, 0.0});
+  true_bbox.addPoint(axom::primal::Point<double, 3> {1.0, 1.0, 1.0});
 
-  long num_correct = 0;
+  long num_misses = 0;
+  long num_queries = 0;
   while(true)
   {
     const double x0 = axom::utilities::random_real(bbox.getMin()[0], bbox.getMax()[0]);
     const double y0 = axom::utilities::random_real(bbox.getMin()[1], bbox.getMax()[1]);
     const double z0 = axom::utilities::random_real(bbox.getMin()[2], bbox.getMax()[2]);
 
-    // Only check points that are within 0.1 of the bounding box
-    if((x0 > 0.1 && x0 < 0.9) && (y0 > 0.1 && y0 < 0.9) && (z0 > 0.1 && z0 < 0.9))
+    // Only check points that are within 0.01 of the bounding box
+    if((x0 > 0.0 + buffer && x0 < 1.0 - buffer) && (y0 > 0.0 + buffer && y0 < 1.0 - buffer) &&
+       (z0 > 0.0 + buffer && z0 < 1.0 - buffer))
     {
       continue;
     }
 
+    num_queries++;
     axom::primal::Point<double, 3> query = axom::primal::Point<double, 3> {x0, y0, z0};
 
     // test the winding number at the center of the box
@@ -4477,9 +4752,29 @@ void box_parameter_tol_test(const std::string& test_prefix,
                                           EPS);
     }
 
-    int shouldBeInside = true_bbox.contains(query);
-    
+    int rounded_gwn = static_cast<int>(std::round(gwn));
+    int expected_gwn = true_bbox.contains(query);
+
+    if(rounded_gwn != expected_gwn)
+    {
+      num_misses++;
+      SLIC_INFO(axom::fmt::format("Missed point: ({}, {}, {}) -> {} != {}",
+                                  query[0],
+                                  query[1],
+                                  query[2],
+                                  rounded_gwn,
+                                  expected_gwn));
+      if(num_misses == 5) break;
+    }
+
+    if(num_queries % 1000 == 0)
+    {
+      std::cout << "[" << num_queries << " queries]\r\r";
+      std::cout.flush();
+    }
   }
+
+  std::cout << "Number of queries before 5 misses: " << num_queries << std::endl;
 }
 
 void tear_parameter_tol_test(const std::string& test_prefix,
@@ -5054,12 +5349,12 @@ int main()
     axom::utilities::filesystem::makeDirsForPath(out_prefix);
   }
 
-  box_parameter_tol_test("1em3", out_prefix, 1e-3, 1e-6);
   int num_query_pts = 1e3;
 
   double fixed_ls_tol = 1e-6;
   double fixed_quad_tol = 1e-6;
 
+  box_parameter_tol_test("1em3", out_prefix, fixed_ls_tol, 1);
   // for(int i = 1; i < 11; ++i)
   // {
   //   std::cout << "i: " << i << std::endl;
