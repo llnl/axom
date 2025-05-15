@@ -33,8 +33,7 @@ vcpkg_configure_cmake(
 
 vcpkg_install_cmake()
 vcpkg_cmake_config_fixup(
-        PACKAGE_NAME conduit
-        CONFIG_PATH  lib/cmake
+        CONFIG_PATH  lib/cmake/conduit
         TOOLS_PATH   tools/conduit)
 vcpkg_copy_pdbs()
 
