@@ -622,21 +622,21 @@ axom::Array<primal::NURBSPatch<double, 3>> make_sphere_bicubic()
     for(int i = 0; i <= 2; ++i)
     {
       // clang-format off
-      sphere_faces[4*n + 0](i, 0) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
-      sphere_faces[4*n + 0](i, 1) = axom::primal::Point<double, 3> {curve[i][0], curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 0](i, 2) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 0](i, 0) = Point3D {curve[i][0], 0.0, curve[i][1]};
+      sphere_faces[4*n + 0](i, 1) = Point3D {curve[i][0], curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 0](i, 2) = Point3D {0.0, curve[i][0], curve[i][1]};
 
-      sphere_faces[4*n + 1](i, 0) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 1](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 1](i, 2) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
+      sphere_faces[4*n + 1](i, 0) = Point3D {0.0, curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 1](i, 1) = Point3D {-curve[i][0], curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 1](i, 2) = Point3D {-curve[i][0], 0.0, curve[i][1]};
 
-      sphere_faces[4*n + 2](i, 0) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
-      sphere_faces[4*n + 2](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], -curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 2](i, 2) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 2](i, 0) = Point3D {-curve[i][0], 0.0, curve[i][1]};
+      sphere_faces[4*n + 2](i, 1) = Point3D {-curve[i][0], -curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 2](i, 2) = Point3D {0.0, -curve[i][0], curve[i][1]};
 
-      sphere_faces[4*n + 3](i, 0) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 3](i, 1) = axom::primal::Point<double, 3> {curve[i][0], -curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 3](i, 2) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
+      sphere_faces[4*n + 3](i, 0) = Point3D {0.0, -curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 3](i, 1) = Point3D {curve[i][0], -curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 3](i, 2) = Point3D {curve[i][0], 0.0, curve[i][1]};
 
       double the_weight = curve.isRational() ? curve.getWeight(i) : 1.0;
 
@@ -662,7 +662,7 @@ axom::Array<primal::NURBSPatch<double, 3>> make_sphere_bicubic()
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_integral, bezierpatch_sphere)
+TEST(primal_integral, nurbspatch_sphere)
 {
   using Point3D = primal::Point<double, 3>;
   using Vector3D = primal::Vector<double, 3>;

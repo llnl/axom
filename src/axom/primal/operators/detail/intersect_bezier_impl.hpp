@@ -479,8 +479,8 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
     Point<T, 2> cp(a);
     double num = (circ.getCenter()[0] - a[0]) * dx + (circ.getCenter()[1] - a[1]) * dy;
 
-    cp.array()[0] += num * dx / (dr * dr);
-    cp.array()[1] += num * dy / (dr * dr);
+    cp[0] += num * dx / (dr * dr);
+    cp[1] += num * dy / (dr * dr);
 
     c1 = std::atan2(cp[1] - circ.getCenter()[1], cp[0] - circ.getCenter()[0]);
     c1 = (c1 < 0.0) ? c1 + 2.0 * M_PI : c1;

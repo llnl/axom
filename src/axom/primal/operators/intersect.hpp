@@ -1189,9 +1189,9 @@ bool intersect(const Ray<T, 3>& ray,
 }
 
 /*! 
- * \brief Determines if a ray (two-sided ray) intersects a NURBS patch.
+ * \brief Determines if a line (two-sided ray) intersects a NURBS patch.
  * \param [in] line The line to intersect with the patch.
- * \param [in] patch The NURBS patch to intersect with the ray.
+ * \param [in] patch The NURBS patch to intersect with the line.
  * \param [out] t The t parameter(s) of intersection point(s).
  * \param [out] u The u parameter(s) of intersection point(s).
  * \param [out] v The v parameter(s) of intersection point(s).

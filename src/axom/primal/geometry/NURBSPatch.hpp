@@ -2540,7 +2540,7 @@ public:
    * Algorithm from "Mean normal vector to a surface bounded by Bézier curves"
    *  by Kenji Ueda, 1996
    * 
-   * Projects the 4 boundary curves of the patch along each coordiante axis, 
+   * Projects the 4 boundary curves of the patch along each coordinate axis, 
    *  then computes the 2D area of that projection to get the corresponding
    *  component of the average surface normal.
    *  
@@ -3011,7 +3011,9 @@ public:
    */
   void diskSplit(T u, T v, T r, NURBSPatch& the_disk, NURBSPatch& the_rest, bool clipDisk = true) const
   {
-    bool isDiskInside, isDiskOutside, ignoreInteriorDisk = false;
+    bool isDiskInside = false;
+    bool isDiskOutside = false;
+    bool ignoreInteriorDisk = false;
     diskSplit(u, v, r, the_disk, the_rest, isDiskInside, isDiskOutside, ignoreInteriorDisk, clipDisk);
   }
 
