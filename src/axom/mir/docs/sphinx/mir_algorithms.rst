@@ -134,7 +134,7 @@ with different orientations, resulting in potentially jagged interfaces. ELVIRA 
 conservation of material volume fractions over the appearance of the resulting material
 interfaces so it is highly accurate but it can be less visually appealing. Since ELVIRA
 output is typically comprised of shapes that result from several cuts of the input zones,
-the resulting topology is not necessarily water-tight and it consists of polygons for 2D
+the resulting topology is not water-tight. The output topology consists of polygons for 2D
 and polyhedra for 3D.
 
 The ELVIRA algorithm also supports a mode where it instead creates a mesh consisting of

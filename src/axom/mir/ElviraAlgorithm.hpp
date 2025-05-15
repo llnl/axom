@@ -995,9 +995,9 @@ protected:
         // Emit the last leftover fragment.
         const auto fragmentIndex = offset + matCount - 1;
         const auto matId = sortedMaterialIdsView[fragmentIndex];
-        // The last fragment's normals are just (1,0,0).
-        //const double *normalPtr = fragmentVectorsView.data() + (fragmentIndex * numVectorComponents);
-        // It seems more useful to emit the opposite of the last fragment's normal instead.
+        // The last fragment's normals are just (1,0,0). These are accessible at
+        // fragmentVectorsView[fragmentIndex * numVectorComponents] but it seems
+        // more useful to emit the opposite of the last fragment's normal instead.
         double lastNormal[NDIMS];
         for(int d = 0; d < NDIMS; d++)
         {
