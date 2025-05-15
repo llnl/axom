@@ -137,11 +137,11 @@ output is typically comprised of shapes that result from several cuts of the inp
 the resulting topology is not water-tight. The output topology consists of polygons for 2D
 and polyhedra for 3D.
 
-The ELVIRA algorithm also supports a mode where it instead creates a mesh consisting of
-points at the centers of the polygonal/polyhedral zone centers and emits the points in
-place of the other zones. This output mode is used to save work when the algorithm is
-being used to output clipping planes rather than the clipped geometry. This mode is
-activated using the "pointmesh" option.
+The ELVIRA algorithm also supports a mode where instead of creating 2D polygons or 3D
+polyhedral zones for material fragments, it creates a mesh consisting solely of points.
+Each point represents the clipping plane origin involved in creating a zone fragment.
+For zones that contain a single material, the point is placed at the zone centroid for
+the input zone. This output mode is activated using the "pointmesh" option.
 
 Axom's implementation of ELVIRA is data parallel and can run on the CPU and the GPU. Zones
 of interest are identified and are classified as clean or mixed. Clean zones contain a single
@@ -160,19 +160,21 @@ that are specific to ELVIRA.
 |                                 | contain the normal and offset, respectively, for the |
 |                                 | clipping plane used to produce each zone fragment. If|
 |                                 | ``plane`` is set to 0 then these fields are not      |
-|                                 | created.                                             |
+|                                 | created. The default value is 0 (off).               |
 +---------------------------------+------------------------------------------------------+
 |``pointmesh: 0 | 1``             | If ``pointmesh`` is set to 1 then the algorithm will |
 |                                 | produce point mesh output instead of polygonal or    |
-|                                 | polyhedral output. The point mesh coordinates will be|
-|                                 | located at the origin of the fragment slice planes.  |
+|                                 | polyhedral output. Point mesh coordinates are located|
+|                                 | at the origin of the fragment clipping planes.       |
+|                                 | The default value is 0 (off).                        |
 +---------------------------------+------------------------------------------------------+
 |``point_tolerance: float``       | The ``point_tolerance`` option is used to set the    |
 |                                 | tolerance used to merge points together in 3D ELVIRA.|
-|                                 | Points closer than the tolerance will be merged      |
-|                                 | together in the coordset created from the clipped    |
-|                                 | fragments. The polyhedral topology is updated to use |
-|                                 | the modified coordset.                               |
+|                                 | The value must be greater than 0. Points closer than |
+|                                 | the tolerance will be merged together in the coordset|
+|                                 | created from the clipped fragments. The polyhedral   |
+|                                 | topology is updated to use the modified coordset. The|
+|                                 | default value is 1.e-10.                             |
 +---------------------------------+------------------------------------------------------+
 
 .. literalinclude:: ../../tests/mir_elvira2d.cpp
