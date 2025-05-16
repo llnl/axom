@@ -267,7 +267,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
         -(v0[0] * v1[1] - v0[1] * v1[0]) / sqrt(v1[0] * v1[0] + v1[1] * v1[1]),
         -1.0,
         1.0));
-    
+
     rotator = numerics::transforms::axisRotation(ang, v1[0], v1[1], v1[2]);
   }
   else
@@ -282,8 +282,8 @@ double nurbs_winding_number(const Point<T, 3>& query,
     axom::Array<T> up, vp, tp;
     bool isHalfOpen = false, countUntrimmed = true;
 
-    bool success =
-      intersect(discontinuity_axis, nPatch, tp, up, vp, ls_tol, EPS, countUntrimmed, isHalfOpen);
+    bool success = true;
+    intersect(discontinuity_axis, nPatch, tp, up, vp, ls_tol, EPS, countUntrimmed, isHalfOpen, success);
 
     if(!success)
     {
