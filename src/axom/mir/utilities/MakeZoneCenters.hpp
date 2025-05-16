@@ -138,7 +138,6 @@ public:
         const auto zoneIndex = selectedZonesView[zi];
         const auto zone = deviceTopoView.zone(zoneIndex);
         const axom::IndexType nnodes = zone.numberOfNodes();
-        const value_type weight = static_cast<value_type>(1.) / static_cast<value_type>(nnodes);
 
         VectorType blended {};
 
@@ -146,8 +145,9 @@ public:
         for(IndexType i = 0; i < nnodes; i++)
         {
           const auto index = zone.getId(i);
-          blended += (VectorType(deviceCoordsetView[index]) * static_cast<value_type>(weight));
+          blended += VectorType(deviceCoordsetView[index]);
         }
+        blended = blended / static_cast<value_type>(nnodes);
 
         // Store the point into the Conduit component arrays.
         for(int comp = 0; comp < PointType::DIMENSION; comp++)
