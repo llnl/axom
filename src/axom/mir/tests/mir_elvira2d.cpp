@@ -94,6 +94,18 @@ struct braid2d_mat_test
     constexpr double tolerance = 2.6e-06;
     EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostMIRMesh, tolerance));
   }
+
+  /// Function to run a simple kernel. This is a workaround for HIP tests, which
+  /// on tioga appear to have intermittent failures related to normals.
+  static void reset()
+  {
+    const axom::IndexType N = 10000;
+    axom::Array<double> arr(N, N, axom::execution_space<hip_exec>::allocatorID());
+    auto arrView = arr.view();
+    axom::for_all<hip_exec>(
+      N,
+      AXOM_LAMBDA(axom::IndexType index) { arrView[index] = index * index; });
+  }
 };
 
 //------------------------------------------------------------------------------
@@ -279,6 +291,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_hip)
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_hip");
   const bool selectZones = true;
   const bool pointMesh = false;
+  braid2d_mat_test<hip_exec>::reset();
   braid2d_mat_test<hip_exec>::test("uniform",
                                    "unibuffer",
                                    "elvira_uniform_unibuffer_sel",
@@ -291,6 +304,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_pm_hip)
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_hip");
   const bool selectZones = false;
   const bool pointMesh = true;
+  braid2d_mat_test<hip_exec>::reset();
   braid2d_mat_test<hip_exec>::test("uniform",
                                    "unibuffer",
                                    "elvira_uniform_unibuffer_pm",
@@ -303,6 +317,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_hip)
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_hip");
   const bool selectZones = true;
   const bool pointMesh = true;
+  braid2d_mat_test<hip_exec>::reset();
   braid2d_mat_test<hip_exec>::test("uniform",
                                    "unibuffer",
                                    "elvira_uniform_unibuffer_sel_pm",
