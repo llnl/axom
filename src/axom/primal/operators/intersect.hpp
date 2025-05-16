@@ -862,9 +862,9 @@ bool intersect(const Ray<T, 3>& ray,
                axom::Array<T>& t,
                axom::Array<T>& u,
                axom::Array<T>& v,
-               double tol = 1e-8,
-               double EPS = 1e-8,
-               bool isHalfOpen = false,
+               double tol,
+               double EPS,
+               bool isHalfOpen,
                bool& success)
 {
   // Clear the input arrays
@@ -876,7 +876,7 @@ bool intersect(const Ray<T, 3>& ray,
 
   const int order_u = patch.getOrder_u();
   const int order_v = patch.getOrder_v();
-  bool success = true;
+  success = true;
 
   if(order_u < 1 || order_v < 1)
   {
@@ -941,7 +941,7 @@ bool intersect(const Ray<T, 3>& ray,
     }
   }
 
-  return !tc.empty();
+  return !t.empty();
 }
 
 ///! \brief Determines if a ray intersects a Bezier patch with fewer exposed parameters.
@@ -990,9 +990,9 @@ bool intersect(const Line<T, 3>& line,
                axom::Array<T>& t,
                axom::Array<T>& u,
                axom::Array<T>& v,
-               double tol = 1e-8,
-               double EPS = 1e-8,
-               bool isHalfOpen = false,
+               double tol,
+               double EPS,
+               bool isHalfOpen,
                bool& success)
 {
   // Clear the input arrays
@@ -1004,7 +1004,7 @@ bool intersect(const Line<T, 3>& line,
 
   const int order_u = patch.getOrder_u();
   const int order_v = patch.getOrder_v();
-  bool success = true;
+  success = true;
 
   if(order_u < 1 || order_v < 1)
   {
@@ -1067,7 +1067,7 @@ bool intersect(const Line<T, 3>& line,
     }
   }
 
-  return !tc.empty();
+  return !t.empty();
 }
 
 ///! \brief Determines if a line intersects a Bezier patch with fewer exposed parameters.
@@ -1115,10 +1115,10 @@ bool intersect(const Ray<T, 3>& ray,
                axom::Array<T>& t,
                axom::Array<T>& u,
                axom::Array<T>& v,
-               double tol = 1e-8,
-               double EPS = 1e-8,
-               bool countUntrimmed = true,
-               bool isHalfOpen = false,
+               double tol,
+               double EPS,
+               bool countUntrimmed,
+               bool isHalfOpen,
                bool& success)
 {
   // Clear the input arrays
@@ -1145,8 +1145,8 @@ bool intersect(const Ray<T, 3>& ray,
   // Store candidate intersections
   axom::Array<T> tc, uc, vc;
 
-  bool isHalfOpen = false;
-  bool success = true;
+  bool isBezierHalfOpen = false;
+  success = true;
 
   // Check each Bezier patch, and scale the intersection parameters
   //   back into the span of the original NURBS patch
@@ -1160,7 +1160,7 @@ bool intersect(const Ray<T, 3>& ray,
       // Store candidate intersections from each Bezier patch
       axom::Array<T> tcc, ucc, vcc;
 
-      intersect(ray, bezier, tcc, ucc, vcc, tol, EPS, isHalfOpen, success);
+      intersect(ray, bezier, tcc, ucc, vcc, tol, EPS, isBezierHalfOpen, success);
 
       // Scale the intersection parameters back into the span of the NURBS patch
       for(int k = 0; k < tcc.size(); ++k)
@@ -1179,7 +1179,7 @@ bool intersect(const Ray<T, 3>& ray,
     u = uc;
     v = vc;
 
-    return !tc.empty();
+    return !t.empty();
   }
 
   // Do a second pass to remove duplicates from uc, vc
@@ -1224,7 +1224,7 @@ bool intersect(const Ray<T, 3>& ray,
     }
   }
 
-  return !tc.empty();
+  return !t.empty();
 }
 
 ///! \brief Determines if a ray intersects a NURBS patch with fewer exposed parameters.
@@ -1273,10 +1273,10 @@ bool intersect(const Line<T, 3>& line,
                axom::Array<T>& t,
                axom::Array<T>& u,
                axom::Array<T>& v,
-               double tol = 1e-8,
-               double EPS = 1e-8,
-               bool countUntrimmed = true,
-               bool isHalfOpen = false,
+               double tol,
+               double EPS,
+               bool countUntrimmed,
+               bool isHalfOpen,
                bool& success)
 {
   // Clear the input arrays
@@ -1303,8 +1303,8 @@ bool intersect(const Line<T, 3>& line,
   // Store candidate intersections
   axom::Array<T> tc, uc, vc;
 
-  bool isHalfOpen = false;
-  bool success = true;
+  bool isBezierHalfOpen = false;
+  success = true;
 
   // Check each Bezier patch, and scale the intersection parameters
   //  back into the span of the original NURBS patch
@@ -1319,7 +1319,7 @@ bool intersect(const Line<T, 3>& line,
       axom::Array<T> tcc, ucc, vcc;
 
       // If we're already in a failure state, skip the remaining patches
-      intersect(line, bezier, tcc, ucc, vcc, tol, EPS, isHalfOpen, success);
+      intersect(line, bezier, tcc, ucc, vcc, tol, EPS, isBezierHalfOpen, success);
 
       // Scale the intersection parameters back into the span of the NURBS patch
       for(int k = 0; k < tcc.size(); ++k)
@@ -1338,7 +1338,7 @@ bool intersect(const Line<T, 3>& line,
     u = uc;
     v = vc;
 
-    return !tc.empty();
+    return !t.empty();
   }
 
   // Do a second pass to remove duplicates from uc, vc
@@ -1384,7 +1384,7 @@ bool intersect(const Line<T, 3>& line,
     }
   }
 
-  return !tc.empty();
+  return !t.empty();
 }
 
 ///! \brief Determines if a line intersects a NURBS patch with fewer exposed parameters.

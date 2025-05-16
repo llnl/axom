@@ -214,10 +214,10 @@ double nurbs_winding_number(const Point<T, 3>& query,
   auto bBox = nPatch.boundingBox();
   auto oBox = nPatch.orientedBoundingBox();
 
-  auto characteristic_length = bBox.range().norm();
+  auto patch_diameter = bBox.range().norm();
 
-  bBox.expand(0.01 * characteristic_length);
-  oBox.expand(0.01 * characteristic_length);
+  bBox.expand(0.01 * patch_diameter);
+  oBox.expand(0.01 * patch_diameter);
 
   // Case 1: Exterior without rotations
   if(!bBox.contains(query))
@@ -247,8 +247,8 @@ double nurbs_winding_number(const Point<T, 3>& query,
     field_direction = DiscontinuityAxis::rotated;
 
     // Find vector from query to the bounding box
-    Point<T, 3> closest = closest_point(query, oBox);
-    Vector<T, 3> v0 = Vector<T, 3>(query, closest).unitVector();
+    const Point<T, 3> closest = closest_point(query, oBox);
+    const Vector<T, 3> v0 = Vector<T, 3>(query, closest).unitVector();
 
     // Find the direction of a ray perpendicular to that
     Vector<T, 3> v1;
@@ -262,7 +262,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
     }
 
     // Rotate v0 around v1 until it is perpendicular to the plane spanned by k and v1
-    double ang = (v0[2] < 0 ? 1.0 : -1.0) *
+    const double ang = (v0[2] < 0 ? 1.0 : -1.0) *
       acos(axom::utilities::clampVal(
         -(v0[0] * v1[1] - v0[1] * v1[0]) / sqrt(v1[0] * v1[0] + v1[1] * v1[1]),
         -1.0,
@@ -273,14 +273,14 @@ double nurbs_winding_number(const Point<T, 3>& query,
   else
   {
     field_direction = DiscontinuityAxis::rotated;
-    Line<T, 3> discontinuity_axis(query, cast_direction);
+    const Line<T, 3> discontinuity_axis(query, cast_direction);
 
     // Tolerance for what counts as "close to a boundary" in parameter space
     T disk_radius = 0.01 * nPatch.getParameterSpaceDiagonal();
 
     // Compute intersections with the *untrimmed and extrapolated* patch
     axom::Array<T> up, vp, tp;
-    bool isHalfOpen = false, countUntrimmed = true;
+    const bool isHalfOpen = false, countUntrimmed = true;
 
     bool success = true;
     intersect(discontinuity_axis, nPatch, tp, up, vp, ls_tol, EPS, countUntrimmed, isHalfOpen, success);
@@ -291,7 +291,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
       int num_noncoincident = 0;
       for(int i = 0; i < tp.size(); ++i)
       {
-        Point<T, 3> the_point(nPatch.evaluate(up[i], vp[i]));
+        const Point<T, 3> the_point(nPatch.evaluate(up[i], vp[i]));
         // If any of the intersection points are coincident with the surface,
         //  then attempt to clip out all degenerate intersections, and retry
         if(squared_distance(query, the_point) <= edge_tol_sq)
@@ -328,7 +328,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
         //  intersection is not after multiple re-casts.
         if(num_noncoincident > 5)
         {
-          auto new_cast_direction = random_unit();
+          const auto new_cast_direction = random_unit();
           return nurbs_winding_number(query,
                                       nPatch,
                                       new_cast_direction,
@@ -348,22 +348,22 @@ double nurbs_winding_number(const Point<T, 3>& query,
     for(int i = 0; i < up.size(); ++i)
     {
       // Compute the intersection point on the surface
-      Point<T, 3> the_point(nPatch.evaluate(up[i], vp[i]));
-      Vector<T, 3> the_normal = nPatch.normal(up[i], vp[i]);
+      const Point<T, 3> the_point(nPatch.evaluate(up[i], vp[i]));
+      const Vector<T, 3> the_normal = nPatch.normal(up[i], vp[i]);
 
       // Check for bad intersections, i.e.,
       //  > There normal is poorly defined (cusp)
       //  > The normal is tangent to the axis of discontinuity
-      bool bad_intersection = axom::utilities::isNearlyEqual(the_normal.norm(), 0.0, EPS) ||
+      const bool bad_intersection = axom::utilities::isNearlyEqual(the_normal.norm(), 0.0, EPS) ||
         axom::utilities::isNearlyEqual(the_normal.unitVector().dot(cast_direction), 0.0, EPS);
 
-      bool isOnSurface = squared_distance(query, the_point) <= edge_tol_sq;
+        const bool isOnSurface = squared_distance(query, the_point) <= edge_tol_sq;
 
       if(bad_intersection && !isOnSurface)
       {
         // If a non-coincident ray intersects the surface at a tangent/cusp,
         //  can recast and try again
-        auto new_cast_direction = random_unit();
+        const auto new_cast_direction = random_unit();
         return nurbs_winding_number(query,
                                     nPatch,
                                     new_cast_direction,
@@ -406,7 +406,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
       else if(!isDiskInside && !isDiskOutside)
       {
         // If the disk overlapped with the trimming curves, evaluate the winding number for the disk
-        auto new_cast_direction = random_unit();
+        const auto new_cast_direction = random_unit();
         the_gwn += nurbs_winding_number(query,
                                         the_disk,
                                         new_cast_direction,
@@ -425,13 +425,13 @@ double nurbs_winding_number(const Point<T, 3>& query,
       {
         // If the disk is entirely inside the trimming curves,
         //  need to account for the scalar field discontinuity
-        auto the_direction = Vector<T, 3>(query, the_point).unitVector();
+        const auto the_direction = Vector<T, 3>(query, the_point).unitVector();
         the_gwn += std::copysign(0.5, the_normal.dot(the_direction));
       }
     }
 
     // Rotate the patch so that the discontinuity is aligned with the z-axis
-    double ang = std::acos(axom::utilities::clampVal(cast_direction[2], -1.0, 1.0));
+    const double ang = std::acos(axom::utilities::clampVal(cast_direction[2], -1.0, 1.0));
     rotator = numerics::transforms::axisRotation(ang, cast_direction[1], -cast_direction[0], 0);
   }
 
@@ -439,7 +439,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
   {
     // The trimming curves for rotatedPatch have been changed as needed,
     //  but we need to rotate the control points
-    auto patch_shape = nPatchWithBoundaries.getControlPoints().shape();
+    const auto patch_shape = nPatchWithBoundaries.getControlPoints().shape();
     for(int i = 0; i < patch_shape[0]; ++i)
     {
       for(int j = 0; j < patch_shape[1]; ++j)
@@ -487,8 +487,8 @@ double stokes_winding_number_evaluate(const Point<T, 3>& query,
   double quad = 0;
   for(int n = 0; n < patch.getNumTrimmingCurves(); ++n)
   {
-    NURBSCurve<T, 2> trimming_curve(patch.getTrimmingCurve(n));
-    double quad_coarse =
+    const NURBSCurve<T, 2> trimming_curve(patch.getTrimmingCurve(n));
+    const double quad_coarse =
       stokes_winding_number_component(query, trimming_curve, patch, ax, 0, 0, quad_rule, quad_tol);
 
     quad +=
@@ -570,11 +570,11 @@ double stokes_winding_number_component(const Point<T, 3>& query,
   for(int q = 0; q < quad_rule.GetNPoints(); ++q)
   {
     // Find the right knot span based on refinement level
-    double span_length = (curve.getMaxKnot() - curve.getMinKnot()) / (1 << refinement_level);
-    double span_offset = curve.getMinKnot() + span_length * refinement_index;
+    const double span_length = (curve.getMaxKnot() - curve.getMinKnot()) / (1 << refinement_level);
+    const double span_offset = curve.getMinKnot() + span_length * refinement_index;
 
-    double quad_x = span_offset + span_length * quad_rule.IntPoint(q).x;
-    double quad_weight = quad_rule.IntPoint(q).weight * span_length;
+    const double quad_x = span_offset + span_length * quad_rule.IntPoint(q).x;
+    const double quad_weight = quad_rule.IntPoint(q).weight * span_length;
 
     Point<T, 2> c_eval;
     Vector<T, 2> c_Dt;

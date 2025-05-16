@@ -179,7 +179,7 @@ bool intersect_line_patch(const Line<T, 3> &line,
       // If we already found a degenerate intersection, we can skip the rest
       if(!success)
       {
-        return !tc.empty();
+        return !tp.empty();
       }
 
       // Check all four subpatches even if intersections are found, as we want to find them all
@@ -201,7 +201,7 @@ bool intersect_line_patch(const Line<T, 3> &line,
     }
   }
 
-  return !tc.empty();
+  return !tp.empty();
 }
 
 }  // end namespace detail
