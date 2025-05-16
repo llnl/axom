@@ -41,6 +41,7 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
   // Resize output array and use appropriate allocator.
   if(ovlap.size() < cellCount || ovlap.getAllocatorID() != allocId)
   {
+    AXOM_ANNOTATE_SCOPE("GeometryClipper::clip_alloc");
     ovlap = axom::Array<double>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
 

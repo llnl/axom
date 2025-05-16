@@ -91,7 +91,7 @@ public:
   int getBoxCellCount() const { return boxResolution[0] * boxResolution[1] * boxResolution[2]; }
 
   // The shape to run.
-  std::vector<std::string> testGeom;  // {"tetmesh"};
+  std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
   const std::set<std::string>
     availableShapes {"tetmesh", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane"};
@@ -99,7 +99,6 @@ public:
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
   double weldThresh {1e-9};
-  double percentError {-1.};
   std::string annotationMode {"none"};
 
   std::string backgroundMaterial;
@@ -147,17 +146,8 @@ public:
       ->check(axom::CLI::NonNegativeNumber)
       ->capture_default_str();
 
-    app.add_option("-e,--percent-error", percentError)
-      ->description(
-        "Percent error used for calculating curve refinement and revolved "
-        "volume.\n"
-        "If this value is provided then dynamic curve refinement will be used\n"
-        "instead of segment-based curve refinement.")
-      ->check(axom::CLI::PositiveNumber)
-      ->capture_default_str();
-
     app.add_option("-s,--testGeom", testGeom)
-      ->description("The shape(s) to run")
+      ->description("The geometry(s) to run.  Specifying multiple shapes will override scaling and translations to shrink shapes and shift them to individual octants of the mesh.")
       ->check(axom::CLI::IsMember(availableShapes))
       ->delimiter(',')
       ->expected(1, 30);
@@ -1187,7 +1177,7 @@ int main(int argc, char** argv)
     }
 
     quest::GeometryClipper clipper(sMesh, geomStrategies[i]);
-    clipper.setVerbose(true);
+    clipper.setVerbose(params.isVerbose());
     axom::Array<double> ovlap;
     AXOM_ANNOTATE_BEGIN(annotationName);
     clipper.clip(ovlap);

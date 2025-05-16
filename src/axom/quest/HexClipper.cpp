@@ -38,7 +38,6 @@ HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
   {
     m_bb.addPoint(m_hex[i]);
   }
-std::cout<<__WHERE<<m_hexBeforeTrans<<' '<<m_hex<<' '<<m_hex<<' '<<m_bb<<std::endl;
 
   for(int iTet = 0; iTet < HexahedronType::NUM_TRIANGULATE; ++iTet)
   {

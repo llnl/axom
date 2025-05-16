@@ -233,6 +233,7 @@ if(CONDUIT_FOUND AND RAJA_FOUND)
             NAME ${_testname}
             COMMAND quest_geometry_clipper_test
             --policy ${_policy}
+            --verbose
             --testGeom ${_testgeom}
             -o ${_testname}
             --refinements 5

@@ -86,7 +86,8 @@ public:
     Delegated methods are those requiring messy instantiation of
     execution spaces and their runtime selection.
 
-    The implementations are in class detail::GeometryClipperDelegateExec.
+    The implementations are in class detail::GeometryClipperDelegateExec,
+    which is templated on execution space.
   */
   struct Delegate
   {
