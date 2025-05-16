@@ -109,11 +109,10 @@ bool intersect_line_patch(const Line<T, 3> &line,
 
   // Early return if we start to record excessive intersections.
   //  This implies the patch is degenerate at the point of intersection.
-  constexpr int max_intersections = 100;
-  if(tp.size() >= max_intersections)
+  if(tp.size() > order_v * order_u)
   {
     SLIC_WARNING(
-      "Unexpectedly large number of intersections recorded."
+      "Too many intersections recorded for patch orders, suggesting a degenerate intersection."
       "Returning early to avoid excessive computation.");
 
     success = false;

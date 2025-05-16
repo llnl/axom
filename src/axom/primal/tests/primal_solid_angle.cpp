@@ -722,24 +722,29 @@ TEST(primal_integral, nurbspatch_sphere)
     EXPECT_NEAR(coincident_gwn[i], 0.5, 6 * quad_tol);
   }
 
-  // Repeat the test with the bicubic patches
+  // Test points near degenerate edges of the biquintic patches
   sphere_faces = make_sphere_bicubic();
+  axom::Array<Point3D> difficult_points(0, 5);
+  
+  // Outer points
+  difficult_points.emplace_back(Point3D(0.1 * query_directions[0].array()));
+  difficult_points.emplace_back(Point3D((1.0 - edge_offset) * query_directions[0].array()));
+  
+  // Inner points
+  difficult_points.emplace_back(Point3D(2.1 * query_directions[0].array()));
+  difficult_points.emplace_back(Point3D((1.0 + edge_offset) * query_directions[0].array()));
+  
+  // Coincident point
+  difficult_points.emplace_back(Point3D(query_directions[0].array()));
 
-  inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
-  outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  auto difficult_gwn =
+    winding_number(difficult_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
 
-  // The algorithm can handle cases where the query point is on the degenerate corner,
-  //  but at an expense that is impractical to test here
-  // coincident_gwn =
-  //   winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
-
-  // Check the resulting winding number
-  for(int i = 0; i < N; ++i)
-  {
-    EXPECT_NEAR(inner_gwn[i], 1.0, 8 * quad_tol);
-    EXPECT_NEAR(outer_gwn[i], 0.0, 8 * quad_tol);
-    // EXPECT_NEAR(coincident_gwn[i], 0.5, 8 * quad_tol);
-  }
+  EXPECT_NEAR(difficult_gwn[0], 1.0, 8 * quad_tol); // Inner point
+  EXPECT_NEAR(difficult_gwn[1], 1.0, 8 * quad_tol); // Inner point
+  EXPECT_NEAR(difficult_gwn[2], 0.0, 8 * quad_tol); // Outer point
+  EXPECT_NEAR(difficult_gwn[3], 0.0, 8 * quad_tol); // Outer point
+  EXPECT_NEAR(difficult_gwn[4], 0.5, 8 * quad_tol); // Coincident point
 }
 
 int main(int argc, char** argv)
