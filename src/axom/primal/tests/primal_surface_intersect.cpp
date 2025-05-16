@@ -54,13 +54,13 @@ void checkIntersections(const primal::Ray<CoordType, 3>& ray,
   EXPECT_EQ(exp_u.size(), exp_t.size());
 
   const int num_exp_intersections = static_cast<int>(exp_u.size());
-  const bool exp_success = true;  // No test returns a failure
+  const bool exp_intersect = (num_exp_intersections > 0);
 
   // Intersect the ray and the patch, intersection parameters will be
   // in arrays (u, v) and t, for the patch and ray, respectively
   Array u, v, t;
-  bool ray_success = intersect(ray, patch, t, u, v, eps, eps, isHalfOpen);
-  EXPECT_EQ(exp_success, ray_success);
+  bool ray_intersects = intersect(ray, patch, t, u, v, eps, eps, isHalfOpen);
+  EXPECT_EQ(exp_intersect, ray_intersects);
   EXPECT_EQ(u.size(), v.size());
   EXPECT_EQ(u.size(), t.size());
 
@@ -149,13 +149,13 @@ void checkIntersections(const primal::Ray<CoordType, 3>& ray,
   EXPECT_EQ(exp_u.size(), exp_t.size());
 
   const int num_exp_intersections = static_cast<int>(exp_u.size());
-  const bool exp_success = true;  // No test returns a failure
+  const bool exp_intersect = (num_exp_intersections > 0);
 
   // Intersect the ray and the patch, intersection parameters will be
   // in arrays (u, v) and t, for the patch and ray, respectively
   Array u, v, t;
-  bool ray_success = intersect(ray, patch, t, u, v, eps, eps, countUntrimmed, isHalfOpen);
-  EXPECT_EQ(exp_success, ray_success);
+  bool ray_intersects = intersect(ray, patch, t, u, v, eps, eps, countUntrimmed, isHalfOpen);
+  EXPECT_EQ(exp_intersect, ray_intersects);
   EXPECT_EQ(u.size(), v.size());
   EXPECT_EQ(u.size(), t.size());
 
