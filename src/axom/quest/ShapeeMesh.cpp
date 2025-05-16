@@ -274,9 +274,18 @@ void ShapeeMesh::setMatsetFromVolume(const std::string& materialName,
   else
   {
     SLIC_ASSERT(m_bpGrpExt != nullptr);
-    sidre::View* vfValues =
+    std::string viewPath = "matsets/" + m_matsetName + "/volume_fractions/" + materialName;
+    sidre::View* vfValues = m_bpGrpExt->hasView(viewPath) ? m_bpGrpExt->getView(viewPath) :
       m_bpGrpExt->createView("matsets/" + m_matsetName + "/volume_fractions/" + materialName);
-    vfValues->allocate(dataType, m_allocId);
+    if(!vfValues->isAllocated())
+    {
+      vfValues->allocate(dataType, m_allocId);
+    }
+    else
+    {
+      SLIC_ASSERT(vfValues->getSchema().dtype().id() == dataType.id());
+      SLIC_ASSERT(vfValues->getSchema().dtype().number_of_elements() == dataType.number_of_elements());
+    }
     vfPtr = (double*)(vfValues->getVoidPtr());
   }
 
