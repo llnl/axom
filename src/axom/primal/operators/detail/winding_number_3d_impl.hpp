@@ -357,7 +357,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
       const bool bad_intersection = axom::utilities::isNearlyEqual(the_normal.norm(), 0.0, EPS) ||
         axom::utilities::isNearlyEqual(the_normal.unitVector().dot(cast_direction), 0.0, EPS);
 
-        const bool isOnSurface = squared_distance(query, the_point) <= edge_tol_sq;
+      const bool isOnSurface = squared_distance(query, the_point) <= edge_tol_sq;
 
       if(bad_intersection && !isOnSurface)
       {
