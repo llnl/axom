@@ -100,9 +100,9 @@ struct braid2d_mat_test
   static void reset()
   {
     const axom::IndexType N = 10000;
-    axom::Array<double> arr(N, N, axom::execution_space<hip_exec>::allocatorID());
+    axom::Array<double> arr(N, N, axom::execution_space<ExecSpace>::allocatorID());
     auto arrView = arr.view();
-    axom::for_all<hip_exec>(
+    axom::for_all<ExecSpace>(
       N,
       AXOM_LAMBDA(axom::IndexType index) { arrView[index] = index * index; });
   }
