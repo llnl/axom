@@ -67,6 +67,13 @@ public:
   Triangle(const PointType& A, const PointType& B, const PointType& C) : m_points {A, B, C} { }
 
   /*!
+   * \brief Return the number of vertices in a Triangle.
+   *
+   * \return The number of vertices in a Triangle.
+   */
+  AXOM_HOST_DEVICE static constexpr int numVertices() { return NUM_TRI_VERTS; }
+
+  /*!
    * \brief Index operator to get the i^th vertex
    * \param idx The index of the desired vertex
    * \pre idx is 0, 1 or 2

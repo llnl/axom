@@ -55,12 +55,18 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polygon<T, 2, ARRAY_TYP
   return p.area();
 }
 
+// We define various shapeOverlap methods to handle
+// Tetrahedron, Hexahedron, Polyhedron, PolyhedralFaces shapes.
+
 /*!
  * \brief Return the volume of the overlap between the shapes.
  * \param shape1 The subject shape.
  * \param shape2 The clip shape.
  * \return The volume of the overlap between the shapes.
  */
+// @{
+
+// Tetrahedron first
 template <typename T>
 AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shape1,
                                      const axom::primal::Tetrahedron<T, 3> &shape2,
@@ -70,27 +76,6 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shap
   return ph.volume();
 }
 
-/*!
- * \brief Return the volume of the overlap between the shapes.
- * \param shape1 The subject shape.
- * \param shape2 The clip shape.
- * \return The volume of the overlap between the shapes.
- */
-template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape1,
-                                     const axom::primal::Hexahedron<T, 3> &shape2,
-                                     double eps = 1.e-10)
-{
-  const auto ph = axom::primal::clip(shape1, shape2, eps);
-  return ph.volume();
-}
-
-/*!
- * \brief Return the volume of the overlap between the shapes.
- * \param shape1 The subject shape.
- * \param shape2 The clip shape.
- * \return The volume of the overlap between the shapes.
- */
 template <typename T>
 AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shape1,
                                      const axom::primal::Hexahedron<T, 3> &shape2,
@@ -100,12 +85,27 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shap
   return ph.volume();
 }
 
-/*!
- * \brief Return the volume of the overlap between the shapes.
- * \param shape1 The subject shape.
- * \param shape2 The clip shape.
- * \return The volume of the overlap between the shapes.
- */
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shape1,
+                                     const axom::primal::Polyhedron<T, 3> &shape2,
+                                     double eps = 1.e-10)
+{
+  const auto ph = axom::primal::clip(shape1, shape2, eps);
+  return ph.volume();
+}
+
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shape1,
+                                     const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape2,
+                                     double eps = 1.e-10)
+{
+  const bool tryFixOrientation = false;
+  auto clipped = axom::primal::Polyhedron<T, 3>::from_primitive(shape1, tryFixOrientation);
+  axom::primal::detail::clipPolyhedron(clipped, shape2.getFaces(), eps);
+  return clipped.volume();
+}
+
+// Hexahedron first
 template <typename T>
 AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape1,
                                      const axom::primal::Tetrahedron<T, 3> &shape2,
@@ -114,6 +114,137 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape
   const auto ph = axom::primal::clip(shape1, shape2, eps);
   return ph.volume();
 }
+
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape1,
+                                     const axom::primal::Hexahedron<T, 3> &shape2,
+                                     double eps = 1.e-10)
+{
+  const auto ph = axom::primal::clip(shape1, shape2, eps);
+  return ph.volume();
+}
+
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape1,
+                                     const axom::primal::Polyhedron<T, 3> &shape2,
+                                     double eps = 1.e-10)
+{
+  const auto ph = axom::primal::clip(shape1, shape2, eps);
+  return ph.volume();
+}
+
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape1,
+                                     const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape2,
+                                     double eps = 1.e-10)
+{
+  const bool tryFixOrientation = false;
+  auto clipped = axom::primal::Polyhedron<T, 3>::from_primitive(shape1, tryFixOrientation);
+  axom::primal::detail::clipPolyhedron(clipped, shape2.getFaces(), eps);
+  return clipped.volume();
+}
+
+// Polyhedron first
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape1,
+                                     const axom::primal::Tetrahedron<T, 3> &shape2,
+                                     double eps = 1.e-10)
+{
+  const auto ph = axom::primal::clip(shape1, shape2, eps);
+  return ph.volume();
+}
+
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape1,
+                                     const axom::primal::Hexahedron<T, 3> &shape2,
+                                     double eps = 1.e-10)
+{
+  const auto ph = axom::primal::clip(shape1, shape2, eps);
+  return ph.volume();
+}
+
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape1,
+                                     const axom::primal::Polyhedron<T, 3> &shape2,
+                                     double eps = 1.e-10)
+{
+  const auto ph = axom::primal::clip(shape1, shape2, eps);
+  return ph.volume();
+}
+
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape1,
+                                     const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape2,
+                                     double eps = 1.e-10)
+{
+  auto clipped = shape1;
+  axom::primal::detail::clipPolyhedron(clipped, shape2.getFaces(), eps);
+  return clipped.volume();
+}
+
+// PolyhedralFaces first
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape1,
+                                     const axom::primal::Tetrahedron<T, 3> &shape2,
+                                     double eps = 1.e-10)
+{
+  return shapeOverlap(shape2, shape1, eps);
+}
+
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape1,
+                                     const axom::primal::Hexahedron<T, 3> &shape2,
+                                     double eps = 1.e-10)
+{
+  return shapeOverlap(shape2, shape1, eps);
+}
+
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape1,
+                                     const axom::primal::Polyhedron<T, 3> &shape2,
+                                     double eps = 1.e-10)
+{
+  return shapeOverlap(shape2, shape1, eps);
+}
+
+template <typename T>
+AXOM_HOST_DEVICE double shapeOverlap(const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape1,
+                                     const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape2,
+                                     double eps = 1.e-10)
+{
+  using PointType = axom::primal::Point<T, 3>;
+  // Find largest plane offset.
+  T maxOffset {};
+  for(const auto &plane : shape1.getFaces())
+  {
+    maxOffset = axom::utilities::max(maxOffset, axom::utilities::abs(plane.getOffset()));
+  }
+  for(const auto &plane : shape2.getFaces())
+  {
+    maxOffset = axom::utilities::max(maxOffset, axom::utilities::abs(plane.getOffset()));
+  }
+  // maxOffset is a radius from the origin. Make it bigger so we can use it as the bounds of a hex.
+  maxOffset *= T {2};
+
+  // Make a hex to clip
+  axom::primal::Hexahedron<T, 3> hex(PointType {-maxOffset, -maxOffset, -maxOffset},
+                                     PointType {maxOffset, -maxOffset, -maxOffset},
+                                     PointType {maxOffset, maxOffset, -maxOffset},
+                                     PointType {-maxOffset, maxOffset, -maxOffset},
+                                     PointType {-maxOffset, -maxOffset, maxOffset},
+                                     PointType {maxOffset, -maxOffset, maxOffset},
+                                     PointType {maxOffset, maxOffset, maxOffset},
+                                     PointType {-maxOffset, maxOffset, maxOffset});
+  // Turn the large hex polyhedral and then clip by all planes.
+  auto clipped = axom::primal::Polyhedron<T, 3>::from_primitive(hex);
+  axom::primal::detail::clipPolyhedron(clipped, shape1.getFaces(), eps);
+  axom::primal::detail::clipPolyhedron(clipped, shape2.getFaces(), eps);
+  return clipped.volume();
+}
+
+// @}
+
+// VariableShape helpers
 
 /*!
  * \brief Return the volume of the overlap between the shapes.
@@ -280,6 +411,10 @@ AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
  * \tparam SrcMatsetView The view type for the source matset.
  * \tparam TargetTopologyView The view type for the target topology.
  * \tparam TargetCoordsetView The view type for the target coordset.
+ * \tparam makeFaces Make faces instead of proper Polyhedron zones when polyhedra
+ *                   are involved. This enables faster conversion between Blueprint
+ *                   and Axom since making planes is less complicated than Axom's
+ *                   Polyhedron.
  *
  * \note The use of topology and coordset views as template parameters allows
  *       this class to be instantiated for use with various topology and coordset
@@ -291,14 +426,15 @@ template <typename ExecSpace,
           typename SrcCoordsetView,
           typename SrcMatsetView,
           typename TargetTopologyView,
-          typename TargetCoordsetView>
+          typename TargetCoordsetView,
+          bool makeFaces = true>
 class TopologyMapper
 {
 public:
   static_assert(SrcCoordsetView::dimension() == TargetCoordsetView::dimension(),
                 "coordset dimension mismatch");
 
-  using SrcShapeView = PrimalAdaptor<SrcTopologyView, SrcCoordsetView>;
+  using SrcShapeView = PrimalAdaptor<SrcTopologyView, SrcCoordsetView, makeFaces>;
   using TargetShapeView = PrimalAdaptor<TargetTopologyView, TargetCoordsetView>;
 
   /**

@@ -121,8 +121,8 @@ public:
         const auto size = static_cast<int>(sizesView[index]);
         const auto offset = offsetsView[index];
 
-        typename MatsetView::IDList ids {};
-        typename MatsetView::VFList vfs {};
+        typename MatsetView::IDList ids;
+        typename MatsetView::VFList vfs;
         deviceMatsetView.zoneMaterials(deviceSelectedZonesView[index], ids, vfs);
 
         for(int i = 0; i < size; i++)

@@ -13,6 +13,11 @@ for Blueprint meshes.
  * Structured as classes with an ``execute()`` method
  * Often templated on execution space and views
 
+Classes are used so algorithms can contain state such as view objects and so various
+algorithm stages or utility functions can be written as helper methods. Classes also
+allow algorithms to be modified using inheritance and overriding methods. Finally,
+classes allow the MIR component to provide specialized versions of templated algorithms.
+
 Blueprint meshes consist of various parts such as coordsets, topologies, fields, and matsets.
 These constructs are organized as various paths within a root Conduit node. Elements such
 as strings and scalar values can be stored as usual within a Conduit node in host memory.
@@ -163,6 +168,21 @@ field and makes a new field.
    :end-before: _mir_utilities_fieldslicer_end
    :language: C++
 
+#######################
+MakePolyhedralTopology
+#######################
+
+The ``axom::mir::utilities::blueprint::MakePolyhedralTopology`` class transforms an
+input topology from its native form to an unstructured polyhedral topology. The output
+topology uses the same coordset as the input topology. The faces produced from each zone
+in the source topology will not be unique. The ``MergePolyhedralFaces`` class can be used
+to merge polyhedral faces so they are unique.
+
+.. literalinclude:: ../../tests/mir_make_polyhedral_topology.cpp
+   :start-after: _mir_utilities_makepolyhedraltopology_begin
+   :end-before: _mir_utilities_makepolyhedraltopology_end
+   :language: C++
+
 ##################
 MakeUnstructured
 ##################
@@ -213,6 +233,31 @@ MatsetSlicer to pull out and assemble a new matset data for a specific list of z
    :end-before: _mir_utilities_matsetslicer_end
    :language: C++
 
+####################
+MergeCoordsetPoints
+####################
+
+The ``axom::mir::utilities::blueprint::MergeCoordsetPoints`` class merges duplicate
+coordinates in an input coordset, within a given tolerance.
+The tolerance is passed via an options node with a key value called "tolerance". Points
+are merged by first rounding off extra precision in a temporary point copy that is used to
+make a hashed name for the point. Points within the tolerance get the same hashed
+name and points are made unique using the ``Unique`` class.
+
+The selected point for each unique name is copied into the coordset, overwriting the old
+coordset values. The number of points in the coordset will change if any merging is done.
+This means that any topologies that reference the coordset will need to be updated.
+The class passes out a selectedIds array containing indices from the original coordset
+that are used in the new coordset. This information can be used with ``FieldSlicer`` to
+slice/update vertex fields. An ``old2new`` array is also returned, which is a
+map to convert old node indices to new indices in the updated coordset. This map can be
+used to update connectivity node numbers.
+
+.. literalinclude:: ../../detail/elvira_detail.hpp
+   :start-after: _mir_utilities_mergecoordsetpoints_begin
+   :end-before: _mir_utilities_mergecoordsetpoints_end
+   :language: C++
+
 ##################
 MergeMeshes
 ##################
@@ -226,6 +271,22 @@ A derived class can also merge matsets.
 .. literalinclude:: ../../tests/mir_mergemeshes.cpp
    :start-after: _mir_utilities_mergemeshes_begin
    :end-before: _mir_utilities_mergemeshes_end
+   :language: C++
+
+#####################
+MergePolyhedralFaces
+#####################
+
+The ``axom::mir::utilities::blueprint::MergePolyhedralFaces`` class takes an input
+Blueprint topology, which may have duplicated faces, and makes the face definitions
+in the subelements unique and rewrites the subelement and element connectivity. For
+faces to be merged successfully, the faces must reference the same coordinate indices
+in the coordset. The ``MergePolyhedralFaces`` class modifies the Conduit node that
+contains the input polyhedral topology.
+
+.. literalinclude:: ../../tests/mir_make_polyhedral_topology.cpp
+   :start-after: _mir_utilities_makepolyhedraltopology_begin
+   :end-before: _mir_utilities_makepolyhedraltopology_end
    :language: C++
 
 ###########################
@@ -247,13 +308,21 @@ PrimalAdaptor
 ############### 
 
 The ``axom::mir::utilities::blueprint::PrimalAdaptor`` class takes a topology view and a
-coordset view and makes it possible to retrieve a zone as a shape from Axom's primal
-component. For example, the PrimalAdaptor class can wrap a topology view that contains 2D
+coordset view and makes it possible to retrieve a zone as a shape from Axom's Primal
+component. For example, the ``PrimalAdaptor`` class can wrap a topology view that contains 2D
 shapes such as triangles, quads, polygons and allow them to be accessed as an
-``axom::primal::Polygon``. For 3D, primal shapes are returned for meshes that contain
-tetrahedra or hexahedra. For meshes that contain pyramids or wedges, or contain mixed
-shapes, a VariableShape is returned that allows those shapes to be represented using
-one or more primal shapes.
+``axom::primal::Polygon``. For 3D, Primal shapes are returned for meshes that contain
+tetrahedra, hexahedra, or polyhedra. For unstructured meshes that contain pyramids or
+wedges, or mixed shapes, a ``VariableShape`` is returned that allows those shapes to be
+represented using one or more primal shapes.
+
+When the class is instantiated with
+``axom::mir::views::UnstructuredTopologyPolyhedralView`` as its topology view, the ``getShape()``
+method will normally return ``axom::primal::Polyhedron``. Converting between Blueprint polyhedron
+zones and Axom ``Polyhedron`` objects is sometimes overkill so the ``PrimalAdaptor`` class can
+also expose polyhedra as a special ``PolyhedralFaces`` representation that represents the
+polyhedron as a collection of ``axom::primal::Plane`` objects. This mode is selected by
+instantiating ``PrimalAdaptor`` with the ``makeFaces`` template parameter set to true.
 
 .. literalinclude:: ../../utilities/MakeZoneVolumes.hpp
    :start-after: _mir_utilities_makezonevolumes_begin

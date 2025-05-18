@@ -66,14 +66,14 @@ public:
    *
    * \return The number of zones.
    */
-  AXOM_HOST_DEVICE IndexType size() const { return m_zoneIndexing.size(); }
+  AXOM_HOST_DEVICE inline IndexType size() const { return m_zoneIndexing.size(); }
 
   /*!
    * \brief Return the number of zones.
    *
    * \return The number of zones.
    */
-  AXOM_HOST_DEVICE IndexType numberOfZones() const { return size(); }
+  AXOM_HOST_DEVICE inline IndexType numberOfZones() const { return size(); }
 
   /*!
    * \brief Return the size of the connectivity.
@@ -105,14 +105,14 @@ public:
    *
    * \return The indexing object.
    */
-  AXOM_HOST_DEVICE IndexingPolicy &indexing() { return m_zoneIndexing; }
+  AXOM_HOST_DEVICE inline IndexingPolicy &indexing() { return m_zoneIndexing; }
 
   /*!
    * \brief Return indexing object.
    *
    * \return The indexing object.
    */
-  AXOM_HOST_DEVICE const IndexingPolicy &indexing() const { return m_zoneIndexing; }
+  AXOM_HOST_DEVICE inline const IndexingPolicy &indexing() const { return m_zoneIndexing; }
 
   /*!
    * \brief Return a zone.

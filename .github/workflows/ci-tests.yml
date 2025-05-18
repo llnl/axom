@@ -102,7 +102,7 @@ jobs:
           echo "compiler_image ${{ matrix.config.compiler_image }}"
           echo "host_config    ${{ matrix.config.host_config }}"
       - name: Build and Test ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
-        timeout-minutes: 60
+        timeout-minutes: 80
         run: |
           DO_BUILD=${{ matrix.config.do_build }} \
           DO_BENCHMARKS=${{ matrix.config.do_benchmarks }} \

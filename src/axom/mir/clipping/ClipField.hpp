@@ -16,6 +16,7 @@
 #include "axom/mir/utilities/FieldSlicer.hpp"
 #include "axom/mir/utilities/SelectedZones.hpp"
 #include "axom/mir/utilities/utilities.hpp"
+#include "axom/mir/utilities/Unique.hpp"
 #include "axom/mir/views/Shapes.hpp"
 #include "axom/mir/views/view_traits.hpp"
 #include "axom/slic.hpp"
@@ -1150,7 +1151,9 @@ public:
           const auto zoneIndex = selectedZonesView[index];
           const auto start = fragmentData.m_fragmentOffsetsView[index];
           for(int i = 0; i < fragmentData.m_fragmentsView[index]; i++)
+          {
             sliceIndicesView[start + i] = zoneIndex;
+          }
         });
       slice.m_indicesView = sliceIndicesView;
     }
@@ -1847,8 +1850,9 @@ private:
                 const int fragmentSize = fragment.size();
                 offsetsView[sizeIndex] = outputIndex;
                 for(int i = 2; i < fragmentSize; i++)
+                {
                   connView[outputIndex++] = point_2_new[fragment[i]];
-
+                }
                 const auto nIdsThisFragment = fragmentSize - 2;
 #if defined(AXOM_CLIP_FILTER_DEGENERATES)
                 // Set the output zone size, checking to see whether it is degenerate.
@@ -1953,7 +1957,9 @@ private:
       n_newTopo["elements/shape"] = "mixed";
       conduit::Node &n_shape_map = n_newTopo["elements/shape_map"];
       for(auto it = shapeMap.cbegin(); it != shapeMap.cend(); it++)
+      {
         n_shape_map[it->first] = it->second;
+      }
     }
     else
     {
@@ -2133,7 +2139,10 @@ private:
           const int sizeIndex = fragmentData.m_fragmentOffsetsView[index];
           const int nFragments = fragmentData.m_fragmentsView[index];
           const auto zoneIndex = selectedZonesView[index];
-          for(int i = 0; i < nFragments; i++) valuesView[sizeIndex + i] = zoneIndex;
+          for(int i = 0; i < nFragments; i++)
+          {
+            valuesView[sizeIndex + i] = zoneIndex;
+          }
         });
     }
   }
@@ -2164,7 +2173,10 @@ private:
         const int sizeIndex = fragmentData.m_fragmentOffsetsView[index];
         const int nFragments = fragmentData.m_fragmentsView[index];
         const auto zoneIndex = selectedZonesView[index];
-        for(int i = 0; i < nFragments; i++) valuesView[sizeIndex + i] = origValuesView[zoneIndex];
+        for(int i = 0; i < nFragments; i++)
+        {
+          valuesView[sizeIndex + i] = origValuesView[zoneIndex];
+        }
       });
   }
 
