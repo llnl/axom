@@ -20,11 +20,6 @@
 
 #include <conduit/conduit.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 #include <algorithm>
 #include <string>
 
@@ -275,8 +270,6 @@ private:
 template <typename ExecSpace, typename TopologyView, typename CoordsetView, typename MatsetView>
 class EquiZAlgorithm : public axom::mir::MIRAlgorithm
 {
-  using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
 public:
   using ConnectivityType = typename TopologyView::ConnectivityType;
 
@@ -663,7 +656,7 @@ protected:
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     axom::Array<int> maskOffset(numOutputNodes, numOutputNodes, allocatorID);
     auto maskOffsetsView = maskOffset.view();
-    RAJA::ReduceSum<reduce_policy, int> mask_reduce(0);
+    axom::ReduceSum<ExecSpace, int> mask_reduce(0);
     axom::for_all<ExecSpace>(
       numOutputNodes,
       AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });

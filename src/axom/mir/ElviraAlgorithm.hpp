@@ -30,11 +30,6 @@
 
 #include <conduit/conduit.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 #include <algorithm>
 #include <string>
 
@@ -84,9 +79,6 @@ protected:
   static constexpr int NDIMS = IndexPolicy::dimension();
   static constexpr int StencilSize = elvira::getStencilSize(NDIMS);
   static constexpr int numVectorComponents = 3;
-
-  using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-  using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
 
   // Determine the output type from the clip operations. Those are the shape
   // types that we're emitting into the MIR output. Create the builder.
@@ -558,8 +550,7 @@ protected:
     // Sort the zones by the mat count. This should make adjacent zones in the
     // list more likely to have the same number of materials.
     AXOM_ANNOTATE_BEGIN("sorting");
-    RAJA::stable_sort_pairs<loop_policy>(RAJA::make_span(matCountView.data(), nzones),
-                                         RAJA::make_span(matZoneView.data(), nzones));
+    axom::stable_sort_pairs<ExecSpace>(matCountView, matZoneView);
     AXOM_ANNOTATE_END("sorting");
 
     //--------------------------------------------------------------------------
