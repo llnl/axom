@@ -19,6 +19,7 @@
 // Axom includes
 #include "axom/core/StackArray.hpp"
 #include "axom/core/execution/execution_space.hpp"
+#include "axom/core/execution/atomics.hpp"
 #include "axom/core/execution/for_all.hpp"
 #include "axom/core/execution/reductions.hpp"
 #include "axom/core/execution/synchronize.hpp"
@@ -180,7 +181,6 @@ void demoAxomExecution()
   //_gpu_reduce_end
 
   //_gpu_atomic_start
-  using atomic_pol = typename axom::execution_space<ExecSpace>::atomic_policy;
 
   int *sum = axom::allocate<int>(1, allocator_id);
   *sum = 0;
@@ -188,7 +188,7 @@ void demoAxomExecution()
   // Increment sum 100 times
   axom::for_all<ExecSpace>(
     100,
-    AXOM_LAMBDA(axom::IndexType) { RAJA::atomicAdd<atomic_pol>(sum, 1); });
+    AXOM_LAMBDA(axom::IndexType) { axom::atomicAdd<ExecSpace>(sum, 1); });
 
   std::cout << "\nTotal Atomic Sum (" << axom::execution_space<ExecSpace>::name() << ") :" << sum[0]
             << std::endl;

@@ -45,6 +45,8 @@ namespace axom
 {
 namespace serial
 {
+namespace reductions
+{
 // Serial reductions adapted from Ascent.
 // https://github.com/Alpine-DAV/ascent/blob/develop/src/libs/ascent/runtimes/expressions/ascent_execution_policies.hpp
 
@@ -254,23 +256,24 @@ private:
   index_t *m_index_ptr;
 };
 
+}  // namespace reductions
 }  // namespace serial
 
 // Use the serial implementations when we do not have RAJA.
 template <typename ExecSpace, typename T>
-using ReduceSum = axom::serial::ReduceSum<ExecSpace, T>;
+using ReduceSum = axom::serial::reductions::ReduceSum<ExecSpace, T>;
 
 template <typename ExecSpace, typename T>
-using ReduceMin = axom::serial::ReduceMin<ExecSpace, T>;
+using ReduceMin = axom::serial::reductions::ReduceMin<ExecSpace, T>;
 
 template <typename ExecSpace, typename T>
-using ReduceMinLoc = axom::serial::ReduceMinLoc<ExecSpace, T>;
+using ReduceMinLoc = axom::serial::reductions::ReduceMinLoc<ExecSpace, T>;
 
 template <typename ExecSpace, typename T>
-using ReduceMax = axom::serial::ReduceMax<ExecSpace, T>;
+using ReduceMax = axom::serial::reductions::ReduceMax<ExecSpace, T>;
 
 template <typename ExecSpace, typename T>
-using ReduceMaxLoc = axom::serial::ReduceMaxLoc<ExecSpace, T>;
+using ReduceMaxLoc = axom::serial::reductions::ReduceMaxLoc<ExecSpace, T>;
 
 }  // namespace axom
 #endif  // AXOM_HAVE_RAJA

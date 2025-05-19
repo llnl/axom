@@ -11,6 +11,10 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
 
+#if defined(AXOM_USE_RAJA)
+  #include "RAJA/RAJA.hpp"
+#endif
+
 // C/C++ includes
 #include <type_traits>
 #include <utility>
@@ -49,8 +53,7 @@ inline void exclusive_scan(const ContiguousMemoryContainer &input, ContiguousMem
 {
   assert(input.size() == output.size());
 
-#ifdef AXOM_USE_RAJA
-
+#if defined(AXOM_USE_RAJA)
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
   RAJA::exclusive_scan<loop_policy>(RAJA::make_span(input.data(), input.size()),
                                     RAJA::make_span(output.data(), output.size()));
@@ -97,8 +100,7 @@ inline void inclusive_scan(const ContiguousMemoryContainer &input, ContiguousMem
 {
   assert(input.size() == output.size());
 
-#ifdef AXOM_USE_RAJA
-
+#if defined(AXOM_USE_RAJA)
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
   RAJA::inclusive_scan<loop_policy>(RAJA::make_span(input.data(), input.size()),
                                     RAJA::make_span(output.data(), output.size()));

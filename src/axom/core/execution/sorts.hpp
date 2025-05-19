@@ -36,7 +36,7 @@ inline void sort_pairs(ContiguousMemoryContainer &input1, ContiguousMemoryContai
 {
   assert(input1.size() == input2.size());
 
-#ifdef AXOM_USE_RAJA
+#if defined(AXOM_USE_RAJA)
   // Sort using RAJA
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
   RAJA::sort_pairs<loop_policy>(RAJA::make_span(input1.data(), input1.size()),
@@ -64,7 +64,7 @@ inline void stable_sort_pairs(ContiguousMemoryContainer &input1, ContiguousMemor
 {
   assert(input1.size() == input2.size());
 
-#ifdef AXOM_USE_RAJA
+#if defined(AXOM_USE_RAJA)
   // Sort using RAJA
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
   RAJA::stable_sort_pairs<loop_policy>(RAJA::make_span(input1.data(), input1.size()),
