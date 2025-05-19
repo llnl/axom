@@ -16,23 +16,62 @@
 #else
   #include "axom/core/utilities/Sorting.hpp"
   #include <algorithm>
+  #include <numeric>
+  #include <vector>
 #endif
 
 namespace axom
 {
 
 /*!
- * \brief Sort a pair of containers using the first container's elements as the
- *        values to sort. The second container is sorted the same way.
+ * \brief Sort an array.
+ *
+ * \tparam ExecSpace The execution space where the sort occurs.
+ * \tparam T The type of data to sort.
+ *
+ * \param input The data array to sort.
+ * \param size The number of elements to sort.
+ */
+template <typename ExecSpace, typename T>
+inline void sort(T *input, axom::IndexType size)
+{
+#if defined(AXOM_USE_RAJA)
+  // Sort using RAJA
+  using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
+  RAJA::sort<loop_policy>(RAJA::make_span(input, size));
+#else
+  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, SEQ_EXEC>::value);
+  axom::utilities::Sorting<T>::sort(input, size);
+#endif
+}
+
+/*!
+ * \brief Sort a container.
  *
  * \tparam ExecSpace The execution space where the sort occurs.
  * \tparam ContiguousMemoryContainer Container type for the data to sort.
  *
- * \brief input1 The container to sort (used as sorting key values).
- * \brief input2 A second container to sort (according to input1's sort order).
+ * \param input The container to sort.
  */
 template <typename ExecSpace, typename ContiguousMemoryContainer>
-inline void sort_pairs(ContiguousMemoryContainer &input1, ContiguousMemoryContainer &input2)
+inline void sort(ContiguousMemoryContainer &input)
+{
+  sort<ExecSpace>(input.data(), input.size());
+}
+
+/*!
+ * \brief Sort a pair of containers using the first container's elements as the
+ *        values to sort. The second container is sorted the same way.
+ *
+ * \tparam ExecSpace The execution space where the sort occurs.
+ * \tparam Container1 The container type to sort.
+ * \tparam Container2 The second container type to sort.
+ *
+ * \param input1 The container to sort (used as sorting key values).
+ * \param input2 A second container to sort (according to input1's sort order).
+ */
+template <typename ExecSpace, typename Container1, typename Container2>
+inline void sort_pairs(Container1 &input1, Container2 &input2)
 {
   assert(input1.size() == input2.size());
 
@@ -49,46 +88,66 @@ inline void sort_pairs(ContiguousMemoryContainer &input1, ContiguousMemoryContai
 }
 
 /*!
- * \brief Sort a pair of containers using the first container's elements as the
- *        values to sort. The second container is sorted the same way. This sort
+ * \brief Sort a pair of arrays using the first array's elements as the
+ *        values to sort. The second array is sorted the same way. This sort
  *        is stable.
  *
  * \tparam ExecSpace The execution space where the sort occurs.
- * \tparam ContiguousMemoryContainer Container type for the data to sort.
+ * \tparam T Type for the first data array to sort.
+ * \tparam U Type for the second data array to sort.
  *
- * \brief input1 The container to sort (used as sorting key values).
- * \brief input2 A second container to sort (according to input1's sort order).
+ * \param input1 The data array to sort (used as sorting key values).
+ * \param input2 A second array to sort (according to input1's sort order).
+ * \param size The number of elements in input1 and input2.
  */
-template <typename ExecSpace, typename ContiguousMemoryContainer>
-inline void stable_sort_pairs(ContiguousMemoryContainer &input1, ContiguousMemoryContainer &input2)
+template <typename ExecSpace, typename T, typename U>
+inline void stable_sort_pairs(T *input1, U *input2, axom::IndexType size)
 {
-  assert(input1.size() == input2.size());
-
 #if defined(AXOM_USE_RAJA)
   // Sort using RAJA
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
-  RAJA::stable_sort_pairs<loop_policy>(RAJA::make_span(input1.data(), input1.size()),
-                                       RAJA::make_span(input2.data(), input2.size()));
+  RAJA::stable_sort_pairs<loop_policy>(RAJA::make_span(input1, size),
+                                       RAJA::make_span(input2, size));
 
 #else
   AXOM_STATIC_ASSERT(std::is_same<ExecSpace, SEQ_EXEC>::value);
 
   // Do stable sort of indices using input1 as the sort key.
-  std::vector<axom::IndexType> indices(input1.size());
+  std::vector<axom::IndexType> indices(size);
   std::iota(indices.begin(), indices.end(), 0);
   std::stable_sort(indices.begin(), indices.end(), [&](axom::IndexType index1, axom::IndexType index2) {
     return input1[index1] < input1[index2];
   });
 
   // Store the values back into the input containers in sort order.
-  ContiguousMemoryContainer input1_copy(input1), input2_copy(input2);
-  const auto n = input1.size();
-  for(axom::IndexType i = 0; i < n; i++)
+  std::vector<T> input1_copy(input1, size);
+  std::vector<U> input2_copy(input2, size);
+  for(axom::IndexType i = 0; i < size; i++)
   {
     input1[i] = input1_copy[indices[i]];
     input2[i] = input2_copy[indices[i]];
   }
 #endif
+}
+
+/*!
+ * \brief Sort a pair of containers using the first container's elements as the
+ *        values to sort. The second container is sorted the same way. This sort
+ *        is stable.
+ *
+ * \tparam ExecSpace The execution space where the sort occurs.
+ * \tparam Container1 The container type to sort.
+ * \tparam Container2 The second container type to sort.
+ *
+ * \param input1 The data container to sort (used as sorting key values).
+ * \param input2 A second container to sort (according to input1's sort order).
+ * \param size The number of elements in input1 and input2.
+ */
+template <typename ExecSpace, typename Container1, typename Container2>
+inline void stable_sort_pairs(Container1 &input1, Container2 &input2)
+{
+  assert(input1.size() == input2.size());
+  stable_sort_pairs<ExecSpace>(input1.data(), input2.data(), input1.size());
 }
 
 }  // namespace axom
