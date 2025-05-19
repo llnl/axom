@@ -11,11 +11,8 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
 
-// NOTE: The usage style for these reductions is slightly different from how one
-//       would do it using RAJA directly. This is so we can create an object
-//       like this: axom::ReduceSum<axom::SEQ_EXEC, double> instead of needing to
-//       do RAJA::ReduceSum<axom::execution_space<axom::SEQ_EXEC>::reduce_policy, double>.
-//       The newer usage is more like how Axom does axom::for_all.
+// NOTE: Reduction operations used in Axom have been wrapped here. Additional
+//       RAJA reductions may need to be wrapped over time.
 
 #ifdef AXOM_USE_RAJA
   #include "RAJA/RAJA.hpp"
@@ -38,6 +35,13 @@ using ReduceMax = RAJA::ReduceMax<typename axom::execution_space<ExecSpace>::red
 
 template <typename ExecSpace, typename T>
 using ReduceMaxLoc = RAJA::ReduceMaxLoc<typename axom::execution_space<ExecSpace>::reduce_policy, T>;
+
+template <typename ExecSpace, typename T>
+using ReduceBitAnd = RAJA::ReduceBitAnd<typename axom::execution_space<ExecSpace>::reduce_policy, T>;
+
+template <typename ExecSpace, typename T>
+using ReduceBitOr = RAJA::ReduceBitOr<typename axom::execution_space<ExecSpace>::reduce_policy, T>;
+
 }  // namespace axom
 #else
 //------------------------------------------------------------------------------
@@ -256,6 +260,62 @@ private:
   index_t *m_index_ptr;
 };
 
+/*!
+ * \brief A serial implementation of a ReduceBitAnd operation.
+ */
+template <typename ExecSpace, typename T>
+class ReduceBitAnd
+{
+  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
+
+public:
+  ReduceBitAnd() : m_value(0), m_value_ptr(&m_value) { }
+
+  ReduceBitAnd(T v_start) : m_value(v_start), m_value_ptr(&m_value) { }
+
+  ReduceBitAnd(const ReduceSum &v)
+    : m_value(v.m_value)
+    ,                           // will be unused in copies
+    m_value_ptr(v.m_value_ptr)  // this is where the magic happens
+  { }
+
+  void operator&=(const T value) const { m_value_ptr[0] &= value; }
+
+  T get() const { return m_value; }
+
+private:
+  T m_value;
+  T *m_value_ptr;
+};
+
+/*!
+ * \brief A serial implementation of a ReduceBitOr operation.
+ */
+template <typename ExecSpace, typename T>
+class ReduceBitOr
+{
+  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
+
+public:
+  ReduceBitOr() : m_value(0), m_value_ptr(&m_value) { }
+
+  ReduceBitOr(T v_start) : m_value(v_start), m_value_ptr(&m_value) { }
+
+  ReduceBitOr(const ReduceSum &v)
+    : m_value(v.m_value)
+    ,                           // will be unused in copies
+    m_value_ptr(v.m_value_ptr)  // this is where the magic happens
+  { }
+
+  void operator|=(const T value) const { m_value_ptr[0] |= value; }
+
+  T get() const { return m_value; }
+
+private:
+  T m_value;
+  T *m_value_ptr;
+};
+
 }  // namespace reductions
 }  // namespace serial
 
@@ -274,6 +334,12 @@ using ReduceMax = axom::serial::reductions::ReduceMax<ExecSpace, T>;
 
 template <typename ExecSpace, typename T>
 using ReduceMaxLoc = axom::serial::reductions::ReduceMaxLoc<ExecSpace, T>;
+
+template <typename ExecSpace, typename T>
+using ReduceBitAnd = axom::serial::reductions::ReduceBitAnd<ExecSpace, T>;
+
+template <typename ExecSpace, typename T>
+using ReduceBitOr = axom::serial::reductions::ReduceBitOr<ExecSpace, T>;
 
 }  // namespace axom
 #endif  // AXOM_HAVE_RAJA
