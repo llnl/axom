@@ -702,7 +702,7 @@ private:
         all_tris_bb.addBox(primal::compute_bounding_box(tempPoly));
       }
       SLIC_INFO(
-        axom::fmt::format("DEBUG: Bounding box containing all generated triangles "
+        axom::fmt::format("VERBOSE: Bounding box containing all generated triangles "
                           "has dimensions:\n\t{}",
                           all_tris_bb));
 
@@ -715,7 +715,7 @@ private:
         m_tricount,
         AXOM_LAMBDA(axom::IndexType i) { total_tri_area += tri_device_view[i].area(); });
 
-      SLIC_INFO(axom::fmt::format("DEBUG: Total area of all generated triangles is {}",
+      SLIC_INFO(axom::fmt::format("VERBOSE: Total area of all generated triangles is {}",
                                   total_tri_area.get()));
 
       // Check if any Triangles are degenerate with zero area
@@ -729,7 +729,7 @@ private:
           }
         });
 
-      SLIC_INFO(axom::fmt::format("DEBUG: Degenerate {} triangles found with zero area",
+      SLIC_INFO(axom::fmt::format("VERBOSE: Degenerate {} triangles found with zero area",
                                   num_degenerate.get()));
 
     }  // end of verbose output for triangles
@@ -776,7 +776,7 @@ private:
         all_tet_bb.addBox(primal::compute_bounding_box(tets_host[i]));
       }
       SLIC_INFO(
-        axom::fmt::format("DEBUG: Bounding box containing all generated tetrahedra "
+        axom::fmt::format("VERBOSE: Bounding box containing all generated tetrahedra "
                           "has dimensions:\n\t{}",
                           all_tet_bb));
 
@@ -789,7 +789,7 @@ private:
         m_tetcount,
         AXOM_LAMBDA(axom::IndexType i) { total_tet_vol += tets_device_view[i].volume(); });
 
-      SLIC_INFO(axom::fmt::format("DEBUG: Total volume of all generated tetrahedra is {}",
+      SLIC_INFO(axom::fmt::format("VERBOSE: Total volume of all generated tetrahedra is {}",
                                   total_tet_vol.get()));
 
       // Check if any Tetrahedron are degenerate with zero volume
@@ -803,7 +803,7 @@ private:
           }
         });
 
-      SLIC_INFO(axom::fmt::format("DEBUG: Degenerate {} tetrahedra found with zero volume",
+      SLIC_INFO(axom::fmt::format("VERBOSE: Degenerate {} tetrahedra found with zero volume",
                                   num_degenerate.get()));
 
       // Dump tet mesh as a vtk mesh
@@ -874,7 +874,7 @@ private:
           all_oct_bb.addBox(primal::compute_bounding_box(octs_host[i]));
         }
         SLIC_INFO(
-          axom::fmt::format("DEBUG: Bounding box containing all generated octahedra "
+          axom::fmt::format("VERBOSE: Bounding box containing all generated octahedra "
                             "has dimensions:\n\t{}",
                             all_oct_bb));
 
@@ -885,26 +885,12 @@ private:
           m_octcount,
           AXOM_LAMBDA(axom::IndexType i) {
             // Convert Octahedron into Polyhedron
-            PolyhedronType octPoly;
-
-            octPoly.addVertex(octs_device_view[i][0]);
-            octPoly.addVertex(octs_device_view[i][1]);
-            octPoly.addVertex(octs_device_view[i][2]);
-            octPoly.addVertex(octs_device_view[i][3]);
-            octPoly.addVertex(octs_device_view[i][4]);
-            octPoly.addVertex(octs_device_view[i][5]);
-
-            octPoly.addNeighbors(0, {1, 5, 4, 2});
-            octPoly.addNeighbors(1, {0, 2, 3, 5});
-            octPoly.addNeighbors(2, {0, 4, 3, 1});
-            octPoly.addNeighbors(3, {1, 2, 4, 5});
-            octPoly.addNeighbors(4, {0, 5, 3, 2});
-            octPoly.addNeighbors(5, {0, 1, 3, 4});
+            PolyhedronType octPoly = PolyhedronType::from_primitive(octs_device_view[i]);
 
             total_oct_vol += octPoly.volume();
           });
 
-        SLIC_INFO(axom::fmt::format("DEBUG: Total volume of all generated octahedra is {}",
+        SLIC_INFO(axom::fmt::format("VERBOSE: Total volume of all generated octahedra is {}",
                                     total_oct_vol.get()));
 
         // Check if any Octahedron are degenerate with all points {0,0,0}
@@ -926,7 +912,7 @@ private:
             }
           });
 
-        SLIC_INFO(axom::fmt::format("DEBUG: {} Octahedron found with all points (0,0,0)",
+        SLIC_INFO(axom::fmt::format("VERBOSE: {} Octahedron found with all points (0,0,0)",
                                     num_degenerate.get()));
 
         // Dump discretized octs as a tet mesh
