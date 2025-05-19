@@ -515,8 +515,8 @@ protected:
     // Get the material count per zone and the zone number (in case of strided structured)
     const TopologyView deviceTopologyView(m_topologyView);
     const MatsetView deviceMatsetView(m_matsetView);
-    RAJA::ReduceSum<reduce_policy, axom::IndexType> num_reduce(0);
-    RAJA::ReduceMax<reduce_policy, axom::IndexType> reduce_maxcuts(0);
+    axom::ReduceSum<ExecSpace, axom::IndexType> num_reduce(0);
+    axom::ReduceMax<ExecSpace, axom::IndexType> reduce_maxcuts(0);
     axom::for_all<ExecSpace>(
       mixedZonesView.size(),
       AXOM_LAMBDA(axom::IndexType szIndex) {
