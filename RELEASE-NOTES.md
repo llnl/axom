@@ -18,7 +18,24 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ## [Unreleased] - Release date yyyy-mm-dd
 
-###  Added
+### Added
+- New `axom::MALLOC_ALLOCATOR_ID` is for using malloc and free
+  even when axom is configured with Umpire support.
+- The ``axom::mir::ElviraAlgorithm`` class, which performs material interface reconstruction using
+  the ELVIRA algorithm, was enhanced so it supports 3D structured mesh inputs. The output mesh is a
+  Blueprint mesh with a 3D unstructured polyhedral topology.
+- Adds ``axom::mir::utilities::blueprint::MakePolyhedralTopology`` class that takes an input Blueprint
+  topology and turns it into a polyhedral topology. The mesh will contain duplicate faces, which can
+  later be merged.
+- Adds ``axom::mir::utilities::blueprint::MergePolyhedralFaces`` class that merges face Blueprint
+  polyhedral face definitions where faces consist of the same set of node ids. The mesh's subelement
+  connectivity information is rewritten so it contains the merged face definitions. The mesh's 
+  element connectivity is also rewritten so it references the new face definitions.
+- Adds ``axom::mir::utilities::blueprint::MergeCoordsetPoints`` class that merges coordset points,
+  within a tolerance. The class returns an array containing the indices of the points that made it
+  into the revised coordset, as well as a map of old point indices to new point indices, which can
+  be used to revise fields.
+- Exposed primal clip operations for clipping various shapes with a plane.
 
 ###  Changed
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles

@@ -443,13 +443,13 @@ int winding_number(const Point<T, 3>& q,
   const int num_verts = poly.numVertices();
 
   axom::Array<int> faces(num_verts * num_verts), face_size(2 * num_verts), face_offset(2 * num_verts);
-  int face_count;
+  axom::IndexType face_count;
 
   poly.getFaces(faces.data(), face_size.data(), face_offset.data(), face_count);
 
   bool isOnFace = false;
   double wn = 0;
-  for(int i = 0; i < face_count; ++i)
+  for(axom::IndexType i = 0; i < face_count; ++i)
   {
     const int N = face_size[i];
     const int i_offset = face_offset[i];

@@ -103,7 +103,7 @@ can be moved using ``axom::mir::utilities::blueprint::copy()``.
 
     // Set up views for the mesh in deviceRoot node.
     auto coordsetView = axom::mir::views::make_rectilinear_coordset<float, 3>::view(deviceRoot["coordsets/coords"]);
-    auto topologyView = axom::mir::views::make_rectilinear<3>::view(deviceRoot["topologies/Mesh"]);
+    auto topologyView = axom::mir::views::make_rectilinear_topology<3>::view(deviceRoot["topologies/Mesh"]);
 
     // Make a clipper.
     using CoordsetView = decltype(coordsetView);

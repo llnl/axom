@@ -111,6 +111,13 @@ public:
   }
 
   /*!
+   * \brief Return the number of vertices in a Tetrahedron.
+   *
+   * \return The number of vertices in a Tetrahedron.
+   */
+  AXOM_HOST_DEVICE static constexpr int numVertices() { return NUM_VERTS; }
+
+  /*!
    * \brief Index operator to get the i^th vertex
    * \param idx The index of the desired vertex
    * \pre idx is 0, 1, 2, or 3
