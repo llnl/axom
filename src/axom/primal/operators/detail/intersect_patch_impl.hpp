@@ -49,8 +49,10 @@ namespace detail
  * \param [in] v_scale The scale in parameter space for \a patch in the v direction
  * \param [in] sq_tol Numerical tolerance for physical distances
  * \param [in] EPS Numerical tolerance in parameter space
+ * \param [in] isRay True if the line is a ray, i.e., only return nonnegative t values
+ * \param [out] success False if an early return was triggered
  *
- * A ray can only intersect a Bezier patch if it intersects its bounding box.
+ * A line can only intersect a Bezier patch if it intersects its bounding box.
  * The base case of the recursion is when we can approximate the patch as
  * parametrically bilinear, where we directly find their intersections. Otherwise,
  * check for intersections recursively after bisecting the patch in each direction.
@@ -81,7 +83,8 @@ bool intersect_line_patch(const Line<T, 3> &line,
                           double v_scale,
                           double sq_tol,
                           double EPS,
-                          bool isRay);
+                          bool isRay,
+                          bool &success);
 
 //------------------------------ IMPLEMENTATIONS ------------------------------
 
@@ -99,30 +102,30 @@ bool intersect_line_patch(const Line<T, 3> &line,
                           double v_scale,
                           double sq_tol,
                           double EPS,
-                          bool isRay)
+                          bool isRay,
+                          bool &success)
 {
   using BPatch = BezierPatch<T, 3>;
 
   // Early return if we start to record excessive intersections.
   //  This implies the patch is degenerate at the point of intersection.
-  constexpr int max_intersections = 100;
-  if(tp.size() >= max_intersections)
+  if(tp.size() > order_v * order_u)
   {
     SLIC_WARNING(
-      "Unexpectedly large number of intersections recorded."
+      "Too many intersections recorded for patch orders, suggesting a degenerate intersection."
       "Returning early to avoid excessive computation.");
-    return false;
-  }
 
-  // Check bounding box to short-circuit the intersection
-  //  Need to expand the box a bit so that intersections near subdivision boundaries
-  //  are accurately recorded
-  if(!intersect(line, patch.boundingBox().scale(1.5)))
-  {
+    success = false;
     return true;
   }
 
-  bool success = true;
+  // Check bounding box to skip the subdivision procedure
+  // Expand the box a bit so that intersections near subdivision boundaries are accurately recorded
+  if(!intersect(line, patch.boundingBox().scale(1.5)))
+  {
+    return false;
+  }
+
   if(patch.isBilinear(sq_tol, true))
   {
     // Store candidate intersection points
@@ -164,80 +167,40 @@ bool intersect_line_patch(const Line<T, 3> &line,
     constexpr double splitVal = 0.5;
     constexpr double scaleFac = 0.5;
 
-    BPatch p1(order_u, order_v), p2(order_u, order_v), p3(order_u, order_v), p4(order_u, order_v);
+    BPatch subpatches[4];
+    patch.split(splitVal, splitVal, subpatches[0], subpatches[1], subpatches[2], subpatches[3]);
 
-    patch.split(splitVal, splitVal, p1, p2, p3, p4);
     u_scale *= scaleFac;
     v_scale *= scaleFac;
 
-    // Note: we want to find all intersections, so don't short-circuit
-    //   *unless* we're already in a failure state
-    success = success &&
-      intersect_line_patch(line,
-                           p1,
-                           tp,
-                           up,
-                           vp,
-                           order_u,
-                           order_v,
-                           u_offset,
-                           u_scale,
-                           v_offset,
-                           v_scale,
-                           sq_tol,
-                           EPS,
-                           isRay);
+    for(int i = 0; i < 4; ++i)
+    {
+      // If we already found a degenerate intersection, we can skip the rest
+      if(!success)
+      {
+        return !tp.empty();
+      }
 
-    success = success &&
+      // Check all four subpatches even if intersections are found, as we want to find them all
       intersect_line_patch(line,
-                           p2,
+                           subpatches[i],
                            tp,
                            up,
                            vp,
                            order_u,
                            order_v,
-                           u_offset + u_scale,
+                           u_offset + (i % 2) * u_scale,
                            u_scale,
-                           v_offset,
+                           v_offset + (i / 2) * v_scale,
                            v_scale,
                            sq_tol,
                            EPS,
-                           isRay);
-
-    success = success &&
-      intersect_line_patch(line,
-                           p3,
-                           tp,
-                           up,
-                           vp,
-                           order_u,
-                           order_v,
-                           u_offset,
-                           u_scale,
-                           v_offset + v_scale,
-                           v_scale,
-                           sq_tol,
-                           EPS,
-                           isRay);
-
-    success = success &&
-      intersect_line_patch(line,
-                           p4,
-                           tp,
-                           up,
-                           vp,
-                           order_u,
-                           order_v,
-                           u_offset + u_scale,
-                           u_scale,
-                           v_offset + v_scale,
-                           v_scale,
-                           sq_tol,
-                           EPS,
-                           isRay);
+                           isRay,
+                           success);
+    }
   }
 
-  return success;
+  return !tp.empty();
 }
 
 }  // end namespace detail

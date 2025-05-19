@@ -893,6 +893,7 @@ AXOM_HOST_DEVICE bool intersect(const Plane<T, 3>& p,
  * \param [in] tol The tolerance for intersection (for physical distances).
  * \param [in] EPS The tolerance for intersection (for parameter distances).
  * \param [in] isHalfOpen True if the patch is parameterized in [0,1)^2.
+ * \param [out] success False if an early return occured.
  * 
  * For bilinear patches, implements GARP algorithm from Chapter 8 of Ray Tracing Gems (2019)
  * For higher order patches, intersections are found through recursive subdivison
@@ -905,7 +906,7 @@ AXOM_HOST_DEVICE bool intersect(const Plane<T, 3>& p,
  * \warning This function returns early if we record excessive intersections.
  *    This implies the patch is degenerate at the point of intersection.
  * 
- * \return False if an early return was triggered (failure). True otherwise
+ * \return True if an intersection is found, false otherwise
  */
 template <typename T>
 bool intersect(const Ray<T, 3>& ray,
@@ -913,28 +914,26 @@ bool intersect(const Ray<T, 3>& ray,
                axom::Array<T>& t,
                axom::Array<T>& u,
                axom::Array<T>& v,
-               double tol = 1e-8,
-               double EPS = 1e-8,
-               bool isHalfOpen = false)
+               double tol,
+               double EPS,
+               bool isHalfOpen,
+               bool& success)
 {
   // Clear the input arrays
   t.clear();
   u.clear();
   v.clear();
 
-  // Clear the input arrays
-  t.clear();
-  u.clear();
-  v.clear();
+  bool isRay = true;
 
   const int order_u = patch.getOrder_u();
   const int order_v = patch.getOrder_v();
-  bool success = false;
+  success = true;
 
   if(order_u < 1 || order_v < 1)
   {
     // Patch has no surface area, ergo no intersections
-    success = true;
+    return false;
   }
   else if(order_u == 1 && order_v == 1)
   {
@@ -950,11 +949,9 @@ bool intersect(const Ray<T, 3>& ray,
                                           uc,
                                           vc,
                                           EPS,
-                                          true);
+                                          isRay);
 
     detail::select_candidates(tc, uc, vc, t, u, v, EPS, isHalfOpen);
-
-    success = true;
   }
   else
   {
@@ -967,20 +964,21 @@ bool intersect(const Ray<T, 3>& ray,
     // For efficiency, linearity check actually uses a squared tolerance
     const double sq_tol = tol * tol;
 
-    success = detail::intersect_line_patch(line,
-                                           patch,
-                                           tc,
-                                           uc,
-                                           vc,
-                                           order_u,
-                                           order_v,
-                                           u_offset,
-                                           u_scale,
-                                           v_offset,
-                                           v_scale,
-                                           sq_tol,
-                                           EPS,
-                                           true);
+    detail::intersect_line_patch(line,
+                                 patch,
+                                 tc,
+                                 uc,
+                                 vc,
+                                 order_u,
+                                 order_v,
+                                 u_offset,
+                                 u_scale,
+                                 v_offset,
+                                 v_scale,
+                                 sq_tol,
+                                 EPS,
+                                 isRay,
+                                 success);
 
     // Don't select candidates if we're in a failure state
     if(success)
@@ -995,7 +993,22 @@ bool intersect(const Ray<T, 3>& ray,
     }
   }
 
-  return success;
+  return !t.empty();
+}
+
+///! \brief Determines if a ray intersects a Bezier patch with fewer exposed parameters.
+template <typename T>
+bool intersect(const Ray<T, 3>& ray,
+               const BezierPatch<T, 3>& patch,
+               axom::Array<T>& t,
+               axom::Array<T>& u,
+               axom::Array<T>& v,
+               double tol = 1e-8,
+               double EPS = 1e-8,
+               bool isHalfOpen = false)
+{
+  bool success = true;
+  return intersect(ray, patch, t, u, v, tol, EPS, isHalfOpen, success);
 }
 
 /*!
@@ -1008,6 +1021,7 @@ bool intersect(const Ray<T, 3>& ray,
  * \param [in] tol The tolerance for intersection (for physical distances).
  * \param [in] EPS The tolerance for intersection (for parameter distances).
  * \param [in] isHalfOpen True if the patch is parameterized in [0,1)^2.
+ * \param [out] success False if an early return occured.
  * 
  * For bilinear patches, implements GARP algorithm from Chapter 8 of Ray Tracing Gems (2019)
  * For higher order patches, intersections are found through recursive subdivison
@@ -1020,7 +1034,7 @@ bool intersect(const Ray<T, 3>& ray,
  * \warning This function returns early if we record excessive intersections.
  *    This implies the patch is degenerate at the point of intersection.
  * 
- * \return False if an early return was triggered (failure). True otherwise
+ * \return True if an intersection is found, false otherwise
  */
 template <typename T>
 bool intersect(const Line<T, 3>& line,
@@ -1028,23 +1042,26 @@ bool intersect(const Line<T, 3>& line,
                axom::Array<T>& t,
                axom::Array<T>& u,
                axom::Array<T>& v,
-               double tol = 1e-8,
-               double EPS = 1e-8,
-               bool isHalfOpen = false)
+               double tol,
+               double EPS,
+               bool isHalfOpen,
+               bool& success)
 {
   // Clear the input arrays
   t.clear();
   u.clear();
   v.clear();
 
+  bool isRay = false;
+
   const int order_u = patch.getOrder_u();
   const int order_v = patch.getOrder_v();
-  bool success = false;
+  success = true;
 
   if(order_u < 1 || order_v < 1)
   {
     // Patch has no surface area, ergo no intersections
-    success = true;
+    return false;
   }
   else if(order_u == 1 && order_v == 1)
   {
@@ -1059,11 +1076,9 @@ bool intersect(const Line<T, 3>& line,
                                           uc,
                                           vc,
                                           EPS,
-                                          false);
+                                          isRay);
 
     detail::select_candidates(tc, uc, vc, t, u, v, EPS, isHalfOpen);
-
-    success = true;
   }
   else
   {
@@ -1075,20 +1090,21 @@ bool intersect(const Line<T, 3>& line,
     // For efficiency, linearity check actually uses a squared tolerance
     const double sq_tol = tol * tol;
 
-    success = detail::intersect_line_patch(line,
-                                           patch,
-                                           tc,
-                                           uc,
-                                           vc,
-                                           order_u,
-                                           order_v,
-                                           u_offset,
-                                           u_scale,
-                                           v_offset,
-                                           v_scale,
-                                           sq_tol,
-                                           EPS,
-                                           false);
+    detail::intersect_line_patch(line,
+                                 patch,
+                                 tc,
+                                 uc,
+                                 vc,
+                                 order_u,
+                                 order_v,
+                                 u_offset,
+                                 u_scale,
+                                 v_offset,
+                                 v_scale,
+                                 sq_tol,
+                                 EPS,
+                                 isRay,
+                                 success);
 
     // Don't select candidates if we're in a failure state
     if(success)
@@ -1103,7 +1119,22 @@ bool intersect(const Line<T, 3>& line,
     }
   }
 
-  return success;
+  return !t.empty();
+}
+
+///! \brief Determines if a line intersects a Bezier patch with fewer exposed parameters.
+template <typename T>
+bool intersect(const Line<T, 3>& line,
+               const BezierPatch<T, 3>& patch,
+               axom::Array<T>& t,
+               axom::Array<T>& u,
+               axom::Array<T>& v,
+               double tol = 1e-8,
+               double EPS = 1e-8,
+               bool isHalfOpen = false)
+{
+  bool success = true;
+  return intersect(line, patch, t, u, v, tol, EPS, isHalfOpen, success);
 }
 
 /*! 
@@ -1117,6 +1148,7 @@ bool intersect(const Line<T, 3>& line,
  * \param [in] EPS The tolerance for intersection (for parameter distances).
  * \param [in] countUntrimmed True if intersections with the untrimmed patch should also be recorded.
  * \param [in] isHalfOpen True if the patch is parameterized in [0,1)^2.
+ * \param [out] success False if an early return occured.
  * 
  * Perform Bezier extraction and record intersections with each patch.
  * After intersections are recorded, parameter points located outside the trimming
@@ -1127,8 +1159,128 @@ bool intersect(const Line<T, 3>& line,
  * \warning This function returns early if we record excessive intersections.
  *    This implies the patch is degenerate at the point of intersection.
  * 
- * \return False if an early return was triggered (failure). True otherwise
+ * \return True if an intersection is found, false otherwise
  */
+template <typename T>
+bool intersect(const Ray<T, 3>& ray,
+               const NURBSPatch<T, 3>& patch,
+               axom::Array<T>& t,
+               axom::Array<T>& u,
+               axom::Array<T>& v,
+               double tol,
+               double EPS,
+               bool countUntrimmed,
+               bool isHalfOpen,
+               bool& success)
+{
+  // Clear the input arrays
+  t.clear();
+  u.clear();
+  v.clear();
+
+  // Check a bounding box of the entire NURBS first
+  Point<T, 3> ip;
+  if(!intersect(line, patch.boundingBox(), ip))
+  {
+    return false;
+  }
+
+  // Decompose the NURBS patch into Bezier patches
+  auto beziers = patch.extractBezier();
+
+  axom::Array<T> knot_vals_u = patch.getKnots_u().getUniqueKnots();
+  axom::Array<T> knot_vals_v = patch.getKnots_v().getUniqueKnots();
+
+  const auto num_knot_span_u = knot_vals_u.size() - 1;
+  const auto num_knot_span_v = knot_vals_v.size() - 1;
+
+  // Store candidate intersections
+  axom::Array<T> tc, uc, vc;
+
+  bool isBezierHalfOpen = false;
+  success = true;
+
+  // Check each Bezier patch, and scale the intersection parameters
+  //   back into the span of the original NURBS patch
+  // If we're already in a failure state, skip the remaining patches
+  for(int i = 0; i < num_knot_span_u; ++i)
+  {
+    for(int j = 0; success && j < num_knot_span_v; ++j)
+    {
+      auto& bezier = beziers[i * num_knot_span_v + j];
+
+      // Store candidate intersections from each Bezier patch
+      axom::Array<T> tcc, ucc, vcc;
+
+      intersect(ray, bezier, tcc, ucc, vcc, tol, EPS, isBezierHalfOpen, success);
+
+      // Scale the intersection parameters back into the span of the NURBS patch
+      for(int k = 0; k < tcc.size(); ++k)
+      {
+        tc.push_back(tcc[k]);
+        uc.push_back(axom::utilities::lerp(knot_vals_u[i], knot_vals_u[i + 1], ucc[k]));
+        vc.push_back(axom::utilities::lerp(knot_vals_v[j], knot_vals_v[j + 1], vcc[k]));
+      }
+    }
+  }
+
+  // Skip second pass if in a failure state
+  if(!success)
+  {
+    t = tc;
+    u = uc;
+    v = vc;
+
+    return !t.empty();
+  }
+
+  // Do a second pass to remove duplicates from uc, vc
+  const double sq_EPS = EPS * EPS;
+
+  // The number of reported intersection points will be small,
+  //  so we don't need to fully sort the list
+
+  double max_u_knot = patch.getKnots_u()[patch.getKnots_u().getNumKnots() - 1];
+  double max_v_knot = patch.getKnots_v()[patch.getKnots_v().getNumKnots() - 1];
+
+  // Don't de-duplicate if we're in a failure state
+  for(int i = 0; i < tc.size(); ++i)
+  {
+    // Also remove any intersections on the half-interval boundaries
+    if(isHalfOpen && (uc[i] >= max_u_knot - EPS || vc[i] >= max_v_knot - EPS))
+    {
+      continue;
+    }
+
+    // Also remove any intersections that are trimmed out
+    if(!countUntrimmed && !patch.isVisible(uc[i], vc[i]))
+    {
+      continue;
+    }
+
+    Point<T, 2> uv({uc[i], vc[i]});
+
+    bool foundDuplicate = false;
+    for(int j = i + 1; !foundDuplicate && j < tc.size(); ++j)
+    {
+      if(squared_distance(uv, Point<T, 2>({uc[j], vc[j]})) < sq_EPS)
+      {
+        foundDuplicate = true;
+      }
+    }
+
+    if(!foundDuplicate)
+    {
+      t.push_back(tc[i]);
+      u.push_back(uc[i]);
+      v.push_back(vc[i]);
+    }
+  }
+
+  return !t.empty();
+}
+
+///! \brief Determines if a ray intersects a NURBS patch with fewer exposed parameters.
 template <typename T>
 bool intersect(const Ray<T, 3>& ray,
                const NURBSPatch<T, 3>& patch,
@@ -1140,6 +1292,46 @@ bool intersect(const Ray<T, 3>& ray,
                bool countUntrimmed = true,
                bool isHalfOpen = false)
 {
+  bool success = true;
+  return intersect(ray, patch, t, u, v, tol, EPS, countUntrimmed, isHalfOpen, success);
+}
+
+/*! 
+ * \brief Determines if a line (two-sided ray) intersects a NURBS patch.
+ * \param [in] line The line to intersect with the patch.
+ * \param [in] patch The NURBS patch to intersect with the line.
+ * \param [out] t The t parameter(s) of intersection point(s).
+ * \param [out] u The u parameter(s) of intersection point(s).
+ * \param [out] v The v parameter(s) of intersection point(s).
+ * \param [in] tol The tolerance for intersection (for physical distances).
+ * \param [in] EPS The tolerance for intersection (for parameter distances).
+ * \param [in] countUntrimmed True if intersections with the untrimmed patch should also be recorded.
+ * \param [in] isHalfOpen True if the patch is parameterized in [0,1)^2.
+ * \param [out] success False if an early return occured.
+ * 
+ * Perform Bezier extraction and record intersections with each patch.
+ * After intersections are recorded, parameter points located outside the trimming
+ *  curves are pruned from the list (unless specified by `countUntrimmed`).
+ *  
+ * \note This method clears the input vectors t, u, v
+ *  
+ * \warning This function returns early if we record excessive intersections.
+ *    This implies the patch is degenerate at the point of intersection.
+ * 
+ * \return True if an intersection is found, false otherwise
+ */
+template <typename T>
+bool intersect(const Line<T, 3>& line,
+               const NURBSPatch<T, 3>& patch,
+               axom::Array<T>& t,
+               axom::Array<T>& u,
+               axom::Array<T>& v,
+               double tol,
+               double EPS,
+               bool countUntrimmed,
+               bool isHalfOpen,
+               bool& success)
+{
   // Clear the input arrays
   t.clear();
   u.clear();
@@ -1149,7 +1341,7 @@ bool intersect(const Ray<T, 3>& ray,
   Point<T, 3> ip;
   if(!intersect(line, patch.boundingBox(), ip))
   {
-    return true;
+    return false;
   }
 
   // Decompose the NURBS patch into Bezier patches
@@ -1164,21 +1356,23 @@ bool intersect(const Ray<T, 3>& ray,
   // Store candidate intersections
   axom::Array<T> tc, uc, vc;
 
-  bool success = true;
+  bool isBezierHalfOpen = false;
+  success = true;
 
   // Check each Bezier patch, and scale the intersection parameters
   //  back into the span of the original NURBS patch
+  // If we're already in a failure state, skip the remaining patches
   for(int i = 0; i < num_knot_span_u; ++i)
   {
-    for(int j = 0; j < num_knot_span_v; ++j)
+    for(int j = 0; success && j < num_knot_span_v; ++j)
     {
       auto& bezier = beziers[i * num_knot_span_v + j];
 
       // Store candidate intersections from each Bezier patch
       axom::Array<T> tcc, ucc, vcc;
 
-      // If we're already recording a failure, short-circuit
-      success = success && intersect(line, bezier, tcc, ucc, vcc, tol, EPS);
+      // If we're already in a failure state, skip the remaining patches
+      intersect(line, bezier, tcc, ucc, vcc, tol, EPS, isBezierHalfOpen, success);
 
       // Scale the intersection parameters back into the span of the NURBS patch
       for(int k = 0; k < tcc.size(); ++k)
@@ -1197,7 +1391,7 @@ bool intersect(const Ray<T, 3>& ray,
     u = uc;
     v = vc;
 
-    return success;
+    return !t.empty();
   }
 
   // Do a second pass to remove duplicates from uc, vc
@@ -1243,32 +1437,10 @@ bool intersect(const Ray<T, 3>& ray,
     }
   }
 
-  return success;
+  return !t.empty();
 }
 
-/*! 
- * \brief Determines if a ray (two-sided ray) intersects a NURBS patch.
- * \param [in] line The line to intersect with the patch.
- * \param [in] patch The NURBS patch to intersect with the ray.
- * \param [out] t The t parameter(s) of intersection point(s).
- * \param [out] u The u parameter(s) of intersection point(s).
- * \param [out] v The v parameter(s) of intersection point(s).
- * \param [in] tol The tolerance for intersection (for physical distances).
- * \param [in] EPS The tolerance for intersection (for parameter distances).
- * \param [in] countUntrimmed True if intersections with the untrimmed patch should also be recorded.
- * \param [in] isHalfOpen True if the patch is parameterized in [0,1)^2.
- * 
- * Perform Bezier extraction and record intersections with each patch.
- * After intersections are recorded, parameter points located outside the trimming
- *  curves are pruned from the list (unless specified by `countUntrimmed`).
- *  
- * \note This method clears the input vectors t, u, v
- *  
- * \warning This function returns early if we record excessive intersections.
- *    This implies the patch is degenerate at the point of intersection.
- * 
- * \return False if an early return was triggered (failure). True otherwise
- */
+///! \brief Determines if a line intersects a NURBS patch with fewer exposed parameters.
 template <typename T>
 bool intersect(const Line<T, 3>& line,
                const NURBSPatch<T, 3>& patch,
@@ -1280,110 +1452,8 @@ bool intersect(const Line<T, 3>& line,
                bool countUntrimmed = true,
                bool isHalfOpen = false)
 {
-  // Clear the input arrays
-  t.clear();
-  u.clear();
-  v.clear();
-
-  // Check a bounding box of the entire NURBS first
-  Point<T, 3> ip;
-  if(!intersect(line, patch.boundingBox(), ip))
-  {
-    return true;
-  }
-
-  // Decompose the NURBS patch into Bezier patches
-  auto beziers = patch.extractBezier();
-
-  axom::Array<T> knot_vals_u = patch.getKnots_u().getUniqueKnots();
-  axom::Array<T> knot_vals_v = patch.getKnots_v().getUniqueKnots();
-
-  const auto num_knot_span_u = knot_vals_u.size() - 1;
-  const auto num_knot_span_v = knot_vals_v.size() - 1;
-
-  // Store candidate intersections
-  axom::Array<T> tc, uc, vc;
-
   bool success = true;
-
-  // Check each Bezier patch, and scale the intersection parameters
-  //  back into the span of the original NURBS patch
-  for(int i = 0; i < num_knot_span_u; ++i)
-  {
-    for(int j = 0; j < num_knot_span_v; ++j)
-    {
-      auto& bezier = beziers[i * num_knot_span_v + j];
-
-      // Store candidate intersections from each Bezier patch
-      axom::Array<T> tcc, ucc, vcc;
-
-      // If we're already recording a failure, short-circuit
-      success = success && intersect(line, bezier, tcc, ucc, vcc, tol, EPS);
-
-      // Scale the intersection parameters back into the span of the NURBS patch
-      for(int k = 0; k < tcc.size(); ++k)
-      {
-        tc.push_back(tcc[k]);
-        uc.push_back(axom::utilities::lerp(knot_vals_u[i], knot_vals_u[i + 1], ucc[k]));
-        vc.push_back(axom::utilities::lerp(knot_vals_v[j], knot_vals_v[j + 1], vcc[k]));
-      }
-    }
-  }
-
-  // Skip second pass if in a failure state
-  if(!success)
-  {
-    t = tc;
-    u = uc;
-    v = vc;
-
-    return success;
-  }
-
-  // Do a second pass to remove duplicates from uc, vc
-  const double sq_EPS = EPS * EPS;
-
-  // The number of reported intersection points will be small,
-  //  so we don't need to fully sort the list
-
-  double max_u_knot = patch.getKnots_u()[patch.getKnots_u().getNumKnots() - 1];
-  double max_v_knot = patch.getKnots_v()[patch.getKnots_v().getNumKnots() - 1];
-
-  // Don't de-duplicate if we're in a failure state
-  for(int i = 0; i < tc.size(); ++i)
-  {
-    // Also remove any intersections on the half-interval boundaries
-    if(isHalfOpen && (uc[i] >= max_u_knot - EPS || vc[i] >= max_v_knot - EPS))
-    {
-      continue;
-    }
-
-    // Also remove any intersections that are trimmed out
-    if(!countUntrimmed && !patch.isVisible(uc[i], vc[i]))
-    {
-      continue;
-    }
-
-    Point<T, 2> uv({uc[i], vc[i]});
-
-    bool foundDuplicate = false;
-    for(int j = i + 1; !foundDuplicate && j < tc.size(); ++j)
-    {
-      if(squared_distance(uv, Point<T, 2>({uc[j], vc[j]})) < sq_EPS)
-      {
-        foundDuplicate = true;
-      }
-    }
-
-    if(!foundDuplicate)
-    {
-      t.push_back(tc[i]);
-      u.push_back(uc[i]);
-      v.push_back(vc[i]);
-    }
-  }
-
-  return success;
+  return intersect(line, patch, t, u, v, tol, EPS, countUntrimmed, isHalfOpen, success);
 }
 
 }  // namespace primal

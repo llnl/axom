@@ -471,31 +471,39 @@ bool intersect_2d_circle_line(const Sphere<T, 2> &circ,
 
   T disc = circ.getRadius() * circ.getRadius() * dr * dr - D * D;
 
-  // Identify near-tangent cases
-  if(disc <= EPS * EPS)
+  // Identify near-tangent cases by computing the distance from the line to the circle center,
+  //  which should be equal to the radius of the circle if the line is tangent.
+  if(axom::utilities::isNearlyEqual(std::abs(D) / dr, circ.getRadius(), EPS))
   {
-    T ct;
-    Segment<T, 2> seg(a, b);
+    // Find the closest point on the line to the circle center
+    Point<T, 2> cp(a);
+    double num = (circ.getCenter()[0] - a[0]) * dx + (circ.getCenter()[1] - a[1]) * dy;
 
-    // Because the line is known to be tangent, there's only one intersection point,
-    //  and it would have to be at the closest point on the line to the circle center.
-    Point<T, 2> cp = closest_point(circ.getCenter(), seg, &ct);
-    T dist = primal::squared_distance(cp, circ.getCenter());
+    cp[0] += num * dx / (dr * dr);
+    cp[1] += num * dy / (dr * dr);
 
-    if(axom::utilities::isNearlyEqual(dist, circ.getRadius(), EPS))
+    c1 = std::atan2(cp[1] - circ.getCenter()[1], cp[0] - circ.getCenter()[0]);
+    c1 = (c1 < 0.0) ? c1 + 2.0 * M_PI : c1;
+
+    // Find the distance along the line to the closest point
+    if(std::abs(dx) > std::abs(dy))
     {
-      c1 = std::atan2(cp[1] - circ.getCenter()[1], cp[0] - circ.getCenter()[0]);
-      c1 = (c1 < 0.0) ? c1 + 2.0 * M_PI : c1;
-      t1 = ct;
-
-      c2 = 0.0;
-      t2 = -1.0;
-      return true;
+      t1 = (cp[0] - a[0]) / dx;
     }
     else
     {
-      return false;
+      t1 = (cp[1] - a[1]) / dy;
     }
+
+    c2 = 0.0;
+    t2 = -1.0;
+
+    return true;
+  }
+  else if(disc < 0.0)
+  {
+    // No intersection
+    return false;
   }
 
   disc = std::sqrt(disc);

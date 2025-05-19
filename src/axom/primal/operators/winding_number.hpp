@@ -647,13 +647,11 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
                                    const double quad_tol = 1e-8,
                                    const double EPS = 1e-8)
 {
-  // Precompute the expansions for each patch
-  axom::Array<NURBSPatch<T, 3>> nPatch_arr_tested(nPatch_arr.size());
-  axom::Array<Vector<T, 3>> cast_direction_arr(nPatch_arr.size());
+  // Precompute the expansions and cast directions for each patch
+  auto nPatch_arr_tested = nPatch_arr;
+  axom::Array<Vector<T, 3>> cast_direction_arr(0, nPatch_arr.size());
   for(int i = 0; i < nPatch_arr.size(); ++i)
   {
-    nPatch_arr_tested[i] = nPatch_arr[i];
-
     // Ensure the patch is trimmed
     if(!nPatch_arr[i].isTrimmed())
     {
@@ -665,7 +663,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
       1.0 + 0.05 * nPatch_arr_tested[i].getParameterSpaceDiagonal());
 
     // Select the cast direction as an average normal of the untrimmed surface
-    cast_direction_arr[i] = nPatch_arr[i].calculateUntrimmedPatchNormal();
+    cast_direction_arr.emplace_back(nPatch_arr[i].calculateUntrimmedPatchNormal());
     if(cast_direction_arr[i].norm() < 1e-10)
     {
       // ...unless the average direction is zero

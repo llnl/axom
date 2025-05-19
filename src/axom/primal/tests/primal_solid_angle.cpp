@@ -660,21 +660,21 @@ axom::Array<primal::NURBSPatch<double, 3>> make_sphere_bicubic()
     for(int i = 0; i <= 2; ++i)
     {
       // clang-format off
-      sphere_faces[4*n + 0](i, 0) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
-      sphere_faces[4*n + 0](i, 1) = axom::primal::Point<double, 3> {curve[i][0], curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 0](i, 2) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 0](i, 0) = Point3D {curve[i][0], 0.0, curve[i][1]};
+      sphere_faces[4*n + 0](i, 1) = Point3D {curve[i][0], curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 0](i, 2) = Point3D {0.0, curve[i][0], curve[i][1]};
 
-      sphere_faces[4*n + 1](i, 0) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 1](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 1](i, 2) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
+      sphere_faces[4*n + 1](i, 0) = Point3D {0.0, curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 1](i, 1) = Point3D {-curve[i][0], curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 1](i, 2) = Point3D {-curve[i][0], 0.0, curve[i][1]};
 
-      sphere_faces[4*n + 2](i, 0) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
-      sphere_faces[4*n + 2](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], -curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 2](i, 2) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 2](i, 0) = Point3D {-curve[i][0], 0.0, curve[i][1]};
+      sphere_faces[4*n + 2](i, 1) = Point3D {-curve[i][0], -curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 2](i, 2) = Point3D {0.0, -curve[i][0], curve[i][1]};
 
-      sphere_faces[4*n + 3](i, 0) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 3](i, 1) = axom::primal::Point<double, 3> {curve[i][0], -curve[i][0], curve[i][1]};
-      sphere_faces[4*n + 3](i, 2) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
+      sphere_faces[4*n + 3](i, 0) = Point3D {0.0, -curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 3](i, 1) = Point3D {curve[i][0], -curve[i][0], curve[i][1]};
+      sphere_faces[4*n + 3](i, 2) = Point3D {curve[i][0], 0.0, curve[i][1]};
 
       double the_weight = curve.isRational() ? curve.getWeight(i) : 1.0;
 
@@ -700,7 +700,7 @@ axom::Array<primal::NURBSPatch<double, 3>> make_sphere_bicubic()
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_integral, bezierpatch_sphere)
+TEST(primal_integral, nurbspatch_sphere)
 {
   using Point3D = primal::Point<double, 3>;
   using Vector3D = primal::Vector<double, 3>;
@@ -744,8 +744,6 @@ TEST(primal_integral, bezierpatch_sphere)
   const double quad_tol = 1e-5;
   const double EPS = 1e-11;
   
-  NPatch discarded;
-
   // Test the points on the biquintic patches
   auto sphere_faces = make_sphere_biquintic();
 
@@ -762,24 +760,29 @@ TEST(primal_integral, bezierpatch_sphere)
     EXPECT_NEAR(coincident_gwn[i], 0.5, 6 * quad_tol);
   }
 
-  // Repeat the test with the bicubic patches
+  // Test points near degenerate edges of the biquintic patches
   sphere_faces = make_sphere_bicubic();
+  axom::Array<Point3D> difficult_points(0, 5);
+  
+  // Outer points
+  difficult_points.emplace_back(Point3D(0.1 * query_directions[0].array()));
+  difficult_points.emplace_back(Point3D((1.0 - edge_offset) * query_directions[0].array()));
+  
+  // Inner points
+  difficult_points.emplace_back(Point3D(2.1 * query_directions[0].array()));
+  difficult_points.emplace_back(Point3D((1.0 + edge_offset) * query_directions[0].array()));
+  
+  // Coincident point
+  difficult_points.emplace_back(Point3D(query_directions[0].array()));
 
-  inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
-  outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  auto difficult_gwn =
+    winding_number(difficult_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
 
-  // The algorithm can handle cases where the query point is on the degenerate corner,
-  //  but at an expense that is a bit too strenuous for this test
-  // coincident_gwn =
-  //   winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
-
-  // Check the resulting winding number
-  for(int i = 0; i < 12; ++i)
-  {
-    EXPECT_NEAR(inner_gwn[i], 1.0, 8 * quad_tol);
-    EXPECT_NEAR(outer_gwn[i], 0.0, 8 * quad_tol);
-    // EXPECT_NEAR(coincident_gwn[i], 0.5, 8 * quad_tol);
-  }
+  EXPECT_NEAR(difficult_gwn[0], 1.0, 8 * quad_tol); // Inner point
+  EXPECT_NEAR(difficult_gwn[1], 1.0, 8 * quad_tol); // Inner point
+  EXPECT_NEAR(difficult_gwn[2], 0.0, 8 * quad_tol); // Outer point
+  EXPECT_NEAR(difficult_gwn[3], 0.0, 8 * quad_tol); // Outer point
+  EXPECT_NEAR(difficult_gwn[4], 0.5, 8 * quad_tol); // Coincident point
 }
 
 //------------------------------------------------------------------------------

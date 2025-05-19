@@ -61,7 +61,7 @@ double evaluate_scalar_line_integral(const primal::CurvedPolygon<T, NDIMS> cpoly
 {
   // Generate quadrature library, defaulting to GaussLegendre quadrature.
   //  Use the same one for every curve in the polygon
-  //  Quadrature order is equal to 2*N - 1
+  //  Quadrature order is equal to 2*npts - 1
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
   const mfem::IntegrationRule& quad = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
@@ -92,7 +92,7 @@ double evaluate_scalar_line_integral(const primal::BezierCurve<T, NDIMS>& c,
 {
   // Generate quadrature library, defaulting to GaussLegendre quadrature.
   //  Use the same one for every curve in the polygon
-  //  Gaussian quadrature order is equal to 2*Npts - 1
+  //  Quadrature order is equal to 2*npts - 1
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
   const mfem::IntegrationRule& quad = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
@@ -105,7 +105,11 @@ double evaluate_scalar_line_integral(const primal::BezierCurve<T, NDIMS>& c,
  * \param [in] n the NURBS curve object
  * \param [in] scalar_integrand the lambda function representing the integrand. 
  * Must accept a Point<T, NDIMS> as input, and return a double.
- * \param [in] npts the number of quadrature nodes
+ * \param [in] npts the number of quadrature nodes per knot span
+ * 
+ * \note The NURBS curve is decomposed into Bezier segments, and the Gaussian quadrature
+ *   is computed using npts on each segment. 
+ *   
  * \return the value of the integral
  */
 template <typename Lambda, typename T, int NDIMS>
@@ -114,8 +118,7 @@ double evaluate_scalar_line_integral(const primal::NURBSCurve<T, NDIMS>& n,
                                      int npts)
 {
   // Generate quadrature library, defaulting to GaussLegendre quadrature.
-  //  Use the same one for every curve in the polygon
-  //  Gaussian quadrature order is equal to 2*Npts - 1
+  //  Quadrature order is equal to 2*npts - 1
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
   const mfem::IntegrationRule& quad = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
@@ -137,7 +140,11 @@ double evaluate_scalar_line_integral(const primal::NURBSCurve<T, NDIMS>& n,
  * \param [in] narray the array of NURBS curve object
  * \param [in] scalar_integrand the lambda function representing the integrand. 
  * Must accept a Point<T, NDIMS> as input, and return a double.
- * \param [in] npts the number of quadrature nodes
+ * \param [in] npts the number of quadrature nodes per curve per knot span
+ * 
+ * \note Each NURBS curve is decomposed into Bezier segments, and the Gaussian quadrature
+ *   is computed using npts on each segment
+ * 
  * \return the value of the integral
  */
 template <typename Lambda, typename T, int NDIMS>
@@ -176,7 +183,7 @@ double evaluate_vector_line_integral(const primal::CurvedPolygon<T, NDIMS> cpoly
 {
   // Generate quadrature library, defaulting to GaussLegendre quadrature.
   //  Use the same one for every curve in the polygon
-  //  Quadrature order is equal to 2*N - 1
+  //  Quadrature order is equal to 2*npts - 1
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
   const mfem::IntegrationRule& quad = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
@@ -206,8 +213,7 @@ double evaluate_vector_line_integral(const primal::BezierCurve<T, NDIMS>& c,
                                      int npts)
 {
   // Generate quadrature library, defaulting to GaussLegendre quadrature.
-  //  Use the same one for every curve in the polygon
-  //  Gaussian quadrature order is equal to 2*Npts - 1
+  //  Quadrature order is equal to 2*npts - 1
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
   const mfem::IntegrationRule& quad = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
@@ -220,7 +226,11 @@ double evaluate_vector_line_integral(const primal::BezierCurve<T, NDIMS>& c,
  * \param [in] n the NURBS curve object
  * \param [in] vector_integrand the lambda function representing the integrand. 
  * Must accept a Point<T, NDIMS> as input, and return a Vector<double, NDIMS>.
- * \param [in] npts the number of quadrature nodes
+ * \param [in] npts the number of quadrature nodes per knot span
+ * 
+ * \note The NURBS curve is decomposed into Bezier segments, and the Gaussian quadrature
+ *   is computed using npts on each segment
+ * 
  * \return the value of the integral
  */
 template <typename Lambda, typename T, int NDIMS>
@@ -229,8 +239,7 @@ double evaluate_vector_line_integral(const primal::NURBSCurve<T, NDIMS>& n,
                                      int npts)
 {
   // Generate quadrature library, defaulting to GaussLegendre quadrature.
-  //  Use the same one for every curve in the polygon
-  //  Gaussian quadrature order is equal to 2*Npts - 1
+  //  Quadrature order is equal to 2*npts - 1
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
   const mfem::IntegrationRule& quad = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
@@ -252,7 +261,11 @@ double evaluate_vector_line_integral(const primal::NURBSCurve<T, NDIMS>& n,
  * \param [in] narray the array of NURBS curve object
  * \param [in] vector_integrand the lambda function representing the integrand. 
  * Must accept a Point<T, NDIMS> as input and return a Vector<double, NDIMS>.
- * \param [in] npts the number of quadrature nodes
+ * \param [in] npts the number of quadrature nodes per curve per knot span
+ * 
+ * \note Each NURBS curve is decomposed into Bezier segments, and the Gaussian quadrature
+ *   is computed using npts on each segment
+ *
  * \return the value of the integral
  */
 template <typename Lambda, typename T, int NDIMS>
@@ -288,7 +301,7 @@ double evaluate_area_integral(const primal::CurvedPolygon<T, 2> cpoly,
                               int npts_P = 0)
 {
   // Generate quadrature library, defaulting to GaussLegendre quadrature.
-  //  Use the same one for every curve in the polygon
+  //  Quadrature order is equal to 2*npts - 1
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
 
   if(npts_P <= 0)
@@ -323,7 +336,7 @@ double evaluate_area_integral(const primal::CurvedPolygon<T, 2> cpoly,
 }
 
 /*!
- * \brief Evaluate an integral on the interior of a CurvedPolygon object.
+ * \brief Evaluate an integral on the interior of an array of NURBS curves.
  *
  * See above definition for details.
  * 
@@ -332,6 +345,12 @@ double evaluate_area_integral(const primal::CurvedPolygon<T, 2> cpoly,
  * Must accept a 2D point as input and return a double
  * \param [in] npts_Q the number of quadrature points to evaluate the line integral
  * \param [in] npts_P the number of quadrature points to evaluate the antiderivative
+ *  
+ * \note Each NURBS curve is decomposed into Bezier segments, and the Gaussian quadrature
+ *   is computed using npts_Q * npts_P on each segment
+ * 
+ * \note The numerical result is only meaningful if the curves enclose a region
+ * 
  * \return the value of the integral
  */
 template <class Lambda, typename T>
@@ -341,7 +360,7 @@ double evaluate_area_integral(const axom::Array<primal::NURBSCurve<T, 2>> narray
                               int npts_P = 0)
 {
   // Generate quadrature library, defaulting to GaussLegendre quadrature.
-  //  Use the same one for every curve in the polygon
+  //  Quadrature order is equal to 2*npts - 1
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
 
   if(npts_P <= 0)

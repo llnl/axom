@@ -1099,22 +1099,26 @@ AXOM_HOST_DEVICE bool intersect_plane_seg(const Plane<T, DIM>& plane,
  * \brief Determines if a 2D sphere intersects a bounding box.
  * \param [in] circle A 2D sphere
  * \param [in] bb A 2D bounding box
+ * \param [in] EPS Tolerance for determining if intersection nearly occurs
  * \return true iff sphere intersects a bounding box, false otherwise.
  */
 template <typename T>
-bool intersect_circle_bbox(const Sphere<T, 2>& circle, const BoundingBox<T, 2>& bbox)
+bool intersect_circle_bbox(const Sphere<T, 2>& circle, const BoundingBox<T, 2>& bbox, double EPS = 1E-12)
 {
   auto center = circle.getCenter();
   auto radius = circle.getRadius();
   T dx = axom::utilities::clampVal(center[0], bbox.getMin()[0], bbox.getMax()[0]);
   T dy = axom::utilities::clampVal(center[1], bbox.getMin()[1], bbox.getMax()[1]);
 
-  if((center[0] - dx) * (center[0] - dx) + (center[1] - dy) * (center[1] - dy) >= radius * radius)
+  // Find the distance from the center to the closest point on the bounding box,
+  //  and check if that distance is less than the radius (plus a tolerance)
+  if((center[0] - dx) * (center[0] - dx) + (center[1] - dy) * (center[1] - dy) <=
+     radius * radius + EPS)
   {
-    return false;
+    return true;
   }
 
-  return true;
+  return false;
 }
 
 AXOM_HOST_DEVICE
