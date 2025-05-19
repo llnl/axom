@@ -374,7 +374,7 @@ protected:
 
       // Make the clean mesh.
       conduit::Node n_cleanOutput;
-      makeCleanOutput(n_root, n_topo.name(), n_options_copy, cleanZones.view(), n_cleanOutput);
+      makeCleanZones(n_root, n_topo.name(), n_options_copy, cleanZones.view(), n_cleanOutput);
 
       // Add an original nodes field on the root mesh.
       addOriginal(n_root_fields[originalNodesFieldName()],
@@ -596,13 +596,13 @@ protected:
    *
    * \return The number of nodes in the clean mesh output.
    */
-  void makeCleanOutput(const conduit::Node &n_root,
-                       const std::string &topoName,
-                       const conduit::Node &n_options,
-                       const axom::ArrayView<axom::IndexType> &cleanZones,
-                       conduit::Node &n_cleanOutput) const
+  void makeCleanZones(const conduit::Node &n_root,
+                      const std::string &topoName,
+                      const conduit::Node &n_options,
+                      const axom::ArrayView<axom::IndexType> &cleanZones,
+                      conduit::Node &n_cleanOutput) const
   {
-    AXOM_ANNOTATE_SCOPE("makeCleanOutput");
+    AXOM_ANNOTATE_SCOPE("makeCleanZones");
     namespace bputils = axom::mir::utilities::blueprint;
 
     // Make the clean mesh. Set compact=0 so it does not change the number of nodes.
