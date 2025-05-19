@@ -168,6 +168,19 @@ field and makes a new field.
    :end-before: _mir_utilities_fieldslicer_end
    :language: C++
 
+##############
+MakePointMesh
+##############
+
+The ``axom::mir::utilities::blueprint::MakePointMesh`` class generates a point at the center
+of each zone *(or selected set of zones)* in an input topology and generates a new unstructured
+topology consisting of points located at those zone centers.
+
+.. literalinclude:: ../../ElviraAlgorithm.hpp
+   :start-after: _mir_utilities_makepointmesh_begin
+   :end-before: _mir_utilities_makepointmesh_end
+   :language: C++
+
 #######################
 MakePolyhedralTopology
 #######################

@@ -994,7 +994,7 @@ AXOM_HOST_DEVICE void pick_elv(Result2D<FloatType> elv2d[2], const FloatType *vf
  * \param c01 Side column sum
  * \param v01 Old missing volume for c01
  * \param vma New estimate for missing volume v10.
- * \param far Whether to use far corner formulas.
+ * \param useFar Whether to use far corner formulas.
  *
  * \note Adapted from code by Jeff Grandy
  */
@@ -1005,7 +1005,7 @@ AXOM_HOST_DEVICE void missvol1(FloatType c00,  // Center column sum.
                                FloatType c01,
                                FloatType v01,
                                FloatType &vma,
-                               int far)
+                               int is_far)
 {
   constexpr FloatType one6 = 1. / 6.;
 
@@ -1016,7 +1016,7 @@ AXOM_HOST_DEVICE void missvol1(FloatType c00,  // Center column sum.
   const FloatType dd1 = 6.0 * d10 * d01;
 
   FloatType h1, vsign;
-  if(far)
+  if(is_far)
   {
     h1 = 1.5 * k10 - 0.5 * k01;
     vsign = -1.0;
@@ -1137,13 +1137,13 @@ AXOM_HOST_DEVICE void crc_sides(const FloatType upcol[2][3],
     c01 = side[isp];
 
     // Select near or far corrections.
-    const int far = ((c10 - c00) * (c01 - c00) > 0) ? 0 : 1;
+    const int is_far = ((c10 - c00) * (c01 - c00) > 0) ? 0 : 1;
 
     int iters = 0;
     while(del > tol)
     {
-      missvol1(c00, c10, vmaold, c01, vmbold, vma, far);
-      missvol1(c00, c01, vmbold, c10, vmaold, vmb, far);
+      missvol1(c00, c10, vmaold, c01, vmbold, vma, is_far);
+      missvol1(c00, c01, vmbold, c10, vmaold, vmb, is_far);
       del = (vma - vmaold) * (vma - vmaold) + (vmb - vmbold) * (vmb - vmbold);
       vmaold = vma;
       vmbold = vmb;

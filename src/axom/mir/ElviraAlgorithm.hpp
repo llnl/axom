@@ -10,7 +10,9 @@
 #include "axom/slic.hpp"
 
 #include "axom/mir/MIRAlgorithm.hpp"
+#include "axom/mir/utilities/MakePointMesh.hpp"
 #include "axom/mir/utilities/MakeZoneCenters.hpp"
+#include "axom/mir/utilities/MatsetSlicer.hpp"
 #include "axom/mir/utilities/MergeMeshes.hpp"
 #include "axom/mir/utilities/PrimalAdaptor.hpp"
 #include "axom/mir/utilities/SelectedZones.hpp"
@@ -191,7 +193,13 @@ protected:
 
       // Make the clean mesh.
       conduit::Node n_cleanOutput;
-      makeCleanOutput(n_root, n_topo.name(), n_options_copy, cleanZones.view(), n_cleanOutput);
+      makeCleanZones(cleanZones.view(),
+                     n_root,
+                     n_root_topo,
+                     n_root_coordset,
+                     n_root_matset,
+                     n_options_copy,
+                     n_cleanOutput);
 
       // Process the mixed part of the mesh.
       processMixedZones(mixedZones.view(),
@@ -262,11 +270,8 @@ protected:
       }
 
       // Add an originalElements array.
-      const std::string originalElementsField(MIROptions(n_options).originalElementsField());
-      addOriginal(n_newFields[originalElementsField],
-                  n_topo.name(),
-                  "element",
-                  m_topologyView.numberOfZones());
+      const std::string originalElementsField(ELVIRAOptions(n_options).originalElementsField());
+      addOriginal(n_newFields[originalElementsField], n_topo.name(), "element", cleanZones);
     }
   }
 
@@ -316,17 +321,19 @@ protected:
    * \param n_field The new field node.
    * \param topoName The topology name for the field.
    * \param association The field association.
-   * \param nvalues The number of nodes in the field.
+   * \param selectedZonesView A view containing the values to store in the field.
    *
    */
   void addOriginal(conduit::Node &n_field,
                    const std::string &topoName,
                    const std::string &association,
-                   axom::IndexType nvalues) const
+                   axom::ArrayView<axom::IndexType> selectedZonesView) const
   {
     AXOM_ANNOTATE_SCOPE("addOriginal");
     namespace bputils = axom::mir::utilities::blueprint;
     bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+
+    const auto nvalues = selectedZonesView.size();
 
     // Add a new field for the original ids.
     n_field["topology"] = topoName;
@@ -336,7 +343,7 @@ protected:
     auto view = bputils::make_array_view<ConnectivityType>(n_field["values"]);
     axom::for_all<ExecSpace>(
       nvalues,
-      AXOM_LAMBDA(axom::IndexType index) { view[index] = static_cast<ConnectivityType>(index); });
+      AXOM_LAMBDA(axom::IndexType index) { view[index] = selectedZonesView[index]; });
   }
 
   /*!
@@ -344,47 +351,77 @@ protected:
    *        \a cleanZones array and store the results into the \a n_cleanOutput
    *        node.
    *
-   * \param n_root The input mesh from which zones are being extracted.
-   * \param topoName The name of the topology.
-   * \param n_options The options to inherit.
    * \param cleanZones An array of clean zone ids.
+   * \param n_root The input mesh from which zones are being extracted.
+   * \param n_topology The node that contains the topology for the input mesh.
+   * \param n_coordset The node that contains the coordset for the input mesh.
+   * \param n_matset The node that contains the matset for the input mesh.
+   * \param n_options The options to inherit.
    * \param[out] n_cleanOutput The node that will contain the clean mesh output.
    *
    * \return The number of nodes in the clean mesh output.
    */
-  void makeCleanOutput(const conduit::Node &n_root,
-                       const std::string &topoName,
-                       const conduit::Node &n_options,
-                       const axom::ArrayView<axom::IndexType> &cleanZones,
-                       conduit::Node &n_cleanOutput) const
+  void makeCleanZones(const axom::ArrayView<axom::IndexType> &cleanZones,
+                      const conduit::Node &n_root,
+                      const conduit::Node &n_topology,
+                      const conduit::Node &n_coordset,
+                      const conduit::Node &n_matset,
+                      const conduit::Node &n_options,
+                      conduit::Node &n_cleanOutput) const
   {
-    AXOM_ANNOTATE_SCOPE("makeCleanOutput");
+    AXOM_ANNOTATE_SCOPE("makeCleanZones");
+    namespace bputils = axom::mir::utilities::blueprint;
 
-    // Make options for the ExtractZones* algorithms.
-    conduit::Node n_ezopts;
-    n_ezopts["topology"] = topoName;
-    n_ezopts["compact"] = 1;
-    n_ezopts["originalElementsField"] = Options(n_options).originalElementsField();
-    // Forward some options involved in naming the objects.
-    const std::vector<std::string> keys {"topologyName", "coordsetName", "matsetName"};
-    for(const auto &key : keys)
+    // Make the clean mesh (it might be a point mesh).
+    ELVIRAOptions opts(n_options);
+    if(opts.pointmesh())
     {
-      if(n_options.has_path(key))
-      {
-        n_ezopts[key].set(n_options[key]);
-      }
-    }
+      // _mir_utilities_makepointmesh_begin
+      // Make a point mesh of the selected zones.
+      bputils::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(m_topologyView,
+                                                                       m_coordsetView);
+      pm.execute(cleanZones, n_topology, n_coordset, n_options, n_cleanOutput);
+      // _mir_utilities_makepointmesh_end
 
-    // Make the clean mesh.
-    using CleanOutput =
-      detail::MakeCleanOutput<ExecSpace, TopologyView, CoordsetView, MatsetView, IndexPolicy::dimension()>;
-    CleanOutput::execute(cleanZones,
-                         n_root,
-                         n_ezopts,
-                         m_topologyView,
-                         m_coordsetView,
-                         m_matsetView,
-                         n_cleanOutput);
+      // Slice the input material.
+      bputils::MatsetSlicer<ExecSpace, MatsetView> mslicer(m_matsetView);
+      bputils::SliceData slice;
+      slice.m_indicesView = cleanZones;
+      mslicer.execute(slice, n_matset, n_cleanOutput["matsets/" + opts.matsetName(n_matset.name())]);
+
+      // Add an originalElements array.
+      addOriginal(n_cleanOutput["fields/" + opts.originalElementsField()],
+                  n_topology.name(),
+                  "element",
+                  cleanZones);
+    }
+    else
+    {
+      // Make options for the ExtractZones* algorithms.
+      conduit::Node n_ezopts;
+      n_ezopts["topology"] = n_topology.name();
+      n_ezopts["compact"] = 1;
+      n_ezopts["originalElementsField"] = opts.originalElementsField();
+      // Forward some options involved in naming the objects.
+      const std::vector<std::string> keys {"topologyName", "coordsetName", "matsetName"};
+      for(const auto &key : keys)
+      {
+        if(n_options.has_path(key))
+        {
+          n_ezopts[key].set(n_options[key]);
+        }
+      }
+
+      using MakeCleanZones =
+        detail::MakeCleanZones<ExecSpace, TopologyView, CoordsetView, MatsetView, IndexPolicy::dimension()>;
+      MakeCleanZones::execute(cleanZones,
+                              n_root,
+                              n_ezopts,
+                              m_topologyView,
+                              m_coordsetView,
+                              m_matsetView,
+                              n_cleanOutput);
+    }
 
 #if defined(AXOM_ELVIRA_DEBUG)
     {
@@ -812,7 +849,7 @@ protected:
   }
 
   /*!
-   * \brief Use the normal vectors for each fragment to bulid the fragment shapes.
+   * \brief Use the normal vectors for each fragment to build the fragment shapes.
    *
    * \param buildView A view that lets us add a shape to the Blueprint output.
    * \param matZoneView A view containing zone ids sorted by material count in the zone.
@@ -859,6 +896,9 @@ protected:
 #if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
         SLIC_DEBUG("makeFragments: zoneIndex=" << zoneIndex << ", matCount=" << matCount);
 #endif
+        PointType pt {};
+        VectorType normal {};
+        double planeOffset;
         for(axom::IndexType m = 0; m < matCount - 1; m++)
         {
           const auto fragmentIndex = offset + m;
@@ -874,7 +914,6 @@ protected:
           const auto matVolume = zoneVol * fragmentVFStencilView[si];
 
           // Make the normal
-          VectorType normal;
           for(int d = 0; d < NDIMS; d++)
           {
             normal[d] = static_cast<CoordType>(normalPtr[d]);
@@ -882,7 +921,6 @@ protected:
 
           ClipResultType clippedShape;
           PointType range[2];
-          PointType pt {};
 
           if(m == 0)
           {
@@ -924,11 +962,14 @@ protected:
                                                                 pt);
           }
 
+          // Make clipping plane for remaining fragment.
+          const auto P = PlaneType(normal, pt, false);
+          planeOffset = P.getOffset();
+
           // Emit clippedShape as material matId
-          buildView.addShape(zoneIndex, fragmentIndex, clippedShape, matId, normalPtr);
+          buildView.addShape(zoneIndex, fragmentIndex, clippedShape, matId, pt, planeOffset, normalPtr);
 
           // Clip in the other direction to get the remaining fragment for the next material.
-          const auto P = PlaneType(normal, pt, false);
           if(m == 0)
           {
 #if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
@@ -954,8 +995,15 @@ protected:
         // Emit the last leftover fragment.
         const auto fragmentIndex = offset + matCount - 1;
         const auto matId = sortedMaterialIdsView[fragmentIndex];
-        const double *normalPtr = fragmentVectorsView.data() + (fragmentIndex * numVectorComponents);
-        buildView.addShape(zoneIndex, fragmentIndex, remaining, matId, normalPtr);
+        // The last fragment's normals are just (1,0,0). These are accessible at
+        // fragmentVectorsView[fragmentIndex * numVectorComponents] but it seems
+        // more useful to emit the opposite of the last fragment's normal instead.
+        double lastNormal[NDIMS];
+        for(int d = 0; d < NDIMS; d++)
+        {
+          lastNormal[d] = -normal[d];
+        }
+        buildView.addShape(zoneIndex, fragmentIndex, remaining, matId, pt, -planeOffset, lastNormal);
       });
   }
 
