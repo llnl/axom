@@ -234,10 +234,10 @@ public:
       ->capture_default_str();
 
     app.add_option("-s,--testShape", testShape)
-      ->description("The shape(s) to run")
+      ->description("The shape(s) to run.  Specifying multiple shapes will override scaling and translations to shrink shapes and shift them to individual octants of the mesh.")
       ->check(axom::CLI::IsMember(availableShapes))
       ->delimiter(',')
-      ->expected(1, 8);
+      ->expected(1, 60);
 
 #ifdef AXOM_USE_CALIPER
     app.add_option("--caliper", annotationMode)
@@ -346,19 +346,20 @@ Input params;
 const std::string topoName = "mesh";
 const std::string coordsetName = "coords";
 int cellCount = -1;
-// Translation to individual octants (override) when running multiple shapes
-// for ease of visualization.
+// Translation to individual octants (override) when running multiple shapes.
 // Except that the plane is never moved.
-std::map<std::string, axom::NumericArray<double, 3>> translations
-{ {"tet", {1, 1, -1}}
-, {"tetmesh", {-1, 1, -1}}
-, {"hex", {-1, -1, -1}}
-, {"cyl", {1, -1, -1}}
-, {"cone", {1, 1, 1}}
-, {"sor", {-1, 1, 1}}
-, {"sphere", {-1, -1, 1}}
-, {"plane", {0, 0, 0}}
+std::vector<axom::NumericArray<double, 3>> translations
+{ {1, 1, -1}
+, {-1, 1, -1}
+, {-1, -1, -1}
+, {1, -1, -1}
+, {1, 1, 1}
+, {-1, 1, 1}
+, {-1, -1, 1}
+, {1, -1, 1}
 };
+int translationIdx = 0; // To track what translations have been used.
+std::map<std::string, int> shapeReps; // Repetitions of the geometry.
 std::map<std::string, double> exactOverlapVols;
 std::map<std::string, double> errorToleranceRel; // Relative error tolerance.
 std::map<std::string, double> errorToleranceAbs; // Absolute error tolerance.
@@ -394,12 +395,11 @@ void addScaleOperator(axom::klee::CompositeOperator& compositeOp)
 }
 
 // Add translate operator.
-void addTranslateOperator(axom::klee::CompositeOperator& compositeOp,
-                          const std::string& geomName)
+void addTranslateOperator(axom::klee::CompositeOperator& compositeOp)
 {
   if(params.testShape.size() > 1)
   {
-    const auto& shifts = translations.at(geomName);
+    const axom::NumericArray<double, 3>& shifts = translations[(translationIdx++)%translations.size()];
     primal::Vector3D shift({shifts[0], shifts[1], shifts[2]});
     auto translateOp = std::make_shared<axom::klee::Translation>(shift, startProp);
     compositeOp.addOperator(translateOp);
@@ -736,9 +736,8 @@ std::vector<axom::klee::Shape> create2DShapeSet(sidre::DataStore& ds)
   return shapes;
 }
 
-axom::klee::Shape createShape_Sphere()
+axom::klee::Shape createShape_Sphere(const std::string& shapeName)
 {
-  const std::string shapeName = "sphere";
   Point3D center = params.center.empty() ? Point3D {0, 0, 0} : Point3D {params.center.data()};
   double radius = params.radius < 0 ? 1.0 : params.radius;
   axom::primal::Sphere<double, 3> sphere {center, radius};
@@ -749,11 +748,11 @@ axom::klee::Shape createShape_Sphere()
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, shapeName);
+  addTranslateOperator(*compositeOp);
 
   const axom::IndexType levelOfRefinement = params.refinementLevel;
   axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
-  axom::klee::Shape sphereShape(shapeName, "SPHERE", {}, {}, sphereGeometry);
+  axom::klee::Shape sphereShape(shapeName, shapeName + ".mat", {}, {}, sphereGeometry);
   exactOverlapVols[shapeName] = vScale *4. / 3 * M_PI * radius * radius * radius;
   errorToleranceRel[shapeName] = 0.1;
   errorToleranceAbs[shapeName] = 0.38;
@@ -761,11 +760,10 @@ axom::klee::Shape createShape_Sphere()
   return sphereShape;
 }
 
-axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds)
+axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds, const std::string& shapeName)
 {
-  const std::string shapeName = "tetmesh";
   // Shape a tetrahedal mesh.
-  sidre::Group* meshGroup = ds.getRoot()->createGroup("tetMesh");
+  sidre::Group* meshGroup = ds.getRoot()->createGroup(shapeName);
   AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
   const std::string topo = "mesh";
   const std::string coordset = "coords";
@@ -799,10 +797,10 @@ axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds)
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, shapeName);
+  addTranslateOperator(*compositeOp);
 
   axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
-  axom::klee::Shape tetShape(shapeName, "TETMESH", {}, {}, tetMeshGeometry);
+  axom::klee::Shape tetShape(shapeName, shapeName + ".mat", {}, {}, tetMeshGeometry);
 
   exactOverlapVols[shapeName] = vScale *volumeOfTetMesh(tetMesh);
   errorToleranceRel[shapeName] = 1e-6;
@@ -846,9 +844,8 @@ double computeVolume_Sor(axom::Array<double, 2>& discreteFunction)
   return vol;
 }
 
-axom::klee::Shape createShape_Sor()
+axom::klee::Shape createShape_Sor(const std::string& shapeName)
 {
-  const std::string shapeName = "sor";
   Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
   axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
     ? primal::Vector3D {0.1, 0.2, 0.4}
@@ -876,12 +873,12 @@ axom::klee::Shape createShape_Sor()
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, shapeName);
+  addTranslateOperator(*compositeOp);
 
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
-  axom::klee::Shape sorShape(shapeName, "SOR", {}, {}, sorGeometry);
+  axom::klee::Shape sorShape(shapeName, shapeName + ".mat", {}, {}, sorGeometry);
 
   exactOverlapVols[shapeName] = vScale *computeVolume_Sor(discreteFunction);
   errorToleranceRel[shapeName] = 0.04;
@@ -890,9 +887,8 @@ axom::klee::Shape createShape_Sor()
   return sorShape;
 }
 
-axom::klee::Shape createShape_Cylinder()
+axom::klee::Shape createShape_Cylinder(const std::string& shapeName)
 {
-  const std::string shapeName = "cyl";
   Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
   axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
     ? primal::Vector3D {0.1, 0.2, 0.4}
@@ -909,12 +905,12 @@ axom::klee::Shape createShape_Cylinder()
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, shapeName);
+  addTranslateOperator(*compositeOp);
 
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
-  axom::klee::Shape sorShape(shapeName, "CYL", {}, {}, sorGeometry);
+  axom::klee::Shape sorShape(shapeName, shapeName + ".mat", {}, {}, sorGeometry);
 
   exactOverlapVols[shapeName] = vScale *computeVolume_Sor(discreteFunction);
   // error tolerance for 2 levels of refinement
@@ -924,9 +920,8 @@ axom::klee::Shape createShape_Cylinder()
   return sorShape;
 }
 
-axom::klee::Shape createShape_Cone()
+axom::klee::Shape createShape_Cone(const std::string& shapeName)
 {
-  const std::string shapeName = "cone";
   Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
   axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
     ? primal::Vector3D {0.1, 0.2, 0.4}
@@ -944,12 +939,12 @@ axom::klee::Shape createShape_Cone()
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, shapeName);
+  addTranslateOperator(*compositeOp);
 
   axom::klee::Geometry sorGeometry =
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
-  axom::klee::Shape sorShape(shapeName, "CONE", {}, {}, sorGeometry);
+  axom::klee::Shape sorShape(shapeName, shapeName + ".mat", {}, {}, sorGeometry);
 
   exactOverlapVols[shapeName] = vScale *computeVolume_Sor(discreteFunction);
   errorToleranceRel[shapeName] = 0.05;
@@ -958,9 +953,8 @@ axom::klee::Shape createShape_Cone()
   return sorShape;
 }
 
-axom::klee::Shape createShape_Tet()
+axom::klee::Shape createShape_Tet(const std::string& shapeName)
 {
-  const std::string shapeName = "tet";
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
 
@@ -977,20 +971,19 @@ axom::klee::Shape createShape_Tet()
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, shapeName);
+  addTranslateOperator(*compositeOp);
   exactOverlapVols[shapeName] = vScale *tet.volume();
   errorToleranceRel[shapeName] = 1e-6;
   errorToleranceAbs[shapeName] = 1e-8;
 
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
-  axom::klee::Shape tetShape(shapeName, "TET", {}, {}, tetGeometry);
+  axom::klee::Shape tetShape(shapeName, shapeName + ".mat", {}, {}, tetGeometry);
 
   return tetShape;
 }
 
-axom::klee::Shape createShape_Hex()
+axom::klee::Shape createShape_Hex(const std::string& shapeName)
 {
-  const std::string shapeName = "hex";
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
 
@@ -1012,20 +1005,19 @@ axom::klee::Shape createShape_Hex()
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
-  addTranslateOperator(*compositeOp, shapeName);
+  addTranslateOperator(*compositeOp);
   exactOverlapVols[shapeName] = vScale *hex.volume();
   errorToleranceRel[shapeName] = 1e-6;
   errorToleranceAbs[shapeName] = 1e-8;
 
   axom::klee::Geometry hexGeometry(prop, hex, compositeOp);
-  axom::klee::Shape hexShape(shapeName, "HEX", {}, {}, hexGeometry);
+  axom::klee::Shape hexShape(shapeName, shapeName + ".mat", {}, {}, hexGeometry);
 
   return hexShape;
 }
 
-axom::klee::Shape createShape_Plane()
+axom::klee::Shape createShape_Plane(const std::string& shapeName)
 {
-  const std::string shapeName = "plane";
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
 
@@ -1050,7 +1042,7 @@ axom::klee::Shape createShape_Plane()
   const primal::Plane<double, 3> plane {normal, center, true};
 
   axom::klee::Geometry planeGeometry(prop, plane, scaleOp);
-  axom::klee::Shape planeShape(shapeName, "PLANE", {}, {}, planeGeometry);
+  axom::klee::Shape planeShape(shapeName, shapeName + ".mat", {}, {}, planeGeometry);
 
   // Exact mesh overlap volume, assuming plane passes through center of box mesh.
   using Pt3D = primal::Point<double, 3>;
@@ -1734,7 +1726,7 @@ int main(int argc, char** argv)
 
   const int arrayAllocId = axom::policyToDefaultAllocatorID(params.policy);
 
-  AXOM_ANNOTATE_BEGIN("quest example for shaping primals");
+  AXOM_ANNOTATE_BEGIN("quest shaping example");
   AXOM_ANNOTATE_BEGIN("init");
 
   // Storage for the shape geometry meshes.
@@ -1746,37 +1738,43 @@ int main(int argc, char** argv)
   std::vector<axom::klee::Shape> shapesVec;
   for(const auto& tg : params.testShape)
   {
+    if(shapeReps.count(tg) == 0)
+    {
+      shapeReps[tg] = 0;
+    }
+    std::string name = axom::fmt::format("{}.{}", tg, shapeReps[tg]++);
+
     if(tg == "plane")
     {
-      shapesVec.push_back(createShape_Plane());
+      shapesVec.push_back(createShape_Plane(name));
     }
     else if(tg == "hex")
     {
-      shapesVec.push_back(createShape_Hex());
+      shapesVec.push_back(createShape_Hex(name));
     }
     else if(tg == "sphere")
     {
-      shapesVec.push_back(createShape_Sphere());
+      shapesVec.push_back(createShape_Sphere(name));
     }
     else if(tg == "tetmesh")
     {
-      shapesVec.push_back(createShape_TetMesh(ds));
+      shapesVec.push_back(createShape_TetMesh(ds, name));
     }
     else if(tg == "tet")
     {
-      shapesVec.push_back(createShape_Tet());
+      shapesVec.push_back(createShape_Tet(name));
     }
     else if(tg == "sor")
     {
-      shapesVec.push_back(createShape_Sor());
+      shapesVec.push_back(createShape_Sor(name));
     }
     else if(tg == "cyl")
     {
-      shapesVec.push_back(createShape_Cylinder());
+      shapesVec.push_back(createShape_Cylinder(name));
     }
     else if(tg == "cone")
     {
-      shapesVec.push_back(createShape_Cone());
+      shapesVec.push_back(createShape_Cone(name));
     }
     else if(tg == "tri")
     {
@@ -2236,6 +2234,8 @@ int main(int argc, char** argv)
   slic::flushStreams();
 
   AXOM_ANNOTATE_END("quest shaping example");
+
+  SLIC_INFO(axom::fmt::format("exiting with failure count {}", failCounts));
 
   finalizeLogger();
 
