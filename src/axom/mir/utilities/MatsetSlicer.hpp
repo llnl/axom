@@ -12,11 +12,6 @@
 
 #include <conduit.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mir
@@ -34,8 +29,6 @@ namespace blueprint
 template <typename ExecSpace, typename MatsetView>
 class MatsetSlicer
 {
-  using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
 public:
   using SelectedZonesView = axom::ArrayView<axom::IndexType>;
 
@@ -89,7 +82,7 @@ public:
         const auto nmats = deviceMatsetView.numberOfMaterials(deviceSelectedZonesView[index]);
         sizesView[index] = nmats;
       });
-    RAJA::ReduceSum<reduce_policy, MatsetIndex> size_reduce(0);
+    axom::ReduceSum<ExecSpace, MatsetIndex> size_reduce(0);
     axom::for_all<ExecSpace>(
       sizesView.size(),
       AXOM_LAMBDA(axom::IndexType index) { size_reduce += sizesView[index]; });
