@@ -44,6 +44,7 @@ namespace axom
 namespace serial
 {
 // Serial reductions adapted from Ascent.
+// https://github.com/Alpine-DAV/ascent/blob/develop/src/libs/ascent/runtimes/expressions/ascent_execution_policies.hpp
 
 /*!
  * \brief A serial implementation of a ReduceSum operation.
@@ -54,23 +55,15 @@ class ReduceSum
   static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
 
 public:
-  ReduceSum() : m_value(0), m_value_ptr(&m_value)
-  {
-    // empty
-  }
+  ReduceSum() : m_value(0), m_value_ptr(&m_value) { }
 
-  ReduceSum(T v_start) : m_value(v_start), m_value_ptr(&m_value)
-  {
-    // empty
-  }
+  ReduceSum(T v_start) : m_value(v_start), m_value_ptr(&m_value) { }
 
   ReduceSum(const ReduceSum &v)
     : m_value(v.m_value)
     ,                           // will be unused in copies
     m_value_ptr(v.m_value_ptr)  // this is where the magic happens
-  {
-    // empty
-  }
+  { }
 
   void operator+=(const T value) const { m_value_ptr[0] += value; }
 
@@ -92,23 +85,15 @@ class ReduceMin
   static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
 
 public:
-  ReduceMin() : m_value(std::numeric_limits<T>::max()), m_value_ptr(&m_value)
-  {
-    // empty
-  }
+  ReduceMin() : m_value(std::numeric_limits<T>::max()), m_value_ptr(&m_value) { }
 
-  ReduceMin(T v_start) : m_value(v_start), m_value_ptr(&m_value)
-  {
-    // empty
-  }
+  ReduceMin(T v_start) : m_value(v_start), m_value_ptr(&m_value) { }
 
   ReduceMin(const ReduceMin &v)
     : m_value(v.m_value)
     ,                           // will be unused in copies
     m_value_ptr(v.m_value_ptr)  // this is where the magic happens
-  {
-    // empty
-  }
+  { }
 
   void min(const T value) const
   {
@@ -139,18 +124,14 @@ public:
     , m_value_ptr(&m_value)
     , m_index(-1)
     , m_index_ptr(&m_index)
-  {
-    // empty
-  }
+  { }
 
   ReduceMinLoc(T v_start, index_t i_start)
     : m_value(v_start)
     , m_value_ptr(&m_value)
     , m_index(i_start)
     , m_index_ptr(&m_index)
-  {
-    // empty
-  }
+  { }
 
   ReduceMinLoc(const ReduceMinLoc &v)
     : m_value(v.m_value)
@@ -160,9 +141,7 @@ public:
     m_index(v.m_index)
     ,                           // will be unused in copies
     m_index_ptr(v.m_index_ptr)  // this is where the magic happens
-  {
-    // empty
-  }
+  { }
 
   inline void minloc(const T v, index_t i) const
   {
@@ -193,23 +172,15 @@ class ReduceMax
   static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
 
 public:
-  ReduceMax() : m_value(std::numeric_limits<T>::lowest()), m_value_ptr(&m_value)
-  {
-    // empty
-  }
+  ReduceMax() : m_value(std::numeric_limits<T>::lowest()), m_value_ptr(&m_value) { }
 
-  ReduceMax(T v_start) : m_value(v_start), m_value_ptr(&m_value)
-  {
-    // empty
-  }
+  ReduceMax(T v_start) : m_value(v_start), m_value_ptr(&m_value) { }
 
   ReduceMax(const ReduceMax &v)
     : m_value(v.m_value)
     ,                           // will be unused in copies
     m_value_ptr(v.m_value_ptr)  // this is where the magic happens
-  {
-    // empty
-  }
+  { }
 
   // The const crimes we commit here are in the name of [=] capture
   void max(const T value) const
@@ -220,7 +191,6 @@ public:
     }
   }
 
-  //---------------------------------------------------------------------
   T get() const { return m_value_ptr[0]; }
 
 private:
@@ -242,18 +212,14 @@ public:
     , m_value_ptr(&m_value)
     , m_index(-1)
     , m_index_ptr(&m_index)
-  {
-    // empty
-  }
+  { }
 
   ReduceMaxLoc(T v_start, index_t i_start)
     : m_value(v_start)
     , m_value_ptr(&m_value)
     , m_index(i_start)
     , m_index_ptr(&m_index)
-  {
-    // empty
-  }
+  { }
 
   ReduceMaxLoc(const ReduceMaxLoc &v)
     : m_value(v.m_value)
@@ -263,9 +229,7 @@ public:
     m_index(v.m_index)
     ,                           // will be unused in copies
     m_index_ptr(v.m_index_ptr)  // this is where the magic happens
-  {
-    // empty
-  }
+  { }
 
   // the const crimes we commit here are in the name of [=] capture
   inline void maxloc(const T v, index_t i) const
