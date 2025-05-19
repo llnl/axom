@@ -14,11 +14,6 @@
 #include "axom/mir/Options.hpp"
 #include "axom/mir/MIROptions.hpp"
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mir
@@ -37,8 +32,6 @@ template <typename ExecSpace, typename TopologyView, typename CoordsetView>
 class ExtractZones
 {
   using ConnectivityType = typename TopologyView::ConnectivityType;
-  using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
 public:
   using SelectedZonesView = axom::ArrayView<axom::IndexType>;
   using ZoneType = typename TopologyView::ShapeType;
@@ -266,7 +259,7 @@ protected:
     const auto nnodes = m_coordsetView.numberOfNodes();
 
     // Figure out the topology size based on selected zones.
-    RAJA::ReduceSum<reduce_policy, int> connsize_reduce(0);
+    axom::ReduceSum<ExecSpace, int> connsize_reduce(0);
     const TopologyView deviceTopologyView(m_topologyView);
     axom::for_all<ExecSpace>(
       selectedZonesView.size(),
@@ -322,7 +315,7 @@ protected:
     mask.fill(0);
 
     // Mark all the selected zones' nodes as 1. Multiple threads may write 1 to the same node.
-    RAJA::ReduceSum<reduce_policy, int> connsize_reduce(0);
+    axom::ReduceSum<ExecSpace, int> connsize_reduce(0);
     TopologyView deviceTopologyView(m_topologyView);
     axom::for_all<ExecSpace>(
       selectedZonesView.size(),
@@ -340,7 +333,7 @@ protected:
     const auto newConnSize = connsize_reduce.get();
 
     // Count the used nodes.
-    RAJA::ReduceSum<reduce_policy, int> mask_reduce(0);
+    axom::ReduceSum<ExecSpace, int> mask_reduce(0);
     axom::for_all<ExecSpace>(
       nnodes,
       AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });
