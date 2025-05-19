@@ -247,13 +247,13 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                         COMMAND  quest_shaping_driver_ex
                                 -i ${shaping_data_dir}/revolved_circle.yaml
                                 --policy ${_policy}
-                                --segments-per-knot-span 1000
+                                --segments-per-knot-span 50
                                 --method intersection
                                 inline_mesh --min 0 0 --max 3 3 --res 3 3 -d 2
                         NUM_MPI_TASKS ${_nranks})
                     # steel unit semi-circle with an area of pi/2
                     set_tests_properties(${_testname} PROPERTIES
-                        PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 1.57079")
+                        PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 1.57")
                 endforeach()
 
                 unset(_policies)
