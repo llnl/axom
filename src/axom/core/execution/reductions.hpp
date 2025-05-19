@@ -36,7 +36,7 @@ using ReduceMax = RAJA::ReduceMax<typename axom::execution_space<ExecSpace>::red
 
 template <typename ExecSpace, typename T>
 using ReduceMaxLoc = RAJA::ReduceMaxLoc<typename axom::execution_space<ExecSpace>::reduce_policy, T>;
-}
+}  // namespace axom
 #else
 //------------------------------------------------------------------------------
 namespace axom
@@ -52,46 +52,35 @@ template <typename ExecSpace, typename T>
 class ReduceSum
 {
   static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
+
 public:
-    ReduceSum()
-    : m_value(0),
-      m_value_ptr(&m_value)
-    {
-        // empty
-    }
+  ReduceSum() : m_value(0), m_value_ptr(&m_value)
+  {
+    // empty
+  }
 
-    ReduceSum(T v_start)
-    : m_value(v_start),
-      m_value_ptr(&m_value)
-    {
-        // empty
-    }
+  ReduceSum(T v_start) : m_value(v_start), m_value_ptr(&m_value)
+  {
+    // empty
+  }
 
-    ReduceSum(const ReduceSum &v)
-    : m_value(v.m_value), // will be unused in copies
-      m_value_ptr(v.m_value_ptr) // this is where the magic happens
-    {
-        // empty
-    }
+  ReduceSum(const ReduceSum &v)
+    : m_value(v.m_value)
+    ,                           // will be unused in copies
+    m_value_ptr(v.m_value_ptr)  // this is where the magic happens
+  {
+    // empty
+  }
 
-    void operator+=(const T value) const
-    {
-        m_value_ptr[0] += value;
-    }
+  void operator+=(const T value) const { m_value_ptr[0] += value; }
 
-    void sum(const T value) const
-    {
-        m_value_ptr[0] += value;
-    }
+  void sum(const T value) const { m_value_ptr[0] += value; }
 
-    T get() const
-    {
-        return m_value;
-    }
+  T get() const { return m_value; }
 
 private:
-    T  m_value;
-    T* m_value_ptr;
+  T m_value;
+  T *m_value_ptr;
 };
 
 /*!
@@ -101,44 +90,39 @@ template <typename ExecSpace, typename T>
 class ReduceMin
 {
   static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
+
 public:
-    ReduceMin()
-    : m_value(std::numeric_limits<T>::max()),
-      m_value_ptr(&m_value)
-    {
-        // empty
-    }
+  ReduceMin() : m_value(std::numeric_limits<T>::max()), m_value_ptr(&m_value)
+  {
+    // empty
+  }
 
-    ReduceMin(T v_start)
-    : m_value(v_start),
-      m_value_ptr(&m_value)
-    {
-        // empty
-    }
+  ReduceMin(T v_start) : m_value(v_start), m_value_ptr(&m_value)
+  {
+    // empty
+  }
 
-    ReduceMin(const ReduceMin &v)
-    : m_value(v.m_value), // will be unused in copies
-      m_value_ptr(v.m_value_ptr) // this is where the magic happens
-    {
-        // empty
-    }
-    
-    void min(const T value) const
-    {
-        if (value < m_value_ptr[0])
-        {
-            m_value_ptr[0]=value;
-        }
-    }
+  ReduceMin(const ReduceMin &v)
+    : m_value(v.m_value)
+    ,                           // will be unused in copies
+    m_value_ptr(v.m_value_ptr)  // this is where the magic happens
+  {
+    // empty
+  }
 
-    T get() const
+  void min(const T value) const
+  {
+    if(value < m_value_ptr[0])
     {
-        return m_value_ptr[0];
+      m_value_ptr[0] = value;
     }
+  }
+
+  T get() const { return m_value_ptr[0]; }
 
 private:
-    T  m_value;
-    T *m_value_ptr;
+  T m_value;
+  T *m_value_ptr;
 };
 
 /*!
@@ -148,57 +132,56 @@ template <typename ExecSpace, typename T>
 class ReduceMinLoc
 {
   static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
+
 public:
-    ReduceMinLoc()
-    : m_value(std::numeric_limits<T>::max()),
-      m_value_ptr(&m_value),
-      m_index(-1),
-      m_index_ptr(&m_index)
-    {
-        // empty
-    }
+  ReduceMinLoc()
+    : m_value(std::numeric_limits<T>::max())
+    , m_value_ptr(&m_value)
+    , m_index(-1)
+    , m_index_ptr(&m_index)
+  {
+    // empty
+  }
 
-    ReduceMinLoc(T v_start, index_t i_start)
-    : m_value(v_start),
-      m_value_ptr(&m_value),
-      m_index(i_start),
-      m_index_ptr(&m_index)
-    {
-        // empty
-    }
+  ReduceMinLoc(T v_start, index_t i_start)
+    : m_value(v_start)
+    , m_value_ptr(&m_value)
+    , m_index(i_start)
+    , m_index_ptr(&m_index)
+  {
+    // empty
+  }
 
-    ReduceMinLoc(const ReduceMinLoc &v)
-    : m_value(v.m_value), // will be unused in copies
-      m_value_ptr(v.m_value_ptr), // this is where the magic happens
-      m_index(v.m_index), // will be unused in copies
-      m_index_ptr(v.m_index_ptr) // this is where the magic happens
-    {
-        // empty
-    }
+  ReduceMinLoc(const ReduceMinLoc &v)
+    : m_value(v.m_value)
+    ,  // will be unused in copies
+    m_value_ptr(v.m_value_ptr)
+    ,  // this is where the magic happens
+    m_index(v.m_index)
+    ,                           // will be unused in copies
+    m_index_ptr(v.m_index_ptr)  // this is where the magic happens
+  {
+    // empty
+  }
 
-    inline void minloc(const T v, index_t i) const
+  inline void minloc(const T v, index_t i) const
+  {
+    if(v < m_value_ptr[0])
     {
-        if(v < m_value_ptr[0])
-        {
-            m_value_ptr[0]=v;
-            m_index_ptr[0]=i;
-        }
-    };
-
-    inline T get() const
-    {
-        return m_value_ptr[0];
+      m_value_ptr[0] = v;
+      m_index_ptr[0] = i;
     }
+  };
 
-    inline index_t getLoc() const
-    {
-        return m_index_ptr[0];
-    }
+  inline T get() const { return m_value_ptr[0]; }
+
+  inline index_t getLoc() const { return m_index_ptr[0]; }
+
 private:
-    T         m_value;
-    T       *m_value_ptr;
-    index_t   m_index;
-    index_t  *m_index_ptr;
+  T m_value;
+  T *m_value_ptr;
+  index_t m_index;
+  index_t *m_index_ptr;
 };
 
 /*!
@@ -208,46 +191,41 @@ template <typename ExecSpace, typename T>
 class ReduceMax
 {
   static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
+
 public:
-    ReduceMax()
-    : m_value(std::numeric_limits<T>::lowest()),
-      m_value_ptr(&m_value)
-    {
-        // empty
-    }
+  ReduceMax() : m_value(std::numeric_limits<T>::lowest()), m_value_ptr(&m_value)
+  {
+    // empty
+  }
 
-    ReduceMax(T v_start)
-    : m_value(v_start),
-      m_value_ptr(&m_value)
-    {
-        // empty
-    }
+  ReduceMax(T v_start) : m_value(v_start), m_value_ptr(&m_value)
+  {
+    // empty
+  }
 
-    ReduceMax(const ReduceMax &v)
-    : m_value(v.m_value), // will be unused in copies
-      m_value_ptr(v.m_value_ptr) // this is where the magic happens
-    {
-        // empty
-    }
+  ReduceMax(const ReduceMax &v)
+    : m_value(v.m_value)
+    ,                           // will be unused in copies
+    m_value_ptr(v.m_value_ptr)  // this is where the magic happens
+  {
+    // empty
+  }
 
-    // The const crimes we commit here are in the name of [=] capture
-    void max(const T value) const
+  // The const crimes we commit here are in the name of [=] capture
+  void max(const T value) const
+  {
+    if(value > m_value_ptr[0])
     {
-        if (value >  m_value_ptr[0])
-        {
-            m_value_ptr[0]=value;
-        }
+      m_value_ptr[0] = value;
     }
-    
-    //---------------------------------------------------------------------
-    T get() const
-    {
-        return  m_value_ptr[0];
-    }
+  }
+
+  //---------------------------------------------------------------------
+  T get() const { return m_value_ptr[0]; }
 
 private:
-    T  m_value;
-    T *m_value_ptr; 
+  T m_value;
+  T *m_value_ptr;
 };
 
 /*!
@@ -257,62 +235,60 @@ template <typename ExecSpace, typename T>
 class ReduceMaxLoc
 {
   static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
+
 public:
+  ReduceMaxLoc()
+    : m_value(std::numeric_limits<T>::lowest())
+    , m_value_ptr(&m_value)
+    , m_index(-1)
+    , m_index_ptr(&m_index)
+  {
+    // empty
+  }
 
-    ReduceMaxLoc()
-    : m_value(std::numeric_limits<T>::lowest()),
-      m_value_ptr(&m_value),
-      m_index(-1),
-      m_index_ptr(&m_index)
+  ReduceMaxLoc(T v_start, index_t i_start)
+    : m_value(v_start)
+    , m_value_ptr(&m_value)
+    , m_index(i_start)
+    , m_index_ptr(&m_index)
+  {
+    // empty
+  }
+
+  ReduceMaxLoc(const ReduceMaxLoc &v)
+    : m_value(v.m_value)
+    ,  // will be unused in copies
+    m_value_ptr(v.m_value_ptr)
+    ,  // this is where the magic happens
+    m_index(v.m_index)
+    ,                           // will be unused in copies
+    m_index_ptr(v.m_index_ptr)  // this is where the magic happens
+  {
+    // empty
+  }
+
+  // the const crimes we commit here are in the name of [=] capture
+  inline void maxloc(const T v, index_t i) const
+  {
+    if(v > m_value_ptr[0])
     {
-        // empty
+      m_value_ptr[0] = v;
+      m_index_ptr[0] = i;
     }
+  };
 
-    ReduceMaxLoc(T v_start, index_t i_start)
-    : m_value(v_start),
-      m_value_ptr(&m_value),
-      m_index(i_start),
-      m_index_ptr(&m_index)
-    {
-        // empty
-    }
+  inline T get() const { return m_value_ptr[0]; }
 
-    ReduceMaxLoc(const ReduceMaxLoc &v)
-    : m_value(v.m_value), // will be unused in copies
-      m_value_ptr(v.m_value_ptr), // this is where the magic happens
-      m_index(v.m_index), // will be unused in copies
-      m_index_ptr(v.m_index_ptr) // this is where the magic happens
-    {
-        // empty
-    }
+  inline index_t getLoc() const { return m_index_ptr[0]; }
 
-    // the const crimes we commit here are in the name of [=] capture
-    inline void maxloc(const T v, index_t i) const
-    {
-        if(v > m_value_ptr[0])
-        {
-            m_value_ptr[0] = v;
-            m_index_ptr[0] = i;
-        }
-    };
-
-    inline T get() const
-    {
-        return m_value_ptr[0];
-    }
-
-    inline index_t getLoc() const
-    {
-        return m_index_ptr[0];
-    }
 private:
-    T        m_value;
-    T       *m_value_ptr;
-    index_t  m_index;
-    index_t *m_index_ptr;
+  T m_value;
+  T *m_value_ptr;
+  index_t m_index;
+  index_t *m_index_ptr;
 };
 
-} // namespace serial
+}  // namespace serial
 
 // Use the serial implementations when we do not have RAJA.
 template <typename ExecSpace, typename T>
@@ -331,6 +307,6 @@ template <typename ExecSpace, typename T>
 using ReduceMaxLoc = axom::serial::ReduceMaxLoc<ExecSpace, T>;
 
 }  // namespace axom
-#endif // AXOM_HAVE_RAJA
+#endif  // AXOM_HAVE_RAJA
 
 #endif
