@@ -38,7 +38,9 @@ public:
   {
     std::string name(default_value);
     if(m_options.has_child("topologyName"))
+    {
       name = m_options.fetch_existing("topologyName").as_string();
+    }
     return name;
   }
 
@@ -51,7 +53,23 @@ public:
   {
     std::string name(default_value);
     if(m_options.has_child("coordsetName"))
+    {
       name = m_options.fetch_existing("coordsetName").as_string();
+    }
+    return name;
+  }
+
+  /*!
+   * \brief Return the name of the originalElements field.
+   * return The name of the originalElements field.
+   */
+  std::string originalElementsField() const
+  {
+    std::string name("originalElements");
+    if(m_options.has_child("originalElementsField"))
+    {
+      name = m_options.fetch_existing("originalElementsField").as_string();
+    }
     return name;
   }
 
@@ -72,9 +90,13 @@ public:
       for(conduit::index_t i = 0; i < n_opt_fields.number_of_children(); i++)
       {
         if(n_opt_fields[i].dtype().is_string())
+        {
           f[n_opt_fields[i].name()] = n_opt_fields[i].as_string();
+        }
         else
+        {
           f[n_opt_fields[i].name()] = n_opt_fields[i].name();
+        }
       }
     }
     return retval;

@@ -66,6 +66,8 @@ protected:
   bool handler;
   int gridSize;
   int numCircles;
+  int dimension;
+  int numTrials;
   bool writeFiles;
   std::string outputFilePath;
   std::string method;

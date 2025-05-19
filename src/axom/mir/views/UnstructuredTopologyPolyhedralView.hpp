@@ -80,6 +80,7 @@ public:
 
     AXOM_HOST_DEVICE constexpr static bool is_polyhedral() { return true; }
     AXOM_HOST_DEVICE constexpr static int id() { return Polyhedron_ShapeID; }
+    AXOM_HOST_DEVICE constexpr static const char *name() { return "polyhedral"; }
 
     /// Constructor.
     AXOM_HOST_DEVICE PolyhedronShape(const PolyhedronData &obj, axom::IndexType zi)
@@ -130,6 +131,12 @@ public:
       return ConnectivityView(m_ids.m_data, nnodes);
     }
 
+    AXOM_HOST_DEVICE ConnectivityType getId(size_t index) const
+    {
+      const auto allIds = getIds();
+      return allIds[index];
+    }
+
     AXOM_HOST_DEVICE ConnectivityView getUniqueIds() const
     {
       axom::IndexType nnodes = 0;
@@ -165,6 +172,16 @@ public:
 
       return ConnectivityView(m_data.m_subelement_conn.data() + m_data.m_subelement_offsets[faceId],
                               m_data.m_subelement_sizes[faceId]);
+    }
+
+    AXOM_HOST_DEVICE void getFace(int faceIndex, ConnectivityType *ids, axom::IndexType &numIds) const
+    {
+      const auto faceIds = getFace(faceIndex);
+      numIds = faceIds.size();
+      for(axom::IndexType i = 0; i < numIds; i++)
+      {
+        ids[i] = faceIds[i];
+      }
     }
 
   private:

@@ -3,19 +3,19 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "gtest/gtest.h"
-
 #include "axom/config.hpp"
 #include "axom/slic.hpp"
 
 #include "axom/core/Types.hpp"
 #include "axom/core/execution/for_all.hpp"
 #include "axom/core/memory_management.hpp"
+#include "axom/core/numerics/transforms.hpp"
 
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/Triangle.hpp"
 #include "axom/primal/geometry/Plane.hpp"
+#include "axom/primal/geometry/construct.hpp"
 
 #include "axom/primal/operators/clip.hpp"
 #include "axom/primal/operators/intersection_volume.hpp"
@@ -23,6 +23,9 @@
 #include "axom/primal/operators/compute_bounding_box.hpp"
 
 #include <limits>
+#include <cmath>
+
+#include "gtest/gtest.h"
 
 namespace Primal3D
 {
@@ -1664,6 +1667,49 @@ TEST(primal_clip, tet_plane_intersect_four_edges)
   EXPECT_NEAR(tet.signedVolume() / 2.0, poly.signedVolume(), EPS);
 }
 
+TEST(primal_clip, polyhedron_plane)
+{
+  // Use float (float uncovered compilation problems in Polyhedron)
+  using Precision = float;
+  using PlaneType = axom::primal::Plane<Precision, 3>;
+  using VectorType = typename PlaneType::VectorType;
+
+  constexpr double EPS = 2e-7;
+
+  constexpr int nSides = 8;
+  const auto poly = axom::primal::regular_prism<Precision>(nSides);
+  PlaneType plane(VectorType {1.f, 0.f, 0.f}, 0.f);
+
+  // Clip away half of the polyhedron.
+  const auto clipped = axom::primal::clip(plane, poly, EPS);
+
+  const double V = poly.signedVolume();
+  const double V_2 = V / 2.0;
+  const double Vc = clipped.signedVolume();
+
+  // Entire polyhedron volume should be 2*sqrt(2)
+  EXPECT_NEAR(V, 2 * sqrt(2.), EPS);
+
+  // We clipped away half of the volume.
+  EXPECT_NEAR(V_2, Vc, EPS);
+
+  //----------------------------------------------------------------------------
+  // Make the same shape tipped over (to test transforms)
+  const auto poly2 = axom::primal::regular_prism<Precision>(
+    nSides,
+    1.f,
+    1.f,
+    axom::numerics::transforms::xRotation<Precision>(-M_PI / 2, 4));
+  PlaneType plane2(VectorType {0.f, 1.f, 0.f}, 0.5f);
+
+  // Clip away half of the polyhedron.
+  const auto clipped2 = axom::primal::clip(plane2, poly2, EPS);
+  const double Vc2 = clipped2.signedVolume();
+
+  // We clipped away half of the volume.
+  EXPECT_NEAR(Vc2, sqrt(2.), EPS);
+}
+
 TEST(primal_clip, empty_polygons)
 {
   using Polygon2D = axom::primal::Polygon<double, 2>;
@@ -2048,7 +2094,7 @@ TEST(primal_clip, polygon_clip_regression)
   expectedPoly.addVertex(Point2D {148.f, 142.f});
 
   // Comparisons
-  constexpr float EPS = 1.6e-5;
+  constexpr float EPS = 1.6e-5f;
   EXPECT_EQ(clippedShape.numVertices(), 4);
   for(int i = 0; i < 4; i++)
   {
