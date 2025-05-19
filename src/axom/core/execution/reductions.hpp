@@ -18,6 +18,8 @@
 //       The newer usage is more like how Axom does axom::for_all.
 
 #ifdef AXOM_USE_RAJA
+  #include "RAJA/RAJA.hpp"
+
 //------------------------------------------------------------------------------
 namespace axom
 {
@@ -52,7 +54,7 @@ namespace serial
 template <typename ExecSpace, typename T>
 class ReduceSum
 {
-  static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
+  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
 
 public:
   ReduceSum() : m_value(0), m_value_ptr(&m_value) { }
@@ -82,7 +84,7 @@ private:
 template <typename ExecSpace, typename T>
 class ReduceMin
 {
-  static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
+  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
 
 public:
   ReduceMin() : m_value(std::numeric_limits<T>::max()), m_value_ptr(&m_value) { }
@@ -116,7 +118,7 @@ private:
 template <typename ExecSpace, typename T>
 class ReduceMinLoc
 {
-  static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
+  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
 
 public:
   ReduceMinLoc()
@@ -169,7 +171,7 @@ private:
 template <typename ExecSpace, typename T>
 class ReduceMax
 {
-  static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
+  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
 
 public:
   ReduceMax() : m_value(std::numeric_limits<T>::lowest()), m_value_ptr(&m_value) { }
@@ -204,7 +206,7 @@ private:
 template <typename ExecSpace, typename T>
 class ReduceMaxLoc
 {
-  static_assert<std::is_same<ExecSpace>, axom::SEQ_EXEC>::value);
+  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
 
 public:
   ReduceMaxLoc()

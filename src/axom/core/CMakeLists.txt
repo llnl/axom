@@ -76,12 +76,14 @@ set(core_headers
     memory_management.hpp
 
     ## execution
+    execution/atomics.hpp
     execution/execution_space.hpp
     execution/for_all.hpp
     execution/nested_for_exec.hpp
     execution/reductions.hpp
     execution/runtime_policy.hpp
     execution/scans.hpp
+    execution/sorts.hpp
     execution/synchronize.hpp
 
     execution/internal/seq_exec.hpp
