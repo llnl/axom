@@ -150,7 +150,7 @@ public:
       ->description("The geometry(s) to run.  Specifying multiple shapes will override scaling and translations to shrink shapes and shift them to individual octants of the mesh.")
       ->check(axom::CLI::IsMember(availableShapes))
       ->delimiter(',')
-      ->expected(1, 30);
+      ->expected(1, 60);
 
 #ifdef AXOM_USE_CALIPER
     app.add_option("--caliper", annotationMode)
@@ -1065,7 +1065,7 @@ int main(int argc, char** argv)
   SLIC_INFO(axom::fmt::format("Using allocator id {}, '{}'", allocId, allocatorName));
 #endif
 
-  AXOM_ANNOTATE_BEGIN("quest example for shaping primals");
+  AXOM_ANNOTATE_BEGIN("quest clipping test");
   AXOM_ANNOTATE_BEGIN("init");
 
   // Storage for the some geometry meshes.
@@ -1153,6 +1153,17 @@ int main(int argc, char** argv)
   quest::ShapeeMesh& sMesh = *sMeshPtr;
 
   AXOM_ANNOTATE_END("setup shaping problem");
+
+  AXOM_ANNOTATE_BEGIN("ShapeeMesh::precomputes");
+  // Compute and cache shared data so they are not associated with the first geometry.
+  sMesh.getCellVolumes();
+  sMesh.getCellsAsTets();
+  sMesh.getCellsAsHexes();
+  sMesh.getCellBoundingBoxes();
+  sMesh.getConnectivity();
+  sMesh.getVertexCoords3D();
+  AXOM_ANNOTATE_END("ShapeeMesh::precomputes");
+
   AXOM_ANNOTATE_END("init");
 
   //---------------------------------------------------------------------------
@@ -1281,7 +1292,7 @@ int main(int argc, char** argv)
   SLIC_INFO(axom::fmt::format("{:-^80}", ""));
   slic::flushStreams();
 
-  AXOM_ANNOTATE_END("quest example for shaping primals");
+  AXOM_ANNOTATE_END("quest clipping test");
 
   SLIC_INFO(axom::fmt::format("exiting with failure count {}", failCounts));
 
