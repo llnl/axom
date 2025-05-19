@@ -72,6 +72,7 @@ set(mir_headers
     utilities/ExtrudeMesh.hpp
     utilities/FieldBlender.hpp
     utilities/FieldSlicer.hpp
+    utilities/MakePointMesh.hpp
     utilities/MakePolyhedralTopology.hpp
     utilities/MakeZoneCenters.hpp
     utilities/MakeZoneVolumes.hpp

@@ -46,7 +46,7 @@ public:
     return name;
   }
 
-private:
+protected:
   /// Access the base class' options.
   const conduit::Node &options() const { return this->m_options; }
 };
