@@ -267,38 +267,22 @@ NB_MODULE(pysidre, m_sidre)
          &View::getString,
          nb::rv_policy::reference,
          "Return the string contained in the View.")
-    .def(
-      "getData_Int",
-      [](View& self) {
-        int* data_ptr = self.getData();
-        return std::vector<int>(data_ptr, data_ptr + self.getNumElements());
-      },
-      nb::rv_policy::reference,
-      "Return the data held by the View (int) as a python list.")
-    .def(
-      "getData_Long",
-      [](View& self) {
-        long* data_ptr = self.getData();
-        return std::vector<long>(data_ptr, data_ptr + self.getNumElements());
-      },
-      nb::rv_policy::reference,
-      "Return the data held by the View (long) as a python list.")
-    .def(
-      "getData_Float",
-      [](View& self) {
-        float* data_ptr = self.getData();
-        return std::vector<float>(data_ptr, data_ptr + self.getNumElements());
-      },
-      nb::rv_policy::reference,
-      "Return the data held by the View (float) as a python list.")
-    .def(
-      "getData_Double",
-      [](View& self) {
-        double* data_ptr = self.getData();
-        return std::vector<double>(data_ptr, data_ptr + self.getNumElements());
-      },
-      nb::rv_policy::reference,
-      "Return the data held by the View (double) as a python list.")
+    .def("getData",
+         &View::getData<int>,
+         nb::rv_policy::reference,
+         "Return the data held by the View (int).")
+    .def("getData",
+         &View::getData<long>,
+         nb::rv_policy::reference,
+         "Return the data held by the View (long).")
+    .def("getData",
+         &View::getData<float>,
+         nb::rv_policy::reference,
+         "Return the data held by the View (float).")
+    .def("getData",
+         &View::getData<double>,
+         nb::rv_policy::reference,
+         "Return the data held by the View (double).")
 
     .def("getVoidPtr",
          &View::getVoidPtr,
@@ -356,9 +340,11 @@ NB_MODULE(pysidre, m_sidre)
 
     .def("createView",
          nb::overload_cast<const std::string&>(&Group::createView),
+         nb::rv_policy::reference,
          "Create an undescribed (i.e., empty) View object with given name or path in this Group.")
     .def("createView",
          nb::overload_cast<const std::string&, TypeID, IndexType>(&Group::createView),
+         nb::rv_policy::reference,
          "Create View object with given name or path in this Group that has a data description "
          "with data type and number of elements.")
     .def("createViewWithShape",
@@ -368,6 +354,7 @@ NB_MODULE(pysidre, m_sidre)
          "with data type and shape.")
     .def("createView",
          nb::overload_cast<const std::string&, Buffer*>(&Group::createView),
+         nb::rv_policy::reference,
          "Create an undescribed View object with given name or path in this Group and attach given "
          "Buffer to it.")
     .def("createView",
@@ -394,6 +381,7 @@ NB_MODULE(pysidre, m_sidre)
          "with data type and shape and attach externally-owned data to it.")
     .def("createViewAndAllocate",
          nb::overload_cast<const std::string&, TypeID, IndexType, int>(&Group::createViewAndAllocate),
+         nb::rv_policy::reference,
          "Create View object with given name or path in this Group that has a data description "
          "with data type and number of elements and allocate data for it.",
          nb::arg("path"),
@@ -411,21 +399,28 @@ NB_MODULE(pysidre, m_sidre)
 
     .def("createViewScalar",
          &Group::createViewScalar<int>,
+         nb::rv_policy::reference,
          "Create View object with given name or path in this Group set its data to given scalar "
          "value (int).")
     .def("createViewScalar",
          &Group::createViewScalar<long>,
+         nb::rv_policy::reference,
          "Create View object with given name or path in this Group set its data to given scalar "
          "value (long).")
     .def("createViewScalar",
          &Group::createViewScalar<float>,
+         nb::rv_policy::reference,
          "Create View object with given name or path in this Group set its data to given scalar "
          "value (float).")
     .def("createViewScalar",
          &Group::createViewScalar<double>,
+         nb::rv_policy::reference,
          "Create View object with given name or path in this Group set its data to given scalar "
          "value (double).")
-    .def("createViewString", &Group::createViewString, "")
+    .def("createViewString",
+         &Group::createViewString,
+         nb::rv_policy::reference,
+         "Create View object with given name or path in this Group set its data to given string.")
 
     .def("destroyView",
          nb::overload_cast<const std::string&>(&Group::destroyView),
