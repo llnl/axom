@@ -20,52 +20,78 @@ namespace axom
 {
 // Some RAJA atomic operations.
 
+// Type that indicates that the atomic policy should be selected to match the
+// current loop policy where the atomic function is being called.
+struct auto_atomic
+{ };
+
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicAdd(T* address, T value)
 {
-  using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
+  using atomic_policy =
+    typename std::conditional<std::is_same<ExecSpace, auto_atomic>::value,
+                              RAJA::auto_atomic,
+                              typename axom::execution_space<ExecSpace>::atomic_policy>::type;
   return RAJA::atomicAdd<atomic_policy>(address, value);
 }
 
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicSub(T* address, T value)
 {
-  using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
+  using atomic_policy =
+    typename std::conditional<std::is_same<ExecSpace, auto_atomic>::value,
+                              RAJA::auto_atomic,
+                              typename axom::execution_space<ExecSpace>::atomic_policy>::type;
   return RAJA::atomicSub<atomic_policy>(address, value);
 }
 
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicMin(T* address, T value)
 {
-  using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
+  using atomic_policy =
+    typename std::conditional<std::is_same<ExecSpace, auto_atomic>::value,
+                              RAJA::auto_atomic,
+                              typename axom::execution_space<ExecSpace>::atomic_policy>::type;
   return RAJA::atomicMin<atomic_policy>(address, value);
 }
 
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicMax(T* address, T value)
 {
-  using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
+  using atomic_policy =
+    typename std::conditional<std::is_same<ExecSpace, auto_atomic>::value,
+                              RAJA::auto_atomic,
+                              typename axom::execution_space<ExecSpace>::atomic_policy>::type;
   return RAJA::atomicMax<atomic_policy>(address, value);
 }
 
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicAnd(T* address, T value)
 {
-  using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
+  using atomic_policy =
+    typename std::conditional<std::is_same<ExecSpace, auto_atomic>::value,
+                              RAJA::auto_atomic,
+                              typename axom::execution_space<ExecSpace>::atomic_policy>::type;
   return RAJA::atomicAnd<atomic_policy>(address, value);
 }
 
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicOr(T* address, T value)
 {
-  using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
+  using atomic_policy =
+    typename std::conditional<std::is_same<ExecSpace, auto_atomic>::value,
+                              RAJA::auto_atomic,
+                              typename axom::execution_space<ExecSpace>::atomic_policy>::type;
   return RAJA::atomicOr<atomic_policy>(address, value);
 }
 
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicXor(T* address, T value)
 {
-  using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
+  using atomic_policy =
+    typename std::conditional<std::is_same<ExecSpace, auto_atomic>::value,
+                              RAJA::auto_atomic,
+                              typename axom::execution_space<ExecSpace>::atomic_policy>::type;
   return RAJA::atomicXor<atomic_policy>(address, value);
 }
 
@@ -78,10 +104,16 @@ namespace axom
 // NOTE: There is nothing atomic about these functions but that is okay because
 //       they are strictly for serial.
 
+// Type that indicates that the atomic policy should be selected to match the
+// current loop policy where the atomic function is being called.
+struct auto_atomic
+{ };
+
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicAdd(T* address, T value)
 {
-  constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  constexpr bool is_serial =
+    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
   AXOM_STATIC_ASSERT(is_serial);
   *address += value;
   return *address;
@@ -90,7 +122,8 @@ inline AXOM_HOST_DEVICE T atomicAdd(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicSub(T* address, T value)
 {
-  constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  constexpr bool is_serial =
+    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
   AXOM_STATIC_ASSERT(is_serial);
   *address -= value;
   return *address;
@@ -99,7 +132,8 @@ inline AXOM_HOST_DEVICE T atomicSub(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicMin(T* address, T value)
 {
-  constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  constexpr bool is_serial =
+    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
   AXOM_STATIC_ASSERT(is_serial);
   *address = axom::utilities::min(*address, value);
   return *address;
@@ -108,7 +142,8 @@ inline AXOM_HOST_DEVICE T atomicMin(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicMax(T* address, T value)
 {
-  constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  constexpr bool is_serial =
+    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
   AXOM_STATIC_ASSERT(is_serial);
   *address = axom::utilities::max(*address, value);
   return *address;
@@ -117,7 +152,8 @@ inline AXOM_HOST_DEVICE T atomicMax(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicAnd(T* address, T value)
 {
-  constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  constexpr bool is_serial =
+    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
   AXOM_STATIC_ASSERT(is_serial);
   *address &= value;
   return *address;
@@ -126,7 +162,8 @@ inline AXOM_HOST_DEVICE T atomicAnd(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicOr(T* address, T value)
 {
-  constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  constexpr bool is_serial =
+    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
   AXOM_STATIC_ASSERT(is_serial);
   *address |= value;
   return *address;
@@ -135,7 +172,8 @@ inline AXOM_HOST_DEVICE T atomicOr(T* address, T value)
 template <typename ExecSpace, typename T>
 inline AXOM_HOST_DEVICE T atomicXor(T* address, T value)
 {
-  constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  constexpr bool is_serial =
+    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
   AXOM_STATIC_ASSERT(is_serial);
   *address ^= value;
   return *address;
