@@ -63,7 +63,7 @@ inline void exclusive_scan(const Container1 &input, Container2 &&output)
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
   AXOM_STATIC_ASSERT(is_serial);
 
-  typename std::remove_const<Container1::value_type>::type total {0};
+  typename std::remove_const<typename Container1::value_type>::type total {0};
   for(IndexType i = 0; i < input.size(); ++i)
   {
     output[i] = total;
@@ -90,7 +90,7 @@ inline void exclusive_scan_inplace(Container &&input)
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
   AXOM_STATIC_ASSERT(is_serial);
 
-  typename std::remove_const<Container::value_type>::type total {0};
+  typename std::remove_const<typename Container::value_type>::type total {0};
   for(IndexType i = 0; i < input.size(); ++i)
   {
     const auto tmp = input[i];
@@ -139,7 +139,7 @@ inline void inclusive_scan(const Container1 &input, Container2 &&output)
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
   AXOM_STATIC_ASSERT(is_serial);
 
-  typename std::remove_const<Container1::value_type>::type total {0};
+  typename std::remove_const<typename Container1::value_type>::type total {0};
   for(IndexType i = 0; i < input.size(); ++i)
   {
     total += input[i];
@@ -167,7 +167,7 @@ inline void inclusive_scan_inplace(Container &&input)
   constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
   AXOM_STATIC_ASSERT(is_serial);
 
-  typename std::remove_const<Container::value_type>::type total {0};
+  typename std::remove_const<typename Container::value_type>::type total {0};
   for(IndexType i = 0; i < input.size(); ++i)
   {
     total += input[i];
