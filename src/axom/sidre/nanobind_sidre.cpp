@@ -267,10 +267,38 @@ NB_MODULE(pysidre, m_sidre)
          &View::getString,
          nb::rv_policy::reference,
          "Return the string contained in the View.")
-    .def("getData", &View::getData<int>, "Return the data held by the View (int).")
-    .def("getData", &View::getData<long>, "Return the data held by the View (long).")
-    .def("getData", &View::getData<float>, "Return the data held by the View (float).")
-    .def("getData", &View::getData<double>, "Return the data held by the View (double).")
+    .def(
+      "getData_Int",
+      [](View& self) {
+        int* data_ptr = self.getData();
+        return std::vector<int>(data_ptr, data_ptr + self.getNumElements());
+      },
+      nb::rv_policy::reference,
+      "Return the data held by the View (int) as a python list.")
+    .def(
+      "getData_Long",
+      [](View& self) {
+        long* data_ptr = self.getData();
+        return std::vector<long>(data_ptr, data_ptr + self.getNumElements());
+      },
+      nb::rv_policy::reference,
+      "Return the data held by the View (long) as a python list.")
+    .def(
+      "getData_Float",
+      [](View& self) {
+        float* data_ptr = self.getData();
+        return std::vector<float>(data_ptr, data_ptr + self.getNumElements());
+      },
+      nb::rv_policy::reference,
+      "Return the data held by the View (float) as a python list.")
+    .def(
+      "getData_Double",
+      [](View& self) {
+        double* data_ptr = self.getData();
+        return std::vector<double>(data_ptr, data_ptr + self.getNumElements());
+      },
+      nb::rv_policy::reference,
+      "Return the data held by the View (double) as a python list.")
 
     .def("getVoidPtr",
          &View::getVoidPtr,
@@ -372,10 +400,14 @@ NB_MODULE(pysidre, m_sidre)
          nb::arg("type"),
          nb::arg("num_elems"),
          nb::arg("allocID") = INVALID_ALLOCATOR_ID)
-    .def("createViewWithShapeAndAllocate",
-         &Group::createViewWithShapeAndAllocate,
-         "Create View object with given name or path in this Group that has a data description "
-         "with data type and shape and allocate data for it.")
+    .def(
+      "createViewWithShapeAndAllocate",
+      [](Group& self, const std::string& path, TypeID type, int ndims, const std::vector<int>& shape) {
+        return self.createViewWithShapeAndAllocate(path, type, ndims, shape.data());
+      },
+      nb::rv_policy::reference,
+      "Create View object with given name or path in this Group that has a data description "
+      "with data type and shape and allocate data for it.")
 
     .def("createViewScalar",
          &Group::createViewScalar<int>,

@@ -54,7 +54,7 @@ set(python_sidre_tests
    #sidre_view_Py.py #2390/1177 lines
    sidre_external_Py.py #375/158 lines
    sidre_opaque_Py.py # 227/286 lines
-   #sidre_allocatable_Py.py # 302 lines
+   sidre_allocatable_Py.py # 302 lines
    )
 
 set(sidre_gtests_depends_on sidre fmt gtest)
