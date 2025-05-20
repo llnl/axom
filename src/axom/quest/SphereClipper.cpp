@@ -105,12 +105,14 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
   axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
   SLIC_ASSERT(connView.shape() ==
               (axom::StackArray<axom::IndexType, 2> {cellCount, NUM_VERTS_PER_CELL}));
+  axom::ArrayView<const TetrahedronType> cellsAsTets = shapeeMesh.getCellsAsTets();
 
   auto labelsView = labels.view();
 
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
+      LabelType& cellLabel = labelsView[cellId];
       auto cellVertIds = connView[cellId];
       bool hasIn = vertIsInsideView[cellVertIds[0]];
       bool hasOut = !hasIn;
@@ -121,7 +123,49 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
         hasIn |= isIn;
         hasOut |= !isIn;
       }
-      labelsView[cellId] = !hasOut ? LABEL_IN : !hasIn ? LABEL_OUT : LABEL_ON;
+      cellLabel = !hasOut ? LABEL_IN : !hasIn ? LABEL_OUT : LABEL_ON;
+#if 0
+      if (cellLabel == LABEL_OUT)
+      {
+        /*
+          The vertices are all outside, Check if any edge crosses the
+          geometry.  This check rarely makes a difference.  Any errors
+          corrected is probably O(h^3) and much smaller than the error
+          from discretizing the sphere.  I'm not sure if it's worth
+          the cost.
+        */
+        constexpr int NUM_TETS_PER_HEX = primal::Hexahedron<double, 3>::NUM_TRIANGULATE;
+        const double sqRadius = sphere.getRadius() * sphere.getRadius();
+
+        const axom::IndexType tetIdxStart = cellId * NUM_TETS_PER_HEX;
+        const axom::IndexType tetIdxEnd = (1 + cellId) * NUM_TETS_PER_HEX;
+        for(axom::IndexType ti = tetIdxStart; ti < tetIdxEnd; ++ti)
+        {
+          const TetrahedronType& tet = cellsAsTets[ti];
+          for(int vA = 0; vA < 4 && cellLabel == LABEL_OUT; ++vA)
+          {
+            for(int vB=vA + 1; vB < 4 && cellLabel == LABEL_OUT; ++vB)
+            {
+              const Segment3DType seg(tet[vA], tet[vB]);
+              const Vector3DType vec(tet[vA], tet[vB]);
+              const Plane3DType plane(vec, sphere.getCenter());
+              double t;
+              bool intersects = axom::primal::intersect(plane, seg, t);
+              if (intersects)
+              {
+                Point3DType intersectionPt = seg.at(t);
+                Vector3DType centerToIntersection(sphere.getCenter(), intersectionPt);
+                double sqNorm = centerToIntersection.squared_norm();
+                if (sqNorm < sqRadius)
+                {
+                  cellLabel = LABEL_ON;
+                }
+              }
+            }
+          }
+        }
+      }
+#endif
     });
 
   return;
@@ -181,7 +225,6 @@ void SphereClipper::transformSphere()
   Point3DType surfacePoint = m_transformer.getTransform(surfacePtBeforeTrans);
   const double radius = Vector3DType(center, surfacePoint).norm();
   m_sphere = SphereType(center, radius);
-std::cout << m_sphereBeforeTrans << ' ' << m_sphere<<std::endl;
 }
 
 }  // end namespace quest

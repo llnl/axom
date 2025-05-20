@@ -150,6 +150,10 @@ public:
   //@{
   //!@name Accessors to mesh-dependent intermediate data.
   // This data is dynamically generated as needed, and cached.
+  /*!
+    @brief Tetrahedral version of mesh cells with cell i having tet ids
+    [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX].
+  */
   axom::ArrayView<const TetrahedronType> getCellsAsTets();
   axom::ArrayView<const HexahedronType> getCellsAsHexes();
   axom::ArrayView<const double> getCellVolumes();
