@@ -60,7 +60,8 @@ namespace reductions
 template <typename ExecSpace, typename T>
 class ReduceSum
 {
-  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
+  static constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  AXOM_STATIC_ASSERT(is_serial);
 
 public:
   ReduceSum() : m_value(0), m_value_ptr(&m_value) { }
@@ -90,7 +91,8 @@ private:
 template <typename ExecSpace, typename T>
 class ReduceMin
 {
-  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
+  static constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  AXOM_STATIC_ASSERT(is_serial);
 
 public:
   ReduceMin() : m_value(std::numeric_limits<T>::max()), m_value_ptr(&m_value) { }
@@ -124,7 +126,8 @@ private:
 template <typename ExecSpace, typename T>
 class ReduceMinLoc
 {
-  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
+  static constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  AXOM_STATIC_ASSERT(is_serial);
 
 public:
   ReduceMinLoc()
@@ -134,7 +137,7 @@ public:
     , m_index_ptr(&m_index)
   { }
 
-  ReduceMinLoc(T v_start, index_t i_start)
+  ReduceMinLoc(T v_start, axom::IndexType i_start)
     : m_value(v_start)
     , m_value_ptr(&m_value)
     , m_index(i_start)
@@ -151,7 +154,7 @@ public:
     m_index_ptr(v.m_index_ptr)  // this is where the magic happens
   { }
 
-  inline void minloc(const T v, index_t i) const
+  inline void minloc(const T v, axom::IndexType i) const
   {
     if(v < m_value_ptr[0])
     {
@@ -162,13 +165,13 @@ public:
 
   inline T get() const { return m_value_ptr[0]; }
 
-  inline index_t getLoc() const { return m_index_ptr[0]; }
+  inline axom::IndexType getLoc() const { return m_index_ptr[0]; }
 
 private:
   T m_value;
   T *m_value_ptr;
-  index_t m_index;
-  index_t *m_index_ptr;
+  axom::IndexType m_index;
+  axom::IndexType *m_index_ptr;
 };
 
 /*!
@@ -177,7 +180,8 @@ private:
 template <typename ExecSpace, typename T>
 class ReduceMax
 {
-  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
+  static constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  AXOM_STATIC_ASSERT(is_serial);
 
 public:
   ReduceMax() : m_value(std::numeric_limits<T>::lowest()), m_value_ptr(&m_value) { }
@@ -212,7 +216,8 @@ private:
 template <typename ExecSpace, typename T>
 class ReduceMaxLoc
 {
-  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
+  static constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  AXOM_STATIC_ASSERT(is_serial);
 
 public:
   ReduceMaxLoc()
@@ -222,7 +227,7 @@ public:
     , m_index_ptr(&m_index)
   { }
 
-  ReduceMaxLoc(T v_start, index_t i_start)
+  ReduceMaxLoc(T v_start, axom::IndexType i_start)
     : m_value(v_start)
     , m_value_ptr(&m_value)
     , m_index(i_start)
@@ -240,7 +245,7 @@ public:
   { }
 
   // the const crimes we commit here are in the name of [=] capture
-  inline void maxloc(const T v, index_t i) const
+  inline void maxloc(const T v, axom::IndexType i) const
   {
     if(v > m_value_ptr[0])
     {
@@ -251,13 +256,13 @@ public:
 
   inline T get() const { return m_value_ptr[0]; }
 
-  inline index_t getLoc() const { return m_index_ptr[0]; }
+  inline axom::IndexType getLoc() const { return m_index_ptr[0]; }
 
 private:
   T m_value;
   T *m_value_ptr;
-  index_t m_index;
-  index_t *m_index_ptr;
+  axom::IndexType m_index;
+  axom::IndexType *m_index_ptr;
 };
 
 /*!
@@ -266,14 +271,15 @@ private:
 template <typename ExecSpace, typename T>
 class ReduceBitAnd
 {
-  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
+  static constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  AXOM_STATIC_ASSERT(is_serial);
 
 public:
   ReduceBitAnd() : m_value(0), m_value_ptr(&m_value) { }
 
   ReduceBitAnd(T v_start) : m_value(v_start), m_value_ptr(&m_value) { }
 
-  ReduceBitAnd(const ReduceSum &v)
+  ReduceBitAnd(const ReduceBitAnd &v)
     : m_value(v.m_value)
     ,                           // will be unused in copies
     m_value_ptr(v.m_value_ptr)  // this is where the magic happens
@@ -294,14 +300,15 @@ private:
 template <typename ExecSpace, typename T>
 class ReduceBitOr
 {
-  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, axom::SEQ_EXEC>::value);
+  static constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  AXOM_STATIC_ASSERT(is_serial);
 
 public:
   ReduceBitOr() : m_value(0), m_value_ptr(&m_value) { }
 
   ReduceBitOr(T v_start) : m_value(v_start), m_value_ptr(&m_value) { }
 
-  ReduceBitOr(const ReduceSum &v)
+  ReduceBitOr(const ReduceBitOr &v)
     : m_value(v.m_value)
     ,                           // will be unused in copies
     m_value_ptr(v.m_value_ptr)  // this is where the magic happens

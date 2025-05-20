@@ -40,7 +40,8 @@ inline void sort(T *input, axom::IndexType size)
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
   RAJA::sort<loop_policy>(RAJA::make_span(input, size));
 #else
-  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, SEQ_EXEC>::value);
+  constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  AXOM_STATIC_ASSERT(is_serial);
   axom::utilities::Sorting<T>::sort(input, size);
 #endif
 }
@@ -82,7 +83,8 @@ inline void sort_pairs(Container1 &input1, Container2 &input2)
                                 RAJA::make_span(input2.data(), input2.size()));
 
 #else
-  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, SEQ_EXEC>::value);
+  constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  AXOM_STATIC_ASSERT(is_serial);
   axom::utilities::sort_multiple(input1, input2);
 #endif
 }
@@ -106,11 +108,11 @@ inline void stable_sort_pairs(T *input1, U *input2, axom::IndexType size)
 #if defined(AXOM_USE_RAJA)
   // Sort using RAJA
   using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
-  RAJA::stable_sort_pairs<loop_policy>(RAJA::make_span(input1, size),
-                                       RAJA::make_span(input2, size));
+  RAJA::stable_sort_pairs<loop_policy>(RAJA::make_span(input1, size), RAJA::make_span(input2, size));
 
 #else
-  AXOM_STATIC_ASSERT(std::is_same<ExecSpace, SEQ_EXEC>::value);
+  constexpr bool is_serial = std::is_same<ExecSpace, SEQ_EXEC>::value;
+  AXOM_STATIC_ASSERT(is_serial);
 
   // Do stable sort of indices using input1 as the sort key.
   std::vector<axom::IndexType> indices(size);
@@ -120,8 +122,8 @@ inline void stable_sort_pairs(T *input1, U *input2, axom::IndexType size)
   });
 
   // Store the values back into the input containers in sort order.
-  std::vector<T> input1_copy(input1, size);
-  std::vector<U> input2_copy(input2, size);
+  std::vector<T> input1_copy(input1, input1 + size);
+  std::vector<U> input2_copy(input2, input2 + size);
   for(axom::IndexType i = 0; i < size; i++)
   {
     input1[i] = input1_copy[indices[i]];
