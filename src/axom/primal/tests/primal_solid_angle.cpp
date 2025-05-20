@@ -513,7 +513,7 @@ TEST(primal_solid_angle, planar_bezierpatch)
   for(int n = 0; n < 8; ++n)
   {
     EXPECT_NEAR(winding_number(queries[n], quad),
-                winding_number_casting(queries[n], quad_patch),
+                winding_number(queries[n], quad_patch),
                 1e-10);
   }
 
@@ -527,15 +527,13 @@ TEST(primal_solid_angle, planar_bezierpatch)
   {
     EXPECT_NEAR(
       winding_number(queries[n], quad_patch),
-      winding_number_casting(queries[n], quad_patch, quad_tol, edge_tol, EPS),
+      winding_number(queries[n], quad_patch, quad_tol, edge_tol, EPS),
       1e-10);
   }
 }
 
 axom::Array<primal::NURBSPatch<double, 3>> make_sphere_biquintic()
 {
-  return;
-
   using Point3D = primal::Point<double, 3>;
   using Vector3D = primal::Vector<double, 3>;
   using NPatch = primal::NURBSPatch<double, 3>;
@@ -903,8 +901,8 @@ TEST(primal_integral, new_method_test)
   for(int k = 0; k < 6; ++k)
   {
     origin_wn +=
-      winding_number_casting(origin, sphere_faces_nurbs[k], edge_tol, quad_tol, EPS);
-    near_origin_wn += winding_number_casting(near_origin,
+      winding_number(origin, sphere_faces_nurbs[k], edge_tol, quad_tol, EPS);
+    near_origin_wn += winding_number(near_origin,
                                              sphere_faces_nurbs[k],
                                              edge_tol,
                                              quad_tol,
@@ -923,7 +921,7 @@ TEST(primal_integral, new_method_test)
     double far_wn = 0.0;
     for(int k = 0; k < 6; ++k)
     {
-      far_wn += winding_number_casting(far_query,
+      far_wn += winding_number(far_query,
                                        sphere_faces_nurbs[k],
                                        edge_tol,
                                        quad_tol,
@@ -947,7 +945,7 @@ TEST(primal_integral, new_method_test)
     for(int k = 0; k < 6; ++k)
     {
       std::cout << "\t" << k << std::endl;
-      double test_wn = winding_number_casting(inner_query,
+      double test_wn = winding_number(inner_query,
                                               sphere_faces_nurbs[k],
                                               edge_tol,
                                               quad_tol,
@@ -959,7 +957,7 @@ TEST(primal_integral, new_method_test)
       if(std::abs(test_wn - true_wn) > 1e-5)
       {
         std::cout << "Test: " << test_wn << " True: " << true_wn << std::endl;
-        winding_number_casting(inner_query,
+        winding_number(inner_query,
                                sphere_faces_nurbs[k],
                                edge_tol,
                                quad_tol,

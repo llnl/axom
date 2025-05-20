@@ -98,18 +98,25 @@ Matrix<T> zRotation(double angleRad, int ndims = 3)
  *
  * Formulation from https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle
  * 
+ * \note If the axis has zero magnitude, the function will return the identity matrix.
+ * 
  * \return A Matrix containing the rotation transform.
  */
 template <typename T = double>
 Matrix<T> axisRotation(double angleRad, double x, double y, double z)
 {
+  auto M = numerics::Matrix<T>::identity(3);
   const T norm = sqrt(x * x + y * y + z * z);
+
+  if(axom::utilities::isNearlyEqual(norm, 0.0))
+  {
+    return M;
+  }
+
   x /= norm;
   y /= norm;
   z /= norm;
   const double c = cos(angleRad), s = sin(angleRad), C = 1 - c;
-
-  auto M = numerics::Matrix<T>::zeros(3, 3);
 
   M(0, 0) = x * x * C + c;
   M(0, 1) = x * y * C - z * s;

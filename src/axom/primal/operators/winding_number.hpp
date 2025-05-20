@@ -573,6 +573,28 @@ double winding_number(const Point<T, 3>& query,
                                            EPS);
 }
 
+template <typename T>
+double winding_number_tear(const Point<T, 3>& query,
+                           const NURBSPatchData<T>& nPatchData,
+                           const Vector<T, 3>& cast_direction,
+                           int& case_code,
+                           int& integrated_curves,
+                           const double edge_tol = 1e-8,
+                           const double ls_tol = 1e-8,
+                           const double quad_tol = 1e-8,
+                           const double EPS = 1e-8)
+{
+
+  return detail::nurbs_data_winding_number_tear(query,
+                                                nPatchData,
+                                                cast_direction,
+                                                case_code,
+                                                integrated_curves,
+                                                edge_tol,
+                                                ls_tol,
+                                                quad_tol,
+                                                EPS);
+}
 /*
  * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch
  *

@@ -511,30 +511,6 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
    * of the surface at known locations.
    */
 
-  // Lambda to generate a 3D rotation matrix from an angle and axis
-  // Formulation from https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle
-  auto angleAxisRotMatrix = [](double theta, const Vector<T, 3>& axis) -> numerics::Matrix<T> {
-    const auto unitized = axis.unitVector();
-    const double x = unitized[0], y = unitized[1], z = unitized[2];
-    const double c = cos(theta), s = sin(theta), C = 1 - c;
-
-    auto matx = numerics::Matrix<T>::zeros(3, 3);
-
-    matx(0, 0) = x * x * C + c;
-    matx(0, 1) = x * y * C - z * s;
-    matx(0, 2) = x * z * C + y * s;
-
-    matx(1, 0) = y * x * C + z * s;
-    matx(1, 1) = y * y * C + c;
-    matx(1, 2) = y * z * C - x * s;
-
-    matx(2, 0) = z * x * C - y * s;
-    matx(2, 1) = z * y * C + x * s;
-    matx(2, 2) = z * z * C + c;
-
-    return matx;
-  };
-
   // Lambda to rotate the input point using the provided rotation matrix
   auto rotate_point = [&query](const numerics::Matrix<T>& matx,
                                const Point<T, 3> input) -> Point<T, 3> {
@@ -642,8 +618,8 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
     axom::Array<T> up, vp, tp;
     const bool isHalfOpen = false, countUntrimmed = true;
 
-    bool success =
-      intersect(discontinuity_axis, nPatch, tp, up, vp, ls_tol, EPS, countUntrimmed, isHalfOpen);
+    bool success = true;
+    intersect(discontinuity_axis, nPatchData.patch, tp, up, vp, ls_tol, EPS, countUntrimmed, isHalfOpen, success);
 
     if(!success)
     {
@@ -651,7 +627,7 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
       int num_noncoincident = 0;
       for(int i = 0; i < tp.size(); ++i)
       {
-        Point<T, 3> the_point(nPatch.evaluate(up[i], vp[i]));
+        const Point<T, 3> the_point(nPatchData.patch.evaluate(up[i], vp[i]));
         // If any of the intersection points are coincident with the surface,
         //  then attempt to clip out all degenerate intersections, and retry
         if(squared_distance(query, the_point) <= edge_tol_sq)
@@ -713,8 +689,8 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
     for(int i = 0; i < up.size(); ++i)
     {
       // Compute the intersection point on the surface
-      Point<T, 3> the_point(nPatch.evaluate(up[i], vp[i]));
-      Vector<T, 3> the_normal = nPatch.normal(up[i], vp[i]);
+      const Point<T, 3> the_point(nPatchData.patch.evaluate(up[i], vp[i]));
+      const Vector<T, 3> the_normal = nPatchData.patch.normal(up[i], vp[i]);
 
       // Check for bad intersections, i.e.,
       //  > There normal is poorly defined (cusp)
@@ -822,48 +798,18 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
   return the_gwn;
 }
 
-/*
- * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch with precomputed data
- *
- * \param [in] query The query point to test
- * \param [in] nPatch The NURBS patch object with precomputed data
- * \param [in] edge_tol The physical distance level at which objects are 
- *                      considered indistinguishable
- * \param [in] ls_tol The tolerance for the line-surface intersection routine
- * \param [in] quad_tol The maximum relative error allowed in the quadrature
- * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
- * \param [in] depth The current recursive depth
- * 
- * Computes the generalized winding number for a NURBS patch using Stokes theorem.
- *
- * \pre Assumes that the NURBS patch is trimmed, and has been slightly extended in 
- *       parameter space so that trimming curves arent't on the boundary of the untrimmed patch
- * \return The GWN.
- */
 template <typename T>
-double nurbs_data_winding_number(const Point<T, 3>& query,
-                                 const NURBSPatchData<T>& nPatchData,
-                                 const Vector<T, 3>& cast_direction,
-                                 int& case_code,
-                                 int& integrated_curves,
-                                 const double edge_tol = 1e-8,
-                                 const double ls_tol = 1e-8,
-                                 const double quad_tol = 1e-8,
-                                 const double EPS = 1e-8,
-                                 const int depth = 0)
+double nurbs_data_winding_number_tear(const Point<T, 3>& query,
+                                      const NURBSPatchData<T>& nPatchData,
+                                      const Vector<T, 3>& cast_direction,
+                                      int& case_code,
+                                      int& integrated_curves,
+                                      const double edge_tol = 1e-8,
+                                      const double ls_tol = 1e-8,
+                                      const double quad_tol = 1e-8,
+                                      const double EPS = 1e-8,
+                                      const int depth = 0)
 {
-  // Skip processing of degenerate surfaces
-  if(nPatchData.patch.getNumControlPoints_u() <= 1 || nPatchData.patch.getNumControlPoints_v() <= 1)
-  {
-    return 0.0;
-  }
-
-  // Also skip processing of surfaces with zero trimming curves
-  if(nPatchData.patch.getNumTrimmingCurves() == 0)
-  {
-    return 0.0;
-  }
-
   const double edge_tol_sq = edge_tol * edge_tol;
 
   // Fix the number of quadrature points arbitrarily
@@ -878,30 +824,6 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
    * of the surface at known locations.
    */
 
-  // Lambda to generate a 3D rotation matrix from an angle and axis
-  // Formulation from https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle
-  auto angleAxisRotMatrix = [](double theta, const Vector<T, 3>& axis) -> numerics::Matrix<T> {
-    const auto unitized = axis.unitVector();
-    const double x = unitized[0], y = unitized[1], z = unitized[2];
-    const double c = cos(theta), s = sin(theta), C = 1 - c;
-
-    auto matx = numerics::Matrix<T>::zeros(3, 3);
-
-    matx(0, 0) = x * x * C + c;
-    matx(0, 1) = x * y * C - z * s;
-    matx(0, 2) = x * z * C + y * s;
-
-    matx(1, 0) = y * x * C + z * s;
-    matx(1, 1) = y * y * C + c;
-    matx(1, 2) = y * z * C - x * s;
-
-    matx(2, 0) = z * x * C - y * s;
-    matx(2, 1) = z * y * C + x * s;
-    matx(2, 2) = z * z * C + c;
-
-    return matx;
-  };
-
   // Lambda to rotate the input point using the provided rotation matrix
   auto rotate_point = [&query](const numerics::Matrix<T>& matx,
                                const Point<T, 3> input) -> Point<T, 3> {
@@ -911,308 +833,32 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
     return Point<T, 3>({rotated[0] + query[0], rotated[1] + query[1], rotated[2] + query[2]});
   };
 
-  // Lambda to generate an entirely random unit vector
-  auto random_unit = []() -> Vector<T, 3> {
-    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-    double u = axom::utilities::random_real(-1.0, 1.0);
-    return Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-  };
-
-  // Rotation matrix for the patch
-  numerics::Matrix<T> rotator;
-
   // Allocate space for the patch which contains all surface boundaries
   NURBSPatch<T, 3> nPatchWithBoundaries(nPatchData.patch), the_disk;
 
   // Define vector fields whose curl gives us the winding number
-  DiscontinuityAxis field_direction;
-  bool extraTrimming = false;
+  DiscontinuityAxis field_direction = DiscontinuityAxis::rotated;
+  
+  // Rotate the patch so that the discontinuity is aligned with the z-axis
+  const double ang = std::acos(axom::utilities::clampVal(cast_direction[2], -1.0, 1.0));
+  numerics::Matrix<T> rotator = numerics::transforms::axisRotation(ang, cast_direction[1], -cast_direction[0], 0);
 
-  // Generate slightly expanded bounding boxes
-  auto bBox = nPatchData.bbox;
-  auto oBox = nPatchData.obox;
-
-  auto characteristic_length = bBox.range().norm();
-
-  bBox.expand(0.01 * characteristic_length);
-  oBox.expand(0.01 * characteristic_length);
-
-  // Case 1: Exterior without rotations
-  if(!bBox.contains(query))
+  if(field_direction == DiscontinuityAxis::rotated)
   {
-    case_code = 0;
-    integrated_curves = nPatchWithBoundaries.getNumTrimmingCurves();
-
-    const bool exterior_x = bBox.getMin()[0] > query[0] || query[0] > bBox.getMax()[0];
-    const bool exterior_y = bBox.getMin()[1] > query[1] || query[1] > bBox.getMax()[1];
-    const bool exterior_z = bBox.getMin()[2] > query[2] || query[2] > bBox.getMax()[2];
-
-    if(exterior_x || exterior_y)
+    // The trimming curves for rotatedPatch have been changed as needed,
+    //  but we need to rotate the control points
+    auto patch_shape = nPatchWithBoundaries.getControlPoints().shape();
+    for(int i = 0; i < patch_shape[0]; ++i)
     {
-      field_direction = DiscontinuityAxis::z;
-    }
-    else if(exterior_y || exterior_z)
-    {
-      field_direction = DiscontinuityAxis::x;
-    }
-    else if(exterior_x || exterior_z)
-    {
-      field_direction = DiscontinuityAxis::y;
+      for(int j = 0; j < patch_shape[1]; ++j)
+      {
+        nPatchWithBoundaries(i, j) = rotate_point(rotator, nPatchWithBoundaries(i, j));
+      }
     }
   }
-  // Case 1.5: Exterior with rotation
-  else if(!oBox.contains(query))
-  {
-    case_code = 1;
-    integrated_curves = nPatchWithBoundaries.getNumTrimmingCurves();
 
-    /* The following steps rotate the patch until the OBB is /not/ 
-       directly above or below the query point */
-    field_direction = DiscontinuityAxis::rotated;
-
-    // Find vector from query to the bounding box
-    Point<T, 3> closest = closest_point(query, oBox);
-    Vector<T, 3> v0 = Vector<T, 3>(query, closest).unitVector();
-
-    // Find the direction of a ray perpendicular to that
-    Vector<T, 3> v1;
-    if(std::abs(v0[2]) > std::abs(v0[0]))
-    {
-      v1 = Vector<T, 3>({v0[2], v0[2], -v0[0] - v0[1]}).unitVector();
-    }
-    else
-    {
-      v1 = Vector<T, 3>({-v0[1] - v0[2], v0[0], v0[0]}).unitVector();
-    }
-
-    // Rotate v0 around v1 until it is perpendicular to the plane spanned by k and v1
-    double ang = (v0[2] < 0 ? 1.0 : -1.0) *
-      acos(axom::utilities::clampVal(
-        -(v0[0] * v1[1] - v0[1] * v1[0]) / sqrt(v1[0] * v1[0] + v1[1] * v1[1]),
-        -1.0,
-        1.0));
-    rotator = angleAxisRotMatrix(ang, v1);
-  }
-  else
-  {
-    case_code = 2;
-    integrated_curves = nPatchWithBoundaries.getNumTrimmingCurves();
-
-    field_direction = DiscontinuityAxis::rotated;
-    Line<T, 3> discontinuity_axis(query, cast_direction);
-
-    // Tolerance for what counts as "close to a boundary" in parameter space
-    T disk_radius = 0.01 * nPatchData.pbox_diag;
-
-    // Compute intersections with the *untrimmed and extrapolated* patch
-    axom::Array<T> up, vp, tp;
-    bool isHalfOpen = false, countUntrimmed = true;
-
-    bool success =
-      intersect(discontinuity_axis, nPatchData.patch, tp, up, vp, ls_tol, EPS, countUntrimmed, isHalfOpen);
-
-    if(!success)
-    {
-      // Look at the intersection points
-      int num_noncoincident = 0;
-      for(int i = 0; i < tp.size(); ++i)
-      {
-        Point<T, 3> the_point(nPatchData.patch.evaluate(up[i], vp[i]));
-        // If any of the intersection points are coincident with the surface,
-        //  then attempt to clip out all degenerate intersections, and retry
-        if(squared_distance(query, the_point) <= edge_tol_sq)
-        {
-          NURBSPatch<T, 3> clipped_patch1, clipped_patch2;
-
-          degenerate_surface_processing(nPatchData.patch,
-                                        up,
-                                        vp,
-                                        0.01 * disk_radius,
-                                        clipped_patch1,
-                                        clipped_patch2);
-
-          return nurbs_winding_number(query,
-                                      clipped_patch1,
-                                      cast_direction,
-                                      edge_tol,
-                                      ls_tol,
-                                      quad_tol * 1e-5,
-                                      EPS,
-                                      depth + 1) +
-            nurbs_winding_number(query,
-                                 clipped_patch2,
-                                 cast_direction,
-                                 edge_tol,
-                                 ls_tol,
-                                 quad_tol * 1e-5,
-                                 EPS,
-                                 depth + 1);
-        }
-        else
-        {
-          num_noncoincident++;
-        }
-
-        // If more than 5 (arbitrary) are *not* coincident with the surface,
-        //  re-cast and try again. This is to avoid cases where the point *is*
-        //  coincident with the surface, but the first recorded point of
-        //  intersection is not after multiple re-casts.
-        if(num_noncoincident > 5)
-        {
-          auto new_cast_direction = random_unit();
-          return nurbs_winding_number(query,
-                                      nPatchData.patch,
-                                      new_cast_direction,
-                                      edge_tol,
-                                      ls_tol,
-                                      quad_tol,
-                                      EPS,
-                                      depth + 1);
-        }
-      }
-    }
-
-    // If no intersections are recorded, then nothing extra to account for
-
-    // Otherwise, account for each discontinuity analytically,
-    //  or recursively through disk subdivision
-    for(int i = 0; i < up.size(); ++i)
-    {
-      // Compute the intersection point on the surface
-      Point<T, 3> the_point(nPatchData.patch.evaluate(up[i], vp[i]));
-      Vector<T, 3> the_normal = nPatchData.patch.normal(up[i], vp[i]);
-
-      // Check for bad intersections, i.e.,
-      //  > There normal is poorly defined (cusp)
-      //  > The normal is tangent to the axis of discontinuity
-      bool bad_intersection = axom::utilities::isNearlyEqual(the_normal.norm(), 0.0, EPS) ||
-        axom::utilities::isNearlyEqual(the_normal.unitVector().dot(cast_direction), 0.0, EPS);
-
-      bool isOnSurface = squared_distance(query, the_point) <= edge_tol_sq;
-
-      if(bad_intersection && !isOnSurface)
-      {
-        // If a non-coincident ray intersects the surface at a tangent/cusp,
-        //  can recast and try again
-        auto new_cast_direction = random_unit();
-        return nurbs_winding_number(query,
-                                    nPatchData.patch,
-                                    new_cast_direction,
-                                    edge_tol,
-                                    ls_tol,
-                                    quad_tol,
-                                    EPS,
-                                    depth + 1);
-      }
-
-      if(isOnSurface)
-      {
-        // If the query point is on the surface, then shrink the disk
-        //  to ensure its winding number is known to be near-zero
-        disk_radius = 0.01 * disk_radius;
-      }
-
-      // Consider a disk around the intersection point via NURBSPatch::diskSplit.
-      //   If the disk intersects any trimming curves, need to do disk subdivision.
-      //   If not, we can compute the winding number without changing the trimming curvse
-      const bool ignoreInteriorDisk = true, clipDisk = true;
-      bool isDiskInside, isDiskOutside;
-      int old_num_trim = nPatchWithBoundaries.getNumTrimmingCurves();
-
-      NURBSPatch<T, 3> the_disk;
-      nPatchWithBoundaries.diskSplit(up[i],
-                                     vp[i],
-                                     disk_radius,
-                                     the_disk,
-                                     nPatchWithBoundaries,
-                                     isDiskInside,
-                                     isDiskOutside,
-                                     ignoreInteriorDisk,
-                                     clipDisk);
-      extraTrimming =
-        extraTrimming || (!isDiskInside && !isDiskOutside) || (isDiskInside && !ignoreInteriorDisk);
-
-      if(extraTrimming)
-      {
-        case_code = 3;
-        integrated_curves += the_disk.getNumTrimmingCurves() +
-          (nPatchWithBoundaries.getNumTrimmingCurves() - old_num_trim);
-      }
-
-      if(isOnSurface)
-      {
-        // If the query point is on the surface, the contribution of the disk is near-zero
-        //  and we only needed to puncture the larger surface to proceed
-        continue;
-      }
-      else if(!isDiskInside && !isDiskOutside)
-      {
-        // If the disk overlapped with the trimming curves, evaluate the winding number for the disk
-        auto new_cast_direction = random_unit();
-        the_gwn += nurbs_winding_number(query,
-                                        the_disk,
-                                        new_cast_direction,
-                                        edge_tol,
-                                        ls_tol,
-                                        quad_tol,
-                                        EPS,
-                                        depth + 1);
-      }
-      else if(isDiskOutside)
-      {
-        // If the disk is entirely outside the trimming curves, can just look at the boundary
-        continue;
-      }
-      else if(isDiskInside)
-      {
-        // If the disk is entirely inside the trimming curves,
-        //  need to account for the scalar field discontinuity
-        auto the_direction = Vector<T, 3>(query, the_point).unitVector();
-        the_gwn += std::copysign(0.5, the_normal.dot(the_direction));
-      }
-    }
-
-    // Rotate the patch so that the discontinuity is aligned with the z-axis
-    Vector<T, 3> axis = {cast_direction[1], -cast_direction[0], 0};
-
-    double ang = std::acos(axom::utilities::clampVal(cast_direction[2], -1.0, 1.0));
-
-    rotator = angleAxisRotMatrix(ang, axis);
-  }
-
-  if(extraTrimming)
-  {
-    // Can't use cached quadrature rules, cause it's unclear which ones to use
-
-    //  Rotate it if we need to
-    if(field_direction == detail::DiscontinuityAxis::rotated)
-    {
-      // The trimming curves for rotatedPatch have been changed as needed,
-      //  but we need to rotate the control points
-      auto patch_shape = nPatchWithBoundaries.getControlPoints().shape();
-      for(int i = 0; i < patch_shape[0]; ++i)
-      {
-        for(int j = 0; j < patch_shape[1]; ++j)
-        {
-          nPatchWithBoundaries(i, j) = detail::rotate_point(rotator, query, nPatchData.patch(i, j));
-        }
-      }
-    }
-
-    the_gwn += stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
-  }
-  else
-  {
-    // It's easier if we don't need to rotate the patch
-    if(field_direction != detail::DiscontinuityAxis::rotated)
-    {
-      the_gwn += stokes_gwn_evaluate_cached(query, nPatchData, field_direction, quad_npts, quad_tol);
-    }
-    else
-    {
-      the_gwn += stokes_gwn_evaluate_cached_rotated(query, nPatchData, rotator, quad_npts, quad_tol);
-    }
-  }
+  the_gwn +=
+    stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
 
   return the_gwn;
 }
