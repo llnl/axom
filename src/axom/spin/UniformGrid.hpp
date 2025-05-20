@@ -8,6 +8,10 @@
 
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/execution/for_all.hpp"
+#include "axom/core/execution/atomics.hpp"
+#include "axom/core/execution/scans.hpp"
+#include "axom/core/execution/reductions.hpp"
+#include "axom/core/execution/sorts.hpp"
 #include "axom/core/Array.hpp"
 #include "axom/core/NumericLimits.hpp"
 #include "axom/core/NumericArray.hpp"
@@ -19,11 +23,6 @@
 #include "axom/spin/RectangularLattice.hpp"
 
 #include "axom/spin/policy/UniformGridStorage.hpp"
-
-#if defined(AXOM_USE_RAJA)
-  // RAJA includes
-  #include "RAJA/RAJA.hpp"
-#endif
 
 // C/C++ includes
 #include <algorithm>
@@ -463,12 +462,11 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(axom::ArrayView
   SLIC_ASSERT(bboxes.size() == objs.size());
   // get the global bounding box of all the objects
 #ifdef AXOM_USE_RAJA
-  using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
   double infinity = axom::numeric_limits<double>::max();
   double neg_infinity = axom::numeric_limits<double>::lowest();
 
-  using ReduceMin = RAJA::ReduceMin<reduce_pol, double>;
-  using ReduceMax = RAJA::ReduceMax<reduce_pol, double>;
+  using ReduceMin = axom::ReduceMin<ExecSpace, double>;
+  using ReduceMax = axom::ReduceMax<ExecSpace, double>;
 
   StackArray<ReduceMin, NDIMS> min_coord;
   StackArray<ReduceMax, NDIMS> max_coord;
@@ -510,10 +508,6 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(axom::ArrayView
   // happens for GCC 8.1.0
   const axom::ArrayView<IndexType> binCountsView = binCounts;
 
-#ifdef AXOM_USE_RAJA
-  using atomic_pol = typename axom::execution_space<ExecSpace>::atomic_policy;
-#endif
-
   NumericArray<int, NDIMS> strides = m_strides;
   NumericArray<int, NDIMS> resolution = m_resolution;
   LatticeType lattice = m_lattice;
@@ -537,11 +531,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(axom::ArrayView
           for(IndexType i = lowerCell[0]; i <= upperCell[0]; ++i)
           {
             const IndexType ibin = i + jOffset;
-#ifdef AXOM_USE_RAJA
-            RAJA::atomicAdd<atomic_pol>(&binCountsView[ibin], IndexType {1});
-#else
-            binCountsView[ibin]++;
-#endif
+            axom::atomicAdd<ExecSpace>(&binCountsView[ibin], IndexType {1});
           }
         }
       }
@@ -575,12 +565,8 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(axom::ArrayView
           {
             const IndexType binIndex = i + jOffset;
             IndexType binCurrOffset;
-#ifdef AXOM_USE_RAJA
-            binCurrOffset = RAJA::atomicAdd<atomic_pol>(&binCountsView[binIndex], IndexType {1});
-#else
-            binCurrOffset = binCountsView[binIndex];
-            binCountsView[binIndex]++;
-#endif
+            binCurrOffset = axom::atomicAdd<ExecSpace>(&binCountsView[binIndex], IndexType {1});
+
             binView.get(binIndex, binCurrOffset) = objs[idx];
           }
         }
@@ -713,8 +699,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
 #ifdef AXOM_USE_RAJA
   const auto offsets_view = outOffsets;
   const auto counts_view = outCounts;
-  using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
-  RAJA::ReduceSum<reduce_pol, IndexType> totalCountReduce(0);
+  axom::ReduceSum<ExecSpace, IndexType> totalCountReduce(0);
   // Step 1: count number of candidate intersections for each point
   for_all<ExecSpace>(
     qsize,
@@ -726,13 +711,10 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
     // Step 2: exclusive scan for offsets in candidate array
     // Intel oneAPI compiler segfaults with OpenMP RAJA scan
   #ifdef __INTEL_LLVM_COMPILER
-  using exec_policy = typename axom::execution_space<axom::SEQ_EXEC>::loop_policy;
+  axom::exclusive_scan<axom::SEQ_EXEC>(outCounts, outOffsets);
   #else
-  using exec_policy = typename axom::execution_space<ExecSpace>::loop_policy;
+  axom::exclusive_scan<ExecSpace>(outCounts, outOffsets);
   #endif
-  RAJA::exclusive_scan<exec_policy>(RAJA::make_span(outCounts.data(), qsize),
-                                    RAJA::make_span(outOffsets.data(), qsize),
-                                    RAJA::operators::plus<IndexType> {});
 
   axom::IndexType totalCount = totalCountReduce.get();
 
@@ -764,10 +746,8 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   {
     // On the GPU, we first sort pairs by candidate index, then stable sort by
     // the query index.
-    RAJA::sort_pairs<exec_policy>(RAJA::make_span(outCandidates.data(), totalCount),
-                                  RAJA::make_span(queryIndex.data(), totalCount));
-    RAJA::stable_sort_pairs<exec_policy>(RAJA::make_span(queryIndex.data(), totalCount),
-                                         RAJA::make_span(outCandidates.data(), totalCount));
+    axom::sort_pairs<ExecSpace>(candidates_view, query_idx_view);
+    axom::stable_sort_pairs<ExecSpace>(query_idx_view, candidates_view);
   }
   else
   {
@@ -788,7 +768,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
 
   // Step 6: Count and flag unique intersection pairs, in order to map them
   // to a deduplicated candidate intersection array.
-  RAJA::ReduceSum<reduce_pol, IndexType> dedupCountReduce(0);
+  axom::ReduceSum<ExecSpace, IndexType> dedupCountReduce(0);
   axom::Array<IndexType> dedupTgtIdx(totalCount, totalCount, this->getAllocatorID());
   const auto dedup_idx_view = dedupTgtIdx.view();
   for_all<ExecSpace>(
@@ -812,8 +792,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
 
   // Exclusive scan over the flag array gives us the final index of unique
   // pairs in the deduplicated array.
-  RAJA::exclusive_scan_inplace<exec_policy>(RAJA::make_span(dedupTgtIdx.data(), totalCount),
-                                            RAJA::operators::plus<IndexType> {});
+  axom::exclusive_scan_inplace<ExecSpace>(dedupTgtIdx.view());
 
   // Step 7: Fill the array of deduplicated candidates based on the index
   // mapping generated previously.
@@ -821,7 +800,6 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   axom::Array<IndexType> dedupedCandidates(dedupSize, dedupSize, this->getAllocatorID());
   const auto dedup_cand_view = dedupedCandidates.view();
 
-  using atomic_pol = typename axom::execution_space<ExecSpace>::atomic_policy;
   // Reset counts counter for counting unique candidates per query box.
   for_all<ExecSpace>(
     qsize,
@@ -843,15 +821,13 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
       {
         IndexType qidx = query_idx_view[i];
         IndexType tgt_idx = dedup_idx_view[i];
-        RAJA::atomicAdd<atomic_pol>(&counts_view[qidx], IndexType {1});
+        axom::atomicAdd<ExecSpace>(&counts_view[qidx], IndexType {1});
         dedup_cand_view[tgt_idx] = candidates_view[i];
       }
     });
 
   // Regenerate offsets for the new candidates array.
-  RAJA::exclusive_scan<exec_policy>(RAJA::make_span(outCounts.data(), qsize),
-                                    RAJA::make_span(outOffsets.data(), qsize),
-                                    RAJA::operators::plus<IndexType> {});
+  axom::exclusive_scan<ExecSpace>(outCounts, outOffsets);
   outCandidates = std::move(dedupedCandidates);
 
 #else   // AXOM_USE_RAJA
