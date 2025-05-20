@@ -18,6 +18,8 @@ namespace flat_map
 inline void setSentinel(axom::ArrayView<GroupBucket> metadata)
 {
 #if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
+  // Note: HIP can access device memory from the host and does not need special
+  // handling - we just defer to the host path in all cases.
   MemorySpace space = getAllocatorSpace(metadata.getAllocatorID());
   using DeviceExec = axom::CUDA_EXEC<256>;
   if(space == MemorySpace::Device)
@@ -41,6 +43,8 @@ inline void destroyBuckets(axom::ArrayView<GroupBucket> metadata, axom::ArrayVie
   }
 
 #if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
+  // Note: HIP can access device memory from the host and does not need special
+  // handling - we just defer to the host path in all cases.
   MemorySpace space = getAllocatorSpace(metadata.getAllocatorID());
   using DeviceExec = axom::CUDA_EXEC<256>;
   // CUDA-only: buckets located in device-only memory and non-trivially
@@ -81,6 +85,9 @@ inline void copyBuckets(axom::ArrayView<const GroupBucket> metadata,
 
   axom::ArrayView<StoragePair> to_buckets_stage = to_buckets;
 #if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
+  // Note: HIP can access device memory from the host and does not need special
+  // handling - we just defer to the host path in all cases.
+
   // Non-trivially copyable:
   // "Relocate" to the host to call host-based copy constructor.
   MemorySpace meta_space = getAllocatorSpace(metadata.getAllocatorID());
