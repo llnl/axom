@@ -32,6 +32,7 @@ template <typename ExecSpace, typename TopologyView, typename CoordsetView>
 class ExtractZones
 {
   using ConnectivityType = typename TopologyView::ConnectivityType;
+
 public:
   using SelectedZonesView = axom::ArrayView<axom::IndexType>;
   using ZoneType = typename TopologyView::ShapeType;
