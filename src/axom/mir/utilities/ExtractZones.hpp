@@ -57,6 +57,12 @@ public:
   { }
 
   /*!
+   * \brief Destructor
+   *
+   */
+  virtual ~ExtractZones() = default;
+
+  /*!
    * \brief Select zones from the input mesh by id and output them in the output mesh.
    *
    * \param selectedZonesView A view that contains the selected zone ids.
@@ -135,7 +141,7 @@ public:
       conduit::Node &n_newFields = n_output["fields"];
       SliceData zSlice;
       zSlice.m_indicesView = zoneSliceView(selectedZonesView, extra);
-      makeOriginalZones = !n_fields.has_child("originalElements");
+      makeOriginalZones = !n_fields.has_child(opts.originalElementsField());
       makeFields(nSlice, zSlice, newTopoName, n_fields, n_newFields);
     }
 
@@ -144,7 +150,8 @@ public:
     {
       bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
-      conduit::Node &n_origElements = n_output["fields/originalElements"];
+      conduit::Node &n_outFields = n_output["fields"];
+      conduit::Node &n_origElements = n_outFields[opts.originalElementsField()];
       n_origElements["topology"] = newTopoName;
       n_origElements["association"] = "element";
       n_origElements["values"].set_allocator(c2a.getConduitAllocatorID());
@@ -383,15 +390,16 @@ protected:
    * \param extra Extra sizes for connectivity, sizes, etc.
    * \param old2newView A view that lets us map old node numbers to new node numbers.
    * \param n_topo The input topology.
+   * \param n_options A node containing the options.
    * \param n_newTopo A node to contain the new topology.
    */
-  void makeTopology(const SelectedZonesView selectedZonesView,
-                    const Sizes &dataSizes,
-                    const Sizes &extra,
-                    const axom::ArrayView<ConnectivityType> &old2newView,
-                    const conduit::Node &n_topo,
-                    const conduit::Node &n_options,
-                    conduit::Node &n_newTopo) const
+  virtual void makeTopology(const SelectedZonesView selectedZonesView,
+                            const Sizes &dataSizes,
+                            const Sizes &extra,
+                            const axom::ArrayView<ConnectivityType> &old2newView,
+                            const conduit::Node &n_topo,
+                            const conduit::Node &n_options,
+                            conduit::Node &n_newTopo) const
   {
     AXOM_ANNOTATE_SCOPE("makeTopology");
     namespace bputils = axom::mir::utilities::blueprint;
@@ -401,7 +409,9 @@ protected:
     if(shape == "polyhedron")
     {
       // TODO: Handle polyhedron shape.
-      // NOTE: We could know whether we can have PH topos if the TopologyView handles PH zones. Maybe this method is separated out and partially specialized.
+      // NOTE: We could know whether we can have PH topos if the TopologyView
+      //       handles PH zones. Maybe this method is separated out and partially
+      //       specialized.
       SLIC_ERROR("Polyhedron is not handled yet.");
     }
     else
@@ -686,6 +696,11 @@ public:
   { }
 
   /*!
+   * \brief Destructor
+   */
+  virtual ~ExtractZonesAndMatset() = default;
+
+  /*!
    * \brief Select zones from the input mesh by id and output them in the output mesh.
    *
    * \param selectedZonesView A view that contains the selected zone ids.
@@ -732,7 +747,7 @@ public:
 
 // The following members are protected (unless using CUDA)
 #if !defined(__CUDACC__)
-private:
+protected:
 #endif
 
   /*!

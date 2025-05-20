@@ -260,7 +260,10 @@ public:
       const auto numIds = m_state->m_blendGroupSizesView[m_blendGroupId];
       const auto start = m_state->m_blendGroupStartView[m_blendGroupId];
       float w = 0.f;
-      for(IndexType i = 0; i < numIds; i++) w += m_state->m_blendCoeffView[start + i];
+      for(IndexType i = 0; i < numIds; i++)
+      {
+        w += m_state->m_blendCoeffView[start + i];
+      }
       return w;
     }
 

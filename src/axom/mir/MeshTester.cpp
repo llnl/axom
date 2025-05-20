@@ -778,7 +778,7 @@ void MeshTester::initTestCaseFive(int gridSize, int numCircles, conduit::Node& m
 
   if(m_structured)
   {
-    auto topologyView = axom::mir::views::make_structured<2>::view(n_topology);
+    auto topologyView = axom::mir::views::make_structured_topology<2>::view(n_topology);
     using TopologyView = decltype(topologyView);
 
     addConcentricCircleMaterial<TopologyView, CoordsetView>(topologyView,
@@ -791,7 +791,7 @@ void MeshTester::initTestCaseFive(int gridSize, int numCircles, conduit::Node& m
   else
   {
     using ShapeType = QuadShape<int>;
-    auto topologyView = make_unstructured_single_shape<ShapeType>::view(n_topology);
+    auto topologyView = make_unstructured_single_shape_topology<ShapeType>::view(n_topology);
     using TopologyView = decltype(topologyView);
 
     // Add the material
@@ -890,7 +890,7 @@ void MeshTester::initTestCaseSix(int gridSize, int numSpheres, conduit::Node& me
   std::vector<std::vector<axom::float64>> materialVolumeFractionsData;
   if(m_structured)
   {
-    auto topologyView = axom::mir::views::make_structured<3>::view(n_topology);
+    auto topologyView = axom::mir::views::make_structured_topology<3>::view(n_topology);
 
     generateSphericalVolumeFractions(topologyView,
                                      coordsetView,
@@ -902,7 +902,7 @@ void MeshTester::initTestCaseSix(int gridSize, int numSpheres, conduit::Node& me
   else
   {
     using ShapeType = HexShape<int>;
-    auto topologyView = make_unstructured_single_shape<ShapeType>::view(n_topology);
+    auto topologyView = make_unstructured_single_shape_topology<ShapeType>::view(n_topology);
 
     generateSphericalVolumeFractions(topologyView,
                                      coordsetView,

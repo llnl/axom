@@ -8,6 +8,7 @@
 #include "axom/core.hpp"
 #include "axom/mir.hpp"
 #include "axom/mir/tests/mir_testing_data_helpers.hpp"
+#include "axom/mir/tests/mir_testing_helpers.hpp"
 
 #include <conduit/conduit_relay_io_blueprint.hpp>
 #include <cmath>
@@ -15,23 +16,15 @@
 
 namespace bputils = axom::mir::utilities::blueprint;
 
-//------------------------------------------------------------------------------
-
-// Uncomment to make Conduit errors hang.
-//#define DEBUGGING_TEST_CASES
-
-// Uncomment to generate baselines
-//#define AXOM_TESTING_GENERATE_BASELINES
-
-// Uncomment to save visualization files for debugging (when making baselines)
-//#define AXOM_TESTING_SAVE_VISUALIZATION
-
-#include "axom/mir/tests/mir_testing_helpers.hpp"
-
 std::string baselineDirectory()
 {
   return pjoin(dataDirectory(), "mir", "regression", "mir_clipfield");
 }
+
+//------------------------------------------------------------------------------
+// Global test application object.
+MIRTestApplication TestApp;
+
 //------------------------------------------------------------------------------
 TEST(mir_clipfield, options)
 {
@@ -458,13 +451,7 @@ void test_one_shape(const conduit::Node &hostMesh, const std::string &name)
   bputils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
 
   // Handle baseline comparison.
-  std::string baselineName(yamlRoot(name));
-  const auto paths = baselinePaths<ExecSpace>();
-#if defined(AXOM_TESTING_GENERATE_BASELINES)
-  saveBaseline(paths, baselineName, hostClipMesh);
-#else
-  EXPECT_TRUE(compareBaseline(paths, baselineName, hostClipMesh));
-#endif
+  EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
 }
 
 template <typename ShapeType>
@@ -528,18 +515,7 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
   conduit::Node hostMesh, deviceMesh;
   axom::mir::testing::data::braid(type, dims, hostMesh);
   bputils::copy<ExecSpace>(deviceMesh, hostMesh);
-#if defined(AXOM_TESTING_SAVE_VISUALIZATION) && defined(AXOM_USE_HDF5)
-  conduit::relay::io::blueprint::save_mesh(hostMesh, name + "_orig", "hdf5");
-#endif
-#if defined(DEBUGGING_TEST_CASES)
-  std::cout << "---------------------------------- input mesh "
-               "-------------------------------------"
-            << std::endl;
-  printNode(hostMesh);
-  std::cout << "---------------------------------------------------------------"
-               "--------------------"
-            << std::endl;
-#endif
+  TestApp.saveVisualization(name + "_orig", hostMesh);
 
   // Create views
   axom::StackArray<double, 2> origin {0., 0.}, spacing {1., 1.};
@@ -566,26 +542,8 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
   conduit::Node hostClipMesh;
   bputils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
 
-#if defined(DEBUGGING_TEST_CASES)
-  std::cout << "---------------------------------- clipped uniform "
-               "----------------------------------"
-            << std::endl;
-  printNode(hostClipMesh);
-  std::cout << "---------------------------------------------------------------"
-               "----------------------"
-            << std::endl;
-#endif
-
   // Handle baseline comparison.
-  {
-    std::string baselineName(yamlRoot(name));
-    const auto paths = baselinePaths<ExecSpace>();
-#if defined(AXOM_TESTING_GENERATE_BASELINES)
-    saveBaseline(paths, baselineName, hostClipMesh);
-#else
-    EXPECT_TRUE(compareBaseline(paths, baselineName, hostClipMesh));
-#endif
-  }
+  EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
 
   // Now, take the clipped mesh and clip it again using a mixed topology view.
   using ExpCoordsetView = axom::mir::views::ExplicitCoordsetView<double, 2>;
@@ -648,26 +606,9 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
   // Copy device->host
   conduit::Node hostClipMixedMesh;
   bputils::copy<seq_exec>(hostClipMixedMesh, deviceClipMixedMesh);
-#if defined(DEBUGGING_TEST_CASES)
-  std::cout << "---------------------------------- clipped mixed "
-               "----------------------------------"
-            << std::endl;
-  printNode(hostClipMixedMesh);
-  std::cout << "---------------------------------------------------------------"
-               "--------------------"
-            << std::endl;
-#endif
 
   // Handle baseline comparison.
-  {
-    std::string baselineName(yamlRoot(name + "_mixed"));
-    const auto paths = baselinePaths<ExecSpace>();
-#if defined(AXOM_TESTING_GENERATE_BASELINES)
-    saveBaseline(paths, baselineName, hostClipMixedMesh);
-#else
-    EXPECT_TRUE(compareBaseline(paths, baselineName, hostClipMixedMesh));
-#endif
-  }
+  EXPECT_TRUE(TestApp.test<ExecSpace>(name + "_mixed", hostClipMixedMesh));
 }
 
 TEST(mir_clipfield, uniform2d)
@@ -704,9 +645,7 @@ void braid_rectilinear_clip_test(const std::string &name)
   // Create the data
   conduit::Node hostMesh, deviceMesh;
   axom::mir::testing::data::braid("rectilinear", dims, hostMesh);
-#if defined(AXOM_TESTING_SAVE_VISUALIZATION) && defined(AXOM_USE_HDF5)
-  conduit::relay::io::blueprint::save_mesh(hostMesh, name + "_orig", "hdf5");
-#endif
+  TestApp.saveVisualization(name + "_orig", hostMesh);
 
   // host->device
   bputils::copy<ExecSpace>(deviceMesh, hostMesh);
@@ -733,15 +672,7 @@ void braid_rectilinear_clip_test(const std::string &name)
   bputils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
 
   // Handle baseline comparison.
-  {
-    std::string baselineName(yamlRoot(name));
-    const auto paths = baselinePaths<ExecSpace>();
-#if defined(AXOM_TESTING_GENERATE_BASELINES)
-    saveBaseline(paths, baselineName, hostClipMesh);
-#else
-    EXPECT_TRUE(compareBaseline(paths, baselineName, hostClipMesh));
-#endif
-  }
+  EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
 }
 
 TEST(mir_clipfield, rectilinear2d)
@@ -785,11 +716,7 @@ void strided_structured_clip_test(const std::string &name, const conduit::Node &
   // Create the data
   conduit::Node hostMesh, deviceMesh;
   axom::mir::testing::data::strided_structured<NDIMS>(hostMesh);
-  //hostMesh.print();
-#if defined(AXOM_TESTING_SAVE_VISUALIZATION) && defined(AXOM_USE_HDF5)
-  conduit::relay::io::blueprint::save_mesh(hostMesh, name + "_orig", "hdf5");
-  conduit::relay::io::blueprint::save_mesh(hostMesh, name + "_orig_yaml", "yaml");
-#endif
+  TestApp.saveVisualization(name + "_orig", hostMesh);
 
   conduit::Node deviceOptions, deviceClipMesh, hostClipMesh;
 
@@ -798,9 +725,10 @@ void strided_structured_clip_test(const std::string &name, const conduit::Node &
   bputils::copy<ExecSpace>(deviceOptions, options);
 
   // Create views
-  auto coordsetView =
-    axom::mir::views::make_explicit_coordset<double, 2>::view(deviceMesh["coordsets/coords"]);
-  auto topoView = axom::mir::views::make_strided_structured<2>::view(deviceMesh["topologies/mesh"]);
+  const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
+  const conduit::Node &n_topo = deviceMesh["topologies/mesh"];
+  auto coordsetView = axom::mir::views::make_explicit_coordset<double, 2>::view(n_coordset);
+  auto topoView = axom::mir::views::make_strided_structured_topology<2>::view(n_topo);
 
   using CoordsetView = decltype(coordsetView);
   using TopoView = decltype(topoView);
@@ -813,15 +741,7 @@ void strided_structured_clip_test(const std::string &name, const conduit::Node &
   bputils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
 
   // Handle baseline comparison.
-  {
-    std::string baselineName(yamlRoot(name));
-    const auto paths = baselinePaths<ExecSpace>();
-#if defined(AXOM_TESTING_GENERATE_BASELINES)
-    saveBaseline(paths, baselineName, hostClipMesh);
-#else
-    EXPECT_TRUE(compareBaseline(paths, baselineName, hostClipMesh));
-#endif
-  }
+  EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
 }
 
 void strided_structured_clip_test_exec(const std::string &name, const conduit::Node &options)
@@ -868,9 +788,7 @@ void braid3d_clip_test(const std::string &type, const std::string &name)
   conduit::Node hostMesh, deviceMesh;
   axom::mir::testing::data::braid(type, dims, hostMesh);
   bputils::copy<ExecSpace>(deviceMesh, hostMesh);
-#if defined(AXOM_TESTING_SAVE_VISUALIZATION) && defined(AXOM_USE_HDF5)
-  conduit::relay::io::blueprint::save_mesh(hostMesh, name + "_orig", "hdf5");
-#endif
+  TestApp.saveVisualization(name + "_orig", hostMesh);
 
   // Create views
   conduit::Node &n_x = deviceMesh.fetch_existing("coordsets/coords/values/x");
@@ -905,13 +823,7 @@ void braid3d_clip_test(const std::string &type, const std::string &name)
   bputils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
 
   // Handle baseline comparison.
-  std::string baselineName(yamlRoot(name));
-  const auto paths = baselinePaths<ExecSpace>();
-#if defined(AXOM_TESTING_GENERATE_BASELINES)
-  saveBaseline(paths, baselineName, hostClipMesh);
-#else
-  EXPECT_TRUE(compareBaseline(paths, baselineName, hostClipMesh));
-#endif
+  EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
 }
 
 /// Execute the braid3d test for a single shape on multiple ExecSpaces
@@ -960,9 +872,7 @@ void braid3d_mixed_clip_test(const std::string &name)
   conduit::Node hostMesh, deviceMesh;
   axom::mir::testing::data::mixed3d(hostMesh);
   bputils::copy<ExecSpace>(deviceMesh, hostMesh);
-#if defined(AXOM_TESTING_SAVE_VISUALIZATION) && defined(AXOM_USE_HDF5)
-  conduit::relay::io::blueprint::save_mesh(hostMesh, name + "_orig", "hdf5");
-#endif
+  TestApp.saveVisualization(name + "_orig", hostMesh);
 
   // Create views
   conduit::Node &n_x = deviceMesh.fetch_existing("coordsets/coords/values/x");
@@ -1016,13 +926,7 @@ void braid3d_mixed_clip_test(const std::string &name)
   bputils::copy<seq_exec>(hostClipMesh, deviceClipMesh);
 
   // Handle baseline comparison.
-  std::string baselineName(yamlRoot(name));
-  const auto paths = baselinePaths<ExecSpace>();
-#if defined(AXOM_TESTING_GENERATE_BASELINES)
-  saveBaseline(paths, baselineName, hostClipMesh);
-#else
-  EXPECT_TRUE(compareBaseline(paths, baselineName, hostClipMesh));
-#endif
+  EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostClipMesh));
 }
 
 TEST(mir_clipfield, mixed_seq) { braid3d_mixed_clip_test<seq_exec>("mixed"); }
@@ -1153,7 +1057,8 @@ struct test_selectedzones
       deviceMesh["coordsets/coords"]);
     using CoordsetView = decltype(coordsetView);
 
-    auto topologyView = axom::mir::views::make_rectilinear<2>::view(deviceMesh["topologies/mesh"]);
+    auto topologyView =
+      axom::mir::views::make_rectilinear_topology<2>::view(deviceMesh["topologies/mesh"]);
     using TopologyView = decltype(topologyView);
 
     conduit::Node hostOptions;
@@ -1172,16 +1077,9 @@ struct test_selectedzones
     // device->host
     conduit::Node hostResult;
     bputils::copy<seq_exec>(hostResult, deviceResult);
-    //printNode(hostResult);
 
     // Handle baseline comparison.
-    const auto paths = baselinePaths<ExecSpace>();
-    std::string baselineName(yamlRoot("selectedzones1"));
-#if defined(AXOM_TESTING_GENERATE_BASELINES)
-    saveBaseline(paths, baselineName, hostResult);
-#else
-    EXPECT_TRUE(compareBaseline(paths, baselineName, hostResult));
-#endif
+    EXPECT_TRUE(TestApp.test<ExecSpace>("selectedzones1", hostResult));
 
     //---------------------
     // Try a different clip
@@ -1194,14 +1092,8 @@ struct test_selectedzones
 
     // device->host
     bputils::copy<seq_exec>(hostResult, deviceResult);
-    //printNode(hostResult);
 
-    baselineName = yamlRoot("selectedzones2");
-#if defined(AXOM_TESTING_GENERATE_BASELINES)
-    saveBaseline(paths, baselineName, hostResult);
-#else
-    EXPECT_TRUE(compareBaseline(paths, baselineName, hostResult));
-#endif
+    EXPECT_TRUE(TestApp.test<ExecSpace>("selectedzones2", hostResult));
   }
 
   static void create(conduit::Node &mesh)
@@ -1253,61 +1145,8 @@ TEST(mir_clipfield, selectedzones_hip) { test_selectedzones<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
-void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
-{
-  std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
-  // This is on purpose.
-  while(1)
-    ;
-}
-
-//------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-  int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
-
-  axom::CLI::App app;
-#if defined(AXOM_USE_CALIPER)
-  std::string annotationMode("none");
-  app.add_option("--caliper", annotationMode)
-    ->description(
-      "caliper annotation mode. Valid options include 'none' and 'report'. "
-      "Use 'help' to see full list.")
-    ->capture_default_str()
-    ->check(axom::utilities::ValidCaliperMode);
-#endif
-  bool handlerEnabled = false;
-  app.add_flag("--handler", handlerEnabled, "Enable Conduit handler.");
-
-  // Parse command line options.
-  try
-  {
-    app.parse(argc, argv);
-
-#if defined(AXOM_USE_CALIPER)
-    axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(annotationMode);
-#endif
-
-    axom::slic::SimpleLogger logger;  // create & initialize test logger,
-    if(handlerEnabled)
-    {
-      conduit::utils::set_error_handler(conduit_debug_err_handler);
-    }
-
-    result = RUN_ALL_TESTS();
-  }
-  catch(axom::CLI::CallForHelp &e)
-  {
-    std::cout << app.help() << std::endl;
-    result = 0;
-  }
-  catch(axom::CLI::ParseError &e)
-  {
-    // Handle other parsing errors
-    std::cerr << e.what() << std::endl;
-    result = app.exit(e);
-  }
-
-  return result;
+  return TestApp.execute(argc, argv);
 }

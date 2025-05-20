@@ -9,6 +9,7 @@
 #include "axom/fmt.hpp"
 #include "axom/mir.hpp"
 #include "axom/mir/tests/mir_testing_data_helpers.hpp"
+#include "axom/mir/tests/mir_testing_helpers.hpp"
 
 #include <conduit/conduit_relay_io_blueprint.hpp>
 #include <cmath>
@@ -16,20 +17,14 @@
 
 namespace bputils = axom::mir::utilities::blueprint;
 
-//------------------------------------------------------------------------------
-
-// Uncomment to generate baselines
-//#define AXOM_TESTING_GENERATE_BASELINES
-
-// Uncomment to save visualization files for debugging (when making baselines)
-//#define AXOM_TESTING_SAVE_VISUALIZATION
-
-#include "axom/mir/tests/mir_testing_helpers.hpp"
-
 std::string baselineDirectory()
 {
   return pjoin(dataDirectory(), "mir", "regression", "mir_coupled");
 }
+
+//------------------------------------------------------------------------------
+// Global test application object.
+MIRTestApplication TestApp;
 
 //------------------------------------------------------------------------------
 /*!
@@ -221,21 +216,10 @@ public:
     conduit::Node hostResult;
     bputils::copy<seq_exec>(hostResult, n_dev);
 
-#if defined(AXOM_TESTING_SAVE_VISUALIZATION)
-  #if defined(AXOM_USE_HDF5)
-    conduit::relay::io::blueprint::save_mesh(hostResult, name, "hdf5");
-  #endif
-    conduit::relay::io::save(hostResult, name + ".yaml", "yaml");
-#endif
+    TestApp.saveVisualization(name, hostResult);
 
     // Handle baseline comparison.
-    const auto paths = baselinePaths<ExecSpace>();
-    std::string baselineName(yamlRoot(name));
-#if defined(AXOM_TESTING_GENERATE_BASELINES)
-    saveBaseline(paths, baselineName, hostResult);
-#else
-    EXPECT_TRUE(compareBaseline(paths, baselineName, hostResult));
-#endif
+    EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostResult));
   }
 
 private:
@@ -275,12 +259,12 @@ private:
 
     if(stridedStructured)
     {
-      auto topologyView = axom::mir::views::make_strided_structured<2>::view(n_topology);
+      auto topologyView = axom::mir::views::make_strided_structured_topology<2>::view(n_topology);
       mir2D(topologyView, input_prefix, n_input, output_prefix, n_output, selectedZones, stridedStructured);
     }
     else
     {
-      auto topologyView = axom::mir::views::make_structured<2>::view(n_topology);
+      auto topologyView = axom::mir::views::make_structured_topology<2>::view(n_topology);
       mir2D(topologyView, input_prefix, n_input, output_prefix, n_output, selectedZones, stridedStructured);
     }
   }
@@ -295,8 +279,9 @@ private:
                     bool stridedStructured)
   {
     namespace bputils = axom::mir::utilities::blueprint;
+    SLIC_INFO(axom::fmt::format("mir2D {} to {}", input_prefix, output_prefix));
 
-    // Wrap the coarse mesh in views.
+    // Wrap the input mesh in views.
     const conduit::Node &n_coordset = n_input[axom::fmt::format("coordsets/{}_coords", input_prefix)];
     const conduit::Node &n_matset = n_input[axom::fmt::format("matsets/{}_matset", input_prefix)];
 
@@ -316,6 +301,7 @@ private:
     conduit::Node options;
     // Select that matset we'll operate on.
     options["matset"] = axom::fmt::format("{}_matset", input_prefix);
+    options["plane"] = 1;
     // Change the names of the topology, coordset, and matset in the output.
     options["topologyName"] = output_prefix;
     options["coordsetName"] = axom::fmt::format("{}_coords", output_prefix);
@@ -366,6 +352,7 @@ private:
                         bool stridedStructured)
   {
     namespace bputils = axom::mir::utilities::blueprint;
+    SLIC_INFO("mapping2D postmir to fine");
 
     // Wrap the source mesh from (coarse MIR output).
     const conduit::Node &n_src_coordset = n_src["coordsets/postmir_coords"];
@@ -378,7 +365,7 @@ private:
     // 2D Elvira makes polygonal meshes
     using SrcShapeType = axom::mir::views::PolygonShape<axom::IndexType>;
     auto srcTopologyView =
-      axom::mir::views::make_unstructured_single_shape<SrcShapeType>::view(n_src_topology);
+      axom::mir::views::make_unstructured_single_shape_topology<SrcShapeType>::view(n_src_topology);
     using SrcTopologyView = decltype(srcTopologyView);
 
     auto srcMatsetView =
@@ -392,7 +379,7 @@ private:
     auto targetCoordsetView = axom::mir::views::make_uniform_coordset<2>::view(n_target_coordset);
     using TargetCoordsetView = decltype(targetCoordsetView);
 
-    auto targetTopologyView = axom::mir::views::make_structured<2>::view(n_target_topology);
+    auto targetTopologyView = axom::mir::views::make_structured_topology<2>::view(n_target_topology);
     using TargetTopologyView = decltype(targetTopologyView);
 
     // Make new a new matset on the target topology to record material overlaps.
@@ -508,61 +495,8 @@ TEST(mir_coupling, coupling_2D_sz1_ss1_hip)
 #endif
 
 //------------------------------------------------------------------------------
-void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
-{
-  std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
-  // This is on purpose.
-  while(1)
-    ;
-}
-
-//------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-  int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
-
-  axom::CLI::App app;
-#if defined(AXOM_USE_CALIPER)
-  std::string annotationMode("none");
-  app.add_option("--caliper", annotationMode)
-    ->description(
-      "caliper annotation mode. Valid options include 'none' and 'report'. "
-      "Use 'help' to see full list.")
-    ->capture_default_str()
-    ->check(axom::utilities::ValidCaliperMode);
-#endif
-  bool handlerEnabled = false;
-  app.add_flag("--handler", handlerEnabled, "Enable Conduit handler.");
-
-  // Parse command line options.
-  try
-  {
-    app.parse(argc, argv);
-
-#if defined(AXOM_USE_CALIPER)
-    axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(annotationMode);
-#endif
-
-    axom::slic::SimpleLogger logger;  // create & initialize test logger,
-    if(handlerEnabled)
-    {
-      conduit::utils::set_error_handler(conduit_debug_err_handler);
-    }
-
-    result = RUN_ALL_TESTS();
-  }
-  catch(axom::CLI::CallForHelp &e)
-  {
-    std::cout << app.help() << std::endl;
-    result = 0;
-  }
-  catch(axom::CLI::ParseError &e)
-  {
-    // Handle other parsing errors
-    std::cerr << e.what() << std::endl;
-    result = app.exit(e);
-  }
-
-  return result;
+  return TestApp.execute(argc, argv);
 }
