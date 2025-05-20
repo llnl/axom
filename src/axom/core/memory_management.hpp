@@ -220,10 +220,10 @@ public:
   explicit Allocator(int alloc_id = axom::getDefaultAllocatorID()) : m_id {alloc_id} { }
 
   /// \brief Returns the allocator ID.
-  int get() const { return m_id; }
+  int getID() const { return m_id; }
 
 private:
-  int m_id {0};
+  int m_id;
 };
 
 //------------------------------------------------------------------------------
