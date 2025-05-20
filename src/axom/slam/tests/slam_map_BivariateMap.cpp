@@ -942,9 +942,7 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
 
   SLIC_INFO("\nChecking the elements with findValue().");
   {
-#ifdef AXOM_USE_RAJA
-    using ReducePol = typename axom::execution_space<ExecSpace>::reduce_policy;
-    RAJA::ReduceSum<ReducePol, int> numIncorrect(0);
+    axom::ReduceSum<ExecSpace, int> numIncorrect(0);
 
     axom::for_all<ExecSpace>(
       m.firstSetSize(),
@@ -975,7 +973,6 @@ void slam_bivariate_map_templated<ExecutionSpace>::initializeAndTestRelationMap(
       });
 
     EXPECT_EQ(numIncorrect.get(), 0);
-#endif
   }
 }
 //----------------------------------------------------------------------
