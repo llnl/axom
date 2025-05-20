@@ -191,8 +191,8 @@ public:
     : m_allocator(allocator)
     , m_numGroups2(other.m_numGroups2)
     , m_size(other.m_size)
-    , m_metadata(other.m_metadata, m_allocator.get())
-    , m_buckets(other.m_buckets.size(), m_allocator.get())
+    , m_metadata(other.m_metadata, m_allocator.getID())
+    , m_buckets(other.m_buckets.size(), m_allocator.getID())
     , m_loadCount(other.m_loadCount)
   {
     // Copy all elements.
@@ -563,7 +563,7 @@ public:
   /*!
    * \brief Returns the allocator ID the FlatMap is allocated with.
    */
-  int getAllocatorID() const { return m_allocator.get(); }
+  Allocator getAllocator() const { return m_allocator; }
 
   /*!
    * \brief Explicitly rehash the FlatMap with a given number of buckets.
@@ -708,9 +708,9 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count, Allocator all
   IndexType numBuckets = numGroupsRounded * BucketsPerGroup - 1;
 
   using BucketType = detail::flat_map::GroupBucket;
-  m_metadata = axom::Array<BucketType>(numGroupsRounded, numGroupsRounded, m_allocator.get());
+  m_metadata = axom::Array<BucketType>(numGroupsRounded, numGroupsRounded, m_allocator.getID());
   detail::flat_map::setSentinel(m_metadata);
-  m_buckets = axom::Array<PairStorage>(numBuckets, numBuckets, m_allocator.get());
+  m_buckets = axom::Array<PairStorage>(numBuckets, numBuckets, m_allocator.getID());
 }
 
 template <typename KeyType, typename ValueType, typename Hash>

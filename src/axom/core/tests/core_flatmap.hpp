@@ -707,7 +707,7 @@ AXOM_TYPED_TEST(core_flatmap, copy_host_device)
   MapType test_map_device = MapType(test_map, axom::Allocator {device_alloc_id});
 
   // Check that maps are equivalent with a different allocator ID.
-  EXPECT_EQ(test_map_device.getAllocatorID(), device_alloc_id);
+  EXPECT_EQ(test_map_device.getAllocator().getID(), device_alloc_id);
   EXPECT_EQ(test_map_device.bucket_count(), test_map.bucket_count());
   EXPECT_EQ(test_map_device.size(), test_map.size());
 
@@ -715,7 +715,7 @@ AXOM_TYPED_TEST(core_flatmap, copy_host_device)
   MapType test_map_host = MapType(test_map_device, axom::Allocator {host_alloc_id});
 
   // Check that maps are equivalent with the same allocator ID.
-  EXPECT_EQ(test_map_host.getAllocatorID(), host_alloc_id);
+  EXPECT_EQ(test_map_host.getAllocator().getID(), host_alloc_id);
   EXPECT_EQ(test_map_host.bucket_count(), test_map.bucket_count());
   EXPECT_EQ(test_map_host.size(), test_map.size());
 
