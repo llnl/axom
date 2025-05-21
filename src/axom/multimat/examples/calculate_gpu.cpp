@@ -12,10 +12,6 @@
 #define ITERMAX 1  // we don't use this, but helper.hpp does
 #include "helper.hpp"
 
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
-
 #include "axom/CLI11.hpp"
 
 #include <map>
@@ -30,7 +26,8 @@ enum class RuntimePolicy
   seq = 0,
   raja_seq = 1,
   raja_omp = 2,
-  raja_cuda = 3
+  raja_cuda = 3,
+  raja_hip = 4
 };
 
 const std::vector<std::string> policy_strs = {"seq", "raja_seq", "raja_omp", "raja_cuda"};
@@ -59,6 +56,10 @@ const std::map<std::string, RuntimePolicy> Input::s_validPolicies(
    ,
    {"raja_cuda", RuntimePolicy::raja_cuda}
   #endif
+  #ifdef AXOM_USE_HIP
+   ,
+   {"raja_hip", RuntimePolicy::raja_hip}
+  #endif
 #endif
   });
 
@@ -75,6 +76,9 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
   #endif
   #ifdef AXOM_USE_CUDA
   pol_sstr << "\nSet to \'raja_cuda\' or 3 to use the RAJA CUDA policy.";
+  #endif
+  #ifdef AXOM_USE_CUDA
+  pol_sstr << "\nSet to \'raja_hip\' or 4 to use the RAJA HIP policy.";
   #endif
 #endif
 
@@ -127,12 +131,7 @@ void avgDensityCompactFlat(mmat::MultiMat& mm)
 
       double density_avg_slot = density[flatid] * vf[flatid];
 
-#if defined(AXOM_USE_RAJA)
-      using AtomPolicy = typename axom::execution_space<ExecSpace>::atomic_policy;
-      RAJA::atomicAdd<AtomPolicy>(&densityAvg_view[cell_id], density_avg_slot / vol[cell_id]);
-#else
-      densityAvg_view[cell_id] += density_avg_slot / vol[cell_id];
-#endif
+      axom::atomicAdd<ExecSpace>(&densityAvg_view[cell_id], density_avg_slot / vol[cell_id]);
     });
 }
 
@@ -359,6 +358,11 @@ int main(int argc, char** argv)
   #ifdef AXOM_USE_CUDA
   case RuntimePolicy::raja_cuda:
     traverseCells<axom::CUDA_EXEC<256>>(mm);
+    break;
+  #endif
+  #ifdef AXOM_USE_HIP
+  case RuntimePolicy::raja_hip:
+    traverseCells<axom::HIP_EXEC<256>>(mm);
     break;
   #endif
 #endif
