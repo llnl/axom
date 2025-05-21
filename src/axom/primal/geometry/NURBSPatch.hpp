@@ -57,16 +57,14 @@ struct TrimmingCurveQuadratureData
     const T curve_max_knot = a_curve.getMaxKnot();
 
     // Find the right knot span based on the refinement level
-    span_length =
-      (curve_max_knot - curve_min_knot) / std::pow(2, a_refinementLevel);
+    span_length = (curve_max_knot - curve_min_knot) / std::pow(2, a_refinementLevel);
     const T span_offset = span_length * a_refinementSection;
 
     bbox = BoundingBox<T, 3>();
     quadrature_points.resize(quad_rule.GetNPoints());
     for(int q = 0; q < quad_rule.GetNPoints(); ++q)
     {
-      T quad_x =
-        quad_rule.IntPoint(q).x * span_length + curve_min_knot + span_offset;
+      T quad_x = quad_rule.IntPoint(q).x * span_length + curve_min_knot + span_offset;
       //   T quad_weight = quad_rule.IntPoint(q).weight * span_length;
 
       Point<T, 2> c_eval;
@@ -77,8 +75,7 @@ struct TrimmingCurveQuadratureData
       Vector<T, 3> s_Du, s_Dv;
       a_patch.evaluateFirstDerivatives(c_eval[0], c_eval[1], s_eval, s_Du, s_Dv);
 
-      quadrature_points[q] =
-        std::make_pair(s_eval, s_Du * c_Dt[0] + s_Dv * c_Dt[1]);
+      quadrature_points[q] = std::make_pair(s_eval, s_Du * c_Dt[0] + s_Dv * c_Dt[1]);
       bbox.addPoint(s_eval);
     }
   }
@@ -93,9 +90,7 @@ struct NURBSPatchData
 {
   NURBSPatchData() = default;
 
-  NURBSPatchData(int idx, const NURBSPatch<T, 3>& a_patch)
-    : patchIndex(idx)
-    , patch(a_patch)
+  NURBSPatchData(int idx, const NURBSPatch<T, 3>& a_patch) : patchIndex(idx), patch(a_patch)
   {
     obox = patch.orientedBoundingBox();
 
@@ -106,11 +101,15 @@ struct NURBSPatchData
     // Filter out the Bezier patches whose knot spans
     //  are not visible in the trimming curves
 
-    patch.normalizeBySpan();
+    patch.normalize();
 
     pbox_diag = patch.getParameterSpaceDiagonal();
 
-    patch.makeTriviallyTrimmed();
+    if(!patch.isTrimmed())
+    {
+      patch.makeTriviallyTrimmed();
+    }
+
     patch.scaleParameterSpace(1.0 + 0.1 * pbox_diag);
     auto candidates = patch.extractBezier();
 
@@ -179,17 +178,15 @@ struct NURBSPatchData
     curve_quadrature_maps.resize(patch.getNumTrimmingCurves());
   }
 
-  TrimmingCurveQuadratureData<T>& getQuadratureData(
-    int curveIndex,
-    const mfem::IntegrationRule& quad_rule,
-    int refinementLevel,
-    int refinedSection) const
+  TrimmingCurveQuadratureData<T>& getQuadratureData(int curveIndex,
+                                                    const mfem::IntegrationRule& quad_rule,
+                                                    int refinementLevel,
+                                                    int refinedSection) const
   {
     // Check to see if we have already computed the quadrature data for this curve
     auto hash_key = std::make_pair(refinementLevel, refinedSection);
 
-    if(curve_quadrature_maps[curveIndex].find(hash_key) ==
-       curve_quadrature_maps[curveIndex].end())
+    if(curve_quadrature_maps[curveIndex].find(hash_key) == curve_quadrature_maps[curveIndex].end())
     {
       curve_quadrature_maps[curveIndex][hash_key] =
         TrimmingCurveQuadratureData<double>(quad_rule,
@@ -216,8 +213,7 @@ struct NURBSPatchData
 
   // Per trimming curve stuff
   // Keyed by (whichRefinementLevel, whichRefinedSection)
-  mutable axom::Array<std::map<std::pair<int, int>, TrimmingCurveQuadratureData<T>>>
-    curve_quadrature_maps;
+  mutable axom::Array<std::map<std::pair<int, int>, TrimmingCurveQuadratureData<T>>> curve_quadrature_maps;
 };
 
 /*! \brief Overloaded output operator for NURBS Patches*/
@@ -1764,25 +1760,27 @@ public:
   /// \brief Normalize the knot vectors to the span [0, 1]
   void normalize()
   {
+    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, 1.0);
+    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, 1.0);
+
     m_knotvec_u.normalize();
     m_knotvec_v.normalize();
-
-    rescaleTrimmingCurves_u(0.0, 1.0);
-    rescaleTrimmingCurves_v(0.0, 1.0);
   }
 
   /// \brief Normalize the knot vector in u to the span [0, 1]
   void normalize_u()
   {
+    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, 1.0);
+
     m_knotvec_u.normalize();
-    rescaleTrimmingCurves_u(0.0, 1.0);
   }
 
   /// \brief Normalize the knot vector in v to the span [0, 1]
   void normalize_v()
   {
+    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, 1.0);
+
     m_knotvec_v.normalize();
-    rescaleTrimmingCurves_v(0.0, 1.0);
   }
 
   /// \brief Normalize to the span [0, N] x [0, M] where N and M are the number of spans in u and v
@@ -1796,17 +1794,11 @@ public:
     auto n = m_knotvec_u.getNumKnotSpans();
     auto m = m_knotvec_v.getNumKnotSpans();
 
+    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, n);
+    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, m);
+
     m_knotvec_u.rescale(0, n);
     m_knotvec_v.rescale(0, m);
-
-    for(auto& curve : m_trimmingCurves)
-    {
-      for(int i = 0; i < curve.getNumControlPoints(); ++i)
-      {
-        curve[i][0] = n * (curve[i][0] - min_u) / (max_u - min_u);
-        curve[i][1] = m * (curve[i][1] - min_v) / (max_v - min_v);
-      }
-    }
   }
 
   /*!
@@ -1820,11 +1812,12 @@ public:
   void rescale(T a, T b)
   {
     SLIC_ASSERT(a < b);
+
+    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), a, b);
+    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), a, b);
+
     m_knotvec_u.rescale(a, b);
     m_knotvec_v.rescale(a, b);
-
-    rescaleTrimmingCurves_u(a, b);
-    rescaleTrimmingCurves_v(a, b);
   }
 
   /*!
@@ -1840,7 +1833,7 @@ public:
     SLIC_ASSERT(a < b);
     m_knotvec_u.rescale(a, b);
 
-    rescaleTrimmingCurves_u(a, b);
+    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), a, b);
   }
 
   /*!
@@ -1856,7 +1849,7 @@ public:
     SLIC_ASSERT(a < b);
     m_knotvec_v.rescale(a, b);
 
-    rescaleTrimmingCurves_v(a, b);
+    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), a, b);
   }
   //@}
 
@@ -3871,28 +3864,28 @@ private:
   bool m_isTrimmed;
   TrimmingCurveVec m_trimmingCurves;
 
-  /// \brief Private function to rescale trimming curves to a given range
+  /// \brief Private function to rescale trimming curves from (a, b) to (c, d) in x
   /// \warning Does not check that the resulting curves are valid
-  void rescaleTrimmingCurves_u(T a, T b)
+  void rescaleTrimmingCurves_u(T a, T b, T c, T d)
   {
     for(auto& curve : m_trimmingCurves)
     {
       for(int i = 0; i < curve.getNumControlPoints(); ++i)
       {
-        curve[i][0] = a + (b - a) * curve[i][0];
+        curve[i][0] = c + (curve[i][0] - a) * (d - c) / (b - a);
       }
     }
   }
 
-  /// \brief Private function to rescale trimming curves to a given range
+  /// \brief Private function to rescale trimming curves from (a, b) to (c, d) in y
   /// \warning Does not check that the resulting curves are valid
-  void rescaleTrimmingCurves_v(T a, T b)
+  void rescaleTrimmingCurves_v(T a, T b, T c, T d)
   {
     for(auto& curve : m_trimmingCurves)
     {
       for(int i = 0; i < curve.getNumControlPoints(); ++i)
       {
-        curve[i][1] = a + (b - a) * curve[i][1];
+        curve[i][1] = c + (curve[i][1] - a) * (d - c) / (b - a);
       }
     }
   }

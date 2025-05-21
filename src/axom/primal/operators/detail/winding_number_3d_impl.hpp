@@ -449,8 +449,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
     }
   }
 
-  the_gwn +=
-    stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
+  the_gwn += stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
 
   return the_gwn;
 }
@@ -619,7 +618,16 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
     const bool isHalfOpen = false, countUntrimmed = true;
 
     bool success = true;
-    intersect(discontinuity_axis, nPatchData.patch, tp, up, vp, ls_tol, EPS, countUntrimmed, isHalfOpen, success);
+    intersect(discontinuity_axis,
+              nPatchData.patch,
+              tp,
+              up,
+              vp,
+              ls_tol,
+              EPS,
+              countUntrimmed,
+              isHalfOpen,
+              success);
 
     if(!success)
     {
@@ -740,6 +748,16 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
                                      ignoreInteriorDisk,
                                      clipDisk);
 
+      extraTrimming =
+        extraTrimming || (!isDiskInside && !isDiskOutside) || (isDiskInside && !ignoreInteriorDisk);
+
+      if(extraTrimming)
+      {
+        case_code = 3;
+        integrated_curves +=
+          the_disk.getNumTrimmingCurves() + (nPatchWithBoundaries.getNumTrimmingCurves() - old_num_trim);
+      }
+
       if(isOnSurface)
       {
         // If the query point is on the surface, the contribution of the disk is near-zero
@@ -778,22 +796,36 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
     rotator = numerics::transforms::axisRotation(ang, cast_direction[1], -cast_direction[0], 0);
   }
 
-  if(field_direction == DiscontinuityAxis::rotated)
+  if(extraTrimming)
   {
-    // The trimming curves for rotatedPatch have been changed as needed,
-    //  but we need to rotate the control points
-    auto patch_shape = nPatchWithBoundaries.getControlPoints().shape();
-    for(int i = 0; i < patch_shape[0]; ++i)
+    // Can't use cached quadrature rules
+    if(field_direction == DiscontinuityAxis::rotated)
     {
-      for(int j = 0; j < patch_shape[1]; ++j)
+      // The trimming curves for rotatedPatch have been changed as needed,
+      //  but we need to rotate the control points
+      auto patch_shape = nPatchWithBoundaries.getControlPoints().shape();
+      for(int i = 0; i < patch_shape[0]; ++i)
       {
-        nPatchWithBoundaries(i, j) = rotate_point(rotator, nPatchWithBoundaries(i, j));
+        for(int j = 0; j < patch_shape[1]; ++j)
+        {
+          nPatchWithBoundaries(i, j) = rotate_point(rotator, nPatchWithBoundaries(i, j));
+        }
       }
     }
-  }
 
-  the_gwn +=
-    stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
+    the_gwn += stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
+  }
+  else
+  {
+    if(field_direction != DiscontinuityAxis::rotated)
+    {
+      the_gwn += stokes_gwn_evaluate_cached(query, nPatchData, field_direction, quad_npts, quad_tol);
+    }
+    else
+    {
+      the_gwn += stokes_gwn_evaluate_cached_rotated(query, nPatchData, rotator, quad_npts, quad_tol);
+    }
+  }
 
   return the_gwn;
 }
@@ -838,10 +870,11 @@ double nurbs_data_winding_number_tear(const Point<T, 3>& query,
 
   // Define vector fields whose curl gives us the winding number
   DiscontinuityAxis field_direction = DiscontinuityAxis::rotated;
-  
+
   // Rotate the patch so that the discontinuity is aligned with the z-axis
   const double ang = std::acos(axom::utilities::clampVal(cast_direction[2], -1.0, 1.0));
-  numerics::Matrix<T> rotator = numerics::transforms::axisRotation(ang, cast_direction[1], -cast_direction[0], 0);
+  numerics::Matrix<T> rotator =
+    numerics::transforms::axisRotation(ang, cast_direction[1], -cast_direction[0], 0);
 
   if(field_direction == DiscontinuityAxis::rotated)
   {
@@ -857,10 +890,56 @@ double nurbs_data_winding_number_tear(const Point<T, 3>& query,
     }
   }
 
-  the_gwn +=
-    stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
+  the_gwn += stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
 
   return the_gwn;
+}
+
+template <typename T>
+bool isNearAxisBox(const Point<T, 3>& query,
+                   const BoundingBox<T, 3>& bbox,
+                   const DiscontinuityAxis ax,
+                   const double beta = 5.0)
+{
+  auto centroid = bbox.getCentroid();
+  Vector<T, 3> c_query(centroid, query);
+  Vector<T, 3> box_max(centroid, bbox.getMax());
+
+  double distance_to_axis, bbox_radius;
+  switch(ax)
+  {
+  case(DiscontinuityAxis::x):
+    distance_to_axis = c_query[1] * c_query[1] + c_query[2] * c_query[2];
+    bbox_radius = box_max[1] * box_max[1] + box_max[2] * box_max[2];
+    return distance_to_axis <= beta * bbox_radius;
+  case(DiscontinuityAxis::y):
+    distance_to_axis = c_query[0] * c_query[0] + c_query[2] * c_query[2];
+    bbox_radius = box_max[0] * box_max[0] + box_max[2] * box_max[2];
+    return distance_to_axis <= beta * bbox_radius;
+  case(DiscontinuityAxis::z):
+    distance_to_axis = c_query[0] * c_query[0] + c_query[1] * c_query[1];
+    bbox_radius = box_max[0] * box_max[0] + box_max[1] * box_max[1];
+    return distance_to_axis <= beta * bbox_radius;
+  }
+
+  // Make "true" the default for more reliable quadrature
+  return true;
+}
+
+template <typename T>
+bool isNearAxisBoxRotated(const Point<T, 3>& query,
+                          const BoundingBox<T, 3>& bbox,
+                          const axom::numerics::Matrix<T>& rotator,
+                          const double beta = 5.0)
+{
+  auto centroid = rotate_point(rotator, query, bbox.getCentroid());
+  Vector<T, 3> c_query(centroid, query);
+  Vector<T, 3> box_max(centroid, rotate_point(rotator, query, bbox.getMax()));
+
+  double distance_to_axis, bbox_radius;
+  distance_to_axis = c_query[0] * c_query[0] + c_query[1] * c_query[1];
+  bbox_radius = box_max[0] * box_max[0] + box_max[1] * box_max[1];
+  return distance_to_axis <= beta * bbox_radius;
 }
 
 // ================================ ORIGINAL VERSIONS ================================
