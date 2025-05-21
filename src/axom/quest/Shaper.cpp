@@ -309,8 +309,9 @@ double Shaper::allReduceSum(double val) const
   double global;
   MPI_Allreduce(&val, &global, 1, MPI_DOUBLE, MPI_SUM, m_comm);
   return global;
-#endif
+#else
   return val;
+#endif
 }
 
 double Shaper::allReduceMin(double val) const
@@ -319,8 +320,9 @@ double Shaper::allReduceMin(double val) const
   double global;
   MPI_Allreduce(&val, &global, 1, MPI_DOUBLE, MPI_MIN, m_comm);
   return global;
-#endif
+#else
   return val;
+#endif
 }
 
 double Shaper::allReduceMax(double val) const
@@ -329,8 +331,9 @@ double Shaper::allReduceMax(double val) const
   double global;
   MPI_Allreduce(&val, &global, 1, MPI_DOUBLE, MPI_MAX, m_comm);
   return global;
-#endif
+#else
   return val;
+#endif
 }
 
 }  // end namespace quest
