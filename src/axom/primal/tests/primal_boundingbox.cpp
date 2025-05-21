@@ -756,10 +756,10 @@ TEST(primal_boundingBox, bb_intersect)
 
   // Empty bbox intersected with itself returns an invalid bbox.
   BoxType bbox_invalid;
-  EXPECT_EQ(bbox_invalid, bbox_empty.intersect(bbox_invalid));
+  EXPECT_EQ(bbox_invalid, bbox_invalid.intersect(bbox_invalid));
 
   // Bounding box intersected with invalid bounding box returns an invalid bounding box.
-  EXPECT_EQ(bbox_invalid, bbox_empty.intersect(bbox));
+  EXPECT_EQ(bbox_invalid, bbox_invalid.intersect(bbox));
   EXPECT_EQ(bbox_invalid, bbox.intersect(bbox_invalid));
 }
 
