@@ -8,8 +8,13 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
+#include "axom/sidre.hpp"
 
 #include "axom/fmt.hpp"
+
+#if defined(AXOM_USE_MFEM)
+  #include "mfem/linalg/dtensor.hpp"
+#endif
 
 namespace axom
 {
@@ -17,6 +22,58 @@ namespace quest
 {
 namespace shaping
 {
+#if defined(AXOM_USE_MFEM)
+
+// Utility function to either return a gf from the dc, or to allocate it through the dc
+mfem::GridFunction* getOrAllocateL2GridFunction(mfem::DataCollection* dc,
+                                                const std::string& gf_name,
+                                                int order,
+                                                int dim,
+                                                const int basis)
+{
+  if(dc == nullptr)
+  {
+    SLIC_WARNING("Cannot allocate grid function into null data collection");
+    return nullptr;
+  }
+
+  mfem::GridFunction* gf = nullptr;
+
+  if(dc->HasField(gf_name))
+  {
+    gf = dc->GetField(gf_name);
+  }
+  else
+  {
+    auto* fec = new mfem::L2_FECollection(order, dim, basis);
+    auto* mesh = dc->GetMesh();
+    mfem::FiniteElementSpace* fes = new mfem::FiniteElementSpace(mesh, fec);
+
+    // allocate data through sidre and tell the grid function to use it
+    // the grid function will manage memory for the fec and fes
+    auto* sidreDC = dynamic_cast<sidre::MFEMSidreDataCollection*>(dc);
+    if(sidreDC)
+    {
+      const int sz = fes->GetVSize();
+      auto* vw = sidreDC->AllocNamedBuffer(gf_name, sz);
+      gf = new mfem::GridFunction();
+      gf->MakeRef(fes, vw->getData());
+    }
+    else
+    {
+      gf = new mfem::GridFunction(fes);
+    }
+
+    gf->MakeOwner(fec);
+    gf->HostReadWrite();
+    *gf = 0.;
+
+    dc->RegisterField(gf_name, gf);
+  }
+
+  return gf;
+}
+
 void replaceMaterial(mfem::QuadratureFunction* shapeQFunc,
                      mfem::QuadratureFunction* materialQFunc,
                      bool shapeReplacesMaterial)
@@ -128,244 +185,151 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
       }
     }
   }
+  // Delete the geometric factors associated w/ our custom quadrature rule
+  mesh->DeleteGeometricFactors();
 
   // register positions with the QFunction collection, which wil handle its deletion
   inoutQFuncs.Register("positions", pos_coef, true);
 }
 
-/// Generate a volume fraction from a quadrature field for \a matField using FCT
-void computeVolumeFractions(const std::string& matField,
-                            mfem::DataCollection* dc,
-                            QFunctionCollection& inoutQFuncs,
-                            int outputOrder)
+void FCT_project(const double* M,     // Mass matrix
+                 const int s,         // num dofs
+                 const double* m,     // rhs (incorporating the inout samples)
+                 const double y_min,  // lower bound for FCT
+                 const double y_max,  // upper bound for FCt
+                 double* xy,          // uncorrected volume fraction dofs
+                 double* fct_mat)     // use as scratch buffer
 {
-  SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
+  // [IN]  - M, s, m, y_min, y_max
+  // [INOUT] - xy
 
-  const auto volFracName = axom::fmt::format("vol_frac_{}", matField.substr(10));
-
-  // Grab a pointer to the inout samples QFunc
-  mfem::QuadratureFunction* inout = inoutQFuncs.Get(matField);
-
-  const int sampleOrder = inout->GetSpace()->GetIntRule(0).GetOrder();
-  const int sampleNQ = inout->GetSpace()->GetIntRule(0).GetNPoints();
-  const int sampleSZ = inout->GetSpace()->GetSize();
-  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "In computeVolumeFractions(): sample order {} | "
-                              "sample num qpts {} |  total samples {:L}",
-                              sampleOrder,
-                              sampleNQ,
-                              sampleSZ));
-
-  mfem::Mesh* mesh = dc->GetMesh();
-  const int dim = mesh->Dimension();
-  const int NE = mesh->GetNE();
-
-  SLIC_INFO(
-    axom::fmt::format(axom::utilities::locale(), "Mesh has dim {} and {:L} elements", dim, NE));
-
-  // Access or create a registered volume fraction grid function from the data collection
-  mfem::FiniteElementSpace* fes = nullptr;
-  mfem::GridFunction* volFrac = nullptr;
-  if(dc->HasField(volFracName))
-  {
-    volFrac = dc->GetField(volFracName);
-    fes = volFrac->FESpace();
-  }
-  else
-  {
-    const auto basis = mfem::BasisType::Positive;
-    auto* fec = new mfem::L2_FECollection(outputOrder, dim, basis);
-    fes = new mfem::FiniteElementSpace(mesh, fec);
-    volFrac = new mfem::GridFunction(fes);
-    volFrac->MakeOwner(fec);
-    volFrac->HostReadWrite();
-
-    dc->RegisterField(volFracName, volFrac);
-  }
-
-  // Project QField onto volume fractions field using flux corrected transport (FCT)
-  // to keep the range of values between 0 and 1
-  axom::utilities::Timer timer(true);
-  {
-    mfem::MassIntegrator mass_integrator;
-    mfem::QuadratureFunctionCoefficient qfc(*inout);
-    mfem::DomainLFIntegrator rhs(qfc);
-
-    const auto& ir = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
-    rhs.SetIntRule(&ir);
-
-    mfem::DenseMatrix m;
-    mfem::DenseMatrixInverse mInv;
-    mfem::Vector b, x;
-    mfem::Array<int> dofs;
-    mfem::Vector one;
-    const double minY = 0.;
-    const double maxY = 1.;
-
-    for(int i = 0; i < NE; ++i)
-    {
-      auto* T = mesh->GetElementTransformation(i);
-      auto* el = fes->GetFE(i);
-
-      mass_integrator.AssembleElementMatrix(*el, *T, m);
-      rhs.AssembleRHSElementVect(*el, *T, b);
-      mInv.Factor(m);
-
-      if(one.Size() != b.Size())
-      {
-        one.SetSize(b.Size());
-        one = 1.0;
-      }
-      FCT_project(m, mInv, b, one, minY, maxY, x);
-
-      fes->GetElementDofs(i, dofs);
-      volFrac->SetSubVector(dofs, x);
-    }
-  }
-  timer.stop();
-  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "\t Generating volume fractions '{}' took {:.3f} seconds (@ "
-                              "{:L} dofs processed per second)",
-                              volFracName,
-                              timer.elapsed(),
-                              static_cast<int>(fes->GetNDofs() / timer.elapsed())));
-}
-
-/** 
- * Implements flux-corrected transport (FCT) to convert the inout samples (ones and zeros)
- * to a grid function on the degrees of freedom such that the volume fractions are doubles
- * between 0 and 1 ( \a y_min and \a y_max )
- */
-void FCT_project(mfem::DenseMatrix& M,
-                 mfem::DenseMatrixInverse& M_inv,
-                 mfem::Vector& m,
-                 mfem::Vector& x,  // indicators
-                 double y_min,
-                 double y_max,
-                 mfem::Vector& xy)  // indicators * rho
-{
-  // [IN]  - M, M_inv, m, x, y_min, y_max
-  // [OUT] - xy
-
-  using namespace mfem;
-
-  const int s = M.Size();
-
-  xy.SetSize(s);
-
-  // Compute the high-order projection in xy
-  M_inv.Mult(m, xy);
+  constexpr int ND = 64;
+  using StackArray = axom::StackArray<double, ND>;
+  SLIC_ASSERT(s <= ND);
 
   // Q0 solutions can't be adjusted conservatively. It's what it is.
-  if(xy.Size() == 1)
+  if(s == 1)
   {
     return;
   }
 
-  // Compute the lumped mass matrix in ML
-  Vector ML(s);
-  M.GetRowSums(ML);
-
-  //Ensure dot product is done on the CPU
-  double dMLX(0);
-  for(int i = 0; i < x.Size(); ++i)
+  // Compute the lumped mass matrix in ML:  GetRowSums(M, s, s, ML);
+  StackArray ML;
+  for(int r = 0; r < s; ++r)
   {
-    dMLX += ML(i) * x(i);
+    double dot = 0.;
+    for(int c = 0; c < s; ++c)
+    {
+      dot += M[r + c * s];
+    }
+    ML[r] = dot;
   }
 
-  const double y_avg = m.Sum() / dMLX;
+  double sum_ML = 0.;
+  double sum_m = 0.;
+  for(int i = 0; i < s; ++i)
+  {
+    sum_ML += ML[i];
+    sum_m += m[i];
+  }
 
-#ifdef AXOM_DEBUG
+  const double y_avg = sum_m / sum_ML;
+
+  #ifdef AXOM_DEBUG
+  constexpr double EPS = 1e-12;
   SLIC_WARNING_IF(
-    !(y_min < y_avg + 1e-12 && y_avg < y_max + 1e-12),
-    axom::fmt::format("Average ({}) is out of bounds [{},{}]: ", y_avg, y_min - 1e-12, y_max + 1e-12));
-#endif
+    !(y_min < y_avg + EPS && y_avg < y_max + EPS),
+    axom::fmt::format("Average ({}) is out of bounds [{},{}]: ", y_avg, y_min - EPS, y_max + EPS));
+  #endif
 
-  Vector z(s);
-  Vector beta(s);
-  Vector Mxy(s);
-  M.Mult(xy, Mxy);
-  for(int i = 0; i < s; i++)
+  StackArray z;
+  StackArray beta;
+  double sum_beta = 0.;
+  for(int i = 0; i < s; ++i)
   {
     // Some different options for beta:
-    //beta(i) = 1.0;
-    beta(i) = ML(i) * x(i);
-    //beta(i) = ML(i)*(x(i) + 1e-14);
-    //beta(i) = ML(i);
-    //beta(i) = Mxy(i);
+    //beta[i] = 1.0;
+    beta[i] = ML[i];
+    //beta[i] = ML[i]*(1. + 1e-14);
 
     // The low order flux correction
-    z(i) = m(i) - ML(i) * x(i) * y_avg;
+    z[i] = m[i] - ML[i] * y_avg;
+    sum_beta += beta[i];
   }
 
   // Make beta_i sum to 1
-  beta /= beta.Sum();
-
-  DenseMatrix F(s);
-  // Note: indexing F(i,j) where  0 <= j < i < s
-  for(int i = 1; i < s; i++)
+  for(int i = 0; i < s; ++i)
   {
-    for(int j = 0; j < i; j++)
+    beta[i] /= sum_beta;
+  }
+
+  for(int i = 1; i < s; ++i)
+  {
+    for(int j = 0; j < i; ++j)
     {
-      F(i, j) = M(i, j) * (xy(i) - xy(j)) + (beta(j) * z(i) - beta(i) * z(j));
+      const int idx = i + j * s;
+      fct_mat[idx] = M[idx] * (xy[i] - xy[j]) + (beta[j] * z[i] - beta[i] * z[j]);
     }
   }
 
-  Vector gp(s), gm(s);
-  gp = 0.0;
-  gm = 0.0;
-  for(int i = 1; i < s; i++)
+  // NOTE: `z' and `beta' are no longer used.
+  // Zero them out and reuse their memory under different aliases: gp and gm
+  auto& gp = z;
+  auto& gm = beta;
+  for(int t = 0; t < s; ++t)
   {
-    for(int j = 0; j < i; j++)
+    gp[t] = 0.0;
+    gm[t] = 0.0;
+  }
+
+  for(int i = 1; i < s; ++i)
+  {
+    for(int j = 0; j < i; ++j)
     {
-      double fij = F(i, j);
+      const int idx = i + j * s;
+      double fij = fct_mat[idx];
       if(fij >= 0.0)
       {
-        gp(i) += fij;
-        gm(j) -= fij;
+        gp[i] += fij;
+        gm[j] -= fij;
       }
       else
       {
-        gm(i) += fij;
-        gp(j) -= fij;
+        gm[i] += fij;
+        gp[j] -= fij;
       }
     }
   }
 
-  for(int i = 0; i < s; i++)
+  for(int i = 0; i < s; ++i)
   {
-    xy(i) = x(i) * y_avg;
+    xy[i] = y_avg;
   }
 
-  for(int i = 0; i < s; i++)
+  for(int i = 0; i < s; ++i)
   {
-    double mi = ML(i), xyLi = xy(i);
-    double rp = std::max(mi * (x(i) * y_max - xyLi), 0.0);
-    double rm = std::min(mi * (x(i) * y_min - xyLi), 0.0);
-    double sp = gp(i), sm = gm(i);
+    const double mi = ML[i];
+    const double xyLi = xy[i];
+    const double rp = axom::utilities::max(mi * (y_max - xyLi), 0.0);
+    const double rm = axom::utilities::min(mi * (y_min - xyLi), 0.0);
+    const double sp = gp[i];
+    const double sm = gm[i];
 
-    gp(i) = (rp < sp) ? rp / sp : 1.0;
-    gm(i) = (rm > sm) ? rm / sm : 1.0;
+    gp[i] = (rp < sp) ? rp / sp : 1.0;
+    gm[i] = (rm > sm) ? rm / sm : 1.0;
   }
 
-  for(int i = 1; i < s; i++)
+  for(int i = 1; i < s; ++i)
   {
-    for(int j = 0; j < i; j++)
+    for(int j = 0; j < i; ++j)
     {
-      double fij = F(i, j), aij;
+      double fij = fct_mat[i + j * s];
 
-      if(fij >= 0.0)
-      {
-        aij = std::min(gp(i), gm(j));
-      }
-      else
-      {
-        aij = std::min(gm(i), gp(j));
-      }
-
+      const double aij =
+        fij >= 0.0 ? axom::utilities::min(gp[j], gm[j]) : axom::utilities::min(gm[i], gp[j]);
       fij *= aij;
-      xy(i) += fij / ML(i);
-      xy(j) -= fij / ML(j);
+      xy[i] += fij / ML[i];
+      xy[j] -= fij / ML[j];
     }
   }
 }
@@ -392,6 +356,8 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
 
   (*volFrac) = (*inout);
 }
+
+#endif  // defined(AXOM_USE_MFEM)
 
 }  // end namespace shaping
 }  // end namespace quest

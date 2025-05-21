@@ -492,7 +492,7 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_2d(axom::sidre::
   const bool addExtraDataForMint = true;
   if(addExtraDataForMint)
   {
-    AXOM_ANNOTATE_BEGIN("add_extra");
+    AXOM_ANNOTATE_SCOPE("add_extra");
     /*
       Constructing a mint mesh from meshGrp fails unless we add some
       extra data.  Blueprint doesn't require this extra data.  (The mesh
@@ -504,20 +504,23 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_2d(axom::sidre::
       For some reason, mint::Mesh requires the arrays to be
       2D, even though the second dimension is always 1.
     */
-    axom::IndexType curShape[2];
-    int curDim;
+    axom::IndexType curShape[2] = {};
     auto* valuesGrp = coordsetGrp->getGroup("values");
-    curDim = valuesGrp->getView("x")->getShape(2, curShape);
-    assert(curDim == 1);
-    const axom::IndexType vertsShape[2] = {curShape[0], 1};
-    valuesGrp->getView("x")->reshapeArray(2, vertsShape);
-    valuesGrp->getView("y")->reshapeArray(2, vertsShape);
+    SLIC_ASSERT(valuesGrp != nullptr);
+
+    int curDim = valuesGrp->getView("x")->getShape(2, curShape);
+    SLIC_ASSERT(curDim == 1);
+    curShape[1] = 1;
+
+    valuesGrp->getView("x")->reshapeArray(2, curShape);
+    valuesGrp->getView("y")->reshapeArray(2, curShape);
 
     // Make connectivity array 2D for the same reason.
     auto* elementsGrp = topoGrp->getGroup("elements");
     auto* connView = elementsGrp->getView("connectivity");
     curDim = connView->getShape(2, curShape);
     SLIC_ASSERT(curDim == 2);
+    AXOM_UNUSED_VAR(curDim);
 
     // mint::Mesh requires connectivity strides, even though Blueprint doesn't.
     constexpr axom::IndexType BIT_SPECIFIC_NUM_VERTS_PER_QUAD = 4;
@@ -525,7 +528,6 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_2d(axom::sidre::
 
     // mint::Mesh requires field group, even though Blueprint doesn't.
     meshGrp->createGroup("fields");
-    AXOM_ANNOTATE_END("add_extra");
   }
 
   #if defined(AXOM_DEBUG) && defined(AXOM_USE_CONDUIT)

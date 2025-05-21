@@ -130,18 +130,23 @@ blt_list_append(
 
 blt_list_append( TO quest_depends_on ELEMENTS conduit::conduit IF CONDUIT_FOUND )
 
-if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND ((MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND))
-    list(APPEND quest_headers Shaper.hpp
-                              DiscreteShape.hpp)
-    list(APPEND quest_sources Shaper.cpp
-                              DiscreteShape.cpp)
-    list(APPEND quest_depends_on klee)
-    list(APPEND quest_headers IntersectionShaper.hpp)
-endif()
+if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
+    if((MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND)
+        list(APPEND quest_headers Shaper.hpp
+                                  DiscreteShape.hpp
+                                  detail/shaping/shaping_helpers.hpp)
+        list(APPEND quest_sources Shaper.cpp
+                                DiscreteShape.cpp
+                                detail/shaping/shaping_helpers.cpp)
+        list(APPEND quest_depends_on klee)       
+        list(APPEND quest_headers IntersectionShaper.hpp)
+    endif()
 
-if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION))
-    list(APPEND quest_headers SamplingShaper.hpp detail/shaping/shaping_helpers.hpp)
-    list(APPEND quest_sources detail/shaping/shaping_helpers.cpp)
+    if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+        list(APPEND quest_headers SamplingShaper.hpp 
+                                  detail/shaping/InOutSampler.hpp
+                                  detail/shaping/PrimitiveSampler.hpp)
+    endif()
 endif()
 
 if(C2C_FOUND)
