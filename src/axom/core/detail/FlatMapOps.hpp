@@ -17,7 +17,7 @@ namespace flat_map
 
 inline void setSentinel(axom::ArrayView<GroupBucket> metadata)
 {
-#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA) && defined(AXOM_GPUCC)
   // Note: HIP can access device memory from the host and does not need special
   // handling - we just defer to the host path in all cases.
   MemorySpace space = getAllocatorSpace(metadata.getAllocatorID());
@@ -42,7 +42,7 @@ inline void destroyBuckets(axom::ArrayView<GroupBucket> metadata, axom::ArrayVie
     return;
   }
 
-#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA) && defined(AXOM_GPUCC)
   // Note: HIP can access device memory from the host and does not need special
   // handling - we just defer to the host path in all cases.
   MemorySpace space = getAllocatorSpace(metadata.getAllocatorID());
