@@ -108,11 +108,10 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
   using BoxType = axom::primal::BoundingBox<double, 3>;
 // Intel oneAPI compiler segfaults with OpenMP RAJA scan
 #ifdef __INTEL_LLVM_COMPILER
-  using exec_pol = typename axom::execution_space<axom::SEQ_EXEC>::loop_policy;
+  using exec_space = axom::SEQ_EXEC;
 #else
-  using exec_pol = typename axom::execution_space<ExecSpace>::loop_policy;
+  using exec_space = ExecSpace;
 #endif
-  using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
 
   int allocatorId = axom::execution_space<ExecSpace>::allocatorID();
 
@@ -158,7 +157,7 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
   };
   // _bvh_traverse_predicate_end
 
-  RAJA::ReduceSum<reduce_pol, IndexType> total_count_reduce(0);
+  axom::ReduceSum<ExecSpace, IndexType> total_count_reduce(0);
 
   // _bvh_traverse_first_pass_start
   // Allocate arrays for offsets and counts
@@ -194,9 +193,8 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
     });
 
   // Generate offsets
-  RAJA::exclusive_scan<exec_pol>(RAJA::make_span(counts.data(), ncells),
-                                 RAJA::make_span(offsets.data(), ncells),
-                                 RAJA::operators::plus<IndexType> {});
+  axom::exclusive_scan<exec_space>(counts, offsets);
+
   // _bvh_traverse_first_pass_end
 
   IndexType ncollisions = total_count_reduce.get();
@@ -253,8 +251,6 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
 {
   using PointType = axom::primal::Point<double, 3>;
   using TriangleType = axom::primal::Triangle<double, 3>;
-  using atomic_pol = typename axom::execution_space<ExecSpace>::atomic_policy;
-  using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
 
   int allocatorId = axom::execution_space<ExecSpace>::allocatorID();
 
@@ -290,7 +286,7 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
 
   axom::Array<IndexType> counter(1, 1, allocatorId);
 
-  RAJA::ReduceSum<reduce_pol, IndexType> total_count_reduce(0);
+  axom::ReduceSum<ExecSpace, IndexType> total_count_reduce(0);
 
   const auto v_counter = counter.view();
   const auto v_inFirstPair = inFirstPair.view();
@@ -306,7 +302,7 @@ void find_collisions_narrowphase(const mint::Mesh* mesh,
       IndexType secondIdx = v_inSecondPair[idx];
       if(primal::intersect(v_triangles[firstIdx], v_triangles[secondIdx], false))
       {
-        auto outIdx = RAJA::atomicAdd<atomic_pol>(&v_counter[0], IndexType {1});
+        auto outIdx = axom::atomicAdd<ExecSpace>(&v_counter[0], IndexType {1});
         // Store actually-intersecting triangle pairs sequentially in output
         // array.
         v_outFirstPair[outIdx] = firstIdx;
@@ -406,8 +402,8 @@ int main(int argc, char** argv)
                                                 firstPair,
                                                 secondPair);
     break;
-#ifdef AXOM_USE_RAJA
-  #ifdef AXOM_USE_OPENMP
+#if defined(AXOM_USE_RAJA)
+  #if defined(AXOM_USE_OPENMP)
   case ExecPolicy::OpenMP:
     find_collisions_broadphase<axom::OMP_EXEC>(surface_mesh.get(), candFirstPair, candSecondPair);
     find_collisions_narrowphase<axom::OMP_EXEC>(surface_mesh.get(),
@@ -417,7 +413,7 @@ int main(int argc, char** argv)
                                                 secondPair);
     break;
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
   case ExecPolicy::CUDA:
     find_collisions_broadphase<axom::CUDA_EXEC<256>>(surface_mesh.get(), candFirstPair, candSecondPair);
     find_collisions_narrowphase<axom::CUDA_EXEC<256>>(surface_mesh.get(),
@@ -427,7 +423,7 @@ int main(int argc, char** argv)
                                                       secondPair);
     break;
   #endif
-  #ifdef AXOM_USE_HIP
+  #if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
   case ExecPolicy::HIP:
     find_collisions_broadphase<axom::HIP_EXEC<256>>(surface_mesh.get(), candFirstPair, candSecondPair);
     find_collisions_narrowphase<axom::HIP_EXEC<256>>(surface_mesh.get(),

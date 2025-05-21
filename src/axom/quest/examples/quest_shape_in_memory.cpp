@@ -1376,19 +1376,19 @@ double sumMaterialVolumes(sidre::Group* meshGrp, const std::string& material)
   {
     rval = sumMaterialVolumesImpl<axom::SEQ_EXEC>(meshGrp, material);
   }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
   if(params.policy == RuntimePolicy::omp)
   {
     rval = sumMaterialVolumesImpl<axom::OMP_EXEC>(meshGrp, material);
   }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
   if(params.policy == RuntimePolicy::cuda)
   {
     rval = sumMaterialVolumesImpl<axom::CUDA_EXEC<256>>(meshGrp, material);
   }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
   if(params.policy == RuntimePolicy::hip)
   {
     rval = sumMaterialVolumesImpl<axom::HIP_EXEC<256>>(meshGrp, material);
@@ -1476,21 +1476,21 @@ void fillSidreViewData(axom::sidre::View* view, const T& value)
   double* valuesPtr = view->getData<T*>();
   switch(params.policy)
   {
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
   case RuntimePolicy::cuda:
     axom::for_all<axom::CUDA_EXEC<256>>(
       view->getNumElements(),
       AXOM_LAMBDA(axom::IndexType i) { valuesPtr[i] = value; });
     break;
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
   case RuntimePolicy::hip:
     axom::for_all<axom::HIP_EXEC<256>>(
       view->getNumElements(),
       AXOM_LAMBDA(axom::IndexType i) { valuesPtr[i] = value; });
     break;
 #endif
-#if defined(AXOM_USE_OMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OMP)
   case RuntimePolicy::omp:
     axom::for_all<axom::OMP_EXEC>(
       view->getNumElements(),
