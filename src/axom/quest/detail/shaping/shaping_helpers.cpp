@@ -251,7 +251,6 @@ void FCT_project(const double* M,     // Mass matrix
     //beta[i] = 1.0;
     beta[i] = ML[i];
     //beta[i] = ML[i]*(1. + 1e-14);
-    //beta[i] = ML[i];
 
     // The low order flux correction
     z[i] = m[i] - ML[i] * y_avg;

@@ -247,17 +247,6 @@ public:
     axom::Array<IndexType> counts(nq, nq);
     axom::Array<IndexType> candidates;
 
-    // axom::for_all<ExecSpace>(
-    //   nq,
-    //   AXOM_LAMBDA(axom::IndexType i) {
-    //     SLIC_INFO_IF(i < 100,
-    //                  axom::fmt::format("Query point {} of {} -- pt: {}; inout: {}",
-    //                                    i,
-    //                                    nq,
-    //                                    query_view[i],
-    //                                    inout_view[i]));
-    //   });
-
     m_bvh.findPoints(offsets.view(), counts.view(), candidates, nq, query_view);
 
     auto counts_view = counts.view();
