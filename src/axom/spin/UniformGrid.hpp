@@ -746,8 +746,8 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   {
     // On the GPU, we first sort pairs by candidate index, then stable sort by
     // the query index.
-    axom::sort_pairs<ExecSpace>(candidates_view, query_idx_view);
-    axom::stable_sort_pairs<ExecSpace>(query_idx_view, candidates_view);
+    axom::sort_pairs<ExecSpace>(outCandidates, queryIndex);
+    axom::stable_sort_pairs<ExecSpace>(queryIndex, outCandidates);
   }
   else
   {
@@ -792,7 +792,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
 
   // Exclusive scan over the flag array gives us the final index of unique
   // pairs in the deduplicated array.
-  axom::exclusive_scan_inplace<ExecSpace>(dedupTgtIdx.view());
+  axom::exclusive_scan_inplace<ExecSpace>(dedupTgtIdx);
 
   // Step 7: Fill the array of deduplicated candidates based on the index
   // mapping generated previously.

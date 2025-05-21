@@ -295,8 +295,7 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
 
 #if defined(AXOM_USE_RAJA)
   // STEP 1: count number of candidates for each query point
-  using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
-  RAJA::ReduceSum<reduce_pol, IndexType> total_count_reduce(0);
+  axom::ReduceSum<ExecSpace, IndexType> total_count_reduce(0);
 
   AXOM_ANNOTATE_BEGIN("PASS[1]:count_traversal");
   for_all<ExecSpace>(
@@ -325,13 +324,13 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
   AXOM_ANNOTATE_BEGIN("exclusive_scan");
     // Intel oneAPI compiler segfaults with OpenMP RAJA scan
   #ifdef __INTEL_LLVM_COMPILER
-  using exec_policy = typename axom::execution_space<axom::SEQ_EXEC>::loop_policy;
+  axom::exclusive_scan<axom::SEQ_EXEC>(axom::ArrayView<IndexType>(counts.data(), numObjs),
+                                       axom::ArrayView<IndexType>(offsets.data(), numObjs));
   #else
-  using exec_policy = typename axom::execution_space<ExecSpace>::loop_policy;
+  axom::exclusive_scan<ExecSpace>(axom::ArrayView<IndexType>(counts.data(), numObjs),
+                                  axom::ArrayView<IndexType>(offsets.data(), numObjs));
   #endif
-  RAJA::exclusive_scan<exec_policy>(RAJA::make_span(counts.data(), numObjs),
-                                    RAJA::make_span(offsets.data(), numObjs),
-                                    RAJA::operators::plus<IndexType> {});
+
   AXOM_ANNOTATE_END("exclusive_scan");
   IndexType total_candidates = total_count_reduce.get();
 
