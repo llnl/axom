@@ -298,7 +298,7 @@ public:
         app.add_option_group("intersection", "Options related to intersection-based queries");
 
       intersection_options->add_option("-r, --refinements", refinementLevel)
-        ->description("Number of refinements to perform for revolved contour")
+        ->description("(3D only) Number of refinements to perform for revolved contour")
         ->capture_default_str()
         ->check(axom::CLI::NonNegativeNumber);
 
