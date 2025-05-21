@@ -562,7 +562,6 @@ void finalizeLogger()
 axom::klee::ShapeSet create2DShapeSet(sidre::DataStore& ds)
 {
   sidre::Group* meshGroup = ds.getRoot()->createGroup("triangleMesh");
-  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
   const std::string topo = "mesh";
   const std::string coordset = "coords";
   axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> triangleMesh(2,
@@ -571,7 +570,7 @@ axom::klee::ShapeSet create2DShapeSet(sidre::DataStore& ds)
                                                                       topo,
                                                                       coordset);
 
-  double lll = 2.0;
+  const double lll = 2.0;
 
   // Insert tet at origin.
   triangleMesh.appendNode(0.0, 0.0);
@@ -580,7 +579,8 @@ axom::klee::ShapeSet create2DShapeSet(sidre::DataStore& ds)
   axom::IndexType conn[3] = {0, 1, 2};
   triangleMesh.appendCell(conn);
 
-  SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
+  SLIC_ERROR_ROOT_IF(!axom::mint::blueprint::isValidRootGroup(meshGroup),
+                     "Triangle mesh blueprint is not valid");
 
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Two,
                                                     axom::klee::LengthUnit::unspecified};
@@ -632,7 +632,6 @@ axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds)
 {
   // Shape a tetrahedal mesh.
   sidre::Group* meshGroup = ds.getRoot()->createGroup("tetMesh");
-  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
   const std::string topo = "mesh";
   const std::string coordset = "coords";
   axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tetMesh(3,
@@ -657,7 +656,8 @@ axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds)
   axom::IndexType conn1[4] = {4, 5, 6, 7};
   tetMesh.appendCell(conn1);
 
-  SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
+  SLIC_ERROR_ROOT_IF(!axom::mint::blueprint::isValidRootGroup(meshGroup),
+                     "Tet mesh blueprint is not valid");
 
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
@@ -1551,7 +1551,7 @@ int main(int argc, char** argv)
 
   const int allocatorId = axom::policyToDefaultAllocatorID(params.policy);
 
-  AXOM_ANNOTATE_BEGIN("quest example for shaping primals");
+  AXOM_ANNOTATE_SCOPE("quest shaping example");
   AXOM_ANNOTATE_BEGIN("init");
 
   // Storage for the shape geometry meshes.
@@ -2025,8 +2025,6 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   SLIC_INFO(axom::fmt::format("{:-^80}", ""));
   slic::flushStreams();
-
-  AXOM_ANNOTATE_END("quest shaping example");
 
   finalizeLogger();
 
