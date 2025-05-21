@@ -314,10 +314,7 @@ public:
    *
    * \pre \a idx must be between 0 and bitset.size()
    */
-  void atomicClear(Index idx)
-  {
-    axom::atomicAnd<axom::auto_atomic>(&getWord(idx), ~mask(idx));
-  }
+  void atomicClear(Index idx) { axom::atomicAnd<axom::auto_atomic>(&getWord(idx), ~mask(idx)); }
 
   /**
    * \brief Sets bit at index \a idx
@@ -334,10 +331,7 @@ public:
    *
    * \pre \a idx must be between 0 and bitset.size()
    */
-  void atomicFlip(Index idx)
-  {
-    axom::atomicXor<axom::auto_atomic>(&getWord(idx), mask(idx));
-  }
+  void atomicFlip(Index idx) { axom::atomicXor<axom::auto_atomic>(&getWord(idx), mask(idx)); }
 
   /// @}
 private:

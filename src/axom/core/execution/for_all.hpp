@@ -50,7 +50,7 @@ namespace axom
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(const IndexType& begin, const IndexType& end, KernelType&& kernel) noexcept
+inline void for_all(const IndexType &begin, const IndexType &end, KernelType &&kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
 
@@ -97,7 +97,7 @@ inline void for_all(const IndexType& begin, const IndexType& end, KernelType&& k
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(const IndexType& N, KernelType&& kernel) noexcept
+inline void for_all(const IndexType &N, KernelType &&kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
   for_all<ExecSpace>(0, N, std::forward<KernelType>(kernel));
@@ -137,8 +137,10 @@ inline void for_all(const IndexType& N, KernelType&& kernel) noexcept
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(IndexType iMin, IndexType iMax,
-                    IndexType jMin, IndexType jMax,
+inline void for_all(IndexType iMin,
+                    IndexType iMax,
+                    IndexType jMin,
+                    IndexType jMax,
                     KernelType &&kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
@@ -192,7 +194,7 @@ inline void for_all(IndexType iMin, IndexType iMax,
  */
 
 template <typename ExecSpace, typename KernelType>
-inline void for_all(const axom::StackArray<IndexType,2> &shape, KernelType &&kernel) noexcept
+inline void for_all(const axom::StackArray<IndexType, 2> &shape, KernelType &&kernel) noexcept
 {
   for_all<ExecSpace>(0, shape[0], 0, shape[1], std::forward<KernelType>(kernel));
 }
@@ -233,9 +235,12 @@ inline void for_all(const axom::StackArray<IndexType,2> &shape, KernelType &&ker
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(IndexType iMin, IndexType iMax,
-                    IndexType jMin, IndexType jMax,
-                    IndexType kMin, IndexType kMax,
+inline void for_all(IndexType iMin,
+                    IndexType iMax,
+                    IndexType jMin,
+                    IndexType jMax,
+                    IndexType kMin,
+                    IndexType kMax,
                     KernelType &&kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
@@ -293,7 +298,7 @@ inline void for_all(IndexType iMin, IndexType iMax,
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(const StackArray<IndexType,3> &shape, KernelType &&kernel) noexcept
+inline void for_all(const StackArray<IndexType, 3> &shape, KernelType &&kernel) noexcept
 {
   for_all<ExecSpace>(0, shape[0], 0, shape[1], 0, shape[2], std::forward<KernelType>(kernel));
 }

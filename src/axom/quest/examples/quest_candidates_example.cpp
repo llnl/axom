@@ -584,8 +584,9 @@ std::vector<IndexPair> findCandidatesImplicit(const HexMesh& insertMesh,
 #else
   using exec_space = ExecSpace;
 #endif
-  axom::exclusive_scan<exec_space>(axom::ArrayView<axom::IndexType>(counts_v.data(), queryMesh.numHexes()),
-                                   axom::ArrayView<axom::IndexType>(offsets_v.data(), queryMesh.numHexes()));
+  axom::exclusive_scan<exec_space>(
+    axom::ArrayView<axom::IndexType>(counts_v.data(), queryMesh.numHexes()),
+    axom::ArrayView<axom::IndexType>(offsets_v.data(), queryMesh.numHexes()));
 
   // Initialize candidatePairs to return.
   // Allocate arrays for candidate pairs

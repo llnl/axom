@@ -649,7 +649,8 @@ void fill_cartesian_coords_3d_impl(const primal::BoundingBox<double, 3>& domainB
   auto order = mapping.getStrideOrder();
   if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
   {
-    axom::for_all<ExecSpace>(shape,
+    axom::for_all<ExecSpace>(
+      shape,
       AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
         xView(i, j, k) = domainBox.getMin()[0] + i * dx;
         yView(i, j, k) = domainBox.getMin()[1] + j * dy;
@@ -663,7 +664,8 @@ void fill_cartesian_coords_3d_impl(const primal::BoundingBox<double, 3>& domainB
     shapeKJI[1] = shape[1];
     shapeKJI[2] = shape[0];
 
-    axom::for_all<ExecSpace>(shapeKJI,
+    axom::for_all<ExecSpace>(
+      shapeKJI,
       AXOM_LAMBDA(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
         xView(i, j, k) = domainBox.getMin()[0] + i * dx;
         yView(i, j, k) = domainBox.getMin()[1] + j * dy;
@@ -701,7 +703,9 @@ void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainB
   auto order = mapping.getStrideOrder();
   if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
   {
-    axom::for_all<ExecSpace>(shape, AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) {
+    axom::for_all<ExecSpace>(
+      shape,
+      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) {
         xView(i, j) = domainBox.getMin()[0] + i * dx;
         yView(i, j) = domainBox.getMin()[1] + j * dy;
       });
@@ -711,7 +715,9 @@ void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainB
     axom::StackArray<axom::IndexType, 2> shapeJI;
     shapeJI[0] = shape[1];
     shapeJI[1] = shape[0];
-    axom::for_all<ExecSpace>(shapeJI, AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) {
+    axom::for_all<ExecSpace>(
+      shapeJI,
+      AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) {
         xView(i, j) = domainBox.getMin()[0] + i * dx;
         yView(i, j) = domainBox.getMin()[1] + j * dy;
       });

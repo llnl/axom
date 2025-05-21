@@ -300,7 +300,11 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-    axom::for_all<ExecSpace>(idxBegin[1], idxEnd[1], idxBegin[0], idxEnd[0], 
+    axom::for_all<ExecSpace>(
+      idxBegin[1],
+      idxEnd[1],
+      idxBegin[0],
+      idxEnd[0],
       AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) { array(i, j) += testAdd; });
   }
 
@@ -313,7 +317,13 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-    axom::for_all<ExecSpace>(idxBegin[2], idxEnd[2], idxBegin[1], idxEnd[1], idxBegin[0], idxEnd[0], 
+    axom::for_all<ExecSpace>(
+      idxBegin[2],
+      idxEnd[2],
+      idxBegin[1],
+      idxEnd[1],
+      idxBegin[0],
+      idxEnd[0],
       AXOM_LAMBDA(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
         array(i, j, k) += testAdd;
       });
@@ -381,7 +391,11 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-    axom::for_all<ExecSpace>(idxBegin[0], idxEnd[0], idxBegin[1], idxEnd[1], 
+    axom::for_all<ExecSpace>(
+      idxBegin[0],
+      idxEnd[0],
+      idxBegin[1],
+      idxEnd[1],
       AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) { array(i, j) += testAdd; });
   }
 
@@ -395,7 +409,13 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-    axom::for_all<ExecSpace>(idxBegin[0], idxEnd[0], idxBegin[1], idxEnd[1], idxBegin[2], idxEnd[2],
+    axom::for_all<ExecSpace>(
+      idxBegin[0],
+      idxEnd[0],
+      idxBegin[1],
+      idxEnd[1],
+      idxBegin[2],
+      idxEnd[2],
       AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
         array(i, j, k) += testAdd;
       });
@@ -477,7 +497,11 @@ public:
                                                          idxBegin[slowestDirs[1]]};
     const axom::StackArray<axom::IndexType, DIM> ends {idxEnd[slowestDirs[0]],
                                                        idxEnd[slowestDirs[1]]};
-    axom::for_all<ExecSpace>(begins[1], ends[1], begins[0], ends[0],
+    axom::for_all<ExecSpace>(
+      begins[1],
+      ends[1],
+      begins[0],
+      ends[0],
       AXOM_LAMBDA(axom::IndexType n, axom::IndexType m) {
         axom::StackArray<axom::IndexType, DIM> idx {m, n};
         auto i = idx[invSlowestDirs[0]];
@@ -508,7 +532,13 @@ public:
     const axom::StackArray<axom::IndexType, DIM> ends {idxEnd[slowestDirs[0]],
                                                        idxEnd[slowestDirs[1]],
                                                        idxEnd[slowestDirs[2]]};
-    axom::for_all<ExecSpace>(begins[2], ends[2], begins[1], ends[1], begins[0], ends[0],
+    axom::for_all<ExecSpace>(
+      begins[2],
+      ends[2],
+      begins[1],
+      ends[1],
+      begins[0],
+      ends[0],
       AXOM_LAMBDA(axom::IndexType o, axom::IndexType n, axom::IndexType m) {
         axom::StackArray<axom::IndexType, DIM> idx {m, n, o};
         auto i = idx[invSlowestDirs[0]];

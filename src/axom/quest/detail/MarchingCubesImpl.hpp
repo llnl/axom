@@ -171,13 +171,15 @@ public:
     const auto order = m_caseIdsMDMapper.getStrideOrder();
     if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
     {
-      axom::for_all<ExecSpace>(m_bShape, 
+      axom::for_all<ExecSpace>(
+        m_bShape,
         AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) { mcu.computeCaseId(i, j); });
     }
     else
     {
-      axom::StackArray<axom::IndexType, 2> shapeJI{{m_bShape[1], m_bShape[0]}};
-      axom::for_all<ExecSpace>(shapeJI, 
+      axom::StackArray<axom::IndexType, 2> shapeJI {{m_bShape[1], m_bShape[0]}};
+      axom::for_all<ExecSpace>(
+        shapeJI,
         AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) { mcu.computeCaseId(i, j); });
     }
   }
@@ -192,15 +194,17 @@ public:
     // order ^= axom::ArrayStrideOrder::BOTH; // Pick wrong ordering to test behavior.
     if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
     {
-      axom::for_all<ExecSpace>(m_bShape,
+      axom::for_all<ExecSpace>(
+        m_bShape,
         AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
           mcu.computeCaseId(i, j, k);
         });
     }
     else
     {
-      axom::StackArray<axom::IndexType, 3> shapeKJI{{m_bShape[2], m_bShape[1], m_bShape[0]}};
-      axom::for_all<ExecSpace>(shapeKJI,
+      axom::StackArray<axom::IndexType, 3> shapeKJI {{m_bShape[2], m_bShape[1], m_bShape[0]}};
+      axom::for_all<ExecSpace>(
+        shapeKJI,
         AXOM_LAMBDA(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
           mcu.computeCaseId(i, j, k);
         });
@@ -342,8 +346,9 @@ public:
 
     {
       AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::scanCrossings:scan_flags");
-      axom::inclusive_scan<ExecSpace>(axom::ArrayView<CrossingFlagType>(m_crossingFlags.data(), parentCellCount),
-                                      axom::ArrayView<axom::IndexType>(m_scannedFlags.data() + 1, parentCellCount));
+      axom::inclusive_scan<ExecSpace>(
+        axom::ArrayView<CrossingFlagType>(m_crossingFlags.data(), parentCellCount),
+        axom::ArrayView<axom::IndexType>(m_scannedFlags.data() + 1, parentCellCount));
     }
 
     axom::copy(&m_crossingCount,
@@ -385,8 +390,9 @@ public:
 
     {
       AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::scanCrossings:scan_incrs");
-      axom::inclusive_scan<ExecSpace>(axom::ArrayView<FacetIncrsType>(m_facetIncrs.data(), m_crossingCount),
-                                      axom::ArrayView<axom::IndexType>(m_firstFacetIds.data() + 1, m_crossingCount));
+      axom::inclusive_scan<ExecSpace>(
+        axom::ArrayView<FacetIncrsType>(m_facetIncrs.data(), m_crossingCount),
+        axom::ArrayView<axom::IndexType>(m_firstFacetIds.data() + 1, m_crossingCount));
     }
 
     axom::copy(&m_facetCount,
@@ -403,7 +409,8 @@ public:
     const axom::IndexType parentCellCount = m_caseIds.size();
     auto caseIdsView = m_caseIds;
     axom::ReduceSum<ExecSpace, axom::IndexType> vsum(0);
-    axom::for_all<ExecSpace>(parentCellCount,
+    axom::for_all<ExecSpace>(
+      parentCellCount,
       AXOM_LAMBDA(axom::IndexType n) { vsum += bool(num_contour_cells(caseIdsView.flatIndex(n))); });
     m_crossingCount = static_cast<axom::IndexType>(vsum.get());
 
@@ -449,8 +456,9 @@ public:
     m_firstFacetIds.fill(0, 1, 0);
 
     const auto firstFacetIdsView = m_firstFacetIds.view();
-    axom::inclusive_scan<ExecSpace>(axom::ArrayView<FacetIncrsType>(facetIncrsView.data(), m_crossingCount),
-                                    axom::ArrayView<axom::IndexType>(firstFacetIdsView.data() + 1, m_crossingCount));
+    axom::inclusive_scan<ExecSpace>(
+      axom::ArrayView<FacetIncrsType>(facetIncrsView.data(), m_crossingCount),
+      axom::ArrayView<axom::IndexType>(firstFacetIdsView.data() + 1, m_crossingCount));
     axom::copy(&m_facetCount,
                m_firstFacetIds.data() + m_firstFacetIds.size() - 1,
                sizeof(axom::IndexType));

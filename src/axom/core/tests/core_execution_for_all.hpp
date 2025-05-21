@@ -33,17 +33,15 @@ struct utility<ExecSpace, 1>
   static axom::IndexType numValues(axom::IndexType N) { return N; }
   static void initialize(int *array, axom::IndexType N, int value)
   {
-    axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType index)
-    {
-      array[index] = static_cast<int>(index + value);
-    });
+    axom::for_all<ExecSpace>(
+      N,
+      AXOM_LAMBDA(axom::IndexType index) { array[index] = static_cast<int>(index + value); });
   }
   static void modify(int *array, axom::IndexType N, int value)
   {
-    axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType index)
-    {
-      array[index] -= static_cast<int>(index + value);
-    });
+    axom::for_all<ExecSpace>(
+      N,
+      AXOM_LAMBDA(axom::IndexType index) { array[index] -= static_cast<int>(index + value); });
   }
 };
 
@@ -55,21 +53,23 @@ struct utility<ExecSpace, 2>
   static axom::IndexType numValues(axom::IndexType N) { return N * N; }
   static void initialize(int *array, axom::IndexType N, int value)
   {
-    axom::StackArray<axom::IndexType, 2> shape{{N, N}};
-    axom::for_all<ExecSpace>(shape, AXOM_LAMBDA(axom::IndexType i, axom::IndexType j)
-    {
-      const auto index = j * N + i;
-      array[index] = static_cast<int>(index + value);
-    });
+    axom::StackArray<axom::IndexType, 2> shape {{N, N}};
+    axom::for_all<ExecSpace>(
+      shape,
+      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) {
+        const auto index = j * N + i;
+        array[index] = static_cast<int>(index + value);
+      });
   }
   static void modify(int *array, axom::IndexType N, int value)
   {
-    axom::StackArray<axom::IndexType, 2> shape{{N, N}};
-    axom::for_all<ExecSpace>(shape, AXOM_LAMBDA(axom::IndexType i, axom::IndexType j)
-    {
-      const auto index = j * N + i;
-      array[index] -= static_cast<int>(index + value);
-    });
+    axom::StackArray<axom::IndexType, 2> shape {{N, N}};
+    axom::for_all<ExecSpace>(
+      shape,
+      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) {
+        const auto index = j * N + i;
+        array[index] -= static_cast<int>(index + value);
+      });
   }
 };
 
@@ -81,24 +81,25 @@ struct utility<ExecSpace, 3>
   static axom::IndexType numValues(axom::IndexType N) { return N * N * N; }
   static void initialize(int *array, axom::IndexType N, int value)
   {
-    axom::StackArray<axom::IndexType, 3> shape{{N, N, N}};
-    axom::for_all<ExecSpace>(shape, AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k)
-    {
-      const auto index = (k * N * N) + (j * N) + i;
-      array[index] = static_cast<int>(index + value);
-    });
+    axom::StackArray<axom::IndexType, 3> shape {{N, N, N}};
+    axom::for_all<ExecSpace>(
+      shape,
+      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
+        const auto index = (k * N * N) + (j * N) + i;
+        array[index] = static_cast<int>(index + value);
+      });
   }
   static void modify(int *array, axom::IndexType N, int value)
   {
-    axom::StackArray<axom::IndexType, 3> shape{{N, N, N}};
-    axom::for_all<ExecSpace>(shape, AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k)
-    {
-      const auto index = (k * N * N) + (j * N) + i;
-      array[index] -= static_cast<int>(index + value);
-    });
+    axom::StackArray<axom::IndexType, 3> shape {{N, N, N}};
+    axom::for_all<ExecSpace>(
+      shape,
+      AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
+        const auto index = (k * N * N) + (j * N) + i;
+        array[index] -= static_cast<int>(index + value);
+      });
   }
 };
-
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace, int NDIMS>
@@ -118,7 +119,7 @@ void check_for_all(axom::IndexType N)
 
   // STEP 0: allocate buffer
   const auto arraySize = utils::numValues(N);
-  int* a = axom::allocate<int>(arraySize, allocID);
+  int *a = axom::allocate<int>(arraySize, allocID);
 
   // STEP 1: initialize to (index + VALUE)
   utils::initialize(a, N, VALUE);
@@ -129,7 +130,7 @@ void check_for_all(axom::IndexType N)
   }
 
   // STEP 2: check array
-  int* a_host = axom::allocate<int>(arraySize, hostID);
+  int *a_host = axom::allocate<int>(arraySize, hostID);
   axom::copy(a_host, a, arraySize * sizeof(int));
 
   for(int i = 0; i < arraySize; ++i)
@@ -226,6 +227,5 @@ TEST(core_execution_for_all, hip_exec_async)
   check_for_all<axom::HIP_EXEC<BLOCK_SIZE, axom::ASYNC>, 2>(64);
   check_for_all<axom::HIP_EXEC<BLOCK_SIZE, axom::ASYNC>, 3>(32);
 }
-
 
 #endif
