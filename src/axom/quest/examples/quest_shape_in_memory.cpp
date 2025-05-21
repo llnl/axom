@@ -37,12 +37,6 @@
   #include "mpi.h"
 #endif
 
-// RAJA
-#if !defined(AXOM_USE_RAJA)
-  #error quest_shape_in_memory example and IntersectionShaper require RAJA
-#endif
-#include "RAJA/RAJA.hpp"
-
 // C/C++ includes
 #include <string>
 #include <vector>
@@ -1321,8 +1315,7 @@ double sumMaterialVolumes(sidre::MFEMSidreDataCollection* dc, const std::string&
                                      axom::execution_space<ExecSpace>::allocatorID());
   auto volFracView = volFracGfArray.view();
 
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-  RAJA::ReduceSum<ReducePolicy, double> localVol(0);
+  axom::ReduceSum<ExecSpace, double> localVol(0);
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType i) { localVol += volFracView[i] * elementVolsView[i]; });
@@ -1364,8 +1357,7 @@ double sumMaterialVolumesImpl(sidre::Group* meshGrp, const std::string& material
   axom::sidre::View* volFrac = meshGrp->getView(vfFieldValuesPath);
   axom::ArrayView<double> volFracView(volFrac->getArray(), cellCount);
 
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-  RAJA::ReduceSum<ReducePolicy, double> localVol(0);
+  axom::ReduceSum<ExecSpace, double> localVol(0);
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType i) { localVol += volFracView[i] * elementVolsView[i]; });
@@ -1886,12 +1878,11 @@ int main(int argc, char** argv)
 
   // For error checking, work on host.
   using ExecSpace = axom::SEQ_EXEC;
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
 
   //---------------------------------------------------------------------------
   // Correctness test: volume fractions should be in [0,1].
   //---------------------------------------------------------------------------
-  RAJA::ReduceSum<ReducePolicy, axom::IndexType> rangeViolationCount(0);
+  axom::ReduceSum<ExecSpace, axom::IndexType> rangeViolationCount(0);
   for(const auto& vfName : allVfNames)
   {
     std::string fieldName = "vol_frac_" + vfName;
@@ -1919,7 +1910,7 @@ int main(int argc, char** argv)
   axom::Array<double> volSums(cellCount);
   volSums.fill(0.0);
   axom::ArrayView<double> volSumsView = volSums.view();
-  RAJA::ReduceSum<ReducePolicy, axom::IndexType> nonUnitSums(0);
+  axom::ReduceSum<ExecSpace, axom::IndexType> nonUnitSums(0);
   for(const auto& vfName : allVfNames)
   {
     std::string fieldName = "vol_frac_" + vfName;
