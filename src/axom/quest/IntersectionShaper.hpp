@@ -24,11 +24,14 @@
   #include "axom/mint/mesh/UnstructuredMesh.hpp"
   #include "axom/mint/utils/vtk_utils.hpp"
   #include "axom/klee.hpp"
+  #include "axom/spin/BVH.hpp"
+
+  #include "axom/quest/detail/shaping/shaping_helpers.hpp"
   #include "axom/quest/Shaper.hpp"
   #include "axom/quest/Discretize.hpp"
-  #include "axom/spin/BVH.hpp"
   #include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
   #include "axom/quest/interface/internal/QuestHelpers.hpp"
+
   #include "axom/fmt.hpp"
 
   #ifdef AXOM_USE_MFEM
@@ -42,30 +45,6 @@
     #include "conduit_blueprint_mesh.hpp"
     #include "conduit_blueprint_mcarray.hpp"
   #endif
-
-// clang-format off
-  using seq_exec = axom::SEQ_EXEC;
-
-  #if defined(AXOM_USE_OPENMP)
-    using omp_exec = axom::OMP_EXEC;
-  #else
-    using omp_exec = seq_exec;
-  #endif
-
-  #if defined(AXOM_USE_CUDA) && defined (AXOM_USE_UMPIRE)
-    constexpr int CUDA_BLOCK_SIZE = 256;
-    using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
-  #else
-    using cuda_exec = seq_exec;
-  #endif
-
-  #if defined(AXOM_USE_HIP) && defined (AXOM_USE_UMPIRE)
-    constexpr int HIP_BLOCK_SIZE = 64;
-    using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;
-  #else
-    using hip_exec = seq_exec;
-  #endif
-// clang-format on
 
 namespace axom
 {
@@ -435,6 +414,7 @@ public:
   #endif
       default:
         SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+        break;
       }
     }
     // Setup 3D mesh
@@ -462,6 +442,7 @@ public:
   #endif
       default:
         SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+        break;
       }
     }
   }
@@ -489,7 +470,7 @@ public:
     axom::for_all<ExecSpace>(
       m_cellCount,
       AXOM_LAMBDA(axom::IndexType i) { cell_volumes_device_view[i] = quads_device_view[i].area(); });
-    AXOM_ANNOTATE_BEGIN("cell_volume");
+    AXOM_ANNOTATE_END("cell_volume");
 
     AXOM_ANNOTATE_BEGIN("populate m_quad_bbs");
     m_quad_bbs = axom::Array<BoundingBox2D>(m_cellCount, m_cellCount, m_allocatorId);
@@ -631,7 +612,7 @@ public:
     loadShapeInternal(shape, m_percentError, m_revolvedVolume);
 
     // Filter the mesh, store in m_surfaceMesh.
-    if(shape.getGeometry().getFormat() == "c2c")
+    if(this->shapeFormat(shape) == "c2c")
     {
       SegmentMesh* newm = filterMesh(dynamic_cast<const SegmentMesh*>(m_surfaceMesh.get()));
       m_surfaceMesh.reset(newm);
