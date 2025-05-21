@@ -19,29 +19,109 @@
 //------------------------------------------------------------------------------
 namespace
 {
+
+/// Base template
+template <typename ExecSpace, int NDIMS>
+struct utility
+{ };
+
 //------------------------------------------------------------------------------
+/// 1D version
 template <typename ExecSpace>
-void check_for_all()
+struct utility<ExecSpace, 1>
 {
+  static axom::IndexType numValues(axom::IndexType N) { return N; }
+  static void initialize(int *array, axom::IndexType N, int value)
+  {
+    axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType index)
+    {
+      array[index] = static_cast<int>(index + value);
+    });
+  }
+  static void modify(int *array, axom::IndexType N, int value)
+  {
+    axom::for_all<ExecSpace>(N, AXOM_LAMBDA(axom::IndexType index)
+    {
+      array[index] -= static_cast<int>(index + value);
+    });
+  }
+};
+
+//------------------------------------------------------------------------------
+/// 2D version
+template <typename ExecSpace>
+struct utility<ExecSpace, 2>
+{
+  static axom::IndexType numValues(axom::IndexType N) { return N * N; }
+  static void initialize(int *array, axom::IndexType N, int value)
+  {
+    axom::StackArray<axom::IndexType, 2> shape{{N, N}};
+    axom::for_all<ExecSpace>(shape, AXOM_LAMBDA(axom::IndexType i, axom::IndexType j)
+    {
+      const auto index = j * N + i;
+      array[index] = static_cast<int>(index + value);
+    });
+  }
+  static void modify(int *array, axom::IndexType N, int value)
+  {
+    axom::StackArray<axom::IndexType, 2> shape{{N, N}};
+    axom::for_all<ExecSpace>(shape, AXOM_LAMBDA(axom::IndexType i, axom::IndexType j)
+    {
+      const auto index = j * N + i;
+      array[index] -= static_cast<int>(index + value);
+    });
+  }
+};
+
+//------------------------------------------------------------------------------
+/// 3D version
+template <typename ExecSpace>
+struct utility<ExecSpace, 3>
+{
+  static axom::IndexType numValues(axom::IndexType N) { return N * N * N; }
+  static void initialize(int *array, axom::IndexType N, int value)
+  {
+    axom::StackArray<axom::IndexType, 3> shape{{N, N, N}};
+    axom::for_all<ExecSpace>(shape, AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k)
+    {
+      const auto index = (k * N * N) + (j * N) + i;
+      array[index] = static_cast<int>(index + value);
+    });
+  }
+  static void modify(int *array, axom::IndexType N, int value)
+  {
+    axom::StackArray<axom::IndexType, 3> shape{{N, N, N}};
+    axom::for_all<ExecSpace>(shape, AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k)
+    {
+      const auto index = (k * N * N) + (j * N) + i;
+      array[index] -= static_cast<int>(index + value);
+    });
+  }
+};
+
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace, int NDIMS>
+void check_for_all(axom::IndexType N)
+{
+  using utils = utility<ExecSpace, NDIMS>;
+
   EXPECT_TRUE(axom::execution_space<ExecSpace>::valid());
   std::cout << "checking axom::for_all() with [" << axom::execution_space<ExecSpace>::name() << "]\n";
 
-  // STEP 0: set some constants
-  constexpr int VALUE_1 = -42;
-  constexpr int VALUE_2 = 42;
-  constexpr int N = 256;
+  // STEP 0: define a constant
+  constexpr int VALUE = 42;
 
   // STEP 1: set allocators for the execution spaces
   const int hostID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   const int allocID = axom::execution_space<ExecSpace>::allocatorID();
 
   // STEP 0: allocate buffer
-  int* a = axom::allocate<int>(N, allocID);
+  const auto arraySize = utils::numValues(N);
+  int* a = axom::allocate<int>(arraySize, allocID);
 
-  // STEP 1: initialize to VALUE_1
-  axom::for_all<ExecSpace>(
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { a[idx] = VALUE_1; });
+  // STEP 1: initialize to (index + VALUE)
+  utils::initialize(a, N, VALUE);
 
   if(axom::execution_space<ExecSpace>::async())
   {
@@ -49,19 +129,16 @@ void check_for_all()
   }
 
   // STEP 2: check array
-  int* a_host = axom::allocate<int>(N, hostID);
-  axom::copy(a_host, a, N * sizeof(int));
+  int* a_host = axom::allocate<int>(arraySize, hostID);
+  axom::copy(a_host, a, arraySize * sizeof(int));
 
-  for(int i = 0; i < N; ++i)
+  for(int i = 0; i < arraySize; ++i)
   {
-    EXPECT_EQ(a_host[i], VALUE_1);
+    EXPECT_EQ(a_host[i], i + VALUE);
   }
 
-  // STEP 3: add VALUE_2 to all entries resulting to zero
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(axom::IndexType idx) { a[idx] += VALUE_2; });
+  // STEP 3: Subtract (index + VALUE) from all entries resulting in zero
+  utils::modify(a, N, VALUE);
 
   if(axom::execution_space<ExecSpace>::async())
   {
@@ -69,9 +146,9 @@ void check_for_all()
   }
 
   // STEP 4: check result
-  axom::copy(a_host, a, N * sizeof(int));
+  axom::copy(a_host, a, arraySize * sizeof(int));
 
-  for(int i = 0; i < N; ++i)
+  for(int i = 0; i < arraySize; ++i)
   {
     EXPECT_EQ(a_host[i], 0);
   }
@@ -86,13 +163,23 @@ void check_for_all()
 //------------------------------------------------------------------------------
 //  UNIT TESTS
 //------------------------------------------------------------------------------
-TEST(core_execution_for_all, seq_exec) { check_for_all<axom::SEQ_EXEC>(); }
+TEST(core_execution_for_all, seq_exec)
+{
+  check_for_all<axom::SEQ_EXEC, 1>(256);
+  check_for_all<axom::SEQ_EXEC, 2>(64);
+  check_for_all<axom::SEQ_EXEC, 3>(32);
+}
 
 //------------------------------------------------------------------------------
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
 
-TEST(core_execution_for_all, omp_exec) { check_for_all<axom::OMP_EXEC>(); }
+TEST(core_execution_for_all, omp_exec)
+{
+  check_for_all<axom::OMP_EXEC, 1>(256);
+  check_for_all<axom::OMP_EXEC, 2>(64);
+  check_for_all<axom::OMP_EXEC, 3>(32);
+}
 
 #endif
 
@@ -103,14 +190,18 @@ TEST(core_execution_for_all, omp_exec) { check_for_all<axom::OMP_EXEC>(); }
 TEST(core_execution_for_all, cuda_exec)
 {
   constexpr int BLOCK_SIZE = 256;
-  check_for_all<axom::CUDA_EXEC<BLOCK_SIZE>>();
+  check_for_all<axom::CUDA_EXEC<BLOCK_SIZE>, 1>(256);
+  check_for_all<axom::CUDA_EXEC<BLOCK_SIZE>, 2>(64);
+  check_for_all<axom::CUDA_EXEC<BLOCK_SIZE>, 3>(32);
 }
 
 //------------------------------------------------------------------------------
 TEST(core_execution_for_all, cuda_exec_async)
 {
   constexpr int BLOCK_SIZE = 256;
-  check_for_all<axom::CUDA_EXEC<BLOCK_SIZE, axom::ASYNC>>();
+  check_for_all<axom::CUDA_EXEC<BLOCK_SIZE, axom::ASYNC>, 1>(256);
+  check_for_all<axom::CUDA_EXEC<BLOCK_SIZE, axom::ASYNC>, 2>(64);
+  check_for_all<axom::CUDA_EXEC<BLOCK_SIZE, axom::ASYNC>, 3>(32);
 }
 
 #endif
@@ -122,14 +213,19 @@ TEST(core_execution_for_all, cuda_exec_async)
 TEST(core_execution_for_all, hip_exec)
 {
   constexpr int BLOCK_SIZE = 256;
-  check_for_all<axom::HIP_EXEC<BLOCK_SIZE>>();
+  check_for_all<axom::HIP_EXEC<BLOCK_SIZE>, 1>(256);
+  check_for_all<axom::HIP_EXEC<BLOCK_SIZE>, 2>(64);
+  check_for_all<axom::HIP_EXEC<BLOCK_SIZE>, 3>(32);
 }
 
 //------------------------------------------------------------------------------
 TEST(core_execution_for_all, hip_exec_async)
 {
   constexpr int BLOCK_SIZE = 256;
-  check_for_all<axom::HIP_EXEC<BLOCK_SIZE, axom::ASYNC>>();
+  check_for_all<axom::HIP_EXEC<BLOCK_SIZE, axom::ASYNC>, 1>(256);
+  check_for_all<axom::HIP_EXEC<BLOCK_SIZE, axom::ASYNC>, 2>(64);
+  check_for_all<axom::HIP_EXEC<BLOCK_SIZE, axom::ASYNC>, 3>(32);
 }
+
 
 #endif
