@@ -53,8 +53,14 @@ private:
   //! @brief Tet mesh in Blueprint format.
   conduit::Node* m_bpMesh;
 
+  //! @brief Bounding box of the tet mesh.
+  axom::primal::BoundingBox<double, 3> m_bb;
+
   //! @brief Number of cells in the tet mesh.
   axom::IndexType m_cellCount;
+
+  //! @brief Geometry as tetrahedra.
+  axom::Array<TetrahedronType> m_tets;
 
   axom::quest::CoordinateTransformer<double> m_transformer;
 

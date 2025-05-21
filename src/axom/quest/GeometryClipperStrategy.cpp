@@ -78,6 +78,18 @@ const std::string& GeometryClipperStrategy::name() const
   return n;
 }
 
+const axom::primal::BoundingBox<double, 2>& GeometryClipperStrategy::getBoundingBox2D() const
+{
+  static const axom::primal::BoundingBox<double, 2> invalidBb2d;
+  return invalidBb2d;
+}
+
+const axom::primal::BoundingBox<double, 3>& GeometryClipperStrategy::getBoundingBox3D() const
+{
+  static const axom::primal::BoundingBox<double, 3> invalidBb3d;
+  return invalidBb3d;
+}
+
 numerics::Matrix<double> GeometryClipperStrategy::computeTransformationMatrix(
   const std::shared_ptr<const axom::klee::GeometryOperator>& op) const
 {

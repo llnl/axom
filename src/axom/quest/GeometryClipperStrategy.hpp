@@ -24,6 +24,9 @@ namespace quest
 
   Key methods to implement:  (Some combination of these is required.)
 
+  -# @c getBoundingBox2D or @c getBoundingBox3D: Axis-alligned
+     bounding box for the geometry.
+
   -# @c labelInOut: Label whether the cells in a mesh is inside,
      outside or on the shape boundary.  If a cell cannot be
      determined, you can conservatively label it as on the boundary.
@@ -48,7 +51,8 @@ namespace quest
   The former is prefered if the use of geometry-specific information
   can make it faster.  @c labelInOut is optional but if provided,
   it can improve performance by limiting the slower clipping steps
-  to a subset of cells.
+  to a subset of cells.  @c getBoundingBox2D or @c getBoundingBox3D
+  can also improve performance by reducing computation.
 */
 class GeometryClipperStrategy
 {
@@ -106,6 +110,19 @@ public:
 
   //@{
   //!@name Geometry-specialized methods
+
+  /*!
+    @brief Get the 2D axis-alligned bounding box for the geometry,
+    if it's applicable and available.
+  */
+  virtual const axom::primal::BoundingBox<double, 2>& getBoundingBox2D() const;
+
+  /*!
+    @brief Get the 3D axis-alligned bounding box for the geometry,
+    if it's applicable and available.
+  */
+  virtual const axom::primal::BoundingBox<double, 3>& getBoundingBox3D() const;
+
   /*!
     @brief Label the cells in the mesh as inside, outside or
     both/undetermined, if possible.
