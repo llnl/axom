@@ -136,9 +136,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND ((MFEM_FOUND AND AXOM_ENABLE_MFEM_
     list(APPEND quest_sources Shaper.cpp
                               DiscreteShape.cpp)
     list(APPEND quest_depends_on klee)
-    if(RAJA_FOUND)
-        list(APPEND quest_headers IntersectionShaper.hpp)
-    endif()
+    list(APPEND quest_headers IntersectionShaper.hpp)
 endif()
 
 if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION))

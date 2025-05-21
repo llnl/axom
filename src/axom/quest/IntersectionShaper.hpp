@@ -13,74 +13,65 @@
 #define AXOM_QUEST_INTERSECTION_SHAPER__HPP_
 
 #include "axom/config.hpp"
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
 
-  #include "axom/core.hpp"
-  #include "axom/slic.hpp"
-  #include "axom/slam.hpp"
-  #include "axom/primal.hpp"
-  #include "axom/sidre/core/Group.hpp"
-  #include "axom/sidre/core/View.hpp"
-  #include "axom/mint/mesh/UnstructuredMesh.hpp"
-  #include "axom/mint/utils/vtk_utils.hpp"
-  #include "axom/klee.hpp"
-  #include "axom/quest/Shaper.hpp"
-  #include "axom/quest/Discretize.hpp"
-  #include "axom/spin/BVH.hpp"
-  #include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
-  #include "axom/quest/interface/internal/QuestHelpers.hpp"
-  #include "axom/fmt.hpp"
+#include "axom/core.hpp"
+#include "axom/slic.hpp"
+#include "axom/slam.hpp"
+#include "axom/primal.hpp"
+#include "axom/sidre/core/Group.hpp"
+#include "axom/sidre/core/View.hpp"
+#include "axom/mint/mesh/UnstructuredMesh.hpp"
+#include "axom/mint/utils/vtk_utils.hpp"
+#include "axom/klee.hpp"
+#include "axom/quest/Shaper.hpp"
+#include "axom/quest/Discretize.hpp"
+#include "axom/spin/BVH.hpp"
+#include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
+#include "axom/quest/interface/internal/QuestHelpers.hpp"
+#include "axom/fmt.hpp"
 
-  #ifdef AXOM_USE_MFEM
-    #include "mfem.hpp"
-  #endif
+#ifdef AXOM_USE_MFEM
+  #include "mfem.hpp"
+#endif
 
-  #include "axom/fmt.hpp"
+#include "axom/fmt.hpp"
 
-  #if defined(AXOM_USE_CONDUIT)
-    #include "conduit_node.hpp"
-    #include "conduit_blueprint_mesh.hpp"
-    #include "conduit_blueprint_mcarray.hpp"
-  #endif
-
-// clang-format off
-  using seq_exec = axom::SEQ_EXEC;
-
-  #if defined(AXOM_USE_OPENMP)
-    using omp_exec = axom::OMP_EXEC;
-  #else
-    using omp_exec = seq_exec;
-  #endif
-
-  #if defined(AXOM_USE_CUDA) && defined (AXOM_USE_UMPIRE)
-    constexpr int CUDA_BLOCK_SIZE = 256;
-    using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
-  #else
-    using cuda_exec = seq_exec;
-  #endif
-
-  #if defined(AXOM_USE_HIP) && defined (AXOM_USE_UMPIRE)
-    constexpr int HIP_BLOCK_SIZE = 64;
-    using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;
-  #else
-    using hip_exec = seq_exec;
-  #endif
-// clang-format on
+#if defined(AXOM_USE_CONDUIT)
+  #include "conduit_node.hpp"
+  #include "conduit_blueprint_mesh.hpp"
+  #include "conduit_blueprint_mcarray.hpp"
+#endif
 
 namespace axom
 {
 namespace quest
 {
+// Define execution policies to use in the IntersectionShaper.
+using seq_exec = axom::SEQ_EXEC;
 
-  #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
-    #if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+using omp_exec = axom::OMP_EXEC;
+#endif
+
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined (AXOM_USE_UMPIRE)
+constexpr int CUDA_BLOCK_SIZE = 256;
+using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
+#endif
+
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined (AXOM_USE_UMPIRE)
+constexpr int HIP_BLOCK_SIZE = 64;
+using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;
+#endif
+
+#if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
+  #if defined(AXOM_USE_CONDUIT)
 static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT64_ID;
-    #endif
-  #else
-    #if defined(AXOM_USE_CONDUIT)
-static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT32_ID;
-    #endif
   #endif
+#else
+  #if defined(AXOM_USE_CONDUIT)
+static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT32_ID;
+  #endif
+#endif
 
 /*!
  * \class TempArrayView
@@ -221,7 +212,7 @@ private:
   bool m_needResult {false};
 };
 
-  #if defined(AXOM_USE_CUDA)
+#if defined(AXOM_USE_CUDA)
 /*!
  * \brief CUDA specialization that calls initializeDevice to copy data
  *        from the host to the device.
@@ -245,8 +236,9 @@ AXOM_HOST_DEVICE inline void TempArrayView<cuda_exec>::finalize()
 {
   finalizeDevice();
 }
-  #endif
-  #if defined(AXOM_USE_HIP)
+#endif
+
+#if defined(AXOM_USE_HIP)
 /*!
  * \brief HIP specialization that calls initializeDevice to copy data
  *        from the host to the device.
@@ -270,7 +262,7 @@ AXOM_HOST_DEVICE inline void TempArrayView<hip_exec>::finalize()
 {
   finalizeDevice();
 }
-  #endif
+#endif
 
 //---------------------------------------------------------------------------
 /**
@@ -698,8 +690,7 @@ private:
       auto tri_device_view = m_tris.view();
 
       // Print out the total volume of all the triangles
-      using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-      RAJA::ReduceSum<REDUCE_POL, double> total_tri_area(0.0);
+      axom::ReduceSum<ExecSpace, double> total_tri_area(0.0);
       axom::for_all<ExecSpace>(
         m_tricount,
         AXOM_LAMBDA(axom::IndexType i) { total_tri_area += tri_device_view[i].area(); });
@@ -708,7 +699,7 @@ private:
                                   total_tri_area.get()));
 
       // Check if any Triangles are degenerate with zero area
-      RAJA::ReduceSum<REDUCE_POL, int> num_degenerate(0);
+      axom::ReduceSum<ExecSpace, int> num_degenerate(0);
       axom::for_all<ExecSpace>(
         m_tricount,
         AXOM_LAMBDA(axom::IndexType i) {
@@ -772,8 +763,7 @@ private:
       auto tets_device_view = m_tets.view();
 
       // Print out the total volume of all the tetrahedra
-      using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-      RAJA::ReduceSum<REDUCE_POL, double> total_tet_vol(0.0);
+      axom::ReduceSum<ExecSpace, double> total_tet_vol(0.0);
       axom::for_all<ExecSpace>(
         m_tetcount,
         AXOM_LAMBDA(axom::IndexType i) { total_tet_vol += tets_device_view[i].volume(); });
@@ -782,7 +772,7 @@ private:
                                   total_tet_vol.get()));
 
       // Check if any Tetrahedron are degenerate with zero volume
-      RAJA::ReduceSum<REDUCE_POL, int> num_degenerate(0);
+      axom::ReduceSum<ExecSpace, int> num_degenerate(0);
       axom::for_all<ExecSpace>(
         m_tetcount,
         AXOM_LAMBDA(axom::IndexType i) {
@@ -861,8 +851,7 @@ private:
                           all_oct_bb));
 
       // Print out the total volume of all the octahedra
-      using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-      RAJA::ReduceSum<REDUCE_POL, double> total_oct_vol(0.0);
+      axom::ReduceSum<ExecSpace, double> total_oct_vol(0.0);
       axom::for_all<ExecSpace>(
         m_octcount,
         AXOM_LAMBDA(axom::IndexType i) {
@@ -890,7 +879,7 @@ private:
                                   total_oct_vol.get()));
 
       // Check if any Octahedron are degenerate with all points {0,0,0}
-      RAJA::ReduceSum<REDUCE_POL, int> num_degenerate(0);
+      axom::ReduceSum<ExecSpace, int> num_degenerate(0);
       axom::for_all<ExecSpace>(
         m_octcount,
         AXOM_LAMBDA(axom::IndexType i) {
@@ -1010,12 +999,9 @@ private:
     bvh.findBoundingBoxes(offsets, counts, candidates, m_cellCount, quad_bbs_device_view);
 
     // Get the total number of candidates
-    using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
-
     const auto counts_device_view = counts.view();
     AXOM_ANNOTATE_BEGIN("populate totalCandidates");
-    RAJA::ReduceSum<REDUCE_POL, int> totalCandidates(0);
+    axom::ReduceSum<ExecSpace, int> totalCandidates(0);
     axom::for_all<ExecSpace>(
       m_cellCount,
       AXOM_LAMBDA(axom::IndexType i) { totalCandidates += counts_device_view[i]; });
@@ -1064,7 +1050,7 @@ private:
             int shapeIdx = candidates_device_view[offsets_device_view[i] + j];
 
             IndexType idx =
-              RAJA::atomicAdd<ATOMIC_POL>(&newTotalCandidates_device_view[0], IndexType {1});
+              axom::atomicAdd<ExecSpace>(&newTotalCandidates_device_view[0], IndexType {1});
             quad_indices_device_view[idx] = i;
             shape_candidates_device_view[idx] = shapeIdx;
           }
@@ -1104,13 +1090,12 @@ private:
             // Workaround - intermediate volume variable needed for
             // CUDA Pro/E test case correctness
             double area = poly.area();
-            RAJA::atomicAdd<ATOMIC_POL>(overlap_volumes_device_view.data() + index, area);
+            axom::atomicAdd<ExecSpace>(overlap_volumes_device_view.data() + index, area);
           }
         });
     }
 
-    RAJA::ReduceSum<REDUCE_POL, double> totalOverlap(0);
-    RAJA::ReduceSum<REDUCE_POL, double> totalQuad(0);
+    axom::ReduceSum<ExecSpace, double> totalOverlap(0), totalQuad(0);
 
     auto cell_volumes_device_view = m_cell_volumes.view();
 
@@ -1123,10 +1108,10 @@ private:
 
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
                                 "Total overlap volume with shape is {:.3Lf}",
-                                this->allReduceSum(totalOverlap)));
+                                this->allReduceSum(totalOverlap.get())));
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
                                 "Total mesh volume is {:.3Lf}",
-                                this->allReduceSum(totalQuad)));
+                                this->allReduceSum(totalQuad.get())));
 
   }  // end of runShapeQuery2DImpl() function
 
@@ -1196,12 +1181,9 @@ private:
     AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
 
     // Get the total number of candidates
-    using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
-
     const auto counts_device_view = counts.view();
     AXOM_ANNOTATE_BEGIN("populate totalCandidates");
-    RAJA::ReduceSum<REDUCE_POL, int> totalCandidates(0);
+    axom::ReduceSum<ExecSpace, int> totalCandidates(0);
     axom::for_all<ExecSpace>(
       m_cellCount,
       AXOM_LAMBDA(axom::IndexType i) { totalCandidates += counts_device_view[i]; });
@@ -1260,7 +1242,7 @@ private:
             for(int k = 0; k < NUM_TETS_PER_HEX; k++)
             {
               IndexType idx =
-                RAJA::atomicAdd<ATOMIC_POL>(&newTotalCandidates_device_view[0], IndexType {1});
+                axom::atomicAdd<ExecSpace>(&newTotalCandidates_device_view[0], IndexType {1});
               hex_indices_device_view[idx] = i;
               shape_candidates_device_view[idx] = shapeIdx;
               tet_indices_device_view[idx] = i * NUM_TETS_PER_HEX + k;
@@ -1305,7 +1287,7 @@ private:
             // Workaround - intermediate volume variable needed for
             // CUDA Pro/E test case correctness
             double volume = poly.volume();
-            RAJA::atomicAdd<ATOMIC_POL>(overlap_volumes_device_view.data() + index, volume);
+            axom::atomicAdd<ExecSpace>(overlap_volumes_device_view.data() + index, volume);
           }
         });
     }
@@ -1675,17 +1657,17 @@ public:
     case RuntimePolicy::seq:
       applyReplacementRulesImpl<seq_exec>(shape);
       break;
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
     case RuntimePolicy::omp:
       applyReplacementRulesImpl<omp_exec>(shape);
       break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
     case RuntimePolicy::cuda:
       applyReplacementRulesImpl<cuda_exec>(shape);
       break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
     case RuntimePolicy::hip:
       applyReplacementRulesImpl<hip_exec>(shape);
       break;
@@ -1733,17 +1715,17 @@ public:
     case RuntimePolicy::seq:
       prepareShapeQueryImpl<seq_exec>(shapeDimension, shape);
       break;
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
     case RuntimePolicy::omp:
       prepareShapeQueryImpl<omp_exec>(shapeDimension, shape);
       break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
     case RuntimePolicy::cuda:
       prepareShapeQueryImpl<cuda_exec>(shapeDimension, shape);
       break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
     case RuntimePolicy::hip:
       prepareShapeQueryImpl<hip_exec>(shapeDimension, shape);
       break;
@@ -1776,17 +1758,17 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery3DImpl<seq_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery3DImpl<omp_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
       case RuntimePolicy::cuda:
         runShapeQuery3DImpl<cuda_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
       case RuntimePolicy::hip:
         runShapeQuery3DImpl<hip_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
@@ -1800,17 +1782,17 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery3DImpl<seq_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery3DImpl<omp_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
       case RuntimePolicy::cuda:
         runShapeQuery3DImpl<cuda_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
       case RuntimePolicy::hip:
         runShapeQuery3DImpl<hip_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
@@ -1824,17 +1806,17 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery2DImpl<seq_exec>(shape, m_tris, m_tricount);
         break;
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery2DImpl<omp_exec>(shape, m_tris, m_tricount);
         break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
       case RuntimePolicy::cuda:
         runShapeQuery2DImpl<cuda_exec>(shape, m_tris, m_tricount);
         break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
       case RuntimePolicy::hip:
         runShapeQuery2DImpl<hip_exec>(shape, m_tris, m_tricount);
         break;
@@ -1856,17 +1838,17 @@ public:
     double overlapVol = 0.0;
     switch(m_execPolicy)
     {
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
     case RuntimePolicy::omp:
       overlapVol = sumArray<omp_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
     case RuntimePolicy::cuda:
       overlapVol = sumArray<cuda_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
     case RuntimePolicy::hip:
       overlapVol = sumArray<hip_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
@@ -1887,12 +1869,8 @@ public:
   template <typename ExecSpace, typename Summable>
   Summable sumArray(const Summable* a, axom::IndexType count) const
   {
-    using LoopPolicy = typename axom::execution_space<ExecSpace>::loop_policy;
-    using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-    RAJA::ReduceSum<ReducePolicy, Summable> vsum {0};
-    RAJA::forall<LoopPolicy>(
-      RAJA::RangeSegment(0, count),
-      AXOM_LAMBDA(RAJA::Index_type i) { vsum += a[i]; });
+    axom::ReduceSum<ExecSpace, Summable> vsum {0};
+    axom::for_all<ExecSpace>(count, AXOM_LAMBDA(axom::IndexType i) { vsum += a[i]; });
     Summable sum = static_cast<Summable>(vsum.get());
     return sum;
   }
@@ -2944,7 +2922,5 @@ private:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_USE_RAJA && AXOM_USE_UMPIRE
 
 #endif  // AXOM_QUEST_INTERSECTION_SHAPER__HPP_
