@@ -914,7 +914,7 @@ struct ArrayOpsBase<T, OperationSpace::Host>
    */
   static void fill_range(T* array, IndexType begin, IndexType nelems, const T* values, MemorySpace space)
   {
-#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
     if(std::is_trivially_copyable<T>::value)
     {
       axom::copy(array + begin, values, sizeof(T) * nelems);
@@ -1020,7 +1020,7 @@ struct ArrayOpsBase<T, OperationSpace::Host>
   }
 };
 
-#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
 /*!
  * \name Tag types for device initialization
  */
@@ -1143,7 +1143,21 @@ struct DeviceStagingBuffer<T, OperationSpace::Unified_Device>
 template <typename T, OperationSpace SPACE>
 struct ArrayOpsBase
 {
-  #if defined(__CUDACC__)
+  #if !defined(AXOM_GPUCC)
+  // To avoid an ODR issue, we error out here to ensure that axom::Array
+  // device-aware operations are not instantiated within a host-compiler.
+  // See:
+  // - https://github.com/LLNL/axom/issues/1182
+  // - https://github.com/LLNL/axom/issues/1440
+  static_assert(SPACE != OperationSpace::Device,
+                "Cannot instantiate Array operations -- file is being compiled "
+                "with a host-only compiler, but Axom was configured and built "
+                "with a CUDA/HIP compiler.");
+
+  // Placeholder to ensure that the code compiles, even if we aren't
+  // instantiating this class.
+  using ExecSpace = axom::SEQ_EXEC;
+  #elif defined(AXOM_USE_CUDA)
   using ExecSpace = axom::CUDA_EXEC<256>;
   #else
   using ExecSpace = axom::HIP_EXEC<256>;
@@ -1380,7 +1394,7 @@ struct MemSpaceTraits
   static constexpr bool IsUVMAccessible = false;
 };
 
-#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
 template <>
 struct MemSpaceTraits<MemorySpace::Device>
 {
@@ -1482,7 +1496,7 @@ struct ArrayOps<T, SPACE, true>
 {
 private:
   using Base = ArrayOpsBase<T, OperationSpace::Host>;
-#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
   using BaseDevice = ArrayOpsBase<T, OperationSpace::Device>;
   // Works with unified and pinned memory.
   using BaseUM = ArrayOpsBase<T, OperationSpace::Unified_Device>;
@@ -1493,7 +1507,7 @@ private:
 public:
   ArrayOps(int allocId, bool preferDevice)
   {
-#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
     if(SPACE == MemorySpace::Dynamic)
     {
       space = getAllocatorSpace(allocId);
@@ -1520,7 +1534,7 @@ public:
 
   void init(T* array, IndexType begin, IndexType nelems)
   {
-#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
     if(space == MemorySpace::Device)
     {
       BaseDevice::init(array, begin, nelems);
@@ -1537,7 +1551,7 @@ public:
 
   void fill(T* array, IndexType begin, IndexType nelems, const T& value)
   {
-#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
     if(space == MemorySpace::Device)
     {
       BaseDevice::fill(array, begin, nelems, value);
@@ -1554,7 +1568,7 @@ public:
 
   void fill_range(T* array, IndexType begin, IndexType nelems, const T* values, MemorySpace valueSpace)
   {
-#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
     if(space == MemorySpace::Device)
     {
       BaseDevice::fill_range(array, begin, nelems, values, valueSpace);
@@ -1575,7 +1589,7 @@ public:
     {
       return;
     }
-#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
     if(space == MemorySpace::Device)
     {
       BaseDevice::destroy(array, begin, nelems);
@@ -1596,7 +1610,7 @@ public:
     {
       return;
     }
-#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
     if(space == MemorySpace::Device)
     {
       BaseDevice::move(array, src_begin, src_end, dst);
@@ -1613,7 +1627,7 @@ public:
 
   void realloc_move(T* array, IndexType nelems, T* values)
   {
-#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
     if(space == MemorySpace::Device)
     {
       BaseDevice::realloc_move(array, nelems, values);
@@ -1631,7 +1645,7 @@ public:
   template <typename... Args>
   void emplace(T* array, IndexType dst, Args&&... args)
   {
-#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
     if(space == MemorySpace::Device)
     {
       BaseDevice::emplace(array, dst, std::forward<Args>(args)...);
