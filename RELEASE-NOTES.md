@@ -43,6 +43,11 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Exposed primal clip operations for clipping various shapes with a plane.
 - Adds `axom::mir::utilities::blueprint::MakePointMesh` class that creates a new Blueprint mesh
   consisting of points located at the zone centers of the input mesh.
+- Adds constructs in the `axom` namespace that wrap RAJA atomics, reductions, scans, and sorts.
+  When RAJA is not available, serial-only substitutes are provided, allowing algorithms to still
+  compile and run. These constructs are templated on the `ExecSpace` _(execution space)_ so it
+  is not necessary to query RAJA policies via the `execution_space` type traits classes.
+- 2D and 3D implementations for `axom::for_all` were added.
 
 ###  Changed
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
