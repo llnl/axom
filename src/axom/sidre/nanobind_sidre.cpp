@@ -33,6 +33,12 @@ NB_MODULE(pysidre, m_sidre)
 
   m_sidre.def("nameIsValid", &nameIsValid, "Returns true if name is valid, else false.");
 
+#if defined(AXOM_USE_HDF5)
+  m_sidre.attr("AXOM_USE_HDF5") = true;
+#else
+  m_sidre.attr("AXOM_USE_HDF5") = false;
+#endif
+
   // Expose IndexType as an alias (bad cast error...)
   // #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
   // m_sidre.attr("IndexType") = nb::type<std::int64_t>();
@@ -438,6 +444,7 @@ NB_MODULE(pysidre, m_sidre)
          "Remove given View object from its owning Group and move it to this Group.")
     .def("copyView",
          &Group::copyView,
+         nb::rv_policy::reference,
          "Create a (shallow) copy of given View object and add it to this Group.")
 
     .def("hasGroup",
@@ -493,7 +500,10 @@ NB_MODULE(pysidre, m_sidre)
     .def("save",
          nb::overload_cast<const std::string&, const std::string&, const Attribute*>(&Group::save,
                                                                                      nb::const_),
-         "Save the Group to a file.")
+         "Save the Group to a file.",
+         nb::arg("path"),
+         nb::arg("protocol") = Group::getDefaultIOProtocol(),
+         nb::arg("attr") = nullptr)
     .def("load",
          nb::overload_cast<const std::string&, const std::string&, bool>(&Group::load),
          "Load a Group hierarchy from a file into this Group",
