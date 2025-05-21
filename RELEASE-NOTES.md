@@ -43,6 +43,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Exposed primal clip operations for clipping various shapes with a plane.
 - Adds `axom::mir::utilities::blueprint::MakePointMesh` class that creates a new Blueprint mesh
   consisting of points located at the zone centers of the input mesh.
+- Adds support for custom allocators to `axom::FlatMap`.
 
 ###  Changed
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
