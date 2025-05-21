@@ -1565,25 +1565,27 @@ public:
   /// \brief Normalize the knot vectors to the span [0, 1]
   void normalize()
   {
+    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, 1.0);
+    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, 1.0);
+
     m_knotvec_u.normalize();
     m_knotvec_v.normalize();
-
-    rescaleTrimmingCurves_u(0.0, 1.0);
-    rescaleTrimmingCurves_v(0.0, 1.0);
   }
 
   /// \brief Normalize the knot vector in u to the span [0, 1]
   void normalize_u()
   {
+    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, 1.0);
+
     m_knotvec_u.normalize();
-    rescaleTrimmingCurves_u(0.0, 1.0);
   }
 
   /// \brief Normalize the knot vector in v to the span [0, 1]
   void normalize_v()
   {
+    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, 1.0);
+
     m_knotvec_v.normalize();
-    rescaleTrimmingCurves_v(0.0, 1.0);
   }
 
   /*!
@@ -1597,11 +1599,12 @@ public:
   void rescale(T a, T b)
   {
     SLIC_ASSERT(a < b);
+
+    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), a, b);
+    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), a, b);
+
     m_knotvec_u.rescale(a, b);
     m_knotvec_v.rescale(a, b);
-
-    rescaleTrimmingCurves_u(a, b);
-    rescaleTrimmingCurves_v(a, b);
   }
 
   /*!
@@ -1615,9 +1618,10 @@ public:
   void rescale_u(T a, T b)
   {
     SLIC_ASSERT(a < b);
-    m_knotvec_u.rescale(a, b);
 
-    rescaleTrimmingCurves_u(a, b);
+    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), a, b);
+
+    m_knotvec_u.rescale(a, b);
   }
 
   /*!
@@ -1631,9 +1635,10 @@ public:
   void rescale_v(T a, T b)
   {
     SLIC_ASSERT(a < b);
-    m_knotvec_v.rescale(a, b);
 
-    rescaleTrimmingCurves_v(a, b);
+    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), a, b);
+
+    m_knotvec_v.rescale(a, b);
   }
   //@}
 
@@ -3648,28 +3653,34 @@ private:
   bool m_isTrimmed;
   TrimmingCurveVec m_trimmingCurves;
 
-  /// \brief Private function to rescale trimming curves to a given range
+  /// \brief Private function to rescale trimming curves from (a, b) to (c, d) in x
   /// \warning Does not check that the resulting curves are valid
-  void rescaleTrimmingCurves_u(T a, T b)
+  void rescaleTrimmingCurves_u(T a, T b, T c, T d)
   {
+    SLIC_ASSERT(a < b);
+    SLIC_ASSERT(c < d);
+
     for(auto& curve : m_trimmingCurves)
     {
       for(int i = 0; i < curve.getNumControlPoints(); ++i)
       {
-        curve[i][0] = a + (b - a) * curve[i][0];
+        curve[i][0] = c + (d - c) * (curve[i][0] - a) / (b - a);
       }
     }
   }
 
-  /// \brief Private function to rescale trimming curves to a given range
+  /// \brief Private function to rescale trimming curves from (a, b) to (c, d) in x
   /// \warning Does not check that the resulting curves are valid
-  void rescaleTrimmingCurves_v(T a, T b)
+  void rescaleTrimmingCurves_v(T a, T b, T c, T d)
   {
+    SLIC_ASSERT(a < b);
+    SLIC_ASSERT(c < d);
+
     for(auto& curve : m_trimmingCurves)
     {
       for(int i = 0; i < curve.getNumControlPoints(); ++i)
       {
-        curve[i][1] = a + (b - a) * curve[i][1];
+        curve[i][1] = c + (d - c) * (curve[i][1] - a) / (b - a);
       }
     }
   }
