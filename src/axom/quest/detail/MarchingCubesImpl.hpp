@@ -49,17 +49,6 @@ public:
   using FacetIdType = int;
   using CrossingFlagType = axom::quest::MarchingCubes::CrossingFlagType;
 
-  using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
-  using ReducePolicy = typename execution_space<ExecSpace>::reduce_policy;
-#if defined(AXOM_USE_RAJA)
-  // Intel oneAPI compiler segfaults with OpenMP RAJA scan
-  #ifdef __INTEL_LLVM_COMPILER
-  using ScanPolicy = typename axom::execution_space<axom::SEQ_EXEC>::loop_policy;
-  #else
-  using ScanPolicy = typename axom::execution_space<ExecSpace>::loop_policy;
-  #endif
-#endif
-  using SequentialLoopPolicy = typename execution_space<SequentialExecSpace>::loop_policy;
   static constexpr auto MemorySpace = execution_space<ExecSpace>::memory_space;
 
   AXOM_HOST MarchingCubesImpl(int allocatorID,
@@ -179,45 +168,18 @@ public:
   {
     MarkCrossings_Util mcu(m_caseIds, m_fcnView, m_maskView, m_contourVal, m_maskVal);
 
-    auto order = m_caseIdsMDMapper.getStrideOrder();
-#if defined(AXOM_USE_RAJA)
-    RAJA::RangeSegment jRange(0, m_bShape[1]);
-    RAJA::RangeSegment iRange(0, m_bShape[0]);
-    using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
+    const auto order = m_caseIdsMDMapper.getStrideOrder();
     if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
     {
-      RAJA::kernel<EXEC_POL>(
-        RAJA::make_tuple(iRange, jRange),
+      axom::for_all<ExecSpace>(m_bShape, 
         AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) { mcu.computeCaseId(i, j); });
     }
     else
     {
-      RAJA::kernel<EXEC_POL>(
-        RAJA::make_tuple(jRange, iRange),
+      axom::StackArray<axom::IndexType, 2> shapeJI{{m_bShape[1], m_bShape[0]}};
+      axom::for_all<ExecSpace>(shapeJI, 
         AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) { mcu.computeCaseId(i, j); });
     }
-#else
-    if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
-    {
-      for(int j = 0; j < m_bShape[1]; ++j)
-      {
-        for(int i = 0; i < m_bShape[0]; ++i)
-        {
-          mcu.computeCaseId(i, j);
-        }
-      }
-    }
-    else
-    {
-      for(int i = 0; i < m_bShape[0]; ++i)
-      {
-        for(int j = 0; j < m_bShape[1]; ++j)
-        {
-          mcu.computeCaseId(i, j);
-        }
-      }
-    }
-#endif
   }
 
   //!@brief Populate m_caseIds with crossing indices.
@@ -228,55 +190,21 @@ public:
 
     auto order = m_caseIdsMDMapper.getStrideOrder();
     // order ^= axom::ArrayStrideOrder::BOTH; // Pick wrong ordering to test behavior.
-#if defined(AXOM_USE_RAJA)
-    RAJA::RangeSegment kRange(0, m_bShape[2]);
-    RAJA::RangeSegment jRange(0, m_bShape[1]);
-    RAJA::RangeSegment iRange(0, m_bShape[0]);
-    using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop3d_policy;
     if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
     {
-      RAJA::kernel<EXEC_POL>(
-        RAJA::make_tuple(iRange, jRange, kRange),
+      axom::for_all<ExecSpace>(m_bShape,
         AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
           mcu.computeCaseId(i, j, k);
         });
     }
     else
     {
-      RAJA::kernel<EXEC_POL>(
-        RAJA::make_tuple(kRange, jRange, iRange),
+      axom::StackArray<axom::IndexType, 3> shapeKJI{{m_bShape[2], m_bShape[1], m_bShape[0]}};
+      axom::for_all<ExecSpace>(shapeKJI,
         AXOM_LAMBDA(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
           mcu.computeCaseId(i, j, k);
         });
     }
-#else
-    if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
-    {
-      for(int k = 0; k < m_bShape[2]; ++k)
-      {
-        for(int j = 0; j < m_bShape[1]; ++j)
-        {
-          for(int i = 0; i < m_bShape[0]; ++i)
-          {
-            mcu.computeCaseId(i, j, k);
-          }
-        }
-      }
-    }
-    else
-    {
-      for(int i = 0; i < m_bShape[0]; ++i)
-      {
-        for(int j = 0; j < m_bShape[1]; ++j)
-        {
-          for(int k = 0; k < m_bShape[2]; ++k)
-          {
-            mcu.computeCaseId(i, j, k);
-          }
-        }
-      }
-    }
-#endif
   }
 
   /*!
@@ -414,17 +342,8 @@ public:
 
     {
       AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::scanCrossings:scan_flags");
-#if defined(AXOM_USE_RAJA)
-      RAJA::inclusive_scan<ScanPolicy>(RAJA::make_span(m_crossingFlags.data(), parentCellCount),
-                                       RAJA::make_span(m_scannedFlags.data() + 1, parentCellCount),
-                                       RAJA::operators::plus<axom::IndexType> {});
-
-#else
-      for(axom::IndexType n = 0; n < parentCellCount; ++n)
-      {
-        m_scannedFlags[n + 1] = m_scannedFlags[n] + m_crossingFlags[n];
-      }
-#endif
+      axom::inclusive_scan<ExecSpace>(axom::ArrayView<CrossingFlagType>(m_crossingFlags.data(), parentCellCount),
+                                      axom::ArrayView<axom::IndexType>(m_scannedFlags.data() + 1, parentCellCount));
     }
 
     axom::copy(&m_crossingCount,
@@ -466,16 +385,8 @@ public:
 
     {
       AXOM_ANNOTATE_SCOPE("MarchingCubesImpl::scanCrossings:scan_incrs");
-#if defined(AXOM_USE_RAJA)
-      RAJA::inclusive_scan<ScanPolicy>(RAJA::make_span(m_facetIncrs.data(), m_crossingCount),
-                                       RAJA::make_span(m_firstFacetIds.data() + 1, m_crossingCount),
-                                       RAJA::operators::plus<axom::IndexType> {});
-#else
-      for(axom::IndexType n = 0; n < m_crossingCount; ++n)
-      {
-        m_firstFacetIds[n + 1] = m_firstFacetIds[n] + m_facetIncrs[n];
-      }
-#endif
+      axom::inclusive_scan<ExecSpace>(axom::ArrayView<FacetIncrsType>(m_facetIncrs.data(), m_crossingCount),
+                                      axom::ArrayView<axom::IndexType>(m_firstFacetIds.data() + 1, m_crossingCount));
     }
 
     axom::copy(&m_facetCount,
@@ -491,20 +402,10 @@ public:
     //
     const axom::IndexType parentCellCount = m_caseIds.size();
     auto caseIdsView = m_caseIds;
-#if defined(AXOM_USE_RAJA)
-    RAJA::ReduceSum<ReducePolicy, axom::IndexType> vsum(0);
-    RAJA::forall<LoopPolicy>(
-      RAJA::RangeSegment(0, parentCellCount),
-      AXOM_LAMBDA(RAJA::Index_type n) { vsum += bool(num_contour_cells(caseIdsView.flatIndex(n))); });
+    axom::ReduceSum<ExecSpace, axom::IndexType> vsum(0);
+    axom::for_all<ExecSpace>(parentCellCount,
+      AXOM_LAMBDA(axom::IndexType n) { vsum += bool(num_contour_cells(caseIdsView.flatIndex(n))); });
     m_crossingCount = static_cast<axom::IndexType>(vsum.get());
-#else
-    axom::IndexType vsum = 0;
-    for(axom::IndexType n = 0; n < parentCellCount; ++n)
-    {
-      vsum += bool(num_contour_cells(caseIdsView.flatIndex(n)));
-    }
-    m_crossingCount = vsum;
-#endif
 
     //
     // Allocate space for crossing info
@@ -530,42 +431,26 @@ public:
       }
     };
 
-#if defined(AXOM_USE_RAJA)
     /*
       loopBody isn't data-parallel and shouldn't be parallelized.
-      This contrived RAJA::forall forces it to run sequentially.
+      This contrived for_all forces it to run sequentially.
     */
-    RAJA::forall<SequentialLoopPolicy>(RAJA::RangeSegment(0, 1), [=] AXOM_HOST_DEVICE(int /* i */) {
+    axom::for_all<axom::SEQ_EXEC>(1, [=] AXOM_HOST_DEVICE(axom::IndexType /* i */) {
       *crossingId = 0;
       for(axom::IndexType n = 0; n < parentCellCount; ++n)
       {
         loopBody(n);
       }
     });
-#else
-    *crossingId = 0;
-    for(axom::IndexType n = 0; n < parentCellCount; ++n)
-    {
-      loopBody(n);
-    }
     SLIC_ASSERT(*crossingId == m_crossingCount);
-#endif
 
     axom::deallocate(crossingId);
 
     m_firstFacetIds.fill(0, 1, 0);
 
     const auto firstFacetIdsView = m_firstFacetIds.view();
-#if defined(AXOM_USE_RAJA)
-    RAJA::inclusive_scan<ScanPolicy>(RAJA::make_span(facetIncrsView.data(), m_crossingCount),
-                                     RAJA::make_span(firstFacetIdsView.data() + 1, m_crossingCount),
-                                     RAJA::operators::plus<axom::IndexType> {});
-#else
-    for(axom::IndexType i = 1; i < 1 + m_crossingCount; ++i)
-    {
-      firstFacetIdsView[i] = firstFacetIdsView[i - 1] + facetIncrsView[i - 1];
-    }
-#endif
+    axom::inclusive_scan<ExecSpace>(axom::ArrayView<FacetIncrsType>(facetIncrsView.data(), m_crossingCount),
+                                    axom::ArrayView<axom::IndexType>(firstFacetIdsView.data() + 1, m_crossingCount));
     axom::copy(&m_facetCount,
                m_firstFacetIds.data() + m_firstFacetIds.size() - 1,
                sizeof(axom::IndexType));
