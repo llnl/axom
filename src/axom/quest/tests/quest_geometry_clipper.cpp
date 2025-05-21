@@ -457,7 +457,9 @@ axom::klee::Geometry createGeom_Sphere(const std::string& geomName)
   axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
   exactGeomVols[geomName] = vScale * 4. / 3 * M_PI * radius * radius * radius;
   errorToleranceRel[geomName] = 1e-3;
-  errorToleranceAbs[geomName] = 1e-5;
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.0015 : 0.0001;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
 
   return sphereGeometry;
 }
@@ -580,8 +582,9 @@ axom::klee::Geometry createGeom_Sor(const std::string& geomName)
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
-  errorToleranceRel[geomName] = 0.011;
-  errorToleranceAbs[geomName] = 0.013;
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.007 : 0.0001;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
 
   return sorGeometry;
 }
@@ -610,8 +613,9 @@ axom::klee::Geometry createGeom_Cylinder(const std::string& geomName)
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
-  errorToleranceRel[geomName] = 1e-3;
-  errorToleranceAbs[geomName] = 1e-5;
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.000001;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
 
   return sorGeometry;
 }
@@ -641,8 +645,9 @@ axom::klee::Geometry createGeom_Cone(const std::string& geomName)
     createGeometry_Sor(sorBase, sorDirection, discreteFunction, compositeOp);
 
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
-  errorToleranceRel[geomName] = 1e-4;
-  errorToleranceAbs[geomName] = 1e-4;
+  // Tolerance should account for discretization errors.
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.000001;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
 
   return sorGeometry;
 }
