@@ -583,7 +583,7 @@ axom::klee::Geometry createGeom_Sor(const std::string& geomName)
 
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
   // Tolerance should account for discretization errors.
-  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.007 : 0.0001;
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.007 : 0.0063;
   errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
 
   return sorGeometry;
@@ -614,7 +614,7 @@ axom::klee::Geometry createGeom_Cylinder(const std::string& geomName)
 
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
   // Tolerance should account for discretization errors.
-  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.000001;
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.00005;
   errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
 
   return sorGeometry;
@@ -646,7 +646,7 @@ axom::klee::Geometry createGeom_Cone(const std::string& geomName)
 
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
   // Tolerance should account for discretization errors.
-  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.000001;
+  errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.00005;
   errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
 
   return sorGeometry;
