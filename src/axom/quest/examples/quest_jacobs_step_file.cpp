@@ -42,10 +42,11 @@
 #include "opencascade/TopoDS_Shape.hxx"
 #include "opencascade/TopoDS_Wire.hxx"
 #include <iostream>
+#include <chrono>
 
 bool USE_SUBSET = false;
 const int NUM_SUBSET = 1;
-int RELEVANT_INDICES[NUM_SUBSET] = {4};
+int RELEVANT_INDICES[NUM_SUBSET] = {0};
 /**
  * /file quest_jacob_step_file.cpp
  * /brief Example that loads in a STEP file and converts the surface patches and curves to Axom's NURBS representations
@@ -1224,6 +1225,8 @@ public:
 
             CurveProcessor curveProcessor(bsplineCurve, m_verbose);
             curves.emplace_back(curveProcessor.nurbsCurve());
+            patchData.nurbsPatch.markAsTrimmed();
+            
             if(!curveProcessor.nurbsCurve().isValidNURBS())
             {
               std::cout << "OH NO CURVE IS INVALID!!!" << std::endl;
@@ -2278,9 +2281,10 @@ void graphical_abstract_watertight()
   std::string filename = "machine_part_rhino";
   auto stepProcessor = import_step_file(prefix, filename);
 
-  constexpr double quad_tol = 1e-5;
-  constexpr double EPS = 1e-10;
   constexpr double edge_tol = 1e-6;
+  constexpr double quad_tol = 1e-6;
+  constexpr double ls_tol = 1e-6;
+  constexpr double EPS = 1e-10;
 
   // (!bBox, !oBox, casting, noCache)
   int case_code = -1;
@@ -2289,10 +2293,15 @@ void graphical_abstract_watertight()
     double wn = 0.0;
     for(const auto& kv : stepProcessor.getPatchDataMap())
     {
-      int integrated_trimming_curves;
-      auto new_query =
+      if( kv.first != 0 )
+      {
+        continue;
+      }
 
-        axom::primal::Point<double, 3> {-0.000705868, 0.0389087, -0.00646476};
+      int integrated_trimming_curves;
+
+      printPatchBoundaries(kv.second.nurbsPatchData.patch, true);
+
       double the_val = axom::primal::winding_number(query,
                                                     kv.second.nurbsPatchData,
                                                     case_code,
@@ -2312,47 +2321,32 @@ void graphical_abstract_watertight()
     meshBBox.addBox(kv.second.physicalBBox);
   }
 
-  auto the_range = 0.5 * meshBBox.range().norm();
+  auto the_range = 0.75 * meshBBox.range().norm();
   meshBBox.expand(0.1 * the_range);
 
   axom::primal::Point<double, 3> origin = meshBBox.getCentroid();
-  axom::primal::Vector<double, 3> normal = {1.0, 1.0, 1.0};
 
   axom::utilities::Timer timer(false);
 
-  timer.start();
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_watertight_slice1_final.vtk",
-    wn_field,
-    axom::primal::Point<double, 3> {0.0021127422476921076, 0.0404, 0.0},
-    axom::primal::Vector<double, 3> {1, 0, 0},
-    the_range,
-    the_range,
-    200,
-    200);
+  // axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_new_watertight_slice1.vtk",
+  //                                                   wn_field,
+  //                                                   origin,
+  //                                                   axom::primal::Vector<double, 3> {1, 0, 0},
+  //                                                   axom::primal::Vector<double, 3> {0, 0, 1},
+  //                                                   the_range,
+  //                                                   the_range,
+  //                                                   50,
+  //                                                   50);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_watertight_slice2_final.vtk",
-    wn_field,
-    axom::primal::Point<double, 3> {-0.01048739455123153, 0.0404, 0.0},
-    axom::primal::Vector<double, 3> {1, 0, 0},
-    the_range,
-    the_range,
-    200,
-    200);
-
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_watertight_slice3_final.vtk",
-    wn_field,
-    axom::primal::Point<double, 3> {0.0, 0.0404, 0.0},
-    axom::primal::Vector<double, 3> {0, 1, 0},
-    the_range,
-    the_range,
-    200,
-    200);
-  timer.stop();
-
-  auto elapsed_time = timer.elapsedTimeInSec();
+  axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_new_watertight_slice2.vtk",
+                                                    wn_field,
+                                                    origin,
+                                                    axom::primal::Vector<double, 3> {0, 1, 0},
+                                                    axom::primal::Vector<double, 3> {0, 0, 1},
+                                                    the_range,
+                                                    the_range,
+                                                    200,
+                                                    200);
 }
 
 void graphical_abstract_exploded()
@@ -4258,8 +4252,7 @@ std::vector<axom::primal::Point<double, 3>> generateSamplePointsOnBBox(
                       bbox.getMin()[2],
                       bbox.getMax()[2]));
 
-  auto fixed_point =
-    axom::primal::Point<double, 3> {0.173410095373064, -0.553443515142974, -0.482196662013814};
+  auto fixed_point = axom::primal::Point<double, 3> {0.9, 0.1, -0.1};
   bool useFixedPoint = false;
 
   for(int i = 0; i < numSamples; ++i)
@@ -4508,8 +4501,9 @@ void strict_tear_parameter_tol_test(const std::string& test_prefix,
 
   long num_misses = 0;
   long num_queries = 0;
-  // for(int i = 0; i < 25; ++i)
-  while(true)
+  double mean_time = 0.0;
+
+  for(long i = 0; i < 1e7; ++i)
   {
     const double x0 = axom::utilities::random_real(bbox.getMin()[0], bbox.getMax()[0]);
     const double y0 = axom::utilities::random_real(bbox.getMin()[1], bbox.getMax()[1]);
@@ -4518,38 +4512,42 @@ void strict_tear_parameter_tol_test(const std::string& test_prefix,
     num_queries++;
     axom::primal::Point<double, 3> query = axom::primal::Point<double, 3> {x0, y0, z0};
 
+    int case_code = -1;
+    int integrated_trimming_curves = 0;
+
     // Pick the same random cast direction for all patches
     double theta = axom::utilities::random_real(0.0, 2 * M_PI);
     double u = axom::utilities::random_real(-1.0, 1.0);
-    auto cast_direction = axom::primal::Vector<double, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+    auto cast_direction =
+      axom::primal::Vector<double, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+
+    axom::utilities::Timer timer(false);
 
     // test the winding number at the center of the box
     double gwn = 0.0;
-    double high_gwn = 0.0;
-    int case_code = -1;
-    int integrated_trimming_curves = 0;
+
+    auto start = std::chrono::high_resolution_clock::now();
+    // timer.start();
     for(int i = 0; i < 8; ++i)
     {
       gwn += axom::primal::winding_number(query,
-                                               nurbs_surfaces_data[i],
-                                              //  cast_direction,
-                                               case_code,
-                                               integrated_trimming_curves,
-                                               edge_tol,
-                                               ls_tol,
-                                               quad_tol, 
-                                               EPS);
-
-      high_gwn += axom::primal::winding_number(query,
-        nurbs_surfaces_data[i],
-       //  cast_direction,
-        case_code,
-        integrated_trimming_curves,
-        edge_tol,
-        ls_tol,
-        1e-10, 
-        EPS);
+                                          nurbs_surfaces_data[i],
+                                          //  cast_direction,
+                                          case_code,
+                                          integrated_trimming_curves,
+                                          edge_tol,
+                                          ls_tol,
+                                          quad_tol,
+                                          EPS);
     }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration<double>(end - start).count();
+    // timer.stop();
+
+    if(num_queries == 1)
+      mean_time = elapsed;
+    else
+      mean_time = mean_time + (elapsed - mean_time) / (num_queries + 1);
 
     int rounded_gwn = static_cast<int>(std::round(gwn));
     int expected_gwn = isInsideTeardrop(query) ? 1 : 0;
@@ -4559,6 +4557,30 @@ void strict_tear_parameter_tol_test(const std::string& test_prefix,
     //           << " -> expected_gwn: " << expected_gwn << std::endl;
     if(rounded_gwn != expected_gwn)
     {
+      double high_gwn = 0.0;
+      for(int i = 0; i < 8; ++i)
+      {
+        high_gwn += axom::primal::winding_number(query,
+                                                 nurbs_surfaces_data[i],
+                                                 //  cast_direction,
+                                                 case_code,
+                                                 integrated_trimming_curves,
+                                                 edge_tol,
+                                                 ls_tol,
+                                                 1e-10,
+                                                 EPS);
+      }
+
+      int rounded_high_gwn = static_cast<int>(std::round(high_gwn));
+
+      // Ensure that the issue is from the quadrature,
+      //  rather than the intersection routine
+      if(rounded_high_gwn != expected_gwn)
+      {
+        SLIC_INFO(axom::fmt::format("Near-Miss: {} vs. {} != {}", gwn, high_gwn, expected_gwn));
+        continue;
+      }
+
       num_misses++;
       SLIC_INFO(axom::fmt::format("Missed point: ({}, {}, {}) : {} -> {} vs {} != {}",
                                   query[0],
@@ -4571,15 +4593,30 @@ void strict_tear_parameter_tol_test(const std::string& test_prefix,
       if(num_misses == 5) break;
     }
 
-    std::cout << std::fixed << std::setprecision(10);
+    std::cout << std::fixed << std::setprecision(20);
     if(num_queries % 1000 == 0)
     {
-      std::cout << "[" << num_queries << " queries] -> " << gwn << "\r\r";
+      std::cout << "[" << num_queries << " queries] -> " << mean_time << "\r\r";
       std::cout.flush();
     }
   }
 
   std::cout << "Number of queries before 5 misses: " << num_queries << std::endl;
+  std::cout << "Average evaluation time: " << mean_time << std::endl;
+
+  using axom::utilities::filesystem::joinPath;
+  {
+    std::string out_file =
+      joinPath(out_prefix,
+               axom::fmt::format("{}_run_to_failure_test_{}.csv", test_prefix, out_suffix));
+
+    SLIC_INFO(axom::fmt::format("Writing results to '{}'", out_file));
+    std::ofstream summary(out_file);
+
+    summary << std::setprecision(20);
+    summary << "Number of queries before " << num_misses << " misses: " << num_queries << std::endl;
+    summary << "Average evaluation time: " << mean_time << std::endl;
+  }
 }
 
 void box_parameter_tol_test(const std::string& test_prefix,
@@ -4848,28 +4885,32 @@ void tear_parameter_tol_test(const std::string& test_prefix,
     axom::utilities::Timer timer(false);
 
     double wn = 0.0;
-    for(int i = 0; i < 8; ++i)
+    for(int i = 0; i < 4; ++i)
     {
       int integrated_trimming_curves = 0;
-      timer.start();
+      // timer.start();
+      auto start = std::chrono::high_resolution_clock::now();
       double the_val =
         axom::primal::winding_number(query,
-                                             nurbs_surfaces_data[i],
-                                             case_code,
-                                             integrated_trimming_curves,
-                                             edge_tol,
-                                             quad_tol,
-                                             ls_tol,
-                                             EPS);
-      timer.stop();
-      
+                                     nurbs_surfaces_data[i],
+                                     case_code,
+                                     integrated_trimming_curves,
+                                     edge_tol,
+                                     ls_tol,
+                                     quad_tol,
+                                     EPS);
+      // timer.stop();
+      auto end = std::chrono::high_resolution_clock::now();
+
       case_patch_totals[case_code] += 1;
       case_curves_totals[case_code] += integrated_trimming_curves;
-      case_time_totals[case_code] += timer.elapsedTimeInSec();
+      // case_time_totals[case_code] += timer.elapsedTimeInSec();
+      case_time_totals[case_code] +=
+        std::chrono::duration<double>(end - start).count();
       wn += the_val;
     }
 
-    gwn[idx] = wn;
+     gwn[idx] = wn;
   }
   AXOM_ANNOTATE_END("GWN query");
 
@@ -5202,7 +5243,7 @@ void query_timing_test(const std::string& test_prefix,
 
 int main()
 {
-  // graphical_abstract_watertight();
+  graphical_abstract_watertight();
   // graphical_abstract_exploded();
   //   nut_3d_example();
   // nut_2d_example();
@@ -5271,40 +5312,47 @@ int main()
   //   axom::slic::SimpleLogger logger;
   //   std::string annotationMode {"none"};
 
-  std::string out_prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\arxiv_plots\\tolerance_redux\\";
+  //   std::string out_prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\failure_tests\\";
 
-  if(!axom::utilities::filesystem::pathExists(out_prefix))
-  {
-    axom::utilities::filesystem::makeDirsForPath(out_prefix);
-  }
+  //   if(!axom::utilities::filesystem::pathExists(out_prefix))
+  //   {
+  //     axom::utilities::filesystem::makeDirsForPath(out_prefix);
+  //   }
 
-  int num_query_pts = 1e3;
+  //   int num_query_pts = 1e5;
 
-  double fixed_ls_tol = 1e-12;
-  double fixed_quad_tol = 1e-6;
+  //   double fixed_ls_tol = 1e-6;
+  //   double fixed_quad_tol = 1e-6;
 
-  // strict_tear_parameter_tol_test("1em3", out_prefix, fixed_ls_tol, 1e-2);
-  strict_tear_parameter_tol_test("1em3", out_prefix, fixed_ls_tol, 1e-1);
-  // for(int i = 1; i < 11; ++i)
+  //   std::string test_prefix = axom::fmt::format("1em{}", i);
+  //   for(int j = 1; j < 7; ++j)
+  //   {
+  //     for(int i = 0; i < 10; ++i)
+  //     {
+  //       double quad_tol = std::pow(10, -j);
+  //       std::string test_prefix = axom::fmt::format("1em{}", j);
+
+  //       std::string test_suffix = axom::fmt::format("{}", i);
+
+  //       strict_tear_parameter_tol_test(test_prefix, out_prefix, fixed_ls_tol, quad_tol, test_suffix);
+  //     }
+  //   }
+
+  // strict_tear_parameter_tol_test("1em3", out_prefix, fixed_ls_tol, 1e-1);
+  // for(int i = 1; i < 2; ++i)
   // {
   //   std::cout << "i: " << i << std::endl;
 
   //   double quad_tol = std::pow(10, -i);
 
   //   std::string test_prefix = axom::fmt::format("1em{}", i);
-  //   std::string test_suffix = "quad";
+  //   std::string test_suffix = "quad_single_better_timer_small";
 
   //   axom::primal::BoundingBox<double, 3> bbox;
   //   bbox.addPoint(axom::primal::Point<double, 3> {1.0, 1.0, 1.0});
   //   bbox.addPoint(axom::primal::Point<double, 3> {-1.0, -1.0, -2.0});
   //   auto query_pts = generateSamplePointsOnBBox(bbox, num_query_pts);
-  //   tear_parameter_tol_test(test_prefix,
-  //                           out_prefix,
-  //                           fixed_ls_tol,
-  //                           quad_tol,
-  //                           query_pts,
-  //                           test_suffix);
+  //   tear_parameter_tol_test(test_prefix, out_prefix, fixed_ls_tol, quad_tol, query_pts, test_suffix);
   // }
 
   // for(int i = 3; i < 4; ++i)

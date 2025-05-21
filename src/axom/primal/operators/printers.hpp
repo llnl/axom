@@ -39,18 +39,13 @@ namespace primal
 template <typename T>
 void python_print(const Point<T, 3>& point, const char* plot_lines = nullptr)
 {
-  printf("plot_query( fig, ax, (%.17f, %.17f, %.17f), ",
-         point[0],
-         point[1],
-         point[2]);
+  printf("plot_query( fig, ax, (%.17f, %.17f, %.17f), ", point[0], point[1], point[2]);
   if(plot_lines) printf("plot_lines=\"%s\", ", plot_lines);
   printf("size=111)\n\n");
 }
 
 template <typename T>
-void python_print(const Vector<T, 3>& vec,
-                  const Point<T, 3>& point,
-                  const char* color = "blue")
+void python_print(const Vector<T, 3>& vec, const Point<T, 3>& point, const char* color = "blue")
 {
   printf("plot_vector( fig, ax, (%.17f, %.17f, %.17f), ", vec[0], vec[1], vec[2]);
   printf("origin=(%.17f, %.17f, %.17f),", point[0], point[1], point[2]);
@@ -98,15 +93,13 @@ void desmos_print(const BezierCurve<T, 2>& curve, int num = 0)
 {
   printf("C(P_{%d}, W_{%d})\n", num, num);
   printf("P_{%d} = [(%.17f,%.17f)", num, curve[0][0], curve[0][1]);
-  for(int p = 1; p <= curve.getOrder(); ++p)
-    printf(",(%.17f,%.17f)", curve[p][0], curve[p][1]);
+  for(int p = 1; p <= curve.getOrder(); ++p) printf(",(%.17f,%.17f)", curve[p][0], curve[p][1]);
   printf("]\n");
 
   if(curve.isRational())
   {
     printf("W_{%d} = [%.17f", num, curve.getWeight(0));
-    for(int p = 1; p <= curve.getOrder(); ++p)
-      printf(",%.17f", curve.getWeight(p));
+    for(int p = 1; p <= curve.getOrder(); ++p) printf(",%.17f", curve.getWeight(p));
     printf("]\n");
   }
   else
@@ -123,11 +116,7 @@ void desmos_print(const BezierCurve<T, 3>& curve)
   const int ord = curve.getOrder();
   for(int i = 0; i <= ord; ++i)
   {
-    printf("P_{%d} = [%.17f, %.17f, %.17f]\n",
-           i + 1,
-           curve[i][0],
-           curve[i][1],
-           curve[i][2]);
+    printf("P_{%d} = [%.17f, %.17f, %.17f]\n", i + 1, curve[i][0], curve[i][1], curve[i][2]);
   }
 
   if(curve.isRational())
@@ -154,17 +143,13 @@ void python_print(const BezierPatch<T, 3>& patch,
   printf("(%.17f,%.17f,%.17f)", patch(0, 0)[0], patch(0, 0)[1], patch(0, 0)[2]);
   for(int i = 0; i <= ord_u; ++i)
     for(int j = (i == 0 ? 1 : 0); j <= ord_v; ++j)
-      printf(",(%.17f,%.17f,%.17f)",
-             patch(i, j)[0],
-             patch(i, j)[1],
-             patch(i, j)[2]);
+      printf(",(%.17f,%.17f,%.17f)", patch(i, j)[0], patch(i, j)[1], patch(i, j)[2]);
   if(patch.isRational())
   {
     printf(" ], [%.17f", patch.getWeight(0, 0));
     if(patch.isRational())
       for(int i = 0; i <= ord_u; ++i)
-        for(int j = (i == 0 ? 1 : 0); j <= ord_v; ++j)
-          printf(",%.17f", patch.getWeight(i, j));
+        for(int j = (i == 0 ? 1 : 0); j <= ord_v; ++j) printf(",%.17f", patch.getWeight(i, j));
   }
   printf("] ).plot( fig, ax, %s", cmap);
   if(plot_normal) printf(", plot_normal=True");
@@ -444,8 +429,7 @@ void desmos_print(const BezierPatch<T, 3>& patch)
 }
 
 template <typename T>
-void python_print(const OrientedBoundingBox<T, 3> oBox,
-                  const char* color = "blue")
+void python_print(const OrientedBoundingBox<T, 3> oBox, const char* color = "blue")
 {
   auto verts = oBox.vertices();
   printf("plot_box( fig, ax, [");
@@ -502,8 +486,7 @@ void desmos_print(const Polygon<T, 2>& poly)
 {
   printf("polygon(");
   printf("(%.17f,%.17f)", poly[0][0], poly[0][1]);
-  for(int i = 1; i < poly.numVertices(); ++i)
-    printf(",(%.17f,%.17f)", poly[i][0], poly[i][1]);
+  for(int i = 1; i < poly.numVertices(); ++i) printf(",(%.17f,%.17f)", poly[i][0], poly[i][1]);
   printf(")\n");
 }
 
@@ -522,8 +505,7 @@ void convert_from_svg(std::string filename, axom::Array<BezierCurve<T, 2>>& curv
     return;  // Exit with an error code
   }
 
-  std::string input((std::istreambuf_iterator<char>(svg_file)),
-                    std::istreambuf_iterator<char>());
+  std::string input((std::istreambuf_iterator<char>(svg_file)), std::istreambuf_iterator<char>());
 
   std::sregex_iterator iter(input.begin(), input.end(), pattern);
   std::sregex_iterator end;
@@ -534,13 +516,10 @@ void convert_from_svg(std::string filename, axom::Array<BezierCurve<T, 2>>& curv
     std::string dAttribute = match[1].str();
 
     // Replace all ',' with ' '
-    dAttribute =
-      std::regex_replace(dAttribute, std::regex(","), std::string(" "));
+    dAttribute = std::regex_replace(dAttribute, std::regex(","), std::string(" "));
 
     // Put a space before and after every letter
-    dAttribute = std::regex_replace(dAttribute,
-                                    std::regex("([a-zA-Z])"),
-                                    std::string(" $1 "));
+    dAttribute = std::regex_replace(dAttribute, std::regex("([a-zA-Z])"), std::string(" $1 "));
 
     char command = '\0';
     double init_x = 0.0, init_y = 0.0;
@@ -605,9 +584,8 @@ void convert_from_svg(std::string filename, axom::Array<BezierCurve<T, 2>>& curv
           {
             dx = std::stod(word);
             iss >> dy;
-            axom::Array<Point<T, 2>> nodes = {
-              Point<T, 2> {curr_x, curr_y},
-              Point<T, 2> {curr_x + dx, curr_y + dy}};
+            axom::Array<Point<T, 2>> nodes = {Point<T, 2> {curr_x, curr_y},
+                                              Point<T, 2> {curr_x + dx, curr_y + dy}};
 
             // Add a line segment
             curves.push_back(BezierCurve<T, 2>(nodes, 1));
@@ -620,8 +598,7 @@ void convert_from_svg(std::string filename, axom::Array<BezierCurve<T, 2>>& curv
           {
             x = std::stod(word);
             iss >> y;
-            axom::Array<Point<T, 2>> nodes = {Point<T, 2> {curr_x, curr_y},
-                                              Point<T, 2> {x, y}};
+            axom::Array<Point<T, 2>> nodes = {Point<T, 2> {curr_x, curr_y}, Point<T, 2> {x, y}};
 
             // Add a line segment
             curves.push_back(BezierCurve<T, 2>(nodes, 1));
@@ -638,11 +615,10 @@ void convert_from_svg(std::string filename, axom::Array<BezierCurve<T, 2>>& curv
           {
             dx1 = std::stod(word);
             iss >> dy1 >> dx2 >> dy2 >> dx >> dy;
-            axom::Array<Point<T, 2>> nodes = {
-              Point<T, 2> {curr_x, curr_y},
-              Point<T, 2> {curr_x + dx1, curr_y + dy1},
-              Point<T, 2> {curr_x + dx2, curr_y + dy2},
-              Point<T, 2> {curr_x + dx, curr_y + dy}};
+            axom::Array<Point<T, 2>> nodes = {Point<T, 2> {curr_x, curr_y},
+                                              Point<T, 2> {curr_x + dx1, curr_y + dy1},
+                                              Point<T, 2> {curr_x + dx2, curr_y + dy2},
+                                              Point<T, 2> {curr_x + dx, curr_y + dy}};
 
             // Add a line segment
             curves.push_back(BezierCurve<T, 2>(nodes, 3));
@@ -686,8 +662,7 @@ void convert_from_svg(std::string filename, axom::Array<BezierCurve<T, 2>>& curv
           else
           {
             x = std::stod(word);
-            axom::Array<Point<T, 2>> nodes = {Point<T, 2> {curr_x, curr_y},
-                                              Point<T, 2> {x, curr_y}};
+            axom::Array<Point<T, 2>> nodes = {Point<T, 2> {curr_x, curr_y}, Point<T, 2> {x, curr_y}};
 
             // Add a line segment
             curves.push_back(BezierCurve<T, 2>(nodes, 1));
@@ -714,8 +689,7 @@ void convert_from_svg(std::string filename, axom::Array<BezierCurve<T, 2>>& curv
           else
           {
             y = std::stod(word);
-            axom::Array<Point<T, 2>> nodes = {Point<T, 2> {curr_x, curr_y},
-                                              Point<T, 2> {curr_x, y}};
+            axom::Array<Point<T, 2>> nodes = {Point<T, 2> {curr_x, curr_y}, Point<T, 2> {curr_x, y}};
 
             // Add a line segment
             curves.push_back(BezierCurve<T, 2>(nodes, 1));
@@ -726,8 +700,7 @@ void convert_from_svg(std::string filename, axom::Array<BezierCurve<T, 2>>& curv
         }
         else
         {
-          std::cout << word << " is an unrecognized command. Whoopsie!"
-                    << std::endl;
+          std::cout << word << " is an unrecognized command. Whoopsie!" << std::endl;
         }
       }
     }
@@ -771,10 +744,8 @@ BoundingBox<T, 2> curves_bbox(axom::Array<BezierCurve<T, 2>>& curves,
 
     primal::Point<double, 2> centroid = bb.getCentroid();
 
-    primal::Point<double, 2> new_min {centroid[0] - max_len / 2.0,
-                                      centroid[1] - max_len / 2.0};
-    primal::Point<double, 2> new_max {centroid[0] + max_len / 2.0,
-                                      centroid[1] + max_len / 2.0};
+    primal::Point<double, 2> new_min {centroid[0] - max_len / 2.0, centroid[1] - max_len / 2.0};
+    primal::Point<double, 2> new_max {centroid[0] + max_len / 2.0, centroid[1] + max_len / 2.0};
 
     bb.addPoint(new_min);
     bb.addPoint(new_max);
@@ -795,8 +766,7 @@ void simple_grid_test(axom::Array<BezierCurve<T, 2>>& curves,
     double x = bb.getMin()[0] + xi * (bb.getMax()[0] - bb.getMin()[0]) / npts_x;
 
     //std::cout << x << std::endl;
-    printLoadingBar((x - bb.getMin()[0]) / (bb.getMax()[0] - bb.getMin()[0]) * 100,
-                    100);
+    printLoadingBar((x - bb.getMin()[0]) / (bb.getMax()[0] - bb.getMin()[0]) * 100, 100);
     for(int yi = 0; yi < npts_y; ++yi)
     {
       double y = bb.getMin()[1] + yi * (bb.getMax()[1] - bb.getMin()[1]) / npts_y;
@@ -859,12 +829,10 @@ void simple_timing_test(axom::Array<BezierCurve<T, 2>>& curves,
                         int npts_y,
                         std::ofstream& wn_out)
 {
-  for(double x = bb.getMin()[0]; x <= bb.getMax()[0];
-      x += (bb.getMax()[0] - bb.getMin()[0]) / npts_x)
+  for(double x = bb.getMin()[0]; x <= bb.getMax()[0]; x += (bb.getMax()[0] - bb.getMin()[0]) / npts_x)
   {
     //std::cout << x << std::endl;
-    printLoadingBar((x - bb.getMin()[0]) / (bb.getMax()[0] - bb.getMin()[0]) * 100,
-                    100);
+    printLoadingBar((x - bb.getMin()[0]) / (bb.getMax()[0] - bb.getMin()[0]) * 100, 100);
     for(double y = bb.getMin()[1]; y <= bb.getMax()[1];
         y += (bb.getMax()[1] - bb.getMin()[1]) / npts_y)
     {
@@ -892,8 +860,7 @@ inline void printLoadingBar(T progress, int total, int barWidth = 40)
   std::cout << "[";
   for(int i = 0; i < progressWidth; ++i) std::cout << "=";
   for(int i = progressWidth; i < barWidth; ++i) std::cout << "-";
-  std::cout << "] " << std::setw(3) << static_cast<int>(percentage * 100.0)
-            << "%\r";
+  std::cout << "] " << std::setw(3) << static_cast<int>(percentage * 100.0) << "%\r";
   std::cout.flush();
 }
 
@@ -913,12 +880,9 @@ void exportScalarFieldToVTK(const std::string& filename,
     return;
   }
 
-  T dx =
-    (xSteps > 1) ? (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1) : 0.0;
-  T dy =
-    (ySteps > 1) ? (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1) : 0.0;
-  T dz =
-    (zSteps > 1) ? (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1) : 0.0;
+  T dx = (xSteps > 1) ? (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1) : 0.0;
+  T dy = (ySteps > 1) ? (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1) : 0.0;
+  T dz = (zSteps > 1) ? (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1) : 0.0;
 
   // Write VTK header
   file << "# vtk DataFile Version 3.0\n";
@@ -926,8 +890,7 @@ void exportScalarFieldToVTK(const std::string& filename,
   file << "ASCII\n";
   file << "DATASET STRUCTURED_POINTS\n";
   file << "DIMENSIONS " << xSteps << " " << ySteps << " " << zSteps << "\n";
-  file << "ORIGIN " << bbox.getMin()[0] << " " << bbox.getMin()[1] << " "
-       << bbox.getMin()[2] << "\n";
+  file << "ORIGIN " << bbox.getMin()[0] << " " << bbox.getMin()[1] << " " << bbox.getMin()[2] << "\n";
   file << "SPACING " << dx << " " << dy << " " << dz << "\n";
   file << "POINT_DATA " << xSteps * ySteps * zSteps << "\n";
   file << "SCALARS scalars float\n";
@@ -953,8 +916,7 @@ void exportScalarFieldToVTK(const std::string& filename,
         T scalarValue = scalarField(query);
 
         // Print the query if scalarValue is nan
-        if(scalarValue != scalarValue)
-          std::cout << std::setprecision(20) << query << std::endl;
+        if(scalarValue != scalarValue) std::cout << std::setprecision(20) << query << std::endl;
 
         //for(int n = 0; n < patches.size(); ++n)
         //scalarValue +=
@@ -986,12 +948,9 @@ void exportScalarFieldToVTK(const std::string& filename,
     return;
   }
 
-  T dx =
-    (xSteps > 1) ? (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1) : 0.0;
-  T dy =
-    (ySteps > 1) ? (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1) : 0.0;
-  T dz =
-    (zSteps > 1) ? (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1) : 0.0;
+  T dx = (xSteps > 1) ? (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1) : 0.0;
+  T dy = (ySteps > 1) ? (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1) : 0.0;
+  T dz = (zSteps > 1) ? (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1) : 0.0;
 
   // Write VTK header
   file << "# vtk DataFile Version 3.0\n";
@@ -999,8 +958,7 @@ void exportScalarFieldToVTK(const std::string& filename,
   file << "ASCII\n";
   file << "DATASET STRUCTURED_POINTS\n";
   file << "DIMENSIONS " << xSteps << " " << ySteps << " " << zSteps << "\n";
-  file << "ORIGIN " << bbox.getMin()[0] << " " << bbox.getMin()[1] << " "
-       << bbox.getMin()[2] << "\n";
+  file << "ORIGIN " << bbox.getMin()[0] << " " << bbox.getMin()[1] << " " << bbox.getMin()[2] << "\n";
   file << "SPACING " << dx << " " << dy << " " << dz << "\n";
   file << "POINT_DATA " << xSteps * ySteps * zSteps << "\n";
   file << "SCALARS scalars float\n";
@@ -1027,8 +985,7 @@ void exportScalarFieldToVTK(const std::string& filename,
         T scalarValue = scalarField(query);
 
         // Print the query if scalarValue is nan
-        if(scalarValue != scalarValue)
-          std::cout << std::setprecision(20) << query << std::endl;
+        if(scalarValue != scalarValue) std::cout << std::setprecision(20) << query << std::endl;
 
         //for(int n = 0; n < patches.size(); ++n)
         //scalarValue +=
@@ -1043,13 +1000,12 @@ void exportScalarFieldToVTK(const std::string& filename,
 }
 
 template <typename T>
-void exportSumSplitScalarFieldToVTK(
-  const std::string& filename,
-  std::function<std::pair<double, double>(Point3D)> scalarField,
-  primal::BoundingBox<T, 3> bbox,
-  int xSteps,
-  int ySteps,
-  int zSteps)
+void exportSumSplitScalarFieldToVTK(const std::string& filename,
+                                    std::function<std::pair<double, double>(Point3D)> scalarField,
+                                    primal::BoundingBox<T, 3> bbox,
+                                    int xSteps,
+                                    int ySteps,
+                                    int zSteps)
 {
   // Arrays to store the scalar fields
   std::vector<double> scalarField1;
@@ -1070,12 +1026,9 @@ void exportSumSplitScalarFieldToVTK(
     {
       for(int i = 0; i < xSteps; ++i)
       {
-        double x = bbox.getMin()[0] +
-          i * (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1);
-        double y = bbox.getMin()[1] +
-          j * (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1);
-        double z = bbox.getMin()[2] +
-          k * (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1);
+        double x = bbox.getMin()[0] + i * (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1);
+        double y = bbox.getMin()[1] + j * (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1);
+        double z = bbox.getMin()[2] + k * (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1);
 
         auto query = Point3D({x, y, z});
 
@@ -1102,10 +1055,9 @@ void exportSumSplitScalarFieldToVTK(
   file << "ASCII\n";
   file << "DATASET STRUCTURED_POINTS\n";
   file << "DIMENSIONS " << xSteps << " " << ySteps << " " << zSteps << "\n";
-  file << "ORIGIN " << bbox.getMin()[0] << " " << bbox.getMin()[1] << " "
-       << bbox.getMin()[2] << "\n";
-  file << "SPACING " << (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1)
-       << " " << (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1) << " "
+  file << "ORIGIN " << bbox.getMin()[0] << " " << bbox.getMin()[1] << " " << bbox.getMin()[2] << "\n";
+  file << "SPACING " << (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1) << " "
+       << (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1) << " "
        << (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1) << "\n";
   file << "POINT_DATA " << xSteps * ySteps * zSteps << "\n";
 
@@ -1160,15 +1112,7 @@ void exportSliceScalarFieldToVTK(const std::string& filename,
   // u = Vector<T, 3>( {-0.6536123100031038, -0.10738450531201763, -0.7491725543766935});
   Vector<T, 3> v = Vector<T, 3>::cross_product(normal, u).unitVector();
 
-  exportSliceScalarFieldToVTK<T>(filename,
-                                 fieldFunc,
-                                 origin,
-                                 u,
-                                 v,
-                                 planeWidth,
-                                 planeHeight,
-                                 uSteps,
-                                 vSteps);
+  exportSliceScalarFieldToVTK<T>(filename, fieldFunc, origin, u, v, planeWidth, planeHeight, uSteps, vSteps);
 }
 
 template <typename T>
@@ -1234,8 +1178,7 @@ void exportSliceScalarFieldToVTK(const std::string& filename,
       if(val != val)
       {
         std::cout << std::setprecision(20);
-        std::cout << "NAN recorded at (" << x << " " << y << " " << z << ")"
-                  << std::endl;
+        std::cout << "NAN recorded at (" << x << " " << y << " " << z << ")" << std::endl;
         std::cout << std::setprecision(6);
         val = 0.0;
       }
@@ -1247,16 +1190,15 @@ void exportSliceScalarFieldToVTK(const std::string& filename,
 }
 
 template <typename T>
-void exportSplitScalarSliceFieldToVTK(
-  const std::string& filename,
-  std::function<std::pair<double, double>(Point3D)> scalarField,
-  const Point3D& origin,
-  const Vector<T, 3>& u,
-  const Vector<T, 3>& v,
-  double planeWidth,
-  double planeHeight,
-  int uSteps,
-  int vSteps)
+void exportSplitScalarSliceFieldToVTK(const std::string& filename,
+                                      std::function<std::pair<double, double>(Point3D)> scalarField,
+                                      const Point3D& origin,
+                                      const Vector<T, 3>& u,
+                                      const Vector<T, 3>& v,
+                                      double planeWidth,
+                                      double planeHeight,
+                                      int uSteps,
+                                      int vSteps)
 {
   std::ofstream file(filename);
 
@@ -1283,8 +1225,7 @@ void exportSplitScalarSliceFieldToVTK(
       if(val.first != val.first)
       {
         std::cout << std::setprecision(20);
-        std::cout << "NAN recorded at (" << x << " " << y << " " << z << ")"
-                  << std::endl;
+        std::cout << "NAN recorded at (" << x << " " << y << " " << z << ")" << std::endl;
         std::cout << std::setprecision(6);
         val.first = 0.0;
       }
@@ -1378,24 +1319,18 @@ void exportSurfaceToSTL(const std::string& filename,
         // First triangle
         file << "  facet normal 0 0 0\n";
         file << "    outer loop\n";
-        file << "      vertex " << pt0[0] << " " << pt0[1] << " " << pt0[2]
-             << "\n";
-        file << "      vertex " << pt1[0] << " " << pt1[1] << " " << pt1[2]
-             << "\n";
-        file << "      vertex " << pt2[0] << " " << pt2[1] << " " << pt2[2]
-             << "\n";
+        file << "      vertex " << pt0[0] << " " << pt0[1] << " " << pt0[2] << "\n";
+        file << "      vertex " << pt1[0] << " " << pt1[1] << " " << pt1[2] << "\n";
+        file << "      vertex " << pt2[0] << " " << pt2[1] << " " << pt2[2] << "\n";
         file << "    endloop\n";
         file << "  endfacet\n";
 
         // Second triangle
         file << "  facet normal 0 0 0\n";
         file << "    outer loop\n";
-        file << "      vertex " << pt2[0] << " " << pt2[1] << " " << pt2[2]
-             << "\n";
-        file << "      vertex " << pt1[0] << " " << pt1[1] << " " << pt1[2]
-             << "\n";
-        file << "      vertex " << pt3[0] << " " << pt3[1] << " " << pt3[2]
-             << "\n";
+        file << "      vertex " << pt2[0] << " " << pt2[1] << " " << pt2[2] << "\n";
+        file << "      vertex " << pt1[0] << " " << pt1[1] << " " << pt1[2] << "\n";
+        file << "      vertex " << pt3[0] << " " << pt3[1] << " " << pt3[2] << "\n";
         file << "    endloop\n";
         file << "  endfacet\n";
       }
@@ -1432,14 +1367,8 @@ void lamePrinter(const primal::NURBSPatch<T, 3>& patch)
 {
   const int npts = 20;
   double u_pts[npts], v_pts[npts];
-  axom::numerics::linspace(patch.getMinKnot_u(),
-                           patch.getMaxKnot_u(),
-                           u_pts,
-                           npts);
-  axom::numerics::linspace(patch.getMinKnot_v(),
-                           patch.getMaxKnot_v(),
-                           v_pts,
-                           npts);
+  axom::numerics::linspace(patch.getMinKnot_u(), patch.getMaxKnot_u(), u_pts, npts);
+  axom::numerics::linspace(patch.getMinKnot_v(), patch.getMaxKnot_v(), v_pts, npts);
 
   std::cout << std::fixed;
   std::cout << "==========================" << std::endl;
@@ -1455,7 +1384,92 @@ void lamePrinter(const primal::NURBSPatch<T, 3>& patch)
     }
   }
   std::cout << "==========================" << std::endl;
+}
 
+template <typename T>
+void printPatchBoundaries(const primal::BezierPatch<T, 3>& patch)
+{
+  printPatchBoundaries<T>(primal::NURBSPatch<T, 3>(patch));
+}
+
+template <typename T>
+void printPatchBoundaries(const primal::NURBSPatch<T, 3>& patch, bool printUntrimmedBoundary = false)
+{
+  const int n_pts = 20;
+
+  auto min_u = patch.getMinKnot_u();
+  auto max_u = patch.getMaxKnot_u();
+  auto min_v = patch.getMinKnot_v();
+  auto max_v = patch.getMaxKnot_v();
+
+  std::cout << "=============" << std::endl;
+  std::cout << std::fixed << std::endl;
+
+  if(!patch.isTrimmed())
+  {
+    double u_pts[n_pts], v_pts[n_pts];
+    axom::numerics::linspace(min_u, max_u, u_pts, n_pts);
+    axom::numerics::linspace(min_v, max_v, v_pts, n_pts);
+
+    // Print the u/v = 0/1 isocurves
+    for(int i = 0; i < n_pts; ++i)
+    {
+      auto pt1 = patch.evaluate(u_pts[i], min_v);
+      auto pt2 = patch.evaluate(u_pts[i], max_v);
+      auto pt3 = patch.evaluate(min_u, v_pts[i]);
+      auto pt4 = patch.evaluate(max_u, v_pts[i]);
+
+      std::cout << "(" << pt1[0] << ", " << pt1[1] << ", " << pt1[2] << "), ";
+      std::cout << "(" << pt2[0] << ", " << pt2[1] << ", " << pt2[2] << "), ";
+      std::cout << "(" << pt3[0] << ", " << pt3[1] << ", " << pt3[2] << "), ";
+      std::cout << "(" << pt4[0] << ", " << pt4[1] << ", " << pt4[2] << "), ";
+    }
+
+    std::cout << std::endl;
+  }
+  else
+  {
+    for(auto& curve : patch.getTrimmingCurves())
+    {
+      double t_pts[n_pts];
+      axom::numerics::linspace(curve.getMinKnot(), curve.getMaxKnot(), t_pts, n_pts);
+
+      for(int i = 0; i < n_pts; ++i)
+      {
+        auto ppt = curve.evaluate(t_pts[i]);
+        auto spt = patch.evaluate(ppt[0], ppt[1]);
+        std::cout << "(" << spt[0] << ", " << spt[1] << ", " << spt[2] << "), ";
+      }
+    }
+
+    std::cout << std::endl;
+  }
+
+  std::cout << "=============" << std::endl;
+
+  // Print the untrimmed patch boundaries
+  if(printUntrimmedBoundary)
+  {
+    double u_pts[n_pts], v_pts[n_pts];
+    axom::numerics::linspace(min_u, max_u, u_pts, n_pts);
+    axom::numerics::linspace(min_v, max_v, v_pts, n_pts);
+
+    // Print the u/v = 0/1 isocurves
+    for(int i = 0; i < n_pts; ++i)
+    {
+      auto pt1 = patch.evaluate(u_pts[i], min_v);
+      auto pt2 = patch.evaluate(u_pts[i], max_v);
+      auto pt3 = patch.evaluate(min_u, v_pts[i]);
+      auto pt4 = patch.evaluate(max_u, v_pts[i]);
+
+      std::cout << "(" << pt1[0] << ", " << pt1[1] << ", " << pt1[2] << "), ";
+      std::cout << "(" << pt2[0] << ", " << pt2[1] << ", " << pt2[2] << "), ";
+      std::cout << "(" << pt3[0] << ", " << pt3[1] << ", " << pt3[2] << "), ";
+      std::cout << "(" << pt4[0] << ", " << pt4[1] << ", " << pt4[2] << "), ";
+    }
+
+    std::cout << "=============" << std::endl;
+  }
 }
 
 }  // namespace primal
