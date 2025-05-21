@@ -150,9 +150,9 @@ inline void for_all(IndexType iMin, IndexType iMax,
   using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
   RAJA::kernel<EXEC_POL>(RAJA::make_tuple(iRange, jRange), std::forward<KernelType>(kernel));
 #else
-  for(axom::IndexType j = jMin; j < jMax; j++)
+  for(IndexType j = jMin; j < jMax; j++)
   {
-    for(axom::IndexType i = iMin; i < iMax; i++)
+    for(IndexType i = iMin; i < iMax; i++)
     {
       kernel(i, j);
     }
@@ -248,11 +248,11 @@ inline void for_all(IndexType iMin, IndexType iMax,
   using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop3d_policy;
   RAJA::kernel<EXEC_POL>(RAJA::make_tuple(iRange, jRange, kRange), std::forward<KernelType>(kernel));
 #else
-  for(axom::IndexType k = kMin; k < kMax; k++)
+  for(IndexType k = kMin; k < kMax; k++)
   {
-    for(axom::IndexType j = jMin; j < jMax; j++)
+    for(IndexType j = jMin; j < jMax; j++)
     {
-      for(axom::IndexType i = iMin; i < iMax; i++)
+      for(IndexType i = iMin; i < iMax; i++)
       {
         kernel(i, j, k);
       }
