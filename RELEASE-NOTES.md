@@ -43,6 +43,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Exposed primal clip operations for clipping various shapes with a plane.
 - Adds `axom::mir::utilities::blueprint::MakePointMesh` class that creates a new Blueprint mesh
   consisting of points located at the zone centers of the input mesh.
+- Adds support for custom allocators to `axom::FlatMap`.
 
 ###  Changed
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
@@ -88,6 +89,7 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
 - Adds some support for 2D shaping in `quest::IntersectionShaper`, using STL meshes with zero for z-coordinates or in-memory triangles as input.
 - Adds ability in Lumberjack to own and set communicators.
 - Adds `NonCollectiveRootCommunicator` to Lumberjack to provide an MPI-based communicator for logging messages non-collectively.
+- Adds initial support for 2D shaping in `quest::IntersectionShaper`, using a c2c contour as input. The contour cannot overlap, and is expected to be entirely above the x-axis.
 
 ###  Changed
 - Updates blt submodule to [BLT version 0.7.0][https://github.com/LLNL/blt/releases/tag/v0.7.0]

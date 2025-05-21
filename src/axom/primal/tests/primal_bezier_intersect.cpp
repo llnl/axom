@@ -1152,7 +1152,6 @@ TEST(primal_bezier_inter, ray_circle_tangent_intersections)
   static const int DIM = 2;
   using CoordType = double;
   using PointType = primal::Point<CoordType, DIM>;
-  using VectorType = primal::Vector<CoordType, DIM>;
   using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
   using CircleType = primal::Sphere<CoordType, DIM>;
 

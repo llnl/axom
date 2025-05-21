@@ -184,8 +184,7 @@ public:
    * If sz is greater than SIZE, we set all coordinates to val
    */
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE
-  explicit NumericArray(T val = T(), int sz = SIZE);
+  AXOM_HOST_DEVICE explicit NumericArray(T val = T(), int sz = SIZE);
 
   /*!
    * \brief Creates a numeric array from the first sz values of the input array.
@@ -194,8 +193,7 @@ public:
    * \note If sz is greater than SIZE, we only take the first SIZE values.
    */
   AXOM_SUPPRESS_HD_WARN
-  AXOM_HOST_DEVICE
-  explicit NumericArray(const T* vals, int sz = SIZE);
+  AXOM_HOST_DEVICE explicit NumericArray(const T* vals, int sz = SIZE);
 
   /*!
    * \brief Creates a numeric array from an initializer list
@@ -220,20 +218,16 @@ public:
    * \return \f$ p_i \f$ the value at the given component index.
    * \pre \f$  0 \le i < SIZE \f$
    */
-  AXOM_HOST_DEVICE
-  const T& operator[](int i) const;
+  AXOM_HOST_DEVICE const T& operator[](int i) const;
 
-  AXOM_HOST_DEVICE
-  T& operator[](int i);
+  AXOM_HOST_DEVICE T& operator[](int i);
 
   /*!
    * \brief Returns a pointer to the underlying data.
    */
-  AXOM_HOST_DEVICE
-  const T* data() const;
+  AXOM_HOST_DEVICE const T* data() const;
 
-  AXOM_HOST_DEVICE
-  T* data();
+  AXOM_HOST_DEVICE T* data();
 
   /*!
    * \brief Copy the coordinate data to the provided array
@@ -241,8 +235,7 @@ public:
    * \pre The user needs to make sure that the provided array has been allocated
    * and has sufficient space for SIZE coordinates.
    */
-  AXOM_HOST_DEVICE
-  void to_array(T* arr) const;
+  AXOM_HOST_DEVICE void to_array(T* arr) const;
 
   /*!
    * \brief Simple formatted print of a numeric array instance
@@ -257,8 +250,7 @@ public:
    * Adds the numeric array arr to this instance (component-wise).
    * \return A reference to the NumericArray instance after addition.
    */
-  AXOM_HOST_DEVICE
-  NumericArray& operator+=(const NumericArray& arr);
+  AXOM_HOST_DEVICE NumericArray& operator+=(const NumericArray& arr);
 
   /*!
    * \brief Component-wise subtraction assignment operator.
@@ -266,8 +258,7 @@ public:
    * Subtracts the numeric array arr from this instance (component-wise).
    * \return A reference to the NumericArray instance after subtraction.
    */
-  AXOM_HOST_DEVICE
-  NumericArray& operator-=(const NumericArray& arr);
+  AXOM_HOST_DEVICE NumericArray& operator-=(const NumericArray& arr);
 
   /*!
    * \brief Scalar multiplication on the NumericArray instance.
@@ -276,8 +267,7 @@ public:
    * \return A reference to the NumericArray instance after scalar
    * multiplication.
    */
-  AXOM_HOST_DEVICE
-  NumericArray& operator*=(double scalar);
+  AXOM_HOST_DEVICE NumericArray& operator*=(double scalar);
 
   /*!
    * \brief Scalar division on the NumericArray instance.
@@ -286,8 +276,7 @@ public:
    * Each element of the numeric array is divided by scalar
    * \return A reference to the NumericArray instance after scalar division.
    */
-  AXOM_HOST_DEVICE
-  NumericArray& operator/=(double scalar);
+  AXOM_HOST_DEVICE NumericArray& operator/=(double scalar);
 
   /*!
    * \brief Component-wise multiplication assignment operator.
@@ -296,8 +285,7 @@ public:
    * \return A reference to the NumericArray instance after cwise
    * multiplication.
    */
-  AXOM_HOST_DEVICE
-  NumericArray& operator*=(const NumericArray& arr);
+  AXOM_HOST_DEVICE NumericArray& operator*=(const NumericArray& arr);
 
   /*!
    * \brief Component-wise division assignment operator.
@@ -306,8 +294,7 @@ public:
    * \pre forall i, arr[i] != 0
    * \return A reference to the NumericArray instance after cwise division.
    */
-  AXOM_HOST_DEVICE
-  NumericArray& operator/=(const NumericArray& arr);
+  AXOM_HOST_DEVICE NumericArray& operator/=(const NumericArray& arr);
 
   /*!
    * \brief Ensures that the highest value of the coordinates is at most
@@ -349,32 +336,31 @@ public:
    * \brief Find the max component.
    * \return The value of the largest component.
    */
-  T max() const;
+  AXOM_HOST_DEVICE T max() const;
 
   /*!
    * \brief Find the min component.
    * \return The value of the smallest component.
    */
-  T min() const;
+  AXOM_HOST_DEVICE T min() const;
 
   /*!
    * \brief Find the index of the max component.
    * \return The index of the largest component ( \f$ 0 \le ret < SIZE \f$)
    */
-  int argMax() const;
+  AXOM_HOST_DEVICE int argMax() const;
 
   /*!
    * \brief Find the index of the min component.
    * \return The index of the smallest component ( \f$ 0 \le ret < SIZE \f$)
    */
-  int argMin() const;
+  AXOM_HOST_DEVICE int argMin() const;
 
   /// \brief Computes the sum of the components
-  T sum() const;
+  AXOM_HOST_DEVICE T sum() const;
 
 private:
-  AXOM_HOST_DEVICE
-  void verifyIndex(int idx) const
+  AXOM_HOST_DEVICE void verifyIndex(int idx) const
   {
     AXOM_UNUSED_VAR(idx);
     assert(idx >= 0 && idx < SIZE);
@@ -606,7 +592,7 @@ inline NumericArray<T, SIZE>& NumericArray<T, SIZE>::clampUpper(const T& upperVa
 
 //------------------------------------------------------------------------------
 template <typename T, int SIZE>
-inline T NumericArray<T, SIZE>::max() const
+AXOM_HOST_DEVICE inline T NumericArray<T, SIZE>::max() const
 {
   T result = this->m_components[0];
   for(int i = 1; i < SIZE; ++i)
@@ -624,7 +610,7 @@ inline T NumericArray<T, SIZE>::max() const
 
 //------------------------------------------------------------------------------
 template <typename T, int SIZE>
-inline T NumericArray<T, SIZE>::min() const
+AXOM_HOST_DEVICE inline T NumericArray<T, SIZE>::min() const
 {
   T result = this->m_components[0];
   for(int i = 1; i < SIZE; ++i)
@@ -642,7 +628,7 @@ inline T NumericArray<T, SIZE>::min() const
 
 //------------------------------------------------------------------------------
 template <typename T, int SIZE>
-inline int NumericArray<T, SIZE>::argMax() const
+AXOM_HOST_DEVICE inline int NumericArray<T, SIZE>::argMax() const
 {
   int idx = 0;
   for(int i = 1; i < SIZE; ++i)
@@ -658,7 +644,7 @@ inline int NumericArray<T, SIZE>::argMax() const
 
 //------------------------------------------------------------------------------
 template <typename T, int SIZE>
-inline int NumericArray<T, SIZE>::argMin() const
+AXOM_HOST_DEVICE inline int NumericArray<T, SIZE>::argMin() const
 {
   int idx = 0;
   for(int i = 1; i < SIZE; ++i)
@@ -674,7 +660,7 @@ inline int NumericArray<T, SIZE>::argMin() const
 
 //------------------------------------------------------------------------------
 template <typename T, int SIZE>
-inline T NumericArray<T, SIZE>::sum() const
+AXOM_HOST_DEVICE inline T NumericArray<T, SIZE>::sum() const
 {
   T result {};
   for(int i = 0; i < SIZE; ++i)
