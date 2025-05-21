@@ -103,13 +103,14 @@ Matrix<T> zRotation(double angleRad, int ndims = 3)
 template <typename T = double>
 Matrix<T> axisRotation(double angleRad, double x, double y, double z)
 {
-  auto M = numerics::Matrix<T>::identity(3);
   const double norm = sqrt(x * x + y * y + z * z);
 
   if(axom::utilities::isNearlyEqual(norm, 0.0))
   {
-    return M;
+    return numerics::Matrix<T>::identity(3);
   }
+
+  auto M = numerics::Matrix<T>::identity(3);
 
   x /= norm;
   y /= norm;
