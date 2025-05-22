@@ -92,6 +92,13 @@ void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
   axom::Array<BoundingBox3DType> tetsAsBbs(m_tets.size(), m_tets.size(), allocId);
   auto tetsAsBbsView = tetsAsBbs.view();
   auto tetsView = m_tets.view();
+
+  axom::Array<TetrahedronType> tmpTets;
+  if(allocId != m_tets.getAllocatorID())
+  {
+    tmpTets = axom::Array<TetrahedronType>(m_tets, allocId);
+    tetsView = tmpTets.view();
+  }
   axom::for_all<ExecSpace>(tetsView.size(),
                            AXOM_LAMBDA(axom::IndexType vi) {
                              const auto&tet = tetsView[vi];
@@ -116,14 +123,17 @@ void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
   axom::Array<IndexType> candidates;
   bvh.findPoints(offsets, counts, candidates, vertCount, vertPointsView);
 
+  auto countsView = counts.view();
+  auto offsetsView = offsets.view();
+  auto candidatesView = candidates.view();
   axom::for_all<ExecSpace>(
     vertCount,
     AXOM_LAMBDA(axom::IndexType vertId) {
-      auto candidateCount = counts[vertId];
+      auto candidateCount = countsView[vertId];
       bool& isInside = vertIsInsideView[vertId];
       if (!isInside && candidateCount > 0)
       {
-        auto candidateIds = &candidates[offsets[vertId]];
+        auto candidateIds = &candidatesView[offsetsView[vertId]];
         auto& vertex = vertPointsView[vertId];
         for(int ci = 0; ci < candidateCount && !isInside; ++ci)
         {

@@ -733,6 +733,7 @@ inline bool crossEdgesDisjoint(double d0, double d1, double r)
  * no. 1, 65–82, 2013  http://jcgt.org/published/0002/01/05/
  */
 template <typename T>
+AXOM_HOST_DEVICE
 bool intersect_tri_ray(const Triangle<T, 3>& tri, const Ray<T, 3>& R, T& t, Point<double, 3>& p)
 {
   // Ray origins inside of the triangle are considered a miss.
@@ -853,6 +854,7 @@ bool intersect_tri_ray(const Triangle<T, 3>& tri, const Ray<T, 3>& R, T& t, Poin
  * This routine uses intersect_tri_ray(), which see.
  */
 template <typename T>
+AXOM_HOST_DEVICE
 bool intersect_tri_segment(const Triangle<T, 3>& tri, const Segment<T, 3>& S, T& t, Point<double, 3>& p)
 {
   Ray<T, 3> r(S.source(), Vector3(S.source(), S.target()));

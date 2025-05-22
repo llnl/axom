@@ -9,6 +9,7 @@
 #include "axom/core.hpp"
 
 #include "axom/primal/constants.hpp"
+#include "axom/primal/geometry/Plane.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/Sphere.hpp"
@@ -159,6 +160,7 @@ public:
    * Otherwise, the sum of coordinates will be proportional to volume of the tetrahedron
    * (Specifically, they should sum to the parallelpiped volume, which is 6x the volume).
    */
+  AXOM_HOST_DEVICE
   Point<double, 4> physToBarycentric(const PointType& p, bool skipNormalization = false) const
   {
     Point<double, 4> bary;
@@ -228,9 +230,9 @@ public:
   /*!
    @brief Returns whether the tetrahedron contains a point.
    @param [in] p The point
-   @param [in] tol Tolerance for floating point comparison.
-     A positive value would consider a point outside
-     the tetrahedron to be considered inside.
+   @param [in] tol Floating point tolerance affecting points near boundary.
+     A positive value would consider those points to be inside.
+     A negative value considers them to be outside.
 
    Points on the surface of the the tetrahedron is considered contained.
   */
@@ -331,6 +333,7 @@ public:
     face the interior of the tetrahedron.
   */
   template <int TDIM = NDIMS>
+  AXOM_HOST_DEVICE
   typename std::enable_if<TDIM == 3, axom::StackArray<TriangleType, NUM_VERTS>>::type facets() const
   {
     axom::StackArray<TriangleType, NUM_VERTS> rval;
@@ -352,6 +355,7 @@ public:
     The segments are in no specific order or orientation.
   */
   template <int TDIM = NDIMS>
+  AXOM_HOST_DEVICE
   typename std::enable_if<TDIM == 3, axom::StackArray<SegmentType, NUM_EDGES>>::type edges() const
   {
     axom::StackArray<SegmentType, NUM_EDGES> rval;

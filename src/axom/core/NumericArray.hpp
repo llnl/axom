@@ -361,15 +361,18 @@ public:
    * \brief Find the index of the max component.
    * \return The index of the largest component ( \f$ 0 \le ret < SIZE \f$)
    */
+  AXOM_HOST_DEVICE
   int argMax() const;
 
   /*!
    * \brief Find the index of the min component.
    * \return The index of the smallest component ( \f$ 0 \le ret < SIZE \f$)
    */
+  AXOM_HOST_DEVICE
   int argMin() const;
 
   /// \brief Computes the sum of the components
+  AXOM_HOST_DEVICE
   T sum() const;
 
 private:
@@ -642,7 +645,7 @@ inline T NumericArray<T, SIZE>::min() const
 
 //------------------------------------------------------------------------------
 template <typename T, int SIZE>
-inline int NumericArray<T, SIZE>::argMax() const
+AXOM_HOST_DEVICE inline int NumericArray<T, SIZE>::argMax() const
 {
   int idx = 0;
   for(int i = 1; i < SIZE; ++i)
@@ -658,7 +661,7 @@ inline int NumericArray<T, SIZE>::argMax() const
 
 //------------------------------------------------------------------------------
 template <typename T, int SIZE>
-inline int NumericArray<T, SIZE>::argMin() const
+AXOM_HOST_DEVICE inline int NumericArray<T, SIZE>::argMin() const
 {
   int idx = 0;
   for(int i = 1; i < SIZE; ++i)
@@ -674,7 +677,7 @@ inline int NumericArray<T, SIZE>::argMin() const
 
 //------------------------------------------------------------------------------
 template <typename T, int SIZE>
-inline T NumericArray<T, SIZE>::sum() const
+AXOM_HOST_DEVICE inline T NumericArray<T, SIZE>::sum() const
 {
   T result {};
   for(int i = 0; i < SIZE; ++i)

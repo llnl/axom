@@ -254,7 +254,7 @@ public:
 
     SLIC_INFO(axom::fmt::format(
       "Running clip loop on {} candidate tets for of all {} hexes in the mesh",
-      totalCandidatesCount,
+      candidates.size(),
       cellCount));
 
     constexpr double EPS = 1e-10;

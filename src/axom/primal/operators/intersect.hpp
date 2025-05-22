@@ -166,6 +166,7 @@ bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray, T& t, Point<doub
  * \return true iff tri intersects with seg, otherwise, false.
  */
 template <typename T>
+AXOM_HOST_DEVICE
 bool intersect(const Triangle<T, 3>& tri, const Segment<T, 3>& seg)
 {
   T t = T();

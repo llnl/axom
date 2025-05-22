@@ -195,19 +195,21 @@ void TetClipper::labelByEdges(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelTy
   auto labelsView = labels.view();
   constexpr int NUM_TETS_PER_HEX = primal::Hexahedron<double, 3>::NUM_TRIANGULATE;
 
+  auto geomTet = m_tet;
+  auto bb = m_bb;
   axom::for_all<ExecSpace>(
     labels.size(),
     AXOM_LAMBDA(axom::IndexType cellId) {
       LabelType& cellLabel = labelsView[cellId];
       const BoundingBox3DType cellBb = cellBbs[cellId];
-      if (cellLabel == LABEL_OUT && m_bb.intersectsWith(cellBb))
+      if (cellLabel == LABEL_OUT && bb.intersectsWith(cellBb))
       {
         const axom::IndexType tetIdxStart = cellId * NUM_TETS_PER_HEX;
         const axom::IndexType tetIdxEnd = (1 + cellId) * NUM_TETS_PER_HEX;
         for(axom::IndexType ti = tetIdxStart; ti < tetIdxEnd && cellLabel == LABEL_OUT; ++ti)
         {
-          const TetrahedronType& tet = cellsAsTets[ti];
-          if(axom::primal::intersect(tet, m_tet))
+          const TetrahedronType& cellTet = cellsAsTets[ti];
+          if(axom::primal::intersect(cellTet, geomTet))
           {
             cellLabel = LABEL_ON;
           }
