@@ -45,6 +45,7 @@ TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
     // face outside.  Flip them to face inside.
     if(iPlane % 2 == 1) m_planes[iPlane].flip();
   }
+  m_facets = m_tet.facets();
 
 }
 
@@ -83,10 +84,7 @@ void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
 
-  constexpr int NUM_VERTS_PER_CELL = 8;
-
   int allocId = shapeeMesh.getAllocatorID();
-  auto cellCount = shapeeMesh.getCellCount();
   auto vertCount = shapeeMesh.getVertexCount();
 
   const auto& vertCoords = shapeeMesh.getVertexCoords3D();
@@ -131,30 +129,50 @@ void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
       }
     });
 
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
-  {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
-  }
+  vertexInsideToCellLabel<ExecSpace>(shapeeMesh, vertIsInsideView, labels);
 
   /*
-    Label cell by whether it has vertices inside, outside or both.
+    Look for edge-tet intersections missed by vertex-only checks.
+    These are small but real errors that can be reduced with mesh
+    resolution, but cannot be eliminated without checking edges.
+    With this correction there should be no clipping volume error
+    except from floating-point round-off.
   */
+  labelByEdges<ExecSpace>(shapeeMesh, labels);
+
+  return;
+}
+
+/*
+  Label cell outside if no vertex is in the bounding box.
+  Otherwise, label it on boundary, because we don't know.
+*/
+template <typename ExecSpace>
+void TetClipper::vertexInsideToCellLabel(
+  quest::ShapeeMesh& shapeeMesh,
+  axom::ArrayView<bool>& vertIsInside,
+  axom::Array<LabelType>& labels)
+{
   axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
   SLIC_ASSERT(connView.shape() ==
-              (axom::StackArray<axom::IndexType, 2> {cellCount, NUM_VERTS_PER_CELL}));
+              (axom::StackArray<axom::IndexType, 2> {shapeeMesh.getCellCount(), HexahedronType::NUM_HEX_VERTS}));
 
+  if(labels.size() < shapeeMesh.getCellCount() || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  {
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), shapeeMesh.getCellCount(), shapeeMesh.getCellCount(), shapeeMesh.getAllocatorID());
+  }
   auto labelsView = labels.view();
 
   axom::for_all<ExecSpace>(
-    cellCount,
+    shapeeMesh.getCellCount(),
     AXOM_LAMBDA(axom::IndexType cellId) {
       auto cellVertIds = connView[cellId];
-      bool hasIn = vertIsInsideView[cellVertIds[0]];
+      bool hasIn = vertIsInside[cellVertIds[0]];
       bool hasOut = !hasIn;
-      for(int vi = 0; vi < NUM_VERTS_PER_CELL; ++vi)
+      for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
       {
         int vertId = cellVertIds[vi];
-        bool isIn = vertIsInsideView[vertId];
+        bool isIn = vertIsInside[vertId];
         hasIn |= isIn;
         hasOut |= !isIn;
       }
@@ -162,6 +180,40 @@ void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
     });
 
   return;
+}
+
+template <typename ExecSpace>
+void TetClipper::labelByEdges(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+{
+  /*
+    If a cell's vertices are all outside, check if any edge crosses
+    the geometry.  This check can find small overlaps that the
+    vertex-only checks miss.
+  */
+  axom::ArrayView<const TetrahedronType> cellsAsTets = shapeeMesh.getCellsAsTets();
+  axom::ArrayView<const BoundingBox3DType> cellBbs = shapeeMesh.getCellBoundingBoxes();
+  auto labelsView = labels.view();
+  constexpr int NUM_TETS_PER_HEX = primal::Hexahedron<double, 3>::NUM_TRIANGULATE;
+
+  axom::for_all<ExecSpace>(
+    labels.size(),
+    AXOM_LAMBDA(axom::IndexType cellId) {
+      LabelType& cellLabel = labelsView[cellId];
+      const BoundingBox3DType cellBb = cellBbs[cellId];
+      if (cellLabel == LABEL_OUT && m_bb.intersectsWith(cellBb))
+      {
+        const axom::IndexType tetIdxStart = cellId * NUM_TETS_PER_HEX;
+        const axom::IndexType tetIdxEnd = (1 + cellId) * NUM_TETS_PER_HEX;
+        for(axom::IndexType ti = tetIdxStart; ti < tetIdxEnd && cellLabel == LABEL_OUT; ++ti)
+        {
+          const TetrahedronType& tet = cellsAsTets[ti];
+          if(axom::primal::intersect(tet, m_tet))
+          {
+            cellLabel = LABEL_ON;
+          }
+        }
+      }
+    });
 }
 
 bool TetClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)

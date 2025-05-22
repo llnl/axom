@@ -12,6 +12,8 @@
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/primal/geometry/Sphere.hpp"
+#include "axom/primal/geometry/Segment.hpp"
+#include "axom/primal/geometry/Triangle.hpp"
 
 #include "axom/slic/interface/slic.hpp"
 #include "axom/fmt.hpp"
@@ -36,8 +38,11 @@ public:
   using PointType = Point<T, NDIMS>;
   using VectorType = Vector<T, NDIMS>;
   using SphereType = Sphere<T, NDIMS>;
+  using TriangleType = Triangle<T, NDIMS>;
+  using SegmentType = Segment<T, NDIMS>;
 
   static constexpr int NUM_VERTS = 4;
+  static constexpr int NUM_EDGES = 6;
 
 public:
   /// \brief Default constructor. Creates a degenerate tetrahedron.
@@ -221,6 +226,21 @@ public:
   }
 
   /*!
+   @brief Returns whether the tetrahedron contains a point.
+   @param [in] p The point
+   @param [in] tol Tolerance for floating point comparison.
+     A positive value would consider a point outside
+     the tetrahedron to be considered inside.
+
+   Points on the surface of the the tetrahedron is considered contained.
+  */
+  AXOM_HOST_DEVICE bool contains(const PointType& p, T tol = 0.0) const
+  {
+    auto bary = physToBarycentric(p);
+    return (bary[0] >= -tol && bary[1] >= -tol && bary[2] >= -tol && bary[3] >= -tol);
+  }
+
+  /*!
    * \brief Simple formatted print of a tetrahedron instance
    * \param os The output stream to write to
    * \return A reference to the modified ostream
@@ -302,6 +322,46 @@ public:
                   VectorType::scalar_triple_product(sq, vx, vy)};
 
     return SphereType(p0 + center_offset, center_offset.norm());
+  }
+
+  /*!
+    @brief Get the 4 triangular facets of the tet (only for 3D).
+
+    Facet i is the one positioned opposite vertex i.  All facets
+    face the interior of the tetrahedron.
+  */
+  template <int TDIM = NDIMS>
+  typename std::enable_if<TDIM == 3, axom::StackArray<TriangleType, NUM_VERTS>>::type facets() const
+  {
+    axom::StackArray<TriangleType, NUM_VERTS> rval;
+    for(int i = 0; i < NUM_VERTS; ++i)
+    {
+      const PointType& a = m_points[i % 4];
+      const PointType& b = m_points[(i + 1) % 4];
+      const PointType& c = m_points[(i + 2) % 4];
+      // For tet points ordered by right-hand rule, odd facets
+      // face outside.  Re-order b and c to turn them inside.
+      rval[i] = (i%2 == 0) ? TriangleType(a, b, c) : TriangleType(a, c, b);
+    }
+    return rval;
+  }
+
+  /*!
+    @brief Get the 6 edges of the tet (only for 3D).
+
+    The segments are in no specific order or orientation.
+  */
+  template <int TDIM = NDIMS>
+  typename std::enable_if<TDIM == 3, axom::StackArray<SegmentType, NUM_EDGES>>::type edges() const
+  {
+    axom::StackArray<SegmentType, NUM_EDGES> rval;
+    rval[0] = SegmentType(m_points[0], m_points[1]);
+    rval[1] = SegmentType(m_points[0], m_points[2]);
+    rval[2] = SegmentType(m_points[0], m_points[3]);
+    rval[3] = SegmentType(m_points[1], m_points[2]);
+    rval[4] = SegmentType(m_points[2], m_points[3]);
+    rval[5] = SegmentType(m_points[3], m_points[0]);
+    return rval;
   }
 
 private:

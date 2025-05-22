@@ -670,8 +670,8 @@ axom::klee::Geometry createGeom_Tet(const std::string& geomName)
   addRotateOperator(*compositeOp);
   addTranslateOperator(*compositeOp);
   exactGeomVols[geomName] = vScale * tet.volume();
-  errorToleranceRel[geomName] = 0.00075;
-  errorToleranceAbs[geomName] = 0.003;
+  errorToleranceRel[geomName] = 1e-12;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
 
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
 

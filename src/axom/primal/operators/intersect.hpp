@@ -834,6 +834,45 @@ AXOM_HOST_DEVICE bool intersect(const Plane<T, 3>& p,
 
 /// @}
 
+/*!
+  @brief Determines if two tetrahedra intersects
+  @param [in] a a tetrahedron
+  @param [in] b another tetrahedron
+
+  The tetrahedra intersect if any edge of one intersects any
+  facet of the other, or one is completely inside the other.
+*/
+template <typename T>
+AXOM_HOST_DEVICE bool intersect(const Tetrahedron<T, 3>& a,
+                                const Tetrahedron<T, 3>& b)
+{
+  bool rval = false;
+  auto aEdges = a.edges();
+  auto bFacets = b.facets();
+
+  for(int ai = 0; ai < aEdges.size() && !rval; ++ai)
+  {
+    for(int bi = 0; bi < bFacets.size() && !rval; ++bi)
+    {
+      if(intersect(bFacets[bi], aEdges[ai]))
+      {
+        rval = true;
+      }
+    }
+  }
+
+  if(!rval)
+  {
+    if(a.contains(b[0]) || a.contains(b[1]) || a.contains(b[2]) || a.contains(b[3]) ||
+       b.contains(a[0]) || b.contains(a[1]) || b.contains(a[2]) || b.contains(a[3]))
+    {
+      rval = true;
+    }
+  }
+
+  return rval;
+}
+
 /*! \brief Determines if a ray intersects a Bezier patch.
  * \param [in] ray The ray to intersect with the patch.
  * \param [in] patch The Bezier patch to intersect with the ray.
