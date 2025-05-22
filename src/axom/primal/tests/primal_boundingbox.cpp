@@ -444,7 +444,7 @@ TEST(primal_boundingBox, bb_contains_bb)
     EXPECT_TRUE(unit_box.contains(unit_box));
   }
 
-  // Check that empty bbox does not contain a point.
+  // Check that invalid bbox does not contain a point.
   EXPECT_FALSE(empty_box.contains(PointD(0.)));
 
   // Check that 1 point bbox contains the point.
@@ -754,13 +754,13 @@ TEST(primal_boundingBox, bb_intersect)
   EXPECT_DOUBLE_EQ(1., bbox_intersect.getMax()[0]);
   EXPECT_DOUBLE_EQ(1., bbox_intersect.getMax()[1]);
 
-  // Empty bbox intersected with itself returns an empty bbox.
-  BoxType bbox_empty;
-  EXPECT_EQ(bbox_empty, bbox_empty.intersect(bbox_empty));
+  // Empty bbox intersected with itself returns an invalid bbox.
+  BoxType bbox_invalid;
+  EXPECT_EQ(bbox_invalid, bbox_invalid.intersect(bbox_invalid));
 
-  // Bounding box intersected with empty bounding box returns empty bounding box.
-  EXPECT_EQ(bbox_empty, bbox_empty.intersect(bbox));
-  EXPECT_EQ(bbox_empty, bbox.intersect(bbox_empty));
+  // Bounding box intersected with invalid bounding box returns an invalid bounding box.
+  EXPECT_EQ(bbox_invalid, bbox_invalid.intersect(bbox));
+  EXPECT_EQ(bbox_invalid, bbox.intersect(bbox_invalid));
 }
 
 //------------------------------------------------------------------------------
