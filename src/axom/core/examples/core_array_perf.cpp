@@ -286,8 +286,8 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-    axom::StackArray<axom::IndexType, 2> jRange{{idxBegin[1], idxEnd[1]}};
-    axom::StackArray<axom::IndexType, 2> iRange{{idxBegin[0], idxEnd[0]}};
+    axom::StackArray<axom::IndexType, 2> jRange {{idxBegin[1], idxEnd[1]}};
+    axom::StackArray<axom::IndexType, 2> iRange {{idxBegin[0], idxEnd[0]}};
     axom::for_all<ExecSpace>(
       jRange,
       iRange,
@@ -303,9 +303,9 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-    axom::StackArray<axom::IndexType, 2> kRange{{idxBegin[2], idxEnd[2]}};
-    axom::StackArray<axom::IndexType, 2> jRange{{idxBegin[1], idxEnd[1]}};
-    axom::StackArray<axom::IndexType, 2> iRange{{idxBegin[0], idxEnd[0]}};
+    axom::StackArray<axom::IndexType, 2> kRange {{idxBegin[2], idxEnd[2]}};
+    axom::StackArray<axom::IndexType, 2> jRange {{idxBegin[1], idxEnd[1]}};
+    axom::StackArray<axom::IndexType, 2> iRange {{idxBegin[0], idxEnd[0]}};
     axom::for_all<ExecSpace>(
       kRange,
       jRange,
@@ -377,8 +377,8 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-    axom::StackArray<axom::IndexType, 2> jRange{{idxBegin[1], idxEnd[1]}};
-    axom::StackArray<axom::IndexType, 2> iRange{{idxBegin[0], idxEnd[0]}};
+    axom::StackArray<axom::IndexType, 2> jRange {{idxBegin[1], idxEnd[1]}};
+    axom::StackArray<axom::IndexType, 2> iRange {{idxBegin[0], idxEnd[0]}};
     axom::for_all<ExecSpace>(
       iRange,
       jRange,
@@ -395,9 +395,9 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-    axom::StackArray<axom::IndexType, 2> kRange{{idxBegin[2], idxEnd[2]}};
-    axom::StackArray<axom::IndexType, 2> jRange{{idxBegin[1], idxEnd[1]}};
-    axom::StackArray<axom::IndexType, 2> iRange{{idxBegin[0], idxEnd[0]}};
+    axom::StackArray<axom::IndexType, 2> kRange {{idxBegin[2], idxEnd[2]}};
+    axom::StackArray<axom::IndexType, 2> jRange {{idxBegin[1], idxEnd[1]}};
+    axom::StackArray<axom::IndexType, 2> iRange {{idxBegin[0], idxEnd[0]}};
     axom::for_all<ExecSpace>(
       iRange,
       jRange,
@@ -483,8 +483,8 @@ public:
                                                          idxBegin[slowestDirs[1]]};
     const axom::StackArray<axom::IndexType, DIM> ends {idxEnd[slowestDirs[0]],
                                                        idxEnd[slowestDirs[1]]};
-    axom::StackArray<axom::IndexType, 2> nRange{{begins[1], ends[1]}};
-    axom::StackArray<axom::IndexType, 2> mRange{{begins[0], ends[0]}};
+    axom::StackArray<axom::IndexType, 2> nRange {{begins[1], ends[1]}};
+    axom::StackArray<axom::IndexType, 2> mRange {{begins[0], ends[0]}};
     axom::for_all<ExecSpace>(
       nRange,
       mRange,
@@ -518,9 +518,9 @@ public:
     const axom::StackArray<axom::IndexType, DIM> ends {idxEnd[slowestDirs[0]],
                                                        idxEnd[slowestDirs[1]],
                                                        idxEnd[slowestDirs[2]]};
-    axom::StackArray<axom::IndexType, 2> oRange{{begins[2], ends[2]}};
-    axom::StackArray<axom::IndexType, 2> nRange{{begins[1], ends[1]}};
-    axom::StackArray<axom::IndexType, 2> mRange{{begins[0], ends[0]}};
+    axom::StackArray<axom::IndexType, 2> oRange {{begins[2], ends[2]}};
+    axom::StackArray<axom::IndexType, 2> nRange {{begins[1], ends[1]}};
+    axom::StackArray<axom::IndexType, 2> mRange {{begins[0], ends[0]}};
 
     axom::for_all<ExecSpace>(
       oRange,

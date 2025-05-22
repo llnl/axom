@@ -192,8 +192,8 @@ inline void for_all(const axom::StackArray<IndexType, 2> &iRange,
 template <typename ExecSpace, typename KernelType>
 inline void for_all(const axom::StackArray<IndexType, 2> &shape, KernelType &&kernel) noexcept
 {
-  for_all<ExecSpace>(axom::StackArray<IndexType, 2>{{0, shape[0]}},
-                     axom::StackArray<IndexType, 2>{{0, shape[1]}},
+  for_all<ExecSpace>(axom::StackArray<IndexType, 2> {{0, shape[0]}},
+                     axom::StackArray<IndexType, 2> {{0, shape[1]}},
                      std::forward<KernelType>(kernel));
 }
 
@@ -295,9 +295,9 @@ inline void for_all(const axom::StackArray<IndexType, 2> &iRange,
 template <typename ExecSpace, typename KernelType>
 inline void for_all(const StackArray<IndexType, 3> &shape, KernelType &&kernel) noexcept
 {
-  for_all<ExecSpace>(axom::StackArray<IndexType, 2>{{0, shape[0]}},
-                     axom::StackArray<IndexType, 2>{{0, shape[1]}},
-                     axom::StackArray<IndexType, 2>{{0, shape[2]}},
+  for_all<ExecSpace>(axom::StackArray<IndexType, 2> {{0, shape[0]}},
+                     axom::StackArray<IndexType, 2> {{0, shape[1]}},
+                     axom::StackArray<IndexType, 2> {{0, shape[2]}},
                      std::forward<KernelType>(kernel));
 }
 
