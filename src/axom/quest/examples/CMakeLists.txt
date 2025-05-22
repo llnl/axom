@@ -234,9 +234,11 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
         # Tests 2D c2c contour
         if(C2C_FOUND)
             set(_policies "seq")
-            blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-            blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-            blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
+            if(RAJA_FOUND)
+                blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
+                blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+                blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
+            endif()
 
             foreach(_policy ${_policies})
                 set(_testname quest_shaping_driver_ex_semi_circle_2d_${_policy})
