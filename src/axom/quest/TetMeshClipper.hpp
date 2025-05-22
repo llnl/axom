@@ -56,8 +56,8 @@ private:
   //! @brief Bounding box of the tet mesh.
   axom::primal::BoundingBox<double, 3> m_bb;
 
-  //! @brief Number of cells in the tet mesh.
-  axom::IndexType m_cellCount;
+  //! @brief Number of tets in the tet mesh.
+  axom::IndexType m_tetCount;
 
   //! @brief Geometry as tetrahedra.
   axom::Array<TetrahedronType> m_tets;
@@ -67,10 +67,18 @@ private:
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
+  template <typename ExecSpace>
+  void vertexInsideToCellLabel(
+    quest::ShapeeMesh& shapeeMesh,
+    axom::ArrayView<bool>& vertIsInside,
+    axom::Array<LabelType>& labels);
+
   // Extract clipper info from GeometryClipperStrategy::m_info.
   void extractClipperInfo();
 
   void transformCoordset();
+
+  void computeTets();
 };
 
 }  // namespace quest

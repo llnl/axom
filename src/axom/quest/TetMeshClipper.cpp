@@ -12,6 +12,7 @@
 
 #include "axom/mint/mesh/Mesh.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
+#include "axom/spin/BVH.hpp"
 #include "axom/quest/Discretize.hpp"
 #include "axom/quest/TetMeshClipper.hpp"
 #include "axom/fmt.hpp"
@@ -25,7 +26,7 @@ TetMeshClipper::TetMeshClipper(const klee::Geometry& kGeom, const std::string& n
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("TetMesh") : name)
   , m_topoName(kGeom.getBlueprintTopology())
-  , m_cellCount(0)
+  , m_tetCount(0)
   , m_transformer(m_transMat)
 {
   SLIC_ASSERT(!m_topoName.empty());
@@ -33,6 +34,8 @@ TetMeshClipper::TetMeshClipper(const klee::Geometry& kGeom, const std::string& n
   extractClipperInfo();
 
   transformCoordset();
+
+  computeTets();
 }
 
 bool TetMeshClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
@@ -67,69 +70,107 @@ bool TetMeshClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   return true;
 }
 
+/*
+  1. Compute whether vertices are in or out of the tet mesh.
+  2. Determine whether cells are in, out or on the tet mesh
+     boundary.
+  Unlike the TetClipper, this doesn't check edge-tet intersections,
+  so it has errors.  These errors should shrink with mesh resolution.
+  If needed, we can implement edge-tet detection for TetMeshClipper.
+*/
 template <typename ExecSpace>
 void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "TetMeshClipper requires a 3D mesh.");
 
-  constexpr int NUM_VERTS_PER_CELL = 8;
-
-  auto cellCount = shapeeMesh.getCellCount();
   int allocId = shapeeMesh.getAllocatorID();
   auto vertCount = shapeeMesh.getVertexCount();
 
-  const auto& vertCoords = shapeeMesh.getVertexCoords3D();
-  const auto& vX = vertCoords[0];
-  const auto& vY = vertCoords[1];
-  const auto& vZ = vertCoords[2];
+  /*
+    Tets (as bounding boxes) in BVH.
+  */
+  axom::Array<BoundingBox3DType> tetsAsBbs(m_tets.size(), m_tets.size(), allocId);
+  auto tetsAsBbsView = tetsAsBbs.view();
+  auto tetsView = m_tets.view();
+  axom::for_all<ExecSpace>(tetsView.size(),
+                           AXOM_LAMBDA(axom::IndexType vi) {
+                             const auto&tet = tetsView[vi];
+                             tetsAsBbsView[vi] = axom::primal::compute_bounding_box(tet);
+                           });
+
+  spin::BVH<3, ExecSpace, double> bvh;
+  bvh.initialize(tetsAsBbsView, tetsAsBbsView.size());
 
   /*
-    Compute whether mesh vertices are inside the mesh's bounding box.
-    This is more overly conservative compared to checking against the
-    mesh itself, but much faster.
+    Compute whether vertices are inside tet mesh.
+    (Use BVH to narrow the search to nearby candidate tets.)
   */
   axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
+  vertIsInside.fill(false);
   auto vertIsInsideView = vertIsInside.view();
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vX.getAllocatorID()));
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vZ.getAllocatorID()));
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertIsInsideView.getAllocatorID()));
 
-  auto bb = m_bb;
+  axom::ArrayView<const Point3DType> vertPointsView = shapeeMesh.getVertexPoints();
+
+  axom::Array<IndexType> offsets(vertCount, vertCount, allocId);
+  axom::Array<IndexType> counts(vertCount, vertCount, allocId);
+  axom::Array<IndexType> candidates;
+  bvh.findPoints(offsets, counts, candidates, vertCount, vertPointsView);
+
   axom::for_all<ExecSpace>(
     vertCount,
     AXOM_LAMBDA(axom::IndexType vertId) {
-      primal::Point3D vert {vX[vertId], vY[vertId], vZ[vertId]};
-      vertIsInsideView[vertId] = bb.contains(vert);
+      auto candidateCount = counts[vertId];
+      bool& isInside = vertIsInsideView[vertId];
+      if (!isInside && candidateCount > 0)
+      {
+        auto candidateIds = &candidates[offsets[vertId]];
+        auto& vertex = vertPointsView[vertId];
+        for(int ci = 0; ci < candidateCount && !isInside; ++ci)
+        {
+          axom::IndexType tetId = candidateIds[ci];
+          const auto& tet = tetsView[tetId];
+          isInside |= tet.contains(vertex);
+        }
+      }
     });
 
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorId())
-  {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
-  }
+  vertexInsideToCellLabel<ExecSpace>(shapeeMesh, vertIsInsideView, labels);
+}
 
-  /*
-    Label cell outside if no vertex is in the bounding box.
-    Otherwise, label it on boundary, because we don't know.
-  */
+/*
+  Label cell outside if no vertex is in the bounding box.
+  Otherwise, label it on boundary, because we don't know.
+*/
+template <typename ExecSpace>
+void TetMeshClipper::vertexInsideToCellLabel(
+  quest::ShapeeMesh& shapeeMesh,
+  axom::ArrayView<bool>& vertIsInside,
+  axom::Array<LabelType>& labels)
+{
   axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
   SLIC_ASSERT(connView.shape() ==
-              (axom::StackArray<axom::IndexType, 2> {cellCount, NUM_VERTS_PER_CELL}));
+              (axom::StackArray<axom::IndexType, 2> {shapeeMesh.getCellCount(), HexahedronType::NUM_HEX_VERTS}));
 
+  if(labels.size() < shapeeMesh.getCellCount() || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  {
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), shapeeMesh.getCellCount(), shapeeMesh.getCellCount(), shapeeMesh.getAllocatorID());
+  }
   auto labelsView = labels.view();
 
   axom::for_all<ExecSpace>(
-    cellCount,
+    shapeeMesh.getCellCount(),
     AXOM_LAMBDA(axom::IndexType cellId) {
       auto cellVertIds = connView[cellId];
-      bool hasIn = vertIsInsideView[cellVertIds[0]];
-      for(int vi = 0; vi < NUM_VERTS_PER_CELL; ++vi)
+      bool hasIn = vertIsInside[cellVertIds[0]];
+      bool hasOut = !hasIn;
+      for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
       {
         int vertId = cellVertIds[vi];
-        bool isIn = vertIsInsideView[vertId];
+        bool isIn = vertIsInside[vertId];
         hasIn |= isIn;
+        hasOut |= !isIn;
       }
-      labelsView[cellId] = hasIn ? LABEL_ON : LABEL_OUT;
+      labelsView[cellId] = !hasOut ? LABEL_IN : !hasIn ? LABEL_OUT : LABEL_ON;
     });
 
   return;
@@ -137,33 +178,24 @@ void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
 
 bool TetMeshClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
 {
-  AXOM_ANNOTATE_BEGIN("TetMeshClipper::getGeometryAsTets");
-  const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-  const int allocId = shapeeMesh.getAllocatorID();
+  AXOM_ANNOTATE_SCOPE("TetMeshClipper::getGeometryAsTets");
+  tets = axom::Array<TetrahedronType>(m_tets, shapeeMesh.getAllocatorID());
+  return true;
+}
 
-  if(tets.getAllocatorID() != allocId || tets.size() != m_cellCount)
-  {
-    tets = axom::Array<TetrahedronType>(m_cellCount, m_cellCount, allocId);
-  }
+// Compute m_tets.  Keep data on host.  We don't know what allocator the ShapeeMesh uses.
+void TetMeshClipper::computeTets()
+{
+  AXOM_ANNOTATE_SCOPE("TetMeshClipper::computeTets");
+  const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+
+  m_tets = axom::Array<TetrahedronType>(m_tetCount, m_tetCount, hostAllocId);
 
   /*
     1. Initialize a mint Mesh intermediary from the blueprint mesh.
        mint::getMesh() utility for this saves some coding.
     2. Populate a tet array on the host (because mint data works only for host).
-       Host array could be tets or a temporary array.
-    3. If needed, copy temporary array to tets.
   */
-
-  axom::Array<TetrahedronType> tmpTets(0, 0, hostAllocId);
-
-  // Host loop writes directly to tets if possible, else a temporary array.
-  axom::Array<TetrahedronType>& tetsOnHost =
-    axom::execution_space<axom::SEQ_EXEC>::usesAllocId(tets.getAllocatorID()) ? tets : tmpTets;
-
-  if(&tetsOnHost == &tmpTets)
-  {
-    tmpTets.resize(m_cellCount, TetrahedronType());
-  }
 
   axom::sidre::DataStore ds;
   auto* bpMeshGrp = ds.getRoot()->createGroup("blueprintMesh");
@@ -227,7 +259,7 @@ bool TetMeshClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Arra
   // Initialize tetrahedra
   IndexType nodeIds[4];
   Point3D pts[4];
-  for(int i = 0; i < m_cellCount; i++)
+  for(int i = 0; i < m_tetCount; i++)
   {
     mintMesh->getCellNodeIDs(i, nodeIds);
 
@@ -236,16 +268,8 @@ bool TetMeshClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Arra
     mintMesh->getNode(nodeIds[2], pts[2].data());
     mintMesh->getNode(nodeIds[3], pts[3].data());
 
-    tetsOnHost[i] = TetrahedronType({pts[0], pts[1], pts[2], pts[3]});
+    m_tets[i] = TetrahedronType({pts[0], pts[1], pts[2], pts[3]});
   }
-
-  if(&tets != &tetsOnHost)
-  {
-    axom::copy(tets.data(), tetsOnHost.data(), sizeof(TetrahedronType) * tets.size());
-  }
-
-  AXOM_ANNOTATE_END("TetMeshClipper::getGeometryAsTets");
-  return true;
 }
 
 void TetMeshClipper::extractClipperInfo()
@@ -265,7 +289,7 @@ void TetMeshClipper::extractClipperInfo()
 
   SLIC_ASSERT(conduit::blueprint::mesh::topology::dims(topoNode) == 3);
 
-  m_cellCount = conduit::blueprint::mesh::topology::length(topoNode);
+  m_tetCount = conduit::blueprint::mesh::topology::length(topoNode);
 
   m_coordsetName = topoNode.fetch_existing("coordset").as_string();
 }
