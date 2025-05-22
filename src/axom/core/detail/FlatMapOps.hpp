@@ -21,7 +21,6 @@ inline void setSentinel(axom::ArrayView<GroupBucket> metadata)
   // Note: HIP can access device memory from the host and does not need special
   // handling - we just defer to the host path in all cases.
   MemorySpace space = getAllocatorSpace(metadata.getAllocatorID());
-  using DeviceExec = axom::CUDA_EXEC<256>;
   if(space == MemorySpace::Device)
   {
     GroupBucket last_bucket;
