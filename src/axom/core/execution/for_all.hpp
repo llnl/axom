@@ -125,8 +125,9 @@ inline void for_all(const IndexType &N, KernelType &&kernel) noexcept
  *    // compute C[ idx ] for all entries in i:[0-99],j:[0-299]
  *    IndexType NX = 100;
  *    IndexType NY = 300;
- *    IndexType shape{NX, NY};
- *    axom::for_all< axom::OMP_EXEC >( shape, AXOM_LAMBDA( IndexType i, IndexType j ) {
+ *    StackArray<IndexType, 2> iRange{{0, NX}};
+ *    StackArray<IndexType, 2> jRange{{0, NY}};
+ *    axom::for_all< axom::OMP_EXEC >( iRange, jRange, AXOM_LAMBDA( IndexType i, IndexType j ) {
  *      const auto idx = j * NX + i;
  *      C[ idx ] = A[ idx ] + B[ idx ];
  *    } );
@@ -179,7 +180,7 @@ inline void for_all(const axom::StackArray<IndexType, 2> &iRange,
  *    // compute C[ idx ] for all entries in i:[0-99],j:[0-299]
  *    IndexType NX = 100;
  *    IndexType NY = 300;
- *    StackArray<IndexType,2> shape{NX, NY};
+ *    StackArray<IndexType, 2> shape{{NX, NY}};
  *    axom::for_all< axom::OMP_EXEC >( shape, AXOM_LAMBDA( IndexType i, IndexType j ) {
  *      const auto idx = j * NX + i;
  *      C[ idx ] = A[ idx ] + B[ idx ];
@@ -221,9 +222,9 @@ inline void for_all(const axom::StackArray<IndexType, 2> &shape, KernelType &&ke
  *    IndexType NX = 100;
  *    IndexType NY = 300;
  *    IndexType NZ = 50;
- *    axom::StackArray<IndexType> iRange{{0, NX}};
- *    axom::StackArray<IndexType> kRange{{0, NY}};
- *    axom::StackArray<IndexType> kRange{{0, NZ}};
+ *    StackArray<IndexType, 2> iRange{{0, NX}};
+ *    StackArray<IndexType, 2> kRange{{0, NY}};
+ *    StackArray<IndexType, 2> kRange{{0, NZ}};
  *    axom::for_all< axom::OMP_EXEC >(iRange, jRange, kRange, AXOM_LAMBDA( IndexType i, IndexType j, IndexType k ) {
  *      const auto idx = (k * NX * NY) + (j * NX) + i;
  *      C[ idx ] = A[ idx ] + B[ idx ];
@@ -283,7 +284,7 @@ inline void for_all(const axom::StackArray<IndexType, 2> &iRange,
  *    IndexType NX = 100;
  *    IndexType NY = 300;
  *    IndexType NZ = 50;
- *    StackArray<IndexType, 3> shape{NX, NY, NZ};
+ *    StackArray<IndexType, 3> shape{{NX, NY, NZ}};
  *    axom::for_all< axom::OMP_EXEC >(shape, AXOM_LAMBDA( IndexType i, IndexType j, IndexType k ) {
  *      const auto idx = (k * NX * NY) + (j * NX) + i;
  *      C[ idx ] = A[ idx ] + B[ idx ];
