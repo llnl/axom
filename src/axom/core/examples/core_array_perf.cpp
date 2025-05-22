@@ -286,11 +286,11 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
+    axom::StackArray<axom::IndexType, 2> jRange{{idxBegin[1], idxEnd[1]}};
+    axom::StackArray<axom::IndexType, 2> iRange{{idxBegin[0], idxEnd[0]}};
     axom::for_all<ExecSpace>(
-      idxBegin[1],
-      idxEnd[1],
-      idxBegin[0],
-      idxEnd[0],
+      jRange,
+      iRange,
       AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) { array(i, j) += testAdd; });
   }
 
@@ -303,13 +303,13 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
+    axom::StackArray<axom::IndexType, 2> kRange{{idxBegin[2], idxEnd[2]}};
+    axom::StackArray<axom::IndexType, 2> jRange{{idxBegin[1], idxEnd[1]}};
+    axom::StackArray<axom::IndexType, 2> iRange{{idxBegin[0], idxEnd[0]}};
     axom::for_all<ExecSpace>(
-      idxBegin[2],
-      idxEnd[2],
-      idxBegin[1],
-      idxEnd[1],
-      idxBegin[0],
-      idxEnd[0],
+      kRange,
+      jRange,
+      iRange,
       AXOM_LAMBDA(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
         array(i, j, k) += testAdd;
       });
@@ -377,11 +377,11 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
+    axom::StackArray<axom::IndexType, 2> jRange{{idxBegin[1], idxEnd[1]}};
+    axom::StackArray<axom::IndexType, 2> iRange{{idxBegin[0], idxEnd[0]}};
     axom::for_all<ExecSpace>(
-      idxBegin[0],
-      idxEnd[0],
-      idxBegin[1],
-      idxEnd[1],
+      iRange,
+      jRange,
       AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) { array(i, j) += testAdd; });
   }
 
@@ -395,13 +395,13 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
+    axom::StackArray<axom::IndexType, 2> kRange{{idxBegin[2], idxEnd[2]}};
+    axom::StackArray<axom::IndexType, 2> jRange{{idxBegin[1], idxEnd[1]}};
+    axom::StackArray<axom::IndexType, 2> iRange{{idxBegin[0], idxEnd[0]}};
     axom::for_all<ExecSpace>(
-      idxBegin[0],
-      idxEnd[0],
-      idxBegin[1],
-      idxEnd[1],
-      idxBegin[2],
-      idxEnd[2],
+      iRange,
+      jRange,
+      kRange,
       AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
         array(i, j, k) += testAdd;
       });
@@ -483,11 +483,11 @@ public:
                                                          idxBegin[slowestDirs[1]]};
     const axom::StackArray<axom::IndexType, DIM> ends {idxEnd[slowestDirs[0]],
                                                        idxEnd[slowestDirs[1]]};
+    axom::StackArray<axom::IndexType, 2> nRange{{begins[1], ends[1]}};
+    axom::StackArray<axom::IndexType, 2> mRange{{begins[0], ends[0]}};
     axom::for_all<ExecSpace>(
-      begins[1],
-      ends[1],
-      begins[0],
-      ends[0],
+      nRange,
+      mRange,
       AXOM_LAMBDA(axom::IndexType n, axom::IndexType m) {
         axom::StackArray<axom::IndexType, DIM> idx {m, n};
         auto i = idx[invSlowestDirs[0]];
@@ -518,13 +518,14 @@ public:
     const axom::StackArray<axom::IndexType, DIM> ends {idxEnd[slowestDirs[0]],
                                                        idxEnd[slowestDirs[1]],
                                                        idxEnd[slowestDirs[2]]};
+    axom::StackArray<axom::IndexType, 2> oRange{{begins[2], ends[2]}};
+    axom::StackArray<axom::IndexType, 2> nRange{{begins[1], ends[1]}};
+    axom::StackArray<axom::IndexType, 2> mRange{{begins[0], ends[0]}};
+
     axom::for_all<ExecSpace>(
-      begins[2],
-      ends[2],
-      begins[1],
-      ends[1],
-      begins[0],
-      ends[0],
+      oRange,
+      nRange,
+      mRange,
       AXOM_LAMBDA(axom::IndexType o, axom::IndexType n, axom::IndexType m) {
         axom::StackArray<axom::IndexType, DIM> idx {m, n, o};
         auto i = idx[invSlowestDirs[0]];

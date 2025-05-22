@@ -106,10 +106,8 @@ inline void for_all(const IndexType &N, KernelType &&kernel) noexcept
 /*!
  * \brief Loops over a 2D specified contiguous range.
  *
- * \param [in] iMin The starting value in the inner loop.
- * \param [in] iMax The ending value in the inner loop.
- * \param [in] jMin The starting value in the middle loop.
- * \param [in] jMax The ending value in the middle loop.
+ * \param [in] iRange The start/end values for the inner loop.
+ * \param [in] jRange The start/end values for the outer loop.
  * \param [in] kernel user-supplied kernel, i.e., a lambda or functor.
  *
  * \tparam ExecSpace the execution space where to run the supplied kernel
@@ -137,24 +135,22 @@ inline void for_all(const IndexType &N, KernelType &&kernel) noexcept
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(IndexType iMin,
-                    IndexType iMax,
-                    IndexType jMin,
-                    IndexType jMax,
+inline void for_all(const axom::StackArray<IndexType, 2> &iRange,
+                    const axom::StackArray<IndexType, 2> &jRange,
                     KernelType &&kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
-  assert(iMax > iMin && jMax > jMin);
+  assert(iRange[1] > iRange[0] && jRange[1] > jRange[0]);
 
 #if defined(AXOM_USE_RAJA)
-  RAJA::RangeSegment jRange(jMin, jMax);
-  RAJA::RangeSegment iRange(iMin, iMax);
+  RAJA::RangeSegment jRangeSeg(jRange[0], jRange[1]);
+  RAJA::RangeSegment iRangeSeg(iRange[0], iRange[1]);
   using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
-  RAJA::kernel<EXEC_POL>(RAJA::make_tuple(iRange, jRange), std::forward<KernelType>(kernel));
+  RAJA::kernel<EXEC_POL>(RAJA::make_tuple(iRangeSeg, jRangeSeg), std::forward<KernelType>(kernel));
 #else
-  for(IndexType j = jMin; j < jMax; j++)
+  for(IndexType j = jRange[0]; j < jRange[1]; j++)
   {
-    for(IndexType i = iMin; i < iMax; i++)
+    for(IndexType i = iRange[0]; i < iRange[1]; i++)
     {
       kernel(i, j);
     }
@@ -196,18 +192,17 @@ inline void for_all(IndexType iMin,
 template <typename ExecSpace, typename KernelType>
 inline void for_all(const axom::StackArray<IndexType, 2> &shape, KernelType &&kernel) noexcept
 {
-  for_all<ExecSpace>(0, shape[0], 0, shape[1], std::forward<KernelType>(kernel));
+  for_all<ExecSpace>(axom::StackArray<IndexType, 2>{{0, shape[0]}},
+                     axom::StackArray<IndexType, 2>{{0, shape[1]}},
+                     std::forward<KernelType>(kernel));
 }
 
 /*!
  * \brief Loops over a 3D specified contiguous range.
  *
- * \param [in] iMin The starting value in the inner loop.
- * \param [in] iMax The ending value in the inner loop.
- * \param [in] jMin The starting value in the middle loop.
- * \param [in] jMax The ending value in the middle loop.
- * \param [in] kMin The starting value in the outer loop.
- * \param [in] kMax The ending value in the outer loop.
+ * \param [in] iRange The start/end values for the inner loop.
+ * \param [in] jRange The start/end values for the middle loop.
+ * \param [in] kRange The start/end values for the outer loop.
  * \param [in] kernel user-supplied kernel, i.e., a lambda or functor.
  *
  * \tparam ExecSpace the execution space where to run the supplied kernel
@@ -226,7 +221,10 @@ inline void for_all(const axom::StackArray<IndexType, 2> &shape, KernelType &&ke
  *    IndexType NX = 100;
  *    IndexType NY = 300;
  *    IndexType NZ = 50;
- *    axom::for_all< axom::OMP_EXEC >(0, NX, 0, NY, 0, NZ, AXOM_LAMBDA( IndexType i, IndexType j, IndexType k ) {
+ *    axom::StackArray<IndexType> iRange{{0, NX}};
+ *    axom::StackArray<IndexType> kRange{{0, NY}};
+ *    axom::StackArray<IndexType> kRange{{0, NZ}};
+ *    axom::for_all< axom::OMP_EXEC >(iRange, jRange, kRange, AXOM_LAMBDA( IndexType i, IndexType j, IndexType k ) {
  *      const auto idx = (k * NX * NY) + (j * NX) + i;
  *      C[ idx ] = A[ idx ] + B[ idx ];
  *    } );
@@ -235,29 +233,26 @@ inline void for_all(const axom::StackArray<IndexType, 2> &shape, KernelType &&ke
  *
  */
 template <typename ExecSpace, typename KernelType>
-inline void for_all(IndexType iMin,
-                    IndexType iMax,
-                    IndexType jMin,
-                    IndexType jMax,
-                    IndexType kMin,
-                    IndexType kMax,
+inline void for_all(const axom::StackArray<IndexType, 2> &iRange,
+                    const axom::StackArray<IndexType, 2> &jRange,
+                    const axom::StackArray<IndexType, 2> &kRange,
                     KernelType &&kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
-  assert(iMax > iMin && jMax > jMin && kMax > kMin);
+  assert(iRange[1] > iRange[0] && jRange[1] > jRange[0] && kRange[1] > kRange[0]);
 
 #if defined(AXOM_USE_RAJA)
-  RAJA::RangeSegment kRange(kMin, kMax);
-  RAJA::RangeSegment jRange(jMin, jMax);
-  RAJA::RangeSegment iRange(iMin, iMax);
+  RAJA::RangeSegment iR(iRange[0], iRange[1]);
+  RAJA::RangeSegment jR(jRange[0], jRange[1]);
+  RAJA::RangeSegment kR(kRange[0], kRange[1]);
   using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop3d_policy;
-  RAJA::kernel<EXEC_POL>(RAJA::make_tuple(iRange, jRange, kRange), std::forward<KernelType>(kernel));
+  RAJA::kernel<EXEC_POL>(RAJA::make_tuple(iR, jR, kR), std::forward<KernelType>(kernel));
 #else
-  for(IndexType k = kMin; k < kMax; k++)
+  for(IndexType k = kRange[0]; k < kRange[1]; k++)
   {
-    for(IndexType j = jMin; j < jMax; j++)
+    for(IndexType j = jRange[0]; j < jRange[1]; j++)
     {
-      for(IndexType i = iMin; i < iMax; i++)
+      for(IndexType i = iRange[0]; i < iRange[1]; i++)
       {
         kernel(i, j, k);
       }
@@ -269,7 +264,7 @@ inline void for_all(IndexType iMin,
 /*!
  * \brief Loops over a 3D specified contiguous range.
  *
- * \param [in] shape An array containing the x,y,z sizes of the loop.
+ * \param [in] shape An array containing the x,y,z sizes of the loops.
  * \param [in] kernel user-supplied kernel, i.e., a lambda or functor.
  *
  * \tparam ExecSpace the execution space where to run the supplied kernel
@@ -300,7 +295,10 @@ inline void for_all(IndexType iMin,
 template <typename ExecSpace, typename KernelType>
 inline void for_all(const StackArray<IndexType, 3> &shape, KernelType &&kernel) noexcept
 {
-  for_all<ExecSpace>(0, shape[0], 0, shape[1], 0, shape[2], std::forward<KernelType>(kernel));
+  for_all<ExecSpace>(axom::StackArray<IndexType, 2>{{0, shape[0]}},
+                     axom::StackArray<IndexType, 2>{{0, shape[1]}},
+                     axom::StackArray<IndexType, 2>{{0, shape[2]}},
+                     std::forward<KernelType>(kernel));
 }
 
 /// @}
