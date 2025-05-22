@@ -508,8 +508,8 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string&
   axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
 
   exactGeomVols[geomName] = vScale * volumeOfTetMesh(tetMesh);
-  errorToleranceRel[geomName] = 1e-6;
-  errorToleranceAbs[geomName] = 1e-8;
+  errorToleranceRel[geomName] = 0.005;
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
 
   return tetMeshGeometry;
 }
