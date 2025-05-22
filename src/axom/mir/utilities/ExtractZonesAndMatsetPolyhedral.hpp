@@ -107,7 +107,8 @@ protected:
     // polyhedral output topology.
 
     constexpr int FacesPerHex = 6;
-    constexpr int PointsPerQuad = 4;
+    // Note: MSVC needs constexpr lambda capture to be marked `static` even though constexpr should suffice
+    static constexpr int PointsPerQuad = 4;
     constexpr std::uint8_t ZoneEmpty = 0;
     constexpr std::uint8_t ZoneSelected = 1 << 7;
 

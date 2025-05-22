@@ -18,6 +18,8 @@
 #include "axom/core/Types.hpp"
 #include "axom/core/utilities/StringUtilities.hpp"
 
+#include "axom/fmt.hpp"
+
 namespace axom
 {
 namespace sidre
@@ -66,7 +68,7 @@ inline bool indexIsValid(IndexType idx) { return idx != InvalidIndex; }
 /*!
  * \brief Returns true if name is valid, else false.
  */
-inline bool nameIsValid(const std::string& name)
+inline bool nameIsValid(const std::string &name)
 {
   return name != axom::utilities::string::InvalidName;
 }
@@ -171,7 +173,7 @@ struct SidreTT<axom::float64>
 {
   static const DataTypeId id = FLOAT64_ID;
 };
-} /* end namespace detail */
+}  // namespace detail
 /// @endcond
 
 /*!
@@ -186,7 +188,72 @@ using TypeID = DataTypeId;
  */
 inline TypeID getTypeID(const int typeID) { return static_cast<TypeID>(typeID); }
 
-} /* end namespace sidre */
-} /* end namespace axom */
+}  // namespace sidre
 
-#endif /* SIDRE_TYPES_HPP_ */
+// Add fmt formatter for axom::sidre::DataTypeId enum
+namespace fmt
+{
+
+template <>
+struct formatter<axom::sidre::DataTypeId>
+{
+  // no format specifiers in this example
+  constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
+
+  template <typename FormatContext>
+  auto format(axom::sidre::DataTypeId dt, FormatContext &ctx)
+  {
+    // map enum to its name
+    std::string name;
+    switch(dt)
+    {
+    case axom::sidre::NO_TYPE_ID:
+      name = "NO_TYPE_ID";
+      break;
+    case axom::sidre::INT8_ID:
+      name = "INT8_ID";
+      break;
+    case axom::sidre::INT16_ID:
+      name = "INT16_ID";
+      break;
+    case axom::sidre::INT32_ID:
+      name = "INT32_ID";
+      break;
+    case axom::sidre::INT64_ID:
+      name = "INT64_ID";
+      break;
+    case axom::sidre::UINT8_ID:
+      name = "UINT8_ID";
+      break;
+    case axom::sidre::UINT16_ID:
+      name = "UINT16_ID";
+      break;
+    case axom::sidre::UINT32_ID:
+      name = "UINT32_ID";
+      break;
+    case axom::sidre::UINT64_ID:
+      name = "UINT64_ID";
+      break;
+    case axom::sidre::CHAR8_STR_ID:
+      name = "CHAR8_STR_ID";
+      break;
+    case axom::sidre::FLOAT_ID:
+      name = "FLOAT_ID";
+      break;
+    case axom::sidre::DOUBLE_ID:
+      name = "DOUBLE_ID";
+      break;
+    default:
+      // fallback to printing the underlying integer
+      return fmt::format_to(ctx.out(),
+                            "DataTypeId({})",
+                            static_cast<std::underlying_type_t<axom::sidre::DataTypeId>>(dt));
+    }
+
+    return fmt::format_to(ctx.out(), "{}", name);
+  }
+};
+}  // namespace fmt
+}  // namespace axom
+
+#endif  // SIDRE_TYPES_HPP_
