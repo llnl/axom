@@ -50,15 +50,15 @@ namespace axom
 namespace quest
 {
 
-  #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
-    #if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
+  #if defined(AXOM_USE_CONDUIT)
 static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT64_ID;
-    #endif
-  #else
-    #if defined(AXOM_USE_CONDUIT)
-static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT32_ID;
-    #endif
   #endif
+#else
+  #if defined(AXOM_USE_CONDUIT)
+static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT32_ID;
+  #endif
+#endif
 
 /*!
  * \class TempArrayView
@@ -149,7 +149,7 @@ private:
    */
   AXOM_HOST_DEVICE void finalize() { m_deviceData = nullptr; }
 
-  #if (defined(AXOM_RUNTIME_POLICY_USE_CUDA) || defined(AXOM_RUNTIME_POLICY_USE_HIP))
+#if(defined(AXOM_RUNTIME_POLICY_USE_CUDA) || defined(AXOM_RUNTIME_POLICY_USE_HIP))
   /*!
    * \brief Initializes members using data from the grid function. This method
    *        is called on the host and it copies data to the device.
@@ -176,7 +176,7 @@ private:
    */
   AXOM_HOST_DEVICE void finalizeDevice()
   {
-    #ifndef AXOM_DEVICE_CODE
+  #ifndef AXOM_DEVICE_CODE
     // Only the host will do this work.
     if(m_hostData != nullptr)
     {
@@ -188,9 +188,9 @@ private:
       axom::deallocate(m_deviceData);
       m_deviceData = nullptr;
     }
-    #endif
-  }
   #endif
+  }
+#endif
 
 private:
   double* m_hostData {nullptr};
@@ -199,7 +199,7 @@ private:
   bool m_needResult {false};
 };
 
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 /*!
  * \brief CUDA specialization that calls initializeDevice to copy data
  *        from the host to the device.
@@ -223,8 +223,8 @@ AXOM_HOST_DEVICE inline void TempArrayView<cuda_exec>::finalize()
 {
   finalizeDevice();
 }
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 /*!
  * \brief HIP specialization that calls initializeDevice to copy data
  *        from the host to the device.
@@ -248,7 +248,7 @@ AXOM_HOST_DEVICE inline void TempArrayView<hip_exec>::finalize()
 {
   finalizeDevice();
 }
-  #endif
+#endif
 
 //---------------------------------------------------------------------------
 /**
@@ -333,7 +333,7 @@ public:
   static constexpr double DEFAULT_REVOLVED_VOLUME {0.};
 
 public:
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
   /*!
     \brief Construct Shaper to operate on an MFEM mesh.
   */
@@ -345,9 +345,9 @@ public:
   {
     m_free_mat_name = "free";
   }
-  #endif
+#endif
 
-  #if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT)
   /*!
     \brief Construct Shaper to operate on a blueprint-formatted mesh
     stored in a sidre Group.
@@ -378,7 +378,7 @@ public:
     : Shaper(runtimePolicy, allocatorId, shapeSet, bpNode, topo)
     , m_free_mat_name("free")
   { }
-  #endif
+#endif
 
   //!@brief Set data that depends on mesh (but not on shapes).
   template <typename ShapeType>
@@ -394,21 +394,21 @@ public:
       case RuntimePolicy::seq:
         setMeshDependentDataImpl2D<seq_exec>();
         break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         setMeshDependentDataImpl2D<omp_exec>();
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         setMeshDependentDataImpl2D<cuda_exec>();
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         setMeshDependentDataImpl2D<hip_exec>();
         break;
-  #endif
+#endif
       default:
         SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
         break;
@@ -422,21 +422,21 @@ public:
       case RuntimePolicy::seq:
         setMeshDependentDataImpl3D<seq_exec>();
         break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         setMeshDependentDataImpl3D<omp_exec>();
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         setMeshDependentDataImpl3D<cuda_exec>();
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         setMeshDependentDataImpl3D<hip_exec>();
         break;
-  #endif
+#endif
       default:
         SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
         break;
@@ -616,13 +616,13 @@ public:
     }
   }
 
-  // The following private methods are made public due to CUDA compilers
-  // requirements for methods that call device functions.
-  #if defined(__CUDACC__)
+// The following private methods are made public due to CUDA compilers
+// requirements for methods that call device functions.
+#if defined(__CUDACC__)
 public:
-  #else
+#else
 private:
-  #endif
+#endif
 
   //@{
   //!  @name Private functions related to the stages for a given shape
@@ -1708,21 +1708,21 @@ public:
     case RuntimePolicy::seq:
       applyReplacementRulesImpl<seq_exec>(shape);
       break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     case RuntimePolicy::omp:
       applyReplacementRulesImpl<omp_exec>(shape);
       break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     case RuntimePolicy::cuda:
       applyReplacementRulesImpl<cuda_exec>(shape);
       break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     case RuntimePolicy::hip:
       applyReplacementRulesImpl<hip_exec>(shape);
       break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
     }
     AXOM_UNUSED_VAR(shape);
   }
@@ -1766,21 +1766,21 @@ public:
     case RuntimePolicy::seq:
       prepareShapeQueryImpl<seq_exec>(shapeDimension, shape);
       break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     case RuntimePolicy::omp:
       prepareShapeQueryImpl<omp_exec>(shapeDimension, shape);
       break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     case RuntimePolicy::cuda:
       prepareShapeQueryImpl<cuda_exec>(shapeDimension, shape);
       break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     case RuntimePolicy::hip:
       prepareShapeQueryImpl<hip_exec>(shapeDimension, shape);
       break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
     }
     AXOM_UNUSED_VAR(shapeDimension);
     AXOM_UNUSED_VAR(shape);
@@ -1809,21 +1809,21 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery3DImpl<seq_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery3DImpl<omp_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         runShapeQuery3DImpl<cuda_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         runShapeQuery3DImpl<hip_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
       }
     }
     else if(shapeFormat == "c2c" && getCompMeshDim() == 3)
@@ -1833,21 +1833,21 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery3DImpl<seq_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery3DImpl<omp_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         runShapeQuery3DImpl<cuda_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         runShapeQuery3DImpl<hip_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
       }
     }
     else if(shapeFormat == "c2c" && getCompMeshDim() == 2)
@@ -1857,21 +1857,21 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery2DImpl<seq_exec>(shape, m_tris, m_tricount);
         break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery2DImpl<omp_exec>(shape, m_tris, m_tricount);
         break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         runShapeQuery2DImpl<cuda_exec>(shape, m_tris, m_tricount);
         break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         runShapeQuery2DImpl<hip_exec>(shape, m_tris, m_tricount);
         break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
       }
     }
     else if(shapeFormat == "stl" || surfaceMeshIsTri())
@@ -1881,21 +1881,21 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery2DImpl<seq_exec>(shape, m_tris, m_tricount);
         break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery2DImpl<omp_exec>(shape, m_tris, m_tricount);
         break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         runShapeQuery2DImpl<cuda_exec>(shape, m_tris, m_tricount);
         break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         runShapeQuery2DImpl<hip_exec>(shape, m_tris, m_tricount);
         break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
       }
     }
     else
@@ -1913,21 +1913,21 @@ public:
     double overlapVol = 0.0;
     switch(m_execPolicy)
     {
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     case RuntimePolicy::omp:
       overlapVol = sumArray<omp_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     case RuntimePolicy::cuda:
       overlapVol = sumArray<cuda_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     case RuntimePolicy::hip:
       overlapVol = sumArray<hip_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
     case RuntimePolicy::seq:
     default:
       overlapVol = sumArray<seq_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
@@ -1945,7 +1945,8 @@ public:
   Summable sumArray(const Summable* a, axom::IndexType count) const
   {
     axom::ReduceSum<ExecSpace, Summable> vsum {0};
-    axom::for_all<ExecSpace>(count, 
+    axom::for_all<ExecSpace>(
+      count,
       AXOM_LAMBDA(axom::IndexType i) { vsum += a[i]; });
     Summable sum = static_cast<Summable>(vsum.get());
     return sum;
@@ -1959,7 +1960,7 @@ public:
   std::vector<std::string> getMaterialNames() const
   {
     std::vector<std::string> materialNames;
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_dc)
     {
       for(auto it : this->getDC()->GetFieldMap())
@@ -1971,8 +1972,8 @@ public:
         }
       }
     }
-  #endif
-  #if defined(AXOM_USE_CONDUIT)
+#endif
+#if defined(AXOM_USE_CONDUIT)
     if(m_bpGrp)
     {
       auto fieldsGrp = m_bpGrp->getGroup("fields");
@@ -1986,7 +1987,7 @@ public:
         }
       }
     }
-  #endif
+#endif
     return materialNames;
   }
 
@@ -2018,33 +2019,33 @@ public:
     SLIC_ASSERT(!matVolFrac.empty());
     if(makeNewData)
     {
-        // Zero out the volume fractions (on host).
-  #ifdef AXOM_USE_UMPIRE
+      // Zero out the volume fractions (on host).
+#ifdef AXOM_USE_UMPIRE
       auto allocId = matVolFrac.getAllocatorID();
       const axom::MemorySpace memorySpace = axom::detail::getAllocatorSpace(allocId);
       const bool onDevice =
         memorySpace == axom::MemorySpace::Device || memorySpace == axom::MemorySpace::Unified;
-  #else
+#else
       const bool onDevice = false;
-  #endif
+#endif
       if(onDevice)
       {
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
         if(m_execPolicy == RuntimePolicy::cuda)
         {
           axom::for_all<axom::CUDA_EXEC<256>>(
             matVolFrac.size(),
             AXOM_LAMBDA(axom::IndexType i) { matVolFrac[i] = 0.0; });
         }
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
         if(m_execPolicy == RuntimePolicy::hip)
         {
           axom::for_all<axom::HIP_EXEC<256>>(
             matVolFrac.size(),
             AXOM_LAMBDA(axom::IndexType i) { matVolFrac[i] = 0.0; });
         }
-  #endif
+#endif
       }
       else
       {
@@ -2505,19 +2506,19 @@ private:
   bool hasData(const std::string& fieldName)
   {
     bool has = false;
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
     {
       has = m_dc->HasField(fieldName);
     }
-  #endif
-  #if defined(AXOM_USE_CONDUIT)
+#endif
+#if defined(AXOM_USE_CONDUIT)
     if(m_bpGrp != nullptr)
     {
       std::string fieldPath = axom::fmt::format("fields/{}", fieldName);
       has = m_bpGrp->hasGroup(fieldPath);
     }
-  #endif
+#endif
     return has;
   }
 
@@ -2536,7 +2537,7 @@ private:
   {
     axom::ArrayView<double> rval;
 
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
     {
       mfem::GridFunction* gridFunc = nullptr;
@@ -2551,9 +2552,9 @@ private:
       }
       rval = axom::ArrayView<double>(gridFunc->GetData(), gridFunc->Size());
     }
-  #endif
+#endif
 
-  #if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT)
     if(m_bpGrp != nullptr)
     {
       std::string fieldPath = "fields/" + fieldName;
@@ -2609,14 +2610,14 @@ private:
 
       rval = axom::ArrayView<double>(static_cast<double*>(valuesView->getVoidPtr()), m_cellCount);
     }
-  #endif
+#endif
     return rval;
   }
 
-  #if defined(__CUDACC__)
+#if defined(__CUDACC__)
 public:
-      // These methods should be private, but NVCC complains unless they're public.
-  #endif
+    // These methods should be private, but NVCC complains unless they're public.
+#endif
 
   template <typename ExecSpace>
   void populateQuadsFromMesh()
@@ -2630,18 +2631,18 @@ public:
                                    m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
                                    allocId);
 
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
     {
       populateVertCoordsFromMFEMMesh<ExecSpace>(vertCoords, 2);
     }
-  #endif
-  #if defined(AXOM_USE_CONDUIT)
+#endif
+#if defined(AXOM_USE_CONDUIT)
     if(m_bpGrp != nullptr)
     {
       populateVertCoordsFromBlueprintMesh2D<ExecSpace>(vertCoords);
     }
-  #endif
+#endif
 
     auto vertCoords_device_view = vertCoords.view();
 
@@ -2676,18 +2677,18 @@ public:
                                    m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
                                    allocId);
 
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
     {
       populateVertCoordsFromMFEMMesh<ExecSpace>(vertCoords, 3);
     }
-  #endif
-  #if defined(AXOM_USE_CONDUIT)
+#endif
+#if defined(AXOM_USE_CONDUIT)
     if(m_bpGrp != nullptr)
     {
       populateVertCoordsFromBlueprintMesh3D<ExecSpace>(vertCoords);
     }
-  #endif
+#endif
 
     auto vertCoords_device_view = vertCoords.view();
 
@@ -2708,7 +2709,7 @@ public:
       });  // end of loop to initialize hexahedral elements and bounding boxes
   }
 
-  #if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT)
   template <typename ExecSpace>
   void populateVertCoordsFromBlueprintMesh2D(axom::Array<double>& vertCoords)
   {
@@ -2853,9 +2854,9 @@ public:
         }
       });
   }
-  #endif  // AXOM_USE_CONDUIT
+#endif  // AXOM_USE_CONDUIT
 
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
 
   template <typename ExecSpace>
   void populateVertCoordsFromMFEMMesh(axom::Array<double>& vertCoords, int dim)
@@ -2942,7 +2943,7 @@ private:
 
     return volFrac;
   }
-  #endif  // AXOM_USE_MFEM
+#endif  // AXOM_USE_MFEM
 
   // Check that surface mesh is composed of 3D Tetrahedra
   bool surfaceMeshIsTet() const
@@ -2967,13 +2968,13 @@ private:
   int getCompMeshDim()
   {
     int dim = -1;
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
     {
       dim = this->getDC()->GetMesh()->SpaceDimension();
     }
-  #endif
-  #if defined(AXOM_USE_CONDUIT)
+#endif
+#if defined(AXOM_USE_CONDUIT)
     if(m_bpGrp != nullptr)
     {
       std::string mesh_type = m_bpGrp->getView("topologies/mesh/elements/shape")->getString();
@@ -2986,7 +2987,7 @@ private:
         dim = 2;
       }
     }
-  #endif
+#endif
 
     SLIC_ERROR_IF(!(dim == 2 || dim == 3), "Invalid computational mesh dimension");
     return dim;
