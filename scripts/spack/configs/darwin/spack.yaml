@@ -17,6 +17,10 @@ spack:
   # Regular TPLs do not need views
   view: false
 
+  include:
+  - ../defaults.yaml
+  - ../versions.yaml
+
   compilers::
   - compiler:
       environment: {}
@@ -118,17 +122,10 @@ spack:
     cmake:
       version: [3.9.6]
 
-    # Globally lock version of third party libraries
-    conduit:
-      require: "@0.8.6~shared~test~examples~utilities"
-    hdf5:
-      variants: ~shared~mpi
+    # Add some additional contraints to third party libraries
     mfem:
-      require: "@4.5~mpi~metis~zlib"
-    raja:
-      variants: ~shared~examples~exercises
-    scr:
-      version: [develop]
-      variants: ~shared
+      require: 
+      - spec: "~mpi~metis~zlib"
     umpire:
-      variants: ~shared~examples
+      require: 
+      - spec: "~shared"

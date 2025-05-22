@@ -17,6 +17,10 @@ spack:
   # Regular TPLs do not need views
   view: false
 
+  include:
+  - ../defaults.yaml
+  - ../versions.yaml
+
   # Target specific AMD GPU architectures for specific machines:
   #
   # - Use amdgpu_target=gfx942 for rzadams
@@ -198,6 +202,25 @@ spack:
       - spec: hip@6.3.1
         prefix: /opt/rocm-6.3.1
 
+    hipblas:
+      version: [5.2.3, 5.4.3, 5.6.0, 5.7.1, 6.1.2, 6.2.1, 6.3.1]
+      buildable: false
+      externals:
+      - spec: hipblas@5.2.3
+        prefix: /opt/rocm-5.2.3
+      - spec: hipblas@5.4.3
+        prefix: /opt/rocm-5.4.3
+      - spec: hipblas@5.6.0
+        prefix: /opt/rocm-5.6.0
+      - spec: hipblas@5.7.1
+        prefix: /opt/rocm-5.7.1
+      - spec: hipblas@6.1.2
+        prefix: /opt/rocm-6.1.2
+      - spec: hipblas@6.2.1
+        prefix: /opt/rocm-6.2.1
+      - spec: hipblas@6.3.1
+        prefix: /opt/rocm-6.3.1
+
     hipsparse:
       version: [5.2.3, 5.4.3, 5.6.0, 5.7.1, 6.1.2, 6.2.1, 6.3.1]
       buildable: false
@@ -254,6 +277,7 @@ spack:
         prefix: /opt/rocm-6.2.1/
       - spec: hsa-rocr-dev@6.3.1
         prefix: /opt/rocm-6.3.1/
+
     rocblas:
       version: [5.2.3, 5.4.3, 5.6.0, 5.7.1, 6.1.2, 6.2.1, 6.3.1]
       buildable: false
@@ -333,6 +357,7 @@ spack:
     # Lock down which MPI we are using
     mpi:
       buildable: false
+
     cray-mpich:
       buildable: false
       externals:
@@ -543,31 +568,6 @@ spack:
       - spec: pdsh@2.33
         prefix: /usr
 
-    # Globally lock version of third party libraries
-    adiak:
-      require: "@0.4.0"
-    caliper:
-      require: "@2.12.1~kokkos"
-    camp:
-      require: "@2025.03.0"
-    # v0.9.3
-    conduit:
-      require: "@git.2eec1ad9548cf6d629e2145181ff7b8cef0a38fa~shared~test~examples~utilities"
-    hdf5:
-      variants: ~shared~mpi
-    hypre:
-      version: [2.24.0]
-    mfem:
-      require: "@4.7.0"
-    py-jsonschema:
-      require: "@:4.17" #Anything after this requires py-rpds which requires rust and adds 40 minutes
-    raja:
-      require: "@2025.03.0~shared~examples~exercises"
-    scr:
-      require: "@3.0.1~shared~tests~examples"
-    umpire:
-      require: "@2025.03.0~shared~examples~werror"
-
     # Failure with cce compiler:
     # https://github.com/besser82/libxcrypt/issues/181
     # Fix:
@@ -576,9 +576,14 @@ spack:
       require:
       - ldflags=-Wl,--undefined-version
 
+    # Some additional platform-specific constraints for third party libraries
+    umpire:
+      require:
+      - spec: "~shared"
     # cce compiler requires static zlib
     zlib:
-      variants: ~shared
+      require:
+      - spec: "~shared"
 
     # Lock in versions of Devtools
     # Devtools are built on rzvernal for compatibility with both

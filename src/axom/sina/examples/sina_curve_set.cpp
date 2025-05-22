@@ -110,7 +110,7 @@ int main()
   std::unique_ptr<axom::sina::Record> study {new axom::sina::Record {id, "ball bounce study"}};
 
   addCurveSet(*study, bounceData, "ball_bounce");
-  doc.add(move(study));
+  doc.add(std::move(study));
   axom::sina::saveDocument(doc, "ball_bounce.json");
 
   return 0;
