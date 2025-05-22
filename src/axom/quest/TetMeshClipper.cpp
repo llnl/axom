@@ -74,8 +74,8 @@ void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
 
   constexpr int NUM_VERTS_PER_CELL = 8;
 
-  int allocId = shapeeMesh.getAllocatorId();
   auto cellCount = shapeeMesh.getCellCount();
+  int allocId = shapeeMesh.getAllocatorID();
   auto vertCount = shapeeMesh.getVertexCount();
 
   const auto& vertCoords = shapeeMesh.getVertexCoords3D();
@@ -139,7 +139,7 @@ bool TetMeshClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Arra
 {
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::getGeometryAsTets");
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-  const int allocId = shapeeMesh.getAllocatorId();
+  const int allocId = shapeeMesh.getAllocatorID();
 
   if(tets.getAllocatorID() != allocId || tets.size() != m_cellCount)
   {

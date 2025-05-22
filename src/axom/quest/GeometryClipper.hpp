@@ -53,7 +53,7 @@ public:
   ShapeeMesh& getShapeeMesh() { return m_shapeeMesh; }
 
   //!@brief Allocator id to be used for all array data.
-  int getAllocatorId() const { return m_shapeeMesh.getAllocatorId(); }
+  int getAllocatorID() const { return m_shapeeMesh.getAllocatorID(); }
 
   void setVerbose(bool verbose) { m_verbose = verbose; }
 

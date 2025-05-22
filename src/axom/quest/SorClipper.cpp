@@ -35,6 +35,12 @@ bool SorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType
 {
   AXOM_UNUSED_VAR(shapeeMesh);
   AXOM_UNUSED_VAR(labels);
+  /*
+    Planned implementation: (reverse) transform the mesh vertices to the
+    r-z frame where the curve is defined as a 1D function.  It's easier
+    to determine whether the point is in the sor that way.  I can check
+    the SOR one conical section at a time.
+  */
   return false;  // TODO: implement SorClipper::labelInOut
 }
 
@@ -44,7 +50,7 @@ bool SorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Oc
 {
   AXOM_ANNOTATE_BEGIN("SorClipper::getGeometryAsOcts");
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-  const int allocId = shapeeMesh.getAllocatorId();
+  const int allocId = shapeeMesh.getAllocatorID();
 
   if(octs.getAllocatorID() != allocId || octs.size() != 0)
   {

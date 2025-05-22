@@ -114,7 +114,7 @@ public:
 
     ShapeeMesh& shapeeMesh = getDelegator().getShapeeMesh();
 
-    const int allocId = shapeeMesh.getAllocatorId();
+    const int allocId = shapeeMesh.getAllocatorID();
 
     const IndexType cellCount = shapeeMesh.getCellCount();
 
@@ -147,7 +147,7 @@ public:
     if(useTets)
     {
       axom::for_all<ExecSpace>(
-        bbCount,
+        pieceBbsView.size(),
         AXOM_LAMBDA(axom::IndexType i) {
           pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
         });
@@ -155,7 +155,7 @@ public:
     else
     {
       axom::for_all<ExecSpace>(
-        bbCount,
+        pieceBbsView.size(),
         AXOM_LAMBDA(axom::IndexType i) {
           pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomOctsView[i]);
         });
@@ -163,7 +163,7 @@ public:
 
     // Insert shapes' Bounding Boxes into BVH.
     spin::BVH<3, ExecSpace, double> bvh;
-    bvh.initialize(pieceBbsView, bbCount);
+    bvh.initialize(pieceBbsView, pieceBbsView.size());
 
     SLIC_INFO(axom::fmt::format("{:-^80}", " Querying the BVH tree "));
 
@@ -339,7 +339,7 @@ public:
 
     ShapeeMesh& shapeeMesh = getDelegator().getShapeeMesh();
 
-    const int allocId = shapeeMesh.getAllocatorId();
+    const int allocId = shapeeMesh.getAllocatorID();
 
     const IndexType cellCount = shapeeMesh.getCellCount();
 
@@ -372,7 +372,7 @@ public:
     if(useTets)
     {
       axom::for_all<ExecSpace>(
-        bbCount,
+        pieceBbsView.size(),
         AXOM_LAMBDA(axom::IndexType i) {
           pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomTetsView[i]);
         });
@@ -380,7 +380,7 @@ public:
     else
     {
       axom::for_all<ExecSpace>(
-        bbCount,
+        pieceBbsView.size(),
         AXOM_LAMBDA(axom::IndexType i) {
           pieceBbsView[i] = primal::compute_bounding_box<double, 3>(geomOctsView[i]);
         });
@@ -388,7 +388,7 @@ public:
 
     // Insert shapes' Bounding Boxes into BVH.
     spin::BVH<3, ExecSpace, double> bvh;
-    bvh.initialize(pieceBbsView, bbCount);
+    bvh.initialize(pieceBbsView, pieceBbsView.size());
 
     SLIC_INFO(axom::fmt::format("{:-^80}", " Querying the BVH tree "));
 

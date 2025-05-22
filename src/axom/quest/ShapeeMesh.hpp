@@ -45,15 +45,19 @@ class ShapeeMesh
 {
 public:
   using RuntimePolicy = axom::runtime_policy::Policy;
+  using Point3DType = primal::Point<double, 3>;
   using TetrahedronType = primal::Tetrahedron<double, 3>;
   using HexahedronType = primal::Hexahedron<double, 3>;
-  using BoundingBox3dType = primal::BoundingBox<double, 3>;
+  using BoundingBox3DType = primal::BoundingBox<double, 3>;
 
   /*!
     @brief Constructor with computational mesh in a conduit::Node.
 
     @param [in] runtimePolicy
     @param [in] allocatorId Allocator id for internal and scratch space.
+      It should be compatible with @c runtimePolicy.
+      If axom::INVALID_ALLOCATOR_ID is specified, it will be
+      replaced with the default allocator for @c runtimePolicy.
     @param [in/out] bpMesh Blueprint mesh to shape into.
     @param [in] topoName Name of the Blueprint topology.  If empty,
       use the first topology in @c bpMesh.
@@ -109,7 +113,7 @@ public:
   /*!
     @brief Runtime policy set in constructor.
 
-    getAllocatorId() and getRuntimePolicy() are guaranteed to be
+    getAllocatorID() and getRuntimePolicy() are guaranteed to be
     compatible.
   */
   RuntimePolicy getRuntimePolicy() const { return m_runtimePolicy; }
@@ -117,10 +121,10 @@ public:
   /*!
     @brief Allocator id set in constructor.
 
-    getAllocatorId() and getRuntimePolicy() are guaranteed to be
+    getAllocatorID() and getRuntimePolicy() are guaranteed to be
     compatible.
   */
-  int getAllocatorId() const { return m_allocId; }
+  int getAllocatorID() const { return m_allocId; }
 
   /*
     !@brief Return computational mesh as a sidre::Group if it has
@@ -149,7 +153,11 @@ public:
 
   //@{
   //!@name Accessors to mesh-dependent intermediate data.
-  // This data is dynamically generated as needed, and cached.
+  /*
+    This data is dynamically generated as needed, and cached for use
+    by multiple geometry clippers.  The idea is to eliminate redundant
+    code and computations.
+  */
   /*!
     @brief Tetrahedral version of mesh cells with cell i having tet ids
     [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX].
@@ -157,8 +165,10 @@ public:
   axom::ArrayView<const TetrahedronType> getCellsAsTets();
   axom::ArrayView<const HexahedronType> getCellsAsHexes();
   axom::ArrayView<const double> getCellVolumes();
-  axom::ArrayView<const BoundingBox3dType> getCellBoundingBoxes();
+  axom::ArrayView<const BoundingBox3DType> getCellBoundingBoxes();
+  axom::ArrayView<const BoundingBox3DType> getVertBoundingBoxes();
   axom::ArrayView<const IndexType, 2> getConnectivity();
+  axom::ArrayView<const Point3DType> getVertexPoints();
   const axom::StackArray<axom::ArrayView<const double>, 3>& getVertexCoords3D() const
   {
     return m_vertCoordsViews3D;
@@ -228,6 +238,9 @@ private:
   //!@brief 3D Vertex coordinates as 1D ArrayViews.
   axom::StackArray<axom::ArrayView<const double>, 3> m_vertCoordsViews3D;
 
+  //!@brief 3D Vertex coordinates as 1D Points.
+  axom::Array<Point3DType> m_vertPoints3D;
+
   //!@brief Vertex indices for each cell.
   axom::ArrayView<const axom::IndexType, 2> m_connectivity;
 
@@ -238,7 +251,7 @@ private:
   axom::Array<double> m_hexVolumes;
 
   //!@brief Bounding boxes for m_cellsAsHexes.
-  axom::Array<BoundingBox3dType> m_hexBbs;
+  axom::Array<BoundingBox3DType> m_hexBbs;
 
   //!@brief m_cellsAsHexes, of length 24*m_cellCount.
   axom::Array<TetrahedronType> m_cellsAsTets;
@@ -247,6 +260,7 @@ private:
   void computeCellsAsTets();
   void computeHexVolumes();
   void computeHexBbs();
+  void computeVertPoints();
   void computeConnectivity();
 
 #if defined(__CUDACC__)
@@ -264,6 +278,9 @@ public:
 
   template <typename ExecSpace>
   void computeHexBbsImpl();
+
+  template <typename ExecSpace>
+  void computeVertPointsImpl();
 
   template <typename ExecSpace, typename T>
   void elementwiseDivideImpl(const T* numerator, const T* denominator, T* quotient, axom::IndexType n);

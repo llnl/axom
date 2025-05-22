@@ -85,7 +85,7 @@ void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
 
   constexpr int NUM_VERTS_PER_CELL = 8;
 
-  int allocId = shapeeMesh.getAllocatorId();
+  int allocId = shapeeMesh.getAllocatorID();
   auto cellCount = shapeeMesh.getCellCount();
   auto vertCount = shapeeMesh.getVertexCount();
 
@@ -131,7 +131,7 @@ void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
       }
     });
 
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorId())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
   {
     labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
@@ -167,7 +167,7 @@ void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
 bool TetClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
 {
   AXOM_ANNOTATE_BEGIN("TetClipper::getGeometryAsTets");
-  int allocId = shapeeMesh.getAllocatorId();
+  int allocId = shapeeMesh.getAllocatorID();
   if(tets.getAllocatorID() != allocId || tets.size() != 1)
   {
     tets = axom::Array<TetrahedronType>(1, 1, allocId);

@@ -92,7 +92,7 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
 
   constexpr int NUM_VERTS_PER_CELL = 8;
 
-  int allocId = shapeeMesh.getAllocatorId();
+  int allocId = shapeeMesh.getAllocatorID();
   auto cellCount = shapeeMesh.getCellCount();
   auto vertCount = shapeeMesh.getVertexCount();
 
@@ -142,7 +142,7 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
       }
     });
 
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorId())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
   {
     labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
@@ -185,7 +185,7 @@ void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
 bool HexClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
 {
   AXOM_ANNOTATE_BEGIN("HexClipper::getGeometryAsTets");
-  int allocId = shapeeMesh.getAllocatorId();
+  int allocId = shapeeMesh.getAllocatorID();
   if(tets.getAllocatorID() != allocId || tets.size() != HexahedronType::NUM_TRIANGULATE)
   {
     tets = axom::Array<TetrahedronType>(HexahedronType::NUM_TRIANGULATE,

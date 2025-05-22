@@ -195,13 +195,22 @@ axom::ArrayView<const double> ShapeeMesh::getCellVolumes()
   return m_hexVolumes.view();
 }
 
-axom::ArrayView<const ShapeeMesh::BoundingBox3dType> ShapeeMesh::getCellBoundingBoxes()
+axom::ArrayView<const ShapeeMesh::BoundingBox3DType> ShapeeMesh::getCellBoundingBoxes()
 {
   if(m_hexBbs.size() != m_cellCount)
   {
     computeHexBbs();
   }
   return m_hexBbs.view();
+}
+
+axom::ArrayView<const ShapeeMesh::Point3DType> ShapeeMesh::getVertexPoints()
+{
+  if(m_vertPoints3D.size() != m_vertexCount)
+  {
+    computeVertPoints();
+  }
+  return m_vertPoints3D.view();
 }
 
 axom::ArrayView<const axom::IndexType, 2> ShapeeMesh::getConnectivity()
@@ -593,6 +602,34 @@ void ShapeeMesh::computeHexBbs()
   }
 }
 
+void ShapeeMesh::computeVertPoints()
+{
+  AXOM_ANNOTATE_SCOPE("ShapeeMesh::computeVertPoints(");
+  switch(m_runtimePolicy)
+  {
+  case RuntimePolicy::seq:
+    computeVertPointsImpl<axom::SEQ_EXEC>();
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case RuntimePolicy::omp:
+    computeVertPointsImpl<axom::OMP_EXEC>();
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case RuntimePolicy::cuda:
+    computeVertPointsImpl<axom::CUDA_EXEC<256>>();
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case RuntimePolicy::hip:
+    computeVertPointsImpl<axom::HIP_EXEC<256>>();
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+}
+
 void ShapeeMesh::computeConnectivity()
 {
   SLIC_ASSERT(m_dim == 3);  // 2D support not done yet.
@@ -709,7 +746,7 @@ template <typename ExecSpace>
 void ShapeeMesh::computeHexBbsImpl()
 {
   m_hexBbs =
-    axom::Array<BoundingBox3dType>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
+    axom::Array<BoundingBox3DType>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
 
   auto cellsAsHexes = getCellsAsHexes();
 
@@ -719,6 +756,24 @@ void ShapeeMesh::computeHexBbsImpl()
     AXOM_LAMBDA(axom::IndexType i) {
       hexBbsView[i] = primal::compute_bounding_box<double, 3>(cellsAsHexes[i]);
     });
+}
+
+template <typename ExecSpace>
+void ShapeeMesh::computeVertPointsImpl()
+{
+  m_vertPoints3D =
+    axom::Array<Point3DType>(m_vertexCount, m_vertexCount, m_allocId);
+
+  auto& vertCoords = getVertexCoords3D();
+  const auto& vX = vertCoords[0];
+  const auto& vY = vertCoords[1];
+  const auto& vZ = vertCoords[2];
+
+  auto vertPointsView = m_vertPoints3D.view();
+  axom::for_all<ExecSpace>(m_vertexCount,
+                           AXOM_LAMBDA(axom::IndexType vi) {
+                             vertPointsView[vi] = Point3DType{vX[vi], vY[vi], vZ[vi]};
+                             });
 }
 
 template <typename ExecSpace, typename T>

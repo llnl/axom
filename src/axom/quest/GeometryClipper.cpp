@@ -35,7 +35,7 @@ GeometryClipper::GeometryClipper(quest::ShapeeMesh& shapeeMesh,
 */
 void GeometryClipper::clip(axom::Array<double>& ovlap)
 {
-  const int allocId = m_shapeeMesh.getAllocatorId();
+  const int allocId = m_shapeeMesh.getAllocatorID();
   const axom::IndexType cellCount = m_shapeeMesh.getCellCount();
 
   // Resize output array and use appropriate allocator.

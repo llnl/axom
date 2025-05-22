@@ -66,7 +66,7 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
 
   constexpr int NUM_VERTS_PER_CELL = 8;
 
-  int allocId = shapeeMesh.getAllocatorId();
+  int allocId = shapeeMesh.getAllocatorID();
   auto cellCount = shapeeMesh.getCellCount();
   auto vertCount = shapeeMesh.getVertexCount();
 
@@ -94,7 +94,7 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
       vertIsInsideView[vertId] = signedDist < 0;
     });
 
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorId())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
   {
     labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
@@ -187,7 +187,7 @@ bool SphereClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh,
 
   auto octsView = octs.view();
   auto transformer = m_transformer;
-  int allocId = shapeeMesh.getAllocatorId();
+  int allocId = shapeeMesh.getAllocatorID();
   axom::for_all<axom::SEQ_EXEC>(
     octCount,
     AXOM_LAMBDA(axom::IndexType iOct) {
