@@ -58,7 +58,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   is from a Pro-E tetrahedral mesh to an STL mesh of its boundary triangles.
 - Primal: Adds a method to determine if a point is contained within a Tetrahedron.
 - The `primal::BoundingBox` class' `expand()` and `shift()` methods were modified so they do
-  nothing when called on empty bounding boxes.
+  nothing when called on invalid bounding boxes.
 
 ###  Deprecated
 - Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.

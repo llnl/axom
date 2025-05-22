@@ -9,7 +9,7 @@
 "spack_packages_path": ["scripts/spack/radiuss-spack-configs/packages", "scripts/spack/packages"],
 "spack_concretizer": "clingo",
 "vcpkg_url": "https://github.com/microsoft/vcpkg",
-"vcpkg_commit": "d5ec528843d29e3a52d745a64b469f810b2cedbf",
+"vcpkg_commit": "ce613c41372b23b1f51333815feb3edd87ef8a8b",
 "vcpkg_triplet": "x64-windows",
 "vcpkg_ports_path": "scripts/vcpkg_ports"
 }
