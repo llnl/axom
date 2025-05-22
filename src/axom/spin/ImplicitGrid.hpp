@@ -11,12 +11,6 @@
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
 
-/*#include "axom/core/execution/execution_space.hpp"
-#include "axom/core/execution/execution_space.hpp"
-#include "axom/core/execution/execution_space.hpp"
-#include "axom/core/memory_management.hpp"
-#include "axom/core/utilities/BitUtilities.hpp"
-*/
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
