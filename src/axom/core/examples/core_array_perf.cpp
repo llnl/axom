@@ -227,17 +227,10 @@ public:
     m_testAccumulation += testAdd;
     auto count = array.size();
     auto* ptr = array.data();
-#ifdef AXOM_USE_RAJA
     axom::for_all<ExecSpace>(
       0,
       count,
       AXOM_LAMBDA(axom::IndexType i) { ptr[i] += testAdd; });
-#else
-    for(axom::IndexType i = 0; i < count; ++i)
-    {
-      ptr[i] += testAdd;
-    }
-#endif
   }
 
   /*!
@@ -251,17 +244,10 @@ public:
     auto testAdd = m_flatTestAdd;
     m_testAccumulation += testAdd;
     auto count = array.size();
-#ifdef AXOM_USE_RAJA
     axom::for_all<ExecSpace>(
       0,
       count,
       AXOM_LAMBDA(axom::IndexType i) { array.flatIndex(i) += testAdd; });
-#else
-    for(axom::IndexType i = 0; i < count; ++i)
-    {
-      array.flatIndex(i) += testAdd;
-    }
-#endif
   }
 
   /*!

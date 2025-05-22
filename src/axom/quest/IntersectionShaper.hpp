@@ -149,7 +149,7 @@ private:
    */
   AXOM_HOST_DEVICE void finalize() { m_deviceData = nullptr; }
 
-  #if defined(AXOM_USE_CUDA) || defined(AXOM_USE_HIP)
+  #if (defined(AXOM_RUNTIME_POLICY_USE_CUDA) || defined(AXOM_RUNTIME_POLICY_USE_HIP))
   /*!
    * \brief Initializes members using data from the grid function. This method
    *        is called on the host and it copies data to the device.
@@ -199,7 +199,7 @@ private:
   bool m_needResult {false};
 };
 
-  #if defined(AXOM_USE_CUDA)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 /*!
  * \brief CUDA specialization that calls initializeDevice to copy data
  *        from the host to the device.
@@ -224,7 +224,7 @@ AXOM_HOST_DEVICE inline void TempArrayView<cuda_exec>::finalize()
   finalizeDevice();
 }
   #endif
-  #if defined(AXOM_USE_HIP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 /*!
  * \brief HIP specialization that calls initializeDevice to copy data
  *        from the host to the device.
@@ -288,8 +288,6 @@ AXOM_HOST_DEVICE inline void TempArrayView<hip_exec>::finalize()
  * The input mesh can be an MFEM mesh stored as a \c
  * sidre::MFEMSidreDataCollection or be a Blueprint mesh stored as a
  * \c conduit::Node or a \c sidre::Group.
- *
- * IntersectionShaper requires Axom configured with RAJA and Umpire.
  *
  * Support for replacement rules exists for MFEM input meshes.
  * Replacement rules for Blueprint meshes is not yet supported.
@@ -1710,17 +1708,17 @@ public:
     case RuntimePolicy::seq:
       applyReplacementRulesImpl<seq_exec>(shape);
       break;
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     case RuntimePolicy::omp:
       applyReplacementRulesImpl<omp_exec>(shape);
       break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     case RuntimePolicy::cuda:
       applyReplacementRulesImpl<cuda_exec>(shape);
       break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     case RuntimePolicy::hip:
       applyReplacementRulesImpl<hip_exec>(shape);
       break;
@@ -1768,17 +1766,17 @@ public:
     case RuntimePolicy::seq:
       prepareShapeQueryImpl<seq_exec>(shapeDimension, shape);
       break;
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     case RuntimePolicy::omp:
       prepareShapeQueryImpl<omp_exec>(shapeDimension, shape);
       break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     case RuntimePolicy::cuda:
       prepareShapeQueryImpl<cuda_exec>(shapeDimension, shape);
       break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     case RuntimePolicy::hip:
       prepareShapeQueryImpl<hip_exec>(shapeDimension, shape);
       break;
@@ -1811,17 +1809,17 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery3DImpl<seq_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery3DImpl<omp_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         runShapeQuery3DImpl<cuda_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         runShapeQuery3DImpl<hip_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
@@ -1835,17 +1833,17 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery3DImpl<seq_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery3DImpl<omp_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         runShapeQuery3DImpl<cuda_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         runShapeQuery3DImpl<hip_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
@@ -1859,17 +1857,17 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery2DImpl<seq_exec>(shape, m_tris, m_tricount);
         break;
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery2DImpl<omp_exec>(shape, m_tris, m_tricount);
         break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         runShapeQuery2DImpl<cuda_exec>(shape, m_tris, m_tricount);
         break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         runShapeQuery2DImpl<hip_exec>(shape, m_tris, m_tricount);
         break;
@@ -1883,17 +1881,17 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery2DImpl<seq_exec>(shape, m_tris, m_tricount);
         break;
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery2DImpl<omp_exec>(shape, m_tris, m_tricount);
         break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         runShapeQuery2DImpl<cuda_exec>(shape, m_tris, m_tricount);
         break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         runShapeQuery2DImpl<hip_exec>(shape, m_tris, m_tricount);
         break;
@@ -1915,17 +1913,17 @@ public:
     double overlapVol = 0.0;
     switch(m_execPolicy)
     {
-  #if defined(AXOM_USE_OPENMP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     case RuntimePolicy::omp:
       overlapVol = sumArray<omp_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
   #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     case RuntimePolicy::cuda:
       overlapVol = sumArray<cuda_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
   #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     case RuntimePolicy::hip:
       overlapVol = sumArray<hip_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
@@ -2031,7 +2029,7 @@ public:
   #endif
       if(onDevice)
       {
-  #if defined(AXOM_USE_CUDA)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
         if(m_execPolicy == RuntimePolicy::cuda)
         {
           axom::for_all<axom::CUDA_EXEC<256>>(
@@ -2039,7 +2037,7 @@ public:
             AXOM_LAMBDA(axom::IndexType i) { matVolFrac[i] = 0.0; });
         }
   #endif
-  #if defined(AXOM_USE_HIP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
         if(m_execPolicy == RuntimePolicy::hip)
         {
           axom::for_all<axom::HIP_EXEC<256>>(
