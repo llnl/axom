@@ -889,7 +889,7 @@ protected:
 #endif
         PointType pt {};
         VectorType normal {};
-        double planeOffset;
+        double planeOffset = 0.;
         for(axom::IndexType m = 0; m < matCount - 1; m++)
         {
           const auto fragmentIndex = offset + m;
