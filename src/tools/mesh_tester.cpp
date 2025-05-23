@@ -436,8 +436,8 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
     }
   }
 
-  axom::StackArray<axom::IndexType, 2> row_range{{0, static_cast<axom::IndexType>(ncells)}};
-  axom::StackArray<axom::IndexType, 2> col_range{{0, static_cast<axom::IndexType>(ncells)}};
+  axom::StackArray<axom::IndexType, 2> row_range {{0, static_cast<axom::IndexType>(ncells)}};
+  axom::StackArray<axom::IndexType, 2> col_range {{0, static_cast<axom::IndexType>(ncells)}};
 
   axom::ReduceSum<ExecSpace, int> numIntersect(0);
 
@@ -448,7 +448,9 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
   auto tris_v = on_device ? tris_d.view() : tris_h.view();
 
   // Compute the number of intersections
-  axom::for_all<ExecSpace>(col_range, row_range,
+  axom::for_all<ExecSpace>(
+    col_range,
+    row_range,
     AXOM_LAMBDA(int col, int row) {
       if(row > col)
       {
@@ -470,7 +472,9 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
   auto counter_v = on_device ? counter_d.view() : counter_h.view();
 
   // RAJA loop to populate with intersections
-  axom::for_all<ExecSpace>(col_range, row_range,
+  axom::for_all<ExecSpace>(
+    col_range,
+    row_range,
     AXOM_LAMBDA(int col, int row) {
       if(row > col)
       {
