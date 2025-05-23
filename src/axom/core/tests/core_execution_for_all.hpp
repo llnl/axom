@@ -110,18 +110,18 @@ void check_for_all(axom::IndexType N)
   EXPECT_TRUE(axom::execution_space<ExecSpace>::valid());
   std::cout << "checking axom::for_all() with [" << axom::execution_space<ExecSpace>::name() << "]\n";
 
-  // STEP 0: define a constant
+  // STEP 1: define a constant
   constexpr int VALUE = 42;
 
-  // STEP 1: set allocators for the execution spaces
+  // STEP 2: set allocators for the execution spaces
   const int hostID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   const int allocID = axom::execution_space<ExecSpace>::allocatorID();
 
-  // STEP 0: allocate buffer
+  // STEP 3: allocate buffer
   const auto arraySize = utils::numValues(N);
   int *a = axom::allocate<int>(arraySize, allocID);
 
-  // STEP 1: initialize to (index + VALUE)
+  // STEP 4: initialize to (index + VALUE)
   utils::initialize(a, N, VALUE);
 
   if(axom::execution_space<ExecSpace>::async())
@@ -129,7 +129,7 @@ void check_for_all(axom::IndexType N)
     axom::synchronize<ExecSpace>();
   }
 
-  // STEP 2: check array
+  // STEP 5: check array
   int *a_host = axom::allocate<int>(arraySize, hostID);
   axom::copy(a_host, a, arraySize * sizeof(int));
 
@@ -138,7 +138,7 @@ void check_for_all(axom::IndexType N)
     EXPECT_EQ(a_host[i], i + VALUE);
   }
 
-  // STEP 3: Subtract (index + VALUE) from all entries resulting in zero
+  // STEP 6: Subtract (index + VALUE) from all entries resulting in zero
   utils::modify(a, N, VALUE);
 
   if(axom::execution_space<ExecSpace>::async())
@@ -146,7 +146,7 @@ void check_for_all(axom::IndexType N)
     axom::synchronize<ExecSpace>();
   }
 
-  // STEP 4: check result
+  // STEP 7: check result
   axom::copy(a_host, a, arraySize * sizeof(int));
 
   for(int i = 0; i < arraySize; ++i)
@@ -154,7 +154,7 @@ void check_for_all(axom::IndexType N)
     EXPECT_EQ(a_host[i], 0);
   }
 
-  // STEP 5: cleanup
+  // STEP 8: cleanup
   axom::deallocate(a);
   axom::deallocate(a_host);
 }
