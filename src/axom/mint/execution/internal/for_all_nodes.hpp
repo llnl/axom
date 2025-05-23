@@ -443,13 +443,24 @@ inline void for_all_nodes_impl(xargs::xyz, const Mesh& m, KernelType&& kernel)
   axom::Array<double> z_vals_d =
     on_device ? axom::Array<double>(z_vals_h, device_allocator) : axom::Array<double>();
   auto z_vals_view = on_device ? z_vals_d.view() : z_vals_h;
-
+#if !defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA)
+  // If we have CUDA but not RAJA then we are doing serial execution and cannot
+  // mark this intermediate lambda as AXOM_LAMBDA to comply with CUDA's lambda
+  // rules.
+  for_all_nodes_impl<ExecPolicy>(
+    xargs::index(),
+    m,
+    [&](IndexType nodeID) {
+      kernel(nodeID, x_vals_view[nodeID], y_vals_view[nodeID], z_vals_view[nodeID]);
+    });
+#else
   for_all_nodes_impl<ExecPolicy>(
     xargs::index(),
     m,
     AXOM_LAMBDA(IndexType nodeID) {
       kernel(nodeID, x_vals_view[nodeID], y_vals_view[nodeID], z_vals_view[nodeID]);
     });
+#endif
 }
 
 //------------------------------------------------------------------------------
