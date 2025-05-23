@@ -95,6 +95,16 @@ inline AXOM_HOST_DEVICE T atomicXor(T* address, T value)
   return RAJA::atomicXor<atomic_policy>(address, value);
 }
 
+template <typename ExecSpace, typename T>
+inline AXOM_HOST_DEVICE T atomicExchange(T* address, T value)
+{
+  using atomic_policy =
+    typename std::conditional<std::is_same<ExecSpace, auto_atomic>::value,
+                              RAJA::auto_atomic,
+                              typename axom::execution_space<ExecSpace>::atomic_policy>::type;
+  return RAJA::atomicExchange<atomic_policy>(address, value);
+}
+
 }  // namespace axom
 
 #else
@@ -183,6 +193,17 @@ inline AXOM_HOST_DEVICE T atomicXor(T* address, T value)
   AXOM_STATIC_ASSERT(is_serial);
   const T retval = *address;
   *address ^= value;
+  return retval;
+}
+
+template <typename ExecSpace, typename T>
+inline AXOM_HOST_DEVICE T atomicExchange(T* address, T value)
+{
+  constexpr bool is_serial =
+    std::is_same<ExecSpace, SEQ_EXEC>::value || std::is_same<ExecSpace, auto_atomic>::value;
+  AXOM_STATIC_ASSERT(is_serial);
+  const T retval = *address;
+  *address = value;
   return retval;
 }
 
