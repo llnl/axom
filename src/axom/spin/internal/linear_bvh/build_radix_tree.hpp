@@ -12,6 +12,7 @@
 #include "axom/core/execution/atomics.hpp"
 #include "axom/core/execution/for_all.hpp"
 #include "axom/core/execution/reductions.hpp"
+#include "axom/core/execution/sorts.hpp"
 #include "axom/core/AnnotationMacros.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/utilities/BitUtilities.hpp"
@@ -227,9 +228,9 @@ void sort_mcodes(ArrayView<std::uint32_t> mcodes, std::int32_t size, ArrayView<s
 
   {
     AXOM_ANNOTATE_SCOPE("raja_stable_sort");
-    using EXEC_POL = typename axom::execution_space<ExecSpace>::loop_policy;
-    axom::stable_sort_pairs<ExecSpace>(ArrayView<std::uint32_t>(mcodes.data(), size),
-                                       ArrayView<std::int32_t>(iter.data(), size));
+    ArrayView<std::uint32_t> mcode_view(mcodes.data(), size);
+    ArrayView<std::int32_t> iter_view(iter.data(), size);
+    axom::stable_sort_pairs<ExecSpace>(mcode_view, iter_view);
   }
 }
 

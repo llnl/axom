@@ -480,7 +480,7 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
       {
         if(checkTT(tris_v[row], tris_v[col], EPS))
         {
-          auto idx = RAJA::atomicAdd<ATOMIC_POL>(counter_v.data(), 2);
+          auto idx = axom::atomicAdd<ExecSpace>(counter_v.data(), 2);
           intersections_v[idx] = row;
           intersections_v[idx + 1] = col;
         }
