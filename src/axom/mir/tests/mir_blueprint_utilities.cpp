@@ -63,13 +63,13 @@ struct test_conduit_allocate
 };
 
 TEST(mir_blueprint_utilities, allocate_seq) { test_conduit_allocate<seq_exec>::test(); }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_blueprint_utilities, allocate_omp) { test_conduit_allocate<omp_exec>::test(); }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_blueprint_utilities, allocate_cuda) { test_conduit_allocate<cuda_exec>::test(); }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_blueprint_utilities, allocate_hip) { test_conduit_allocate<hip_exec>::test(); }
 #endif
 
@@ -124,13 +124,13 @@ struct test_copy_braid
 
 TEST(mir_blueprint_utilities, copy_seq) { test_copy_braid<seq_exec>::test(); }
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_blueprint_utilities, copy_omp) { test_copy_braid<omp_exec>::test(); }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_blueprint_utilities, copy_cuda) { test_copy_braid<cuda_exec>::test(); }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_blueprint_utilities, copy_hip) { test_copy_braid<hip_exec>::test(); }
 #endif
 
@@ -171,13 +171,13 @@ struct test_make_unstructured
 };
 
 TEST(mir_blueprint_utilities, make_unstructured_seq) { test_make_unstructured<seq_exec>::test(); }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_blueprint_utilities, make_unstructured_omp) { test_make_unstructured<omp_exec>::test(); }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_blueprint_utilities, make_unstructured_cuda) { test_make_unstructured<cuda_exec>::test(); }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_blueprint_utilities, make_unstructured_hip) { test_make_unstructured<hip_exec>::test(); }
 #endif
 
@@ -252,15 +252,15 @@ struct test_recenter_field
 
 TEST(mir_blueprint_utilities, recenterfield_seq) { test_recenter_field<seq_exec>::test(); }
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_blueprint_utilities, recenterfield_omp) { test_recenter_field<omp_exec>::test(); }
 #endif
 
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_blueprint_utilities, recenterfield_cuda) { test_recenter_field<cuda_exec>::test(); }
 #endif
 
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_blueprint_utilities, recenterfield_hip) { test_recenter_field<hip_exec>::test(); }
 #endif
 
@@ -442,15 +442,15 @@ matsets:
 
 TEST(mir_blueprint_utilities, extractzones_seq) { test_extractzones<seq_exec>::test(); }
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_blueprint_utilities, extractzones_omp) { test_extractzones<omp_exec>::test(); }
 #endif
 
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_blueprint_utilities, extractzones_cuda) { test_extractzones<cuda_exec>::test(); }
 #endif
 
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_blueprint_utilities, extractzones_hip) { test_extractzones<hip_exec>::test(); }
 #endif
 
@@ -552,7 +552,7 @@ TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_seq)
   test_extractzones_polyhedral<seq_exec>::test("extractzones_polyhedral_sel", true);
 }
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_blueprint_utilities, extractzones_polyhedral_omp)
 {
   test_extractzones_polyhedral<omp_exec>::test("extractzones_polyhedral", false);
@@ -563,7 +563,7 @@ TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_omp)
 }
 #endif
 
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_blueprint_utilities, extractzones_polyhedral_cuda)
 {
   test_extractzones_polyhedral<cuda_exec>::test("extractzones_polyhedral", false);
@@ -574,7 +574,7 @@ TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_cuda)
 }
 #endif
 
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_blueprint_utilities, extractzones_polyhedral_hip)
 {
   test_extractzones_polyhedral<hip_exec>::test("extractzones_polyhedral", false);
@@ -713,21 +713,21 @@ TEST(mir_blueprint_utilities, zonelistbuilder_seq)
   AXOM_ANNOTATE_SCOPE("zonelistbuilder_seq");
   test_zonelistbuilder<seq_exec>::test();
 }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_blueprint_utilities, zonelistbuilder_omp)
 {
   AXOM_ANNOTATE_SCOPE("zonelistbuilder_omp");
   test_zonelistbuilder<omp_exec>::test();
 }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_blueprint_utilities, zonelistbuilder_cuda)
 {
   AXOM_ANNOTATE_SCOPE("zonelistbuilder_cuda");
   test_zonelistbuilder<cuda_exec>::test();
 }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_blueprint_utilities, zonelistbuilder_hip)
 {
   AXOM_ANNOTATE_SCOPE("zonelistbuilder_hip");
@@ -839,21 +839,21 @@ TEST(mir_blueprint_utilities, makezonecenters_seq)
   AXOM_ANNOTATE_SCOPE("makezonecenters_seq");
   test_makezonecenters<seq_exec>::test();
 }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_blueprint_utilities, makezonecenters_omp)
 {
   AXOM_ANNOTATE_SCOPE("makezonecenters_omp");
   test_makezonecenters<omp_exec>::test();
 }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_blueprint_utilities, makezonecenters_cuda)
 {
   AXOM_ANNOTATE_SCOPE("makezonecenters_cuda");
   test_makezonecenters<cuda_exec>::test();
 }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_blueprint_utilities, makezonecenters_hip)
 {
   AXOM_ANNOTATE_SCOPE("makezonecenters_hip");
@@ -952,21 +952,21 @@ TEST(mir_blueprint_utilities, mergecoordsetpoints_seq)
   AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_seq");
   test_mergecoordsetpoints<seq_exec>::test();
 }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_blueprint_utilities, mergecoordsetpoints_omp)
 {
   AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_omp");
   test_mergecoordsetpoints<omp_exec>::test();
 }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_blueprint_utilities, mergecoordsetpoints_cuda)
 {
   AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_cuda");
   test_mergecoordsetpoints<cuda_exec>::test();
 }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_blueprint_utilities, mergecoordsetpoints_hip)
 {
   AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_hip");
@@ -1118,21 +1118,21 @@ TEST(mir_blueprint_utilities, makepointmesh_seq)
   AXOM_ANNOTATE_SCOPE("makepointmesh_seq");
   test_makepointmesh<seq_exec>::test();
 }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_blueprint_utilities, makepointmesh_omp)
 {
   AXOM_ANNOTATE_SCOPE("makepointmesh_omp");
   test_makepointmesh<omp_exec>::test();
 }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_blueprint_utilities, makepointmesh_cuda)
 {
   AXOM_ANNOTATE_SCOPE("makepointmesh_cuda");
   test_makepointmesh<cuda_exec>::test();
 }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_blueprint_utilities, makepointmesh_hip)
 {
   AXOM_ANNOTATE_SCOPE("makepointmesh_hip");

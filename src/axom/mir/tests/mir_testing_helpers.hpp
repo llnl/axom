@@ -18,26 +18,24 @@
 // clang-format off
 using seq_exec = axom::SEQ_EXEC;
 
-#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   using omp_exec = axom::OMP_EXEC;
 #else
   using omp_exec = seq_exec;
 #endif
 
-#if defined (AXOM_USE_RAJA) && defined (AXOM_USE_UMPIRE)
-  #if defined(AXOM_USE_CUDA)
-    constexpr int CUDA_BLOCK_SIZE = 256;
-    using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
-  #else
-    using cuda_exec = seq_exec;
-  #endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  constexpr int CUDA_BLOCK_SIZE = 256;
+  using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
+#else
+  using cuda_exec = seq_exec;
+#endif
 
-  #if defined(AXOM_USE_HIP)
-    constexpr int HIP_BLOCK_SIZE = 64;
-    using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;
-  #else
-    using hip_exec = seq_exec;
-  #endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  constexpr int HIP_BLOCK_SIZE = 64;
+  using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;
+#else
+  using hip_exec = seq_exec;
 #endif
 // clang-format on
 

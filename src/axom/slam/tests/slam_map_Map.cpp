@@ -12,6 +12,7 @@
 #include <iterator>
 #include "gtest/gtest.h"
 
+#include "axom/core/execution/runtime_policy.hpp"
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
 
@@ -393,7 +394,7 @@ struct ExecTraits
   }
 };
 
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 template <int BLK_SZ>
 struct ExecTraits<axom::CUDA_EXEC<BLK_SZ>>
 {
@@ -411,7 +412,7 @@ struct ExecTraits<axom::CUDA_EXEC<BLK_SZ>>
 };
 #endif
 
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 template <int BLK_SZ>
 struct ExecTraits<axom::HIP_EXEC<BLK_SZ>>
 {
@@ -507,13 +508,13 @@ protected:
 };
 
 using MyTypes = ::testing::Types<
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   axom::OMP_EXEC,
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   axom::CUDA_EXEC<256>,
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   axom::HIP_EXEC<256>,
 #endif
   axom::SEQ_EXEC>;
