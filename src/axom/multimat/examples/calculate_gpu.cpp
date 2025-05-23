@@ -48,15 +48,15 @@ const std::map<std::string, RuntimePolicy> Input::s_validPolicies(
 #ifdef AXOM_USE_RAJA
    ,
    {"raja_seq", RuntimePolicy::raja_seq}
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
    ,
    {"raja_omp", RuntimePolicy::raja_omp}
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
    ,
    {"raja_cuda", RuntimePolicy::raja_cuda}
   #endif
-  #ifdef AXOM_USE_HIP
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
    ,
    {"raja_hip", RuntimePolicy::raja_hip}
   #endif
@@ -71,13 +71,13 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
            << "(w/o RAJA).";
 #ifdef AXOM_USE_RAJA
   pol_sstr << "\nSet to \'raja_seq\' or 1 to use the RAJA sequential policy.";
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   pol_sstr << "\nSet to \'raja_omp\' or 2 to use the RAJA OpenMP policy.";
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   pol_sstr << "\nSet to \'raja_cuda\' or 3 to use the RAJA CUDA policy.";
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   pol_sstr << "\nSet to \'raja_hip\' or 4 to use the RAJA HIP policy.";
   #endif
 #endif
@@ -349,22 +349,20 @@ int main(int argc, char** argv)
   case RuntimePolicy::raja_seq:
     traverseCells<axom::SEQ_EXEC>(mm);
     break;
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-  #ifdef AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case RuntimePolicy::raja_omp:
     traverseCells<axom::OMP_EXEC>(mm);
     break;
-  #endif
-  #ifdef AXOM_USE_CUDA
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case RuntimePolicy::raja_cuda:
     traverseCells<axom::CUDA_EXEC<256>>(mm);
     break;
-  #endif
-  #ifdef AXOM_USE_HIP
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case RuntimePolicy::raja_hip:
     traverseCells<axom::HIP_EXEC<256>>(mm);
     break;
-  #endif
 #endif
   default:
     SLIC_ERROR("Unhandled runtime policy case");
