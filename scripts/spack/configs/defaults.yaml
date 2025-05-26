@@ -1,0 +1,27 @@
+#
+# This file lists the default package variants for axom's dependencies
+#
+
+packages:
+  caliper:
+    require:
+      - spec: "~kokkos"
+  conduit:
+    require:
+      - spec: "~shared~test~examples~utilities"
+  hdf5:
+    require:
+      - spec:  "~shared~mpi"
+  # note: for mfem, we use the default +shared to allow PIC flag
+  opencascade:
+    require:
+      - spec: "+data_exchange~draw"
+  raja:
+    require:
+      - spec: "~shared~examples~exercises"
+  scr:
+    require:
+      - spec: "~shared~tests~examples"
+  umpire:
+    require:
+      - spec: "~examples~werror"

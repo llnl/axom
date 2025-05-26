@@ -67,7 +67,7 @@ struct DynamicGridStorage
     {
       m_bins.emplace_back(binSizes[i], binSizes[i], m_allocatorID);
     }
-  };
+  }
 
   void insert(IndexType gridIdx, const T& elem) { m_bins[gridIdx].push_back(elem); }
 

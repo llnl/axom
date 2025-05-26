@@ -32,9 +32,9 @@ vcpkg_configure_cmake(
 )
 
 vcpkg_install_cmake()
-vcpkg_fixup_cmake_targets(CONFIG_PATH lib/cmake
-                          TARGET_PATH share
-                          TOOLS_PATH tools/conduit)
+vcpkg_cmake_config_fixup(
+        CONFIG_PATH  lib/cmake/conduit
+        TOOLS_PATH   tools/conduit)
 vcpkg_copy_pdbs()
 
 

@@ -6,9 +6,7 @@ vcpkg_from_github(
     SHA512 af176cbd105c49949282c16bb6e30f69167bc6c00a50e0ae69aea555815d47ac3c4540c233e596c5add7cb846c2b33d7be267d8e02472286e758b662b4a652ab
     HEAD_REF master
     PATCHES
-        dependencies.patch
         drop-bin-letter-d.patch
-        fix-pdb-find.patch
         fix-install-prefix-path.patch
         install-include-dir.patch
 )
