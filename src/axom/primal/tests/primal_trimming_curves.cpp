@@ -334,7 +334,7 @@ TEST_F(TrimmingCurveTest, knot_vector_manipulation)
   for(auto t : t_pts)
   {
     auto parameter_pt_1 = nPatch.getTrimmingCurve(0).evaluate(t);
-    auto parameter_pt_2 = nPatchCopy.getTrimmingCurve(0).evaluate(t);
+    auto parameter_pt_2 = nPatchCopy.getTrimmingCurve(0).evaluate(1.0 - t);
 
     auto space_pt_1 = nPatch.evaluate(parameter_pt_1[0], parameter_pt_1[1]);
     auto space_pt_2 = nPatchCopy.evaluate(parameter_pt_2[0], parameter_pt_2[1]);
@@ -371,7 +371,7 @@ TEST_F(TrimmingCurveTest, knot_vector_manipulation)
   for(auto t : t_pts)
   {
     auto parameter_pt_1 = nPatch.getTrimmingCurve(0).evaluate(t);
-    auto parameter_pt_2 = nPatchCopy.getTrimmingCurve(0).evaluate(t);
+    auto parameter_pt_2 = nPatchCopy.getTrimmingCurve(0).evaluate(1.0 - t);
 
     EXPECT_NEAR(parameter_pt_1[0], parameter_pt_2[1], 1e-10);
     EXPECT_NEAR(parameter_pt_1[1], parameter_pt_2[0], 1e-10);

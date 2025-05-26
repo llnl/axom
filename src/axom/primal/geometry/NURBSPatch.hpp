@@ -1474,6 +1474,8 @@ public:
       {
         curve[i][0] = min_u + max_u - curve[i][0];
       }
+
+      curve.reverseOrientation();
     }
   }
 
@@ -1511,6 +1513,8 @@ public:
       {
         curve[i][1] = min_v + max_v - curve[i][1];
       }
+
+      curve.reverseOrientation();
     }
   }
 
@@ -1559,6 +1563,8 @@ public:
       {
         axom::utilities::swap(curve[j][0], curve[j][1]);
       }
+
+      curve.reverseOrientation();
     }
   }
 
