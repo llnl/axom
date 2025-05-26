@@ -1276,14 +1276,13 @@ public:
       // patchData.nurbsPatch.scaleParameterSpace(1.0 + 0.1);
       // exportSurfaceToSTL("C:\\Users\\Fireh\\Code\\winding_number_code\\misc_patches\\expanded_untrimmed_patch_" + std::to_string(patchIndex) + ".stl", patchData.nurbsPatch, 17, 17);
 
-      // if(patchIndex == 40)
-      // {
-      //   patchData.nurbsPatch.makeUntrimmed();
-      //   patchData.nurbsPatch.makeTriviallyTrimmed();
-      // }
 
       if(patchData.nurbsPatch.isTrimmed())
       {
+        // patchData.nurbsPatch.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//original.txt");
+        // printPatchBoundaries( patchData.nurbsPatch );
+        // std::cout << "Patch Normal: " << patchData.nurbsPatch.calculateUntrimmedPatchNormal() << std::endl;
+
         auto min_u = patchData.nurbsPatch.getMinKnot_u();
         auto max_u = patchData.nurbsPatch.getMaxKnot_u();
 
@@ -1304,11 +1303,20 @@ public:
             gwn += winding_number(p, curve, isOnThisCurve);
           }
 
+          if( std::abs(gwn - std::lround(gwn)) > 0.25 )
+          {
+            continue;
+          }
+
+          gwn = std::lround(gwn);
+
           if(gwn < 0)
           {
-            patchData.nurbsPatch.flipNormals();
+            patchData.nurbsPatch.reverseOrientation_u();
+            patchData.nurbsPatch.reverseTrimmingCurves();
             break;
           }
+
           if(gwn > 0)
           {
             break;
@@ -1322,6 +1330,12 @@ public:
                       << std::endl;
           }
         }
+
+        // patchData.nurbsPatch.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//flipped.txt");
+        // printPatchBoundaries( patchData.nurbsPatch );
+        // std::cout << "Patch Normal: " << patchData.nurbsPatch.calculateUntrimmedPatchNormal() << std::endl;
+
+        int yyy = 0;
       }
     }
   }
@@ -2293,14 +2307,11 @@ void graphical_abstract_watertight()
     double wn = 0.0;
     for(const auto& kv : stepProcessor.getPatchDataMap())
     {
-      if( kv.first != 0 )
-      {
-        continue;
-      }
-
       int integrated_trimming_curves;
 
-      printPatchBoundaries(kv.second.nurbsPatchData.patch, true);
+    //   kv.second.nurbsPatchData.patch.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//original.txt");
+
+    //   printPatchBoundaries(kv.second.nurbsPatchData.patch, true);
 
       double the_val = axom::primal::winding_number(query,
                                                     kv.second.nurbsPatchData,

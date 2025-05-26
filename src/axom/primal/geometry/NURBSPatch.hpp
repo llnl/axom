@@ -1595,6 +1595,17 @@ public:
     return k + r;
   }
 
+  /// \brief Reverses all trimming curves in the patch
+  /// \warning Trimming curves should be oriented CCW in parameter space,
+  ///   and this method may make them CW
+  void reverseTrimmingCurves()
+  {
+    for(auto& curve : m_trimmingCurves)
+    {
+      curve.reverseOrientation();
+    }
+  }
+
   /*!
    * \brief Reverses the order of one direction of the NURBS patch's control points and weights
    *
@@ -1612,26 +1623,6 @@ public:
     else
     {
       reverseOrientation_v();
-    }
-  }
-
-  /// \brief Flip all normals of the NURBS surface by reversing the orientation of the control points
-  ///  in each direction, and mirroring the trimming curves in parameter space
-  void flipNormals()
-  {
-    reverseOrientation_u();
-
-    auto min_u = m_knotvec_u[0];
-    auto max_u = m_knotvec_u[m_knotvec_u.getNumKnots() - 1];
-
-    for(auto& curve : m_trimmingCurves)
-    {
-      // For each trimming curve, mirror the control points over the midpoint
-      //  of the knot span
-      for(int i = 0; i < curve.getNumControlPoints(); ++i)
-      {
-        curve[i][0] = min_u + max_u - curve[i][0];
-      }
     }
   }
 
@@ -1669,6 +1660,8 @@ public:
       {
         curve[i][0] = min_u + max_u - curve[i][0];
       }
+
+      curve.reverseOrientation();
     }
   }
 
@@ -1706,6 +1699,8 @@ public:
       {
         curve[i][1] = min_v + max_v - curve[i][1];
       }
+     
+      curve.reverseOrientation();
     }
   }
 
@@ -3726,6 +3721,23 @@ public:
     m_knotvec_v = KnotVectorType(newKnotVec_v, deg_v);
   }
   //@}
+
+  /// \brief Print the trimming curves
+  void printTrimmingCurves(std::string filename) const
+  {
+    std::ofstream ofs(filename);
+
+    for(auto& curve : m_trimmingCurves)
+    {
+      auto bezier = curve.extractBezier();
+
+      for(auto& patch : bezier)
+      {
+        patch.print(ofs);
+        ofs << std::endl;
+      }
+    }
+  }
 
   /*!
      * \brief Simple formatted print of a NURBS Patch instance
