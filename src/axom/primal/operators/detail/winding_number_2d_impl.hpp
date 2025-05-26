@@ -164,7 +164,7 @@ double linear_winding_number(const Point<T, 2>& q,
     else
     {
       double proj_val = Vector<T, 2>::dot_product(V0, V0 - V1) / segment_sq_len;
-      if((proj_val >= 0) && (proj_val <= 1))
+      if((proj_val >= 0 - edge_tol) && (proj_val <= 1 + edge_tol))
       {
         isOnEdge = true;
       }
