@@ -240,7 +240,7 @@ void write_scalar_helper(const std::string& type, const Field* field, std::ofstr
   SLIC_ASSERT(data_ptr != nullptr);
 
   fmt::print(file, "SCALARS {} ", field->getName());
-  fmt::print(file, fmt::format("{}\n", type));
+  fmt::print(file, "{}\n", type);
   fmt::print(file, "LOOKUP_TABLE default\n");
   const IndexType num_values = field->getNumTuples();
   fmt::print(file, "{}\n", fmt::join(data_ptr, data_ptr + num_values, "\n"));
@@ -292,7 +292,7 @@ void write_vector_helper(const std::string& type, const Field* field, std::ofstr
   SLIC_ASSERT(data_ptr != nullptr);
 
   fmt::print(file, "VECTORS {} ", field->getName());
-  fmt::print(file, fmt::format("{}\n", type));
+  fmt::print(file, "{}\n", type);
 
   const int num_components = field->getNumComponents();
   const IndexType num_values = field->getNumTuples();
