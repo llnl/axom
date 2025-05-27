@@ -55,6 +55,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - The `primal::BoundingBox` class' `expand()` and `shift()` methods were modified so they do
   nothing when called on invalid bounding boxes.
 
+###  Fixed
+- Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
+  with GPU support. Instances where this occurs will now trigger a static assertion during compile time.
+
 ###  Deprecated
 - Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
 
