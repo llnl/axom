@@ -1149,7 +1149,7 @@ struct ArrayOpsBase
   // See:
   // - https://github.com/LLNL/axom/issues/1182
   // - https://github.com/LLNL/axom/issues/1440
-  static_assert(SPACE != OperationSpace::Device,
+  static_assert(SPACE != OperationSpace::Device && SPACE != OperationSpace::Unified_Device,
                 "Cannot instantiate Array operations -- file is being compiled "
                 "with a host-only compiler, but Axom was configured and built "
                 "with a CUDA/HIP compiler.");
