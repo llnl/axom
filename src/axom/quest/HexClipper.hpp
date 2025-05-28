@@ -8,7 +8,7 @@
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/GeometryClipperStrategy.hpp"
-#include "axom/quest/CoordinateTransformer.hpp"
+#include "axom/primal/geometry/CoordinateTransformer.hpp"
 
 namespace axom
 {
@@ -67,7 +67,7 @@ private:
   axom::StackArray<axom::StackArray<Plane3DType, TetrahedronType::NUM_VERTS>, HexahedronType::NUM_TRIANGULATE>
     m_planes;
 
-  axom::quest::CoordinateTransformer<double> m_transformer;
+  axom::primal::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);

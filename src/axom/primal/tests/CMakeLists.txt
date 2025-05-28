@@ -16,6 +16,7 @@ set( primal_tests
     primal_closest_point.cpp
     primal_compute_bounding_box.cpp
     primal_compute_moments.cpp
+    primal_coord_transform.cpp
     primal_curved_polygon.cpp
     primal_hexahedron.cpp
     primal_in_sphere.cpp

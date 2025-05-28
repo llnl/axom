@@ -27,7 +27,7 @@ TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
 
   for(int i = 0; i < TetrahedronType::NUM_VERTS; ++i)
   {
-    m_tet[i] = m_transformer.getTransform(m_tetBeforeTrans[i]);
+    m_tet[i] = m_transformer.getTransformed(m_tetBeforeTrans[i]);
   }
 
   for(int i = 0; i < TetrahedronType::NUM_VERTS; ++i)

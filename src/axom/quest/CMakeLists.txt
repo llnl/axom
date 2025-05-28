@@ -141,7 +141,6 @@ if(RAJA_FOUND AND AXOM_ENABLE_KLEE AND _HAS_CLIPPING_MESH)
                               SphereClipper.hpp
                               TetMeshClipper.hpp
                               SorClipper.hpp
-                              CoordinateTransformer.hpp
                               detail/GeometryClipperDelegateExec.hpp)
     list(APPEND quest_sources ShapeeMesh.cpp
                               GeometryClipper.cpp

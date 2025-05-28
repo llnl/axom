@@ -29,7 +29,7 @@ HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
 
   for(int i = 0; i < HexahedronType::NUM_HEX_VERTS; ++i)
   {
-    m_hex[i] = m_transformer.getTransform(m_hexBeforeTrans[i]);
+    m_hex[i] = m_transformer.getTransformed(m_hexBeforeTrans[i]);
   }
 
   m_hex.triangulate(m_tets);

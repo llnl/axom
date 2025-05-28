@@ -8,7 +8,7 @@
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/GeometryClipperStrategy.hpp"
-#include "axom/quest/CoordinateTransformer.hpp"
+#include "axom/primal/geometry/CoordinateTransformer.hpp"
 
 namespace axom
 {
@@ -64,7 +64,7 @@ private:
   //!@brief 4 triangular facets of Tet, each oriented to the interior of the tet.
   axom::StackArray<Triangle3DType, 4> m_facets;
 
-  axom::quest::CoordinateTransformer<double> m_transformer;
+  axom::primal::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);

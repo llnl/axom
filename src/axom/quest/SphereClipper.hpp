@@ -8,7 +8,7 @@
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/GeometryClipperStrategy.hpp"
-#include "axom/quest/CoordinateTransformer.hpp"
+#include "axom/primal/geometry/CoordinateTransformer.hpp"
 
 namespace axom
 {
@@ -59,7 +59,7 @@ private:
 
   axom::primal::Sphere<double, 3> m_sphere;
 
-  axom::quest::CoordinateTransformer<double> m_transformer;
+  axom::primal::CoordinateTransformer<double> m_transformer;
 
   int m_levelOfRefinement;
 

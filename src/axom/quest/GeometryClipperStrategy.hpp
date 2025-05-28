@@ -78,6 +78,7 @@ public:
   using Vector3DType = axom::primal::Vector<double, 3>;
   using Segment3DType = axom::primal::Segment<double, 3>;
   using Triangle3DType = axom::primal::Triangle<double, 3>;
+  using Cone3DType = axom::primal::Cone<double, 3>;
   using BoundingBox3DType = axom::primal::BoundingBox<double, 3>;
 
   using CircleType = axom::primal::Sphere<double, 2>;

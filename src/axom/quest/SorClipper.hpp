@@ -8,7 +8,7 @@
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/GeometryClipperStrategy.hpp"
-#include "axom/quest/CoordinateTransformer.hpp"
+#include "axom/primal/geometry/CoordinateTransformer.hpp"
 
 namespace axom
 {
@@ -49,23 +49,26 @@ private:
   //! @brief The discrete r(z) function, as an Nx2 array, if used.
   axom::Array<double, 2> m_discreteFcn;
 
+  //! @brief Maximum radius of the SOR.
+  double m_maxRadius;
+
   //!@brief The point corresponding to z=0 on the SOR axis.
   Point3D m_sorBase;
 
   //!@brief SOR axis in 3D space, in the direction of increasing z.
   Vector3DType m_sorDirection;
 
-  axom::quest::CoordinateTransformer<double> m_transformer;
+  axom::primal::CoordinateTransformer<double> m_transformer;
 
   /*!
     @brief Inverse of m_transformer.
 
     Axom supports vector scaling.  @see axom::klee::Scale.  This means
-    a SOR may be transformed into a shape that's not easy to
-    represent.  Therefore, we don't transform the shape until after
-    it's discretized.  When needed, we will inverse-transform the mesh.
+    a SOR may be transformed into a shape that we cannot represent.
+    Therefore, we don't transform the shape until after it's discretized.
+    When needed, we will inverse-transform the mesh.
   */
-  axom::quest::CoordinateTransformer<double> m_inverseTransformer;
+  axom::primal::CoordinateTransformer<double> m_inverseTransformer;
 
   //!@brief Level of refinement for discretizing curved
   // analytical shapes and surfaces of revolutions.

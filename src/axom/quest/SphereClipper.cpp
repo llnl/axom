@@ -195,7 +195,7 @@ bool SphereClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh,
       for(int iVert = 0; iVert < OctType::NUM_VERTS; ++iVert)
       {
         Point3DType& ptCoords = oct[iVert];
-        transformer.transform(ptCoords);
+        transformer.transform(ptCoords.array());
       }
     });
 
@@ -228,8 +228,8 @@ void SphereClipper::transformSphere()
   Point3DType surfacePtBeforeTrans { centerBeforeTrans.array() +
                                      Point3DType::NumericArray{radiusBeforeTrans, 0, 0} };
 
-  auto center = m_transformer.getTransform(centerBeforeTrans);
-  Point3DType surfacePoint = m_transformer.getTransform(surfacePtBeforeTrans);
+  auto center = m_transformer.getTransformed(centerBeforeTrans);
+  Point3DType surfacePoint = m_transformer.getTransformed(surfacePtBeforeTrans);
   const double radius = Vector3DType(center, surfacePoint).norm();
   m_sphere = SphereType(center, radius);
 }
