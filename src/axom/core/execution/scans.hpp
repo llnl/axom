@@ -63,12 +63,13 @@ inline void exclusive_scan(const Container1 &input, Container2 &&output)
 
 #if defined(AXOM_USE_RAJA)
   #if defined(AXOM_USE_OPENMP) && defined(__INTEL_LLVM_COMPILER)
-    // NOTE: This workaround was brought to this central location instead of
-    //       replicating throughout Axom.
-    // Intel oneAPI compiler workaround for OpenMP RAJA scan
-    using exec_space = typename std::conditional<std::is_same<ExecSpace, axom::OMP_EXEC>::value, axom::SEQ_EXEC, ExecSpace>::type;
+  // NOTE: This workaround was brought to this central location instead of
+  //       replicating throughout Axom.
+  // Intel oneAPI compiler workaround for OpenMP RAJA scan
+  using exec_space =
+    typename std::conditional<std::is_same<ExecSpace, axom::OMP_EXEC>::value, axom::SEQ_EXEC, ExecSpace>::type;
   #else
-    using exec_space = ExecSpace;
+  using exec_space = ExecSpace;
   #endif
   using loop_policy = typename axom::execution_space<exec_space>::loop_policy;
   RAJA::exclusive_scan<loop_policy>(RAJA::make_span(input.data(), input.size()),

@@ -107,7 +107,7 @@ inline AXOM_HOST_DEVICE T atomicExchange(T* address, T value)
 
 }  // namespace axom
 
-#else // AXOM_HAVE_RAJA
+#else   // AXOM_HAVE_RAJA
 //------------------------------------------------------------------------------
 namespace axom
 {
