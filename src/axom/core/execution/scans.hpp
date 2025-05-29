@@ -36,7 +36,7 @@ namespace axom
  * \tparam Container2 The container type that holds the output data.
  *
  * \note  The container types Container1 and Container2 work with Axom's Array,
- *        ArraView types as well as std::vector or any other type that provides
+ *        ArrayView types as well as std::vector or any other type that provides
  *        a similar interface with these characteristics: 1) size() method,
  *        2) data() method to return container memory pointer, 3) operator[] to
  *        return element access, 4) a "value_type" sub-type that indicates the
@@ -97,7 +97,7 @@ inline void exclusive_scan(const Container1 &input, Container2 &&output)
  * \tparam Container The container type that holds the data
  *
  * \note  The Container type works with Axom's Array,
- *        ArraView types as well as std::vector or any other type that provides
+ *        ArrayView types as well as std::vector or any other type that provides
  *        a similar interface with these characteristics: 1) size() method,
  *        2) data() method to return container memory pointer, 3) operator[] to
  *        return element access, 4) a "value_type" sub-type that indicates the
@@ -135,7 +135,7 @@ inline void exclusive_scan_inplace(Container &&input)
  * \tparam Container2 The container type that holds the output data
  *
  * \note  The container types Container1 and Container2 work with Axom's Array,
- *        ArraView types as well as std::vector or any other type that provides
+ *        ArrayView types as well as std::vector or any other type that provides
  *        a similar interface with these characteristics: 1) size() method,
  *        2) data() method to return container memory pointer, 3) operator[] to
  *        return element access, 4) a "value_type" sub-type that indicates the
@@ -187,7 +187,7 @@ inline void inclusive_scan(const Container1 &input, Container2 &&output)
  * \tparam Container The container type that holds the data
  *
  * \note  The Container type works with Axom's Array,
- *        ArraView types as well as std::vector or any other type that provides
+ *        ArrayView types as well as std::vector or any other type that provides
  *        a similar interface with these characteristics: 1) size() method,
  *        2) data() method to return container memory pointer, 3) operator[] to
  *        return element access, 4) a "value_type" sub-type that indicates the
