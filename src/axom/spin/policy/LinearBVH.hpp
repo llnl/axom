@@ -322,14 +322,8 @@ axom::Array<IndexType> LinearBVH<FloatType, NDIMS, ExecSpace>::findCandidatesImp
 
   // STEP 2: exclusive scan to get offsets in candidate array for each query
   AXOM_ANNOTATE_BEGIN("exclusive_scan");
-    // Intel oneAPI compiler segfaults with OpenMP RAJA scan
-  #ifdef __INTEL_LLVM_COMPILER
-  axom::exclusive_scan<axom::SEQ_EXEC>(axom::ArrayView<IndexType>(counts.data(), numObjs),
-                                       axom::ArrayView<IndexType>(offsets.data(), numObjs));
-  #else
   axom::exclusive_scan<ExecSpace>(axom::ArrayView<IndexType>(counts.data(), numObjs),
                                   axom::ArrayView<IndexType>(offsets.data(), numObjs));
-  #endif
 
   AXOM_ANNOTATE_END("exclusive_scan");
   IndexType total_candidates = total_count_reduce.get();

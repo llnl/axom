@@ -186,14 +186,8 @@ public:
         totalCountReduce += countsPtr[i];
       });
 
-      // Step 2: exclusive scan for offsets in candidate array
-      // Intel oneAPI compiler segfaults with OpenMP RAJA scan
-  #ifdef __INTEL_LLVM_COMPILER
-    using exec_space = axom::SEQ_EXEC;
-  #else
-    using exec_space = ExecSpace;
-  #endif
-    axom::exclusive_scan<exec_space>(counts, offsets);
+    // Step 2: exclusive scan for offsets in candidate array
+    axom::exclusive_scan<ExecSpace>(counts, offsets);
 
     axom::IndexType totalCount = totalCountReduce.get();
 

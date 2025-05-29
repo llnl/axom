@@ -32,8 +32,15 @@ namespace axom
  *                     must have the same number of elements as \a input.
  *
  * \tparam ExecSpace the execution space where to run the supplied kernel
- * \tparam Container1 The container type that holds the input data
- * \tparam Container2 The container type that holds the output data
+ * \tparam Container1 The container type that holds the input data.
+ * \tparam Container2 The container type that holds the output data.
+ *
+ * \note  The container types Container1 and Container2 work with Axom's Array,
+ *        ArraView types as well as std::vector or any other type that provides
+ *        a similar interface with these characteristics: 1) size() method,
+ *        2) data() method to return container memory pointer, 3) operator[] to
+ *        return element access, 4) a "value_type" sub-type that indicates the
+ *        type of data stored in the container.
  *
  * \see axom::execution_space
  *
@@ -55,7 +62,15 @@ inline void exclusive_scan(const Container1 &input, Container2 &&output)
   assert(input.size() == output.size());
 
 #if defined(AXOM_USE_RAJA)
-  using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
+  #if defined(AXOM_USE_OPENMP) && defined(__INTEL_LLVM_COMPILER)
+    // NOTE: This workaround was brought to this central location instead of
+    //       replicating throughout Axom.
+    // Intel oneAPI compiler workaround for OpenMP RAJA scan
+    using exec_space = typename std::conditional<std::is_same<ExecSpace, axom::OMP_EXEC>::value, axom::SEQ_EXEC, ExecSpace>::type;
+  #else
+    using exec_space = ExecSpace;
+  #endif
+  using loop_policy = typename axom::execution_space<exec_space>::loop_policy;
   RAJA::exclusive_scan<loop_policy>(RAJA::make_span(input.data(), input.size()),
                                     RAJA::make_span(output.data(), output.size()));
 
@@ -79,6 +94,13 @@ inline void exclusive_scan(const Container1 &input, Container2 &&output)
  *
  * \tparam ExecSpace the execution space where to run the supplied kernel
  * \tparam Container The container type that holds the data
+ *
+ * \note  The Container type works with Axom's Array,
+ *        ArraView types as well as std::vector or any other type that provides
+ *        a similar interface with these characteristics: 1) size() method,
+ *        2) data() method to return container memory pointer, 3) operator[] to
+ *        return element access, 4) a "value_type" sub-type that indicates the
+ *        type of data stored in the container.
  */
 template <typename ExecSpace, typename Container>
 inline void exclusive_scan_inplace(Container &&input)
@@ -110,6 +132,13 @@ inline void exclusive_scan_inplace(Container &&input)
  * \tparam ExecSpace the execution space where to run the supplied kernel
  * \tparam Container1 The container type that holds the input data
  * \tparam Container2 The container type that holds the output data
+ *
+ * \note  The container types Container1 and Container2 work with Axom's Array,
+ *        ArraView types as well as std::vector or any other type that provides
+ *        a similar interface with these characteristics: 1) size() method,
+ *        2) data() method to return container memory pointer, 3) operator[] to
+ *        return element access, 4) a "value_type" sub-type that indicates the
+ *        type of data stored in the container.
  *
  * \see axom::execution_space
  *
@@ -156,6 +185,12 @@ inline void inclusive_scan(const Container1 &input, Container2 &&output)
  * \tparam ExecSpace the execution space where to run the supplied kernel
  * \tparam Container The container type that holds the data
  *
+ * \note  The Container type works with Axom's Array,
+ *        ArraView types as well as std::vector or any other type that provides
+ *        a similar interface with these characteristics: 1) size() method,
+ *        2) data() method to return container memory pointer, 3) operator[] to
+ *        return element access, 4) a "value_type" sub-type that indicates the
+ *        type of data stored in the container.
  */
 template <typename ExecSpace, typename Container>
 inline void inclusive_scan_inplace(Container &&input)

@@ -576,16 +576,10 @@ std::vector<IndexPair> findCandidatesImplicit(const HexMesh& insertMesh,
 
   AXOM_ANNOTATE_BEGIN("write candidate pairs");
 
-// Generate offsets from the counts
-// (Note: exclusive scan for offsets in candidate array
-// Intel oneAPI compiler segfaults with OpenMP RAJA scan)
-#ifdef __INTEL_LLVM_COMPILER
-  using exec_space = axom::SEQ_EXEC;
-#else
-  using exec_space = ExecSpace;
-#endif
-  axom::exclusive_scan<exec_space>(axom::ArrayView<int>(counts_v.data(), queryMesh.numHexes()),
-                                   axom::ArrayView<int>(offsets_v.data(), queryMesh.numHexes()));
+  // Generate offsets from the counts
+  // (Note: exclusive scan for offsets in candidate array
+  axom::exclusive_scan<ExecSpace>(axom::ArrayView<int>(counts_v.data(), queryMesh.numHexes()),
+                                  axom::ArrayView<int>(offsets_v.data(), queryMesh.numHexes()));
 
   // Initialize candidatePairs to return.
   // Allocate arrays for candidate pairs

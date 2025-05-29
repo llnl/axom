@@ -106,14 +106,8 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
 {
   using PointType = axom::primal::Point<double, 3>;
   using BoxType = axom::primal::BoundingBox<double, 3>;
-// Intel oneAPI compiler segfaults with OpenMP RAJA scan
-#ifdef __INTEL_LLVM_COMPILER
-  using exec_space = axom::SEQ_EXEC;
-#else
-  using exec_space = ExecSpace;
-#endif
 
-  int allocatorId = axom::execution_space<ExecSpace>::allocatorID();
+  const int allocatorId = axom::execution_space<ExecSpace>::allocatorID();
 
   const int ncells = mesh->getNumberOfCells();
 
@@ -193,7 +187,7 @@ void find_collisions_broadphase(const mint::Mesh* mesh,
     });
 
   // Generate offsets
-  axom::exclusive_scan<exec_space>(counts, offsets);
+  axom::exclusive_scan<ExecSpace>(counts, offsets);
 
   // _bvh_traverse_first_pass_end
 
