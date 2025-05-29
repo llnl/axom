@@ -15,6 +15,8 @@
 #include "axom/primal/operators/is_convex.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 
+#include "axom/core/numerics/transforms.hpp"
+
 // C++ includes
 #include <math.h>
 
@@ -30,7 +32,7 @@ namespace primal
 namespace detail
 {
 /// Type to indicate orientation of singularities relative to surface
-enum class SingularityAxis
+enum class DiscontinuityAxis
 {
   x,
   y,
@@ -40,191 +42,575 @@ enum class SingularityAxis
 
 #ifdef AXOM_USE_MFEM
 /*!
- * \brief Evaluates the integral of the "anti-curl" of the GWN integrand
- *        (via Stokes' theorem) at a point wrt to a 3D Bezier curve
+ * \brief Identify the u/v isoline on which all degenerate intersections occur, 
+ *         and "clip out" patches that do not contain this line
  *
- * \param [in] q The query point to test
- * \param [in] curve The BezierCurve object
+ * \param [in] patch The NURBS patch
+ * \param [in] up, vp The arrays of intersection coordinates in parameter space 
+ * \param [in] clip_radius The width of the strip which is removed in parameter space 
+ * \param [out] out_patch1, out_patch2 The patches which are returned on either side of the strip
+ * 
+ * \note If the relevant isoline occurs within `clip_radius` of a patch edge, 
+ *         the correspondong out_patch will be invalid
+ * 
+ * \return The clipped patch
+ */
+template <typename T>
+void degenerate_surface_processing(const NURBSPatch<T, 3>& patch,
+                                   const axom::Array<T> up,
+                                   const axom::Array<T> vp,
+                                   const T clip_radius,
+                                   NURBSPatch<T, 3>& out_patch1,
+                                   NURBSPatch<T, 3>& out_patch2)
+{
+  T mean_u = up[0], var_u = 0.0;
+  T mean_v = vp[0], var_v = 0.0;
+
+  // Iterate through the coordinates to identify the correct u/v line
+  for(int i = 1; i < up.size(); ++i)
+  {
+    T new_mean_u = mean_u + (up[i] - mean_u) / static_cast<T>(i + 1);
+    T new_mean_v = mean_v + (vp[i] - mean_v) / static_cast<T>(i + 1);
+
+    T new_var_u = var_u + (up[i] - mean_u) * (up[i] - new_mean_u);
+    T new_var_v = var_v + (vp[i] - mean_v) * (vp[i] - new_mean_v);
+
+    mean_u = new_mean_u;
+    mean_v = new_mean_v;
+
+    var_u = new_var_u;
+    var_v = new_var_v;
+  }
+
+  NURBSPatch<T, 3> dummy_patch(patch);
+
+  // Indicates a u isocurve
+  if(var_u < var_v)
+  {
+    if(mean_u - clip_radius > patch.getMinKnot_u())
+    {
+      dummy_patch.split_u(mean_u - clip_radius, out_patch1, dummy_patch);
+    }
+    else
+    {
+      out_patch1 = NURBSPatch<T, 3>();
+    }
+
+    if(mean_u + clip_radius < patch.getMaxKnot_u())
+    {
+      dummy_patch.split_u(mean_u + clip_radius, dummy_patch, out_patch2);
+    }
+    else
+    {
+      out_patch2 = NURBSPatch<T, 3>();
+    }
+  }
+  else
+  {
+    if(mean_v - clip_radius > patch.getMinKnot_v())
+    {
+      dummy_patch.split_v(mean_v - clip_radius, out_patch1, dummy_patch);
+    }
+    else
+    {
+      out_patch1 = NURBSPatch<T, 3>();
+    }
+
+    if(mean_v + clip_radius < patch.getMaxKnot_v())
+    {
+      dummy_patch.split_v(mean_v + clip_radius, dummy_patch, out_patch2);
+    }
+    else
+    {
+      out_patch2 = NURBSPatch<T, 3>();
+    }
+  }
+}
+
+/*
+ * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch
+ *
+ * \param [in] query The query point to test
+ * \param [in] nPatch The NURBS patch object
+ * \param [in] cast_direction The direction of the ray to compute surface intersections
+ * \param [in] edge_tol The physical distance level at which objects are 
+ *                      considered indistinguishable
+ * \param [in] ls_tol The tolerance for the line-surface intersection routine
+ * \param [in] quad_tol The maximum relative error allowed in the quadrature
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ * \param [in] depth The current recursive depth
+ * 
+ * Computes the generalized winding number for a NURBS patch using Stokes theorem.
+ *
+ * \pre Assumes that the NURBS patch is trimmed, and has been slightly extended in 
+ *       parameter space so that trimming curves arent't on the boundary of the untrimmed patch
+ * \return The GWN.
+ * 
+ * \sa NURBSPatch::makeTriviallyTrimmed
+ * \sa NURBSPatch::scaleParameterSpace
+ */
+template <typename T>
+double nurbs_winding_number(const Point<T, 3>& query,
+                            const NURBSPatch<T, 3>& nPatch,
+                            const Vector<T, 3>& cast_direction,
+                            const double edge_tol = 1e-8,
+                            const double ls_tol = 1e-8,
+                            const double quad_tol = 1e-8,
+                            const double EPS = 1e-8,
+                            const int depth = 0)
+{
+  // Skip processing of degenerate surfaces
+  if(nPatch.getNumControlPoints_u() <= 1 || nPatch.getNumControlPoints_v() <= 1)
+  {
+    return 0.0;
+  }
+
+  // Also skip processing of surfaces with zero trimming curves
+  if(nPatch.getNumTrimmingCurves() == 0)
+  {
+    return 0.0;
+  }
+
+  const double edge_tol_sq = edge_tol * edge_tol;
+
+  // Fix the number of quadrature points arbitrarily
+  constexpr int quad_npts = 15;
+
+  // Store the winding number
+  double the_gwn = 0.0;
+
+  /* 
+   * To use Stokes theorem, we need to identify either a line containing the
+   * query that does not intersect the surface, or one that intersects the *interior*
+   * of the surface at known locations.
+   */
+
+  // Lambda to rotate the input point using the provided rotation matrix
+  auto rotate_point = [&query](const numerics::Matrix<T>& matx,
+                               const Point<T, 3> input) -> Point<T, 3> {
+    Vector<T, 3> shifted(query, input);
+    Vector<T, 3> rotated;
+    numerics::matrix_vector_multiply(matx, shifted.data(), rotated.data());
+    return Point<T, 3>({rotated[0] + query[0], rotated[1] + query[1], rotated[2] + query[2]});
+  };
+
+  // Lambda to generate an entirely random unit vector
+  auto random_unit = []() -> Vector<T, 3> {
+    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+    double u = axom::utilities::random_real(-1.0, 1.0);
+    return Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+  };
+
+  // Rotation matrix for the patch
+  numerics::Matrix<T> rotator;
+
+  // Allocate space for the patch which contains all surface boundaries
+  NURBSPatch<T, 3> nPatchWithBoundaries(nPatch), the_disk;
+
+  // Define vector fields whose curl gives us the winding number
+  DiscontinuityAxis field_direction;
+
+  // Generate slightly expanded bounding boxes
+  auto bBox = nPatch.boundingBox();
+  auto oBox = nPatch.orientedBoundingBox();
+
+  auto patch_diameter = bBox.range().norm();
+
+  bBox.expand(0.01 * patch_diameter);
+  oBox.expand(0.01 * patch_diameter);
+
+  // Case 1: Exterior without rotations
+  if(!bBox.contains(query))
+  {
+    const bool exterior_x = bBox.getMin()[0] > query[0] || query[0] > bBox.getMax()[0];
+    const bool exterior_y = bBox.getMin()[1] > query[1] || query[1] > bBox.getMax()[1];
+    const bool exterior_z = bBox.getMin()[2] > query[2] || query[2] > bBox.getMax()[2];
+
+    if(exterior_x || exterior_y)
+    {
+      field_direction = DiscontinuityAxis::z;
+    }
+    else if(exterior_y || exterior_z)
+    {
+      field_direction = DiscontinuityAxis::x;
+    }
+    else if(exterior_x || exterior_z)
+    {
+      field_direction = DiscontinuityAxis::y;
+    }
+  }
+  // Case 1.5: Exterior with rotation
+  else if(!oBox.contains(query))
+  {
+    /* The following steps rotate the patch until the OBB is /not/ 
+       directly above or below the query point */
+    field_direction = DiscontinuityAxis::rotated;
+
+    // Find vector from query to the bounding box
+    const Point<T, 3> closest = closest_point(query, oBox);
+    const Vector<T, 3> v0 = Vector<T, 3>(query, closest).unitVector();
+
+    // Find the direction of a ray perpendicular to that
+    Vector<T, 3> v1;
+    if(std::abs(v0[2]) > std::abs(v0[0]))
+    {
+      v1 = Vector<T, 3>({v0[2], v0[2], -v0[0] - v0[1]}).unitVector();
+    }
+    else
+    {
+      v1 = Vector<T, 3>({-v0[1] - v0[2], v0[0], v0[0]}).unitVector();
+    }
+
+    // Rotate v0 around v1 until it is perpendicular to the plane spanned by k and v1
+    const double ang = (v0[2] < 0 ? 1.0 : -1.0) *
+      acos(axom::utilities::clampVal(
+        -(v0[0] * v1[1] - v0[1] * v1[0]) / sqrt(v1[0] * v1[0] + v1[1] * v1[1]),
+        -1.0,
+        1.0));
+
+    rotator = numerics::transforms::axisRotation(ang, v1[0], v1[1], v1[2]);
+  }
+  else
+  {
+    field_direction = DiscontinuityAxis::rotated;
+    const Line<T, 3> discontinuity_axis(query, cast_direction);
+
+    // Tolerance for what counts as "close to a boundary" in parameter space
+    T disk_radius = 0.01 * nPatch.getParameterSpaceDiagonal();
+
+    // Compute intersections with the *untrimmed and extrapolated* patch
+    axom::Array<T> up, vp, tp;
+    const bool isHalfOpen = false, countUntrimmed = true;
+
+    bool success = true;
+    intersect(discontinuity_axis, nPatch, tp, up, vp, ls_tol, EPS, countUntrimmed, isHalfOpen, success);
+
+    if(!success)
+    {
+      // Look at the intersection points
+      int num_noncoincident = 0;
+      for(int i = 0; i < tp.size(); ++i)
+      {
+        const Point<T, 3> the_point(nPatch.evaluate(up[i], vp[i]));
+        // If any of the intersection points are coincident with the surface,
+        //  then attempt to clip out all degenerate intersections, and retry
+        if(squared_distance(query, the_point) <= edge_tol_sq)
+        {
+          NURBSPatch<T, 3> clipped_patch1, clipped_patch2;
+
+          degenerate_surface_processing(nPatch, up, vp, 0.01 * disk_radius, clipped_patch1, clipped_patch2);
+
+          return nurbs_winding_number(query,
+                                      clipped_patch1,
+                                      cast_direction,
+                                      edge_tol,
+                                      ls_tol,
+                                      quad_tol * 1e-5,
+                                      EPS,
+                                      depth + 1) +
+            nurbs_winding_number(query,
+                                 clipped_patch2,
+                                 cast_direction,
+                                 edge_tol,
+                                 ls_tol,
+                                 quad_tol * 1e-5,
+                                 EPS,
+                                 depth + 1);
+        }
+        else
+        {
+          num_noncoincident++;
+        }
+
+        // If more than 5 (arbitrary) are *not* coincident with the surface,
+        //  re-cast and try again. This is to avoid cases where the point *is*
+        //  coincident with the surface, but the first recorded point of
+        //  intersection is not after multiple re-casts.
+        if(num_noncoincident > 5)
+        {
+          const auto new_cast_direction = random_unit();
+          return nurbs_winding_number(query,
+                                      nPatch,
+                                      new_cast_direction,
+                                      edge_tol,
+                                      ls_tol,
+                                      quad_tol,
+                                      EPS,
+                                      depth + 1);
+        }
+      }
+    }
+
+    // If no intersections are recorded, then nothing extra to account for
+
+    // Otherwise, account for each discontinuity analytically,
+    //  or recursively through disk subdivision
+    for(int i = 0; i < up.size(); ++i)
+    {
+      // Compute the intersection point on the surface
+      const Point<T, 3> the_point(nPatch.evaluate(up[i], vp[i]));
+      const Vector<T, 3> the_normal = nPatch.normal(up[i], vp[i]);
+
+      // Check for bad intersections, i.e.,
+      //  > There normal is poorly defined (cusp)
+      //  > The normal is tangent to the axis of discontinuity
+      const bool bad_intersection = axom::utilities::isNearlyEqual(the_normal.norm(), 0.0, EPS) ||
+        axom::utilities::isNearlyEqual(the_normal.unitVector().dot(cast_direction), 0.0, EPS);
+
+      const bool isOnSurface = squared_distance(query, the_point) <= edge_tol_sq;
+
+      if(bad_intersection && !isOnSurface)
+      {
+        // If a non-coincident ray intersects the surface at a tangent/cusp,
+        //  can recast and try again
+        const auto new_cast_direction = random_unit();
+        return nurbs_winding_number(query,
+                                    nPatch,
+                                    new_cast_direction,
+                                    edge_tol,
+                                    ls_tol,
+                                    quad_tol,
+                                    EPS,
+                                    depth + 1);
+      }
+
+      if(isOnSurface)
+      {
+        // If the query point is on the surface, then shrink the disk
+        //  to ensure its winding number is known to be near-zero
+        disk_radius = 0.01 * disk_radius;
+      }
+
+      // Consider a disk around the intersection point via NURBSPatch::diskSplit.
+      //   If the disk intersects any trimming curves, need to do disk subdivision.
+      //   If not, we can compute the winding number without changing the trimming curvse
+      const bool ignoreInteriorDisk = true, clipDisk = true;
+      bool isDiskInside, isDiskOutside;
+      NURBSPatch<T, 3> the_disk;
+      nPatchWithBoundaries.diskSplit(up[i],
+                                     vp[i],
+                                     disk_radius,
+                                     the_disk,
+                                     nPatchWithBoundaries,
+                                     isDiskInside,
+                                     isDiskOutside,
+                                     ignoreInteriorDisk,
+                                     clipDisk);
+
+      if(isOnSurface)
+      {
+        // If the query point is on the surface, the contribution of the disk is near-zero
+        //  and we only needed to puncture the larger surface to proceed
+        continue;
+      }
+      else if(!isDiskInside && !isDiskOutside)
+      {
+        // If the disk overlapped with the trimming curves, evaluate the winding number for the disk
+        const auto new_cast_direction = random_unit();
+        the_gwn += nurbs_winding_number(query,
+                                        the_disk,
+                                        new_cast_direction,
+                                        edge_tol,
+                                        ls_tol,
+                                        quad_tol,
+                                        EPS,
+                                        depth + 1);
+      }
+      else if(isDiskOutside)
+      {
+        // If the disk is entirely outside the trimming curves, can just look at the boundary
+        continue;
+      }
+      else if(isDiskInside)
+      {
+        // If the disk is entirely inside the trimming curves,
+        //  need to account for the scalar field discontinuity
+        const auto the_direction = Vector<T, 3>(query, the_point).unitVector();
+        the_gwn += std::copysign(0.5, the_normal.dot(the_direction));
+      }
+    }
+
+    // Rotate the patch so that the discontinuity is aligned with the z-axis
+    const double ang = std::acos(axom::utilities::clampVal(cast_direction[2], -1.0, 1.0));
+    rotator = numerics::transforms::axisRotation(ang, cast_direction[1], -cast_direction[0], 0);
+  }
+
+  if(field_direction == DiscontinuityAxis::rotated)
+  {
+    // The trimming curves for rotatedPatch have been changed as needed,
+    //  but we need to rotate the control points
+    const auto patch_shape = nPatchWithBoundaries.getControlPoints().shape();
+    for(int i = 0; i < patch_shape[0]; ++i)
+    {
+      for(int j = 0; j < patch_shape[1]; ++j)
+      {
+        nPatchWithBoundaries(i, j) = rotate_point(rotator, nPatchWithBoundaries(i, j));
+      }
+    }
+  }
+
+  the_gwn +=
+    stokes_winding_number_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
+
+  return the_gwn;
+}
+
+/*!
+ * \brief Evaluates the integral of the "anti-curl" of the GWN integrand
+ *        (via Stokes' theorem) at a point wrt to the trimming curves of a surface
+ *
+ * \param [in] query The query point
+ * \param [in] patch The NURBSPatch object contianing the trimming curves
  * \param [in] ax The axis (relative to query) denoting which anti-curl we use
  * \param [in] npts The number of points used in each Gaussian quadrature
  * \param [in] quad_tol The maximum relative error allowed in each quadrature
  * 
- * Applies a non-adaptive quadrature to a BezierCurve using one of three possible
+ * Applies a non-adaptive quadrature to the trimming curves of a NURBS patch using one of three possible
  * "anti-curl" vector fields, the curl of each of which is equal to <x, y, z>/||x||^3.
- * With the proper "anti-curl" selected, integrating this along a closed curve is equal
- * to evaluating the winding number of a surface with that curve as the boundary.
  * 
- * \note This is only meant to be used for `winding_number<BezierPatch>()`,
+ * \note This is only meant to be used for `winding_number<NURBSPatch>()`,
  *  and the result does not make sense outside of that context.
  *
  * \return The value of the integral
  */
 template <typename T>
-double stokes_winding_number(const Point<T, 3>& q,
-                             const BezierCurve<T, 3>& curve,
-                             const SingularityAxis ax,
-                             int npts,
-                             double quad_tol)
+double stokes_winding_number_evaluate(const Point<T, 3>& query,
+                                      const NURBSPatch<T, 3>& patch,
+                                      const DiscontinuityAxis ax,
+                                      int npts,
+                                      double quad_tol)
 {
   // Generate the quadrature rules in parameter space
   static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
   const mfem::IntegrationRule& quad_rule = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
 
-  double quadrature = 0.0;
-  for(int qi = 0; qi < quad_rule.GetNPoints(); ++qi)
+  double quad = 0;
+  for(int n = 0; n < patch.getNumTrimmingCurves(); ++n)
   {
-    // Get quadrature points in space (shifted by the query)
-    const Vector<T, 3> node(q, curve.evaluate(quad_rule.IntPoint(qi).x));
-    const Vector<T, 3> node_dt(curve.dt(quad_rule.IntPoint(qi).x));
-    const double node_norm = node.norm();
+    const NURBSCurve<T, 2> trimming_curve(patch.getTrimmingCurve(n));
+    const double quad_coarse =
+      stokes_winding_number_component(query, trimming_curve, patch, ax, 0, 0, quad_rule, quad_tol);
+
+    quad +=
+      stokes_winding_number_adaptive(query, trimming_curve, quad_rule, patch, ax, 0, 0, quad_coarse, quad_tol);
+  }
+
+  return 0.25 * M_1_PI * quad;
+}
+
+template <typename T>
+double stokes_winding_number_adaptive(const Point<T, 3>& query,
+                                      const NURBSCurve<T, 2>& curve,
+                                      const mfem::IntegrationRule& quad_rule,
+                                      const NURBSPatch<T, 3>& patch,
+                                      const DiscontinuityAxis ax,
+                                      const int refinement_level,
+                                      const int refinement_index,
+                                      const double quad_coarse,
+                                      const double quad_tol)
+{
+  double quad_fine_1 = stokes_winding_number_component(query,
+                                                       curve,
+                                                       patch,
+                                                       ax,
+                                                       refinement_level + 1,
+                                                       2 * refinement_index,
+                                                       quad_rule,
+                                                       quad_tol);
+  double quad_fine_2 = stokes_winding_number_component(query,
+                                                       curve,
+                                                       patch,
+                                                       ax,
+                                                       refinement_level + 1,
+                                                       2 * refinement_index + 1,
+                                                       quad_rule,
+                                                       quad_tol);
+
+  if(refinement_level > 25 ||
+     axom::utilities::isNearlyEqualRelative(quad_coarse, quad_fine_1 + quad_fine_2, quad_tol, 1e-10))
+  {
+    return quad_fine_1 + quad_fine_2;
+  }
+
+  // Perform the adaptive call over both halves of the curve
+  quad_fine_1 = stokes_winding_number_adaptive(query,
+                                               curve,
+                                               quad_rule,
+                                               patch,
+                                               ax,
+                                               refinement_level + 1,
+                                               2 * refinement_index,
+                                               quad_fine_1,
+                                               quad_tol);
+
+  quad_fine_2 = stokes_winding_number_adaptive(query,
+                                               curve,
+                                               quad_rule,
+                                               patch,
+                                               ax,
+                                               refinement_level + 1,
+                                               2 * refinement_index + 1,
+                                               quad_fine_2,
+                                               quad_tol);
+
+  return quad_fine_1 + quad_fine_2;
+}
+
+template <typename T>
+double stokes_winding_number_component(const Point<T, 3>& query,
+                                       const NURBSCurve<T, 2>& curve,
+                                       const NURBSPatch<T, 3>& patch,
+                                       const DiscontinuityAxis ax,
+                                       const int refinement_level,
+                                       const int refinement_index,
+                                       const mfem::IntegrationRule& quad_rule,
+                                       const double quad_tol)
+{
+  double this_quad = 0;
+  for(int q = 0; q < quad_rule.GetNPoints(); ++q)
+  {
+    // Find the right knot span based on refinement level
+    const double span_length = (curve.getMaxKnot() - curve.getMinKnot()) / (1 << refinement_level);
+    const double span_offset = curve.getMinKnot() + span_length * refinement_index;
+
+    const double quad_x = span_offset + span_length * quad_rule.IntPoint(q).x;
+    const double quad_weight = quad_rule.IntPoint(q).weight * span_length;
+
+    Point<T, 2> c_eval;
+    Vector<T, 2> c_Dt;
+    curve.evaluateFirstDerivative(quad_x, c_eval, c_Dt);
+
+    Point<T, 3> s_eval;
+    Vector<T, 3> s_Du, s_Dv;
+    patch.evaluateFirstDerivatives(c_eval[0], c_eval[1], s_eval, s_Du, s_Dv);
+
+    // Compute quadrature point and total derivative
+    const Vector<T, 3> node(query, s_eval);
+    const Vector<T, 3> node_dt(s_Du * c_Dt[0] + s_Dv * c_Dt[1]);
 
     // Compute one of three vector field line integrals depending on
-    //  the orientation of the original surface, indicated through ax.
+    //  the orientation of the original surface, indicated through ax
     switch(ax)
     {
-    case(SingularityAxis::x):
-      quadrature += quad_rule.IntPoint(qi).weight *
-        (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
-        (node[1] * node[1] + node[2] * node[2]) / node_norm;
+    case(DiscontinuityAxis::x):
+      this_quad += quad_weight * (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
+        (node[1] * node[1] + node[2] * node[2]) / node.norm();
       break;
-    case(SingularityAxis::y):
-      quadrature += quad_rule.IntPoint(qi).weight *
-        (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
-        (node[0] * node[0] + node[2] * node[2]) / node_norm;
+    case(DiscontinuityAxis::y):
+      this_quad += quad_weight * (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
+        (node[0] * node[0] + node[2] * node[2]) / node.norm();
       break;
-    case(SingularityAxis::z):
-    case(SingularityAxis::rotated):
-      quadrature += quad_rule.IntPoint(qi).weight *
-        (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
-        (node[0] * node[0] + node[1] * node[1]) / node_norm;
+    case(DiscontinuityAxis::z):
+    case(DiscontinuityAxis::rotated):
+      this_quad += quad_weight * (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
+        (node[0] * node[0] + node[1] * node[1]) / node.norm();
       break;
     }
   }
 
-  // Adaptively refine quadrature over curves if query is not far enough away
-  //  from the singularity axis. If rotated, assume you need to adapt.
-  bool needs_adapt = false;
-  BoundingBox<T, 3> cBox(curve.boundingBox());
-  Point<T, 3> centroid = cBox.getCentroid();
-
-  switch(ax)
-  {
-  case(SingularityAxis::x):
-    needs_adapt =
-      (q[1] - centroid[1]) * (q[1] - centroid[1]) + (q[2] - centroid[2]) * (q[2] - centroid[2]) <=
-      cBox.range().squared_norm();
-    break;
-  case(SingularityAxis::y):
-    needs_adapt =
-      (q[0] - centroid[0]) * (q[0] - centroid[0]) + (q[2] - centroid[2]) * (q[2] - centroid[2]) <=
-      cBox.range().squared_norm();
-    break;
-  case(SingularityAxis::z):
-    needs_adapt =
-      (q[0] - centroid[0]) * (q[0] - centroid[0]) * (q[1] - centroid[1]) * (q[1] - centroid[1]) <=
-      cBox.range().squared_norm();
-    break;
-  case(SingularityAxis::rotated):
-    needs_adapt = true;
-    break;
-  }
-
-  if(needs_adapt)
-  {
-    return stokes_winding_number_adaptive(q, curve, ax, quad_rule, quadrature, quad_tol);
-  }
-
-  return 0.25 * M_1_PI * quadrature;
+  return this_quad;
 }
-#endif
 
-#ifdef AXOM_USE_MFEM
-/*!
- * \brief Accurately evaluates the integral of the "anti-curl" of the GWN integrand
- *        (via Stokes' theorem) at a point wrt to a 3D Bezier curve via recursion
- *
- * \param [in] q The query point to test
- * \param [in] curve The BezierCurve object
- * \param [in] ax The axis (relative to query) denoting which anti-curl we use
- * \param [in] quad_rule The mfem quadrature rule object
- * \param [in] quad_coarse The integral evaluated on the original curve
- * \param [in] quad_tol The maximum relative error allowed in each quadrature
- * \param [in] depth The current recursive depth
- * 
- * Recursively apply quadrature for one of three possible integrals along two halfs 
- * of a curve. The sum of this integral along the subcurves should be equal to to
- * quad_coarse. Otherwise, apply this algorithm to each half recursively.
- *
- * \note This is only meant to be used for `winding_number<BezierPatch>()`,
- *  and the result does not make sense outside of that context.
- * 
- * \return The value of the integral
- */
-template <typename T>
-double stokes_winding_number_adaptive(const Point<T, 3>& q,
-                                      const BezierCurve<T, 3>& curve,
-                                      const SingularityAxis ax,
-                                      const mfem::IntegrationRule& quad_rule,
-                                      const double quad_coarse,
-                                      const double quad_tol,
-                                      const int depth = 1)
-{
-  // Split the curve, do the quadrature over both components
-  BezierCurve<T, 3> subcurves[2];
-  curve.split(0.5, subcurves[0], subcurves[1]);
-
-  double quad_fine[2] = {0.0, 0.0};
-  for(int i = 0; i < 2; ++i)
-  {
-    for(int qi = 0; qi < quad_rule.GetNPoints(); ++qi)
-    {
-      // Get quad_rulerature points in space (shifted by the query)
-      const Vector<T, 3> node(q, subcurves[i].evaluate(quad_rule.IntPoint(qi).x));
-      const Vector<T, 3> node_dt(subcurves[i].dt(quad_rule.IntPoint(qi).x));
-      const double node_norm = node.norm();
-
-      // Compute one of three vector field line integrals depending on
-      //  the orientation of the original surface, indicated through ax.
-      switch(ax)
-      {
-      case(SingularityAxis::x):
-        quad_fine[i] += quad_rule.IntPoint(qi).weight *
-          (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
-          (node[1] * node[1] + node[2] * node[2]) / node_norm;
-        break;
-      case(SingularityAxis::y):
-        quad_fine[i] += quad_rule.IntPoint(qi).weight *
-          (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
-          (node[0] * node[0] + node[2] * node[2]) / node_norm;
-        break;
-      case(SingularityAxis::z):
-      case(SingularityAxis::rotated):
-        quad_fine[i] += quad_rule.IntPoint(qi).weight *
-          (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
-          (node[0] * node[0] + node[1] * node[1]) / node_norm;
-        break;
-      }
-    }
-  }
-
-  constexpr int MAX_DEPTH = 12;
-  if(depth >= MAX_DEPTH ||
-     axom::utilities::isNearlyEqualRelative(quad_fine[0] + quad_fine[1], quad_coarse, quad_tol, 1e-10))
-  {
-    return 0.25 * M_1_PI * (quad_fine[0] + quad_fine[1]);
-  }
-  else
-  {
-    return stokes_winding_number_adaptive(q,
-                                          subcurves[0],
-                                          ax,
-                                          quad_rule,
-                                          quad_fine[0],
-                                          quad_tol,
-                                          depth + 1) +
-      stokes_winding_number_adaptive(q, subcurves[1], ax, quad_rule, quad_fine[1], quad_tol, depth + 1);
-  }
-}
 #endif
 
 }  // end namespace detail

@@ -656,7 +656,6 @@ TEST(primal_surface_inter, bezier_surface_intersect)
       }
       else
       {
-        // continue;
         checkIntersections(ray, sphere_face_patch, {1.0}, {u_params[i]}, {v_params[j]}, eps, eps_test);
       }
     }

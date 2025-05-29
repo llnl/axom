@@ -1367,9 +1367,7 @@ private:
    */
   std::string materialNameToFieldName(const std::string& materialName) const
   {
-    const std::string vol_frac_fmt("vol_frac_{}");
-    auto name = axom::fmt::format(vol_frac_fmt, materialName);
-    return name;
+    return axom::fmt::format("vol_frac_{}", materialName);
   }
 
   /*!
