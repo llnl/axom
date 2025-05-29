@@ -17,16 +17,16 @@ namespace flat_map
 
 inline void setSentinel(axom::ArrayView<GroupBucket> metadata)
 {
-#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA) && defined(AXOM_GPUCC)
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
   // Note: HIP can access device memory from the host and does not need special
   // handling - we just defer to the host path in all cases.
   MemorySpace space = getAllocatorSpace(metadata.getAllocatorID());
-  using DeviceExec = axom::CUDA_EXEC<256>;
   if(space == MemorySpace::Device)
   {
-    for_all<DeviceExec>(
-      1,
-      AXOM_LAMBDA(IndexType) { metadata[metadata.size() - 1].setSentinel(); });
+    GroupBucket last_bucket;
+    axom::copy(&last_bucket, metadata.data() + metadata.size() - 1, sizeof(GroupBucket));
+    last_bucket.setSentinel();
+    axom::copy(metadata.data() + metadata.size() - 1, &last_bucket, sizeof(GroupBucket));
     return;
   }
 #endif
@@ -42,11 +42,10 @@ inline void destroyBuckets(axom::ArrayView<GroupBucket> metadata, axom::ArrayVie
     return;
   }
 
-#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA) && defined(AXOM_GPUCC)
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
   // Note: HIP can access device memory from the host and does not need special
   // handling - we just defer to the host path in all cases.
   MemorySpace space = getAllocatorSpace(metadata.getAllocatorID());
-  using DeviceExec = axom::CUDA_EXEC<256>;
   // CUDA-only: buckets located in device-only memory and non-trivially
   // destructible. We'll need to "relocate" the objects to the host to
   // destroy.

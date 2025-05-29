@@ -91,6 +91,48 @@ Matrix<T> zRotation(double angleRad, int ndims = 3)
 }
 
 /*!
+ * \brief Return 3D rotation matrix about specified axis.
+ *
+ * \param angleRad The angle to rotate in radians.
+ * \param x, y, z The components of the axis of rotation
+ *
+ * Formulation from https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle
+ * 
+ * \return A Matrix containing the rotation transform.
+ */
+template <typename T = double>
+Matrix<T> axisRotation(double angleRad, double x, double y, double z)
+{
+  const double norm = sqrt(x * x + y * y + z * z);
+
+  if(axom::utilities::isNearlyEqual(norm, 0.0))
+  {
+    return numerics::Matrix<T>::identity(3);
+  }
+
+  auto M = numerics::Matrix<T>::identity(3);
+
+  x /= norm;
+  y /= norm;
+  z /= norm;
+  const double c = cos(angleRad), s = sin(angleRad), C = 1 - c;
+
+  M(0, 0) = x * x * C + c;
+  M(0, 1) = x * y * C - z * s;
+  M(0, 2) = x * z * C + y * s;
+
+  M(1, 0) = y * x * C + z * s;
+  M(1, 1) = y * y * C + c;
+  M(1, 2) = y * z * C - x * s;
+
+  M(2, 0) = z * x * C - y * s;
+  M(2, 1) = z * y * C + x * s;
+  M(2, 2) = z * z * C + c;
+
+  return M;
+}
+
+/*!
  * \brief Return scaling matrix.
  *
  * \param s The scaling value.
