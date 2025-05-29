@@ -134,12 +134,12 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
     if((MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND)
         list(APPEND quest_headers Shaper.hpp
                                   DiscreteShape.hpp
+                                  IntersectionShaper.hpp
                                   detail/shaping/shaping_helpers.hpp)
         list(APPEND quest_sources Shaper.cpp
                                 DiscreteShape.cpp
                                 detail/shaping/shaping_helpers.cpp)
         list(APPEND quest_depends_on klee)       
-        list(APPEND quest_headers IntersectionShaper.hpp)
     endif()
 
     if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
