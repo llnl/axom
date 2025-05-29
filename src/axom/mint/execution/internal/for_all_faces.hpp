@@ -42,8 +42,11 @@ inline void for_all_I_faces(xargs::ij, const StructuredMesh& m, KernelType&& ker
   const IndexType Ni = INodeResolution;
   const IndexType Nj = m.getCellResolution(J_DIRECTION);
 
-  axom::StackArray<IndexType, 2> i_range{{0, Ni}}, j_range{{0, Nj}};
-  axom::for_all<ExecPolicy>(i_range, j_range, AXOM_LAMBDA(IndexType i, IndexType j) {
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
+    AXOM_LAMBDA(IndexType i, IndexType j) {
       const IndexType faceID = i + j * INodeResolution;
       kernel(faceID, i, j);
     });
@@ -61,8 +64,12 @@ inline void for_all_I_faces(xargs::ijk, const StructuredMesh& m, KernelType&& ke
   const IndexType Nj = m.getCellResolution(J_DIRECTION);
   const IndexType Nk = m.getCellResolution(K_DIRECTION);
 
-  axom::StackArray<IndexType, 2> i_range{{0, Ni}}, j_range{{0, Nj}}, k_range{{0, Nk}};
-  axom::for_all<ExecPolicy>(i_range, j_range, k_range, AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}}, k_range {{0, Nk}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
+    k_range,
+    AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
       const IndexType faceID = i + j * INodeResolution + k * numIFacesInKSlice;
       kernel(faceID, i, j, k);
     });
@@ -79,8 +86,11 @@ inline void for_all_J_faces(xargs::ij, const StructuredMesh& m, KernelType&& ker
   const IndexType Ni = ICellResolution;
   const IndexType Nj = m.getNodeResolution(J_DIRECTION);
 
-  axom::StackArray<IndexType, 2> i_range{{0, Ni}}, j_range{{0, Nj}};
-  axom::for_all<ExecPolicy>(i_range, j_range, AXOM_LAMBDA(IndexType i, IndexType j) {
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
+    AXOM_LAMBDA(IndexType i, IndexType j) {
       const IndexType faceID = numIFaces + i + j * ICellResolution;
       kernel(faceID, i, j);
     });
@@ -99,8 +109,12 @@ inline void for_all_J_faces(xargs::ijk, const StructuredMesh& m, KernelType&& ke
   const IndexType Nj = m.getNodeResolution(J_DIRECTION);
   const IndexType Nk = m.getCellResolution(K_DIRECTION);
 
-  axom::StackArray<IndexType, 2> i_range{{0, Ni}}, j_range{{0, Nj}}, k_range{{0, Nk}};
-  axom::for_all<ExecPolicy>(i_range, j_range, k_range, AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}}, k_range {{0, Nk}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
+    k_range,
+    AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
       const IndexType jp = j * ICellResolution;
       const IndexType kp = k * numJFacesInKSlice;
       const IndexType faceID = numIFaces + i + jp + kp;
@@ -121,8 +135,12 @@ inline void for_all_K_faces(xargs::ijk, const StructuredMesh& m, KernelType&& ke
   const IndexType Nj = m.getCellResolution(J_DIRECTION);
   const IndexType Nk = m.getNodeResolution(K_DIRECTION);
 
-  axom::StackArray<IndexType, 2> i_range{{0, Ni}}, j_range{{0, Nj}}, k_range{{0, Nk}};
-  axom::for_all<ExecPolicy>(i_range, j_range, k_range, AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}}, k_range {{0, Nk}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
+    k_range,
+    AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
       const IndexType jp = j * ICellResolution;
       const IndexType kp = k * cellKp;
       const IndexType faceID = numIJFaces + i + jp + kp;

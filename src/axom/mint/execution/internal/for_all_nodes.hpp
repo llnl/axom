@@ -52,8 +52,11 @@ inline void for_all_nodes_impl(xargs::ij, const StructuredMesh& m, KernelType&& 
   const IndexType Ni = m.getNodeResolution(I_DIRECTION);
   const IndexType Nj = m.getNodeResolution(J_DIRECTION);
 
-  axom::StackArray<IndexType, 2> i_range{{0, Ni}}, j_range{{0, Nj}};
-  axom::for_all<ExecPolicy>(i_range, j_range, AXOM_LAMBDA(IndexType i, IndexType j) {
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
+    AXOM_LAMBDA(IndexType i, IndexType j) {
       const IndexType nodeIdx = i + j * jp;
       kernel(nodeIdx, i, j);
     });
@@ -82,8 +85,12 @@ inline void for_all_nodes_impl(xargs::ijk, const StructuredMesh& m, KernelType&&
   const IndexType Nj = m.getNodeResolution(J_DIRECTION);
   const IndexType Nk = m.getNodeResolution(K_DIRECTION);
 
-  axom::StackArray<IndexType, 2> i_range{{0, Ni}}, j_range{{0, Nj}}, k_range{{0, Nk}};
-  axom::for_all<ExecPolicy>(i_range, j_range, k_range, AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}}, k_range {{0, Nk}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
+    k_range,
+    AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
       const IndexType nodeIdx = i + j * jp + k * kp;
       kernel(nodeIdx, i, j, k);
     });
