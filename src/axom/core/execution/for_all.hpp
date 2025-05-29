@@ -141,7 +141,7 @@ inline void for_all(const axom::StackArray<IndexType, 2> &iRange,
                     KernelType &&kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
-  assert(iRange[1] > iRange[0] && jRange[1] > jRange[0]);
+  assert(iRange[1] >= iRange[0] && jRange[1] >= jRange[0]);
 
 #if defined(AXOM_USE_RAJA)
   RAJA::RangeSegment jRangeSeg(jRange[0], jRange[1]);
@@ -240,7 +240,7 @@ inline void for_all(const axom::StackArray<IndexType, 2> &iRange,
                     KernelType &&kernel) noexcept
 {
   AXOM_STATIC_ASSERT(execution_space<ExecSpace>::valid());
-  assert(iRange[1] > iRange[0] && jRange[1] > jRange[0] && kRange[1] > kRange[0]);
+  assert(iRange[1] >= iRange[0] && jRange[1] >= jRange[0] && kRange[1] >= kRange[0]);
 
 #if defined(AXOM_USE_RAJA)
   RAJA::RangeSegment iR(iRange[0], iRange[1]);
