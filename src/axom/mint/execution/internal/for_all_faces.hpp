@@ -24,10 +24,6 @@
 
 #include "axom/core/numerics/Matrix.hpp"  // for Matrix
 
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mint
@@ -46,35 +42,11 @@ inline void for_all_I_faces(xargs::ij, const StructuredMesh& m, KernelType&& ker
   const IndexType Ni = INodeResolution;
   const IndexType Nj = m.getCellResolution(J_DIRECTION);
 
-#ifdef AXOM_USE_RAJA
-
-  RAJA::RangeSegment i_range(0, Ni);
-  RAJA::RangeSegment j_range(0, Nj);
-
-  using exec_pol = typename axom::internal::nested_for_exec<ExecPolicy>::loop2d_policy;
-  RAJA::kernel<exec_pol>(
-    RAJA::make_tuple(i_range, j_range),
-    AXOM_LAMBDA(IndexType i, IndexType j) {
+  axom::StackArray<IndexType, 2> i_range{{0, Ni}}, j_range{{0, Nj}};
+  axom::for_all<ExecPolicy>(i_range, j_range, AXOM_LAMBDA(IndexType i, IndexType j) {
       const IndexType faceID = i + j * INodeResolution;
       kernel(faceID, i, j);
     });
-
-#else
-
-  constexpr bool is_serial = std::is_same<ExecPolicy, axom::SEQ_EXEC>::value;
-  AXOM_STATIC_ASSERT(is_serial);
-
-  for(IndexType j = 0; j < Nj; ++j)
-  {
-    const IndexType offset = j * INodeResolution;
-    for(IndexType i = 0; i < Ni; ++i)
-    {
-      const IndexType faceID = i + offset;
-      kernel(faceID, i, j);
-    }
-  }
-
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -89,40 +61,11 @@ inline void for_all_I_faces(xargs::ijk, const StructuredMesh& m, KernelType&& ke
   const IndexType Nj = m.getCellResolution(J_DIRECTION);
   const IndexType Nk = m.getCellResolution(K_DIRECTION);
 
-#ifdef AXOM_USE_RAJA
-
-  RAJA::RangeSegment i_range(0, Ni);
-  RAJA::RangeSegment j_range(0, Nj);
-  RAJA::RangeSegment k_range(0, Nk);
-
-  using exec_pol = typename axom::internal::nested_for_exec<ExecPolicy>::loop3d_policy;
-  RAJA::kernel<exec_pol>(
-    RAJA::make_tuple(i_range, j_range, k_range),
-    AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
+  axom::StackArray<IndexType, 2> i_range{{0, Ni}}, j_range{{0, Nj}}, k_range{{0, Nk}};
+  axom::for_all<ExecPolicy>(i_range, j_range, k_range, AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
       const IndexType faceID = i + j * INodeResolution + k * numIFacesInKSlice;
       kernel(faceID, i, j, k);
     });
-
-#else
-
-  constexpr bool is_serial = std::is_same<ExecPolicy, axom::SEQ_EXEC>::value;
-  AXOM_STATIC_ASSERT(is_serial);
-
-  for(IndexType k = 0; k < Nk; ++k)
-  {
-    const IndexType k_offset = k * numIFacesInKSlice;
-    for(IndexType j = 0; j < Nj; ++j)
-    {
-      const IndexType offset = j * INodeResolution + k_offset;
-      for(IndexType i = 0; i < Ni; ++i)
-      {
-        const IndexType faceID = i + offset;
-        kernel(faceID, i, j, k);
-      }
-    }
-  }
-
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -136,35 +79,11 @@ inline void for_all_J_faces(xargs::ij, const StructuredMesh& m, KernelType&& ker
   const IndexType Ni = ICellResolution;
   const IndexType Nj = m.getNodeResolution(J_DIRECTION);
 
-#ifdef AXOM_USE_RAJA
-
-  RAJA::RangeSegment i_range(0, Ni);
-  RAJA::RangeSegment j_range(0, Nj);
-
-  using exec_pol = typename axom::internal::nested_for_exec<ExecPolicy>::loop2d_policy;
-  RAJA::kernel<exec_pol>(
-    RAJA::make_tuple(i_range, j_range),
-    AXOM_LAMBDA(IndexType i, IndexType j) {
+  axom::StackArray<IndexType, 2> i_range{{0, Ni}}, j_range{{0, Nj}};
+  axom::for_all<ExecPolicy>(i_range, j_range, AXOM_LAMBDA(IndexType i, IndexType j) {
       const IndexType faceID = numIFaces + i + j * ICellResolution;
       kernel(faceID, i, j);
     });
-
-#else
-
-  constexpr bool is_serial = std::is_same<ExecPolicy, axom::SEQ_EXEC>::value;
-  AXOM_STATIC_ASSERT(is_serial);
-
-  for(IndexType j = 0; j < Nj; ++j)
-  {
-    const IndexType offset = numIFaces + j * ICellResolution;
-    for(IndexType i = 0; i < Ni; ++i)
-    {
-      const IndexType faceID = i + offset;
-      kernel(faceID, i, j);
-    }
-  }
-
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -180,42 +99,13 @@ inline void for_all_J_faces(xargs::ijk, const StructuredMesh& m, KernelType&& ke
   const IndexType Nj = m.getNodeResolution(J_DIRECTION);
   const IndexType Nk = m.getCellResolution(K_DIRECTION);
 
-#ifdef AXOM_USE_RAJA
-
-  RAJA::RangeSegment i_range(0, Ni);
-  RAJA::RangeSegment j_range(0, Nj);
-  RAJA::RangeSegment k_range(0, Nk);
-
-  using exec_pol = typename axom::internal::nested_for_exec<ExecPolicy>::loop3d_policy;
-  RAJA::kernel<exec_pol>(
-    RAJA::make_tuple(i_range, j_range, k_range),
-    AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
+  axom::StackArray<IndexType, 2> i_range{{0, Ni}}, j_range{{0, Nj}}, k_range{{0, Nk}};
+  axom::for_all<ExecPolicy>(i_range, j_range, k_range, AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
       const IndexType jp = j * ICellResolution;
       const IndexType kp = k * numJFacesInKSlice;
       const IndexType faceID = numIFaces + i + jp + kp;
       kernel(faceID, i, j, k);
     });
-
-#else
-
-  constexpr bool is_serial = std::is_same<ExecPolicy, axom::SEQ_EXEC>::value;
-  AXOM_STATIC_ASSERT(is_serial);
-
-  for(IndexType k = 0; k < Nk; ++k)
-  {
-    const IndexType k_offset = k * numJFacesInKSlice + numIFaces;
-    for(IndexType j = 0; j < Nj; ++j)
-    {
-      const IndexType offset = j * ICellResolution + k_offset;
-      for(IndexType i = 0; i < Ni; ++i)
-      {
-        const IndexType faceID = i + offset;
-        kernel(faceID, i, j, k);
-      }
-    }
-  }
-
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -231,42 +121,13 @@ inline void for_all_K_faces(xargs::ijk, const StructuredMesh& m, KernelType&& ke
   const IndexType Nj = m.getCellResolution(J_DIRECTION);
   const IndexType Nk = m.getNodeResolution(K_DIRECTION);
 
-#ifdef AXOM_USE_RAJA
-
-  RAJA::RangeSegment i_range(0, Ni);
-  RAJA::RangeSegment j_range(0, Nj);
-  RAJA::RangeSegment k_range(0, Nk);
-
-  using exec_pol = typename axom::internal::nested_for_exec<ExecPolicy>::loop3d_policy;
-  RAJA::kernel<exec_pol>(
-    RAJA::make_tuple(i_range, j_range, k_range),
-    AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
+  axom::StackArray<IndexType, 2> i_range{{0, Ni}}, j_range{{0, Nj}}, k_range{{0, Nk}};
+  axom::for_all<ExecPolicy>(i_range, j_range, k_range, AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
       const IndexType jp = j * ICellResolution;
       const IndexType kp = k * cellKp;
       const IndexType faceID = numIJFaces + i + jp + kp;
       kernel(faceID, i, j, k);
     });
-
-#else
-
-  constexpr bool is_serial = std::is_same<ExecPolicy, axom::SEQ_EXEC>::value;
-  AXOM_STATIC_ASSERT(is_serial);
-
-  for(IndexType k = 0; k < Nk; ++k)
-  {
-    const IndexType k_offset = k * cellKp + numIJFaces;
-    for(IndexType j = 0; j < Nj; ++j)
-    {
-      const IndexType offset = j * ICellResolution + k_offset;
-      for(IndexType i = 0; i < Ni; ++i)
-      {
-        const IndexType faceID = i + offset;
-        kernel(faceID, i, j, k);
-      }
-    }
-  }
-
-#endif
 }
 
 } /* namespace helpers */
