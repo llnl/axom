@@ -93,6 +93,17 @@ public:
 
   //@}
 
+  /// Returns a pointer to the quadrature function associated with shape \a name if it exists, else nullptr
+  mfem::QuadratureFunction* getShapeQFunction(const std::string& name) const
+  {
+    return m_inoutShapeQFuncs.Get(name);
+  }
+  /// Returns a pointer to the quadrature function associated with material \a name if it exists, else nullptr
+  mfem::QuadratureFunction* getMaterialQFunction(const std::string& name) const
+  {
+    return m_inoutMaterialQFuncs.Get(name);
+  }
+
 private:
   int numSamplersInitialized(int dim) const
   {
