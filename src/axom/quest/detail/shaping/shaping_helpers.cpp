@@ -185,6 +185,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
       }
     }
   }
+
   // Delete the geometric factors associated w/ our custom quadrature rule
   mesh->DeleteGeometricFactors();
 
@@ -192,7 +193,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
   inoutQFuncs.Register("positions", pos_coef, true);
 }
 
-void FCT_project(const double* M,     // Mass matrix
+void FCT_correct(const double* M,     // Mass matrix
                  const int s,         // num dofs
                  const double* m,     // rhs (incorporating the inout samples)
                  const double y_min,  // lower bound for FCT

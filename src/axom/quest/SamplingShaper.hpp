@@ -771,7 +771,7 @@ private:
 
       AXOM_ANNOTATE_BEGIN("fct project");
       axom::for_all<axom::SEQ_EXEC>(0, NE, [=](int i) {
-        shaping::FCT_project(&m_d(0, 0, i),
+        shaping::FCT_correct(&m_d(0, 0, i),
                              dofs,
                              &b_d(0, i),
                              minY,
