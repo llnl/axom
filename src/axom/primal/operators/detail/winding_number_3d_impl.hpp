@@ -567,8 +567,6 @@ double stokes_winding_number_component(const Point<T, 3>& query,
                                        const mfem::IntegrationRule& quad_rule,
                                        const double AXOM_UNUSED_PARAM(quad_tol))
 {
-  AXOM_UNUSED_VAR(quad_tol);
-
   double this_quad = 0;
   for(int q = 0; q < quad_rule.GetNPoints(); ++q)
   {
