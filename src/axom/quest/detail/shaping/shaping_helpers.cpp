@@ -288,7 +288,7 @@ void FCT_correct(const double* M,     // Mass matrix
     for(int j = 0; j < i; ++j)
     {
       const int idx = i + j * s;
-      double fij = fct_mat[idx];
+      const double fij = fct_mat[idx];
       if(fij >= 0.0)
       {
         gp[i] += fij;
@@ -327,7 +327,7 @@ void FCT_correct(const double* M,     // Mass matrix
       double fij = fct_mat[i + j * s];
 
       const double aij =
-        fij >= 0.0 ? axom::utilities::min(gp[j], gm[j]) : axom::utilities::min(gm[i], gp[j]);
+        fij >= 0.0 ? axom::utilities::min(gp[i], gm[j]) : axom::utilities::min(gm[i], gp[j]);
       fij *= aij;
       xy[i] += fij / ML[i];
       xy[j] -= fij / ML[j];
