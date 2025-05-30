@@ -49,6 +49,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   is not necessary to query RAJA policies via the `execution_space` type traits classes.
 - 2D and 3D implementations for `axom::for_all` were added.
 - Adds support for custom allocators to `axom::FlatMap`.
+- Primal: Adds ability to perform sample-based shaping on tetrahedral shapes.
+- Improves efficiency of volume fraction computation from quadrature samples during sample-based shaping.
 
 ###  Changed
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
