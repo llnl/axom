@@ -18,11 +18,6 @@
 
 #include <conduit/conduit.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 #include <string>
 
 namespace axom
@@ -435,9 +430,8 @@ protected:
   template <typename ViewType>
   axom::IndexType sumArrayView(ViewType view) const
   {
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     using value_type = typename ViewType::value_type;
-    RAJA::ReduceSum<reduce_policy, value_type> sum(0);
+    axom::ReduceSum<ExecSpace, value_type> sum(0);
     axom::for_all<ExecSpace>(
       view.size(),
       AXOM_LAMBDA(axom::IndexType index) { sum += view[index]; });
@@ -1733,8 +1727,7 @@ private:
   template <typename MatsetView>
   axom::IndexType mergeMatset_count(MatsetView matsetView, axom::IndexType nzones) const
   {
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-    RAJA::ReduceSum<reduce_policy, axom::IndexType> matCount_reduce(0);
+    axom::ReduceSum<ExecSpace, axom::IndexType> matCount_reduce(0);
     axom::for_all<ExecSpace>(
       nzones,
       AXOM_LAMBDA(axom::IndexType zoneIndex) {

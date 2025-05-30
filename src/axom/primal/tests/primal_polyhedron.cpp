@@ -569,7 +569,6 @@ TEST(primal_polyhedron, polygonal_cone)
 
   using Polygon2D = primal::Polygon<double, 2>;
   using Polyhedron3D = primal::Polyhedron<double, 3>;
-  using Vector3D = primal::Vector<double, 3>;
   using Point3D = primal::Point<double, 3>;
   using MatrixType = numerics::Matrix<double>;
 

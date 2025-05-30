@@ -12,11 +12,6 @@
 #include <conduit/conduit.hpp>
 #include <conduit/conduit_blueprint.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 #include <cstdint>
 #include <unordered_map>
 #include <vector>
@@ -114,8 +109,6 @@ struct Unique
                       axom::Array<KeyType> &skeys,
                       axom::Array<axom::IndexType> &sindices)
   {
-    using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
     // Make a copy of the keys and make original indices.
@@ -139,13 +132,12 @@ struct Unique
     }
 #endif
     // Sort the keys, indices in place.
-    RAJA::stable_sort_pairs<loop_policy>(RAJA::make_span(keys_view.data(), n),
-                                         RAJA::make_span(indices_view.data(), n));
+    axom::stable_sort_pairs<ExecSpace>(keys_view, indices_view);
 
     // Make a mask array for where differences occur.
     axom::Array<axom::IndexType> mask(n, n, allocatorID);
     auto mask_view = mask.view();
-    RAJA::ReduceSum<reduce_policy, axom::IndexType> mask_sum(0);
+    axom::ReduceSum<ExecSpace, axom::IndexType> mask_sum(0);
     axom::for_all<ExecSpace>(
       n,
       AXOM_LAMBDA(axom::IndexType i) {

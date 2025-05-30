@@ -7,6 +7,7 @@
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/FlatMap.hpp"
+#include "axom/core/execution/runtime_policy.hpp"
 
 // gtest includes
 #include "gtest/gtest.h"
@@ -70,10 +71,12 @@ public:
   using KeyType = typename FlatMapType::key_type;
   using ValueType = typename FlatMapType::mapped_type;
 
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   using DeviceExec = axom::HIP_EXEC<256>;
-#elif defined(AXOM_USE_CUDA)
+#elif defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   using DeviceExec = axom::CUDA_EXEC<256>;
+#else
+  using DeviceExec = axom::SEQ_EXEC;
 #endif
   using HostExec = axom::SEQ_EXEC;
 

@@ -208,7 +208,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
   NURBSPatch<T, 3> nPatchWithBoundaries(nPatch), the_disk;
 
   // Define vector fields whose curl gives us the winding number
-  DiscontinuityAxis field_direction;
+  DiscontinuityAxis field_direction = DiscontinuityAxis::x;
 
   // Generate slightly expanded bounding boxes
   auto bBox = nPatch.boundingBox();
@@ -564,7 +564,7 @@ double stokes_winding_number_component(const Point<T, 3>& query,
                                        const int refinement_level,
                                        const int refinement_index,
                                        const mfem::IntegrationRule& quad_rule,
-                                       const double quad_tol)
+                                       const double AXOM_UNUSED_PARAM(quad_tol))
 {
   double this_quad = 0;
   for(int q = 0; q < quad_rule.GetNPoints(); ++q)

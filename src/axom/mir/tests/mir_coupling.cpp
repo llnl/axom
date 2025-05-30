@@ -427,7 +427,7 @@ TEST(mir_coupling, coupling_2D_sz1_ss1_seq)
   test_coupling<seq_exec>::test2D("coupling_2D_sz1_ss1", true, true);
 }
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_coupling, coupling_2D_sz0_ss0_omp)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_omp");
@@ -449,7 +449,7 @@ TEST(mir_coupling, coupling_2D_sz1_ss1_omp)
   test_coupling<omp_exec>::test2D("coupling_2D_sz1_ss1", true, true);
 }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_coupling, coupling_2D_sz0_ss0_cuda)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_cuda");
@@ -471,7 +471,7 @@ TEST(mir_coupling, coupling_2D_sz1_ss1_cuda)
   test_coupling<cuda_exec>::test2D("coupling_2D_sz1_ss1", true, true);
 }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_coupling, coupling_2D_sz0_ss0_hip)
 {
   AXOM_ANNOTATE_SCOPE("coupling_2D_sz0_ss0_hip");

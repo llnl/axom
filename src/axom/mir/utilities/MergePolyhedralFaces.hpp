@@ -12,11 +12,6 @@
 
 #include <conduit/conduit.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mir
@@ -56,7 +51,6 @@ public:
   static void execute(conduit::Node &n_topo)
   {
     namespace bputils = axom::mir::utilities::blueprint;
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
 
     SLIC_ASSERT(n_topo.fetch_existing("elements/shape").as_string() == "polyhedral");
 
@@ -81,7 +75,7 @@ public:
     //--------------------------------------------------------------------------
     AXOM_ANNOTATE_BEGIN("maxnode");
     // NOTE: the se_conn array may have gap values (typically -1).
-    RAJA::ReduceMax<reduce_policy, ConnectivityType> reduceMaxNodeId(0);
+    axom::ReduceMax<ExecSpace, ConnectivityType> reduceMaxNodeId(0);
     axom::for_all<ExecSpace>(
       se_conn.size(),
       AXOM_LAMBDA(axom::IndexType index) { reduceMaxNodeId.max(se_conn[index]); });
@@ -155,7 +149,7 @@ public:
     auto new_se_offsets = bputils::make_array_view<ConnectivityType>(n_new_se_offsets);
 
     // Copy the sizes of the selected faces into new_se_sizes and make new_se_offsets
-    RAJA::ReduceSum<reduce_policy, axom::IndexType> reduceNewSizes(0);
+    axom::ReduceSum<ExecSpace, axom::IndexType> reduceNewSizes(0);
     axom::for_all<ExecSpace>(
       selectedFaces.size(),
       AXOM_LAMBDA(axom::IndexType index) {
@@ -196,7 +190,7 @@ public:
     AXOM_ANNOTATE_BEGIN("rewriting_elements");
 
     // Sum the element sizes so we can check for gaps to eliminate.
-    RAJA::ReduceSum<reduce_policy, axom::IndexType> reduceConnSize(0);
+    axom::ReduceSum<ExecSpace, axom::IndexType> reduceConnSize(0);
     axom::for_all<ExecSpace>(
       elem_sizes.size(),
       AXOM_LAMBDA(axom::IndexType index) { reduceConnSize += elem_sizes[index]; });

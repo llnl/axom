@@ -80,7 +80,7 @@ struct ExecTraits
   }
 };
 
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 template <int BLK_SZ>
 struct ExecTraits<axom::CUDA_EXEC<BLK_SZ>>
 {
@@ -91,7 +91,7 @@ struct ExecTraits<axom::CUDA_EXEC<BLK_SZ>>
 };
 #endif
 
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 template <int BLK_SZ>
 struct ExecTraits<axom::HIP_EXEC<BLK_SZ>>
 {
@@ -414,7 +414,7 @@ public:
     axom::Array<SpacePt> isoPts = generateIsoParTestPoints(::TEST_GRID_RES);
 
     const auto SZ = isoPts.size();
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     axom::Array<SpacePt> spacePts(SZ, SZ, m_allocatorID);
     axom::Array<SpacePt> foundIso(SZ, SZ, m_allocatorID);
     axom::Array<IndexType> foundIDs(SZ, SZ, m_allocatorID);
@@ -1070,13 +1070,13 @@ private:
 };
 
 using ExecTypes = ::testing::Types<
-#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   axom::OMP_EXEC,
 #endif
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   axom::CUDA_EXEC<256>,
 #endif
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   axom::HIP_EXEC<256>,
 #endif
   axom::SEQ_EXEC>;

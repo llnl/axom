@@ -9,7 +9,10 @@
 #include "axom/config.hpp"
 
 #include "axom/core/execution/execution_space.hpp"
+#include "axom/core/execution/atomics.hpp"
 #include "axom/core/execution/for_all.hpp"
+#include "axom/core/execution/reductions.hpp"
+#include "axom/core/execution/sorts.hpp"
 #include "axom/core/AnnotationMacros.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/utilities/BitUtilities.hpp"
@@ -22,10 +25,6 @@
 
 #include "axom/spin/internal/linear_bvh/RadixTree.hpp"
 #include "axom/spin/MortonIndex.hpp"
-
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
 
 #include <atomic>
 
@@ -106,8 +105,6 @@ primal::BoundingBox<FloatType, NDIMS> reduce(ArrayView<const primal::BoundingBox
   AXOM_ANNOTATE_SCOPE("reduce_abbs");
 
 #ifdef AXOM_USE_RAJA
-  using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
   primal::Point<FloatType, NDIMS> min_pt, max_pt;
 
   FloatType infinity = axom::numeric_limits<FloatType>::max();
@@ -115,8 +112,8 @@ primal::BoundingBox<FloatType, NDIMS> reduce(ArrayView<const primal::BoundingBox
 
   for(int dim = 0; dim < NDIMS; dim++)
   {
-    RAJA::ReduceMin<reduce_policy, FloatType> min_coord(infinity);
-    RAJA::ReduceMax<reduce_policy, FloatType> max_coord(neg_infinity);
+    axom::ReduceMin<ExecSpace, FloatType> min_coord(infinity);
+    axom::ReduceMax<ExecSpace, FloatType> max_coord(neg_infinity);
 
     for_all<ExecSpace>(
       size,
@@ -231,9 +228,9 @@ void sort_mcodes(ArrayView<std::uint32_t> mcodes, std::int32_t size, ArrayView<s
 
   {
     AXOM_ANNOTATE_SCOPE("raja_stable_sort");
-    using EXEC_POL = typename axom::execution_space<ExecSpace>::loop_policy;
-    RAJA::stable_sort_pairs<EXEC_POL>(RAJA::make_span(mcodes.data(), size),
-                                      RAJA::make_span(iter.data(), size));
+    ArrayView<std::uint32_t> mcode_view(mcodes.data(), size);
+    ArrayView<std::int32_t> iter_view(iter.data(), size);
+    axom::stable_sort_pairs<ExecSpace>(mcode_view, iter_view);
   }
 }
 
@@ -462,8 +459,6 @@ template <typename ExecSpace, typename BBoxType>
 AXOM_HOST_DEVICE static inline void sync_store(BBoxType& box, const BBoxType& value)
 {
 #if defined(AXOM_DEVICE_CODE) && defined(AXOM_USE_RAJA)
-  using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
-
   using PointType = typename BBoxType::PointType;
 
   constexpr int NDIMS = PointType::DIMENSION;
@@ -474,8 +469,8 @@ AXOM_HOST_DEVICE static inline void sync_store(BBoxType& box, const BBoxType& va
 
   for(int dim = 0; dim < NDIMS; dim++)
   {
-    RAJA::atomicExchange<atomic_policy>(&(min_pt[dim]), value.getMin()[dim]);
-    RAJA::atomicExchange<atomic_policy>(&(max_pt[dim]), value.getMax()[dim]);
+    axom::atomicExchange<ExecSpace>(&(min_pt[dim]), value.getMin()[dim]);
+    axom::atomicExchange<ExecSpace>(&(max_pt[dim]), value.getMax()[dim]);
   }
 #else  // __CUDA_ARCH__ || __HIP_DEVICE_COMPILE__
   box = value;
@@ -488,9 +483,7 @@ template <typename ExecSpace>
 AXOM_HOST_DEVICE static inline int atomic_increment(int* addr)
 {
 #ifdef AXOM_USE_RAJA
-  using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
-
-  return RAJA::atomicAdd<atomic_policy>(addr, 1);
+  return axom::atomicAdd<ExecSpace>(addr, 1);
 #else
   static_assert(std::is_same<ExecSpace, SEQ_EXEC>::value, "Only SEQ_EXEC supported without RAJA");
 

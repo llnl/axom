@@ -27,9 +27,9 @@ namespace utilities = axom::utilities;
 namespace
 {
 #ifdef AXOM_USE_GPU
-  #ifdef AXOM_USE_HIP
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 using GPUExec = axom::HIP_EXEC<256>;
-  #else
+  #elif defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 using GPUExec = axom::CUDA_EXEC<256>;
   #endif
 #endif
@@ -45,10 +45,10 @@ enum class ExecPolicy
 const std::map<std::string, ExecPolicy> validExecPolicies
 {
     {"seq", ExecPolicy::CPU}
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   , {"omp", ExecPolicy::OpenMP}
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_GPU)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP) || defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   , {"gpu", ExecPolicy::GPU}
 #endif
 };
@@ -85,10 +85,10 @@ struct Arguments
   {
     std::string pol_info = "Sets execution space of the PointInCell query.\n";
     pol_info += "Set to 'seq' to use sequential execution policy.";
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     pol_info += "\nSet to 'omp' to use an OpenMP execution policy.";
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_GPU)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP) || defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     pol_info += "\nSet to 'gpu' to use a GPU execution policy.";
 #endif
 
@@ -356,12 +356,12 @@ int main(int argc, char** argv)
   case ExecPolicy::CPU:
     benchmark_point_in_cell<axom::SEQ_EXEC>(testMesh, args);
     break;
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case ExecPolicy::OpenMP:
     benchmark_point_in_cell<axom::OMP_EXEC>(testMesh, args);
     break;
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_GPU)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP) || defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case ExecPolicy::GPU:
     benchmark_point_in_cell<GPUExec>(testMesh, args);
     break;

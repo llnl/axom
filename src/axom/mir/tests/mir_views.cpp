@@ -304,7 +304,6 @@ struct test_node_to_arrayview
   template <typename DataView>
   static int testBody(DataView dataView, int n)
   {
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     using value_type = typename DataView::value_type;
 
     std::cout << axom::mir::views::array_view_traits<DataView>::name() << std::endl;
@@ -315,7 +314,7 @@ struct test_node_to_arrayview
       AXOM_LAMBDA(axom::IndexType index) { dataView[index] = static_cast<value_type>(index); });
 
     // Read the values and sum them.
-    RAJA::ReduceSum<reduce_policy, value_type> sumValues_reduce(0);
+    axom::ReduceSum<ExecSpace, value_type> sumValues_reduce(0);
     axom::for_all<ExecSpace>(
       n,
       AXOM_LAMBDA(axom::IndexType index) { sumValues_reduce += dataView[index]; });

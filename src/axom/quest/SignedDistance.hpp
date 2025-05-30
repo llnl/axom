@@ -11,6 +11,7 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
 #include "axom/core/utilities/Utilities.hpp"
+#include "axom/core/execution/reductions.hpp"
 #include "axom/slic.hpp"
 
 // primal includes
@@ -453,13 +454,11 @@ bool SignedDistance<NDIMS, ExecSpace>::setMesh(const mint::Mesh* surfaceMesh, in
   // compute bounding box of surface mesh
   // NOTE: this should be changed to an oriented bounding box in the future.
 #ifdef AXOM_USE_RAJA
-  using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
   double minInit = numerics::floating_point_limits<double>::max();
   double maxInit = numerics::floating_point_limits<double>::lowest();
-  RAJA::ReduceMin<reduce_policy, double> xmin(minInit), ymin(minInit), zmin(minInit);
+  axom::ReduceMin<ExecSpace, double> xmin(minInit), ymin(minInit), zmin(minInit);
 
-  RAJA::ReduceMax<reduce_policy, double> xmax(maxInit), ymax(maxInit), zmax(maxInit);
+  axom::ReduceMax<ExecSpace, double> xmax(maxInit), ymax(maxInit), zmax(maxInit);
 
   for_all<ExecSpace>(
     nnodes,

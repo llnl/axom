@@ -12,11 +12,6 @@
 #include <conduit/conduit.hpp>
 #include <conduit/conduit_blueprint.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 #include <cstdint>
 
 namespace axom

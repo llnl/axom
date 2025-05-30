@@ -645,20 +645,14 @@ void fill_cartesian_coords_3d_impl(const primal::BoundingBox<double, 3>& domainB
   double dy = (domainBox.getMax()[1] - domainBox.getMin()[1]) / res[1];
   double dz = (domainBox.getMax()[2] - domainBox.getMin()[2]) / res[2];
 
-#if defined(AXOM_USE_RAJA)
-  RAJA::RangeSegment kRange(0, shape[2]);
-  RAJA::RangeSegment jRange(0, shape[1]);
-  RAJA::RangeSegment iRange(0, shape[0]);
-  using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop3d_policy;
-
   const auto& mapping = xView.mapping();
   SLIC_ASSERT(mapping == yView.mapping());
   SLIC_ASSERT(mapping == zView.mapping());
   auto order = mapping.getStrideOrder();
   if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
   {
-    RAJA::kernel<EXEC_POL>(
-      RAJA::make_tuple(iRange, jRange, kRange),
+    axom::for_all<ExecSpace>(
+      shape,
       AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
         xView(i, j, k) = domainBox.getMin()[0] + i * dx;
         yView(i, j, k) = domainBox.getMin()[1] + j * dy;
@@ -667,30 +661,19 @@ void fill_cartesian_coords_3d_impl(const primal::BoundingBox<double, 3>& domainB
   }
   else
   {
-    RAJA::kernel<EXEC_POL>(
-      RAJA::make_tuple(kRange, jRange, iRange),
+    axom::StackArray<axom::IndexType, 3> shapeKJI;
+    shapeKJI[0] = shape[2];
+    shapeKJI[1] = shape[1];
+    shapeKJI[2] = shape[0];
+
+    axom::for_all<ExecSpace>(
+      shapeKJI,
       AXOM_LAMBDA(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
         xView(i, j, k) = domainBox.getMin()[0] + i * dx;
         yView(i, j, k) = domainBox.getMin()[1] + j * dy;
         zView(i, j, k) = domainBox.getMin()[2] + k * dz;
       });
   }
-#else
-  for(int k = 0; k < res[2]; ++k)
-  {
-    for(int j = 0; j < res[1]; ++j)
-    {
-      for(int i = 0; i < res[0]; ++i)
-      {
-        xView(i, j, k) = domainBox.getMin()[0] + i * dx;
-        yView(i, j, k) = domainBox.getMin()[1] + j * dy;
-        zView(i, j, k) = domainBox.getMin()[2] + k * dz;
-      }
-    }
-  }
-#endif
-
-  return;
 }
 
 template <typename ExecSpace>
@@ -717,19 +700,13 @@ void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainB
   double dx = (domainBox.getMax()[0] - domainBox.getMin()[0]) / res[0];
   double dy = (domainBox.getMax()[1] - domainBox.getMin()[1]) / res[1];
 
-#if defined(AXOM_USE_RAJA)
-
-  RAJA::RangeSegment jRange(0, shape[1]);
-  RAJA::RangeSegment iRange(0, shape[0]);
-  using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
-
   const auto& mapping = xView.mapping();
   SLIC_ASSERT(mapping == yView.mapping());
   auto order = mapping.getStrideOrder();
   if(int(order) & int(axom::ArrayStrideOrder::COLUMN))
   {
-    RAJA::kernel<EXEC_POL>(
-      RAJA::make_tuple(iRange, jRange),
+    axom::for_all<ExecSpace>(
+      shape,
       AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) {
         xView(i, j) = domainBox.getMin()[0] + i * dx;
         yView(i, j) = domainBox.getMin()[1] + j * dy;
@@ -737,25 +714,16 @@ void fill_cartesian_coords_2d_impl(const primal::BoundingBox<double, 2>& domainB
   }
   else
   {
-    RAJA::kernel<EXEC_POL>(
-      RAJA::make_tuple(jRange, iRange),
+    axom::StackArray<axom::IndexType, 2> shapeJI;
+    shapeJI[0] = shape[1];
+    shapeJI[1] = shape[0];
+    axom::for_all<ExecSpace>(
+      shapeJI,
       AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) {
         xView(i, j) = domainBox.getMin()[0] + i * dx;
         yView(i, j) = domainBox.getMin()[1] + j * dy;
       });
   }
-#else
-  for(int j = 0; j < res[1]; ++j)
-  {
-    for(int i = 0; i < res[0]; ++i)
-    {
-      xView(i, j) = domainBox.getMin()[0] + i * dx;
-      yView(i, j) = domainBox.getMin()[1] + j * dy;
-    }
-  }
-#endif
-
-  return;
 }
 
 }  // namespace util

@@ -32,11 +32,6 @@
   #include "mpi.h"
 #endif
 
-// RAJA
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
-
 // C/C++ includes
 #include <string>
 #include <vector>
@@ -302,17 +297,15 @@ public:
 
       std::stringstream pol_sstr;
       pol_sstr << "Set runtime policy for intersection-based sampling method.";
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-      pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
-  #ifdef AXOM_USE_OPENMP
+      pol_sstr << "\nSet to 'seq' or 0 to use the sequential policy.";
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
       pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
-  #endif
-  #ifdef AXOM_USE_CUDA
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
       pol_sstr << "\nSet to 'cuda' or 2 to use the RAJA CUDA policy.";
-  #endif
-  #ifdef AXOM_USE_HIP
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
       pol_sstr << "\nSet to 'hip' or 3 to use the RAJA HIP policy.";
-  #endif
 #endif
 
       intersection_options->add_option("-p, --policy", policy, pol_sstr.str())
@@ -544,14 +537,10 @@ int main(int argc, char** argv)
                                        &shapingDC);
     break;
   case ShapingMethod::Intersection:
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
     shaper = new quest::IntersectionShaper(params.policy,
                                            axom::policyToDefaultAllocatorID(params.policy),
                                            params.shapeSet,
                                            &shapingDC);
-#else
-    SLIC_ERROR("IntersectionShaper requires Axom to be configured with Umpire.");
-#endif
     break;
   }
   SLIC_ASSERT_MSG(shaper != nullptr, "Invalid shaping method selected!");
@@ -589,7 +578,6 @@ int main(int argc, char** argv)
     }
   }
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
   // Set specific parameters here for IntersectionShaper
   if(auto* intersectionShaper = dynamic_cast<quest::IntersectionShaper*>(shaper))
   {
@@ -600,7 +588,6 @@ int main(int argc, char** argv)
       intersectionShaper->setFreeMaterialName(params.backgroundMaterial);
     }
   }
-#endif
 
   //---------------------------------------------------------------------------
   // Project initial volume fractions, if applicable

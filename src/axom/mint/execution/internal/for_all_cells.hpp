@@ -27,10 +27,6 @@
 #include "axom/core/StackArray.hpp"       // for axom::StackArray
 #include "axom/core/numerics/Matrix.hpp"  // for Matrix
 
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mint
@@ -63,35 +59,14 @@ inline void for_all_cells_impl(xargs::ij, const StructuredMesh& m, KernelType&& 
   const IndexType Ni = m.getCellResolution(I_DIRECTION);
   const IndexType Nj = m.getCellResolution(J_DIRECTION);
 
-#ifdef AXOM_USE_RAJA
-
-  RAJA::RangeSegment i_range(0, Ni);
-  RAJA::RangeSegment j_range(0, Nj);
-  using exec_pol = typename axom::internal::nested_for_exec<ExecPolicy>::loop2d_policy;
-
-  RAJA::kernel<exec_pol>(
-    RAJA::make_tuple(i_range, j_range),
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
     AXOM_LAMBDA(IndexType i, IndexType j) {
       const IndexType cellID = i + j * jp;
       kernel(cellID, i, j);
     });
-
-#else
-
-  constexpr bool is_serial = std::is_same<ExecPolicy, axom::SEQ_EXEC>::value;
-  AXOM_STATIC_ASSERT(is_serial);
-
-  for(IndexType j = 0; j < Nj; ++j)
-  {
-    const IndexType j_offset = j * jp;
-    for(IndexType i = 0; i < Ni; ++i)
-    {
-      const IndexType cellID = i + j_offset;
-      kernel(cellID, i, j);
-    }  // END for all i
-  }    // END for all j
-
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -116,40 +91,15 @@ inline void for_all_cells_impl(xargs::ijk, const StructuredMesh& m, KernelType&&
   const IndexType jp = m.cellJp();
   const IndexType kp = m.cellKp();
 
-#ifdef AXOM_USE_RAJA
-
-  RAJA::RangeSegment i_range(0, Ni);
-  RAJA::RangeSegment j_range(0, Nj);
-  RAJA::RangeSegment k_range(0, Nk);
-  using exec_pol = typename axom::internal::nested_for_exec<ExecPolicy>::loop3d_policy;
-
-  RAJA::kernel<exec_pol>(
-    RAJA::make_tuple(i_range, j_range, k_range),
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}}, k_range {{0, Nk}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
+    k_range,
     AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
       const IndexType cellID = i + j * jp + k * kp;
       kernel(cellID, i, j, k);
     });
-
-#else
-
-  constexpr bool is_serial = std::is_same<ExecPolicy, axom::SEQ_EXEC>::value;
-  AXOM_STATIC_ASSERT(is_serial);
-
-  for(IndexType k = 0; k < Nk; ++k)
-  {
-    const IndexType k_offset = k * kp;
-    for(IndexType j = 0; j < Nj; ++j)
-    {
-      const IndexType j_offset = j * jp;
-      for(IndexType i = 0; i < Ni; ++i)
-      {
-        const IndexType cellID = i + j_offset + k_offset;
-        kernel(cellID, i, j, k);
-      }  // END for all i
-    }    // END for all j
-  }      // END for all k
-
-#endif
 }
 
 //------------------------------------------------------------------------------

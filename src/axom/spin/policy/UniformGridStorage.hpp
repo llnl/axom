@@ -8,6 +8,8 @@
 
 #include "axom/core/Array.hpp"
 #include "axom/core/execution/for_all.hpp"
+#include "axom/core/execution/reductions.hpp"
+#include "axom/core/execution/scans.hpp"
 
 namespace axom
 {
@@ -170,28 +172,12 @@ struct FlatGridStorage
   template <typename ExecSpace>
   void initialize(const axom::ArrayView<const IndexType> binSizes)
   {
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-    using loop_pol = typename axom::execution_space<ExecSpace>::loop_policy;
-    using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
-
-    RAJA::exclusive_scan<loop_pol>(RAJA::make_span(binSizes.data(), binSizes.size()),
-                                   RAJA::make_span(m_binOffsets.data(), binSizes.size()),
-                                   RAJA::operators::plus<IndexType> {});
-    RAJA::ReduceSum<reduce_pol, IndexType> total_elems(0);
+    axom::exclusive_scan<ExecSpace>(binSizes, m_binOffsets);
+    axom::ReduceSum<ExecSpace, IndexType> total_elems(0);
     for_all<ExecSpace>(
       binSizes.size(),
       AXOM_LAMBDA(IndexType idx) { total_elems += binSizes[idx]; });
     m_binData.resize(total_elems.get());
-#else
-    IndexType total_elems = binSizes[0];
-    m_binOffsets[0] = 0;
-    for(int i = 1; i < binSizes.size(); i++)
-    {
-      m_binOffsets[i] = m_binOffsets[i - 1] + binSizes[i - 1];
-      total_elems += binSizes[i];
-    }
-    m_binData.resize(total_elems);
-#endif
   }
 
   void insert(IndexType gridIdx, T elem)
