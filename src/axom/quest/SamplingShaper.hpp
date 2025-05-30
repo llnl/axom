@@ -728,7 +728,7 @@ private:
     {
       // assemble the right hand side integral, incorporating the inout samples
       mfem::Vector b(fes->GetVSize());
-      SLIC_ASSERT(fes->GetVSize() == dofs * NE);
+      SLIC_ASSERT(b.Size() == dofs * NE);
       {
         AXOM_ANNOTATE_SCOPE("domain lf integrator assemble");
 
@@ -752,8 +752,12 @@ private:
 
       {
         AXOM_ANNOTATE_SCOPE("batch lu solve");
-        mass_mat_inv->ReadWrite();
-        mass_mat_pivots->ReadWrite();
+
+        mass_mat_inv->Read();
+        mass_mat_pivots->Read();
+
+        vf->HostReadWrite();
+        (*vf) = b;
         vf->ReadWrite();
         mfem::BatchLUSolve(*mass_mat_inv, *mass_mat_pivots, *vf);
       }
