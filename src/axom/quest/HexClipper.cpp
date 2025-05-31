@@ -23,7 +23,7 @@ namespace quest
 HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Hex") : name)
-  , m_transformer(m_transMat)
+  , m_transformer(m_extTrans)
 {
   extractClipperInfo();
 

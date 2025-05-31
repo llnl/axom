@@ -294,11 +294,14 @@ protected:
   conduit::Node m_info;
 
   /*!
-    @brief Transformation due to the GeometryOperator.
+    @brief External transformation due to the GeometryOperator.
 
     This is a direct result of the klee::Geometry::getGeometryOperator().
+    Not to be confused with any geometry's internal transformation
+    (such as a cylinder's orientation and a sphere's center translation),
+    which applies before m_extTrans.
   */
-  numerics::Matrix<double> m_transMat;
+  numerics::Matrix<double> m_extTrans;
 
 private:
   /*!

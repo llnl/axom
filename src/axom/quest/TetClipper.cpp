@@ -21,7 +21,7 @@ namespace quest
 TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Tet") : name)
-  , m_transformer(m_transMat)
+  , m_transformer(m_extTrans)
 {
   extractClipperInfo();
 

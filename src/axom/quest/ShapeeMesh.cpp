@@ -204,6 +204,15 @@ axom::ArrayView<const ShapeeMesh::BoundingBox3DType> ShapeeMesh::getCellBounding
   return m_hexBbs.view();
 }
 
+axom::ArrayView<const double> ShapeeMesh::getCellLengths()
+{
+  if(m_cellLengths.size() != m_cellCount)
+  {
+    computeCellLengths();
+  }
+  return m_cellLengths.view();
+}
+
 axom::ArrayView<const ShapeeMesh::Point3DType> ShapeeMesh::getVertexPoints()
 {
   if(m_vertPoints3D.size() != m_vertexCount)
@@ -630,6 +639,34 @@ void ShapeeMesh::computeVertPoints()
   }
 }
 
+void ShapeeMesh::computeCellLengths()
+{
+  AXOM_ANNOTATE_SCOPE("SphereClipper::computeCellLengths");
+  switch(m_runtimePolicy)
+  {
+  case axom::runtime_policy::Policy::seq:
+    computeCellLengthsImpl<axom::SEQ_EXEC>();
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    computeCellLengthsImpl<axom::OMP_EXEC>();
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    computeCellLengthsImpl<axom::CUDA_EXEC<256>>();
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    computeCellLengthsImpl<axom::HIP_EXEC<256>>();
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+}
+
 void ShapeeMesh::computeConnectivity()
 {
   SLIC_ASSERT(m_dim == 3);  // 2D support not done yet.
@@ -755,6 +792,22 @@ void ShapeeMesh::computeHexBbsImpl()
     m_cellCount,
     AXOM_LAMBDA(axom::IndexType i) {
       hexBbsView[i] = primal::compute_bounding_box<double, 3>(cellsAsHexes[i]);
+    });
+}
+
+template<typename ExecSpace>
+void ShapeeMesh::computeCellLengthsImpl()
+{
+  m_cellLengths = axom::Array<double>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
+
+  auto cellBbs = getCellBoundingBoxes();
+
+  auto lengthsView = m_cellLengths.view();
+  axom::for_all<ExecSpace>(
+    m_cellCount,
+    AXOM_LAMBDA(axom::IndexType cellId)
+    {
+      lengthsView[cellId] = cellBbs[cellId].range().norm();
     });
 }
 

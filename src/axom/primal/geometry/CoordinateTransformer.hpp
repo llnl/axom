@@ -106,6 +106,8 @@ public:
     {
       rval(r,3) = m_v[r];
     }
+    rval(3,3) = 1.0;
+    return rval;
   }
 
   /*!
@@ -137,8 +139,9 @@ public:
 
   /*!
     @brief Add a 3D rotation to the current transformation.
-    The rotation is equivalent to rotating a vector
-    from one direction to another.
+
+    The rotation is not unique.  The chosen rotation axis is the
+    direction perpendicular to the start and end vectors.
 
     @param start [in] Starting direction
     @param end [in] Ending direction

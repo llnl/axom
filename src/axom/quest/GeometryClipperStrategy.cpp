@@ -69,7 +69,7 @@ private:
 
 GeometryClipperStrategy::GeometryClipperStrategy(const klee::Geometry& kGeom)
   : m_info(kGeom.asHierarchy())
-  , m_transMat(computeTransformationMatrix(kGeom.getGeometryOperator()))
+  , m_extTrans(computeTransformationMatrix(kGeom.getGeometryOperator()))
 { }
 
 const std::string& GeometryClipperStrategy::name() const

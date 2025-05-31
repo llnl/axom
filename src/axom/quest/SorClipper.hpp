@@ -17,6 +17,9 @@ namespace quest
 
 /*!
   @brief GeometryClipper specialized for 3D surface-of-revolution geometries.
+
+  The SOR internally support rotation and translation, in addition to any
+  external transformation.
 */
 class SorClipper : public GeometryClipperStrategy
 {
@@ -46,18 +49,26 @@ private:
 #endif
   std::string m_name;
 
-  //! @brief The discrete r(z) function, as an Nx2 array, if used.
+  /*!
+    @brief The discrete r(z) function, as an Nx2 array, if used.
+
+    This data is before internal or external transformations.
+  */
   axom::Array<double, 2> m_discreteFcn;
 
   //! @brief Maximum radius of the SOR.
   double m_maxRadius;
 
+  //! @brief Minimum radius of the SOR.
+  double m_minRadius;
+
   //!@brief The point corresponding to z=0 on the SOR axis.
-  Point3D m_sorBase;
+  Point3D m_sorOrigin;
 
   //!@brief SOR axis in 3D space, in the direction of increasing z.
   Vector3DType m_sorDirection;
 
+  //!@brief Internal and external transforms (includes m_sorDirection and m_sorOrigin).
   axom::primal::CoordinateTransformer<double> m_transformer;
 
   /*!
@@ -74,14 +85,30 @@ private:
   // analytical shapes and surfaces of revolutions.
   axom::IndexType m_levelOfRefinement = 0;
 
+  /*!
+    @brief Boxes (in rz space) on the curve.
+
+    The curve lies completely in these boxes
+    and includes the planes of the base and top.
+  */
+  axom::Array<BoundingBox2DType> m_bbOn;
+
+  /*!
+    @brief Boxes (in rz space) completely under the curve.
+
+    These boxes lie completely under the curve.
+
+  */
+  axom::Array<BoundingBox2DType> m_bbUnder;
+
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
-  // Return a 3x3 matrix that rotates coordinates from the x-axis to the given direction.
-  numerics::Matrix<double> sorAxisRotMatrix(const Vector3DType& dir);
-
   // Extract clipper info from GeometryClipperStrategy::m_info.
   void extractClipperInfo();
+
+  // Compute blocking of areas on and under m_discreteFcn.
+  void computeRoughBlockings();
 };
 
 }  // namespace quest

@@ -71,7 +71,7 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
       axom::IndexType outCount;
       getLabelCounts(labels.view(), inCount, onCount, outCount);
       std::string msg = axom::fmt::format(
-        "GeometryClipper with strategy '{}' labeled {} inside, {} on and {} outside, out of {} "
+        "GeometryClipper with strategy '{}' labeled cells {} inside, {} on and {} outside, out of {} "
         "cells",
         m_strategy->name(),
         inCount,

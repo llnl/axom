@@ -22,7 +22,7 @@ namespace quest
 SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Sphere") : name)
-  , m_transformer(m_transMat)
+  , m_transformer(m_extTrans)
 {
   extractClipperInfo();
 
@@ -78,12 +78,12 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
   /*
     Compute whether vertices are inside shape.
   */
-  axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
-  auto vertIsInsideView = vertIsInside.view();
+  axom::Array<double> vertDist {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
+  auto vertDistView = vertDist.view();
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vX.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vZ.getAllocatorID()));
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertIsInsideView.getAllocatorID()));
+  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertDistView.getAllocatorID()));
 
   auto sphere = m_sphere;
   axom::for_all<ExecSpace>(
@@ -91,7 +91,7 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
     AXOM_LAMBDA(axom::IndexType vertId) {
       primal::Point3D vert {vX[vertId], vY[vertId], vZ[vertId]};
       double signedDist = sphere.computeSignedDistance(vert);
-      vertIsInsideView[vertId] = signedDist < 0;
+      vertDistView[vertId] = signedDist;
     });
 
   if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
@@ -101,7 +101,18 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
 
   /*
     Label cell by whether it has vertices inside, outside or both.
+    Sphere may intersect cell between its vertices, so we classify
+    the cells conservatively.
+    - If cell has vertex less than a small distance outside the
+      sphere, the cell is classified as having a vertex inside.
+    - We don't need to do the same for vertices a small distance
+      inside the sphere, because the sphere is convex.  There's no
+      cell with all vertices inside the sphere and intersects the
+      sphere.
   */
+  auto cellLengths = shapeeMesh.getCellLengths();
+  const double lenFactor = 0.5;
+
   axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
   SLIC_ASSERT(connView.shape() ==
               (axom::StackArray<axom::IndexType, 2> {cellCount, NUM_VERTS_PER_CELL}));
@@ -113,14 +124,16 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
     AXOM_LAMBDA(axom::IndexType cellId) {
       LabelType& cellLabel = labelsView[cellId];
       auto cellVertIds = connView[cellId];
-      bool hasIn = vertIsInsideView[cellVertIds[0]];
-      bool hasOut = !hasIn;
-      for(int vi = 0; vi < NUM_VERTS_PER_CELL; ++vi)
+      const double proximityThreshold = cellLengths[cellId]*lenFactor;
+      bool hasIn = vertDistView[cellVertIds[0]] < proximityThreshold;
+      bool hasOut = vertDistView[cellVertIds[0]] > 0;
+      for(int vi = 1; vi < NUM_VERTS_PER_CELL; ++vi)
       {
         int vertId = cellVertIds[vi];
-        bool isIn = vertIsInsideView[vertId];
+        bool isIn = vertDistView[vertId] < proximityThreshold;
+        bool isOut = vertDistView[vertId] > 0;
         hasIn |= isIn;
-        hasOut |= !isIn;
+        hasOut |= isOut;
       }
       cellLabel = !hasOut ? LABEL_IN : !hasIn ? LABEL_OUT : LABEL_ON;
     });
@@ -221,6 +234,7 @@ void SphereClipper::extractClipperInfo()
   m_levelOfRefinement = m_info.fetch_existing("levelOfRefinement").to_int32();
 }
 
+// Include external transformations in m_sphere.
 void SphereClipper::transformSphere()
 {
   const auto& centerBeforeTrans = m_sphereBeforeTrans.getCenter();

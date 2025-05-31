@@ -95,7 +95,7 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
 
 Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    const axom::Array<double, 2>& discreteFunction,
-                   const Point3D& sorBase,  // surface of revolution.
+                   const Point3D& sorOrigin,  // surface of revolution.
                    const Vector3D& sorDirection,
                    axom::IndexType levelOfRefinement,
                    std::shared_ptr<GeometryOperator const> operator_)
@@ -106,7 +106,7 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
   , m_topology()
   , m_sphere()
   , m_discreteFunction(discreteFunction)
-  , m_sorBase(sorBase)
+  , m_sorOrigin(sorOrigin)
   , m_sorDirection(sorDirection)
   , m_levelOfRefinement(levelOfRefinement)
   , m_operator(std::move(operator_))
@@ -156,7 +156,7 @@ void Geometry::populateGeomInfo()
 
   else if(m_format == "sor3D")
   {
-    m_geomInfo["sorBase"].set(m_sorBase.data(), 3);
+    m_geomInfo["sorOrigin"].set(m_sorOrigin.data(), 3);
     m_geomInfo["sorDirection"].set(m_sorDirection.data(), 3);
     m_geomInfo["discreteFunction"].set(m_discreteFunction.data(), m_discreteFunction.size());
     m_geomInfo["levelOfRefinement"].set(m_levelOfRefinement);

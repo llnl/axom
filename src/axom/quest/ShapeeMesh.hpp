@@ -164,7 +164,10 @@ public:
   */
   axom::ArrayView<const TetrahedronType> getCellsAsTets();
   axom::ArrayView<const HexahedronType> getCellsAsHexes();
+  //!@brief Get volume of mesh cells.
   axom::ArrayView<const double> getCellVolumes();
+  //!@brief Get characteristic lengths of mesh cells.
+  axom::ArrayView<const double> getCellLengths();
   axom::ArrayView<const BoundingBox3DType> getCellBoundingBoxes();
   axom::ArrayView<const BoundingBox3DType> getVertBoundingBoxes();
   axom::ArrayView<const IndexType, 2> getConnectivity();
@@ -250,6 +253,9 @@ private:
   //!@brief Volumes of hex cells.
   axom::Array<double> m_hexVolumes;
 
+  //!@brief Characteristic lengths of cells.
+  axom::Array<double> m_cellLengths;
+
   //!@brief Bounding boxes for m_cellsAsHexes.
   axom::Array<BoundingBox3DType> m_hexBbs;
 
@@ -260,6 +266,7 @@ private:
   void computeCellsAsTets();
   void computeHexVolumes();
   void computeHexBbs();
+  void computeCellLengths();
   void computeVertPoints();
   void computeConnectivity();
 
@@ -278,6 +285,9 @@ public:
 
   template <typename ExecSpace>
   void computeHexBbsImpl();
+
+  template <typename ExecSpace>
+  void computeCellLengthsImpl();
 
   template <typename ExecSpace>
   void computeVertPointsImpl();

@@ -138,7 +138,7 @@ public:
    * operators are applied
    * \param discreteFunction Discrete function describing the surface
    *        of revolution.
-   * \param sorBase Coordinates of the base of the SOR.
+   * \param sorOrigin Coordinates of the base of the SOR.
    * \param sorDirection SOR axis, in the direction of increasing z.
    * \param levelOfRefinement Number of refinement levels to use for
    *        discretizing the SOR.
@@ -146,12 +146,12 @@ public:
    *
    * The \c discreteFunction should be an Nx2 array, interpreted as
    * (z,r) pairs, where z is the axial distance and r is the radius.
-   * The \c sorBase coordinates corresponds to z=0.
+   * The \c sorOrigin coordinates corresponds to z=0.
    * \c sorAxis should point in the direction of increasing z.
    */
   Geometry(const TransformableGeometryProperties &startProperties,
            const axom::Array<double, 2> &discreteFunction,
-           const Point3D &sorBase,
+           const Point3D &sorOrigin,
            const Vector3D &sorDirection,
            axom::IndexType levelOfRefinement,
            std::shared_ptr<GeometryOperator const> operator_);
@@ -232,7 +232,7 @@ public:
   /**
      @brief Return the 3D coordinates of the SOR base.
   */
-  const Point3D getSorBaseCoords() const { return m_sorBase; }
+  const Point3D getSorBaseCoords() const { return m_sorOrigin; }
 
   /*! @brief Predicate that returns true when the shape has an associated geometry
 
@@ -340,7 +340,7 @@ private:
   axom::Array<double, 2> m_discreteFunction;
 
   //!@brief The point corresponding to z=0 on the SOR axis.
-  Point3D m_sorBase;
+  Point3D m_sorOrigin;
 
   //!@brief SOR axis in the direction of increasing z.
   Vector3D m_sorDirection;

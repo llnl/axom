@@ -55,10 +55,13 @@ private:
 #endif
   std::string m_name;
 
+  //!@brief Sphere before external transformations.
   axom::primal::Sphere<double, 3> m_sphereBeforeTrans;
 
+  //!@brief Sphere after external transformations from m_transMat.
   axom::primal::Sphere<double, 3> m_sphere;
 
+  //!@brief External transformations, equivalent to m_transMat.
   axom::primal::CoordinateTransformer<double> m_transformer;
 
   int m_levelOfRefinement;

@@ -10,11 +10,12 @@
   #include "conduit_blueprint.hpp"
 #endif
 
-#include "axom/mint/mesh/Mesh.hpp"
-#include "axom/mint/mesh/UnstructuredMesh.hpp"
+#include "axom/primal/operators/squared_distance.hpp"
 #include "axom/quest/Discretize.hpp"
 #include "axom/quest/SorClipper.hpp"
 #include "axom/fmt.hpp"
+
+#include <limits>
 
 namespace axom
 {
@@ -25,31 +26,43 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Sor") : name)
   , m_maxRadius(0.0)
-  , m_transformer(m_transMat)
+  , m_minRadius(std::numeric_limits<double>::max())
+  , m_transformer()
 {
   extractClipperInfo();
+
+  // Combine internal and external rotations into m_transformer.
+  m_transformer.addTranslation(m_sorOrigin.array());
+  m_transformer.addRotation(Vector3DType({1,0,0}), m_sorDirection);
+  m_transformer.addMatrix(m_extTrans);
+
+  m_inverseTransformer = m_transformer.getInverse();
 
   const auto dCount = m_discreteFcn.shape()[0];
   for(axom::IndexType i=0; i<dCount; ++i)
   {
     m_maxRadius = fmax(m_maxRadius, m_discreteFcn(i, 1));
+    m_minRadius = fmin(m_minRadius, m_discreteFcn(i, 1));
   }
 
 #ifdef AXOM_DEBUG
-  int badRadCount = 0;
-  for(axom::IndexType i=0; i<dCount; ++i)
+  axom::IndexType badZCount = 0;
+  axom::IndexType badRadCount = m_discreteFcn(0, 1) < 0;
+  for(axom::IndexType i=1; i<dCount; ++i)
   {
+    badZCount += m_discreteFcn(i, 0) <= m_discreteFcn(i-1, 0);
     badRadCount += m_discreteFcn(i, 1) < 0;
   }
-  SLIC_ASSERT(badRadCount == 0);
+  SLIC_ERROR_IF(badZCount || badRadCount,
+                axom::fmt::format("SorClipper '{}' has {} non-monotonically-increasing z-coordinates and {} negative radii", m_name, badZCount, badRadCount));
 #endif
 
-  m_inverseTransformer = m_transformer.getInverse();
+
+  computeRoughBlockings();
 }
 
 bool SorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  return false; // Work in progress.  Not checked.
   /*
     Planned implementation: (reverse) transform the mesh vertices to the
     r-z frame where the curve is defined as a 1D function.  It's easier
@@ -88,25 +101,92 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SorClipper requires a 3D mesh.");
 
-  constexpr int NUM_VERTS_PER_CELL = 8;
-
   int allocId = shapeeMesh.getAllocatorID();
   auto cellCount = shapeeMesh.getCellCount();
-  auto vertCount = shapeeMesh.getVertexCount();
 
-  const auto& vertCoords = shapeeMesh.getVertexCoords3D();
-  const auto& vX = vertCoords[0];
-  const auto& vY = vertCoords[1];
-  const auto& vZ = vertCoords[2];
-
-  auto sorBase = m_sorBase;
-  auto sorDirection = m_sorDirection;
   auto inverseTransformer = m_inverseTransformer;
   auto transformer = m_transformer;
 
-  axom::Array<double, 2> discreteFcn(m_discreteFcn, allocId);
-  auto discreteFcnView = discreteFcn.view();
+  axom::Array<BoundingBox2DType> bbOn(m_bbOn, allocId);
+  axom::Array<BoundingBox2DType> bbUnder(m_bbUnder, allocId);
+  auto bbOnView = bbOn.view();
+  auto bbUnderView = bbUnder.view();
 
+  auto cellLengths = shapeeMesh.getCellLengths();
+  const double lenFactor = 0.5;
+
+  auto cellBbs = shapeeMesh.getCellBoundingBoxes();
+  constexpr int NUM_BB_VERTS = 8;
+
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  {
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+  }
+
+  /*
+    Compute cell bounding boxes in rz plane, to be checked against
+    m_bbIn and mbbsUnder.
+  */
+  axom::Array<BoundingBox2DType> cellBbsInRz(cellBbs.size(),
+                                             cellBbs.size(),
+                                             shapeeMesh.getAllocatorID());
+  auto cellBbsInRzView = cellBbsInRz.view();
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType cellId) {
+      const auto& cellBb = cellBbs[cellId];
+      const auto& boxMin = cellBb.getMin();
+      const auto& boxMax = cellBb.getMax();
+      BoundingBox2DType& cellBbInRz = cellBbsInRzView[cellId];
+      for(int vi = 0; vi < NUM_BB_VERTS; ++vi)
+      {
+        Point3DType pt3D({(vi & 1) ? boxMax[0] : boxMin[0],
+                          (vi & 2) ? boxMax[1] : boxMin[1],
+                          (vi & 4) ? boxMax[2] : boxMin[2]});
+        Point3DType ptIt = inverseTransformer.getTransformed(pt3D);
+        Point2DType ptRz({ptIt[0], sqrt(ptIt[1]*ptIt[1] + ptIt[2]*ptIt[2])});
+        cellBbInRz.addPoint(ptRz);
+      }
+    });
+
+  auto labelsView = labels.view();
+
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType cellId) {
+      const auto& cellBb = cellBbsInRz[cellId];
+
+      // If cellBb is close to any m_bbOn, label it ON.
+      // Else if cellBb touches any m_bbUnder, label it IN.
+      // Else, label cellBb OUT.
+
+      auto& cellLabel = labelsView[cellId];
+      double sqDistThreshold = lenFactor * cellLengths[cellId];
+      sqDistThreshold = sqDistThreshold*sqDistThreshold;
+      for(const auto& bbOn : bbOnView)
+      {
+        double sqDist = axom::primal::squared_distance(cellBb, bbOn);
+        if (sqDist <= sqDistThreshold)
+        {
+          cellLabel = LABEL_ON;
+          return;
+        }
+      }
+
+      for(const auto& bbUnder : bbUnderView)
+      {
+        if(cellBb.intersectsWith(bbUnder))
+        {
+          cellLabel = LABEL_IN;
+          return;
+        }
+      }
+
+      cellLabel = LABEL_OUT;
+    });
+
+#if 0
+  Old stuff
   /*
     Generate a stack of cones to represent the SOR.
   */
@@ -114,6 +194,9 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
                                 m_discreteFcn.size() - 1,
                                 allocId);
   auto conesView = cones.view();
+
+  axom::Array<double, 2> discreteFcn(m_discreteFcn, allocId);
+  auto discreteFcnView = discreteFcn.view();
 
   axom::for_all<ExecSpace>(
     cones.size(),
@@ -125,7 +208,7 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
         Cone3DType(discreteFcnView(coneId, 0), discreteFcnView(coneId, 1),
                    discreteFcnView(coneId + 1, 0), discreteFcnView(coneId, 1),
                    sorDirection,
-                   sorBase);
+                   sorOrigin);
     });
 
   /*
@@ -211,8 +294,46 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
       }
       cellLabel = !hasOut ? LABEL_IN : !hasIn ? LABEL_OUT : LABEL_ON;
     });
+#endif
 
   return;
+}
+
+
+/*
+  Compute m_bbOn and m_bbUnder, the boxes that blocks of areas
+  on and under the rz curve.  The blocking is rough but conservative.
+
+  Currently, we have just 1 box under the curve, but we code for
+  future arrays of boxes to block more efficiently.
+  - m_bbOn has 3 boxes.  One for the base plane, one for the top
+    plane and one for the m_discreteFcn curve.
+  - m_bbUnder has only the boxes under m_discreteFcn.
+*/
+void SorClipper::computeRoughBlockings()
+{
+  const axom::IndexType topI = m_discreteFcn.shape()[0] - 1;
+  const Point2DType basePt({m_discreteFcn(0, 0), m_discreteFcn(0, 1)});
+  const Point2DType topPt({m_discreteFcn(topI, 0), m_discreteFcn(topI, 1)});
+
+  m_bbOn.resize(3);
+  m_bbOn[0].addPoint(Point2DType{basePt[0], m_minRadius});
+  m_bbOn[0].addPoint(Point2DType{topPt[0], m_maxRadius});
+  m_bbOn[1].addPoint(Point2DType{basePt[0], 0.0});
+  m_bbOn[1].addPoint(basePt);
+  m_bbOn[2].addPoint(Point2DType{topPt[0], 0.0});
+  m_bbOn[2].addPoint(topPt);
+
+  m_bbUnder.resize(m_bbOn.size() - 2);
+  axom::for_all<axom::SEQ_EXEC>(m_bbUnder.size(),
+                                AXOM_LAMBDA(axom::IndexType i) {
+                                  // Set bbUnder to the box from the z-axis to the bottom of bbOn.
+                                  auto minPt = m_bbOn[i].getMin();
+                                  auto maxPt = m_bbOn[i].getMax();
+                                  maxPt[1] = minPt[1];
+                                  minPt[1] = 0.0;
+                                  m_bbUnder[i] = BoundingBox2DType(minPt, maxPt, false);
+                                });
 }
 
 // TODO: Factor out execution-space-specific computations into a template method,
@@ -251,25 +372,15 @@ bool SorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Oc
   SLIC_ASSERT(good);
   SLIC_ASSERT(octCount == octsOnHost.size());
 
-  // Rotate to the SOR axis direction and translate to the base location.
-  // Then apply the external transformation.
-  // TODO: Combine rotate, translate and m_transformer into a single Matrix
-  //   and apply that.  It's faster.
-  numerics::Matrix<double> rotate = sorAxisRotMatrix(m_sorDirection);
-  const auto& translate = m_sorBase;
-  auto octsView = octsOnHost.view();
   auto transformer = m_transformer;
+  auto octsView = octsOnHost.view();
   axom::for_all<axom::SEQ_EXEC>(
     octCount,
     AXOM_LAMBDA(axom::IndexType iOct) {
       OctahedronType& oct = octsView[iOct];
       for(int iVert = 0; iVert < OctType::NUM_VERTS; ++iVert)
       {
-        Point3DType& newCoords = oct[iVert];
-        Point3DType oldCoords = newCoords;
-        numerics::matrix_vector_multiply(rotate, oldCoords.data(), newCoords.data());
-        newCoords.array() += translate.array();
-        transformer.transform(newCoords.array());
+        transformer.transform(oct[iVert].array());
       }
     });
 
@@ -284,55 +395,13 @@ bool SorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Oc
   return true;
 }
 
-// Return a 3x3 matrix that rotates coordinates from the x-axis to the given direction.
-numerics::Matrix<double> SorClipper::sorAxisRotMatrix(const Vector3DType& dir)
-{
-  // Note that the rotation matrix is not unique.
-  static const Vector3DType x {1.0, 0.0, 0.0};
-  Vector3DType a = dir.unitVector();
-  Vector3DType u;  // Rotation vector, the cross product of x and a.
-  numerics::cross_product(x.data(), a.data(), u.data());
-  double sinT = u.norm();
-  double cosT = numerics::dot_product(x.data(), a.data(), 3);
-  double ccosT = 1 - cosT;
-
-  // Degenerate case with angle near 0 or pi.
-  if(utilities::isNearlyEqual(sinT, 0.0))
-  {
-    if(cosT > 0)
-    {
-      return numerics::Matrix<double>::identity(3);
-    }
-    else
-    {
-      // Give u a tiny component in any non-x direction
-      // so we can rotate around it.
-      u[1] = 1e-8;
-    }
-  }
-
-  u = u.unitVector();
-  numerics::Matrix<double> rot(3, 3, 0.0);
-  rot(0, 0) = u[0] * u[0] * ccosT + cosT;
-  rot(0, 1) = u[0] * u[1] * ccosT - u[2] * sinT;
-  rot(0, 2) = u[0] * u[2] * ccosT + u[1] * sinT;
-  rot(1, 0) = u[1] * u[0] * ccosT + u[2] * sinT;
-  rot(1, 1) = u[1] * u[1] * ccosT + cosT;
-  rot(1, 2) = u[1] * u[2] * ccosT - u[0] * sinT;
-  rot(2, 0) = u[2] * u[0] * ccosT - u[1] * sinT;
-  rot(2, 1) = u[2] * u[1] * ccosT + u[0] * sinT;
-  rot(2, 2) = u[2] * u[2] * ccosT + cosT;
-
-  return rot;
-}
-
 void SorClipper::extractClipperInfo()
 {
-  auto sorBaseArray = m_info.fetch_existing("sorBase").as_double_array();
+  auto sorOriginArray = m_info.fetch_existing("sorOrigin").as_double_array();
   auto sorDirectionArray = m_info.fetch_existing("sorDirection").as_double_array();
   for(int d = 0; d < 3; ++d)
   {
-    m_sorBase[d] = sorBaseArray[d];
+    m_sorOrigin[d] = sorOriginArray[d];
     m_sorDirection[d] = sorDirectionArray[d];
   }
 

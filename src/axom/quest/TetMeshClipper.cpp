@@ -27,7 +27,7 @@ TetMeshClipper::TetMeshClipper(const klee::Geometry& kGeom, const std::string& n
   , m_name(name.empty() ? std::string("TetMesh") : name)
   , m_topoName(kGeom.getBlueprintTopology())
   , m_tetCount(0)
-  , m_transformer(m_transMat)
+  , m_transformer(m_extTrans)
 {
   SLIC_ASSERT(!m_topoName.empty());
 

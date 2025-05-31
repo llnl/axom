@@ -551,7 +551,7 @@ axom::klee::Geometry createGeom_Sor(const std::string& geomName)
 {
   Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
   axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
-    ? primal::Vector3D {0.1, 0.2, 0.4}
+    ? primal::Vector3D {1.0, 0.0, 0.0}
     : primal::Vector3D {params.direction.data()};
   const int numIntervals = 5;
   // discreteFunction are discrete z-r pairs describing the function
@@ -593,7 +593,7 @@ axom::klee::Geometry createGeom_Cylinder(const std::string& geomName)
 {
   Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
   axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
-    ? primal::Vector3D {0.1, 0.2, 0.4}
+    ? primal::Vector3D {1.0, 0.0, 0.0}
     : primal::Vector3D {params.direction.data()};
   // discreteFunction are discrete z-r pairs describing the function
   // to be rotated around the z axis.
@@ -624,7 +624,7 @@ axom::klee::Geometry createGeom_Cone(const std::string& geomName)
 {
   Point3D sorBase = params.center.empty() ? Point3D {0.0, 0.0, 0.0} : Point3D {params.center.data()};
   axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
-    ? primal::Vector3D {0.1, 0.2, 0.4}
+    ? primal::Vector3D {1.0, 0.0, 0.0}
     : primal::Vector3D {params.direction.data()};
   // discreteFunction are discrete z-r pairs describing the function
   // to be rotated around the z axis.
@@ -1058,7 +1058,7 @@ int main(int argc, char** argv)
     params.scaleFactors.resize(3, 1.0);
     for( auto& f : params.scaleFactors ) f *= 0.5;
   }
-  vScale = params.scaleFactors[0] * params.scaleFactors[1] * params.scaleFactors[2];
+  for(auto sf : params.scaleFactors) { vScale *= sf; }
 
   axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(params.annotationMode);
 
