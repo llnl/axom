@@ -88,8 +88,9 @@ private:
   /*!
     @brief Boxes (in rz space) on the curve.
 
-    The curve lies completely in these boxes
-    and includes the planes of the base and top.
+    The curve lies completely in these boxes and includes the planes
+    of the base and top.  Points in these boxes are require more
+    computation to determine their signed distance.
   */
   axom::Array<BoundingBox2DType> m_bbOn;
 
@@ -97,7 +98,6 @@ private:
     @brief Boxes (in rz space) completely under the curve.
 
     These boxes lie completely under the curve.
-
   */
   axom::Array<BoundingBox2DType> m_bbUnder;
 

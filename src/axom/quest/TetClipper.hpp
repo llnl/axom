@@ -58,6 +58,7 @@ private:
   TetrahedronType m_tet;
 
   axom::primal::BoundingBox<double, 3> m_bb;
+
   //!@brief 4 planes per Tet, each oriented to the interior of the tet.
   axom::StackArray<Plane3DType, 4> m_planes;
 
@@ -70,13 +71,9 @@ private:
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
   template <typename ExecSpace>
-  void vertexInsideToCellLabel(
-    quest::ShapeeMesh& shapeeMesh,
-    axom::ArrayView<bool>& vertIsInside,
-    axom::Array<LabelType>& labels);
-
-  template <typename ExecSpace>
-  void labelByEdges(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels);
+  void vertexSignedDistToLabel(quest::ShapeeMesh& shapeeMesh,
+                               axom::ArrayView<const double> vertexSignedDists,
+                               axom::Array<LabelType>& labels);
 
   // Extract clipper info from GeometryClipperStrategy::m_info.
   void extractClipperInfo();

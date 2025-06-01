@@ -160,6 +160,28 @@ inline double squared_distance(const Point<T, NDIMS>& P, const Triangle<T, NDIMS
   return squared_distance(P, closest_point(P, tri));
 }
 
+/*!
+ * \brief Computes the minimum squared distance from a query point, P, to the
+ *  closest point on the given tetrahedron.
+ * \param [in] P the query point.
+ * \param [in] tet the supplied tetrahedron.
+ * \return the squared distance from P to the closest point on the tetrahedron.
+ *
+ * If the point touches the tetrahedron, the distance is zero.
+ */
+template <typename T, int NDIMS>
+AXOM_HOST_DEVICE inline double squared_distance(const Point<T, NDIMS>& P, const Tetrahedron<T, NDIMS>& tet)
+{
+  auto facets = tet.facets();
+  double rval = std::numeric_limits<double>::max();
+  for(const auto& facet : facets)
+  {
+    double sqDist = squared_distance(P, facet);
+    rval = sqDist < rval ? sqDist : rval;
+  }
+  return rval;
+}
+
 }  // namespace primal
 }  // namespace axom
 

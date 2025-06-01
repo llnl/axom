@@ -91,130 +91,106 @@ void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   const auto& vX = vertCoords[0];
   const auto& vY = vertCoords[1];
   const auto& vZ = vertCoords[2];
-
-  /*
-    Compute whether mesh vertices are inside shape.
-  */
-  axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
-  auto vertIsInsideView = vertIsInside.view();
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vX.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vZ.getAllocatorID()));
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertIsInsideView.getAllocatorID()));
 
-  auto bb = m_bb;
+  /*
+    Compute signed distances to mesh vertices.
+  */
+  axom::Array<double> signedDists{ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
+  auto signedDistsView = signedDists.view();
+  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(signedDists.getAllocatorID()));
+
+  const auto tet = m_tet;
+  const auto bb = m_bb;
   auto planes = m_planes;
   axom::for_all<ExecSpace>(
     vertCount,
     AXOM_LAMBDA(axom::IndexType vertId) {
       primal::Point3D vert {vX[vertId], vY[vertId], vZ[vertId]};
-      vertIsInsideView[vertId] = false;
+
+      auto& signedDist = signedDistsView[vertId];
 
       if(bb.contains(vert))
       {
-        // Detailed check for verts inside the hex's bounding box.
-        // If vert is in any tet, it's in the hex.
-        // Be conservative: primal::ON_BOUNDARY is considered inside.
-        // TODO: See if using Tetrahedron::physToBarycentric is faster.
         bool isInsideTet = true;
-        for(int iPlane = 0; iPlane < 4; ++iPlane)
+        double minDist = 0.0;
+        for(const auto& plane : planes)
         {
-          const auto& plane = planes[iPlane];
-          isInsideTet &= plane.getOrientation(vert, 0.0) != primal::ON_NEGATIVE_SIDE;
+          auto signedDistToPlane = plane.signedDistance(vert);
+          isInsideTet &= signedDistToPlane >= 0;
+          minDist = axom::utilities::min(minDist, signedDistToPlane);
         }
+
         if(isInsideTet)
         {
-          vertIsInsideView[vertId] = true;
+          SLIC_ASSERT(minDist >= 0);
+          signedDist = minDist;
         }
+        else
+        {
+          signedDist = sqrt(axom::primal::squared_distance(vert, tet));
+        }
+      }
+      else
+      {
+        signedDist = sqrt(axom::primal::squared_distance(vert, tet));
       }
     });
 
-  vertexInsideToCellLabel<ExecSpace>(shapeeMesh, vertIsInsideView, labels);
-
-  /*
-    Look for edge-tet intersections missed by vertex-only checks.
-    These are small but real errors that can be reduced with mesh
-    resolution, but cannot be eliminated without checking edges.
-    With this correction there should be no clipping volume error
-    except from floating-point round-off.
-  */
-  labelByEdges<ExecSpace>(shapeeMesh, labels);
+  vertexSignedDistToLabel<ExecSpace>(shapeeMesh, signedDists.view(), labels);
 
   return;
 }
 
-/*
-  Label cell outside if no vertex is in the bounding box.
-  Otherwise, label it on boundary, because we don't know.
-*/
 template <typename ExecSpace>
-void TetClipper::vertexInsideToCellLabel(
-  quest::ShapeeMesh& shapeeMesh,
-  axom::ArrayView<bool>& vertIsInside,
-  axom::Array<LabelType>& labels)
+void TetClipper::vertexSignedDistToLabel(quest::ShapeeMesh& shapeeMesh,
+                                         axom::ArrayView<const double> vertexSignedDists,
+                                         axom::Array<LabelType>& labels)
 {
+  /*
+    Label cell by whether it has vertices inside, outside or both.
+    The tet may intersect cell between its vertices,
+    so we classify the cells conservatively.
+    - If cell has any vertex less than a small distance outside the
+      tet, the cell is classified as having a vertex inside.
+    - We don't need to do the same for vertices a small distance
+      inside the tet, because the tet is convex.  No cell with all
+      vertices inside the tet can intersect the tet.
+  */
+  auto cellLengths = shapeeMesh.getCellLengths();
+  const double lenFactor = 0.5;
+
+  axom::IndexType cellCount = shapeeMesh.getCellCount();
+
   axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
   SLIC_ASSERT(connView.shape() ==
-              (axom::StackArray<axom::IndexType, 2> {shapeeMesh.getCellCount(), HexahedronType::NUM_HEX_VERTS}));
+              (axom::StackArray<axom::IndexType, 2> {cellCount, HexahedronType::NUM_HEX_VERTS}));
 
-  if(labels.size() < shapeeMesh.getCellCount() || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
   {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), shapeeMesh.getCellCount(), shapeeMesh.getCellCount(), shapeeMesh.getAllocatorID());
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, shapeeMesh.getAllocatorID());
   }
   auto labelsView = labels.view();
 
   axom::for_all<ExecSpace>(
-    shapeeMesh.getCellCount(),
-    AXOM_LAMBDA(axom::IndexType cellId) {
-      auto cellVertIds = connView[cellId];
-      bool hasIn = vertIsInside[cellVertIds[0]];
-      bool hasOut = !hasIn;
-      for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
-      {
-        int vertId = cellVertIds[vi];
-        bool isIn = vertIsInside[vertId];
-        hasIn |= isIn;
-        hasOut |= !isIn;
-      }
-      labelsView[cellId] = !hasOut ? LABEL_IN : !hasIn ? LABEL_OUT : LABEL_ON;
-    });
-
-  return;
-}
-
-template <typename ExecSpace>
-void TetClipper::labelByEdges(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
-{
-  /*
-    If a cell's vertices are all outside, check if any edge crosses
-    the geometry.  This check can find small overlaps that the
-    vertex-only checks miss.
-  */
-  axom::ArrayView<const TetrahedronType> cellsAsTets = shapeeMesh.getCellsAsTets();
-  axom::ArrayView<const BoundingBox3DType> cellBbs = shapeeMesh.getCellBoundingBoxes();
-  auto labelsView = labels.view();
-  constexpr int NUM_TETS_PER_HEX = primal::Hexahedron<double, 3>::NUM_TRIANGULATE;
-
-  auto geomTet = m_tet;
-  auto bb = m_bb;
-  axom::for_all<ExecSpace>(
-    labels.size(),
+    cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
       LabelType& cellLabel = labelsView[cellId];
-      const BoundingBox3DType cellBb = cellBbs[cellId];
-      if (cellLabel == LABEL_OUT && bb.intersectsWith(cellBb))
+      auto cellVertIds = connView[cellId];
+      const double proximityThreshold = cellLengths[cellId]*lenFactor;
+      bool hasIn = vertexSignedDists[cellVertIds[0]] < proximityThreshold;
+      bool hasOut = vertexSignedDists[cellVertIds[0]] > 0;
+      for(int vi = 1; vi < HexahedronType::NUM_HEX_VERTS; ++vi)
       {
-        const axom::IndexType tetIdxStart = cellId * NUM_TETS_PER_HEX;
-        const axom::IndexType tetIdxEnd = (1 + cellId) * NUM_TETS_PER_HEX;
-        for(axom::IndexType ti = tetIdxStart; ti < tetIdxEnd && cellLabel == LABEL_OUT; ++ti)
-        {
-          const TetrahedronType& cellTet = cellsAsTets[ti];
-          if(axom::primal::intersect(cellTet, geomTet))
-          {
-            cellLabel = LABEL_ON;
-          }
-        }
+        int vertId = cellVertIds[vi];
+        bool isIn = vertexSignedDists[vertId] < proximityThreshold;
+        bool isOut = vertexSignedDists[vertId] > 0;
+        hasIn |= isIn;
+        hasOut |= isOut;
       }
+      cellLabel = !hasOut ? LABEL_IN : !hasIn ? LABEL_OUT : LABEL_ON;
     });
 }
 
