@@ -1193,13 +1193,16 @@ template <typename T>
 void exportSplitScalarSliceFieldToVTK(const std::string& filename,
                                       std::function<std::pair<double, double>(Point3D)> scalarField,
                                       const Point3D& origin,
-                                      const Vector<T, 3>& u,
-                                      const Vector<T, 3>& v,
+                                      Vector<T, 3>& u,
+                                      Vector<T, 3>& v,
                                       double planeWidth,
                                       double planeHeight,
                                       int uSteps,
                                       int vSteps)
 {
+  u = u.unitVector();
+  v = v.unitVector();
+
   std::ofstream file(filename);
 
   // Arrays to store the scalar fields

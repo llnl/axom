@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef PRIMAL_WINDING_NUMBER_3D_IMPL_HPP_
-#define PRIMAL_WINDING_NUMBER_3D_IMPL_HPP_
+#ifndef PRIMAL_WINDING_NUMBER_3D_DEBUG_HPP_
+#define PRIMAL_WINDING_NUMBER_3D_DEBUG_HPP_
 
 // Axom includes
 #include "axom/config.hpp"
@@ -32,7 +32,7 @@ namespace primal
 namespace detail
 {
 /// Type to indicate orientation of singularities relative to surface
-enum class DiscontinuityAxis
+enum class DiscontinuityAxis_debug
 {
   x,
   y,
@@ -56,12 +56,12 @@ enum class DiscontinuityAxis
  * \return The clipped patch
  */
 template <typename T>
-void degenerate_surface_processing(const NURBSPatch<T, 3>& patch,
-                                   const axom::Array<T> up,
-                                   const axom::Array<T> vp,
-                                   const T clip_radius,
-                                   NURBSPatch<T, 3>& out_patch1,
-                                   NURBSPatch<T, 3>& out_patch2)
+void degenerate_surface_processing_debug(const NURBSPatch<T, 3>& patch,
+                                         const axom::Array<T> up,
+                                         const axom::Array<T> vp,
+                                         const T clip_radius,
+                                         NURBSPatch<T, 3>& out_patch1,
+                                         NURBSPatch<T, 3>& out_patch2)
 {
   T mean_u = up[0], var_u = 0.0;
   T mean_v = vp[0], var_v = 0.0;
@@ -150,14 +150,15 @@ void degenerate_surface_processing(const NURBSPatch<T, 3>& patch,
  * \sa NURBSPatch::scaleParameterSpace
  */
 template <typename T>
-double nurbs_winding_number(const Point<T, 3>& query,
-                            const NURBSPatch<T, 3>& nPatch,
-                            const Vector<T, 3>& cast_direction,
-                            const double edge_tol = 1e-8,
-                            const double ls_tol = 1e-8,
-                            const double quad_tol = 1e-8,
-                            const double EPS = 1e-8,
-                            const int depth = 0)
+double nurbs_winding_number_debug(const Point<T, 3>& query,
+                                  const NURBSPatch<T, 3>& nPatch,
+                                  const Vector<T, 3>& cast_direction,
+                                  int& node_count,
+                                  const double edge_tol = 1e-8,
+                                  const double ls_tol = 1e-8,
+                                  const double quad_tol = 1e-8,
+                                  const double EPS = 1e-8,
+                                  const int depth = 0)
 {
   // Skip processing of degenerate surfaces
   if(nPatch.getNumControlPoints_u() <= 1 || nPatch.getNumControlPoints_v() <= 1)
@@ -186,8 +187,8 @@ double nurbs_winding_number(const Point<T, 3>& query,
    */
 
   // Lambda to rotate the input point using the provided rotation matrix
-  auto rotate_point = [&query](const numerics::Matrix<T>& matx,
-                               const Point<T, 3> input) -> Point<T, 3> {
+  auto rotate_point_debug = [&query](const numerics::Matrix<T>& matx,
+                                     const Point<T, 3> input) -> Point<T, 3> {
     Vector<T, 3> shifted(query, input);
     Vector<T, 3> rotated;
     numerics::matrix_vector_multiply(matx, shifted.data(), rotated.data());
@@ -208,7 +209,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
   NURBSPatch<T, 3> nPatchWithBoundaries(nPatch), the_disk;
 
   // Define vector fields whose curl gives us the winding number
-  DiscontinuityAxis field_direction;
+  DiscontinuityAxis_debug field_direction;
 
   // Generate slightly expanded bounding boxes
   auto bBox = nPatch.boundingBox();
@@ -228,15 +229,15 @@ double nurbs_winding_number(const Point<T, 3>& query,
 
     if(exterior_x || exterior_y)
     {
-      field_direction = DiscontinuityAxis::z;
+      field_direction = DiscontinuityAxis_debug::z;
     }
     else if(exterior_y || exterior_z)
     {
-      field_direction = DiscontinuityAxis::x;
+      field_direction = DiscontinuityAxis_debug::x;
     }
     else if(exterior_x || exterior_z)
     {
-      field_direction = DiscontinuityAxis::y;
+      field_direction = DiscontinuityAxis_debug::y;
     }
   }
   // Case 1.5: Exterior with rotation
@@ -244,7 +245,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
   {
     /* The following steps rotate the patch until the OBB is /not/ 
        directly above or below the query point */
-    field_direction = DiscontinuityAxis::rotated;
+    field_direction = DiscontinuityAxis_debug::rotated;
 
     // Find vector from query to the bounding box
     const Point<T, 3> closest = closest_point(query, oBox);
@@ -272,7 +273,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
   }
   else
   {
-    field_direction = DiscontinuityAxis::rotated;
+    field_direction = DiscontinuityAxis_debug::rotated;
     const Line<T, 3> discontinuity_axis(query, cast_direction);
 
     // Tolerance for what counts as "close to a boundary" in parameter space
@@ -298,24 +299,31 @@ double nurbs_winding_number(const Point<T, 3>& query,
         {
           NURBSPatch<T, 3> clipped_patch1, clipped_patch2;
 
-          degenerate_surface_processing(nPatch, up, vp, 0.01 * disk_radius, clipped_patch1, clipped_patch2);
+          degenerate_surface_processing_debug(nPatch,
+                                              up,
+                                              vp,
+                                              0.01 * disk_radius,
+                                              clipped_patch1,
+                                              clipped_patch2);
 
-          return nurbs_winding_number(query,
-                                      clipped_patch1,
-                                      cast_direction,
-                                      edge_tol,
-                                      ls_tol,
-                                      quad_tol * 1e-5,
-                                      EPS,
-                                      depth + 1) +
-            nurbs_winding_number(query,
-                                 clipped_patch2,
-                                 cast_direction,
-                                 edge_tol,
-                                 ls_tol,
-                                 quad_tol * 1e-5,
-                                 EPS,
-                                 depth + 1);
+          return nurbs_winding_number_debug(query,
+                                            clipped_patch1,
+                                            cast_direction,
+                                            node_count,
+                                            edge_tol,
+                                            ls_tol,
+                                            quad_tol * 1e-5,
+                                            EPS,
+                                            depth + 1) +
+            nurbs_winding_number_debug(query,
+                                       clipped_patch2,
+                                       cast_direction,
+                                       node_count,
+                                       edge_tol,
+                                       ls_tol,
+                                       quad_tol * 1e-5,
+                                       EPS,
+                                       depth + 1);
         }
         else
         {
@@ -329,14 +337,15 @@ double nurbs_winding_number(const Point<T, 3>& query,
         if(num_noncoincident > 5)
         {
           const auto new_cast_direction = random_unit();
-          return nurbs_winding_number(query,
-                                      nPatch,
-                                      new_cast_direction,
-                                      edge_tol,
-                                      ls_tol,
-                                      quad_tol,
-                                      EPS,
-                                      depth + 1);
+          return nurbs_winding_number_debug(query,
+                                            nPatch,
+                                            new_cast_direction,
+                                            node_count,
+                                            edge_tol,
+                                            ls_tol,
+                                            quad_tol,
+                                            EPS,
+                                            depth + 1);
         }
       }
     }
@@ -364,14 +373,15 @@ double nurbs_winding_number(const Point<T, 3>& query,
         // If a non-coincident ray intersects the surface at a tangent/cusp,
         //  can recast and try again
         const auto new_cast_direction = random_unit();
-        return nurbs_winding_number(query,
-                                    nPatch,
-                                    new_cast_direction,
-                                    edge_tol,
-                                    ls_tol,
-                                    quad_tol,
-                                    EPS,
-                                    depth + 1);
+        return nurbs_winding_number_debug(query,
+                                          nPatch,
+                                          new_cast_direction,
+                                          node_count,
+                                          edge_tol,
+                                          ls_tol,
+                                          quad_tol,
+                                          EPS,
+                                          depth + 1);
       }
 
       if(isOnSurface)
@@ -407,14 +417,15 @@ double nurbs_winding_number(const Point<T, 3>& query,
       {
         // If the disk overlapped with the trimming curves, evaluate the winding number for the disk
         const auto new_cast_direction = random_unit();
-        the_gwn += nurbs_winding_number(query,
-                                        the_disk,
-                                        new_cast_direction,
-                                        edge_tol,
-                                        ls_tol,
-                                        quad_tol,
-                                        EPS,
-                                        depth + 1);
+        the_gwn += nurbs_winding_number_debug(query,
+                                              the_disk,
+                                              new_cast_direction,
+                                              node_count,
+                                              edge_tol,
+                                              ls_tol,
+                                              quad_tol,
+                                              EPS,
+                                              depth + 1);
       }
       else if(isDiskOutside)
       {
@@ -435,7 +446,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
     rotator = numerics::transforms::axisRotation(ang, cast_direction[1], -cast_direction[0], 0);
   }
 
-  if(field_direction == DiscontinuityAxis::rotated)
+  if(field_direction == DiscontinuityAxis_debug::rotated)
   {
     // The trimming curves for rotatedPatch have been changed as needed,
     //  but we need to rotate the control points
@@ -444,12 +455,13 @@ double nurbs_winding_number(const Point<T, 3>& query,
     {
       for(int j = 0; j < patch_shape[1]; ++j)
       {
-        nPatchWithBoundaries(i, j) = rotate_point(rotator, nPatchWithBoundaries(i, j));
+        nPatchWithBoundaries(i, j) = rotate_point_debug(rotator, nPatchWithBoundaries(i, j));
       }
     }
   }
 
-  the_gwn += stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
+  the_gwn +=
+    stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, node_count, quad_tol);
 
   return the_gwn;
 }
@@ -473,16 +485,17 @@ double nurbs_winding_number(const Point<T, 3>& query,
  * \return The GWN.
  */
 template <typename T>
-double nurbs_data_winding_number(const Point<T, 3>& query,
-                                 const NURBSPatchData<T>& nPatchData,
-                                 const Vector<T, 3>& cast_direction,
-                                 int& case_code,
-                                 int& integrated_curves,
-                                 const double edge_tol = 1e-8,
-                                 const double ls_tol = 1e-8,
-                                 const double quad_tol = 1e-8,
-                                 const double EPS = 1e-8,
-                                 const int depth = 0)
+double nurbs_data_winding_number_debug(const Point<T, 3>& query,
+                                       const NURBSPatchData<T>& nPatchData,
+                                       const Vector<T, 3>& cast_direction,
+                                       int& node_count,
+                                       int& case_code,
+                                       int& integrated_curves,
+                                       const double edge_tol = 1e-8,
+                                       const double ls_tol = 1e-8,
+                                       const double quad_tol = 1e-8,
+                                       const double EPS = 1e-8,
+                                       const int depth = 0)
 {
   // Skip processing of degenerate surfaces
   if(nPatchData.patch.getNumControlPoints_u() <= 1 || nPatchData.patch.getNumControlPoints_v() <= 1)
@@ -511,8 +524,8 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
    */
 
   // Lambda to rotate the input point using the provided rotation matrix
-  auto rotate_point = [&query](const numerics::Matrix<T>& matx,
-                               const Point<T, 3> input) -> Point<T, 3> {
+  auto rotate_point_debug = [&query](const numerics::Matrix<T>& matx,
+                                     const Point<T, 3> input) -> Point<T, 3> {
     Vector<T, 3> shifted(query, input);
     Vector<T, 3> rotated;
     numerics::matrix_vector_multiply(matx, shifted.data(), rotated.data());
@@ -533,7 +546,7 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
   NURBSPatch<T, 3> nPatchWithBoundaries(nPatchData.patch), the_disk;
 
   // Define vector fields whose curl gives us the winding number
-  DiscontinuityAxis field_direction;
+  DiscontinuityAxis_debug field_direction;
   bool extraTrimming = false;
 
   // Generate slightly expanded bounding boxes
@@ -557,15 +570,15 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
 
     if(exterior_x || exterior_y)
     {
-      field_direction = DiscontinuityAxis::z;
+      field_direction = DiscontinuityAxis_debug::z;
     }
     else if(exterior_y || exterior_z)
     {
-      field_direction = DiscontinuityAxis::x;
+      field_direction = DiscontinuityAxis_debug::x;
     }
     else if(exterior_x || exterior_z)
     {
-      field_direction = DiscontinuityAxis::y;
+      field_direction = DiscontinuityAxis_debug::y;
     }
   }
   // Case 1.5: Exterior with rotation
@@ -576,7 +589,7 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
 
     /* The following steps rotate the patch until the OBB is /not/ 
        directly above or below the query point */
-    field_direction = DiscontinuityAxis::rotated;
+    field_direction = DiscontinuityAxis_debug::rotated;
 
     // Find vector from query to the bounding box
     const Point<T, 3> closest = closest_point(query, oBox);
@@ -607,7 +620,7 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
     case_code = 2;
     integrated_curves = nPatchWithBoundaries.getNumTrimmingCurves();
 
-    field_direction = DiscontinuityAxis::rotated;
+    field_direction = DiscontinuityAxis_debug::rotated;
     const Line<T, 3> discontinuity_axis(query, cast_direction);
 
     // Tolerance for what counts as "close to a boundary" in parameter space
@@ -642,29 +655,31 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
         {
           NURBSPatch<T, 3> clipped_patch1, clipped_patch2;
 
-          degenerate_surface_processing(nPatchData.patch,
-                                        up,
-                                        vp,
-                                        0.01 * disk_radius,
-                                        clipped_patch1,
-                                        clipped_patch2);
+          degenerate_surface_processing_debug(nPatchData.patch,
+                                              up,
+                                              vp,
+                                              0.01 * disk_radius,
+                                              clipped_patch1,
+                                              clipped_patch2);
 
-          return nurbs_winding_number(query,
-                                      clipped_patch1,
-                                      cast_direction,
-                                      edge_tol,
-                                      ls_tol,
-                                      quad_tol * 1e-5,
-                                      EPS,
-                                      depth + 1) +
-            nurbs_winding_number(query,
-                                 clipped_patch2,
-                                 cast_direction,
-                                 edge_tol,
-                                 ls_tol,
-                                 quad_tol * 1e-5,
-                                 EPS,
-                                 depth + 1);
+          return nurbs_winding_number_debug(query,
+                                            clipped_patch1,
+                                            cast_direction,
+                                            node_count,
+                                            edge_tol,
+                                            ls_tol,
+                                            quad_tol * 1e-5,
+                                            EPS,
+                                            depth + 1) +
+            nurbs_winding_number_debug(query,
+                                       clipped_patch2,
+                                       cast_direction,
+                                       node_count,
+                                       edge_tol,
+                                       ls_tol,
+                                       quad_tol * 1e-5,
+                                       EPS,
+                                       depth + 1);
         }
         else
         {
@@ -678,14 +693,15 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
         if(num_noncoincident > 5)
         {
           const auto new_cast_direction = random_unit();
-          return nurbs_winding_number(query,
-                                      nPatchData.patch,
-                                      new_cast_direction,
-                                      edge_tol,
-                                      ls_tol,
-                                      quad_tol,
-                                      EPS,
-                                      depth + 1);
+          return nurbs_winding_number_debug(query,
+                                            nPatchData.patch,
+                                            new_cast_direction,
+                                            node_count,
+                                            edge_tol,
+                                            ls_tol,
+                                            quad_tol,
+                                            EPS,
+                                            depth + 1);
         }
       }
     }
@@ -713,14 +729,15 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
         // If a non-coincident ray intersects the surface at a tangent/cusp,
         //  can recast and try again
         const auto new_cast_direction = random_unit();
-        return nurbs_winding_number(query,
-                                    nPatchData.patch,
-                                    new_cast_direction,
-                                    edge_tol,
-                                    ls_tol,
-                                    quad_tol,
-                                    EPS,
-                                    depth + 1);
+        return nurbs_winding_number_debug(query,
+                                          nPatchData.patch,
+                                          new_cast_direction,
+                                          node_count,
+                                          edge_tol,
+                                          ls_tol,
+                                          quad_tol,
+                                          EPS,
+                                          depth + 1);
       }
 
       if(isOnSurface)
@@ -768,14 +785,15 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
       {
         // If the disk overlapped with the trimming curves, evaluate the winding number for the disk
         const auto new_cast_direction = random_unit();
-        the_gwn += nurbs_winding_number(query,
-                                        the_disk,
-                                        new_cast_direction,
-                                        edge_tol,
-                                        ls_tol,
-                                        quad_tol,
-                                        EPS,
-                                        depth + 1);
+        the_gwn += nurbs_winding_number_debug(query,
+                                              the_disk,
+                                              new_cast_direction,
+                                              node_count,
+                                              edge_tol,
+                                              ls_tol,
+                                              quad_tol,
+                                              EPS,
+                                              depth + 1);
       }
       else if(isDiskOutside)
       {
@@ -799,7 +817,7 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
   if(extraTrimming)
   {
     // Can't use cached quadrature rules
-    if(field_direction == DiscontinuityAxis::rotated)
+    if(field_direction == DiscontinuityAxis_debug::rotated)
     {
       // The trimming curves for rotatedPatch have been changed as needed,
       //  but we need to rotate the control points
@@ -808,138 +826,29 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
       {
         for(int j = 0; j < patch_shape[1]; ++j)
         {
-          nPatchWithBoundaries(i, j) = rotate_point(rotator, nPatchWithBoundaries(i, j));
+          nPatchWithBoundaries(i, j) = rotate_point_debug(rotator, nPatchWithBoundaries(i, j));
         }
       }
     }
 
-    the_gwn += stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
+    the_gwn +=
+      stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, node_count, quad_tol);
   }
   else
   {
-    if(field_direction != DiscontinuityAxis::rotated)
+    if(field_direction != DiscontinuityAxis_debug::rotated)
     {
-      the_gwn += stokes_gwn_evaluate_cached(query, nPatchData, field_direction, quad_npts, quad_tol);
+      the_gwn +=
+        stokes_gwn_evaluate_cached(query, nPatchData, field_direction, quad_npts, node_count, quad_tol);
     }
     else
     {
-      the_gwn += stokes_gwn_evaluate_cached_rotated(query, nPatchData, rotator, quad_npts, quad_tol);
+      the_gwn +=
+        stokes_gwn_evaluate_cached_rotated(query, nPatchData, rotator, quad_npts, node_count, quad_tol);
     }
   }
 
   return the_gwn;
-}
-
-template <typename T>
-double nurbs_data_winding_number_tear(const Point<T, 3>& query,
-                                      const NURBSPatchData<T>& nPatchData,
-                                      const Vector<T, 3>& cast_direction,
-                                      int& case_code,
-                                      int& integrated_curves,
-                                      const double edge_tol = 1e-8,
-                                      const double ls_tol = 1e-8,
-                                      const double quad_tol = 1e-8,
-                                      const double EPS = 1e-8,
-                                      const int depth = 0)
-{
-  const double edge_tol_sq = edge_tol * edge_tol;
-
-  // Fix the number of quadrature points arbitrarily
-  constexpr int quad_npts = 15;
-
-  // Store the winding number
-  double the_gwn = 0.0;
-
-  /* 
-   * To use Stokes theorem, we need to identify either a line containing the
-   * query that does not intersect the surface, or one that intersects the *interior*
-   * of the surface at known locations.
-   */
-
-  // Lambda to rotate the input point using the provided rotation matrix
-  auto rotate_point = [&query](const numerics::Matrix<T>& matx,
-                               const Point<T, 3> input) -> Point<T, 3> {
-    Vector<T, 3> shifted(query, input);
-    Vector<T, 3> rotated;
-    numerics::matrix_vector_multiply(matx, shifted.data(), rotated.data());
-    return Point<T, 3>({rotated[0] + query[0], rotated[1] + query[1], rotated[2] + query[2]});
-  };
-
-  // Allocate space for the patch which contains all surface boundaries
-  NURBSPatch<T, 3> nPatchWithBoundaries(nPatchData.patch), the_disk;
-
-  // Define vector fields whose curl gives us the winding number
-  DiscontinuityAxis field_direction = DiscontinuityAxis::rotated;
-
-  // Rotate the patch so that the discontinuity is aligned with the z-axis
-  const double ang = std::acos(axom::utilities::clampVal(cast_direction[2], -1.0, 1.0));
-  numerics::Matrix<T> rotator =
-    numerics::transforms::axisRotation(ang, cast_direction[1], -cast_direction[0], 0);
-
-  if(field_direction == DiscontinuityAxis::rotated)
-  {
-    // The trimming curves for rotatedPatch have been changed as needed,
-    //  but we need to rotate the control points
-    auto patch_shape = nPatchWithBoundaries.getControlPoints().shape();
-    for(int i = 0; i < patch_shape[0]; ++i)
-    {
-      for(int j = 0; j < patch_shape[1]; ++j)
-      {
-        nPatchWithBoundaries(i, j) = rotate_point(rotator, nPatchWithBoundaries(i, j));
-      }
-    }
-  }
-
-  the_gwn += stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
-
-  return the_gwn;
-}
-
-template <typename T>
-bool isNearAxisBox(const Point<T, 3>& query,
-                   const BoundingBox<T, 3>& bbox,
-                   const DiscontinuityAxis ax,
-                   const double beta = 5.0)
-{
-  auto centroid = bbox.getCentroid();
-  Vector<T, 3> c_query(centroid, query);
-  Vector<T, 3> box_max(centroid, bbox.getMax());
-
-  double distance_to_axis, bbox_radius;
-  switch(ax)
-  {
-  case(DiscontinuityAxis::x):
-    distance_to_axis = c_query[1] * c_query[1] + c_query[2] * c_query[2];
-    bbox_radius = box_max[1] * box_max[1] + box_max[2] * box_max[2];
-    return distance_to_axis <= beta * bbox_radius;
-  case(DiscontinuityAxis::y):
-    distance_to_axis = c_query[0] * c_query[0] + c_query[2] * c_query[2];
-    bbox_radius = box_max[0] * box_max[0] + box_max[2] * box_max[2];
-    return distance_to_axis <= beta * bbox_radius;
-  case(DiscontinuityAxis::z):
-    distance_to_axis = c_query[0] * c_query[0] + c_query[1] * c_query[1];
-    bbox_radius = box_max[0] * box_max[0] + box_max[1] * box_max[1];
-    return distance_to_axis <= beta * bbox_radius;
-  }
-
-  // Make "true" the default for more reliable quadrature
-  return true;
-}
-
-template <typename T>
-bool isNearAxisBoxRotated(const Point<T, 3>& query,
-                          const BoundingBox<T, 3>& bbox,
-                          const axom::numerics::Matrix<T>& rotator,
-                          const double beta = 5.0)
-{
-  auto centroid = rotate_point(rotator, query, bbox.getCentroid());
-  Vector<T, 3> c_query(centroid, query);
-  Vector<T, 3> box_max(centroid, rotate_point(rotator, query, bbox.getMax()));
-
-  double distance_to_axis, bbox_radius;
-  distance_to_axis = c_query[0] * c_query[0] + c_query[1] * c_query[1];
-  bbox_radius = box_max[0] * box_max[0] + box_max[1] * box_max[1];
-  return distance_to_axis <= beta * bbox_radius;
 }
 
 // ================================ ORIGINAL VERSIONS ================================
@@ -965,8 +874,9 @@ bool isNearAxisBoxRotated(const Point<T, 3>& query,
 template <typename T>
 double stokes_gwn_evaluate(const Point<T, 3>& query,
                            const NURBSPatch<T, 3>& patch,
-                           const DiscontinuityAxis ax,
+                           const DiscontinuityAxis_debug ax,
                            int npts,
+                           int& node_count,
                            double quad_tol)
 {
   // Generate the quadrature rules in parameter space
@@ -978,10 +888,25 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
   {
     NURBSCurve<T, 2> trimming_curve(patch.getTrimmingCurve(n));
     double quad_coarse =
-      stokes_gwn_component(query, trimming_curve, patch, ax, 0, 0, quad_rule);
+      stokes_gwn_component(query, trimming_curve, patch, ax, 0, 0, quad_rule, node_count);
 
-    quad +=
-      stokes_gwn_adaptive(query, trimming_curve, quad_rule, patch, ax, 0, 0, quad_coarse, quad_tol);
+    if(quad_tol >= 0)
+    {
+      quad += stokes_gwn_adaptive(query,
+                                  trimming_curve,
+                                  quad_rule,
+                                  patch,
+                                  ax,
+                                  0,
+                                  0,
+                                  quad_coarse,
+                                  node_count,
+                                  quad_tol);
+    }
+    else
+    {
+      quad += quad_coarse;
+    }
   }
 
   return 0.25 * M_1_PI * quad;
@@ -992,21 +917,29 @@ double stokes_gwn_adaptive(const Point<T, 3>& query,
                            const NURBSCurve<T, 2>& curve,
                            const mfem::IntegrationRule& quad_rule,
                            const NURBSPatch<T, 3>& patch,
-                           const DiscontinuityAxis ax,
+                           const DiscontinuityAxis_debug ax,
                            const int refinement_level,
                            const int refinement_index,
                            const double quad_coarse,
+                           int& node_count,
                            const double quad_tol)
 {
-  double quad_fine_1 =
-    stokes_gwn_component(query, curve, patch, ax, refinement_level + 1, 2 * refinement_index, quad_rule);
+  double quad_fine_1 = stokes_gwn_component(query,
+                                            curve,
+                                            patch,
+                                            ax,
+                                            refinement_level + 1,
+                                            2 * refinement_index,
+                                            quad_rule,
+                                            node_count);
   double quad_fine_2 = stokes_gwn_component(query,
                                             curve,
                                             patch,
                                             ax,
                                             refinement_level + 1,
                                             2 * refinement_index + 1,
-                                            quad_rule);
+                                            quad_rule,
+                                            node_count);
 
   if(refinement_level > 25 ||
      axom::utilities::isNearlyEqualRelative(quad_coarse, quad_fine_1 + quad_fine_2, quad_tol, 1e-10))
@@ -1023,6 +956,7 @@ double stokes_gwn_adaptive(const Point<T, 3>& query,
                                     refinement_level + 1,
                                     2 * refinement_index,
                                     quad_fine_1,
+                                    node_count,
                                     quad_tol);
 
   quad_fine_2 = stokes_gwn_adaptive(query,
@@ -1033,6 +967,7 @@ double stokes_gwn_adaptive(const Point<T, 3>& query,
                                     refinement_level + 1,
                                     2 * refinement_index + 1,
                                     quad_fine_2,
+                                    node_count,
                                     quad_tol);
 
   return quad_fine_1 + quad_fine_2;
@@ -1042,11 +977,14 @@ template <typename T>
 double stokes_gwn_component(const Point<T, 3>& query,
                             const NURBSCurve<T, 2>& curve,
                             const NURBSPatch<T, 3>& patch,
-                            const DiscontinuityAxis ax,
+                            const DiscontinuityAxis_debug ax,
                             const int refinement_level,
                             const int refinement_index,
-                            const mfem::IntegrationRule& quad_rule)
+                            const mfem::IntegrationRule& quad_rule,
+                            int& node_count)
 {
+  node_count += quad_rule.GetNPoints();
+
   double this_quad = 0;
   for(int q = 0; q < quad_rule.GetNPoints(); ++q)
   {
@@ -1073,16 +1011,16 @@ double stokes_gwn_component(const Point<T, 3>& query,
     //  the orientation of the original surface, indicated through ax
     switch(ax)
     {
-    case(DiscontinuityAxis::x):
+    case(DiscontinuityAxis_debug::x):
       this_quad += quad_weight * (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
         (node[1] * node[1] + node[2] * node[2]) / node.norm();
       break;
-    case(DiscontinuityAxis::y):
+    case(DiscontinuityAxis_debug::y):
       this_quad += quad_weight * (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
         (node[0] * node[0] + node[2] * node[2]) / node.norm();
       break;
-    case(DiscontinuityAxis::z):
-    case(DiscontinuityAxis::rotated):
+    case(DiscontinuityAxis_debug::z):
+    case(DiscontinuityAxis_debug::rotated):
       this_quad += quad_weight * (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
         (node[0] * node[0] + node[1] * node[1]) / node.norm();
       break;
@@ -1097,8 +1035,9 @@ double stokes_gwn_component(const Point<T, 3>& query,
 template <typename T>
 double stokes_gwn_evaluate_cached(const Point<T, 3>& query,
                                   const NURBSPatchData<T>& nPatchData,
-                                  const DiscontinuityAxis ax,
+                                  const DiscontinuityAxis_debug ax,
                                   const int quad_npts,
+                                  int& node_count,
                                   const double quad_tol)
 {
   // Generate the quadrature rules in parameter space
@@ -1111,10 +1050,27 @@ double stokes_gwn_evaluate_cached(const Point<T, 3>& query,
   {
     // Get the quadrature points for the curve without any refinement
     auto trimming_curve_data = nPatchData.getQuadratureData(n, quad_rule, 0, 0);
-    double quad_coarse = stokes_gwn_component_cached(query, quad_rule, ax, trimming_curve_data);
+    double quad_coarse =
+      stokes_gwn_component_cached(query, quad_rule, ax, trimming_curve_data, node_count);
 
-    quad += 0.25 * M_1_PI *
-      stokes_gwn_adaptive_cached(query, nPatchData, quad_rule, ax, n, 0, 0, quad_coarse, quad_tol);
+    if(quad_tol >= 0)
+    {
+      quad += 0.25 * M_1_PI *
+        stokes_gwn_adaptive_cached(query,
+                                   nPatchData,
+                                   quad_rule,
+                                   ax,
+                                   n,
+                                   0,
+                                   0,
+                                   quad_coarse,
+                                   node_count,
+                                   quad_tol);
+    }
+    else
+    {
+      quad += quad_coarse;
+    }
   }
 
   return quad;
@@ -1124,11 +1080,12 @@ template <typename T>
 double stokes_gwn_adaptive_cached(const Point<T, 3>& query,
                                   const NURBSPatchData<T>& nPatchData,
                                   const mfem::IntegrationRule& quad_rule,
-                                  const DiscontinuityAxis ax,
+                                  const DiscontinuityAxis_debug ax,
                                   const int curve_index,
                                   const int refinement_level,
                                   const int refinement_index,
                                   const double quad_coarse,
+                                  int& node_count,
                                   const double quad_tol)
 {
   auto trimming_curve_data_1 =
@@ -1138,8 +1095,10 @@ double stokes_gwn_adaptive_cached(const Point<T, 3>& query,
                                                             refinement_level + 1,
                                                             2 * refinement_index + 1);
 
-  double quad_fine_1 = stokes_gwn_component_cached(query, quad_rule, ax, trimming_curve_data_1);
-  double quad_fine_2 = stokes_gwn_component_cached(query, quad_rule, ax, trimming_curve_data_2);
+  double quad_fine_1 =
+    stokes_gwn_component_cached(query, quad_rule, ax, trimming_curve_data_1, node_count);
+  double quad_fine_2 =
+    stokes_gwn_component_cached(query, quad_rule, ax, trimming_curve_data_2, node_count);
 
   if(refinement_level >= 25 ||
      axom::utilities::isNearlyEqualRelative(quad_fine_1 + quad_fine_2, quad_coarse, quad_tol, 1e-10))
@@ -1155,6 +1114,7 @@ double stokes_gwn_adaptive_cached(const Point<T, 3>& query,
                                            refinement_level + 1,
                                            2 * refinement_index,
                                            quad_fine_1,
+                                           node_count,
                                            quad_tol);
 
   quad_fine_2 = stokes_gwn_adaptive_cached(query,
@@ -1165,6 +1125,7 @@ double stokes_gwn_adaptive_cached(const Point<T, 3>& query,
                                            refinement_level + 1,
                                            2 * refinement_index + 1,
                                            quad_fine_2,
+                                           node_count,
                                            quad_tol);
 
   return quad_fine_1 + quad_fine_2;
@@ -1173,9 +1134,12 @@ double stokes_gwn_adaptive_cached(const Point<T, 3>& query,
 template <typename T>
 double stokes_gwn_component_cached(const Point<T, 3>& query,
                                    const mfem::IntegrationRule& quad_rule,
-                                   const DiscontinuityAxis ax,
-                                   const TrimmingCurveQuadratureData<T>& trimming_curve_data)
+                                   const DiscontinuityAxis_debug ax,
+                                   const TrimmingCurveQuadratureData<T>& trimming_curve_data,
+                                   int& node_count)
 {
+  node_count += quad_rule.GetNPoints();
+
   // Do this without refinement
   double this_quad = 0;
   for(int q = 0; q < quad_rule.GetNPoints(); ++q)
@@ -1190,15 +1154,15 @@ double stokes_gwn_component_cached(const Point<T, 3>& query,
     //  the orientation of the original surface, indicated through ax.
     switch(ax)
     {
-    case(DiscontinuityAxis::x):
+    case(DiscontinuityAxis_debug::x):
       this_quad += quad_weight * (node[2] * node[0] * node_dt[1] - node[1] * node[0] * node_dt[2]) /
         (node[1] * node[1] + node[2] * node[2]) / node_norm;
       break;
-    case(DiscontinuityAxis::y):
+    case(DiscontinuityAxis_debug::y):
       this_quad += quad_weight * (node[0] * node[1] * node_dt[2] - node[2] * node[1] * node_dt[0]) /
         (node[0] * node[0] + node[2] * node[2]) / node_norm;
       break;
-    case(DiscontinuityAxis::z):
+    case(DiscontinuityAxis_debug::z):
       this_quad += quad_weight * (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
         (node[0] * node[0] + node[1] * node[1]) / node_norm;
       break;
@@ -1211,9 +1175,9 @@ double stokes_gwn_component_cached(const Point<T, 3>& query,
 // ================================ CACHED ROTATED VERSIONS ================================
 
 template <typename T>
-Point<T, 3> rotate_point(const numerics::Matrix<T>& matx,
-                         const Point<T, 3>& center,
-                         const Point<T, 3>& input)
+Point<T, 3> rotate_point_debug(const numerics::Matrix<T>& matx,
+                               const Point<T, 3>& center,
+                               const Point<T, 3>& input)
 {
   Vector<T, 3> shifted(center, input);
   Vector<T, 3> rotated;
@@ -1222,9 +1186,9 @@ Point<T, 3> rotate_point(const numerics::Matrix<T>& matx,
 }
 
 template <typename T>
-Point<T, 3> rotate_vector(const numerics::Matrix<T>& matx,
-                          const Point<T, 3>& center,
-                          const Vector<T, 3>& input)
+Point<T, 3> rotate_vector_debug(const numerics::Matrix<T>& matx,
+                                const Point<T, 3>& center,
+                                const Vector<T, 3>& input)
 {
   Vector<T, 3> shifted {input[0] - center[0], input[1] - center[1], input[2] - center[2]};
   Vector<T, 3> rotated;
@@ -1237,6 +1201,7 @@ double stokes_gwn_evaluate_cached_rotated(const Point<T, 3>& query,
                                           const NURBSPatchData<T>& nPatchData,
                                           const axom::numerics::Matrix<T>& rotator,
                                           const int quad_npts,
+                                          int& node_count,
                                           const double quad_tol)
 {
   // Generate the quadrature rules in parameter space
@@ -1250,10 +1215,26 @@ double stokes_gwn_evaluate_cached_rotated(const Point<T, 3>& query,
     // Get the quadrature points for the curve without any refinement
     auto trimming_curve_data = nPatchData.getQuadratureData(n, quad_rule, 0, 0);
     double quad_coarse =
-      stokes_gwn_component_cached_rotated(query, quad_rule, rotator, trimming_curve_data);
+      stokes_gwn_component_cached_rotated(query, quad_rule, rotator, trimming_curve_data, node_count);
 
-    quad += 0.25 * M_1_PI *
-      stokes_gwn_adaptive_cached_rotated(query, nPatchData, quad_rule, rotator, n, 0, 0, quad_coarse, quad_tol);
+    if(quad_tol >= 0)
+    {
+      quad += 0.25 * M_1_PI *
+        stokes_gwn_adaptive_cached_rotated(query,
+                                           nPatchData,
+                                           quad_rule,
+                                           rotator,
+                                           n,
+                                           0,
+                                           0,
+                                           quad_coarse,
+                                           node_count,
+                                           quad_tol);
+    }
+    else
+    {
+      quad += quad_coarse;
+    }
   }
 
   return quad;
@@ -1268,6 +1249,7 @@ double stokes_gwn_adaptive_cached_rotated(const Point<T, 3>& query,
                                           const int refinement_level,
                                           const int refinement_index,
                                           const double quad_coarse,
+                                          int& node_count,
                                           const double quad_tol)
 {
   auto trimming_curve_data_1 =
@@ -1278,9 +1260,9 @@ double stokes_gwn_adaptive_cached_rotated(const Point<T, 3>& query,
                                                             2 * refinement_index + 1);
 
   double quad_fine_1 =
-    stokes_gwn_component_cached_rotated(query, quad_rule, rotator, trimming_curve_data_1);
+    stokes_gwn_component_cached_rotated(query, quad_rule, rotator, trimming_curve_data_1, node_count);
   double quad_fine_2 =
-    stokes_gwn_component_cached_rotated(query, quad_rule, rotator, trimming_curve_data_2);
+    stokes_gwn_component_cached_rotated(query, quad_rule, rotator, trimming_curve_data_2, node_count);
 
   if(refinement_level >= 25 ||
      axom::utilities::isNearlyEqualRelative(quad_fine_1 + quad_fine_2, quad_coarse, quad_tol, 1e-10))
@@ -1296,6 +1278,7 @@ double stokes_gwn_adaptive_cached_rotated(const Point<T, 3>& query,
                                                    refinement_level + 1,
                                                    2 * refinement_index,
                                                    quad_fine_1,
+                                                   node_count,
                                                    quad_tol);
 
   quad_fine_2 = stokes_gwn_adaptive_cached_rotated(query,
@@ -1306,6 +1289,7 @@ double stokes_gwn_adaptive_cached_rotated(const Point<T, 3>& query,
                                                    refinement_level + 1,
                                                    2 * refinement_index + 1,
                                                    quad_fine_2,
+                                                   node_count,
                                                    quad_tol);
 
   return quad_fine_1 + quad_fine_2;
@@ -1315,18 +1299,21 @@ template <typename T>
 double stokes_gwn_component_cached_rotated(const Point<T, 3>& query,
                                            const mfem::IntegrationRule& quad_rule,
                                            const axom::numerics::Matrix<T>& rotator,
-                                           const TrimmingCurveQuadratureData<T>& trimming_curve_data)
+                                           const TrimmingCurveQuadratureData<T>& trimming_curve_data,
+                                           int& node_count)
 {
+  node_count += quad_rule.GetNPoints();
+
   // Do this without refinement
   double this_quad = 0;
   for(int q = 0; q < quad_rule.GetNPoints(); ++q)
   {
     const Vector<T, 3> node(
       query,
-      rotate_point(rotator, query, trimming_curve_data.quadrature_points[q].first));
-    const Vector<T, 3> node_dt(rotate_vector(rotator,
-                                             Point<T, 3>({0.0, 0.0, 0.0}),
-                                             trimming_curve_data.quadrature_points[q].second));
+      rotate_point_debug(rotator, query, trimming_curve_data.quadrature_points[q].first));
+    const Vector<T, 3> node_dt(rotate_vector_debug(rotator,
+                                                   Point<T, 3>({0.0, 0.0, 0.0}),
+                                                   trimming_curve_data.quadrature_points[q].second));
     const double node_norm = node.norm();
 
     const double quad_weight = quad_rule.IntPoint(q).weight * trimming_curve_data.span_length;
@@ -1337,6 +1324,100 @@ double stokes_gwn_component_cached_rotated(const Point<T, 3>& query,
   }
 
   return this_quad;
+}
+
+template <typename T>
+double nurbs_winding_number_surface_debug(const Point<T, 3>& query,
+                                          const BezierPatch<T, 3>& patch,
+                                          int& node_count,
+                                          const double quad_tol = 1e-8,
+                                          const int depth = 0)
+{
+  // Generate the quadrature rules in parameter space
+  int quad_npts = 15;
+
+  static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
+  const mfem::IntegrationRule& quad_rule =
+    my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * quad_npts - 1);
+
+  // Get the quadrature on the original patch
+  double the_gwn = surface_winding_number_component(query, patch, quad_rule, node_count);
+  if(quad_tol >= 0.0)
+  {
+
+  }
+  else
+  {
+    // If the quad_tol is negative, we are not using adaptive quadrature
+    //  and we can return the result immediately
+    return the_gwn;
+  }
+}
+
+template <typename T>
+double surface_winding_number_adaptive(const Point<T, 3>& query,
+                                       const BezierPatch<T, 3>& patch,
+                                       double quad_coarse,
+                                       const mfem::IntegrationRule& quad_rule,
+                                       double quad_tol,
+                                       int& node_count)
+{
+  BezierPatch<T, 3> subpatches[4];
+  double sub_gwn[4];
+
+  patch.split(0.5, 0.5, subpatches[0], subpatches[1], subpatches[2], subpatches[3]);
+
+  for(int i = 0; i < 4; ++i)
+  {
+    // Recursively compute the GWN for each subpatch
+    sub_gwn[i] =
+      nurbs_winding_number_surface_debug(query, subpatches[i], node_count, quad_tol, depth + 1);
+  }
+
+  double fine_gwn = sub_gwn[0] + sub_gwn[1] + sub_gwn[2] + sub_gwn[3];
+  if(axom::utilities::isNearlyEqualRelative(quad_coarse,
+                                            fine_gwn,
+                                            quad_tol,
+                                            1e-10))
+  {
+    return fine_gwn;
+  }
+  else
+  {
+    for(int i = 0; i < 4; ++i)
+    {
+      sub_gwn[i] =
+         surface_winding_number_adaptive(query, subpatches[i], node_count, quad_tol, depth + 1);
+    }
+
+    return sub_gwn[0] + sub_gwn[1] + sub_gwn[2] + sub_gwn[3];
+  }
+}
+
+template <typename T>
+double surface_winding_number_component(const Point<T, 3>& query,
+                                        const BezierPatch<T, 3>& patch,
+                                        const mfem::IntegrationRule& quad_rule,
+                                        int& node_count)
+{
+  node_count += quad_rule.GetNPoints() * quad_rule.GetNPoints();
+
+  double quadrature = 0.0;
+  for(int qu = 0; qu < quad_rule.GetNPoints(); ++qu)
+  {
+    for(int qv = 0; qv < quad_rule.GetNPoints(); ++qv)
+    {
+      Vector<T, 3> node(query, patch.evaluate(quad_rule.IntPoint(qu).x, quad_rule.IntPoint(qv).x));
+
+      // Compute the normal vector
+      Vector<T, 3> normal = patch.normal(quad_rule.IntPoint(qu).x, quad_rule.IntPoint(qv).x);
+
+      quadrature += quad_rule.IntPoint(qu).weight * quad_rule.IntPoint(qv).weight *
+        Vector<T, 3>::dot_product(node, normal) / std::pow(node.norm(), 3);
+    }
+  }
+
+  return 0.25 * M_1_PI * quadrature;
 }
 // #endif
 

@@ -408,7 +408,7 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
 
   bool foundIntersection = false;
 
-  if(curve.isLinear(sq_tol))
+  if(curve.isLinear(sq_tol, true))
   {
     T c1, c2, t1, t2;
     if(intersect_2d_circle_line(circle, curve[0], curve[order], c1, c2, t1, t2, EPS))
