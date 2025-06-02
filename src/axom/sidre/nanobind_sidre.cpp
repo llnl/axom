@@ -7,6 +7,8 @@
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 
+#include <nanobind/ndarray.h>
+
 #include "axom/core/Types.hpp"
 #include "core/SidreTypes.hpp"
 #include "core/Buffer.hpp"
@@ -372,10 +374,54 @@ NB_MODULE(pysidre, m_sidre)
            &Group::createViewWithShape),
          "Create View object with given name or path in this Group that has a data description "
          "with data type and shape and attach given Buffer to it.")
-    .def("createView",
-         nb::overload_cast<const std::string&, void*>(&Group::createView),
-         "Create View object with given name with given name or path in this Group and attach "
-         "external data ptr to it.")
+
+    // TODO
+    // .def("createView",
+    //      nb::overload_cast<const std::string&, void*>(&Group::createView),
+    //      "Create View object with given name with given name or path in this Group and attach "
+    //      "external data ptr to it.")
+
+    // Debugging, seeing if can access data
+    .def(
+      "createView",
+      // [](Group& self, const std::string& path, nb::ndarray<nb::c_contig, nb::device::cpu> a) {
+      //   if(a.dtype() == nb::dtype<int64_t>() && a.ndim() == 1)
+      //   {
+      //     auto v = a.view<int64_t, nb::ndim<1>>();  // <-- new!
+
+      //     for(size_t i = 0; i < v.shape(0); ++i)
+      //     {
+      //       printf("v(%ld) is %ld\n", i, v(i));
+      //     }
+      //   }
+      //   else if(a.dtype() == nb::dtype<double>() && a.ndim() == 1)
+      //   {
+      //     auto v = a.view<double, nb::ndim<1>>();  // <-- new!
+
+      //     for(size_t i = 0; i < v.shape(0); ++i)
+      //     {
+      //       printf("v(%ld) is %f\n", i, v(i));
+      //     }
+      //   }
+      //   printf("Array dtype: int16=%i, uint32=%i, float32=%i, double=%i, int64=%i\n",
+      //          a.dtype() == nb::dtype<int16_t>(),
+      //          a.dtype() == nb::dtype<uint32_t>(),
+      //          a.dtype() == nb::dtype<float>(),
+      //          a.dtype() == nb::dtype<double>(),
+      //          a.dtype() == nb::dtype<int64_t>());
+      //   printf("Dtype components are: code=%d, bits=%d, lanes=%d\n",
+      //          a.dtype().code,
+      //          a.dtype().bits,
+      //          a.dtype().lanes);
+      //   printf("DIM IS %ld\n", a.ndim());
+      //   return self.createView(path, a.data());
+      // },
+
+      [](Group& self, const std::string& path, const nb::ndarray<>& a) {
+        return self.createView(path, a.data());
+      },
+      nb::rv_policy::reference)
+
     .def("createView",
          nb::overload_cast<const std::string&, TypeID, IndexType, void*>(&Group::createView),
          "Create View object with given name or path in this Group that has a data description "

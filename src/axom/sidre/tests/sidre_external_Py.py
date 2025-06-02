@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: (BSD-3-Clause)
 
 import pysidre
+import numpy as np
 
 def test_create_external_view():
 	ds = pysidre.DataStore()
@@ -11,17 +12,25 @@ def test_create_external_view():
 
 	length = 11
 
-	idata = list(range(length))
-	ddata = [x * 2.0 for x in range(length)]
+	idata = np.array(range(length))
+	print(f"PYTHON SIDE: idata type is {type(idata[0])}")
+	print(f"PYTHON SIDE: idata is {idata}")
+
+	ddata = np.array([x * 2.0 for x in range(length)])
+	print(f"PYTHON SIDE: ddata type is {type(ddata[0])}")
+	print(f"PYTHON SIDE: ddata is {ddata}")
 
     # TODO - Cannot pass python list as void *, need special nanobind numpy handling
-	# iview = root.createView("idata", idata)
-	# iview.apply(pysidre.TypeID.INT_ID, length)
+	iview = root.createView("idata", idata)
+	iview.apply(pysidre.TypeID.INT64_ID, length)
 
-	# dview = root.createView("ddata", ddata)
-	# dview.apply(pysidre.TypeID.DOUBLE_ID, length)
+	iview.print()
 
-	# assert root.getNumViews() == 2
+	dview = root.createView("ddata", ddata)
+	dview.apply(pysidre.TypeID.DOUBLE_ID, length)
+	dview.print()
+
+	assert root.getNumViews() == 2
 	pass
 
 
