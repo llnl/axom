@@ -6,6 +6,7 @@
 #include "axom/config.hpp"
 
 #include "axom/core/execution/for_all.hpp"
+#include "axom/core/execution/runtime_policy.hpp"
 #include "axom/core/memory_management.hpp"
 #include "axom/slic.hpp"
 
@@ -538,7 +539,7 @@ TEST(primal_zip, zip_rays_2d_from_3d)
   check_zip_rays_2d_from_3d<ExecSpace>();
 }
 
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 AXOM_CUDA_TEST(primal_zip, zip_points_3d_cuda)
 {
   using PointType = primal::Point<double, 3>;
@@ -598,7 +599,7 @@ TEST(primal_zip, zip_rays_2d_from_3d_cuda)
 }
 #endif
 
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(primal_zip, zip_points_3d_hip)
 {
   using PointType = primal::Point<double, 3>;

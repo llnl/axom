@@ -24,6 +24,7 @@ ArrayViews can be passed to kernels to fill in the memory of the Conduit node. R
 to pass ArrayViews and not the Conduit nodes to device kernels.
 
 .. code-block:: cpp
+
     template <typename ExecSpace>
     void makeNewField(conduit::Node &n_mesh)
     {
@@ -58,9 +59,9 @@ to pass ArrayViews and not the Conduit nodes to device kernels.
         });
     }
 
-*********************
+#####################
 Common Memory Issues
-*********************
+#####################
 
 If your program terminates while executing a device kernel like the one above, and the problem
 is not accessing memory out of bounds, then the most likely problem is the memory was not

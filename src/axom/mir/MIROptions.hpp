@@ -39,11 +39,14 @@ public:
   std::string matsetName(const std::string &default_value = std::string()) const
   {
     std::string name(default_value.empty() ? matset() : default_value);
-    if(options().has_child("matsetName")) name = options().fetch_existing("matsetName").as_string();
+    if(options().has_child("matsetName"))
+    {
+      name = options().fetch_existing("matsetName").as_string();
+    }
     return name;
   }
 
-private:
+protected:
   /// Access the base class' options.
   const conduit::Node &options() const { return this->m_options; }
 };

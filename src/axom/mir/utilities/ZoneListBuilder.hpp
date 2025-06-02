@@ -10,11 +10,6 @@
 
 #include <conduit.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mir
@@ -65,9 +60,6 @@ public:
                axom::Array<axom::IndexType> &cleanIndices,
                axom::Array<axom::IndexType> &mixedIndices) const
   {
-    using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
     AXOM_ANNOTATE_SCOPE("ZoneListBuilder");
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
@@ -93,7 +85,7 @@ public:
         {
           const auto nodeId = zone.getId(i);
           int *nodePtr = nodeData + nodeId;
-          RAJA::atomicMax<atomic_policy>(nodePtr, nmats);
+          axom::atomicMax<ExecSpace>(nodePtr, nmats);
         }
       });
     AXOM_ANNOTATE_END("nMatsPerNode");
@@ -103,7 +95,7 @@ public:
     const auto nzones = m_topologyView.numberOfZones();
     axom::Array<int> mask(nzones, nzones, allocatorID);
     auto maskView = mask.view();
-    RAJA::ReduceSum<reduce_policy, int> mask_reduce(0);
+    axom::ReduceSum<ExecSpace, int> mask_reduce(0);
     axom::for_all<ExecSpace>(
       m_topologyView.numberOfZones(),
       AXOM_LAMBDA(axom::IndexType zoneIndex) {
@@ -198,9 +190,6 @@ public:
                axom::Array<axom::IndexType> &cleanIndices,
                axom::Array<axom::IndexType> &mixedIndices) const
   {
-    using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
     AXOM_ANNOTATE_SCOPE("ZoneListBuilder");
     SLIC_ASSERT(selectedZonesView.size() > 0);
 
@@ -229,7 +218,7 @@ public:
         {
           const auto nodeId = zone.getId(i);
           int *nodePtr = nodeData + nodeId;
-          RAJA::atomicMax<atomic_policy>(nodePtr, nmats);
+          axom::atomicMax<ExecSpace>(nodePtr, nmats);
         }
       });
     AXOM_ANNOTATE_END("nMatsPerNode");
@@ -239,7 +228,7 @@ public:
     const auto nzones = selectedZonesView.size();
     axom::Array<int> mask(nzones, nzones, allocatorID);
     auto maskView = mask.view();
-    RAJA::ReduceSum<reduce_policy, int> mask_reduce(0);
+    axom::ReduceSum<ExecSpace, int> mask_reduce(0);
     axom::for_all<ExecSpace>(
       selectedZonesView.size(),
       AXOM_LAMBDA(axom::IndexType szIndex) {
@@ -330,14 +319,13 @@ public:
                axom::Array<axom::IndexType> &cleanIndices,
                axom::Array<axom::IndexType> &mixedIndices) const
   {
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
     AXOM_ANNOTATE_BEGIN("mask");
     const auto nzones = selectedZonesView.size();
     axom::Array<int> mask(nzones, nzones, allocatorID);
     auto maskView = mask.view();
-    RAJA::ReduceSum<reduce_policy, int> mask_reduce(0);
+    axom::ReduceSum<ExecSpace, int> mask_reduce(0);
     const MatsetView deviceMatsetView(m_matsetView);
     const TopologyView deviceTopologyView(m_topologyView);
     axom::for_all<ExecSpace>(

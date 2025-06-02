@@ -111,6 +111,13 @@ public:
   }
 
   /*!
+   * \brief Return the number of vertices in a Tetrahedron.
+   *
+   * \return The number of vertices in a Tetrahedron.
+   */
+  AXOM_HOST_DEVICE static constexpr int numVertices() { return NUM_VERTS; }
+
+  /*!
    * \brief Index operator to get the i^th vertex
    * \param idx The index of the desired vertex
    * \pre idx is 0, 1, 2, or 3
@@ -154,6 +161,7 @@ public:
    * Otherwise, the sum of coordinates will be proportional to volume of the tetrahedron
    * (Specifically, they should sum to the parallelpiped volume, which is 6x the volume).
    */
+  AXOM_HOST_DEVICE
   Point<double, 4> physToBarycentric(const PointType& p, bool skipNormalization = false) const
   {
     Point<double, 4> bary;
@@ -206,6 +214,7 @@ public:
    * \brief Returns the physical coordinates of a barycentric point
    * \param [in] bary Barycentric coordinates relative to this tetrahedron
    */
+  AXOM_HOST_DEVICE
   PointType baryToPhysical(const Point<double, 4>& bary) const
   {
     SLIC_CHECK_MSG(axom::utilities::isNearlyEqual(1., bary[0] + bary[1] + bary[2] + bary[3]),
@@ -223,6 +232,7 @@ public:
   /*! 
    * \brief Returns whether point \a p is contained within the tetrahedron (within tolerance \a eps)
    */
+  AXOM_HOST_DEVICE
   bool contains(const PointType& p, double eps = 1e-8) const
   {
     const auto bC = physToBarycentric(p);

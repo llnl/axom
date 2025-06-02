@@ -9,26 +9,20 @@
 #include "axom/mir.hpp"
 #include "axom/primal.hpp"
 #include "axom/mir/tests/mir_testing_data_helpers.hpp"
+#include "axom/mir/tests/mir_testing_helpers.hpp"
 
 #include <cmath>
 
 namespace bputils = axom::mir::utilities::blueprint;
-
-//------------------------------------------------------------------------------
-
-//#define DEBUGGING_TEST_CASES
-
-// Uncomment to generate baselines
-//#define AXOM_TESTING_GENERATE_BASELINES
-
-// Uncomment to save visualization files for debugging (when making baselines)
-//#define AXOM_TESTING_SAVE_VISUALIZATION
-
-#include "axom/mir/tests/mir_testing_helpers.hpp"
+namespace views = axom::mir::views;
 
 std::string baselineDirectory() { return pjoin(dataDirectory(), "mir", "regression", "mir_views"); }
-//------------------------------------------------------------------------------
 
+//------------------------------------------------------------------------------
+// Global test application object.
+MIRTestApplication TestApp;
+
+//------------------------------------------------------------------------------
 TEST(mir_views, shape2conduitName)
 {
   EXPECT_STREQ(axom::mir::views::LineShape<int>::name(), "line");
@@ -39,6 +33,9 @@ TEST(mir_views, shape2conduitName)
 
   EXPECT_STREQ(axom::mir::views::QuadShape<int>::name(), "quad");
   EXPECT_STREQ(axom::mir::views::QuadShape<long>::name(), "quad");
+
+  EXPECT_STREQ(axom::mir::views::PolygonShape<int>::name(), "polygonal");
+  EXPECT_STREQ(axom::mir::views::PolygonShape<long>::name(), "polygonal");
 
   EXPECT_STREQ(axom::mir::views::TetShape<int>::name(), "tet");
   EXPECT_STREQ(axom::mir::views::TetShape<long>::name(), "tet");
@@ -51,6 +48,217 @@ TEST(mir_views, shape2conduitName)
 
   EXPECT_STREQ(axom::mir::views::HexShape<int>::name(), "hex");
   EXPECT_STREQ(axom::mir::views::HexShape<long>::name(), "hex");
+}
+
+//------------------------------------------------------------------------------
+template <typename ShapeType, typename VariableShapeType>
+void compareShapes(const ShapeType &shape1, const VariableShapeType &shape2)
+{
+  using ConnType = typename ShapeType::ConnectivityType;
+
+  EXPECT_EQ(shape1.dimension(), shape2.dimension());
+
+  EXPECT_EQ(shape1.numberOfNodes(), shape2.numberOfNodes());
+  for(axom::IndexType i = 0; i < shape1.numberOfNodes(); i++)
+  {
+    EXPECT_EQ(shape1.getId(i), shape2.getId(i));
+  }
+
+  EXPECT_EQ(shape1.numberOfEdges(), shape2.numberOfEdges());
+  for(axom::IndexType i = 0; i < shape1.numberOfEdges(); i++)
+  {
+    const auto edge1 = shape1.getEdge(i);
+    const auto edge2 = shape1.getEdge(i);
+    EXPECT_EQ(edge1, edge2);
+  }
+
+  ConnType face1[8], face2[8];
+  EXPECT_EQ(shape1.numberOfFaces(), shape2.numberOfFaces());
+  for(axom::IndexType i = 0; i < shape1.numberOfFaces(); i++)
+  {
+    EXPECT_EQ(shape1.numberOfNodesInFace(i), shape2.numberOfNodesInFace(i));
+
+    axom::IndexType numIds1 = 0, numIds2 = 0;
+    shape1.getFace(i, face1, numIds1);
+    shape2.getFace(i, face2, numIds2);
+    EXPECT_EQ(numIds1, numIds2);
+    for(axom::IndexType j = 0; j < numIds1; j++)
+    {
+      EXPECT_EQ(face1[j], face2[j]);
+    }
+  }
+}
+
+TEST(mir_views, shape_faces)
+{
+  using ConnType = int;
+
+  ConnType face[5];
+  axom::IndexType numIds;
+
+  // Point
+  ConnType point_ids[] = {10};
+  views::PointShape<ConnType> pointShape(axom::ArrayView<ConnType>(point_ids, 1));
+  EXPECT_EQ(pointShape.numberOfFaces(), 0);
+  EXPECT_EQ(pointShape.getId(0), point_ids[0]);
+  views::VariableShape<ConnType> pointVarShape(views::Point_ShapeID,
+                                               axom::ArrayView<ConnType>(point_ids, 1));
+  compareShapes(pointShape, pointVarShape);
+
+  // Line
+  ConnType line_ids[] = {10, 20};
+  views::LineShape<ConnType> lineShape(axom::ArrayView<ConnType>(line_ids, 2));
+  EXPECT_EQ(lineShape.numberOfFaces(), 0);
+  lineShape.getFace(0, face, numIds);
+  EXPECT_EQ(numIds, 0);
+  EXPECT_EQ(lineShape.getId(0), line_ids[0]);
+  EXPECT_EQ(lineShape.getId(1), line_ids[1]);
+  views::VariableShape<ConnType> lineVarShape(views::Line_ShapeID,
+                                              axom::ArrayView<ConnType>(line_ids, 2));
+  compareShapes(lineShape, lineVarShape);
+
+  // Tri
+  ConnType tri_ids[] = {10, 20, 30};
+  views::TriShape<ConnType> triShape(axom::ArrayView<ConnType>(tri_ids, 3));
+  EXPECT_EQ(triShape.numberOfFaces(), 1);
+  triShape.getFace(0, face, numIds);
+  EXPECT_EQ(numIds, 3);
+  EXPECT_EQ(face[0], tri_ids[0]);
+  EXPECT_EQ(face[1], tri_ids[1]);
+  EXPECT_EQ(face[2], tri_ids[2]);
+  EXPECT_EQ(triShape.getId(0), tri_ids[0]);
+  EXPECT_EQ(triShape.getId(1), tri_ids[1]);
+  EXPECT_EQ(triShape.getId(2), tri_ids[2]);
+  views::VariableShape<ConnType> triVarShape(views::Tri_ShapeID,
+                                             axom::ArrayView<ConnType>(tri_ids, 3));
+  compareShapes(triShape, triVarShape);
+
+  // Quad
+  ConnType quad_ids[] = {10, 20, 30, 40};
+  views::QuadShape<ConnType> quadShape(axom::ArrayView<ConnType>(quad_ids, 4));
+  EXPECT_EQ(quadShape.numberOfFaces(), 1);
+  quadShape.getFace(0, face, numIds);
+  EXPECT_EQ(numIds, 4);
+  EXPECT_EQ(face[0], quad_ids[0]);
+  EXPECT_EQ(face[1], quad_ids[1]);
+  EXPECT_EQ(face[2], quad_ids[2]);
+  EXPECT_EQ(face[3], quad_ids[3]);
+  EXPECT_EQ(quadShape.getId(0), quad_ids[0]);
+  EXPECT_EQ(quadShape.getId(1), quad_ids[1]);
+  EXPECT_EQ(quadShape.getId(2), quad_ids[2]);
+  EXPECT_EQ(quadShape.getId(3), quad_ids[3]);
+  views::VariableShape<ConnType> quadVarShape(views::Quad_ShapeID,
+                                              axom::ArrayView<ConnType>(quad_ids, 4));
+  compareShapes(quadShape, quadVarShape);
+
+  // Polygon
+  ConnType polygon_ids[] = {10, 20, 30, 40, 50};
+  views::PolygonShape<ConnType> polyShape(axom::ArrayView<ConnType>(polygon_ids, 5));
+  EXPECT_EQ(polyShape.numberOfFaces(), 1);
+  polyShape.getFace(0, face, numIds);
+  EXPECT_EQ(numIds, 5);
+  EXPECT_EQ(face[0], polygon_ids[0]);
+  EXPECT_EQ(face[1], polygon_ids[1]);
+  EXPECT_EQ(face[2], polygon_ids[2]);
+  EXPECT_EQ(face[3], polygon_ids[3]);
+  EXPECT_EQ(face[4], polygon_ids[4]);
+  EXPECT_EQ(polyShape.getId(0), polygon_ids[0]);
+  EXPECT_EQ(polyShape.getId(1), polygon_ids[1]);
+  EXPECT_EQ(polyShape.getId(2), polygon_ids[2]);
+  EXPECT_EQ(polyShape.getId(3), polygon_ids[3]);
+  EXPECT_EQ(polyShape.getId(4), polygon_ids[4]);
+  views::VariableShape<ConnType> polyVarShape(views::Polygon_ShapeID,
+                                              axom::ArrayView<ConnType>(polygon_ids, 5));
+  compareShapes(polyShape, polyVarShape);
+
+  // Tet
+  ConnType tet_ids[] = {10, 20, 30, 40};
+  views::TetShape<ConnType> tetShape(axom::ArrayView<ConnType>(tet_ids, 4));
+  EXPECT_EQ(tetShape.numberOfFaces(), 4);
+  axom::IndexType tet_nids[4] = {3, 3, 3, 3};
+  ConnType tet_faces[4][3] = {{10, 20, 40}, {20, 30, 40}, {30, 10, 40}, {10, 30, 20}};
+  for(int f = 0; f < 4; f++)
+  {
+    tetShape.getFace(f, face, numIds);
+    EXPECT_EQ(numIds, tet_nids[f]);
+    for(axom::IndexType i = 0; i < tet_nids[f]; i++)
+    {
+      EXPECT_EQ(face[i], tet_faces[f][i]);
+    }
+  }
+  views::VariableShape<ConnType> tetVarShape(views::Tet_ShapeID,
+                                             axom::ArrayView<ConnType>(tet_ids, 4));
+  compareShapes(tetShape, tetVarShape);
+
+  // Pyramid
+  ConnType pyr_ids[] = {10, 20, 30, 40, 50};
+  views::PyramidShape<ConnType> pyrShape(axom::ArrayView<ConnType>(pyr_ids, 5));
+  EXPECT_EQ(pyrShape.numberOfFaces(), 5);
+  axom::IndexType pyr_nids[5] = {4, 3, 3, 3, 3};
+  ConnType pyr_faces[5][4] = {{40, 30, 20, 10},
+                              {10, 20, 50, -1},
+                              {20, 30, 50, -1},
+                              {30, 40, 50, -1},
+                              {40, 10, 50, -1}};
+  for(int f = 0; f < 4; f++)
+  {
+    pyrShape.getFace(f, face, numIds);
+    EXPECT_EQ(numIds, pyr_nids[f]);
+    for(axom::IndexType i = 0; i < pyr_nids[f]; i++)
+    {
+      EXPECT_EQ(face[i], pyr_faces[f][i]);
+    }
+  }
+  views::VariableShape<ConnType> pyrVarShape(views::Pyramid_ShapeID,
+                                             axom::ArrayView<ConnType>(pyr_ids, 5));
+  compareShapes(pyrShape, pyrVarShape);
+
+  // Wedge
+  ConnType wed_ids[] = {10, 20, 30, 40, 50, 60};
+  views::WedgeShape<ConnType> wedShape(axom::ArrayView<ConnType>(wed_ids, 6));
+  EXPECT_EQ(wedShape.numberOfFaces(), 5);
+  axom::IndexType wed_nids[5] = {3, 3, 4, 4, 4};
+  ConnType wed_faces[5][4] = {{10, 30, 20, -1},
+                              {40, 50, 60, -1},
+                              {10, 20, 50, 40},
+                              {20, 30, 60, 50},
+                              {30, 10, 40, 60}};
+  for(int f = 0; f < 4; f++)
+  {
+    wedShape.getFace(f, face, numIds);
+    EXPECT_EQ(numIds, wed_nids[f]);
+    for(axom::IndexType i = 0; i < wed_nids[f]; i++)
+    {
+      EXPECT_EQ(face[i], wed_faces[f][i]);
+    }
+  }
+  views::VariableShape<ConnType> wedVarShape(views::Wedge_ShapeID,
+                                             axom::ArrayView<ConnType>(wed_ids, 6));
+  compareShapes(wedShape, wedVarShape);
+
+  // Hex
+  ConnType hex_ids[] = {10, 20, 30, 40, 50, 60, 70, 80};
+  views::HexShape<ConnType> hexShape(axom::ArrayView<ConnType>(hex_ids, 8));
+  EXPECT_EQ(hexShape.numberOfFaces(), 6);
+  axom::IndexType hex_nids[6] = {4, 4, 4, 4, 4, 4};
+  ConnType hex_faces[6][4] = {{40, 10, 50, 80},
+                              {20, 30, 70, 60},
+                              {10, 20, 60, 50},
+                              {40, 80, 70, 30},
+                              {10, 40, 30, 20},
+                              {50, 60, 70, 80}};
+  for(int f = 0; f < 6; f++)
+  {
+    hexShape.getFace(f, face, numIds);
+    EXPECT_EQ(numIds, hex_nids[f]);
+    for(axom::IndexType i = 0; i < hex_nids[f]; i++)
+    {
+      EXPECT_EQ(face[i], hex_faces[f][i]);
+    }
+  }
+  views::VariableShape<ConnType> hexVarShape(views::Hex_ShapeID,
+                                             axom::ArrayView<ConnType>(hex_ids, 8));
+  compareShapes(hexShape, hexVarShape);
 }
 
 //------------------------------------------------------------------------------
@@ -96,7 +304,6 @@ struct test_node_to_arrayview
   template <typename DataView>
   static int testBody(DataView dataView, int n)
   {
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     using value_type = typename DataView::value_type;
 
     std::cout << axom::mir::views::array_view_traits<DataView>::name() << std::endl;
@@ -107,7 +314,7 @@ struct test_node_to_arrayview
       AXOM_LAMBDA(axom::IndexType index) { dataView[index] = static_cast<value_type>(index); });
 
     // Read the values and sum them.
-    RAJA::ReduceSum<reduce_policy, value_type> sumValues_reduce(0);
+    axom::ReduceSum<ExecSpace, value_type> sumValues_reduce(0);
     axom::for_all<ExecSpace>(
       n,
       AXOM_LAMBDA(axom::IndexType index) { sumValues_reduce += dataView[index]; });
@@ -173,7 +380,8 @@ struct test_structured_topology_view_rectilinear
     auto resultsView = results.view();
 
     // Execute the kernel for each zone (find max node number in zone).
-    auto topoView = axom::mir::views::make_rectilinear<2>::view(deviceMesh["topologies/mesh"]);
+    auto topoView =
+      axom::mir::views::make_rectilinear_topology<2>::view(deviceMesh["topologies/mesh"]);
     axom::for_all<ExecSpace>(
       topoView.numberOfZones(),
       AXOM_LAMBDA(axom::IndexType zoneIndex) {
@@ -329,14 +537,7 @@ TEST(mir_views, strided_structured_seq) { test_strided_structured::test(); }
 template <typename ExecSpace>
 struct test_braid2d_mat
 {
-  static void test(const std::string &type,
-                   const std::string &mattype,
-#if defined(AXOM_TESTING_SAVE_VISUALIZATION)
-                   const std::string &name
-#else
-                   const std::string &AXOM_UNUSED_PARAM(name)
-#endif
-  )
+  static void test(const std::string &type, const std::string &mattype, const std::string &name)
   {
     namespace bputils = axom::mir::utilities::blueprint;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
@@ -350,9 +551,7 @@ struct test_braid2d_mat
     axom::mir::testing::data::braid(type, dims, hostMesh);
     axom::mir::testing::data::make_matset(mattype, "mesh", zoneDims, hostMesh);
     axom::mir::utilities::blueprint::copy<ExecSpace>(deviceMesh, hostMesh);
-#if defined(AXOM_TESTING_SAVE_VISUALIZATION) && defined(AXOM_USE_HDF5)
-    conduit::relay::io::blueprint::save_mesh(hostMesh, name + "_orig", "hdf5");
-#endif
+    TestApp.saveVisualization(name + "_orig", hostMesh);
 
     if(mattype == "unibuffer")
     {
@@ -625,25 +824,8 @@ matsets:
 }
 
 //------------------------------------------------------------------------------
-#if defined(DEBUGGING_TEST_CASES)
-void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
-{
-  std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
-  // This is on purpose.
-  while(1)
-    ;
-}
-#endif
-//------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-  int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
-
-  axom::slic::SimpleLogger logger;  // create & initialize test logger,
-#if defined(DEBUGGING_TEST_CASES)
-  conduit::utils::set_error_handler(conduit_debug_err_handler);
-#endif
-  result = RUN_ALL_TESTS();
-  return result;
+  return TestApp.execute(argc, argv);
 }

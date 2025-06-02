@@ -20,11 +20,6 @@
 
 #include <conduit/conduit.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 #include <algorithm>
 #include <string>
 
@@ -275,8 +270,6 @@ private:
 template <typename ExecSpace, typename TopologyView, typename CoordsetView, typename MatsetView>
 class EquiZAlgorithm : public axom::mir::MIRAlgorithm
 {
-  using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
 public:
   using ConnectivityType = typename TopologyView::ConnectivityType;
 
@@ -374,7 +367,7 @@ protected:
 
       // Make the clean mesh.
       conduit::Node n_cleanOutput;
-      makeCleanOutput(n_root, n_topo.name(), n_options_copy, cleanZones.view(), n_cleanOutput);
+      makeCleanZones(n_root, n_topo.name(), n_options_copy, cleanZones.view(), n_cleanOutput);
 
       // Add an original nodes field on the root mesh.
       addOriginal(n_root_fields[originalNodesFieldName()],
@@ -456,7 +449,8 @@ protected:
       }
 
       // Add an originalElements array.
-      addOriginal(n_newFields["originalElements"],
+      const std::string originalElementsField(MIROptions(n_options).originalElementsField());
+      addOriginal(n_newFields[originalElementsField],
                   n_topo.name(),
                   "element",
                   m_topologyView.numberOfZones());
@@ -595,13 +589,13 @@ protected:
    *
    * \return The number of nodes in the clean mesh output.
    */
-  void makeCleanOutput(const conduit::Node &n_root,
-                       const std::string &topoName,
-                       const conduit::Node &n_options,
-                       const axom::ArrayView<axom::IndexType> &cleanZones,
-                       conduit::Node &n_cleanOutput) const
+  void makeCleanZones(const conduit::Node &n_root,
+                      const std::string &topoName,
+                      const conduit::Node &n_options,
+                      const axom::ArrayView<axom::IndexType> &cleanZones,
+                      conduit::Node &n_cleanOutput) const
   {
-    AXOM_ANNOTATE_SCOPE("makeCleanOutput");
+    AXOM_ANNOTATE_SCOPE("makeCleanZones");
     namespace bputils = axom::mir::utilities::blueprint;
 
     // Make the clean mesh. Set compact=0 so it does not change the number of nodes.
@@ -612,6 +606,7 @@ protected:
     conduit::Node n_ezopts;
     n_ezopts["topology"] = topoName;
     n_ezopts["compact"] = 0;
+    n_ezopts["originalElementsField"] = Options(n_options).originalElementsField();
     // Forward some options involved in naming the objects.
     const std::vector<std::string> keys {"topologyName", "coordsetName", "matsetName"};
     for(const auto &key : keys)
@@ -661,7 +656,7 @@ protected:
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     axom::Array<int> maskOffset(numOutputNodes, numOutputNodes, allocatorID);
     auto maskOffsetsView = maskOffset.view();
-    RAJA::ReduceSum<reduce_policy, int> mask_reduce(0);
+    axom::ReduceSum<ExecSpace, int> mask_reduce(0);
     axom::for_all<ExecSpace>(
       numOutputNodes,
       AXOM_LAMBDA(axom::IndexType index) { mask_reduce += maskView[index]; });

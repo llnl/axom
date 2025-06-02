@@ -16,6 +16,8 @@
 #include "axom/primal/operators/in_polyhedron.hpp"
 #include "axom/primal/operators/winding_number.hpp"
 
+#include "axom/core/numerics/transforms.hpp"
+
 #include <math.h>
 #include "gtest/gtest.h"
 
@@ -81,7 +83,7 @@ TEST(primal_polyhedron, polyhedron_unit_cube)
   int faces[NUM_FACES * 4];
   int face_size[NUM_FACES];
   int face_offset[NUM_FACES];
-  int face_count;
+  axom::IndexType face_count;
   poly.getFaces(faces, face_size, face_offset, face_count);
 
   // Verify we got the expected number of faces
@@ -97,7 +99,7 @@ TEST(primal_polyhedron, polyhedron_unit_cube)
                                       4, 5, 6, 7};
   // clang-format on
 
-  for(int f = 0; f < face_count; ++f)
+  for(axom::IndexType f = 0; f < face_count; ++f)
   {
     for(int f_index = face_offset[f]; f_index < face_offset[f] + face_size[f]; f_index++)
     {
@@ -567,35 +569,10 @@ TEST(primal_polyhedron, polygonal_cone)
 
   using Polygon2D = primal::Polygon<double, 2>;
   using Polyhedron3D = primal::Polyhedron<double, 3>;
-  using Vector3D = primal::Vector<double, 3>;
   using Point3D = primal::Point<double, 3>;
   using MatrixType = numerics::Matrix<double>;
 
   constexpr double EPS = 1e-8;
-
-  // Lambda to generate a 3D rotation matrix from an angle and axis
-  // Formulation from https://en.wikipedia.org/wiki/Rotation_matrix#Axis_and_angle
-  auto angleAxisRotMatrix = [](double theta, const Vector3D& axis) -> MatrixType {
-    const auto unitized = axis.unitVector();
-    const double x = unitized[0], y = unitized[1], z = unitized[2];
-    const double c = cos(theta), s = sin(theta), C = 1 - c;
-
-    auto matx = numerics::Matrix<double>::zeros(3, 3);
-
-    matx(0, 0) = x * x * C + c;
-    matx(0, 1) = x * y * C - z * s;
-    matx(0, 2) = x * z * C + y * s;
-
-    matx(1, 0) = y * x * C + z * s;
-    matx(1, 1) = y * y * C + c;
-    matx(1, 2) = y * z * C - x * s;
-
-    matx(2, 0) = z * x * C - y * s;
-    matx(2, 1) = z * y * C + x * s;
-    matx(2, 2) = z * z * C + c;
-
-    return matx;
-  };
 
   // Lambda to rotate the input point using the provided rotation matrix
   auto rotatePoint = [](const MatrixType& matx, const Point3D input) -> Point3D {
@@ -617,11 +594,11 @@ TEST(primal_polyhedron, polygonal_cone)
   // Create several rotated cones with a polygonal base.
   // The volume of a cone is 1/3 * base_area * height, so it should equal
   // the area of the polygon when the height is 3.
-  for(auto matx : {angleAxisRotMatrix(0., Vector3D {0, 0, 1}),
-                   angleAxisRotMatrix(M_PI / 3., Vector3D {0, 1, 0}),
-                   angleAxisRotMatrix(M_PI / 2., Vector3D {1, 1, 0}),
-                   angleAxisRotMatrix(2 * M_PI / 3., Vector3D {1, 1, 1}),
-                   angleAxisRotMatrix(7 * M_PI / 8., Vector3D {1, 0, 0})})
+  for(auto matx : {numerics::transforms::axisRotation(0., 0., 0., 1.),
+                   numerics::transforms::axisRotation(M_PI / 3., 0., 1., 0.),
+                   numerics::transforms::axisRotation(M_PI / 2., 1., 1., 0.),
+                   numerics::transforms::axisRotation(2 * M_PI / 3., 1., 1., 1.),
+                   numerics::transforms::axisRotation(7 * M_PI / 8., 1., 0., 0.)})
   {
     Polyhedron3D poly;
 
@@ -664,7 +641,7 @@ TEST(primal_polyhedron, polygonal_cone)
     int faces[FACE_IDX_SIZE];
     int face_size[NUM_FACES];
     int face_offset[NUM_FACES];
-    int face_count;
+    axom::IndexType face_count;
     poly.getFaces(faces, face_size, face_offset, face_count);
 
     // Verify we got the expected number of faces
@@ -976,6 +953,42 @@ TEST(primal_polyhedron, polyhedron_moments)
       }
     }
   }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_polyhedron, polyhedron_non_planar)
+{
+  using PolyhedronType = primal::Polyhedron<double, 3>;
+  constexpr double eps = 1.e-10;
+
+  // Top face will be non-planar.
+  PolyhedronType poly;
+  poly.addVertex({0, 0, 0});
+  poly.addVertex({1, 0, 0});
+  poly.addVertex({1, 1, 0});
+  poly.addVertex({0, 2, 0});  // Move this vertex up
+  poly.addVertex({0, 0, 1});
+  poly.addVertex({1, 0, 1});
+  poly.addVertex({1, 1, 1});
+  poly.addVertex({0, 1, 1});
+
+  poly.addNeighbors(poly[0], {1, 4, 3});
+  poly.addNeighbors(poly[1], {5, 0, 2});
+  poly.addNeighbors(poly[2], {3, 6, 1});
+  poly.addNeighbors(poly[3], {7, 2, 0});
+  poly.addNeighbors(poly[4], {5, 7, 0});
+  poly.addNeighbors(poly[5], {1, 6, 4});
+  poly.addNeighbors(poly[6], {2, 7, 5});
+  poly.addNeighbors(poly[7], {4, 6, 3});
+
+  axom::IndexType numFaces = 0;
+  const auto faces = poly.getFaces(numFaces, eps);
+  // 7 faces because the top face turned into 2 faces since it was non-planar.
+  EXPECT_EQ(7, numFaces);
+  AXOM_UNUSED_VAR(faces);
+
+  // Check volume
+  EXPECT_NEAR(poly.volume(), 7. / 6., eps);
 }
 
 //------------------------------------------------------------------------------
