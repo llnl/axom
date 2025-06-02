@@ -11,9 +11,9 @@
 #include "axom/sina/tests/TestRecord.hpp"
 
 #include "conduit.hpp"
-#ifdef AXOM_USE_HDF5
   #include "conduit_relay.hpp"
   #include "conduit_relay_io.hpp"
+#ifdef AXOM_USE_HDF5
   #include "conduit_relay_io_hdf5.hpp"
 #endif
 
@@ -29,6 +29,7 @@
 #include "axom/sina/tests/TestRecord.hpp"
 #include "axom/sina/core/CurveSet.hpp"
 #include "axom/sina/core/Record.hpp"
+#include "axom/sina/tests/SinaMatchers.hpp"
 
 namespace axom
 {
@@ -46,7 +47,32 @@ char const TEST_RECORD_TYPE[] = "test type";
 char const EXPECTED_RECORDS_KEY[] = "records";
 char const EXPECTED_RELATIONSHIPS_KEY[] = "relationships";
 
-// Large JSONs Used For JSON and HDF5 Save Tests
+
+// Simple document to use in append tests
+std::string SIMPLE_DOCUMENT = R"(
+{
+  "records": [
+    {
+      "type": "run",
+      "application": "test",
+      "id": "rec_1",
+      "data": {
+        "int": {
+          "value": 500,
+          "units": "miles"
+        },
+        "str/ings": {
+          "value": ["z", "o", "o"]
+        }
+      },
+      "files": {
+        "test/test.png": {}
+      }
+    }
+  ]
+}
+)";
+
 std::string data_json = R"(
 {
   "records": [
@@ -71,6 +97,7 @@ std::string data_json = R"(
 }
 )";
 
+// Full-featured multi-record document to test appending into.
 std::string long_json = R"(
 {
   "records": [
@@ -565,6 +592,54 @@ TEST(Document, load_defaultRecordLoaders)
   EXPECT_NE(nullptr, loadedRun);
 }
 
+// Get us a file handle for a basic document.
+conduit::relay::io::IOHandle setup_basic_file(){
+  std::string jsonFilePath = "simple_sina_doc.json";
+  std::ofstream testFile(jsonFilePath);
+  testFile << SIMPLE_DOCUMENT;
+  testFile.close();
+  conduit::relay::io::IOHandle simpleDoc;
+  simpleDoc.open(jsonFilePath);
+  return simpleDoc;
+}
+
+TEST(Document, test_validate_append_typeclash)
+{
+  conduit::relay::io::IOHandle appendTo = setup_basic_file();
+  conduit::Node appendFrom = parseJsonValue(R"({"id": "rec_1", "type": "mismatch_type"})");
+  ASSERT_FALSE(Document::validate_append(appendTo, appendFrom, "0/", 1));
+}
+TEST(Document, test_validate_append_valid)
+{
+  conduit::relay::io::IOHandle appendTo = setup_basic_file();
+  // Note lack of id or type--could be a librarydata for all the method should care
+  conduit::Node appendFrom = parseJsonValue(R"({"data": { "int": {"value": 20}}})");
+  ASSERT_TRUE(Document::validate_append(appendTo, appendFrom, "0/", 1));
+}
+
+TEST(Document, test_basic_append)
+{
+  std::string jsonFilePath = "find-me.json";
+  std::ofstream testFile(jsonFilePath);
+  // Create a near-empty document
+  testFile << R"(
+  {
+    "records": [
+      "type": "foo",
+      "id": "i_am_empty"
+    ]
+  })";
+  testFile.close();
+  axom::sina::Document new_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
+  bool result = append_to_json(jsonFilePath, new_doc, 1);
+  ASSERT_TRUE(result);
+  conduit::Node append_root;
+  root.load(jsonFilePath, "json");
+  conduit::Node expect_root;
+  root.load(SIMPLE_DOCUMENT, "json");
+  ASSERT_EQUAL(expect_root.child(0)["id"].to_string, expect_root.child(1)["id"].to_string);
+}
+
 TEST(Document, test_append_to_json)
 {
   std::string jsonFilePath = "test.json";
@@ -612,7 +687,7 @@ TEST(Document, test_append_to_json)
 
   axom::sina::Document new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
 
-  bool result = append_to_json(jsonFilePath, new_doc, 1, 1);
+  bool result = append_to_json(jsonFilePath, new_doc, 1);
   ASSERT_TRUE(result);
 
   conduit::Node root;
@@ -759,7 +834,7 @@ TEST(Document, test_append_to_json_failures)
   })(new_data);
 
   axom::sina::Document new_doc = Document(f1_data, createRecordLoaderWithAllKnownTypes());
-  bool result = append_to_json(jsonFilePath, new_doc, 1, 1);
+  bool result = append_to_json(jsonFilePath, new_doc, 1);
   ASSERT_FALSE(result);
   conduit::Node j;
   j.load(jsonFilePath, "json");
@@ -781,7 +856,7 @@ TEST(Document, test_append_to_json_failures)
   })(new_data);
 
   new_doc = Document(f2_data, createRecordLoaderWithAllKnownTypes());
-  result = append_to_json(jsonFilePath, new_doc, 1, 1);
+  result = append_to_json(jsonFilePath, new_doc, 1);
   ASSERT_FALSE(result);
   j.load(jsonFilePath, "json");
   ValidateRecordsUnchanged(j, "Case 2: Checking if File Was Changed");
@@ -800,7 +875,7 @@ TEST(Document, test_append_to_json_failures)
   })(new_data);
 
   new_doc = Document(f3_data, createRecordLoaderWithAllKnownTypes());
-  result = append_to_json(jsonFilePath, new_doc, 1, 1);
+  result = append_to_json(jsonFilePath, new_doc, 1);
   ASSERT_FALSE(result);
   j.load(jsonFilePath, "json");
   ValidateRecordsUnchanged(j, "Case 3: Checking if File Was Changed");
@@ -808,7 +883,7 @@ TEST(Document, test_append_to_json_failures)
   // ---- Failure 4 ----
   SCOPED_TRACE("Attempting Case 4");
   new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
-  result = append_to_json(jsonFilePath, new_doc, 3, 1);
+  result = append_to_json(jsonFilePath, new_doc, 3);
   ASSERT_FALSE(result);
   j.load(jsonFilePath, "json");
   ValidateRecordsUnchanged(j, "Case 4: Checking if File Was Changed");
@@ -816,7 +891,7 @@ TEST(Document, test_append_to_json_failures)
   // ---- Failure 5 ----
   SCOPED_TRACE("Attempting Case 5");
   new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
-  result = append_to_json(jsonFilePath, new_doc, 1, 3);
+  result = append_to_json(jsonFilePath, new_doc, 1);
   ASSERT_FALSE(result);
   j.load(jsonFilePath, "json");
   ValidateRecordsUnchanged(j, "Case 5: Checking if File Was Changed");
@@ -924,7 +999,7 @@ TEST(Document, test_append_to_hdf5)
   conduit::relay::io::hdf5_write(initialData, hdf5FilePath);
 
   axom::sina::Document new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
-  bool result = append_to_hdf5(hdf5FilePath, new_doc, 1, 1);
+  bool result = append_to_hdf5(hdf5FilePath, new_doc, 1);
 
   ASSERT_TRUE(result);
   conduit::Node root;
@@ -1038,7 +1113,7 @@ TEST(Document, test_append_to_hdf5_failures)
 
   axom::sina::Document new_doc = Document(f1_data, createRecordLoaderWithAllKnownTypes());
 
-  bool result = append_to_hdf5(hdf5FilePath, new_doc, 1, 1);
+  bool result = append_to_hdf5(hdf5FilePath, new_doc, 1);
   ASSERT_FALSE(result);
   conduit::Node root;
   conduit::relay::io::hdf5_read(hdf5FilePath, root);
@@ -1061,7 +1136,7 @@ TEST(Document, test_append_to_hdf5_failures)
 
   new_doc = Document(f2_data, createRecordLoaderWithAllKnownTypes());
 
-  result = append_to_hdf5(hdf5FilePath, new_doc, 1, 1);
+  result = append_to_hdf5(hdf5FilePath, new_doc, 1);
   ASSERT_FALSE(result);
   conduit::relay::io::hdf5_read(hdf5FilePath, root);
   ValidateRecordsUnchanged(root, "Case 2: Checking if File Was Changed");
@@ -1081,7 +1156,7 @@ TEST(Document, test_append_to_hdf5_failures)
 
   new_doc = Document(f3_data, createRecordLoaderWithAllKnownTypes());
 
-  result = append_to_hdf5(hdf5FilePath, new_doc, 1, 1);
+  result = append_to_hdf5(hdf5FilePath, new_doc, 1);
   ASSERT_FALSE(result);
   conduit::relay::io::hdf5_read(hdf5FilePath, root);
   ValidateRecordsUnchanged(root, "Case 3: Checking if File Was Changed");
@@ -1090,7 +1165,7 @@ TEST(Document, test_append_to_hdf5_failures)
   SCOPED_TRACE("Attempting Case 4");
   new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
 
-  result = append_to_hdf5(hdf5FilePath, new_doc, 3, 1);
+  result = append_to_hdf5(hdf5FilePath, new_doc, 3);
   ASSERT_FALSE(result);
   conduit::relay::io::hdf5_read(hdf5FilePath, root);
   ValidateRecordsUnchanged(root, "Case 4: Checking if File Was Changed");
@@ -1099,7 +1174,7 @@ TEST(Document, test_append_to_hdf5_failures)
   SCOPED_TRACE("Attempting Case 5");
   new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
 
-  result = append_to_hdf5(hdf5FilePath, new_doc, 1, 3);
+  result = append_to_hdf5(hdf5FilePath, new_doc, 1);
   ASSERT_FALSE(result);
   conduit::relay::io::hdf5_read(hdf5FilePath, root);
   ValidateRecordsUnchanged(root, "Case 5: Checking if File Was Changed");

@@ -49,6 +49,28 @@ namespace
 char const RECORDS_KEY[] = "records";
 char const RELATIONSHIPS_KEY[] = "relationships";
 char const SAVE_TMP_FILE_EXTENSION[] = ".sina.tmp";
+// These two are used in switch statements--could be cleaner
+enum AppendFields {
+    ID_FIELD,
+    TYPE_FIELD,
+    APPLICATION_FIELD,
+    USER_FIELD,
+    VERSION_FIELD,
+    DATA_FIELD,
+    USER_DEFINED_FIELD,
+    FILES_FIELD,
+    CURVE_SETS_FIELD,
+    LIBRARY_DATA_FIELD,
+    UNKNOWN_FIELD
+};
+// Really we should have one single source of truth on this one--toplevel Sina, perhaps?
+static const std::map<std::string, AppendFields> appendFieldStrings {
+        { "id", AppendFields::ID_FIELD }, { "type", AppendFields::TYPE_FIELD },
+        { "application", AppendFields::APPLICATION_FIELD }, { "user", AppendFields::USER_FIELD },
+        { "version", AppendFields::VERSION_FIELD }, { "data", AppendFields::DATA_FIELD },
+        { "user_defined", AppendFields::USER_DEFINED_FIELD }, { "files", AppendFields::FILES_FIELD },
+        { "curve_sets", AppendFields::CURVE_SETS_FIELD }, { "library_data", AppendFields::LIBRARY_DATA_FIELD },
+    };
 }  // namespace
 
 void protocolWarn(std::string const protocol, std::string const &name)
@@ -256,7 +278,7 @@ void restoreSlashes(const conduit::Node &modifiedNode, conduit::Node &restoredNo
   }
 }
 
-void Document::toHDF5(const std::string &filename) const
+conduit::Node Document::toHDF5Node() const
 {
   conduit::Node node;
   conduit::Node &recordsNode = node["records"];
@@ -276,8 +298,13 @@ void Document::toHDF5(const std::string &filename) const
 
     removeSlashes(relationshipNode, relationshipsNode.append());
   }
+  return node;
+}
 
-  conduit::relay::io::save(node, filename, "hdf5");
+void Document::toHDF5(const std::string &filename) const
+{
+
+  conduit::relay::io::save(this->toHDF5Node(), filename, "hdf5");
 }
 #endif
 
@@ -514,7 +541,7 @@ bool validate_curve_sets_json(const DataHolder::CurveSetMap new_curve_sets,
   return true;
 }
 
-bool append_to_json(const std::string &jsonFilePath,
+/*bool append_to_json(const std::string &jsonFilePath,
                     Document const &newData,
                     const int data_protocol,
                     const int udc_protocol)
@@ -530,7 +557,7 @@ bool append_to_json(const std::string &jsonFilePath,
     return false;
   }
 
-  if(root["records"].number_of_children() != newData.getRecords().size())
+  if((unsigned long)root["records"].number_of_children() != newData.getRecords().size())
   {
     std::cerr << "Mismatch in the number of records." << std::endl;
     return false;
@@ -750,155 +777,246 @@ bool append_to_json(const std::string &jsonFilePath,
   }
 
   return true;
-}
+}*/
 
-#ifdef AXOM_USE_HDF5
-// Top-level HDF5 validation function.
-bool validate_curve_sets_hdf5(const Document &newData,
-                              conduit::relay::io::IOHandle &existing_file,
-                              const conduit::Node &info)
-{
-  std::vector<std::string> record_list;
-  existing_file.list_child_names("records", record_list);
-
-  for(auto &record : newData.getRecords())
-  {
-    for(const auto &rec_name : record_list)
-    {
-      std::string id_path = "records/" + rec_name + "/id/";
-      conduit::Node id;
-      existing_file.read(id_path, id);
-      if(id.to_string() == "\"" + record->getId().getId() + "\"")
-      {
-        try
-        {
-          std::string cs_path = "records/" + rec_name + "/curve_sets/";
-          std::vector<std::string> curve_sets_list;
-          existing_file.list_child_names(cs_path, curve_sets_list);
-          auto &new_curve_sets = record->getCurveSets();
-
-          for(const auto &cs_name : curve_sets_list)
-          {
-            auto cs_itr = new_curve_sets.find(cs_name);
-            if(cs_itr == new_curve_sets.end()) continue;
-
-            const auto &new_curve_set = cs_itr->second;
-            std::set<std::string> existingDepKeys;
-            if(info.has_path(cs_path + cs_name + "/dependent/"))
-            {
-              for(const auto &key : info[cs_path + cs_name + "/dependent/"].child_names())
-              {
-                existingDepKeys.insert(key);
-              }
+// Specifically validate ONE curve set for ONE DataHolder (record, library_data...) for appending,
+// appendTo is notionally const, but the has_path() etc. methods aren't const.
+conduit::Node validate_curve_sets(conduit::relay::io::IOHandle &appendTo,
+                                 const conduit::Node &appendFrom,
+                                 const std::string &endpoint) {
+    int baseline = -1;  // baseline is shared across dependent and independent
+    conduit::Node msgNode = conduit::Node(conduit::DataType::list());
+    const std::vector<std::string> curve_categories = {"dependent", "independent"};
+    for(const std::string& curve_cat : curve_categories){
+        // First, we need to make sure we didn't "forget" an existing curve: make sure either EVERY
+        // curve in the HDF5 is being appended to, or NONE of them are (all curves are new). 
+        std::string curves_endpoint = endpoint + "/" + curve_cat;
+        std::vector<std::string> curve_names;
+        appendTo.list_child_names(curves_endpoint, curve_names);
+        u_int curvesWritten = 0;
+        for(const auto &cname : curve_names){
+            if(appendFrom[curves_endpoint].has_child(cname) && appendFrom[curves_endpoint][cname].number_of_children() > 0){
+                curvesWritten ++;
             }
-
-            // Validate dependent curves.
-            auto getExistingDepSize = [&info, cs_path, cs_name](const std::string &key) -> int {
-              std::string fullPath = cs_path + cs_name + "/dependent/" + key + "/value";
-              if(info.has_path(fullPath))
-              {
-                return info[fullPath]["num_elements"].to_int();
+        }
+        if(curvesWritten != 0 && curvesWritten != curve_names.size()){
+              msgNode.append() = "Failed to append curve sets: ";//parent had " + curve_names.size() + " curves, but append only addressed " + curvesWritten);
+        }
+        // Now loop through what we've actually got. Once we find something, use it to set the baseline.
+        auto curvesIter = appendFrom[curve_cat].children();
+        while(curvesIter.has_next()) {
+          auto &testCurve = curvesIter.next();
+          std::string sub_endpoint;
+          int post_append_size = testCurve.number_of_children();
+          if(appendTo.has_path(endpoint + "/" + curvesIter.name())){
+              conduit::Node n;
+              sub_endpoint = endpoint + "/" + curvesIter.name() + "/num_elements";
+              appendTo.read(sub_endpoint, n);
+              post_append_size += n.to_int();
+              if(baseline == -1){baseline = post_append_size;}
+              if(post_append_size != baseline){
+                msgNode.append() = "Failed to append curve sets: ";// + curvesIter.name() + " had " + post_append_size + " values after appending, but expected " + baseline);
               }
-              return -1;
-            };
-
-            if(!new_curve_set.getDependentCurves().empty() &&
-               !validate_curves_unified(new_curve_set.getDependentCurves(),
-                                        existingDepKeys,
-                                        getExistingDepSize,
-                                        "dependent",
-                                        record->getId().getId(),
-                                        cs_name,
-                                        -1))
-            {
-              return false;
-            }
-
-            // Validate independent curves.
-            std::set<std::string> existingIndepKeys;
-            if(info.has_path(cs_path + cs_name + "/independent/"))
-            {
-              for(const auto &key : info[cs_path + cs_name + "/independent/"].child_names())
-              {
-                existingIndepKeys.insert(key);
-              }
-            }
-
-            auto getExistingIndepSize = [&info, cs_path, cs_name](const std::string &key) -> int {
-              std::string fullPath = cs_path + cs_name + "/independent/" + key + "/value";
-              if(info.has_path(fullPath))
-              {
-                return info[fullPath]["num_elements"].to_int();
-              }
-              return -1;
-            };
-
-            if(!new_curve_set.getIndependentCurves().empty() &&
-               !validate_curves_unified(new_curve_set.getIndependentCurves(),
-                                        existingIndepKeys,
-                                        getExistingIndepSize,
-                                        "independent",
-                                        record->getId().getId(),
-                                        cs_name,
-                                        -1))
-            {
-              return false;
-            }
           }
         }
-        catch(const std::exception &e)
-        {
-          std::cerr << "Error validating curve sets: " << e.what() << std::endl;
-          return false;
-        }
-        break;  // Found matching record; proceed to next.
-      }
     }
-  }
-  return true;
+    return msgNode;
 }
 
-bool append_to_hdf5(const std::string &hdf5FilePath,
+// Top-level append validation function. Works recursively on library data (hence endpoint)
+conduit::Node validate_append( conduit::relay::io::IOHandle &appendTo, const conduit::Node &appendFrom,
+                      const std::string &endpoint, const int mergeProtocol){
+
+    conduit::Node msgNode = conduit::Node(conduit::DataType::list());
+    // Case one: die if the types disagree. A pingpong_game shouldn't become a billiards_game
+    // Validation note: we allow for no type here beecause of library_data. If someone
+    // forgot the type for a top-level record, it should've died already.
+    if(appendFrom.has_child("type")){
+      conduit::Node typeNode;
+      appendTo.read(endpoint+"/type", typeNode);
+      if(typeNode.to_string() != appendFrom["type"].to_string()){
+        msgNode.append() = "Failed to append record: type mismatch"; // TODO: better errors
+      }
+    }
+
+    // Case two: merge protocol is 3, we need to die if certain fields appear in both places
+    if(mergeProtocol == 3){
+      const std::vector<std::string> prot3Fields = {"data", "user_defined", "files"};
+      for(auto &field : prot3Fields){
+        auto dataIter = appendFrom[field].children();
+        while(dataIter.has_next()){
+          dataIter.next();
+          if(appendTo.has_path(endpoint + "/" + field + "/" + dataIter.name())){
+            msgNode.append() = "Failed to overlay (append protocol 3) record: conflicting data";
+          }
+        }
+      }
+    }
+
+    // Case three: curve sets. Go into each curve set and, if it already exists, make sure the to-be-appended curves are valid.
+    if(appendFrom.has_child("curve_sets"))
+    {
+      std::string subEndpoint;
+      auto curveSetsIter = appendFrom["curve_sets"].children();
+      while(curveSetsIter.has_next())
+      {
+        curveSetsIter.next();
+        subEndpoint = endpoint + "/curve_sets/" + curveSetsIter.name();
+        // We only have to validate if the hdf5 already has a curve set with that name.
+        if(appendTo.has_path(subEndpoint)){
+          // TODO: merge lists cleanly
+          msgNode.append() = validate_curve_sets(appendTo, curveSetsIter.next(), subEndpoint);
+        }
+      }
+    }
+
+    // Case four: library data. Recurse on it if it's already in the hdf5.
+    auto libraryIter = appendFrom["library_data"].children();
+    std::string subEndpoint;
+    while(libraryIter.has_next()){
+      libraryIter.next();
+      subEndpoint = endpoint + "/library_data/" + libraryIter.name();
+      // We only have to validate if the hdf5 already has a library with that name.
+      if(appendTo.has_path(endpoint)){
+        msgNode.append() = validate_append(appendTo, libraryIter.next(), subEndpoint, mergeProtocol);
+      }
+    }
+    return msgNode;
+}
+
+// Avoiding a terrible if/else chunk in append_recordlike_fields and friends.
+AppendFields field_lookup(const std::string &input){
+    auto itr = appendFieldStrings.find(input);
+    if( itr != appendFieldStrings.end() ) {
+        return itr->second;
+    }
+    return AppendFields::UNKNOWN_FIELD; 
+}
+
+void append_recordlike_fields(conduit::relay::io::IOHandle &appendTo,
+                              conduit::Node &appendFrom,
+                              const std::string &endpoint,
+                              const int mergeProtocol,
+                              bool canAppendCurves){
+  auto fieldsIter = appendFrom.children();
+  while(fieldsIter.has_next()){
+    conduit::Node &recField = fieldsIter.next();
+    std::string appendAtEndpoint = endpoint+"/"+fieldsIter.name();
+    switch (field_lookup(fieldsIter.name())) {
+    case AppendFields::ID_FIELD:  // we already have it, else we couldn't find this
+    case AppendFields::TYPE_FIELD: // we already have it, else we exploded above
+    case AppendFields::USER_FIELD: // special run fields, ignore? explode?
+    case AppendFields::VERSION_FIELD:
+    case AppendFields::APPLICATION_FIELD:
+      break;
+    // For simpler/arbitrary structures, we just overwrite.
+    case AppendFields::DATA_FIELD:
+    case AppendFields::USER_DEFINED_FIELD:
+    case AppendFields::FILES_FIELD:
+      // We already exploded for protocol 3 if anything overwrote, so we handle 1 and 3
+      if(mergeProtocol==1 || mergeProtocol==3){
+        appendTo.write(recField, appendAtEndpoint);
+      } else if(mergeProtocol==2){
+        auto subFieldIter = appendFrom[fieldsIter.name()].children();
+        while(subFieldIter.has_next()){
+          conduit::Node &subField = subFieldIter.next();
+          if(!appendTo.has_path(appendAtEndpoint)){
+            appendTo.write(subField, appendAtEndpoint+"/"+fieldsIter.name()+"/"+subFieldIter.name());
+          }
+        }
+      }
+      break;
+    case AppendFields::LIBRARY_DATA_FIELD: {
+      // We recurse
+      auto libraryIter = appendFrom[fieldsIter.name()].children();
+      while(libraryIter.has_next()){
+        libraryIter.next();
+        if(appendTo.has_path(endpoint)){
+          append_recordlike_fields(appendTo, libraryIter.next(),
+                                   appendAtEndpoint+"/"+fieldsIter.name()+"/"+libraryIter.name(),
+                                   mergeProtocol, canAppendCurves);
+        }
+      }
+      break;
+    }
+    case AppendFields::CURVE_SETS_FIELD:
+      // Conduit is kind: the "opts" node, required for HDF5 appending,
+      // is simply ignored for JSON.
+      
+      break;
+    default:
+        std::cout << "oh no" << std::endl;
+    }
+  }
+}
+
+conduit::Node append(conduit::relay::io::IOHandle &appendTo,
+            conduit::Node &appendFrom,
+            const int mergeProtocol,
+            bool canAppendCurves){
+
+  // We do all of our validation up-front, including/especially library data.
+  // There's no validation to perform on things like relationships (right..?)
+  auto recordsIter = appendFrom["records"].children();
+  conduit::Node msgNode = conduit::Node(conduit::DataType::list());
+  while(recordsIter.has_next())
+  {
+    conduit::Node &n = recordsIter.next();
+    msgNode.append() = validate_append(appendTo, n, recordsIter.name(), mergeProtocol);
+
+  }
+  // Return with our error list
+  if(msgNode.number_of_children() > 0){ return msgNode; }
+
+  // Our validation passed, time to throw it all in!
+  recordsIter = appendFrom["records"].children();
+  while(recordsIter.has_next())
+  {
+    conduit::Node &rec = recordsIter.next();
+    std::string rec_endpoint = "records/" + rec["id"].to_string() + "/";
+    // Easiest case, the record doesn't exist yet. Add it.
+    if(!appendTo.has_path(rec_endpoint)){
+      appendTo.write(rec, rec_endpoint);
+    } else {
+      append_recordlike_fields(appendTo, rec, "records/"+recordsIter.name(), mergeProtocol, canAppendCurves);
+    }
+  }
+  return msgNode;
+}
+
+conduit::Node append_to_json(const std::string &jsonFilePath,
                     const Document &newData,
-                    const int data_protocol,
-                    const int udc_protocol)
-{
-  conduit::relay::io::IOHandle existing_file;
-  conduit::Node to_load;
-  conduit::Node to_set;
-  conduit::Node opts;
-  conduit::Node info;
-  opts["stride"] = 1;
+                    const int mergeProtocol){
+  conduit::relay::io::IOHandle appendTo;
+  appendTo.open(jsonFilePath);
+  conduit::Node appendFrom = newData.toNode();
+  conduit::Node success = append(appendTo, appendFrom, mergeProtocol, false);
+  // More conduit kindness: it looks like the writes only resolve once we close.
+  // In that case, we don't need to worry about re-re-re-dumping this file with writes.
+  appendTo.close();
+  return success;
+}
 
-  // Open the existing HDF5 file.
-  try
-  {
-    existing_file.open(hdf5FilePath);
-    conduit::relay::io::hdf5_read_info(hdf5FilePath, info);
-  }
-  catch(const std::exception &e)
-  {
-    std::cerr << "Error loading HDF5 file: " << e.what() << std::endl;
-    return false;
-  }
+conduit::Node append_to_hdf5(const std::string &hdf5FilePath,
+                    const Document &newData,
+                    const int mergeProtocol){ 
+#ifdef AXOM_USE_HDF5
+  conduit::relay::io::IOHandle appendTo;
+  appendTo.open(hdf5FilePath);
+  conduit::Node appendFrom = newData.toHDF5Node();
+  conduit::Node msgNode = append(appendTo, appendFrom, mergeProtocol, true);
+  appendTo.close();
+  return msgNode;
+#endif
+#ifndef AXOM_USE_HDF5
+  conduit::Node msgNode = conduit::Node(conduit::DataType::list());
+  msgNode.append("Failed to append Sina HDF5: Axom wasn't build with HDF5");
+  return msgNode;
+#endif
+}
 
-  std::string cs_path, data_path, udc_path;
-  int extension = info["records"].number_of_children();
 
-  if(!validate_curve_sets_hdf5(newData, existing_file, info))
-  {
-    return false;
-  }
-
-  std::vector<std::string> record_list;
-  existing_file.list_child_names("records", record_list);
-
-  // Queue for write and remove operations.
-  std::vector<std::function<void()>> write_queue;
-
-  for(auto &record : newData.getRecords())
-  {
-    bool found = false;
+    /*bool found = false;
     for(const auto &rec_name : record_list)
     {
       std::string id_path = "records/" + rec_name + "/id/";
@@ -1139,8 +1257,7 @@ bool append_to_hdf5(const std::string &hdf5FilePath,
   }
 
   return true;
-}
-#endif
+}*/
 
 }  // namespace sina
 }  // namespace axom

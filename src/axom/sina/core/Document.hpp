@@ -21,6 +21,8 @@
 #include "axom/sina/core/Relationship.hpp"
 
 #include "conduit.hpp"
+#include "conduit_relay.hpp"
+#include "conduit_relay_io.hpp"
 
 #include <memory>
 #include <vector>
@@ -201,6 +203,14 @@ public:
   conduit::Node toNode() const;
 
 #ifdef AXOM_USE_HDF5
+
+  /**
+   *  \brief Convert this document to the HDF5 format (escaped slashes)
+   * 
+   *  \return This node with slashes escaped for HDF5.
+   */
+  conduit::Node toHDF5Node() const;
+
   /**
    *  \brief Dump this document as an HDF5 File
    * 
@@ -285,38 +295,54 @@ Document loadDocument(std::string const &path,
                       Protocol protocol = Protocol::JSON);
 
 /**
- * \brief Append the data, user defined content, and curves/curve sets of a Sina Document
- *        to an existing JSON file
+ * \brief Check a node against some file handle and return a Conduit node populated with any errors that
+ *        would prevent appending.
+ */
+conduit::Node validate_append( conduit::relay::io::IOHandle &appendTo, const conduit::Node &appendFrom,
+                               const std::string &endpoint, const int mergeProtocol);
+
+/**
+ * \brief Append the new records or, per-record, new data, user defined content, curves/curve sets,
+ *        and library data of a Sina Document to an existing JSON file. For a full explanation of behavior,
+ *        see append_to_hdf5.
  *
  * \param jsonFilePath the path to the JSON file
  * \param newData a Sina Document containing the new data to append
- * \param data_protocol protocol for handling datum duplicates.
- * \param udc_protocol protocol for handling user defined content duplicates.
+ * \param mergeProtocol protocol for handling duplicate data/files/user_defined/etc
  *                            1 = take the new value. 2 = keep the old value. 3/Other = Cancel the append.
+ *                     Protocol 1 is the conduit default behavior.
  * 
- * \return true if appended successfully, false if the append fails
+ * \return a conduit Node containing a list of any errors encountered in appending. If empty, success.
  */
-bool append_to_json(const std::string &jsonFilePath,
-                    Document const &newData,
-                    const int data_protocol = 2,
-                    const int udc_protocol = 2);
+conduit::Node append_to_json(const std::string &jsonFilePath,
+                             const Document &newData,
+                             const int mergeProtocol = 1);
 
 /**
- * \brief Append the data, user defined content, and curves/curve sets of a Sina Document
- *        to an existing HDF5 file
+ * \brief Append the new records or, per-record, new data, user defined content, curves/curve sets,
+ *        and library data of a Sina Document to an existing HDF5 file. Appending is meant to allow a
+ *        Sina document to grow as a simulation continues, i.e. by appending new snapshots into the same
+ *        file, or by writing additional points of a timeseries to disk as they become available. HDF5 is
+ *        the preferred filetype for appending into, as it does not require being entirely re-written to
+ *        file each time, unlike JSON.
+ * 
+ *        When appending a new Document, it will first find any records that don't already exist in the
+ *        file on disk and add them. Then, for any file it finds that does already exist, it will go through
+ *        its various fields and compare them. New data/curve sets/etc. will simply be added in. Should the
+ *        existing Record already have the field, behavior will depend on mergeProtocol, with the default
+ *        behavior being to overwrite the old, on-disk field with the new value.
  *
  * \param hdf5FilePath the path to the HDF5 file
  * \param new_data a vector of the new data to append
- * \param data_protocol protocol for handling datum duplicates.
- * \param udc_protocol protocol for handling user defined content duplicates.
+ * \param mergeProtocol protocol for handling duplicate data/files/user_defined/etc
  *                            1 = take the new value. 2 = keep the old value. 3/Other = Cancel the append.
+ *                     Protocol 1 is the conduit default behavior.
  * 
- * \return true if appended successfully, false if the append fails
+ * \return a conduit Node containing a list of any errors encountered in appending. If empty, success.
  */
-bool append_to_hdf5(const std::string &hdf5FilePath,
-                    Document const &newData,
-                    const int data_protocol = 2,
-                    const int udc_protocol = 2);
+conduit::Node append_to_hdf5(const std::string &hdf5FilePath,
+                             Document const &newData,
+                             const int mergeProtocol = 1);
 
 }  // namespace sina
 }  // namespace axom
