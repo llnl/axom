@@ -26,7 +26,7 @@ set(bump_headers
     clipping/ClipTableManager.hpp
     io/save.hpp
     Options.hpp
-    utilities/conduit_mempory.hpp
+    utilities/conduit_memory.hpp
     utilities/conduit_traits.hpp
     utilities/blueprint_utilities.hpp
     utilities/BlendData.hpp

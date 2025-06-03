@@ -7,6 +7,7 @@
 #define AXOM_BUMP_VIEWS_SHAPES_HPP_
 
 #include "axom/core/ArrayView.hpp"
+#include "axom/slic.hpp"
 
 #include <iostream>
 #include <type_traits>

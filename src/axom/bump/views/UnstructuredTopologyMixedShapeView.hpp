@@ -12,6 +12,8 @@
 #include "axom/bump/views/Shapes.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 
+#include <conduit/conduit.hpp>
+
 namespace axom
 {
 namespace bump

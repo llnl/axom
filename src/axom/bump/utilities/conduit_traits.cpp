@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/bump/conduit_traits.hpp"
+#include "axom/bump/utilities/conduit_traits.hpp"
 
 namespace axom
 {

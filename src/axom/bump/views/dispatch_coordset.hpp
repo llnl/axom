@@ -6,6 +6,7 @@
 #ifndef AXOM_BUMP_DISPATCH_COORDSET_HPP_
 #define AXOM_BUMP_DISPATCH_COORDSET_HPP_
 
+#include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/views/ExplicitCoordsetView.hpp"
 #include "axom/bump/views/UniformCoordsetView.hpp"
 #include "axom/bump/views/RectilinearCoordsetView.hpp"

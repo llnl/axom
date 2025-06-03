@@ -6,7 +6,7 @@
 #ifndef AXOM_BUMP_CONDUIT_MEMORY_HPP_
 #define AXOM_BUMP_CONDUIT_MEMORY_HPP_
 
-#include "axom/bump/conduit_traits.hpp"
+#include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/memory_management.hpp"

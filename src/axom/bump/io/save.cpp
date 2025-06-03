@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/bump/io/save.hpp"
+#include "axom/bump/views/Shapes.hpp"
+#include "axom/bump/views/dispatch_coordset.hpp"
 
 #include <string>
 #include <cstdio>
@@ -182,4 +184,3 @@ void save_vtk(const conduit::Node &mesh, const std::string &path)
 }  // end namespace bump
 }  // end namespace axom
 
-#endif
