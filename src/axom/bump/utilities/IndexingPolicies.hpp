@@ -6,7 +6,7 @@
 #ifndef AXOM_BUMP_INDEXING_POLICIES_HPP_
 #define AXOM_BUMP_INDEXING_POLICIES_HPP_
 
-#include "axom/bump/conduit_memory.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 
 #include <conduit/conduit.hpp>
 

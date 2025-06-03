@@ -223,6 +223,7 @@ protected:
   void mergeCoordset(const std::vector<MeshInput> &inputs, conduit::Node &output) const
   {
     AXOM_ANNOTATE_SCOPE("mergeCoordset");
+    namespace utils = axom::bump::utilities;
     const axom::IndexType totalNodes = countNodes(inputs);
     conduit::Node &n_newCoordsets = output["coordsets"];
     conduit::Node *n_newValuesPtr = nullptr;

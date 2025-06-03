@@ -14,6 +14,7 @@
 #include "axom/bump/utilities/CoordsetBlender.hpp"
 #include "axom/bump/utilities/FieldBlender.hpp"
 #include "axom/bump/utilities/FieldSlicer.hpp"
+#include "axom/bump/utilities/HashNaming.hpp"
 #include "axom/bump/utilities/SelectedZones.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/Unique.hpp"
@@ -209,16 +210,16 @@ DataView filter(conduit::Node &n_src,
                 axom::ArrayView<int> maskOffsetsView)
 {
   using value_type = typename DataView::value_type;
-  namespace bputils = axom::bump::utilities::blueprint;
+  namespace utils = axom::bump::utilities;
 
   // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
-  utilities::blueprint::ConduitAllocateThroughAxom<ExecSpace> c2a;
+  utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
   const int conduitAllocatorID = c2a.getConduitAllocatorID();
 
   conduit::Node n_values;
   n_values.set_allocator(conduitAllocatorID);
-  n_values.set(conduit::DataType(bputils::cpp2conduit<value_type>::id, newSize));
-  auto valuesView = bputils::make_array_view<value_type>(n_values);
+  n_values.set(conduit::DataType(utils::cpp2conduit<value_type>::id, newSize));
+  auto valuesView = utils::make_array_view<value_type>(n_values);
   const auto nValues = maskView.size();
   axom::for_all<ExecSpace>(
     nValues,
@@ -231,7 +232,7 @@ DataView filter(conduit::Node &n_src,
     });
 
   n_src.swap(n_values);
-  return bputils::make_array_view<value_type>(n_src);
+  return utils::make_array_view<value_type>(n_src);
 }
 
 /// NOTE - Use partial specialization (instead of the cleaner "if constexpr")
@@ -529,7 +530,7 @@ struct StridedStructuredFields
    */
   static bool sliceElementField(
     const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-    const axom::bump::utilities::blueprint::SliceData &AXOM_UNUSED_PARAM(slice),
+    const axom::bump::utilities::SliceData &AXOM_UNUSED_PARAM(slice),
     const conduit::Node &AXOM_UNUSED_PARAM(n_field),
     conduit::Node &AXOM_UNUSED_PARAM(n_newField))
   {
@@ -545,7 +546,7 @@ struct StridedStructuredFields
    * \param n_newField The node that will contain the new field.
    */
   static bool blendVertexField(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-                               const axom::bump::utilities::blueprint::BlendData &AXOM_UNUSED_PARAM(blend),
+                               const axom::bump::utilities::BlendData &AXOM_UNUSED_PARAM(blend),
                                const conduit::Node &AXOM_UNUSED_PARAM(n_field),
                                conduit::Node &AXOM_UNUSED_PARAM(n_newField))
   {
@@ -575,7 +576,7 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
    * \param n_newField The node that will contain the new field.
    */
   static bool sliceElementField(const TopologyView &topologyView,
-                                const axom::bump::utilities::blueprint::SliceData &slice,
+                                const axom::bump::utilities::SliceData &slice,
                                 const conduit::Node &n_field,
                                 conduit::Node &n_newField)
   {
@@ -583,12 +584,12 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
     if(n_field.has_path("offsets") && n_field.has_path("strides"))
     {
       using Indexing = typename TopologyView::IndexingPolicy;
-      using IndexingPolicy = axom::bump::utilities::blueprint::SSElementFieldIndexing<Indexing>;
+      using IndexingPolicy = axom::bump::utilities::SSElementFieldIndexing<Indexing>;
       IndexingPolicy indexing;
       indexing.m_indexing = topologyView.indexing();
       indexing.update(n_field);
 
-      axom::bump::utilities::blueprint::FieldSlicer<ExecSpace, IndexingPolicy> s(indexing);
+      axom::bump::utilities::FieldSlicer<ExecSpace, IndexingPolicy> s(indexing);
       s.execute(slice, n_field, n_newField);
       handled = true;
     }
@@ -604,7 +605,7 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
    * \param n_newField The node that will contain the new field.
    */
   static bool blendVertexField(const TopologyView &topologyView,
-                               const axom::bump::utilities::blueprint::BlendData &blend,
+                               const axom::bump::utilities::BlendData &blend,
                                const conduit::Node &n_field,
                                conduit::Node &n_newField)
   {
@@ -613,7 +614,7 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
     {
       // Make node indexing that the field blender can use.
       using Indexing = typename TopologyView::IndexingPolicy;
-      using IndexingPolicy = axom::bump::utilities::blueprint::SSVertexFieldIndexing<Indexing>;
+      using IndexingPolicy = axom::bump::utilities::SSVertexFieldIndexing<Indexing>;
       IndexingPolicy indexing;
       indexing.m_topoIndexing = topologyView.indexing().expand();
       indexing.m_fieldIndexing = topologyView.indexing().expand();
@@ -626,8 +627,8 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
          indexing.m_topoIndexing.m_strides != indexing.m_fieldIndexing.m_strides)
       {
         // Blend the field.
-        axom::bump::utilities::blueprint::
-          FieldBlender<ExecSpace, axom::bump::utilities::blueprint::SelectSubsetPolicy, IndexingPolicy>
+        axom::bump::utilities::
+          FieldBlender<ExecSpace, axom::bump::utilities::SelectSubsetPolicy, IndexingPolicy>
             b(indexing);
         b.execute(blend, n_field, n_newField);
         handled = true;
@@ -742,7 +743,7 @@ public:
    */
   void initialize(const conduit::Node &n_options, const conduit::Node &n_fields)
   {
-    namespace bputils = axom::bump::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
     // Get the clip field and value.
@@ -754,10 +755,10 @@ public:
     const conduit::Node &n_clip_field = n_fields.fetch_existing(opts.clipField());
     const conduit::Node &n_clip_field_values = n_clip_field["values"];
     SLIC_ASSERT(n_clip_field["association"].as_string() == "vertex");
-    if(n_clip_field_values.dtype().id() == bputils::cpp2conduit<ClipFieldType>::id)
+    if(n_clip_field_values.dtype().id() == utils::cpp2conduit<ClipFieldType>::id)
     {
       // Make a view.
-      m_view.m_clipFieldView = bputils::make_array_view<ClipFieldType>(n_clip_field_values);
+      m_view.m_clipFieldView = utils::make_array_view<ClipFieldType>(n_clip_field_values);
     }
     else
     {
@@ -836,8 +837,8 @@ template <typename ExecSpace,
 class ClipField
 {
 public:
-  using BlendData = axom::bump::utilities::blueprint::BlendData;
-  using SliceData = axom::bump::utilities::blueprint::SliceData;
+  using BlendData = axom::bump::utilities::BlendData;
+  using SliceData = axom::bump::utilities::SliceData;
   using ClipTableViews = axom::StackArray<axom::bump::clipping::TableView, 6>;
   using Intersector = IntersectPolicy;
 
@@ -845,7 +846,7 @@ public:
   using KeyType = typename NamingPolicy::KeyType;
   using ConnectivityType = typename TopologyView::ConnectivityType;
   using BlendGroupBuilderType = BlendGroupBuilder<ExecSpace, typename NamingPolicy::View>;
-  using SelectedZones = typename axom::bump::utilities::blueprint::SelectedZones<ExecSpace>;
+  using SelectedZones = typename axom::bump::utilities::SelectedZones<ExecSpace>;
   using ClipFieldType = float;
   using ZoneType = typename TopologyView::ShapeType;
 
@@ -920,7 +921,7 @@ public:
                conduit::Node &n_newCoordset,
                conduit::Node &n_newFields)
   {
-    namespace bputils = axom::bump::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     AXOM_ANNOTATE_SCOPE("ClipField");
 
@@ -1069,7 +1070,7 @@ public:
     }
 
     // Make BlendData.
-    bputils::BlendData blend = builder.makeBlendData();
+    utils::BlendData blend = builder.makeBlendData();
     blend.m_originalIdsView = nodeData.m_originalIdsView;
 
     // Make the clipped mesh
@@ -1126,7 +1127,7 @@ public:
     }
 
     // Make slice indices if we have element fields.
-    bputils::SliceData slice;
+    utils::SliceData slice;
     axom::Array<IndexType> sliceIndices;
     if(numElementFields > 0)
     {
@@ -1664,8 +1665,8 @@ private:
                     conduit::Node &n_newFields) const
   {
     AXOM_ANNOTATE_SCOPE("makeTopology");
-    namespace bputils = axom::bump::utilities::blueprint;
-    constexpr auto connTypeID = bputils::cpp2conduit<ConnectivityType>::id;
+    namespace utils = axom::bump::utilities;
+    constexpr auto connTypeID = utils::cpp2conduit<ConnectivityType>::id;
     const auto selection = getSelection(opts);
 
     AXOM_ANNOTATE_BEGIN("allocation");
@@ -1674,33 +1675,33 @@ private:
 
     // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
     // _bump_utilities_c2a_begin
-    utilities::blueprint::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
     const int conduitAllocatorID = c2a.getConduitAllocatorID();
 
     // Allocate connectivity.
     conduit::Node &n_conn = n_newTopo["elements/connectivity"];
     n_conn.set_allocator(conduitAllocatorID);
     n_conn.set(conduit::DataType(connTypeID, fragmentData.m_finalConnSize));
-    auto connView = bputils::make_array_view<ConnectivityType>(n_conn);
+    auto connView = utils::make_array_view<ConnectivityType>(n_conn);
     // _bump_utilities_c2a_end
 
     // Allocate shapes.
     conduit::Node &n_shapes = n_newTopo["elements/shapes"];
     n_shapes.set_allocator(conduitAllocatorID);
     n_shapes.set(conduit::DataType(connTypeID, fragmentData.m_finalNumZones));
-    auto shapesView = bputils::make_array_view<ConnectivityType>(n_shapes);
+    auto shapesView = utils::make_array_view<ConnectivityType>(n_shapes);
 
     // Allocate sizes.
     conduit::Node &n_sizes = n_newTopo["elements/sizes"];
     n_sizes.set_allocator(conduitAllocatorID);
     n_sizes.set(conduit::DataType(connTypeID, fragmentData.m_finalNumZones));
-    auto sizesView = bputils::make_array_view<ConnectivityType>(n_sizes);
+    auto sizesView = utils::make_array_view<ConnectivityType>(n_sizes);
 
     // Allocate offsets.
     conduit::Node &n_offsets = n_newTopo["elements/offsets"];
     n_offsets.set_allocator(conduitAllocatorID);
     n_offsets.set(conduit::DataType(connTypeID, fragmentData.m_finalNumZones));
-    auto offsetsView = bputils::make_array_view<ConnectivityType>(n_offsets);
+    auto offsetsView = utils::make_array_view<ConnectivityType>(n_offsets);
 
     // Allocate a color variable to keep track of the "color" of the fragments.
     conduit::Node &n_color = n_newFields[opts.colorField()];
@@ -1709,7 +1710,7 @@ private:
     conduit::Node &n_color_values = n_color["values"];
     n_color_values.set_allocator(conduitAllocatorID);
     n_color_values.set(conduit::DataType::int32(fragmentData.m_finalNumZones));
-    auto colorView = bputils::make_array_view<int>(n_color_values);
+    auto colorView = utils::make_array_view<int>(n_color_values);
 
     // Fill in connectivity values in case we leave empty slots later.
     axom::for_all<ExecSpace>(
@@ -1997,8 +1998,8 @@ private:
   {
     AXOM_ANNOTATE_SCOPE("makeCoordset");
     // _bump_utilities_coordsetblender_begin
-    axom::bump::utilities::blueprint::
-      CoordsetBlender<ExecSpace, CoordsetView, axom::bump::utilities::blueprint::SelectSubsetPolicy>
+    axom::bump::utilities::
+      CoordsetBlender<ExecSpace, CoordsetView, axom::bump::utilities::SelectSubsetPolicy>
         cb;
     cb.execute(blend, m_coordsetView, n_coordset, n_newCoordset);
     // _bump_utilities_coordsetblender_end
@@ -2040,7 +2041,7 @@ private:
 
         if(!handled)
         {
-          axom::bump::utilities::blueprint::FieldSlicer<ExecSpace> s;
+          axom::bump::utilities::FieldSlicer<ExecSpace> s;
           s.execute(slice, n_field, n_out_fields[it->second]);
         }
 
@@ -2059,7 +2060,7 @@ private:
         if(!handled)
         {
           // Blend the field normally.
-          axom::bump::utilities::blueprint::FieldBlender<ExecSpace, axom::bump::utilities::blueprint::SelectSubsetPolicy>
+          axom::bump::utilities::FieldBlender<ExecSpace, axom::bump::utilities::SelectSubsetPolicy>
             b;
           b.execute(blend, n_field, n_out_fields[it->second]);
         }
@@ -2089,10 +2090,10 @@ private:
                             conduit::Node &n_newFields) const
   {
     AXOM_ANNOTATE_SCOPE("makeOriginalElements");
-    namespace bputils = axom::bump::utilities::blueprint;
-    constexpr auto connTypeID = bputils::cpp2conduit<ConnectivityType>::id;
+    namespace utils = axom::bump::utilities;
+    constexpr auto connTypeID = utils::cpp2conduit<ConnectivityType>::id;
 
-    utilities::blueprint::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
     const int conduitAllocatorID = c2a.getConduitAllocatorID();
 
     const auto selectedZonesView = selectedZones.view();
@@ -2112,7 +2113,7 @@ private:
         conduit::Node &n_values = n_origElem["values"];
         n_values.set_allocator(conduitAllocatorID);
         n_values.set(conduit::DataType(n_orig_values.dtype().id(), fragmentData.m_finalNumZones));
-        auto valuesView = bputils::make_array_view<value_type>(n_values);
+        auto valuesView = utils::make_array_view<value_type>(n_values);
         makeOriginalElements_copy(fragmentData, selectedZones, valuesView, origValuesView);
       });
     }
@@ -2125,7 +2126,7 @@ private:
       conduit::Node &n_values = n_orig["values"];
       n_values.set_allocator(conduitAllocatorID);
       n_values.set(conduit::DataType(connTypeID, fragmentData.m_finalNumZones));
-      auto valuesView = bputils::make_array_view<ConnectivityType>(n_values);
+      auto valuesView = utils::make_array_view<ConnectivityType>(n_values);
       axom::for_all<ExecSpace>(
         nzones,
         AXOM_LAMBDA(axom::IndexType index) {
@@ -2222,7 +2223,7 @@ private:
                     const std::string &topoName,
                     conduit::Node &n_newFields) const
   {
-    namespace bputils = axom::bump::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE("markNewNodes");
     if(!newNodes.empty())
     {
@@ -2241,7 +2242,7 @@ private:
 
         conduit::Node &n_new_nodes = n_newFields.fetch_existing(newNodes);
         conduit::Node &n_new_nodes_values = n_new_nodes["values"];
-        auto valuesView = bputils::make_array_view<Precision>(n_new_nodes_values);
+        auto valuesView = utils::make_array_view<Precision>(n_new_nodes_values);
 
         // Update values for the blend groups only.
         axom::for_all<ExecSpace>(
@@ -2252,14 +2253,14 @@ private:
       {
         // Make the field for the first time.
         // Allocate Conduit data through Axom.
-        bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+        utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
         conduit::Node &n_new_nodes = n_newFields[newNodes];
         n_new_nodes["topology"] = topoName;
         n_new_nodes["association"] = "vertex";
         conduit::Node &n_new_nodes_values = n_new_nodes["values"];
         n_new_nodes_values.set_allocator(c2a.getConduitAllocatorID());
-        n_new_nodes_values.set(conduit::DataType(bputils::cpp2conduit<Precision>::id, outputSize));
-        auto valuesView = bputils::make_array_view<Precision>(n_new_nodes_values);
+        n_new_nodes_values.set(conduit::DataType(utils::cpp2conduit<Precision>::id, outputSize));
+        auto valuesView = utils::make_array_view<Precision>(n_new_nodes_values);
 
         // Fill in values. Everything below origSize is an original node.
         // Everything above is a blended node.

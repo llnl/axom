@@ -18,14 +18,14 @@ axom_component_requires(NAME       BUMP
 #------------------------------------------------------------------------------
 
 set(bump_headers
-    MeshTester.hpp
+    data/MeshTester.hpp
     clipping/BlendGroupBuilder.hpp
     clipping/ClipCases.h
     clipping/ClipField.hpp
     clipping/ClipOptions.hpp
     clipping/ClipTableManager.hpp
     io/save.hpp
-    Options.hpp
+    utilities/Options.hpp
     utilities/conduit_memory.hpp
     utilities/conduit_traits.hpp
     utilities/blueprint_utilities.hpp
@@ -88,6 +88,7 @@ set(bump_sources
     clipping/ClipCasesTet.cpp
     clipping/ClipCasesTri.cpp
     clipping/ClipCasesWdg.cpp
+    data/MeshTester.cpp
     io/save.cpp
     utilities/conduit_traits.cpp
     utilities/blueprint_utilities.cpp

@@ -105,6 +105,12 @@ public:
   }
 
   /**
+   * \brief Return the options node reference.
+   * \return The options node reference.
+   */
+  const conduit::Node &options() const { return m_options; }
+
+  /**
    * \brief Get the name of the matset on which we'll operate.
    * \return The name of the matset.
    */

@@ -3,13 +3,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 #ifndef AXOM_BUMP_FIELD_BLENDER_HPP_
-#define AXOM_BUMP_MIR_FIELD_BLENDER_HPP_
+#define AXOM_BUMP_FIELD_BLENDER_HPP_
 
 #include "axom/core.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/BlendData.hpp"
+#include "axom/bump/utilities/IndexingPolicies.hpp"
 
 #include <conduit/conduit.hpp>
 

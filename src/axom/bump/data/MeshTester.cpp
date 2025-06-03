@@ -8,7 +8,7 @@
 
 namespace numerics = axom::numerics;
 namespace slam = axom::slam;
-namespace bputils = axom::bump::utilities::blueprint;
+namespace utils = axom::bump::utilities;
 using namespace axom::bump::views;
 
 namespace axom
@@ -476,11 +476,11 @@ void MeshTester::initTestCaseFour(conduit::Node& mesh)
 
   // Make views
   using CoordsetView = axom::bump::views::ExplicitCoordsetView<float, 2>;
-  CoordsetView coordsetView(bputils::make_array_view<float>(mesh["coordsets/coords/values/x"]),
-                            bputils::make_array_view<float>(mesh["coordsets/coords/values/y"]));
+  CoordsetView coordsetView(utils::make_array_view<float>(mesh["coordsets/coords/values/x"]),
+                            utils::make_array_view<float>(mesh["coordsets/coords/values/y"]));
   using TopoView =
     axom::bump::views::UnstructuredTopologySingleShapeView<axom::bump::views::QuadShape<int>>;
-  TopoView topoView(bputils::make_array_view<int>(mesh["topologies/mesh/elements/connectivity"]));
+  TopoView topoView(utils::make_array_view<int>(mesh["topologies/mesh/elements/connectivity"]));
 
   // Add material
   const Point2 circleCenter({1.5, 1.5});
@@ -505,11 +505,11 @@ void MeshTester::createUniformGridTestCaseMesh(int gridSize,
 
   // Make views
   using CoordsetView = axom::bump::views::ExplicitCoordsetView<float, 2>;
-  CoordsetView coordsetView(bputils::make_array_view<float>(mesh["coordsets/coords/values/x"]),
-                            bputils::make_array_view<float>(mesh["coordsets/coords/values/y"]));
+  CoordsetView coordsetView(utils::make_array_view<float>(mesh["coordsets/coords/values/x"]),
+                            utils::make_array_view<float>(mesh["coordsets/coords/values/y"]));
   using TopoView =
     axom::bump::views::UnstructuredTopologySingleShapeView<axom::bump::views::QuadShape<int>>;
-  TopoView topoView(bputils::make_array_view<int>(mesh["topologies/mesh/elements/connectivity"]));
+  TopoView topoView(utils::make_array_view<int>(mesh["topologies/mesh/elements/connectivity"]));
 
   // Add material
   int numSamples = 100;
