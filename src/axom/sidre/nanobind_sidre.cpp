@@ -275,6 +275,36 @@ NB_MODULE(pysidre, m_sidre)
          &View::getString,
          nb::rv_policy::reference,
          "Return the string contained in the View.")
+    .def(
+      "getDataIntPtr",
+      [](View& self) {
+        int64_t* data = self.getData();
+
+        // Delete 'data' when the 'owner' capsule expires
+        nb::capsule owner(data, [](void* p) noexcept { delete[](int64_t*) p; });
+
+        return nb::ndarray<nb::numpy, int64_t, nb::ndim<1>>(
+          /* data = */ data,
+          /* shape = */ {static_cast<size_t>(self.getNumElements())},
+          /* owner = */ owner);
+      },
+      "Return the data held by the View (int64_t *).")
+
+    .def(
+      "getDataDoublePtr",
+      [](View& self) {
+        double* data = self.getData();
+
+        // Delete 'data' when the 'owner' capsule expires
+        nb::capsule owner(data, [](void* p) noexcept { delete[](double*) p; });
+
+        return nb::ndarray<nb::numpy, double, nb::ndim<1>>(
+          /* data = */ data,
+          /* shape = */ {static_cast<size_t>(self.getNumElements())},
+          /* owner = */ owner);
+      },
+      "Return the data held by the View (double *).")
+
     .def("getData",
          &View::getData<int>,
          nb::rv_policy::reference,

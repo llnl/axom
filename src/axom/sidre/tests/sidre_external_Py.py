@@ -20,10 +20,8 @@ def test_create_external_view():
 	print(f"PYTHON SIDE: ddata type is {type(ddata[0])}")
 	print(f"PYTHON SIDE: ddata is {ddata}")
 
-    # TODO - Cannot pass python list as void *, need special nanobind numpy handling
 	iview = root.createView("idata", idata)
 	iview.apply(pysidre.TypeID.INT64_ID, length)
-
 	iview.print()
 
 	dview = root.createView("ddata", ddata)
@@ -31,11 +29,14 @@ def test_create_external_view():
 	dview.print()
 
 	assert root.getNumViews() == 2
-	pass
 
+	idata_chk = iview.getDataIntPtr()
+	assert len(idata_chk) == length
+	assert np.array_equal(idata_chk, idata)
 
-
-	assert True
+	ddata_chk = dview.getDataDoublePtr()
+	assert len(ddata_chk) == length
+	assert np.array_equal(ddata_chk, ddata)
 
 # Corresponding fortran test implementation needs to be fixed
 # def test_save_load_external_view():
