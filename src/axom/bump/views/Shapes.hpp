@@ -3,20 +3,17 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_VIEWS_SHAPES_HPP_
-#define AXOM_MIR_VIEWS_SHAPES_HPP_
+#ifndef AXOM_BUMP_VIEWS_SHAPES_HPP_
+#define AXOM_BUMP_VIEWS_SHAPES_HPP_
 
 #include "axom/core/ArrayView.hpp"
-
-#include <conduit/conduit.hpp>
-#include <conduit/conduit_blueprint_mesh_utils.hpp>
 
 #include <iostream>
 #include <type_traits>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -1140,7 +1137,7 @@ inline int shapeNameToID(const std::string &name)
 }
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

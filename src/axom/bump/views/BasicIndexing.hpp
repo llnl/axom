@@ -3,12 +3,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_BASIC_INDEXING_HPP_
-#define AXOM_MIR_BASIC_INDEXING_HPP_
+#ifndef AXOM_BUMP_BASIC_INDEXING_HPP_
+#define AXOM_BUMP_BASIC_INDEXING_HPP_
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -81,7 +81,7 @@ public:
 };
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

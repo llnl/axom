@@ -3,18 +3,18 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_DISPATCH_UNIFORM_TOPOLOGY_HPP_
-#define AXOM_MIR_DISPATCH_UNIFORM_TOPOLOGY_HPP_
+#ifndef AXOM_BUMP_DISPATCH_UNIFORM_TOPOLOGY_HPP_
+#define AXOM_BUMP_DISPATCH_UNIFORM_TOPOLOGY_HPP_
 
-#include "axom/mir/views/StructuredTopologyView.hpp"
-#include "axom/mir/views/dispatch_utilities.hpp"
+#include "axom/bump/views/StructuredTopologyView.hpp"
+#include "axom/bump/views/dispatch_utilities.hpp"
 
 #include <conduit/conduit.hpp>
 #include <conduit/conduit_blueprint_mesh_utils.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -247,7 +247,7 @@ void dispatch_uniform_topology(const conduit::Node &topo, FuncType &&func)
 }
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

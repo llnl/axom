@@ -3,17 +3,17 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_DISPATCH_STRUCTURED_TOPOLOGY_HPP_
-#define AXOM_MIR_DISPATCH_STRUCTURED_TOPOLOGY_HPP_
+#ifndef AXOM_BUMP_DISPATCH_STRUCTURED_TOPOLOGY_HPP_
+#define AXOM_BUMP_DISPATCH_STRUCTURED_TOPOLOGY_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir/views/StructuredTopologyView.hpp"
-#include "axom/mir/views/StructuredIndexing.hpp"
-#include "axom/mir/views/StridedStructuredIndexing.hpp"
-#include "axom/mir/views/dispatch_utilities.hpp"
-#include "axom/mir/views/dispatch_uniform_topology.hpp"
-#include "axom/mir/views/dispatch_rectilinear_topology.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
+#include "axom/bump/views/StructuredTopologyView.hpp"
+#include "axom/bump/views/StructuredIndexing.hpp"
+#include "axom/bump/views/StridedStructuredIndexing.hpp"
+#include "axom/bump/views/dispatch_utilities.hpp"
+#include "axom/bump/views/dispatch_uniform_topology.hpp"
+#include "axom/bump/views/dispatch_rectilinear_topology.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -21,7 +21,7 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -49,7 +49,7 @@ struct make_strided_structured_topology<3>
    */
   static Indexing indexing(const conduit::Node &topo)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const std::string offsetsKey("elements/dims/offsets");
     const std::string stridesKey("elements/dims/strides");
 
@@ -59,8 +59,8 @@ struct make_strided_structured_topology<3>
     zoneDims[2] = topo.fetch_existing("elements/dims/k").to_int();
 
     LogicalIndex offsets {{0, 0, 0}}, strides {{1, 1, 1}};
-    bputils::fillFromNode(topo, offsetsKey, offsets, true);
-    if(bputils::fillFromNode(topo, stridesKey, strides, true))
+    utils::fillFromNode(topo, offsetsKey, offsets, true);
+    if(utils::fillFromNode(topo, stridesKey, strides, true))
     {
       // Make zone striding.
       strides[1]--;
@@ -100,7 +100,7 @@ struct make_strided_structured_topology<2>
    */
   static Indexing indexing(const conduit::Node &topo)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const std::string offsetsKey("elements/dims/offsets");
     const std::string stridesKey("elements/dims/strides");
     LogicalIndex zoneDims;
@@ -108,8 +108,8 @@ struct make_strided_structured_topology<2>
     zoneDims[1] = topo.fetch_existing("elements/dims/j").to_int();
 
     LogicalIndex offsets {{0, 0}}, strides {{1, 1}};
-    bputils::fillFromNode(topo, offsetsKey, offsets, true);
-    if(bputils::fillFromNode(topo, stridesKey, strides, true))
+    utils::fillFromNode(topo, offsetsKey, offsets, true);
+    if(utils::fillFromNode(topo, stridesKey, strides, true))
     {
       // Make zone striding.
       strides[1]--;
@@ -147,7 +147,7 @@ struct make_strided_structured_topology<1>
    */
   static Indexing indexing(const conduit::Node &topo)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const std::string offsetsKey("elements/dims/offsets");
     const std::string stridesKey("elements/dims/strides");
 
@@ -155,8 +155,8 @@ struct make_strided_structured_topology<1>
     zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
 
     LogicalIndex offsets {0}, strides {1};
-    bputils::fillFromNode(topo, offsetsKey, offsets, true);
-    bputils::fillFromNode(topo, stridesKey, strides, true);
+    utils::fillFromNode(topo, offsetsKey, offsets, true);
+    utils::fillFromNode(topo, stridesKey, strides, true);
 
     return Indexing(zoneDims, offsets, strides);
   }
@@ -576,7 +576,7 @@ void dispatch_structured_topologies(const conduit::Node &topo, FuncType &&func)
 }
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

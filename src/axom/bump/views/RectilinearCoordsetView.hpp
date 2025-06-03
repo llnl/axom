@@ -3,17 +3,17 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_RECTILINEAR_COORDSET_VIEW_HPP_
-#define AXOM_MIR_RECTILINEAR_COORDSET_VIEW_HPP_
+#ifndef AXOM_BUMP_RECTILINEAR_COORDSET_VIEW_HPP_
+#define AXOM_BUMP_RECTILINEAR_COORDSET_VIEW_HPP_
 
 #include "axom/core/StackArray.hpp"
 #include "axom/core/ArrayView.hpp"
 #include "axom/primal/geometry/Point.hpp"
-#include "axom/mir/views/StructuredIndexing.hpp"
+#include "axom/bump/views/StructuredIndexing.hpp"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -257,7 +257,7 @@ private:
 };
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

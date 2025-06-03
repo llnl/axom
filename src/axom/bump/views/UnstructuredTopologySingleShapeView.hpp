@@ -3,17 +3,17 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_VIEWS_UNSTRUCTURED_TOPOLOGY_SINGLE_SHAPE_VIEW_HPP_
-#define AXOM_MIR_VIEWS_UNSTRUCTURED_TOPOLOGY_SINGLE_SHAPE_VIEW_HPP_
+#ifndef AXOM_BUMP_VIEWS_UNSTRUCTURED_TOPOLOGY_SINGLE_SHAPE_VIEW_HPP_
+#define AXOM_BUMP_VIEWS_UNSTRUCTURED_TOPOLOGY_SINGLE_SHAPE_VIEW_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/mir/views/BasicIndexing.hpp"
-#include "axom/mir/views/Shapes.hpp"
+#include "axom/bump/views/BasicIndexing.hpp"
+#include "axom/bump/views/Shapes.hpp"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -185,7 +185,7 @@ private:
 };
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

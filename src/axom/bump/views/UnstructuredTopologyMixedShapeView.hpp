@@ -3,18 +3,18 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_VIEWS_UNSTRUCTURED_TOPOLOGY_MIXED_SHAPE_VIEW_HPP_
-#define AXOM_MIR_VIEWS_UNSTRUCTURED_TOPOLOGY_MIXED_SHAPE_VIEW_HPP_
+#ifndef AXOM_BUMP_VIEWS_UNSTRUCTURED_TOPOLOGY_MIXED_SHAPE_VIEW_HPP_
+#define AXOM_BUMP_VIEWS_UNSTRUCTURED_TOPOLOGY_MIXED_SHAPE_VIEW_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/mir/views/BasicIndexing.hpp"
-#include "axom/mir/views/Shapes.hpp"
-#include "axom/mir/utilities/utilities.hpp"
+#include "axom/bump/views/BasicIndexing.hpp"
+#include "axom/bump/views/Shapes.hpp"
+#include "axom/bump/utilities/utilities.hpp"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -65,7 +65,7 @@ public:
    */
   AXOM_HOST_DEVICE IndexType operator[](IndexType value) const
   {
-    const auto index = axom::mir::utilities::bsearch(value, m_shape_values);
+    const auto index = axom::bump::utilities::bsearch(value, m_shape_values);
     return (index >= 0) ? m_shape_ids[index] : 0;
   }
 
@@ -187,7 +187,7 @@ private:
 };
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

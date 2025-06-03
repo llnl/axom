@@ -3,11 +3,11 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/mir/views/MaterialView.hpp"
+#include "axom/bump/views/MaterialView.hpp"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -26,5 +26,5 @@ MaterialInformation materials(const conduit::Node &matset)
 }
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom

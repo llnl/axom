@@ -3,12 +3,12 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_DISPATCH_UTILITIES_HPP_
-#define AXOM_MIR_DISPATCH_UTILITIES_HPP_
+#ifndef AXOM_BUMP_DISPATCH_UTILITIES_HPP_
+#define AXOM_BUMP_DISPATCH_UTILITIES_HPP_
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -48,7 +48,7 @@ constexpr int select_dimensions(Dimensions... dims)
 constexpr bool dimension_selected(int encoded_dims, int dim) { return encoded_dims & (1 << dim); }
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

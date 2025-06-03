@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_VIEWS_NODE_ARRAY_VIEW_HPP_
-#define AXOM_MIR_VIEWS_NODE_ARRAY_VIEW_HPP_
+#ifndef AXOM_BUMP_VIEWS_NODE_ARRAY_VIEW_HPP_
+#define AXOM_BUMP_VIEWS_NODE_ARRAY_VIEW_HPP_
 
 #include "axom/slic/interface/slic.hpp"
 
@@ -13,26 +13,10 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
-/*
-using Node = ::conduit::Node;
-using int8 = ::conduit::int8;
-using int16 = ::conduit::int16;
-using int32 = ::conduit::int32;
-using int64 = ::conduit::int64;
-using uint8 = ::conduit::uint8;
-using uint16 = ::conduit::uint16;
-using uint32 = ::conduit::uint32;
-using uint64 = ::conduit::uint64;
-using float32 = ::conduit::float32;
-using float64 = ::conduit::float64;
-using index_t = ::conduit::index_t;
-using DataType = ::conduit::DataType;
-*/
-
 namespace detail
 {
 struct Delimiter
@@ -974,7 +958,7 @@ void FloatNode_to_ArrayView_same(conduit::Node &first, Args &&...args)
 }
 
 }  // namespace views
-}  // namespace mir
+}  // namespace bump
 }  // namespace axom
 
 #endif

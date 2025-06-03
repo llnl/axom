@@ -3,11 +3,11 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/mir/views/UnstructuredTopologyMixedShapeView.hpp"
+#include "axom/bump/views/UnstructuredTopologyMixedShapeView.hpp"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -24,7 +24,7 @@ ShapeMap buildShapeMap(const conduit::Node &n_topo,
   for(conduit::index_t i = 0; i < n_shape_map.number_of_children(); i++)
   {
     const auto value = static_cast<IndexType>(n_shape_map[i].to_int());
-    sm[value] = axom::mir::views::shapeNameToID(n_shape_map[i].name());
+    sm[value] = axom::bump::views::shapeNameToID(n_shape_map[i].name());
   }
 
   // Store the map in 2 vectors so data are contiguous.
@@ -48,5 +48,5 @@ ShapeMap buildShapeMap(const conduit::Node &n_topo,
 }
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom

@@ -3,18 +3,17 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_DISPATCH_MATERIAL_HPP_
-#define AXOM_MIR_DISPATCH_MATERIAL_HPP_
+#ifndef AXOM_BUMP_DISPATCH_MATERIAL_HPP_
+#define AXOM_BUMP_DISPATCH_MATERIAL_HPP_
 
-#include "axom/mir/views/MaterialView.hpp"
-#include "axom/mir/views/NodeArrayView.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
+#include "axom/bump/views/MaterialView.hpp"
+#include "axom/bump/views/NodeArrayView.hpp"
 
 #include <conduit/conduit_blueprint.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -36,13 +35,13 @@ struct make_unibuffer_matset
    */
   static MatsetView view(const conduit::Node &n_matset)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     MatsetView m;
-    m.set(bputils::make_array_view<IntType>(n_matset["material_ids"]),
-          bputils::make_array_view<FloatType>(n_matset["volume_fractions"]),
-          bputils::make_array_view<IntType>(n_matset["sizes"]),
-          bputils::make_array_view<IntType>(n_matset["offsets"]),
-          bputils::make_array_view<IntType>(n_matset["indices"]));
+    m.set(utils::make_array_view<IntType>(n_matset["material_ids"]),
+          utils::make_array_view<FloatType>(n_matset["volume_fractions"]),
+          utils::make_array_view<IntType>(n_matset["sizes"]),
+          utils::make_array_view<IntType>(n_matset["offsets"]),
+          utils::make_array_view<IntType>(n_matset["indices"]));
     return m;
   }
 };
@@ -307,7 +306,7 @@ bool dispatch_material(const conduit::Node &matset, FuncType &&func)
 }
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

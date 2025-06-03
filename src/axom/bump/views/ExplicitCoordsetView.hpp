@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_EXPLICIT_COORDSET_VIEW_HPP_
-#define AXOM_MIR_EXPLICIT_COORDSET_VIEW_HPP_
+#ifndef AXOM_BUMP_EXPLICIT_COORDSET_VIEW_HPP_
+#define AXOM_BUMP_EXPLICIT_COORDSET_VIEW_HPP_
 
 #include "axom/core/ArrayView.hpp"
 #include "axom/slic.hpp"
@@ -12,7 +12,7 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -167,7 +167,7 @@ private:
 };
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

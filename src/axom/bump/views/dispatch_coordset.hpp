@@ -3,17 +3,17 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_DISPATCH_COORDSET_HPP_
-#define AXOM_MIR_DISPATCH_COORDSET_HPP_
+#ifndef AXOM_BUMP_DISPATCH_COORDSET_HPP_
+#define AXOM_BUMP_DISPATCH_COORDSET_HPP_
 
-#include "axom/mir/views/ExplicitCoordsetView.hpp"
-#include "axom/mir/views/UniformCoordsetView.hpp"
-#include "axom/mir/views/RectilinearCoordsetView.hpp"
-#include "axom/mir/views/NodeArrayView.hpp"
+#include "axom/bump/views/ExplicitCoordsetView.hpp"
+#include "axom/bump/views/UniformCoordsetView.hpp"
+#include "axom/bump/views/RectilinearCoordsetView.hpp"
+#include "axom/bump/views/NodeArrayView.hpp"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -30,7 +30,7 @@ struct make_rectilinear_coordset
 template <typename DataType>
 struct make_rectilinear_coordset<DataType, 3>
 {
-  using CoordsetView = axom::mir::views::RectilinearCoordsetView3<DataType>;
+  using CoordsetView = axom::bump::views::RectilinearCoordsetView3<DataType>;
 
   /*!
    * \brief Create the coordset view and initialize it from the coordset.
@@ -39,11 +39,11 @@ struct make_rectilinear_coordset<DataType, 3>
    */
   static CoordsetView view(const conduit::Node &coordset)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const conduit::Node &values = coordset.fetch_existing("values");
-    auto xView = bputils::make_array_view<DataType>(values[0]);
-    auto yView = bputils::make_array_view<DataType>(values[1]);
-    auto zView = bputils::make_array_view<DataType>(values[2]);
+    auto xView = utils::make_array_view<DataType>(values[0]);
+    auto yView = utils::make_array_view<DataType>(values[1]);
+    auto zView = utils::make_array_view<DataType>(values[2]);
     return CoordsetView(xView, yView, zView);
   }
 };
@@ -54,7 +54,7 @@ struct make_rectilinear_coordset<DataType, 3>
 template <typename DataType>
 struct make_rectilinear_coordset<DataType, 2>
 {
-  using CoordsetView = axom::mir::views::RectilinearCoordsetView2<DataType>;
+  using CoordsetView = axom::bump::views::RectilinearCoordsetView2<DataType>;
 
   /*!
    * \brief Create the coordset view and initialize it from the coordset.
@@ -63,10 +63,10 @@ struct make_rectilinear_coordset<DataType, 2>
    */
   static CoordsetView view(const conduit::Node &coordset)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const conduit::Node &values = coordset.fetch_existing("values");
-    auto xView = bputils::make_array_view<DataType>(values[0]);
-    auto yView = bputils::make_array_view<DataType>(values[1]);
+    auto xView = utils::make_array_view<DataType>(values[0]);
+    auto yView = utils::make_array_view<DataType>(values[1]);
     return CoordsetView(xView, yView);
   }
 };
@@ -84,7 +84,7 @@ struct make_uniform_coordset
 template <>
 struct make_uniform_coordset<3>
 {
-  using CoordsetView = axom::mir::views::UniformCoordsetView<double, 3>;
+  using CoordsetView = axom::bump::views::UniformCoordsetView<double, 3>;
 
   /*!
    * \brief Create the coordset view and initialize it from the coordset.
@@ -113,7 +113,7 @@ struct make_uniform_coordset<3>
 template <>
 struct make_uniform_coordset<2>
 {
-  using CoordsetView = axom::mir::views::UniformCoordsetView<double, 2>;
+  using CoordsetView = axom::bump::views::UniformCoordsetView<double, 2>;
 
   /*!
    * \brief Create the coordset view and initialize it from the coordset.
@@ -177,14 +177,14 @@ void dispatch_rectilinear_coordset(const conduit::Node &coordset, FuncType &&fun
   const conduit::Node &values = coordset["values"];
   if(values.number_of_children() == 2)
   {
-    axom::mir::views::FloatNode_to_ArrayView_same(values[0], values[1], [&](auto xView, auto yView) {
+    axom::bump::views::FloatNode_to_ArrayView_same(values[0], values[1], [&](auto xView, auto yView) {
       RectilinearCoordsetView2<typename decltype(xView)::value_type> coordView(xView, yView);
       func(coordView);
     });
   }
   else if(values.number_of_children() == 3)
   {
-    axom::mir::views::FloatNode_to_ArrayView_same(
+    axom::bump::views::FloatNode_to_ArrayView_same(
       values[0],
       values[1],
       values[2],
@@ -208,7 +208,7 @@ struct make_explicit_coordset
 template <typename DataType>
 struct make_explicit_coordset<DataType, 3>
 {
-  using CoordsetView = axom::mir::views::ExplicitCoordsetView<DataType, 3>;
+  using CoordsetView = axom::bump::views::ExplicitCoordsetView<DataType, 3>;
 
   /*!
    * \brief Create the coordset view and initialize it from the coordset.
@@ -217,11 +217,11 @@ struct make_explicit_coordset<DataType, 3>
    */
   static CoordsetView view(const conduit::Node &coordset)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const conduit::Node &values = coordset.fetch_existing("values");
-    auto x = bputils::make_array_view<DataType>(values[0]);
-    auto y = bputils::make_array_view<DataType>(values[1]);
-    auto z = bputils::make_array_view<DataType>(values[2]);
+    auto x = utils::make_array_view<DataType>(values[0]);
+    auto y = utils::make_array_view<DataType>(values[1]);
+    auto z = utils::make_array_view<DataType>(values[2]);
     return CoordsetView(x, y, z);
   }
 };
@@ -232,7 +232,7 @@ struct make_explicit_coordset<DataType, 3>
 template <typename DataType>
 struct make_explicit_coordset<DataType, 2>
 {
-  using CoordsetView = axom::mir::views::ExplicitCoordsetView<DataType, 2>;
+  using CoordsetView = axom::bump::views::ExplicitCoordsetView<DataType, 2>;
 
   /*!
    * \brief Create the coordset view and initialize it from the coordset.
@@ -241,10 +241,10 @@ struct make_explicit_coordset<DataType, 2>
    */
   static CoordsetView view(const conduit::Node &coordset)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const conduit::Node &values = coordset.fetch_existing("values");
-    auto x = bputils::make_array_view<DataType>(values[0]);
-    auto y = bputils::make_array_view<DataType>(values[1]);
+    auto x = utils::make_array_view<DataType>(values[0]);
+    auto y = utils::make_array_view<DataType>(values[1]);
     return CoordsetView(x, y);
   }
 };
@@ -264,14 +264,14 @@ void dispatch_explicit_coordset(const conduit::Node &coordset, FuncType &&func)
   const conduit::Node &values = coordset["values"];
   if(values.number_of_children() == 2)
   {
-    axom::mir::views::FloatNode_to_ArrayView_same(values[0], values[1], [&](auto xView, auto yView) {
+    axom::bump::views::FloatNode_to_ArrayView_same(values[0], values[1], [&](auto xView, auto yView) {
       ExplicitCoordsetView<typename decltype(xView)::value_type, 2> coordView(xView, yView);
       func(coordView);
     });
   }
   else if(values.number_of_children() == 3)
   {
-    axom::mir::views::FloatNode_to_ArrayView_same(
+    axom::bump::views::FloatNode_to_ArrayView_same(
       values[0],
       values[1],
       values[2],
@@ -312,7 +312,7 @@ void dispatch_coordset(const conduit::Node &coordset, FuncType &&func)
 }
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

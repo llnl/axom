@@ -3,22 +3,22 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_DISPATCH_UNSTRUCTURED_TOPOLOGY_HPP_
-#define AXOM_MIR_DISPATCH_UNSTRUCTURED_TOPOLOGY_HPP_
+#ifndef AXOM_BUMP_DISPATCH_UNSTRUCTURED_TOPOLOGY_HPP_
+#define AXOM_BUMP_DISPATCH_UNSTRUCTURED_TOPOLOGY_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir/views/UnstructuredTopologySingleShapeView.hpp"
-#include "axom/mir/views/UnstructuredTopologyPolyhedralView.hpp"
-#include "axom/mir/views/UnstructuredTopologyMixedShapeView.hpp"
-#include "axom/mir/views/NodeArrayView.hpp"
-#include "axom/mir/views/Shapes.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
+#include "axom/bump/views/UnstructuredTopologySingleShapeView.hpp"
+#include "axom/bump/views/UnstructuredTopologyPolyhedralView.hpp"
+#include "axom/bump/views/UnstructuredTopologyMixedShapeView.hpp"
+#include "axom/bump/views/NodeArrayView.hpp"
+#include "axom/bump/views/Shapes.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 
 #include <conduit/conduit_blueprint.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -29,7 +29,7 @@ constexpr int AnyShape = -1;
  * \brief This struct instantiates a topology view for an unstructured mesh that
  *        contains a single shape.
  *
- * \tparam ShapeType A shape class such as axom::mir::views::TriShape<int>
+ * \tparam ShapeType A shape class such as axom::bump::views::TriShape<int>
  */
 template <typename ShapeType>
 struct make_unstructured_single_shape_topology
@@ -46,25 +46,25 @@ struct make_unstructured_single_shape_topology
    */
   static TopologyView view(const conduit::Node &n_topo)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
 
     const std::string shape = n_topo["elements/shape"].as_string();
     SLIC_ASSERT(n_topo["type"].as_string() == "unstructured");
     SLIC_ASSERT(shape == ShapeType::name());
 
     // Connectivity must exist.
-    auto connView = bputils::make_array_view<ConnectivityType>(n_topo["elements/connectivity"]);
+    auto connView = utils::make_array_view<ConnectivityType>(n_topo["elements/connectivity"]);
 
     // Use sizes and offsets if they are present.
     if(n_topo.has_path("elements/sizes") && n_topo.has_path("elements/offsets"))
     {
-      auto sizesView = bputils::make_array_view<ConnectivityType>(n_topo["elements/sizes"]);
-      auto offsetsView = bputils::make_array_view<ConnectivityType>(n_topo["elements/offsets"]);
+      auto sizesView = utils::make_array_view<ConnectivityType>(n_topo["elements/sizes"]);
+      auto offsetsView = utils::make_array_view<ConnectivityType>(n_topo["elements/offsets"]);
       return TopologyView(connView, sizesView, offsetsView);
     }
 
     // Polygonal must have specified sizes, offsets.
-    SLIC_ASSERT(std::string("shape") != axom::mir::views::PolygonTraits::name());
+    SLIC_ASSERT(std::string("shape") != PolygonTraits::name());
 
     return TopologyView(connView);
   }
@@ -91,21 +91,21 @@ struct make_unstructured_polyhedral_topology
    */
   static TopologyView view(const conduit::Node &n_topo)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
 
     const std::string shape = n_topo["elements/shape"].as_string();
     SLIC_ASSERT(n_topo["type"].as_string() == "unstructured");
     SLIC_ASSERT(shape == TopologyView::ShapeType::name());
 
-    // _mir_views_ph_topoview_begin
+    // _bump_views_ph_topoview_begin
     auto topoView =
-      TopologyView(bputils::make_array_view<ConnectivityType>(n_topo["subelements/connectivity"]),
-                   bputils::make_array_view<ConnectivityType>(n_topo["subelements/sizes"]),
-                   bputils::make_array_view<ConnectivityType>(n_topo["subelements/offsets"]),
-                   bputils::make_array_view<ConnectivityType>(n_topo["elements/connectivity"]),
-                   bputils::make_array_view<ConnectivityType>(n_topo["elements/sizes"]),
-                   bputils::make_array_view<ConnectivityType>(n_topo["elements/offsets"]));
-    // _mir_views_ph_topoview_end
+      TopologyView(utils::make_array_view<ConnectivityType>(n_topo["subelements/connectivity"]),
+                   utils::make_array_view<ConnectivityType>(n_topo["subelements/sizes"]),
+                   utils::make_array_view<ConnectivityType>(n_topo["subelements/offsets"]),
+                   utils::make_array_view<ConnectivityType>(n_topo["elements/connectivity"]),
+                   utils::make_array_view<ConnectivityType>(n_topo["elements/sizes"]),
+                   utils::make_array_view<ConnectivityType>(n_topo["elements/offsets"]));
+    // _bump_views_ph_topoview_end
     return topoView;
   }
 };
@@ -153,7 +153,7 @@ void dispatch_unstructured_polyhedral_topology(const conduit::Node &topo, FuncTy
 template <typename ConnType, typename FuncType>
 void typed_dispatch_unstructured_polyhedral_topology(const conduit::Node &topo, FuncType &&func)
 {
-  namespace bputils = axom::mir::utilities::blueprint;
+  namespace utils = axom::bump::utilities;
   const std::string shape = topo["elements/shape"].as_string();
   if(shape == "polyhedral")
   {
@@ -212,14 +212,14 @@ void dispatch_unstructured_mixed_topology(const conduit::Node &topo, FuncType &&
 template <typename ConnType, typename FuncType>
 void typed_dispatch_unstructured_mixed_topology(const conduit::Node &topo, FuncType &&func)
 {
-  namespace bputils = axom::mir::utilities::blueprint;
+  namespace utils = axom::bump::utilities;
   const std::string shape = topo["elements/shape"].as_string();
   if(shape == "mixed")
   {
-    auto connView = bputils::make_array_view<ConnType>(topo["elements/connectivity"]);
-    auto shapesView = bputils::make_array_view<ConnType>(topo["elements/shapes"]);
-    auto sizesView = bputils::make_array_view<ConnType>(topo["elements/sizes"]);
-    auto offsetsView = bputils::make_array_view<ConnType>(topo["elements/offsets"]);
+    auto connView = utils::make_array_view<ConnType>(topo["elements/connectivity"]);
+    auto shapesView = utils::make_array_view<ConnType>(topo["elements/shapes"]);
+    auto sizesView = utils::make_array_view<ConnType>(topo["elements/sizes"]);
+    auto offsetsView = utils::make_array_view<ConnType>(topo["elements/offsets"]);
 
     // Get the allocator that allocated the connectivity. The shape map data
     // need to go into the same memory space.
@@ -486,12 +486,12 @@ struct dispatch_shape<true, ConnType, SelectPHShape, FuncType>
 template <typename ConnType, int ShapeTypes = AnyShape, typename FuncType>
 void typed_dispatch_unstructured_topology(const conduit::Node &topo, FuncType &&func)
 {
-  namespace bputils = axom::mir::utilities::blueprint;
+  namespace utils = axom::bump::utilities;
   const std::string type = topo["type"].as_string();
   if(type == "unstructured")
   {
     const std::string shape = topo["elements/shape"].as_string();
-    const auto connView = bputils::make_array_view<ConnType>(topo["elements/connectivity"]);
+    const auto connView = utils::make_array_view<ConnType>(topo["elements/connectivity"]);
     bool eligible = true;
 
     // Conditionally add polyhedron support.
@@ -509,9 +509,9 @@ void typed_dispatch_unstructured_topology(const conduit::Node &topo, FuncType &&
     // Make sizes / offsets views if the values are present.
     axom::ArrayView<ConnType> sizesView, offsetsView;
     if(topo.has_path("elements/sizes"))
-      sizesView = bputils::make_array_view<ConnType>(topo.fetch_existing("elements/sizes"));
+      sizesView = utils::make_array_view<ConnType>(topo.fetch_existing("elements/sizes"));
     if(topo.has_path("elements/offsets"))
-      offsetsView = bputils::make_array_view<ConnType>(topo.fetch_existing("elements/offsets"));
+      offsetsView = utils::make_array_view<ConnType>(topo.fetch_existing("elements/offsets"));
 
     // Conditionally add support for other shapes.
     internal::dispatch_shape<axom::utilities::bitIsSet(ShapeTypes, Tri_ShapeID),
@@ -584,7 +584,7 @@ void dispatch_unstructured_topology(const conduit::Node &topo, FuncType &&func)
 }
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

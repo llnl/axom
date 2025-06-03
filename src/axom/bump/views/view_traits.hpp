@@ -3,18 +3,18 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_VIEW_TRAITS_HPP_
-#define AXOM_MIR_VIEW_TRAITS_HPP_
+#ifndef AXOM_BUMP_VIEW_TRAITS_HPP_
+#define AXOM_BUMP_VIEW_TRAITS_HPP_
 
 #include "axom/core/utilities/BitUtilities.hpp"
-#include "axom/mir/views/StructuredTopologyView.hpp"
-#include "axom/mir/views/StructuredIndexing.hpp"
-#include "axom/mir/views/StridedStructuredIndexing.hpp"
-#include "axom/mir/views/Shapes.hpp"
+#include "axom/bump/views/StructuredTopologyView.hpp"
+#include "axom/bump/views/StructuredIndexing.hpp"
+#include "axom/bump/views/StridedStructuredIndexing.hpp"
+#include "axom/bump/views/Shapes.hpp"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace views
 {
@@ -110,7 +110,7 @@ AXOM_MAKE_TRAIT(double)
 #undef AXOM_MAKE_TRAIT
 
 }  // end namespace views
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif
