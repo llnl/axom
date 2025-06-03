@@ -10,8 +10,8 @@
  * 
  */
 
-#ifndef __AXOM_MIR_MESH_TESTER_HPP__
-#define __AXOM_MIR_MESH_TESTER_HPP__
+#ifndef __AXOM_BUMP_MESH_TESTER_HPP__
+#define __AXOM_BUMP_MESH_TESTER_HPP__
 
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slam.hpp"  // unified header for slam classes and functions
@@ -24,12 +24,12 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 /*!
  * \class MeshTester
  * 
- * \brief A class used to generate MIRMeshs with specific properties so
+ * \brief A class used to generate meshes with specific properties so
  *        that the reconstruction output can be validated visually.
  * 
  */
@@ -190,7 +190,7 @@ private:
   bool m_structured {false};
 };
 
-}  // namespace mir
+}  // namespace bump
 }  // namespace axom
 
 #endif

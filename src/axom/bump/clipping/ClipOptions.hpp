@@ -2,14 +2,14 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_CLIP_OPTIONS_HPP_
-#define AXOM_MIR_CLIP_OPTIONS_HPP_
+#ifndef AXOM_BUMP_CLIP_OPTIONS_HPP_
+#define AXOM_BUMP_CLIP_OPTIONS_HPP_
 
-#include "axom/mir/Options.hpp"
+#include "axom/bump/Options.hpp"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace clipping
 {
@@ -17,7 +17,7 @@ namespace clipping
  * \brief This class provides a kind of schema over the clipping options, as well
  *        as default values, and some utilities functions.
  */
-class ClipOptions : public axom::mir::Options
+class ClipOptions : public axom::bump::Options
 {
 public:
   /**
@@ -25,7 +25,7 @@ public:
    *
    * \param options The node that contains the clipping options.
    */
-  ClipOptions(const conduit::Node &options) : axom::mir::Options(options) { }
+  ClipOptions(const conduit::Node &options) : axom::bump::Options(options) { }
 
   /**
    * \brief Return the name of the field used for clipping.
@@ -102,7 +102,7 @@ private:
 };
 
 }  // end namespace clipping
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

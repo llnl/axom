@@ -2,8 +2,8 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_OPTIONS_HPP_
-#define AXOM_MIR_OPTIONS_HPP_
+#ifndef AXOM_BUMP_OPTIONS_HPP_
+#define AXOM_BUMP_OPTIONS_HPP_
 
 #include "axom/core.hpp"
 
@@ -12,7 +12,7 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 /*!
  * \brief This class provides a kind of schema over options, as well
@@ -105,7 +105,7 @@ public:
 protected:
   const conduit::Node &m_options;  // A reference to the options node.
 };
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

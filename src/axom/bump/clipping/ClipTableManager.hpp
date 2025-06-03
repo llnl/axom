@@ -3,16 +3,16 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_CLIPPING_CLIP_TABLE_MANAGER_HPP_
-#define AXOM_MIR_CLIPPING_CLIP_TABLE_MANAGER_HPP_
+#ifndef AXOM_BUMP_CLIPPING_CLIP_TABLE_MANAGER_HPP_
+#define AXOM_BUMP_CLIPPING_CLIP_TABLE_MANAGER_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/mir/clipping/ClipCases.h"
+#include "axom/bump/clipping/ClipCases.h"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace clipping
 {
@@ -468,51 +468,51 @@ private:
     {
       if(shape == ST_TRI)
       {
-        m_tables[index].load(axom::mir::clipping::visit::numClipCasesTri,
-                             axom::mir::clipping::visit::numClipShapesTri,
-                             axom::mir::clipping::visit::startClipShapesTri,
-                             axom::mir::clipping::visit::clipShapesTri,
-                             axom::mir::clipping::visit::clipShapesTriSize);
+        m_tables[index].load(axom::bump::clipping::visit::numClipCasesTri,
+                             axom::bump::clipping::visit::numClipShapesTri,
+                             axom::bump::clipping::visit::startClipShapesTri,
+                             axom::bump::clipping::visit::clipShapesTri,
+                             axom::bump::clipping::visit::clipShapesTriSize);
       }
       else if(shape == ST_QUA)
       {
-        m_tables[index].load(axom::mir::clipping::visit::numClipCasesQua,
-                             axom::mir::clipping::visit::numClipShapesQua,
-                             axom::mir::clipping::visit::startClipShapesQua,
-                             axom::mir::clipping::visit::clipShapesQua,
-                             axom::mir::clipping::visit::clipShapesQuaSize);
+        m_tables[index].load(axom::bump::clipping::visit::numClipCasesQua,
+                             axom::bump::clipping::visit::numClipShapesQua,
+                             axom::bump::clipping::visit::startClipShapesQua,
+                             axom::bump::clipping::visit::clipShapesQua,
+                             axom::bump::clipping::visit::clipShapesQuaSize);
       }
       else if(shape == ST_TET)
       {
-        m_tables[index].load(axom::mir::clipping::visit::numClipCasesTet,
-                             axom::mir::clipping::visit::numClipShapesTet,
-                             axom::mir::clipping::visit::startClipShapesTet,
-                             axom::mir::clipping::visit::clipShapesTet,
-                             axom::mir::clipping::visit::clipShapesTetSize);
+        m_tables[index].load(axom::bump::clipping::visit::numClipCasesTet,
+                             axom::bump::clipping::visit::numClipShapesTet,
+                             axom::bump::clipping::visit::startClipShapesTet,
+                             axom::bump::clipping::visit::clipShapesTet,
+                             axom::bump::clipping::visit::clipShapesTetSize);
       }
       else if(shape == ST_PYR)
       {
-        m_tables[index].load(axom::mir::clipping::visit::numClipCasesPyr,
-                             axom::mir::clipping::visit::numClipShapesPyr,
-                             axom::mir::clipping::visit::startClipShapesPyr,
-                             axom::mir::clipping::visit::clipShapesPyr,
-                             axom::mir::clipping::visit::clipShapesPyrSize);
+        m_tables[index].load(axom::bump::clipping::visit::numClipCasesPyr,
+                             axom::bump::clipping::visit::numClipShapesPyr,
+                             axom::bump::clipping::visit::startClipShapesPyr,
+                             axom::bump::clipping::visit::clipShapesPyr,
+                             axom::bump::clipping::visit::clipShapesPyrSize);
       }
       else if(shape == ST_WDG)
       {
-        m_tables[index].load(axom::mir::clipping::visit::numClipCasesWdg,
-                             axom::mir::clipping::visit::numClipShapesWdg,
-                             axom::mir::clipping::visit::startClipShapesWdg,
-                             axom::mir::clipping::visit::clipShapesWdg,
-                             axom::mir::clipping::visit::clipShapesWdgSize);
+        m_tables[index].load(axom::bump::clipping::visit::numClipCasesWdg,
+                             axom::bump::clipping::visit::numClipShapesWdg,
+                             axom::bump::clipping::visit::startClipShapesWdg,
+                             axom::bump::clipping::visit::clipShapesWdg,
+                             axom::bump::clipping::visit::clipShapesWdgSize);
       }
       else if(shape == ST_HEX)
       {
-        m_tables[index].load(axom::mir::clipping::visit::numClipCasesHex,
-                             axom::mir::clipping::visit::numClipShapesHex,
-                             axom::mir::clipping::visit::startClipShapesHex,
-                             axom::mir::clipping::visit::clipShapesHex,
-                             axom::mir::clipping::visit::clipShapesHexSize);
+        m_tables[index].load(axom::bump::clipping::visit::numClipCasesHex,
+                             axom::bump::clipping::visit::numClipShapesHex,
+                             axom::bump::clipping::visit::startClipShapesHex,
+                             axom::bump::clipping::visit::clipShapesHex,
+                             axom::bump::clipping::visit::clipShapesHexSize);
       }
     }
   }
@@ -521,7 +521,7 @@ private:
 };
 
 }  // end namespace clipping
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

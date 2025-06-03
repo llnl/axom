@@ -7,7 +7,7 @@
 // Axom modifications
 // clang-format off
 namespace axom {
-namespace mir {
+namespace bump {
 namespace clipping {
 namespace visit {
 //---------------------------------------------------------------------------
@@ -99,7 +99,7 @@ unsigned char clipShapesQua[] = {
 const size_t clipShapesQuaSize = sizeof(clipShapesQua) / sizeof(unsigned char);
 } // namespace visit
 } // namespace clipping
-} // namespace mir
+} // namespace bump
 } // namespace axom
 // clang-format on
 //---------------------------------------------------------------------------

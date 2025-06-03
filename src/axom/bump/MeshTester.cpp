@@ -4,16 +4,16 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "MeshTester.hpp"
-#include "axom/mir.hpp"
+#include "axom/bump.hpp"
 
 namespace numerics = axom::numerics;
 namespace slam = axom::slam;
-namespace bputils = axom::mir::utilities::blueprint;
-using namespace axom::mir::views;
+namespace bputils = axom::bump::utilities::blueprint;
+using namespace axom::bump::views;
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 //--------------------------------------------------------------------------------
 /*!
@@ -475,11 +475,11 @@ void MeshTester::initTestCaseFour(conduit::Node& mesh)
   mesh3x3(mesh);
 
   // Make views
-  using CoordsetView = axom::mir::views::ExplicitCoordsetView<float, 2>;
+  using CoordsetView = axom::bump::views::ExplicitCoordsetView<float, 2>;
   CoordsetView coordsetView(bputils::make_array_view<float>(mesh["coordsets/coords/values/x"]),
                             bputils::make_array_view<float>(mesh["coordsets/coords/values/y"]));
   using TopoView =
-    axom::mir::views::UnstructuredTopologySingleShapeView<axom::mir::views::QuadShape<int>>;
+    axom::bump::views::UnstructuredTopologySingleShapeView<axom::bump::views::QuadShape<int>>;
   TopoView topoView(bputils::make_array_view<int>(mesh["topologies/mesh/elements/connectivity"]));
 
   // Add material
@@ -504,11 +504,11 @@ void MeshTester::createUniformGridTestCaseMesh(int gridSize,
   generateGrid(gridSize, mesh);
 
   // Make views
-  using CoordsetView = axom::mir::views::ExplicitCoordsetView<float, 2>;
+  using CoordsetView = axom::bump::views::ExplicitCoordsetView<float, 2>;
   CoordsetView coordsetView(bputils::make_array_view<float>(mesh["coordsets/coords/values/x"]),
                             bputils::make_array_view<float>(mesh["coordsets/coords/values/y"]));
   using TopoView =
-    axom::mir::views::UnstructuredTopologySingleShapeView<axom::mir::views::QuadShape<int>>;
+    axom::bump::views::UnstructuredTopologySingleShapeView<axom::bump::views::QuadShape<int>>;
   TopoView topoView(bputils::make_array_view<int>(mesh["topologies/mesh/elements/connectivity"]));
 
   // Add material
@@ -778,7 +778,7 @@ void MeshTester::initTestCaseFive(int gridSize, int numCircles, conduit::Node& m
 
   if(m_structured)
   {
-    auto topologyView = axom::mir::views::make_structured_topology<2>::view(n_topology);
+    auto topologyView = axom::bump::views::make_structured_topology<2>::view(n_topology);
     using TopologyView = decltype(topologyView);
 
     addConcentricCircleMaterial<TopologyView, CoordsetView>(topologyView,
@@ -890,7 +890,7 @@ void MeshTester::initTestCaseSix(int gridSize, int numSpheres, conduit::Node& me
   std::vector<std::vector<axom::float64>> materialVolumeFractionsData;
   if(m_structured)
   {
-    auto topologyView = axom::mir::views::make_structured_topology<3>::view(n_topology);
+    auto topologyView = axom::bump::views::make_structured_topology<3>::view(n_topology);
 
     generateSphericalVolumeFractions(topologyView,
                                      coordsetView,
@@ -1006,5 +1006,5 @@ void MeshTester::generateGrid3D(int gridSize, conduit::Node& mesh)
 
 //--------------------------------------------------------------------------------
 
-}  // namespace mir
+}  // namespace bump
 }  // namespace axom

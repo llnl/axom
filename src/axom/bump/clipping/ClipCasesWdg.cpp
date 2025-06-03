@@ -7,7 +7,7 @@
 // Axom modifications
 // clang-format off
 namespace axom {
-namespace mir {
+namespace bump {
 namespace clipping {
 namespace visit {
 //---------------------------------------------------------------------------
@@ -619,7 +619,7 @@ unsigned char clipShapesWdg[] = {
 const size_t clipShapesWdgSize = sizeof(clipShapesWdg) / sizeof(unsigned char);
 } // namespace visit
 } // namespace clipping
-} // namespace mir
+} // namespace bump
 } // namespace axom
 // clang-format on
 //---------------------------------------------------------------------------

@@ -2,17 +2,17 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_BLEND_GROUP_BUILDER_HPP_
-#define AXOM_MIR_BLEND_GROUP_BUILDER_HPP_
+#ifndef AXOM_BUMP_BLEND_GROUP_BUILDER_HPP_
+#define AXOM_BUMP_BLEND_GROUP_BUILDER_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir/utilities/utilities.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
-#include "axom/mir/utilities/BlendData.hpp"
+#include "axom/bump/utilities/utilities.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/BlendData.hpp"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace clipping
 {
@@ -307,7 +307,7 @@ public:
     AXOM_HOST_DEVICE
     inline IndexType uniqueBlendGroupIndex() const
     {
-      return axom::mir::utilities::bsearch(name(), m_state->m_blendUniqueNamesView);
+      return axom::bump::utilities::bsearch(name(), m_state->m_blendUniqueNamesView);
     }
 
     /*!
@@ -487,9 +487,9 @@ public:
    *
    * \return A BlendData object suitable for making new fields and coordsets.
    */
-  axom::mir::utilities::blueprint::BlendData makeBlendData() const
+  axom::bump::utilities::blueprint::BlendData makeBlendData() const
   {
-    axom::mir::utilities::blueprint::BlendData blend;
+    axom::bump::utilities::blueprint::BlendData blend;
 
     blend.m_selectedIndicesView =
       m_state.m_blendUniqueIndicesView;  // We'll use these to select just the unique indices
@@ -506,7 +506,7 @@ private:
 };
 
 }  // end namespace clipping
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif
