@@ -2,15 +2,15 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_MERGE_COORDSET_POINTS_HPP_
-#define AXOM_MIR_MERGE_COORDSET_POINTS_HPP_
+#ifndef AXOM_BUMP_MERGE_COORDSET_POINTS_HPP_
+#define AXOM_BUMP_MERGE_COORDSET_POINTS_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/mir/utilities/utilities.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
-#include "axom/mir/utilities/CoordsetSlicer.hpp"
-#include "axom/mir/utilities/CoordsetExtents.hpp"
+#include "axom/bump/utilities/utilities.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/CoordsetSlicer.hpp"
+#include "axom/bump/utilities/CoordsetExtents.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -35,11 +35,9 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 namespace detail
 {
@@ -131,7 +129,7 @@ public:
                axom::Array<axom::IndexType> &selectedIds,
                axom::Array<axom::IndexType> &old2new) const
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
     // If the coordset is not explicit then there is nothing to do.
@@ -143,7 +141,7 @@ public:
 
     // Adjust the name of the timer so we can see the coordinate type.
     AXOM_ANNOTATE_SCOPE(
-      axom::fmt::format("MergeCoordsetPoints<{}>", bputils::cpp2conduit<value_type>::name));
+      axom::fmt::format("MergeCoordsetPoints<{}>", utils::cpp2conduit<value_type>::name));
 
     // Get any options.
     constexpr double DEFAULT_TOLERANCE = std::is_same<value_type, float>::value
@@ -168,7 +166,7 @@ public:
 
     // Make points unique.
     axom::Array<KeyType> uniqueNames;
-    axom::mir::utilities::Unique<ExecSpace, KeyType>::execute(coordNamesView, uniqueNames, selectedIds);
+    axom::bump::utilities::Unique<ExecSpace, KeyType>::execute(coordNamesView, uniqueNames, selectedIds);
     const auto uniqueNamesView = uniqueNames.view();
     const auto selectedIdsView = selectedIds.view();
     AXOM_ANNOTATE_END("unique");
@@ -190,7 +188,7 @@ public:
         nnodes,
         AXOM_LAMBDA(axom::IndexType index) {
           const auto newNodeId =
-            axom::mir::utilities::bsearch(coordNamesView[index], uniqueNamesView);
+            axom::bump::utilities::bsearch(coordNamesView[index], uniqueNamesView);
           SLIC_ASSERT(newNodeId >= 0 && newNodeId < nnodes);
           old2newView[index] = newNodeId;
         });
@@ -199,8 +197,8 @@ public:
       //--------------------------------------------------------------------------
       // Use the selectedIds to slice the coordset to make a new coordset that
       // replaces the old one.
-      bputils::CoordsetSlicer<ExecSpace, CoordsetView> css(m_coordsetView);
-      bputils::SliceData slice;
+      utils::CoordsetSlicer<ExecSpace, CoordsetView> css(m_coordsetView);
+      utils::SliceData slice;
       slice.m_indicesView = selectedIdsView;
       conduit::Node n_sliced;
       css.execute(slice, n_coordset, n_sliced);
@@ -236,7 +234,7 @@ public:
 
       // Write files to examine the input and output coordsets.
       conduit::Node n_host;
-      bputils::copy<SEQ_EXEC>(n_host, n_mesh);
+      utils::copy<SEQ_EXEC>(n_host, n_mesh);
       std::string name(axom::execution_space<ExecSpace>::name());
       name = name.substr(1, 3);
       conduit::relay::io::blueprint::save_mesh(n_host, "merge_coordset_points_" + name, "hdf5");
@@ -330,7 +328,7 @@ public:
         // Make a name for this point
         const void *tptr = static_cast<const void *>(truncated);
         coordNamesView[index] =
-          axom::mir::utilities::hash_bytes(static_cast<const std::uint8_t *>(tptr),
+          axom::bump::utilities::hash_bytes(static_cast<const std::uint8_t *>(tptr),
                                            sizeof(Precision) * CoordsetView::dimension());
       });
   }
@@ -338,9 +336,8 @@ public:
   CoordsetView m_coordsetView;
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

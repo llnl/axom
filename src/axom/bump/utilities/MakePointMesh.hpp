@@ -2,23 +2,21 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MAKE_POINT_MESH_
-#define AXOM_MAKE_POINT_MESH_
+#ifndef AXOM_BUMP_MAKE_POINT_MESH_
+#define AXOM_BUMP_MAKE_POINT_MESH_
 
 #include "axom/core.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
-#include "axom/mir/utilities/MakeZoneCenters.hpp"
-#include "axom/mir/Options.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/MakeZoneCenters.hpp"
+#include "axom/bump/Options.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 
 /*!
@@ -83,13 +81,13 @@ struct MakePointMesh
                conduit::Node &n_output) const
   {
     AXOM_ANNOTATE_SCOPE("ConvertToPointMesh");
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     using ConnectivityType = typename TopologyView::ConnectivityType;
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    axom::mir::Options opts(n_options);
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    axom::bump::Options opts(n_options);
 
     // Make zone centers to use for the new coordset.
-    bputils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView,
+    utils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView,
                                                                        m_coordsetView);
     conduit::Node zcfield;
     zc.execute(selectedZonesView, n_topology, n_coordset, zcfield);
@@ -110,18 +108,18 @@ struct MakePointMesh
     n_output_topo["elements/shape"] = "point";
     conduit::Node &n_conn = n_output_topo["elements/connectivity"];
     n_conn.set_allocator(c2a.getConduitAllocatorID());
-    n_conn.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numPoints));
-    auto connectivity = bputils::make_array_view<ConnectivityType>(n_conn);
+    n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numPoints));
+    auto connectivity = utils::make_array_view<ConnectivityType>(n_conn);
 
     conduit::Node &n_sizes = n_output_topo["elements/sizes"];
     n_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_sizes.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numPoints));
-    auto sizes = bputils::make_array_view<ConnectivityType>(n_sizes);
+    n_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numPoints));
+    auto sizes = utils::make_array_view<ConnectivityType>(n_sizes);
 
     conduit::Node &n_offsets = n_output_topo["elements/offsets"];
     n_offsets.set_allocator(c2a.getConduitAllocatorID());
-    n_offsets.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numPoints));
-    auto offsets = bputils::make_array_view<ConnectivityType>(n_offsets);
+    n_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numPoints));
+    auto offsets = utils::make_array_view<ConnectivityType>(n_offsets);
     AXOM_ANNOTATE_END("allocate");
 
     // Build the point mesh
@@ -141,9 +139,8 @@ private:
   CoordsetView m_coordsetView;
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

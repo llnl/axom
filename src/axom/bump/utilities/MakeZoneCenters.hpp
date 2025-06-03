@@ -2,11 +2,12 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_MAKE_ZONE_CENTERS_HPP_
-#define AXOM_MIR_MAKE_ZONE_CENTERS_HPP_
+#ifndef AXOM_BUMP_MAKE_ZONE_CENTERS_HPP_
+#define AXOM_BUMP_MAKE_ZONE_CENTERS_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/slic.hpp"
@@ -16,12 +17,11 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
 {
-namespace blueprint
-{
+
 /*!
  * \brief Makes a centroids field using the input topology and coordset views.
  *
@@ -97,10 +97,10 @@ public:
     using value_type = typename CoordsetView::value_type;
     using PointType = typename CoordsetView::PointType;
     using VectorType = axom::primal::Vector<value_type, PointType::DIMENSION>;
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
 
     // Get the axis names for the output components.
-    std::vector<std::string> axes(bputils::coordsetAxes(n_coordset));
+    std::vector<std::string> axes(utils::coordsetAxes(n_coordset));
 
     const auto nComponents = axes.size();
     SLIC_ASSERT(PointType::DIMENSION == nComponents);
@@ -123,9 +123,9 @@ public:
       // Allocate data in the Conduit node and make a view.
       conduit::Node &comp = n_values[axes[i]];
       comp.set_allocator(c2a.getConduitAllocatorID());
-      comp.set(conduit::DataType(axom::mir::utilities::blueprint::cpp2conduit<value_type>::id,
+      comp.set(conduit::DataType(utils::cpp2conduit<value_type>::id,
                                  outputSize));
-      compViews[i] = bputils::make_array_view<value_type>(comp);
+      compViews[i] = utils::make_array_view<value_type>(comp);
     }
 
     const TopologyView deviceTopoView(m_topologyView);
@@ -162,9 +162,8 @@ private:
   CoordsetView m_coordsetView;
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

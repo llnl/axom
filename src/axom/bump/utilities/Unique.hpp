@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_UTILITIES_UNIQUE_HPP_
-#define AXOM_MIR_UTILITIES_UNIQUE_HPP_
+#ifndef AXOM_BUMP_UTILITIES_UNIQUE_HPP_
+#define AXOM_BUMP_UTILITIES_UNIQUE_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
@@ -14,6 +14,7 @@
 
 #include <cstdint>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 // Uncomment this to print debug data.
@@ -21,7 +22,7 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
 {
@@ -246,7 +247,7 @@ struct Unique<axom::SEQ_EXEC, KeyType>
 };
 
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

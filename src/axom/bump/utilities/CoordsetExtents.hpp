@@ -2,23 +2,21 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_COORDSET_EXTENTS_HPP_
-#define AXOM_MIR_COORDSET_EXTENTS_HPP_
+#ifndef AXOM_BUMP_COORDSET_EXTENTS_HPP_
+#define AXOM_BUMP_COORDSET_EXTENTS_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/mir/views/UniformCoordsetView.hpp"
-#include "axom/mir/views/RectilinearCoordsetView.hpp"
+#include "axom/bump/views/UniformCoordsetView.hpp"
+#include "axom/bump/views/RectilinearCoordsetView.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 namespace detail
 {
@@ -72,9 +70,9 @@ struct ComputeCoordsetExtents
  * Specialization for UniformCoordsetView that does less work.
  */
 template <typename ExecSpace, typename DataType, int NDIMS>
-struct ComputeCoordsetExtents<ExecSpace, axom::mir::views::UniformCoordsetView<DataType, NDIMS>, DataType, NDIMS>
+struct ComputeCoordsetExtents<ExecSpace, axom::bump::views::UniformCoordsetView<DataType, NDIMS>, DataType, NDIMS>
 {
-  using CoordsetView = axom::mir::views::UniformCoordsetView<DataType, NDIMS>;
+  using CoordsetView = axom::bump::views::UniformCoordsetView<DataType, NDIMS>;
 
   /*!
    * \brief Compute the spatial extents of the coordset into a device array.
@@ -103,16 +101,16 @@ template <typename ExecSpace, typename DataType, int NDIMS>
 class ComputeCoordsetExtents<
   ExecSpace,
   typename std::conditional<NDIMS == 3,
-                            axom::mir::views::RectilinearCoordsetView3<DataType>,
-                            axom::mir::views::RectilinearCoordsetView2<DataType>>::type,
+                            axom::bump::views::RectilinearCoordsetView3<DataType>,
+                            axom::bump::views::RectilinearCoordsetView2<DataType>>::type,
   DataType,
   NDIMS>
 {
 public:
   using CoordsetView =
     typename std::conditional<NDIMS == 3,
-                              axom::mir::views::RectilinearCoordsetView3<DataType>,
-                              axom::mir::views::RectilinearCoordsetView2<DataType>>::type;
+                              axom::bump::views::RectilinearCoordsetView3<DataType>,
+                              axom::bump::views::RectilinearCoordsetView2<DataType>>::type;
 
   /*!
    * \brief Compute the spatial extents of the coordset into a device array.
@@ -162,7 +160,6 @@ public:
    */
   void execute(double extents[NVALUES]) const
   {
-    namespace bputils = axom::mir::utilities::blueprint;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     axom::Array<double> deviceExtents(NVALUES, NVALUES, allocatorID);
     auto deviceExtentsView = deviceExtents.view();
@@ -193,9 +190,8 @@ public:
   CoordsetView m_coordsetView;
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

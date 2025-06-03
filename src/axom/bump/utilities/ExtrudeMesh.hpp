@@ -3,11 +3,11 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_EXTRUDE_MESH_HPP_
-#define AXOM_MIR_EXTRUDE_MESH_HPP_
+#ifndef AXOM_BUMP_EXTRUDE_MESH_HPP_
+#define AXOM_BUMP_EXTRUDE_MESH_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir.hpp"
+#include "axom/bump.hpp"
 
 #include <conduit.hpp>
 
@@ -15,11 +15,9 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 
 /*!
@@ -69,7 +67,8 @@ public:
    */
   void execute(const conduit::Node &n_mesh, const conduit::Node &n_options, conduit::Node &n_output) const
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
+    namespace views = axom::bump::views;
     AXOM_ANNOTATE_SCOPE("Extrude::execute");
     int nz = n_options.has_child("nz") ? n_options["nz"].to_int() : 2;
 
@@ -96,12 +95,12 @@ public:
         const auto zone = topoView.zone(zi);
         switch(zone.id())
         {
-        case axom::mir::views::Tri_ShapeID:
-          zoneTypeReduce |= static_cast<int>(1 << axom::mir::views::Wedge_ShapeID);
+        case views::Tri_ShapeID:
+          zoneTypeReduce |= static_cast<int>(1 << views::Wedge_ShapeID);
           connSizeReduce += 6;
           break;
-        case axom::mir::views::Quad_ShapeID:
-          zoneTypeReduce |= static_cast<int>(1 << axom::mir::views::Hex_ShapeID);
+        case views::Quad_ShapeID:
+          zoneTypeReduce |= static_cast<int>(1 << views::Hex_ShapeID);
           connSizeReduce += 8;
           break;
         default:
@@ -116,7 +115,7 @@ public:
     const axom::IndexType totalNodes =
       static_cast<axom::IndexType>(nz) * m_coordsetView.numberOfNodes();
 
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     // Create the new coordset.
     AXOM_ANNOTATE_BEGIN("coordset");
@@ -129,8 +128,8 @@ public:
     {
       conduit::Node &n_value = n_outputCoordset[coordNames[d]];
       n_value.set_allocator(c2a.getConduitAllocatorID());
-      n_value.set(conduit::DataType(bputils::cpp2conduit<value_type>::id, totalNodes));
-      values[d] = bputils::make_array_view<value_type>(n_value);
+      n_value.set(conduit::DataType(utils::cpp2conduit<value_type>::id, totalNodes));
+      values[d] = utils::make_array_view<value_type>(n_value);
     }
     const CoordsetView coordsetView = m_coordsetView;
     const auto nnodes = coordsetView.numberOfNodes();
@@ -161,20 +160,20 @@ public:
     int count = axom::utilities::popcount(shapes);
     if(count > 1)
     {
-      if(axom::utilities::bitIsSet(shapes, axom::mir::views::Wedge_ShapeID))
-        n_outputTopo["elements/shape_map/wedge"] = axom::mir::views::Wedge_ShapeID;
+      if(axom::utilities::bitIsSet(shapes, views::Wedge_ShapeID))
+        n_outputTopo["elements/shape_map/wedge"] = views::Wedge_ShapeID;
 
-      if(axom::utilities::bitIsSet(shapes, axom::mir::views::Hex_ShapeID))
-        n_outputTopo["elements/shape_map/hex"] = axom::mir::views::Hex_ShapeID;
+      if(axom::utilities::bitIsSet(shapes, views::Hex_ShapeID))
+        n_outputTopo["elements/shape_map/hex"] = views::Hex_ShapeID;
 
       n_outputTopo["elements/shape"] = "mixed";
     }
     else
     {
-      if(axom::utilities::bitIsSet(shapes, axom::mir::views::Wedge_ShapeID))
+      if(axom::utilities::bitIsSet(shapes, views::Wedge_ShapeID))
         n_outputTopo["elements/shape"] = "wedge";
 
-      if(axom::utilities::bitIsSet(shapes, axom::mir::views::Hex_ShapeID))
+      if(axom::utilities::bitIsSet(shapes, views::Hex_ShapeID))
         n_outputTopo["elements/shape"] = "hex";
     }
 
@@ -189,15 +188,15 @@ public:
     n_sizes.set_allocator(c2a.getConduitAllocatorID());
     n_offsets.set_allocator(c2a.getConduitAllocatorID());
 
-    n_connectivity.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, totalConnSize));
-    n_shapes.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, totalZones));
-    n_sizes.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, totalZones));
-    n_offsets.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, totalZones));
+    n_connectivity.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalConnSize));
+    n_shapes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalZones));
+    n_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalZones));
+    n_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalZones));
 
-    auto connView = bputils::make_array_view<ConnectivityType>(n_connectivity);
-    auto shapesView = bputils::make_array_view<ConnectivityType>(n_shapes);
-    auto sizesView = bputils::make_array_view<ConnectivityType>(n_sizes);
-    auto offsetsView = bputils::make_array_view<ConnectivityType>(n_offsets);
+    auto connView = utils::make_array_view<ConnectivityType>(n_connectivity);
+    auto shapesView = utils::make_array_view<ConnectivityType>(n_shapes);
+    auto sizesView = utils::make_array_view<ConnectivityType>(n_sizes);
+    auto offsetsView = utils::make_array_view<ConnectivityType>(n_offsets);
 
     // Q: Would it be better to reverse loops like this?
     axom::IndexType zOffset = 0;
@@ -210,14 +209,14 @@ public:
           const auto destIndex = zOffset + zi;
           switch(zone.id())
           {
-          case axom::mir::views::Tri_ShapeID:
+          case views::Tri_ShapeID:
           {
-            shapesView[destIndex] = axom::mir::views::Wedge_ShapeID;
+            shapesView[destIndex] = views::Wedge_ShapeID;
             sizesView[destIndex] = 6;
           }
           break;
-          case axom::mir::views::Quad_ShapeID:
-            shapesView[destIndex] = axom::mir::views::Hex_ShapeID;
+          case views::Quad_ShapeID:
+            shapesView[destIndex] = views::Hex_ShapeID;
             sizesView[destIndex] = 8;
             break;
           default:
@@ -245,7 +244,7 @@ public:
           const auto highNodeOffset = lowNodeOffset + nnodes;
           switch(zone.id())
           {
-          case axom::mir::views::Tri_ShapeID:
+          case views::Tri_ShapeID:
           {
             connView[offset] = lowNodeOffset + zone.getId(0);
             connView[offset + 1] = lowNodeOffset + zone.getId(1);
@@ -255,7 +254,7 @@ public:
             connView[offset + 5] = highNodeOffset + zone.getId(2);
           }
           break;
-          case axom::mir::views::Quad_ShapeID:
+          case views::Quad_ShapeID:
             connView[offset] = lowNodeOffset + zone.getId(0);
             connView[offset + 1] = lowNodeOffset + zone.getId(1);
             connView[offset + 2] = lowNodeOffset + zone.getId(2);
@@ -333,7 +332,8 @@ private:
                      const std::string &outputTopoName,
                      int nz) const
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
+    namespace views = axom::bump::views;
     AXOM_ANNOTATE_SCOPE("matset");
 
     const conduit::Node &n_materialMap = n_srcMatset["material_map"];
@@ -354,7 +354,7 @@ private:
     conduit::Node &n_sizes = n_outputMatset["sizes"];
     conduit::Node &n_offsets = n_outputMatset["offsets"];
 
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
     n_material_ids.set_allocator(c2a.getConduitAllocatorID());
     n_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
     n_indices.set_allocator(c2a.getConduitAllocatorID());
@@ -374,11 +374,11 @@ private:
                                     n_src_offsets.dtype().number_of_elements() * (nz - 1)));
 
     // Extrude the old arrays into the new arrays.
-    axom::mir::views::FloatNode_to_ArrayView_same(
+    views::FloatNode_to_ArrayView_same(
       n_src_volume_fractions,
       n_volume_fractions,
       [&](auto srcVolumeFractionsView, auto volumeFractionsView) {
-        axom::mir::views::IndexNode_to_ArrayView_same(n_src_material_ids,
+        views::IndexNode_to_ArrayView_same(n_src_material_ids,
                                                       n_src_indices,
                                                       n_src_sizes,
                                                       n_src_offsets,
@@ -460,9 +460,8 @@ private:
   CoordsetView m_coordsetView;
 };
 
-}  // namespace blueprint
 }  // namespace utilities
-}  // namespace mir
+}  // namespace bump
 }  // namespace axom
 
 #endif

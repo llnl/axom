@@ -2,24 +2,22 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_FIELD_BLENDER_HPP_
-#define AXOM_MIR_FIELD_BLENDER_HPP_
+#ifndef AXOM_BUMP_FIELD_BLENDER_HPP_
+#define AXOM_BUMP_MIR_FIELD_BLENDER_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir/views/NodeArrayView.hpp"
-#include "axom/mir/utilities/utilities.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
-#include "axom/mir/utilities/BlendData.hpp"
+#include "axom/bump/views/NodeArrayView.hpp"
+#include "axom/bump/utilities/utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/BlendData.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 /*!
  * \brief This policy can be used with FieldBlender to select all blend groups.
@@ -133,7 +131,7 @@ private:
     const auto outputSize = origSize + blendSize;
 
     // Allocate Conduit data through Axom.
-    utilities::blueprint::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    ConduitAllocateThroughAxom<ExecSpace> c2a;
     n_output_values.set_allocator(c2a.getConduitAllocatorID());
     n_output_values.set(conduit::DataType(n_values.dtype().id(), outputSize));
 
@@ -156,7 +154,7 @@ private:
   void blendSingleComponentImpl(const BlendData &blend, SrcView compView, OutputView outView) const
   {
     using value_type = typename decltype(compView)::value_type;
-    using accum_type = typename axom::mir::utilities::accumulation_traits<value_type>::type;
+    using accum_type = typename axom::bump::utilities::accumulation_traits<value_type>::type;
 
     // We're allowing selectedIndicesView to be used to select specific blend
     // groups. If the user did not provide that, use all blend groups.
@@ -214,9 +212,8 @@ private:
   IndexingPolicy m_indexing {};
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

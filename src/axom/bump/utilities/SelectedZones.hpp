@@ -2,8 +2,8 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_SELECTED_ZONES_HPP_
-#define AXOM_MIR_SELECTED_ZONES_HPP_
+#ifndef AXOM_BUMP_SELECTED_ZONES_HPP_
+#define AXOM_BUMP_SELECTED_ZONES_HPP_
 
 #include "axom/core.hpp"
 
@@ -11,11 +11,9 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 
 /*!
@@ -171,9 +169,8 @@ protected:
   bool m_sorted;
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

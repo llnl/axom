@@ -3,21 +3,19 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_UTILITIES_PRIMAL_ADAPTOR_HPP_
-#define AXOM_MIR_UTILITIES_PRIMAL_ADAPTOR_HPP_
+#ifndef AXOM_BUMP_UTILITIES_PRIMAL_ADAPTOR_HPP_
+#define AXOM_BUMP_UTILITIES_PRIMAL_ADAPTOR_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
-#include "axom/mir/utilities/VariableShape.hpp"
+#include "axom/bump/utilities/VariableShape.hpp"
 #include "axom/primal.hpp"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 
 /*!
@@ -202,7 +200,7 @@ struct AdaptPolyhedron
                 seenNeighbors.push_back(candidates[ci]);
 
                 // Look up the index of the candidate point in the sorted indices.
-                auto neighborIndex = axom::mir::utilities::bsearch(candidates[ci], ids);
+                auto neighborIndex = axom::bump::utilities::bsearch(candidates[ci], ids);
                 SLIC_ASSERT(neighborIndex != -1);
 
                 poly.addNeighbors(i, neighborIndex);
@@ -386,7 +384,7 @@ struct PrimalAdaptor
   template <int TDIM = CoordsetView::dimension(), typename ShapeType = typename TopologyView::ShapeType>
   AXOM_HOST_DEVICE typename std::enable_if<
     TDIM == 3 &&
-      std::is_same<ShapeType, axom::mir::views::TetShape<typename ShapeType::ConnectivityStorage>>::value,
+      std::is_same<ShapeType, axom::bump::views::TetShape<typename ShapeType::ConnectivityStorage>>::value,
     Tetrahedron>::type
   getShape(axom::IndexType zi) const
   {
@@ -407,7 +405,7 @@ struct PrimalAdaptor
   template <int TDIM = CoordsetView::dimension(), typename ShapeType = typename TopologyView::ShapeType>
   AXOM_HOST_DEVICE typename std::enable_if<
     TDIM == 3 &&
-      std::is_same<ShapeType, axom::mir::views::HexShape<typename ShapeType::ConnectivityStorage>>::value,
+      std::is_same<ShapeType, axom::bump::views::HexShape<typename ShapeType::ConnectivityStorage>>::value,
     Hexahedron>::type
   getShape(axom::IndexType zi) const
   {
@@ -435,9 +433,9 @@ struct PrimalAdaptor
   template <int TDIM = CoordsetView::dimension(), typename ShapeType = typename TopologyView::ShapeType>
   AXOM_HOST_DEVICE typename std::enable_if<
     (TDIM == 3) &&
-      (std::is_same<ShapeType, axom::mir::views::PyramidShape<typename ShapeType::ConnectivityType>>::value ||
-       std::is_same<ShapeType, axom::mir::views::WedgeShape<typename ShapeType::ConnectivityType>>::value ||
-       std::is_same<ShapeType, axom::mir::views::VariableShape<typename ShapeType::ConnectivityType>>::value),
+      (std::is_same<ShapeType, axom::bump::views::PyramidShape<typename ShapeType::ConnectivityType>>::value ||
+       std::is_same<ShapeType, axom::bump::views::WedgeShape<typename ShapeType::ConnectivityType>>::value ||
+       std::is_same<ShapeType, axom::bump::views::VariableShape<typename ShapeType::ConnectivityType>>::value),
     VariableShape<value_type, 3>>::type
   getShape(axom::IndexType zi) const
   {
@@ -472,9 +470,8 @@ struct PrimalAdaptor
   CoordsetView m_coordsetView;
 };
 
-}  // namespace blueprint
 }  // namespace utilities
-}  // namespace mir
+}  // namespace bump
 }  // namespace axom
 
 #endif

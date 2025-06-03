@@ -3,15 +3,15 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_NODE_TO_ZONE_RELATION_BUILDER_HPP_
-#define AXOM_MIR_NODE_TO_ZONE_RELATION_BUILDER_HPP_
+#ifndef AXOM_BUMP_NODE_TO_ZONE_RELATION_BUILDER_HPP_
+#define AXOM_BUMP_NODE_TO_ZONE_RELATION_BUILDER_HPP_
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/mir/utilities/utilities.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
-#include "axom/mir/views/dispatch_unstructured_topology.hpp"
-#include "axom/mir/utilities/MakeUnstructured.hpp"
+#include "axom/bump/utilities/utilities.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
+#include "axom/bump/views/dispatch_unstructured_topology.hpp"
+#include "axom/bump/utilities/MakeUnstructured.hpp"
 
 #include <conduit/conduit.hpp>
 #include <conduit/conduit_blueprint.hpp>
@@ -22,11 +22,9 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 namespace details
 {
@@ -172,10 +170,11 @@ public:
    */
   void execute(const conduit::Node &topo, const conduit::Node &coordset, conduit::Node &relation)
   {
+    namespace utils = axom::bump::utilities;
     const std::string type = topo.fetch_existing("type").as_string();
 
     // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
-    utilities::blueprint::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
     const int conduitAllocatorID = c2a.getConduitAllocatorID();
 
     conduit::Node &n_zones = relation["zones"];
@@ -272,7 +271,7 @@ public:
       // These are all structured topos of some sort. Make an unstructured representation and recurse.
 
       conduit::Node mesh;
-      axom::mir::utilities::blueprint::MakeUnstructured<ExecSpace>::execute(topo,
+      axom::bump::utilities::MakeUnstructured<ExecSpace>::execute(topo,
                                                                             coordset,
                                                                             "newtopo",
                                                                             mesh);
@@ -310,7 +309,8 @@ private:
                             axom::IndexType nnodes,
                             int intTypeId) const
   {
-    utilities::blueprint::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    namespace utils = axom::bump::utilities;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
     const int conduitAllocatorID = c2a.getConduitAllocatorID();
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
@@ -444,9 +444,8 @@ private:
   }
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

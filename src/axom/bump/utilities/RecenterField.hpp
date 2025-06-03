@@ -3,24 +3,23 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_RECENTER_FIELD_HPP_
-#define AXOM_MIR_RECENTER_FIELD_HPP_
+#ifndef AXOM_BUMP_RECENTER_FIELD_HPP_
+#define AXOM_BUMP_RECENTER_FIELD_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir/views/NodeArrayView.hpp"
-#include "axom/mir/utilities/utilities.hpp"
+#include "axom/bump/views/NodeArrayView.hpp"
+#include "axom/bump/utilities/utilities.hpp"
 
 #include <conduit/conduit.hpp>
 #include <conduit/conduit_blueprint.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
 {
-namespace blueprint
-{
+
 /*!
  * \brief Convert a field with one association type to a field of another association type using an o2mrelation.
  *
@@ -118,7 +117,7 @@ private:
                                    DataView compView) const
   {
     using Precision = typename DataView::value_type;
-    using AccumType = typename axom::mir::utilities::accumulation_traits<Precision>::type;
+    using AccumType = typename axom::bump::utilities::accumulation_traits<Precision>::type;
     const auto relSize = sizesView.size();
     axom::for_all<ExecSpace>(
       relSize,
@@ -138,9 +137,8 @@ private:
   }
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

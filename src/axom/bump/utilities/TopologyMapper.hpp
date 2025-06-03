@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_TOPOLOGY_MAPPER_HPP_
-#define AXOM_MIR_TOPOLOGY_MAPPER_HPP_
+#ifndef AXOM_BUMP_TOPOLOGY_MAPPER_HPP_
+#define AXOM_BUMP_TOPOLOGY_MAPPER_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -12,9 +12,9 @@
 #include "axom/slic.hpp"
 #include "axom/spin.hpp"
 
-#include "axom/mir/utilities/PrimalAdaptor.hpp"
-#include "axom/mir/utilities/VariableShape.hpp"
-#include "axom/mir/utilities/utilities.hpp"
+#include "axom/bump/utilities/PrimalAdaptor.hpp"
+#include "axom/bump/utilities/VariableShape.hpp"
+#include "axom/bump/utilities/utilities.hpp"
 
 #include <conduit.hpp>
 #include <conduit_blueprint.hpp>
@@ -27,11 +27,9 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 namespace detail
 {
@@ -95,7 +93,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shap
 
 template <typename T>
 AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shape1,
-                                     const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape2,
+                                     const axom::bump::utilities::PolyhedralFaces<T> &shape2,
                                      double eps = 1.e-10)
 {
   const bool tryFixOrientation = false;
@@ -134,7 +132,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape
 
 template <typename T>
 AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape1,
-                                     const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape2,
+                                     const axom::bump::utilities::PolyhedralFaces<T> &shape2,
                                      double eps = 1.e-10)
 {
   const bool tryFixOrientation = false;
@@ -173,7 +171,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape
 
 template <typename T>
 AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape1,
-                                     const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape2,
+                                     const axom::bump::utilities::PolyhedralFaces<T> &shape2,
                                      double eps = 1.e-10)
 {
   auto clipped = shape1;
@@ -183,7 +181,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape
 
 // PolyhedralFaces first
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape1,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::utilities::PolyhedralFaces<T> &shape1,
                                      const axom::primal::Tetrahedron<T, 3> &shape2,
                                      double eps = 1.e-10)
 {
@@ -191,7 +189,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::mir::utilities::blueprint::Poly
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape1,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::utilities::PolyhedralFaces<T> &shape1,
                                      const axom::primal::Hexahedron<T, 3> &shape2,
                                      double eps = 1.e-10)
 {
@@ -199,7 +197,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::mir::utilities::blueprint::Poly
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape1,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::utilities::PolyhedralFaces<T> &shape1,
                                      const axom::primal::Polyhedron<T, 3> &shape2,
                                      double eps = 1.e-10)
 {
@@ -207,8 +205,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::mir::utilities::blueprint::Poly
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape1,
-                                     const axom::mir::utilities::blueprint::PolyhedralFaces<T> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::utilities::PolyhedralFaces<T> &shape1,
+                                     const axom::bump::utilities::PolyhedralFaces<T> &shape2,
                                      double eps = 1.e-10)
 {
   using PointType = axom::primal::Point<T, 3>;
@@ -258,12 +256,12 @@ AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
 {
   const int id = shape1.id();
   double retval = 0.;
-  if(id == axom::mir::views::Tet_ShapeID)
+  if(id == axom::bump::views::Tet_ShapeID)
   {
     axom::primal::Tetrahedron<T, 3> tet(shape1[0], shape1[1], shape1[2], shape1[3]);
     retval = shapeOverlap(tet, shape2, eps);
   }
-  else if(id == axom::mir::views::Pyramid_ShapeID)
+  else if(id == axom::bump::views::Pyramid_ShapeID)
   {
     axom::primal::Tetrahedron<T, 3> tets[2];
     shape1.splitPyramid(tets);
@@ -272,7 +270,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
       retval += shapeOverlap(tets[i], shape2, eps);
     }
   }
-  else if(id == axom::mir::views::Wedge_ShapeID)
+  else if(id == axom::bump::views::Wedge_ShapeID)
   {
     axom::primal::Tetrahedron<T, 3> tets[3];
     shape1.splitWedge(tets);
@@ -282,7 +280,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
       retval += vol;
     }
   }
-  else if(id == axom::mir::views::Hex_ShapeID)
+  else if(id == axom::bump::views::Hex_ShapeID)
   {
     axom::primal::Hexahedron<T, 3>
       hex(shape1[0], shape1[1], shape1[2], shape1[3], shape1[4], shape1[5], shape1[6], shape1[7]);
@@ -308,12 +306,12 @@ AXOM_HOST_DEVICE double shapeOverlap(const Shape1Type &shape1,
 {
   const int id = shape2.id();
   double retval = 0.;
-  if(id == axom::mir::views::Tet_ShapeID)
+  if(id == axom::bump::views::Tet_ShapeID)
   {
     axom::primal::Tetrahedron<T, 3> tet(shape2[0], shape2[1], shape2[2], shape2[3]);
     retval = shapeOverlap(shape1, tet, eps);
   }
-  else if(id == axom::mir::views::Pyramid_ShapeID)
+  else if(id == axom::bump::views::Pyramid_ShapeID)
   {
     axom::primal::Tetrahedron<T, 3> tets[2];
     shape2.splitPyramid(tets);
@@ -322,7 +320,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const Shape1Type &shape1,
       retval += shapeOverlap(shape1, tets[i], eps);
     }
   }
-  else if(id == axom::mir::views::Wedge_ShapeID)
+  else if(id == axom::bump::views::Wedge_ShapeID)
   {
     axom::primal::Tetrahedron<T, 3> tets[3];
     shape2.splitWedge(tets);
@@ -332,7 +330,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const Shape1Type &shape1,
       retval += vol;
     }
   }
-  else if(id == axom::mir::views::Hex_ShapeID)
+  else if(id == axom::bump::views::Hex_ShapeID)
   {
     axom::primal::Hexahedron<T, 3>
       hex(shape2[0], shape2[1], shape2[2], shape2[3], shape2[4], shape2[5], shape2[6], shape2[7]);
@@ -358,12 +356,12 @@ AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
 {
   int id = shape1.id();
   double retval = 0.;
-  if(id == axom::mir::views::Tet_ShapeID)
+  if(id == axom::bump::views::Tet_ShapeID)
   {
     axom::primal::Tetrahedron<T, 3> tet(shape2[0], shape2[1], shape2[2], shape2[3]);
     retval = shapeOverlap(shape1, tet, eps);
   }
-  else if(id == axom::mir::views::Pyramid_ShapeID)
+  else if(id == axom::bump::views::Pyramid_ShapeID)
   {
     axom::primal::Tetrahedron<T, 3> tets[2];
     shape2.splitPyramid(tets);
@@ -372,7 +370,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
       retval += shapeOverlap(shape1, tets[i], eps);
     }
   }
-  else if(id == axom::mir::views::Wedge_ShapeID)
+  else if(id == axom::bump::views::Wedge_ShapeID)
   {
     axom::primal::Tetrahedron<T, 3> tets[3];
     shape2.splitWedge(tets);
@@ -382,7 +380,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const VariableShape<T, 3> &shape1,
       retval += vol;
     }
   }
-  else if(id == axom::mir::views::Hex_ShapeID)
+  else if(id == axom::bump::views::Hex_ShapeID)
   {
     axom::primal::Hexahedron<T, 3>
       hex(shape2[0], shape2[1], shape2[2], shape2[3], shape2[4], shape2[5], shape2[6], shape2[7]);
@@ -485,7 +483,7 @@ public:
                conduit::Node &n_targetMesh) const
   {
     AXOM_ANNOTATE_SCOPE("TopologyMapper::execute");
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace bputils = axom::bump::utilities::blueprint;
 
     // Pick output matset types (use input types)
     using MatIntType = typename SrcMatsetView::IndexType;
@@ -612,9 +610,9 @@ public:
     auto volume_fractions = make_array_view<MatFloatType>(n_volume_fractions);
     auto sizes = make_array_view<MatIntType>(n_sizes);
     auto offsets = make_array_view<MatIntType>(n_offsets);
-    axom::mir::utilities::fill<ExecSpace>(volume_fractions, MatFloatType(0.));
-    axom::mir::utilities::fill<ExecSpace>(material_ids, MaterialEmpty);
-    axom::mir::utilities::fill<ExecSpace>(sizes, MatIntType(0));
+    axom::bump::utilities::fill<ExecSpace>(volume_fractions, MatFloatType(0.));
+    axom::bump::utilities::fill<ExecSpace>(material_ids, MaterialEmpty);
+    axom::bump::utilities::fill<ExecSpace>(sizes, MatIntType(0));
     AXOM_ANNOTATE_END("allocation");
 
     // -------------------------------------------------------------------------
@@ -800,9 +798,8 @@ public:
   TargetShapeView m_targetView;
 };
 
-}  // namespace blueprint
 }  // namespace utilities
-}  // namespace mir
+}  // namespace bump
 }  // namespace axom
 
 #endif

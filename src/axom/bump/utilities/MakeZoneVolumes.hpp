@@ -2,22 +2,21 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_MAKE_ZONE_VOLUMES_HPP_
-#define AXOM_MIR_MAKE_ZONE_VOLUMES_HPP_
+#ifndef AXOM_BUMP_MAKE_ZONE_VOLUMES_HPP_
+#define AXOM_BUMP_MAKE_ZONE_VOLUMES_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir/utilities/PrimalAdaptor.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/PrimalAdaptor.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/conduit_traits.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 
 /*!
@@ -73,7 +72,7 @@ public:
     n_values.set(conduit::DataType(cpp2conduit<value_type>::id, outputSize));
     auto valuesView = make_array_view<value_type>(n_values);
 
-    // _mir_utilities_makezonevolumes_begin
+    // _bump_utilities_makezonevolumes_begin
     // Get the zone as a primal shape and compute area or volume, as needed.
     using ShapeView = PrimalAdaptor<TopologyView, CoordsetView>;
     const ShapeView deviceShapeView {m_topologyView, m_coordsetView};
@@ -87,7 +86,7 @@ public:
 
         valuesView[zoneIndex] = amount;
       });
-    // _mir_utilities_makezonevolumes_end
+    // _bump_utilities_makezonevolumes_end
   }
 
 private:
@@ -95,9 +94,8 @@ private:
   CoordsetView m_coordsetView;
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

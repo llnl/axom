@@ -2,23 +2,23 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_COORDSET_SLICER_HPP_
-#define AXOM_MIR_COORDSET_SLICER_HPP_
+#ifndef AXOM_BUMP_COORDSET_SLICER_HPP_
+#define AXOM_BUMP_COORDSET_SLICER_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
-#include "axom/mir/utilities/FieldSlicer.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/conduit_traits.hpp"
+#include "axom/bump/utilities/FieldSlicer.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
 {
-namespace blueprint
-{
+
 /*!
  * \accelerated
  * \class CoordsetSlicer
@@ -50,37 +50,17 @@ public:
     AXOM_ANNOTATE_SCOPE("CoordsetSlicer");
     using value_type = typename CoordsetView::value_type;
     using PointType = typename CoordsetView::PointType;
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
 
-    // Get the axis names for the output coordset. For uniform, prefer x,y,z
-    // instead of i,j,k since we're making an explicit coordset.
-    std::vector<std::string> axes;
-    if(n_input["type"].as_string() == "uniform")
-    {
-      if(n_input.has_path("dims/i"))
-      {
-        axes.push_back("x");
-      }
-      if(n_input.has_path("dims/j"))
-      {
-        axes.push_back("y");
-      }
-      if(n_input.has_path("dims/k"))
-      {
-        axes.push_back("z");
-      }
-    }
-    else
-    {
-      axes = conduit::blueprint::mesh::utils::coordset::axes(n_input);
-    }
+    // Get the axis names for the output coordset.
+    std::vector<std::string> axes(utils::coordsetAxes(n_input));
 
     const auto nComponents = axes.size();
     SLIC_ASSERT(PointType::DIMENSION == nComponents);
     SLIC_ASSERT(slice.m_indicesView.size() > 0);
 
     // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     n_output.reset();
     n_output["type"] = "explicit";
@@ -96,8 +76,8 @@ public:
       // Allocate data in the Conduit node and make a view.
       conduit::Node &comp = n_values[axes[i]];
       comp.set_allocator(c2a.getConduitAllocatorID());
-      comp.set(conduit::DataType(bputils::cpp2conduit<value_type>::id, outputSize));
-      compViews[i] = bputils::make_array_view<value_type>(comp);
+      comp.set(conduit::DataType(utils::cpp2conduit<value_type>::id, outputSize));
+      compViews[i] = utils::make_array_view<value_type>(comp);
     }
 
     // Select the nodes we want in the output.
@@ -121,9 +101,8 @@ private:
   CoordsetView m_coordsetView;
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

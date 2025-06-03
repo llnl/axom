@@ -2,19 +2,20 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_MERGE_MESHES_HPP_
-#define AXOM_MIR_MERGE_MESHES_HPP_
+#ifndef AXOM_BUMP_MERGE_MESHES_HPP_
+#define AXOM_BUMP_MERGE_MESHES_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 
-#include "axom/mir/views/Shapes.hpp"
-#include "axom/mir/views/dispatch_material.hpp"
-#include "axom/mir/views/dispatch_unstructured_topology.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
-#include "axom/mir/utilities/MakePolyhedralTopology.hpp"
-#include "axom/mir/utilities/MergePolyhedralFaces.hpp"
+#include "axom/bump/views/Shapes.hpp"
+#include "axom/bump/views/dispatch_material.hpp"
+#include "axom/bump/views/dispatch_unstructured_topology.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/conduit_traits.hpp"
+#include "axom/bump/utilities/MakePolyhedralTopology.hpp"
+#include "axom/bump/utilities/MergePolyhedralFaces.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -22,11 +23,9 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 /*!
  * \brief A mesh input containing a Blueprint mesh and some mapping array views.
@@ -163,8 +162,7 @@ protected:
    */
   void singleInput(const std::vector<MeshInput> &inputs, conduit::Node &output) const
   {
-    namespace bputils = axom::mir::utilities::blueprint;
-    bputils::copy<ExecSpace>(output, *(inputs[0].m_input));
+    axom::bump::utilities::copy<ExecSpace>(output, *(inputs[0].m_input));
   }
 
   /*!
@@ -224,7 +222,6 @@ protected:
    */
   void mergeCoordset(const std::vector<MeshInput> &inputs, conduit::Node &output) const
   {
-    namespace bputils = axom::mir::utilities::blueprint;
     AXOM_ANNOTATE_SCOPE("mergeCoordset");
     const axom::IndexType totalNodes = countNodes(inputs);
     conduit::Node &n_newCoordsets = output["coordsets"];
@@ -244,7 +241,7 @@ protected:
       // Make all of the components the first time.
       if(i == 0)
       {
-        bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+        utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
         conduit::Node &n_newCoordset = n_newCoordsets[n_srcCoordset.name()];
         n_newCoordset["type"] = "explicit";
@@ -262,14 +259,14 @@ protected:
       }
 
       // Copy this input's coordinates into the new coordset.
-      axom::mir::views::FloatNode_to_ArrayView(n_srcValues[0], [&](auto comp0) {
+      axom::bump::views::FloatNode_to_ArrayView(n_srcValues[0], [&](auto comp0) {
         using FloatType = typename decltype(comp0)::value_type;
         for(int c = 0; c < nComps; c++)
         {
           const conduit::Node &n_srcComp = n_srcValues[c];
           conduit::Node &n_comp = n_newValuesPtr->child(c);
-          auto srcCompView = bputils::make_array_view<FloatType>(n_srcComp);
-          auto compView = bputils::make_array_view<FloatType>(n_comp);
+          auto srcCompView = utils::make_array_view<FloatType>(n_srcComp);
+          auto compView = utils::make_array_view<FloatType>(n_comp);
 
           axom::IndexType size =
             mergeCoordset_copy(inputs[i].m_nodeSliceView, offsets[c], compView, srcCompView);
@@ -412,7 +409,7 @@ protected:
       // array, we sum the sizes. This is needed because connectivity might
       // have unused elements in it.
       axom::IndexType connLength = 0;
-      axom::mir::views::IndexNode_to_ArrayView(n_size, [&](auto sizesView) {
+      axom::bump::views::IndexNode_to_ArrayView(n_size, [&](auto sizesView) {
         connLength = sumArrayView(sizesView);
       });
       totalConnLength += connLength;
@@ -462,14 +459,14 @@ protected:
         for(int s = 0; s < n_shape_map.number_of_children(); s++)
         {
           const std::string sname = n_shape_map[s].name();
-          const auto id = axom::mir::views::shapeNameToID(sname);
+          const auto id = axom::bump::views::shapeNameToID(sname);
           SLIC_ASSERT(id == n_shape_map[s].to_int());
           shape_map[sname] = id;
         }
       }
       else
       {
-        shape_map[shape] = axom::mir::views::shapeNameToID(shape);
+        shape_map[shape] = axom::bump::views::shapeNameToID(shape);
       }
     }
     return shape_map;
@@ -512,7 +509,7 @@ protected:
                                    const conduit::Node &n_options,
                                    conduit::Node &output) const
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
 
     AXOM_ANNOTATE_SCOPE("mergeTopologiesUnstructured");
     axom::IndexType totalConnLen = 0, totalZones = 0;
@@ -525,7 +522,7 @@ protected:
     if(shape_map.find("polygonal") != shape_map.end() && shape_map.size() > 1)
     {
       shape_map.clear();
-      shape_map["polygonal"] = axom::mir::views::shapeNameToID("polygonal");
+      shape_map["polygonal"] = axom::bump::views::shapeNameToID("polygonal");
     }
 
     conduit::Node *n_newTopoPtr = nullptr;
@@ -542,7 +539,7 @@ protected:
       // Make all of the elements the first time.
       if(i == 0)
       {
-        bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+        utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
         std::string newTopoName(n_srcTopo.name());
         if(n_options.has_child("topologyName"))
@@ -587,14 +584,14 @@ protected:
       }
 
       // Copy this input's connectivity into the new topology.
-      axom::mir::views::IndexNode_to_ArrayView_same(
+      axom::bump::views::IndexNode_to_ArrayView_same(
         n_srcConn,
         n_srcSizes,
         n_srcOffsets,
         [&](auto srcConnView, auto srcSizesView, auto srcOffsetsView) {
           using ConnType = typename decltype(srcConnView)::value_type;
           conduit::Node &n_newConn = n_newTopoPtr->fetch_existing("elements/connectivity");
-          auto connView = bputils::make_array_view<ConnType>(n_newConn);
+          auto connView = utils::make_array_view<ConnType>(n_newConn);
 
           // Copy the relevant connectivity from srcConnView. Also compute how
           // many elements were used.
@@ -611,10 +608,10 @@ protected:
         });
 
       // Copy this input's sizes into the new topology.
-      axom::mir::views::IndexNode_to_ArrayView(n_srcSizes, [&](auto srcSizesView) {
+      axom::bump::views::IndexNode_to_ArrayView(n_srcSizes, [&](auto srcSizesView) {
         using ConnType = typename decltype(srcSizesView)::value_type;
         conduit::Node &n_newSizes = n_newTopoPtr->fetch_existing("elements/sizes");
-        auto sizesView = bputils::make_array_view<ConnType>(n_newSizes);
+        auto sizesView = utils::make_array_view<ConnType>(n_newSizes);
 
         mergeTopology_copy_sizes(sizesOffset, sizesView, srcSizesView);
 
@@ -630,10 +627,10 @@ protected:
         {
           const conduit::Node &n_srcShapes = n_srcTopo.fetch_existing("elements/shapes");
 
-          axom::mir::views::IndexNode_to_ArrayView(n_srcShapes, [&](auto srcShapesView) {
+          axom::bump::views::IndexNode_to_ArrayView(n_srcShapes, [&](auto srcShapesView) {
             using ConnType = typename decltype(srcShapesView)::value_type;
             conduit::Node &n_newShapes = n_newTopoPtr->fetch_existing("elements/shapes");
-            auto shapesView = bputils::make_array_view<ConnType>(n_newShapes);
+            auto shapesView = utils::make_array_view<ConnType>(n_newShapes);
             // Copy all sizes from the input.
             mergeTopology_copy_shapes(shapesOffset, shapesView, srcShapesView);
             shapesOffset += srcShapesView.size();
@@ -646,8 +643,8 @@ protected:
           const conduit::Node &n_srcSizes = n_srcTopo.fetch_existing("elements/sizes");
           axom::IndexType nz = n_srcSizes.dtype().number_of_elements();
           conduit::Node &n_newShapes = n_newTopoPtr->fetch_existing("elements/shapes");
-          axom::mir::views::IndexNode_to_ArrayView(n_newShapes, [&](auto shapesView) {
-            const int shapeId = axom::mir::views::shapeNameToID(srcShape);
+          axom::bump::views::IndexNode_to_ArrayView(n_newShapes, [&](auto shapesView) {
+            const int shapeId = axom::bump::views::shapeNameToID(srcShape);
             mergeTopology_default_shapes(shapesOffset, shapesView, nz, shapeId);
             shapesOffset += nz;
           });
@@ -657,10 +654,10 @@ protected:
 
     // Make new offsets from the sizes.
     conduit::Node &n_newSizes = n_newTopoPtr->fetch_existing("elements/sizes");
-    axom::mir::views::IndexNode_to_ArrayView(n_newSizes, [&](auto sizesView) {
+    axom::bump::views::IndexNode_to_ArrayView(n_newSizes, [&](auto sizesView) {
       using ConnType = typename decltype(sizesView)::value_type;
       conduit::Node &n_newOffsets = n_newTopoPtr->fetch_existing("elements/offsets");
-      auto offsetsView = bputils::make_array_view<ConnType>(n_newOffsets);
+      auto offsetsView = utils::make_array_view<ConnType>(n_newOffsets);
       axom::exclusive_scan<ExecSpace>(sizesView, offsetsView);
     });
   }
@@ -676,8 +673,8 @@ protected:
   std::vector<MeshInput> makePolyhedralInputs(const std::vector<MeshInput> &inputs) const
   {
     AXOM_ANNOTATE_SCOPE("makePolyhedralInputs");
-    namespace views = axom::mir::views;
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace views = axom::bump::views;
+    namespace utils = axom::bump::utilities;
 
     // Make a vector of polyhedral input meshes.
     std::vector<MeshInput> phInputs(inputs.size());
@@ -743,10 +740,10 @@ protected:
             axom::Array<IndexType> values, ids;
             auto shapeMap = views::buildShapeMap(n_srcTopo, values, ids, allocatorID);
             views::UnstructuredTopologyMixedShapeView<ConnectivityType> topologyView(
-              bputils::make_array_view<ConnectivityType>(n_srcTopo["elements/connectivity"]),
-              bputils::make_array_view<ConnectivityType>(n_srcTopo["elements/shapes"]),
-              bputils::make_array_view<ConnectivityType>(n_srcTopo["elements/sizes"]),
-              bputils::make_array_view<ConnectivityType>(n_srcTopo["elements/offsets"]),
+              utils::make_array_view<ConnectivityType>(n_srcTopo["elements/connectivity"]),
+              utils::make_array_view<ConnectivityType>(n_srcTopo["elements/shapes"]),
+              utils::make_array_view<ConnectivityType>(n_srcTopo["elements/sizes"]),
+              utils::make_array_view<ConnectivityType>(n_srcTopo["elements/offsets"]),
               shapeMap);
             makePolyhedralMesh(topologyView, n_srcTopo, n_phTopo);
           }
@@ -768,15 +765,15 @@ protected:
                           const conduit::Node &n_srcTopo,
                           conduit::Node &n_phTopo) const
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     using ConnectivityType = typename TopologyView::ConnectivityType;
 
     // Make a polyhedral mesh from the input mesh.
-    bputils::MakePolyhedralTopology<ExecSpace, TopologyView> makePH(topologyView);
+    utils::MakePolyhedralTopology<ExecSpace, TopologyView> makePH(topologyView);
     makePH.execute(n_srcTopo, n_phTopo);
 
     // Improve the mesh by merging like faces.
-    bputils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_phTopo);
+    utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_phTopo);
   }
 
   /*!
@@ -830,7 +827,7 @@ protected:
                                       const conduit::Node &n_options,
                                       conduit::Node &output) const
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE("mergeTopologiesPolyhedralInner");
 
     axom::IndexType totalElemConnLen = 0, totalElemZones = 0;
@@ -859,7 +856,7 @@ protected:
       // Make all of the elements the first time.
       if(i == 0)
       {
-        bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+        utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
         // Get new topo name.
         std::string newTopoName(n_srcTopo.name());
@@ -904,7 +901,7 @@ protected:
       }
 
       // Copy this input's element connectivity into the new topology.
-      axom::mir::views::IndexNode_to_ArrayView_same(
+      axom::bump::views::IndexNode_to_ArrayView_same(
         n_srcConn,
         n_srcSizes,
         n_srcOffsets,
@@ -912,7 +909,7 @@ protected:
         [&](auto srcConnView, auto srcSizesView, auto srcOffsetsView, auto srcSESizesView) {
           using ConnType = typename decltype(srcConnView)::value_type;
           conduit::Node &n_newConn = n_newTopoPtr->fetch_existing("elements/connectivity");
-          auto connView = bputils::make_array_view<ConnType>(n_newConn);
+          auto connView = utils::make_array_view<ConnType>(n_newConn);
 
           // Copy the relevant connectivity from srcConnView. Also compute how
           // many elements were used.
@@ -930,10 +927,10 @@ protected:
         });
 
       // Copy this input's sizes into the new topology.
-      axom::mir::views::IndexNode_to_ArrayView(n_srcSizes, [&](auto srcSizesView) {
+      axom::bump::views::IndexNode_to_ArrayView(n_srcSizes, [&](auto srcSizesView) {
         using ConnType = typename decltype(srcSizesView)::value_type;
         conduit::Node &n_newSizes = n_newTopoPtr->fetch_existing("elements/sizes");
-        auto sizesView = bputils::make_array_view<ConnType>(n_newSizes);
+        auto sizesView = utils::make_array_view<ConnType>(n_newSizes);
 
         mergeTopology_copy_sizes(sizesOffset, sizesView, srcSizesView);
 
@@ -941,14 +938,14 @@ protected:
       });
 
       // Copy this input's subelement connectivity into the new topology.
-      axom::mir::views::IndexNode_to_ArrayView_same(
+      axom::bump::views::IndexNode_to_ArrayView_same(
         n_srcSEConn,
         n_srcSESizes,
         n_srcSEOffsets,
         [&](auto srcSEConnView, auto srcSESizesView, auto srcSEOffsetsView) {
           using ConnType = typename decltype(srcSEConnView)::value_type;
           conduit::Node &n_newSEConn = n_newTopoPtr->fetch_existing("subelements/connectivity");
-          auto seConnView = bputils::make_array_view<ConnType>(n_newSEConn);
+          auto seConnView = utils::make_array_view<ConnType>(n_newSEConn);
 
           // Copy the relevant connectivity from srcSEConnView. Also compute how
           // many elements were used.
@@ -966,10 +963,10 @@ protected:
         });
 
       // Copy this input's subelement sizes into the new topology.
-      axom::mir::views::IndexNode_to_ArrayView(n_srcSESizes, [&](auto srcSESizesView) {
+      axom::bump::views::IndexNode_to_ArrayView(n_srcSESizes, [&](auto srcSESizesView) {
         using ConnType = typename decltype(srcSESizesView)::value_type;
         conduit::Node &n_newSESizes = n_newTopoPtr->fetch_existing("subelements/sizes");
-        auto seSizesView = bputils::make_array_view<ConnType>(n_newSESizes);
+        auto seSizesView = utils::make_array_view<ConnType>(n_newSESizes);
 
         mergeTopology_copy_sizes(seSizesOffset, seSizesView, srcSESizesView);
 
@@ -980,17 +977,17 @@ protected:
     // Make new offsets from the sizes.
     conduit::Node &n_newSizes = n_newTopoPtr->fetch_existing("elements/sizes");
     conduit::Node &n_newSESizes = n_newTopoPtr->fetch_existing("subelements/sizes");
-    axom::mir::views::IndexNode_to_ArrayView_same(
+    axom::bump::views::IndexNode_to_ArrayView_same(
       n_newSizes,
       n_newSESizes,
       [&](auto sizesView, auto seSizesView) {
         using ConnType = typename decltype(sizesView)::value_type;
         conduit::Node &n_newOffsets = n_newTopoPtr->fetch_existing("elements/offsets");
-        auto offsetsView = bputils::make_array_view<ConnType>(n_newOffsets);
+        auto offsetsView = utils::make_array_view<ConnType>(n_newOffsets);
         axom::exclusive_scan<ExecSpace>(sizesView, offsetsView);
 
         conduit::Node &n_newSEOffsets = n_newTopoPtr->fetch_existing("subelements/offsets");
-        auto seOffsetsView = bputils::make_array_view<ConnType>(n_newSEOffsets);
+        auto seOffsetsView = utils::make_array_view<ConnType>(n_newSEOffsets);
         axom::exclusive_scan<ExecSpace>(seSizesView, seOffsetsView);
       });
   }
@@ -1124,7 +1121,7 @@ protected:
    */
   void mergeFields(const std::vector<MeshInput> &inputs, conduit::Node &output) const
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE("mergeFields");
     axom::IndexType totalNodes = countNodes(inputs);
     axom::IndexType totalConnLen = 0, totalZones = 0;
@@ -1172,7 +1169,7 @@ protected:
       }
 
       // Make new fields
-      bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+      utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
       conduit::Node &n_newFields = output["fields"];
       for(auto it = fieldInfo.begin(); it != fieldInfo.end(); it++)
       {
@@ -1240,13 +1237,13 @@ protected:
       if(inputs[i].m_input->has_path(srcPath))
       {
         const conduit::Node &n_src_values = inputs[i].m_input->fetch_existing(srcPath);
-        axom::mir::views::Node_to_ArrayView(n_values, n_src_values, [&](auto destView, auto srcView) {
+        axom::bump::views::Node_to_ArrayView(n_values, n_src_values, [&](auto destView, auto srcView) {
           copyZonal_copy(nzones, offset, destView, srcView);
         });
       }
       else
       {
-        axom::mir::views::Node_to_ArrayView(n_values, [&](auto destView) {
+        axom::bump::views::Node_to_ArrayView(n_values, [&](auto destView) {
           fillValues(nzones, offset, destView);
         });
       }
@@ -1316,13 +1313,13 @@ protected:
       {
         const conduit::Node &n_src_values = inputs[i].m_input->fetch_existing(srcPath);
 
-        axom::mir::views::Node_to_ArrayView(n_src_values, n_values, [&](auto srcView, auto destView) {
+        axom::bump::views::Node_to_ArrayView(n_src_values, n_values, [&](auto srcView, auto destView) {
           copyNodal_copy(inputs[i].m_nodeSliceView, nnodes, offset, destView, srcView);
         });
       }
       else
       {
-        axom::mir::views::Node_to_ArrayView(n_values, [&](auto destView) {
+        axom::bump::views::Node_to_ArrayView(n_values, [&](auto destView) {
           fillValues(nnodes, offset, destView);
         });
       }
@@ -1410,13 +1407,13 @@ public:
                FuncType &&func)
   {
     // Support various types of material data.
-    axom::mir::views::IndexNode_to_ArrayView_same(
+    axom::bump::views::IndexNode_to_ArrayView_same(
       n_material_ids,
       n_sizes,
       n_offsets,
       n_indices,
       [&](auto materialIdsView, auto sizesView, auto offsetsView, auto indicesView) {
-        axom::mir::views::FloatNode_to_ArrayView(n_volume_fractions, [&](auto volumeFractionsView) {
+        axom::bump::views::FloatNode_to_ArrayView(n_volume_fractions, [&](auto volumeFractionsView) {
           // Invoke a function that can use these views.
           func(materialIdsView, sizesView, offsetsView, indicesView, volumeFractionsView);
         });
@@ -1435,7 +1432,7 @@ public:
   template <typename FuncType>
   void dispatchMatset(conduit::Node &n_matset, FuncType &&func)
   {
-    axom::mir::views::dispatch_material(n_matset, [&](auto matsetView) { func(matsetView); });
+    axom::bump::views::dispatch_material(n_matset, [&](auto matsetView) { func(matsetView); });
   }
 };
 
@@ -1467,12 +1464,12 @@ public:
                conduit::Node &n_volume_fractions,
                FuncType &&func)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
-    auto materialIdsView = bputils::make_array_view<IntElement>(n_material_ids);
-    auto sizesView = bputils::make_array_view<IntElement>(n_sizes);
-    auto offsetsView = bputils::make_array_view<IntElement>(n_offsets);
-    auto indicesView = bputils::make_array_view<IntElement>(n_indices);
-    auto volumeFractionsView = bputils::make_array_view<FloatElement>(n_volume_fractions);
+    namespace utils = axom::bump::utilities;
+    auto materialIdsView = utils::make_array_view<IntElement>(n_material_ids);
+    auto sizesView = utils::make_array_view<IntElement>(n_sizes);
+    auto offsetsView = utils::make_array_view<IntElement>(n_offsets);
+    auto indicesView = utils::make_array_view<IntElement>(n_indices);
+    auto volumeFractionsView = utils::make_array_view<FloatElement>(n_volume_fractions);
 
     func(materialIdsView, sizesView, offsetsView, indicesView, volumeFractionsView);
   }
@@ -1489,15 +1486,15 @@ public:
   template <typename FuncType>
   void dispatchMatset(conduit::Node &n_matset, FuncType &&func)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     // We know the types. Make views explicitly.
-    auto material_ids = bputils::make_array_view<IntElement>(n_matset["material_ids"]);
-    auto sizes = bputils::make_array_view<IntElement>(n_matset["sizes"]);
-    auto offsets = bputils::make_array_view<IntElement>(n_matset["offsets"]);
-    auto indices = bputils::make_array_view<IntElement>(n_matset["indices"]);
-    auto volume_fractions = bputils::make_array_view<FloatElement>(n_matset["volume_fractions"]);
+    auto material_ids = utils::make_array_view<IntElement>(n_matset["material_ids"]);
+    auto sizes = utils::make_array_view<IntElement>(n_matset["sizes"]);
+    auto offsets = utils::make_array_view<IntElement>(n_matset["offsets"]);
+    auto indices = utils::make_array_view<IntElement>(n_matset["indices"]);
+    auto volume_fractions = utils::make_array_view<FloatElement>(n_matset["volume_fractions"]);
     // We know we're making a unibuffer matset.
-    axom::mir::views::UnibufferMaterialView<IntElement, FloatElement, MAXMATERIALS> matsetView;
+    axom::bump::views::UnibufferMaterialView<IntElement, FloatElement, MAXMATERIALS> matsetView;
     matsetView.set(material_ids, volume_fractions, sizes, offsets, indices);
     // Use it.
     func(matsetView);
@@ -1531,8 +1528,8 @@ private:
   virtual void mergeMatset(const std::vector<MeshInput> &inputs, conduit::Node &output) const override
   {
     AXOM_ANNOTATE_SCOPE("mergeMatset");
-    namespace bputils = axom::mir::utilities::blueprint;
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    namespace utils = axom::bump::utilities;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     // Make a pass through the inputs and make a list of the material names.
     bool hasMatsets = false, defaultMaterial = false;
@@ -1547,7 +1544,7 @@ private:
         conduit::Node &n_matset = n_matsets[0];
         matsetName = n_matset.name();
         topoName = n_matset.fetch_existing("topology").as_string();
-        auto matInfo = axom::mir::views::materials(n_matset);
+        auto matInfo = axom::bump::views::materials(n_matset);
         for(const auto &info : matInfo)
         {
           if(allMats.find(info.name) == allMats.end())
@@ -1590,8 +1587,8 @@ private:
               // Figure out the types to use for storing the data.
               using IType = typename decltype(matsetView)::IndexType;
               using FType = typename decltype(matsetView)::FloatType;
-              itype = bputils::cpp2conduit<IType>::id;
-              ftype = bputils::cpp2conduit<FType>::id;
+              itype = utils::cpp2conduit<IType>::id;
+              ftype = utils::cpp2conduit<FType>::id;
 
               matCount = This->mergeMatset_count(matsetView, nzones);
             });
@@ -1832,7 +1829,7 @@ private:
     using MatID = typename decltype(matsetView)::IndexType;
 
     // Make some maps for renumbering material numbers.
-    const auto localMaterialMap = axom::mir::views::materials(n_matset);
+    const auto localMaterialMap = axom::bump::views::materials(n_matset);
     std::map<MatID, MatID> localToAll;
     for(const auto &info : localMaterialMap)
     {
@@ -1872,7 +1869,7 @@ private:
           volumeFractionsView[destIndex] = vfs[mi];
 
           // Get the index of the material number in the local map.
-          const auto mapIndex = axom::mir::utilities::bsearch(ids[mi], localView);
+          const auto mapIndex = axom::bump::utilities::bsearch(ids[mi], localView);
           SLIC_ASSERT(mapIndex != -1);
           // We'll store the all materials number.
           const auto allMatno = allView[mapIndex];
@@ -1913,9 +1910,8 @@ private:
   }
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

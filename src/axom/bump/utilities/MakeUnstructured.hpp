@@ -2,24 +2,22 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_MAKE_UNSTRUCTURED_HPP_
-#define AXOM_MIR_MAKE_UNSTRUCTURED_HPP_
+#ifndef AXOM_BUMP_MAKE_UNSTRUCTURED_HPP_
+#define AXOM_BUMP_MAKE_UNSTRUCTURED_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir/views/NodeArrayView.hpp"
-#include "axom/mir/utilities/utilities.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
-#include "axom/mir/views/dispatch_structured_topology.hpp"
+#include "axom/bump/views/NodeArrayView.hpp"
+#include "axom/bump/utilities/utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/views/dispatch_structured_topology.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 /**
  * \brief Make an unstructured representation of a structured topology.
@@ -68,7 +66,7 @@ public:
       n_newsizes.set_allocator(c2a.getConduitAllocatorID());
       n_newoffsets.set_allocator(c2a.getConduitAllocatorID());
 
-      axom::mir::views::dispatch_structured_topologies(
+      axom::bump::views::dispatch_structured_topologies(
         topo,
         [&](const std::string &shape, auto &topoView) {
           n_newtopo["elements/shape"] = shape;
@@ -135,9 +133,8 @@ private:
   }
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

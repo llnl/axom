@@ -3,24 +3,21 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_EXTRACT_ZONES_AND_MATSET_POLYHEDRAL_HPP
-#define AXOM_MIR_EXTRACT_ZONES_AND_MATSET_POLYHEDRAL_HPP
+#ifndef AXOM_BUMP_EXTRACT_ZONES_AND_MATSET_POLYHEDRAL_HPP
+#define AXOM_BUMP_EXTRACT_ZONES_AND_MATSET_POLYHEDRAL_HPP
 
 #include "axom/core.hpp"
-#include "axom/mir/utilities/CoordsetBlender.hpp"
-#include "axom/mir/utilities/CoordsetSlicer.hpp"
-#include "axom/mir/utilities/FieldSlicer.hpp"
-#include "axom/mir/utilities/MatsetSlicer.hpp"
-#include "axom/mir/Options.hpp"
-#include "axom/mir/MIROptions.hpp"
+#include "axom/bump/utilities/CoordsetBlender.hpp"
+#include "axom/bump/utilities/CoordsetSlicer.hpp"
+#include "axom/bump/utilities/FieldSlicer.hpp"
+#include "axom/bump/utilities/MatsetSlicer.hpp"
+#include "axom/bump/Options.hpp"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 
 /*!
@@ -35,14 +32,14 @@ namespace blueprint
  */
 template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typename MatsetView>
 class ExtractZonesAndMatsetPolyhedral
-  : public ExtractZonesAndMatset<ExecSpace, axom::mir::views::StructuredTopologyView<IndexPolicy>, CoordsetView, MatsetView>
+  : public ExtractZonesAndMatset<ExecSpace, axom::bump::views::StructuredTopologyView<IndexPolicy>, CoordsetView, MatsetView>
 {
 public:
   using ParentClass =
-    ExtractZonesAndMatset<ExecSpace, axom::mir::views::StructuredTopologyView<IndexPolicy>, CoordsetView, MatsetView>;
+    ExtractZonesAndMatset<ExecSpace, axom::bump::views::StructuredTopologyView<IndexPolicy>, CoordsetView, MatsetView>;
   using Sizes = typename ParentClass::Sizes;
   using SelectedZonesView = typename ParentClass::SelectedZonesView;
-  using TopologyView = axom::mir::views::StructuredTopologyView<IndexPolicy>;
+  using TopologyView = axom::bump::views::StructuredTopologyView<IndexPolicy>;
   using ConnectivityType = typename TopologyView::ConnectivityType;
 
   static_assert(TopologyView::dimension() == 3, "This class requires 3D structured topology views");
@@ -92,9 +89,9 @@ protected:
                             conduit::Node &n_newTopo) const override
   {
     AXOM_ANNOTATE_SCOPE("makeTopology(polyhedral)");
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     // We know that we have a 3D structured mesh for which we need to make a
     // polyhedral output topology.
@@ -204,32 +201,32 @@ protected:
     conduit::Node &n_conn = n_newTopo["elements/connectivity"];
     n_conn.set_allocator(c2a.getConduitAllocatorID());
     n_conn.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, numSelectedZones * FacesPerHex));
-    auto connView = bputils::make_array_view<ConnectivityType>(n_conn);
+    auto connView = utils::make_array_view<ConnectivityType>(n_conn);
 
     conduit::Node &n_sizes = n_newTopo["elements/sizes"];
     n_sizes.set_allocator(c2a.getConduitAllocatorID());
     n_sizes.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, numSelectedZones));
-    auto sizesView = bputils::make_array_view<ConnectivityType>(n_sizes);
+    auto sizesView = utils::make_array_view<ConnectivityType>(n_sizes);
 
     conduit::Node &n_offsets = n_newTopo["elements/offsets"];
     n_offsets.set_allocator(c2a.getConduitAllocatorID());
     n_offsets.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, numSelectedZones));
-    auto offsetsView = bputils::make_array_view<ConnectivityType>(n_offsets);
+    auto offsetsView = utils::make_array_view<ConnectivityType>(n_offsets);
 
     conduit::Node &n_se_conn = n_newTopo["subelements/connectivity"];
     n_se_conn.set_allocator(c2a.getConduitAllocatorID());
     n_se_conn.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, faceCount * PointsPerQuad));
-    auto seConnView = bputils::make_array_view<ConnectivityType>(n_se_conn);
+    auto seConnView = utils::make_array_view<ConnectivityType>(n_se_conn);
 
     conduit::Node &n_se_sizes = n_newTopo["subelements/sizes"];
     n_se_sizes.set_allocator(c2a.getConduitAllocatorID());
     n_se_sizes.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, faceCount));
-    auto seSizesView = bputils::make_array_view<ConnectivityType>(n_se_sizes);
+    auto seSizesView = utils::make_array_view<ConnectivityType>(n_se_sizes);
 
     conduit::Node &n_se_offsets = n_newTopo["subelements/offsets"];
     n_se_offsets.set_allocator(c2a.getConduitAllocatorID());
     n_se_offsets.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, faceCount));
-    auto seOffsetsView = bputils::make_array_view<ConnectivityType>(n_se_offsets);
+    auto seOffsetsView = utils::make_array_view<ConnectivityType>(n_se_offsets);
 
     AXOM_ANNOTATE_END("allocate");
 
@@ -341,9 +338,8 @@ protected:
   }
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

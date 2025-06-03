@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_ZONELIST_BUILDER_HPP
-#define AXOM_MIR_ZONELIST_BUILDER_HPP
+#ifndef AXOM_BUMP_ZONELIST_BUILDER_HPP
+#define AXOM_BUMP_ZONELIST_BUILDER_HPP
 
 #include "axom/core.hpp"
 
@@ -12,12 +12,11 @@
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
 {
-namespace blueprint
-{
+
 /*!
  * \brief This struct builds lists of clean and mixed zones using the input topology and matset views.
  *
@@ -411,9 +410,8 @@ private:
   MatsetView m_matsetView;
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

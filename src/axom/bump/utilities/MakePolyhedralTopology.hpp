@@ -2,22 +2,20 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_MAKE_POLYHEDRAL_TOPOLOGY_HPP_
-#define AXOM_MIR_MAKE_POLYHEDRAL_TOPOLOGY_HPP_
+#ifndef AXOM_BUMP_MAKE_POLYHEDRAL_TOPOLOGY_HPP_
+#define AXOM_BUMP_MAKE_POLYHEDRAL_TOPOLOGY_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir/utilities/utilities.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/utilities.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 /**
  * \brief Make a polyhedral unstructured representation of a topology.
@@ -53,8 +51,8 @@ public:
   void execute(const conduit::Node &n_topo, conduit::Node &n_newTopo) const
   {
     AXOM_ANNOTATE_SCOPE("MakePolyhedralTopology");
-    namespace bputils = axom::mir::utilities::blueprint;
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    namespace utils = axom::bump::utilities;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     const auto nzones = m_topologyView.numberOfZones();
@@ -69,13 +67,13 @@ public:
     // This node is the number of faces in each zone.
     conduit::Node &n_elem_sizes = n_newTopo["elements/sizes"];
     n_elem_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_elem_sizes.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, nzones));
-    auto elem_sizes = bputils::make_array_view<ConnectivityType>(n_elem_sizes);
+    n_elem_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, nzones));
+    auto elem_sizes = utils::make_array_view<ConnectivityType>(n_elem_sizes);
 
     conduit::Node &n_elem_offsets = n_newTopo["elements/offsets"];
     n_elem_offsets.set_allocator(c2a.getConduitAllocatorID());
-    n_elem_offsets.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, nzones));
-    auto elem_offsets = bputils::make_array_view<ConnectivityType>(n_elem_offsets);
+    n_elem_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, nzones));
+    auto elem_offsets = utils::make_array_view<ConnectivityType>(n_elem_offsets);
     AXOM_ANNOTATE_END("allocate");
 
     //--------------------------------------------------------------------------
@@ -118,8 +116,8 @@ public:
     AXOM_ANNOTATE_BEGIN("elements");
     conduit::Node &n_elem_conn = n_newTopo["elements/connectivity"];
     n_elem_conn.set_allocator(c2a.getConduitAllocatorID());
-    n_elem_conn.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, totalFaces));
-    auto elem_conn = bputils::make_array_view<ConnectivityType>(n_elem_conn);
+    n_elem_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaces));
+    auto elem_conn = utils::make_array_view<ConnectivityType>(n_elem_conn);
     axom::for_all<ExecSpace>(
       totalFaces,
       AXOM_LAMBDA(axom::IndexType faceIndex) { elem_conn[faceIndex] = faceIndex; });
@@ -130,18 +128,18 @@ public:
     // Allocate subelement connectivity
     conduit::Node &n_se_conn = n_newTopo["subelements/connectivity"];
     n_se_conn.set_allocator(c2a.getConduitAllocatorID());
-    n_se_conn.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, totalFaceStorage));
-    auto se_conn = bputils::make_array_view<ConnectivityType>(n_se_conn);
+    n_se_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaceStorage));
+    auto se_conn = utils::make_array_view<ConnectivityType>(n_se_conn);
 
     conduit::Node &n_se_sizes = n_newTopo["subelements/sizes"];
     n_se_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_se_sizes.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, totalFaces));
-    auto se_sizes = bputils::make_array_view<ConnectivityType>(n_se_sizes);
+    n_se_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaces));
+    auto se_sizes = utils::make_array_view<ConnectivityType>(n_se_sizes);
 
     conduit::Node &n_se_offsets = n_newTopo["subelements/offsets"];
     n_se_offsets.set_allocator(c2a.getConduitAllocatorID());
-    n_se_offsets.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, totalFaces));
-    auto se_offsets = bputils::make_array_view<ConnectivityType>(n_se_offsets);
+    n_se_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalFaces));
+    auto se_offsets = utils::make_array_view<ConnectivityType>(n_se_offsets);
 
     // Populate subelement connectivity and make names for the faces.
     axom::for_all<ExecSpace>(
@@ -172,9 +170,8 @@ public:
   TopologyView m_topologyView;
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

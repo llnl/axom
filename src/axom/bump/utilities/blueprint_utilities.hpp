@@ -11,10 +11,6 @@
 
 #include <conduit/conduit.hpp>
 
-#include <utility>
-#include <string>
-#include <vector>
-
 namespace axom
 {
 namespace bump

@@ -3,24 +3,22 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_UTILITIES_VARIABLE_SHAPE_HPP_
-#define AXOM_MIR_UTILITIES_VARIABLE_SHAPE_HPP_
+#ifndef AXOM_BUMP_UTILITIES_VARIABLE_SHAPE_HPP_
+#define AXOM_BUMP_UTILITIES_VARIABLE_SHAPE_HPP_
 
 #include <axom/config.hpp>
 #include <axom/core.hpp>
 #include <axom/primal.hpp>
 #include <axom/slic.hpp>
-#include "axom/mir/views/Shapes.hpp"
+#include "axom/bump/views/Shapes.hpp"
 
 #include <iostream>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 
 /**
@@ -71,12 +69,12 @@ public:
   AXOM_HOST_DEVICE double volume() const
   {
     double retval = 0.;
-    if(m_shapeId == axom::mir::views::Tet_ShapeID)
+    if(m_shapeId == axom::bump::views::Tet_ShapeID)
     {
       axom::primal::Tetrahedron<T, 3> tet(m_points[0], m_points[1], m_points[2], m_points[3]);
       retval = tet.volume();
     }
-    else if(m_shapeId == axom::mir::views::Pyramid_ShapeID)
+    else if(m_shapeId == axom::bump::views::Pyramid_ShapeID)
     {
       axom::primal::Tetrahedron<T, 3> tets[2];
       splitPyramid(tets);
@@ -85,7 +83,7 @@ public:
         retval += tets[i].volume();
       }
     }
-    else if(m_shapeId == axom::mir::views::Wedge_ShapeID)
+    else if(m_shapeId == axom::bump::views::Wedge_ShapeID)
     {
       axom::primal::Tetrahedron<T, 3> tets[3];
       splitWedge(tets);
@@ -94,7 +92,7 @@ public:
         retval += tets[i].volume();
       }
     }
-    else if(m_shapeId == axom::mir::views::Hex_ShapeID)
+    else if(m_shapeId == axom::bump::views::Hex_ShapeID)
     {
       axom::primal::Hexahedron<T, 3> hex(m_points[0],
                                          m_points[1],
@@ -119,7 +117,7 @@ public:
    */
   AXOM_HOST_DEVICE void splitPyramid(axom::primal::Tetrahedron<T, NDIMS> tets[2]) const
   {
-    assert(m_shapeId == axom::mir::views::Pyramid_ShapeID);
+    assert(m_shapeId == axom::bump::views::Pyramid_ShapeID);
     tets[0] = axom::primal::Tetrahedron<T, NDIMS>(m_points[0], m_points[1], m_points[3], m_points[4]);
     tets[1] = axom::primal::Tetrahedron<T, NDIMS>(m_points[1], m_points[2], m_points[3], m_points[4]);
   }
@@ -130,7 +128,7 @@ public:
    */
   AXOM_HOST_DEVICE void splitWedge(axom::primal::Tetrahedron<T, NDIMS> tets[3]) const
   {
-    assert(m_shapeId == axom::mir::views::Wedge_ShapeID);
+    assert(m_shapeId == axom::bump::views::Wedge_ShapeID);
     tets[0] = axom::primal::Tetrahedron<T, NDIMS>(m_points[0], m_points[1], m_points[2], m_points[3]);
     tets[1] = axom::primal::Tetrahedron<T, NDIMS>(m_points[3], m_points[1], m_points[2], m_points[5]);
     tets[2] = axom::primal::Tetrahedron<T, NDIMS>(m_points[3], m_points[4], m_points[1], m_points[5]);
@@ -157,9 +155,8 @@ std::ostream &operator<<(std::ostream &os, const VariableShape<T, NDIMS, N> &obj
   return os;
 }
 
-}  // namespace blueprint
 }  // namespace utilities
-}  // namespace mir
+}  // namespace bump
 }  // namespace axom
 
 #endif

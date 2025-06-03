@@ -2,23 +2,22 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_MERGE_POLYHEDRAL_FACES_HPP_
-#define AXOM_MIR_MERGE_POLYHEDRAL_FACES_HPP_
+#ifndef AXOM_BUMP_MERGE_POLYHEDRAL_FACES_HPP_
+#define AXOM_BUMP_MERGE_POLYHEDRAL_FACES_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir/utilities/utilities.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
-#include "axom/mir/utilities/Unique.hpp"
+#include "axom/bump/utilities/utilities.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/Unique.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 /*!
  * \brief Take a Blueprint polyhedral mesh and merge faces and rewrite the
@@ -50,12 +49,10 @@ public:
    */
   static void execute(conduit::Node &n_topo)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
-
     SLIC_ASSERT(n_topo.fetch_existing("elements/shape").as_string() == "polyhedral");
 
     AXOM_ANNOTATE_SCOPE("MergePolyhedralFaces");
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    ConduitAllocateThroughAxom<ExecSpace> c2a;
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
     // Get the data from the topology and make views.
@@ -65,12 +62,12 @@ public:
     conduit::Node &n_se_conn = n_topo["subelements/connectivity"];
     conduit::Node &n_se_sizes = n_topo["subelements/sizes"];
     conduit::Node &n_se_offsets = n_topo["subelements/offsets"];
-    auto elem_conn = bputils::make_array_view<ConnectivityType>(n_elem_conn);
-    auto elem_sizes = bputils::make_array_view<ConnectivityType>(n_elem_sizes);
-    auto elem_offsets = bputils::make_array_view<ConnectivityType>(n_elem_offsets);
-    const auto se_conn = bputils::make_array_view<ConnectivityType>(n_se_conn);
-    const auto se_sizes = bputils::make_array_view<ConnectivityType>(n_se_sizes);
-    const auto se_offsets = bputils::make_array_view<ConnectivityType>(n_se_offsets);
+    auto elem_conn = make_array_view<ConnectivityType>(n_elem_conn);
+    auto elem_sizes = make_array_view<ConnectivityType>(n_elem_sizes);
+    auto elem_offsets = make_array_view<ConnectivityType>(n_elem_offsets);
+    const auto se_conn = make_array_view<ConnectivityType>(n_se_conn);
+    const auto se_sizes = make_array_view<ConnectivityType>(n_se_sizes);
+    const auto se_offsets = make_array_view<ConnectivityType>(n_se_offsets);
 
     //--------------------------------------------------------------------------
     AXOM_ANNOTATE_BEGIN("maxnode");
@@ -129,7 +126,7 @@ public:
     axom::Array<axom::IndexType> selectedFaces;
 
     // Make faces unique.
-    axom::mir::utilities::Unique<ExecSpace, KeyType>::execute(faceNamesView, uniqueKeys, selectedFaces);
+    axom::bump::utilities::Unique<ExecSpace, KeyType>::execute(faceNamesView, uniqueKeys, selectedFaces);
     const auto uniqueKeysView = uniqueKeys.view();
     const auto selectedFacesView = selectedFaces.view();
     AXOM_ANNOTATE_END("unique");
@@ -139,14 +136,14 @@ public:
     conduit::Node n_new_se_sizes;
     n_new_se_sizes.set_allocator(c2a.getConduitAllocatorID());
     n_new_se_sizes.set(
-      conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, selectedFaces.size()));
-    auto new_se_sizes = bputils::make_array_view<ConnectivityType>(n_new_se_sizes);
+      conduit::DataType(cpp2conduit<ConnectivityType>::id, selectedFaces.size()));
+    auto new_se_sizes = make_array_view<ConnectivityType>(n_new_se_sizes);
 
     conduit::Node n_new_se_offsets;
     n_new_se_offsets.set_allocator(c2a.getConduitAllocatorID());
     n_new_se_offsets.set(
-      conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, selectedFaces.size()));
-    auto new_se_offsets = bputils::make_array_view<ConnectivityType>(n_new_se_offsets);
+      conduit::DataType(cpp2conduit<ConnectivityType>::id, selectedFaces.size()));
+    auto new_se_offsets = make_array_view<ConnectivityType>(n_new_se_offsets);
 
     // Copy the sizes of the selected faces into new_se_sizes and make new_se_offsets
     axom::ReduceSum<ExecSpace, axom::IndexType> reduceNewSizes(0);
@@ -163,8 +160,8 @@ public:
     // Allocate new_se_conn to contain the new face definitions.
     conduit::Node n_new_se_conn;
     n_new_se_conn.set_allocator(c2a.getConduitAllocatorID());
-    n_new_se_conn.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, newSEConnSize));
-    auto new_se_conn = bputils::make_array_view<ConnectivityType>(n_new_se_conn);
+    n_new_se_conn.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, newSEConnSize));
+    auto new_se_conn = make_array_view<ConnectivityType>(n_new_se_conn);
 
     // Copy the selected faces into new_se_conn.
     axom::for_all<ExecSpace>(
@@ -210,7 +207,7 @@ public:
 
           // Look for the index of the "name" in the new uniqueKeys.
           // That will be its face index in the new faces.
-          const auto newId = axom::mir::utilities::bsearch(originalFaceKey, uniqueKeysView);
+          const auto newId = axom::bump::utilities::bsearch(originalFaceKey, uniqueKeysView);
           SLIC_ASSERT(newId != -1);
           elem_conn[index] = static_cast<ConnectivityType>(newId);
         });
@@ -223,14 +220,14 @@ public:
       conduit::Node n_new_elem_conn;
       n_new_elem_conn.set_allocator(c2a.getConduitAllocatorID());
       n_new_elem_conn.set(
-        conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, totalConnSize));
-      auto new_elem_conn = bputils::make_array_view<ConnectivityType>(n_new_elem_conn);
+        conduit::DataType(cpp2conduit<ConnectivityType>::id, totalConnSize));
+      auto new_elem_conn = make_array_view<ConnectivityType>(n_new_elem_conn);
 
       conduit::Node n_new_elem_offsets;
       n_new_elem_offsets.set_allocator(c2a.getConduitAllocatorID());
       n_new_elem_offsets.set(
-        conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, elem_sizes.size()));
-      auto new_elem_offsets = bputils::make_array_view<ConnectivityType>(n_new_elem_offsets);
+        conduit::DataType(cpp2conduit<ConnectivityType>::id, elem_sizes.size()));
+      auto new_elem_offsets = make_array_view<ConnectivityType>(n_new_elem_offsets);
       axom::exclusive_scan<ExecSpace>(elem_sizes, new_elem_offsets);
 
       axom::for_all<ExecSpace>(
@@ -248,7 +245,7 @@ public:
 
             // Look for the index of the "name" in the new uniqueKeys.
             // That will be its face index in the new faces.
-            const auto newId = axom::mir::utilities::bsearch(originalFaceKey, uniqueKeysView);
+            const auto newId = axom::bump::utilities::bsearch(originalFaceKey, uniqueKeysView);
             SLIC_ASSERT(newId != -1);
             new_elem_conn[destOffset + i] = static_cast<ConnectivityType>(newId);
           }
@@ -262,9 +259,8 @@ public:
   }
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

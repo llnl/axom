@@ -14,6 +14,8 @@
 
 #include <conduit/conduit.hpp>
 
+#include <utility>
+
 namespace axom
 {
 namespace bump
@@ -43,7 +45,7 @@ struct MinMax
     SLIC_ASSERT(n.dtype().number_of_elements() > 0);
     std::pair<ReturnType, ReturnType> retval;
 
-    axom::mir::views::Node_to_ArrayView(n, [&](auto nview) { retval = execute(nview); });
+    axom::bump::views::Node_to_ArrayView(n, [&](auto nview) { retval = execute(nview); });
     return retval;
   }
 

@@ -2,22 +2,20 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_FIELD_SLICER_HPP_
-#define AXOM_MIR_FIELD_SLICER_HPP_
+#ifndef AXOM_BUMP_FIELD_SLICER_HPP_
+#define AXOM_BUMP_FIELD_SLICER_HPP_
 
 #include "axom/core.hpp"
-#include "axom/mir/views/NodeArrayView.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
+#include "axom/bump/views/NodeArrayView.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 /*!
  * \brief Contains the indices to be sliced out of a Blueprint field.
@@ -142,9 +140,8 @@ private:
   IndexingPolicy m_indexing {};
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

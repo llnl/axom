@@ -3,23 +3,22 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_MATSET_SLICER_HPP
-#define AXOM_MIR_MATSET_SLICER_HPP
+#ifndef AXOM_BUMP_MATSET_SLICER_HPP
+#define AXOM_BUMP_MATSET_SLICER_HPP
 
 #include "axom/core.hpp"
-#include "axom/mir/utilities/FieldSlicer.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/FieldSlicer.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
 
 #include <conduit.hpp>
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
 {
-namespace blueprint
-{
+
 /*!
  * \brief Slices the input matset view and outputs a new matset (unibuffer flavor).
  *
@@ -49,7 +48,7 @@ public:
   {
     using MatsetIndex = typename MatsetView::IndexType;
     using MatsetFloat = typename MatsetView::FloatType;
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const axom::ArrayView<axom::IndexType> &selectedZonesView = slice.m_indicesView;
     SLIC_ASSERT(selectedZonesView.size() > 0);
 
@@ -60,18 +59,18 @@ public:
       if(n_matset.has_child(keys[i])) n_newMatset[keys[i]] = n_matset.fetch_existing(keys[i]);
     }
 
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     // Allocate sizes/offsets.
     conduit::Node &n_sizes = n_newMatset["sizes"];
     n_sizes.set_allocator(c2a.getConduitAllocatorID());
     n_sizes.set(conduit::DataType(cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
-    auto sizesView = bputils::make_array_view<MatsetIndex>(n_sizes);
+    auto sizesView = utils::make_array_view<MatsetIndex>(n_sizes);
 
     conduit::Node &n_offsets = n_newMatset["offsets"];
     n_offsets.set_allocator(c2a.getConduitAllocatorID());
     n_offsets.set(conduit::DataType(cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
-    auto offsetsView = bputils::make_array_view<MatsetIndex>(n_offsets);
+    auto offsetsView = utils::make_array_view<MatsetIndex>(n_offsets);
 
     // Figure out overall size of the matset zones we're keeping.
     MatsetView deviceMatsetView(m_matsetView);
@@ -95,17 +94,17 @@ public:
     conduit::Node &n_indices = n_newMatset["indices"];
     n_indices.set_allocator(c2a.getConduitAllocatorID());
     n_indices.set(conduit::DataType(cpp2conduit<MatsetIndex>::id, totalSize));
-    auto indicesView = bputils::make_array_view<MatsetIndex>(n_indices);
+    auto indicesView = utils::make_array_view<MatsetIndex>(n_indices);
 
     conduit::Node &n_material_ids = n_newMatset["material_ids"];
     n_material_ids.set_allocator(c2a.getConduitAllocatorID());
     n_material_ids.set(conduit::DataType(cpp2conduit<MatsetIndex>::id, totalSize));
-    auto materialIdsView = bputils::make_array_view<MatsetIndex>(n_material_ids);
+    auto materialIdsView = utils::make_array_view<MatsetIndex>(n_material_ids);
 
     conduit::Node &n_volume_fractions = n_newMatset["volume_fractions"];
     n_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
     n_volume_fractions.set(conduit::DataType(cpp2conduit<MatsetFloat>::id, totalSize));
-    auto volumeFractionsView = bputils::make_array_view<MatsetFloat>(n_volume_fractions);
+    auto volumeFractionsView = utils::make_array_view<MatsetFloat>(n_volume_fractions);
 
     // Fill in the matset data with the zones we're keeping.
     axom::for_all<ExecSpace>(
@@ -132,9 +131,8 @@ private:
   MatsetView m_matsetView;
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif

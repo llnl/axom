@@ -3,24 +3,22 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_MIR_EXTRACT_ZONES_HPP
-#define AXOM_MIR_EXTRACT_ZONES_HPP
+#ifndef AXOM_BUMP_EXTRACT_ZONES_HPP
+#define AXOM_BUMP_EXTRACT_ZONES_HPP
 
 #include "axom/core.hpp"
-#include "axom/mir/utilities/CoordsetBlender.hpp"
-#include "axom/mir/utilities/CoordsetSlicer.hpp"
-#include "axom/mir/utilities/FieldSlicer.hpp"
-#include "axom/mir/utilities/MatsetSlicer.hpp"
-#include "axom/mir/Options.hpp"
-#include "axom/mir/MIROptions.hpp"
+#include "axom/bump/utilities/CoordsetBlender.hpp"
+#include "axom/bump/utilities/CoordsetSlicer.hpp"
+#include "axom/bump/utilities/FieldSlicer.hpp"
+#include "axom/bump/utilities/MatsetSlicer.hpp"
+#include "axom/bump/Options.hpp"
+#include "axom/bump/MIROptions.hpp"
 
 namespace axom
 {
-namespace mir
+namespace bump
 {
 namespace utilities
-{
-namespace blueprint
 {
 /*!
  * \brief Make a new topology and coordset by extracting certain zones from the input mesh.
@@ -89,7 +87,7 @@ public:
                conduit::Node &n_output)
   {
     AXOM_ANNOTATE_SCOPE("ExtractZones");
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities::blueprint;
 
     // Determine the dataSizes and map/slice information for nodes.
     axom::Array<ConnectivityType> old2new;
@@ -142,7 +140,7 @@ public:
     // Make originalElements.
     if(makeOriginalZones)
     {
-      bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+      utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
       conduit::Node &n_outFields = n_output["fields"];
       conduit::Node &n_origElements = n_outFields[opts.originalElementsField()];
@@ -396,8 +394,8 @@ protected:
                             conduit::Node &n_newTopo) const
   {
     AXOM_ANNOTATE_SCOPE("makeTopology");
-    namespace bputils = axom::mir::utilities::blueprint;
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    namespace utils = axom::bump::utilities;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     const std::string shape = outputShape(n_topo);
     if(shape == "polyhedron")
@@ -419,18 +417,18 @@ protected:
       n_conn.set_allocator(c2a.getConduitAllocatorID());
       n_conn.set(conduit::DataType(cpp2conduit<ConnectivityType>::id,
                                    dataSizes.connectivity + extra.connectivity));
-      auto connView = bputils::make_array_view<ConnectivityType>(n_conn);
+      auto connView = utils::make_array_view<ConnectivityType>(n_conn);
 
       conduit::Node &n_sizes = n_newTopo["elements/sizes"];
       n_sizes.set_allocator(c2a.getConduitAllocatorID());
       n_sizes.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, dataSizes.zones + extra.zones));
-      auto sizesView = bputils::make_array_view<ConnectivityType>(n_sizes);
+      auto sizesView = utils::make_array_view<ConnectivityType>(n_sizes);
 
       conduit::Node &n_offsets = n_newTopo["elements/offsets"];
       n_offsets.set_allocator(c2a.getConduitAllocatorID());
       n_offsets.set(
         conduit::DataType(cpp2conduit<ConnectivityType>::id, dataSizes.zones + extra.zones));
-      auto offsetsView = bputils::make_array_view<ConnectivityType>(n_offsets);
+      auto offsetsView = utils::make_array_view<ConnectivityType>(n_offsets);
 
       // Fill sizes, offsets
       const TopologyView deviceTopologyView(m_topologyView);
@@ -500,13 +498,13 @@ protected:
       if(n_topo.has_path("elements/shapes"))
       {
         const conduit::Node &n_shapes = n_topo.fetch_existing("elements/shapes");
-        auto shapesView = bputils::make_array_view<ConnectivityType>(n_shapes);
+        auto shapesView = utils::make_array_view<ConnectivityType>(n_shapes);
 
         conduit::Node &n_newShapes = n_newTopo["elements/shapes"];
         n_newShapes.set_allocator(c2a.getConduitAllocatorID());
         n_newShapes.set(
           conduit::DataType(cpp2conduit<ConnectivityType>::id, dataSizes.zones + extra.zones));
-        auto newShapesView = bputils::make_array_view<ConnectivityType>(n_newShapes);
+        auto newShapesView = utils::make_array_view<ConnectivityType>(n_newShapes);
 
         const SelectedZonesView deviceSelectedZonesView(selectedZonesView);
         axom::for_all<ExecSpace>(
@@ -537,11 +535,11 @@ protected:
                     conduit::Node &n_newCoordset) const
   {
     AXOM_ANNOTATE_SCOPE("makeCoordset");
-    // _mir_utilities_coordsetslicer_begin
-    axom::mir::utilities::blueprint::CoordsetSlicer<ExecSpace, CoordsetView> cs(m_coordsetView);
+    // _bump_utilities_coordsetslicer_begin
+    axom::bump::utilities::CoordsetSlicer<ExecSpace, CoordsetView> cs(m_coordsetView);
     n_newCoordset.reset();
     cs.execute(nodeSlice, n_coordset, n_newCoordset);
-    // _mir_utilities_coordsetslicer_end
+    // _bump_utilities_coordsetslicer_end
   }
 
   /*!
@@ -568,7 +566,7 @@ protected:
       const conduit::Node &n_field = n_fields[i];
       const std::string association = n_field["association"].as_string();
       conduit::Node &n_newField = n_newFields[n_field.name()];
-      axom::mir::utilities::blueprint::FieldSlicer<ExecSpace> fs;
+      axom::bump::utilities::FieldSlicer<ExecSpace> fs;
       if(association == "element")
       {
         fs.execute(zoneSlice, n_field, n_newField);
@@ -713,12 +711,12 @@ public:
     AXOM_ANNOTATE_SCOPE("ExtractZonesAndMatset");
 
     // Call base class to handle mesh/coordset/fields
-    // _mir_utilities_extractzones_begin
+    // _bump_utilities_extractzones_begin
     ExtractZones<ExecSpace, TopologyView, CoordsetView>::execute(selectedZonesView,
                                                                  n_input,
                                                                  n_options,
                                                                  n_output);
-    // _mir_utilities_extractzones_end
+    // _bump_utilities_extractzones_end
 
     // Make new matset.
     const std::string topoName =
@@ -784,7 +782,7 @@ protected:
   {
     AXOM_ANNOTATE_SCOPE("makeMatset");
     // TODO: Make this "if constexpr" when Axom allows that.
-    if(axom::mir::views::view_traits<TopologyView>::supports_strided_structured())
+    if(axom::bump::views::view_traits<TopologyView>::supports_strided_structured())
     {
       // If the topology view supports strided structured then we need to convert the
       // selected zones to "global" values to pull out the right zones from the material.
@@ -807,21 +805,20 @@ protected:
     }
     else
     {
-      // _mir_utilities_matsetslicer_begin
+      // _bump_utilities_matsetslicer_begin
       MatsetSlicer<ExecSpace, MatsetView> ms(m_matsetView);
       SliceData zSlice;
       zSlice.m_indicesView = selectedZonesView;
       ms.execute(zSlice, n_matset, n_newMatset);
-      // _mir_utilities_matsetslicer_end
+      // _bump_utilities_matsetslicer_end
     }
   }
 
   MatsetView m_matsetView;
 };
 
-}  // end namespace blueprint
 }  // end namespace utilities
-}  // end namespace mir
+}  // end namespace bump
 }  // end namespace axom
 
 #endif
