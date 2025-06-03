@@ -30,13 +30,14 @@ def test_create_external_view():
 
 	assert root.getNumViews() == 2
 
-	idata_chk = iview.getDataIntPtr()
+	idata_chk = iview.getDataArray()
 	assert len(idata_chk) == length
 	assert np.array_equal(idata_chk, idata)
 
-	ddata_chk = dview.getDataDoublePtr()
+	ddata_chk = dview.getDataArray()
 	assert len(ddata_chk) == length
 	assert np.array_equal(ddata_chk, ddata)
+
 
 # Corresponding fortran test implementation needs to be fixed
 # def test_save_load_external_view():

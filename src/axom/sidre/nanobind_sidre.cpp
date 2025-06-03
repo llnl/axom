@@ -24,6 +24,54 @@ namespace axom
 namespace sidre
 {
 
+// Helper to map TypeID to dtype
+nb::dlpack::dtype typeIDToDtype(DataTypeId id)
+{
+  switch(id)
+  {
+  case INT64_ID:
+    return nb::dtype<int64_t>();
+  case DOUBLE_ID:
+    return nb::dtype<double>();
+  default:
+    SLIC_ERROR("DataTypeId unsupported for numpy");
+    return nb::dtype<double>();
+  }
+}
+
+/*!
+   * \brief Returns a View as a numpy array.
+   *
+   * \note Max dimensions (DMAX) is currently set to 10.
+   * \pre data description must have been applied.
+   */
+nb::ndarray<nb::numpy> viewToNumpyArray(View& self)
+{
+  void* data = self.getVoidPtr();
+  constexpr int DMAX = 10;
+
+  int shapeOutput[DMAX];
+  size_t ndims = self.getShape(DMAX, shapeOutput);
+  size_t shape[DMAX];
+  for(size_t i = 0; i < ndims; i++)
+  {
+    shape[i] = static_cast<size_t>(shapeOutput[i]);
+  }
+
+  // Delete 'data' when the 'owner' capsule expires
+  nb::capsule owner(data, [](void* p) noexcept { delete[] static_cast<char*>(p); });
+
+  DataTypeId id = self.getTypeID();
+
+  return nb::ndarray<nb::numpy>(
+    /* data = */ data,
+    /* ndim = */ ndims,
+    /* shape = */ shape,
+    /* owner = */ owner,
+    /* strides = */ nullptr,
+    /* dtype = */ typeIDToDtype(id));
+}
+
 // TODO determine return value policy (nb::rv_policy::reference or not) for ownership between C++ and Python:
 // https://nanobind.readthedocs.io/en/latest/ownership.html#return-value-policies
 NB_MODULE(pysidre, m_sidre)
@@ -192,7 +240,18 @@ NB_MODULE(pysidre, m_sidre)
     .def("getNumDimensions",
          &View::getNumDimensions,
          "Return the dimensionality of the View's data.")
-    .def("getShape", &View::getShape, "Return the shape of the View's data.")
+    // .def("getShape", &View::getShape, "Return the shape of the View's data.")
+    .def(
+      "getShape",
+      [](View& self, int ndims, nb::ndarray<int>& a) {
+        int ret = self.getShape(ndims, a.data());
+        return nb::make_tuple(ret, a);
+      },
+      "Return number of dimensions in data view and fill in shape information"
+      " of this data view object."
+      " ndims - maximum number of dimensions to return."
+      " shape - user supplied numpy array assumed to be ndims long.")
+
     .def("allocate",
          nb::overload_cast<int>(&View::allocate),
          nb::rv_policy::reference,
@@ -239,10 +298,14 @@ NB_MODULE(pysidre, m_sidre)
          nb::arg("num_elems"),
          nb::arg("offset") = 0,
          nb::arg("stride") = 1)
-    .def("apply",
-         nb::overload_cast<TypeID, int, const IndexType*>(&View::apply),
-         nb::rv_policy::reference,
-         "Apply data description with type and shape.")
+    .def(
+      "apply",
+      // nb::overload_cast<TypeID, int, const IndexType*>(&View::apply),
+      [](View& self, TypeID type, int ndims, nb::ndarray<int>& shape) {
+        return self.apply(type, ndims, shape.data());
+      },
+      nb::rv_policy::reference,
+      "Apply data description with type and shape.")
     .def("setScalar",
          &View::setScalar<int>,
          nb::rv_policy::reference,
@@ -275,35 +338,7 @@ NB_MODULE(pysidre, m_sidre)
          &View::getString,
          nb::rv_policy::reference,
          "Return the string contained in the View.")
-    .def(
-      "getDataIntPtr",
-      [](View& self) {
-        int64_t* data = self.getData();
-
-        // Delete 'data' when the 'owner' capsule expires
-        nb::capsule owner(data, [](void* p) noexcept { delete[](int64_t*) p; });
-
-        return nb::ndarray<nb::numpy, int64_t, nb::ndim<1>>(
-          /* data = */ data,
-          /* shape = */ {static_cast<size_t>(self.getNumElements())},
-          /* owner = */ owner);
-      },
-      "Return the data held by the View (int64_t *).")
-
-    .def(
-      "getDataDoublePtr",
-      [](View& self) {
-        double* data = self.getData();
-
-        // Delete 'data' when the 'owner' capsule expires
-        nb::capsule owner(data, [](void* p) noexcept { delete[](double*) p; });
-
-        return nb::ndarray<nb::numpy, double, nb::ndim<1>>(
-          /* data = */ data,
-          /* shape = */ {static_cast<size_t>(self.getNumElements())},
-          /* owner = */ owner);
-      },
-      "Return the data held by the View (double *).")
+    .def("getDataArray", &viewToNumpyArray, "Return the data held by the View as a numpy array.")
 
     .def("getData",
          &View::getData<int>,
