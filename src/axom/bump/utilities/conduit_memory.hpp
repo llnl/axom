@@ -14,7 +14,6 @@
 #include "axom/export/bump.h"
 
 #include <conduit/conduit.hpp>
-#include <conduit/conduit_blueprint.hpp>
 
 #include <string>
 

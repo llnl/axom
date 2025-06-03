@@ -87,7 +87,7 @@ public:
                conduit::Node &n_output)
   {
     AXOM_ANNOTATE_SCOPE("ExtractZones");
-    namespace utils = axom::bump::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
 
     // Determine the dataSizes and map/slice information for nodes.
     axom::Array<ConnectivityType> old2new;

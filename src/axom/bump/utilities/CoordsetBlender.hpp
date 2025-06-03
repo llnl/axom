@@ -15,7 +15,6 @@
 #include "axom/slic.hpp"
 
 #include <conduit/conduit.hpp>
-#include <conduit/conduit_blueprint_mesh_utils.hpp>
 
 namespace axom
 {

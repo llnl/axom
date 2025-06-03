@@ -76,6 +76,7 @@ private:
                                const conduit::Node &relation,
                                conduit::Node &n_out) const
   {
+    namespace utils = axom::bump::utilities;
     // Get the data field for the o2m relation.
     const auto data_paths = conduit::blueprint::o2mrelation::data_paths(relation);
 
@@ -90,7 +91,7 @@ private:
       [&](auto relView, auto sizesView, auto offsetsView) {
         // Allocate Conduit data through Axom.
         const auto relSize = sizesView.size();
-        utilities::blueprint::ConduitAllocateThroughAxom<ExecSpace> c2a;
+        utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
         n_out.set_allocator(c2a.getConduitAllocatorID());
         n_out.set(conduit::DataType(n_comp.dtype().id(), relSize));
 

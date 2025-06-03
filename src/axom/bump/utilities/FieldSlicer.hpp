@@ -96,10 +96,11 @@ private:
                             const conduit::Node &n_values,
                             conduit::Node &n_output_values) const
   {
+    namespace utils = axom::bump::utilities;
     const auto outputSize = slice.m_indicesView.size();
 
     // Allocate Conduit data through Axom.
-    utilities::blueprint::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
     n_output_values.set_allocator(c2a.getConduitAllocatorID());
     n_output_values.set(conduit::DataType(n_values.dtype().id(), outputSize));
 

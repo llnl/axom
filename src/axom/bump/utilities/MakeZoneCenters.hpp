@@ -13,7 +13,6 @@
 #include "axom/slic.hpp"
 
 #include <conduit/conduit.hpp>
-#include <conduit/conduit_blueprint_mesh_utils.hpp>
 
 namespace axom
 {
@@ -106,7 +105,7 @@ public:
     SLIC_ASSERT(PointType::DIMENSION == nComponents);
 
     // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
-    utilities::blueprint::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     n_outputField.reset();
     n_outputField["association"] = "element";

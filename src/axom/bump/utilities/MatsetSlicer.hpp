@@ -8,7 +8,8 @@
 
 #include "axom/core.hpp"
 #include "axom/bump/utilities/FieldSlicer.hpp"
-#include "axom/bump/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/conduit_traits.hpp"
 
 #include <conduit.hpp>
 
@@ -64,12 +65,12 @@ public:
     // Allocate sizes/offsets.
     conduit::Node &n_sizes = n_newMatset["sizes"];
     n_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_sizes.set(conduit::DataType(cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
+    n_sizes.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
     auto sizesView = utils::make_array_view<MatsetIndex>(n_sizes);
 
     conduit::Node &n_offsets = n_newMatset["offsets"];
     n_offsets.set_allocator(c2a.getConduitAllocatorID());
-    n_offsets.set(conduit::DataType(cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
+    n_offsets.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, selectedZonesView.size()));
     auto offsetsView = utils::make_array_view<MatsetIndex>(n_offsets);
 
     // Figure out overall size of the matset zones we're keeping.
@@ -93,17 +94,17 @@ public:
 
     conduit::Node &n_indices = n_newMatset["indices"];
     n_indices.set_allocator(c2a.getConduitAllocatorID());
-    n_indices.set(conduit::DataType(cpp2conduit<MatsetIndex>::id, totalSize));
+    n_indices.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, totalSize));
     auto indicesView = utils::make_array_view<MatsetIndex>(n_indices);
 
     conduit::Node &n_material_ids = n_newMatset["material_ids"];
     n_material_ids.set_allocator(c2a.getConduitAllocatorID());
-    n_material_ids.set(conduit::DataType(cpp2conduit<MatsetIndex>::id, totalSize));
+    n_material_ids.set(conduit::DataType(utils::cpp2conduit<MatsetIndex>::id, totalSize));
     auto materialIdsView = utils::make_array_view<MatsetIndex>(n_material_ids);
 
     conduit::Node &n_volume_fractions = n_newMatset["volume_fractions"];
     n_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
-    n_volume_fractions.set(conduit::DataType(cpp2conduit<MatsetFloat>::id, totalSize));
+    n_volume_fractions.set(conduit::DataType(utils::cpp2conduit<MatsetFloat>::id, totalSize));
     auto volumeFractionsView = utils::make_array_view<MatsetFloat>(n_volume_fractions);
 
     // Fill in the matset data with the zones we're keeping.

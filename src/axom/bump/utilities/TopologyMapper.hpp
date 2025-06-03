@@ -17,7 +17,6 @@
 #include "axom/bump/utilities/utilities.hpp"
 
 #include <conduit.hpp>
-#include <conduit_blueprint.hpp>
 #include <conduit_relay.hpp>
 
 #include <iostream>
@@ -483,7 +482,7 @@ public:
                conduit::Node &n_targetMesh) const
   {
     AXOM_ANNOTATE_SCOPE("TopologyMapper::execute");
-    namespace bputils = axom::bump::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
 
     // Pick output matset types (use input types)
     using MatIntType = typename SrcMatsetView::IndexType;
@@ -500,7 +499,7 @@ public:
     // Make sure options are in the right memory space in case we are given lists of
     // selected zone ids.
     conduit::Node n_options_copy;
-    bputils::copy<ExecSpace>(n_options_copy, n_options);
+    utils::copy<ExecSpace>(n_options_copy, n_options);
 
     // Ensure required options exist.
     const char *required[] = {SRC_MATSET_NAME, TARGET_TOPOLOGY_NAME, TARGET_MATSET_NAME};
@@ -598,11 +597,11 @@ public:
     n_offsets.set_allocator(c2a.getConduitAllocatorID());
 
     n_volume_fractions.set(
-      conduit::DataType(bputils::cpp2conduit<MatFloatType>::id, numMaterialSlots * nTargetZones));
+      conduit::DataType(utils::cpp2conduit<MatFloatType>::id, numMaterialSlots * nTargetZones));
     n_material_ids.set(
-      conduit::DataType(bputils::cpp2conduit<MatIntType>::id, numMaterialSlots * nTargetZones));
-    n_sizes.set(conduit::DataType(bputils::cpp2conduit<MatIntType>::id, nTargetZones));
-    n_offsets.set(conduit::DataType(bputils::cpp2conduit<MatIntType>::id, nTargetZones));
+      conduit::DataType(utils::cpp2conduit<MatIntType>::id, numMaterialSlots * nTargetZones));
+    n_sizes.set(conduit::DataType(utils::cpp2conduit<MatIntType>::id, nTargetZones));
+    n_offsets.set(conduit::DataType(utils::cpp2conduit<MatIntType>::id, nTargetZones));
     // n_indices are allocated later
 
     // Wrap the output matset data in some array views.
@@ -762,15 +761,15 @@ public:
     // All the contributions have been added to the target matset. Finish building it.
     AXOM_ANNOTATE_BEGIN("finish");
     axom::exclusive_scan<ExecSpace>(sizes, offsets);
-    n_indices.set(conduit::DataType(bputils::cpp2conduit<MatIntType>::id, totalSize));
+    n_indices.set(conduit::DataType(utils::cpp2conduit<MatIntType>::id, totalSize));
     auto indices = make_array_view<MatIntType>(n_indices);
 
     // The volume_fractions and material_ids arrays contain gaps that we can compress out.
     conduit::Node n_new_volume_fractions, n_new_material_ids;
     n_new_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
     n_new_material_ids.set_allocator(c2a.getConduitAllocatorID());
-    n_new_volume_fractions.set(conduit::DataType(bputils::cpp2conduit<MatFloatType>::id, totalSize));
-    n_new_material_ids.set(conduit::DataType(bputils::cpp2conduit<MatIntType>::id, totalSize));
+    n_new_volume_fractions.set(conduit::DataType(utils::cpp2conduit<MatFloatType>::id, totalSize));
+    n_new_material_ids.set(conduit::DataType(utils::cpp2conduit<MatIntType>::id, totalSize));
     auto new_volume_fractions = make_array_view<MatFloatType>(n_new_volume_fractions);
     auto new_material_ids = make_array_view<MatIntType>(n_new_material_ids);
     axom::for_all<ExecSpace>(

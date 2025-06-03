@@ -9,9 +9,6 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 
-#include <conduit/conduit.hpp>
-#include <conduit/conduit_blueprint.hpp>
-
 #include <cstdint>
 
 namespace axom

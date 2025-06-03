@@ -8,7 +8,8 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/bump/utilities/utilities.hpp"
-#include "axom/bump/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/bump/utilities/CoordsetSlicer.hpp"
 #include "axom/bump/utilities/CoordsetExtents.hpp"
 
