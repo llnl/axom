@@ -11,60 +11,98 @@
 // gtest includes
 #include "gtest/gtest.h"
 
-TEST(core_device_hash, hash_int)
+template <typename TheExecSpace>
+class core_device_hash : public ::testing::Test
 {
+public:
+  using ExecSpace = TheExecSpace;
+};
+
+using HashTestTypes = ::testing::Types<
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  axom::CUDA_EXEC<256>,
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  axom::HIP_EXEC<256>,
+#endif
+  axom::SEQ_EXEC>;
+
+TYPED_TEST_SUITE(core_device_hash, HashTestTypes);
+
+AXOM_TYPED_TEST(core_device_hash, hash_int)
+{
+  using ExecSpace = typename TestFixture::ExecSpace;
+
   axom::DeviceHash<int> device_hasher;
 
   constexpr int NUM_HASHES = 4;
 
   int things_to_hash[NUM_HASHES] {0, 1, 37, 1100};
 
-  axom::IndexType computed_hashes[NUM_HASHES];
+  // Allocate space for hash results.
+  int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+  axom::IndexType *computed_hashes =
+    axom::allocate<axom::IndexType>(NUM_HASHES, allocatorID);
 
   // Compute hashes.
-  for(int i = 0; i < NUM_HASHES; i++)
-  {
-    computed_hashes[i] = device_hasher(things_to_hash[i]);
-  }
+  axom::for_all<ExecSpace>(
+    NUM_HASHES,
+    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+
+  // Copy back to host.
+  axom::IndexType computed_hashes_host[NUM_HASHES];
+  axom::copy(computed_hashes_host,
+             computed_hashes,
+             sizeof(axom::IndexType) * NUM_HASHES);
 
   for(int i = 0; i < NUM_HASHES; i++)
   {
     // Invocations of the hash function should be idempotent.
-    EXPECT_EQ(computed_hashes[i], device_hasher(things_to_hash[i]));
+    EXPECT_EQ(computed_hashes_host[i], device_hasher(things_to_hash[i]));
 
     // Check that we don't have hash collisions with other values.
     for(int j = i + 1; j < NUM_HASHES; j++)
     {
-      EXPECT_NE(computed_hashes[i], computed_hashes[j]);
+      EXPECT_NE(computed_hashes_host[i], computed_hashes[j]);
     }
   }
 }
 
-TEST(core_device_hash, hash_float)
+AXOM_TYPED_TEST(core_device_hash, hash_float)
 {
+  using ExecSpace = typename TestFixture::ExecSpace;
+
   axom::DeviceHash<float> device_hasher;
 
   constexpr int NUM_HASHES = 4;
 
   float things_to_hash[NUM_HASHES] {0.f, 1.f, 37.f, 1100.f};
 
-  axom::IndexType computed_hashes[NUM_HASHES];
+  // Allocate space for hash results.
+  int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+  axom::IndexType *computed_hashes =
+    axom::allocate<axom::IndexType>(NUM_HASHES, allocatorID);
 
   // Compute hashes.
-  for(int i = 0; i < NUM_HASHES; i++)
-  {
-    computed_hashes[i] = device_hasher(things_to_hash[i]);
-  }
+  axom::for_all<ExecSpace>(
+    NUM_HASHES,
+    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+
+  // Copy back to host.
+  axom::IndexType computed_hashes_host[NUM_HASHES];
+  axom::copy(computed_hashes_host,
+             computed_hashes,
+             sizeof(axom::IndexType) * NUM_HASHES);
 
   for(int i = 0; i < NUM_HASHES; i++)
   {
     // Invocations of the hash function should be idempotent.
-    EXPECT_EQ(computed_hashes[i], device_hasher(things_to_hash[i]));
+    EXPECT_EQ(computed_hashes_host[i], device_hasher(things_to_hash[i]));
 
     // Check that we don't have hash collisions with other values.
     for(int j = i + 1; j < NUM_HASHES; j++)
     {
-      EXPECT_NE(computed_hashes[i], computed_hashes[j]);
+      EXPECT_NE(computed_hashes_host[i], computed_hashes_host[j]);
     }
   }
 
@@ -109,8 +147,10 @@ enum class TestEnumHash
   Three
 };
 
-TEST(core_device_hash, hash_enum)
+AXOM_TYPED_TEST(core_device_hash, hash_enum)
 {
+  using ExecSpace = typename TestFixture::ExecSpace;
+
   axom::DeviceHash<TestEnumHash> device_hasher;
 
   constexpr int NUM_HASHES = 4;
@@ -120,23 +160,31 @@ TEST(core_device_hash, hash_enum)
                                            TestEnumHash::Two,
                                            TestEnumHash::Three};
 
-  axom::IndexType computed_hashes[NUM_HASHES];
+  // Allocate space for hash results.
+  int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+  axom::IndexType *computed_hashes =
+    axom::allocate<axom::IndexType>(NUM_HASHES, allocatorID);
 
   // Compute hashes.
-  for(int i = 0; i < NUM_HASHES; i++)
-  {
-    computed_hashes[i] = device_hasher(things_to_hash[i]);
-  }
+  axom::for_all<ExecSpace>(
+    NUM_HASHES,
+    AXOM_LAMBDA(int i) { computed_hashes[i] = device_hasher(things_to_hash[i]); });
+
+  // Copy back to host.
+  axom::IndexType computed_hashes_host[NUM_HASHES];
+  axom::copy(computed_hashes_host,
+             computed_hashes,
+             sizeof(axom::IndexType) * NUM_HASHES);
 
   for(int i = 0; i < NUM_HASHES; i++)
   {
     // Invocations of the hash function should be idempotent.
-    EXPECT_EQ(computed_hashes[i], device_hasher(things_to_hash[i]));
+    EXPECT_EQ(computed_hashes_host[i], device_hasher(things_to_hash[i]));
 
     // Check that we don't have hash collisions with other values.
     for(int j = i + 1; j < NUM_HASHES; j++)
     {
-      EXPECT_NE(computed_hashes[i], computed_hashes[j]);
+      EXPECT_NE(computed_hashes_host[i], computed_hashes_host[j]);
     }
   }
 }
