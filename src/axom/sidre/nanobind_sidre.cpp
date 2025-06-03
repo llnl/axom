@@ -29,9 +29,11 @@ nb::dlpack::dtype typeIDToDtype(DataTypeId id)
 {
   switch(id)
   {
+  case INT32_ID:
+    return nb::dtype<int>();
   case INT64_ID:
     return nb::dtype<int64_t>();
-  case DOUBLE_ID:
+  case FLOAT64_ID:
     return nb::dtype<double>();
   default:
     SLIC_ERROR("DataTypeId unsupported for numpy");
@@ -58,8 +60,12 @@ nb::ndarray<nb::numpy> viewToNumpyArray(View& self)
     shape[i] = static_cast<size_t>(shapeOutput[i]);
   }
 
+  // TODO This is tricky and difficult to understand
   // Delete 'data' when the 'owner' capsule expires
-  nb::capsule owner(data, [](void* p) noexcept { delete[] static_cast<char*>(p); });
+  // nb::capsule owner(data, [](void* p) noexcept { delete[] static_cast<char*>(p); });
+
+  // For external memory (numpy owns it), no deletion takes place
+  nb::capsule owner(data, [](void*) noexcept {});
 
   DataTypeId id = self.getTypeID();
 
@@ -301,11 +307,16 @@ NB_MODULE(pysidre, m_sidre)
     .def(
       "apply",
       // nb::overload_cast<TypeID, int, const IndexType*>(&View::apply),
-      [](View& self, TypeID type, int ndims, nb::ndarray<int>& shape) {
-        return self.apply(type, ndims, shape.data());
+      [](View& self, TypeID type, int ndims, nb::ndarray<int64_t>& shape) {
+        std::vector<int> temp(ndims);
+        for(int i = 0; i < ndims; i++)
+        {
+          temp[i] = static_cast<int>(shape.data()[i]);
+        }
+        return self.apply(type, ndims, temp.data());
       },
       nb::rv_policy::reference,
-      "Apply data description with type and shape.")
+      "Apply data description with type and numpy shape.")
     .def("setScalar",
          &View::setScalar<int>,
          nb::rv_policy::reference,
@@ -338,7 +349,9 @@ NB_MODULE(pysidre, m_sidre)
          &View::getString,
          nb::rv_policy::reference,
          "Return the string contained in the View.")
-    .def("getDataArray", &viewToNumpyArray, "Return the data held by the View as a numpy array.")
+    .def("getDataArray",
+         &viewToNumpyArray,
+         "Return the data held by the View as a numpy array.")
 
     .def("getData",
          &View::getData<int>,

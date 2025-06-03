@@ -25,7 +25,7 @@ def test_create_external_view():
 	iview.print()
 
 	dview = root.createView("ddata", ddata)
-	dview.apply(pysidre.TypeID.DOUBLE_ID, length)
+	dview.apply(pysidre.TypeID.FLOAT64_ID, length)
 	dview.print()
 
 	assert root.getNumViews() == 2

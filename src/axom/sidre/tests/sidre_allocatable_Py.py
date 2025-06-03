@@ -20,7 +20,7 @@ def test_external_allocatable_int():
 
 	assert view.isExternal() == True
 	assert view.getTypeID() == pysidre.TypeID.INT64_ID
-	assert view.getNumElements() == len(iarray)
+	assert view.getNumElements() == np.size(iarray)
 	assert view.getNumDimensions() == 1
 
 	extents = np.zeros(7)
@@ -62,41 +62,49 @@ def test_external_allocatable_int_3d():
 	assert np.array_equal(ipointer, iarray)
 
 
-# register a static (non-allocatable) array with the datastore as external view
-def test_external_static_int():
-	# may not be relevant for Python?
-	# TODO
-	pass
-
-
 # check other types
-def test_external_allocatable_double():
-	# TODO
-	pass
+def test_external_allocatable_float():
+	ds = pysidre.DataStore()
+	root = ds.getRoot()
+
+	darray = np.array([(i + 0.5) for i in range(1,11)])
+	view = root.createView("darray", darray)
+	view.apply(pysidre.TypeID.FLOAT64_ID, 10)
+
+	assert view.getTypeID() == pysidre.TypeID.FLOAT64_ID
+	assert view.getNumElements() == np.size(darray)
+
+	dpointer = view.getDataArray()
+	assert np.array_equal(dpointer, darray)
 
 
 # Datastore owns a multi-dimension array.
 def test_datastore_int_3d():
 	ds = pysidre.DataStore()
 	root = ds.getRoot()
-	extents = [2,3,4]
+	extents_in = [2,3,4]
 
-	view = root.createViewWithShapeAndAllocate("iarray", pysidre.TypeID.INT32_ID, 3, extents)
+	view = root.createViewWithShapeAndAllocate("iarray", pysidre.TypeID.INT32_ID, 3, extents_in)
 
-	# TODO return a python numpy array
-	# data = view.getData_Int()
-	# print(data)
-	# print(type(data))
+	ipointer = view.getDataArray()
 
-	# typeID = view.getTypeID()
-	# assert typeID == pysidre.TypeID.INT32_ID
+	assert view.getTypeID() == pysidre.TypeID.INT32_ID
+	assert view.getNumElements() == np.size(ipointer)
+	assert view.getNumDimensions() == 3
+	assert view.getNumDimensions() == ipointer.ndim
 
-	# num_elements = view.getNumElements()
-	# assert num_elements == len(data)
+	extents = np.zeros(7)
+	rank,extents = view.getShape(7, extents)
+	assert rank == 3
+	assert extents[0] == ipointer.shape[0]
+	assert extents[1] == ipointer.shape[1]
+	assert extents[2] == ipointer.shape[2]
 
-	# rank = view.getNumDimensions()
-	# assert rank == 3
+	# Reshape as 1D using shape
+	extents_in[0] = np.size(ipointer)
+	view.apply(pysidre.TypeID.INT32_ID, 1, np.array([extents_in[0]]))
+	assert view.getNumElements() == np.size(ipointer)
 
-	# rank = view.getShape(7, extents)
-	# assert rank == 3
-
+	# Reshape as 1D using length
+	view.apply(pysidre.TypeID.INT32_ID, extents_in[0])
+	assert view.getNumElements() == np.size(ipointer)
