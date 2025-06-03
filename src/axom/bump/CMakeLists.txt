@@ -24,7 +24,10 @@ set(bump_headers
     clipping/ClipField.hpp
     clipping/ClipOptions.hpp
     clipping/ClipTableManager.hpp
+    io/save.hpp
     Options.hpp
+    utilities/conduit_mempory.hpp
+    utilities/conduit_traits.hpp
     utilities/blueprint_utilities.hpp
     utilities/BlendData.hpp
     utilities/CoordsetBlender.hpp
@@ -35,6 +38,7 @@ set(bump_headers
     utilities/ExtrudeMesh.hpp
     utilities/FieldBlender.hpp
     utilities/FieldSlicer.hpp
+    utilities/IndexingPolicies.hpp
     utilities/MakePointMesh.hpp
     utilities/MakePolyhedralTopology.hpp
     utilities/MakeZoneCenters.hpp
@@ -44,6 +48,7 @@ set(bump_headers
     utilities/MergeCoordsetPoints.hpp
     utilities/MergeMeshes.hpp
     utilities/MergePolyhedralFaces.hpp
+    utilities/MinMax.hpp
     utilities/NodeToZoneRelationBuilder.hpp
     utilities/PrimalAdaptor.hpp
     utilities/RecenterField.hpp
@@ -83,6 +88,8 @@ set(bump_sources
     clipping/ClipCasesTet.cpp
     clipping/ClipCasesTri.cpp
     clipping/ClipCasesWdg.cpp
+    io/save.cpp
+    utilities/conduit_traits.cpp
     utilities/blueprint_utilities.cpp
     views/MaterialView.cpp
     views/UnstructuredTopologyMixedShapeView.cpp
