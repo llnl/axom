@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: (BSD-3-Clause)
 #------------------------------------------------------------------------------
-# Mir unit tests
+# Bump unit tests
 #------------------------------------------------------------------------------
 
 
@@ -12,17 +12,17 @@
 #------------------------------------------------------------------------------
 
 set(gtest_bump_tests
-    mir_clipfield.cpp
-    mir_coordset_extents.cpp
-    mir_coupling.cpp
-    mir_blueprint_utilities.cpp
-    mir_views_indexing.cpp
-    mir_views.cpp
-    mir_slicers.cpp
-    mir_make_polyhedral_topology.cpp
-    mir_mergemeshes.cpp
-    mir_node_to_zone_relation.cpp
-    mir_topology_mapper.cpp
+    bump_clipfield.cpp
+    bump_coordset_extents.cpp
+    bump_coupling.cpp
+    bump_blueprint_utilities.cpp
+    bump_views_indexing.cpp
+    bump_views.cpp
+    bump_slicers.cpp
+    bump_make_polyhedral_topology.cpp
+    bump_mergemeshes.cpp
+    bump_node_to_zone_relation.cpp
+    bump_topology_mapper.cpp
     )
 
 set(bump_tests_depends_on 
