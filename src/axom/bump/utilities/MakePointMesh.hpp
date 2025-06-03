@@ -8,7 +8,7 @@
 #include "axom/core.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/MakeZoneCenters.hpp"
-#include "axom/bump/Options.hpp"
+#include "axom/bump/utilities/Options.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -84,7 +84,7 @@ struct MakePointMesh
     namespace utils = axom::bump::utilities;
     using ConnectivityType = typename TopologyView::ConnectivityType;
     utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    axom::bump::Options opts(n_options);
+    utils::Options opts(n_options);
 
     // Make zone centers to use for the new coordset.
     utils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView,

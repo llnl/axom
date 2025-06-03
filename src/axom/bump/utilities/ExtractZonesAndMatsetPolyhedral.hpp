@@ -11,7 +11,6 @@
 #include "axom/bump/utilities/CoordsetSlicer.hpp"
 #include "axom/bump/utilities/FieldSlicer.hpp"
 #include "axom/bump/utilities/MatsetSlicer.hpp"
-#include "axom/bump/Options.hpp"
 
 namespace axom
 {

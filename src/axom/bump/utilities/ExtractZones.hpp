@@ -11,8 +11,7 @@
 #include "axom/bump/utilities/CoordsetSlicer.hpp"
 #include "axom/bump/utilities/FieldSlicer.hpp"
 #include "axom/bump/utilities/MatsetSlicer.hpp"
-#include "axom/bump/Options.hpp"
-#include "axom/bump/MIROptions.hpp"
+#include "axom/bump/utilities/Options.hpp"
 
 namespace axom
 {
@@ -103,7 +102,7 @@ public:
       dataSizes = nodeMap(selectedZonesView, extra, old2new, nodeSlice);
     }
 
-    Options opts(n_options);
+    utils::Options opts(n_options);
 
     // Make a new output topology.
     const conduit::Node &n_topologies = n_input.fetch_existing("topologies");
@@ -725,7 +724,7 @@ public:
     if(!mname.empty())
     {
       const conduit::Node &n_matset = n_input.fetch_existing("matsets/" + mname);
-      MIROptions opts(n_options);
+      axom::bump::utilities::Options opts(n_options);
 
       const std::string newMatsetName = opts.matsetName(mname);
       conduit::Node &n_newMatset = n_output["matsets/" + newMatsetName];

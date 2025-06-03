@@ -14,6 +14,8 @@ namespace axom
 {
 namespace bump
 {
+namespace utilities
+{
 /*!
  * \brief This class provides a kind of schema over options, as well
  *        as default values, and some utilities functions.
@@ -102,9 +104,32 @@ public:
     return retval;
   }
 
+  /**
+   * \brief Get the name of the matset on which we'll operate.
+   * \return The name of the matset.
+   */
+  std::string matset() const { return options().fetch_existing("matset").as_string(); }
+
+  /**
+   * \brief Return the name of the matset to make in the output.
+   * \param default_value The name to use if the option is not defined.
+   * \return The name of the matset to make in the output.
+   */
+  std::string matsetName(const std::string &default_value = std::string()) const
+  {
+    std::string name(default_value.empty() ? matset() : default_value);
+    if(options().has_child("matsetName"))
+    {
+      name = options().fetch_existing("matsetName").as_string();
+    }
+    return name;
+  }
+
 protected:
   const conduit::Node &m_options;  // A reference to the options node.
 };
+
+}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 
