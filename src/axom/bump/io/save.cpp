@@ -8,6 +8,8 @@
 #include <string>
 #include <cstdio>
 
+namespace views = axom::bump::views;
+
 namespace axom
 {
 namespace bump
@@ -24,21 +26,21 @@ namespace io
 static int ShapeID_to_vtk_cell(int shape_value)
 {
   int vtktype = 0;
-  if(shape_value == axom::mir::views::Tri_ShapeID)
+  if(shape_value == views::Tri_ShapeID)
     vtktype = 5;  // VTK_TRIANGLE
-  else if(shape_value == axom::mir::views::Quad_ShapeID)
+  else if(shape_value == views::Quad_ShapeID)
     vtktype = 9;  // VTK_QUAD
-  else if(shape_value == axom::mir::views::Polygon_ShapeID)
+  else if(shape_value == views::Polygon_ShapeID)
     vtktype = 7;  // VTK_POLYGON
-  else if(shape_value == axom::mir::views::Tet_ShapeID)
+  else if(shape_value == views::Tet_ShapeID)
     vtktype = 10;  // VTK_TETRA
-  else if(shape_value == axom::mir::views::Pyramid_ShapeID)
+  else if(shape_value == views::Pyramid_ShapeID)
     vtktype = 14;  // VTK_PYRAMID
-  else if(shape_value == axom::mir::views::Wedge_ShapeID)
+  else if(shape_value == views::Wedge_ShapeID)
     vtktype = 13;  // VTK_WEDGE
-  else if(shape_value == axom::mir::views::Hex_ShapeID)
+  else if(shape_value == views::Hex_ShapeID)
     vtktype = 12;  // VTK_HEXAHEDRON
-  else if(shape_value == axom::mir::views::Polyhedron_ShapeID)
+  else if(shape_value == views::Polyhedron_ShapeID)
     vtktype = 42;  // VTK_POLYHEDRON
 
   return vtktype;
@@ -144,7 +146,7 @@ static void save_unstructured_vtk(const conduit::Node &mesh, const std::string &
   else
   {
     const auto type =
-      ShapeID_to_vtk_cell(axom::mir::views::shapeNameToID(elements["shape"].as_string()));
+      ShapeID_to_vtk_cell(views::shapeNameToID(elements["shape"].as_string()));
     for(size_t i = 0; i < num_cells; ++i)
     {
       fprintf(file, "%d\n", type);
