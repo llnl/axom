@@ -4,7 +4,9 @@
 # SPDX-License-Identifier: (BSD-3-Clause)
 
 import pysidre
+import numpy as np
 
+NUM_BYTES_INT_32 = 4
 
 EMPTYVIEW = 1
 BUFFERVIEW = 2
@@ -31,7 +33,7 @@ def get_state(view):
 
 # Helper function to check values
 def check_view_values(view, state, is_described, is_allocated, is_applied, length):
-	dims = [0,0]
+	dims = np.array([0,0])
 
 	name = view.getName()
 	assert get_state(view) == state
@@ -43,9 +45,9 @@ def check_view_values(view, state, is_described, is_allocated, is_applied, lengt
 	if view.isDescribed():
 		assert view.getNumDimensions() == 1, f"{name} getNumDimensions"
 	
-		# TODO Implement numpy array for getShape()
-		# assert view.getShape() == 1, f"{name} getShape"
-		# assert dims[0] == length, f"{name} dims[0]"
+		ndims, dims = view.getShape(1, dims)
+		assert ndims == 1, f"{name} getShape"
+		assert dims[0] == length, f"{name} dims[0]"
 
 
 def test_create_views():
@@ -99,7 +101,7 @@ def test_create_view_from_path():
 def test_scalar_view():
 	# Inner helper function
 	def check_scalar_values(view, state, is_described, is_allocated, is_applied, typeID, length):
-		dims = [0,0]
+		dims = np.array([0,0])
 
 		name = view.getName()
 		assert get_state(view) == state
@@ -111,9 +113,9 @@ def test_scalar_view():
 		assert view.getNumElements() == length, f"{name} getNumElements"
 		assert view.getNumDimensions() == 1, f"{name} getNumDimensions"
 		
-		# TODO Implement numpy array for getShape()
-		# assert view.getShape() == 1, f"{name} getShape"
-		# assert dims[0] == length, f"{name} dims[0]"
+		ndims, dims = view.getShape(1, dims)
+		assert ndims == 1, f"{name} getShape"
+		assert dims[0] == length, f"{name} dims[0]"
 
 	ds = pysidre.DataStore()
 	root = ds.getRoot()
@@ -144,9 +146,6 @@ def test_scalar_view():
 	s2 = s1view.getString()
 	assert s1 == s2
 
-	# Test group access to scalars
-	# TODO - (shroud specific) Group access to View data?
-
 
 
 #def test_dealloc():
@@ -161,20 +160,54 @@ def test_int_buffer_from_view():
 	root = ds.getRoot()
 
 	dv = root.createViewAndAllocate("u0", pysidre.TypeID.INT32_ID, elem_count)
-	data = dv.getData()
+	data = dv.getDataArray()
 
-	# TODO Implement numpy to getData()
+	for i in range(elem_count):
+		data[i] = i * i
 
+	dv.print()
 
-
-def test_int_buffer_from_view_conduit_value():
-	# TODO Implement numpy to getData()
-	pass
+	assert dv.getNumElements() == elem_count
+	assert dv.getTotalBytes() == NUM_BYTES_INT_32 * elem_count
 
 
 def test_int_array_multi_view():
-	# TODO Implement numpy to getData() / getVoidPtr()
-	pass
+	ds = pysidre.DataStore()
+	root = ds.getRoot()
+	dbuff = ds.createBuffer(pysidre.TypeID.INT32_ID, 10)
+
+	dbuff.allocate()
+	data = dbuff.getDataArray()
+
+	for i in range(10):
+		data[i] = i
+
+	dbuff.print()
+
+	dv_e = root.createView("even", dbuff)
+	dv_o = root.createView("odd", dbuff)
+	assert dbuff.getNumViews() == 2, f"{dbuff.getNumViews()} == 2"
+
+	# NOTE - The data/data ptr here is different from C++ implementation.
+	#        Buffer representations are the same.
+	# "even"
+	# C++ : [0,1,2,3,4,5,6,7,8,9]
+	# python: [0,2,4,6,8]
+	# "odd"
+	# C++ : [1,2,3,4,5,6,7,8,9, <garbage val>]
+	# python: [1,3,5,7,9]
+
+	dv_e.apply(5,0,2)
+	dv_e.print()
+	data_e = dv_e.getDataArray()
+
+	dv_o.apply(5,1,2)
+	dv_o.print()
+	data_o = dv_o.getDataArray()
+
+	for i in range(5):
+		assert data_e[i] % 2 == 0
+		assert data_o[i] % 2 == 1
 
 
 def test_init_int_array_multi_view():

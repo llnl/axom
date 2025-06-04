@@ -50,7 +50,7 @@ set(fruit_sidre_tests
 set(python_sidre_tests
    sidre_smoke_Py.py x
    sidre_group_Py.py # 4000/1258 lines
-   sidre_buffer_Py.py # 556/194 lines
+   sidre_buffer_Py.py # 556/194 lines x
    sidre_view_Py.py #2390/1177 lines
    sidre_external_Py.py #375/158 lines x
    sidre_opaque_Py.py # 227/286 lines x

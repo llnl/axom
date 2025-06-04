@@ -49,7 +49,11 @@ nb::dlpack::dtype typeIDToDtype(DataTypeId id)
  */
 nb::ndarray<nb::numpy> viewToNumpyArray(View& self)
 {
+  // Manually applying offset
   void* data = self.getVoidPtr();
+  char* data_with_offset = static_cast<char*>(data) + (self.getOffset() * self.getBytesPerElement());
+  data = static_cast<void*>(data_with_offset);
+
   constexpr int DMAX = 10;
 
   int shapeOutput[DMAX];
@@ -67,6 +71,15 @@ nb::ndarray<nb::numpy> viewToNumpyArray(View& self)
   // For external memory (numpy owns it), no deletion takes place
   nb::capsule owner(data, [](void*) noexcept {});
 
+  // When stride is not default of 1, guaranteed that shape is 1D.
+  int64_t* strides = nullptr;
+  int64_t stride_array[1];
+  if(self.getStride() != 1)
+  {
+    stride_array[0] = static_cast<int64_t>(self.getStride());
+    strides = stride_array;
+  }
+
   DataTypeId id = self.getTypeID();
 
   return nb::ndarray<nb::numpy>(
@@ -74,7 +87,7 @@ nb::ndarray<nb::numpy> viewToNumpyArray(View& self)
     /* ndim = */ ndims,
     /* shape = */ shape,
     /* owner = */ owner,
-    /* strides = */ nullptr,
+    /* strides = */ strides,
     /* dtype = */ typeIDToDtype(id));
 }
 
@@ -279,14 +292,18 @@ NB_MODULE(pysidre, m_sidre)
     // .def("getShape", &View::getShape, "Return the shape of the View's data.")
     .def(
       "getShape",
-      [](View& self, int ndims, nb::ndarray<int>& a) {
-        int ret = self.getShape(ndims, a.data());
-        return nb::make_tuple(ret, a);
+      [](View& self, int ndims, nb::ndarray<int>& shape) {
+        SLIC_ERROR_IF(static_cast<size_t>(ndims) > shape.size(),
+                      "getShape() - shape array size (" << shape.size()
+                                                        << ") must be greater or equal to ndims ("
+                                                        << static_cast<size_t>(ndims) << ")");
+        int ret = self.getShape(ndims, shape.data());
+        return nb::make_tuple(ret, shape);
       },
-      "Return number of dimensions in data view and fill in shape information"
+      "Return number of dimensions in data view and shape information"
       " of this data view object."
       " ndims - maximum number of dimensions to return."
-      " shape - user supplied numpy array assumed to be ndims long.")
+      " shape - user supplied numpy 1D array assumed to be ndims long.")
 
     .def("allocate",
          nb::overload_cast<int>(&View::allocate),
