@@ -33,7 +33,7 @@ public:
   /*!
     @brief Default constructor sets an identity transformer.
   */
-  AXOM_HOST_DEVICE CoordinateTransformer()
+  CoordinateTransformer()
   : m_P{ {1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.} }
   , m_v{0., 0., 0.}
   { }
@@ -46,7 +46,7 @@ public:
     copyIn(other);
   }
 
-  AXOM_HOST_DEVICE CoordinateTransformer& operator=(const CoordinateTransformer& other)
+  CoordinateTransformer& operator=(const CoordinateTransformer& other)
   {
     copyIn(other);
     return *this;
@@ -57,7 +57,7 @@ public:
     @param matrix [in] The transformation matrix for homogeneous
     coordinates.
   */
-  AXOM_HOST_DEVICE CoordinateTransformer(const numerics::Matrix<double>& matrix)
+  CoordinateTransformer(const numerics::Matrix<double>& matrix)
   {
     setMatrix(matrix);
   }

@@ -58,14 +58,13 @@ private:
   HexahedronType m_hex;
 
   //!@brief Bounding box of m_hex.
-  axom::primal::BoundingBox<double, 3> m_bb;
+  axom::primal::BoundingBox<double, 3> m_hexBb;
 
   //!@brief Tetrahedralized version of of m_hex.
   axom::StackArray<TetrahedronType, HexahedronType::NUM_TRIANGULATE> m_tets;
 
-  //!@brief 4 planes per tet in m_tets, each oriented to the interior of the tet.
-  axom::StackArray<axom::StackArray<Plane3DType, TetrahedronType::NUM_VERTS>, HexahedronType::NUM_TRIANGULATE>
-    m_planes;
+  //!@brief Triangles on the discretized hex surface, oriented inward.
+  axom::StackArray<Triangle3DType, 24> m_surfaceTriangles;
 
   axom::primal::CoordinateTransformer<double> m_transformer;
 
@@ -73,6 +72,8 @@ private:
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
   void extractClipperInfo();
+
+  void computeSurface();
 };
 
 }  // namespace quest
