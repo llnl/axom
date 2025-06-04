@@ -65,7 +65,7 @@ struct DeviceHashHelper<T*, void>
   using result_type = axom::IndexType;
   AXOM_HOST_DEVICE axom::IndexType operator()(T* ptr) const
   {
-    return static_cast<axom::IndexType>(ptr);
+    return reinterpret_cast<axom::IndexType>(ptr);
   }
 };
 
