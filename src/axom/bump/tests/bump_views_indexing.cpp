@@ -6,11 +6,11 @@
 #include "gtest/gtest.h"
 
 #include "axom/slic.hpp"
-#include "axom/mir.hpp"
-#include "axom/mir/views/StridedStructuredIndexing.hpp"
+#include "axom/bump.hpp"
+#include "axom/bump/views/StridedStructuredIndexing.hpp"
 
 //----------------------------------------------------------------------
-TEST(mir_views_indexing, strided_structured_indexing_2d)
+TEST(bump_views_indexing, strided_structured_indexing_2d)
 {
   /*
 
@@ -27,7 +27,7 @@ TEST(mir_views_indexing, strided_structured_indexing_2d)
    x---x---x---x---x---x---x
 
    */
-  using Indexing = axom::mir::views::StridedStructuredIndexing<int, 2>;
+  using Indexing = axom::bump::views::StridedStructuredIndexing<int, 2>;
   using LogicalIndex = typename Indexing::LogicalIndex;
   LogicalIndex dims {4, 3};  // window size in 4*3 elements in 7,6 overall
   LogicalIndex origin {2, 2};
@@ -91,10 +91,10 @@ TEST(mir_views_indexing, strided_structured_indexing_2d)
 }
 
 //----------------------------------------------------------------------
-TEST(mir_views_indexing, strided_structured_indexing_3d)
+TEST(bump_views_indexing, strided_structured_indexing_3d)
 {
-  using Indexing3D = axom::mir::views::StridedStructuredIndexing<int, 3>;
-  using LogicalIndex = typename axom::mir::views::StridedStructuredIndexing<int, 3>::LogicalIndex;
+  using Indexing3D = axom::bump::views::StridedStructuredIndexing<int, 3>;
+  using LogicalIndex = typename axom::bump::views::StridedStructuredIndexing<int, 3>::LogicalIndex;
   LogicalIndex dims {4, 3, 3};  // window size in 4*3*3 elements in 6*5*5 overall
   LogicalIndex origin {2, 2, 2};
   LogicalIndex stride {1, 6, 30};

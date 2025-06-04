@@ -2,8 +2,8 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_TESTING_HELPERS_HPP_
-#define AXOM_MIR_TESTING_HELPERS_HPP_
+#ifndef AXOM_BLUEPRINT_TESTING_HELPERS_HPP_
+#define AXOM_BLUEPRINT_TESTING_HELPERS_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -536,17 +536,24 @@ bool compare_views(const Container1 &a, const Container2 &b)
 }
 
 //------------------------------------------------------------------------------
+namespace axom
+{
+namespace blueprint
+{
+namespace testing
+{
+
 /*!
  * \brief Base class for MIR test applications. It provides support for operations
  *        such as comparing against Conduit baseline files.
  */
-class MIRTestApplication
+class TestApplication
 {
 public:
   /*!
    * \brief Constructor.
    */
-  MIRTestApplication()
+  TestApplication()
     : m_app()
     , m_annotationMode("none")
     , m_handler(false)
@@ -560,7 +567,7 @@ public:
   /*!
    * \brief Destructor
    */
-  ~MIRTestApplication() { }
+  ~TestApplication() { }
 
   /*!
    * \brief Parse the command line and run the tests.
@@ -733,4 +740,7 @@ protected:
   std::vector<std::string> m_rebaseline;
 };
 
+} // end namespace testing
+} // end namespace blueprint
+} // end namespace axom
 #endif

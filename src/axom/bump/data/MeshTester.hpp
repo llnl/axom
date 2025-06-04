@@ -26,6 +26,8 @@ namespace axom
 {
 namespace bump
 {
+namespace data
+{
 /*!
  * \class MeshTester
  * 
@@ -190,6 +192,7 @@ private:
   bool m_structured {false};
 };
 
+}  // namespace data
 }  // namespace bump
 }  // namespace axom
 

@@ -6,16 +6,16 @@
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
-#include "axom/mir.hpp"
-#include "axom/mir/tests/mir_testing_data_helpers.hpp"
-#include "axom/mir/tests/mir_testing_helpers.hpp"
+#include "axom/bump.hpp"
+#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
 #include <conduit/conduit_relay_io_blueprint.hpp>
 #include <cmath>
 #include <cstdlib>
 
-namespace bputils = axom::mir::utilities::blueprint;
-namespace views = axom::mir::views;
+namespace utils = axom::bump::utilities;
+namespace views = axom::bump::views;
 
 std::string baselineDirectory()
 {
@@ -24,7 +24,7 @@ std::string baselineDirectory()
 
 //------------------------------------------------------------------------------
 // Global test application object.
-MIRTestApplication TestApp;
+axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 /*!
@@ -254,13 +254,13 @@ public:
 
     // host->device
     conduit::Node n_dev;
-    axom::mir::utilities::blueprint::copy<ExecSpace>(n_dev, n_mesh);
+    utils::copy<ExecSpace>(n_dev, n_mesh);
 
     mapping2D(n_dev);
 
     // device->host
     conduit::Node hostResult;
-    bputils::copy<seq_exec>(hostResult, n_dev);
+    utils::copy<seq_exec>(hostResult, n_dev);
 
     TestApp.saveVisualization("test2D", hostResult);
 
@@ -276,7 +276,7 @@ public:
 
     // host->device
     conduit::Node n_dev;
-    axom::mir::utilities::blueprint::copy<ExecSpace>(n_dev, n_mesh);
+    utils::copy<ExecSpace>(n_dev, n_mesh);
 
     // Extrude relevant meshes into 3D.
     extrude(n_dev);
@@ -285,7 +285,7 @@ public:
 
     // device->host
     conduit::Node hostResult;
-    bputils::copy<seq_exec>(hostResult, n_dev);
+    utils::copy<seq_exec>(hostResult, n_dev);
 
     TestApp.saveVisualization("test3D", hostResult);
 
@@ -301,7 +301,7 @@ public:
 
     // host->device
     conduit::Node n_dev;
-    axom::mir::utilities::blueprint::copy<ExecSpace>(n_dev, n_mesh);
+    utils::copy<ExecSpace>(n_dev, n_mesh);
 
     // Extrude relevant meshes into 3D.
     extrude(n_dev);
@@ -313,7 +313,7 @@ public:
 
     // device->host
     conduit::Node hostResult;
-    bputils::copy<seq_exec>(hostResult, n_dev);
+    utils::copy<seq_exec>(hostResult, n_dev);
 
     TestApp.saveVisualization("testPH", hostResult);
 
@@ -360,10 +360,10 @@ private:
     const conduit::Node &n_srcTopo = n_dev["topologies/postmir"];
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
     SrcTopologyView srcTopo(
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/sizes"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/sizes"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]),
       shapeMap);
 
     // Wrap fine mesh in views.
@@ -377,10 +377,10 @@ private:
       views::make_unstructured_single_shape_topology<TargetShapeType>::view(n_targetTopo);
     using TargetTopologyView = decltype(targetTopo);
 
-    //_mir_utilities_extrudemesh_begin
+    //_bump_utilities_extrudemesh_begin
     // Make new VFs via mapper.
     const int coarseNodesInZ = 4;
-    using SrcExtruder = bputils::ExtrudeMesh<ExecSpace, SrcTopologyView, SrcCoordsetView>;
+    using SrcExtruder = utils::ExtrudeMesh<ExecSpace, SrcTopologyView, SrcCoordsetView>;
     SrcExtruder srcExt(srcTopo, srcCoordset);
     conduit::Node n_opts;
     n_opts["nz"] = coarseNodesInZ;
@@ -391,9 +391,9 @@ private:
     n_opts["outputCoordsetName"] = "epm_coords";
     n_opts["outputMatsetName"] = "epm_matset";
     srcExt.execute(n_dev, n_opts, n_dev);
-    //_mir_utilities_extrudemesh_end
+    //_bump_utilities_extrudemesh_end
 
-    using TargetExtruder = bputils::ExtrudeMesh<ExecSpace, TargetTopologyView, TargetCoordsetView>;
+    using TargetExtruder = utils::ExtrudeMesh<ExecSpace, TargetTopologyView, TargetCoordsetView>;
     TargetExtruder targetExt(targetTopo, targetCoordset);
     int fineNodesInZ = (coarseNodesInZ - 1) * refinement + 1;
     conduit::Node n_opts2;
@@ -419,10 +419,10 @@ private:
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
     SrcTopologyView srcTopo(
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/sizes"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/sizes"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]),
       shapeMap);
 
     const conduit::Node &n_srcMatset = n_dev["matsets/postmir_matset"];
@@ -440,17 +440,17 @@ private:
       views::make_unstructured_single_shape_topology<TargetShapeType>::view(n_targetTopo);
     using TargetTopologyView = decltype(targetTopo);
 
-    // _mir_utilities_topologymapper_begin
+    // _bump_utilities_topologymapper_begin
     // Make new VFs via mapper.
     using Mapper =
-      bputils::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
+      utils::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
     Mapper mapper(srcTopo, srcCoordset, srcMatset, targetTopo, targetCoordset);
     conduit::Node n_opts;
     n_opts["source/matsetName"] = "postmir_matset";
     n_opts["target/topologyName"] = "fine";
     n_opts["target/matsetName"] = "fine_matset";
     mapper.execute(n_dev, n_opts, n_dev);
-    // _mir_utilities_topologymapper_end
+    // _bump_utilities_topologymapper_end
   }
 
   static void mapping3D(conduit::Node &n_dev)
@@ -466,10 +466,10 @@ private:
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
     SrcTopologyView srcTopo(
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/sizes"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/sizes"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]),
       shapeMap);
 
     const conduit::Node &n_srcMatset = n_dev["matsets/epm_matset"];
@@ -489,7 +489,7 @@ private:
 
     // Make new VFs via mapper.
     using Mapper =
-      bputils::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
+      utils::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
     Mapper mapper(srcTopo, srcCoordset, srcMatset, targetTopo, targetCoordset);
     conduit::Node n_opts;
     n_opts["source/matsetName"] = "epm_matset";
@@ -507,20 +507,20 @@ private:
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     auto shapeMap = views::buildShapeMap(n_srcTopo, shapeValues, shapeIds, allocatorID);
     SrcTopologyView srcTopo(
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/sizes"]),
-      bputils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/connectivity"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/shapes"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/sizes"]),
+      utils::make_array_view<conduit::index_t>(n_srcTopo["elements/offsets"]),
       shapeMap);
 
     // Turn the source mesh "epm" polyhedral and store in phmesh.
     conduit::Node &n_phTopo = n_dev["topologies/phmesh"];
-    bputils::MakePolyhedralTopology<ExecSpace, SrcTopologyView> mph(srcTopo);
+    utils::MakePolyhedralTopology<ExecSpace, SrcTopologyView> mph(srcTopo);
     mph.execute(n_srcTopo, n_phTopo);
-    bputils::MergePolyhedralFaces<ExecSpace, conduit::index_t>::execute(n_phTopo);
+    utils::MergePolyhedralFaces<ExecSpace, conduit::index_t>::execute(n_phTopo);
 
     // Copy epm_matset to phmatset.
-    bputils::copy<ExecSpace>(n_dev["matsets/ph_matset"], n_dev["matsets/epm_matset"]);
+    utils::copy<ExecSpace>(n_dev["matsets/ph_matset"], n_dev["matsets/epm_matset"]);
     n_dev["matsets/ph_matset/topology"] = "phmesh";
   }
 
@@ -553,7 +553,7 @@ private:
 
     // Make new VFs via mapper.
     using Mapper =
-      bputils::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
+      utils::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
     Mapper mapper(srcTopo, srcCoordset, srcMatset, targetTopo, targetCoordset);
     conduit::Node n_opts;
     n_opts["source/matsetName"] = "ph_matset";
@@ -564,27 +564,27 @@ private:
 };
 
 //------------------------------------------------------------------------------
-TEST(mir_topology_mapper, TopologyMapper_2D_seq)
+TEST(bump_topology_mapper, TopologyMapper_2D_seq)
 {
   AXOM_ANNOTATE_SCOPE("TopologyMapper_2D_seq");
   test_TopologyMapper<seq_exec>::test2D();
 }
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_topology_mapper, TopologyMapper_2D_omp)
+TEST(bump_topology_mapper, TopologyMapper_2D_omp)
 {
   AXOM_ANNOTATE_SCOPE("TopologyMapper_2D_omp");
   test_TopologyMapper<omp_exec>::test2D();
 }
 #endif
 #if defined(AXOM_USE_CUDA)
-TEST(mir_topology_mapper, TopologyMapper_2D_cuda)
+TEST(bump_topology_mapper, TopologyMapper_2D_cuda)
 {
   AXOM_ANNOTATE_SCOPE("TopologyMapper_2D_cuda");
   test_TopologyMapper<cuda_exec>::test2D();
 }
 #endif
 #if defined(AXOM_USE_HIP)
-TEST(mir_topology_mapper, TopologyMapper_2D_hip)
+TEST(bump_topology_mapper, TopologyMapper_2D_hip)
 {
   AXOM_ANNOTATE_SCOPE("TopologyMapper_2D_hip");
   test_TopologyMapper<hip_exec>::test2D();
@@ -592,27 +592,27 @@ TEST(mir_topology_mapper, TopologyMapper_2D_hip)
 #endif
 
 //------------------------------------------------------------------------------
-TEST(mir_topology_mapper, TopologyMapper_3D_seq)
+TEST(bump_topology_mapper, TopologyMapper_3D_seq)
 {
   AXOM_ANNOTATE_SCOPE("TopologyMapper_3D_seq");
   test_TopologyMapper<seq_exec>::test3D();
 }
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_topology_mapper, TopologyMapper_3D_omp)
+TEST(bump_topology_mapper, TopologyMapper_3D_omp)
 {
   AXOM_ANNOTATE_SCOPE("TopologyMapper_3D_omp");
   test_TopologyMapper<omp_exec>::test3D();
 }
 #endif
 #if defined(AXOM_USE_CUDA)
-TEST(mir_topology_mapper, TopologyMapper_3D_cuda)
+TEST(bump_topology_mapper, TopologyMapper_3D_cuda)
 {
   AXOM_ANNOTATE_SCOPE("TopologyMapper_3D_cuda");
   test_TopologyMapper<cuda_exec>::test3D();
 }
 #endif
 #if defined(AXOM_USE_HIP)
-TEST(mir_topology_mapper, TopologyMapper_3D_hip)
+TEST(bump_topology_mapper, TopologyMapper_3D_hip)
 {
   AXOM_ANNOTATE_SCOPE("TopologyMapper_3D_hip");
   test_TopologyMapper<hip_exec>::test3D();
@@ -620,27 +620,27 @@ TEST(mir_topology_mapper, TopologyMapper_3D_hip)
 #endif
 
 //------------------------------------------------------------------------------
-TEST(mir_topology_mapper, TopologyMapper_Polyhedral_seq)
+TEST(bump_topology_mapper, TopologyMapper_Polyhedral_seq)
 {
   AXOM_ANNOTATE_SCOPE("TopologyMapper_Polyhedral_seq");
   test_TopologyMapper<seq_exec>::testPolyhedral();
 }
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_topology_mapper, TopologyMapper_Polyhedral_omp)
+TEST(bump_topology_mapper, TopologyMapper_Polyhedral_omp)
 {
   AXOM_ANNOTATE_SCOPE("TopologyMapper_Polyhedral_omp");
   test_TopologyMapper<omp_exec>::testPolyhedral();
 }
 #endif
 #if defined(AXOM_USE_CUDA)
-TEST(mir_topology_mapper, TopologyMapper_Polyhedral_cuda)
+TEST(bump_topology_mapper, TopologyMapper_Polyhedral_cuda)
 {
   AXOM_ANNOTATE_SCOPE("TopologyMapper_Polyhedral_cuda");
   test_TopologyMapper<cuda_exec>::testPolyhedral();
 }
 #endif
 #if defined(AXOM_USE_HIP)
-TEST(mir_topology_mapper, TopologyMapper_Polyhedral_hip)
+TEST(bump_topology_mapper, TopologyMapper_Polyhedral_hip)
 {
   AXOM_ANNOTATE_SCOPE("TopologyMapper_Polyhedral_hip");
   test_TopologyMapper<hip_exec>::testPolyhedral();

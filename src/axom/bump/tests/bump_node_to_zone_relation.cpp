@@ -7,16 +7,15 @@
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/mir.hpp"
+#include "axom/bump.hpp"
 
-#include "axom/mir/tests/mir_testing_helpers.hpp"
-#include "axom/mir/tests/mir_testing_data_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 
 #include <iostream>
 #include <algorithm>
 
-namespace mir = axom::mir;
-namespace bputils = axom::mir::utilities::blueprint;
+namespace utils = axom::bump::utilities;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace, typename IndexT = int>
@@ -26,20 +25,20 @@ struct test_node_to_zone_relation_builder
   {
     // host -> device
     conduit::Node deviceMesh;
-    axom::mir::utilities::blueprint::copy<ExecSpace>(deviceMesh, hostMesh);
-    // _mir_utilities_n2zrel_begin
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
+    // _bump_utilities_n2zrel_begin
     const conduit::Node &deviceTopo = deviceMesh["topologies/mesh"];
     const conduit::Node &deviceCoordset = deviceMesh["coordsets/coords"];
 
     // Run the algorithm on the device
     conduit::Node deviceRelation;
-    axom::mir::utilities::blueprint::NodeToZoneRelationBuilder<ExecSpace> n2z;
+    utils::NodeToZoneRelationBuilder<ExecSpace> n2z;
     n2z.execute(deviceTopo, deviceCoordset, deviceRelation);
-    // _mir_utilities_n2zrel_end
+    // _bump_utilities_n2zrel_end
 
     // device -> host
     conduit::Node hostRelation;
-    axom::mir::utilities::blueprint::copy<seq_exec>(hostRelation, deviceRelation);
+    utils::copy<seq_exec>(hostRelation, deviceRelation);
 
     // Expected answers
     // clang-format off
@@ -73,9 +72,9 @@ struct test_node_to_zone_relation_builder
                               const axom::ArrayView<const int> &sizes,
                               const axom::ArrayView<const int> &offsets)
   {
-    const auto zonesView = bputils::make_array_view<IndexT>(hostRelation["zones"]);
-    const auto sizesView = bputils::make_array_view<IndexT>(hostRelation["sizes"]);
-    const auto offsetsView = bputils::make_array_view<IndexT>(hostRelation["offsets"]);
+    const auto zonesView = utils::make_array_view<IndexT>(hostRelation["zones"]);
+    const auto sizesView = utils::make_array_view<IndexT>(hostRelation["sizes"]);
+    const auto offsetsView = utils::make_array_view<IndexT>(hostRelation["offsets"]);
     EXPECT_EQ(sizesView.size(), sizes.size());
     EXPECT_EQ(offsetsView.size(), offsets.size());
     for(axom::IndexType i = 0; i < sizesView.size(); i++)
@@ -98,7 +97,7 @@ struct test_node_to_zone_relation_builder
   }
 };
 
-TEST(mir_node_to_zone_relation, n2zrel_unstructured_seq)
+TEST(bump_node_to_zone_relation, n2zrel_unstructured_seq)
 {
   /*
     8---9--10--11
@@ -109,41 +108,41 @@ TEST(mir_node_to_zone_relation, n2zrel_unstructured_seq)
     */
   conduit::Node mesh;
   axom::StackArray<int, 2> dims {{4, 3}};
-  axom::mir::testing::data::braid("quads", dims, mesh);
+  axom::blueprint::testing::data::braid("quads", dims, mesh);
   test_node_to_zone_relation_builder<seq_exec>::test(mesh);
 }
 
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_node_to_zone_relation, n2zrel_unstructured_omp)
+TEST(bump_node_to_zone_relation, n2zrel_unstructured_omp)
 {
   conduit::Node mesh;
   axom::StackArray<int, 2> dims {{4, 3}};
-  axom::mir::testing::data::braid("quads", dims, mesh);
+  axom::blueprint::testing::data::braid("quads", dims, mesh);
   test_node_to_zone_relation_builder<omp_exec>::test(mesh);
 }
 #endif
 
 #if defined(AXOM_USE_CUDA)
-TEST(mir_node_to_zone_relation, n2zrel_unstructured_cuda)
+TEST(bump_node_to_zone_relation, n2zrel_unstructured_cuda)
 {
   conduit::Node mesh;
   axom::StackArray<int, 2> dims {{4, 3}};
-  axom::mir::testing::data::braid("quads", dims, mesh);
+  axom::blueprint::testing::data::braid("quads", dims, mesh);
   test_node_to_zone_relation_builder<cuda_exec>::test(mesh);
 }
 #endif
 
 #if defined(AXOM_USE_HIP)
-TEST(mir_node_to_zone_relation, n2zrel_unstructured_hip)
+TEST(bump_node_to_zone_relation, n2zrel_unstructured_hip)
 {
   conduit::Node mesh;
   axom::StackArray<int, 2> dims {{4, 3}};
-  axom::mir::testing::data::braid("quads", dims, mesh);
+  axom::blueprint::testing::data::braid("quads", dims, mesh);
   test_node_to_zone_relation_builder<hip_exec>::test(mesh);
 }
 #endif
 
-TEST(mir_node_to_zone_relation, n2zrel_rectilinear_seq)
+TEST(bump_node_to_zone_relation, n2zrel_rectilinear_seq)
 {
   /*
     8---9--10--11
@@ -154,33 +153,33 @@ TEST(mir_node_to_zone_relation, n2zrel_rectilinear_seq)
     */
   conduit::Node mesh;
   axom::StackArray<int, 2> dims {{4, 3}};
-  axom::mir::testing::data::braid("rectilinear", dims, mesh);
+  axom::blueprint::testing::data::braid("rectilinear", dims, mesh);
   test_node_to_zone_relation_builder<seq_exec, conduit::index_t>::test(mesh);
 }
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_node_to_zone_relation, n2zrel_rectilinear_omp)
+TEST(bump_node_to_zone_relation, n2zrel_rectilinear_omp)
 {
   conduit::Node mesh;
   axom::StackArray<int, 2> dims {{4, 3}};
-  axom::mir::testing::data::braid("rectilinear", dims, mesh);
+  axom::blueprint::testing::data::braid("rectilinear", dims, mesh);
   test_node_to_zone_relation_builder<omp_exec, conduit::index_t>::test(mesh);
 }
 #endif
 #if defined(AXOM_USE_CUDA)
-TEST(mir_node_to_zone_relation, n2zrel_rectilinear_cuda)
+TEST(bump_node_to_zone_relation, n2zrel_rectilinear_cuda)
 {
   conduit::Node mesh;
   axom::StackArray<int, 2> dims {{4, 3}};
-  axom::mir::testing::data::braid("rectilinear", dims, mesh);
+  axom::blueprint::testing::data::braid("rectilinear", dims, mesh);
   test_node_to_zone_relation_builder<cuda_exec, conduit::index_t>::test(mesh);
 }
 #endif
 #if defined(AXOM_USE_HIP)
-TEST(mir_node_to_zone_relation, n2zrel_rectilinear_hip)
+TEST(bump_node_to_zone_relation, n2zrel_rectilinear_hip)
 {
   conduit::Node mesh;
   axom::StackArray<int, 2> dims {{4, 3}};
-  axom::mir::testing::data::braid("rectilinear", dims, mesh);
+  axom::blueprint::testing::data::braid("rectilinear", dims, mesh);
   test_node_to_zone_relation_builder<hip_exec, conduit::index_t>::test(mesh);
 }
 #endif
@@ -195,18 +194,18 @@ struct test_node_to_zone_relation_builder_polyhedral
   {
     // host -> device
     conduit::Node deviceMesh;
-    axom::mir::utilities::blueprint::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
     const conduit::Node &deviceTopo = deviceMesh["topologies/mesh"];
     const conduit::Node &deviceCoordset = deviceMesh["coordsets/coords"];
 
     // Run the algorithm on the device
     conduit::Node deviceRelation;
-    axom::mir::utilities::blueprint::NodeToZoneRelationBuilder<ExecSpace> n2z;
+    utils::NodeToZoneRelationBuilder<ExecSpace> n2z;
     n2z.execute(deviceTopo, deviceCoordset, deviceRelation);
 
     // device -> host
     conduit::Node hostRelation;
-    axom::mir::utilities::blueprint::copy<seq_exec>(hostRelation, deviceRelation);
+    utils::copy<seq_exec>(hostRelation, deviceRelation);
 
     // Expected answers
     // clang-format off
@@ -273,14 +272,14 @@ struct test_node_to_zone_relation_builder_polyhedral
   }
 };
 
-TEST(mir_node_to_zone_relation, n2zrel_polyhedral_seq)
+TEST(bump_node_to_zone_relation, n2zrel_polyhedral_seq)
 {
   conduit::Node mesh;
   test_node_to_zone_relation_builder_polyhedral<seq_exec, conduit::int32>::create(mesh);
   test_node_to_zone_relation_builder_polyhedral<seq_exec, conduit::int32>::test(mesh);
 }
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_node_to_zone_relation, n2zrel_polyhedral_omp)
+TEST(bump_node_to_zone_relation, n2zrel_polyhedral_omp)
 {
   conduit::Node mesh;
   test_node_to_zone_relation_builder_polyhedral<omp_exec, conduit::int32>::create(mesh);
@@ -288,7 +287,7 @@ TEST(mir_node_to_zone_relation, n2zrel_polyhedral_omp)
 }
 #endif
 #if defined(AXOM_USE_CUDA)
-TEST(mir_node_to_zone_relation, n2zrel_polyhedral_cuda)
+TEST(bump_node_to_zone_relation, n2zrel_polyhedral_cuda)
 {
   conduit::Node mesh;
   test_node_to_zone_relation_builder_polyhedral<cuda_exec, conduit::int32>::create(mesh);
@@ -296,7 +295,7 @@ TEST(mir_node_to_zone_relation, n2zrel_polyhedral_cuda)
 }
 #endif
 #if defined(AXOM_USE_HIP)
-TEST(mir_node_to_zone_relation, n2zrel_polyhedral_hip)
+TEST(bump_node_to_zone_relation, n2zrel_polyhedral_hip)
 {
   conduit::Node mesh;
   test_node_to_zone_relation_builder_polyhedral<hip_exec, conduit::int32>::create(mesh);

@@ -12,17 +12,16 @@
 #------------------------------------------------------------------------------
 
 set(gtest_bump_tests
+    bump_blueprint_utilities.cpp
     bump_clipfield.cpp
     bump_coordset_extents.cpp
-    bump_coupling.cpp
-    bump_blueprint_utilities.cpp
-    bump_views_indexing.cpp
-    bump_views.cpp
-    bump_slicers.cpp
     bump_make_polyhedral_topology.cpp
     bump_mergemeshes.cpp
     bump_node_to_zone_relation.cpp
+    bump_slicers.cpp
     bump_topology_mapper.cpp
+    bump_views.cpp
+    bump_views_indexing.cpp
     )
 
 set(bump_tests_depends_on 

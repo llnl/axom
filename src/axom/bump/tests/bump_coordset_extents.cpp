@@ -6,12 +6,12 @@
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
-#include "axom/mir.hpp"
+#include "axom/bump.hpp"
 #include "axom/primal.hpp"
-#include "axom/mir/tests/mir_testing_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
-namespace bputils = axom::mir::utilities::blueprint;
-namespace views = axom::mir::views;
+namespace utils = axom::bump::utilities;
+namespace views = axom::bump::views;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -40,7 +40,7 @@ coords:
 
     auto coordsetView = views::make_uniform_coordset<2>::view(n_coordset["coords"]);
     using CoordsetView = decltype(coordsetView);
-    bputils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
+    utils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
     double extents[4];
     exts.execute(extents);
 
@@ -75,7 +75,7 @@ coords:
 
     auto coordsetView = views::make_uniform_coordset<3>::view(n_coordset["coords"]);
     using CoordsetView = decltype(coordsetView);
-    bputils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
+    utils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
     double extents[6];
     exts.execute(extents);
 
@@ -103,7 +103,7 @@ coords:
 
     auto coordsetView = views::make_rectilinear_coordset<double, 2>::view(n_coordset["coords"]);
     using CoordsetView = decltype(coordsetView);
-    bputils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
+    utils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
     double extents[4];
     exts.execute(extents);
 
@@ -130,7 +130,7 @@ coords:
 
     auto coordsetView = views::make_rectilinear_coordset<double, 3>::view(n_coordset["coords"]);
     using CoordsetView = decltype(coordsetView);
-    bputils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
+    utils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
     double extents[6];
     exts.execute(extents);
 
@@ -158,7 +158,7 @@ coords:
 
     auto coordsetView = views::make_explicit_coordset<double, 2>::view(n_coordset["coords"]);
     using CoordsetView = decltype(coordsetView);
-    bputils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
+    utils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
     double extents[4];
     exts.execute(extents);
 
@@ -185,7 +185,7 @@ coords:
 
     auto coordsetView = views::make_explicit_coordset<double, 3>::view(n_coordset["coords"]);
     using CoordsetView = decltype(coordsetView);
-    bputils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
+    utils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
     double extents[6];
     exts.execute(extents);
 
@@ -202,32 +202,32 @@ coords:
   {
     conduit::Node n_coordset;
     n_coordset.parse(yaml);
-    bputils::copy<ExecSpace>(n_device, n_coordset);
+    utils::copy<ExecSpace>(n_device, n_coordset);
   }
 };
 
 //------------------------------------------------------------------------------
-TEST(mir_coordset_extents, uniform2d_seq)
+TEST(bump_coordset_extents, uniform2d_seq)
 {
   AXOM_ANNOTATE_SCOPE("uniform2d_seq");
   test_coordset_extents<seq_exec>::test_uniform_2d();
 }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_coordset_extents, uniform2d_omp)
+TEST(bump_coordset_extents, uniform2d_omp)
 {
   AXOM_ANNOTATE_SCOPE("uniform2d_omp");
   test_coordset_extents<omp_exec>::test_uniform_2d();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_coordset_extents, uniform2d_cuda)
+TEST(bump_coordset_extents, uniform2d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("uniform2d_cuda");
   test_coordset_extents<cuda_exec>::test_uniform_2d();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_coordset_extents, uniform2d_hip)
+TEST(bump_coordset_extents, uniform2d_hip)
 {
   AXOM_ANNOTATE_SCOPE("uniform2d_hip");
   test_coordset_extents<hip_exec>::test_uniform_2d();
@@ -235,27 +235,27 @@ TEST(mir_coordset_extents, uniform2d_hip)
 #endif
 
 //------------------------------------------------------------------------------
-TEST(mir_coordset_extents, uniform3d_seq)
+TEST(bump_coordset_extents, uniform3d_seq)
 {
   AXOM_ANNOTATE_SCOPE("uniform3d_seq");
   test_coordset_extents<seq_exec>::test_uniform_3d();
 }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_coordset_extents, uniform3d_omp)
+TEST(bump_coordset_extents, uniform3d_omp)
 {
   AXOM_ANNOTATE_SCOPE("uniform3d_omp");
   test_coordset_extents<omp_exec>::test_uniform_3d();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_coordset_extents, uniform3d_cuda)
+TEST(bump_coordset_extents, uniform3d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("uniform3d_cuda");
   test_coordset_extents<cuda_exec>::test_uniform_3d();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_coordset_extents, uniform3d_hip)
+TEST(bump_coordset_extents, uniform3d_hip)
 {
   AXOM_ANNOTATE_SCOPE("uniform3d_hip");
   test_coordset_extents<hip_exec>::test_uniform_3d();
@@ -263,27 +263,27 @@ TEST(mir_coordset_extents, uniform3d_hip)
 #endif
 
 //------------------------------------------------------------------------------
-TEST(mir_coordset_extents, rectilinear2d_seq)
+TEST(bump_coordset_extents, rectilinear2d_seq)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear2d_seq");
   test_coordset_extents<seq_exec>::test_rectilinear_2d();
 }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_coordset_extents, rectilinear2d_omp)
+TEST(bump_coordset_extents, rectilinear2d_omp)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear2d_omp");
   test_coordset_extents<omp_exec>::test_rectilinear_2d();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_coordset_extents, rectilinear2d_cuda)
+TEST(bump_coordset_extents, rectilinear2d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear2d_cuda");
   test_coordset_extents<cuda_exec>::test_rectilinear_2d();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_coordset_extents, rectilinear2d_hip)
+TEST(bump_coordset_extents, rectilinear2d_hip)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear2d_hip");
   test_coordset_extents<hip_exec>::test_rectilinear_2d();
@@ -291,27 +291,27 @@ TEST(mir_coordset_extents, rectilinear2d_hip)
 #endif
 
 //------------------------------------------------------------------------------
-TEST(mir_coordset_extents, rectilinear3d_seq)
+TEST(bump_coordset_extents, rectilinear3d_seq)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear3d_seq");
   test_coordset_extents<seq_exec>::test_rectilinear_3d();
 }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_coordset_extents, rectilinear3d_omp)
+TEST(bump_coordset_extents, rectilinear3d_omp)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear3d_omp");
   test_coordset_extents<omp_exec>::test_rectilinear_3d();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_coordset_extents, rectilinear3d_cuda)
+TEST(bump_coordset_extents, rectilinear3d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear3d_cuda");
   test_coordset_extents<cuda_exec>::test_rectilinear_3d();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_coordset_extents, rectilinear3d_hip)
+TEST(bump_coordset_extents, rectilinear3d_hip)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear3d_hip");
   test_coordset_extents<hip_exec>::test_rectilinear_3d();
@@ -319,27 +319,27 @@ TEST(mir_coordset_extents, rectilinear3d_hip)
 #endif
 
 //------------------------------------------------------------------------------
-TEST(mir_coordset_extents, explicit2d_seq)
+TEST(bump_coordset_extents, explicit2d_seq)
 {
   AXOM_ANNOTATE_SCOPE("explicit2d_seq");
   test_coordset_extents<seq_exec>::test_explicit_2d();
 }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_coordset_extents, explicit2d_omp)
+TEST(bump_coordset_extents, explicit2d_omp)
 {
   AXOM_ANNOTATE_SCOPE("explicit2d_omp");
   test_coordset_extents<omp_exec>::test_explicit_2d();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_coordset_extents, explicit2d_cuda)
+TEST(bump_coordset_extents, explicit2d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("explicit2d_cuda");
   test_coordset_extents<cuda_exec>::test_explicit_2d();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_coordset_extents, explicit2d_hip)
+TEST(bump_coordset_extents, explicit2d_hip)
 {
   AXOM_ANNOTATE_SCOPE("explicit2d_hip");
   test_coordset_extents<hip_exec>::test_explicit_2d();
@@ -347,27 +347,27 @@ TEST(mir_coordset_extents, explicit2d_hip)
 #endif
 
 //------------------------------------------------------------------------------
-TEST(mir_coordset_extents, explicit3d_seq)
+TEST(bump_coordset_extents, explicit3d_seq)
 {
   AXOM_ANNOTATE_SCOPE("explicit3d_seq");
   test_coordset_extents<seq_exec>::test_explicit_3d();
 }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_coordset_extents, explicit3d_omp)
+TEST(bump_coordset_extents, explicit3d_omp)
 {
   AXOM_ANNOTATE_SCOPE("explicit3d_omp");
   test_coordset_extents<omp_exec>::test_explicit_3d();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_coordset_extents, explicit3d_cuda)
+TEST(bump_coordset_extents, explicit3d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("explicit3d_cuda");
   test_coordset_extents<cuda_exec>::test_explicit_3d();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_coordset_extents, explicit3d_hip)
+TEST(bump_coordset_extents, explicit3d_hip)
 {
   AXOM_ANNOTATE_SCOPE("explicit3d_hip");
   test_coordset_extents<hip_exec>::test_explicit_3d();

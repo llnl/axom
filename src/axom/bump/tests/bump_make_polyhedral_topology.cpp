@@ -6,10 +6,10 @@
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
-#include "axom/mir.hpp"
+#include "axom/bump.hpp"
 #include "axom/primal.hpp"
-#include "axom/mir/tests/mir_testing_data_helpers.hpp"
-#include "axom/mir/tests/mir_testing_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
 std::string baselineDirectory()
 {
@@ -17,7 +17,7 @@ std::string baselineDirectory()
 }
 //------------------------------------------------------------------------------
 // Global test application object.
-MIRTestApplication TestApp;
+axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -26,21 +26,21 @@ struct make_polyhedral
   static void initialize(const std::string &type, conduit::Node &n_mesh)
   {
     axom::StackArray<axom::IndexType, 3> dims {4, 4, 4};
-    axom::mir::testing::data::braid(type, dims, n_mesh);
+    axom::blueprint::testing::data::braid(type, dims, n_mesh);
   }
 
   static void test(const std::string &type, const std::string &name)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
-    namespace views = axom::mir::views;
+    namespace utils = axom::bump::utilities;
+    namespace views = axom::bump::views;
 
     // Create the data
     conduit::Node hostMesh, deviceMesh;
     initialize(type, hostMesh);
-    axom::mir::utilities::blueprint::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
     TestApp.saveVisualization(name + "_orig", hostMesh);
 
-    //_mir_utilities_makepolyhedraltopology_begin
+    //_bump_utilities_makepolyhedraltopology_begin
     // Run the algorithm
     const conduit::Node &n_input = deviceMesh["topologies/mesh"];
     conduit::Node &n_output = deviceMesh["topologies/polymesh"];
@@ -50,11 +50,11 @@ struct make_polyhedral
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
-      bputils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
+      utils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
       mp.execute(n_input, n_output);
-      bputils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
+      utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
     }
-    //_mir_utilities_makepolyhedraltopology_end
+    //_bump_utilities_makepolyhedraltopology_end
     else if(type == "tets")
     {
       using TetShape = views::TetShape<int>;
@@ -62,9 +62,9 @@ struct make_polyhedral
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
-      bputils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
+      utils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
       mp.execute(n_input, n_output);
-      bputils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
+      utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
     }
     else if(type == "pyramids")
     {
@@ -73,9 +73,9 @@ struct make_polyhedral
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
-      bputils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
+      utils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
       mp.execute(n_input, n_output);
-      bputils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
+      utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
     }
     else if(type == "wedges")
     {
@@ -84,9 +84,9 @@ struct make_polyhedral
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
-      bputils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
+      utils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
       mp.execute(n_input, n_output);
-      bputils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
+      utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
     }
     else if(type == "hexs")
     {
@@ -95,9 +95,9 @@ struct make_polyhedral
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
-      bputils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
+      utils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
       mp.execute(n_input, n_output);
-      bputils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
+      utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
     }
     else
     {
@@ -106,7 +106,7 @@ struct make_polyhedral
 
     // device->host
     conduit::Node hostOutputMesh;
-    axom::mir::utilities::blueprint::copy<seq_exec>(hostOutputMesh, deviceMesh);
+    utils::copy<seq_exec>(hostOutputMesh, deviceMesh);
 
     TestApp.saveVisualization(name, hostOutputMesh);
 
@@ -117,62 +117,62 @@ struct make_polyhedral
 };
 
 //------------------------------------------------------------------------------
-TEST(mir_make_polyhedral_topology, uniform_seq)
+TEST(bump_make_polyhedral_topology, uniform_seq)
 {
   AXOM_ANNOTATE_SCOPE("uniform_seq");
   make_polyhedral<seq_exec>::test("uniform", "make_polyhedral_uniform");
 }
 
-TEST(mir_make_polyhedral_topology, tets_seq)
+TEST(bump_make_polyhedral_topology, tets_seq)
 {
   AXOM_ANNOTATE_SCOPE("tets_seq");
   make_polyhedral<seq_exec>::test("tets", "make_polyhedral_tets");
 }
 
-TEST(mir_make_polyhedral_topology, pyramids_seq)
+TEST(bump_make_polyhedral_topology, pyramids_seq)
 {
   AXOM_ANNOTATE_SCOPE("pyramids_seq");
   make_polyhedral<seq_exec>::test("pyramids", "make_polyhedral_pyramids");
 }
 
-TEST(mir_make_polyhedral_topology, wedges_seq)
+TEST(bump_make_polyhedral_topology, wedges_seq)
 {
   AXOM_ANNOTATE_SCOPE("wedges_seq");
   make_polyhedral<seq_exec>::test("wedges", "make_polyhedral_wedges");
 }
 
-TEST(mir_make_polyhedral_topology, hexs_seq)
+TEST(bump_make_polyhedral_topology, hexs_seq)
 {
   AXOM_ANNOTATE_SCOPE("hexs_seq");
   make_polyhedral<seq_exec>::test("hexs", "make_polyhedral_hexs");
 }
 
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_make_polyhedral_topology, uniform_omp)
+TEST(bump_make_polyhedral_topology, uniform_omp)
 {
   AXOM_ANNOTATE_SCOPE("uniform_omp");
   make_polyhedral<omp_exec>::test("uniform", "make_polyhedral_uniform");
 }
 
-TEST(mir_make_polyhedral_topology, tets_omp)
+TEST(bump_make_polyhedral_topology, tets_omp)
 {
   AXOM_ANNOTATE_SCOPE("tets_omp");
   make_polyhedral<omp_exec>::test("tets", "make_polyhedral_tets");
 }
 
-TEST(mir_make_polyhedral_topology, pyramids_omp)
+TEST(bump_make_polyhedral_topology, pyramids_omp)
 {
   AXOM_ANNOTATE_SCOPE("pyramids_omp");
   make_polyhedral<omp_exec>::test("pyramids", "make_polyhedral_pyramids");
 }
 
-TEST(mir_make_polyhedral_topology, wedges_omp)
+TEST(bump_make_polyhedral_topology, wedges_omp)
 {
   AXOM_ANNOTATE_SCOPE("wedges_omp");
   make_polyhedral<omp_exec>::test("wedges", "make_polyhedral_wedges");
 }
 
-TEST(mir_make_polyhedral_topology, hexs_omp)
+TEST(bump_make_polyhedral_topology, hexs_omp)
 {
   AXOM_ANNOTATE_SCOPE("hexs_omp");
   make_polyhedral<omp_exec>::test("hexs", "make_polyhedral_hexs");
@@ -180,31 +180,31 @@ TEST(mir_make_polyhedral_topology, hexs_omp)
 #endif
 
 #if defined(AXOM_USE_CUDA)
-TEST(mir_make_polyhedral_topology, uniform_cuda)
+TEST(bump_make_polyhedral_topology, uniform_cuda)
 {
   AXOM_ANNOTATE_SCOPE("uniform_cuda");
   make_polyhedral<cuda_exec>::test("uniform", "make_polyhedral_uniform");
 }
 
-TEST(mir_make_polyhedral_topology, tets_cuda)
+TEST(bump_make_polyhedral_topology, tets_cuda)
 {
   AXOM_ANNOTATE_SCOPE("tets_cuda");
   make_polyhedral<cuda_exec>::test("tets", "make_polyhedral_tets");
 }
 
-TEST(mir_make_polyhedral_topology, pyramids_cuda)
+TEST(bump_make_polyhedral_topology, pyramids_cuda)
 {
   AXOM_ANNOTATE_SCOPE("pyramids_cuda");
   make_polyhedral<cuda_exec>::test("pyramids", "make_polyhedral_pyramids");
 }
 
-TEST(mir_make_polyhedral_topology, wedges_cuda)
+TEST(bump_make_polyhedral_topology, wedges_cuda)
 {
   AXOM_ANNOTATE_SCOPE("wedges_cuda");
   make_polyhedral<cuda_exec>::test("wedges", "make_polyhedral_wedges");
 }
 
-TEST(mir_make_polyhedral_topology, hexs_cuda)
+TEST(bump_make_polyhedral_topology, hexs_cuda)
 {
   AXOM_ANNOTATE_SCOPE("hexs_cuda");
   make_polyhedral<cuda_exec>::test("hexs", "make_polyhedral_hexs");
@@ -212,31 +212,31 @@ TEST(mir_make_polyhedral_topology, hexs_cuda)
 #endif
 
 #if defined(AXOM_USE_HIP)
-TEST(mir_make_polyhedral_topology, uniform_hip)
+TEST(bump_make_polyhedral_topology, uniform_hip)
 {
   AXOM_ANNOTATE_SCOPE("uniform_hip");
   make_polyhedral<hip_exec>::test("uniform", "make_polyhedral_uniform");
 }
 
-TEST(mir_make_polyhedral_topology, tets_hip)
+TEST(bump_make_polyhedral_topology, tets_hip)
 {
   AXOM_ANNOTATE_SCOPE("tets_hip");
   make_polyhedral<hip_exec>::test("tets", "make_polyhedral_tets");
 }
 
-TEST(mir_make_polyhedral_topology, pyramids_hip)
+TEST(bump_make_polyhedral_topology, pyramids_hip)
 {
   AXOM_ANNOTATE_SCOPE("pyramids_hip");
   make_polyhedral<hip_exec>::test("pyramids", "make_polyhedral_pyramids");
 }
 
-TEST(mir_make_polyhedral_topology, wedges_hip)
+TEST(bump_make_polyhedral_topology, wedges_hip)
 {
   AXOM_ANNOTATE_SCOPE("wedges_hip");
   make_polyhedral<hip_exec>::test("wedges", "make_polyhedral_wedges");
 }
 
-TEST(mir_make_polyhedral_topology, hexs_hip)
+TEST(bump_make_polyhedral_topology, hexs_hip)
 {
   AXOM_ANNOTATE_SCOPE("hexs_hip");
   make_polyhedral<hip_exec>::test("hexs", "make_polyhedral_hexs");

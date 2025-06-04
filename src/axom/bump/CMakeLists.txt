@@ -119,6 +119,6 @@ axom_install_component(NAME    bump
 # Add tests, benchmarks and examples
 #------------------------------------------------------------------------------
 if (AXOM_ENABLE_TESTS)
-#  add_subdirectory(tests)
+  add_subdirectory(tests)
 endif()
 

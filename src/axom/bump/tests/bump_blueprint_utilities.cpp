@@ -7,17 +7,16 @@
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/mir.hpp"
+#include "axom/bump.hpp"
 
-#include "axom/mir/tests/mir_testing_helpers.hpp"
-#include "axom/mir/tests/mir_testing_data_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 
 #include <iostream>
 #include <algorithm>
 
-namespace mir = axom::mir;
-namespace views = axom::mir::views;
-namespace bputils = axom::mir::utilities::blueprint;
+namespace views = axom::bump::views;
+namespace utils = axom::bump::utilities;
 
 std::string baselineDirectory()
 {
@@ -26,7 +25,7 @@ std::string baselineDirectory()
 
 //------------------------------------------------------------------------------
 // Global test application object.
-MIRTestApplication TestApp;
+axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -34,7 +33,7 @@ struct test_conduit_allocate
 {
   static void test()
   {
-    axom::mir::utilities::blueprint::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
     EXPECT_TRUE(c2a.getConduitAllocatorID() > 0);
 
     constexpr int nValues = 100;
@@ -43,7 +42,7 @@ struct test_conduit_allocate
     n.set(conduit::DataType::int32(nValues));
 
     // Make sure we can store some values into the data that were allocated.
-    auto nview = bputils::make_array_view<int>(n);
+    auto nview = utils::make_array_view<int>(n);
     axom::for_all<ExecSpace>(
       nValues,
       AXOM_LAMBDA(axom::IndexType index) { nview[index] = index; });
@@ -62,15 +61,15 @@ struct test_conduit_allocate
   }
 };
 
-TEST(mir_blueprint_utilities, allocate_seq) { test_conduit_allocate<seq_exec>::test(); }
+TEST(bump_blueprint_utilities, allocate_seq) { test_conduit_allocate<seq_exec>::test(); }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_blueprint_utilities, allocate_omp) { test_conduit_allocate<omp_exec>::test(); }
+TEST(bump_blueprint_utilities, allocate_omp) { test_conduit_allocate<omp_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_blueprint_utilities, allocate_cuda) { test_conduit_allocate<cuda_exec>::test(); }
+TEST(bump_blueprint_utilities, allocate_cuda) { test_conduit_allocate<cuda_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_blueprint_utilities, allocate_hip) { test_conduit_allocate<hip_exec>::test(); }
+TEST(bump_blueprint_utilities, allocate_hip) { test_conduit_allocate<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
@@ -84,31 +83,31 @@ struct test_copy_braid
 
     // host->device
     conduit::Node deviceMesh;
-    axom::mir::utilities::blueprint::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     // Run some minmax operations on device (proves that the data was in the right place) and check the results.
 
     constexpr double eps = 1.e-7;
 
-    auto x = axom::mir::utilities::blueprint::MinMax<ExecSpace, double>::execute(
+    auto x = utils::MinMax<ExecSpace, double>::execute(
       deviceMesh["coordsets/coords/values/x"]);
     //std::cout << std::setw(16) << "x={" << x.first << ", " << x.second << "}\n";
     EXPECT_NEAR(x.first, -10., eps);
     EXPECT_NEAR(x.second, 10., eps);
 
-    auto y = axom::mir::utilities::blueprint::MinMax<ExecSpace, double>::execute(
+    auto y = utils::MinMax<ExecSpace, double>::execute(
       deviceMesh["coordsets/coords/values/y"]);
     //std::cout << std::setw(16) << "y={" << y.first << ", " << y.second << "}\n";
     EXPECT_NEAR(y.first, -10., eps);
     EXPECT_NEAR(y.second, 10., eps);
 
-    auto c = axom::mir::utilities::blueprint::MinMax<ExecSpace, double>::execute(
+    auto c = utils::MinMax<ExecSpace, double>::execute(
       deviceMesh["topologies/mesh/elements/connectivity"]);
     //std::cout << std::setw(16) << "conn={" << c.first << ", " << c.second << "}\n";
     EXPECT_NEAR(c.first, 0., eps);
     EXPECT_NEAR(c.second, 999., eps);
 
-    auto r = axom::mir::utilities::blueprint::MinMax<ExecSpace, double>::execute(
+    auto r = utils::MinMax<ExecSpace, double>::execute(
       deviceMesh["fields/radial/values"]);
     //std::cout << std::setw(16) << "radial={" << r.first << ", " << r.second << "}\n";
     EXPECT_NEAR(r.first, 19.2450089729875, eps);
@@ -122,16 +121,16 @@ struct test_copy_braid
   }
 };
 
-TEST(mir_blueprint_utilities, copy_seq) { test_copy_braid<seq_exec>::test(); }
+TEST(bump_blueprint_utilities, copy_seq) { test_copy_braid<seq_exec>::test(); }
 
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_blueprint_utilities, copy_omp) { test_copy_braid<omp_exec>::test(); }
+TEST(bump_blueprint_utilities, copy_omp) { test_copy_braid<omp_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_blueprint_utilities, copy_cuda) { test_copy_braid<cuda_exec>::test(); }
+TEST(bump_blueprint_utilities, copy_cuda) { test_copy_braid<cuda_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_blueprint_utilities, copy_hip) { test_copy_braid<hip_exec>::test(); }
+TEST(bump_blueprint_utilities, copy_hip) { test_copy_braid<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
@@ -145,17 +144,17 @@ struct test_make_unstructured
 
     // host->device
     conduit::Node deviceMesh;
-    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
-    // _mir_utilities_makeunstructured_begin
+    // _bump_utilities_makeunstructured_begin
     conduit::Node deviceResult;
-    bputils::MakeUnstructured<ExecSpace> uns;
+    utils::MakeUnstructured<ExecSpace> uns;
     uns.execute(deviceMesh["topologies/mesh"], deviceMesh["coordsets/coords"], "mesh", deviceResult);
-    // _mir_utilities_makeunstructured_end
+    // _bump_utilities_makeunstructured_end
 
     // device->host
     conduit::Node hostResult;
-    bputils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
+    utils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
 
     TestApp.saveVisualization("unstructured", hostResult);
 
@@ -166,19 +165,19 @@ struct test_make_unstructured
   static void create(conduit::Node &mesh)
   {
     std::vector<int> dims {4, 4};
-    axom::mir::testing::data::braid("uniform", dims, mesh);
+    axom::blueprint::testing::data::braid("uniform", dims, mesh);
   }
 };
 
-TEST(mir_blueprint_utilities, make_unstructured_seq) { test_make_unstructured<seq_exec>::test(); }
+TEST(bump_blueprint_utilities, make_unstructured_seq) { test_make_unstructured<seq_exec>::test(); }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_blueprint_utilities, make_unstructured_omp) { test_make_unstructured<omp_exec>::test(); }
+TEST(bump_blueprint_utilities, make_unstructured_omp) { test_make_unstructured<omp_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_blueprint_utilities, make_unstructured_cuda) { test_make_unstructured<cuda_exec>::test(); }
+TEST(bump_blueprint_utilities, make_unstructured_cuda) { test_make_unstructured<cuda_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_blueprint_utilities, make_unstructured_hip) { test_make_unstructured<hip_exec>::test(); }
+TEST(bump_blueprint_utilities, make_unstructured_hip) { test_make_unstructured<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
@@ -192,29 +191,29 @@ struct test_recenter_field
 
     // host -> device
     conduit::Node deviceMesh;
-    axom::mir::utilities::blueprint::copy<ExecSpace>(deviceMesh, hostMesh);
-    // _mir_utilities_recenterfield_begin
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
+    // _bump_utilities_recenterfield_begin
     const conduit::Node &deviceTopo = deviceMesh["topologies/mesh"];
     const conduit::Node &deviceCoordset = deviceMesh["coordsets/coords"];
 
     // Make a node to zone relation on the device.
     conduit::Node deviceRelation;
-    axom::mir::utilities::blueprint::NodeToZoneRelationBuilder<ExecSpace> n2z;
+    utils::NodeToZoneRelationBuilder<ExecSpace> n2z;
     n2z.execute(deviceTopo, deviceCoordset, deviceRelation);
 
     // Recenter a field zonal->nodal on the device
-    axom::mir::utilities::blueprint::RecenterField<ExecSpace> r;
+    utils::RecenterField<ExecSpace> r;
     r.execute(deviceMesh["fields/easy_zonal"], deviceRelation, deviceMesh["fields/z2n"]);
 
     // Recenter a field nodal->zonal on the device. (The elements are an o2m relation)
     r.execute(deviceMesh["fields/z2n"],
               deviceMesh["topologies/mesh/elements"],
               deviceMesh["fields/n2z"]);
-    // _mir_utilities_recenterfield_end
+    // _bump_utilities_recenterfield_end
 
     // device -> host
     conduit::Node hostResultMesh;
-    axom::mir::utilities::blueprint::copy<seq_exec>(hostResultMesh, deviceMesh);
+    utils::copy<seq_exec>(hostResultMesh, deviceMesh);
 
     // Print the results.
     //printNode(hostResultMesh);
@@ -241,7 +240,7 @@ struct test_recenter_field
       0---1---2---3
       */
     axom::StackArray<int, 2> dims {{4, 3}};
-    axom::mir::testing::data::braid("quads", dims, mesh);
+    axom::blueprint::testing::data::braid("quads", dims, mesh);
     mesh["topologies/mesh/elements/sizes"].set(std::vector<int> {{4, 4, 4, 4, 4, 4}});
     mesh["topologies/mesh/elements/offsets"].set(std::vector<int> {{0, 4, 8, 12, 16, 20}});
     mesh["fields/easy_zonal/topology"] = "mesh";
@@ -250,18 +249,18 @@ struct test_recenter_field
   }
 };
 
-TEST(mir_blueprint_utilities, recenterfield_seq) { test_recenter_field<seq_exec>::test(); }
+TEST(bump_blueprint_utilities, recenterfield_seq) { test_recenter_field<seq_exec>::test(); }
 
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_blueprint_utilities, recenterfield_omp) { test_recenter_field<omp_exec>::test(); }
+TEST(bump_blueprint_utilities, recenterfield_omp) { test_recenter_field<omp_exec>::test(); }
 #endif
 
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_blueprint_utilities, recenterfield_cuda) { test_recenter_field<cuda_exec>::test(); }
+TEST(bump_blueprint_utilities, recenterfield_cuda) { test_recenter_field<cuda_exec>::test(); }
 #endif
 
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_blueprint_utilities, recenterfield_hip) { test_recenter_field<hip_exec>::test(); }
+TEST(bump_blueprint_utilities, recenterfield_hip) { test_recenter_field<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
@@ -275,7 +274,7 @@ struct test_extractzones
 
     // host->device
     conduit::Node deviceMesh;
-    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     axom::Array<axom::IndexType> ids {{1, 3, 5}};
     const auto nzones = ids.size();
@@ -291,19 +290,19 @@ struct test_extractzones
 
     using TopologyView = views::UnstructuredTopologySingleShapeView<views::QuadShape<conduit::int64>>;
     TopologyView topoView(
-      bputils::make_array_view<conduit::int64>(deviceMesh["topologies/mesh/elements/connectivity"]),
-      bputils::make_array_view<conduit::int64>(deviceMesh["topologies/mesh/elements/sizes"]),
-      bputils::make_array_view<conduit::int64>(deviceMesh["topologies/mesh/elements/offsets"]));
+      utils::make_array_view<conduit::int64>(deviceMesh["topologies/mesh/elements/connectivity"]),
+      utils::make_array_view<conduit::int64>(deviceMesh["topologies/mesh/elements/sizes"]),
+      utils::make_array_view<conduit::int64>(deviceMesh["topologies/mesh/elements/offsets"]));
 
     // Pull out selected zones
-    bputils::ExtractZones<ExecSpace, TopologyView, CoordsetView> extract(topoView, coordsetView);
+    utils::ExtractZones<ExecSpace, TopologyView, CoordsetView> extract(topoView, coordsetView);
     conduit::Node options, newDeviceMesh;
     options["topology"] = "mesh";
     extract.execute(selectedZones.view(), deviceMesh, options, newDeviceMesh);
 
     // device->host
     conduit::Node newHostMesh;
-    bputils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
+    utils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
 
     //printNode(newHostMesh);
 
@@ -317,39 +316,39 @@ struct test_extractzones
     const axom::Array<conduit::float64> nodal {{1.0, 2.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0}};
 
     EXPECT_TRUE(compare_views(connectivity.view(),
-                              bputils::make_array_view<conduit::int64>(
+                              utils::make_array_view<conduit::int64>(
                                 newHostMesh["topologies/mesh/elements/connectivity"])));
     EXPECT_TRUE(compare_views(
       sizes.view(),
-      bputils::make_array_view<conduit::int64>(newHostMesh["topologies/mesh/elements/sizes"])));
+      utils::make_array_view<conduit::int64>(newHostMesh["topologies/mesh/elements/sizes"])));
     EXPECT_TRUE(compare_views(
       offsets.view(),
-      bputils::make_array_view<conduit::int64>(newHostMesh["topologies/mesh/elements/offsets"])));
+      utils::make_array_view<conduit::int64>(newHostMesh["topologies/mesh/elements/offsets"])));
     EXPECT_TRUE(compare_views(
       x.view(),
-      bputils::make_array_view<conduit::float64>(newHostMesh["coordsets/coords/values/x"])));
+      utils::make_array_view<conduit::float64>(newHostMesh["coordsets/coords/values/x"])));
     EXPECT_TRUE(compare_views(
       y.view(),
-      bputils::make_array_view<conduit::float64>(newHostMesh["coordsets/coords/values/y"])));
+      utils::make_array_view<conduit::float64>(newHostMesh["coordsets/coords/values/y"])));
     EXPECT_TRUE(compare_views(
       zonal.view(),
-      bputils::make_array_view<conduit::float64>(newHostMesh["fields/zonal/values"])));
+      utils::make_array_view<conduit::float64>(newHostMesh["fields/zonal/values"])));
     EXPECT_TRUE(compare_views(
       nodal.view(),
-      bputils::make_array_view<conduit::float64>(newHostMesh["fields/nodal/values"])));
+      utils::make_array_view<conduit::float64>(newHostMesh["fields/nodal/values"])));
 
     // Do the material too.
     using MatsetView = views::UnibufferMaterialView<conduit::int64, conduit::float64, 3>;
     MatsetView matsetView;
     matsetView.set(
-      bputils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/material_ids"]),
-      bputils::make_array_view<conduit::float64>(deviceMesh["matsets/mat1/volume_fractions"]),
-      bputils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/sizes"]),
-      bputils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/offsets"]),
-      bputils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/indices"]));
+      utils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/material_ids"]),
+      utils::make_array_view<conduit::float64>(deviceMesh["matsets/mat1/volume_fractions"]),
+      utils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/sizes"]),
+      utils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/offsets"]),
+      utils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/indices"]));
 
     // Pull out selected zones
-    bputils::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView> extractM(
+    utils::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView> extractM(
       topoView,
       coordsetView,
       matsetView);
@@ -358,7 +357,7 @@ struct test_extractzones
 
     // device->host
     newHostMesh.reset();
-    bputils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
+    utils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
 
     // Check some of the key arrays in the sliced material
     const axom::Array<conduit::int64> mat_sizes {{2, 1, 2}};
@@ -369,19 +368,19 @@ struct test_extractzones
 
     EXPECT_TRUE(
       compare_views(mat_sizes.view(),
-                    bputils::make_array_view<conduit::int64>(newHostMesh["matsets/mat1/sizes"])));
+                    utils::make_array_view<conduit::int64>(newHostMesh["matsets/mat1/sizes"])));
     EXPECT_TRUE(
       compare_views(mat_offsets.view(),
-                    bputils::make_array_view<conduit::int64>(newHostMesh["matsets/mat1/offsets"])));
+                    utils::make_array_view<conduit::int64>(newHostMesh["matsets/mat1/offsets"])));
     EXPECT_TRUE(
       compare_views(mat_indices.view(),
-                    bputils::make_array_view<conduit::int64>(newHostMesh["matsets/mat1/indices"])));
+                    utils::make_array_view<conduit::int64>(newHostMesh["matsets/mat1/indices"])));
     EXPECT_TRUE(compare_views(
       mat_material_ids.view(),
-      bputils::make_array_view<conduit::int64>(newHostMesh["matsets/mat1/material_ids"])));
+      utils::make_array_view<conduit::int64>(newHostMesh["matsets/mat1/material_ids"])));
     EXPECT_TRUE(compare_views(
       mat_volume_fractions.view(),
-      bputils::make_array_view<conduit::float64>(newHostMesh["matsets/mat1/volume_fractions"])));
+      utils::make_array_view<conduit::float64>(newHostMesh["matsets/mat1/volume_fractions"])));
   }
 
   static void create(conduit::Node &hostMesh)
@@ -440,18 +439,18 @@ matsets:
   }
 };
 
-TEST(mir_blueprint_utilities, extractzones_seq) { test_extractzones<seq_exec>::test(); }
+TEST(bump_blueprint_utilities, extractzones_seq) { test_extractzones<seq_exec>::test(); }
 
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_blueprint_utilities, extractzones_omp) { test_extractzones<omp_exec>::test(); }
+TEST(bump_blueprint_utilities, extractzones_omp) { test_extractzones<omp_exec>::test(); }
 #endif
 
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_blueprint_utilities, extractzones_cuda) { test_extractzones<cuda_exec>::test(); }
+TEST(bump_blueprint_utilities, extractzones_cuda) { test_extractzones<cuda_exec>::test(); }
 #endif
 
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_blueprint_utilities, extractzones_hip) { test_extractzones<hip_exec>::test(); }
+TEST(bump_blueprint_utilities, extractzones_hip) { test_extractzones<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
@@ -473,7 +472,7 @@ struct test_extractzones_polyhedral
 
     // host->device
     conduit::Node deviceMesh;
-    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     // Make selected zones.
     axom::Array<axom::IndexType> ids;
@@ -518,14 +517,14 @@ struct test_extractzones_polyhedral
     using MatsetView = decltype(matsetView);
 
     // Pull out selected zones as polyhedral zones
-    bputils::ExtractZonesAndMatsetPolyhedral<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>
+    utils::ExtractZonesAndMatsetPolyhedral<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>
       extract(topologyView, coordsetView, matsetView);
     conduit::Node newDeviceMesh, options;
     extract.execute(selectedZones.view(), deviceMesh, options, newDeviceMesh);
 
     // device->host
     conduit::Node newHostMesh;
-    bputils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
+    utils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
 
     // Save visualization, if enabled.
     TestApp.saveVisualization(name, newHostMesh);
@@ -537,49 +536,49 @@ struct test_extractzones_polyhedral
   static void create(int gridSize, int numCircles, conduit::Node &hostMesh)
   {
     AXOM_ANNOTATE_SCOPE("generate");
-    mir::MeshTester tester;
+    axom::bump::data::MeshTester tester;
     tester.setStructured(true);
     tester.initTestCaseSix(gridSize, numCircles, hostMesh);
   }
 };
 
-TEST(mir_blueprint_utilities, extractzones_polyhedral_seq)
+TEST(bump_blueprint_utilities, extractzones_polyhedral_seq)
 {
   test_extractzones_polyhedral<seq_exec>::test("extractzones_polyhedral", false);
 }
-TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_seq)
+TEST(bump_blueprint_utilities, extractzones_polyhedral_sel_seq)
 {
   test_extractzones_polyhedral<seq_exec>::test("extractzones_polyhedral_sel", true);
 }
 
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_blueprint_utilities, extractzones_polyhedral_omp)
+TEST(bump_blueprint_utilities, extractzones_polyhedral_omp)
 {
   test_extractzones_polyhedral<omp_exec>::test("extractzones_polyhedral", false);
 }
-TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_omp)
+TEST(bump_blueprint_utilities, extractzones_polyhedral_sel_omp)
 {
   test_extractzones_polyhedral<omp_exec>::test("extractzones_polyhedral_sel", true);
 }
 #endif
 
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_blueprint_utilities, extractzones_polyhedral_cuda)
+TEST(bump_blueprint_utilities, extractzones_polyhedral_cuda)
 {
   test_extractzones_polyhedral<cuda_exec>::test("extractzones_polyhedral", false);
 }
-TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_cuda)
+TEST(bump_blueprint_utilities, extractzones_polyhedral_sel_cuda)
 {
   test_extractzones_polyhedral<cuda_exec>::test("extractzones_polyhedral_sel", true);
 }
 #endif
 
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_blueprint_utilities, extractzones_polyhedral_hip)
+TEST(bump_blueprint_utilities, extractzones_polyhedral_hip)
 {
   test_extractzones_polyhedral<hip_exec>::test("extractzones_polyhedral", false);
 }
-TEST(mir_blueprint_utilities, extractzones_polyhedral_sel_hip)
+TEST(bump_blueprint_utilities, extractzones_polyhedral_sel_hip)
 {
   test_extractzones_polyhedral<hip_exec>::test("extractzones_polyhedral_sel", true);
 }
@@ -596,7 +595,7 @@ struct test_zonelistbuilder
 
     // host->device
     conduit::Node deviceMesh;
-    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     // Wrap the data in views.
     auto coordsetView =
@@ -609,14 +608,14 @@ struct test_zonelistbuilder
     using MatsetView = views::UnibufferMaterialView<conduit::int64, conduit::float64, 2>;
     MatsetView matsetView;
     matsetView.set(
-      bputils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/material_ids"]),
-      bputils::make_array_view<conduit::float64>(deviceMesh["matsets/mat1/volume_fractions"]),
-      bputils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/sizes"]),
-      bputils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/offsets"]),
-      bputils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/indices"]));
+      utils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/material_ids"]),
+      utils::make_array_view<conduit::float64>(deviceMesh["matsets/mat1/volume_fractions"]),
+      utils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/sizes"]),
+      utils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/offsets"]),
+      utils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/indices"]));
 
     // Determine the list of clean and mixed zones (taking into account #mats at the nodes)
-    bputils::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(topologyView, matsetView);
+    utils::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(topologyView, matsetView);
     axom::Array<axom::IndexType> clean, mixed;
     zlb.execute(coordsetView.numberOfNodes(), clean, mixed);
 
@@ -626,15 +625,15 @@ struct test_zonelistbuilder
 
     // device->host
     conduit::Node hostData;
-    bputils::copy<axom::SEQ_EXEC>(hostData, deviceData);
+    utils::copy<axom::SEQ_EXEC>(hostData, deviceData);
 
     // Compare expected
     const axom::Array<axom::IndexType> cleanResult {{0, 1, 2, 3, 4, 8, 12}};
     const axom::Array<axom::IndexType> mixedResult {{5, 6, 7, 9, 10, 11, 13, 14, 15}};
     EXPECT_TRUE(compare_views(cleanResult.view(),
-                              bputils::make_array_view<axom::IndexType>(hostData["clean"])));
+                              utils::make_array_view<axom::IndexType>(hostData["clean"])));
     EXPECT_TRUE(compare_views(mixedResult.view(),
-                              bputils::make_array_view<axom::IndexType>(hostData["mixed"])));
+                              utils::make_array_view<axom::IndexType>(hostData["mixed"])));
 
     // Try selecting a subset of the zones.
     axom::Array<axom::IndexType> ids {{2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14}};
@@ -648,15 +647,15 @@ struct test_zonelistbuilder
     deviceData["mixed"].set_external(mixed.data(), mixed.size());
 
     // device->host
-    bputils::copy<axom::SEQ_EXEC>(hostData, deviceData);
+    utils::copy<axom::SEQ_EXEC>(hostData, deviceData);
 
     // Compare expected
     const axom::Array<axom::IndexType> cleanResult2 {{2, 3, 8, 12}};
     const axom::Array<axom::IndexType> mixedResult2 {{6, 7, 9, 10, 11, 13, 14}};
     EXPECT_TRUE(compare_views(cleanResult2.view(),
-                              bputils::make_array_view<axom::IndexType>(hostData["clean"])));
+                              utils::make_array_view<axom::IndexType>(hostData["clean"])));
     EXPECT_TRUE(compare_views(mixedResult2.view(),
-                              bputils::make_array_view<axom::IndexType>(hostData["mixed"])));
+                              utils::make_array_view<axom::IndexType>(hostData["mixed"])));
   }
 
   static void create(conduit::Node &hostMesh)
@@ -708,27 +707,27 @@ matsets:
   }
 };
 
-TEST(mir_blueprint_utilities, zonelistbuilder_seq)
+TEST(bump_blueprint_utilities, zonelistbuilder_seq)
 {
   AXOM_ANNOTATE_SCOPE("zonelistbuilder_seq");
   test_zonelistbuilder<seq_exec>::test();
 }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_blueprint_utilities, zonelistbuilder_omp)
+TEST(bump_blueprint_utilities, zonelistbuilder_omp)
 {
   AXOM_ANNOTATE_SCOPE("zonelistbuilder_omp");
   test_zonelistbuilder<omp_exec>::test();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_blueprint_utilities, zonelistbuilder_cuda)
+TEST(bump_blueprint_utilities, zonelistbuilder_cuda)
 {
   AXOM_ANNOTATE_SCOPE("zonelistbuilder_cuda");
   test_zonelistbuilder<cuda_exec>::test();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_blueprint_utilities, zonelistbuilder_hip)
+TEST(bump_blueprint_utilities, zonelistbuilder_hip)
 {
   AXOM_ANNOTATE_SCOPE("zonelistbuilder_hip");
   test_zonelistbuilder<hip_exec>::test();
@@ -747,7 +746,7 @@ struct test_makezonecenters
 
     // host->device
     conduit::Node deviceMesh;
-    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     const conduit::Node &n_rmesh = deviceMesh["topologies/rmesh"];
     auto rmeshView = views::make_rectilinear_topology<2>::view(n_rmesh);
@@ -755,9 +754,9 @@ struct test_makezonecenters
 
     const conduit::Node &n_umesh = deviceMesh["topologies/umesh"];
     views::UnstructuredTopologySingleShapeView<views::QuadShape<conduit::index_t>> umeshView(
-      bputils::make_array_view<conduit::index_t>(n_umesh["elements/connectivity"]),
-      bputils::make_array_view<conduit::index_t>(n_umesh["elements/sizes"]),
-      bputils::make_array_view<conduit::index_t>(n_umesh["elements/offsets"]));
+      utils::make_array_view<conduit::index_t>(n_umesh["elements/connectivity"]),
+      utils::make_array_view<conduit::index_t>(n_umesh["elements/sizes"]),
+      utils::make_array_view<conduit::index_t>(n_umesh["elements/offsets"]));
     testTopo(deviceMesh, umeshView, n_umesh);
   }
 
@@ -770,13 +769,13 @@ struct test_makezonecenters
     auto coordsetView = views::make_rectilinear_coordset<double, 2>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
-    bputils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(topoView, coordsetView);
+    utils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(topoView, coordsetView);
     conduit::Node n_field;
     zc.execute(n_topo, n_coordset, n_field);
 
     // device->host
     conduit::Node n_hostField;
-    bputils::copy<axom::SEQ_EXEC>(n_hostField, n_field);
+    utils::copy<axom::SEQ_EXEC>(n_hostField, n_field);
 
     const double eps = 1.e-9;
     const double res_x[] = {0.5, 1.5, 2.5, 0.5, 1.5, 2.5, 0.5, 1.5, 2.5};
@@ -834,27 +833,27 @@ topologies:
   }
 };
 
-TEST(mir_blueprint_utilities, makezonecenters_seq)
+TEST(bump_blueprint_utilities, makezonecenters_seq)
 {
   AXOM_ANNOTATE_SCOPE("makezonecenters_seq");
   test_makezonecenters<seq_exec>::test();
 }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_blueprint_utilities, makezonecenters_omp)
+TEST(bump_blueprint_utilities, makezonecenters_omp)
 {
   AXOM_ANNOTATE_SCOPE("makezonecenters_omp");
   test_makezonecenters<omp_exec>::test();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_blueprint_utilities, makezonecenters_cuda)
+TEST(bump_blueprint_utilities, makezonecenters_cuda)
 {
   AXOM_ANNOTATE_SCOPE("makezonecenters_cuda");
   test_makezonecenters<cuda_exec>::test();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_blueprint_utilities, makezonecenters_hip)
+TEST(bump_blueprint_utilities, makezonecenters_hip)
 {
   AXOM_ANNOTATE_SCOPE("makezonecenters_hip");
   test_makezonecenters<hip_exec>::test();
@@ -872,13 +871,13 @@ struct test_mergecoordsetpoints
 
     // host->device
     conduit::Node deviceMesh;
-    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
     auto coordsetView = views::make_explicit_coordset<double, 2>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
-    bputils::MergeCoordsetPoints<ExecSpace, CoordsetView> mcp(coordsetView);
+    utils::MergeCoordsetPoints<ExecSpace, CoordsetView> mcp(coordsetView);
     conduit::Node n_newCoordset;
     axom::Array<axom::IndexType> selectedIds, old2new;
     // Make anything closer than 0.005 match
@@ -893,7 +892,7 @@ struct test_mergecoordsetpoints
 
     // device->host
     conduit::Node n_hostCoordset;
-    bputils::copy<axom::SEQ_EXEC>(n_hostCoordset, n_coordset);
+    utils::copy<axom::SEQ_EXEC>(n_hostCoordset, n_coordset);
     //printNode(n_hostCoordset);
 
     // Compare results.
@@ -947,27 +946,27 @@ coordsets:
   }
 };
 
-TEST(mir_blueprint_utilities, mergecoordsetpoints_seq)
+TEST(bump_blueprint_utilities, mergecoordsetpoints_seq)
 {
   AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_seq");
   test_mergecoordsetpoints<seq_exec>::test();
 }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_blueprint_utilities, mergecoordsetpoints_omp)
+TEST(bump_blueprint_utilities, mergecoordsetpoints_omp)
 {
   AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_omp");
   test_mergecoordsetpoints<omp_exec>::test();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_blueprint_utilities, mergecoordsetpoints_cuda)
+TEST(bump_blueprint_utilities, mergecoordsetpoints_cuda)
 {
   AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_cuda");
   test_mergecoordsetpoints<cuda_exec>::test();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_blueprint_utilities, mergecoordsetpoints_hip)
+TEST(bump_blueprint_utilities, mergecoordsetpoints_hip)
 {
   AXOM_ANNOTATE_SCOPE("mergecoordsetpoints_hip");
   test_mergecoordsetpoints<hip_exec>::test();
@@ -985,7 +984,7 @@ struct test_makepointmesh
 
     // host->device
     conduit::Node deviceMesh;
-    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
     const conduit::Node &n_topology = deviceMesh["topologies/mesh"];
@@ -998,7 +997,7 @@ struct test_makepointmesh
         n_topology);
     using TopologyView = decltype(topoView);
 
-    bputils::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(topoView, coordsetView);
+    utils::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(topoView, coordsetView);
     conduit::Node options, newDeviceMesh;
     options["topologyName"] = "pointmesh";
     options["coordsetName"] = "points";
@@ -1017,7 +1016,7 @@ struct test_makepointmesh
 
         // device->host
         conduit::Node newHostMesh;
-        bputils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
+        utils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
 
         EXPECT_TRUE(newHostMesh.has_path("coordsets/points"));
         EXPECT_TRUE(newHostMesh.has_path("topologies/pointmesh"));
@@ -1037,7 +1036,7 @@ struct test_makepointmesh
 
         // device->host
         conduit::Node newHostMesh;
-        bputils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
+        utils::copy<axom::SEQ_EXEC>(newHostMesh, newDeviceMesh);
 
         EXPECT_TRUE(newHostMesh.has_path("coordsets/points"));
         EXPECT_TRUE(newHostMesh.has_path("topologies/pointmesh"));
@@ -1063,19 +1062,19 @@ struct test_makepointmesh
   {
     EXPECT_TRUE(compare_views(
       x.view(),
-      bputils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/x"])));
+      utils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/x"])));
     EXPECT_TRUE(compare_views(
       y.view(),
-      bputils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/y"])));
+      utils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/y"])));
     EXPECT_TRUE(compare_views(connectivity.view(),
-                              bputils::make_array_view<conduit::int64>(
+                              utils::make_array_view<conduit::int64>(
                                 n_mesh["topologies/pointmesh/elements/connectivity"])));
     EXPECT_TRUE(compare_views(
       sizes.view(),
-      bputils::make_array_view<conduit::int64>(n_mesh["topologies/pointmesh/elements/sizes"])));
+      utils::make_array_view<conduit::int64>(n_mesh["topologies/pointmesh/elements/sizes"])));
     EXPECT_TRUE(compare_views(
       offsets.view(),
-      bputils::make_array_view<conduit::int64>(n_mesh["topologies/pointmesh/elements/offsets"])));
+      utils::make_array_view<conduit::int64>(n_mesh["topologies/pointmesh/elements/offsets"])));
   }
 
   static void create(conduit::Node &hostMesh)
@@ -1113,27 +1112,27 @@ topologies:
   }
 };
 
-TEST(mir_blueprint_utilities, makepointmesh_seq)
+TEST(bump_blueprint_utilities, makepointmesh_seq)
 {
   AXOM_ANNOTATE_SCOPE("makepointmesh_seq");
   test_makepointmesh<seq_exec>::test();
 }
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
-TEST(mir_blueprint_utilities, makepointmesh_omp)
+TEST(bump_blueprint_utilities, makepointmesh_omp)
 {
   AXOM_ANNOTATE_SCOPE("makepointmesh_omp");
   test_makepointmesh<omp_exec>::test();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(mir_blueprint_utilities, makepointmesh_cuda)
+TEST(bump_blueprint_utilities, makepointmesh_cuda)
 {
   AXOM_ANNOTATE_SCOPE("makepointmesh_cuda");
   test_makepointmesh<cuda_exec>::test();
 }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
-TEST(mir_blueprint_utilities, makepointmesh_hip)
+TEST(bump_blueprint_utilities, makepointmesh_hip)
 {
   AXOM_ANNOTATE_SCOPE("makepointmesh_hip");
   test_makepointmesh<hip_exec>::test();

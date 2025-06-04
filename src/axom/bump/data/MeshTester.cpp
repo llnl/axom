@@ -15,6 +15,8 @@ namespace axom
 {
 namespace bump
 {
+namespace data
+{
 //--------------------------------------------------------------------------------
 /*!
  * \brief Calculates the percent overlap between the given circle and quad.
@@ -1006,5 +1008,6 @@ void MeshTester::generateGrid3D(int gridSize, conduit::Node& mesh)
 
 //--------------------------------------------------------------------------------
 
+}  // namespace data
 }  // namespace bump
 }  // namespace axom

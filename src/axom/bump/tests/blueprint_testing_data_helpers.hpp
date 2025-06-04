@@ -2,8 +2,8 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_MIR_TESTING_DATA_HELPERS_HPP_
-#define AXOM_MIR_TESTING_DATA_HELPERS_HPP_
+#ifndef AXOM_BLUEPRINT_TESTING_DATA_HELPERS_HPP_
+#define AXOM_BLUEPRINT_TESTING_DATA_HELPERS_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -15,7 +15,7 @@
 
 namespace axom
 {
-namespace mir
+namespace blueprint
 {
 namespace testing
 {
@@ -35,7 +35,7 @@ void add_distance(conduit::Node &mesh, float dist = 6.5f)
 {
   // Make a new distance field.
   const conduit::Node &n_coordset = mesh["coordsets"][0];
-  axom::mir::views::dispatch_coordset(n_coordset, [&](auto coordsetView) {
+  axom::bump::views::dispatch_coordset(n_coordset, [&](auto coordsetView) {
     using PointType = typename decltype(coordsetView)::PointType;
     using SphereType = axom::primal::Sphere<typename PointType::CoordType, PointType::DIMENSION>;
     mesh["fields/distance/topology"] = "mesh";
@@ -572,7 +572,7 @@ void strided_structured(conduit::Node &hostMesh)
 
 } // end namespace data
 } // end namespace testing
-} // end namespace mir
+} // end namespace blueprint
 } // end namespace axom
 
 #endif

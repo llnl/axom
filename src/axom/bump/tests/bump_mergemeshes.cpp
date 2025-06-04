@@ -7,16 +7,15 @@
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/mir.hpp"
+#include "axom/bump.hpp"
 
-#include "axom/mir/tests/mir_testing_helpers.hpp"
-#include "axom/mir/tests/mir_testing_data_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 
 #include <iostream>
 #include <algorithm>
 
-namespace mir = axom::mir;
-namespace bputils = axom::mir::utilities::blueprint;
+namespace utils = axom::bump::utilities;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -29,7 +28,7 @@ struct test_mergemeshes
 
     // host->device
     conduit::Node deviceMesh;
-    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
     // The node names for input 1 in the final merged mesh.
     const axom::IndexType nodeMap[] = {1, 2, 5, 6, 9, 10, 13, 14, 16, 17};
@@ -42,24 +41,24 @@ struct test_mergemeshes
     axom::copy(deviceNodeSlice.data(), nodeSlice, 2 * sizeof(axom::IndexType));
 
     // Set up inputs.
-    // _mir_utilities_mergemeshes_begin
-    std::vector<bputils::MeshInput> inputs(2);
+    // _bump_utilities_mergemeshes_begin
+    std::vector<utils::MeshInput> inputs(2);
     inputs[0].m_input = deviceMesh.fetch_ptr("domain0000");
 
     inputs[1].m_input = deviceMesh.fetch_ptr("domain0001");
     inputs[1].m_nodeMapView = deviceNodeMap.view();
     inputs[1].m_nodeSliceView = deviceNodeSlice.view();
-    // _mir_utilities_mergemeshes_end
+    // _bump_utilities_mergemeshes_end
 
     // Execute
     conduit::Node opts, deviceResult;
     opts["topology"] = "mesh";
-    bputils::MergeMeshes<ExecSpace> mm;
+    utils::MergeMeshes<ExecSpace> mm;
     mm.execute(inputs, opts, deviceResult);
 
     // device->host
     conduit::Node hostResult;
-    bputils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
+    utils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
 
     constexpr double tolerance = 1.e-7;
     conduit::Node expectedResult, info;
@@ -160,15 +159,15 @@ topologies:
   }
 };
 
-TEST(mir_mergemeshes, mergemeshes_seq) { test_mergemeshes<seq_exec>::test(); }
+TEST(bump_mergemeshes, mergemeshes_seq) { test_mergemeshes<seq_exec>::test(); }
 #if defined(AXOM_USE_OPENMP)
-TEST(mir_mergemeshes, mergemeshes_omp) { test_mergemeshes<omp_exec>::test(); }
+TEST(bump_mergemeshes, mergemeshes_omp) { test_mergemeshes<omp_exec>::test(); }
 #endif
 #if defined(AXOM_USE_CUDA)
-TEST(mir_mergemeshes, mergemeshes_cuda) { test_mergemeshes<cuda_exec>::test(); }
+TEST(bump_mergemeshes, mergemeshes_cuda) { test_mergemeshes<cuda_exec>::test(); }
 #endif
 #if defined(AXOM_USE_HIP)
-TEST(mir_mergemeshes, mergemeshes_hip) { test_mergemeshes<hip_exec>::test(); }
+TEST(bump_mergemeshes, mergemeshes_hip) { test_mergemeshes<hip_exec>::test(); }
 #endif
 
 //------------------------------------------------------------------------------
