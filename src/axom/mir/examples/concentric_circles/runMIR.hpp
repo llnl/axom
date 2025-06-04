@@ -7,6 +7,7 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slic.hpp"
+#include "axom/bump.hpp"
 #include "axom/mir.hpp"  // for Mir classes & functions
 
 template <typename ExecSpace, int NDIMS>
@@ -14,8 +15,8 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 {
   AXOM_ANNOTATE_SCOPE("runMIR");
 
-  namespace bputils = axom::mir::utilities::blueprint;
-  using namespace axom::mir::views;
+  namespace utils = axom::bump::utilities;
+  using namespace axom::bump::views;
 
   // Pick the method out of the options.
   std::string method("equiz");
@@ -50,7 +51,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
   conduit::Node deviceMesh;
   {
     AXOM_ANNOTATE_SCOPE("host->device");
-    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
   }
 
   const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
@@ -104,7 +105,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 
   {
     AXOM_ANNOTATE_SCOPE("device->host");
-    bputils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
+    utils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
   }
 
   return 0;

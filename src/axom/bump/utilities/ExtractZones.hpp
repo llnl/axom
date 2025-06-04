@@ -12,6 +12,7 @@
 #include "axom/bump/utilities/FieldSlicer.hpp"
 #include "axom/bump/utilities/MatsetSlicer.hpp"
 #include "axom/bump/utilities/Options.hpp"
+#include "axom/bump/views/view_traits.hpp"
 
 namespace axom
 {

@@ -21,7 +21,8 @@ set(gtest_mir_tests
 
 set(mir_tests_depends_on 
     slic
-    mir 
+    mir
+    bump
     gtest)
 
 #------------------------------------------------------------------------------

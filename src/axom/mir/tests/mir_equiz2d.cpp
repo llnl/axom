@@ -6,16 +6,20 @@
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
+#include "axom/bump.hpp"
 #include "axom/mir.hpp"
 #include "axom/primal.hpp"
-#include "axom/mir/tests/mir_testing_data_helpers.hpp"
-#include "axom/mir/tests/mir_testing_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
+
+namespace utils = axom::bump::utilities;
+namespace views = axom::bump::views;
 
 std::string baselineDirectory() { return pjoin(dataDirectory(), "mir", "regression", "mir_equiz"); }
 
 //------------------------------------------------------------------------------
 // Global test application object.
-MIRTestApplication TestApp;
+axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 TEST(mir_equiz, miralgorithm)
@@ -32,7 +36,7 @@ TEST(mir_equiz, materialinformation)
   matset["material_map/b"] = 2;
   matset["material_map/c"] = 0;
 
-  auto mi = axom::mir::views::materials(matset);
+  auto mi = axom::bump::views::materials(matset);
   EXPECT_EQ(mi.size(), 3);
   EXPECT_EQ(mi[0].number, 1);
   EXPECT_EQ(mi[0].name, "a");
@@ -48,23 +52,21 @@ TEST(mir_equiz, materialinformation)
 template <typename ExecSpace>
 void braid2d_mat_test(const std::string &type, const std::string &mattype, const std::string &name)
 {
-  namespace bputils = axom::mir::utilities::blueprint;
-
   axom::StackArray<axom::IndexType, 2> dims {10, 10};
   axom::StackArray<axom::IndexType, 2> zoneDims {dims[0] - 1, dims[1] - 1};
 
   // Create the data
   conduit::Node hostMesh, deviceMesh;
-  axom::mir::testing::data::braid(type, dims, hostMesh);
-  axom::mir::testing::data::make_matset(mattype, "mesh", zoneDims, hostMesh);
-  axom::mir::utilities::blueprint::copy<ExecSpace>(deviceMesh, hostMesh);
+  axom::blueprint::testing::data::braid(type, dims, hostMesh);
+  axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, hostMesh);
+  utils::copy<ExecSpace>(deviceMesh, hostMesh);
   TestApp.saveVisualization(name + "_orig", hostMesh);
 
   // Make views.
   auto coordsetView =
-    axom::mir::views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);
+    views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);
   auto topologyView =
-    axom::mir::views::make_uniform_topology<2>::view(deviceMesh["topologies/mesh"]);
+    views::make_uniform_topology<2>::view(deviceMesh["topologies/mesh"]);
   using CoordsetView = decltype(coordsetView);
   using TopologyView = decltype(topologyView);
 
@@ -72,13 +74,13 @@ void braid2d_mat_test(const std::string &type, const std::string &mattype, const
   if(mattype == "unibuffer")
   {
     // clang-format off
-    using MatsetView = axom::mir::views::UnibufferMaterialView<int, float, 3>;
+    using MatsetView = views::UnibufferMaterialView<int, float, 3>;
     MatsetView matsetView;
-    matsetView.set(bputils::make_array_view<int>(deviceMesh["matsets/mat/material_ids"]),
-                   bputils::make_array_view<float>(deviceMesh["matsets/mat/volume_fractions"]),
-                   bputils::make_array_view<int>(deviceMesh["matsets/mat/sizes"]),
-                   bputils::make_array_view<int>(deviceMesh["matsets/mat/offsets"]),
-                   bputils::make_array_view<int>(deviceMesh["matsets/mat/indices"]));
+    matsetView.set(utils::make_array_view<int>(deviceMesh["matsets/mat/material_ids"]),
+                   utils::make_array_view<float>(deviceMesh["matsets/mat/volume_fractions"]),
+                   utils::make_array_view<int>(deviceMesh["matsets/mat/sizes"]),
+                   utils::make_array_view<int>(deviceMesh["matsets/mat/offsets"]),
+                   utils::make_array_view<int>(deviceMesh["matsets/mat/indices"]));
     // clang-format on
 
     using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
@@ -90,7 +92,7 @@ void braid2d_mat_test(const std::string &type, const std::string &mattype, const
 
   // device->host
   conduit::Node hostMIRMesh;
-  axom::mir::utilities::blueprint::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
+  utils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
 
   TestApp.saveVisualization(name, hostMIRMesh);
 

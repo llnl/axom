@@ -9,6 +9,7 @@
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/HashNaming.hpp"
 #include "axom/bump/utilities/Unique.hpp"
 
 #include <conduit/conduit.hpp>

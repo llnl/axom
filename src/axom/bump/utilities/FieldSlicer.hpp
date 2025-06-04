@@ -8,6 +8,7 @@
 #include "axom/core.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/IndexingPolicies.hpp"
 
 #include <conduit/conduit.hpp>
 

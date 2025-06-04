@@ -11,6 +11,7 @@
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/memory_management.hpp"
 #include "axom/core/NumericLimits.hpp"
+#include "axom/slic.hpp"
 #include "axom/export/bump.h"
 
 #include <conduit/conduit.hpp>

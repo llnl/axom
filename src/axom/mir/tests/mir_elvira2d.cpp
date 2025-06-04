@@ -6,19 +6,23 @@
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
+#include "axom/bump.hpp"
 #include "axom/mir.hpp"
 #include "axom/primal.hpp"
-#include "axom/mir/tests/mir_testing_data_helpers.hpp"
-#include "axom/mir/tests/mir_testing_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
 std::string baselineDirectory()
 {
   return pjoin(dataDirectory(), "mir", "regression", "mir_elvira");
 }
 
+namespace utils = axom::bump::utilities;
+namespace views = axom::bump::views;
+
 //------------------------------------------------------------------------------
 // Global test application object.
-MIRTestApplication TestApp;
+axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -28,8 +32,8 @@ struct braid2d_mat_test
   {
     axom::StackArray<axom::IndexType, 2> dims {10, 10};
     axom::StackArray<axom::IndexType, 2> zoneDims {dims[0] - 1, dims[1] - 1};
-    axom::mir::testing::data::braid(type, dims, n_mesh);
-    axom::mir::testing::data::make_matset(mattype, "mesh", zoneDims, n_mesh);
+    axom::blueprint::testing::data::braid(type, dims, n_mesh);
+    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, n_mesh);
   }
 
   // Select a chunk of clean and mixed zones.
@@ -43,21 +47,19 @@ struct braid2d_mat_test
                    const std::string &name,
                    bool selectedZones = false,
                    bool pointMesh = false)
-  {
-    namespace bputils = axom::mir::utilities::blueprint;
-
+  {   
     // Create the data
     conduit::Node hostMesh, deviceMesh;
     initialize(type, mattype, hostMesh);
-    axom::mir::utilities::blueprint::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
     TestApp.saveVisualization(name + "_orig", hostMesh);
 
     // _elvira_mir_start
     // Make views.
     auto coordsetView =
-      axom::mir::views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);
+      views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);
     auto topologyView =
-      axom::mir::views::make_uniform_topology<2>::view(deviceMesh["topologies/mesh"]);
+      views::make_uniform_topology<2>::view(deviceMesh["topologies/mesh"]);
     using CoordsetView = decltype(coordsetView);
     using TopologyView = decltype(topologyView);
     using IndexingPolicy = typename TopologyView::IndexingPolicy;
@@ -66,7 +68,7 @@ struct braid2d_mat_test
     if(mattype == "unibuffer")
     {
       auto matsetView =
-        axom::mir::views::make_unibuffer_matset<int, float, 3>::view(deviceMesh["matsets/mat"]);
+        views::make_unibuffer_matset<int, float, 3>::view(deviceMesh["matsets/mat"]);
       using MatsetView = decltype(matsetView);
 
       using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
@@ -86,7 +88,7 @@ struct braid2d_mat_test
 
     // device->host
     conduit::Node hostMIRMesh;
-    axom::mir::utilities::blueprint::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
+    utils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
 
     TestApp.saveVisualization(name, hostMIRMesh);
 

@@ -6,13 +6,14 @@
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
+#include "axom/bump.hpp"
 #include "axom/mir.hpp"
 #include "axom/primal.hpp"
-#include "axom/mir/tests/mir_testing_data_helpers.hpp"
-#include "axom/mir/tests/mir_testing_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
-namespace bputils = axom::mir::utilities::blueprint;
-namespace views = axom::mir::views;
+namespace utils = axom::bump::utilities;
+namespace views = axom::bump::views;
 
 std::string baselineDirectory()
 {
@@ -21,7 +22,7 @@ std::string baselineDirectory()
 
 //------------------------------------------------------------------------------
 // Global test application object.
-MIRTestApplication TestApp;
+axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -33,7 +34,7 @@ struct test_Elvira3D
   static void initialize(conduit::Node &n_mesh)
   {
     AXOM_ANNOTATE_SCOPE("initialize");
-    axom::mir::MeshTester M;
+    axom::bump::data::MeshTester M;
     M.setStructured(true);
     M.initTestCaseSix(gridSize, numSpheres, n_mesh);
   }
@@ -72,7 +73,7 @@ struct test_Elvira3D
     initialize(hostMesh);
     {
       AXOM_ANNOTATE_SCOPE("host_to_device");
-      axom::mir::utilities::blueprint::copy<ExecSpace>(deviceMesh, hostMesh);
+      utils::copy<ExecSpace>(deviceMesh, hostMesh);
     }
     // Save visualization, if enabled.
     TestApp.saveVisualization(name + "_orig", hostMesh);
@@ -135,7 +136,7 @@ struct test_Elvira3D
     conduit::Node hostMIRMesh;
     {
       AXOM_ANNOTATE_SCOPE("device_to_host");
-      bputils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
+      utils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
     }
 
     // Save visualization of MIR mesh, if enabled.
@@ -161,7 +162,7 @@ struct test_Elvira3D
     //--------------------------------------------------------------------------
     // Compute volumes for original mesh as a field.
     AXOM_ANNOTATE_BEGIN("volume");
-    bputils::MakeZoneVolumes<ExecSpace, TopologyView, CoordsetView> origZV(topologyView,
+    utils::MakeZoneVolumes<ExecSpace, TopologyView, CoordsetView> origZV(topologyView,
                                                                            coordsetView);
     origZV.execute(n_topology, n_coordset, deviceMesh["fields/volume"]);
 
@@ -177,7 +178,7 @@ struct test_Elvira3D
       views::make_unstructured_polyhedral_topology<axom::IndexType>::view(n_mir_topology);
     using MirTopologyView = decltype(mirTopoView);
 
-    bputils::MakeZoneVolumes<ExecSpace, MirTopologyView, MirCoordsetView> mirZV(mirTopoView,
+    utils::MakeZoneVolumes<ExecSpace, MirTopologyView, MirCoordsetView> mirZV(mirTopoView,
                                                                                 mirCoordsetView);
     mirZV.execute(n_mir_topology, n_mir_coordset, deviceMIRMesh["fields/volume"]);
     AXOM_ANNOTATE_END("volume");
@@ -187,7 +188,7 @@ struct test_Elvira3D
     conduit::Node hostMIRMesh;
     {
       AXOM_ANNOTATE_SCOPE("device_to_host");
-      bputils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
+      utils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
     }
 
     // Save visualization of MIR mesh, if enabled.
@@ -212,12 +213,12 @@ struct test_Elvira3D
     // Compute the total volumes on the original and MIR meshes.
     constexpr double tolerance = 3.e-5;
 
-    const auto orig_volume = bputils::make_array_view<double>(deviceMesh["fields/volume/values"]);
+    const auto orig_volume = utils::make_array_view<double>(deviceMesh["fields/volume/values"]);
     EXPECT_NEAR(expectedVolume, variableSum(orig_volume), tolerance);
     const auto origMatInfo = views::materials(n_matset);
     const auto origTotalVolumes = sumMaterialVolumes(matsetView, orig_volume, origMatInfo);
 
-    const auto mir_volume = bputils::make_array_view<double>(deviceMIRMesh["fields/volume/values"]);
+    const auto mir_volume = utils::make_array_view<double>(deviceMIRMesh["fields/volume/values"]);
     EXPECT_NEAR(mirExpectedVolume, variableSum(mir_volume), tolerance);
     const auto mirMatInfo = views::materials(n_mir_matset);
     const auto mirTotalVolumes = sumMaterialVolumes(mirMatsetView, mir_volume, mirMatInfo);
@@ -276,7 +277,7 @@ struct test_Elvira3D
   template <typename MatsetView>
   static std::vector<double> sumMaterialVolumes(MatsetView matsetView,
                                                 axom::ArrayView<double> zoneVolumes,
-                                                const axom::mir::views::MaterialInformation &matInfo)
+                                                const views::MaterialInformation &matInfo)
   {
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     AXOM_ANNOTATE_SCOPE("sumMaterialVolumes");
@@ -311,7 +312,7 @@ struct test_Elvira3D
         // Add the material volumes to the total volumes.
         for(axom::IndexType i = 0; i < ids.size(); i++)
         {
-          auto index = axom::mir::utilities::bsearch(ids[i], sortedIdsView);
+          auto index = utils::bsearch(ids[i], sortedIdsView);
           SLIC_ASSERT(index >= 0 && index < nmats);
 
           // Use an atomic to sum the value.

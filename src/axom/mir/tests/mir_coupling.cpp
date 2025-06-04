@@ -7,15 +7,17 @@
 
 #include "axom/core.hpp"
 #include "axom/fmt.hpp"
+#include "axom/bump.hpp"
 #include "axom/mir.hpp"
-#include "axom/mir/tests/mir_testing_data_helpers.hpp"
-#include "axom/mir/tests/mir_testing_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
 #include <conduit/conduit_relay_io_blueprint.hpp>
 #include <cmath>
 #include <cstdlib>
 
-namespace bputils = axom::mir::utilities::blueprint;
+namespace utils = axom::bump::utilities;
+namespace views = axom::bump::views;
 
 std::string baselineDirectory()
 {
@@ -24,7 +26,7 @@ std::string baselineDirectory()
 
 //------------------------------------------------------------------------------
 // Global test application object.
-MIRTestApplication TestApp;
+axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 /*!
@@ -197,7 +199,7 @@ public:
 
     // host->device
     conduit::Node n_dev;
-    axom::mir::utilities::blueprint::copy<ExecSpace>(n_dev, n_mesh);
+    utils::copy<ExecSpace>(n_dev, n_mesh);
 
     // Do 2D MIR on the coarse mesh. The new objects will be added to n_mesh.
     std::string coarseName(stridedStructured ? "coarse_strided" : "coarse");
@@ -214,7 +216,7 @@ public:
 
     // device->host
     conduit::Node hostResult;
-    bputils::copy<seq_exec>(hostResult, n_dev);
+    utils::copy<seq_exec>(hostResult, n_dev);
 
     TestApp.saveVisualization(name, hostResult);
 
@@ -252,19 +254,17 @@ private:
                     bool selectedZones,
                     bool stridedStructured)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
-
     // Wrap the coarse mesh in views.
     const conduit::Node &n_topology = n_input[axom::fmt::format("topologies/{}", input_prefix)];
 
     if(stridedStructured)
     {
-      auto topologyView = axom::mir::views::make_strided_structured_topology<2>::view(n_topology);
+      auto topologyView = views::make_strided_structured_topology<2>::view(n_topology);
       mir2D(topologyView, input_prefix, n_input, output_prefix, n_output, selectedZones, stridedStructured);
     }
     else
     {
-      auto topologyView = axom::mir::views::make_structured_topology<2>::view(n_topology);
+      auto topologyView = views::make_structured_topology<2>::view(n_topology);
       mir2D(topologyView, input_prefix, n_input, output_prefix, n_output, selectedZones, stridedStructured);
     }
   }
@@ -278,21 +278,20 @@ private:
                     bool selectedZones,
                     bool stridedStructured)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
     SLIC_INFO(axom::fmt::format("mir2D {} to {}", input_prefix, output_prefix));
 
     // Wrap the input mesh in views.
     const conduit::Node &n_coordset = n_input[axom::fmt::format("coordsets/{}_coords", input_prefix)];
     const conduit::Node &n_matset = n_input[axom::fmt::format("matsets/{}_matset", input_prefix)];
 
-    auto coordsetView = axom::mir::views::make_uniform_coordset<2>::view(n_coordset);
+    auto coordsetView = views::make_uniform_coordset<2>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
     // Get the indexing policy from the TopologyView type.
     using IndexingPolicy = typename TopologyView::IndexingPolicy;
 
     auto matsetView =
-      axom::mir::views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_matset);
+      views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_matset);
     using MatsetView = decltype(matsetView);
 
     // Do MIR on the mesh.
@@ -351,7 +350,6 @@ private:
                         bool selectedZones,
                         bool stridedStructured)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
     SLIC_INFO("mapping2D postmir to fine");
 
     // Wrap the source mesh from (coarse MIR output).
@@ -359,32 +357,32 @@ private:
     const conduit::Node &n_src_topology = n_src["topologies/postmir"];
     const conduit::Node &n_src_matset = n_src["matsets/postmir_matset"];
 
-    auto srcCoordsetView = axom::mir::views::make_explicit_coordset<double, 2>::view(n_src_coordset);
+    auto srcCoordsetView = views::make_explicit_coordset<double, 2>::view(n_src_coordset);
     using SrcCoordsetView = decltype(srcCoordsetView);
 
     // 2D Elvira makes polygonal meshes
-    using SrcShapeType = axom::mir::views::PolygonShape<axom::IndexType>;
+    using SrcShapeType = views::PolygonShape<axom::IndexType>;
     auto srcTopologyView =
-      axom::mir::views::make_unstructured_single_shape_topology<SrcShapeType>::view(n_src_topology);
+      views::make_unstructured_single_shape_topology<SrcShapeType>::view(n_src_topology);
     using SrcTopologyView = decltype(srcTopologyView);
 
     auto srcMatsetView =
-      axom::mir::views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_src_matset);
+      views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_src_matset);
     using SrcMatsetView = decltype(srcMatsetView);
 
     // Wrap the target mesh (fine)
     const conduit::Node &n_target_coordset = n_target["coordsets/fine_coords"];
     const conduit::Node &n_target_topology = n_target["topologies/fine"];
 
-    auto targetCoordsetView = axom::mir::views::make_uniform_coordset<2>::view(n_target_coordset);
+    auto targetCoordsetView = views::make_uniform_coordset<2>::view(n_target_coordset);
     using TargetCoordsetView = decltype(targetCoordsetView);
 
-    auto targetTopologyView = axom::mir::views::make_structured_topology<2>::view(n_target_topology);
+    auto targetTopologyView = views::make_structured_topology<2>::view(n_target_topology);
     using TargetTopologyView = decltype(targetTopologyView);
 
     // Make new a new matset on the target topology to record material overlaps.
     using Mapper =
-      bputils::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
+      utils::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
     Mapper mapper(srcTopologyView,
                   srcCoordsetView,
                   srcMatsetView,

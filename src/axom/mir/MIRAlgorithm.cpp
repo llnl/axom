@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/mir/MIRAlgorithm.hpp"
-#include "axom/mir/MIROptions.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/Options.hpp"
 #include "axom/slic.hpp"
 
 #include <conduit_blueprint_mesh.hpp>
@@ -45,7 +45,7 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
                                 const conduit::Node &n_options,
                                 conduit::Node &n_newDomain)
 {
-  MIROptions options(n_options);
+  axom::bump::utilities::Options options(n_options);
 
   // Get the matset that we'll operate on.
   const std::string matset = options.matset();
@@ -75,7 +75,10 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   newMatset["topology"] = newTopoName;
 
   // Execute the algorithm on the domain.
-  if(n_domain.has_path("state")) copyState(n_domain["state"], n_newDomain["state"]);
+  if(n_domain.has_path("state"))
+  {
+    copyState(n_domain["state"], n_newDomain["state"]);
+  }
   if(n_domain.has_path("fields"))
   {
     conduit::Node &newFields = n_newDomain["fields"];
@@ -122,7 +125,7 @@ void MIRAlgorithm::printNode(const conduit::Node &n) const
 
   // Make sure data are on host.
   conduit::Node n_host;
-  axom::mir::utilities::blueprint::copy<axom::SEQ_EXEC>(n_host, n);
+  axom::bump::utilities::copy<axom::SEQ_EXEC>(n_host, n);
   n_host.to_summary_string_stream(std::cout, options);
 }
 
@@ -130,7 +133,7 @@ void MIRAlgorithm::saveMesh(const conduit::Node &n_mesh, const std::string &file
 {
   // Make sure data are on host.
   conduit::Node n_mesh_host;
-  axom::mir::utilities::blueprint::copy<axom::SEQ_EXEC>(n_mesh_host, n_mesh);
+  axom::bump::utilities::copy<axom::SEQ_EXEC>(n_mesh_host, n_mesh);
 
   conduit::relay::io::save(n_mesh_host, filebase + ".yaml", "yaml");
 #if defined(AXOM_USE_HDF5)

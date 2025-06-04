@@ -10,17 +10,19 @@
 #include "axom/slic.hpp"
 
 #include "axom/mir/MIRAlgorithm.hpp"
-#include "axom/mir/utilities/MakePointMesh.hpp"
-#include "axom/mir/utilities/MakeZoneCenters.hpp"
-#include "axom/mir/utilities/MatsetSlicer.hpp"
-#include "axom/mir/utilities/MergeMeshes.hpp"
-#include "axom/mir/utilities/PrimalAdaptor.hpp"
-#include "axom/mir/utilities/SelectedZones.hpp"
-#include "axom/mir/utilities/ZoneListBuilder.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
-#include "axom/mir/utilities/utilities.hpp"
-#include "axom/mir/views/MaterialView.hpp"
-#include "axom/mir/views/StructuredTopologyView.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/conduit_traits.hpp"
+#include "axom/bump/utilities/MakePointMesh.hpp"
+#include "axom/bump/utilities/MakeZoneCenters.hpp"
+#include "axom/bump/utilities/MatsetSlicer.hpp"
+#include "axom/bump/utilities/MergeMeshes.hpp"
+#include "axom/bump/utilities/PrimalAdaptor.hpp"
+#include "axom/bump/utilities/SelectedZones.hpp"
+#include "axom/bump/utilities/ZoneListBuilder.hpp"
+#include "axom/bump/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/utilities.hpp"
+#include "axom/bump/views/MaterialView.hpp"
+#include "axom/bump/views/StructuredTopologyView.hpp"
 
 #include "axom/primal/operators/compute_bounding_box.hpp"
 #include "axom/primal/operators/clip.hpp"
@@ -72,7 +74,7 @@ template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typen
 class ElviraAlgorithm : public axom::mir::MIRAlgorithm
 {
 public:
-  using TopologyView = axom::mir::views::StructuredTopologyView<IndexPolicy>;
+  using TopologyView = axom::bump::views::StructuredTopologyView<IndexPolicy>;
   using ConnectivityType = typename TopologyView::ConnectivityType;
 
 protected:
@@ -92,7 +94,7 @@ protected:
   using PointType = axom::primal::Point<CoordType, NDIMS>;
   using PlaneType = axom::primal::Plane<CoordType, NDIMS>;
 
-  using ShapeView = axom::mir::utilities::blueprint::PrimalAdaptor<TopologyView, CoordsetView>;
+  using ShapeView = axom::bump::utilities::PrimalAdaptor<TopologyView, CoordsetView>;
   using Builder =
     detail::TopologyBuilder<ExecSpace, CoordsetView, TopologyView, MatsetView, ClipResultType, NDIMS>;
   using BuilderView = typename Builder::View;
@@ -147,24 +149,24 @@ protected:
                              conduit::Node &n_newFields,
                              conduit::Node &n_newMatset) override
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
 
     AXOM_ANNOTATE_SCOPE("ElviraAlgorithm");
 
     // Copy the options to make sure they are in the right memory space.
     conduit::Node n_options_copy;
-    bputils::copy<ExecSpace>(n_options_copy, n_options);
+    utils::copy<ExecSpace>(n_options_copy, n_options);
     n_options_copy["topology"] = n_topo.name();
 
-    // _mir_utilities_selectedzones_begin
+    // _bump_utilities_selectedzones_begin
     // Get selected zones from the options.
-    bputils::SelectedZones<ExecSpace> selectedZones(m_topologyView.numberOfZones(), n_options_copy);
+    utils::SelectedZones<ExecSpace> selectedZones(m_topologyView.numberOfZones(), n_options_copy);
     const auto selectedZonesView = selectedZones.view();
-    // _mir_utilities_selectedzones_end
+    // _bump_utilities_selectedzones_end
 
     // Partition the selected zones into clean, mixed lists.
     axom::Array<axom::IndexType> cleanZones, mixedZones;
-    bputils::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView, m_matsetView);
+    utils::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView, m_matsetView);
     zlb.execute(selectedZonesView, cleanZones, mixedZones);
     SLIC_ASSERT((cleanZones.size() + mixedZones.size()) == selectedZonesView.size());
     SLIC_INFO(
@@ -255,10 +257,10 @@ protected:
       // There were no mixed zones. We can copy the input to the output.
       {
         AXOM_ANNOTATE_SCOPE("copy");
-        bputils::copy<ExecSpace>(n_newCoordset, n_coordset);
-        bputils::copy<ExecSpace>(n_newTopo, n_topo);
-        bputils::copy<ExecSpace>(n_newFields, n_fields);
-        bputils::copy<ExecSpace>(n_newMatset, n_matset);
+        utils::copy<ExecSpace>(n_newCoordset, n_coordset);
+        utils::copy<ExecSpace>(n_newTopo, n_topo);
+        utils::copy<ExecSpace>(n_newFields, n_fields);
+        utils::copy<ExecSpace>(n_newMatset, n_matset);
       }
 
       // Add an originalElements array.
@@ -281,7 +283,7 @@ protected:
              conduit::Node &n_merged) const
   {
     AXOM_ANNOTATE_SCOPE("merge");
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
 
     // Create a MergeMeshesAndMatsets type that will operate on the material
     // inputs, which at this point will be unibuffer with known types. We can
@@ -290,11 +292,11 @@ protected:
     using FloatElement = typename MatsetView::FloatType;
     constexpr size_t MAXMATERIALS = MatsetView::MaxMaterials;
     using DispatchPolicy =
-      bputils::DispatchTypedUnibufferMatset<IntElement, FloatElement, MAXMATERIALS>;
-    using MergeMeshes = bputils::MergeMeshesAndMatsets<ExecSpace, DispatchPolicy>;
+      utils::DispatchTypedUnibufferMatset<IntElement, FloatElement, MAXMATERIALS>;
+    using MergeMeshes = utils::MergeMeshesAndMatsets<ExecSpace, DispatchPolicy>;
 
     // Merge clean and MIR output.
-    std::vector<bputils::MeshInput> inputs(2);
+    std::vector<utils::MeshInput> inputs(2);
     inputs[0].m_input = &n_cleanOutput;
     inputs[0].topologyName = topoName;
 
@@ -322,8 +324,8 @@ protected:
                    axom::ArrayView<axom::IndexType> selectedZonesView) const
   {
     AXOM_ANNOTATE_SCOPE("addOriginal");
-    namespace bputils = axom::mir::utilities::blueprint;
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    namespace utils = axom::bump::utilities;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     const auto nvalues = selectedZonesView.size();
 
@@ -331,8 +333,8 @@ protected:
     n_field["topology"] = topoName;
     n_field["association"] = association;
     n_field["values"].set_allocator(c2a.getConduitAllocatorID());
-    n_field["values"].set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, nvalues));
-    auto view = bputils::make_array_view<ConnectivityType>(n_field["values"]);
+    n_field["values"].set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, nvalues));
+    auto view = utils::make_array_view<ConnectivityType>(n_field["values"]);
     axom::for_all<ExecSpace>(
       nvalues,
       AXOM_LAMBDA(axom::IndexType index) { view[index] = selectedZonesView[index]; });
@@ -362,22 +364,22 @@ protected:
                       conduit::Node &n_cleanOutput) const
   {
     AXOM_ANNOTATE_SCOPE("makeCleanZones");
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
 
     // Make the clean mesh (it might be a point mesh).
     ELVIRAOptions opts(n_options);
     if(opts.pointmesh())
     {
-      // _mir_utilities_makepointmesh_begin
+      // _bump_utilities_makepointmesh_begin
       // Make a point mesh of the selected zones.
-      bputils::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(m_topologyView,
+      utils::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(m_topologyView,
                                                                        m_coordsetView);
       pm.execute(cleanZones, n_topology, n_coordset, n_options, n_cleanOutput);
-      // _mir_utilities_makepointmesh_end
+      // _bump_utilities_makepointmesh_end
 
       // Slice the input material.
-      bputils::MatsetSlicer<ExecSpace, MatsetView> mslicer(m_matsetView);
-      bputils::SliceData slice;
+      utils::MatsetSlicer<ExecSpace, MatsetView> mslicer(m_matsetView);
+      utils::SliceData slice;
       slice.m_indicesView = cleanZones;
       mslicer.execute(slice, n_matset, n_cleanOutput["matsets/" + opts.matsetName(n_matset.name())]);
 
@@ -451,7 +453,7 @@ protected:
                          conduit::Node &n_newMatset)
   {
     AXOM_ANNOTATE_SCOPE("processMixedZones");
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     // Note: MSVC needs constexpr lambda capture to be marked `static` even though constexpr should suffice
     static constexpr int NDIMS = TopologyView::dimension();
@@ -574,18 +576,18 @@ protected:
     // NOTE: This makes zone centers for all zones. That's okay since we use
     //       these values in making stencils.
     AXOM_ANNOTATE_BEGIN("centroids");
-    // _mir_utilities_makezonecenters_begin
-    bputils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView,
+    // _bump_utilities_makezonecenters_begin
+    utils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView,
                                                                        m_coordsetView);
     conduit::Node n_zcfield;
     zc.execute(n_topo, n_coordset, n_zcfield);
-    // _mir_utilities_makezonecenters_end
+    // _bump_utilities_makezonecenters_end
     axom::ArrayView<CoordType> xview, yview, zview;
-    xview = bputils::make_array_view<CoordType>(n_zcfield["values/x"]);
-    yview = bputils::make_array_view<CoordType>(n_zcfield["values/y"]);
+    xview = utils::make_array_view<CoordType>(n_zcfield["values/x"]);
+    yview = utils::make_array_view<CoordType>(n_zcfield["values/y"]);
     if(n_zcfield.has_path("values/z"))
     {
-      zview = bputils::make_array_view<CoordType>(n_zcfield["values/z"]);
+      zview = utils::make_array_view<CoordType>(n_zcfield["values/z"]);
     }
 #if defined(AXOM_ELVIRA_GATHER_INFO)
     if(!axom::execution_space<ExecSpace>::onDevice())
@@ -863,7 +865,7 @@ protected:
                      int max_iterations,
                      double tolerance)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE("fragments");
 
     const ShapeView deviceShapeView {m_topologyView, m_coordsetView};
@@ -880,7 +882,7 @@ protected:
         const auto inputShape = deviceShapeView.getShape(zoneIndex);
 
         // Get the zone's actual volume.
-        const double zoneVol = bputils::ComputeShapeAmount<NDIMS>::execute(inputShape);
+        const double zoneVol = utils::ComputeShapeAmount<NDIMS>::execute(inputShape);
 
         ClipResultType remaining;
 
