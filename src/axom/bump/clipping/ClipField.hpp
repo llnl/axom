@@ -1665,8 +1665,6 @@ private:
                     conduit::Node &n_newFields) const
   {
     AXOM_ANNOTATE_SCOPE("makeTopology");
-    namespace utils = axom::bump::utilities;
-    constexpr auto connTypeID = utils::cpp2conduit<ConnectivityType>::id;
     const auto selection = getSelection(opts);
 
     AXOM_ANNOTATE_BEGIN("allocation");
@@ -1675,6 +1673,8 @@ private:
 
     // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
     // _bump_utilities_c2a_begin
+    namespace utils = axom::bump::utilities;
+    constexpr auto connTypeID = utils::cpp2conduit<ConnectivityType>::id;
     utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
     const int conduitAllocatorID = c2a.getConduitAllocatorID();
 

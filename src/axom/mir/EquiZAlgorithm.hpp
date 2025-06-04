@@ -483,12 +483,11 @@ protected:
                      axom::Array<axom::IndexType> &cleanZones,
                      axom::Array<axom::IndexType> &mixedZones) const
   {
-    namespace utils = axom::bump::utilities;
-
     // Call variants of the ZoneListBuilder methods that take into account adjacent
     // zones materials when determining if a zone should be mixed.
 
-    // _mir_utilities_zlb_begin
+    // _bump_utilities_zlb_begin
+    namespace utils = axom::bump::utilities;
     utils::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView, m_matsetView);
     if(n_options.has_child("selectedZones"))
     {
@@ -500,7 +499,7 @@ protected:
     {
       zlb.execute(m_coordsetView.numberOfNodes(), cleanZones, mixedZones);
     }
-    // _mir_utilities_zlb_end
+    // _bump_utilities_zlb_end
   }
 
   /*!

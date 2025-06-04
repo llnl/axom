@@ -200,7 +200,11 @@ are optional.
 +--------------------+---------------------------------------------------------------+
 | Argument           | Description                                                   |
 +====================+===============================================================+
+| --dimension number | The mesh dimension, 2 or 3.                                   |
++--------------------+---------------------------------------------------------------+
 | --gridsize number  | The number of zones along an axis. The default is 5.          |
++--------------------+---------------------------------------------------------------+
+| --method name      | The MIR method used "equiz" or "elvira".                      |
 +--------------------+---------------------------------------------------------------+
 | --numcircles number| The number of number of circles to use for material creation. |
 |                    | The default is 2.                                             |

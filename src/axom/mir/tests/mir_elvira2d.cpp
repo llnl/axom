@@ -18,7 +18,6 @@ std::string baselineDirectory()
 }
 
 namespace utils = axom::bump::utilities;
-namespace views = axom::bump::views;
 
 //------------------------------------------------------------------------------
 // Global test application object.
@@ -55,6 +54,7 @@ struct braid2d_mat_test
     TestApp.saveVisualization(name + "_orig", hostMesh);
 
     // _elvira_mir_start
+    namespace views = axom::bump::views;
     // Make views.
     auto coordsetView =
       views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);

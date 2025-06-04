@@ -16,7 +16,6 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
   AXOM_ANNOTATE_SCOPE("runMIR");
 
   namespace utils = axom::bump::utilities;
-  using namespace axom::bump::views;
 
   // Pick the method out of the options.
   std::string method("equiz");
@@ -38,7 +37,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 
   // Check materials.
   constexpr int MAXMATERIALS = 20;
-  auto materialInfo = materials(hostMesh["matsets/mat"]);
+  auto materialInfo = axom::bump::views::materials(hostMesh["matsets/mat"]);
   if(materialInfo.size() >= MAXMATERIALS)
   {
     SLIC_WARNING(
@@ -64,6 +63,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
     if(method == "equiz")
     {
       // _equiz_mir_start
+      using namespace axom::bump::views;
       // Make views (we know beforehand which types to make)
       auto coordsetView = make_explicit_coordset<float, NDIMS>::view(n_coordset);
       using CoordsetView = decltype(coordsetView);
@@ -83,6 +83,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
     else if(method == "elvira")
     {
       // Make views (we know beforehand which types to make)
+      using namespace axom::bump::views;
       auto coordsetView = make_explicit_coordset<float, NDIMS>::view(n_coordset);
       using CoordsetView = decltype(coordsetView);
 

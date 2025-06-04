@@ -26,6 +26,8 @@ memory blocks that are valid for the execution environment in which algorithms w
 To achieve this, entire Conduit node hierarchies can be copied to the proper memory space
 or they can be constructed by forcing Conduit to allocate memory in the proper memory space.
 
+ * `NOTE: Some code examples use a utils:: namespace prefix as shorthand for axom::bump::utilities.`
+
 #######################
 Copying Blueprint Data
 #######################
