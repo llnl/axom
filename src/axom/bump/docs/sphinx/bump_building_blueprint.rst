@@ -28,10 +28,10 @@ to pass ArrayViews and not the Conduit nodes to device kernels.
     template <typename ExecSpace>
     void makeNewField(conduit::Node &n_mesh)
     {
-      namespace bputils = axom::mir::utilities::blueprint;
+      namespace utils = axom::bump::utilities;
 
       // This object registers Axom's allocation functions with Conduit.
-      bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+      utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
       // Make the new field normally by adding members to the n_mesh Conduit node.
       conduit::Node &n_field = n_mesh["fields/newField"];
@@ -46,10 +46,10 @@ to pass ArrayViews and not the Conduit nodes to device kernels.
       // Allocate memory in the right memory space for ExecSpace.
       // The cpp2conduit template gets the Conduit data type id for supported C++ types.
       const int nzones = 100;
-      n_values.set(conduit::DataType(bputils::cpp2conduit<double>::id, nzones));
+      n_values.set(conduit::DataType(utils::cpp2conduit<double>::id, nzones));
 
       // Wrap the node in an ArrayView.
-      auto values = bputils::make_array_view<double>(n_values);
+      auto values = utils::make_array_view<double>(n_values);
 
       // Fill in the values in a kernel through the "values" ArrayView.
       axom::for_all<ExecSpace>(
@@ -77,6 +77,6 @@ memory was likely allocated on the device and the memory needs to be moved to th
     // Assume we have some algorithm output in "n_device".
     // Move that memory to the host.
     conduit::Node n_host;
-    axom::mir::utilities::blueprint::copy<axom::SEQ_EXEC>(n_host, n_device);
+    axom::bump::utilities::copy<axom::SEQ_EXEC>(n_host, n_device);
     // Now, access the memory on the host through n_host.
     n_host.print();

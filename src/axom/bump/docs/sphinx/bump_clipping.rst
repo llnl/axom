@@ -7,10 +7,10 @@
 Clipping
 *************
 
-The MIR component provides a clipping algorithm that can perform isosurface-based
+The BUMP component provides a clipping algorithm that can perform isosurface-based
 clipping and return volumetric output for zones and partial zones that are "inside"
 or "outside" the clip boundary. The clipping algorithm is implemented in the
-``axom::mir::clipping::ClipField`` class. The class can be instantiated with several
+``axom::bump::clipping::ClipField`` class. The class can be instantiated with several
 template arguments that govern where it will execute, which coordset and topology
 types it supports, and how it performs intersection. The input to the algorithm is
 a Blueprint mesh. When instantiated with coordset and topology views appropriate
@@ -20,14 +20,15 @@ finite elements.
 
 By default, the algorithm will clip using a field but other intersection routines
 can be substituted via a template argument to facilitate creation of clipping using
-planes, spheres, surfaces of revolution, etc. The Equi-Z algorithm uses ClipField
-with an intersector that examines material volume fractions to determine the clipped geometry.
+planes, spheres, surfaces of revolution, etc. The Equi-Z algorithm in Axom's MIR
+component uses ClipField with an intersector that examines material volume fractions
+to determine the clipped geometry.
 
 #######
 Inputs
 #######
 
-Like the MIR algorithms, the clipping algorithm is designed to accept a Conduit node
+Like the BUMP algorithms, the clipping algorithm is designed to accept a Conduit node
 containing various options that influence how the algorithm operates. The clipping
 algorithm copies the options node to the memory space where it will be used.
 
@@ -95,20 +96,20 @@ mesh and fields. The input mesh node needs to contain data arrays for coordinate
 topology, and fields. These data must exist in the memory space of the targeted device.
 Other Conduit nodes that contain strings or single numbers that can fit within a Conduit
 node are safe remaining in host memory. If the mesh is not in the desired memory space, it
-can be moved using ``axom::mir::utilities::blueprint::copy()``.
+can be moved using ``axom::bump::utilities::copy()``.
 
 .. code-block:: cpp
 
-    #include "axom/mir.hpp"
+    #include "axom/bump.hpp"
 
     // Set up views for the mesh in deviceRoot node.
-    auto coordsetView = axom::mir::views::make_rectilinear_coordset<float, 3>::view(deviceRoot["coordsets/coords"]);
-    auto topologyView = axom::mir::views::make_rectilinear_topology<3>::view(deviceRoot["topologies/Mesh"]);
+    auto coordsetView = axom::bump::views::make_rectilinear_coordset<float, 3>::view(deviceRoot["coordsets/coords"]);
+    auto topologyView = axom::bump::views::make_rectilinear_topology<3>::view(deviceRoot["topologies/Mesh"]);
 
     // Make a clipper.
     using CoordsetView = decltype(coordsetView);
     using TopologyView = decltype(topologyView);
-    using Clip = axom::mir::clipping::ClipField<axom::SEQ_EXEC, TopologyView, CoordsetView>;
+    using Clip = axom::bump::clipping::ClipField<axom::SEQ_EXEC, TopologyView, CoordsetView>;
     Clip clipper(topologyView, coordsetView);
 
     // Run the clip algorithm
