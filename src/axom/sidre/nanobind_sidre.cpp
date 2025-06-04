@@ -42,11 +42,11 @@ nb::dlpack::dtype typeIDToDtype(DataTypeId id)
 }
 
 /*!
-   * \brief Returns a View as a numpy array.
-   *
-   * \note Max dimensions (DMAX) is currently set to 10.
-   * \pre data description must have been applied.
-   */
+ * \brief Returns a View as a numpy array.
+ *
+ * \note Max dimensions (DMAX) is currently set to 10.
+ * \pre data description must have been applied.
+ */
 nb::ndarray<nb::numpy> viewToNumpyArray(View& self)
 {
   void* data = self.getVoidPtr();
@@ -72,6 +72,35 @@ nb::ndarray<nb::numpy> viewToNumpyArray(View& self)
   return nb::ndarray<nb::numpy>(
     /* data = */ data,
     /* ndim = */ ndims,
+    /* shape = */ shape,
+    /* owner = */ owner,
+    /* strides = */ nullptr,
+    /* dtype = */ typeIDToDtype(id));
+}
+
+/*!
+ * \brief Returns a Buffer as a numpy array.
+ *
+ * \pre data description must have been applied.
+ */
+nb::ndarray<nb::numpy> bufferToNumpyArray(Buffer& self)
+{
+  void* data = self.getVoidPtr();
+
+  size_t shape[1] = {static_cast<size_t>(self.getNumElements())};
+
+  // TODO This is tricky and difficult to understand
+  // Delete 'data' when the 'owner' capsule expires
+  // nb::capsule owner(data, [](void* p) noexcept { delete[] static_cast<char*>(p); });
+
+  // For external memory (numpy owns it), no deletion takes place
+  nb::capsule owner(data, [](void*) noexcept {});
+
+  DataTypeId id = self.getTypeID();
+
+  return nb::ndarray<nb::numpy>(
+    /* data = */ data,
+    /* ndim = */ 1,
     /* shape = */ shape,
     /* owner = */ owner,
     /* strides = */ nullptr,
@@ -168,7 +197,8 @@ NB_MODULE(pysidre, m_sidre)
   nb::class_<Buffer>(m_sidre, "Buffer")
     .def("getIndex", &Buffer::getIndex, "Return the unique index of this Buffer object.")
     .def("getNumViews", &Buffer::getNumViews, "Return number of Views this Buffer is attached to.")
-    .def("getVoidPtr", &Buffer::getVoidPtr, "Return void-pointer to data held by Buffer.")
+    // .def("getVoidPtr", &Buffer::getVoidPtr, "Return void-pointer to data held by Buffer.")
+    .def("getDataArray", &bufferToNumpyArray, "Return the data held by the Buffer as a numpy array.")
     .def("getTypeID", &Buffer::getTypeID, "Return type of data owned by this Buffer object.")
     .def("getNumElements",
          &Buffer::getNumElements,
@@ -349,9 +379,7 @@ NB_MODULE(pysidre, m_sidre)
          &View::getString,
          nb::rv_policy::reference,
          "Return the string contained in the View.")
-    .def("getDataArray",
-         &viewToNumpyArray,
-         "Return the data held by the View as a numpy array.")
+    .def("getDataArray", &viewToNumpyArray, "Return the data held by the View as a numpy array.")
 
     .def("getData",
          &View::getData<int>,
@@ -370,10 +398,10 @@ NB_MODULE(pysidre, m_sidre)
          nb::rv_policy::reference,
          "Return the data held by the View (double).")
 
-    .def("getVoidPtr",
-         &View::getVoidPtr,
-         nb::rv_policy::reference,
-         "Return a void pointer to the View's data.")
+    // .def("getVoidPtr",
+    //      &View::getVoidPtr,
+    //      nb::rv_policy::reference,
+    //      "Return a void pointer to the View's data.")
     .def("print",
          nb::overload_cast<>(&View::print, nb::const_),
          "Print JSON description of the View.")

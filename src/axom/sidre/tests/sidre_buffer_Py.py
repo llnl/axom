@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: (BSD-3-Clause)
 
 import pysidre
+import numpy as np
 
 NUM_BYTES_INT_32 = 4
 
@@ -33,81 +34,94 @@ def test_create_buffers():
 def test_alloc_buffer_for_int_array():
 	ds = pysidre.DataStore()
 	dbuff = ds.createBuffer()
+	elem_count = 10
 
-	dbuff.allocate(pysidre.TypeID.INT_ID, 10)
+	dbuff.allocate(pysidre.TypeID.INT32_ID, elem_count)
+
+	# Should be a warning and no-op, buffer is already allocated, we don't want
+	# to re-allocate and leak memory.
 	dbuff.allocate()
 
-    # Type changed to INT32_ID? Why?
 	assert dbuff.getTypeID() == pysidre.TypeID.INT32_ID
-	assert dbuff.getNumElements() == 10
-	assert dbuff.getTotalBytes() == NUM_BYTES_INT_32 * 10
+	assert dbuff.getNumElements() == elem_count
+	assert dbuff.getTotalBytes() == NUM_BYTES_INT_32 * elem_count
 
-	# TODO Requires nanobind's numpy support to get access to underlying data instead of CapsuleType
-	data_ptr = dbuff.getVoidPtr()
+	data = dbuff.getDataArray()
+
+	assert type(data[0]) == np.int32
 	
-	# for i in range(10):
-		# data_ptr[i] = i * i
+	for i in range(elem_count):
+		data[i] = i * i
+
+	for i in range(elem_count):
+		assert data[i] == i * i
 
 	dbuff.print()
 	ds.print()
 
 
 def test_init_buffer_for_int_array():
+	elem_count = 10
+
 	ds = pysidre.DataStore()
 	dbuff = ds.createBuffer()
 
-	dbuff.allocate(pysidre.TypeID.INT_ID, 10)
+	dbuff.allocate(pysidre.TypeID.INT32_ID, elem_count)
 
-    # Type changed to INT32_ID? Why?
 	assert dbuff.getTypeID() == pysidre.TypeID.INT32_ID
-	assert dbuff.getNumElements() == 10
-	assert dbuff.getTotalBytes() == NUM_BYTES_INT_32 * 10
+	assert dbuff.getNumElements() == elem_count
+	assert dbuff.getTotalBytes() == NUM_BYTES_INT_32 * elem_count
 
-	# TODO Requires nanobind's numpy support to get access to underlying data instead of CapsuleType
-	data_ptr = dbuff.getVoidPtr()
-	
-	# for i in range(10):
-		# data_ptr[i] = i * i
+	data = dbuff.getDataArray()
+
+	assert type(data[0]) == np.int32
+
+	for i in range(elem_count):
+		data[i] = i * i
+
+	for i in range(elem_count):
+		assert data[i] == i * i
 
 	dbuff.print()
 	ds.print()
 
 
 def test_realloc_buffer():
+	orig_elem_count = 5
+	mod_elem_count = 10
+
 	ds = pysidre.DataStore()
 	dbuff = ds.createBuffer()
 
-	dbuff.allocate(pysidre.TypeID.INT_ID, 5)
+	dbuff.allocate(pysidre.TypeID.INT32_ID, orig_elem_count)
 
-    # Type changed to INT32_ID? Why?
 	assert dbuff.getTypeID() == pysidre.TypeID.INT32_ID
-	assert dbuff.getNumElements() == 5
-	assert dbuff.getTotalBytes() == NUM_BYTES_INT_32 * 5
+	assert dbuff.getNumElements() == orig_elem_count
+	assert dbuff.getTotalBytes() == NUM_BYTES_INT_32 * orig_elem_count
 
-	# TODO Requires nanobind's numpy support to get access to underlying data instead of CapsuleType
-	data_ptr = dbuff.getVoidPtr()
+	data = dbuff.getDataArray()
 
-	# for i in range(5):
-		# data_ptr[i] = 5
+	for i in range(orig_elem_count):
+		data[i] = orig_elem_count
 
-	# for i in range(5):
-		# assert data_ptr[i] == 5
+	for i in range(orig_elem_count):
+		assert data[i] == orig_elem_count
 
-	dbuff.reallocate(10)
+	dbuff.reallocate(mod_elem_count)
 
-    # Type changed to INT32_ID? Why?
 	assert dbuff.getTypeID() == pysidre.TypeID.INT32_ID
-	assert dbuff.getNumElements() == 10
-	assert dbuff.getTotalBytes() == NUM_BYTES_INT_32 * 10
+	assert dbuff.getNumElements() == mod_elem_count
+	assert dbuff.getTotalBytes() == NUM_BYTES_INT_32 * mod_elem_count
 
-	# TODO Requires nanobind's numpy support to get access to underlying data instead of CapsuleType
-	data_ptr = dbuff.getVoidPtr()
+	data = dbuff.getDataArray()
 
-	# for i in range(5,10):
-		# data_ptr[i] = 10
+	assert type(data[0]) == np.int32
 
-	# for i in range(0,10):
-		# value = 5
-		# if i > 4:
-		# 	value = 10
-		# assert data_ptr[i] == value
+	for i in range(orig_elem_count,mod_elem_count):
+		data[i] = mod_elem_count
+
+	for i in range(0,mod_elem_count):
+		value = orig_elem_count
+		if i > 4:
+			value = mod_elem_count
+		assert data[i] == value
