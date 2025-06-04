@@ -99,7 +99,7 @@ bool intersect(const Triangle<T, 2>& t1,
  * \return true iff tri intersects with bb, otherwise, false.
  */
 template <typename T>
-bool intersect(const Triangle<T, 3>& tri, const BoundingBox<T, 3>& bb)
+AXOM_HOST_DEVICE bool intersect(const Triangle<T, 3>& tri, const BoundingBox<T, 3>& bb)
 {
   return detail::intersect_tri_bbox(tri, bb);
 }

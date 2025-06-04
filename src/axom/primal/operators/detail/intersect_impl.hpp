@@ -596,8 +596,8 @@ inline int countZeros(double x, double y, double z, double EPS)
  * \param r Radius of projection
  * \return True of the intervals are disjoint, false otherwise
  */
-bool intervalsDisjoint(double d0, double d1, double d2, double r);
-bool crossEdgesDisjoint(double d0, double d1, double r);
+AXOM_HOST_DEVICE bool intervalsDisjoint(double d0, double d1, double d2, double r);
+AXOM_HOST_DEVICE bool crossEdgesDisjoint(double d0, double d1, double r);
 
 /*! @{ @name Triangle-bbox intersection */
 
@@ -609,7 +609,7 @@ bool crossEdgesDisjoint(double d0, double d1, double r);
  * \return true iff tri intersects with bb, otherwise, false.
  */
 template <typename T>
-bool intersect_tri_bbox(const primal::Triangle<T, 3>& tri, const primal::BoundingBox<T, 3>& bb)
+AXOM_HOST_DEVICE bool intersect_tri_bbox(const primal::Triangle<T, 3>& tri, const primal::BoundingBox<T, 3>& bb)
 {
   // Note: Algorithm is derived from the one presented in chapter 5.2.9 of
   //   Real Time Collision Detection book by Christer Ericson
@@ -648,7 +648,7 @@ bool intersect_tri_bbox(const primal::Triangle<T, 3>& tri, const primal::Boundin
   // -- using separating axis theorem on the cross product of edges of triangle and face normals of AABB
   // Each test involves three cross products, two of which have the same value
   // The commented parameters highlights this symmetry.
-#define XEDGE_R( _0, _1, _I )      e[ _0 ] * std::abs( f[ _I ][ _1 ]) + e[ _1 ] * std::abs(f[ _I ][ _0 ])
+#define XEDGE_R( _0, _1, _I )      e[ _0 ] * axom::utilities::abs( f[ _I ][ _1 ]) + e[ _1 ] * axom::utilities::abs(f[ _I ][ _0 ])
 #define XEDGE_S( _0, _1, _V, _F ) -v[ _V ][ _0 ] * f[ _F ][ _1 ] + v[ _V ][ _1 ] * f[ _F ][ _0 ]
 
   if ( crossEdgesDisjoint(/*XEDGE_S(1,2,0,0),*/ XEDGE_S(1,2,1,0),   XEDGE_S(1,2,2,0),   XEDGE_R(1,2,0)) ||
@@ -680,12 +680,12 @@ bool intersect_tri_bbox(const primal::Triangle<T, 3>& tri, const primal::Boundin
   const VectorType planeNormal = VectorType::cross_product(f[0], f[1]);
   const double planeDist = planeNormal.dot(VectorType(tri[0]));
 
-  const double r = e[0] * std::abs(planeNormal[0])  //
-    + e[1] * std::abs(planeNormal[1])               //
-    + e[2] * std::abs(planeNormal[2]);
+  const double r = e[0] * axom::utilities::abs(planeNormal[0])  //
+    + e[1] * axom::utilities::abs(planeNormal[1])               //
+    + e[2] * axom::utilities::abs(planeNormal[2]);
   const double s = planeNormal.dot(VectorType(center)) - planeDist;
 
-  return std::abs(s) <= r;
+  return axom::utilities::abs(s) <= r;
 }
 
 // ------------------------------------------------------------------------------
@@ -693,7 +693,7 @@ bool intersect_tri_bbox(const primal::Triangle<T, 3>& tri, const primal::Boundin
 /*!
  * \brief Helper function for Triangle/BoundingBox intersection test
  */
-inline bool crossEdgesDisjoint(double d0, double d1, double r)
+AXOM_HOST_DEVICE inline bool crossEdgesDisjoint(double d0, double d1, double r)
 {
   return axom::utilities::max(-axom::utilities::max(d0, d1), axom::utilities::min(d0, d1)) > r;
 }
@@ -1207,7 +1207,7 @@ inline bool intersectCoplanar3DTriangles(const Point3& p1,
   //find triangle with maximum area:
   for(int i = 0; i < 3; i++)
   {
-    normal[i] = std::abs(normal[i]);
+    normal[i] = axom::utilities::abs(normal[i]);
   }
 
   if((isGt(normal[0], normal[2], EPS)) && (isGeq(normal[0], normal[1], EPS)))
@@ -1487,19 +1487,19 @@ inline bool checkVertex(const Point2& p1,
   // clang-format on
 }
 
-inline bool intervalsDisjoint(double d0, double d1, double d2, double r)
+AXOM_HOST_DEVICE inline bool intervalsDisjoint(double d0, double d1, double d2, double r)
 {
   if(d1 < d0)
   {
-    std::swap(d1, d0);  // d0 < d1
+    axom::utilities::swap(d1, d0);  // d0 < d1
   }
   if(d2 > d1)
   {
-    std::swap(d2, d1);  // d1 is max(d0,d1,d2)
+    axom::utilities::swap(d2, d1);  // d1 is max(d0,d1,d2)
   }
   else if(d2 < d0)
   {
-    std::swap(d2, d0);  // d0 is min(d0,d1,d2)
+    axom::utilities::swap(d2, d0);  // d0 is min(d0,d1,d2)
   }
   SLIC_ASSERT(d0 <= d1 && d0 <= d2);
   SLIC_ASSERT(d1 >= d0 && d1 >= d2);
@@ -1633,7 +1633,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
   double bu = Vector3::scalar_triple_product(q10, line.direction(), e11) - au - cu;
 
   // Rescale the coefficients to avoid (some) numerical issues
-  double su = std::max(std::fabs(au), std::max(fabs(bu), fabs(cu)));
+  double su = axom::utilities::max(axom::utilities::abs(au), axom::utilities::max(axom::utilities::abs(bu), axom::utilities::abs(cu)));
   au /= su;
   bu /= su;
   cu /= su;
@@ -1707,7 +1707,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
           const double t1 = Vector3::dot_product(pa, line.direction());
           const double t2 = Vector3::dot_product(pa + pb, line.direction());
 
-          if(!isRay || std::min(t1, t2) > 0.0)
+          if(!isRay || axom::utilities::min(t1, t2) > 0.0)
           {
             // Always an intersection in this case
             t.push_back(0.5 * (t1 + t2));
@@ -1761,7 +1761,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
     double cv = Vector3::dot_product(qm, line.direction());
     double bv = Vector3::scalar_triple_product(q01, line.direction(), e01) - av - cv;
 
-    double sv = std::max(std::fabs(av), std::max(fabs(bv), fabs(cv)));
+    double sv = axom::utilities::max(axom::utilities::abs(av), axom::utilities::max(axom::utilities::abs(bv), axom::utilities::abs(cv)));
     av /= sv;
     bv /= sv;
     cv /= sv;
@@ -1841,7 +1841,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
           const double t1 = Vector3::dot_product(pa, line.direction());
           const double t2 = Vector3::dot_product(pa + pb, line.direction());
 
-          if(!isRay || std::min(t1, t2) > 0.0)
+          if(!isRay || axom::utilities::min(t1, t2) > 0.0)
           {
             // Always an intersection in this case
             t.push_back(0.5 * (t1 + t2));
