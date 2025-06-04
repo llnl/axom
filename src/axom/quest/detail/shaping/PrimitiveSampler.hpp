@@ -132,7 +132,7 @@ public:
       }
     }
 
-    SLIC_INFO("Mesh bounding box: " << m_bbox);
+    SLIC_INFO_ROOT("Mesh bounding box: " << m_bbox);
 
 #if defined(AXOM_USE_RAJA)
     // Print out the total volume of all the tetrahedra
@@ -216,7 +216,7 @@ public:
 
     axom::utilities::Timer timer(true);
 
-    SLIC_INFO(axom::fmt::format("{:-^80}", " Finding shape candidates for each quad element "));
+    SLIC_INFO_ROOT(axom::fmt::format("{:-^80}", " Finding shape candidates for each mesh element "));
 
     // Get the positions of the query points, project them if needed
     axom::ArrayView<FromPoint> orig_qpts_v(reinterpret_cast<FromPoint*>(pos_coef->HostReadWrite()),

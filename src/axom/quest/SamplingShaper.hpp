@@ -156,7 +156,7 @@ public:
       return;
     }
 
-    SLIC_INFO(axom::fmt::format("{:-^80}", " Generating the spatial index "));
+    SLIC_INFO_ROOT(axom::fmt::format("{:-^80}", " Generating the spatial index "));
 
     const auto& shapeName = shape.getName();
 
@@ -242,7 +242,7 @@ public:
       return;
     }
 
-    SLIC_INFO(
+    SLIC_INFO_ROOT(
       axom::fmt::format("{:-^80}", axom::fmt::format(" Querying for shape '{}'", shape.getName())));
 
     switch(getShapeDimension())
@@ -296,7 +296,7 @@ public:
     const auto& shapeName = shape.getName();
     const auto& thisMatName = shape.getMaterial();
 
-    SLIC_INFO(
+    SLIC_INFO_ROOT(
       axom::fmt::format("{:-^80}",
                         axom::fmt::format("Applying replacement rules for shape '{}'", shapeName)));
 
@@ -333,7 +333,7 @@ public:
       }
 
       const bool shouldReplace = shape.replaces(otherMatName);
-      SLIC_INFO(
+      SLIC_INFO_ROOT(
         axom::fmt::format("Should we replace material '{}' with shape '{}' of material '{}'? {}",
                           otherMatName,
                           shapeName,
@@ -425,7 +425,7 @@ public:
       const auto& name = entry.first;
       auto* gf = entry.second;
 
-      SLIC_INFO(axom::fmt::format("Importing volume fraction field for '{}' material", name));
+      SLIC_INFO_ROOT(axom::fmt::format("Importing volume fraction field for '{}' material", name));
 
       if(gf == nullptr)
       {
@@ -454,7 +454,8 @@ public:
     for(auto& mat : m_inoutMaterialQFuncs)
     {
       const std::string matName = mat.first;
-      SLIC_INFO(axom::fmt::format("Generating volume fraction fields for '{}' material", matName));
+      SLIC_INFO_ROOT(
+        axom::fmt::format("Generating volume fraction fields for '{}' material", matName));
 
       // Sample the InOut field at the mesh quadrature points
       switch(m_vfSampling)
@@ -509,7 +510,7 @@ public:
                            "\n\t* Shaping tensors: {}",
                            axom::fmt::join(extractKeys(m_inoutTensors), ", "));
     }
-    SLIC_INFO(axom::fmt::to_string(out));
+    SLIC_INFO_ROOT(axom::fmt::to_string(out));
   }
 
 private:
@@ -622,19 +623,34 @@ private:
     const int sampleNQ = ir.GetNPoints();
     const int sampleSZ = inout->GetSpace()->GetSize();
 
-    // print info about sampling on rank 0
-    // TODO: mpi reduce this for stats on all ranks
-    SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
-                                     "In computeVolumeFractions(): sample order {} | "
-                                     "sample num qpts {} |  total samples {:L}",
-                                     sampleOrder,
-                                     sampleNQ,
-                                     sampleSZ));
-
     // extract some properties from computational mesh
     mfem::Mesh* mesh = m_dc->GetMesh();
     const int dim = mesh->Dimension();
     const int NE = mesh->GetNE();
+    const auto geom = NE > 0 ? mesh->GetElementGeometry(0) : mfem::Geometry::INVALID;
+
+    auto ir_per_dim = [=](int sampleNQ, mfem::Geometry::Type geom) -> std::string {
+      switch(geom)
+      {
+      case mfem::Geometry::SQUARE:
+        return axom::fmt::format(" ({} per dimension)", sqrt(sampleNQ));
+      case mfem::Geometry::CUBE:
+        return axom::fmt::format(" ({} per dimension)", std::cbrt(sampleNQ));
+      default:
+        return std::string();
+      }
+    };
+
+    // print info about sampling on rank 0
+    // TODO: mpi reduce this for stats on all ranks
+    SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                     "In computeVolumeFractions(): sample order {} | "
+                                     "sample num qpts {}{} |  total samples {:L}",
+                                     sampleOrder,
+                                     sampleNQ,
+                                     ir_per_dim(sampleNQ, geom),
+                                     sampleSZ));
+
     SLIC_INFO_ROOT(
       axom::fmt::format(axom::utilities::locale(), "Mesh has dim {} and {:L} elements", dim, NE));
 
