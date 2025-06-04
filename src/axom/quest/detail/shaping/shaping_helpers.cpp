@@ -333,6 +333,19 @@ void FCT_correct(const double* M,     // Mass matrix
       xy[j] -= fij / ML[j];
     }
   }
+
+  #ifdef AXOM_DEBUG
+  // check that volume fractions are in bounds
+  for(int i = 0; i < s; ++i)
+  {
+    SLIC_WARNING_IF(!(y_min < xy[i] + EPS && xy[i] < y_max + EPS),
+                    axom::fmt::format("Volume fraction {} w/ value {} is out of bounds [{},{}]: ",
+                                      i,
+                                      xy[i],
+                                      y_min - EPS,
+                                      y_max + EPS));
+  }
+  #endif
 }
 
 // Note: This function is not currently being used, but might be in the near future
