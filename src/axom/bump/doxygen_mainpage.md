@@ -1,7 +1,7 @@
-BUMP {#bumptop}
+Bump {#bumptop}
 ===============
 
-Axom's [BUMP](@ref axom::bump), (B)lueprint (U)tiliies for (M)esh (P)rocessing component
+Axom's [Bump](@ref axom::bump), (B)lueprint (U)tiliies for (M)esh (P)rocessing component
 provides useful building blocks for developing algorithms using There are views that
 simplify dealing with Conduit data and utility algorithms for processing and constructing
 meshes.
@@ -32,7 +32,7 @@ of code.
 
 # Utilities {#bumputilities}
 
-The BUMP component provides algorithms for performing useful mesh operations such as
+The Bump component provides algorithms for performing useful mesh operations such as
 extracting sub-meshes, merging meshes, clipping meshes, and creating relations.
 These building blocks can be reused to ease the process of writing additional algorithms
 that operate on Blueprint meshes.
