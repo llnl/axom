@@ -4,14 +4,13 @@
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
 =======================
-MIR User Documentation
+BUMP User Documentation
 =======================
 
-Axom's Material Interface Reconstruction (MIR) component provides algorithms for
-reconstructing the interfaces between different materials in multimaterial
-meshes. The algorithms take Blueprint meshes
-containing a coordset, topology, and matset as input and they output a new Blueprint
-node with a new coordset, topology, and matset that contains at most 1 material per zone.
+Axom's Blueprint Utilities for Mesh Processing (BUMP) component contains useful
+utilities and algorithms that can be used to develop other algorithms that
+process Blueprint meshes. These utilities accept Blueprint inputs and generate
+Blueprint outputs.
 
 
 API Documentation
@@ -24,4 +23,7 @@ Doxygen generated API documentation can be found here: `API documentation <../..
    :caption: Contents
    :maxdepth: 1
 
-   mir_algorithms
+   bump_views
+   bump_clipping
+   bump_utilities
+   bump_building_blueprint
