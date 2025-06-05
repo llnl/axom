@@ -82,7 +82,7 @@ public:
 
     SLIC_ASSERT(m_bbox.isValid());
 
-    SLIC_INFO("Mesh bounding box: " << m_bbox);
+    SLIC_INFO_ROOT("Mesh bounding box: " << m_bbox);
   }
 
   void initSpatialIndex(double vertexWeldThreshold)

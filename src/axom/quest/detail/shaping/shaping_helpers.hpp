@@ -198,11 +198,12 @@ void copyShapeIntoMaterial(const mfem::QuadratureFunction* shapeQFunc,
 void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFuncs, int sampleRes);
 
 /** 
- * Implements flux-corrected transport (FCT) to convert the inout samples (ones and zeros)
- * to a grid function on the degrees of freedom such that the volume fractions are doubles
+ * Implements flux-corrected transport (FCT) to correct the solution obtained
+ * when converting from inout samples (ones and zeros) to a grid function 
+ * on the degrees of freedom such that the volume fractions are doubles
  * between 0 and 1 ( \a y_min and \a y_max )
  */
-void FCT_project(const double* M,
+void FCT_correct(const double* M,
                  const int s,
                  const double* m,
                  const double y_min,  // 0

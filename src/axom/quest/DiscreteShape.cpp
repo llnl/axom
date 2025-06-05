@@ -156,7 +156,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 
   std::string shapePath =
     axom::utilities::filesystem::prefixRelativePath(m_shape.getGeometry().getPath(), m_prefixPath);
-  SLIC_INFO("Reading file: " << shapePath << "...");
+  SLIC_INFO_ROOT("Reading file: " << shapePath << "...");
 
   // Initialize revolved volume.
   m_revolvedVolume = 0.;

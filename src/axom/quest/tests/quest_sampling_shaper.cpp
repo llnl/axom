@@ -151,6 +151,8 @@ public:
   sidre::MFEMSidreDataCollection& getDC() { return m_dc; }
   mfem::Mesh& getMesh() { return *m_dc.GetMesh(); }
 
+  axom::quest::SamplingShaper* getSamplingShaper() { return m_shaper.get(); }
+
   /// parse and validate the Klee shapefile; fail the test if invalid
   void validateShapeFile(const std::string& shapefile)
   {
@@ -499,6 +501,58 @@ public:
     getMesh().GetBoundingBox(bbmin, bbmax);
 
     return BBox3D(Point3D(bbmin.GetData()), Point3D(bbmax.GetData()));
+  }
+};
+
+/// Test fixture for SamplingShaper tests on 2D MFEM meshes
+class SampleTester2D : public SamplingShaperTest
+{
+public:
+  using Point2D = primal::Point<double, 2>;
+  using BBox2D = primal::BoundingBox<double, 2>;
+
+public:
+  virtual ~SampleTester2D() { }
+
+  void SetUp() override
+  {
+    // create a single element mesh in the unit 2D square
+    const int polynomialOrder = 1;
+    const BBox2D bbox({0, 0}, {1, 1});
+    const axom::NumericArray<int, 2> celldims {1, 1};
+
+    // memory for mesh will be managed by data collection
+    auto* mesh = quest::util::make_cartesian_mfem_mesh_2D(bbox, celldims, polynomialOrder);
+
+    // Set element attributes based on quadrant where centroid is located
+    // These will be used later in some cases when setting volume fractions
+    mfem::Array<int> v;
+    const int NE = mesh->GetNE();
+    for(int i = 0; i < NE; ++i)
+    {
+      mesh->GetElementVertices(i, v);
+      BBox2D elem_bbox;
+      for(int j = 0; j < v.Size(); ++j)
+      {
+        elem_bbox.addPoint(Point2D(mesh->GetVertex(v[j]), 2));
+      }
+    }
+
+    m_dc.SetOwnData(true);
+    m_dc.SetMeshNodesName("positions");
+    m_dc.SetMesh(mesh);
+
+#ifdef AXOM_USE_MPI
+    m_dc.SetComm(MPI_COMM_WORLD);
+#endif
+  }
+
+  BBox2D meshBoundingBox()
+  {
+    mfem::Vector bbmin, bbmax;
+    getMesh().GetBoundingBox(bbmin, bbmax);
+
+    return BBox2D(Point2D(bbmin.GetData()), Point2D(bbmax.GetData()));
   }
 };
 
@@ -1838,6 +1892,137 @@ shapes:
     {
       this->getDC().Save(axom::fmt::format("{}_{}", testname, z),
                          axom::sidre::Group::getDefaultIOProtocol());
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester2D, check_bbox_inouts)
+{
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+    units: cm
+)";
+
+  // inputs: {x_min} {y_min} {x_max} {y_max}
+  const std::string rectangle_contour = R"(
+point = start
+piece = line(start=({0}cm, {1}cm), end=({0}cm, {3}cm))
+piece = line()
+piece = line(start=({2}cm, {3}cm), end=({2}cm, {1}cm))
+piece = line(end=start)
+)";
+
+  const std::string rect_shape = "rectShape";
+  const std::string rect_material = "rectMat";
+
+  using Pt = axom::primal::Point<double, 2>;
+  using BBox = axom::primal::BoundingBox<double, 2>;
+
+  // Test a few rectangular shapes
+  constexpr double EPS = 1e-4;
+  for(auto bb : {BBox {Pt {0., 0.}, Pt {1., 1.}},
+
+                 BBox {Pt {0., 0.}, Pt {.5, .5}},
+                 BBox {Pt {0., 0.}, Pt {.5, 1.}},
+                 BBox {Pt {0., 0.}, Pt {1., .5}},
+
+                 BBox {Pt {.5, 0.}, Pt {1., 1.}},
+                 BBox {Pt {0., .5}, Pt {1., 1.}},
+                 BBox {Pt {.5, .5}, Pt {1., 1.}}})
+  {
+    bb.expand(EPS);  // expand slightly to catch quadrature points on boundary of bbox
+
+    const std::string contour_str = axom::fmt::format(axom::fmt::runtime(rectangle_contour),
+                                                      bb.getMin()[0],
+                                                      bb.getMin()[1],
+                                                      bb.getMax()[0],
+                                                      bb.getMax()[1]);
+
+    const std::string testname =
+      axom::fmt::format("{}_{}_{}_{}_{}",
+                        ::testing::UnitTest::GetInstance()->current_test_info()->name(),
+                        bb.getMin()[0],
+                        bb.getMin()[1],
+                        bb.getMax()[0],
+                        bb.getMax()[1]);
+
+    ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), contour_str);
+
+    ScopedTemporaryFile shape_file(
+      axom::fmt::format("{}.yaml", testname),
+      axom::fmt::format(shape_template, rect_shape, rect_material, contour_file.getFileName()));
+
+    if(very_verbose_output)
+    {
+      SLIC_INFO("Contour file: \n" << contour_file.getFileContents());
+      SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
+    }
+
+    this->validateShapeFile(shape_file.getFileName());
+
+    for(int qorder : {3, 4, 5, 6, 7, 8, 9})
+    {
+      this->resetShaping();
+      this->initializeShaping(shape_file.getFileName());
+
+      this->m_shaper->setVolumeFractionOrder(0);
+      this->m_shaper->setQuadratureOrder(qorder);
+
+      this->runShaping();
+
+      // grab the inout quadrature data
+      auto& mesh = this->getMesh();
+      EXPECT_EQ(mesh.GetNE(), 1);
+
+      auto* inout =
+        this->getSamplingShaper()->getShapeQFunction(axom::fmt::format("inout_{}", rect_shape));
+      EXPECT_NE(inout, nullptr);
+
+      auto* qfs = dynamic_cast<mfem::QuadratureSpace*>(inout->GetSpace());
+      EXPECT_NE(qfs, nullptr);
+      auto* T = qfs->GetTransformation(0);
+      const mfem::IntegrationRule& ir = qfs->GetElementIntRule(0);
+
+      mfem::Vector inout_data;
+      inout->GetValues(0, inout_data);
+      EXPECT_EQ(inout_data.Size(), ir.GetNPoints());
+
+      // check that inout values match corresponding bbox containment
+      for(int i = 0; i < ir.GetNPoints(); i++)
+      {
+        const mfem::IntegrationPoint& ip = ir.IntPoint(i);
+        mfem::Vector ip_phys(2);
+        T->Transform(ip, ip_phys);
+        const Pt p {ip_phys[1], ip_phys[0]};
+
+        EXPECT_TRUE(inout_data[i] == 1. || inout_data[i] == 0.);
+        const bool is_in = inout_data[i] == 1 ? true : false;
+        const bool exp_in = bb.contains(p) ? true : false;
+        EXPECT_EQ(is_in, exp_in)
+          << axom::fmt::format(
+               "Qorder: {}, Quadrature point {}:  physical position: {}, inout: {}, expected: {}. ",
+               qorder,
+               i,
+               p,
+               is_in,
+               exp_in)
+          << axom::fmt::format("Bounding box is: {}", bb);
+      }
+
+      // Save meshes and fields
+      if(very_verbose_output)
+      {
+        this->getDC().Save(testname, axom::sidre::Group::getDefaultIOProtocol());
+      }
     }
   }
 }

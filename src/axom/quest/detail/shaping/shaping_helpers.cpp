@@ -185,6 +185,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
       }
     }
   }
+
   // Delete the geometric factors associated w/ our custom quadrature rule
   mesh->DeleteGeometricFactors();
 
@@ -192,7 +193,7 @@ void generatePositionsQFunction(mfem::Mesh* mesh, QFunctionCollection& inoutQFun
   inoutQFuncs.Register("positions", pos_coef, true);
 }
 
-void FCT_project(const double* M,     // Mass matrix
+void FCT_correct(const double* M,     // Mass matrix
                  const int s,         // num dofs
                  const double* m,     // rhs (incorporating the inout samples)
                  const double y_min,  // lower bound for FCT
@@ -207,13 +208,13 @@ void FCT_project(const double* M,     // Mass matrix
   using StackArray = axom::StackArray<double, ND>;
   SLIC_ASSERT(s <= ND);
 
-  // Q0 solutions can't be adjusted conservatively. It's what it is.
+  // Q0 solutions can't be adjusted conservatively. It is what it is.
   if(s == 1)
   {
     return;
   }
 
-  // Compute the lumped mass matrix in ML:  GetRowSums(M, s, s, ML);
+  // Compute the lumped mass matrix in ML:  M.GetRowSums(ML);
   StackArray ML;
   for(int r = 0; r < s; ++r)
   {
@@ -287,7 +288,7 @@ void FCT_project(const double* M,     // Mass matrix
     for(int j = 0; j < i; ++j)
     {
       const int idx = i + j * s;
-      double fij = fct_mat[idx];
+      const double fij = fct_mat[idx];
       if(fij >= 0.0)
       {
         gp[i] += fij;
@@ -326,12 +327,25 @@ void FCT_project(const double* M,     // Mass matrix
       double fij = fct_mat[i + j * s];
 
       const double aij =
-        fij >= 0.0 ? axom::utilities::min(gp[j], gm[j]) : axom::utilities::min(gm[i], gp[j]);
+        fij >= 0.0 ? axom::utilities::min(gp[i], gm[j]) : axom::utilities::min(gm[i], gp[j]);
       fij *= aij;
       xy[i] += fij / ML[i];
       xy[j] -= fij / ML[j];
     }
   }
+
+  #ifdef AXOM_DEBUG
+  // check that volume fractions are in bounds
+  for(int i = 0; i < s; ++i)
+  {
+    SLIC_WARNING_IF(!(y_min < xy[i] + EPS && xy[i] < y_max + EPS),
+                    axom::fmt::format("Volume fraction {} w/ value {} is out of bounds [{},{}]: ",
+                                      i,
+                                      xy[i],
+                                      y_min - EPS,
+                                      y_max + EPS));
+  }
+  #endif
 }
 
 // Note: This function is not currently being used, but might be in the near future
