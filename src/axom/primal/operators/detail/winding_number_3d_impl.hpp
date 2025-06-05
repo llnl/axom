@@ -234,8 +234,9 @@ double nurbs_winding_number(const Point<T, 3>& query,
     {
       field_direction = DiscontinuityAxis::x;
     }
-    else if(exterior_x || exterior_z)
+    else
     {
+      SLIC_ASSERT(exterior_x || exterior_z);
       field_direction = DiscontinuityAxis::y;
     }
   }

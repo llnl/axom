@@ -234,7 +234,8 @@ void Shaper::loadShapeInternal(const klee::Shape& shape, double percentError, do
   internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
                                                                     : slic::message::Warning);
 
-  SLIC_INFO(axom::fmt::format("{:-^80}", axom::fmt::format(" Loading shape '{}' ", shape.getName())));
+  SLIC_INFO_ROOT(
+    axom::fmt::format("{:-^80}", axom::fmt::format(" Loading shape '{}' ", shape.getName())));
 
   SLIC_ASSERT_MSG(this->isValidFormat(this->shapeFormat(shape)),
                   axom::fmt::format("Shape has unsupported format: '{}", this->shapeFormat(shape)));

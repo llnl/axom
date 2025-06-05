@@ -93,6 +93,17 @@ public:
 
   //@}
 
+  /// Returns a pointer to the quadrature function associated with shape \a name if it exists, else nullptr
+  mfem::QuadratureFunction* getShapeQFunction(const std::string& name) const
+  {
+    return m_inoutShapeQFuncs.Get(name);
+  }
+  /// Returns a pointer to the quadrature function associated with material \a name if it exists, else nullptr
+  mfem::QuadratureFunction* getMaterialQFunction(const std::string& name) const
+  {
+    return m_inoutMaterialQFuncs.Get(name);
+  }
+
 private:
   int numSamplersInitialized(int dim) const
   {
@@ -145,7 +156,7 @@ public:
       return;
     }
 
-    SLIC_INFO(axom::fmt::format("{:-^80}", " Generating the spatial index "));
+    SLIC_INFO_ROOT(axom::fmt::format("{:-^80}", " Generating the spatial index "));
 
     const auto& shapeName = shape.getName();
 
@@ -231,7 +242,7 @@ public:
       return;
     }
 
-    SLIC_INFO(
+    SLIC_INFO_ROOT(
       axom::fmt::format("{:-^80}", axom::fmt::format(" Querying for shape '{}'", shape.getName())));
 
     switch(getShapeDimension())
@@ -285,7 +296,7 @@ public:
     const auto& shapeName = shape.getName();
     const auto& thisMatName = shape.getMaterial();
 
-    SLIC_INFO(
+    SLIC_INFO_ROOT(
       axom::fmt::format("{:-^80}",
                         axom::fmt::format("Applying replacement rules for shape '{}'", shapeName)));
 
@@ -322,7 +333,7 @@ public:
       }
 
       const bool shouldReplace = shape.replaces(otherMatName);
-      SLIC_INFO(
+      SLIC_INFO_ROOT(
         axom::fmt::format("Should we replace material '{}' with shape '{}' of material '{}'? {}",
                           otherMatName,
                           shapeName,
@@ -414,7 +425,7 @@ public:
       const auto& name = entry.first;
       auto* gf = entry.second;
 
-      SLIC_INFO(axom::fmt::format("Importing volume fraction field for '{}' material", name));
+      SLIC_INFO_ROOT(axom::fmt::format("Importing volume fraction field for '{}' material", name));
 
       if(gf == nullptr)
       {
@@ -443,7 +454,8 @@ public:
     for(auto& mat : m_inoutMaterialQFuncs)
     {
       const std::string matName = mat.first;
-      SLIC_INFO(axom::fmt::format("Generating volume fraction fields for '{}' material", matName));
+      SLIC_INFO_ROOT(
+        axom::fmt::format("Generating volume fraction fields for '{}' material", matName));
 
       // Sample the InOut field at the mesh quadrature points
       switch(m_vfSampling)
@@ -498,7 +510,7 @@ public:
                            "\n\t* Shaping tensors: {}",
                            axom::fmt::join(extractKeys(m_inoutTensors), ", "));
     }
-    SLIC_INFO(axom::fmt::to_string(out));
+    SLIC_INFO_ROOT(axom::fmt::to_string(out));
   }
 
 private:
@@ -606,24 +618,39 @@ private:
     SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
     mfem::QuadratureFunction* inout = m_inoutMaterialQFuncs.Get(matField);
 
-    const auto& ir = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
-    const int sampleOrder = ir.GetOrder();
-    const int sampleNQ = ir.GetNPoints();
+    const auto& sampleIR = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
+    const int sampleOrder = sampleIR.GetOrder();
+    const int sampleNQ = sampleIR.GetNPoints();
     const int sampleSZ = inout->GetSpace()->GetSize();
-
-    // print info about sampling on rank 0
-    // TODO: mpi reduce this for stats on all ranks
-    SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
-                                     "In computeVolumeFractions(): sample order {} | "
-                                     "sample num qpts {} |  total samples {:L}",
-                                     sampleOrder,
-                                     sampleNQ,
-                                     sampleSZ));
 
     // extract some properties from computational mesh
     mfem::Mesh* mesh = m_dc->GetMesh();
     const int dim = mesh->Dimension();
     const int NE = mesh->GetNE();
+    const auto geom = mesh->GetTypicalElementGeometry();
+
+    auto samples_per_dim = [=](int sampleNQ, mfem::Geometry::Type geom) -> std::string {
+      switch(geom)
+      {
+      case mfem::Geometry::SQUARE:
+        return axom::fmt::format(" ({} per dimension)", sqrt(sampleNQ));
+      case mfem::Geometry::CUBE:
+        return axom::fmt::format(" ({} per dimension)", std::cbrt(sampleNQ));
+      default:
+        return std::string();
+      }
+    };
+
+    // print info about sampling on rank 0
+    // TODO: mpi reduce this for stats on all ranks
+    SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                     "In computeVolumeFractions(): num samples per element {}{} | "
+                                     "sample polynomial order {} | total samples {:L}",
+                                     sampleNQ,
+                                     samples_per_dim(sampleNQ, geom),
+                                     sampleOrder,
+                                     sampleSZ));
+
     SLIC_INFO_ROOT(
       axom::fmt::format(axom::utilities::locale(), "Mesh has dim {} and {:L} elements", dim, NE));
 
@@ -635,7 +662,7 @@ private:
                                                                   dim,
                                                                   mfem::BasisType::Positive);
     const mfem::FiniteElementSpace* fes = vf->FESpace();
-    const int dofs = fes->GetFE(0)->GetDof();
+    const int dofs = fes->GetTypicalFE()->GetDof();
 
     // access or compute the mass matrix
     mfem::DenseTensor* mass_mat {nullptr};
@@ -655,7 +682,7 @@ private:
 
       const int sz = mass_mat->TotalSize();
       mfem::ConstantCoefficient one_coef(1.0);
-      mfem::MassIntegrator mass_integrator(one_coef, &ir);
+      mfem::MassIntegrator mass_integrator(one_coef);
 
       // wrap mass_mat data as vector for AssembleEA call
       // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
@@ -728,7 +755,7 @@ private:
     {
       // assemble the right hand side integral, incorporating the inout samples
       mfem::Vector b(fes->GetVSize());
-      SLIC_ASSERT(fes->GetVSize() == dofs * NE);
+      SLIC_ASSERT(b.Size() == dofs * NE);
       {
         AXOM_ANNOTATE_SCOPE("domain lf integrator assemble");
 
@@ -739,8 +766,7 @@ private:
         b.ReadWrite();
 
         mfem::QuadratureFunctionCoefficient qfc(*inout);
-        mfem::DomainLFIntegrator rhs(qfc);
-        rhs.SetIntRule(&ir);
+        mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
 
         mfem::Array<int> elem_marker(fes->GetNE());
         elem_marker.HostWrite();
@@ -752,8 +778,12 @@ private:
 
       {
         AXOM_ANNOTATE_SCOPE("batch lu solve");
-        mass_mat_inv->ReadWrite();
-        mass_mat_pivots->ReadWrite();
+
+        mass_mat_inv->Read();
+        mass_mat_pivots->Read();
+
+        vf->HostReadWrite();
+        (*vf) = b;
         vf->ReadWrite();
         mfem::BatchLUSolve(*mass_mat_inv, *mass_mat_pivots, *vf);
       }
@@ -771,7 +801,7 @@ private:
 
       AXOM_ANNOTATE_BEGIN("fct project");
       axom::for_all<axom::SEQ_EXEC>(0, NE, [=](int i) {
-        shaping::FCT_project(&m_d(0, 0, i),
+        shaping::FCT_correct(&m_d(0, 0, i),
                              dofs,
                              &b_d(0, i),
                              minY,
