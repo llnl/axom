@@ -17,7 +17,7 @@ namespace views = axom::bump::views;
 
 std::string baselineDirectory()
 {
-  return pjoin(dataDirectory(), "mir", "regression", "mir_make_polyhedral_topology");
+  return pjoin(dataDirectory(), "bump", "regression", "bump_make_polyhedral_topology");
 }
 
 //------------------------------------------------------------------------------

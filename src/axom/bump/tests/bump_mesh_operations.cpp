@@ -21,7 +21,7 @@ namespace utils = axom::bump::utilities;
 
 std::string baselineDirectory()
 {
-  return pjoin(dataDirectory(), "mir", "regression", "mir_blueprint_utilities");
+  return pjoin(dataDirectory(), "bump", "regression", "bump_mesh_operations");
 }
 
 //------------------------------------------------------------------------------
