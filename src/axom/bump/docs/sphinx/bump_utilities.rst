@@ -96,7 +96,7 @@ or sphere intersections.
 CoordsetBlender
 ################
 
-The ``axom::bump::utilities::CoordsetBlender`` class takes a ``BlendData`` and makes
+The ``axom::bump::CoordsetBlender`` class takes a ``BlendData`` and makes
 a new explicit coordset where each new point corresponds to one blend group. A "BlendData" is
 an object that groups several array views that describe a set of blend groups. Each blend group
 is formed from a list of node ids and weight values. A new coordinate is formed by looking
@@ -114,7 +114,7 @@ combination of multiple points in the input coordset.
 CoordsetSlicer
 ################
 
-The ``axom::bump::utilities::CoordsetSlicer`` class takes ``SliceData`` and makes a
+The ``axom::bump::CoordsetSlicer`` class takes ``SliceData`` and makes a
 new explicit coordset where each point corresponds to a single index from the node indices
 stored in SliceData. This class can be used to select a subset of a coordset, reorder nodes
 in a coordset, or repeat nodes in a coordset.
@@ -128,7 +128,7 @@ in a coordset, or repeat nodes in a coordset.
 ExtractZones
 ##################
 
-The ``axom::bump::utilities::ExtractZones`` class takes a list of selected zone ids and extracts
+The ``axom::bump::ExtractZones`` class takes a list of selected zone ids and extracts
 a new mesh from a source mesh that includes only the selected zones. There is a derived class
 ``ExtractZonesAndMatset`` that also extracts a matset, if present.
 
@@ -141,7 +141,7 @@ a new mesh from a source mesh that includes only the selected zones. There is a 
 ExtrudeMesh
 ##################
 
-The ``axom::bump::utilities::ExtrudeMesh`` class extrudes a 2D Blueprint mesh composed
+The ``axom::bump::ExtrudeMesh`` class extrudes a 2D Blueprint mesh composed
 of triangles and quad shapes *(polygons are not yet supported)* and produces 3D zones repeated some
 number of times in the Z direction. Fields and matsets are also extruded.
 
@@ -154,7 +154,7 @@ number of times in the Z direction. Fields and matsets are also extruded.
 FieldBlender
 #############
 
-The ``axom::bump::utilities::FieldBlender`` class is similar to the ``CoordsetBlender``
+The ``axom::bump::FieldBlender`` class is similar to the ``CoordsetBlender``
 class, except that it operates on a field instead of coordsets. The class is used to create a
 new field that includes values derived from multiple weighted source values.
 
@@ -162,7 +162,7 @@ new field that includes values derived from multiple weighted source values.
 FieldSlicer
 ############
 
-The ``axom::bump::utilities::FieldSlicer`` class selects specific indices from a
+The ``axom::bump::FieldSlicer`` class selects specific indices from a
 field and makes a new field.
 
 .. literalinclude:: ../../tests/bump_slicers.cpp
@@ -174,7 +174,7 @@ field and makes a new field.
 MakePointMesh
 ##############
 
-The ``axom::bump::utilities::MakePointMesh`` class generates a point at the center
+The ``axom::bump::MakePointMesh`` class generates a point at the center
 of each zone *(or selected set of zones)* in an input topology and generates a new unstructured
 topology consisting of points located at those zone centers.
 
@@ -187,7 +187,7 @@ topology consisting of points located at those zone centers.
 MakePolyhedralTopology
 #######################
 
-The ``axom::bump::utilities::MakePolyhedralTopology`` class transforms an
+The ``axom::bump::MakePolyhedralTopology`` class transforms an
 input topology from its native form to an unstructured polyhedral topology. The output
 topology uses the same coordset as the input topology. The faces produced from each zone
 in the source topology will not be unique. The ``MergePolyhedralFaces`` class can be used
@@ -202,7 +202,7 @@ to merge polyhedral faces so they are unique.
 MakeUnstructured
 ##################
 
-The ``axom::bump::utilities::MakeUnstructured`` class takes a structured topology
+The ``axom::bump::MakeUnstructured`` class takes a structured topology
 and creates a new unstructured topology. This class does not need views to wrap the input
 structured topology.
 
@@ -215,7 +215,7 @@ structured topology.
 MakeZoneCenters
 ##################
 
-The ``axom::bump::utilities::MakeZoneCenters`` class takes an input Blueprint
+The ``axom::bump::MakeZoneCenters`` class takes an input Blueprint
 topology and produces a new element-associated Blueprint vector field that contains the zone
 centers. The number of components in the vector will match the number of components for the
 topology's coordset. The zone center is computed as the average of the node coordinates used
@@ -231,7 +231,7 @@ centers will match the type of the values that define the coordset.
 MakeZoneVolumes
 ##################
 
-The ``axom::bump::utilities::MakeZoneVolumes`` class takes an input Blueprint
+The ``axom::bump::MakeZoneVolumes`` class takes an input Blueprint
 topology and produces a new element-associated Blueprint vector field that contains the zone
 volumes for 3D, or areas for 2D.
 
@@ -239,7 +239,7 @@ volumes for 3D, or areas for 2D.
 MatsetSlicer
 ##################
 
-The ``axom::bump::utilities::MatsetSlicer`` class is similar to the ``FieldSlicer``
+The ``axom::bump::MatsetSlicer`` class is similar to the ``FieldSlicer``
 class except it slices matsets instead of fields. The same ``SliceData`` can be passed to
 MatsetSlicer to pull out and assemble a new matset data for a specific list of zones.
 
@@ -252,7 +252,7 @@ MatsetSlicer to pull out and assemble a new matset data for a specific list of z
 MergeCoordsetPoints
 ####################
 
-The ``axom::bump::utilities::MergeCoordsetPoints`` class merges duplicate
+The ``axom::bump::MergeCoordsetPoints`` class merges duplicate
 coordinates in an input coordset, within a given tolerance.
 The tolerance is passed via an options node with a key value called "tolerance". Points
 are merged by first rounding off extra precision in a temporary point copy that is used to
@@ -277,7 +277,7 @@ used to update connectivity node numbers.
 MergeMeshes
 ##################
 
-The ``axom::bump::utilities::MergeMeshes`` class merges data for coordsets,
+The ``axom::bump::MergeMeshes`` class merges data for coordsets,
 topology, and fields from multiple input meshes into a new combined mesh. The class also
 supports renaming nodes using a map that converts a local mesh's node ids to the final
 output node numbering, enabling meshes to be merged such that some nodes get combined.
@@ -292,7 +292,7 @@ A derived class can also merge matsets.
 MergePolyhedralFaces
 #####################
 
-The ``axom::bump::utilities::MergePolyhedralFaces`` class takes an input
+The ``axom::bump::MergePolyhedralFaces`` class takes an input
 Blueprint topology, which may have duplicated faces, and makes the face definitions
 in the subelements unique and rewrites the subelement and element connectivity. For
 faces to be merged successfully, the faces must reference the same coordinate indices
@@ -308,7 +308,7 @@ contains the input polyhedral topology.
 NodeToZoneRelationBuilder
 ###########################
 
-The ``axom::bump::utilities::NodeToZoneRelationBuilder`` class creates a Blueprint
+The ``axom::bump::NodeToZoneRelationBuilder`` class creates a Blueprint
 O2M (one to many) relation that relates node numbers to the zones that contain them. This mapping
 is akin to inverting the normal mesh connectivity which is a map of zones to node ids. The O2M
 relation is useful for recentering data from the zones to the nodes.
@@ -322,7 +322,7 @@ relation is useful for recentering data from the zones to the nodes.
 PrimalAdaptor
 ############### 
 
-The ``axom::bump::utilities::PrimalAdaptor`` class takes a topology view and a
+The ``axom::bump::PrimalAdaptor`` class takes a topology view and a
 coordset view and makes it possible to retrieve a zone as a shape from Axom's Primal
 component. For example, the ``PrimalAdaptor`` class can wrap a topology view that contains 2D
 shapes such as triangles, quads, polygons and allow them to be accessed as an
@@ -349,7 +349,7 @@ instantiating ``PrimalAdaptor`` with the ``makeFaces`` template parameter set to
 RecenterField
 ############### 
 
-The ``axom::bump::utilities::RecenterField`` class uses an O2M relation to average
+The ``axom::bump::RecenterField`` class uses an O2M relation to average
 field data from multiple values to an averaged value. In Axom, this is used to convert a field
 associated with the elements to a new field associated with the nodes.
 
@@ -362,7 +362,7 @@ associated with the elements to a new field associated with the nodes.
 SelectedZones
 ##################
 
-The ``axom::bump::utilities::SelectedZones`` class creates an array view that
+The ``axom::bump::SelectedZones`` class creates an array view that
 represents selected zone ids. The zone ids are obtained either from a Conduit options
 node containing a *"selectedZones"* array, if the array is present. If the "selectedZones"
 array is not present, the class makes an array of zone ids that selects all zones in the
@@ -378,7 +378,7 @@ associated topology.
 TopologyMapper
 ##################
 
-The ``axom::bump::utilities::TopologyMapper`` class intersects a source mesh
+The ``axom::bump::TopologyMapper`` class intersects a source mesh
 with a target mesh and maps materials from the source mesh onto a new matset on the 
 target mesh. The source mesh must contain a "clean" matset, which is a matset where there
 are no mixed-material zones. The matset identifies the unique material for each zone in
@@ -399,7 +399,7 @@ contributions from multiple zones and materials in the source mesh.
 Unique
 ##################
 
-The ``axom::bump::utilities::Unique`` class can take an unsorted list of values and produce a
+The ``axom::bump::Unique`` class can take an unsorted list of values and produce a
 sorted list of unique outputs, along with a list of offsets into the original values to identify
 one representative value in the original list for each unique value. This class is used to help
 merge points.
@@ -413,14 +413,14 @@ merge points.
 VariableShape
 ##################
 
-The ``axom::bump::utilities::VariableShape`` class behaves like a primal shape
+The ``axom::bump::VariableShape`` class behaves like a primal shape
 but it can represent various 3D shapes, some not present in primal.
 
 ##################
 ZoneListBuilder
 ##################
 
-The ``axom::bump::utilities::ZoneListBuilder`` class takes a matset view and a list
+The ``axom::bump::ZoneListBuilder`` class takes a matset view and a list
 of selected zone ids and makes two output lists of zone ids that correspond to clean zones and
 mixed zones (more than 1 material in the zone). There are also methods that take into consideration
 how zones are connected through their nodes so algorithms that operate on node-centered volume
