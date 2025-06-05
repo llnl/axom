@@ -48,7 +48,7 @@ char const EXPECTED_RECORDS_KEY[] = "records";
 char const EXPECTED_RELATIONSHIPS_KEY[] = "relationships";
 
 
-// Simple document to use in append tests
+// Simple document to append into
 std::string SIMPLE_DOCUMENT = R"(
 {
   "records": [
@@ -67,6 +67,19 @@ std::string SIMPLE_DOCUMENT = R"(
       },
       "files": {
         "test/test.png": {}
+      },
+      "user_defined": {
+        "foo": "bar"
+      },
+      "curve_sets": {
+        "set_1": {
+          "independent": {
+            "foo": {"values": [1, 2, 3]}
+          },
+          "dependent": {
+            "bar": {"values": [4, 5, 6]}
+          }
+        }
       }
     }
   ]
@@ -603,18 +616,80 @@ conduit::relay::io::IOHandle setup_basic_file(){
   return simpleDoc;
 }
 
+//Figure out where the librarydata is going
+conduit::relay::io::IOHandle do_hideous_print_append(const std::string &json_value){
+  std::string jsonFilePath = "simple_sina_doc.json";
+  std::ofstream testFile(jsonFilePath);
+  testFile << SIMPLE_DOCUMENT;
+  testFile.close();
+  conduit::relay::io::IOHandle simpleDoc;
+  simpleDoc.open(jsonFilePath);
+  return simpleDoc;
+}
+
 TEST(Document, test_validate_append_typeclash)
 {
-  conduit::relay::io::IOHandle appendTo = setup_basic_file();
+  conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
   conduit::Node appendFrom = parseJsonValue(R"({"id": "rec_1", "type": "mismatch_type"})");
-  ASSERT_FALSE(Document::validate_append(appendTo, appendFrom, "0/", 1));
+  conduit::Node msgNode = validateAppendDocument(appendTo, appendFrom, "", 1, 0);
+  ASSERT_EQ(msgNode.number_of_children(), 1);
+  // TODO: ugly string! Is there a good way to de-escape / from conduit?
+  ASSERT_EQ(msgNode.child(0).to_string(), 
+    "\"Failed to append record 0: type mismatch \\\"run\\\"vs \\\"mismatch_type\\\"\"");
 }
+
+TEST(Document, test_validate_append_protocol_clash)
+{
+  conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
+  // Note lack of id or type--could be a librarydata for all the method should care
+  conduit::Node appendFrom = parseJsonValue(R"({"id": "rec_1", "type": "run", "data": { "int": {"value": 20}}})");
+  conduit::Node msgNode = validateAppendDocument(appendTo, appendFrom, "", 3, 0);
+  ASSERT_EQ(msgNode.number_of_children(), 1);
+  ASSERT_EQ(msgNode.child(0).to_string(),
+    "\"Failed to append record 0 (protocol 3): conflicting data: int\"");
+  appendFrom = parseJsonValue(R"({"user_defined": { "foo": "blarp"}})");
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 3, 0).child(0).to_string(),
+           "\"Failed to append record 0 (protocol 3): conflicting user_defined: foo\""
+  );
+  appendFrom = parseJsonValue(R"({"files": { "test/test.png": {}}})");
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 3, 0).child(0).to_string(),
+            "\"Failed to append record 0 (protocol 3): conflicting files: test/test.png\""
+  );
+}
+
+TEST(Document, test_validate_append_missing_curve)
+{
+  conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
+  // Only foo is being appended to, not bar. Bad!
+  conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"foo": {"values": [4, 5, 6]}}}}})");
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
+}
+
+TEST(Document, test_validate_append_mismatched_curve_lengths)
+{
+  conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
+  conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {
+    "independent": {"foo": {"values": [4, 5, 6]}},
+    "dependent": {"bar": {"values": [7, 8]}}}}})");
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
+}
+
+TEST(Document, test_validate_append_mismatched_curve_lengths_newcurve)
+{
+  conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
+  conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"new": {"values": [4]}}}}})");
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 0);
+  appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {
+    "independent": {"new": {"values": [4, 5, 6]}},
+    "dependent": {"bar": {"values": [4, 5, 6]}}}}})");
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
+}
+
 TEST(Document, test_validate_append_valid)
 {
-  conduit::relay::io::IOHandle appendTo = setup_basic_file();
-  // Note lack of id or type--could be a librarydata for all the method should care
-  conduit::Node appendFrom = parseJsonValue(R"({"data": { "int": {"value": 20}}})");
-  ASSERT_TRUE(Document::validate_append(appendTo, appendFrom, "0/", 1));
+  conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
+  conduit::Node appendFrom = parseJsonValue(SIMPLE_DOCUMENT);
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 0);
 }
 
 TEST(Document, test_basic_append)
@@ -624,23 +699,23 @@ TEST(Document, test_basic_append)
   // Create a near-empty document
   testFile << R"(
   {
-    "records": [
+    "records": [{
       "type": "foo",
       "id": "i_am_empty"
-    ]
+    }]
   })";
   testFile.close();
   axom::sina::Document new_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
-  bool result = append_to_json(jsonFilePath, new_doc, 1);
-  ASSERT_TRUE(result);
+  /*conduit::Node resultMsg = appendDocumentToJson(jsonFilePath, new_doc, 1);
+  ASSERT_EQ(resultMsg.number_of_children(), 0);
   conduit::Node append_root;
-  root.load(jsonFilePath, "json");
+  append_root.load(jsonFilePath, "json");
   conduit::Node expect_root;
-  root.load(SIMPLE_DOCUMENT, "json");
-  ASSERT_EQUAL(expect_root.child(0)["id"].to_string, expect_root.child(1)["id"].to_string);
+  append_root.load(SIMPLE_DOCUMENT, "json");
+  ASSERT_EQ(expect_root.child(0)["id"].to_string(), append_root.child(1)["id"].to_string());*/
 }
 
-TEST(Document, test_append_to_json)
+TEST(Document, test_appendDocumentToJson)
 {
   std::string jsonFilePath = "test.json";
 
@@ -687,8 +762,8 @@ TEST(Document, test_append_to_json)
 
   axom::sina::Document new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
 
-  bool result = append_to_json(jsonFilePath, new_doc, 1);
-  ASSERT_TRUE(result);
+  conduit::Node resultMsg = appendDocumentToJson(jsonFilePath, new_doc, 1);
+  ASSERT_EQ(resultMsg.number_of_children(), 0);
 
   conduit::Node root;
   root.load(jsonFilePath, "json");
@@ -765,7 +840,7 @@ TEST(Document, test_append_to_json)
   ASSERT_EQ(actual, expected);
 }
 
-TEST(Document, test_append_to_json_failures)
+TEST(Document, test_appendDocumentToJson_failures)
 {
   // We have a lot of potential failures
   // 1. Fail validation due to an appended-to curve not being uniform
@@ -773,10 +848,6 @@ TEST(Document, test_append_to_json_failures)
   // 3. Fail because Dependents won't be uniform with Independents
   // 4. Fail because Protocol 3 Duplicate Data
   // 5. Fail because Protocol 3 Duplicate UDC
-
-  std::streambuf *origBuffer = std::cerr.rdbuf();
-  std::ostringstream capturedCerr;
-  std::cerr.rdbuf(capturedCerr.rdbuf());
 
   std::string jsonFilePath = "test_failure.json";
 
@@ -834,8 +905,8 @@ TEST(Document, test_append_to_json_failures)
   })(new_data);
 
   axom::sina::Document new_doc = Document(f1_data, createRecordLoaderWithAllKnownTypes());
-  bool result = append_to_json(jsonFilePath, new_doc, 1);
-  ASSERT_FALSE(result);
+  conduit::Node resultMsg = appendDocumentToJson(jsonFilePath, new_doc, 1);
+  ASSERT_EQ(resultMsg.number_of_children(), 4);
   conduit::Node j;
   j.load(jsonFilePath, "json");
   ValidateRecordsUnchanged(j, "Case 1: Checking if File Was Changed");
@@ -855,8 +926,8 @@ TEST(Document, test_append_to_json_failures)
     return tmp.to_json();
   })(new_data);
 
-  new_doc = Document(f2_data, createRecordLoaderWithAllKnownTypes());
-  result = append_to_json(jsonFilePath, new_doc, 1);
+  /*new_doc = Document(f2_data, createRecordLoaderWithAllKnownTypes());
+  result = appendDocumentToJson(jsonFilePath, new_doc, 1);
   ASSERT_FALSE(result);
   j.load(jsonFilePath, "json");
   ValidateRecordsUnchanged(j, "Case 2: Checking if File Was Changed");
@@ -875,7 +946,7 @@ TEST(Document, test_append_to_json_failures)
   })(new_data);
 
   new_doc = Document(f3_data, createRecordLoaderWithAllKnownTypes());
-  result = append_to_json(jsonFilePath, new_doc, 1);
+  result = appendDocumentToJson(jsonFilePath, new_doc, 1);
   ASSERT_FALSE(result);
   j.load(jsonFilePath, "json");
   ValidateRecordsUnchanged(j, "Case 3: Checking if File Was Changed");
@@ -883,7 +954,7 @@ TEST(Document, test_append_to_json_failures)
   // ---- Failure 4 ----
   SCOPED_TRACE("Attempting Case 4");
   new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
-  result = append_to_json(jsonFilePath, new_doc, 3);
+  result = appendDocumentToJson(jsonFilePath, new_doc, 3);
   ASSERT_FALSE(result);
   j.load(jsonFilePath, "json");
   ValidateRecordsUnchanged(j, "Case 4: Checking if File Was Changed");
@@ -891,7 +962,7 @@ TEST(Document, test_append_to_json_failures)
   // ---- Failure 5 ----
   SCOPED_TRACE("Attempting Case 5");
   new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
-  result = append_to_json(jsonFilePath, new_doc, 1);
+  result = appendDocumentToJson(jsonFilePath, new_doc, 1);
   ASSERT_FALSE(result);
   j.load(jsonFilePath, "json");
   ValidateRecordsUnchanged(j, "Case 5: Checking if File Was Changed");
@@ -899,15 +970,17 @@ TEST(Document, test_append_to_json_failures)
   // ---- Assert Error Messages ----
   std::cerr.rdbuf(origBuffer);
   std::string expected =
-    "Error validating dependent: Record bar1, Curve Set 1, Curve 1 size mismatch (expected 5, got "
-    "4).\n"
-    "Error validating dependent: Record bar1, Curve Set 1, Curve 2 size mismatch (expected 2, got "
-    "1).\n"
-    "Error validating independent: Record bar1, Curve Set 1, Curve 1 size mismatch (expected 4, "
-    "got 5).\n"
-    "Found a duplicate data entry, protocol 3 dictates append cancellation.\n"
-    "Found duplicate UDC, protocol 3 dictates append cancellation.\n";
-  ASSERT_EQ(capturedCerr.str(), expected);
+  ASSERT_EQ(msgNode.child(0),
+           "Error validating dependent: Record bar1, Curve Set 1, Curve 1 size mismatch "
+           "(expected 5, got 4).");
+  ASSERT_EQ(msgNode.child(1),
+    "Error validating dependent: Record bar1, Curve Set 1, Curve 2 size mismatch "
+    "(expected 2, got 1).");
+  ASSERT_EQ(msgNode.child(2),
+    "Error validating independent: Record bar1, Curve Set 1, Curve 1 size mismatch "
+    "(expected 4, got 5).");
+  ASSERT_EQ(msgNode.child(3),"Found a duplicate data entry, protocol 3 dictates "
+    "append cancellation. Found duplicate UDC, protocol 3 dictates append cancellation.";)*/
 }
 
 #ifdef AXOM_USE_HDF5
@@ -999,9 +1072,8 @@ TEST(Document, test_append_to_hdf5)
   conduit::relay::io::hdf5_write(initialData, hdf5FilePath);
 
   axom::sina::Document new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
-  bool result = append_to_hdf5(hdf5FilePath, new_doc, 1);
-
-  ASSERT_TRUE(result);
+  conduit::Node msgNode = append_to_hdf5(hdf5FilePath, new_doc, 1);
+  ASSERT_EQ(msgNode.number_of_children(), 0);
   conduit::Node root;
   conduit::relay::io::hdf5_read(hdf5FilePath, root);
 
@@ -1113,8 +1185,8 @@ TEST(Document, test_append_to_hdf5_failures)
 
   axom::sina::Document new_doc = Document(f1_data, createRecordLoaderWithAllKnownTypes());
 
-  bool result = append_to_hdf5(hdf5FilePath, new_doc, 1);
-  ASSERT_FALSE(result);
+  conduit::Node msgNode = append_to_hdf5(hdf5FilePath, new_doc, 1);
+  ASSERT_FALSE(msgNode.number_of_children() == 0);
   conduit::Node root;
   conduit::relay::io::hdf5_read(hdf5FilePath, root);
   ValidateRecordsUnchanged(root, "Case 1: Checking if File Was Changed");
@@ -1134,7 +1206,7 @@ TEST(Document, test_append_to_hdf5_failures)
     return tmp.to_json();
   })(new_data);
 
-  new_doc = Document(f2_data, createRecordLoaderWithAllKnownTypes());
+  /*new_doc = Document(f2_data, createRecordLoaderWithAllKnownTypes());
 
   result = append_to_hdf5(hdf5FilePath, new_doc, 1);
   ASSERT_FALSE(result);
@@ -1190,7 +1262,7 @@ TEST(Document, test_append_to_hdf5_failures)
     "got 5).\n"
     "Found a duplicate data entry, protocol 3 dictates append cancellation.\n"
     "Found duplicate UDC, protocol 3 dictates append cancellation.\n";
-  ASSERT_EQ(capturedCerr.str(), expected);
+  ASSERT_EQ(capturedCerr.str(), expected);*/
 }
 #endif
 

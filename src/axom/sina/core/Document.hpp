@@ -298,8 +298,9 @@ Document loadDocument(std::string const &path,
  * \brief Check a node against some file handle and return a Conduit node populated with any errors that
  *        would prevent appending.
  */
-conduit::Node validate_append( conduit::relay::io::IOHandle &appendTo, const conduit::Node &appendFrom,
-                               const std::string &endpoint, const int mergeProtocol);
+template <typename ConduitRelayLike>
+conduit::Node validateAppendDocument( ConduitRelayLike &appendTo, const conduit::Node &appendFrom,
+                                      const std::string &endpoint, const int mergeProtocol, int record_num);
 
 /**
  * \brief Append the new records or, per-record, new data, user defined content, curves/curve sets,
@@ -314,9 +315,9 @@ conduit::Node validate_append( conduit::relay::io::IOHandle &appendTo, const con
  * 
  * \return a conduit Node containing a list of any errors encountered in appending. If empty, success.
  */
-conduit::Node append_to_json(const std::string &jsonFilePath,
-                             const Document &newData,
-                             const int mergeProtocol = 1);
+conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
+                                   const Document &newData,
+                                   const int mergeProtocol = 1);
 
 /**
  * \brief Append the new records or, per-record, new data, user defined content, curves/curve sets,
