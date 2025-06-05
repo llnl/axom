@@ -12,7 +12,6 @@
 #------------------------------------------------------------------------------
 
 set(gtest_bump_tests
-    bump_blueprint_utilities.cpp
     bump_clipfield.cpp
     bump_coordset_extents.cpp
     bump_make_polyhedral_topology.cpp
@@ -21,6 +20,7 @@ set(gtest_bump_tests
     bump_node_to_zone_relation.cpp
     bump_slicers.cpp
     bump_topology_mapper.cpp
+    bump_utilities.cpp
     bump_views.cpp
     bump_views_indexing.cpp
     )
