@@ -14,12 +14,12 @@
 #include "axom/bump/clipping/ClipField.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
-#include "axom/bump/utilities/ExtractZones.hpp"
-#include "axom/bump/utilities/MergeMeshes.hpp"
-#include "axom/bump/utilities/NodeToZoneRelationBuilder.hpp"
-#include "axom/bump/utilities/Options.hpp"
-#include "axom/bump/utilities/RecenterField.hpp"
-#include "axom/bump/utilities/ZoneListBuilder.hpp"
+#include "axom/bump/ExtractZones.hpp"
+#include "axom/bump/MergeMeshes.hpp"
+#include "axom/bump/NodeToZoneRelationBuilder.hpp"
+#include "axom/bump/Options.hpp"
+#include "axom/bump/RecenterField.hpp"
+#include "axom/bump/ZoneListBuilder.hpp"
 #include "axom/bump/views/dispatch_coordset.hpp"
 #include "axom/bump/views/MaterialView.hpp"
 
@@ -233,7 +233,7 @@ protected:
       }
 
       // Add an originalElements array.
-      const std::string originalElementsField(utils::Options(n_options).originalElementsField());
+      const std::string originalElementsField(axom::bump::Options(n_options).originalElementsField());
       addOriginal(n_newFields[originalElementsField],
                   n_topo.name(),
                   "element",
@@ -268,7 +268,7 @@ protected:
 
     // _bump_utilities_zlb_begin
     namespace utils = axom::bump::utilities;
-    utils::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView, m_matsetView);
+    axom::bump::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView, m_matsetView);
     if(n_options.has_child("selectedZones"))
     {
       auto selectedZonesView =
@@ -310,11 +310,11 @@ protected:
     using FloatElement = typename MatsetView::FloatType;
     constexpr size_t MAXMATERIALS = MatsetView::MaxMaterials;
     using DispatchPolicy =
-      utils::DispatchTypedUnibufferMatset<IntElement, FloatElement, MAXMATERIALS>;
-    using MergeMeshes = utils::MergeMeshesAndMatsets<ExecSpace, DispatchPolicy>;
+      axom::bump::DispatchTypedUnibufferMatset<IntElement, FloatElement, MAXMATERIALS>;
+    using MergeMeshes = axom::bump::MergeMeshesAndMatsets<ExecSpace, DispatchPolicy>;
 
     // Merge clean and MIR output.
-    std::vector<utils::MeshInput> inputs(2);
+    std::vector<axom::bump::MeshInput> inputs(2);
     inputs[0].m_input = &n_cleanOutput;
 
     inputs[1].m_input = &n_mirOutput;
@@ -382,14 +382,14 @@ protected:
     namespace utils = axom::bump::utilities;
 
     // Make the clean mesh. Set compact=0 so it does not change the number of nodes.
-    utils::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView> ez(
+    axom::bump::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView> ez(
       m_topologyView,
       m_coordsetView,
       m_matsetView);
     conduit::Node n_ezopts;
     n_ezopts["topology"] = topoName;
     n_ezopts["compact"] = 0;
-    n_ezopts["originalElementsField"] = utils::Options(n_options).originalElementsField();
+    n_ezopts["originalElementsField"] = axom::bump::Options(n_options).originalElementsField();
     // Forward some options involved in naming the objects.
     const std::vector<std::string> keys {"topologyName", "coordsetName", "matsetName"};
     for(const auto &key : keys)
@@ -742,7 +742,7 @@ protected:
     conduit::Node relation;
     {
       AXOM_ANNOTATE_SCOPE("relation");
-      utils::NodeToZoneRelationBuilder<ExecSpace> rb;
+      axom::bump::NodeToZoneRelationBuilder<ExecSpace> rb;
       rb.execute(n_topo, n_coordset, relation);
       //printNode(relation);
       //std::cout.flush();
@@ -794,7 +794,7 @@ protected:
         n_nodalField["association"] = "vertex";
         n_nodalField["values"].set_allocator(c2a.getConduitAllocatorID());
         n_nodalField["values"].set(conduit::DataType(utils::cpp2conduit<MaterialVF>::id, nnodes));
-        utils::RecenterField<ExecSpace> z2n;
+        axom::bump::RecenterField<ExecSpace> z2n;
         z2n.execute(n_zonalField, relation, n_nodalField);
 
 #if !defined(AXOM_EQUIZ_DEBUG)

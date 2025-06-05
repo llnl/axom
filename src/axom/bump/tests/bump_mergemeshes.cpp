@@ -15,6 +15,7 @@
 #include <iostream>
 #include <algorithm>
 
+namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 
 //------------------------------------------------------------------------------
@@ -42,7 +43,7 @@ struct test_mergemeshes
 
     // Set up inputs.
     // _bump_utilities_mergemeshes_begin
-    std::vector<utils::MeshInput> inputs(2);
+    std::vector<bump::MeshInput> inputs(2);
     inputs[0].m_input = deviceMesh.fetch_ptr("domain0000");
 
     inputs[1].m_input = deviceMesh.fetch_ptr("domain0001");
@@ -53,7 +54,7 @@ struct test_mergemeshes
     // Execute
     conduit::Node opts, deviceResult;
     opts["topology"] = "mesh";
-    utils::MergeMeshes<ExecSpace> mm;
+    bump::MergeMeshes<ExecSpace> mm;
     mm.execute(inputs, opts, deviceResult);
 
     // device->host

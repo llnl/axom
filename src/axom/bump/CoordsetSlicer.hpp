@@ -8,15 +8,13 @@
 #include "axom/core.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
-#include "axom/bump/utilities/FieldSlicer.hpp"
+#include "axom/bump/FieldSlicer.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 
 /*!
@@ -101,7 +99,6 @@ private:
   CoordsetView m_coordsetView;
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

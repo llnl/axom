@@ -5,7 +5,7 @@
 
 #include "axom/mir/MIRAlgorithm.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
-#include "axom/bump/utilities/Options.hpp"
+#include "axom/bump/Options.hpp"
 #include "axom/slic.hpp"
 
 #include <conduit_blueprint_mesh.hpp>
@@ -45,7 +45,7 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
                                 const conduit::Node &n_options,
                                 conduit::Node &n_newDomain)
 {
-  axom::bump::utilities::Options options(n_options);
+  axom::bump::Options options(n_options);
 
   // Get the matset that we'll operate on.
   const std::string matset = options.matset();

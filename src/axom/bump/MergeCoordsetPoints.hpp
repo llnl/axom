@@ -10,8 +10,8 @@
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
-#include "axom/bump/utilities/CoordsetSlicer.hpp"
-#include "axom/bump/utilities/CoordsetExtents.hpp"
+#include "axom/bump/CoordsetSlicer.hpp"
+#include "axom/bump/CoordsetExtents.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -37,8 +37,6 @@
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 namespace detail
 {
@@ -167,7 +165,7 @@ public:
 
     // Make points unique.
     axom::Array<KeyType> uniqueNames;
-    axom::bump::utilities::Unique<ExecSpace, KeyType>::execute(coordNamesView, uniqueNames, selectedIds);
+    axom::bump::Unique<ExecSpace, KeyType>::execute(coordNamesView, uniqueNames, selectedIds);
     const auto uniqueNamesView = uniqueNames.view();
     const auto selectedIdsView = selectedIds.view();
     AXOM_ANNOTATE_END("unique");
@@ -198,8 +196,8 @@ public:
       //--------------------------------------------------------------------------
       // Use the selectedIds to slice the coordset to make a new coordset that
       // replaces the old one.
-      utils::CoordsetSlicer<ExecSpace, CoordsetView> css(m_coordsetView);
-      utils::SliceData slice;
+      CoordsetSlicer<ExecSpace, CoordsetView> css(m_coordsetView);
+      SliceData slice;
       slice.m_indicesView = selectedIdsView;
       conduit::Node n_sliced;
       css.execute(slice, n_coordset, n_sliced);
@@ -296,7 +294,8 @@ public:
   template <typename KeyType, typename Precision>
   void createNamesInner(axom::Array<KeyType> &coordNames, double tolerance) const
   {
-    AXOM_ANNOTATE_SCOPE(axom::fmt::format("createNames<{}>", cpp2conduit<Precision>::name));
+    namespace utils = axom::bump::utilities;
+    AXOM_ANNOTATE_SCOPE(axom::fmt::format("createNames<{}>", utils::cpp2conduit<Precision>::name));
 
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     const auto nnodes = m_coordsetView.numberOfNodes();
@@ -337,7 +336,6 @@ public:
   CoordsetView m_coordsetView;
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

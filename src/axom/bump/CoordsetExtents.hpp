@@ -16,8 +16,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 namespace detail
 {
 
@@ -190,7 +188,6 @@ public:
   CoordsetView m_coordsetView;
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

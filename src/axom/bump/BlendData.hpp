@@ -11,8 +11,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 /*!
  * \brief This class contains views of blend data. BlendData contains the recipe
  *        for taking existing node values (e.g. coordinates, fields) and making
@@ -65,7 +63,6 @@ struct BlendData
   CoeffView m_blendCoeffView {};       //!< Weights that make up blend groups.
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

@@ -12,6 +12,7 @@
 #include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
+namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 namespace views = axom::bump::views;
 
@@ -162,7 +163,7 @@ struct test_Elvira3D
     //--------------------------------------------------------------------------
     // Compute volumes for original mesh as a field.
     AXOM_ANNOTATE_BEGIN("volume");
-    utils::MakeZoneVolumes<ExecSpace, TopologyView, CoordsetView> origZV(topologyView,
+    bump::MakeZoneVolumes<ExecSpace, TopologyView, CoordsetView> origZV(topologyView,
                                                                            coordsetView);
     origZV.execute(n_topology, n_coordset, deviceMesh["fields/volume"]);
 
@@ -178,7 +179,7 @@ struct test_Elvira3D
       views::make_unstructured_polyhedral_topology<axom::IndexType>::view(n_mir_topology);
     using MirTopologyView = decltype(mirTopoView);
 
-    utils::MakeZoneVolumes<ExecSpace, MirTopologyView, MirCoordsetView> mirZV(mirTopoView,
+    bump::MakeZoneVolumes<ExecSpace, MirTopologyView, MirCoordsetView> mirZV(mirTopoView,
                                                                                 mirCoordsetView);
     mirZV.execute(n_mir_topology, n_mir_coordset, deviceMIRMesh["fields/volume"]);
     AXOM_ANNOTATE_END("volume");

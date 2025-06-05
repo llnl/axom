@@ -21,8 +21,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 
 #if defined(AXOM_DEBUG_UNIQUE)
 namespace detail
@@ -243,7 +241,6 @@ struct Unique<axom::SEQ_EXEC, KeyType>
   }
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

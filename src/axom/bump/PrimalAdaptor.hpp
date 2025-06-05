@@ -8,14 +8,12 @@
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
-#include "axom/bump/utilities/VariableShape.hpp"
+#include "axom/bump/VariableShape.hpp"
 #include "axom/primal.hpp"
 
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 
 /*!
@@ -470,7 +468,6 @@ struct PrimalAdaptor
   CoordsetView m_coordsetView;
 };
 
-}  // namespace utilities
 }  // namespace bump
 }  // namespace axom
 

@@ -9,16 +9,14 @@
 #include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
-#include "axom/bump/utilities/BlendData.hpp"
-#include "axom/bump/utilities/IndexingPolicies.hpp"
+#include "axom/bump/BlendData.hpp"
+#include "axom/bump/IndexingPolicies.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 /*!
  * \brief This policy can be used with FieldBlender to select all blend groups.
@@ -132,7 +130,7 @@ private:
     const auto outputSize = origSize + blendSize;
 
     // Allocate Conduit data through Axom.
-    ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utilities::ConduitAllocateThroughAxom<ExecSpace> c2a;
     n_output_values.set_allocator(c2a.getConduitAllocatorID());
     n_output_values.set(conduit::DataType(n_values.dtype().id(), outputSize));
 
@@ -155,7 +153,7 @@ private:
   void blendSingleComponentImpl(const BlendData &blend, SrcView compView, OutputView outView) const
   {
     using value_type = typename decltype(compView)::value_type;
-    using accum_type = typename axom::bump::utilities::accumulation_traits<value_type>::type;
+    using accum_type = typename utilities::accumulation_traits<value_type>::type;
 
     // We're allowing selectedIndicesView to be used to select specific blend
     // groups. If the user did not provide that, use all blend groups.
@@ -213,7 +211,6 @@ private:
   IndexingPolicy m_indexing {};
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

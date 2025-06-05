@@ -15,6 +15,7 @@
 #include <iostream>
 #include <algorithm>
 
+namespace bump = axom::bump;
 namespace views = axom::bump::views;
 namespace utils = axom::bump::utilities;
 
@@ -89,25 +90,25 @@ struct test_copy_braid
 
     constexpr double eps = 1.e-7;
 
-    auto x = utils::MinMax<ExecSpace, double>::execute(
+    auto x = bump::MinMax<ExecSpace, double>::execute(
       deviceMesh["coordsets/coords/values/x"]);
     //std::cout << std::setw(16) << "x={" << x.first << ", " << x.second << "}\n";
     EXPECT_NEAR(x.first, -10., eps);
     EXPECT_NEAR(x.second, 10., eps);
 
-    auto y = utils::MinMax<ExecSpace, double>::execute(
+    auto y = bump::MinMax<ExecSpace, double>::execute(
       deviceMesh["coordsets/coords/values/y"]);
     //std::cout << std::setw(16) << "y={" << y.first << ", " << y.second << "}\n";
     EXPECT_NEAR(y.first, -10., eps);
     EXPECT_NEAR(y.second, 10., eps);
 
-    auto c = utils::MinMax<ExecSpace, double>::execute(
+    auto c = bump::MinMax<ExecSpace, double>::execute(
       deviceMesh["topologies/mesh/elements/connectivity"]);
     //std::cout << std::setw(16) << "conn={" << c.first << ", " << c.second << "}\n";
     EXPECT_NEAR(c.first, 0., eps);
     EXPECT_NEAR(c.second, 999., eps);
 
-    auto r = utils::MinMax<ExecSpace, double>::execute(
+    auto r = bump::MinMax<ExecSpace, double>::execute(
       deviceMesh["fields/radial/values"]);
     //std::cout << std::setw(16) << "radial={" << r.first << ", " << r.second << "}\n";
     EXPECT_NEAR(r.first, 19.2450089729875, eps);
@@ -148,7 +149,7 @@ struct test_make_unstructured
 
     // _bump_utilities_makeunstructured_begin
     conduit::Node deviceResult;
-    utils::MakeUnstructured<ExecSpace> uns;
+    bump::MakeUnstructured<ExecSpace> uns;
     uns.execute(deviceMesh["topologies/mesh"], deviceMesh["coordsets/coords"], "mesh", deviceResult);
     // _bump_utilities_makeunstructured_end
 
@@ -198,11 +199,11 @@ struct test_recenter_field
 
     // Make a node to zone relation on the device.
     conduit::Node deviceRelation;
-    utils::NodeToZoneRelationBuilder<ExecSpace> n2z;
+    bump::NodeToZoneRelationBuilder<ExecSpace> n2z;
     n2z.execute(deviceTopo, deviceCoordset, deviceRelation);
 
     // Recenter a field zonal->nodal on the device
-    utils::RecenterField<ExecSpace> r;
+    bump::RecenterField<ExecSpace> r;
     r.execute(deviceMesh["fields/easy_zonal"], deviceRelation, deviceMesh["fields/z2n"]);
 
     // Recenter a field nodal->zonal on the device. (The elements are an o2m relation)
@@ -295,7 +296,7 @@ struct test_extractzones
       utils::make_array_view<conduit::int64>(deviceMesh["topologies/mesh/elements/offsets"]));
 
     // Pull out selected zones
-    utils::ExtractZones<ExecSpace, TopologyView, CoordsetView> extract(topoView, coordsetView);
+    bump::ExtractZones<ExecSpace, TopologyView, CoordsetView> extract(topoView, coordsetView);
     conduit::Node options, newDeviceMesh;
     options["topology"] = "mesh";
     extract.execute(selectedZones.view(), deviceMesh, options, newDeviceMesh);
@@ -348,7 +349,7 @@ struct test_extractzones
       utils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/indices"]));
 
     // Pull out selected zones
-    utils::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView> extractM(
+    bump::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView> extractM(
       topoView,
       coordsetView,
       matsetView);
@@ -517,7 +518,7 @@ struct test_extractzones_polyhedral
     using MatsetView = decltype(matsetView);
 
     // Pull out selected zones as polyhedral zones
-    utils::ExtractZonesAndMatsetPolyhedral<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>
+    bump::ExtractZonesAndMatsetPolyhedral<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>
       extract(topologyView, coordsetView, matsetView);
     conduit::Node newDeviceMesh, options;
     extract.execute(selectedZones.view(), deviceMesh, options, newDeviceMesh);
@@ -615,7 +616,7 @@ struct test_zonelistbuilder
       utils::make_array_view<conduit::int64>(deviceMesh["matsets/mat1/indices"]));
 
     // Determine the list of clean and mixed zones (taking into account #mats at the nodes)
-    utils::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(topologyView, matsetView);
+    bump::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(topologyView, matsetView);
     axom::Array<axom::IndexType> clean, mixed;
     zlb.execute(coordsetView.numberOfNodes(), clean, mixed);
 
@@ -769,7 +770,7 @@ struct test_makezonecenters
     auto coordsetView = views::make_rectilinear_coordset<double, 2>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
-    utils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(topoView, coordsetView);
+    bump::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(topoView, coordsetView);
     conduit::Node n_field;
     zc.execute(n_topo, n_coordset, n_field);
 
@@ -877,7 +878,7 @@ struct test_mergecoordsetpoints
     auto coordsetView = views::make_explicit_coordset<double, 2>::view(n_coordset);
     using CoordsetView = decltype(coordsetView);
 
-    utils::MergeCoordsetPoints<ExecSpace, CoordsetView> mcp(coordsetView);
+    bump::MergeCoordsetPoints<ExecSpace, CoordsetView> mcp(coordsetView);
     conduit::Node n_newCoordset;
     axom::Array<axom::IndexType> selectedIds, old2new;
     // Make anything closer than 0.005 match
@@ -997,7 +998,7 @@ struct test_makepointmesh
         n_topology);
     using TopologyView = decltype(topoView);
 
-    utils::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(topoView, coordsetView);
+    bump::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(topoView, coordsetView);
     conduit::Node options, newDeviceMesh;
     options["topologyName"] = "pointmesh";
     options["coordsetName"] = "points";

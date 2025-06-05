@@ -14,8 +14,8 @@
 #include "axom/bump/views/dispatch_unstructured_topology.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
-#include "axom/bump/utilities/MakePolyhedralTopology.hpp"
-#include "axom/bump/utilities/MergePolyhedralFaces.hpp"
+#include "axom/bump/MakePolyhedralTopology.hpp"
+#include "axom/bump/MergePolyhedralFaces.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -24,8 +24,6 @@
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 /*!
  * \brief A mesh input containing a Blueprint mesh and some mapping array views.
@@ -766,15 +764,14 @@ protected:
                           const conduit::Node &n_srcTopo,
                           conduit::Node &n_phTopo) const
   {
-    namespace utils = axom::bump::utilities;
     using ConnectivityType = typename TopologyView::ConnectivityType;
 
     // Make a polyhedral mesh from the input mesh.
-    utils::MakePolyhedralTopology<ExecSpace, TopologyView> makePH(topologyView);
+    MakePolyhedralTopology<ExecSpace, TopologyView> makePH(topologyView);
     makePH.execute(n_srcTopo, n_phTopo);
 
     // Improve the mesh by merging like faces.
-    utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_phTopo);
+    MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_phTopo);
   }
 
   /*!
@@ -1487,17 +1484,7 @@ public:
   template <typename FuncType>
   void dispatchMatset(conduit::Node &n_matset, FuncType &&func)
   {
-    namespace utils = axom::bump::utilities;
-    // We know the types. Make views explicitly.
-    auto material_ids = utils::make_array_view<IntElement>(n_matset["material_ids"]);
-    auto sizes = utils::make_array_view<IntElement>(n_matset["sizes"]);
-    auto offsets = utils::make_array_view<IntElement>(n_matset["offsets"]);
-    auto indices = utils::make_array_view<IntElement>(n_matset["indices"]);
-    auto volume_fractions = utils::make_array_view<FloatElement>(n_matset["volume_fractions"]);
-    // We know we're making a unibuffer matset.
-    axom::bump::views::UnibufferMaterialView<IntElement, FloatElement, MAXMATERIALS> matsetView;
-    matsetView.set(material_ids, volume_fractions, sizes, offsets, indices);
-    // Use it.
+    auto matsetView = views::make_unibuffer_matset<IntElement, FloatElement, MAXMATERIALS>::view(n_matset);
     func(matsetView);
   }
 };
@@ -1911,7 +1898,6 @@ private:
   }
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

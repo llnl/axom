@@ -9,10 +9,10 @@
 
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
-#include "axom/bump/utilities/ExtractZones.hpp"
-#include "axom/bump/utilities/ExtractZonesAndMatsetPolyhedral.hpp"
-#include "axom/bump/utilities/MergeCoordsetPoints.hpp"
-#include "axom/bump/utilities/MergePolyhedralFaces.hpp"
+#include "axom/bump/ExtractZones.hpp"
+#include "axom/bump/ExtractZonesAndMatsetPolyhedral.hpp"
+#include "axom/bump/MergeCoordsetPoints.hpp"
+#include "axom/bump/MergePolyhedralFaces.hpp"
 #include "axom/bump/views/dispatch_coordset.hpp"
 
 #include <sstream>
@@ -28,7 +28,7 @@ namespace mir
  * \brief This class provides a kind of schema over the MIR options, as well
  *        as default values, and some utilities functions.
  */
-class ELVIRAOptions : public axom::bump::utilities::Options
+class ELVIRAOptions : public axom::bump::Options
 {
 public:
   /**
@@ -36,7 +36,7 @@ public:
    *
    * \param options The node that contains the clipping options.
    */
-  ELVIRAOptions(const conduit::Node &options) : axom::bump::utilities::Options(options) { }
+  ELVIRAOptions(const conduit::Node &options) : axom::bump::Options(options) { }
 
   /**
    * \brief Get whether the plane equation fields should appear in the output.
@@ -905,7 +905,7 @@ public:
     auto newCoordsetView =
       axom::bump::views::make_explicit_coordset<CoordType, CoordsetView::dimension()>::view(n_coordset);
     using NewCoordsetView = decltype(newCoordsetView);
-    utils::MergeCoordsetPoints<ExecSpace, NewCoordsetView> mcp(newCoordsetView);
+    axom::bump::MergeCoordsetPoints<ExecSpace, NewCoordsetView> mcp(newCoordsetView);
     conduit::Node n_mcp_options;
     n_mcp_options["tolerance"] = point_tolerance;
     const bool merged = mcp.execute(n_coordset, n_mcp_options, selectedIds, old2new);
@@ -938,7 +938,7 @@ public:
     }
 
     // Now merge any faces that can be merged.
-    utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_topology);
+    axom::bump::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_topology);
   }
 
 private:
@@ -977,10 +977,8 @@ struct MakeCleanZones
                       const MatsetView &matsetView,
                       conduit::Node &n_cleanOutput)
   {
-    namespace utils = axom::bump::utilities;
-
     // Make the clean mesh.
-    utils::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView> ez(
+    axom::bump::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView> ez(
       topologyView,
       coordsetView,
       matsetView);
@@ -1021,13 +1019,12 @@ struct MakeCleanZones<ExecSpace, TopologyView, CoordsetView, MatsetView, 3>
                       const MatsetView &matsetView,
                       conduit::Node &n_cleanOutput)
   {
-    namespace utils = axom::bump::utilities;
     using IndexingPolicy = typename TopologyView::IndexingPolicy;
 
     // Make the clean mesh. We directly make polyhedral output so we can skip
     // mesh improvement stages later when we merge the output with the mixed
     // zone polyhedra.
-    utils::ExtractZonesAndMatsetPolyhedral<ExecSpace, IndexingPolicy, CoordsetView, MatsetView> ez(
+    axom::bump::ExtractZonesAndMatsetPolyhedral<ExecSpace, IndexingPolicy, CoordsetView, MatsetView> ez(
       topologyView,
       coordsetView,
       matsetView);

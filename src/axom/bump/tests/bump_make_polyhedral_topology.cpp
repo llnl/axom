@@ -11,10 +11,15 @@
 #include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
+namespace bump = axom::bump;
+namespace utils = axom::bump::utilities;
+namespace views = axom::bump::views;
+
 std::string baselineDirectory()
 {
   return pjoin(dataDirectory(), "mir", "regression", "mir_make_polyhedral_topology");
 }
+
 //------------------------------------------------------------------------------
 // Global test application object.
 axom::blueprint::testing::TestApplication TestApp;
@@ -31,9 +36,6 @@ struct make_polyhedral
 
   static void test(const std::string &type, const std::string &name)
   {
-    namespace utils = axom::bump::utilities;
-    namespace views = axom::bump::views;
-
     // Create the data
     conduit::Node hostMesh, deviceMesh;
     initialize(type, hostMesh);
@@ -50,9 +52,9 @@ struct make_polyhedral
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
-      utils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
+      bump::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
       mp.execute(n_input, n_output);
-      utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
+      bump::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
     }
     //_bump_utilities_makepolyhedraltopology_end
     else if(type == "tets")
@@ -62,9 +64,9 @@ struct make_polyhedral
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
-      utils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
+      bump::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
       mp.execute(n_input, n_output);
-      utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
+      bump::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
     }
     else if(type == "pyramids")
     {
@@ -73,9 +75,9 @@ struct make_polyhedral
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
-      utils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
+      bump::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
       mp.execute(n_input, n_output);
-      utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
+      bump::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
     }
     else if(type == "wedges")
     {
@@ -84,9 +86,9 @@ struct make_polyhedral
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
-      utils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
+      bump::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
       mp.execute(n_input, n_output);
-      utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
+      bump::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
     }
     else if(type == "hexs")
     {
@@ -95,9 +97,9 @@ struct make_polyhedral
       using TopologyView = decltype(topologyView);
       using ConnectivityType = typename TopologyView::ConnectivityType;
 
-      utils::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
+      bump::MakePolyhedralTopology<ExecSpace, TopologyView> mp(topologyView);
       mp.execute(n_input, n_output);
-      utils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
+      bump::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_output);
     }
     else
     {

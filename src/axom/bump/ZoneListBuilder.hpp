@@ -14,8 +14,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 
 /*!
  * \brief This struct builds lists of clean and mixed zones using the input topology and matset views.
@@ -410,7 +408,6 @@ private:
   MatsetView m_matsetView;
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

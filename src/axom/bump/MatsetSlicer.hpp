@@ -7,17 +7,15 @@
 #define AXOM_BUMP_MATSET_SLICER_HPP
 
 #include "axom/core.hpp"
-#include "axom/bump/utilities/FieldSlicer.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
+#include "axom/bump/FieldSlicer.hpp"
 
 #include <conduit.hpp>
 
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 
 /*!
@@ -132,7 +130,6 @@ private:
   MatsetView m_matsetView;
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

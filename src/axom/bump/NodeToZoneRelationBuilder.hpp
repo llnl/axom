@@ -10,7 +10,7 @@
 #include "axom/slic.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/views/dispatch_unstructured_topology.hpp"
-#include "axom/bump/utilities/MakeUnstructured.hpp"
+#include "axom/bump/MakeUnstructured.hpp"
 
 #include <conduit/conduit.hpp>
 #include <conduit/conduit_blueprint.hpp>
@@ -22,8 +22,6 @@
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 namespace details
 {
@@ -270,7 +268,7 @@ public:
       // These are all structured topos of some sort. Make an unstructured representation and recurse.
 
       conduit::Node mesh;
-      axom::bump::utilities::MakeUnstructured<ExecSpace>::execute(topo,
+      MakeUnstructured<ExecSpace>::execute(topo,
                                                                             coordset,
                                                                             "newtopo",
                                                                             mesh);
@@ -443,7 +441,6 @@ private:
   }
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

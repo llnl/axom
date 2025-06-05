@@ -14,8 +14,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 /*!
  * \brief This class provides a kind of schema over options, as well
  *        as default values, and some utilities functions.
@@ -135,7 +133,6 @@ protected:
   const conduit::Node &m_options;  // A reference to the options node.
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

@@ -12,8 +12,8 @@
 #include "axom/slic.hpp"
 #include "axom/spin.hpp"
 
-#include "axom/bump/utilities/PrimalAdaptor.hpp"
-#include "axom/bump/utilities/VariableShape.hpp"
+#include "axom/bump/PrimalAdaptor.hpp"
+#include "axom/bump/VariableShape.hpp"
 #include "axom/bump/utilities/utilities.hpp"
 
 #include <conduit.hpp>
@@ -27,8 +27,6 @@
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 namespace detail
 {
@@ -92,7 +90,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shap
 
 template <typename T>
 AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Tetrahedron<T, 3> &shape1,
-                                     const axom::bump::utilities::PolyhedralFaces<T> &shape2,
+                                     const axom::bump::PolyhedralFaces<T> &shape2,
                                      double eps = 1.e-10)
 {
   const bool tryFixOrientation = false;
@@ -131,7 +129,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape
 
 template <typename T>
 AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Hexahedron<T, 3> &shape1,
-                                     const axom::bump::utilities::PolyhedralFaces<T> &shape2,
+                                     const axom::bump::PolyhedralFaces<T> &shape2,
                                      double eps = 1.e-10)
 {
   const bool tryFixOrientation = false;
@@ -170,7 +168,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape
 
 template <typename T>
 AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape1,
-                                     const axom::bump::utilities::PolyhedralFaces<T> &shape2,
+                                     const axom::bump::PolyhedralFaces<T> &shape2,
                                      double eps = 1.e-10)
 {
   auto clipped = shape1;
@@ -180,7 +178,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polyhedron<T, 3> &shape
 
 // PolyhedralFaces first
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::utilities::PolyhedralFaces<T> &shape1,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T> &shape1,
                                      const axom::primal::Tetrahedron<T, 3> &shape2,
                                      double eps = 1.e-10)
 {
@@ -188,7 +186,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::utilities::PolyhedralFace
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::utilities::PolyhedralFaces<T> &shape1,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T> &shape1,
                                      const axom::primal::Hexahedron<T, 3> &shape2,
                                      double eps = 1.e-10)
 {
@@ -196,7 +194,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::utilities::PolyhedralFace
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::utilities::PolyhedralFaces<T> &shape1,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T> &shape1,
                                      const axom::primal::Polyhedron<T, 3> &shape2,
                                      double eps = 1.e-10)
 {
@@ -204,8 +202,8 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::utilities::PolyhedralFace
 }
 
 template <typename T>
-AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::utilities::PolyhedralFaces<T> &shape1,
-                                     const axom::bump::utilities::PolyhedralFaces<T> &shape2,
+AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T> &shape1,
+                                     const axom::bump::PolyhedralFaces<T> &shape2,
                                      double eps = 1.e-10)
 {
   using PointType = axom::primal::Point<T, 3>;
@@ -576,7 +574,7 @@ public:
     // -------------------------------------------------------------------------
     // Set up storage for a new matset.
     AXOM_ANNOTATE_BEGIN("allocation");
-    ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     // Make target matset.
     conduit::Node &n_targetMatset = n_targetMesh["matsets/" + targetMatsetName];
@@ -605,13 +603,13 @@ public:
     // n_indices are allocated later
 
     // Wrap the output matset data in some array views.
-    auto material_ids = make_array_view<MatIntType>(n_material_ids);
-    auto volume_fractions = make_array_view<MatFloatType>(n_volume_fractions);
-    auto sizes = make_array_view<MatIntType>(n_sizes);
-    auto offsets = make_array_view<MatIntType>(n_offsets);
-    axom::bump::utilities::fill<ExecSpace>(volume_fractions, MatFloatType(0.));
-    axom::bump::utilities::fill<ExecSpace>(material_ids, MaterialEmpty);
-    axom::bump::utilities::fill<ExecSpace>(sizes, MatIntType(0));
+    auto material_ids = utils::make_array_view<MatIntType>(n_material_ids);
+    auto volume_fractions = utils::make_array_view<MatFloatType>(n_volume_fractions);
+    auto sizes = utils::make_array_view<MatIntType>(n_sizes);
+    auto offsets = utils::make_array_view<MatIntType>(n_offsets);
+    utils::fill<ExecSpace>(volume_fractions, MatFloatType(0.));
+    utils::fill<ExecSpace>(material_ids, MaterialEmpty);
+    utils::fill<ExecSpace>(sizes, MatIntType(0));
     AXOM_ANNOTATE_END("allocation");
 
     // -------------------------------------------------------------------------
@@ -632,7 +630,7 @@ public:
 #endif
         // Get the area or volume of the target shape (depends on the dimension).
         double targetAmount =
-          ComputeShapeAmount<TargetCoordsetView::dimension()>::execute(targetShape);
+          utils::ComputeShapeAmount<TargetCoordsetView::dimension()>::execute(targetShape);
 
         // Handle intersection in-depth of the bounding boxes intersected.
         auto handleIntersection = [&](std::int32_t currentNode, const std::int32_t *leafNodes) {
@@ -762,7 +760,7 @@ public:
     AXOM_ANNOTATE_BEGIN("finish");
     axom::exclusive_scan<ExecSpace>(sizes, offsets);
     n_indices.set(conduit::DataType(utils::cpp2conduit<MatIntType>::id, totalSize));
-    auto indices = make_array_view<MatIntType>(n_indices);
+    auto indices = utils::make_array_view<MatIntType>(n_indices);
 
     // The volume_fractions and material_ids arrays contain gaps that we can compress out.
     conduit::Node n_new_volume_fractions, n_new_material_ids;
@@ -770,8 +768,8 @@ public:
     n_new_material_ids.set_allocator(c2a.getConduitAllocatorID());
     n_new_volume_fractions.set(conduit::DataType(utils::cpp2conduit<MatFloatType>::id, totalSize));
     n_new_material_ids.set(conduit::DataType(utils::cpp2conduit<MatIntType>::id, totalSize));
-    auto new_volume_fractions = make_array_view<MatFloatType>(n_new_volume_fractions);
-    auto new_material_ids = make_array_view<MatIntType>(n_new_material_ids);
+    auto new_volume_fractions = utils::make_array_view<MatFloatType>(n_new_volume_fractions);
+    auto new_material_ids = utils::make_array_view<MatIntType>(n_new_material_ids);
     axom::for_all<ExecSpace>(
       nTargetZones,
       AXOM_LAMBDA(axom::IndexType index) {
@@ -797,7 +795,6 @@ public:
   TargetShapeView m_targetView;
 };
 
-}  // namespace utilities
 }  // namespace bump
 }  // namespace axom
 

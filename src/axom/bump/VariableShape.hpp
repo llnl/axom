@@ -18,8 +18,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 
 /**
  * \brief Represent various shapes that consist of points.
@@ -155,7 +153,6 @@ std::ostream &operator<<(std::ostream &os, const VariableShape<T, NDIMS, N> &obj
   return os;
 }
 
-}  // namespace utilities
 }  // namespace bump
 }  // namespace axom
 

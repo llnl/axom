@@ -19,8 +19,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 
 /*!
  * \brief Makes a centroids field using the input topology and coordset views.
@@ -162,7 +160,6 @@ private:
   CoordsetView m_coordsetView;
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

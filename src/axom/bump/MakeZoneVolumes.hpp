@@ -6,17 +6,15 @@
 #define AXOM_BUMP_MAKE_ZONE_VOLUMES_HPP_
 
 #include "axom/core.hpp"
-#include "axom/bump/utilities/PrimalAdaptor.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
+#include "axom/bump/PrimalAdaptor.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 
 /*!
@@ -58,7 +56,8 @@ public:
                conduit::Node &n_outputField) const
   {
     // Get the ID of a Conduit allocator that will allocate through Axom with device allocator allocatorID.
-    ConduitAllocateThroughAxom<ExecSpace> c2a;
+    namespace utils = axom::bump::utilities;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     // Determine output size.
     const auto outputSize = m_topologyView.numberOfZones();
@@ -69,8 +68,8 @@ public:
     n_outputField["topology"] = n_topology.name();
     conduit::Node &n_values = n_outputField["values"];
     n_values.set_allocator(c2a.getConduitAllocatorID());
-    n_values.set(conduit::DataType(cpp2conduit<value_type>::id, outputSize));
-    auto valuesView = make_array_view<value_type>(n_values);
+    n_values.set(conduit::DataType(utils::cpp2conduit<value_type>::id, outputSize));
+    auto valuesView = utils::make_array_view<value_type>(n_values);
 
     // _bump_utilities_makezonevolumes_begin
     // Get the zone as a primal shape and compute area or volume, as needed.
@@ -82,7 +81,7 @@ public:
         const auto shape = deviceShapeView.getShape(zoneIndex);
 
         // Get the area or volume of the target shape (depends on the dimension).
-        double amount = ComputeShapeAmount<CoordsetView::dimension()>::execute(shape);
+        double amount = utils::ComputeShapeAmount<CoordsetView::dimension()>::execute(shape);
 
         valuesView[zoneIndex] = amount;
       });
@@ -94,7 +93,6 @@ private:
   CoordsetView m_coordsetView;
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

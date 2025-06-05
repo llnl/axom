@@ -15,6 +15,7 @@
 #include <iostream>
 #include <algorithm>
 
+namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 
 //------------------------------------------------------------------------------
@@ -32,7 +33,7 @@ struct test_node_to_zone_relation_builder
 
     // Run the algorithm on the device
     conduit::Node deviceRelation;
-    utils::NodeToZoneRelationBuilder<ExecSpace> n2z;
+    bump::NodeToZoneRelationBuilder<ExecSpace> n2z;
     n2z.execute(deviceTopo, deviceCoordset, deviceRelation);
     // _bump_utilities_n2zrel_end
 
@@ -200,7 +201,7 @@ struct test_node_to_zone_relation_builder_polyhedral
 
     // Run the algorithm on the device
     conduit::Node deviceRelation;
-    utils::NodeToZoneRelationBuilder<ExecSpace> n2z;
+    bump::NodeToZoneRelationBuilder<ExecSpace> n2z;
     n2z.execute(deviceTopo, deviceCoordset, deviceRelation);
 
     // device -> host

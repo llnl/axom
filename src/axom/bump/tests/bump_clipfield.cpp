@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdlib>
 
+namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 
 std::string baselineDirectory()
@@ -110,7 +111,7 @@ TEST(bump_clipfield, options)
   }
 
   // There are no "selectedZones" in the options. We should get nzones values from 0 onward.
-  utils::SelectedZones<seq_exec> selectedZones(nzones, options);
+  bump::SelectedZones<seq_exec> selectedZones(nzones, options);
   auto selectedZonesView = selectedZones.view();
   EXPECT_EQ(selectedZonesView.size(), 6);
   EXPECT_EQ(selectedZonesView[0], 0);
@@ -122,7 +123,7 @@ TEST(bump_clipfield, options)
 
   // Put some "selectedZones" in the options.
   options["selectedZones"].set(std::vector<axom::IndexType> {5, 4, 3});
-  utils::SelectedZones<seq_exec> selectedZones2(nzones, options);
+  bump::SelectedZones<seq_exec> selectedZones2(nzones, options);
   selectedZonesView = selectedZones2.view();
   EXPECT_EQ(selectedZonesView.size(), 3);
   EXPECT_EQ(selectedZonesView[0], 3);
@@ -208,7 +209,7 @@ TEST(bump_clipfield, blend_group_builder)
   axom::Array<KeyType> blendUniqueNames {{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}};
   axom::Array<KeyType> blendUniqueIndices {{1, 2, 9, 3, 4, 11, 0, 5, 6, 7}};
 
-  using NamingPolicyView = typename axom::bump::utilities::HashNaming<axom::IndexType>::View;
+  using NamingPolicyView = typename axom::bump::HashNaming<axom::IndexType>::View;
 
   axom::bump::clipping::BlendGroupBuilder<seq_exec, NamingPolicyView> builder;
   builder.setBlendGroupSizes(blendGroups.view(), blendGroupsLen.view());
@@ -351,7 +352,7 @@ struct test_unique
     // Make unique ids.
     axom::Array<int> uIds;
     axom::Array<axom::IndexType> uIndices;
-    axom::bump::utilities::Unique<ExecSpace, int>::execute(deviceIds.view(), uIds, uIndices);
+    bump::Unique<ExecSpace, int>::execute(deviceIds.view(), uIds, uIndices);
     // _bump_utilities_unique_end
 
     // device->host
@@ -385,7 +386,7 @@ TEST(bump_clipfield, unique_hip) { test_unique<hip_exec>::test(); }
 //------------------------------------------------------------------------------
 TEST(bump_clipfield, make_name)
 {
-  axom::bump::utilities::HashNaming<int> naming;
+  axom::bump::HashNaming<int> naming;
 
   for(int n = 1; n < 14; n++)
   {

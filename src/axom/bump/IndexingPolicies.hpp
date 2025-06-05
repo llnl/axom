@@ -14,8 +14,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 
 //------------------------------------------------------------------------------
 /*!
@@ -48,8 +46,8 @@ struct SSElementFieldIndexing
    */
   void update(const conduit::Node &field)
   {
-    fillFromNode(field, "offsets", m_indexing.m_offsets, true);
-    fillFromNode(field, "strides", m_indexing.m_strides, true);
+    axom::bump::utilities::fillFromNode(field, "offsets", m_indexing.m_offsets, true);
+    axom::bump::utilities::fillFromNode(field, "strides", m_indexing.m_strides, true);
   }
 
   /*!
@@ -82,8 +80,8 @@ struct SSVertexFieldIndexing
    */
   void update(const conduit::Node &field)
   {
-    fillFromNode(field, "offsets", m_fieldIndexing.m_offsets, true);
-    fillFromNode(field, "strides", m_fieldIndexing.m_strides, true);
+    axom::bump::utilities::fillFromNode(field, "offsets", m_fieldIndexing.m_offsets, true);
+    axom::bump::utilities::fillFromNode(field, "strides", m_fieldIndexing.m_strides, true);
   }
 
   /*!
@@ -109,7 +107,6 @@ struct SSVertexFieldIndexing
   Indexing m_fieldIndexing {};
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

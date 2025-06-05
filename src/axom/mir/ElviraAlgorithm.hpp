@@ -12,15 +12,14 @@
 #include "axom/mir/MIRAlgorithm.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
-#include "axom/bump/utilities/MakePointMesh.hpp"
-#include "axom/bump/utilities/MakeZoneCenters.hpp"
-#include "axom/bump/utilities/MatsetSlicer.hpp"
-#include "axom/bump/utilities/MergeMeshes.hpp"
-#include "axom/bump/utilities/PrimalAdaptor.hpp"
-#include "axom/bump/utilities/SelectedZones.hpp"
-#include "axom/bump/utilities/ZoneListBuilder.hpp"
-#include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/utilities/utilities.hpp"
+#include "axom/bump/MakePointMesh.hpp"
+#include "axom/bump/MakeZoneCenters.hpp"
+#include "axom/bump/MatsetSlicer.hpp"
+#include "axom/bump/MergeMeshes.hpp"
+#include "axom/bump/PrimalAdaptor.hpp"
+#include "axom/bump/SelectedZones.hpp"
+#include "axom/bump/ZoneListBuilder.hpp"
 #include "axom/bump/views/MaterialView.hpp"
 #include "axom/bump/views/StructuredTopologyView.hpp"
 
@@ -94,7 +93,7 @@ protected:
   using PointType = axom::primal::Point<CoordType, NDIMS>;
   using PlaneType = axom::primal::Plane<CoordType, NDIMS>;
 
-  using ShapeView = axom::bump::utilities::PrimalAdaptor<TopologyView, CoordsetView>;
+  using ShapeView = axom::bump::PrimalAdaptor<TopologyView, CoordsetView>;
   using Builder =
     detail::TopologyBuilder<ExecSpace, CoordsetView, TopologyView, MatsetView, ClipResultType, NDIMS>;
   using BuilderView = typename Builder::View;
@@ -160,13 +159,13 @@ protected:
 
     // _bump_utilities_selectedzones_begin
     // Get selected zones from the options.
-    utils::SelectedZones<ExecSpace> selectedZones(m_topologyView.numberOfZones(), n_options_copy);
+    bump::SelectedZones<ExecSpace> selectedZones(m_topologyView.numberOfZones(), n_options_copy);
     const auto selectedZonesView = selectedZones.view();
     // _bump_utilities_selectedzones_end
 
     // Partition the selected zones into clean, mixed lists.
     axom::Array<axom::IndexType> cleanZones, mixedZones;
-    utils::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView, m_matsetView);
+    bump::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView, m_matsetView);
     zlb.execute(selectedZonesView, cleanZones, mixedZones);
     SLIC_ASSERT((cleanZones.size() + mixedZones.size()) == selectedZonesView.size());
     SLIC_INFO(
@@ -283,7 +282,6 @@ protected:
              conduit::Node &n_merged) const
   {
     AXOM_ANNOTATE_SCOPE("merge");
-    namespace utils = axom::bump::utilities;
 
     // Create a MergeMeshesAndMatsets type that will operate on the material
     // inputs, which at this point will be unibuffer with known types. We can
@@ -292,11 +290,11 @@ protected:
     using FloatElement = typename MatsetView::FloatType;
     constexpr size_t MAXMATERIALS = MatsetView::MaxMaterials;
     using DispatchPolicy =
-      utils::DispatchTypedUnibufferMatset<IntElement, FloatElement, MAXMATERIALS>;
-    using MergeMeshes = utils::MergeMeshesAndMatsets<ExecSpace, DispatchPolicy>;
+      axom::bump::DispatchTypedUnibufferMatset<IntElement, FloatElement, MAXMATERIALS>;
+    using MergeMeshes = axom::bump::MergeMeshesAndMatsets<ExecSpace, DispatchPolicy>;
 
     // Merge clean and MIR output.
-    std::vector<utils::MeshInput> inputs(2);
+    std::vector<axom::bump::MeshInput> inputs(2);
     inputs[0].m_input = &n_cleanOutput;
     inputs[0].topologyName = topoName;
 
@@ -372,14 +370,14 @@ protected:
     {
       // _bump_utilities_makepointmesh_begin
       // Make a point mesh of the selected zones.
-      utils::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(m_topologyView,
+      bump::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(m_topologyView,
                                                                        m_coordsetView);
       pm.execute(cleanZones, n_topology, n_coordset, n_options, n_cleanOutput);
       // _bump_utilities_makepointmesh_end
 
       // Slice the input material.
-      utils::MatsetSlicer<ExecSpace, MatsetView> mslicer(m_matsetView);
-      utils::SliceData slice;
+      bump::MatsetSlicer<ExecSpace, MatsetView> mslicer(m_matsetView);
+      bump::SliceData slice;
       slice.m_indicesView = cleanZones;
       mslicer.execute(slice, n_matset, n_cleanOutput["matsets/" + opts.matsetName(n_matset.name())]);
 
@@ -577,7 +575,7 @@ protected:
     //       these values in making stencils.
     AXOM_ANNOTATE_BEGIN("centroids");
     // _bump_utilities_makezonecenters_begin
-    utils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView,
+    bump::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView,
                                                                        m_coordsetView);
     conduit::Node n_zcfield;
     zc.execute(n_topo, n_coordset, n_zcfield);

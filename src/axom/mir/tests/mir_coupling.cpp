@@ -382,7 +382,7 @@ private:
 
     // Make new a new matset on the target topology to record material overlaps.
     using Mapper =
-      utils::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
+      axom::bump::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
     Mapper mapper(srcTopologyView,
                   srcCoordsetView,
                   srcMatsetView,

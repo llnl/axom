@@ -15,6 +15,7 @@
 #include <iostream>
 #include <algorithm>
 
+namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 
 //------------------------------------------------------------------------------
@@ -43,9 +44,9 @@ struct test_matset_slice
                    utils::make_array_view<conduit::int64>(deviceMatset["indices"]));
 
     // Slice it.
-    utils::MatsetSlicer<ExecSpace, MatsetView> slicer(matsetView);
+    bump::MatsetSlicer<ExecSpace, MatsetView> slicer(matsetView);
     conduit::Node newDeviceMatset;
-    utils::SliceData slice;
+    bump::SliceData slice;
     slice.m_indicesView = selectedZones.view();
     slicer.execute(slice, deviceMatset, newDeviceMatset);
 
@@ -133,7 +134,7 @@ void test_coordsetslicer(const conduit::Node &hostCoordset, Func &&makeView)
                                              axom::execution_space<ExecSpace>::allocatorID());
   axom::copy(selectedNodes.data(), ids.data(), nnodes * sizeof(axom::IndexType));
 
-  utils::SliceData slice;
+  bump::SliceData slice;
   slice.m_indicesView = selectedNodes.view();
 
   // host->device
@@ -145,7 +146,7 @@ void test_coordsetslicer(const conduit::Node &hostCoordset, Func &&makeView)
   using CoordsetView = decltype(coordsetView);
 
   // Pull out selected nodes
-  utils::CoordsetSlicer<ExecSpace, CoordsetView> slicer(coordsetView);
+  bump::CoordsetSlicer<ExecSpace, CoordsetView> slicer(coordsetView);
   conduit::Node newDeviceCoordset;
   slicer.execute(slice, deviceCoordset, newDeviceCoordset);
 
@@ -318,11 +319,11 @@ struct test_fieldslicer
                                               axom::execution_space<ExecSpace>::allocatorID());
     axom::copy(sliceIndices.data(), indices.data(), sizeof(axom::IndexType) * indices.size());
 
-    utils::SliceData slice;
+    bump::SliceData slice;
     slice.m_indicesView = sliceIndices.view();
 
     conduit::Node slicedMesh;
-    utils::FieldSlicer<ExecSpace> fs;
+    bump::FieldSlicer<ExecSpace> fs;
     fs.execute(slice, deviceMesh["fields/scalar"], slicedMesh["fields/scalar"]);
     fs.execute(slice, deviceMesh["fields/vector"], slicedMesh["fields/vector"]);
     // _bump_utilities_fieldslicer_end

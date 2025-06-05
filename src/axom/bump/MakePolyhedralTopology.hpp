@@ -16,8 +16,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 /**
  * \brief Make a polyhedral unstructured representation of a topology.
  *
@@ -171,7 +169,6 @@ public:
   TopologyView m_topologyView;
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

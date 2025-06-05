@@ -17,8 +17,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 
 /*!
  * \brief Convert a field with one association type to a field of another association type using an o2mrelation.
@@ -138,7 +136,6 @@ private:
   }
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

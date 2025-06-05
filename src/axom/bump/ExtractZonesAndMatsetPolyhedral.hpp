@@ -7,16 +7,15 @@
 #define AXOM_BUMP_EXTRACT_ZONES_AND_MATSET_POLYHEDRAL_HPP
 
 #include "axom/core.hpp"
-#include "axom/bump/utilities/CoordsetBlender.hpp"
-#include "axom/bump/utilities/CoordsetSlicer.hpp"
-#include "axom/bump/utilities/FieldSlicer.hpp"
-#include "axom/bump/utilities/MatsetSlicer.hpp"
+#include "axom/bump/ExtractZones.hpp"
+#include "axom/bump/CoordsetBlender.hpp"
+#include "axom/bump/CoordsetSlicer.hpp"
+#include "axom/bump/FieldSlicer.hpp"
+#include "axom/bump/MatsetSlicer.hpp"
 
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 
 /*!
@@ -199,32 +198,32 @@ protected:
 
     conduit::Node &n_conn = n_newTopo["elements/connectivity"];
     n_conn.set_allocator(c2a.getConduitAllocatorID());
-    n_conn.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, numSelectedZones * FacesPerHex));
+    n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones * FacesPerHex));
     auto connView = utils::make_array_view<ConnectivityType>(n_conn);
 
     conduit::Node &n_sizes = n_newTopo["elements/sizes"];
     n_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_sizes.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, numSelectedZones));
+    n_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones));
     auto sizesView = utils::make_array_view<ConnectivityType>(n_sizes);
 
     conduit::Node &n_offsets = n_newTopo["elements/offsets"];
     n_offsets.set_allocator(c2a.getConduitAllocatorID());
-    n_offsets.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, numSelectedZones));
+    n_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones));
     auto offsetsView = utils::make_array_view<ConnectivityType>(n_offsets);
 
     conduit::Node &n_se_conn = n_newTopo["subelements/connectivity"];
     n_se_conn.set_allocator(c2a.getConduitAllocatorID());
-    n_se_conn.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, faceCount * PointsPerQuad));
+    n_se_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount * PointsPerQuad));
     auto seConnView = utils::make_array_view<ConnectivityType>(n_se_conn);
 
     conduit::Node &n_se_sizes = n_newTopo["subelements/sizes"];
     n_se_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_se_sizes.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, faceCount));
+    n_se_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount));
     auto seSizesView = utils::make_array_view<ConnectivityType>(n_se_sizes);
 
     conduit::Node &n_se_offsets = n_newTopo["subelements/offsets"];
     n_se_offsets.set_allocator(c2a.getConduitAllocatorID());
-    n_se_offsets.set(conduit::DataType(cpp2conduit<ConnectivityType>::id, faceCount));
+    n_se_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount));
     auto seOffsetsView = utils::make_array_view<ConnectivityType>(n_se_offsets);
 
     AXOM_ANNOTATE_END("allocate");
@@ -337,7 +336,6 @@ protected:
   }
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

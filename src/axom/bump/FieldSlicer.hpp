@@ -8,15 +8,13 @@
 #include "axom/core.hpp"
 #include "axom/bump/views/NodeArrayView.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
-#include "axom/bump/utilities/IndexingPolicies.hpp"
+#include "axom/bump/IndexingPolicies.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 /*!
  * \brief Contains the indices to be sliced out of a Blueprint field.
@@ -142,7 +140,6 @@ private:
   IndexingPolicy m_indexing {};
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

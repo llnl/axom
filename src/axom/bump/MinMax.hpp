@@ -20,8 +20,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 
 //------------------------------------------------------------------------------
 /*!
@@ -74,7 +72,6 @@ struct MinMax
   }
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

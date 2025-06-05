@@ -19,8 +19,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 
 //------------------------------------------------------------------------------
 /*!
@@ -279,7 +277,6 @@ public:
   View m_view {};
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

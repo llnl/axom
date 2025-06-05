@@ -285,7 +285,7 @@ struct test_node_to_arrayview
                              conduit::DataType::FLOAT32_ID,
                              conduit::DataType::FLOAT64_ID};
     constexpr int n = 16;
-    axom::bump::utilities::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
     for(int dtype : dtypes)
     {
       // Make a node and fill it with data.
@@ -550,7 +550,7 @@ struct test_braid2d_mat
     conduit::Node hostMesh, deviceMesh;
     axom::blueprint::testing::data::braid(type, dims, hostMesh);
     axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, hostMesh);
-    axom::bump::utilities::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
     TestApp.saveVisualization(name + "_orig", hostMesh);
 
     if(mattype == "unibuffer")

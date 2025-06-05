@@ -18,46 +18,17 @@ axom_component_requires(NAME       BUMP
 #------------------------------------------------------------------------------
 
 set(bump_headers
-    data/MeshTester.hpp
     clipping/BlendGroupBuilder.hpp
     clipping/ClipCases.h
     clipping/ClipField.hpp
     clipping/ClipOptions.hpp
     clipping/ClipTableManager.hpp
+    data/MeshTester.hpp
     io/save.hpp
-    utilities/Options.hpp
+    utilities/blueprint_utilities.hpp
     utilities/conduit_memory.hpp
     utilities/conduit_traits.hpp
-    utilities/blueprint_utilities.hpp
-    utilities/BlendData.hpp
-    utilities/CoordsetBlender.hpp
-    utilities/CoordsetExtents.hpp
-    utilities/CoordsetSlicer.hpp
-    utilities/ExtractZones.hpp
-    utilities/ExtractZonesAndMatsetPolyhedral.hpp
-    utilities/ExtrudeMesh.hpp
-    utilities/FieldBlender.hpp
-    utilities/FieldSlicer.hpp
-    utilities/IndexingPolicies.hpp
-    utilities/MakePointMesh.hpp
-    utilities/MakePolyhedralTopology.hpp
-    utilities/MakeZoneCenters.hpp
-    utilities/MakeZoneVolumes.hpp
-    utilities/MakeUnstructured.hpp
-    utilities/MatsetSlicer.hpp
-    utilities/MergeCoordsetPoints.hpp
-    utilities/MergeMeshes.hpp
-    utilities/MergePolyhedralFaces.hpp
-    utilities/MinMax.hpp
-    utilities/NodeToZoneRelationBuilder.hpp
-    utilities/PrimalAdaptor.hpp
-    utilities/RecenterField.hpp
-    utilities/SelectedZones.hpp
-    utilities/TopologyMapper.hpp
     utilities/utilities.hpp
-    utilities/Unique.hpp
-    utilities/VariableShape.hpp
-    utilities/ZoneListBuilder.hpp
     views/dispatch_coordset.hpp
     views/dispatch_material.hpp
     views/dispatch_rectilinear_topology.hpp
@@ -79,6 +50,35 @@ set(bump_headers
     views/UnstructuredTopologyPolyhedralView.hpp
     views/UnstructuredTopologySingleShapeView.hpp
     views/view_traits.hpp
+    BlendData.hpp
+    CoordsetBlender.hpp
+    CoordsetExtents.hpp
+    CoordsetSlicer.hpp
+    ExtractZonesAndMatsetPolyhedral.hpp
+    ExtractZones.hpp
+    ExtrudeMesh.hpp
+    FieldBlender.hpp
+    FieldSlicer.hpp
+    IndexingPolicies.hpp
+    MakePointMesh.hpp
+    MakePolyhedralTopology.hpp
+    MakeUnstructured.hpp
+    MakeZoneCenters.hpp
+    MakeZoneVolumes.hpp
+    MatsetSlicer.hpp
+    MergeCoordsetPoints.hpp
+    MergeMeshes.hpp
+    MergePolyhedralFaces.hpp
+    MinMax.hpp
+    NodeToZoneRelationBuilder.hpp
+    Options.hpp
+    PrimalAdaptor.hpp
+    RecenterField.hpp
+    SelectedZones.hpp
+    TopologyMapper.hpp
+    Unique.hpp
+    VariableShape.hpp
+    ZoneListBuilder.hpp
     )
 
 set(bump_sources

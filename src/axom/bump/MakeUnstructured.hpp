@@ -17,8 +17,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 /**
  * \brief Make an unstructured representation of a structured topology.
  *
@@ -46,7 +44,8 @@ public:
                       conduit::Node &mesh)
   {
     const std::string type = topo.fetch_existing("type").as_string();
-    ConduitAllocateThroughAxom<ExecSpace> c2a;
+    namespace utils = axom::bump::utilities;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     mesh["coordsets"][coordset.name()].set_external(coordset);
     conduit::Node &n_newtopo = mesh["topologies"][topoName];
@@ -85,9 +84,9 @@ public:
           n_newoffsets.set(conduit::DataType::index_t(nzones));
 
           // Make views for the mesh data.
-          auto connView = make_array_view<conduit::index_t>(n_newconn);
-          auto sizesView = make_array_view<conduit::index_t>(n_newsizes);
-          auto offsetsView = make_array_view<conduit::index_t>(n_newoffsets);
+          auto connView = utils::make_array_view<conduit::index_t>(n_newconn);
+          auto sizesView = utils::make_array_view<conduit::index_t>(n_newsizes);
+          auto offsetsView = utils::make_array_view<conduit::index_t>(n_newoffsets);
 
           makeUnstructured(ptsPerZone, topoView, connView, sizesView, offsetsView);
         });
@@ -133,7 +132,6 @@ private:
   }
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

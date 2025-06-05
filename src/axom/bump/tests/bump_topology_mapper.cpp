@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdlib>
 
+namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 namespace views = axom::bump::views;
 
@@ -380,7 +381,7 @@ private:
     //_bump_utilities_extrudemesh_begin
     // Make new VFs via mapper.
     const int coarseNodesInZ = 4;
-    using SrcExtruder = utils::ExtrudeMesh<ExecSpace, SrcTopologyView, SrcCoordsetView>;
+    using SrcExtruder = bump::ExtrudeMesh<ExecSpace, SrcTopologyView, SrcCoordsetView>;
     SrcExtruder srcExt(srcTopo, srcCoordset);
     conduit::Node n_opts;
     n_opts["nz"] = coarseNodesInZ;
@@ -393,7 +394,7 @@ private:
     srcExt.execute(n_dev, n_opts, n_dev);
     //_bump_utilities_extrudemesh_end
 
-    using TargetExtruder = utils::ExtrudeMesh<ExecSpace, TargetTopologyView, TargetCoordsetView>;
+    using TargetExtruder = bump::ExtrudeMesh<ExecSpace, TargetTopologyView, TargetCoordsetView>;
     TargetExtruder targetExt(targetTopo, targetCoordset);
     int fineNodesInZ = (coarseNodesInZ - 1) * refinement + 1;
     conduit::Node n_opts2;
@@ -443,7 +444,7 @@ private:
     // _bump_utilities_topologymapper_begin
     // Make new VFs via mapper.
     using Mapper =
-      utils::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
+      bump::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
     Mapper mapper(srcTopo, srcCoordset, srcMatset, targetTopo, targetCoordset);
     conduit::Node n_opts;
     n_opts["source/matsetName"] = "postmir_matset";
@@ -489,7 +490,7 @@ private:
 
     // Make new VFs via mapper.
     using Mapper =
-      utils::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
+      bump::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
     Mapper mapper(srcTopo, srcCoordset, srcMatset, targetTopo, targetCoordset);
     conduit::Node n_opts;
     n_opts["source/matsetName"] = "epm_matset";
@@ -515,9 +516,9 @@ private:
 
     // Turn the source mesh "epm" polyhedral and store in phmesh.
     conduit::Node &n_phTopo = n_dev["topologies/phmesh"];
-    utils::MakePolyhedralTopology<ExecSpace, SrcTopologyView> mph(srcTopo);
+    bump::MakePolyhedralTopology<ExecSpace, SrcTopologyView> mph(srcTopo);
     mph.execute(n_srcTopo, n_phTopo);
-    utils::MergePolyhedralFaces<ExecSpace, conduit::index_t>::execute(n_phTopo);
+    bump::MergePolyhedralFaces<ExecSpace, conduit::index_t>::execute(n_phTopo);
 
     // Copy epm_matset to phmatset.
     utils::copy<ExecSpace>(n_dev["matsets/ph_matset"], n_dev["matsets/epm_matset"]);
@@ -553,7 +554,7 @@ private:
 
     // Make new VFs via mapper.
     using Mapper =
-      utils::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
+      bump::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
     Mapper mapper(srcTopo, srcCoordset, srcMatset, targetTopo, targetCoordset);
     conduit::Node n_opts;
     n_opts["source/matsetName"] = "ph_matset";

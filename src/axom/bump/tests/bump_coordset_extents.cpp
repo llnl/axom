@@ -10,6 +10,7 @@
 #include "axom/primal.hpp"
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
+namespace bump = axom::bump;
 namespace utils = axom::bump::utilities;
 namespace views = axom::bump::views;
 
@@ -40,7 +41,7 @@ coords:
 
     auto coordsetView = views::make_uniform_coordset<2>::view(n_coordset["coords"]);
     using CoordsetView = decltype(coordsetView);
-    utils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
+    bump::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
     double extents[4];
     exts.execute(extents);
 
@@ -75,7 +76,7 @@ coords:
 
     auto coordsetView = views::make_uniform_coordset<3>::view(n_coordset["coords"]);
     using CoordsetView = decltype(coordsetView);
-    utils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
+    bump::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
     double extents[6];
     exts.execute(extents);
 
@@ -103,7 +104,7 @@ coords:
 
     auto coordsetView = views::make_rectilinear_coordset<double, 2>::view(n_coordset["coords"]);
     using CoordsetView = decltype(coordsetView);
-    utils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
+    bump::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
     double extents[4];
     exts.execute(extents);
 
@@ -130,7 +131,7 @@ coords:
 
     auto coordsetView = views::make_rectilinear_coordset<double, 3>::view(n_coordset["coords"]);
     using CoordsetView = decltype(coordsetView);
-    utils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
+    bump::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
     double extents[6];
     exts.execute(extents);
 
@@ -158,7 +159,7 @@ coords:
 
     auto coordsetView = views::make_explicit_coordset<double, 2>::view(n_coordset["coords"]);
     using CoordsetView = decltype(coordsetView);
-    utils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
+    bump::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
     double extents[4];
     exts.execute(extents);
 
@@ -185,7 +186,7 @@ coords:
 
     auto coordsetView = views::make_explicit_coordset<double, 3>::view(n_coordset["coords"]);
     using CoordsetView = decltype(coordsetView);
-    utils::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
+    bump::CoordsetExtents<ExecSpace, CoordsetView> exts(coordsetView);
     double extents[6];
     exts.execute(extents);
 

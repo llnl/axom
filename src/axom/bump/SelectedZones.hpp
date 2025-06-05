@@ -13,8 +13,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 
 /*!
  * \brief This class creates a view containing sorted selected zones, given
@@ -169,7 +167,6 @@ protected:
   bool m_sorted;
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

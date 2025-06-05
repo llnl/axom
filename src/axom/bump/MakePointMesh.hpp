@@ -7,16 +7,14 @@
 
 #include "axom/core.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
-#include "axom/bump/utilities/MakeZoneCenters.hpp"
-#include "axom/bump/utilities/Options.hpp"
+#include "axom/bump/MakeZoneCenters.hpp"
+#include "axom/bump/Options.hpp"
 
 #include <conduit/conduit.hpp>
 
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 
 /*!
@@ -84,10 +82,10 @@ struct MakePointMesh
     namespace utils = axom::bump::utilities;
     using ConnectivityType = typename TopologyView::ConnectivityType;
     utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
-    utils::Options opts(n_options);
+    Options opts(n_options);
 
     // Make zone centers to use for the new coordset.
-    utils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView,
+    MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView,
                                                                        m_coordsetView);
     conduit::Node zcfield;
     zc.execute(selectedZonesView, n_topology, n_coordset, zcfield);
@@ -139,7 +137,6 @@ private:
   CoordsetView m_coordsetView;
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 

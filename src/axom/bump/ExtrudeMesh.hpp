@@ -17,8 +17,6 @@ namespace axom
 {
 namespace bump
 {
-namespace utilities
-{
 
 /*!
  * \brief Extrude 2D Blueprint topologies that consist of tri/quad zones.
@@ -460,7 +458,6 @@ private:
   CoordsetView m_coordsetView;
 };
 
-}  // namespace utilities
 }  // namespace bump
 }  // namespace axom
 

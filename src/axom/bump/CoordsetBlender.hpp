@@ -6,10 +6,10 @@
 #define AXOM_BUMP_COORDSET_BLENDER_HPP_
 
 #include "axom/core.hpp"
-#include "axom/bump/utilities/FieldBlender.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
-#include "axom/bump/utilities/BlendData.hpp"
+#include "axom/bump/FieldBlender.hpp"
+#include "axom/bump/BlendData.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 #include "axom/slic.hpp"
@@ -19,8 +19,6 @@
 namespace axom
 {
 namespace bump
-{
-namespace utilities
 {
 /*!
  * \accelerated
@@ -145,7 +143,6 @@ public:
   }
 };
 
-}  // end namespace utilities
 }  // end namespace bump
 }  // end namespace axom
 
