@@ -61,6 +61,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds a method to determine if a point is contained within a Tetrahedron.
 - The `primal::BoundingBox` class' `expand()` and `shift()` methods were modified so they do
   nothing when called on invalid bounding boxes.
+- Updates to [MFEM version 4.8.0][https://github.com/mfem/mfem/releases/tag/v4.8]
 
 ###  Fixed
 - Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
