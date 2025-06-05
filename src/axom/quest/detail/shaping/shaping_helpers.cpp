@@ -208,13 +208,13 @@ void FCT_correct(const double* M,     // Mass matrix
   using StackArray = axom::StackArray<double, ND>;
   SLIC_ASSERT(s <= ND);
 
-  // Q0 solutions can't be adjusted conservatively. It's what it is.
+  // Q0 solutions can't be adjusted conservatively. It is what it is.
   if(s == 1)
   {
     return;
   }
 
-  // Compute the lumped mass matrix in ML:  GetRowSums(M, s, s, ML);
+  // Compute the lumped mass matrix in ML:  M.GetRowSums(ML);
   StackArray ML;
   for(int r = 0; r < s; ++r)
   {

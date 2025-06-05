@@ -614,22 +614,24 @@ private:
   {
     AXOM_ANNOTATE_SCOPE("computeVolumeFractionsForMaterial");
 
+    const bool use_batch_lu = false;
+
     // Retrieve the inout samples QFunc
     SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
     mfem::QuadratureFunction* inout = m_inoutMaterialQFuncs.Get(matField);
 
-    const auto& ir = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
-    const int sampleOrder = ir.GetOrder();
-    const int sampleNQ = ir.GetNPoints();
+    const auto& sampleIR = inout->GetSpace()->GetIntRule(0);  // assume all elements are the same
+    const int sampleOrder = sampleIR.GetOrder();
+    const int sampleNQ = sampleIR.GetNPoints();
     const int sampleSZ = inout->GetSpace()->GetSize();
 
     // extract some properties from computational mesh
     mfem::Mesh* mesh = m_dc->GetMesh();
     const int dim = mesh->Dimension();
     const int NE = mesh->GetNE();
-    const auto geom = NE > 0 ? mesh->GetElementGeometry(0) : mfem::Geometry::INVALID;
+    const auto geom = mesh->GetTypicalElementGeometry();
 
-    auto ir_per_dim = [=](int sampleNQ, mfem::Geometry::Type geom) -> std::string {
+    auto samples_per_dim = [=](int sampleNQ, mfem::Geometry::Type geom) -> std::string {
       switch(geom)
       {
       case mfem::Geometry::SQUARE:
@@ -644,11 +646,11 @@ private:
     // print info about sampling on rank 0
     // TODO: mpi reduce this for stats on all ranks
     SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
-                                     "In computeVolumeFractions(): sample order {} | "
-                                     "sample num qpts {}{} |  total samples {:L}",
-                                     sampleOrder,
+                                     "In computeVolumeFractions(): num samples per element {}{} | "
+                                     "sample polynomial order {} | total samples {:L}",
                                      sampleNQ,
-                                     ir_per_dim(sampleNQ, geom),
+                                     samples_per_dim(sampleNQ, geom),
+                                     sampleOrder,
                                      sampleSZ));
 
     SLIC_INFO_ROOT(
@@ -662,7 +664,7 @@ private:
                                                                   dim,
                                                                   mfem::BasisType::Positive);
     const mfem::FiniteElementSpace* fes = vf->FESpace();
-    const int dofs = fes->GetFE(0)->GetDof();
+    const int dofs = fes->GetTypicalFE()->GetDof();
 
     // access or compute the mass matrix
     mfem::DenseTensor* mass_mat {nullptr};
@@ -682,15 +684,29 @@ private:
 
       const int sz = mass_mat->TotalSize();
       mfem::ConstantCoefficient one_coef(1.0);
-      mfem::MassIntegrator mass_integrator(one_coef, &ir);
+      mfem::MassIntegrator mass_integrator(one_coef);
 
-      // wrap mass_mat data as vector for AssembleEA call
-      // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
-      mfem::Vector mass_vec;
-      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
-      mass_vec.SetSize(sz);
-      mass_integrator.AssembleEA(*fes, mass_vec, false);
-      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+      if(use_batch_lu)
+      {
+        // wrap mass_mat data as vector for AssembleEA call
+        // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
+        mfem::Vector mass_vec;
+        mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+        mass_vec.SetSize(sz);
+        mass_integrator.AssembleEA(*fes, mass_vec, false);
+        mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+      }
+      else
+      {
+        for(int i = 0; i < NE; ++i)
+        {
+          mfem::DenseMatrix elem_mass_mat(mass_mat->HostReadWrite() + i * dofs * dofs, dofs, dofs);
+
+          auto* T = mesh->GetElementTransformation(i);
+          auto* el = fes->GetFE(i);
+          mass_integrator.AssembleElementMatrix(*el, *T, elem_mass_mat);
+        }
+      }
 
       m_inoutTensors.Register(mass_matrix_name, mass_mat, true);
     }
@@ -717,9 +733,12 @@ private:
       mass_mat_inv = new mfem::DenseTensor(*mass_mat);
       mass_mat_pivots = new mfem::Array<int>(dofs * NE);
 
-      mass_mat_inv->ReadWrite();
-      mass_mat_pivots->Write();
-      mfem::BatchLUFactor(*mass_mat_inv, *mass_mat_pivots);
+      if(use_batch_lu)
+      {
+        mass_mat_inv->ReadWrite();
+        mass_mat_pivots->Write();
+        mfem::BatchLUFactor(*mass_mat_inv, *mass_mat_pivots);
+      }
 
       m_inoutTensors.Register(minv_name, mass_mat_inv, true);
       m_inoutArrays.Register(pivots_name, mass_mat_pivots, true);
@@ -766,17 +785,31 @@ private:
         b.ReadWrite();
 
         mfem::QuadratureFunctionCoefficient qfc(*inout);
-        mfem::DomainLFIntegrator rhs(qfc);
-        rhs.SetIntRule(&ir);
+        mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
 
-        mfem::Array<int> elem_marker(fes->GetNE());
-        elem_marker.HostWrite();
-        elem_marker = 1;
-        elem_marker.ReadWrite();
-        rhs.AssembleDevice(*fes, elem_marker, b);
+        if(use_batch_lu)
+        {
+          mfem::Array<int> elem_marker(fes->GetNE());
+          elem_marker.HostWrite();
+          elem_marker = 1;
+          elem_marker.ReadWrite();
+          rhs.AssembleDevice(*fes, elem_marker, b);
+        }
+        else
+        {
+          mfem::Vector bb;
+          for(int i = 0; i < NE; ++i)
+          {
+            bb.SetDataAndSize(&b(i * dofs), dofs);
+            auto* T = mesh->GetElementTransformation(i);
+            auto* el = fes->GetFE(i);
+            rhs.AssembleRHSElementVect(*el, *T, bb);
+          }
+        }
       }
       inout->HostReadWrite();
 
+      if(use_batch_lu)
       {
         AXOM_ANNOTATE_SCOPE("batch lu solve");
 
@@ -787,6 +820,25 @@ private:
         (*vf) = b;
         vf->ReadWrite();
         mfem::BatchLUSolve(*mass_mat_inv, *mass_mat_pivots, *vf);
+      }
+      else
+      {
+        mfem::Vector bb;
+        mfem::Vector x(dofs);
+        mfem::Array<int> vf_dofs;
+        mfem::DenseMatrixInverse mInv;
+
+        for(int i = 0; i < NE; ++i)
+        {
+          bb.SetDataAndSize(&b(i * dofs), dofs);
+
+          mfem::DenseMatrix elem_mass_mat(mass_mat->HostReadWrite() + i * dofs * dofs, dofs, dofs);
+          mInv.Factor(elem_mass_mat);
+
+          mInv.Mult(bb, x);
+          fes->GetElementDofs(i, vf_dofs);
+          vf->SetSubVector(vf_dofs, x);
+        }
       }
       mass_mat_inv->HostReadWrite();
       mass_mat_pivots->HostReadWrite();
