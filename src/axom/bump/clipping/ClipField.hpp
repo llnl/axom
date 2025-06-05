@@ -129,7 +129,8 @@ inline bool color1Selected(int selection) { return axom::utilities::bitIsSet(sel
 AXOM_HOST_DEVICE
 inline bool generatedPointIsSelected(unsigned char color, int selection)
 {
-  return color == axom::bump::clipping::visit::NOCOLOR || (color0Selected(selection) && color == axom::bump::clipping::visit::COLOR0) ||
+  return color == axom::bump::clipping::visit::NOCOLOR ||
+    (color0Selected(selection) && color == axom::bump::clipping::visit::COLOR0) ||
     (color1Selected(selection) && color == axom::bump::clipping::visit::COLOR1);
 }
 
@@ -529,11 +530,10 @@ struct StridedStructuredFields
    * \param n_field The field being sliced.
    * \param n_newField The node that will contain the new field.
    */
-  static bool sliceElementField(
-    const TopologyView &AXOM_UNUSED_PARAM(topologyView),
-    const axom::bump::SliceData &AXOM_UNUSED_PARAM(slice),
-    const conduit::Node &AXOM_UNUSED_PARAM(n_field),
-    conduit::Node &AXOM_UNUSED_PARAM(n_newField))
+  static bool sliceElementField(const TopologyView &AXOM_UNUSED_PARAM(topologyView),
+                                const axom::bump::SliceData &AXOM_UNUSED_PARAM(slice),
+                                const conduit::Node &AXOM_UNUSED_PARAM(n_field),
+                                conduit::Node &AXOM_UNUSED_PARAM(n_newField))
   {
     return false;
   }
@@ -628,9 +628,8 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
          indexing.m_topoIndexing.m_strides != indexing.m_fieldIndexing.m_strides)
       {
         // Blend the field.
-        axom::bump::
-          FieldBlender<ExecSpace, axom::bump::SelectSubsetPolicy, IndexingPolicy>
-            b(indexing);
+        axom::bump::FieldBlender<ExecSpace, axom::bump::SelectSubsetPolicy, IndexingPolicy> b(
+          indexing);
         b.execute(blend, n_field, n_newField);
         handled = true;
       }
@@ -1434,7 +1433,7 @@ private:
               << std::endl;
     detail::printHost("fragmentData.m_fragmentOffsetsView", fragmentData.m_fragmentOffsetsView);
     detail::printHost("fragmentData.m_fragmentSizeOffsetsView",
-                        fragmentData.m_fragmentSizeOffsetsView);
+                      fragmentData.m_fragmentSizeOffsetsView);
     std::cout << "-------------------------------------------------------------"
                  "-----------"
               << std::endl;
@@ -2003,9 +2002,7 @@ private:
   {
     AXOM_ANNOTATE_SCOPE("makeCoordset");
     // _bump_utilities_coordsetblender_begin
-    axom::bump::
-      CoordsetBlender<ExecSpace, CoordsetView, axom::bump::SelectSubsetPolicy>
-        cb;
+    axom::bump::CoordsetBlender<ExecSpace, CoordsetView, axom::bump::SelectSubsetPolicy> cb;
     cb.execute(blend, m_coordsetView, n_coordset, n_newCoordset);
     // _bump_utilities_coordsetblender_end
   }
@@ -2055,18 +2052,16 @@ private:
       else if(association == "vertex")
       {
         // Conditionally support strided-structured.
-        bool handled =
-          detail::StridedStructuredFields<ss, ExecSpace, TopologyView>::blendVertexField(
-            m_topologyView,
-            blend,
-            n_field,
-            n_out_fields[it->second]);
+        bool handled = detail::StridedStructuredFields<ss, ExecSpace, TopologyView>::blendVertexField(
+          m_topologyView,
+          blend,
+          n_field,
+          n_out_fields[it->second]);
 
         if(!handled)
         {
           // Blend the field normally.
-          axom::bump::FieldBlender<ExecSpace, axom::bump::SelectSubsetPolicy>
-            b;
+          axom::bump::FieldBlender<ExecSpace, axom::bump::SelectSubsetPolicy> b;
           b.execute(blend, n_field, n_out_fields[it->second]);
         }
 

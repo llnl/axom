@@ -57,8 +57,7 @@ int runMIR_tri(const conduit::Node &hostMesh, const conduit::Node &options, cond
   conduit::Node deviceResult;
   auto coordsetView = views::make_explicit_coordset<float, 2>::view(n_coordset);
   using CoordsetView = decltype(coordsetView);
-  using TopologyView =
-    views::UnstructuredTopologySingleShapeView<views::TriShape<int>>;
+  using TopologyView = views::UnstructuredTopologySingleShapeView<views::TriShape<int>>;
   TopologyView topologyView(connView);
 
   using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
@@ -118,8 +117,7 @@ int runMIR_quad(const conduit::Node &hostMesh, const conduit::Node &options, con
   conduit::Node deviceResult;
   auto coordsetView = views::make_explicit_coordset<float, 2>::view(n_coordset);
   using CoordsetView = decltype(coordsetView);
-  using TopologyView =
-    views::UnstructuredTopologySingleShapeView<views::QuadShape<int>>;
+  using TopologyView = views::UnstructuredTopologySingleShapeView<views::QuadShape<int>>;
   TopologyView topologyView(connView);
 
   using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
@@ -178,8 +176,7 @@ int runMIR_hex(const conduit::Node &hostMesh, const conduit::Node &options, cond
   conduit::Node deviceResult;
   auto coordsetView = views::make_explicit_coordset<float, 3>::view(n_coordset);
   using CoordsetView = decltype(coordsetView);
-  using TopologyView =
-    views::UnstructuredTopologySingleShapeView<views::HexShape<int>>;
+  using TopologyView = views::UnstructuredTopologySingleShapeView<views::HexShape<int>>;
   TopologyView topologyView(connView);
 
   using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;

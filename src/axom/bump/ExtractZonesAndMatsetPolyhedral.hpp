@@ -198,7 +198,8 @@ protected:
 
     conduit::Node &n_conn = n_newTopo["elements/connectivity"];
     n_conn.set_allocator(c2a.getConduitAllocatorID());
-    n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones * FacesPerHex));
+    n_conn.set(
+      conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numSelectedZones * FacesPerHex));
     auto connView = utils::make_array_view<ConnectivityType>(n_conn);
 
     conduit::Node &n_sizes = n_newTopo["elements/sizes"];
@@ -213,7 +214,8 @@ protected:
 
     conduit::Node &n_se_conn = n_newTopo["subelements/connectivity"];
     n_se_conn.set_allocator(c2a.getConduitAllocatorID());
-    n_se_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount * PointsPerQuad));
+    n_se_conn.set(
+      conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, faceCount * PointsPerQuad));
     auto seConnView = utils::make_array_view<ConnectivityType>(n_se_conn);
 
     conduit::Node &n_se_sizes = n_newTopo["subelements/sizes"];

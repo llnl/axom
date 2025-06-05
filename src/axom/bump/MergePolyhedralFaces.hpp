@@ -220,8 +220,7 @@ public:
 
       conduit::Node n_new_elem_conn;
       n_new_elem_conn.set_allocator(c2a.getConduitAllocatorID());
-      n_new_elem_conn.set(
-        conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalConnSize));
+      n_new_elem_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, totalConnSize));
       auto new_elem_conn = utils::make_array_view<ConnectivityType>(n_new_elem_conn);
 
       conduit::Node n_new_elem_offsets;

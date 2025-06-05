@@ -46,7 +46,7 @@ struct braid2d_mat_test
                    const std::string &name,
                    bool selectedZones = false,
                    bool pointMesh = false)
-  {   
+  {
     // Create the data
     conduit::Node hostMesh, deviceMesh;
     initialize(type, mattype, hostMesh);
@@ -56,10 +56,8 @@ struct braid2d_mat_test
     // _elvira_mir_start
     namespace views = axom::bump::views;
     // Make views.
-    auto coordsetView =
-      views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);
-    auto topologyView =
-      views::make_uniform_topology<2>::view(deviceMesh["topologies/mesh"]);
+    auto coordsetView = views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);
+    auto topologyView = views::make_uniform_topology<2>::view(deviceMesh["topologies/mesh"]);
     using CoordsetView = decltype(coordsetView);
     using TopologyView = decltype(topologyView);
     using IndexingPolicy = typename TopologyView::IndexingPolicy;

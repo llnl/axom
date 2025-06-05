@@ -189,7 +189,7 @@ public:
         // Make a hash from the narrowed ids
         void *ptr = static_cast<void *>(sorted);
         KeyType k0 = axom::bump::utilities::hash_bytes(static_cast<std::uint8_t *>(ptr),
-                                                      n * sizeof(std::uint32_t));
+                                                       n * sizeof(std::uint32_t));
         retval = KeyIDHash | (k0 & PayloadMask);
       }
       else if(n > 0)

@@ -290,8 +290,7 @@ private:
     // Get the indexing policy from the TopologyView type.
     using IndexingPolicy = typename TopologyView::IndexingPolicy;
 
-    auto matsetView =
-      views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_matset);
+    auto matsetView = views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_matset);
     using MatsetView = decltype(matsetView);
 
     // Do MIR on the mesh.
@@ -366,8 +365,7 @@ private:
       views::make_unstructured_single_shape_topology<SrcShapeType>::view(n_src_topology);
     using SrcTopologyView = decltype(srcTopologyView);
 
-    auto srcMatsetView =
-      views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_src_matset);
+    auto srcMatsetView = views::make_unibuffer_matset<std::int64_t, double, 4>::view(n_src_matset);
     using SrcMatsetView = decltype(srcMatsetView);
 
     // Wrap the target mesh (fine)
@@ -381,8 +379,8 @@ private:
     using TargetTopologyView = decltype(targetTopologyView);
 
     // Make new a new matset on the target topology to record material overlaps.
-    using Mapper =
-      axom::bump::TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
+    using Mapper = axom::bump::
+      TopologyMapper<ExecSpace, SrcTopologyView, SrcCoordsetView, SrcMatsetView, TargetTopologyView, TargetCoordsetView>;
     Mapper mapper(srcTopologyView,
                   srcCoordsetView,
                   srcMatsetView,

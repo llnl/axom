@@ -63,10 +63,8 @@ void braid2d_mat_test(const std::string &type, const std::string &mattype, const
   TestApp.saveVisualization(name + "_orig", hostMesh);
 
   // Make views.
-  auto coordsetView =
-    views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);
-  auto topologyView =
-    views::make_uniform_topology<2>::view(deviceMesh["topologies/mesh"]);
+  auto coordsetView = views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);
+  auto topologyView = views::make_uniform_topology<2>::view(deviceMesh["topologies/mesh"]);
   using CoordsetView = decltype(coordsetView);
   using TopologyView = decltype(topologyView);
 

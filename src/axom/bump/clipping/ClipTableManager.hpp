@@ -460,7 +460,10 @@ private:
    *
    * \return An index into the m_tables array.
    */
-  constexpr static size_t shapeToIndex(size_t shape) { return shape - axom::bump::clipping::visit::ST_MIN; }
+  constexpr static size_t shapeToIndex(size_t shape)
+  {
+    return shape - axom::bump::clipping::visit::ST_MIN;
+  }
 
   /*!
    * \brief Load the clipping table for a shape.

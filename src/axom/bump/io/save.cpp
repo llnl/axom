@@ -147,8 +147,7 @@ static void save_unstructured_vtk(const conduit::Node &mesh, const std::string &
   }
   else
   {
-    const auto type =
-      ShapeID_to_vtk_cell(views::shapeNameToID(elements["shape"].as_string()));
+    const auto type = ShapeID_to_vtk_cell(views::shapeNameToID(elements["shape"].as_string()));
     for(size_t i = 0; i < num_cells; ++i)
     {
       fprintf(file, "%d\n", type);
@@ -183,4 +182,3 @@ void save_vtk(const conduit::Node &mesh, const std::string &path)
 }  // end namespace io
 }  // end namespace bump
 }  // end namespace axom
-

@@ -90,26 +90,23 @@ struct test_copy_braid
 
     constexpr double eps = 1.e-7;
 
-    auto x = bump::MinMax<ExecSpace, double>::execute(
-      deviceMesh["coordsets/coords/values/x"]);
+    auto x = bump::MinMax<ExecSpace, double>::execute(deviceMesh["coordsets/coords/values/x"]);
     //std::cout << std::setw(16) << "x={" << x.first << ", " << x.second << "}\n";
     EXPECT_NEAR(x.first, -10., eps);
     EXPECT_NEAR(x.second, 10., eps);
 
-    auto y = bump::MinMax<ExecSpace, double>::execute(
-      deviceMesh["coordsets/coords/values/y"]);
+    auto y = bump::MinMax<ExecSpace, double>::execute(deviceMesh["coordsets/coords/values/y"]);
     //std::cout << std::setw(16) << "y={" << y.first << ", " << y.second << "}\n";
     EXPECT_NEAR(y.first, -10., eps);
     EXPECT_NEAR(y.second, 10., eps);
 
-    auto c = bump::MinMax<ExecSpace, double>::execute(
-      deviceMesh["topologies/mesh/elements/connectivity"]);
+    auto c =
+      bump::MinMax<ExecSpace, double>::execute(deviceMesh["topologies/mesh/elements/connectivity"]);
     //std::cout << std::setw(16) << "conn={" << c.first << ", " << c.second << "}\n";
     EXPECT_NEAR(c.first, 0., eps);
     EXPECT_NEAR(c.second, 999., eps);
 
-    auto r = bump::MinMax<ExecSpace, double>::execute(
-      deviceMesh["fields/radial/values"]);
+    auto r = bump::MinMax<ExecSpace, double>::execute(deviceMesh["fields/radial/values"]);
     //std::cout << std::setw(16) << "radial={" << r.first << ", " << r.second << "}\n";
     EXPECT_NEAR(r.first, 19.2450089729875, eps);
     EXPECT_NEAR(r.second, 173.205080756888, eps);
@@ -175,7 +172,10 @@ TEST(bump_blueprint_utilities, make_unstructured_seq) { test_make_unstructured<s
 TEST(bump_blueprint_utilities, make_unstructured_omp) { test_make_unstructured<omp_exec>::test(); }
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
-TEST(bump_blueprint_utilities, make_unstructured_cuda) { test_make_unstructured<cuda_exec>::test(); }
+TEST(bump_blueprint_utilities, make_unstructured_cuda)
+{
+  test_make_unstructured<cuda_exec>::test();
+}
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(bump_blueprint_utilities, make_unstructured_hip) { test_make_unstructured<hip_exec>::test(); }
@@ -331,12 +331,12 @@ struct test_extractzones
     EXPECT_TRUE(compare_views(
       y.view(),
       utils::make_array_view<conduit::float64>(newHostMesh["coordsets/coords/values/y"])));
-    EXPECT_TRUE(compare_views(
-      zonal.view(),
-      utils::make_array_view<conduit::float64>(newHostMesh["fields/zonal/values"])));
-    EXPECT_TRUE(compare_views(
-      nodal.view(),
-      utils::make_array_view<conduit::float64>(newHostMesh["fields/nodal/values"])));
+    EXPECT_TRUE(
+      compare_views(zonal.view(),
+                    utils::make_array_view<conduit::float64>(newHostMesh["fields/zonal/values"])));
+    EXPECT_TRUE(
+      compare_views(nodal.view(),
+                    utils::make_array_view<conduit::float64>(newHostMesh["fields/nodal/values"])));
 
     // Do the material too.
     using MatsetView = views::UnibufferMaterialView<conduit::int64, conduit::float64, 3>;
@@ -518,8 +518,10 @@ struct test_extractzones_polyhedral
     using MatsetView = decltype(matsetView);
 
     // Pull out selected zones as polyhedral zones
-    bump::ExtractZonesAndMatsetPolyhedral<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>
-      extract(topologyView, coordsetView, matsetView);
+    bump::ExtractZonesAndMatsetPolyhedral<ExecSpace, IndexingPolicy, CoordsetView, MatsetView> extract(
+      topologyView,
+      coordsetView,
+      matsetView);
     conduit::Node newDeviceMesh, options;
     extract.execute(selectedZones.view(), deviceMesh, options, newDeviceMesh);
 
@@ -1061,12 +1063,12 @@ struct test_makepointmesh
                       const axom::Array<conduit::int64> &sizes,
                       const axom::Array<conduit::int64> &offsets)
   {
-    EXPECT_TRUE(compare_views(
-      x.view(),
-      utils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/x"])));
-    EXPECT_TRUE(compare_views(
-      y.view(),
-      utils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/y"])));
+    EXPECT_TRUE(
+      compare_views(x.view(),
+                    utils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/x"])));
+    EXPECT_TRUE(
+      compare_views(y.view(),
+                    utils::make_array_view<conduit::float64>(n_mesh["coordsets/points/values/y"])));
     EXPECT_TRUE(compare_views(connectivity.view(),
                               utils::make_array_view<conduit::int64>(
                                 n_mesh["topologies/pointmesh/elements/connectivity"])));

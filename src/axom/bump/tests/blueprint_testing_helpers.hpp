@@ -740,7 +740,7 @@ protected:
   std::vector<std::string> m_rebaseline;
 };
 
-} // end namespace testing
-} // end namespace blueprint
-} // end namespace axom
+}  // end namespace testing
+}  // end namespace blueprint
+}  // end namespace axom
 #endif

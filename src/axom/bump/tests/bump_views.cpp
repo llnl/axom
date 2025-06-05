@@ -294,8 +294,9 @@ struct test_node_to_arrayview
       n_data.set(conduit::DataType(dtype, n));
 
       int sumValues = 0;
-      axom::bump::views::Node_to_ArrayView(n_data,
-                                          [&](auto dataView) { sumValues = testBody(dataView, n); });
+      axom::bump::views::Node_to_ArrayView(n_data, [&](auto dataView) {
+        sumValues = testBody(dataView, n);
+      });
 
       EXPECT_EQ(sumValues, sum(n));
     }

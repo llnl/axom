@@ -163,8 +163,7 @@ struct test_Elvira3D
     //--------------------------------------------------------------------------
     // Compute volumes for original mesh as a field.
     AXOM_ANNOTATE_BEGIN("volume");
-    bump::MakeZoneVolumes<ExecSpace, TopologyView, CoordsetView> origZV(topologyView,
-                                                                           coordsetView);
+    bump::MakeZoneVolumes<ExecSpace, TopologyView, CoordsetView> origZV(topologyView, coordsetView);
     origZV.execute(n_topology, n_coordset, deviceMesh["fields/volume"]);
 
     //--------------------------------------------------------------------------
@@ -180,7 +179,7 @@ struct test_Elvira3D
     using MirTopologyView = decltype(mirTopoView);
 
     bump::MakeZoneVolumes<ExecSpace, MirTopologyView, MirCoordsetView> mirZV(mirTopoView,
-                                                                                mirCoordsetView);
+                                                                             mirCoordsetView);
     mirZV.execute(n_mir_topology, n_mir_coordset, deviceMIRMesh["fields/volume"]);
     AXOM_ANNOTATE_END("volume");
 

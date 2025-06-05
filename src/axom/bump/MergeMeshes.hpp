@@ -1484,7 +1484,8 @@ public:
   template <typename FuncType>
   void dispatchMatset(conduit::Node &n_matset, FuncType &&func)
   {
-    auto matsetView = views::make_unibuffer_matset<IntElement, FloatElement, MAXMATERIALS>::view(n_matset);
+    auto matsetView =
+      views::make_unibuffer_matset<IntElement, FloatElement, MAXMATERIALS>::view(n_matset);
     func(matsetView);
   }
 };

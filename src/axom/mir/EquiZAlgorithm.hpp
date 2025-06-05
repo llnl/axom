@@ -268,7 +268,8 @@ protected:
 
     // _bump_utilities_zlb_begin
     namespace utils = axom::bump::utilities;
-    axom::bump::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView, m_matsetView);
+    axom::bump::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView,
+                                                                         m_matsetView);
     if(n_options.has_child("selectedZones"))
     {
       auto selectedZonesView =
@@ -585,8 +586,7 @@ protected:
         // Create an appropriate coordset view.
         using CSDataType = typename CoordsetView::value_type;
         auto coordsetView =
-          views::make_explicit_coordset<CSDataType, CoordsetView::dimension()>::view(
-            n_InputCoordset);
+          views::make_explicit_coordset<CSDataType, CoordsetView::dimension()>::view(n_InputCoordset);
 
         using ConnectivityType = typename TopologyView::ConnectivityType;
         // Dispatch to an appropriate topo view, taking into account the connectivity

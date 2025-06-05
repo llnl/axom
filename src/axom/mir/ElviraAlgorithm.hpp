@@ -370,8 +370,7 @@ protected:
     {
       // _bump_utilities_makepointmesh_begin
       // Make a point mesh of the selected zones.
-      bump::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(m_topologyView,
-                                                                       m_coordsetView);
+      bump::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(m_topologyView, m_coordsetView);
       pm.execute(cleanZones, n_topology, n_coordset, n_options, n_cleanOutput);
       // _bump_utilities_makepointmesh_end
 
@@ -575,8 +574,7 @@ protected:
     //       these values in making stencils.
     AXOM_ANNOTATE_BEGIN("centroids");
     // _bump_utilities_makezonecenters_begin
-    bump::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView,
-                                                                       m_coordsetView);
+    bump::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView, m_coordsetView);
     conduit::Node n_zcfield;
     zc.execute(n_topo, n_coordset, n_zcfield);
     // _bump_utilities_makezonecenters_end

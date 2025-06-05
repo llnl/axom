@@ -323,8 +323,7 @@ public:
     n_origElem["association"] = "element";
     conduit::Node &n_orig_elem_values = n_origElem["values"];
     n_orig_elem_values.set_allocator(c2a.getConduitAllocatorID());
-    n_orig_elem_values.set(
-      conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numFragments));
+    n_orig_elem_values.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numFragments));
     m_view.m_original_zones = utils::make_array_view<ConnectivityType>(n_orig_elem_values);
 
     if(m_view.m_makePlane)
@@ -640,8 +639,7 @@ public:
     n_origElem["association"] = "element";
     conduit::Node &n_orig_elem_values = n_origElem["values"];
     n_orig_elem_values.set_allocator(c2a.getConduitAllocatorID());
-    n_orig_elem_values.set(
-      conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numFragments));
+    n_orig_elem_values.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numFragments));
     m_view.m_original_zones = utils::make_array_view<ConnectivityType>(n_orig_elem_values);
 
     if(m_view.m_makePlane)
@@ -903,7 +901,8 @@ public:
     axom::Array<axom::IndexType> old2new;
 
     auto newCoordsetView =
-      axom::bump::views::make_explicit_coordset<CoordType, CoordsetView::dimension()>::view(n_coordset);
+      axom::bump::views::make_explicit_coordset<CoordType, CoordsetView::dimension()>::view(
+        n_coordset);
     using NewCoordsetView = decltype(newCoordsetView);
     axom::bump::MergeCoordsetPoints<ExecSpace, NewCoordsetView> mcp(newCoordsetView);
     conduit::Node n_mcp_options;

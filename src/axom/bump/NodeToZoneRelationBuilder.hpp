@@ -268,10 +268,7 @@ public:
       // These are all structured topos of some sort. Make an unstructured representation and recurse.
 
       conduit::Node mesh;
-      MakeUnstructured<ExecSpace>::execute(topo,
-                                                                            coordset,
-                                                                            "newtopo",
-                                                                            mesh);
+      MakeUnstructured<ExecSpace>::execute(topo, coordset, "newtopo", mesh);
 
       // Recurse using the unstructured mesh.
       execute(mesh.fetch_existing("topologies/newtopo"), coordset, relation);

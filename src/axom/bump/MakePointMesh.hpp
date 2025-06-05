@@ -85,8 +85,7 @@ struct MakePointMesh
     Options opts(n_options);
 
     // Make zone centers to use for the new coordset.
-    MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView,
-                                                                       m_coordsetView);
+    MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView, m_coordsetView);
     conduit::Node zcfield;
     zc.execute(selectedZonesView, n_topology, n_coordset, zcfield);
 

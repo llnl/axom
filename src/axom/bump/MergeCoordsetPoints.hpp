@@ -329,7 +329,7 @@ public:
         const void *tptr = static_cast<const void *>(truncated);
         coordNamesView[index] =
           axom::bump::utilities::hash_bytes(static_cast<const std::uint8_t *>(tptr),
-                                           sizeof(Precision) * CoordsetView::dimension());
+                                            sizeof(Precision) * CoordsetView::dimension());
       });
   }
 

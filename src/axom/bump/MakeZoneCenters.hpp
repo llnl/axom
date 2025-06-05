@@ -121,8 +121,7 @@ public:
       // Allocate data in the Conduit node and make a view.
       conduit::Node &comp = n_values[axes[i]];
       comp.set_allocator(c2a.getConduitAllocatorID());
-      comp.set(conduit::DataType(utils::cpp2conduit<value_type>::id,
-                                 outputSize));
+      comp.set(conduit::DataType(utils::cpp2conduit<value_type>::id, outputSize));
       compViews[i] = utils::make_array_view<value_type>(comp);
     }
 

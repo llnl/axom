@@ -372,39 +372,39 @@ private:
                                     n_src_offsets.dtype().number_of_elements() * (nz - 1)));
 
     // Extrude the old arrays into the new arrays.
-    views::FloatNode_to_ArrayView_same(
-      n_src_volume_fractions,
-      n_volume_fractions,
-      [&](auto srcVolumeFractionsView, auto volumeFractionsView) {
-        views::IndexNode_to_ArrayView_same(n_src_material_ids,
-                                                      n_src_indices,
-                                                      n_src_sizes,
-                                                      n_src_offsets,
-                                                      n_material_ids,
-                                                      n_indices,
-                                                      n_sizes,
-                                                      n_offsets,
-                                                      [&](auto srcMaterialIdsView,
-                                                          auto srcIndicesView,
-                                                          auto srcSizesView,
-                                                          auto srcOffsetsView,
-                                                          auto materialIdsView,
-                                                          auto indicesView,
-                                                          auto sizesView,
-                                                          auto offsetsView) {
-                                                        copyMatsetData(srcVolumeFractionsView,
-                                                                       volumeFractionsView,
-                                                                       srcMaterialIdsView,
-                                                                       srcIndicesView,
-                                                                       srcSizesView,
-                                                                       srcOffsetsView,
-                                                                       materialIdsView,
-                                                                       indicesView,
-                                                                       sizesView,
-                                                                       offsetsView,
-                                                                       nz);
-                                                      });
-      });
+    views::FloatNode_to_ArrayView_same(n_src_volume_fractions,
+                                       n_volume_fractions,
+                                       [&](auto srcVolumeFractionsView, auto volumeFractionsView) {
+                                         views::IndexNode_to_ArrayView_same(
+                                           n_src_material_ids,
+                                           n_src_indices,
+                                           n_src_sizes,
+                                           n_src_offsets,
+                                           n_material_ids,
+                                           n_indices,
+                                           n_sizes,
+                                           n_offsets,
+                                           [&](auto srcMaterialIdsView,
+                                               auto srcIndicesView,
+                                               auto srcSizesView,
+                                               auto srcOffsetsView,
+                                               auto materialIdsView,
+                                               auto indicesView,
+                                               auto sizesView,
+                                               auto offsetsView) {
+                                             copyMatsetData(srcVolumeFractionsView,
+                                                            volumeFractionsView,
+                                                            srcMaterialIdsView,
+                                                            srcIndicesView,
+                                                            srcSizesView,
+                                                            srcOffsetsView,
+                                                            materialIdsView,
+                                                            indicesView,
+                                                            sizesView,
+                                                            offsetsView,
+                                                            nz);
+                                           });
+                                       });
   }
 
   /*!

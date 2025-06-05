@@ -64,8 +64,8 @@ struct test_matset_slice
     EXPECT_EQ(conduit::DataType::INT64_ID, newHostMatset["material_ids"].dtype().id());
     EXPECT_EQ(conduit::DataType::FLOAT64_ID, newHostMatset["volume_fractions"].dtype().id());
 
-    EXPECT_TRUE(compare_views(sizes.view(),
-                              utils::make_array_view<conduit::int64>(newHostMatset["sizes"])));
+    EXPECT_TRUE(
+      compare_views(sizes.view(), utils::make_array_view<conduit::int64>(newHostMatset["sizes"])));
     EXPECT_TRUE(compare_views(offsets.view(),
                               utils::make_array_view<conduit::int64>(newHostMatset["offsets"])));
     EXPECT_TRUE(compare_views(indices.view(),

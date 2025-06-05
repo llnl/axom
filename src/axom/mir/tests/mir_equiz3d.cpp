@@ -42,8 +42,7 @@ void braid3d_mat_test(const std::string &type, const std::string &mattype, const
 
   using ShapeType = views::HexShape<int>;
   using TopologyView = views::UnstructuredTopologySingleShapeView<ShapeType>;
-  auto connView =
-    utils::make_array_view<int>(deviceMesh["topologies/mesh/elements/connectivity"]);
+  auto connView = utils::make_array_view<int>(deviceMesh["topologies/mesh/elements/connectivity"]);
   TopologyView topologyView(connView);
 
   conduit::Node deviceMIRMesh;

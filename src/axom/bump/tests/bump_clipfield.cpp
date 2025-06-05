@@ -548,15 +548,15 @@ void braid2d_clip_test(const std::string &type, const std::string &name)
 
   // Now, take the clipped mesh and clip it again using a mixed topology view.
   using ExpCoordsetView = axom::bump::views::ExplicitCoordsetView<double, 2>;
-  const auto xView = utils::make_array_view<double>(
-    deviceClipMesh.fetch_existing("coordsets/clipcoords/values/x"));
-  const auto yView = utils::make_array_view<double>(
-    deviceClipMesh.fetch_existing("coordsets/clipcoords/values/y"));
+  const auto xView =
+    utils::make_array_view<double>(deviceClipMesh.fetch_existing("coordsets/clipcoords/values/x"));
+  const auto yView =
+    utils::make_array_view<double>(deviceClipMesh.fetch_existing("coordsets/clipcoords/values/y"));
   ExpCoordsetView expCoordsetView(xView, yView);
 
   conduit::Node &n_device_topo = deviceClipMesh.fetch_existing("topologies/" + clipTopoName);
-  const auto connView = utils::make_array_view<axom::IndexType>(
-    n_device_topo.fetch_existing("elements/connectivity"));
+  const auto connView =
+    utils::make_array_view<axom::IndexType>(n_device_topo.fetch_existing("elements/connectivity"));
 
   options["clipField"] = "new_braid";
   options["clipValue"] = 1.;
@@ -846,7 +846,10 @@ void braid3d_clip_test_exec(const std::string &type, const std::string &name)
 #endif
 }
 
-TEST(bump_clipfield, tet) { braid3d_clip_test_exec<axom::bump::views::TetShape<int>>("tets", "tet"); }
+TEST(bump_clipfield, tet)
+{
+  braid3d_clip_test_exec<axom::bump::views::TetShape<int>>("tets", "tet");
+}
 
 TEST(bump_clipfield, pyramid)
 {
@@ -858,7 +861,10 @@ TEST(bump_clipfield, wedge)
   braid3d_clip_test_exec<axom::bump::views::WedgeShape<int>>("wedges", "wdg");
 }
 
-TEST(bump_clipfield, hex) { braid3d_clip_test_exec<axom::bump::views::HexShape<int>>("hexs", "hex"); }
+TEST(bump_clipfield, hex)
+{
+  braid3d_clip_test_exec<axom::bump::views::HexShape<int>>("hexs", "hex");
+}
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -904,9 +910,9 @@ void braid3d_mixed_clip_test(const std::string &name)
   // Make the shape map.
   axom::Array<axom::IndexType> values, ids;
   auto shapeMap = axom::bump::views::buildShapeMap(n_device_topo,
-                                                  values,
-                                                  ids,
-                                                  axom::execution_space<ExecSpace>::allocatorID());
+                                                   values,
+                                                   ids,
+                                                   axom::execution_space<ExecSpace>::allocatorID());
 
   TopoView topoView(connView, shapesView, sizesView, offsetsView, shapeMap);
 
@@ -1072,7 +1078,7 @@ struct test_selectedzones
     utils::copy<ExecSpace>(deviceOptions, hostOptions);
 
     axom::bump::clipping::ClipField<ExecSpace, TopologyView, CoordsetView> clip(topologyView,
-                                                                               coordsetView);
+                                                                                coordsetView);
     clip.execute(deviceMesh, deviceOptions, deviceResult);
 
     // device->host

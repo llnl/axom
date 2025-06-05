@@ -419,7 +419,8 @@ protected:
 
       conduit::Node &n_sizes = n_newTopo["elements/sizes"];
       n_sizes.set_allocator(c2a.getConduitAllocatorID());
-      n_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, dataSizes.zones + extra.zones));
+      n_sizes.set(
+        conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, dataSizes.zones + extra.zones));
       auto sizesView = utils::make_array_view<ConnectivityType>(n_sizes);
 
       conduit::Node &n_offsets = n_newTopo["elements/offsets"];
@@ -500,8 +501,8 @@ protected:
 
         conduit::Node &n_newShapes = n_newTopo["elements/shapes"];
         n_newShapes.set_allocator(c2a.getConduitAllocatorID());
-        n_newShapes.set(
-          conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, dataSizes.zones + extra.zones));
+        n_newShapes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
+                                          dataSizes.zones + extra.zones));
         auto newShapesView = utils::make_array_view<ConnectivityType>(n_newShapes);
 
         const SelectedZonesView deviceSelectedZonesView(selectedZonesView);
