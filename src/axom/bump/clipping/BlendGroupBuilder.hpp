@@ -7,7 +7,7 @@
 
 #include "axom/core.hpp"
 #include "axom/bump/utilities/utilities.hpp"
-#include "axom/bump/utilities/BlendData.hpp"
+#include "axom/bump/BlendData.hpp"
 
 namespace axom
 {
@@ -486,9 +486,9 @@ public:
    *
    * \return A BlendData object suitable for making new fields and coordsets.
    */
-  axom::bump::utilities::BlendData makeBlendData() const
+  axom::bump::BlendData makeBlendData() const
   {
-    axom::bump::utilities::BlendData blend;
+    axom::bump::BlendData blend;
 
     blend.m_selectedIndicesView =
       m_state.m_blendUniqueIndicesView;  // We'll use these to select just the unique indices

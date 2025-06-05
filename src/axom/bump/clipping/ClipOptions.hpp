@@ -5,7 +5,7 @@
 #ifndef AXOM_BUMP_CLIP_OPTIONS_HPP_
 #define AXOM_BUMP_CLIP_OPTIONS_HPP_
 
-#include "axom/bump/utilities/Options.hpp"
+#include "axom/bump/Options.hpp"
 
 namespace axom
 {
@@ -17,7 +17,7 @@ namespace clipping
  * \brief This class provides a kind of schema over the clipping options, as well
  *        as default values, and some utilities functions.
  */
-class ClipOptions : public axom::bump::utilities::Options
+class ClipOptions : public axom::bump::Options
 {
 public:
   /**
@@ -25,7 +25,7 @@ public:
    *
    * \param options The node that contains the clipping options.
    */
-  ClipOptions(const conduit::Node &options) : axom::bump::utilities::Options(options) { }
+  ClipOptions(const conduit::Node &options) : axom::bump::Options(options) { }
 
   /**
    * \brief Return the name of the field used for clipping.

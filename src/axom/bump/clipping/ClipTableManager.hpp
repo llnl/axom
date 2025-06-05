@@ -118,6 +118,7 @@ public:
   private:
     void printShape(std::ostream &os, TableData shape) const
     {
+      using namespace axom::bump::clipping::visit;
       switch(shape)
       {
       case ST_PNT:
@@ -145,6 +146,7 @@ public:
     }
     void printColor(std::ostream &os, TableData color) const
     {
+      using namespace axom::bump::clipping::visit;
       switch(color)
       {
       case COLOR0:
@@ -160,6 +162,7 @@ public:
     }
     void printIds(std::ostream &os, const TableData *ids, int n) const
     {
+      using namespace axom::bump::clipping::visit;
       for(int i = 0; i < n; i++)
       {
         if(/*ids[i] >= P0 &&*/ ids[i] <= P7)
@@ -180,6 +183,7 @@ public:
   public:
     void print(std::ostream &os) const
     {
+      using namespace axom::bump::clipping::visit;
       TableData *ptr = m_shapeStart + m_offset;
       printShape(os, ptr[0]);
       os << " ";
@@ -219,6 +223,7 @@ public:
     AXOM_HOST_DEVICE
     size_t shapeLength(const TableData *caseData) const
     {
+      using namespace axom::bump::clipping::visit;
       size_t retval = 0;
       const auto shape = caseData[0];
       switch(shape)
@@ -390,7 +395,7 @@ template <typename ExecSpace>
 class ClipTableManager
 {
 public:
-  static constexpr int NumberOfTables = ST_MAX - ST_MIN;
+  static constexpr int NumberOfTables = visit::ST_MAX - visit::ST_MIN;
 
   /*!
    * \brief Return a reference to the clipping table, which is loaded on demand.
@@ -402,7 +407,7 @@ public:
   Table<ExecSpace> &operator[](size_t shape)
   {
     const size_t index = shapeToIndex(shape);
-    SLIC_ASSERT(shape < ST_MAX);
+    SLIC_ASSERT(shape < visit::ST_MAX);
     loadShape(shape);
     return m_tables[index];
   }
@@ -428,6 +433,7 @@ public:
    */
   std::vector<size_t> shapes(int dim) const
   {
+    using namespace axom::bump::clipping::visit;
     std::vector<size_t> s;
     if(dim == -1 || dim == 2)
     {
@@ -454,7 +460,7 @@ private:
    *
    * \return An index into the m_tables array.
    */
-  constexpr static size_t shapeToIndex(size_t shape) { return shape - ST_MIN; }
+  constexpr static size_t shapeToIndex(size_t shape) { return shape - axom::bump::clipping::visit::ST_MIN; }
 
   /*!
    * \brief Load the clipping table for a shape.
@@ -463,56 +469,57 @@ private:
    */
   void loadShape(size_t shape)
   {
+    using namespace axom::bump::clipping::visit;
     const auto index = shapeToIndex(shape);
     if(!m_tables[index].isLoaded())
     {
       if(shape == ST_TRI)
       {
-        m_tables[index].load(axom::bump::clipping::visit::numClipCasesTri,
-                             axom::bump::clipping::visit::numClipShapesTri,
-                             axom::bump::clipping::visit::startClipShapesTri,
-                             axom::bump::clipping::visit::clipShapesTri,
-                             axom::bump::clipping::visit::clipShapesTriSize);
+        m_tables[index].load(numClipCasesTri,
+                             numClipShapesTri,
+                             startClipShapesTri,
+                             clipShapesTri,
+                             clipShapesTriSize);
       }
       else if(shape == ST_QUA)
       {
-        m_tables[index].load(axom::bump::clipping::visit::numClipCasesQua,
-                             axom::bump::clipping::visit::numClipShapesQua,
-                             axom::bump::clipping::visit::startClipShapesQua,
-                             axom::bump::clipping::visit::clipShapesQua,
-                             axom::bump::clipping::visit::clipShapesQuaSize);
+        m_tables[index].load(numClipCasesQua,
+                             numClipShapesQua,
+                             startClipShapesQua,
+                             clipShapesQua,
+                             clipShapesQuaSize);
       }
       else if(shape == ST_TET)
       {
-        m_tables[index].load(axom::bump::clipping::visit::numClipCasesTet,
-                             axom::bump::clipping::visit::numClipShapesTet,
-                             axom::bump::clipping::visit::startClipShapesTet,
-                             axom::bump::clipping::visit::clipShapesTet,
-                             axom::bump::clipping::visit::clipShapesTetSize);
+        m_tables[index].load(numClipCasesTet,
+                             numClipShapesTet,
+                             startClipShapesTet,
+                             clipShapesTet,
+                             clipShapesTetSize);
       }
       else if(shape == ST_PYR)
       {
-        m_tables[index].load(axom::bump::clipping::visit::numClipCasesPyr,
-                             axom::bump::clipping::visit::numClipShapesPyr,
-                             axom::bump::clipping::visit::startClipShapesPyr,
-                             axom::bump::clipping::visit::clipShapesPyr,
-                             axom::bump::clipping::visit::clipShapesPyrSize);
+        m_tables[index].load(numClipCasesPyr,
+                             numClipShapesPyr,
+                             startClipShapesPyr,
+                             clipShapesPyr,
+                             clipShapesPyrSize);
       }
       else if(shape == ST_WDG)
       {
-        m_tables[index].load(axom::bump::clipping::visit::numClipCasesWdg,
-                             axom::bump::clipping::visit::numClipShapesWdg,
-                             axom::bump::clipping::visit::startClipShapesWdg,
-                             axom::bump::clipping::visit::clipShapesWdg,
-                             axom::bump::clipping::visit::clipShapesWdgSize);
+        m_tables[index].load(numClipCasesWdg,
+                             numClipShapesWdg,
+                             startClipShapesWdg,
+                             clipShapesWdg,
+                             clipShapesWdgSize);
       }
       else if(shape == ST_HEX)
       {
-        m_tables[index].load(axom::bump::clipping::visit::numClipCasesHex,
-                             axom::bump::clipping::visit::numClipShapesHex,
-                             axom::bump::clipping::visit::startClipShapesHex,
-                             axom::bump::clipping::visit::clipShapesHex,
-                             axom::bump::clipping::visit::clipShapesHexSize);
+        m_tables[index].load(numClipCasesHex,
+                             numClipShapesHex,
+                             startClipShapesHex,
+                             clipShapesHex,
+                             clipShapesHexSize);
       }
     }
   }
