@@ -614,8 +614,6 @@ private:
   {
     AXOM_ANNOTATE_SCOPE("computeVolumeFractionsForMaterial");
 
-    const bool use_batch_lu = false;
-
     // Retrieve the inout samples QFunc
     SLIC_ASSERT(axom::utilities::string::startsWith(matField, "mat_inout_"));
     mfem::QuadratureFunction* inout = m_inoutMaterialQFuncs.Get(matField);
@@ -686,27 +684,13 @@ private:
       mfem::ConstantCoefficient one_coef(1.0);
       mfem::MassIntegrator mass_integrator(one_coef);
 
-      if(use_batch_lu)
-      {
-        // wrap mass_mat data as vector for AssembleEA call
-        // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
-        mfem::Vector mass_vec;
-        mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
-        mass_vec.SetSize(sz);
-        mass_integrator.AssembleEA(*fes, mass_vec, false);
-        mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
-      }
-      else
-      {
-        for(int i = 0; i < NE; ++i)
-        {
-          mfem::DenseMatrix elem_mass_mat(mass_mat->HostReadWrite() + i * dofs * dofs, dofs, dofs);
-
-          auto* T = mesh->GetElementTransformation(i);
-          auto* el = fes->GetFE(i);
-          mass_integrator.AssembleElementMatrix(*el, *T, elem_mass_mat);
-        }
-      }
+      // wrap mass_mat data as vector for AssembleEA call
+      // note: AssembleEA expects the transpose, but it's ok since mass matrices are symmetric
+      mfem::Vector mass_vec;
+      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
+      mass_vec.SetSize(sz);
+      mass_integrator.AssembleEA(*fes, mass_vec, false);
+      mfem::Swap(mass_mat->GetMemory(), mass_vec.GetMemory());
 
       m_inoutTensors.Register(mass_matrix_name, mass_mat, true);
     }
@@ -733,12 +717,9 @@ private:
       mass_mat_inv = new mfem::DenseTensor(*mass_mat);
       mass_mat_pivots = new mfem::Array<int>(dofs * NE);
 
-      if(use_batch_lu)
-      {
-        mass_mat_inv->ReadWrite();
-        mass_mat_pivots->Write();
-        mfem::BatchLUFactor(*mass_mat_inv, *mass_mat_pivots);
-      }
+      mass_mat_inv->ReadWrite();
+      mass_mat_pivots->Write();
+      mfem::BatchLUFactor(*mass_mat_inv, *mass_mat_pivots);
 
       m_inoutTensors.Register(minv_name, mass_mat_inv, true);
       m_inoutArrays.Register(pivots_name, mass_mat_pivots, true);
@@ -787,29 +768,14 @@ private:
         mfem::QuadratureFunctionCoefficient qfc(*inout);
         mfem::DomainLFIntegrator rhs(qfc, &sampleIR);
 
-        if(use_batch_lu)
-        {
-          mfem::Array<int> elem_marker(fes->GetNE());
-          elem_marker.HostWrite();
-          elem_marker = 1;
-          elem_marker.ReadWrite();
-          rhs.AssembleDevice(*fes, elem_marker, b);
-        }
-        else
-        {
-          mfem::Vector bb;
-          for(int i = 0; i < NE; ++i)
-          {
-            bb.SetDataAndSize(&b(i * dofs), dofs);
-            auto* T = mesh->GetElementTransformation(i);
-            auto* el = fes->GetFE(i);
-            rhs.AssembleRHSElementVect(*el, *T, bb);
-          }
-        }
+        mfem::Array<int> elem_marker(fes->GetNE());
+        elem_marker.HostWrite();
+        elem_marker = 1;
+        elem_marker.ReadWrite();
+        rhs.AssembleDevice(*fes, elem_marker, b);
       }
       inout->HostReadWrite();
 
-      if(use_batch_lu)
       {
         AXOM_ANNOTATE_SCOPE("batch lu solve");
 
@@ -820,25 +786,6 @@ private:
         (*vf) = b;
         vf->ReadWrite();
         mfem::BatchLUSolve(*mass_mat_inv, *mass_mat_pivots, *vf);
-      }
-      else
-      {
-        mfem::Vector bb;
-        mfem::Vector x(dofs);
-        mfem::Array<int> vf_dofs;
-        mfem::DenseMatrixInverse mInv;
-
-        for(int i = 0; i < NE; ++i)
-        {
-          bb.SetDataAndSize(&b(i * dofs), dofs);
-
-          mfem::DenseMatrix elem_mass_mat(mass_mat->HostReadWrite() + i * dofs * dofs, dofs, dofs);
-          mInv.Factor(elem_mass_mat);
-
-          mInv.Mult(bb, x);
-          fes->GetElementDofs(i, vf_dofs);
-          vf->SetSubVector(vf_dofs, x);
-        }
       }
       mass_mat_inv->HostReadWrite();
       mass_mat_pivots->HostReadWrite();
