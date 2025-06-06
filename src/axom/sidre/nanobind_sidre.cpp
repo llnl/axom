@@ -33,6 +33,8 @@ nb::dlpack::dtype typeIDToDtype(DataTypeId id)
     return nb::dtype<int>();
   case INT64_ID:
     return nb::dtype<int64_t>();
+
+  // DOUBLE_ID also has same value
   case FLOAT64_ID:
     return nb::dtype<double>();
   default:
@@ -546,9 +548,14 @@ NB_MODULE(pysidre, m_sidre)
       nb::rv_policy::reference)
 
     .def("createView",
-         nb::overload_cast<const std::string&, TypeID, IndexType, void*>(&Group::createView),
+         // nb::overload_cast<const std::string&, TypeID, IndexType, void*>(&Group::createView),
+      [](Group& self, const std::string& path, TypeID id, IndexType num_elems, const nb::ndarray<>& a) {
+        return self.createView(path, id, num_elems, a.data());
+      },
+      nb::rv_policy::reference,
          "Create View object with given name or path in this Group that has a data description "
          "with data type and number of elements and attach externally-owned data to it.")
+
     .def("createViewWithShape",
          nb::overload_cast<const std::string&, TypeID, int, const IndexType*, void*>(
            &Group::createViewWithShape),
