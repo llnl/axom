@@ -1500,9 +1500,9 @@ bool Group::createNativeLayout(Node& n, const Attribute* attr) const
  *
  *************************************************************************
  */
-bool Group::deepCopyToConduit(Node& n, const Attribute* attr) const
+bool Group::deepCopyToConduit(Node& dst, const Attribute* attr) const
 {
-  n.set(DataType::object());
+  dst.set(DataType::object());
   bool hasSavedViews = false;
 
   // Dump the group's views
@@ -1518,7 +1518,7 @@ bool Group::deepCopyToConduit(Node& n, const Attribute* attr) const
 
     if(attr == nullptr || view->hasAttributeValue(attr))
     {
-      conduit::Node& child_node = m_is_list ? n.append() : n[view->getName()];
+      conduit::Node& child_node = m_is_list ? dst.append() : dst[view->getName()];
       view->deepCopyToConduit(child_node);
       hasSavedViews = true;
     }
@@ -1530,7 +1530,7 @@ bool Group::deepCopyToConduit(Node& n, const Attribute* attr) const
   while(indexIsValid(gidx))
   {
     const Group* group = getGroup(gidx);
-    conduit::Node& child_node = m_is_list ? n.append() : n[group->getName()];
+    conduit::Node& child_node = m_is_list ? dst.append() : dst[group->getName()];
     if(group->deepCopyToConduit(child_node, attr))
     {
       hasSavedViews = true;
@@ -1539,11 +1539,11 @@ bool Group::deepCopyToConduit(Node& n, const Attribute* attr) const
     {
       if(m_is_list)
       {
-        n.remove(group->getName());
+        dst.remove(group->getName());
       }
       else
       {
-        n.remove(n.number_of_children() - 1);
+        dst.remove(dst.number_of_children() - 1);
       }
     }
     gidx = getNextValidGroupIndex(gidx);

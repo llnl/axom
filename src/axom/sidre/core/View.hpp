@@ -966,7 +966,7 @@ public:
   /*!
    * \brief Deep copy View into the given conduit::Node.
    */
-  void deepCopyToConduit(Node& n) const;
+  void deepCopyToConduit(Node& dst) const;
 
   /*!
    * \brief Copy metadata of the View to the given Conduit node

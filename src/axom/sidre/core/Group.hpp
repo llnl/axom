@@ -1322,8 +1322,9 @@ public:
    *        directly to this group.
    * \param [in] srcGroup Source for copy
    *
-   * The difference between this method and deepCopyGroup(Group*) is that
-   * this method copies into itself instead of into a new child Group.
+   * The difference between this method and deepCopyGroup(const Group*)
+   * is that this method copies into itself instead of into a new child
+   * Group.
    *
    * Note that all Views in the Group hierarchy are deep-copied as well.
    *
@@ -1410,7 +1411,7 @@ public:
    * false otherwise.
    *
    */
-  bool deepCopyToConduit(Node& n, const Attribute* attr = nullptr) const;
+  bool deepCopyToConduit(Node& dst, const Attribute* attr = nullptr) const;
 
   /*!
    * \brief Copy Group's layout to given Conduit node without data
