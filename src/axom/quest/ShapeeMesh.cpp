@@ -43,8 +43,6 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
 {
   SLIC_ERROR_IF(m_topoName.empty(),
                 "Topology name was not provided, and no default topology was found.");
-  SLIC_ERROR_IF(m_matsetName.empty(),
-                "Matset name was not provided, and no default matset was found.");
 
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
@@ -61,20 +59,26 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
   const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
   const conduit::Node& coordsetNode =
     m_bpNodeExt->fetch_existing("coordsets").fetch_existing(coordsetName);
-  conduit::Node& matsetNode = m_bpNodeExt->fetch("matsets").fetch(m_matsetName);
 
-  if(!matsetNode.has_child("topology"))
+  if(!m_matsetName.empty())
   {
-    matsetNode.set_allocator(axom::ConduitMemory::axomAllocIdToConduit(hostAllocId));
-    matsetNode.fetch("topology").set_string(m_topoName);
+    conduit::Node& matsetNode = m_bpNodeExt->fetch("matsets").fetch(m_matsetName);
+
+    // If matsetName was given, but not data isn't set up yet, set it up.
+    if(!matsetNode.has_child("topology"))
+    {
+      matsetNode.set_allocator(axom::ConduitMemory::axomAllocIdToConduit(hostAllocId));
+      matsetNode.fetch("topology").set_string(m_topoName);
+    }
+
+    SLIC_ERROR_IF(matsetNode["topology"].as_string() != m_topoName,
+                  "matset's topology doesn't match the specified topology");
   }
 
   // Input checks.
   SLIC_ERROR_IF(topoNode["type"].as_string() != "unstructured",
                 "topology type must be 'unstructured'");
   SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "hex", "element shape must be 'hex'");
-  SLIC_ERROR_IF(matsetNode["topology"].as_string() != m_topoName,
-                "matset's topology doesn't match the specified topology");
 
   m_dim = conduit::blueprint::mesh::topology::dims(topoNode);
   SLIC_ASSERT(m_dim == 3);  // Will allow 2D when we support it.
@@ -119,8 +123,6 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
   SLIC_ASSERT(m_topoName != sidre::InvalidName);
   SLIC_ERROR_IF(m_topoName.empty(),
                 "Topology name was not provided, and no default topology was found.");
-  SLIC_ERROR_IF(m_matsetName.empty(),
-                "Matset name was not provided, and no default matset was found.");
 
   m_bpGrpExt->createNativeLayout(m_bpNodeInt);
 
@@ -134,19 +136,25 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
   const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
   const conduit::Node& coordsetNode =
     m_bpNodeInt.fetch_existing("coordsets").fetch_existing(coordsetName);
-  conduit::Node& matsetNode = m_bpNodeInt.fetch("matsets").fetch(m_matsetName);
 
-  if(!matsetNode.has_child("topology"))
+  if(!m_matsetName.empty())
   {
-    matsetNode.fetch("topology").set_string(m_topoName);
+    conduit::Node& matsetNode = m_bpNodeInt.fetch("matsets").fetch(m_matsetName);
+
+    // If matsetName was given, but not data isn't set up yet, set it up.
+    if(!matsetNode.has_child("topology"))
+    {
+      matsetNode.fetch("topology").set_string(m_topoName);
+    }
+
+    SLIC_ERROR_IF(matsetNode["topology"].as_string() != m_topoName,
+                  "matset's topology doesn't match the specified topology");
   }
 
   // Input checks.
   SLIC_ERROR_IF(topoNode["type"].as_string() != "unstructured",
                 "topology type must be 'unstructured'");
   SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "hex", "element shape must be 'hex'");
-  SLIC_ERROR_IF(matsetNode["topology"].as_string() != m_topoName,
-                "matset's topology doesn't match the specified topology");
 
   m_dim = conduit::blueprint::mesh::topology::dims(topoNode);
   SLIC_ASSERT(m_dim == 3);  // Will allow 2D when we support it.
@@ -270,6 +278,9 @@ void ShapeeMesh::setMatsetFromVolume(const std::string& materialName,
                                      const axom::ArrayView<double>& volumes,
                                      bool isFraction)
 {
+  SLIC_ERROR_IF(m_matsetName.empty(),
+                "Cannot use material set in ShapeeMesh: Matset name was not provided, and no default matset was found.");
+
   double* vfPtr = nullptr;
 
   auto dataType = conduit::DataType::float64(m_cellCount);
@@ -339,6 +350,9 @@ void ShapeeMesh::setMatsetFromVolume(const std::string& materialName,
 
 void ShapeeMesh::setFreeVolumeFractions(const std::string& freeName)
 {
+  SLIC_ERROR_IF(m_matsetName.empty(),
+                "Cannot use material set in ShapeeMesh: Matset name was not provided, and no default matset was found.");
+
   auto dataType = conduit::DataType::float64(m_cellCount);
 
   double* newVfPtr = nullptr;
