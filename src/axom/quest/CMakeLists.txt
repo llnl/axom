@@ -58,6 +58,7 @@ set( quest_headers
     interface/signed_distance.hpp
 
     util/mesh_helpers.hpp
+    util/make_clipper_strategy.hpp
     MeshViewUtil.hpp
     )
 
@@ -85,6 +86,7 @@ set( quest_sources
     interface/signed_distance.cpp
 
     util/mesh_helpers.cpp
+    util/make_clipper_strategy.cpp
    )
 
 
