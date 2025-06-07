@@ -162,7 +162,7 @@ void convert_blueprint_structured_explicit_to_unstructured_3d(axom::sidre::Group
                                                               axom::runtime_policy::Policy runtimePolicy);
 
 template <typename ExecSpace>
-void convert_blueprint_structured_explicit_to_unstructured_impl_3d(axom::sidre::Group* meshGrp,
+void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::Group* meshGrp,
                                                                    const std::string& topoName);
 
 void convert_blueprint_structured_explicit_to_unstructured_2d(axom::sidre::Group* meshGrp,
@@ -170,7 +170,7 @@ void convert_blueprint_structured_explicit_to_unstructured_2d(axom::sidre::Group
                                                               axom::runtime_policy::Policy runtimePolicy);
 
 template <typename ExecSpace>
-void convert_blueprint_structured_explicit_to_unstructured_impl_2d(axom::sidre::Group* meshGrp,
+void convert_blueprint_structured_explicit_to_unstructured_2d_impl(axom::sidre::Group* meshGrp,
                                                                    const std::string& topoName);
 
   #if defined(AXOM_USE_CONDUIT)

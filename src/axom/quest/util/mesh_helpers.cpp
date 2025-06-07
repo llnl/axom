@@ -247,25 +247,25 @@ void convert_blueprint_structured_explicit_to_unstructured_3d(axom::sidre::Group
 {
   if(runtimePolicy == axom::runtime_policy::Policy::seq)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_3d<axom::SEQ_EXEC>(meshGrp, topoName);
+    convert_blueprint_structured_explicit_to_unstructured_3d_impl<axom::SEQ_EXEC>(meshGrp, topoName);
   }
   #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   if(runtimePolicy == axom::runtime_policy::Policy::omp)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_3d<axom::OMP_EXEC>(meshGrp, topoName);
+    convert_blueprint_structured_explicit_to_unstructured_3d_impl<axom::OMP_EXEC>(meshGrp, topoName);
   }
   #endif
   #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   if(runtimePolicy == axom::runtime_policy::Policy::cuda)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_3d<axom::CUDA_EXEC<256>>(meshGrp,
+    convert_blueprint_structured_explicit_to_unstructured_3d_impl<axom::CUDA_EXEC<256>>(meshGrp,
                                                                                         topoName);
   }
   #endif
   #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   if(runtimePolicy == axom::runtime_policy::Policy::hip)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_3d<axom::HIP_EXEC<256>>(meshGrp,
+    convert_blueprint_structured_explicit_to_unstructured_3d_impl<axom::HIP_EXEC<256>>(meshGrp,
                                                                                        topoName);
   }
   #endif
@@ -277,32 +277,32 @@ void convert_blueprint_structured_explicit_to_unstructured_2d(axom::sidre::Group
 {
   if(runtimePolicy == axom::runtime_policy::Policy::seq)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_2d<axom::SEQ_EXEC>(meshGrp, topoName);
+    convert_blueprint_structured_explicit_to_unstructured_2d_impl<axom::SEQ_EXEC>(meshGrp, topoName);
   }
   #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   if(runtimePolicy == axom::runtime_policy::Policy::omp)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_2d<axom::OMP_EXEC>(meshGrp, topoName);
+    convert_blueprint_structured_explicit_to_unstructured_2d_impl<axom::OMP_EXEC>(meshGrp, topoName);
   }
   #endif
   #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   if(runtimePolicy == axom::runtime_policy::Policy::cuda)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_2d<axom::CUDA_EXEC<256>>(meshGrp,
+    convert_blueprint_structured_explicit_to_unstructured_2d_impl<axom::CUDA_EXEC<256>>(meshGrp,
                                                                                         topoName);
   }
   #endif
   #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   if(runtimePolicy == axom::runtime_policy::Policy::hip)
   {
-    convert_blueprint_structured_explicit_to_unstructured_impl_2d<axom::HIP_EXEC<256>>(meshGrp,
+    convert_blueprint_structured_explicit_to_unstructured_2d_impl<axom::HIP_EXEC<256>>(meshGrp,
                                                                                        topoName);
   }
   #endif
 }
 
 template <typename ExecSpace>
-void convert_blueprint_structured_explicit_to_unstructured_impl_3d(axom::sidre::Group* meshGrp,
+void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::Group* meshGrp,
                                                                    const std::string& topoName)
 {
   AXOM_ANNOTATE_SCOPE("convert_to_unstructured");
@@ -322,7 +322,12 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_3d(axom::sidre::
   axom::sidre::View* topoTypeView = topoGrp->getView("type");
   SLIC_ASSERT(std::string(topoTypeView->getString()) == "structured");
   topoTypeView->setString("unstructured", hostAllocId);
-  topoGrp->createView("elements/shape")->setString("hex", hostAllocId);
+  axom::sidre::View* shapeView = topoGrp->getView("elements/shape");
+  if(shapeView == nullptr)
+  {
+    shapeView = topoGrp->createView("elements/shape");
+  }
+  shapeView->setString("hex", hostAllocId);
 
   axom::sidre::Group* topoElemGrp = topoGrp->getGroup("elements");
   axom::sidre::Group* topoDimsGrp = topoElemGrp->getGroup("dims");
@@ -429,7 +434,7 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_3d(axom::sidre::
 }
 
 template <typename ExecSpace>
-void convert_blueprint_structured_explicit_to_unstructured_impl_2d(axom::sidre::Group* meshGrp,
+void convert_blueprint_structured_explicit_to_unstructured_2d_impl(axom::sidre::Group* meshGrp,
                                                                    const std::string& topoName)
 {
   AXOM_ANNOTATE_SCOPE("convert_to_unstructured");

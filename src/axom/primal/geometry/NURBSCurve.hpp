@@ -962,12 +962,12 @@ public:
 
       if(b < m)
       {
-        for(int i = p - mult; i <= p; ++i)
+        for(int k = p - mult; k <= p; ++k)
         {
-          beziers[nb][i] = m_controlPoints[b - p + i];
+          beziers[nb][k] = m_controlPoints[b - p + k];
           if(isCurveRational)
           {
-            beziers[nb].setWeight(i, m_weights[b - p + i]);
+            beziers[nb].setWeight(k, m_weights[b - p + k]);
           }
         }
         a = b;

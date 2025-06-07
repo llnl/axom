@@ -63,7 +63,7 @@ private:
   double m_minRadius;
 
   //!@brief The point corresponding to z=0 on the SOR axis.
-  Point3D m_sorOrigin;
+  Point3DType m_sorOrigin;
 
   //!@brief SOR axis in 3D space, in the direction of increasing z.
   Vector3DType m_sorDirection;
