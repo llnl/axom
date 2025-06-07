@@ -65,6 +65,14 @@ public:
   */
   void clip(axom::Array<double>& ovlap);
 
+  /*!
+    @brief Clip
+
+    @param ovlap [out] Shape overlap volume of each cell
+      in the shapee mesh.
+  */
+  void clip(axom::ArrayView<double> ovlap);
+
   //!@brief Dimension of the shape (2 or 3)
   int dimension() const { return m_shapeeMesh.dimension(); }
 

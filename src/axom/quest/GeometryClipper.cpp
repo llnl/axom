@@ -44,6 +44,14 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
     AXOM_ANNOTATE_SCOPE("GeometryClipper::clip_alloc");
     ovlap = axom::Array<double>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
+  clip(ovlap.view());
+}
+
+void GeometryClipper::clip(axom::ArrayView<double> ovlap)
+{
+  const int allocId = m_shapeeMesh.getAllocatorID();
+  const axom::IndexType cellCount = m_shapeeMesh.getCellCount();
+  SLIC_ASSERT(ovlap.size() == cellCount);
 
   // Try to label cells as inside, outside or on shape boundary
   axom::Array<char> labels;
@@ -88,17 +96,17 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
     m_delegate->collectUnlabeledCellIndices(labels.view(), unlabeledCells);
     AXOM_ANNOTATE_END("GeometryClipper::processInOut");
 
-    done = m_strategy->specializedClip(m_shapeeMesh, ovlap.view(), unlabeledCells);
+    done = m_strategy->specializedClip(m_shapeeMesh, ovlap, unlabeledCells);
 
     if(!done)
     {
       AXOM_ANNOTATE_SCOPE("GeometryClipper::clip3D_limited");
-      m_delegate->computeClipVolumes3D(unlabeledCells.view(), ovlap.view());
+      m_delegate->computeClipVolumes3D(unlabeledCells.view(), ovlap);
     }
   }
   else  // !withInOut
   {
-    done = m_strategy->specializedClip(m_shapeeMesh, ovlap.view());
+    done = m_strategy->specializedClip(m_shapeeMesh, ovlap);
 
     if(!done)
     {
