@@ -176,6 +176,18 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
 }
 #endif
 
+void ShapeeMesh::precomputeMeshData()
+{
+  AXOM_ANNOTATE_SCOPE("ShapeeMesh::precomputeMeshData");
+  getCellsAsHexes();
+  getCellsAsTets();
+  getCellVolumes();
+  getCellLengths();
+  getCellBoundingBoxes();
+  getConnectivity();
+  getVertexPoints();
+}
+
 axom::ArrayView<const ShapeeMesh::TetrahedronType> ShapeeMesh::getCellsAsTets()
 {
   if(m_cellsAsTets.size() != m_cellCount * NUM_TETS_PER_HEX)

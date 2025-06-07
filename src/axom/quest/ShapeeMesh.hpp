@@ -175,6 +175,14 @@ public:
   {
     return m_vertCoordsViews3D;
   }
+  /*!
+    @brief Precompute (and cache) mesh-dependent intermediate data
+    that may be used in clipping.
+
+    Mesh-dependent data are computed as needed and cached, but this
+    computes them all at once.
+  */
+  void precomputeMeshData();
   //@}
 
   /*!
