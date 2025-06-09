@@ -9,21 +9,16 @@
 #include "axom/mir.hpp"
 #include "axom/primal.hpp"
 #include "axom/mir/tests/mir_testing_data_helpers.hpp"
-
-//------------------------------------------------------------------------------
-
-// Uncomment to generate baselines
-//#define AXOM_TESTING_GENERATE_BASELINES
-
-// Uncomment to save visualization files for debugging (when making baselines)
-//#define AXOM_TESTING_SAVE_VISUALIZATION
-
 #include "axom/mir/tests/mir_testing_helpers.hpp"
 
 std::string baselineDirectory()
 {
   return pjoin(dataDirectory(), "mir", "regression", "mir_elvira");
 }
+
+//------------------------------------------------------------------------------
+// Global test application object.
+MIRTestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -46,7 +41,8 @@ struct braid2d_mat_test
   static void test(const std::string &type,
                    const std::string &mattype,
                    const std::string &name,
-                   bool selectedZones = false)
+                   bool selectedZones = false,
+                   bool pointMesh = false)
   {
     namespace bputils = axom::mir::utilities::blueprint;
 
@@ -54,16 +50,14 @@ struct braid2d_mat_test
     conduit::Node hostMesh, deviceMesh;
     initialize(type, mattype, hostMesh);
     axom::mir::utilities::blueprint::copy<ExecSpace>(deviceMesh, hostMesh);
-#if defined(AXOM_TESTING_SAVE_VISUALIZATION) && defined(AXOM_USE_HDF5)
-    conduit::relay::io::blueprint::save_mesh(hostMesh, name + "_orig", "hdf5");
-    conduit::relay::io::save(hostMesh, name + "_orig.yaml", "yaml");
-#endif
+    TestApp.saveVisualization(name + "_orig", hostMesh);
 
     // _elvira_mir_start
     // Make views.
     auto coordsetView =
       axom::mir::views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);
-    auto topologyView = axom::mir::views::make_uniform<2>::view(deviceMesh["topologies/mesh"]);
+    auto topologyView =
+      axom::mir::views::make_uniform_topology<2>::view(deviceMesh["topologies/mesh"]);
     using CoordsetView = decltype(coordsetView);
     using TopologyView = decltype(topologyView);
     using IndexingPolicy = typename TopologyView::IndexingPolicy;
@@ -79,6 +73,9 @@ struct braid2d_mat_test
       MIR m(topologyView, coordsetView, matsetView);
       conduit::Node options;
       options["matset"] = "mat";
+      options["plane"] = 1;
+      options["pointmesh"] = pointMesh ? 1 : 0;
+
       if(selectedZones)
       {
         selectZones(options);
@@ -91,49 +88,138 @@ struct braid2d_mat_test
     conduit::Node hostMIRMesh;
     axom::mir::utilities::blueprint::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
 
-#if defined(AXOM_TESTING_SAVE_VISUALIZATION) && defined(AXOM_USE_HDF5)
-    conduit::relay::io::blueprint::save_mesh(hostMIRMesh, name, "hdf5");
-#endif
+    TestApp.saveVisualization(name, hostMIRMesh);
+
     // Handle baseline comparison.
-    {
-      std::string baselineName(yamlRoot(name));
-      const auto paths = baselinePaths<ExecSpace>();
-#if defined(AXOM_TESTING_GENERATE_BASELINES)
-      saveBaseline(paths, baselineName, hostMIRMesh);
-#else
-      constexpr double tolerance = 2.6e-06;
-      EXPECT_TRUE(compareBaseline(paths, baselineName, hostMIRMesh, tolerance));
-#endif
-    }
+    constexpr double tolerance = 2.6e-06;
+    EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostMIRMesh, tolerance));
+  }
+
+  /// Function to run a simple kernel. This is a workaround for HIP tests, which
+  /// on tioga appear to have intermittent failures related to normals.
+  static void reset()
+  {
+    const axom::IndexType N = 10000;
+    axom::Array<double> arr(N, N, axom::execution_space<ExecSpace>::allocatorID());
+    auto arrView = arr.view();
+    axom::for_all<ExecSpace>(
+      N,
+      AXOM_LAMBDA(axom::IndexType index) { arrView[index] = index * index; });
   }
 };
+
+//------------------------------------------------------------------------------
+TEST(mir_elvira, options)
+{
+  conduit::Node n_options;
+
+  axom::mir::ELVIRAOptions opts(n_options);
+  EXPECT_FALSE(opts.pointmesh());
+  EXPECT_FALSE(opts.plane());
+
+  n_options["plane"] = 1;
+  n_options["pointmesh"] = 1;
+
+  EXPECT_TRUE(opts.pointmesh());
+  EXPECT_TRUE(opts.plane());
+}
 
 //------------------------------------------------------------------------------
 TEST(mir_elvira, elvira_uniform_unibuffer_seq)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_seq");
-  braid2d_mat_test<seq_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer");
+  const bool selectZones = false;
+  const bool pointMesh = false;
+  braid2d_mat_test<seq_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer",
+                                   selectZones,
+                                   pointMesh);
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_seq)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_seq");
-  constexpr bool selectZones = true;
-  braid2d_mat_test<seq_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones);
+  const bool selectZones = true;
+  const bool pointMesh = false;
+  braid2d_mat_test<seq_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer_sel",
+                                   selectZones,
+                                   pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_seq_pm)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_seq");
+  const bool selectZones = false;
+  const bool pointMesh = true;
+  braid2d_mat_test<seq_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer_pm",
+                                   selectZones,
+                                   pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_seq)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_seq");
+  const bool selectZones = true;
+  const bool pointMesh = true;
+  braid2d_mat_test<seq_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer_sel_pm",
+                                   selectZones,
+                                   pointMesh);
 }
 
 #if defined(AXOM_USE_OPENMP)
 TEST(mir_elvira, elvira_uniform_unibuffer_omp)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_omp");
-  braid2d_mat_test<omp_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer");
+  const bool selectZones = false;
+  const bool pointMesh = false;
+  braid2d_mat_test<omp_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer",
+                                   selectZones,
+                                   pointMesh);
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_omp)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_omp");
-  constexpr bool selectZones = true;
-  braid2d_mat_test<omp_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones);
+  const bool selectZones = true;
+  const bool pointMesh = false;
+  braid2d_mat_test<omp_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer_sel",
+                                   selectZones,
+                                   pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_pm_omp)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_omp");
+  const bool selectZones = false;
+  const bool pointMesh = true;
+  braid2d_mat_test<omp_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer_pm",
+                                   selectZones,
+                                   pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_omp)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_omp");
+  const bool selectZones = true;
+  const bool pointMesh = true;
+  braid2d_mat_test<omp_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer_sel_pm",
+                                   selectZones,
+                                   pointMesh);
 }
 #endif
 
@@ -141,14 +227,49 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_omp)
 TEST(mir_elvira, elvira_uniform_unibuffer_cuda)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_cuda");
-  braid2d_mat_test<cuda_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer");
+  const bool selectZones = false;
+  const bool pointMesh = false;
+  braid2d_mat_test<cuda_exec>::test("uniform",
+                                    "unibuffer",
+                                    "elvira_uniform_unibuffer",
+                                    selectZones,
+                                    pointMesh);
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_cuda)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_cuda");
-  constexpr bool selectZones = true;
-  braid2d_mat_test<cuda_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones);
+  const bool selectZones = true;
+  const bool pointMesh = false;
+  braid2d_mat_test<cuda_exec>::test("uniform",
+                                    "unibuffer",
+                                    "elvira_uniform_unibuffer_sel",
+                                    selectZones,
+                                    pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_pm_cuda)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_cuda");
+  const bool selectZones = false;
+  const bool pointMesh = true;
+  braid2d_mat_test<cuda_exec>::test("uniform",
+                                    "unibuffer",
+                                    "elvira_uniform_unibuffer_pm",
+                                    selectZones,
+                                    pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_cuda)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_cuda");
+  const bool selectZones = true;
+  const bool pointMesh = true;
+  braid2d_mat_test<cuda_exec>::test("uniform",
+                                    "unibuffer",
+                                    "elvira_uniform_unibuffer_sel_pm",
+                                    selectZones,
+                                    pointMesh);
 }
 #endif
 
@@ -156,75 +277,58 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_cuda)
 TEST(mir_elvira, elvira_uniform_unibuffer_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_hip");
-  braid2d_mat_test<hip_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer");
+  const bool selectZones = false;
+  const bool pointMesh = false;
+  braid2d_mat_test<hip_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer",
+                                   selectZones,
+                                   pointMesh);
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_hip)
 {
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_hip");
-  constexpr bool selectZones = true;
-  braid2d_mat_test<hip_exec>::test("uniform", "unibuffer", "elvira_uniform_unibuffer_sel", selectZones);
+  const bool selectZones = true;
+  const bool pointMesh = false;
+  braid2d_mat_test<hip_exec>::reset();
+  braid2d_mat_test<hip_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer_sel",
+                                   selectZones,
+                                   pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_pm_hip)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_hip");
+  const bool selectZones = false;
+  const bool pointMesh = true;
+  braid2d_mat_test<hip_exec>::reset();
+  braid2d_mat_test<hip_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer_pm",
+                                   selectZones,
+                                   pointMesh);
+}
+
+TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_hip)
+{
+  AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_hip");
+  const bool selectZones = true;
+  const bool pointMesh = true;
+  braid2d_mat_test<hip_exec>::reset();
+  braid2d_mat_test<hip_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer_sel_pm",
+                                   selectZones,
+                                   pointMesh);
 }
 #endif
 
 //------------------------------------------------------------------------------
-void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
-{
-  std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
-  // This is on purpose.
-  while(1)
-    ;
-}
-
-//------------------------------------------------------------------------------
-
 int main(int argc, char *argv[])
 {
-  int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
-
-  // Define command line options.
-  axom::CLI::App app;
-#if defined(AXOM_USE_CALIPER)
-  std::string annotationMode("none");
-  app.add_option("--caliper", annotationMode)
-    ->description(
-      "caliper annotation mode. Valid options include 'none' and 'report'. "
-      "Use 'help' to see full list.")
-    ->capture_default_str()
-    ->check(axom::utilities::ValidCaliperMode);
-#endif
-  bool handlerEnabled = false;
-  app.add_flag("--handler", handlerEnabled, "Enable Conduit handler.");
-
-  // Parse command line options.
-  try
-  {
-    app.parse(argc, argv);
-
-#if defined(AXOM_USE_CALIPER)
-    axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(annotationMode);
-#endif
-
-    axom::slic::SimpleLogger logger;  // create & initialize test logger,
-    if(handlerEnabled)
-    {
-      conduit::utils::set_error_handler(conduit_debug_err_handler);
-    }
-
-    result = RUN_ALL_TESTS();
-  }
-  catch(axom::CLI::CallForHelp &e)
-  {
-    std::cout << app.help() << std::endl;
-    result = 0;
-  }
-  catch(axom::CLI::ParseError &e)
-  {
-    // Handle other parsing errors
-    std::cerr << e.what() << std::endl;
-    result = app.exit(e);
-  }
-
-  return result;
+  return TestApp.execute(argc, argv);
 }

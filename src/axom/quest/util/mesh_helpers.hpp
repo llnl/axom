@@ -7,6 +7,7 @@
 #define AXOM_QUEST_MESH_HELPERS__HPP_
 
 #include "axom/config.hpp"
+#include "axom/core.hpp"
 #include "axom/primal.hpp"
 #if defined(AXOM_USE_SIDRE)
   #include "axom/sidre.hpp"

@@ -4,13 +4,13 @@
 # CMake executable path: /usr/local/bin/cmake
 #------------------------------------------------------------------------------
 
-set(CMAKE_PREFIX_PATH "/home/axom/axom_tpls/gcc-13.1.0/blt-0.7.0-sdbpq4uu66agqgyreqkfr5hjebtlscaj;/home/axom/axom_tpls/gcc-13.1.0/caliper-2.12.1-2f52kccafe2q3z5xh72xdwqyoqfjmj5j;/home/axom/axom_tpls/gcc-13.1.0/conduit-git.2eec1ad9548cf6d629e2145181ff7b8cef0a38fa_0.9.3-o3m4pvvff4xazwycwxuqdwxwsevtyxns;/home/axom/axom_tpls/gcc-13.1.0/gmake-4.4.1-sh2qoa2zlsmuuji3nispoi3hx6sqnwkg;/home/axom/axom_tpls/gcc-13.1.0/mfem-4.7.0-tmh67qxbcma4ys6b76njipli6ue3uxex;/home/axom/axom_tpls/gcc-13.1.0/raja-2025.03.0-n4jjwyvdoikji4ywc5qj67lnmaeqtlg6;/home/axom/axom_tpls/gcc-13.1.0/umpire-2025.03.0-bsuzskxalfv75h2k5brt3glxtg5hxmay;/home/axom/axom_tpls/gcc-13.1.0/adiak-0.4.0-x5ti5yx4wcu5jjjny34ugfoo3il4xup6;/home/axom/axom_tpls/gcc-13.1.0/elfutils-0.192-msnl2dc4yclkbpbyfiqflurvhu3j476l;/home/axom/axom_tpls/gcc-13.1.0/libunwind-1.8.1-ohwx2aoeanit3nzd2o2lkg2tap4dp5it;/home/axom/axom_tpls/gcc-13.1.0/hdf5-1.8.23-qw6ua3mffwj2xapopw2sqsymhfdekxkn;/home/axom/axom_tpls/gcc-13.1.0/parmetis-4.0.3-wmb6op3qqxk5l5mf3z4pnzlgaavei6hy;/home/axom/axom_tpls/gcc-13.1.0/hypre-2.24.0-jz7h6o47ufl25jgfcvf453gutnmcfktd;/home/axom/axom_tpls/gcc-13.1.0/camp-2025.03.0-xp6sg6rdf7xp46dw57ovuxzwnewpfomu;/home/axom/axom_tpls/gcc-13.1.0/fmt-11.0.2-umbnbdyf25pufvp3dvsonj4d3pqunh2x;/home/axom/axom_tpls/gcc-13.1.0/libiconv-1.17-7unqwbz22fisucsxznfth72jym5i2uy2;/home/axom/axom_tpls/gcc-13.1.0/xz-5.4.6-hxeb4xtp65kazflulxyapiuuv7bjfakh;/home/axom/axom_tpls/gcc-13.1.0/zstd-1.5.6-6y4avtzsqdwhfxvto2en4t4dip7d2djc;/home/axom/axom_tpls/gcc-13.1.0/pkgconf-2.3.0-xyu57k7pftmjy36ggzxpk76m4ybmatyd;/home/axom/axom_tpls/gcc-13.1.0/zlib-ng-2.2.3-5tvk4dh6opay46nfkqkv457inspaabyj;/home/axom/axom_tpls/gcc-13.1.0/metis-5.1.0-3453ikebr6twodzzjguc2jpsyjsdnx2j;/home/axom/axom_tpls/gcc-13.1.0/gcc-runtime-13.1.0-2hzs4qwswjqszhprvd4mcyuw5lcwkph6" CACHE STRING "")
+set(CMAKE_PREFIX_PATH "/home/axom/axom_tpls/gcc-13.1.0/blt-0.7.0-sdbpq4uu66agqgyreqkfr5hjebtlscaj;/home/axom/axom_tpls/gcc-13.1.0/caliper-2.12.1-2f52kccafe2q3z5xh72xdwqyoqfjmj5j;/home/axom/axom_tpls/gcc-13.1.0/conduit-0.9.3-okzndnpm2d2f2ka4y4dbofe2epkfjzdu;/home/axom/axom_tpls/gcc-13.1.0/gmake-4.4.1-sh2qoa2zlsmuuji3nispoi3hx6sqnwkg;/home/axom/axom_tpls/gcc-13.1.0/mfem-4.8.0-wbfc3q2dw2ekspltxvhvffsxhno6xw7q;/home/axom/axom_tpls/gcc-13.1.0/raja-2025.03.0-n4jjwyvdoikji4ywc5qj67lnmaeqtlg6;/home/axom/axom_tpls/gcc-13.1.0/umpire-2025.03.0-bsuzskxalfv75h2k5brt3glxtg5hxmay;/home/axom/axom_tpls/gcc-13.1.0/adiak-0.4.0-x5ti5yx4wcu5jjjny34ugfoo3il4xup6;/home/axom/axom_tpls/gcc-13.1.0/elfutils-0.192-msnl2dc4yclkbpbyfiqflurvhu3j476l;/home/axom/axom_tpls/gcc-13.1.0/libunwind-1.8.1-ohwx2aoeanit3nzd2o2lkg2tap4dp5it;/home/axom/axom_tpls/gcc-13.1.0/hdf5-1.8.23-qw6ua3mffwj2xapopw2sqsymhfdekxkn;/home/axom/axom_tpls/gcc-13.1.0/parmetis-4.0.3-wmb6op3qqxk5l5mf3z4pnzlgaavei6hy;/home/axom/axom_tpls/gcc-13.1.0/hypre-2.24.0-jz7h6o47ufl25jgfcvf453gutnmcfktd;/home/axom/axom_tpls/gcc-13.1.0/camp-2025.03.0-xp6sg6rdf7xp46dw57ovuxzwnewpfomu;/home/axom/axom_tpls/gcc-13.1.0/fmt-11.0.2-umbnbdyf25pufvp3dvsonj4d3pqunh2x;/home/axom/axom_tpls/gcc-13.1.0/libiconv-1.17-7unqwbz22fisucsxznfth72jym5i2uy2;/home/axom/axom_tpls/gcc-13.1.0/xz-5.4.6-hxeb4xtp65kazflulxyapiuuv7bjfakh;/home/axom/axom_tpls/gcc-13.1.0/zstd-1.5.6-6y4avtzsqdwhfxvto2en4t4dip7d2djc;/home/axom/axom_tpls/gcc-13.1.0/pkgconf-2.3.0-xyu57k7pftmjy36ggzxpk76m4ybmatyd;/home/axom/axom_tpls/gcc-13.1.0/zlib-ng-2.2.3-5tvk4dh6opay46nfkqkv457inspaabyj;/home/axom/axom_tpls/gcc-13.1.0/metis-5.1.0-3453ikebr6twodzzjguc2jpsyjsdnx2j;/home/axom/axom_tpls/gcc-13.1.0/gcc-runtime-13.1.0-2hzs4qwswjqszhprvd4mcyuw5lcwkph6" CACHE STRING "")
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH "ON" CACHE STRING "")
 
-set(CMAKE_BUILD_RPATH "/home/axom/axom_tpls/gcc-13.1.0/axom-develop-45yhj5tmag3gqv6ijkdx4ii6fjei4hpv/lib;/home/axom/axom_tpls/gcc-13.1.0/axom-develop-45yhj5tmag3gqv6ijkdx4ii6fjei4hpv/lib64;;" CACHE STRING "")
+set(CMAKE_BUILD_RPATH "/home/axom/axom_tpls/gcc-13.1.0/axom-develop-jfvzgss7sgb4tfk2zppafbkkorpessjo/lib;/home/axom/axom_tpls/gcc-13.1.0/axom-develop-jfvzgss7sgb4tfk2zppafbkkorpessjo/lib64;;" CACHE STRING "")
 
-set(CMAKE_INSTALL_RPATH "/home/axom/axom_tpls/gcc-13.1.0/axom-develop-45yhj5tmag3gqv6ijkdx4ii6fjei4hpv/lib;/home/axom/axom_tpls/gcc-13.1.0/axom-develop-45yhj5tmag3gqv6ijkdx4ii6fjei4hpv/lib64;;" CACHE STRING "")
+set(CMAKE_INSTALL_RPATH "/home/axom/axom_tpls/gcc-13.1.0/axom-develop-jfvzgss7sgb4tfk2zppafbkkorpessjo/lib;/home/axom/axom_tpls/gcc-13.1.0/axom-develop-jfvzgss7sgb4tfk2zppafbkkorpessjo/lib64;;" CACHE STRING "")
 
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "")
 
@@ -77,11 +77,11 @@ set(ENABLE_GTEST_DEATH_TESTS ON CACHE BOOL "")
 
 set(TPL_ROOT "/home/axom/axom_tpls/gcc-13.1.0" CACHE PATH "")
 
-set(CONDUIT_DIR "${TPL_ROOT}/conduit-git.2eec1ad9548cf6d629e2145181ff7b8cef0a38fa_0.9.3-o3m4pvvff4xazwycwxuqdwxwsevtyxns" CACHE PATH "")
+set(CONDUIT_DIR "${TPL_ROOT}/conduit-0.9.3-okzndnpm2d2f2ka4y4dbofe2epkfjzdu" CACHE PATH "")
 
 # C2C not built
 
-set(MFEM_DIR "${TPL_ROOT}/mfem-4.7.0-tmh67qxbcma4ys6b76njipli6ue3uxex" CACHE PATH "")
+set(MFEM_DIR "${TPL_ROOT}/mfem-4.8.0-wbfc3q2dw2ekspltxvhvffsxhno6xw7q" CACHE PATH "")
 
 set(HDF5_DIR "${TPL_ROOT}/hdf5-1.8.23-qw6ua3mffwj2xapopw2sqsymhfdekxkn" CACHE PATH "")
 
@@ -105,11 +105,10 @@ set(CAMP_DIR "${TPL_ROOT}/camp-2025.03.0-xp6sg6rdf7xp46dw57ovuxzwnewpfomu" CACHE
 # Devtools
 #------------------------------------------------------------------------------
 
-# ClangFormat disabled due to llvm@14 and devtools not in spec
+# ClangFormat disabled since llvm@14 and devtools not in spec
 
 set(ENABLE_CLANGFORMAT OFF CACHE BOOL "")
 
 set(ENABLE_DOCS OFF CACHE BOOL "")
-
 
 

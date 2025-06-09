@@ -78,11 +78,11 @@ a Conduit node.
     conduit::Node &n_topo2 = n_mesh["topologies/mesh3d"];
     conduit::Node &n_topo3 = n_mesh["topologies/mesh2dss"];
     // Make a 2D structured mesh view from the topology.
-    auto topologyView1 = axom::mir::views::make_structured<2>::view(n_topo1);
+    auto topologyView1 = axom::mir::views::make_structured_topology<2>::view(n_topo1);
     // Make a 3D structured mesh view from the topology.
-    auto topologyView2 = axom::mir::views::make_structured<2>::view(n_topo2);
+    auto topologyView2 = axom::mir::views::make_structured_topology<2>::view(n_topo2);
     // Make a 2D strided-structured mesh view from the topology.
-    auto topologyView3 = axom::mir::views::make_strided_structured<2>::view(n_topo3);
+    auto topologyView3 = axom::mir::views::make_strided_structured_topology<2>::view(n_topo3);
 
 ^^^^^^^^^^^^^^^^^^^^^^^^
 Unstructured Mesh Views

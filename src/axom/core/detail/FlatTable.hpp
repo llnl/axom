@@ -135,7 +135,7 @@ struct GroupBucket
 
   bool hasSentinel() const { return metadata.buckets[Size - 1] == Sentinel; }
 
-  void setSentinel() { metadata.buckets[Size - 1] = Sentinel; }
+  AXOM_HOST_DEVICE void setSentinel() { metadata.buckets[Size - 1] = Sentinel; }
 
   // We need to map hashes in the range [0, 255] to [2, 255], since 0 and 1
   // are taken by the "empty" and "sentinel" values respectively.

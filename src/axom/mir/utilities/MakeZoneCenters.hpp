@@ -60,6 +60,40 @@ public:
                const conduit::Node &n_coordset,
                conduit::Node &n_outputField) const
   {
+    const auto numZones = m_topologyView.numberOfZones();
+    const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
+    // Select all zones.
+    axom::Array<axom::IndexType> selectedZones(numZones, numZones, allocatorID);
+    auto selectedZonesView = selectedZones.view();
+    axom::for_all<ExecSpace>(
+      numZones,
+      AXOM_LAMBDA(axom::IndexType index) { selectedZonesView[index] = index; });
+    // Make the zone centers.
+    execute(selectedZonesView, n_topology, n_coordset, n_outputField);
+  }
+
+  /*!
+   * \brief Create a new field from the input topology and place it in \a n_output.
+   *
+   * \param selectedZonesView A view that contains a list of selected zones.
+   * \param n_topology The node that contains the input topology.
+   * \param n_coordset The input coordset that we're blending.
+   * \param[out] n_outputField The output node that will contain the new zone centers field.
+   *
+   * \note The coordset view must agree with the coordset in n_coordset. We pass both
+   *       a view and the coordset node since the view may not be able to contain
+   *       some coordset metadata and remain trivially copyable.
+   *
+   * \note When passing selectedZones that is a subset of the zones in the mesh,
+   *       be aware that the generated field may not be the right length for the
+   *       input topology. This is okay because we may be using this routine to
+   *       generate a field that is repurposed some other way.
+   */
+  void execute(axom::ArrayView<axom::IndexType> selectedZonesView,
+               const conduit::Node &n_topology,
+               const conduit::Node &n_coordset,
+               conduit::Node &n_outputField) const
+  {
     using value_type = typename CoordsetView::value_type;
     using PointType = typename CoordsetView::PointType;
     using VectorType = axom::primal::Vector<value_type, PointType::DIMENSION>;
@@ -80,7 +114,7 @@ public:
     conduit::Node &n_values = n_outputField["values"];
 
     // Determine output size.
-    const auto outputSize = m_topologyView.numberOfZones();
+    const auto outputSize = selectedZonesView.size();
 
     // Make output nodes using axis names from the input coordset. Make array views too.
     axom::StackArray<axom::ArrayView<value_type>, PointType::DIMENSION> compViews;
@@ -99,11 +133,11 @@ public:
 
     // Blend the nodes in each zone to make a center point.
     axom::for_all<ExecSpace>(
-      m_topologyView.numberOfZones(),
-      AXOM_LAMBDA(axom::IndexType zoneIndex) {
+      outputSize,
+      AXOM_LAMBDA(axom::IndexType zi) {
+        const auto zoneIndex = selectedZonesView[zi];
         const auto zone = deviceTopoView.zone(zoneIndex);
         const axom::IndexType nnodes = zone.numberOfNodes();
-        const value_type weight = static_cast<value_type>(1.) / static_cast<value_type>(nnodes);
 
         VectorType blended {};
 
@@ -111,13 +145,14 @@ public:
         for(IndexType i = 0; i < nnodes; i++)
         {
           const auto index = zone.getId(i);
-          blended += (VectorType(deviceCoordsetView[index]) * static_cast<value_type>(weight));
+          blended += VectorType(deviceCoordsetView[index]);
         }
+        blended = blended / static_cast<value_type>(nnodes);
 
         // Store the point into the Conduit component arrays.
         for(int comp = 0; comp < PointType::DIMENSION; comp++)
         {
-          compViews[comp][zoneIndex] = blended[comp];
+          compViews[comp][zi] = blended[comp];
         }
       });
   }

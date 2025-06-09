@@ -20,14 +20,14 @@ namespace views
 {
 /// Base template
 template <int NDIMS>
-struct make_rectilinear
+struct make_rectilinear_topology
 { };
 
 /*!
  * \brief Create a 3D structured topology view with normal structured indexing.
  */
 template <>
-struct make_rectilinear<3>
+struct make_rectilinear_topology<3>
 {
   using Indexing = views::StructuredIndexing<axom::IndexType, 3>;
   using LogicalIndex = typename Indexing::LogicalIndex;
@@ -64,7 +64,7 @@ struct make_rectilinear<3>
  * \brief Create a 2D structured topology view with normal structured indexing.
  */
 template <>
-struct make_rectilinear<2>
+struct make_rectilinear_topology<2>
 {
   using Indexing = views::StructuredIndexing<axom::IndexType, 2>;
   using LogicalIndex = typename Indexing::LogicalIndex;
@@ -100,7 +100,7 @@ struct make_rectilinear<2>
  * \brief Create a 1D structured topology view with normal structured indexing.
  */
 template <>
-struct make_rectilinear<1>
+struct make_rectilinear_topology<1>
 {
   using Indexing = views::StructuredIndexing<axom::IndexType, 1>;
   using LogicalIndex = typename Indexing::LogicalIndex;
@@ -159,7 +159,7 @@ struct dispatch_one_rectilinear_topology<true, 3, FuncType>
    */
   static void execute(const conduit::Node &topo, FuncType &&func)
   {
-    auto topoView = make_rectilinear<3>::view(topo);
+    auto topoView = make_rectilinear_topology<3>::view(topo);
     const std::string shape("hex");
     func(shape, topoView);
   }
@@ -180,7 +180,7 @@ struct dispatch_one_rectilinear_topology<true, 2, FuncType>
    */
   static void execute(const conduit::Node &topo, FuncType &&func)
   {
-    auto topoView = make_rectilinear<2>::view(topo);
+    auto topoView = make_rectilinear_topology<2>::view(topo);
     const std::string shape("quad");
     func(shape, topoView);
   }
@@ -201,7 +201,7 @@ struct dispatch_one_rectilinear_topology<true, 1, FuncType>
    */
   static void execute(const conduit::Node &topo, FuncType &&func)
   {
-    auto topoView = make_rectilinear<1>::view(topo);
+    auto topoView = make_rectilinear_topology<1>::view(topo);
     const std::string shape("line");
     func(shape, topoView);
   }

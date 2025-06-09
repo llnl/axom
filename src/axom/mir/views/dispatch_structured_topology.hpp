@@ -29,14 +29,14 @@ namespace views
  * \brief Base template for strided structured topology creation
  */
 template <int NDIMS>
-struct make_strided_structured
+struct make_strided_structured_topology
 { };
 
 /*!
  * \brief Create a 3D structured topology view with strided structured indexing.
  */
 template <>
-struct make_strided_structured<3>
+struct make_strided_structured_topology<3>
 {
   using Indexing = views::StridedStructuredIndexing<axom::IndexType, 3>;
   using LogicalIndex = typename Indexing::LogicalIndex;
@@ -87,7 +87,7 @@ struct make_strided_structured<3>
  * \brief Create a 2D structured topology view with strided structured indexing.
  */
 template <>
-struct make_strided_structured<2>
+struct make_strided_structured_topology<2>
 {
   using Indexing = views::StridedStructuredIndexing<axom::IndexType, 2>;
   using LogicalIndex = typename Indexing::LogicalIndex;
@@ -134,7 +134,7 @@ struct make_strided_structured<2>
  * \brief Create a 1D structured topology view with strided structured indexing.
  */
 template <>
-struct make_strided_structured<1>
+struct make_strided_structured_topology<1>
 {
   using Indexing = views::StridedStructuredIndexing<axom::IndexType, 1>;
   using LogicalIndex = typename Indexing::LogicalIndex;
@@ -173,14 +173,14 @@ struct make_strided_structured<1>
  * \brief Base template for structured topology creation
  */
 template <int NDIMS>
-struct make_structured
+struct make_structured_topology
 { };
 
 /*!
  * \brief Create a 3D structured topology view with normal structured indexing.
  */
 template <>
-struct make_structured<3>
+struct make_structured_topology<3>
 {
   using Indexing = views::StructuredIndexing<axom::IndexType, 3>;
   using LogicalIndex = typename Indexing::LogicalIndex;
@@ -213,7 +213,7 @@ struct make_structured<3>
  * \brief Create a 2D structured topology view with normal structured indexing.
  */
 template <>
-struct make_structured<2>
+struct make_structured_topology<2>
 {
   using Indexing = views::StructuredIndexing<axom::IndexType, 2>;
   using LogicalIndex = typename Indexing::LogicalIndex;
@@ -244,7 +244,7 @@ struct make_structured<2>
  * \brief Create a 1D structured topology view with normal structured indexing.
  */
 template <>
-struct make_structured<1>
+struct make_structured_topology<1>
 {
   using Indexing = views::StructuredIndexing<axom::IndexType, 1>;
   using LogicalIndex = typename Indexing::LogicalIndex;
@@ -305,12 +305,12 @@ struct dispatch_only_structured_topology<true, 3, FuncType>
     const std::string shape("hex");
     if(topo.has_path(offsetsKey) || topo.has_path(stridesKey))
     {
-      auto topoView = make_strided_structured<3>::view(topo);
+      auto topoView = make_strided_structured_topology<3>::view(topo);
       func(shape, topoView);
     }
     else
     {
-      auto topoView = make_structured<3>::view(topo);
+      auto topoView = make_structured_topology<3>::view(topo);
       func(shape, topoView);
     }
   }
@@ -336,12 +336,12 @@ struct dispatch_only_structured_topology<true, 2, FuncType>
     const std::string shape("quad");
     if(topo.has_path(offsetsKey) || topo.has_path(stridesKey))
     {
-      auto topoView = make_strided_structured<2>::view(topo);
+      auto topoView = make_strided_structured_topology<2>::view(topo);
       func(shape, topoView);
     }
     else
     {
-      auto topoView = make_structured<2>::view(topo);
+      auto topoView = make_structured_topology<2>::view(topo);
       func(shape, topoView);
     }
   }
@@ -367,12 +367,12 @@ struct dispatch_only_structured_topology<true, 1, FuncType>
     const std::string shape("line");
     if(topo.has_path(offsetsKey) || topo.has_path(stridesKey))
     {
-      auto topoView = make_strided_structured<1>::view(topo);
+      auto topoView = make_strided_structured_topology<1>::view(topo);
       func(shape, topoView);
     }
     else
     {
-      auto topoView = make_structured<1>::view(topo);
+      auto topoView = make_structured_topology<1>::view(topo);
       func(shape, topoView);
     }
   }
@@ -411,7 +411,7 @@ struct dispatch_any_structured_topology<true, 3, FuncType>
 
     if(type == "structured" && topo.has_path(offsetsKey) && topo.has_path(stridesKey))
     {
-      auto topoView = make_strided_structured<3>::view(topo);
+      auto topoView = make_strided_structured_topology<3>::view(topo);
       func(shape, topoView);
     }
     else
@@ -419,11 +419,11 @@ struct dispatch_any_structured_topology<true, 3, FuncType>
       // Make these topology types share the same func dispatch.
       StructuredTopologyView<StructuredIndexing<axom::IndexType, 3>> topoView;
       if(type == "uniform")
-        topoView = make_uniform<3>::view(topo);
+        topoView = make_uniform_topology<3>::view(topo);
       else if(type == "rectilinear")
-        topoView = make_rectilinear<3>::view(topo);
+        topoView = make_rectilinear_topology<3>::view(topo);
       else if(type == "structured")
-        topoView = make_structured<3>::view(topo);
+        topoView = make_structured_topology<3>::view(topo);
       func(shape, topoView);
     }
   }
@@ -449,7 +449,7 @@ struct dispatch_any_structured_topology<true, 2, FuncType>
     const std::string shape("quad");
     if(type == "structured" && topo.has_path(offsetsKey) && topo.has_path(stridesKey))
     {
-      auto topoView = make_strided_structured<2>::view(topo);
+      auto topoView = make_strided_structured_topology<2>::view(topo);
       func(shape, topoView);
     }
     else
@@ -457,11 +457,11 @@ struct dispatch_any_structured_topology<true, 2, FuncType>
       // Make these topology types share the same func dispatch.
       StructuredTopologyView<StructuredIndexing<axom::IndexType, 2>> topoView;
       if(type == "uniform")
-        topoView = make_uniform<2>::view(topo);
+        topoView = make_uniform_topology<2>::view(topo);
       else if(type == "rectilinear")
-        topoView = make_rectilinear<2>::view(topo);
+        topoView = make_rectilinear_topology<2>::view(topo);
       else if(type == "structured")
-        topoView = make_structured<2>::view(topo);
+        topoView = make_structured_topology<2>::view(topo);
       func(shape, topoView);
     }
   }
@@ -489,11 +489,11 @@ struct dispatch_any_structured_topology<true, 1, FuncType>
     // Make these topology types share the same func dispatch.
     StructuredTopologyView<StructuredIndexing<axom::IndexType, 1>> topoView;
     if(type == "uniform")
-      topoView = make_uniform<1>::view(topo);
+      topoView = make_uniform_topology<1>::view(topo);
     else if(type == "rectilinear")
-      topoView = make_rectilinear<1>::view(topo);
+      topoView = make_rectilinear_topology<1>::view(topo);
     else if(type == "structured")
-      topoView = make_structured<1>::view(topo);
+      topoView = make_structured_topology<1>::view(topo);
     func(shape, topoView);
   }
 };

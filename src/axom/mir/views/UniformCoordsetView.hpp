@@ -65,6 +65,28 @@ public:
   /// @}
 
   /*!
+   * \brief Return the indexing for the coordset so we know its
+   *        logical sizes.
+   * \return The indexing that contains the mesh logical sizes.
+   */
+  AXOM_HOST_DEVICE
+  const StructuredIndexing<IndexType, NDIMS> &indexing() const { return m_indexing; }
+
+  /*!
+   * \brief Return the coordset origin.
+   * \return The coordset origin.
+   */
+  AXOM_HOST_DEVICE
+  const ExtentsType &origin() const { return m_origin; }
+
+  /*!
+   * \brief Return the coordset spacing.
+   * \return The coordset spacing.
+   */
+  AXOM_HOST_DEVICE
+  const ExtentsType &spacing() const { return m_spacing; }
+
+  /*!
    * \brief Return the requested point from the coordset.
    *
    * \param vertex_index The logical index of the point to return.

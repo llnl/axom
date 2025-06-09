@@ -33,8 +33,19 @@ protected:
     n_mesh["state/domain_id"] = rank;
 
     constexpr int nDomainsPerRow = 8;
-    const int domI = rank % nDomainsPerRow;
-    const int domJ = rank / nDomainsPerRow;
+    int domI = 0, domJ = 0, domK = 0;
+    if(dimension == 3)
+    {
+      constexpr int nDomainsPerPlane = nDomainsPerRow * nDomainsPerRow;
+      domI = rank % nDomainsPerRow;
+      domJ = (rank % nDomainsPerPlane) / nDomainsPerRow;
+      domK = rank / nDomainsPerPlane;
+    }
+    else
+    {
+      domI = rank % nDomainsPerRow;
+      domJ = rank / nDomainsPerRow;
+    }
 
     // We'll translate the X,Y coordinates for the domain.
     const float xShift = static_cast<float>(domI * gridSize);
@@ -45,6 +56,16 @@ protected:
     {
       xcView[i] += xShift;
       ycView[i] += yShift;
+    }
+
+    if(dimension == 3)
+    {
+      const float zShift = static_cast<float>(domK * gridSize);
+      auto zcView = bputils::make_array_view<float>(n_mesh["coordsets/coords/values/z"]);
+      for(axom::IndexType i = 0; i < xcView.size(); i++)
+      {
+        zcView[i] += zShift;
+      }
     }
   }
 

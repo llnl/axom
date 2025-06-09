@@ -14,13 +14,10 @@
 
 #include "axom/config.hpp"
 #include "axom/core/Array.hpp"
+#include "axom/core/execution/atomics.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/utilities/BitUtilities.hpp"
 #include "axom/slic.hpp"
-
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
 
 #include <vector>
 
@@ -317,14 +314,7 @@ public:
    *
    * \pre \a idx must be between 0 and bitset.size()
    */
-  void atomicClear(Index idx)
-  {
-#ifdef AXOM_USE_RAJA
-    RAJA::atomicAnd<RAJA::auto_atomic>(&getWord(idx), ~mask(idx));
-#else
-    clear(idx);
-#endif
-  }
+  void atomicClear(Index idx) { axom::atomicAnd<axom::auto_atomic>(&getWord(idx), ~mask(idx)); }
 
   /**
    * \brief Sets bit at index \a idx
@@ -333,11 +323,7 @@ public:
    */
   AXOM_HOST_DEVICE void atomicSet(Index idx)
   {
-#ifdef AXOM_USE_RAJA
-    RAJA::atomicOr<RAJA::auto_atomic>(&getWord(idx), mask(idx));
-#else
-    set(idx);
-#endif
+    axom::atomicOr<axom::auto_atomic>(&getWord(idx), mask(idx));
   }
 
   /**
@@ -345,14 +331,7 @@ public:
    *
    * \pre \a idx must be between 0 and bitset.size()
    */
-  void atomicFlip(Index idx)
-  {
-#ifdef AXOM_USE_RAJA
-    RAJA::atomicXor<RAJA::auto_atomic>(&getWord(idx), mask(idx));
-#else
-    flip(idx);
-#endif
-  }
+  void atomicFlip(Index idx) { axom::atomicXor<axom::auto_atomic>(&getWord(idx), mask(idx)); }
 
   /// @}
 private:

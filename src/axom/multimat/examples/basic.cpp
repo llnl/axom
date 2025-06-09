@@ -265,8 +265,7 @@ void multimat_to_blueprint(axom::multimat::MultiMat &mm, conduit::Node &mesh)
     // Get field properties
     auto name = mm.getFieldName(i);
     auto mapping = mm.getFieldMapping(i);
-    auto dataType = mm.getFieldDataType(i);
-    SLIC_ASSERT(dataType == axom::multimat::DataTypeSupported::TypeDouble);
+    SLIC_ASSERT(mm.getFieldDataType(i) == axom::multimat::DataTypeSupported::TypeDouble);
 
     conduit::Node &n_f = mesh["fields/" + name];
     n_f["association"] = "element";

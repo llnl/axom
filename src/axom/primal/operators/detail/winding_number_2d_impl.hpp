@@ -125,6 +125,7 @@ int polygon_winding_number(const Point<T, 2>& R,
  * \param [in] q The query point to test
  * \param [in] c0 The initial point of the line segment
  * \param [in] c1 The terminal point of the line segment
+ * \param [out] isOnEdge Return flag if the point is on the boundary
  * \param [in] edge_tol The tolerance at which a point is on the line
  *
  * The GWN for a 2D point with respect to a 2D straight line
@@ -137,26 +138,44 @@ template <typename T>
 double linear_winding_number(const Point<T, 2>& q,
                              const Point<T, 2>& c0,
                              const Point<T, 2>& c1,
+                             bool& isOnEdge,
                              double edge_tol)
 {
-  Vector<T, 2> V1(q, c0);
-  Vector<T, 2> V2(q, c1);
+  Vector<T, 2> V0(q, c0);
+  Vector<T, 2> V1(q, c1);
 
   // clang-format off
   // Measures the signed area of the triangle with vertices q, c0, c1
-  double tri_area = axom::numerics::determinant(V1[0] - V2[0], V2[0], 
-                                                V1[1] - V2[1], V2[1]);
+  double tri_area = axom::numerics::determinant(V0[0] - V1[0], V1[0], 
+                                                V0[1] - V1[1], V1[1]);
   // clang-format on
 
+  double segment_sq_len = (V0 - V1).squared_norm();
+
   // Compute distance from line connecting endpoints to query
-  if(tri_area * tri_area <= edge_tol * edge_tol * (V1 - V2).squared_norm())
+  isOnEdge = false;
+  if(tri_area * tri_area <= edge_tol * edge_tol * segment_sq_len)
   {
+    // Project the query point onto the line segment to see if they're coincident
+    if(axom::utilities::isNearlyEqual(segment_sq_len, 0.0))
+    {
+      isOnEdge = (V0.squared_norm() <= edge_tol * edge_tol);
+    }
+    else
+    {
+      double proj_val = Vector<T, 2>::dot_product(V0, V0 - V1) / segment_sq_len;
+      if((proj_val >= 0 - edge_tol) && (proj_val <= 1 + edge_tol))
+      {
+        isOnEdge = true;
+      }
+    }
+
     return 0;
   }
 
   // Compute signed angle between vectors
   double dotprod =
-    axom::utilities::clampVal(Vector<T, 2>::dot_product(V1.unitVector(), V2.unitVector()), -1.0, 1.0);
+    axom::utilities::clampVal(Vector<T, 2>::dot_product(V0.unitVector(), V1.unitVector()), -1.0, 1.0);
 
   return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
 }
@@ -281,8 +300,7 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
  *   has the same integer winding number as the original closed curve
  * \param [out] endpoint_gwn A running sum for the exact GWN if the point is at the 
  *   endpoint of a subcurve
- * \param [out] isCoincident A flag to indicate if the query point is coincident with
- *   the curve (i.e., is on a vertex of the approximating polygon)
+ * \param [out] isOnPolygonEndpoint A flag to indicate if the query is on a vertex of the polygon
  *
  * By the termination of the recursive algorithm, `approximating_polygon` contains
  *  a polygon that has the same *integer* winding number as the original curve.
@@ -303,7 +321,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
                                      double EPS,
                                      Polygon<T, 2>& approximating_polygon,
                                      double& endpoint_gwn,
-                                     bool& isCoincident)
+                                     bool& isOnPolygonEndpoint)
 {
   const int ord = c.getOrder();
 
@@ -345,7 +363,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
     {
       // ...we can use a direct formula for the GWN at the endpoint
       endpoint_gwn += convex_endpoint_winding_number(q, c, edge_tol, EPS);
-      isCoincident = true;
+      isOnPolygonEndpoint = true;
 
       return;
     }
@@ -362,7 +380,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
                                   EPS,
                                   approximating_polygon,
                                   endpoint_gwn,
-                                  isCoincident);
+                                  isOnPolygonEndpoint);
   approximating_polygon.addVertex(c2[0]);
   construct_approximating_polygon(q,
                                   c2,
@@ -371,7 +389,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
                                   EPS,
                                   approximating_polygon,
                                   endpoint_gwn,
-                                  isCoincident);
+                                  isOnPolygonEndpoint);
 
   return;
 }
@@ -381,6 +399,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
  *
  * \param [in] q The query point to test
  * \param [in] c The Bezier curve object 
+ * \param [in] isOnCurve An returned flag if the point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
@@ -402,6 +421,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
 template <typename T>
 double bezier_winding_number(const Point<T, 2>& q,
                              const BezierCurve<T, 2>& c,
+                             bool& isOnCurve,
                              double edge_tol = 1e-8,
                              double EPS = 1e-8)
 {
@@ -412,9 +432,9 @@ double bezier_winding_number(const Point<T, 2>& q,
   }
 
   // Early return is possible for most points + curves
-  if(!c.boundingBox().expand(edge_tol).contains(q))
+  if(!c.boundingBox().expand(edge_tol).contains(q) || c.isLinear(EPS))
   {
-    return detail::linear_winding_number(q, c[0], c[ord], edge_tol);
+    return detail::linear_winding_number(q, c[0], c[ord], isOnCurve, edge_tol);
   }
 
   // The first vertex of the polygon is the t=0 point of the curve
@@ -424,7 +444,7 @@ double bezier_winding_number(const Point<T, 2>& q,
   // Need to keep a running total of the GWN to account for
   //  the winding number of coincident points
   double gwn = 0.0;
-  bool isCoincident = false;
+  bool isOnPolygonEndpoint = false;  // Indicates coincidence with curve
   detail::construct_approximating_polygon(q,
                                           c,
                                           false,
@@ -432,36 +452,43 @@ double bezier_winding_number(const Point<T, 2>& q,
                                           EPS,
                                           approximating_polygon,
                                           gwn,
-                                          isCoincident);
+                                          isOnPolygonEndpoint);
 
   // The last vertex of the polygon is the t=1 point of the curve
   approximating_polygon.addVertex(c[ord]);
 
   // Compute the integer winding number of the closed curve
-  bool isOnEdge = false;
+  bool isOnPolygonEdge = false;
   double closed_curve_wn =
-    detail::polygon_winding_number(q, approximating_polygon, isOnEdge, false, edge_tol);
+    detail::polygon_winding_number(q, approximating_polygon, isOnPolygonEdge, false, edge_tol);
 
   // Compute the fractional value of the closed curve
+  bool isOnClosure = false;
   const int n = approximating_polygon.numVertices();
-  const double closure_wn =
-    detail::linear_winding_number(q, approximating_polygon[n - 1], approximating_polygon[0], edge_tol);
+  const double closure_wn = detail::linear_winding_number(q,
+                                                          approximating_polygon[n - 1],
+                                                          approximating_polygon[0],
+                                                          isOnClosure,
+                                                          edge_tol);
 
   // If the point is on the boundary of the approximating polygon,
-  //  or coincident with the curve (rare), then winding_number<polygon>
+  //  or coincident with the curve (isOnPolygonEndpoint), then winding_number<polygon>
   //  doesn't return the right half-integer. Have to go edge-by-edge.
-  if(isCoincident || isOnEdge)
+  if(isOnPolygonEndpoint || isOnPolygonEdge)
   {
     closed_curve_wn = closure_wn;
     for(int i = 1; i < n; ++i)
     {
+      bool isOnThisEdge = false;
       closed_curve_wn += detail::linear_winding_number(q,
                                                        approximating_polygon[i - 1],
                                                        approximating_polygon[i],
+                                                       isOnThisEdge,
                                                        edge_tol);
     }
   }
 
+  isOnCurve = isOnPolygonEndpoint;
   return gwn + closed_curve_wn - closure_wn;
 }
 
@@ -470,6 +497,7 @@ double bezier_winding_number(const Point<T, 2>& q,
  *
  * \param [in] q The query point to test
  * \param [in] n The NURBS curve object 
+ * \param [in] isOnEdge An returned flag if the point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
@@ -482,6 +510,7 @@ double bezier_winding_number(const Point<T, 2>& q,
 template <typename T>
 double nurbs_winding_number(const Point<T, 2>& q,
                             const NURBSCurve<T, 2>& n,
+                            bool& isOnEdge,
                             double edge_tol = 1e-8,
                             double EPS = 1e-8)
 {
@@ -494,7 +523,7 @@ double nurbs_winding_number(const Point<T, 2>& q,
   // Early return is possible for most points + curves
   if(!n.boundingBox().expand(edge_tol).contains(q))
   {
-    return detail::linear_winding_number(q, n[0], n[n.getNumControlPoints() - 1], edge_tol);
+    return detail::linear_winding_number(q, n[0], n[n.getNumControlPoints() - 1], isOnEdge, edge_tol);
   }
 
   // Decompose the NURBS curve into Bezier segments
@@ -504,7 +533,9 @@ double nurbs_winding_number(const Point<T, 2>& q,
   double gwn = 0.0;
   for(int i = 0; i < beziers.size(); i++)
   {
-    gwn += bezier_winding_number(q, beziers[i], edge_tol, EPS);
+    bool isOnThisEdge = false;
+    gwn += bezier_winding_number(q, beziers[i], isOnThisEdge, edge_tol, EPS);
+    isOnEdge = isOnEdge || isOnThisEdge;
   }
 
   return gwn;

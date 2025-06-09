@@ -60,6 +60,27 @@ public:
   /// @}
 
   /*!
+   * \brief Return the indexing for the coordset so we know its
+   *        logical sizes.
+   * \return The indexing that contains the mesh logical sizes.
+   */
+  AXOM_HOST_DEVICE
+  const StructuredIndexing<IndexType, 2> &indexing() const { return m_indexing; }
+
+  /*!
+   * \brief Get a coordinate array view for a dimension.
+   *
+   * \param dim The dimension of the coordinate to return.
+   *
+   * \return A coordinate array view for the specified dimension.
+   */
+  AXOM_HOST_DEVICE axom::ArrayView<DataType> getCoordinates(size_t dim) const
+  {
+    SLIC_ASSERT(dim < dimension());
+    return m_coordinates[dim];
+  }
+
+  /*!
    * \brief Return the requested point from the coordset.
    *
    * \param vertex_index The logical index of the point to return.
@@ -156,6 +177,27 @@ public:
   AXOM_HOST_DEVICE
   IndexType numberOfNodes() const { return m_indexing.size(); }
   /// @}
+
+  /*!
+   * \brief Return the indexing for the coordset so we know its
+   *        logical sizes.
+   * \return The indexing that contains the mesh logical sizes.
+   */
+  AXOM_HOST_DEVICE
+  const StructuredIndexing<IndexType, 3> &indexing() const { return m_indexing; }
+
+  /*!
+   * \brief Get a coordinate array view for a dimension.
+   *
+   * \param dim The dimension of the coordinate to return.
+   *
+   * \return A coordinate array view for the specified dimension.
+   */
+  AXOM_HOST_DEVICE axom::ArrayView<DataType> getCoordinates(size_t dim) const
+  {
+    SLIC_ASSERT(dim < dimension());
+    return m_coordinates[dim];
+  }
 
   /*!
    * \brief Return the requested point from the coordset.

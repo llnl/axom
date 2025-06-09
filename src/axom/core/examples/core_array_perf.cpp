@@ -227,17 +227,10 @@ public:
     m_testAccumulation += testAdd;
     auto count = array.size();
     auto* ptr = array.data();
-#ifdef AXOM_USE_RAJA
     axom::for_all<ExecSpace>(
       0,
       count,
       AXOM_LAMBDA(axom::IndexType i) { ptr[i] += testAdd; });
-#else
-    for(axom::IndexType i = 0; i < count; ++i)
-    {
-      ptr[i] += testAdd;
-    }
-#endif
   }
 
   /*!
@@ -251,17 +244,10 @@ public:
     auto testAdd = m_flatTestAdd;
     m_testAccumulation += testAdd;
     auto count = array.size();
-#ifdef AXOM_USE_RAJA
     axom::for_all<ExecSpace>(
       0,
       count,
       AXOM_LAMBDA(axom::IndexType i) { array.flatIndex(i) += testAdd; });
-#else
-    for(axom::IndexType i = 0; i < count; ++i)
-    {
-      array.flatIndex(i) += testAdd;
-    }
-#endif
   }
 
   /*!
@@ -285,17 +271,10 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-#ifdef AXOM_USE_RAJA
     axom::for_all<ExecSpace>(
       idxBegin[0],
       idxEnd[0],
       AXOM_LAMBDA(axom::IndexType i) { array[i] += testAdd; });
-#else
-    for(axom::IndexType i = idxBegin[0]; i < idxEnd[0]; ++i)
-    {
-      array[i] += testAdd;
-    }
-#endif
   }
 
   template <int TDIM = DIM>
@@ -307,22 +286,12 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-#ifdef AXOM_USE_RAJA
-    using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
-    RAJA::RangeSegment iRange(idxBegin[0], idxEnd[0]);
-    RAJA::RangeSegment jRange(idxBegin[1], idxEnd[1]);
-    RAJA::kernel<EXEC_POL>(
-      RAJA::make_tuple(jRange, iRange),
+    axom::StackArray<axom::IndexType, 2> jRange {{idxBegin[1], idxEnd[1]}};
+    axom::StackArray<axom::IndexType, 2> iRange {{idxBegin[0], idxEnd[0]}};
+    axom::for_all<ExecSpace>(
+      jRange,
+      iRange,
       AXOM_LAMBDA(axom::IndexType j, axom::IndexType i) { array(i, j) += testAdd; });
-#else
-    for(axom::IndexType i = idxBegin[0]; i < idxEnd[0]; ++i)
-    {
-      for(axom::IndexType j = idxBegin[1]; j < idxEnd[1]; ++j)
-      {
-        array(i, j) += testAdd;
-      }
-    }
-#endif
   }
 
   template <int TDIM = DIM>
@@ -334,28 +303,16 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-#ifdef AXOM_USE_RAJA
-    using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop3d_policy;
-    RAJA::RangeSegment iRange(idxBegin[0], idxEnd[0]);
-    RAJA::RangeSegment jRange(idxBegin[1], idxEnd[1]);
-    RAJA::RangeSegment kRange(idxBegin[2], idxEnd[2]);
-    RAJA::kernel<EXEC_POL>(
-      RAJA::make_tuple(kRange, jRange, iRange),
+    axom::StackArray<axom::IndexType, 2> kRange {{idxBegin[2], idxEnd[2]}};
+    axom::StackArray<axom::IndexType, 2> jRange {{idxBegin[1], idxEnd[1]}};
+    axom::StackArray<axom::IndexType, 2> iRange {{idxBegin[0], idxEnd[0]}};
+    axom::for_all<ExecSpace>(
+      kRange,
+      jRange,
+      iRange,
       AXOM_LAMBDA(axom::IndexType k, axom::IndexType j, axom::IndexType i) {
         array(i, j, k) += testAdd;
       });
-#else
-    for(axom::IndexType i = idxBegin[0]; i < idxEnd[0]; ++i)
-    {
-      for(axom::IndexType j = idxBegin[1]; j < idxEnd[1]; ++j)
-      {
-        for(axom::IndexType k = idxBegin[2]; k < idxEnd[2]; ++k)
-        {
-          array(i, j, k) += testAdd;
-        }
-      }
-    }
-#endif
   }
 
   template <int TDIM = DIM>
@@ -404,17 +361,10 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-#ifdef AXOM_USE_RAJA
     axom::for_all<ExecSpace>(
       idxBegin[0],
       idxEnd[0],
       AXOM_LAMBDA(axom::IndexType i) { array[i] += testAdd; });
-#else
-    for(axom::IndexType i = idxBegin[0]; i < idxEnd[0]; ++i)
-    {
-      array[i] += testAdd;
-    }
-#endif
   }
 
   template <int TDIM = DIM>
@@ -427,22 +377,12 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-#ifdef AXOM_USE_RAJA
-    using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
-    RAJA::RangeSegment iRange(idxBegin[0], idxEnd[0]);
-    RAJA::RangeSegment jRange(idxBegin[1], idxEnd[1]);
-    RAJA::kernel<EXEC_POL>(
-      RAJA::make_tuple(iRange, jRange),
+    axom::StackArray<axom::IndexType, 2> jRange {{idxBegin[1], idxEnd[1]}};
+    axom::StackArray<axom::IndexType, 2> iRange {{idxBegin[0], idxEnd[0]}};
+    axom::for_all<ExecSpace>(
+      iRange,
+      jRange,
       AXOM_LAMBDA(axom::IndexType i, axom::IndexType j) { array(i, j) += testAdd; });
-#else
-    for(axom::IndexType j = idxBegin[1]; j < idxEnd[1]; ++j)
-    {
-      for(axom::IndexType i = idxBegin[0]; i < idxEnd[0]; ++i)
-      {
-        array(i, j) += testAdd;
-      }
-    }
-#endif
   }
 
   template <int TDIM = DIM>
@@ -455,28 +395,16 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-#ifdef AXOM_USE_RAJA
-    using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop3d_policy;
-    RAJA::RangeSegment iRange(idxBegin[0], idxEnd[0]);
-    RAJA::RangeSegment jRange(idxBegin[1], idxEnd[1]);
-    RAJA::RangeSegment kRange(idxBegin[2], idxEnd[2]);
-    RAJA::kernel<EXEC_POL>(
-      RAJA::make_tuple(iRange, jRange, kRange),
+    axom::StackArray<axom::IndexType, 2> kRange {{idxBegin[2], idxEnd[2]}};
+    axom::StackArray<axom::IndexType, 2> jRange {{idxBegin[1], idxEnd[1]}};
+    axom::StackArray<axom::IndexType, 2> iRange {{idxBegin[0], idxEnd[0]}};
+    axom::for_all<ExecSpace>(
+      iRange,
+      jRange,
+      kRange,
       AXOM_LAMBDA(axom::IndexType i, axom::IndexType j, axom::IndexType k) {
         array(i, j, k) += testAdd;
       });
-#else
-    for(axom::IndexType k = idxBegin[2]; k < idxEnd[2]; ++k)
-    {
-      for(axom::IndexType j = idxBegin[1]; j < idxEnd[1]; ++j)
-      {
-        for(axom::IndexType i = idxBegin[0]; i < idxEnd[0]; ++i)
-        {
-          array(i, j, k) += testAdd;
-        }
-      }
-    }
-#endif
   }
 
   template <int TDIM = DIM>
@@ -529,17 +457,10 @@ public:
 
     const auto idxBegin = params.idxBegin;
     const auto idxEnd = params.idxEnd;
-#ifdef AXOM_USE_RAJA
     axom::for_all<ExecSpace>(
       idxBegin[0],
       idxEnd[0],
       AXOM_LAMBDA(axom::IndexType i) { array[i] += testAdd; });
-#else
-    for(axom::IndexType i = idxBegin[0]; i < idxEnd[0]; ++i)
-    {
-      array[i] += testAdd;
-    }
-#endif
   }
 
   template <int TDIM = DIM>
@@ -562,30 +483,17 @@ public:
                                                          idxBegin[slowestDirs[1]]};
     const axom::StackArray<axom::IndexType, DIM> ends {idxEnd[slowestDirs[0]],
                                                        idxEnd[slowestDirs[1]]};
-#ifdef AXOM_USE_RAJA
-    using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
-    RAJA::RangeSegment mRange(begins[0], ends[0]);
-    RAJA::RangeSegment nRange(begins[1], ends[1]);
-    RAJA::kernel<EXEC_POL>(
-      RAJA::make_tuple(nRange, mRange),
+    axom::StackArray<axom::IndexType, 2> nRange {{begins[1], ends[1]}};
+    axom::StackArray<axom::IndexType, 2> mRange {{begins[0], ends[0]}};
+    axom::for_all<ExecSpace>(
+      nRange,
+      mRange,
       AXOM_LAMBDA(axom::IndexType n, axom::IndexType m) {
         axom::StackArray<axom::IndexType, DIM> idx {m, n};
         auto i = idx[invSlowestDirs[0]];
         auto j = idx[invSlowestDirs[1]];
         array(i, j) += testAdd;
       });
-#else
-    axom::StackArray<axom::IndexType, DIM> idx;
-    axom::IndexType& m = idx[slowestDirs[0]];
-    axom::IndexType& n = idx[slowestDirs[1]];
-    for(m = begins[0]; m < ends[0]; ++m)
-    {
-      for(n = begins[1]; n < ends[1]; ++n)
-      {
-        array[idx] += testAdd;
-      }
-    }
-#endif
   }
 
   template <int TDIM = DIM>
@@ -610,13 +518,14 @@ public:
     const axom::StackArray<axom::IndexType, DIM> ends {idxEnd[slowestDirs[0]],
                                                        idxEnd[slowestDirs[1]],
                                                        idxEnd[slowestDirs[2]]};
-#ifdef AXOM_USE_RAJA
-    using EXEC_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop3d_policy;
-    RAJA::RangeSegment mRange(begins[0], ends[0]);
-    RAJA::RangeSegment nRange(begins[1], ends[1]);
-    RAJA::RangeSegment oRange(begins[2], ends[2]);
-    RAJA::kernel<EXEC_POL>(
-      RAJA::make_tuple(oRange, nRange, mRange),
+    axom::StackArray<axom::IndexType, 2> oRange {{begins[2], ends[2]}};
+    axom::StackArray<axom::IndexType, 2> nRange {{begins[1], ends[1]}};
+    axom::StackArray<axom::IndexType, 2> mRange {{begins[0], ends[0]}};
+
+    axom::for_all<ExecSpace>(
+      oRange,
+      nRange,
+      mRange,
       AXOM_LAMBDA(axom::IndexType o, axom::IndexType n, axom::IndexType m) {
         axom::StackArray<axom::IndexType, DIM> idx {m, n, o};
         auto i = idx[invSlowestDirs[0]];
@@ -624,22 +533,6 @@ public:
         auto k = idx[invSlowestDirs[2]];
         array(i, j, k) += testAdd;
       });
-#else
-    axom::StackArray<axom::IndexType, DIM> idx;
-    axom::IndexType& m = idx[slowestDirs[0]];
-    axom::IndexType& n = idx[slowestDirs[1]];
-    axom::IndexType& o = idx[slowestDirs[2]];
-    for(m = begins[0]; m < ends[0]; ++m)
-    {
-      for(n = begins[1]; n < ends[1]; ++n)
-      {
-        for(o = begins[2]; o < ends[2]; ++o)
-        {
-          array[idx] += testAdd;
-        }
-      }
-    }
-#endif
   }
 
   template <int TDIM = DIM>

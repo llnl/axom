@@ -9,11 +9,6 @@
 
 #include <conduit/conduit.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mir
@@ -141,9 +136,6 @@ protected:
   template <typename ZonesViewType>
   int buildSelectedZones(ZonesViewType zonesView, axom::IndexType nzones)
   {
-    using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     m_selectedZones = axom::Array<axom::IndexType>(zonesView.size(), zonesView.size(), allocatorID);
     auto szView = m_selectedZonesView = m_selectedZones.view();
@@ -152,7 +144,7 @@ protected:
       AXOM_LAMBDA(axom::IndexType index) { szView[index] = zonesView[index]; });
 
     // Check that the selected zone values are in range.
-    RAJA::ReduceSum<reduce_policy, int> errReduce(0);
+    axom::ReduceSum<ExecSpace, int> errReduce(0);
     axom::for_all<ExecSpace>(
       szView.size(),
       AXOM_LAMBDA(axom::IndexType index) {
@@ -163,7 +155,7 @@ protected:
     if(m_sorted)
     {
       // Make sure the selectedZones are sorted.
-      RAJA::sort<loop_policy>(RAJA::make_span(szView.data(), szView.size()));
+      axom::sort<ExecSpace>(szView);
     }
 
     return errReduce.get();

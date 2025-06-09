@@ -641,7 +641,7 @@ double revolvedVolume(const primal::NURBSCurve<double, 2>& nurbs,
       // Compute y(u) to get radius
       PointType eval;
       VectorType dt;
-      bezier.evaluate_first_derivative(u, eval, dt);
+      bezier.evaluateFirstDerivative(u, eval, dt);
 
       const PointType p_uT = detail::transformPoint(transform, eval);
       const double r = p_uT[1];
