@@ -212,21 +212,21 @@ TEST(mir_coordset_extents, uniform2d_seq)
   AXOM_ANNOTATE_SCOPE("uniform2d_seq");
   test_coordset_extents<seq_exec>::test_uniform_2d();
 }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_coordset_extents, uniform2d_omp)
 {
   AXOM_ANNOTATE_SCOPE("uniform2d_omp");
   test_coordset_extents<omp_exec>::test_uniform_2d();
 }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_coordset_extents, uniform2d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("uniform2d_cuda");
   test_coordset_extents<cuda_exec>::test_uniform_2d();
 }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_coordset_extents, uniform2d_hip)
 {
   AXOM_ANNOTATE_SCOPE("uniform2d_hip");
@@ -240,21 +240,21 @@ TEST(mir_coordset_extents, uniform3d_seq)
   AXOM_ANNOTATE_SCOPE("uniform3d_seq");
   test_coordset_extents<seq_exec>::test_uniform_3d();
 }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_coordset_extents, uniform3d_omp)
 {
   AXOM_ANNOTATE_SCOPE("uniform3d_omp");
   test_coordset_extents<omp_exec>::test_uniform_3d();
 }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_coordset_extents, uniform3d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("uniform3d_cuda");
   test_coordset_extents<cuda_exec>::test_uniform_3d();
 }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_coordset_extents, uniform3d_hip)
 {
   AXOM_ANNOTATE_SCOPE("uniform3d_hip");
@@ -268,21 +268,21 @@ TEST(mir_coordset_extents, rectilinear2d_seq)
   AXOM_ANNOTATE_SCOPE("rectilinear2d_seq");
   test_coordset_extents<seq_exec>::test_rectilinear_2d();
 }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_coordset_extents, rectilinear2d_omp)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear2d_omp");
   test_coordset_extents<omp_exec>::test_rectilinear_2d();
 }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_coordset_extents, rectilinear2d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear2d_cuda");
   test_coordset_extents<cuda_exec>::test_rectilinear_2d();
 }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_coordset_extents, rectilinear2d_hip)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear2d_hip");
@@ -296,21 +296,21 @@ TEST(mir_coordset_extents, rectilinear3d_seq)
   AXOM_ANNOTATE_SCOPE("rectilinear3d_seq");
   test_coordset_extents<seq_exec>::test_rectilinear_3d();
 }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_coordset_extents, rectilinear3d_omp)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear3d_omp");
   test_coordset_extents<omp_exec>::test_rectilinear_3d();
 }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_coordset_extents, rectilinear3d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear3d_cuda");
   test_coordset_extents<cuda_exec>::test_rectilinear_3d();
 }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_coordset_extents, rectilinear3d_hip)
 {
   AXOM_ANNOTATE_SCOPE("rectilinear3d_hip");
@@ -324,21 +324,21 @@ TEST(mir_coordset_extents, explicit2d_seq)
   AXOM_ANNOTATE_SCOPE("explicit2d_seq");
   test_coordset_extents<seq_exec>::test_explicit_2d();
 }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_coordset_extents, explicit2d_omp)
 {
   AXOM_ANNOTATE_SCOPE("explicit2d_omp");
   test_coordset_extents<omp_exec>::test_explicit_2d();
 }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_coordset_extents, explicit2d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("explicit2d_cuda");
   test_coordset_extents<cuda_exec>::test_explicit_2d();
 }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_coordset_extents, explicit2d_hip)
 {
   AXOM_ANNOTATE_SCOPE("explicit2d_hip");
@@ -352,21 +352,21 @@ TEST(mir_coordset_extents, explicit3d_seq)
   AXOM_ANNOTATE_SCOPE("explicit3d_seq");
   test_coordset_extents<seq_exec>::test_explicit_3d();
 }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_coordset_extents, explicit3d_omp)
 {
   AXOM_ANNOTATE_SCOPE("explicit3d_omp");
   test_coordset_extents<omp_exec>::test_explicit_3d();
 }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_coordset_extents, explicit3d_cuda)
 {
   AXOM_ANNOTATE_SCOPE("explicit3d_cuda");
   test_coordset_extents<cuda_exec>::test_explicit_3d();
 }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_coordset_extents, explicit3d_hip)
 {
   AXOM_ANNOTATE_SCOPE("explicit3d_hip");

@@ -206,6 +206,7 @@ public:
    * \note Moves min & max point expansionAmount away from the center.
    * \note This function checks to ensure the bounding box is valid afterwards.
    * \note If expansionAmount is negative, the bounding box will contract
+   * \note Expanding an invalid bounding box has no effect.
    * \return A reference to the bounding box after it has been expanded
    */
   AXOM_HOST_DEVICE
@@ -226,6 +227,7 @@ public:
   /*!
    * \brief Shifts the bounding box by a fixed displacement.
    * \param [in] displacement the amount with which to move the bounding box
+   * \note Shifting an invalid bounding box has no effect.
    * \return A reference to the bounding box after it has been shifted
    */
   AXOM_HOST_DEVICE
@@ -533,13 +535,15 @@ AXOM_HOST_DEVICE int BoundingBox<T, NDIMS>::getLongestDimension() const
 template <typename T, int NDIMS>
 AXOM_HOST_DEVICE BoundingBox<T, NDIMS>& BoundingBox<T, NDIMS>::expand(T expansionAmount)
 {
-  for(int dim = 0; dim < NDIMS; ++dim)
+  if(this->isValid())
   {
-    m_min[dim] -= expansionAmount;
-    m_max[dim] += expansionAmount;
+    for(int dim = 0; dim < NDIMS; ++dim)
+    {
+      m_min[dim] -= expansionAmount;
+      m_max[dim] += expansionAmount;
+    }
+    this->checkAndFixBounds();
   }
-
-  this->checkAndFixBounds();
   return *this;
 }
 
@@ -564,9 +568,11 @@ AXOM_HOST_DEVICE BoundingBox<T, NDIMS>& BoundingBox<T, NDIMS>::scale(double scal
 template <typename T, int NDIMS>
 AXOM_HOST_DEVICE BoundingBox<T, NDIMS>& BoundingBox<T, NDIMS>::shift(const VectorType& disp)
 {
-  m_min.array() += disp.array();
-  m_max.array() += disp.array();
-
+  if(this->isValid())
+  {
+    m_min.array() += disp.array();
+    m_max.array() += disp.array();
+  }
   return *this;
 }
 

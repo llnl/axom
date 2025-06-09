@@ -11,10 +11,6 @@
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
 
-#include "axom/core/execution/execution_space.hpp"
-#include "axom/core/memory_management.hpp"
-#include "axom/core/utilities/BitUtilities.hpp"
-
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
@@ -280,10 +276,6 @@ public:
       maxBlkBins[i] = m_maxBlockBin[i].data();
     }
 
-#ifdef AXOM_USE_RAJA
-    using AtomicPol = typename axom::execution_space<ExecSpace>::atomic_policy;
-#endif
-
     for_all<ExecSpace>(
       nelems,
       AXOM_LAMBDA(axom::IndexType ibox) {
@@ -308,13 +300,8 @@ public:
           for(int j = lower; j <= upper; ++j)
           {
             binData[idim][j].atomicSet(elemIdx);
-#ifdef AXOM_USE_RAJA
-            RAJA::atomicMin<AtomicPol>(&minBlkBins[idim][j], word);
-            RAJA::atomicMax<AtomicPol>(&maxBlkBins[idim][j], word);
-#else
-            minBlkBins[idim][j] = std::min(minBlkBins[idim][j], word);
-            maxBlkBins[idim][j] = std::max(maxBlkBins[idim][j], word);
-#endif
+            axom::atomicMin<ExecSpace>(&minBlkBins[idim][j], word);
+            axom::atomicMax<ExecSpace>(&maxBlkBins[idim][j], word);
           }
         }
       });
@@ -830,8 +817,7 @@ void ImplicitGrid<NDIMS, ExecSpace, IndexType>::getCandidatesAsArray(
   auto gridQuery = getQueryObject();
 
 #ifdef AXOM_USE_RAJA
-  using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
-  RAJA::ReduceSum<reduce_pol, IndexType> totalCountReduce(0);
+  axom::ReduceSum<ExecSpace, IndexType> totalCountReduce(0);
   // Step 1: count number of candidate intersections for each point
   for_all<ExecSpace>(
     qsize,
@@ -840,16 +826,8 @@ void ImplicitGrid<NDIMS, ExecSpace, IndexType>::getCandidatesAsArray(
       totalCountReduce += outCounts[i];
     });
 
-    // Step 2: exclusive scan for offsets in candidate array
-    // Intel oneAPI compiler segfaults with OpenMP RAJA scan
-  #ifdef __INTEL_LLVM_COMPILER
-  using exec_policy = typename axom::execution_space<axom::SEQ_EXEC>::loop_policy;
-  #else
-  using exec_policy = typename axom::execution_space<ExecSpace>::loop_policy;
-  #endif
-  RAJA::exclusive_scan<exec_policy>(RAJA::make_span(outCounts.data(), qsize),
-                                    RAJA::make_span(outOffsets.data(), qsize),
-                                    RAJA::operators::plus<IndexType> {});
+  // Step 2: exclusive scan for offsets in candidate array
+  axom::exclusive_scan<ExecSpace>(outCounts, outOffsets);
 
   axom::IndexType totalCount = totalCountReduce.get();
 

@@ -7,7 +7,6 @@
 #define AXOM_MIR_TOPOLOGY_MAPPER_HPP_
 
 #include "axom/config.hpp"
-#include "axom/CLI11.hpp"
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
 #include "axom/slic.hpp"
@@ -488,7 +487,6 @@ public:
     AXOM_ANNOTATE_SCOPE("TopologyMapper::execute");
     namespace bputils = axom::mir::utilities::blueprint;
 
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     // Pick output matset types (use input types)
     using MatIntType = typename SrcMatsetView::IndexType;
     using MatFloatType = typename SrcMatsetView::FloatType;
@@ -731,7 +729,7 @@ public:
     axom::IndexType totalSize = 0;
     {
       AXOM_ANNOTATE_SCOPE("sizes");
-      RAJA::ReduceSum<reduce_policy, int> reduceSize(0), emptyCount(0);
+      axom::ReduceSum<ExecSpace, int> reduceSize(0), emptyCount(0);
       axom::for_all<ExecSpace>(
         nTargetZones,
         AXOM_LAMBDA(axom::IndexType index) {

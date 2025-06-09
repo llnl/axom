@@ -17,12 +17,6 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#else
-  #error This example requires axom to be configured with RAJA support
-#endif
-
 #ifdef AXOM_USE_UMPIRE
   #include "umpire/Umpire.hpp"
 #else
@@ -549,8 +543,7 @@ std::vector<IndexPair> findCandidatesImplicit(const HexMesh& insertMesh,
   // Object to query the candidates
   const auto grid_device = gridIndex.getQueryObject();
 
-  using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
-  RAJA::ReduceSum<reduce_pol, int> totalCandidatePairs(0);
+  axom::ReduceSum<ExecSpace, int> totalCandidatePairs(0);
 
   // First pass: get number of bounding box candidates for each query bounding
   // box. Logic here mirrors the quest_bvh_two_pass.cpp example. See also
@@ -583,17 +576,10 @@ std::vector<IndexPair> findCandidatesImplicit(const HexMesh& insertMesh,
 
   AXOM_ANNOTATE_BEGIN("write candidate pairs");
 
-// Generate offsets from the counts
-// (Note: exclusive scan for offsets in candidate array
-// Intel oneAPI compiler segfaults with OpenMP RAJA scan)
-#ifdef __INTEL_LLVM_COMPILER
-  using exec_pol = typename axom::execution_space<axom::SEQ_EXEC>::loop_policy;
-#else
-  using exec_pol = typename axom::execution_space<ExecSpace>::loop_policy;
-#endif
-  RAJA::exclusive_scan<exec_pol>(RAJA::make_span(counts_v.data(), queryMesh.numHexes()),
-                                 RAJA::make_span(offsets_v.data(), queryMesh.numHexes()),
-                                 RAJA::operators::plus<int> {});
+  // Generate offsets from the counts
+  // (Note: exclusive scan for offsets in candidate array
+  axom::exclusive_scan<ExecSpace>(axom::ArrayView<int>(counts_v.data(), queryMesh.numHexes()),
+                                  axom::ArrayView<int>(offsets_v.data(), queryMesh.numHexes()));
 
   // Initialize candidatePairs to return.
   // Allocate arrays for candidate pairs

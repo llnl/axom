@@ -234,14 +234,15 @@ void Shaper::loadShapeInternal(const klee::Shape& shape, double percentError, do
   internal::ScopedLogLevelChanger logLevelChanger(this->isVerbose() ? slic::message::Debug
                                                                     : slic::message::Warning);
 
-  SLIC_INFO(axom::fmt::format("{:-^80}", axom::fmt::format(" Loading shape '{}' ", shape.getName())));
+  SLIC_INFO_ROOT(
+    axom::fmt::format("{:-^80}", axom::fmt::format(" Loading shape '{}' ", shape.getName())));
 
-  SLIC_ASSERT_MSG(
-    this->isValidFormat(shape.getGeometry().getFormat()),
-    axom::fmt::format("Shape has unsupported format: '{}", shape.getGeometry().getFormat()));
+  SLIC_ASSERT_MSG(this->isValidFormat(this->shapeFormat(shape)),
+                  axom::fmt::format("Shape has unsupported format: '{}", this->shapeFormat(shape)));
 
   // Code for discretizing shapes has been factored into DiscreteShape class.
   DiscreteShape discreteShape(shape, m_dataStore.getRoot(), m_prefixPath);
+  discreteShape.setSamplesPerKnotSpan(m_samplesPerKnotSpan);
   discreteShape.setVertexWeldThreshold(m_vertexWeldThreshold);
   discreteShape.setRefinementType(m_refinementType);
   if(percentError > 0)
@@ -309,8 +310,31 @@ double Shaper::allReduceSum(double val) const
   double global;
   MPI_Allreduce(&val, &global, 1, MPI_DOUBLE, MPI_SUM, m_comm);
   return global;
-#endif
+#else
   return val;
+#endif
+}
+
+double Shaper::allReduceMin(double val) const
+{
+#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+  double global;
+  MPI_Allreduce(&val, &global, 1, MPI_DOUBLE, MPI_MIN, m_comm);
+  return global;
+#else
+  return val;
+#endif
+}
+
+double Shaper::allReduceMax(double val) const
+{
+#if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
+  double global;
+  MPI_Allreduce(&val, &global, 1, MPI_DOUBLE, MPI_MAX, m_comm);
+  return global;
+#else
+  return val;
+#endif
 }
 
 }  // end namespace quest

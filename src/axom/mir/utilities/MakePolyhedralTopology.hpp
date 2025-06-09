@@ -11,11 +11,6 @@
 
 #include <conduit/conduit.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mir
@@ -59,7 +54,6 @@ public:
   {
     AXOM_ANNOTATE_SCOPE("MakePolyhedralTopology");
     namespace bputils = axom::mir::utilities::blueprint;
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
@@ -87,7 +81,7 @@ public:
     //--------------------------------------------------------------------------
     AXOM_ANNOTATE_BEGIN("counting");
     // Compute the total number of faces if they were all unique.
-    RAJA::ReduceSum<reduce_policy, axom::IndexType> reduceTotalFaces(0), reduceTotalFaceStorage(0);
+    axom::ReduceSum<ExecSpace, axom::IndexType> reduceTotalFaces(0), reduceTotalFaceStorage(0);
     axom::Array<axom::IndexType> zoneFaceSizes(nzones, nzones, allocatorID);
     axom::Array<axom::IndexType> zoneFaceOffsets(nzones, nzones, allocatorID);
     auto zoneFaceSizesView = zoneFaceSizes.view();

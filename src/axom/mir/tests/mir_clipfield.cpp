@@ -372,13 +372,13 @@ struct test_unique
 };
 
 TEST(mir_clipfield, unique_seq) { test_unique<seq_exec>::test(); }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_clipfield, unique_omp) { test_unique<omp_exec>::test(); }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_clipfield, unique_cuda) { test_unique<cuda_exec>::test(); }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_clipfield, unique_hip) { test_unique<hip_exec>::test(); }
 #endif
 
@@ -459,15 +459,15 @@ void test_one_shape_exec(const conduit::Node &hostMesh, const std::string &name)
 {
   test_one_shape<seq_exec, ShapeType>(hostMesh, name);
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   test_one_shape<omp_exec, ShapeType>(hostMesh, name);
 #endif
 
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   test_one_shape<cuda_exec, ShapeType>(hostMesh, name);
 #endif
 
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   test_one_shape<hip_exec, ShapeType>(hostMesh, name);
 #endif
 }
@@ -615,15 +615,15 @@ TEST(mir_clipfield, uniform2d)
 {
   braid2d_clip_test<seq_exec>("uniform", "uniform2d");
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   braid2d_clip_test<omp_exec>("uniform", "uniform2d");
 #endif
 
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   braid2d_clip_test<cuda_exec>("uniform", "uniform2d");
 #endif
 
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   braid2d_clip_test<hip_exec>("uniform", "uniform2d");
 #endif
 }
@@ -679,15 +679,15 @@ TEST(mir_clipfield, rectilinear2d)
 {
   braid_rectilinear_clip_test<seq_exec, 2>("rectilinear2d");
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   braid_rectilinear_clip_test<omp_exec, 2>("rectilinear2d");
 #endif
 
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   braid_rectilinear_clip_test<cuda_exec, 2>("rectilinear2d");
 #endif
 
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   braid_rectilinear_clip_test<hip_exec, 2>("rectilinear2d");
 #endif
 }
@@ -696,15 +696,15 @@ TEST(mir_clipfield, rectilinear3d)
 {
   braid_rectilinear_clip_test<seq_exec, 3>("rectilinear3d");
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   braid_rectilinear_clip_test<omp_exec, 3>("rectilinear3d");
 #endif
 
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   braid_rectilinear_clip_test<cuda_exec, 3>("rectilinear3d");
 #endif
 
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   braid_rectilinear_clip_test<hip_exec, 3>("rectilinear3d");
 #endif
 }
@@ -748,15 +748,15 @@ void strided_structured_clip_test_exec(const std::string &name, const conduit::N
 {
   strided_structured_clip_test<seq_exec, 2>(name, options);
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   strided_structured_clip_test<omp_exec, 2>(name, options);
 #endif
 
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   strided_structured_clip_test<cuda_exec, 2>(name, options);
 #endif
 
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   strided_structured_clip_test<hip_exec, 2>(name, options);
 #endif
 }
@@ -832,15 +832,15 @@ void braid3d_clip_test_exec(const std::string &type, const std::string &name)
 {
   braid3d_clip_test<seq_exec, ShapeType>(type, name);
 
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   braid3d_clip_test<omp_exec, ShapeType>(type, name);
 #endif
 
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   braid3d_clip_test<cuda_exec, ShapeType>(type, name);
 #endif
 
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   braid3d_clip_test<hip_exec, ShapeType>(type, name);
 #endif
 }
@@ -930,13 +930,13 @@ void braid3d_mixed_clip_test(const std::string &name)
 }
 
 TEST(mir_clipfield, mixed_seq) { braid3d_mixed_clip_test<seq_exec>("mixed"); }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_clipfield, mixed_omp) { braid3d_mixed_clip_test<omp_exec>("mixed"); }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_clipfield, mixed_cuda) { braid3d_mixed_clip_test<cuda_exec>("mixed"); }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_clipfield, mixed_hip) { braid3d_mixed_clip_test<hip_exec>("mixed"); }
 #endif
 
@@ -1028,13 +1028,13 @@ struct point_merge_test
 };
 
 TEST(mir_clipfield, pointmerging_seq) { point_merge_test<seq_exec>::test(); }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_clipfield, pointmerging_omp) { point_merge_test<omp_exec>::test(); }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_clipfield, pointmerging_cuda) { point_merge_test<cuda_exec>::test(); }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_clipfield, pointmerging_hip) { point_merge_test<hip_exec>::test(); }
 #endif
 
@@ -1134,13 +1134,13 @@ fields:
 };
 
 TEST(mir_clipfield, selectedzones_seq) { test_selectedzones<seq_exec>::test(); }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
 TEST(mir_clipfield, selectedzones_omp) { test_selectedzones<omp_exec>::test(); }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 TEST(mir_clipfield, selectedzones_cuda) { test_selectedzones<cuda_exec>::test(); }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 TEST(mir_clipfield, selectedzones_hip) { test_selectedzones<hip_exec>::test(); }
 #endif
 

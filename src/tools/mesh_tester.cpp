@@ -28,35 +28,29 @@
 
 #include "axom/fmt.hpp"
 
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
-
 #include "axom/core/execution/nested_for_exec.hpp"
 
 using seq_exec = axom::SEQ_EXEC;
 
 // clang-format off
-#if defined(AXOM_USE_RAJA)
-  #if defined(AXOM_USE_OPENMP)
-    using omp_exec = axom::OMP_EXEC;
-  #else
-    using omp_exec = seq_exec;
-  #endif
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  using omp_exec = axom::OMP_EXEC;
+#else
+  using omp_exec = seq_exec;
+#endif
 
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
-    constexpr int CUDA_BLOCK_SIZE = 256;
-    using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
-  #else
-    using cuda_exec = seq_exec;
-  #endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  constexpr int CUDA_BLOCK_SIZE = 256;
+  using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
+#else
+  using cuda_exec = seq_exec;
+#endif
 
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
-    constexpr int HIP_BLOCK_SIZE = 256;
-    using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;
-  #else
-    using hip_exec = seq_exec;
-  #endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  constexpr int HIP_BLOCK_SIZE = 256;
+  using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;
+#else
+  using hip_exec = seq_exec;
 #endif
 // clang-format on
 
@@ -135,13 +129,13 @@ const std::map<std::string, RuntimePolicy> Input::s_validPolicies({
   {"seq", seq}
   #ifdef AXOM_USE_RAJA
   , {"raja_seq", raja_seq}
-    #ifdef AXOM_USE_OPENMP
+    #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   , {"raja_omp", raja_omp}
     #endif
-    #ifdef AXOM_USE_CUDA
+    #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   , {"raja_cuda", raja_cuda}
     #endif
-    #if defined(AXOM_USE_HIP)
+    #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   , {"raja_hip", raja_hip}
     #endif
   #endif
@@ -176,13 +170,13 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
            << "(w/o RAJA).";
 #ifdef AXOM_USE_RAJA
   pol_sstr << "\nSet to 'raja_seq' or 1 to use the RAJA sequential policy.";
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   pol_sstr << "\nSet to 'raja_omp' or 2 to use the RAJA OpenMP policy.";
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   pol_sstr << "\nSet to 'raja_cuda' or 3 to use the RAJA CUDA policy.";
   #endif
-  #if defined(AXOM_USE_HIP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   pol_sstr << "\nSet to 'raja_hip' or 4 to use the RAJA HIP policy.";
   #endif
 #endif
@@ -442,14 +436,10 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
     }
   }
 
-  RAJA::RangeSegment row_range(0, ncells);
-  RAJA::RangeSegment col_range(0, ncells);
+  axom::StackArray<axom::IndexType, 2> row_range {{0, static_cast<axom::IndexType>(ncells)}};
+  axom::StackArray<axom::IndexType, 2> col_range {{0, static_cast<axom::IndexType>(ncells)}};
 
-  using KERNEL_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
-  using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-  using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
-
-  RAJA::ReduceSum<REDUCE_POL, int> numIntersect(0);
+  axom::ReduceSum<ExecSpace, int> numIntersect(0);
 
   // Copy triangles to device
   axom::Array<Triangle3> tris_d =
@@ -458,8 +448,9 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
   auto tris_v = on_device ? tris_d.view() : tris_h.view();
 
   // Compute the number of intersections
-  RAJA::kernel<KERNEL_POL>(
-    RAJA::make_tuple(col_range, row_range),
+  axom::for_all<ExecSpace>(
+    col_range,
+    row_range,
     AXOM_LAMBDA(int col, int row) {
       if(row > col)
       {
@@ -481,14 +472,15 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
   auto counter_v = on_device ? counter_d.view() : counter_h.view();
 
   // RAJA loop to populate with intersections
-  RAJA::kernel<KERNEL_POL>(
-    RAJA::make_tuple(col_range, row_range),
+  axom::for_all<ExecSpace>(
+    col_range,
+    row_range,
     AXOM_LAMBDA(int col, int row) {
       if(row > col)
       {
         if(checkTT(tris_v[row], tris_v[col], EPS))
         {
-          auto idx = RAJA::atomicAdd<ATOMIC_POL>(counter_v.data(), 2);
+          auto idx = axom::atomicAdd<ExecSpace>(counter_v.data(), 2);
           intersections_v[idx] = row;
           intersections_v[idx + 1] = col;
         }
@@ -507,7 +499,7 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
 
   return retval;
 }
-#endif  // defined(AXOM_USE_RAJA)
+#endif
 
 void announceMeshProblems(int triangleCount, int intersectPairCount, int degenerateCount)
 {
@@ -698,25 +690,25 @@ int main(int argc, char** argv)
         collisions =
           naiveIntersectionAlgorithm(surface_mesh, degenerate, params.intersectionThreshold);
         break;
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA)
       case raja_seq:
         collisions =
           naiveIntersectionAlgorithm<seq_exec>(surface_mesh, degenerate, params.intersectionThreshold);
         break;
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case raja_omp:
         collisions =
           naiveIntersectionAlgorithm<omp_exec>(surface_mesh, degenerate, params.intersectionThreshold);
         break;
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case raja_cuda:
         collisions = naiveIntersectionAlgorithm<cuda_exec>(surface_mesh,
                                                            degenerate,
                                                            params.intersectionThreshold);
         break;
   #endif
-  #if defined(AXOM_USE_HIP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case raja_hip:
         collisions =
           naiveIntersectionAlgorithm<hip_exec>(surface_mesh, degenerate, params.intersectionThreshold);
@@ -742,14 +734,14 @@ int main(int argc, char** argv)
                                                              degenerate,
                                                              params.intersectionThreshold);
         break;
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA)
       case raja_seq:
         quest::findTriMeshIntersectionsBVH<seq_exec, double>(surface_mesh,
                                                              collisions,
                                                              degenerate,
                                                              params.intersectionThreshold);
         break;
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case raja_omp:
         quest::findTriMeshIntersectionsBVH<omp_exec, double>(surface_mesh,
                                                              collisions,
@@ -757,7 +749,7 @@ int main(int argc, char** argv)
                                                              params.intersectionThreshold);
         break;
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case raja_cuda:
         quest::findTriMeshIntersectionsBVH<cuda_exec, double>(surface_mesh,
                                                               collisions,
@@ -765,7 +757,7 @@ int main(int argc, char** argv)
                                                               params.intersectionThreshold);
         break;
   #endif
-  #if defined(AXOM_USE_HIP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case raja_hip:
         quest::findTriMeshIntersectionsBVH<hip_exec, double>(surface_mesh,
                                                              collisions,
@@ -802,7 +794,7 @@ int main(int argc, char** argv)
                                                                       params.resolution,
                                                                       params.intersectionThreshold);
         break;
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case raja_omp:
         quest::findTriMeshIntersectionsImplicitGrid<omp_exec, double>(surface_mesh,
                                                                       collisions,
@@ -811,7 +803,7 @@ int main(int argc, char** argv)
                                                                       params.intersectionThreshold);
         break;
   #endif
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case raja_cuda:
         quest::findTriMeshIntersectionsImplicitGrid<cuda_exec, double>(surface_mesh,
                                                                        collisions,
@@ -820,7 +812,7 @@ int main(int argc, char** argv)
                                                                        params.intersectionThreshold);
         break;
   #endif
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case raja_hip:
         quest::findTriMeshIntersectionsImplicitGrid<hip_exec, double>(surface_mesh,
                                                                       collisions,
@@ -857,7 +849,7 @@ int main(int argc, char** argv)
                                                                      params.resolution,
                                                                      params.intersectionThreshold);
         break;
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case raja_omp:
         quest::findTriMeshIntersectionsUniformGrid<omp_exec, double>(surface_mesh,
                                                                      collisions,
@@ -866,7 +858,7 @@ int main(int argc, char** argv)
                                                                      params.intersectionThreshold);
         break;
   #endif
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case raja_cuda:
         quest::findTriMeshIntersectionsUniformGrid<cuda_exec, double>(surface_mesh,
                                                                       collisions,
@@ -875,7 +867,7 @@ int main(int argc, char** argv)
                                                                       params.intersectionThreshold);
         break;
   #endif
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case raja_hip:
         quest::findTriMeshIntersectionsUniformGrid<hip_exec, double>(surface_mesh,
                                                                      collisions,

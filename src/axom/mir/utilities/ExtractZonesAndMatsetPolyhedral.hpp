@@ -14,11 +14,6 @@
 #include "axom/mir/Options.hpp"
 #include "axom/mir/MIROptions.hpp"
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mir
@@ -42,8 +37,6 @@ template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typen
 class ExtractZonesAndMatsetPolyhedral
   : public ExtractZonesAndMatset<ExecSpace, axom::mir::views::StructuredTopologyView<IndexPolicy>, CoordsetView, MatsetView>
 {
-  using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
 public:
   using ParentClass =
     ExtractZonesAndMatset<ExecSpace, axom::mir::views::StructuredTopologyView<IndexPolicy>, CoordsetView, MatsetView>;
@@ -107,7 +100,8 @@ protected:
     // polyhedral output topology.
 
     constexpr int FacesPerHex = 6;
-    constexpr int PointsPerQuad = 4;
+    // Note: MSVC needs constexpr lambda capture to be marked `static` even though constexpr should suffice
+    static constexpr int PointsPerQuad = 4;
     constexpr std::uint8_t ZoneEmpty = 0;
     constexpr std::uint8_t ZoneSelected = 1 << 7;
 
@@ -140,7 +134,7 @@ protected:
     auto zoneFaceSizesView = zoneFaceSizes.view();
 
     const auto deviceTopologyView(ParentClass::m_topologyView);
-    RAJA::ReduceSum<reduce_policy, int> faceCount_reduce(0);
+    axom::ReduceSum<ExecSpace, int> faceCount_reduce(0);
     axom::for_all<ExecSpace>(
       numSelectedZones,
       AXOM_LAMBDA(axom::IndexType szIndex) {

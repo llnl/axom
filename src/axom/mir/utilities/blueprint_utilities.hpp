@@ -7,6 +7,7 @@
 #define AXOM_MIR_BLUEPRINT_UTILITIES_HPP_
 
 #include "axom/core/execution/execution_space.hpp"
+#include "axom/core/execution/reductions.hpp"
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/NumericLimits.hpp"
@@ -16,11 +17,6 @@
 
 #include <conduit/conduit.hpp>
 #include <conduit/conduit_blueprint.hpp>
-
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
 
 #include <utility>
 #include <string>
@@ -447,10 +443,8 @@ struct MinMax
   template <typename T>
   static std::pair<ReturnType, ReturnType> execute(const axom::ArrayView<T> nview)
   {
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
-    RAJA::ReduceMin<reduce_policy, T> vmin(axom::numeric_limits<T>::max());
-    RAJA::ReduceMax<reduce_policy, T> vmax(axom::numeric_limits<T>::min());
+    axom::ReduceMin<ExecSpace, T> vmin(axom::numeric_limits<T>::max());
+    axom::ReduceMax<ExecSpace, T> vmax(axom::numeric_limits<T>::min());
 
     axom::for_all<ExecSpace>(
       nview.size(),

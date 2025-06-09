@@ -17,11 +17,6 @@
 #include <conduit/conduit_blueprint.hpp>
 #include <conduit/conduit_blueprint_mesh_utils.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 #include <map>
 #include <vector>
 
@@ -51,14 +46,13 @@ struct BuildRelation
    * \param[out]   sizesView A view that we fill with sizes.
    * \param[out]   offsetsView A view that we fill with offsets so offsetsView[i] points to the start of the i'th list in \a zonesView.
    *
-   * \note RAJA::sort_pairs can be slow if there are a lot of nodes (depends on ExecSpace too).
+   * \note axom::sort_pairs can be slow if there are a lot of nodes (depends on ExecSpace too).
    */
   static void execute(ViewType nodesView, ViewType zonesView, ViewType sizesView, ViewType offsetsView)
   {
     AXOM_ANNOTATE_SCOPE("FillZonesAndOffsets");
     SLIC_ASSERT(nodesView.size() == zonesView.size());
 
-    using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
     using value_type = typename ViewType::value_type;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
 
@@ -71,8 +65,7 @@ struct BuildRelation
       AXOM_LAMBDA(axom::IndexType i) { keysView[i] = nodesView[i]; });
 
     // Sort the keys, zones in place. This sorts the zonesView which we want for output.
-    RAJA::sort_pairs<loop_policy>(RAJA::make_span(keysView.data(), n),
-                                  RAJA::make_span(zonesView.data(), n));
+    axom::sort_pairs<ExecSpace>(keysView, zonesView);
 
     // Make a mask array for where differences occur.
     axom::Array<axom::IndexType> mask(n, n, allocatorID);
@@ -317,7 +310,6 @@ private:
                             axom::IndexType nnodes,
                             int intTypeId) const
   {
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     utilities::blueprint::ConduitAllocateThroughAxom<ExecSpace> c2a;
     const int conduitAllocatorID = c2a.getConduitAllocatorID();
     const auto allocatorID = axom::execution_space<ExecSpace>::allocatorID();
@@ -327,7 +319,7 @@ private:
     auto sizes_view = sizes.view();
 
     // Run through the topology once to do a count of each zone's unique node ids.
-    RAJA::ReduceSum<reduce_policy, axom::IndexType> count(0);
+    axom::ReduceSum<ExecSpace, axom::IndexType> count(0);
     const PHView deviceTopologyView(topoView);
     axom::for_all<ExecSpace>(
       topoView.numberOfZones(),

@@ -41,41 +41,41 @@ if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR AND CALIPER_FOUND)
 endif()
 
 # BVH two pass example --------------------------------------------------------
-if (RAJA_FOUND AND UMPIRE_FOUND)
-    axom_add_executable(
-        NAME        quest_bvh_two_pass_ex
-        SOURCES     quest_bvh_two_pass.cpp
-        OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends}
-        FOLDER      axom/quest/examples
-        )
+axom_add_executable(
+    NAME        quest_bvh_two_pass_ex
+    SOURCES     quest_bvh_two_pass.cpp
+    OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
+    DEPENDS_ON  ${quest_example_depends}
+    FOLDER      axom/quest/examples
+    )
 
-    # Add unit tests
-    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+# Add unit tests
+if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
 
-        # Run the quest_bvh_two_pass example with different raja policies
+    # Run the quest_bvh_two_pass example with different raja policies
 
-        set(input_file "${AXOM_DATA_DIR}/quest/unit_cube.stl")
+    set(input_file "${AXOM_DATA_DIR}/quest/unit_cube.stl")
 
-        set (_policies "seq")
+    set (_policies "seq")
+    if(RAJA_FOUND)
         blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
         blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
         blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-
-        foreach(_policy ${_policies})
-
-            set(_testname "quest_bvh_two_pass_example_${_policy}")
-            axom_add_test(
-              NAME ${_testname}
-              COMMAND quest_bvh_two_pass_ex
-                      --file ${input_file}
-                      --exec_space ${_policy}
-            )
-
-            set_tests_properties(${_testname} PROPERTIES
-                PASS_REGULAR_EXPRESSION  "Found 4 actual collisions")
-        endforeach()
     endif()
+
+    foreach(_policy ${_policies})
+
+        set(_testname "quest_bvh_two_pass_example_${_policy}")
+        axom_add_test(
+          NAME ${_testname}
+          COMMAND quest_bvh_two_pass_ex
+                  --file ${input_file}
+                  --exec_space ${_policy}
+        )
+
+        set_tests_properties(${_testname} PROPERTIES
+            PASS_REGULAR_EXPRESSION  "Found 4 actual collisions")
+    endforeach()
 endif()
 
 # Read ProE example -----------------------------------------------------------
@@ -88,7 +88,7 @@ axom_add_executable(
     )
 
 # BVH silo example ------------------------------------------------------------
-if (CONDUIT_FOUND AND RAJA_FOUND AND UMPIRE_FOUND)
+if (CONDUIT_FOUND AND UMPIRE_FOUND)
     axom_add_executable(
         NAME        quest_candidates_example_ex
         SOURCES     quest_candidates_example.cpp
@@ -109,10 +109,11 @@ if (CONDUIT_FOUND AND RAJA_FOUND AND UMPIRE_FOUND)
         set(_methods "bvh" "implicit")
 
         set (_policies "seq")
-        blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
-        blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
-        blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
-
+        if(RAJA_FOUND)
+          blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
+          blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+          blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
+        endif()
 
         foreach(_method ${_methods})
             foreach(_policy ${_policies})
@@ -217,20 +218,49 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                 PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 6[89][0-9].")
         endif()
 
-        if (UMPIRE_FOUND AND RAJA_FOUND)
-            # Tests 2D stl mesh with intersection-based shaper
-            set(_testname quest_shaping_driver_ex_star_stl_2d)
-            axom_add_test(
-                NAME ${_testname}
-                COMMAND  quest_shaping_driver_ex
-                        -i ${shaping_data_dir}/flat_star.yaml
-                        --method intersection
-                        inline_mesh --min 0 0 --max 1 1 --res 4 4 -d 2
-                NUM_MPI_TASKS ${_nranks})
-            # steel triangle: star composed of 16 right triangles with
-            # leg length 0.25 has analytic volume 0.5
-            set_tests_properties(${_testname} PROPERTIES
-                PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 0.5")
+        # Tests 2D stl mesh with intersection-based shaper
+        set(_testname quest_shaping_driver_ex_star_stl_2d)
+        axom_add_test(
+            NAME ${_testname}
+            COMMAND  quest_shaping_driver_ex
+                    -i ${shaping_data_dir}/flat_star.yaml
+                    --method intersection
+                    inline_mesh --min 0 0 --max 1 1 --res 4 4 -d 2
+            NUM_MPI_TASKS ${_nranks})
+        # steel triangle: star composed of 16 right triangles with
+        # leg length 0.25 has analytic volume 0.5
+        set_tests_properties(${_testname} PROPERTIES
+            PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 0.5")
+
+        # Tests 2D c2c contour
+        if(C2C_FOUND)
+            set(_policies "seq")
+            if(RAJA_FOUND)
+                blt_list_append(TO _policies ELEMENTS "omp" IF AXOM_ENABLE_OPENMP)
+                if(UMPIRE_FOUND)
+                  blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
+                  blt_list_append(TO _policies ELEMENTS "hip" IF AXOM_ENABLE_HIP)
+                endif()
+            endif()
+
+            foreach(_policy ${_policies})
+                set(_testname quest_shaping_driver_ex_semi_circle_2d_${_policy})
+
+                axom_add_test(
+                    NAME ${_testname}
+                    COMMAND  quest_shaping_driver_ex
+                            -i ${shaping_data_dir}/revolved_circle.yaml
+                            --policy ${_policy}
+                            --segments-per-knot-span 50
+                            --method intersection
+                            inline_mesh --min 0 0 --max 3 3 --res 3 3 -d 2
+                    NUM_MPI_TASKS ${_nranks})
+                # steel unit semi-circle with an area of pi/2
+                set_tests_properties(${_testname} PROPERTIES
+                    PASS_REGULAR_EXPRESSION  "Volume of material 'steel' is 1.57")
+            endforeach()
+
+            unset(_policies)
         endif()
 
         # 3D shaping tests
@@ -283,8 +313,7 @@ endif()
 if((CONDUIT_FOUND OR
       (AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
         AND AXOM_ENABLE_SIDRE AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION))
-    AND AXOM_ENABLE_KLEE
-    AND UMPIRE_FOUND AND RAJA_FOUND)
+    AND AXOM_ENABLE_KLEE)
     if(MFEM_FOUND)
         set(optional_dependency, "mfem")
     endif()

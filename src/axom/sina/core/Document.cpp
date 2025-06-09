@@ -17,8 +17,8 @@
 #include "axom/sina/core/Curve.hpp"
 #include "axom/sina/core/Record.hpp"
 #include "axom/config.hpp"
-#include "axom/core/Path.hpp"
-#include "axom/core/utilities/StringUtilities.hpp"
+#include "axom/core.hpp"
+#include "axom/fmt.hpp"
 
 #include "conduit.hpp"
 #ifdef AXOM_USE_HDF5
@@ -98,17 +98,7 @@ void protocolWarn(std::string const protocol, std::string const &name)
 
 std::string get_supported_file_types()
 {
-  std::string types = "[";
-  for(size_t i = 0; i < supported_types.size(); ++i)
-  {
-    types += supported_types[i];
-    if(i < supported_types.size() - 1)
-    {
-      types += ", ";
-    }
-  }
-  types += "]";
-  return types;
+  return axom::fmt::format("[{}]", axom::fmt::join(supported_types, ", "));
 }
 
 void Document::add(std::unique_ptr<Record> record) { records.emplace_back(std::move(record)); }
@@ -328,8 +318,7 @@ void saveDocument(Document const &document, std::string const &fileName, Protoco
   // that if a write fails, the old file is left intact. For this reason,
   // we write to a temporary file first and then move the file. The temporary
   // file is in the same directory to ensure that it is part of the same
-  // file system as the destination file so that the move operation is
-  // atomic.
+  // file system as the destination file so that the move operation is atomic.
 
   std::string tmpFileName = fileName + SAVE_TMP_FILE_EXTENSION;
 
@@ -360,6 +349,9 @@ void saveDocument(Document const &document, std::string const &fileName, Protoco
     throw std::invalid_argument(message.str());
   }
   }
+
+  // windows doesn't let you rename to a destination that already exists
+  axom::utilities::filesystem::removeFile(fileName);
 
   if(rename(tmpFileName.c_str(), fileName.c_str()) != 0)
   {

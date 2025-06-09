@@ -257,8 +257,7 @@ struct test_Elvira3D
    */
   static double variableSum(axom::ArrayView<double> var)
   {
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-    RAJA::ReduceSum<reduce_policy, double> reduceVar(0.);
+    axom::ReduceSum<ExecSpace, double> reduceVar(0.);
     axom::for_all<ExecSpace>(
       var.size(),
       AXOM_LAMBDA(axom::IndexType i) { reduceVar += var[i]; });
@@ -279,7 +278,6 @@ struct test_Elvira3D
                                                 axom::ArrayView<double> zoneVolumes,
                                                 const axom::mir::views::MaterialInformation &matInfo)
   {
-    using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
     AXOM_ANNOTATE_SCOPE("sumMaterialVolumes");
 
@@ -317,7 +315,7 @@ struct test_Elvira3D
           SLIC_ASSERT(index >= 0 && index < nmats);
 
           // Use an atomic to sum the value.
-          RAJA::atomicAdd<atomic_policy>(totalVolumeView.data() + index, zoneVolumes[zi] * vfs[i]);
+          axom::atomicAdd<ExecSpace>(totalVolumeView.data() + index, zoneVolumes[zi] * vfs[i]);
         }
       });
 

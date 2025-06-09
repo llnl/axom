@@ -482,8 +482,7 @@ NamedTempFile::NamedTempFile()
 {
   std::vector<char> tmpFileName;
   tmpFileName.resize(L_tmpnam);
-  // tmpnam is not the best way to do this, but it is standard and this is
-  // only a test.
+  // tmpnam is not the best way to do this, but it is standard and this is only a test.
   if(!std::tmpnam(tmpFileName.data()))
   {
     throw std::ios::failure {"Could not get temporary file"};

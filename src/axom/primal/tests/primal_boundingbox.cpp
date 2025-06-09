@@ -444,6 +444,15 @@ TEST(primal_boundingBox, bb_contains_bb)
     EXPECT_TRUE(unit_box.contains(unit_box));
   }
 
+  // Check that invalid bbox does not contain a point.
+  EXPECT_FALSE(empty_box.contains(PointD(0.)));
+
+  // Check that 1 point bbox contains the point.
+  BBoxD bbox3;
+  bbox3.addPoint(PointD(0.));
+  EXPECT_TRUE(bbox3.contains(PointD(0.)));
+  EXPECT_TRUE(bbox3.contains(bbox3));
+
   // check contains w/ empty boxes
   {
     EXPECT_TRUE(unit_box.contains(empty_box));
@@ -517,6 +526,12 @@ TEST(primal_boundingBox, bb_expand)
   EXPECT_TRUE(bbox3.isValid());
   EXPECT_EQ(bbox3.getMin(), QPoint(-2));  // 3 + -5 == -2
   EXPECT_EQ(bbox3.getMax(), QPoint(6));   // 1 - -5 == 6
+
+  // Check that expanding an invalid bbox does nothing.
+  QBBox bbox4;
+  bbox4.expand(5.);
+  EXPECT_FALSE(bbox4.isValid());
+  EXPECT_EQ(bbox4, QBBox());
 }
 
 //------------------------------------------------------------------------------
@@ -595,6 +610,13 @@ TEST(primal_boundingBox, bb_shift)
   EXPECT_TRUE(bbox2.isValid());
   EXPECT_EQ(bbox2.getMin(), QPoint(0.5));
   EXPECT_EQ(bbox2.getMax(), QPoint(2.5));
+
+  // Show that shifting an invalid bounding box has no effect.
+  QBBox bbox3, bbox4;
+  EXPECT_FALSE(bbox3.isValid());
+  EXPECT_FALSE(bbox4.isValid());
+  bbox3.shift(QVec(10.));
+  EXPECT_EQ(bbox3, bbox4);
 }
 
 //------------------------------------------------------------------------------
@@ -687,6 +709,15 @@ TEST(primal_boundingBox, bb_bisect)
   EXPECT_EQ(PointType::make_point(1.0, 0.5), bottom.getMax());
   EXPECT_EQ(PointType::make_point(0.0, 0.5), top.getMin());
   EXPECT_EQ(bbox.getMax(), top.getMax());
+
+  // Bisect longest dimension.
+  const int longest = -1;
+  BoxType bbox2(PointType::zero(), PointType::make_point(1., 10.));
+  bbox2.bisect(bottom, top, longest);
+  EXPECT_EQ(bbox2.getMin(), bottom.getMin());
+  EXPECT_EQ(PointType::make_point(1.0, 5.), bottom.getMax());
+  EXPECT_EQ(PointType::make_point(0.0, 5.), top.getMin());
+  EXPECT_EQ(bbox2.getMax(), top.getMax());
 }
 
 //------------------------------------------------------------------------------
@@ -699,6 +730,37 @@ TEST(primal_boundingBox, bb_get_centroid)
   PointType centroid = bbox.getCentroid();
   EXPECT_DOUBLE_EQ(0.5, centroid[0]);
   EXPECT_DOUBLE_EQ(0.5, centroid[1]);
+
+  // The centroid of an invalid bbox is 0,0.
+  BoxType bbox2;
+  EXPECT_DOUBLE_EQ(bbox2.getCentroid()[0], 0.);
+  EXPECT_DOUBLE_EQ(bbox2.getCentroid()[1], 0.);
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_boundingBox, bb_intersect)
+{
+  using PointType = primal::Point<double, 2>;
+  using VectorType = primal::Vector<double, 2>;
+  using BoxType = primal::BoundingBox<double, 2>;
+
+  BoxType bbox(PointType::zero(), PointType::ones());
+  BoxType bbox2(PointType::zero(), PointType::ones());
+  bbox2.shift(VectorType(0.5));
+
+  BoxType bbox_intersect = bbox.intersect(bbox2);
+  EXPECT_DOUBLE_EQ(0.5, bbox_intersect.getMin()[0]);
+  EXPECT_DOUBLE_EQ(0.5, bbox_intersect.getMin()[1]);
+  EXPECT_DOUBLE_EQ(1., bbox_intersect.getMax()[0]);
+  EXPECT_DOUBLE_EQ(1., bbox_intersect.getMax()[1]);
+
+  // Empty bbox intersected with itself returns an invalid bbox.
+  BoxType bbox_invalid;
+  EXPECT_EQ(bbox_invalid, bbox_invalid.intersect(bbox_invalid));
+
+  // Bounding box intersected with invalid bounding box returns an invalid bounding box.
+  EXPECT_EQ(bbox_invalid, bbox_invalid.intersect(bbox));
+  EXPECT_EQ(bbox_invalid, bbox.intersect(bbox_invalid));
 }
 
 //------------------------------------------------------------------------------

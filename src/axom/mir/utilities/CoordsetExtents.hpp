@@ -12,11 +12,6 @@
 
 #include <conduit/conduit.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mir
@@ -46,7 +41,6 @@ struct ComputeCoordsetExtents
    */
   static void computeExtents(CoordsetView coordsetView, axom::ArrayView<double> extentsView)
   {
-    using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
     AXOM_ANNOTATE_SCOPE("computeExtents");
 
     axom::for_all<ExecSpace>(
@@ -67,8 +61,8 @@ struct ComputeCoordsetExtents
           double *minValue = extentsView.data() + 2 * d;
           double *maxValue = minValue + 1;
           const auto value = static_cast<double>(pt[d]);
-          RAJA::atomicMin<atomic_policy>(minValue, value);
-          RAJA::atomicMax<atomic_policy>(maxValue, value);
+          axom::atomicMin<ExecSpace>(minValue, value);
+          axom::atomicMax<ExecSpace>(maxValue, value);
         }
       });
   }
