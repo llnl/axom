@@ -11,8 +11,8 @@
 #include "axom/sina/tests/TestRecord.hpp"
 
 #include "conduit.hpp"
-  #include "conduit_relay.hpp"
-  #include "conduit_relay_io.hpp"
+#include "conduit_relay.hpp"
+#include "conduit_relay_io.hpp"
 #ifdef AXOM_USE_HDF5
   #include "conduit_relay_io_hdf5.hpp"
 #endif
@@ -46,7 +46,6 @@ using ::testing::HasSubstr;
 char const TEST_RECORD_TYPE[] = "test type";
 char const EXPECTED_RECORDS_KEY[] = "records";
 char const EXPECTED_RELATIONSHIPS_KEY[] = "relationships";
-
 
 // Simple document to append into
 std::string SIMPLE_DOCUMENT = R"(
@@ -605,7 +604,8 @@ TEST(Document, load_defaultRecordLoaders)
 }
 
 // Get us a file handle for a basic document.
-conduit::relay::io::IOHandle setup_basic_file(){
+conduit::relay::io::IOHandle setup_basic_file()
+{
   std::string jsonFilePath = "simple_sina_doc.json";
   std::ofstream testFile(jsonFilePath);
   testFile << SIMPLE_DOCUMENT;
@@ -616,7 +616,8 @@ conduit::relay::io::IOHandle setup_basic_file(){
 }
 
 //Figure out where the librarydata is going
-conduit::relay::io::IOHandle do_hideous_print_append(const std::string &json_value){
+conduit::relay::io::IOHandle do_hideous_print_append(const std::string &json_value)
+{
   std::string jsonFilePath = "simple_sina_doc.json";
   std::ofstream testFile(jsonFilePath);
   testFile << SIMPLE_DOCUMENT;
@@ -633,41 +634,41 @@ TEST(Document, test_validate_append_typeclash)
   conduit::Node msgNode = validateAppendDocument(appendTo, appendFrom, "", 1, 0);
   ASSERT_EQ(msgNode.number_of_children(), 1);
   // TODO: ugly string! Is there a good way to de-escape / from conduit?
-  ASSERT_EQ(msgNode.child(0).to_string(), 
-    "\"Failed to append record 0: type mismatch \\\"run\\\"vs \\\"mismatch_type\\\"\"");
+  ASSERT_EQ(msgNode.child(0).to_string(),
+            "\"Failed to append record 0: type mismatch \\\"run\\\"vs \\\"mismatch_type\\\"\"");
 }
 
 TEST(Document, test_validate_append_protocol_clash)
 {
   conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
   // Note lack of id or type--could be a librarydata for all the method should care
-  conduit::Node appendFrom = parseJsonValue(R"({"id": "rec_1", "type": "run", "data": { "int": {"value": 20}}})");
+  conduit::Node appendFrom =
+    parseJsonValue(R"({"id": "rec_1", "type": "run", "data": { "int": {"value": 20}}})");
   conduit::Node msgNode = validateAppendDocument(appendTo, appendFrom, "", 3, 0);
   ASSERT_EQ(msgNode.number_of_children(), 1);
   ASSERT_EQ(msgNode.child(0).to_string(),
-    "\"Failed to append record 0 (protocol 3): conflicting data: int\"");
+            "\"Failed to append record 0 (protocol 3): conflicting data: int\"");
   appendFrom = parseJsonValue(R"({"user_defined": { "foo": "blarp"}})");
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 3, 0).child(0).to_string(),
-           "\"Failed to append record 0 (protocol 3): conflicting user_defined: foo\""
-  );
+            "\"Failed to append record 0 (protocol 3): conflicting user_defined: foo\"");
   appendFrom = parseJsonValue(R"({"files": { "test/test.png": {}}})");
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 3, 0).child(0).to_string(),
-            "\"Failed to append record 0 (protocol 3): conflicting files: test/test.png\""
-  );
+            "\"Failed to append record 0 (protocol 3): conflicting files: test/test.png\"");
 }
 
 TEST(Document, test_validate_append_missing_curve)
 {
   conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
   // Only foo is being appended to, not bar. Bad!
-  conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"foo": {"value": [4, 5, 6]}}}}})");
+  conduit::Node appendFrom =
+    parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"foo": {"value": [4, 5, 6]}}}}})");
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 2);
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(0).to_string(),
-            "\"Failed to append record 0: did not append ALL or NO pre-existing curves (causing append element count mismatch)\""
-  );
+            "\"Failed to append record 0: did not append ALL or NO pre-existing curves (causing "
+            "append element count mismatch)\"");
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(1).to_string(),
-            "\"Failed to append record 0's curve 'foo': count of appended elements would differ between series\""
-  );
+            "\"Failed to append record 0's curve 'foo': count of appended elements would differ "
+            "between series\"");
 }
 
 TEST(Document, test_validate_append_mismatched_curve_lengths)
@@ -678,18 +679,19 @@ TEST(Document, test_validate_append_mismatched_curve_lengths)
     "dependent": {"bar": {"value": [7, 8]}}}}})");
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(0).to_string(),
-            "\"Failed to append record 0's curve 'foo': count of appended elements would differ between series\""
-  );
+            "\"Failed to append record 0's curve 'foo': count of appended elements would differ "
+            "between series\"");
 }
 
 TEST(Document, test_validate_append_mismatched_curve_lengths_newcurve)
 {
   conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
-  conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"new": {"value": [4]}}}}})");
+  conduit::Node appendFrom =
+    parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"new": {"value": [4]}}}}})");
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(0).to_string(),
-            "\"Failed to append record 0's curve 'new': count of appended elements would differ between series\""
-  );
+            "\"Failed to append record 0's curve 'new': count of appended elements would differ "
+            "between series\"");
 
   appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {
     "independent": {"new": {"value": [4, 5, 6]},
@@ -697,8 +699,8 @@ TEST(Document, test_validate_append_mismatched_curve_lengths_newcurve)
     "dependent": {"bar": {"value": [4, 5, 6]}}}}})");
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(0).to_string(),
-            "\"Failed to append record 0's curve 'new': count of appended elements would differ between series\""
-  );
+            "\"Failed to append record 0's curve 'new': count of appended elements would differ "
+            "between series\"");
 }
 
 TEST(Document, test_validate_append_valid)

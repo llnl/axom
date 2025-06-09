@@ -50,31 +50,38 @@ char const RECORDS_KEY[] = "records";
 char const RELATIONSHIPS_KEY[] = "relationships";
 char const SAVE_TMP_FILE_EXTENSION[] = ".sina.tmp";
 // These two are used in switch statements--could be cleaner
-enum AppendFields {
-    ID_FIELD,
-    TYPE_FIELD,
-    APPLICATION_FIELD,
-    USER_FIELD,
-    VERSION_FIELD,
-    DATA_FIELD,
-    USER_DEFINED_FIELD,
-    FILES_FIELD,
-    CURVE_SETS_FIELD,
-    LIBRARY_DATA_FIELD,
-    UNKNOWN_FIELD
+enum AppendFields
+{
+  ID_FIELD,
+  TYPE_FIELD,
+  APPLICATION_FIELD,
+  USER_FIELD,
+  VERSION_FIELD,
+  DATA_FIELD,
+  USER_DEFINED_FIELD,
+  FILES_FIELD,
+  CURVE_SETS_FIELD,
+  LIBRARY_DATA_FIELD,
+  UNKNOWN_FIELD
 };
 // Really we should have one single source of truth on this one--toplevel Sina, perhaps?
 static const std::map<std::string, AppendFields> appendFieldStrings {
-        { "id", AppendFields::ID_FIELD }, { "type", AppendFields::TYPE_FIELD },
-        { "application", AppendFields::APPLICATION_FIELD }, { "user", AppendFields::USER_FIELD },
-        { "version", AppendFields::VERSION_FIELD }, { "data", AppendFields::DATA_FIELD },
-        { "user_defined", AppendFields::USER_DEFINED_FIELD }, { "files", AppendFields::FILES_FIELD },
-        { "curve_sets", AppendFields::CURVE_SETS_FIELD }, { "library_data", AppendFields::LIBRARY_DATA_FIELD },
-    };
+  {"id", AppendFields::ID_FIELD},
+  {"type", AppendFields::TYPE_FIELD},
+  {"application", AppendFields::APPLICATION_FIELD},
+  {"user", AppendFields::USER_FIELD},
+  {"version", AppendFields::VERSION_FIELD},
+  {"data", AppendFields::DATA_FIELD},
+  {"user_defined", AppendFields::USER_DEFINED_FIELD},
+  {"files", AppendFields::FILES_FIELD},
+  {"curve_sets", AppendFields::CURVE_SETS_FIELD},
+  {"library_data", AppendFields::LIBRARY_DATA_FIELD},
+};
 }  // namespace
 
 std::vector<std::string> const CURVE_CATEGORIES = {"dependent", "independent"};
-#define UNUSED(x) (void)(x)  // TODO: axom likely has a better preference on how to suppress the warning
+#define UNUSED(x) \
+  (void)(x)  // TODO: axom likely has a better preference on how to suppress the warning
 
 void protocolWarn(std::string const protocol, std::string const &name)
 {
@@ -296,7 +303,6 @@ conduit::Node Document::toHDF5Node() const
 
 void Document::toHDF5(const std::string &filename) const
 {
-
   conduit::relay::io::save(this->toHDF5Node(), filename, "hdf5");
 }
 #endif
@@ -399,126 +405,185 @@ Document loadDocument(std::string const &path, RecordLoader const &recordLoader,
 }
 
 // Helper function--if a node has children, add them to the provided. Assumes both nodes are conduit lists
-void concat_list_node(conduit::Node &concatTo, const conduit::Node &concatFrom){
+void concat_list_node(conduit::Node &concatTo, const conduit::Node &concatFrom)
+{
   auto itr = concatFrom.children();
-  while(itr.has_next()){ concatTo.append() = itr.next();}
+  while(itr.has_next())
+  {
+    concatTo.append() = itr.next();
+  }
 }
 
 ///////////////////// TEMPLATE HELPER BLOCK -- smooth differences between JSON and HDF5 /////////////////////
 // This section exits because the hdf5 uses the format records/<some_num>/{actual_record}, whereas the JSON
 // uses a list of records, which the pathlike relay interface doesn't seem to be abe to access children within a list.
-conduit::Node relayLikeRead(conduit::Node &appendTo, const std::string &endpoint, int record_num){
+conduit::Node relayLikeRead(conduit::Node &appendTo, const std::string &endpoint, int record_num)
+{
   return appendTo["records"].child(record_num)[endpoint];
 }
 
-conduit::Node relayLikeRead(conduit::relay::io::IOHandle &appendTo, const std::string &endpoint, int record_num){
+conduit::Node relayLikeRead(conduit::relay::io::IOHandle &appendTo,
+                            const std::string &endpoint,
+                            int record_num)
+{
   UNUSED(record_num);
   conduit::Node holderNode;
   appendTo.read(endpoint, holderNode);
   return holderNode;
 }
 
-bool relayLikeHasPath(conduit::Node &appendTo, const std::string &endpoint, int record_num){
+bool relayLikeHasPath(conduit::Node &appendTo, const std::string &endpoint, int record_num)
+{
   return appendTo["records"].child(record_num).has_path(endpoint);
 }
 
-bool relayLikeHasPath(conduit::relay::io::IOHandle &appendTo, const std::string &endpoint, int record_num){
+bool relayLikeHasPath(conduit::relay::io::IOHandle &appendTo,
+                      const std::string &endpoint,
+                      int record_num)
+{
   UNUSED(record_num);
   return appendTo.has_path(endpoint);
 }
 
-bool nodeWorkaroundHasChildSlashes(conduit::Node &appendTo, const std::string &endpoint, const std::string &child_name, int record_num){
+bool nodeWorkaroundHasChildSlashes(conduit::Node &appendTo,
+                                   const std::string &endpoint,
+                                   const std::string &child_name,
+                                   int record_num)
+{
   return appendTo["records"].child(record_num)[endpoint].has_child(child_name);
 }
 
 // HDF5 already escapes the slashes, so we don't have to worry.
-bool nodeWorkaroundHasChildSlashes(conduit::relay::io::IOHandle &appendTo, const std::string &endpoint, const std::string &child_name, int record_num){
+bool nodeWorkaroundHasChildSlashes(conduit::relay::io::IOHandle &appendTo,
+                                   const std::string &endpoint,
+                                   const std::string &child_name,
+                                   int record_num)
+{
   UNUSED(record_num);
   UNUSED(child_name);
   return appendTo.has_path(endpoint);
 }
 
-std::vector<std::string> relayLikeListChildNames(conduit::Node &appendTo, const std::string &endpoint, int record_num){
+std::vector<std::string> relayLikeListChildNames(conduit::Node &appendTo,
+                                                 const std::string &endpoint,
+                                                 int record_num)
+{
   return appendTo["records"].child(record_num)[endpoint].child_names();
 }
 
-std::vector<std::string> relayLikeListChildNames(conduit::relay::io::IOHandle &appendTo, const std::string &endpoint, int record_num){
+std::vector<std::string> relayLikeListChildNames(conduit::relay::io::IOHandle &appendTo,
+                                                 const std::string &endpoint,
+                                                 int record_num)
+{
   UNUSED(record_num);
   std::vector<std::string> nameHolder;
   appendTo.list_child_names(endpoint, nameHolder);
   return nameHolder;
 }
 
-int relayLikeNumChildren(conduit::Node &appendTo, const std::string &endpoint, int record_num){
+int relayLikeNumChildren(conduit::Node &appendTo, const std::string &endpoint, int record_num)
+{
   return appendTo["records"].child(record_num)[endpoint].number_of_children();
 }
 
-int relayLikeNumChildren(conduit::relay::io::IOHandle &appendTo, const std::string &endpoint, int record_num){
+int relayLikeNumChildren(conduit::relay::io::IOHandle &appendTo,
+                         const std::string &endpoint,
+                         int record_num)
+{
   UNUSED(record_num);
   std::vector<std::string> child_name_holder;
   appendTo.list_child_names(endpoint, child_name_holder);
   return child_name_holder.size();  // Feels incorrect, didn't find anything in conduit though
 }
 
-void relayLikeAppend(conduit::Node &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
+void relayLikeAppend(conduit::Node &appendTo,
+                     conduit::Node &appendFrom,
+                     const std::string &endpoint,
+                     int record_num)
+{
   auto valuesIter = appendFrom.children();
-  while(valuesIter.has_next()) {
+  while(valuesIter.has_next())
+  {
     appendTo["records"].child(record_num)[endpoint].append() = valuesIter.next();
   }
 }
 
-void relayLikeWrite(conduit::relay::io::IOHandle &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
+void relayLikeWrite(conduit::relay::io::IOHandle &appendTo,
+                    conduit::Node &appendFrom,
+                    const std::string &endpoint,
+                    int record_num)
+{
   UNUSED(record_num);
   appendTo.write(appendFrom, endpoint);
 }
 
-void relayLikeWrite(conduit::Node &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
-    appendTo["records"].child(record_num)[endpoint] = appendFrom;
+void relayLikeWrite(conduit::Node &appendTo,
+                    conduit::Node &appendFrom,
+                    const std::string &endpoint,
+                    int record_num)
+{
+  appendTo["records"].child(record_num)[endpoint] = appendFrom;
 }
 
-void relayLikeAddNewRecord(conduit::relay::io::IOHandle &appendTo, conduit::Node &new_record, int new_record_num){
-  relayLikeWrite(appendTo, new_record, "records/"+std::to_string(new_record_num), new_record_num);
+void relayLikeAddNewRecord(conduit::relay::io::IOHandle &appendTo,
+                           conduit::Node &new_record,
+                           int new_record_num)
+{
+  relayLikeWrite(appendTo, new_record, "records/" + std::to_string(new_record_num), new_record_num);
 }
 
-void relayLikeAddNewRecord(conduit::Node &appendTo, conduit::Node &new_record, int new_record_num){
+void relayLikeAddNewRecord(conduit::Node &appendTo, conduit::Node &new_record, int new_record_num)
+{
   UNUSED(new_record_num);
   appendTo["records"].append() = new_record;
 }
 
-void relayLikeAppend(conduit::relay::io::IOHandle &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
+void relayLikeAppend(conduit::relay::io::IOHandle &appendTo,
+                     conduit::Node &appendFrom,
+                     const std::string &endpoint,
+                     int record_num)
+{
   UNUSED(record_num);
-  conduit::Node OPTS_NODE; //are there any static defaults we want to set?
+  conduit::Node OPTS_NODE;  //are there any static defaults we want to set?
   OPTS_NODE["offset"] = appendFrom["num_elements"].to_int();
   appendTo.write(appendFrom, endpoint, OPTS_NODE);
 }
 
-std::unordered_map<std::string, int> relayLikeRecordOrderMap(conduit::Node &appendTo){
+std::unordered_map<std::string, int> relayLikeRecordOrderMap(conduit::Node &appendTo)
+{
   std::unordered_map<std::string, int> order_map;
   int num_children = appendTo["records"].number_of_children();
-  for(int i=0; i<num_children; i++){
+  for(int i = 0; i < num_children; i++)
+  {
     order_map.insert(std::make_pair(appendTo["records"].child(i)["id"].to_string(), i));
   }
   return order_map;
 }
 
-std::unordered_map<std::string, int> relayLikeRecordOrderMap(conduit::relay::io::IOHandle &appendTo){
+std::unordered_map<std::string, int> relayLikeRecordOrderMap(conduit::relay::io::IOHandle &appendTo)
+{
   std::unordered_map<std::string, int> order_map;
   conduit::Node n;
   std::vector<std::string> child_names;
   appendTo.list_child_names("records/", child_names);
-  for(const std::string &child_name : child_names){
-    appendTo.read("records/"+child_name+"/id", n);
+  for(const std::string &child_name : child_names)
+  {
+    appendTo.read("records/" + child_name + "/id", n);
     order_map.insert(std::make_pair(n.to_string(), std::stoi(child_name)));
   }
   return order_map;
 }
 
-u_int relayLikeArrayNumElements(conduit::Node &appendTo, const std::string &endpoint, int record_num){
+u_int relayLikeArrayNumElements(conduit::Node &appendTo, const std::string &endpoint, int record_num)
+{
   return appendTo["records"].child(record_num)[endpoint].dtype().number_of_elements();
 }
 
-u_int relayLikeArrayNumElements(conduit::relay::io::IOHandle &appendTo, const std::string &endpoint, int record_num){
-  return relayLikeRead(appendTo, endpoint+"/num_elements", record_num).to_int();
+u_int relayLikeArrayNumElements(conduit::relay::io::IOHandle &appendTo,
+                                const std::string &endpoint,
+                                int record_num)
+{
+  return relayLikeRead(appendTo, endpoint + "/num_elements", record_num).to_int();
 }
 ///////////////////// TEMPLATE HELPER BLOCK END /////////////////////
 
@@ -528,149 +593,198 @@ template <typename ConduitRelayLike>
 conduit::Node validateCurveSets(ConduitRelayLike &appendTo,
                                 const conduit::Node &appendFrom,
                                 const std::string &endpoint,
-                                int rec_num) {
-    int baseline = -1;  // baseline is shared across dependent and independent
-    conduit::Node msgNode = conduit::Node(conduit::DataType::list());
-    // First, we need to make sure we didn't "forget" an existing curve: make sure either EVERY
-    // curve in the HDF5 is being appended to, or NONE of them are (all curves are new).
-    u_int curves_written = 0;
-    u_int existing_curves = 0;
-    int unappended_baseline = -1;  // Find length of anything we don't append to, for later.
-    for(const std::string& curve_cat : CURVE_CATEGORIES){
-      std::string curves_endpoint = endpoint + "/" + curve_cat;
-      std::vector<std::string> curve_names = relayLikeListChildNames(appendTo, curves_endpoint, rec_num);
-      for(const std::string &cname : curve_names){
-        if(cname == "value" || cname == "tags" || cname == "units"){
-          // The way we list child names is recursive. thus, if someone
-          // has a curve named "value" (or tags or units...) we can't properly verify. TODO: revisit with more conduit
-          continue;
-        }
-        if(appendFrom.has_path(curve_cat+"/"+cname) && appendFrom[curve_cat][cname]["value"].dtype().number_of_elements() > 0){
-            curves_written ++;
-        } else if (unappended_baseline == -1){
-          unappended_baseline = relayLikeArrayNumElements(appendTo, curves_endpoint+"/value", rec_num);
-        }
-        existing_curves ++;  // instead of a .size() to account for value/tags/etc. above
+                                int rec_num)
+{
+  int baseline = -1;  // baseline is shared across dependent and independent
+  conduit::Node msgNode = conduit::Node(conduit::DataType::list());
+  // First, we need to make sure we didn't "forget" an existing curve: make sure either EVERY
+  // curve in the HDF5 is being appended to, or NONE of them are (all curves are new).
+  u_int curves_written = 0;
+  u_int existing_curves = 0;
+  int unappended_baseline = -1;  // Find length of anything we don't append to, for later.
+  for(const std::string &curve_cat : CURVE_CATEGORIES)
+  {
+    std::string curves_endpoint = endpoint + "/" + curve_cat;
+    std::vector<std::string> curve_names =
+      relayLikeListChildNames(appendTo, curves_endpoint, rec_num);
+    for(const std::string &cname : curve_names)
+    {
+      if(cname == "value" || cname == "tags" || cname == "units")
+      {
+        // The way we list child names is recursive. thus, if someone
+        // has a curve named "value" (or tags or units...) we can't properly verify. TODO: revisit with more conduit
+        continue;
       }
+      if(appendFrom.has_path(curve_cat + "/" + cname) &&
+         appendFrom[curve_cat][cname]["value"].dtype().number_of_elements() > 0)
+      {
+        curves_written++;
+      }
+      else if(unappended_baseline == -1)
+      {
+        unappended_baseline =
+          relayLikeArrayNumElements(appendTo, curves_endpoint + "/value", rec_num);
+      }
+      existing_curves++;  // instead of a .size() to account for value/tags/etc. above
     }
-    if(curves_written != 0 && curves_written != existing_curves){
-          msgNode.append() = "Failed to append record " + std::to_string(rec_num) + ": did not append ALL or NO pre-existing curves (causing append element count mismatch)";
-    }
+  }
+  if(curves_written != 0 && curves_written != existing_curves)
+  {
+    msgNode.append() = "Failed to append record " + std::to_string(rec_num) +
+      ": did not append ALL or NO pre-existing curves (causing append element count mismatch)";
+  }
 
-    for(const std::string& curve_cat : CURVE_CATEGORIES){
-      // Now loop through what we've actually got. Once we find something, use it to set the baseline.
-      if(appendFrom.has_child(curve_cat)){
-        auto curvesIter = appendFrom[curve_cat].children();
-        while(curvesIter.has_next()) {
-          const conduit::Node &testCurve = curvesIter.next()["value"];
-          int post_append_size = testCurve.dtype().number_of_elements();
-          std::string sub_endpoint = endpoint + "/" + curve_cat + "/" + curvesIter.name() + "/value";
-          if(relayLikeHasPath(appendTo, sub_endpoint, rec_num)){
-            int num_elements = relayLikeArrayNumElements(appendTo, sub_endpoint, rec_num);
-            post_append_size += num_elements;
-          }
-          if(baseline == -1){baseline = post_append_size;}
-          if(post_append_size != baseline || (unappended_baseline != -1 && baseline != unappended_baseline)){
-            msgNode.append() = "Failed to append record " + std::to_string(rec_num) + "'s curve '" + curvesIter.name() + "': count of appended elements would differ between series";
-          }
+  for(const std::string &curve_cat : CURVE_CATEGORIES)
+  {
+    // Now loop through what we've actually got. Once we find something, use it to set the baseline.
+    if(appendFrom.has_child(curve_cat))
+    {
+      auto curvesIter = appendFrom[curve_cat].children();
+      while(curvesIter.has_next())
+      {
+        const conduit::Node &testCurve = curvesIter.next()["value"];
+        int post_append_size = testCurve.dtype().number_of_elements();
+        std::string sub_endpoint = endpoint + "/" + curve_cat + "/" + curvesIter.name() + "/value";
+        if(relayLikeHasPath(appendTo, sub_endpoint, rec_num))
+        {
+          int num_elements = relayLikeArrayNumElements(appendTo, sub_endpoint, rec_num);
+          post_append_size += num_elements;
+        }
+        if(baseline == -1)
+        {
+          baseline = post_append_size;
+        }
+        if(post_append_size != baseline ||
+           (unappended_baseline != -1 && baseline != unappended_baseline))
+        {
+          msgNode.append() = "Failed to append record " + std::to_string(rec_num) + "'s curve '" +
+            curvesIter.name() + "': count of appended elements would differ between series";
         }
       }
     }
-    return msgNode;
+  }
+  return msgNode;
 }
-
 
 // Top-level append validation function. Works recursively on library data (hence endpoint)
 template <typename ConduitRelayLike>
-conduit::Node validateAppendDocument( ConduitRelayLike &appendTo, const conduit::Node &appendFrom,
-                                      const std::string &endpoint, const int mergeProtocol, const int record_num){
-    conduit::Node msgNode = conduit::Node(conduit::DataType::list());
-    // Case one: die if the types disagree. A pingpong_game shouldn't become a billiards_game
-    // Validation note: we allow for no type here beecause of library_data. If someone
-    // forgot the type for a top-level record, it should've died already.
-    if(appendFrom.has_child("type")){
-      conduit::Node typeNode;
-      typeNode = relayLikeRead(appendTo, endpoint+"/type", record_num);
-      if(typeNode.to_string() != appendFrom["type"].to_string()){
-        msgNode.append() = "Failed to append record " + std::to_string(record_num) + ": type mismatch " + typeNode.to_string() + "vs " + appendFrom["type"].to_string();
-      }
+conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
+                                     const conduit::Node &appendFrom,
+                                     const std::string &endpoint,
+                                     const int mergeProtocol,
+                                     const int record_num)
+{
+  conduit::Node msgNode = conduit::Node(conduit::DataType::list());
+  // Case one: die if the types disagree. A pingpong_game shouldn't become a billiards_game
+  // Validation note: we allow for no type here beecause of library_data. If someone
+  // forgot the type for a top-level record, it should've died already.
+  if(appendFrom.has_child("type"))
+  {
+    conduit::Node typeNode;
+    typeNode = relayLikeRead(appendTo, endpoint + "/type", record_num);
+    if(typeNode.to_string() != appendFrom["type"].to_string())
+    {
+      msgNode.append() = "Failed to append record " + std::to_string(record_num) +
+        ": type mismatch " + typeNode.to_string() + "vs " + appendFrom["type"].to_string();
     }
-    // Case two: merge protocol is 3, we need to die if certain fields appear in both places
-    if(mergeProtocol == 3){
-      const std::vector<std::string> prot3Fields = {"data", "user_defined", "files"};
-      for(auto &field : prot3Fields){
-        if(appendFrom.has_child(field) && relayLikeHasPath(appendTo, endpoint + "/" + field + "/", record_num)){
-          auto dataIter = appendFrom[field].children();
-          while(dataIter.has_next()){
-            dataIter.next();
-            relayLikeHasPath(appendTo, endpoint + "/" + field + "/" + dataIter.name(), record_num);
-            if(nodeWorkaroundHasChildSlashes(appendTo, endpoint + "/" + field + "/", dataIter.name(), record_num)){
-              msgNode.append() = "Failed to append record " + std::to_string(record_num) +" (protocol 3): conflicting "+field+": "+dataIter.name();
-            }
+  }
+  // Case two: merge protocol is 3, we need to die if certain fields appear in both places
+  if(mergeProtocol == 3)
+  {
+    const std::vector<std::string> prot3Fields = {"data", "user_defined", "files"};
+    for(auto &field : prot3Fields)
+    {
+      if(appendFrom.has_child(field) &&
+         relayLikeHasPath(appendTo, endpoint + "/" + field + "/", record_num))
+      {
+        auto dataIter = appendFrom[field].children();
+        while(dataIter.has_next())
+        {
+          dataIter.next();
+          relayLikeHasPath(appendTo, endpoint + "/" + field + "/" + dataIter.name(), record_num);
+          if(nodeWorkaroundHasChildSlashes(appendTo,
+                                           endpoint + "/" + field + "/",
+                                           dataIter.name(),
+                                           record_num))
+          {
+            msgNode.append() = "Failed to append record " + std::to_string(record_num) +
+              " (protocol 3): conflicting " + field + ": " + dataIter.name();
           }
         }
       }
     }
+  }
 
-    // Case three: curve sets. Go into each curve set and, if it already exists, make sure the to-be-appended curves are valid.
-    if(appendFrom.has_child("curve_sets"))
+  // Case three: curve sets. Go into each curve set and, if it already exists, make sure the to-be-appended curves are valid.
+  if(appendFrom.has_child("curve_sets"))
+  {
+    std::string subEndpoint;
+    auto curveSetsIter = appendFrom["curve_sets"].children();
+    while(curveSetsIter.has_next())
     {
-      std::string subEndpoint;
-      auto curveSetsIter = appendFrom["curve_sets"].children();
-      while(curveSetsIter.has_next())
+      const conduit::Node &n = curveSetsIter.next();
+      subEndpoint = endpoint + "/curve_sets/" + curveSetsIter.name();
+      // We only have to validate if the hdf5 already has a curve set with that name.
+      if(relayLikeHasPath(appendTo, subEndpoint, record_num))
       {
-        const conduit::Node &n = curveSetsIter.next();
-        subEndpoint = endpoint + "/curve_sets/" + curveSetsIter.name();
-        // We only have to validate if the hdf5 already has a curve set with that name.
-        if(relayLikeHasPath(appendTo, subEndpoint, record_num)){
-          concat_list_node(msgNode,
-                           validateCurveSets(appendTo, n, subEndpoint, record_num));
-        }
+        concat_list_node(msgNode, validateCurveSets(appendTo, n, subEndpoint, record_num));
       }
     }
+  }
 
-    // Case four: library data. Recurse on it if it's already in the hdf5.
-    if(appendFrom.has_child("library_data")){
-      auto libraryIter = appendFrom["library_data"].children();
-      std::string subEndpoint;
-      while(libraryIter.has_next()){
-        const conduit::Node &n = libraryIter.next();
-        subEndpoint = endpoint + "/library_data/" + libraryIter.name();
-        // We only have to validate if the hdf5 already has a library with that name.
-        if(relayLikeHasPath(appendTo, endpoint, record_num)){
-          concat_list_node(msgNode,
-                           validateAppendDocument(appendTo, n, subEndpoint, mergeProtocol, record_num));
-        }
+  // Case four: library data. Recurse on it if it's already in the hdf5.
+  if(appendFrom.has_child("library_data"))
+  {
+    auto libraryIter = appendFrom["library_data"].children();
+    std::string subEndpoint;
+    while(libraryIter.has_next())
+    {
+      const conduit::Node &n = libraryIter.next();
+      subEndpoint = endpoint + "/library_data/" + libraryIter.name();
+      // We only have to validate if the hdf5 already has a library with that name.
+      if(relayLikeHasPath(appendTo, endpoint, record_num))
+      {
+        concat_list_node(msgNode,
+                         validateAppendDocument(appendTo, n, subEndpoint, mergeProtocol, record_num));
       }
     }
-    return msgNode;
+  }
+  return msgNode;
 }
 
 // Avoiding a terrible if/else chunk in append_recordlike_fields and friends.
-AppendFields field_lookup(const std::string &input){
-    auto itr = appendFieldStrings.find(input);
-    if( itr != appendFieldStrings.end() ) {
-        return itr->second;
-    }
-    return AppendFields::UNKNOWN_FIELD; 
+AppendFields field_lookup(const std::string &input)
+{
+  auto itr = appendFieldStrings.find(input);
+  if(itr != appendFieldStrings.end())
+  {
+    return itr->second;
+  }
+  return AppendFields::UNKNOWN_FIELD;
 }
 
 template <typename ConduitRelayLike>
 void append_curveset(ConduitRelayLike &appendTo,
                      conduit::Node &appendFrom,
                      const std::string &endpoint,
-                     int record_num){
-    for(const std::string& curve_cat : CURVE_CATEGORIES){
-        std::string curves_endpoint = endpoint + "/" + curve_cat;
-          for(auto curve : appendFrom[curves_endpoint][curve_cat].children()){
-            std::string curve_name = endpoint + "/" + curve_cat + curve.name();
-            if(relayLikeHasPath(appendTo, curve_name, record_num)){
-              relayLikeAppend(appendTo, appendFrom[curve_name], curve_name, record_num);
-            } else {
-              relayLikeWrite(appendTo, curve, curve_name, record_num);
-            }
-        }
+                     int record_num)
+{
+  for(const std::string &curve_cat : CURVE_CATEGORIES)
+  {
+    std::string curves_endpoint = endpoint + "/" + curve_cat;
+    for(auto curve : appendFrom[curves_endpoint][curve_cat].children())
+    {
+      std::string curve_name = endpoint + "/" + curve_cat + curve.name();
+      if(relayLikeHasPath(appendTo, curve_name, record_num))
+      {
+        relayLikeAppend(appendTo, appendFrom[curve_name], curve_name, record_num);
+      }
+      else
+      {
+        relayLikeWrite(appendTo, curve, curve_name, record_num);
+      }
     }
+  }
 }
 
 template <typename ConduitRelayLike>
@@ -678,15 +792,18 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
                               conduit::Node &appendFrom,
                               const std::string &endpoint,
                               const int mergeProtocol,
-                              int record_num){
+                              int record_num)
+{
   auto fieldsIter = appendFrom.children();
-  while(fieldsIter.has_next()){
+  while(fieldsIter.has_next())
+  {
     conduit::Node &recField = fieldsIter.next();
-    std::string appendAtEndpoint = endpoint+"/"+fieldsIter.name();
-    switch (field_lookup(fieldsIter.name())) {
-    case AppendFields::ID_FIELD:  // we already have it, else we couldn't find this
-    case AppendFields::TYPE_FIELD: // we already have it, else we exploded above
-    case AppendFields::USER_FIELD: // special run fields, ignore? explode?
+    std::string appendAtEndpoint = endpoint + "/" + fieldsIter.name();
+    switch(field_lookup(fieldsIter.name()))
+    {
+    case AppendFields::ID_FIELD:    // we already have it, else we couldn't find this
+    case AppendFields::TYPE_FIELD:  // we already have it, else we exploded above
+    case AppendFields::USER_FIELD:  // special run fields, ignore? explode?
     case AppendFields::VERSION_FIELD:
     case AppendFields::APPLICATION_FIELD:
       break;
@@ -695,53 +812,70 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
     case AppendFields::USER_DEFINED_FIELD:
     case AppendFields::FILES_FIELD:
       // We already exploded for protocol 3 if anything overwrote, so we handle 1 and 3
-      if(mergeProtocol==1 || mergeProtocol==3){
-       relayLikeWrite(appendTo, recField, appendAtEndpoint, record_num);
-      } else if(mergeProtocol==2){
+      if(mergeProtocol == 1 || mergeProtocol == 3)
+      {
+        relayLikeWrite(appendTo, recField, appendAtEndpoint, record_num);
+      }
+      else if(mergeProtocol == 2)
+      {
         auto subFieldIter = appendFrom[fieldsIter.name()].children();
-        while(subFieldIter.has_next()){
+        while(subFieldIter.has_next())
+        {
           conduit::Node &subField = subFieldIter.next();
-          if(!relayLikeHasPath(appendTo, appendAtEndpoint, record_num)){
-            relayLikeWrite(appendTo, subField, appendAtEndpoint+"/"+fieldsIter.name()+"/"+subFieldIter.name(), record_num);
+          if(!relayLikeHasPath(appendTo, appendAtEndpoint, record_num))
+          {
+            relayLikeWrite(appendTo,
+                           subField,
+                           appendAtEndpoint + "/" + fieldsIter.name() + "/" + subFieldIter.name(),
+                           record_num);
           }
         }
       }
       break;
-    case AppendFields::LIBRARY_DATA_FIELD: {
+    case AppendFields::LIBRARY_DATA_FIELD:
+    {
       // We recurse
       auto libraryIter = appendFrom[fieldsIter.name()].children();
-      while(libraryIter.has_next()){
+      while(libraryIter.has_next())
+      {
         conduit::Node &libraryField = libraryIter.next();
-        if(relayLikeHasPath(appendTo, endpoint, record_num)){
-          append_recordlike_fields(appendTo, libraryField,
-                                   appendAtEndpoint+"/"+fieldsIter.name()+"/"+libraryIter.name(),
-                                   mergeProtocol, record_num);
+        if(relayLikeHasPath(appendTo, endpoint, record_num))
+        {
+          append_recordlike_fields(
+            appendTo,
+            libraryField,
+            appendAtEndpoint + "/" + fieldsIter.name() + "/" + libraryIter.name(),
+            mergeProtocol,
+            record_num);
         }
       }
       break;
     }
-    case AppendFields::CURVE_SETS_FIELD: {
+    case AppendFields::CURVE_SETS_FIELD:
+    {
       auto curveSetIter = appendFrom[fieldsIter.name()].children();
-      while(curveSetIter.has_next()){
+      while(curveSetIter.has_next())
+      {
         conduit::Node &curveSetField = curveSetIter.next();
-        append_curveset(appendTo, curveSetField,
-                        appendAtEndpoint+"/"+fieldsIter.name()+"/"+curveSetIter.name(),
+        append_curveset(appendTo,
+                        curveSetField,
+                        appendAtEndpoint + "/" + fieldsIter.name() + "/" + curveSetIter.name(),
                         record_num);
       }
     }
-      break;
+    break;
     default:
-        std::cout << "oh no" << std::endl;
+      std::cout << "oh no" << std::endl;
     }
   }
 }
 
 template <typename ConduitRelayLike>
 conduit::Node append(ConduitRelayLike &appendTo,
-            conduit::Node &appendFrom,
-            const int mergeProtocol,
-            bool isHDF5){
-
+                     conduit::Node &appendFrom,
+                     const int mergeProtocol,
+                     bool isHDF5)
+{
   conduit::Node msgNode = conduit::Node(conduit::DataType::list());
   // We need to figure out where each record is in appendTo, since there's no guarantee in the order
   // of appendFrom.
@@ -755,13 +889,18 @@ conduit::Node append(ConduitRelayLike &appendTo,
     auto rec_num = rec_order.find(n["id"].to_string());
     // We only validate records we're appending (not just adding). This does mean someone could insert a malformed record,
     // but that's always been the case; validation is meant to assist with catching bad curves, mostly
-    if(rec_num != rec_order.end()){
-      std::string endpoint = isHDF5 ? "records/" + std::to_string(rec_num->second) + "/": "";
-      concat_list_node(msgNode, validateAppendDocument(appendTo, n, endpoint, mergeProtocol, rec_num->second));
+    if(rec_num != rec_order.end())
+    {
+      std::string endpoint = isHDF5 ? "records/" + std::to_string(rec_num->second) + "/" : "";
+      concat_list_node(msgNode,
+                       validateAppendDocument(appendTo, n, endpoint, mergeProtocol, rec_num->second));
     }
   }
   // Return with our error list if we errored.
-  if(msgNode.number_of_children() > 0){ return msgNode; }
+  if(msgNode.number_of_children() > 0)
+  {
+    return msgNode;
+  }
 
   // Our validation passed, time to throw it all in!
   recordsIter = appendFrom["records"].children();
@@ -771,10 +910,13 @@ conduit::Node append(ConduitRelayLike &appendTo,
     conduit::Node &rec = recordsIter.next();
     // Easiest case, the record doesn't exist yet. Add it.
     auto rec_num = rec_order.find(rec["id"].to_string());
-    if(rec_num == rec_order.end()){
+    if(rec_num == rec_order.end())
+    {
       relayLikeAddNewRecord(appendTo, appendFrom, offset);
-      offset ++;
-    } else {
+      offset++;
+    }
+    else
+    {
       append_recordlike_fields(appendTo, rec, "", mergeProtocol, rec_num->second);
     }
   }
@@ -782,8 +924,9 @@ conduit::Node append(ConduitRelayLike &appendTo,
 }
 
 conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
-                    const Document &newData,
-                    const int mergeProtocol){
+                                   const Document &newData,
+                                   const int mergeProtocol)
+{
   conduit::relay::io::IOHandle writeTo;
   writeTo.open(jsonFilePath);
   conduit::Node appendTo;
@@ -798,8 +941,9 @@ conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
 }
 
 conduit::Node append_to_hdf5(const std::string &hdf5FilePath,
-                    const Document &newData,
-                    const int mergeProtocol){ 
+                             const Document &newData,
+                             const int mergeProtocol)
+{
 #ifdef AXOM_USE_HDF5
   conduit::relay::io::IOHandle appendTo;
   appendTo.open(hdf5FilePath);

@@ -299,8 +299,11 @@ Document loadDocument(std::string const &path,
  *        would prevent appending.
  */
 template <typename ConduitRelayLike>
-conduit::Node validateAppendDocument( ConduitRelayLike &appendTo, const conduit::Node &appendFrom,
-                                      const std::string &endpoint, const int mergeProtocol, int record_num);
+conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
+                                     const conduit::Node &appendFrom,
+                                     const std::string &endpoint,
+                                     const int mergeProtocol,
+                                     int record_num);
 
 /**
  * \brief Append the new records or, per-record, new data, user defined content, curves/curve sets,
