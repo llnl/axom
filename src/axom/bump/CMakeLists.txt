@@ -10,7 +10,7 @@
 # Check necessary dependencies
 #------------------------------------------------------------------------------
 axom_component_requires(NAME       BUMP
-                        COMPONENTS SLIC SLAM PRIMAL
+                        COMPONENTS SLIC SPIN PRIMAL
                         TPLS       Conduit)
 
 #------------------------------------------------------------------------------
@@ -99,7 +99,7 @@ set(bump_sources
 #------------------------------------------------------------------------------
 # Build and install the library
 #------------------------------------------------------------------------------
-set(bump_depends_on core slic slam primal conduit::conduit)
+set(bump_depends_on core slic spin primal conduit::conduit)
 blt_list_append( TO bump_depends_on ELEMENTS RAJA IF RAJA_FOUND )
 
 axom_add_library(

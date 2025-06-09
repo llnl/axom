@@ -14,7 +14,6 @@
 #define __AXOM_BUMP_MESH_TESTER_HPP__
 
 #include "axom/core.hpp"  // for axom macros
-#include "axom/slam.hpp"  // unified header for slam classes and functions
 #include "axom/primal.hpp"
 
 #include <algorithm>

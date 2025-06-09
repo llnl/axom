@@ -14,5 +14,5 @@ digraph dependencies {
   lumberjack -> core;
   inlet -> {sidre primal};
   klee -> {sidre primal inlet};
-  bump -> {slic core primal};
+  bump -> {core slic spin primal};
 }

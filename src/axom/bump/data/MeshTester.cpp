@@ -7,7 +7,6 @@
 #include "axom/bump.hpp"
 
 namespace numerics = axom::numerics;
-namespace slam = axom::slam;
 namespace utils = axom::bump::utilities;
 using namespace axom::bump::views;
 
