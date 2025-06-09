@@ -74,10 +74,10 @@ std::string SIMPLE_DOCUMENT = R"(
       "curve_sets": {
         "set_1": {
           "independent": {
-            "foo": {"values": [1, 2, 3]}
+            "foo": {"value": [1, 2, 3]}
           },
           "dependent": {
-            "bar": {"values": [4, 5, 6]}
+            "bar": {"value": [4, 5, 6]}
           }
         }
       }
@@ -661,28 +661,45 @@ TEST(Document, test_validate_append_missing_curve)
 {
   conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
   // Only foo is being appended to, not bar. Bad!
-  conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"foo": {"values": [4, 5, 6]}}}}})");
-  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
+  conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"foo": {"value": [4, 5, 6]}}}}})");
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 2);
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(0).to_string(),
+            "\"Failed to append record 0: did not append ALL or NO pre-existing curves (causing append element count mismatch)\""
+  );
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(1).to_string(),
+            "\"Failed to append record 0's curve 'foo': count of appended elements would differ between series\""
+  );
 }
 
 TEST(Document, test_validate_append_mismatched_curve_lengths)
 {
   conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
   conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {
-    "independent": {"foo": {"values": [4, 5, 6]}},
-    "dependent": {"bar": {"values": [7, 8]}}}}})");
+    "independent": {"foo": {"value": [4, 5, 6]}},
+    "dependent": {"bar": {"value": [7, 8]}}}}})");
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(0).to_string(),
+            "\"Failed to append record 0's curve 'foo': count of appended elements would differ between series\""
+  );
 }
 
 TEST(Document, test_validate_append_mismatched_curve_lengths_newcurve)
 {
   conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
-  conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"new": {"values": [4]}}}}})");
-  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 0);
-  appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {
-    "independent": {"new": {"values": [4, 5, 6]}},
-    "dependent": {"bar": {"values": [4, 5, 6]}}}}})");
+  conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"new": {"value": [4]}}}}})");
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(0).to_string(),
+            "\"Failed to append record 0's curve 'new': count of appended elements would differ between series\""
+  );
+
+  appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {
+    "independent": {"new": {"value": [4, 5, 6]},
+                    "foo": {"value": [4, 5, 6]}},
+    "dependent": {"bar": {"value": [4, 5, 6]}}}}})");
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
+  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(0).to_string(),
+            "\"Failed to append record 0's curve 'new': count of appended elements would differ between series\""
+  );
 }
 
 TEST(Document, test_validate_append_valid)
@@ -701,13 +718,13 @@ TEST(Document, test_basic_append)
   {
     "records": [{
       "type": "foo",
-      "id": "i_am_empty"
+      "id": "add_rec_after_me"
     }]
   })";
   testFile.close();
   axom::sina::Document new_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
-  /*conduit::Node resultMsg = appendDocumentToJson(jsonFilePath, new_doc, 1);
-  ASSERT_EQ(resultMsg.number_of_children(), 0);
+  conduit::Node resultMsg = appendDocumentToJson(jsonFilePath, new_doc, 1);
+  /*ASSERT_EQ(resultMsg.number_of_children(), 0);
   conduit::Node append_root;
   append_root.load(jsonFilePath, "json");
   conduit::Node expect_root;

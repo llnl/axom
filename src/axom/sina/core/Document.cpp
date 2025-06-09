@@ -413,6 +413,8 @@ void concat_list_node(conduit::Node &concatTo, const conduit::Node &concatFrom){
 }
 
 ///////////////////// TEMPLATE HELPER BLOCK -- smooth differences between JSON and HDF5 /////////////////////
+// This section exits because the hdf5 uses the format records/<some_num>/{actual_record}, whereas the JSON
+// uses a list of records, which the pathlike relay interface doesn't seem to be abe to access children within a list.
 conduit::Node relayLikeRead(conduit::Node &appendTo, const std::string &endpoint, int record_num){
   return appendTo["records"].child(record_num)[endpoint];
 }
@@ -479,7 +481,16 @@ void relayLikeWrite(conduit::relay::io::IOHandle &appendTo, conduit::Node &appen
 }
 
 void relayLikeWrite(conduit::Node &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
-  appendTo["records"].child(record_num)[endpoint] = appendFrom;
+    appendTo["records"].child(record_num)[endpoint] = appendFrom;
+}
+
+void relayLikeAddNewRecord(conduit::relay::io::IOHandle &appendTo, conduit::Node &new_record, int new_record_num){
+  relayLikeWrite(appendTo, new_record, "records/"+std::to_string(new_record_num), new_record_num);
+}
+
+void relayLikeAddNewRecord(conduit::Node &appendTo, conduit::Node &new_record, int new_record_num){
+  UNUSED(new_record_num);
+  appendTo["records"].append() = new_record;
 }
 
 void relayLikeAppend(conduit::relay::io::IOHandle &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
@@ -509,6 +520,14 @@ std::unordered_map<std::string, int> relayLikeRecordOrderMap(conduit::relay::io:
   }
   return order_map;
 }
+
+u_int relayLikeArrayNumElements(conduit::Node &appendTo, const std::string &endpoint, int record_num){
+  return appendTo["records"].child(record_num)[endpoint].dtype().number_of_elements();
+}
+
+u_int relayLikeArrayNumElements(conduit::relay::io::IOHandle &appendTo, const std::string &endpoint, int record_num){
+  return relayLikeRead(appendTo, endpoint+"/num_elements", record_num).to_int();
+}
 ///////////////////// TEMPLATE HELPER BLOCK END /////////////////////
 
 // Specifically validate ONE curve set for ONE DataHolder (record, library_data...) for appending,
@@ -523,19 +542,27 @@ conduit::Node validateCurveSets(ConduitRelayLike &appendTo,
     // First, we need to make sure we didn't "forget" an existing curve: make sure either EVERY
     // curve in the HDF5 is being appended to, or NONE of them are (all curves are new).
     u_int curves_written = 0;
-    u_int total_curves = 0;
+    u_int existing_curves = 0;
+    int unappended_baseline = -1;  // Find length of anything we don't append to, for later.
     for(const std::string& curve_cat : CURVE_CATEGORIES){
       std::string curves_endpoint = endpoint + "/" + curve_cat;
       std::vector<std::string> curve_names = relayLikeListChildNames(appendTo, curves_endpoint, rec_num);
       for(const std::string &cname : curve_names){
-          if(appendFrom.has_child(curve_cat) && appendFrom[curve_cat][cname].number_of_children() > 0){
-              curves_written ++;
-          }
+        if(cname == "value" || cname == "tags" || cname == "units"){
+          // The way we list child names is recursive. thus, if someone
+          // has a curve named "value" (or tags or units...) we can't properly verify. TODO: revisit with more conduit
+          continue;
+        }
+        if(appendFrom.has_path(curve_cat+"/"+cname) && appendFrom[curve_cat][cname]["value"].dtype().number_of_elements() > 0){
+            curves_written ++;
+        } else if (unappended_baseline == -1){
+          unappended_baseline = relayLikeArrayNumElements(appendTo, curves_endpoint+"/value", rec_num);
+        }
+        existing_curves ++;  // instead of a .size() to account for value/tags/etc. above
       }
-    total_curves += curve_names.size();
     }
-    if(curves_written != 0 && curves_written != total_curves){
-          msgNode.append() = "Failed to append curve sets: ";//parent had " + curve_names.size() + " curves, but append only addressed " + curvesWritten);
+    if(curves_written != 0 && curves_written != existing_curves){
+          msgNode.append() = "Failed to append record " + std::to_string(rec_num) + ": did not append ALL or NO pre-existing curves (causing append element count mismatch)";
     }
 
     for(const std::string& curve_cat : CURVE_CATEGORIES){
@@ -543,19 +570,16 @@ conduit::Node validateCurveSets(ConduitRelayLike &appendTo,
       if(appendFrom.has_child(curve_cat)){
         auto curvesIter = appendFrom[curve_cat].children();
         while(curvesIter.has_next()) {
-          const conduit::Node &testCurve = curvesIter.next();
-          int post_append_size = testCurve.number_of_children();
-          std::string sub_endpoint = endpoint + "/" + curve_cat + "/" + curvesIter.name();
-          std::cerr << testCurve.to_string() << " with children " << testCurve.number_of_children() << std::endl;
+          const conduit::Node &testCurve = curvesIter.next()["value"];
+          int post_append_size = testCurve.dtype().number_of_elements();
+          std::string sub_endpoint = endpoint + "/" + curve_cat + "/" + curvesIter.name() + "/value";
           if(relayLikeHasPath(appendTo, sub_endpoint, rec_num)){
-            std::cerr << "made it!" << std::endl;
-            conduit::Node n = relayLikeRead(appendTo, sub_endpoint + "/num_elements", rec_num);  // copy of node? Could do better...
-            post_append_size += n.to_int();
-            std::cerr << post_append_size << std::endl;
-            if(baseline == -1){baseline = post_append_size;}
-            if(post_append_size != baseline){
-              msgNode.append() = "Failed to append curve sets: ";// + curvesIter.name() + " had " + post_append_size + " values after appending, but expected " + baseline);
-            }
+            int num_elements = relayLikeArrayNumElements(appendTo, sub_endpoint, rec_num);
+            post_append_size += num_elements;
+          }
+          if(baseline == -1){baseline = post_append_size;}
+          if(post_append_size != baseline || (unappended_baseline != -1 && baseline != unappended_baseline)){
+            msgNode.append() = "Failed to append record " + std::to_string(rec_num) + "'s curve '" + curvesIter.name() + "': count of appended elements would differ between series";
           }
         }
       }
@@ -756,12 +780,10 @@ conduit::Node append(ConduitRelayLike &appendTo,
     // Easiest case, the record doesn't exist yet. Add it.
     auto rec_num = rec_order.find(rec["id"].to_string());
     if(rec_num == rec_order.end()){
-      std::string endpoint = isHDF5 ? "records/" + std::to_string(offset) + "/": "";
-      relayLikeWrite(appendTo, rec, endpoint, rec_num->second);
+      relayLikeAddNewRecord(appendTo, appendFrom, offset);
       offset ++;
     } else {
-      std::string endpoint = isHDF5 ? "records/" + std::to_string(rec_num->second) + "/": "";
-      append_recordlike_fields(appendTo, rec, endpoint, mergeProtocol, rec_num->second);
+      append_recordlike_fields(appendTo, rec, "", mergeProtocol, rec_num->second);
     }
   }
   return msgNode;
