@@ -1,10 +1,10 @@
 Bump {#bumptop}
 ===============
 
-Axom's [Bump](@ref axom::bump), (B)lueprint (U)tiliies for (M)esh (P)rocessing component
-provides useful building blocks for developing algorithms using There are views that
-simplify dealing with Conduit data and utility algorithms for processing and constructing
-meshes.
+Axom's [Bump](@ref axom::bump), (Blueprint Utilities for Mesh Processing) component
+provides useful building blocks for developing algorithms that operate on Blueprint data.
+There are views that simplify dealing with Conduit data and algorithms for processing
+and constructing meshes.
 
 # Design goals {#bumpgoals}
 
@@ -22,13 +22,12 @@ sets (coordsets), mesh topologies, mesh fields, material sets (matsets), and the
 are various flavors of each type of object. This can make it difficult to write
 algorithms against Blueprint data since the data live in Conduit nodes with different
 names and they may have different formats. Conduit can also use multiple data types
-for any of the data arrays that represent objects. Views were developed to simplify
-some of these challenges by providing common templated interfaces that let different
-types of objects be accessed in a uniform way. Templating helps to deal with the
-data types. The views also provide functions that can wrap a Conduit node
-in a suitable view type and then dispatch that view to a generic user-provided lambda,
-enabling algorithms to be instantiated for multiple data types with a compact amount
-of code.
+for any of the data arrays that represent objects. Bump views simplify
+some of these challenges by providing common templated interfaces that access
+different types of objects in a uniform way while also supporting multiple data types.
+Bump provides functions that can wrap a Conduit node in a suitable view and dispatch
+that view to a generic user-provided lambda, enabling algorithms to be instantiated
+for multiple data types with a compact amount of code.
 
 # Utilities {#bumputilities}
 
