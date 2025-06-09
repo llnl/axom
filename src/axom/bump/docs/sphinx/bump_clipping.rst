@@ -28,9 +28,9 @@ to determine the clipped geometry.
 Inputs
 #######
 
-Like the BUMP algorithms, the clipping algorithm is designed to accept a Conduit node
-containing various options that influence how the algorithm operates. The clipping
-algorithm copies the options node to the memory space where it will be used.
+BUMP's clipping algorithm is designed to accept a Conduit node containing various options
+that influence how the algorithm operates. The clipping algorithm copies the options node
+to the memory space where it will be used to support options that are accessed on a device.
 
 +---------------------------------+------------------------------------------------------+
 | Option                          | Description                                          |
