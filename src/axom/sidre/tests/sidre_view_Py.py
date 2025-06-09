@@ -125,13 +125,13 @@ def test_scalar_view():
 	i0view = root.createView("i0")
 	i0view.setScalar(i1)
 	check_scalar_values(i0view, SCALARVIEW, True, True, True, pysidre.TypeID.INT32_ID, 1)
-	i2 = i0view.getData()
+	i2 = i0view.getDataInt()
 	assert i1 == i2
 
 	i1 = 2
 	i1view = root.createViewScalar("i1", i1)
 	check_scalar_values(i1view, SCALARVIEW, True, True, True, pysidre.TypeID.INT32_ID, 1)
-	i2 = i1view.getData()
+	i2 = i1view.getDataInt()
 	assert i1 == i2
 
 	s1 = "i am a string"
@@ -456,7 +456,7 @@ def test_int_array_offset_stride():
 	assert view1.getBytesPerElement() == 1
 
 	view1 = other.createViewScalar("key_int", 5)
-	int_data = view1.getData()
+	int_data = view1.getDataInt()
 	assert int_data == 5
 	assert view1.getOffset() == 0
 	assert view1.getStride() == 1

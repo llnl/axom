@@ -369,19 +369,21 @@ NB_MODULE(pysidre, m_sidre)
     .def("setScalar",
          &View::setScalar<int>,
          nb::rv_policy::reference,
-         "Set the View to hold a scalar value (int).")
-    .def("setScalar",
-         &View::setScalar<long>,
-         nb::rv_policy::reference,
-         "Set the View to hold a scalar value (long).")
-    .def("setScalar",
-         &View::setScalar<float>,
-         nb::rv_policy::reference,
-         "Set the View to hold a scalar value (float).")
+         "Set the View to hold a scalar value (int).",
+         nb::arg("value").noconvert())
+    // .def("setScalar",
+    //      &View::setScalar<long>,
+    //      nb::rv_policy::reference,
+    //      "Set the View to hold a scalar value (long).")
+    // .def("setScalar",
+    //      &View::setScalar<float>,
+    //      nb::rv_policy::reference,
+    //      "Set the View to hold a scalar value (float).")
     .def("setScalar",
          &View::setScalar<double>,
          nb::rv_policy::reference,
-         "Set the View to hold a scalar value (double).")
+         "Set the View to hold a scalar value (python float, C++ double).",
+         nb::arg("value").noconvert())
 
     .def("setString", &View::setString, "Set the View to hold a string value.")
     .def("setExternalDataPtr",
@@ -400,22 +402,22 @@ NB_MODULE(pysidre, m_sidre)
          "Return the string contained in the View.")
     .def("getDataArray", &viewToNumpyArray, "Return the data held by the View as a numpy array.")
 
-    .def("getData",
+    .def("getDataInt",
          &View::getData<int>,
          nb::rv_policy::reference,
-         "Return the data held by the View (int).")
-    .def("getData",
-         &View::getData<long>,
-         nb::rv_policy::reference,
-         "Return the data held by the View (long).")
-    .def("getData",
-         &View::getData<float>,
-         nb::rv_policy::reference,
-         "Return the data held by the View (float).")
-    .def("getData",
+         "Return the scalar data held by the View as an python int type.")
+    // .def("getData",
+    //      &View::getData<long>,
+    //      nb::rv_policy::reference,
+    //      "Return the data held by the View (long).")
+    .def("getDataFloat",
          &View::getData<double>,
          nb::rv_policy::reference,
-         "Return the data held by the View (double).")
+         "Return the data held by the View as a python float type (C++ double).")
+    // .def("getData",
+    //      &View::getData<double>,
+    //      nb::rv_policy::reference,
+    //      "Return the data held by the View (double).")
 
     // .def("getVoidPtr",
     //      &View::getVoidPtr,
@@ -547,14 +549,15 @@ NB_MODULE(pysidre, m_sidre)
       },
       nb::rv_policy::reference)
 
-    .def("createView",
-         // nb::overload_cast<const std::string&, TypeID, IndexType, void*>(&Group::createView),
+    .def(
+      "createView",
+      // nb::overload_cast<const std::string&, TypeID, IndexType, void*>(&Group::createView),
       [](Group& self, const std::string& path, TypeID id, IndexType num_elems, const nb::ndarray<>& a) {
         return self.createView(path, id, num_elems, a.data());
       },
       nb::rv_policy::reference,
-         "Create View object with given name or path in this Group that has a data description "
-         "with data type and number of elements and attach externally-owned data to it.")
+      "Create View object with given name or path in this Group that has a data description "
+      "with data type and number of elements and attach externally-owned data to it.")
 
     .def("createViewWithShape",
          nb::overload_cast<const std::string&, TypeID, int, const IndexType*, void*>(
@@ -583,22 +586,30 @@ NB_MODULE(pysidre, m_sidre)
          &Group::createViewScalar<int>,
          nb::rv_policy::reference,
          "Create View object with given name or path in this Group set its data to given scalar "
-         "value (int).")
-    .def("createViewScalar",
-         &Group::createViewScalar<long>,
-         nb::rv_policy::reference,
-         "Create View object with given name or path in this Group set its data to given scalar "
-         "value (long).")
-    .def("createViewScalar",
-         &Group::createViewScalar<float>,
-         nb::rv_policy::reference,
-         "Create View object with given name or path in this Group set its data to given scalar "
-         "value (float).")
+         "value (int).",
+         nb::arg("path"),
+         nb::arg("value").noconvert())
+    // .def("createViewScalar",
+    //      &Group::createViewScalar<long>,
+    //      nb::rv_policy::reference,
+    //      "Create View object with given name or path in this Group set its data to given scalar "
+    //      "value (long).",
+    //      nb::arg("path"),
+    //      nb::arg("value").noconvert())
+    // .def("createViewScalar",
+    //      &Group::createViewScalar<float>,
+    //      nb::rv_policy::reference,
+    //      "Create View object with given name or path in this Group set its data to given scalar "
+    //      "value (float).",
+    //      nb::arg("path"),
+    //      nb::arg("value").noconvert())
     .def("createViewScalar",
          &Group::createViewScalar<double>,
          nb::rv_policy::reference,
          "Create View object with given name or path in this Group set its data to given scalar "
-         "value (double).")
+         "value (C++ double, python float).",
+         nb::arg("path"),
+         nb::arg("value").noconvert())
     .def("createViewString",
          &Group::createViewString,
          nb::rv_policy::reference,
@@ -617,6 +628,7 @@ NB_MODULE(pysidre, m_sidre)
 
     .def("moveView",
          &Group::moveView,
+         nb::rv_policy::reference,
          "Remove given View object from its owning Group and move it to this Group.")
     .def("copyView",
          &Group::copyView,

@@ -331,7 +331,7 @@ def test_view_copy_move():
 	# TODO - functionality will change with numpy
 	# Check data value
 	# Conduit error as-is currently
-	# assert tmpview.getData() == 3000.0
+	assert tmpview.getDataFloat() == 3000.0
 
 	# Test copying a view from flds to sub
 	tmpview = subgrp.copyView(flds.getView("i0"))
@@ -477,7 +477,7 @@ def test_save_restore_scalars_and_strings():
 
 		# TODO functionality will change with numpy getData()
 		view = root2.getView("i0")
-		i0 = view.getData()
+		i0 = view.getDataInt()
 		assert i0 == 1
 
 		# Wrong 0 == 1.0
