@@ -216,7 +216,7 @@ public:
    *
    * \param value The value to be used for filling the ArrayView.
    */
-  AXOM_HOST void fill(const T &value);
+  AXOM_HOST void fill(const T& value);
 
 private:
   T* m_data = nullptr;
@@ -428,7 +428,7 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE> ArrayView<T, DIM, SPACE>::subspan(
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE>
-AXOM_HOST void ArrayView<T, DIM, SPACE>::fill(const T &value)
+AXOM_HOST void ArrayView<T, DIM, SPACE>::fill(const T& value)
 {
   using OpHelper = detail::ArrayOps<T, SPACE>;
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);

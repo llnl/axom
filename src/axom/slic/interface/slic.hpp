@@ -441,10 +441,10 @@ namespace detail
  * \param n    The number of elements in the array.
  */
 template <typename T>
-void printArray(std::ostream &os, const std::string &name, const T *data, axom::IndexType n)
+void printArray(std::ostream& os, const std::string& name, const T* data, axom::IndexType n)
 {
   // Move data into temp host array.
-  T *host = axom::allocate<T>(n);
+  T* host = axom::allocate<T>(n);
   if(host != nullptr)
   {
     axom::copy(host, data, sizeof(T) * n);
@@ -474,7 +474,7 @@ void printArray(std::ostream &os, const std::string &name, const T *data, axom::
  * \param container The container to print.
  */
 template <typename ContainerType>
-void printContainer(std::ostream &os, const std::string &name, const ContainerType &container)
+void printContainer(std::ostream& os, const std::string& name, const ContainerType& container)
 {
   printArray(os, name, container.data(), container.size());
 }

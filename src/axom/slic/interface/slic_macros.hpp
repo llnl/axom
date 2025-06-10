@@ -713,11 +713,11 @@
  * \endcode
  *
  */
-  #define SLIC_DEBUG_PRINT_CONTAINER(name, container) \
+  #define SLIC_DEBUG_PRINT_CONTAINER(name, container)                                      \
     do                                                                                     \
     {                                                                                      \
       std::ostringstream __oss;                                                            \
-      axom::slic::detail::printContainer(__oss, name, container);                                  \
+      axom::slic::detail::printContainer(__oss, name, container);                          \
       axom::slic::logMessage(axom::slic::message::Debug, __oss.str(), __FILE__, __LINE__); \
     } while(axom::slic::detail::false_value)
 
@@ -727,7 +727,7 @@
   #define SLIC_DEBUG_IF(ignore_EXP, ignore_msg) ((void)0)
   #define SLIC_DEBUG_ROOT(ignore_EXP) ((void)0)
   #define SLIC_DEBUG_ROOT_IF(ignore_EXP, ignore_msg) ((void)0)
-  #define SLIC_DEBUG_PRINT_CONTAINER(ignore_name, ignore_container) ((void)0) \
+  #define SLIC_DEBUG_PRINT_CONTAINER(ignore_name, ignore_container) ((void)0)
 
 #endif
 

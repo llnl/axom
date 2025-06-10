@@ -1397,13 +1397,16 @@ private:
                                     fragmentData.m_fragmentSizeOffsetsView);
 
 #if defined(AXOM_DEBUG_CLIP_FIELD)
-    SLIC_DEBUG("------------------------ computeFragmentOffsets "
-               "------------------------");
-    SLIC_DEBUG_PRINT_CONTAINER("fragmentData.m_fragmentOffsetsView", fragmentData.m_fragmentOffsetsView);
+    SLIC_DEBUG(
+      "------------------------ computeFragmentOffsets "
+      "------------------------");
+    SLIC_DEBUG_PRINT_CONTAINER("fragmentData.m_fragmentOffsetsView",
+                               fragmentData.m_fragmentOffsetsView);
     SLIC_DEBUG_PRINT_CONTAINER("fragmentData.m_fragmentSizeOffsetsView",
-                      fragmentData.m_fragmentSizeOffsetsView);
-    SLIC_DEBUG("-------------------------------------------------------------"
-               "-----------");
+                               fragmentData.m_fragmentSizeOffsetsView);
+    SLIC_DEBUG(
+      "-------------------------------------------------------------"
+      "-----------");
 #endif
   }
 
@@ -1456,13 +1459,15 @@ private:
       });
 
   #if defined(AXOM_DEBUG_CLIP_FIELD)
-    SLIC_DEBUG("---------------------------- createNodeMaps "
-               "----------------------------");
+    SLIC_DEBUG(
+      "---------------------------- createNodeMaps "
+      "----------------------------");
     SLIC_DEBUG_PRINT_CONTAINER("nodeData.m_nodeUsedView", nodeData.m_nodeUsedView);
     SLIC_DEBUG_PRINT_CONTAINER("nodeData.m_originalIdsView", nodeData.m_originalIdsView);
     SLIC_DEBUG_PRINT_CONTAINER("nodeData.m_oldNodeToNewNodeView", nodeData.m_oldNodeToNewNodeView);
-    SLIC_DEBUG("-------------------------------------------------------------"
-               "-----------");
+    SLIC_DEBUG(
+      "-------------------------------------------------------------"
+      "-----------");
   #endif
   }
 #endif

@@ -425,7 +425,7 @@ public:
  * \return The index where value was located in view or -1 if not found.
  */
 template <typename ContainerT, typename T>
-AXOM_HOST_DEVICE std::int32_t binary_search(const ContainerT &cont, T value)
+AXOM_HOST_DEVICE std::int32_t binary_search(const ContainerT& cont, T value)
 {
   std::int32_t index = -1;
   std::int32_t left = 0;
@@ -465,12 +465,12 @@ AXOM_HOST_DEVICE std::int32_t binary_search(const ContainerT &cont, T value)
  *       use it in both host and device code.
  */
 AXOM_HOST_DEVICE
-inline std::uint64_t hash_bytes(const std::uint8_t *data, std::uint32_t length)
+inline std::uint64_t hash_bytes(const std::uint8_t* data, std::uint32_t length)
 {
   std::uint32_t hash = 0;
 
   // Build the length into the hash.
-  const auto ldata = reinterpret_cast<const std::uint8_t *>(&length);
+  const auto ldata = reinterpret_cast<const std::uint8_t*>(&length);
   for(int e = 0; e < 4; e++)
   {
     hash += ldata[e];

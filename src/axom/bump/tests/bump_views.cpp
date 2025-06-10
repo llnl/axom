@@ -16,7 +16,10 @@
 namespace utils = axom::bump::utilities;
 namespace views = axom::bump::views;
 
-std::string baselineDirectory() { return pjoin(dataDirectory(), "bump", "regression", "bump_views"); }
+std::string baselineDirectory()
+{
+  return pjoin(dataDirectory(), "bump", "regression", "bump_views");
+}
 
 //------------------------------------------------------------------------------
 // Global test application object.
