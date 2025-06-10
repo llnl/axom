@@ -24,7 +24,7 @@ namespace axom
 namespace sidre
 {
 
-// Helper to map TypeID to dtype
+// Helper to map TypeID to nanobind dtype
 nb::dlpack::dtype typeIDToDtype(DataTypeId id)
 {
   switch(id)
@@ -291,7 +291,6 @@ NB_MODULE(pysidre, m_sidre)
     .def("getNumDimensions",
          &View::getNumDimensions,
          "Return the dimensionality of the View's data.")
-    // .def("getShape", &View::getShape, "Return the shape of the View's data.")
     .def(
       "getShape",
       [](View& self, int ndims, nb::ndarray<int>& shape) {
@@ -355,7 +354,6 @@ NB_MODULE(pysidre, m_sidre)
          nb::arg("stride") = 1)
     .def(
       "apply",
-      // nb::overload_cast<TypeID, int, const IndexType*>(&View::apply),
       [](View& self, TypeID type, int ndims, nb::ndarray<int64_t>& shape) {
         std::vector<int> temp(ndims);
         for(int i = 0; i < ndims; i++)
@@ -371,14 +369,6 @@ NB_MODULE(pysidre, m_sidre)
          nb::rv_policy::reference,
          "Set the View to hold a scalar value (int).",
          nb::arg("value").noconvert())
-    // .def("setScalar",
-    //      &View::setScalar<long>,
-    //      nb::rv_policy::reference,
-    //      "Set the View to hold a scalar value (long).")
-    // .def("setScalar",
-    //      &View::setScalar<float>,
-    //      nb::rv_policy::reference,
-    //      "Set the View to hold a scalar value (float).")
     .def("setScalar",
          &View::setScalar<double>,
          nb::rv_policy::reference,
@@ -388,7 +378,6 @@ NB_MODULE(pysidre, m_sidre)
     .def("setString", &View::setString, "Set the View to hold a string value.")
     .def(
       "setExternalData",
-      // nb::overload_cast<void*>(&View::setExternalDataPtr),
       [](View& self, const nb::ndarray<>& external_ptr) {
         return self.setExternalDataPtr(external_ptr.data());
       },
@@ -396,7 +385,6 @@ NB_MODULE(pysidre, m_sidre)
       "Set the View to hold undescribed external data (numpy array).")
     .def(
       "setExternalData",
-      // nb::overload_cast<TypeID, IndexType, void*>(&View::setExternalDataPtr),
       [](View& self, TypeID type, IndexType num_elems, const nb::ndarray<>& external_ptr) {
         return self.setExternalDataPtr(type, num_elems, external_ptr.data());
       },
@@ -404,7 +392,6 @@ NB_MODULE(pysidre, m_sidre)
       "Set the View to hold described external data  (numpy array).")
     .def(
       "setExternalData",
-      // nb::overload_cast<TypeID, int, const IndexType*, void*>(&View::setExternalDataPtr),
       [](View& self,
          TypeID type,
          int ndims,
@@ -425,23 +412,10 @@ NB_MODULE(pysidre, m_sidre)
          &View::getData<int>,
          nb::rv_policy::reference,
          "Return the scalar data held by the View as an python int type.")
-    // .def("getData",
-    //      &View::getData<long>,
-    //      nb::rv_policy::reference,
-    //      "Return the data held by the View (long).")
     .def("getDataFloat",
          &View::getData<double>,
          nb::rv_policy::reference,
          "Return the data held by the View as a python float type (C++ double).")
-    // .def("getData",
-    //      &View::getData<double>,
-    //      nb::rv_policy::reference,
-    //      "Return the data held by the View (double).")
-
-    // .def("getVoidPtr",
-    //      &View::getVoidPtr,
-    //      nb::rv_policy::reference,
-    //      "Return a void pointer to the View's data.")
     .def("print",
          nb::overload_cast<>(&View::print, nb::const_),
          "Print JSON description of the View.")
@@ -503,8 +477,6 @@ NB_MODULE(pysidre, m_sidre)
          "with data type and number of elements.")
     .def(
       "createViewWithShape",
-      // nb::overload_cast<const std::string&, TypeID, int, const IndexType*>(
-      //   &Group::createViewWithShape),
       [](Group& self, const std::string& path, TypeID type, int ndims, const nb::ndarray<int>& shape) {
         return self.createViewWithShape(path, type, ndims, shape.data());
       },
@@ -523,8 +495,6 @@ NB_MODULE(pysidre, m_sidre)
          "with data type and number of elements and attach given Buffer to it.")
     .def(
       "createViewWithShape",
-      // nb::overload_cast<const std::string&, TypeID, int, const IndexType*, Buffer*>(
-      //   &Group::createViewWithShape),
       [](Group& self,
          const std::string& path,
          TypeID type,
@@ -537,48 +507,8 @@ NB_MODULE(pysidre, m_sidre)
       "Create View object with given name or path in this Group that has a data description "
       "with data type and shape and attach given Buffer to it.")
 
-    // TODO
-    // .def("createView",
-    //      nb::overload_cast<const std::string&, void*>(&Group::createView),
-    //      "Create View object with given name with given name or path in this Group and attach "
-    //      "external data ptr to it.")
-
-    // Debugging, seeing if can access data
     .def(
       "createView",
-      // [](Group& self, const std::string& path, nb::ndarray<nb::c_contig, nb::device::cpu> a) {
-      //   if(a.dtype() == nb::dtype<int64_t>() && a.ndim() == 1)
-      //   {
-      //     auto v = a.view<int64_t, nb::ndim<1>>();  // <-- new!
-
-      //     for(size_t i = 0; i < v.shape(0); ++i)
-      //     {
-      //       printf("v(%ld) is %ld\n", i, v(i));
-      //     }
-      //   }
-      //   else if(a.dtype() == nb::dtype<double>() && a.ndim() == 1)
-      //   {
-      //     auto v = a.view<double, nb::ndim<1>>();  // <-- new!
-
-      //     for(size_t i = 0; i < v.shape(0); ++i)
-      //     {
-      //       printf("v(%ld) is %f\n", i, v(i));
-      //     }
-      //   }
-      //   printf("Array dtype: int16=%i, uint32=%i, float32=%i, double=%i, int64=%i\n",
-      //          a.dtype() == nb::dtype<int16_t>(),
-      //          a.dtype() == nb::dtype<uint32_t>(),
-      //          a.dtype() == nb::dtype<float>(),
-      //          a.dtype() == nb::dtype<double>(),
-      //          a.dtype() == nb::dtype<int64_t>());
-      //   printf("Dtype components are: code=%d, bits=%d, lanes=%d\n",
-      //          a.dtype().code,
-      //          a.dtype().bits,
-      //          a.dtype().lanes);
-      //   printf("DIM IS %ld\n", a.ndim());
-      //   return self.createView(path, a.data());
-      // },
-
       [](Group& self, const std::string& path, const nb::ndarray<>& a) {
         return self.createView(path, a.data());
       },
@@ -586,7 +516,6 @@ NB_MODULE(pysidre, m_sidre)
 
     .def(
       "createView",
-      // nb::overload_cast<const std::string&, TypeID, IndexType, void*>(&Group::createView),
       [](Group& self, const std::string& path, TypeID id, IndexType num_elems, const nb::ndarray<>& a) {
         return self.createView(path, id, num_elems, a.data());
       },
@@ -596,8 +525,6 @@ NB_MODULE(pysidre, m_sidre)
 
     .def(
       "createViewWithShape",
-      // nb::overload_cast<const std::string&, TypeID, int, const IndexType*, void*>(
-      //   &Group::createViewWithShape),
       [](Group& self,
          const std::string& path,
          TypeID type,
@@ -634,20 +561,6 @@ NB_MODULE(pysidre, m_sidre)
          "value (int).",
          nb::arg("path"),
          nb::arg("value").noconvert())
-    // .def("createViewScalar",
-    //      &Group::createViewScalar<long>,
-    //      nb::rv_policy::reference,
-    //      "Create View object with given name or path in this Group set its data to given scalar "
-    //      "value (long).",
-    //      nb::arg("path"),
-    //      nb::arg("value").noconvert())
-    // .def("createViewScalar",
-    //      &Group::createViewScalar<float>,
-    //      nb::rv_policy::reference,
-    //      "Create View object with given name or path in this Group set its data to given scalar "
-    //      "value (float).",
-    //      nb::arg("path"),
-    //      nb::arg("value").noconvert())
     .def("createViewScalar",
          &Group::createViewScalar<double>,
          nb::rv_policy::reference,
