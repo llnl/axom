@@ -1858,7 +1858,7 @@ private:
           volumeFractionsView[destIndex] = vfs[mi];
 
           // Get the index of the material number in the local map.
-          const auto mapIndex = axom::bump::utilities::bsearch(ids[mi], localView);
+          const auto mapIndex = axom::utilities::binary_search(localView, ids[mi]);
           SLIC_ASSERT(mapIndex != -1);
           // We'll store the all materials number.
           const auto allMatno = allView[mapIndex];

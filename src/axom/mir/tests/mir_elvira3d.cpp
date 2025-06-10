@@ -312,7 +312,7 @@ struct test_Elvira3D
         // Add the material volumes to the total volumes.
         for(axom::IndexType i = 0; i < ids.size(); i++)
         {
-          auto index = utils::bsearch(ids[i], sortedIdsView);
+          auto index = axom::utilities::binary_search(sortedIdsView, ids[i]);
           SLIC_ASSERT(index >= 0 && index < nmats);
 
           // Use an atomic to sum the value.

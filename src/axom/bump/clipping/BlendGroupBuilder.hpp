@@ -306,7 +306,7 @@ public:
     AXOM_HOST_DEVICE
     inline IndexType uniqueBlendGroupIndex() const
     {
-      return axom::bump::utilities::bsearch(name(), m_state->m_blendUniqueNamesView);
+      return axom::utilities::binary_search(m_state->m_blendUniqueNamesView, name());
     }
 
     /*!

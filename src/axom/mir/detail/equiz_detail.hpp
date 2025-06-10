@@ -144,7 +144,7 @@ public:
     AXOM_HOST_DEVICE
     inline int matNumberToIndex(int matNumber) const
     {
-      auto index = axom::bump::utilities::bsearch(matNumber, m_matNumbersView);
+      auto index = axom::utilities::binary_search(m_matNumbersView, matNumber);
       return (index != -1) ? m_matIndicesView[index] : INVALID_INDEX;
     }
 

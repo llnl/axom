@@ -6,7 +6,6 @@
 #define AXOM_BUMP_MERGE_POLYHEDRAL_FACES_HPP_
 
 #include "axom/core.hpp"
-#include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/blueprint_utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/HashNaming.hpp"
@@ -208,7 +207,7 @@ public:
 
           // Look for the index of the "name" in the new uniqueKeys.
           // That will be its face index in the new faces.
-          const auto newId = utils::bsearch(originalFaceKey, uniqueKeysView);
+          const auto newId = axom::utilities::binary_search(uniqueKeysView, originalFaceKey);
           SLIC_ASSERT(newId != -1);
           elem_conn[index] = static_cast<ConnectivityType>(newId);
         });
@@ -245,7 +244,7 @@ public:
 
             // Look for the index of the "name" in the new uniqueKeys.
             // That will be its face index in the new faces.
-            const auto newId = utils::bsearch(originalFaceKey, uniqueKeysView);
+            const auto newId = axom::utilities::binary_search(uniqueKeysView, originalFaceKey);
             SLIC_ASSERT(newId != -1);
             new_elem_conn[destOffset + i] = static_cast<ConnectivityType>(newId);
           }

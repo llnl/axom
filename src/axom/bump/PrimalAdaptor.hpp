@@ -198,7 +198,7 @@ struct AdaptPolyhedron
                 seenNeighbors.push_back(candidates[ci]);
 
                 // Look up the index of the candidate point in the sorted indices.
-                auto neighborIndex = axom::bump::utilities::bsearch(candidates[ci], ids);
+                auto neighborIndex = axom::utilities::binary_search(ids, candidates[ci]);
                 SLIC_ASSERT(neighborIndex != -1);
 
                 poly.addNeighbors(i, neighborIndex);

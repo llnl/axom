@@ -10,7 +10,6 @@
 #include "axom/slic.hpp"
 #include "axom/bump/views/BasicIndexing.hpp"
 #include "axom/bump/views/Shapes.hpp"
-#include "axom/bump/utilities/utilities.hpp"
 
 #include <conduit/conduit.hpp>
 
@@ -24,7 +23,7 @@ namespace views
  * \brief Given a shape value, we can get the Shape::id() that is used internally.
  *
  * \note If the view was to renumber the shapes array to use the Shape::id() values
- *       then operator[] could return its input value and skip bsearch.
+ *       then operator[] could return its input value and skip binary_search.
  */
 class ShapeMap
 {
@@ -67,7 +66,7 @@ public:
    */
   AXOM_HOST_DEVICE IndexType operator[](IndexType value) const
   {
-    const auto index = axom::bump::utilities::bsearch(value, m_shape_values);
+    const auto index = axom::utilities::binary_search(m_shape_values, value);
     return (index >= 0) ? m_shape_ids[index] : 0;
   }
 

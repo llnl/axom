@@ -7,7 +7,6 @@
 
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
-#include "axom/bump/utilities/utilities.hpp"
 #include "axom/bump/utilities/conduit_memory.hpp"
 #include "axom/bump/utilities/conduit_traits.hpp"
 #include "axom/bump/CoordsetSlicer.hpp"
@@ -187,7 +186,7 @@ public:
         nnodes,
         AXOM_LAMBDA(axom::IndexType index) {
           const auto newNodeId =
-            axom::bump::utilities::bsearch(coordNamesView[index], uniqueNamesView);
+            axom::utilities::binary_search(uniqueNamesView, coordNamesView[index]);
           SLIC_ASSERT(newNodeId >= 0 && newNodeId < nnodes);
           old2newView[index] = newNodeId;
         });
@@ -328,8 +327,8 @@ public:
         // Make a name for this point
         const void *tptr = static_cast<const void *>(truncated);
         coordNamesView[index] =
-          axom::bump::utilities::hash_bytes(static_cast<const std::uint8_t *>(tptr),
-                                            sizeof(Precision) * CoordsetView::dimension());
+          axom::utilities::hash_bytes(static_cast<const std::uint8_t *>(tptr),
+                                      sizeof(Precision) * CoordsetView::dimension());
       });
   }
 

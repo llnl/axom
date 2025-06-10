@@ -172,8 +172,8 @@ public:
 
         // Make a hash from the narrowed ids
         void *ptr = static_cast<void *>(sorted);
-        KeyType k0 = axom::bump::utilities::hash_bytes(static_cast<std::uint8_t *>(ptr),
-                                                       n * sizeof(std::uint16_t));
+        KeyType k0 = axom::utilities::hash_bytes(static_cast<std::uint8_t *>(ptr),
+                                                 n * sizeof(std::uint16_t));
         retval = KeyIDHash | (k0 & PayloadMask);
       }
       else if(m_maxId < Max32Bit)
@@ -188,8 +188,8 @@ public:
 
         // Make a hash from the narrowed ids
         void *ptr = static_cast<void *>(sorted);
-        KeyType k0 = axom::bump::utilities::hash_bytes(static_cast<std::uint8_t *>(ptr),
-                                                       n * sizeof(std::uint32_t));
+        KeyType k0 = axom::utilities::hash_bytes(static_cast<std::uint8_t *>(ptr),
+                                                 n * sizeof(std::uint32_t));
         retval = KeyIDHash | (k0 & PayloadMask);
       }
       else if(n > 0)
@@ -204,7 +204,7 @@ public:
         // Make a hash from the ids
         void *ptr = static_cast<void *>(sorted);
         KeyType k0 =
-          axom::bump::utilities::hash_bytes(static_cast<std::uint8_t *>(ptr), n * sizeof(IndexType));
+          axom::utilities::hash_bytes(static_cast<std::uint8_t *>(ptr), n * sizeof(IndexType));
         retval = KeyIDHash | (k0 & PayloadMask);
       }
       return retval;
