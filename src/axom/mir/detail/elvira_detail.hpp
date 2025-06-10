@@ -295,8 +295,8 @@ public:
     n_coordset["values/y"].set(conduit::DataType(utils::cpp2conduit<CoordType>::id, numCoordValues));
     m_view.m_y = utils::make_array_view<CoordType>(n_coordset["values/y"]);
 
-    utils::fill<ExecSpace>(m_view.m_x, CoordType(0));
-    utils::fill<ExecSpace>(m_view.m_y, CoordType(0));
+    m_view.m_x.fill(CoordType(0));
+    m_view.m_y.fill(CoordType(0));
 
     // Set up connectivity and allocate data arrays.
     n_topology["type"] = "unstructured";
@@ -305,7 +305,7 @@ public:
     n_conn.set_allocator(c2a.getConduitAllocatorID());
     n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numCoordValues));
     m_view.m_connectivity = utils::make_array_view<ConnectivityType>(n_conn);
-    utils::fill<ExecSpace>(m_view.m_connectivity, ConnectivityType(0));
+    m_view.m_connectivity.fill(ConnectivityType(0));
 
     conduit::Node &n_sizes = n_topology["elements/sizes"];
     n_sizes.set_allocator(c2a.getConduitAllocatorID());
@@ -370,7 +370,7 @@ public:
     n_mat_sizes.set_allocator(c2a.getConduitAllocatorID());
     n_mat_sizes.set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, numFragments));
     m_view.m_mat_sizes = utils::make_array_view<MaterialID>(n_mat_sizes);
-    utils::fill<ExecSpace>(m_view.m_mat_sizes, MaterialID(0));
+    m_view.m_mat_sizes.fill(MaterialID(0));
 
     conduit::Node &n_mat_offsets = n_matset["offsets"];
     n_mat_offsets.set_allocator(c2a.getConduitAllocatorID());
@@ -576,9 +576,9 @@ public:
     n_coordset["values/z"].set(conduit::DataType(utils::cpp2conduit<CoordType>::id, numCoordValues));
     m_view.m_z = utils::make_array_view<CoordType>(n_coordset["values/z"]);
 
-    utils::fill<ExecSpace>(m_view.m_x, CoordType(0));
-    utils::fill<ExecSpace>(m_view.m_y, CoordType(0));
-    utils::fill<ExecSpace>(m_view.m_z, CoordType(0));
+    m_view.m_x.fill(CoordType(0));
+    m_view.m_y.fill(CoordType(0));
+    m_view.m_z.fill(CoordType(0));
 
     // elements (zone definitions)
     constexpr ConnectivityType UnusedValue = axom::numeric_limits<ConnectivityType>::is_signed
@@ -593,7 +593,7 @@ public:
       n_conn.set_allocator(c2a.getConduitAllocatorID());
       n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numConnValues));
       m_view.m_connectivity = utils::make_array_view<ConnectivityType>(n_conn);
-      utils::fill<ExecSpace>(m_view.m_connectivity, UnusedValue);
+      m_view.m_connectivity.fill(UnusedValue);
 
       conduit::Node &n_sizes = n_topology["elements/sizes"];
       n_sizes.set_allocator(c2a.getConduitAllocatorID());
@@ -616,21 +616,21 @@ public:
         utils::cpp2conduit<ConnectivityType>::id,
         numFragments * m_view.m_MAX_FACES_PER_FRAGMENT * m_view.m_MAX_POINTS_PER_FACE));
       m_view.m_subelement_connectivity = utils::make_array_view<ConnectivityType>(n_se_conn);
-      utils::fill<ExecSpace>(m_view.m_subelement_connectivity, UnusedValue);
+      m_view.m_subelement_connectivity.fill(UnusedValue);
 
       conduit::Node &n_se_sizes = n_topology["subelements/sizes"];
       n_se_sizes.set_allocator(c2a.getConduitAllocatorID());
       n_se_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
                                        numFragments * m_view.m_MAX_FACES_PER_FRAGMENT));
       m_view.m_subelement_sizes = utils::make_array_view<ConnectivityType>(n_se_sizes);
-      utils::fill<ExecSpace>(m_view.m_subelement_sizes, ConnectivityType {0});
+      m_view.m_subelement_sizes.fill(ConnectivityType {0});
 
       conduit::Node &n_se_offsets = n_topology["subelements/offsets"];
       n_se_offsets.set_allocator(c2a.getConduitAllocatorID());
       n_se_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
                                          numFragments * m_view.m_MAX_FACES_PER_FRAGMENT));
       m_view.m_subelement_offsets = utils::make_array_view<ConnectivityType>(n_se_offsets);
-      utils::fill<ExecSpace>(m_view.m_subelement_offsets, UnusedValue);
+      m_view.m_subelement_offsets.fill(UnusedValue);
     }
 
     // Make new fields.
@@ -690,7 +690,7 @@ public:
     n_mat_sizes.set_allocator(c2a.getConduitAllocatorID());
     n_mat_sizes.set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, numFragments));
     m_view.m_mat_sizes = utils::make_array_view<MaterialID>(n_mat_sizes);
-    utils::fill<ExecSpace>(m_view.m_mat_sizes, MaterialID(0));
+    m_view.m_mat_sizes.fill(MaterialID(0));
 
     conduit::Node &n_mat_offsets = n_matset["offsets"];
     n_mat_offsets.set_allocator(c2a.getConduitAllocatorID());

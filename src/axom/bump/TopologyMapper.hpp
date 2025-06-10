@@ -607,9 +607,9 @@ public:
     auto volume_fractions = utils::make_array_view<MatFloatType>(n_volume_fractions);
     auto sizes = utils::make_array_view<MatIntType>(n_sizes);
     auto offsets = utils::make_array_view<MatIntType>(n_offsets);
-    utils::fill<ExecSpace>(volume_fractions, MatFloatType(0.));
-    utils::fill<ExecSpace>(material_ids, MaterialEmpty);
-    utils::fill<ExecSpace>(sizes, MatIntType(0));
+    volume_fractions.fill(MatFloatType(0.));
+    material_ids.fill(MaterialEmpty);
+    sizes.fill(MatIntType(0));
     AXOM_ANNOTATE_END("allocation");
 
     // -------------------------------------------------------------------------
