@@ -118,7 +118,7 @@ public:
   private:
     void printShape(std::ostream &os, TableData shape) const
     {
-      using namespace axom::bump::clipping::visit;
+      using namespace axom::bump::clipping::tables;
       switch(shape)
       {
       case ST_PNT:
@@ -146,7 +146,7 @@ public:
     }
     void printColor(std::ostream &os, TableData color) const
     {
-      using namespace axom::bump::clipping::visit;
+      using namespace axom::bump::clipping::tables;
       switch(color)
       {
       case COLOR0:
@@ -162,7 +162,7 @@ public:
     }
     void printIds(std::ostream &os, const TableData *ids, int n) const
     {
-      using namespace axom::bump::clipping::visit;
+      using namespace axom::bump::clipping::tables;
       for(int i = 0; i < n; i++)
       {
         if(/*ids[i] >= P0 &&*/ ids[i] <= P7)
@@ -183,7 +183,7 @@ public:
   public:
     void print(std::ostream &os) const
     {
-      using namespace axom::bump::clipping::visit;
+      using namespace axom::bump::clipping::tables;
       TableData *ptr = m_shapeStart + m_offset;
       printShape(os, ptr[0]);
       os << " ";
@@ -223,7 +223,7 @@ public:
     AXOM_HOST_DEVICE
     size_t shapeLength(const TableData *caseData) const
     {
-      using namespace axom::bump::clipping::visit;
+      using namespace axom::bump::clipping::tables;
       size_t retval = 0;
       const auto shape = caseData[0];
       switch(shape)
@@ -395,7 +395,7 @@ template <typename ExecSpace>
 class ClipTableManager
 {
 public:
-  static constexpr int NumberOfTables = visit::ST_MAX - visit::ST_MIN;
+  static constexpr int NumberOfTables = tables::ST_MAX - tables::ST_MIN;
 
   /*!
    * \brief Return a reference to the clipping table, which is loaded on demand.
@@ -407,7 +407,7 @@ public:
   Table<ExecSpace> &operator[](size_t shape)
   {
     const size_t index = shapeToIndex(shape);
-    SLIC_ASSERT(shape < visit::ST_MAX);
+    SLIC_ASSERT(shape < tables::ST_MAX);
     loadShape(shape);
     return m_tables[index];
   }
@@ -433,7 +433,7 @@ public:
    */
   std::vector<size_t> shapes(int dim) const
   {
-    using namespace axom::bump::clipping::visit;
+    using namespace axom::bump::clipping::tables;
     std::vector<size_t> s;
     if(dim == -1 || dim == 2)
     {
@@ -462,7 +462,7 @@ private:
    */
   constexpr static size_t shapeToIndex(size_t shape)
   {
-    return shape - axom::bump::clipping::visit::ST_MIN;
+    return shape - axom::bump::clipping::tables::ST_MIN;
   }
 
   /*!
@@ -472,7 +472,7 @@ private:
    */
   void loadShape(size_t shape)
   {
-    using namespace axom::bump::clipping::visit;
+    using namespace axom::bump::clipping::tables;
     const auto index = shapeToIndex(shape);
     if(!m_tables[index].isLoaded())
     {

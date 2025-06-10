@@ -7,7 +7,8 @@
 //---------------------------------------------------------------------------
 // Axom modifications
 // NOTE: The values for EA-EL and N0-N3 were reduced.
-// NOTE: We're using AXOM_BUMP_EXPORT instead of VISIT_VTK_LIGHT_API througout
+// NOTE: We're using AXOM_BUMP_EXPORT instead of VISIT_VTK_LIGHT_API throughout.
+// NOTE: All #define were changed to constexpr variables to avoid symbol collisions.
 // clang-format off
 
 #include "axom/export/bump.h"
@@ -16,7 +17,7 @@
 namespace axom {
 namespace bump {
 namespace clipping {
-namespace visit {
+namespace tables {
 //---------------------------------------------------------------------------
 
 // Programmer: Jeremy Meredith
@@ -171,7 +172,7 @@ extern AXOM_BUMP_EXPORT const size_t clipShapesTetSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesPyrSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesWdgSize;
 extern AXOM_BUMP_EXPORT const size_t clipShapesHexSize;
-} // namespace visit
+} // namespace tables
 } // namespace clipping
 } // namespace bump
 } // namespace axom

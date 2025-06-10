@@ -9,7 +9,7 @@
 namespace axom {
 namespace bump {
 namespace clipping {
-namespace visit {
+namespace tables {
 //---------------------------------------------------------------------------
 
 // Programmer: Jeremy Meredith
@@ -617,7 +617,7 @@ unsigned char clipShapesWdg[] = {
 //---------------------------------------------------------------------------
 // Axom modifications
 const size_t clipShapesWdgSize = sizeof(clipShapesWdg) / sizeof(unsigned char);
-} // namespace visit
+} // namespace tables
 } // namespace clipping
 } // namespace bump
 } // namespace axom

@@ -58,7 +58,7 @@ namespace detail
 template <typename IntegerType>
 inline AXOM_HOST_DEVICE IntegerType ST_Index_to_ShapeID(IntegerType st_index)
 {
-  using namespace axom::bump::clipping::visit;
+  using namespace axom::bump::clipping::tables;
   IntegerType shapeID = 0;
   switch(st_index)
   {
@@ -129,16 +129,16 @@ inline bool color1Selected(int selection) { return axom::utilities::bitIsSet(sel
 AXOM_HOST_DEVICE
 inline bool generatedPointIsSelected(unsigned char color, int selection)
 {
-  return color == axom::bump::clipping::visit::NOCOLOR ||
-    (color0Selected(selection) && color == axom::bump::clipping::visit::COLOR0) ||
-    (color1Selected(selection) && color == axom::bump::clipping::visit::COLOR1);
+  return color == axom::bump::clipping::tables::NOCOLOR ||
+    (color0Selected(selection) && color == axom::bump::clipping::tables::COLOR0) ||
+    (color1Selected(selection) && color == axom::bump::clipping::tables::COLOR1);
 }
 
 AXOM_HOST_DEVICE
 inline bool shapeIsSelected(unsigned char color, int selection)
 {
-  return (color0Selected(selection) && color == axom::bump::clipping::visit::COLOR0) ||
-    (color1Selected(selection) && color == axom::bump::clipping::visit::COLOR1);
+  return (color0Selected(selection) && color == axom::bump::clipping::tables::COLOR0) ||
+    (color1Selected(selection) && color == axom::bump::clipping::tables::COLOR1);
 }
 
 template <typename IdType, int MAXSIZE>
@@ -637,37 +637,6 @@ struct StridedStructuredFields<true, ExecSpace, TopologyView>
     return handled;
   }
 };
-
-#if defined(AXOM_DEBUG_CLIP_FIELD)
-/*!
- * \brief Print device views to std::out after moving data to the host.
- *
- * \param name The name of the view.
- * \param view The view to print.
- */
-template <typename ViewType>
-void printHost(const std::string &name, const ViewType &deviceView)
-{
-  using value_type = typename ViewType::value_type;
-  int nn = deviceView.size();
-  // Move data to host into temp array.
-  value_type *host = new value_type[nn];
-  axom::copy(host, deviceView.data(), sizeof(value_type) * nn);
-  // Print
-  std::cout << name << "[" << nn << "] = {";
-  for(int ii = 0; ii < nn; ii++)
-  {
-    if(ii > 0)
-    {
-      std::cout << ", ";
-    }
-    std::cout << host[ii];
-  }
-  std::cout << "}" << std::endl;
-  // Cleanup.
-  delete[] host;
-}
-#endif
 
 }  // end namespace detail
 
@@ -1204,7 +1173,7 @@ private:
    */
   void createClipTableViews(ClipTableViews &views, int dimension)
   {
-    using namespace axom::bump::clipping::visit;
+    using namespace axom::bump::clipping::tables;
     AXOM_ANNOTATE_SCOPE("createClipTableViews");
     if(dimension == -1 || dimension == 2)
     {
@@ -1242,7 +1211,7 @@ private:
                     const SelectedZones &selectedZones) const
   {
     AXOM_ANNOTATE_SCOPE("computeSizes");
-    using namespace axom::bump::clipping::visit;
+    using namespace axom::bump::clipping::tables;
     const auto selection = getSelection(opts);
 
     auto blendGroupsView = builder.state().m_blendGroupsView;
@@ -1377,14 +1346,14 @@ private:
       });  // for_selected_zones
 
 #if defined(AXOM_DEBUG_CLIP_FIELD)
-    std::cout << "------------------------ computeSizes ------------------------" << std::endl;
-    detail::printHost("fragmentData.m_fragmentsView", fragmentData.m_fragmentsView);
-    detail::printHost("fragmentData.m_fragmentsSizeView", fragmentData.m_fragmentsSizeView);
-    detail::printHost("blendGroupsView", blendGroupsView);
-    detail::printHost("blendGroupsLenView", blendGroupsLenView);
-    detail::printHost("zoneData.m_pointsUsedView", zoneData.m_pointsUsedView);
-    detail::printHost("zoneData.m_clipCasesView", zoneData.m_clipCasesView);
-    std::cout << "--------------------------------------------------------------" << std::endl;
+    SLIC_DEBUG("------------------------ computeSizes ------------------------");
+    SLIC_DEBUG_PRINT_CONTAINER("fragmentData.m_fragmentsView", fragmentData.m_fragmentsView);
+    SLIC_DEBUG_PRINT_CONTAINER("fragmentData.m_fragmentsSizeView", fragmentData.m_fragmentsSizeView);
+    SLIC_DEBUG_PRINT_CONTAINER("blendGroupsView", blendGroupsView);
+    SLIC_DEBUG_PRINT_CONTAINER("blendGroupsLenView", blendGroupsLenView);
+    SLIC_DEBUG_PRINT_CONTAINER("zoneData.m_pointsUsedView", zoneData.m_pointsUsedView);
+    SLIC_DEBUG_PRINT_CONTAINER("zoneData.m_clipCasesView", zoneData.m_clipCasesView);
+    SLIC_DEBUG("--------------------------------------------------------------");
 #endif
   }
 
@@ -1428,15 +1397,13 @@ private:
                                     fragmentData.m_fragmentSizeOffsetsView);
 
 #if defined(AXOM_DEBUG_CLIP_FIELD)
-    std::cout << "------------------------ computeFragmentOffsets "
-                 "------------------------"
-              << std::endl;
-    detail::printHost("fragmentData.m_fragmentOffsetsView", fragmentData.m_fragmentOffsetsView);
-    detail::printHost("fragmentData.m_fragmentSizeOffsetsView",
+    SLIC_DEBUG("------------------------ computeFragmentOffsets "
+               "------------------------");
+    SLIC_DEBUG_PRINT_CONTAINER("fragmentData.m_fragmentOffsetsView", fragmentData.m_fragmentOffsetsView);
+    SLIC_DEBUG_PRINT_CONTAINER("fragmentData.m_fragmentSizeOffsetsView",
                       fragmentData.m_fragmentSizeOffsetsView);
-    std::cout << "-------------------------------------------------------------"
-                 "-----------"
-              << std::endl;
+    SLIC_DEBUG("-------------------------------------------------------------"
+               "-----------");
 #endif
   }
 
@@ -1489,15 +1456,13 @@ private:
       });
 
   #if defined(AXOM_DEBUG_CLIP_FIELD)
-    std::cout << "---------------------------- createNodeMaps "
-                 "----------------------------"
-              << std::endl;
-    detail::printHost("nodeData.m_nodeUsedView", nodeData.m_nodeUsedView);
-    detail::printHost("nodeData.m_originalIdsView", nodeData.m_originalIdsView);
-    detail::printHost("nodeData.m_oldNodeToNewNodeView", nodeData.m_oldNodeToNewNodeView);
-    std::cout << "-------------------------------------------------------------"
-                 "-----------"
-              << std::endl;
+    SLIC_DEBUG("---------------------------- createNodeMaps "
+               "----------------------------");
+    SLIC_DEBUG_PRINT_CONTAINER("nodeData.m_nodeUsedView", nodeData.m_nodeUsedView);
+    SLIC_DEBUG_PRINT_CONTAINER("nodeData.m_originalIdsView", nodeData.m_originalIdsView);
+    SLIC_DEBUG_PRINT_CONTAINER("nodeData.m_oldNodeToNewNodeView", nodeData.m_oldNodeToNewNodeView);
+    SLIC_DEBUG("-------------------------------------------------------------"
+               "-----------");
   #endif
   }
 #endif
@@ -1519,7 +1484,7 @@ private:
                        const SelectedZones &selectedZones) const
   {
     AXOM_ANNOTATE_SCOPE("makeBlendGroups");
-    using namespace axom::bump::clipping::visit;
+    using namespace axom::bump::clipping::tables;
     const auto selection = getSelection(opts);
 
     const auto deviceIntersector = m_intersector.view();
@@ -1668,7 +1633,7 @@ private:
                     conduit::Node &n_newFields) const
   {
     AXOM_ANNOTATE_SCOPE("makeTopology");
-    using namespace axom::bump::clipping::visit;
+    using namespace axom::bump::clipping::tables;
     const auto selection = getSelection(opts);
 
     AXOM_ANNOTATE_BEGIN("allocation");
@@ -1880,18 +1845,18 @@ private:
         });  // for_selected_zones
 
 #if defined(AXOM_DEBUG_CLIP_FIELD)
-      std::cout << "------------------------ makeTopology ------------------------" << std::endl;
-      std::cout << "degenerates_reduce=" << degenerates_reduce.get() << std::endl;
-      //      detail::printHost("selectedZones", selectedZones.view());
-      detail::printHost("m_fragmentsView", fragmentData.m_fragmentsView);
-      //      detail::printHost("zoneData.m_clipCasesView", zoneData.m_clipCasesView);
-      //      detail::printHost("zoneData.m_pointsUsedView", zoneData.m_pointsUsedView);
-      detail::printHost("conn", connView);
-      detail::printHost("sizes", sizesView);
-      detail::printHost("offsets", offsetsView);
-      detail::printHost("shapes", shapesView);
-      detail::printHost("color", colorView);
-      std::cout << "--------------------------------------------------------------" << std::endl;
+      SLIC_DEBUG("------------------------ makeTopology ------------------------");
+      SLIC_DEBUG("degenerates_reduce = " << degenerates_reduce.get());
+      SLIC_DEBUG_PRINT_CONTAINER("selectedZones", selectedZones.view());
+      SLIC_DEBUG_PRINT_CONTAINER("m_fragmentsView", fragmentData.m_fragmentsView);
+      SLIC_DEBUG_PRINT_CONTAINER("zoneData.m_clipCasesView", zoneData.m_clipCasesView);
+      SLIC_DEBUG_PRINT_CONTAINER("zoneData.m_pointsUsedView", zoneData.m_pointsUsedView);
+      SLIC_DEBUG_PRINT_CONTAINER("conn", connView);
+      SLIC_DEBUG_PRINT_CONTAINER("sizes", sizesView);
+      SLIC_DEBUG_PRINT_CONTAINER("offsets", offsetsView);
+      SLIC_DEBUG_PRINT_CONTAINER("shapes", shapesView);
+      SLIC_DEBUG_PRINT_CONTAINER("color", colorView);
+      SLIC_DEBUG("--------------------------------------------------------------");
 #endif
     }
 
@@ -1916,17 +1881,17 @@ private:
     BitSet shapesUsed = findUsedShapes(shapesView);
 
 #if defined(AXOM_DEBUG_CLIP_FIELD)
-    std::cout << "------------------------ makeTopology ------------------------" << std::endl;
-    detail::printHost("selectedZones", selectedZones.view());
-    detail::printHost("m_fragmentsView", fragmentData.m_fragmentsView);
-    detail::printHost("zoneData.m_clipCasesView", zoneData.m_clipCasesView);
-    detail::printHost("zoneData.m_pointsUsedView", zoneData.m_pointsUsedView);
-    detail::printHost("conn", connView);
-    detail::printHost("sizes", sizesView);
-    detail::printHost("offsets", offsetsView);
-    detail::printHost("shapes", shapesView);
-    detail::printHost("color", colorView);
-    std::cout << "--------------------------------------------------------------" << std::endl;
+    SLIC_DEBUG("------------------------ makeTopology ------------------------");
+    SLIC_DEBUG_PRINT_CONTAINER("selectedZones", selectedZones.view());
+    SLIC_DEBUG_PRINT_CONTAINER("m_fragmentsView", fragmentData.m_fragmentsView);
+    SLIC_DEBUG_PRINT_CONTAINER("zoneData.m_clipCasesView", zoneData.m_clipCasesView);
+    SLIC_DEBUG_PRINT_CONTAINER("zoneData.m_pointsUsedView", zoneData.m_pointsUsedView);
+    SLIC_DEBUG_PRINT_CONTAINER("conn", connView);
+    SLIC_DEBUG_PRINT_CONTAINER("sizes", sizesView);
+    SLIC_DEBUG_PRINT_CONTAINER("offsets", offsetsView);
+    SLIC_DEBUG_PRINT_CONTAINER("shapes", shapesView);
+    SLIC_DEBUG_PRINT_CONTAINER("color", colorView);
+    SLIC_DEBUG("--------------------------------------------------------------");
 #endif
 
     // If inside and outside are not selected, remove the color field since we should not need it.
