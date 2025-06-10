@@ -211,6 +211,13 @@ public:
   AXOM_HOST_DEVICE ArrayView subspan(const StackArray<IndexType, DIM>& offsets,
                                      const StackArray<IndexType, DIM>& counts);
 
+  /*!
+   * \brief Fill the ArrayView with a value.
+   *
+   * \param value The value to be used for filling the ArrayView.
+   */
+  AXOM_HOST void fill(const T& value);
+
 private:
   T* m_data = nullptr;
   /// \brief The full number of elements in the array
@@ -417,6 +424,15 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE> ArrayView<T, DIM, SPACE>::subspan(
   slice.m_num_elements = detail::packProduct(newShape.m_data);
   slice.setShapeAndStride(newShape, this->strides());
   return slice;
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+AXOM_HOST void ArrayView<T, DIM, SPACE>::fill(const T& value)
+{
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, 0, m_num_elements, value);
 }
 
 } /* namespace axom */
