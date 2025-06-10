@@ -8,6 +8,7 @@
 
 #include "axom/core.hpp"
 #include "axom/bump.hpp"
+#include "axom/slic.hpp"
 
 #include <conduit.hpp>
 
@@ -102,7 +103,7 @@ public:
           connSizeReduce += 8;
           break;
         default:
-          assert("Unsupported zone type");
+          SLIC_ASSERT("Unsupported zone type");
         }
       });
     AXOM_ANNOTATE_END("counts");
@@ -218,7 +219,7 @@ public:
             sizesView[destIndex] = 8;
             break;
           default:
-            assert("Unsupported zone type");
+            SLIC_ASSERT("Unsupported zone type");
           }
         });
       zOffset += topoView.numberOfZones();
@@ -263,7 +264,7 @@ public:
             connView[offset + 7] = highNodeOffset + zone.getId(3);
             break;
           default:
-            assert("Unsupported zone type");
+            SLIC_ASSERT("Unsupported zone type");
           }
         });
       zOffset += topoView.numberOfZones();

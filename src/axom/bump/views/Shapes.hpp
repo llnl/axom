@@ -70,7 +70,7 @@ struct PointTraits
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 1> getFace(
     IndexType AXOM_DEBUG_PARAM(faceIndex))
   {
-    assert(faceIndex == 0);
+    SLIC_ASSERT(faceIndex == 0);
     return StackArray<IndexType, 1> {0};
   }
 
@@ -117,7 +117,7 @@ struct LineTraits
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 2> getFace(
     IndexType AXOM_DEBUG_PARAM(faceIndex))
   {
-    assert(faceIndex == 0);
+    SLIC_ASSERT(faceIndex == 0);
     return StackArray<IndexType, 2> {0, 1};
   }
 
@@ -169,7 +169,7 @@ struct TriTraits
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 3> getFace(
     IndexType AXOM_DEBUG_PARAM(faceIndex))
   {
-    assert(faceIndex == 0);
+    SLIC_ASSERT(faceIndex == 0);
     return StackArray<IndexType, 3> {0, 1, 2};
   }
 
@@ -222,7 +222,7 @@ struct QuadTraits
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 4> getFace(
     IndexType AXOM_DEBUG_PARAM(faceIndex))
   {
-    assert(faceIndex == 0);
+    SLIC_ASSERT(faceIndex == 0);
     return StackArray<IndexType, 4> {0, 1, 2, 3};
   }
 
@@ -281,7 +281,7 @@ struct TetTraits
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 3> getFace(IndexType faceIndex)
   {
     const axom::StackArray<IndexType, 3> faces[] = {{0, 1, 3}, {1, 2, 3}, {2, 0, 3}, {0, 2, 1}};
-    assert(faceIndex >= 0 && faceIndex < numberOfFaces());
+    SLIC_ASSERT(faceIndex >= 0 && faceIndex < numberOfFaces());
     return faces[faceIndex];
   }
 
@@ -345,7 +345,7 @@ struct PyramidTraits
                                                     {1, 2, 4, -1},
                                                     {2, 3, 4, -1},
                                                     {3, 0, 4, -1}};
-    assert(faceIndex >= 0 && faceIndex < numberOfFaces());
+    SLIC_ASSERT(faceIndex >= 0 && faceIndex < numberOfFaces());
     return faces[faceIndex];
   }
 
@@ -412,7 +412,7 @@ struct WedgeTraits
                                                     {0, 1, 4, 3},
                                                     {1, 2, 5, 4},
                                                     {2, 0, 3, 5}};
-    assert(faceIndex >= 0 && faceIndex < numberOfFaces());
+    SLIC_ASSERT(faceIndex >= 0 && faceIndex < numberOfFaces());
     return faces[faceIndex];
   }
 
@@ -474,7 +474,7 @@ struct HexTraits
   {
     const axom::StackArray<IndexType, 4> faces[] =
       {{3, 0, 4, 7}, {1, 2, 6, 5}, {0, 1, 5, 4}, {3, 7, 6, 2}, {0, 3, 2, 1}, {4, 5, 6, 7}};
-    assert(faceIndex >= 0 && faceIndex < numberOfFaces());
+    SLIC_ASSERT(faceIndex >= 0 && faceIndex < numberOfFaces());
     return faces[faceIndex];
   }
 

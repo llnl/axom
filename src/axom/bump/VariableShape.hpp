@@ -6,10 +6,10 @@
 #ifndef AXOM_BUMP_UTILITIES_VARIABLE_SHAPE_HPP_
 #define AXOM_BUMP_UTILITIES_VARIABLE_SHAPE_HPP_
 
-#include <axom/config.hpp>
-#include <axom/core.hpp>
-#include <axom/primal.hpp>
-#include <axom/slic.hpp>
+#include "axom/config.hpp"
+#include "axom/core.hpp"
+#include "axom/primal.hpp"
+#include "axom/slic.hpp"
 #include "axom/bump/views/Shapes.hpp"
 
 #include <iostream>
@@ -115,7 +115,7 @@ public:
    */
   AXOM_HOST_DEVICE void splitPyramid(axom::primal::Tetrahedron<T, NDIMS> tets[2]) const
   {
-    assert(m_shapeId == axom::bump::views::Pyramid_ShapeID);
+    SLIC_ASSERT(m_shapeId == axom::bump::views::Pyramid_ShapeID);
     tets[0] = axom::primal::Tetrahedron<T, NDIMS>(m_points[0], m_points[1], m_points[3], m_points[4]);
     tets[1] = axom::primal::Tetrahedron<T, NDIMS>(m_points[1], m_points[2], m_points[3], m_points[4]);
   }
@@ -126,7 +126,7 @@ public:
    */
   AXOM_HOST_DEVICE void splitWedge(axom::primal::Tetrahedron<T, NDIMS> tets[3]) const
   {
-    assert(m_shapeId == axom::bump::views::Wedge_ShapeID);
+    SLIC_ASSERT(m_shapeId == axom::bump::views::Wedge_ShapeID);
     tets[0] = axom::primal::Tetrahedron<T, NDIMS>(m_points[0], m_points[1], m_points[2], m_points[3]);
     tets[1] = axom::primal::Tetrahedron<T, NDIMS>(m_points[3], m_points[1], m_points[2], m_points[5]);
     tets[2] = axom::primal::Tetrahedron<T, NDIMS>(m_points[3], m_points[4], m_points[1], m_points[5]);
