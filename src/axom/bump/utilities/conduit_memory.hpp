@@ -173,7 +173,7 @@ void copy(conduit::Node &dest, const conduit::Node &src)
 /*!
  * \brief Fill an array with int values from a Conduit node.
  *
- * \tparam ArrayType The array type being filled.
+ * \tparam ArrayType The array type being filled. It must supply size(), operator[].
  *
  * \param n The node that contains the data.
  * \param key The name of the node that contains the data in \a n.
