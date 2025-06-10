@@ -422,7 +422,8 @@ public:
  * \param[in] cont A view or container that contains the sorted search data values.
  * \param[in] value The search value.
  *
- * \return The index where value was located in view or -1 if not found.
+ * \return The index where value was located in view or -1 if not found. If the
+ *         container contained repeats of \a value, the first index is returned.
  */
 template <typename ContainerT, typename T>
 AXOM_HOST_DEVICE std::int32_t binary_search(const ContainerT& cont, T value)
@@ -440,7 +441,8 @@ AXOM_HOST_DEVICE std::int32_t binary_search(const ContainerT& cont, T value)
     else
     {
       index = m;
-      break;
+      // Keep searching to the left to find the first value.
+      right = m - 1;
     }
   }
 
