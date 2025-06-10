@@ -10,11 +10,6 @@
 #include "axom/mir/utilities/blueprint_utilities.hpp"
 #include "axom/mir/utilities/BlendData.hpp"
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mir
@@ -97,9 +92,8 @@ public:
   void computeBlendGroupSizes(IndexType &bgSum, IndexType &bgLenSum)
   {
     AXOM_ANNOTATE_SCOPE("computeBlendGroupSizes");
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-    RAJA::ReduceSum<reduce_policy, IndexType> blendGroups_sum(0);
-    RAJA::ReduceSum<reduce_policy, IndexType> blendGroupLen_sum(0);
+    axom::ReduceSum<ExecSpace, IndexType> blendGroups_sum(0);
+    axom::ReduceSum<ExecSpace, IndexType> blendGroupLen_sum(0);
     const auto localBlendGroupsView = m_state.m_blendGroupsView;
     const auto localBlendGroupsLenView = m_state.m_blendGroupsLenView;
     axom::for_all<ExecSpace>(
@@ -260,7 +254,10 @@ public:
       const auto numIds = m_state->m_blendGroupSizesView[m_blendGroupId];
       const auto start = m_state->m_blendGroupStartView[m_blendGroupId];
       float w = 0.f;
-      for(IndexType i = 0; i < numIds; i++) w += m_state->m_blendCoeffView[start + i];
+      for(IndexType i = 0; i < numIds; i++)
+      {
+        w += m_state->m_blendCoeffView[start + i];
+      }
       return w;
     }
 
@@ -432,7 +429,6 @@ public:
                     axom::Array<axom::IndexType> &newUniqueIndices)
   {
     AXOM_ANNOTATE_SCOPE("filterUnique");
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     const auto nIndices = m_state.m_blendUniqueIndicesView.size();
 
     if(nIndices > 0)
@@ -442,7 +438,7 @@ public:
       // Make a mask of selected indices have more than one id in their blend group.
       axom::Array<int> mask(nIndices, nIndices, allocatorID);
       auto maskView = mask.view();
-      RAJA::ReduceSum<reduce_policy, int> mask_reduce(0);
+      axom::ReduceSum<ExecSpace, int> mask_reduce(0);
       State deviceState(m_state);
       axom::for_all<ExecSpace>(
         nIndices,

@@ -392,7 +392,7 @@ public:
    * \param [out] eval The value of the curve at \a t
    * \param [out] Dt The tangent vector of the curve at \a t
    */
-  void evaluate_first_derivative(T t, PointType& eval, VectorType& Dt) const
+  void evaluateFirstDerivative(T t, PointType& eval, VectorType& Dt) const
   {
     using axom::utilities::lerp;
     VectorType val;
@@ -458,8 +458,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_t;
 
-      projective.evaluate_first_derivative(t, P, P_t);
-      weights.evaluate_first_derivative(t, W, W_t);
+      projective.evaluateFirstDerivative(t, P, P_t);
+      weights.evaluateFirstDerivative(t, W, W_t);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -543,8 +543,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_t;
 
-      projective.evaluate_first_derivative(t, P, P_t);
-      weights.evaluate_first_derivative(t, W, W_t);
+      projective.evaluateFirstDerivative(t, P, P_t);
+      weights.evaluateFirstDerivative(t, W, W_t);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -562,7 +562,7 @@ public:
    * \param [out] eval The value of the curve at \a t
    * \param [out] Dt The tangent vector of the curve at \a t
    */
-  void evaluate_second_derivative(T t, PointType& eval, VectorType& Dt, VectorType& DtDt) const
+  void evaluateSecondDerivative(T t, PointType& eval, VectorType& Dt, VectorType& DtDt) const
   {
     using axom::utilities::lerp;
     VectorType val;
@@ -637,8 +637,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_t, W_tt;
 
-      projective.evaluate_second_derivative(t, P, P_t, P_tt);
-      weights.evaluate_second_derivative(t, W, W_t, W_tt);
+      projective.evaluateSecondDerivative(t, P, P_t, P_tt);
+      weights.evaluateSecondDerivative(t, W, W_t, W_tt);
 
       for(int i = 0; i < NDIMS; ++i)
       {
@@ -723,8 +723,8 @@ public:
       Point<T, 1> W;
       Vector<T, 1> W_t, W_tt;
 
-      projective.evaluate_second_derivative(t, P, P_t, P_tt);
-      weights.evaluate_second_derivative(t, W, W_t, W_tt);
+      projective.evaluateSecondDerivative(t, P, P_t, P_tt);
+      weights.evaluateSecondDerivative(t, W, W_t, W_tt);
 
       for(int i = 0; i < NDIMS; ++i)
       {

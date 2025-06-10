@@ -20,10 +20,6 @@
 // Slic includes
 #include "axom/slic/interface/slic.hpp"  // for SLIC macros
 
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
-
 // C/C++ includes
 #include <type_traits>  // for std::is_same
 

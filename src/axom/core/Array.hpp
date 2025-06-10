@@ -9,6 +9,7 @@
 #include "axom/config.hpp"
 #include "axom/core/MDMapping.hpp"
 #include "axom/core/Macros.hpp"
+#include "axom/core/execution/atomics.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/Types.hpp"
 #include "axom/core/ArrayBase.hpp"
@@ -1614,7 +1615,7 @@ AXOM_DEVICE inline IndexType Array<T, DIM, SPACE>::reserveForDeviceInsert(IndexT
   // Device path: supports insertion while m_num_elements < m_capacity
   // Does not support insertions which require reallocating the underlying
   // buffer.
-  IndexType new_pos = RAJA::atomicAdd<RAJA::auto_atomic>(&m_num_elements, n);
+  IndexType new_pos = axom::atomicAdd<axom::auto_atomic>(&m_num_elements, n);
   if(new_pos >= m_capacity)
   {
   #ifdef AXOM_DEBUG

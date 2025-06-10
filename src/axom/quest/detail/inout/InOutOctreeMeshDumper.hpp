@@ -110,7 +110,7 @@ public:
         }
       }
     }
-    SLIC_INFO("Dump vtk:: Octree has " << blocks.size() << " leaves.");
+    SLIC_INFO_ROOT("Dump vtk:: Octree has " << blocks.size() << " leaves.");
 
     dumpOctreeMeshBlocks(name, blocks, false);
   }
@@ -125,7 +125,7 @@ public:
   {
     if(m_generationState < InOutOctreeType::INOUTOCTREE_LEAVES_COLORED)
     {
-      SLIC_INFO("Need to generate octree colors before visualizing them.");
+      SLIC_WARNING("Need to generate octree colors before visualizing them.");
       return;
     }
 
@@ -430,7 +430,7 @@ public:
       segs.push_back(i);
     }
 
-    SLIC_INFO("Dump vtk:: Mesh has " << numCells << " line segments.");
+    SLIC_INFO_ROOT("Dump vtk:: Mesh has " << numCells << " line segments.");
 
     dumpSegmentMesh(name, segs, false);
   }
@@ -637,7 +637,7 @@ public:
     {
       tris.push_back(i);
     }
-    SLIC_INFO("Dump vtk:: Mesh has " << numElts << " triangles.");
+    SLIC_INFO_ROOT("Dump vtk:: Mesh has " << numElts << " triangles.");
 
     dumpTriangleMesh(name, tris, false);
   }

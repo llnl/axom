@@ -1,5 +1,6 @@
 import os, sys
 import argparse
+import math
 
 def flux_run(np):
   return f"flux run -n {np}"
@@ -22,8 +23,6 @@ runs = {
   "build-rzadams-toss_4_x86_64_ib_cray-rocmcc@6.2.1_hip-release" :{"policies":["seq", "hip"], "launch":flux_run}
 }
 
-sizes = (50, 100, 200, 500, 1000, 1500, 2000, 4000, 8000)
-
 def generate(params):
   """
   Generate scripts to run the program to create timings.
@@ -32,28 +31,31 @@ def generate(params):
 
   for r in runs:
     if not os.path.exists(r):
-      print(f"Skipping {r}.")
+      print(f"Skipping {r}")
       continue
     filename = os.path.join(r, "run_concentric_circles.bash")
+
     f = open(filename, "wt")
     f.write("#!/bin/bash\n\n")
     f.write("CONCENTRIC_CIRCLES=./examples/mir_concentric_circles\n")
     f.write("CONCENTRIC_CIRCLES_MPI=./examples/mir_concentric_circles_mpi\n\n")
 
-    for s in sizes:
+    dimension = params["dimension"]
+    trials = params["trials"]
+    for s in params["sizes"]:
       f.write(f"# Size {s}\n")
       if len(params["parallel"]) > 0:
         # parallel
         for np in params["parallel"]:
           launch = runs[r]["launch"](np)
           for policy in runs[r]["policies"]:
-            f.write(f'echo "Running {launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --disable-write"\n')
-            f.write(f'{launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --disable-write > result_{policy}_np{np}_s{s}.txt\n\n')
+            f.write(f'echo "Running {launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
+            f.write(f'{launch} $CONCENTRIC_CIRCLES_MPI --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_np{np}_s{s}.txt\n\n')
       else:
         # serial
         for policy in runs[r]["policies"]:
-          f.write(f'echo "Running --gridsize {s} --numcircles 5 --policy {policy} --method {method} --disable-write"\n')
-          f.write(f'$CONCENTRIC_CIRCLES --gridsize {s} --numcircles 5 --policy {policy} --method {method} --disable-write > result_{policy}_s{s}.txt\n\n')
+          f.write(f'echo "Running --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write"\n')
+          f.write(f'$CONCENTRIC_CIRCLES --gridsize {s} --numcircles 5 --policy {policy} --method {method} --dimension {dimension} --trials {trials} --disable-write > result_{policy}_s{s}.txt\n\n')
 
     f.close()
     os.chmod(filename, 0o700)
@@ -66,13 +68,20 @@ def read_timings(filename, searchKey):
   retval = "" # no data
   try:
     lines = open(filename, "rt").readlines()
+    print(f"Reading {filename}")
     for line in lines:
       pos = line.find(searchKey)
       if pos != -1:
         toks = [x for x in line.split() if x != '']
-        retval = float(toks[2]) # timings (I)
+        #print(toks)
+        try:
+          retval = float(toks[2]) # timings (I)
+        except ValueError:
+          # The line had our searchKey but was not a Caliper line.
+          continue
         break
   except:
+    print(f"Error reading {filename}")
     pass
   return retval
 
@@ -97,17 +106,30 @@ def make_columns(params):
           break
     return selected 
 
+  def average(value, trials):
+    try:
+      avg = str(float(value) / float(trials))
+    except ValueError:
+      avg = value
+    return avg
+
   # Measure just the MIR algorithm
   searchKey = "EquiZAlgorithm"
   if params["method"] == "elvira":
     searchKey = "ElviraAlgorithm"
 
   columns = []
-  # Add NumZones column (nzones = s*s)
+  # Add NumZones column (either square or cube of s, depending on dimension)
   sc = ["NumZones"]
-  for s in sizes:
-    sc.append(s*s)
+  if params["dimension"] == 3:
+    for s in params["sizes"]:
+      sc.append(s*s*s)
+  else:
+    for s in params["sizes"]:
+      sc.append(s*s)
   columns.append(sc)
+
+  trials = params["trials"]
 
   # Gather data.
   for r in sorted(runs.keys()):
@@ -125,18 +147,22 @@ def make_columns(params):
           if not is_selected(params["selections"], name):
              continue
           data = [name]
-          for s in sizes:
+          for s in params["sizes"]:
             filename = os.path.join(r, f"result_{policy}_np{np}_s{s}.txt")
             value = read_timings(filename, searchKey)
-            data.append(value)
+            # Timings contain #trials values so average the value.
+            avgValue = average(value, trials)
+            data.append(avgValue)
           columns.append(data)
       else:
         name = f"{buildname} {policy.upper()}"
         data = [name]
-        for s in sizes:
+        for s in params["sizes"]:
           filename = os.path.join(r, f"result_{policy}_s{s}.txt")
           value = read_timings(filename, searchKey)
-          data.append(value)
+          # Timings contain #trials values so average the value.
+          avgValue = average(value, trials)
+          data.append(avgValue)
         columns.append(data)
   return columns
 
@@ -182,10 +208,13 @@ def plot(params):
     if len(x) > 0:
       plt.plot(x, y, marker='o', linestyle='-', label=columns[c][0])
 
+  dimension = params["dimension"]
+  method = params["method"]
+
   # Add labels and title
   plt.xlabel('Number of Zones', fontSize=18)
   plt.ylabel('Time (s)', fontSize=18)
-  plt.title('MIR Timings', fontSize=24)
+  plt.title(f'{dimension}D MIR Timings ({method})', fontSize=24)
   xlabels = make_series(columns[0][1:], columns[0][1:])[0]
   plt.xticks(ticks=xlabels, labels=xlabels, fontsize=14) 
   plt.yticks(fontsize=14) 
@@ -239,11 +268,25 @@ def get_params():
     )
 
   parser.add_argument(
+    "--dimension",
+    type=int,
+    help="Mesh dimension to generate (2 or 3)",
+    required=False
+    )
+
+  parser.add_argument(
     "--select",
     type=str,
     help="Comma-separated list of strings to select specific plot data",
     required=False
   )
+
+  parser.add_argument(
+    "--trials",
+    type=int,
+    help="Number of times to run MIR",
+    required=False
+    )
 
   args = parser.parse_args()
 
@@ -265,16 +308,39 @@ def get_params():
     params["method"] = args.method
   else:
     params["method"] = "elvira"
-  if args.generate is not None:
+
+  if args.generate:
     params["generate"] = args.generate
   else:
     params["generate"] = False
-  if args.plot is not None:
+
+  if args.plot:
     params["plot"] = args.plot
     params["generate"] = False
   else:
     params["plot"] = False
+
   params["selections"] = selections
+  if args.dimension is not None:
+    params["dimension"] = args.dimension
+  else:
+    params["dimension"] = 2
+
+  if args.trials is not None:
+    params["trials"] = max(1, args.trials)
+  else:
+    params["trials"] = 1
+
+  # Generate some sizes.
+  sides = (50, 100, 200, 500, 1000, 1500, 2000, 4000, 8000)
+  if params["dimension"] == 3:
+    # Figure out the 3D side size we need for about the same zone counts as 2D.
+    s = []
+    for side in sides:
+      s.append(int(math.ceil(math.pow(side * side, 1./3.))))
+    params["sizes"] = tuple(s)
+  else:
+    params["sizes"] = sides
 
   return params
 
@@ -282,10 +348,13 @@ def main():
   params = get_params()
 
   if params["generate"]:
+    print("Generating files...")
     generate(params)
   elif params["plot"]:
+    print("Plotting files...")
     plot(params)
   else:
+    print("Making CSV...")
     make_csv(params, "concentric_circle_timings.csv")
 
 if __name__ == "__main__":

@@ -24,7 +24,10 @@ the options are constantly evolving.
    * GPU execution support for Axom features is continually exapanding. 
      Axom Core offers an interface that uses RAJA and Umpire internally and 
      provides easy access to for-loop level acceleration via the parallel-for 
-     idiom, which invokes a given lambda function for every index in range.  
+     idiom, which invokes a given lambda function for every index in range.
+     Additional constructs for atomics, reductions, scans, and sorts are also
+     available. These are templated off an execution space and typically wrap
+     RAJA functionality, though serial-only implementations are also provided.
 
 The memory management API allows users to leverage either C++ memory functions 
 or Umpire, depending on the availability of Umpire at compilation. It supports 

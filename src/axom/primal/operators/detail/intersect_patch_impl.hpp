@@ -38,9 +38,9 @@ namespace detail
  *
  * \param [in] line The input line
  * \param [in] patch The input patch
- * \param [out] tp Parametric coordinates of intersections in \a line
- * \param [out] up Parametric coordinates of intersections in \a patch
- * \param [out] vp Parametric coordinates of intersections in \a patch
+ * \param [out] tp Arrays to append parametric coordinates of intersections in \a line
+ * \param [out] up Arrays to append parametric coordinates of intersections in \a patch
+ * \param [out] vp Arrays to append parametric coordinates of intersections in \a patch
  * \param [in] order_u The order of \a line in the u direction
  * \param [in] order_v The order of \a line in the v direction
  * \param [in] u_offset The offset in parameter space for \a patch in the u direction
@@ -49,8 +49,10 @@ namespace detail
  * \param [in] v_scale The scale in parameter space for \a patch in the v direction
  * \param [in] sq_tol Numerical tolerance for physical distances
  * \param [in] EPS Numerical tolerance in parameter space
+ * \param [in] isRay True if the line is a ray, i.e., only return nonnegative t values
+ * \param [out] success False if an early return was triggered
  *
- * A ray can only intersect a Bezier patch if it intersects its bounding box.
+ * A line can only intersect a Bezier patch if it intersects its bounding box.
  * The base case of the recursion is when we can approximate the patch as
  * parametrically bilinear, where we directly find their intersections. Otherwise,
  * check for intersections recursively after bisecting the patch in each direction.
@@ -62,7 +64,10 @@ namespace detail
  * \note This function assumes that all intersections have multiplicity 
  *  one, i.e. does not find tangencies. 
  *
- * \return True if the line intersects the patch, False otherwise
+ * \warning This function returns early if we record excessive intersections.
+ *    This implies the patch is degenerate at the point of intersection.
+ * 
+ * \return False if an early return was triggered (failure). True otherwise
  */
 template <typename T>
 bool intersect_line_patch(const Line<T, 3> &line,
@@ -78,7 +83,8 @@ bool intersect_line_patch(const Line<T, 3> &line,
                           double v_scale,
                           double sq_tol,
                           double EPS,
-                          bool isRay);
+                          bool isRay,
+                          bool &success);
 
 //------------------------------ IMPLEMENTATIONS ------------------------------
 
@@ -96,24 +102,25 @@ bool intersect_line_patch(const Line<T, 3> &line,
                           double v_scale,
                           double sq_tol,
                           double EPS,
-                          bool isRay)
+                          bool isRay,
+                          bool &success)
 {
   using BPatch = BezierPatch<T, 3>;
 
   // Early return if we start to record excessive intersections.
   //  This implies the patch is degenerate at the point of intersection.
-  constexpr int max_intersections = 100;
-  if(tp.size() >= max_intersections)
+  if(tp.size() > order_v * order_u)
   {
     SLIC_WARNING(
-      "Unexpectedly large number of intersections recorded."
+      "Too many intersections recorded for patch orders, suggesting a degenerate intersection."
       "Returning early to avoid excessive computation.");
-    return false;
+
+    success = false;
+    return true;
   }
 
-  // Check bounding box to short-circuit the intersection
-  //  Need to expand the box a bit so that intersections near subdivision boundaries
-  //  are accurately recorded
+  // Check bounding box to skip the subdivision procedure
+  // Expand the box a bit so that intersections near subdivision boundaries are accurately recorded
   if(!intersect(line, patch.boundingBox().scale(1.5)))
   {
     return false;
@@ -122,7 +129,7 @@ bool intersect_line_patch(const Line<T, 3> &line,
   if(patch.isBilinear(sq_tol, true))
   {
     // Store candidate intersection points
-    axom::Array<T> tc, uc, vc;
+    axom::StaticArray<T, 2> tc, uc, vc;
 
     detail::intersect_line_bilinear_patch(line,
                                           patch(0, 0),
@@ -160,75 +167,40 @@ bool intersect_line_patch(const Line<T, 3> &line,
     constexpr double splitVal = 0.5;
     constexpr double scaleFac = 0.5;
 
-    BPatch p1(order_u, order_v), p2(order_u, order_v), p3(order_u, order_v), p4(order_u, order_v);
+    BPatch subpatches[4];
+    patch.split(splitVal, splitVal, subpatches[0], subpatches[1], subpatches[2], subpatches[3]);
 
-    patch.split(splitVal, splitVal, p1, p2, p3, p4);
     u_scale *= scaleFac;
     v_scale *= scaleFac;
 
-    // Note: we want to find all intersections, so don't short-circuit
-    intersect_line_patch(line,
-                         p1,
-                         tp,
-                         up,
-                         vp,
-                         order_u,
-                         order_v,
-                         u_offset,
-                         u_scale,
-                         v_offset,
-                         v_scale,
-                         sq_tol,
-                         EPS,
-                         isRay);
+    for(int i = 0; i < 4; ++i)
+    {
+      // If we already found a degenerate intersection, we can skip the rest
+      if(!success)
+      {
+        return !tp.empty();
+      }
 
-    intersect_line_patch(line,
-                         p2,
-                         tp,
-                         up,
-                         vp,
-                         order_u,
-                         order_v,
-                         u_offset + u_scale,
-                         u_scale,
-                         v_offset,
-                         v_scale,
-                         sq_tol,
-                         EPS,
-                         isRay);
-
-    intersect_line_patch(line,
-                         p3,
-                         tp,
-                         up,
-                         vp,
-                         order_u,
-                         order_v,
-                         u_offset,
-                         u_scale,
-                         v_offset + v_scale,
-                         v_scale,
-                         sq_tol,
-                         EPS,
-                         isRay);
-
-    intersect_line_patch(line,
-                         p4,
-                         tp,
-                         up,
-                         vp,
-                         order_u,
-                         order_v,
-                         u_offset + u_scale,
-                         u_scale,
-                         v_offset + v_scale,
-                         v_scale,
-                         sq_tol,
-                         EPS,
-                         isRay);
+      // Check all four subpatches even if intersections are found, as we want to find them all
+      intersect_line_patch(line,
+                           subpatches[i],
+                           tp,
+                           up,
+                           vp,
+                           order_u,
+                           order_v,
+                           u_offset + (i % 2) * u_scale,
+                           u_scale,
+                           v_offset + (i / 2) * v_scale,
+                           v_scale,
+                           sq_tol,
+                           EPS,
+                           isRay,
+                           success);
+    }
   }
 
-  return tp.size() > 0;
+  return !tp.empty();
 }
 
 }  // end namespace detail

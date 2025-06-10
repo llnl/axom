@@ -37,12 +37,6 @@
   #include "mpi.h"
 #endif
 
-// RAJA
-#if !defined(AXOM_USE_RAJA)
-  #error quest_shape_in_memory example and IntersectionShaper require RAJA
-#endif
-#include "RAJA/RAJA.hpp"
-
 // C/C++ includes
 #include <string>
 #include <vector>
@@ -494,6 +488,10 @@ void printMfemMeshInfo(mfem::Mesh* mesh, const std::string& prefixMessage = "")
 }
 #endif
 
+/************************************************************
+ * Shared variables.
+ ************************************************************/
+
 /*
   Whether View data should live on host or another allocator (like device data).
   Return the "right" choice based on View type, using a heuristic.
@@ -627,119 +625,10 @@ void finalizeLogger()
   }
 }
 
-double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& tetMesh)
-{
-  using TetType = axom::primal::Tetrahedron<double, 3>;
-  axom::StackArray<axom::IndexType, 1> nodesShape {tetMesh.getNumberOfNodes()};
-  axom::ArrayView<const double> x(tetMesh.getCoordinateArray(0), nodesShape);
-  axom::ArrayView<const double> y(tetMesh.getCoordinateArray(1), nodesShape);
-  axom::ArrayView<const double> z(tetMesh.getCoordinateArray(2), nodesShape);
-  const axom::IndexType tetCount = tetMesh.getNumberOfCells();
-  axom::Array<double> tetVolumes(tetCount, tetCount);
-  double meshVolume = 0.0;
-  for(axom::IndexType ic = 0; ic < tetCount; ++ic)
-  {
-    const axom::IndexType* nodeIds = tetMesh.getCellNodeIDs(ic);
-    TetType tet;
-    for(int j = 0; j < 4; ++j)
-    {
-      auto cornerNodeId = nodeIds[j];
-      tet[j][0] = x[cornerNodeId];
-      tet[j][1] = y[cornerNodeId];
-      tet[j][2] = z[cornerNodeId];
-    }
-    meshVolume += tet.volume();
-  }
-  return meshVolume;
-}
-
-double areaOfTriMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& triMesh)
-{
-  using PolygonStaticType = primal::Polygon<double, 2, axom::primal::PolygonArray::Static>;
-  using Point2D = primal::Point<double, 2>;
-  axom::StackArray<axom::IndexType, 1> nodesShape {triMesh.getNumberOfNodes()};
-  axom::ArrayView<const double> x(triMesh.getCoordinateArray(0), nodesShape);
-  axom::ArrayView<const double> y(triMesh.getCoordinateArray(1), nodesShape);
-  const axom::IndexType triCount = triMesh.getNumberOfCells();
-  axom::Array<double> triAreas(triCount, triCount);
-  double meshArea = 0.0;
-  for(axom::IndexType ic = 0; ic < triCount; ++ic)
-  {
-    const axom::IndexType* nodeIds = triMesh.getCellNodeIDs(ic);
-    PolygonStaticType tri;
-    for(int j = 0; j < 3; ++j)
-    {
-      auto cornerNodeId = nodeIds[j];
-      tri.addVertex(Point2D({x[cornerNodeId], y[cornerNodeId]}));
-    }
-    meshArea += tri.area();
-  }
-  return meshArea;
-}
-
-/*
-  For the test shapes, try to get good volume with compact shape
-  that stays in domain when rotated (else volume check is invalid).
-*/
-
-// Single triangle ShapeSet.
-std::vector<axom::klee::Shape> create2DShapeSet(sidre::DataStore& ds)
-{
-  sidre::Group* meshGroup = ds.getRoot()->createGroup("triangleMesh");
-  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
-  const std::string topo = "mesh";
-  const std::string coordset = "coords";
-  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> triangleMesh(2,
-                                                                      axom::mint::CellType::TRIANGLE,
-                                                                      meshGroup,
-                                                                      topo,
-                                                                      coordset);
-
-  double lll = 2.0;
-
-  // Insert tet at origin.
-  triangleMesh.appendNode(0.0, 0.0);
-  triangleMesh.appendNode(lll, 0.0);
-  triangleMesh.appendNode(0.0, lll);
-  axom::IndexType conn[3] = {0, 1, 2};
-  triangleMesh.appendCell(conn);
-
-  SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
-
-  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Two,
-                                                    axom::klee::LengthUnit::unspecified};
-  axom::klee::Geometry triangleGeom(prop, triangleMesh.getSidreGroup(), topo, nullptr);
-
-  std::vector<axom::klee::Shape> shapes;
-  axom::klee::Shape triangleShape(
-    "triangle",
-    "AL",
-    {},
-    {},
-    axom::klee::Geometry {prop, triangleMesh.getSidreGroup(), topo, nullptr});
-  shapes.push_back(
-    axom::klee::Shape {"triangle",
-                       "AL",
-                       {},
-                       {},
-                       axom::klee::Geometry {prop, triangleMesh.getSidreGroup(), topo, nullptr}});
-
-  axom::klee::ShapeSet shapeSet;
-  shapeSet.setShapes(shapes);
-  shapeSet.setDimensions(axom::klee::Dimensions::Two);
-
-  double shapeMeshVol = areaOfTriMesh(triangleMesh);
-  exactOverlapVols[triangleShape.getName()] = shapeMeshVol;
-  errorToleranceRel[triangleShape.getName()] = 1e-6;
-  errorToleranceAbs[triangleShape.getName()] = 1e-8;
-
-  return shapes;
-}
-
-axom::klee::Shape createShape_Sphere(const std::string& shapeName)
+axom::klee::Shape createShape_Sphere()
 {
   Point3D center = params.center.empty() ? Point3D {0, 0, 0} : Point3D {params.center.data()};
-  double radius = params.radius < 0 ? 1.0 : params.radius;
+  double radius = params.radius < 0 ? 0.6 : params.radius;
   axom::primal::Sphere<double, 3> sphere {center, radius};
 
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
@@ -752,19 +641,15 @@ axom::klee::Shape createShape_Sphere(const std::string& shapeName)
 
   const axom::IndexType levelOfRefinement = params.refinementLevel;
   axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
-  axom::klee::Shape sphereShape(shapeName, shapeName + ".mat", {}, {}, sphereGeometry);
-  exactOverlapVols[shapeName] = vScale *4. / 3 * M_PI * radius * radius * radius;
-  errorToleranceRel[shapeName] = 0.1;
-  errorToleranceAbs[shapeName] = 0.38;
+  axom::klee::Shape sphereShape("sphere", "SPHERE", {}, {}, sphereGeometry);
 
   return sphereShape;
 }
 
-axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds, const std::string& shapeName)
+axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds)
 {
   // Shape a tetrahedal mesh.
-  sidre::Group* meshGroup = ds.getRoot()->createGroup(shapeName);
-  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
+  sidre::Group* meshGroup = ds.getRoot()->createGroup("tetMesh");
   const std::string topo = "mesh";
   const std::string coordset = "coords";
   axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tetMesh(3,
@@ -773,7 +658,7 @@ axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds, const std::string& s
                                                                  topo,
                                                                  coordset);
 
-  double lll = params.length < 0 ? 1.17 : params.length;
+  double lll = params.length < 0 ? 0.7 : params.length;
 
   // Insert tets around origin.
   tetMesh.appendNode(-lll, -lll, -lll);
@@ -789,7 +674,8 @@ axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds, const std::string& s
   axom::IndexType conn1[4] = {4, 5, 6, 7};
   tetMesh.appendCell(conn1);
 
-  SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
+  SLIC_ERROR_ROOT_IF(!axom::mint::blueprint::isValidRootGroup(meshGroup),
+                     "Tet mesh blueprint is not valid");
 
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
@@ -800,11 +686,7 @@ axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds, const std::string& s
   addTranslateOperator(*compositeOp);
 
   axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
-  axom::klee::Shape tetShape(shapeName, shapeName + ".mat", {}, {}, tetMeshGeometry);
-
-  exactOverlapVols[shapeName] = vScale *volumeOfTetMesh(tetMesh);
-  errorToleranceRel[shapeName] = 1e-6;
-  errorToleranceAbs[shapeName] = 1e-8;
+  axom::klee::Shape tetShape("tetmesh", "TETMESH", {}, {}, tetMeshGeometry);
 
   return tetShape;
 }
@@ -1057,14 +939,186 @@ axom::klee::Shape createShape_Plane(const std::string& shapeName)
   return planeShape;
 }
 
-//!@brief Create a ShapeSet with a single shape.
-axom::klee::ShapeSet createShapeSet(const axom::klee::Shape& shape)
+double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& tetMesh)
 {
-  axom::klee::ShapeSet shapeSet;
-  shapeSet.setShapes(std::vector<axom::klee::Shape> {shape});
-  shapeSet.setDimensions(axom::klee::Dimensions::Three);
+  using TetType = axom::primal::Tetrahedron<double, 3>;
+  axom::StackArray<axom::IndexType, 1> nodesShape {tetMesh.getNumberOfNodes()};
+  axom::ArrayView<const double> x(tetMesh.getCoordinateArray(0), nodesShape);
+  axom::ArrayView<const double> y(tetMesh.getCoordinateArray(1), nodesShape);
+  axom::ArrayView<const double> z(tetMesh.getCoordinateArray(2), nodesShape);
+  const axom::IndexType tetCount = tetMesh.getNumberOfCells();
+  axom::Array<double> tetVolumes(tetCount, tetCount);
+  double meshVolume = 0.0;
+  for(axom::IndexType ic = 0; ic < tetCount; ++ic)
+  {
+    const axom::IndexType* nodeIds = tetMesh.getCellNodeIDs(ic);
+    TetType tet;
+    for(int j = 0; j < 4; ++j)
+    {
+      auto cornerNodeId = nodeIds[j];
+      tet[j][0] = x[cornerNodeId];
+      tet[j][1] = y[cornerNodeId];
+      tet[j][2] = z[cornerNodeId];
+    }
+    meshVolume += tet.volume();
+  }
+  return meshVolume;
+}
 
-  return shapeSet;
+double areaOfTriMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& triMesh)
+{
+  using PolygonStaticType = primal::Polygon<double, 2, axom::primal::PolygonArray::Static>;
+  using Point2D = primal::Point<double, 2>;
+  axom::StackArray<axom::IndexType, 1> nodesShape {triMesh.getNumberOfNodes()};
+  axom::ArrayView<const double> x(triMesh.getCoordinateArray(0), nodesShape);
+  axom::ArrayView<const double> y(triMesh.getCoordinateArray(1), nodesShape);
+  const axom::IndexType triCount = triMesh.getNumberOfCells();
+  axom::Array<double> triAreas(triCount, triCount);
+  double meshArea = 0.0;
+  for(axom::IndexType ic = 0; ic < triCount; ++ic)
+  {
+    const axom::IndexType* nodeIds = triMesh.getCellNodeIDs(ic);
+    PolygonStaticType tri;
+    for(int j = 0; j < 3; ++j)
+    {
+      auto cornerNodeId = nodeIds[j];
+      tri.addVertex(Point2D({x[cornerNodeId], y[cornerNodeId]}));
+    }
+    meshArea += tri.area();
+  }
+  return meshArea;
+}
+
+/*
+  For the test shapes, try to get good volume with compact shape
+  that stays in domain when rotated (else volume check is invalid).
+*/
+
+// Single triangle ShapeSet.
+std::vector<axom::klee::Shape> create2DShapeSet(sidre::DataStore& ds)
+{
+  sidre::Group* meshGroup = ds.getRoot()->createGroup("triangleMesh");
+  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
+  const std::string topo = "mesh";
+  const std::string coordset = "coords";
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> triangleMesh(2,
+                                                                      axom::mint::CellType::TRIANGLE,
+                                                                      meshGroup,
+                                                                      topo,
+                                                                      coordset);
+
+  double lll = 2.0;
+
+  // Insert tet at origin.
+  triangleMesh.appendNode(0.0, 0.0);
+  triangleMesh.appendNode(lll, 0.0);
+  triangleMesh.appendNode(0.0, lll);
+  axom::IndexType conn[3] = {0, 1, 2};
+  triangleMesh.appendCell(conn);
+
+  SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
+
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Two,
+                                                    axom::klee::LengthUnit::unspecified};
+  axom::klee::Geometry triangleGeom(prop, triangleMesh.getSidreGroup(), topo, nullptr);
+
+  std::vector<axom::klee::Shape> shapes;
+  axom::klee::Shape triangleShape(
+    "triangle",
+    "AL",
+    {},
+    {},
+    axom::klee::Geometry {prop, triangleMesh.getSidreGroup(), topo, nullptr});
+  shapes.push_back(
+    axom::klee::Shape {"triangle",
+                       "AL",
+                       {},
+                       {},
+                       axom::klee::Geometry {prop, triangleMesh.getSidreGroup(), topo, nullptr}});
+
+  axom::klee::ShapeSet shapeSet;
+  shapeSet.setShapes(shapes);
+  shapeSet.setDimensions(axom::klee::Dimensions::Two);
+
+  double shapeMeshVol = areaOfTriMesh(triangleMesh);
+  exactOverlapVols[triangleShape.getName()] = shapeMeshVol;
+  errorToleranceRel[triangleShape.getName()] = 1e-6;
+  errorToleranceAbs[triangleShape.getName()] = 1e-8;
+
+  return shapes;
+}
+
+axom::klee::Shape createShape_Sphere(const std::string& shapeName)
+{
+  Point3D center = params.center.empty() ? Point3D {0, 0, 0} : Point3D {params.center.data()};
+  double radius = params.radius < 0 ? 1.0 : params.radius;
+  axom::primal::Sphere<double, 3> sphere {center, radius};
+
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  const axom::IndexType levelOfRefinement = params.refinementLevel;
+  axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
+  axom::klee::Shape sphereShape(shapeName, shapeName + ".mat", {}, {}, sphereGeometry);
+  exactOverlapVols[shapeName] = vScale *4. / 3 * M_PI * radius * radius * radius;
+  errorToleranceRel[shapeName] = 0.1;
+  errorToleranceAbs[shapeName] = 0.38;
+
+  return sphereShape;
+}
+
+axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds, const std::string& shapeName)
+{
+  // Shape a tetrahedal mesh.
+  sidre::Group* meshGroup = ds.getRoot()->createGroup(shapeName);
+  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
+  const std::string topo = "mesh";
+  const std::string coordset = "coords";
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tetMesh(3,
+                                                                 axom::mint::CellType::TET,
+                                                                 meshGroup,
+                                                                 topo,
+                                                                 coordset);
+
+  double lll = params.length < 0 ? 1.17 : params.length;
+
+  // Insert tets around origin.
+  tetMesh.appendNode(-lll, -lll, -lll);
+  tetMesh.appendNode(+lll, -lll, -lll);
+  tetMesh.appendNode(-lll, +lll, -lll);
+  tetMesh.appendNode(-lll, -lll, +lll);
+  tetMesh.appendNode(+lll, +lll, +lll);
+  tetMesh.appendNode(-lll, +lll, +lll);
+  tetMesh.appendNode(+lll, +lll, -lll);
+  tetMesh.appendNode(+lll, -lll, +lll);
+  axom::IndexType conn0[4] = {0, 1, 2, 3};
+  tetMesh.appendCell(conn0);
+  axom::IndexType conn1[4] = {4, 5, 6, 7};
+  tetMesh.appendCell(conn1);
+
+  SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
+
+  axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
+                                                    axom::klee::LengthUnit::unspecified};
+
+  auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
+  addScaleOperator(*compositeOp);
+  addRotateOperator(*compositeOp);
+  addTranslateOperator(*compositeOp);
+
+  axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
+  axom::klee::Shape tetShape(shapeName, shapeName + ".mat", {}, {}, tetMeshGeometry);
+
+  exactOverlapVols[shapeName] = vScale *volumeOfTetMesh(tetMesh);
+  errorToleranceRel[shapeName] = 1e-6;
+  errorToleranceAbs[shapeName] = 1e-8;
+
+  return tetShape;
 }
 
 #if defined(AXOM_USE_MFEM)
@@ -1483,8 +1537,7 @@ double sumMaterialVolumes(sidre::MFEMSidreDataCollection* dc, const std::string&
                                      axom::execution_space<ExecSpace>::allocatorID());
   auto volFracView = volFracGfArray.view();
 
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-  RAJA::ReduceSum<ReducePolicy, double> localVol(0);
+  axom::ReduceSum<ExecSpace, double> localVol(0);
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType i) { localVol += volFracView[i] * elementVolsView[i]; });
@@ -1526,8 +1579,7 @@ double sumMaterialVolumesImpl(sidre::Group* meshGrp, const std::string& material
   axom::sidre::View* volFrac = meshGrp->getView(vfFieldValuesPath);
   axom::ArrayView<double> volFracView(volFrac->getArray(), cellCount);
 
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-  RAJA::ReduceSum<ReducePolicy, double> localVol(0);
+  axom::ReduceSum<ExecSpace, double> localVol(0);
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType i) {
@@ -1548,19 +1600,19 @@ double sumMaterialVolumes(sidre::Group* meshGrp, const std::string& material)
   {
     rval = sumMaterialVolumesImpl<axom::SEQ_EXEC>(meshGrp, material);
   }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
   if(params.policy == RuntimePolicy::omp)
   {
     rval = sumMaterialVolumesImpl<axom::OMP_EXEC>(meshGrp, material);
   }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
   if(params.policy == RuntimePolicy::cuda)
   {
     rval = sumMaterialVolumesImpl<axom::CUDA_EXEC<256>>(meshGrp, material);
   }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
   if(params.policy == RuntimePolicy::hip)
   {
     rval = sumMaterialVolumesImpl<axom::HIP_EXEC<256>>(meshGrp, material);
@@ -1648,21 +1700,21 @@ void fillSidreViewData(axom::sidre::View* view, const T& value)
   double* valuesPtr = view->getData<T*>();
   switch(params.policy)
   {
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
   case RuntimePolicy::cuda:
     axom::for_all<axom::CUDA_EXEC<256>>(
       view->getNumElements(),
       AXOM_LAMBDA(axom::IndexType i) { valuesPtr[i] = value; });
     break;
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
   case RuntimePolicy::hip:
     axom::for_all<axom::HIP_EXEC<256>>(
       view->getNumElements(),
       AXOM_LAMBDA(axom::IndexType i) { valuesPtr[i] = value; });
     break;
 #endif
-#if defined(AXOM_USE_OMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OMP)
   case RuntimePolicy::omp:
     axom::for_all<axom::OMP_EXEC>(
       view->getNumElements(),
@@ -2088,12 +2140,11 @@ int main(int argc, char** argv)
 
   // For error checking, work on host.
   using ExecSpace = axom::SEQ_EXEC;
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
 
   //---------------------------------------------------------------------------
   // Correctness test: volume fractions should be in [0,1].
   //---------------------------------------------------------------------------
-  RAJA::ReduceSum<ReducePolicy, axom::IndexType> rangeViolationCount(0);
+  axom::ReduceSum<ExecSpace, axom::IndexType> rangeViolationCount(0);
   for(const auto& vfName : allVfNames)
   {
     std::string fieldName = "vol_frac_" + vfName;
@@ -2121,7 +2172,7 @@ int main(int argc, char** argv)
   axom::Array<double> volSums(cellCount);
   volSums.fill(0.0);
   axom::ArrayView<double> volSumsView = volSums.view();
-  RAJA::ReduceSum<ReducePolicy, axom::IndexType> nonUnitSums(0);
+  axom::ReduceSum<ExecSpace, axom::IndexType> nonUnitSums(0);
   for(const auto& vfName : allVfNames)
   {
     std::string fieldName = "vol_frac_" + vfName;

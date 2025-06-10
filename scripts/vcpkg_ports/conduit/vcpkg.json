@@ -8,7 +8,11 @@
       "name": "hdf5",
       "features": ["tools"]
     }, 
-    "blt"
+    "blt",
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }    
   ],
   "supports": "!uwp"
 }

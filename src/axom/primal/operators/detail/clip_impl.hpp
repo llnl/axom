@@ -478,6 +478,91 @@ AXOM_HOST_DEVICE void clipPolyhedron(Polyhedron<T, NDIMS>& poly,
 }
 
 /*!
+ * \brief Finds the clipped intersection Polyhedron between Tetrahedron
+ *        tet and Polyhedron poly.
+ *
+ * \param [in] tet The tetrahedron to clip
+ * \param [in] poly The polyhedron to clip against
+ * \param [in] eps The tolerance for plane point orientation.
+ * \param [in] tryFixOrientation Check if the signed volume of each shape is positive.
+ * \return The Polyhedron formed from clipping the tetrahedron with a polyhedron.
+ *
+ */
+template <typename T, int NDIMS>
+AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipTetrahedron(const Tetrahedron<T, NDIMS>& tet,
+                                                      const Polyhedron<T, NDIMS>& poly,
+                                                      double eps,
+                                                      bool tryFixOrientation)
+{
+  using PlaneType = Plane<T, NDIMS>;
+  using PolyhedronType = Polyhedron<T, NDIMS>;
+
+  // Initialize our polyhedron to return
+  PolyhedronType clipped = PolyhedronType::from_primitive(tet, tryFixOrientation);
+
+  int numPlanes = 0;
+  auto planes = poly.getFaces(numPlanes);
+  axom::ArrayView<PlaneType> planesView(planes.data(), numPlanes);
+  clipPolyhedron(clipped, planesView, eps);
+  return clipped;
+}
+
+/*!
+ * \brief Finds the clipped intersection Polyhedron between Hexahedron
+ *        hex and Polyhedron poly.
+ *
+ * \param [in] hex The hexahedron to clip
+ * \param [in] poly The polyhedron to clip against
+ * \param [in] eps The tolerance for plane point orientation.
+ * \param [in] tryFixOrientation Check if the signed volume of each shape is positive.
+ * \return The Polyhedron formed from clipping the hexahedron with a polyhedron.
+ *
+ */
+template <typename T, int NDIMS>
+AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipHexahedron(const Hexahedron<T, NDIMS>& hex,
+                                                     const Polyhedron<T, NDIMS>& poly,
+                                                     double eps,
+                                                     bool tryFixOrientation)
+{
+  using PlaneType = Plane<T, NDIMS>;
+  using PolyhedronType = Polyhedron<T, NDIMS>;
+
+  // Initialize our polyhedron to return
+  PolyhedronType clipped = PolyhedronType::from_primitive(hex, tryFixOrientation);
+
+  int numPlanes = 0;
+  auto planes = poly.getFaces(numPlanes);
+  axom::ArrayView<PlaneType> planesView(planes.data(), numPlanes);
+  clipPolyhedron(clipped, planesView, eps);
+  return clipped;
+}
+
+/*!
+ * \brief Clips a polyhedron against another polyhedron.
+ *
+ * \param [in] poly1 The polyhedron to clip
+ * \param [in] poly2 The polyhedron to use to clip the first polyhedron.
+ * \param [in] eps The tolerance for plane point orientation
+ */
+template <typename T, int NDIMS>
+AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipPolyhedronPolyhedron(const Polyhedron<T, NDIMS>& poly1,
+                                                               const Polyhedron<T, NDIMS>& poly2,
+                                                               double eps)
+{
+  using PlaneType = Plane<T, NDIMS>;
+
+  // Get the plane faces in poly2.
+  int numPlanes = 0;
+  auto planes = poly2.getFaces(numPlanes);
+  axom::ArrayView<PlaneType> planesView(planes.data(), numPlanes);
+
+  // Clip Polyhedron by each plane in poly2.
+  Polyhedron<T, NDIMS> clipped(poly1);
+  clipPolyhedron(clipped, planesView, eps);
+  return clipped;
+}
+
+/*!
  * \brief Finds the clipped intersection Polyhedron between Hexahedron
  *        hex and Tetrahedron tet.
  *
@@ -605,6 +690,8 @@ AXOM_HOST_DEVICE axom::ArrayView<PlaneType> getHexahedronPlanes(const ShapeType&
  * \param [in] tryFixOrientation Check if the signed volume of each shape is positive.
  *
  * \note hex1 and hex2 are assumed to be convex.
+ * \note If hex2's faces are not planar then each quad face will be divided into
+ *       2 cutting planes.
  *
  * \return The Polyhedron formed from clipping the hexahedron with a hexahedron.
  *
@@ -625,7 +712,7 @@ AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipHexahedron(const Hexahedron<T, NDIMS>&
   // Get clipping planes from hex2.
   constexpr int MAX_PLANES = 12;
   PlaneType planes[MAX_PLANES];
-  auto planesView = getHexahedronPlanes(hex2, planes, eps);
+  axom::ArrayView<PlaneType> planesView;
 
   // Adjusts planes in case hexhedron signed volume is negative
   if(tryFixOrientation)
@@ -634,6 +721,10 @@ AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipHexahedron(const Hexahedron<T, NDIMS>&
     // Get planes from the Polyhedral version of the plane, which could have
     // reordered the points.
     planesView = getHexahedronPlanes(hex2_poly, planes, eps);
+  }
+  else
+  {
+    planesView = getHexahedronPlanes(hex2, planes, eps);
   }
 
   clipPolyhedron(poly, planesView, eps);

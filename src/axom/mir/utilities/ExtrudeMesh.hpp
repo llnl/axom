@@ -6,8 +6,8 @@
 #ifndef AXOM_MIR_EXTRUDE_MESH_HPP_
 #define AXOM_MIR_EXTRUDE_MESH_HPP_
 
-#include <axom/core.hpp>
-#include <axom/mir.hpp>
+#include "axom/core.hpp"
+#include "axom/mir.hpp"
 
 #include <conduit.hpp>
 
@@ -70,7 +70,6 @@ public:
   void execute(const conduit::Node &n_mesh, const conduit::Node &n_options, conduit::Node &n_output) const
   {
     namespace bputils = axom::mir::utilities::blueprint;
-    using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
     AXOM_ANNOTATE_SCOPE("Extrude::execute");
     int nz = n_options.has_child("nz") ? n_options["nz"].to_int() : 2;
 
@@ -89,8 +88,8 @@ public:
     // Count the number of values needed to store the connectivity.
     AXOM_ANNOTATE_BEGIN("counts");
     const TopologyView topoView = m_topologyView;
-    RAJA::ReduceSum<reduce_policy, int> connSizeReduce(0);
-    RAJA::ReduceBitOr<reduce_policy, int> zoneTypeReduce(0);
+    axom::ReduceSum<ExecSpace, int> connSizeReduce(0);
+    axom::ReduceBitOr<ExecSpace, int> zoneTypeReduce(0);
     axom::for_all<ExecSpace>(
       m_topologyView.numberOfZones(),
       AXOM_LAMBDA(axom::IndexType zi) {

@@ -45,6 +45,7 @@ set( primal_headers
     geometry/Triangle.hpp
     geometry/Quadrilateral.hpp
     geometry/Vector.hpp
+    geometry/construct.hpp
 
     ## operators
     operators/clip.hpp

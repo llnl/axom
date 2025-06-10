@@ -13,11 +13,6 @@
 #include "axom/spin.hpp"
 #include "axom/mint.hpp"
 
-// RAJA includes
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 // Acceleration data structure includes
 #include "axom/spin/BVH.hpp"
 #include "axom/spin/ImplicitGrid.hpp"
@@ -209,9 +204,6 @@ void CandidateFinderBase<ExecSpace, FloatType>::findTriMeshIntersections(
   using IndexView = axom::ArrayView<IndexType, 1, Space>;
 
   using HostIndexArray = axom::Array<IndexType, 1, HostSpace>;
-#ifdef AXOM_USE_RAJA
-  using atomic_pol = typename axom::execution_space<ExecSpace>::atomic_policy;
-#endif
 
   // Get CSR arrays for candidate data
   IndexArray offsets, counts;
@@ -240,11 +232,7 @@ void CandidateFinderBase<ExecSpace, FloatType>::findTriMeshIntersections(
         {
           if(i < candidates[v_offsets[i] + j])
           {
-#ifdef AXOM_USE_RAJA
-            auto idx = RAJA::atomicAdd<atomic_pol>(&v_numValidCandidates[0], IndexType {1});
-#else
-            auto idx = v_numValidCandidates[0]++;
-#endif
+            auto idx = axom::atomicAdd<ExecSpace>(&v_numValidCandidates[0], IndexType {1});
             v_indices[idx] = i;
             v_validCandidates[idx] = candidates[v_offsets[i] + j];
           }
@@ -275,12 +263,7 @@ void CandidateFinderBase<ExecSpace, FloatType>::findTriMeshIntersections(
         int candidate = v_validCandidates[i];
         if(primal::intersect(v_tris[index], v_tris[candidate], false, intersectionThreshold))
         {
-#ifdef AXOM_USE_RAJA
-          auto idx = RAJA::atomicAdd<atomic_pol>(&v_numIsectPairs[0], IndexType {1});
-#else
-          auto idx = v_numIsectPairs[0];
-          v_numIsectPairs[0]++;
-#endif
+          auto idx = axom::atomicAdd<ExecSpace>(&v_numIsectPairs[0], IndexType {1});
           v_firstIsectPair[idx] = index;
           v_secondIsectPair[idx] = candidate;
         }
@@ -359,9 +342,8 @@ struct CandidateFinder<AccelType::ImplicitGrid, ExecSpace, FloatType>
   {
     BaseClass::initialize();
 #ifdef AXOM_USE_RAJA
-    using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
-    RAJA::ReduceMin<reduce_pol, double> xmin(DBL_MAX), ymin(DBL_MAX), zmin(DBL_MAX);
-    RAJA::ReduceMax<reduce_pol, double> xmax(DBL_MIN), ymax(DBL_MIN), zmax(DBL_MIN);
+    axom::ReduceMin<ExecSpace, double> xmin(DBL_MAX), ymin(DBL_MAX), zmin(DBL_MAX);
+    axom::ReduceMax<ExecSpace, double> xmax(DBL_MIN), ymax(DBL_MIN), zmax(DBL_MIN);
 
     // Get the global bounding box.
     mint::for_all_nodes<ExecSpace, mint::xargs::xyz>(

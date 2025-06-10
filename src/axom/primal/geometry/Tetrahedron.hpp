@@ -117,6 +117,13 @@ public:
   }
 
   /*!
+   * \brief Return the number of vertices in a Tetrahedron.
+   *
+   * \return The number of vertices in a Tetrahedron.
+   */
+  AXOM_HOST_DEVICE static constexpr int numVertices() { return NUM_VERTS; }
+
+  /*!
    * \brief Index operator to get the i^th vertex
    * \param idx The index of the desired vertex
    * \pre idx is 0, 1, 2, or 3
@@ -213,6 +220,7 @@ public:
    * \brief Returns the physical coordinates of a barycentric point
    * \param [in] bary Barycentric coordinates relative to this tetrahedron
    */
+  AXOM_HOST_DEVICE
   PointType baryToPhysical(const Point<double, 4>& bary) const
   {
     SLIC_CHECK_MSG(axom::utilities::isNearlyEqual(1., bary[0] + bary[1] + bary[2] + bary[3]),
@@ -227,19 +235,17 @@ public:
     return res;
   }
 
-  /*!
-   @brief Returns whether the tetrahedron contains a point.
-   @param [in] p The point
-   @param [in] tol Floating point tolerance affecting points near boundary.
-     A positive value would consider those points to be inside.
-     A negative value considers them to be outside.
-
-   Points on the surface of the the tetrahedron is considered contained.
-  */
-  AXOM_HOST_DEVICE bool contains(const PointType& p, T tol = 0.0) const
+  /*! 
+   * \brief Returns whether point \a p is contained within the tetrahedron (within tolerance \a eps)
+   */
+  AXOM_HOST_DEVICE
+  bool contains(const PointType& p, double eps = 1e-8) const
   {
-    auto bary = physToBarycentric(p);
-    return (bary[0] >= -tol && bary[1] >= -tol && bary[2] >= -tol && bary[3] >= -tol);
+    const auto bC = physToBarycentric(p);
+    return (bC[0] >= (0.0 - eps)) && (bC[0] <= (1.0 + eps))  //
+      && (bC[1] >= (0.0 - eps)) && (bC[1] <= (1.0 + eps))    //
+      && (bC[2] >= (0.0 - eps)) && (bC[2] <= (1.0 + eps))    //
+      && (bC[3] >= (0.0 - eps)) && (bC[3] <= (1.0 + eps));
   }
 
   /*!

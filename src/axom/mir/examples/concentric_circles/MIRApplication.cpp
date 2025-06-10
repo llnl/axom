@@ -26,6 +26,8 @@ MIRApplication::MIRApplication()
   : handler(true)
   , gridSize(5)
   , numCircles(2)
+  , dimension(2)
+  , numTrials(1)
   , writeFiles(true)
   , outputFilePath("output")
   , method("equiz")
@@ -49,8 +51,13 @@ int MIRApplication::initialize(int argc, char **argv)
     ->description("The number of circles to use for material creation.");
   app.add_option("--output", outputFilePath)
     ->description("The file path for HDF5/YAML output files");
+  app.add_option("--dimension", dimension, "Specify the dimension (2 or 3)")
+    ->check(axom::CLI::Range(2, 3));  // Restrict the value to the range [2, 3]
   bool disable_write = !writeFiles;
   app.add_flag("--disable-write", disable_write)->description("Disable writing data files");
+  app.add_option("--trials", numTrials)
+    ->check(axom::CLI::PositiveNumber)
+    ->description("The number of MIR trials to run on the mesh.");
 
 #if defined(AXOM_USE_CALIPER)
   app.add_option("--caliper", annotationMode)
@@ -146,7 +153,16 @@ int MIRApplication::runMIR()
   {
     AXOM_ANNOTATE_SCOPE("generate");
     tester.setStructured(requiresStructuredMesh(method));
-    tester.initTestCaseFive(gridSize, numCircles, mesh);
+    if(dimension == 3)
+    {
+      SLIC_INFO("Generating 3D mesh");
+      tester.initTestCaseSix(gridSize, numCircles, mesh);
+    }
+    else
+    {
+      SLIC_INFO("Generating 2D mesh");
+      tester.initTestCaseFive(gridSize, numCircles, mesh);
+    }
     adjustMesh(mesh);
   }
   timer.stop();
@@ -163,17 +179,18 @@ int MIRApplication::runMIR()
   conduit::Node options, resultMesh;
   options["matset"] = "mat";
   options["method"] = method;  // pass method via options.
+  options["trials"] = numTrials;
 
   int retval = 0;
   if(policy == RuntimePolicy::seq)
   {
-    retval = runMIR_seq(mesh, options, resultMesh);
+    retval = runMIR_seq(dimension, mesh, options, resultMesh);
   }
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
   #if defined(AXOM_USE_OPENMP)
   else if(policy == RuntimePolicy::omp)
   {
-    retval = runMIR_omp(mesh, options, resultMesh);
+    retval = runMIR_omp(dimension, mesh, options, resultMesh);
   }
   #endif
   #if defined(AXOM_USE_CUDA)
@@ -181,13 +198,13 @@ int MIRApplication::runMIR()
   {
     constexpr int CUDA_BLOCK_SIZE = 256;
     using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
-    retval = runMIR_cuda(mesh, options, resultMesh);
+    retval = runMIR_cuda(dimension, mesh, options, resultMesh);
   }
   #endif
   #if defined(AXOM_USE_HIP)
   else if(policy == RuntimePolicy::hip)
   {
-    retval = runMIR_hip(mesh, options, resultMesh);
+    retval = runMIR_hip(dimension, mesh, options, resultMesh);
   }
   #endif
 #endif

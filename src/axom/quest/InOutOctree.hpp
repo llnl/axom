@@ -435,11 +435,11 @@ void InOutOctree<DIM>::generateIndex()
   using Timer = axom::utilities::Timer;
 
   // Loop through mesh vertices
-  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "  Generating InOutOctree over surface mesh with "
-                              "{:L} vertices and {:L} elements.",
-                              m_meshWrapper.numMeshVertices(),
-                              m_meshWrapper.numMeshCells()));
+  SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                   "  Generating InOutOctree over surface mesh with "
+                                   "{:L} vertices and {:L} elements.",
+                                   m_meshWrapper.numMeshVertices(),
+                                   m_meshWrapper.numMeshCells()));
 
   Timer timer;
   AXOM_ANNOTATE_SCOPE("InOutOctree::generateIndex");
@@ -456,9 +456,9 @@ void InOutOctree<DIM>::generateIndex()
     timer.stop();
     m_generationState = INOUTOCTREE_VERTICES_INSERTED;
   }
-  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "\t--Inserting vertices took {:.3Lf} seconds.",
-                              timer.elapsed()));
+  SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                   "\t--Inserting vertices took {:.3Lf} seconds.",
+                                   timer.elapsed()));
 
   // STEP 1(b) -- Update the mesh vertices and cells with after vertex welding from octree
   {
@@ -468,18 +468,18 @@ void InOutOctree<DIM>::generateIndex()
     timer.stop();
     m_generationState = INOUTOCTREE_MESH_REORDERED;
   }
-  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "\t--Updating mesh took {:.3Lf} seconds.",
-                              timer.elapsed()));
-  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "  After inserting vertices, reindexed mesh has {:L} "
-                              "vertices and {:L} cells.",
-                              m_meshWrapper.numMeshVertices(),
-                              m_meshWrapper.numMeshCells()));
+  SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                   "\t--Updating mesh took {:.3Lf} seconds.",
+                                   timer.elapsed()));
+  SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                   "  After inserting vertices, reindexed mesh has {:L} "
+                                   "vertices and {:L} cells.",
+                                   m_meshWrapper.numMeshVertices(),
+                                   m_meshWrapper.numMeshCells()));
 
 #ifdef DUMP_OCTREE_INFO
   // -- Print some stats about the octree
-  SLIC_INFO("** Octree stats after inserting vertices");
+  SLIC_INFO_ROOT("** Octree stats after inserting vertices");
   {
     AXOM_ANNOTATE_SCOPE("dump stats after inserting vertices");
     dumpSurfaceMeshVTK("surfaceMesh");
@@ -500,9 +500,9 @@ void InOutOctree<DIM>::generateIndex()
     timer.stop();
     m_generationState = INOUTOCTREE_ELEMENTS_INSERTED;
   }
-  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "\t--Inserting cells took {:.3Lf} seconds.",
-                              timer.elapsed()));
+  SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                   "\t--Inserting cells took {:.3Lf} seconds.",
+                                   timer.elapsed()));
 
   // STEP 3 -- Color the blocks of the octree
   // -- Black (in), White(out), Gray(Intersects surface)
@@ -514,13 +514,13 @@ void InOutOctree<DIM>::generateIndex()
     timer.stop();
     m_generationState = INOUTOCTREE_LEAVES_COLORED;
   }
-  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "\t--Coloring octree leaves took {:.3Lf} seconds.",
-                              timer.elapsed()));
+  SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                   "\t--Coloring octree leaves took {:.3Lf} seconds.",
+                                   timer.elapsed()));
 
 // -- Print some stats about the octree
 #ifdef DUMP_OCTREE_INFO
-  SLIC_INFO("** Octree stats after inserting cells");
+  SLIC_INFO_ROOT("** Octree stats after inserting cells");
   {
     AXOM_ANNOTATE_SCOPE("dump stats after inserting cells");
     dumpOctreeMeshVTK("pmOctree");
@@ -539,11 +539,11 @@ void InOutOctree<DIM>::generateIndex()
     m_meshWrapper.regenerateSurfaceMesh();
     timer.stop();
   }
-  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
-                              "\t--Regenerating the mesh took {:.3Lf} seconds.",
-                              timer.elapsed()));
+  SLIC_INFO_ROOT(axom::fmt::format(axom::utilities::locale(),
+                                   "\t--Regenerating the mesh took {:.3Lf} seconds.",
+                                   timer.elapsed()));
 
-  SLIC_INFO("  Finished generating the InOutOctree.");
+  SLIC_INFO_ROOT("  Finished generating the InOutOctree.");
 }
 
 template <int DIM>
@@ -1498,7 +1498,7 @@ template <int DIM>
 void InOutOctree<DIM>::printOctreeStats() const
 {
   detail::InOutOctreeStats<DIM> octreeStats(*this);
-  SLIC_INFO(octreeStats.summaryStats());
+  SLIC_INFO_ROOT(octreeStats.summaryStats());
 
 #ifdef DUMP_VTK_MESH
   // Print out some debug meshes for vertex, triangle and/or blocks defined in

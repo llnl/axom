@@ -41,9 +41,9 @@ public:
 options:
   topology: main
   matset: matset
-  new_topology: mirtopo
-  new_coordset: mircoords
-  new_matset: cleanmat
+  topologyName: mirtopo
+  coordsetName: mircoords
+  matsetName: cleanmat
   fields:
     - temperature
     - pressure

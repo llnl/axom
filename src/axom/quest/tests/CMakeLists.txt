@@ -171,6 +171,7 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
               AND C2C_FOUND)
     set(quest_mpi_mfem_c2c_data_tests
         quest_intersection_shaper.cpp
+        quest_intersection_shaper_dynamic.cpp
         quest_sampling_shaper.cpp
        )
     foreach(test ${quest_mpi_mfem_c2c_data_tests})
@@ -184,13 +185,39 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
         )
     endforeach()
 
+    # Invoke the intersection shaper test program as many tests that run a subset of the tests.
     set(_numOMPThreads 8) # limit omp parallelism
-    axom_add_test(NAME quest_intersection_shaper
-        COMMAND quest_intersection_shaper_test
+    set(_policies seq)
+    if(RAJA_FOUND)
+      blt_list_append(TO _policies ELEMENTS omp IF AXOM_ENABLE_OPENMP)
+      if(AXOM_USE_UMPIRE)
+        blt_list_append(TO _policies ELEMENTS cuda IF AXOM_ENABLE_CUDA)
+        blt_list_append(TO _policies ELEMENTS hip IF AXOM_ENABLE_HIP)
+      endif()
+    endif()
+    foreach(shapingPolicy ${_policies})
+      # For seq, limit the cases since the tests are somewhat slow.
+      if(${shapingPolicy} STREQUAL "seq")
+        set(caseNumbers 5)
+      else()
+        set(caseNumbers 1 2 3 4 5)
+      endif()
+      foreach(caseNumber ${caseNumbers})
+        axom_add_test(NAME quest_intersection_shaper_${caseNumber}_${shapingPolicy}
+          COMMAND quest_intersection_shaper_test --casenumber ${caseNumber} --policy ${shapingPolicy}
+          NUM_MPI_TASKS 1
+          NUM_OMP_THREADS ${_numOMPThreads}
+        )
+        set_tests_properties(quest_intersection_shaper_${caseNumber}_${shapingPolicy} PROPERTIES PROCESSORS ${_numOMPThreads})
+      endforeach()
+    endforeach()
+
+    axom_add_test(NAME quest_intersection_shaper_dynamic
+        COMMAND quest_intersection_shaper_dynamic_test
         NUM_MPI_TASKS 1
         NUM_OMP_THREADS ${_numOMPThreads}
     )
-    set_tests_properties(quest_intersection_shaper PROPERTIES PROCESSORS ${_numOMPThreads})
+    set_tests_properties(quest_intersection_shaper_dynamic PROPERTIES PROCESSORS ${_numOMPThreads})
 
     axom_add_test(NAME quest_sampling_shaper
         COMMAND quest_sampling_shaper_test

@@ -132,43 +132,42 @@ blt_list_append(
 
 blt_list_append( TO quest_depends_on ELEMENTS conduit::conduit IF CONDUIT_FOUND )
 
-set(_HAS_CLIPPING_MESH (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND)
-if(RAJA_FOUND AND AXOM_ENABLE_KLEE AND _HAS_CLIPPING_MESH)
-    list(APPEND quest_headers ShapeeMesh.hpp
-                              GeometryClipper.hpp
-                              GeometryClipperStrategy.hpp
-                              Plane3DClipper.hpp
-                              TetClipper.hpp
-                              HexClipper.hpp
-                              SphereClipper.hpp
-                              TetMeshClipper.hpp
-                              SorClipper.hpp
-                              detail/GeometryClipperDelegateExec.hpp)
-    list(APPEND quest_sources ShapeeMesh.cpp
-                              GeometryClipper.cpp
-                              GeometryClipperStrategy.cpp
-                              Plane3DClipper.cpp
-                              TetClipper.cpp
-                              HexClipper.cpp
-                              SphereClipper.cpp
-                              TetMeshClipper.cpp
-                              SorClipper.cpp)
-endif()
-
-if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND ((MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND))
-    list(APPEND quest_headers Shaper.hpp
-                              DiscreteShape.hpp)
-    list(APPEND quest_sources Shaper.cpp
-                              DiscreteShape.cpp)
-    list(APPEND quest_depends_on klee)
-    if(RAJA_FOUND)
-        list(APPEND quest_headers IntersectionShaper.hpp)
+if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
+    if((MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND)
+        list(APPEND quest_headers Shaper.hpp
+                                  DiscreteShape.hpp
+                                  IntersectionShaper.hpp
+                                  detail/shaping/shaping_helpers.hpp
+                                  ShapeeMesh.hpp
+                                  GeometryClipper.hpp
+                                  GeometryClipperStrategy.hpp
+                                  Plane3DClipper.hpp
+                                  TetClipper.hpp
+                                  HexClipper.hpp
+                                  SphereClipper.hpp
+                                  TetMeshClipper.hpp
+                                  SorClipper.hpp
+                                  detail/GeometryClipperDelegateExec.hpp)
+        list(APPEND quest_sources Shaper.cpp
+                                  DiscreteShape.cpp
+                                  detail/shaping/shaping_helpers.cpp
+                                  ShapeeMesh.cpp
+                                  GeometryClipper.cpp
+                                  GeometryClipperStrategy.cpp
+                                  Plane3DClipper.cpp
+                                  TetClipper.cpp
+                                  HexClipper.cpp
+                                  SphereClipper.cpp
+                                  TetMeshClipper.cpp
+                                  SorClipper.cpp)
+        list(APPEND quest_depends_on klee)
     endif()
-endif()
 
-if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION))
-    list(APPEND quest_headers SamplingShaper.hpp detail/shaping/shaping_helpers.hpp)
-    list(APPEND quest_sources detail/shaping/shaping_helpers.cpp)
+    if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+        list(APPEND quest_headers SamplingShaper.hpp 
+                                  detail/shaping/InOutSampler.hpp
+                                  detail/shaping/PrimitiveSampler.hpp)
+    endif()
 endif()
 
 if(C2C_FOUND)

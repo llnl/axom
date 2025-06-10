@@ -210,23 +210,6 @@ public:
   bool isString() const { return m_state == STRING; }
 
   /*!
-   * \brief Return whether view data is on device, as determined
-   * by Axom's memory management.
-   *
-   * By convention, this returns a false if data is not allocated.
-   */
-  bool isDeviceData() const;
-
-  /*!
-   * \brief Return whether view data is accessible on the host CPU,
-   * as determined by Axom's memory management.
-   *
-   * By convention, this returns a false if data is not allocated,
-   * because we expect null pointers to be correctly checked before use.
-   */
-  bool isHostAccessible() const;
-
-  /*!
    * \brief Return type of data for this View object.
    *        Return NO_TYPE_ID for an undescribed view.
    */
@@ -983,7 +966,7 @@ public:
   /*!
    * \brief Deep copy View into the given conduit::Node.
    */
-  void deepCopyToConduit(Node& n) const;
+  void deepCopyToConduit(Node& dst) const;
 
   /*!
    * \brief Copy metadata of the View to the given Conduit node
@@ -1576,6 +1559,18 @@ private:
    *  allocator of the owning group.
    */
   int getValidConduitAllocatorID(int allocatorID);
+
+  /*!
+   * \brief Return whether view data is accessible on the host CPU,
+   * as determined by Axom's memory management.
+   *
+   * If data is external and not allocated through Umpire or malloc,
+   * the behavior is undefined.
+   *
+   * By convention, this returns a false if data is not allocated,
+   * because we expect null pointers to be correctly checked before use.
+   */
+  bool isHostAccessible() const;
 
   //!@brief Print on host, as a single line.
   template <typename T>

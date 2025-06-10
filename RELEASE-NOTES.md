@@ -18,7 +18,39 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 
 ## [Unreleased] - Release date yyyy-mm-dd
 
-###  Added
+### Added
+- New `axom::MALLOC_ALLOCATOR_ID` is for using malloc and free
+  even when axom is configured with Umpire support.
+- The `axom::mir::ElviraAlgorithm` class, which performs material interface reconstruction using
+  the ELVIRA algorithm, was enhanced so it supports 3D structured mesh inputs. The output mesh is a
+  Blueprint mesh with a 3D unstructured polyhedral topology.
+- The `axom::mir::ElviraAlgorithm` class, was enhanced to accept a "plane" option that causes it
+  to return clipping plane origin and normal as fields on the mesh.
+- The `axom::mir::ElviraAlgorithm` class, was enhanced to accept a "pointmesh" option that causes it
+  to return a mesh consisting of points located at clipping plane origins for each clipped material
+  fragment, instead of returning polygonal or polyhedral meshes. This option is off by default.
+- Adds `axom::mir::utilities::blueprint::MakePolyhedralTopology` class that takes an input Blueprint
+  topology and turns it into a polyhedral topology. The mesh will contain duplicate faces, which can
+  later be merged.
+- Adds `axom::mir::utilities::blueprint::MergePolyhedralFaces` class that merges face Blueprint
+  polyhedral face definitions where faces consist of the same set of node ids. The mesh's subelement
+  connectivity information is rewritten so it contains the merged face definitions. The mesh's 
+  element connectivity is also rewritten so it references the new face definitions.
+- Adds `axom::mir::utilities::blueprint::MergeCoordsetPoints` class that merges coordset points,
+  within a tolerance. The class returns an array containing the indices of the points that made it
+  into the revised coordset, as well as a map of old point indices to new point indices, which can
+  be used to revise fields.
+- Exposed primal clip operations for clipping various shapes with a plane.
+- Adds `axom::mir::utilities::blueprint::MakePointMesh` class that creates a new Blueprint mesh
+  consisting of points located at the zone centers of the input mesh.
+- Adds constructs in the `axom` namespace that wrap RAJA atomics, reductions, scans, and sorts.
+  When RAJA is not available, serial-only substitutes are provided, allowing algorithms to still
+  compile and run. These constructs are templated on the `ExecSpace` _(execution space)_ so it
+  is not necessary to query RAJA policies via the `execution_space` type traits classes.
+- 2D and 3D implementations for `axom::for_all` were added.
+- Adds support for custom allocators to `axom::FlatMap`.
+- Primal: Adds ability to perform sample-based shaping on tetrahedral shapes.
+- Improves efficiency of volume fraction computation from quadrature samples during sample-based shaping.
 
 ###  Changed
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
@@ -26,6 +58,17 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds support for allocations using `malloc` and `free` even when Axom is configured with Umpire support.
 - Adds a new utility tool, `mesh_converter`, which converts between mesh formats. The first conversion
   is from a Pro-E tetrahedral mesh to an STL mesh of its boundary triangles.
+- Primal: Adds a method to determine if a point is contained within a Tetrahedron.
+- The `primal::BoundingBox` class' `expand()` and `shift()` methods were modified so they do
+  nothing when called on invalid bounding boxes.
+- Updates to [MFEM version 4.8.0][https://github.com/mfem/mfem/releases/tag/v4.8]
+
+###  Fixed
+- Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
+  with GPU support. Instances where this occurs will now trigger a static assertion during compile time.
+
+###  Deprecated
+- Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
 
 ## [Version 0.11.0] - Release date 2025-04-02
 
@@ -48,6 +91,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds optional dependency on [Open Cascade](https://dev.opencascade.org). The initial intention is 
 to use Open Cascade's file I/O capabilities in support of Quest applications.
 - Adds `primal::NURBSCurve` and `primal::NURBSPatch` classes, supported by `primal::KnotVector`.
+- Adds trimming curve support for `primal::NURBSPatch` via an array of parameter space `primal::NURBSCurve` objects,
+  where portions of the surface not bound by trimming curves in parameter space are invisible.
 - Adds a Quest example that reads in a STEP file using Open Cascade and processes its geometry
 - Adds a piecewise method to load external data using `sidre::IOManager`.  This adds new overloaded methods
   of `loadExternalData` in `sidre::IOManager` and `sidre::Group`.
@@ -56,6 +101,7 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
 - Adds some support for 2D shaping in `quest::IntersectionShaper`, using STL meshes with zero for z-coordinates or in-memory triangles as input.
 - Adds ability in Lumberjack to own and set communicators.
 - Adds `NonCollectiveRootCommunicator` to Lumberjack to provide an MPI-based communicator for logging messages non-collectively.
+- Adds initial support for 2D shaping in `quest::IntersectionShaper`, using a c2c contour as input. The contour cannot overlap, and is expected to be entirely above the x-axis.
 
 ###  Changed
 - Updates blt submodule to [BLT version 0.7.0][https://github.com/LLNL/blt/releases/tag/v0.7.0]
@@ -84,7 +130,7 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
 - Fixes compilation issue with RAJA@2024.07 on 32-bit Windows configurations. 
   This required a [RAJA fix to avoid 64-bit intrinsics](https://github.com/LLNL/RAJA/pull/1746), 
   as well as support for 32-bit `Word`s in Slam's `BitSet` class.
-- Minor bugfix to `primal::intersect(segment, ray)` to better handle cases when segment and ray overlap.
+- Minor bugfix to `primal::intersect(segment, ray)` to better handle cases when segment and ray overlap or are nearly parallel.
 - Fixes a memory leak in `axom::Array` copy constructor.
 - Fixes robustness issue with the `axom::primal::clip` overload for clipping a 2D polygon against another 2D polygon.
 

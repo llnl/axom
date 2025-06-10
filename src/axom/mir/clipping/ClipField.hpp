@@ -16,6 +16,7 @@
 #include "axom/mir/utilities/FieldSlicer.hpp"
 #include "axom/mir/utilities/SelectedZones.hpp"
 #include "axom/mir/utilities/utilities.hpp"
+#include "axom/mir/utilities/Unique.hpp"
 #include "axom/mir/views/Shapes.hpp"
 #include "axom/mir/views/view_traits.hpp"
 #include "axom/slic.hpp"
@@ -24,11 +25,6 @@
 #include <conduit/conduit_blueprint_mesh_utils.hpp>
 #include <conduit/conduit_relay_io.hpp>
 #include <conduit/conduit_relay_io_blueprint.hpp>
-
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
 
 #include <map>
 #include <string>
@@ -406,7 +402,7 @@ struct DegenerateHandler<2, ExecSpace, ConnectivityType>
     axom::Array<int> maskOffsets(nz, nz, axom::execution_space<ExecSpace>::allocatorID());
     auto maskView = mask.view();
     auto maskOffsetsView = maskOffsets.view();
-    RAJA::ReduceSum<reduce_policy, axom::IndexType> mask_reduce(0);
+    axom::ReduceSum<ExecSpace, axom::IndexType> mask_reduce(0);
     const axom::ArrayView<ConnectivityType> deviceSizesView = sizesView;
     axom::for_all<ExecSpace>(
       nz,
@@ -465,7 +461,7 @@ struct DegenerateHandler<2, ExecSpace, ConnectivityType>
     {
       AXOM_ANNOTATE_SCOPE("quadtri");
       const axom::IndexType numOutputZones = shapesView.size();
-      RAJA::ReduceBitOr<reduce_policy, BitSet> shapesUsed_reduce(0);
+      axom::ReduceBitOr<ExecSpace, BitSet> shapesUsed_reduce(0);
       axom::for_all<ExecSpace>(
         numOutputZones,
         AXOM_LAMBDA(axom::IndexType index) {
@@ -847,8 +843,6 @@ public:
 
   using BitSet = internal::BitSet;
   using KeyType = typename NamingPolicy::KeyType;
-  using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
-  using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
   using ConnectivityType = typename TopologyView::ConnectivityType;
   using BlendGroupBuilderType = BlendGroupBuilder<ExecSpace, typename NamingPolicy::View>;
   using SelectedZones = typename axom::mir::utilities::blueprint::SelectedZones<ExecSpace>;
@@ -1150,7 +1144,9 @@ public:
           const auto zoneIndex = selectedZonesView[index];
           const auto start = fragmentData.m_fragmentOffsetsView[index];
           for(int i = 0; i < fragmentData.m_fragmentsView[index]; i++)
+          {
             sliceIndicesView[start + i] = zoneIndex;
+          }
         });
       slice.m_indicesView = sliceIndicesView;
     }
@@ -1400,7 +1396,7 @@ private:
     const auto nzones = selectedZones.view().size();
 
     // Sum the number of fragments.
-    RAJA::ReduceSum<reduce_policy, IndexType> fragment_sum(0);
+    axom::ReduceSum<ExecSpace, IndexType> fragment_sum(0);
     const auto fragmentsView = fragmentData.m_fragmentsView;
     axom::for_all<ExecSpace>(
       nzones,
@@ -1408,7 +1404,7 @@ private:
     fragmentData.m_finalNumZones = fragment_sum.get();
 
     // Sum the fragment connectivity sizes.
-    RAJA::ReduceSum<reduce_policy, IndexType> fragment_nids_sum(0);
+    axom::ReduceSum<ExecSpace, IndexType> fragment_nids_sum(0);
     const auto fragmentsSizeView = fragmentData.m_fragmentsSizeView;
     axom::for_all<ExecSpace>(
       nzones,
@@ -1452,7 +1448,7 @@ private:
   {
     AXOM_ANNOTATE_SCOPE("countOriginalNodes");
     // Count the number of original nodes we'll use directly.
-    RAJA::ReduceSum<reduce_policy, int> nUsed_reducer(0);
+    axom::ReduceSum<ExecSpace, int> nUsed_reducer(0);
     const auto nodeUsedView = nodeData.m_nodeUsedView;
     axom::for_all<ExecSpace>(
       nodeUsedView.size(),
@@ -1742,7 +1738,7 @@ private:
     //       memory available to the thread.
     //
 #if defined(AXOM_CLIP_FILTER_DEGENERATES)
-    RAJA::ReduceBitOr<reduce_policy, BitSet> degenerates_reduce(0);
+    axom::ReduceBitOr<ExecSpace, BitSet> degenerates_reduce(0);
 #endif
     {
       AXOM_ANNOTATE_SCOPE("build");
@@ -1847,8 +1843,9 @@ private:
                 const int fragmentSize = fragment.size();
                 offsetsView[sizeIndex] = outputIndex;
                 for(int i = 2; i < fragmentSize; i++)
+                {
                   connView[outputIndex++] = point_2_new[fragment[i]];
-
+                }
                 const auto nIdsThisFragment = fragmentSize - 2;
 #if defined(AXOM_CLIP_FILTER_DEGENERATES)
                 // Set the output zone size, checking to see whether it is degenerate.
@@ -1953,7 +1950,9 @@ private:
       n_newTopo["elements/shape"] = "mixed";
       conduit::Node &n_shape_map = n_newTopo["elements/shape_map"];
       for(auto it = shapeMap.cbegin(); it != shapeMap.cend(); it++)
+      {
         n_shape_map[it->first] = it->second;
+      }
     }
     else
     {
@@ -1973,7 +1972,7 @@ private:
   {
     AXOM_ANNOTATE_SCOPE("findUsedShapes");
 
-    RAJA::ReduceBitOr<reduce_policy, BitSet> shapesUsed_reduce(0);
+    axom::ReduceBitOr<ExecSpace, BitSet> shapesUsed_reduce(0);
     const axom::IndexType nShapes = shapesView.size();
     axom::for_all<ExecSpace>(
       nShapes,
@@ -2133,7 +2132,10 @@ private:
           const int sizeIndex = fragmentData.m_fragmentOffsetsView[index];
           const int nFragments = fragmentData.m_fragmentsView[index];
           const auto zoneIndex = selectedZonesView[index];
-          for(int i = 0; i < nFragments; i++) valuesView[sizeIndex + i] = zoneIndex;
+          for(int i = 0; i < nFragments; i++)
+          {
+            valuesView[sizeIndex + i] = zoneIndex;
+          }
         });
     }
   }
@@ -2164,7 +2166,10 @@ private:
         const int sizeIndex = fragmentData.m_fragmentOffsetsView[index];
         const int nFragments = fragmentData.m_fragmentsView[index];
         const auto zoneIndex = selectedZonesView[index];
-        for(int i = 0; i < nFragments; i++) valuesView[sizeIndex + i] = origValuesView[zoneIndex];
+        for(int i = 0; i < nFragments; i++)
+        {
+          valuesView[sizeIndex + i] = origValuesView[zoneIndex];
+        }
       });
   }
 

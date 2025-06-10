@@ -177,8 +177,7 @@ public:
 #ifdef AXOM_USE_RAJA
     IndexView countsPtr = counts;
 
-    using reduce_pol = typename axom::execution_space<ExecSpace>::reduce_policy;
-    RAJA::ReduceSum<reduce_pol, IndexType> totalCountReduce(0);
+    axom::ReduceSum<ExecSpace, IndexType> totalCountReduce(0);
     // Step 1: count number of candidate intersections for each point
     for_all<ExecSpace>(
       npts,
@@ -187,16 +186,8 @@ public:
         totalCountReduce += countsPtr[i];
       });
 
-      // Step 2: exclusive scan for offsets in candidate array
-      // Intel oneAPI compiler segfaults with OpenMP RAJA scan
-  #ifdef __INTEL_LLVM_COMPILER
-    using exec_policy = typename axom::execution_space<axom::SEQ_EXEC>::loop_policy;
-  #else
-    using exec_policy = typename axom::execution_space<ExecSpace>::loop_policy;
-  #endif
-    RAJA::exclusive_scan<exec_policy>(RAJA::make_span(counts.data(), npts),
-                                      RAJA::make_span(offsets.data(), npts),
-                                      RAJA::operators::plus<IndexType> {});
+    // Step 2: exclusive scan for offsets in candidate array
+    axom::exclusive_scan<ExecSpace>(counts, offsets);
 
     axom::IndexType totalCount = totalCountReduce.get();
 

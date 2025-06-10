@@ -656,7 +656,6 @@ TEST(primal_surface_inter, bezier_surface_intersect)
       }
       else
       {
-        // continue;
         checkIntersections(ray, sphere_face_patch, {1.0}, {u_params[i]}, {v_params[j]}, eps, eps_test);
       }
     }
@@ -765,7 +764,7 @@ TEST(primal_surface_inter, NURBS_surface_intersect)
                            {0.0},
                            eps,
                            eps_test,
-                           countUntrimmed,
+                           !countUntrimmed,
                            isHalfOpen);
 
         // Twice if the surface is not half-open
@@ -776,7 +775,7 @@ TEST(primal_surface_inter, NURBS_surface_intersect)
                            {0.0, 3.0},
                            eps,
                            eps_test,
-                           countUntrimmed,
+                           !countUntrimmed,
                            !isHalfOpen);
       }
       else
@@ -851,6 +850,7 @@ TEST(primal_surface_inter, trimmed_surface_intersect)
   ray = RayType(ray_origin, ray_direction);
 
   // Doesn't intersect the trimmed surface
+  checkIntersections(ray, nPatch, {}, {}, {}, eps, eps_test, !countUntrimmed, isHalfOpen);
   checkIntersections(ray, nPatch, {}, {}, {}, eps, eps_test, !countUntrimmed, isHalfOpen);
 
   // Does intersect the untrimmed surface

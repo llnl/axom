@@ -11,6 +11,8 @@
 #include "axom/config.hpp"
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/execution/for_all.hpp"
+#include "axom/core/execution/atomics.hpp"
+#include "axom/core/execution/scans.hpp"
 
 #include "axom/multimat/multimat.hpp"
 #include "axom/slic.hpp"
@@ -21,11 +23,6 @@
 #include <algorithm>
 
 #include <cassert>
-
-#if defined(AXOM_USE_RAJA)
-  // RAJA includes
-  #include "RAJA/RAJA.hpp"
-#endif
 
 using namespace axom::multimat;
 
@@ -453,13 +450,12 @@ void ScanRelationOffsetsRAJA(const axom::ArrayView<const IndexType> counts,
                              const axom::ArrayView<IndexType> firstIndices)
 {
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-  using LoopPolicy = typename axom::execution_space<ExecSpace>::loop_policy;
 
   // The begins array has one more element than the counts array. The last
   // element is the size of the relation, so we can just inclusive scan with an
   // offset to the begins array.
-  RAJA::inclusive_scan<LoopPolicy>(RAJA::make_span(counts.data(), counts.size()),
-                                   RAJA::make_span(begins.data() + 1, counts.size()));
+  axom::inclusive_scan<ExecSpace>(counts,
+                                  axom::ArrayView<IndexType>(begins.data() + 1, counts.size()));
 
   // Generate the first indices array on the GPU.
   axom::for_all<ExecSpace>(
@@ -949,9 +945,6 @@ void TransposeRelationImplRAJA(const MultiMat::RelationSetType* oldRelationSet,
                                axom::Array<IndexType>& flatOldToNew,
                                axom::Array<IndexType>& flatNewToOld)
 {
-  using AtomicPolicy = typename axom::execution_space<ExecSpace>::atomic_policy;
-  using LoopPolicy = typename axom::execution_space<ExecSpace>::loop_policy;
-
   const auto countsView = beginOffsets.view();
   const auto firstIdxView = firstIndexes.view();
   const auto flatNewToOldView = flatNewToOld.view();
@@ -961,7 +954,7 @@ void TransposeRelationImplRAJA(const MultiMat::RelationSetType* oldRelationSet,
     oldRelationSet->totalSize(),
     AXOM_LAMBDA(int flatIndex) {
       int secondIdx = oldRelationSet->flatToSecondIndex(flatIndex);
-      RAJA::atomicAdd<AtomicPolicy>(&countsView[secondIdx], IndexType {1});
+      axom::atomicAdd<ExecSpace>(&countsView[secondIdx], IndexType {1});
 
       // We create the first indices array and flatNewToOld maps here.
       firstIdxView[flatIndex] = secondIdx;
@@ -969,12 +962,11 @@ void TransposeRelationImplRAJA(const MultiMat::RelationSetType* oldRelationSet,
     });
 
   // Scan to get the offsets array.
-  RAJA::exclusive_scan_inplace<LoopPolicy>(RAJA::make_span(beginOffsets.data(), beginOffsets.size()));
+  axom::exclusive_scan_inplace<ExecSpace>(beginOffsets);
 
   // Stable sort to create the first-set indices array and new-to-old index
   // mapping for the new relation.
-  RAJA::stable_sort_pairs<LoopPolicy>(RAJA::make_span(firstIndexes.data(), firstIndexes.size()),
-                                      RAJA::make_span(flatNewToOld.data(), flatNewToOld.size()));
+  axom::stable_sort_pairs<ExecSpace>(firstIndexes, flatNewToOld);
 
   const auto secondIdxView = secondIndexes.view();
   const auto flatOldToNewView = flatOldToNew.view();

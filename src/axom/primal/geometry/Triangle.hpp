@@ -67,6 +67,13 @@ public:
   Triangle(const PointType& A, const PointType& B, const PointType& C) : m_points {A, B, C} { }
 
   /*!
+   * \brief Return the number of vertices in a Triangle.
+   *
+   * \return The number of vertices in a Triangle.
+   */
+  AXOM_HOST_DEVICE static constexpr int numVertices() { return NUM_TRI_VERTS; }
+
+  /*!
    * \brief Index operator to get the i^th vertex
    * \param idx The index of the desired vertex
    * \pre idx is 0, 1 or 2
@@ -332,19 +339,30 @@ public:
   }
 
   /*!
-   * \brief Returns whether Point P is in the triangle for some 3d Triangle
-   * \return true iff P is in the triangle
-   * \see primal::Point
+   * \brief Returns whether Point \a p is contained within the triangle
+   * 
+   * \return true if \a p is in the triangle
+   * \deprecated This function is deprecated. Use \a contains() instead
    */
-  AXOM_HOST_DEVICE
-  bool checkInTriangle(const PointType& p, double eps = 1e-8) const
+  [[deprecated("Use contains() instead.")]] bool checkInTriangle(const PointType& p,
+                                                                 double eps = 1e-8) const
+  {
+    return contains(p, eps);
+  }
+
+  /*!
+   * \brief Returns whether Point \a p is contained within the triangle (within tolerance \a eps)
+   *
+   * \return true if \a p is in the triangle
+   */
+  AXOM_HOST_DEVICE bool contains(const PointType& p, double eps = 1e-8) const
   {
     if(!axom::utilities::isNearlyEqual(ppedVolume(p), 0., eps))
     {
       return false;
     }
 
-    Point<double, 3> bC = physToBarycentric(p);
+    const auto bC = physToBarycentric(p);
     return ((bC[0] >= (0.0 - eps)) && (bC[1] >= (0.0 - eps)) && (bC[2] >= (0.0 - eps)) &&
             (bC[0] <= (1.0 + eps)) && (bC[1] <= (1.0 + eps)) && (bC[2] <= (1.0 + eps)));
   }
