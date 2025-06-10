@@ -139,13 +139,6 @@ NB_MODULE(pysidre, m_sidre)
   m_sidre.attr("AXOM_USE_HDF5") = false;
 #endif
 
-  // Expose IndexType as an alias (bad cast error...)
-  // #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
-  // m_sidre.attr("IndexType") = nb::type<std::int64_t>();
-  // #else
-  // m_sidre.attr("IndexType") = nb::type<int>();
-  // #endif
-
   // Bind the DataTypeId enum (TypeID alias)
   nb::enum_<DataTypeId>(m_sidre, "TypeID")
     .value("NO_TYPE_ID", NO_TYPE_ID)
