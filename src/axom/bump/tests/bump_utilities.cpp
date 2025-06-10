@@ -49,6 +49,12 @@ struct test_conduit_allocate
     {
       EXPECT_EQ(hostValues[i], i);
     }
+
+    // Check zero allocation.
+    n.reset();
+    n.set_allocator(c2a.getConduitAllocatorID());
+    n.set(conduit::DataType::int32(0));
+    EXPECT_EQ(n.dtype().number_of_elements(), 0);
   }
 };
 
