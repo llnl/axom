@@ -430,9 +430,16 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE> ArrayView<T, DIM, SPACE>::subspan(
 template <typename T, int DIM, MemorySpace SPACE>
 AXOM_HOST_DEVICE void ArrayView<T, DIM, SPACE>::fill(const T &value)
 {
+#if defined(AXOM_DEVICE_CODE)
+  for(IndexType i = 0; i < m_num_elements; i++)
+  {
+    m_data[i] = value;
+  }
+#else
   using OpHelper = detail::ArrayOps<T, SPACE>;
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
   OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, 0, m_num_elements, value);
+#endif
 }
 
 } /* namespace axom */
