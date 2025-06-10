@@ -386,15 +386,34 @@ NB_MODULE(pysidre, m_sidre)
          nb::arg("value").noconvert())
 
     .def("setString", &View::setString, "Set the View to hold a string value.")
-    .def("setExternalDataPtr",
-         nb::overload_cast<void*>(&View::setExternalDataPtr),
-         "Set the View to hold external data.")
-    .def("setExternalDataPtr",
-         nb::overload_cast<TypeID, IndexType, void*>(&View::setExternalDataPtr),
-         "Set the View to hold described external data.")
-    .def("setExternalDataPtr",
-         nb::overload_cast<TypeID, int, const IndexType*, void*>(&View::setExternalDataPtr),
-         "Set the View to hold described external data.")
+    .def(
+      "setExternalData",
+      // nb::overload_cast<void*>(&View::setExternalDataPtr),
+      [](View& self, const nb::ndarray<>& external_ptr) {
+        return self.setExternalDataPtr(external_ptr.data());
+      },
+      nb::rv_policy::reference,
+      "Set the View to hold undescribed external data (numpy array).")
+    .def(
+      "setExternalData",
+      // nb::overload_cast<TypeID, IndexType, void*>(&View::setExternalDataPtr),
+      [](View& self, TypeID type, IndexType num_elems, const nb::ndarray<>& external_ptr) {
+        return self.setExternalDataPtr(type, num_elems, external_ptr.data());
+      },
+      nb::rv_policy::reference,
+      "Set the View to hold described external data  (numpy array).")
+    .def(
+      "setExternalData",
+      // nb::overload_cast<TypeID, int, const IndexType*, void*>(&View::setExternalDataPtr),
+      [](View& self,
+         TypeID type,
+         int ndims,
+         const nb::ndarray<int>& shape,
+         const nb::ndarray<>& external_ptr) {
+        return self.setExternalDataPtr(type, ndims, shape.data(), external_ptr.data());
+      },
+      nb::rv_policy::reference,
+      "Set the View to hold described external data (numpy array).")
 
     .def("getString",
          &View::getString,
@@ -482,11 +501,16 @@ NB_MODULE(pysidre, m_sidre)
          nb::rv_policy::reference,
          "Create View object with given name or path in this Group that has a data description "
          "with data type and number of elements.")
-    .def("createViewWithShape",
-         nb::overload_cast<const std::string&, TypeID, int, const IndexType*>(
-           &Group::createViewWithShape),
-         "Create View object with given name or path in this Group that has a data description "
-         "with data type and shape.")
+    .def(
+      "createViewWithShape",
+      // nb::overload_cast<const std::string&, TypeID, int, const IndexType*>(
+      //   &Group::createViewWithShape),
+      [](Group& self, const std::string& path, TypeID type, int ndims, const nb::ndarray<int>& shape) {
+        return self.createViewWithShape(path, type, ndims, shape.data());
+      },
+      nb::rv_policy::reference,
+      "Create View object with given name or path in this Group that has a data description "
+      "with data type and shape.")
     .def("createView",
          nb::overload_cast<const std::string&, Buffer*>(&Group::createView),
          nb::rv_policy::reference,
@@ -494,13 +518,24 @@ NB_MODULE(pysidre, m_sidre)
          "Buffer to it.")
     .def("createView",
          nb::overload_cast<const std::string&, TypeID, IndexType, Buffer*>(&Group::createView),
+         nb::rv_policy::reference,
          "Create View object with given name or path in this Group that has a data description "
          "with data type and number of elements and attach given Buffer to it.")
-    .def("createViewWithShape",
-         nb::overload_cast<const std::string&, TypeID, int, const IndexType*, Buffer*>(
-           &Group::createViewWithShape),
-         "Create View object with given name or path in this Group that has a data description "
-         "with data type and shape and attach given Buffer to it.")
+    .def(
+      "createViewWithShape",
+      // nb::overload_cast<const std::string&, TypeID, int, const IndexType*, Buffer*>(
+      //   &Group::createViewWithShape),
+      [](Group& self,
+         const std::string& path,
+         TypeID type,
+         int ndims,
+         const nb::ndarray<int>& shape,
+         Buffer* buffer) {
+        return self.createViewWithShape(path, type, ndims, shape.data(), buffer);
+      },
+      nb::rv_policy::reference,
+      "Create View object with given name or path in this Group that has a data description "
+      "with data type and shape and attach given Buffer to it.")
 
     // TODO
     // .def("createView",
@@ -559,11 +594,21 @@ NB_MODULE(pysidre, m_sidre)
       "Create View object with given name or path in this Group that has a data description "
       "with data type and number of elements and attach externally-owned data to it.")
 
-    .def("createViewWithShape",
-         nb::overload_cast<const std::string&, TypeID, int, const IndexType*, void*>(
-           &Group::createViewWithShape),
-         "Create View object with given name or path in this Group that has a data description "
-         "with data type and shape and attach externally-owned data to it.")
+    .def(
+      "createViewWithShape",
+      // nb::overload_cast<const std::string&, TypeID, int, const IndexType*, void*>(
+      //   &Group::createViewWithShape),
+      [](Group& self,
+         const std::string& path,
+         TypeID type,
+         int ndims,
+         const nb::ndarray<int>& shape,
+         const nb::ndarray<>& external_ptr) {
+        return self.createViewWithShape(path, type, ndims, shape.data(), external_ptr.data());
+      },
+      nb::rv_policy::reference,
+      "Create View object with given name or path in this Group that has a data description "
+      "with data type and shape and attach externally-owned data (numpy array) to it.")
     .def("createViewAndAllocate",
          nb::overload_cast<const std::string&, TypeID, IndexType, int>(&Group::createViewAndAllocate),
          nb::rv_policy::reference,
