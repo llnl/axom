@@ -69,8 +69,11 @@ struct PointTraits
   AXOM_HOST_DEVICE constexpr static IndexType zoneOffset(int zoneIndex) { return zoneIndex; }
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 1> getFace(
-    IndexType AXOM_DEBUG_PARAM(faceIndex))
+    IndexType faceIndex)
   {
+#if !defined(AXOM_DEBUG)
+    AXOM_UNUSED_VAR(faceIndex);
+#endif
     assert(faceIndex == 0);
     return StackArray<IndexType, 1> {0};
   }
@@ -116,8 +119,11 @@ struct LineTraits
   }
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 2> getFace(
-    IndexType AXOM_DEBUG_PARAM(faceIndex))
+    IndexType faceIndex)
   {
+#if !defined(AXOM_DEBUG)
+    AXOM_UNUSED_VAR(faceIndex);
+#endif
     assert(faceIndex == 0);
     return StackArray<IndexType, 2> {0, 1};
   }
@@ -168,8 +174,11 @@ struct TriTraits
   }
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 3> getFace(
-    IndexType AXOM_DEBUG_PARAM(faceIndex))
+    IndexType faceIndex)
   {
+#if !defined(AXOM_DEBUG)
+    AXOM_UNUSED_VAR(faceIndex);
+#endif
     assert(faceIndex == 0);
     return StackArray<IndexType, 3> {0, 1, 2};
   }
@@ -221,8 +230,11 @@ struct QuadTraits
   }
 
   AXOM_HOST_DEVICE constexpr static axom::StackArray<IndexType, 4> getFace(
-    IndexType AXOM_DEBUG_PARAM(faceIndex))
+    IndexType faceIndex)
   {
+#if !defined(AXOM_DEBUG)
+    AXOM_UNUSED_VAR(faceIndex);
+#endif
     assert(faceIndex == 0);
     return StackArray<IndexType, 4> {0, 1, 2, 3};
   }
