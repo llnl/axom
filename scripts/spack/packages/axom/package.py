@@ -605,10 +605,6 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             shroud_bin_dir = get_spec_path(spec, "py-shroud", path_replacements, use_bin=True)
             entries.append(cmake_cache_path("SHROUD_EXECUTABLE", pjoin(shroud_bin_dir, "shroud")))
 
-        if spec.satisfies("^py-pytest"):
-            pytest_bin_dir = get_spec_path(spec, "py-pytest", path_replacements, use_bin=True)
-            entries.append(cmake_cache_path("PYTEST_EXECUTABLE", pjoin(pytest_bin_dir, "pytest")))
-
         for dep in ("cppcheck", "doxygen"):
             if spec.satisfies("^%s" % dep):
                 dep_bin_dir = get_spec_path(spec, dep, path_replacements, use_bin=True)

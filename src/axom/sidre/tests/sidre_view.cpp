@@ -932,15 +932,6 @@ TEST(sidre_view, int_array_strided_views)
     EXPECT_EQ(v_o_ptr[i] % 2, 1);
   }
 
-  std::cout << "#########################" << std::endl;
-  for(int i = 0; i < num_elts; i += 1)
-  {
-    std::cout << "idx:" << i << " e:" << v_e_ptr[i] << " o:" << v_o_ptr[i]
-              << " em:" << v_e_ptr[i] % 2 << " om:" << v_o_ptr[i] % 2 << std::endl;
-  }
-  std::cout << "Odd number fo elements is " << dv_o->getNumElements() << std::endl;
-  std::cout << "#########################" << std::endl;
-
   // Check Conduit mem-map struct case:
   int_array dv_e_ptr = dv_e->getData();
   int_array dv_o_ptr = dv_o->getData();
