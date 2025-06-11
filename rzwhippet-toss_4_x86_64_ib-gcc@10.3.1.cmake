@@ -135,7 +135,7 @@ set(SPHINX_EXECUTABLE "/usr/WS1/han12/axom/devtools_nanobind/._view/jksj3ctjabad
 
 set(SHROUD_EXECUTABLE "/collab/usr/gapps/shroud/public/toss_4_x86_64_ib/shroud-0.13.0/bin/shroud" CACHE PATH "")
 
-set(PYTEST_EXECUTABLE "/usr/WS1/han12/axom/devtools_nanobind/._view/jksj3ctjabadd4ipym6rbn6q5z6mip55/python-3.13.2/bin/pytest" CACHE PATH "")
+#set(PYTEST_EXECUTABLE "/usr/WS1/han12/axom/devtools_nanobind/._view/jksj3ctjabadd4ipym6rbn6q5z6mip55/python-3.13.2/bin/pytest" CACHE PATH "")
 
 set(CPPCHECK_EXECUTABLE "${DEVTOOLS_ROOT}/cppcheck-2.9/bin/cppcheck" CACHE PATH "")
 
