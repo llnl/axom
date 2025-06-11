@@ -1983,6 +1983,54 @@ TEST(sidre_view, reshape_array)
 
 //------------------------------------------------------------------------------
 
+TEST(sidre_view, apply_and_shape_behavior)
+{
+  using namespace axom;
+  DataStore ds;
+  Group* root = ds.getRoot();
+
+  const int nfoo = 10;
+  int int2d[nfoo * 2];
+  IndexType shape[] = {nfoo, 2};
+
+  View* view1 = root->createViewWithShape("int2d", INT_ID, 2, shape, int2d);
+
+  IndexType shapeOutput[] = {0, 0};
+
+  view1->getShape(2, shapeOutput);
+  EXPECT_EQ(shapeOutput[0], nfoo);
+  EXPECT_EQ(shapeOutput[1], 2);
+  EXPECT_EQ(view1->getNumDimensions(), 2);
+  EXPECT_EQ(view1->getStride(), 1);
+
+  // 20 elements, offset of 0, stride of 2
+  // Note - dimensions are flattened to 1D
+  view1->apply(nfoo * 2, 0, 2);
+  view1->getShape(2, shapeOutput);
+  EXPECT_EQ(shapeOutput[0], nfoo * 2);
+  EXPECT_EQ(shapeOutput[1], 0);
+  EXPECT_EQ(view1->getNumDimensions(), 1);
+  EXPECT_EQ(view1->getStride(), 2);
+
+  // Reshape back to [10,2]
+  view1->reshapeArray(2, shape);
+  view1->getShape(2, shapeOutput);
+  EXPECT_EQ(shapeOutput[0], nfoo);
+  EXPECT_EQ(shapeOutput[1], 2);
+  EXPECT_EQ(view1->getNumDimensions(), 2);
+  EXPECT_EQ(view1->getStride(), 1);
+
+  // apply() (no args) - no change
+  view1->apply();
+  view1->getShape(2, shapeOutput);
+  EXPECT_EQ(shapeOutput[0], nfoo);
+  EXPECT_EQ(shapeOutput[1], 2);
+  EXPECT_EQ(view1->getNumDimensions(), 2);
+  EXPECT_EQ(view1->getStride(), 1);
+}
+
+//------------------------------------------------------------------------------
+
 #ifdef AXOM_USE_UMPIRE
 
 class UmpireTest : public ::testing::TestWithParam<int>

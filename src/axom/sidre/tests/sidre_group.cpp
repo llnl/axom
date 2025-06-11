@@ -2305,38 +2305,7 @@ TEST(sidre_group, save_restore_external_data)
   // XXX this falls into createView(name, type, ndims, shape)
   // root1->createView("empty_array", INT_ID, nfoo, NULL);
   root1->createView("external_undescribed")->setExternalDataPtr(foo4);
-  View* myView = root1->createViewWithShape("int2d", INT_ID, 2, shape, int2d1);
-
-  IndexType myShape[] = {0, 0};
-
-  SLIC_INFO("****************** Start *********************");
-  // Before apply()
-  myView->print();
-  myView->getShape(2, myShape);
-  printf("\nMyshape 0 is %d\n", myShape[0]);
-  printf("Myshape 1 is %d\n", myShape[1]);
-  printf("Number of dimensions is %d\n", myView->getNumDimensions());
-  printf("Stride is %d\n", myView->getStride());
-
-  SLIC_INFO("****************** apply() *********************");
-  myView->apply(20, 0, 2);
-
-  myView->print();
-  myView->getShape(2, myShape);
-  printf("\nMyshape 0 is %d\n", myShape[0]);
-  printf("Myshape 1 is %d\n", myShape[1]);
-  printf("Number of dimensions is %d\n", myView->getNumDimensions());
-  printf("Stride is %d\n", myView->getStride());
-
-  SLIC_INFO("****************** RESHAPE *********************");
-  myView->reshapeArray(2, shape);
-
-  myView->print();
-  myView->getShape(2, myShape);
-  printf("\nMyshape 0 is %d\n", myShape[0]);
-  printf("Myshape 1 is %d\n", myShape[1]);
-  printf("Number of dimensions is %d\n", myView->getNumDimensions());
-  printf("Stride is %d\n", myView->getStride());
+  root1->createViewWithShape("int2d", INT_ID, 2, shape, int2d1);
 
   const std::vector<std::string>& protocols = Group::getValidIOProtocols();
   for(const auto& protocol : protocols)
@@ -2344,14 +2313,6 @@ TEST(sidre_group, save_restore_external_data)
     const std::string file_path = file_path_base + protocol;
     EXPECT_TRUE(root1->save(file_path, protocol));
   }
-
-  SLIC_INFO("****************** apply() no args (shape is preserved) *********************");
-  myView->apply();
-
-  myView->print();
-  myView->getShape(2, myShape);
-  printf("\nMyshape 0 is %d\n", myShape[0]);
-  printf("Myshape 1 is %d\n", myShape[1]);
 
   delete ds1;
 
