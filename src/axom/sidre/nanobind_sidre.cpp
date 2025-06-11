@@ -58,7 +58,7 @@ nb::ndarray<nb::numpy> viewToNumpyArray(View& self)
 
   constexpr int DMAX = 10;
 
-  int shapeOutput[DMAX];
+  IndexType shapeOutput[DMAX];
   size_t ndims = self.getShape(DMAX, shapeOutput);
   size_t shape[DMAX];
   for(size_t i = 0; i < ndims; i++)
@@ -286,7 +286,7 @@ NB_MODULE(pysidre, m_sidre)
          "Return the dimensionality of the View's data.")
     .def(
       "getShape",
-      [](View& self, int ndims, nb::ndarray<int>& shape) {
+      [](View& self, int ndims, nb::ndarray<IndexType>& shape) {
         SLIC_ERROR_IF(static_cast<size_t>(ndims) > shape.size(),
                       "getShape() - shape array size (" << shape.size()
                                                         << ") must be greater or equal to ndims ("
@@ -343,17 +343,12 @@ NB_MODULE(pysidre, m_sidre)
          "Apply data description with type, number of elements, offset, and stride.",
          nb::arg("type"),
          nb::arg("num_elems"),
-         nb::arg("offset") = 0,
-         nb::arg("stride") = 1)
+         nb::arg("offset").noconvert() = 0,
+         nb::arg("stride").noconvert() = 1)
     .def(
       "apply",
-      [](View& self, TypeID type, int ndims, nb::ndarray<int64_t>& shape) {
-        std::vector<int> temp(ndims);
-        for(int i = 0; i < ndims; i++)
-        {
-          temp[i] = static_cast<int>(shape.data()[i]);
-        }
-        return self.apply(type, ndims, temp.data());
+      [](View& self, TypeID type, int ndims, nb::ndarray<IndexType>& shape) {
+        return self.apply(type, ndims, shape.data());
       },
       nb::rv_policy::reference,
       "Apply data description with type and numpy shape.")
@@ -388,7 +383,7 @@ NB_MODULE(pysidre, m_sidre)
       [](View& self,
          TypeID type,
          int ndims,
-         const nb::ndarray<int>& shape,
+         const nb::ndarray<IndexType>& shape,
          const nb::ndarray<>& external_ptr) {
         return self.setExternalDataPtr(type, ndims, shape.data(), external_ptr.data());
       },
@@ -470,7 +465,7 @@ NB_MODULE(pysidre, m_sidre)
          "with data type and number of elements.")
     .def(
       "createViewWithShape",
-      [](Group& self, const std::string& path, TypeID type, int ndims, const nb::ndarray<int>& shape) {
+      [](Group& self, const std::string& path, TypeID type, int ndims, const nb::ndarray<IndexType>& shape) {
         return self.createViewWithShape(path, type, ndims, shape.data());
       },
       nb::rv_policy::reference,
@@ -492,7 +487,7 @@ NB_MODULE(pysidre, m_sidre)
          const std::string& path,
          TypeID type,
          int ndims,
-         const nb::ndarray<int>& shape,
+         const nb::ndarray<IndexType>& shape,
          Buffer* buffer) {
         return self.createViewWithShape(path, type, ndims, shape.data(), buffer);
       },
@@ -522,7 +517,7 @@ NB_MODULE(pysidre, m_sidre)
          const std::string& path,
          TypeID type,
          int ndims,
-         const nb::ndarray<int>& shape,
+         const nb::ndarray<IndexType>& shape,
          const nb::ndarray<>& external_ptr) {
         return self.createViewWithShape(path, type, ndims, shape.data(), external_ptr.data());
       },
@@ -540,7 +535,7 @@ NB_MODULE(pysidre, m_sidre)
          nb::arg("allocID") = INVALID_ALLOCATOR_ID)
     .def(
       "createViewWithShapeAndAllocate",
-      [](Group& self, const std::string& path, TypeID type, int ndims, const std::vector<int>& shape) {
+      [](Group& self, const std::string& path, TypeID type, int ndims, const std::vector<IndexType>& shape) {
         return self.createViewWithShapeAndAllocate(path, type, ndims, shape.data());
       },
       nb::rv_policy::reference,
