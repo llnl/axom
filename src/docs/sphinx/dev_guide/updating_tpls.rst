@@ -245,7 +245,6 @@ instructions on how to update a built-in TPL are:
 
 .. _local-tpls-label:
 
-
 CLI11
 ^^^^^^
 

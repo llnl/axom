@@ -297,6 +297,16 @@ The end result of properly setting up these pieces is a make target called
 ``generate_sidre_shroud`` that can be invoked to generate *sidre* API code
 in other languages Axom supports.
 
+====================================
+Python Interfaces
+====================================
+
+We use the nanobind library to generate Python APIs from our C++
+interface code. Nanobind is a python binding library that generates code
+from a *cpp* file that describes C++ functions and their interfaces.
+
+Please refer to the `nanobind documentation <https://nanobind.readthedocs.io/en/latest/>`_ for more information.
+
 
 ====================================
 Documentation
