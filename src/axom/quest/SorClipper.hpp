@@ -50,11 +50,16 @@ private:
   std::string m_name;
 
   /*!
-    @brief The discrete r(z) function, as an Nx2 array, if used.
+    @brief The discrete r(z) curve, as an Nx2 array, if used.
 
     This data is before internal or external transformations.
+    It may include points on each end to connect the curve to
+    the axis of rotation.
   */
-  axom::Array<double, 2> m_discreteFcn;
+  axom::Array<double, 2> m_sorCurve;
+
+  //! @brief Bounding box of points in m_sorCurve;
+  BoundingBox2DType m_curveBb;
 
   //! @brief Maximum radius of the SOR.
   double m_maxRadius;
@@ -107,7 +112,7 @@ private:
   // Extract clipper info from GeometryClipperStrategy::m_info.
   void extractClipperInfo();
 
-  // Compute blocking of areas on and under m_discreteFcn.
+  // Compute blocking of areas on and under m_sorCurve.
   void computeRoughBlockings();
 };
 

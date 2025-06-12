@@ -38,20 +38,20 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
 
   m_inverseTransformer = m_transformer.getInverse();
 
-  const auto dCount = m_discreteFcn.shape()[0];
+  const auto dCount = m_sorCurve.shape()[0];
   for(axom::IndexType i=0; i<dCount; ++i)
   {
-    m_maxRadius = fmax(m_maxRadius, m_discreteFcn(i, 1));
-    m_minRadius = fmin(m_minRadius, m_discreteFcn(i, 1));
+    m_maxRadius = fmax(m_maxRadius, m_sorCurve(i, 1));
+    m_minRadius = fmin(m_minRadius, m_sorCurve(i, 1));
   }
 
 #ifdef AXOM_DEBUG
   axom::IndexType badZCount = 0;
-  axom::IndexType badRadCount = m_discreteFcn(0, 1) < 0;
+  axom::IndexType badRadCount = m_sorCurve(0, 1) < 0;
   for(axom::IndexType i=1; i<dCount; ++i)
   {
-    badZCount += m_discreteFcn(i, 0) <= m_discreteFcn(i-1, 0);
-    badRadCount += m_discreteFcn(i, 1) < 0;
+    badZCount += m_sorCurve(i, 0) <= m_sorCurve(i-1, 0);
+    badRadCount += m_sorCurve(i, 1) < 0;
   }
   SLIC_ERROR_IF(badZCount || badRadCount,
                 axom::fmt::format("SorClipper '{}' has {} non-monotonically-increasing z-coordinates and {} negative radii", m_name, badZCount, badRadCount));
@@ -200,14 +200,14 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   Currently, we have just 1 box under the curve, but we code for
   future arrays of boxes to be more discriminating.
   - m_bbOn has 3 boxes.  One for the base plane, one for the top
-    plane and one for the m_discreteFcn curve.
-  - m_bbUnder has only the boxes under m_discreteFcn.
+    plane and one for the m_sorCurve curve.
+  - m_bbUnder has only the boxes under m_sorCurve.
 */
 void SorClipper::computeRoughBlockings()
 {
-  const axom::IndexType topI = m_discreteFcn.shape()[0] - 1;
-  const Point2DType basePt({m_discreteFcn(0, 0), m_discreteFcn(0, 1)});
-  const Point2DType topPt({m_discreteFcn(topI, 0), m_discreteFcn(topI, 1)});
+  const axom::IndexType topI = m_sorCurve.shape()[0] - 1;
+  const Point2DType basePt({m_sorCurve(0, 0), m_sorCurve(0, 1)});
+  const Point2DType topPt({m_sorCurve(topI, 0), m_sorCurve(topI, 1)});
 
   m_bbOn.resize(3);
   m_bbOn[0].addPoint(Point2DType{basePt[0], m_minRadius});
@@ -255,7 +255,7 @@ bool SorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Oc
 
   // Generate the Octahedra
   int octCount = 0;
-  axom::ArrayView<Point2D> polyline((Point2D*)m_discreteFcn.data(), m_discreteFcn.shape()[0]);
+  axom::ArrayView<Point2D> polyline((Point2D*)m_sorCurve.data(), m_sorCurve.shape()[0]);
   const bool good = axom::quest::discretize<axom::SEQ_EXEC>(polyline,
                                                             int(polyline.size()),
                                                             m_levelOfRefinement,
@@ -307,10 +307,10 @@ void SorClipper::extractClipperInfo()
       "***SorClipper: Discrete function must have an even number of values.  It has {}.",
       n));
 
-  m_discreteFcn.resize(axom::ArrayOptions::Uninitialized(), n / 2, 2);
+  m_sorCurve.resize(axom::ArrayOptions::Uninitialized(), n / 2, 2);
   for(int i = 0; i < n; ++i)
   {
-    m_discreteFcn.flatIndex(i) = discreteFunctionArray[i];
+    m_sorCurve.flatIndex(i) = discreteFunctionArray[i];
   }
 
   m_levelOfRefinement = m_info.fetch_existing("levelOfRefinement").to_double();
