@@ -4,12 +4,12 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "MIRApplication.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
 
 #include <conduit_relay_mpi_io_blueprint.hpp>
 #include <mpi.h>
 
-namespace bputils = axom::mir::utilities::blueprint;
+namespace utils = axom::bump::utilities;
 
 /*!
  * \brief Create a derived application class that overrides some behaviors for parallel.
@@ -50,8 +50,8 @@ protected:
     // We'll translate the X,Y coordinates for the domain.
     const float xShift = static_cast<float>(domI * gridSize);
     const float yShift = static_cast<float>(domJ * gridSize);
-    auto xcView = bputils::make_array_view<float>(n_mesh["coordsets/coords/values/x"]);
-    auto ycView = bputils::make_array_view<float>(n_mesh["coordsets/coords/values/y"]);
+    auto xcView = utils::make_array_view<float>(n_mesh["coordsets/coords/values/x"]);
+    auto ycView = utils::make_array_view<float>(n_mesh["coordsets/coords/values/y"]);
     for(axom::IndexType i = 0; i < xcView.size(); i++)
     {
       xcView[i] += xShift;
@@ -61,7 +61,7 @@ protected:
     if(dimension == 3)
     {
       const float zShift = static_cast<float>(domK * gridSize);
-      auto zcView = bputils::make_array_view<float>(n_mesh["coordsets/coords/values/z"]);
+      auto zcView = utils::make_array_view<float>(n_mesh["coordsets/coords/values/z"]);
       for(axom::IndexType i = 0; i < xcView.size(); i++)
       {
         zcView[i] += zShift;

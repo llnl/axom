@@ -696,12 +696,38 @@
  */
   #define SLIC_DEBUG_ROOT_IF(EXP, msg) SLIC_DEBUG_IF((EXP) && (axom::slic::isRoot()), msg)
 
+  /*!
+ * \def SLIC_DEBUG_PRINT_CONTAINER( name, container )
+ * \brief Logs a Debug message containing the contents of the container, moving
+ *        the contents to the host if needed.
+ *
+ * \param [in] name The name of the container in the printed message.
+ * \param [in] container The container (array, vector, view).
+ *
+ * \note The SLIC_DEBUG_PRINT_CONTAINER macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   axom::ArrayView<int> dataView;
+ *   SLIC_DEBUG_PRINT_CONTAINER( "dataView", dataView );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_PRINT_CONTAINER(name, container)                                      \
+    do                                                                                     \
+    {                                                                                      \
+      std::ostringstream __oss;                                                            \
+      axom::slic::detail::printContainer(__oss, name, container);                          \
+      axom::slic::logMessage(axom::slic::message::Debug, __oss.str(), __FILE__, __LINE__); \
+    } while(axom::slic::detail::false_value)
+
 #else  // turn off debug macros
 
   #define SLIC_DEBUG(ignore_EXP) ((void)0)
   #define SLIC_DEBUG_IF(ignore_EXP, ignore_msg) ((void)0)
   #define SLIC_DEBUG_ROOT(ignore_EXP) ((void)0)
   #define SLIC_DEBUG_ROOT_IF(ignore_EXP, ignore_msg) ((void)0)
+  #define SLIC_DEBUG_PRINT_CONTAINER(ignore_name, ignore_container) ((void)0)
 
 #endif
 

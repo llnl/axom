@@ -771,6 +771,11 @@ INPUT                  = @PROJECT_SOURCE_DIR@/axom/doxygen_mainpage.md \
                          @PROJECT_SOURCE_DIR@/axom/core \
                          @PROJECT_SOURCE_DIR@/axom/core/utilities \
                          @PROJECT_SOURCE_DIR@/axom/core/numerics \
+                         @PROJECT_SOURCE_DIR@/axom/bump/ \
+                         @PROJECT_SOURCE_DIR@/axom/bump/doxygen_mainpage.md \
+                         @PROJECT_SOURCE_DIR@/axom/bump/clipping \
+                         @PROJECT_SOURCE_DIR@/axom/bump/utilities \
+                         @PROJECT_SOURCE_DIR@/axom/bump/views \
                          @PROJECT_SOURCE_DIR@/axom/klee \
                          @PROJECT_SOURCE_DIR@/axom/klee/doxygen_mainpage.md \
                          @PROJECT_SOURCE_DIR@/axom/core/execution \
@@ -788,9 +793,6 @@ INPUT                  = @PROJECT_SOURCE_DIR@/axom/doxygen_mainpage.md \
                          @PROJECT_SOURCE_DIR@/axom/mint/execution \
                          @PROJECT_SOURCE_DIR@/axom/mir/doxygen_mainpage.md \
                          @PROJECT_SOURCE_DIR@/axom/mir/ \
-                         @PROJECT_SOURCE_DIR@/axom/mir/clipping \
-                         @PROJECT_SOURCE_DIR@/axom/mir/utilities \
-                         @PROJECT_SOURCE_DIR@/axom/mir/views \
                          @PROJECT_SOURCE_DIR@/axom/multimat/doxygen_mainpage.md \
                          @PROJECT_SOURCE_DIR@/axom/multimat \
                          @PROJECT_SOURCE_DIR@/axom/primal/doxygen_mainpage.md \

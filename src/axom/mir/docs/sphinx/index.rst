@@ -13,9 +13,6 @@ meshes. The algorithms take Blueprint meshes
 containing a coordset, topology, and matset as input and they output a new Blueprint
 node with a new coordset, topology, and matset that contains at most 1 material per zone.
 
-The MIR component also contains some useful components that can be used to develop
-other algorithms that process Blueprint meshes.
-
 
 API Documentation
 -----------------
@@ -28,7 +25,3 @@ Doxygen generated API documentation can be found here: `API documentation <../..
    :maxdepth: 1
 
    mir_algorithms
-   mir_views
-   mir_clipping
-   mir_utilities
-   mir_building_blueprint

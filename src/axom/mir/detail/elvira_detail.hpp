@@ -7,11 +7,13 @@
 
 // Most includes happen in the ElviraAlgorithm.hpp header file that includes this file.
 
-#include "axom/mir/utilities/ExtractZones.hpp"
-#include "axom/mir/utilities/ExtractZonesAndMatsetPolyhedral.hpp"
-#include "axom/mir/utilities/MergeCoordsetPoints.hpp"
-#include "axom/mir/utilities/MergePolyhedralFaces.hpp"
-#include "axom/mir/views/dispatch_coordset.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/conduit_traits.hpp"
+#include "axom/bump/ExtractZones.hpp"
+#include "axom/bump/ExtractZonesAndMatsetPolyhedral.hpp"
+#include "axom/bump/MergeCoordsetPoints.hpp"
+#include "axom/bump/MergePolyhedralFaces.hpp"
+#include "axom/bump/views/dispatch_coordset.hpp"
 
 #include <sstream>
 #include <iomanip>
@@ -26,7 +28,7 @@ namespace mir
  * \brief This class provides a kind of schema over the MIR options, as well
  *        as default values, and some utilities functions.
  */
-class ELVIRAOptions : public axom::mir::MIROptions
+class ELVIRAOptions : public axom::bump::Options
 {
 public:
   /**
@@ -34,7 +36,7 @@ public:
    *
    * \param options The node that contains the clipping options.
    */
-  ELVIRAOptions(const conduit::Node &options) : axom::mir::MIROptions(options) { }
+  ELVIRAOptions(const conduit::Node &options) : axom::bump::Options(options) { }
 
   /**
    * \brief Get whether the plane equation fields should appear in the output.
@@ -134,7 +136,7 @@ AXOM_HOST_DEVICE inline ClipResultType clipToVolume(const ShapeType &shape,
                                                     double tolerance,
                                                     axom::primal::Point<T, NDIMS> &pt)
 {
-  namespace bputils = axom::mir::utilities::blueprint;
+  namespace utils = axom::bump::utilities;
   // The range for the interval
   axom::primal::Point<T, NDIMS> range[2] = {_range[0], _range[1]};
   // This array holds the volumes for the interval.
@@ -163,7 +165,7 @@ AXOM_HOST_DEVICE inline ClipResultType clipToVolume(const ShapeType &shape,
     clippedShape = axom::primal::clip(shape, P);
 
     // Find the volume of the clipped shape.
-    const double fragmentVolume = bputils::ComputeShapeAmount<NDIMS>::execute(clippedShape);
+    const double fragmentVolume = utils::ComputeShapeAmount<NDIMS>::execute(clippedShape);
     const double volumeError = axom::utilities::abs(matVolume - fragmentVolume);
 #if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
     if(ShapeType::PointType::DIMENSION < 3)
@@ -266,8 +268,8 @@ public:
                 conduit::Node &n_matset,
                 const conduit::Node &n_options)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    namespace utils = axom::bump::utilities;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     // Handle options
     ELVIRAOptions opts(n_options);
@@ -287,33 +289,33 @@ public:
     // Note that we overallocate the number of nodes to numCoordValues.
     n_coordset["type"] = "explicit";
     n_coordset["values/x"].set_allocator(c2a.getConduitAllocatorID());
-    n_coordset["values/x"].set(conduit::DataType(bputils::cpp2conduit<CoordType>::id, numCoordValues));
-    m_view.m_x = bputils::make_array_view<CoordType>(n_coordset["values/x"]);
+    n_coordset["values/x"].set(conduit::DataType(utils::cpp2conduit<CoordType>::id, numCoordValues));
+    m_view.m_x = utils::make_array_view<CoordType>(n_coordset["values/x"]);
     n_coordset["values/y"].set_allocator(c2a.getConduitAllocatorID());
-    n_coordset["values/y"].set(conduit::DataType(bputils::cpp2conduit<CoordType>::id, numCoordValues));
-    m_view.m_y = bputils::make_array_view<CoordType>(n_coordset["values/y"]);
+    n_coordset["values/y"].set(conduit::DataType(utils::cpp2conduit<CoordType>::id, numCoordValues));
+    m_view.m_y = utils::make_array_view<CoordType>(n_coordset["values/y"]);
 
-    axom::mir::utilities::fill<ExecSpace>(m_view.m_x, CoordType(0));
-    axom::mir::utilities::fill<ExecSpace>(m_view.m_y, CoordType(0));
+    m_view.m_x.fill(CoordType(0));
+    m_view.m_y.fill(CoordType(0));
 
     // Set up connectivity and allocate data arrays.
     n_topology["type"] = "unstructured";
     n_topology["elements/shape"] = m_view.m_makePointMesh ? "point" : "polygonal";
     conduit::Node &n_conn = n_topology["elements/connectivity"];
     n_conn.set_allocator(c2a.getConduitAllocatorID());
-    n_conn.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numCoordValues));
-    m_view.m_connectivity = bputils::make_array_view<ConnectivityType>(n_conn);
-    axom::mir::utilities::fill<ExecSpace>(m_view.m_connectivity, ConnectivityType(0));
+    n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numCoordValues));
+    m_view.m_connectivity = utils::make_array_view<ConnectivityType>(n_conn);
+    m_view.m_connectivity.fill(ConnectivityType(0));
 
     conduit::Node &n_sizes = n_topology["elements/sizes"];
     n_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_sizes.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numFragments));
-    m_view.m_sizes = bputils::make_array_view<ConnectivityType>(n_sizes);
+    n_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numFragments));
+    m_view.m_sizes = utils::make_array_view<ConnectivityType>(n_sizes);
 
     conduit::Node &n_offsets = n_topology["elements/offsets"];
     n_offsets.set_allocator(c2a.getConduitAllocatorID());
-    n_offsets.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numFragments));
-    m_view.m_offsets = bputils::make_array_view<ConnectivityType>(n_offsets);
+    n_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numFragments));
+    m_view.m_offsets = utils::make_array_view<ConnectivityType>(n_offsets);
 
     // Make new fields.
     conduit::Node &n_origElem = n_fields[originalElementsField];
@@ -321,9 +323,8 @@ public:
     n_origElem["association"] = "element";
     conduit::Node &n_orig_elem_values = n_origElem["values"];
     n_orig_elem_values.set_allocator(c2a.getConduitAllocatorID());
-    n_orig_elem_values.set(
-      conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numFragments));
-    m_view.m_original_zones = bputils::make_array_view<ConnectivityType>(n_orig_elem_values);
+    n_orig_elem_values.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numFragments));
+    m_view.m_original_zones = utils::make_array_view<ConnectivityType>(n_orig_elem_values);
 
     if(m_view.m_makePlane)
     {
@@ -333,48 +334,48 @@ public:
       conduit::Node &n_x = n_normal["values/x"];
       conduit::Node &n_y = n_normal["values/y"];
       n_x.set_allocator(c2a.getConduitAllocatorID());
-      n_x.set(conduit::DataType(bputils::cpp2conduit<double>::id, numFragments));
-      m_view.m_norm_x = bputils::make_array_view<double>(n_x);
+      n_x.set(conduit::DataType(utils::cpp2conduit<double>::id, numFragments));
+      m_view.m_norm_x = utils::make_array_view<double>(n_x);
       n_y.set_allocator(c2a.getConduitAllocatorID());
-      n_y.set(conduit::DataType(bputils::cpp2conduit<double>::id, numFragments));
-      m_view.m_norm_y = bputils::make_array_view<double>(n_y);
+      n_y.set(conduit::DataType(utils::cpp2conduit<double>::id, numFragments));
+      m_view.m_norm_y = utils::make_array_view<double>(n_y);
 
       conduit::Node &n_planeOffset = n_fields["offset"];
       n_planeOffset["topology"] = n_topology.name();
       n_planeOffset["association"] = "element";
       conduit::Node &n_values = n_planeOffset["values"];
       n_values.set_allocator(c2a.getConduitAllocatorID());
-      n_values.set(conduit::DataType(bputils::cpp2conduit<double>::id, numFragments));
-      m_view.m_plane_offset = bputils::make_array_view<double>(n_values);
+      n_values.set(conduit::DataType(utils::cpp2conduit<double>::id, numFragments));
+      m_view.m_plane_offset = utils::make_array_view<double>(n_values);
     }
 
     // Set up new matset. All of the sizes are numFragments because we're making clean zones.
     n_matset["topology"] = n_topology.name();
     conduit::Node &n_volume_fractions = n_matset["volume_fractions"];
     n_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
-    n_volume_fractions.set(conduit::DataType(bputils::cpp2conduit<MaterialVF>::id, numFragments));
-    m_view.m_volume_fractions = bputils::make_array_view<MaterialVF>(n_volume_fractions);
+    n_volume_fractions.set(conduit::DataType(utils::cpp2conduit<MaterialVF>::id, numFragments));
+    m_view.m_volume_fractions = utils::make_array_view<MaterialVF>(n_volume_fractions);
 
     conduit::Node &n_material_ids = n_matset["material_ids"];
     n_material_ids.set_allocator(c2a.getConduitAllocatorID());
-    n_material_ids.set(conduit::DataType(bputils::cpp2conduit<MaterialID>::id, numFragments));
-    m_view.m_material_ids = bputils::make_array_view<MaterialID>(n_material_ids);
+    n_material_ids.set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, numFragments));
+    m_view.m_material_ids = utils::make_array_view<MaterialID>(n_material_ids);
 
     conduit::Node &n_indices = n_matset["indices"];
     n_indices.set_allocator(c2a.getConduitAllocatorID());
-    n_indices.set(conduit::DataType(bputils::cpp2conduit<MaterialID>::id, numFragments));
-    m_view.m_mat_indices = bputils::make_array_view<MaterialID>(n_indices);
+    n_indices.set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, numFragments));
+    m_view.m_mat_indices = utils::make_array_view<MaterialID>(n_indices);
 
     conduit::Node &n_mat_sizes = n_matset["sizes"];
     n_mat_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_mat_sizes.set(conduit::DataType(bputils::cpp2conduit<MaterialID>::id, numFragments));
-    m_view.m_mat_sizes = bputils::make_array_view<MaterialID>(n_mat_sizes);
-    axom::mir::utilities::fill<ExecSpace>(m_view.m_mat_sizes, MaterialID(0));
+    n_mat_sizes.set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, numFragments));
+    m_view.m_mat_sizes = utils::make_array_view<MaterialID>(n_mat_sizes);
+    m_view.m_mat_sizes.fill(MaterialID(0));
 
     conduit::Node &n_mat_offsets = n_matset["offsets"];
     n_mat_offsets.set_allocator(c2a.getConduitAllocatorID());
-    n_mat_offsets.set(conduit::DataType(bputils::cpp2conduit<MaterialID>::id, numFragments));
-    m_view.m_mat_offsets = bputils::make_array_view<MaterialID>(n_mat_offsets);
+    n_mat_offsets.set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, numFragments));
+    m_view.m_mat_offsets = utils::make_array_view<MaterialID>(n_mat_offsets);
   }
 
   /*!
@@ -545,8 +546,8 @@ public:
                 conduit::Node &n_matset,
                 const conduit::Node &n_options)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    namespace utils = axom::bump::utilities;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
 
     // Handle options
     ELVIRAOptions opts(n_options);
@@ -566,18 +567,18 @@ public:
       m_view.m_makePointMesh ? numFragments : (numFragments * m_view.m_MAX_POINTS_PER_FRAGMENT);
     n_coordset["type"] = "explicit";
     n_coordset["values/x"].set_allocator(c2a.getConduitAllocatorID());
-    n_coordset["values/x"].set(conduit::DataType(bputils::cpp2conduit<CoordType>::id, numCoordValues));
-    m_view.m_x = bputils::make_array_view<CoordType>(n_coordset["values/x"]);
+    n_coordset["values/x"].set(conduit::DataType(utils::cpp2conduit<CoordType>::id, numCoordValues));
+    m_view.m_x = utils::make_array_view<CoordType>(n_coordset["values/x"]);
     n_coordset["values/y"].set_allocator(c2a.getConduitAllocatorID());
-    n_coordset["values/y"].set(conduit::DataType(bputils::cpp2conduit<CoordType>::id, numCoordValues));
-    m_view.m_y = bputils::make_array_view<CoordType>(n_coordset["values/y"]);
+    n_coordset["values/y"].set(conduit::DataType(utils::cpp2conduit<CoordType>::id, numCoordValues));
+    m_view.m_y = utils::make_array_view<CoordType>(n_coordset["values/y"]);
     n_coordset["values/z"].set_allocator(c2a.getConduitAllocatorID());
-    n_coordset["values/z"].set(conduit::DataType(bputils::cpp2conduit<CoordType>::id, numCoordValues));
-    m_view.m_z = bputils::make_array_view<CoordType>(n_coordset["values/z"]);
+    n_coordset["values/z"].set(conduit::DataType(utils::cpp2conduit<CoordType>::id, numCoordValues));
+    m_view.m_z = utils::make_array_view<CoordType>(n_coordset["values/z"]);
 
-    axom::mir::utilities::fill<ExecSpace>(m_view.m_x, CoordType(0));
-    axom::mir::utilities::fill<ExecSpace>(m_view.m_y, CoordType(0));
-    axom::mir::utilities::fill<ExecSpace>(m_view.m_z, CoordType(0));
+    m_view.m_x.fill(CoordType(0));
+    m_view.m_y.fill(CoordType(0));
+    m_view.m_z.fill(CoordType(0));
 
     // elements (zone definitions)
     constexpr ConnectivityType UnusedValue = axom::numeric_limits<ConnectivityType>::is_signed
@@ -590,19 +591,19 @@ public:
       n_topology["elements/shape"] = m_view.m_makePointMesh ? "point" : "polyhedral";
       conduit::Node &n_conn = n_topology["elements/connectivity"];
       n_conn.set_allocator(c2a.getConduitAllocatorID());
-      n_conn.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numConnValues));
-      m_view.m_connectivity = bputils::make_array_view<ConnectivityType>(n_conn);
-      axom::mir::utilities::fill<ExecSpace>(m_view.m_connectivity, UnusedValue);
+      n_conn.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numConnValues));
+      m_view.m_connectivity = utils::make_array_view<ConnectivityType>(n_conn);
+      m_view.m_connectivity.fill(UnusedValue);
 
       conduit::Node &n_sizes = n_topology["elements/sizes"];
       n_sizes.set_allocator(c2a.getConduitAllocatorID());
-      n_sizes.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numFragments));
-      m_view.m_sizes = bputils::make_array_view<ConnectivityType>(n_sizes);
+      n_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numFragments));
+      m_view.m_sizes = utils::make_array_view<ConnectivityType>(n_sizes);
 
       conduit::Node &n_offsets = n_topology["elements/offsets"];
       n_offsets.set_allocator(c2a.getConduitAllocatorID());
-      n_offsets.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numFragments));
-      m_view.m_offsets = bputils::make_array_view<ConnectivityType>(n_offsets);
+      n_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numFragments));
+      m_view.m_offsets = utils::make_array_view<ConnectivityType>(n_offsets);
     }
 
     // subelements (face definitions)
@@ -612,24 +613,24 @@ public:
       conduit::Node &n_se_conn = n_topology["subelements/connectivity"];
       n_se_conn.set_allocator(c2a.getConduitAllocatorID());
       n_se_conn.set(conduit::DataType(
-        bputils::cpp2conduit<ConnectivityType>::id,
+        utils::cpp2conduit<ConnectivityType>::id,
         numFragments * m_view.m_MAX_FACES_PER_FRAGMENT * m_view.m_MAX_POINTS_PER_FACE));
-      m_view.m_subelement_connectivity = bputils::make_array_view<ConnectivityType>(n_se_conn);
-      axom::mir::utilities::fill<ExecSpace>(m_view.m_subelement_connectivity, UnusedValue);
+      m_view.m_subelement_connectivity = utils::make_array_view<ConnectivityType>(n_se_conn);
+      m_view.m_subelement_connectivity.fill(UnusedValue);
 
       conduit::Node &n_se_sizes = n_topology["subelements/sizes"];
       n_se_sizes.set_allocator(c2a.getConduitAllocatorID());
-      n_se_sizes.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id,
+      n_se_sizes.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
                                        numFragments * m_view.m_MAX_FACES_PER_FRAGMENT));
-      m_view.m_subelement_sizes = bputils::make_array_view<ConnectivityType>(n_se_sizes);
-      axom::mir::utilities::fill<ExecSpace>(m_view.m_subelement_sizes, ConnectivityType {0});
+      m_view.m_subelement_sizes = utils::make_array_view<ConnectivityType>(n_se_sizes);
+      m_view.m_subelement_sizes.fill(ConnectivityType {0});
 
       conduit::Node &n_se_offsets = n_topology["subelements/offsets"];
       n_se_offsets.set_allocator(c2a.getConduitAllocatorID());
-      n_se_offsets.set(conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id,
+      n_se_offsets.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id,
                                          numFragments * m_view.m_MAX_FACES_PER_FRAGMENT));
-      m_view.m_subelement_offsets = bputils::make_array_view<ConnectivityType>(n_se_offsets);
-      axom::mir::utilities::fill<ExecSpace>(m_view.m_subelement_offsets, UnusedValue);
+      m_view.m_subelement_offsets = utils::make_array_view<ConnectivityType>(n_se_offsets);
+      m_view.m_subelement_offsets.fill(UnusedValue);
     }
 
     // Make new fields.
@@ -638,9 +639,8 @@ public:
     n_origElem["association"] = "element";
     conduit::Node &n_orig_elem_values = n_origElem["values"];
     n_orig_elem_values.set_allocator(c2a.getConduitAllocatorID());
-    n_orig_elem_values.set(
-      conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, numFragments));
-    m_view.m_original_zones = bputils::make_array_view<ConnectivityType>(n_orig_elem_values);
+    n_orig_elem_values.set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, numFragments));
+    m_view.m_original_zones = utils::make_array_view<ConnectivityType>(n_orig_elem_values);
 
     if(m_view.m_makePlane)
     {
@@ -651,51 +651,51 @@ public:
       conduit::Node &n_y = n_normal["values/y"];
       conduit::Node &n_z = n_normal["values/z"];
       n_x.set_allocator(c2a.getConduitAllocatorID());
-      n_x.set(conduit::DataType(bputils::cpp2conduit<double>::id, numFragments));
-      m_view.m_norm_x = bputils::make_array_view<double>(n_x);
+      n_x.set(conduit::DataType(utils::cpp2conduit<double>::id, numFragments));
+      m_view.m_norm_x = utils::make_array_view<double>(n_x);
       n_y.set_allocator(c2a.getConduitAllocatorID());
-      n_y.set(conduit::DataType(bputils::cpp2conduit<double>::id, numFragments));
-      m_view.m_norm_y = bputils::make_array_view<double>(n_y);
+      n_y.set(conduit::DataType(utils::cpp2conduit<double>::id, numFragments));
+      m_view.m_norm_y = utils::make_array_view<double>(n_y);
       n_z.set_allocator(c2a.getConduitAllocatorID());
-      n_z.set(conduit::DataType(bputils::cpp2conduit<double>::id, numFragments));
-      m_view.m_norm_z = bputils::make_array_view<double>(n_z);
+      n_z.set(conduit::DataType(utils::cpp2conduit<double>::id, numFragments));
+      m_view.m_norm_z = utils::make_array_view<double>(n_z);
 
       conduit::Node &n_planeOffset = n_fields["offset"];
       n_planeOffset["topology"] = n_topology.name();
       n_planeOffset["association"] = "element";
       conduit::Node &n_values = n_planeOffset["values"];
       n_values.set_allocator(c2a.getConduitAllocatorID());
-      n_values.set(conduit::DataType(bputils::cpp2conduit<double>::id, numFragments));
-      m_view.m_plane_offset = bputils::make_array_view<double>(n_values);
+      n_values.set(conduit::DataType(utils::cpp2conduit<double>::id, numFragments));
+      m_view.m_plane_offset = utils::make_array_view<double>(n_values);
     }
 
     // Set up new matset. All of the sizes are numFragments because we're making clean zones.
     n_matset["topology"] = n_topology.name();
     conduit::Node &n_volume_fractions = n_matset["volume_fractions"];
     n_volume_fractions.set_allocator(c2a.getConduitAllocatorID());
-    n_volume_fractions.set(conduit::DataType(bputils::cpp2conduit<MaterialVF>::id, numFragments));
-    m_view.m_volume_fractions = bputils::make_array_view<MaterialVF>(n_volume_fractions);
+    n_volume_fractions.set(conduit::DataType(utils::cpp2conduit<MaterialVF>::id, numFragments));
+    m_view.m_volume_fractions = utils::make_array_view<MaterialVF>(n_volume_fractions);
 
     conduit::Node &n_material_ids = n_matset["material_ids"];
     n_material_ids.set_allocator(c2a.getConduitAllocatorID());
-    n_material_ids.set(conduit::DataType(bputils::cpp2conduit<MaterialID>::id, numFragments));
-    m_view.m_material_ids = bputils::make_array_view<MaterialID>(n_material_ids);
+    n_material_ids.set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, numFragments));
+    m_view.m_material_ids = utils::make_array_view<MaterialID>(n_material_ids);
 
     conduit::Node &n_indices = n_matset["indices"];
     n_indices.set_allocator(c2a.getConduitAllocatorID());
-    n_indices.set(conduit::DataType(bputils::cpp2conduit<MaterialID>::id, numFragments));
-    m_view.m_mat_indices = bputils::make_array_view<MaterialID>(n_indices);
+    n_indices.set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, numFragments));
+    m_view.m_mat_indices = utils::make_array_view<MaterialID>(n_indices);
 
     conduit::Node &n_mat_sizes = n_matset["sizes"];
     n_mat_sizes.set_allocator(c2a.getConduitAllocatorID());
-    n_mat_sizes.set(conduit::DataType(bputils::cpp2conduit<MaterialID>::id, numFragments));
-    m_view.m_mat_sizes = bputils::make_array_view<MaterialID>(n_mat_sizes);
-    axom::mir::utilities::fill<ExecSpace>(m_view.m_mat_sizes, MaterialID(0));
+    n_mat_sizes.set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, numFragments));
+    m_view.m_mat_sizes = utils::make_array_view<MaterialID>(n_mat_sizes);
+    m_view.m_mat_sizes.fill(MaterialID(0));
 
     conduit::Node &n_mat_offsets = n_matset["offsets"];
     n_mat_offsets.set_allocator(c2a.getConduitAllocatorID());
-    n_mat_offsets.set(conduit::DataType(bputils::cpp2conduit<MaterialID>::id, numFragments));
-    m_view.m_mat_offsets = bputils::make_array_view<MaterialID>(n_mat_offsets);
+    n_mat_offsets.set(conduit::DataType(utils::cpp2conduit<MaterialID>::id, numFragments));
+    m_view.m_mat_offsets = utils::make_array_view<MaterialID>(n_mat_offsets);
   }
 
   /*!
@@ -896,18 +896,19 @@ public:
       return;
     }
 
-    // _mir_utilities_mergecoordsetpoints_begin
-    namespace bputils = axom::mir::utilities::blueprint;
+    // _bump_utilities_mergecoordsetpoints_begin
+    namespace utils = axom::bump::utilities;
     axom::Array<axom::IndexType> old2new;
 
     auto newCoordsetView =
-      axom::mir::views::make_explicit_coordset<CoordType, CoordsetView::dimension()>::view(n_coordset);
+      axom::bump::views::make_explicit_coordset<CoordType, CoordsetView::dimension()>::view(
+        n_coordset);
     using NewCoordsetView = decltype(newCoordsetView);
-    bputils::MergeCoordsetPoints<ExecSpace, NewCoordsetView> mcp(newCoordsetView);
+    axom::bump::MergeCoordsetPoints<ExecSpace, NewCoordsetView> mcp(newCoordsetView);
     conduit::Node n_mcp_options;
     n_mcp_options["tolerance"] = point_tolerance;
     const bool merged = mcp.execute(n_coordset, n_mcp_options, selectedIds, old2new);
-    // _mir_utilities_mergecoordsetpoints_end
+    // _bump_utilities_mergecoordsetpoints_end
 
     // Changing the coordset changed the nodes so we need to change the subelement/connectivity.
     // Traverse it using sizes/offsets in case some of the connectivity values are being skipped.
@@ -918,9 +919,9 @@ public:
       const conduit::Node &n_se_sizes = n_topology["subelements/sizes"];
       const conduit::Node &n_se_offsets = n_topology["subelements/offsets"];
 
-      auto se_conn = bputils::make_array_view<ConnectivityType>(n_se_conn);
-      const auto se_sizes = bputils::make_array_view<ConnectivityType>(n_se_sizes);
-      const auto se_offsets = bputils::make_array_view<ConnectivityType>(n_se_offsets);
+      auto se_conn = utils::make_array_view<ConnectivityType>(n_se_conn);
+      const auto se_sizes = utils::make_array_view<ConnectivityType>(n_se_sizes);
+      const auto se_offsets = utils::make_array_view<ConnectivityType>(n_se_offsets);
       auto old2newView = old2new.view();
       axom::for_all<ExecSpace>(
         se_sizes.size(),
@@ -936,7 +937,7 @@ public:
     }
 
     // Now merge any faces that can be merged.
-    bputils::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_topology);
+    axom::bump::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(n_topology);
   }
 
 private:
@@ -975,10 +976,8 @@ struct MakeCleanZones
                       const MatsetView &matsetView,
                       conduit::Node &n_cleanOutput)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
-
     // Make the clean mesh.
-    bputils::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView> ez(
+    axom::bump::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView> ez(
       topologyView,
       coordsetView,
       matsetView);
@@ -1019,13 +1018,12 @@ struct MakeCleanZones<ExecSpace, TopologyView, CoordsetView, MatsetView, 3>
                       const MatsetView &matsetView,
                       conduit::Node &n_cleanOutput)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
     using IndexingPolicy = typename TopologyView::IndexingPolicy;
 
     // Make the clean mesh. We directly make polyhedral output so we can skip
     // mesh improvement stages later when we merge the output with the mixed
     // zone polyhedra.
-    bputils::ExtractZonesAndMatsetPolyhedral<ExecSpace, IndexingPolicy, CoordsetView, MatsetView> ez(
+    axom::bump::ExtractZonesAndMatsetPolyhedral<ExecSpace, IndexingPolicy, CoordsetView, MatsetView> ez(
       topologyView,
       coordsetView,
       matsetView);
