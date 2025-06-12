@@ -211,6 +211,12 @@ void Lumberjack::combineMessages()
   std::vector<Message*> finalMessages;
   std::vector<int> indexesToBeDeleted;
   int combinersSize = (int)m_combiners.size();
+
+  if(combinersSize == 0)
+  {
+    return;
+  }
+
   bool combinedMessage = false;
   finalMessages.push_back(m_messages[0]);
   for(int allIndex = 1; allIndex < messagesSize; ++allIndex)

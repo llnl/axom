@@ -48,6 +48,39 @@ private:
   bool m_isOutputNode;
 };
 
+TEST(lumberjack_Lumberjack, combineMessagesNoCombiners)
+{
+  int ranksLimit = 5;
+  TestCommunicator communicator;
+  communicator.initialize(MPI_COMM_NULL, ranksLimit);
+  axom::lumberjack::Lumberjack lumberjack;
+  lumberjack.initialize(&communicator, ranksLimit);
+
+  // Remove default combiner (no combiners now)
+  lumberjack.removeCombiner("TextTagCombiner");
+
+  lumberjack.queueMessage("Should not be combined.");
+  lumberjack.queueMessage("Should not be combined.");
+  lumberjack.queueMessage("Should not be combined.");
+  lumberjack.queueMessage("Should not be combined.");
+  lumberjack.queueMessage("Should not be combined.");
+
+  lumberjack.pushMessagesOnce();
+
+  std::vector<axom::lumberjack::Message*> messages = lumberjack.getMessages();
+
+  EXPECT_EQ((int)messages.size(), 5);
+
+  for(auto message : messages)
+  {
+    EXPECT_EQ(message->text(), "Should not be combined.");
+    EXPECT_EQ(message->count(), 1);
+  }
+
+  lumberjack.finalize();
+  communicator.finalize();
+}
+
 TEST(lumberjack_Lumberjack, combineMessagesPushOnce01)
 {
   int ranksLimit = 5;
