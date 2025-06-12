@@ -1,9 +1,9 @@
 import os
 import socket
 
-from spack import *
 from spack.package import *
-from spack.build_systems.cmake import CMakeBuilder
+from spack_repo.builtin.build_systems.cmake import CMakePackage
+from spack_repo.builtin.build_systems.cmake import CMakeBuilder
 
 class C2c(CMakePackage):
     """Contour Parser Library"""
