@@ -35,7 +35,7 @@ namespace detail
  * \return status true iff R intersects with S, otherwise, false.
  */
 template <typename T>
-inline bool intersect_ray(const primal::Ray<T, 2>& R,
+AXOM_HOST_DEVICE inline bool intersect_ray(const primal::Ray<T, 2>& R,
                           const primal::Segment<T, 2>& S,
                           T& ray_param,
                           T& seg_param,

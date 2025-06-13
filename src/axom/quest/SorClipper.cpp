@@ -45,9 +45,10 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   m_transformer.addTranslation(m_sorOrigin.array());
   m_transformer.addMatrix(m_extTrans);
 
-  axom::for_all<axom::SEQ_EXEC>(m_sorCurve.shape()[0],
-                                AXOM_LAMBDA(axom::IndexType i)
-                                { m_curveBb.addPoint(m_sorCurve[i]); });
+  for(const auto& pt : m_sorCurve)
+  {
+    m_curveBb.addPoint(pt);
+  }
 
   m_inverseTransformer = m_transformer.getInverse();
 
@@ -142,8 +143,14 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
     Construct BVH for those boxes.
   */
   axom::Array<Point2DType> sorCurve;
+  axom::Array<Point2DType> sorCurveTmp;
   axom::ArrayView<Point2DType> sorCurveView =
-    getCurveWithAxisPoints(sorCurve) ? sorCurve.view() : m_sorCurve.view();
+    getCurveWithAxisPoints(sorCurveTmp) ? sorCurveTmp.view() : m_sorCurve.view();
+  if(!axom::execution_space<ExecSpace>::usesAllocId(sorCurveView.getAllocatorID()))
+  {
+    sorCurve = axom::Array<Point2DType>(sorCurveView, allocId);
+    sorCurveView = sorCurve.view();
+  }
 
   const axom::IndexType segCount = sorCurveView.size() - 1;
   axom::Array<Segment2DType> segs(segCount, segCount, allocId);
@@ -161,7 +168,7 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
       segBb.addPoint(seg[1]);
     });
 
-  spin::BVH<2, ExecSpace, double> bvh(segBbs, segBbs.size(), allocId);
+  spin::BVH<2, ExecSpace, double> bvh(segBbsView, segBbsView.size(), allocId);
 
   BoundingBox2DType curveBb = bvh.getBounds();
 
@@ -197,7 +204,7 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
       for(axom::IndexType j=candidatesBegin; j<candidatesEnd; ++j)
       {
         axom::IndexType candidateIdx = candidatesView[j];
-        const auto& candidateSeg = segs[candidateIdx];
+        const auto& candidateSeg = segsView[candidateIdx];
         if(axom::primal::intersect(candidateSeg, cellBbInRz))
         {
           labelsView[i] = LABEL_ON;
