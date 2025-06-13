@@ -693,7 +693,7 @@ axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds)
 
 axom::klee::Geometry createGeometry_Sor(axom::primal::Point<double, 3>& sorBase,
                                         axom::primal::Vector<double, 3>& sorDirection,
-                                        axom::Array<double, 2>& discreteFunction,
+                                        axom::ArrayView<const double, 2> discreteFunction,
                                         std::shared_ptr<axom::klee::CompositeOperator>& compositeOp)
 {
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,

@@ -516,7 +516,7 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string&
 
 axom::klee::Geometry createGeometry_Sor(axom::primal::Point<double, 3>& sorBase,
                                         axom::primal::Vector<double, 3>& sorDirection,
-                                        axom::Array<double, 2>& discreteFunction,
+                                        axom::ArrayView<const double, 2> discreteFunction,
                                         std::shared_ptr<axom::klee::CompositeOperator>& compositeOp)
 {
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
@@ -532,7 +532,7 @@ axom::klee::Geometry createGeometry_Sor(axom::primal::Point<double, 3>& sorBase,
   return sorGeometry;
 }
 
-double computeVolume_Sor(axom::Array<double, 2>& discreteFunction)
+double computeVolume_Sor(axom::ArrayView<const double, 2> discreteFunction)
 {
   using ConeType = axom::primal::Cone<double, 3>;
   axom::IndexType segmentCount = discreteFunction.shape()[0];
@@ -553,26 +553,27 @@ axom::klee::Geometry createGeom_Sor(const std::string& geomName)
   axom::primal::Vector<double, 3> sorDirection = params.direction.empty()
     ? primal::Vector3D {1.0, 0.0, 0.0}
     : primal::Vector3D {params.direction.data()};
-  const int numIntervals = 5;
-  // discreteFunction are discrete z-r pairs describing the function
+  // discreteFunction is discrete z-r pairs describing the function
   // to be rotated around the z axis.
-  axom::Array<double, 2> discreteFunction({numIntervals + 1, 2}, axom::ArrayStrideOrder::ROW);
+  const int numIntervals = 5;
+  axom::Array<double, 2> discretePts({numIntervals + 1, 2}, axom::ArrayStrideOrder::ROW);
   double zLen = params.length < 0 ? 2.40: params.length;
   double zShift = -zLen / 2;
   double maxR = params.radius < 0 ? 1.10 : params.radius;
   double dz = zLen / numIntervals;
-  discreteFunction(0, 0) = 0 * dz + zShift;
-  discreteFunction(0, 1) = 0.0 * maxR;
-  discreteFunction(1, 0) = 1 * dz + zShift;
-  discreteFunction(1, 1) = 0.8 * maxR;
-  discreteFunction(2, 0) = 2 * dz + zShift;
-  discreteFunction(2, 1) = 0.4 * maxR;
-  discreteFunction(3, 0) = 3 * dz + zShift;
-  discreteFunction(3, 1) = 0.5 * maxR;
-  discreteFunction(4, 0) = 4 * dz + zShift;
-  discreteFunction(4, 1) = 1.0 * maxR;
-  discreteFunction(5, 0) = 5 * dz + zShift;
-  discreteFunction(5, 1) = 1.0 * maxR;
+  discretePts(0, 0) = 0 * dz + zShift;
+  discretePts(0, 1) = 0.0 * maxR;
+  discretePts(1, 0) = 1 * dz + zShift;
+  discretePts(1, 1) = 0.8 * maxR;
+  discretePts(2, 0) = 2 * dz + zShift;
+  discretePts(2, 1) = 0.4 * maxR;
+  discretePts(3, 0) = 3 * dz + zShift;
+  discretePts(3, 1) = 0.5 * maxR;
+  discretePts(4, 0) = 4 * dz + zShift;
+  discretePts(4, 1) = 1.0 * maxR;
+  discretePts(5, 0) = 5 * dz + zShift;
+  discretePts(5, 1) = 1.0 * maxR;
+  axom::ArrayView<const double, 2> discreteFunction = discretePts.view();
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);

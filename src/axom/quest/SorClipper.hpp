@@ -43,6 +43,7 @@ public:
   bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
   bool getGeometryAsOcts(quest::ShapeeMesh& shappeMesh, axom::Array<OctahedronType>& octs) override;
+  bool getCurveWithAxisPoints(axom::Array<Point2DType>& curveWithAxisPoints);
 
 #if !defined(__CUDACC__)
 private:
@@ -56,7 +57,7 @@ private:
     It may include points on each end to connect the curve to
     the axis of rotation.
   */
-  axom::Array<double, 2> m_sorCurve;
+  axom::Array<Point2DType> m_sorCurve;
 
   //! @brief Bounding box of points in m_sorCurve;
   BoundingBox2DType m_curveBb;

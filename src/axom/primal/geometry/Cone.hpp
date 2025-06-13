@@ -133,7 +133,10 @@ public:
   }
 
   /*!
-   \brief Returns the volume of the cone
+   \brief Returns the algebraic volume of the cone
+
+   The volume returned is non-negative when the top-z coordinate
+   is larger than the base-z coordinate.  Otherwise, it's negative.
 
    Volume is only defined when NDIMS == 3.
   */
@@ -158,8 +161,6 @@ private:
   {
     SLIC_ASSERT(m_baseRadius >= 0.0);
     SLIC_ASSERT(m_topRadius >= 0.0);
-    SLIC_ASSERT(m_baseZ >= 0.0);
-    SLIC_ASSERT(m_topZ >= m_baseZ);
   }
 };
 

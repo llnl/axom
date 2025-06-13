@@ -269,6 +269,28 @@ bool intersect(const Ray<T, 2>& R, const Segment<T, 2>& S, T& ray_param)
  *
  * \param [in] R the specified ray
  * \param [in] S the segment to check
+ *
+ * \note If you need to specify a tolerance for the intersection tests, please use the overload
+ * of this function with two [OUT] parameters (\a ray_param and \a seg_param)
+ *
+ * \return status true iff R intersects with S, otherwise, false.
+ *
+ * \see primal::Ray
+ * \see primal::Segment
+ */
+template <typename T>
+bool intersect(const Ray<T, 2>& R, const Segment<T, 2>& S)
+{
+  T ray_param;
+  T seg_param;
+  return intersect(R, S, ray_param, seg_param);
+}
+
+/*!
+ * \brief Computes the intersection of the given ray, R, with the segment, S.
+ *
+ * \param [in] R the specified ray
+ * \param [in] S the segment to check
  * \param [out] ip the intersection point on S, valid only if status=true.
  * \param [in] EPS tolerance for intersection tests
  *

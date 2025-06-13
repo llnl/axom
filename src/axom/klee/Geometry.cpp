@@ -94,7 +94,7 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
 }
 
 Geometry::Geometry(const TransformableGeometryProperties& startProperties,
-                   const axom::Array<double, 2>& discreteFunction,
+                   axom::ArrayView<const double, 2> discreteFunction,
                    const Point3D& sorOrigin,  // surface of revolution.
                    const Vector3D& sorDirection,
                    axom::IndexType levelOfRefinement,

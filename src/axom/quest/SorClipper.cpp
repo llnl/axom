@@ -13,6 +13,7 @@
 #include "axom/primal/operators/squared_distance.hpp"
 #include "axom/quest/Discretize.hpp"
 #include "axom/quest/SorClipper.hpp"
+#include "axom/spin/BVH.hpp"
 #include "axom/fmt.hpp"
 
 #include <limits>
@@ -31,32 +32,24 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
 {
   extractClipperInfo();
 
+  for(auto& pt : m_sorCurve)
+  {
+    m_maxRadius = fmax(m_maxRadius, pt[1]);
+    m_minRadius = fmin(m_minRadius, pt[1]);
+  }
+  SLIC_ERROR_IF(m_minRadius < 0.0,
+                axom::fmt::format("SorClipper '{}' has a negative radius", m_name));
+
   // Combine internal and external rotations into m_transformer.
-  m_transformer.addTranslation(m_sorOrigin.array());
   m_transformer.addRotation(Vector3DType({1,0,0}), m_sorDirection);
+  m_transformer.addTranslation(m_sorOrigin.array());
   m_transformer.addMatrix(m_extTrans);
 
+  axom::for_all<axom::SEQ_EXEC>(m_sorCurve.shape()[0],
+                                AXOM_LAMBDA(axom::IndexType i)
+                                { m_curveBb.addPoint(m_sorCurve[i]); });
+
   m_inverseTransformer = m_transformer.getInverse();
-
-  const auto dCount = m_sorCurve.shape()[0];
-  for(axom::IndexType i=0; i<dCount; ++i)
-  {
-    m_maxRadius = fmax(m_maxRadius, m_sorCurve(i, 1));
-    m_minRadius = fmin(m_minRadius, m_sorCurve(i, 1));
-  }
-
-#ifdef AXOM_DEBUG
-  axom::IndexType badZCount = 0;
-  axom::IndexType badRadCount = m_sorCurve(0, 1) < 0;
-  for(axom::IndexType i=1; i<dCount; ++i)
-  {
-    badZCount += m_sorCurve(i, 0) <= m_sorCurve(i-1, 0);
-    badRadCount += m_sorCurve(i, 1) < 0;
-  }
-  SLIC_ERROR_IF(badZCount || badRadCount,
-                axom::fmt::format("SorClipper '{}' has {} non-monotonically-increasing z-coordinates and {} negative radii", m_name, badZCount, badRadCount));
-#endif
-
 
   computeRoughBlockings();
 }
@@ -107,14 +100,6 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   auto inverseTransformer = m_inverseTransformer;
   auto transformer = m_transformer;
 
-  axom::Array<BoundingBox2DType> bbOn(m_bbOn, allocId);
-  axom::Array<BoundingBox2DType> bbUnder(m_bbUnder, allocId);
-  auto bbOnView = bbOn.view();
-  auto bbUnderView = bbUnder.view();
-
-  auto cellLengths = shapeeMesh.getCellLengths();
-  const double lenFactor = 0.5;
-
   auto cellBbs = shapeeMesh.getCellBoundingBoxes();
   constexpr int NUM_BB_VERTS = 8;
 
@@ -126,11 +111,12 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   auto labelsView = labels.view();
 
   /*
-    Compute cell bounding boxes in rz plane, to be checked against
-    m_bbIn and m_bbsUnder.
+    Compute cell bounding boxes in rz plane, to be checked against the
+    2D curve.
   */
-  axom::Array<BoundingBox2DType> cellBbsInRz(cellBbs.size(),
-                                             cellBbs.size(),
+
+  axom::Array<BoundingBox2DType> cellBbsInRz(cellCount,
+                                             cellCount,
                                              shapeeMesh.getAllocatorID());
   auto cellBbsInRzView = cellBbsInRz.view();
   axom::for_all<ExecSpace>(
@@ -151,47 +137,93 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
       }
     });
 
+  /*
+    Compute function's segments and their bounding boxes.
+    Construct BVH for those boxes.
+  */
+  axom::Array<Point2DType> sorCurve;
+  axom::ArrayView<Point2DType> sorCurveView =
+    getCurveWithAxisPoints(sorCurve) ? sorCurve.view() : m_sorCurve.view();
+
+  const axom::IndexType segCount = sorCurveView.size() - 1;
+  axom::Array<Segment2DType> segs(segCount, segCount, allocId);
+  axom::Array<BoundingBox2DType> segBbs(segCount, segCount, allocId);
+  auto segsView = segs.view();
+  auto segBbsView = segBbs.view();
   axom::for_all<ExecSpace>(
-    cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId) {
-      const auto& cellBb = cellBbsInRzView[cellId];
-
-      /*
-        - If cellBb is close to any m_bbOn, label it ON.
-        - Else if cellBb touches any m_bbUnder, label it IN.
-          It cannot possibly be partially outside, because it
-          doesn't cross the boundary or even touch any m_bbOn.
-        - Else, label cellBb OUT.
-      */
-
-      auto& cellLabel = labelsView[cellId];
-      double sqDistThreshold = lenFactor * cellLengths[cellId];
-      sqDistThreshold = sqDistThreshold*sqDistThreshold;
-      for(const auto& bbOn : bbOnView)
-      {
-        double sqDist = axom::primal::squared_distance(cellBb, bbOn);
-        if (sqDist <= sqDistThreshold)
-        {
-          cellLabel = LABEL_ON;
-          return;
-        }
-      }
-
-      for(const auto& bbUnder : bbUnderView)
-      {
-        if(cellBb.intersectsWith(bbUnder))
-        {
-          cellLabel = LABEL_IN;
-          return;
-        }
-      }
-
-      cellLabel = LABEL_OUT;
+    segCount,
+    AXOM_LAMBDA(axom::IndexType i)
+    {
+      auto& seg = segsView[i];
+      auto& segBb = segBbsView[i];
+      seg = Segment2DType(sorCurveView[i], sorCurveView[i+1]);
+      segBb.addPoint(seg[0]);
+      segBb.addPoint(seg[1]);
     });
 
-  return;
-}
+  spin::BVH<2, ExecSpace, double> bvh(segBbs, segBbs.size(), allocId);
 
+  BoundingBox2DType curveBb = bvh.getBounds();
+
+  /*
+    Find cells intersecting the segment bounding boxes.
+    These cells are ON the SOR boundary.
+  */
+
+  axom::Array<IndexType> offsets(cellCount, cellCount, allocId);
+  axom::Array<IndexType> counts(cellCount, cellCount, allocId);
+  axom::Array<IndexType> candidates;
+  AXOM_ANNOTATE_BEGIN("bvh.findBoundingBoxes");
+  bvh.findBoundingBoxes(offsets, counts, candidates, cellCount, cellBbsInRzView);
+  AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
+
+  auto offsetsView = offsets.view();
+  auto countsView = counts.view();
+  auto candidatesView = candidates.view();
+
+  axom::for_all<ExecSpace>(
+    cellBbsInRzView.size(),
+    AXOM_LAMBDA(axom::IndexType i)
+    {
+      auto& cellBbInRz = cellBbsInRzView[i];
+      if (!cellBbInRz.intersectsWith(curveBb))
+      {
+        labelsView[i] = LABEL_OUT;
+        return;
+      }
+
+      auto candidatesBegin = offsetsView[i];
+      auto candidatesEnd = offsetsView[i] + countsView[i];
+      for(axom::IndexType j=candidatesBegin; j<candidatesEnd; ++j)
+      {
+        axom::IndexType candidateIdx = candidatesView[j];
+        const auto& candidateSeg = segs[candidateIdx];
+        if(axom::primal::intersect(candidateSeg, cellBbInRz))
+        {
+          labelsView[i] = LABEL_ON;
+          return;
+        }
+      }
+      /*
+        Cell is definitely NOT ON boundary.  Count segments above
+        the cell.  If it's even, cell is OUT, else it's IN.
+
+        Use an exhaustive search through segs.
+        Alternative if that's slow: Create rays in the r-direction,
+        from centroids, and count number of intersecting segments.
+        Use bvh.findRays to limit the search.  (This has to be done
+        in a separate loop.)
+      */
+      auto cellCentroid = cellBbInRz.getCentroid();
+      const Ray2DType radial(cellCentroid, {0.0, 1.0});
+      int intersectionCount = 0;
+      for(const auto& seg : segsView) {
+        bool intersects = axom::primal::intersect(radial, seg);
+        intersectionCount += intersects;
+      }
+      labelsView[i] = intersectionCount % 2 == 1 ? LABEL_IN : LABEL_OUT;
+    });
+}
 
 /*
   Compute m_bbOn and m_bbUnder, the boxes that block of areas
@@ -205,9 +237,9 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
 */
 void SorClipper::computeRoughBlockings()
 {
-  const axom::IndexType topI = m_sorCurve.shape()[0] - 1;
-  const Point2DType basePt({m_sorCurve(0, 0), m_sorCurve(0, 1)});
-  const Point2DType topPt({m_sorCurve(topI, 0), m_sorCurve(topI, 1)});
+  const axom::IndexType topI = m_sorCurve.size() - 1;
+  const Point2DType basePt = m_sorCurve[0];
+  const Point2DType topPt = m_sorCurve[topI];
 
   m_bbOn.resize(3);
   m_bbOn[0].addPoint(Point2DType{basePt[0], m_minRadius});
@@ -255,7 +287,7 @@ bool SorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Oc
 
   // Generate the Octahedra
   int octCount = 0;
-  axom::ArrayView<Point2D> polyline((Point2D*)m_sorCurve.data(), m_sorCurve.shape()[0]);
+  axom::ArrayView<Point2D> polyline = m_sorCurve.view();
   const bool good = axom::quest::discretize<axom::SEQ_EXEC>(polyline,
                                                             int(polyline.size()),
                                                             m_levelOfRefinement,
@@ -288,6 +320,40 @@ bool SorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Oc
   return true;
 }
 
+bool SorClipper::getCurveWithAxisPoints(axom::Array<Point2DType>& curveWithAxisPoints)
+{
+  /*
+    The function is considered a loop if the first and last points are
+    close to each other.  If not a loop, add a point to each end to
+    bring the curve down to the axis of rotation.
+  */
+  const double eps = 1e-12;
+  auto ptCount = m_sorCurve.size();
+  Point2DType firstPt =  m_sorCurve.front();
+  Point2DType lastPt = m_sorCurve.back();
+  double sep = Segment2DType(firstPt, lastPt).length();
+  bool isLoop = sep < eps;
+  if (!isLoop) {
+    bool addFirst = firstPt[1] > eps;
+    bool addLast = lastPt[1] > eps;
+    auto newPtCount = ptCount + addFirst + addLast;
+    curveWithAxisPoints = axom::Array<Point2DType>(newPtCount, newPtCount);
+    axom::copy((curveWithAxisPoints.data() + addFirst),
+               m_sorCurve.data(),
+               m_sorCurve.size() * sizeof(Point2DType));
+    if(addFirst)
+    {
+      curveWithAxisPoints.front() = Point2DType({firstPt[0], 0.0});
+    }
+    if(addLast)
+    {
+      curveWithAxisPoints.back() = Point2DType({lastPt[0], 0.0});
+    }
+    return true;
+  }
+  return false;
+}
+
 void SorClipper::extractClipperInfo()
 {
   auto sorOriginArray = m_info.fetch_existing("sorOrigin").as_double_array();
@@ -307,10 +373,10 @@ void SorClipper::extractClipperInfo()
       "***SorClipper: Discrete function must have an even number of values.  It has {}.",
       n));
 
-  m_sorCurve.resize(axom::ArrayOptions::Uninitialized(), n / 2, 2);
-  for(int i = 0; i < n; ++i)
+  m_sorCurve.resize(axom::ArrayOptions::Uninitialized(), n / 2);
+  for(int i = 0; i < n/2; ++i)
   {
-    m_sorCurve.flatIndex(i) = discreteFunctionArray[i];
+    m_sorCurve[i] = Point2DType{discreteFunctionArray[i*2], discreteFunctionArray[i*2 + 1]};
   }
 
   m_levelOfRefinement = m_info.fetch_existing("levelOfRefinement").to_double();
