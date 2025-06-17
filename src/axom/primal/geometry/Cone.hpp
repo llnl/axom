@@ -25,9 +25,13 @@ namespace primal
   \class Cone
 
   \brief Represents a cone defined by a base radius,
-  a top radius and the length from base to top along its axis.
+  a top radius, the length from base to top along its axis,
+  the orientation of the axis and a translation.
   \tparam T the coordinate type, e.g., double, float, etc.
   \tparam NDIMS the number of spatial dimensions
+
+  A negative length is allowed and results in a negative volume.
+  Radii must be non-negative.
 */
 template <typename T, int NDIMS>
 class Cone
@@ -43,9 +47,9 @@ public:
   */
   AXOM_HOST_DEVICE Cone()
     : m_baseZ(0.0)
-    , m_baseRadius(0.0)
+    , m_baseRad(0.0)
     , m_topZ(0.0)
-    , m_topRadius(0.0)
+    , m_topRad(0.0)
     , m_direction(0.0, NDIMS)
     , m_origin(0.0, NDIMS)
   {
@@ -61,9 +65,9 @@ public:
   */
   AXOM_HOST_DEVICE Cone(T baseRadius, T topRadius, T length)
     : m_baseZ(0.0)
-    , m_baseRadius(baseRadius)
+    , m_baseRad(baseRadius)
     , m_topZ(length)
-    , m_topRadius(topRadius)
+    , m_topRad(topRadius)
     , m_direction(0.0, NDIMS)
   {
     m_direction[0] = 1.0;
@@ -79,9 +83,6 @@ public:
     \param [in] length
     \param [in] direction Direction of axis, from base to top.
     \param [in] origin Coordinates of the z=0 point
-
-    The cone's position and orientation must be represented as a
-    rotation and a translation.
    */
   AXOM_HOST_DEVICE Cone(T baseZ,
                         T baseRadius,
@@ -90,9 +91,9 @@ public:
                         const VectorType& direction,
                         const PointType& origin)
     : m_baseZ(baseZ)
-    , m_baseRadius(baseRadius)
+    , m_baseRad(baseRadius)
     , m_topZ(topZ)
-    , m_topRadius(topRadius)
+    , m_topRad(topRadius)
     , m_direction(direction.unitVector())
     , m_origin(origin)
   {
@@ -103,13 +104,13 @@ public:
   AXOM_HOST_DEVICE T getBaseZ() const { return m_baseZ; }
 
   //! \brief Return the radius at the base.
-  AXOM_HOST_DEVICE T getBaseRadius() { return m_baseRadius; }
+  AXOM_HOST_DEVICE T getBaseRadius() { return m_baseRad; }
 
   //! \brief Return the z-coordinate of the top.
   AXOM_HOST_DEVICE T getTopZ() { return m_topZ; }
 
   //! \brief Return the radius at the top.
-  AXOM_HOST_DEVICE T getTopRadius() { return m_topRadius; }
+  AXOM_HOST_DEVICE T getTopRadius() { return m_topRad; }
 
   //! \brief Return the axis direction.
   AXOM_HOST_DEVICE const VectorType& getDirection() const { return m_direction; }
@@ -117,7 +118,7 @@ public:
   //! \brief Return the interpolated/extrapolated radius at a given z.
   AXOM_HOST_DEVICE double getRadiusAt(double z) const
   {
-    return m_baseRadius + (m_topRadius - m_baseRadius)/(m_topZ - m_baseZ) * (z - m_baseZ);
+    return m_baseRad + (m_topRad - m_baseRad)/(m_topZ - m_baseZ) * (z - m_baseZ);
   }
 
   /*!
@@ -127,7 +128,7 @@ public:
   */
   std::ostream& print(std::ostream& os) const
   {
-    os << "Cone{ base(" << m_baseZ << ',' << m_baseRadius << "), top(" << m_topZ << ',' << m_topRadius << ", axis at " << m_origin << " along " << m_direction << '}';
+    os << "Cone{ base(" << m_baseZ << ',' << m_baseRad << "), top(" << m_topZ << ',' << m_topRad << ", axis at " << m_origin << " along " << m_direction << '}';
 
     return os;
   }
@@ -144,23 +145,23 @@ public:
   AXOM_HOST_DEVICE
   typename std::enable_if<TDIM == 3, T>::type volume() const
   {
-    T vol = (m_baseRadius * m_baseRadius + m_baseRadius * m_topRadius + m_topRadius * m_topRadius) *
+    T vol = (m_baseRad * m_baseRad + m_baseRad * m_topRad + m_topRad * m_topRad) *
       1 / 3.0 * M_PI * (m_topZ - m_baseZ);
     return vol;
   }
 
 private:
   T m_baseZ;
-  T m_baseRadius;
+  T m_baseRad;
   T m_topZ;
-  T m_topRadius;
+  T m_topRad;
   VectorType m_direction;
   PointType m_origin;
 
   AXOM_HOST_DEVICE void assertValid() const
   {
-    SLIC_ASSERT(m_baseRadius >= 0.0);
-    SLIC_ASSERT(m_topRadius >= 0.0);
+    SLIC_ASSERT(m_baseRad >= 0.0);
+    SLIC_ASSERT(m_topRad >= 0.0);
   }
 };
 
