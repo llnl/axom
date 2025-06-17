@@ -116,7 +116,8 @@ endif()
 #------------------------------------------------------------------------------
 # Add Python tests
 #------------------------------------------------------------------------------
-if (NANOBIND_FOUND)
+# "cannot allocate memory in static TLS block" on blueos with cuda
+if (NANOBIND_FOUND AND NOT AXOM_ENABLE_CUDA)
     foreach(test ${python_sidre_tests})
         get_filename_component( test_name ${test} NAME_WE )
 

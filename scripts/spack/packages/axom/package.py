@@ -213,6 +213,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         # (ENABLE_CLANGFORMAT will be OFF if not the exact version)
         depends_on("llvm+clang@14", type="build", when="~rocm")
         depends_on("llvm", type="build", when="+rocm")
+        depends_on("llvm", type="build", when="+cuda")
 
     # -----------------------------------------------------------------------
     # Conflicts

@@ -632,4 +632,5 @@ spack:
       buildable: false
       externals:
       - spec: python@3.12.5
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/latest/python-3.12.5
+        #prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/latest/python-3.12.5
+        prefix: /usr/workspace/han12/axom/devtools_rzadams_nanobind/._view/sklazijgdr5tezokfcb6xdvwxx2nqjqx/python-3.13.2

@@ -19,9 +19,11 @@ class Axomdevtools(BundlePackage):
     depends_on("py-sphinx")
     depends_on("py-shroud")
     depends_on("py-sphinxcontrib-jquery")
-    depends_on("py-jsonschema")
+
+    # 4.18 builds py-rpds-py, which then needs rust...
+    depends_on("py-jsonschema@4.17")
     depends_on("py-nanobind@2.7.0")
     depends_on("py-pytest")
     depends_on("py-numpy")
 
-    depends_on("llvm+clang@14.0.6")
+    depends_on("llvm")
