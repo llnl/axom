@@ -555,6 +555,26 @@ axom::klee::Geometry createGeom_Sor(const std::string& geomName)
     : primal::Vector3D {params.direction.data()};
   // discreteFunction is discrete z-r pairs describing the function
   // to be rotated around the z axis.
+#if 0
+  using Point2DType = axom::primal::Point<double, 2>;
+  double zLen = 0.5 * (params.length < 0 ? 2.40: params.length);
+  double maxR = params.radius < 0 ? 1.10 : params.radius;
+  axom::Array<Point2DType> discretePts(0, 10);
+#if 1
+  discretePts.push_back(Point2DType({-1.0*zLen, 1.0*maxR}));
+  discretePts.push_back(Point2DType({ 1.0*zLen, 0.5*maxR}));
+  discretePts.push_back(Point2DType({-1.0*zLen, 0.5*maxR}));
+#else
+  discretePts.push_back(Point2DType({-1.0*zLen, 0.4*maxR}));
+  discretePts.push_back(Point2DType({ 0.0*zLen, 1.0*maxR}));
+  discretePts.push_back(Point2DType({ 0.6*zLen, 1.0*maxR}));
+  discretePts.push_back(Point2DType({ 1.0*zLen, 0.8*maxR}));
+  discretePts.push_back(Point2DType({ 1.0*zLen, 0.6*maxR}));
+  discretePts.push_back(Point2DType({ 0.2*zLen, 0.4*maxR}));
+  discretePts.push_back(Point2DType({ 0.0*zLen, 0.0*maxR}));
+#endif
+  axom::ArrayView<const double, 2> discreteFunction((const double*)discretePts.data(), discretePts.size(), 2);
+#else
   const int numIntervals = 5;
   axom::Array<double, 2> discretePts({numIntervals + 1, 2}, axom::ArrayStrideOrder::ROW);
   double zLen = params.length < 0 ? 2.40: params.length;
@@ -574,6 +594,7 @@ axom::klee::Geometry createGeom_Sor(const std::string& geomName)
   discretePts(5, 0) = 5 * dz + zShift;
   discretePts(5, 1) = 1.0 * maxR;
   axom::ArrayView<const double, 2> discreteFunction = discretePts.view();
+#endif
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
@@ -1114,15 +1135,15 @@ int main(int argc, char** argv)
     }
     else if(tg == "sor")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::SorClipper>(createGeom_Sor(name), name));
+      geomStrategies.push_back(std::make_shared<axom::quest::FSorClipper>(createGeom_Sor(name), name));
     }
     else if(tg == "cyl")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::SorClipper>(createGeom_Cylinder(name), name));
+      geomStrategies.push_back(std::make_shared<axom::quest::FSorClipper>(createGeom_Cylinder(name), name));
     }
     else if(tg == "cone")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::SorClipper>(createGeom_Cone(name), name));
+      geomStrategies.push_back(std::make_shared<axom::quest::FSorClipper>(createGeom_Cone(name), name));
     }
   }
 

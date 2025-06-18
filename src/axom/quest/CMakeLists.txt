@@ -146,7 +146,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                   HexClipper.hpp
                                   SphereClipper.hpp
                                   TetMeshClipper.hpp
-                                  SorClipper.hpp
+                                  FSorClipper.hpp
                                   detail/GeometryClipperDelegateExec.hpp)
         list(APPEND quest_sources Shaper.cpp
                                   DiscreteShape.cpp
@@ -159,7 +159,7 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                   HexClipper.cpp
                                   SphereClipper.cpp
                                   TetMeshClipper.cpp
-                                  SorClipper.cpp)
+                                  FSorClipper.cpp)
         list(APPEND quest_depends_on klee)
     endif()
 

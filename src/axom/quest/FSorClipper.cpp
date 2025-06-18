@@ -10,9 +10,10 @@
   #include "conduit_blueprint.hpp"
 #endif
 
+#include "axom/core/utilities/Utilities.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 #include "axom/quest/Discretize.hpp"
-#include "axom/quest/SorClipper.hpp"
+#include "axom/quest/FSorClipper.hpp"
 #include "axom/spin/BVH.hpp"
 #include "axom/fmt.hpp"
 
@@ -23,9 +24,9 @@ namespace axom
 namespace quest
 {
 
-SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
+FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
   : GeometryClipperStrategy(kGeom)
-  , m_name(name.empty() ? std::string("Sor") : name)
+  , m_name(name.empty() ? std::string("FSor") : name)
   , m_maxRadius(0.0)
   , m_minRadius(std::numeric_limits<double>::max())
   , m_transformer()
@@ -38,24 +39,71 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
     m_minRadius = fmin(m_minRadius, pt[1]);
   }
   SLIC_ERROR_IF(m_minRadius < 0.0,
-                axom::fmt::format("SorClipper '{}' has a negative radius", m_name));
+                axom::fmt::format("FSorClipper '{}' has a negative radius", m_name));
+
+  if(!pointsAreAxiallyMonotonic(m_sorCurve.view()))
+  {
+    SLIC_ERROR("FSorClipper does not work when a curve doubles back in the axial direction.  Use SorClipper instead.");
+  }
 
   // Combine internal and external rotations into m_transformer.
   m_transformer.addRotation(Vector3DType({1,0,0}), m_sorDirection);
   m_transformer.addTranslation(m_sorOrigin.array());
   m_transformer.addMatrix(m_extTrans);
+  m_inverseTransformer = m_transformer.getInverse();
 
   for(const auto& pt : m_sorCurve)
   {
     m_curveBb.addPoint(pt);
   }
 
-  m_inverseTransformer = m_transformer.getInverse();
-
-  computeRoughBlockings();
+  clusterSorFunction();
 }
 
-bool SorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+FSorClipper::FSorClipper(const klee::Geometry& kGeom,
+                         const std::string& name,
+                         axom::ArrayView<const Point2DType> sorCurve,
+                         const Point3DType& sorOrigin,
+                         const Vector3DType& sorDirection,
+                         axom::IndexType levelOfRefinement)
+  : GeometryClipperStrategy(kGeom)
+  , m_name(name.empty() ? std::string("FSor") : name)
+  , m_sorCurve(sorCurve, axom::execution_space<axom::SEQ_EXEC>::allocatorID())
+  , m_maxRadius(0.0)
+  , m_minRadius(std::numeric_limits<double>::max())
+  , m_sorOrigin(sorOrigin)
+  , m_sorDirection(sorDirection)
+  , m_levelOfRefinement(levelOfRefinement)
+  , m_transformer()
+{
+  for(auto& pt : m_sorCurve)
+  {
+    m_maxRadius = fmax(m_maxRadius, pt[1]);
+    m_minRadius = fmin(m_minRadius, pt[1]);
+  }
+  SLIC_ERROR_IF(m_minRadius < 0.0,
+                axom::fmt::format("FSorClipper '{}' has a negative radius", m_name));
+
+  if(!pointsAreAxiallyMonotonic(m_sorCurve.view()))
+  {
+    SLIC_ERROR("FSorClipper does not work when a curve doubles back in the axial direction.  Use SorClipper instead.");
+  }
+
+  // Combine internal and external rotations into m_transformer.
+  m_transformer.addRotation(Vector3DType({1,0,0}), m_sorDirection);
+  m_transformer.addTranslation(m_sorOrigin.array());
+  m_transformer.addMatrix(m_extTrans);
+  m_inverseTransformer = m_transformer.getInverse();
+
+  for(const auto& pt : m_sorCurve)
+  {
+    m_curveBb.addPoint(pt);
+  }
+
+  clusterSorFunction();
+}
+
+bool FSorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   /*
     Planned implementation: (reverse) transform the mesh vertices to the
@@ -63,7 +111,7 @@ bool SorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType
     to determine whether the point is in the sor that way.  I can check
     the SOR one conical section at a time.
   */
-  AXOM_ANNOTATE_SCOPE("SorClipper::labelInOut");
+  AXOM_ANNOTATE_SCOPE("FSorClipper::labelInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -91,9 +139,9 @@ bool SorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType
 }
 
 template <typename ExecSpace>
-void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SorClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
 
   int allocId = shapeeMesh.getAllocatorID();
   auto cellCount = shapeeMesh.getCellCount();
@@ -242,7 +290,7 @@ void SorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
     plane and one for the m_sorCurve curve.
   - m_bbUnder has only the boxes under m_sorCurve.
 */
-void SorClipper::computeRoughBlockings()
+void FSorClipper::clusterSorFunction()
 {
   const axom::IndexType topI = m_sorCurve.size() - 1;
   const Point2DType basePt = m_sorCurve[0];
@@ -270,9 +318,9 @@ void SorClipper::computeRoughBlockings()
 
 // TODO: Factor out execution-space-specific computations into a template method,
 // instead of computing on host and copying to GPU.
-bool SorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
+bool FSorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
 {
-  AXOM_ANNOTATE_BEGIN("SorClipper::getGeometryAsOcts");
+  AXOM_ANNOTATE_BEGIN("FSorClipper::getGeometryAsOcts");
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   const int allocId = shapeeMesh.getAllocatorID();
 
@@ -323,11 +371,28 @@ bool SorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<Oc
     axom::copy(octs.data(), octsOnHost.data(), sizeof(OctahedronType) * octs.size());
   }
 
-  AXOM_ANNOTATE_END("SorClipper::getGeometryAsOcts");
+  AXOM_ANNOTATE_END("FSorClipper::getGeometryAsOcts");
   return true;
 }
 
-bool SorClipper::getCurveWithAxisPoints(axom::Array<Point2DType>& curveWithAxisPoints)
+bool FSorClipper::pointsAreAxiallyMonotonic(const axom::ArrayView<Point2DType>& sorCurve)
+{
+  constexpr double eps = 1e-14;
+  for(int i = 1; i < sorCurve.size()-1; ++i)
+  {
+    double prevDiff = (sorCurve[i][0] - sorCurve[i-1][0]);
+    double nextDiff = (sorCurve[i+1][0] - sorCurve[i][0]);
+    int prevSign = axom::utilities::sign_of(prevDiff, eps);
+    int nextSign = axom::utilities::sign_of(nextDiff, eps);
+    if (prevSign != nextSign && prevSign != 0 && nextSign != 0)
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool FSorClipper::getCurveWithAxisPoints(axom::Array<Point2DType>& curveWithAxisPoints)
 {
   /*
     The function is considered a loop if the first and last points are
@@ -361,7 +426,35 @@ bool SorClipper::getCurveWithAxisPoints(axom::Array<Point2DType>& curveWithAxisP
   return false;
 }
 
-void SorClipper::extractClipperInfo()
+/*
+  Combine consecutive radial segments in SOR curve.
+*/
+void FSorClipper::combineRadialSegments(axom::Array<Point2DType>& sorCurve)
+{
+  int ptCount = sorCurve.size();
+  if(ptCount < 3) { return; }
+
+  constexpr double eps = 1e-14;
+
+  // Compute in place.  Set sorCurve[j] to sorCurve[i] where
+  // j <= i, skipping points joining consecutive radial segments.
+
+  int j = 1;
+  bool prevIsRadial = axom::utilities::isNearlyEqual(sorCurve[j][0] - sorCurve[j-1][0], eps);
+  bool curIsRadial = false;
+  for (int i = 2; i < ptCount; ++i)
+  {
+    curIsRadial = axom::utilities::isNearlyEqual(sorCurve[i][0] - sorCurve[i-1][0], eps);
+    // If current and previous aren't consecutive radial segments,
+    // copy pt to new point j.  Else, overwrite current point j.
+    if (!(curIsRadial && prevIsRadial)) { ++j; }
+    sorCurve[j] = sorCurve[i];
+    prevIsRadial = curIsRadial;
+  }
+  sorCurve.resize(j + 1);
+}
+
+void FSorClipper::extractClipperInfo()
 {
   auto sorOriginArray = m_info.fetch_existing("sorOrigin").as_double_array();
   auto sorDirectionArray = m_info.fetch_existing("sorDirection").as_double_array();
@@ -377,7 +470,7 @@ void SorClipper::extractClipperInfo()
   SLIC_ERROR_IF(
     n % 2 != 0,
     axom::fmt::format(
-      "***SorClipper: Discrete function must have an even number of values.  It has {}.",
+      "***FSorClipper: Discrete function must have an even number of values.  It has {}.",
       n));
 
   m_sorCurve.resize(axom::ArrayOptions::Uninitialized(), n / 2);

@@ -13,7 +13,6 @@
 #include "axom/quest/Discretize.hpp"
 #include "axom/quest/HexClipper.hpp"
 #include "axom/fmt.hpp"
-#include "axom/core/WhereMacro.hpp"
 
 namespace axom
 {

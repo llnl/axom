@@ -349,6 +349,16 @@ inline AXOM_HOST_DEVICE bool isNearlyEqualRelative(RealType a,
 }
 
 /*!
+ * \brief Sign of a value of any type with comparison and negation
+ * operators.
+ */
+template <typename T>
+inline int sign_of(const T& v, const T& eps)
+{
+  return v > eps ? 1 : v < -eps ? -1 : 0;
+}
+
+/*!
  * \brief Insertion sort of an array.
  * \accelerated
  * \param [in] array The array to sort.

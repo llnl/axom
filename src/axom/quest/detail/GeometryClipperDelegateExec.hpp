@@ -12,7 +12,6 @@
 
 #include "axom/quest/GeometryClipper.hpp"
 #include "axom/spin/BVH.hpp"
-#include "axom/core/WhereMacro.hpp"
 #include "RAJA/RAJA.hpp"
 
 namespace axom

@@ -11,7 +11,7 @@
 #include "axom/quest/TetMeshClipper.hpp"
 #include "axom/quest/HexClipper.hpp"
 #include "axom/quest/SphereClipper.hpp"
-#include "axom/quest/SorClipper.hpp"
+#include "axom/quest/FSorClipper.hpp"
 #include "axom/slic/interface/slic_macros.hpp"
 
 namespace axom
@@ -50,7 +50,7 @@ std::shared_ptr<GeometryClipperStrategy> make_clipper_strategy(
   }
   else if(format == "sor3D")
   {
-    strategy.reset(new SorClipper(kleeGeometry, format));
+    strategy.reset(new FSorClipper(kleeGeometry, format));
   }
   else
   {

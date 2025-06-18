@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_QUEST_SORCLIPPER_HPP
-#define AXOM_QUEST_SORCLIPPER_HPP
+#ifndef AXOM_QUEST_FSORCLIPPER_HPP
+#define AXOM_QUEST_FSORCLIPPER_HPP
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/GeometryClipperStrategy.hpp"
@@ -16,12 +16,17 @@ namespace quest
 {
 
 /*!
-  @brief GeometryClipper specialized for 3D surface-of-revolution geometries.
+  @brief GeometryClipperStrategy specialized for 3D
+  surface-of-revolution geometries.
 
-  The SOR internally support rotation and translation, in addition to any
-  external transformation.
+  This implementation requires the SOR curve to have monotonically
+  changing axial coordinates.  For SOR curves that don't have that,
+  use SorClipper.
+
+  The SOR specification may include rotation and translation
+  internally, in addition to any external transformation.
 */
-class SorClipper : public GeometryClipperStrategy
+class FSorClipper : public GeometryClipperStrategy
 {
 public:
   /*!
@@ -31,19 +36,42 @@ public:
       into the mesh.
     @param [in] name To override the default strategy name
   */
-  SorClipper(const klee::Geometry& kGeom, const std::string& name = "");
+  FSorClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
-  virtual ~SorClipper() = default;
+  /*!
+    @brief Construct from geometric specifications.
+  */
+  FSorClipper(const klee::Geometry& kGeom,
+              const std::string& name,
+              axom::ArrayView<const Point2DType> sorCurve,
+              const Point3DType& sorOrigin,
+              const Vector3DType& sorDirection,
+              axom::IndexType levelOfRefinement);
+
+  virtual ~FSorClipper() = default;
 
   const std::string& name() const override { return m_name; }
 
-  /*!
-    TODO: This method can be implemented but has not been.
-  */
   bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
-  bool getGeometryAsOcts(quest::ShapeeMesh& shappeMesh, axom::Array<OctahedronType>& octs) override;
+  bool getGeometryAsOcts(quest::ShapeeMesh& shappeMesh,
+                         axom::Array<OctahedronType>& octs) override;
+
   bool getCurveWithAxisPoints(axom::Array<Point2DType>& curveWithAxisPoints);
+
+  //@{
+  //! @name Utilities shared with SorClipper for handling SOR.
+  /*!
+    @brief Assert that the 2D curve given doesn't exhibit
+    non-monotonic changes in the axial direction.
+
+    @param sorCurve Set of 2D points (in host array).
+  */
+  static bool pointsAreAxiallyMonotonic(const axom::ArrayView<Point2DType>& sorCurve);
+
+  // Combine radial segments in place.
+  static void combineRadialSegments(axom::Array<Point2DType>& sorCurve);
+  //@}
 
 #if !defined(__CUDACC__)
 private:
@@ -51,7 +79,7 @@ private:
   std::string m_name;
 
   /*!
-    @brief The discrete r(z) curve, as an Nx2 array, if used.
+    @brief The discrete r(z) curve as an array of y(x) points.
 
     This data is before internal or external transformations.
     It may include points on each end to connect the curve to
@@ -74,19 +102,6 @@ private:
   //!@brief SOR axis in 3D space, in the direction of increasing z.
   Vector3DType m_sorDirection;
 
-  //!@brief Internal and external transforms (includes m_sorDirection and m_sorOrigin).
-  axom::primal::CoordinateTransformer<double> m_transformer;
-
-  /*!
-    @brief Inverse of m_transformer.
-
-    Axom supports vector scaling.  @see axom::klee::Scale.  This means
-    a SOR may be transformed into a shape that we cannot represent.
-    Therefore, we don't transform the shape until after it's discretized.
-    When needed, we will inverse-transform the mesh.
-  */
-  axom::primal::CoordinateTransformer<double> m_inverseTransformer;
-
   //!@brief Level of refinement for discretizing curved
   // analytical shapes and surfaces of revolutions.
   axom::IndexType m_levelOfRefinement = 0;
@@ -107,17 +122,29 @@ private:
   */
   axom::Array<BoundingBox2DType> m_bbUnder;
 
+  //!@brief Internal and external transforms (includes m_sorDirection and m_sorOrigin).
+  axom::primal::CoordinateTransformer<double> m_transformer;
+
+  /*!
+    @brief Inverse of m_transformer.
+
+    Axom supports vector scaling.  @see axom::klee::Scale.  This means
+    a SOR may be transformed into a shape that we cannot represent.
+    Therefore, we don't transform the shape until after it's discretized.
+    When needed, we will inverse-transform the mesh.
+  */
+  axom::primal::CoordinateTransformer<double> m_inverseTransformer;
+
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
   // Extract clipper info from GeometryClipperStrategy::m_info.
   void extractClipperInfo();
 
-  // Compute blocking of areas on and under m_sorCurve.
-  void computeRoughBlockings();
+  void clusterSorFunction();
 };
 
 }  // namespace quest
 }  // namespace axom
 
-#endif  // AXOM_QUEST_SORCLIPPER_HPP
+#endif  // AXOM_QUEST_FSORCLIPPER_HPP
