@@ -30,7 +30,7 @@ GeometryClipper::GeometryClipper(quest::ShapeeMesh& shapeeMesh,
   boundary, use that to reduce the use of expensive clipping methods.
 
   Regardless of labling, try to use specialized clipping first.
-  If those methods aren't implemented, resort to discretizing
+  If specialized methods aren't implemented, resort to discretizing
   geomety into tets or octs for brute-force clipping.
 */
 void GeometryClipper::clip(axom::Array<double>& ovlap)

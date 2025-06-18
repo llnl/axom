@@ -76,17 +76,6 @@ public:
   //!@brief Dimension of the shape (2 or 3)
   int dimension() const { return m_shapeeMesh.dimension(); }
 
-  //@{
-  //!@name Convenience methods
-  void getLabelCounts(const axom::Array<LabelType>& labels,
-                      axom::IndexType& inCount,
-                      axom::IndexType& onCount,
-                      axom::IndexType& outCount)
-  {
-    m_delegate->getLabelCounts(labels, inCount, onCount, outCount);
-  }
-  //@}
-
   /*!
     @brief Single interface for some methods delegated out of
     GeometryClipper
@@ -106,8 +95,9 @@ public:
       @brief Initialize overlap volumes to full for cells completely
       inside the shape and zero for cells outside or on shape boundary.
     */
-    virtual void initVolumeOverlaps(const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
-                                    axom::ArrayView<double> ovlap) = 0;
+    virtual void initVolumeOverlaps(
+      const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
+      axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Collect unlabeled cells indices into an index list.
     virtual void collectUnlabeledCellIndices(const axom::ArrayView<LabelType>& labels,
@@ -147,9 +137,10 @@ private:
   //! @brief Delegate object handling execution space templates.
   std::unique_ptr<Delegate> m_delegate;
 
-  /* NOTE: GeometryClipperStrategy is for multiple shape types,
+  /* NOTE: GeometryClipperStrategy is for shape-specific functions,
      implemented externally.  Delegate implements internal algorithms
      for multiple execution spaces.
+     TODO: Change delegate term to policy.
   */
 
   bool m_verbose;
@@ -159,6 +150,17 @@ public:
 #endif
   //!@brief Allocate a delegate for m_shapeeMesh's runtime policy.
   std::unique_ptr<Delegate> newDelegate();
+
+  //@{
+  //!@name Convenience methods
+  void getLabelCounts(const axom::Array<LabelType>& labels,
+                      axom::IndexType& inCount,
+                      axom::IndexType& onCount,
+                      axom::IndexType& outCount)
+  {
+    m_delegate->getLabelCounts(labels, inCount, onCount, outCount);
+  }
+  //@}
 };
 
 }  // namespace quest

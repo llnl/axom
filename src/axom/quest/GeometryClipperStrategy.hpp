@@ -41,13 +41,15 @@ namespace quest
      available) to clip the cells in a mesh.  Implementation should
      use special knowledge of the geometry.  One version of this
      method clips all cells in the mesh and the other clips only
-     cells in a provided index list.
+     cells in a provided index list.  The latter works in
+     conjunction with @c labelInOut.
 
   Every method returns true if it fulfilled the request, or
   false if it was a no-op.
 
-  Implementations of this strategy must provide either a
-  @c specializedClip method or one of the @c getShapesAs...() methods.
+  Implementations of this strategy must provide either
+  - a @c specializedClip method or
+  - one of the @c getShapesAs...() methods.
   The former is prefered if the use of geometry-specific information
   can make it faster.  @c labelInOut is optional but if provided,
   it can improve performance by limiting the slower clipping steps
@@ -155,7 +157,8 @@ public:
     @post labels.size() == shapeeMesh.getCellCount()
     @post labels.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+  virtual bool labelInOut(quest::ShapeeMesh& shapeeMesh,
+                          axom::Array<LabelType>& labels)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(labels);
@@ -181,12 +184,16 @@ public:
     This method need not be implemented if labelInOut()
     returns true.
 
+    @pre @c ovlap is pre-initialized for the implementation
+    to add or subtract partial volumes to individual cells.
+
     If implemenation returns true, it should ensure these
     post-conditions hold:
     @post ovlap.size() == shapeeMesh.getCellCount()
     @post ovlap.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool specializedClip(quest::ShapeeMesh& shapeeMesh, axom::ArrayView<double> ovlap)
+  virtual bool specializedClip(quest::ShapeeMesh&
+                               shapeeMesh, axom::ArrayView<double> ovlap)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(ovlap);
@@ -212,6 +219,9 @@ public:
 
     This method need not be implemented if labelInOut()
     returns false.
+
+    @pre @c ovlap is pre-initialized for the implementation
+    to add or subtract partial volumes to individual cells.
 
     If implemenation returns true, it should ensure these
     post-conditions hold:
@@ -243,7 +253,8 @@ public:
     @post tets.size() == shapeeMesh.getCellCount()
     @post tets.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
+  virtual bool getGeometryAsTets(quest::ShapeeMesh& shapeeMesh,
+                                 axom::Array<TetrahedronType>& tets)
 
   {
     AXOM_UNUSED_VAR(shapeeMesh);
@@ -265,7 +276,8 @@ public:
     @post octs.size() == shapeeMesh.getCellCount()
     @post octs.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
+  virtual bool getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh,
+                                 axom::Array<OctahedronType>& octs)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(octs);
