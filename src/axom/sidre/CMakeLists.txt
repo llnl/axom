@@ -132,8 +132,14 @@ if(ENABLE_FORTRAN AND AXOM_ENABLE_MPI)
     install(FILES ${CMAKE_Fortran_MODULE_DIRECTORY}/axom_spio.mod DESTINATION lib/fortran)
 endif()
 
-# "cannot allocate memory in static TLS block" on blueos with cuda
-if(NANOBIND_FOUND AND NOT AXOM_ENABLE_CUDA)
+# "cannot allocate memory in static TLS block" on blueos with cuda and/or clang
+if(NANOBIND_FOUND
+   AND NOT AXOM_ENABLE_CUDA
+   AND
+   ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
+   OR
+   ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9"
+   AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
     nanobind_add_module(pysidre nanobind_sidre.cpp)
     target_link_libraries(pysidre PRIVATE sidre)
 

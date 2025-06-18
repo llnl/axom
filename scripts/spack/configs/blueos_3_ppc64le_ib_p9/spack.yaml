@@ -366,19 +366,19 @@ spack:
       buildable: false
       externals:
       - spec: cppcheck@2.9
-        prefix: /collab/usr/gapps/axom/devtools/blueos_3_ppc64le_ib_p9/latest/cppcheck-2.9
+        prefix: /usr/workspace/han12/axom/blueos_3_ppc64le_ib_p9/latest/cppcheck-2.9
     doxygen:
       version: [1.9.6]
       buildable: false
       externals:
       - spec: doxygen@1.9.6
-        prefix: /collab/usr/gapps/axom/devtools/blueos_3_ppc64le_ib_p9/latest/doxygen-1.9.6
+        prefix: /usr/workspace/han12/axom/blueos_3_ppc64le_ib_p9/latest/doxygen-1.13.2
     graphviz:
       version: [7.1.0]
       buildable: false
       externals:
       - spec: graphviz@7.1.0
-        prefix: /collab/usr/gapps/axom/devtools/blueos_3_ppc64le_ib_p9/latest/graphviz-7.1.0
+        prefix: /usr/workspace/han12/axom/blueos_3_ppc64le_ib_p9/latest/graphviz-12.1.0
     llvm:
       version: [14.0.5]
       buildable: false
@@ -390,20 +390,22 @@ spack:
       buildable: false
       externals:
       - spec: python@3.11.11
-        prefix: /usr/workspace/han12/axom/devtools_blueos_nanobind/._view/egwcto23hhgs46gxm5ulkrnf3trzgagt/python-3.11.11
-        #prefix: /collab/usr/gapps/axom/devtools/blueos_3_ppc64le_ib_p9/latest/python-3.10.10
-        prefix: /usr/workspace/han12/axom/devtools_blueos_nanobind/view/python-3.11.11
+        prefix: /usr/workspace/han12/axom/blueos_3_ppc64le_ib_p9/latest/python-3.11.11
     py-shroud:
       version: [0.13.0]
       buildable: false
       externals:
       - spec: py-shroud@0.13.0
         prefix: /collab/usr/gapps/shroud/public/blueos_3_ppc64le_ib_p9/shroud-0.13.0
+    py-pytest:
+      version: [8.2.1]
+      buildable: false
+      externals:
+      - spec: py-pytest@8.2.1
+        prefix: /usr/workspace/han12/axom/blueos_3_ppc64le_ib_p9/latest/python-3.11.11
     py-sphinx:
       version: [6.1.3]
       buildable: false
       externals:
       - spec: py-sphinx@6.1.3
-        #prefix: /collab/usr/gapps/axom/devtools/blueos_3_ppc64le_ib_p9/latest/python-3.10.10
-        #prefix: /usr/workspace/han12/axom/devtools_blueos_nanobind/._view/egwcto23hhgs46gxm5ulkrnf3trzgagt/python-3.11.11
-        prefix: /usr/workspace/han12/axom/devtools_blueos_nanobind/view/python-3.11.11
+        prefix: /usr/workspace/han12/axom/blueos_3_ppc64le_ib_p9/latest/python-3.11.11

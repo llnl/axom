@@ -116,8 +116,14 @@ endif()
 #------------------------------------------------------------------------------
 # Add Python tests
 #------------------------------------------------------------------------------
-# "cannot allocate memory in static TLS block" on blueos with cuda
-if (NANOBIND_FOUND AND NOT AXOM_ENABLE_CUDA)
+# "cannot allocate memory in static TLS block" on blueos with cuda and/or clang
+if(NANOBIND_FOUND
+   AND NOT AXOM_ENABLE_CUDA
+   AND
+   ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
+   OR
+   ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9"
+   AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
     foreach(test ${python_sidre_tests})
         get_filename_component( test_name ${test} NAME_WE )
 
