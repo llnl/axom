@@ -58,37 +58,9 @@ description of how version numbers are chosen.
 2: Finalize the Release in the Release Candidate Branch 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Create a pull request to merge the release candidate branch into main after
-all release preparation changes have been made. When the release candidate
-branch is complete, reviewed and approved, it will be merged into main.
-
-Typically, when a release is being prepared it will have been months since the
-previous release when the main branch was last changed. Thus, the *diff* between
-branches that will appear in the pull request to merge the release candidate
-into main will be large. Fortunately, most of those changes will have been
-reviewed and merged into the develop branch and do not require additional
-review.
-
-To make the review and approval process easier for the release candidate pull
-request, it is helpful to create a companion pull request that shows **only
-the changes made in the release candidate branch to finalize the release.**
-Specifically, we the companion pull request is made to merge the release 
-candidate branch into develop. This pull request will not be merged, but it 
-will be much easier since it will show only the changes made in the release
-candidate that are not in the develop branch.
-
-To facilitate the review process, we cross reference the two pull requests
-in their respective pull request descriptions. Suppose the pull request for 
-the release (to merge the release candidate into main) is #N and the
-companion pull request (to merge the release candidate into develop) is #M.
-In the description of pull request N, add a link to pull request M and a
-comment **to review pull request M and approve pull request N.** In the
-description of pull request M, add a link to pull request M and a statement
-that it is the companion pull request for N, that **it should be reviewed and
-not merged** and that pull request N should be approved as it will be merged
-for the release.
-
-Typical changes that are made in a release candidate branch include:
+All changes to Axom related to finalizing the release documentation, as
+opposed to source code changes, are done in the release candidate branch.
+Typical changes include:
 
 #. Update the version information (major, minor, and patch version numbers)
    near the top of the ``axom/src/cmake/AxomVersion.cmake`` file and in
@@ -228,7 +200,7 @@ the history. After merging, the release candidate branch can be deleted.
 
 * Click the ``Update release`` button.
 
-6: Merge Main to Develop
+7: Merge Main to Develop
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Create a pull request to merge main into develop so that changes in the 
