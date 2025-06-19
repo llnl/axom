@@ -40,7 +40,7 @@ Once view types have been created and views have been instantiated, a MIR algori
 algorithm can be instantiated and used. Algorithms provide a single
 ``execute()`` method that takes the input mesh, an options node, and a node to contain
 the output mesh. The output mesh will be created in the same memory space as the input mesh,
-which again, must be compatible with the selected execution space. The ``axom::mir::utilities::blueprint::copy()``
+which again, must be compatible with the selected execution space. The ``axom::bump::utilities::copy()``
 function can be used to copy Conduit nodes from one memory space to another.
 
 MIR output will contain a new field called, by default, *"originalElements"* that
@@ -200,7 +200,11 @@ are optional.
 +--------------------+---------------------------------------------------------------+
 | Argument           | Description                                                   |
 +====================+===============================================================+
+| --dimension number | The mesh dimension, 2 or 3.                                   |
++--------------------+---------------------------------------------------------------+
 | --gridsize number  | The number of zones along an axis. The default is 5.          |
++--------------------+---------------------------------------------------------------+
+| --method name      | The MIR method used "equiz" or "elvira".                      |
 +--------------------+---------------------------------------------------------------+
 | --numcircles number| The number of number of circles to use for material creation. |
 |                    | The default is 2.                                             |

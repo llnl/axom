@@ -21,6 +21,7 @@ set(core_serial_tests
     core_array_for_all.hpp
     core_utilities.hpp
     core_bit_utilities.hpp
+    core_device_hash.hpp
     core_execution_for_all.hpp
     core_execution_space.hpp
     core_map.hpp

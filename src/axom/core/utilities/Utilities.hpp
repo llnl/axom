@@ -421,6 +421,97 @@ public:
   }
 };
 
+//------------------------------------------------------------------------------
+/*!
+ * \brief Use binary search to find the index of the \a value in the supplied
+ *        sorted container.
+ *
+ * \tparam ContainerT A container or view of T. It must support size(), operator[].
+ * \tparam T The type of elements we're handling.
+ *
+ * \param[in] cont A view or container that contains the sorted search data values.
+ * \param[in] value The search value.
+ *
+ * \return The index where value was located in view or -1 if not found. If the
+ *         container contained repeats of \a value, the first index is returned.
+ */
+template <typename ContainerT, typename T>
+AXOM_HOST_DEVICE std::int32_t binary_search(const ContainerT& cont, T value)
+{
+  std::int32_t index = -1;
+  std::int32_t left = 0;
+  std::int32_t right = cont.size() - 1;
+  while(left <= right)
+  {
+    std::int32_t m = (left + right) / 2;
+    if(cont[m] < value)
+      left = m + 1;
+    else if(cont[m] > value)
+      right = m - 1;
+    else
+    {
+      index = m;
+      // Keep searching to the left to find the first value.
+      right = m - 1;
+    }
+  }
+
+  return index;
+}
+
+//------------------------------------------------------------------------------
+/*!
+ * \brief Hash a stream of bytes into a uint64_t hash value.
+ *
+ * \param[in] data The bytes to be hashed.
+ * \param[in] length The number of bytes to be hashed.
+ *
+ * \return A uint64_t hash for the byte stream.
+ *
+ * \note The byte stream is hashed using a Jenkins-hash algorithm forwards and
+ *       backwards and the two results are merged into a uint64_t. The length is
+ *       also part of the hash to guard against a lot of repeated values in the
+ *       byte stream hashing to the same thing.
+ *
+ * \note We make this function inline since it is not a template and we want to
+ *       use it in both host and device code.
+ */
+AXOM_HOST_DEVICE
+inline std::uint64_t hash_bytes(const std::uint8_t* data, std::uint32_t length)
+{
+  std::uint32_t hash = 0;
+
+  // Build the length into the hash.
+  const auto ldata = reinterpret_cast<const std::uint8_t*>(&length);
+  for(int e = 0; e < 4; e++)
+  {
+    hash += ldata[e];
+    hash += hash << 10;
+    hash ^= hash >> 6;
+  }
+
+  std::uint32_t hashr = hash;
+  for(std::uint32_t i = 0; i < length; i++)
+  {
+    hash += data[i];
+    hash += hash << 10;
+    hash ^= hash >> 6;
+
+    hashr += data[length - 1 - i];
+    hashr += hashr << 10;
+    hashr ^= hashr >> 6;
+  }
+  hash += hash << 3;
+  hash ^= hash >> 11;
+  hash += hash << 15;
+
+  hashr += hashr << 3;
+  hashr ^= hashr >> 11;
+  hashr += hashr << 15;
+
+  return (static_cast<std::uint64_t>(hash) << 32) | hashr;
+}
+
 }  // namespace utilities
 }  // namespace axom
 

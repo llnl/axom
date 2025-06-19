@@ -6,6 +6,7 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slic.hpp"
+#include "axom/bump.hpp"
 #include "axom/mir.hpp"  // for Mir classes & functions
 #include "runMIR.hpp"
 #include "MIRApplication.hpp"
@@ -14,10 +15,6 @@
 #include <conduit_relay.hpp>
 
 #include <string>
-
-// namespace aliases
-namespace mir = axom::mir;
-namespace bputils = axom::mir::utilities::blueprint;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
 
@@ -148,7 +145,7 @@ int MIRApplication::runMIR()
 {
   // Initialize a mesh for testing MIR
   auto timer = axom::utilities::Timer(true);
-  mir::MeshTester tester;
+  axom::bump::data::MeshTester tester;
   conduit::Node mesh;
   {
     AXOM_ANNOTATE_SCOPE("generate");
