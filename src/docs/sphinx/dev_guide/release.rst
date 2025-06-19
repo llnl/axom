@@ -136,9 +136,9 @@ in their respective pull request descriptions. Suppose the pull request for
 the release (to merge the release candidate into main) is #N and the
 companion pull request (to merge the release candidate into develop) is #M.
 In the description of pull request N, add a link to pull request M and a
-comment **to review pull request M and approve pull request N.** In the
+comment to **review pull request M and approve pull request N.** In the
 description of pull request M, add a link to pull request M and a statement
-that it is the companion pull request for N, that **it should be reviewed and
+that it is the companion pull request for N, that it **should be reviewed and
 not merged** and that pull request N should be approved as it will be merged
 for the release.
 
