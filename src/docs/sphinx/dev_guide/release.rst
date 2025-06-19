@@ -33,9 +33,11 @@ work may continue on the develop branch.
 
 .. important:: No significant code development should performed on a release
                candidate branch. Apart from finalizing release notes and other
-               documentation, **the only code changes** that should be merged
-               into a release candidate branch are bug fixes identified during
-               release preparations. Changing code in a release candidate is
+               documentation, **no code changes** are to be merged directly
+               into a release candidate branch. If a bug is found, it should be
+               fixed and merged into develop via a pull request. Then, the
+               change should be included in the release candidate branch by
+               merging develop into it. Changing code in a release candidate is
                a rare occurrence since the develop branch should always be
                passing CI tests.
 
@@ -138,7 +140,7 @@ companion pull request (to merge the release candidate into develop) is #M.
 In the description of pull request N, add a link to pull request M and a
 comment to **review pull request M and approve pull request N.** In the
 description of pull request M, add a link to pull request M and a statement
-that it is the companion pull request for N, that it **should be reviewed and
+that it is the companion pull request for N, that it **should be reviewed but
 not merged** and that pull request N should be approved as it will be merged
 for the release.
 
@@ -187,8 +189,8 @@ the history. After merging, the release candidate branch can be deleted.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * After the release is published on GitHub, checkout the main branch locally
-  and run the command ``axom/scripts/make_release_tarball.sh --with-data``
-  from the top level ``axom`` subdirectory. This will generate two tarfiles:
+  and run the command ``./scripts/make_release_tarball.sh --with-data``
+  from the top level ``axom`` directory. This will generate two tarfiles:
   ``Axom-v0.3.1.tar.gz`` and ``AxomData-v0.3.1.tar.gz`` consisting of the axom
   repo source and Axom data repo source, respectively.
 
