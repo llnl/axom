@@ -189,8 +189,8 @@ the history. After merging, the release candidate branch can be deleted.
 * After the release is published on GitHub, checkout the main branch locally
   and run the command ``axom/scripts/make_release_tarball.sh --with-data``
   from the top level ``axom`` subdirectory. This will generate two tarfiles:
-  ``Axom-v0.3.1.tar.gz`` and ``AxomData-v0.3.1.tar.gz`` consisting of the axom
-  repo source and Axom data repo source, respectively.
+  ``Axom-v0.3.1.tar.gz`` and ``AxomData-v0.3.1.tar.gz`` consisting of the Axom
+  source and data repositories, respectively.
 
 * Attach the tarfiles for the corresponding release, by going to the
   `GitHub Releases section <https://github.com/LLNL/axom/releases>`_ and
