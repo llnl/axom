@@ -88,8 +88,9 @@ Typical changes include:
    made. All build configurations must compile properly and all tests must pass
    before the pull request can be merged.
 
-#. Fix any issues discovered during final release testing in the release 
-   candidate branch if code changes are reasonably small, and re-run
+#. Fix any issues discovered during final release testing in a pull request and
+   merge that into develop after it is approved and CI checks pass. Then, 
+   merge develop into the release candidate branch, and re-run
    appropriate tests to ensure issues are resolved. If a major bug is
    discovered, and it requires significant code modifications to fix,
    do not fix it on the release branch. `Create a new GitHub issue
