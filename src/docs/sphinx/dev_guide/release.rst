@@ -194,8 +194,8 @@ the history. After merging, the release candidate branch can be deleted.
 
 * Attach the tarfiles for the corresponding release, by going to the
   `GitHub Releases section <https://github.com/LLNL/axom/releases>`_ and
-  ``Edit`` the release created in step 5 above. Click "Paste, drop, or click to
-  add files" at the bottom of the release description section and select the
+  ``Edit`` the release created in step 5 above. Click ``Paste, drop, or click to add files``
+  at the bottom of the release description section and select the
   Axom release and data tarfiles created in the previous step. 
 
 * Click the ``Update release`` button.
