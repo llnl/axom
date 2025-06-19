@@ -5,14 +5,7 @@
 
 #include "axom/config.hpp"
 
-// Implementation requires Conduit.
-#ifdef AXOM_USE_CONDUIT
-  #include "conduit_blueprint.hpp"
-#endif
-
-#include "axom/quest/Discretize.hpp"
 #include "axom/quest/HexClipper.hpp"
-#include "axom/fmt.hpp"
 
 namespace axom
 {

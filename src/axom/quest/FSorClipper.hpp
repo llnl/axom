@@ -16,12 +16,12 @@ namespace quest
 {
 
 /*!
-  @brief GeometryClipperStrategy specialized for 3D
+  @brief Geometry clipping operations for 3D
   surface-of-revolution geometries.
 
-  This implementation requires the SOR curve to have monotonically
-  changing axial coordinates.  For SOR curves that don't have that,
-  use SorClipper.
+  This implementation requires the SOR curve to be a function
+  (has monotonically changing axial coordinates).  For SOR curves
+  that are not functions, use SorClipper.
 
   The SOR specification may include rotation and translation
   internally, in addition to any external transformation.
@@ -57,19 +57,32 @@ public:
   bool getGeometryAsOcts(quest::ShapeeMesh& shappeMesh,
                          axom::Array<OctahedronType>& octs) override;
 
+  axom::ArrayView<const Point2DType> getSorCurve() const
+    { return m_sorCurve.view(); }
+
   bool getCurveWithAxisPoints(axom::Array<Point2DType>& curveWithAxisPoints);
 
   //@{
   //! @name Utilities shared with SorClipper for handling SOR.
   /*!
-    @brief Assert that the 2D curve given doesn't exhibit
-    non-monotonic changes in the axial direction.
+    @brief Find division points between curve sections where z (x)
+    changes directions.
 
-    @param sorCurve Set of 2D points (in host array).
+    @param sorCurve Set of at least 2 2D points describing a curve
+      in r-z space (in host array).
+
+    @return Indices of switchbacks, plus the first and last indices.
   */
-  static bool pointsAreAxiallyMonotonic(const axom::ArrayView<Point2DType>& sorCurve);
+  static axom::Array<axom::IndexType> findZSwitchbacks(
+    axom::ArrayView<const Point2DType> pts);
 
-  // Combine radial segments in place.
+  /*
+    @brief Combine consecutive radial segments of the curve into a
+    single segment.
+
+    This step is necessary because some other steps assume there are
+    no consecutive radial segments.
+  */
   static void combineRadialSegments(axom::Array<Point2DType>& sorCurve);
   //@}
 

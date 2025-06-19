@@ -353,7 +353,7 @@ inline AXOM_HOST_DEVICE bool isNearlyEqualRelative(RealType a,
  * operators.
  */
 template <typename T>
-inline int sign_of(const T& v, const T& eps)
+inline int sign_of(const T& v, const T& eps={0})
 {
   return v > eps ? 1 : v < -eps ? -1 : 0;
 }

@@ -5,17 +5,10 @@
 
 #include "axom/config.hpp"
 
-// Implementation requires Conduit.
-#ifdef AXOM_USE_CONDUIT
-  #include "conduit_blueprint.hpp"
-#endif
-
 #include "axom/mint/mesh/Mesh.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/spin/BVH.hpp"
-#include "axom/quest/Discretize.hpp"
 #include "axom/quest/TetMeshClipper.hpp"
-#include "axom/fmt.hpp"
 
 namespace axom
 {
@@ -268,7 +261,7 @@ void TetMeshClipper::computeTets()
 
   // Initialize tetrahedra
   IndexType nodeIds[4];
-  Point3D pts[4];
+  Point3DType pts[4];
   for(int i = 0; i < m_tetCount; i++)
   {
     mintMesh->getCellNodeIDs(i, nodeIds);

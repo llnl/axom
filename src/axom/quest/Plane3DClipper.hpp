@@ -15,7 +15,7 @@ namespace quest
 {
 
 /*!
-  @brief GeometryClipper specialized for plane geometries.
+  @brief Geometry clipping operations for plane geometries.
 */
 class Plane3DClipper : public GeometryClipperStrategy
 {

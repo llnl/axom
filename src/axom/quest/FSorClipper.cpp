@@ -5,11 +5,6 @@
 
 #include "axom/config.hpp"
 
-// Implementation requires Conduit.
-#ifdef AXOM_USE_CONDUIT
-  #include "conduit_blueprint.hpp"
-#endif
-
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 #include "axom/quest/Discretize.hpp"
@@ -33,6 +28,15 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
 {
   extractClipperInfo();
 
+  combineRadialSegments(m_sorCurve);
+  axom::Array<axom::IndexType> turnIndices =
+    findZSwitchbacks(m_sorCurve.view());
+  if(turnIndices.size() > 2)
+  {
+    SLIC_ERROR("FSorClipper does not work when a curve doubles back"
+               " in the axial direction.  Use SorClipper instead.");
+  }
+
   for(auto& pt : m_sorCurve)
   {
     m_maxRadius = fmax(m_maxRadius, pt[1]);
@@ -40,11 +44,6 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
   }
   SLIC_ERROR_IF(m_minRadius < 0.0,
                 axom::fmt::format("FSorClipper '{}' has a negative radius", m_name));
-
-  if(!pointsAreAxiallyMonotonic(m_sorCurve.view()))
-  {
-    SLIC_ERROR("FSorClipper does not work when a curve doubles back in the axial direction.  Use SorClipper instead.");
-  }
 
   // Combine internal and external rotations into m_transformer.
   m_transformer.addRotation(Vector3DType({1,0,0}), m_sorDirection);
@@ -76,6 +75,15 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   , m_levelOfRefinement(levelOfRefinement)
   , m_transformer()
 {
+  combineRadialSegments(m_sorCurve);
+  axom::Array<axom::IndexType> turnIndices =
+    findZSwitchbacks(m_sorCurve.view());
+  if(turnIndices.size() > 2)
+  {
+    SLIC_ERROR("FSorClipper does not work when a curve doubles back"
+               " in the axial direction.  Use SorClipper instead.");
+  }
+
   for(auto& pt : m_sorCurve)
   {
     m_maxRadius = fmax(m_maxRadius, pt[1]);
@@ -83,11 +91,6 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   }
   SLIC_ERROR_IF(m_minRadius < 0.0,
                 axom::fmt::format("FSorClipper '{}' has a negative radius", m_name));
-
-  if(!pointsAreAxiallyMonotonic(m_sorCurve.view()))
-  {
-    SLIC_ERROR("FSorClipper does not work when a curve doubles back in the axial direction.  Use SorClipper instead.");
-  }
 
   // Combine internal and external rotations into m_transformer.
   m_transformer.addRotation(Vector3DType({1,0,0}), m_sorDirection);
@@ -105,12 +108,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
 
 bool FSorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  /*
-    Planned implementation: (reverse) transform the mesh vertices to the
-    r-z frame where the curve is defined as a 1D function.  It's easier
-    to determine whether the point is in the sor that way.  I can check
-    the SOR one conical section at a time.
-  */
+return false;
   AXOM_ANNOTATE_SCOPE("FSorClipper::labelInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
@@ -138,16 +136,29 @@ bool FSorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelTyp
   return true;
 }
 
+/*
+  Implementation: (reverse) transform the mesh vertices to the r-z
+  frame where the curve is defined as a r(z) function.  It's easier to
+  determine whether the point is in the sor that way.
+*/
 template <typename ExecSpace>
 void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
 
-  int allocId = shapeeMesh.getAllocatorID();
-  auto cellCount = shapeeMesh.getCellCount();
+  const int allocId = shapeeMesh.getAllocatorID();
+  const auto cellCount = shapeeMesh.getCellCount();
 
   auto inverseTransformer = m_inverseTransformer;
   auto transformer = m_transformer;
+
+  axom::Array<BoundingBox2DType> bbOn(m_bbOn, allocId);
+  axom::Array<BoundingBox2DType> bbUnder(m_bbUnder, allocId);
+  auto bbOnView = bbOn.view();
+  auto bbUnderView = bbUnder.view();
+
+  auto cellLengths = shapeeMesh.getCellLengths();
+  const double lenFactor = 0.5;
 
   auto cellBbs = shapeeMesh.getCellBoundingBoxes();
   constexpr int NUM_BB_VERTS = 8;
@@ -160,12 +171,11 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
   auto labelsView = labels.view();
 
   /*
-    Compute cell bounding boxes in rz plane, to be checked against the
-    2D curve.
+    Compute cell bounding boxes in rz plane, to be checked against
+    m_bbOn and m_bbUnder.
   */
-
-  axom::Array<BoundingBox2DType> cellBbsInRz(cellCount,
-                                             cellCount,
+  axom::Array<BoundingBox2DType> cellBbsInRz(cellBbs.size(),
+                                             cellBbs.size(),
                                              shapeeMesh.getAllocatorID());
   auto cellBbsInRzView = cellBbsInRz.view();
   axom::for_all<ExecSpace>(
@@ -177,117 +187,62 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
       BoundingBox2DType& cellBbInRz = cellBbsInRzView[cellId];
       for(int vi = 0; vi < NUM_BB_VERTS; ++vi)
       {
-        Point3DType pt3D({(vi & 1) ? boxMax[0] : boxMin[0],
-                          (vi & 2) ? boxMax[1] : boxMin[1],
-                          (vi & 4) ? boxMax[2] : boxMin[2]});
-        Point3DType ptIt = inverseTransformer.getTransformed(pt3D);
-        Point2DType ptRz({ptIt[0], sqrt(ptIt[1]*ptIt[1] + ptIt[2]*ptIt[2])});
-        cellBbInRz.addPoint(ptRz);
+        Point3DType vert3D({(vi & 1) ? boxMax[0] : boxMin[0],
+                            (vi & 2) ? boxMax[1] : boxMin[1],
+                            (vi & 4) ? boxMax[2] : boxMin[2]});
+        Point3DType vert3Dt = inverseTransformer.getTransformed(vert3D);
+        Point2DType vertRz({vert3Dt[0], sqrt(vert3Dt[1]*vert3Dt[1] + vert3Dt[2]*vert3Dt[2])});
+        cellBbInRz.addPoint(vertRz);
       }
     });
 
-  /*
-    Compute function's segments and their bounding boxes.
-    Construct BVH for those boxes.
-  */
-  axom::Array<Point2DType> sorCurve;
-  axom::Array<Point2DType> sorCurveTmp;
-  axom::ArrayView<Point2DType> sorCurveView =
-    getCurveWithAxisPoints(sorCurveTmp) ? sorCurveTmp.view() : m_sorCurve.view();
-  if(!axom::execution_space<ExecSpace>::usesAllocId(sorCurveView.getAllocatorID()))
-  {
-    sorCurve = axom::Array<Point2DType>(sorCurveView, allocId);
-    sorCurveView = sorCurve.view();
-  }
-
-  const axom::IndexType segCount = sorCurveView.size() - 1;
-  axom::Array<Segment2DType> segs(segCount, segCount, allocId);
-  axom::Array<BoundingBox2DType> segBbs(segCount, segCount, allocId);
-  auto segsView = segs.view();
-  auto segBbsView = segBbs.view();
   axom::for_all<ExecSpace>(
-    segCount,
-    AXOM_LAMBDA(axom::IndexType i)
-    {
-      auto& seg = segsView[i];
-      auto& segBb = segBbsView[i];
-      seg = Segment2DType(sorCurveView[i], sorCurveView[i+1]);
-      segBb.addPoint(seg[0]);
-      segBb.addPoint(seg[1]);
-    });
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType cellId) {
+      const auto& cellBb = cellBbsInRzView[cellId];
 
-  spin::BVH<2, ExecSpace, double> bvh(segBbsView, segBbsView.size(), allocId);
+      /*
+        - If cellBb is close to any m_bbOn, label it ON.
+        - Else if cellBb touches any m_bbUnder, label it IN.
+          It cannot possibly be partially outside, because it
+          doesn't cross the boundary or even touch any m_bbOn.
+        - Else, label cellBb OUT.
+      */
 
-  BoundingBox2DType curveBb = bvh.getBounds();
-
-  /*
-    Find cells intersecting the segment bounding boxes.
-    These cells are ON the SOR boundary.
-  */
-
-  axom::Array<IndexType> offsets(cellCount, cellCount, allocId);
-  axom::Array<IndexType> counts(cellCount, cellCount, allocId);
-  axom::Array<IndexType> candidates;
-  AXOM_ANNOTATE_BEGIN("bvh.findBoundingBoxes");
-  bvh.findBoundingBoxes(offsets, counts, candidates, cellCount, cellBbsInRzView);
-  AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
-
-  auto offsetsView = offsets.view();
-  auto countsView = counts.view();
-  auto candidatesView = candidates.view();
-
-  axom::for_all<ExecSpace>(
-    cellBbsInRzView.size(),
-    AXOM_LAMBDA(axom::IndexType i)
-    {
-      auto& cellBbInRz = cellBbsInRzView[i];
-      if (!cellBbInRz.intersectsWith(curveBb))
+      auto& cellLabel = labelsView[cellId];
+      double sqDistThreshold = lenFactor * cellLengths[cellId];
+      sqDistThreshold = sqDistThreshold*sqDistThreshold;
+      for(const auto& bbOn : bbOnView)
       {
-        labelsView[i] = LABEL_OUT;
-        return;
-      }
-
-      auto candidatesBegin = offsetsView[i];
-      auto candidatesEnd = offsetsView[i] + countsView[i];
-      for(axom::IndexType j=candidatesBegin; j<candidatesEnd; ++j)
-      {
-        axom::IndexType candidateIdx = candidatesView[j];
-        const auto& candidateSeg = segsView[candidateIdx];
-        if(axom::primal::intersect(candidateSeg, cellBbInRz))
+        double sqDist = axom::primal::squared_distance(cellBb, bbOn);
+        if (sqDist <= sqDistThreshold)
         {
-          labelsView[i] = LABEL_ON;
+          cellLabel = LABEL_ON;
           return;
         }
       }
-      /*
-        Cell is definitely NOT ON boundary.  Count segments above
-        the cell.  If it's even, cell is OUT, else it's IN.
 
-        Use an exhaustive search through segs.
-        Alternative if that's slow: Create rays in the r-direction,
-        from centroids, and count number of intersecting segments.
-        Use bvh.findRays to limit the search.  (This has to be done
-        in a separate loop.)
-      */
-      auto cellCentroid = cellBbInRz.getCentroid();
-      const Ray2DType radial(cellCentroid, {0.0, 1.0});
-      int intersectionCount = 0;
-      for(const auto& seg : segsView) {
-        bool intersects = axom::primal::intersect(radial, seg);
-        intersectionCount += intersects;
+      for(const auto& bbUnder : bbUnderView)
+      {
+        if(cellBb.intersectsWith(bbUnder))
+        {
+          cellLabel = LABEL_IN;
+          return;
+        }
       }
-      labelsView[i] = intersectionCount % 2 == 1 ? LABEL_IN : LABEL_OUT;
+
+      cellLabel = LABEL_OUT;
     });
 }
 
 /*
-  Compute m_bbOn and m_bbUnder, the boxes that block of areas
-  on and under the rz curve.  The blocking is rough but conservative.
+  Compute m_bbOn and m_bbUnder, the boxes that block off areas
+  on and under the curve.  The clustering is rough but conservative.
 
   Currently, we have just 1 box under the curve, but we code for
   future arrays of boxes to be more discriminating.
   - m_bbOn has 3 boxes.  One for the base plane, one for the top
-    plane and one for the m_sorCurve curve.
+    plane and one for the m_sorCurve.
   - m_bbUnder has only the boxes under m_sorCurve.
 */
 void FSorClipper::clusterSorFunction()
@@ -375,23 +330,6 @@ bool FSorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<O
   return true;
 }
 
-bool FSorClipper::pointsAreAxiallyMonotonic(const axom::ArrayView<Point2DType>& sorCurve)
-{
-  constexpr double eps = 1e-14;
-  for(int i = 1; i < sorCurve.size()-1; ++i)
-  {
-    double prevDiff = (sorCurve[i][0] - sorCurve[i-1][0]);
-    double nextDiff = (sorCurve[i+1][0] - sorCurve[i][0]);
-    int prevSign = axom::utilities::sign_of(prevDiff, eps);
-    int nextSign = axom::utilities::sign_of(nextDiff, eps);
-    if (prevSign != nextSign && prevSign != 0 && nextSign != 0)
-    {
-      return false;
-    }
-  }
-  return true;
-}
-
 bool FSorClipper::getCurveWithAxisPoints(axom::Array<Point2DType>& curveWithAxisPoints)
 {
   /*
@@ -427,7 +365,7 @@ bool FSorClipper::getCurveWithAxisPoints(axom::Array<Point2DType>& curveWithAxis
 }
 
 /*
-  Combine consecutive radial segments in SOR curve.
+  Combine consecutive radial segments in SOR curve.  Change in place.
 */
 void FSorClipper::combineRadialSegments(axom::Array<Point2DType>& sorCurve)
 {
@@ -436,8 +374,8 @@ void FSorClipper::combineRadialSegments(axom::Array<Point2DType>& sorCurve)
 
   constexpr double eps = 1e-14;
 
-  // Compute in place.  Set sorCurve[j] to sorCurve[i] where
-  // j <= i, skipping points joining consecutive radial segments.
+  // Set sorCurve[j] to sorCurve[i] where j <= i, skipping points
+  // joining consecutive radial segments.
 
   int j = 1;
   bool prevIsRadial = axom::utilities::isNearlyEqual(sorCurve[j][0] - sorCurve[j-1][0], eps);
@@ -445,13 +383,92 @@ void FSorClipper::combineRadialSegments(axom::Array<Point2DType>& sorCurve)
   for (int i = 2; i < ptCount; ++i)
   {
     curIsRadial = axom::utilities::isNearlyEqual(sorCurve[i][0] - sorCurve[i-1][0], eps);
-    // If current and previous aren't consecutive radial segments,
-    // copy pt to new point j.  Else, overwrite current point j.
+    /*
+      Current and previous segments share point j.  If both are
+      consecutive radial segments, discard point j by overwriting it
+      with point i.  Else, copy point i to a new point j.
+    */
     if (!(curIsRadial && prevIsRadial)) { ++j; }
     sorCurve[j] = sorCurve[i];
     prevIsRadial = curIsRadial;
   }
   sorCurve.resize(j + 1);
+}
+
+/*
+  Find points along the r-z curve where the z-coordinate changes direction.
+
+  Cases 1 and 2 below show changes, (at point o).  Case 3 shows a
+  potential change at the radial segment, but not a real change.
+  (Radial segments have constant z and align with the radial
+  direction.)  Defer to the next segment to differentiate between
+  cases 2 and 3.  For case 2, prefer to split at the point closer to
+  the axis of rotation.
+
+     r   ^
+  (or y) |    (1)         (2)         (3)
+         |  Single      Radial      Radial
+         |  point       segment     segment w/o
+         |  change      change      change
+         |
+         |    \            \          \
+         |     \            \          \
+         |      o            |          |
+         |     /             o           \
+         |    /             /             \
+         +-------------------------------------> z (or x)
+*/
+axom::Array<axom::IndexType> FSorClipper::findZSwitchbacks(
+  axom::ArrayView<const Point2DType> pts)
+{
+  const axom::IndexType segCount = pts.size() - 1;
+  SLIC_ASSERT(segCount > 0);
+
+  // boundaryIdx is where curve's axial direction changes, plus end points.
+  axom::Array<axom::IndexType> boundaryIdx(0, 2);
+  boundaryIdx.push_back(0);
+
+  constexpr double eps = 1e-14;
+
+  if(segCount > 1)
+  {
+    // Direction is whether z increases or decreases along the curve.
+    // curDir is the current direction, ignoring radial segments,
+    // which don't change z.
+    int curDir = axom::utilities::sign_of(pts[1][0] - pts[0][0], eps);
+    if (curDir == 0) { curDir = axom::utilities::sign_of(pts[2][0] - pts[1][0], eps); }
+
+    // Detect where z changes direction, and note those indices.
+    for(axom::IndexType i = 1; i < segCount; ++i)
+    {
+      int segDir = axom::utilities::sign_of(pts[i+1][0] - pts[i][0], eps);
+      if (segDir == 0) {
+        // Radial segment may or may not indicate change. Decide with next segment.
+        continue;
+      }
+      if (segDir != curDir)
+      {
+        // Direction change
+        int prevSegDir = axom::utilities::sign_of(pts[i][0] - pts[i-1][0], eps);
+        if (prevSegDir != 0)
+        {
+          // Case 1, a clear turn not involving a radial segment.
+          boundaryIdx.push_back(i);
+        }
+        else
+        {
+          // Case 2, involving a radial segment.
+          // Use the radially-closer point of the segment.
+          int splitI = pts[i][1] < pts[i-1][1] ? i : i - 1;
+          boundaryIdx.push_back(splitI);
+        }
+        curDir = segDir;
+        SLIC_ASSERT( curDir != 0 ); // curDir ignores radial segments.
+      }
+    }
+  }
+  boundaryIdx.push_back(pts.size() - 1);
+  return boundaryIdx;
 }
 
 void FSorClipper::extractClipperInfo()

@@ -151,6 +151,7 @@ int discrSeg(const Point2D &a, const Point2D &b, int levels, axom::ArrayView<Oct
 {
   int hostAllocID = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
+#if 0
   // Assert input assumptions
   SLIC_ASSERT(b[0] - a[0] >= 0);
   SLIC_ASSERT(a[1] >= 0);
@@ -165,6 +166,7 @@ int discrSeg(const Point2D &a, const Point2D &b, int levels, axom::ArrayView<Oct
   {
     return 0;
   }
+#endif
 
   int total_count = count_segment_prisms(levels);
 
@@ -276,7 +278,7 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
     // invalid if a.x > b.x
     if(a[0] > b[0])
     {
-      stillValid = false;
+      // stillValid = false;
     }
     if(a[1] < 0 || b[1] < 0)
     {

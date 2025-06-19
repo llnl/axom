@@ -13,6 +13,9 @@
 #include "axom/quest/ShapeeMesh.hpp"
 #include "axom/primal.hpp"
 
+// Requires Conduit for storing hierarchy-form data.
+#include "conduit_blueprint.hpp"
+
 namespace axom
 {
 namespace quest
@@ -320,16 +323,6 @@ protected:
 private:
   /*!
     @brief Compute the transformation matrix of a GeometryOperator.
-
-    TODO: The matrix is equivalent to the operator.  This code is
-    duplicated in several classes.  Should it be moved to
-    GeometryOperator?
-
-    TODO: I've not implemented coordinate transformations for any
-    subclasses.  When the transform matrix is not identity, their
-    results are wrong until the transformations take place.  Transformations
-    need to happen in getGeometryAsTets, getGeometryAsOcts, labelInOut
-    and specializedClip.  Basically everything.
   */
   numerics::Matrix<double> computeTransformationMatrix(
     const std::shared_ptr<const axom::klee::GeometryOperator>& op) const;

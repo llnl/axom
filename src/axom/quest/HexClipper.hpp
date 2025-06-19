@@ -16,7 +16,7 @@ namespace quest
 {
 
 /*!
-  @brief GeometryClipper specialized for sphere geometries.
+  @brief Geometry clipping operations for sphere geometries.
 */
 class HexClipper : public GeometryClipperStrategy
 {

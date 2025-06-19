@@ -61,7 +61,8 @@ public:
     oriented along the first axis.
     \param [in] baseRadius
     \param [in] topRadius
-    \param [in] length
+    \param [in] length Negative value is allowed and leads
+      to negative volume.
   */
   AXOM_HOST_DEVICE Cone(T baseRadius, T topRadius, T length)
     : m_baseZ(0.0)
@@ -80,9 +81,10 @@ public:
     \param [in] baseRadius
     \param [in] topZ
     \param [in] topRadius
-    \param [in] length
     \param [in] direction Direction of axis, from base to top.
     \param [in] origin Coordinates of the z=0 point
+
+    topZ < baseZ is allowed and leads to negative length and volume.
    */
   AXOM_HOST_DEVICE Cone(T baseZ,
                         T baseRadius,
@@ -104,13 +106,16 @@ public:
   AXOM_HOST_DEVICE T getBaseZ() const { return m_baseZ; }
 
   //! \brief Return the radius at the base.
-  AXOM_HOST_DEVICE T getBaseRadius() { return m_baseRad; }
+  AXOM_HOST_DEVICE T getBaseRadius() const { return m_baseRad; }
 
   //! \brief Return the z-coordinate of the top.
-  AXOM_HOST_DEVICE T getTopZ() { return m_topZ; }
+  AXOM_HOST_DEVICE T getTopZ() const { return m_topZ; }
 
   //! \brief Return the radius at the top.
-  AXOM_HOST_DEVICE T getTopRadius() { return m_topRad; }
+  AXOM_HOST_DEVICE T getTopRadius() const { return m_topRad; }
+
+  //! \brief Return algebraic length of the cone.
+  AXOM_HOST_DEVICE T getLength() const { return m_topZ - m_baseZ; }
 
   //! \brief Return the axis direction.
   AXOM_HOST_DEVICE const VectorType& getDirection() const { return m_direction; }
@@ -136,8 +141,8 @@ public:
   /*!
    \brief Returns the algebraic volume of the cone
 
-   The volume returned is non-negative when the top-z coordinate
-   is larger than the base-z coordinate.  Otherwise, it's negative.
+   The volume returned is positive when the top-z coordinate is larger
+   than the base-z coordinate.  Otherwise, it's non-positive.
 
    Volume is only defined when NDIMS == 3.
   */

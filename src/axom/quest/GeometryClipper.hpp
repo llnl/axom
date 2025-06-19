@@ -99,6 +99,10 @@ public:
       const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
       axom::ArrayView<double> ovlap) = 0;
 
+    //! @brief Initialize overlap volumes to zero.
+    virtual void initVolumeOverlaps(
+      axom::ArrayView<double> ovlap) = 0;
+
     //!@brief Collect unlabeled cells indices into an index list.
     virtual void collectUnlabeledCellIndices(const axom::ArrayView<LabelType>& labels,
                                              axom::Array<axom::IndexType>& unlabeledCells) = 0;

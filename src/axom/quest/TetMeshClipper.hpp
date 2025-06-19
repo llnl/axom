@@ -10,13 +10,16 @@
 #include "axom/quest/GeometryClipperStrategy.hpp"
 #include "axom/primal/geometry/CoordinateTransformer.hpp"
 
+// Implementation requires Conduit.
+#include "conduit_blueprint.hpp"
+
 namespace axom
 {
 namespace quest
 {
 
 /*!
-  @brief GeometryClipper specialized for tetrahedral mesh geometries.
+  @brief Geometry clipping operations for tetrahedral mesh geometries.
 */
 class TetMeshClipper : public GeometryClipperStrategy
 {

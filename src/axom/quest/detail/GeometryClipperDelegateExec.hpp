@@ -48,6 +48,20 @@ public:
     return;
   }
 
+  void initVolumeOverlaps(axom::ArrayView<double> ovlap) override
+  {
+    const axom::IndexType cellCount = getShapeeMesh().getCellCount();
+    SLIC_ASSERT(ovlap.size() == cellCount);
+
+    axom::for_all<ExecSpace>(
+      cellCount,
+      AXOM_LAMBDA(axom::IndexType i) {
+        ovlap[i] = 0.0;
+      });
+
+    return;
+  }
+
   /*!
     @brief Make an list of indices where labels have value 1.
 

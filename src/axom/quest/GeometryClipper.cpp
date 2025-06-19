@@ -106,6 +106,7 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
   }
   else  // !withInOut
   {
+    m_delegate->initVolumeOverlaps(ovlap);
     done = m_strategy->specializedClip(m_shapeeMesh, ovlap);
 
     if(!done)
