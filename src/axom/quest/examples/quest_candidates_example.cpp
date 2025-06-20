@@ -268,16 +268,6 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path, bool verboseOutput = 
   int connectivity_size =
     (n_load[0]["topologies/topo/elements/connectivity"]).dtype().number_of_elements();
 
-  // Sanity check for number of cells
-  int cell_calc_from_nodes = std::round(std::pow(std::pow(num_nodes, 1.0 / 3.0) - 1, 3));
-  int cell_calc_from_connectivity = connectivity_size / HEX_OFFSET;
-  if(cell_calc_from_nodes != cell_calc_from_connectivity)
-  {
-    SLIC_ERROR("Number of cells is not expected!\n"
-               << "First calculation is " << cell_calc_from_nodes << " and second calculation is "
-               << cell_calc_from_connectivity);
-  }
-
   // extract hexes into an axom::Array
   auto x_vals_h = axom::ArrayView<double>(n_load[0]["coordsets/coords/values/x"].value(), num_nodes);
   auto y_vals_h = axom::ArrayView<double>(n_load[0]["coordsets/coords/values/y"].value(), num_nodes);
@@ -297,9 +287,32 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path, bool verboseOutput = 
   auto z_vals_view = on_device ? z_vals_d.view() : z_vals_h;
 
   // Move connectivity information onto device
-  auto connectivity_h =
-    axom::ArrayView<int>(n_load[0]["topologies/topo/elements/connectivity"].value(),
-                         connectivity_size);
+
+  int* conn_data = nullptr;
+  axom::Array<int> temp_conn_data;
+  int conn_id = n_load[0]["topologies/topo/elements/connectivity"].dtype().id();
+  if(conn_id == conduit::DataType::INT32_ID)
+  {
+    conn_data = n_load[0]["topologies/topo/elements/connectivity"].as_int32_ptr();
+  }
+  else if(conn_id == conduit::DataType::INT64_ID)
+  {
+    temp_conn_data.resize(connectivity_size);
+    auto conn_int64_data = n_load[0]["topologies/topo/elements/connectivity"].as_int64_ptr();
+    for(int i = 0; i < connectivity_size; ++i)
+    {
+      temp_conn_data[i] = static_cast<int>(conn_int64_data[i]);
+    }
+    conn_data = temp_conn_data.data();
+  }
+  else
+  {
+    SLIC_ERROR("Node connectivity data type "
+               << n_load[0]["topologies/topo/elements/connectivity"].dtype().name()
+               << " is unsupported!");
+  }
+
+  auto connectivity_h = axom::ArrayView<int>(conn_data, connectivity_size);
 
   axom::Array<int> connectivity_d =
     on_device ? axom::Array<int>(connectivity_h, kernel_allocator) : axom::Array<int>();
