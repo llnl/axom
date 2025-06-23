@@ -47,19 +47,20 @@ char const TEST_RECORD_TYPE[] = "test type";
 char const EXPECTED_RECORDS_KEY[] = "records";
 char const EXPECTED_RELATIONSHIPS_KEY[] = "relationships";
 
-// Simple document to append into
+// Simple document to append into, has examples of all our data categories
 std::string SIMPLE_DOCUMENT = R"(
 {
   "records": [
     {
       "type": "run",
       "application": "test",
-      "id": "rec_1",
+      "id": "bar1",
       "data": {
         "int": {
           "value": 500,
           "units": "miles"
         },
+        "string": {"value": "goodbye!"},
         "str/ings": {
           "value": ["z", "o", "o"]
         }
@@ -72,11 +73,23 @@ std::string SIMPLE_DOCUMENT = R"(
       },
       "curve_sets": {
         "set_1": {
-          "independent": {
-            "foo": {"value": [1, 2, 3]}
-          },
           "dependent": {
-            "bar": {"value": [4, 5, 6]}
+            "0": {"value": [1, 2, 3]},
+            "1": {"value": [-1, -2, -3]}
+          },
+          "independent": {
+            "0": {"value": [4, 5, 6]},
+            "1": {"value": [-4, -5, -6]}
+          }
+        }
+      },
+      "library_data": {
+        "my_lib": {
+          "data": {"int": {"value": 10}},
+          "library_data": {
+            "my_inner_lib": {
+              "user_defined": {"foo/bar": "baz/qux"}
+            }
           }
         }
       }
@@ -85,29 +98,50 @@ std::string SIMPLE_DOCUMENT = R"(
 }
 )";
 
-std::string data_json = R"(
+std::string MULTI_REC_DOCUMENT = R"(
 {
-  "records": [
-    {
-      "type": "run",
-      "application": "test",
-      "id": "test_1",
-      "data": {
-        "int": {
-          "value": 500,
-          "units": "miles"
-        },
-        "str/ings": {
-          "value": ["z", "o", "o"]
-        }
-      },
-      "files": {
-        "test/test.png": {}
-      }
-    }
-  ]
-}
-)";
+      "records": [
+          {
+              "data": {"string": {"value": "hello!"},
+                       "string2": {"value": "unchanged!"},
+                       "int": {"value": 20}},
+              "type": "run",
+              "application": "test",
+              "id": "bar1",
+              "user_defined":{"hello": "and",
+                              "foo": "notbar"},
+              "curve_sets": {
+                  "set_1": {
+                      "dependent": {
+                          "0": { "value": [11.0, 12.0, 13.0] },
+                          "1": { "value": [10.0, 20.0, 30.0] }
+                      },
+                      "independent": {
+                          "0": { "value": [14.0, 15.0, 16.0] },
+                          "1": { "value": [7.0, 8.0, 9.0] }
+                      }
+                  }
+              }
+          },
+          {
+              "type": "run",
+              "application": "test",
+              "id": "bar2",
+              "curve_sets": {
+                  "set_1": {
+                      "dependent": {
+                          "0": { "value": [1.0, 2.0] },
+                          "1": { "value": [10.0, 20.0] }
+                      },
+                      "independent": {
+                          "0": { "value": [4.0, 5.0] },
+                          "1": { "value": [7.0, 8.0] }
+                      }
+                  }
+              }
+          }
+      ]
+  })";
 
 // Full-featured multi-record document to test appending into.
 std::string long_json = R"(
@@ -514,7 +548,7 @@ TEST(Document, create_fromJson_full_json)
 
 TEST(Document, create_fromJson_value_check_json)
 {
-  axom::sina::Document myDocument = Document(data_json, createRecordLoaderWithAllKnownTypes());
+  axom::sina::Document myDocument = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
   EXPECT_EQ(0, myDocument.getRelationships().size());
   auto &records1 = myDocument.getRecords();
   EXPECT_EQ(1, records1.size());
@@ -660,47 +694,70 @@ TEST(Document, test_validate_append_missing_curve)
 {
   conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
   // Only foo is being appended to, not bar. Bad!
-  conduit::Node appendFrom =
-    parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"foo": {"value": [4, 5, 6]}}}}})");
+  conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"0": {"value": [4, 5, 6]}}}}})");
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 2);
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(0).to_string(),
             "\"Failed to append record 0: did not append ALL or NO pre-existing curves (causing "
             "append element count mismatch)\"");
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(1).to_string(),
-            "\"Failed to append record 0's curve 'foo': count of appended elements would differ "
-            "between series\"");
+            "\"Failed to append record 0's curve '0': count of appended elements would differ between series\""
+  );
 }
 
 TEST(Document, test_validate_append_mismatched_curve_lengths)
 {
   conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
   conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {
-    "independent": {"foo": {"value": [4, 5, 6]}},
-    "dependent": {"bar": {"value": [7, 8]}}}}})");
-  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
-  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(0).to_string(),
-            "\"Failed to append record 0's curve 'foo': count of appended elements would differ "
-            "between series\"");
+    "independent": {"0": {"value": [4, 5, 6]}, "1": {"value": [4, 5, 6]}},
+    "dependent": {"0": {"value": [7, 8, 9]}, "1": {"value": [7, 8]}}}}})");
+  conduit::Node msgNode = validateAppendDocument(appendTo, appendFrom, "", 1, 0);
+  ASSERT_EQ(msgNode.number_of_children(), 1);
+  ASSERT_EQ(msgNode.child(0).to_string(),
+            "\"Failed to append record 0's curve '1': count of appended elements would differ between series\""
+  );
 }
 
 TEST(Document, test_validate_append_mismatched_curve_lengths_newcurve)
 {
   conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
-  conduit::Node appendFrom =
-    parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"new": {"value": [4]}}}}})");
-  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
-  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(0).to_string(),
-            "\"Failed to append record 0's curve 'new': count of appended elements would differ "
-            "between series\"");
+  conduit::Node appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {"independent": {"new": {"value": [4]}}}}})");
+  conduit::Node msgNode = validateAppendDocument(appendTo, appendFrom, "", 1, 0);
+  ASSERT_EQ(msgNode.number_of_children(), 1);
+  ASSERT_EQ(msgNode.child(0).to_string(),
+            "\"Failed to append record 0's curve 'new': count of appended elements would differ between series\""
+  );
 
   appendFrom = parseJsonValue(R"({"curve_sets": {"set_1": {
     "independent": {"new": {"value": [4, 5, 6]},
-                    "foo": {"value": [4, 5, 6]}},
-    "dependent": {"bar": {"value": [4, 5, 6]}}}}})");
-  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 1);
-  ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).child(0).to_string(),
-            "\"Failed to append record 0's curve 'new': count of appended elements would differ "
-            "between series\"");
+                    "0": {"value": [4, 5, 6]},
+                    "1": {"value": [4, 5, 6]}},
+    "dependent": {"0": {"value": [4, 5, 6]},
+                  "1": {"value": [4, 5, 6]}}}}})");
+  msgNode = validateAppendDocument(appendTo, appendFrom, "", 1, 0);
+  ASSERT_EQ(msgNode.number_of_children(), 1);
+  ASSERT_EQ(msgNode.child(0).to_string(),
+            "\"Failed to append record 0's curve 'new': count of appended elements would differ between series\""
+  );
+}
+
+TEST(Document, test_validate_append_issue_in_librarydata){
+  conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
+  conduit::Node appendFrom = parseJsonValue(R"({"library_data": {"my_lib": {"data": {"int": {"value": 50}}}}})");
+  conduit::Node msgNode = validateAppendDocument(appendTo, appendFrom, "", 3, 0);
+  ASSERT_EQ(msgNode.number_of_children(), 1);
+  ASSERT_EQ(msgNode.child(0).to_string(),
+            "\"Failed to append record 0/library_data/my_lib (protocol 3): conflicting data: int\""
+  );
+}
+
+TEST(Document, test_validate_append_issue_nested_librarydata){
+  conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
+  conduit::Node appendFrom = parseJsonValue(R"({"library_data": {"my_lib": {"library_data": {"my_inner_lib": {"user_defined": {"foo/bar": "baz/qux"}}}}}})");
+  conduit::Node msgNode = validateAppendDocument(appendTo, appendFrom, "", 3, 0);
+  ASSERT_EQ(msgNode.number_of_children(), 1);
+  ASSERT_EQ(msgNode.child(0).to_string(),
+            "\"Failed to append record 0/library_data/my_lib/library_data/my_inner_lib (protocol 3): conflicting user_defined: foo/bar\""
+  );
 }
 
 TEST(Document, test_validate_append_valid)
@@ -712,7 +769,7 @@ TEST(Document, test_validate_append_valid)
 
 TEST(Document, test_basic_append)
 {
-  std::string jsonFilePath = "find-me.json";
+  std::string jsonFilePath = "test.json";
   std::ofstream testFile(jsonFilePath);
   // Create a near-empty document
   testFile << R"(
@@ -724,281 +781,67 @@ TEST(Document, test_basic_append)
   })";
   testFile.close();
   axom::sina::Document new_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
-  conduit::Node resultMsg = appendDocumentToJson(jsonFilePath, new_doc, 1);
-  /*ASSERT_EQ(resultMsg.number_of_children(), 0);
+  conduit::Node resultMsg = appendDocumentToJson(jsonFilePath, new_doc, 3);
+  ASSERT_EQ(resultMsg.number_of_children(), 0);
   conduit::Node append_root;
   append_root.load(jsonFilePath, "json");
-  conduit::Node expect_root;
-  append_root.load(SIMPLE_DOCUMENT, "json");
-  ASSERT_EQ(expect_root.child(0)["id"].to_string(), append_root.child(1)["id"].to_string());*/
+  conduit::Node expect_root = parseJsonValue(SIMPLE_DOCUMENT);
+  ASSERT_EQ(expect_root["records"].child(0)["id"].to_string(),
+            append_root["records"].child(1)["id"].to_string());
 }
 
 TEST(Document, test_appendDocumentToJson)
 {
   std::string jsonFilePath = "test.json";
-
   std::ofstream testFile(jsonFilePath);
-  testFile << R"({
-      "records": [
-          {
-              "data": {"scal1": {"value": "hello!"}},
-              "type": "foo1",
-              "id": "bar1",
-              "user_defined":{"hello": "and"},
-              "curve_sets": {
-                  "1": {
-                      "dependent": {
-                          "0": { "value": [1.0, 2.0] },
-                          "1": { "value": [10.0, 20.0] }
-                      },
-                      "independent": {
-                          "0": { "value": [4.0, 5.0] },
-                          "1": { "value": [7.0, 8.0] }
-                      }
-                  }
-              }
-          },
-          {
-              "type": "foo2",
-              "id": "bar2",
-              "curve_sets": {
-                  "1": {
-                      "dependent": {
-                          "0": { "value": [1.0, 2.0] },
-                          "1": { "value": [10.0, 20.0] }
-                      },
-                      "independent": {
-                          "0": { "value": [4.0, 5.0] },
-                          "1": { "value": [7.0, 8.0] }
-                      }
-                  }
-              }
-          }
-      ]
-  })";
+  testFile << MULTI_REC_DOCUMENT;
   testFile.close();
 
-  axom::sina::Document new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
+  axom::sina::Document new_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
 
   conduit::Node resultMsg = appendDocumentToJson(jsonFilePath, new_doc, 1);
-  ASSERT_EQ(resultMsg.number_of_children(), 0);
+  EXPECT_EQ(resultMsg.number_of_children(), 0);
 
   conduit::Node root;
   root.load(jsonFilePath, "json");
-  std::vector<double> expected, actual;
-
-  ASSERT_EQ(root["records"].number_of_children(), 3);
-
-  // ----- Record 0 -----
+  EXPECT_EQ(root["records"].number_of_children(), 2);
+  conduit::Node appendTo = parseJsonValue(MULTI_REC_DOCUMENT);
+  conduit::Node appendFrom = parseJsonValue(SIMPLE_DOCUMENT);
+  // The easy one, we have one record unchanged
+  EXPECT_EQ(root["records"].child(1).to_string(), appendTo["records"].child(1).to_string());
+  // The hard one, now a blend of the prior and new record
   const conduit::Node &rec0 = root["records"].child(0);
-  ASSERT_EQ(rec0["id"].as_string(), "bar1");
-  ASSERT_EQ(rec0["type"].as_string(), "foo1");
-  ASSERT_EQ(rec0["data"]["scal1"]["value"].as_string(), "goodbye!");
-  ASSERT_EQ(rec0["data"]["scal2"]["value"].as_string(), "goodbye!");
-  ASSERT_EQ(rec0["user_defined"]["hello"].as_string(), "goodbye");
-  expected = {1, 2, 1.0, 1.0};
-  actual = node_to_double_vector(rec0["curve_sets"]["1"]["dependent"]["0"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {10, 20, 8.0, 9.0};
-  actual = node_to_double_vector(rec0["curve_sets"]["1"]["dependent"]["1"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {4, 5, 4.0, 5.0};
-  actual = node_to_double_vector(rec0["curve_sets"]["1"]["independent"]["0"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {7, 8, 7.0, 9.0};
-  actual = node_to_double_vector(rec0["curve_sets"]["1"]["independent"]["1"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {1.0, 1.0};
-  actual = node_to_double_vector(rec0["curve_sets"]["2"]["dependent"]["0"]["value"]);
-  ASSERT_EQ(actual, expected);
+  EXPECT_EQ(rec0["type"].as_string(), "run");
+  EXPECT_EQ(rec0["data"]["string"]["value"].as_string(), "goodbye!");
+  EXPECT_EQ(rec0["data"].child("str/ings")["value"][0].as_string(), "z");
+  EXPECT_EQ(rec0["data"]["int"]["value"].as_float64(), 500);
+  EXPECT_EQ(rec0["data"]["string2"]["value"].as_string(), "unchanged!");
+  EXPECT_EQ(rec0["user_defined"]["hello"].as_string(), "and");
+  EXPECT_EQ(rec0["user_defined"]["foo"].as_string(), "bar");
+  std::vector<double> expected = {11, 12, 13, 1, 2, 3};
+  auto actual = node_to_double_vector(rec0["curve_sets"]["set_1"]["dependent"]["0"]["value"]);
+  EXPECT_EQ(expected, actual);
+  expected = {10, 20, 30, -1, -2, -3};
+  actual = node_to_double_vector(rec0["curve_sets"]["set_1"]["dependent"]["1"]["value"]);
+  EXPECT_EQ(expected, actual);
+  expected = {14, 15, 16, -4, -5, -6};
+  actual = node_to_double_vector(rec0["curve_sets"]["set_1"]["independent"]["0"]["value"]);
+  EXPECT_EQ(expected, actual);
+  expected = {7, 8, 9, -7, -8, -9};
+  actual = node_to_double_vector(rec0["curve_sets"]["set_1"]["independent"]["1"]["value"]);
+  EXPECT_EQ(expected, actual);
+  expected = {1.0, 2.0};
+  actual = node_to_double_vector(rec0["curve_sets"]["set_2"]["dependent"]["0"]["value"]);
+  EXPECT_EQ(expected, actual);
   expected = {10.0, 10.0};
-  actual = node_to_double_vector(rec0["curve_sets"]["2"]["dependent"]["1"]["value"]);
-  ASSERT_EQ(actual, expected);
+  actual = node_to_double_vector(rec0["curve_sets"]["set_2"]["dependent"]["1"]["value"]);
+  EXPECT_EQ(expected, actual);
   expected = {4.0, 4.0};
-  actual = node_to_double_vector(rec0["curve_sets"]["2"]["independent"]["0"]["value"]);
-  ASSERT_EQ(actual, expected);
+  actual = node_to_double_vector(rec0["curve_sets"]["set_2"]["independent"]["0"]["value"]);
+  EXPECT_EQ(expected, actual);
   expected = {7.0, 7.0};
-  actual = node_to_double_vector(rec0["curve_sets"]["2"]["independent"]["1"]["value"]);
-  ASSERT_EQ(actual, expected);
-
-  // ----- Record 1 -----
-  const conduit::Node &rec1 = root["records"].child(1);
-  ASSERT_EQ(rec1["id"].as_string(), "bar2");
-  ASSERT_EQ(rec1["type"].as_string(), "foo2");
-
-  expected = {1, 2};
-  actual = node_to_double_vector(rec1["curve_sets"]["1"]["dependent"]["0"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {10, 20};
-  actual = node_to_double_vector(rec1["curve_sets"]["1"]["dependent"]["1"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {4, 5};
-  actual = node_to_double_vector(rec1["curve_sets"]["1"]["independent"]["0"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {7, 8};
-  actual = node_to_double_vector(rec1["curve_sets"]["1"]["independent"]["1"]["value"]);
-  ASSERT_EQ(actual, expected);
-
-  // ----- Record 2 -----
-  const conduit::Node &rec2 = root["records"].child(2);
-  ASSERT_EQ(rec2["id"].as_string(), "bar3");
-  ASSERT_EQ(rec2["type"].as_string(), "foo2");
-
-  expected = {1.0, 1.0};
-  actual = node_to_double_vector(rec2["curve_sets"]["1"]["dependent"]["0"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {10.0, 10.0};
-  actual = node_to_double_vector(rec2["curve_sets"]["1"]["dependent"]["1"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {4.0, 4.0};
-  actual = node_to_double_vector(rec2["curve_sets"]["1"]["independent"]["0"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {7.0, 7.0};
-  actual = node_to_double_vector(rec2["curve_sets"]["1"]["independent"]["1"]["value"]);
-  ASSERT_EQ(actual, expected);
-}
-
-TEST(Document, test_appendDocumentToJson_failures)
-{
-  // We have a lot of potential failures
-  // 1. Fail validation due to an appended-to curve not being uniform
-  // 2. Fail validation due to a new curve not being uniform
-  // 3. Fail because Dependents won't be uniform with Independents
-  // 4. Fail because Protocol 3 Duplicate Data
-  // 5. Fail because Protocol 3 Duplicate UDC
-
-  std::string jsonFilePath = "test_failure.json";
-
-  std::ofstream testFile(jsonFilePath);
-  testFile << R"({
-    "records": [
-        {
-            "data": {"scal1": {"value": "hello!"}},
-            "type": "foo1",
-            "id": "bar1",
-            "user_defined":{"hello": "and"},
-            "curve_sets": {
-                "1": {
-                    "dependent": {
-                        "0": { "value": [1.0, 2.0] },
-                        "1": { "value": [10.0, 20.0] }
-                    },
-                    "independent": {
-                        "0": { "value": [4.0, 5.0] },
-                        "1": { "value": [7.0, 8.0] }
-                    }
-                }
-            }
-        },
-        {
-            "type": "foo2",
-            "id": "bar2",
-            "curve_sets": {
-                "1": {
-                    "dependent": {
-                        "0": { "value": [1.0, 2.0] },
-                        "1": { "value": [10.0, 20.0] }
-                    },
-                    "independent": {
-                        "0": { "value": [4.0, 5.0] },
-                        "1": { "value": [7.0, 8.0] }
-                    }
-                }
-            }
-        }
-    ]
-  })";
-  testFile.close();
-
-  // ---- Failure 1 ----
-  SCOPED_TRACE("Attempting Case 1");
-  std::string f1_data = ([](std::string s) {
-    conduit::Node tmp;
-    tmp.parse(s, "json");
-    conduit::Node &valNode = tmp["records"].child(0)["curve_sets"]["1"]["dependent"]["0"]["value"];
-    valNode.reset();
-    std::vector<double> new_val = {1, 1, 1};
-    valNode.set(new_val);
-    return tmp.to_json();
-  })(new_data);
-
-  axom::sina::Document new_doc = Document(f1_data, createRecordLoaderWithAllKnownTypes());
-  conduit::Node resultMsg = appendDocumentToJson(jsonFilePath, new_doc, 1);
-  ASSERT_EQ(resultMsg.number_of_children(), 4);
-  conduit::Node j;
-  j.load(jsonFilePath, "json");
-  ValidateRecordsUnchanged(j, "Case 1: Checking if File Was Changed");
-
-  // ---- Failure 2 ----
-  SCOPED_TRACE("Attempting Case 2");
-  std::string f2_data = ([](std::string s) {
-    conduit::Node tmp;
-    tmp.parse(s, "json");
-    conduit::Node &curve_set1 = tmp["records"].child(0)["curve_sets"]["1"];
-    if(curve_set1.has_child("dependent")) curve_set1["dependent"].reset();
-    conduit::Node &newDep = curve_set1["dependent"]["2"];
-    newDep.reset();
-    std::vector<double> newVal = {1};
-    newDep["value"].set(newVal);
-    if(curve_set1.has_child("independent")) curve_set1["independent"].reset();
-    return tmp.to_json();
-  })(new_data);
-
-  /*new_doc = Document(f2_data, createRecordLoaderWithAllKnownTypes());
-  result = appendDocumentToJson(jsonFilePath, new_doc, 1);
-  ASSERT_FALSE(result);
-  j.load(jsonFilePath, "json");
-  ValidateRecordsUnchanged(j, "Case 2: Checking if File Was Changed");
-
-  // ---- Failure 3 ----
-  SCOPED_TRACE("Attempting Case 3");
-  std::string f3_data = ([](std::string s) {
-    conduit::Node tmp;
-    tmp.parse(s, "json");
-    conduit::Node &valNode =
-      tmp["records"].child(0)["curve_sets"]["1"]["independent"]["1"]["value"];
-    valNode.reset();
-    std::vector<double> new_val = {1, 1, 1};
-    valNode.set(new_val);
-    return tmp.to_json();
-  })(new_data);
-
-  new_doc = Document(f3_data, createRecordLoaderWithAllKnownTypes());
-  result = appendDocumentToJson(jsonFilePath, new_doc, 1);
-  ASSERT_FALSE(result);
-  j.load(jsonFilePath, "json");
-  ValidateRecordsUnchanged(j, "Case 3: Checking if File Was Changed");
-
-  // ---- Failure 4 ----
-  SCOPED_TRACE("Attempting Case 4");
-  new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
-  result = appendDocumentToJson(jsonFilePath, new_doc, 3);
-  ASSERT_FALSE(result);
-  j.load(jsonFilePath, "json");
-  ValidateRecordsUnchanged(j, "Case 4: Checking if File Was Changed");
-
-  // ---- Failure 5 ----
-  SCOPED_TRACE("Attempting Case 5");
-  new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
-  result = appendDocumentToJson(jsonFilePath, new_doc, 1);
-  ASSERT_FALSE(result);
-  j.load(jsonFilePath, "json");
-  ValidateRecordsUnchanged(j, "Case 5: Checking if File Was Changed");
-
-  // ---- Assert Error Messages ----
-  std::cerr.rdbuf(origBuffer);
-  std::string expected =
-  ASSERT_EQ(msgNode.child(0),
-           "Error validating dependent: Record bar1, Curve Set 1, Curve 1 size mismatch "
-           "(expected 5, got 4).");
-  ASSERT_EQ(msgNode.child(1),
-    "Error validating dependent: Record bar1, Curve Set 1, Curve 2 size mismatch "
-    "(expected 2, got 1).");
-  ASSERT_EQ(msgNode.child(2),
-    "Error validating independent: Record bar1, Curve Set 1, Curve 1 size mismatch "
-    "(expected 4, got 5).");
-  ASSERT_EQ(msgNode.child(3),"Found a duplicate data entry, protocol 3 dictates "
-    "append cancellation. Found duplicate UDC, protocol 3 dictates append cancellation.";)*/
+  actual = node_to_double_vector(rec0["curve_sets"]["set_2"]["independent"]["1"]["value"]);
+  ASSERT_EQ(expected, actual);
 }
 
 #ifdef AXOM_USE_HDF5
@@ -1029,7 +872,7 @@ TEST(Document, create_fromJson_full_hdf5)
 
 TEST(Document, create_fromJson_value_check_hdf5)
 {
-  axom::sina::Document myDocument = Document(data_json, createRecordLoaderWithAllKnownTypes());
+  axom::sina::Document myDocument = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
   std::vector<std::string> expected_string_vals = {"z", "o", "o"};
   saveDocument(myDocument, "data_json.hdf5", Protocol::HDF5);
   Document loadedDocument = loadDocument("data_json.hdf5", Protocol::HDF5);

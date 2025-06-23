@@ -496,33 +496,13 @@ int relayLikeNumChildren(conduit::relay::io::IOHandle &appendTo,
   return child_name_holder.size();  // Feels incorrect, didn't find anything in conduit though
 }
 
-void relayLikeAppend(conduit::Node &appendTo,
-                     conduit::Node &appendFrom,
-                     const std::string &endpoint,
-                     int record_num)
-{
-  auto valuesIter = appendFrom.children();
-  while(valuesIter.has_next())
-  {
-    appendTo["records"].child(record_num)[endpoint].append() = valuesIter.next();
-  }
-}
-
-void relayLikeWrite(conduit::relay::io::IOHandle &appendTo,
-                    conduit::Node &appendFrom,
-                    const std::string &endpoint,
-                    int record_num)
-{
+void relayLikeWrite(conduit::relay::io::IOHandle &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
   UNUSED(record_num);
   appendTo.write(appendFrom, endpoint);
 }
 
-void relayLikeWrite(conduit::Node &appendTo,
-                    conduit::Node &appendFrom,
-                    const std::string &endpoint,
-                    int record_num)
-{
-  appendTo["records"].child(record_num)[endpoint] = appendFrom;
+void relayLikeWrite(conduit::Node &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
+    appendTo["records"].child(record_num)[endpoint].update(appendFrom);
 }
 
 void relayLikeAddNewRecord(conduit::relay::io::IOHandle &appendTo,
@@ -538,19 +518,21 @@ void relayLikeAddNewRecord(conduit::Node &appendTo, conduit::Node &new_record, i
   appendTo["records"].append() = new_record;
 }
 
-void relayLikeAppend(conduit::relay::io::IOHandle &appendTo,
-                     conduit::Node &appendFrom,
-                     const std::string &endpoint,
-                     int record_num)
-{
+void relayLikeAppendCurve(conduit::relay::io::IOHandle &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
   UNUSED(record_num);
   conduit::Node OPTS_NODE;  //are there any static defaults we want to set?
   OPTS_NODE["offset"] = appendFrom["num_elements"].to_int();
   appendTo.write(appendFrom, endpoint, OPTS_NODE);
 }
 
-std::unordered_map<std::string, int> relayLikeRecordOrderMap(conduit::Node &appendTo)
-{
+void relayLikeAppendCurve(conduit::Node &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
+  auto valuesIter = appendFrom.children();
+  while(valuesIter.has_next()) {
+    appendTo["records"].child(record_num)[endpoint].append() = valuesIter.next();
+  }
+}
+
+std::unordered_map<std::string, int> relayLikeRecordOrderMap(conduit::Node &appendTo){
   std::unordered_map<std::string, int> order_map;
   int num_children = appendTo["records"].number_of_children();
   for(int i = 0; i < num_children; i++)
@@ -687,28 +669,17 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
       msgNode.append() = "Failed to append record " + std::to_string(record_num) +
         ": type mismatch " + typeNode.to_string() + "vs " + appendFrom["type"].to_string();
     }
-  }
-  // Case two: merge protocol is 3, we need to die if certain fields appear in both places
-  if(mergeProtocol == 3)
-  {
-    const std::vector<std::string> prot3Fields = {"data", "user_defined", "files"};
-    for(auto &field : prot3Fields)
-    {
-      if(appendFrom.has_child(field) &&
-         relayLikeHasPath(appendTo, endpoint + "/" + field + "/", record_num))
-      {
-        auto dataIter = appendFrom[field].children();
-        while(dataIter.has_next())
-        {
-          dataIter.next();
-          relayLikeHasPath(appendTo, endpoint + "/" + field + "/" + dataIter.name(), record_num);
-          if(nodeWorkaroundHasChildSlashes(appendTo,
-                                           endpoint + "/" + field + "/",
-                                           dataIter.name(),
-                                           record_num))
-          {
-            msgNode.append() = "Failed to append record " + std::to_string(record_num) +
-              " (protocol 3): conflicting " + field + ": " + dataIter.name();
+    // Case two: merge protocol is 3, we need to die if certain fields appear in both places
+    if(mergeProtocol == 3){
+      const std::vector<std::string> prot3Fields = {"data", "user_defined", "files"};
+      for(auto &field : prot3Fields){
+        if(appendFrom.has_child(field) && relayLikeHasPath(appendTo, endpoint + "/" + field + "/", record_num)){
+          auto dataIter = appendFrom[field].children();
+          while(dataIter.has_next()){
+            dataIter.next();
+            if(nodeWorkaroundHasChildSlashes(appendTo, endpoint + "/" + field + "/", dataIter.name(), record_num)){
+              msgNode.append() = "Failed to append record " + std::to_string(record_num) + endpoint + " (protocol 3): conflicting "+field+": "+dataIter.name();
+            }
           }
         }
       }
@@ -732,20 +703,18 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
     }
   }
 
-  // Case four: library data. Recurse on it if it's already in the hdf5.
-  if(appendFrom.has_child("library_data"))
-  {
-    auto libraryIter = appendFrom["library_data"].children();
-    std::string subEndpoint;
-    while(libraryIter.has_next())
-    {
-      const conduit::Node &n = libraryIter.next();
-      subEndpoint = endpoint + "/library_data/" + libraryIter.name();
-      // We only have to validate if the hdf5 already has a library with that name.
-      if(relayLikeHasPath(appendTo, endpoint, record_num))
-      {
-        concat_list_node(msgNode,
-                         validateAppendDocument(appendTo, n, subEndpoint, mergeProtocol, record_num));
+    // Case four: library data. Recurse on it if it's already in the hdf5.
+    if(appendFrom.has_child("library_data")){
+      auto libraryIter = appendFrom["library_data"].children();
+      std::string subEndpoint;
+      while(libraryIter.has_next()){
+        const conduit::Node &n = libraryIter.next();
+        subEndpoint = endpoint + "/library_data/" + libraryIter.name();
+        // We only have to validate if the target already has a library with that name.
+        if(relayLikeHasPath(appendTo, subEndpoint, record_num)){
+          concat_list_node(msgNode,
+                           validateAppendDocument(appendTo, n, subEndpoint, mergeProtocol, record_num));
+        }
       }
     }
   }
@@ -767,21 +736,18 @@ template <typename ConduitRelayLike>
 void append_curveset(ConduitRelayLike &appendTo,
                      conduit::Node &appendFrom,
                      const std::string &endpoint,
-                     int record_num)
-{
-  for(const std::string &curve_cat : CURVE_CATEGORIES)
-  {
-    std::string curves_endpoint = endpoint + "/" + curve_cat;
-    for(auto curve : appendFrom[curves_endpoint][curve_cat].children())
-    {
-      std::string curve_name = endpoint + "/" + curve_cat + curve.name();
-      if(relayLikeHasPath(appendTo, curve_name, record_num))
-      {
-        relayLikeAppend(appendTo, appendFrom[curve_name], curve_name, record_num);
-      }
-      else
-      {
-        relayLikeWrite(appendTo, curve, curve_name, record_num);
+                     int record_num){
+    std::cerr << appendFrom.to_string() << std::endl;
+    for(const std::string& curve_cat : CURVE_CATEGORIES){
+      auto curveIter = appendFrom[curve_cat].children();
+      while(curveIter.has_next()){{
+        conduit::Node &n = curveIter.next();
+        std::string curve_endpoint = endpoint + "/" + curve_cat + "/" + curveIter.name() + "/value";
+        if(relayLikeHasPath(appendTo, curve_endpoint, record_num)){
+          relayLikeAppendCurve(appendTo, n["value"], curve_endpoint, record_num);
+        } else {
+          relayLikeWrite(appendTo, n["value"], curve_endpoint, record_num);
+        }
       }
     }
   }
@@ -798,12 +764,11 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
   while(fieldsIter.has_next())
   {
     conduit::Node &recField = fieldsIter.next();
-    std::string appendAtEndpoint = endpoint + "/" + fieldsIter.name();
-    switch(field_lookup(fieldsIter.name()))
-    {
-    case AppendFields::ID_FIELD:    // we already have it, else we couldn't find this
-    case AppendFields::TYPE_FIELD:  // we already have it, else we exploded above
-    case AppendFields::USER_FIELD:  // special run fields, ignore? explode?
+    std::string appendAtEndpoint = endpoint+"/"+fieldsIter.name() + "/";
+    switch (field_lookup(fieldsIter.name())) {
+    case AppendFields::ID_FIELD:  // we already have it, else we couldn't find this
+    case AppendFields::TYPE_FIELD: // we already have it, else we exploded above
+    case AppendFields::USER_FIELD: // special run fields, ignore? explode?
     case AppendFields::VERSION_FIELD:
     case AppendFields::APPLICATION_FIELD:
       break;
@@ -822,12 +787,8 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
         while(subFieldIter.has_next())
         {
           conduit::Node &subField = subFieldIter.next();
-          if(!relayLikeHasPath(appendTo, appendAtEndpoint, record_num))
-          {
-            relayLikeWrite(appendTo,
-                           subField,
-                           appendAtEndpoint + "/" + fieldsIter.name() + "/" + subFieldIter.name(),
-                           record_num);
+          if(!relayLikeHasPath(appendTo, appendAtEndpoint, record_num)){
+            relayLikeWrite(appendTo, subField, appendAtEndpoint+subFieldIter.name(), record_num);
           }
         }
       }
@@ -839,14 +800,10 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
       while(libraryIter.has_next())
       {
         conduit::Node &libraryField = libraryIter.next();
-        if(relayLikeHasPath(appendTo, endpoint, record_num))
-        {
-          append_recordlike_fields(
-            appendTo,
-            libraryField,
-            appendAtEndpoint + "/" + fieldsIter.name() + "/" + libraryIter.name(),
-            mergeProtocol,
-            record_num);
+        if(relayLikeHasPath(appendTo, endpoint, record_num)){
+          append_recordlike_fields(appendTo, libraryField,
+                                   appendAtEndpoint+libraryIter.name(),
+                                   mergeProtocol, record_num);
         }
       }
       break;
@@ -857,9 +814,8 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
       while(curveSetIter.has_next())
       {
         conduit::Node &curveSetField = curveSetIter.next();
-        append_curveset(appendTo,
-                        curveSetField,
-                        appendAtEndpoint + "/" + fieldsIter.name() + "/" + curveSetIter.name(),
+        append_curveset(appendTo, curveSetField,
+                        appendAtEndpoint+curveSetIter.name(),
                         record_num);
       }
     }
@@ -889,11 +845,9 @@ conduit::Node append(ConduitRelayLike &appendTo,
     auto rec_num = rec_order.find(n["id"].to_string());
     // We only validate records we're appending (not just adding). This does mean someone could insert a malformed record,
     // but that's always been the case; validation is meant to assist with catching bad curves, mostly
-    if(rec_num != rec_order.end())
-    {
-      std::string endpoint = isHDF5 ? "records/" + std::to_string(rec_num->second) + "/" : "";
-      concat_list_node(msgNode,
-                       validateAppendDocument(appendTo, n, endpoint, mergeProtocol, rec_num->second));
+    if(rec_num != rec_order.end()){
+      std::string endpoint = isHDF5 ? "records/" + std::to_string(rec_num->second): "";
+      concat_list_node(msgNode, validateAppendDocument(appendTo, n, endpoint, mergeProtocol, rec_num->second));
     }
   }
   // Return with our error list if we errored.
@@ -910,13 +864,10 @@ conduit::Node append(ConduitRelayLike &appendTo,
     conduit::Node &rec = recordsIter.next();
     // Easiest case, the record doesn't exist yet. Add it.
     auto rec_num = rec_order.find(rec["id"].to_string());
-    if(rec_num == rec_order.end())
-    {
-      relayLikeAddNewRecord(appendTo, appendFrom, offset);
-      offset++;
-    }
-    else
-    {
+    if(rec_num == rec_order.end()){
+      relayLikeAddNewRecord(appendTo, rec, offset);
+      offset ++;
+    } else {
       append_recordlike_fields(appendTo, rec, "", mergeProtocol, rec_num->second);
     }
   }
@@ -924,19 +875,13 @@ conduit::Node append(ConduitRelayLike &appendTo,
 }
 
 conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
-                                   const Document &newData,
-                                   const int mergeProtocol)
-{
-  conduit::relay::io::IOHandle writeTo;
-  writeTo.open(jsonFilePath);
+                    const Document &newData,
+                    const int mergeProtocol){
   conduit::Node appendTo;
-  writeTo.read(appendTo);
+  appendTo.load(jsonFilePath, "json");
   conduit::Node appendFrom = newData.toNode();
   conduit::Node success = append(appendTo, appendFrom, mergeProtocol, false);
-  // More conduit kindness: it looks like the writes only resolve once we close.
-  // In that case, we don't need to worry about re-re-re-dumping this file with writes.
-  writeTo.read(appendTo);
-  writeTo.close();
+  conduit::relay::io::save(appendTo, jsonFilePath);
   return success;
 }
 
