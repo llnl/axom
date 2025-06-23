@@ -605,13 +605,13 @@ spack:
       buildable: false
       externals:
       - spec: cppcheck@2.9
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_18_16_21_38/view/cppcheck-2.9
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_20_15_42_31/view/cppcheck-2.9
     doxygen:
       version: [1.13.2]
       buildable: false
       externals:
       - spec: doxygen@1.13.2
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_18_16_21_38/view/doxygen-1.13.2
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_20_15_42_31/view/doxygen-1.13.2
     llvm:
       version: [18.0.0]
       buildable: false
@@ -627,9 +627,9 @@ spack:
       buildable: false
       externals:
       - spec: py-sphinx@8.0.2
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_18_16_21_38/view/python-3.13.2
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_20_15_42_31/view/python-3.13.2
     python:
       buildable: false
       externals:
       - spec: python@3.13.2
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_18_16_21_38/view/python-3.13.2
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_20_15_42_31/view/python-3.13.2
