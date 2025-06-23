@@ -85,7 +85,7 @@ int main(int argc, char** argv)
   std::cout << std::endl;
   // END DEBUG
 
-  // STEP 3a: Create a new sidre::MCArray with data held in a View in the
+  // STEP 3b: Create a new sidre::MCArray with data held in a View in the
   //          new data store. Verify that the shape and size of the data is
   //          what it is expected to be.
   sidre::MCArray<int> nodes_2(root2->getView("nodes_1/data"));
