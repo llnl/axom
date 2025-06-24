@@ -76,13 +76,13 @@ int STLWriter::write(const mint::Mesh* mesh)
           mesh->getNode(nodes[ti + 1], coords[1]);
           mesh->getNode(nodes[ti + 2], coords[2]);
 
-          *out_ptr << "facet normal 0. 0. 1.\n";
-          *out_ptr << "    outer loop\n";
-          *out_ptr << "        vertex " << coords[0][0] << " " << coords[0][1] << " 0.\n";
-          *out_ptr << "        vertex " << coords[1][0] << " " << coords[1][1] << " 0.\n";
-          *out_ptr << "        vertex " << coords[2][0] << " " << coords[2][1] << " 0.\n";
-          *out_ptr << "    endloop\n";
-          *out_ptr << "endfacet\n";
+          *out_ptr << "\t facet normal 0. 0. 1.\n";
+          *out_ptr << "\t\t outer loop\n";
+          *out_ptr << "\t\t\t vertex " << coords[0][0] << " " << coords[0][1] << " 0.\n";
+          *out_ptr << "\t\t\t vertex " << coords[1][0] << " " << coords[1][1] << " 0.\n";
+          *out_ptr << "\t\t\t vertex " << coords[2][0] << " " << coords[2][1] << " 0.\n";
+          *out_ptr << "\t\t endloop\n";
+          *out_ptr << "\t endfacet\n";
         }
       });
   }
@@ -129,13 +129,13 @@ int STLWriter::write(const mint::Mesh* mesh)
           }
           else
           {
-            *out_ptr << "facet normal " << N[0] << " " << N[1] << " " << N[2] << "\n";
-            *out_ptr << "    outer loop\n";
-            *out_ptr << "        vertex " << coords[0][0] << " " << coords[0][1] << " " << coords[0][2] << "\n";
-            *out_ptr << "        vertex " << coords[1][0] << " " << coords[1][1] << " " << coords[1][2] << "\n";
-            *out_ptr << "        vertex " << coords[2][0] << " " << coords[2][1] << " " << coords[2][2] << "\n";
-            *out_ptr << "    endloop\n";
-            *out_ptr << "endfacet\n";
+            *out_ptr << "\t facet normal " << N[0] << " " << N[1] << " " << N[2] << "\n";
+            *out_ptr << "\t\t outer loop\n";
+            *out_ptr << "\t\t\t vertex " << coords[0][0] << " " << coords[0][1] << " " << coords[0][2] << "\n";
+            *out_ptr << "\t\t\t vertex " << coords[1][0] << " " << coords[1][1] << " " << coords[1][2] << "\n";
+            *out_ptr << "\t\t\t vertex " << coords[2][0] << " " << coords[2][1] << " " << coords[2][2] << "\n";
+            *out_ptr << "\t\t endloop\n";
+            *out_ptr << "\t endfacet\n";
           }
         }
       });
@@ -148,6 +148,12 @@ int STLWriter::write(const mint::Mesh* mesh)
   out.close();
 
   return 0;
+}
+
+int write_stl(const mint::Mesh* mesh, const std::string &filename, bool binary)
+{
+   STLWriter w(filename, binary);
+   return w.write(mesh);
 }
 
 }  // namespace quest

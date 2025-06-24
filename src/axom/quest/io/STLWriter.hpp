@@ -20,7 +20,7 @@ namespace quest
 /*!
  * \class STLWriter
  *
- * \brief A simple STL writer for Mint meshes.
+ * \brief A simple STL writer for the faces of Mint meshes.
  *
  * STL (STereoLithography) is a common file format for triangle meshes.
  * It encodes a "soup of triangles" by explicitly listing the coordinate
@@ -71,6 +71,17 @@ protected:
   std::string m_fileName{"output.stl"};
   bool m_binary{false};
 };
+
+/*!
+ * \brief Function interface for STL writer.
+ *
+ * \param mesh The mesh whose faces will be written.
+ * \param filename The name of the file to write.
+ * \param binary Whether to write binary or ascii files.
+ *
+ * \return 0 on success; non-zero otherwise.
+ */
+int write_stl(const mint::Mesh* mesh, const std::string &filename, bool binary);
 
 }  // namespace quest
 }  // namespace axom
