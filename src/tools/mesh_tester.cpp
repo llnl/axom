@@ -20,7 +20,7 @@
 #include "axom/spin/UniformGrid.hpp"
 
 // _read_stl_include1_start
-#include "axom/quest/readers/STLReader.hpp"
+#include "axom/quest/io/STLReader.hpp"
 // _read_stl_include1_end
 // _check_repair_include_start
 #include "axom/quest/MeshTester.hpp"

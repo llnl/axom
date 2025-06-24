@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/quest/readers/STLReader.hpp"
+#include "axom/quest/io/STLReader.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/slic.hpp"
 #include "axom/core/NumericLimits.hpp"
