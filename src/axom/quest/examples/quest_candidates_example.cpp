@@ -23,11 +23,19 @@
   #error This example requires axom to be configured with Umpire support
 #endif
 
+#ifdef AXOM_USE_MPI
+  #include "mpi.h"
+#else
+  #error This example requires axom to be configured with MPI support
+#endif
+
 #ifdef AXOM_USE_CONDUIT
   #include "conduit_relay.hpp"
   #include "conduit_blueprint.hpp"
+  #include "conduit_blueprint_mpi.hpp"
+  #include "conduit_relay_mpi_io_blueprint.hpp"
 #else
-  #error This example requires axom to be configured with Conduit support
+  #error This example requires axom to be configured with Conduit + MPI support
 #endif
 
 #include "axom/mint.hpp"
@@ -47,6 +55,10 @@ using UMesh = axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>;
 using IndexPair = std::pair<axom::IndexType, axom::IndexType>;
 using RuntimePolicy = axom::runtime_policy::Policy;
 
+// MPI globals, set in main().
+int myRank = -1;
+int numRanks = -1;
+
 //-----------------------------------------------------------------------------
 /// Basic RAII utility class for initializing and finalizing slic logger
 //-----------------------------------------------------------------------------
@@ -55,21 +67,21 @@ struct BasicLogger
   BasicLogger()
   {
     namespace slic = axom::slic;
-
     // Initialize the SLIC logger
     slic::initialize();
-    slic::setLoggingMsgLevel(slic::message::Debug);
+    slic::setLoggingMsgLevel(slic::message::Info);
 
-    // Customize logging levels and formatting
-    const std::string slicFormatStr = "[<LEVEL>] <MESSAGE> \n";
+    slic::LogStream* logStream;
 
-    slic::addStreamToMsgLevel(new slic::GenericOutputStream(&std::cerr), slic::message::Error);
-    slic::addStreamToMsgLevel(new slic::GenericOutputStream(&std::cerr, slicFormatStr),
-                              slic::message::Warning);
+    std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
+#ifdef AXOM_USE_LUMBERJACK
+    const int RLIMIT = 8;
+    logStream = new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, RLIMIT, fmt);
+#else
+    logStream = new slic::SynchronizedStream(&std::cout, MPI_COMM_WORLD, fmt);
+#endif  // AXOM_USE_MPI
 
-    auto* compactStream = new slic::GenericOutputStream(&std::cout, slicFormatStr);
-    slic::addStreamToMsgLevel(compactStream, slic::message::Info);
-    slic::addStreamToMsgLevel(compactStream, slic::message::Debug);
+    slic::addStreamToAllMsgLevels(logStream);
   }
 
   ~BasicLogger() { axom::slic::finalize(); }
@@ -244,7 +256,23 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path, bool verboseOutput = 
 
   // Load Blueprint mesh into Conduit node
   conduit::Node n_load;
+
+  // Read mesh as single domain first; if partitioned, then reset and reload with MPI
   conduit::relay::io::blueprint::read_mesh(mesh_path, n_load);
+
+  if(conduit::blueprint::mesh::number_of_domains(n_load) > 1)
+  {
+    n_load.reset();
+    conduit::relay::mpi::io::blueprint::read_mesh(mesh_path, n_load, MPI_COMM_WORLD);
+  }
+
+  // Requirement that each rank has 1 domain
+  if(conduit::blueprint::mesh::number_of_domains(n_load) != 1)
+  {
+    SLIC_ERROR(axom::fmt::format("Rank {} has {} domains. Must have 1 domain per rank!\n",
+                                 myRank,
+                                 conduit::blueprint::mesh::number_of_domains(n_load)));
+  }
 
   // Check if Blueprint mesh conforms
   conduit::Node n_info;
@@ -390,8 +418,10 @@ HexMesh loadBlueprintHexMesh(const std::string& mesh_path, bool verboseOutput = 
     }
 
     // Write out to vtk for test viewing
-    SLIC_INFO("Writing out Blueprint mesh to test.vtk for debugging...");
-    axom::mint::write_vtk(mesh, "test.vtk");
+    std::string vtk_file_name = "test_" + std::to_string(myRank) + ".vtk";
+    SLIC_INFO(axom::fmt::format("Writing out Blueprint mesh to {} for debugging...", vtk_file_name));
+
+    axom::mint::write_vtk(mesh, vtk_file_name);
 
     delete mesh;
     mesh = nullptr;
@@ -658,6 +688,10 @@ std::vector<IndexPair> findCandidatesImplicit(const HexMesh& insertMesh,
 
 int main(int argc, char** argv)
 {
+  axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
+  myRank = mpi_raii_wrapper.my_rank();
+  numRanks = mpi_raii_wrapper.num_ranks();
+
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   using omp_exec = axom::OMP_EXEC;
 #endif
@@ -685,7 +719,18 @@ int main(int argc, char** argv)
     }
     catch(const axom::CLI::ParseError& e)
     {
-      return app.exit(e);
+      int retval = -1;
+      if(myRank == 0)
+      {
+        retval = app.exit(e);
+      }
+
+#ifdef AXOM_USE_MPI
+      MPI_Bcast(&retval, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Finalize();
+#endif
+
+      exit(retval);
     }
   }
 
@@ -815,6 +860,7 @@ int main(int argc, char** argv)
 
   // print first few pairs
   const int numCandidates = candidatePairs.size();
+
   if(numCandidates > 0 && params.isVerbose())
   {
     constexpr int MAX_PRINT = 20;
@@ -831,8 +877,9 @@ int main(int argc, char** argv)
     }
 
     // Write out candidate pairs
-    SLIC_INFO("Writing out candidate pairs...");
-    std::ofstream outf("candidates.txt");
+    std::string candidates_file_name = "candidates_" + std::to_string(myRank) + ".txt";
+    SLIC_INFO(axom::fmt::format("Writing out candidate pairs to {}...", candidates_file_name));
+    std::ofstream outf(candidates_file_name);
 
     outf << candidatePairs.size() << " candidate pairs:" << std::endl;
     for(unsigned long i = 0; i < candidatePairs.size(); ++i)
@@ -840,6 +887,17 @@ int main(int argc, char** argv)
       outf << candidatePairs[i].first << " " << candidatePairs[i].second << std::endl;
     }
   }
+
+  // Print total number of pairs across all ranks
+  int totalNumCandidates = 0;
+  MPI_Reduce(&numCandidates, &totalNumCandidates, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  if(myRank == 0)
+  {
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "Mesh had {:L} a total of candidates pairs across all ranks",
+                                totalNumCandidates));
+  }
+
   AXOM_ANNOTATE_END("find candidates");
 
   return 0;

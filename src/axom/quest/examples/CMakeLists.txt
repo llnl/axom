@@ -88,12 +88,12 @@ axom_add_executable(
     )
 
 # BVH silo example ------------------------------------------------------------
-if (CONDUIT_FOUND AND UMPIRE_FOUND)
+if (AXOM_ENABLE_MPI AND CONDUIT_FOUND AND UMPIRE_FOUND)
     axom_add_executable(
         NAME        quest_candidates_example_ex
         SOURCES     quest_candidates_example.cpp
         OUTPUT_DIR  ${EXAMPLE_OUTPUT_DIRECTORY}
-        DEPENDS_ON  ${quest_example_depends} conduit::conduit
+        DEPENDS_ON  ${quest_example_depends} conduit::conduit conduit::conduit_mpi
         FOLDER      axom/quest/examples
         )
 
