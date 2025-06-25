@@ -20,7 +20,8 @@
 #include <string>
 #include <fstream>
 
-// Uncomment this line to write new baseline data to stdout.
+// Uncomment the line below to write new baseline data to stdout. Then paste new
+// baselines into the various baseline methods.
 // #define AXOM_SET_BASELINES
 
 // namespace aliases
@@ -197,7 +198,7 @@ struct Test3D
 #endif
     }
 
-//    axom::utilities::filesystem::removeFile(filename);
+    axom::utilities::filesystem::removeFile(filename);
   }
 };
 
@@ -351,12 +352,15 @@ TEST(quest_stl_writer, unstructured3d)
   const double x[] = {0., 0.5, 1., 0., 0.5, 1., 0., 0.5, 1., 0., 0.5, 1., 0., 0.5, 1., 0., 0.5, 1.};
   const double y[] = {1., 1., 1., 1.5, 1.5, 1.5, 2., 2., 2., 1., 1., 1., 1.5, 1.5, 1.5, 2., 2., 2.};
   const double z[] = {2., 2., 2., 2., 2., 2., 2., 2., 2., 3., 3., 3., 3., 3., 3., 3., 3., 3.};
+  // clang-format off
   const axom::IndexType conn[] = {
     0,1,4,3,9,10,13,12,
     1,2,5,4,10,11,14,13,
     3,4,7,6,12,13,16,15,
     4,5,8,7,13,14,17,16
   };
+  // clang-format on
+
   constexpr axom::IndexType nnodes = 18;
   constexpr axom::IndexType ncells = 4;
   mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(mint::CellType::HEX,
