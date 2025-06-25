@@ -45,6 +45,7 @@ tioga-rocmcc_6_3_1_hip-gpu-aware-src:
   variables:
     COMPILER: "rocmcc@6.3.1_hip"
     HOST_CONFIG: "tioga-toss_4_x86_64_ib_cray-${COMPILER}.cmake"
+    ALLOC_TIME: "60"
     NUM_NODES: "2"
   extends: .src_build_on_tioga
   before_script:
