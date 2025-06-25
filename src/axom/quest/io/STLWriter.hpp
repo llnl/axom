@@ -25,6 +25,10 @@ namespace quest
  * STL (STereoLithography) is a common file format for triangle meshes.
  * It encodes a "soup of triangles" by explicitly listing the coordinate
  * positions of the three vertices of each triangle.
+ *
+ * \note Any faces that contain more than 3 vertices will be treated
+ *       like a triangle fan and will result in multiple triangles.
+ *       No care is taken to prevent triangle overlaps for non-convex faces.
  */
 class STLWriter
 {

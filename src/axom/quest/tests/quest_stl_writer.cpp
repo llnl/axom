@@ -7,6 +7,7 @@
 #include "axom/quest/io/STLReader.hpp"
 #include "axom/mint/mesh/UniformMesh.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
+#include "axom/mint/mesh/RectilinearMesh.hpp"
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
 
@@ -138,6 +139,20 @@ TEST(quest_stl_writer, uniform2d)
   testing::Test2D tester;
   tester.test(mesh, "uniform2d.stl", false);
   tester.test(mesh, "uniform2dB.stl", true);
+}
+
+TEST(quest_stl_writer, rectilinear2d)
+{
+  // Make mesh.
+  const double x[] = {0., 0.5, 1.};
+  const double y[] = {1., 1.5, 2.};
+  constexpr axom::IndexType NI = 3;
+  constexpr axom::IndexType NJ = 3;
+  mint::RectilinearMesh mesh(NI, const_cast<double *>(x), NJ, const_cast<double *>(y));
+
+  testing::Test2D tester;
+  tester.test(mesh, "rectilinear2d.stl", false);
+  tester.test(mesh, "rectilinear2dB.stl", true);
 }
 
 #if 0
