@@ -68,6 +68,15 @@ public:
   int write(const mint::Mesh* mesh);
 
 protected:
+  /*!
+   * \brief Compute the number of triangles produced for the input mesh.
+   *
+   * \param mesh The input mesh.
+   *
+   * \return The number of triangles.
+   */
+  IndexType getNumberOfTriangles(const mint::Mesh* mesh) const;
+
   std::string m_fileName{"output.stl"};
   bool m_binary{false};
 };
@@ -81,7 +90,7 @@ protected:
  *
  * \return 0 on success; non-zero otherwise.
  */
-int write_stl(const mint::Mesh* mesh, const std::string &filename, bool binary);
+int write_stl(const mint::Mesh* mesh, const std::string &filename, bool binary = false);
 
 }  // namespace quest
 }  // namespace axom
