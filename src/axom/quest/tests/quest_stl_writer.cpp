@@ -8,6 +8,7 @@
 #include "axom/mint/mesh/UniformMesh.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/mint/mesh/RectilinearMesh.hpp"
+#include "axom/mint/mesh/CurvilinearMesh.hpp"
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
 
@@ -126,7 +127,6 @@ struct Test2D
 // UNIT TESTS
 //------------------------------------------------------------------------------
 
-//------------------------------------------------------------------------------
 TEST(quest_stl_writer, uniform2d)
 {
   // Make mesh.
@@ -155,101 +155,43 @@ TEST(quest_stl_writer, rectilinear2d)
   tester.test(mesh, "rectilinear2dB.stl", true);
 }
 
-#if 0
-  const double x_expected[] = {0.0, 1.0, 0.0};
-  const double y_expected[] = {0.0, 0.0, 1.0};
-  const double z_expected[] = {0.0, 0.0, 0.0};
-
-  const std::string filename = "triangle.stl";
-
-  // STEP 0: generate a temporary STL file for testing
-  generate_stl_file(filename);
-
-  // STEP 1: create an STL reader and read-in the mesh data
-  quest::STLReader reader;
-  reader.setFileName(filename);
-  int status = reader.read();
-  EXPECT_EQ(status, 0);
-
-  // STEP 2: reading the STL mesh data into a mint::Mesh
-  mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(3, mint::TRIANGLE);
-  reader.getMesh(&mesh);
-
-  // STEP 3: ensure the mesh is what is expected
-  EXPECT_EQ(mesh.getNumberOfCells(), 1);
-  EXPECT_EQ(mesh.getNumberOfNodes(), 3);
-
-  const double* x = mesh.getCoordinateArray(mint::X_COORDINATE);
-  const double* y = mesh.getCoordinateArray(mint::Y_COORDINATE);
-  const double* z = mesh.getCoordinateArray(mint::Z_COORDINATE);
-  EXPECT_TRUE(x != nullptr);
-  EXPECT_TRUE(y != nullptr);
-  EXPECT_TRUE(z != nullptr);
-
-  axom::IndexType numNodes = mesh.getNumberOfNodes();
-  for(axom::IndexType inode = 0; inode < numNodes; ++inode)
-  {
-    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
-  }  // END for all nodes
-
-  // STEP 4: remove temporary STL file
-  axom::utilities::filesystem::removeFile(filename);
-}
-
-//------------------------------------------------------------------------------
-TEST(quest_stl_writer, read_stl_external)
+TEST(quest_stl_writer, curvilinear2d)
 {
-  constexpr axom::IndexType N_NODES = 3;
-  constexpr axom::IndexType N_FACES = 1;
-  const double x_expected[] = {0.0, 1.0, 0.0};
-  const double y_expected[] = {0.0, 0.0, 1.0};
-  const double z_expected[] = {0.0, 0.0, 0.0};
+  // Make mesh.
+  const double x[] = {0., 0.5, 1., 0., 0.5, 1., 0., 0.5, 1.};
+  const double y[] = {1., 1., 1., 1.5, 1.5, 1.5, 2., 2., 2.};
+  constexpr axom::IndexType NI = 3;
+  constexpr axom::IndexType NJ = 3;
+  mint::CurvilinearMesh mesh(NI, const_cast<double *>(x), NJ, const_cast<double *>(y));
 
-  double xin[] = {-1.0, -1.0, -1.0};
-  double yin[] = {-1.0, -1.0, -1.0};
-  double zin[] = {-1.0, -1.0, -1.0};
-
-  axom::IndexType conn[] = {-1, -1, -1};
-
-  const std::string filename = "triangle.stl";
-
-  // STEP 0: generate a temporary STL file for testing
-  generate_stl_file(filename);
-
-  // STEP 1: create an STL reader and read-in the mesh data
-  quest::STLReader reader;
-  reader.setFileName(filename);
-  int status = reader.read();
-  EXPECT_EQ(status, 0);
-
-  // STEP 2: reading the STL mesh data into a mint::Mesh
-  mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(mint::TRIANGLE, N_FACES, conn, N_NODES, xin, yin, zin);
-  EXPECT_EQ(mesh.getNumberOfCells(), N_FACES);
-  EXPECT_EQ(mesh.getNumberOfNodes(), N_NODES);
-
-  reader.getMesh(&mesh);
-
-  const double* x = mesh.getCoordinateArray(mint::X_COORDINATE);
-  const double* y = mesh.getCoordinateArray(mint::Y_COORDINATE);
-  const double* z = mesh.getCoordinateArray(mint::Z_COORDINATE);
-  EXPECT_TRUE(x != nullptr);
-  EXPECT_TRUE(y != nullptr);
-  EXPECT_TRUE(z != nullptr);
-
-  axom::IndexType numNodes = mesh.getNumberOfNodes();
-  for(axom::IndexType inode = 0; inode < numNodes; ++inode)
-  {
-    EXPECT_NEAR(x[inode], x_expected[inode], axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(y[inode], y_expected[inode], axom::numeric_limits<double>::epsilon());
-    EXPECT_NEAR(z[inode], z_expected[inode], axom::numeric_limits<double>::epsilon());
-  }  // END for all nodes
-
-  // STEP 4: remove temporary STL file
-  axom::utilities::filesystem::removeFile(filename);
+  testing::Test2D tester;
+  tester.test(mesh, "curvilinear2d.stl", false);
+  tester.test(mesh, "curvilinear2dB.stl", true);
 }
-#endif
+
+TEST(quest_stl_writer, unstructured2d)
+{
+  // Make mesh.
+  const double x[] = {0., 0.5, 1., 0., 0.5, 1., 0., 0.5, 1.};
+  const double y[] = {1., 1., 1., 1.5, 1.5, 1.5, 2., 2., 2.};
+  const axom::IndexType conn[] = {
+    0, 1, 4, 0, 4, 3, 1, 2, 5, 1, 5, 4, 3, 4, 7, 3, 7, 6, 4, 5, 8, 4, 8, 7
+  };
+  constexpr axom::IndexType nnodes = 9;
+  constexpr axom::IndexType numTriangles = 8;
+  mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(mint::CellType::TRIANGLE,
+                              numTriangles, // ncells
+                              numTriangles, // cell_capacity
+                              const_cast<axom::IndexType *>(conn),
+                              nnodes, // nnodes
+                              nnodes, // node_capacity
+                              const_cast<double *>(x),
+                              const_cast<double *>(y));
+
+  testing::Test2D tester;
+  tester.test(mesh, "unstructured2d.stl", false);
+  tester.test(mesh, "unstructured2dB.stl", true);
+}
 
 //------------------------------------------------------------------------------
 int main(int argc, char* argv[])
