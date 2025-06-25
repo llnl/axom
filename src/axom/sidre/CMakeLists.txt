@@ -132,9 +132,13 @@ if(ENABLE_FORTRAN AND AXOM_ENABLE_MPI)
     install(FILES ${CMAKE_Fortran_MODULE_DIRECTORY}/axom_spio.mod DESTINATION lib/fortran)
 endif()
 
-# "cannot allocate memory in static TLS block" on blueos with cuda and/or clang
+# "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.
+# Also disable when sanitizers are enabled, requires environment variable manipulation:
+# https://stackoverflow.com/questions/55692357/address-sanitizer-on-a-python-extension
 if(NANOBIND_FOUND
    AND NOT AXOM_ENABLE_CUDA
+   AND NOT AXOM_ENABLE_ASAN
+   AND NOT AXOM_ENABLE_UBSAN
    AND
    ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
    OR
