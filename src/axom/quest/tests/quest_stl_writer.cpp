@@ -31,13 +31,13 @@ namespace quest = axom::quest;
 namespace testing
 {
 
-void writeArray(const axom::Array<double>& vec, const std::string& var_name = "v")
+void writeArray(const axom::Array<double> &vec, const std::string &var_name = "v")
 {
   axom::fmt::print("axom::Array<double> {} = {{{}}};\n", var_name, axom::fmt::join(vec, ", "));
 }
 
 /// Convert mesh coordinates into arrays that can be easily compared.
-void getCoordinates(const mint::Mesh &mesh, axom::Array<double> &xc, axom::Array<double> & yc)
+void getCoordinates(const mint::Mesh &mesh, axom::Array<double> &xc, axom::Array<double> &yc)
 {
   for(axom::IndexType cellId = 0; cellId < mesh.getNumberOfCells(); cellId++)
   {
@@ -99,12 +99,14 @@ struct Test2D
 {
   axom::Array<double> baselineXCoordinates()
   {
-    return axom::Array<double>{{0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5, 0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5}};
+    return axom::Array<double> {{0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5,
+                                 0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5}};
   }
 
   axom::Array<double> baselineYCoordinates()
   {
-    return axom::Array<double>{{1, 1, 1.5, 1, 1.5, 1.5, 1, 1, 1.5, 1, 1.5, 1.5, 1.5, 1.5, 2, 1.5, 2, 2, 1.5, 1.5, 2, 1.5, 2, 2}};
+    return axom::Array<double> {{1,   1,   1.5, 1,   1.5, 1.5, 1,   1,   1.5, 1,   1.5, 1.5,
+                                 1.5, 1.5, 2,   1.5, 2,   2,   1.5, 1.5, 2,   1.5, 2,   2}};
   }
 
   void test(const mint::Mesh &mesh, const std::string &filename, bool binary)
@@ -151,17 +153,35 @@ struct Test3D
 {
   virtual axom::Array<double> baselineXCoordinates()
   {
-    return axom::Array<double>{{0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1, 1, 1, 0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5, 0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5, 0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5, 0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5, 0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5, 0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5, 0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5}};
+    return axom::Array<double> {
+      {0,   0,   0,   0,   0,   0,   0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1,   1,   1,   1,   1,   1,
+       0,   0,   0,   0,   0,   0,   0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1,   1,   1,   1,   1,   1,
+       0,   0.5, 0.5, 0,   0.5, 0,   0.5, 1,   1,   0.5, 1,   0.5, 0,   0.5, 0.5, 0,   0.5, 0,
+       0.5, 1,   1,   0.5, 1,   0.5, 0,   0.5, 0.5, 0,   0.5, 0,   0.5, 1,   1,   0.5, 1,   0.5,
+       0,   0.5, 0.5, 0,   0.5, 0,   0.5, 1,   1,   0.5, 1,   0.5, 0,   0.5, 0.5, 0,   0.5, 0,
+       0.5, 1,   1,   0.5, 1,   0.5, 0,   0.5, 0.5, 0,   0.5, 0,   0.5, 1,   1,   0.5, 1,   0.5,
+       0,   0.5, 0.5, 0,   0.5, 0,   0.5, 1,   1,   0.5, 1,   0.5}};
   }
 
   virtual axom::Array<double> baselineYCoordinates()
   {
-    return axom::Array<double>{{1, 1, 1.5, 1, 1.5, 1.5, 1, 1, 1.5, 1, 1.5, 1.5, 1, 1, 1.5, 1, 1.5, 1.5, 1.5, 1.5, 2, 1.5, 2, 2, 1.5, 1.5, 2, 1.5, 2, 2, 1.5, 1.5, 2, 1.5, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1.5, 1, 1.5, 1.5, 1, 1, 1.5, 1, 1.5, 1.5, 1.5, 1.5, 2, 1.5, 2, 2, 1.5, 1.5, 2, 1.5, 2, 2, 1, 1, 1.5, 1, 1.5, 1.5, 1, 1, 1.5, 1, 1.5, 1.5, 1.5, 1.5, 2, 1.5, 2, 2, 1.5, 1.5, 2, 1.5, 2, 2}};
+    return axom::Array<double> {
+      {1,   1,   1.5, 1,   1.5, 1.5, 1,   1,   1.5, 1,   1.5, 1.5, 1,   1,   1.5, 1,   1.5, 1.5,
+       1.5, 1.5, 2,   1.5, 2,   2,   1.5, 1.5, 2,   1.5, 2,   2,   1.5, 1.5, 2,   1.5, 2,   2,
+       1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1.5, 1.5, 1.5, 1.5, 1.5, 1.5,
+       1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,   2,
+       1,   1,   1.5, 1,   1.5, 1.5, 1,   1,   1.5, 1,   1.5, 1.5, 1.5, 1.5, 2,   1.5, 2,   2,
+       1.5, 1.5, 2,   1.5, 2,   2,   1,   1,   1.5, 1,   1.5, 1.5, 1,   1,   1.5, 1,   1.5, 1.5,
+       1.5, 1.5, 2,   1.5, 2,   2,   1.5, 1.5, 2,   1.5, 2,   2}};
   }
 
   virtual axom::Array<double> baselineZCoordinates()
   {
-    return axom::Array<double>{{2, 3, 3, 2, 3, 2, 2, 3, 3, 2, 3, 2, 2, 3, 3, 2, 3, 2, 2, 3, 3, 2, 3, 2, 2, 3, 3, 2, 3, 2, 2, 3, 3, 2, 3, 2, 2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}};
+    return axom::Array<double> {
+      {2, 3, 3, 2, 3, 2, 2, 3, 3, 2, 3, 2, 2, 3, 3, 2, 3, 2, 2, 3, 3, 2, 3, 2, 2, 3, 3, 2, 3, 2,
+       2, 3, 3, 2, 3, 2, 2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3,
+       2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+       2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}};
   }
 
   void test(const mint::Mesh &mesh, const std::string &filename, bool binary)
@@ -210,21 +230,39 @@ struct Test3DUns : public Test3D
 {
   virtual axom::Array<double> baselineXCoordinates() override
   {
-    return axom::Array<double>{{0, 0, 0.5, 0, 0.5, 0.5, 0.5, 0.5, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.5, 1, 0.5, 1, 1, 1, 1, 0.5, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1, 1, 1, 0, 0, 0.5, 0, 0.5, 0.5, 0, 0.5, 0.5, 0, 0.5, 0, 0, 0, 0, 0, 0, 0, 0.5, 0.5, 1, 0.5, 1, 1, 0.5, 1, 1, 0.5, 1, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1, 1, 1, 0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5, 0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5, 0, 0.5, 0.5, 0, 0.5, 0, 0.5, 1, 1, 0.5, 1, 0.5}};
+    return axom::Array<double> {
+      {0,   0,   0.5, 0,   0.5, 0.5, 0.5, 0.5, 0,   0.5, 0,   0,   0,   0,   0,   0,   0,   0,
+       0.5, 0.5, 1,   0.5, 1,   1,   1,   1,   0.5, 1,   0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+       1,   1,   1,   1,   1,   1,   0,   0,   0.5, 0,   0.5, 0.5, 0,   0.5, 0.5, 0,   0.5, 0,
+       0,   0,   0,   0,   0,   0,   0.5, 0.5, 1,   0.5, 1,   1,   0.5, 1,   1,   0.5, 1,   0.5,
+       0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1,   1,   1,   1,   1,   1,   0,   0.5, 0.5, 0,   0.5, 0,
+       0.5, 1,   1,   0.5, 1,   0.5, 0,   0.5, 0.5, 0,   0.5, 0,   0.5, 1,   1,   0.5, 1,   0.5,
+       0,   0.5, 0.5, 0,   0.5, 0,   0.5, 1,   1,   0.5, 1,   0.5}};
   }
 
   virtual axom::Array<double> baselineYCoordinates() override
   {
-    return axom::Array<double>{{1, 1.5, 1.5, 1, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1.5, 1, 1.5, 1.5, 1, 1.5, 1.5, 1, 1.5, 1, 1, 1, 1, 1, 1, 1, 1, 1.5, 1.5, 1, 1.5, 1, 1, 1.5, 1.5, 1, 1.5, 1, 1.5, 2, 2, 1.5, 2, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 2, 1.5, 2, 2, 1.5, 2, 2, 1.5, 2, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 2, 2, 1.5, 2, 1.5, 1.5, 2, 2, 1.5, 2, 1.5, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1.5, 1, 1.5, 1.5, 1, 1, 1.5, 1, 1.5, 1.5, 1.5, 1.5, 2, 1.5, 2, 2, 1.5, 1.5, 2, 1.5, 2, 2}};
+    return axom::Array<double> {
+      {1,   1.5, 1.5, 1,   1.5, 1,   1,   1,   1,   1,   1,   1,   1,   1,   1.5, 1,   1.5, 1.5,
+       1,   1.5, 1.5, 1,   1.5, 1,   1,   1,   1,   1,   1,   1,   1,   1.5, 1.5, 1,   1.5, 1,
+       1,   1.5, 1.5, 1,   1.5, 1,   1.5, 2,   2,   1.5, 2,   1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5,
+       1.5, 1.5, 2,   1.5, 2,   2,   1.5, 2,   2,   1.5, 2,   1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5,
+       1.5, 2,   2,   1.5, 2,   1.5, 1.5, 2,   2,   1.5, 2,   1.5, 2,   2,   2,   2,   2,   2,
+       2,   2,   2,   2,   2,   2,   1,   1,   1.5, 1,   1.5, 1.5, 1,   1,   1.5, 1,   1.5, 1.5,
+       1.5, 1.5, 2,   1.5, 2,   2,   1.5, 1.5, 2,   1.5, 2,   2}};
   }
 
   virtual axom::Array<double> baselineZCoordinates() override
   {
-    return axom::Array<double>{{2, 2, 2, 2, 2, 2, 2, 3, 3, 2, 3, 2, 2, 3, 3, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 2, 3, 2, 2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3, 2, 2, 2, 2, 2, 2, 3, 3, 2, 3, 2, 2, 2, 3, 3, 2, 3, 2, 2, 2, 2, 2, 2, 2, 3, 3, 2, 3, 2, 2, 2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3, 3, 3, 2, 3, 2, 2, 3, 3, 2, 3, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}};
+    return axom::Array<double> {
+      {2, 2, 2, 2, 2, 2, 2, 3, 3, 2, 3, 2, 2, 3, 3, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 2, 3, 2,
+       2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3, 2, 2, 2, 2, 2, 2, 3, 3, 2, 3, 2, 2, 2, 3, 3, 2, 3, 2,
+       2, 2, 2, 2, 2, 2, 3, 3, 2, 3, 2, 2, 2, 2, 3, 2, 3, 3, 2, 2, 3, 2, 3, 3, 3, 3, 2, 3, 2, 2,
+       3, 3, 2, 3, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}};
   }
 };
 
-} // end namespace testing
+}  // end namespace testing
 
 //------------------------------------------------------------------------------
 // UNIT TESTS
@@ -276,19 +314,18 @@ TEST(quest_stl_writer, unstructured2d)
   // Make mesh.
   const double x[] = {0., 0.5, 1., 0., 0.5, 1., 0., 0.5, 1.};
   const double y[] = {1., 1., 1., 1.5, 1.5, 1.5, 2., 2., 2.};
-  const axom::IndexType conn[] = {
-    0, 1, 4, 0, 4, 3, 1, 2, 5, 1, 5, 4, 3, 4, 7, 3, 7, 6, 4, 5, 8, 4, 8, 7
-  };
+  const axom::IndexType conn[] = {0, 1, 4, 0, 4, 3, 1, 2, 5, 1, 5, 4,
+                                  3, 4, 7, 3, 7, 6, 4, 5, 8, 4, 8, 7};
   constexpr axom::IndexType nnodes = 9;
   constexpr axom::IndexType numTriangles = 8;
   mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(mint::CellType::TRIANGLE,
-                              numTriangles, // ncells
-                              numTriangles, // cell_capacity
-                              const_cast<axom::IndexType *>(conn),
-                              nnodes, // nnodes
-                              nnodes, // node_capacity
-                              const_cast<double *>(x),
-                              const_cast<double *>(y));
+                                                  numTriangles,  // ncells
+                                                  numTriangles,  // cell_capacity
+                                                  const_cast<axom::IndexType *>(conn),
+                                                  nnodes,  // nnodes
+                                                  nnodes,  // node_capacity
+                                                  const_cast<double *>(x),
+                                                  const_cast<double *>(y));
 
   testing::Test2D tester;
   tester.test(mesh, "unstructured2d.stl", false);
@@ -319,9 +356,12 @@ TEST(quest_stl_writer, rectilinear3d)
   constexpr axom::IndexType NI = 3;
   constexpr axom::IndexType NJ = 3;
   constexpr axom::IndexType NK = 2;
-  mint::RectilinearMesh mesh(NI, const_cast<double *>(x),
-                             NJ, const_cast<double *>(y),
-                             NK, const_cast<double *>(z));
+  mint::RectilinearMesh mesh(NI,
+                             const_cast<double *>(x),
+                             NJ,
+                             const_cast<double *>(y),
+                             NK,
+                             const_cast<double *>(z));
 
   testing::Test3D tester;
   tester.test(mesh, "rectilinear3d.stl", false);
@@ -337,9 +377,12 @@ TEST(quest_stl_writer, curvilinear3d)
   constexpr axom::IndexType NI = 3;
   constexpr axom::IndexType NJ = 3;
   constexpr axom::IndexType NK = 2;
-  mint::CurvilinearMesh mesh(NI, const_cast<double *>(x),
-                             NJ, const_cast<double *>(y),
-                             NK, const_cast<double *>(z));
+  mint::CurvilinearMesh mesh(NI,
+                             const_cast<double *>(x),
+                             NJ,
+                             const_cast<double *>(y),
+                             NK,
+                             const_cast<double *>(z));
 
   testing::Test3D tester;
   tester.test(mesh, "curvilinear3d.stl", false);
@@ -364,14 +407,14 @@ TEST(quest_stl_writer, unstructured3d)
   constexpr axom::IndexType nnodes = 18;
   constexpr axom::IndexType ncells = 4;
   mint::UnstructuredMesh<mint::SINGLE_SHAPE> mesh(mint::CellType::HEX,
-                              ncells, // ncells
-                              ncells, // cell_capacity
-                              const_cast<axom::IndexType *>(conn),
-                              nnodes, // nnodes
-                              nnodes, // node_capacity
-                              const_cast<double *>(x),
-                              const_cast<double *>(y),
-                              const_cast<double *>(z));
+                                                  ncells,  // ncells
+                                                  ncells,  // cell_capacity
+                                                  const_cast<axom::IndexType *>(conn),
+                                                  nnodes,  // nnodes
+                                                  nnodes,  // node_capacity
+                                                  const_cast<double *>(x),
+                                                  const_cast<double *>(y),
+                                                  const_cast<double *>(z));
   mesh.initializeFaceConnectivity();
 
   testing::Test3DUns tester;
@@ -380,7 +423,7 @@ TEST(quest_stl_writer, unstructured3d)
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   axom::slic::SimpleLogger logger;

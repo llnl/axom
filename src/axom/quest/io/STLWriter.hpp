@@ -44,7 +44,7 @@ public:
    * \param filename The name of the file to write.
    * \param binary Whether or not to write a binary STL file.
    */
-  STLWriter(const std::string &filename, bool binary = false);
+  STLWriter(const std::string& filename, bool binary = false);
 
   /*!
    * \brief Destructor.
@@ -91,8 +91,8 @@ protected:
    */
   bool isTopologically2D(const mint::Mesh* mesh) const;
 
-  std::string m_fileName{"output.stl"};
-  bool m_binary{false};
+  std::string m_fileName {"output.stl"};
+  bool m_binary {false};
 };
 
 /*!
@@ -104,7 +104,7 @@ protected:
  *
  * \return 0 on success; non-zero otherwise.
  */
-int write_stl(const mint::Mesh* mesh, const std::string &filename, bool binary = false);
+int write_stl(const mint::Mesh* mesh, const std::string& filename, bool binary = false);
 
 }  // namespace quest
 }  // namespace axom

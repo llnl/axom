@@ -221,9 +221,7 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
                skipWeld,
                "Don't weld vertices (useful for testing, not helpful otherwise).");
 
-  app.add_flag("--binary",
-               binary,
-               "Write binary output files in supported formats.");
+  app.add_flag("--binary", binary, "Write binary output files in supported formats.");
 
   app.add_flag("-v,--verbose", verboseOutput, "Increase logging verbosity.")->capture_default_str();
 
@@ -332,8 +330,10 @@ void saveProblemFlagsToMesh(mint::Mesh* surface_mesh,
                             const std::vector<std::pair<int, int>>& c,
                             const std::vector<int>& d);
 
-bool writeAnnotatedMesh(mint::Mesh* surface_mesh, const std::string& outfile,
-                        const std::string &fileFormat, bool binary);
+bool writeAnnotatedMesh(mint::Mesh* surface_mesh,
+                        const std::string& outfile,
+                        const std::string& fileFormat,
+                        bool binary);
 
 bool writeCollisions(const std::vector<std::pair<int, int>>& c,
                      const std::vector<int>& d,
@@ -563,8 +563,10 @@ void saveProblemFlagsToMesh(mint::Mesh* mesh,
   }
 }
 
-bool writeAnnotatedMesh(mint::Mesh* surface_mesh, const std::string& outfile,
-                        const std::string &fileFormat, bool binary)
+bool writeAnnotatedMesh(mint::Mesh* surface_mesh,
+                        const std::string& outfile,
+                        const std::string& fileFormat,
+                        bool binary)
 {
   bool retval = false;
   if(fileFormat == "vtk")
