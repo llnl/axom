@@ -71,7 +71,11 @@ public:
    */
   int write(const mint::Mesh* mesh);
 
+// The following members are protected (unless using CUDA)
+#if !defined(__CUDACC__)
 protected:
+#endif
+
   /*!
    * \brief Compute the number of triangles produced for the input mesh.
    *
