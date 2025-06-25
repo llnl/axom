@@ -21,6 +21,7 @@
 
 // _read_stl_include1_start
 #include "axom/quest/io/STLReader.hpp"
+#include "axom/quest/io/STLWriter.hpp"
 // _read_stl_include1_end
 // _check_repair_include_start
 #include "axom/quest/MeshTester.hpp"
@@ -91,10 +92,12 @@ enum RuntimePolicy
 struct Input
 {
   static const std::set<std::string> s_validMethods;
+  static const std::set<std::string> s_validFormats;
   static const std::map<std::string, RuntimePolicy> s_validPolicies;
 
   std::string stlInput {""};
-  std::string vtkOutput {""};
+  std::string fileOutput {""};
+  std::string fileFormat {"vtk"};
   std::string method {"uniform"};
   RuntimePolicy policy {seq};
   std::string annotationMode {"none"};
@@ -104,14 +107,15 @@ struct Input
   double intersectionThreshold {1e-08};
   bool skipWeld {false};
   bool verboseOutput {false};
+  bool binary {false};
 
   Input() = default;
 
   void parse(int argc, char** argv, axom::CLI::App& app);
 
-  std::string collisionsMeshName() { return vtkOutput + ".collisions.vtk"; }
-  std::string collisionsTextName() { return vtkOutput + ".collisions.txt"; }
-  std::string weldMeshName() { return vtkOutput + ".weld.vtk"; }
+  std::string collisionsMeshName() { return fileOutput + ".collisions." + fileFormat; }
+  std::string collisionsTextName() { return fileOutput + ".collisions.txt"; }
+  std::string weldMeshName() { return fileOutput + ".weld." + fileFormat; }
 
 private:
   void fixOutfilePath();
@@ -123,6 +127,11 @@ const std::set<std::string> Input::s_validMethods({
   "uniform",
   "implicit",
   "naive"
+});
+
+const std::set<std::string> Input::s_validFormats({
+  "stl",
+  "vtk"
 });
 
 const std::map<std::string, RuntimePolicy> Input::s_validPolicies({
@@ -185,14 +194,19 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
     ->capture_default_str()
     ->transform(axom::CLI::CheckedTransformer(Input::s_validPolicies));
 
+  app.add_option("-f, --format", fileFormat, "Output file format, one of: 'stl', 'vtk'")
+    ->capture_default_str()
+    ->check(axom::CLI::IsMember {Input::s_validFormats});
+
   app.add_option("-i,--infile", stlInput, "The STL input file")->required()->check(axom::CLI::ExistingFile);
 
   app.add_option("-o,--outfile",
-                 vtkOutput,
+                 fileOutput,
                  "Output file name for collisions and welded mesh. \n"
                  "Defaults to a file in the CWD with the input file name. \n"
-                 "Collisions mesh will end with '.collisions.vtk' and \n"
-                 "welded mesh will end with '.welded.vtk'.");
+                 "Collisions mesh will end with '.collisions.{format}' and \n"
+                 "welded mesh will end with '.welded.{format}', where {format} is\n"
+                 "the selected file format.");
 
   app.add_option("--weldThresh", weldThreshold, "Distance threshold for welding vertices.")
     ->capture_default_str();
@@ -206,6 +220,10 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
   app.add_flag("--skipWeld",
                skipWeld,
                "Don't weld vertices (useful for testing, not helpful otherwise).");
+
+  app.add_flag("--binary",
+               binary,
+               "Write binary output files in supported formats.");
 
   app.add_flag("-v,--verbose", verboseOutput, "Increase logging verbosity.")->capture_default_str();
 
@@ -282,20 +300,20 @@ void Input::fixOutfilePath()
   std::string outFileBase = futil::joinPath(futil::getCWD(), inFileStem);
 
   // set output file name when not provided
-  int sz = static_cast<int>(vtkOutput.size());
+  int sz = static_cast<int>(fileOutput.size());
   if(sz < 1)
   {
-    vtkOutput = outFileBase;
-    sz = static_cast<int>(vtkOutput.size());
+    fileOutput = outFileBase;
+    sz = static_cast<int>(fileOutput.size());
   }
 
   // ensure that output file does not end with '.vtk'
   if(sz > 4)
   {
-    std::string ext = vtkOutput.substr(sz - 4, 4);
+    std::string ext = fileOutput.substr(sz - 4, 4);
     if(ext == ".vtk" || ext == ".stl")
     {
-      vtkOutput = vtkOutput.substr(0, sz - ext.size());
+      fileOutput = fileOutput.substr(0, sz - ext.size());
     }
   }
 }
@@ -314,7 +332,8 @@ void saveProblemFlagsToMesh(mint::Mesh* surface_mesh,
                             const std::vector<std::pair<int, int>>& c,
                             const std::vector<int>& d);
 
-bool writeAnnotatedMesh(mint::Mesh* surface_mesh, const std::string& outfile);
+bool writeAnnotatedMesh(mint::Mesh* surface_mesh, const std::string& outfile,
+                        const std::string &fileFormat, bool binary);
 
 bool writeCollisions(const std::vector<std::pair<int, int>>& c,
                      const std::vector<int>& d,
@@ -544,9 +563,22 @@ void saveProblemFlagsToMesh(mint::Mesh* mesh,
   }
 }
 
-bool writeAnnotatedMesh(mint::Mesh* surface_mesh, const std::string& outfile)
+bool writeAnnotatedMesh(mint::Mesh* surface_mesh, const std::string& outfile,
+                        const std::string &fileFormat, bool binary)
 {
-  return write_vtk(surface_mesh, outfile) == 0;
+  bool retval = false;
+  if(fileFormat == "vtk")
+  {
+    AXOM_ANNOTATE_SCOPE("save vtk mesh");
+    retval = mint::write_vtk(surface_mesh, outfile) == 0;
+  }
+  else if(fileFormat == "stl")
+  {
+    AXOM_ANNOTATE_SCOPE("save stl mesh");
+    // NOTE: The STL writer is co-located with the STL reader in quest.
+    retval = quest::write_stl(surface_mesh, outfile, binary) == 0;
+  }
+  return retval;
 }
 
 bool writeCollisions(const std::vector<std::pair<int, int>>& c,
@@ -893,7 +925,7 @@ int main(int argc, char** argv)
 
       saveProblemFlagsToMesh(surface_mesh, collisions, degenerate);
 
-      if(!writeAnnotatedMesh(surface_mesh, params.collisionsMeshName()))
+      if(!writeAnnotatedMesh(surface_mesh, params.collisionsMeshName(), params.fileFormat, params.binary))
       {
         SLIC_ERROR("Couldn't write results to " << params.collisionsMeshName());
       }
@@ -951,10 +983,7 @@ int main(int argc, char** argv)
     // _report_watertight_end
     SLIC_INFO("Testing for watertightness took " << timer2.elapsedTimeInSec() << " seconds.");
 
-    {
-      AXOM_ANNOTATE_SCOPE("save vtk mesh");
-      mint::write_vtk(surface_mesh, params.weldMeshName());
-    }
+    writeAnnotatedMesh(surface_mesh, params.weldMeshName(), params.fileFormat, params.binary);
   }
 
   // Delete the mesh

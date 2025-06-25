@@ -67,10 +67,30 @@ STLWriter::STLWriter(const std::string &filename, bool binary) : m_fileName(file
 {
 }
 
+bool STLWriter::isTopologically2D(const mint::Mesh* mesh) const
+{
+  bool is2D = false;
+  if(mesh->getDimension() == 2)
+  {
+    is2D = true;
+  }
+  else if(mesh->getDimension() == 3)
+  {
+    // Heuristic for determining whether a mesh seems 2D independent of the coordinates.
+    if(mesh->getNumberOfFaces() == 0 && mesh->getNumberOfCells() > 0)
+    {
+      // 2D shapes in 3D don't seem to have faces in mint. Get the type of the first cell.
+      const auto ct = mesh->getCellType(0);
+      is2D = (ct == mint::CellType::TRIANGLE || ct == mint::CellType::QUAD);
+    }
+  }
+  return is2D;
+}
+
 IndexType STLWriter::getNumberOfTriangles(const mint::Mesh* mesh) const
 {
   IndexType ntri = 0;
-  if(mesh->getDimension() == 2)
+  if(isTopologically2D(mesh))
   {
     for(IndexType cellId = 0; cellId < mesh->getNumberOfCells(); cellId++)
     {
@@ -92,6 +112,8 @@ IndexType STLWriter::getNumberOfTriangles(const mint::Mesh* mesh) const
 
 int STLWriter::write(const mint::Mesh* mesh)
 {
+  using VectorType = axom::primal::Vector<double, 3>;
+
   SLIC_ERROR_IF(mesh == nullptr, "mesh pointer is null!");
   SLIC_ERROR_IF(m_fileName.length() <= 0, "STL filename is empty!");
   SLIC_ERROR_IF(mesh->getDimension() < 2 || mesh->getDimension() > 3, "Input mesh must is not 2D/3D.");
@@ -125,10 +147,11 @@ int STLWriter::write(const mint::Mesh* mesh)
   }
 
   // Write triangle data.
-  if(mesh->getDimension() == 2)
+  if(isTopologically2D(mesh))
   {
+    // For meshes with cells that look 2D, we iterate over the cells.
     axom::Array<axom::IndexType> nodes;
-    axom::StackArray<double, 3> N{{0., 0., 1.}};
+    VectorType N = VectorType::make_vector(0., 0., 1.);
     double coords[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
     for(axom::IndexType cellId = 0; cellId < mesh->getNumberOfCells(); cellId++)
     {
@@ -143,14 +166,22 @@ int STLWriter::write(const mint::Mesh* mesh)
       {
         mesh->getNode(nodes[ti + 1], coords[1]);
         mesh->getNode(nodes[ti + 2], coords[2]);
+
+        // If the cell is in 3D space, make a better normal.
+        if(mesh->getDimension() == 3)
+        {
+          const VectorType A(coords[0], 3);
+          const VectorType B(coords[1], 3);
+          const VectorType C(coords[2], 3);
+          N = VectorType::cross_product(B - A, C - A).unitVector();
+        }
+
         internal::writeTriangle(out, m_binary, coords, N);
       }
     }
   }
   else
   {
-    using VectorType = axom::primal::Vector<double, 3>;
-
     // For value capture.
     std::ofstream *out_ptr = &out;
     const bool binary = m_binary;
@@ -171,7 +202,7 @@ int STLWriter::write(const mint::Mesh* mesh)
           const VectorType A(coords[0], 3);
           const VectorType B(coords[1], 3);
           const VectorType C(coords[2], 3);
-          const VectorType N = VectorType::cross_product(B - A, C - A);
+          const VectorType N = VectorType::cross_product(B - A, C - A).unitVector();
 
           internal::writeTriangle(*out_ptr, binary, coords, N);
         }

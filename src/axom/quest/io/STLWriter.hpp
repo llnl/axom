@@ -81,6 +81,16 @@ protected:
    */
   IndexType getNumberOfTriangles(const mint::Mesh* mesh) const;
 
+  /*!
+   * \brief Determines whether the input mesh looks topologically 2D since
+   *        the mesh dimension seems to reflect the number of coordinate components.
+   *
+   * \param mesh The mesh to test.
+   *
+   * \return True if the mesh seems 2D, false otherwise.
+   */
+  bool isTopologically2D(const mint::Mesh* mesh) const;
+
   std::string m_fileName{"output.stl"};
   bool m_binary{false};
 };
