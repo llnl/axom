@@ -9,6 +9,7 @@
 #include "axom/mint/execution/interface.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 
+#include <cstring>
 #include <fstream>
 
 namespace axom
