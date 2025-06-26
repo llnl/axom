@@ -119,7 +119,7 @@ int STLWriter::write(const mint::Mesh *mesh)
   SLIC_ERROR_IF(mesh == nullptr, "mesh pointer is null!");
   SLIC_ERROR_IF(m_fileName.length() <= 0, "STL filename is empty!");
   SLIC_ERROR_IF(mesh->getDimension() < 2 || mesh->getDimension() > 3,
-                "Input mesh must is not 2D/3D.");
+                "Input mesh is not 2D/3D.");
 
   std::ofstream out(m_fileName.c_str(),
                     m_binary ? (std::ofstream::out | std::ofstream::binary) : std::ofstream::out);
