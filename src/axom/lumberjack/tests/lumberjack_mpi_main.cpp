@@ -7,6 +7,8 @@
 
 #include "mpi.h"
 
+#include "lumberjack_Lumberjack.hpp"
+#include "lumberjack_Message.hpp"
 #include "lumberjack_BinaryCommunicator.hpp"
 #include "lumberjack_RootCommunicator.hpp"
 #include "lumberjack_NonCollectiveRootCommunicator.hpp"

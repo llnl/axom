@@ -5,8 +5,6 @@
 
 #include "gtest/gtest.h"
 
-#include "lumberjack_Lumberjack.hpp"
-#include "lumberjack_Message.hpp"
 #include "lumberjack_TextEqualityCombiner.hpp"
 #include "lumberjack_TextTagCombiner.hpp"
 #include "lumberjack_LineFileTagCombiner.hpp"

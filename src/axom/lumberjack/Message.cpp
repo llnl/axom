@@ -42,7 +42,7 @@ int Message::lineNumber() const { return m_lineNumber; }
 
 int Message::level() const { return m_level; }
 
-std::time_t Message::creationTime() const { return m_creationTime; }
+double Message::creationTime() const { return m_creationTime; }
 
 std::string Message::tag() const { return m_tag; }
 
@@ -77,7 +77,7 @@ void Message::lineNumber(int newLineNumber) { m_lineNumber = newLineNumber; }
 
 void Message::level(int newLevel) { m_level = newLevel; }
 
-void Message::creationTime(int newCreationTime) { m_creationTime = newCreationTime; }
+void Message::creationTime(double newCreationTime) { m_creationTime = newCreationTime; }
 
 void Message::tag(const std::string& newTag) { m_tag = newTag; }
 
