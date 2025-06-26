@@ -12,6 +12,7 @@
 #include "lumberjack_BinaryCommunicator.hpp"
 #include "lumberjack_RootCommunicator.hpp"
 #include "lumberjack_NonCollectiveRootCommunicator.hpp"
+#include "lumberjack_integration_test.hpp"
 
 int main(int argc, char* argv[])
 {

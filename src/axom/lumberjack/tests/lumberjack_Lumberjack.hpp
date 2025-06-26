@@ -52,6 +52,8 @@ private:
 
 TEST(lumberjack_Lumberjack, combineMessagesNoCombiners)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   TestCommunicator communicator;
   communicator.initialize(MPI_COMM_NULL, ranksLimit);
@@ -81,10 +83,14 @@ TEST(lumberjack_Lumberjack, combineMessagesNoCombiners)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMessagesPushOnce01)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   TestCommunicator communicator;
   communicator.initialize(MPI_COMM_NULL, ranksLimit);
@@ -108,10 +114,14 @@ TEST(lumberjack_Lumberjack, combineMessagesPushOnce01)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMessagesPushOnce02)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   TestCommunicator communicator;
   communicator.initialize(MPI_COMM_NULL, ranksLimit);
@@ -137,10 +147,14 @@ TEST(lumberjack_Lumberjack, combineMessagesPushOnce02)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMessagesPushOnceEmpty)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   TestCommunicator communicator;
   communicator.initialize(MPI_COMM_NULL, ranksLimit);
@@ -159,10 +173,14 @@ TEST(lumberjack_Lumberjack, combineMessagesPushOnceEmpty)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMessagesPushOnceEmptyNonOutputNode)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   TestCommunicator communicator;
   communicator.initialize(MPI_COMM_NULL, ranksLimit);
@@ -180,10 +198,14 @@ TEST(lumberjack_Lumberjack, combineMessagesPushOnceEmptyNonOutputNode)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMessagesPushOnceNothingNonOutputNode)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   TestCommunicator communicator;
   communicator.initialize(MPI_COMM_NULL, ranksLimit);
@@ -199,10 +221,14 @@ TEST(lumberjack_Lumberjack, combineMessagesPushOnceNothingNonOutputNode)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMessages01)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   TestCommunicator communicator;
   communicator.initialize(MPI_COMM_NULL, ranksLimit);
@@ -226,10 +252,14 @@ TEST(lumberjack_Lumberjack, combineMessages01)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMessages02)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   TestCommunicator communicator;
   communicator.initialize(MPI_COMM_NULL, ranksLimit);
@@ -255,10 +285,14 @@ TEST(lumberjack_Lumberjack, combineMessages02)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMessages03)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   TestCommunicator communicator;
   communicator.initialize(MPI_COMM_NULL, ranksLimit);
@@ -286,10 +320,14 @@ TEST(lumberjack_Lumberjack, combineMessages03)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMixedMessages01)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   TestCommunicator communicator;
   communicator.initialize(MPI_COMM_NULL, ranksLimit);
@@ -324,10 +362,14 @@ TEST(lumberjack_Lumberjack, combineMixedMessages01)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMixedMessages02)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   TestCommunicator communicator;
   communicator.initialize(MPI_COMM_NULL, ranksLimit);
@@ -362,10 +404,14 @@ TEST(lumberjack_Lumberjack, combineMixedMessages02)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMixedMessages03)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   TestCommunicator communicator;
   communicator.initialize(MPI_COMM_NULL, ranksLimit);
@@ -401,10 +447,14 @@ TEST(lumberjack_Lumberjack, combineMixedMessages03)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMessagesManyMessages)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   const int loopCount = 10000;
 
@@ -433,10 +483,14 @@ TEST(lumberjack_Lumberjack, combineMessagesManyMessages)
 
   lumberjack.finalize();
   communicator.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, combineMessagesLargeMessages)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   const int loopCount = 10;
   const int padSize = 1000;
@@ -471,42 +525,14 @@ TEST(lumberjack_Lumberjack, combineMessagesLargeMessages)
 
   lumberjack.finalize();
   communicator.finalize();
-}
 
-TEST(lumberjack_Lumberjack, sortMessages)
-{
-  int ranksLimit = 5;
-  TestCommunicator communicator;
-  communicator.initialize(MPI_COMM_NULL, ranksLimit);
-  axom::lumberjack::Lumberjack lumberjack;
-  lumberjack.initialize(&communicator, ranksLimit);
-
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("Should not be combined first message");
-  lumberjack.queueMessage("Should not be combined second message");
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("Should be combined.");
-
-  lumberjack.pushMessagesFully();
-
-  std::vector<axom::lumberjack::Message*> messages = lumberjack.getMessages();
-
-  // Check total messages size
-  EXPECT_EQ((int)messages.size(), 3);
-
-  EXPECT_EQ(messages[0]->text(), "Should be combined.");
-  EXPECT_EQ(messages[1]->text(), "Should not be combined first message");
-  EXPECT_EQ(messages[2]->text(), "Should not be combined second message");
-
-  EXPECT_TRUE(messages[0]->creationTime() <= messages[1]->creationTime());
-  EXPECT_TRUE(messages[1]->creationTime() <= messages[2]->creationTime());
-
-  lumberjack.finalize();
-  communicator.finalize();
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, setNonOwnedCommunicator)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   auto communicator1 = new TestCommunicator();
   communicator1->initialize(MPI_COMM_NULL, ranksLimit);
@@ -533,10 +559,14 @@ TEST(lumberjack_Lumberjack, setNonOwnedCommunicator)
   communicator2->finalize();
   delete communicator1;
   delete communicator2;
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, setOwnedCommunicator)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   auto communicator = new TestCommunicator();
   communicator->initialize(MPI_COMM_NULL, ranksLimit);
@@ -554,10 +584,14 @@ TEST(lumberjack_Lumberjack, setOwnedCommunicator)
   EXPECT_EQ(lumberjack.isCommunicatorOwned(), true);
 
   lumberjack.finalize();
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 TEST(lumberjack_Lumberjack, setOwnedAndNonOwnedCommunicator)
 {
+  MPI_Barrier(MPI_COMM_WORLD);
+
   int ranksLimit = 5;
   auto communicator = new TestCommunicator();
   communicator->initialize(MPI_COMM_NULL, ranksLimit);
@@ -577,4 +611,6 @@ TEST(lumberjack_Lumberjack, setOwnedAndNonOwnedCommunicator)
   lumberjack.finalize();
   communicator->finalize();
   delete communicator;
+
+  MPI_Barrier(MPI_COMM_WORLD);
 }

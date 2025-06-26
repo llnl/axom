@@ -239,7 +239,7 @@ void Message::unpack(const std::string& packedMessage, int ranksLimit)
               << "that ended in the level section." << std::endl;
     std::cerr << packedMessage << std::endl;
   }
-  m_creationTime = std::stoi(packedMessage.substr(start, end - start));
+  m_creationTime = std::stod(packedMessage.substr(start, end - start));
   start = end + 1;
 
   //Grab tag
