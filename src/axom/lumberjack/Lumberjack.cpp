@@ -14,7 +14,9 @@
  */
 
 #include "axom/lumberjack/Lumberjack.hpp"
+#include <algorithm>
 #include <iostream>
+#include "axom/lumberjack/Message.hpp"
 
 namespace axom
 {
@@ -149,6 +151,9 @@ void Lumberjack::pushMessagesOnce()
   receivedPackedMessages.clear();
 
   combineMessages();
+
+  std::sort(m_messages.begin(), m_messages.end(), 
+    [](Message* const a, Message* const b) { return a->creationTime() < b->creationTime(); });
 }
 
 void Lumberjack::pushMessagesFully()
@@ -181,6 +186,9 @@ void Lumberjack::pushMessagesFully()
   }
 
   combineMessages();
+
+  std::sort(m_messages.begin(), m_messages.end(), 
+    [](Message* const a, Message* const b) { return a->creationTime() < b->creationTime(); });
 }
 
 bool Lumberjack::isOutputNode() { return m_communicator->isOutputNode(); }

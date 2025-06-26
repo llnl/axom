@@ -74,8 +74,8 @@ public:
    *****************************************************************************
    * \brief Combines the combinee into the combined Message.
    *
-   * The only thing truly combined in this Combiner is the ranks from combinee
-   * to combined, since text is already equal.
+   * The only things truly combined in this Combiner are the ranks from combinee
+   * to combined and the creation time, since text is already equal.
    *
    * \param [in,out] combined the Message that will be modified.
    * \param [in] combinee the Message that is combined into the other.
@@ -88,6 +88,9 @@ public:
   void combine(Message& combined, const Message& combinee, const int ranksLimit)
   {
     combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
+    if (combinee.creationTime() < combined.creationTime()) {
+      combined.creationTime(combinee.creationTime());
+    }
   }
 
 private:

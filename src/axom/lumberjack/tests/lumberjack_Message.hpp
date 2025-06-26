@@ -17,6 +17,7 @@ struct TestData
   int rank;
   int lineNumber;
   int level;
+  std::time_t creationTime;
   std::string tag;
   std::string fileName;
   std::string packed;
@@ -25,6 +26,7 @@ struct TestData
            int rank_,
            int lineNumber_,
            int level_,
+           double creationTime_,
            std::string tag_,
            std::string fileName_,
            std::string packed_)
@@ -32,75 +34,83 @@ struct TestData
     , rank(rank_)
     , lineNumber(lineNumber_)
     , level(level_)
+    , creationTime(creationTime_)
     , tag(tag_)
     , fileName(fileName_)
     , packed(packed_)
   { }
 };
 
-std::vector<TestData> getTestData()
+inline std::vector<TestData> getTestData()
 {
   std::vector<TestData> testStrings;
   //<ranks delimited by ,>*<rank count>*<file name>*
-  //  <line number>*<level>*<tag>*<text>
+  //  <line number>*<level>*<creation time>*<tag>*<text>
   testStrings
-    .emplace_back("test empty filename", 123, 5, 0, "tag", "", "123*1**5*0*tag*test empty filename");
+    .emplace_back("test empty filename", 123, 5, 0, 0, "tag", "", "123*1**5*0*<creation_time>*tag*test empty filename");
   testStrings
-    .emplace_back("", 123, 5, 1, "tag", "test empty message", "123*1*test empty message*5*1*tag*");
+    .emplace_back("", 123, 5, 1, 0, "tag", "test empty message", "123*1*test empty message*5*1*<creation_time>*tag*");
   testStrings
-    .emplace_back("test", 123, 5, 1, "", "test tag message", "123*1*test tag message*5*1**test");
-  testStrings.emplace_back("test", 123, 5, 1, "tag123", "foo.cpp", "123*1*foo.cpp*5*1*tag123*test");
+    .emplace_back("test", 123, 5, 1, 0, "", "test tag message", "123*1*test tag message*5*1*<creation_time>**test");
+  testStrings.emplace_back("test", 123, 5, 1, 0, "tag123", "foo.cpp", "123*1*foo.cpp*5*1*<creation_time>*tag123*test");
   testStrings.emplace_back("abcdef",
                            1,
                            164,
                            1,
+                           0, 
                            "123tag",
                            "bar/baz.cpp",
-                           "1*1*bar/baz.cpp*164*1*123tag*abcdef");
+                           "1*1*bar/baz.cpp*164*1*<creation_time>*123tag*abcdef");
   testStrings.emplace_back("this is a test string",
                            0,
                            999999,
                            3,
+                           0,
                            "&^Hg",
                            "/test/path.hpp",
-                           "0*1*/test/path.hpp*999999*3*&^Hg*this is a test string");
+                           "0*1*/test/path.hpp*999999*3*<creation_time>*&^Hg*this is a test string");
   testStrings.emplace_back("123456789",
                            55555,
                            6543,
                            1,
+                           0.0,
                            "tag1",
                            "really_long_obnoxious_path-with-lots^stuff.f90",
                            "55555*1*really_long_obnoxious_path-with-lots^stuff."
-                           "f90*6543*1*tag1*123456789");
+                           "f90*6543*1*<creation_time>*tag1*123456789");
   testStrings.emplace_back("                         asdf               ",
                            654987,
                            1,
                            2,
+                           0,
                            "mytag",
                            "notimportantfilename",
-                           "654987*1*notimportantfilename*1*2*mytag*           "
+                           "654987*1*notimportantfilename*1*2*<creation_time>*mytag*           "
                            "              asdf               ");
   testStrings.emplace_back("//comment",
                            158794,
                            9090,
                            4,
+                           0,
                            "tag12",
                            "running out of ideas.cpp",
-                           "158794*1*running out of ideas.cpp*9090*4*tag12*//comment");
+                           "158794*1*running out of ideas.cpp*9090*4*<creation_time>*tag12*//comment");
   testStrings.emplace_back("/* test string */",
                            12,
                            876543,
                            1,
+                           0,
                            "tag",
                            "234234234.file",
-                           "12*1*234234234.file*876543*1*tag*/* test string */");
+                           "12*1*234234234.file*876543*1*<creation_time>*tag*/* test string */");
   testStrings.emplace_back("~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-='",
                            12,
                            654987,
                            1,
+                           0,
                            "tag",
                            "filenameyepp",
-                           "12*1*filenameyepp*654987*1*tag*~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-='");
+                           "12*1*filenameyepp*654987*1*<creation_time>*tag*~!@#$%^&*()_+{}|:\"<>?,./;'[]\\-='");
   return testStrings;
 }
 
@@ -430,7 +440,7 @@ TEST(lumberjack_Message, pack01)
   }
 
   std::string packedMessage = m.pack();
-  EXPECT_EQ(packedMessage, "0,2,4,6,8*5*test/foo.cpp*987654321*0**Unimportant message");
+  EXPECT_EQ(packedMessage, "0,2,4,6,8*5*test/foo.cpp*987654321*0*"+std::to_string(m.creationTime())+"**Unimportant message");
 }
 
 TEST(lumberjack_Message, unpack01)
@@ -439,7 +449,7 @@ TEST(lumberjack_Message, unpack01)
   const int ranksLimit = 5;
 
   axom::lumberjack::Message m;
-  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*1*gtest*Unimportant message", ranksLimit);
+  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*1*0*gtest*Unimportant message", ranksLimit);
 
   EXPECT_EQ(m.text(), "Unimportant message");
   EXPECT_EQ(m.fileName(), "test/foo.cpp");
@@ -460,7 +470,7 @@ TEST(lumberjack_Message, unpack02)
   const int ranksLimit = 5;
 
   axom::lumberjack::Message m;
-  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*0**Unimportant message", ranksLimit);
+  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*0*0**Unimportant message", ranksLimit);
 
   EXPECT_EQ(m.text(), "Unimportant message");
   EXPECT_EQ(m.fileName(), "test/foo.cpp");
@@ -481,7 +491,7 @@ TEST(lumberjack_Message, packEmptyMessage)
   axom::lumberjack::Message m("", 1, "test/foo.cpp", 987654321, 0, "tag");
 
   std::string packedMessage = m.pack();
-  EXPECT_EQ(packedMessage, "1*1*test/foo.cpp*987654321*0*tag*");
+  EXPECT_EQ(packedMessage, "1*1*test/foo.cpp*987654321*0*"+std::to_string(m.creationTime())+"*tag*");
 }
 
 TEST(lumberjack_Message, packEmptyTag)
@@ -490,7 +500,7 @@ TEST(lumberjack_Message, packEmptyTag)
   axom::lumberjack::Message m("asdfMessageadsf", 1, "test/foo.cpp", 987654321, 0, "");
 
   std::string packedMessage = m.pack();
-  EXPECT_EQ(packedMessage, "1*1*test/foo.cpp*987654321*0**asdfMessageadsf");
+  EXPECT_EQ(packedMessage, "1*1*test/foo.cpp*987654321*0*"+std::to_string(m.creationTime())+"**asdfMessageadsf");
 }
 
 TEST(lumberjack_Message, packEmptyTagAndMessage)
@@ -499,7 +509,7 @@ TEST(lumberjack_Message, packEmptyTagAndMessage)
   axom::lumberjack::Message m("", 1, "test/foo.cpp", 987654321, 0, "");
 
   std::string packedMessage = m.pack();
-  EXPECT_EQ(packedMessage, "1*1*test/foo.cpp*987654321*0**");
+  EXPECT_EQ(packedMessage, "1*1*test/foo.cpp*987654321*0*"+std::to_string(m.creationTime())+"**");
 }
 
 TEST(lumberjack_Message, unpackEmptyMessage)
@@ -508,7 +518,7 @@ TEST(lumberjack_Message, unpackEmptyMessage)
   const int ranksLimit = 5;
 
   axom::lumberjack::Message m;
-  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*0*tag*", ranksLimit);
+  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*0*"+std::to_string(m.creationTime())+"*tag*", ranksLimit);
 
   EXPECT_EQ(m.text(), "");
   EXPECT_EQ(m.fileName(), "test/foo.cpp");
@@ -529,7 +539,7 @@ TEST(lumberjack_Message, unpackEmptyTag)
   const int ranksLimit = 5;
 
   axom::lumberjack::Message m;
-  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*0**123unimportant123", ranksLimit);
+  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*0*0**123unimportant123", ranksLimit);
 
   EXPECT_EQ(m.text(), "123unimportant123");
   EXPECT_EQ(m.fileName(), "test/foo.cpp");
@@ -550,7 +560,7 @@ TEST(lumberjack_Message, unpackEmptyTagAndMessage)
   const int ranksLimit = 5;
 
   axom::lumberjack::Message m;
-  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*0**", ranksLimit);
+  m.unpack("0,2,4,6,8*15*test/foo.cpp*987654321*0*0**", ranksLimit);
 
   EXPECT_EQ(m.text(), "");
   EXPECT_EQ(m.fileName(), "test/foo.cpp");
@@ -577,6 +587,14 @@ TEST(lumberjack_Message, packMessagesIndividually)
 
     const char* packedMessage = axom::lumberjack::packMessages(messages);
 
+    //manually modify creation time to fit the actual time
+    std::string creation_time_key = "<creation_time>";
+    size_t pos = td.packed.find(creation_time_key);
+    if (pos != std::string::npos) {
+      td.packed.replace(pos, creation_time_key.length(), std::to_string(m->creationTime()));
+    }
+    td.creationTime = m->creationTime();
+
     std::string answer = "1*" + std::to_string((int)td.packed.length()) + "*" + td.packed;
 
     EXPECT_EQ(packedMessage, answer);
@@ -598,6 +616,14 @@ TEST(lumberjack_Message, packMessages)
     axom::lumberjack::Message* m =
       new axom::lumberjack::Message(td.text, td.rank, td.fileName, td.lineNumber, td.level, td.tag);
     messages.push_back(m);
+
+    //manually modify creation time to fit the actual time
+    std::string creation_time_key = "<creation_time>";
+    size_t pos = td.packed.find(creation_time_key);
+    if (pos != std::string::npos) {
+      td.packed.replace(pos, creation_time_key.length(), std::to_string(m->creationTime()));
+    }
+    td.creationTime = m->creationTime();
 
     answer += std::to_string((int)td.packed.length()) + "*" + td.packed;
   }
@@ -622,6 +648,16 @@ TEST(lumberjack_Message, unpackMessagesIndividually)
   std::vector<TestData> testData = getTestData();
   for(auto& td : testData)
   {
+
+    //manually modify creation time to fit the actual time
+    std::string creation_time_key = "<creation_time>";
+    std::time_t t = std::time(0);
+    size_t pos = td.packed.find(creation_time_key);
+    if (pos != std::string::npos) {
+      td.packed.replace(pos, creation_time_key.length(), std::to_string(t));
+    }
+    td.creationTime = t;
+
     std::string answer = "1*" + std::to_string((int)td.packed.length()) + "*" + td.packed;
     axom::lumberjack::unpackMessages(messages, answer.c_str(), 100);
 
@@ -631,6 +667,7 @@ TEST(lumberjack_Message, unpackMessagesIndividually)
     EXPECT_EQ(m->fileName(), td.fileName);
     EXPECT_EQ(m->lineNumber(), td.lineNumber);
     EXPECT_EQ(m->level(), td.level);
+    EXPECT_EQ(m->creationTime(), td.creationTime);
     EXPECT_EQ(m->tag(), td.tag);
 
     delete m;
@@ -645,6 +682,16 @@ TEST(lumberjack_Message, unpackMessages)
   std::string packedMessages = std::to_string((int)testData.size()) + "*";
   for(auto& td : testData)
   {
+
+    //manually modify creation time to fit the actual time
+    std::string creation_time_key = "<creation_time>";
+    std::time_t t = std::time(0);
+    size_t pos = td.packed.find(creation_time_key);
+    if (pos != std::string::npos) {
+      td.packed.replace(pos, creation_time_key.length(), std::to_string(t));
+    }
+    td.creationTime = t;
+
     packedMessages += std::to_string((int)td.packed.length()) + "*" + td.packed;
   }
 

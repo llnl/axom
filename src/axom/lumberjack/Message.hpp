@@ -15,6 +15,7 @@
 #define MESSAGE_HPP
 
 #include <cstring>
+#include <ctime>
 #include <string>
 #include <vector>
 
@@ -73,6 +74,7 @@ public:
     , m_fileName("")
     , m_lineNumber(0)
     , m_level(0)
+    , m_creationTime(0.0)
     , m_tag("")
   { }
 
@@ -102,6 +104,7 @@ public:
     , m_fileName(fileName)
     , m_lineNumber(lineNumber)
     , m_level(level)
+    , m_creationTime(std::time(0))
     , m_tag(tag)
   { }
 
@@ -136,6 +139,7 @@ public:
     , m_fileName(fileName)
     , m_lineNumber(lineNumber)
     , m_level(level)
+    , m_creationTime(std::time(0))
     , m_tag(tag)
   {
     addRanks(ranks, count, ranksLimit);
@@ -197,6 +201,13 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Returns the creation time of the Message.
+   *****************************************************************************
+   */
+  std::time_t creationTime() const;
+
+  /*!
+   *****************************************************************************
    * \brief Returns the tag of where the Message originated.
    *****************************************************************************
    */
@@ -239,6 +250,13 @@ public:
    *****************************************************************************
    */
   void level(int newLevel);
+
+  /*!
+   *****************************************************************************
+   * \brief Sets the creation time of the Message.
+   *****************************************************************************
+   */
+  void creationTime(int newCreationTime);
 
   /*!
    *****************************************************************************
@@ -310,6 +328,7 @@ private:
   std::string m_fileName;
   int m_lineNumber;
   int m_level;
+  std::time_t m_creationTime;
   std::string m_tag;
 };
 

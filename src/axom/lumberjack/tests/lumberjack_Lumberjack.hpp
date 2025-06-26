@@ -10,8 +10,10 @@
 #include "axom/lumberjack/Communicator.hpp"
 #include "axom/lumberjack/Message.hpp"
 
+#include <algorithm>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
 class TestCommunicator : public axom::lumberjack::Communicator
 {
@@ -425,8 +427,13 @@ TEST(lumberjack_Lumberjack, combineMessagesManyMessages)
   for(int i = 0; i < loopCount; ++i)
   {
     std::string s = "Should not be combined " + std::to_string(i) + ".";
-    EXPECT_EQ(messages[i]->text(), s);
-    EXPECT_EQ(messages[i]->count(), 1);
+    // messages printing at roughly the same time can be re-ordered when sorting
+    auto iter = std::find_if(messages.begin(), messages.end(), 
+      [=](axom::lumberjack::Message* m) { return m->text() == s; });
+
+    EXPECT_TRUE(iter != messages.end());
+    EXPECT_EQ((*iter)->text(), s);
+    EXPECT_EQ((*iter)->count(), 1);
   }
 
   lumberjack.finalize();
@@ -466,6 +473,49 @@ TEST(lumberjack_Lumberjack, combineMessagesLargeMessages)
     EXPECT_EQ(messages[i]->text(), s);
     EXPECT_EQ(messages[i]->count(), 1);
   }
+
+  lumberjack.finalize();
+  communicator.finalize();
+}
+
+TEST(lumberjack_Lumberjack, sortMessages)
+{
+  int ranksLimit = 5;
+  TestCommunicator communicator;
+  communicator.initialize(MPI_COMM_NULL, ranksLimit);
+  axom::lumberjack::Lumberjack lumberjack;
+  lumberjack.initialize(&communicator, ranksLimit);
+
+  lumberjack.queueMessage("Should be combined.");
+
+  usleep(200000);
+
+  lumberjack.queueMessage("Should not be combined first message");
+
+  usleep(200000);
+
+  lumberjack.queueMessage("Should not be combined second message");
+
+  usleep(200000);
+
+  lumberjack.queueMessage("Should be combined.");
+  lumberjack.queueMessage("Should be combined.");
+
+  lumberjack.pushMessagesFully();
+
+  std::vector<axom::lumberjack::Message*> messages = lumberjack.getMessages();
+
+  // Check total messages size
+  EXPECT_EQ((int)messages.size(), 3);
+
+  EXPECT_EQ(messages[0]->text(), "Should be combined.");
+  EXPECT_EQ(messages[1]->text(), "Should not be combined first message");
+  EXPECT_EQ(messages[2]->text(), "Should not be combined second message");
+
+  std::cout << "creation times: " << messages[0]->creationTime() << ", " << messages[1]->creationTime() << ", " << messages[2]->creationTime() << std::endl;
+
+  EXPECT_TRUE(messages[0]->creationTime() <= messages[1]->creationTime());
+  EXPECT_TRUE(messages[1]->creationTime() <= messages[2]->creationTime());
 
   lumberjack.finalize();
   communicator.finalize();

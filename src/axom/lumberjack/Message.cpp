@@ -42,6 +42,8 @@ int Message::lineNumber() const { return m_lineNumber; }
 
 int Message::level() const { return m_level; }
 
+std::time_t Message::creationTime() const { return m_creationTime; }
+
 std::string Message::tag() const { return m_tag; }
 
 std::string Message::stringOfRanks(std::string delimiter) const
@@ -74,6 +76,8 @@ void Message::fileName(const std::string& newFileName) { m_fileName = newFileNam
 void Message::lineNumber(int newLineNumber) { m_lineNumber = newLineNumber; }
 
 void Message::level(int newLevel) { m_level = newLevel; }
+
+void Message::creationTime(int newCreationTime) { m_creationTime = newCreationTime; }
 
 void Message::tag(const std::string& newTag) { m_tag = newTag; }
 
@@ -155,6 +159,8 @@ std::string Message::pack()
 
   packedMessage += std::to_string(m_level) + memberDelimiter;
 
+  packedMessage += std::to_string(m_creationTime) + memberDelimiter;
+
   packedMessage += m_tag + memberDelimiter;
 
   packedMessage += m_text;
@@ -223,6 +229,17 @@ void Message::unpack(const std::string& packedMessage, int ranksLimit)
     std::cerr << packedMessage << std::endl;
   }
   m_level = std::stoi(packedMessage.substr(start, end - start));
+  start = end + 1;
+
+  //Grab creation time
+  end = packedMessage.find(memberDelimiter, start);
+  if(end == std::string::npos)
+  {
+    std::cerr << "Error: Lumberjack received a truncated message "
+              << "that ended in the level section." << std::endl;
+    std::cerr << packedMessage << std::endl;
+  }
+  m_creationTime = std::stoi(packedMessage.substr(start, end - start));
   start = end + 1;
 
   //Grab tag
