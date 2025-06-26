@@ -24,6 +24,7 @@ namespace axom
 namespace lumberjack
 {
 
+// Message to indicate no messages need to be sent from child node.
 // Global workaround:
 // https://rzlc.llnl.gov/jira/browse/ELCAP-851
 char zeroMessage[] = "0";

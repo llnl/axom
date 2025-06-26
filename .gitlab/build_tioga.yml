@@ -7,7 +7,7 @@
 # This is the shared configuration of jobs for tioga
 .on_tioga:
   variables:
-    SCHEDULER_PARAMETERS: "--queue pci --exclusive --time-limit=${ALLOC_TIME}m --nodes=${NUM_NODES}"
+    SCHEDULER_PARAMETERS: "--queue pci --exclusive --time-limit=${ALLOC_TIME}m --nodes=1"
   tags:
     - batch
     - tioga
@@ -38,19 +38,19 @@ tioga-rocmcc_6_2_1_hip-src:
   variables:
     COMPILER: "rocmcc@6.2.1_hip"
     HOST_CONFIG: "tioga-toss_4_x86_64_ib_cray-${COMPILER}.cmake"
-    NUM_NODES: "1"
   extends: .src_build_on_tioga
 
-tioga-rocmcc_6_3_1_hip-gpu-aware-src:
-  variables:
-    COMPILER: "rocmcc@6.3.1_hip"
-    HOST_CONFIG: "tioga-toss_4_x86_64_ib_cray-${COMPILER}.cmake"
-    ALLOC_TIME: "60"
-    NUM_NODES: "2"
-  extends: .src_build_on_tioga
-  before_script:
-    - module load cmake/3.21.1
-    - export MPICH_GPU_SUPPORT_ENABLED=1
+# TODO: Translate this job to tuolumne to accomodate node requirements
+# tioga-rocmcc_6_3_1_hip-gpu-aware-src:
+#   variables:
+#     COMPILER: "rocmcc@6.3.1_hip"
+#     HOST_CONFIG: "tioga-toss_4_x86_64_ib_cray-${COMPILER}.cmake"
+#     ALLOC_TIME: "60"
+#     NUM_NODES: "2"
+#   extends: .src_build_on_tioga
+#   before_script:
+#     - module load cmake/3.21.1
+#     - export MPICH_GPU_SUPPORT_ENABLED=1
 
 ####
 # Full Build jobs
