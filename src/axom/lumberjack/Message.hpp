@@ -27,7 +27,9 @@ namespace lumberjack
  * \brief Message to indicate no messages need to be sent from child node.
  *****************************************************************************
  */
-const char* const zeroMessage = "0";
+// GPU-aware MPI issue:
+// https://rzlc.llnl.gov/jira/browse/ELCAP-851
+// const char * zeroMessage = "0";
 
 /*!
  *****************************************************************************
@@ -360,6 +362,8 @@ void unpackMessages(std::vector<Message*>& messages, const char* packedMessages,
  */
 inline bool isPackedMessagesEmpty(const char* packedMessages)
 {
+  const char zeroMessage[] = "0";
+
   return (packedMessages == nullptr) || (packedMessages[0] == '\0') ||
     (strcmp(packedMessages, zeroMessage) == 0);
 }

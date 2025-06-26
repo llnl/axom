@@ -23,6 +23,11 @@ namespace axom
 {
 namespace lumberjack
 {
+
+// Global workaround:
+// https://rzlc.llnl.gov/jira/browse/ELCAP-851
+char zeroMessage[] = "0";
+
 //Getters
 
 std::string Message::text() const { return m_text; }
