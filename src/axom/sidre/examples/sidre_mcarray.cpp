@@ -39,7 +39,7 @@ int main(int argc, char** argv)
   sidre::Group* root1 = dataStore1->getRoot();
 
   // STEP 1: Create a sidre::MCArray with data held in a Sidre View.
-  //         A sidre::MCArray is similar to axom::MCArray, except that
+  //         A sidre::MCArray is similar to axom::Array, except that
   //         the array data can be accessed using a Sidre View.
   constexpr axom::IndexType NUM_NODES = 10;
   constexpr axom::IndexType DIMENSION = 4;
