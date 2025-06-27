@@ -20,7 +20,8 @@ namespace quest
 /*!
  * \class STLWriter
  *
- * \brief A simple STL writer for the faces of Mint meshes.
+ * \brief A simple STL writer for a collection of triangular faces with
+ *        limited support for planar polygons
  *
  * STL (STereoLithography) is a common file format for triangle meshes.
  * It encodes a "soup of triangles" by explicitly listing the coordinate
@@ -79,22 +80,18 @@ protected:
   /*!
    * \brief Compute the number of triangles produced for the input mesh.
    *
-   * \param mesh The input mesh.
-   *
    * \return The number of triangles.
    */
-  IndexType getNumberOfTriangles(const mint::Mesh* mesh) const;
+  IndexType getNumberOfTriangles() const;
 
   /*!
-   * \brief Determines whether the input mesh looks topologically 2D since
-   *        the mesh dimension seems to reflect the number of coordinate components.
+   * \brief Determines whether the input mesh is topologically 2D.
    *
-   * \param mesh The mesh to test.
-   *
-   * \return True if the mesh seems 2D, false otherwise.
+   * \return True if the mesh is topologically 2D, false otherwise.
    */
-  bool isTopologically2D(const mint::Mesh* mesh) const;
+  bool isTopologically2D() const;
 
+  const mint::Mesh* m_mesh {nullptr};
   std::string m_fileName {"output.stl"};
   bool m_binary {false};
 };

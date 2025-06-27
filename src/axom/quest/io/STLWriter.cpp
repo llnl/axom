@@ -34,7 +34,6 @@ void writeTriangle(std::ofstream &out, bool binary, double coords[3][3], const N
   if(binary)
   {
     using float32 = float;
-    using uint16 = unsigned short;
     float32 n32[3], coords32[3][3];
     for(int comp = 0; comp < 3; comp++)
     {
@@ -43,12 +42,14 @@ void writeTriangle(std::ofstream &out, bool binary, double coords[3][3], const N
       coords32[1][comp] = static_cast<float32>(coords[1][comp]);
       coords32[2][comp] = static_cast<float32>(coords[2][comp]);
     }
-    const uint16 attr = 0x7fff;
+    // The attribute is sometimes used as colors. Set bits to white.
+    // See https://en.wikipedia.org/wiki/STL_(file_format).
+    const std::uint16_t attr = 0x7fff;
     out.write(reinterpret_cast<const char *>(n32), 3 * sizeof(float32));
     out.write(reinterpret_cast<const char *>(coords32[0]), 3 * sizeof(float32));
     out.write(reinterpret_cast<const char *>(coords32[1]), 3 * sizeof(float32));
     out.write(reinterpret_cast<const char *>(coords32[2]), 3 * sizeof(float32));
-    out.write(reinterpret_cast<const char *>(&attr), sizeof(uint16));
+    out.write(reinterpret_cast<const char *>(&attr), sizeof(std::uint16_t));
   }
   else
   {
@@ -65,45 +66,50 @@ void writeTriangle(std::ofstream &out, bool binary, double coords[3][3], const N
 }  // end namespace internal
 
 STLWriter::STLWriter(const std::string &filename, bool binary)
-  : m_fileName(filename)
+  : m_mesh(nullptr)
+  , m_fileName(filename)
   , m_binary(binary)
 { }
 
-bool STLWriter::isTopologically2D(const mint::Mesh *mesh) const
+bool STLWriter::isTopologically2D() const
 {
+  SLIC_ERROR_IF(m_mesh == nullptr, "mesh pointer is null!");
+
   bool is2D = false;
-  if(mesh->getDimension() == 2)
+  if(m_mesh->getDimension() == 2)
   {
     is2D = true;
   }
-  else if(mesh->getDimension() == 3)
+  else if(m_mesh->getDimension() == 3)
   {
-    // Heuristic for determining whether a mesh seems 2D independent of the coordinates.
-    if(mesh->getNumberOfFaces() == 0 && mesh->getNumberOfCells() > 0)
+    // Heuristic for determining whether a m_mesh seems 2D independent of the coordinates.
+    if(m_mesh->getNumberOfFaces() == 0 && m_mesh->getNumberOfCells() > 0)
     {
       // 2D shapes in 3D don't seem to have faces in mint. Get the type of the first cell.
-      const auto ct = mesh->getCellType(0);
+      const auto ct = m_mesh->getCellType(0);
       is2D = (ct == mint::CellType::TRIANGLE || ct == mint::CellType::QUAD);
     }
   }
   return is2D;
 }
 
-IndexType STLWriter::getNumberOfTriangles(const mint::Mesh *mesh) const
+IndexType STLWriter::getNumberOfTriangles() const
 {
+  SLIC_ERROR_IF(m_mesh == nullptr, "mesh pointer is null!");
+
   IndexType ntri = 0;
-  if(isTopologically2D(mesh))
+  if(isTopologically2D())
   {
-    for(IndexType cellId = 0; cellId < mesh->getNumberOfCells(); cellId++)
+    for(IndexType cellId = 0; cellId < m_mesh->getNumberOfCells(); cellId++)
     {
-      ntri += (mesh->getNumberOfCellNodes(cellId) - 2);
+      ntri += (m_mesh->getNumberOfCellNodes(cellId) - 2);
     }
   }
-  else if(mesh->getDimension() == 3)
+  else if(m_mesh->getDimension() == 3)
   {
     axom::ReduceSum<axom::SEQ_EXEC, axom::IndexType> ntri_reduce(0);
     axom::mint::for_all_faces<axom::SEQ_EXEC, axom::mint::xargs::nodeids>(
-      mesh,
+      m_mesh,
       AXOM_LAMBDA(IndexType AXOM_UNUSED_PARAM(faceID),
                   const IndexType *AXOM_UNUSED_PARAM(nodes),
                   IndexType N) { ntri_reduce += (N - 2); });
@@ -118,8 +124,10 @@ int STLWriter::write(const mint::Mesh *mesh)
 
   SLIC_ERROR_IF(mesh == nullptr, "mesh pointer is null!");
   SLIC_ERROR_IF(m_fileName.length() <= 0, "STL filename is empty!");
-  SLIC_ERROR_IF(mesh->getDimension() < 2 || mesh->getDimension() > 3,
-                "Input mesh is not 2D/3D.");
+  SLIC_ERROR_IF(mesh->getDimension() < 2 || mesh->getDimension() > 3, "Input mesh is not 2D/3D.");
+
+  // Save mesh pointer
+  m_mesh = mesh;
 
   std::ofstream out(m_fileName.c_str(),
                     m_binary ? (std::ofstream::out | std::ofstream::binary) : std::ofstream::out);
@@ -142,7 +150,7 @@ int STLWriter::write(const mint::Mesh *mesh)
     out.write(reinterpret_cast<const char *>(header), STL_HEADER_SIZE);
 
     // Write number of triangles
-    std::uint32_t ntri = static_cast<std::uint32_t>(getNumberOfTriangles(mesh));
+    std::uint32_t ntri = static_cast<std::uint32_t>(getNumberOfTriangles());
     out.write(reinterpret_cast<const char *>(&ntri), sizeof(std::uint32_t));
   }
   else
@@ -151,28 +159,28 @@ int STLWriter::write(const mint::Mesh *mesh)
   }
 
   // Write triangle data.
-  if(isTopologically2D(mesh))
+  if(isTopologically2D())
   {
     // For meshes with cells that look 2D, we iterate over the cells.
     axom::Array<axom::IndexType> nodes;
     VectorType N = VectorType::make_vector(0., 0., 1.);
     double coords[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
-    for(axom::IndexType cellId = 0; cellId < mesh->getNumberOfCells(); cellId++)
+    for(axom::IndexType cellId = 0; cellId < m_mesh->getNumberOfCells(); cellId++)
     {
       // Get nodes for this cell.
-      nodes.resize(mesh->getNumberOfCellNodes(cellId));
-      const auto nnodes = mesh->getCellNodeIDs(cellId, nodes.data());
+      nodes.resize(m_mesh->getNumberOfCellNodes(cellId));
+      const auto nnodes = m_mesh->getCellNodeIDs(cellId, nodes.data());
 
       // Iterate over the face like a triangle fan.
-      mesh->getNode(nodes[0], coords[0]);
+      m_mesh->getNode(nodes[0], coords[0]);
       const IndexType ntri = nnodes - 2;
       for(IndexType ti = 0; ti < ntri; ti++)
       {
-        mesh->getNode(nodes[ti + 1], coords[1]);
-        mesh->getNode(nodes[ti + 2], coords[2]);
+        m_mesh->getNode(nodes[ti + 1], coords[1]);
+        m_mesh->getNode(nodes[ti + 2], coords[2]);
 
         // If the cell is in 3D space, make a better normal.
-        if(mesh->getDimension() == 3)
+        if(m_mesh->getDimension() == 3)
         {
           const VectorType A(coords[0], 3);
           const VectorType B(coords[1], 3);
@@ -191,8 +199,11 @@ int STLWriter::write(const mint::Mesh *mesh)
     const bool binary = m_binary;
 
     axom::mint::for_all_faces<axom::SEQ_EXEC, axom::mint::xargs::nodeids>(
-      mesh,
+      m_mesh,
       AXOM_LAMBDA(IndexType AXOM_UNUSED_PARAM(faceID), const IndexType *nodes, IndexType nnodes) {
+        // NOTE: Here in the lambda, we use "mesh" instead of "m_mesh" so we do
+        //       not capture STLWriter's "this" pointer.
+
         // Iterate over the face like a triangle fan.
         double coords[3][3] = {{0., 0., 0.}, {0., 0., 0.}, {0., 0., 0.}};
         mesh->getNode(nodes[0], coords[0]);
