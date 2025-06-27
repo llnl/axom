@@ -124,7 +124,7 @@ void Plane3DClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
   /*
     Label cell by whether it has vertices inside, outside or both.
   */
-  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
+  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getCellNodeConnectivity();
   SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL);
 
   auto labelsView = labels.view();
@@ -157,7 +157,7 @@ void Plane3DClipper::specializedClipImpl(quest::ShapeeMesh& shapeeMesh,
   constexpr int NUM_TETS_PER_HEX = 24;
   constexpr double EPS = 1e-10;
 
-  const axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
+  const axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getCellNodeConnectivity();
   SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL);
 
   auto& vertCoords = shapeeMesh.getVertexCoords3D();

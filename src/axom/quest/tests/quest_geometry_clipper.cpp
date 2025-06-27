@@ -1175,7 +1175,7 @@ int main(int argc, char** argv)
   sMesh.getCellsAsTets();
   sMesh.getCellsAsHexes();
   sMesh.getCellBoundingBoxes();
-  sMesh.getConnectivity();
+  sMesh.getCellNodeConnectivity();
   sMesh.getVertexCoords3D();
   AXOM_ANNOTATE_END("ShapeeMesh::precomputes");
 

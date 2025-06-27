@@ -169,7 +169,7 @@ public:
   //!@brief Get characteristic lengths of mesh cells.
   axom::ArrayView<const double> getCellLengths();
   axom::ArrayView<const BoundingBox3DType> getCellBoundingBoxes();
-  axom::ArrayView<const IndexType, 2> getConnectivity();
+  axom::ArrayView<const IndexType, 2> getCellNodeConnectivity();
   axom::ArrayView<const Point3DType> getVertexPoints();
   const axom::StackArray<axom::ArrayView<const double>, 3>& getVertexCoords3D() const
   {

@@ -158,7 +158,7 @@ void TetClipper::vertexSignedDistToLabel(quest::ShapeeMesh& shapeeMesh,
 
   axom::IndexType cellCount = shapeeMesh.getCellCount();
 
-  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
+  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getCellNodeConnectivity();
   SLIC_ASSERT(connView.shape() ==
               (axom::StackArray<axom::IndexType, 2> {cellCount, HexahedronType::NUM_HEX_VERTS}));
 

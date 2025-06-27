@@ -107,7 +107,7 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
   auto cellLengths = shapeeMesh.getCellLengths();
   const double lenFactor = 0.5;
 
-  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
+  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getCellNodeConnectivity();
   SLIC_ASSERT(connView.shape() ==
               (axom::StackArray<axom::IndexType, 2> {cellCount, NUM_VERTS_PER_CELL}));
 

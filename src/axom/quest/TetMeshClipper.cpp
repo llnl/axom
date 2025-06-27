@@ -150,8 +150,8 @@ void TetMeshClipper::vertexInsideToCellLabel(
   axom::ArrayView<bool>& vertIsInside,
   axom::Array<LabelType>& labels)
 {
-  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getConnectivity();
-  SLIC_ASSERT(connView.shape() ==
+  axom::ArrayView<const axom::IndexType, 2> hexConnView = shapeeMesh.getCellNodeConnectivity();
+  SLIC_ASSERT(hexConnView.shape() ==
               (axom::StackArray<axom::IndexType, 2> {shapeeMesh.getCellCount(), HexahedronType::NUM_HEX_VERTS}));
 
   if(labels.size() < shapeeMesh.getCellCount() || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
@@ -163,7 +163,7 @@ void TetMeshClipper::vertexInsideToCellLabel(
   axom::for_all<ExecSpace>(
     shapeeMesh.getCellCount(),
     AXOM_LAMBDA(axom::IndexType cellId) {
-      auto cellVertIds = connView[cellId];
+      auto cellVertIds = hexConnView[cellId];
       bool hasIn = vertIsInside[cellVertIds[0]];
       bool hasOut = !hasIn;
       for(int vi = 0; vi < HexahedronType::NUM_HEX_VERTS; ++vi)

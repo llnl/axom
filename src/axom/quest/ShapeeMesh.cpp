@@ -184,7 +184,7 @@ void ShapeeMesh::precomputeMeshData()
   getCellVolumes();
   getCellLengths();
   getCellBoundingBoxes();
-  getConnectivity();
+  getCellNodeConnectivity();
   getVertexPoints();
 }
 
@@ -242,7 +242,7 @@ axom::ArrayView<const ShapeeMesh::Point3DType> ShapeeMesh::getVertexPoints()
   return m_vertPoints3D.view();
 }
 
-axom::ArrayView<const axom::IndexType, 2> ShapeeMesh::getConnectivity()
+axom::ArrayView<const axom::IndexType, 2> ShapeeMesh::getCellNodeConnectivity()
 {
   if(m_connectivity.size() != m_cellCount)
   {
@@ -724,7 +724,7 @@ void ShapeeMesh::computeCellsAsHexesImpl()
   const auto& vY = vertexCoords[1];
   const auto& vZ = vertexCoords[2];
 
-  axom::ArrayView<const IndexType, 2> connView = getConnectivity();
+  axom::ArrayView<const IndexType, 2> connView = getCellNodeConnectivity();
 
   m_cellsAsHexes =
     axom::Array<HexahedronType>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
