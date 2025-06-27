@@ -9,7 +9,7 @@
 
 #include "axom/slic.hpp"
 
-#include "axom/quest/readers/PProEReader.hpp"
+#include "axom/quest/io/PProEReader.hpp"
 
 #include "gtest/gtest.h"
 
