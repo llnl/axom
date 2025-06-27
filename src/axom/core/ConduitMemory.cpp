@@ -63,10 +63,7 @@ const ConduitMemory& ConduitMemory::instanceForConduitId(conduit::index_t condui
   auto it = s_conduitToInstance.find(conduitAllocId);
   if(it == s_conduitToInstance.end())
   {
-    std::cerr << "*** Error: Axom allocator for Conduit allocator id "
-              << conduitAllocId << " doesn't exist.  You have to register the Axom allocator first, using ConduitMemory::getAxomInstance()."
-              << std::endl;
-    axom::utilities::processAbort();
+    return instanceForAxomId(axom::INVALID_ALLOCATOR_ID);
   }
   assert(it->first == conduitAllocId);
 

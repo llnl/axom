@@ -27,7 +27,7 @@ namespace utilities
 //------------------------------------------------------------------------------
 
 /*!
- * \brief Make an axom::ArrayView from a Conduit node.
+ * \brief Make a 1D axom::ArrayView from a non-object, non-list Conduit node.
  *
  * \tparam T The type for the array view elements.
  *

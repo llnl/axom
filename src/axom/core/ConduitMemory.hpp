@@ -91,7 +91,12 @@ struct ConduitMemory
   //!@brief Return the instance for the given Axom allocator id.
   static const ConduitMemory& instanceForAxomId(int axomAllocId);
 
-  //!@brief Return the instance for the given Conduit allocator id.
+  /*!
+    @brief Return the instance for the given Conduit allocator id.
+
+    If @c conduitAllocId doesn't correspond to an Axom allocator,
+    an object corresponding to axom::INVALID_ALLOCATOR_ID will be returned.
+  */
   static const ConduitMemory& instanceForConduitId(conduit::index_t conduitAllocId);
 
   ~ConduitMemory() { }
@@ -163,6 +168,11 @@ private:
         return ptr;
       };
       m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
+    }
+    else if(axomAllocId == axom::INVALID_ALLOCATOR_ID)
+    {
+      m_allocCallback = nullptr;
+      m_conduitId = -1;
     }
     else if(axomAllocId == 0)
     {

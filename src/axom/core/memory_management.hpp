@@ -28,7 +28,7 @@
 namespace axom
 {
 // To co-exist with Umpire allocator ids, use negative values here.
-constexpr int INVALID_ALLOCATOR_ID = -1;  //!< Place holder for no allocator
+constexpr int INVALID_ALLOCATOR_ID = -1;  //!< Place holder for no/unknown allocator
 constexpr int MALLOC_ALLOCATOR_ID = -3;   //!< Refers to MemorySpace::Malloc
 
 // _memory_space_start
