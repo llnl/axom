@@ -93,6 +93,7 @@ set( quest_sources
 set( quest_depends_on
     spin
     mint
+    bump
     fmt
     )
 

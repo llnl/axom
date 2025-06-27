@@ -495,6 +495,8 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string&
   tetMesh.appendCell(conn0);
   axom::IndexType conn1[4] = {4, 5, 6, 7};
   tetMesh.appendCell(conn1);
+  axom::IndexType conn2[4] = {1, 2, 3, 5};
+  tetMesh.appendCell(conn2);
 
   SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
 

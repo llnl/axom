@@ -333,6 +333,22 @@ public:
   }
 
   /*!
+    @brief Get the centroid of the tetrahedron.
+  */
+  template <int TDIM = NDIMS>
+  AXOM_HOST_DEVICE
+  typename std::enable_if<TDIM == 3, axom::StackArray<TriangleType, NUM_VERTS>>::type getCentroid() const
+  {
+    PointType rval = m_points[0];
+    for(int i = 1; i < NUM_VERTS; ++i)
+    {
+      rval.array() += m_points[i].array();
+    }
+    rval.array() /= NUM_VERTS;
+    return rval;
+  }
+
+  /*!
     @brief Get the 4 triangular facets of the tet (only for 3D).
 
     Facet i is the one positioned opposite vertex i.  All facets

@@ -20,6 +20,9 @@ namespace quest
 
 /*!
   @brief Geometry clipping operations for tetrahedral mesh geometries.
+
+  @internal TODO: Implement load balancing.  The 1D array of shapee hexes
+  should be load balanced for better performance.
 */
 class TetMeshClipper : public GeometryClipperStrategy
 {
@@ -53,10 +56,10 @@ private:
   std::string m_coordsetName;
 
   //! @brief Tet mesh in Blueprint format.
-  conduit::Node* m_bpMesh;
+  conduit::Node m_bpMesh;
 
   //! @brief Bounding box of the tet mesh.
-  axom::primal::BoundingBox<double, 3> m_bb;
+  axom::primal::BoundingBox<double, 3> m_tetMeshBb;
 
   //! @brief Number of tets in the tet mesh.
   axom::IndexType m_tetCount;
@@ -81,6 +84,30 @@ private:
   void transformCoordset();
 
   void computeTets();
+
+  //@{
+  //!@name For computing surface of m_bpMesh.
+  /*!
+    @brief Entry point for computing geometry surface.
+
+    This computation is independent of the shapee mesh, except that we
+    need the policy and allocator id.
+  */
+  axom::Array<Triangle3DType> computeGeometrySurface(axom::runtime_policy::Policy policy, int allocId);
+  template <typename ExecSpace>
+
+  axom::Array<Triangle3DType> computeGeometrySurface(int allocId);
+
+  //!@brief Add a polyhedral topology to an unstructured tet mesh.
+  template <typename ExecSpace>
+  void make_polyhedral_topology(const conduit::Node& inputBp,
+                                conduit::Node& outputBp);
+
+  //!@brief Write out for debugging
+  void writeTrianglesToVTK(
+    const axom::Array<Triangle3DType>& triangles,
+    const std::string& filename);
+  //@}
 };
 
 }  // namespace quest

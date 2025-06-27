@@ -98,6 +98,15 @@ public:
   }
 
   /*!
+   * \brief Returns the centroid of the triangle.
+   */
+  AXOM_HOST_DEVICE PointType centroid() const
+  {
+    PointType c{ (m_points[0].array() + m_points[1].array() + m_points[2].array())/NUM_TRI_VERTS };
+    return c;
+  }
+
+  /*!
    * \brief Returns the normal of the triangle (not normalized)
    * \pre This function is only valid when NDIMS = 3
    * \return n triangle normal when NDIMS=3, zero vector otherwise

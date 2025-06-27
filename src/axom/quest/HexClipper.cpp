@@ -177,9 +177,8 @@ void HexClipper::extractClipperInfo()
 
 void HexClipper::computeSurface()
 {
-  // See the Hexahedron class documentation, especially the ASCII art.
-
   // Hex vertex shorthands
+  // See the Hexahedron class documentation, especially the ASCII art.
   const auto& p = m_hex[0];
   const auto& q = m_hex[1];
   const auto& r = m_hex[2];
