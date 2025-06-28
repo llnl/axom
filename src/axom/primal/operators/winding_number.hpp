@@ -546,8 +546,24 @@ double winding_number(const Point<T, 3>& query,
                       const double edge_tol = 1e-8,
                       const double ls_tol = 1e-8,
                       const double quad_tol = 1e-8,
+                      const double disk_size = 0.01,
                       const double EPS = 1e-8)
 {
+  // auto patch_obox = nPatchData.obox;
+  // patch_obox.scale(2.0);
+
+  // if(!patch_obox.contains(query, edge_tol))
+  // {
+  //   // If the query point is outside the bounding box of the patch,
+  //   //  use the simpler formulation
+  //   auto surface_area = nPatchData.surface_area;
+  //   auto average_normal = nPatchData.average_normal;
+  //   auto centroid = nPatchData.centroid;
+  //   auto translated_query = Vector<T, 3>(query, centroid);
+  //   return 0.25 * M_PI * surface_area * translated_query.dot(average_normal) /
+  //     std::pow(translated_query.norm(), 3);
+  // }
+
   // Select the cast direction as an average normal of the untrimmed surface
   auto cast_direction = nPatchData.average_normal;
   if(cast_direction.norm() < 1e-10)
@@ -570,6 +586,7 @@ double winding_number(const Point<T, 3>& query,
                                            edge_tol,
                                            ls_tol,
                                            quad_tol,
+                                           disk_size,
                                            EPS);
 }
 
@@ -584,7 +601,6 @@ double winding_number_tear(const Point<T, 3>& query,
                            const double quad_tol = 1e-8,
                            const double EPS = 1e-8)
 {
-
   return detail::nurbs_data_winding_number_tear(query,
                                                 nPatchData,
                                                 cast_direction,

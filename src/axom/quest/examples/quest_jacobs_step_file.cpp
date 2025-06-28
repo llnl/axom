@@ -1173,6 +1173,8 @@ public:
 
     for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
+      axom::primal::printLoadingBar(patchIndex, getNumberOfPatches(), "Loading Patches");
+
       PatchData& patchData = m_patchData[patchIndex];
       NCurveArray& curves = patchData.nurbsPatch.getTrimmingCurves();
 
@@ -1326,8 +1328,8 @@ public:
             // patchData.nurbsPatch.printTrimmingCurves(
             // "C:\\Users\\Fireh\\Code\\winding_number_code\\figures_2d\\trimming_"
             // "curve_examples\\unsure_" + std::to_string(patchIndex) + ".txt");
-            std::cout << "Unsure if it's the right orientation! Trying again..." << patchIndex
-                      << std::endl;
+            // std::cout << "Unsure if it's the right orientation! Trying again..." << patchIndex
+            // << std::endl;
           }
         }
 
@@ -1344,6 +1346,7 @@ public:
   {
     for(auto& kv : m_patchData)
     {
+      axom::primal::printLoadingBar(kv.first, getNumberOfPatches(), "Precomputing patch data");
       kv.second.nurbsPatchData = axom::primal::NURBSPatchData<double>(kv.first, kv.second.nurbsPatch);
     }
   }
@@ -2169,10 +2172,80 @@ StepFileProcessor import_step_file(std::string prefix,
                       "patches in '{}' directory",
                       output_dir));
   patchTriangulator.triangulateTrimmedPatches();
-  patchTriangulator.triangulateFullMesh();
   patchTriangulator.triangulateUntrimmedPatches();
+  // patchTriangulator.triangulateFullMesh();
 
   return stepProcessor;
+};
+
+#include <vector>
+#include <random>
+#include <stdexcept>
+
+class AliasSampler
+{
+public:
+  AliasSampler(const std::vector<double>& probabilities)
+    : N(probabilities.size())
+    , prob(N)
+    , alias(N)
+    , rng(std::random_device {}())
+    , dist_int(0, N - 1)
+    , dist_double(0.0, 1.0)
+  {
+    // Normalize probabilities
+    double sum = 0.0;
+    for(double p : probabilities) sum += p;
+    std::vector<double> scaled_probs(N);
+    for(size_t i = 0; i < N; ++i) scaled_probs[i] = probabilities[i] * N / sum;
+
+    // Worklists
+    std::vector<size_t> small, large;
+    for(size_t i = 0; i < N; ++i)
+    {
+      if(scaled_probs[i] < 1.0)
+        small.push_back(i);
+      else
+        large.push_back(i);
+    }
+
+    // Main loop
+    while(!small.empty() && !large.empty())
+    {
+      size_t s = small.back();
+      small.pop_back();
+      size_t l = large.back();
+      large.pop_back();
+
+      prob[s] = scaled_probs[s];
+      alias[s] = l;
+
+      scaled_probs[l] = scaled_probs[l] + scaled_probs[s] - 1.0;
+      if(scaled_probs[l] < 1.0)
+        small.push_back(l);
+      else
+        large.push_back(l);
+    }
+
+    // Remaining entries (prob == 1.0)
+    for(size_t i : large) prob[i] = 1.0;
+    for(size_t i : small) prob[i] = 1.0;
+  }
+
+  size_t sample()
+  {
+    size_t i = dist_int(rng);
+    double u = dist_double(rng);
+    return (u < prob[i]) ? i : alias[i];
+  }
+
+private:
+  size_t N;
+  std::vector<double> prob;
+  std::vector<size_t> alias;
+  std::mt19937 rng;
+  std::uniform_int_distribution<size_t> dist_int;
+  std::uniform_real_distribution<double> dist_double;
 };
 
 void nut_3d_example()
@@ -2293,8 +2366,10 @@ void graphical_abstract_watertight()
     "abstract\\";
 
   std::string filename = "machine_part";
-  // auto stepProcessor = import_step_file(prefix, filename, true, 0.001, 0.005, true);
   auto stepProcessor = import_step_file(prefix, filename);
+
+  std::string filename_original = "machine_part_original";
+  auto stepProcessorOriginal = import_step_file(prefix, filename_original, false);
 
   for(auto& kv : stepProcessor.getMutablePatchDataMap())
   {
@@ -2305,33 +2380,29 @@ void graphical_abstract_watertight()
 
       auto max_u = kv.second.nurbsPatchData.patch.getMaxKnot_u();
       auto min_u = kv.second.nurbsPatchData.patch.getMinKnot_u();
+      auto mid_u = 0.5 * (max_u + min_u);
 
       auto max_v = kv.second.nurbsPatchData.patch.getMaxKnot_v();
       auto min_v = kv.second.nurbsPatchData.patch.getMinKnot_v();
+      auto mid_v = 0.5 * (max_v + min_v);
 
-      // Take all non-endpoint control points, and jitter them a bit
-      for(int i = 1; i < curves[4].getNumControlPoints() - 1; ++i)
+      for(int n = 0; n < curves.size(); ++n)
       {
-        curves[4][i][0] = axom::utilities::clampVal(
-          curves[4][i][0] + 0.07 * (axom::utilities::random_real(-1.0, 1.0)),
-          min_u,
-          max_u);
-        curves[4][i][1] = axom::utilities::clampVal(
-          curves[4][i][1] + 0.07 * (axom::utilities::random_real(-1.0, 1.0)),
-          min_v,
-          max_v);
-      }
+        if(n == 0 || n == 1) continue;
 
-      for(int i = 1; i < curves[5].getNumControlPoints() - 1; ++i)
-      {
-        curves[5][i][0] = axom::utilities::clampVal(
-          curves[5][i][0] + 0.07 * (axom::utilities::random_real(-1.0, 1.0)),
-          min_u,
-          max_u);
-        curves[5][i][1] = axom::utilities::clampVal(
-          curves[5][i][1] + 0.07 * (axom::utilities::random_real(-1.0, 1.0)),
-          min_v,
-          max_v);
+        // Take all non-endpoint control points, and jitter them a bit
+        for(int i = 1; i < curves[n].getNumControlPoints() - 1; ++i)
+        {
+          curves[n][i][0] = axom::utilities::clampVal(
+            0.5 * (mid_u + curves[n][i][0] + 0.1 * (axom::utilities::random_real(-1.0, 0.0, n + i))),
+            min_u,
+            max_u);
+          curves[n][i][1] = axom::utilities::clampVal(
+            0.5 *
+              (mid_v + curves[n][i][1] + 0.1 * (axom::utilities::random_real(-1.0, 0.0, n + i + 1))),
+            min_v,
+            max_v);
+        }
       }
     }
   }
@@ -2339,29 +2410,17 @@ void graphical_abstract_watertight()
   constexpr double edge_tol = 1e-8;
   constexpr double quad_tol = 1e-8;
   constexpr double ls_tol = 1e-8;
+  constexpr double disk_size = 0.01;
   constexpr double EPS = 1e-8;
 
   // (!bBox, !oBox, casting, noCache)
   int case_code = -1;
-  auto wn_field = [&stepProcessor, &edge_tol, &quad_tol, &ls_tol, &EPS, &case_code](
+  auto wn_field = [&stepProcessor, &disk_size, &edge_tol, &quad_tol, &ls_tol, &EPS, &case_code](
                     axom::primal::Point<double, 3> query) -> double {
-    // query[0] = -0.00798997;
-    // query[1] = 0.0494784;
-    // query[2] = -0.00483421;
-
     double wn = 0.0;
     for(const auto& kv : stepProcessor.getPatchDataMap())
     {
       int integrated_trimming_curves;
-
-      // if(kv.first != 11)
-      // {
-      //   continue;
-      // }
-      //   kv.second.nurbsPatchData.patch.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//original.txt");
-
-      //   printPatchBoundaries(kv.second.nurbsPatchData.patch, true);
-
       double the_val = axom::primal::winding_number(query,
                                                     kv.second.nurbsPatchData,
                                                     case_code,
@@ -2369,9 +2428,32 @@ void graphical_abstract_watertight()
                                                     edge_tol,
                                                     ls_tol,
                                                     quad_tol,
+                                                    disk_size,
                                                     EPS);
       wn += the_val;
     }  // 11,
+
+    return wn;
+  };
+
+  auto wn_field_original =
+    [&stepProcessorOriginal, &disk_size, &edge_tol, &quad_tol, &ls_tol, &EPS, &case_code](
+      axom::primal::Point<double, 3> query) -> double {
+    double wn = 0.0;
+    for(const auto& kv : stepProcessorOriginal.getPatchDataMap())
+    {
+      int integrated_trimming_curves;
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    ls_tol,
+                                                    quad_tol,
+                                                    disk_size,
+                                                    EPS);
+      wn += the_val;
+    }
 
     return wn;
   };
@@ -2387,32 +2469,105 @@ void graphical_abstract_watertight()
 
   axom::primal::Point<double, 3> origin = meshBBox.getCentroid();
 
-  std::cout << origin << std::endl;
+  origin[0] = -1.18934e-05;
+  origin[1] = 0.0388938;
+  origin[2] = 6.60236e-15;
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_slice.vtk",
-                                                    wn_field,
-                                                    origin,
-                                                    axom::primal::Vector<double, 3> {0.6, 1, 0},
-                                                    axom::primal::Vector<double, 3> {0.0, 0.0, 1},
-                                                    the_range * 0.9,
-                                                    the_range * 0.9,
-                                                    1000,
-                                                    1000);
+  auto outwards =
+    axom::primal::Vector<double, 3>::cross_product(axom::primal::Vector<double, 3> {0.5, 1.0, 0.0},
+                                                   axom::primal::Vector<double, 3> {0.0, 0.0, 1.0});
+
+  origin.array() += 0.0035 * outwards.array();
+
+  // axom::primal::exportSliceScalarFieldToVTK<double>(
+  // prefix + "/final_slices/" + filename + "_slice.vtk",
+  // wn_field,
+  // origin,
+  // axom::primal::Vector<double, 3> {0.5, 1, 0},
+  // axom::primal::Vector<double, 3> {0.0, 0.0, 1},
+  // the_range * 0.9,
+  // the_range * 0.9,
+  // 750,
+  // 750);
+
+  // axom::primal::exportSliceScalarFieldToVTK<double>(
+  // prefix + "/final_slices/" + filename + "_slice_original.vtk",
+  // wn_field_original,
+  // origin,
+  // axom::primal::Vector<double, 3> {0.5, 1, 0},
+  // axom::primal::Vector<double, 3> {0.0, 0.0, 1},
+  // the_range * 0.9,
+  // the_range * 0.9,
+  // 750,
+  // 750);
 
   // return;
 
-  origin[0] = -0.00426879;
-  origin[1] = 0.0317989;
-  origin[2] = -0.0205794;
-  axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_slice_subset.vtk",
-                                                    wn_field,
-                                                    origin,
-                                                    axom::primal::Vector<double, 3> {0.6, 1, 0},
-                                                    axom::primal::Vector<double, 3> {0.0, 0.0, 1},
-                                                    the_range * 0.075,
-                                                    the_range * 0.075,
-                                                    1000,
-                                                    1000);
+  origin[0] = 0.000345822;
+  origin[1] = 0.0308592;
+  origin[2] = -0.0222376;
+  // axom::primal::exportSliceScalarFieldToVTK<double>(
+  // prefix + "/final_slices/" + filename + "_slice_subset.vtk",
+  // wn_field,
+  // origin,
+  // axom::primal::Vector<double, 3> {0.5, 1, 0},
+  // axom::primal::Vector<double, 3> {0.0, 0.0, 1},
+  // the_range * 0.075,
+  // the_range * 0.075,
+  // 750,
+  // 750);
+
+  // axom::primal::exportSliceScalarFieldToVTK<double>(
+  // prefix + "/final_slices/" + filename + "_slice_subset_original.vtk",
+  // wn_field_original,
+  // origin,
+  // axom::primal::Vector<double, 3> {0.5, 1, 0},
+  // axom::primal::Vector<double, 3> {0.0, 0.0, 1},
+  // the_range * 0.075,
+  // the_range * 0.075,
+  // 750,
+  // 750);
+
+  origin[0] = 0.00905698;
+  origin[1] = 0.0482816;
+  origin[2] = -0.005845;
+
+  // axom::primal::exportSliceScalarFieldToVTK<double>(
+  // prefix + "/final_slices/" + filename + "_slice_subset_2.vtk",
+  // wn_field,
+  // origin,
+  // axom::primal::Vector<double, 3> {0.5, 1, 0},
+  // axom::primal::Vector<double, 3> {0.0, 0.0, 1},
+  // the_range * 0.075 * 2.5,
+  // the_range * 0.075 * 2.5,
+  // 750,
+  // 750);
+
+  // axom::primal::exportSliceScalarFieldToVTK<double>(
+  //   prefix + "/final_slices/" + filename + "_slice_subset_2_original.vtk",
+  //   wn_field_original,
+  //   origin,
+  //   axom::primal::Vector<double, 3> {0.5, 1, 0},
+  //   axom::primal::Vector<double, 3> {0.0, 0.0, 1},
+  //   the_range * 0.075 * 2.5,
+  //   the_range * 0.075 * 2.5,
+  //   750,
+  //   750);
+
+  origin[0] = 0.00746891;
+  origin[1] = 0.0451054;
+  origin[2] = 0.0121932;
+
+  axom::primal::exportSliceScalarFieldToVTK<double>(
+    prefix + "/final_slices/" + filename + "_slice_subset_3.vtk",
+    wn_field,
+    origin,
+    axom::primal::Vector<double, 3> {0.5, 1, 0},
+    axom::primal::Vector<double, 3> {0.0, 0.0, 1},
+    the_range * 0.075 * 1.6,
+    the_range * 0.075 * 1.6,
+    750,
+    750);
 }
 
 void graphical_abstract_exploded()
@@ -3027,58 +3182,41 @@ void quadrature_on_sphere()
 
   std::string prefix =
     "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\quadrature_"
-    "bad\\take_two\\";
+    "bad\\take_five\\";
 
   for(int k = 0; k < 6; ++k)
   {
     axom::primal::exportSurfaceToSTL(prefix + "sphere_face_" + std::to_string(k) + ".stl",
                                      sphere_faces[k],
-                                     35,
-                                     35);
+                                     50,
+                                     50);
   }
 
-  axom::primal::BoundingBox<double, 3> bbox;
-  bbox.addPoint(axom::primal::Point<double, 3> {1.0 / std::sqrt(3) + 0.1,
-                                                1.0 / std::sqrt(3) + 0.1,
-                                                1.0 / std::sqrt(3) + 0.1});
-  bbox.addPoint(axom::primal::Point<double, 3> {1.0 / std::sqrt(3) - 0.1,
-                                                1.0 / std::sqrt(3) - 0.1,
-                                                1.0 / std::sqrt(3) - 0.1});
-  // bbox.addPoint(axom::primal::Point<double, 3> {1.2, 1.2, 1.2});
-  // bbox.addPoint(axom::primal::Point<double, 3> {-1.2, -1.2, -1.2});
-
-  // axom::primal::exportScalarFieldToVTK<double>(prefix + "sphere_field_subset_20_interrupted.vtk",
-  //                                              wn_field_quad,
-  //                                              bbox,
-  //                                              100,
-  //                                              100,
-  //                                              100);
-
-  int npts = 300;
+  int npts = 500;
 
   // ================== EXACT =========================
 
   // axom::primal::exportSliceScalarFieldToVTK<double>(
-  //   prefix + "slice1_exact.vtk",
-  //   wn_field_exact,
-  //   axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
-  //   axom::primal::Vector<double, 3> {0, 1, 0},
-  //   axom::primal::Vector<double, 3> {1, 0, 0},
-  //   0.8,
-  //   0.8,
-  //   npts,
-  //   npts);
-
+  // prefix + "slice1_exact.vtk",
+  // wn_field_exact,
+  // axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
+  // axom::primal::Vector<double, 3> {0, 1, 0},
+  // axom::primal::Vector<double, 3> {1, 0, 0},
+  // 0.8,
+  // 0.8,
+  // npts,
+  // npts);
+  //
   // axom::primal::exportSliceScalarFieldToVTK<double>(
-  //   prefix + "slice2_exact.vtk",
-  //   wn_field_exact,
-  //   axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
-  //   axom::primal::Vector<double, 3> {0, 0, 1},
-  //   axom::primal::Vector<double, 3> {1, 1.2, 0},
-  //   0.8,
-  //   0.8,
-  //   npts,
-  //   npts);
+  // prefix + "slice2_exact.vtk",
+  // wn_field_exact,
+  // axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
+  // axom::primal::Vector<double, 3> {0, 0, 1},
+  // axom::primal::Vector<double, 3> {1, 1.2, 0},
+  // 0.8,
+  // 0.8,
+  // npts,
+  // npts);
 
   // ================== NONADAPTIVE =========================
 
@@ -3103,67 +3241,45 @@ void quadrature_on_sphere()
   //   0.8,
   //   npts,
   //   npts);
-
+  //
   // axom::primal::exportSplitScalarSliceFieldToVTK<double>(
-  //   prefix + "slice1_surface_nonadaptive.vtk",
-  //   wn_field_surface_quad_nonadaptive,
-  //   axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
-  //   axom::primal::Vector<double, 3> {0, 1, 0},
-  //   axom::primal::Vector<double, 3> {1, 0, 0},
-  //   0.8,
-  //   0.8,
-  //   npts,
-  //   npts);
-
+  // prefix + "slice1_surface_nonadaptive.vtk",
+  // wn_field_surface_quad_nonadaptive,
+  // axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
+  // axom::primal::Vector<double, 3> {0, 1, 0},
+  // axom::primal::Vector<double, 3> {1, 0, 0},
+  // 0.8,
+  // 0.8,
+  // npts,
+  // npts);
+  //
   // axom::primal::exportSplitScalarSliceFieldToVTK<double>(
-  //   prefix + "slice2_surface_nonadaptive.vtk",
-  //   wn_field_surface_quad_nonadaptive,
-  //   axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
-  //   axom::primal::Vector<double, 3> {0, 0, 1},
-  //   axom::primal::Vector<double, 3> {1, 1.2, 0},
-  //   0.8,
-  //   0.8,
-  //   npts,
-  //   npts);
+  // prefix + "slice2_surface_nonadaptive.vtk",
+  // wn_field_surface_quad_nonadaptive,
+  // axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
+  // axom::primal::Vector<double, 3> {0, 0, 1},
+  // axom::primal::Vector<double, 3> {1, 1.2, 0},
+  // 0.8,
+  // 0.8,
+  // npts,
+  // npts);
 
   // ================== ADAPTIVE =========================
 
   // axom::primal::exportSplitScalarSliceFieldToVTK<double>(
-  //   prefix + "slice1_boundary.vtk",
-  //   wn_field_boundary_quad,
-  //   axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
-  //   axom::primal::Vector<double, 3> {0, 1, 0},
-  //   axom::primal::Vector<double, 3> {1, 0, 0},
-  //   0.8,
-  //   0.8,
-  //   npts,
-  //   npts);
-
-  // axom::primal::exportSplitScalarSliceFieldToVTK<double>(
-  //   prefix + "slice2_boundary.vtk",
-  //   wn_field_boundary_quad,
-  //   axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
-  //   axom::primal::Vector<double, 3> {0, 0, 1},
-  //   axom::primal::Vector<double, 3> {1, 1.2, 0},
-  //   0.8,
-  //   0.8,
-  //   npts,
-  //   npts);
+  // prefix + "slice1_boundary.vtk",
+  // wn_field_boundary_quad,
+  // axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
+  // axom::primal::Vector<double, 3> {0, 1, 0},
+  // axom::primal::Vector<double, 3> {1, 0, 0},
+  // 0.8,
+  // 0.8,
+  // npts,
+  // npts);
 
   axom::primal::exportSplitScalarSliceFieldToVTK<double>(
-    prefix + "slice1_surface.vtk",
-    wn_field_surface_quad,
-    axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
-    axom::primal::Vector<double, 3> {0, 1, 0},
-    axom::primal::Vector<double, 3> {1, 0, 0},
-    0.8,
-    0.8,
-    npts,
-    npts);
-
-  axom::primal::exportSplitScalarSliceFieldToVTK<double>(
-    prefix + "slice2_surface.vtk",
-    wn_field_surface_quad,
+    prefix + "slice2_boundary.vtk",
+    wn_field_boundary_quad,
     axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
     axom::primal::Vector<double, 3> {0, 0, 1},
     axom::primal::Vector<double, 3> {1, 1.2, 0},
@@ -3171,6 +3287,28 @@ void quadrature_on_sphere()
     0.8,
     npts,
     npts);
+
+  // axom::primal::exportSplitScalarSliceFieldToVTK<double>(
+  // prefix + "slice1_surface.vtk",
+  // wn_field_surface_quad,
+  // axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
+  // axom::primal::Vector<double, 3> {0, 1, 0},
+  // axom::primal::Vector<double, 3> {1, 0, 0},
+  // 0.8,
+  // 0.8,
+  // npts,
+  // npts);
+
+  // axom::primal::exportSplitScalarSliceFieldToVTK<double>(
+  // prefix + "slice2_surface.vtk",
+  // wn_field_surface_quad,
+  // // // axom::primal::Point<double, 3> {-0.4, -0.4, -0.75},
+  // // axom::primal::Vector<double, 3> {0, 0, 1},
+  // axom::primal::Vector<double, 3> {1, 1.2, 0},
+  // 0.8,
+  // 0.8,
+  // npts,
+  // npts);
 }
 
 // void closure_intuition_3d()
@@ -4097,36 +4235,40 @@ void bobbin_example(bool process_only = false)
 
 void complex_gear_example(bool process_only = false)
 {
-  std::string prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\simple_results\\";
+  std::string prefix =
+    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\full_gear_example\\";
 
   std::string filename = "complex_gear";
   auto stepProcessor = import_step_file(prefix, filename);
+  // auto stepProcessor = import_step_file(prefix, filename, true, 0.001, 0.05, true);
 
   if(process_only)
   {
     return;
   }
 
-  constexpr double quad_tol = 1e-5;
+  constexpr double quad_tol = 1e-6;
+  constexpr double ls_tol = 1e-6;
+  constexpr double disk_size = 0.01;
   constexpr double EPS = 1e-10;
-  constexpr double edge_tol = 1e-6;
+  constexpr double edge_tol = 1e-12;
 
   // (!bBox, !oBox, casting, noCache)
   int case_code = -1;
-  auto wn_field = [&stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
+  auto wn_field = [&stepProcessor, &edge_tol, &ls_tol, &quad_tol, &EPS, &case_code, &disk_size](
                     axom::primal::Point<double, 3> query) -> double {
     double wn = 0.0;
     for(const auto& kv : stepProcessor.getPatchDataMap())
     {
-      // 14
-
-      int integrated_trimming_curves;  // 0.062689486818427134, 0, -0.00067335004127314774
+      int integrated_trimming_curves;
       double the_val = axom::primal::winding_number(query,
                                                     kv.second.nurbsPatchData,
                                                     case_code,
                                                     integrated_trimming_curves,
                                                     edge_tol,
+                                                    ls_tol,
                                                     quad_tol,
+                                                    disk_size,
                                                     EPS);
       wn += the_val;
     }
@@ -4148,16 +4290,47 @@ void complex_gear_example(bool process_only = false)
 
   axom::utilities::Timer timer(false);
 
+  int npts = 500;
+
   axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_slice_1.vtk",
+    prefix + "/redo_slices/" + filename + "_slice_1.vtk",
+    prefix + "/redo_slices/" + filename + "_slice_1_queries.csv",
     wn_field,
-    axom::primal::Point<double, 3> {0, 0, 0.0005342458753727963},
+    axom::primal::Point<double, 3> {-0.0024195555597543716,
+                                    0.0008447039872407913,
+                                    0.0011422023163854748},
+    axom::primal::Vector<double, 3> {1, 0, 0},
+    axom::primal::Vector<double, 3> {0, 1, 0},
+    0.02,
+    0.02,
+    npts,
+    npts);
+
+  axom::primal::exportSliceScalarFieldToVTK<double>(
+    prefix + "/redo_slices/" + filename + "_slice_2.vtk",
+    prefix + "/redo_slices/" + filename + "_slice_2_queries.csv",
+    wn_field,
+    axom::primal::Point<double, 3> {-0.00419213, 0.00964069, 0.0011422},
+    axom::primal::Vector<double, 3> {1, 0, 0},
+    axom::primal::Vector<double, 3> {0, 1, 0},
+    0.001,
+    0.001,
+    npts,
+    npts);
+
+  axom::primal::exportSliceScalarFieldToVTK<double>(
+    prefix + "/redo_slices/" + filename + "_slice_0.vtk",
+    prefix + "/redo_slices/" + filename + "_slice_0_queries.csv",
+    wn_field,
+    axom::primal::Point<double, 3> {-0.0024195555597543716,
+                                    0.0008447039872407913,
+                                    0.0011422023163854748},
     axom::primal::Vector<double, 3> {1, 0, 0},
     axom::primal::Vector<double, 3> {0, 1, 0},
     0.2 * (meshBBox.getMax()[0] - meshBBox.getMin()[0]),
     0.2 * (meshBBox.getMax()[1] - meshBBox.getMin()[1]),
-    200,
-    200);
+    npts,
+    npts);
 }
 
 void complex_gear_subset_example(bool process_only = false)
@@ -4184,6 +4357,9 @@ void complex_gear_subset_example(bool process_only = false)
     for(const auto& kv : stepProcessor.getPatchDataMap())
     {
       // 14
+      query[0] = -0.00423059153846;
+      query[1] = 0.00986644250836;
+      query[2] = 0.0011422;
 
       int integrated_trimming_curves;  // 0.062689486818427134, 0, -0.00067335004127314774
       double the_val = axom::primal::winding_number(query,
@@ -4394,6 +4570,68 @@ std::vector<axom::primal::Point<double, 3>> generateSamplePointsOnSphere(int num
   return samplePoints;
 }
 
+std::vector<axom::primal::Point<double, 3>> generateSamplePointsOnStepFile(
+  const StepFileProcessor& stepProcessor,
+  int numSamples,
+  double EPS = 1e-3)
+{
+  std::vector<axom::primal::Point<double, 3>> samplePoints;
+  samplePoints.reserve(numSamples);
+
+  std::vector<double> surface_areas(stepProcessor.getNumberOfPatches(), 0);
+  for(const auto& kv : stepProcessor.getPatchDataMap())
+  {
+    surface_areas[kv.first] = kv.second.nurbsPatchData.surface_area;
+  }
+
+  AliasSampler alias_sampler(surface_areas);
+
+  const double eps_lower = 1. + EPS;
+  const double eps_upper = 1. - EPS;
+  SLIC_INFO(
+    axom::fmt::format("Generating {} sample points near step file with EPS: "
+                      "{} and range: [{}, {}]",
+                      numSamples,
+                      EPS,
+                      eps_lower,
+                      eps_upper));
+
+  for(int i = 0; i < numSamples; ++i)
+  {
+    int patch_id = alias_sampler.sample();
+    const auto& the_patch = stepProcessor.getPatchDataMap().at(patch_id);
+
+    auto min_u = the_patch.nurbsPatch.getMinKnot_u();
+    auto max_u = the_patch.nurbsPatch.getMaxKnot_u();
+
+    auto min_v = the_patch.nurbsPatch.getMinKnot_v();
+    auto max_v = the_patch.nurbsPatch.getMaxKnot_v();
+
+    double test_u, test_v;
+
+    while(true)
+    {
+      test_u = axom::utilities::random_real(min_u, max_u);
+      test_v = axom::utilities::random_real(min_v, max_v);
+
+      if(the_patch.nurbsPatch.isVisible(test_u, test_v))
+      {
+        break;
+      }
+    }
+
+    axom::primal::Point<double, 3> samplePoint = the_patch.nurbsPatch.evaluate(test_u, test_v);
+    auto normal = the_patch.nurbsPatch.normal(test_u, test_v);
+    const double mag = axom::utilities::random_real(eps_lower, eps_upper);
+
+    samplePoint.array() += mag * normal.array();
+
+    samplePoints.emplace_back(samplePoint);
+  }
+
+  return samplePoints;
+}
+
 /**
  * Generates a given number of sample points near the surface of a unit sphere
  * 
@@ -4565,11 +4803,12 @@ bool isInsideTeardrop(const axom::primal::Point<double, 3>& query)
   return inside;
 }
 
-void strict_tear_parameter_tol_test(const std::string& test_prefix,
-                                    const std::string& out_prefix,
-                                    double ls_tol,
-                                    double quad_tol,
-                                    const std::string& out_suffix = "")
+void strict_tear_parameter_quad_tol_test(const std::string& test_prefix,
+                                         std::string& out_prefix,
+                                         double ls_tol,
+                                         double quad_tol,
+                                         double disk_size,
+                                         const std::string& out_suffix = "")
 {
   // lambda function that rotates a given BezierCurve around the z-axis
   auto rotate_curve = [](const axom::primal::BezierCurve<double, 2>& curve)
@@ -4669,6 +4908,7 @@ void strict_tear_parameter_tol_test(const std::string& test_prefix,
   long num_misses = 0;
   long num_queries = 0;
   double mean_time = 0.0;
+  double var_time = 0.0;
 
   for(long i = 0; i < 1e7; ++i)
   {
@@ -4705,6 +4945,7 @@ void strict_tear_parameter_tol_test(const std::string& test_prefix,
                                           edge_tol,
                                           ls_tol,
                                           quad_tol,
+                                          disk_size,
                                           EPS);
     }
     auto end = std::chrono::high_resolution_clock::now();
@@ -4712,9 +4953,23 @@ void strict_tear_parameter_tol_test(const std::string& test_prefix,
     // timer.stop();
 
     if(num_queries == 1)
+    {
       mean_time = elapsed;
+      var_time = 0.0;
+    }
     else
-      mean_time = mean_time + (elapsed - mean_time) / (num_queries + 1);
+    {
+      double new_mean_time = mean_time + (elapsed - mean_time) / (num_queries + 1);
+      var_time += (elapsed - mean_time) * (elapsed - new_mean_time);
+      mean_time = new_mean_time;
+    }
+
+    std::cout << std::fixed << std::setprecision(20);
+    if(num_queries % 1000 == 0)
+    {
+      std::cout << "[" << num_queries << " queries] -> " << mean_time << "\r\r";
+      std::cout.flush();
+    }
 
     int rounded_gwn = static_cast<int>(std::round(gwn));
     int expected_gwn = isInsideTeardrop(query) ? 1 : 0;
@@ -4736,6 +4991,7 @@ void strict_tear_parameter_tol_test(const std::string& test_prefix,
                                                  edge_tol,
                                                  1e-12,
                                                  quad_tol,
+                                                 disk_size,
                                                  EPS);
       }
       // Round the high_gwn to the nearest *half-integer*
@@ -4745,7 +5001,8 @@ void strict_tear_parameter_tol_test(const std::string& test_prefix,
       //  so we don't count it as a miss OR a success
       if(std::abs(std::round(high_gwn * 2.0) - high_gwn * 2.0) < 1e-6)
       {
-        SLIC_INFO(axom::fmt::format("Half-Integer: {} vs. {} != {}", gwn, high_gwn, expected_gwn));
+        std::cout << axom::fmt::format("Half-Integer: {} vs. {} != {}", gwn, high_gwn, expected_gwn)
+                  << std::endl;
         num_queries--;  // Don't count this query as a miss or a success
         i--;
         continue;
@@ -4755,34 +5012,32 @@ void strict_tear_parameter_tol_test(const std::string& test_prefix,
       //  Count it as a successful point and move on
       if(std::abs(semi_rounded_high_gwn - expected_gwn) < 1e-6)
       {
-        SLIC_INFO(
-          axom::fmt::format("Intersection Failure: {} vs. {} != {}", gwn, high_gwn, expected_gwn));
+        std::cout << axom::fmt::format("Intersection Failure: {} vs. {} != {}",
+                                       gwn,
+                                       high_gwn,
+                                       expected_gwn)
+                  << std::endl;
         continue;
       }
 
       // If we still don't get the right answer, we know it was the quadrature that failed
       num_misses++;
-      SLIC_INFO(axom::fmt::format("Quadrature Failure: ({}, {}, {}) : {} -> {} vs {} != {}",
-                                  query[0],
-                                  query[1],
-                                  query[2],
-                                  gwn,
-                                  high_gwn,
-                                  rounded_gwn,
-                                  expected_gwn));
+      std::cout << axom::fmt::format("Quadrature Failure: ({}, {}, {}) : {} -> {} vs {} != {}",
+                                     query[0],
+                                     query[1],
+                                     query[2],
+                                     gwn,
+                                     high_gwn,
+                                     rounded_gwn,
+                                     expected_gwn)
+                << std::endl;
       if(num_misses == 5) break;
-    }
-
-    std::cout << std::fixed << std::setprecision(20);
-    if(num_queries % 1000 == 0)
-    {
-      std::cout << "[" << num_queries << " queries] -> " << mean_time << "\r\r";
-      std::cout.flush();
     }
   }
 
   std::cout << "Number of queries before 5 misses: " << num_queries << std::endl;
   std::cout << "Average evaluation time: " << mean_time << std::endl;
+  std::cout << "Variance in evaluation time: " << var_time / num_queries << std::endl;
 
   using axom::utilities::filesystem::joinPath;
   {
@@ -4796,6 +5051,255 @@ void strict_tear_parameter_tol_test(const std::string& test_prefix,
     summary << std::setprecision(20);
     summary << "Number of queries before " << num_misses << " misses: " << num_queries << std::endl;
     summary << "Average evaluation time: " << mean_time << std::endl;
+    summary << "Variance in evaluation time: " << var_time / num_queries << std::endl;
+  }
+}
+
+void strict_tear_parameter_ls_tol_test(const std::string& test_prefix,
+                                       const std::string& out_prefix,
+                                       double ls_tol,
+                                       double quad_tol,
+                                       double disk_size,
+                                       const std::string& out_suffix = "")
+{
+  // lambda function that rotates a given BezierCurve around the z-axis
+  auto rotate_curve = [](const axom::primal::BezierCurve<double, 2>& curve)
+    -> axom::Array<axom::primal::BezierPatch<double, 3>> {
+    const int ord = curve.getOrder();
+    axom::Array<axom::primal::BezierPatch<double, 3>> rs(4);
+    for(int i = 0; i < 4; ++i)
+    {
+      rs[i].setOrder(ord, 2);
+      rs[i].makeRational();
+    }
+
+    for(int i = 0; i <= ord; ++i)
+    {
+      // clang-format off
+      rs[0](i, 0) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
+      rs[0](i, 1) = axom::primal::Point<double, 3> {curve[i][0], curve[i][0], curve[i][1]};
+      rs[0](i, 2) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
+
+      rs[1](i, 0) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
+      rs[1](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], curve[i][0], curve[i][1]};
+      rs[1](i, 2) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
+
+      rs[2](i, 0) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
+      rs[2](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], -curve[i][0], curve[i][1]};
+      rs[2](i, 2) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
+
+      rs[3](i, 0) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
+      rs[3](i, 1) = axom::primal::Point<double, 3> {curve[i][0], -curve[i][0], curve[i][1]};
+      rs[3](i, 2) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
+
+      double the_weight = curve.isRational() ? curve.getWeight(i) : 1.0;
+
+      rs[0].setWeight(i, 0, the_weight);
+      rs[1].setWeight(i, 0, the_weight);
+      rs[2].setWeight(i, 0, the_weight);
+      rs[3].setWeight(i, 0, the_weight);
+
+      rs[0].setWeight(i, 1, the_weight / std::sqrt(2));
+      rs[1].setWeight(i, 1, the_weight / std::sqrt(2));
+      rs[2].setWeight(i, 1, the_weight / std::sqrt(2));
+      rs[3].setWeight(i, 1, the_weight / std::sqrt(2));
+
+      rs[0].setWeight(i, 2, the_weight);
+      rs[1].setWeight(i, 2, the_weight);
+      rs[2].setWeight(i, 2, the_weight);
+      rs[3].setWeight(i, 2, the_weight);
+      // clang-format on
+    }
+
+    return rs;
+  };
+
+  axom::primal::BezierCurve<double, 2> teardrop1(3);
+  teardrop1[0] = axom::primal::Point<double, 2> {0.0, 1.0};
+  teardrop1[1] = axom::primal::Point<double, 2> {0.0, 0.0};
+  teardrop1[2] = axom::primal::Point<double, 2> {1.0, 0.0};
+  teardrop1[3] = axom::primal::Point<double, 2> {1.0, -1.0};
+
+  axom::primal::BezierCurve<double, 2> teardrop2(2);
+  teardrop2[0] = axom::primal::Point<double, 2> {1.0, -1.0};
+  teardrop2[1] = axom::primal::Point<double, 2> {1.0, -2.0};
+  teardrop2[2] = axom::primal::Point<double, 2> {0.0, -2.0};
+
+  teardrop2.makeRational();
+  teardrop2.setWeight(1, 1.0 / std::sqrt(2.0));
+
+  auto teardrop1_patches = rotate_curve(teardrop1);
+  auto teardrop2_patches = rotate_curve(teardrop2);
+
+  axom::primal::NURBSPatch<double, 3> nurbs_surfaces[8];
+  axom::primal::NURBSPatchData<double> nurbs_surfaces_data[8];
+  axom::Array<axom::primal::BezierPatch<double, 3>> nurbs_surfaces_array(8);
+
+  for(int i = 0; i < 4; ++i)
+  {
+    nurbs_surfaces[i] = axom::primal::NURBSPatch<double, 3>(teardrop1_patches[i]);
+    nurbs_surfaces[i].makeTriviallyTrimmed();
+    nurbs_surfaces_data[i] = axom::primal::NURBSPatchData<double>(i, nurbs_surfaces[i]);
+
+    nurbs_surfaces[i + 4] = axom::primal::NURBSPatch<double, 3>(teardrop2_patches[i]);
+    nurbs_surfaces[i + 4].makeTriviallyTrimmed();
+    nurbs_surfaces_data[i + 4] = axom::primal::NURBSPatchData<double>(i + 4, nurbs_surfaces[i + 4]);
+
+    nurbs_surfaces_array[i] = teardrop1_patches[i];
+    nurbs_surfaces_array[i + 4] = teardrop2_patches[i];
+  }
+
+  constexpr double EPS = 1e-12;
+  constexpr double edge_tol = 1e-16;
+
+  // Keep looping over points in the bounding box until we misclassify a point
+  axom::primal::BoundingBox<double, 3> bbox;
+  bbox.addPoint(axom::primal::Point<double, 3> {1.0, 1.0, 1.0});
+  bbox.addPoint(axom::primal::Point<double, 3> {-1.0, -1.0, -2.0});
+
+  long num_misses = 0;
+  long num_queries = 0;
+  double mean_time = 0.0;
+  double var_time = 0.0;
+
+  for(long i = 0; i < 1e7; ++i)
+  {
+    const double x0 = axom::utilities::random_real(bbox.getMin()[0], bbox.getMax()[0]);
+    const double y0 = axom::utilities::random_real(bbox.getMin()[1], bbox.getMax()[1]);
+    const double z0 = axom::utilities::random_real(bbox.getMin()[2], bbox.getMax()[2]);
+
+    num_queries++;
+    axom::primal::Point<double, 3> query = axom::primal::Point<double, 3> {x0, y0, z0};
+
+    int case_code = -1;
+    int integrated_trimming_curves = 0;
+
+    // Pick the same random cast direction for all patches
+    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+    double u = axom::utilities::random_real(-1.0, 1.0);
+    auto cast_direction =
+      axom::primal::Vector<double, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+
+    axom::utilities::Timer timer(false);
+
+    // test the winding number at the center of the box
+    double gwn = 0.0;
+
+    auto start = std::chrono::high_resolution_clock::now();
+    // timer.start();
+    for(int i = 0; i < 8; ++i)
+    {
+      gwn += axom::primal::winding_number(query,
+                                          nurbs_surfaces_data[i],
+                                          //  cast_direction,
+                                          case_code,
+                                          integrated_trimming_curves,
+                                          edge_tol,
+                                          ls_tol,
+                                          quad_tol,
+                                          disk_size,
+                                          EPS);
+    }
+    auto end = std::chrono::high_resolution_clock::now();
+    auto elapsed = std::chrono::duration<double>(end - start).count();
+    // timer.stop();
+
+    if(num_queries == 1)
+    {
+      mean_time = elapsed;
+      var_time = 0.0;
+    }
+    else
+    {
+      double new_mean_time = mean_time + (elapsed - mean_time) / (num_queries + 1);
+      var_time += (elapsed - mean_time) * (elapsed - new_mean_time);
+      mean_time = new_mean_time;
+    }
+
+    std::cout << std::fixed << std::setprecision(20);
+    if(num_queries % 1000 == 0)
+    {
+      std::cout << "[" << num_queries << " queries] -> " << mean_time << "\r\r";
+      std::cout.flush();
+    }
+
+    // continue;
+
+    int rounded_gwn = static_cast<int>(std::round(gwn));
+    int expected_gwn = isInsideTeardrop(query) ? 1 : 0;
+
+    // std::cout << "Query: (" << query[0] << ", " << query[1] << ", " << query[2]
+    //           << ") -> gwn: " << gwn << " -> rounded_gwn: " << rounded_gwn
+    //           << " -> expected_gwn: " << expected_gwn << std::endl;
+    if(rounded_gwn != expected_gwn)
+    {
+      // If we miss the point, we try to run it with a higher precision in the quadrature routine
+      double high_gwn = 0.0;
+      for(int i = 0; i < 8; ++i)
+      {
+        high_gwn += axom::primal::winding_number(query,
+                                                 nurbs_surfaces_data[i],
+                                                 //  cast_direction,
+                                                 case_code,
+                                                 integrated_trimming_curves,
+                                                 edge_tol,
+                                                 ls_tol,
+                                                 1e-12,
+                                                 disk_size,
+                                                 EPS);
+      }
+      // Round the high_gwn to the nearest *half-integer*
+      double semi_rounded_high_gwn = std::round(high_gwn * 2.0) / 2.0;
+
+      // If we get the right answer with the higher precision quadrature, then we know that
+      //  it was the quadrature that failed
+      if(axom::utilities::isNearlyEqual(semi_rounded_high_gwn, 1.0 * expected_gwn, 1e-5))
+      {
+        // If it's the fault of the quadrature, then don't count this query
+        --i;
+        --num_queries;
+        continue;
+        std::cout << axom::fmt::format("Quadrature Failure: ({}, {}, {}) : {} -> {} vs {} != {}",
+                                       query[0],
+                                       query[1],
+                                       query[2],
+                                       gwn,
+                                       high_gwn,
+                                       rounded_gwn,
+                                       expected_gwn);
+      }
+
+      // If we still don't get the right answer, we know it was the quadrature that failed
+      num_misses++;
+      std::cout << axom::fmt::format("Intersection Failure: ({}, {}, {}) : {} -> {} vs {} != {}",
+                                     query[0],
+                                     query[1],
+                                     query[2],
+                                     gwn,
+                                     high_gwn,
+                                     rounded_gwn,
+                                     expected_gwn);
+      if(num_misses == 5) break;
+    }
+  }
+
+  std::cout << "Number of queries before 5 misses: " << num_queries << std::endl;
+  std::cout << "Average evaluation time: " << mean_time << std::endl;
+  std::cout << "Variance in evaluation time: " << var_time / num_queries << std::endl;
+
+  using axom::utilities::filesystem::joinPath;
+  {
+    std::string out_file =
+      joinPath(out_prefix,
+               axom::fmt::format("{}_run_to_failure_test_{}.csv", test_prefix, out_suffix));
+
+    SLIC_INFO(axom::fmt::format("Writing results to '{}'", out_file));
+    std::ofstream summary(out_file);
+
+    summary << std::setprecision(20);
+    summary << "Number of queries before " << num_misses << " misses: " << num_queries << std::endl;
+    summary << "Average evaluation time: " << mean_time << std::endl;
+    summary << "Variance in evaluation time: " << var_time / num_queries << std::endl;
   }
 }
 
@@ -5423,7 +5927,7 @@ void query_timing_test(const std::string& test_prefix,
 
 int main()
 {
-  quadrature_on_sphere();
+  // quadrature_on_sphere();
 
   // graphical_abstract_watertight();
   // graphical_abstract_exploded();
@@ -5439,7 +5943,7 @@ int main()
   // spring_timing_example();
   // van_example();
   // bobbin_example(true);
-  // complex_gear_example();
+  complex_gear_example();
   // complex_gear_subset_example();
   // bobbin_example_volume();
   // van_example_volume();
@@ -5496,33 +6000,61 @@ int main()
 
   if(false)
   {
-    std::string out_prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\failure_tests\\";
-
-    if(!axom::utilities::filesystem::pathExists(out_prefix))
-    {
-      axom::utilities::filesystem::makeDirsForPath(out_prefix);
-    }
-
-    // int num_query_pts = 1e5;
-
     double fixed_ls_tol = 1e-6;
     double fixed_quad_tol = 1e-6;
+    double fixed_disk_size = 0.01;
 
     // std::string test_prefix = axom::fmt::format("1em{}", i);
-    for(int j = 5; j < 9; ++j)
+    for(int j = 1; j < 8; ++j)
     {
-      for(int i = 0; i < 1; ++i)
+      for(int i = 0; i < 10; ++i)
       {
         double quad_tol = std::pow(10, -j);
+        double ls_tol = std::pow(10, -j);
+
         std::string test_prefix = axom::fmt::format("1em{}", j);
         std::string test_suffix = axom::fmt::format("{}", i);
 
-        strict_tear_parameter_tol_test(test_prefix, out_prefix, fixed_ls_tol, quad_tol, test_suffix);
+        // strict_tear_parameter_ls_tol_test(test_prefix, out_prefix, ls_tol, fixed_quad_tol, test_suffix);
+
+        // std::string out_prefix =
+        // "C:\\Users\\Fireh\\Code\\winding_number_code\\parameter_accuracy_tests\\quad_1em1\\";
+        // strict_tear_parameter_quad_tol_test(test_prefix,
+        // out_prefix,
+        // fixed_ls_tol,
+        // quad_tol,
+        // 0.1,
+        // test_suffix);
+
+        // out_prefix =
+        // "C:\\Users\\Fireh\\Code\\winding_number_code\\parameter_accuracy_tests\\quad_1em2\\";
+        // strict_tear_parameter_quad_tol_test(test_prefix,
+        // out_prefix,
+        // fixed_ls_tol,
+        // quad_tol,
+        // 0.01,
+        // test_suffix);
+
+        std::string out_prefix =
+          "C:\\Users\\Fireh\\Code\\winding_number_code\\parameter_accuracy_tests\\quad_1em3\\";
+        strict_tear_parameter_quad_tol_test(test_prefix,
+                                            out_prefix,
+                                            fixed_ls_tol,
+                                            quad_tol,
+                                            0.001,
+                                            test_suffix);
+
+        // out_prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\parameter_accuracy_tests\\ls\\";
+        // strict_tear_parameter_ls_tol_test(test_prefix,
+        // out_prefix,
+        // ls_tol,
+        // fixed_quad_tol,
+        // fixed_disk_size,
+        // test_suffix);
       }
     }
   }
 
-  // strict_tear_parameter_tol_test("1em3", out_prefix, fixed_ls_tol, 1e-1);
   // for(int i = 1; i < 2; ++i)
   // {
   //   std::cout << "i: " << i << std::endl;

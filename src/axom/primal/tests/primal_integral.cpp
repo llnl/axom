@@ -449,6 +449,45 @@ TEST(primal_integral, evaluate_nurbs_surface_normal)
   }
 }
 
+TEST(primal_integral, evaluate_nurbs_surface_area)
+{
+  const int DIM = 3;
+  using Point2D = primal::Point<double, 2>;
+  using Point3D = primal::Point<double, 3>;
+  using Vector2D = primal::Vector<double, 2>;
+  using Vector3D = primal::Vector<double, 3>;
+  using NURBSPatchType = primal::NURBSPatch<double, DIM>;
+
+  const int npts_u = 5;
+  const int npts_v = 4;
+
+  const int degree_u = 3;
+  const int degree_v = 2;
+
+  // clang-format off
+  Point3D controlPoints[5 * 4] = {
+    Point3D {0, 0, 0}, Point3D {0, 4,  0}, Point3D {0, 8, -3}, Point3D {0, 12, 0},
+    Point3D {2, 0, 6}, Point3D {2, 4,  0}, Point3D {2, 8,  0}, Point3D {2, 12, 0},
+    Point3D {4, 0, 0}, Point3D {4, 4,  0}, Point3D {4, 8,  3}, Point3D {4, 12, 0},
+    Point3D {6, 0, 0}, Point3D {6, 4, -3}, Point3D {6, 8,  0}, Point3D {6, 12, 0},
+    Point3D {8, 0, 0}, Point3D {8, 4,  0}, Point3D {8, 8,  0}, Point3D {8, 12, 0}};
+    
+  double weights[5 * 4] = {
+    1.0, 2.0, 3.0, 2.0,
+    2.0, 3.0, 4.0, 3.0,
+    3.0, 4.0, 5.0, 4.0,
+    4.0, 5.0, 6.0, 5.0,
+    5.0, 6.0, 7.0, 6.0};
+  // clang-format on
+
+  NURBSPatchType nPatch(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
+  nPatch.makeTriviallyTrimmed();
+
+  std::cout << std::setprecision(15);
+  std::cout << nPatch.calculateTrimmedPatchArea() << std::endl;
+}
+
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

@@ -170,10 +170,10 @@ inline bool intersect_ray(const primal::Ray<T, 2>& R,
  * \note This routine is called by the intersect ray/AABB methods for each spatial dimension.
  */
 template <typename T>
-AXOM_HOST_DEVICE inline bool intersect_ray_bbox_test(const T& x0,
+AXOM_HOST_DEVICE inline bool intersect_ray_bbox_test(const T& x0, //    
                                                      const T& n,
-                                                     const T& bbmin,
-                                                     const T& bbmax,
+                                                     const T& bbmin, // 0.59334988444204972
+                                                     const T& bbmax, // 0.59334988356610796
                                                      T& tmin,
                                                      T& tmax,
                                                      T EPS)

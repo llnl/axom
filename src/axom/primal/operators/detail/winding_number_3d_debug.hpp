@@ -1069,7 +1069,7 @@ double stokes_gwn_evaluate_cached(const Point<T, 3>& query,
     }
     else
     {
-      quad += quad_coarse;
+      quad += 0.25 * M_1_PI * quad_coarse;
     }
   }
 
@@ -1233,7 +1233,7 @@ double stokes_gwn_evaluate_cached_rotated(const Point<T, 3>& query,
     }
     else
     {
-      quad += quad_coarse;
+      quad += 0.25 * M_1_PI * quad_coarse;
     }
   }
 
@@ -1341,16 +1341,16 @@ double nurbs_winding_number_surface_debug(const Point<T, 3>& query,
     my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * quad_npts - 1);
 
   // Get the quadrature on the original patch
-  double the_gwn = surface_winding_number_component(query, patch, quad_rule, node_count);
+  double quad_coarse = surface_winding_number_component(query, patch, quad_rule, node_count);
   if(quad_tol >= 0.0)
   {
-
+    return surface_winding_number_adaptive(query, patch, quad_coarse, quad_rule, quad_tol, node_count);
   }
   else
   {
     // If the quad_tol is negative, we are not using adaptive quadrature
     //  and we can return the result immediately
-    return the_gwn;
+    return quad_coarse;
   }
 }
 
@@ -1366,32 +1366,25 @@ double surface_winding_number_adaptive(const Point<T, 3>& query,
   double sub_gwn[4];
 
   patch.split(0.5, 0.5, subpatches[0], subpatches[1], subpatches[2], subpatches[3]);
-
   for(int i = 0; i < 4; ++i)
   {
     // Recursively compute the GWN for each subpatch
+    sub_gwn[i] = surface_winding_number_component(query, subpatches[i], quad_rule, node_count);
+  }
+
+  double quad_fine = sub_gwn[0] + sub_gwn[1] + sub_gwn[2] + sub_gwn[3];
+  if(axom::utilities::isNearlyEqualRelative(quad_coarse, quad_fine, quad_tol, 1e-10))
+  {
+    return quad_fine;
+  }
+   
+  for(int i = 0; i < 4; ++i)
+  {
     sub_gwn[i] =
-      nurbs_winding_number_surface_debug(query, subpatches[i], node_count, quad_tol, depth + 1);
+      surface_winding_number_adaptive(query, subpatches[i], sub_gwn[i], quad_rule, quad_tol, node_count);
   }
 
-  double fine_gwn = sub_gwn[0] + sub_gwn[1] + sub_gwn[2] + sub_gwn[3];
-  if(axom::utilities::isNearlyEqualRelative(quad_coarse,
-                                            fine_gwn,
-                                            quad_tol,
-                                            1e-10))
-  {
-    return fine_gwn;
-  }
-  else
-  {
-    for(int i = 0; i < 4; ++i)
-    {
-      sub_gwn[i] =
-         surface_winding_number_adaptive(query, subpatches[i], node_count, quad_tol, depth + 1);
-    }
-
-    return sub_gwn[0] + sub_gwn[1] + sub_gwn[2] + sub_gwn[3];
-  }
+  return sub_gwn[0] + sub_gwn[1] + sub_gwn[2] + sub_gwn[3];
 }
 
 template <typename T>

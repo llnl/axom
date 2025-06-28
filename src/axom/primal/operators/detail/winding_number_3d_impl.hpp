@@ -481,6 +481,7 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
                                  const double edge_tol = 1e-8,
                                  const double ls_tol = 1e-8,
                                  const double quad_tol = 1e-8,
+                                 const double disk_size = 0.01,
                                  const double EPS = 1e-8,
                                  const int depth = 0)
 {
@@ -611,7 +612,7 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
     const Line<T, 3> discontinuity_axis(query, cast_direction);
 
     // Tolerance for what counts as "close to a boundary" in parameter space
-    T disk_radius = 0.01 * nPatchData.pbox_diag;
+    T disk_radius = disk_size * nPatchData.pbox_diag;
 
     // Compute intersections with the *untrimmed and extrapolated* patch
     axom::Array<T> up, vp, tp;
@@ -738,6 +739,8 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
       int old_num_trim = nPatchWithBoundaries.getNumTrimmingCurves();
 
       NURBSPatch<T, 3> the_disk;
+      // nPatchWithBoundaries.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//original.txt");
+    
       nPatchWithBoundaries.diskSplit(up[i],
                                      vp[i],
                                      disk_radius,
@@ -747,7 +750,9 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
                                      isDiskOutside,
                                      ignoreInteriorDisk,
                                      clipDisk);
-
+                                    //  the_disk.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//the_disk.txt");
+                                    //  nPatchWithBoundaries.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//the_rest.txt");
+                               
       extraTrimming =
         extraTrimming || (!isDiskInside && !isDiskOutside) || (isDiskInside && !ignoreInteriorDisk);
 
@@ -977,8 +982,7 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
   for(int n = 0; n < patch.getNumTrimmingCurves(); ++n)
   {
     NURBSCurve<T, 2> trimming_curve(patch.getTrimmingCurve(n));
-    double quad_coarse =
-      stokes_gwn_component(query, trimming_curve, patch, ax, 0, 0, quad_rule);
+    double quad_coarse = stokes_gwn_component(query, trimming_curve, patch, ax, 0, 0, quad_rule);
 
     quad +=
       stokes_gwn_adaptive(query, trimming_curve, quad_rule, patch, ax, 0, 0, quad_coarse, quad_tol);

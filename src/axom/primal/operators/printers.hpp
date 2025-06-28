@@ -852,12 +852,13 @@ void simple_timing_test(axom::Array<BezierCurve<T, 2>>& curves,
 }
 
 template <typename T>
-inline void printLoadingBar(T progress, int total, int barWidth = 40)
+inline void printLoadingBar(T progress, int total, std::string label = "")
 {
+  int barWidth = 40; // Width of the loading bar
   float percentage = static_cast<float>(progress) / total;
   int progressWidth = static_cast<int>(percentage * barWidth);
 
-  std::cout << "[";
+  std::cout << label << (label.empty() ? "" : ": " ) << "[";
   for(int i = 0; i < progressWidth; ++i) std::cout << "=";
   for(int i = progressWidth; i < barWidth; ++i) std::cout << "-";
   std::cout << "] " << std::setw(3) << static_cast<int>(percentage * 100.0) << "%\r";
@@ -1142,8 +1143,10 @@ void exportSliceScalarFieldToVTK(const std::string& filename,
   file << "DATASET STRUCTURED_GRID\n";
   file << "DIMENSIONS " << uSteps << " " << vSteps << " 1\n";
 
+  file << std::setprecision(20);
+
   // Write points
-  file << "POINTS " << (uSteps * vSteps) << " float\n";
+  file << "POINTS " << (uSteps * vSteps) << " double\n";
   for(int j = 0; j < vSteps; ++j)
   {
     for(int i = 0; i < uSteps; ++i)
@@ -1157,15 +1160,13 @@ void exportSliceScalarFieldToVTK(const std::string& filename,
     }
   }
 
-  file << std::setprecision(20);
-
   // Write scalar field
   file << "POINT_DATA " << (uSteps * vSteps) << "\n";
-  file << "SCALARS scalar_field float 1\n";
+  file << "SCALARS scalar_field double 1\n";
   file << "LOOKUP_TABLE default\n";
   for(int j = 0; j < vSteps; ++j)
   {
-    printLoadingBar(j, vSteps);
+    printLoadingBar(j, vSteps, "Computing scalar field");
     for(int i = 0; i < uSteps; ++i)
     {
       double s = planeWidth * (i / static_cast<double>(uSteps - 1) - 0.5);
@@ -1187,6 +1188,99 @@ void exportSliceScalarFieldToVTK(const std::string& filename,
   }
 
   file.close();
+}
+
+template <typename T>
+void exportSliceScalarFieldToVTK(const std::string& filename,
+                                 const std::string& query_filename,
+                                 const std::function<T(Point3D)>& fieldFunc,
+                                 const Point3D& origin,
+                                 Vector<T, 3> u,
+                                 Vector<T, 3> v,
+                                 double planeWidth,
+                                 double planeHeight,
+                                 int uSteps,
+                                 int vSteps)
+{
+  u = u.unitVector();
+  v = v.unitVector();
+
+  std::ofstream file(filename);
+  std::ofstream query_file(query_filename);
+  if(!file.is_open() || !query_file.is_open())
+  {
+    std::cerr << "Failed to open file for writing: " << filename << std::endl;
+    std::cerr << "\t or: " << query_filename << std::endl;
+    return;
+  }
+
+  file << std::setprecision(20);
+  query_file << std::setprecision(20);
+
+  query_file << "x,y,z,scalar" << std::endl;
+
+  file << "# vtk DataFile Version 3.0\n";
+  file << "Scalar field on a plane\n";
+  file << "ASCII\n";
+  file << "DATASET STRUCTURED_GRID\n";
+  file << "DIMENSIONS " << uSteps << " " << vSteps << " 1\n";
+
+  // Write points
+  file << "POINTS " << (uSteps * vSteps) << " double\n";
+  for(int j = 0; j < vSteps; ++j)
+  {
+    for(int i = 0; i < uSteps; ++i)
+    {
+      double s = planeWidth * (i / static_cast<double>(uSteps - 1) - 0.5);
+      double t = planeHeight * (j / static_cast<double>(vSteps - 1) - 0.5);
+      double x = origin[0] + s * u[0] + t * v[0];
+      double y = origin[1] + s * u[1] + t * v[1];
+      double z = origin[2] + s * u[2] + t * v[2];
+      file << x << " " << y << " " << z << "\n";
+    }
+  }
+
+  // Write scalar field
+  file << "POINT_DATA " << (uSteps * vSteps) << "\n";
+  file << "SCALARS scalar_field double 1\n";
+  file << "LOOKUP_TABLE default\n";
+  for(int j = 0; j < vSteps; ++j)
+  {
+    printLoadingBar(j, vSteps);
+
+    for(int i = 0; i < uSteps; ++i)
+    {
+      double s = planeWidth * (i / static_cast<double>(uSteps - 1) - 0.5);
+      double t = planeHeight * (j / static_cast<double>(vSteps - 1) - 0.5);
+      double x = origin[0] + s * u[0] + t * v[0];
+      double y = origin[1] + s * u[1] + t * v[1];
+      double z = origin[2] + s * u[2] + t * v[2];
+
+      double val;
+      // if(static_cast<double>(j) / vSteps < 0.67)
+      // {
+        // val = 0.0; // Skip the first 40% of the plane
+      // }
+      // else
+      {
+        val = fieldFunc(Point3D({x, y, z}));
+      }
+
+      if(val != val)
+      {
+        std::cout << std::setprecision(20);
+        std::cout << "NAN recorded at (" << x << " " << y << " " << z << ")" << std::endl;
+        std::cout << std::setprecision(6);
+        val = 0.0;
+      }
+      file << val << "\n";
+
+      query_file << x << "," << y << "," << z << "," << val << std::endl;
+    }
+  }
+
+  file.close();
+  query_file.close();
 }
 
 template <typename T>
@@ -1243,6 +1337,8 @@ void exportSplitScalarSliceFieldToVTK(const std::string& filename,
     return;
   }
 
+  file << std::setprecision(20);
+
   // Write VTK header
   file << "# vtk DataFile Version 3.0\n";
   file << "Scalar field on a plane\n";
@@ -1251,7 +1347,7 @@ void exportSplitScalarSliceFieldToVTK(const std::string& filename,
   file << "DIMENSIONS " << uSteps << " " << vSteps << " 1\n";
 
   // Write points
-  file << "POINTS " << (uSteps * vSteps) << " float\n";
+  file << "POINTS " << (uSteps * vSteps) << " double\n";
   for(int j = 0; j < vSteps; ++j)
   {
     for(int i = 0; i < uSteps; ++i)

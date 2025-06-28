@@ -101,16 +101,39 @@ struct NURBSPatchData
     // Filter out the Bezier patches whose knot spans
     //  are not visible in the trimming curves
 
-    patch.normalize();
+    // patch.normalize();
+    patch.normalizeBySpan();
+
+    // Calculate the average normal for the untrimmed patch
+    if(!patch.isTrimmed())
+    {
+      // average_normal = patch.calculateUntrimmedPatchNormal(20);
+      patch.makeTriviallyTrimmed();
+      // surface_area = 1.0; //patch.calculateTrimmedSurfaceArea();
+    }
+    else
+    {
+      patch.simplifyParameterSpace();
+      // patch.calculateTrimmedSurfaceData(average_normal, surface_area, centroid);
+    }
 
     pbox_diag = patch.getParameterSpaceDiagonal();
 
-    if(!patch.isTrimmed())
-    {
-      patch.makeTriviallyTrimmed();
-    }
 
-    patch.scaleParameterSpace(1.0 + 0.1 * pbox_diag);
+    std::string filename =
+      "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\full_gear_example\\patch_"
+      "normals\\patch_" +
+      std::to_string(idx) + "_normal.csv";
+    std::ifstream file(filename);
+
+    // file << std::setprecision(20);
+    // file << average_normal[0] << " " << average_normal[1] << " " << average_normal[2] << " " << surface_area << " " << centroid[0] << " " << centroid[1] << " " << centroid[2] << "\n";
+
+    file >> average_normal[0] >> average_normal[1] >> average_normal[2] >> surface_area >> centroid[0] >> centroid[1] >> centroid[2];
+
+    file.close();
+
+    patch.expandParameterSpace(0.05, 0.05);
     auto candidates = patch.extractBezier();
 
     axom::Array<T> knot_vals_u = patch.getKnots_u().getUniqueKnots();
@@ -171,9 +194,6 @@ struct NURBSPatchData
       }
     }
 
-    // Calculate the average normal for the untrimmed patch
-    average_normal = patch.calculateUntrimmedPatchNormal();
-
     bbox = patch.boundingBox();
     curve_quadrature_maps.resize(patch.getNumTrimmingCurves());
   }
@@ -209,6 +229,8 @@ struct NURBSPatchData
   axom::Array<std::pair<double, double>> u_spans;
   axom::Array<std::pair<double, double>> v_spans;
   axom::primal::Vector<T, 3> average_normal;
+  double surface_area;
+  axom::primal::Point<T, 3> centroid;
   double pbox_diag;
 
   // Per trimming curve stuff
@@ -260,6 +282,7 @@ public:
   using TrimmingCurveType = primal::NURBSCurve<T, 2>;
   using TrimmingCurveVec = axom::Array<TrimmingCurveType>;
   using ParameterPointType = Point<T, 2>;
+  using ParameterBoundingBoxType = BoundingBox<T, 2>;
 
   AXOM_STATIC_ASSERT_MSG((NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
                          "A NURBS Patch object may be defined in 1-, 2-, or 3-D");
@@ -1295,7 +1318,7 @@ public:
    */
   axom::IndexType insertKnot_u(T u, int target_multiplicity = 1)
   {
-    SLIC_ASSERT(m_knotvec_u.isValidParameter(u));
+    SLIC_ASSERT(isValidParameter_u(u));
     u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
 
     SLIC_ASSERT(target_multiplicity > 0);
@@ -1455,7 +1478,7 @@ public:
    */
   axom::IndexType insertKnot_v(T v, int target_multiplicity = 1)
   {
-    SLIC_ASSERT(m_knotvec_v.isValidParameter(v));
+    SLIC_ASSERT(isValidParameter_v(v));
     v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
 
     SLIC_ASSERT(target_multiplicity > 0);
@@ -1699,7 +1722,7 @@ public:
       {
         curve[i][1] = min_v + max_v - curve[i][1];
       }
-     
+
       curve.reverseOrientation();
     }
   }
@@ -1886,8 +1909,8 @@ public:
    */
   PointType evaluate(T u, T v) const
   {
-    SLIC_ASSERT(m_knotvec_u.isValidParameter(u));
-    SLIC_ASSERT(m_knotvec_v.isValidParameter(v));
+    SLIC_ASSERT(isValidParameter_u(u));
+    SLIC_ASSERT(isValidParameter_v(v));
 
     u = axom::utilities::clampVal(u, getMinKnot_u(), getMaxKnot_u());
     v = axom::utilities::clampVal(v, getMinKnot_v(), getMaxKnot_v());
@@ -1996,7 +2019,7 @@ public:
    */
   NURBSCurveType isocurve_u(T u) const
   {
-    SLIC_ASSERT(m_knotvec_u.isValidParameter(u));
+    SLIC_ASSERT(isValidParameter_u(u));
     u = axom::utilities::clampVal(u, m_knotvec_u[0], m_knotvec_u[m_knotvec_u.getNumKnots() - 1]);
 
     using axom::utilities::lerp;
@@ -2060,7 +2083,7 @@ public:
    */
   NURBSCurveType isocurve_v(T v) const
   {
-    SLIC_ASSERT(m_knotvec_v.isValidParameter(v));
+    SLIC_ASSERT(isValidParameter_v(v));
     v = axom::utilities::clampVal(v, m_knotvec_v[0], m_knotvec_v[m_knotvec_v.getNumKnots() - 1]);
 
     using axom::utilities::lerp;
@@ -2132,8 +2155,8 @@ public:
    */
   void evaluateDerivatives(T u, T v, int d, axom::Array<VectorType, 2>& ders) const
   {
-    SLIC_ASSERT(m_knotvec_u.isValidParameter(u));
-    SLIC_ASSERT(m_knotvec_v.isValidParameter(v));
+    SLIC_ASSERT(isValidParameter_u(u));
+    SLIC_ASSERT(isValidParameter_v(v));
 
     u = axom::utilities::clampVal(u, m_knotvec_u[0], m_knotvec_u[m_knotvec_u.getNumKnots() - 1]);
     v = axom::utilities::clampVal(v, m_knotvec_v[0], m_knotvec_v[m_knotvec_v.getNumKnots() - 1]);
@@ -2838,6 +2861,208 @@ public:
     ret_vec[1] = -ret_vec[1];
     return ret_vec;
   }
+
+  /*!
+   * \brief Calculate the average normal for the trimmed patch
+   * 
+   * \param [in] npts The number of quadrature nodes used in each component integral
+   *
+   * Algorithm from "Mean normal vector to a surface bounded by Bézier curves"
+   *  by Kenji Ueda, 1996
+   * 
+   * \note This requires the MFEM third-party library
+   * 
+   * \return The calculated mean surface normal
+   */
+  VectorType calculateTrimmedPatchNormal(int npts = 20) const
+  {
+    SLIC_ASSERT(NDIMS == 3);
+
+    // Split the patch along the unique knot values to improve numerical stability
+    axom::Array<T> knot_vals_u = getKnots_u().getUniqueKnots();
+    axom::Array<T> knot_vals_v = getKnots_v().getUniqueKnots();
+
+    const auto num_knot_span_u = knot_vals_u.size() - 1;
+    const auto num_knot_span_v = knot_vals_v.size() - 1;
+
+    axom::Array<NURBSPatch<T, NDIMS>, 2> split_patches(num_knot_span_u, num_knot_span_v);
+    split_patches(0, 0) = *this;
+
+    // Use the split routines instead of Bezier extraction,
+    //  since it already accounts for trimming curves
+    for(int i = 0; i < num_knot_span_u - 1; ++i)
+    {
+      split_patches(i, 0).split_u(knot_vals_u[i + 1], split_patches(i, 0), split_patches(i + 1, 0));
+    }
+
+    // It would be marginally more efficient to use real bezier extraction,
+    //   but probably not by much
+    for(int i = 0; i < num_knot_span_u; ++i)
+    {
+      for(int j = 0; j < num_knot_span_v - 1; ++j)
+      {
+        split_patches(i, j).split_v(knot_vals_v[j + 1], split_patches(i, j), split_patches(i, j + 1));
+      }
+    }
+
+    VectorType ret_vec;
+    for(int i = 0; i < num_knot_span_u; ++i)
+    {
+      for(int j = 0; j < num_knot_span_v; ++j)
+      {
+        // Integrand for the surface area integral
+        auto& nPatch = split_patches(i, j);
+
+        for(int N = 0; N < 3; ++N)
+        {
+          auto avg_surface_normal_integrand = [&nPatch, &N](Point2D x) -> double {
+            return nPatch.normal(x[0], x[1])[N];
+          };
+
+          // Find the area of the resulting projection
+          ret_vec[N] +=
+            evaluate_area_integral(nPatch.getTrimmingCurves(), avg_surface_normal_integrand, npts);
+        }
+      }
+    }
+
+    return ret_vec;
+  }
+
+  /// \brief Print the trimming curves
+  void printTrimmingCurves(std::string filename) const
+  {
+    std::ofstream ofs(filename);
+
+    for(auto& curve : m_trimmingCurves)
+    {
+      auto bezier = curve.extractBezier();
+
+      for(auto& patch : bezier)
+      {
+        patch.print(ofs);
+        ofs << std::endl;
+      }
+    }
+  }
+
+  double calculateTrimmedSurfaceArea(int npts = 20) const
+  {
+    axom::Array<T> knot_vals_u = getKnots_u().getUniqueKnots();
+    axom::Array<T> knot_vals_v = getKnots_v().getUniqueKnots();
+
+    const auto num_knot_span_u = knot_vals_u.size() - 1;
+    const auto num_knot_span_v = knot_vals_v.size() - 1;
+
+    // Split the patch along the unique knot values
+    axom::Array<NURBSPatch<T, NDIMS>, 2> split_patches(num_knot_span_u, num_knot_span_v);
+    split_patches(0, 0) = *this;
+
+    // Use the split routines instead of Bezier extraction,
+    //  since it already accounts for trimming curves
+    for(int i = 0; i < num_knot_span_u - 1; ++i)
+    {
+      split_patches(i, 0).split_u(knot_vals_u[i + 1], split_patches(i, 0), split_patches(i + 1, 0));
+    }
+
+    for(int i = 0; i < num_knot_span_u; ++i)
+    {
+      for(int j = 0; j < num_knot_span_v - 1; ++j)
+      {
+        split_patches(i, j).split_v(knot_vals_v[j + 1], split_patches(i, j), split_patches(i, j + 1));
+      }
+    }
+
+    // Find the surface area of each sub-patch
+    double surface_area = 0.0;
+    for(int i = 0; i < num_knot_span_u; ++i)
+    {
+      for(int j = 0; j < num_knot_span_v; ++j)
+      {
+        // Integrand for the surface area integral
+        auto& the_patch = split_patches(i, j);
+
+        auto surface_area_integrand = [&the_patch](Point2D x) -> double {
+          return the_patch.normal(x[0], x[1]).norm();
+        };
+
+        surface_area +=
+          evaluate_area_integral(the_patch.getTrimmingCurves(), surface_area_integrand, npts);
+      }
+    }
+
+    return surface_area;
+  }
+
+  void calculateTrimmedSurfaceData(VectorType& average_normal, double& surface_area, PointType& centroid, int npts = 20) const
+  {
+    axom::Array<T> knot_vals_u = getKnots_u().getUniqueKnots();
+    axom::Array<T> knot_vals_v = getKnots_v().getUniqueKnots();
+
+    const auto num_knot_span_u = knot_vals_u.size() - 1;
+    const auto num_knot_span_v = knot_vals_v.size() - 1;
+
+    // Split the patch along the unique knot values
+    axom::Array<NURBSPatch<T, NDIMS>, 2> split_patches(num_knot_span_u, num_knot_span_v);
+    split_patches(0, 0) = *this;
+
+    // Use the split routines instead of Bezier extraction,
+    //  since it already accounts for trimming curves
+    for(int i = 0; i < num_knot_span_u - 1; ++i)
+    {
+      split_patches(i, 0).split_u(knot_vals_u[i + 1], split_patches(i, 0), split_patches(i + 1, 0));
+    }
+
+    for(int i = 0; i < num_knot_span_u; ++i)
+    {
+      for(int j = 0; j < num_knot_span_v - 1; ++j)
+      {
+        split_patches(i, j).split_v(knot_vals_v[j + 1], split_patches(i, j), split_patches(i, j + 1));
+      }
+    }
+
+    // Find the surface area of each sub-patch
+    surface_area = 0.0;
+    average_normal = VectorType {0.0, 0.0, 0.0};
+    centroid = PointType {0.0, 0.0, 0.0};
+    for(int i = 0; i < num_knot_span_u; ++i)
+    {
+      for(int j = 0; j < num_knot_span_v; ++j)
+      {
+        // Integrand for the surface area integral
+        auto& the_patch = split_patches(i, j);
+
+        auto surface_area_integrand = [&the_patch](Point2D x) -> double {
+          return the_patch.normal(x[0], x[1]).norm();
+        };
+
+        surface_area +=
+          evaluate_area_integral(the_patch.getTrimmingCurves(), surface_area_integrand, npts);
+
+        for(int N = 0; N < 3; ++N)
+        {
+          auto avg_surface_normal_integrand = [&the_patch, &N](Point2D x) -> double {
+            return the_patch.normal(x[0], x[1])[N];
+          };
+
+          average_normal[N] +=
+            evaluate_area_integral(the_patch.getTrimmingCurves(), avg_surface_normal_integrand, npts);
+        
+          auto centroid_integrand = [&the_patch, &N](Point2D x) -> double {
+            return the_patch.normal(x[0], x[1]).norm() * the_patch.evaluate(x[0], x[1])[N];
+          };
+
+          centroid[N] +=
+            evaluate_area_integral(the_patch.getTrimmingCurves(), centroid_integrand, npts);
+        }
+      }
+    }
+
+    for(int N = 0; N < 3; ++N)
+    {
+      centroid[N] /= surface_area;
+    }
+  }
 #endif
   //@}
 
@@ -2930,6 +3155,28 @@ public:
     markAsTrimmed();
   }
 
+  /// \brief Compute a bounding box for all trimming curves,
+  ///         and clip the patch to that bounding box
+  void simplifyParameterSpace(double EPS = 1e-6)
+  {
+    if(!isTrimmed())
+    {
+      return;
+    }
+
+    ParameterBoundingBoxType bbox;
+    for(const auto& curve : m_trimmingCurves)
+    {
+      bbox.addBox(curve.boundingBox());
+    }
+
+    // Clip the patch to the bounding box of the trimming curves
+    uncheckedClip( bbox.getMin()[0] - EPS,
+                   bbox.getMax()[0] + EPS,
+                   bbox.getMin()[1] - EPS,
+                   bbox.getMax()[1] + EPS);
+  }
+
   /*!
    * \brief Check if a parameter point is visible on the NURBS patch via a trim test
    *
@@ -2947,7 +3194,7 @@ public:
   {
     if(!isTrimmed())
     {
-      return (m_knotvec_u.isValidParameter(u) && m_knotvec_v.isValidParameter(v));
+      return (isValidParameter_u(u, 0.0) && isValidParameter_v(v, 0.0));
     }
 
     ParameterPointType uv = {u, v};
@@ -3300,13 +3547,6 @@ public:
           for(int j = 0; j < temp_curve_p.size(); ++j)
           {
             circle_params.push_back(temp_circle_p[j]);
-
-            // Skip any curve intersection point recorded at an endpoint
-            if(temp_curve_p[j] <= 0.0 || temp_curve_p[j] >= 1.0)
-            {
-              continue;
-            }
-
             curve_params.push_back(knot_vals[i] + temp_curve_p[j] * (knot_vals[i + 1] - knot_vals[i]));
           }
         }
@@ -3321,7 +3561,7 @@ public:
         TrimmingCurveType c1, c2(curve);
         for(const auto& param : curve_params)
         {
-          if(param <= curve.getMinKnot() || param >= curve.getMaxKnot())
+          if(param <= c2.getMinKnot() || param >= c2.getMaxKnot())
           {
             continue;
           }
@@ -3360,7 +3600,7 @@ public:
         the_disk.addTrimmingCurve(c1);
         if(clipDisk)
         {
-          the_disk.uncheckedClip(u - r, u + r, v - r, v + r);
+          the_disk.uncheckedClip(u - 2 * r, u + 2 * r, v - 2 * r, v + 2 * r);
         }
 
         c1.reverseOrientation();
@@ -3436,7 +3676,7 @@ public:
     // Clip the_disk according to the width of the disk
     if(clipDisk)
     {
-      the_disk.uncheckedClip(u - r, u + r, v - r, v + r);
+      the_disk.uncheckedClip(u - 2 * r, u + 2 * r, v - 2 * r, v + 2 * r);
     }
   }
 
@@ -3720,24 +3960,286 @@ public:
     m_knotvec_u = KnotVectorType(newKnotVec_u, deg_u);
     m_knotvec_v = KnotVectorType(newKnotVec_v, deg_v);
   }
-  //@}
 
-  /// \brief Print the trimming curves
-  void printTrimmingCurves(std::string filename) const
+    /*!
+   * \brief Scale the parameter space of the NURBS patch geometry 
+   *         linearly (by tangents) in all directions
+   *
+   * \param [in] scaleFactor The multiplicative factor to expand each knot vector by
+   * \param [in] removeTrimmingCurves If true, the resulting patch has no trimming curves
+   *
+   * Algorithm from Wolters, Hans J., "Extensions: Extrapolation Methods for CAD", 1999
+   * 
+   * \note This function only affects the geometry of the untrimmed NURBS patch, 
+   *       and does not affect any existing trimming curves (unless explicitly removed)
+   * 
+   * \post If removeTrimmingCurves is false, the resulting patch will be trimmed.
+   * 
+   * \warning Method becomes numerically unstable for large values of scaleFactor,
+   *           or for rational patches with a large range of weights.
+   */
+  void expandParameterSpace(double expansionAmount_u, double expansionAmount_v, bool removeTrimmingCurves = false)
   {
-    std::ofstream ofs(filename);
+    SLIC_ASSERT(expansionAmount_u > 0.0 && expansionAmount_v > 0.0);
+    SLIC_WARNING_IF(expansionAmount_u > 1.15 * (getMaxKnot_u() - getMinKnot_u()) ||
+                    expansionAmount_v > 1.15 * (getMaxKnot_v() - getMinKnot_v()),
+                    "Expanding patch parameter space is numerically unstable "
+                    "for large values of expansionAmount.");
 
-    for(auto& curve : m_trimmingCurves)
+    if(removeTrimmingCurves)
     {
-      auto bezier = curve.extractBezier();
+      m_trimmingCurves.clear();
+    }
+    else if(!isTrimmed())
+    {
+      // If the patch is untrimmed, we need to create new trimming curves
+      //  to match the original parameter space
+      makeTriviallyTrimmed();
+    }
 
-      for(auto& patch : bezier)
+    auto n = getNumControlPoints_u();
+    auto m = getNumControlPoints_v();
+
+    if(n <= 1 || m <= 1)
+    {
+      return;
+    }
+
+    // When the patch is expanded in homogeneous space,
+    //  weights may become negative.
+    // We gurantee no negative weights by restricting this expansion
+    //  to w > min_weight in homogeous space
+    double min_weight = 0.0;
+    if(isRational())
+    {
+      min_weight = m_weights(0, 0);
+
+      for(int i = 0; i < n; ++i)
       {
-        patch.print(ofs);
-        ofs << std::endl;
+        for(int j = 0; j < m; ++j)
+        {
+          min_weight = std::min(min_weight, m_weights(i, j));
+        }
+      }
+
+      min_weight *= 0.5;
+    }
+
+    auto deg_u = getDegree_u();
+    auto deg_v = getDegree_v();
+
+    CoordsMat newControlPoints(n + 2 * deg_u, m + 2 * deg_v);
+    WeightsMat newWeights(0, 0);
+    if(isRational())
+    {
+      newWeights.resize(n + 2 * deg_u, m + 2 * deg_v);
+      newWeights.fill(1.0);
+    }
+
+    axom::Array<T> newKnotVec_u, newKnotVec_v;
+
+    // Copy the original control points
+    for(int i = 0; i < n; ++i)
+    {
+      for(int j = 0; j < m; ++j)
+      {
+        newControlPoints(i + deg_u, j + deg_v) = m_controlPoints(i, j);
+        if(isRational())
+        {
+          newWeights(i + deg_u, j + deg_v) = m_weights(i, j);
+        }
       }
     }
+
+    int nkts_v = m_knotvec_v.getNumKnots();
+    int nkts_u = m_knotvec_u.getNumKnots();
+
+    // Add the control points on the v direction
+    for(int i = 0; i < n; ++i)
+    {
+      if(!isRational())
+      {
+        Vector<T, 3> v(m_controlPoints(i, 1), m_controlPoints(i, 0));
+        double alpha = deg_v * expansionAmount_v / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
+
+        for(int j = 0; j < deg_v; ++j)
+        {
+          newControlPoints(i + deg_u, j).array() =
+            m_controlPoints(i, 0).array() + static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array();
+        }
+
+        v = Vector<T, 3>(m_controlPoints(i, m - 2), m_controlPoints(i, m - 1));
+        alpha =
+          deg_v * expansionAmount_v / (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
+
+        for(int j = 0; j < deg_v; ++j)
+        {
+          newControlPoints(i + deg_u, m + deg_v + j).array() =
+            m_controlPoints(i, m - 1).array() + static_cast<T>(j + 1) / (deg_v)*alpha * v.array();
+        }
+      }
+      else
+      {
+        Vector<T, 3> v(Point<T, 3>(m_controlPoints(i, 1).array() * m_weights(i, 1)),
+                       Point<T, 3>(m_controlPoints(i, 0).array() * m_weights(i, 0)));
+        double d_weight = m_weights(i, 0) - m_weights(i, 1);
+        double alpha = deg_v * expansionAmount_v / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
+
+        // New weights can't be less than min_weight
+        if(d_weight != 0 && (m_weights(i, 0) - alpha * d_weight < min_weight))
+        {
+          alpha = (m_weights(i, 0) - min_weight) / d_weight;
+        }
+
+        for(int j = 0; j < deg_v; ++j)
+        {
+          newWeights(i + deg_u, j) =
+            m_weights(i, 0) + static_cast<T>(j - deg_v) / (deg_v)*alpha * d_weight;
+
+          newControlPoints(i + deg_u, j).array() =
+            (m_controlPoints(i, 0).array() * m_weights(i, 0) +
+             static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array()) /
+            newWeights(i + deg_u, j);
+        }
+
+        v = Vector<T, 3>(Point<T, 3>(m_controlPoints(i, m - 2).array() * m_weights(i, m - 2)),
+                         Point<T, 3>(m_controlPoints(i, m - 1).array() * m_weights(i, m - 1)));
+        d_weight = m_weights(i, m - 1) - m_weights(i, m - 2);
+        alpha =
+          deg_v * expansionAmount_v / (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
+
+        // New weights can't be less than min_weight
+        if(d_weight != 0 && (m_weights(i, m - 1) + alpha * d_weight < min_weight))
+        {
+          alpha = (min_weight - m_weights(i, m - 1)) / d_weight;
+        }
+
+        for(int j = 0; j < deg_v; ++j)
+        {
+          newWeights(i + deg_u, m + deg_v + j) =
+            m_weights(i, m - 1) + static_cast<T>(j + 1) / (deg_v)*alpha * d_weight;
+
+          newControlPoints(i + deg_u, m + deg_v + j).array() =
+            (m_controlPoints(i, m - 1).array() * m_weights(i, m - 1) +
+             static_cast<T>(j + 1) / (deg_v)*alpha * v.array()) /
+            newWeights(i + deg_u, m + deg_v + j);
+        }
+      }
+    }
+
+    // Add the control points on the u direction
+    //  Note that this method uses values added in the v direction,
+    //  making it slightly anisotropic at the corners
+    for(int j = 0; j < m + 2 * deg_v; ++j)
+    {
+      if(!isRational())
+      {
+        Vector<T, 3> v(newControlPoints(deg_u + 1, j), newControlPoints(deg_u, j));
+        double alpha = deg_u * expansionAmount_v / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
+        for(int i = 0; i < deg_u; ++i)
+        {
+          newControlPoints(i, j).array() = newControlPoints(deg_u, j).array() +
+            static_cast<T>(i - deg_u) / (deg_u)*alpha * v.array();
+        }
+
+        v = Vector<T, 3>(newControlPoints(n - 2 + deg_u, j), newControlPoints(n + deg_u - 1, j));
+        alpha =
+          deg_u * expansionAmount_v / (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
+        for(int i = 0; i < deg_u; ++i)
+        {
+          newControlPoints(n + deg_u + i, j).array() = newControlPoints(n + deg_u - 1, j).array() +
+            static_cast<T>(i + 1) / (deg_u)*alpha * v.array();
+        }
+      }
+      else
+      {
+        Vector<T, 3> v(Point<T, 3>(newControlPoints(deg_u + 1, j).array() * newWeights(deg_u + 1, j)),
+                       Point<T, 3>(newControlPoints(deg_u, j).array() * newWeights(deg_u, j)));
+        double d_weight = newWeights(deg_u, j) - newWeights(deg_u + 1, j);
+        double alpha = deg_u * expansionAmount_v / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
+
+        // New weights can't be less than min_weight
+        if(d_weight != 0 && (newWeights(deg_u, j) - alpha * d_weight < min_weight))
+        {
+          alpha = (newWeights(deg_u, j) - min_weight) / d_weight;
+        }
+
+        for(int i = 0; i < deg_u; ++i)
+        {
+          newWeights(i, j) =
+            newWeights(deg_u, j) + static_cast<T>(i - deg_u) / (deg_u)*alpha * d_weight;
+
+          newControlPoints(i, j).array() =
+            (newControlPoints(deg_u, j).array() * newWeights(deg_u, j) +
+             static_cast<T>(i - deg_u) / (deg_u)*alpha * v.array()) /
+            newWeights(i, j);
+        }
+
+        v = Vector<T, 3>(
+          Point<T, 3>(newControlPoints(n - 2 + deg_u, j).array() * newWeights(n - 2 + deg_u, j)),
+          Point<T, 3>(newControlPoints(n + deg_u - 1, j).array() * newWeights(n + deg_u - 1, j)));
+        d_weight = newWeights(n + deg_u - 1, j) - newWeights(n - 2 + deg_u, j);
+        alpha =
+          deg_u * expansionAmount_v / (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
+
+        // New weights can't be less than min_weight
+        if(d_weight != 0 && (newWeights(n + deg_u - 1, j) + alpha * d_weight < min_weight))
+        {
+          alpha = (min_weight - newWeights(n + deg_u - 1, j)) / d_weight;
+        }
+
+        for(int i = 0; i < deg_u; ++i)
+        {
+          newWeights(n + deg_u + i, j) =
+            newWeights(n + deg_u - 1, j) + static_cast<T>(i + 1) / (deg_u)*d_weight * alpha;
+
+          newControlPoints(n + deg_u + i, j).array() =
+            (newControlPoints(n + deg_u - 1, j).array() * newWeights(n + deg_u - 1, j) +
+             static_cast<T>(i + 1) / (deg_u)*alpha * v.array()) /
+            newWeights(n + deg_u + i, j);
+        }
+      }
+    }
+
+    // Fix the u knot vector
+    newKnotVec_u.resize(m_knotvec_u.getNumKnots() + 2 * m_knotvec_u.getDegree());
+    for(int i = 0; i <= deg_u; ++i)
+    {
+      newKnotVec_u[i] = m_knotvec_u[0] - expansionAmount_u;
+    }
+    for(int i = 0; i < m_knotvec_u.getNumKnots() - 2; ++i)
+    {
+      newKnotVec_u[i + deg_u + 1] = m_knotvec_u[i + 1];
+    }
+    for(int i = 0; i <= deg_u; ++i)
+    {
+      newKnotVec_u[i + deg_u + m_knotvec_u.getNumKnots() - 1] =
+        m_knotvec_u[m_knotvec_u.getNumKnots() - 1] + expansionAmount_u;
+    }
+
+    // Fix the v knot vector
+    newKnotVec_v.resize(m_knotvec_v.getNumKnots() + 2 * m_knotvec_v.getDegree());
+    for(int i = 0; i <= deg_v; ++i)
+    {
+      newKnotVec_v[i] = m_knotvec_v[0] - expansionAmount_v;
+    }
+    for(int i = 0; i < m_knotvec_v.getNumKnots() - 2; ++i)
+    {
+      newKnotVec_v[i + deg_v + 1] = m_knotvec_v[i + 1];
+    }
+    for(int i = 0; i <= deg_v; ++i)
+    {
+      newKnotVec_v[i + deg_v + m_knotvec_v.getNumKnots() - 1] =
+        m_knotvec_v[m_knotvec_v.getNumKnots() - 1] + expansionAmount_v;
+    }
+
+    m_controlPoints = newControlPoints;
+    m_weights = newWeights;
+
+    m_knotvec_u = KnotVectorType(newKnotVec_u, deg_u);
+    m_knotvec_v = KnotVectorType(newKnotVec_v, deg_v);
   }
+  //@}
 
   /*!
      * \brief Simple formatted print of a NURBS Patch instance
@@ -3854,16 +4356,10 @@ public:
   }
 
   /// \brief Function to check if the u parameter is within the knot span
-  bool isValidParameter_u(T u, T EPS = 1e-8) const
-  {
-    return u >= m_knotvec_u[0] - EPS && u <= m_knotvec_u[m_knotvec_u.getNumKnots() - 1] + EPS;
-  }
+  bool isValidParameter_u(T u, T EPS = 1e-2) const { return m_knotvec_u.isValidParameter(u, EPS); }
 
   /// \brief Function to check if the v parameter is within the knot span
-  bool isValidParameter_v(T v, T EPS = 1e-8) const
-  {
-    return v >= m_knotvec_v[0] - EPS && v <= m_knotvec_v[m_knotvec_v.getNumKnots() - 1] + EPS;
-  }
+  bool isValidParameter_v(T v, T EPS = 1e-2) const { return m_knotvec_v.isValidParameter(v, EPS); }
 
   /// \brief Checks if given u parameter is *interior* to the knot span
   bool isValidInteriorParameter(T t) const { return m_knotvec_u.isValidInteriorParameter(t); }
@@ -4060,7 +4556,6 @@ private:
       p1.m_weights.resize(0, 0);
     }
   }
-
   /// \brief Private function to split a patch's trimming curves along a u/v isoline
   void splitTrimmingCurves(T uv,
                            bool splitInU,
@@ -4104,7 +4599,7 @@ private:
              axom::utilities::isNearlyEqual(beziers[i][beziers[i].getOrder()][splitInU ? 0 : 1], uv))
           {
             continue;
-          }
+          }  
 
           detail::intersect_ray_bezier(ray_obj,
                                        beziers[i],
@@ -4114,19 +4609,13 @@ private:
                                        EPS,
                                        beziers[i].getOrder(),
                                        0.,
-                                       1.);
+                                       1.,
+                                       false);
 
           // Scale the intersection parameters back into the span of the NURBS curve
           for(int j = 0; j < temp_curve_p.size(); ++j)
           {
             ray_params.push_back(temp_ray_p[j]);
-
-            // Skip any curve intersection point recorded at an endpoint
-            if(temp_curve_p[j] <= 0.0 || temp_curve_p[j] >= 1.0)
-            {
-              continue;
-            }
-
             curve_params.push_back(knot_vals[i] + temp_curve_p[j] * (knot_vals[i + 1] - knot_vals[i]));
           }
         }
@@ -4141,7 +4630,7 @@ private:
         TrimmingCurveType c1, c2(curve);
         for(const auto& param : curve_params)
         {
-          if(param <= curve.getMinKnot() || param >= curve.getMaxKnot())
+          if(param <= c2.getMinKnot() || param >= c2.getMaxKnot())
           {
             continue;
           }
@@ -4192,7 +4681,20 @@ private:
     for(auto& curve : split_trimming_curves)
     {
       auto eval_pt = curve.evaluate(0.5 * (curve.getMinKnot() + curve.getMaxKnot()));
-      if(eval_pt[splitInU ? 0 : 1] < uv)
+      if(axom::utilities::isNearlyEqual(eval_pt[splitInU ? 0 : 1], uv, 1e-10))
+      {
+        // Can only happen if the curve is co-linear with the ray,
+        //  decide what to do with it based on the orientation of the curve
+        if(curve[0][splitInU ? 1 : 0] < curve[curve.getNumControlPoints() - 1][splitInU ? 1 : 0])
+        {
+          splitInU ? outCurvesFirst.push_back(curve) : outCurvesSecond.push_back(curve);
+        }
+        else
+        {
+          splitInU ? outCurvesSecond.push_back(curve) : outCurvesFirst.push_back(curve);
+        }
+      }
+      else if(eval_pt[splitInU ? 0 : 1] < uv)
       {
         outCurvesFirst.push_back(curve);
       }

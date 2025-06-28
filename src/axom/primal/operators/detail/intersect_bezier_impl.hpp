@@ -326,35 +326,35 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
                           double EPS,
                           int order,
                           double c_offset,
-                          double c_scale)
+                          double c_scale,
+                          bool isHalfOpen = true)
 {
   using BCurve = BezierCurve<T, 2>;
 
   // Check bounding box to short-circuit the intersection
   T r0, s0;
-  constexpr T factor = 1e-8;
 
   // Need to expand the bounding box, since this ray-bb intersection routine
   //  only parameterizes the ray on (0, inf)
   T tmin = axom::numerics::floating_point_limits<T>::min();
   T tmax = axom::numerics::floating_point_limits<T>::max();
 
-  if(!detail::intersect_ray(r, c.boundingBox().expand(factor), tmin, tmax, EPS))
+  if(!detail::intersect_ray(r, c.boundingBox().expand(2 * EPS), tmin, tmax, EPS))
   {
     return false;
   }
 
   bool foundIntersection = false;
 
-  // For the base case, represent the Bezier curve as a line segment
-  if(c.isLinear(sq_tol, true))
+  // For the base case, represent the Bezier curve as a line segment     0.59334987356610791 segment parameter
+  if(c.isLinear(sq_tol, true))  // 0.59334988444204972 ray parameter
   {
     Segment<T, 2> seg(c[0], c[order]);
 
     // Need to check intersection with zero tolerance
     //  to handle cases where `intersect` treats the ray as collinear
     bool foundIntersection = detail::intersect_ray(r, seg, r0, s0, EPS);
-    if(foundIntersection && s0 < 1.0 - EPS)
+    if(foundIntersection && (!isHalfOpen || s0 < 1.0 - EPS))
     {
       rp.push_back(r0);
       cp.push_back(c_offset + c_scale * s0);
@@ -373,11 +373,11 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
     c_scale *= scaleFac;
 
     // Note: we want to find all intersections, so don't short-circuit
-    if(intersect_ray_bezier(r, c1, rp, cp, sq_tol, EPS, order, c_offset, c_scale))
+    if(intersect_ray_bezier(r, c1, rp, cp, sq_tol, EPS, order, c_offset, c_scale, isHalfOpen))
     {
       foundIntersection = true;
     }
-    if(intersect_ray_bezier(r, c2, rp, cp, sq_tol, EPS, order, c_offset + c_scale, c_scale))
+    if(intersect_ray_bezier(r, c2, rp, cp, sq_tol, EPS, order, c_offset + c_scale, c_scale, isHalfOpen))
     {
       foundIntersection = true;
     }

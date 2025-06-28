@@ -368,6 +368,11 @@ double evaluate_area_integral(const axom::Array<primal::NURBSCurve<T, 2>> narray
     npts_P = npts_Q;
   }
 
+  if( narray.empty() )
+  {
+    return 0.0;
+  }
+
   // Get the quadrature for the line integral.
   //  Quadrature order is equal to 2*N - 1
   const mfem::IntegrationRule& quad_Q = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts_Q - 1);
