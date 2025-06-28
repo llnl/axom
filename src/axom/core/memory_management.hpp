@@ -205,6 +205,20 @@ inline T* reallocate(T* p, std::size_t n, int allocID = getDefaultAllocatorID())
  */
 inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept;
 
+/*!
+ * \brief Fills memory with a "plain-old-datatype" value.
+ *
+ * \param [in/out] dst the destination to copy to.
+ * \param [in] n the number of items to copy.
+ * \param [in] The value to copy.
+ *
+ * \note When using Umpire if either dst is not registered with the
+ *  ResourceManager then the default host allocation strategy is assumed for
+ *  that pointer.
+ */
+template <typename T>
+inline void fill(void* dst, std::size_t n, const T &value) noexcept;
+
 /// @}
 // _memory_management_routines_end
 
@@ -378,6 +392,44 @@ inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept
   std::memcpy(dst, src, numbytes);
 #endif
 }
+
+//------------------------------------------------------------------------------
+template <typename T>
+inline void fill(void* dst, std::size_t n, const T &value) noexcept
+{
+  bool doHostFill = true;
+#ifdef AXOM_USE_UMPIRE
+  auto& rm = umpire::ResourceManager::getInstance();
+
+  if(rm.hasAllocator(dst))
+  {
+    auto alloc = rm.getAllocator(dst);
+    if((alloc.getPlatform() != umpire::Platform::host))
+    {
+      doHostFill = false;
+
+      // Device memory: fill on host, then copy to device
+      const auto num_bytes = n * sizeof(T);
+      T *src = allocate<T>(num_bytes, rm.getDefaultAllocator().getId());
+      for(std::size_t i = 0; i < n; ++i)
+      {
+        src[i] = value;
+      }
+      rm.copy(dst, src, num_bytes);
+      deallocate<T>(src);
+    }
+  }
+#endif
+  if(doHostFill)
+  {
+    T *typed_dst = static_cast<T *>(dst);
+    for(std::size_t i = 0; i < n; ++i)
+    {
+      typed_dst[i] = value;
+    }
+  }
+}
+
 
 namespace detail
 {

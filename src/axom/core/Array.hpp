@@ -428,6 +428,17 @@ public:
   void set(const T* elements, IndexType n, IndexType pos);
 
   /*!
+   * \brief Set the array view contents.
+   *
+   * \param [in] count The new number of elements.
+   * \param [in] value The value to store in the elements.
+   *
+   * \note It's assumed that it is safe to store \a count elements.
+   * \note The size is set to \a count by calls to assign.
+   */
+  void assign(axom::IndexType count, const T& value);
+
+  /*!
    * \brief Clears the contents of the array
    * 
    * \post size of Array is 0
@@ -1243,6 +1254,14 @@ inline void Array<T, DIM, SPACE>::set(const T* elements, IndexType n, IndexType 
 
   OpHelper {m_allocator_id, m_executeOnGPU}.destroy(m_data, pos, n);
   OpHelper {m_allocator_id, m_executeOnGPU}.fill_range(m_data, pos, n, elements, MemorySpace::Dynamic);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+inline void Array<T, DIM, SPACE>::assign(axom::IndexType count, const T& value)
+{
+  assert(count >= 0);
+  resize(count, value);
 }
 
 //------------------------------------------------------------------------------

@@ -216,7 +216,45 @@ public:
    *
    * \param value The value to be used for filling the ArrayView.
    */
-  AXOM_HOST void fill(const T& value);
+  AXOM_HOST_DEVICE void fill(const T& value);
+
+  /*!
+   * \brief Set a range of elements to a given value.
+   *
+   * \param [in] value the value to set to.
+   * \param [in] n the number of elements to write.
+   * \param [in] pos the position at which to begin writing.
+   *
+   * \note The size is unchanged by calls to fill.
+   *
+   * \pre pos + n <= m_num_elements.
+   */
+  AXOM_HOST_DEVICE void fill(const T& value, IndexType n, IndexType pos);
+
+  /*!
+   * \brief Modify the values of existing elements.
+   *
+   * \param [in] elements the new elements to write.
+   * \param [in] n the number of elements to write.
+   * \param [in] pos the position at which to begin writing.
+   *
+   * \note It's assumed that elements is of length n.
+   * \note The size is unchanged by calls to set.
+   *
+   * \pre pos + n <= m_num_elements.
+   */
+  AXOM_HOST_DEVICE void set(const T* elements, IndexType n, IndexType pos);
+
+  /*!
+   * \brief Set the array view contents.
+   *
+   * \param [in] count The new number of elements.
+   * \param [in] value The value to store in the elements.
+   *
+   * \note It's assumed that it is safe to store \a count elements.
+   * \note The size is set to \a count by calls to assign.
+   */
+  AXOM_HOST_DEVICE void assign(axom::IndexType count, const T& value);
 
 private:
   T* m_data = nullptr;
@@ -428,11 +466,51 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE> ArrayView<T, DIM, SPACE>::subspan(
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE>
-AXOM_HOST void ArrayView<T, DIM, SPACE>::fill(const T& value)
+AXOM_HOST_DEVICE void ArrayView<T, DIM, SPACE>::fill(const T& value)
 {
   using OpHelper = detail::ArrayOps<T, SPACE>;
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
   OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, 0, m_num_elements, value);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+AXOM_HOST_DEVICE void ArrayView<T, DIM, SPACE>::fill(const T& value, IndexType n, IndexType pos)
+{
+  assert(pos >= 0);
+  assert(pos + n <= m_num_elements);
+
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, pos, n);
+  OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, pos, n, value);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+AXOM_HOST_DEVICE void ArrayView<T, DIM, SPACE>::set(const T* elements, IndexType n, IndexType pos)
+{
+  assert(pos >= 0);
+  assert(pos + n <= m_num_elements);
+
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, pos, n);
+  OpHelper {m_allocator_id, executeOnGPU}.fill_range(m_data, pos, n, elements, MemorySpace::Dynamic);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+AXOM_HOST_DEVICE void ArrayView<T, DIM, SPACE>::assign(axom::IndexType count, const T& value)
+{
+  assert(count >= 0);
+
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
+  OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, 0, count, value);
+  m_num_elements = count;
 }
 
 } /* namespace axom */
