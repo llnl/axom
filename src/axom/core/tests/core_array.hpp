@@ -248,6 +248,52 @@ void check_set(axom::Array<T>& v)
 }
 
 /*!
+ * \brief Check that the fill method is working properly.
+ * \param [in] v the Array to check.
+ */
+template <typename T, int DIM, axom::MemorySpace SPACE>
+void check_assign(axom::Array<T, DIM, SPACE>& v)
+{
+  constexpr T MAGIC_NUM_0 = 55;
+  const axom::IndexType size = v.size();
+
+  // Fill the Array with MAGIC_NUM_0. This may be filling device memory.
+  v.assign(size, MAGIC_NUM_0);
+  EXPECT_EQ(size, v.size());
+
+  // Copy data onto host and compare.
+  axom::Array<T, DIM, axom::MemorySpace::Dynamic> vHost(size);
+  axom::copy(vHost.data(), v.data(), size * sizeof(T));
+  for(axom::IndexType i = 0; i < size; i++)
+  {
+    EXPECT_EQ(vHost[i], MAGIC_NUM_0);
+  }
+
+  // Try the iterator method using source data on host.
+  std::set<T> s;
+  for(axom::IndexType i = 0; i < size; i++)
+  {
+    s.insert(static_cast<T>(i));
+  }
+  v.assign(s.begin(), s.end());
+  axom::copy(vHost.data(), v.data(), size * sizeof(T));
+  for(axom::IndexType i = 0; i < size; i++)
+  {
+    EXPECT_EQ(vHost[i], static_cast<T>(i));
+  }
+
+  // Try initializer list using source data on host.
+  v.assign({T {0}, T {11}, T {22}, T {33}, T {44}, T {55}, T {66}, T {77}, T {88}, T {99}});
+  const axom::IndexType smallSize = 10;
+  EXPECT_EQ(smallSize, v.size());
+  axom::copy(vHost.data(), v.data(), size * sizeof(T));
+  for(axom::IndexType i = 0; i < smallSize; i++)
+  {
+    EXPECT_EQ(vHost[i], static_cast<T>(i * 11));
+  }
+}
+
+/*!
  * \brief Check that the resizing of an array is working properly.
  * \param [in] v the Array to check.
  */
@@ -1015,6 +1061,30 @@ TEST(core_array, checkSet)
     ::check_set(v_double);
   }
 }
+
+//------------------------------------------------------------------------------
+TEST(core_array, checkAssign)
+{
+  const axom::IndexType size = 100, capacity = 100;
+  axom::Array<int> v_int(size, capacity);
+  ::check_assign(v_int);
+
+  axom::Array<double> v_double(size, capacity);
+  ::check_assign(v_double);
+}
+
+//------------------------------------------------------------------------------
+#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+TEST(core_array, checkAssignDevice)
+{
+  const axom::IndexType size = 100, capacity = 100;
+  axom::Array<int, 1, axom::MemorySpace::Device> v_int(size, capacity);
+  ::check_assign(v_int);
+
+  axom::Array<double, 1, axom::MemorySpace::Device> v_double(size, capacity);
+  ::check_assign(v_double);
+}
+#endif
 
 //------------------------------------------------------------------------------
 TEST(core_array, checkResize)

@@ -428,15 +428,35 @@ public:
   void set(const T* elements, IndexType n, IndexType pos);
 
   /*!
-   * \brief Set the array view contents.
+   * \brief Set the array contents.
    *
    * \param [in] count The new number of elements.
    * \param [in] value The value to store in the elements.
    *
-   * \note It's assumed that it is safe to store \a count elements.
-   * \note The size is set to \a count by calls to assign.
+   * \post Size of Array is \a count, all elements contain \a value.
    */
   void assign(axom::IndexType count, const T& value);
+
+  /*!
+   * \brief Replaces contents with copies of objects in [first, last).
+   *
+   * \param [in] first The iterator for the first value to use in a container.
+   * \param [in] last The last iterator to use in a container.
+   *
+   * \post Size of Array is sized last-first, and values values referenced by
+   *       the iterator range are copied into the Array.
+   */
+  template <class InputIt>
+  void assign(InputIt first, InputIt last);
+
+  /*!
+   * \brief Set the array contents using an initializer list.
+   *
+   * \param [in] elems An initializer list containing the new array values.
+   *
+   * \post The Array contains copies of the initializer list elements.
+   */
+  void assign(std::initializer_list<T> elems);
 
   /*!
    * \brief Clears the contents of the array
@@ -1262,6 +1282,34 @@ inline void Array<T, DIM, SPACE>::assign(axom::IndexType count, const T& value)
 {
   assert(count >= 0);
   resize(count, value);
+  OpHelper {m_allocator_id, m_executeOnGPU}.destroy(m_data, 0, count);
+  OpHelper {m_allocator_id, m_executeOnGPU}.fill(m_data, 0, count, value);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+template <class InputIt>
+inline void Array<T, DIM, SPACE>::assign(InputIt first, InputIt last)
+{
+  Array<T, DIM, axom::MemorySpace::Dynamic> tmp;
+  for(auto it = first; it != last; it++)
+  {
+    tmp.push_back(*it);
+  }
+  initialize_from_other(tmp.data(), tmp.size(), MemorySpace::Dynamic, true);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+inline void Array<T, DIM, SPACE>::assign(std::initializer_list<T> elems)
+{
+  resize(elems.size());
+  OpHelper {m_allocator_id, m_executeOnGPU}.destroy(m_data, 0, elems.size());
+  OpHelper {m_allocator_id, m_executeOnGPU}.fill_range(m_data,
+                                                       0,
+                                                       elems.size(),
+                                                       elems.begin(),
+                                                       MemorySpace::Dynamic);
 }
 
 //------------------------------------------------------------------------------
