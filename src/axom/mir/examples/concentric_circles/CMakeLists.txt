@@ -7,6 +7,7 @@ set( mir_example_dependencies
      core
      slic
      mir
+     bump
    )
 
 # Speed up compilation by separating out the execspaces into different runMIR_xxx.cpp files.

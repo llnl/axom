@@ -11,6 +11,7 @@
 #define SLIC_HPP_
 
 #include "axom/config.hpp"
+#include "axom/core/memory_management.hpp"
 #include "axom/slic/core/Logger.hpp"
 #include "axom/slic/core/LogStream.hpp"
 #include "axom/slic/streams/GenericOutputStream.hpp"
@@ -426,6 +427,59 @@ void finalize();
  * \returns a string corresponding to the stacktrace.
  */
 std::string stacktrace();
+
+namespace detail
+{
+/*!
+ * \brief Print an array to a stream, moving the data to the host, if needed.
+ *
+ * \tparam T The element type for the data array.
+ *
+ * \param os   The stream to which the data will be written.
+ * \param name The name of the data.
+ * \param data A pointer to the data.
+ * \param n    The number of elements in the array.
+ */
+template <typename T>
+void printArray(std::ostream& os, const std::string& name, const T* data, axom::IndexType n)
+{
+  // Move data into temp host array.
+  T* host = axom::allocate<T>(n);
+  if(host != nullptr)
+  {
+    axom::copy(host, data, sizeof(T) * n);
+    // Print
+    os << name << "[" << n << "] = {";
+    for(axom::IndexType ii = 0; ii < n; ii++)
+    {
+      if(ii > 0)
+      {
+        os << ", ";
+      }
+      os << host[ii];
+    }
+    os << "}";
+    // Cleanup.
+    axom::deallocate(host);
+  }
+}
+
+/*!
+ * \brief Print a container to a stream, moving the data to the host, if needed.
+ *
+ * \tparam ContainerType A container template type that supplies data() and size() methods.
+ *
+ * \param os   The stream to which the data will be written.
+ * \param name The name of the view.
+ * \param container The container to print.
+ */
+template <typename ContainerType>
+void printContainer(std::ostream& os, const std::string& name, const ContainerType& container)
+{
+  printArray(os, name, container.data(), container.size());
+}
+
+} /* namespace detail */
 
 } /* namespace slic */
 

@@ -6,6 +6,7 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
+#include "axom/bump.hpp"
 #include "axom/mir.hpp"
 
 #include "runMIR.hpp"
@@ -20,7 +21,6 @@ namespace numerics = axom::numerics;
 namespace slam = axom::slam;
 namespace mir = axom::mir;
 namespace fs = axom::utilities::filesystem;
-namespace bputils = axom::mir::utilities::blueprint;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
 
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
 
   // Make the mesh
   conduit::Node mesh;
-  mir::MeshTester tester;
+  axom::bump::data::MeshTester tester;
   auto timer = axom::utilities::Timer(true);
   switch(params.m_test_case)
   {

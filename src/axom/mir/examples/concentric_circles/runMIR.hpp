@@ -7,6 +7,7 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slic.hpp"
+#include "axom/bump.hpp"
 #include "axom/mir.hpp"  // for Mir classes & functions
 
 template <typename ExecSpace, int NDIMS>
@@ -14,8 +15,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 {
   AXOM_ANNOTATE_SCOPE("runMIR");
 
-  namespace bputils = axom::mir::utilities::blueprint;
-  using namespace axom::mir::views;
+  namespace utils = axom::bump::utilities;
 
   // Pick the method out of the options.
   std::string method("equiz");
@@ -37,7 +37,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 
   // Check materials.
   constexpr int MAXMATERIALS = 20;
-  auto materialInfo = materials(hostMesh["matsets/mat"]);
+  auto materialInfo = axom::bump::views::materials(hostMesh["matsets/mat"]);
   if(materialInfo.size() >= MAXMATERIALS)
   {
     SLIC_WARNING(
@@ -50,7 +50,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
   conduit::Node deviceMesh;
   {
     AXOM_ANNOTATE_SCOPE("host->device");
-    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
   }
 
   const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
@@ -63,6 +63,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
     if(method == "equiz")
     {
       // _equiz_mir_start
+      using namespace axom::bump::views;
       // Make views (we know beforehand which types to make)
       auto coordsetView = make_explicit_coordset<float, NDIMS>::view(n_coordset);
       using CoordsetView = decltype(coordsetView);
@@ -82,6 +83,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
     else if(method == "elvira")
     {
       // Make views (we know beforehand which types to make)
+      using namespace axom::bump::views;
       auto coordsetView = make_explicit_coordset<float, NDIMS>::view(n_coordset);
       using CoordsetView = decltype(coordsetView);
 
@@ -104,7 +106,7 @@ int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit:
 
   {
     AXOM_ANNOTATE_SCOPE("device->host");
-    bputils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
+    utils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
   }
 
   return 0;
