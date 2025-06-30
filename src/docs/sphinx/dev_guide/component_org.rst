@@ -308,6 +308,12 @@ from a *cpp* file that describes C++ functions and their interfaces.
 Please refer to the `nanobind documentation <https://nanobind.readthedocs.io/en/latest/>`_ for more information.
 
 
+.. note:: The Python interface requires Axom to be configured with nanobind
+          to build and use the interface. This requirement is different from shroud,
+          which generates interface files. Once shroud generates the interface
+          files, users are not required to configure Axom with shroud to use the
+          Fortran interface.
+
 ====================================
 Documentation
 ==================================== 
