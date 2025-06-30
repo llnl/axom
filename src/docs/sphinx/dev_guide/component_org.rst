@@ -314,6 +314,9 @@ Please refer to the `nanobind documentation <https://nanobind.readthedocs.io/en/
           files, users are not required to configure Axom with shroud to use the
           Fortran interface.
 
+.. warning:: nanobind's numpy interface does not currently support
+             `arbitrary Python objects <https://nanobind.readthedocs.io/en/latest/ndarray.html#limitations-related-to-dtypes>`_.
+
 ====================================
 Documentation
 ==================================== 
