@@ -69,8 +69,8 @@ def test_get_datastore():
 
 	assert grp.getDataStore() == ds
 
-	const_ds = grp.getDataStore()
-	assert const_ds == ds
+	other_ds = grp.getDataStore()
+	assert other_ds == ds
 
 
 # Verify getGroup()
