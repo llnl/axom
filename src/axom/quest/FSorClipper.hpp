@@ -60,8 +60,6 @@ public:
   axom::ArrayView<const Point2DType> getSorCurve() const
     { return m_sorCurve.view(); }
 
-  bool getCurveWithAxisPoints(axom::Array<Point2DType>& curveWithAxisPoints);
-
   //@{
   //! @name Utilities shared with SorClipper for handling SOR.
   /*!

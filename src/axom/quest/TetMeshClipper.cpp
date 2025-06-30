@@ -94,7 +94,7 @@ void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
   int allocId = shapeeMesh.getAllocatorID();
   auto cellCount = shapeeMesh.getCellCount();
 
-  // Copy m_bpMesh array data to allocId if it's not done yet.
+  // Copy m_tetMesh array data to allocId if it's not done yet.
   copy_tetmesh_arrays_to(allocId);
 
   if(labels.size() < cellCount || labels.getAllocatorID() != allocId)
@@ -374,8 +374,8 @@ void TetMeshClipper::computeTets()
   */
 
   axom::sidre::DataStore ds;
-  auto* bpMeshGrp = ds.getRoot()->createGroup("blueprintMesh");
-  bpMeshGrp->importConduitTree(m_bpMesh);
+  auto* tetMeshGrp = ds.getRoot()->createGroup("blueprintMesh");
+  tetMeshGrp->importConduitTree(m_tetMesh);
 
   const bool addExtraDataForMint = true;
   if(addExtraDataForMint)
@@ -386,9 +386,9 @@ void TetMeshClipper::computeTets()
       passes conduit's Blueprint verification.)  This should be fixed,
       or we should write better blueprint support utilities.
     */
-    auto* topoGrp = bpMeshGrp->getGroup("topologies")->getGroup(m_topoName);
+    auto* topoGrp = tetMeshGrp->getGroup("topologies")->getGroup(m_topoName);
     auto* coordValuesGrp =
-      bpMeshGrp->getGroup("coordsets")->getGroup(m_coordsetName)->getGroup("values");
+      tetMeshGrp->getGroup("coordsets")->getGroup(m_coordsetName)->getGroup("values");
     /*
       Make the coordinate arrays 2D to use mint::Mesh.
       For some reason, mint::Mesh requires the arrays to be
@@ -423,13 +423,13 @@ void TetMeshClipper::computeTets()
     }
 
     // mint::Mesh requires field group, even though Blueprint doesn't.
-    if(!bpMeshGrp->hasGroup("fields"))
+    if(!tetMeshGrp->hasGroup("fields"))
     {
-      bpMeshGrp->createGroup("fields");
+      tetMeshGrp->createGroup("fields");
     }
   }
   std::shared_ptr<mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>> mintMesh {
-    (mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>*)axom::mint::getMesh(bpMeshGrp,
+    (mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>*)axom::mint::getMesh(tetMeshGrp,
                                                                                      m_topoName)};
 
   // Initialize tetrahedra
@@ -452,15 +452,15 @@ void TetMeshClipper::extractClipperInfo()
 {
   m_topoName = m_info.fetch_existing("topologyName").as_string();
 
-  m_bpMesh = m_info.fetch_existing("klee::Geometry:tetMesh");
+  m_tetMesh = m_info.fetch_existing("klee::Geometry:tetMesh");
 
   SLIC_ASSERT(
-    m_bpMesh.fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("type").as_string() ==
+    m_tetMesh.fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("type").as_string() ==
     "unstructured");
 
-  conduit::Node& topoNode = m_bpMesh.fetch_existing("topologies").fetch_existing(m_topoName);
+  conduit::Node& topoNode = m_tetMesh.fetch_existing("topologies").fetch_existing(m_topoName);
 
-  bool isMultiDomain = conduit::blueprint::mesh::is_multi_domain(m_bpMesh);
+  bool isMultiDomain = conduit::blueprint::mesh::is_multi_domain(m_tetMesh);
   SLIC_ERROR_IF(isMultiDomain, "TetMeshClipper does not support multi-domain tet meshes yet.");
 
   SLIC_ASSERT(conduit::blueprint::mesh::topology::dims(topoNode) == 3);
@@ -473,9 +473,9 @@ void TetMeshClipper::extractClipperInfo()
 void TetMeshClipper::transformCoordset()
 {
   // Apply transformations
-  auto& oldCoordset = m_bpMesh.fetch_existing("coordsets").fetch_existing(m_coordsetName);
+  auto& oldCoordset = m_tetMesh.fetch_existing("coordsets").fetch_existing(m_coordsetName);
   const std::string newCoordsetName = m_coordsetName + ".trans";
-  conduit::Node& coordset = m_bpMesh.fetch("coordsets")[newCoordsetName];
+  conduit::Node& coordset = m_tetMesh.fetch("coordsets")[newCoordsetName];
   coordset.set_node(oldCoordset);
   auto transformer = m_transformer;
   conduit::index_t count = conduit::blueprint::mesh::coordset::length(coordset);
@@ -486,7 +486,7 @@ void TetMeshClipper::transformCoordset()
       transformer.transform(xV[i], yV[i], zV[i]);
       m_tetMeshBb.addPoint(Point3DType{xV[i], yV[i], zV[i]});
     });
-  m_bpMesh.fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("coordset").set_string(newCoordsetName);
+  m_tetMesh.fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("coordset").set_string(newCoordsetName);
   m_coordsetName = newCoordsetName;
 }
 
@@ -536,29 +536,14 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   constexpr axom::IndexType VERTS_PER_TET = 4;
   constexpr axom::IndexType VERTS_PER_FACE = 3;
 
-#if 0
-  conduit::Node* bpMesh = m_bpMesh;
-  if(!axom::execution_space<ExecSpace>::usesAllocId(axom::ConduitMemory::conduitAllocIdToAxom(bpMesh->allocator())))
-  {
-    SLIC_WARNING("Cannot guarantee Conduit memory is compatible with ExecSpace."
-                 "  Possible fix: (1) shallow-copy to Group.  (2) selectively"
-                 " reallocate some Views using reallocateTo, with a lambda"
-                 " like hostAllocForScalarAndStringViews in quest_shape_in_memory.cpp");
-    // This probably won't work because string values will also be on device.
-    bpMesh = new conduit::Node();
-    bpMesh->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(allocId));
-    bpMesh->set_node(*m_bpMesh);
-  }
-#endif
-
   const std::string topoName = axom::fmt::format("{}.{}", m_topoName, allocId);
-  conduit::Node& tetTopo = m_bpMesh["topologies"][topoName];
+  conduit::Node& tetTopo = m_tetMesh["topologies"][topoName];
   conduit::Node& tetVertConn = tetTopo.fetch_existing("elements").fetch_existing("connectivity");
   const auto tetVertConnView = bumpUtils::make_array_view<axom::IndexType>(tetVertConn);
   bumpViews::UnstructuredTopologySingleShapeView<bumpShape> topoView(tetVertConnView);
 
-  conduit::Node& polyTopo = m_bpMesh["topologies"]["polyhedral"];
-  make_polyhedral_topology<ExecSpace>(m_bpMesh, tetTopo, polyTopo);
+  conduit::Node& polyTopo = m_tetMesh["topologies"]["polyhedral"];
+  make_polyhedral_topology<ExecSpace>(tetTopo, polyTopo);
   const auto& faceVertConn = polyTopo.fetch_existing("subelements/connectivity");
   const axom::IndexType faceCount = faceVertConn.dtype().number_of_elements()/VERTS_PER_FACE;
   const auto faceVertsView = bumpUtils::make_array_view<axom::IndexType>(faceVertConn);
@@ -569,7 +554,7 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   SLIC_ASSERT(polyElemFaceView.size() == m_tetCount * FACES_PER_TET);
 
   const std::string coordsName = polyTopo["coordset"].as_string();
-  const conduit::Node& coordsNode = m_bpMesh.fetch_existing("coordsets").fetch_existing(coordsName);
+  const conduit::Node& coordsNode = m_tetMesh.fetch_existing("coordsets").fetch_existing(coordsName);
   auto xs = bumpUtils::make_array_view<double>(coordsNode["values/x"]);
   auto ys = bumpUtils::make_array_view<double>(coordsNode["values/y"]);
   auto zs = bumpUtils::make_array_view<double>(coordsNode["values/z"]);
@@ -683,7 +668,7 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
     });
 
 #if 0
-  if(bpMesh != m_bpMesh) { delete bpMesh; } // Delete temporary.
+  if(tetMesh != m_tetMesh) { delete tetMesh; } // Delete temporary.
 #endif
 
   return surfTris;
@@ -735,7 +720,6 @@ void TetMeshClipper::writeTrianglesToVTK(
 
 template<typename ExecSpace>
 void TetMeshClipper::make_polyhedral_topology(
-  const conduit::Node& tetMesh,
   conduit::Node& tetTopo,
   conduit::Node& polyTopo)
 {
@@ -754,19 +738,19 @@ void TetMeshClipper::make_polyhedral_topology(
   bump::MergePolyhedralFaces<ExecSpace, ConnectivityType>::execute(polyTopo);
 }
 
+/*
+  Copy a conduit Node, with special allocator ids for new arrays.
+*/
 void TetMeshClipper::copy_node_with_array_allocator(conduit::Node& src,
                                                     conduit::Node& dst,
-                                                    conduit::index_t conduitAllocId)
+                                                    conduit::index_t conduitArrayAllocId)
 {
   if(src.number_of_children() == 0) // Leaf node
   {
-    // use conduitAllocId for arrays and the source's allocator for scalars.
     auto& srcDtype = src.dtype();
-    auto numElem = srcDtype.number_of_elements();
-    auto isString = srcDtype.is_string();
-    if(src.dtype().number_of_elements() > 1 && !src.dtype().is_string())
+    if(srcDtype.number_of_elements() > 1 && !srcDtype.is_string())
     {
-      dst.set_allocator(conduitAllocId);
+      dst.set_allocator(conduitArrayAllocId);
     }
     else { dst.set_allocator(src.allocator()); }
     dst.set(src);
@@ -777,7 +761,7 @@ void TetMeshClipper::copy_node_with_array_allocator(conduit::Node& src,
     {
       conduit::Node& childSrc = src[name];
       conduit::Node& childDst = dst[name];
-      copy_node_with_array_allocator(childSrc, childDst, conduitAllocId);
+      copy_node_with_array_allocator(childSrc, childDst, conduitArrayAllocId);
     }
   }
   return;
@@ -793,13 +777,13 @@ void TetMeshClipper::copy_hierarchy_with_array_allocator(conduit::Node& hierarch
   conduit::Node& src = hierarchy.fetch_existing(srcPath);
   conduit::Node& dst = hierarchy[dstPath];
 
-  const conduit::index_t conduitAllocId = axom::ConduitMemory::axomAllocIdToConduit(allocId);
-  copy_node_with_array_allocator(src, dst, conduitAllocId);
+  const conduit::index_t conduitArrayAllocId = axom::ConduitMemory::axomAllocIdToConduit(allocId);
+  copy_node_with_array_allocator(src, dst, conduitArrayAllocId);
   return;
 }
 
 /*
-  Copy m_bpMesh array data into allocId if it's not there yet.
+  Copy m_tetMesh array data into allocId if it's not there yet.
   (Copy only the arrays this object uses: coordset and connectivity.)
   We give new array data keys "<oldKey>.<allocId>".
   If the new array exists, no need to redo it.
@@ -811,10 +795,10 @@ void TetMeshClipper::copy_tetmesh_arrays_to(int allocId)
   const std::string newTopoPath = axom::fmt::format("{}.{}", oldTopoPath, allocId);
   const std::string newCoordsetPath = axom::fmt::format("{}.{}", oldCoordsetPath, allocId);
 
-  copy_hierarchy_with_array_allocator(m_bpMesh, oldTopoPath, newTopoPath, allocId);
-  copy_hierarchy_with_array_allocator(m_bpMesh, oldCoordsetPath, newCoordsetPath, allocId);
+  copy_hierarchy_with_array_allocator(m_tetMesh, oldTopoPath, newTopoPath, allocId);
+  copy_hierarchy_with_array_allocator(m_tetMesh, oldCoordsetPath, newCoordsetPath, allocId);
 
-  m_bpMesh[newTopoPath + "/coordset"].set(axom::fmt::format("{}.{}", m_coordsetName, allocId));
+  m_tetMesh[newTopoPath + "/coordset"].set(axom::fmt::format("{}.{}", m_coordsetName, allocId));
 }
 
 // Run cellKernel through a cell loop.

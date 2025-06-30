@@ -56,7 +56,7 @@ private:
   std::string m_coordsetName;
 
   //! @brief Tet mesh in Blueprint format.
-  conduit::Node m_bpMesh;
+  conduit::Node m_tetMesh;
 
   //! @brief Bounding box of the tet mesh.
   axom::primal::BoundingBox<double, 3> m_tetMeshBb;
@@ -86,7 +86,7 @@ private:
   void computeTets();
 
   //@{
-  //!@name For computing surface of m_bpMesh.
+  //!@name For computing surface of m_tetMesh.
   /*!
     @brief Entry point for computing geometry surface.
 
@@ -100,8 +100,7 @@ private:
 
   //!@brief Add a polyhedral topology to an unstructured tet mesh.
   template <typename ExecSpace>
-  void make_polyhedral_topology(const conduit::Node& inputBp,
-                                conduit::Node& tetTopo,
+  void make_polyhedral_topology(conduit::Node& tetTopo,
                                 conduit::Node& polyTopo);
 
   //!@brief Write out for debugging

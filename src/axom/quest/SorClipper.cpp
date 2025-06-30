@@ -52,7 +52,7 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   FSorClipper::combineRadialSegments(m_sorCurve);
 
   axom::Array<axom::Array<Point2DType>> sections;
-  splitMonotonicSections(m_sorCurve.view(), sections);
+  splitIntoMonotonicSections(m_sorCurve.view(), sections);
   for(int i = 0; i < sections.size(); ++i)
   {
     axom::ArrayView<const Point2DType> section = sections[i].view();
@@ -70,6 +70,18 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
 bool SorClipper::specializedClip(quest::ShapeeMesh& shapeeMesh,
                                  axom::ArrayView<double> ovlap)
 {
+  /*
+    The SOR curve has been split into SOR functions that do not double
+    back on itself.  We compute the overlaps for each section and
+    accumulate them with the correct sign.  (Functions going backward
+    remove stuff from the functions above them, so they contribute a
+    negative volume.)
+
+    By convention, backward curves should generate negative volume,
+    but for some reason, the cone discretization functionality always
+    generates positive volumes.  We correct this by manually applying
+    the correct sign.
+  */
   const axom::IndexType cellCount = ovlap.size();
   axom::Array<double> tmpOvlap(cellCount, cellCount, ovlap.getAllocatorID());
   for(auto& fsorStrategy : m_fsorStrategies)
@@ -78,12 +90,6 @@ bool SorClipper::specializedClip(quest::ShapeeMesh& shapeeMesh,
     GeometryClipper clipper(shapeeMesh, fsorStrategy);
     clipper.setVerbose(true);
     clipper.clip(tmpOvlap);
-    /*
-      We add or subtract the volume depending on whether the SOR curve
-      goes backward.  By convention, backward curves should generate
-      negative volume, but for some reason, the cone discretization
-      functionality always generates positive volumes.
-    */
     auto sorCurve = fsorStrategy->getSorCurve();
     int sign = axom::utilities::sign_of(sorCurve[sorCurve.size()-1][0] - sorCurve[0][0], 0.0);
     accumulateData( ovlap, tmpOvlap.view(), double(sign),
@@ -94,15 +100,15 @@ bool SorClipper::specializedClip(quest::ShapeeMesh& shapeeMesh,
 
 /*
   Split curve into sections that goes monotonically up or down the
-  axis.  If x changes directions at a radial segment, split at the end
-  with greater y value.  A radial segment is one with constant x (z),
-  pointing in the y (radial) direction.
+  axis of symmetry.  If x changes directions at a radial segment,
+  split at the end with greater y value.  A radial segment is one with
+  constant x (or z), pointing in the y (or radial) direction.
 
   This method assumes there are no consecutive radial segments
   (combineRadialSegments has been called on pts).
 */
-void SorClipper::splitMonotonicSections(axom::ArrayView<const Point2DType> pts,
-                                        axom::Array<axom::Array<Point2DType>>& sections)
+void SorClipper::splitIntoMonotonicSections(axom::ArrayView<const Point2DType> pts,
+                                            axom::Array<axom::Array<Point2DType>>& sections)
 {
   axom::Array<axom::IndexType> splitIdx =
     FSorClipper::findZSwitchbacks(pts);

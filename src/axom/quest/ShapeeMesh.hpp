@@ -66,10 +66,12 @@ public:
 
     It is an error if allocator id is not usable with the runtime policy.
     If @c allocatorId is axom::INVALID_ALLOCATOR_ID, the default
-    allocator for the runtime policy will be used.
+    allocator for the runtime policy will be used.  For performant
+    results, especially on GPUs, fast memory pools should be used.
 
-    Mesh array data are assumed to be accessible by the runtime policy,
-    but they need not correspond to the allocator id.
+    Incoming mesh array data are assumed to be accessible by the
+    runtime policy, or an error will result.  (However the data need
+    not correspond to the allocator id.)
 
     Because @c conduit::Node doesn't support application-specified
     allocator id for (only) arrays, the incoming @c bpNode must have

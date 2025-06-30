@@ -244,6 +244,9 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
   - m_bbOn has 3 boxes.  One for the base plane, one for the top
     plane and one for the m_sorCurve.
   - m_bbUnder has only the boxes under m_sorCurve.
+  - TODO: Improve clustering efficiency by dividing large m_bbOn boxes.
+    Try limiting x-component of segment size to about ~3-5x cell
+    characterictic length.
 */
 void FSorClipper::clusterSorFunction()
 {
@@ -271,8 +274,10 @@ void FSorClipper::clusterSorFunction()
                                 });
 }
 
-// TODO: Factor out execution-space-specific computations into a template method,
-// instead of computing on host and copying to GPU.
+/*
+  TODO: Factor out execution-space-specific computations into a template method,
+  instead of computing on host and copying to GPU.
+*/
 bool FSorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
 {
   AXOM_ANNOTATE_BEGIN("FSorClipper::getGeometryAsOcts");
@@ -330,40 +335,6 @@ bool FSorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<O
   return true;
 }
 
-bool FSorClipper::getCurveWithAxisPoints(axom::Array<Point2DType>& curveWithAxisPoints)
-{
-  /*
-    The function is considered a loop if the first and last points are
-    close to each other.  If not a loop, add a point to each end to
-    bring the curve down to the axis of rotation.
-  */
-  const double eps = 1e-12;
-  auto ptCount = m_sorCurve.size();
-  Point2DType firstPt =  m_sorCurve.front();
-  Point2DType lastPt = m_sorCurve.back();
-  double sep = Segment2DType(firstPt, lastPt).length();
-  bool isLoop = sep < eps;
-  if (!isLoop) {
-    bool addFirst = firstPt[1] > eps;
-    bool addLast = lastPt[1] > eps;
-    auto newPtCount = ptCount + addFirst + addLast;
-    curveWithAxisPoints = axom::Array<Point2DType>(newPtCount, newPtCount);
-    axom::copy((curveWithAxisPoints.data() + addFirst),
-               m_sorCurve.data(),
-               m_sorCurve.size() * sizeof(Point2DType));
-    if(addFirst)
-    {
-      curveWithAxisPoints.front() = Point2DType({firstPt[0], 0.0});
-    }
-    if(addLast)
-    {
-      curveWithAxisPoints.back() = Point2DType({lastPt[0], 0.0});
-    }
-    return true;
-  }
-  return false;
-}
-
 /*
   Combine consecutive radial segments in SOR curve.  Change in place.
 */
@@ -401,9 +372,9 @@ void FSorClipper::combineRadialSegments(axom::Array<Point2DType>& sorCurve)
   Cases 1 and 2 below show changes, (at point o).  Case 3 shows a
   potential change at the radial segment, but not a real change.
   (Radial segments have constant z and align with the radial
-  direction.)  Defer to the next segment to differentiate between
-  cases 2 and 3.  For case 2, prefer to split at the point closer to
-  the axis of rotation.
+  direction.)  To decide between cases 2 and 3, defer until the
+  segment after the radial segment.  For case 2, prefer to split at
+  the point closer to the axis of rotation.
 
      r   ^
   (or y) |    (1)         (2)         (3)

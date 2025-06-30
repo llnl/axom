@@ -106,8 +106,8 @@ private:
   // Extract clipper info from GeometryClipperStrategy::m_info.
   void extractClipperInfo();
 
-  void splitMonotonicSections(axom::ArrayView<const Point2DType> pts,
-                              axom::Array<axom::Array<Point2DType>>& sections);
+  void splitIntoMonotonicSections(axom::ArrayView<const Point2DType> pts,
+                                  axom::Array<axom::Array<Point2DType>>& sections);
 
   void initializeFSorClippers();
 };
