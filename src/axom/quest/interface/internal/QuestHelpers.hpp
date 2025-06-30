@@ -11,8 +11,8 @@
 #include "axom/slic.hpp"
 #include "axom/mint/mesh/Mesh.hpp"
 #include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
-#include "axom/quest/readers/STLReader.hpp"
-#include "axom/quest/readers/ProEReader.hpp"
+#include "axom/quest/io/STLReader.hpp"
+#include "axom/quest/io/ProEReader.hpp"
 
 // C/C++ includes
 #include <string>
