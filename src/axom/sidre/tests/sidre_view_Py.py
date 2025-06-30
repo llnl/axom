@@ -148,7 +148,7 @@ def test_scalar_view():
 	assert s1 == s2
 
 
-
+# Test functions that are commented out in Fortran's "main" method, but unimplemented.
 #def test_dealloc():
 
 #def test_alloc_zero_items():
