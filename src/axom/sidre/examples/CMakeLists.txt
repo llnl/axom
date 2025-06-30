@@ -17,7 +17,7 @@ set(example_sources
 
 if(AXOM_ENABLE_MPI)
     set (example_parallel_sources
-         sidre_array.cpp
+         sidre_mcarray.cpp
          sidre_createdatastore.cpp
          sidre_external_array.cpp
          sidre_generateindex.cpp)
