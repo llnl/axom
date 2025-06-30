@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/quest/readers/STLReader.hpp"
+#include "axom/quest/io/STLReader.hpp"
 
 // Axom includes
 #include "axom/core/utilities/Utilities.hpp"

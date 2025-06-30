@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/quest/readers/C2CReader.hpp"
+#include "axom/quest/io/C2CReader.hpp"
 
 #ifndef AXOM_USE_C2C
   #error C2CReader should only be included when Axom is configured with C2C
