@@ -101,13 +101,23 @@ private:
   //!@brief Add a polyhedral topology to an unstructured tet mesh.
   template <typename ExecSpace>
   void make_polyhedral_topology(const conduit::Node& inputBp,
-                                conduit::Node& outputBp);
+                                conduit::Node& tetTopo,
+                                conduit::Node& polyTopo);
 
   //!@brief Write out for debugging
   void writeTrianglesToVTK(
     const axom::Array<Triangle3DType>& triangles,
     const std::string& filename);
   //@}
+
+  void copy_node_with_array_allocator(conduit::Node& src,
+                                      conduit::Node& dst,
+                                      conduit::index_t conduitAllocId);
+  void copy_hierarchy_with_array_allocator(conduit::Node& hierarchy,
+                                           const std::string& srcPath,
+                                           const std::string& dstPath,
+                                           int allocId);
+  void copy_tetmesh_arrays_to(int allocId);
 };
 
 }  // namespace quest

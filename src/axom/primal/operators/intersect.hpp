@@ -145,7 +145,7 @@ bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray, T& t)
  * \note \a t and \a p only valid when function returns true
  */
 template <typename T>
-bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray, T& t, Point<double, 3>& p)
+AXOM_HOST_DEVICE bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray, T& t, Point<double, 3>& p)
 {
   bool retval = detail::intersect_tri_ray(tri, ray, t, p);
 
