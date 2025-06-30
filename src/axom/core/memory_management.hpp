@@ -139,8 +139,6 @@ inline int getAllocatorIDFromPointer(const void* ptr)
     return allocator.getId();
   }
 #endif
-  // TODO: How to distinguish between dynamic and malloc allocators?
-  // Can they coexist?
   AXOM_UNUSED_VAR(ptr);
   return MALLOC_ALLOCATOR_ID;
 }
