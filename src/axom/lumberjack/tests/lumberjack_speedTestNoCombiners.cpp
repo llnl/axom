@@ -57,7 +57,7 @@ int main()
 
   for(int i = 0; i < 100000; i++)
   {
-    lumberjack.queueMessage("Should not be combined.");
+    lumberjack.queueMessage("Should not be combined.", static_cast<double>(i));
   }
 
   std::clock_t begin = clock();

@@ -14,7 +14,6 @@
 #ifndef MESSAGE_HPP
 #define MESSAGE_HPP
 
-#include <mpi.h>
 #include <cstring>
 #include <ctime>
 #include <string>
@@ -97,6 +96,7 @@ public:
           const std::string& fileName,
           int lineNumber,
           int level,
+          double creationTime,
           const std::string& tag)
     : m_text(text)
     , m_ranks(1, rank)
@@ -105,7 +105,7 @@ public:
     , m_fileName(fileName)
     , m_lineNumber(lineNumber)
     , m_level(level)
-    , m_creationTime(MPI_Wtime())
+    , m_creationTime(creationTime)
     , m_tag(tag)
   { }
 
@@ -132,6 +132,7 @@ public:
           const std::string& fileName,
           int lineNumber,
           int level,
+          double creationTime,
           const std::string& tag)
     : m_text(text)
     , m_ranks()
@@ -140,7 +141,7 @@ public:
     , m_fileName(fileName)
     , m_lineNumber(lineNumber)
     , m_level(level)
-    , m_creationTime(MPI_Wtime())
+    , m_creationTime(creationTime)
     , m_tag(tag)
   {
     addRanks(ranks, count, ranksLimit);

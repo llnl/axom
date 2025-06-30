@@ -171,7 +171,8 @@ public:
    *
    *****************************************************************************
    */
-  void queueMessage(const std::string& text);
+  void queueMessage(const std::string& text,
+                    double creationTime = 0.0);
 
   /*!
    *****************************************************************************
@@ -194,6 +195,34 @@ public:
                     const std::string& fileName,
                     const int lineNumber,
                     int level,
+                    double creationTime,
+                    const std::string& tag);
+
+  /*!
+   *****************************************************************************
+   * \brief Queues a message to be sent and combined
+   *
+   * This creates a Message and queues it to be sent through the Communicator
+   * to the root node with a pre-existing ranks list.  This message may be 
+   * combined with others depending on the given criteria by the already defined 
+   * Combiner classes. Depending on the behavior of the Communicator, the message 
+   * will not be outputted immediately.
+   *
+   * \param [in] text Text of the Message
+   * \param [in] text Ranks list
+   * \param [in] fileName File name of Message
+   * \param [in] lineNumber Line number of Message
+   * \param [in] level The level of the severity of the Message.
+   * \param [in] tag The tag of where the Message originated.
+   *****************************************************************************
+   */
+  void queueMessage(const std::string& text,
+                    const std::vector<int>& ranks,
+                    const int count,
+                    const std::string& fileName,
+                    const int lineNumber,
+                    int level,
+                    double creationTime,
                     const std::string& tag);
 
   /*!

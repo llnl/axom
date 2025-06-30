@@ -113,15 +113,30 @@ void Lumberjack::clearMessages()
   m_messages.clear();
 }
 
-void Lumberjack::queueMessage(const std::string& text) { queueMessage(text, "", -1, 0, ""); }
+void Lumberjack::queueMessage(const std::string& text, 
+                              double creationTime) { queueMessage(text, "", -1, 0, creationTime, ""); }
 
 void Lumberjack::queueMessage(const std::string& text,
                               const std::string& fileName,
                               const int lineNumber,
                               int level,
+                              double creationTime,
                               const std::string& tag)
 {
-  Message* mi = new Message(text, m_communicator->rank(), fileName, lineNumber, level, tag);
+  Message* mi = new Message(text, m_communicator->rank(), fileName, lineNumber, level, creationTime, tag);
+  m_messages.push_back(mi);
+}
+
+void Lumberjack::queueMessage(const std::string& text,
+                              const std::vector<int>& ranks,
+                              const int count,
+                              const std::string& fileName,
+                              const int lineNumber,
+                              int level,
+                              double creationTime,
+                              const std::string& tag)
+{
+  Message* mi = new Message(text, ranks, count, m_ranksLimit, fileName, lineNumber, level, creationTime, tag);
   m_messages.push_back(mi);
 }
 
