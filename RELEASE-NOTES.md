@@ -42,6 +42,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds ability to perform sample-based shaping on tetrahedral shapes.
 - Improves efficiency of volume fraction computation from quadrature samples during sample-based shaping.
 - Adds a `axom::DeviceHash` type as a GPU-enabled version of the `std::hash` interface.
+- Added a new `quest::STLWriter` class that writes mint meshes to STL format.
 - Adds `assign` methods to `axom::Array`.
 - Adds `assign`, `fill`, `set` methods to `axom::ArrayView`.
 
@@ -55,6 +56,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - The `primal::BoundingBox` class' `expand()` and `shift()` methods were modified so they do
   nothing when called on invalid bounding boxes.
 - Updates to [MFEM version 4.8.0][https://github.com/mfem/mfem/releases/tag/v4.8]
+- Readers in Quest were moved from a `quest/readers` directory to `quest/io`.
 
 ###  Fixed
 - Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled

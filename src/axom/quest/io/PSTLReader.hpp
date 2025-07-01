@@ -8,7 +8,7 @@
 
 #include "axom/config.hpp"
 #include "axom/core/Macros.hpp"
-#include "axom/quest/readers/STLReader.hpp"  // base class
+#include "axom/quest/io/STLReader.hpp"  // base class
 
 #include "mpi.h"
 

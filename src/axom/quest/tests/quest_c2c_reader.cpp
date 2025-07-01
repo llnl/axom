@@ -9,7 +9,7 @@
   #error These tests should only be included when Axom is configured with C2C
 #endif
 
-#include "axom/quest/readers/C2CReader.hpp"
+#include "axom/quest/io/C2CReader.hpp"
 #include "axom/slic.hpp"
 #include "axom/mint.hpp"
 #include "axom/primal.hpp"
