@@ -24,10 +24,7 @@ namespace axom
 namespace lumberjack
 {
 
-// Message to indicate no messages need to be sent from child node.
-// Global workaround:
-// https://rzlc.llnl.gov/jira/browse/ELCAP-851
-char zeroMessage[] = "0";
+std::string zeroMessage() { return "0"; }
 
 //Getters
 
@@ -272,7 +269,11 @@ const char* packMessages(const std::vector<Message*>& messages)
 {
   if(messages.size() == 0)
   {
-    return zeroMessage;
+    // Allocate space for zero and null character
+    char* zeroString = new char[zeroMessage().size() + 1];
+    std::memcpy(zeroString, zeroMessage().c_str(), zeroMessage().size());
+    zeroString[zeroMessage().size()] = '\0';
+    return zeroString;
   }
 
   int totalSize = 1;  // include size for null terminator

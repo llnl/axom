@@ -75,9 +75,7 @@ void BinaryTreeCommunicator::push(const char* packedMessagesToBeSent,
   {
     if(isPackedMessagesEmpty(packedMessagesToBeSent))
     {
-      // Message to indicate no messages need to be sent from child node.
-      const char zeroMessage[] = "0";
-      mpiNonBlockingSendMessages(m_mpiComm, m_parentRank, zeroMessage);
+      mpiNonBlockingSendMessages(m_mpiComm, m_parentRank, zeroMessage().c_str());
     }
     else
     {
