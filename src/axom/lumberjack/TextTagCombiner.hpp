@@ -87,7 +87,8 @@ public:
   void combine(Message& combined, const Message& combinee, const int ranksLimit)
   {
     combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
-    if (combinee.creationTime() < combined.creationTime()) {
+    if(combinee.creationTime() < combined.creationTime())
+    {
       combined.creationTime(combinee.creationTime());
     }
   }

@@ -171,8 +171,7 @@ public:
    *
    *****************************************************************************
    */
-  void queueMessage(const std::string& text,
-                    double creationTime = 0.0);
+  void queueMessage(const std::string& text, double creationTime = 0.0);
 
   /*!
    *****************************************************************************
