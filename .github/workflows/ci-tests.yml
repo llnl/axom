@@ -85,6 +85,7 @@ jobs:
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -U CALIPER_DIR -U ADIAK_DIR'
             do_build: 'yes'
             do_benchmarks: 'no'
+      max-parallel: 5
     name: ${{ matrix.build_type }} - ${{ matrix.config.job_name }}
     container:
       image: ${{ matrix.config.compiler_image }}
