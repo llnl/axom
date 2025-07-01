@@ -313,21 +313,10 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::ShapeeMesh& shapeeMesh, axom::Arr
 {
   const int allocId = shapeeMesh.getAllocatorID();
 
-  if(octs.getAllocatorID() != allocId || octs.size() != 0)
-  {
-    octs = axom::Array<OctahedronType>(0, 0, allocId);
-  }
-
-  if(m_sorCurve.getAllocatorID() != allocId)
-  {
-    m_sorCurve = axom::Array<Point2DType>(m_sorCurve, allocId);
-  }
-  axom::ArrayView<Point2D> sorCurveView = m_sorCurve.view();
-
   // Generate the Octahedra
   int octCount = 0;
-  const bool good = axom::quest::discretize<ExecSpace>(sorCurveView,
-                                                       int(sorCurveView.size()),
+  const bool good = axom::quest::discretize<ExecSpace>(m_sorCurve.view(),
+                                                       int(m_sorCurve.size()),
                                                        m_levelOfRefinement,
                                                        octs,
                                                        octCount);

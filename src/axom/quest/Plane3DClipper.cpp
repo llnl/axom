@@ -21,7 +21,7 @@ Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom, const std::string& n
 
 bool Plane3DClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_BEGIN("Plane3DClipper::labelInOut");
+  AXOM_ANNOTATE_SCOPE("Plane3DClipper::labelInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -45,7 +45,6 @@ bool Plane3DClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   default:
     SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
   }
-  AXOM_ANNOTATE_END("Plane3DClipper::labelInOut");
   return true;
 }
 
@@ -53,7 +52,7 @@ bool Plane3DClipper::specializedClip(quest::ShapeeMesh& shapeeMesh,
                                      axom::ArrayView<double> ovlap,
                                      const axom::ArrayView<IndexType>& cellIds)
 {
-  AXOM_ANNOTATE_BEGIN("Plane3DClipper::specializedClip");
+  AXOM_ANNOTATE_SCOPE("Plane3DClipper::specializedClip");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -77,7 +76,6 @@ bool Plane3DClipper::specializedClip(quest::ShapeeMesh& shapeeMesh,
   default:
     SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
   }
-  AXOM_ANNOTATE_END("Plane3DClipper::specializedClip");
   return true;
 }
 

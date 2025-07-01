@@ -37,10 +37,6 @@ public:
   /*!
     If a mesh cell has all vertices outside the geometry, it labeled outside.
     This will miss cases where an edge of the cell passes through the geometry.
-
-    TODO: Fix cell mislabled as outside.  For cells with all point
-    outside the geometry, also check all its edges to see if any
-    intersects the geometry.
   */
   bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 

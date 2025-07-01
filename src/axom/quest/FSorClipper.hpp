@@ -19,12 +19,13 @@ namespace quest
   @brief Geometry clipping operations for 3D
   surface-of-revolution geometries.
 
-  This implementation requires the SOR curve to be a function
-  (has monotonically changing axial coordinates).  For SOR curves
-  that are not functions, use SorClipper.
+  This implementation requires the SOR curve to be a function.
+  It requires axial coordinates to be monotonic but doesn't require
+  them to be strictly monotonic.  For SOR curves where the axial
+  coordinates change directions, use SorClipper.
 
-  The SOR specification may include rotation and translation
-  internally, in addition to any external transformation.
+  The SOR specification may include axis orientation and location
+  in addition to any external transformation.
 */
 class FSorClipper : public GeometryClipperStrategy
 {

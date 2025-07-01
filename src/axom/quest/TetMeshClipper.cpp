@@ -42,7 +42,7 @@ bool TetMeshClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
 
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "TetMeshClipper requires a 3D mesh.");
 
-  AXOM_ANNOTATE_BEGIN("TetMeshClipper::labelInOut");
+  AXOM_ANNOTATE_SCOPE("TetMeshClipper::labelInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -66,7 +66,6 @@ bool TetMeshClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   default:
     SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
   }
-  AXOM_ANNOTATE_END("TetMeshClipper::labelInOut");
   return true;
 }
 

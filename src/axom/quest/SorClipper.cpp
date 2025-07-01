@@ -70,6 +70,7 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
 bool SorClipper::specializedClip(quest::ShapeeMesh& shapeeMesh,
                                  axom::ArrayView<double> ovlap)
 {
+  AXOM_ANNOTATE_SCOPE("SorClipper::specializedClip");
   /*
     The SOR curve has been split into SOR functions that do not double
     back on itself.  We compute the overlaps for each section and
@@ -110,6 +111,7 @@ bool SorClipper::specializedClip(quest::ShapeeMesh& shapeeMesh,
 void SorClipper::splitIntoMonotonicSections(axom::ArrayView<const Point2DType> pts,
                                             axom::Array<axom::Array<Point2DType>>& sections)
 {
+  AXOM_ANNOTATE_SCOPE("SorClipper::splitIntoMonotonicSections");
   axom::Array<axom::IndexType> splitIdx =
     FSorClipper::findZSwitchbacks(pts);
 

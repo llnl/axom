@@ -45,7 +45,7 @@ TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
 
 bool TetClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_BEGIN("TetClipper::labelInOut");
+  AXOM_ANNOTATE_SCOPE("TetClipper::labelInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -69,7 +69,6 @@ bool TetClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType
   default:
     SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
   }
-  AXOM_ANNOTATE_END("TetClipper::labelInOut");
   return true;
 }
 
@@ -190,14 +189,13 @@ void TetClipper::vertexSignedDistToLabel(quest::ShapeeMesh& shapeeMesh,
 
 bool TetClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
 {
-  AXOM_ANNOTATE_BEGIN("TetClipper::getGeometryAsTets");
+  AXOM_ANNOTATE_SCOPE("TetClipper::getGeometryAsTets");
   int allocId = shapeeMesh.getAllocatorID();
   if(tets.getAllocatorID() != allocId || tets.size() != 1)
   {
     tets = axom::Array<TetrahedronType>(1, 1, allocId);
   }
   axom::copy(tets.data(), &m_tet, sizeof(TetrahedronType));
-  AXOM_ANNOTATE_END("TetClipper::getGeometryAsTets");
   return true;
 }
 
