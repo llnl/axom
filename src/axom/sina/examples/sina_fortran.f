@@ -1,6 +1,6 @@
 program example
   use sina_functions
-  use hdf5_config
+  use sina_hdf5_config
   implicit none
 
   ! data types

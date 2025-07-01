@@ -175,7 +175,7 @@ void Shaper::setFilePath(const std::string& filePath)
 void Shaper::setSamplesPerKnotSpan(int nSamples)
 {
   using axom::utilities::clampLower;
-  SLIC_WARNING_IF(
+  SLIC_WARNING_ROOT_IF(
     nSamples < 1,
     axom::fmt::format("Samples per knot span must be at least 1. Provided value was {}", nSamples));
 
@@ -184,7 +184,7 @@ void Shaper::setSamplesPerKnotSpan(int nSamples)
 
 void Shaper::setVertexWeldThreshold(double threshold)
 {
-  SLIC_WARNING_IF(
+  SLIC_WARNING_ROOT_IF(
     threshold <= 0.,
     axom::fmt::format("Vertex weld threshold should be positive Provided value was {}", threshold));
 
@@ -194,15 +194,16 @@ void Shaper::setVertexWeldThreshold(double threshold)
 void Shaper::setPercentError(double percent)
 {
   using axom::utilities::clampVal;
-  SLIC_WARNING_IF(percent <= MINIMUM_PERCENT_ERROR,
-                  axom::fmt::format("Percent error must be greater than {}. Provided value "
-                                    "was {}. Dynamic refinement will not be used.",
-                                    MINIMUM_PERCENT_ERROR,
-                                    percent));
-  SLIC_WARNING_IF(percent > MAXIMUM_PERCENT_ERROR,
-                  axom::fmt::format("Percent error must be less than {}. Provided value was {}",
-                                    MAXIMUM_PERCENT_ERROR,
-                                    percent));
+  SLIC_WARNING_ROOT_IF(percent <= MINIMUM_PERCENT_ERROR,
+                       axom::fmt::format("Percent error must be greater than {}. Provided value "
+                                         "was {}. Dynamic refinement will not be used.",
+                                         MINIMUM_PERCENT_ERROR,
+                                         percent));
+  SLIC_WARNING_ROOT_IF(
+    percent > MAXIMUM_PERCENT_ERROR,
+    axom::fmt::format("Percent error must be less than {}. Provided value was {}",
+                      MAXIMUM_PERCENT_ERROR,
+                      percent));
   if(percent <= MINIMUM_PERCENT_ERROR)
   {
     m_refinementType = DiscreteShape::RefinementUniformSegments;
@@ -237,8 +238,9 @@ void Shaper::loadShapeInternal(const klee::Shape& shape, double percentError, do
   SLIC_INFO_ROOT(
     axom::fmt::format("{:-^80}", axom::fmt::format(" Loading shape '{}' ", shape.getName())));
 
-  SLIC_ASSERT_MSG(this->isValidFormat(this->shapeFormat(shape)),
-                  axom::fmt::format("Shape has unsupported format: '{}", this->shapeFormat(shape)));
+  SLIC_ERROR_ROOT_IF(
+    !this->isValidFormat(this->shapeFormat(shape)),
+    axom::fmt::format("Shape has unsupported format: '{}", this->shapeFormat(shape)));
 
   // Code for discretizing shapes has been factored into DiscreteShape class.
   DiscreteShape discreteShape(shape, m_dataStore.getRoot(), m_prefixPath);
