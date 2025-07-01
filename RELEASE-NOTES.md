@@ -55,12 +55,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   nothing when called on invalid bounding boxes.
 - Updates to [MFEM version 4.8.0][https://github.com/mfem/mfem/releases/tag/v4.8]
 - Readers in Quest were moved from a `quest/readers` directory to `quest/io`.
-- Renames one of Sina's Fortran modules to `sina_hdf5_config` (from `hdf5_config`)
+- Sina: Renames a Fortran module to `sina_hdf5_config` (from `hdf5_config`)
 
 ###  Fixed
 - Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
   with GPU support. Instances where this occurs will now trigger a static assertion during compile time.
 - Fixes build with `ninja` generator
+- Primal: Fixes a `BoundingBox` constructor with zero (or fewer) points
 
 ###  Deprecated
 - Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.

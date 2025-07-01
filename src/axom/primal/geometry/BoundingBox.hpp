@@ -409,6 +409,7 @@ AXOM_HOST_DEVICE BoundingBox<T, NDIMS>::BoundingBox(const PointType* pts, int n)
   if(n <= 0)
   {
     clear();
+    return;
   }
   // sanity check:
   SLIC_ASSERT(pts != nullptr);
