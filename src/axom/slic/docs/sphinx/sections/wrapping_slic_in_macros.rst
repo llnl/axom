@@ -145,7 +145,17 @@ The table below details the built-in SLIC macros as well as some notes about whe
 
 Doxygen generated API documentation on Macros can be found here: `SLIC Macros <../../../../../doxygen/html/slic__macros_8hpp.html>`_
 
+Consider the following rules of thumb when choosing from the above logging macros:
 
+* The `SLIC_ABORT` and `SLIC_CHECK` macros are typically used to check preconditions/postconditions of functions
+  and help catch developer errors. They are only available in debug configurations (i.e. when `AXOM_DEBUG` is available).
+* `SLIC_WARNING` and `SLIC_ERROR` are available in all configurations and can be used to check for conditions that might affect the results.
+  They are also useful for validating user inputs.
+* `SLIC_INFO` and `SLIC_DEBUG` macros are typically used to provide information about the state of an application. 
+  The `SLIC_*_IF` variants can be used to conditionally log messages. `SLIC_DEBUG` macros are compiled out in non-debug configurations 
+  (i.e. their messages will not get logged), while `SLIC_INFO` macros are always available.
+* The `SLIC_*_ROOT` variants can help reduce logging verbosity when called in an MPI application, especially if all
+  MPI ranks are expected to have the same data (for example, if a value was broadcast from one rank to all the other ranks).
 
 
 .. #############################################################################
