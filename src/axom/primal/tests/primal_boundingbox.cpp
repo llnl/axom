@@ -63,7 +63,7 @@ TEST(primal_boundingBox, bb_default_constructor)
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_boundingBox, bb_ctor_from_zerPt)
+TEST(primal_boundingBox, bb_ctor_from_no_points)
 {
   constexpr int DIM = 3;
   using CoordType = double;
