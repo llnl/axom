@@ -42,6 +42,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Primal: Adds ability to perform sample-based shaping on tetrahedral shapes.
 - Improves efficiency of volume fraction computation from quadrature samples during sample-based shaping.
 - Adds a `axom::DeviceHash` type as a GPU-enabled version of the `std::hash` interface.
+- Adds `assign` methods to `axom::Array`.
+- Adds `assign`, `fill`, `set` methods to `axom::ArrayView`.
 
 ###  Changed
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
