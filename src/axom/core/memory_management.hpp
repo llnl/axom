@@ -24,6 +24,7 @@
 #endif
 
 #include <iostream>
+#include <type_traits>
 
 namespace axom
 {
@@ -206,13 +207,13 @@ inline T* reallocate(T* p, std::size_t n, int allocID = getDefaultAllocatorID())
 inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept;
 
 /*!
- * \brief Fills memory with a "plain-old-datatype" value.
+ * \brief Fills memory with a value.
  *
  * \param [in/out] dst the destination to copy to.
  * \param [in] n the number of items to copy.
- * \param [in] The value to copy.
+ * \param [in] The value to copy. It must be trivially copyable for use with GPU.
  *
- * \note When using Umpire if either dst is not registered with the
+ * \note When using Umpire if dst is not registered with the
  *  ResourceManager then the default host allocation strategy is assumed for
  *  that pointer.
  */
@@ -399,6 +400,8 @@ inline void fill(void* dst, std::size_t n, const T& value) noexcept
 {
   bool doHostFill = true;
 #ifdef AXOM_USE_UMPIRE
+  // Since data might be copied to GPU, it needs to be trivially copyable.
+  static_assert(std::is_trivially_copyable<T>::value, "value must be trivially copyable.");
   auto& rm = umpire::ResourceManager::getInstance();
 
   if(rm.hasAllocator(dst))
