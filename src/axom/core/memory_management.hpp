@@ -217,7 +217,7 @@ inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept;
  *  that pointer.
  */
 template <typename T>
-inline void fill(void* dst, std::size_t n, const T &value) noexcept;
+inline void fill(void* dst, std::size_t n, const T& value) noexcept;
 
 /// @}
 // _memory_management_routines_end
@@ -395,7 +395,7 @@ inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept
 
 //------------------------------------------------------------------------------
 template <typename T>
-inline void fill(void* dst, std::size_t n, const T &value) noexcept
+inline void fill(void* dst, std::size_t n, const T& value) noexcept
 {
   bool doHostFill = true;
 #ifdef AXOM_USE_UMPIRE
@@ -410,7 +410,7 @@ inline void fill(void* dst, std::size_t n, const T &value) noexcept
 
       // Device memory: fill on host, then copy to device
       const auto num_bytes = n * sizeof(T);
-      T *src = allocate<T>(num_bytes, rm.getDefaultAllocator().getId());
+      T* src = allocate<T>(num_bytes, rm.getDefaultAllocator().getId());
       for(std::size_t i = 0; i < n; ++i)
       {
         src[i] = value;
@@ -422,14 +422,13 @@ inline void fill(void* dst, std::size_t n, const T &value) noexcept
 #endif
   if(doHostFill)
   {
-    T *typed_dst = static_cast<T *>(dst);
+    T* typed_dst = static_cast<T*>(dst);
     for(std::size_t i = 0; i < n; ++i)
     {
       typed_dst[i] = value;
     }
   }
 }
-
 
 namespace detail
 {
