@@ -108,7 +108,6 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
 
 bool FSorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-return false;
   AXOM_ANNOTATE_SCOPE("FSorClipper::labelInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
@@ -274,14 +273,44 @@ void FSorClipper::clusterSorFunction()
                                 });
 }
 
-/*
-  TODO: Factor out execution-space-specific computations into a template method,
-  instead of computing on host and copying to GPU.
-*/
 bool FSorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
 {
-  AXOM_ANNOTATE_BEGIN("FSorClipper::getGeometryAsOcts");
-  const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+  AXOM_ANNOTATE_SCOPE("FSorClipper::getGeometryAsOcts");
+  switch(shapeeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    getGeometryAsOctsImpl<axom::SEQ_EXEC>(shapeeMesh, octs);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    getGeometryAsOctsImpl<axom::OMP_EXEC>(shapeeMesh, octs);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    getGeometryAsOctsImpl<axom::CUDA_EXEC<256>>(shapeeMesh, octs);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    getGeometryAsOctsImpl<axom::HIP_EXEC<256>>(shapeeMesh, octs);
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return true;
+}
+
+/*
+  Compute octahedral geometry representation, with an execution policy.
+
+  Side effect: m_sorCurve data is reallocated to the shapeeMesh allocator,
+  if it's not there yet.
+*/
+template<typename ExecSpace>
+bool FSorClipper::getGeometryAsOctsImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
+{
   const int allocId = shapeeMesh.getAllocatorID();
 
   if(octs.getAllocatorID() != allocId || octs.size() != 0)
@@ -289,32 +318,27 @@ bool FSorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<O
     octs = axom::Array<OctahedronType>(0, 0, allocId);
   }
 
-  axom::Array<OctahedronType> tmpOcts(0, 0, hostAllocId);
-
-  // Host loop writes directly to octs if possible, else a temporary array.
-  axom::Array<OctahedronType>& octsOnHost =
-    axom::execution_space<axom::SEQ_EXEC>::usesAllocId(octs.getAllocatorID()) ? octs : tmpOcts;
-
-  if(&octsOnHost == &tmpOcts)
+  if(m_sorCurve.getAllocatorID() != allocId)
   {
-    tmpOcts.resize(0, OctahedronType());
+    m_sorCurve = axom::Array<Point2DType>(m_sorCurve, allocId);
   }
+  axom::ArrayView<Point2D> sorCurveView = m_sorCurve.view();
 
   // Generate the Octahedra
   int octCount = 0;
-  axom::ArrayView<Point2D> polyline = m_sorCurve.view();
-  const bool good = axom::quest::discretize<axom::SEQ_EXEC>(polyline,
-                                                            int(polyline.size()),
-                                                            m_levelOfRefinement,
-                                                            octsOnHost,
-                                                            octCount);
+  const bool good = axom::quest::discretize<ExecSpace>(sorCurveView,
+                                                       int(sorCurveView.size()),
+                                                       m_levelOfRefinement,
+                                                       octs,
+                                                       octCount);
+
   AXOM_UNUSED_VAR(good);
   SLIC_ASSERT(good);
-  SLIC_ASSERT(octCount == octsOnHost.size());
+  SLIC_ASSERT(octCount == octs.size());
 
   auto transformer = m_transformer;
-  auto octsView = octsOnHost.view();
-  axom::for_all<axom::SEQ_EXEC>(
+  auto octsView = octs.view();
+  axom::for_all<ExecSpace>(
     octCount,
     AXOM_LAMBDA(axom::IndexType iOct) {
       OctahedronType& oct = octsView[iOct];
@@ -324,14 +348,6 @@ bool FSorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<O
       }
     });
 
-  // The disretize method uses host data.  Place into proper space if needed.
-  if(&octs != &octsOnHost)
-  {
-    octs.resize(octsOnHost.size());
-    axom::copy(octs.data(), octsOnHost.data(), sizeof(OctahedronType) * octs.size());
-  }
-
-  AXOM_ANNOTATE_END("FSorClipper::getGeometryAsOcts");
   return true;
 }
 

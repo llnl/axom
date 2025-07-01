@@ -185,8 +185,11 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
   return;
 }
 
+/*
+  TODO: If possible: Port to GPU.  Will need to rewrite quest/Discretize.[ch]pp.
+*/
 bool SphereClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh,
-                                   axom::Array<axom::primal::Octahedron<double, 3>>& octs)
+                                      axom::Array<axom::primal::Octahedron<double, 3>>& octs)
 {
   AXOM_ANNOTATE_BEGIN("SphereClipper::getGeometryAsOcts");
   int octCount = 0;

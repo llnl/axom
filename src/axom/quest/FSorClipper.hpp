@@ -153,6 +153,11 @@ private:
   void extractClipperInfo();
 
   void clusterSorFunction();
+
+  //!@brief Compute geometry as octs, by policy.
+  template <typename ExecSpace>
+  bool getGeometryAsOctsImpl(quest::ShapeeMesh& shappeMesh,
+                             axom::Array<OctahedronType>& octs);
 };
 
 }  // namespace quest
