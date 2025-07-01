@@ -10,10 +10,8 @@
 #include "axom/lumberjack/Communicator.hpp"
 #include "axom/lumberjack/Message.hpp"
 
-#include <algorithm>
 #include <stdlib.h>
 #include <time.h>
-#include <unistd.h>
 
 class TestCommunicator : public axom::lumberjack::Communicator
 {

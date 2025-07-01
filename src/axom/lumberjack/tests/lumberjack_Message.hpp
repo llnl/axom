@@ -17,7 +17,7 @@ struct TestData
   int rank;
   int lineNumber;
   int level;
-  std::time_t creationTime;
+  double creationTime;
   std::string tag;
   std::string fileName;
   std::string packed;
