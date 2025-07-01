@@ -23,7 +23,7 @@ int main(int argc, char** argv)
 {
   //
   // Basic MPI setup with global communicator
-  // 
+  //
   MPI_Init(&argc, &argv);
   MPI_Comm problem_comm = MPI_COMM_WORLD;
 
@@ -71,7 +71,7 @@ int main(int argc, char** argv)
   sidre_io.write(root1, nranks, "sidre_array_mesh", "sidre_conduit_json");
 #endif
 
-  // STEP 3: Create a new data store object and read the data from the 
+  // STEP 3: Create a new data store object and read the data from the
   //         file into it.
   sidre::DataStore* dataStore2 = new sidre::DataStore();
   sidre::Group* root2 = dataStore2->getRoot();
@@ -92,7 +92,7 @@ int main(int argc, char** argv)
   SLIC_ASSERT(nodes_2.shape()[0] == NUM_NODES);
   SLIC_ASSERT(nodes_2.shape()[1] == DIMENSION);
 
-  // STEP 4: Check the values are correct when accessed through the 
+  // STEP 4: Check the values are correct when accessed through the
   //         sidre::MCArray
   int expected_value = 0;
   for(axom::IndexType i = 0; i < NUM_NODES; ++i)
