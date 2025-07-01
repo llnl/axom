@@ -16,7 +16,6 @@
 #include "axom/lumberjack/Lumberjack.hpp"
 #include <algorithm>
 #include <iostream>
-#include "axom/lumberjack/Message.hpp"
 
 namespace axom
 {

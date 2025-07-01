@@ -15,7 +15,6 @@
 #define MESSAGE_HPP
 
 #include <cstring>
-#include <ctime>
 #include <string>
 #include <vector>
 
