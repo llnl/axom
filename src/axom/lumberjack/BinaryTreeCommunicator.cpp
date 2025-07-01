@@ -75,7 +75,7 @@ void BinaryTreeCommunicator::push(const char* packedMessagesToBeSent,
   {
     if(isPackedMessagesEmpty(packedMessagesToBeSent))
     {
-      mpiNonBlockingSendMessages(m_mpiComm, m_parentRank, zeroMessage().c_str());
+      mpiNonBlockingSendMessages(m_mpiComm, m_parentRank, zeroMessage);
     }
     else
     {

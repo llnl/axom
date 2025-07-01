@@ -24,12 +24,10 @@ namespace lumberjack
 {
 /*!
  *****************************************************************************
- * \brief Returns a message indicating no messages need to be sent from child node.
- *
- * \note Global workaround: https://rzlc.llnl.gov/jira/browse/ELCAP-851
+ * \brief Message indicating no messages need to be sent from child node.
  *****************************************************************************
  */
-std::string zeroMessage();
+extern const char* const zeroMessage;
 
 /*!
  *****************************************************************************
@@ -363,7 +361,7 @@ void unpackMessages(std::vector<Message*>& messages, const char* packedMessages,
 inline bool isPackedMessagesEmpty(const char* packedMessages)
 {
   return (packedMessages == nullptr) || (packedMessages[0] == '\0') ||
-    (strcmp(packedMessages, zeroMessage().c_str()) == 0);
+    (strcmp(packedMessages, zeroMessage) == 0);
 }
 
 }  // end namespace lumberjack

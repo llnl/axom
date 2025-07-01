@@ -24,7 +24,9 @@ namespace axom
 namespace lumberjack
 {
 
-std::string zeroMessage() { return "0"; }
+// Global workaround: https://rzlc.llnl.gov/jira/browse/ELCAP-851
+char zeroMessageStorage[] = "0";
+const char* const zeroMessage = zeroMessageStorage;
 
 //Getters
 
@@ -269,11 +271,7 @@ const char* packMessages(const std::vector<Message*>& messages)
 {
   if(messages.size() == 0)
   {
-    // Allocate space for zero and null character
-    char* zeroString = new char[zeroMessage().size() + 1];
-    std::memcpy(zeroString, zeroMessage().c_str(), zeroMessage().size());
-    zeroString[zeroMessage().size()] = '\0';
-    return zeroString;
+    return zeroMessage;
   }
 
   int totalSize = 1;  // include size for null terminator

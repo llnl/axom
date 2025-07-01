@@ -70,7 +70,7 @@ void RootCommunicator::push(const char* packedMessagesToBeSent,
   {
     if(isPackedMessagesEmpty(packedMessagesToBeSent))
     {
-      mpiNonBlockingSendMessages(m_mpiComm, 0, zeroMessage().c_str());
+      mpiNonBlockingSendMessages(m_mpiComm, 0, zeroMessage);
     }
     else
     {
