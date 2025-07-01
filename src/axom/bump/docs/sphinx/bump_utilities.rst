@@ -119,7 +119,7 @@ new explicit coordset where each point corresponds to a single index from the no
 stored in SliceData. This class can be used to select a subset of a coordset, reorder nodes
 in a coordset, or repeat nodes in a coordset.
 
-.. literalinclude:: ../../utilities/ExtractZones.hpp
+.. literalinclude:: ../../ExtractZones.hpp
    :start-after: _bump_utilities_coordsetslicer_begin
    :end-before: _bump_utilities_coordsetslicer_end
    :language: C++
@@ -132,7 +132,7 @@ The ``axom::bump::ExtractZones`` class takes a list of selected zone ids and ext
 a new mesh from a source mesh that includes only the selected zones. There is a derived class
 ``ExtractZonesAndMatset`` that also extracts a matset, if present.
 
-.. literalinclude:: ../../utilities/ExtractZones.hpp
+.. literalinclude:: ../../ExtractZones.hpp
    :start-after: _bump_utilities_extractzones_begin
    :end-before: _bump_utilities_extractzones_end
    :language: C++
@@ -206,7 +206,7 @@ The ``axom::bump::MakeUnstructured`` class takes a structured topology
 and creates a new unstructured topology. This class does not need views to wrap the input
 structured topology.
 
-.. literalinclude:: ../../tests/bump_blueprint_utilities.cpp
+.. literalinclude:: ../../tests/bump_mesh_operations.cpp
    :start-after: _bump_utilities_makeunstructured_begin
    :end-before: _bump_utilities_makeunstructured_end
    :language: C++
@@ -243,7 +243,7 @@ The ``axom::bump::MatsetSlicer`` class is similar to the ``FieldSlicer``
 class except it slices matsets instead of fields. The same ``SliceData`` can be passed to
 MatsetSlicer to pull out and assemble a new matset data for a specific list of zones.
 
-.. literalinclude:: ../../utilities/ExtractZones.hpp
+.. literalinclude:: ../../ExtractZones.hpp
    :start-after: _bump_utilities_matsetslicer_begin
    :end-before: _bump_utilities_matsetslicer_end
    :language: C++
@@ -339,7 +339,7 @@ also expose polyhedra as a special ``PolyhedralFaces`` representation that repre
 polyhedron as a collection of ``axom::primal::Plane`` objects. This mode is selected by
 instantiating ``PrimalAdaptor`` with the ``makeFaces`` template parameter set to true.
 
-.. literalinclude:: ../../utilities/MakeZoneVolumes.hpp
+.. literalinclude:: ../../MakeZoneVolumes.hpp
    :start-after: _bump_utilities_makezonevolumes_begin
    :end-before: _bump_utilities_makezonevolumes_end
    :language: C++
@@ -353,7 +353,7 @@ The ``axom::bump::RecenterField`` class uses an O2M relation to average
 field data from multiple values to an averaged value. In Axom, this is used to convert a field
 associated with the elements to a new field associated with the nodes.
 
-.. literalinclude:: ../../tests/bump_blueprint_utilities.cpp
+.. literalinclude:: ../../tests/bump_mesh_operations.cpp
    :start-after: _bump_utilities_recenterfield_begin
    :end-before: _bump_utilities_recenterfield_end
    :language: C++
@@ -389,7 +389,7 @@ intersected with the zones in the target mesh and their overlaps are determined 
 used to build a new matset on the target mesh. Each zone in the target mesh may recieve
 contributions from multiple zones and materials in the source mesh.
 
-.. literalinclude:: ../../tests/mir_topology_mapper.cpp
+.. literalinclude:: ../../tests/bump_topology_mapper.cpp
    :start-after: _bump_utilities_topologymapper_begin
    :end-before: _bump_utilities_topologymapper_end
    :language: C++
@@ -404,7 +404,7 @@ sorted list of unique outputs, along with a list of offsets into the original va
 one representative value in the original list for each unique value. This class is used to help
 merge points.
 
-.. literalinclude:: ../../tests/mir_clipfield.cpp
+.. literalinclude:: ../../tests/bump_clipfield.cpp
    :start-after: _bump_utilities_unique_begin
    :end-before: _bump_utilities_unique_end
    :language: C++
