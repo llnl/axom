@@ -1,8 +1,6 @@
-diff --git a/include/fmt/format-inl.h b/include/fmt/format-inl.h
-index f0b68846..b8c7421f 100644
---- a/include/fmt/format-inl.h
-+++ b/include/fmt/format-inl.h
-@@ -160,11 +160,17 @@ FMT_API FMT_FUNC auto format_facet<std::locale>::do_put(
+--- fmt/include/fmt/format-inl.h	2025-07-01 17:48:22.669880000 -0700
++++ format-inl.h	2025-07-01 17:48:23.237309000 -0700
+@@ -160,11 +160,17 @@
  }
  #endif
  
@@ -22,7 +20,7 @@ index f0b68846..b8c7421f 100644
  
  namespace detail {
  
-@@ -1423,16 +1429,18 @@ FMT_FUNC detail::utf8_to_utf16::utf8_to_utf16(string_view s) {
+@@ -1423,16 +1429,18 @@
    buffer_.push_back(0);
  }
  
