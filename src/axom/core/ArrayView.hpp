@@ -223,7 +223,7 @@ public:
    *
    * \param [in] value the value to set to.
    * \param [in] n the number of elements to write.
-   * \param [in] pos the position at which to begin writing.
+   * \param [in] pos the position at which to begin the fill operation.
    *
    * \note The size is unchanged by calls to fill.
    *
@@ -234,9 +234,9 @@ public:
   /*!
    * \brief Modify the values of existing elements.
    *
-   * \param [in] elements the new elements to write.
-   * \param [in] n the number of elements to write.
-   * \param [in] pos the position at which to begin writing.
+   * \param [in] elements the new elements to use in the set operation.
+   * \param [in] n the number of elements in the set operation.
+   * \param [in] pos the position at which to begin replacing values.
    *
    * \note It's assumed that elements is of length n.
    * \note The size is unchanged by calls to set.
@@ -257,13 +257,15 @@ public:
   void assign(axom::IndexType count, const T& value);
 
   /*!
-   * \brief Replaces contents with copies of objects in [first, last).
+   * \brief Replaces contents with copies of objects in the range [first, last).
    *
-   * \param [in] first The iterator for the first value to use in a container.
-   * \param [in] last The last iterator to use in a container.
+   * \param [in] first The iterator that begins the range used for assignment.
+   * \param [in] last The iterator that ends the range used for assignment.
+   *                  The value at this iterator is not assigned into to the view.
    *
-   * \post Size of Array is sized last-first, and values values referenced by
-   *       the iterator range are copied into the Array.
+   * \post Size of ArrayView is changed to the number of items in the iterator
+   *       range, and values values referenced by the iterator range are copied
+   *       into the Array.
    */
   template <class InputIt>
   void assign(InputIt first, InputIt last);
@@ -273,7 +275,7 @@ public:
    *
    * \param [in] elems An initializer list containing the new array values.
    *
-   * \post The Array contains copies of the initializer list elements.
+   * \post The ArrayView contains copies of the initializer list elements.
    */
   void assign(std::initializer_list<T> elems);
 

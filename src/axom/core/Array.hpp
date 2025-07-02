@@ -443,7 +443,8 @@ public:
    * \param [in] first The iterator for the first value to use in a container.
    * \param [in] last The last iterator to use in a container.
    *
-   * \post Size of Array is sized last-first, and values values referenced by
+   * \post Size of Array is changed to the number of items in the range
+   *       designated by the iterators (last-first), and values referenced by
    *       the iterator range are copied into the Array.
    */
   template <class InputIt>
