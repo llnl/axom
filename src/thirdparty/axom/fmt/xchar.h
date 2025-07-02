@@ -151,7 +151,7 @@ auto join(std::initializer_list<T> list, wstring_view sep)
 
 template <typename Tuple, AXOM_FMT_ENABLE_IF(is_tuple_like<Tuple>::value)>
 auto join(const Tuple& tuple, basic_string_view<wchar_t> sep)
-    -> tuple_join_view<Tuple, wchar_t> {
+    -> tuple_join_view<wchar_t, Tuple> {
   return {tuple, sep};
 }
 

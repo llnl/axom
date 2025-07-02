@@ -11,6 +11,7 @@
 #ifndef AXOM_FMT_MODULE
 #  include <initializer_list>
 #  include <iterator>
+#  include <string>
 #  include <tuple>
 #  include <type_traits>
 #  include <utility>
@@ -30,7 +31,7 @@ template <typename T> class is_map {
   template <typename> static void check(...);
 
  public:
-  static constexpr bool value =
+  static constexpr const bool value =
       !std::is_void<decltype(check<T>(nullptr))>::value;
 };
 
@@ -39,16 +40,17 @@ template <typename T> class is_set {
   template <typename> static void check(...);
 
  public:
-  static constexpr bool value =
+  static constexpr const bool value =
       !std::is_void<decltype(check<T>(nullptr))>::value && !is_map<T>::value;
 };
 
 // C array overload
-template <typename T, size_t N>
+template <typename T, std::size_t N>
 auto range_begin(const T (&arr)[N]) -> const T* {
   return arr;
 }
-template <typename T, size_t N> auto range_end(const T (&arr)[N]) -> const T* {
+template <typename T, std::size_t N>
+auto range_end(const T (&arr)[N]) -> const T* {
   return arr + N;
 }
 
@@ -118,7 +120,7 @@ template <typename T> class is_tuple_like_ {
   template <typename> static void check(...);
 
  public:
-  static constexpr bool value =
+  static constexpr const bool value =
       !std::is_void<decltype(check<T>(nullptr))>::value;
 };
 
@@ -152,7 +154,7 @@ using tuple_index_sequence = make_index_sequence<std::tuple_size<T>::value>;
 template <typename T, typename C, bool = is_tuple_like_<T>::value>
 class is_tuple_formattable_ {
  public:
-  static constexpr bool value = false;
+  static constexpr const bool value = false;
 };
 template <typename T, typename C> class is_tuple_formattable_<T, C, true> {
   template <size_t... Is>
@@ -168,7 +170,7 @@ template <typename T, typename C> class is_tuple_formattable_<T, C, true> {
                                        C>::value)...>{}));
 
  public:
-  static constexpr bool value =
+  static constexpr const bool value =
       decltype(check(tuple_index_sequence<T>{}))::value;
 };
 
@@ -206,7 +208,7 @@ template <typename Char, typename... T>
 using result_t = std::tuple<formatter<remove_cvref_t<T>, Char>...>;
 
 using std::get;
-template <typename Tuple, typename Char, size_t... Is>
+template <typename Tuple, typename Char, std::size_t... Is>
 auto get_formatters(index_sequence<Is...>)
     -> result_t<Char, decltype(get<Is>(std::declval<Tuple>()))...>;
 }  // namespace tuple
@@ -217,7 +219,7 @@ template <typename R> struct range_reference_type_impl {
   using type = decltype(*detail::range_begin(std::declval<R&>()));
 };
 
-template <typename T, size_t N> struct range_reference_type_impl<T[N]> {
+template <typename T, std::size_t N> struct range_reference_type_impl<T[N]> {
   using type = T&;
 };
 
@@ -279,15 +281,14 @@ template <typename FormatContext> struct format_tuple_element {
 
 }  // namespace detail
 
-AXOM_FMT_EXPORT
 template <typename T> struct is_tuple_like {
-  static constexpr bool value =
+  static constexpr const bool value =
       detail::is_tuple_like_<T>::value && !detail::is_range_<T>::value;
 };
 
-AXOM_FMT_EXPORT
 template <typename T, typename C> struct is_tuple_formattable {
-  static constexpr bool value = detail::is_tuple_formattable_<T, C>::value;
+  static constexpr const bool value =
+      detail::is_tuple_formattable_<T, C>::value;
 };
 
 template <typename Tuple, typename Char>
@@ -342,9 +343,8 @@ struct formatter<Tuple, Char,
   }
 };
 
-AXOM_FMT_EXPORT
 template <typename T, typename Char> struct is_range {
-  static constexpr bool value =
+  static constexpr const bool value =
       detail::is_range_<T>::value && !detail::has_to_string_view<T>::value;
 };
 
@@ -368,7 +368,6 @@ template <typename P1, typename... Pn>
 struct conjunction<P1, Pn...>
     : conditional_t<bool(P1::value), conjunction<Pn...>, P1> {};
 
-AXOM_FMT_EXPORT
 template <typename T, typename Char, typename Enable = void>
 struct range_formatter;
 
@@ -671,8 +670,7 @@ struct formatter<join_view<It, Sentinel, Char>, Char> {
   }
 };
 
-AXOM_FMT_EXPORT
-template <typename Tuple, typename Char> struct tuple_join_view : detail::view {
+template <typename Char, typename Tuple> struct tuple_join_view : detail::view {
   const Tuple& tuple;
   basic_string_view<Char> sep;
 
@@ -687,15 +685,15 @@ template <typename Tuple, typename Char> struct tuple_join_view : detail::view {
 #  define AXOM_FMT_TUPLE_JOIN_SPECIFIERS 0
 #endif
 
-template <typename Tuple, typename Char>
-struct formatter<tuple_join_view<Tuple, Char>, Char,
+template <typename Char, typename Tuple>
+struct formatter<tuple_join_view<Char, Tuple>, Char,
                  enable_if_t<is_tuple_like<Tuple>::value>> {
   AXOM_FMT_CONSTEXPR auto parse(parse_context<Char>& ctx) -> const Char* {
     return do_parse(ctx, std::tuple_size<Tuple>());
   }
 
   template <typename FormatContext>
-  auto format(const tuple_join_view<Tuple, Char>& value,
+  auto format(const tuple_join_view<Char, Tuple>& value,
               FormatContext& ctx) const -> typename FormatContext::iterator {
     return do_format(value, ctx, std::tuple_size<Tuple>());
   }
@@ -727,14 +725,14 @@ struct formatter<tuple_join_view<Tuple, Char>, Char,
   }
 
   template <typename FormatContext>
-  auto do_format(const tuple_join_view<Tuple, Char>&, FormatContext& ctx,
+  auto do_format(const tuple_join_view<Char, Tuple>&, FormatContext& ctx,
                  std::integral_constant<size_t, 0>) const ->
       typename FormatContext::iterator {
     return ctx.out();
   }
 
   template <typename FormatContext, size_t N>
-  auto do_format(const tuple_join_view<Tuple, Char>& value, FormatContext& ctx,
+  auto do_format(const tuple_join_view<Char, Tuple>& value, FormatContext& ctx,
                  std::integral_constant<size_t, N>) const ->
       typename FormatContext::iterator {
     using std::get;
@@ -756,7 +754,7 @@ template <typename T> class is_container_adaptor_like {
   template <typename> static void check(...);
 
  public:
-  static constexpr bool value =
+  static constexpr const bool value =
       !std::is_void<decltype(check<T>(nullptr))>::value;
 };
 
@@ -827,7 +825,7 @@ auto join(Range&& r, string_view sep)
  */
 template <typename Tuple, AXOM_FMT_ENABLE_IF(is_tuple_like<Tuple>::value)>
 AXOM_FMT_CONSTEXPR auto join(const Tuple& tuple, string_view sep)
-    -> tuple_join_view<Tuple, char> {
+    -> tuple_join_view<char, Tuple> {
   return {tuple, sep};
 }
 
