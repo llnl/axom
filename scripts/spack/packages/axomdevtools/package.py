@@ -12,7 +12,7 @@ class Axomdevtools(BundlePackage):
 
     maintainers = ['white238']
 
-    depends_on("python")
+    depends_on("python@3.11")
     depends_on("doxygen")
     depends_on("cppcheck+rules+htmlreport")
     depends_on("graphviz")
@@ -26,4 +26,4 @@ class Axomdevtools(BundlePackage):
     depends_on("py-pytest")
     depends_on("py-numpy")
 
-    depends_on("llvm")
+    depends_on("llvm+clang@14")

@@ -294,8 +294,8 @@ spack:
       - spec: cmake@3.24.2
         prefix: /usr/tce
     llvm:
-      version: [19.0.0]
+      version: [14.0.0]
       buildable: false
       externals:
-      - spec: llvm@19.0.0%gcc@10.3.1
-        prefix: /usr/tce/packages/rocmcc/rocmcc-6.4.0-magic/llvm
+      - spec: llvm@14.0.0%gcc@10.3.1
+        prefix: /usr/tce/packages/rocmcc/rocmcc-5.2.3-magic/llvm

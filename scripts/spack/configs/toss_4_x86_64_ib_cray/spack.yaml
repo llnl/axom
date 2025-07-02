@@ -613,15 +613,11 @@ spack:
       - spec: doxygen@1.13.2
         prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_20_15_42_31/view/doxygen-1.13.2
     llvm:
-      version: [18.0.0]
+      version: [14.0.0]
       buildable: false
       externals:
-      - spec: llvm@18.0.0+clang+python %rocmcc@6.2.1
-        prefix: /usr/tce/packages/rocmcc/rocmcc-6.2.1-magic/llvm
-      - spec: llvm@18.0.0+clang+python %rocmcc@6.3.1
-        prefix: /usr/tce/packages/rocmcc/rocmcc-6.3.1-magic/llvm
-      - spec: llvm@18.0.0+clang+python %cce@19.0.0
-        prefix: /usr/tce/packages/rocmcc/rocmcc-6.3.1-magic/llvm
+      - spec: llvm@14.0.0+clang+python
+        prefix: /usr/tce/packages/rocmcc/rocmcc-5.2.3-magic/llvm
     py-sphinx:
       version: [8.0.2]
       buildable: false
