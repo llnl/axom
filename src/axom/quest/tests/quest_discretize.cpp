@@ -200,13 +200,19 @@ void run_degen_segment_tests()
 
   axom::Array<Point2D> polyline(2, 2, allocID);
 
+#if 0
+// We now want to support cases where z can increase, decrease or remains unchanged.
   polyline[0] = {0., 0.};
   polyline[1] = {0., 0.};
   degenerate_segment_test<ExecPolicy>("a.x == b.x, a.y == b.y", polyline, 2, true);
+#endif
 
+#if 0
+// We now want to support cases where z can increase, decrease or remains unchanged.
   polyline[0] = {1., 0.};
   polyline[1] = {1., 1.};
   degenerate_segment_test<ExecPolicy>("a.x == b.x, a.y != b.y", polyline, 2, true);
+#endif
 
   polyline[0] = {1., -0.1};
   polyline[1] = {1.5, 1.};
@@ -220,9 +226,12 @@ void run_degen_segment_tests()
   polyline[1] = {1.5, -.1};
   degenerate_segment_test<ExecPolicy>("b.y < 0", polyline, 2, false);
 
+#if 0
+// We now want to support cases where z can increase, decrease or remains unchanged.
   polyline[0] = {.5, 1.};
   polyline[1] = {0., 1.};
   degenerate_segment_test<ExecPolicy>("a.x > b.x", polyline, 2, false);
+#endif
 }
 
 template <typename ExecPolicy>
