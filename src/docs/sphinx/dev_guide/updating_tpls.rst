@@ -243,10 +243,9 @@ instructions on how to update a built-in TPL are:
 
 #. Follow the normal pull request work flow. For more information, please see :ref:`pullrequest-label`.
 
-.. _local-tpls-label:
 
 CLI11
-^^^^^^
+^^^^^
 
 CLI11 is a 3rd party builtin library that Axom uses to handle command
 line processing. Axom packages the library in a header-only format. The CLI11.hpp
@@ -259,6 +258,8 @@ many small changes that can be summarized as follows:
 #. Move "#pragma once" from below the copyright to the top of the file.
 #. Replace "CLI::" with "axom::CLI::".
 #. Replace "Success" with "CLI11_Success". This avoids a symbol collision with X11.
+
+.. _local-tpls-label:
 
 Local Third-party Library Installation
 --------------------------------------
@@ -399,16 +400,16 @@ other Axom developers to use during development, in Axom GitLab CI testing, etc.
    The third-party package files, ``portfile.cmake`` and ``vcpkg.json``, may need to be updated
    to reflect the new dependencies.
    To test the Windows updates, go to our
-   `GitHub Actions <https://github.com/LLNL/axom/actions/workflows/test_windows_tpls.yml>`_
-   page. Click on "Actions" and then on "Manual test for Axom's TPLs on Windows" in the "Workflows" menu.
+   `Manual Windows TPL builds <https://github.com/LLNL/axom/actions/workflows/test_windows_tpls.yml>`_
+   GitHub Actions page. Click on "Actions" and then on "Manual test for Axom's TPLs on Windows" in the "Workflows" menu.
    Find the "Run Workflow" drop-down menu, select your branch, and click on the "Run workflow"
    button. This will launch the tests for Windows.
 
 #. **Build new Docker images.**
    We use pre-built Docker images containing TPLs in our GitHub CI checks.
    To build these, go to our
-   `GitHub Actions <https://github.com/LLNL/axom/actions/workflows/docker_build_tpls.yml>`_
-   page. Click on "Actions" and then on "Docker TPL build" in the "Workflows" menu.
+   `Docker TPL build <https://github.com/LLNL/axom/actions/workflows/docker_build_tpls.yml>`_
+   GitHub Actions page. Click on "Actions" and then on "Docker TPL build" in the "Workflows" menu.
    Find the "Run Workflow" drop-down menu, select your branch, and click on the "Run workflow"
    button. This will launch the build of the docker images.
 

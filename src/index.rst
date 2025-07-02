@@ -212,6 +212,7 @@ LLNL-CODE-741217
    :caption: Component User Guides
 
    Core (Widely useful utilities) <axom/core/docs/sphinx/index>
+   Bump (Blueprint mesh utilities) <axom/bump/docs/sphinx/index>
    Inlet (Input files) <axom/inlet/docs/sphinx/index>
    Klee (Shaping specification and implementation) <axom/klee/docs/sphinx/index>
    Lumberjack (Scalable parallel message logging and filtering) <axom/lumberjack/docs/sphinx/index>
