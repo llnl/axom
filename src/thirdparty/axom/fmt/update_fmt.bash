@@ -19,11 +19,12 @@ function patch_file
 {
   # Patch copied file
   if patch -p1 $1 < $2 ; then
-    echo "Applied patch $2 to $1. Updating patch file $2."
+    echo "Applied patch $2 to $1."
+    echo "Updating patch file $2."
     # Generate diff to update patch.
     AXOM_FMT=$(pwd)
     cd fmt/include/fmt
-    git diff format-inl.h $AXOM_FMT/$1 > $AXOM_FMT/$2
+    git diff $1 $AXOM_FMT/$1 > $AXOM_FMT/$2
     cd $AXOM_FMT
   else
     echo "Patch $2 failed for $1. Not generating diff."
@@ -77,5 +78,5 @@ clone_fmt
 revert
 copy_headers
 apply_patches
-#modify_headers
-#cleanup
+modify_headers
+cleanup
