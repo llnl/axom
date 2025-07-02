@@ -22,17 +22,17 @@ function patch_file
     echo "Applied patch $2 to $1."
     echo "Updating patch file $2."
     # Generate diff to update patch.
-    AXOM_FMT=$(pwd)
-    cd fmt/include/fmt
-    git diff $1 $AXOM_FMT/$1 > $AXOM_FMT/$2
-    cd $AXOM_FMT
+    diff -u fmt/include/fmt/$1 $1 > tmp
+    mv tmp $2
   else
     echo "Patch $2 failed for $1. Not generating diff."
+    echo "YOU WILL NEED TO PORT THIS FILE MANUALLY AND MAKE A DIFF!"
   fi
 }
 
 function apply_patches
 {
+  patch_file base.h       namespace.patch
   patch_file format-inl.h runtime_error.patch
   patch_file format.h     hipcc_long_double.patch
 }
@@ -65,8 +65,8 @@ function revert
   git checkout -- ranges.h
   git checkout -- std.h
   git checkout -- xchar.h
-#  git checkout -- runtime_error.patch
-#  git checkout -- hipcc_long_double.patch
+  git checkout -- runtime_error.patch
+  git checkout -- hipcc_long_double.patch
 }
 
 function cleanup
@@ -74,6 +74,7 @@ function cleanup
   rm -rf fmt
 }
 
+cleanup
 clone_fmt
 revert
 copy_headers

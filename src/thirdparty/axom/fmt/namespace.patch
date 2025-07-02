@@ -1,0 +1,15 @@
+--- fmt/include/fmt/base.h	2025-07-01 18:03:23.284932000 -0700
++++ base.h	2025-07-01 18:03:23.846210000 -0700
+@@ -259,10 +259,12 @@
+ 
+ #ifndef FMT_BEGIN_NAMESPACE
+ #  define FMT_BEGIN_NAMESPACE \
++    namespace axom { \
+     namespace fmt {           \
+     inline namespace v11 {
+ #  define FMT_END_NAMESPACE \
+     }                       \
++    }                       \
+     }
+ #endif
+ 
