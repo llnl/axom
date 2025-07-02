@@ -77,19 +77,6 @@ private:
   //!@brief SOR axis in 3D space, in the direction of increasing z.
   Vector3DType m_sorDirection;
 
-  //!@brief Internal and external transforms (includes m_sorDirection and m_sorOrigin).
-  axom::primal::CoordinateTransformer<double> m_transformer;
-
-  /*!
-    @brief Inverse of m_transformer.
-
-    Axom supports vector scaling.  @see axom::klee::Scale.  This means
-    a SOR may be transformed into a shape that we cannot represent.
-    Therefore, we don't transform the shape until after it's discretized.
-    When needed, we will inverse-transform the mesh.
-  */
-  axom::primal::CoordinateTransformer<double> m_inverseTransformer;
-
   //!@brief Level of refinement for discretizing curved
   // analytical shapes and surfaces of revolutions.
   axom::IndexType m_levelOfRefinement = 0;

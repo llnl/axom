@@ -5,7 +5,6 @@
 
 #include "axom/config.hpp"
 
-#include "axom/primal/operators/squared_distance.hpp"
 #include "axom/quest/Discretize.hpp"
 #include "axom/quest/SorClipper.hpp"
 #include "axom/quest/GeometryClipper.hpp"
@@ -25,7 +24,6 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   , m_name(name.empty() ? std::string("Sor") : name)
   , m_maxRadius(0.0)
   , m_minRadius(std::numeric_limits<double>::max())
-  , m_transformer()
 {
   extractClipperInfo();
 
@@ -37,17 +35,10 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   SLIC_ERROR_IF(m_minRadius < 0.0,
                 axom::fmt::format("SorClipper '{}' has a negative radius", m_name));
 
-  // Combine internal and external rotations into m_transformer.
-  m_transformer.addRotation(Vector3DType({1,0,0}), m_sorDirection);
-  m_transformer.addTranslation(m_sorOrigin.array());
-  m_transformer.addMatrix(m_extTrans);
-
   for(const auto& pt : m_sorCurve)
   {
     m_curveBb.addPoint(pt);
   }
-
-  m_inverseTransformer = m_transformer.getInverse();
 
   FSorClipper::combineRadialSegments(m_sorCurve);
 
@@ -115,11 +106,10 @@ void SorClipper::splitIntoMonotonicSections(axom::ArrayView<const Point2DType> p
   axom::Array<axom::IndexType> splitIdx =
     FSorClipper::findZSwitchbacks(pts);
 
-  // Split the curve at indices in splitIdx.
-  axom::IndexType sectionCount = splitIdx.size() - 1;
+  const axom::IndexType sectionCount = splitIdx.size() - 1;
   sections.clear();
   sections.resize(sectionCount);
-  for(axom::IndexType i = 0; i < splitIdx.size() - 1; ++i)
+  for(axom::IndexType i = 0; i < sectionCount; ++i)
   {
     axom::IndexType firstInSection = splitIdx[i];
     axom::IndexType lastInSection = splitIdx[i + 1];
