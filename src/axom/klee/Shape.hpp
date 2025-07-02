@@ -33,8 +33,7 @@ public:
    * \param materialsNotReplaced the materials which cannot be replaced. If
    * empty, all materials can be replaced unless materialsReplaced is set.
    * \param geometry the geometric properties of this shape
-   * \throws std::logic_error if both materialsReplaced and
-   * materialsNotReplaced have entries.
+   * \throws std::logic_error if both materialsReplaced and materialsNotReplaced have entries.
    */
   Shape(std::string name,
         std::string material,
