@@ -1,4 +1,4 @@
-This directory holds the source files for MIT-licensed fmt libary (version 9.1.0)
+This directory holds the source files for MIT-licensed fmt libary (version 11.2.1)
 retrieved from github.com/fmtlib/fmt
 
 Note: Axom adds a custom header file ('fmt.hpp') to simplify usage of fmt configured as a header only library.
@@ -6,11 +6,6 @@ This can be included in source files as follows:
 
    #include "axom/fmt.hpp"
 
-We also put fmt in the axom namespace to isolate it from other libraries that might include fmt. To do so, the following changes were applied:
-> find . -type f -regex .*[.]h$ -exec sed -i "s/FMT_/AXOM_FMT_/g" {} \;
-> find . -type f -regex .*[.]h$ -exec sed -i "s/fmt::/axom::fmt::/g" {} \;
-* Add `namespace axom { \` to `AXOM_FMT_BEGIN_NAMESPACE` in `fmt/core.h`
-* Add `}                \` to `AXOM_FMT_END_NAMESPACE` in `fmt/core.h`
-* Apply `src/thirdparty/axom/fmt/xl_printf.patch` -- bugfix for XL compiler
-* Apply `src/thirdparty/axom/fmt/hipcc_long_double.patch` -- bugfix for dealing with `long double` type on EAS architecture with hip compiler
-* Apply `src/thirdparty/axom/fmt/runtime_error.patch` -- workaround for dealing with `std::runtime_error` bug in nvcc
+We also put fmt in the axom namespace to isolate it from other libraries that might include fmt.
+To do so, the update_fmt.bash script was run to download and modify fmt. Maintain that script
+to make the changes.
