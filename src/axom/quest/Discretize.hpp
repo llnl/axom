@@ -50,7 +50,8 @@ bool discretize(const SphereType& s, int levels, axom::Array<OctType>& out, int&
 /*!
  * \brief Given a 2D polyline revolved around the positive X-axis, allocate
  *   and return a list of Octahedra approximating the shape.
- * \param [in] polyline The polyline to revolve around the X-axis
+ * \param [in] polyline The polyline to revolve around the X-axis.
+ *   Data should be in a host-accessible memory space.
  * \param [in] len The number of points in \a polyline
  * \param [in] levels The number of refinements to perform, in addition to
  *   a central level-zero octahedron in each segment

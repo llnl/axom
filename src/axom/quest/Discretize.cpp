@@ -108,6 +108,8 @@ OctType new_inscribed_oct(const SphereType& sphere, OctType& o, int s, int t, in
  *
  * This routine allocates an array pointed to by \a out.  The caller is responsible
  * to free the array.
+ *
+ * TODO: If possible, port to GPU (rewrite to be data-parallel).
  */
 bool discretize(const SphereType& sphere, int levels, axom::Array<OctType>& out, int& octcount)
 {
