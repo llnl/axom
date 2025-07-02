@@ -1,6 +1,6 @@
---- fmt/include/fmt/format.h	2025-07-01 17:48:22.672881000 -0700
-+++ format.h	2025-07-01 17:48:23.250317000 -0700
-@@ -1624,9 +1624,14 @@
+--- fmt/include/fmt/format.h	2025-07-02 12:27:06.455654000 -0700
++++ format.h	2025-07-02 12:29:18.354634000 -0700
+@@ -1603,9 +1603,14 @@
    return {multiply(x.f, y.f), x.e + y.e + 64};
  }
  
@@ -16,3 +16,14 @@
  
  template <typename T>
  constexpr auto convert_float(T value) -> convert_float_result<T> {
+@@ -2594,7 +2599,9 @@
+   }
+ 
+  public:
+-  FMT_CONSTEXPR bigint() : exp_(0) {}
++  // BEGIN AXOM BUGFIX
++  FMT_CONSTEXPR20 bigint() : exp_(0) {}
++  // END AXOM BUGFIX
+   explicit bigint(uint64_t n) { assign(n); }
+ 
+   bigint(const bigint&) = delete;
