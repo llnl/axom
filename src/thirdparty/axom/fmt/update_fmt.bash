@@ -3,9 +3,14 @@
 
 function clone_fmt
 {
+  VERSION="11.2.0"
   # Clone repo
   echo "Cloning fmt repo..."
   git clone https://github.com/fmtlib/fmt.git
+  echo "Checking out version $VERSION"
+  cd fmt
+  git checkout $VERSION > /dev/null
+  cd ..
 }
 
 function copy_headers
@@ -34,7 +39,7 @@ function apply_patches
 {
   patch_file base.h       namespace.patch
   patch_file format-inl.h runtime_error.patch
-  patch_file format.h     hipcc_long_double.patch
+  patch_file format.h     format.h.patch
 }
 
 function modify_headers
@@ -65,8 +70,10 @@ function revert
   git checkout -- ranges.h
   git checkout -- std.h
   git checkout -- xchar.h
+
+  git checkout -- namespace.patch
   git checkout -- runtime_error.patch
-  git checkout -- hipcc_long_double.patch
+  git checkout -- format.h.patch
 }
 
 function cleanup

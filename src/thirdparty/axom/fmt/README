@@ -1,4 +1,4 @@
-This directory holds the source files for MIT-licensed fmt libary (version 11.2.1)
+This directory holds the source files for MIT-licensed fmt libary (version 11.2.0)
 retrieved from github.com/fmtlib/fmt
 
 Note: Axom adds a custom header file ('fmt.hpp') to simplify usage of fmt configured as a header only library.
