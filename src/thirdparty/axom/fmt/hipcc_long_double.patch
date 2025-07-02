@@ -1,19 +1,19 @@
-diff --git a/src/thirdparty/axom/fmt/format.h b/src/thirdparty/axom/fmt/format.h
-index 047bf255e..480af73a9 100644
---- a/src/thirdparty/axom/fmt/format.h
-+++ b/src/thirdparty/axom/fmt/format.h
-@@ -1623,10 +1623,14 @@ auto snprintf_float(T value, int precision, float_specs specs,
-   }
+diff --git a/include/fmt/format.h b/include/fmt/format.h
+index 3f8507f7..be75b891 100644
+--- a/include/fmt/format.h
++++ b/include/fmt/format.h
+@@ -1624,9 +1624,14 @@ FMT_CONSTEXPR inline auto operator*(fp x, fp y) -> fp {
+   return {multiply(x.f, y.f), x.e + y.e + 64};
  }
  
 +// BEGIN AXOM BUGFIX
- template <typename T>
+ template <typename T, bool doublish = num_bits<T>() == num_bits<double>()>
  using convert_float_result =
--    conditional_t<std::is_same<T, float>::value || sizeof(T) == sizeof(double),
+-    conditional_t<std::is_same<T, float>::value || doublish, double, T>;
 +    conditional_t<std::is_same<T, float>::value ||
 +                      std::numeric_limits<T>::digits ==
 +                          std::numeric_limits<double>::digits,
-                   double, T>;
++                  double, T>;
 +// END AXOM BUGFIX
  
  template <typename T>
