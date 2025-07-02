@@ -183,14 +183,11 @@ AXOM_TYPED_TEST(core_device_hash, hash_enum)
   }
 }
 
-namespace
-{
 template <typename T>
 struct UserVector
 {
   T x, y, z;
 };
-}  // namespace
 
 // Test that we can correctly specialize a device hash for a user-defined type.
 namespace axom
