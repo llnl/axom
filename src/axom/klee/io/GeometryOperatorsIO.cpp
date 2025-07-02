@@ -3,12 +3,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/klee/GeometryOperatorsIO.hpp"
+
+#include "GeometryOperatorsIO.hpp"
+#include "IOUtil.hpp"
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/klee/GeometryOperators.hpp"
-#include "axom/klee/IOUtil.hpp"
 #include "axom/klee/KleeError.hpp"
+
 
 #include <functional>
 #include <string>

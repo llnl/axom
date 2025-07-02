@@ -2,8 +2,8 @@
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_DIMENSIONS_HPP
-#define AXOM_DIMENSIONS_HPP
+#ifndef AXOM_KLEE_DIMENSIONS_HPP_
+#define AXOM_KLEE_DIMENSIONS_HPP_
 
 namespace axom
 {
@@ -21,4 +21,4 @@ enum class Dimensions : int
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_DIMENSIONS_HPP
+#endif  // AXOM_KLEE_DIMENSIONS_HPP_

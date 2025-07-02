@@ -2,16 +2,17 @@
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEE_GEOMETRYOPERATORSIO_HPP
-#define AXOM_KLEE_GEOMETRYOPERATORSIO_HPP
+#ifndef AXOM_KLEE_GEOMETRYOPERATORSIO_HPP_
+#define AXOM_KLEE_GEOMETRYOPERATORSIO_HPP_
 
-#include <memory>
-#include <string>
-#include <unordered_map>
 
 #include "axom/inlet.hpp"
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Units.hpp"
+
+#include <memory>
+#include <string>
+#include <unordered_map>
 
 namespace axom
 {
@@ -171,4 +172,4 @@ struct FromInlet<axom::klee::internal::NamedOperatorMapData>
   axom::klee::internal::NamedOperatorMapData operator()(const axom::inlet::Container &base);
 };
 
-#endif  //AXOM_KLEE_GEOMETRYOPERATORSIO_HPP
+#endif  // AXOM_KLEE_GEOMETRYOPERATORSIO_HPP_

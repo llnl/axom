@@ -2,16 +2,17 @@
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEE_IO_UTIL_HPP
-#define AXOM_KLEE_IO_UTIL_HPP
-
-#include <tuple>
-#include <vector>
+#ifndef AXOM_KLEE_IO_UTIL_HPP_
+#define AXOM_KLEE_IO_UTIL_HPP_
 
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Units.hpp"
+
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
+
+#include <tuple>
+#include <vector>
 
 namespace axom
 {
@@ -162,4 +163,4 @@ Dimensions toDimensions(const inlet::Proxy &dimProxy);
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_KLEE_IO_UTIL_HPP
+#endif  // AXOM_KLEE_IO_UTIL_HPP_

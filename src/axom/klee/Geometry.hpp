@@ -3,16 +3,17 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_GEOMETRY_HPP
-#define AXOM_KLEE_GEOMETRY_HPP
-
-#include <memory>
-#include <string>
+#ifndef AXOM_KLEE_GEOMETRY_HPP_
+#define AXOM_KLEE_GEOMETRY_HPP_
 
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Units.hpp"
+
 #include "axom/primal.hpp"
 #include "axom/sidre.hpp"
+
+#include <memory>
+#include <string>
 
 namespace axom
 {
@@ -343,4 +344,4 @@ private:
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_KLEE_GEOMETRY_HPP
+#endif  // AXOM_KLEE_GEOMETRY_HPP_

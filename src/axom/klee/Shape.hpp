@@ -3,13 +3,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_SHAPE_HPP
-#define AXOM_KLEE_SHAPE_HPP
+#ifndef AXOM_KLEE_SHAPE_HPP_
+#define AXOM_KLEE_SHAPE_HPP_
+
+
+#include "axom/klee/Geometry.hpp"
 
 #include <string>
 #include <vector>
-
-#include "axom/klee/Geometry.hpp"
 
 namespace axom
 {
@@ -92,4 +93,4 @@ private:
 }  // namespace klee
 }  // namespace axom
 
-#endif
+#endif // AXOM_KLEE_SHAPE_HPP_

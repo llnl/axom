@@ -2,11 +2,12 @@
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEEMATCHERS_HPP
-#define AXOM_KLEEMATCHERS_HPP
+#ifndef AXOM_KLEE_MATCHERS_HPP_
+#define AXOM_KLEE_MATCHERS_HPP_
 
 #include "axom/core.hpp"
 #include "axom/primal.hpp"
+
 #include "axom/klee/GeometryOperators.hpp"
 
 #include "gmock/gmock.h"
@@ -170,4 +171,4 @@ inline auto AlmostEqSlice(const klee::SliceOperator& slice) { return AlmostEqSli
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_KLEEMATCHERS_HPP
+#endif  // AXOM_KLEE_MATCHERS_HPP_

@@ -2,8 +2,8 @@
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_UNITS_HPP
-#define AXOM_UNITS_HPP
+#ifndef AXOM_KLEE_UNITS_HPP
+#define AXOM_KLEE_UNITS_HPP
 
 #include <string>
 
@@ -100,4 +100,4 @@ void convertAll(T &values, LengthUnit sourceUnits, LengthUnit targetUnits)
 
 }  // namespace klee
 }  // namespace axom
-#endif  //AXOM_UNITS_HPP
+#endif  // AXOM_KLEE_UNITS_HPP

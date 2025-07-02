@@ -3,19 +3,20 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/klee/IO.hpp"
+#include "IO.hpp"
+#include "IOUtil.hpp"
+#include "GeometryOperatorsIO.hpp"
+
+#include "axom/klee/GeometryOperators.hpp"
+#include "axom/klee/KleeError.hpp"
+
+#include "axom/inlet.hpp"
 
 #include <fstream>
 #include <functional>
 #include <iterator>
 #include <string>
 #include <tuple>
-
-#include "axom/inlet.hpp"
-#include "axom/klee/GeometryOperators.hpp"
-#include "axom/klee/GeometryOperatorsIO.hpp"
-#include "axom/klee/IOUtil.hpp"
-#include "axom/klee/KleeError.hpp"
 
 namespace axom
 {
