@@ -252,7 +252,7 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
     }());
 
   const std::string policy_str = (method == "naive" || method == "bvh")
-    ? axom::fmt::format("\n  policy = {} {}", policy,
+    ? axom::fmt::format("\n  policy = {} {}", static_cast<int>(policy),
       [this]() -> std::string {
         switch(this->policy)
         {
