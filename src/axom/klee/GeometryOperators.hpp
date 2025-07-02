@@ -3,14 +3,16 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_GEOMETRYOPERATOR_HPP
-#define AXOM_KLEE_GEOMETRYOPERATOR_HPP
+#ifndef AXOM_KLEE_GEOMETRYOPERATOR_HPP_
+#define AXOM_KLEE_GEOMETRYOPERATOR_HPP_
 
 #include "axom/config.hpp"
 #include "axom/core/numerics/Matrix.hpp"
+
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Geometry.hpp"
 #include "axom/klee/Units.hpp"
+
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 
@@ -383,4 +385,4 @@ public:
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_KLEE_GEOMETRYOPERATOR_HPP
+#endif  // AXOM_KLEE_GEOMETRYOPERATOR_HPP_

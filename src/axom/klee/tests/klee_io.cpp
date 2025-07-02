@@ -3,17 +3,18 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/klee/IO.hpp"
+#include "axom/slic.hpp"
 
-#include <fstream>
-#include <sstream>
+#include "axom/klee/io/IO.hpp"
+#include "axom/klee/GeometryOperators.hpp"
+#include "axom/klee/KleeError.hpp"
+
+#include "KleeMatchers.hpp"
 
 #include "gtest/gtest.h"
 
-#include "axom/klee/GeometryOperators.hpp"
-#include "axom/klee/KleeError.hpp"
-#include "axom/slic/core/SimpleLogger.hpp"
-#include "KleeMatchers.hpp"
+#include <fstream>
+#include <sstream>
 
 namespace axom
 {

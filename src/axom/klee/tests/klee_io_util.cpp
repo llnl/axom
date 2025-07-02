@@ -3,16 +3,16 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/klee/IOUtil.hpp"
+#include "axom/slic.hpp"
+#include "axom/inlet.hpp"
+
+#include "axom/klee/io/IOUtil.hpp"
+#include "axom/klee/KleeError.hpp"
+
+#include "KleeMatchers.hpp"
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-
-#include "axom/inlet.hpp"
-#include "axom/klee/KleeError.hpp"
-#include "axom/slic/core/SimpleLogger.hpp"
-
-#include "KleeMatchers.hpp"
 
 #include <memory>
 

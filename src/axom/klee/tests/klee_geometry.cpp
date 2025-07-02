@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/klee/Geometry.hpp"
-
 #include "axom/klee/tests/KleeTestUtils.hpp"
 
 #include "gtest/gtest.h"

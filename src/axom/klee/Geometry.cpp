@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/klee/Geometry.hpp"
-
 #include "axom/klee/GeometryOperators.hpp"
+
 #include "conduit_blueprint_mesh.hpp"
 
 #include <utility>

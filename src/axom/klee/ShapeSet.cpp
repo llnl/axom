@@ -3,12 +3,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#include "axom/core/utilities/FileUtilities.hpp"
+
 #include "axom/klee/ShapeSet.hpp"
 
 #include <utility>
 #include <stdexcept>
 
-#include "axom/core/utilities/FileUtilities.hpp"
 
 namespace axom
 {

@@ -3,13 +3,14 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_IO_HPP
-#define AXOM_KLEE_IO_HPP
+#ifndef AXOM_KLEE_IO_HPP_
+#define AXOM_KLEE_IO_HPP_
+
+
+#include "axom/klee/ShapeSet.hpp"
 
 #include <string>
 #include <istream>
-
-#include "axom/klee/ShapeSet.hpp"
 
 namespace axom
 {
@@ -35,4 +36,4 @@ ShapeSet readShapeSet(const std::string &filePath);
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_KLEE_IO_HPP
+#endif  // AXOM_KLEE_IO_HPP_
