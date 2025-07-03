@@ -96,6 +96,7 @@
 /*
  * Compiler defines for Axom components
  */
+#cmakedefine AXOM_USE_BUMP
 #cmakedefine AXOM_USE_INLET
 #cmakedefine AXOM_USE_KLEE
 #cmakedefine AXOM_USE_LUMBERJACK
