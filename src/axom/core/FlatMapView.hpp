@@ -90,6 +90,33 @@ public:
   /// @}
 
   /*!
+   * \brief Find an entry with a given key.
+   *
+   *  If a corresponding value does not exist, a default value for the value
+   *  type will be returned (but not inserted into the map).
+   *
+   * \param [in] key the key to search for
+   *
+   * \return The corresponding value, or a default value if the key does not exist
+   *
+   * \pre ValueType is default-constructible
+   */
+  /// @{
+  AXOM_HOST_DEVICE const ValueType& operator[](const KeyType& key) const
+  {
+    static_assert(std::is_default_constructible<ValueType>::value,
+                  "Cannot use axom::FlatMapView::operator[] when value type is not "
+                  "default-constructible.");
+    auto it = this->find(key);
+    if(it != this->end())
+    {
+      return it->second;
+    }
+    return m_defaultValue;
+  }
+  /// @}
+
+  /*!
    * \brief Returns true if there are no entries in the FlatMap, false
    *  otherwise.
    */
@@ -137,6 +164,13 @@ private:
                                          const detail::flat_map::TypeErasedStorage<BaseKVPair>,
                                          detail::flat_map::TypeErasedStorage<BaseKVPair>>;
   axom::ArrayView<PairStorage> m_buckets;
+
+  // Supporting functionality for FlatMapView::operator[]
+  struct Dummy
+  { };
+  using DefaultValueType =
+    std::conditional_t<std::is_default_constructible<ValueType>::value, ValueType, Dummy>;
+  DefaultValueType m_defaultValue {};
 };
 
 template <typename KeyType, typename ValueType, bool IsConst, typename Hash>
