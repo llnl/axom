@@ -18,7 +18,10 @@ namespace axom
  *
  * \see FlatMapView
  */
-template <typename KeyType, typename ValueType, typename Hash = detail::flat_map::HashMixer64<KeyType, DeviceHash>>
+template <typename KeyType,
+          typename ValueType,
+          bool IsConst,
+          typename Hash = detail::flat_map::HashMixer64<KeyType, DeviceHash>>
 class FlatMapView : detail::flat_map::SequentialLookupPolicy<typename Hash::result_type>
 {
 private:
@@ -28,7 +31,8 @@ private:
   class IteratorImpl;
   friend class IteratorImpl;
 
-  using KeyValuePair = std::pair<const KeyType, ValueType>;
+  using BaseKVPair = std::pair<const KeyType, ValueType>;
+  using KeyValuePair = std::conditional_t<IsConst, const BaseKVPair, BaseKVPair>;
 
 public:
   using key_type = KeyType;
@@ -38,7 +42,10 @@ public:
   using iterator = IteratorImpl;
   using const_iterator = IteratorImpl;
 
-  FlatMapView(const FlatMap<KeyType, ValueType, Hash>& other)
+  using FlatMapType =
+    std::conditional_t<IsConst, const FlatMap<KeyType, ValueType, Hash>, FlatMap<KeyType, ValueType, Hash>>;
+
+  FlatMapView(FlatMapType& other)
     : m_numGroups2(other.m_numGroups2)
     , m_size(other.m_size)
     , m_metadata(other.m_metadata.view())
@@ -126,24 +133,26 @@ private:
   axom::ArrayView<const detail::flat_map::GroupBucket> m_metadata;
 
   // Storage details:
-  using PairStorage = detail::flat_map::TypeErasedStorage<KeyValuePair>;
-  axom::ArrayView<const PairStorage> m_buckets;
+  using PairStorage = std::conditional_t<IsConst,
+                                         const detail::flat_map::TypeErasedStorage<BaseKVPair>,
+                                         detail::flat_map::TypeErasedStorage<BaseKVPair>>;
+  axom::ArrayView<PairStorage> m_buckets;
 };
 
-template <typename KeyType, typename ValueType, typename Hash>
-class FlatMapView<KeyType, ValueType, Hash>::IteratorImpl
+template <typename KeyType, typename ValueType, bool IsConst, typename Hash>
+class FlatMapView<KeyType, ValueType, IsConst, Hash>::IteratorImpl
 {
 private:
-  using MapType = FlatMapView<KeyType, ValueType, Hash>;
+  using MapType = FlatMapView<KeyType, ValueType, IsConst, Hash>;
 
-  friend class FlatMapView<KeyType, ValueType, Hash>;
+  friend class FlatMapView<KeyType, ValueType, IsConst, Hash>;
 
 public:
   using iterator_category = std::forward_iterator_tag;
   using value_type = typename MapType::value_type;
   using difference_type = IndexType;
 
-  using DataType = const value_type;
+  using DataType = value_type;
   using pointer = DataType*;
   using reference = DataType&;
 
@@ -187,8 +196,8 @@ private:
   IndexType m_internalIdx;
 };
 
-template <typename KeyType, typename ValueType, typename Hash>
-AXOM_HOST_DEVICE auto FlatMapView<KeyType, ValueType, Hash>::find(const KeyType& key) const
+template <typename KeyType, typename ValueType, bool IsConst, typename Hash>
+AXOM_HOST_DEVICE auto FlatMapView<KeyType, ValueType, IsConst, Hash>::find(const KeyType& key) const
   -> const_iterator
 {
   auto hash = Hash {}(key);
@@ -206,9 +215,15 @@ AXOM_HOST_DEVICE auto FlatMapView<KeyType, ValueType, Hash>::find(const KeyType&
 }
 
 template <typename KeyType, typename ValueType, typename Hash>
-auto FlatMap<KeyType, ValueType, Hash>::view() const -> View
+auto FlatMap<KeyType, ValueType, Hash>::view() -> View
 {
   return View(*this);
+}
+
+template <typename KeyType, typename ValueType, typename Hash>
+auto FlatMap<KeyType, ValueType, Hash>::view() const -> ConstView
+{
+  return ConstView(*this);
 }
 
 }  // namespace axom

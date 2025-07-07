@@ -18,6 +18,7 @@ class core_flatmap_forall : public ::testing::Test
 public:
   using MapType = FlatMapType;
   using MapViewType = typename FlatMapType::View;
+  using MapViewConstType = typename FlatMapType::ConstView;
   using KeyType = typename FlatMapType::key_type;
   using ValueType = typename FlatMapType::mapped_type;
   using ExecSpace = axom::SEQ_EXEC;
@@ -44,7 +45,7 @@ TYPED_TEST_SUITE(core_flatmap_forall, ViewTypes);
 AXOM_TYPED_TEST(core_flatmap_forall, insert_and_find)
 {
   using MapType = typename TestFixture::MapType;
-  using MapViewType = typename TestFixture::MapViewType;
+  using MapViewConstType = typename TestFixture::MapViewConstType;
   using ExecSpace = typename TestFixture::ExecSpace;
 
   MapType test_map;
@@ -61,7 +62,7 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_and_find)
     test_map.insert({key, value});
   }
 
-  MapViewType test_map_view(test_map);
+  MapViewConstType test_map_view(test_map);
 
   axom::Array<int> valid_vec(NUM_ELEMS + EXTRA_THREADS, 0);
   axom::Array<int> keys_vec(NUM_ELEMS);
@@ -93,5 +94,54 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_and_find)
   for(int i = NUM_ELEMS; i < NUM_ELEMS + EXTRA_THREADS; i++)
   {
     EXPECT_EQ(valid_out[i], false);
+  }
+}
+
+AXOM_TYPED_TEST(core_flatmap_forall, insert_and_modify)
+{
+  using MapType = typename TestFixture::MapType;
+  using MapViewType = typename TestFixture::MapViewType;
+  using ExecSpace = typename TestFixture::ExecSpace;
+
+  MapType test_map;
+
+  const int NUM_ELEMS = 100;
+  const int EXTRA_THREADS = 100;
+
+  // First do insertions of elements.
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    test_map.insert({key, value});
+  }
+
+  MapViewType test_map_view(test_map);
+
+  // Write new values into the flat map, where existing keys are.
+  // This should work from a map view because we are not inserting
+  // existing keys, which would potentially trigger rehashes.
+  axom::for_all<ExecSpace>(
+    NUM_ELEMS + EXTRA_THREADS,
+    AXOM_LAMBDA(axom::IndexType idx) {
+      auto it = test_map_view.find(idx);
+      if(it != test_map_view.end())
+      {
+        it->second = idx * 11.0 + 7.0;
+      }
+    });
+
+  // Check contents of the original map on the host
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    EXPECT_EQ(test_map.count(i), true);
+    EXPECT_EQ(test_map.find(i)->first, this->getKey(i));
+    EXPECT_EQ(test_map.find(i)->second, this->getValue(i * 11.0 + 7.0));
+    EXPECT_NE(test_map.find(i)->second, this->getValue(i * 10.0 + 5.0));
+  }
+  for(int i = NUM_ELEMS; i < NUM_ELEMS + EXTRA_THREADS; i++)
+  {
+    EXPECT_EQ(test_map.count(i), false);
   }
 }

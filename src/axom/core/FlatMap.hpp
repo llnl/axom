@@ -20,7 +20,7 @@ namespace axom
 /*!
  * \brief Forward declaration of FlatMapView.
  */
-template <typename KeyType, typename ValueType, typename Hash>
+template <typename KeyType, typename ValueType, bool IsConst, typename Hash>
 class FlatMapView;
 
 /*!
@@ -76,7 +76,8 @@ public:
   using iterator = IteratorImpl<false>;
   using const_iterator = IteratorImpl<true>;
 
-  using View = FlatMapView<KeyType, ValueType, Hash>;
+  using View = FlatMapView<KeyType, ValueType, false, Hash>;
+  using ConstView = FlatMapView<KeyType, ValueType, true, Hash>;
 
   /*!
    * \brief Constructs a FlatMap with no elements.
@@ -607,10 +608,14 @@ public:
    * \brief Returns a read-only view of the FlatMap.
    * \see FlatMapView
    */
-  View view() const;
+  /// {@
+  View view();
+  ConstView view() const;
+  /// }@
 
 private:
-  friend class FlatMapView<KeyType, ValueType, Hash>;
+  friend class FlatMapView<KeyType, ValueType, false, Hash>;
+  friend class FlatMapView<KeyType, ValueType, true, Hash>;
 
   template <typename InputIt>
   FlatMap(IndexType num_elems, InputIt first, InputIt last, IndexType bucket_count, Allocator allocator);
