@@ -19,23 +19,32 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
+- Added a new "BUMP" (Blueprint Utilities for Mesh Processing) component in Axom, which includes
+  utilities that were formerly included in the Axom MIR component. BUMP is useful for writing
+  algorithms that process Blueprint meshes.
 - New `axom::MALLOC_ALLOCATOR_ID` is for using malloc and free
   even when axom is configured with Umpire support.
-- The ``axom::mir::ElviraAlgorithm`` class, which performs material interface reconstruction using
+- The `axom::mir::ElviraAlgorithm` class, which performs material interface reconstruction using
   the ELVIRA algorithm, was enhanced so it supports 3D structured mesh inputs. The output mesh is a
   Blueprint mesh with a 3D unstructured polyhedral topology.
-- Adds ``axom::mir::utilities::blueprint::MakePolyhedralTopology`` class that takes an input Blueprint
-  topology and turns it into a polyhedral topology. The mesh will contain duplicate faces, which can
-  later be merged.
-- Adds ``axom::mir::utilities::blueprint::MergePolyhedralFaces`` class that merges face Blueprint
-  polyhedral face definitions where faces consist of the same set of node ids. The mesh's subelement
-  connectivity information is rewritten so it contains the merged face definitions. The mesh's 
-  element connectivity is also rewritten so it references the new face definitions.
-- Adds ``axom::mir::utilities::blueprint::MergeCoordsetPoints`` class that merges coordset points,
-  within a tolerance. The class returns an array containing the indices of the points that made it
-  into the revised coordset, as well as a map of old point indices to new point indices, which can
-  be used to revise fields.
+- The `axom::mir::ElviraAlgorithm` class, was enhanced to accept a "plane" option that causes it
+  to return clipping plane origin and normal as fields on the mesh.
+- The `axom::mir::ElviraAlgorithm` class, was enhanced to accept a "pointmesh" option that causes it
+  to return a mesh consisting of points located at clipping plane origins for each clipped material
+  fragment, instead of returning polygonal or polyhedral meshes. This option is off by default.
 - Exposed primal clip operations for clipping various shapes with a plane.
+- Adds constructs in the `axom` namespace that wrap RAJA atomics, reductions, scans, and sorts.
+  When RAJA is not available, serial-only substitutes are provided, allowing algorithms to still
+  compile and run. These constructs are templated on the `ExecSpace` _(execution space)_ so it
+  is not necessary to query RAJA policies via the `execution_space` type traits classes.
+- 2D and 3D implementations for `axom::for_all` were added.
+- Adds support for custom allocators to `axom::FlatMap`.
+- Primal: Adds ability to perform sample-based shaping on tetrahedral shapes.
+- Improves efficiency of volume fraction computation from quadrature samples during sample-based shaping.
+- Adds a `axom::DeviceHash` type as a GPU-enabled version of the `std::hash` interface.
+- Added a new `quest::STLWriter` class that writes mint meshes to STL format.
+- Adds `assign` methods to `axom::Array`.
+- Adds `assign`, `fill`, `set` methods to `axom::ArrayView`.
 
 ###  Changed
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
@@ -44,6 +53,17 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds a new utility tool, `mesh_converter`, which converts between mesh formats. The first conversion
   is from a Pro-E tetrahedral mesh to an STL mesh of its boundary triangles.
 - Primal: Adds a method to determine if a point is contained within a Tetrahedron.
+- The `primal::BoundingBox` class' `expand()` and `shift()` methods were modified so they do
+  nothing when called on invalid bounding boxes.
+- Updates to [MFEM version 4.8.0][https://github.com/mfem/mfem/releases/tag/v4.8]
+- Readers in Quest were moved from a `quest/readers` directory to `quest/io`.
+- Sina: Renames a Fortran module to `sina_hdf5_config` (from `hdf5_config`)
+
+###  Fixed
+- Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
+  with GPU support. Instances where this occurs will now trigger a static assertion during compile time.
+- Fixes build with `ninja` generator
+- Primal: Fixes a `BoundingBox` constructor with zero (or fewer) points
 
 ###  Deprecated
 - Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
@@ -79,6 +99,7 @@ to use Open Cascade's file I/O capabilities in support of Quest applications.
 - Adds some support for 2D shaping in `quest::IntersectionShaper`, using STL meshes with zero for z-coordinates or in-memory triangles as input.
 - Adds ability in Lumberjack to own and set communicators.
 - Adds `NonCollectiveRootCommunicator` to Lumberjack to provide an MPI-based communicator for logging messages non-collectively.
+- Adds initial support for 2D shaping in `quest::IntersectionShaper`, using a c2c contour as input. The contour cannot overlap, and is expected to be entirely above the x-axis.
 
 ###  Changed
 - Updates blt submodule to [BLT version 0.7.0][https://github.com/LLNL/blt/releases/tag/v0.7.0]

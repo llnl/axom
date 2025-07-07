@@ -40,7 +40,7 @@ Once view types have been created and views have been instantiated, a MIR algori
 algorithm can be instantiated and used. Algorithms provide a single
 ``execute()`` method that takes the input mesh, an options node, and a node to contain
 the output mesh. The output mesh will be created in the same memory space as the input mesh,
-which again, must be compatible with the selected execution space. The ``axom::mir::utilities::blueprint::copy()``
+which again, must be compatible with the selected execution space. The ``axom::bump::utilities::copy()``
 function can be used to copy Conduit nodes from one memory space to another.
 
 MIR output will contain a new field called, by default, *"originalElements"* that
@@ -133,13 +133,49 @@ data from neighbor zones. This means that each zone is cut multiple times using 
 with different orientations, resulting in potentially jagged interfaces. ELVIRA prioritizes
 conservation of material volume fractions over the appearance of the resulting material
 interfaces so it is highly accurate but it can be less visually appealing. Since ELVIRA
-output is comprised of shapes that result from several cuts of the input zones, the resulting
-topology is not necessarily water-tight and it consists of polygons for 2D and polyhedra for 3D.
+output is typically comprised of shapes that result from several cuts of the input zones,
+the resulting topology is not water-tight. The output topology consists of polygons for 2D
+and polyhedra for 3D.
+
+The ELVIRA algorithm also supports a mode where instead of creating 2D polygons or 3D
+polyhedral zones for material fragments, it creates a mesh consisting solely of points.
+Each point represents the clipping plane origin involved in creating a zone fragment.
+For zones that contain a single material, the point is placed at the zone centroid for
+the input zone. This output mode is activated using the "pointmesh" option.
 
 Axom's implementation of ELVIRA is data parallel and can run on the CPU and the GPU. Zones
 of interest are identified and are classified as clean or mixed. Clean zones contain a single
 material and are extracted into their own mesh while mixed zones are passed through the ELVIRA
 algorithm to produce polygonal or polyhedral output. In the end, the two meshes are merged.
+
+Axom's ELVIRA algorithm accepts a Conduit node containing MIR options that influence the
+algorithm. The MIR options in the table above are accepted, as well as the following options
+that are specific to ELVIRA.
+
++---------------------------------+------------------------------------------------------+
+| Option                          | Description                                          |
++=================================+======================================================+
+|``plane: 0 | 1``                 | If ``plane`` is set to 1 then the MIR output will    |
+|                                 | contain "normal" and "offset" fields that            |
+|                                 | contain the normal and offset, respectively, for the |
+|                                 | clipping plane used to produce each zone fragment. If|
+|                                 | ``plane`` is set to 0 then these fields are not      |
+|                                 | created. The default value is 0 (off).               |
++---------------------------------+------------------------------------------------------+
+|``pointmesh: 0 | 1``             | If ``pointmesh`` is set to 1 then the algorithm will |
+|                                 | produce point mesh output instead of polygonal or    |
+|                                 | polyhedral output. Point mesh coordinates are located|
+|                                 | at the origin of the fragment clipping planes.       |
+|                                 | The default value is 0 (off).                        |
++---------------------------------+------------------------------------------------------+
+|``point_tolerance: float``       | The ``point_tolerance`` option is used to set the    |
+|                                 | tolerance used to merge points together in 3D ELVIRA.|
+|                                 | The value must be greater than 0. Points closer than |
+|                                 | the tolerance will be merged together in the coordset|
+|                                 | created from the clipped fragments. The polyhedral   |
+|                                 | topology is updated to use the modified coordset. The|
+|                                 | default value is 1.e-10.                             |
++---------------------------------+------------------------------------------------------+
 
 .. literalinclude:: ../../tests/mir_elvira2d.cpp
    :start-after: _elvira_mir_start
@@ -164,7 +200,11 @@ are optional.
 +--------------------+---------------------------------------------------------------+
 | Argument           | Description                                                   |
 +====================+===============================================================+
+| --dimension number | The mesh dimension, 2 or 3.                                   |
++--------------------+---------------------------------------------------------------+
 | --gridsize number  | The number of zones along an axis. The default is 5.          |
++--------------------+---------------------------------------------------------------+
+| --method name      | The MIR method used "equiz" or "elvira".                      |
 +--------------------+---------------------------------------------------------------+
 | --numcircles number| The number of number of circles to use for material creation. |
 |                    | The default is 2.                                             |

@@ -37,12 +37,6 @@
   #include "mpi.h"
 #endif
 
-// RAJA
-#if !defined(AXOM_USE_RAJA)
-  #error quest_shape_in_memory example and IntersectionShaper require RAJA
-#endif
-#include "RAJA/RAJA.hpp"
-
 // C/C++ includes
 #include <string>
 #include <vector>
@@ -562,7 +556,6 @@ void finalizeLogger()
 axom::klee::ShapeSet create2DShapeSet(sidre::DataStore& ds)
 {
   sidre::Group* meshGroup = ds.getRoot()->createGroup("triangleMesh");
-  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
   const std::string topo = "mesh";
   const std::string coordset = "coords";
   axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> triangleMesh(2,
@@ -571,7 +564,7 @@ axom::klee::ShapeSet create2DShapeSet(sidre::DataStore& ds)
                                                                       topo,
                                                                       coordset);
 
-  double lll = 2.0;
+  const double lll = 2.0;
 
   // Insert tet at origin.
   triangleMesh.appendNode(0.0, 0.0);
@@ -580,7 +573,8 @@ axom::klee::ShapeSet create2DShapeSet(sidre::DataStore& ds)
   axom::IndexType conn[3] = {0, 1, 2};
   triangleMesh.appendCell(conn);
 
-  SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
+  SLIC_ERROR_ROOT_IF(!axom::mint::blueprint::isValidRootGroup(meshGroup),
+                     "Triangle mesh blueprint is not valid");
 
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Two,
                                                     axom::klee::LengthUnit::unspecified};
@@ -632,7 +626,6 @@ axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds)
 {
   // Shape a tetrahedal mesh.
   sidre::Group* meshGroup = ds.getRoot()->createGroup("tetMesh");
-  AXOM_UNUSED_VAR(meshGroup);  // variable is only referenced in debug configs
   const std::string topo = "mesh";
   const std::string coordset = "coords";
   axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> tetMesh(3,
@@ -657,7 +650,8 @@ axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds)
   axom::IndexType conn1[4] = {4, 5, 6, 7};
   tetMesh.appendCell(conn1);
 
-  SLIC_ASSERT(axom::mint::blueprint::isValidRootGroup(meshGroup));
+  SLIC_ERROR_ROOT_IF(!axom::mint::blueprint::isValidRootGroup(meshGroup),
+                     "Tet mesh blueprint is not valid");
 
   axom::klee::TransformableGeometryProperties prop {axom::klee::Dimensions::Three,
                                                     axom::klee::LengthUnit::unspecified};
@@ -1321,8 +1315,7 @@ double sumMaterialVolumes(sidre::MFEMSidreDataCollection* dc, const std::string&
                                      axom::execution_space<ExecSpace>::allocatorID());
   auto volFracView = volFracGfArray.view();
 
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-  RAJA::ReduceSum<ReducePolicy, double> localVol(0);
+  axom::ReduceSum<ExecSpace, double> localVol(0);
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType i) { localVol += volFracView[i] * elementVolsView[i]; });
@@ -1364,8 +1357,7 @@ double sumMaterialVolumesImpl(sidre::Group* meshGrp, const std::string& material
   axom::sidre::View* volFrac = meshGrp->getView(vfFieldValuesPath);
   axom::ArrayView<double> volFracView(volFrac->getArray(), cellCount);
 
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-  RAJA::ReduceSum<ReducePolicy, double> localVol(0);
+  axom::ReduceSum<ExecSpace, double> localVol(0);
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType i) { localVol += volFracView[i] * elementVolsView[i]; });
@@ -1384,19 +1376,19 @@ double sumMaterialVolumes(sidre::Group* meshGrp, const std::string& material)
   {
     rval = sumMaterialVolumesImpl<axom::SEQ_EXEC>(meshGrp, material);
   }
-#if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
   if(params.policy == RuntimePolicy::omp)
   {
     rval = sumMaterialVolumesImpl<axom::OMP_EXEC>(meshGrp, material);
   }
 #endif
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
   if(params.policy == RuntimePolicy::cuda)
   {
     rval = sumMaterialVolumesImpl<axom::CUDA_EXEC<256>>(meshGrp, material);
   }
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
   if(params.policy == RuntimePolicy::hip)
   {
     rval = sumMaterialVolumesImpl<axom::HIP_EXEC<256>>(meshGrp, material);
@@ -1484,21 +1476,21 @@ void fillSidreViewData(axom::sidre::View* view, const T& value)
   double* valuesPtr = view->getData<T*>();
   switch(params.policy)
   {
-#if defined(AXOM_USE_CUDA)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
   case RuntimePolicy::cuda:
     axom::for_all<axom::CUDA_EXEC<256>>(
       view->getNumElements(),
       AXOM_LAMBDA(axom::IndexType i) { valuesPtr[i] = value; });
     break;
 #endif
-#if defined(AXOM_USE_HIP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
   case RuntimePolicy::hip:
     axom::for_all<axom::HIP_EXEC<256>>(
       view->getNumElements(),
       AXOM_LAMBDA(axom::IndexType i) { valuesPtr[i] = value; });
     break;
 #endif
-#if defined(AXOM_USE_OMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OMP)
   case RuntimePolicy::omp:
     axom::for_all<axom::OMP_EXEC>(
       view->getNumElements(),
@@ -1551,7 +1543,7 @@ int main(int argc, char** argv)
 
   const int allocatorId = axom::policyToDefaultAllocatorID(params.policy);
 
-  AXOM_ANNOTATE_BEGIN("quest example for shaping primals");
+  AXOM_ANNOTATE_SCOPE("quest shaping example");
   AXOM_ANNOTATE_BEGIN("init");
 
   // Storage for the shape geometry meshes.
@@ -1886,12 +1878,11 @@ int main(int argc, char** argv)
 
   // For error checking, work on host.
   using ExecSpace = axom::SEQ_EXEC;
-  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
 
   //---------------------------------------------------------------------------
   // Correctness test: volume fractions should be in [0,1].
   //---------------------------------------------------------------------------
-  RAJA::ReduceSum<ReducePolicy, axom::IndexType> rangeViolationCount(0);
+  axom::ReduceSum<ExecSpace, axom::IndexType> rangeViolationCount(0);
   for(const auto& vfName : allVfNames)
   {
     std::string fieldName = "vol_frac_" + vfName;
@@ -1919,7 +1910,7 @@ int main(int argc, char** argv)
   axom::Array<double> volSums(cellCount);
   volSums.fill(0.0);
   axom::ArrayView<double> volSumsView = volSums.view();
-  RAJA::ReduceSum<ReducePolicy, axom::IndexType> nonUnitSums(0);
+  axom::ReduceSum<ExecSpace, axom::IndexType> nonUnitSums(0);
   for(const auto& vfName : allVfNames)
   {
     std::string fieldName = "vol_frac_" + vfName;
@@ -2025,8 +2016,6 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   SLIC_INFO(axom::fmt::format("{:-^80}", ""));
   slic::flushStreams();
-
-  AXOM_ANNOTATE_END("quest shaping example");
 
   finalizeLogger();
 

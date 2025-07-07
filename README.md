@@ -11,7 +11,7 @@
 
 [![Azure Pipelines Build Status](https://dev.azure.com/axom/axom/_apis/build/status/LLNL.axom?branchName=develop)](https://dev.azure.com/axom/axom/_build/latest?definitionId=1&branchName=develop)
 [![Documentation Status](https://readthedocs.org/projects/axom/badge/?version=develop)](https://axom.readthedocs.io/en/develop/?badge=develop)
-[![License](https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](https://github.com/LLNL/axom/blob/develop/LICENSE)
+[![License](https://img.shields.io/github/license/LLNL/axom.svg?color=blue&label=License)](https://github.com/LLNL/axom/blob/develop/LICENSE)
 [![GitHub release](https://img.shields.io/github/release/LLNL/axom.svg)](https://github.com/LLNL/axom/releases/latest)
 
 Axom provides robust, flexible software infrastructure for the development of multi-physics applications and computational tools.

@@ -12,9 +12,9 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/develop' }}
 
 env:
-  CLANG_DOCKER_IMAGE: axom/tpls:clang-14_04-01-25_17h-34m
-  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_04-01-25_17h-35m
-
+  CLANG_DOCKER_IMAGE: axom/tpls:clang-14_05-14-25_19h-24m
+  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_05-14-25_19h-24m
+ 
 jobs:
   # Hacky solution to reference env variables outside of `run` steps https://stackoverflow.com/a/74217028
   set_image_vars:
@@ -58,7 +58,7 @@ jobs:
             job_name: clang@14.0.0, shared, no raja
             host_config: clang@14.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
-            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -U RAJA_DIR'
+            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR'
             do_build: 'yes'
             do_benchmarks: 'no'
         - build_type: Debug
@@ -74,7 +74,7 @@ jobs:
             job_name: clang@14.0.0, shared, no raja and umpire
             host_config: clang@14.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
-            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -U RAJA_DIR -U UMPIRE_DIR'
+            cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR -U UMPIRE_DIR'
             do_build: 'yes'
             do_benchmarks: 'no'
         - build_type: Debug
@@ -121,7 +121,7 @@ jobs:
       # If any of checks (e.g. style) fail, allow other jobs to continue running.
       fail-fast: false
     env:
-      CMAKE_EXTRA_FLAGS: '-DAXOM_ENABLE_SIDRE:BOOL=OFF -DAXOM_ENABLE_INLET:BOOL=OFF -DAXOM_ENABLE_KLEE:BOOL=OFF -DAXOM_ENABLE_SINA:BOOL=OFF -DAXOM_ENABLE_MIR:BOOL=OFF'
+      CMAKE_EXTRA_FLAGS: '-DAXOM_ENABLE_SIDRE:BOOL=OFF -DAXOM_ENABLE_INLET:BOOL=OFF -DAXOM_ENABLE_KLEE:BOOL=OFF -DAXOM_ENABLE_SINA:BOOL=OFF -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF'
     steps:
     - name: Checkout Axom
       uses: actions/checkout@v4
@@ -146,7 +146,7 @@ jobs:
       # If any of checks (e.g. style) fail, allow other jobs to continue running.
       fail-fast: false
     env:
-      CMAKE_EXTRA_FLAGS: '-DAXOM_ENABLE_SIDRE:BOOL=OFF -DAXOM_ENABLE_INLET:BOOL=OFF -DAXOM_ENABLE_KLEE:BOOL=OFF -DAXOM_ENABLE_SINA:BOOL=OFF -DAXOM_ENABLE_MIR:BOOL=OFF'
+      CMAKE_EXTRA_FLAGS: '-DAXOM_ENABLE_SIDRE:BOOL=OFF -DAXOM_ENABLE_INLET:BOOL=OFF -DAXOM_ENABLE_KLEE:BOOL=OFF -DAXOM_ENABLE_SINA:BOOL=OFF -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF'
     steps:
       - name: Checkout Axom
         uses: actions/checkout@v4

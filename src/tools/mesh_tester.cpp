@@ -20,7 +20,8 @@
 #include "axom/spin/UniformGrid.hpp"
 
 // _read_stl_include1_start
-#include "axom/quest/readers/STLReader.hpp"
+#include "axom/quest/io/STLReader.hpp"
+#include "axom/quest/io/STLWriter.hpp"
 // _read_stl_include1_end
 // _check_repair_include_start
 #include "axom/quest/MeshTester.hpp"
@@ -28,35 +29,29 @@
 
 #include "axom/fmt.hpp"
 
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
-
 #include "axom/core/execution/nested_for_exec.hpp"
 
 using seq_exec = axom::SEQ_EXEC;
 
 // clang-format off
-#if defined(AXOM_USE_RAJA)
-  #if defined(AXOM_USE_OPENMP)
-    using omp_exec = axom::OMP_EXEC;
-  #else
-    using omp_exec = seq_exec;
-  #endif
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  using omp_exec = axom::OMP_EXEC;
+#else
+  using omp_exec = seq_exec;
+#endif
 
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
-    constexpr int CUDA_BLOCK_SIZE = 256;
-    using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
-  #else
-    using cuda_exec = seq_exec;
-  #endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  constexpr int CUDA_BLOCK_SIZE = 256;
+  using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
+#else
+  using cuda_exec = seq_exec;
+#endif
 
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
-    constexpr int HIP_BLOCK_SIZE = 256;
-    using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;
-  #else
-    using hip_exec = seq_exec;
-  #endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  constexpr int HIP_BLOCK_SIZE = 256;
+  using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;
+#else
+  using hip_exec = seq_exec;
 #endif
 // clang-format on
 
@@ -97,10 +92,12 @@ enum RuntimePolicy
 struct Input
 {
   static const std::set<std::string> s_validMethods;
+  static const std::set<std::string> s_validFormats;
   static const std::map<std::string, RuntimePolicy> s_validPolicies;
 
   std::string stlInput {""};
-  std::string vtkOutput {""};
+  std::string fileOutput {""};
+  std::string fileFormat {"vtk"};
   std::string method {"uniform"};
   RuntimePolicy policy {seq};
   std::string annotationMode {"none"};
@@ -110,14 +107,15 @@ struct Input
   double intersectionThreshold {1e-08};
   bool skipWeld {false};
   bool verboseOutput {false};
+  bool binary {false};
 
   Input() = default;
 
   void parse(int argc, char** argv, axom::CLI::App& app);
 
-  std::string collisionsMeshName() { return vtkOutput + ".collisions.vtk"; }
-  std::string collisionsTextName() { return vtkOutput + ".collisions.txt"; }
-  std::string weldMeshName() { return vtkOutput + ".weld.vtk"; }
+  std::string collisionsMeshName() { return fileOutput + ".collisions." + fileFormat; }
+  std::string collisionsTextName() { return fileOutput + ".collisions.txt"; }
+  std::string weldMeshName() { return fileOutput + ".weld." + fileFormat; }
 
 private:
   void fixOutfilePath();
@@ -131,17 +129,22 @@ const std::set<std::string> Input::s_validMethods({
   "naive"
 });
 
+const std::set<std::string> Input::s_validFormats({
+  "stl",
+  "vtk"
+});
+
 const std::map<std::string, RuntimePolicy> Input::s_validPolicies({
   {"seq", seq}
   #ifdef AXOM_USE_RAJA
   , {"raja_seq", raja_seq}
-    #ifdef AXOM_USE_OPENMP
+    #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   , {"raja_omp", raja_omp}
     #endif
-    #ifdef AXOM_USE_CUDA
+    #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   , {"raja_cuda", raja_cuda}
     #endif
-    #if defined(AXOM_USE_HIP)
+    #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   , {"raja_hip", raja_hip}
     #endif
   #endif
@@ -176,13 +179,13 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
            << "(w/o RAJA).";
 #ifdef AXOM_USE_RAJA
   pol_sstr << "\nSet to 'raja_seq' or 1 to use the RAJA sequential policy.";
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   pol_sstr << "\nSet to 'raja_omp' or 2 to use the RAJA OpenMP policy.";
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   pol_sstr << "\nSet to 'raja_cuda' or 3 to use the RAJA CUDA policy.";
   #endif
-  #if defined(AXOM_USE_HIP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   pol_sstr << "\nSet to 'raja_hip' or 4 to use the RAJA HIP policy.";
   #endif
 #endif
@@ -191,14 +194,19 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
     ->capture_default_str()
     ->transform(axom::CLI::CheckedTransformer(Input::s_validPolicies));
 
+  app.add_option("-f, --format", fileFormat, "Output file format, one of: 'stl', 'vtk'")
+    ->capture_default_str()
+    ->check(axom::CLI::IsMember {Input::s_validFormats});
+
   app.add_option("-i,--infile", stlInput, "The STL input file")->required()->check(axom::CLI::ExistingFile);
 
   app.add_option("-o,--outfile",
-                 vtkOutput,
+                 fileOutput,
                  "Output file name for collisions and welded mesh. \n"
                  "Defaults to a file in the CWD with the input file name. \n"
-                 "Collisions mesh will end with '.collisions.vtk' and \n"
-                 "welded mesh will end with '.welded.vtk'.");
+                 "Collisions mesh will end with '.collisions.{format}' and \n"
+                 "welded mesh will end with '.welded.{format}', where {format} is\n"
+                 "the selected file format.");
 
   app.add_option("--weldThresh", weldThreshold, "Distance threshold for welding vertices.")
     ->capture_default_str();
@@ -212,6 +220,8 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
   app.add_flag("--skipWeld",
                skipWeld,
                "Don't weld vertices (useful for testing, not helpful otherwise).");
+
+  app.add_flag("--binary", binary, "Write binary output files in supported formats.");
 
   app.add_flag("-v,--verbose", verboseOutput, "Increase logging verbosity.")->capture_default_str();
 
@@ -288,20 +298,20 @@ void Input::fixOutfilePath()
   std::string outFileBase = futil::joinPath(futil::getCWD(), inFileStem);
 
   // set output file name when not provided
-  int sz = static_cast<int>(vtkOutput.size());
+  int sz = static_cast<int>(fileOutput.size());
   if(sz < 1)
   {
-    vtkOutput = outFileBase;
-    sz = static_cast<int>(vtkOutput.size());
+    fileOutput = outFileBase;
+    sz = static_cast<int>(fileOutput.size());
   }
 
   // ensure that output file does not end with '.vtk'
   if(sz > 4)
   {
-    std::string ext = vtkOutput.substr(sz - 4, 4);
+    std::string ext = fileOutput.substr(sz - 4, 4);
     if(ext == ".vtk" || ext == ".stl")
     {
-      vtkOutput = vtkOutput.substr(0, sz - ext.size());
+      fileOutput = fileOutput.substr(0, sz - ext.size());
     }
   }
 }
@@ -320,7 +330,10 @@ void saveProblemFlagsToMesh(mint::Mesh* surface_mesh,
                             const std::vector<std::pair<int, int>>& c,
                             const std::vector<int>& d);
 
-bool writeAnnotatedMesh(mint::Mesh* surface_mesh, const std::string& outfile);
+bool writeAnnotatedMesh(mint::Mesh* surface_mesh,
+                        const std::string& outfile,
+                        const std::string& fileFormat,
+                        bool binary);
 
 bool writeCollisions(const std::vector<std::pair<int, int>>& c,
                      const std::vector<int>& d,
@@ -442,14 +455,10 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
     }
   }
 
-  RAJA::RangeSegment row_range(0, ncells);
-  RAJA::RangeSegment col_range(0, ncells);
+  axom::StackArray<axom::IndexType, 2> row_range {{0, static_cast<axom::IndexType>(ncells)}};
+  axom::StackArray<axom::IndexType, 2> col_range {{0, static_cast<axom::IndexType>(ncells)}};
 
-  using KERNEL_POL = typename axom::internal::nested_for_exec<ExecSpace>::loop2d_policy;
-  using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-  using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
-
-  RAJA::ReduceSum<REDUCE_POL, int> numIntersect(0);
+  axom::ReduceSum<ExecSpace, int> numIntersect(0);
 
   // Copy triangles to device
   axom::Array<Triangle3> tris_d =
@@ -458,8 +467,9 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
   auto tris_v = on_device ? tris_d.view() : tris_h.view();
 
   // Compute the number of intersections
-  RAJA::kernel<KERNEL_POL>(
-    RAJA::make_tuple(col_range, row_range),
+  axom::for_all<ExecSpace>(
+    col_range,
+    row_range,
     AXOM_LAMBDA(int col, int row) {
       if(row > col)
       {
@@ -481,14 +491,15 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
   auto counter_v = on_device ? counter_d.view() : counter_h.view();
 
   // RAJA loop to populate with intersections
-  RAJA::kernel<KERNEL_POL>(
-    RAJA::make_tuple(col_range, row_range),
+  axom::for_all<ExecSpace>(
+    col_range,
+    row_range,
     AXOM_LAMBDA(int col, int row) {
       if(row > col)
       {
         if(checkTT(tris_v[row], tris_v[col], EPS))
         {
-          auto idx = RAJA::atomicAdd<ATOMIC_POL>(counter_v.data(), 2);
+          auto idx = axom::atomicAdd<ExecSpace>(counter_v.data(), 2);
           intersections_v[idx] = row;
           intersections_v[idx + 1] = col;
         }
@@ -507,7 +518,7 @@ std::vector<std::pair<int, int>> naiveIntersectionAlgorithm(mint::Mesh* surface_
 
   return retval;
 }
-#endif  // defined(AXOM_USE_RAJA)
+#endif
 
 void announceMeshProblems(int triangleCount, int intersectPairCount, int degenerateCount)
 {
@@ -552,9 +563,24 @@ void saveProblemFlagsToMesh(mint::Mesh* mesh,
   }
 }
 
-bool writeAnnotatedMesh(mint::Mesh* surface_mesh, const std::string& outfile)
+bool writeAnnotatedMesh(mint::Mesh* surface_mesh,
+                        const std::string& outfile,
+                        const std::string& fileFormat,
+                        bool binary)
 {
-  return write_vtk(surface_mesh, outfile) == 0;
+  bool retval = false;
+  if(fileFormat == "vtk")
+  {
+    AXOM_ANNOTATE_SCOPE("save vtk mesh");
+    retval = mint::write_vtk(surface_mesh, outfile) == 0;
+  }
+  else if(fileFormat == "stl")
+  {
+    AXOM_ANNOTATE_SCOPE("save stl mesh");
+    // NOTE: The STL writer is co-located with the STL reader in quest.
+    retval = quest::write_stl(surface_mesh, outfile, binary) == 0;
+  }
+  return retval;
 }
 
 bool writeCollisions(const std::vector<std::pair<int, int>>& c,
@@ -698,25 +724,25 @@ int main(int argc, char** argv)
         collisions =
           naiveIntersectionAlgorithm(surface_mesh, degenerate, params.intersectionThreshold);
         break;
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA)
       case raja_seq:
         collisions =
           naiveIntersectionAlgorithm<seq_exec>(surface_mesh, degenerate, params.intersectionThreshold);
         break;
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case raja_omp:
         collisions =
           naiveIntersectionAlgorithm<omp_exec>(surface_mesh, degenerate, params.intersectionThreshold);
         break;
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case raja_cuda:
         collisions = naiveIntersectionAlgorithm<cuda_exec>(surface_mesh,
                                                            degenerate,
                                                            params.intersectionThreshold);
         break;
   #endif
-  #if defined(AXOM_USE_HIP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case raja_hip:
         collisions =
           naiveIntersectionAlgorithm<hip_exec>(surface_mesh, degenerate, params.intersectionThreshold);
@@ -742,14 +768,14 @@ int main(int argc, char** argv)
                                                              degenerate,
                                                              params.intersectionThreshold);
         break;
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA)
       case raja_seq:
         quest::findTriMeshIntersectionsBVH<seq_exec, double>(surface_mesh,
                                                              collisions,
                                                              degenerate,
                                                              params.intersectionThreshold);
         break;
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case raja_omp:
         quest::findTriMeshIntersectionsBVH<omp_exec, double>(surface_mesh,
                                                              collisions,
@@ -757,7 +783,7 @@ int main(int argc, char** argv)
                                                              params.intersectionThreshold);
         break;
   #endif
-  #ifdef AXOM_USE_CUDA
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case raja_cuda:
         quest::findTriMeshIntersectionsBVH<cuda_exec, double>(surface_mesh,
                                                               collisions,
@@ -765,7 +791,7 @@ int main(int argc, char** argv)
                                                               params.intersectionThreshold);
         break;
   #endif
-  #if defined(AXOM_USE_HIP)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case raja_hip:
         quest::findTriMeshIntersectionsBVH<hip_exec, double>(surface_mesh,
                                                              collisions,
@@ -802,7 +828,7 @@ int main(int argc, char** argv)
                                                                       params.resolution,
                                                                       params.intersectionThreshold);
         break;
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case raja_omp:
         quest::findTriMeshIntersectionsImplicitGrid<omp_exec, double>(surface_mesh,
                                                                       collisions,
@@ -811,7 +837,7 @@ int main(int argc, char** argv)
                                                                       params.intersectionThreshold);
         break;
   #endif
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case raja_cuda:
         quest::findTriMeshIntersectionsImplicitGrid<cuda_exec, double>(surface_mesh,
                                                                        collisions,
@@ -820,7 +846,7 @@ int main(int argc, char** argv)
                                                                        params.intersectionThreshold);
         break;
   #endif
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case raja_hip:
         quest::findTriMeshIntersectionsImplicitGrid<hip_exec, double>(surface_mesh,
                                                                       collisions,
@@ -857,7 +883,7 @@ int main(int argc, char** argv)
                                                                      params.resolution,
                                                                      params.intersectionThreshold);
         break;
-  #ifdef AXOM_USE_OPENMP
+  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case raja_omp:
         quest::findTriMeshIntersectionsUniformGrid<omp_exec, double>(surface_mesh,
                                                                      collisions,
@@ -866,7 +892,7 @@ int main(int argc, char** argv)
                                                                      params.intersectionThreshold);
         break;
   #endif
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case raja_cuda:
         quest::findTriMeshIntersectionsUniformGrid<cuda_exec, double>(surface_mesh,
                                                                       collisions,
@@ -875,7 +901,7 @@ int main(int argc, char** argv)
                                                                       params.intersectionThreshold);
         break;
   #endif
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case raja_hip:
         quest::findTriMeshIntersectionsUniformGrid<hip_exec, double>(surface_mesh,
                                                                      collisions,
@@ -901,7 +927,7 @@ int main(int argc, char** argv)
 
       saveProblemFlagsToMesh(surface_mesh, collisions, degenerate);
 
-      if(!writeAnnotatedMesh(surface_mesh, params.collisionsMeshName()))
+      if(!writeAnnotatedMesh(surface_mesh, params.collisionsMeshName(), params.fileFormat, params.binary))
       {
         SLIC_ERROR("Couldn't write results to " << params.collisionsMeshName());
       }
@@ -959,10 +985,7 @@ int main(int argc, char** argv)
     // _report_watertight_end
     SLIC_INFO("Testing for watertightness took " << timer2.elapsedTimeInSec() << " seconds.");
 
-    {
-      AXOM_ANNOTATE_SCOPE("save vtk mesh");
-      mint::write_vtk(surface_mesh, params.weldMeshName());
-    }
+    writeAnnotatedMesh(surface_mesh, params.weldMeshName(), params.fileFormat, params.binary);
   }
 
   // Delete the mesh

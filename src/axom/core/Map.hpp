@@ -10,15 +10,12 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/memory_management.hpp"
 #include "axom/core/execution/execution_space.hpp"
+#include "axom/core/execution/atomics.hpp"
 #include "axom/core/Types.hpp"
 
 // C/C++ includes
 #include <functional>
 #include <iostream>
-
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
-  #include "RAJA/RAJA.hpp"
-#endif
 
 namespace axom
 {
@@ -573,11 +570,8 @@ public:
     //Candidate to get cut out if branching becomes too much of an issue.
     if(ret.second == true)
     {
-#ifdef AXOM_USE_RAJA
-      RAJA::atomicAdd<RAJA::auto_atomic>(&m_size, IndexType {1});
-#else
-      m_size++;
-#endif
+      axom::atomicAdd<axom::auto_atomic>(&m_size, IndexType {1});
+
       if(target->get_size() == target->get_capacity())
       {
         m_bucket_fill = true;
@@ -621,11 +615,8 @@ public:
     //Candidate to get cut out if branching becomes too much of an issue.
     if(ret.second == true)
     {
-#ifdef AXOM_USE_RAJA
-      RAJA::atomicAdd<RAJA::auto_atomic>(&m_size, IndexType {1});
-#else
-      m_size++;
-#endif
+      axom::atomicAdd<axom::auto_atomic>(&m_size, IndexType {1});
+
       if(target->get_size() == target->get_capacity())
       {
         m_bucket_fill = true;
@@ -676,11 +667,7 @@ public:
     bool ret = target->remove(key);
     if(ret == true)
     {
-#ifdef AXOM_USE_RAJA
-      RAJA::atomicSub<RAJA::auto_atomic>(&m_size, IndexType {1});
-#else
-      m_size--;
-#endif
+      axom::atomicSub<axom::auto_atomic>(&m_size, IndexType {1});
     }
     bucket_unlock(index, pol);
     return ret;

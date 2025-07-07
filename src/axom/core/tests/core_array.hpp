@@ -6,6 +6,7 @@
 #include "axom/core/Array.hpp"
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/memory_management.hpp"
+#include "axom/core/execution/for_all.hpp"
 
 #include "gtest/gtest.h"
 
@@ -162,6 +163,20 @@ void check_fill(axom::Array<T, DIM, SPACE>& v)
   {
     EXPECT_EQ(v_host[i], MAGIC_NUM_1);
   }
+
+  //--------------------------------------------------------
+  // Test view fill. All elements contain MAGIC_NUM_1 now.
+
+  /* Fill the Array View with MAGIC_NUM_0. */
+  v.view().fill(MAGIC_NUM_0);
+
+  v_host = axom::Array<T, DIM>(v, host_alloc_id);
+
+  /* Check that the entries are all MAGIC_NUM_0. */
+  for(axom::IndexType i = 0; i < size; ++i)
+  {
+    EXPECT_EQ(v_host[i], MAGIC_NUM_0);
+  }
 }
 
 /*!
@@ -230,7 +245,63 @@ void check_set(axom::Array<T>& v)
     EXPECT_EQ(v[i], i);
   }
 
+  // Check setting through the view.
+  v.fill(ZERO);
+  v.view().set(buffer, buffer_size, 0);
+  for(axom::IndexType i = 0; i < buffer_size; ++i)
+  {
+    EXPECT_EQ(v[i], buffer[i]);
+  }
+
   axom::deallocate(buffer);
+}
+
+/*!
+ * \brief Check that the assign method is working properly.
+ * \param [in] v the Array to check.
+ */
+template <typename ArrayType>
+void check_assign(ArrayType& v)
+{
+  using T = typename ArrayType::value_type;
+  constexpr int DIM = 1;
+  constexpr T MAGIC_NUM_0 = 55;
+  const axom::IndexType size = v.size();
+
+  // Fill the Array with MAGIC_NUM_0. This may be filling device memory.
+  v.assign(size, MAGIC_NUM_0);
+  EXPECT_EQ(size, v.size());
+
+  // Copy data onto host and compare.
+  axom::Array<T, DIM, axom::MemorySpace::Dynamic> vHost(size, size);
+  axom::copy(vHost.data(), v.data(), size * sizeof(T));
+  for(axom::IndexType i = 0; i < size; i++)
+  {
+    EXPECT_EQ(vHost[i], MAGIC_NUM_0);
+  }
+
+  // Try the iterator method using source data on host.
+  std::set<T> s;
+  for(axom::IndexType i = 0; i < size; i++)
+  {
+    s.insert(static_cast<T>(i));
+  }
+  v.assign(s.begin(), s.end());
+  axom::copy(vHost.data(), v.data(), v.size() * sizeof(T));
+  for(axom::IndexType i = 0; i < size; i++)
+  {
+    EXPECT_EQ(vHost[i], static_cast<T>(i));
+  }
+
+  // Try initializer list using source data on host.
+  v.assign({T {0}, T {11}, T {22}, T {33}, T {44}, T {55}, T {66}, T {77}, T {88}, T {99}});
+  const axom::IndexType smallSize = 10;
+  EXPECT_EQ(smallSize, v.size());
+  axom::copy(vHost.data(), v.data(), v.size() * sizeof(T));
+  for(axom::IndexType i = 0; i < smallSize; i++)
+  {
+    EXPECT_EQ(vHost[i], static_cast<T>(i * 11));
+  }
 }
 
 /*!
@@ -1001,6 +1072,57 @@ TEST(core_array, checkSet)
     ::check_set(v_double);
   }
 }
+
+//------------------------------------------------------------------------------
+TEST(core_array, checkAssign)
+{
+  const axom::IndexType size = 100;
+  axom::Array<int> v_int(size);
+  ::check_assign(v_int);
+
+  axom::Array<double> v_double(size);
+  ::check_assign(v_double);
+}
+
+//------------------------------------------------------------------------------
+TEST(core_array, checkAssignView)
+{
+  const axom::IndexType size = 100;
+  axom::Array<int> v_int(size);
+  auto vv_int = v_int.view();
+  ::check_assign(vv_int);
+
+  axom::Array<double> v_double(size);
+  auto vv_double = v_double.view();
+  ::check_assign(vv_double);
+}
+
+//------------------------------------------------------------------------------
+#if defined(AXOM_USE_GPU) && defined(AXOM_GPUCC) && defined(AXOM_USE_UMPIRE)
+TEST(core_array, checkAssignDevice)
+{
+  // Check Array::assign methods when using device memory.
+  const axom::IndexType size = 100, capacity = 100;
+  axom::Array<int, 1, axom::MemorySpace::Device> v_int(size, capacity);
+  ::check_assign(v_int);
+
+  axom::Array<double, 1, axom::MemorySpace::Device> v_double(size, capacity);
+  ::check_assign(v_double);
+}
+
+TEST(core_array, checkAssignViewDevice)
+{
+  // Check Array::assign methods when using device memory.
+  const axom::IndexType size = 100, capacity = 100;
+  axom::Array<int, 1, axom::MemorySpace::Device> v_int(size, capacity);
+  auto vv_int = v_int.view();
+  ::check_assign(vv_int);
+
+  axom::Array<double, 1, axom::MemorySpace::Device> v_double(size, capacity);
+  auto vv_double = v_double.view();
+  ::check_assign(vv_double);
+}
+#endif
 
 //------------------------------------------------------------------------------
 TEST(core_array, checkResize)

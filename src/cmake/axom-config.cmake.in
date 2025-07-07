@@ -38,6 +38,7 @@ if(NOT AXOM_FOUND)
   # Axom components
   set(AXOM_COMPONENTS_ENABLED @AXOM_COMPONENTS_ENABLED@)
 
+  set(AXOM_ENABLE_BUMP        "@AXOM_ENABLE_BUMP@")
   set(AXOM_ENABLE_INLET       "@AXOM_ENABLE_INLET@")
   set(AXOM_ENABLE_KLEE        "@AXOM_ENABLE_KLEE@")
   set(AXOM_ENABLE_LUMBERJACK  "@AXOM_ENABLE_LUMBERJACK@")
@@ -188,6 +189,13 @@ if(NOT AXOM_FOUND)
   # mfem
   if(AXOM_USE_MFEM)
     set(AXOM_MFEM_DIR     "@MFEM_DIR@")
+    if(EXISTS "${AXOM_MFEM_DIR}/lib/cmake/mfem/MFEMConfig.cmake")
+      set(MFEM_DIR ${AXOM_MFEM_DIR})
+      find_dependency(mfem REQUIRED NO_DEFAULT_PATH PATHS "${AXOM_MFEM_DIR}/lib/cmake/mfem" NAMES MFEM)
+      # MFEM include directories are added as the variable but not always added to the target itself
+      target_include_directories(mfem SYSTEM INTERFACE "${MFEM_INCLUDE_DIRS}")
+    endif()
+    # else MFEM was built with Make and not cmake so there is no cmake target to recreate
     # Note: 'mfem' target is exported as 'axom::mfem'
   endif()
 

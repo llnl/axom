@@ -12,6 +12,7 @@
 
 #include "gtest/gtest.h"
 
+#include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 #include "axom/spin.hpp"
@@ -61,17 +62,17 @@ public:
 
 /*! Type list for TypedTests on ImplicitGrid with execution space set*/
 using MyTypesExec = ::testing::Types<
-#if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   axom::spin::ImplicitGrid<1, axom::OMP_EXEC>,
   axom::spin::ImplicitGrid<2, axom::OMP_EXEC>,
   axom::spin::ImplicitGrid<3, axom::OMP_EXEC>,
 #endif
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   axom::spin::ImplicitGrid<1, axom::CUDA_EXEC<256>>,
   axom::spin::ImplicitGrid<2, axom::CUDA_EXEC<256>>,
   axom::spin::ImplicitGrid<3, axom::CUDA_EXEC<256>>,
 #endif
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   axom::spin::ImplicitGrid<1, axom::HIP_EXEC<256>>,
   axom::spin::ImplicitGrid<2, axom::HIP_EXEC<256>>,
   axom::spin::ImplicitGrid<3, axom::HIP_EXEC<256>>,

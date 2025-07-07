@@ -50,6 +50,15 @@ const std::string unit_semicircle_contour = R"(
   piece = circle(origin=(0cm, 0cm), radius=1cm, start=0deg, end=180deg)
   piece = line(end=(0cm, 1cm)))";
 
+const std::string proe_tet_fmt_str = R"(
+4 1
+1 {} {} {}
+2 {} {} {}
+3 {} {} {}
+4 {} {} {}
+1 1 2 3 4
+)";
+
 // Set the following to true for verbose output and for saving vis files
 constexpr bool very_verbose_output = false;
 
@@ -85,6 +94,48 @@ public:
 private:
   const std::string m_filename;
 };
+
+// Utility function to slice a tetrahedron along a plane
+primal::Polygon<double, 3> slice(const primal::Tetrahedron<double, 3>& tet,
+                                 const primal::Plane<double, 3>& plane)
+{
+  primal::Polygon<double, 3> intersectionPolygon;
+
+  // find intersection vertices
+  for(int i = 0; i < 4; ++i)
+  {
+    for(int j = i + 1; j < 4; ++j)
+    {
+      primal::Segment<double, 3> edge(tet[i], tet[j]);
+      double t {};
+      if(primal::intersect(plane, edge, t))
+      {
+        intersectionPolygon.addVertex(edge.at(t));
+      }
+    }
+  }
+  SLIC_ASSERT(intersectionPolygon.numVertices() <= 4);
+
+  // fix the polygon if it bowties
+  if(intersectionPolygon.numVertices() == 4)
+  {
+    // note: using BezierCurve since Axom doesn't currently have intersect(segment, segment)
+    primal::BezierCurve<double, 2> seg1(1);
+    seg1[0] = Point2D(intersectionPolygon[0][0], intersectionPolygon[0][1]);
+    seg1[1] = Point2D(intersectionPolygon[1][0], intersectionPolygon[1][1]);
+    primal::BezierCurve<double, 2> seg2(1);
+    seg2[0] = Point2D(intersectionPolygon[2][0], intersectionPolygon[2][1]);
+    seg2[1] = Point2D(intersectionPolygon[3][0], intersectionPolygon[3][1]);
+    axom::Array<double> sp, tp;
+
+    if(!primal::intersect(seg1, seg2, sp, tp))
+    {
+      axom::utilities::swap(intersectionPolygon[2], intersectionPolygon[3]);
+    }
+  }
+  return intersectionPolygon;
+}
+
 }  // namespace
 
 /// Test fixture for SamplingShaper tests on MFEM meshes
@@ -99,6 +150,8 @@ public:
 
   sidre::MFEMSidreDataCollection& getDC() { return m_dc; }
   mfem::Mesh& getMesh() { return *m_dc.GetMesh(); }
+
+  axom::quest::SamplingShaper* getSamplingShaper() { return m_shaper.get(); }
 
   /// parse and validate the Klee shapefile; fail the test if invalid
   void validateShapeFile(const std::string& shapefile)
@@ -139,7 +192,9 @@ public:
     m_shapeSet = std::make_unique<klee::ShapeSet>(klee::readShapeSet(shapefile));
 
     SLIC_INFO_IF(very_verbose_output, axom::fmt::format("Shaping materials..."));
-    m_shaper = std::make_unique<quest::SamplingShaper>(*m_shapeSet, &m_dc);
+    const auto policy = axom::runtime_policy::Policy::seq;
+    const auto alloc = axom::policyToDefaultAllocatorID(policy);
+    m_shaper = std::make_unique<quest::SamplingShaper>(policy, alloc, *m_shapeSet, &m_dc);
     m_shaper->setVerbosity(very_verbose_output);
 
     if(!init_vf_map.empty())
@@ -151,6 +206,25 @@ public:
     {
       m_shaper->printRegisteredFieldNames("*** After importing volume fractions");
     }
+  }
+
+  void resetShaping()
+  {
+    std::vector<std::string> dereg;
+    for(const auto& kv : m_dc.GetFieldMap())
+    {
+      if(axom::utilities::string::startsWith(kv.first, "vol_"))
+      {
+        dereg.push_back(kv.first);
+      }
+    }
+    for(const auto& fld : dereg)
+    {
+      m_dc.DeregisterField(fld);
+    }
+
+    m_shaper.reset();
+    m_shapeSet.reset();
   }
 
   /// Runs the shaping query over a shapefile; must be called after initializeShaping()
@@ -211,19 +285,12 @@ public:
     auto& mesh = getMesh();
     const int dim = mesh.Dimension();
 
-    // create grid function
-    auto* coll = new mfem::L2_FECollection(vfOrder, dim, mfem::BasisType::Positive);
-    auto* fes = new mfem::FiniteElementSpace(&mesh, coll);
-    auto* vf = new mfem::GridFunction(fes);
-    vf->MakeOwner(coll);
-
-    // allocate grid function via sidre
-    const int sz = fes->GetVSize();
-    mfem::Vector v(m_dc.AllocNamedBuffer(name, sz)->getData(), sz);
-    vf->MakeRef(fes, v, 0);
-
-    // register grid function w/ data collection
-    m_dc.RegisterField(name, vf);
+    mfem::GridFunction* vf =
+      axom::quest::shaping::getOrAllocateL2GridFunction(&m_dc,
+                                                        name,
+                                                        vfOrder,
+                                                        dim,
+                                                        mfem::BasisType::Positive);
 
     return vf;
   }
@@ -437,6 +504,58 @@ public:
   }
 };
 
+/// Test fixture for SamplingShaper tests on 2D MFEM meshes
+class SampleTester2D : public SamplingShaperTest
+{
+public:
+  using Point2D = primal::Point<double, 2>;
+  using BBox2D = primal::BoundingBox<double, 2>;
+
+public:
+  virtual ~SampleTester2D() { }
+
+  void SetUp() override
+  {
+    // create a single element mesh in the unit 2D square
+    const int polynomialOrder = 1;
+    const BBox2D bbox({0, 0}, {1, 1});
+    const axom::NumericArray<int, 2> celldims {1, 1};
+
+    // memory for mesh will be managed by data collection
+    auto* mesh = quest::util::make_cartesian_mfem_mesh_2D(bbox, celldims, polynomialOrder);
+
+    // Set element attributes based on quadrant where centroid is located
+    // These will be used later in some cases when setting volume fractions
+    mfem::Array<int> v;
+    const int NE = mesh->GetNE();
+    for(int i = 0; i < NE; ++i)
+    {
+      mesh->GetElementVertices(i, v);
+      BBox2D elem_bbox;
+      for(int j = 0; j < v.Size(); ++j)
+      {
+        elem_bbox.addPoint(Point2D(mesh->GetVertex(v[j]), 2));
+      }
+    }
+
+    m_dc.SetOwnData(true);
+    m_dc.SetMeshNodesName("positions");
+    m_dc.SetMesh(mesh);
+
+#ifdef AXOM_USE_MPI
+    m_dc.SetComm(MPI_COMM_WORLD);
+#endif
+  }
+
+  BBox2D meshBoundingBox()
+  {
+    mfem::Vector bbmin, bbmax;
+    getMesh().GetBoundingBox(bbmin, bbmax);
+
+    return BBox2D(Point2D(bbmin.GetData()), Point2D(bbmax.GetData()));
+  }
+};
+
 //-----------------------------------------------------------------------------
 
 TEST(ScopedTemporaryFile, basic)
@@ -560,12 +679,12 @@ shapes:
 
   // check that we can set several projectors in 2D and 3D
   // uses simplest projectors, e.g. identity in 2D and 3D
-  this->m_shaper->setPointProjector([](const Point3D& pt) {
+  this->m_shaper->setPointProjector33([](const Point3D& pt) {
     return Point3D {pt[0], pt[1], pt[2]};
   });
-  this->m_shaper->setPointProjector([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
+  this->m_shaper->setPointProjector22([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
+  this->m_shaper->setPointProjector32([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
+  this->m_shaper->setPointProjector23([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
 
   this->runShaping();
 
@@ -613,11 +732,11 @@ shapes:
   // creating an ellipse by scaling input x and y by scale_a and scale_b
   constexpr double scale_a = 3. / 2.;
   constexpr double scale_b = 3. / 4.;
-  this->m_shaper->setPointProjector([](const Point2D& pt) {
+  this->m_shaper->setPointProjector22([](const Point2D& pt) {
     return Point2D {pt[0] / scale_a, pt[1] / scale_b};
   });
   // check that we can register another projector that's not used
-  this->m_shaper->setPointProjector([](const Point3D&) { return Point3D {0., 0.}; });
+  this->m_shaper->setPointProjector33([](const Point3D&) { return Point3D {0., 0.}; });
 
   this->runShaping();
 
@@ -1143,7 +1262,7 @@ shapes:
   this->initializeShaping(shape_file.getFileName(), initialGridFunctions);
 
   // set projector from 2D mesh points to 3D query points within STL
-  this->m_shaper->setPointProjector([](Point2D pt) { return Point3D {pt[0], pt[1], 0.}; });
+  this->m_shaper->setPointProjector23([](Point2D pt) { return Point3D {pt[0], pt[1], 0.}; });
 
   this->m_shaper->setQuadratureOrder(8);
 
@@ -1169,7 +1288,7 @@ shapes:
 
 //-----------------------------------------------------------------------------
 
-TEST_F(SamplingShaperTest3D, basic_tet)
+TEST_F(SamplingShaperTest3D, basic_tet_boundary)
 {
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
@@ -1319,7 +1438,7 @@ shapes:
   }
 }
 
-TEST_F(SamplingShaperTest3D, tet_preshaped_with_replacements)
+TEST_F(SamplingShaperTest3D, tet_boundary_preshaped_with_replacements)
 {
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
@@ -1430,7 +1549,7 @@ shapes:
   }
 }
 
-TEST_F(SamplingShaperTest3D, tet_identity_projector)
+TEST_F(SamplingShaperTest3D, tet_boundary_identity_projector)
 {
   using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
@@ -1464,12 +1583,12 @@ shapes:
 
   // check that we can set several projectors in 2D and 3D
   // uses simplest projectors, e.g. identity in 2D and 3D
-  this->m_shaper->setPointProjector([](const Point3D& pt) {
+  this->m_shaper->setPointProjector33([](const Point3D& pt) {
     return Point3D {pt[0], pt[1], pt[2]};
   });
-  this->m_shaper->setPointProjector([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
-  this->m_shaper->setPointProjector([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
+  this->m_shaper->setPointProjector22([](const Point2D& pt) { return Point2D {pt[0], pt[1]}; });
+  this->m_shaper->setPointProjector32([](const Point3D& pt) { return Point2D {pt[0], pt[1]}; });
+  this->m_shaper->setPointProjector23([](const Point2D& pt) { return Point3D {pt[0], pt[1], 0}; });
 
   this->runShaping();
 
@@ -1519,12 +1638,12 @@ shapes:
   this->initializeShaping(shape_file.getFileName());
 
   // scale input points by a factor of 1/2 in each dimension
-  this->m_shaper->setPointProjector([](const Point3D& pt) {
+  this->m_shaper->setPointProjector33([](const Point3D& pt) {
     return Point3D {pt[0] / 2, pt[1] / 2, pt[2] / 2};
   });
 
   // for good measure, add a 3D->2D projector that will not be used
-  this->m_shaper->setPointProjector([](const Point3D&) { return Point2D {0, 0}; });
+  this->m_shaper->setPointProjector32([](const Point3D&) { return Point2D {0, 0}; });
 
   this->runShaping();
 
@@ -1582,7 +1701,7 @@ shapes:
   this->initializeShaping(shape_file.getFileName());
 
   // set projector from 3D points to axisymmetric plane
-  this->m_shaper->setPointProjector([](Point3D pt) {
+  this->m_shaper->setPointProjector32([](Point3D pt) {
     const double& x = pt[0];
     const double& y = pt[1];
     const double& z = pt[2];
@@ -1661,7 +1780,7 @@ shapes:
   this->initializeShaping(shape_file.getFileName());
 
   // set projector from 3D points to axisymmetric plane
-  this->m_shaper->setPointProjector([](Point3D pt) {
+  this->m_shaper->setPointProjector32([](Point3D pt) {
     const double& x = pt[0];
     const double& y = pt[1];
     const double& z = pt[2];
@@ -1686,25 +1805,236 @@ shapes:
   }
 }
 
+TEST_F(SamplingShaperTest2D, shape_proe_tet_with_2D_projection)
+{
+  using Point2D = primal::Point<double, 2>;
+  using Point3D = primal::Point<double, 3>;
+
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  const std::string shape_template = R"(
+dimensions: 3
+
+shapes:
+- name: tet_shape
+  material: {1}
+  geometry:
+    format: proe
+    path: {0}
+    units: cm
+)";
+
+  // regular tet w/ vertices at corners of cube
+  const auto tet = primal::Tetrahedron<double, 3> {Point3D {-1, -1, -1},
+                                                   Point3D {1, 1, -1},
+                                                   Point3D {-1, -1, 1},
+                                                   Point3D {-1, 1, 1}};
+
+  // Check that the volume of the tetrahedron is 4/3
+  double tetVolume = tet.volume();
+  constexpr double expectedTetVolume = 4.0 / 3.0;
+  EXPECT_NEAR(tetVolume, expectedTetVolume, 1e-6);
+  SLIC_INFO(axom::fmt::format("Computed tetrahedron volume: {}", tetVolume));
+
+  // Write out tet as a proe file
+  // clang-format off
+  const std::string proe_tet_str 
+    = axom::fmt::format(proe_tet_fmt_str, tet[0][0], tet[0][1], tet[0][2],
+                                          tet[1][0], tet[1][1], tet[1][2],
+                                          tet[2][0], tet[2][1], tet[2][2],
+                                          tet[3][0], tet[3][1], tet[3][2]);
+  // clang-format on
+
+  const std::string tet_material = "steel";
+  ScopedTemporaryFile tet_file(axom::fmt::format("{}.proe", testname), proe_tet_str);
+
+  ScopedTemporaryFile shape_file(
+    axom::fmt::format("{}.yaml", testname),
+    axom::fmt::format(shape_template, tet_file.getFileName(), tet_material));
+
+  if(very_verbose_output)
+  {
+    SLIC_INFO("Tet file: \n" << tet_file.getFileContents());
+    SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
+  }
+
+  this->validateShapeFile(shape_file.getFileName());
+
+  // exercise the point projector by running at several XY planes
+  for(const double z : {-1.2, -.9, -.75, -.1, 0., .25, 1. / 3., .5})
+  {
+    this->resetShaping();
+
+    this->initializeShaping(shape_file.getFileName());
+
+    primal::Plane<double, 3> plane({0, 0, 1}, z);
+    const auto polygon = slice(tet, plane);
+    const double intersectionArea = polygon.area();
+    SLIC_INFO(axom::fmt::format("Area of intersection polygon: {}", intersectionArea));
+
+    // set projector from 2D points to 3-space, z-coord is lambda captured
+    this->m_shaper->setPointProjector23([z](Point2D pt) -> Point3D {
+      const double& x = pt[0];
+      const double& y = pt[1];
+      return Point3D {x, y, z};
+    });
+
+    // we need a higher quadrature order to resolve this shape at the (low) testing resolution
+    this->m_shaper->setQuadratureOrder(8);
+
+    this->runShaping();
+
+    // Check that the result has a volume fraction field associated with sphere and circle materials
+    this->checkExpectedVolumeFractions(tet_material, intersectionArea, 3e-2);
+
+    // Save meshes and fields
+    if(very_verbose_output)
+    {
+      this->getDC().Save(axom::fmt::format("{}_{}", testname, z),
+                         axom::sidre::Group::getDefaultIOProtocol());
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+TEST_F(SampleTester2D, check_bbox_inouts)
+{
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+- name: {}
+  material: {}
+  geometry:
+    format: c2c
+    path: {}
+    units: cm
+)";
+
+  // inputs: {x_min} {y_min} {x_max} {y_max}
+  const std::string rectangle_contour = R"(
+point = start
+piece = line(start=({0}cm, {1}cm), end=({0}cm, {3}cm))
+piece = line()
+piece = line(start=({2}cm, {3}cm), end=({2}cm, {1}cm))
+piece = line(end=start)
+)";
+
+  const std::string rect_shape = "rectShape";
+  const std::string rect_material = "rectMat";
+
+  using Pt = axom::primal::Point<double, 2>;
+  using BBox = axom::primal::BoundingBox<double, 2>;
+
+  // Test a few rectangular shapes
+  constexpr double EPS = 1e-4;
+  for(auto bb : {BBox {Pt {0., 0.}, Pt {1., 1.}},
+
+                 BBox {Pt {0., 0.}, Pt {.5, .5}},
+                 BBox {Pt {0., 0.}, Pt {.5, 1.}},
+                 BBox {Pt {0., 0.}, Pt {1., .5}},
+
+                 BBox {Pt {.5, 0.}, Pt {1., 1.}},
+                 BBox {Pt {0., .5}, Pt {1., 1.}},
+                 BBox {Pt {.5, .5}, Pt {1., 1.}}})
+  {
+    bb.expand(EPS);  // expand slightly to catch quadrature points on boundary of bbox
+
+    const std::string contour_str = axom::fmt::format(axom::fmt::runtime(rectangle_contour),
+                                                      bb.getMin()[0],
+                                                      bb.getMin()[1],
+                                                      bb.getMax()[0],
+                                                      bb.getMax()[1]);
+
+    const std::string testname =
+      axom::fmt::format("{}_{}_{}_{}_{}",
+                        ::testing::UnitTest::GetInstance()->current_test_info()->name(),
+                        bb.getMin()[0],
+                        bb.getMin()[1],
+                        bb.getMax()[0],
+                        bb.getMax()[1]);
+
+    ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), contour_str);
+
+    ScopedTemporaryFile shape_file(
+      axom::fmt::format("{}.yaml", testname),
+      axom::fmt::format(shape_template, rect_shape, rect_material, contour_file.getFileName()));
+
+    if(very_verbose_output)
+    {
+      SLIC_INFO("Contour file: \n" << contour_file.getFileContents());
+      SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
+    }
+
+    this->validateShapeFile(shape_file.getFileName());
+
+    for(int qorder : {3, 4, 5, 6, 7, 8, 9})
+    {
+      this->resetShaping();
+      this->initializeShaping(shape_file.getFileName());
+
+      this->m_shaper->setVolumeFractionOrder(0);
+      this->m_shaper->setQuadratureOrder(qorder);
+
+      this->runShaping();
+
+      // grab the inout quadrature data
+      auto& mesh = this->getMesh();
+      EXPECT_EQ(mesh.GetNE(), 1);
+
+      auto* inout =
+        this->getSamplingShaper()->getShapeQFunction(axom::fmt::format("inout_{}", rect_shape));
+      EXPECT_NE(inout, nullptr);
+
+      auto* qfs = dynamic_cast<mfem::QuadratureSpace*>(inout->GetSpace());
+      EXPECT_NE(qfs, nullptr);
+      auto* T = qfs->GetTransformation(0);
+      const mfem::IntegrationRule& ir = qfs->GetElementIntRule(0);
+
+      mfem::Vector inout_data;
+      inout->GetValues(0, inout_data);
+      EXPECT_EQ(inout_data.Size(), ir.GetNPoints());
+
+      // check that inout values match corresponding bbox containment
+      for(int i = 0; i < ir.GetNPoints(); i++)
+      {
+        const mfem::IntegrationPoint& ip = ir.IntPoint(i);
+        mfem::Vector ip_phys(2);
+        T->Transform(ip, ip_phys);
+        const Pt p {ip_phys[1], ip_phys[0]};
+
+        EXPECT_TRUE(inout_data[i] == 1. || inout_data[i] == 0.);
+        const bool is_in = inout_data[i] == 1 ? true : false;
+        const bool exp_in = bb.contains(p) ? true : false;
+        EXPECT_EQ(is_in, exp_in)
+          << axom::fmt::format(
+               "Qorder: {}, Quadrature point {}:  physical position: {}, inout: {}, expected: {}. ",
+               qorder,
+               i,
+               p,
+               is_in,
+               exp_in)
+          << axom::fmt::format("Bounding box is: {}", bb);
+      }
+
+      // Save meshes and fields
+      if(very_verbose_output)
+      {
+        this->getDC().Save(testname, axom::sidre::Group::getDefaultIOProtocol());
+      }
+    }
+  }
+}
+
 //-----------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
-  int result = 0;
-#ifdef AXOM_USE_MPI
-  // This is needed because of Axom's c2c reader.
-  MPI_Init(&argc, &argv);
-  // See if this aborts right away.
-  int my_rank, num_ranks;
-  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
-#endif
+  axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
 
   ::testing::InitGoogleTest(&argc, argv);
   slic::SimpleLogger logger(slic::message::Info);
 
-  result = RUN_ALL_TESTS();
-#ifdef AXOM_USE_MPI
-  MPI_Finalize();
-#endif
+  const int result = RUN_ALL_TESTS();
   return result;
 }

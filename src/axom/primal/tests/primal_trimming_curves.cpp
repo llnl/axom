@@ -334,7 +334,7 @@ TEST_F(TrimmingCurveTest, knot_vector_manipulation)
   for(auto t : t_pts)
   {
     auto parameter_pt_1 = nPatch.getTrimmingCurve(0).evaluate(t);
-    auto parameter_pt_2 = nPatchCopy.getTrimmingCurve(0).evaluate(t);
+    auto parameter_pt_2 = nPatchCopy.getTrimmingCurve(0).evaluate(1.0 - t);
 
     auto space_pt_1 = nPatch.evaluate(parameter_pt_1[0], parameter_pt_1[1]);
     auto space_pt_2 = nPatchCopy.evaluate(parameter_pt_2[0], parameter_pt_2[1]);
@@ -371,7 +371,7 @@ TEST_F(TrimmingCurveTest, knot_vector_manipulation)
   for(auto t : t_pts)
   {
     auto parameter_pt_1 = nPatch.getTrimmingCurve(0).evaluate(t);
-    auto parameter_pt_2 = nPatchCopy.getTrimmingCurve(0).evaluate(t);
+    auto parameter_pt_2 = nPatchCopy.getTrimmingCurve(0).evaluate(1.0 - t);
 
     EXPECT_NEAR(parameter_pt_1[0], parameter_pt_2[1], 1e-10);
     EXPECT_NEAR(parameter_pt_1[1], parameter_pt_2[0], 1e-10);
@@ -763,6 +763,71 @@ TEST_F(TrimmingCurveTest, trimming_edge_subdivision_tangent_edge_cases)
       {
         EXPECT_EQ(the_disk.isVisible(u, v), false);
         EXPECT_EQ(the_rest.isVisible(u, v), false);
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST_F(TrimmingCurveTest, trimming_edge_subdivision_overlapping_edge)
+{
+  SLIC_INFO("Test a case where one of the trimming curves is entirely overlapping the edge");
+
+  NURBSPatchType nPatch(this->nPatch);
+  axom::Array<TrimmingCurveType> trimmingCurves;
+
+  constexpr int npts = 10;
+  double u_pts[npts], v_pts[npts];
+  axom::numerics::linspace(nPatch.getMinKnot_u(), nPatch.getMaxKnot_u(), u_pts, npts);
+  axom::numerics::linspace(nPatch.getMinKnot_v(), nPatch.getMaxKnot_v(), v_pts, npts);
+
+  axom::Array<ParameterPointType> leftTrimmingControlPoints {ParameterPointType {1.0 / 2.0, 1.0},
+                                                             ParameterPointType {0.75 / 2.0, 0.0},
+                                                             ParameterPointType {0.25 / 2.0, 1.0},
+                                                             ParameterPointType {0.0 / 2.0, 0.0}};
+
+  TrimmingCurveType leftCurve(leftTrimmingControlPoints, 3), dummyCurve;
+  leftCurve.split(0.5, dummyCurve, leftCurve);
+  trimmingCurves.push_back(leftCurve);
+
+  // Make a degree elevated curve between (0.75, 0.5) and (0.25, 0.5)
+  TrimmingCurveType connecting_curve(5);
+  for(int i = 0; i < 6; ++i)
+  {
+    connecting_curve[i] = ParameterPointType {0.75 - 0.5 * (i / 5.0) * (i / 5.0), 0.5};
+  }
+  trimmingCurves.push_back(connecting_curve);
+
+  axom::Array<ParameterPointType> rightTrimmingControlPoints {
+    ParameterPointType {0.5 + 1.0 / 2.0, 1.0},
+    ParameterPointType {0.5 + 0.75 / 2.0, 0.0},
+    ParameterPointType {0.5 + 0.25 / 2.0, 1.0},
+    ParameterPointType {0.5 + 0.0 / 2.0, 0.0}};
+
+  TrimmingCurveType rightCurve(rightTrimmingControlPoints, 3);
+  rightCurve.split(0.5, rightCurve, dummyCurve);
+  trimmingCurves.push_back(rightCurve);
+
+  trimmingCurves.push_back(TrimmingCurveType::make_linear_segment_nurbs({1.0, 0.0}, {1.0, 1.0}));
+  trimmingCurves.push_back(TrimmingCurveType::make_linear_segment_nurbs({0.0, 0.0}, {1.0, 0.0}));
+
+  nPatch.addTrimmingCurves(trimmingCurves);
+
+  bool normalize = true;
+  NURBSPatchType toppatch, bottompatch;
+  nPatch.split_v(0.5, bottompatch, toppatch, !normalize);
+
+  for(auto u : u_pts)
+  {
+    for(auto v : v_pts)
+    {
+      if(v <= 0.5)
+      {
+        EXPECT_EQ(nPatch.isVisible(u, v), bottompatch.isVisible(u, v));
+      }
+      else
+      {
+        EXPECT_EQ(nPatch.isVisible(u, v), toppatch.isVisible(u, v));
       }
     }
   }

@@ -220,9 +220,7 @@ void check_intersection_volumes(const Input& params)
     : axom::Array<TetrahedronType>();
   auto tets_view = on_device ? tets_d.view() : tets_h.view();
 
-  using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-
-  RAJA::ReduceSum<REDUCE_POL, double> total_tet_vol(0.0);
+  axom::ReduceSum<ExecSpace, double> total_tet_vol(0.0);
 
   axom::for_all<ExecSpace>(
     NUM_TETS,
@@ -235,7 +233,7 @@ void check_intersection_volumes(const Input& params)
   // Calculate intersection volume for each hexahedra and tetrahedra pair.
   // Typically, a spatial index (e.g. Bounding Volume Hierarchy) can be used to
   // reduce the number of operations.
-  RAJA::ReduceSum<REDUCE_POL, double> total_intersect_vol(0.0);
+  axom::ReduceSum<ExecSpace, double> total_intersect_vol(0.0);
   constexpr double EPS = 1e-10;
   constexpr bool tryFixOrientation = true;
 

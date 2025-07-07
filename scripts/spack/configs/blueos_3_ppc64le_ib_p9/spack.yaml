@@ -17,6 +17,10 @@ spack:
   # Regular TPLs do not need views
   view: false
 
+  include:
+  - ../defaults.yaml
+  - ../versions.yaml
+
   compilers::
   - compiler:
       environment: {}
@@ -335,35 +339,19 @@ spack:
       - spec: pdsh@2.33
         prefix: /usr
 
-    # Globally lock version of third party libraries
-    adiak:
-      require: "@0.4.0"
-    caliper:
-      require: "@2.12.1~kokkos"
-    camp:
-      require: "@2025.03.0"
-    # v0.9.3
-    conduit:
-      require: "@git.2eec1ad9548cf6d629e2145181ff7b8cef0a38fa~shared~test~examples~utilities"
-    hdf5:
-      variants: ~shared~mpi
+    # Some additional platform-specific constraints for third party libraries
     hypre:
-      version: [2.24.0]
-      variants: "~shared"
+      require:
+      - spec: "~shared"
     metis:
-      variants: "~shared"
+      require:
+      - spec: "~shared"
     mfem:
-      require: "@4.7.0 ~shared"
-    opencascade:
-      require: "@7.8.1+data_exchange~draw"
-    py-jsonschema:
-      require: "@:4.17" #Anything after this requires py-rpds which requires rust and adds 40 minutes
-    raja:
-      require: "@2025.03.0~shared~examples~exercises"
-    scr:
-      require: "@3.0.1~shared~tests~examples"
+      require:
+      - spec: "~shared"
     umpire:
-      require: "@2025.03.0~shared~examples~werror"
+      require:
+      - spec: "~shared"
 
     # Globally lock in versions of Devtools
     cmake:

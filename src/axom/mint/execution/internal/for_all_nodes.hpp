@@ -22,10 +22,6 @@
 
 #include "axom/core/StackArray.hpp"  // for axom::StackArray
 
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
-
 namespace axom
 {
 namespace mint
@@ -56,34 +52,14 @@ inline void for_all_nodes_impl(xargs::ij, const StructuredMesh& m, KernelType&& 
   const IndexType Ni = m.getNodeResolution(I_DIRECTION);
   const IndexType Nj = m.getNodeResolution(J_DIRECTION);
 
-#ifdef AXOM_USE_RAJA
-
-  RAJA::RangeSegment i_range(0, Ni);
-  RAJA::RangeSegment j_range(0, Nj);
-  using exec_pol = typename axom::internal::nested_for_exec<ExecPolicy>::loop2d_policy;
-
-  RAJA::kernel<exec_pol>(
-    RAJA::make_tuple(i_range, j_range),
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
     AXOM_LAMBDA(IndexType i, IndexType j) {
       const IndexType nodeIdx = i + j * jp;
       kernel(nodeIdx, i, j);
     });
-
-#else
-
-  constexpr bool is_serial = std::is_same<ExecPolicy, axom::SEQ_EXEC>::value;
-  AXOM_STATIC_ASSERT(is_serial);
-
-  for(IndexType j = 0; j < Nj; ++j)
-  {
-    const IndexType j_offset = j * jp;
-    for(IndexType i = 0; i < Ni; ++i)
-    {
-      const IndexType nodeIdx = i + j_offset;
-      kernel(nodeIdx, i, j);
-    }  // END for all i
-  }    // END for all j
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -109,40 +85,15 @@ inline void for_all_nodes_impl(xargs::ijk, const StructuredMesh& m, KernelType&&
   const IndexType Nj = m.getNodeResolution(J_DIRECTION);
   const IndexType Nk = m.getNodeResolution(K_DIRECTION);
 
-#ifdef AXOM_USE_RAJA
-
-  RAJA::RangeSegment i_range(0, Ni);
-  RAJA::RangeSegment j_range(0, Nj);
-  RAJA::RangeSegment k_range(0, Nk);
-  using exec_pol = typename axom::internal::nested_for_exec<ExecPolicy>::loop3d_policy;
-
-  RAJA::kernel<exec_pol>(
-    RAJA::make_tuple(i_range, j_range, k_range),
+  axom::StackArray<IndexType, 2> i_range {{0, Ni}}, j_range {{0, Nj}}, k_range {{0, Nk}};
+  axom::for_all<ExecPolicy>(
+    i_range,
+    j_range,
+    k_range,
     AXOM_LAMBDA(IndexType i, IndexType j, IndexType k) {
       const IndexType nodeIdx = i + j * jp + k * kp;
       kernel(nodeIdx, i, j, k);
     });
-
-#else
-
-  constexpr bool is_serial = std::is_same<ExecPolicy, axom::SEQ_EXEC>::value;
-  AXOM_STATIC_ASSERT(is_serial);
-
-  for(IndexType k = 0; k < Nk; ++k)
-  {
-    const IndexType k_offset = k * kp;
-    for(IndexType j = 0; j < Nj; ++j)
-    {
-      const IndexType j_offset = j * jp;
-      for(IndexType i = 0; i < Ni; ++i)
-      {
-        const IndexType nodeIdx = i + j_offset + k_offset;
-        kernel(nodeIdx, i, j, k);
-      }  // END for all i
-    }    // END for all j
-  }      // END for all k
-
-#endif
 }
 
 //------------------------------------------------------------------------------
@@ -443,13 +394,21 @@ inline void for_all_nodes_impl(xargs::xyz, const Mesh& m, KernelType&& kernel)
   axom::Array<double> z_vals_d =
     on_device ? axom::Array<double>(z_vals_h, device_allocator) : axom::Array<double>();
   auto z_vals_view = on_device ? z_vals_d.view() : z_vals_h;
-
+#if !defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA)
+  // If we have CUDA but not RAJA then we are doing serial execution and cannot
+  // mark this intermediate lambda as AXOM_LAMBDA to comply with CUDA's lambda
+  // rules.
+  for_all_nodes_impl<ExecPolicy>(xargs::index(), m, [&](IndexType nodeID) {
+    kernel(nodeID, x_vals_view[nodeID], y_vals_view[nodeID], z_vals_view[nodeID]);
+  });
+#else
   for_all_nodes_impl<ExecPolicy>(
     xargs::index(),
     m,
     AXOM_LAMBDA(IndexType nodeID) {
       kernel(nodeID, x_vals_view[nodeID], y_vals_view[nodeID], z_vals_view[nodeID]);
     });
+#endif
 }
 
 //------------------------------------------------------------------------------

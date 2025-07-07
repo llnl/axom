@@ -24,6 +24,7 @@
 #endif
 
 #include <iostream>
+#include <type_traits>
 
 namespace axom
 {
@@ -205,8 +206,40 @@ inline T* reallocate(T* p, std::size_t n, int allocID = getDefaultAllocatorID())
  */
 inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept;
 
+/*!
+ * \brief Fills memory with a value.
+ *
+ * \param [in/out] dst the destination to copy to.
+ * \param [in] n the number of items to copy.
+ * \param [in] The value to copy. It must be trivially copyable for use with GPU.
+ *
+ * \note When using Umpire if dst is not registered with the
+ *  ResourceManager then the default host allocation strategy is assumed for
+ *  that pointer.
+ */
+template <typename T>
+inline void fill(void* dst, std::size_t n, const T& value) noexcept;
+
 /// @}
 // _memory_management_routines_end
+
+/*!
+ * \brief Wrapper type representing an Umpire allocator ID.
+ *
+ *  This type is intended for use in function and constructor arguments, in
+ *  order to avoid ambiguities in overload resolution.
+ */
+struct Allocator
+{
+public:
+  explicit Allocator(int alloc_id = axom::getDefaultAllocatorID()) : m_id {alloc_id} { }
+
+  /// \brief Returns the allocator ID.
+  int getID() const { return m_id; }
+
+private:
+  int m_id;
+};
 
 //------------------------------------------------------------------------------
 //                        IMPLEMENTATION
@@ -359,6 +392,45 @@ inline void copy(void* dst, const void* src, std::size_t numbytes) noexcept
 #else
   std::memcpy(dst, src, numbytes);
 #endif
+}
+
+//------------------------------------------------------------------------------
+template <typename T>
+inline void fill(void* dst, std::size_t n, const T& value) noexcept
+{
+  bool doHostFill = true;
+#ifdef AXOM_USE_UMPIRE
+  // Since data might be copied to GPU, it needs to be trivially copyable.
+  static_assert(std::is_trivially_copyable<T>::value, "value must be trivially copyable.");
+  auto& rm = umpire::ResourceManager::getInstance();
+
+  if(rm.hasAllocator(dst))
+  {
+    auto alloc = rm.getAllocator(dst);
+    if((alloc.getPlatform() != umpire::Platform::host))
+    {
+      doHostFill = false;
+
+      // Device memory: fill on host, then copy to device
+      const auto num_bytes = n * sizeof(T);
+      T* src = allocate<T>(num_bytes, rm.getDefaultAllocator().getId());
+      for(std::size_t i = 0; i < n; ++i)
+      {
+        src[i] = value;
+      }
+      rm.copy(dst, src, num_bytes);
+      deallocate<T>(src);
+    }
+  }
+#endif
+  if(doHostFill)
+  {
+    T* typed_dst = static_cast<T*>(dst);
+    for(std::size_t i = 0; i < n; ++i)
+    {
+      typed_dst[i] = value;
+    }
+  }
 }
 
 namespace detail
