@@ -50,6 +50,7 @@ public:
     , m_size(other.m_size)
     , m_metadata(other.m_metadata.view())
     , m_buckets(other.m_buckets.view())
+    , m_defaultValue()
   { }
 
   /*!
@@ -170,7 +171,7 @@ private:
   { };
   using DefaultValueType =
     std::conditional_t<std::is_default_constructible<ValueType>::value, ValueType, Dummy>;
-  DefaultValueType m_defaultValue {};
+  DefaultValueType m_defaultValue;
 };
 
 template <typename KeyType, typename ValueType, bool IsConst, typename Hash>

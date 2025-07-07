@@ -67,9 +67,11 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_and_find)
   axom::Array<int> valid_vec(NUM_ELEMS + EXTRA_THREADS, 0);
   axom::Array<int> keys_vec(NUM_ELEMS);
   axom::Array<double> values_vec(NUM_ELEMS);
+  axom::Array<double> values_vec_bracket(NUM_ELEMS + EXTRA_THREADS);
   const auto valid_out = valid_vec.view();
   const auto keys_out = keys_vec.view();
   const auto values_out = values_vec.view();
+  const auto values_out_bracket = values_vec_bracket.view();
 
   // Read values out in a captured lambda.
   axom::for_all<ExecSpace>(
@@ -82,6 +84,7 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_and_find)
         values_out[idx] = it->second;
         valid_out[idx] = true;
       }
+      values_out_bracket[idx] = test_map_view[idx];
     });
 
   // Check contents on the host
@@ -90,10 +93,12 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_and_find)
     EXPECT_EQ(valid_out[i], true);
     EXPECT_EQ(keys_out[i], this->getKey(i));
     EXPECT_EQ(values_out[i], this->getValue(i * 10.0 + 5.0));
+    EXPECT_EQ(values_out_bracket[i], this->getValue(i * 10.0 + 5.0));
   }
   for(int i = NUM_ELEMS; i < NUM_ELEMS + EXTRA_THREADS; i++)
   {
     EXPECT_EQ(valid_out[i], false);
+    EXPECT_EQ(values_out_bracket[i], this->getValue(0));
   }
 }
 
