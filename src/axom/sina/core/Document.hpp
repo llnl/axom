@@ -303,7 +303,8 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
                                      const conduit::Node &appendFrom,
                                      const std::string &endpoint,
                                      const int mergeProtocol,
-                                     int record_num);
+                                     int record_num,
+                                     const std::string &original_file_path="");  // default'd because it might go away
 
 /**
  * \brief Append the new records or, per-record, new data, user defined content, curves/curve sets,
@@ -344,9 +345,9 @@ conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
  * 
  * \return a conduit Node containing a list of any errors encountered in appending. If empty, success.
  */
-conduit::Node append_to_hdf5(const std::string &hdf5FilePath,
-                             Document const &newData,
-                             const int mergeProtocol = 1);
+conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
+                                   Document const &newData,
+                                   const int mergeProtocol = 1);
 
 }  // namespace sina
 }  // namespace axom

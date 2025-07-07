@@ -498,6 +498,8 @@ int relayLikeNumChildren(conduit::relay::io::IOHandle &appendTo,
 
 void relayLikeWrite(conduit::relay::io::IOHandle &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
   UNUSED(record_num);
+  std::cerr << endpoint << std::endl;
+  std::cerr << appendFrom.to_string() << std::endl;
   appendTo.write(appendFrom, endpoint);
 }
 
@@ -518,30 +520,6 @@ void relayLikeAddNewRecord(conduit::Node &appendTo, conduit::Node &new_record, i
   appendTo["records"].append() = new_record;
 }
 
-void relayLikeAppendCurve(conduit::relay::io::IOHandle &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
-  UNUSED(record_num);
-  conduit::Node OPTS_NODE;  //are there any static defaults we want to set?
-  OPTS_NODE["offset"] = appendFrom["num_elements"].to_int();
-  appendTo.write(appendFrom, endpoint, OPTS_NODE);
-}
-
-void relayLikeAppendCurve(conduit::Node &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
-  auto valuesIter = appendFrom.children();
-  while(valuesIter.has_next()) {
-    appendTo["records"].child(record_num)[endpoint].append() = valuesIter.next();
-  }
-}
-
-std::unordered_map<std::string, int> relayLikeRecordOrderMap(conduit::Node &appendTo){
-  std::unordered_map<std::string, int> order_map;
-  int num_children = appendTo["records"].number_of_children();
-  for(int i = 0; i < num_children; i++)
-  {
-    order_map.insert(std::make_pair(appendTo["records"].child(i)["id"].to_string(), i));
-  }
-  return order_map;
-}
-
 std::unordered_map<std::string, int> relayLikeRecordOrderMap(conduit::relay::io::IOHandle &appendTo)
 {
   std::unordered_map<std::string, int> order_map;
@@ -556,17 +534,53 @@ std::unordered_map<std::string, int> relayLikeRecordOrderMap(conduit::relay::io:
   return order_map;
 }
 
-u_int relayLikeArrayNumElements(conduit::Node &appendTo, const std::string &endpoint, int record_num)
+uint64_t relayLikeArrayNumElements(conduit::Node &appendTo, const std::string &endpoint, int record_num, const std::string &original_file_path)
 {
+  UNUSED(original_file_path);
   return appendTo["records"].child(record_num)[endpoint].dtype().number_of_elements();
 }
 
-u_int relayLikeArrayNumElements(conduit::relay::io::IOHandle &appendTo,
+uint64_t relayLikeArrayNumElements(conduit::relay::io::IOHandle &appendTo,
                                 const std::string &endpoint,
-                                int record_num)
+                                int record_num,
+                                const std::string &original_file_path)
 {
-  return relayLikeRead(appendTo, endpoint + "/num_elements", record_num).to_int();
+  // This is the only reason why original_file_path has to be passed all the way down from append()
+  // Couldn't find a quick way to get path from IOHandle, even though it probably holds it.
+  UNUSED(appendTo);
+  UNUSED(record_num);
+  conduit::Node metadata_only;
+  conduit::relay::io::hdf5_read_info(original_file_path, endpoint, metadata_only);
+  return metadata_only["num_elements"].value();
 }
+
+void relayLikeAppendCurve(conduit::relay::io::IOHandle &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num,
+        const std::string &original_file_path){
+  UNUSED(record_num);
+  conduit::Node OPTS_NODE;  //are there any static defaults we want to set?
+  OPTS_NODE["offset"] = relayLikeArrayNumElements(appendTo, endpoint, record_num, original_file_path);
+  appendTo.write(appendFrom, endpoint, OPTS_NODE);
+}
+
+void relayLikeAppendCurve(conduit::Node &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num,
+    const std::string &original_file_path){
+  UNUSED(original_file_path);
+  conduit::Node &append_at = appendTo["records"].child(record_num)[endpoint];
+  std::vector<double> merged_values(append_at.as_double_ptr(), append_at.as_double_ptr() + append_at.dtype().number_of_elements());
+  merged_values.insert(merged_values.end(), appendFrom.as_double_ptr(), appendFrom.as_double_ptr() + appendFrom.dtype().number_of_elements());
+  append_at.set(merged_values);
+}
+
+std::unordered_map<std::string, int> relayLikeRecordOrderMap(conduit::Node &appendTo){
+  std::unordered_map<std::string, int> order_map;
+  int num_children = appendTo["records"].number_of_children();
+  for(int i = 0; i < num_children; i++)
+  {
+    order_map.insert(std::make_pair(appendTo["records"].child(i)["id"].to_string(), i));
+  }
+  return order_map;
+}
+
 ///////////////////// TEMPLATE HELPER BLOCK END /////////////////////
 
 // Specifically validate ONE curve set for ONE DataHolder (record, library_data...) for appending,
@@ -575,7 +589,8 @@ template <typename ConduitRelayLike>
 conduit::Node validateCurveSets(ConduitRelayLike &appendTo,
                                 const conduit::Node &appendFrom,
                                 const std::string &endpoint,
-                                int rec_num)
+                                int rec_num,
+                                const std::string &original_file_path)
 {
   int baseline = -1;  // baseline is shared across dependent and independent
   conduit::Node msgNode = conduit::Node(conduit::DataType::list());
@@ -605,7 +620,7 @@ conduit::Node validateCurveSets(ConduitRelayLike &appendTo,
       else if(unappended_baseline == -1)
       {
         unappended_baseline =
-          relayLikeArrayNumElements(appendTo, curves_endpoint + "/value", rec_num);
+          relayLikeArrayNumElements(appendTo, curves_endpoint + "/value", rec_num, original_file_path);
       }
       existing_curves++;  // instead of a .size() to account for value/tags/etc. above
     }
@@ -629,7 +644,7 @@ conduit::Node validateCurveSets(ConduitRelayLike &appendTo,
         std::string sub_endpoint = endpoint + "/" + curve_cat + "/" + curvesIter.name() + "/value";
         if(relayLikeHasPath(appendTo, sub_endpoint, rec_num))
         {
-          int num_elements = relayLikeArrayNumElements(appendTo, sub_endpoint, rec_num);
+          int num_elements = relayLikeArrayNumElements(appendTo, sub_endpoint, rec_num, original_file_path);
           post_append_size += num_elements;
         }
         if(baseline == -1)
@@ -654,7 +669,8 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
                                      const conduit::Node &appendFrom,
                                      const std::string &endpoint,
                                      const int mergeProtocol,
-                                     const int record_num)
+                                     const int record_num,
+                                     const std::string &original_file_path)
 {
   conduit::Node msgNode = conduit::Node(conduit::DataType::list());
   // Case one: die if the types disagree. A pingpong_game shouldn't become a billiards_game
@@ -669,6 +685,7 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
       msgNode.append() = "Failed to append record " + std::to_string(record_num) +
         ": type mismatch " + typeNode.to_string() + "vs " + appendFrom["type"].to_string();
     }
+  }
     // Case two: merge protocol is 3, we need to die if certain fields appear in both places
     if(mergeProtocol == 3){
       const std::vector<std::string> prot3Fields = {"data", "user_defined", "files"};
@@ -683,7 +700,6 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
           }
         }
       }
-    }
   }
 
   // Case three: curve sets. Go into each curve set and, if it already exists, make sure the to-be-appended curves are valid.
@@ -698,7 +714,7 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
       // We only have to validate if the hdf5 already has a curve set with that name.
       if(relayLikeHasPath(appendTo, subEndpoint, record_num))
       {
-        concat_list_node(msgNode, validateCurveSets(appendTo, n, subEndpoint, record_num));
+        concat_list_node(msgNode, validateCurveSets(appendTo, n, subEndpoint, record_num, original_file_path));
       }
     }
   }
@@ -717,8 +733,7 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
         }
       }
     }
-  }
-  return msgNode;
+    return msgNode;
 }
 
 // Avoiding a terrible if/else chunk in append_recordlike_fields and friends.
@@ -736,15 +751,15 @@ template <typename ConduitRelayLike>
 void append_curveset(ConduitRelayLike &appendTo,
                      conduit::Node &appendFrom,
                      const std::string &endpoint,
-                     int record_num){
-    std::cerr << appendFrom.to_string() << std::endl;
+                     int record_num,
+                     const std::string &original_file_path){
     for(const std::string& curve_cat : CURVE_CATEGORIES){
       auto curveIter = appendFrom[curve_cat].children();
       while(curveIter.has_next()){{
         conduit::Node &n = curveIter.next();
         std::string curve_endpoint = endpoint + "/" + curve_cat + "/" + curveIter.name() + "/value";
         if(relayLikeHasPath(appendTo, curve_endpoint, record_num)){
-          relayLikeAppendCurve(appendTo, n["value"], curve_endpoint, record_num);
+          relayLikeAppendCurve(appendTo, n["value"], curve_endpoint, record_num, original_file_path);
         } else {
           relayLikeWrite(appendTo, n["value"], curve_endpoint, record_num);
         }
@@ -758,7 +773,8 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
                               conduit::Node &appendFrom,
                               const std::string &endpoint,
                               const int mergeProtocol,
-                              int record_num)
+                              int record_num,
+                              const std::string &original_file_path)
 {
   auto fieldsIter = appendFrom.children();
   while(fieldsIter.has_next())
@@ -803,7 +819,7 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
         if(relayLikeHasPath(appendTo, endpoint, record_num)){
           append_recordlike_fields(appendTo, libraryField,
                                    appendAtEndpoint+libraryIter.name(),
-                                   mergeProtocol, record_num);
+                                   mergeProtocol, record_num, original_file_path);
         }
       }
       break;
@@ -816,7 +832,7 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
         conduit::Node &curveSetField = curveSetIter.next();
         append_curveset(appendTo, curveSetField,
                         appendAtEndpoint+curveSetIter.name(),
-                        record_num);
+                        record_num, original_file_path);
       }
     }
     break;
@@ -830,7 +846,8 @@ template <typename ConduitRelayLike>
 conduit::Node append(ConduitRelayLike &appendTo,
                      conduit::Node &appendFrom,
                      const int mergeProtocol,
-                     bool isHDF5)
+                     bool isHDF5,
+                     const std::string &original_file_path)
 {
   conduit::Node msgNode = conduit::Node(conduit::DataType::list());
   // We need to figure out where each record is in appendTo, since there's no guarantee in the order
@@ -847,7 +864,7 @@ conduit::Node append(ConduitRelayLike &appendTo,
     // but that's always been the case; validation is meant to assist with catching bad curves, mostly
     if(rec_num != rec_order.end()){
       std::string endpoint = isHDF5 ? "records/" + std::to_string(rec_num->second): "";
-      concat_list_node(msgNode, validateAppendDocument(appendTo, n, endpoint, mergeProtocol, rec_num->second));
+      concat_list_node(msgNode, validateAppendDocument(appendTo, n, endpoint, mergeProtocol, rec_num->second, original_file_path));
     }
   }
   // Return with our error list if we errored.
@@ -864,11 +881,12 @@ conduit::Node append(ConduitRelayLike &appendTo,
     conduit::Node &rec = recordsIter.next();
     // Easiest case, the record doesn't exist yet. Add it.
     auto rec_num = rec_order.find(rec["id"].to_string());
+    std::string endpoint = isHDF5 ? "records/" + std::to_string(rec_num->second): "";
     if(rec_num == rec_order.end()){
       relayLikeAddNewRecord(appendTo, rec, offset);
       offset ++;
     } else {
-      append_recordlike_fields(appendTo, rec, "", mergeProtocol, rec_num->second);
+      append_recordlike_fields(appendTo, rec, endpoint, mergeProtocol, rec_num->second, original_file_path);
     }
   }
   return msgNode;
@@ -880,20 +898,23 @@ conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
   conduit::Node appendTo;
   appendTo.load(jsonFilePath, "json");
   conduit::Node appendFrom = newData.toNode();
-  conduit::Node success = append(appendTo, appendFrom, mergeProtocol, false);
+  conduit::Node success = append(appendTo, appendFrom, mergeProtocol, false, jsonFilePath);
   conduit::relay::io::save(appendTo, jsonFilePath);
   return success;
 }
 
-conduit::Node append_to_hdf5(const std::string &hdf5FilePath,
-                             const Document &newData,
-                             const int mergeProtocol)
+conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
+                                   const Document &newData,
+                                   const int mergeProtocol)
 {
 #ifdef AXOM_USE_HDF5
   conduit::relay::io::IOHandle appendTo;
   appendTo.open(hdf5FilePath);
   conduit::Node appendFrom = newData.toHDF5Node();
-  conduit::Node msgNode = append(appendTo, appendFrom, mergeProtocol, true);
+  conduit::Node msgNode = append(appendTo, appendFrom, mergeProtocol, true, hdf5FilePath);
+  conduit::Node sacrificial;
+  appendTo.read(sacrificial);
+  std::cerr << sacrificial.to_string() << std::endl;
   appendTo.close();
   return msgNode;
 #endif
