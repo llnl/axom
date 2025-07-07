@@ -132,19 +132,17 @@ set(CAMP_DIR "${TPL_ROOT}/camp-2025.03.0-uvloqrmy3ly2xx7lchjc2rgy3zicvjy5" CACHE
 # Devtools
 #------------------------------------------------------------------------------
 
-set(DEVTOOLS_ROOT "/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_20_15_42_31/._view/dkzpbz6uqrgu3ctueojvfo6t3ewhvt4m" CACHE PATH "")
+set(DEVTOOLS_ROOT "/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_07_02_14_29_59/._view/akn2uvaqsethgd2hemfmccivfwd7u5jz" CACHE PATH "")
 
-# ClangFormat disabled since llvm@14 and devtools not in spec
+set(CLANGFORMAT_EXECUTABLE "/usr/tce/packages/rocmcc/rocmcc-5.2.3-magic/llvm/bin/clang-format" CACHE PATH "")
 
-set(ENABLE_CLANGFORMAT OFF CACHE BOOL "")
-
-set(Python_EXECUTABLE "${DEVTOOLS_ROOT}/python-3.13.2/bin/python3" CACHE PATH "")
+set(Python_EXECUTABLE "${DEVTOOLS_ROOT}/python-3.11.11/bin/python3" CACHE PATH "")
 
 set(JSONSCHEMA_EXECUTABLE "${TPL_ROOT}/py-jsonschema-4.17.3-qxzce2brdxtlzcndq7fvtoxkslkh7qdj/bin/jsonschema" CACHE PATH "")
 
 set(ENABLE_DOCS ON CACHE BOOL "")
 
-set(SPHINX_EXECUTABLE "${DEVTOOLS_ROOT}/python-3.13.2/bin/sphinx-build" CACHE PATH "")
+set(SPHINX_EXECUTABLE "${DEVTOOLS_ROOT}/python-3.11.11/bin/sphinx-build" CACHE PATH "")
 
 set(SHROUD_EXECUTABLE "/collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.13.0/bin/shroud" CACHE PATH "")
 
