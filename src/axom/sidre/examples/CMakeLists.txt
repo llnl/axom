@@ -29,6 +29,10 @@ set(F_example_sources
     sidre_shocktube_F.f
 )
 
+set(Py_example_sources
+    sidre_createdatastore_Py.py
+)
+
 if(APPLE)
     set(EXTRA_LIBS "")
 elseif(UNIX)
@@ -142,6 +146,35 @@ if(ENABLE_FORTRAN)
             axom_add_test(
                 NAME ${exe_name}
                 COMMAND ${exe_name}_ex )
+        endif()
+    endforeach()
+endif()
+
+#------------------------------------------------------------------------------
+# Add targets and tests for python examples
+#------------------------------------------------------------------------------
+if(NANOBIND_FOUND
+   AND NOT AXOM_ENABLE_CUDA
+   AND NOT AXOM_ENABLE_ASAN
+   AND NOT AXOM_ENABLE_UBSAN
+   AND
+   ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
+   OR
+   ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9"
+   AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
+    foreach(example_source ${Py_example_sources})
+        get_filename_component(exe_name ${example_source} NAME_WE)
+
+        if(AXOM_ENABLE_TESTS)
+            add_test (
+                NAME    ${exe_name}
+                COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/${example_source}
+            )
+
+            # Add pysidre to search path
+            set_tests_properties(${exe_name} PROPERTIES
+                ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/lib:$ENV{PYTHONPATH}"
+            )
         endif()
     endforeach()
 endif()
