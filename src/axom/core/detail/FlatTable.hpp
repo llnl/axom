@@ -124,20 +124,21 @@ struct GroupBucket
   AXOM_HOST_DEVICE void setBucket(int index, std::uint8_t hash)
   {
     std::uint8_t reduced_hash = reduceHash(hash);
-#if defined(AXOM_USE_RAJA)
     if(Atomic)  // TODO: should be constexpr
     {
-  #if defined(AXOM_USE_CUDA)
+#if defined(AXOM_USE_CUDA)
       // CUDA workaround for lack of 8-bit atomicStore.
       volatile std::uint8_t* bucket = &(metadata.buckets[index]);
       *bucket = reduced_hash;
-  #else
-      RAJA::atomicStore<RAJA::auto_atomic>(&(metadata.buckets[index]), reduced_hash);
-  #endif
+#else
+      axom::atomicStore<axom::auto_atomic>(&(metadata.buckets[index]), reduced_hash);
+#endif
       return;
     }
-#endif
-    metadata.buckets[index] = reduced_hash;
+    else
+    {
+      metadata.buckets[index] = reduced_hash;
+    }
   }
 
   void clearBucket(int index) { metadata.buckets[index] = Empty; }
@@ -146,21 +147,21 @@ struct GroupBucket
   AXOM_HOST_DEVICE void setOverflow(std::uint8_t hash)
   {
     std::uint8_t hashOfwBit = 1 << (hash % 8);
-#if defined(AXOM_USE_RAJA)
     if(Atomic)  // TODO: should be constexpr
     {
-  #if defined(AXOM_USE_HIP) || defined(AXOM_USE_CUDA)
+#if defined(AXOM_USE_HIP) || defined(AXOM_USE_CUDA)
       // Workaround for a lack of an atomicOr builtin for uint8_t.
       GroupBucket pack_data {};
       pack_data.metadata.ofw = hashOfwBit;
-      RAJA::atomicOr<RAJA::auto_atomic>(&data[0], pack_data.data[0]);
-  #else
-      RAJA::atomicOr<RAJA::auto_atomic>(&(metadata.ofw), hashOfwBit);
-  #endif
-      return;
-    }
+      axom::atomicOr<axom::auto_atomic>(&data[0], pack_data.data[0]);
+#else
+      axom::atomicOr<axom::auto_atomic>(&(metadata.ofw), hashOfwBit);
 #endif
-    metadata.ofw |= hashOfwBit;
+    }
+    else
+    {
+      metadata.ofw |= hashOfwBit;
+    }
   }
 
   template <bool Atomic = false>
@@ -168,24 +169,20 @@ struct GroupBucket
   {
     std::uint8_t hashOfwBit = 1 << (hash % 8);
     std::uint8_t curr_ofw;
-#if defined(AXOM_USE_RAJA)
     if(Atomic)  // TODO: should be constexpr
     {
-  #if defined(AXOM_USE_CUDA)
+#if defined(AXOM_USE_CUDA)
       // CUDA workaround for lack of 8-bit atomicLoad.
       curr_ofw = *const_cast<const volatile std::uint8_t*>(&(metadata.ofw));
-  #else
+#else
       // TODO: why is the const_cast required? (RAJA issue?)
-      curr_ofw = RAJA::atomicLoad<RAJA::auto_atomic>(const_cast<std::uint8_t*>(&(metadata.ofw)));
-  #endif
+      curr_ofw = axom::atomicLoad<axom::auto_atomic>(const_cast<std::uint8_t*>(&(metadata.ofw)));
+#endif
     }
     else
     {
       curr_ofw = metadata.ofw;
     }
-#else
-    curr_ofw = metadata.ofw;
-#endif
     return (curr_ofw & hashOfwBit);
   }
 
