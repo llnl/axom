@@ -64,6 +64,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   with GPU support. Instances where this occurs will now trigger a static assertion during compile time.
 - Fixes build with `ninja` generator
 - Primal: Fixes a `BoundingBox` constructor with zero (or fewer) points
+- Sina: Fixes configuration variables related of inclusion of `AdiakWriter.hpp` and hdf5 support in `sina_fortran_interface.f`
 
 ###  Deprecated
 - Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
