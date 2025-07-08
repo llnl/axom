@@ -39,6 +39,7 @@ cmake_dependent_option(AXOM_ENABLE_MPI "Enables Axom with MPI support" ON "ENABL
 cmake_dependent_option(AXOM_ENABLE_OPENMP "Enables Axom with OPENMP support" ON "ENABLE_OPENMP" OFF)
 
 cmake_dependent_option(AXOM_ENABLE_TESTS "Enables Axom Tests" ON "ENABLE_TESTS" OFF)
+cmake_dependent_option(AXOM_ENABLE_PYTHON_TESTS "Enables Axom Python Tests" ON "ENABLE_TESTS" OFF)
 cmake_dependent_option(AXOM_ENABLE_DOCS "Enables Axom Docs" ON "ENABLE_DOCS" OFF)
 cmake_dependent_option(AXOM_ENABLE_EXAMPLES "Enables Axom Examples" ON "ENABLE_EXAMPLES" OFF)
 option(AXOM_ENABLE_TOOLS "Enables Axom Tools" ON)

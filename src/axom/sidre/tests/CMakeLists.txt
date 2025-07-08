@@ -114,18 +114,7 @@ endif()
 #------------------------------------------------------------------------------
 # Add Python tests
 #------------------------------------------------------------------------------
-# "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.
-# Also disable when sanitizers are enabled, requires environment variable manipulation:
-# https://stackoverflow.com/questions/55692357/address-sanitizer-on-a-python-extension
-if(NANOBIND_FOUND
-   AND NOT AXOM_ENABLE_CUDA
-   AND NOT AXOM_ENABLE_ASAN
-   AND NOT AXOM_ENABLE_UBSAN
-   AND
-   ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
-   OR
-   ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9"
-   AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
+if(NANOBIND_FOUND AND AXOM_ENABLE_PYTHON_TESTS)
     foreach(test ${python_sidre_tests})
         get_filename_component( test_name ${test} NAME_WE )
 

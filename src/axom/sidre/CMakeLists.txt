@@ -132,25 +132,16 @@ if(ENABLE_FORTRAN AND AXOM_ENABLE_MPI)
     install(FILES ${CMAKE_Fortran_MODULE_DIRECTORY}/axom_spio.mod DESTINATION lib/fortran)
 endif()
 
-# "cannot allocate memory in static TLS block" on blueos with cuda and/or clang.
-# Also disable when sanitizers are enabled, requires environment variable manipulation:
-# https://stackoverflow.com/questions/55692357/address-sanitizer-on-a-python-extension
-if(NANOBIND_FOUND
-   AND NOT AXOM_ENABLE_CUDA
-   AND NOT AXOM_ENABLE_ASAN
-   AND NOT AXOM_ENABLE_UBSAN
-   AND
-   ((NOT "$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9")
-   OR
-   ("$ENV{SYS_TYPE}" STREQUAL "blueos_3_ppc64le_ib_p9"
-   AND NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")))
+
+if(NANOBIND_FOUND)
     nanobind_add_module(pysidre nanobind_sidre.cpp)
     target_link_libraries(pysidre PRIVATE sidre)
 
+    # Use HIP executable linker flags for the python module
     if(AXOM_ENABLE_HIP)
-        target_link_options(pysidre PRIVATE -L/opt/rocm-6.3.1/lib/llvm/lib -Wl,-rpath,/opt/rocm-6.3.1/lib/llvm/lib)
+        string (REPLACE " " ";" MODULE_LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+        target_link_options(pysidre PRIVATE ${MODULE_LINK_FLAGS})
     endif()
-
 endif()
 
 
