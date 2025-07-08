@@ -12,11 +12,11 @@ namespace axom
 {
 
 /*!
- * \class FlatMap
+ * \class FlatMapView
  *
  * \brief Provides a read-only view of a key-value container.
  *
- * \see FlatMapView
+ * \see FlatMap
  */
 template <typename KeyType,
           typename ValueType,
