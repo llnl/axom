@@ -126,10 +126,14 @@ template <typename CoordType, typename MortonIndexType, typename Derived>
 struct MortonBase
 {
   // static assert to ensure we only instantiate on integral types
-  AXOM_STATIC_ASSERT_MSG(std::is_integral<CoordType>::value,
-                         "Coordtype must be integral for Morton indexing");
-  AXOM_STATIC_ASSERT_MSG(std::is_integral<MortonIndexType>::value,
-                         "MortonIndexType must be integral for Morton indexing");
+  static_assert(std::is_integral<CoordType>::value,
+                "Coordtype must be integral for Morton indexing");
+  static_assert(std::is_integral<MortonIndexType>::value,
+                "MortonIndexType must be integral for Morton indexing");
+
+  // we get undefined behavior w/ our bit shifts if using signed types
+  static_assert(std::is_unsigned<MortonIndexType>::value,
+                "MortonIndexType must be an unsigned type");
 
 private:
   // Magic numbers for efficient base-2 log-like function -- maxSetBit()
@@ -232,15 +236,12 @@ struct Mortonizer<CoordType, MortonIndexType, 2>
   // Magic numbers in 2D
   AXOM_HOST_DEVICE static MortonIndexType GetB(int i)
   {
-    constexpr MortonIndexType B[] = {static_cast<MortonIndexType>(0x5555555555555555),  // 0101'0101
-                                     static_cast<MortonIndexType>(0x3333333333333333),  // 0011'0011
-                                     static_cast<MortonIndexType>(0x0F0F0F0F0F0F0F0F),  // 0000'1111
-                                     static_cast<MortonIndexType>(0x00FF00FF00FF00FF),  // 0x8
-                                                                                        //  1x8
-                                     static_cast<MortonIndexType>(0x0000FFFF0000FFFF),  // 0x16
-                                                                                        // 1x16
-                                     static_cast<MortonIndexType>(0x00000000FFFFFFFF)};  //  0x32
-                                                                                         // 1x32;
+    constexpr MortonIndexType B[] = {static_cast<MortonIndexType>(0x5555555555555555),   // 0101'0101
+                                     static_cast<MortonIndexType>(0x3333333333333333),   // 0011'0011
+                                     static_cast<MortonIndexType>(0x0F0F0F0F0F0F0F0F),   // 0000'1111
+                                     static_cast<MortonIndexType>(0x00FF00FF00FF00FF),   // 0x8  1x8
+                                     static_cast<MortonIndexType>(0x0000FFFF0000FFFF),   // 0x16 1x16
+                                     static_cast<MortonIndexType>(0x00000000FFFFFFFF)};  // 0x32 1x32;
     return B[i];
   }
 
