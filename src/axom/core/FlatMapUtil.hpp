@@ -196,10 +196,21 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
     AXOM_LAMBDA(IndexType kv_idx) {
       IndexType bucket_idx = key_index_to_bucket[kv_idx];
       IndexType winning_idx = key_index_dedup[bucket_idx];
+      // Place k-v pair at bucket_idx.
       if(kv_idx == winning_idx)
       {
-        // Place k-v pair at bucket_idx.
+#if defined(__CUDA_ARCH__)
+        // HACK: std::pair constructor is not host-device annotated, but CUDA
+        // requires passing in --expt-relaxed-constexpr for it to work.
+        // Instead of requiring this flag, construct each member of the pair
+        // individually.
+        KeyType& key_dst = const_cast<KeyType&>(buckets[bucket_idx].get().first);
+        ValueType& value_dst = buckets[bucket_idx].get().second;
+        new(&key_dst) KeyType {keys[kv_idx]};
+        new(&value_dst) ValueType {values[kv_idx]};
+#else
         new(&buckets[bucket_idx]) KeyValuePair(keys[kv_idx], values[kv_idx]);
+#endif
 #ifdef AXOM_USE_RAJA
         total_inserts += 1;
 #else
