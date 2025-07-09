@@ -8,6 +8,7 @@
 
 #include "axom/config.hpp"
 #include "axom/core/FlatMap.hpp"
+#include "axom/core/execution/reductions.hpp"
 
 namespace axom
 {
@@ -66,10 +67,6 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   FlatMap new_map(allocator);
   new_map.reserve(num_elems);
 
-#ifdef AXOM_USE_RAJA
-  using RajaAtomic = typename axom::execution_space<ExecSpace>::atomic_policy;
-  using RajaReduce = typename axom::execution_space<ExecSpace>::reduce_policy;
-#endif
   using HashResult = typename Hash::result_type;
   using GroupBucket = detail::flat_map::GroupBucket;
 
@@ -130,15 +127,8 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
 
               if(keys[key_index_dedup[bucket_index]] == keys[idx])
               {
-#if defined(AXOM_USE_RAJA)
                 // Highest-indexed kv pair wins.
-                RAJA::atomicMax<RajaAtomic>(&key_index_dedup[bucket_index], idx);
-#else
-                if(key_index_dedup[bucket_index] < idx)
-                {
-                  key_index_dedup[bucket_index] = idx;
-                }
-#endif
+                axom::atomicMax<ExecSpace>(&key_index_dedup[bucket_index], idx);
                 key_index_to_bucket[idx] = bucket_index;
                 duplicate_bucket_index = bucket_index;
               }
@@ -182,13 +172,7 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
     });
 
   // Add a counter for duplicated inserts.
-#ifdef AXOM_USE_RAJA
-  RAJA::ReduceSum<RajaReduce, IndexType> total_inserts(0);
-#else
-  axom::Array<IndexType> total_inserts_vec(1);
-  const auto total_inserts = total_inserts_vec.view();
-  total_inserts[0] = 0;
-#endif
+  axom::ReduceSum<ExecSpace, IndexType> total_inserts(0);
 
   // Using key-deduplication map, assign unique k-v pairs to buckets.
   for_all<ExecSpace>(
@@ -211,21 +195,12 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
 #else
         new(&buckets[bucket_idx]) KeyValuePair(keys[kv_idx], values[kv_idx]);
 #endif
-#ifdef AXOM_USE_RAJA
         total_inserts += 1;
-#else
-        total_inserts[0]++;
-#endif
       }
     });
 
-#ifdef AXOM_USE_RAJA
   new_map.m_size = total_inserts.get();
   new_map.m_loadCount = total_inserts.get();
-#else
-  new_map.m_size = total_inserts[0];
-  new_map.m_loadCount = total_inserts[0];
-#endif
 
   return new_map;
 }
