@@ -97,7 +97,6 @@ public:
       AXOM_LAMBDA(axom::IndexType faceIndex) {
         // Get size for current face.
         const auto faceSize = static_cast<int>(se_sizes[faceIndex]);
-        bool check = faceSize <= MaxPointsPerFace; // Work around weird failure of the next assert on ATS-2.
         SLIC_ASSERT(faceSize <= MaxPointsPerFace);
 
         KeyType faceName {};
