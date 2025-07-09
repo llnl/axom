@@ -200,7 +200,7 @@ public:
     , m_numGroups2(other.m_numGroups2)
     , m_size(other.m_size)
     , m_metadata(other.m_metadata, m_allocator.getID())
-    , m_buckets(other.m_buckets.size(), m_allocator.getID())
+    , m_buckets(other.m_buckets.size(), other.m_buckets.size(), m_allocator.getID())
     , m_loadCount(other.m_loadCount)
   {
     // Copy all elements.
