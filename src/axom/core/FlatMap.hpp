@@ -18,6 +18,12 @@
 namespace axom
 {
 /*!
+ * \brief Forward declaration of FlatMapView.
+ */
+template <typename KeyType, typename ValueType, bool IsConst, typename Hash>
+class FlatMapView;
+
+/*!
  * \class FlatMap
  *
  * \brief Provides a generic associative key-value container.
@@ -69,6 +75,9 @@ public:
   using value_type = KeyValuePair;
   using iterator = IteratorImpl<false>;
   using const_iterator = IteratorImpl<true>;
+
+  using View = FlatMapView<KeyType, ValueType, false, Hash>;
+  using ConstView = FlatMapView<KeyType, ValueType, true, Hash>;
 
   /*!
    * \brief Constructs a FlatMap with no elements.
@@ -191,7 +200,7 @@ public:
     , m_numGroups2(other.m_numGroups2)
     , m_size(other.m_size)
     , m_metadata(other.m_metadata, m_allocator.getID())
-    , m_buckets(other.m_buckets.size(), m_allocator.getID())
+    , m_buckets(other.m_buckets.size(), other.m_buckets.size(), m_allocator.getID())
     , m_loadCount(other.m_loadCount)
   {
     // Copy all elements.
@@ -595,7 +604,19 @@ public:
    */
   void reserve(IndexType count) { rehash(std::ceil(count / MAX_LOAD_FACTOR)); }
 
+  /*!
+   * \brief Returns a read-only view of the FlatMap.
+   * \see FlatMapView
+   */
+  /// {@
+  View view();
+  ConstView view() const;
+  /// }@
+
 private:
+  friend class FlatMapView<KeyType, ValueType, false, Hash>;
+  friend class FlatMapView<KeyType, ValueType, true, Hash>;
+
   template <typename InputIt>
   FlatMap(IndexType num_elems, InputIt first, InputIt last, IndexType bucket_count, Allocator allocator);
 
