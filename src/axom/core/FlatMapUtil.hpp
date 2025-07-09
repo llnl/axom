@@ -83,18 +83,18 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   // Construct an array of locks per-group. This guards metadata updates for
   // each insertion.
   IndexType num_groups = 1 << ngroups_pow_2;
-  Array<detail::SpinLock> lock_vec(num_groups, num_groups, allocator.get());
+  Array<detail::SpinLock> lock_vec(num_groups, num_groups, allocator.getID());
   const auto group_locks = lock_vec.view();
 
   // Map bucket slots to k-v pair indices. This is used to deduplicate pairs
   // with the same key value.
-  Array<IndexType> key_index_dedup_vec(0, 0, allocator.get());
+  Array<IndexType> key_index_dedup_vec(0, 0, allocator.getID());
   key_index_dedup_vec.resize(num_groups * GroupBucket::Size, -1);
   const auto key_index_dedup = key_index_dedup_vec.view();
 
   // Map k-v pair indices to bucket slots. This is essentially the inverse of
   // the above mapping.
-  Array<IndexType> key_index_to_bucket_vec(num_elems, num_elems, allocator.get());
+  Array<IndexType> key_index_to_bucket_vec(num_elems, num_elems, allocator.getID());
   const auto key_index_to_bucket = key_index_to_bucket_vec.view();
 
   for_all<ExecSpace>(
