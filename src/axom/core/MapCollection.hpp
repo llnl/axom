@@ -179,8 +179,15 @@ public:
   ///
   bool hasItem(const std::string& name) const
   {
-    typename MapType::const_iterator mit = m_name2idx_map.find(name);
-    return (mit != m_name2idx_map.end() ? true : false);
+    if(m_name2idx_map.empty())
+    {
+      return false;
+    }
+    else
+    {
+      typename MapType::const_iterator mit = m_name2idx_map.find(name);
+      return (mit != m_name2idx_map.end() ? true : false);
+    }
   }
 
   ///
@@ -193,15 +200,29 @@ public:
   ///
   T* getItem(const std::string& name)
   {
-    typename MapType::iterator mit = m_name2idx_map.find(name);
-    return (mit != m_name2idx_map.end() ? m_items[mit->second] : nullptr);
+    if(m_name2idx_map.empty())
+    {
+      return nullptr;
+    }
+    else
+    {
+      typename MapType::iterator mit = m_name2idx_map.find(name);
+      return (mit != m_name2idx_map.end() ? m_items[mit->second] : nullptr);
+    }
   }
 
   ///
   T const* getItem(const std::string& name) const
   {
-    typename MapType::const_iterator mit = m_name2idx_map.find(name);
-    return (mit != m_name2idx_map.end() ? m_items[mit->second] : nullptr);
+    if(m_name2idx_map.empty())
+    {
+      return nullptr;
+    }
+    else
+    {
+      typename MapType::const_iterator mit = m_name2idx_map.find(name);
+      return (mit != m_name2idx_map.end() ? m_items[mit->second] : nullptr);
+    }
   }
 
   ///
@@ -226,8 +247,15 @@ public:
   ///
   IndexType getItemIndex(const std::string& name) const
   {
-    typename MapType::const_iterator mit = m_name2idx_map.find(name);
-    return (mit != m_name2idx_map.end() ? mit->second : InvalidIndex);
+    if(m_name2idx_map.empty())
+    {
+      return InvalidIndex;
+    }
+    else
+    {
+      typename MapType::const_iterator mit = m_name2idx_map.find(name);
+      return (mit != m_name2idx_map.end() ? mit->second : InvalidIndex);
+    }
   }
 
   ///
