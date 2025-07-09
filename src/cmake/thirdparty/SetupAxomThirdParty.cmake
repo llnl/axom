@@ -291,7 +291,7 @@ endif()
 # Also disable when sanitizers are enabled, requires environment variable manipulation:
 # https://stackoverflow.com/questions/55692357/address-sanitizer-on-a-python-extension
 if(nanobind_ROOT
-AND NOT AXOM_ENABLE_CUDA
+   AND NOT AXOM_ENABLE_CUDA
    AND NOT AXOM_ENABLE_ASAN
    AND NOT AXOM_ENABLE_UBSAN
    AND
