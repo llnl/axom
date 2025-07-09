@@ -138,6 +138,8 @@ if(NANOBIND_FOUND)
     target_link_libraries(pysidre PRIVATE sidre)
 
     # Use HIP executable linker flags for the python module
+    # (CMake treats modules separately from executables,
+    # executable flags not automatically applied)
     if(AXOM_ENABLE_HIP)
         string (REPLACE " " ";" MODULE_LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
         target_link_options(pysidre PRIVATE ${MODULE_LINK_FLAGS})
