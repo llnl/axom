@@ -212,8 +212,6 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched)
   using MapType = typename TestFixture::MapType;
   using ExecSpace = typename TestFixture::ExecSpace;
 
-  MapType test_map;
-
   const int NUM_ELEMS = 100;
 
   axom::Array<int> keys_vec(NUM_ELEMS);
@@ -228,8 +226,18 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched)
     values_vec[i] = value;
   }
 
+  // Copy keys and values to GPU space.
+  axom::Array<int> keys_gpu(keys_vec, this->getKernelAllocatorID());
+  axom::Array<double> values_gpu(values_vec, this->getKernelAllocatorID());
+
   // Construct a flat map with the key-value pairs.
-  test_map = MapType::template create<ExecSpace>(keys_vec, values_vec);
+  MapType test_map_gpu =
+    MapType::template create<ExecSpace>(keys_gpu,
+                                        values_gpu,
+                                        axom::Allocator {this->getKernelAllocatorID()});
+
+  // Copy back flat map to host for testing.
+  MapType test_map(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
 
   // Check contents on the host
   EXPECT_EQ(NUM_ELEMS, test_map.size());
@@ -248,8 +256,6 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_dups)
 {
   using MapType = typename TestFixture::MapType;
   using ExecSpace = typename TestFixture::ExecSpace;
-
-  MapType test_map;
 
   const int NUM_ELEMS = 100;
 
@@ -275,8 +281,18 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_dups)
     values_vec[i + NUM_ELEMS] = value;
   }
 
+  // Copy keys and values to GPU space.
+  axom::Array<int> keys_gpu(keys_vec, this->getKernelAllocatorID());
+  axom::Array<double> values_gpu(values_vec, this->getKernelAllocatorID());
+
   // Construct a flat map with the key-value pairs.
-  test_map = MapType::template create<ExecSpace>(keys_vec, values_vec);
+  MapType test_map_gpu =
+    MapType::template create<ExecSpace>(keys_gpu,
+                                        values_gpu,
+                                        axom::Allocator {this->getKernelAllocatorID()});
+
+  // Copy back flat map to host for testing.
+  MapType test_map(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
 
   // Check contents on the host. Only one of the duplicate keys should remain.
   EXPECT_EQ(NUM_ELEMS, test_map.size());
@@ -348,8 +364,18 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_constant_hash)
     values_vec[i] = value;
   }
 
+  // Copy keys and values to GPU space.
+  axom::Array<int> keys_gpu(keys_vec, this->getKernelAllocatorID());
+  axom::Array<double> values_gpu(values_vec, this->getKernelAllocatorID());
+
   // Construct a flat map with the key-value pairs.
-  MapType test_map = MapType::template create<ExecSpace>(keys_vec, values_vec);
+  MapType test_map_gpu =
+    MapType::template create<ExecSpace>(keys_gpu,
+                                        values_gpu,
+                                        axom::Allocator {this->getKernelAllocatorID()});
+
+  // Copy back flat map to host for testing.
+  MapType test_map(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
 
   // Check contents on the host
   EXPECT_EQ(NUM_ELEMS, test_map.size());
