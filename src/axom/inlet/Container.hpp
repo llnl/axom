@@ -1227,9 +1227,9 @@ private:
   std::string m_name;
   Reader& m_reader;
   // Inlet's Root Sidre Group
-  axom::sidre::Group* m_sidreRootGroup;
+  axom::sidre::Group* m_sidreRootGroup {nullptr};
   // This Container's Sidre Group
-  axom::sidre::Group* m_sidreGroup;
+  axom::sidre::Group* m_sidreGroup {nullptr};
   // Hold a reference to the global set of unexpected names so it can be updated when
   // things are added to this Container
   std::vector<std::string>& m_unexpectedNames;
