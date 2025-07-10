@@ -179,6 +179,10 @@ public:
   ///
   bool hasItem(const std::string& name) const
   {
+    // Implementation note: Sparsehash requires sentinel values for 'empty' and 'deleted'
+    // entries. Our usage in this class only enforces this when we insert or delete
+    // items from the map, so we add explicit checks for empty maps in functions
+    // that do not mutate the map to avoid undefined behavior.
     if(m_name2idx_map.empty())
     {
       return false;
@@ -200,6 +204,7 @@ public:
   ///
   T* getItem(const std::string& name)
   {
+    // Implementation note: This explicit check avoids undefined behavior. See note above.
     if(m_name2idx_map.empty())
     {
       return nullptr;
@@ -214,6 +219,7 @@ public:
   ///
   T const* getItem(const std::string& name) const
   {
+    // Implementation note: This explicit check avoids undefined behavior. See note above.
     if(m_name2idx_map.empty())
     {
       return nullptr;
@@ -247,6 +253,7 @@ public:
   ///
   IndexType getItemIndex(const std::string& name) const
   {
+    // Implementation note: This explicit check avoids undefined behavior. See note above.
     if(m_name2idx_map.empty())
     {
       return InvalidIndex;
