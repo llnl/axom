@@ -7,6 +7,6 @@
 [submodule "scripts/uberenv"]
 	path = scripts/uberenv
 	url = https://github.com/LLNL/uberenv.git
-[submodule "scripts/spack/radiuss-spack-configs"]
-	path = scripts/spack_repo/radiuss-spack-configs
+[submodule "scripts/spack_repo/llnl_radiuss"]
+	path = scripts/spack_repo/llnl_radiuss
 	url = https://github.com/LLNL/radiuss-spack-configs.git
