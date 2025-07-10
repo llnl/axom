@@ -107,31 +107,64 @@ struct NURBSPatchData
     // Calculate the average normal for the untrimmed patch
     if(!patch.isTrimmed())
     {
-      // average_normal = patch.calculateUntrimmedPatchNormal(20);
+      average_normal = patch.calculateUntrimmedPatchNormal(20);
       patch.makeTriviallyTrimmed();
-      // surface_area = 1.0; //patch.calculateTrimmedSurfaceArea();
+      surface_area = patch.calculateTrimmedSurfaceArea();
     }
     else
     {
       patch.simplifyParameterSpace();
-      // patch.calculateTrimmedSurfaceData(average_normal, surface_area, centroid);
+      patch.calculateTrimmedSurfaceData(average_normal, surface_area, centroid);
     }
 
     pbox_diag = patch.getParameterSpaceDiagonal();
 
+    // Make more precise bounding box by sampling the trimmed patch
+    bbox.clear();
 
-    std::string filename =
-      "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\full_gear_example\\patch_"
-      "normals\\patch_" +
-      std::to_string(idx) + "_normal.csv";
-    std::ifstream file(filename);
+    auto min_u = patch.getMinKnot_u();
+    auto max_u = patch.getMaxKnot_u();
+    
+    auto min_v = patch.getMinKnot_v();
+    auto max_v = patch.getMaxKnot_v();
+    
+    // int num_successful_samples = 0;
+    // for(int i = 0; i < 1000; ++i)
+    // {
+      // double test_u = axom::utilities::random_real(min_u, max_u);
+      // double test_v = axom::utilities::random_real(min_v, max_v);
+// 
+      // if(patch.isVisible(test_u, test_v))
+      // {
+        // num_successful_samples++;
+// 
+        // Point<T, 3> sample_point = patch.evaluate(test_u, test_v);
+        // bbox.addPoint(sample_point);
+      // 
+        // if(num_successful_samples == 100)
+        // {
+          // break; // Stop sampling after 100 successful samples
+        // }
+      // }      
+    // }
+// 
+    // if(num_successful_samples < 100)
+    // {
+      bbox = patch.boundingBox();
+    // }
+
+    // std::string filename =
+    //   "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\full_gear_example\\patch_"
+    //   "normals\\patch_" +
+    //   std::to_string(idx) + "_normal.csv";
+    // std::ifstream file(filename);
 
     // file << std::setprecision(20);
     // file << average_normal[0] << " " << average_normal[1] << " " << average_normal[2] << " " << surface_area << " " << centroid[0] << " " << centroid[1] << " " << centroid[2] << "\n";
 
-    file >> average_normal[0] >> average_normal[1] >> average_normal[2] >> surface_area >> centroid[0] >> centroid[1] >> centroid[2];
+    // file >> average_normal[0] >> average_normal[1] >> average_normal[2] >> surface_area >> centroid[0] >> centroid[1] >> centroid[2];
 
-    file.close();
+    // file.close();
 
     patch.expandParameterSpace(0.05, 0.05);
     auto candidates = patch.extractBezier();
@@ -194,7 +227,6 @@ struct NURBSPatchData
       }
     }
 
-    bbox = patch.boundingBox();
     curve_quadrature_maps.resize(patch.getNumTrimmingCurves());
   }
 
