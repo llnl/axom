@@ -527,6 +527,18 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
     return Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
   };
 
+  // Lambda to generate a random orthogonal normal vector to the input
+  auto random_orthogonal = [](const Vector<T, 3>& input) -> Vector<T, 3> {
+    // Pick a random direction orthogonal to the surface normal
+    //  at the center of the disk
+    Vector<T, 3> some_perp({input[1] - input[2], input[2] - input[0], input[0] - input[1]});
+    double theta = axom::utilities::random_real(0.0, 2.0 * M_PI);
+    Vector<T, 3> new_direction = std::cos(theta) * some_perp.unitVector() +
+      std::sin(theta) * Vector3D::cross_product(input, some_perp).unitVector();
+
+    return new_direction;
+  };
+
   // Rotation matrix for the patch
   numerics::Matrix<T> rotator;
 
@@ -740,7 +752,7 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
 
       NURBSPatch<T, 3> the_disk;
       // nPatchWithBoundaries.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//original.txt");
-    
+
       nPatchWithBoundaries.diskSplit(up[i],
                                      vp[i],
                                      disk_radius,
@@ -750,14 +762,34 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
                                      isDiskOutside,
                                      ignoreInteriorDisk,
                                      clipDisk);
-                                    //  the_disk.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//the_disk.txt");
-                                    //  nPatchWithBoundaries.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//the_rest.txt");
-                               
+      //  the_disk.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//the_disk.txt");
+      //  nPatchWithBoundaries.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//the_rest.txt");
+
       extraTrimming =
         extraTrimming || (!isDiskInside && !isDiskOutside) || (isDiskInside && !ignoreInteriorDisk);
 
       if(extraTrimming)
       {
+        if(depth > 1)
+        {
+          // double cone_angle = 20 * M_PI / 180.0;  // 10 degrees
+          // auto new_cast_direction =
+            // cast_direction + tan(cone_angle) * random_orthogonal(cast_direction);
+          auto new_cast_direction = random_orthogonal(cast_direction).unitVector();
+
+          return nurbs_data_winding_number(query,
+                                           nPatchData,
+                                           new_cast_direction,
+                                           case_code,
+                                           integrated_curves,
+                                           edge_tol,
+                                           depth == 0 ? ls_tol * 1e-2 : ls_tol,
+                                           depth == 0 ? quad_tol * 1e-2 : quad_tol,
+                                           depth == 0 ? disk_radius : disk_radius * 0.1,
+                                           EPS,
+                                           depth + 1);
+        }
+
         case_code = 3;
         integrated_curves += the_disk.getNumTrimmingCurves() +
           (nPatchWithBoundaries.getNumTrimmingCurves() - old_num_trim);
