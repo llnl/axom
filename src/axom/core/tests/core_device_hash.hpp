@@ -183,30 +183,30 @@ AXOM_TYPED_TEST(core_device_hash, hash_enum)
   }
 }
 
-namespace
+namespace axom_testing
 {
 template <typename T>
 struct UserVector
 {
   T x, y, z;
 };
-}  // namespace
+}  // namespace axom_testing
 
 // Test that we can correctly specialize a device hash for a user-defined type.
 namespace axom
 {
 template <typename T>
-struct DeviceHash<UserVector<T>>
+struct DeviceHash<axom_testing::UserVector<T>>
 {
-  using argument_type = UserVector<T>;
+  using argument_type = axom_testing::UserVector<T>;
   using result_type = axom::IndexType;
 
-  AXOM_HOST_DEVICE axom::IndexType operator()(UserVector<T> value) const
+  AXOM_HOST_DEVICE axom::IndexType operator()(axom_testing::UserVector<T> value) const
   {
     // Copy byte representation over
-    constexpr int NWORDS = sizeof(UserVector<T>) / sizeof(int);
-    alignas(UserVector<T>) int bytes[NWORDS];
-    *reinterpret_cast<UserVector<T> *>(bytes) = value;
+    constexpr int NWORDS = sizeof(axom_testing::UserVector<T>) / sizeof(int);
+    alignas(axom_testing::UserVector<T>) int bytes[NWORDS];
+    *reinterpret_cast<axom_testing::UserVector<T> *>(bytes) = value;
 
     axom::IndexType hash_result {};
     for(int i = 0; i < NWORDS; i++)
@@ -222,14 +222,14 @@ AXOM_TYPED_TEST(core_device_hash, hash_user_defined)
 {
   using ExecSpace = typename TestFixture::ExecSpace;
 
-  axom::DeviceHash<UserVector<float>> device_hasher;
+  axom::DeviceHash<axom_testing::UserVector<float>> device_hasher;
 
   constexpr int NUM_HASHES = 4;
 
-  UserVector<float> things_to_hash[NUM_HASHES] = {{0.0, 0.0, 0.0},
-                                                  {1.0, 3.0, 5.0},
-                                                  {2.0, 5.0, 8.0},
-                                                  {10.0, 20.0, 30.0}};
+  axom_testing::UserVector<float> things_to_hash[NUM_HASHES] = {{0.0, 0.0, 0.0},
+                                                                {1.0, 3.0, 5.0},
+                                                                {2.0, 5.0, 8.0},
+                                                                {10.0, 20.0, 30.0}};
 
   // Allocate space for hash results.
   int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
