@@ -21,55 +21,12 @@ spack:
   - ../defaults.yaml
   - ../versions.yaml
 
-  compilers::
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      flags: {}
-      modules:
-      - clang/14.0.6
-      operating_system: rhel8
-      paths:
-        cc: /usr/tce/packages/clang/clang-14.0.6/bin/clang
-        cxx: /usr/tce/packages/clang/clang-14.0.6/bin/clang++
-        f77: /usr/tce/packages/gcc/gcc-10.3.1/bin/gfortran
-        fc: /usr/tce/packages/gcc/gcc-10.3.1/bin/gfortran
-      spec: clang@14.0.6
-      target: x86_64
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      flags: {}
-      modules:
-      - gcc/10.3.1
-      operating_system: rhel8
-      paths:
-        cc: /usr/tce/packages/gcc/gcc-10.3.1/bin/gcc
-        cxx: /usr/tce/packages/gcc/gcc-10.3.1/bin/g++
-        f77: /usr/tce/packages/gcc/gcc-10.3.1/bin/gfortran
-        fc: /usr/tce/packages/gcc/gcc-10.3.1/bin/gfortran
-      spec: gcc@10.3.1
-      target: x86_64
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      flags: {}
-      modules: []
-      operating_system: rhel8
-      paths:
-        cc: /usr/tce/packages/intel/intel-2022.1.0/compiler/2022.1.0/linux/bin/icx
-        cxx: /usr/tce/packages/intel/intel-2022.1.0/compiler/2022.1.0/linux/bin/icpx
-        f77: /usr/tce/packages/intel/intel-2022.1.0/compiler/2022.1.0/linux/bin/ifx
-        fc: /usr/tce/packages/intel/intel-2022.1.0/compiler/2022.1.0/linux/bin/ifx
-      spec: intel@2022.1.0
-      target: x86_64
 
   packages:
     all:
       # This defaults us to machine specific flags of ivybridge which allows
       # us to run on broadwell as well
       target: [ivybridge]
-      compiler: [gcc, intel, pgi, clang, xl, nag]
       providers:
         blas: [openblas]
         lapack: [netlib-lapack]
@@ -77,6 +34,50 @@ spack:
         gl: [opengl]
         glu: [openglu]
         zlib-api: [zlib]
+
+    # compilers
+    gcc:
+      externals:
+      - spec: gcc@10.3.1 languages:='c,c++,fortran'
+        prefix: /usr/tce/packages/gcc/gcc-10.3.1
+        extra_attributes:
+          compilers:
+            c: /usr/tce/packages/gcc/gcc-10.3.1/bin/gcc
+            cxx: /usr/tce/packages/gcc/gcc-10.3.1/bin/g++
+            fortran: /usr/tce/packages/gcc/gcc-10.3.1/bin/gfortran
+          flags: {}
+          environment: {}
+          extra_rpaths: []
+          # modules:
+          # - gcc/10.3.1
+
+    llvm:
+      externals:
+      - spec: llvm@14.0.6+clang~flang~lld~lldb
+        prefix: /usr/tce/packages/clang/clang-14.0.6
+        extra_attributes:
+          compilers:
+            c: /usr/tce/packages/clang/clang-14.0.6/bin/clang
+            cxx: /usr/tce/packages/clang/clang-14.0.6/bin/clang++
+            fortran: /usr/tce/packages/gcc/gcc-10.3.1/bin/gfortran
+          flags: {}
+          environment: {}
+          extra_rpaths: []
+          # modules:
+          # - clang/14.0.6
+
+    intel-oneapi-compilers:
+      externals:
+      - spec: intel-oneapi-compilers@2022.1.0
+        prefix: /usr/tce/packages/intel/intel-2022.1.0
+        extra_attributes:
+          compilers:
+            c: /usr/tce/packages/intel/intel-2022.1.0/compiler/2022.1.0/linux/bin/icx
+            cxx: /usr/tce/packages/intel/intel-2022.1.0/compiler/2022.1.0/linux/bin/icpx
+            fortran: /usr/tce/packages/intel/intel-2022.1.0/compiler/2022.1.0/linux/bin/ifx
+          flags: {}
+          environment: {}
+          extra_rpaths: []
 
     openblas:
       buildable: false
@@ -338,12 +339,13 @@ spack:
       externals:
       - spec: doxygen@1.9.6
         prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/latest/doxygen-1.9.6
-    llvm:
-      version: [14.0.6]
-      buildable: false
-      externals:
-      - spec: llvm@14.0.6+clang+python
-        prefix: /usr/tce/packages/clang/clang-14.0.6
+    # TODO? How to determine clang-format now?
+    # llvm:
+    #   version: [14.0.6]
+    #   buildable: false
+    #   externals:
+    #   - spec: llvm@14.0.6+clang+python
+    #     prefix: /usr/tce/packages/clang/clang-14.0.6
     py-shroud:
       version: [0.13.0]
       buildable: false
@@ -361,3 +363,26 @@ spack:
       externals:
       - spec: python@3.10.10
         prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib/latest/python-3.10.10
+
+  toolchains:
+    clang-14:
+      - spec: '%[virtuals=c]llvm@14.0.6+clang~flang~lld~lldb'
+        when: '%c'
+      - spec: '%[virtuals=cxx]llvm@14.0.6+clang~flang~lld~lldb'
+        when: '%cxx'
+      - spec: '%[virtuals=fortran]gcc@10.3.1'
+        when: '%fortran'
+    gcc-10:
+      - spec: '%[virtuals=c]gcc@10.3.1'
+        when: '%c'
+      - spec: '%[virtuals=cxx]gcc@10.3.1'
+        when: '%cxx'
+      - spec: '%[virtuals=fortran]gcc@10.3.1'
+        when: '%fortran'
+    oneapi-2022-gcc-10:
+      - spec: '%[virtuals=c]intel-oneapi-compilers@2022.1.0'
+        when: '%c'
+      - spec: '%[virtuals=cxx]intel-oneapi-compilers@2022.1.0'
+        when: '%cxx'
+      - spec: '%[virtuals=fortran]intel-oneapi-compilers@2022.1.0'
+        when: '%fortran'
