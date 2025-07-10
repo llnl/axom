@@ -47,6 +47,8 @@ namespace linear_bvh
 template <typename FloatType, int Dims>
 static inline AXOM_HOST_DEVICE std::int32_t morton32_encode(const primal::Vector<FloatType, Dims>& point)
 {
+  using PointType = primal::Point<std::int32_t, Dims>;
+
   //for a float, take the first 10 bits. Note, 2^10 = 1024
   constexpr int NUM_BITS_PER_DIM = 32 / Dims;
   constexpr FloatType FLOAT_TO_INT = 1 << NUM_BITS_PER_DIM;
@@ -55,12 +57,11 @@ static inline AXOM_HOST_DEVICE std::int32_t morton32_encode(const primal::Vector
   std::int32_t int_coords[Dims];
   for(int i = 0; i < Dims; i++)
   {
-    int_coords[i] = fmin(fmax(point[i] * FLOAT_TO_INT, (FloatType)0), FLOAT_CEILING);
+    int_coords[i] = static_cast<std::int32_t>(
+      fmin(fmax(point[i] * FLOAT_TO_INT, static_cast<FloatType>(0)), FLOAT_CEILING));
   }
 
-  primal::Point<std::int32_t, Dims> integer_pt(int_coords);
-
-  return convertPointToMorton<std::int32_t>(integer_pt);
+  return static_cast<std::int32_t>(convertPointToMorton<std::uint32_t>(PointType(int_coords)));
 }
 
 //------------------------------------------------------------------------------
@@ -70,15 +71,15 @@ static inline AXOM_HOST_DEVICE std::int64_t morton64_encode(axom::float32 x,
                                                             axom::float32 y,
                                                             axom::float32 z = 0.0)
 {
+  using PointType = primal::Point<std::int64_t, 3>;
+
   //take the first 21 bits. Note, 2^21= 2097152.0f
-  x = fmin(fmax(x * 2097152.0f, 0.0f), 2097151.0f);
-  y = fmin(fmax(y * 2097152.0f, 0.0f), 2097151.0f);
-  z = fmin(fmax(z * 2097152.0f, 0.0f), 2097151.0f);
+  constexpr float F_21 = 2097152.0f;
+  const PointType integer_pt = {static_cast<std::int64_t>(fmin(fmax(x * F_21, 0.0f), F_21)),
+                                static_cast<std::int64_t>(fmin(fmax(y * F_21, 0.0f), F_21)),
+                                static_cast<std::int64_t>(fmin(fmax(z * F_21, 0.0f), F_21))};
 
-  primal::Point<std::int64_t, 3> integer_pt =
-    primal::Point<std::int64_t, 3>::make_point((std::int64_t)x, (std::int64_t)y, (std::int64_t)z);
-
-  return convertPointToMorton<std::int64_t>(integer_pt);
+  return static_cast<std::int64_t>(convertPointToMorton<std::uint64_t>(integer_pt));
 }
 
 template <typename ExecSpace, typename BoxIndexable, typename FloatType, int NDIMS>

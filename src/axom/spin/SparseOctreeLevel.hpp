@@ -40,13 +40,13 @@ template <typename CoordType, int DIM, typename BroodDataType, typename Represen
 struct BroodRepresentationTraits
 {
   using GridPt = primal::Point<CoordType, DIM>;
-  using PointRepresenationType = RepresentationType;
+  using PointRepresentationType = RepresentationType;
 
-  AXOM_STATIC_ASSERT_MSG(std::is_integral<CoordType>::value, "CoordType must be integral");
-  AXOM_STATIC_ASSERT_MSG(std::is_integral<PointRepresenationType>::value,
-                         "RepresentationType must be integral");
-  AXOM_STATIC_ASSERT_MSG(std::is_unsigned<PointRepresenationType>::value,
-                         "RepresentationType must be unsigned");
+  static_assert(std::is_integral<CoordType>::value, "CoordType must be integral");
+  static_assert(std::is_integral<PointRepresentationType>::value,
+                "RepresentationType must be integral");
+  static_assert(std::is_unsigned<PointRepresentationType>::value,
+                "RepresentationType must be unsigned");
 
   // Requires a uint for RepresentationType with 8-,16-,32-, or 64- bits
 #if defined(AXOM_USE_SPARSEHASH)
@@ -55,10 +55,10 @@ struct BroodRepresentationTraits
   using MapType = std::unordered_map<RepresentationType, BroodDataType>;
 #endif
 
-  using BroodType = Brood<GridPt, PointRepresenationType>;
+  using BroodType = Brood<GridPt, PointRepresentationType>;
 
   /** Simple function to convert a point to its representation type */
-  static PointRepresenationType convertPoint(const GridPt& pt)
+  static PointRepresentationType convertPoint(const GridPt& pt)
   {
     return BroodType::MortonizerType::mortonize(pt);
   }
@@ -71,7 +71,7 @@ struct BroodRepresentationTraits
   static void initializeMap(MapType& map)
   {
 #if defined(AXOM_USE_SPARSEHASH)
-    const PointRepresenationType maxVal = axom::numeric_limits<PointRepresenationType>::max();
+    const PointRepresentationType maxVal = axom::numeric_limits<PointRepresentationType>::max();
     map.set_empty_key(maxVal);
     map.set_deleted_key(maxVal - 1);
 #else
@@ -150,7 +150,7 @@ struct BroodRepresentationTraits<CoordType, DIM, BroodDataType, primal::Point<Co
  *
  *  \see OctreeLevel
  */
-template <int DIM, typename BlockDataType, typename PointRepresenationType>
+template <int DIM, typename BlockDataType, typename PointRepresentationType>
 class SparseOctreeLevel : public OctreeLevel<DIM, BlockDataType>
 {
 public:
@@ -161,7 +161,7 @@ public:
   using ConstBaseBlockIteratorHelper = typename Base::ConstBlockIteratorHelper;
 
   using BroodTraits =
-    BroodRepresentationTraits<typename GridPt::CoordType, GridPt::DIMENSION, BroodData, PointRepresenationType>;
+    BroodRepresentationTraits<typename GridPt::CoordType, GridPt::DIMENSION, BroodData, PointRepresentationType>;
   using MapType = typename BroodTraits::MapType;
   using BroodType = typename BroodTraits::BroodType;
 

@@ -67,6 +67,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Fixes build with `ninja` generator
 - Primal: Fixes a `BoundingBox` constructor with zero (or fewer) points
 - Sina: Fixes configuration variables related to inclusion of `AdiakWriter.hpp` and to hdf5 support in `sina_fortran_interface.f`
+- Spin: Fixes undefined behavior in BVH tree construction associated with using signed indexes
+- Spin: Fixes undefined behavior in UniformGrid construction associated with invalid geometry bounding boxes
+- Core: Fixes undefined behavior in MapCollection when searching empty collections
 
 ###  Deprecated
 - Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
