@@ -62,7 +62,7 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
 {
   assert(keys.size() == values.size());
 
-  IndexType num_elems = keys.size();
+  const IndexType num_elems = keys.size();
 
   FlatMap new_map(allocator);
   new_map.reserve(num_elems);
@@ -73,13 +73,13 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   // Grab some needed internal fields from the flat map.
   // We're going to be constructing metadata and the K-V pairs directly
   // in-place.
-  int ngroups_pow_2 = new_map.m_numGroups2;
+  const int ngroups_pow_2 = new_map.m_numGroups2;
   const auto meta_group = new_map.m_metadata.view();
   const auto buckets = new_map.m_buckets.view();
 
   // Construct an array of locks per-group. This guards metadata updates for
   // each insertion.
-  IndexType num_groups = 1 << ngroups_pow_2;
+  const IndexType num_groups = 1 << ngroups_pow_2;
   Array<detail::SpinLock> lock_vec(num_groups, num_groups, allocator.getID());
   const auto group_locks = lock_vec.view();
 
@@ -95,7 +95,7 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   const auto key_index_to_bucket = key_index_to_bucket_vec.view();
 
   for_all<ExecSpace>(
-    keys.size(),
+    num_elems,
     AXOM_LAMBDA(IndexType idx) {
       // Hash keys.
       auto hash = Hash {}(keys[idx]);
