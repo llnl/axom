@@ -602,7 +602,7 @@ public:
    *
    * \param count the number of elements to fit without a rehash
    */
-  void reserve(IndexType count) { rehash(std::ceil(count / MAX_LOAD_FACTOR)); }
+  void reserve(IndexType count) { rehash(count); }
 
   /*!
    * \brief Returns a read-only view of the FlatMap.
@@ -739,13 +739,13 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count, Allocator all
   , m_loadCount(0)
 {
   IndexType minBuckets = MIN_NUM_BUCKETS;
-  bucket_count = axom::utilities::max(minBuckets, bucket_count);
+  bucket_count = axom::utilities::max<IndexType>(minBuckets, bucket_count / MAX_LOAD_FACTOR);
   // Get the smallest power-of-two number of groups satisfying:
   // N * GroupSize - 1 >= minBuckets
   // TODO: we should add a countl_zero overload for 64-bit integers
   {
     std::int32_t numGroups = std::ceil((bucket_count + 1) / (double)BucketsPerGroup);
-    m_numGroups2 = 32 - (axom::utilities::countl_zero(numGroups));
+    m_numGroups2 = 32 - (axom::utilities::countl_zero(numGroups - 1));
   }
 
   IndexType numGroupsRounded = 1 << m_numGroups2;

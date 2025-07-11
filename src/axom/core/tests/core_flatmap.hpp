@@ -124,7 +124,7 @@ AXOM_TYPED_TEST(core_flatmap, prealloc_buckets)
   {
     MapType test_map(size);
     EXPECT_EQ(0, test_map.size());
-    EXPECT_LE(size, test_map.bucket_count());
+    EXPECT_LE(size, test_map.bucket_count() * test_map.max_load_factor());
   }
 }
 
