@@ -1339,7 +1339,7 @@ bool intersect(const Line<T, 3>& line,
 
   // Check a bounding box of the entire NURBS first
   Point<T, 3> ip;
-  if(!intersect(line, patch.boundingBox(), ip))
+  if(!intersect(line, patch.boundingBox().expand(10 * tol), ip))
   {
     return false;
   }

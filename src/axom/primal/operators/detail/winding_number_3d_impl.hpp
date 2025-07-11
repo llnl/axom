@@ -770,13 +770,12 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
 
       if(extraTrimming)
       {
-        if(depth > 1)
+        if(depth < 1 )
         {
-          // double cone_angle = 20 * M_PI / 180.0;  // 10 degrees
-          // auto new_cast_direction =
-            // cast_direction + tan(cone_angle) * random_orthogonal(cast_direction);
-          auto new_cast_direction = random_orthogonal(cast_direction).unitVector();
-
+          double cone_angle = 20 * M_PI / 180.0;  // 20 degrees
+          auto new_cast_direction =
+            (cast_direction + tan(cone_angle) * random_orthogonal(cast_direction)).unitVector();
+            
           return nurbs_data_winding_number(query,
                                            nPatchData,
                                            new_cast_direction,

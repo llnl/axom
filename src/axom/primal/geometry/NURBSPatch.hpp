@@ -94,13 +94,6 @@ struct NURBSPatchData
   {
     obox = patch.orientedBoundingBox();
 
-    beziers = axom::Array<BezierPatch<T, 3>>();
-    u_spans = axom::Array<std::pair<double, double>>();
-    v_spans = axom::Array<std::pair<double, double>>();
-
-    // Filter out the Bezier patches whose knot spans
-    //  are not visible in the trimming curves
-
     // patch.normalize();
     patch.normalizeBySpan();
 
@@ -119,40 +112,6 @@ struct NURBSPatchData
 
     pbox_diag = patch.getParameterSpaceDiagonal();
 
-    // Make more precise bounding box by sampling the trimmed patch
-    bbox.clear();
-
-    auto min_u = patch.getMinKnot_u();
-    auto max_u = patch.getMaxKnot_u();
-    
-    auto min_v = patch.getMinKnot_v();
-    auto max_v = patch.getMaxKnot_v();
-    
-    // int num_successful_samples = 0;
-    // for(int i = 0; i < 1000; ++i)
-    // {
-      // double test_u = axom::utilities::random_real(min_u, max_u);
-      // double test_v = axom::utilities::random_real(min_v, max_v);
-// 
-      // if(patch.isVisible(test_u, test_v))
-      // {
-        // num_successful_samples++;
-// 
-        // Point<T, 3> sample_point = patch.evaluate(test_u, test_v);
-        // bbox.addPoint(sample_point);
-      // 
-        // if(num_successful_samples == 100)
-        // {
-          // break; // Stop sampling after 100 successful samples
-        // }
-      // }      
-    // }
-// 
-    // if(num_successful_samples < 100)
-    // {
-      bbox = patch.boundingBox();
-    // }
-
     // std::string filename =
     //   "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\full_gear_example\\patch_"
     //   "normals\\patch_" +
@@ -166,66 +125,56 @@ struct NURBSPatchData
 
     // file.close();
 
-    patch.expandParameterSpace(0.05, 0.05);
-    auto candidates = patch.extractBezier();
-
+    // Make a bounding box by doing bezier extraction, then splitting the resulting bezier patches in 4,
+    //  and taking a union of those bounding boxes    
     axom::Array<T> knot_vals_u = patch.getKnots_u().getUniqueKnots();
     axom::Array<T> knot_vals_v = patch.getKnots_v().getUniqueKnots();
 
     const auto num_knot_span_u = knot_vals_u.size() - 1;
     const auto num_knot_span_v = knot_vals_v.size() - 1;
 
-    // Add all internal Bezier patches directly
+    axom::Array<NURBSPatch<T, 3>, 2> split_patches(num_knot_span_u, num_knot_span_v);
+    split_patches(0, 0) = patch;
+    for(int i = 0; i < num_knot_span_u - 1; ++i)
+    {
+      split_patches(i, 0).split_u(knot_vals_u[i + 1], split_patches(i, 0), split_patches(i + 1, 0));
+    }
+
+    for(int i = 0; i < num_knot_span_u; ++i)
+    {
+      for(int j = 0; j < num_knot_span_v - 1; ++j)
+      {
+        split_patches(i, j).split_v(knot_vals_v[j + 1], split_patches(i, j), split_patches(i, j + 1));
+      }
+    }
+
+    bbox.clear();
     for(int i = 0; i < num_knot_span_u; ++i)
     {
       for(int j = 0; j < num_knot_span_v; ++j)
       {
-        auto& bezier = candidates[i * num_knot_span_v + j];
-
-        // For now, let's just add all of the Bezier patches
-        beziers.push_back(bezier);
-        u_spans.push_back({std::make_pair(knot_vals_u[i], knot_vals_u[i + 1])});
-        v_spans.push_back({std::make_pair(knot_vals_v[j], knot_vals_v[j + 1])});
-        continue;
-
-        // For bezier and knot spans to be pushed back, 2 things need to be true:
-        bool center_visible = false;
-        bool found_intersections = false;
-
-        // 1. The 2D bounding box containing the knot span can't intersect the trimming curves
-        BoundingBox<T, 2> knot_span_bb({knot_vals_u[i], knot_vals_v[j]},
-                                       {knot_vals_u[i + 1], knot_vals_v[j + 1]});
-        knot_span_bb = knot_span_bb.scale(1.01);
-        for(auto& curve : patch.getTrimmingCurves())
+        if(split_patches(i, j).getNumTrimmingCurves() == 0)
         {
-          if(intersects(knot_span_bb, curve))
-          {
-            found_intersections = true;
-            break;
-          }
+          continue;  // Skip patches with no trimming curves
         }
 
-        // Need to keep any patch that intersects the trimming curves
-        if(found_intersections)
-        {
-          beziers.push_back(bezier);
-          u_spans.push_back({std::make_pair(knot_vals_u[i], knot_vals_u[i + 1])});
-          v_spans.push_back({std::make_pair(knot_vals_v[j], knot_vals_v[j + 1])});
-          continue;
-        }
+        auto the_patch = BezierPatch<T, 3>(
+          split_patches(i, j).getControlPoints(),
+          split_patches(i, j).getWeights(),
+          split_patches(i, j).getDegree_u(),
+          split_patches(i, j).getDegree_v());
+          
+        BezierPatch<T, 3> p1, p2, p3, p4;
+        the_patch.split(0.5, 0.5, p1, p2, p3, p4);
 
-        // If the center of the knot span is visible, we need to keep the patch
-        if(patch.isVisible(0.5 * (knot_vals_u[i] + knot_vals_u[i + 1]),
-                           0.5 * (knot_vals_v[j] + knot_vals_v[j + 1])))
-        {
-          beziers.push_back(bezier);
-          u_spans.push_back({std::make_pair(knot_vals_u[i], knot_vals_u[i + 1])});
-          v_spans.push_back({std::make_pair(knot_vals_v[j], knot_vals_v[j + 1])});
-        }
-
-        // Else, we can discard it
+        bbox.addBox(p1.boundingBox());
+        bbox.addBox(p2.boundingBox());
+        bbox.addBox(p3.boundingBox());
+        bbox.addBox(p4.boundingBox());
       }
     }
+
+    patch.expandParameterSpace(0.05, 0.05);
 
     curve_quadrature_maps.resize(patch.getNumTrimmingCurves());
   }
@@ -257,9 +206,6 @@ struct NURBSPatchData
   // Per patch stuff
   BoundingBox<T, 3> bbox;
   OrientedBoundingBox<T, 3> obox;
-  axom::Array<BezierPatch<T, 3>> beziers;
-  axom::Array<std::pair<double, double>> u_spans;
-  axom::Array<std::pair<double, double>> v_spans;
   axom::primal::Vector<T, 3> average_normal;
   double surface_area;
   axom::primal::Point<T, 3> centroid;
