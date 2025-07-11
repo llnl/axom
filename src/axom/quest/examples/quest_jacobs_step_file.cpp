@@ -44,6 +44,7 @@
 #include "opencascade/TopoDS_Wire.hxx"
 #include <iostream>
 #include <chrono>
+#include <string>
 
 bool USE_SUBSET = false;
 const int NUM_SUBSET = 1;
@@ -3709,20 +3710,235 @@ void spring_example(bool process_only = false)
                                                     200);
 }
 
-void generic_timing_test(std::string prefix,
-                         std::string filename,
-                         axom::primal::BoundingBox<double, 3> bbox)
+std::vector<axom::primal::Point<double, 3>> generateSamplePointsOnStepFile(
+  const StepFileProcessor& stepProcessor,
+  int numSamples,
+  double EPS = 1e-3)
 {
-  auto stepProcessor = import_step_file(prefix, filename, true);
-  // return;
+  std::vector<axom::primal::Point<double, 3>> samplePoints;
+  samplePoints.reserve(numSamples);
 
-  std::ofstream results(prefix + filename + "_timing_results.csv");
+  std::vector<double> surface_areas(stepProcessor.getNumberOfPatches(), 0);
+  for(const auto& kv : stepProcessor.getPatchDataMap())
+  {
+    surface_areas[kv.first] = kv.second.nurbsPatchData.surface_area;
+  }
+
+  AliasSampler alias_sampler(surface_areas);
+
+  const double eps_lower = +EPS;
+  const double eps_upper = -EPS;
+  SLIC_INFO(
+    axom::fmt::format("Generating {} sample points near step file with EPS: "
+                      "{} and range: [{}, {}]",
+                      numSamples,
+                      EPS,
+                      eps_lower,
+                      eps_upper));
+
+  for(int i = 0; i < numSamples; ++i)
+  {
+    int patch_id = alias_sampler.sample();
+    const auto& the_patch = stepProcessor.getPatchDataMap().at(patch_id);
+
+    auto min_u = the_patch.nurbsPatch.getMinKnot_u();
+    auto max_u = the_patch.nurbsPatch.getMaxKnot_u();
+
+    auto min_v = the_patch.nurbsPatch.getMinKnot_v();
+    auto max_v = the_patch.nurbsPatch.getMaxKnot_v();
+
+    double test_u, test_v;
+
+    while(true)
+    {
+      test_u = axom::utilities::random_real(min_u, max_u);
+      test_v = axom::utilities::random_real(min_v, max_v);
+
+      if(the_patch.nurbsPatch.isVisible(test_u, test_v))
+      {
+        break;
+      }
+    }
+
+    axom::primal::Point<double, 3> samplePoint = the_patch.nurbsPatch.evaluate(test_u, test_v);
+    auto normal = the_patch.nurbsPatch.normal(test_u, test_v);
+    const double mag = axom::utilities::random_real(eps_lower, eps_upper);
+
+    // samplePoint.array() += mag * normal.array();
+
+    samplePoints.emplace_back(samplePoint);
+  }
+
+  return samplePoints;
+}
+
+void generic_slice_test(std::string prefix,
+                        std::string filename,
+                        std::string postfix,
+                        axom::primal::Point<double, 3> origin,
+                        axom::primal::Vector<double, 3> u_vec,
+                        axom::primal::Vector<double, 3> v_vec,
+                        double size,
+                        int npts)
+{
+  auto stepProcessor = import_step_file(prefix, filename, true, 0.005, 0.05);
+
+  constexpr double quad_tol = 1e-6;
+  constexpr double ls_tol = 1e-6;
+  constexpr double disk_size = 0.01;
+  constexpr double EPS = 1e-10;
+  constexpr double edge_tol = 1e-12;
+
+  int case_code = -1;
+  auto wn_field = [&stepProcessor, &edge_tol, &disk_size, &quad_tol, &ls_tol, &EPS, &case_code](
+                    axom::primal::Point<double, 3> query) -> double {
+    double wn = 0.0;
+    for(const auto& kv : stepProcessor.getPatchDataMap())
+    {
+      int integrated_trimming_curves;
+      double the_val = axom::primal::winding_number(query,
+                                                    kv.second.nurbsPatchData,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    ls_tol,
+                                                    quad_tol,
+                                                    disk_size,
+                                                    EPS);
+      wn += the_val;
+    }
+
+    return wn;
+  };
+
+  axom::primal::exportSliceScalarFieldToVTK<double>(
+    prefix + filename + "_gwn_slice_" + postfix + ".vtk",
+    wn_field,
+    origin,
+    u_vec,
+    v_vec,
+    size,
+    size,
+    npts,
+    npts);
+
+  return;
+}
+
+void teapot_slice_test(std::string prefix,
+                       std::string filename,
+                       std::string postfix,
+                       axom::primal::Point<double, 3> origin,
+                       axom::primal::Vector<double, 3> u_vec,
+                       axom::primal::Vector<double, 3> v_vec,
+                       double size,
+                       int npts)
+{
+  std::ifstream file(prefix + filename + ".bezier");
+  axom::Array<axom::primal::BezierPatch<double, 3>> bezierPatches;
+
+  // Parse the Bezier patches from the file, where each line is one of the 16 control points
+  // of a Bezier patch in the format: x y z
+  if(file.is_open())
+  {
+    std::string line;
+    axom::Array<axom::primal::Point<double, 3>> controlPoints;
+    while(std::getline(file, line))
+    {
+      std::istringstream iss(line);
+      axom::primal::Point<double, 3> controlPoint;
+
+      if(iss >> controlPoint[0] >> controlPoint[1] >> controlPoint[2])
+      {
+        controlPoints.push_back(controlPoint);
+
+        // If we have 16 points, create a Bezier patch
+        if(controlPoints.size() == 16)
+        {
+          bezierPatches.push_back(axom::primal::BezierPatch<double, 3>(controlPoints, 3, 3));
+          controlPoints.clear();
+        }
+      }
+    }
+
+    file.close();
+  }
+
+  axom::primal::exportSurfaceToSTL(prefix + filename + ".stl", bezierPatches[8], 10, 10);
+
+  axom::Array<axom::primal::NURBSPatchData<double>> patches_data;
+  for(int i = 0; i < bezierPatches.size(); ++i)
+  {
+    patches_data.push_back(
+      axom::primal::NURBSPatchData<double>(i, axom::primal::NURBSPatch<double, 3>(bezierPatches[i])));
+  }
+
+  axom::primal::BoundingBox<double, 3> bbox;
+  for(const auto& patch : patches_data)
+  {
+    bbox.addBox(patch.bbox);
+  }
+  bbox.scale(1.05);  // Scale the bounding box slightly to ensure coverage
+
+  constexpr double quad_tol = 1e-6;
+  constexpr double ls_tol = 1e-6;
+  constexpr double disk_size = 0.01;
+  constexpr double EPS = 1e-10;
+  constexpr double edge_tol = 1e-12;
+
+  int case_code = -1;
+  auto wn_field = [&patches_data, &edge_tol, &disk_size, &quad_tol, &ls_tol, &EPS, &case_code](
+                    axom::primal::Point<double, 3> query) -> double {
+    double wn = 0.0;
+    for(const auto& patch : patches_data)
+    {
+      int integrated_trimming_curves;
+      double the_val = axom::primal::winding_number(query,
+                                                    patch,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    ls_tol,
+                                                    quad_tol,
+                                                    disk_size,
+                                                    EPS);
+      wn += the_val;
+    }
+
+    return wn;
+  };
+
+  axom::primal::exportSliceScalarFieldToVTK<double>(
+    prefix + filename + "_gwn_slice_" + postfix + ".vtk",
+    wn_field,
+    origin,
+    u_vec,
+    v_vec,
+    size,
+    size,
+    npts,
+    npts);
+
+  return;
+}
+
+void generic_timing_test(std::string prefix, std::string filename)
+{
+  auto stepProcessor = import_step_file(prefix, filename, false);
+
+  auto sampled_points = generateSamplePointsOnStepFile(stepProcessor, 1e5, 0);
+  axom::primal::BoundingBox<double, 3> bbox;
+  for(const auto& pt : sampled_points) bbox.addPoint(pt);
+  bbox.scale(1.05);
+
   std::ofstream summary(prefix + filename + "_timing_summary.csv");
   std::ofstream gwn_field(prefix + filename + "_gwn_field.vtk");
 
-  constexpr double quad_tol = 1e-5;
+  constexpr double quad_tol = 1e-6;
+  constexpr double ls_tol = 1e-6;
+  constexpr double disk_size = 0.01;
   constexpr double EPS = 1e-10;
-  constexpr double edge_tol = 1e-6;
+  constexpr double edge_tol = 1e-12;
 
   int xSteps = 50;
   int ySteps = 50;
@@ -3733,7 +3949,6 @@ void generic_timing_test(std::string prefix,
   double dz = (zSteps > 1) ? (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1) : 0.0;
 
   int case_patch_totals[4] = {0, 0, 0, 0};
-  int case_curves_totals[4] = {0, 0, 0, 0};
   double case_time_totals[4] = {0.0, 0.0, 0.0, 0.0};
 
   // Write VTK header
@@ -3750,8 +3965,15 @@ void generic_timing_test(std::string prefix,
   gwn_field << "LOOKUP_TABLE default\n";
 
   gwn_field << std::setprecision(15);
-  results << std::setprecision(15);
   summary << std::setprecision(15);
+
+  int num_patches = stepProcessor.getPatchDataMap().size();
+  int num_trimming_curves = 0;
+  for(const auto& kv : stepProcessor.getPatchDataMap())
+    num_trimming_curves += kv.second.nurbsPatchData.patch.getNumTrimmingCurves();
+
+  summary << num_patches << " Num patches" << std::endl;
+  summary << num_trimming_curves << " Num trimming curves" << std::endl;
 
   for(int k = 0; k < zSteps; ++k)
   {
@@ -3770,9 +3992,6 @@ void generic_timing_test(std::string prefix,
         int integrated_trimming_curves = 0;
         axom::utilities::Timer timer(false);
 
-        // std::cout << i << ", " << j << ", " << k << ": Query: " << query
-        //           << std::endl;
-
         double wn = 0.0;
         for(const auto& kv : stepProcessor.getPatchDataMap())
         {
@@ -3783,21 +4002,18 @@ void generic_timing_test(std::string prefix,
                                                         case_code,
                                                         integrated_trimming_curves,
                                                         edge_tol,
+                                                        ls_tol,
                                                         quad_tol,
+                                                        disk_size,
                                                         EPS);
           timer.stop();
 
           case_patch_totals[case_code]++;
-          case_curves_totals[case_code] += integrated_trimming_curves;
           case_time_totals[case_code] += timer.elapsedTimeInSec();
+
           wn += the_val;
-
-          results << x << ", " << y << ", " << z << ", " << kv.first << ", "
-                  << integrated_trimming_curves << ", " << the_val << ", " << case_code << ", "
-                  << timer.elapsedTimeInSec() << "\n";
-
-          gwn_field << the_val << "\n";
         }
+        gwn_field << wn << "\n";
       }
     }
   }
@@ -3807,20 +4023,210 @@ void generic_timing_test(std::string prefix,
   // Case 2: Casting Necessary (near-field)
   // Case 3: Trimming Curve Subdivision (edge case)
 
-  summary << "Case 0: Outside AABB: " << case_patch_totals[0] << ", " << case_curves_totals[0]
-          << ", " << case_time_totals[0] << "\n";
+  // Print percent of patch-queries treated as each case
+  summary << static_cast<double>(case_patch_totals[0] + case_patch_totals[1]) /
+      (xSteps * ySteps * zSteps * num_patches) * 100.0
+          << " \% Near Field" << std::endl;
+  summary << static_cast<double>(case_patch_totals[2]) / (xSteps * ySteps * zSteps * num_patches) *
+      100.0
+          << " \% Far Field" << std::endl;
+  summary << static_cast<double>(case_patch_totals[3]) / (xSteps * ySteps * zSteps * num_patches) *
+      100.0
+          << " \% Edge Cases" << std::endl;
 
-  summary << "Case 1: Outside OBB: " << case_patch_totals[1] << ", " << case_curves_totals[1]
-          << ", " << case_time_totals[1] << "\n";
+  // Print the average time taken across all query points
+  summary << (case_time_totals[0] + case_time_totals[1] + case_time_totals[2] + case_time_totals[3]) /
+      (xSteps * ySteps * zSteps)
+          << " Average per query" << std::endl;
 
-  summary << "Case 2: Casting Necessary: " << case_patch_totals[2] << ", " << case_curves_totals[2]
-          << ", " << case_time_totals[2] << "\n";
+  // Print the average time taken across all query points
+  summary << (case_time_totals[0] + case_time_totals[1] + case_time_totals[2] + case_time_totals[3]) /
+      (xSteps * ySteps * zSteps * num_patches)
+          << " Average per configuration" << std::endl;
 
-  summary << "Case 3: Trimming Curve Subdivision: " << case_patch_totals[3] << ", "
-          << case_curves_totals[3] << ", " << case_time_totals[3] << "\n";
+  // Print the average time taken for points of each case
+  summary << (case_time_totals[0] + case_time_totals[1]) /
+      (case_patch_totals[0] + case_patch_totals[1])
+          << " Average far field evaluation" << std::endl;
+  summary << case_time_totals[2] / case_patch_totals[2] << " Average near field evaluation"
+          << std::endl;
+  summary << case_time_totals[3] / case_patch_totals[3] << " Average edge case evaluation"
+          << std::endl;
 
   gwn_field.close();
-  results.close();
+  summary.close();
+}
+
+void teapot_timing_test(std::string prefix, std::string filename)
+{
+  std::ifstream file(prefix + filename + ".bezier");
+  axom::Array<axom::primal::BezierPatch<double, 3>> bezierPatches;
+
+  // Parse the Bezier patches from the file, where each line is one of the 16 control points
+  // of a Bezier patch in the format: x y z
+  if(file.is_open())
+  {
+    std::string line;
+    axom::Array<axom::primal::Point<double, 3>> controlPoints;
+    while(std::getline(file, line))
+    {
+      std::istringstream iss(line);
+      axom::primal::Point<double, 3> controlPoint;
+
+      if(iss >> controlPoint[0] >> controlPoint[1] >> controlPoint[2])
+      {
+        controlPoints.push_back(controlPoint);
+
+        // If we have 16 points, create a Bezier patch
+        if(controlPoints.size() == 16)
+        {
+          bezierPatches.push_back(axom::primal::BezierPatch<double, 3>(controlPoints, 3, 3));
+          controlPoints.clear();
+        }
+      }
+    }
+
+    file.close();
+  }
+
+  axom::primal::exportSurfaceToSTL(prefix + filename + ".stl", bezierPatches, 35, 35);
+
+  axom::Array<axom::primal::NURBSPatchData<double>> patches_data;
+  for(int i = 0; i < bezierPatches.size(); ++i)
+  {
+    patches_data.push_back(
+      axom::primal::NURBSPatchData<double>(i, axom::primal::NURBSPatch<double, 3>(bezierPatches[i])));
+  }
+
+  axom::primal::BoundingBox<double, 3> bbox;
+  for(const auto& patch : patches_data)
+  {
+    bbox.addBox(patch.bbox);
+  }
+  bbox.scale(1.05);  // Scale the bounding box slightly to ensure coverage
+
+  std::ofstream summary(prefix + filename + "_timing_summary.csv");
+  std::ofstream gwn_field(prefix + filename + "_gwn_field.vtk");
+
+  constexpr double quad_tol = 1e-6;
+  constexpr double ls_tol = 1e-6;
+  constexpr double disk_size = 0.01;
+  constexpr double EPS = 1e-10;
+  constexpr double edge_tol = 1e-12;
+
+  int xSteps = 50;
+  int ySteps = 50;
+  int zSteps = 50;
+
+  double dx = (xSteps > 1) ? (bbox.getMax()[0] - bbox.getMin()[0]) / (xSteps - 1) : 0.0;
+  double dy = (ySteps > 1) ? (bbox.getMax()[1] - bbox.getMin()[1]) / (ySteps - 1) : 0.0;
+  double dz = (zSteps > 1) ? (bbox.getMax()[2] - bbox.getMin()[2]) / (zSteps - 1) : 0.0;
+
+  int case_patch_totals[4] = {0, 0, 0, 0};
+  double case_time_totals[4] = {0.0, 0.0, 0.0, 0.0};
+
+  // Write VTK header
+  gwn_field << "# vtk DataFile Version 3.0\n";
+  gwn_field << "Scalar field data\n";
+  gwn_field << "ASCII\n";
+  gwn_field << "DATASET STRUCTURED_POINTS\n";
+  gwn_field << "DIMENSIONS " << xSteps << " " << ySteps << " " << zSteps << "\n";
+  gwn_field << "ORIGIN " << bbox.getMin()[0] << " " << bbox.getMin()[1] << " " << bbox.getMin()[2]
+            << "\n";
+  gwn_field << "SPACING " << dx << " " << dy << " " << dz << "\n";
+  gwn_field << "POINT_DATA " << xSteps * ySteps * zSteps << "\n";
+  gwn_field << "SCALARS scalars float\n";
+  gwn_field << "LOOKUP_TABLE default\n";
+
+  gwn_field << std::setprecision(15);
+  summary << std::setprecision(15);
+
+  int num_patches = bezierPatches.size();
+  int num_trimming_curves = 0;
+  for(const auto& patch : patches_data) num_trimming_curves += patch.patch.getNumTrimmingCurves();
+
+  summary << num_patches << " Num patches" << std::endl;
+  summary << num_trimming_curves << " Num trimming curves" << std::endl;
+
+  for(int k = 0; k < zSteps; ++k)
+  {
+    axom::primal::printLoadingBar(k, zSteps);
+
+    for(int j = 0; j < ySteps; ++j)
+    {
+      for(int i = 0; i < xSteps; ++i)
+      {
+        double x = bbox.getMin()[0] + i * dx;
+        double y = bbox.getMin()[1] + j * dy;
+        double z = bbox.getMin()[2] + k * dz;
+
+        auto query = axom::primal::Point<double, 3> {x, y, z};
+        int case_code = -1;
+        int integrated_trimming_curves = 0;
+        axom::utilities::Timer timer(false);
+
+        double wn = 0.0;
+        for(const auto& patch : patches_data)
+        {
+          int integrated_trimming_curves;
+          timer.start();
+          double the_val = axom::primal::winding_number(query,
+                                                        patch,
+                                                        case_code,
+                                                        integrated_trimming_curves,
+                                                        edge_tol,
+                                                        ls_tol,
+                                                        quad_tol,
+                                                        disk_size,
+                                                        EPS);
+          timer.stop();
+
+          case_patch_totals[case_code]++;
+          case_time_totals[case_code] += timer.elapsedTimeInSec();
+
+          wn += the_val;
+        }
+        gwn_field << wn << "\n";
+      }
+    }
+  }
+
+    // Case 0: Outside AABB (far-field)
+  // Case 1: Outside OBB (far-field)
+  // Case 2: Casting Necessary (near-field)
+  // Case 3: Trimming Curve Subdivision (edge case)
+
+  // Print percent of patch-queries treated as each case
+  summary << static_cast<double>(case_patch_totals[0] + case_patch_totals[1]) /
+      (xSteps * ySteps * zSteps * num_patches) * 100.0
+          << " \% Far Field" << std::endl;
+  summary << static_cast<double>(case_patch_totals[2]) / (xSteps * ySteps * zSteps * num_patches) *
+      100.0
+          << " \% Near Field" << std::endl;
+  summary << static_cast<double>(case_patch_totals[3]) / (xSteps * ySteps * zSteps * num_patches) *
+      100.0
+          << " \% Edge Cases" << std::endl;
+
+  // Print the average time taken across all query points
+  summary << (case_time_totals[0] + case_time_totals[1] + case_time_totals[2] + case_time_totals[3]) /
+      (xSteps * ySteps * zSteps)
+          << " Average per query" << std::endl;
+
+  // Print the average time taken across all query points
+  summary << (case_time_totals[0] + case_time_totals[1] + case_time_totals[2] + case_time_totals[3]) /
+      (xSteps * ySteps * zSteps * num_patches)
+          << " Average per configuration" << std::endl;
+
+  // Print the average time taken for points of each case
+  summary << (case_time_totals[0] + case_time_totals[1]) /
+      (case_patch_totals[0] + case_patch_totals[1])
+          << " Average far field evaluation" << std::endl;
+  summary << case_time_totals[2] / case_patch_totals[2] << " Average near field evaluation"
+          << std::endl;
+  summary << case_time_totals[3] / case_patch_totals[3] << " Average edge case evaluation"
+          << std::endl;
+
+  gwn_field.close();
   summary.close();
 }
 
@@ -4093,13 +4499,15 @@ void bobbin_example_volume(bool process_only = false)
     return;
   }
 
-  constexpr double quad_tol = 1e-5;
+  constexpr double quad_tol = 1e-6;
+  constexpr double ls_tol = 1e-6;
+  constexpr double disk_size = 0.01;
   constexpr double EPS = 1e-10;
-  constexpr double edge_tol = 1e-6;
+  constexpr double edge_tol = 1e-12;
 
   // (!bBox, !oBox, casting, noCache)
   int case_code = -1;
-  auto wn_field = [&stepProcessor, &edge_tol, &quad_tol, &EPS, &case_code](
+  auto wn_field = [&stepProcessor, &edge_tol, &ls_tol, &quad_tol, &EPS, &case_code, &disk_size](
                     axom::primal::Point<double, 3> query) -> double {
     double wn = 0.0;
     for(const auto& kv : stepProcessor.getPatchDataMap())
@@ -4110,7 +4518,9 @@ void bobbin_example_volume(bool process_only = false)
                                                     case_code,
                                                     integrated_trimming_curves,
                                                     edge_tol,
+                                                    ls_tol,
                                                     quad_tol,
+                                                    disk_size,
                                                     EPS);
       wn += the_val;
     }
@@ -4139,8 +4549,8 @@ void bobbin_example_volume(bool process_only = false)
   axom::primal::exportScalarFieldToVTK<double>(prefix + filename + "_volume.vtk",
                                                wn_field,
                                                smaller_box,
-                                               100,
-                                               100,
+                                               200,
+                                               200,
                                                50);
 }
 //0.2741457196484367
@@ -4233,7 +4643,79 @@ void bobbin_example(bool process_only = false)
     100);
 }
 
-void complex_gear_example(bool process_only = false)
+void generateSamplePointsAndNormalsOnStepFile(const StepFileProcessor& stepProcessor,
+                                              int numSamples,
+                                              std::string filename)
+{
+  std::ofstream output_file(filename);
+  if(!output_file.is_open())
+  {
+    SLIC_ERROR(axom::fmt::format("Failed to open file: {}", filename));
+    return;
+  }
+
+  output_file << "x,y,z,nx,ny,nz\n";
+
+  std::vector<double> surface_areas(stepProcessor.getNumberOfPatches(), 0);
+  for(const auto& kv : stepProcessor.getPatchDataMap())
+  {
+    surface_areas[kv.first] = kv.second.nurbsPatchData.surface_area;
+  }
+
+  AliasSampler alias_sampler(surface_areas);
+
+  SLIC_INFO(axom::fmt::format("Generating {} sample points on step file", numSamples));
+
+  for(int i = 0; i < numSamples; ++i)
+  {
+    int patch_id = alias_sampler.sample();
+    const auto& the_patch = stepProcessor.getPatchDataMap().at(patch_id);
+
+    auto min_u = the_patch.nurbsPatch.getMinKnot_u();
+    auto max_u = the_patch.nurbsPatch.getMaxKnot_u();
+
+    auto min_v = the_patch.nurbsPatch.getMinKnot_v();
+    auto max_v = the_patch.nurbsPatch.getMaxKnot_v();
+
+    double test_u, test_v;
+
+    while(true)
+    {
+      test_u = axom::utilities::random_real(min_u, max_u);
+      test_v = axom::utilities::random_real(min_v, max_v);
+
+      if(the_patch.nurbsPatch.isVisible(test_u, test_v))
+      {
+        break;
+      }
+    }
+
+    axom::primal::Point<double, 3> samplePoint = the_patch.nurbsPatch.evaluate(test_u, test_v);
+    auto normal = the_patch.nurbsPatch.normal(test_u, test_v);
+
+    if(normal.norm() < 1e-16)
+    {
+      i--;
+      continue;
+    }
+
+    normal = normal.unitVector();
+
+    // the_patch.nurbsPatch.printTrimmingCurves("C://Users//Fireh//Code//winding_number_code//trimming_examples//original.txt");
+    // normal = the_patch.nurbsPatch.normal(test_u, test_v);
+
+    // Write the sample point and normal to the output file
+    output_file << axom::fmt::format("{},{},{},{},{},{}\n",
+                                     samplePoint[0],
+                                     samplePoint[1],
+                                     samplePoint[2],
+                                     normal[0],
+                                     normal[1],
+                                     normal[2]);
+  }
+}
+
+void complex_gear_example(bool process_only = true)
 {
   std::string prefix =
     "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\full_gear_example\\";
@@ -4244,6 +4726,23 @@ void complex_gear_example(bool process_only = false)
 
   if(process_only)
   {
+    std::string output_prefix =
+      "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\full_gear_example\\final_"
+      "slices\\";
+
+    generateSamplePointsAndNormalsOnStepFile(
+      stepProcessor,
+      1e5,
+      output_prefix + "complex_gear_1eee5_samples_normals.csv");
+    generateSamplePointsAndNormalsOnStepFile(
+      stepProcessor,
+      1e6,
+      output_prefix + "complex_gear_1e6_saeemples_normals.csv");
+    generateSamplePointsAndNormalsOnStepFile(
+      stepProcessor,
+      1e7,
+      output_prefix + "complex_gear_1e7_saeemples_normals.csv");
+
     return;
   }
 
@@ -4570,68 +5069,6 @@ std::vector<axom::primal::Point<double, 3>> generateSamplePointsOnSphere(int num
   return samplePoints;
 }
 
-std::vector<axom::primal::Point<double, 3>> generateSamplePointsOnStepFile(
-  const StepFileProcessor& stepProcessor,
-  int numSamples,
-  double EPS = 1e-3)
-{
-  std::vector<axom::primal::Point<double, 3>> samplePoints;
-  samplePoints.reserve(numSamples);
-
-  std::vector<double> surface_areas(stepProcessor.getNumberOfPatches(), 0);
-  for(const auto& kv : stepProcessor.getPatchDataMap())
-  {
-    surface_areas[kv.first] = kv.second.nurbsPatchData.surface_area;
-  }
-
-  AliasSampler alias_sampler(surface_areas);
-
-  const double eps_lower = 1. + EPS;
-  const double eps_upper = 1. - EPS;
-  SLIC_INFO(
-    axom::fmt::format("Generating {} sample points near step file with EPS: "
-                      "{} and range: [{}, {}]",
-                      numSamples,
-                      EPS,
-                      eps_lower,
-                      eps_upper));
-
-  for(int i = 0; i < numSamples; ++i)
-  {
-    int patch_id = alias_sampler.sample();
-    const auto& the_patch = stepProcessor.getPatchDataMap().at(patch_id);
-
-    auto min_u = the_patch.nurbsPatch.getMinKnot_u();
-    auto max_u = the_patch.nurbsPatch.getMaxKnot_u();
-
-    auto min_v = the_patch.nurbsPatch.getMinKnot_v();
-    auto max_v = the_patch.nurbsPatch.getMaxKnot_v();
-
-    double test_u, test_v;
-
-    while(true)
-    {
-      test_u = axom::utilities::random_real(min_u, max_u);
-      test_v = axom::utilities::random_real(min_v, max_v);
-
-      if(the_patch.nurbsPatch.isVisible(test_u, test_v))
-      {
-        break;
-      }
-    }
-
-    axom::primal::Point<double, 3> samplePoint = the_patch.nurbsPatch.evaluate(test_u, test_v);
-    auto normal = the_patch.nurbsPatch.normal(test_u, test_v);
-    const double mag = axom::utilities::random_real(eps_lower, eps_upper);
-
-    samplePoint.array() += mag * normal.array();
-
-    samplePoints.emplace_back(samplePoint);
-  }
-
-  return samplePoints;
-}
-
 /**
  * Generates a given number of sample points near the surface of a unit sphere
  * 
@@ -4675,58 +5112,68 @@ std::vector<axom::primal::Point<double, 3>> generateSamplePointsOnBBox(
   return samplePoints;
 }
 
+axom::Array<axom::primal::BezierPatch<double, 3>> rotate_curve(
+  const axom::primal::BezierCurve<double, 2>& curve)
+{
+  const int ord = curve.getOrder();
+  axom::Array<axom::primal::BezierPatch<double, 3>> rs(4);
+  for(int i = 0; i < 4; ++i)
+  {
+    rs[i].setOrder(ord, 2);
+    rs[i].makeRational();
+  }
+
+  for(int i = 0; i <= ord; ++i)
+  {
+    // clang-format off
+    rs[0](i, 0) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
+    rs[0](i, 1) = axom::primal::Point<double, 3> {curve[i][0], curve[i][0], curve[i][1]};
+    rs[0](i, 2) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
+
+    rs[1](i, 0) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
+    rs[1](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], curve[i][0], curve[i][1]};
+    rs[1](i, 2) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
+
+    rs[2](i, 0) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
+    rs[2](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], -curve[i][0], curve[i][1]};
+    rs[2](i, 2) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
+
+    rs[3](i, 0) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
+    rs[3](i, 1) = axom::primal::Point<double, 3> {curve[i][0], -curve[i][0], curve[i][1]};
+    rs[3](i, 2) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
+    
+    rs[0].setWeight(i, 0, (curve.isRational() ? curve.getWeight(i) : 1.0) );
+    rs[1].setWeight(i, 0, (curve.isRational() ? curve.getWeight(i) : 1.0) );
+    rs[2].setWeight(i, 0, (curve.isRational() ? curve.getWeight(i) : 1.0) );
+    rs[3].setWeight(i, 0, (curve.isRational() ? curve.getWeight(i) : 1.0) );
+
+    rs[0].setWeight(i, 1, (curve.isRational() ? curve.getWeight(i) : 1.0)  / std::sqrt(2));
+    rs[1].setWeight(i, 1, (curve.isRational() ? curve.getWeight(i) : 1.0)  / std::sqrt(2));
+    rs[2].setWeight(i, 1, (curve.isRational() ? curve.getWeight(i) : 1.0)  / std::sqrt(2));
+    rs[3].setWeight(i, 1, (curve.isRational() ? curve.getWeight(i) : 1.0)  / std::sqrt(2));
+
+    rs[0].setWeight(i, 2, (curve.isRational() ? curve.getWeight(i) : 1.0) );
+    rs[1].setWeight(i, 2, (curve.isRational() ? curve.getWeight(i) : 1.0) );
+    rs[2].setWeight(i, 2, (curve.isRational() ? curve.getWeight(i) : 1.0) );
+    rs[3].setWeight(i, 2, (curve.isRational() ? curve.getWeight(i) : 1.0) );
+    // clang-format on
+  }
+
+  axom::Array<axom::primal::BezierPatch<double, 3>> eight_split(8);
+  axom::primal::BezierPatch<double, 3> dummy1, dummy2;
+  for(int i = 0; i < 4; ++i)
+  {
+    // Split each patch into two
+    rs[i].split_v(0.5, dummy1, dummy2);
+    eight_split[2 * i] = dummy1;
+    eight_split[2 * i + 1] = dummy2;
+  }
+
+  return rs;
+}
+
 void test_rotate_curve()
 {
-  // lambda function that rotates a given BezierCurve around the z-axis
-  auto rotate_curve = [](const axom::primal::BezierCurve<double, 2>& curve)
-    -> axom::Array<axom::primal::BezierPatch<double, 3>> {
-    const int ord = curve.getOrder();
-    axom::Array<axom::primal::BezierPatch<double, 3>> rs(4);
-    for(int i = 0; i < 4; ++i)
-    {
-      rs[i].setOrder(ord, 2);
-      rs[i].makeRational();
-    }
-
-    for(int i = 0; i <= ord; ++i)
-    {
-      // clang-format off
-      rs[0](i, 0) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
-      rs[0](i, 1) = axom::primal::Point<double, 3> {curve[i][0], curve[i][0], curve[i][1]};
-      rs[0](i, 2) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
-
-      rs[1](i, 0) = axom::primal::Point<double, 3> {0.0, curve[i][0], curve[i][1]};
-      rs[1](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], curve[i][0], curve[i][1]};
-      rs[1](i, 2) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
-
-      rs[2](i, 0) = axom::primal::Point<double, 3> {-curve[i][0], 0.0, curve[i][1]};
-      rs[2](i, 1) = axom::primal::Point<double, 3> {-curve[i][0], -curve[i][0], curve[i][1]};
-      rs[2](i, 2) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
-
-      rs[3](i, 0) = axom::primal::Point<double, 3> {0.0, -curve[i][0], curve[i][1]};
-      rs[3](i, 1) = axom::primal::Point<double, 3> {curve[i][0], -curve[i][0], curve[i][1]};
-      rs[3](i, 2) = axom::primal::Point<double, 3> {curve[i][0], 0.0, curve[i][1]};
-      // clang-format on
-
-      rs[0].setWeight(i, 0, curve.getWeight(i));
-      rs[1].setWeight(i, 0, curve.getWeight(i));
-      rs[2].setWeight(i, 0, curve.getWeight(i));
-      rs[3].setWeight(i, 0, curve.getWeight(i));
-
-      rs[0].setWeight(i, 1, curve.getWeight(i) / std::sqrt(2));
-      rs[1].setWeight(i, 1, curve.getWeight(i) / std::sqrt(2));
-      rs[2].setWeight(i, 1, curve.getWeight(i) / std::sqrt(2));
-      rs[3].setWeight(i, 1, curve.getWeight(i) / std::sqrt(2));
-
-      rs[0].setWeight(i, 2, curve.getWeight(i));
-      rs[1].setWeight(i, 2, curve.getWeight(i));
-      rs[2].setWeight(i, 2, curve.getWeight(i));
-      rs[3].setWeight(i, 2, curve.getWeight(i));
-    }
-
-    return rs;
-  };
-
   axom::primal::BezierCurve<double, 2> sphere_patch(2);
   sphere_patch[0] = axom::primal::Point<double, 2> {0.0, 1.0};
   sphere_patch[1] = axom::primal::Point<double, 2> {1.0, 1.0};
@@ -5925,6 +6372,146 @@ void query_timing_test(const std::string& test_prefix,
   }
 }
 
+void cedric_comparison_example(std::string prefix, std::string svg_filename_prefix, std::string postfix)
+{
+  axom::Array<axom::primal::BezierCurve<double, 2>> curves;
+  convert_from_svg(prefix + svg_filename_prefix + ".svg", curves);
+
+  // Scale each curve so that the minimum x and y coordinates are at the origin
+  double min_x = std::numeric_limits<double>::max();
+  double min_y = std::numeric_limits<double>::max();
+  for(auto& curve : curves)
+  {
+    // Flip the curve on the y-axis
+    for(int i = 0; i <= curve.getOrder(); ++i)
+    {
+      curve[i][1] = -curve[i][1];
+    }
+
+    for(auto t : {0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0})
+    {
+      auto point = curve.evaluate(t);
+      min_x = std::min(min_x, point[0]);
+      min_y = std::min(min_y, point[1]);
+    }
+  }
+
+  for(auto& curve : curves)
+  {
+    for(int i = 0; i <= curve.getOrder(); ++i)
+    {
+      curve[i][0] -= min_x;
+      curve[i][1] -= min_y;
+    }
+  }
+
+  axom::Array<axom::primal::BezierPatch<double, 3>> patches;
+  for(const auto& curve : curves)
+  {
+    auto rotated_patches = rotate_curve(curve);
+    for(const auto& patch : rotated_patches)
+    {
+      patches.push_back(patch);
+    }
+  }
+
+  axom::Array<axom::primal::NURBSPatchData<double>> patches_data;
+  for(int i = 0; i < patches.size(); ++i)
+  {
+    patches_data.push_back(
+      axom::primal::NURBSPatchData<double>(i, axom::primal::NURBSPatch<double, 3>(patches[i])));
+    }
+    
+  auto beziers = patches_data[0].patch.extractBezier();
+  
+  axom::Array<double> knot_vals_u = patches_data[0].patch.getKnots_u().getUniqueKnots();
+  axom::Array<double> knot_vals_v = patches_data[0].patch.getKnots_v().getUniqueKnots();
+
+  const auto num_knot_span_u = knot_vals_u.size() - 1;
+  const auto num_knot_span_v = knot_vals_v.size() - 1;
+
+  auto& the_bezier = beziers[1 * num_knot_span_v + 1];
+  axom::primal::exportSurfaceToSTL(
+    prefix + svg_filename_prefix + "_solo_bezier_1.stl",
+    the_bezier, 25, 25);
+
+  std::cout << "Number of patches: " << patches_data.size() << std::endl;
+    // for( auto& patch : patches_data)
+    // {
+      // patch.bbox.clear();
+    // }
+
+  constexpr double quad_tol = 1e-6;
+  constexpr double ls_tol = 1e-6;
+  constexpr double disk_size = 0.01;
+  constexpr double EPS = 1e-10;
+  constexpr double edge_tol = 1e-12;
+
+  axom::primal::exportSurfaceToSTL(prefix + svg_filename_prefix + "_" + postfix + ".stl", patches, 25, 25);
+  for( int i = 0; i < patches.size(); ++i)
+  {
+    axom::primal::exportSurfaceToSTL(
+      prefix + svg_filename_prefix + "_" + postfix + "_" + std::to_string(i) + ".stl",
+      patches[i], 25, 25);
+  }
+
+  int case_code = -1;
+  auto wn_field = [&patches_data, &edge_tol, &ls_tol, &quad_tol, &EPS, &case_code, &disk_size](
+                    axom::primal::Point<double, 3> query) -> std::pair<double, double> {
+    double wn = 0.0;
+    axom::utilities::Timer timer;
+    timer.start();
+    for(const auto& patch : patches_data)
+    {
+      // if( patch.patchIndex != 0 )
+      // continue;
+      // query[0] = 11.3717;
+      // query[1] = 30.7694;
+      // query[2] = 28.7044;
+
+      int integrated_trimming_curves;
+      double the_val = axom::primal::winding_number(query,
+                                                    patch,
+                                                    case_code,
+                                                    integrated_trimming_curves,
+                                                    edge_tol,
+                                                    ls_tol,
+                                                    quad_tol,
+                                                    disk_size,
+                                                    EPS);
+      wn += the_val;
+    }
+    timer.stop();
+
+
+    return std::make_pair(wn, timer.elapsedTimeInSec());
+  };
+
+  axom::primal::BoundingBox<double, 3> bbox;
+  for(const auto& patch : patches)
+  {
+    bbox.addBox(patch.boundingBox());
+  }
+  axom::primal::Point<double, 3> origin = bbox.getCentroid();
+
+  // Track the time
+  axom::utilities::Timer timer;
+  timer.start();
+  axom::primal::exportSplitScalarSliceFieldToVTK<double>(
+    prefix + svg_filename_prefix + "_" + postfix + ".vtk",
+    wn_field,
+    axom::primal::Point<double, 3> {0.0, 0.0, 28.7044},
+    axom::primal::Vector<double, 3> {1.0, 0.2, 0.0},
+    axom::primal::Vector<double, 3> {0.0, 0.0, 1.0},
+    90.0,
+    90.0,
+    800,
+    800);
+  timer.stop();
+  std::cout << "Time taken to evaluate slice: " << timer.elapsedTimeInSec() << std::endl
+            << std::endl;
+}
+
 int main()
 {
   // quadrature_on_sphere();
@@ -5943,54 +6530,54 @@ int main()
   // spring_timing_example();
   // van_example();
   // bobbin_example(true);
-  complex_gear_example();
+  // complex_gear_example();
   // complex_gear_subset_example();
   // bobbin_example_volume();
   // van_example_volume();
   // Overlap of 9995 and 4196
   // 9979 at varying levels zooming
 
-  //   std::string prefix =
-  //     "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\spring_"
-  //     "direction\\";
-  //   axom::primal::BoundingBox<double, 3> bbox;
-  //   std::string filename;
+  std::string prefix =
+    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\vase_comparisons\\next_set\\";
+  using PointType = axom::primal::Point<double, 3>;
+  using VectorType = axom::primal::Vector<double, 3>;
+
+  // cedric_comparison_example(prefix, "profile_4", "clipped");
+  cedric_comparison_example(prefix, "profile_4", "bottom_split");
+  // teapot_timing_test(prefix, "teapot");
+  // teapot_slice_test(prefix,
+                    // "teapot",
+                    // "1",
+                    // PointType {0.1, 1.25, 0.0},
+                    // VectorType {1.0, 0.0, 0.0},
+                    // VectorType {0.0, 1.0, 0.0},
+                    // 7.0,
+                    // 500);
+  // teapot_slice_test(prefix,
+                    // "teapot",
+                    // "2",
+                    // PointType {0.1, 1.25, 0.0},
+                    // VectorType {1.0, 0.0, 0.0},
+                    // VectorType {0.0, 0.0, 1.0},
+                    // 7.0,
+                    // 500);
+  // generic_direction_timing_test(prefix, filename, "x", axom::primal::Vector<double, 3> {1, 0, 0});
+  // generic_direction_timing_test(prefix, filename, "y", axom::primal::Vector<double, 3> {0, 1, 0});
+  // generic_direction_timing_test(prefix, filename, "z", axom::primal::Vector<double, 3> {0, 0, 1});
 
   //   // Spring
-  //   filename = "spring_split";
-  //   bbox.clear();
-  //   bbox.addPoint(axom::primal::Point<double, 3> {-0.04, -0.04, -0.03});
-  //   bbox.addPoint(axom::primal::Point<double, 3> {0.04, 0.04, 0.03});
-  //   bbox.scale(1.01);
-  // generic_timing_test(prefix, filename, bbox);
-
-  // generic_direction_timing_test(prefix, filename, "x", axom::primal::Vector<double, 3> {1, 0, 0}, bbox);
-  // generic_direction_timing_test(prefix, filename, "y", axom::primal::Vector<double, 3> {0, 1, 0}, bbox);
-  // generic_direction_timing_test(prefix, filename, "z", axom::primal::Vector<double, 3> {0, 0, 1}, bbox);
-
-  // // Van
-  // filename = "van";
-  // bbox.clear(); //max(-1, min(1, round(scalar_field)))
-  // bbox.addPoint(axom::primal::Point<double, 3> {-1.25, -3.2, -0.5});
-  // bbox.addPoint(axom::primal::Point<double, 3> {1.25, 4.8, 2.25});
-  // bbox.scale(1.01);
-  // generic_timing_test(prefix, filename, bbox);
-
-  // Bobbin
-  // filename = "bobbin";
-  // bbox.clear();
-  // bbox.addPoint(axom::primal::Point<double, 3> {-0.065, -0.065, 0});
-  // bbox.addPoint(axom::primal::Point<double, 3> {0.065, 0.065, 0.05});
-  // bbox.scale(1.01);
-  // generic_timing_test(prefix, filename, bbox);
-
-  // Complex Gear
-  // filename = "complex_gear";
-  // bbox.clear();
-  // bbox.addPoint(axom::primal::Point<double, 3> {-0.06, -0.06, -0.013});
-  // bbox.addPoint(axom::primal::Point<double, 3> { 0.06,  0.06,  0.013});
-  // bbox.scale(1.01);
-  // generic_timing_test(prefix, filename, bbox);
+  // generic_timing_test(prefix, "bobbin");
+  // generic_timing_test(prefix, "boxed_sphere");
+  // generic_timing_test(prefix, "complex_gear");
+  // generic_timing_test(prefix, "corner_pipe_corrected");
+  // generic_timing_test(prefix, "linkrods");
+  // generic_timing_test(prefix, "machine_part_original");
+  // generic_timing_test(prefix, "overlapping_hinge");
+  // generic_timing_test(prefix, "sliced_cylinder");
+  // generic_timing_test(prefix, "Solid_56");
+  // generic_timing_test(prefix, "spring");
+  // generic_timing_test(prefix, "spring_split");
+  // generic_timing_test(prefix, "van");
 
   // spring_direction_example();
   // quadrature_on_sphere();
