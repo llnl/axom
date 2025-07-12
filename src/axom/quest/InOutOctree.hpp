@@ -30,7 +30,6 @@
 #include <vector>
 #include <iterator>
 #include <sstream>
-#include <unordered_map>
 
 #ifndef DUMP_VTK_MESH
 //  #define DUMP_VTK_MESH
@@ -177,9 +176,7 @@ public:
     setVertexWeldThreshold(DEFAULT_VERTEX_WELD_THRESHOLD);
   }
 
-  /**
-   * \brief Generate the spatial index over the surface mesh
-   */
+  /// \brief Generate the spatial index over the surface mesh
   void generateIndex();
 
   /**
@@ -229,9 +226,7 @@ private:
    */
   void insertVertex(VertexIndex idx, int startingLevel = 0);
 
-  /**
-   * \brief Insert all mesh cells into the octree, generating a PM octree
-   */
+  /// \brief Insert all mesh cells into the octree, generating a PM octree
   void insertMeshCells();
 
   /**

@@ -29,11 +29,9 @@ namespace axom
 namespace spin
 {
 /**
- * \brief Traits class to manage types for different point representations in a
- * SparseOctreeLevel
+ * \brief Traits class to manage types for different point representations in a SparseOctreeLevel
  *
- * The general case is meant for Representations types that are unsigned
- * integers
+ * The general case is meant for Representations types that are unsigned integers
  * and uses a Morton-based index as the hashmap key.
  */
 template <typename CoordType, int DIM, typename BroodDataType, typename RepresentationType>
@@ -57,7 +55,7 @@ struct BroodRepresentationTraits
 
   using BroodType = Brood<GridPt, PointRepresentationType>;
 
-  /** Simple function to convert a point to its representation type */
+  /// Simple function to convert a point to its representation type
   static PointRepresentationType convertPoint(const GridPt& pt)
   {
     return BroodType::MortonizerType::mortonize(pt);
@@ -81,12 +79,10 @@ struct BroodRepresentationTraits
 };
 
 /**
- * \brief Traits class to manage types for different point representations in a
- * SparseOctreeLevel
+ * \brief Traits class to manage types for different point representations in a SparseOctreeLevel
  *
- * This is a specialization meant for point representation
- * that use an integer grid point.  The underlying hashmap uses a Morton-based
- * hash function.
+ * This is a specialization meant for point representation that use an integer grid point.  
+ * The underlying hashmap uses a Morton-based hash function.
  */
 template <typename CoordType, int DIM, typename BroodDataType>
 struct BroodRepresentationTraits<CoordType, DIM, BroodDataType, primal::Point<CoordType, DIM>>
@@ -105,9 +101,9 @@ struct BroodRepresentationTraits<CoordType, DIM, BroodDataType, primal::Point<Co
 
   using BroodType = Brood<GridPt, GridPt>;
 
-  /** Simple function to convert a point to its representation type
-   *  \note This is a pass through function
-   *        since the representation and grid point types are the same
+  /** 
+   * \brief Simple function to convert a point to its representation type
+   * \note This is a pass through function since the representation and grid point types are the same
    */
   static const PointRepresentationType& convertPoint(const GridPt& pt)
   {
@@ -194,7 +190,7 @@ public:
       m_currentIter = begin ? octLevel->m_map.begin() : octLevel->m_map.end();
     }
 
-    /** Increment to next block in the level */
+    /// Increment to next block in the level
     void increment()
     {
       ++m_offset;
@@ -206,15 +202,15 @@ public:
       }
     }
 
-    /** Accessor for point associated with iterator's block  */
+    /// Accessor for point associated with iterator's block
     GridPt pt() const { return BroodType::reconstructGridPt(m_currentIter->first, m_offset); }
 
-    /** Accessor for data associated with the iterator's block */
+    /// Accessor for data associated with the iterator's block
     BlockDataType* data() { return &m_currentIter->second[m_offset]; }
-    /** Const accessor for data associated with the iterator's block */
+    /// Const accessor for data associated with the iterator's block
     const BlockDataType* data() const { return &m_currentIter->second[m_offset]; }
 
-    /** \brief Predicate to determine if two block iterators are the same */
+    /// \brief Predicate to determine if two block iterators are the same
     bool equal(const BaseBlockItType* other)
     {
       const self* pother = dynamic_cast<const self*>(other);
@@ -231,7 +227,7 @@ public:
   };
 
 public:
-  /** \brief Default constructor for an octree level */
+  /// \brief Default constructor for an octree level
   SparseOctreeLevel(int level = -1) : Base(level) { BroodTraits::initializeMap(m_map); }
 
   /**
@@ -243,8 +239,7 @@ public:
   BaseBlockIteratorHelper* getIteratorHelper(bool begin) { return new IterHelper(this, begin); }
 
   /**
-   * \brief Factory function to return a ConstSparseBlockIterHelper for this
-   * level
+   * \brief Factory function to return a ConstSparseBlockIterHelper for this level
    *
    * \param begin A boolean to determine if this is to be
    * a begin (true) or end (false) iterator
@@ -280,8 +275,7 @@ public:
                       << pt << " into octree level " << this->m_level << ". Point was out of bounds -- "
                       << "each coordinate must be between 0 and " << this->maxCoord() << ".");
 
-    BroodData& bd = getBroodData(pt);  // Adds entire brood at once
-                                       // (default constructed)
+    BroodData& bd = getBroodData(pt);  // Adds entire brood at once (default constructed)
     if(this->level() == 0)
     {
       for(int j = 1; j < Base::BROOD_SIZE; ++j)
@@ -291,14 +285,14 @@ public:
     }
   }
 
-  /** \brief Accessor for the data associated with pt */
+  /// \brief Accessor for the data associated with pt
   BlockDataType& operator[](const GridPt& pt)
   {
     const BroodType brood(pt);
     return m_map[brood.base()][brood.offset()];
   }
 
-  /** \brief Const accessor for the data associated with pt */
+  /// \brief Const accessor for the data associated with pt
   const BlockDataType& operator[](const GridPt& pt) const
   {
     SLIC_ASSERT_MSG(hasBlock(pt),
@@ -310,10 +304,10 @@ public:
     return blockIt->second[brood.offset()];
   }
 
-  /** \brief Access the data associated with the entire brood */
+  /// \brief Access the data associated with the entire brood
   BroodData& getBroodData(const GridPt& pt) { return m_map[BroodTraits::convertPoint(pt)]; }
 
-  /** \brief Const access to data associated with the entire brood */
+  /// \brief Const access to data associated with the entire brood
   const BroodData& getBroodData(const GridPt& pt) const
   {
     SLIC_ASSERT_MSG(hasBlock(pt),
@@ -324,10 +318,10 @@ public:
     return blockIt->second;
   }
 
-  /** \brief Predicate to check if there are any blocks in this octree level */
+  /// \brief Predicate to check if there are any blocks in this octree level
   bool empty() const { return m_map.empty(); }
 
-  /** \brief Returns the number of blocks (internal and leaf) in the level */
+  /// \brief Returns the number of blocks (internal and leaf) in the level
   int numBlocks() const
   {
     if(empty())
@@ -338,10 +332,10 @@ public:
     return ((this->m_level == 0) ? 1 : (static_cast<int>(m_map.size()) * Base::BROOD_SIZE));
   }
 
-  /** \brief Returns the number of internal blocks in the level */
+  /// \brief Returns the number of internal blocks in the level
   int numInternalBlocks() const { return numBlocks() - numLeafBlocks(); }
 
-  /** \brief Returns the number of leaf blocks in the level */
+  /// \brief Returns the number of leaf blocks in the level
   int numLeafBlocks() const
   {
     if(empty())
@@ -369,8 +363,7 @@ public:
    * octree block within this octree level
    *
    * \param pt The grid point of the block index that we are testing
-   * \return The status of the grid point pt (e.g. LeafBlock, InternalBlock,
-   *...)
+   * \return The status of the grid point pt (e.g. LeafBlock, InternalBlock, ...)
    */
   TreeBlockStatus blockStatus(const GridPt& pt) const
   {
