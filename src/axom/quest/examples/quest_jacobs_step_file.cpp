@@ -6372,7 +6372,7 @@ void query_timing_test(const std::string& test_prefix,
   }
 }
 
-void cedric_comparison_example(std::string prefix, std::string svg_filename_prefix, std::string postfix)
+void oneshot_comparison_example(std::string prefix, std::string svg_filename_prefix, std::string postfix)
 {
   axom::Array<axom::primal::BezierCurve<double, 2>> curves;
   convert_from_svg(prefix + svg_filename_prefix + ".svg", curves);
@@ -6538,13 +6538,13 @@ int main()
   // 9979 at varying levels zooming
 
   std::string prefix =
-    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\vase_comparisons\\next_set\\";
+    "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\rerun_simple_tests_again\\";
   using PointType = axom::primal::Point<double, 3>;
   using VectorType = axom::primal::Vector<double, 3>;
 
-  // cedric_comparison_example(prefix, "profile_4", "clipped");
-  cedric_comparison_example(prefix, "profile_4", "bottom_split");
-  // teapot_timing_test(prefix, "teapot");
+  // oneshot_comparison_example(prefix, "profile_4", "clipped");
+  // oneshot_comparison_example(prefix, "profile_4", "bottom_split");
+  teapot_timing_test(prefix, "teapot");
   // teapot_slice_test(prefix,
                     // "teapot",
                     // "1",
@@ -6566,18 +6566,18 @@ int main()
   // generic_direction_timing_test(prefix, filename, "z", axom::primal::Vector<double, 3> {0, 0, 1});
 
   //   // Spring
-  // generic_timing_test(prefix, "bobbin");
-  // generic_timing_test(prefix, "boxed_sphere");
-  // generic_timing_test(prefix, "complex_gear");
-  // generic_timing_test(prefix, "corner_pipe_corrected");
-  // generic_timing_test(prefix, "linkrods");
-  // generic_timing_test(prefix, "machine_part_original");
-  // generic_timing_test(prefix, "overlapping_hinge");
-  // generic_timing_test(prefix, "sliced_cylinder");
-  // generic_timing_test(prefix, "Solid_56");
-  // generic_timing_test(prefix, "spring");
-  // generic_timing_test(prefix, "spring_split");
-  // generic_timing_test(prefix, "van");
+  generic_timing_test(prefix, "bobbin");
+  generic_timing_test(prefix, "boxed_sphere");
+  generic_timing_test(prefix, "complex_gear");
+  generic_timing_test(prefix, "corner_pipe_corrected");
+  generic_timing_test(prefix, "linkrods");
+  generic_timing_test(prefix, "machine_part_original");
+  generic_timing_test(prefix, "overlapping_hinge");
+  generic_timing_test(prefix, "sliced_cylinder");
+  generic_timing_test(prefix, "Solid_56");
+  generic_timing_test(prefix, "spring");
+  generic_timing_test(prefix, "spring_split");
+  generic_timing_test(prefix, "van");
 
   // spring_direction_example();
   // quadrature_on_sphere();
