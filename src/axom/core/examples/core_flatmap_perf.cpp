@@ -3,6 +3,11 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+/*! \file core_flatmap_perf.cpp
+ *  \brief This example measures performance of the FlatMap batched construction
+ *   interface and FlatMapView, demonstrating portability between CPU, GPU, and OpenMP.
+ */
+
 #include "axom/core/Array.hpp"
 #include "axom/core/FlatMap.hpp"
 #include "axom/core/FlatMapView.hpp"
