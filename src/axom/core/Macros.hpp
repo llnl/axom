@@ -141,8 +141,8 @@
  *  when compiling and linking with -fsanitize=undefined
  */
 #if defined(__has_attribute)
-  #if __has_attribute(no_sanitize_undefined)
-    #define AXOM_SUPPRESS_UBSAN __attribute__((no_sanitize_undefined))
+  #if __has_attribute(no_sanitize)
+    #define AXOM_SUPPRESS_UBSAN __attribute__((no_sanitize("undefined")))
   #else
     #define AXOM_SUPPRESS_UBSAN
   #endif

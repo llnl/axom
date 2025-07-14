@@ -179,55 +179,90 @@ public:
   ///
   bool hasItem(const std::string& name) const
   {
-    typename MapType::const_iterator mit = m_name2idx_map.find(name);
-    return (mit != m_name2idx_map.end() ? true : false);
+    // Implementation note: Sparsehash requires sentinel values for 'empty' and 'deleted'
+    // entries. Our usage in this class only enforces this when we insert or delete
+    // items from the map, so we add explicit checks for empty maps in functions
+    // that do not mutate the map to avoid undefined behavior.
+    if(m_name2idx_map.empty())
+    {
+      return false;
+    }
+    else
+    {
+      const auto mit = m_name2idx_map.find(name);
+      return (mit != m_name2idx_map.end() ? true : false);
+    }
   }
 
   ///
   bool hasItem(IndexType idx) const
   {
-    return (idx >= 0 && static_cast<unsigned>(idx) < m_items.size() &&
-            m_items[static_cast<unsigned>(idx)]);
+    return (idx >= 0 && static_cast<std::size_t>(idx) < m_items.size() &&
+            m_items[static_cast<std::size_t>(idx)]);
   }
 
   ///
   T* getItem(const std::string& name)
   {
-    typename MapType::iterator mit = m_name2idx_map.find(name);
-    return (mit != m_name2idx_map.end() ? m_items[mit->second] : nullptr);
+    // Implementation note: This explicit check avoids undefined behavior. See note above.
+    if(m_name2idx_map.empty())
+    {
+      return nullptr;
+    }
+    else
+    {
+      const auto mit = m_name2idx_map.find(name);
+      return (mit != m_name2idx_map.end() ? m_items[mit->second] : nullptr);
+    }
   }
 
   ///
   T const* getItem(const std::string& name) const
   {
-    typename MapType::const_iterator mit = m_name2idx_map.find(name);
-    return (mit != m_name2idx_map.end() ? m_items[mit->second] : nullptr);
+    // Implementation note: This explicit check avoids undefined behavior. See note above.
+    if(m_name2idx_map.empty())
+    {
+      return nullptr;
+    }
+    else
+    {
+      const auto mit = m_name2idx_map.find(name);
+      return (mit != m_name2idx_map.end() ? m_items[mit->second] : nullptr);
+    }
   }
 
   ///
   T* getItem(IndexType idx)
   {
-    return (hasItem(idx) ? m_items[static_cast<unsigned>(idx)] : nullptr);
+    return (hasItem(idx) ? m_items[static_cast<std::size_t>(idx)] : nullptr);
   }
 
   ///
   T const* getItem(IndexType idx) const
   {
-    return (hasItem(idx) ? m_items[static_cast<unsigned>(idx)] : nullptr);
+    return (hasItem(idx) ? m_items[static_cast<std::size_t>(idx)] : nullptr);
   }
 
   ///
   const std::string& getItemName(IndexType idx) const
   {
-    return (hasItem(idx) ? m_items[static_cast<unsigned>(idx)]->getName()
+    return (hasItem(idx) ? m_items[static_cast<std::size_t>(idx)]->getName()
                          : axom::utilities::string::InvalidName);
   }
 
   ///
   IndexType getItemIndex(const std::string& name) const
   {
-    typename MapType::const_iterator mit = m_name2idx_map.find(name);
-    return (mit != m_name2idx_map.end() ? mit->second : InvalidIndex);
+    // Implementation note: This explicit check avoids undefined behavior. See note above.
+    if(m_name2idx_map.empty())
+    {
+      return InvalidIndex;
+    }
+    else
+    {
+      const auto mit = m_name2idx_map.find(name);
+      return (mit != m_name2idx_map.end() ? mit->second : InvalidIndex);
+    }
   }
 
   ///
@@ -288,11 +323,12 @@ template <typename T>
 IndexType MapCollection<T>::getFirstValidIndex() const
 {
   IndexType idx = 0;
-  while(static_cast<unsigned>(idx) < m_items.size() && m_items[static_cast<unsigned>(idx)] == nullptr)
+  while(static_cast<std::size_t>(idx) < m_items.size() &&
+        m_items[static_cast<std::size_t>(idx)] == nullptr)
   {
-    idx++;
+    ++idx;
   }
-  return ((static_cast<unsigned>(idx) < m_items.size()) ? idx : InvalidIndex);
+  return ((static_cast<std::size_t>(idx) < m_items.size()) ? idx : InvalidIndex);
 }
 
 template <typename T>
@@ -304,11 +340,12 @@ IndexType MapCollection<T>::getNextValidIndex(IndexType idx) const
   }
 
   idx++;
-  while(static_cast<unsigned>(idx) < m_items.size() && m_items[static_cast<unsigned>(idx)] == nullptr)
+  while(static_cast<std::size_t>(idx) < m_items.size() &&
+        m_items[static_cast<std::size_t>(idx)] == nullptr)
   {
     idx++;
   }
-  return ((static_cast<unsigned>(idx) < m_items.size()) ? idx : InvalidIndex);
+  return ((static_cast<std::size_t>(idx) < m_items.size()) ? idx : InvalidIndex);
 }
 
 template <typename T>
@@ -361,7 +398,7 @@ T* MapCollection<T>::removeItem(const std::string& name)
 {
   T* ret_val = nullptr;
 
-  typename MapType::iterator mit = m_name2idx_map.find(name);
+  auto mit = m_name2idx_map.find(name);
   if(mit != m_name2idx_map.end())
   {
     IndexType idx = mit->second;
@@ -390,6 +427,6 @@ T* MapCollection<T>::removeItem(IndexType idx)
   }
 }
 
-} /* end namespace axom */
+}  // namespace axom
 
-#endif /* AXOM_MAP_COLLECTIONS_HPP_ */
+#endif  // AXOM_MAP_COLLECTIONS_HPP_
