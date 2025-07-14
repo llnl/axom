@@ -29,7 +29,7 @@ struct QuadraticProbing
    *
    *  We return the offset from H(i) to H(i+1), which is i+1.
    */
-  int getNext(int iter) const { return iter + 1; }
+  AXOM_HOST_DEVICE int getNext(int iter) const { return iter + 1; }
 };
 
 /*!
@@ -44,7 +44,7 @@ struct HashMixer64
   using argument_type = typename HashFunc<KeyType>::argument_type;
   using result_type = typename HashFunc<KeyType>::result_type;
 
-  uint64_t operator()(const KeyType& key) const
+  AXOM_HOST_DEVICE uint64_t operator()(const KeyType& key) const
   {
     uint64_t hash = HashFunc<KeyType> {}(key);
     hash *= 0xbf58476d1ce4e5b9ULL;
@@ -76,9 +76,9 @@ struct GroupBucket
 
   constexpr static int Size = 15;
 
-  GroupBucket() : data {0ULL, 0ULL} { }
+  AXOM_HOST_DEVICE GroupBucket() : data {0ULL, 0ULL} { }
 
-  int getEmptyBucket() const
+  AXOM_HOST_DEVICE int getEmptyBucket() const
   {
     for(int i = 0; i < Size; i++)
     {
@@ -91,7 +91,7 @@ struct GroupBucket
     return InvalidSlot;
   }
 
-  int nextFilledBucket(int start_index) const
+  AXOM_HOST_DEVICE int nextFilledBucket(int start_index) const
   {
     for(int i = start_index + 1; i < Size; i++)
     {
@@ -107,7 +107,7 @@ struct GroupBucket
   }
 
   template <typename Func>
-  int visitHashBucket(std::uint8_t hash, Func&& visitor) const
+  AXOM_HOST_DEVICE int visitHashBucket(std::uint8_t hash, Func&& visitor) const
   {
     std::uint8_t reducedHash = reduceHash(hash);
     for(int i = 0; i < Size; i++)
@@ -120,20 +120,70 @@ struct GroupBucket
     return InvalidSlot;
   }
 
-  void setBucket(int index, std::uint8_t hash) { metadata.buckets[index] = reduceHash(hash); }
+  template <bool Atomic = false>
+  AXOM_HOST_DEVICE void setBucket(int index, std::uint8_t hash)
+  {
+    std::uint8_t reduced_hash = reduceHash(hash);
+    if(Atomic)  // TODO: should be constexpr
+    {
+#if defined(AXOM_USE_CUDA)
+      // CUDA workaround for lack of 8-bit atomicStore.
+      volatile std::uint8_t* bucket = &(metadata.buckets[index]);
+      *bucket = reduced_hash;
+#else
+      axom::atomicStore<axom::auto_atomic>(&(metadata.buckets[index]), reduced_hash);
+#endif
+      return;
+    }
+    else
+    {
+      metadata.buckets[index] = reduced_hash;
+    }
+  }
 
   void clearBucket(int index) { metadata.buckets[index] = Empty; }
 
-  void setOverflow(std::uint8_t hash)
+  template <bool Atomic = false>
+  AXOM_HOST_DEVICE void setOverflow(std::uint8_t hash)
   {
     std::uint8_t hashOfwBit = 1 << (hash % 8);
-    metadata.ofw |= hashOfwBit;
+    if(Atomic)  // TODO: should be constexpr
+    {
+#if defined(AXOM_USE_HIP) || defined(AXOM_USE_CUDA)
+      // Workaround for a lack of an atomicOr builtin for uint8_t.
+      GroupBucket pack_data {};
+      pack_data.metadata.ofw = hashOfwBit;
+      axom::atomicOr<axom::auto_atomic>(&data[0], pack_data.data[0]);
+#else
+      axom::atomicOr<axom::auto_atomic>(&(metadata.ofw), hashOfwBit);
+#endif
+    }
+    else
+    {
+      metadata.ofw |= hashOfwBit;
+    }
   }
 
-  bool getMaybeOverflowed(std::uint8_t hash) const
+  template <bool Atomic = false>
+  AXOM_HOST_DEVICE bool getMaybeOverflowed(std::uint8_t hash) const
   {
     std::uint8_t hashOfwBit = 1 << (hash % 8);
-    return (metadata.ofw & hashOfwBit);
+    std::uint8_t curr_ofw;
+    if(Atomic)  // TODO: should be constexpr
+    {
+#if defined(AXOM_USE_CUDA)
+      // CUDA workaround for lack of 8-bit atomicLoad.
+      curr_ofw = *const_cast<const volatile std::uint8_t*>(&(metadata.ofw));
+#else
+      // TODO: why is the const_cast required? (RAJA issue?)
+      curr_ofw = axom::atomicLoad<axom::auto_atomic>(const_cast<std::uint8_t*>(&(metadata.ofw)));
+#endif
+    }
+    else
+    {
+      curr_ofw = metadata.ofw;
+    }
+    return (curr_ofw & hashOfwBit);
   }
 
   bool hasSentinel() const { return metadata.buckets[Size - 1] == Sentinel; }
@@ -142,7 +192,10 @@ struct GroupBucket
 
   // We need to map hashes in the range [0, 255] to [2, 255], since 0 and 1
   // are taken by the "empty" and "sentinel" values respectively.
-  static std::uint8_t reduceHash(std::uint8_t hash) { return (hash < 2) ? (hash + 8) : hash; }
+  AXOM_HOST_DEVICE static std::uint8_t reduceHash(std::uint8_t hash)
+  {
+    return (hash < 2) ? (hash + 8) : hash;
+  }
 
   union alignas(16)
   {
@@ -227,10 +280,10 @@ struct SequentialLookupPolicy : ProbePolicy
    *  matching hash
    */
   template <typename FoundIndex>
-  void probeIndex(int ngroups_pow_2,
-                  ArrayView<const GroupBucket> metadata,
-                  HashType hash,
-                  FoundIndex&& on_hash_found) const
+  AXOM_HOST_DEVICE void probeIndex(int ngroups_pow_2,
+                                   ArrayView<const GroupBucket> metadata,
+                                   HashType hash,
+                                   FoundIndex&& on_hash_found) const
   {
     // We use the k MSBs of the hash as the initial group probe point,
     // where ngroups = 2^k.
@@ -281,7 +334,7 @@ struct SequentialLookupPolicy : ProbePolicy
     return metadata[group_index].getMaybeOverflowed(hash);
   }
 
-  IndexType nextValidIndex(ArrayView<const GroupBucket> metadata, int last_bucket) const
+  AXOM_HOST_DEVICE IndexType nextValidIndex(ArrayView<const GroupBucket> metadata, int last_bucket) const
   {
     if(last_bucket >= metadata.size() * GroupBucket::Size - 1)
     {
@@ -309,9 +362,9 @@ struct alignas(T) TypeErasedStorage
 {
   unsigned char data[sizeof(T)];
 
-  const T& get() const { return *(reinterpret_cast<const T*>(&data)); }
+  AXOM_HOST_DEVICE const T& get() const { return *(reinterpret_cast<const T*>(&data)); }
 
-  T& get() { return *(reinterpret_cast<T*>(&data)); }
+  AXOM_HOST_DEVICE T& get() { return *(reinterpret_cast<T*>(&data)); }
 };
 
 }  // namespace flat_map

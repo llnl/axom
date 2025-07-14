@@ -39,6 +39,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   compile and run. These constructs are templated on the `ExecSpace` _(execution space)_ so it
   is not necessary to query RAJA policies via the `execution_space` type traits classes.
 - 2D and 3D implementations for `axom::for_all` were added.
+- Adds `axom::FlatMapView`, a helper class associated with `axom::FlatMap` to support queries from
+  within a GPU kernel.
 - Adds support for custom allocators to `axom::FlatMap`.
 - Primal: Adds ability to perform sample-based shaping on tetrahedral shapes.
 - Improves efficiency of volume fraction computation from quadrature samples during sample-based shaping.
@@ -66,6 +68,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Fixes build with `ninja` generator
 - Primal: Fixes a `BoundingBox` constructor with zero (or fewer) points
 - Sina: Fixes configuration variables related to inclusion of `AdiakWriter.hpp` and to hdf5 support in `sina_fortran_interface.f`
+- Spin: Fixes undefined behavior in BVH tree construction associated with using signed indexes
+- Spin: Fixes undefined behavior in UniformGrid construction associated with invalid geometry bounding boxes
+- Core: Fixes undefined behavior in MapCollection when searching empty collections
 
 ###  Deprecated
 - Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
