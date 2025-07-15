@@ -136,9 +136,9 @@ set(CAMP_DIR "${TPL_ROOT}/camp-2025.03.0-65svtc2eo2wzpi3lcwenyub7drmqdfw3" CACHE
 # Devtools
 #------------------------------------------------------------------------------
 
-set(DEVTOOLS_ROOT "/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_07_02_14_29_59/._view/akn2uvaqsethgd2hemfmccivfwd7u5jz" CACHE PATH "")
+set(DEVTOOLS_ROOT "/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_07_14_14_40_58/._view/urpbkvctljzlaw4lss5tjxd3joepi2n2" CACHE PATH "")
 
-set(CLANGFORMAT_EXECUTABLE "/usr/tce/packages/rocmcc/rocmcc-5.2.3-magic/llvm/bin/clang-format" CACHE PATH "")
+set(CLANGFORMAT_EXECUTABLE "/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_07_14_14_40_58/view/llvm-14.0.6/bin/clang-format" CACHE PATH "")
 
 set(Python_EXECUTABLE "${DEVTOOLS_ROOT}/python-3.11.11/bin/python3" CACHE PATH "")
 
