@@ -191,13 +191,13 @@ NB_MODULE(pysidre, m_sidre)
            &DataStore::generateBlueprintIndex),
          "Generate a Conduit Blueprint index based on a mesh in stored in this DataStore.")
 
-// Nanobind fails compilation on blueos
-// #ifdef AXOM_USE_MPI
-//     .def("generateBlueprintIndex",
-//          nb::overload_cast<MPI_Comm, const std::string&, const std::string&, const std::string&>(
-//            &DataStore::generateBlueprintIndex),
-//          "Generate a Conduit Blueprint index from a distributed mesh stored in this Datastore")
-// #endif
+    // Nanobind fails compilation on blueos
+    // #ifdef AXOM_USE_MPI
+    //     .def("generateBlueprintIndex",
+    //          nb::overload_cast<MPI_Comm, const std::string&, const std::string&, const std::string&>(
+    //            &DataStore::generateBlueprintIndex),
+    //          "Generate a Conduit Blueprint index from a distributed mesh stored in this Datastore")
+    // #endif
     .def("print",
          nb::overload_cast<>(&DataStore::print, nb::const_),
          "Print JSON description of the DataStore");
