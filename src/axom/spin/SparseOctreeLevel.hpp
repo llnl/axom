@@ -18,12 +18,6 @@
 
 #include <type_traits>
 
-#if defined(AXOM_USE_SPARSEHASH)
-  #include "axom/sparsehash/dense_hash_map"
-#else
-  #include <unordered_map>
-#endif
-
 namespace axom
 {
 namespace spin
@@ -47,11 +41,7 @@ struct BroodRepresentationTraits
                 "RepresentationType must be unsigned");
 
   // Requires a uint for RepresentationType with 8-,16-,32-, or 64- bits
-#if defined(AXOM_USE_SPARSEHASH)
-  using MapType = axom::google::dense_hash_map<RepresentationType, BroodDataType>;
-#else
-  using MapType = std::unordered_map<RepresentationType, BroodDataType>;
-#endif
+  using MapType = axom::FlatMap<RepresentationType, BroodDataType>;
 
   using BroodType = Brood<GridPt, PointRepresentationType>;
 
@@ -66,16 +56,7 @@ struct BroodRepresentationTraits
    *
    * \note sparsehash's maps require setting some default keys
    */
-  static void initializeMap(MapType& map)
-  {
-#if defined(AXOM_USE_SPARSEHASH)
-    const PointRepresentationType maxVal = axom::numeric_limits<PointRepresentationType>::max();
-    map.set_empty_key(maxVal);
-    map.set_deleted_key(maxVal - 1);
-#else
-    AXOM_UNUSED_VAR(map);
-#endif
-  }
+  static void initializeMap(MapType& map) { AXOM_UNUSED_VAR(map); }
 };
 
 /**
@@ -93,11 +74,7 @@ struct BroodRepresentationTraits<CoordType, DIM, BroodDataType, primal::Point<Co
 
   AXOM_STATIC_ASSERT_MSG(std::is_integral<CoordType>::value, "CoordType must be integral");
 
-#if defined(AXOM_USE_SPARSEHASH)
-  using MapType = axom::google::dense_hash_map<GridPt, BroodDataType, PointHashType>;
-#else
-  using MapType = std::unordered_map<GridPt, BroodDataType, PointHashType>;
-#endif
+  using MapType = axom::FlatMap<GridPt, BroodDataType, PointHashType>;
 
   using BroodType = Brood<GridPt, GridPt>;
 
@@ -115,19 +92,7 @@ struct BroodRepresentationTraits<CoordType, DIM, BroodDataType, primal::Point<Co
    *
    * \note sparse hashmaps require setting some default keys
    */
-  static void initializeMap(MapType& map)
-  {
-#if defined(AXOM_USE_SPARSEHASH)
-    CoordType maxCoord = axom::numeric_limits<CoordType>::max();
-    GridPt maxPt(maxCoord);
-    map.set_empty_key(maxPt);
-
-    maxPt[DIM - 1]--;
-    map.set_deleted_key(maxPt);
-#else
-    AXOM_UNUSED_VAR(map);
-#endif
-  }
+  static void initializeMap(MapType& map) { AXOM_UNUSED_VAR(map); }
 };
 
 /**
@@ -184,11 +149,10 @@ public:
     using BaseBlockItType = ParentType;
 
     IteratorHelper(OctreeLevelType* octLevel, bool begin)
-      : m_offset(0)
+      : m_currentIter(begin ? octLevel->m_map.begin() : octLevel->m_map.end())
+      , m_offset(0)
       , m_isLevelZero(octLevel->level() == 0)
-    {
-      m_currentIter = begin ? octLevel->m_map.begin() : octLevel->m_map.end();
-    }
+    { }
 
     /// Increment to next block in the level
     void increment()
