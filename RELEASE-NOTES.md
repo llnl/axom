@@ -60,6 +60,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Updates to [MFEM version 4.8.0][https://github.com/mfem/mfem/releases/tag/v4.8]
 - Readers in Quest were moved from a `quest/readers` directory to `quest/io`.
 - Sina: Renames a Fortran module to `sina_hdf5_config` (from `hdf5_config`)
+- Spin: Uses `axom::FlatMap` in `SparseOctreeLevel` implementation
 
 ###  Fixed
 - Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
