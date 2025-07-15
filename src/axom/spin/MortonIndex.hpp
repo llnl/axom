@@ -9,9 +9,8 @@
  * \brief Classes and functions to convert between points on an integer grid and
  *  their unidimensional MortonIndex.
  *
- * Also has some utility functions for 'mortonizing' and 'demortonizing' points
- * and a PointHash functor class that can be used as a std::hash for
- * unordered_maps
+ * Also has some utility functions for 'mortonizing' and 'demortonizing' points and a PointHash
+ * functor class that can be used as a std::hash for unordered_maps and axom::FlatMap
  */
 
 #ifndef AXOM_SPIN_MORTON_INDEX_HPP_
@@ -19,7 +18,7 @@
 
 #include "axom/config.hpp"
 #include "axom/core/Types.hpp"
-#include "axom/core/Macros.hpp"  // defines AXOM_STATIC_ASSERT
+#include "axom/core/Macros.hpp"
 #include "axom/core/NumericLimits.hpp"
 #include "axom/primal/geometry/Point.hpp"
 
@@ -36,78 +35,51 @@ namespace
 template <typename IntegerType>
 struct NumReps
 {
-  enum
-  {
-    value = 5
-  };
+  static constexpr int value = 5;
 };
 
 template <>
 struct NumReps<std::int64_t>
 {
-  enum
-  {
-    value = 5
-  };
+  static constexpr int value = 5;
 };
 template <>
 struct NumReps<std::uint64_t>
 {
-  enum
-  {
-    value = 5
-  };
+  static constexpr int value = 5;
 };
 
 template <>
 struct NumReps<std::int32_t>
 {
-  enum
-  {
-    value = 4
-  };
+  static constexpr int value = 4;
 };
 template <>
 struct NumReps<std::uint32_t>
 {
-  enum
-  {
-    value = 4
-  };
+  static constexpr int value = 4;
 };
 
 template <>
 struct NumReps<std::int16_t>
 {
-  enum
-  {
-    value = 3
-  };
+  static constexpr int value = 3;
 };
 template <>
 struct NumReps<std::uint16_t>
 {
-  enum
-  {
-    value = 3
-  };
+  static constexpr int value = 3;
 };
 
 template <>
 struct NumReps<std::int8_t>
 {
-  enum
-  {
-    value = 2
-  };
+  static constexpr int value = 2;
 };
 template <>
 struct NumReps<std::uint8_t>
 {
-  enum
-  {
-    value = 2
-  };
+  static constexpr int value = 2;
 };
 }  // namespace
 
@@ -232,6 +204,42 @@ struct Mortonizer<CoordType, MortonIndexType, 2>
   using self = Mortonizer<CoordType, MortonIndexType, 2>;
   using Base = MortonBase<CoordType, MortonIndexType, self>;
 
+  /*! The dimension of the Mortonizer */
+  static constexpr int NDIM = 2;
+
+  /*! The number of bits in a CoordType  */
+  static constexpr int COORD_BITS = axom::numeric_limits<CoordType>::digits;
+
+  /*! The number of bits in a MortonIndex  */
+  static constexpr int MORTON_BITS = axom::numeric_limits<MortonIndexType>::digits;
+
+  /*! The number of representable Morton bits per dimension */
+  static constexpr int MB_PER_DIM = MORTON_BITS / NDIM;
+
+  /*!
+     * The maximum number of unique bits from each coordinate of type CoordType
+     *  that can be represented in a MortonIndex.
+     *
+     * \note If we are use Mortonizer as a (one-way) hash function, it is ok to
+     *  use more bits. But, if we would like to be able to reverse the
+     *  MortonIndex, then we cannot safely use more than MAX_UNIQUE_BITS per
+     *  coordinate.
+     *
+     */
+  static constexpr int MAX_UNIQUE_BITS = (MB_PER_DIM < COORD_BITS) ? MB_PER_DIM : COORD_BITS;
+
+  /*!
+     * The number of iterations required for converting from MortonIndexes to
+     * CoordType using the bit interleaving algorithm in MortonBase.
+     */
+  static constexpr int CONTRACT_MAX_ITER = NumReps<MortonIndexType>::value;
+
+  /*!
+     * The number of iterations required for converting between CoordTypes
+     * and MortonIndexes using the bit interleaving algorithm in MortonBase.
+     */
+  static constexpr int EXPAND_MAX_ITER = NumReps<MortonIndexType>::value;
+
   // Magic numbers in 2D
   AXOM_HOST_DEVICE static MortonIndexType GetB(int i)
   {
@@ -249,45 +257,6 @@ struct Mortonizer<CoordType, MortonIndexType, 2>
     constexpr int S[] = {1, 2, 4, 8, 16, 32};
     return S[i];
   }
-
-  enum
-  {
-    /*! The dimension of the Mortonizer */
-    NDIM = 2,
-
-    /*! The number of bits in a CoordType  */
-    COORD_BITS = axom::numeric_limits<CoordType>::digits,
-
-    /*! The number of bits in a MortonIndex  */
-    MORTON_BITS = axom::numeric_limits<MortonIndexType>::digits,
-
-    /*! The number of representable Morton bits per dimension */
-    MB_PER_DIM = MORTON_BITS / NDIM,
-
-    /*!
-     * The maximum number of unique bits from each coordinate of type CoordType
-     *  that can be represented in a MortonIndex.
-     *
-     * \note If we are use Mortonizer as a (one-way) hash function, it is ok to
-     *  use more bits. But, if we would like to be able to reverse the
-     *  MortonIndex, then we cannot safely use more than MAX_UNIQUE_BITS per
-     *  coordinate.
-     *
-     */
-    MAX_UNIQUE_BITS = (MB_PER_DIM < COORD_BITS) ? MB_PER_DIM : COORD_BITS,
-
-    /*!
-     * The number of iterations required for converting from MortonIndexes to
-     * CoordType using the bit interleaving algorithm in MortonBase.
-     */
-    CONTRACT_MAX_ITER = NumReps<MortonIndexType>::value,
-
-    /*!
-     * The number of iterations required for converting between CoordTypes
-     * and MortonIndexes using the bit interleaving algorithm in MortonBase.
-     */
-    EXPAND_MAX_ITER = NumReps<MortonIndexType>::value
-  };
 
   /*!
    * \brief A function to convert a 2D point to a Morton index
@@ -372,8 +341,41 @@ struct Mortonizer<CoordType, MortonIndexType, 3>
   using self = Mortonizer<CoordType, MortonIndexType, 3>;
   using Base = MortonBase<CoordType, MortonIndexType, self>;
 
-  // Magic numbers in 3D from C. Ericson's Real Time Collision Detection book
+  /*! The dimension of the Mortonizer */
+  constexpr static int NDIM = 3;
 
+  /*! The number of bits in a CoordType  */
+  constexpr static int COORD_BITS = axom::numeric_limits<CoordType>::digits;
+
+  /*! The number of bits in a MortonIndex  */
+  constexpr static int MORTON_BITS = axom::numeric_limits<MortonIndexType>::digits;
+
+  /*! The number of representable morton bits per dimension */
+  constexpr static int MB_PER_DIM = MORTON_BITS / NDIM;
+
+  /*!
+    * The maximum number of unique bits from each coordinate of type CoordType
+    *  that can be represented in a MortonIndex.
+    *  \note If we are use Mortonizer as a (one-way) hash function,
+    *        it is ok to use more bits. But, if we would like to be
+    *        able to reverse the MortonIndex, then we cannot safely use
+    *        more than MAX_UNIQUE_BITS per coordinate.
+    */
+  constexpr static int MAX_UNIQUE_BITS = (MB_PER_DIM < COORD_BITS) ? MB_PER_DIM : COORD_BITS;
+
+  /*!
+    * The number of iterations required for converting from MortonIndexes
+    * to CoordType using the bit interleaving algorithm in MortonBase.
+    */
+  constexpr static int CONTRACT_MAX_ITER = NumReps<MortonIndexType>::value;
+
+  /*!
+    * The number of iterations required for converting between CoordTypes
+    * and MortonIndexes using the bit interleaving algorithm in MortonBase.
+    */
+  constexpr static int EXPAND_MAX_ITER = NumReps<MortonIndexType>::value - 1;
+
+  // Magic numbers in 3D from C. Ericson's Real Time Collision Detection book
   AXOM_HOST_DEVICE static MortonIndexType GetB(int i)
   {
     constexpr MortonIndexType B[] = {
@@ -391,43 +393,6 @@ struct Mortonizer<CoordType, MortonIndexType, 3>
     constexpr int S[] = {2, 4, 8, 16, 32, 0};
     return S[i];
   }
-
-  enum
-  {
-    /*! The dimension of the Mortonizer */
-    NDIM = 3,
-
-    /*! The number of bits in a CoordType  */
-    COORD_BITS = axom::numeric_limits<CoordType>::digits,
-
-    /*! The number of bits in a MortonIndex  */
-    MORTON_BITS = axom::numeric_limits<MortonIndexType>::digits,
-
-    /*! The number of representable morton bits per dimension */
-    MB_PER_DIM = MORTON_BITS / NDIM,
-
-    /*!
-     * The maximum number of unique bits from each coordinate of type CoordType
-     *  that can be represented in a MortonIndex.
-     *  \note If we are use Mortonizer as a (one-way) hash function,
-     *        it is ok to use more bits. But, if we would like to be
-     *        able to reverse the MortonIndex, then we cannot safely use
-     *        more than MAX_UNIQUE_BITS per coordinate.
-     */
-    MAX_UNIQUE_BITS = (MB_PER_DIM < COORD_BITS) ? MB_PER_DIM : COORD_BITS,
-
-    /*!
-     * The number of iterations required for converting from MortonIndexes
-     * to CoordType using the bit interleaving algorithm in MortonBase.
-     */
-    CONTRACT_MAX_ITER = NumReps<MortonIndexType>::value,
-
-    /*!
-     * The number of iterations required for converting between CoordTypes
-     * and MortonIndexes using the bit interleaving algorithm in MortonBase.
-     */
-    EXPAND_MAX_ITER = NumReps<MortonIndexType>::value - 1
-  };
 
   /*!
    * \brief A function to convert a 3D point to a Morton index
@@ -548,6 +513,7 @@ template <typename CoordType>
 struct PointHash
 {
   using MortonIndex = std::size_t;
+  using result_type = std::size_t;
 
   /*!
    * \brief Mortonizes a coordinate (viewed as a 1D point)
