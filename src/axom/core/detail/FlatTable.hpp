@@ -12,6 +12,21 @@
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/utilities/BitUtilities.hpp"
 
+#if defined(_MSC_VER)
+  // MSVC does *not* define __SSE2__ to indicate SSE2 intrinsic support.
+  #if defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
+    // Either:
+    //  - We're building for x86_64 (SSE2 is always available), or...
+    //  - We're building for a 32-bit platform with SSE2 support.
+    #define _AXOM_CORE_HAVE_SSE2
+    #include <intrin.h>
+  #endif
+#elif defined(__SSE2__)
+  // GCC, Clang, ICC all define the __SSE2__ macro.
+  #define _AXOM_CORE_HAVE_SSE2
+  #include <emmintrin.h>
+#endif
+
 namespace axom
 {
 namespace detail
@@ -85,7 +100,7 @@ struct GroupBucket
 
   AXOM_HOST_DEVICE int getEmptyBucket() const
   {
-#ifndef AXOM_DEVICE_CODE
+#if !defined(AXOM_DEVICE_CODE) && defined(_AXOM_CORE_HAVE_SSE2)
     auto match_simd = _mm_set1_epi8(Empty);
     auto metadata_simd = _mm_load_si128(reinterpret_cast<const __m128i*>(&metadata));
     match_simd = _mm_cmpeq_epi8(match_simd, metadata_simd);
@@ -128,7 +143,7 @@ struct GroupBucket
   AXOM_HOST_DEVICE int visitHashBucket(std::uint8_t hash, Func&& visitor) const
   {
     std::uint8_t reducedHash = reduceHash(hash);
-#ifndef AXOM_DEVICE_CODE
+#if !defined(AXOM_DEVICE_CODE) && defined(_AXOM_CORE_HAVE_SSE2)
     // Broadcast reduced hash across SIMD register
     auto hash_simd = _mm_set1_epi8(reducedHash);
     auto metadata_simd = _mm_load_si128(reinterpret_cast<const __m128i*>(&metadata));
@@ -411,5 +426,7 @@ struct alignas(T) TypeErasedStorage
 }  // namespace flat_map
 }  // namespace detail
 }  // namespace axom
+
+#undef _AXOM_CORE_HAVE_SSE2
 
 #endif  // Axom_Core_Detail_FlatTable_Hpp
