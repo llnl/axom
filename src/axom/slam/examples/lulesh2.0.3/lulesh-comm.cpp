@@ -1918,6 +1918,9 @@ namespace slamLulesh {
           cmsg * CACHE_COHERENCE_PAD_REAL];
       Index_t idx = dx * dy * (dz - 1);
       MPI_Wait(&domain.recvRequest[pmsg + emsg + cmsg], &status);
+
+      // Unrolled loop to bypass odd sanitizer out-of-bounds failure
+      assert(xferFields == 6);
       (domain.*fieldData[0])(idx) = comBuf[0];
       (domain.*fieldData[1])(idx) = comBuf[1];
       (domain.*fieldData[2])(idx) = comBuf[2];
@@ -1948,6 +1951,9 @@ namespace slamLulesh {
           cmsg * CACHE_COHERENCE_PAD_REAL];
       Index_t idx = dx * dy * (dz - 1) + (dx - 1);
       MPI_Wait(&domain.recvRequest[pmsg + emsg + cmsg], &status);
+
+      // Unrolled loop to bypass odd sanitizer out-of-bounds failure
+      assert(xferFields == 6);
       (domain.*fieldData[0])(idx) = comBuf[0];
       (domain.*fieldData[1])(idx) = comBuf[1];
       (domain.*fieldData[2])(idx) = comBuf[2];
@@ -1978,6 +1984,9 @@ namespace slamLulesh {
           cmsg * CACHE_COHERENCE_PAD_REAL];
       Index_t idx = dx * dy * (dz - 1) + dx * (dy - 1);
       MPI_Wait(&domain.recvRequest[pmsg + emsg + cmsg], &status);
+
+      // Unrolled loop to bypass odd sanitizer out-of-bounds failure
+      assert(xferFields == 6);
       (domain.*fieldData[0])(idx) = comBuf[0];
       (domain.*fieldData[1])(idx) = comBuf[1];
       (domain.*fieldData[2])(idx) = comBuf[2];
@@ -2008,6 +2017,9 @@ namespace slamLulesh {
           cmsg * CACHE_COHERENCE_PAD_REAL];
       Index_t idx = dx * dy * dz - 1;
       MPI_Wait(&domain.recvRequest[pmsg + emsg + cmsg], &status);
+
+      // Unrolled loop to bypass odd sanitizer out-of-bounds failure
+      assert(xferFields == 6);
       (domain.*fieldData[0])(idx) = comBuf[0];
       (domain.*fieldData[1])(idx) = comBuf[1];
       (domain.*fieldData[2])(idx) = comBuf[2];

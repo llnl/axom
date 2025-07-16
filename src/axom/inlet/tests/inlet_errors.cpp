@@ -274,11 +274,6 @@ TYPED_TEST(inlet_errors, helpful_range)
   inlet.addInt("foo", "foo's description").range(3, 5);
   inlet.addDouble("bar", "bar's description").range(-4.2, 5.6);
 
-  // FIXME (JBE): This appears to be needed for NVCC specs,
-  // even though this test isn't built with NVCC.  Maybe the linker
-  // is doing something horrible? The selection of 1.5 is random
-  (void)axom::fmt::format("{}", 1.5);
-
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
   // Need something about "foo" and "range" and "3" and "5"
