@@ -6282,15 +6282,18 @@ namespace sol {
 			return key;
 		}
 
+		// start axom change
+		// Define keys as const char[] instead of const char8_t for C++20
 		inline decltype(auto) base_class_index_propogation_key() {
-			static const auto& key = u8"\xF0\x9F\x8C\xB2.index";
+			static const auto& key = "\xF0\x9F\x8C\xB2.index";
 			return key;
 		}
 
 		inline decltype(auto) base_class_new_index_propogation_key() {
-			static const auto& key = u8"\xF0\x9F\x8C\xB2.new_index";
+			static const auto& key = "\xF0\x9F\x8C\xB2.new_index";
 			return key;
 		}
+		// end axom change
 
 		template <typename T, typename... Bases>
 		struct inheritance {
