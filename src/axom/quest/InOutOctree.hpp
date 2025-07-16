@@ -443,6 +443,7 @@ void InOutOctree<DIM>::generateIndex()
   // STEP 1 -- Add mesh vertices to octree
   {
     AXOM_ANNOTATE_SCOPE("insert vertices");
+    timer.reset();
     timer.start();
     int numMeshVerts = m_meshWrapper.numMeshVertices();
     for(int idx = 0; idx < numMeshVerts; ++idx)
@@ -459,6 +460,7 @@ void InOutOctree<DIM>::generateIndex()
   // STEP 1(b) -- Update the mesh vertices and cells with after vertex welding from octree
   {
     AXOM_ANNOTATE_SCOPE("update surface mesh vertices");
+    timer.reset();
     timer.start();
     updateSurfaceMeshVertices();
     timer.stop();
@@ -491,6 +493,7 @@ void InOutOctree<DIM>::generateIndex()
   // STEP 2 -- Add mesh cells (segments in 2D; triangles in 3D) to octree
   {
     AXOM_ANNOTATE_SCOPE("insert mesh cells");
+    timer.reset();
     timer.start();
     insertMeshCells();
     timer.stop();
@@ -504,6 +507,7 @@ void InOutOctree<DIM>::generateIndex()
   // -- Black (in), White(out), Gray(Intersects surface)
   {
     AXOM_ANNOTATE_SCOPE("color octree leaves");
+    timer.reset();
     timer.start();
     colorOctreeLeaves();
 
@@ -514,8 +518,8 @@ void InOutOctree<DIM>::generateIndex()
                                    "\t--Coloring octree leaves took {:.3Lf} seconds.",
                                    timer.elapsed()));
 
-// -- Print some stats about the octree
 #ifdef DUMP_OCTREE_INFO
+  // -- Print some stats about the octree
   SLIC_INFO_ROOT("** Octree stats after inserting cells");
   {
     AXOM_ANNOTATE_SCOPE("dump stats after inserting cells");
@@ -528,9 +532,11 @@ void InOutOctree<DIM>::generateIndex()
     AXOM_ANNOTATE_SCOPE("validate after inserting cells");
     checkValid();
   }
+
   // CLEANUP -- Finally, fix up the surface mesh after octree operations
   {
     AXOM_ANNOTATE_SCOPE("regenerate surface mesh");
+    timer.reset();
     timer.start();
     m_meshWrapper.regenerateSurfaceMesh();
     timer.stop();
