@@ -12,6 +12,21 @@
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/utilities/BitUtilities.hpp"
 
+#if defined(_MSC_VER)
+  // MSVC does *not* define __SSE2__ to indicate SSE2 intrinsic support.
+  #if defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
+    // Either:
+    //  - We're building for x86_64 (SSE2 is always available), or...
+    //  - We're building for a 32-bit platform with SSE2 support.
+    #define _AXOM_CORE_HAVE_SSE2
+    #include <intrin.h>
+  #endif
+#elif defined(__SSE2__)
+  // GCC, Clang, ICC all define the __SSE2__ macro.
+  #define _AXOM_CORE_HAVE_SSE2
+  #include <emmintrin.h>
+#endif
+
 namespace axom
 {
 namespace detail
@@ -76,10 +91,27 @@ struct GroupBucket
 
   constexpr static int Size = 15;
 
+  // We load the metadata into an SSE register as a 128-bit integer. Since
+  // x86_64 is little endian, the expected order of bytes are reversed, and
+  // the overflow byte is the LSB of the register.
+  constexpr static int SSEBucketMask = ~(0x1);
+
   AXOM_HOST_DEVICE GroupBucket() : data {0ULL, 0ULL} { }
 
   AXOM_HOST_DEVICE int getEmptyBucket() const
   {
+#if !defined(AXOM_DEVICE_CODE) && defined(_AXOM_CORE_HAVE_SSE2)
+    auto match_simd = _mm_set1_epi8(Empty);
+    auto metadata_simd = _mm_load_si128(reinterpret_cast<const __m128i*>(&metadata));
+    match_simd = _mm_cmpeq_epi8(match_simd, metadata_simd);
+
+    int mask_match = _mm_movemask_epi8(match_simd) & SSEBucketMask;
+    // Little endian: count zeroes from right, bytes reversed from perspective
+    // of SSE register
+    int empty_bucket = axom::utilities::countr_zero(mask_match) - 1;
+
+    return mask_match == 0 ? InvalidSlot : empty_bucket;
+#else
     for(int i = 0; i < Size; i++)
     {
       if(metadata.buckets[i] == GroupBucket::Empty)
@@ -87,6 +119,7 @@ struct GroupBucket
         return i;
       }
     }
+#endif
     // Bucket not found.
     return InvalidSlot;
   }
@@ -110,6 +143,27 @@ struct GroupBucket
   AXOM_HOST_DEVICE int visitHashBucket(std::uint8_t hash, Func&& visitor) const
   {
     std::uint8_t reducedHash = reduceHash(hash);
+#if !defined(AXOM_DEVICE_CODE) && defined(_AXOM_CORE_HAVE_SSE2)
+    // Broadcast reduced hash across SIMD register
+    auto hash_simd = _mm_set1_epi8(reducedHash);
+    auto metadata_simd = _mm_load_si128(reinterpret_cast<const __m128i*>(&metadata));
+    auto match_simd = _mm_cmpeq_epi8(hash_simd, metadata_simd);
+
+    int mask_match = _mm_movemask_epi8(match_simd) & SSEBucketMask;
+    while(mask_match != 0)
+    {
+      // Little endian: count zeroes from right, bytes reversed from perspective
+      // of SSE register
+      int bucket = axom::utilities::countr_zero(mask_match) - 1;
+      if(!visitor(bucket))
+      {
+        // Found a match - break
+        break;
+      }
+      mask_match ^= 1 << (bucket + 1);
+    }
+
+#else
     for(int i = 0; i < Size; i++)
     {
       if(metadata.buckets[i] == reducedHash)
@@ -117,6 +171,7 @@ struct GroupBucket
         visitor(i);
       }
     }
+#endif
     return InvalidSlot;
   }
 
@@ -295,8 +350,9 @@ struct SequentialLookupPolicy : ProbePolicy
     bool keep_going = true;
     for(int iteration = 0; iteration < metadata.size(); iteration++)
     {
-      metadata[curr_group].visitHashBucket(hash_8, [&](IndexType bucket_index) {
+      metadata[curr_group].visitHashBucket(hash_8, [&](IndexType bucket_index) -> bool {
         keep_going = on_hash_found(curr_group * GroupBucket::Size + bucket_index);
+        return keep_going;
       });
 
       if(!metadata[curr_group].getMaybeOverflowed(hash_8))
@@ -370,5 +426,7 @@ struct alignas(T) TypeErasedStorage
 }  // namespace flat_map
 }  // namespace detail
 }  // namespace axom
+
+#undef _AXOM_CORE_HAVE_SSE2
 
 #endif  // Axom_Core_Detail_FlatTable_Hpp
