@@ -498,8 +498,13 @@ int relayLikeNumChildren(conduit::relay::io::IOHandle &appendTo,
 
 void relayLikeWrite(conduit::relay::io::IOHandle &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
   UNUSED(record_num);
-  std::cerr << endpoint << std::endl;
-  std::cerr << appendFrom.to_string() << std::endl;
+  //conduit::Node sacrificial;
+  //appendTo.read(endpoint, sacrificial);
+  //std::cerr << "appending from: " << appendFrom.to_string() << std::endl;
+  //std::cerr << "appending to: " << sacrificial.to_string() << std::endl;
+  if(relayLikeHasPath(appendTo, endpoint, record_num)){
+    appendTo.remove(endpoint);
+  }
   appendTo.write(appendFrom, endpoint);
 }
 
@@ -618,9 +623,8 @@ conduit::Node validateCurveSets(ConduitRelayLike &appendTo,
         curves_written++;
       }
       else if(unappended_baseline == -1)
-      {
-        unappended_baseline =
-          relayLikeArrayNumElements(appendTo, curves_endpoint + "/value", rec_num, original_file_path);
+      { 
+        unappended_baseline = relayLikeArrayNumElements(appendTo, curves_endpoint + "/" + cname +"/value", rec_num, original_file_path);
       }
       existing_curves++;  // instead of a .size() to account for value/tags/etc. above
     }
@@ -774,7 +778,8 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
                               const std::string &endpoint,
                               const int mergeProtocol,
                               int record_num,
-                              const std::string &original_file_path)
+                              const std::string &original_file_path,
+                              bool isHDF5)
 {
   auto fieldsIter = appendFrom.children();
   while(fieldsIter.has_next())
@@ -795,7 +800,16 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
       // We already exploded for protocol 3 if anything overwrote, so we handle 1 and 3
       if(mergeProtocol == 1 || mergeProtocol == 3)
       {
-        relayLikeWrite(appendTo, recField, appendAtEndpoint, record_num);
+        if(isHDF5){ // We have to go bit by bit removing each individually, lest we delete something unupdated
+          auto subFieldIter = appendFrom[fieldsIter.name()].children();
+          while(subFieldIter.has_next())
+          {
+            conduit::Node &subField = subFieldIter.next();
+            relayLikeWrite(appendTo, subField, appendAtEndpoint+subFieldIter.name(), record_num);
+          }
+        } else { // We can just update everything at a go
+          relayLikeWrite(appendTo, recField, appendAtEndpoint, record_num);
+        }
       }
       else if(mergeProtocol == 2)
       {
@@ -813,13 +827,16 @@ void append_recordlike_fields(ConduitRelayLike &appendTo,
     {
       // We recurse
       auto libraryIter = appendFrom[fieldsIter.name()].children();
+      std::string appendAtEndpoint = endpoint + "/library_data/";
       while(libraryIter.has_next())
       {
         conduit::Node &libraryField = libraryIter.next();
-        if(relayLikeHasPath(appendTo, endpoint, record_num)){
+        if(relayLikeHasPath(appendTo, appendAtEndpoint+libraryIter.name(), record_num)){
           append_recordlike_fields(appendTo, libraryField,
                                    appendAtEndpoint+libraryIter.name(),
-                                   mergeProtocol, record_num, original_file_path);
+                                   mergeProtocol, record_num, original_file_path, isHDF5);
+        } else {
+          relayLikeWrite(appendTo, libraryField, appendAtEndpoint+libraryIter.name(), record_num);
         }
       }
       break;
@@ -886,7 +903,7 @@ conduit::Node append(ConduitRelayLike &appendTo,
       relayLikeAddNewRecord(appendTo, rec, offset);
       offset ++;
     } else {
-      append_recordlike_fields(appendTo, rec, endpoint, mergeProtocol, rec_num->second, original_file_path);
+      append_recordlike_fields(appendTo, rec, endpoint, mergeProtocol, rec_num->second, original_file_path, isHDF5);
     }
   }
   return msgNode;
@@ -898,9 +915,9 @@ conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
   conduit::Node appendTo;
   appendTo.load(jsonFilePath, "json");
   conduit::Node appendFrom = newData.toNode();
-  conduit::Node success = append(appendTo, appendFrom, mergeProtocol, false, jsonFilePath);
+  conduit::Node msgNode = append(appendTo, appendFrom, mergeProtocol, false, jsonFilePath);
   conduit::relay::io::save(appendTo, jsonFilePath);
-  return success;
+  return msgNode;
 }
 
 conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
@@ -912,9 +929,6 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
   appendTo.open(hdf5FilePath);
   conduit::Node appendFrom = newData.toHDF5Node();
   conduit::Node msgNode = append(appendTo, appendFrom, mergeProtocol, true, hdf5FilePath);
-  conduit::Node sacrificial;
-  appendTo.read(sacrificial);
-  std::cerr << sacrificial.to_string() << std::endl;
   appendTo.close();
   return msgNode;
 #endif

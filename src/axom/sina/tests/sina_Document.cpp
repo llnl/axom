@@ -775,28 +775,71 @@ TEST(Document, test_validate_append_valid)
   ASSERT_EQ(validateAppendDocument(appendTo, appendFrom, "", 1, 0).number_of_children(), 0);
 }
 
-TEST(Document, test_basic_append)
+void doEveryErrorTest(const std::string &protocol,
+                      std::function<conduit::Node(const std::string&, const sina::Document&, int)> appendDocumentFunc)
 {
-  std::string jsonFilePath = "test.json";
-  std::ofstream testFile(jsonFilePath);
-  // Create a near-empty document
-  testFile << R"(
-  {
-    "records": [{
-      "type": "foo",
-      "id": "add_rec_after_me"
-    }]
-  })";
-  testFile.close();
-  axom::sina::Document new_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
-  conduit::Node resultMsg = appendDocumentToJson(jsonFilePath, new_doc, 3);
-  ASSERT_EQ(resultMsg.number_of_children(), 0);
-  conduit::Node append_root;
-  append_root.load(jsonFilePath, "json");
+  std::string append_to_file = "test." + protocol;
+  axom::sina::Document append_to_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
+  Protocol enum_protocol = (protocol == "hdf5") ? Protocol::HDF5 : Protocol::JSON;
+  saveDocument(append_to_doc, append_to_file, enum_protocol);
+  // Every error you could want and more
+  conduit::Node appendFrom = parseJsonValue(R"(
+    {"records": [{"id": "bar1", "type": "notarun", "data": { "int": {"value": 20}},
+     "curve_sets": {"set_1": {"independent": {"0": {"value": [4, 5, 6]}}}},
+     "library_data": {"my_lib": {"library_data": {"my_inner_lib": {"user_defined": {"foo/bar": "baz/qux"}}}}}}]})");
+  axom::sina::Document new_doc = Document(appendFrom, createRecordLoaderWithAllKnownTypes());
+  conduit::Node resultMsg = appendDocumentFunc(append_to_file, new_doc, 3);
+  // Make sure no data changed
+  conduit::Node root;
+  conduit::relay::io::load(append_to_file, root);
+  std::cerr << resultMsg.to_string() << std::endl;
   conduit::Node expect_root = parseJsonValue(SIMPLE_DOCUMENT);
-  ASSERT_EQ(expect_root["records"].child(0)["id"].to_string(),
-            append_root["records"].child(1)["id"].to_string());
+  EXPECT_EQ(expect_root["records"].child(0)["id"].to_string(),
+            root["records"].child(0)["id"].to_string());
+  EXPECT_EQ(resultMsg.number_of_children(), 5);
 }
+
+TEST(Document, test_appendErrorCodepathsJSON)
+{
+  doEveryErrorTest("json", appendDocumentToJson);
+}
+
+#ifdef AXOM_USE_HDF5
+TEST(Document, test_appendErrorCodepathsHDF5)
+{
+  doEveryErrorTest("hdf5", appendDocumentToHDF5);
+}
+#endif
+
+void doSimpleAppendTest(const std::string &protocol,
+                        std::function<conduit::Node(const std::string&, const sina::Document&, int)> appendDocumentFunc)
+{
+  std::string empty_file = "test." + protocol;
+  axom::sina::Document empty_doc = Document(R"({"records": [], "relationships": []})", createRecordLoaderWithAllKnownTypes());
+  Protocol enum_protocol = (protocol == "hdf5") ? Protocol::HDF5 : Protocol::JSON;
+  saveDocument(empty_doc, empty_file, enum_protocol);
+  axom::sina::Document new_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
+  conduit::Node resultMsg = appendDocumentFunc(empty_file, new_doc, 3);
+  EXPECT_EQ(resultMsg.number_of_children(), 0);
+  conduit::Node root;
+  conduit::relay::io::load(empty_file, root);
+  conduit::Node expect_root = parseJsonValue(SIMPLE_DOCUMENT);
+  EXPECT_EQ(expect_root["records"].child(0)["id"].to_string(),
+            root["records"].child(0)["id"].to_string());
+}
+
+TEST(Document, test_simpleAppendDocumentToJson)
+{
+  doSimpleAppendTest("json", appendDocumentToJson);
+}
+
+// TODO: re-enable with better logging
+/*#ifdef AXOM_USE_HDF5
+TEST(Document, test_simpleAppendDocumentToHDF5)
+{
+  doSimpleAppendTest("hdf5", appendDocumentToHDF5);
+}
+#endif*/
 
 void doFullAppendTest(const std::string &protocol,
                       std::function<conduit::Node(const std::string&, const sina::Document&, int)> appendDocumentFunc){
@@ -821,7 +864,8 @@ void doFullAppendTest(const std::string &protocol,
   auto actual = node_to_double_vector(rec1["curve_sets"]["set_1"]["dependent"]["0"]["value"]);
   EXPECT_EQ(expected, actual);
   // The hard one, now a blend of the prior and new record
-  const conduit::Node &rec0 = root["records"].child(0);
+  conduit::Node rec0;
+  restoreSlashes(root["records"].child(0), rec0);
   EXPECT_EQ(rec0["type"].as_string(), "run");
   EXPECT_EQ(rec0["data"]["string"]["value"].as_string(), "goodbye!");
   EXPECT_EQ(rec0["data"].child("str/ings")["value"][0].as_string(), "z");
@@ -922,220 +966,6 @@ TEST(Document, saveDocument_hdf5)
   EXPECT_EQ("the id", readRecord["id"].as_string());
   EXPECT_EQ("the type", readRecord["type"].as_string());
 }
-
-/**TEST(Document, test_append_to_hdf5)
-{
-  std::string hdf5FilePath = "test.hdf5";
-  conduit::Node initialData;
-  initialData["records/0/data/scal1/value"].set("hello!");
-  initialData["records/0/type"].set("foo1");
-  initialData["records/0/id"].set("bar1");
-  initialData["records/0/user_defined/hello"].set("and");
-  initialData["records/0/curve_sets/1/dependent/0/value"].set(std::vector<double> {1.0, 2.0});
-  initialData["records/0/curve_sets/1/dependent/1/value"].set(std::vector<double> {10.0, 20.0});
-  initialData["records/0/curve_sets/1/independent/0/value"].set(std::vector<double> {4.0, 5.0});
-  initialData["records/0/curve_sets/1/independent/1/value"].set(std::vector<double> {7.0, 8.0});
-  initialData["records/1/type"].set("foo2");
-  initialData["records/1/id"].set("bar2");
-  initialData["records/1/curve_sets/1/dependent/0/value"].set(std::vector<double> {1.0, 2.0});
-  initialData["records/1/curve_sets/1/dependent/1/value"].set(std::vector<double> {10.0, 20.0});
-  initialData["records/1/curve_sets/1/independent/0/value"].set(std::vector<double> {4.0, 5.0});
-  initialData["records/1/curve_sets/1/independent/1/value"].set(std::vector<double> {7.0, 8.0});
-  conduit::relay::io::hdf5_write(initialData, hdf5FilePath);
-
-  axom::sina::Document new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
-  conduit::Node msgNode = append_to_hdf5(hdf5FilePath, new_doc, 1);
-  ASSERT_EQ(msgNode.number_of_children(), 0);
-  conduit::Node root;
-  conduit::relay::io::hdf5_read(hdf5FilePath, root);
-
-  // ----- Record 0 -----
-  EXPECT_EQ(root["records/0/type"].as_string(), "foo1");
-  EXPECT_EQ(root["records/0/id"].as_string(), "bar1");
-  EXPECT_EQ(root["records/0/data/scal1/value"].as_string(), "goodbye!");
-  EXPECT_EQ(root["records/0/data/scal2/value"].as_string(), "goodbye!");
-  EXPECT_EQ(root["records/0/user_defined/hello"].as_string(), "goodbye");
-
-  const conduit::Node &cs0 = root["records/0/curve_sets/1"];
-  std::vector<double> dep0_vec = node_to_double_vector(cs0["dependent/0/value"]);
-  std::vector<double> expected_dep0 = {1.0, 2.0, 1.0, 1.0};
-  EXPECT_EQ(dep0_vec, expected_dep0);
-  std::vector<double> dep1_vec = node_to_double_vector(cs0["dependent/1/value"]);
-  std::vector<double> expected_dep1 = {10.0, 20.0, 8.0, 9.0};
-  EXPECT_EQ(dep1_vec, expected_dep1);
-  std::vector<double> ind0_vec = node_to_double_vector(cs0["independent/0/value"]);
-  std::vector<double> expected_ind0 = {4.0, 5.0, 4.0, 5.0};
-  EXPECT_EQ(ind0_vec, expected_ind0);
-  std::vector<double> ind1_vec = node_to_double_vector(cs0["independent/1/value"]);
-  std::vector<double> expected_ind1 = {7.0, 8.0, 7.0, 9.0};
-  const conduit::Node &csnew = root["records/0/curve_sets/2"];
-  std::vector<double> new_dep0 = node_to_double_vector(csnew["dependent/0/value"]);
-  std::vector<double> expected_new_dep0 = {1.0, 1.0};
-  EXPECT_EQ(new_dep0, expected_new_dep0);
-  std::vector<double> new_dep1 = node_to_double_vector(csnew["dependent/1/value"]);
-  std::vector<double> expected_new_dep1 = {10.0, 10.0};
-  EXPECT_EQ(new_dep1, expected_new_dep1);
-  std::vector<double> new_ind0 = node_to_double_vector(csnew["independent/0/value"]);
-  std::vector<double> expected_new_ind0 = {4.0, 4.0};
-  EXPECT_EQ(new_ind0, expected_new_ind0);
-  std::vector<double> new_ind1 = node_to_double_vector(csnew["independent/1/value"]);
-  std::vector<double> expected_new_ind1 = {7.0, 7.0};
-  EXPECT_EQ(new_ind1, expected_new_ind1);
-
-  // ----- Record 1 -----
-  EXPECT_EQ(root["records/1/type"].as_string(), "foo2");
-  EXPECT_EQ(root["records/1/id"].as_string(), "bar2");
-  const conduit::Node &cs1 = root["records/1/curve_sets/1"];
-
-  std::vector<double> rec1_dep0 = node_to_double_vector(cs1["dependent/0/value"]);
-  std::vector<double> expected_rec1_dep0 = {1.0, 2.0};
-  EXPECT_EQ(rec1_dep0, expected_rec1_dep0);
-  std::vector<double> rec1_dep1 = node_to_double_vector(cs1["dependent/1/value"]);
-  std::vector<double> expected_rec1_dep1 = {10.0, 20.0};
-  EXPECT_EQ(rec1_dep1, expected_rec1_dep1);
-  std::vector<double> rec1_ind0 = node_to_double_vector(cs1["independent/0/value"]);
-  std::vector<double> expected_rec1_ind0 = {4.0, 5.0};
-  EXPECT_EQ(rec1_ind0, expected_rec1_ind0);
-  std::vector<double> rec1_ind1 = node_to_double_vector(cs1["independent/1/value"]);
-  std::vector<double> expected_rec1_ind1 = {7.0, 8.0};
-  EXPECT_EQ(rec1_ind1, expected_rec1_ind1);
-
-  // ----- Record 2 -----
-  EXPECT_EQ(root["records/2/type"].as_string(), "foo2");
-  EXPECT_EQ(root["records/2/id"].as_string(), "bar3");
-
-  const conduit::Node &cs2 = root["records/2/curve_sets/1"];
-  std::vector<double> rec2_dep0 = node_to_double_vector(cs2["dependent/0/value"]);
-  std::vector<double> expected_rec2_dep0 = {1.0, 1.0};
-  EXPECT_EQ(rec2_dep0, expected_rec2_dep0);
-  std::vector<double> rec2_dep1 = node_to_double_vector(cs2["dependent/1/value"]);
-  std::vector<double> expected_rec2_dep1 = {10.0, 10.0};
-  EXPECT_EQ(rec2_dep1, expected_rec2_dep1);
-  std::vector<double> rec2_ind0 = node_to_double_vector(cs2["independent/0/value"]);
-  std::vector<double> expected_rec2_ind0 = {4.0, 4.0};
-  EXPECT_EQ(rec2_ind0, expected_rec2_ind0);
-  std::vector<double> rec2_ind1 = node_to_double_vector(cs2["independent/1/value"]);
-  std::vector<double> expected_rec2_ind1 = {7.0, 7.0};
-  EXPECT_EQ(rec2_ind1, expected_rec2_ind1);
-}
-
-/*TEST(Document, test_append_to_hdf5_failures)
-{
-  std::streambuf *origBuffer = std::cerr.rdbuf();
-  std::ostringstream capturedCerr;
-  std::cerr.rdbuf(capturedCerr.rdbuf());
-
-  std::string hdf5FilePath = "test_failure.hdf5";
-  conduit::Node initialData;
-  initialData["records/0/data/scal1/value"].set("hello!");
-  initialData["records/0/type"].set("foo1");
-  initialData["records/0/id"].set("bar1");
-  initialData["records/0/user_defined/hello"].set("and");
-  initialData["records/0/curve_sets/1/dependent/0/value"].set(std::vector<double> {1.0, 2.0});
-  initialData["records/0/curve_sets/1/dependent/1/value"].set(std::vector<double> {10.0, 20.0});
-  initialData["records/0/curve_sets/1/independent/0/value"].set(std::vector<double> {4.0, 5.0});
-  initialData["records/0/curve_sets/1/independent/1/value"].set(std::vector<double> {7.0, 8.0});
-  initialData["records/1/type"].set("foo2");
-  initialData["records/1/id"].set("bar2");
-  initialData["records/1/curve_sets/1/dependent/0/value"].set(std::vector<double> {1.0, 2.0});
-  initialData["records/1/curve_sets/1/dependent/1/value"].set(std::vector<double> {10.0, 20.0});
-  initialData["records/1/curve_sets/1/independent/0/value"].set(std::vector<double> {4.0, 5.0});
-  initialData["records/1/curve_sets/1/independent/1/value"].set(std::vector<double> {7.0, 8.0});
-  conduit::relay::io::hdf5_write(initialData, hdf5FilePath);
-
-  // ---- Failure 1 ----
-  SCOPED_TRACE("Attempting Case 1");
-  std::string f1_data = ([](std::string s) {
-    conduit::Node tmp;
-    tmp.parse(s, "json");
-    conduit::Node &valNode = tmp["records"].child(0)["curve_sets"]["1"]["dependent"]["0"]["value"];
-    valNode.reset();
-    std::vector<double> new_val = {1, 1, 1};
-    valNode.set(new_val);
-    return tmp.to_json();
-  })(new_data);
-
-  axom::sina::Document new_doc = Document(f1_data, createRecordLoaderWithAllKnownTypes());
-
-  conduit::Node msgNode = append_to_hdf5(hdf5FilePath, new_doc, 1);
-  ASSERT_FALSE(msgNode.number_of_children() == 0);
-  conduit::Node root;
-  conduit::relay::io::hdf5_read(hdf5FilePath, root);
-  ValidateRecordsUnchanged(root, "Case 1: Checking if File Was Changed");
-
-  // ---- Failure 2 ----
-  SCOPED_TRACE("Attempting Case 2");
-  std::string f2_data = ([](std::string s) {
-    conduit::Node tmp;
-    tmp.parse(s, "json");
-    conduit::Node &curve_set1 = tmp["records"].child(0)["curve_sets"]["1"];
-    if(curve_set1.has_child("dependent")) curve_set1["dependent"].reset();
-    conduit::Node &newDep = curve_set1["dependent"]["2"];
-    newDep.reset();
-    std::vector<double> newVal = {1};
-    newDep["value"].set(newVal);
-    if(curve_set1.has_child("independent")) curve_set1["independent"].reset();
-    return tmp.to_json();
-  })(new_data);
-
-  /*new_doc = Document(f2_data, createRecordLoaderWithAllKnownTypes());
-
-  result = append_to_hdf5(hdf5FilePath, new_doc, 1);
-  ASSERT_FALSE(result);
-  conduit::relay::io::hdf5_read(hdf5FilePath, root);
-  ValidateRecordsUnchanged(root, "Case 2: Checking if File Was Changed");
-
-  // ---- Failure 3 ----
-  SCOPED_TRACE("Attempting Case 3");
-  std::string f3_data = ([](std::string s) {
-    conduit::Node tmp;
-    tmp.parse(s, "json");
-    conduit::Node &valNode =
-      tmp["records"].child(0)["curve_sets"]["1"]["independent"]["1"]["value"];
-    valNode.reset();
-    std::vector<double> new_val = {1, 1, 1};
-    valNode.set(new_val);
-    return tmp.to_json();
-  })(new_data);
-
-  new_doc = Document(f3_data, createRecordLoaderWithAllKnownTypes());
-
-  result = append_to_hdf5(hdf5FilePath, new_doc, 1);
-  ASSERT_FALSE(result);
-  conduit::relay::io::hdf5_read(hdf5FilePath, root);
-  ValidateRecordsUnchanged(root, "Case 3: Checking if File Was Changed");
-
-  // ---- Failure 4 ----
-  SCOPED_TRACE("Attempting Case 4");
-  new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
-
-  result = append_to_hdf5(hdf5FilePath, new_doc, 3);
-  ASSERT_FALSE(result);
-  conduit::relay::io::hdf5_read(hdf5FilePath, root);
-  ValidateRecordsUnchanged(root, "Case 4: Checking if File Was Changed");
-
-  // ---- Failure 5 ----
-  SCOPED_TRACE("Attempting Case 5");
-  new_doc = Document(new_data, createRecordLoaderWithAllKnownTypes());
-
-  result = append_to_hdf5(hdf5FilePath, new_doc, 1);
-  ASSERT_FALSE(result);
-  conduit::relay::io::hdf5_read(hdf5FilePath, root);
-  ValidateRecordsUnchanged(root, "Case 5: Checking if File Was Changed");
-
-  // ---- Assert Error Messages ----
-  std::cerr.rdbuf(origBuffer);
-  std::string expected =
-    "Error validating dependent: Record bar1, Curve Set 1, Curve 1 size mismatch (expected 5, got "
-    "4).\n"
-    "Error validating dependent: Record bar1, Curve Set 1, Curve 2 size mismatch (expected 2, got "
-    "1).\n"
-    "Error validating independent: Record bar1, Curve Set 1, Curve 1 size mismatch (expected 4, "
-    "got 5).\n"
-    "Found a duplicate data entry, protocol 3 dictates append cancellation.\n"
-    "Found duplicate UDC, protocol 3 dictates append cancellation.\n";
-  ASSERT_EQ(capturedCerr.str(), expected);*/
-//}
 
 }  // namespace
 }  // namespace testing

@@ -270,6 +270,9 @@ inline std::string getSinaFileFormatVersion()
     std::to_string(SINA_FILE_FORMAT_VERSION_MINOR);
 }
 
+// just need to get something working...
+void restoreSlashes(const conduit::Node &modifiedNode, conduit::Node &restoredNode);
+
 /**
  * \brief Load a document from the given path. Only records which this library
  *        knows about will be able to be loaded.
