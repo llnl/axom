@@ -1492,7 +1492,7 @@ TEST(sidre_group, scalar_memory_allocator)
 
   for(auto allocId : allocIds)
   {
-    grp->setDefaultAllocator(allocId);
+    grp->setDefaultTupleAllocator(allocId);
 
     std::int32_t scalarInt = 12345;
     grp->createViewScalar("scalarInt", scalarInt);
@@ -1675,16 +1675,20 @@ TEST(sidre_group, deep_copy_interspace)
   Group* srcGrandparent = ds.getRoot()->createGroup("srcGrandparent");
   Group* dstGrandparent = ds.getRoot()->createGroup("dstGrandparent");
 
-  // For each combination of srcAllocId and dstAllocId,
+  // For each combination of source and destination alloc ids,
   // allocate src and copy to dst.
 
-  for(auto srcAllocId : allocIds)
+  for(size_t si = 0; si < allocIds.size(); ++si)
   {
+    int srcArrayAllocId = allocIds[si];
+    int srcTupleAllocId = allocIds[allocIds.size() - 1 - si];
+
     Group* srcParent = srcGrandparent->createGroup("testParent");
-    srcParent->setDefaultAllocator(srcAllocId);
+    srcParent->setDefaultArrayAllocator(srcArrayAllocId);
+    srcParent->setDefaultTupleAllocator(srcTupleAllocId);
     Group* src = srcParent->createGroup("testGrp");
-    EXPECT_EQ(srcParent->getDefaultAllocatorID(), srcAllocId);
-    EXPECT_EQ(src->getDefaultAllocatorID(), srcAllocId);
+    EXPECT_EQ(srcParent->getDefaultAllocatorID(), srcArrayAllocId);
+    EXPECT_EQ(src->getDefaultAllocatorID(), srcArrayAllocId);
 
     //
     // Create, initialize and sanity-check src objects to test.
@@ -1692,25 +1696,19 @@ TEST(sidre_group, deep_copy_interspace)
 
     View* srcString = src->createViewString("aString", stringValue);
     const char* srcStringPtr = (char*)srcString->getNode().data_ptr();
-    if(srcAllocId == axom::MALLOC_ALLOCATOR_ID)
-    {
-      // Skip this check if srcAllocId is non-MALLOC_ALLOCATOR_ID,
-      // because a current sidre issue results in always
-      // placing strings on Conduit's default alloc id.
-      EXPECT_EQ(axom::getAllocatorIDFromPointer(srcStringPtr), srcAllocId);
-    }
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(srcStringPtr), srcTupleAllocId);
 
-    View* srcScalar = src->createViewAndAllocate("aDouble", dtypeDouble);
+    View* srcScalar = src->createViewScalar("aDouble", doubleValue);
     double* srcScalarPtr = (double*)srcScalar->getNode().data_ptr();
-    EXPECT_EQ(axom::getAllocatorIDFromPointer(srcScalarPtr), srcAllocId);
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(srcScalarPtr), srcTupleAllocId);
     axom::copy(srcScalarPtr, &doubleValue, sizeof(double));
 
     View* srcArray = src->createViewAndAllocate("aIntArray", dtypeIntArray);
     std::int32_t* srcArrayPtr = (std::int32_t*)srcArray->getNode().data_ptr();
-    EXPECT_EQ(axom::getAllocatorIDFromPointer(srcArrayPtr), srcAllocId);
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(srcArrayPtr), srcArrayAllocId);
     axom::copy(srcArrayPtr, intArray.data(), N * sizeof(std::int32_t));
 
-    if(axom::execution_space<axom::SEQ_EXEC>::usesAllocId(srcAllocId))
+    if(axom::execution_space<axom::SEQ_EXEC>::usesAllocId(srcArrayAllocId))
     {
       std::cout << "srcGrandparent group:" << std::endl;
       srcGrandparent->print();
@@ -1720,11 +1718,15 @@ TEST(sidre_group, deep_copy_interspace)
     // Copy the source into destinations of different alloc ids
     //
 
-    for(auto dstAllocId : allocIds)
+    for(size_t di = 0; di < allocIds.size(); ++di)
     {
-      std::cout << "Testing copying allocator id " << srcAllocId << " to " << dstAllocId << std::endl;
+      int dstArrayAllocId = allocIds[di];
+      int dstTupleAllocId = allocIds[allocIds.size() - 1 - di];
 
-      dstGrandparent->setDefaultAllocator(dstAllocId);
+      std::cout << "Testing copying allocator id " << srcArrayAllocId << " and " << srcTupleAllocId << " to " << dstArrayAllocId << " and " << dstTupleAllocId << std::endl;
+
+      dstGrandparent->setDefaultArrayAllocator(dstArrayAllocId);
+      dstGrandparent->setDefaultTupleAllocator(dstTupleAllocId);
       dstGrandparent->deepCopyGroup(srcParent);
 
       axom::sidre::Group* dstParent = dstGrandparent->getGroup(srcParent->getName());
@@ -1737,14 +1739,14 @@ TEST(sidre_group, deep_copy_interspace)
       double* dstScalarPtr = (double*)dst->getView(srcScalar->getName())->getVoidPtr();
       EXPECT_NE(dstScalarPtr, nullptr);
       EXPECT_NE(dstScalarPtr, srcScalarPtr);
-      EXPECT_EQ(axom::getAllocatorIDFromPointer(dstScalarPtr), dstAllocId);
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(dstScalarPtr), dstTupleAllocId);
       axom::copy(&tmpDoubleValue, dstScalarPtr, sizeof(double));
       EXPECT_EQ(tmpDoubleValue, doubleValue);
 
       std::int32_t* dstArrayPtr = (std::int32_t*)dst->getView(srcArray->getName())->getVoidPtr();
       EXPECT_NE(dstArrayPtr, nullptr);
       EXPECT_NE(dstArrayPtr, srcArrayPtr);
-      EXPECT_EQ(axom::getAllocatorIDFromPointer(dstArrayPtr), dstAllocId);
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(dstArrayPtr), dstArrayAllocId);
       axom::copy(tmpIntArray.data(), srcArrayPtr, N * sizeof(std::int32_t));
       for(int i = 0; i < N; ++i)
       {
@@ -1754,7 +1756,7 @@ TEST(sidre_group, deep_copy_interspace)
       char* dstStringPtr = (char*)dst->getView(srcString->getName())->getVoidPtr();
       EXPECT_NE(dstStringPtr, nullptr);
       EXPECT_NE(dstStringPtr, srcStringPtr);
-      EXPECT_EQ(axom::getAllocatorIDFromPointer(dstStringPtr), dstAllocId);
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(dstStringPtr), dstTupleAllocId);
       tmpCharArray.resize(srcString->getNumElements());
       axom::copy(tmpCharArray.data(), srcStringPtr, srcString->getNumElements());
       for(int i = 0; i < N; ++i)

@@ -24,11 +24,14 @@
 // Other axom headers
 #include "axom/config.hpp"
 #include "axom/core/memory_management.hpp"
+#include "axom/core/Array.hpp"
+#include "axom/core/ConduitMemory.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/Types.hpp"
 #include "axom/slic.hpp"
 
 // Sidre headers
+#include "axom/sidre/core/DataSemantic.hpp"
 #include "axom/sidre/core/SidreTypes.hpp"
 #include "axom/sidre/core/AttrValues.hpp"
 
@@ -202,7 +205,12 @@ public:
   /*!
    * \brief Return true if view contains a scalar value.
    */
-  bool isScalar() const { return m_state == SCALAR; }
+  bool isTuple() const { return m_state == TUPLE; }
+
+  /*!
+   * \brief Return true if view contains a scalar value.
+   */
+  bool isScalar() const { return m_state == TUPLE && getNumElements() == 1; }
 
   /*!
    * \brief Return true if view contains a string value.
@@ -418,7 +426,7 @@ public:
    * allocator or is axom::INVALID_ALLOCATOR_ID, this is a no-op.
    * Reallocating an EXTERNAL View means allocating it internally.
    * (This could be revisited, but it is the behavior for now.)
-   * The state will change from EXTERNAL to STRING or SCALAR,
+   * The state will change from EXTERNAL to STRING or TUPLE,
    * determined by a heuristic guess.
    *
    * \return pointer to this View object.
@@ -604,20 +612,20 @@ public:
   //@}
 
   //@{
-  //!  @name Methods to set data in the view (scalar, string, or external data).
+  //!  @name Methods to set data in the view (scalar, string, tuple or external data).
 
   /*!
-   * \brief Set the view to hold the given scalar.
+   * \brief Set the view to hold the given tuple.
    *
    * \return pointer to this View object.
    */
   template <typename ScalarType>
-  View* setScalar(ScalarType value, int allocID = INVALID_ALLOCATOR_ID)
+  View* setTuple(const axom::ArrayView<ScalarType>& values, int allocID = INVALID_ALLOCATOR_ID)
   {
-    // If this view already contains a scalar, issue a warning if the user is
+    // If this view already contains a tuple, issue a warning if the user is
     // changing the underlying type ( ie: integer -> float ).
 #if defined(AXOM_DEBUG)
-    if(m_state == SCALAR)
+    if(m_state == TUPLE)
     {
       DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
       SLIC_CHECK_MSG(arg_id == m_node.dtype().id(),
@@ -631,19 +639,65 @@ public:
     // Note: most of these calls that set the view class members are
     //       unnecessary if the view already holds a scalar.  May be
     //       a future optimization opportunity to split the
-    if(m_state == EMPTY || m_state == SCALAR)
+    if(m_state == EMPTY || m_state == TUPLE)
     {
-      auto conduitAllocId = getValidConduitAllocatorID(allocID);
+      auto conduitAllocId = axom::ConduitMemory::axomAllocIdToConduit(getValidTupleAllocatorId(allocID));
       m_node.set_allocator(conduitAllocId);
-      m_node.set(value);
+      std::vector<ScalarType> tmpValues(values.begin(), values.end());
+      m_node.set(tmpValues);
       m_schema.set(m_node.schema());
-      m_state = SCALAR;
+      m_state = TUPLE;
       m_is_applied = true;
       describeShape();
     }
     else
     {
-      SLIC_CHECK_MSG(m_state == EMPTY || m_state == SCALAR,
+      SLIC_CHECK_MSG(m_state == EMPTY || m_state == TUPLE,
+                     SIDRE_VIEW_LOG_PREPEND << "Unable to set scalar value on view "
+                                            << " with state: " << getStateStringName(m_state));
+    }
+    return this;
+  }
+
+  /*!
+   * \brief Set the view to hold the given scalar.
+   *
+   * \return pointer to this View object.
+   */
+  template <typename ScalarType>
+  View* setScalar(ScalarType value, int allocID = INVALID_ALLOCATOR_ID)
+  {
+    // If this view already contains a scalar, issue a warning if the user is
+    // changing the underlying type ( ie: integer -> float ).
+#if defined(AXOM_DEBUG)
+    if(m_state == TUPLE)
+    {
+      DataTypeId arg_id = detail::SidreTT<ScalarType>::id;
+      SLIC_CHECK_MSG(arg_id == m_node.dtype().id(),
+                     SIDRE_VIEW_LOG_PREPEND << "You are setting a scalar value which has changed "
+                                            << " the underlying data type. "
+                                            << "Old type: " << m_node.dtype().name() << ", "
+                                            << "new type: " << DataType::id_to_name(arg_id) << ".");
+    }
+#endif
+
+    // Note: most of these calls that set the view class members are
+    //       unnecessary if the view already holds a scalar.  May be
+    //       a future optimization opportunity to split the
+    if(m_state == EMPTY || m_state == TUPLE)
+    {
+      // auto conduitAllocId = getValidConduitAllocatorID(allocID);
+      auto conduitAllocId = axom::ConduitMemory::axomAllocIdToConduit(getValidTupleAllocatorId(allocID));
+      m_node.set_allocator(conduitAllocId);
+      m_node.set(value);
+      m_schema.set(m_node.schema());
+      m_state = TUPLE;
+      m_is_applied = true;
+      describeShape();
+    }
+    else
+    {
+      SLIC_CHECK_MSG(m_state == EMPTY || m_state == TUPLE,
                      SIDRE_VIEW_LOG_PREPEND << "Unable to set scalar value on view "
                                             << " with state: " << getStateStringName(m_state));
     }
@@ -660,7 +714,7 @@ public:
     // If this view already contains a scalar, issue a warning if the user is
     // changing the underlying type ( ie: integer -> float ).
 #if defined(AXOM_DEBUG)
-    if(m_state == SCALAR)
+    if(m_state == TUPLE)
     {
       SLIC_CHECK_MSG(value.dtype().id() == m_node.dtype().id(),
                      SIDRE_VIEW_LOG_PREPEND
@@ -674,19 +728,20 @@ public:
     // Note: most of these calls that set the view class members are
     //       unnecessary if the view already holds a scalar.  May be
     //       a future optimization opportunity to split the
-    if(m_state == EMPTY || m_state == SCALAR)
+    if(m_state == EMPTY || m_state == TUPLE)
     {
-      auto conduitAllocId = getValidConduitAllocatorID(allocID);
+      // auto conduitAllocId = getValidConduitAllocatorID(allocID);
+      auto conduitAllocId = axom::ConduitMemory::axomAllocIdToConduit(getValidAllocatorId(allocID));
       m_node.set_allocator(conduitAllocId);
       m_node.set(value);
       m_schema.set(m_node.schema());
-      m_state = SCALAR;
+      m_state = TUPLE;
       m_is_applied = true;
       describeShape();
     }
     else
     {
-      SLIC_CHECK_MSG(m_state == EMPTY || m_state == SCALAR,
+      SLIC_CHECK_MSG(m_state == EMPTY || m_state == TUPLE,
                      SIDRE_VIEW_LOG_PREPEND << "Unable to set scalar value on view with state: "
                                             << getStateStringName(m_state));
     }
@@ -727,11 +782,12 @@ public:
     //       a future optimization opportunity to split the
     if(m_state == EMPTY || m_state == STRING)
     {
-      auto conduitAllocId = getValidConduitAllocatorID(allocID);
+      // auto conduitAllocId = getValidConduitAllocatorID(allocID);
+      m_state = STRING;
+      auto conduitAllocId = axom::ConduitMemory::axomAllocIdToConduit(getValidAllocatorId(allocID));
       m_node.set_allocator(conduitAllocId);
       m_node.set_string(value);
       m_schema.set(m_node.schema());
-      m_state = STRING;
       m_is_applied = true;
       describeShape();
     }
@@ -852,7 +908,7 @@ public:
    */
   Node::ConstValue getScalar() const
   {
-    SLIC_CHECK_MSG(m_state == SCALAR,
+    SLIC_CHECK_MSG(m_state == TUPLE,
                    SIDRE_VIEW_LOG_PREPEND << "View::getScalar() called on non-scalar view.");
     return getData();
   }
@@ -1422,7 +1478,7 @@ private:
   /*!
    * \brief Copy contents of this View contents into an undescribed EMPTY View.
    *
-   * For SCALAR and STRING the data is copied; EXTERNAL,
+   * For TUPLE and STRING the data is copied; EXTERNAL,
    * data pointer is copied; BUFFER attaches the buffer.
    */
   void copyView(View* copy) const;
@@ -1431,14 +1487,16 @@ private:
    * \brief Deep copy contents of this View contents into an undescribed
    * EMPTY View.
    *
-   * For SCALAR and STRING the data is copied and the state is preserved.
+   * For TUPLE and STRING the data is copied and the state is preserved.
    * For BUFFER and EXTERNAL, the data described by this View is copied into a
    * new Buffer that is of the size needed to hold the copied data. Any
    * parts of the source Buffer or external array that are not seen due
    * to offsets and strides in the description will not be copied. The copied
    * View will have BUFFER state with zero offset and a stride of one.
    */
-  void deepCopyView(View* copy, int allocID = INVALID_ALLOCATOR_ID) const;
+  void deepCopyView(View* copy,
+                    int arrayAllocId = INVALID_ALLOCATOR_ID,
+                    int tupleAllocID = INVALID_ALLOCATOR_ID) const;
 
   /*!
    * \brief Add view description and references to it's data to a conduit tree.
@@ -1530,7 +1588,7 @@ private:
                //    applied may be true or false
     EXTERNAL,  // View holds pointer to external data (no buffer) :
                //    applied may be true or false
-    SCALAR,    // View holds scalar data (via setScalar()):
+    TUPLE,    // View holds tuple (including scalar) data (via setScalar() or setTuple()):
                //    applied is true
     STRING     // View holds string data (via setString()):
                //    applied is true
@@ -1546,11 +1604,32 @@ private:
    */
   State getStateId(const std::string& name) const;
 
+  DataSemantic getSemanticId() const
+  {
+    if (m_state == BUFFER || m_state == EXTERNAL) { return REFERENCE; }
+    if (m_state == TUPLE || m_state == STRING) { return VALUE; }
+    return UNKNOWN;
+  }
+
+  /*!
+   * If allocID == INVALID_ALLOCATOR_ID, return the default allocator id,
+   * which depends on the View's data semantic and owning Group.
+   *
+   * Note: The data semantic depends on m_state, so that must be set first.
+   */
+  int getValidAllocatorId(int allocId);
+
+  int getValidTupleAllocatorId(int allocId);
+
+  int getValidArrayAllocatorId(int allocId);
+
+#if 0
   /*!
    * \brief Private method. If allocatorID is a valid Axom allocator ID then return
    *  it. Otherwise return the ID of the default Axom allocator of the owning group.
    */
-  int getValidAxomAllocatorID(int allocatorID);
+  int getValidArrayAllocatorID(int allocatorID);
+  int getValidTupleAllocatorID(int allocatorID);
 
   /*!
    * \brief Private method. If allocatorID is a valid Axom allocator
@@ -1559,6 +1638,7 @@ private:
    *  allocator of the owning group.
    */
   int getValidConduitAllocatorID(int allocatorID);
+#endif
 
   /*!
    * \brief Return whether view data is accessible on the host CPU,
@@ -1622,8 +1702,12 @@ private:
     }
     else
     {
-      os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " array of "
-         << getNumElements() << " elements";
+      axom::Array<axom::IndexType> shape(getNumDimensions());
+      getShape(shape.size(), shape.data());
+      os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " array of (" << shape[0];
+      for(axom::IndexType i = 1; i < shape.size(); ++i)
+        { os << " x " << shape[i]; }
+      os << ") elements";
     }
   }
 

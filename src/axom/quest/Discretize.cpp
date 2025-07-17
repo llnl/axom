@@ -127,7 +127,7 @@ bool discretize(const SphereType& sphere, int levels, axom::Array<OctType>& out,
 
   octcount = count_sphere_octahedra(levels);
 
-  out = axom::Array<OctType>(octcount, octcount);
+  out.resize(octcount);
 
   // index points to an octahedron of the last generation.  We'll generate
   // new octahedra based on out[index].

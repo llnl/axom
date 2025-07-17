@@ -267,7 +267,10 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
                 axom::Array<OctType> &out,
                 int &octcount)
 {
-  int allocId = axom::execution_space<ExecSpace>::allocatorID();
+  SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(out.getAllocatorID()),
+                axom::fmt::format("Execution space {} cannot access allocator ed {}",
+                                  axom::execution_space<ExecSpace>::name(), out.getAllocatorID()));
+
   // Check for invalid input.  If any segment is invalid, exit returning false.
   bool stillValid = true;
   int segmentcount = pointcount - 1;
@@ -295,7 +298,8 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
   // That was the octahedron count for one segment.  Multiply by the number
   // of segments we will compute.
   int totaloctcount = segoctcount * segmentcount;
-  out = axom::Array<OctType>(totaloctcount, totaloctcount, allocId);
+  out.empty();
+  out.resize(axom::ArrayOptions::Uninitialized(), totaloctcount);
   axom::ArrayView<OctType> out_view = out.view();
   octcount = 0;
 
