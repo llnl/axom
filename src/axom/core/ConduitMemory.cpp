@@ -9,6 +9,7 @@ namespace axom
 {
 std::map<int, std::shared_ptr<ConduitMemory>> ConduitMemory::s_axomToInstance;
 std::map<conduit::index_t, std::shared_ptr<ConduitMemory>> ConduitMemory::s_conduitToInstance;
+const conduit::index_t ConduitMemory::s_defaultConduitId = conduit::Node().allocator();
 
 void ConduitMemory::privateRegisterAllocator()
 {
@@ -275,6 +276,7 @@ const ConduitMemory& ConduitMemory::instanceForConduitId(conduit::index_t condui
   auto it = s_conduitToInstance.find(conduitAllocId);
   if(it == s_conduitToInstance.end())
   {
+    // conduitAllocId doesn't have a corresponding axom allocator.
     return instanceForAxomId(axom::INVALID_ALLOCATOR_ID);
   }
   assert(it->first == conduitAllocId);

@@ -99,6 +99,12 @@ struct ConduitMemory
   */
   static const ConduitMemory& instanceForConduitId(conduit::index_t conduitAllocId);
 
+  //!@brief Return the default conduit allocator id.
+  static conduit::index_t defaultConduitId()
+  {
+    return s_defaultConduitId;
+  }
+
   ~ConduitMemory() { }
 
 private:
@@ -107,6 +113,9 @@ private:
 
   //!@brief Mapping from Conduit allocator to an instance.
   static std::map<conduit::index_t, std::shared_ptr<ConduitMemory>> s_conduitToInstance;
+
+  //!@brief Conduit's default allocator id.
+  static const conduit::index_t s_defaultConduitId;
 
   //!@brief Axom's allocator id.
   int m_axomId;
