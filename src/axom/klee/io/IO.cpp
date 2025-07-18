@@ -103,9 +103,6 @@ namespace klee
 {
 namespace
 {
-using inlet::Container;
-using inlet::Field;
-using inlet::Inlet;
 
 /**
  * Define the schema for the "geometry" member of shapes
@@ -137,7 +134,7 @@ void defineGeometry(inlet::Container &geometry)
  *
  * @param document the Inlet document for which to define the schema
  */
-void defineShapeList(Inlet &document)
+void defineShapeList(inlet::Inlet &document)
 {
   inlet::Container &shapeList = document.addStructArray("shapes", "The list of shapes");
   shapeList.addString("name", "The shape's name").required();
@@ -150,7 +147,7 @@ void defineShapeList(Inlet &document)
 
   // Verify syntax here, semantics later!!!
   shapeList.registerVerifier(
-    [](const Container &shape, std::vector<inlet::VerificationError> *errors) -> bool {
+    [](const inlet::Container &shape, std::vector<inlet::VerificationError> *errors) -> bool {
       if(shape.contains("replaces") && shape.contains("does_not_replace"))
       {
         INLET_VERIFICATION_WARNING(shape.name(),
@@ -183,7 +180,7 @@ void defineShapeList(Inlet &document)
  *
  * @param document the Inlet document for which to define the schema
  */
-void defineKleeSchema(Inlet &document)
+void defineKleeSchema(inlet::Inlet &document)
 {
   internal::defineDimensionsField(document.getGlobalContainer(), "dimensions").required();
   defineShapeList(document);
@@ -293,7 +290,7 @@ ShapeSet readShapeSet(std::istream &stream)
   reader->parseString(contents);
 
   sidre::DataStore dataStore;
-  Inlet doc(std::move(reader), dataStore.getRoot());
+  inlet::Inlet doc(std::move(reader), dataStore.getRoot());
   defineKleeSchema(doc);
   std::vector<inlet::VerificationError> errors;
   if(!doc.verify(&errors))

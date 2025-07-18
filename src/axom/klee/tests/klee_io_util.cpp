@@ -22,7 +22,6 @@ namespace klee
 {
 namespace internal
 {
-using inlet::Container;
 using primal::Point3D;
 using primal::Vector3D;
 
@@ -70,7 +69,7 @@ std::vector<double> parseDoubleVector(const std::string &vectorInput, Dimensions
 {
   std::string fullInput = "values: ";
   fullInput += vectorInput;
-  InletTestData data {fullInput, [](Container &c) { c.addDoubleArray("values"); }};
+  InletTestData data {fullInput, [](inlet::Container &c) { c.addDoubleArray("values"); }};
   return toDoubleVector(data.doc["values"], dims, "values");
 }
 
@@ -86,8 +85,9 @@ Dimensions defineAndParseDimension(const char *input)
 {
   std::string fullInput = "dims: ";
   fullInput += input;
-  InletTestData data {fullInput,
-                      [](Container &c) { defineDimensionsField(c, "dims", "some description"); }};
+  InletTestData data {fullInput, [](inlet::Container &c) {
+                        defineDimensionsField(c, "dims", "some description");
+                      }};
   return toDimensions(data.doc["dims"]);
 }
 
@@ -104,7 +104,7 @@ TEST(io_util, defineAndConvertDimensions)
  *
  * @param container the Container on which to define the units fields
  */
-void defineUnitsSchemaWithDefaults(Container &container) { defineUnitsSchema(container); }
+void defineUnitsSchemaWithDefaults(inlet::Container &container) { defineUnitsSchema(container); }
 
 TEST(io_util, getOptionalStartAndEndUnits_nothingSpecified)
 {
@@ -174,7 +174,7 @@ T parseArray(const char *value, Dimensions dims, Op op)
 {
   std::string input = "value: ";
   input += value;
-  InletTestData data {input, [](Container &c) { c.addDoubleArray("value"); }};
+  InletTestData data {input, [](inlet::Container &c) { c.addDoubleArray("value"); }};
   return op(data.doc.getGlobalContainer(), "value", dims);
 }
 
@@ -192,7 +192,7 @@ T parseArray(const char *value, Dimensions dims, const T &defaultValue, Op op)
     // avoid warning about empty input
     input = "foo: bar";
   }
-  InletTestData data {input, [](Container &c) { c.addDoubleArray("value"); }};
+  InletTestData data {input, [](inlet::Container &c) { c.addDoubleArray("value"); }};
   return op(data.doc.getGlobalContainer(), "value", dims, defaultValue);
 }
 
