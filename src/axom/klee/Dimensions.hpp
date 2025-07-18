@@ -9,13 +9,12 @@ namespace axom
 {
 namespace klee
 {
-/**
- * The dimensions that are supported for specifying operations in Klee.
- */
+/// The dimensions that are supported for specifying operations in Klee.
 enum class Dimensions : int
 {
   Two = 2,
   Three = 3,
+  Unspecified = -1
 };
 
 }  // namespace klee

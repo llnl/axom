@@ -117,8 +117,9 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
 
 bool Geometry::hasGeometry() const
 {
-  bool isInMemory = m_format == "blueprint-tets" || m_format == "sphere3D" || m_format == "tet3D" ||
-    m_format == "hex3D" || m_format == "plane3D" || m_format == "cone3D" || m_format == "cylinder3D";
+  bool isInMemory = (m_format == "blueprint-tets" || m_format == "sphere3D" ||
+                     m_format == "tet3D" || m_format == "hex3D" || m_format == "plane3D" ||
+                     m_format == "cone3D" || m_format == "cylinder3D");
   if(isInMemory)
   {
     return true;
@@ -128,11 +129,7 @@ bool Geometry::hasGeometry() const
 
 TransformableGeometryProperties Geometry::getEndProperties() const
 {
-  if(m_operator)
-  {
-    return m_operator->getEndProperties();
-  }
-  return m_startProperties;
+  return m_operator ? m_operator->getEndProperties() : m_startProperties;
 }
 
 const axom::sidre::Group* Geometry::getBlueprintMesh() const

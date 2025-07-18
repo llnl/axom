@@ -3,7 +3,6 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-
 #include "GeometryOperatorsIO.hpp"
 #include "IOUtil.hpp"
 
@@ -11,6 +10,7 @@
 #include "axom/klee/GeometryOperators.hpp"
 #include "axom/klee/KleeError.hpp"
 
+#include "axom/fmt.hpp"
 
 #include <functional>
 #include <string>
@@ -118,12 +118,9 @@ void verifyObjectFields(const inlet::Container &containerToTest,
   {
     if(!containerToTest.contains(requiredField))
     {
-      std::string message = "Missing required parameter \"";
-      message += requiredField;
-      message += "\" for operator \"";
-      message += name;
-      message += '"';
-      throw KleeError({containerToTest.name(), message});
+      throw KleeError(
+        {containerToTest.name(),
+         axom::fmt::format("Missing required parameter '{}' for operator '{}'", requiredField, name)});
     }
   }
 
@@ -138,12 +135,8 @@ void verifyObjectFields(const inlet::Container &containerToTest,
       continue;
     }
 
-    std::string message = "Unexpected parameter for operator \"";
-    message += name;
-    message += "\": \"";
-    message += child;
-    message += '"';
-    throw KleeError({containerToTest.name(), message});
+    throw KleeError({containerToTest.name(),
+                     axom::fmt::format("Unexpected parameter '{}' for operator '{}'", name, child)});
   }
 }
 
@@ -172,7 +165,9 @@ OpPtr parseTranslate(const inlet::Container &opContainer,
 OpPtr parseRotate(const inlet::Container &opContainer,
                   const TransformableGeometryProperties &startProperties)
 {
-  if(startProperties.dimensions == Dimensions::Two)
+  switch(startProperties.dimensions)
+  {
+  case Dimensions::Two:
   {
     verifyObjectFields(opContainer, "rotate", FieldSet {}, {"center"});
     Vector3D axis {0, 0, 1};
@@ -182,7 +177,8 @@ OpPtr parseRotate(const inlet::Container &opContainer,
       axis,
       startProperties);
   }
-  else
+  break;
+  case Dimensions::Three:
   {
     verifyObjectFields(opContainer, "rotate", {"axis"}, {"center"});
     return std::make_shared<Rotation>(
@@ -190,6 +186,10 @@ OpPtr parseRotate(const inlet::Container &opContainer,
       toPoint(opContainer, "center", Dimensions::Three, Point3D {0, 0, 0}),
       toVector(opContainer, "axis", Dimensions::Three),
       startProperties);
+  }
+  break;
+  case Dimensions::Unspecified:
+    throw KleeError({opContainer.name(), "Rotations can only be applied to 2D or 3D shapes"});
   }
 }
 
@@ -214,7 +214,7 @@ OpPtr makeCheckedSlice(Point3D origin,
   {
     throw KleeError({path, "The 'normal' vector must not be a zero vector"});
   }
-  if(!utilities::isNearlyEqual(normal.dot(up), 0.0))
+  if(!utilities::isNearlyEqual(normal.dot(up), 0.))
   {
     throw KleeError({path, "The 'normal' and 'up' vectors must be perpendicular"});
   }
@@ -289,8 +289,7 @@ primal::Vector3D getPerpendicularSliceNormal(const inlet::Container &sliceContai
  *
  * \param sliceContainer the Container describing the slice
  * \param planeName the name of the plane ("x", "y", or "z")
- * \param defaultNormal the default normal vector for the type of plane
- *  being parsed
+ * \param defaultNormal the default normal vector for the type of plane being parsed
  * \param defaultUp the default up vector for the plane being parsed
  * \param startProperties the properties prior to this operator
  * \return the parsed plane
@@ -393,8 +392,7 @@ OpPtr parseConvertUnits(const inlet::Container &opContainer,
  *
  * \param opContainer the Container from which to read the operator
  * \param startProperties the properties before the "ref" command
- * \param namedOperators a map of named operators from which to get
- * referenced operators
+ * \param namedOperators a map of named operators from which to get referenced operators
  * \return the created operator
  */
 OpPtr parseRef(const inlet::Container &opContainer,
@@ -441,8 +439,7 @@ OpPtr parseRef(const inlet::Container &opContainer,
  *
  * \param data the data from which to convert the operator
  * \param startProperties the properties before the operator
- * \param namedOperators a map of named operators from which to get
- * referenced operators
+ * \param namedOperators a map of named operators from which to get referenced operators
  * \return the created operator
  */
 OpPtr convertOperator(SingleOperatorData const &data,

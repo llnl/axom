@@ -42,6 +42,7 @@ TEST(IOTest, readShapeSet_noShapes)
   EXPECT_TRUE(shapeSet.getShapes().empty());
   EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
   EXPECT_NE(Dimensions::Three, shapeSet.getDimensions());
+  EXPECT_NE(Dimensions::Unspecified, shapeSet.getDimensions());
 }
 
 TEST(IOTest, readShapeSet_invalidDimensions)
@@ -73,11 +74,13 @@ TEST(IOTest, readShapeSet_shapeWithNoReplacementLists)
 
   auto &shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
+
   auto &shape = shapes[0];
   EXPECT_TRUE(shape.replaces("mat1"));
   EXPECT_TRUE(shape.replaces("mat2"));
   EXPECT_EQ("wheel", shape.getName());
   EXPECT_EQ("steel", shape.getMaterial());
+
   auto &geometry = shape.getGeometry();
   EXPECT_EQ("test_format", geometry.getFormat());
   EXPECT_EQ("path/to/file.format", geometry.getPath());
@@ -99,6 +102,7 @@ TEST(IOTest, readShapeSet_shapeWithReplacesList)
 
   auto &shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
+
   auto &shape = shapes[0];
   EXPECT_TRUE(shape.replaces("mat1"));
   EXPECT_TRUE(shape.replaces("mat2"));
@@ -120,6 +124,7 @@ TEST(IOTest, readShapeSet_shapeWithDoesNotReplaceList)
 
   auto &shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
+
   auto &shape = shapes[0];
   EXPECT_FALSE(shape.replaces("mat1"));
   EXPECT_FALSE(shape.replaces("mat2"));
@@ -315,7 +320,13 @@ TEST(IOTest, readShapeSet_geometryOperators)
   ASSERT_TRUE(geometryOperator);
   auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
+
   EXPECT_EQ(2u, composite->getOperators().size());
+
+  auto rotation = dynamic_cast<const Rotation *>(composite->getOperators()[0].get());
+  ASSERT_NE(rotation, nullptr);
+  EXPECT_EQ(rotation->getAngle(), 90);
+
   auto translation = dynamic_cast<const Translation *>(composite->getOperators()[1].get());
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));

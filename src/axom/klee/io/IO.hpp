@@ -6,7 +6,6 @@
 #ifndef AXOM_KLEE_IO_HPP_
 #define AXOM_KLEE_IO_HPP_
 
-
 #include "axom/klee/ShapeSet.hpp"
 
 #include <string>

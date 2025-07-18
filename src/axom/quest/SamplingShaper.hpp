@@ -283,6 +283,9 @@ public:
         }
       }
       break;
+    case klee::Dimensions::Unspecified:
+      SLIC_ERROR("Unsupported PrimitiveSampler3D requires a 2D or 3D shape");
+      break;
     }
   }
 

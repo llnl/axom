@@ -53,8 +53,7 @@ primal::Point3D toPoint(inlet::Container const &parent, char const *fieldName, D
 
 /**
  * Convert the specified field to a Point3D, ensuring that it
- * has the expected number of entries. If the field is not present, the
- * default value is used.
+ * has the expected number of entries. If the field is not present, the default value is used.
  *
  * @param parent the parent of the field
  * @param fieldName the name of the field

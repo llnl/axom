@@ -10,7 +10,6 @@
 #include <utility>
 #include <stdexcept>
 
-
 namespace axom
 {
 namespace klee

@@ -5,7 +5,6 @@
 #ifndef AXOM_KLEE_GEOMETRYOPERATORSIO_HPP_
 #define AXOM_KLEE_GEOMETRYOPERATORSIO_HPP_
 
-
 #include "axom/inlet.hpp"
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Units.hpp"
@@ -73,8 +72,7 @@ public:
      * Make an operator describing the transformation to apply to the geomtry.
      * May be null.
      *
-     * @param startProperties properties of the geometry before the first
-     * operator
+     * @param startProperties properties of the geometry before the first operator
      * @param namedOperators a map of any named operators
      * @return the (possibly null) operator
      */
@@ -132,8 +130,7 @@ struct NamedOperatorMapData
   /**
      * Convert the data to a NamedOperatorMap.
      *
-     * @param fileDimensions the dimensions that shapes should be in in this
-     * file.
+     * @param fileDimensions the dimensions that shapes should be in in this file.
      * @return the name of converted operators
      */
   NamedOperatorMap makeNamedOperatorMap(Dimensions fileDimensions) const;

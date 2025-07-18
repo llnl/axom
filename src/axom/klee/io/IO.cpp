@@ -27,16 +27,16 @@ namespace
 // Because we can't have context-aware validation when extracting the
 // data from Inlet, we need a set of structs that parallels the real
 // classes. These are used to do some basic validation, and then we convert
-// the to the real classes, doing more thorough validation.
+// them to the real classes, doing more thorough validation.
 
 struct GeometryData
 {
   std::string format;
   std::string path;
-  LengthUnit startUnits;
-  LengthUnit endUnits;
-  Dimensions startDimensions;
-  bool dimensionsSet;
+  LengthUnit startUnits {LengthUnit::unspecified};
+  LengthUnit endUnits {LengthUnit::unspecified};
+  Dimensions startDimensions {Dimensions::Unspecified};
+  bool dimensionsSet {false};
   internal::GeometryOperatorData operatorData;
   Path pathInFile;
 };
@@ -84,6 +84,7 @@ struct FromInlet<axom::klee::GeometryData>
     }
     else
     {
+      data.startDimensions = axom::klee::Dimensions::Unspecified;
       data.dimensionsSet = false;
     }
 
@@ -111,7 +112,7 @@ using inlet::Inlet;
  *
  * @param geometry the Container representing a "geometry" object.
  */
-void defineGeometry(Container &geometry)
+void defineGeometry(inlet::Container &geometry)
 {
   geometry.addString("format", "The format of the input file").required();
   geometry.addString("path",
@@ -138,7 +139,7 @@ void defineGeometry(Container &geometry)
  */
 void defineShapeList(Inlet &document)
 {
-  Container &shapeList = document.addStructArray("shapes", "The list of shapes");
+  inlet::Container &shapeList = document.addStructArray("shapes", "The list of shapes");
   shapeList.addString("name", "The shape's name").required();
   shapeList.addString("material", "The shape's material").required();
   shapeList.addStringArray("replaces", "The list of materials this shape replaces");
@@ -164,10 +165,10 @@ void defineShapeList(Inlet &document)
         if(geom.path.empty() && geom.format != "none")
         {
           INLET_VERIFICATION_WARNING(shape.name(),
-                                     fmt::format("'geometry/path' field required unless "
-                                                 "'geometry/format' is 'none'. "
-                                                 "Provided format was '{}'",
-                                                 geom.format),
+                                     axom::fmt::format("'geometry/path' field required unless "
+                                                       "'geometry/format' is 'none'. "
+                                                       "Provided format was '{}'",
+                                                       geom.format),
                                      errors);
           return false;
         }
@@ -193,8 +194,7 @@ void defineKleeSchema(Inlet &document)
  * Create a Shape's Geometry from its raw data
  *
  * \param data the data read from inlet
- * \param fileDimensions the number of dimensions the file expects shapes to
- * have
+ * \param fileDimensions the number of dimensions the file expects shapes to have
  * \param namedOperators any named operators that were parsed from the file
  * \return the geometry description for the shape
  */
@@ -250,8 +250,7 @@ Shape convert(ShapeData const &data,
  * Create a list of Shapes from their raw data representation
  *
  * \param shapeData the data read from Inlet
- * \param fileDimensions the number of dimensions the file expects shapes to
- * have
+ * \param fileDimensions the number of dimensions the file expects shapes to have
  * \param namedOperators any named operators that were parsed from the file
  * \return the shape as a Shape object
  */
