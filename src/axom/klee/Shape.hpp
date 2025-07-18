@@ -6,7 +6,6 @@
 #ifndef AXOM_KLEE_SHAPE_HPP_
 #define AXOM_KLEE_SHAPE_HPP_
 
-
 #include "axom/klee/Geometry.hpp"
 
 #include <string>
@@ -92,4 +91,4 @@ private:
 }  // namespace klee
 }  // namespace axom
 
-#endif // AXOM_KLEE_SHAPE_HPP_
+#endif  // AXOM_KLEE_SHAPE_HPP_

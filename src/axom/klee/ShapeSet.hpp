@@ -6,7 +6,6 @@
 #ifndef AXOM_KLEE_SHAPESET_HPP_
 #define AXOM_KLEE_SHAPESET_HPP_
 
-
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Shape.hpp"
 
@@ -17,9 +16,7 @@ namespace axom
 {
 namespace klee
 {
-/**
- * A ShapeSet represents a document in the common shape format.
- */
+/// A ShapeSet represents a document in the common shape format.
 class ShapeSet
 {
 public:

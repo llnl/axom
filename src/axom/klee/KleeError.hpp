@@ -6,7 +6,6 @@
 #ifndef AXOM_KLEE_ERROR_HPP_
 #define AXOM_KLEE_ERROR_HPP_
 
-
 #include "axom/inlet/inlet_utils.hpp"
 
 #include <exception>

@@ -96,8 +96,7 @@ NamedOperatorMap readNamedOperators(Dimensions startingDimensions, const std::st
  * Copy an operator from a pointer.
  *
  * \tparam T the expected type of the operator
- * \param ptr the pointer to the operator. Must not be null after
- * a dynamic_cast to T.
+ * \param ptr the pointer to the operator. Must not be null after a dynamic_cast to T.
  * \return a copy of the operator
  * \throws std::logic error if the pointer is of the wrong type
  */
@@ -116,8 +115,7 @@ T copyOperator(const OperatorPointer &ptr)
  * Get a single operator from a CompositeOperator.
  *
  * \tparam T the expected type of the operator
- * \param ptr the pointer to the operator. Must not be null after
- * a dynamic_cast to CompositeOperator.
+ * \param ptr the pointer to the operator. Must not be null after a dynamic_cast to CompositeOperator.
  * \return a copy of the operator
  * \throws std::logic error if the pointer is of the wrong type
  */
