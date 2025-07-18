@@ -19,15 +19,15 @@ SHELL ["/bin/bash", "-c"]
 RUN sudo apt-get update -y
 RUN sudo apt-get install -y supervisor
 RUN sudo useradd --create-home --shell /bin/bash ${USER}
-RUN sudo apt-get install doxygen elfutils gfortran graphviz language-pack-en-base less libopenblas-dev libomp-dev mpich python3-sphinx ssh texlive-full tree -fy
+RUN sudo apt-get install doxygen elfutils gfortran graphviz language-pack-en-base less libopenblas-dev libomp-dev mpich python3-sphinx ssh tree unzip -fy
 
 # Install CMake
-RUN wget -q --no-check-certificate https://cmake.org/files/v3.21/cmake-3.21.7-linux-x86_64.tar.gz && \
-    tar -xzf cmake-3.21.7-linux-x86_64.tar.gz && \
-    rm -r cmake-3.21.7-linux-x86_64/share/vim/vimfiles && \
-    cp -fR cmake-3.21.7-linux-x86_64/* /usr && \
-    rm -rf cmake-3.21.7-linux-x86_64 && \
-    rm cmake-3.21.7-linux-x86_64.tar.gz
+RUN wget -q --no-check-certificate https://cmake.org/files/v3.23/cmake-3.23.1-linux-x86_64.tar.gz && \
+    tar -xzf cmake-3.23.1-linux-x86_64.tar.gz && \
+    rm -r cmake-3.23.1-linux-x86_64/share/vim/vimfiles && \
+    cp -fR cmake-3.23.1-linux-x86_64/* /usr && \
+    rm -rf cmake-3.23.1-linux-x86_64 && \
+    rm cmake-3.23.1-linux-x86_64.tar.gz
 
 WORKDIR /opt/archives
 RUN curl -L https://github.com/gitpod-io/openvscode-server/releases/download/openvscode-server-v1.69.1/openvscode-server-v1.69.1-linux-x64.tar.gz > \
@@ -43,7 +43,7 @@ RUN git clone --recursive --branch $branch https://github.com/LLNL/axom.git axom
 # Build/install TPLs via spack and then remove the temporary build directory on success
 RUN cd ${HOME}/axom_repo && python3 ./scripts/uberenv/uberenv.py --spack-env-file=./scripts/spack/configs/docker/ubuntu20_cuda/spack.yaml \
                                                                  --project-json=.uberenv_config.json \
-                                                                 --spec="%gcc@9.3.0+mfem+profiling+cuda cuda_arch=70" \
+                                                                 --spec="%gcc@9.3.0+mfem+profiling+cuda ^raja+openmp+cuda ^umpire+openmp+cuda cuda_arch=70" \
                                                                  --prefix=${HOME}/axom_tpls -k \
                          && rm -rf ${HOME}/axom_tpls/build_stage ${HOME}/axom_tpls/spack
 
@@ -60,12 +60,12 @@ RUN cd ${HOME}/axom_repo && python3 config-build.py -hc *cuda.cmake \
 # Larger STL meshes for testing (optional)
 # Note: These meshes are large, copied from local directory instead of
 #        downloaded from Github.
-# COPY boxedSphere.stl car.stl porsche.stl ${HOME}/axom_repo/data/quest
+COPY boxedSphere.stl car.stl porsche.stl ${HOME}/axom_repo/data/quest
 
 
 # Create symlinks for easy access to tutorial material (optional)
-# RUN ln -s ${HOME}/axom_repo/install-release/examples/axom/radiuss_tutorial/ ${HOME}/radiuss_tutorial \
-# && ln -s ${HOME}/axom_repo/data/quest ${HOME}/radiuss_tutorial/stl_meshes
+RUN ln -s ${HOME}/axom_repo/install-release/examples/axom/radiuss_tutorial/ ${HOME}/radiuss_tutorial \
+    && ln -s ${HOME}/axom_repo/data/quest ${HOME}/radiuss_tutorial/stl_meshes
 
 USER root
 ADD ./scripts/docker/supervisord.conf /etc/supervisord.conf
