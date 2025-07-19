@@ -26,7 +26,6 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
   : m_startProperties(startProperties)
   , m_format(std::move(format))
   , m_path(std::move(path))
-  , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
 { }
 
@@ -36,10 +35,8 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
   , m_format("blueprint-tets")
-  , m_path()
   , m_meshGroup(simplexMeshGroup)
   , m_topology(topology)
-  , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
 { }
 
@@ -48,11 +45,7 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
   , m_format("tet3D")
-  , m_path()
-  , m_meshGroup(nullptr)
-  , m_topology()
   , m_tet(tet)
-  , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
 { }
 
@@ -61,11 +54,7 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
   , m_format("hex3D")
-  , m_path()
-  , m_meshGroup(nullptr)
-  , m_topology()
   , m_hex(hex)
-  , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
 { }
 
@@ -75,9 +64,6 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
   , m_format("sphere3D")
-  , m_path()
-  , m_meshGroup(nullptr)
-  , m_topology()
   , m_sphere(sphere)
   , m_levelOfRefinement(levelOfRefinement)
   , m_operator(std::move(operator_))
@@ -91,10 +77,6 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
   , m_format("sor3D")
-  , m_path()
-  , m_meshGroup(nullptr)
-  , m_topology()
-  , m_sphere()
   , m_discreteFunction(discreteFunction)
   , m_sorBase(sorBase)
   , m_sorDirection(sorDirection)
@@ -107,11 +89,7 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
   , m_format("plane3D")
-  , m_path()
-  , m_meshGroup(nullptr)
-  , m_topology()
   , m_plane(plane)
-  , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
 { }
 

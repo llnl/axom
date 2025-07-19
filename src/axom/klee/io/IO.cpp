@@ -36,7 +36,7 @@ struct GeometryData
   LengthUnit startUnits {LengthUnit::unspecified};
   LengthUnit endUnits {LengthUnit::unspecified};
   Dimensions startDimensions {Dimensions::Unspecified};
-  bool dimensionsSet {false};
+  Dimensions explicitDimensions {Dimensions::Unspecified};
   internal::GeometryOperatorData operatorData;
   Path pathInFile;
 };
@@ -77,16 +77,13 @@ struct FromInlet<axom::klee::GeometryData>
     data.path = base.contains("path") ? base.get<std::string>("path") : "";
     data.operatorData = base["operators"].get<axom::klee::internal::GeometryOperatorData>();
 
-    if(base.contains("start_dimensions"))
-    {
-      data.startDimensions = axom::klee::internal::toDimensions(base["start_dimensions"]);
-      data.dimensionsSet = true;
-    }
-    else
-    {
-      data.startDimensions = axom::klee::Dimensions::Unspecified;
-      data.dimensionsSet = false;
-    }
+    data.startDimensions = base.contains("start_dimensions")
+      ? axom::klee::internal::toDimensions(base["start_dimensions"])
+      : axom::klee::Dimensions::Unspecified;
+
+    data.explicitDimensions = base.contains("dimensions")
+      ? axom::klee::internal::toDimensions(base["dimensions"])
+      : axom::klee::Dimensions::Unspecified;
 
     std::tie(data.startUnits, data.endUnits) =
       axom::klee::internal::getOptionalStartAndEndUnits(base);
@@ -118,6 +115,10 @@ void defineGeometry(inlet::Container &geometry)
   internal::defineDimensionsField(geometry,
                                   "start_dimensions",
                                   "The initial dimensions of the geometry file");
+  internal::defineDimensionsField(geometry,
+                                  "dimensions",
+                                  "An explicit (final) dimension for the shape."
+                                  "This overrides the global 'dimensions' field for this shape.");
   internal::defineUnitsSchema(geometry,
                               "The units in which the geometry file is expressed if the units "
                               "are not embedded. These will also be the units of the operators "
@@ -137,12 +138,14 @@ void defineGeometry(inlet::Container &geometry)
 void defineShapeList(inlet::Inlet &document)
 {
   inlet::Container &shapeList = document.addStructArray("shapes", "The list of shapes");
+
   shapeList.addString("name", "The shape's name").required();
   shapeList.addString("material", "The shape's material").required();
   shapeList.addStringArray("replaces", "The list of materials this shape replaces");
   shapeList.addStringArray("does_not_replace", "The list of materials this shape does not replace");
   auto &geometry =
     shapeList.addStruct("geometry", "Contains information about the shape's geometry");
+
   defineGeometry(geometry);
 
   // Verify syntax here, semantics later!!!
@@ -161,12 +164,12 @@ void defineShapeList(inlet::Inlet &document)
         const auto geom = shape.get<GeometryData>("geometry");
         if(geom.path.empty() && geom.format != "none")
         {
-          INLET_VERIFICATION_WARNING(shape.name(),
-                                     axom::fmt::format("'geometry/path' field required unless "
-                                                       "'geometry/format' is 'none'. "
-                                                       "Provided format was '{}'",
-                                                       geom.format),
-                                     errors);
+          INLET_VERIFICATION_WARNING(  //
+            shape.name(),
+            axom::fmt::format("'geometry/path' field required unless 'geometry/format' is 'none'. "
+                              "Provided format was '{}'",
+                              geom.format),
+            errors);
           return false;
         }
       }
@@ -199,11 +202,18 @@ Geometry convert(GeometryData const &data,
                  Dimensions fileDimensions,
                  internal::NamedOperatorMap const &namedOperators)
 {
+  const bool has_start_dims = data.startDimensions != Dimensions::Unspecified;
+  const bool has_explicit_dims = data.explicitDimensions != Dimensions::Unspecified;
+
   TransformableGeometryProperties startProperties;
   startProperties.units = data.startUnits;
-  if(data.dimensionsSet)
+  if(has_start_dims)
   {
     startProperties.dimensions = data.startDimensions;
+  }
+  else if(has_explicit_dims)
+  {
+    startProperties.dimensions = data.explicitDimensions;
   }
   else
   {
@@ -215,11 +225,17 @@ Geometry convert(GeometryData const &data,
                      data.path,
                      data.operatorData.makeOperator(startProperties, namedOperators)};
 
-  if(geometry.getEndProperties().dimensions != fileDimensions)
+  const auto computed_end_dims = geometry.getEndProperties().dimensions;
+  const auto expected_end_dims = has_explicit_dims ? data.explicitDimensions : fileDimensions;
+  if(computed_end_dims != expected_end_dims)
   {
-    throw KleeError(
-      {data.pathInFile, "Did not end up in the number of dimensions specified by the file"});
+    throw KleeError({data.pathInFile,
+                     axom::fmt::format("Did not end up with the expected number of dimensions. "
+                                       "Expected: {}, but got: {}",
+                                       expected_end_dims == Dimensions::Two ? 2 : 3,
+                                       computed_end_dims == Dimensions::Two ? 2 : 3)});
   }
+
   return geometry;
 }
 
@@ -227,8 +243,7 @@ Geometry convert(GeometryData const &data,
  * Create a Shape from its raw data representation
  *
  * \param data the data read from Inlet
- * \param fileDimensions the number of dimensions the file expects shapes to
- * have
+ * \param fileDimensions the number of dimensions the file expects shapes to have
  * \param namedOperators any named operators that were parsed from the file
  * \return the shape as a Shape object
  */
@@ -266,6 +281,7 @@ std::vector<Shape> convert(std::vector<ShapeData> const &shapeData,
 
 /**
  * Get all named geometry operators from the file
+ * 
  * \param doc the inlet document containing the file
  * \param startDimensions the number of dimensions that operators should
  * start at unless otherwise specified

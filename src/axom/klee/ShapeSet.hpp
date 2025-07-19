@@ -68,8 +68,7 @@ public:
 private:
   std::vector<Shape> m_shapes;
   std::string m_path;
-  bool m_dimensionsHaveBeenSet {false};
-  Dimensions m_dimensions;
+  Dimensions m_dimensions {Dimensions::Unspecified};
 };
 
 }  // namespace klee
