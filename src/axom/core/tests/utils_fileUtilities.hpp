@@ -108,27 +108,25 @@ TEST(utils_fileUtilities, changeCWD_smoke)
 
 TEST(utils_fileUtilities, prefixRelativePath)
 {
-  using namespace axom::utilities::filesystem;
-  EXPECT_EQ(prefixRelativePath("rel/path", "/pre/fix"), "/pre/fix/rel/path");
-  EXPECT_EQ(prefixRelativePath("rel/path", ""), "rel/path");
-  EXPECT_THROW(prefixRelativePath("", "/pre/fix"), std::invalid_argument);
+  EXPECT_EQ(fs::prefixRelativePath("rel/path", "/pre/fix"), "/pre/fix/rel/path");
+  EXPECT_EQ(fs::prefixRelativePath("rel/path", ""), "rel/path");
+  EXPECT_THROW(fs::prefixRelativePath("", "/pre/fix"), std::invalid_argument);
 
   // These full paths should not change.
-  EXPECT_EQ(prefixRelativePath("/full/path", "/pre/fix"), "/full/path");
-  EXPECT_EQ(prefixRelativePath("/full/path", ""), "/full/path");
+  EXPECT_EQ(fs::prefixRelativePath("/full/path", "/pre/fix"), "/full/path");
+  EXPECT_EQ(fs::prefixRelativePath("/full/path", ""), "/full/path");
 }
 
 TEST(utils_fileUtilities, getParentPath)
 {
-  using namespace axom::utilities::filesystem;
-  EXPECT_EQ(getParentPath("/full/multi/level/path"), "/full/multi/level");
-  EXPECT_EQ(getParentPath("/full/multi/level"), "/full/multi");
-  EXPECT_EQ(getParentPath("rel/multi/level/path"), "rel/multi/level");
-  EXPECT_EQ(getParentPath("rel/multi/level"), "rel/multi");
-  EXPECT_EQ(getParentPath("level"), "");
-  EXPECT_EQ(getParentPath("/level0/level1"), "/level0");
-  EXPECT_EQ(getParentPath("/level0"), "/");
-  EXPECT_EQ(getParentPath("/"), "");
+  EXPECT_EQ(fs::getParentPath("/full/multi/level/path"), "/full/multi/level");
+  EXPECT_EQ(fs::getParentPath("/full/multi/level"), "/full/multi");
+  EXPECT_EQ(fs::getParentPath("rel/multi/level/path"), "rel/multi/level");
+  EXPECT_EQ(fs::getParentPath("rel/multi/level"), "rel/multi");
+  EXPECT_EQ(fs::getParentPath("level"), "");
+  EXPECT_EQ(fs::getParentPath("/level0/level1"), "/level0");
+  EXPECT_EQ(fs::getParentPath("/level0"), "/");
+  EXPECT_EQ(fs::getParentPath("/"), "");
 }
 
 TEST(utils_fileUtilities, TempFile_basic)
