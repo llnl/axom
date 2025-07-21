@@ -304,8 +304,10 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_dups)
     auto expected_val1 = this->getValue(i * 10.0 + 5.0);
     auto expected_val2 = this->getValue(i * 10.0 + 7.0);
     EXPECT_EQ(1, test_map.count(expected_key));
-    EXPECT_TRUE((test_map.at(expected_key) == expected_val1) ||
-                (test_map.at(expected_key) == expected_val2));
+    // Second key-value pair in batch-order should overwrite first pair with
+    // same key.
+    EXPECT_EQ(expected_val2, test_map.at(expected_key));
+    EXPECT_NE(expected_val1, test_map.at(expected_key));
   }
 
   // Check that we only have one instance of every key in the map
@@ -329,7 +331,8 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_dups)
     auto expected_val1 = this->getValue(i * 10.0 + 5.0);
     auto expected_val2 = this->getValue(i * 10.0 + 7.0);
     EXPECT_EQ(kv_out[i].first, expected_key);
-    EXPECT_TRUE((kv_out[i].second == expected_val1) || (kv_out[i].second == expected_val2));
+    EXPECT_EQ(expected_val2, test_map.at(expected_key));
+    EXPECT_NE(expected_val1, test_map.at(expected_key));
   }
 }
 
