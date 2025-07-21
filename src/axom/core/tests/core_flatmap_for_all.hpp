@@ -345,6 +345,11 @@ struct ConstantHash
   AXOM_HOST_DEVICE axom::IndexType operator()(KeyType) const { return 0; }
 };
 
+/**
+ * Test hash map with a hash that returns the same value for all elements.
+ * Even with worst-case hash collision behavior, the FlatMap should
+ * nevertheless be correctly constructible and queryable.
+ */
 AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_constant_hash)
 {
   using ExecSpace = typename TestFixture::ExecSpace;
