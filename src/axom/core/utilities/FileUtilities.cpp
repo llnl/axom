@@ -11,6 +11,7 @@
 #include <sstream>
 #include <cerrno>
 #include <cstdio>  // defines FILENAME_MAX
+#include <cstdlib>
 
 #ifdef WIN32
   #include <direct.h>
@@ -182,11 +183,13 @@ TempFile::TempFile(const std::string& file_name, bool delete_during_destruction)
   GetTempFileNameA(tempPath, file_name.c_str(), 0, tempFileName);
   m_path = tempFileName;
 #else
-  std::string tmpl = "/tmp/" + file_name + "XXXXXX";
-  std::vector<char> buf(tmpl.begin(), tmpl.end());
+  const char* tmpdir = getenv("TMPDIR");
+  const std::string dir = tmpdir ? tmpdir : "/tmp";
+  const std::string tmp_file_name = joinPath(dir, file_name + "XXXXXX");
+  std::vector<char> buf(tmp_file_name.begin(), tmp_file_name.end());
   buf.push_back('\0');
 
-  int fd = mkstemp(buf.data());
+  const int fd = mkstemp(buf.data());
   if(fd == -1)
   {
     throw std::runtime_error("Failed to create temp file");
