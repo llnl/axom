@@ -129,3 +129,39 @@ TEST(utils_fileUtilities, getParentPath)
   EXPECT_EQ(getParentPath("/level0"), "/");
   EXPECT_EQ(getParentPath("/"), "");
 }
+
+TEST(utils_fileUtilities, TempFile_basic)
+{
+  using namespace axom::utilities::filesystem;
+
+  const std::string fname = "foo";
+  std::string actual_path;
+  {
+    TempFile fooFile(fname);
+    actual_path = fooFile.getPath();
+    std::cout << "Created temp file: " << actual_path << std::endl;
+    fooFile << "some string";
+
+    EXPECT_TRUE(pathExists(actual_path));
+  }
+  // file is removed once it is out of scope
+  EXPECT_FALSE(pathExists(actual_path));
+}
+
+TEST(utils_fileUtilities, TempFile_two)
+{
+  using namespace axom::utilities::filesystem;
+
+  const std::string fname = "foo";
+  {
+    TempFile fooFile1(fname);
+    TempFile fooFile2(fname);
+
+    const std::string actual_path1 = fooFile1.getPath();
+    const std::string actual_path2 = fooFile2.getPath();
+    EXPECT_NE(actual_path1, actual_path2);
+    
+    std::cout << "Created temp file 1: " << actual_path1 << std::endl;
+    std::cout << "Created temp file 2: " << actual_path2 << std::endl;
+  }
+}

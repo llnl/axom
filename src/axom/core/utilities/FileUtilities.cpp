@@ -5,11 +5,11 @@
 
 #include "axom/core/utilities/FileUtilities.hpp"
 
+#include <vector>
 #include <string>
 #include <fstream>
 #include <sstream>
 #include <cerrno>
-
 #include <cstdio>  // defines FILENAME_MAX
 
 #ifdef WIN32
@@ -170,6 +170,42 @@ void getDirName(std::string& dir, const std::string& path)
 
 //-----------------------------------------------------------------------------
 int removeFile(const std::string& filename) { return Unlink(filename.c_str()); }
+
+//-----------------------------------------------------------------------------
+TempFile::TempFile(const std::string& file_name)
+{
+#ifdef WIN32
+  char tempPath[MAX_PATH];
+  char tempFileName[MAX_PATH];
+  GetTempPathA(MAX_PATH, tempPath);
+  GetTempFileNameA(tempPath, file_name.c_str(), 0, tempFileName);
+  m_path = tempFileName;
+#else
+  std::string tmpl = "/tmp/" + file_name + "XXXXXX";
+  std::vector<char> buf(tmpl.begin(), tmpl.end());
+  buf.push_back('\0');
+
+  int fd = mkstemp(buf.data());
+  if(fd == -1)
+  {
+    throw std::runtime_error("Failed to create temp file");
+  }
+  m_path = buf.data();
+  close(fd);
+#endif
+
+  m_ofs.open(m_path, std::ios::out | std::ios::trunc);
+  if(!m_ofs)
+  {
+    throw std::runtime_error("Failed to open temp file with ofstream");
+  }
+}
+
+TempFile::~TempFile()
+{
+  m_ofs.close();
+  removeFile(m_path);
+}
 
 }  // end namespace filesystem
 }  // end namespace utilities

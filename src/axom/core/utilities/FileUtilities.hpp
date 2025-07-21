@@ -7,6 +7,7 @@
 #define COMMON_FILE_UTILITIES_H_
 
 #include <string>
+#include <fstream>
 
 namespace axom
 {
@@ -118,6 +119,36 @@ void getDirName(std::string& dir, const std::string& path);
  *       there are open file handles to the specified file.
  */
 int removeFile(const std::string& filename);
+
+/**
+ * Platform-independent RAII utility class to create an temporary file that will be deleted when the
+ * instance goes out of scope
+ */
+class TempFile
+{
+public:
+  explicit TempFile(const std::string& file_name);
+
+  ~TempFile();
+
+  // Non-copyable
+  TempFile(const TempFile&) = delete;
+  TempFile& operator=(const TempFile&) = delete;
+
+  std::string getPath() const { return m_path; }
+
+  /// Overload the << operator to write data to the file
+  template <typename T>
+  TempFile& operator<<(T&& data)
+  {
+    m_ofs << std::forward<T>(data);
+    return *this;
+  }
+
+private:
+  std::string m_path;
+  std::ofstream m_ofs;
+};
 
 }  // end namespace filesystem
 }  // end namespace utilities
