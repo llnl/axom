@@ -121,13 +121,26 @@ void getDirName(std::string& dir, const std::string& path);
 int removeFile(const std::string& filename);
 
 /**
- * Platform-independent RAII utility class to create an temporary file that will be deleted when the
- * instance goes out of scope
+ * /brief Utility class for managing temporary files.
+ *
+ * The TempFile class provides a convenient way to create and manage temporary files.
+ * It ensures that the file is deleted upon destruction, if specified.
+ * The class is non-copyable to prevent accidental duplication of file handles.
+ *
+ * The file is opened for writing upon construction and can be written to using the overloaded << operator.
+ * 
+ * \note The path to the temp file is likely different from the supplied \a file_name
  */
 class TempFile
 {
 public:
-  explicit TempFile(const std::string& file_name);
+  /**
+   * \brief Constructor that takes a \a file_name template, and a flag to control whether the file gets deleted
+   * 
+   * \param file_name The name (or path) of the temporary file to create.
+   * \param delete_during_destruction If true (default), the file will be deleted when the TempFile object is destroyed.
+   */
+  explicit TempFile(const std::string& file_name, bool delete_during_destruction = true);
 
   ~TempFile();
 
@@ -135,6 +148,7 @@ public:
   TempFile(const TempFile&) = delete;
   TempFile& operator=(const TempFile&) = delete;
 
+  /// Returns the path to the temporary file
   std::string getPath() const { return m_path; }
 
   /// Overload the << operator to write data to the file
@@ -148,6 +162,7 @@ public:
 private:
   std::string m_path;
   std::ofstream m_ofs;
+  bool m_delete_during_destruction {true};
 };
 
 }  // end namespace filesystem

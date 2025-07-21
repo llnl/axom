@@ -172,7 +172,8 @@ void getDirName(std::string& dir, const std::string& path)
 int removeFile(const std::string& filename) { return Unlink(filename.c_str()); }
 
 //-----------------------------------------------------------------------------
-TempFile::TempFile(const std::string& file_name)
+TempFile::TempFile(const std::string& file_name, bool delete_during_destruction)
+  : m_delete_during_destruction(delete_during_destruction)
 {
 #ifdef WIN32
   char tempPath[MAX_PATH];
@@ -203,8 +204,15 @@ TempFile::TempFile(const std::string& file_name)
 
 TempFile::~TempFile()
 {
-  m_ofs.close();
-  removeFile(m_path);
+  if(m_ofs.is_open())
+  {
+    m_ofs.close();
+  }
+
+  if(m_delete_during_destruction)
+  {
+    removeFile(m_path);
+  }
 }
 
 }  // end namespace filesystem

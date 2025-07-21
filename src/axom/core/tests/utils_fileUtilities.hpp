@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 #include <fstream>
 #include <exception>
+#include <iterator>
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/FileUtilities.hpp"
@@ -132,36 +133,65 @@ TEST(utils_fileUtilities, getParentPath)
 
 TEST(utils_fileUtilities, TempFile_basic)
 {
-  using namespace axom::utilities::filesystem;
-
   const std::string fname = "foo";
   std::string actual_path;
   {
-    TempFile fooFile(fname);
+    fs::TempFile fooFile(fname);
     actual_path = fooFile.getPath();
     std::cout << "Created temp file: " << actual_path << std::endl;
     fooFile << "some string";
 
-    EXPECT_TRUE(pathExists(actual_path));
+    EXPECT_TRUE(fs::pathExists(actual_path));
   }
   // file is removed once it is out of scope
-  EXPECT_FALSE(pathExists(actual_path));
+  EXPECT_FALSE(fs::pathExists(actual_path));
+}
+
+TEST(utils_fileUtilities, TempFile_delete_during_destruction)
+{
+  const std::string fname = "foo";
+  const std::string file_contents = "some string";
+
+  for(bool should_delete : {true, false})
+  {
+    std::string actual_path;
+    {
+      fs::TempFile fooFile(fname, should_delete);
+      actual_path = fooFile.getPath();
+      fooFile << file_contents;
+
+      EXPECT_TRUE(fs::pathExists(actual_path));
+    }
+
+    if(should_delete)
+    {
+      EXPECT_FALSE(fs::pathExists(actual_path));
+    }
+    else
+    {
+      EXPECT_TRUE(fs::pathExists(actual_path));
+
+      // check that the file contents match what we wrote above
+      std::ifstream infile(actual_path);
+      std::string contents((std::istreambuf_iterator<char>(infile)),
+                           std::istreambuf_iterator<char>());
+      EXPECT_EQ(contents, file_contents);
+    }
+  }
 }
 
 TEST(utils_fileUtilities, TempFile_two)
 {
-  using namespace axom::utilities::filesystem;
-
+  // check that we can create two TempFiles with the same prefix
   const std::string fname = "foo";
-  {
-    TempFile fooFile1(fname);
-    TempFile fooFile2(fname);
 
-    const std::string actual_path1 = fooFile1.getPath();
-    const std::string actual_path2 = fooFile2.getPath();
-    EXPECT_NE(actual_path1, actual_path2);
-    
-    std::cout << "Created temp file 1: " << actual_path1 << std::endl;
-    std::cout << "Created temp file 2: " << actual_path2 << std::endl;
-  }
+  fs::TempFile fooFile1(fname);
+  fs::TempFile fooFile2(fname);
+
+  const std::string actual_path1 = fooFile1.getPath();
+  const std::string actual_path2 = fooFile2.getPath();
+  EXPECT_NE(actual_path1, actual_path2);
+
+  std::cout << "Created temp file 1: " << actual_path1 << std::endl;
+  std::cout << "Created temp file 2: " << actual_path2 << std::endl;
 }
