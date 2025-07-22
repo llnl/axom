@@ -193,7 +193,9 @@ TempFile::TempFile(const std::string& file_name, const std::string& ext, bool de
 
   if(!ext.empty())
   {
-    const std::string new_path = joinPath(temp_file_name, ext, ".");
+    // remove ".tmp" (if present), add the requested extension and rename the file
+    const std::string new_path =
+      joinPath(axom::utilities::string::removeSuffix(temp_file_name, ".tmp"), ext, ".");
     if(std::rename(temp_file_name, new_path.c_str()) != 0)
     {
       throw std::ios::failure {"Failed to rename temp file to include extension"};
