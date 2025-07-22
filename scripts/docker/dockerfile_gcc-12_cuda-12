@@ -43,9 +43,11 @@ RUN cd ${HOME}/axom_repo && python3 ./scripts/uberenv/uberenv.py --spack-env-fil
 # Make sure the new hostconfig works with a release build
 # Note: having high job slots causes build log to disappear and job to fail
 # Omit testing step, hangs at slam_lulesh unit test (same behavior for azure pipeline images, as well)
+# Set BLT_MPI_COMPILE_FLAGS to empty string to ignore LTO flags
 RUN cd ${HOME}/axom_repo && python3 config-build.py -hc *cuda.cmake \
                                                     -bp ${HOME}/axom_repo/build-release \
                                                     -ip ${HOME}/axom_repo/install-release \
+                                                    -DBLT_MPI_COMPILE_FLAGS=  \
                                                     -bt Release \
                          && cd ${HOME}/axom_repo/build-release \
                          && make -j4 install

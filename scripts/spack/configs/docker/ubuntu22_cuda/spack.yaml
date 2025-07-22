@@ -70,7 +70,7 @@ spack:
       buildable: false
     mpich:
       externals:
-      - spec: mpich@3.3
+      - spec: mpich@4.0
         prefix: /usr
 
     # System level packages to not build
