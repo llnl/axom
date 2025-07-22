@@ -4,12 +4,12 @@
 # https://github.com/LLNL/raja-suite-tutorial/tree/main/containers/tutorial
 
 # This script can be run with the following command from the root axom directory:
-# docker build --build-arg branch=<your branch here, defaults to develop> -t "axom/tpls:gcc-9-cuda-11" -f ./scripts/docker/dockerfile_gcc-9_cuda-11 .
+# docker build --build-arg branch=<your branch here, defaults to develop> -t "axom/tpls:gcc-12-cuda-12" -f ./scripts/docker/dockerfile_gcc-12_cuda-12 .
 
 # Command to launch openvscode server with the resulting docker image:
 # docker run --init --gpus all --restart=always -p 3000:3000 <image id>
 
-FROM ghcr.io/rse-ops/cuda-ubuntu-20.04:cuda-11.1.1
+FROM ghcr.io/llnl/radiuss:cuda-12-3-ubuntu-22.04
 # Tutorial branch
 ARG branch=develop
 ARG USER=axomdev
@@ -19,15 +19,7 @@ SHELL ["/bin/bash", "-c"]
 RUN sudo apt-get update -y
 RUN sudo apt-get install -y supervisor
 RUN sudo useradd --create-home --shell /bin/bash ${USER}
-RUN sudo apt-get install doxygen elfutils gfortran graphviz language-pack-en-base less libopenblas-dev libomp-dev mpich python3 python3-sphinx ssh tree unzip -fy
-
-# Install CMake
-RUN wget -q --no-check-certificate https://cmake.org/files/v3.23/cmake-3.23.1-linux-x86_64.tar.gz && \
-    tar -xzf cmake-3.23.1-linux-x86_64.tar.gz && \
-    rm -r cmake-3.23.1-linux-x86_64/share/vim/vimfiles && \
-    cp -fR cmake-3.23.1-linux-x86_64/* /usr && \
-    rm -rf cmake-3.23.1-linux-x86_64 && \
-    rm cmake-3.23.1-linux-x86_64.tar.gz
+RUN sudo apt-get install doxygen elfutils gfortran graphviz language-pack-en-base less libopenblas-dev libomp-dev mpich python3-sphinx ssh tree unzip -fy
 
 WORKDIR /opt/archives
 RUN curl -L https://github.com/gitpod-io/openvscode-server/releases/download/openvscode-server-v1.69.1/openvscode-server-v1.69.1-linux-x64.tar.gz > \
@@ -43,7 +35,7 @@ RUN git clone --recursive --branch $branch https://github.com/LLNL/axom.git axom
 # Build/install TPLs via spack and then remove the temporary build directory on success
 RUN cd ${HOME}/axom_repo && python3 ./scripts/uberenv/uberenv.py --spack-env-file=./scripts/spack/configs/docker/ubuntu20_cuda/spack.yaml \
                                                                  --project-json=.uberenv_config.json \
-                                                                 --spec="%gcc@9.3.0+mfem+profiling+cuda ^raja+openmp+cuda ^umpire+openmp+cuda cuda_arch=70" \
+                                                                 --spec="%gcc@12.3.0+mfem+profiling+cuda ^raja+openmp+cuda ^umpire+openmp+cuda cuda_arch=70" \
                                                                  --prefix=${HOME}/axom_tpls -k \
                          && rm -rf ${HOME}/axom_tpls/build_stage ${HOME}/axom_tpls/spack
 

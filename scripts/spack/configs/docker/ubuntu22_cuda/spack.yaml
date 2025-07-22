@@ -31,21 +31,6 @@ spack:
       modules: []
       operating_system: ubuntu20.04
       paths:
-        cc: /usr/bin/clang
-        cxx: /usr/bin/clang++
-        f77: /usr/bin/gfortran
-        fc: /usr/bin/gfortran
-      spec: clang@10.0.0
-      target: x86_64
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      flags:
-        cflags: -pthread
-        cxxflags: -pthread
-      modules: []
-      operating_system: ubuntu20.04
-      paths:
         cc: /usr/bin/gcc
         cxx: /usr/bin/g++
         f77: /usr/bin/gfortran
@@ -59,13 +44,13 @@ spack:
         cflags: -pthread
         cxxflags: -pthread
       modules: []
-      operating_system: ubuntu20.04
+      operating_system: ubuntu22.04
       paths:
         cc: /usr/bin/gcc
         cxx: /usr/bin/g++
         f77: /usr/bin/gfortran
         fc: /usr/bin/gfortran
-      spec: gcc@9.3.0
+      spec: gcc@12.3.0
       target: x86_64
 
   packages:
@@ -116,7 +101,7 @@ spack:
     cuda:
       buildable: false
       externals:
-      - spec: cuda@11.1.1
+      - spec: cuda@12.3
         prefix: /usr/local/cuda
     elfutils:
       buildable: false
@@ -158,11 +143,6 @@ spack:
       externals:
       - spec: openblas@0.2.20
         prefix: /usr
-    ncurses:
-      buildable: false
-      externals:
-      - spec: ncurses@6.2
-        prefix: /opt/spack/opt/spack/linux-ubuntu20.04-x86_64/gcc-9.3.0/
 
     # Add some additional contraints to third party libraries
     # do shared mfem to allow PIC flag in mfem
@@ -205,8 +185,8 @@ spack:
       - spec: unzip@6.0
         prefix: /usr
     python:
-      version: [3.8.5]
+      version: [3.10.12]
       buildable: false
       externals:
-      - spec: python@3.8.5
+      - spec: python@3.10.12
         prefix: /usr
