@@ -16,6 +16,7 @@
 #include <cstdlib>
 
 #ifdef WIN32
+  #include <windows.h>
   #include <direct.h>
   #include <sys/stat.h>
 
@@ -183,11 +184,26 @@ TempFile::TempFile(const std::string& file_name, const std::string& ext, bool de
   : m_delete_during_destruction(delete_during_destruction)
 {
 #ifdef WIN32
-  char tempPath[MAX_PATH];
-  char tempFileName[MAX_PATH];
-  GetTempPathA(MAX_PATH, tempPath);
-  GetTempFileNameA(tempPath, file_name.c_str(), 0, tempFileName);
-  m_path = tempFileName;
+  char temp_dir[MAX_PATH];
+  char temp_file_name[MAX_PATH];
+  GetTempPathA(MAX_PATH, temp_dir);
+
+  // Combine file_name and ext for the prefix (max 3 chars for prefix in GetTempFileNameA)
+  GetTempFileNameA(temp_dir, file_name.c_str(), 0, temp_file_name);
+
+  if(!ext.empty())
+  {
+    const std::string new_path = joinPath(temp_file_name, ext, ".");
+    if(std::rename(temp_file_name, new_path.c_str()) != 0)
+    {
+      throw std::ios::failure {"Failed to rename temp file to include extension"};
+    }
+    m_path = new_path;
+  }
+  else
+  {
+    m_path = std::string(temp_file_name);
+  }
 #else
   // create a tmp file with the requested prefix
   // note: mkstemp requires the last six chars to be "XXXXXX"
