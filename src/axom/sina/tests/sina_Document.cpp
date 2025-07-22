@@ -290,50 +290,6 @@ TEST(Document, toNode_relationships)
   }
 }
 
-/**
- * Instances of this class acquire a temporary file name when created
- * and delete the file when destructed.
- *
- * NOTE: This class uses unsafe methods and should only be used for testing
- * purposes. DO NOT move it to the main code!!!!
- */
-class NamedTempFile
-{
-public:
-  NamedTempFile();
-
-  // As a resource-holding class, we don't want this to be copyable
-  // (or movable since there is no reason to return it from a function)
-  NamedTempFile(NamedTempFile const &) = delete;
-
-  NamedTempFile(NamedTempFile &&) = delete;
-
-  NamedTempFile &operator=(NamedTempFile const &) = delete;
-
-  NamedTempFile &operator=(NamedTempFile &&) = delete;
-
-  ~NamedTempFile();
-
-  std::string const &getName() const { return fileName; }
-
-private:
-  std::string fileName;
-};
-
-NamedTempFile::NamedTempFile()
-{
-  std::vector<char> tmpFileName;
-  tmpFileName.resize(L_tmpnam);
-  // tmpnam is not the best way to do this, but it is standard and this is only a test.
-  if(!std::tmpnam(tmpFileName.data()))
-  {
-    throw std::ios::failure {"Could not get temporary file"};
-  }
-  fileName = tmpFileName.data();
-}
-
-NamedTempFile::~NamedTempFile() { axom::utilities::filesystem::removeFile(fileName.data()); }
-
 TEST(Document, create_fromJson_roundtrip_json)
 {
   std::string orig_json =
@@ -371,23 +327,16 @@ TEST(Document, create_fromJson_value_check_json)
 
 TEST(Document, saveDocument_json)
 {
-  NamedTempFile tmpFile;
-
-  // First, write some random stuff to the temp file to make sure it is
-  // overwritten.
-  {
-    std::ofstream fout {tmpFile.getName()};
-    fout << "Initial contents";
-  }
+  axom::utilities::filesystem::TempFile tmpFile("", ".json");
 
   Document document;
   document.add(std::make_unique<Record>(ID {"the id", IDType::Global}, "the type"));
 
-  saveDocument(document, tmpFile.getName() + ".json");
+  saveDocument(document, tmpFile.getPath());
 
   conduit::Node readContents;
   {
-    std::ifstream fin {tmpFile.getName() + ".json"};
+    std::ifstream fin {tmpFile.getPath()};
     std::stringstream f_buf;
     f_buf << fin.rdbuf();
     readContents.parse(f_buf.str(), "json");
@@ -407,11 +356,10 @@ TEST(Document, load_specifiedRecordLoader)
   Document originalDocument;
   originalDocument.add(std::move(originalRecord));
 
-  NamedTempFile file;
-  {
-    std::ofstream fout {file.getName()};
-    fout << originalDocument.toNode().to_json();
-  }
+  axom::utilities::filesystem::TempFile tmpfile("load_specifiedRecordLoader", ".json");
+  tmpfile.open();
+  tmpfile << originalDocument.toNode().to_json();
+  tmpfile.close();
 
   RecordLoader loader;
   loader.addTypeLoader("my type", [](conduit::Node const &asNode) {
@@ -420,7 +368,7 @@ TEST(Document, load_specifiedRecordLoader)
       getRequiredString("type", asNode, "Test type"),
       static_cast<int>(getRequiredField(TEST_RECORD_VALUE_KEY, asNode, "Test type").as_int64()));
   });
-  Document loadedDocument = loadDocument(file.getName(), loader);
+  Document loadedDocument = loadDocument(tmpfile.getPath(), loader);
   ASSERT_EQ(1u, loadedDocument.getRecords().size());
   auto loadedRecord = dynamic_cast<RecordType const *>(loadedDocument.getRecords()[0].get());
   ASSERT_NE(nullptr, loadedRecord);
@@ -434,13 +382,12 @@ TEST(Document, load_defaultRecordLoaders)
   Document originalDocument;
   originalDocument.add(std::move(originalRun));
 
-  NamedTempFile file;
-  {
-    std::ofstream fout {file.getName()};
-    fout << originalDocument.toNode().to_json();
-  }
+  axom::utilities::filesystem::TempFile tmpfile("load_defaultRecordLoaders", ".json");
+  tmpfile.open();
+  tmpfile << originalDocument.toNode().to_json();
+  tmpfile.close();
 
-  Document loadedDocument = loadDocument(file.getName());
+  Document loadedDocument = loadDocument(tmpfile.getPath());
   ASSERT_EQ(1u, loadedDocument.getRecords().size());
   auto loadedRun = dynamic_cast<axom::sina::Run const *>(loadedDocument.getRecords()[0].get());
   EXPECT_NE(nullptr, loadedRun);
@@ -490,22 +437,15 @@ TEST(Document, create_fromJson_value_check_hdf5)
 
 TEST(Document, saveDocument_hdf5)
 {
-  NamedTempFile tmpFile;
-
-  // First, write some random stuff to the temp file to make sure it is
-  // overwritten.
-  {
-    std::ofstream fout {tmpFile.getName()};
-    fout << "Initial contents";
-  }
+  axom::utilities::filesystem::TempFile tmpFile("saveDocument", ".hdf5");
 
   Document document;
   document.add(std::make_unique<Record>(ID {"the id", IDType::Global}, "the type"));
 
-  saveDocument(document, tmpFile.getName() + ".hdf5", Protocol::HDF5);
+  saveDocument(document, tmpFile.getPath(), Protocol::HDF5);
 
   conduit::Node readContents;
-  conduit::relay::io::load(tmpFile.getName() + ".hdf5", "hdf5", readContents);
+  conduit::relay::io::load(tmpFile.getPath(), "hdf5", readContents);
 
   ASSERT_TRUE(readContents[EXPECTED_RECORDS_KEY].dtype().is_list());
   EXPECT_EQ(1, readContents[EXPECTED_RECORDS_KEY].number_of_children());
