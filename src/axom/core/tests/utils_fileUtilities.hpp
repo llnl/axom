@@ -12,6 +12,8 @@
 #include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/core/utilities/StringUtilities.hpp"
 
+#include "axom/fmt.hpp"
+
 namespace fs = axom::utilities::filesystem;
 
 TEST(utils_fileUtilities, getCWD_smoke)
@@ -192,11 +194,7 @@ TEST(utils_fileUtilities, TempFile_delete_during_destruction)
       fooFile.retain(should_retain);
       actual_path = fooFile.getPath();
 
-      fooFile.open();
-      EXPECT_TRUE(fooFile.is_open());
-      fooFile << file_contents;
-      fooFile.close();
-
+      fooFile.write(file_contents);
       EXPECT_EQ(file_contents, fooFile.getFileContents());
 
       EXPECT_TRUE(fs::pathExists(actual_path));
@@ -211,10 +209,45 @@ TEST(utils_fileUtilities, TempFile_delete_during_destruction)
       std::string contents((std::istreambuf_iterator<char>(infile)),
                            std::istreambuf_iterator<char>());
       EXPECT_EQ(contents, file_contents);
+
+      fs::removeFile(actual_path);  // clean up
     }
     else
     {
       EXPECT_FALSE(fs::pathExists(actual_path));
+    }
+  }
+}
+
+TEST(utils_fileUtilities, TempFile_write)
+{
+  const std::string fname = "foo";
+  const std::string file_contents = "some string";
+
+  for(bool start_open : {true, false})
+  {
+    for(bool preserve_state : {true, false})
+    {
+      fs::TempFile fooFile(fname);
+
+      if(start_open)
+      {
+        fooFile.open();
+      }
+      EXPECT_EQ(fooFile.is_open(), start_open);
+
+      fooFile.write(file_contents, std::ios::out, preserve_state);
+
+      if(preserve_state)
+      {
+        EXPECT_EQ(fooFile.is_open(), start_open)
+          << axom::fmt::format("start_open {} -- preserve_state {}", start_open, preserve_state);
+      }
+      else
+      {
+        EXPECT_TRUE(fooFile.is_open())
+          << axom::fmt::format("start_open {} -- preserve_state {}", start_open, preserve_state);
+      }
     }
   }
 }

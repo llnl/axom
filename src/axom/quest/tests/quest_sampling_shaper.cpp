@@ -40,6 +40,7 @@ namespace primal = axom::primal;
 namespace quest = axom::quest;
 namespace sidre = axom::sidre;
 namespace slic = axom::slic;
+namespace fs = axom::utilities::filesystem;
 
 namespace
 {
@@ -61,35 +62,6 @@ const std::string proe_tet_fmt_str = R"(
 
 // Set the following to true for verbose output and for saving vis files
 constexpr bool very_verbose_output = false;
-
-/// RAII utility class to write a file and remove it when the instance is out of scope
-class ScopedTemporaryFile
-{
-private:
-  // Set this to true to keep the temp files at end of run
-  static constexpr bool s_retain_tmp_files_at_end_of_scope {false};
-
-public:
-  ScopedTemporaryFile(const std::string& file_name,
-                      const std::string& file_ext,
-                      const std::string& contents)
-    : m_tempFile(file_name, file_ext)
-  {
-    m_tempFile.retain(s_retain_tmp_files_at_end_of_scope);
-
-    m_tempFile.open();
-    m_tempFile << contents;
-    m_tempFile.close();
-  }
-
-  const std::string& getFileName() const { return m_tempFile.getPath(); }
-
-  std::string getFileContents() const { return m_tempFile.getFileContents(); }
-
-private:
-  /// The TempFile class creates the file w/ unique name and removes the file in its destructor
-  axom::utilities::filesystem::TempFile m_tempFile;
-};
 
 // Utility function to slice a tetrahedron along a plane
 primal::Polygon<double, 3> slice(const primal::Tetrahedron<double, 3>& tet,
@@ -590,13 +562,12 @@ shapes:
 
   const std::string circle_material = "circleMat";
 
-  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(testname,
-                                 ".yaml",
-                                 axom::fmt::format(axom::fmt::runtime(shape_template),
-                                                   circle_material,
-                                                   contour_file.getFileName()));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), circle_material, contour_file.getPath()));
 
   if(very_verbose_output)
   {
@@ -604,8 +575,8 @@ shapes:
     SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
   }
 
-  this->validateShapeFile(shape_file.getFileName());
-  this->initializeShaping(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
   this->runShaping();
 
   // check that the result has a volume fraction field associated with the circle material
@@ -639,16 +610,15 @@ shapes:
 
   const std::string circle_material = "circleMat";
 
-  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(testname,
-                                 ".yaml",
-                                 axom::fmt::format(axom::fmt::runtime(shape_template),
-                                                   circle_material,
-                                                   contour_file.getFileName()));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), circle_material, contour_file.getPath()));
 
-  this->validateShapeFile(shape_file.getFileName());
-  this->initializeShaping(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
 
   // check that we can set several projectors in 2D and 3D
   // uses simplest projectors, e.g. identity in 2D and 3D
@@ -692,16 +662,15 @@ shapes:
 
   const std::string circle_material = "circleMat";
 
-  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(testname,
-                                 ".yaml",
-                                 axom::fmt::format(axom::fmt::runtime(shape_template),
-                                                   circle_material,
-                                                   contour_file.getFileName()));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), circle_material, contour_file.getPath()));
 
-  this->validateShapeFile(shape_file.getFileName());
-  this->initializeShaping(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
 
   // check that we can set several projectors in 2D and 3D
   // creating an ellipse by scaling input x and y by scale_a and scale_b
@@ -754,12 +723,11 @@ shapes:
   const std::string outer_material = "outer";
   const std::string inner_material = "inner";
 
-  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(
-    testname,
-    ".yaml",
-    axom::fmt::format(axom::fmt::runtime(shape_template), contour_file.getFileName()));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), contour_file.getPath()));
 
   if(very_verbose_output)
   {
@@ -767,9 +735,9 @@ shapes:
     SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
   }
 
-  this->validateShapeFile(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
 
-  this->initializeShaping(shape_file.getFileName());
+  this->initializeShaping(shape_file.getPath());
   this->runShaping();
 
   // check that the result has a volume fraction field associated with the circle material
@@ -815,17 +783,17 @@ shapes:
       - scale: .5
 )";
 
-  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
 
   // Set background material to 'void' (which is not present elsewhere)
   {
-    ScopedTemporaryFile shape_file(testname,
-                                   ".yaml",
-                                   axom::fmt::format(axom::fmt::runtime(shape_template),
-                                                     contour_file.getFileName(),
-                                                     "void",
-                                                     "disk",
-                                                     "hole"));
+    fs::TempFile shape_file(testname, ".yaml");
+    shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                       contour_file.getPath(),
+                                       "void",
+                                       "disk",
+                                       "hole"));
 
     // Create an initial background material set to 1 everywhere
     std::map<std::string, mfem::GridFunction*> initialGridFunctions;
@@ -836,8 +804,8 @@ shapes:
       initialGridFunctions["void"] = vf;
     }
 
-    this->validateShapeFile(shape_file.getFileName());
-    this->initializeShaping(shape_file.getFileName(), initialGridFunctions);
+    this->validateShapeFile(shape_file.getPath());
+    this->initializeShaping(shape_file.getPath(), initialGridFunctions);
     this->runShaping();
 
     // check that the result has a volume fraction field associated with the circle material
@@ -859,13 +827,12 @@ shapes:
 
   // Set background and inner hole materials to 'void'
   {
-    ScopedTemporaryFile shape_file(testname,
-                                   ".yaml",
-                                   axom::fmt::format(axom::fmt::runtime(shape_template),
-                                                     contour_file.getFileName(),
-                                                     "void",
-                                                     "disk",
-                                                     "void"));
+    fs::TempFile shape_file(testname, ".yaml");
+    shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                       contour_file.getPath(),
+                                       "void",
+                                       "disk",
+                                       "void"));
 
     // Create an initial background material set to 1 everywhere
     std::map<std::string, mfem::GridFunction*> initialGridFunctions;
@@ -876,8 +843,8 @@ shapes:
       initialGridFunctions["void"] = vf;
     }
 
-    this->validateShapeFile(shape_file.getFileName());
-    this->initializeShaping(shape_file.getFileName(), initialGridFunctions);
+    this->validateShapeFile(shape_file.getPath());
+    this->initializeShaping(shape_file.getPath(), initialGridFunctions);
     this->runShaping();
 
     // check that the result has a volume fraction field associated with the circle material
@@ -923,10 +890,8 @@ shapes:
   does_not_replace: [{1}]
 )";
 
-  ScopedTemporaryFile shape_file(
-    testname,
-    ".yaml",
-    axom::fmt::format(axom::fmt::runtime(shape_template), "void", "left", "odds"));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), "void", "left", "odds"));
 
   if(very_verbose_output)
   {
@@ -954,8 +919,8 @@ shapes:
     initialGridFunctions["odds"] = vf;
   }
 
-  this->validateShapeFile(shape_file.getFileName());
-  this->initializeShaping(shape_file.getFileName(), initialGridFunctions);
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath(), initialGridFunctions);
   this->runShaping();
 
   // check that the result has a volume fraction field associated with the circle material
@@ -1020,12 +985,11 @@ shapes:
   replaces: [void, hole]
 )";
 
-  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(
-    testname,
-    ".yaml",
-    axom::fmt::format(axom::fmt::runtime(shape_template), contour_file.getFileName()));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), contour_file.getPath()));
 
   if(very_verbose_output)
   {
@@ -1063,8 +1027,8 @@ shapes:
   // The interior hole is within radius .5, but is replaced by left and odds
   // The odds material is all cells w/ odd index, but not covering 'left' or 'disk'
   // The end result for the void background is everything that's left
-  this->validateShapeFile(shape_file.getFileName());
-  this->initializeShaping(shape_file.getFileName(), initialGridFunctions);
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath(), initialGridFunctions);
   this->runShaping();
 
   // check that the result has the correct volume fractions
@@ -1136,19 +1100,19 @@ shapes:
   const std::string double_underscored_shape_name {"double_underscored_shape"};
   const std::string double_underscored_mat_name {"double_underscored_mat"};
 
-  ScopedTemporaryFile contour_file(testname, ".contour", unit_semicircle_contour);
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_semicircle_contour);
 
-  ScopedTemporaryFile shape_file(testname,
-                                 ".yaml",
-                                 axom::fmt::format(axom::fmt::runtime(shape_template),
-                                                   contour_file.getFileName(),
-                                                   radius,
-                                                   shape_name,
-                                                   mat_name,
-                                                   underscored_shape_name,
-                                                   underscored_mat_name,
-                                                   double_underscored_shape_name,
-                                                   double_underscored_mat_name));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     contour_file.getPath(),
+                                     radius,
+                                     shape_name,
+                                     mat_name,
+                                     underscored_shape_name,
+                                     underscored_mat_name,
+                                     double_underscored_shape_name,
+                                     double_underscored_mat_name));
 
   if(very_verbose_output)
   {
@@ -1156,8 +1120,8 @@ shapes:
     SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
   }
 
-  this->validateShapeFile(shape_file.getFileName());
-  this->initializeShaping(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
 
   this->runShaping();
 
@@ -1222,17 +1186,17 @@ shapes:
   const std::string sphere_material = "vaccum";
   const std::string sphere_path = axom::fmt::format("{}/quest/unit_sphere.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(testname,
-                                 ".yaml",
-                                 axom::fmt::format(axom::fmt::runtime(shape_template),
-                                                   contour_file.getFileName(),
-                                                   sphere_path,
-                                                   radius,
-                                                   background_material,
-                                                   circle_material,
-                                                   sphere_material));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     contour_file.getPath(),
+                                     sphere_path,
+                                     radius,
+                                     background_material,
+                                     circle_material,
+                                     sphere_material));
 
   if(very_verbose_output)
   {
@@ -1248,8 +1212,8 @@ shapes:
     initialGridFunctions[background_material] = vf;
   }
 
-  this->validateShapeFile(shape_file.getFileName());
-  this->initializeShaping(shape_file.getFileName(), initialGridFunctions);
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath(), initialGridFunctions);
 
   // set projector from 2D mesh points to 3D query points within STL
   this->m_shaper->setPointProjector23([](Point2D pt) { return Point3D {pt[0], pt[1], 0.}; });
@@ -1296,10 +1260,8 @@ shapes:
   const std::string tet_material = "steel";
   const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile shape_file(
-    testname,
-    ".yaml",
-    axom::fmt::format(axom::fmt::runtime(shape_template), tet_material, tet_path));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), tet_material, tet_path));
 
   if(very_verbose_output)
   {
@@ -1307,8 +1269,8 @@ shapes:
     SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
   }
 
-  this->validateShapeFile(shape_file.getFileName());
-  this->initializeShaping(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
   this->runShaping();
 
   // Check that the result has a volume fraction field associated with the tetrahedron material
@@ -1374,17 +1336,15 @@ shapes:
   const std::string tet_material = "steel";
   const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile shape_file(
-    testname,
-    ".yaml",
-    axom::fmt::format(axom::fmt::runtime(shape_template), tet_material, tet_path));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), tet_material, tet_path));
 
   if(very_verbose_output)
   {
     SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
   }
 
-  this->validateShapeFile(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
 
   // Create initial background materials based on octant attributes
   // Octants were offset by one since mfem doesn't allow setting attribute to zero
@@ -1400,7 +1360,7 @@ shapes:
     }
   }
 
-  this->initializeShaping(shape_file.getFileName(), initialGridFunctions);
+  this->initializeShaping(shape_file.getPath(), initialGridFunctions);
   this->runShaping();
 
   // Check that the result has a volume fraction field associated with the tetrahedron material
@@ -1489,16 +1449,15 @@ shapes:
 
   const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile shape_file(testname,
-                                 ".yaml",
-                                 axom::fmt::format(axom::fmt::runtime(shape_template), tet_path));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), tet_path));
 
   if(very_verbose_output)
   {
     SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
   }
 
-  this->validateShapeFile(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
 
   // Create initial background materials based on octant attributes
   std::map<std::string, mfem::GridFunction*> initialGridFunctions;
@@ -1513,7 +1472,7 @@ shapes:
     }
   }
 
-  this->initializeShaping(shape_file.getFileName(), initialGridFunctions);
+  this->initializeShaping(shape_file.getPath(), initialGridFunctions);
   this->runShaping();
 
   // Check that the result has a volume fraction field associated with the tetrahedron material
@@ -1565,18 +1524,16 @@ shapes:
   const std::string tet_material = "steel";
   const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile shape_file(
-    testname,
-    ".yaml",
-    axom::fmt::format(axom::fmt::runtime(shape_template), tet_material, tet_path));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), tet_material, tet_path));
 
   if(very_verbose_output)
   {
     SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
   }
 
-  this->validateShapeFile(shape_file.getFileName());
-  this->initializeShaping(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
 
   // check that we can set several projectors in 2D and 3D
   // uses simplest projectors, e.g. identity in 2D and 3D
@@ -1623,18 +1580,16 @@ shapes:
   const std::string tet_material = "steel";
   const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile shape_file(
-    testname,
-    ".yaml",
-    axom::fmt::format(axom::fmt::runtime(shape_template), tet_material, tet_path));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), tet_material, tet_path));
 
   if(very_verbose_output)
   {
     SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
   }
 
-  this->validateShapeFile(shape_file.getFileName());
-  this->initializeShaping(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
 
   // scale input points by a factor of 1/2 in each dimension
   this->m_shaper->setPointProjector33([](const Point3D& pt) {
@@ -1683,14 +1638,14 @@ shapes:
 
   const std::string circle_material = "steel";
 
-  ScopedTemporaryFile contour_file(testname, ".contour", unit_semicircle_contour);
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_semicircle_contour);
 
-  ScopedTemporaryFile shape_file(testname,
-                                 ".yaml",
-                                 axom::fmt::format(axom::fmt::runtime(shape_template),
-                                                   circle_material,
-                                                   contour_file.getFileName(),
-                                                   radius));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     circle_material,
+                                     contour_file.getPath(),
+                                     radius));
 
   if(very_verbose_output)
   {
@@ -1698,8 +1653,8 @@ shapes:
     SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
   }
 
-  this->validateShapeFile(shape_file.getFileName());
-  this->initializeShaping(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
 
   // set projector from 3D points to axisymmetric plane
   this->m_shaper->setPointProjector32([](Point3D pt) {
@@ -1760,16 +1715,16 @@ shapes:
   const std::string sphere_material = "void";
   const std::string sphere_path = axom::fmt::format("{}/quest/unit_sphere.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile contour_file(testname, ".contour", unit_semicircle_contour);
+  fs::TempFile contour_file(testname, ".contour");
+  contour_file.write(unit_semicircle_contour);
 
-  ScopedTemporaryFile shape_file(testname,
-                                 ".yaml",
-                                 axom::fmt::format(axom::fmt::runtime(shape_template),
-                                                   contour_file.getFileName(),
-                                                   sphere_path,
-                                                   radius,
-                                                   circle_material,
-                                                   sphere_material));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     contour_file.getPath(),
+                                     sphere_path,
+                                     radius,
+                                     circle_material,
+                                     sphere_material));
 
   if(very_verbose_output)
   {
@@ -1777,8 +1732,8 @@ shapes:
     SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
   }
 
-  this->validateShapeFile(shape_file.getFileName());
-  this->initializeShaping(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath());
 
   // set projector from 3D points to axisymmetric plane
   this->m_shaper->setPointProjector32([](Point3D pt) {
@@ -1847,12 +1802,12 @@ shapes:
   // clang-format on
 
   const std::string tet_material = "steel";
-  ScopedTemporaryFile tet_file(testname, ".proe", proe_tet_str);
+  fs::TempFile tet_file(testname, ".proe");
+  tet_file.write(proe_tet_str);
 
-  ScopedTemporaryFile shape_file(
-    testname,
-    ".yaml",
-    axom::fmt::format(axom::fmt::runtime(shape_template), tet_file.getFileName(), tet_material));
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(
+    axom::fmt::format(axom::fmt::runtime(shape_template), tet_file.getPath(), tet_material));
 
   if(very_verbose_output)
   {
@@ -1860,14 +1815,14 @@ shapes:
     SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
   }
 
-  this->validateShapeFile(shape_file.getFileName());
+  this->validateShapeFile(shape_file.getPath());
 
   // exercise the point projector by running at several XY planes
   for(const double z : {-1.2, -.9, -.75, -.1, 0., .25, 1. / 3., .5})
   {
     this->resetShaping();
 
-    this->initializeShaping(shape_file.getFileName());
+    this->initializeShaping(shape_file.getPath());
 
     primal::Plane<double, 3> plane({0, 0, 1}, z);
     const auto polygon = slice(tet, plane);
@@ -1957,14 +1912,14 @@ piece = line(end=start)
                         bb.getMax()[0],
                         bb.getMax()[1]);
 
-    ScopedTemporaryFile contour_file(testname, ".contour", contour_str);
+    fs::TempFile contour_file(testname, ".contour");
+    contour_file.write(contour_str);
 
-    ScopedTemporaryFile shape_file(testname,
-                                   ".yaml",
-                                   axom::fmt::format(axom::fmt::runtime(shape_template),
-                                                     rect_shape,
-                                                     rect_material,
-                                                     contour_file.getFileName()));
+    fs::TempFile shape_file(testname, ".yaml");
+    shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                       rect_shape,
+                                       rect_material,
+                                       contour_file.getPath()));
 
     if(very_verbose_output)
     {
@@ -1972,12 +1927,12 @@ piece = line(end=start)
       SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
     }
 
-    this->validateShapeFile(shape_file.getFileName());
+    this->validateShapeFile(shape_file.getPath());
 
     for(int qorder : {3, 4, 5, 6, 7, 8, 9})
     {
       this->resetShaping();
-      this->initializeShaping(shape_file.getFileName());
+      this->initializeShaping(shape_file.getPath());
 
       this->m_shaper->setVolumeFractionOrder(0);
       this->m_shaper->setQuadratureOrder(qorder);

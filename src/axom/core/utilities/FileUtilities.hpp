@@ -182,6 +182,36 @@ public:
   }
 
   /**
+   * Writes \a contents to the file
+   * 
+   * Opens the file if it is not already open using \a mode and optionally closes the file
+   * \param content A string to write to the file
+   * \param mode The ios mode to open the file
+   * \param preserve_file_state Controls whether the file should be closed if we had to open it
+   *   If false, the file will be left open. If true, it will be left in its initial state
+   */
+  template <typename StringType>
+  void write(StringType&& content,
+             std::ios::openmode mode = std::ios::out | std::ios::trunc,
+             bool preserve_file_state = true)
+  {
+    bool opened_here = false;
+
+    if(!is_open())
+    {
+      open(mode);
+      opened_here = true;
+    }
+
+    m_ofs << std::forward<StringType>(content);
+
+    if(opened_here && preserve_file_state)
+    {
+      close();
+    }
+  }
+
+  /**
    * \brief Checks if the temporary file is currently open.
    * \return true if the file is open, false otherwise.
    */
