@@ -47,6 +47,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Added a new `quest::STLWriter` class that writes mint meshes to STL format.
 - Adds `assign` methods to `axom::Array`.
 - Adds `assign`, `fill`, `set` methods to `axom::ArrayView`.
+- Core: Adds a `TempFile` class to Axom's FileUtilities to help with generating temp files with unique file
+  names that can be automatically removed when the instance goes out of scope.
 
 ###  Changed
 - Axom now requires C++17 and will default to that if not specified via `BLT_CXX_STD`.
@@ -74,6 +76,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Spin: Fixes undefined behavior in BVH tree construction associated with using signed indexes
 - Spin: Fixes undefined behavior in UniformGrid construction associated with invalid geometry bounding boxes
 - Core: Fixes undefined behavior in MapCollection when searching empty collections
+- Core: Fixes some edge cases in the `joinPath` file utility
 
 ###  Deprecated
 - Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
