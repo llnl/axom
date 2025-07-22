@@ -29,21 +29,6 @@ spack:
         cflags: -pthread
         cxxflags: -pthread
       modules: []
-      operating_system: ubuntu20.04
-      paths:
-        cc: /usr/bin/gcc
-        cxx: /usr/bin/g++
-        f77: /usr/bin/gfortran
-        fc: /usr/bin/gfortran
-      spec: gcc@11.1.0
-      target: x86_64
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      flags:
-        cflags: -pthread
-        cxxflags: -pthread
-      modules: []
       operating_system: ubuntu22.04
       paths:
         cc: /usr/bin/gcc
@@ -101,7 +86,7 @@ spack:
     cuda:
       buildable: false
       externals:
-      - spec: cuda@12.3
+      - spec: cuda@12.3.0
         prefix: /usr/local/cuda
     elfutils:
       buildable: false
