@@ -179,7 +179,7 @@ void getDirName(std::string& dir, const std::string& path)
 int removeFile(const std::string& filename) { return Unlink(filename.c_str()); }
 
 //-----------------------------------------------------------------------------
-TempFile::TempFile(const std::string& file_name, bool delete_during_destruction)
+TempFile::TempFile(const std::string& file_name, const std::string& ext, bool delete_during_destruction)
   : m_delete_during_destruction(delete_during_destruction)
 {
 #ifdef WIN32
@@ -189,6 +189,8 @@ TempFile::TempFile(const std::string& file_name, bool delete_during_destruction)
   GetTempFileNameA(tempPath, file_name.c_str(), 0, tempFileName);
   m_path = tempFileName;
 #else
+  // create a tmp file with the requested prefix
+  // note: mkstemp requires the last six chars to be "XXXXXX"
   const char* tmpdir = getenv("TMPDIR");
   const std::string dir = tmpdir ? tmpdir : "/tmp";
   const std::string tmp_file_name = joinPath(dir, file_name + "XXXXXX");
@@ -198,25 +200,32 @@ TempFile::TempFile(const std::string& file_name, bool delete_during_destruction)
   const int fd = mkstemp(buf.data());
   if(fd == -1)
   {
-    throw std::runtime_error("Failed to create temp file");
+    throw std::ios::failure {"Failed to create temp file"};
   }
-  m_path = buf.data();
-  close(fd);
-#endif
 
-  m_ofs.open(m_path, std::ios::out | std::ios::trunc);
-  if(!m_ofs)
+  // rename to use the provided extension
+  if(!ext.empty())
   {
-    throw std::runtime_error("Failed to open temp file with ofstream");
+    const std::string new_path = joinPath(buf.data(), ext, ".");
+    if(std::rename(buf.data(), new_path.c_str()) != 0)
+    {
+      ::close(fd);
+
+      throw std::ios::failure {"Failed to rename temp file to include extension"};
+    }
+    m_path = new_path;
   }
+  else
+  {
+    m_path = buf.data();
+  }
+  ::close(fd);
+#endif
 }
 
 TempFile::~TempFile()
 {
-  if(m_ofs.is_open())
-  {
-    m_ofs.close();
-  }
+  this->close();
 
   if(m_delete_during_destruction)
   {

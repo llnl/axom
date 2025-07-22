@@ -127,26 +127,65 @@ int removeFile(const std::string& filename);
  * It ensures that the file is deleted upon destruction, if specified.
  * The class is non-copyable to prevent accidental duplication of file handles.
  *
- * The file is opened for writing upon construction and can be written to using the overloaded << operator.
- * 
  * \note The path to the temp file is likely different from the supplied \a file_name
  */
 class TempFile
 {
 public:
   /**
-   * \brief Constructor that takes a \a file_name template, and a flag to control whether the file gets deleted
+   * \brief Creates a tmp file using \a file_name and \a file_ext
    * 
-   * \param file_name The name (or path) of the temporary file to create.
+   * \param file_name The name of the temporary file to create without extension
+   * \param file_ext An optional extension for the temp file
    * \param delete_during_destruction If true (default), the file will be deleted when the TempFile object is destroyed.
+   * \note When creating the temp file, the name will likely be changed. You can get the actual file name
+   * using the \a getPath() function after the file is created.
    */
-  explicit TempFile(const std::string& file_name, bool delete_during_destruction = true);
+  TempFile(const std::string& file_name,
+           const std::string& file_ext,
+           bool delete_during_destruction = true);
+
+  explicit TempFile(const std::string& file_name, bool delete_during_destruction = true)
+    : TempFile(file_name, "", delete_during_destruction)
+  { }
 
   ~TempFile();
 
   // Non-copyable
   TempFile(const TempFile&) = delete;
+  TempFile(TempFile&&) = delete;
   TempFile& operator=(const TempFile&) = delete;
+  TempFile& operator=(TempFile&&) = delete;
+
+  /**
+   * \brief Opens the temporary file for writing
+   * 
+   * \param mode ios flags for opening the file (not used if file is already open)
+   * \return true if the file was successfully opened, false otherwise.
+   */
+  bool open(std::ios_base::openmode mode = std::ios::out | std::ios::trunc)
+  {
+    if(!m_ofs.is_open())
+    {
+      m_ofs.open(m_path, mode);
+    }
+    return m_ofs.is_open();
+  }
+
+  /// \brief Closes the temporary file if it is open
+  void close()
+  {
+    if(m_ofs.is_open())
+    {
+      m_ofs.close();
+    }
+  }
+
+  /**
+   * \brief Checks if the temporary file is currently open.
+   * \return true if the file is open, false otherwise.
+   */
+  bool is_open() const { return m_ofs.is_open(); }
 
   /// Returns the path to the temporary file
   std::string getPath() const { return m_path; }

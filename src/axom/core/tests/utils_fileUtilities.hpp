@@ -160,8 +160,6 @@ TEST(utils_fileUtilities, TempFile_basic)
     fs::TempFile fooFile(fname);
     actual_path = fooFile.getPath();
     std::cout << "Created temp file: " << actual_path << std::endl;
-    fooFile << "some string";
-
     EXPECT_TRUE(fs::pathExists(actual_path));
   }
   // file is removed once it is out of scope
@@ -179,6 +177,9 @@ TEST(utils_fileUtilities, TempFile_delete_during_destruction)
     {
       fs::TempFile fooFile(fname, should_delete);
       actual_path = fooFile.getPath();
+
+      fooFile.open();
+      EXPECT_TRUE(fooFile.is_open());
       fooFile << file_contents;
 
       EXPECT_TRUE(fs::pathExists(actual_path));
@@ -215,4 +216,18 @@ TEST(utils_fileUtilities, TempFile_two)
 
   std::cout << "Created temp file 1: " << actual_path1 << std::endl;
   std::cout << "Created temp file 2: " << actual_path2 << std::endl;
+}
+
+TEST(utils_fileUtilities, TempFile_extension)
+{
+  for(const std::string nm : {"", "foo"})
+  {
+    for(const std::string ext : {"", ".json", "json"})
+    {
+      fs::TempFile tmp(nm, ext);
+
+      std::cout << "Creating tmp file: '" << tmp.getPath() << "' with extension '" << ext << "'\n";
+      EXPECT_TRUE(axom::utilities::string::endsWith(tmp.getPath(), ext));
+    }
+  }
 }
