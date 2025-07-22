@@ -54,6 +54,19 @@ TEST(utils_fileUtilities, joinPath)
     EXPECT_EQ("abc.def", fs::joinPath("abc.", ".def", "."));
   }
 
+  // test with backslash separator (w/ and w/p raw string literals)
+  {
+    EXPECT_EQ("abc\\def", fs::joinPath("abc", "def", "\\"));
+    EXPECT_EQ("abc\\def", fs::joinPath("abc\\", "def", "\\"));
+    EXPECT_EQ("abc\\def", fs::joinPath("abc", "\\def", "\\"));
+    EXPECT_EQ("abc\\def", fs::joinPath("abc\\", "\\def", "\\"));
+
+    EXPECT_EQ(R"(abc\def)", fs::joinPath(R"(abc)", R"(def)", R"(\)"));
+    EXPECT_EQ(R"(abc\def)", fs::joinPath(R"(abc\)", R"(def)", R"(\)"));
+    EXPECT_EQ(R"(abc\def)", fs::joinPath(R"(abc)", R"(\def)", R"(\)"));
+    EXPECT_EQ(R"(abc\def)", fs::joinPath(R"(abc\)", R"(\def)", R"(\)"));
+  }
+
   // test a string that has the separator in other positions
   {
     EXPECT_EQ("abc/def/ghi", fs::joinPath("abc", "def/ghi"));
@@ -220,9 +233,9 @@ TEST(utils_fileUtilities, TempFile_two)
 
 TEST(utils_fileUtilities, TempFile_extension)
 {
-  for(const std::string nm : {"", "foo"})
+  for(const std::string& nm : {"", "foo"})
   {
-    for(const std::string ext : {"", ".json", "json"})
+    for(const std::string& ext : {"", ".json", "json"})
     {
       fs::TempFile tmp(nm, ext);
 
