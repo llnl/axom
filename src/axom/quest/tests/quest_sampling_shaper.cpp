@@ -62,27 +62,31 @@ const std::string proe_tet_fmt_str = R"(
 // Set the following to true for verbose output and for saving vis files
 constexpr bool very_verbose_output = false;
 
-/// RAII utility class to write a file at construction time and remove it
-/// once the instance is out of scope
+/// RAII utility class to write a file and remove it when the instance is out of scope
 class ScopedTemporaryFile
 {
+private:
+  // Set this to false to keep the ScopedTemporaryFiles at end of run
+  static constexpr bool s_delete_tmp_files_at_end_of_scope {true};
+
 public:
-  ScopedTemporaryFile(const std::string& filename, const std::string& contents)
-    : m_filename(filename)
+  ScopedTemporaryFile(const std::string& file_name,
+                      const std::string& file_ext,
+                      const std::string& contents)
+    : m_tempFile(file_name, file_ext, s_delete_tmp_files_at_end_of_scope)
   {
-    std::ofstream ofs(m_filename.c_str(), std::ios::out);
-    ofs << contents;
+    m_tempFile.open();
+    m_tempFile << contents;
+    m_tempFile.close();
   }
 
-  ~ScopedTemporaryFile() { EXPECT_EQ(axom::utilities::filesystem::removeFile(m_filename), 0); }
-
-  const std::string& getFileName() const { return m_filename; }
+  const std::string& getFileName() const { return m_tempFile.getPath(); }
 
   std::string getFileContents() const
   {
     std::stringstream buffer;
 
-    std::ifstream ifs(m_filename.c_str(), std::ios::in);
+    std::ifstream ifs(getFileName().c_str(), std::ios::in);
     if(ifs.is_open())
     {
       buffer << ifs.rdbuf();
@@ -92,7 +96,8 @@ public:
   }
 
 private:
-  const std::string m_filename;
+  /// The TempFile class creates the file w/ unique name and removes the file in its destructor
+  axom::utilities::filesystem::TempFile m_tempFile;
 };
 
 // Utility function to slice a tetrahedron along a plane
@@ -558,33 +563,6 @@ public:
 
 //-----------------------------------------------------------------------------
 
-TEST(ScopedTemporaryFile, basic)
-{
-  using axom::utilities::filesystem::pathExists;
-
-  const std::string filename = "previously_nonexistent.file";
-  const std::string contents = "file contents!";
-
-  // File does not exist before entering scope
-  EXPECT_FALSE(pathExists(filename));
-
-  // File is created and exists within the scope
-  {
-    ScopedTemporaryFile test_file(filename, contents);
-
-    EXPECT_EQ(test_file.getFileName(), filename);
-    ASSERT_TRUE(pathExists(test_file.getFileName()));
-
-    // check contents
-    EXPECT_EQ(contents, test_file.getFileContents());
-  }
-
-  // File no longer exists outside the scope
-  EXPECT_FALSE(pathExists(filename));
-}
-
-//-----------------------------------------------------------------------------
-
 TEST_F(SamplingShaperTest2D, check_mesh)
 {
   auto& mesh = this->getMesh();
@@ -621,9 +599,10 @@ shapes:
 
   const std::string circle_material = "circleMat";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
+  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+  ScopedTemporaryFile shape_file(testname,
+                                 ".yaml",
                                  axom::fmt::format(axom::fmt::runtime(shape_template),
                                                    circle_material,
                                                    contour_file.getFileName()));
@@ -669,9 +648,10 @@ shapes:
 
   const std::string circle_material = "circleMat";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
+  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+  ScopedTemporaryFile shape_file(testname,
+                                 ".yaml",
                                  axom::fmt::format(axom::fmt::runtime(shape_template),
                                                    circle_material,
                                                    contour_file.getFileName()));
@@ -721,9 +701,10 @@ shapes:
 
   const std::string circle_material = "circleMat";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
+  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+  ScopedTemporaryFile shape_file(testname,
+                                 ".yaml",
                                  axom::fmt::format(axom::fmt::runtime(shape_template),
                                                    circle_material,
                                                    contour_file.getFileName()));
@@ -782,10 +763,11 @@ shapes:
   const std::string outer_material = "outer";
   const std::string inner_material = "inner";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
+  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
 
   ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
+    testname,
+    ".yaml",
     axom::fmt::format(axom::fmt::runtime(shape_template), contour_file.getFileName()));
 
   if(very_verbose_output)
@@ -842,11 +824,12 @@ shapes:
       - scale: .5
 )";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
+  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
 
   // Set background material to 'void' (which is not present elsewhere)
   {
-    ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+    ScopedTemporaryFile shape_file(testname,
+                                   ".yaml",
                                    axom::fmt::format(axom::fmt::runtime(shape_template),
                                                      contour_file.getFileName(),
                                                      "void",
@@ -885,7 +868,8 @@ shapes:
 
   // Set background and inner hole materials to 'void'
   {
-    ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+    ScopedTemporaryFile shape_file(testname,
+                                   ".yaml",
                                    axom::fmt::format(axom::fmt::runtime(shape_template),
                                                      contour_file.getFileName(),
                                                      "void",
@@ -949,7 +933,8 @@ shapes:
 )";
 
   ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
+    testname,
+    ".yaml",
     axom::fmt::format(axom::fmt::runtime(shape_template), "void", "left", "odds"));
 
   if(very_verbose_output)
@@ -1044,10 +1029,11 @@ shapes:
   replaces: [void, hole]
 )";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
+  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
 
   ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
+    testname,
+    ".yaml",
     axom::fmt::format(axom::fmt::runtime(shape_template), contour_file.getFileName()));
 
   if(very_verbose_output)
@@ -1159,10 +1145,10 @@ shapes:
   const std::string double_underscored_shape_name {"double_underscored_shape"};
   const std::string double_underscored_mat_name {"double_underscored_mat"};
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname),
-                                   unit_semicircle_contour);
+  ScopedTemporaryFile contour_file(testname, ".contour", unit_semicircle_contour);
 
-  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+  ScopedTemporaryFile shape_file(testname,
+                                 ".yaml",
                                  axom::fmt::format(axom::fmt::runtime(shape_template),
                                                    contour_file.getFileName(),
                                                    radius,
@@ -1245,9 +1231,10 @@ shapes:
   const std::string sphere_material = "vaccum";
   const std::string sphere_path = axom::fmt::format("{}/quest/unit_sphere.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), unit_circle_contour);
+  ScopedTemporaryFile contour_file(testname, ".contour", unit_circle_contour);
 
-  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+  ScopedTemporaryFile shape_file(testname,
+                                 ".yaml",
                                  axom::fmt::format(axom::fmt::runtime(shape_template),
                                                    contour_file.getFileName(),
                                                    sphere_path,
@@ -1319,7 +1306,8 @@ shapes:
   const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
   ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
+    testname,
+    ".yaml",
     axom::fmt::format(axom::fmt::runtime(shape_template), tet_material, tet_path));
 
   if(very_verbose_output)
@@ -1396,7 +1384,8 @@ shapes:
   const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
   ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
+    testname,
+    ".yaml",
     axom::fmt::format(axom::fmt::runtime(shape_template), tet_material, tet_path));
 
   if(very_verbose_output)
@@ -1509,7 +1498,8 @@ shapes:
 
   const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+  ScopedTemporaryFile shape_file(testname,
+                                 ".yaml",
                                  axom::fmt::format(axom::fmt::runtime(shape_template), tet_path));
 
   if(very_verbose_output)
@@ -1585,7 +1575,8 @@ shapes:
   const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
   ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
+    testname,
+    ".yaml",
     axom::fmt::format(axom::fmt::runtime(shape_template), tet_material, tet_path));
 
   if(very_verbose_output)
@@ -1642,7 +1633,8 @@ shapes:
   const std::string tet_path = axom::fmt::format("{}/quest/tetrahedron.stl", AXOM_DATA_DIR);
 
   ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
+    testname,
+    ".yaml",
     axom::fmt::format(axom::fmt::runtime(shape_template), tet_material, tet_path));
 
   if(very_verbose_output)
@@ -1700,10 +1692,10 @@ shapes:
 
   const std::string circle_material = "steel";
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname),
-                                   unit_semicircle_contour);
+  ScopedTemporaryFile contour_file(testname, ".contour", unit_semicircle_contour);
 
-  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+  ScopedTemporaryFile shape_file(testname,
+                                 ".yaml",
                                  axom::fmt::format(axom::fmt::runtime(shape_template),
                                                    circle_material,
                                                    contour_file.getFileName(),
@@ -1777,10 +1769,10 @@ shapes:
   const std::string sphere_material = "void";
   const std::string sphere_path = axom::fmt::format("{}/quest/unit_sphere.stl", AXOM_DATA_DIR);
 
-  ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname),
-                                   unit_semicircle_contour);
+  ScopedTemporaryFile contour_file(testname, ".contour", unit_semicircle_contour);
 
-  ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+  ScopedTemporaryFile shape_file(testname,
+                                 ".yaml",
                                  axom::fmt::format(axom::fmt::runtime(shape_template),
                                                    contour_file.getFileName(),
                                                    sphere_path,
@@ -1864,10 +1856,11 @@ shapes:
   // clang-format on
 
   const std::string tet_material = "steel";
-  ScopedTemporaryFile tet_file(axom::fmt::format("{}.proe", testname), proe_tet_str);
+  ScopedTemporaryFile tet_file(testname, ".proe", proe_tet_str);
 
   ScopedTemporaryFile shape_file(
-    axom::fmt::format("{}.yaml", testname),
+    testname,
+    ".yaml",
     axom::fmt::format(axom::fmt::runtime(shape_template), tet_file.getFileName(), tet_material));
 
   if(very_verbose_output)
@@ -1973,9 +1966,10 @@ piece = line(end=start)
                         bb.getMax()[0],
                         bb.getMax()[1]);
 
-    ScopedTemporaryFile contour_file(axom::fmt::format("{}.contour", testname), contour_str);
+    ScopedTemporaryFile contour_file(testname, ".contour", contour_str);
 
-    ScopedTemporaryFile shape_file(axom::fmt::format("{}.yaml", testname),
+    ScopedTemporaryFile shape_file(testname,
+                                   ".yaml",
                                    axom::fmt::format(axom::fmt::runtime(shape_template),
                                                      rect_shape,
                                                      rect_material,

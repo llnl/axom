@@ -188,7 +188,7 @@ public:
   bool is_open() const { return m_ofs.is_open(); }
 
   /// Returns the path to the temporary file
-  std::string getPath() const { return m_path; }
+  const std::string& getPath() const { return m_path; }
 
   /// Overload the << operator to write data to the file
   template <typename T>
