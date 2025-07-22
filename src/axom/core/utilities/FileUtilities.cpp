@@ -251,6 +251,19 @@ TempFile::~TempFile()
   }
 }
 
+std::string TempFile::getFileContents() const
+{
+  std::stringstream buffer;
+
+  std::ifstream ifs(m_path.c_str(), std::ios::in);
+  if(ifs.is_open())
+  {
+    buffer << ifs.rdbuf();
+  }
+
+  return buffer.str();
+}
+
 }  // end namespace filesystem
 }  // end namespace utilities
 }  // end namespace axom

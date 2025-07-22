@@ -82,18 +82,7 @@ public:
 
   const std::string& getFileName() const { return m_tempFile.getPath(); }
 
-  std::string getFileContents() const
-  {
-    std::stringstream buffer;
-
-    std::ifstream ifs(getFileName().c_str(), std::ios::in);
-    if(ifs.is_open())
-    {
-      buffer << ifs.rdbuf();
-    }
-
-    return buffer.str();
-  }
+  std::string getFileContents() const { return m_tempFile.getFileContents(); }
 
 private:
   /// The TempFile class creates the file w/ unique name and removes the file in its destructor

@@ -191,6 +191,9 @@ public:
   /// Returns the path to the temporary file
   const std::string& getPath() const { return m_path; }
 
+  /// Loads the contents of the file into a string and returns it
+  std::string getFileContents() const;
+
   /// Overload the << operator to write data to the file (for general types)
   template <typename T>
   TempFile& operator<<(const T& data)

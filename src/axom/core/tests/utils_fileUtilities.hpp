@@ -194,6 +194,9 @@ TEST(utils_fileUtilities, TempFile_delete_during_destruction)
       fooFile.open();
       EXPECT_TRUE(fooFile.is_open());
       fooFile << file_contents;
+      fooFile.close();
+
+      EXPECT_EQ(file_contents, fooFile.getFileContents());
 
       EXPECT_TRUE(fs::pathExists(actual_path));
     }
