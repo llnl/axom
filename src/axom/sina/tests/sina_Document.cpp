@@ -327,16 +327,16 @@ TEST(Document, create_fromJson_value_check_json)
 
 TEST(Document, saveDocument_json)
 {
-  axom::utilities::filesystem::TempFile tmpFile("", ".json");
+  axom::utilities::filesystem::TempFile tempFile("", ".json");
 
   Document document;
   document.add(std::make_unique<Record>(ID {"the id", IDType::Global}, "the type"));
 
-  saveDocument(document, tmpFile.getPath());
+  saveDocument(document, tempFile.getPath());
 
   conduit::Node readContents;
   {
-    std::ifstream fin {tmpFile.getPath()};
+    std::ifstream fin {tempFile.getPath()};
     std::stringstream f_buf;
     f_buf << fin.rdbuf();
     readContents.parse(f_buf.str(), "json");
@@ -356,10 +356,10 @@ TEST(Document, load_specifiedRecordLoader)
   Document originalDocument;
   originalDocument.add(std::move(originalRecord));
 
-  axom::utilities::filesystem::TempFile tmpfile("load_specifiedRecordLoader", ".json");
-  tmpfile.open();
-  tmpfile << originalDocument.toNode().to_json();
-  tmpfile.close();
+  axom::utilities::filesystem::TempFile tempfile("load_specifiedRecordLoader", ".json");
+  tempfile.open();
+  tempfile << originalDocument.toNode().to_json();
+  tempfile.close();
 
   RecordLoader loader;
   loader.addTypeLoader("my type", [](conduit::Node const &asNode) {
@@ -368,7 +368,7 @@ TEST(Document, load_specifiedRecordLoader)
       getRequiredString("type", asNode, "Test type"),
       static_cast<int>(getRequiredField(TEST_RECORD_VALUE_KEY, asNode, "Test type").as_int64()));
   });
-  Document loadedDocument = loadDocument(tmpfile.getPath(), loader);
+  Document loadedDocument = loadDocument(tempfile.getPath(), loader);
   ASSERT_EQ(1u, loadedDocument.getRecords().size());
   auto loadedRecord = dynamic_cast<RecordType const *>(loadedDocument.getRecords()[0].get());
   ASSERT_NE(nullptr, loadedRecord);
@@ -382,12 +382,12 @@ TEST(Document, load_defaultRecordLoaders)
   Document originalDocument;
   originalDocument.add(std::move(originalRun));
 
-  axom::utilities::filesystem::TempFile tmpfile("load_defaultRecordLoaders", ".json");
-  tmpfile.open();
-  tmpfile << originalDocument.toNode().to_json();
-  tmpfile.close();
+  axom::utilities::filesystem::TempFile tempfile("load_defaultRecordLoaders", ".json");
+  tempfile.open();
+  tempfile << originalDocument.toNode().to_json();
+  tempfile.close();
 
-  Document loadedDocument = loadDocument(tmpfile.getPath());
+  Document loadedDocument = loadDocument(tempfile.getPath());
   ASSERT_EQ(1u, loadedDocument.getRecords().size());
   auto loadedRun = dynamic_cast<axom::sina::Run const *>(loadedDocument.getRecords()[0].get());
   EXPECT_NE(nullptr, loadedRun);
@@ -437,15 +437,15 @@ TEST(Document, create_fromJson_value_check_hdf5)
 
 TEST(Document, saveDocument_hdf5)
 {
-  axom::utilities::filesystem::TempFile tmpFile("saveDocument", ".hdf5");
+  axom::utilities::filesystem::TempFile tempFile("saveDocument", ".hdf5");
 
   Document document;
   document.add(std::make_unique<Record>(ID {"the id", IDType::Global}, "the type"));
 
-  saveDocument(document, tmpFile.getPath(), Protocol::HDF5);
+  saveDocument(document, tempFile.getPath(), Protocol::HDF5);
 
   conduit::Node readContents;
-  conduit::relay::io::load(tmpFile.getPath(), "hdf5", readContents);
+  conduit::relay::io::load(tempFile.getPath(), "hdf5", readContents);
 
   ASSERT_TRUE(readContents[EXPECTED_RECORDS_KEY].dtype().is_list());
   EXPECT_EQ(1, readContents[EXPECTED_RECORDS_KEY].number_of_children());

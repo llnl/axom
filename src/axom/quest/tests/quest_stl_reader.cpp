@@ -87,7 +87,7 @@ TEST(quest_stl_reader_DeathTest, read_to_invalid_mesh)
 //------------------------------------------------------------------------------
 TEST(quest_stl_reader, read_missing_file)
 {
-  const std::string INVALID_FILE = "nonexistant_file.stl";
+  const std::string INVALID_FILE = "nonexistent_file.stl";
   quest::STLReader reader;
   reader.setFileName(INVALID_FILE);
   int status = reader.read();

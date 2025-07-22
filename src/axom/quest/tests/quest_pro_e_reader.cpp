@@ -24,7 +24,7 @@ namespace
 {
 /*!
  * \brief Generates a Pro/E file consisting of a single tetrahedron
- * \param [in] file the name of the file to generate.
+ * \param [in] file the temp file to generate.
  * \pre file.empty() == false
  */
 void generate_pro_e_file(fs::TempFile& file)
@@ -57,7 +57,7 @@ void generate_pro_e_file(fs::TempFile& file)
 //------------------------------------------------------------------------------
 TEST(quest_pro_e_reader, read_missing_file)
 {
-  const std::string INVALID_FILE = "nonexistant_file.proe";
+  const std::string INVALID_FILE = "nonexistent_file.proe";
   axom::quest::ProEReader reader;
   reader.setFileName(INVALID_FILE);
   int status = reader.read();

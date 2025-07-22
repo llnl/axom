@@ -134,7 +134,7 @@ class TempFile
 {
 public:
   /**
-   * \brief Creates a tmp file using \a file_name and \a file_ext
+   * \brief Creates a temp file using \a file_name and \a file_ext
    * 
    * \param file_name The name of the temporary file to create without extension
    * \param file_ext An optional extension for the temp file

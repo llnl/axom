@@ -4,9 +4,9 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 // Mint includes
-#include "axom/mint/mesh/UniformMesh.hpp"      /* for UniformMesh */
-#include "axom/mint/mesh/UnstructuredMesh.hpp" /* for UnstructuredMesh */
-#include "axom/mint/utils/su2_utils.hpp"       /* for su2 i/o */
+#include "axom/mint/mesh/UniformMesh.hpp"
+#include "axom/mint/mesh/UnstructuredMesh.hpp"
+#include "axom/mint/utils/su2_utils.hpp"
 
 // Axom includes
 #include "axom/core.hpp"
@@ -188,8 +188,8 @@ TEST(mint_su2_io, write_read_single_cell_topology_mesh)
   mesh.appendCell(c3);
 
   // write an SU2 file
-  axom::utilities::filesystem::TempFile tmpfile("simple_mesh", ".su2");
-  const std::string& su2File = tmpfile.getPath();
+  axom::utilities::filesystem::TempFile tempfile("simple_mesh", ".su2");
+  const std::string& su2File = tempfile.getPath();
   int rc = mint::write_su2(&mesh, su2File);
   EXPECT_EQ(rc, 0);
 

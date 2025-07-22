@@ -54,7 +54,7 @@ TEST(utils_fileUtilities, joinPath)
     EXPECT_EQ("abc.def", fs::joinPath("abc.", ".def", "."));
   }
 
-  // test with backslash separator (w/ and w/p raw string literals)
+  // test with backslash separator (w/ and w/o raw string literals)
   {
     EXPECT_EQ("abc\\def", fs::joinPath("abc", "def", "\\"));
     EXPECT_EQ("abc\\def", fs::joinPath("abc\\", "def", "\\"));
@@ -237,10 +237,10 @@ TEST(utils_fileUtilities, TempFile_extension)
   {
     for(const std::string& ext : {"", ".json", "json"})
     {
-      fs::TempFile tmp(nm, ext);
+      fs::TempFile temp(nm, ext);
 
-      std::cout << "Creating tmp file: '" << tmp.getPath() << "' with extension '" << ext << "'\n";
-      EXPECT_TRUE(axom::utilities::string::endsWith(tmp.getPath(), ext));
+      std::cout << "Creating temp file: '" << temp.getPath() << "' with extension '" << ext << "'\n";
+      EXPECT_TRUE(axom::utilities::string::endsWith(temp.getPath(), ext));
     }
   }
 }
