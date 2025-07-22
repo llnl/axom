@@ -36,7 +36,7 @@ RUN git clone --recursive --branch $branch https://github.com/LLNL/axom.git axom
 # Build/install TPLs via spack and then remove the temporary build directory on success
 RUN cd ${HOME}/axom_repo && python3 ./scripts/uberenv/uberenv.py --spack-env-file=./scripts/spack/configs/docker/ubuntu22_cuda/spack.yaml \
                                                                  --project-json=.uberenv_config.json \
-                                                                 --spec="%gcc@12.3.0+mfem+profiling+cuda ^raja+openmp+cuda cuda_arch=70 ^umpire+openmp+cuda cuda_arch=70" \
+                                                                 --spec="%gcc@12.3.0+mfem+profiling+cuda cuda_arch=70 ^raja+openmp+cuda ^umpire+openmp+cuda" \
                                                                  --prefix=${HOME}/axom_tpls -k \
                          && rm -rf ${HOME}/axom_tpls/build_stage ${HOME}/axom_tpls/spack
 
