@@ -160,7 +160,7 @@ spack:
       buildable: false
       externals:
       - spec: cmake@3.23.1
-        prefix: /usr
+        prefix: /usr/local
     doxygen:
       version: [1.8.17]
       buildable: false
