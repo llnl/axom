@@ -1499,8 +1499,14 @@ bool Group::createNativeLayout(Node& n, const Attribute* attr) const
  *
  *************************************************************************
  */
-bool Group::deepCopyToConduit(Node& dst, const Attribute* attr) const
+bool Group::deepCopyToConduit(Node& dst,
+                              int tupleAllocId,
+                              int arrayAllocId,
+                              const Attribute* attr) const
 {
+  if(tupleAllocId == INVALID_ALLOCATOR_ID) {tupleAllocId = ConduitMemory::conduitAllocIdToAxom(dst.allocator()); }
+  if(arrayAllocId == INVALID_ALLOCATOR_ID) {arrayAllocId = ConduitMemory::conduitAllocIdToAxom(dst.allocator()); }
+
   dst.set(DataType::object());
   bool hasSavedViews = false;
 
@@ -1518,7 +1524,8 @@ bool Group::deepCopyToConduit(Node& dst, const Attribute* attr) const
     if(attr == nullptr || view->hasAttributeValue(attr))
     {
       conduit::Node& child_node = m_is_list ? dst.append() : dst[view->getName()];
-      view->deepCopyToConduit(child_node);
+      const int allocId = view->isScalar() || view->isString() ? tupleAllocId : arrayAllocId;
+      view->deepCopyToConduit(child_node, allocId);
       hasSavedViews = true;
     }
     vidx = getNextValidViewIndex(vidx);
@@ -1530,7 +1537,7 @@ bool Group::deepCopyToConduit(Node& dst, const Attribute* attr) const
   {
     const Group* group = getGroup(gidx);
     conduit::Node& child_node = m_is_list ? dst.append() : dst[group->getName()];
-    if(group->deepCopyToConduit(child_node, attr))
+    if(group->deepCopyToConduit(child_node, tupleAllocId, arrayAllocId, attr))
     {
       hasSavedViews = true;
     }

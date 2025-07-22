@@ -298,9 +298,9 @@ public:
   /*!
     \brief Set the default array allocator id associated with this Group.
 
-    This allocator is the default for Views that hold arrays, even if
-    the array is length 1.  (Note, tuples are not arrays in this sense.
-    @see setDefaultTupleAllocator().)
+    This allocator is the default for array data, even if the array is
+    length 1.  (Note, tuples are not arrays in this sense.  @see
+    setDefaultTupleAllocator(int).)
   */
   Group* setDefaultArrayAllocator(int allocId)
   {
@@ -336,8 +336,9 @@ public:
   /*!
     \brief Set the default scalar/tuple allocator id associated with this Group.
 
-    This allocator is the default for Views that hold tuples, including strings
-    and scalars.  (Arrays are not tuples in this sense.  @see setDefaultArrayAllocator().)
+    This allocator is the default for tuple data, including strings
+    and scalars.  (Arrays are not tuples in this sense.  @see
+    setDefaultArrayAllocator(int).)
   */
   Group* setDefaultTupleAllocator(int allocId)
   {
@@ -1468,14 +1469,18 @@ public:
    * This is similar to createNativeLayout, except for the leaves being
    * deep-copied.
    *
-   * The destination's allocator id should be preserved and used for
-   * array allocations.
+   * The destination's default data allocator is used for all data,
+   * unless alternates are specified.  The alternates are \c tupleAllocId
+   * for tuple data and \c arrayAllocId for arrays.
    *
    * \return True if the Group or any of its children were added to the Node,
    * false otherwise.
    *
    */
-  bool deepCopyToConduit(Node& dst, const Attribute* attr = nullptr) const;
+  bool deepCopyToConduit(Node& dst,
+                         int tupleAllocId = INVALID_ALLOCATOR_ID,
+                         int arrayAllocId = INVALID_ALLOCATOR_ID,
+                         const Attribute* attr = nullptr) const;
 
   /*!
    * \brief Copy Group's layout to given Conduit node without data
