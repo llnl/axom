@@ -8,6 +8,7 @@
 
 #include <string>
 #include <fstream>
+#include <utility>
 
 namespace axom
 {
@@ -190,11 +191,18 @@ public:
   /// Returns the path to the temporary file
   const std::string& getPath() const { return m_path; }
 
-  /// Overload the << operator to write data to the file
+  /// Overload the << operator to write data to the file (for general types)
   template <typename T>
-  TempFile& operator<<(T&& data)
+  TempFile& operator<<(const T& data)
   {
-    m_ofs << std::forward<T>(data);
+    m_ofs << data;
+    return *this;
+  }
+
+  /// Overload the << operator to support manipulators (e.g., std::endl)
+  TempFile& operator<<(std::ostream& (*manip)(std::ostream&))
+  {
+    m_ofs << manip;
     return *this;
   }
 
