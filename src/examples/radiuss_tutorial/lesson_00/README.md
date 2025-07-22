@@ -3,7 +3,7 @@
 In this lesson, we will develop a simple application that uses an installed version of Axom. 
 Specifically, we will print the version of Axom and some of its configuration properties.
 
-> :information_source: Our examples use the ``C++14`` standard since that's Axom's current version.
+> :information_source: Our examples use the ``C++17`` standard since that's Axom's current version.
 
 We will also be using the [fmt](https://fmt.dev/latest/index.html) library for string formatting, which Axom uses internally and vendors for its users.
 The vast majority of ``fmt`` has been included in recent C++ standards, starting with ``C++20``. See also the [fmt cheat sheet](https://hackingcpp.com/cpp/libs/fmt.html).
@@ -120,7 +120,7 @@ Axom information:
   AXOM_VERSION_PATCH: 0
   AXOM_GIT_SHA: f5b5b5d66
 Compiler Settings: 
-  C++ Standard: c++14
+  C++ Standard: c++17
   Size of axom::IndexType: 4
 Active programming models: { mpi;openmp }
 Available components: { core;inlet;klee;lumberjack;mint;primal;quest;sidre;slam;slic;spin }

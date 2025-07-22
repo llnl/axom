@@ -54,8 +54,7 @@ public:
    * \brief Concrete instance of the BlockIteratorHelper class defined in the
    * OctreeLevel base class.
    *
-   * \note ParenType must be either BlockIteratorHelper or
-   * ConstBlockIteratorHelper,
+   * \note ParenType must be either BlockIteratorHelper or ConstBlockIteratorHelper,
    *       both are defined in the OctreeLevel base class
    */
   template <typename OctreeLevelType, typename ParentType>
@@ -80,7 +79,7 @@ public:
       }
     }
 
-    /** Increment to next block of the level */
+    /// Increment to next block of the level
     void increment()
     {
       // Note, must skip blocks that are not in the tree
@@ -95,40 +94,36 @@ public:
       } while(m_currentIdx < m_endIdx && !data()->isBlock());
     }
 
-    /** Access to point associated with the block pointed to by the iterator */
+    /// Access to point associated with the block pointed to by the iterator
     GridPt pt() const
     {
       // Reconstruct the grid point from its brood representation
       return BroodType::reconstructGridPt(m_currentIdx, m_offset);
     }
 
-    /** Accessor for data associated with the iterator's block */
+    /// Accessor for data associated with the iterator's block
     BlockDataType* data() { return &m_octreeLevel->m_data[m_currentIdx][m_offset]; }
-    /** Const accessor for data associated with the iterator's block */
+    /// Const accessor for data associated with the iterator's block
     const BlockDataType* data() const { return &m_octreeLevel->m_data[m_currentIdx][m_offset]; }
 
-    /** \brief Predicate to determine if two block iterators are the same */
+    /// \brief Predicate to determine if two block iterators are the same
     bool equal(const BaseBlockItType* other)
     {
       const self* pother = dynamic_cast<const self*>(other);
 
-      return (pother != nullptr) &&
-        (m_currentIdx == pother->m_currentIdx)  // iterators
-                                                // are the same
-        && (m_offset == pother->m_offset);      // brood
-                                                // indices are
-                                                // the same
+      return (pother != nullptr) && (m_currentIdx == pother->m_currentIdx)  // iterators are the same
+        && (m_offset == pother->m_offset);  // brood indices are the same
     }
 
   private:
-    OctreeLevelType* m_octreeLevel;
+    OctreeLevelType* m_octreeLevel {nullptr};
     MortonIndexType m_currentIdx, m_endIdx;
     int m_offset;
     bool m_isLevelZero;
   };
 
 public:
-  /** \brief Default constructor for an octree level */
+  /// \brief Default constructor for an octree level
   DenseOctreeLevel(int level = -1) : Base(level), m_blockCount(0)
   {
     if(level < 0)
@@ -182,8 +177,8 @@ public:
   /**
    * \brief Factory function to return a ConstGridBlockIterHelper for this level
    *
-   *  \param begin A boolean to determine if this is to be
-   * a begin (true) or end (false) iterator
+   * \param begin A boolean to determine if this is to be
+   *   a begin (true) or end (false) iterator
    */
   ConstBaseBlockIteratorHelper* getIteratorHelper(bool begin) const
   {
@@ -232,14 +227,14 @@ public:
     }
   }
 
-  /** \brief Accessor for the data associated with pt */
+  /// \brief Accessor for the data associated with pt
   BlockDataType& operator[](const GridPt& pt)
   {
     const BroodType brood(pt);
     return m_data[brood.base()][brood.offset()];
   }
 
-  /** \brief Const accessor for the data associated with pt */
+  /// \brief Const accessor for the data associated with pt
   const BlockDataType& operator[](const GridPt& pt) const
   {
     SLIC_ASSERT_MSG(hasBlock(pt),
@@ -249,28 +244,28 @@ public:
     return m_data[brood.base()][brood.offset()];
   }
 
-  /** \brief Access the data associated with the entire brood */
+  /// \brief Access the data associated with the entire brood
   BroodData& getBroodData(const GridPt& pt)
   {
     return m_data[BroodType::MortonizerType::mortonize(pt)];
   }
 
-  /** \brief Const access to data associated with the entire brood */
+  /// \brief Const access to data associated with the entire brood
   const BroodData& getBroodData(const GridPt& pt) const
   {
     return m_data[BroodType::MortonizerType::mortonize(pt)];
   }
 
-  /** \brief Predicate to check if there are any blocks in this octree level */
+  /// \brief Predicate to check if there are any blocks in this octree level
   bool empty() const { return m_blockCount == 0; }
 
-  /** \brief Returns the number of blocks (internal and leaf) in the level */
+  /// \brief Returns the number of blocks (internal and leaf) in the level
   int numBlocks() const { return m_blockCount; }
 
-  /** \brief Returns the number of internal blocks in the level */
+  /// \brief Returns the number of internal blocks in the level
   int numInternalBlocks() const { return numBlocks() - numLeafBlocks(); }
 
-  /** \brief Returns the number of leaf blocks in the level */
+  /// \brief Returns the number of leaf blocks in the level
   int numLeafBlocks() const
   {
     if(empty())
@@ -294,12 +289,10 @@ public:
   }
 
   /**
-   * \brief Helper function to determine the status of
-   * an octree block within this octree level
+   * \brief Helper function to determine the status of an octree block within this octree level
    *
    * \param pt The grid point of the block index that we are testing
-   * \return The status of the grid point pt (e.g. LeafBlock, InternalBlock,
-   *...)
+   * \return The status of the grid point pt (e.g. LeafBlock, InternalBlock, ...)
    */
   TreeBlockStatus blockStatus(const GridPt& pt) const
   {
@@ -319,7 +312,7 @@ private:
   DISABLE_MOVE_AND_ASSIGNMENT(DenseOctreeLevel);
 
 private:
-  BroodData* m_data;
+  BroodData* m_data {nullptr};
   int m_broodCapacity;
   int m_blockCount;
 };
