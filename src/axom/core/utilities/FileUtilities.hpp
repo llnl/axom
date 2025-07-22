@@ -125,7 +125,7 @@ int removeFile(const std::string& filename);
  * /brief Utility class for managing temporary files.
  *
  * The TempFile class provides a convenient way to create and manage temporary files.
- * It ensures that the file is deleted upon destruction, if specified.
+ * It ensures that the file is deleted upon destruction, unless the user calls \a retain(true)
  * The class is non-copyable to prevent accidental duplication of file handles.
  *
  * \note The path to the temp file is likely different from the supplied \a file_name
@@ -138,17 +138,10 @@ public:
    * 
    * \param file_name The name of the temporary file to create without extension
    * \param file_ext An optional extension for the temp file
-   * \param delete_during_destruction If true (default), the file will be deleted when the TempFile object is destroyed.
    * \note When creating the temp file, the name will likely be changed. You can get the actual file name
    * using the \a getPath() function after the file is created.
    */
-  TempFile(const std::string& file_name,
-           const std::string& file_ext,
-           bool delete_during_destruction = true);
-
-  explicit TempFile(const std::string& file_name, bool delete_during_destruction = true)
-    : TempFile(file_name, "", delete_during_destruction)
-  { }
+  explicit TempFile(const std::string& file_name, const std::string& file_ext = "");
 
   ~TempFile();
 
@@ -157,6 +150,12 @@ public:
   TempFile(TempFile&&) = delete;
   TempFile& operator=(const TempFile&) = delete;
   TempFile& operator=(TempFile&&) = delete;
+
+  /// If set to true, we will retain the file after the instance is destroyed
+  void retain(bool should_retain) { m_retain_file = should_retain; }
+
+  /// Returns true if the file will be retained after the instance is destroyed, false otherwise (default)
+  bool retain() const { return m_retain_file; }
 
   /**
    * \brief Opens the temporary file for writing
@@ -212,7 +211,7 @@ public:
 private:
   std::string m_path;
   std::ofstream m_ofs;
-  bool m_delete_during_destruction {true};
+  bool m_retain_file {false};  // should the temp file persist after the instance goes out of scope?
 };
 
 }  // end namespace filesystem

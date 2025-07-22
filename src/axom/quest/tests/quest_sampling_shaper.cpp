@@ -66,15 +66,17 @@ constexpr bool very_verbose_output = false;
 class ScopedTemporaryFile
 {
 private:
-  // Set this to false to keep the ScopedTemporaryFiles at end of run
-  static constexpr bool s_delete_tmp_files_at_end_of_scope {true};
+  // Set this to true to keep the temp files at end of run
+  static constexpr bool s_retain_tmp_files_at_end_of_scope {false};
 
 public:
   ScopedTemporaryFile(const std::string& file_name,
                       const std::string& file_ext,
                       const std::string& contents)
-    : m_tempFile(file_name, file_ext, s_delete_tmp_files_at_end_of_scope)
+    : m_tempFile(file_name, file_ext)
   {
+    m_tempFile.retain(s_retain_tmp_files_at_end_of_scope);
+
     m_tempFile.open();
     m_tempFile << contents;
     m_tempFile.close();

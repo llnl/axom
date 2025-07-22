@@ -49,10 +49,7 @@ std::string getCWD()
 
   if(!GetCurrentDir(cCurrentPath, FILENAME_MAX))
   {
-    //Note: Cannot use logging in COMMON component -- topic of JIRA issue
-    // ATK-463
-    //SLIC_WARNING("Common::Could not find cwd");
-
+    //Note: Cannot use slic logging in core component
     return std::string("./");
   }
 
@@ -180,8 +177,7 @@ void getDirName(std::string& dir, const std::string& path)
 int removeFile(const std::string& filename) { return Unlink(filename.c_str()); }
 
 //-----------------------------------------------------------------------------
-TempFile::TempFile(const std::string& file_name, const std::string& ext, bool delete_during_destruction)
-  : m_delete_during_destruction(delete_during_destruction)
+TempFile::TempFile(const std::string& file_name, const std::string& ext)
 {
 #ifdef WIN32
   char temp_dir[MAX_PATH];
@@ -245,7 +241,7 @@ TempFile::~TempFile()
 {
   this->close();
 
-  if(m_delete_during_destruction)
+  if(!m_retain_file)
   {
     removeFile(m_path);
   }

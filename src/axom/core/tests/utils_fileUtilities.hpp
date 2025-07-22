@@ -184,11 +184,12 @@ TEST(utils_fileUtilities, TempFile_delete_during_destruction)
   const std::string fname = "foo";
   const std::string file_contents = "some string";
 
-  for(bool should_delete : {true, false})
+  for(bool should_retain : {true, false})
   {
     std::string actual_path;
     {
-      fs::TempFile fooFile(fname, should_delete);
+      fs::TempFile fooFile(fname);
+      fooFile.retain(should_retain);
       actual_path = fooFile.getPath();
 
       fooFile.open();
@@ -201,11 +202,7 @@ TEST(utils_fileUtilities, TempFile_delete_during_destruction)
       EXPECT_TRUE(fs::pathExists(actual_path));
     }
 
-    if(should_delete)
-    {
-      EXPECT_FALSE(fs::pathExists(actual_path));
-    }
-    else
+    if(should_retain)
     {
       EXPECT_TRUE(fs::pathExists(actual_path));
 
@@ -214,6 +211,10 @@ TEST(utils_fileUtilities, TempFile_delete_during_destruction)
       std::string contents((std::istreambuf_iterator<char>(infile)),
                            std::istreambuf_iterator<char>());
       EXPECT_EQ(contents, file_contents);
+    }
+    else
+    {
+      EXPECT_FALSE(fs::pathExists(actual_path));
     }
   }
 }
