@@ -49,6 +49,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds `assign`, `fill`, `set` methods to `axom::ArrayView`.
 
 ###  Changed
+- Axom now requires C++17 and will default to that if not specified via `BLT_CXX_STD`.
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
   since the last `reset()`.
 - Adds support for allocations using `malloc` and `free` even when Axom is configured with Umpire support.
