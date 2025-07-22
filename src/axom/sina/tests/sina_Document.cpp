@@ -335,12 +335,7 @@ TEST(Document, saveDocument_json)
   saveDocument(document, tempFile.getPath());
 
   conduit::Node readContents;
-  {
-    std::ifstream fin {tempFile.getPath()};
-    std::stringstream f_buf;
-    f_buf << fin.rdbuf();
-    readContents.parse(f_buf.str(), "json");
-  }
+  readContents.parse(tempFile.getFileContents(), "json");
 
   ASSERT_TRUE(readContents[EXPECTED_RECORDS_KEY].dtype().is_list());
   EXPECT_EQ(1, readContents[EXPECTED_RECORDS_KEY].number_of_children());
@@ -357,9 +352,7 @@ TEST(Document, load_specifiedRecordLoader)
   originalDocument.add(std::move(originalRecord));
 
   axom::utilities::filesystem::TempFile tempfile("load_specifiedRecordLoader", ".json");
-  tempfile.open();
-  tempfile << originalDocument.toNode().to_json();
-  tempfile.close();
+  tempfile.write(originalDocument.toNode().to_json());
 
   RecordLoader loader;
   loader.addTypeLoader("my type", [](conduit::Node const &asNode) {
@@ -383,9 +376,7 @@ TEST(Document, load_defaultRecordLoaders)
   originalDocument.add(std::move(originalRun));
 
   axom::utilities::filesystem::TempFile tempfile("load_defaultRecordLoaders", ".json");
-  tempfile.open();
-  tempfile << originalDocument.toNode().to_json();
-  tempfile.close();
+  tempfile.write(originalDocument.toNode().to_json());
 
   Document loadedDocument = loadDocument(tempfile.getPath());
   ASSERT_EQ(1u, loadedDocument.getRecords().size());
