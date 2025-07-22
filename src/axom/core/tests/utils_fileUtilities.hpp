@@ -10,6 +10,7 @@
 
 #include "axom/config.hpp"
 #include "axom/core/utilities/FileUtilities.hpp"
+#include "axom/core/utilities/StringUtilities.hpp"
 
 namespace fs = axom::utilities::filesystem;
 
@@ -31,18 +32,40 @@ TEST(utils_fileUtilities, joinPath)
 {
   std::cout << "Testing joinPath() function" << std::endl;
 
-  std::string fdir = "abc";
-  std::string fdirWithSlash = "abc/";
-  std::string fname = "def";
+  // test with empty dir or name
+  {
+    EXPECT_EQ("def", fs::joinPath("", "def"));
+    EXPECT_EQ("abc", fs::joinPath("abc", ""));
+  }
 
-  std::string fullfile = "abc/def";
+  // test with default separator
+  {
+    EXPECT_EQ("abc/def", fs::joinPath("abc", "def"));
+    EXPECT_EQ("abc/def", fs::joinPath("abc/", "def"));
+    EXPECT_EQ("abc/def", fs::joinPath("abc", "/def"));
+    EXPECT_EQ("abc/def", fs::joinPath("abc/", "/def"));
+  }
 
-  EXPECT_EQ(fullfile, fs::joinPath(fdir, fname));
+  // test with a different separator
+  {
+    EXPECT_EQ("abc.def", fs::joinPath("abc", "def", "."));
+    EXPECT_EQ("abc.def", fs::joinPath("abc.", "def", "."));
+    EXPECT_EQ("abc.def", fs::joinPath("abc", ".def", "."));
+    EXPECT_EQ("abc.def", fs::joinPath("abc.", ".def", "."));
+  }
 
-  EXPECT_EQ(fullfile, fs::joinPath(fdirWithSlash, fname));
+  // test a string that has the separator in other positions
+  {
+    EXPECT_EQ("abc/def/ghi", fs::joinPath("abc", "def/ghi"));
+    EXPECT_EQ("abc/def/ghi", fs::joinPath("abc/", "def/ghi"));
+    EXPECT_EQ("abc/def/ghi", fs::joinPath("abc", "/def/ghi"));
+    EXPECT_EQ("abc/def/ghi", fs::joinPath("abc/", "/def/ghi"));
 
-  std::string fnameWithSubdir = "def/ghi";
-  EXPECT_EQ("abc/def/ghi", fs::joinPath(fdir, fnameWithSubdir));
+    EXPECT_EQ("abc/def/ghi", fs::joinPath("abc/def", "ghi"));
+    EXPECT_EQ("abc/def/ghi", fs::joinPath("abc/def/", "ghi"));
+    EXPECT_EQ("abc/def/ghi", fs::joinPath("abc/def", "/ghi"));
+    EXPECT_EQ("abc/def/ghi", fs::joinPath("abc/def/", "/ghi"));
+  }
 }
 
 TEST(utils_fileUtilities, pathExists)

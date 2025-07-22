@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/core/utilities/FileUtilities.hpp"
+#include "axom/core/utilities/StringUtilities.hpp"
+#include "axom/fmt.hpp"
 
 #include <vector>
 #include <string>
@@ -72,14 +74,18 @@ std::string joinPath(const std::string& fileDir,
                      const std::string& fileName,
                      const std::string& separator)
 {
-  // Check if we need to add a separator
-  bool pathNeedsSep = !fileDir.empty() && (fileDir[fileDir.size() - 1] != separator[0]);
+  namespace sutil = axom::utilities::string;
 
-  // Concatenate the path with the fileName to create the full path
-  std::stringstream fullFileNameStream;
-  fullFileNameStream << fileDir << (pathNeedsSep ? separator : "") << fileName;
+  // Check if we need to add or remove a separator
+  const bool has_empties = fileDir.empty() || fileName.empty();
+  const int sep_count = (!fileDir.empty() && sutil::endsWith(fileDir, separator) ? 1 : 0) +
+    (!fileName.empty() && sutil::startsWith(fileName, separator) ? 1 : 0);
 
-  return fullFileNameStream.str();
+  // Concatenate the path with the fileName, adding or removing a separator, as needed
+  return axom::fmt::format("{}{}{}",
+                           (sep_count == 2) ? sutil::removeSuffix(fileDir, separator) : fileDir,
+                           !has_empties && sep_count == 0 ? separator : "",
+                           fileName);
 }
 
 //-----------------------------------------------------------------------------
