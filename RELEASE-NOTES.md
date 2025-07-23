@@ -47,9 +47,12 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Added a new `quest::STLWriter` class that writes mint meshes to STL format.
 - Adds `assign` methods to `axom::Array`.
 - Adds `assign`, `fill`, `set` methods to `axom::ArrayView`.
+- Klee: We now support optional specification of a per-shape `dimensions` field for the 
+  geometry of a shape. These can be used to override the global `dimensions` 
+  of a Klee input file.
 
 ###  Changed
-- Axom now requires C++17 and will default to that if not specified via `BLT_CXX_STD`.
+- Axom now requires `C++17` and will default to that if not specified via `BLT_CXX_STD`.
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
   since the last `reset()`.
 - Adds support for allocations using `malloc` and `free` even when Axom is configured with Umpire support.
@@ -64,6 +67,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Spin: Uses `axom::FlatMap` in `SparseOctreeLevel` implementation. We have observed a performance regression
   of about 20% during InOutOctree construction and queries over STL surface meshes relative to the previous sparsehash
   implementation. Please reach out to Axom developers if this affects you while we work on fixes for these.
+- Klee: Moves source files related to IO into a new `io` subdirectory in the Klee component
 
 ###  Fixed
 - Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
