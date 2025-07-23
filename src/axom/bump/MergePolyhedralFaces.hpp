@@ -97,7 +97,8 @@ public:
       AXOM_LAMBDA(axom::IndexType faceIndex) {
         // Get size for current face.
         const auto faceSize = static_cast<int>(se_sizes[faceIndex]);
-        SLIC_ASSERT(faceSize <= MaxPointsPerFace);
+        // MaxPointsPerFace is 16
+        SLIC_ASSERT(faceSize <= 16);
 
         KeyType faceName {};
         if(faceSize > 0)
