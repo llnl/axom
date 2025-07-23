@@ -25,6 +25,9 @@ TEST(GeometryTest, dimensions_noOperators)
   EXPECT_EQ(startProperties, geometry.getEndProperties());
 
   EXPECT_TRUE(geometry.hasGeometry());
+
+  EXPECT_EQ(startProperties.dimensions, geometry.getInputDimensions());
+  EXPECT_EQ(startProperties.dimensions, geometry.getOutputDimensions());
 }
 
 TEST(GeometryTest, dimensions_dimensionPreservingOperator)
@@ -37,8 +40,8 @@ TEST(GeometryTest, dimensions_dimensionPreservingOperator)
   ON_CALL(*mockOperator, getEndProperties()).WillByDefault(Return(endProperties));
   EXPECT_CALL(*mockOperator, getEndProperties());
 
-  EXPECT_EQ(startProperties, geometry.getStartProperties());
-  EXPECT_EQ(endProperties, geometry.getEndProperties());
+  EXPECT_EQ(startProperties.dimensions, geometry.getInputDimensions());
+  EXPECT_EQ(endProperties.dimensions, geometry.getOutputDimensions());
 }
 
 TEST(GeometryTest, emptyPath)

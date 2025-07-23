@@ -201,12 +201,13 @@ public:
     EXPECT_NE(nullptr, m_shaper) << "Shaper needs to be initialized via initializeShaping()";
 
     // Define lambda to override default dimensions, when necessary
-    auto getShapeDim = [defaultDim = m_shapeSet->getDimensions()](const auto& shape) {
+    auto getShapeDim = [](const auto& shape) {
       static std::map<std::string, klee::Dimensions> format_dim = {{"c2c", klee::Dimensions::Two},
                                                                    {"stl", klee::Dimensions::Three}};
 
+      const auto& shape_dim = shape.getGeometry().getInputDimensions();
       const auto& format_str = shape.getGeometry().getFormat();
-      return format_dim.find(format_str) != format_dim.end() ? format_dim[format_str] : defaultDim;
+      return format_dim.find(format_str) != format_dim.end() ? format_dim[format_str] : shape_dim;
     };
 
     for(const auto& shape : m_shapeSet->getShapes())
