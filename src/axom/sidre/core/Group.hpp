@@ -1466,12 +1466,19 @@ public:
   /*!
    * \brief Deep-copy Group's native layout to given Conduit node.
    *
+   * \param [out] dst
+   * \param [in] tupleAllocId overriding allocator for tuples, scalars and strings.
+   * \param [in] arrayAllocId overriding allocator for arrays.
+   * \param [in] attr copy Views that have Attribute set.
+   *
    * This is similar to createNativeLayout, except for the leaves being
    * deep-copied.
    *
    * The destination's default data allocator is used for all data,
-   * unless alternates are specified.  The alternates are \c tupleAllocId
-   * for tuple data and \c arrayAllocId for arrays.
+   * unless the overriding defaults are specified.
+   * - If \c tupleAllocId != \c INVALID_ALLOCATOR_ID, it's used for tuples,
+   *   scalars and strings.
+   * - If \c arrayAllocId != \c INVALID_ALLOCATOR_ID, it's used for arrays.
    *
    * \return True if the Group or any of its children were added to the Node,
    * false otherwise.

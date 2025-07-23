@@ -203,7 +203,7 @@ public:
   bool isOpaque() const { return m_state == EXTERNAL && !isApplied(); }
 
   /*!
-   * \brief Return true if view contains a scalar value.
+   * \brief Return true if view contains a tuple or scalar value.
    */
   bool isTuple() const { return m_state == TUPLE; }
 
