@@ -65,11 +65,37 @@ different paths would be specified.
 
 Changing Dimensions on a Per-Shape Basis
 ****************************************
-Sometimes it is useful to bring in a geometry file in a different
-dimensionality than the one you are working in. For example, you may be
-working in 2D, but may want to bring in a 3D file and then slice it
-(slices are described below). To do this, you need to specify the
+Some problem setups can require operating on shapes of different dimensions.
+
+In addition to the global :code:`dimensions` field, Klee provides a per-shape override 
+mechanism for the dimension of a shape via the :code:`geometry/dimensions` field
+
+.. code-block:: yaml
+
+    dimensions: 2
+
+    shapes:
+      - name: wheel
+        material: steel
+        geometry:
+          format: stl
+          path: wheel.stl
+          dimensions: 3
+          units: cm
+
+In the above snippet, the overall dimension of the problem is `2`, but the `wheel`
+shape is 3-dimensional.
+In such cases, the user code is responsible for conversions between
+the shape dimension (e.g. the dimension in the specified file format) and the problem dimension
+(i.e. the dimension of the computational mesh).
+
+Alternatively, some :code:`operators` (described below), can handle the conversion 
+from the shape's dimension and the problem dimension.
+For example, the input to the :code:`slice`` operator is a three-dimensional shape
+and the output is a two-dimensional shape. This is specified via the 
 :code:`start_dimensions` field on the :code:`geometry` of a :code:`shape`.
+After the `operators` have been applied, the (end) dimension of the shape
+will match that of the (global or per-shape) `dimensions`.
 
 .. code-block:: yaml
 
@@ -86,6 +112,7 @@ working in 2D, but may want to bring in a 3D file and then slice it
           operators:
             - slice:
                 x: 10
+
 
 Overlay Rules
 -------------
