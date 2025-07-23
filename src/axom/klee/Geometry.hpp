@@ -189,6 +189,16 @@ public:
   const std::string &getPath() const { return m_path; }
 
   /**
+   * Returns the dimensions of the geometry before applying operators
+   * 
+   * For file-based inputs, this is the dimension of the input mesh
+   */
+  Dimensions getInputDimensions() const { return getStartProperties().dimensions; }
+
+  /// Returns the dimensions of the geometry after applying operators
+  Dimensions getOutputDimensions() const { return getEndProperties().dimensions; }
+
+  /**
    * \brief Return the blueprint mesh, for formats that are specified
    * by a blueprint mesh or have been converted to a blueprint mesh.
    */

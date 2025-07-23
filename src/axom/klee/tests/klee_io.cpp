@@ -85,6 +85,9 @@ TEST(IOTest, readShapeSet_shapeWithNoReplacementLists)
   EXPECT_EQ("test_format", geometry.getFormat());
   EXPECT_EQ("path/to/file.format", geometry.getPath());
   EXPECT_FALSE(geometry.getGeometryOperator());
+
+  EXPECT_EQ(geometry.getInputDimensions(), Dimensions::Two);
+  EXPECT_EQ(geometry.getOutputDimensions(), Dimensions::Two);
 }
 
 TEST(IOTest, readShapeSet_shapeWithReplacesList)
@@ -466,44 +469,44 @@ TEST(IOTest, readShapeSet_explicitDimensions)
     auto &shapes = shapeSet.getShapes();
     ASSERT_EQ(4u, shapes.size());
 
-    Dimensions exp_global_dims {Dimensions::Two};
+    const Dimensions exp_global_dims {Dimensions::Two};
     EXPECT_EQ(shapeSet.getDimensions(), exp_global_dims);
 
     // no_explicit_dims -- should be same as global dims
     {
       auto &geometry = shapes[0].getGeometry();
-      TransformableGeometryProperties exp_start_props {Dimensions::Two, LengthUnit::cm};
-      TransformableGeometryProperties exp_end_props {Dimensions::Two, LengthUnit::cm};
-      EXPECT_EQ(exp_start_props, geometry.getStartProperties());
-      EXPECT_EQ(exp_end_props, geometry.getEndProperties());
-      EXPECT_EQ(geometry.getEndProperties().dimensions, exp_global_dims);
+      const Dimensions exp_start_dims {Dimensions::Two};
+      const Dimensions exp_end_dims {Dimensions::Two};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
+      EXPECT_EQ(geometry.getOutputDimensions(), exp_global_dims);
     }
 
     // explicit_dims_same_as_global -- should be same as global dims
     {
       auto &geometry = shapes[1].getGeometry();
-      TransformableGeometryProperties exp_start_props {Dimensions::Two, LengthUnit::cm};
-      TransformableGeometryProperties exp_end_props {Dimensions::Two, LengthUnit::cm};
-      EXPECT_EQ(exp_start_props, geometry.getStartProperties());
-      EXPECT_EQ(exp_end_props, geometry.getEndProperties());
+      const Dimensions exp_start_dims {Dimensions::Two};
+      const Dimensions exp_end_dims {Dimensions::Two};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
     }
 
     // explicit_dims_different_from_global -- differs from global dims
     {
       auto &geometry = shapes[2].getGeometry();
-      TransformableGeometryProperties exp_start_props {Dimensions::Three, LengthUnit::cm};
-      TransformableGeometryProperties exp_end_props {Dimensions::Three, LengthUnit::cm};
-      EXPECT_EQ(exp_start_props, geometry.getStartProperties());
-      EXPECT_EQ(exp_end_props, geometry.getEndProperties());
+      const Dimensions exp_start_dims {Dimensions::Three};
+      const Dimensions exp_end_dims {Dimensions::Three};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
     }
 
     // explicit_dims_with_start_dim -- changes dimension
     {
       auto &geometry = shapes[3].getGeometry();
-      TransformableGeometryProperties exp_start_props {Dimensions::Three, LengthUnit::cm};
-      TransformableGeometryProperties exp_end_props {Dimensions::Two, LengthUnit::cm};
-      EXPECT_EQ(exp_start_props, geometry.getStartProperties());
-      EXPECT_EQ(exp_end_props, geometry.getEndProperties());
+      const Dimensions exp_start_dims {Dimensions::Three};
+      const Dimensions exp_end_dims {Dimensions::Two};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
     }
   }
 
@@ -548,44 +551,44 @@ TEST(IOTest, readShapeSet_explicitDimensions)
     auto &shapes = shapeSet.getShapes();
     ASSERT_EQ(4u, shapes.size());
 
-    Dimensions exp_global_dims {Dimensions::Three};
+    const Dimensions exp_global_dims {Dimensions::Three};
     EXPECT_EQ(shapeSet.getDimensions(), exp_global_dims);
 
     // no_explicit_dims -- should be same as global dims
     {
       auto &geometry = shapes[0].getGeometry();
-      TransformableGeometryProperties exp_start_props {Dimensions::Three, LengthUnit::cm};
-      TransformableGeometryProperties exp_end_props {Dimensions::Three, LengthUnit::cm};
-      EXPECT_EQ(exp_start_props, geometry.getStartProperties());
-      EXPECT_EQ(exp_end_props, geometry.getEndProperties());
-      EXPECT_EQ(geometry.getEndProperties().dimensions, exp_global_dims);
+      const Dimensions exp_start_dims {Dimensions::Three};
+      const Dimensions exp_end_dims {Dimensions::Three};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
+      EXPECT_EQ(geometry.getOutputDimensions(), exp_global_dims);
     }
 
     // explicit_dims_same_as_global -- should be same as global dims
     {
       auto &geometry = shapes[1].getGeometry();
-      TransformableGeometryProperties exp_start_props {Dimensions::Three, LengthUnit::cm};
-      TransformableGeometryProperties exp_end_props {Dimensions::Three, LengthUnit::cm};
-      EXPECT_EQ(exp_start_props, geometry.getStartProperties());
-      EXPECT_EQ(exp_end_props, geometry.getEndProperties());
+      const Dimensions exp_start_dims {Dimensions::Three};
+      const Dimensions exp_end_dims {Dimensions::Three};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
     }
 
     // explicit_dims_different_from_global -- differs from global dims
     {
       auto &geometry = shapes[2].getGeometry();
-      TransformableGeometryProperties exp_start_props {Dimensions::Two, LengthUnit::cm};
-      TransformableGeometryProperties exp_end_props {Dimensions::Two, LengthUnit::cm};
-      EXPECT_EQ(exp_start_props, geometry.getStartProperties());
-      EXPECT_EQ(exp_end_props, geometry.getEndProperties());
+      const Dimensions exp_start_dims {Dimensions::Two};
+      const Dimensions exp_end_dims {Dimensions::Two};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
     }
 
     // explicit_dims_with_start_dim -- changes dimension
     {
       auto &geometry = shapes[3].getGeometry();
-      TransformableGeometryProperties exp_start_props {Dimensions::Three, LengthUnit::cm};
-      TransformableGeometryProperties exp_end_props {Dimensions::Two, LengthUnit::cm};
-      EXPECT_EQ(exp_start_props, geometry.getStartProperties());
-      EXPECT_EQ(exp_end_props, geometry.getEndProperties());
+      const Dimensions exp_start_dims {Dimensions::Three};
+      const Dimensions exp_end_dims {Dimensions::Two};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
     }
   }
 }
