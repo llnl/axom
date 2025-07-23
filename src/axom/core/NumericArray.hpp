@@ -201,6 +201,7 @@ public:
    * array. If the size is not the same as the size of this array, this
    * behaves the same way as the constructor which takes a pointer and size.
    */
+  AXOM_HOST_DEVICE
   NumericArray(std::initializer_list<T> values)
     : NumericArray {values.begin(), static_cast<int>(values.size())}
   { }

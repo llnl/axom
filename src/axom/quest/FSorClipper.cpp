@@ -312,6 +312,7 @@ template<typename ExecSpace>
 bool FSorClipper::getGeometryAsOctsImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
 {
   const int allocId = shapeeMesh.getAllocatorID();
+  octs = axom::Array<OctahedronType>(0, 0, allocId);
 
   // Generate the Octahedra
   int octCount = 0;

@@ -47,10 +47,9 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // We want unstructured topo but can accomodate structured.
-  const std::string topoType = m_bpNodeExt->fetch_existing("topologies")
-                                 .fetch_existing(m_topoName)
-                                 .fetch_existing("type")
-                                 .as_string();
+  const auto& typeNode = m_bpNodeExt->fetch_existing("topologies")
+    .fetch_existing(m_topoName).fetch_existing("type");
+  const std::string topoType = typeNode.as_string();
   SLIC_ERROR_IF(topoType != "unstructured",
                 "ShapeeMesh currently only works with unstructured mesh, not " + topoType + ".");
 
@@ -699,10 +698,10 @@ void ShapeeMesh::computeConnectivity()
 
   constexpr int NUM_VERTS_PER_HEX = 8;
 
-  const conduit::Node& bpMesh = m_bpNodeExt ? *m_bpNodeExt : m_bpNodeInt;
+  conduit::Node& bpMesh = m_bpNodeExt ? *m_bpNodeExt : m_bpNodeInt;
 
-  const conduit::Node& topoNode = bpMesh.fetch_existing("topologies").fetch_existing(m_topoName);
-  const auto& connNode = topoNode.fetch_existing("elements/connectivity");
+  conduit::Node& topoNode = bpMesh.fetch_existing("topologies").fetch_existing(m_topoName);
+  auto& connNode = topoNode.fetch_existing("elements/connectivity");
   SLIC_ERROR_IF(connNode.dtype().id() != conduitDataIdOfAxomIndexType,
                 "IntersectionShaper error: connectivity data type must be "
                 "axom::IndexType.");
@@ -720,9 +719,9 @@ void ShapeeMesh::computeCellsAsHexesImpl()
   SLIC_ASSERT(m_dim == NDIM);  // or we shouldn't be here.
 
   auto vertexCoords = getVertexCoords3D();
-  const auto& vX = vertexCoords[0];
-  const auto& vY = vertexCoords[1];
-  const auto& vZ = vertexCoords[2];
+  const axom::ArrayView<const double>& vX = vertexCoords[0];
+  const axom::ArrayView<const double>& vY = vertexCoords[1];
+  const axom::ArrayView<const double>& vZ = vertexCoords[2];
 
   axom::ArrayView<const IndexType, 2> connView = getCellNodeConnectivity();
 
@@ -736,13 +735,12 @@ void ShapeeMesh::computeCellsAsHexesImpl()
     m_cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
       // Set each hexahedral element vertices
-      auto cellVertIds = connView[cellId];
       auto& hex = cellsAsHexesView[cellId];
 
       for(int vi = 0; vi < NUM_VERTS_PER_HEX; ++vi)
       {
-        int vertIndex = cellVertIds[vi];
-        primal::Point3D vCoords {vX[vertIndex], vY[vertIndex], vZ[vertIndex]};
+        axom::IndexType vertIndex = connView(cellId, vi);
+        primal::Point3D vCoords(axom::NumericArray<double, NDIM>{vX[vertIndex], vY[vertIndex], vZ[vertIndex]});
 
         // Snap coordinates to zero.
         for(int d = 0; d < NDIM; ++d)
