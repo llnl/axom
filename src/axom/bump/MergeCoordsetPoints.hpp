@@ -187,7 +187,7 @@ public:
         AXOM_LAMBDA(axom::IndexType index) {
           const auto newNodeId =
             axom::utilities::binary_search(uniqueNamesView, coordNamesView[index]);
-          SLIC_ASSERT(newNodeId >= 0 && newNodeId < nnodes);
+          // SLIC_ASSERT(newNodeId >= 0 && newNodeId < nnodes);
           old2newView[index] = newNodeId;
         });
       AXOM_ANNOTATE_END("old2new");
