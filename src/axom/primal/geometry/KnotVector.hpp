@@ -50,8 +50,41 @@ public:
                          "A knot vector must be defined using an arithmetic type");
 
 public:
+  /*!
+   * \brief Constructor from a user-supplied knot vector (axom::ArrayView<const T>)
+   *
+   * \param [in] knots the knot vector
+   * \param [in] degree the degree of the curve
+   * \pre \a degree >= 1. When degree is less than 0, the KnotVector is invalid
+   * \pre The \a knots can be empty when the degree is -1, otherwise it has knot values
+   *      and knots.data() is not \a nullptr
+   * \sa isValid() tests conditions for a valid knot span instance
+   */
+  KnotVector(axom::ArrayView<const T> knots, int degree) : m_deg(degree)
+  {
+    SLIC_ASSERT(degree >= -1);
+    SLIC_ASSERT(knots.size() >= (degree + 1));
+    SLIC_ASSERT(knots.empty() || knots.data() != nullptr);
+
+    if(!knots.empty())
+    {
+      m_knots = knots;
+    }
+  }
+
+  /*!
+   * \brief Constructor from a user-supplied knot vector (axom::ArrayView<T>)
+   *
+   * \param [in] knots the knot vector
+   * \param degree The degree of the knot vector.
+   * \see KnotVector(axom::ArrayView<const T> knots, int degree)
+   */
+  KnotVector(axom::ArrayView<T> knots, int degree)
+    : KnotVector(axom::ArrayView<const T>(knots.data(), knots.size()), degree)
+  { }
+
   /// \brief Default constructor for an empty (invalid) knot vector
-  KnotVector() : m_deg(-1) { m_knots.resize(0); }
+  KnotVector() : m_deg(-1) { }
 
   /*!
    * \brief Constructor for a normalized, uniform knot vector
@@ -64,26 +97,17 @@ public:
   KnotVector(axom::IndexType npts, int degree) { makeUniform(npts, degree); }
 
   /*!
-   * \brief Constructor from a user-supplied knot vector (C-style)
+   * \brief Constructor from a user-supplied knot vector (C-style array)
    * 
    * \param [in] knots the knot vector
    * \param [in] nkts the length of the knot vector
    * \param [in] degree the degree of the curve
    * 
-   * \pre Assumes that the knot vector is valid
+   * \see KnotVector(axom::ArrayView<const T> knots, int degree)
    */
   KnotVector(const T* knots, axom::IndexType nkts, int degree)
-  {
-    m_knots.resize(nkts);
-    for(int i = 0; i < nkts; ++i)
-    {
-      m_knots[i] = knots[i];
-    }
-
-    m_deg = degree;
-
-    SLIC_ASSERT(isValid());
-  }
+    : KnotVector(axom::ArrayView<const T>(knots, nkts), degree)
+  { }
 
   /*!
    * \brief Constructor from a user-supplied knot vector (axom::Array)
@@ -91,12 +115,9 @@ public:
    * \param [in] knots the knot vector
    * \param [in] degree the degree of the curve
    * 
-   * \pre Assumes that the knot vector is valid
+   * \see KnotVector(axom::ArrayView<const T> knots, int degree)
    */
-  KnotVector(const axom::Array<T>& knots, int degree) : m_deg(degree), m_knots(knots)
-  {
-    SLIC_ASSERT(isValid());
-  }
+  KnotVector(const axom::Array<T>& knots, int degree) : KnotVector(knots.view(), degree) { }
 
   /*!
    * \brief Give the knot vector uniformly spaced internal knots
