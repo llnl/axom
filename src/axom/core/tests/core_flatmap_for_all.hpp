@@ -206,3 +206,194 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_and_modify)
     EXPECT_EQ(test_map.count(i), false);
   }
 }
+
+AXOM_TYPED_TEST(core_flatmap_forall, insert_batched)
+{
+  using MapType = typename TestFixture::MapType;
+  using ExecSpace = typename TestFixture::ExecSpace;
+
+  const int NUM_ELEMS = 100;
+
+  axom::Array<int> keys_vec(NUM_ELEMS);
+  axom::Array<double> values_vec(NUM_ELEMS);
+  // Create batch of array elements
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    keys_vec[i] = key;
+    values_vec[i] = value;
+  }
+
+  // Copy keys and values to GPU space.
+  axom::Array<int> keys_gpu(keys_vec, this->getKernelAllocatorID());
+  axom::Array<double> values_gpu(values_vec, this->getKernelAllocatorID());
+
+  // Construct a flat map with the key-value pairs.
+  MapType test_map_gpu =
+    MapType::template create<ExecSpace>(keys_gpu,
+                                        values_gpu,
+                                        axom::Allocator {this->getKernelAllocatorID()});
+
+  // Copy back flat map to host for testing.
+  MapType test_map(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
+
+  // Check contents on the host
+  EXPECT_EQ(NUM_ELEMS, test_map.size());
+
+  // Check that every element we inserted is in the map
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto expected_key = this->getKey(i);
+    auto expected_val = this->getValue(i * 10.0 + 5.0);
+    EXPECT_EQ(1, test_map.count(expected_key));
+    EXPECT_EQ(expected_val, test_map.at(expected_key));
+  }
+}
+
+AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_dups)
+{
+  using MapType = typename TestFixture::MapType;
+  using ExecSpace = typename TestFixture::ExecSpace;
+
+  const int NUM_ELEMS = 100;
+
+  axom::Array<int> keys_vec(NUM_ELEMS * 2);
+  axom::Array<double> values_vec(NUM_ELEMS * 2);
+  // Create batch of array elements
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    keys_vec[i] = key;
+    values_vec[i] = value;
+  }
+
+  // Add some duplicate key values
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 7.0);
+
+    keys_vec[i + NUM_ELEMS] = key;
+    values_vec[i + NUM_ELEMS] = value;
+  }
+
+  // Copy keys and values to GPU space.
+  axom::Array<int> keys_gpu(keys_vec, this->getKernelAllocatorID());
+  axom::Array<double> values_gpu(values_vec, this->getKernelAllocatorID());
+
+  // Construct a flat map with the key-value pairs.
+  MapType test_map_gpu =
+    MapType::template create<ExecSpace>(keys_gpu,
+                                        values_gpu,
+                                        axom::Allocator {this->getKernelAllocatorID()});
+
+  // Copy back flat map to host for testing.
+  MapType test_map(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
+
+  // Check contents on the host. Only one of the duplicate keys should remain.
+  EXPECT_EQ(NUM_ELEMS, test_map.size());
+
+  // Check that every element we inserted is in the map
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto expected_key = this->getKey(i);
+    auto expected_val1 = this->getValue(i * 10.0 + 5.0);
+    auto expected_val2 = this->getValue(i * 10.0 + 7.0);
+    EXPECT_EQ(1, test_map.count(expected_key));
+    // Second key-value pair in batch-order should overwrite first pair with
+    // same key.
+    EXPECT_EQ(expected_val2, test_map.at(expected_key));
+    EXPECT_NE(expected_val1, test_map.at(expected_key));
+  }
+
+  // Check that we only have one instance of every key in the map
+  axom::Array<std::pair<int, double>> kv_out(NUM_ELEMS);
+  int index = 0;
+  for(auto &pair : test_map)
+  {
+    EXPECT_LT(index, NUM_ELEMS);
+    kv_out[index++] = {pair.first, pair.second};
+  }
+
+  std::sort(kv_out.begin(),
+            kv_out.end(),
+            [](const std::pair<int, double> &first, const std::pair<int, double> &second) -> bool {
+              return first.first < second.first;
+            });
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto expected_key = this->getKey(i);
+    auto expected_val1 = this->getValue(i * 10.0 + 5.0);
+    auto expected_val2 = this->getValue(i * 10.0 + 7.0);
+    EXPECT_EQ(kv_out[i].first, expected_key);
+    EXPECT_EQ(expected_val2, test_map.at(expected_key));
+    EXPECT_NE(expected_val1, test_map.at(expected_key));
+  }
+}
+
+template <typename KeyType>
+struct ConstantHash
+{
+  using argument_type = KeyType;
+  using result_type = axom::IndexType;
+
+  AXOM_HOST_DEVICE axom::IndexType operator()(KeyType) const { return 0; }
+};
+
+/**
+ * Test hash map with a hash that returns the same value for all elements.
+ * Even with worst-case hash collision behavior, the FlatMap should
+ * nevertheless be correctly constructible and queryable.
+ */
+AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_constant_hash)
+{
+  using ExecSpace = typename TestFixture::ExecSpace;
+  using KeyType = typename TestFixture::KeyType;
+  using ValueType = typename TestFixture::ValueType;
+
+  using MapType = axom::FlatMap<KeyType, ValueType, ConstantHash<KeyType>>;
+
+  const int NUM_ELEMS = 100;
+
+  axom::Array<int> keys_vec(NUM_ELEMS);
+  axom::Array<double> values_vec(NUM_ELEMS);
+  // Create batch of array elements
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    keys_vec[i] = key;
+    values_vec[i] = value;
+  }
+
+  // Copy keys and values to GPU space.
+  axom::Array<int> keys_gpu(keys_vec, this->getKernelAllocatorID());
+  axom::Array<double> values_gpu(values_vec, this->getKernelAllocatorID());
+
+  // Construct a flat map with the key-value pairs.
+  MapType test_map_gpu =
+    MapType::template create<ExecSpace>(keys_gpu,
+                                        values_gpu,
+                                        axom::Allocator {this->getKernelAllocatorID()});
+
+  // Copy back flat map to host for testing.
+  MapType test_map(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
+
+  // Check contents on the host
+  EXPECT_EQ(NUM_ELEMS, test_map.size());
+
+  // Check that every element we inserted is in the map
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto expected_key = this->getKey(i);
+    auto expected_val = this->getValue(i * 10.0 + 5.0);
+    EXPECT_EQ(1, test_map.count(expected_key));
+    EXPECT_EQ(expected_val, test_map.at(expected_key));
+  }
+}
