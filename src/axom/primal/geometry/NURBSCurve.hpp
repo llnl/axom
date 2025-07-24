@@ -69,43 +69,30 @@ public:
   using BoundingBoxType = BoundingBox<T, NDIMS>;
   using OrientedBoundingBoxType = OrientedBoundingBox<T, NDIMS>;
 
-  AXOM_STATIC_ASSERT_MSG((NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
-                         "A NURBS Curve object may be defined in 1-, 2-, or 3-D");
+  static_assert((NDIMS == 1) || (NDIMS == 2) || (NDIMS == 3),
+                "A NURBS Curve object may be defined in 1-, 2-, or 3-D");
 
-  AXOM_STATIC_ASSERT_MSG(std::is_arithmetic<T>::value,
-                         "A NURBS Curve must be defined using an arithmetic type");
+  static_assert(std::is_arithmetic<T>::value,
+                "A NURBS Curve must be defined using an arithmetic type");
 
 public:
-  /*!
-   * \brief Default constructor for a NURBS Curve
-   *
-   * \note An empty NURBS curve is not valid
-   */
-  explicit NURBSCurve()
-  {
-    m_controlPoints.resize(0);
-    m_knotvec = KnotVectorType();
-    makeNonrational();
-  }
+  //@{
+  //!  @name Constructors for NURBS curves
 
   /*!
-   * \brief Constructor for a simple NURBS Curve that reserves space for
+   * \brief Constructor for a simple NURBS curve that reserves space for
    *  the minimum (sensible) number of points for the given degree
    *
    * \param [in] deg the degree of the resulting curve
    * 
-   * A uniform knot vector is constructed such that the curve is continuous
+   * \note A uniform knot vector is constructed such that the curve is continuous
+   * \note This constructor reserves space for the control points, but does not set them
    * 
-   * \pre degree is greater than or equal to 0.
+   * \pre degree is greater than or equal to -1
+   * \note When the degree is -1, no space is reserved and the NURBS curve is not valid, 
+   *       i.e. in this case, \a curve.isValid() will return false
    */
-  explicit NURBSCurve(int degree)
-  {
-    SLIC_ASSERT(degree >= 0);
-    m_controlPoints.resize(degree + 1);
-    m_knotvec = KnotVectorType(degree + 1, degree);
-
-    makeNonrational();
-  }
+  explicit NURBSCurve(int degree = -1) : NURBSCurve(degree + 1, degree) { }
 
   /*!
    * \brief Constructor for a NURBS curve with given number of control points and degree
@@ -113,36 +100,102 @@ public:
     * \param [in] npts the number of control points
     * \param [in] degree the degree of the curve
     * 
-    * A uniform knot vector is constructed such that the curve is continuous
+    * \note A uniform knot vector is constructed such that the curve is continuous
+    * \note This constructor reserves space for the control points, but does not set them
     * 
-    * \pre npts > degree, degree >= 0
+    * \pre npts > degree, degree >= -1
     */
-  NURBSCurve(int npts, int degree)
+  NURBSCurve(int npts, int degree) : m_knotvec(KnotVectorType(npts, degree))
   {
     SLIC_ASSERT(npts > degree);
-    SLIC_ASSERT(degree >= 0);
+    SLIC_ASSERT(degree >= -1);
 
-    m_controlPoints.resize(npts);
-    m_knotvec = KnotVectorType(npts, degree);
+    if(degree == -1)
+    {
+      SLIC_ASSERT(npts == 0);
+      m_controlPoints.resize(0);
+    }
+    else
+    {
+      m_controlPoints.resize(npts);
+      SLIC_ASSERT(isValidNURBS());
+    }
+  }
 
-    makeNonrational();
+  /*!
+   * \brief Constructor for a NURBS Curve with ArrayViews of control points and weights and a KnotVector
+   *
+   * \param [in] pts ArrayView of control points
+   * \param [in] weights ArrayView of weights
+   * \param [in] knotVector The knot vector object
+   *
+   * For clamped and continuous curves, the control points and knot vector uniquely determine the degree
+   *
+   * \pre The number of control points must be greater than the knot vector degree
+   * \pre If the knotVector degree is -1, pts must be empty
+   * \pre If the knotVector degree is higher, we assume knotVector.isValid()
+   * \pre weights can either be empty (yielding a non-rational spline) or its size must match that of pts
+   */
+  NURBSCurve(axom::ArrayView<const PointType> pts,
+             axom::ArrayView<const T> weights,
+             const KnotVectorType& knotVector)
+    : m_knotvec(knotVector)
+  {
+    SLIC_ASSERT(m_knotvec.getDegree() >= -1);
 
+    if(m_knotvec.getDegree() == -1)
+    {
+      SLIC_ASSERT(pts.empty());
+      SLIC_ASSERT(weights.empty());
+    }
+    else
+    {
+      SLIC_ASSERT(m_knotvec.isValid());
+      SLIC_ASSERT(!pts.empty() && pts.data() != nullptr);
+      SLIC_ASSERT(pts.size() > m_knotvec.getDegree());
+      m_controlPoints = pts;
+
+      if(weights.empty())
+      {
+        makeNonrational();
+      }
+      else
+      {
+        SLIC_ASSERT(weights.size() == pts.size());
+        SLIC_ASSERT(weights.data() != nullptr);
+        m_weights = weights;
+      }
+    }
     SLIC_ASSERT(isValidNURBS());
   }
+
+  /*!
+   * \brief Constructs a NURBSCurve from arrays of control points, weights and knots
+   *
+   * \param[in] pts        ArrayView of control points
+   * \param[in] weights    ArrayView of weights
+   * \param[in] knotVector Knot vector defining the parameterization of the curve.
+   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
+   */
+  NURBSCurve(axom::ArrayView<PointType> pts,
+             axom::ArrayView<T> weights,
+             const KnotVectorType& knotVector)
+    : NURBSCurve(axom::ArrayView<const PointType>(pts.data(), pts.size()),
+                 axom::ArrayView<const T>(weights.data(), weights.size()),
+                 knotVector)
+  { }
 
   /*!
    * \brief Constructor for a NURBS curve from a Bezier curve
    *
    * \param [in] bezierCurve the Bezier curve to convert to a NURBS curve 
+   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   explicit NURBSCurve(const BezierCurve<T, NDIMS>& bezierCurve)
-  {
-    m_controlPoints = bezierCurve.getControlPoints();
-    m_weights = bezierCurve.getWeights();
-
-    int degree = bezierCurve.getOrder();
-    m_knotvec = KnotVectorType(degree + 1, degree);
-  }
+    : NURBSCurve(bezierCurve.getControlPoints(),
+                 bezierCurve.getWeights(),
+                 KnotVectorType(bezierCurve.getOrder() + 1, bezierCurve.getOrder()))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Curve with control points and degree
@@ -151,28 +204,14 @@ public:
    * \param [in] npts the number of control points
    * \param [in] degree the degree of the curve
    * 
-   * A uniform knot vector is constructed such that the curve is continuous
-   * 
    * \pre Requires valid pointers, npts > degree, degree >= 0
+   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const PointType* pts, int npts, int degree)
-  {
-    SLIC_ASSERT(pts != nullptr);
-    SLIC_ASSERT(npts >= degree + 1);
-    SLIC_ASSERT(degree >= 0);
-
-    m_controlPoints.resize(npts);
-    makeNonrational();
-
-    for(int i = 0; i < npts; ++i)
-    {
-      m_controlPoints[i] = pts[i];
-    }
-
-    m_knotvec = KnotVectorType(npts, degree);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
+                 axom::ArrayView<const double>(nullptr, 0),
+                 KnotVectorType(npts, degree))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Curve with control points, weights, and degree
@@ -182,30 +221,14 @@ public:
    * \param [in] npts the number of control points and weights
    * \param [in] degree the degree of the curve
    * 
-   * A uniform knot vector is constructed such that the curve is continuous
-   * 
    * \pre Requires valid pointers, npts > degree, npts == nwts, and degree >= 0
+   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const PointType* pts, const T* weights, int npts, int degree)
-  {
-    SLIC_ASSERT(pts != nullptr && weights != nullptr);
-    SLIC_ASSERT(npts >= degree + 1);
-    SLIC_ASSERT(degree >= 0);
-
-    m_controlPoints.resize(npts);
-    m_weights.resize(npts);
-
-    for(int i = 0; i < npts; ++i)
-    {
-      m_controlPoints[i] = pts[i];
-      m_weights[i] = weights[i];
-    }
-
-    // Knots for the clamped curve
-    m_knotvec = KnotVectorType(npts, degree);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
+                 axom::ArrayView<const T>(weights, npts),
+                 KnotVectorType(npts, degree))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Curve with control points and knots
@@ -215,100 +238,59 @@ public:
    * \param [in] knots the weights of the control points
    * \param [in] nkts the length of the knot vector
    * 
-   * For clamped and continuous curves, npts and nkts 
-   *   uniquely determine the degree
-   * 
    * \pre Requires valid pointers, a valid knot vector and npts > degree
+   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const PointType* pts, int npts, const T* knots, int nkts)
-  {
-    SLIC_ASSERT(nkts >= 0);
-    SLIC_ASSERT(npts >= 0);
-
-    m_controlPoints.resize(npts);
-
-    for(int i = 0; i < npts; ++i)
-    {
-      m_controlPoints[i] = pts[i];
-    }
-    makeNonrational();
-
-    m_knotvec = KnotVectorType(knots, nkts, nkts - npts - 1);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
+                 axom::ArrayView<const T>(nullptr, 0),
+                 KnotVectorType(knots, nkts, nkts - npts - 1))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Curve with control points, weights, and knots
    *
    * \param [in] pts the control points of the curve
-   * \param [in] npts the number of control points and weights
    * \param [in] weights the weights of the control points
+   * \param [in] npts the number of control points and weights
    * \param [in] knots the weights of the control points
    * \param [in] nkts the length of the knot vector
    * 
-   * For clamped and continuous curves, npts and nkts 
-   *   uniquely determine the degree
-   * 
    * \pre Requires valid pointers, a valid knot vector, npts > degree, npts == nwts, wts > 0
+   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const PointType* pts, const T* weights, int npts, const T* knots, int nkts)
-  {
-    SLIC_ASSERT(pts != nullptr && weights != nullptr);
-    SLIC_ASSERT(nkts >= 0);
-    SLIC_ASSERT(npts >= 0);
-
-    m_controlPoints.resize(npts);
-    m_weights.resize(npts);
-
-    for(int i = 0; i < npts; ++i)
-    {
-      m_controlPoints[i] = pts[i];
-      m_weights[i] = weights[i];
-    }
-
-    m_knotvec = KnotVectorType(knots, nkts, nkts - npts - 1);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
+                 axom::ArrayView<const T>(weights, npts),
+                 KnotVectorType(knots, nkts, nkts - npts - 1))
+  { }
 
   /*!
-   * \brief Constructor for a NURBS Curve with axom arrays of data
+   * \brief Constructor for a NURBS Curve of the specified degree from an array of control points
    *
    * \param [in] pts the control points of the curve
    * \param [in] degree the degree of the curve
-   *
-   * A uniform knot vector is constructed such that the curve is continuous
    * 
    * \pre Requires npts > degree and degree >= 0
+   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
-  NURBSCurve(const axom::Array<PointType>& pts, int degree) : m_controlPoints(pts)
-  {
-    makeNonrational();
-    m_knotvec = KnotVectorType(pts.size(), degree);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+  NURBSCurve(const axom::Array<PointType>& pts, int degree)
+    : NURBSCurve(pts.view(), axom::ArrayView<const T>(nullptr, 0), KnotVectorType(pts.size(), degree))
+  { }
 
   /*!
-   * \brief Constructor for a NURBS Curve with axom arrays of data
+   * \brief Constructor for a NURBS Curve of the specified degree from an array of control points and weights
    *
    * \param [in] pts the control points of the curve
    * \param [in] weights the weights of the control points
    * \param [in] degree the degree of the curve
    *
-   * A uniform knot vector is constructed such that the curve is continuous
-   * 
-   * \pre Requires npts > degree, degree >= 0, and npts == nwts
+   * \pre Requires npts > degree, degree >= 0, and pts.size() == weights.size()
+   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const axom::Array<PointType>& pts, const axom::Array<T>& weights, int degree)
-    : m_controlPoints(pts)
-    , m_weights(weights)
-  {
-    m_knotvec = KnotVectorType(pts.size(), degree);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSCurve(pts.view(), weights.view(), KnotVectorType(pts.size(), degree))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Curve with axom arrays of nodes and knots
@@ -316,19 +298,14 @@ public:
    * \param [in] pts the control points of the curve
    * \param [in] knots the knot vector of the curve
    *
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
    * \pre Requires a valid knot vector and npts > degree
+   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
-  NURBSCurve(const axom::Array<PointType>& pts, const axom::Array<T>& knots) : m_controlPoints(pts)
-  {
-    makeNonrational();
-
-    m_knotvec = KnotVectorType(knots, knots.size() - pts.size() - 1);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+  NURBSCurve(const axom::Array<PointType>& pts, const axom::Array<T>& knots)
+    : NURBSCurve(pts.view(),
+                 axom::ArrayView<const T>(nullptr, 0),
+                 KnotVectorType(knots, knots.size() - pts.size() - 1))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Curve with axom arrays of nodes, weights, and knots
@@ -337,21 +314,14 @@ public:
    * \param [in] weights the weights of the control points
    * \param [in] knots the knot vector of the curve
    *
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
    * \pre Requires a valid knot vector, npts > degree, npts == nwts, wts > 0
+   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const axom::Array<PointType>& pts,
              const axom::Array<T>& weights,
              const axom::Array<T>& knots)
-    : m_controlPoints(pts)
-    , m_weights(weights)
-  {
-    m_knotvec = KnotVectorType(knots, knots.size() - pts.size() - 1);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSCurve(pts.view(), weights.view(), KnotVectorType(knots, knots.size() - pts.size() - 1))
+  { }
 
   /*!
    * \brief Constructor from axom array of nodes and KnotVector object
@@ -359,19 +329,12 @@ public:
    * \param [in] pts the control points of the curve
    * \param [in] knotVector A KnotVector object
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   *
    * \pre Requires a valid knot vector and npts > degree
+   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const axom::Array<PointType>& pts, const KnotVectorType& knotVector)
-    : m_controlPoints(pts)
-    , m_knotvec(knotVector)
-  {
-    makeNonrational();
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSCurve(pts.view(), axom::ArrayView<const T>(nullptr, 0), knotVector)
+  { }
 
   /*!
    * \brief Constructor from axom array of nodes, weights, and KnotVector object
@@ -379,21 +342,17 @@ public:
    * \param [in] pts the control points of the curve
    * \param [in] weights the weights of the control points
    * \param [in] knotVector A KnotVector object
-   *
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
    * 
    * \pre Requires a valid knot vector, npts > degree, npts == nwts, wts > 0
+   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const axom::Array<PointType>& pts,
              const axom::Array<T>& weights,
              const KnotVectorType& knotVector)
-    : m_controlPoints(pts)
-    , m_weights(weights)
-    , m_knotvec(knotVector)
-  {
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSCurve(pts.view(), weights.view(), knotVector)
+  { }
+
+  //@}
 
   /*!
    * \brief Construct a multi-span, rational, degree 2 NURBS curve from the angles of a circular arc
