@@ -22,35 +22,37 @@ namespace util
 {
 
 std::shared_ptr<GeometryClipperStrategy> make_clipper_strategy(
-  const axom::klee::Geometry& kleeGeometry)
+  const axom::klee::Geometry& kleeGeometry,
+  const std::string& name)
 {
   std::shared_ptr<GeometryClipperStrategy> strategy;
 
   const std::string& format = kleeGeometry.getFormat();
+  const std::string& instanceName = !name.empty() ? name : kleeGeometry.getFormat();
 
   if(format == "plane3D")
   {
-    strategy.reset(new Plane3DClipper(kleeGeometry, format));
+    strategy.reset(new Plane3DClipper(kleeGeometry, instanceName));
   }
   else if(format == "tet3D")
   {
-    strategy.reset(new TetClipper(kleeGeometry, format));
+    strategy.reset(new TetClipper(kleeGeometry, instanceName));
   }
   else if(format == "blueprint-tets")
   {
-    strategy.reset(new TetMeshClipper(kleeGeometry, format));
+    strategy.reset(new TetMeshClipper(kleeGeometry, instanceName));
   }
   else if(format == "hex3D")
   {
-    strategy.reset(new HexClipper(kleeGeometry, format));
+    strategy.reset(new HexClipper(kleeGeometry, instanceName));
   }
   else if(format == "sphere3D")
   {
-    strategy.reset(new SphereClipper(kleeGeometry, format));
+    strategy.reset(new SphereClipper(kleeGeometry, instanceName));
   }
   else if(format == "sor3D")
   {
-    strategy.reset(new FSorClipper(kleeGeometry, format));
+    strategy.reset(new FSorClipper(kleeGeometry, instanceName));
   }
   else
   {
