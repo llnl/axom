@@ -153,8 +153,10 @@ public:
    * \pre order is greater than or equal to zero
    * \see BezierCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, int)
    */
-  BezierCurve(PointType* pts, int ord)
-    : BezierCurve(axom::ArrayView<PointType>(pts, ord + 1), axom::ArrayView<T>(nullptr, 0), ord)
+  BezierCurve(const PointType* pts, int ord)
+    : BezierCurve(axom::ArrayView<const PointType>(pts, ord + 1),
+                  axom::ArrayView<const T>(nullptr, 0),
+                  ord)
   { }
 
   /*!
@@ -166,9 +168,9 @@ public:
    * \pre order is greater than or equal to zero
    * \see BezierCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, int)
    */
-  BezierCurve(PointType* pts, T* weights, int ord)
-    : BezierCurve(axom::ArrayView<PointType>(pts, ord + 1),
-                  axom::ArrayView<T>(weights, weights ? ord + 1 : 0),
+  BezierCurve(const PointType* pts, const T* weights, int ord)
+    : BezierCurve(axom::ArrayView<const PointType>(pts, ord + 1),
+                  axom::ArrayView<const T>(weights, weights ? ord + 1 : 0),
                   ord)
   { }
 
@@ -181,7 +183,7 @@ public:
    * \see BezierCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, int)
    */
   BezierCurve(const axom::Array<PointType>& pts, int ord)
-    : BezierCurve(pts.view(), axom::ArrayView<T>(nullptr, 0), ord)
+    : BezierCurve(pts.view(), axom::ArrayView<const T>(nullptr, 0), ord)
   { }
 
   /*!
