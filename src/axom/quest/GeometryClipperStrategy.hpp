@@ -123,7 +123,7 @@ public:
   //!@name Geometry-specialized methods
 
   /*!
-    @brief Get the 2D axis-alligned bounding box for the geometry,
+    @brief Get the 2D axis-aligned bounding box for the geometry,
     if it's applicable and available.
   */
   virtual const axom::primal::BoundingBox<double, 2>& getBoundingBox2D() const;
@@ -141,6 +141,12 @@ public:
     @param [in] shapeeMesh Blueprint mesh to shape into.
     @param [out] labels Output
 
+    The cell labels should be set to
+    - @c labelIn if the cell is completely inside the shape,
+    - @c labelOut if the cell is completely outside, and
+    - @c labelOn if the cell is both inside and outside (or
+      cannot be easily determined).
+
     The output labels are used in optimizing the clipping algorithm.
     Subclasses should implementation this if it's cost-effective, and
     skip if it's not.  It's safe to label cells as on the boundary if
@@ -148,12 +154,6 @@ public:
 
     @return Whether the operation was done.  (A false means
     not done.)
-
-    The cell labels should be set to
-    - @c labelIn if the cell is completely inside the shape,
-    - @c labelOut if the cell is completely outside, and
-    - @c labelOn if the cell is both inside and outside (or
-      cannot be easily determined).
 
     If implemenation returns true, it should ensure these
     post-conditions hold:

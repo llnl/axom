@@ -137,13 +137,21 @@ public:
       "GeometryClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
       getStrategy().name()));
 
+    auto& strategy = getStrategy();
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    const bool useOcts = getStrategy().getGeometryAsOcts(shapeeMesh, geomAsOcts);
-    const bool useTets = getStrategy().getGeometryAsTets(shapeeMesh, geomAsTets);
-    SLIC_ASSERT(useTets != useOcts);
+    const bool useOcts = strategy.getGeometryAsOcts(shapeeMesh, geomAsOcts);
+    const bool useTets = strategy.getGeometryAsTets(shapeeMesh, geomAsTets);
     SLIC_ASSERT(useOcts || geomAsOcts.empty());
     SLIC_ASSERT(useTets || geomAsTets.empty());
+    if(useTets == useOcts)
+    {
+      SLIC_ERROR(axom::fmt::format("Problem with GeometryClipperStrategy implementation '{}'."
+                                   "  Implementations that don't provide a specializedClip function"
+                                   " must provide exactly one getGeometryAsOcts() or getGeometryAsTets()."
+                                   "  This implementation provides {}.", strategy.name(),
+                                   int(useOcts) + int(useTets)));
+    }
 
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();
@@ -362,13 +370,21 @@ public:
       "GeometryClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
       getStrategy().name()));
 
+    auto& strategy = getStrategy();
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    const bool useOcts = getStrategy().getGeometryAsOcts(shapeeMesh, geomAsOcts);
-    const bool useTets = getStrategy().getGeometryAsTets(shapeeMesh, geomAsTets);
-    SLIC_ASSERT(useTets != useOcts);
+    const bool useOcts = strategy.getGeometryAsOcts(shapeeMesh, geomAsOcts);
+    const bool useTets = strategy.getGeometryAsTets(shapeeMesh, geomAsTets);
     SLIC_ASSERT(useOcts || geomAsOcts.empty());
     SLIC_ASSERT(useTets || geomAsTets.empty());
+    if(useTets == useOcts)
+    {
+      SLIC_ERROR(axom::fmt::format("Problem with GeometryClipperStrategy implementation '{}'."
+                                   "  Implementations that don't provide a specializedClip function"
+                                   " must provide exactly one getGeometryAsOcts() or getGeometryAsTets()."
+                                   "  This implementation provides {}.", strategy.name(),
+                                   int(useOcts) + int(useTets)));
+    }
 
     auto geomTetsView = geomAsTets.view();
     auto geomOctsView = geomAsOcts.view();

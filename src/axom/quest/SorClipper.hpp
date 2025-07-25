@@ -81,9 +81,6 @@ private:
   // analytical shapes and surfaces of revolutions.
   axom::IndexType m_levelOfRefinement = 0;
 
-  template <typename ExecSpace>
-  void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
-
   //!@brief Array implementation of a += b.
   void accumulateData(axom::ArrayView<double> a,
                       axom::ArrayView<const double> b,

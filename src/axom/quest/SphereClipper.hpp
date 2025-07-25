@@ -34,17 +34,6 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  /*!
-    The algorithm isn't perfect and may mislabel a cell as outside
-    when all its vertices are outside.  We check whether segments of
-    the cell's tetrahedral representation touches the sphere, but we
-    don't check whether their faces do.
-
-    This problem can be fixed but it's significantly more complexity
-    to reduce an error that is probably O(h^3).  The larger error
-    would likely be from discretizing the sphere (which can be reduced
-    with more refinement).
-  */
   bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
   bool getGeometryAsOcts(quest::ShapeeMesh& shappeMesh,
