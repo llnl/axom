@@ -10,6 +10,7 @@
   #error "quest::GeometryClipper requires RAJA."
 #endif
 
+#include "axom/quest/GeometryClipperStrategy.hpp"
 #include "axom/quest/GeometryClipper.hpp"
 #include "axom/spin/BVH.hpp"
 #include "RAJA/RAJA.hpp"
@@ -38,11 +39,15 @@ public:
 
     auto cellVolumes = getShapeeMesh().getCellVolumes();
 
+    /*
+      Overlap volumes is cell volume for cells inside geometry.
+      For other cells, zero out for accumulation later.
+    */
     axom::for_all<ExecSpace>(
       cellCount,
       AXOM_LAMBDA(axom::IndexType i) {
         auto& l = labels[i];
-        ovlap[i] = l == 0 ? cellVolumes[i] : 0.0;
+        ovlap[i] = l == GeometryClipperStrategy::LABEL_IN ? cellVolumes[i] : 0.0;
       });
 
     return;
@@ -52,13 +57,7 @@ public:
   {
     const axom::IndexType cellCount = getShapeeMesh().getCellCount();
     SLIC_ASSERT(ovlap.size() == cellCount);
-
-    axom::for_all<ExecSpace>(
-      cellCount,
-      AXOM_LAMBDA(axom::IndexType i) {
-        ovlap[i] = 0.0;
-      });
-
+    ovlap.fill(0.0);
     return;
   }
 
@@ -202,26 +201,20 @@ public:
     AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
 
     // Get the total number of candidates
-    using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
 
     const auto counts_device_view = counts.view();
-    AXOM_ANNOTATE_BEGIN("populate totalCandidates");
-    RAJA::ReduceSum<REDUCE_POL, int> totalCandidates(0);
-    axom::for_all<ExecSpace>(
-      cellCount,
-      AXOM_LAMBDA(axom::IndexType i) { totalCandidates += counts_device_view[i]; });
-    AXOM_ANNOTATE_END("populate totalCandidates");
+    const int candidateCount = candidates.size();
 
     AXOM_ANNOTATE_BEGIN("allocate scratch space");
     // Initialize hexahedron indices and shape candidates
-    axom::Array<IndexType> hex_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
-                                              totalCandidates.get() * NUM_TETS_PER_HEX,
+    axom::Array<IndexType> hex_indices_device(candidateCount * NUM_TETS_PER_HEX,
+                                              candidateCount * NUM_TETS_PER_HEX,
                                               allocId);
     auto hex_indices_device_view = hex_indices_device.view();
 
-    axom::Array<IndexType> shape_candidates_device(totalCandidates.get() * NUM_TETS_PER_HEX,
-                                                   totalCandidates.get() * NUM_TETS_PER_HEX,
+    axom::Array<IndexType> shape_candidates_device(candidateCount * NUM_TETS_PER_HEX,
+                                                   candidateCount * NUM_TETS_PER_HEX,
                                                    allocId);
     auto shape_candidates_device_view = shape_candidates_device.view();
 
@@ -229,21 +222,21 @@ public:
     auto tets_from_hexes_device_view = shapeeMesh.getCellsAsTets();
 
     // Index into 'tets'
-    axom::Array<IndexType> tet_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
-                                              totalCandidates.get() * NUM_TETS_PER_HEX,
+    axom::Array<IndexType> tet_indices_device(candidateCount * NUM_TETS_PER_HEX,
+                                              candidateCount * NUM_TETS_PER_HEX,
                                               allocId);
     auto tet_indices_device_view = tet_indices_device.view();
     AXOM_ANNOTATE_END("allocate scratch space");
 
     // New total number of candidates after omitting degenerate shapes
     AXOM_ANNOTATE_BEGIN("newTotalCandidates memory");
-    IndexType totalCandidatesCount = 0;
-    IndexType* totalCandidatesCountPtr = &totalCandidatesCount;
+    IndexType tetCandidatesCount = 0;
+    IndexType* tetCandidatesCountPtr = &tetCandidatesCount;
     if(!axom::execution_space<ExecSpace>::usesMemorySpace(MemorySpace::Dynamic))
     {
       // Use temporary space compatible with runtime policy.
-      totalCandidatesCountPtr = axom::allocate<IndexType>(1, allocId);
-      axom::copy(totalCandidatesCountPtr, &totalCandidatesCount, sizeof(totalCandidatesCount));
+      tetCandidatesCountPtr = axom::allocate<IndexType>(1, allocId);
+      axom::copy(tetCandidatesCountPtr, &tetCandidatesCount, sizeof(tetCandidatesCount));
     }
     AXOM_ANNOTATE_END("newTotalCandidates memory");
 
@@ -260,7 +253,7 @@ public:
 
             for(int k = 0; k < NUM_TETS_PER_HEX; k++)
             {
-              IndexType idx = RAJA::atomicAdd<ATOMIC_POL>(totalCandidatesCountPtr, IndexType {1});
+              IndexType idx = RAJA::atomicAdd<ATOMIC_POL>(tetCandidatesCountPtr, IndexType {1});
               hex_indices_device_view[idx] = i;
               shape_candidates_device_view[idx] = shapeIdx;
               tet_indices_device_view[idx] = i * NUM_TETS_PER_HEX + k;
@@ -269,32 +262,32 @@ public:
         });
     }
 
-    axom::for_all<ExecSpace>(
-      ovlap.size(),
-      AXOM_LAMBDA(axom::IndexType i) { ovlap[i] = 0.0; });
-
     SLIC_INFO(axom::fmt::format(
       "Running clip loop on {} candidate tets for of all {} hexes in the mesh",
-      candidates.size(),
+      tetCandidatesCount,
       cellCount));
 
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = false;
 
     {
+      tetCandidatesCount = NUM_TETS_PER_HEX*candidates.size();
       AXOM_ANNOTATE_SCOPE("GeometryClipper::clipLoop");
-      // Copy calculated total back to host if needed
-      if(totalCandidatesCountPtr != &totalCandidatesCount)
+#if 1
+      // Verifying: this should always pass.
+      if(tetCandidatesCountPtr != &tetCandidatesCount)
       {
-        axom::copy(&totalCandidatesCount, totalCandidatesCountPtr, sizeof(IndexType));
+        axom::copy(&tetCandidatesCount, tetCandidatesCountPtr, sizeof(IndexType));
       }
+      SLIC_ASSERT(tetCandidatesCount == candidateCount*NUM_TETS_PER_HEX);
+#endif
 
       using PolyhedronType = primal::Polyhedron<double, 3>;
 
       if(useTets)
       {
         axom::for_all<ExecSpace>(
-          totalCandidatesCount,
+          tetCandidatesCount,
           AXOM_LAMBDA(axom::IndexType i) {
             const int index = hex_indices_device_view[i];
             const int shapeIndex = shape_candidates_device_view[i];
@@ -319,7 +312,7 @@ public:
       else // useOcts
       {
         axom::for_all<ExecSpace>(
-          totalCandidatesCount,
+          tetCandidatesCount,
           AXOM_LAMBDA(axom::IndexType i) {
             const int index = hex_indices_device_view[i];
             const int shapeIndex = shape_candidates_device_view[i];
@@ -343,9 +336,9 @@ public:
       }
     }
 
-    if(totalCandidatesCountPtr != &totalCandidatesCount)
+    if(tetCandidatesCountPtr != &tetCandidatesCount)
     {
-      axom::deallocate(totalCandidatesCountPtr);
+      axom::deallocate(tetCandidatesCountPtr);
     }
   }  // end of computeClipVolumes3D() function
 
@@ -353,7 +346,6 @@ public:
                             axom::ArrayView<double> ovlap) override
 
   {
-    AXOM_UNUSED_VAR(ovlap);
     AXOM_ANNOTATE_SCOPE("GeometryClipper::computeClipVolumes3D:limited");
 
     using BoundingBoxType = primal::BoundingBox<double, 3>;
@@ -444,27 +436,20 @@ public:
     AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
 
     // Get the total number of candidates
-    using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
 
     const auto counts_device_view = counts.view();
-    AXOM_ANNOTATE_BEGIN("populate totalCandidates");
-    RAJA::ReduceSum<REDUCE_POL, int> totalCandidates(0);
-    axom::for_all<ExecSpace>(
-      limitedCellCount,
-      AXOM_LAMBDA(axom::IndexType i) { totalCandidates += counts_device_view[i]; });
-    AXOM_ANNOTATE_END("populate totalCandidates");
-assert(totalCandidates.get() == candidates.size());
+    const int candidateCount = candidates.size();
 
     AXOM_ANNOTATE_BEGIN("allocate scratch space");
     // Initialize hexahedron indices and shape candidates
-    axom::Array<IndexType> hex_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
-                                              totalCandidates.get() * NUM_TETS_PER_HEX,
+    axom::Array<IndexType> hex_indices_device(candidateCount * NUM_TETS_PER_HEX,
+                                              candidateCount * NUM_TETS_PER_HEX,
                                               allocId);
     auto hex_indices_device_view = hex_indices_device.view();
 
-    axom::Array<IndexType> shape_candidates_device(totalCandidates.get() * NUM_TETS_PER_HEX,
-                                                   totalCandidates.get() * NUM_TETS_PER_HEX,
+    axom::Array<IndexType> shape_candidates_device(candidateCount * NUM_TETS_PER_HEX,
+                                                   candidateCount * NUM_TETS_PER_HEX,
                                                    allocId);
     auto shape_candidates_device_view = shape_candidates_device.view();
 
@@ -472,21 +457,21 @@ assert(totalCandidates.get() == candidates.size());
     auto tets_from_hexes_device_view = shapeeMesh.getCellsAsTets();
 
     // Index into 'tets'
-    axom::Array<IndexType> tet_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
-                                              totalCandidates.get() * NUM_TETS_PER_HEX,
+    axom::Array<IndexType> tet_indices_device(candidateCount * NUM_TETS_PER_HEX,
+                                              candidateCount * NUM_TETS_PER_HEX,
                                               allocId);
     auto tet_indices_device_view = tet_indices_device.view();
     AXOM_ANNOTATE_END("allocate scratch space");
 
     // New total number of candidates after omitting degenerate shapes
     AXOM_ANNOTATE_BEGIN("newTotalCandidates memory");
-    IndexType totalCandidatesCount = 0;
-    IndexType* totalCandidatesCountPtr = &totalCandidatesCount;
+    IndexType tetCandidatesCount = 0;
+    IndexType* tetCandidatesCountPtr = &tetCandidatesCount;
     if(!axom::execution_space<ExecSpace>::usesMemorySpace(MemorySpace::Dynamic))
     {
       // Use temporary space compatible with runtime policy.
-      totalCandidatesCountPtr = axom::allocate<IndexType>(1, allocId);
-      axom::copy(totalCandidatesCountPtr, &totalCandidatesCount, sizeof(IndexType));
+      tetCandidatesCountPtr = axom::allocate<IndexType>(1, allocId);
+      axom::copy(tetCandidatesCountPtr, &tetCandidatesCount, sizeof(IndexType));
     }
     AXOM_ANNOTATE_END("newTotalCandidates memory");
 
@@ -503,7 +488,7 @@ assert(totalCandidates.get() == candidates.size());
 
             for(int k = 0; k < NUM_TETS_PER_HEX; k++)
             {
-              IndexType idx = RAJA::atomicAdd<ATOMIC_POL>(totalCandidatesCountPtr, IndexType {1});
+              IndexType idx = RAJA::atomicAdd<ATOMIC_POL>(tetCandidatesCountPtr, IndexType {1});
               hex_indices_device_view[idx] = i;
               shape_candidates_device_view[idx] = shapeIdx;
               tet_indices_device_view[idx] = i * NUM_TETS_PER_HEX + k;
@@ -514,23 +499,22 @@ assert(totalCandidates.get() == candidates.size());
 
     SLIC_INFO(axom::fmt::format(
       "Running clip loop on {} candidate tets for the select {} hexes of the full {} cells",
-      totalCandidatesCount,
-      cellIndices.size(),
-      cellCount));
+      tetCandidatesCount,
+      cellIndices.size(), cellCount));
 
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = false;
 
     {
+      tetCandidatesCount = NUM_TETS_PER_HEX*candidates.size();
       AXOM_ANNOTATE_SCOPE("GeometryClipper::clipLoop_limited");
-      totalCandidatesCount = NUM_TETS_PER_HEX*candidates.size();
-#if 0
+#if 1
       // Verifying: this should always pass.
-      if(totalCandidatesCountPtr != &totalCandidatesCount)
+      if(tetCandidatesCountPtr != &tetCandidatesCount)
       {
-        axom::copy(&totalCandidatesCount, totalCandidatesCountPtr, sizeof(IndexType));
+        axom::copy(&tetCandidatesCount, tetCandidatesCountPtr, sizeof(IndexType));
       }
-      SLIC_ASSERT(totalCandidatesCount == NUM_TETS_PER_HEX*candidates.size());
+      SLIC_ASSERT(tetCandidatesCount == candidateCount*NUM_TETS_PER_HEX);
 #endif
 
       using PolyhedronType = primal::Polyhedron<double, 3>;
@@ -538,7 +522,7 @@ assert(totalCandidates.get() == candidates.size());
       if(useTets)
       {
         axom::for_all<ExecSpace>(
-          totalCandidatesCount,
+          tetCandidatesCount,
           AXOM_LAMBDA(axom::IndexType i) {
             int index = hex_indices_device_view[i]; // index into limited mesh hex array
             index = cellIndices[index]; // Now, it indexes into the full hex array.
@@ -568,7 +552,7 @@ assert(totalCandidates.get() == candidates.size());
       else // useOcts
       {
         axom::for_all<ExecSpace>(
-          totalCandidatesCount,
+          tetCandidatesCount,
           AXOM_LAMBDA(axom::IndexType i) {
             int index = hex_indices_device_view[i]; // index into limited mesh hex array
             index = cellIndices[index]; // Now, it indexes into the full hex array.
@@ -597,9 +581,9 @@ assert(totalCandidates.get() == candidates.size());
       }
     }
 
-    if(totalCandidatesCountPtr != &totalCandidatesCount)
+    if(tetCandidatesCountPtr != &tetCandidatesCount)
     {
-      axom::deallocate(totalCandidatesCountPtr);
+      axom::deallocate(tetCandidatesCountPtr);
     }
   }  // end of computeClipVolumes3D() function
 
