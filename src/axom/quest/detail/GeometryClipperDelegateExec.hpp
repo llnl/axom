@@ -61,17 +61,16 @@ public:
     return;
   }
 
-  /*!
-    @brief Make an list of indices where labels have value 1.
-
-    1. Generate tmpLabels, having a value of 1 for unlabeled cells and zero elsewhere.
-    2. Inclusive scan on tmpLabels to generate values that step up at unlabeled cells.
-    3. Find unlabeled cells by seeing where tmpLabels changes values.
-       (Handle first cell separately, then loop from second cell on.)
-  */
+  //! @brief Make an list of indices where labels have value LABEL_ON.
   void collectUnlabeledCellIndices(const axom::ArrayView<LabelType>& labels,
                                    axom::Array<axom::IndexType>& unlabeledCells) override
   {
+    /*!
+      1. Generate tmpLabels, having a value of 1 for cells marked LABEL_ON and zero elsewhere.
+      2. Inclusive scan on tmpLabels to generate values that step up at unlabeled cells.
+      3. Find unlabeled cells by seeing where tmpLabels changes values.
+         (Handle first cell separately, then loop from second cell on.)
+    */
     using ScanPolicy = typename axom::execution_space<ExecSpace>::loop_policy;
 
     const axom::IndexType labelCount = labels.size();
@@ -80,7 +79,7 @@ public:
     auto tmpLabelsView = tmpLabels.view();
     axom::for_all<ExecSpace>(
       labelCount,
-      AXOM_LAMBDA(axom::IndexType ci) { tmpLabelsView[ci] = labels[ci] == 1; });
+      AXOM_LAMBDA(axom::IndexType ci) { tmpLabelsView[ci] = labels[ci] == GeometryClipperStrategy::LABEL_ON; });
 
     RAJA::inclusive_scan_inplace<ScanPolicy>(RAJA::make_span(tmpLabels.data(), tmpLabels.size()),
                                              RAJA::operators::plus<axom::IndexType> {});
@@ -203,29 +202,29 @@ public:
     // Get the total number of candidates
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
 
-    const auto counts_device_view = counts.view();
+    const auto countsView = counts.view();
     const int candidateCount = candidates.size();
 
     AXOM_ANNOTATE_BEGIN("allocate scratch space");
     // Initialize hexahedron indices and shape candidates
-    axom::Array<IndexType> hex_indices_device(candidateCount * NUM_TETS_PER_HEX,
+    axom::Array<IndexType> hexIndices(candidateCount * NUM_TETS_PER_HEX,
                                               candidateCount * NUM_TETS_PER_HEX,
                                               allocId);
-    auto hex_indices_device_view = hex_indices_device.view();
+    auto hexIndicesView = hexIndices.view();
 
-    axom::Array<IndexType> shape_candidates_device(candidateCount * NUM_TETS_PER_HEX,
+    axom::Array<IndexType> shapeCandidates(candidateCount * NUM_TETS_PER_HEX,
                                                    candidateCount * NUM_TETS_PER_HEX,
                                                    allocId);
-    auto shape_candidates_device_view = shape_candidates_device.view();
+    auto shapeCandidatesView = shapeCandidates.view();
 
     // Tetrahedrons from hexes (24 for each hex)
-    auto tets_from_hexes_device_view = shapeeMesh.getCellsAsTets();
+    auto cellsAsTets = shapeeMesh.getCellsAsTets();
 
     // Index into 'tets'
-    axom::Array<IndexType> tet_indices_device(candidateCount * NUM_TETS_PER_HEX,
+    axom::Array<IndexType> tetIndices(candidateCount * NUM_TETS_PER_HEX,
                                               candidateCount * NUM_TETS_PER_HEX,
                                               allocId);
-    auto tet_indices_device_view = tet_indices_device.view();
+    auto tetIndicesView = tetIndices.view();
     AXOM_ANNOTATE_END("allocate scratch space");
 
     // New total number of candidates after omitting degenerate shapes
@@ -240,23 +239,23 @@ public:
     }
     AXOM_ANNOTATE_END("newTotalCandidates memory");
 
-    const auto offsets_device_view = offsets.view();
-    const auto candidates_device_view = candidates.view();
+    const auto offsetsView = offsets.view();
+    const auto candidatesView = candidates.view();
     {
       AXOM_ANNOTATE_SCOPE("init_candidates");
       axom::for_all<ExecSpace>(
         cellCount,
         AXOM_LAMBDA(axom::IndexType i) {
-          for(int j = 0; j < counts_device_view[i]; j++)
+          for(int j = 0; j < countsView[i]; j++)
           {
-            int shapeIdx = candidates_device_view[offsets_device_view[i] + j];
+            int shapeIdx = candidatesView[offsetsView[i] + j];
 
             for(int k = 0; k < NUM_TETS_PER_HEX; k++)
             {
               IndexType idx = RAJA::atomicAdd<ATOMIC_POL>(tetCandidatesCountPtr, IndexType {1});
-              hex_indices_device_view[idx] = i;
-              shape_candidates_device_view[idx] = shapeIdx;
-              tet_indices_device_view[idx] = i * NUM_TETS_PER_HEX + k;
+              hexIndicesView[idx] = i;
+              shapeCandidatesView[idx] = shapeIdx;
+              tetIndicesView[idx] = i * NUM_TETS_PER_HEX + k;
             }
           }
         });
@@ -289,12 +288,12 @@ public:
         axom::for_all<ExecSpace>(
           tetCandidatesCount,
           AXOM_LAMBDA(axom::IndexType i) {
-            const int index = hex_indices_device_view[i];
-            const int shapeIndex = shape_candidates_device_view[i];
-            const int tetIndex = tet_indices_device_view[i];
+            const int index = hexIndicesView[i];
+            const int shapeIndex = shapeCandidatesView[i];
+            const int tetIndex = tetIndicesView[i];
 
             const PolyhedronType poly = primal::clip(geomTetsView[shapeIndex],
-                                                     tets_from_hexes_device_view[tetIndex],
+                                                     cellsAsTets[tetIndex],
                                                      EPS,
                                                      tryFixOrientation);
 
@@ -314,12 +313,12 @@ public:
         axom::for_all<ExecSpace>(
           tetCandidatesCount,
           AXOM_LAMBDA(axom::IndexType i) {
-            const int index = hex_indices_device_view[i];
-            const int shapeIndex = shape_candidates_device_view[i];
-            const int tetIndex = tet_indices_device_view[i];
+            const int index = hexIndicesView[i];
+            const int shapeIndex = shapeCandidatesView[i];
+            const int tetIndex = tetIndicesView[i];
 
             const PolyhedronType poly = primal::clip(geomOctsView[shapeIndex],
-                                                     tets_from_hexes_device_view[tetIndex],
+                                                     cellsAsTets[tetIndex],
                                                      EPS,
                                                      tryFixOrientation);
 
@@ -438,29 +437,29 @@ public:
     // Get the total number of candidates
     using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
 
-    const auto counts_device_view = counts.view();
+    const auto countsView = counts.view();
     const int candidateCount = candidates.size();
 
     AXOM_ANNOTATE_BEGIN("allocate scratch space");
     // Initialize hexahedron indices and shape candidates
-    axom::Array<IndexType> hex_indices_device(candidateCount * NUM_TETS_PER_HEX,
+    axom::Array<IndexType> hexIndices(candidateCount * NUM_TETS_PER_HEX,
                                               candidateCount * NUM_TETS_PER_HEX,
                                               allocId);
-    auto hex_indices_device_view = hex_indices_device.view();
+    auto hexIndicesView = hexIndices.view();
 
-    axom::Array<IndexType> shape_candidates_device(candidateCount * NUM_TETS_PER_HEX,
+    axom::Array<IndexType> shapeCandidates(candidateCount * NUM_TETS_PER_HEX,
                                                    candidateCount * NUM_TETS_PER_HEX,
                                                    allocId);
-    auto shape_candidates_device_view = shape_candidates_device.view();
+    auto shapeCandidatesView = shapeCandidates.view();
 
     // Tetrahedrons from hexes (24 for each hex)
-    auto tets_from_hexes_device_view = shapeeMesh.getCellsAsTets();
+    auto cellsAsTets = shapeeMesh.getCellsAsTets();
 
     // Index into 'tets'
-    axom::Array<IndexType> tet_indices_device(candidateCount * NUM_TETS_PER_HEX,
+    axom::Array<IndexType> tetIndices(candidateCount * NUM_TETS_PER_HEX,
                                               candidateCount * NUM_TETS_PER_HEX,
                                               allocId);
-    auto tet_indices_device_view = tet_indices_device.view();
+    auto tetIndicesView = tetIndices.view();
     AXOM_ANNOTATE_END("allocate scratch space");
 
     // New total number of candidates after omitting degenerate shapes
@@ -475,23 +474,23 @@ public:
     }
     AXOM_ANNOTATE_END("newTotalCandidates memory");
 
-    const auto offsets_device_view = offsets.view();
-    const auto candidates_device_view = candidates.view();
+    const auto offsetsView = offsets.view();
+    const auto candidatesView = candidates.view();
     {
       AXOM_ANNOTATE_SCOPE("init_candidates");
       axom::for_all<ExecSpace>(
         limitedCellCount,
         AXOM_LAMBDA(axom::IndexType i) {
-          for(int j = 0; j < counts_device_view[i]; j++)
+          for(int j = 0; j < countsView[i]; j++)
           {
-            int shapeIdx = candidates_device_view[offsets_device_view[i] + j];
+            int shapeIdx = candidatesView[offsetsView[i] + j];
 
             for(int k = 0; k < NUM_TETS_PER_HEX; k++)
             {
               IndexType idx = RAJA::atomicAdd<ATOMIC_POL>(tetCandidatesCountPtr, IndexType {1});
-              hex_indices_device_view[idx] = i;
-              shape_candidates_device_view[idx] = shapeIdx;
-              tet_indices_device_view[idx] = i * NUM_TETS_PER_HEX + k;
+              hexIndicesView[idx] = i;
+              shapeCandidatesView[idx] = shapeIdx;
+              tetIndicesView[idx] = i * NUM_TETS_PER_HEX + k;
             }
           }
         });
@@ -524,17 +523,17 @@ public:
         axom::for_all<ExecSpace>(
           tetCandidatesCount,
           AXOM_LAMBDA(axom::IndexType i) {
-            int index = hex_indices_device_view[i]; // index into limited mesh hex array
+            int index = hexIndicesView[i]; // index into limited mesh hex array
             index = cellIndices[index]; // Now, it indexes into the full hex array.
 
-            const int shapeIndex = shape_candidates_device_view[i]; // index into pieces array
-            int tetIndex = tet_indices_device_view[i]; // index into BVH results, implicit because BVH results specify hexes, not tets.
+            const int shapeIndex = shapeCandidatesView[i]; // index into pieces array
+            int tetIndex = tetIndicesView[i]; // index into BVH results, implicit because BVH results specify hexes, not tets.
             int tetIndex1 = tetIndex/NUM_TETS_PER_HEX;
             int tetIndex2 = tetIndex%NUM_TETS_PER_HEX;
             tetIndex = cellIndices[tetIndex1]*NUM_TETS_PER_HEX + tetIndex2; // Now it indexes into the full tets-from-hexes array.
 
             const PolyhedronType poly = primal::clip(geomTetsView[shapeIndex],
-                                                     tets_from_hexes_device_view[tetIndex],
+                                                     cellsAsTets[tetIndex],
                                                      EPS,
                                                      tryFixOrientation);
 
@@ -554,17 +553,17 @@ public:
         axom::for_all<ExecSpace>(
           tetCandidatesCount,
           AXOM_LAMBDA(axom::IndexType i) {
-            int index = hex_indices_device_view[i]; // index into limited mesh hex array
+            int index = hexIndicesView[i]; // index into limited mesh hex array
             index = cellIndices[index]; // Now, it indexes into the full hex array.
 
-            const int shapeIndex = shape_candidates_device_view[i]; // index into pieces array
-            int tetIndex = tet_indices_device_view[i]; // index into BVH results, implicit because BVH results specify hexes, not tets.
+            const int shapeIndex = shapeCandidatesView[i]; // index into pieces array
+            int tetIndex = tetIndicesView[i]; // index into BVH results, implicit because BVH results specify hexes, not tets.
             int tetIndex1 = tetIndex/NUM_TETS_PER_HEX;
             int tetIndex2 = tetIndex%NUM_TETS_PER_HEX;
             tetIndex = cellIndices[tetIndex1]*NUM_TETS_PER_HEX + tetIndex2; // Now it indexes into the full tets-from-hexes array.
 
             const PolyhedronType poly = primal::clip(geomOctsView[shapeIndex],
-                                                     tets_from_hexes_device_view[tetIndex],
+                                                     cellsAsTets[tetIndex],
                                                      EPS,
                                                      tryFixOrientation);
 
