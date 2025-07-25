@@ -81,6 +81,9 @@ private:
   // Extract clipper info from GeometryClipperStrategy::m_info.
   void extractClipperInfo();
 
+  // Check validity of tetMesh for our purposes.
+  bool isValidTetMesh(const conduit::Node& tetMesh, std::string& whyBad) const;
+
   void transformCoordset();
 
   void computeTets();

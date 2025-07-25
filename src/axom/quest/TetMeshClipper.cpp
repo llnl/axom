@@ -456,17 +456,53 @@ void TetMeshClipper::extractClipperInfo()
   SLIC_ASSERT(
     m_tetMesh.fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("type").as_string() ==
     "unstructured");
+  {
+    std::string whyBad;
+    bool good = isValidTetMesh(m_tetMesh, whyBad);
+    if(!good)
+    {
+      SLIC_ERROR(axom::fmt::format("TetMeshClipper given bad tet mesh: {}", whyBad));
+    }
+  }
 
   conduit::Node& topoNode = m_tetMesh.fetch_existing("topologies").fetch_existing(m_topoName);
 
   bool isMultiDomain = conduit::blueprint::mesh::is_multi_domain(m_tetMesh);
   SLIC_ERROR_IF(isMultiDomain, "TetMeshClipper does not support multi-domain tet meshes yet.");
 
+  const auto topoDim = conduit::blueprint::mesh::topology::dims(topoNode);
+  SLIC_ASSERT(topoDim == 3);
   SLIC_ASSERT(conduit::blueprint::mesh::topology::dims(topoNode) == 3);
 
   m_tetCount = conduit::blueprint::mesh::topology::length(topoNode);
 
   m_coordsetName = topoNode.fetch_existing("coordset").as_string();
+}
+
+bool TetMeshClipper::isValidTetMesh(const conduit::Node& tetMesh, std::string& whyBad) const
+{
+  bool rval = true;
+
+  conduit::Node info;
+  rval = conduit::blueprint::mesh::verify(tetMesh, info);
+
+  if(rval)
+  {
+    std::string topoType = tetMesh.fetch("topologies")[m_topoName]["type"].as_string();
+    rval = topoType == "unstructured";
+    info[0].set_string("Topology is not unstructured.");
+  }
+
+  if(rval)
+  {
+    std::string elemShape = tetMesh.fetch("topologies")[m_topoName]["elements/shape"].as_string();
+    rval = elemShape == "tet";
+    info[0].set_string("Topology elements are not tet.");
+  }
+
+  whyBad = info.to_summary_string();
+
+  return rval;
 }
 
 void TetMeshClipper::transformCoordset()
