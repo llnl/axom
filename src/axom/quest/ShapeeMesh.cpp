@@ -181,8 +181,8 @@ void ShapeeMesh::precomputeMeshData()
   getCellsAsHexes();
   getCellsAsTets();
   getCellVolumes();
-  getCellLengths();
   getCellBoundingBoxes();
+  getCellLengths();
   getCellNodeConnectivity();
   getVertexPoints();
 }
@@ -666,7 +666,7 @@ void ShapeeMesh::computeVertPoints()
 
 void ShapeeMesh::computeCellLengths()
 {
-  AXOM_ANNOTATE_SCOPE("SphereClipper::computeCellLengths");
+  AXOM_ANNOTATE_SCOPE("ShapeeMesh::computeCellLengths");
   switch(m_runtimePolicy)
   {
   case axom::runtime_policy::Policy::seq:
