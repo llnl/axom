@@ -299,7 +299,7 @@ public:
     \brief Set the default array allocator id associated with this Group.
 
     This allocator is the default for array data, even if the array is
-    length 1.  (Note, tuples are not arrays in this sense.  @see
+    length 1.  (Note, tuples are not arrays in this specific sense.  @see
     setDefaultTupleAllocator(int).)
   */
   Group* setDefaultArrayAllocator(int allocId)
@@ -328,7 +328,7 @@ public:
   //! \brief Set the default scalar/tuple umpire::Allocator associated with this Group.
   Group* setDefaultTupleAllocator(umpire::Allocator alloc)
   {
-    setDefaultAllocator(alloc.getId());
+    setDefaultTupleAllocator(alloc.getId());
     return this;
   }
 #endif
