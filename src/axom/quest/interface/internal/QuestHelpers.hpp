@@ -374,8 +374,8 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm = MPI
  *
  * \return zero on success, or a non-zero value otherwise.
  */
-int read_mfem_contours(const std::string &filePath,
-                        axom::Array<axom::primal::CurvedPolygon<double, 2>> &contours);
+int read_mfem_contours(const std::string& filePath,
+                       axom::Array<axom::primal::CurvedPolygon<double, 2>>& contours);
 #endif
 /// @}
 
@@ -391,7 +391,7 @@ int read_mfem_contours(const std::string &filePath,
  *
  * \return A BezierCurve that represents the mesh segment.
  */
-primal::BezierCurve<double,2> segment_to_curve(const mfem::Mesh* mesh, int elem_id);
+primal::BezierCurve<double, 2> segment_to_curve(const mfem::Mesh* mesh, int elem_id);
 #endif
 
 /*!

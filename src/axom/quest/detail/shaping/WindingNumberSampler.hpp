@@ -84,7 +84,7 @@ public:
 
   void initSpatialIndex(double AXOM_UNUSED_PARAM(vertexWeldThreshold))
   {
-#if 0 // FOR NOW
+#if 0  // FOR NOW
     AXOM_ANNOTATE_SCOPE("generate InOutOctree");
     // Create octree over mesh's bounding box
     m_octree = new InOutOctreeType(m_bbox, m_surfaceMesh);
@@ -118,15 +118,14 @@ public:
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
     const auto geometryView = m_geometryView;
-    auto checkInside = [=](const PointType &pt) -> bool
-    {
+    auto checkInside = [=](const PointType& pt) -> bool {
       // TODO: figure out curved polygons that might contain point from index.
 
-      // Check each candidate 
+      // Check each candidate
       bool inside = false;
       for(axom::IndexType i = 0; i < geometryView.size() && !inside; i++)
       {
-        const auto &shapeGeom = geometryView[i];
+        const auto& shapeGeom = geometryView[i];
         double wn {};
         for(int c = 0; c < shapeGeom.numEdges(); c++)
         {
@@ -137,7 +136,12 @@ public:
       }
       return inside;
     };
-    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName, dc, inoutQFuncs, sampleRes, checkInside, projector);
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
+                                              dc,
+                                              inoutQFuncs,
+                                              sampleRes,
+                                              checkInside,
+                                              projector);
   }
 
   /** 
@@ -159,20 +163,17 @@ public:
    * Compute "baseline" volume fractions by sampling at grid function degrees of freedom
    * (instead of at quadrature points)
   */
-  void computeVolumeFractionsBaseline(mfem::DataCollection* dc,
-                                      int sampleRes,
-                                      int outputOrder)
+  void computeVolumeFractionsBaseline(mfem::DataCollection* dc, int sampleRes, int outputOrder)
   {
     const auto geometryView = m_geometryView;
-    auto checkInside = [=](const PointType &pt) -> bool
-    {
+    auto checkInside = [=](const PointType& pt) -> bool {
       // TODO: figure out curved polygons that might contain point from index.
 
-      // Check each candidate 
+      // Check each candidate
       bool inside = false;
       for(axom::IndexType i = 0; i < geometryView.size() && !inside; i++)
       {
-        const auto &shapeGeom = geometryView[i];
+        const auto& shapeGeom = geometryView[i];
         double wn {};
         for(int c = 0; c < shapeGeom.numEdges(); c++)
         {

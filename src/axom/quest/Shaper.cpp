@@ -215,7 +215,7 @@ void Shaper::setRefinementType(Shaper::RefinementType t) { m_refinementType = t;
 
 bool Shaper::isValidFormat(const std::string& format) const
 {
-  static const char *formats[] = {
+  static const char* formats[] = {
 #if defined(AXOM_USE_MFEM)
     "mfem",
 #endif
@@ -230,7 +230,7 @@ bool Shaper::isValidFormat(const std::string& format) const
     "sor3D",
     "none"
   };
-  constexpr auto numFormats = sizeof(formats) / sizeof(const char *);
+  constexpr auto numFormats = sizeof(formats) / sizeof(const char*);
   const auto formats_end = formats + numFormats;
   return std::find(formats, formats + numFormats, format) != formats_end;
 }

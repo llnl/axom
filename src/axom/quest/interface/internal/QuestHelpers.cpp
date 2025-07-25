@@ -487,13 +487,13 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
 /*
  * Reads in the MFEM contours from the specified file.
  */
-int read_mfem_contours(const std::string &file,
-                       axom::Array<axom::primal::CurvedPolygon<double, 2>> &contours)
+int read_mfem_contours(const std::string& file,
+                       axom::Array<axom::primal::CurvedPolygon<double, 2>>& contours)
 {
   int retval = READ_FAILED;
 
   // Load the MFEM file
-  mfem::Mesh *mesh = nullptr;
+  mfem::Mesh* mesh = nullptr;
   try
   {
     mesh = new mfem::Mesh(file, 1, 1, true);
@@ -513,7 +513,7 @@ int read_mfem_contours(const std::string &file,
       contours.resize(contourZones.size());
       for(size_t c = 0; c < contourZones.size(); c++)
       {
-        auto &poly = contours[c];
+        auto& poly = contours[c];
         for(axom::IndexType i = 0; i < contourZones[c].size(); i++)
         {
           const int zoneId = contourZones[c][i];
@@ -531,7 +531,7 @@ int read_mfem_contours(const std::string &file,
 
     delete mesh;
   }
-  catch(std::exception &e)
+  catch(std::exception& e)
   {
     delete mesh;
   }
@@ -542,10 +542,10 @@ int read_mfem_contours(const std::string &file,
 /// Mesh Helper Methods
 
 #if defined(AXOM_USE_MFEM)
-primal::BezierCurve<double,2> segment_to_curve(const mfem::Mesh* mesh, int elem_id)
+primal::BezierCurve<double, 2> segment_to_curve(const mfem::Mesh* mesh, int elem_id)
 {
   using Point2D = axom::primal::Point<double, 2>;
-  using BezierCurve2D = primal::BezierCurve<double,2>;
+  using BezierCurve2D = primal::BezierCurve<double, 2>;
 
   const auto* fes = mesh->GetNodes()->FESpace();
   const auto* fec = fes->FEColl();

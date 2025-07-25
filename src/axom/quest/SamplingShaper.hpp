@@ -195,7 +195,8 @@ public:
     }
     else if(this->shapeFormat(shape) == "mfem")
     {
-      m_inoutSamplerWN = std::make_unique<shaping::WindingNumberSampler<2>>(shapeName, m_contours.view());
+      m_inoutSamplerWN =
+        std::make_unique<shaping::WindingNumberSampler<2>>(shapeName, m_contours.view());
       m_inoutSamplerWN->computeBounds();
       m_inoutSamplerWN->initSpatialIndex(this->m_vertexWeldThreshold);
     }
@@ -557,7 +558,7 @@ public:
 private:
   // Handles 2D or 3D shaping for compatible samplers, based on the template and associated parameter
   template <typename SamplerType>
-  void runShapeQueryImplSampler(SamplerType *shaper)
+  void runShapeQueryImplSampler(SamplerType* shaper)
   {
     // Sample the InOut field at the mesh quadrature points
     const int meshDim = m_dc->GetMesh()->Dimension();

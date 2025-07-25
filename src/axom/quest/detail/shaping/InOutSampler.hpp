@@ -120,12 +120,14 @@ public:
   {
     using PointType = primal::Point<double, DIM>;
 
-    const InOutOctreeType *octree = m_octree;
-    auto checkInside = [=](const PointType &pt) -> bool
-    {
-      return octree->within(pt);
-    };
-    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName, dc, inoutQFuncs, sampleRes, checkInside, projector);
+    const InOutOctreeType* octree = m_octree;
+    auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
+                                              dc,
+                                              inoutQFuncs,
+                                              sampleRes,
+                                              checkInside,
+                                              projector);
   }
 
   /** 
@@ -147,16 +149,11 @@ public:
    * Compute "baseline" volume fractions by sampling at grid function degrees of freedom
    * (instead of at quadrature points)
   */
-  void computeVolumeFractionsBaseline(mfem::DataCollection* dc,
-                                      int sampleRes,
-                                      int outputOrder)
+  void computeVolumeFractionsBaseline(mfem::DataCollection* dc, int sampleRes, int outputOrder)
   {
     using PointType = primal::Point<double, DIM>;
-    const InOutOctreeType *octree = m_octree;
-    auto checkInside = [=](const PointType &pt) -> bool
-    {
-      return octree->within(pt);
-    };
+    const InOutOctreeType* octree = m_octree;
+    auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
     shaping::computeVolumeFractionsBaseline<DIM>(m_shapeName, dc, sampleRes, outputOrder, checkInside);
   }
 
