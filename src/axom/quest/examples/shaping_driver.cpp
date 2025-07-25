@@ -497,8 +497,6 @@ int main(int argc, char** argv)
     exit(1);
   }
 
-  //const klee::Dimensions defaultShapeDim = params.shapeSet.getDimensions();
-
   AXOM_ANNOTATE_BEGIN("load mesh");
   //---------------------------------------------------------------------------
   // Load the computational mesh

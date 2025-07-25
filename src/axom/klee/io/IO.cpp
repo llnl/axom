@@ -232,8 +232,8 @@ Geometry convert(GeometryData const &data,
     throw KleeError({data.pathInFile,
                      axom::fmt::format("Did not end up with the expected number of dimensions. "
                                        "Expected: {}, but got: {}",
-                                       expected_end_dims == Dimensions::Two ? 2 : 3,
-                                       computed_end_dims == Dimensions::Two ? 2 : 3)});
+                                       expected_end_dims,
+                                       computed_end_dims)});
   }
 
   return geometry;

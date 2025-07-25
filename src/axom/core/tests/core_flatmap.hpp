@@ -114,6 +114,20 @@ AXOM_TYPED_TEST(core_flatmap, default_init)
   EXPECT_EQ(true, test_map.empty());
 }
 
+AXOM_TYPED_TEST(core_flatmap, prealloc_buckets)
+{
+  using MapType = typename TestFixture::MapType;
+
+  const std::vector<int> sizes = {100, 400, 1000, 4000, 10000};
+
+  for(int size : sizes)
+  {
+    MapType test_map(size);
+    EXPECT_EQ(0, test_map.size());
+    EXPECT_LE(size, test_map.bucket_count() * test_map.max_load_factor());
+  }
+}
+
 AXOM_TYPED_TEST(core_flatmap, insert_only)
 {
   using MapType = typename TestFixture::MapType;

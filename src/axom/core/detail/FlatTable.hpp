@@ -175,6 +175,37 @@ struct GroupBucket
     return InvalidSlot;
   }
 
+  /*!
+   * \brief Visits matching hash buckets until an empty bucket is encountered.
+   *
+   *  This is used when performing batched insertion: since elements are only
+   *  inserted, not deleted, an empty bucket will always be encountered only at
+   *  the very end of a given probe sequence.
+   *  The visitor function is used to allow for detecting duplicate keys.
+   *
+   * \param [in] hash reduced hash to search for
+   * \param [in] visitor functor to call for each matching bucket slot
+   *
+   * \return the first empty slot found, or InvalidSlot
+   */
+  template <typename Func>
+  AXOM_HOST_DEVICE int visitHashOrEmptyBucket(std::uint8_t hash, Func&& visitor) const
+  {
+    std::uint8_t reducedHash = reduceHash(hash);
+    for(int i = 0; i < Size; i++)
+    {
+      if(metadata.buckets[i] == reducedHash)
+      {
+        visitor(i);
+      }
+      else if(metadata.buckets[i] == GroupBucket::Empty)
+      {
+        return i;
+      }
+    }
+    return InvalidSlot;
+  }
+
   template <bool Atomic = false>
   AXOM_HOST_DEVICE void setBucket(int index, std::uint8_t hash)
   {

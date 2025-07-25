@@ -4,15 +4,19 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/core/utilities/FileUtilities.hpp"
+#include "axom/core/utilities/StringUtilities.hpp"
+#include "axom/fmt.hpp"
 
+#include <vector>
 #include <string>
 #include <fstream>
 #include <sstream>
 #include <cerrno>
-
 #include <cstdio>  // defines FILENAME_MAX
+#include <cstdlib>
 
 #ifdef WIN32
+  #include <windows.h>
   #include <direct.h>
   #include <sys/stat.h>
 
@@ -45,10 +49,7 @@ std::string getCWD()
 
   if(!GetCurrentDir(cCurrentPath, FILENAME_MAX))
   {
-    //Note: Cannot use logging in COMMON component -- topic of JIRA issue
-    // ATK-463
-    //SLIC_WARNING("Common::Could not find cwd");
-
+    //Note: Cannot use slic logging in core component
     return std::string("./");
   }
 
@@ -71,14 +72,18 @@ std::string joinPath(const std::string& fileDir,
                      const std::string& fileName,
                      const std::string& separator)
 {
-  // Check if we need to add a separator
-  bool pathNeedsSep = !fileDir.empty() && (fileDir[fileDir.size() - 1] != separator[0]);
+  namespace sutil = axom::utilities::string;
 
-  // Concatenate the path with the fileName to create the full path
-  std::stringstream fullFileNameStream;
-  fullFileNameStream << fileDir << (pathNeedsSep ? separator : "") << fileName;
+  // Check if we need to add or remove a separator
+  const bool has_empties = fileDir.empty() || fileName.empty();
+  const int sep_count = (!fileDir.empty() && sutil::endsWith(fileDir, separator) ? 1 : 0) +
+    (!fileName.empty() && sutil::startsWith(fileName, separator) ? 1 : 0);
 
-  return fullFileNameStream.str();
+  // Concatenate the path with the fileName, adding or removing a separator, as needed
+  return axom::fmt::format("{}{}{}",
+                           (sep_count == 2) ? sutil::removeSuffix(fileDir, separator) : fileDir,
+                           !has_empties && sep_count == 0 ? separator : "",
+                           fileName);
 }
 
 //-----------------------------------------------------------------------------
@@ -170,6 +175,90 @@ void getDirName(std::string& dir, const std::string& path)
 
 //-----------------------------------------------------------------------------
 int removeFile(const std::string& filename) { return Unlink(filename.c_str()); }
+
+//-----------------------------------------------------------------------------
+TempFile::TempFile(const std::string& file_name, const std::string& ext)
+{
+#ifdef WIN32
+  char temp_dir[MAX_PATH];
+  char temp_file_name[MAX_PATH];
+  GetTempPathA(MAX_PATH, temp_dir);
+
+  // Combine file_name and ext for the prefix (max 3 chars for prefix in GetTempFileNameA)
+  GetTempFileNameA(temp_dir, file_name.c_str(), 0, temp_file_name);
+
+  if(!ext.empty())
+  {
+    // remove ".tmp" (if present), add the requested extension and rename the file
+    const std::string new_path =
+      joinPath(axom::utilities::string::removeSuffix(temp_file_name, ".tmp"), ext, ".");
+    if(std::rename(temp_file_name, new_path.c_str()) != 0)
+    {
+      throw std::ios::failure {"Failed to rename temp file to include extension"};
+    }
+    m_path = new_path;
+  }
+  else
+  {
+    m_path = std::string(temp_file_name);
+  }
+#else
+  // create a tmp file with the requested prefix
+  // note: mkstemp requires the last six chars to be "XXXXXX"
+  const char* tmpdir = getenv("TMPDIR");
+  const std::string dir = tmpdir ? tmpdir : "/tmp";
+  const std::string tmp_file_name = joinPath(dir, file_name + "XXXXXX");
+  std::vector<char> buf(tmp_file_name.begin(), tmp_file_name.end());
+  buf.push_back('\0');
+
+  const int fd = mkstemp(buf.data());
+  if(fd == -1)
+  {
+    throw std::ios::failure {"Failed to create temp file"};
+  }
+
+  // rename to use the provided extension
+  if(!ext.empty())
+  {
+    const std::string new_path = joinPath(buf.data(), ext, ".");
+    if(std::rename(buf.data(), new_path.c_str()) != 0)
+    {
+      ::close(fd);
+
+      throw std::ios::failure {"Failed to rename temp file to include extension"};
+    }
+    m_path = new_path;
+  }
+  else
+  {
+    m_path = buf.data();
+  }
+  ::close(fd);
+#endif
+}
+
+TempFile::~TempFile()
+{
+  this->close();
+
+  if(!m_retain_file)
+  {
+    removeFile(m_path);
+  }
+}
+
+std::string TempFile::getFileContents() const
+{
+  std::stringstream buffer;
+
+  std::ifstream ifs(m_path.c_str(), std::ios::in);
+  if(ifs.is_open())
+  {
+    buffer << ifs.rdbuf();
+  }
+
+  return buffer.str();
+}
 
 }  // end namespace filesystem
 }  // end namespace utilities
