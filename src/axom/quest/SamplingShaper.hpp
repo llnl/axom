@@ -31,6 +31,7 @@
 #include "axom/quest/detail/shaping/shaping_helpers.hpp"
 #include "axom/quest/detail/shaping/InOutSampler.hpp"
 #include "axom/quest/detail/shaping/PrimitiveSampler.hpp"
+#include "axom/quest/detail/shaping/WindingNumberSampler.hpp"
 
 #include "mfem.hpp"
 #include "mfem/linalg/dtensor.hpp"
@@ -112,6 +113,7 @@ private:
     {
     case 2:
       count += m_inoutSampler2D ? 1 : 0;
+      count += m_inoutSamplerWN ? 1 : 0;
       break;
     case 3:
       count += m_inoutSampler3D ? 1 : 0;
@@ -143,6 +145,28 @@ public:
   //@{
   //!  @name Functions related to the stages for a given shape
 
+  /*!
+   * \brief Load the shape geometry. For MFEM files, geometry is loaded into m_contours.
+   *        Other formats make discrete geometry and load it into m_surface in the Shaper
+   *        base class.
+   *
+   * \param shape The shape to load.
+   */
+  void loadShape(const klee::Shape& shape) override
+  {
+    if(this->shapeFormat(shape) == "mfem")
+    {
+      const std::string shapePath =
+        axom::utilities::filesystem::prefixRelativePath(shape.getGeometry().getPath(), m_prefixPath);
+      SLIC_INFO_ROOT("Reading file: " << shapePath << "...");
+      quest::internal::read_mfem_contours(shapePath, m_contours);
+    }
+    else
+    {
+      Shaper::loadShape(shape);
+    }
+  }
+
   /// Initializes the spatial index for shaping
   void prepareShapeQuery(klee::Dimensions shapeDimension, const klee::Shape& shape) override
   {
@@ -168,6 +192,12 @@ public:
       m_inoutSampler2D = std::make_unique<shaping::InOutSampler<2>>(shapeName, m_surfaceMesh);
       m_inoutSampler2D->computeBounds();
       m_inoutSampler2D->initSpatialIndex(this->m_vertexWeldThreshold);
+    }
+    else if(this->shapeFormat(shape) == "mfem")
+    {
+      m_inoutSamplerWN = std::make_unique<shaping::WindingNumberSampler<2>>(shapeName, m_contours.view());
+      m_inoutSamplerWN->computeBounds();
+      m_inoutSamplerWN->initSpatialIndex(this->m_vertexWeldThreshold);
     }
     else if(this->shapeFormat(shape) == "stl")
     {
@@ -248,7 +278,14 @@ public:
     switch(getShapeDimension())
     {
     case klee::Dimensions::Two:
-      runShapeQueryImpl(m_inoutSampler2D.get());
+      if(this->shapeFormat(shape) == "mfem")
+      {
+        runShapeQueryImpl(m_inoutSamplerWN.get());
+      }
+      else
+      {
+        runShapeQueryImpl(m_inoutSampler2D.get());
+      }
       break;
     case klee::Dimensions::Three:
       if(this->shapeFormat(shape) == "stl")
@@ -385,6 +422,7 @@ public:
     m_primitiveSampler3D_omp.reset();
     m_primitiveSampler3D_cuda.reset();
     m_primitiveSampler3D_hip.reset();
+    m_inoutSamplerWN.reset();
 
     SLIC_WARNING_IF(
       m_surfaceMesh.use_count() > 1,
@@ -517,16 +555,16 @@ public:
   }
 
 private:
-  // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
-  template <int DIM>
-  void runShapeQueryImpl(shaping::InOutSampler<DIM>* shaper)
+  // Handles 2D or 3D shaping for compatible samplers, based on the template and associated parameter
+  template <typename SamplerType>
+  void runShapeQueryImplSampler(SamplerType *shaper)
   {
     // Sample the InOut field at the mesh quadrature points
     const int meshDim = m_dc->GetMesh()->Dimension();
     switch(m_vfSampling)
     {
     case shaping::VolFracSampling::SAMPLE_AT_QPTS:
-      switch(DIM)
+      switch(SamplerType::DIM)
       {
       case 2:
         if(meshDim == 2)
@@ -566,6 +604,20 @@ private:
       shaper->computeVolumeFractionsBaseline(m_dc, m_quadratureOrder, m_volfracOrder);
       break;
     }
+  }
+
+  // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
+  template <int DIM>
+  void runShapeQueryImpl(shaping::InOutSampler<DIM>* shaper)
+  {
+    runShapeQueryImplSampler(shaper);
+  }
+
+  // Handles 2D or 3D shaping for InOutSampler, based on the template and associated parameter
+  template <int DIM>
+  void runShapeQueryImpl(shaping::WindingNumberSampler<DIM>* shaper)
+  {
+    runShapeQueryImplSampler(shaper);
   }
 
   // Handles 2D or 3D shaping for PrimitiveSampler, based on the template and associated parameter
@@ -843,6 +895,9 @@ private:
   std::unique_ptr<shaping::PrimitiveSampler<3, omp_exec>> m_primitiveSampler3D_omp;
   std::unique_ptr<shaping::PrimitiveSampler<3, cuda_exec>> m_primitiveSampler3D_cuda;
   std::unique_ptr<shaping::PrimitiveSampler<3, hip_exec>> m_primitiveSampler3D_hip;
+
+  std::unique_ptr<shaping::WindingNumberSampler<2>> m_inoutSamplerWN;
+  axom::Array<axom::primal::CurvedPolygon<double, 2>> m_contours;
 
   std::set<std::string> m_knownMaterials;
 

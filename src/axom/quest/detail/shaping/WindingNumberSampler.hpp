@@ -3,14 +3,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-/**
- * \file InOutSampler.hpp
- *
- * \brief Helper class for sampling-based shaping queries using the InOutOctree
- */
-
-#ifndef AXOM_QUEST_INOUT_SAMPLER__HPP_
-#define AXOM_QUEST_INOUT_SAMPLER__HPP_
+#ifndef AXOM_QUEST_WINDING_NUMBER_SAMPLER__HPP_
+#define AXOM_QUEST_WINDING_NUMBER_SAMPLER__HPP_
 
 #include "axom/config.hpp"
 #include "axom/core.hpp"
@@ -31,14 +25,16 @@ namespace quest
 {
 namespace shaping
 {
+
 using QFunctionCollection = mfem::NamedFieldsMap<mfem::QuadratureFunction>;
 using DenseTensorCollection = mfem::NamedFieldsMap<mfem::DenseTensor>;
 
 template <int NDIMS>
-class InOutSampler
+class WindingNumberSampler
 {
 public:
   static constexpr int DIM = NDIMS;
+#if 0
   using InOutOctreeType = quest::InOutOctree<DIM>;
 
   using GeometricBoundingBox = typename InOutOctreeType::GeometricBoundingBox;
@@ -46,38 +42,39 @@ public:
   using SpaceVector = typename InOutOctreeType::SpaceVector;
   using GridPt = typename InOutOctreeType::GridPt;
   using BlockIndex = typename InOutOctreeType::BlockIndex;
+#endif
+  using GeometryView = typename axom::ArrayView<axom::primal::CurvedPolygon<double, DIM>>;
+  using PointType = primal::Point<double, DIM>;
+  using GeometricBoundingBox = axom::primal::BoundingBox<double, DIM>;
 
 public:
   /**
-   * \brief Constructor for a InOutSampler
+   * \brief Constructor for a WindingNumberSampler
    *
    * \param shapeName The name of the shape; will be used for the field for the associated samples
-   * \param surfaceMesh Pointer to the surface mesh
+   * \param geomView A view that contains the shapes being queried.
    *
-   * \note Does not take ownership of the surface mesh
    */
-  InOutSampler(const std::string& shapeName, std::shared_ptr<mint::Mesh> surfaceMesh)
+  WindingNumberSampler(const std::string& shapeName, GeometryView geomView)
     : m_shapeName(shapeName)
-    , m_surfaceMesh(surfaceMesh)
+    , m_geometryView(geomView)
   { }
 
-  ~InOutSampler() { delete m_octree; }
-
-  std::shared_ptr<mint::Mesh> getSurfaceMesh() const { return m_surfaceMesh; }
+  ~WindingNumberSampler() = default;
 
   /// Computes the bounding box of the surface mesh
   void computeBounds()
   {
     AXOM_ANNOTATE_SCOPE("compute bounding box");
-    SLIC_ASSERT(m_surfaceMesh != nullptr);
 
     m_bbox.clear();
-    SpacePt pt;
+    PointType pt;
 
-    for(int i = 0; i < m_surfaceMesh->getNumberOfNodes(); ++i)
+    for(axom::IndexType i = 0; i < m_geometryView.size(); ++i)
     {
-      m_surfaceMesh->getNode(i, pt.data());
-      m_bbox.addPoint(pt);
+      const auto bbox = m_geometryView[i].boundingBox();
+      m_bbox.addPoint(bbox.getMin());
+      m_bbox.addPoint(bbox.getMax());
     }
 
     SLIC_ASSERT(m_bbox.isValid());
@@ -85,13 +82,15 @@ public:
     SLIC_INFO_ROOT("Mesh bounding box: " << m_bbox);
   }
 
-  void initSpatialIndex(double vertexWeldThreshold)
+  void initSpatialIndex(double AXOM_UNUSED_PARAM(vertexWeldThreshold))
   {
+#if 0 // FOR NOW
     AXOM_ANNOTATE_SCOPE("generate InOutOctree");
     // Create octree over mesh's bounding box
     m_octree = new InOutOctreeType(m_bbox, m_surfaceMesh);
     m_octree->setVertexWeldThreshold(vertexWeldThreshold);
     m_octree->generateIndex();
+#endif
   }
 
   /**
@@ -118,12 +117,25 @@ public:
                                                         int sampleRes,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
-    using PointType = primal::Point<double, DIM>;
-
-    const InOutOctreeType *octree = m_octree;
+    const auto geometryView = m_geometryView;
     auto checkInside = [=](const PointType &pt) -> bool
     {
-      return octree->within(pt);
+      // TODO: figure out curved polygons that might contain point from index.
+
+      // Check each candidate 
+      bool inside = false;
+      for(axom::IndexType i = 0; i < geometryView.size() && !inside; i++)
+      {
+        const auto &shapeGeom = geometryView[i];
+        double wn {};
+        for(int c = 0; c < shapeGeom.numEdges(); c++)
+        {
+          wn += axom::primal::winding_number(pt, shapeGeom[c]);
+        }
+        // A point inside the polygon should have non-zero winding number.
+        inside |= (std::round(wn) != 0);
+      }
+      return inside;
     };
     shaping::sampleInOutField<FromDim, ToDim>(m_shapeName, dc, inoutQFuncs, sampleRes, checkInside, projector);
   }
@@ -151,28 +163,40 @@ public:
                                       int sampleRes,
                                       int outputOrder)
   {
-    using PointType = primal::Point<double, DIM>;
-    const InOutOctreeType *octree = m_octree;
+    const auto geometryView = m_geometryView;
     auto checkInside = [=](const PointType &pt) -> bool
     {
-      return octree->within(pt);
+      // TODO: figure out curved polygons that might contain point from index.
+
+      // Check each candidate 
+      bool inside = false;
+      for(axom::IndexType i = 0; i < geometryView.size() && !inside; i++)
+      {
+        const auto &shapeGeom = geometryView[i];
+        double wn {};
+        for(int c = 0; c < shapeGeom.numEdges(); c++)
+        {
+          wn += axom::primal::winding_number(pt, shapeGeom[c]);
+        }
+        // A point inside the polygon should have non-zero winding number.
+        inside |= (std::round(wn) != 0);
+      }
+      return inside;
     };
     shaping::computeVolumeFractionsBaseline<DIM>(m_shapeName, dc, sampleRes, outputOrder, checkInside);
   }
 
 private:
-  DISABLE_COPY_AND_ASSIGNMENT(InOutSampler);
-  DISABLE_MOVE_AND_ASSIGNMENT(InOutSampler);
+  DISABLE_COPY_AND_ASSIGNMENT(WindingNumberSampler);
+  DISABLE_MOVE_AND_ASSIGNMENT(WindingNumberSampler);
 
   std::string m_shapeName;
-
   GeometricBoundingBox m_bbox;
-  std::shared_ptr<mint::Mesh> m_surfaceMesh {nullptr};
-  InOutOctreeType* m_octree {nullptr};
+  GeometryView m_geometryView;
 };
 
 }  // namespace shaping
 }  // namespace quest
 }  // namespace axom
 
-#endif  // AXOM_QUEST_INOUT_SAMPLER__HPP_
+#endif  // AXOM_QUEST_WINDING_NUMBER_SAMPLER__HPP_

@@ -8,11 +8,16 @@
 
 // Axom includes
 #include "axom/config.hpp"
+#include "axom/primal.hpp"
 #include "axom/slic.hpp"
 #include "axom/mint/mesh/Mesh.hpp"
 #include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
 #include "axom/quest/io/STLReader.hpp"
 #include "axom/quest/io/ProEReader.hpp"
+
+#if defined(AXOM_USE_MFEM)
+  #include <mfem.hpp>
+#endif
 
 // C/C++ includes
 #include <string>
@@ -360,10 +365,34 @@ int read_c2c_mesh_non_uniform(const std::string& file,
  */
 int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm = MPI_COMM_SELF);
 
+#if defined(AXOM_USE_MFEM)
+/*!
+ * \brief Reads in the MFEM contour mesh from the specified file.
+ *
+ * \param [in] file the file consisting of the MFEM mesh
+ * \param [out] contours An array of curved polygons that contain the contours from the file.
+ *
+ * \return zero on success, or a non-zero value otherwise.
+ */
+int read_mfem_contours(const std::string &filePath,
+                        axom::Array<axom::primal::CurvedPolygon<double, 2>> &contours);
+#endif
 /// @}
 
 /// \name Mesh Helper Methods
 /// @{
+
+#if defined(AXOM_USE_MFEM)
+/*!
+ * \brief Returns an MFEM mesh's zone as a 2D BezierCurve.
+ *
+ * \param mesh The MFEM mesh being queried.
+ * \param elem_id The mesh element id to turn into a BezierCurve.
+ *
+ * \return A BezierCurve that represents the mesh segment.
+ */
+primal::BezierCurve<double,2> segment_to_curve(const mfem::Mesh* mesh, int elem_id);
+#endif
 
 /*!
  * \brief Computes the bounds of the given mesh.

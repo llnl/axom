@@ -164,6 +164,7 @@ public:
    * Values are:
    * - "c2c" = C2C file
    * - "proe" = ProE file
+   * - "mfem" = MFEM file
    * - "blueprint-tets" = Blueprint tetrahedral mesh in memory
    * - "tet3D" = 3D tetrahedron (4 points)
    * - "sphere3D" = 3D sphere, as \c primal::Sphere<double,3>

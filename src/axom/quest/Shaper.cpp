@@ -215,9 +215,24 @@ void Shaper::setRefinementType(Shaper::RefinementType t) { m_refinementType = t;
 
 bool Shaper::isValidFormat(const std::string& format) const
 {
-  return (format == "stl" || format == "proe" || format == "c2c" || format == "blueprint-tets" ||
-          format == "tet3D" || format == "hex3D" || format == "plane3D" || format == "sphere3D" ||
-          format == "sor3D" || format == "none");
+  static const char *formats[] = {
+#if defined(AXOM_USE_MFEM)
+    "mfem",
+#endif
+    "stl",
+    "proe",
+    "c2c",
+    "blueprint-tets",
+    "tet3D",
+    "hex3D",
+    "plane3D",
+    "sphere3D",
+    "sor3D",
+    "none"
+  };
+  constexpr auto numFormats = sizeof(formats) / sizeof(const char *);
+  const auto formats_end = formats + numFormats;
+  return std::find(formats, formats + numFormats, format) != formats_end;
 }
 
 void Shaper::loadShape(const klee::Shape& shape)

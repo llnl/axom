@@ -147,7 +147,8 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
     if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
         list(APPEND quest_headers SamplingShaper.hpp 
                                   detail/shaping/InOutSampler.hpp
-                                  detail/shaping/PrimitiveSampler.hpp)
+                                  detail/shaping/PrimitiveSampler.hpp
+                                  detail/shaping/WindingNumberSampler.hpp)
     endif()
 endif()
 

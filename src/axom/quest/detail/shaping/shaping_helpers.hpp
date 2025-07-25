@@ -224,6 +224,190 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
                                     mfem::QuadratureFunction* inout,
                                     const std::string& name);
 
+  /**
+   * \brief Samples the inout field over the indexed geometry, possibly using a
+   * callback function to project the input points (from the computational mesh)
+   * to query points on the spatial index
+   *
+   * \tparam FromDim The dimension of points from the input mesh
+   * \tparam ToDim The dimension of points on the indexed shape
+   * \tparam InsideFunc The function that will be used to check whether a point is inside.
+   *
+   * \param [in] shapeName The name of the shape used in making data array names.
+   * \param [in] dc The data collection containing the mesh and associated query points
+   * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
+   * inout samples
+   * \param [in] sampleRes The quadrature order at which to sample the inout field
+   * \param [in] checkInside The function that determines whether a point is inside.
+   * \param [in] projector A callback function to apply to points from the input mesh
+   * before querying them on the spatial index
+   *
+   * \note A projector callback must be supplied when \a FromDim is not equal
+   * to \a ToDim, the projector
+   * \note \a ToDim must be equal to \a DIM, the dimension of the spatial index
+   */
+  template <int FromDim, int ToDim, typename InsideFunc>
+  void sampleInOutField(const std::string shapeName,
+                        mfem::DataCollection* dc,
+                        shaping::QFunctionCollection& inoutQFuncs,
+                        int sampleRes,
+                        InsideFunc &&checkInside,
+                        PointProjector<FromDim, ToDim> projector = {})
+  {
+
+    using FromPoint = primal::Point<double, FromDim>;
+    using ToPoint = primal::Point<double, ToDim>;
+    AXOM_ANNOTATE_SCOPE("sampleInOutField");
+
+    SLIC_ERROR_IF(FromDim != ToDim && !projector,
+                  "A projector callback function is required when FromDim != ToDim");
+
+    auto* mesh = dc->GetMesh();
+    SLIC_ASSERT(mesh != nullptr);
+    const int NE = mesh->GetNE();
+    const int dim = mesh->Dimension();
+
+    // Generate a Quadrature Function with the geometric positions, if not already available
+    if(!inoutQFuncs.Has("positions"))
+    {
+      shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes);
+    }
+
+    // Access the positions QFunc and associated QuadratureSpace
+    mfem::QuadratureFunction* pos_coef = inoutQFuncs.Get("positions");
+    auto* sp = pos_coef->GetSpace();
+    const int nq = sp->GetIntRule(0).GetNPoints();
+
+    // Sample the in/out field at each point
+    // store in QField which we register with the QFunc collection
+    const std::string inoutName = axom::fmt::format("inout_{}", shapeName);
+    const int vdim = 1;
+    auto* inout = new mfem::QuadratureFunction(sp, vdim);
+    inoutQFuncs.Register(inoutName, inout, true);
+
+    mfem::DenseMatrix m;
+    mfem::Vector res;
+
+    axom::utilities::Timer timer(true);
+    for(int i = 0; i < NE; ++i)
+    {
+      pos_coef->GetValues(i, m);
+      inout->GetValues(i, res);
+
+      if(projector)
+      {
+        for(int p = 0; p < nq; ++p)
+        {
+          const ToPoint pt = projector(FromPoint(m.GetColumn(p), dim));
+          const bool in = checkInside(pt);
+          res(p) = in ? 1. : 0.;
+        }
+      }
+      else
+      {
+        for(int p = 0; p < nq; ++p)
+        {
+          const ToPoint pt(m.GetColumn(p), dim);
+          const bool in = checkInside(pt);
+          res(p) = in ? 1. : 0.;
+        }
+      }
+    }
+    timer.stop();
+
+    // print stats for rank 0
+    SLIC_INFO_ROOT(axom::fmt::format(
+      axom::utilities::locale(),
+      "\t Sampling inout field '{}' took {:.3Lf} seconds (@ {:L} queries per second)",
+      inoutName,
+      timer.elapsed(),
+      static_cast<int>((NE * nq) / timer.elapsed())));
+  }
+
+  /**
+   * \brief Samples the inout field over the indexed geometry, possibly using a
+   * callback function to project the input points (from the computational mesh)
+   * to query points on the spatial index
+   *
+   * \tparam FromDim The dimension of points from the input mesh
+   * \tparam ToDim The dimension of points on the indexed shape
+   * \param [in] dc The data collection containing the mesh and associated query points
+   * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
+   * inout samples
+   * \param [in] sampleRes The quadrature order at which to sample the inout field
+   * \param [in] projector A callback function to apply to points from the input mesh
+   * before querying them on the spatial index
+   *
+   * \note A projector callback must be supplied when \a FromDim is not equal
+   * to \a ToDim, the projector
+   * \note \a ToDim must be equal to \a DIM, the dimension of the spatial index
+   */
+  template <int NDIMS, typename InsideFunc>
+  void computeVolumeFractionsBaseline(const std::string &shapeName,
+                                      mfem::DataCollection* dc,
+                                      int AXOM_UNUSED_PARAM(sampleRes),
+                                      int outputOrder,
+                                      InsideFunc &&checkInside)
+  {
+
+    AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
+
+    // Step 1 -- generate a QField w/ the spatial coordinates
+    mfem::Mesh* mesh = dc->GetMesh();
+    const int NE = mesh->GetNE();
+    const int dim = mesh->Dimension();
+
+    if(NE < 1)
+    {
+      SLIC_WARNING("Mesh has no elements!");
+      return;
+    }
+
+    const auto volFracName = axom::fmt::format("vol_frac_{}", shapeName);
+    mfem::GridFunction* volFrac =
+      shaping::getOrAllocateL2GridFunction(dc, volFracName, outputOrder, dim, mfem::BasisType::Positive);
+    const mfem::FiniteElementSpace* fes = volFrac->FESpace();
+
+    auto* fe = fes->GetFE(0);
+    auto& ir = fe->GetNodes();
+
+    // Assume all elements have the same integration rule
+    const int nq = ir.GetNPoints();
+    const auto* geomFactors = mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
+
+    mfem::DenseTensor pos_coef(dim, nq, NE);
+
+    // Rearrange positions into quadrature function
+    {
+      for(int i = 0; i < NE; ++i)
+      {
+        for(int j = 0; j < dim; ++j)
+        {
+          for(int k = 0; k < nq; ++k)
+          {
+            pos_coef(j, k, i) = geomFactors->X((i * nq * dim) + (j * nq) + k);
+          }
+        }
+      }
+    }
+
+    // Step 2 -- sample the in/out field at each point -- store directly in volFrac grid function
+    mfem::Vector res(nq);
+    mfem::Array<int> dofs;
+    for(int i = 0; i < NE; ++i)
+    {
+      mfem::DenseMatrix& m = pos_coef(i);
+      for(int p = 0; p < nq; ++p)
+      {
+        const primal::Point<double, NDIMS> pt(m.GetColumn(p), dim);
+        const bool in = checkInside(pt);
+        res(p) = in ? 1. : 0.;
+      }
+
+      fes->GetElementDofs(i, dofs);
+      volFrac->SetSubVector(dofs, res);
+    }
+  }
 #endif  // defined(AXOM_USE_MFEM)
 
 }  // end namespace shaping
