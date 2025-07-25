@@ -3,11 +3,11 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/slic.hpp"
-
 #include "axom/klee/io/IO.hpp"
 #include "axom/klee/GeometryOperators.hpp"
 #include "axom/klee/KleeError.hpp"
+
+#include "axom/slic.hpp"
 
 #include "KleeMatchers.hpp"
 

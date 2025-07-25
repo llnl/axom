@@ -262,7 +262,7 @@ public:
   /// \brief Return the hex geometry, when the Geometry represents a hexahedron
   const axom::primal::Hexahedron<double, 3> &getHex() const { return m_hex; }
 
-  /// \brief Return the sphere geometry, when the Geometry represents an alalytical sphere.
+  /// \brief Return the sphere geometry, when the Geometry represents an analytical sphere.
   const axom::primal::Sphere<double, 3> &getSphere() const { return m_sphere; }
 
   /// \brief Return the plane geometry, when the Geometry represents a plane.
