@@ -97,14 +97,14 @@ public:
       AXOM_LAMBDA(axom::IndexType faceIndex) {
         // Get size for current face.
         const auto faceSize = static_cast<int>(se_sizes[faceIndex]);
-        SLIC_ASSERT(faceSize <= MaxPointsPerFace);
+        //Problems with assert defn on rzansel+RelWithDebInfo: SLIC_ASSERT(faceSize <= MaxPointsPerFace);
 
         KeyType faceName {};
         if(faceSize > 0)
         {
           // Get offset for current face.
           const auto faceOffset = static_cast<axom::IndexType>(se_offsets[faceIndex]);
-          SLIC_ASSERT(faceOffset < se_conn.size());
+          //Problems with assert defn on rzansel+RelWithDebInfo: SLIC_ASSERT(faceOffset < se_conn.size());
 
           // Get the ids for the current face.
           const auto faceIds = se_conn.data() + faceOffset;
