@@ -2,16 +2,17 @@
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_KLEE_IO_UTIL_HPP
-#define AXOM_KLEE_IO_UTIL_HPP
-
-#include <tuple>
-#include <vector>
+#ifndef AXOM_KLEE_IO_UTIL_HPP_
+#define AXOM_KLEE_IO_UTIL_HPP_
 
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Units.hpp"
+
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
+
+#include <tuple>
+#include <vector>
 
 namespace axom
 {
@@ -52,8 +53,7 @@ primal::Point3D toPoint(inlet::Container const &parent, char const *fieldName, D
 
 /**
  * Convert the specified field to a Point3D, ensuring that it
- * has the expected number of entries. If the field is not present, the
- * default value is used.
+ * has the expected number of entries. If the field is not present, the default value is used.
  *
  * @param parent the parent of the field
  * @param fieldName the name of the field
@@ -162,4 +162,4 @@ Dimensions toDimensions(const inlet::Proxy &dimProxy);
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_KLEE_IO_UTIL_HPP
+#endif  // AXOM_KLEE_IO_UTIL_HPP_
