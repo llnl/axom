@@ -252,12 +252,19 @@ public:
     // Output some logging info and dump the mesh
     if(this->isVerbose() && this->getRank() == 0)
     {
-      const int nVerts = m_surfaceMesh->getNumberOfNodes();
-      const int nCells = m_surfaceMesh->getNumberOfCells();
-      SLIC_INFO(axom::fmt::format("After welding, surface mesh has {} vertices  and {} elements.",
-                                  nVerts,
-                                  nCells));
-      mint::write_vtk(m_surfaceMesh.get(), axom::fmt::format("melded_shape_mesh_{}.vtk", shapeName));
+      if(m_surfaceMesh != nullptr)
+      {
+        const int nVerts = m_surfaceMesh->getNumberOfNodes();
+        const int nCells = m_surfaceMesh->getNumberOfCells();
+        SLIC_INFO(axom::fmt::format("After welding, surface mesh has {} vertices  and {} elements.",
+                                    nVerts,
+                                    nCells));
+        mint::write_vtk(m_surfaceMesh.get(), axom::fmt::format("melded_shape_mesh_{}.vtk", shapeName));
+      }
+      else if(!m_contours.empty())
+      {
+        SLIC_INFO(axom::fmt::format("Contours contain {} curved polygons.", m_contours.size()));
+      }
     }
   }
 

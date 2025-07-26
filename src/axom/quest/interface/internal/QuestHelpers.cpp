@@ -504,12 +504,16 @@ int read_mfem_contours(const std::string& file,
       // Examine the mesh attributes and group all of the related zones that are
       // edges of the same contour.
       std::map<int, axom::Array<int>> contourZones;
+std::cout << "NE: " << mesh->GetNE() << std::endl;
       for(int zoneId = 0; zoneId < mesh->GetNE(); zoneId++)
       {
-        const int contourId = mesh->GetAttribute(zoneId);
+        // Get element attribute and make it zero-origin.
+        const int contourId = mesh->GetAttribute(zoneId) - 1;
+std::cout << "zone: " << zoneId << ", contourId: " << contourId << std::endl;
         contourZones[contourId].push_back(zoneId);
       }
 
+      contours.clear();
       contours.resize(contourZones.size());
       for(size_t c = 0; c < contourZones.size(); c++)
       {
