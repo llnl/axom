@@ -54,7 +54,7 @@ std::ostream& operator<<(std::ostream& os, const NURBSCurve<T, NDIMS>& bCurve);
  * and a knot vector of length `k+1`. A valid curve has k+1 = n+p+2
  * The curve must be open (clamped on each end) and continuous (unless p = 0)
  * 
- * Nonrational NURBS curves are identified by an empty weights array.
+ * Polynomial (Nonrational) NURBS curves are identified by an empty weights array.
  */
 template <typename T, int NDIMS>
 class NURBSCurve
@@ -77,7 +77,24 @@ public:
 
 public:
   //@{
-  //!  @name Constructors for NURBS curves
+
+  /**
+   * \name Constructors for NURBSCurve
+   * 
+   * The constructors allow for flexible initialization fo NURBSCurve objects from:
+   * - 1D arrays of control points, weights and knots.
+   *   The control points and weight can be provided as C-style arrays with sizes, axom Arrays and axom ArrayViews.
+   *   The knots can be provided as C-style arrays with sizes, axom Arrays and KnotVector instances
+   * - Specified number of points and degree
+   * - Rational or polynomial (nonrational) curves, depending on the presence of weights.
+   * 
+   * All require:
+   * - Degree >= -1. Degree -1 creates an empty/invalid curve.
+   * - For valid curves, npts must be greater than the degree 
+   * - The weights array is optional. The curve is polynomial (non-rational) if weights are not provided
+   * - When weights are provided, their size must match the number of control points
+   * - The knot vector must satisfy continuity and openness conditions
+   */
 
   /*!
    * \brief Constructor for a simple NURBS curve that reserves space for
@@ -86,8 +103,6 @@ public:
    * \param [in] deg the degree of the resulting curve
    * 
    * \note A uniform knot vector is constructed such that the curve is continuous
-   * \note This constructor reserves space for the control points, but does not set them
-   * 
    * \pre degree is greater than or equal to -1
    * \note When the degree is -1, no space is reserved and the NURBS curve is not valid, 
    *       i.e. in this case, \a curve.isValid() will return false
@@ -175,7 +190,6 @@ public:
    * \param[in] pts        ArrayView of control points
    * \param[in] weights    ArrayView of weights
    * \param[in] knotVector Knot vector defining the parameterization of the curve.
-   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(axom::ArrayView<PointType> pts,
              axom::ArrayView<T> weights,
@@ -189,7 +203,6 @@ public:
    * \brief Constructor for a NURBS curve from a Bezier curve
    *
    * \param [in] bezierCurve the Bezier curve to convert to a NURBS curve 
-   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   explicit NURBSCurve(const BezierCurve<T, NDIMS>& bezierCurve)
     : NURBSCurve(bezierCurve.getControlPoints(),
@@ -205,7 +218,6 @@ public:
    * \param [in] degree the degree of the curve
    * 
    * \pre Requires valid pointers, npts > degree, degree >= 0
-   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const PointType* pts, int npts, int degree)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
@@ -222,7 +234,6 @@ public:
    * \param [in] degree the degree of the curve
    * 
    * \pre Requires valid pointers, npts > degree, npts == nwts, and degree >= 0
-   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const PointType* pts, const T* weights, int npts, int degree)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
@@ -239,7 +250,6 @@ public:
    * \param [in] nkts the length of the knot vector
    * 
    * \pre Requires valid pointers, a valid knot vector and npts > degree
-   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const PointType* pts, int npts, const T* knots, int nkts)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
@@ -257,7 +267,6 @@ public:
    * \param [in] nkts the length of the knot vector
    * 
    * \pre Requires valid pointers, a valid knot vector, npts > degree, npts == nwts, wts > 0
-   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const PointType* pts, const T* weights, int npts, const T* knots, int nkts)
     : NURBSCurve(axom::ArrayView<const PointType>(pts, npts),
@@ -272,7 +281,6 @@ public:
    * \param [in] degree the degree of the curve
    * 
    * \pre Requires npts > degree and degree >= 0
-   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const axom::Array<PointType>& pts, int degree)
     : NURBSCurve(pts.view(), axom::ArrayView<const T>(nullptr, 0), KnotVectorType(pts.size(), degree))
@@ -286,7 +294,6 @@ public:
    * \param [in] degree the degree of the curve
    *
    * \pre Requires npts > degree, degree >= 0, and pts.size() == weights.size()
-   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const axom::Array<PointType>& pts, const axom::Array<T>& weights, int degree)
     : NURBSCurve(pts.view(), weights.view(), KnotVectorType(pts.size(), degree))
@@ -299,7 +306,6 @@ public:
    * \param [in] knots the knot vector of the curve
    *
    * \pre Requires a valid knot vector and npts > degree
-   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const axom::Array<PointType>& pts, const axom::Array<T>& knots)
     : NURBSCurve(pts.view(),
@@ -315,7 +321,6 @@ public:
    * \param [in] knots the knot vector of the curve
    *
    * \pre Requires a valid knot vector, npts > degree, npts == nwts, wts > 0
-   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const axom::Array<PointType>& pts,
              const axom::Array<T>& weights,
@@ -330,7 +335,6 @@ public:
    * \param [in] knotVector A KnotVector object
    * 
    * \pre Requires a valid knot vector and npts > degree
-   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const axom::Array<PointType>& pts, const KnotVectorType& knotVector)
     : NURBSCurve(pts.view(), axom::ArrayView<const T>(nullptr, 0), knotVector)
@@ -344,7 +348,6 @@ public:
    * \param [in] knotVector A KnotVector object
    * 
    * \pre Requires a valid knot vector, npts > degree, npts == nwts, wts > 0
-   * \see NURBSCurve(axom::ArrayView<const PointType>, axom::ArrayView<const T>, const KnotVectorType&)
    */
   NURBSCurve(const axom::Array<PointType>& pts,
              const axom::Array<T>& weights,

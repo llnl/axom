@@ -108,6 +108,12 @@ public:
    * - Rationality determined by the presence of weights (patches are rational if weights are provided, nonrational otherwise).
    * - Trimming curves are always empty and the patch is untrimmed by default.
    *
+   * For 1D arrays, the mapping of control points and weights to the patch is lexicographical, i.e.
+   * pts[0]               -> nodes[0, 0],     ..., pts[npts_v]       -> nodes[0, npts_v]
+   * pts[npts_v+1]         -> nodes[1, 0],     ..., pts[2*npts_v]     -> nodes[1, npts_v]
+   *                                          ...
+   * pts[npts_u*(npts_v-1)] -> nodes[npts_u, 0], ..., pts[npts_u*npts_v] -> nodes[npts_u, npts_v]
+   * 
    * All constructors ensure that the patch is internally consistent and valid, provided the input parameters are valid.
    */
 
@@ -122,20 +128,17 @@ public:
    * \brief Constructor for a simple NURBS surface that reserves space for
    *  the minimum (sensible) number of points for the given degrees
    * 
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] deg_u, deg_v The patch's degrees on the first and second axis
    * \pre deg_u, deg_v both greater than or equal to 0, or both -1
    */
   NURBSPatch(int deg_u, int deg_v) : NURBSPatch(deg_u + 1, deg_v + 1, deg_u, deg_v) { }
 
   /*!
-   * \brief Constructor for an empty NURBS surface from its size
+   * \brief Constructor for a simple NURBS surface that reserves space for
+   *   \a npts_u * npts_v control points
    *
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
-   * 
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] deg_u, deg_v The patch's degrees on the first and second axis
    * \pre Requires npts_d > deg_d and deg_d >= 0 for d = u, v 
    */
   NURBSPatch(int npts_u, int npts_v, int deg_u, int deg_v)
@@ -166,6 +169,23 @@ public:
                  KnotVectorType(bezierPatch.getOrder_v() + 1, bezierPatch.getOrder_v()))
   { }
 
+  /*!
+   * \brief Constructor for a NURBSPatch from 2D ArrayViews of control points and weights 
+   *        and KnotVectors for the u- and v- directions
+   *
+   * \param [in] controlPoints 2D ArrayView of control points
+   * \param [in] weights 2D ArrayView of weights
+   * \param [in] knotVector_u, knotVector_v The knot vectors in the u- and v- directions
+   *
+   * \pre If controlPoints is not empty, its sizes must match the number of control points 
+   * implied by the knot vectors: knotVector_u.getNumControlPoints() * knotVector_v.getNumberControlPoints()
+   * \pre If weights is not empty, its dimensions must match that of the controlPoints
+   * \pre The KnotVector degrees must be valid: \a knotVector_u.getDegree() >= -1 
+   * and \a knotVector_v.getDegree() >= -1. 
+   * \pre If the degrees are not both -1 (i.e., not empty), then:
+   * They must both be non-negative and the number of control points must be
+   * greature than the degree for both axes.
+   */
   NURBSPatch(ArrayView<const PointType, 2> controlPoints,
              ArrayView<const T, 2> weights,
              const KnotVectorType& knotVector_u,
@@ -173,18 +193,21 @@ public:
     : m_knotvec_u(knotVector_u)
     , m_knotvec_v(knotVector_v)
   {
-    const int deg_u = m_knotvec_u.getDegree();
-    const int deg_v = m_knotvec_v.getDegree();
+    const int knot_deg_u = m_knotvec_u.getDegree();
+    const int knot_deg_v = m_knotvec_v.getDegree();
+    SLIC_ASSERT(knot_deg_u >= -1 && knot_deg_v >= -1);
 
-    SLIC_ASSERT(deg_u >= -1 && deg_v >= -1);
-    if(const bool is_empty = (deg_u == -1 && deg_v == -1); is_empty)
+    if(const bool is_empty = (knot_deg_u == -1 && knot_deg_u == -1); is_empty)
     {
       SLIC_ASSERT(controlPoints.empty());
       SLIC_ASSERT(weights.empty());
     }
     else
     {
-      SLIC_ASSERT(deg_u >= 0 && deg_v >= 0);
+      SLIC_ASSERT(knot_deg_u >= 0 && knot_deg_v >= 0);
+      const int deg_u = utilities::max(0, knot_deg_u);
+      const int deg_v = utilities::max(0, knot_deg_v);
+
       const int npts_u = knotVector_u.getNumControlPoints();
       const int npts_v = knotVector_v.getNumControlPoints();
       SLIC_ASSERT(npts_u > deg_u && npts_v > deg_v);
@@ -213,12 +236,25 @@ public:
     }
   }
 
+  /*!
+   * \brief Constructor for a NURBSPatch from 2D ArrayViews of control points
+   *        and KnotVectors for the u- and v- directions
+   *
+   * \param [in] controlPoints 2D ArrayView of control points
+   * \param [in] weights 2D ArrayView of weights
+   * \param [in] knotVector_u, knotVector_v The knot vectors in the u- and v- directions
+   */
   NURBSPatch(ArrayView<const PointType, 2> controlPoints,
              const KnotVectorType& knotVector_u,
              const KnotVectorType& knotVector_v)
     : NURBSPatch(controlPoints, axom::ArrayView<const T, 2>(nullptr, {{0, 0}}), knotVector_u, knotVector_v)
   { }
 
+  /*!
+   * \brief Constructor for a NURBSPatch from 2D ArrayViews of control points
+   *        and KnotVectors for the u- and v- directions
+   * \overload Overload for non-const PointType
+   */
   NURBSPatch(ArrayView<PointType, 2> controlPoints,
              const KnotVectorType& knotVector_u,
              const KnotVectorType& knotVector_v)
@@ -228,6 +264,11 @@ public:
                  knotVector_v)
   { }
 
+  /*!
+   * \brief Constructor for a NURBSPatch from 2D ArrayViews of control points and weights
+   *        and KnotVectors for the u- and v- directions
+   * \overload Overload for non-const PointType and weights
+   */
   NURBSPatch(ArrayView<PointType, 2> controlPoints,
              ArrayView<T, 2> weights,
              const KnotVectorType& knotVector_u,
@@ -242,16 +283,9 @@ public:
    * \brief Constructor for a NURBS Patch from an array of coordinates and degrees
    *
    * \param [in] pts A 1D C-style array of npts_u*npts_v control points
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
-   *
-   * The knot vectors are constructed such that the patch is uniform
-   * 
-   * Elements of pts[k] are mapped to control nodes (p, q) lexicographically, i.e.
-   * pts[k] = nodes[ k // (npts_u + 1), k % npts_v ]
    */
   NURBSPatch(const PointType* pts, int npts_u, int npts_v, int deg_u, int deg_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
@@ -265,16 +299,9 @@ public:
    *
    * \param [in] pts A 1D C-style array of (ord_u+1)*(ord_v+1) control points
    * \param [in] weights A 1D C-style array of (ord_u+1)*(ord_v+1) positive weights
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
-   *
-   * The knot vectors are constructed such that the patch is uniform
-   * 
-   * Elements of pts[k] are mapped to control nodes (p, q) lexicographically, i.e.
-   * pts[k] = nodes[ k // (npts_u + 1), k % npts_v ]
    */
   NURBSPatch(const PointType* pts, const T* weights, int npts_u, int npts_v, int deg_u, int deg_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
@@ -287,16 +314,9 @@ public:
    * \brief Constructor for a NURBS Patch from 1D arrays of coordinates and degrees
    *
    * \param [in] pts A 1D axom::Array of npts_u*npts_v control points
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
-   *
-   * The knot vectors are constructed such that the patch is uniform
-   * 
-   * Elements of pts[k] are mapped to control nodes (p, q) lexicographically, i.e.
-   * pts[k] = nodes[ k // (npts_u + 1), k % npts_v ]
    */
   NURBSPatch(const CoordsVec& pts, int npts_u, int npts_v, int deg_u, int deg_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
@@ -310,16 +330,9 @@ public:
    *
    * \param [in] pts A 1D axom::Array of (ord_u+1)*(ord_v+1) control points
    * \param [in] weights A 1D axom::Array of (ord_u+1)*(ord_v+1) positive weights
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
-   *
-   * The knot vectors are constructed such that the patch is uniform
-   * 
-   * Elements of pts[k] are mapped to control nodes (p, q) lexicographically, i.e.
-   * pts[k] = nodes[ k // (npts_u + 1), k % npts_v ]
    */
   NURBSPatch(const CoordsVec& pts, const WeightsVec& weights, int npts_u, int npts_v, int deg_u, int deg_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
@@ -332,11 +345,8 @@ public:
    * \brief Constructor for a NURBS Patch from 2D arrays of coordinates and degrees
    *
    * \param [in] pts A 2D axom::Array of (npts_u, npts_v) control points
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
-   *
-   * The knot vectors are constructed such that the patch is uniform
    */
   NURBSPatch(const CoordsMat& pts, int deg_u, int deg_v)
     : NURBSPatch(pts.view(),
@@ -350,11 +360,8 @@ public:
    *
    * \param [in] pts A 2D axom::Array of (ord_u+1, ord_v+1) control points
    * \param [in] weights A 2D axom::Array of (ord_u+1, ord_v+1) positive weights
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
-   *
-   * The knot vectors are constructed such that the patch is uniform
    */
   NURBSPatch(const CoordsMat& pts, const WeightsMat& weights, int deg_u, int deg_v)
     : NURBSPatch(pts.view(),
@@ -367,16 +374,13 @@ public:
    * \brief Constructor for a NURBS Patch from C-style arrays of coordinates and knot vectors
    *
    * \param [in] pts A 1D C-style array of npts_u*npts_v control points
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
    * \param [in] knots_u A 1D C-style array of npts_u + deg_u + 1 knots
    * \param [in] nkts_u The number of knots in the u direction
    * \param [in] knots_v A 1D C-style array of npts_v + deg_v + 1 knots
    * \param [in] nkts_v The number of knots in the v direction
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
    * \pre Requires valid pointers and knot vectors
    */
   NURBSPatch(const PointType* pts,
@@ -397,16 +401,13 @@ public:
    *
    * \param [in] pts A 1D C-style array of npts_u*npts_v control points
    * \param [in] weights A 1D C-style array of npts_u*npts_v positive weights
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
    * \param [in] knots_u A 1D C-style array of npts_u + deg_u + 1 knots
    * \param [in] nkts_u The number of knots in the u direction
    * \param [in] knots_v A 1D C-style array of npts_v + deg_v + 1 knots
    * \param [in] nkts_v The number of knots in the v direction
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous curves, npts and the knot vector  uniquely determine the degree
    * \pre Requires valid pointers and knot vectors
    */
   NURBSPatch(const PointType* pts,
@@ -427,14 +428,11 @@ public:
    * \brief Constructor for a NURBS Patch from 1D axom::Array arrays of coordinates and knots
    *
    * \param [in] pts A 1D axom::Array of npts_u*npts_v control points
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
    * \param [in] knots_u An axom::Array of npts_u + deg_u + 1 knots
    * \param [in] knots_v An axom::Array of npts_v + deg_v + 1 knots
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
@@ -453,14 +451,11 @@ public:
    *
    * \param [in] pts A 1D axom::Array of npts_u*npts_v control points
    * \param [in] weights A 1D axom::Array of npts_u*npts_v positive weights
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
    * \param [in] knots_u An axom::Array of npts_u + deg_u + 1 knots
    * \param [in] knots_v An axom::Array of npts_v + deg_v + 1 knots
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
@@ -479,14 +474,10 @@ public:
    * \brief Constructor for a NURBS Patch from 1D axom::Array arrays of coordinates and KnotVectors
    *
    * \param [in] pts A 1D axom::Array of npts_u*npts_v control points
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] knotvec_u An KnotVector object for the first axis
-   * \param [in] knotvec_v An KnotVector object for the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] knotvec_u, knotvec_v  KnotVector objects for the first and second axis
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous curves, npts and the knot vectoruniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
@@ -505,14 +496,10 @@ public:
    *
    * \param [in] pts A 1D axom::Array of npts_u*npts_v control points
    * \param [in] weights A 1D axom::Array of npts_u*npts_v positive weights
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] knotvec_u An KnotVector object for the first axis
-   * \param [in] knotvec_v An KnotVector object for the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] knotvec_u, knotvec_v KnotVector objects for the first and second axis
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
@@ -534,9 +521,7 @@ public:
    * \param [in] knots_u An axom::Array of npts_u + deg_u + 1 knots
    * \param [in] knots_v An axom::Array of npts_v + deg_v + 1 knots
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts, const axom::Array<T>& knots_u, const axom::Array<T>& knots_v)
@@ -554,9 +539,7 @@ public:
    * \param [in] knots_u An axom::Array of npts_u + deg_u + 1 knots
    * \param [in] knots_v An axom::Array of npts_v + deg_v + 1 knots
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts,
@@ -573,12 +556,9 @@ public:
    * \brief Constructor for a NURBS Patch from 1D axom::Array array of coordinates and KnotVector objects
    *
    * \param [in] pts A 2D axom::Array of (ord_u+1, ord_v+1) control points
-   * \param [in] knotvec_u A KnotVector object for the first axis
-   * \param [in] knotvec_v A KnotVector object for the second axis
+   * \param [in] knotvec_u, knotvec_v KnotVector objects for the first and second axis
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts, const KnotVectorType& knotvec_u, const KnotVectorType& knotvec_v)
@@ -590,12 +570,9 @@ public:
    *
    * \param [in] pts A 2D axom::Array of (ord_u+1, ord_v+1) control points
    * \param [in] weights A 2D axom::Array of (ord_u+1, ord_v+1) positive weights
-   * \param [in] knotvec_u A KnotVector object for the first axis
-   * \param [in] knotvec_v A KnotVector object for the second axis
+   * \param [in] knotvec_u, knotvec_v KnotVector objects for the first and second axis
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts,
@@ -610,10 +587,8 @@ public:
   /*!
    * \brief Reset the degree and resize arrays of points (and weights)
    * 
-   * \param [in] npts_u The target number of control points on the first axis
-   * \param [in] npts_v The target number of control points on the second axis
-   * \param [in] deg_u The target degree on the first axis
-   * \param [in] deg_v The target degree on the second axis
+   * \param [in] npts_u, npts_v The target number of control points on the first and second axis
+   * \param [in] deg_u, deg_v The target degrees on the first and second axis
    * 
    * \warning This method will replace existing knot vectors with a uniform one.
    */

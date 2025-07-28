@@ -50,14 +50,28 @@ public:
                          "A knot vector must be defined using an arithmetic type");
 
 public:
+  //@{
+
+  /**
+   * \name Constructors for KnotVector
+   * 
+   * The KnotVector class provides constructors that allow initialization from a user-supplied array of knots
+   * and a specified degree and enforces several conditions to ensure validity: 
+   * - the degree must be at least -1
+   * - the knot array must contain at least (degree + 1) elements, 
+   * - and if the knot array is not empty, its data pointer must not be nullptr.
+   * These checks guarantee that the constructed KnotVector adheres to the requirements for B-Spline/NURBS curves,
+   * such as monotonicity, clamped ends, and appropriate internal knot multiplicity. The isValid() method is used
+   * to verify that the resulting instance meets all necessary criteria for a valid knot span.
+   */
+
   /*!
    * \brief Constructor from a user-supplied knot vector (axom::ArrayView<const T>)
    *
    * \param [in] knots the knot vector
    * \param [in] degree the degree of the curve
    * \pre \a degree >= 1. When degree is less than 0, the KnotVector is invalid
-   * \pre The \a knots can be empty when the degree is -1, otherwise it has knot values
-   *      and knots.data() is not \a nullptr
+   * \pre The \a knots can be empty when the degree is -1, otherwise knots.data() is not \a nullptr
    * \sa isValid() tests conditions for a valid knot span instance
    */
   KnotVector(axom::ArrayView<const T> knots, int degree) : m_deg(degree)
@@ -79,7 +93,7 @@ public:
    *
    * \param [in] knots the knot vector
    * \param degree The degree of the knot vector.
-   * \see KnotVector(axom::ArrayView<const T> knots, int degree)
+   * \overload for ArrayView of non-const T
    */
   KnotVector(axom::ArrayView<T> knots, int degree)
     : KnotVector(axom::ArrayView<const T>(knots.data(), knots.size()), degree)
@@ -120,6 +134,8 @@ public:
    * \see KnotVector(axom::ArrayView<const T> knots, int degree)
    */
   KnotVector(const axom::Array<T>& knots, int degree) : KnotVector(knots.view(), degree) { }
+
+  //@}
 
   /*!
    * \brief Give the knot vector uniformly spaced internal knots
