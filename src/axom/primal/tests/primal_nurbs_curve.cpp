@@ -121,7 +121,7 @@ TEST(primal_nurbscurve, bezier_constructors)
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_nurbscurve, knotless_constructors)
+TEST(primal_nurbscurve, knotless_array_constructors)
 {
   constexpr int DIM = 3;
   using CoordType = double;
@@ -207,7 +207,7 @@ TEST(primal_nurbscurve, knotless_constructors)
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_nurbscurve, knot_array_constructor)
+TEST(primal_nurbscurve, knotted_array_constructor)
 {
   SLIC_INFO("Testing knot array constructor");
 

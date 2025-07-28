@@ -19,11 +19,14 @@
 namespace primal = axom::primal;
 
 //------------------------------------------------------------------------------
-TEST(primal_bezierpatch, order_constructor)
+TEST(primal_bezierpatch, sizing_constructors)
 {
   using CoordType = double;
   using BezierPatchType = primal::BezierPatch<CoordType, 3>;
   using CoordsMat = BezierPatchType::CoordsMat;
+  using PointType = BezierPatchType::PointType;
+  using PointArrayView = axom::ArrayView<const PointType, 2>;
+  using WeightsArrayView = axom::ArrayView<const double, 2>;
 
   // testing default BezierPatch constructor
   {
@@ -44,14 +47,19 @@ TEST(primal_bezierpatch, order_constructor)
   {
     for(int v = 0; v < 5; ++v)
     {
-      BezierPatchType bPatch(u, v);
-      EXPECT_FALSE(bPatch.isRational());
+      for(const BezierPatchType& patch :
+          {BezierPatchType(u, v),
+           BezierPatchType(PointArrayView(nullptr, {0, 0}), u, v),
+           BezierPatchType(PointArrayView(nullptr, {0, 0}), WeightsArrayView(nullptr, {0, 0}), u, v)})
+      {
+        EXPECT_FALSE(patch.isRational());
 
-      EXPECT_EQ(u, bPatch.getOrder_u());
-      EXPECT_EQ(v, bPatch.getOrder_v());
+        EXPECT_EQ(u, patch.getOrder_u());
+        EXPECT_EQ(v, patch.getOrder_v());
 
-      EXPECT_EQ(u + 1, bPatch.getControlPoints().shape()[0]);
-      EXPECT_EQ(v + 1, bPatch.getControlPoints().shape()[1]);
+        EXPECT_EQ(u + 1, patch.getControlPoints().shape()[0]);
+        EXPECT_EQ(v + 1, patch.getControlPoints().shape()[1]);
+      }
     }
   }
 }
@@ -69,14 +77,14 @@ TEST(primal_bezierpatch, array_constructors)
   constexpr int order_u = 2;
   constexpr int order_v = 1;
 
-  PointType controlPoints[6] = {PointType {0.0, 0.0, 1.0},
-                                PointType {0.0, 1.0, 2.0},
-                                PointType {0.0, 2.0, 3.0},
-                                PointType {1.0, 0.0, 4.0},
-                                PointType {1.0, 1.0, 5.0},
-                                PointType {1.0, 2.0, 6.0}};
+  // clang-format off
+  PointType controlPoints[6] = {
+    PointType {0.0, 0.0, 1.0}, PointType {0.0, 1.0, 2.0}, PointType {0.0, 2.0, 3.0},
+    PointType {1.0, 0.0, 4.0}, PointType {1.0, 1.0, 5.0}, PointType {1.0, 2.0, 6.0}};
 
-  CoordType weights[6] = {0.009, 1.109, 2.209, 3.009, 4.019, 5.029};
+  CoordType weights[6] = {0.009, 1.019, 2.029, 
+                          3.109, 4.119, 5.129};
+  // clang-format on
 
   auto check_patch = [=](const BezierPatchType& patch, bool expect_rational) {
     EXPECT_EQ(order_u, patch.getOrder_u());

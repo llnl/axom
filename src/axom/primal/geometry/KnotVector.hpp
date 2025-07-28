@@ -70,6 +70,8 @@ public:
     {
       m_knots = knots;
     }
+
+    SLIC_ASSERT(isValid());
   }
 
   /*!

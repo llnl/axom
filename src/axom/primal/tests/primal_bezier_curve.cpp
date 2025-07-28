@@ -18,7 +18,7 @@
 namespace primal = axom::primal;
 
 //------------------------------------------------------------------------------
-TEST(primal_beziercurve, constructor)
+TEST(primal_beziercurve, sizing_constructors)
 {
   constexpr int DIM = 3;
   using CoordType = double;
