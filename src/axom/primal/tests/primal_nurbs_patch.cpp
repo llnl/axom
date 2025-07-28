@@ -68,7 +68,8 @@ TEST(primal_nurbspatch, sizing_constructors)
     for(int deg_v = 0; deg_v < 5; ++deg_v)
     {
       {
-        SCOPED_TRACE(fmt::format("NURBS Patch constructor with deg_u={}, deg_v={}", deg_u, deg_v));
+        SCOPED_TRACE(
+          axom::fmt::format("NURBS Patch constructor with deg_u={}, deg_v={}", deg_u, deg_v));
         NURBSPatchType patch = NURBSPatchType(deg_u, deg_v);
         check_patch(patch, deg_u, deg_v, deg_u + 1, deg_v + 1, false);
       }
@@ -77,12 +78,12 @@ TEST(primal_nurbspatch, sizing_constructors)
       {
         for(int npts_v = deg_v + 1; npts_v < deg_v + 5; ++npts_v)
         {
-          SCOPED_TRACE(
-            fmt::format("NURBS Patch constructor with npts_u={}, npts_v={}, deg_u={}, deg_v={}",
-                        npts_u,
-                        npts_v,
-                        deg_u,
-                        deg_v));
+          SCOPED_TRACE(axom::fmt::format(
+            "NURBS Patch constructor with npts_u={}, npts_v={}, deg_u={}, deg_v={}",
+            npts_u,
+            npts_v,
+            deg_u,
+            deg_v));
           NURBSPatchType nPatch(npts_u, npts_v, deg_u, deg_v);
           check_patch(nPatch, deg_u, deg_v, npts_u, npts_v, false);
         }
