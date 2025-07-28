@@ -50,16 +50,16 @@ public:
                          "A knot vector must be defined using an arithmetic type");
 
 public:
-  //@{
-
+  ///@{
   /**
    * \name Constructors for KnotVector
-   * 
+   *  
    * The KnotVector class provides constructors that allow initialization from a user-supplied array of knots
    * and a specified degree and enforces several conditions to ensure validity: 
    * - the degree must be at least -1
-   * - the knot array must contain at least (degree + 1) elements, 
-   * - and if the knot array is not empty, its data pointer must not be nullptr.
+   * - the knot array must contain at least \a (degree + 1) elements, 
+   * - if the knot array is not empty, its data pointer must not be nullptr.
+   * 
    * These checks guarantee that the constructed KnotVector adheres to the requirements for B-Spline/NURBS curves,
    * such as monotonicity, clamped ends, and appropriate internal knot multiplicity. The isValid() method is used
    * to verify that the resulting instance meets all necessary criteria for a valid knot span.
@@ -135,7 +135,7 @@ public:
    */
   KnotVector(const axom::Array<T>& knots, int degree) : KnotVector(knots.view(), degree) { }
 
-  //@}
+  ///@}
 
   /*!
    * \brief Give the knot vector uniformly spaced internal knots

@@ -76,8 +76,7 @@ public:
                 "A NURBS Curve must be defined using an arithmetic type");
 
 public:
-  //@{
-
+  ///@{
   /**
    * \name Constructors for NURBSCurve
    * 
@@ -355,7 +354,7 @@ public:
     : NURBSCurve(pts.view(), weights.view(), knotVector)
   { }
 
-  //@}
+  ///@}
 
   /*!
    * \brief Construct a multi-span, rational, degree 2 NURBS curve from the angles of a circular arc

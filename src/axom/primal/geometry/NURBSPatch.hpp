@@ -93,7 +93,7 @@ public:
                          "A NURBS Patch must be defined using an arithmetic type");
 
 public:
-  //@{
+  ///@{
   /**
    * @name Constructors for NURBSPatch
    *
@@ -582,7 +582,7 @@ public:
     : NURBSPatch(pts.view(), weights.view(), knotvec_u, knotvec_v)
   { }
 
-  //@}
+  ///@}
 
   /*!
    * \brief Reset the degree and resize arrays of points (and weights)
@@ -931,7 +931,7 @@ public:
     return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
-  //@{
+  ///@{
   //!  @name Methods for (untrimmed) Patch Parameterization.
   //!
   //! These methods operate on the parameterization of the patch
@@ -1483,9 +1483,9 @@ public:
 
     m_knotvec_v.rescale(a, b);
   }
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods for (untrimmed) Patch Geometry.
   //!
   //! These methods operate only on the geometry of the patch
@@ -2476,9 +2476,9 @@ public:
     return ret_vec;
   }
 #endif
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods for (trimmed) Surface Geometry.
   //!
   //! These methods operate on the visible geometry of the NURBS surface
@@ -3357,7 +3357,7 @@ public:
     m_knotvec_u = KnotVectorType(newKnotVec_u, deg_u);
     m_knotvec_v = KnotVectorType(newKnotVec_v, deg_v);
   }
-  //@}
+  ///@}
 
   /*!
      * \brief Simple formatted print of a NURBS Patch instance

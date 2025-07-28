@@ -79,8 +79,9 @@ public:
                          "A Bezier Patch must be defined using an arithmetic type");
 
 public:
-  //@{
-  /** @name Constructors for BezierPatch
+  ///@{
+  /** 
+   * @name Constructors for BezierPatch
    *
    * The constructors allow for flexible initialization of BezierPatch objects from:
    * - 1D or 2D Axom arrays of control points and weights,
@@ -256,7 +257,7 @@ public:
     : BezierPatch(pts.view(), weights.view(), ord_u, ord_v)
   { }
 
-  //@}
+  ///@}
 
   /*!
    * \brief Sets the order of Bezier patch

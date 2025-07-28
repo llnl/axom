@@ -484,7 +484,7 @@ public:
   int maxInternalLevel() const { return m_levels.size() - 1; }
 
 public:
-  //@{
+  ///@{
 
   /**
    * \brief Utility function to find the number of (possible) grid cells at a given level or resolution
@@ -509,10 +509,10 @@ public:
    */
   static BlockIndex root() { return BlockIndex(); }
 
-  // @}
+  ///@}
 
 public:
-  // @{
+  ///@{
   // KW: The following four functions are probably not necessary any more
   //     Since their functionality is in the BlockIndex inner class.
 
@@ -562,7 +562,7 @@ public:
     return block.child(childIndex);
   }
 
-  // @}
+  ///@}
 
   /// \brief Accessor for a reference to the octree level instance at level lev
   OctreeLevelType& getOctreeLevel(int lev) { return *m_leavesLevelMap[lev]; }

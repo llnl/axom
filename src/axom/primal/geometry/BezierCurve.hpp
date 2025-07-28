@@ -74,7 +74,7 @@ public:
                          "A Bezier Curve must be defined using an arithmetic type");
 
 public:
-  //@{
+  ///@{
   /**  
    * \name Constructors for polynomial and rational Bezier curves
    *
@@ -200,7 +200,7 @@ public:
     : BezierCurve(pts.view(), weights.view(), ord)
   { }
 
-  //@}
+  ///@}
 
 public:
   /// Sets the order of the Bezier Curve

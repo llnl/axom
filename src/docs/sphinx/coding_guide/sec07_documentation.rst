@@ -460,13 +460,13 @@ sufficient.
 
       An example of Doxygen syntax for such a grouping is::
 
-         //@{
+         ///@{
          //! @name Setters for data members
 
          void setMember1(int arg1) { m_member1 = arg1; }
          void setMember2(int arg2) { m_member2 = arg2; }
 
-         //@}
+         ///@}
 
 
 Header file vs. source file documentation
@@ -547,13 +547,13 @@ with a single descriptive comment.
 
       An example of Doxygen syntax for such a grouping is::
 
-         //@{
+         ///@{
          //!  @name Data member description...
 
          int m_member1;
          int m_member2;
          ...
-         //@}
+         ///@}
 
 
 --------------------------------------------------------------------
