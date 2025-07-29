@@ -324,6 +324,8 @@ public:
    *
    * \return pointer to this Group object.
    *
+   * This method is recursive.
+   *
    * This does NOT change any Group's default allocator.
    */
   Group* reallocateTo(const std::function<int(const View&)>& viewToAllocatorId);

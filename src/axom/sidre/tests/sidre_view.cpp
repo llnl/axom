@@ -1886,7 +1886,7 @@ TEST(sidre_view, deep_copy_to_conduit)
     //
 
     View* srcString = src->createViewString("aString", stringValue);
-    const char* srcStringPtr = (char*)srcString->getNode().data_ptr();
+    const char* srcStringPtr = static_cast<char*>(srcString->getNode().data_ptr());
     if(srcAllocId == axom::MALLOC_ALLOCATOR_ID)
     {
       // Skip this check if srcAllocId is non-MALLOC_ALLOCATOR_ID,
@@ -1896,12 +1896,12 @@ TEST(sidre_view, deep_copy_to_conduit)
     }
 
     View* srcScalar = src->createViewScalar("aDouble", dtypeDouble);
-    double* srcScalarPtr = (double*)srcScalar->getNode().data_ptr();
+    double* srcScalarPtr = static_cast<double*>(srcScalar->getNode().data_ptr());
     EXPECT_EQ(axom::getAllocatorIDFromPointer(srcScalarPtr), srcAllocId);
     axom::copy(srcScalarPtr, &doubleValue, sizeof(double));
 
     View* srcArray = src->createViewAndAllocate("aIntArray", dtypeIntArray);
-    std::int32_t* srcArrayPtr = (std::int32_t*)srcArray->getNode().data_ptr();
+    std::int32_t* srcArrayPtr = static_cast<std::int32_t*>(srcArray->getNode().data_ptr());
     EXPECT_EQ(axom::getAllocatorIDFromPointer(srcArrayPtr), srcAllocId);
     axom::copy(srcArrayPtr, intArray.data(), N * sizeof(std::int32_t));
 
@@ -1931,7 +1931,7 @@ TEST(sidre_view, deep_copy_to_conduit)
       // Check pointers.  Copy data to temporary host buffers and check data.
       //
 
-      double* dstScalarPtr = (double*)dst.fetch_existing(srcScalar->getName()).data_ptr();
+      double* dstScalarPtr = static_cast<double*>(dst.fetch_existing(srcScalar->getName()).data_ptr());
       EXPECT_NE(dstScalarPtr, nullptr);
       EXPECT_NE(dstScalarPtr, srcScalarPtr);
       auto dstScalarAllocId = axom::getAllocatorIDFromPointer(dstScalarPtr);
@@ -1939,7 +1939,7 @@ TEST(sidre_view, deep_copy_to_conduit)
       axom::copy(&tmpDoubleValue, dstScalarPtr, sizeof(double));
       EXPECT_EQ(tmpDoubleValue, doubleValue);
 
-      std::int32_t* dstArrayPtr = (std::int32_t*)dst.fetch_existing(srcArray->getName()).data_ptr();
+      std::int32_t* dstArrayPtr = static_cast<std::int32_t*>(dst.fetch_existing(srcArray->getName()).data_ptr());
       EXPECT_NE(dstArrayPtr, nullptr);
       EXPECT_NE(dstArrayPtr, srcArrayPtr);
       auto dstArrayAllocId = axom::getAllocatorIDFromPointer(dstArrayPtr);
@@ -1950,7 +1950,7 @@ TEST(sidre_view, deep_copy_to_conduit)
         EXPECT_EQ(tmpIntArray[i], intArray[i]);
       }
 
-      char* dstStringPtr = (char*)dst.fetch_existing(srcString->getName()).data_ptr();
+      char* dstStringPtr = static_cast<char*>(dst.fetch_existing(srcString->getName()).data_ptr());
       EXPECT_NE(dstStringPtr, nullptr);
       EXPECT_NE(dstStringPtr, srcStringPtr);
       auto dstStringAllocId = axom::getAllocatorIDFromPointer(dstStringPtr);
@@ -2016,7 +2016,7 @@ TEST(sidre_view, reallocate_to)
     //
 
     View* origString = orig->createViewString("aString", stringValue);
-    const char* origStringPtr = (char*)origString->getNode().data_ptr();
+    const char* origStringPtr = static_cast<char*>(origString->getNode().data_ptr());
     if(origAllocId == axom::MALLOC_ALLOCATOR_ID)
     {
       // Skip this check if origAllocId is non-MALLOC_ALLOCATOR_ID,
@@ -2026,12 +2026,12 @@ TEST(sidre_view, reallocate_to)
     }
 
     View* origScalar = orig->createViewScalar("aDouble", dtypeDouble);
-    double* origScalarPtr = (double*)origScalar->getNode().data_ptr();
+    double* origScalarPtr = static_cast<double*>(origScalar->getNode().data_ptr());
     EXPECT_EQ(axom::getAllocatorIDFromPointer(origScalarPtr), origAllocId);
     axom::copy(origScalarPtr, &doubleValue, sizeof(double));
 
     View* origArray = orig->createViewAndAllocate("aIntArray", dtypeIntArray);
-    std::int32_t* origArrayPtr = (std::int32_t*)origArray->getNode().data_ptr();
+    std::int32_t* origArrayPtr = static_cast<std::int32_t*>(origArray->getNode().data_ptr());
     EXPECT_EQ(axom::getAllocatorIDFromPointer(origArrayPtr), origAllocId);
     axom::copy(origArrayPtr, intArray.data(), N * sizeof(std::int32_t));
 
@@ -2066,7 +2066,7 @@ TEST(sidre_view, reallocate_to)
       // Check pointers:  Copy data to temporary host buffers and check data.
       //
 
-      double* testScalarPtr = (double*)testGrp->getView(origScalar->getName())->getVoidPtr();
+      double* testScalarPtr = static_cast<double*>(testGrp->getView(origScalar->getName())->getVoidPtr());
       EXPECT_NE(testScalarPtr, nullptr);
       EXPECT_NE(testScalarPtr, origScalarPtr);
       auto testScalarAllocId = axom::getAllocatorIDFromPointer(testScalarPtr);
@@ -2075,7 +2075,7 @@ TEST(sidre_view, reallocate_to)
       EXPECT_EQ(tmpDoubleValue, doubleValue);
 
       std::int32_t* testArrayPtr =
-        (std::int32_t*)testGrp->getView(origArray->getName())->getVoidPtr();
+        static_cast<std::int32_t*>(testGrp->getView(origArray->getName())->getVoidPtr());
       EXPECT_NE(testArrayPtr, nullptr);
       EXPECT_NE(testArrayPtr, origArrayPtr);
       auto testArrayAllocId = axom::getAllocatorIDFromPointer(testArrayPtr);
@@ -2086,7 +2086,7 @@ TEST(sidre_view, reallocate_to)
         EXPECT_EQ(tmpIntArray[i], intArray[i]);
       }
 
-      char* testStringPtr = (char*)testGrp->getView(origString->getName())->getVoidPtr();
+      char* testStringPtr = static_cast<char*>(testGrp->getView(origString->getName())->getVoidPtr());
       EXPECT_NE(testStringPtr, nullptr);
       EXPECT_NE(testStringPtr, origStringPtr);
       auto testStringAllocId = axom::getAllocatorIDFromPointer(testStringPtr);
