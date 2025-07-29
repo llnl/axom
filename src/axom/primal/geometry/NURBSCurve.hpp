@@ -80,7 +80,7 @@ public:
   /**
    * \name Constructors for NURBSCurve
    * 
-   * The constructors allow for flexible initialization fo NURBSCurve objects from:
+   * The constructors allow for flexible initialization of NURBSCurve objects from:
    * - 1D arrays of control points, weights and knots.
    *   The control points and weight can be provided as C-style arrays with sizes, axom Arrays and axom ArrayViews.
    *   The knots can be provided as C-style arrays with sizes, axom Arrays and KnotVector instances

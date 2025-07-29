@@ -133,7 +133,7 @@ public:
     }
   }
 
-  /// Constructs a BezierCurve from arrays of control points and weights.
+  /// Constructor for a Bezier Curve from ArrayViews of (non-const) control points and weights
   BezierCurve(axom::ArrayView<PointType> pts, axom::ArrayView<T> weights, int ord)
     : BezierCurve(axom::ArrayView<const PointType>(pts.data(), pts.size()),
                   axom::ArrayView<const T>(weights.data(), weights.size()),

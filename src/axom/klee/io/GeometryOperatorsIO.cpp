@@ -188,6 +188,7 @@ OpPtr parseRotate(const inlet::Container &opContainer,
       startProperties);
   }
   break;
+  default:
   case Dimensions::Unspecified:
     throw KleeError({opContainer.name(), "Rotations can only be applied to 2D or 3D shapes"});
   }
