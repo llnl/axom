@@ -8,7 +8,7 @@
  *
  * \file ConduitMemory.hpp
  *
- * \brief   Call-backs for using Axom memory mamagement in Conduit.
+ * \brief   Call-backs for using Axom memory management in Conduit.
  *
  ******************************************************************************
  */
