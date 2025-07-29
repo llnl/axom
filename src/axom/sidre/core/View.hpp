@@ -1590,12 +1590,13 @@ private:
   template <typename T>
   void hostPrintArray(std::ostream& os = std::cout) const
   {
+    constexpr IndexType maxPrintItems = 10;
     if(isHostAccessible())
     {
       os << " [";
       auto start = (T*)(getVoidPtr());
       auto end = (T*)(getVoidPtr()) + getNumElements();
-      if(getNumElements() <= 10)
+      if(getNumElements() <= maxPrintItems)
       {
         for(auto i = start; i < end; ++i)
         {
@@ -1605,8 +1606,8 @@ private:
       }
       else
       {
-        auto a = start + 5;
-        auto b = end - 5;
+        auto a = start + maxPrintItems/2;
+        auto b = end - maxPrintItems/2;
         for(auto i = start; i < a; ++i)
         {
           os << *i << ", ";
