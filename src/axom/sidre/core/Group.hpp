@@ -43,6 +43,7 @@
 // Sidre headers
 #include "SidreTypes.hpp"
 #include "View.hpp"
+#include "ConduitMemory.hpp"
 
 namespace axom
 {
@@ -273,26 +274,21 @@ public:
    */
   bool isRoot() const { return m_parent == this; }
 
-  /*!
-   * \brief Return the ID of the default umpire::Allocator associated with this
-   * Group.
-   */
-  int getDefaultAllocatorID() const { return m_default_allocator_id; }
+
+
+  //! \brief Return the ID of the default array allocator id associated with this Group.
+  int getDefaultArrayAllocatorID() const { return m_default_array_alloc_id; }
 
 #if defined(AXOM_USE_UMPIRE)
-  /*!
-   * \brief Return the default umpire::Allocator associated with this Group.
-   */
-  umpire::Allocator getDefaultAllocator() const
+  //! \brief Return the default array umpire::Allocator associated with this Group.
+  umpire::Allocator getDefaultArrayAllocator() const
   {
     umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-    return rm.getAllocator(m_default_allocator_id);
+    return rm.getAllocator(m_default_array_alloc_id);
   }
 
-  /*!
-   * \brief Set the default umpire::Allocator associated with this Group.
-   */
-  Group* setDefaultAllocator(umpire::Allocator alloc)
+  //! \brief Set the default array umpire::Allocator associated with this Group.
+  Group* setDefaultArrayAllocator(umpire::Allocator alloc)
   {
     setDefaultAllocator(alloc.getId());
     return this;
@@ -300,13 +296,78 @@ public:
 #endif
 
   /*!
-   * \brief Set the default umpire::Allocator associated with this Group.
-   */
-  Group* setDefaultAllocator(int allocId)
+    \brief Set the default array allocator id associated with this Group.
+
+    This allocator is the default for array data, even if the array is
+    length 1.  (Note, tuples are not arrays in this specific sense.  @see
+    setDefaultTupleAllocator(int).)
+  */
+  Group* setDefaultArrayAllocator(int allocId)
   {
     SLIC_ASSERT(allocId != axom::INVALID_ALLOCATOR_ID);
-    m_default_allocator_id = allocId;
+    m_default_array_alloc_id = allocId;
     return this;
+  }
+
+
+
+  //! \brief Return the ID of the default scalar/tuple allocator id associated with this Group.
+  int getDefaultTupleAllocatorID() const { return m_default_tuple_alloc_id; }
+
+#if defined(AXOM_USE_UMPIRE)
+  //! \brief Return the default scalar/tuple umpire::Allocator associated with this Group.
+  umpire::Allocator getDefaultTupleAllocator() const
+  {
+    umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+    return rm.getAllocator(m_default_tuple_alloc_id);
+  }
+
+  //! \brief Set the default scalar/tuple umpire::Allocator associated with this Group.
+  Group* setDefaultTupleAllocator(umpire::Allocator alloc)
+  {
+    setDefaultTupleAllocator(alloc.getId());
+    return this;
+  }
+#endif
+
+  /*!
+    \brief Set the default scalar/tuple allocator id associated with this Group.
+
+    This allocator is the default for tuple data, including strings
+    and scalars.  (Arrays are not tuples in this sense.  @see
+    setDefaultArrayAllocator(int).)
+  */
+  Group* setDefaultTupleAllocator(int allocId)
+  {
+    SLIC_ASSERT(allocId != axom::INVALID_ALLOCATOR_ID);
+    m_default_tuple_alloc_id = allocId;
+      ConduitMemory::instanceForAxomId(m_default_tuple_alloc_id).conduitId();
+    return this;
+  }
+
+
+
+  //! \brief For backward compatibility, same as getDefaultArrayAllocatorID().
+  int getDefaultAllocatorID() const { return getDefaultArrayAllocatorID(); }
+
+#if defined(AXOM_USE_UMPIRE)
+  //! \brief For backward compatibility, same as getDefaultArrayAllocator().
+  umpire::Allocator getDefaultAllocator() const
+  {
+    return getDefaultArrayAllocator();
+  }
+
+  //! \brief For backward compatibility, same as setDefaultArrayAllocator().
+  Group* setDefaultAllocator(umpire::Allocator alloc)
+  {
+    return setDefaultArrayAllocator(alloc.getId());
+  }
+#endif
+
+  //! \brief For backward compatibility, same as setDefaultArrayAllocator().
+  Group* setDefaultAllocator(int allocId)
+  {
+    return setDefaultArrayAllocator(allocId);
   }
 
   /*!
@@ -943,7 +1004,9 @@ public:
    * \return pointer to the new copied View object or nullptr if a View
    * is not copied into this Group.
    */
-  View* deepCopyView(const View* view, int allocID = INVALID_ALLOCATOR_ID);
+  View* deepCopyView(const View* view,
+                     int arrayAllocID = INVALID_ALLOCATOR_ID,
+                     int tupleAllocID = INVALID_ALLOCATOR_ID);
 
   //@}
 
@@ -1312,7 +1375,9 @@ public:
    * \return pointer to the new copied Group object or nullptr if a Group
    * is not copied into this Group.
    */
-  Group* deepCopyGroup(const Group* srcGroup, int allocID = INVALID_ALLOCATOR_ID);
+  Group* deepCopyGroup(const Group* srcGroup,
+                       int arrayAllocID = INVALID_ALLOCATOR_ID,
+                       int tupleAllocID = INVALID_ALLOCATOR_ID);
 
   /*!
    * \brief Create a deep copy of Group hierarchy rooted at given Group
@@ -1401,17 +1466,30 @@ public:
   /*!
    * \brief Deep-copy Group's native layout to given Conduit node.
    *
+   * \param [out] dst
+   * \param [in] tupleAllocId overriding allocator for tuples, scalars and strings.
+   *   If equal to INVALID_ALLOCATOR_ID, don't override destination's allocator.
+   * \param [in] arrayAllocId overriding allocator for arrays.
+   *   If equal to INVALID_ALLOCATOR_ID, don't override destination's allocator.
+   * \param [in] attr copy Views that have Attribute set.
+   *
    * This is similar to createNativeLayout, except for the leaves being
    * deep-copied.
    *
-   * The destination's allocator id should be preserved and used for
-   * array allocations.
+   * The destination's default data allocator is used for all data,
+   * unless the overriding defaults are specified.
+   * - If \c tupleAllocId != \c INVALID_ALLOCATOR_ID, it's used for tuples,
+   *   scalars and strings.
+   * - If \c arrayAllocId != \c INVALID_ALLOCATOR_ID, it's used for arrays.
    *
    * \return True if the Group or any of its children were added to the Node,
    * false otherwise.
    *
    */
-  bool deepCopyToConduit(Node& dst, const Attribute* attr = nullptr) const;
+  bool deepCopyToConduit(Node& dst,
+                         int tupleAllocId = INVALID_ALLOCATOR_ID,
+                         int arrayAllocId = INVALID_ALLOCATOR_ID,
+                         const Attribute* attr = nullptr) const;
 
   /*!
    * \brief Copy Group's layout to given Conduit node without data
@@ -1976,7 +2054,14 @@ private:
    * \brief Private method. If allocatorID is a valid allocator ID then return
    *  it. Otherwise return the ID of the default allocator of the owning group.
    */
-  int getValidAxomAllocatorID(int allocatorID);
+  int getValidArrayAllocatorId(int allocatorId)
+  {
+    return allocatorId == INVALID_ALLOCATOR_ID ? m_default_array_alloc_id : allocatorId;
+  }
+  int getValidTupleAllocatorId(int allocatorId)
+  {
+    return allocatorId == INVALID_ALLOCATOR_ID ? m_default_tuple_alloc_id : allocatorId;
+  }
 
   /// Name of this Group object.
   std::string m_name;
@@ -2002,7 +2087,8 @@ private:
   /// Collection of child Groups
   GroupCollection* m_group_coll;
 
-  int m_default_allocator_id;
+  int m_default_array_alloc_id;
+  int m_default_tuple_alloc_id;
 };
 
 } /* end namespace sidre */

@@ -64,8 +64,6 @@ std::string View::getPathName() const
  */
 View* View::allocate(int allocID)
 {
-  allocID = getOwningGroup()->getValidAxomAllocatorID(allocID);
-
   if(isAllocateValid())
   {
     if(m_state == EMPTY)
@@ -79,6 +77,7 @@ View* View::allocate(int allocID)
 
     TypeID type = static_cast<TypeID>(m_schema.dtype().id());
     IndexType num_elems = m_schema.dtype().number_of_elements();
+    allocID = getValidAllocatorId(allocID);
     m_data_buffer->allocate(type, num_elems, allocID);
     apply();
   }
@@ -89,14 +88,12 @@ View* View::allocate(int allocID)
 /*
  *************************************************************************
  *
- * Allocate data for view with type and number of elements.
+ * Allocate array data for view with type and number of elements.
  *
  *************************************************************************
  */
 View* View::allocate(TypeID type, IndexType num_elems, int allocID)
 {
-  allocID = getOwningGroup()->getValidAxomAllocatorID(allocID);
-
   if(type == NO_TYPE_ID || num_elems < 0)
   {
     SLIC_CHECK_MSG(type != NO_TYPE_ID,
@@ -109,6 +106,7 @@ View* View::allocate(TypeID type, IndexType num_elems, int allocID)
   }
 
   describe(type, num_elems);
+  allocID = getValidArrayAllocatorId(allocID);
   allocate(allocID);
 
   return this;
@@ -117,14 +115,12 @@ View* View::allocate(TypeID type, IndexType num_elems, int allocID)
 /*
  *************************************************************************
  *
- * Allocate data for view with type and shape.
+ * Allocate array data for view with type and shape.
  *
  *************************************************************************
  */
 View* View::allocate(TypeID type, int ndims, const IndexType* shape, int allocID)
 {
-  allocID = getOwningGroup()->getValidAxomAllocatorID(allocID);
-
   SLIC_CHECK_MSG(ndims > 0, SIDRE_VIEW_LOG_PREPEND << "Could not allocate: ndim is non-positive.");
 
   SLIC_CHECK_MSG(type != NO_TYPE_ID,
@@ -151,6 +147,7 @@ View* View::allocate(TypeID type, int ndims, const IndexType* shape, int allocID
   if(ndims > 0 && shape != nullptr && num_elems > 0 && type != NO_TYPE_ID)
   {
     describe(type, ndims, shape);
+    allocID = getValidArrayAllocatorId(allocID);
     allocate(allocID);
   }
 
@@ -160,14 +157,12 @@ View* View::allocate(TypeID type, int ndims, const IndexType* shape, int allocID
 /*
  *************************************************************************
  *
- * Allocate data for view described by a Conduit data type object.
+ * Allocate array data for view described by a Conduit data type object.
  *
  *************************************************************************
  */
 View* View::allocate(const DataType& dtype, int allocID)
 {
-  allocID = getOwningGroup()->getValidAxomAllocatorID(allocID);
-
   if(dtype.is_empty())
   {
     SLIC_CHECK_MSG(!dtype.is_empty(),
@@ -176,6 +171,7 @@ View* View::allocate(const DataType& dtype, int allocID)
   }
 
   describe(dtype);
+  allocID = getValidArrayAllocatorId(allocID);
   allocate(allocID);
 
   return this;
@@ -302,7 +298,7 @@ View* View::reallocateTo(int newAllocId)
     return this;
   }
 
-  if(m_state == STRING || m_state == SCALAR)
+  if(m_state == STRING || m_state == TUPLE)
   {
     // Data is stored in m_node.
     conduit::index_t conduitAllocId = m_node.allocator();
@@ -472,7 +468,7 @@ void View::clear()
     undescribe();
     break;
   case STRING:
-  case SCALAR:
+  case TUPLE:
     unapply();
     undescribe();
     break;
@@ -673,7 +669,7 @@ void* View::getVoidPtr() const
     }
     break;
   case STRING:
-  case SCALAR:
+  case TUPLE:
     rv = const_cast<void*>(m_node.data_ptr());
     break;
   default:
@@ -780,7 +776,7 @@ bool View::isAllocated() const
     break;
   case EXTERNAL:
   case STRING:
-  case SCALAR:
+  case TUPLE:
     rv = true;
     break;
   default:
@@ -1308,7 +1304,7 @@ void View::copyView(View* copy) const
     // Nothing more to do
     break;
   case STRING:
-  case SCALAR:
+  case TUPLE:
     copy->m_node = m_node;
     copy->m_state = m_state;
     copy->m_is_applied = true;
@@ -1333,7 +1329,7 @@ void View::copyView(View* copy) const
  *
  *************************************************************************
  */
-void View::deepCopyView(View* copy, int allocID) const
+void View::deepCopyView(View* copy, int arrayAllocId, int tupleAllocId) const
 {
   SLIC_ASSERT_MSG(copy->m_state == EMPTY && !copy->isDescribed(),
                   SIDRE_VIEW_LOG_PREPEND << "deepCopyView can only copy into undescribed view "
@@ -1343,7 +1339,7 @@ void View::deepCopyView(View* copy, int allocID) const
   {
     if(hasBuffer() || m_state == EXTERNAL)
     {
-      copy->allocate(getTypeID(), getNumDimensions(), m_shape.data(), allocID);
+      copy->allocate(getTypeID(), getNumDimensions(), m_shape.data(), arrayAllocId);
     }
     else
     {
@@ -1357,8 +1353,8 @@ void View::deepCopyView(View* copy, int allocID) const
     // Nothing more to do
     break;
   case STRING:
-  case SCALAR:
-    copy->m_node.set_allocator(ConduitMemory::axomAllocIdToConduit(allocID));
+  case TUPLE:
+    copy->m_node.set_allocator(ConduitMemory::axomAllocIdToConduit(tupleAllocId));
     copy->m_node.set_node(m_node);
     copy->m_state = m_state;
     copy->m_is_applied = true;
@@ -1366,7 +1362,7 @@ void View::deepCopyView(View* copy, int allocID) const
   case EXTERNAL:
     if(!copy->isAllocated())
     {
-      copy->allocate(allocID);
+      copy->allocate(arrayAllocId);
     }
     if(isApplied())
     {
@@ -1391,7 +1387,7 @@ void View::deepCopyView(View* copy, int allocID) const
   case BUFFER:
     if(isAllocated() && !copy->isAllocated())
     {
-      copy->allocate(allocID);
+      copy->allocate(arrayAllocId);
     }
     if(isApplied())
     {
@@ -1441,7 +1437,7 @@ bool View::isAllocateValid() const
     rv = isDescribed();
     break;
   case STRING:
-  case SCALAR:
+  case TUPLE:
   case EXTERNAL:
     SLIC_CHECK_MSG(false,
                    SIDRE_VIEW_LOG_PREPEND << "Allocate is not valid for view in '"
@@ -1486,7 +1482,7 @@ bool View::isApplyValid() const
   {
   case EMPTY:
   case STRING:
-  case SCALAR:
+  case TUPLE:
     SLIC_CHECK_MSG(false,
                    SIDRE_VIEW_LOG_PREPEND << "Apply is not valid for View with state '"
                                           << getStateStringName(m_state) << "'.'");
@@ -1534,8 +1530,8 @@ char const* View::getStateStringName(State state)
   case EXTERNAL:
     ret_string = "EXTERNAL";
     break;
-  case SCALAR:
-    ret_string = "SCALAR";
+  case TUPLE:
+    ret_string = "TUPLE";
     break;
   case STRING:
     ret_string = "STRING";
@@ -1570,9 +1566,9 @@ View::State View::getStateId(const std::string& name) const
   {
     res = EXTERNAL;
   }
-  else if(name == "SCALAR")
+  else if(name == "TUPLE")
   {
-    res = SCALAR;
+    res = TUPLE;
   }
   else if(name == "STRING")
   {
@@ -1646,7 +1642,7 @@ void View::exportTo(conduit::Node& data_holder, std::set<IndexType>& buffer_indi
       data_holder["state"] = getStateStringName(EMPTY);
     }
     break;
-  case SCALAR:
+  case TUPLE:
   case STRING:
     data_holder["value"] = getNode();
     break;
@@ -1700,7 +1696,7 @@ void View::importFrom(conduit::Node& data_holder, const std::map<IndexType, Inde
   case EXTERNAL:
     importDescription(data_holder);
     break;
-  case SCALAR:
+  case TUPLE:
   case STRING:
     m_node = data_holder["value"];
     m_schema.set(m_node.schema());
@@ -1737,7 +1733,7 @@ View* View::importArrayNode(const Node& array)
       conduit::index_t num_ele = array_dtype.number_of_elements();
       conduit::index_t ele_bytes = DataType::default_bytes(array_dtype.id());
 
-      int allocID = m_owning_group->getDefaultAllocatorID();
+      int allocID = m_owning_group->getDefaultArrayAllocatorID();
       buff->allocate((TypeID)array_dtype.id(), num_ele, allocID);
 
       // copy the data in a way that matches
@@ -2093,41 +2089,24 @@ const char* View::getAttributeString(const Attribute* attr) const
   return m_attr_values.getString(attr);
 }
 
-/*
- *************************************************************************
- *
- * PRIVATE method to return a valid umpire::Allocator ID.
- *
- *************************************************************************
- */
-int View::getValidAxomAllocatorID(int allocID)
+int View::getValidArrayAllocatorId(int allocId)
 {
-#ifdef AXOM_USE_UMPIRE
-  if(allocID == INVALID_ALLOCATOR_ID)
-  {
-    allocID = getOwningGroup()->getDefaultAllocatorID();
-  }
-#endif
-
-  return allocID;
+  return getOwningGroup()->getValidArrayAllocatorId(allocId);
 }
 
-/*
- *************************************************************************
- *
- * PRIVATE method to return a valid Conduit allocator ID.
- *
- *************************************************************************
- */
-int View::getValidConduitAllocatorID(int allocID)
+int View::getValidTupleAllocatorId(int allocId)
 {
-  if(allocID == INVALID_ALLOCATOR_ID)
-  {
-    allocID = getOwningGroup()->getDefaultAllocatorID();
-  }
-  auto conduitAllocId = ConduitMemory::axomAllocIdToConduit(allocID);
+  return getOwningGroup()->getValidTupleAllocatorId(allocId);
+}
 
-  return conduitAllocId;
+int View::getValidAllocatorId(int allocId)
+{
+  if(allocId != axom::INVALID_ALLOCATOR_ID) { return allocId; }
+  auto semId = getSemanticId();
+  if(semId == REFERENCE) { return getOwningGroup()->getValidArrayAllocatorId(allocId); }
+  if(semId == VALUE) { return getOwningGroup()->getValidTupleAllocatorId(allocId); }
+  SLIC_ASSERT_MSG(false, "Axom internal error: Cannot determine semantic valid allocator id"); // Should never get here.
+  return axom::INVALID_ALLOCATOR_ID;
 }
 
 } /* end namespace sidre */
