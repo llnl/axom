@@ -309,8 +309,6 @@ public:
     SLIC_ASSERT(allocId == axom::MALLOC_ALLOCATOR_ID);
 #endif
     m_default_allocator_id = allocId;
-    m_default_allocator_id_conduit =
-      axom::ConduitMemory::instanceForAxomId(m_default_allocator_id).conduitId();
     return this;
   }
 
@@ -2005,7 +2003,6 @@ private:
   GroupCollection* m_group_coll;
 
   int m_default_allocator_id;
-  conduit::index_t m_default_allocator_id_conduit;
 };
 
 } /* end namespace sidre */
