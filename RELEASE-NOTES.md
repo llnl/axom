@@ -72,6 +72,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   of about 20% during InOutOctree construction and queries over STL surface meshes relative to the previous sparsehash
   implementation. Please reach out to Axom developers if this affects you while we work on fixes for these.
 - Klee: Moves source files related to IO into a new `io` subdirectory in the Klee component
+- Primal: Consolidates construction logic for `BezierCurve`, `BezierPatch`, `KnotVector`,
+  `NURBSCurve` and `NURBSPatch` classes and add overloads from `axom::ArrayView`
 
 ###  Fixed
 - Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
