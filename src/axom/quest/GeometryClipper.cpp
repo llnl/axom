@@ -74,18 +74,21 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
 
     if(m_verbose)
     {
-      axom::IndexType inCount;
-      axom::IndexType onCount;
-      axom::IndexType outCount;
-      getLabelCounts(labels.view(), inCount, onCount, outCount);
+      axom::IndexType countsa[4];
+      axom::IndexType countsb[4];
+      getLabelCounts(labels.view(), countsa[0], countsa[1], countsa[2]);
+      countsa[3] = m_shapeeMesh.getCellCount();
+#ifdef AXOM_USE_MPI
+      MPI_Reduce(countsa, countsb, 4, axom::mpi_traits<axom::IndexType>::type, MPI_SUM, 0, MPI_COMM_WORLD);
+#endif
       std::string msg = axom::fmt::format(
-        "GeometryClipper with strategy '{}' labeled cells {} inside, {} on and {} outside, out of {} "
-        "cells",
+        "GeometryClipper strategy '{}' labeled cells {} inside, {} on and {} outside, out of {} "
+        "cells\n",
         m_strategy->name(),
-        inCount,
-        onCount,
-        outCount,
-        m_shapeeMesh.getCellCount());
+        countsb[0],
+        countsb[1],
+        countsb[2],
+        countsb[3]);
       SLIC_INFO(msg);
     }
 
@@ -106,6 +109,10 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
   }
   else  // !withInOut
   {
+    std::string msg = axom::fmt::format(
+      "GeometryClipper strategy '{}' did not provide in/out cell labels.\n",
+      m_strategy->name());
+    SLIC_INFO(msg);
     m_delegate->initVolumeOverlaps(ovlap);
     done = m_strategy->specializedClip(m_shapeeMesh, ovlap);
 

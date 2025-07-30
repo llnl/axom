@@ -32,6 +32,8 @@ namespace primal
 
   A negative length is allowed and results in a negative volume.
   Radii must be non-negative.
+
+  A cylinder can be represented using equal base and top radii.
 */
 template <typename T, int NDIMS>
 class Cone
@@ -116,6 +118,9 @@ public:
 
   //! \brief Return algebraic length of the cone.
   AXOM_HOST_DEVICE T getLength() const { return m_topZ - m_baseZ; }
+
+  //! \brief Return the coordinates at the (z=0, r=0) point
+  AXOM_HOST_DEVICE const PointType& getOrigin() const { return m_origin; }
 
   //! \brief Return the axis direction.
   AXOM_HOST_DEVICE const VectorType& getDirection() const { return m_direction; }

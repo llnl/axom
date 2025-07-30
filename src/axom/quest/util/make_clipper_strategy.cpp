@@ -12,6 +12,7 @@
 #include "axom/quest/HexClipper.hpp"
 #include "axom/quest/SphereClipper.hpp"
 #include "axom/quest/FSorClipper.hpp"
+#include "axom/quest/SorClipper.hpp"
 #include "axom/slic/interface/slic_macros.hpp"
 
 namespace axom
@@ -51,6 +52,14 @@ std::shared_ptr<GeometryClipperStrategy> make_clipper_strategy(
     strategy.reset(new SphereClipper(kleeGeometry, instanceName));
   }
   else if(format == "sor3D")
+  {
+    strategy.reset(new SorClipper(kleeGeometry, instanceName));
+  }
+  else if(format == "cyl3D")
+  {
+    strategy.reset(new FSorClipper(kleeGeometry, instanceName));
+  }
+  else if(format == "cone3D")
   {
     strategy.reset(new FSorClipper(kleeGeometry, instanceName));
   }

@@ -59,6 +59,7 @@ public:
   using Point3D = axom::primal::Point<double, 3>;
   using Vector3D = axom::primal::Vector<double, 3>;
   using Sphere3D = axom::primal::Sphere<double, 3>;
+  using Cone3D = axom::primal::Cone<double, 3>;
   using Tet3D = axom::primal::Tetrahedron<double, 3>;
   using Hex3D = axom::primal::Hexahedron<double, 3>;
   using Plane3D = axom::primal::Plane<double, 3>;
@@ -146,6 +147,7 @@ public:
    *
    * The \c discreteFunction should be an Nx2 array, interpreted as
    * (z,r) pairs, where z is the axial distance and r is the radius.
+   * Point i has (z,r) = (discreteFunction(i,0), discreteFunction(i,1))
    * The \c sorOrigin coordinates corresponds to z=0.
    * \c sorAxis should point in the direction of increasing z.
    */
@@ -153,6 +155,21 @@ public:
            axom::ArrayView<const double, 2> discreteFunction,
            const Point3D &sorOrigin,
            const Vector3D &sorDirection,
+           axom::IndexType levelOfRefinement,
+           std::shared_ptr<GeometryOperator const> operator_);
+
+  /**
+   * Create a cone Geometry object.
+   *
+   * \param startProperties the transformable properties before any
+   * operators are applied
+   * \param sphere Analytical sphere specifications
+   * \param levelOfRefinement Number of refinement levels to use for
+   *        discretizing the sphere.
+   * \param operator_ a possibly null operator to apply to the geometry.
+   */
+  Geometry(const TransformableGeometryProperties &startProperties,
+           const axom::primal::Cone<double, 3> &cone,
            axom::IndexType levelOfRefinement,
            std::shared_ptr<GeometryOperator const> operator_);
 
@@ -180,6 +197,8 @@ public:
   */
   const conduit::Node &asHierarchy() const { return m_geomInfo; }
 
+  conduit::Node &asHierarchy() { return m_geomInfo; }
+
   /**
    * @brief Get the format in which the geometry was specified.
    *
@@ -192,7 +211,6 @@ public:
    * - "sphere3D" = 3D sphere, as \c primal::Sphere<double,3>
    * - "sor3D" = 3D surface of revolution.
    * - "cone3D" = 3D cone, as \c primal::Cone<double,3>
-   * - "cylinder3D" = 3D cylinder, as \c primal::Cylinder<double,3>
    * - "hex3D" = 3D hexahedron (8 points)
    * - "plane3D" = 3D plane
    *
@@ -296,6 +314,12 @@ public:
   const axom::primal::Sphere<double, 3> &getSphere() const { return m_sphere; }
 
   /**
+   @brief Return the cone geometry, when the Geometry
+   represents an alalytical cone.
+  */
+  const axom::primal::Cone<double, 3> &getCone() const { return m_cone; }
+
+  /**
    @brief Return the plane geometry, when the Geometry
    represents a plane.
   */
@@ -335,6 +359,9 @@ private:
 
   //!@brief The analytical sphere, if used.
   Sphere3D m_sphere;
+
+  //!@brief The analytical cone (or cylinder), if used.
+  Cone3D m_cone;
 
   //! @brief The discrete r(z) function, as an Nx2 array, if used.
   axom::Array<double, 2> m_discreteFunction;

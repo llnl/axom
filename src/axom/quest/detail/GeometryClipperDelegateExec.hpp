@@ -507,7 +507,7 @@ public:
     {
       tetCandidatesCount = NUM_TETS_PER_HEX*candidates.size();
       AXOM_ANNOTATE_SCOPE("GeometryClipper::clipLoop_limited");
-#if 1
+#if 0
       // Verifying: this should always pass.
       if(tetCandidatesCountPtr != &tetCandidatesCount)
       {
