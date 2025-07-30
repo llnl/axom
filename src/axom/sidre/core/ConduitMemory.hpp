@@ -29,6 +29,8 @@
 
 namespace axom
 {
+namespace sidre
+{
 
 /*!
   @brief Object to do Conduit memory operations through Axom.
@@ -156,7 +158,7 @@ private:
     @brief Constructor creates allocator/deallocator function and registers
     them with Conduit.
   */
-  ConduitMemory(int axomAllocId) : m_axomId(axomAllocId)
+  explicit ConduitMemory(int axomAllocId) : m_axomId(axomAllocId)
   {
     privateRegisterAllocator();
   }
@@ -164,6 +166,7 @@ private:
   void privateRegisterAllocator();
 };
 
+} /* end namespace sidre */
 } /* end namespace axom */
 
 #endif  // AXOM_USE_CONDUIT

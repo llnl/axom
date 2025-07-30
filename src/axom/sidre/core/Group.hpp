@@ -19,7 +19,6 @@
 // axom headers
 #include "axom/config.hpp"
 #include "axom/core/Array.hpp"
-#include "axom/core/ConduitMemory.hpp"
 #include "axom/core/ItemCollection.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/MapCollection.hpp"

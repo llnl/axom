@@ -16,7 +16,6 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/MapCollection.hpp"
 #include "axom/core/Path.hpp"
-#include "axom/core/ConduitMemory.hpp"
 
 // Sidre headers
 #include "Buffer.hpp"

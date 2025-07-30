@@ -15,7 +15,7 @@
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/Macros.hpp"
-#include "axom/core/ConduitMemory.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 namespace axom
 {
@@ -306,12 +306,12 @@ View* View::reallocateTo(int newAllocId)
   {
     // Data is stored in m_node.
     conduit::index_t conduitAllocId = m_node.allocator();
-    const auto& currentMemOp = axom::ConduitMemory::instanceForConduitId(conduitAllocId);
+    const auto& currentMemOp = ConduitMemory::instanceForConduitId(conduitAllocId);
     int currentAllocId = currentMemOp.axomId();
 
     if(currentAllocId != newAllocId)
     {
-      const auto& newMemOp = axom::ConduitMemory::instanceForAxomId(newAllocId);
+      const auto& newMemOp = ConduitMemory::instanceForAxomId(newAllocId);
       conduit::Node tmpNode;
       m_node.swap(tmpNode);
       m_node.set_allocator(newMemOp.conduitId());
@@ -1356,7 +1356,7 @@ void View::deepCopyView(View* copy, int allocID) const
     break;
   case STRING:
   case SCALAR:
-    copy->m_node.set_allocator(axom::ConduitMemory::axomAllocIdToConduit(allocID));
+    copy->m_node.set_allocator(ConduitMemory::axomAllocIdToConduit(allocID));
     copy->m_node.set_node(m_node);
     copy->m_state = m_state;
     copy->m_is_applied = true;
@@ -2123,7 +2123,7 @@ int View::getValidConduitAllocatorID(int allocID)
   {
     allocID = getOwningGroup()->getDefaultAllocatorID();
   }
-  auto conduitAllocId = axom::ConduitMemory::axomAllocIdToConduit(allocID);
+  auto conduitAllocId = ConduitMemory::axomAllocIdToConduit(allocID);
 
   return conduitAllocId;
 }

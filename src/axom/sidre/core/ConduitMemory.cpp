@@ -3,10 +3,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/core/ConduitMemory.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 namespace axom
 {
+namespace sidre
+{
+
 std::map<int, std::shared_ptr<ConduitMemory>> ConduitMemory::s_axomToInstance;
 std::map<conduit::index_t, std::shared_ptr<ConduitMemory>> ConduitMemory::s_conduitToInstance;
 const conduit::index_t ConduitMemory::s_defaultConduitId = conduit::Node().allocator();
@@ -279,4 +282,6 @@ const ConduitMemory& ConduitMemory::instanceForConduitId(conduit::index_t condui
 
   return *it->second;
 }
+
+}  // end namespace sidre
 }  // end namespace axom

@@ -21,6 +21,7 @@ axom_component_requires(NAME       Sidre
 set(sidre_headers
     core/Array.hpp
     core/Buffer.hpp
+    core/ConduitMemory.hpp
     core/Group.hpp
     core/DataStore.hpp
     core/View.hpp
@@ -31,6 +32,7 @@ set(sidre_headers
 
 set(sidre_sources
     core/Buffer.cpp
+    core/ConduitMemory.cpp
     core/Group.cpp
     core/DataStore.cpp
     core/View.cpp
