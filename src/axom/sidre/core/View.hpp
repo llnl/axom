@@ -1572,7 +1572,7 @@ private:
    */
   bool isHostAccessible() const;
 
-  //!@brief Print on host, as a single line.
+  //!@brief Print as a single line, in a way that won't crash for non-host data.
   template <typename T>
   void hostPrintScalar(std::ostream& os = std::cout) const
   {

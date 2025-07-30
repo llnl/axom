@@ -304,9 +304,7 @@ public:
    */
   Group* setDefaultAllocator(int allocId)
   {
-#if !defined(AXOM_USE_UMPIRE)
-    SLIC_ASSERT(allocId == axom::MALLOC_ALLOCATOR_ID);
-#endif
+    SLIC_ASSERT(allocId != axom::INVALID_ALLOCATOR_ID);
     m_default_allocator_id = allocId;
     return this;
   }
@@ -1368,9 +1366,12 @@ public:
   void printTree(const int nlevels, std::ostream& os = std::cout) const;
 
   /*!
-    * \brief Print in a way that won't crash for non-host data.
+    * \brief Print Groups and Views in the hierarchy rooted at this group,
+    * in a way that won't crash for non-host data.
     *
     * If data is not host-accessible, print the pointer and a comment.
+    *
+    * This is a recursive method.
     */
   void hostPrint(const std::string& indent = "", std::ostream& os = std::cout) const;
 

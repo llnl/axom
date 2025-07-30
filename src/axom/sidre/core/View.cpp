@@ -1043,18 +1043,20 @@ void View::hostPrint(std::ostream& os) const
       hostPrintArray<std::int64_t>();
       break;
     default:
-      os << ' ' << getVoidPtr() << " # non-host unknown scalar data";
+      os << ' ' << getVoidPtr()
+         << " # " << (isHostAccessible() ? "" : "non-") << "host data of unrecognized type id "
+         << getTypeID();
     }
   }
   else if(isOpaque())
   {
     if(isHostAccessible())
     {
-      os << ' ' << " # opaque host data";
+      os << ' ' << getVoidPtr() << " # opaque host data";
     }
     else
     {
-      os << ' ' << " # opaque non-host data";
+      os << ' ' << getVoidPtr() << " # opaque non-host data";
     }
   }
 }
