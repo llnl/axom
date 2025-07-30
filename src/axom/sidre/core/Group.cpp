@@ -1505,32 +1505,26 @@ bool Group::deepCopyToConduit(Node& dst, const Attribute* attr) const
   bool hasSavedViews = false;
 
   // Dump the group's views
-  IndexType vidx = getFirstValidViewIndex();
-  while(indexIsValid(vidx))
+  for(auto& view : views())
   {
-    const View* view = getView(vidx);
-
     // Check that the view's name is not also a child group name
-    SLIC_CHECK_MSG(m_is_list || !hasChildGroup(view->getName()),
-                   SIDRE_GROUP_LOG_PREPEND << "'" << view->getName()
+    SLIC_CHECK_MSG(m_is_list || !hasChildGroup(view.getName()),
+                   SIDRE_GROUP_LOG_PREPEND << "'" << view.getName()
                                            << "' is the name of both a group and a view.");
 
-    if(attr == nullptr || view->hasAttributeValue(attr))
+    if(attr == nullptr || view.hasAttributeValue(attr))
     {
-      conduit::Node& child_node = m_is_list ? dst.append() : dst[view->getName()];
-      view->deepCopyToConduit(child_node);
+      conduit::Node& child_node = m_is_list ? dst.append() : dst[view.getName()];
+      view.deepCopyToConduit(child_node);
       hasSavedViews = true;
     }
-    vidx = getNextValidViewIndex(vidx);
   }
 
   // Recursively dump the child groups
-  IndexType gidx = getFirstValidGroupIndex();
-  while(indexIsValid(gidx))
+  for(auto& group : groups())
   {
-    const Group* group = getGroup(gidx);
-    conduit::Node& child_node = m_is_list ? dst.append() : dst[group->getName()];
-    if(group->deepCopyToConduit(child_node, attr))
+    conduit::Node& child_node = m_is_list ? dst.append() : dst[group.getName()];
+    if(group.deepCopyToConduit(child_node, attr))
     {
       hasSavedViews = true;
     }
@@ -1538,14 +1532,13 @@ bool Group::deepCopyToConduit(Node& dst, const Attribute* attr) const
     {
       if(m_is_list)
       {
-        dst.remove(group->getName());
+        dst.remove(group.getName());
       }
       else
       {
         dst.remove(dst.number_of_children() - 1);
       }
     }
-    gidx = getNextValidGroupIndex(gidx);
   }
 
   return hasSavedViews;
