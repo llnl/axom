@@ -259,7 +259,8 @@ public:
         SLIC_INFO(axom::fmt::format("After welding, surface mesh has {} vertices  and {} elements.",
                                     nVerts,
                                     nCells));
-        mint::write_vtk(m_surfaceMesh.get(), axom::fmt::format("melded_shape_mesh_{}.vtk", shapeName));
+        mint::write_vtk(m_surfaceMesh.get(),
+                        axom::fmt::format("melded_shape_mesh_{}.vtk", shapeName));
       }
       else if(!m_contours.empty())
       {
