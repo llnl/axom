@@ -974,9 +974,8 @@ void View::hostPrint(std::ostream& os) const
       hostPrintArray<std::int64_t>();
       break;
     default:
-      os << ' ' << getVoidPtr()
-         << " # " << (isHostAccessible() ? "" : "non-") << "host data of unrecognized type id "
-         << getTypeID();
+      os << ' ' << getVoidPtr() << " # " << (isHostAccessible() ? "" : "non-")
+         << "host data of unrecognized type id " << getTypeID();
     }
   }
   else if(isOpaque())
@@ -2036,11 +2035,21 @@ int View::getValidTupleAllocatorId(int allocId)
 
 int View::getValidAllocatorId(int allocId)
 {
-  if(allocId != axom::INVALID_ALLOCATOR_ID) { return allocId; }
-  auto semId = getSemanticId();
-  if(semId == REFERENCE) { return getOwningGroup()->getValidArrayAllocatorId(allocId); }
-  if(semId == VALUE) { return getOwningGroup()->getValidTupleAllocatorId(allocId); }
-  SLIC_ASSERT_MSG(false, "Axom internal error: Cannot determine semantic valid allocator id"); // Should never get here.
+  if(allocId != axom::INVALID_ALLOCATOR_ID)
+  {
+    return allocId;
+  }
+  if (m_state == BUFFER || m_state == EXTERNAL)
+  {
+    return getOwningGroup()->getValidArrayAllocatorId(allocId);
+  }
+  if (m_state == TUPLE || m_state == STRING)
+  {
+    return getOwningGroup()->getValidTupleAllocatorId(allocId);
+  }
+  SLIC_ASSERT_MSG(
+    false,
+    "Axom internal error: Cannot determine semantic valid allocator id");  // Should never get here.
   return axom::INVALID_ALLOCATOR_ID;
 }
 

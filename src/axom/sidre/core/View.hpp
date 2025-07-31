@@ -30,7 +30,6 @@
 #include "axom/slic.hpp"
 
 // Sidre headers
-#include "axom/sidre/core/DataSemantic.hpp"
 #include "axom/sidre/core/ConduitMemory.hpp"
 #include "axom/sidre/core/SidreTypes.hpp"
 #include "axom/sidre/core/AttrValues.hpp"
@@ -1585,13 +1584,6 @@ private:
    *  \brief Private method returns state enum value give a state name.
    */
   State getStateId(const std::string& name) const;
-
-  DataSemantic getSemanticId() const
-  {
-    if (m_state == BUFFER || m_state == EXTERNAL) { return REFERENCE; }
-    if (m_state == TUPLE || m_state == STRING) { return VALUE; }
-    return UNKNOWN;
-  }
 
   /*!
    * If allocID == INVALID_ALLOCATOR_ID, return the default allocator id,
