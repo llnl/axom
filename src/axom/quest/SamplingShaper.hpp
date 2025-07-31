@@ -212,6 +212,7 @@ private:
         else
         {
           SLIC_ERROR("Unreachable code reached in getShapeDimension().");
+          return klee::Dimensions::Unspecified;
         }
       },
       m_sampler);
@@ -270,6 +271,7 @@ public:
 
     const auto& shapeName = shape.getName();
 
+    // Initialize the sampler based on shape format
     // note: ignoring the global shapeDimension for now since it's causing problems
     // reading c2c when the dimension is Three
     AXOM_UNUSED_VAR(shapeDimension);
@@ -314,6 +316,9 @@ public:
         break;
       }
     }
+
+    SLIC_ASSERT(hasValidSampler());
+
     // Use visitor to initialize the sampler
     std::visit(
       [this](auto& sampler) {
@@ -339,9 +344,6 @@ public:
         }
       },
       m_sampler);
-
-    // Check that one of sampling shapers (2D or 3D) is null and the other is not
-    SLIC_ASSERT(hasValidSampler());
 
     // Output some logging info and dump the mesh
     if(this->isVerbose() && this->getRank() == 0)
@@ -378,7 +380,7 @@ public:
     SLIC_INFO_ROOT(
       axom::fmt::format("{:-^80}", axom::fmt::format(" Querying for shape '{}'", shape.getName())));
 
-    // Use visitor to run shape query
+    // Impl function allows us to handle different capabilities of each shaper
     std::visit(
       [this](auto& sampler) {
         using T = std::decay_t<decltype(sampler)>;
@@ -480,7 +482,7 @@ public:
   {
     AXOM_ANNOTATE_SCOPE("finalizeShapeQuery");
 
-    m_sampler = std::monostate();
+    m_sampler = std::monostate();  // frees memory associated w/ the sampler
 
     SLIC_WARNING_IF(
       m_surfaceMesh.use_count() > 1,
@@ -977,6 +979,7 @@ private:
   shaping::DenseTensorCollection m_inoutTensors;
   shaping::MFEMArrayCollection m_inoutArrays;
 
+  // Holds an instance of the 2D or 3D sampler; only one can be active at a time
   SamplerVariant m_sampler;
   axom::Array<axom::primal::CurvedPolygon<double, 2>> m_contours;
 
