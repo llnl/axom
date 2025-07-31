@@ -420,20 +420,6 @@ public:
   View* reallocate(const DataType& dtype);
 
   /*!
-   * \brief Reallocate data to a new allocator.
-   *
-   * If the state is EMPTY or allocId is the current
-   * allocator or is axom::INVALID_ALLOCATOR_ID, this is a no-op.
-   * Reallocating an EXTERNAL View means allocating it internally.
-   * (This could be revisited, but it is the behavior for now.)
-   * The state will change from EXTERNAL to STRING or TUPLE,
-   * determined by a heuristic guess.
-   *
-   * \return pointer to this View object.
-   */
-  View* reallocateTo(int newAllocId);
-
-  /*!
    * \brief  Deallocate data for view.
    *
    * \note Deallocation from a view is only allowed under the conditions

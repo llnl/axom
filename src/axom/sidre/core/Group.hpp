@@ -371,22 +371,6 @@ public:
   }
 
   /*!
-   * \brief Reallocate data to View-specific allocators.
-   *
-   * \param [i] viewToAllocatorId A function that returns the allocator
-   *   id to reallocate the View's data to.  Where it returns
-   *   the View's current allocator or axom::INVALID_ALLOCATOR_ID,
-   *   the View is unchanged.
-   *
-   * \return pointer to this Group object.
-   *
-   * This method is recursive.
-   *
-   * This does NOT change any Group's default allocator.
-   */
-  Group* reallocateTo(const std::function<int(const View&)>& viewToAllocatorId);
-
-  /*!
    * \brief Insert information about data associated with Group subtree with
    *        this Group at root of tree (default 'recursive' is true), or for 
    *        this Group only ('recursive' is false) in fields of given 

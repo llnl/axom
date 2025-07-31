@@ -1415,32 +1415,6 @@ Group* Group::deepCopyGroupToSelf(const Group* srcGroup)
 /*
  *************************************************************************
  *
- * Reallocate data to View-specific allocators.
- *
- *************************************************************************
- */
-Group* Group::reallocateTo(const std::function<int(const View&)>& viewToAllocatorId)
-{
-  for(auto& grp : groups())
-  {
-    grp.reallocateTo(viewToAllocatorId);
-  }
-
-  for(auto& view : views())
-  {
-    int newAllocId = viewToAllocatorId(view);
-    if(newAllocId != axom::INVALID_ALLOCATOR_ID)
-    {
-      view.reallocateTo(newAllocId);
-    }
-  }
-
-  return this;
-}
-
-/*
- *************************************************************************
- *
  * Copy Group native layout to given Conduit node.
  *
  *************************************************************************

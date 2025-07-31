@@ -2086,13 +2086,10 @@ TEST(sidre_view, reallocate_to)
       std::cout << "Testing transfering allocator id " << origArrayAllocId << " and " << origTupleAllocId << " to " << testArrayAllocId << " and " << testTupleAllocId
                 << std::endl;
 
-      // auto viewToAllocatorId = [=](const View&) { return testArrayAllocId; };
-
       Group* testGrp = ds.getRoot()->createGroup("testGrp");
       testGrp->setDefaultArrayAllocator(testArrayAllocId);
       testGrp->setDefaultTupleAllocator(testTupleAllocId);
       testGrp->deepCopyGroupToSelf(orig);
-      // testGrp->reallocateTo(viewToAllocatorId);
       if(axom::execution_space<axom::SEQ_EXEC>::usesAllocId(testArrayAllocId))
       {
         std::cout << "test group:" << std::endl;

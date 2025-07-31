@@ -460,41 +460,6 @@ std::shared_ptr<sidre::MFEMSidreDataCollection> shapingDC;
 axom::sidre::Group* compMeshGrp = nullptr;
 std::shared_ptr<conduit::Node> compMeshNode;
 
-/*
-  Whether View data should live on host or another allocator (like device data).
-  Return the "right" choice based on View type, using a heuristic.
-  as determined by heuristics.
-  Ordered by likeliest to be correct.
-*/
-auto viewToStandardAllocator = [](const axom::sidre::View& v) {
-  if(v.isString() || (v.isExternal() && v.getNumElements() == 1))
-  {
-    // String or likely external string
-    return hostAllocId;
-  }
-  if((v.hasBuffer() || v.isExternal()) && (v.getName() == "offsets" || v.getName() == "strides") &&
-     (v.getNumElements() <= 3))
-  {
-    // Likely Blueprint specification of array offsets or strides.
-    return hostAllocId;
-  }
-  if(v.hasBuffer() && v.getPath().find("/values/") == std::string::npos)
-  {
-    // Likely Blueprint mesh data or coordinate values.
-    return arrayAllocId;
-  }
-  if(v.isScalar() || (v.isExternal() && v.getNumElements() == 1))
-  {
-    // Scalar or likely external scalar
-    return hostAllocId;
-  }
-  if(v.hasBuffer() && v.getNumElements() <= 3)
-  {
-    return hostAllocId;
-  }
-  return arrayAllocId;
-};
-
 axom::sidre::Group* createBoxMesh(axom::sidre::Group* meshGrp)
 {
   switch(params.getBoxDim())
@@ -546,7 +511,6 @@ axom::sidre::Group* createBoxMesh(axom::sidre::Group* meshGrp)
   auto hostAllocForScalarAndStringViews = [](const axom::sidre::View& v) {
     return (v.isScalar() || v.isString()) ? hostAllocId : axom::INVALID_ALLOCATOR_ID;
   };
-  meshGrp->reallocateTo(hostAllocForScalarAndStringViews);
 
   return meshGrp;
 }
@@ -1716,12 +1680,9 @@ int main(int argc, char** argv)
   if(params.useBlueprintSidre() || params.useBlueprintConduit())
   {
     compMeshGrp = ds.getRoot()->createGroup("compMesh");
-    compMeshGrp->setDefaultAllocator(arrayAllocId);
+    compMeshGrp->setDefaultArrayAllocator(arrayAllocId);
 
     createBoxMesh(compMeshGrp);
-
-    // Move memory to standard allocators.
-    compMeshGrp->reallocateTo(viewToStandardAllocator);
 
     if(params.useBlueprintConduit())
     {
@@ -1853,28 +1814,8 @@ int main(int argc, char** argv)
     // Finalize data structures associated with this shape and spatial index
     shaper->finalizeShapeQuery();
     slic::flushStreams();
-
-    if(compMeshGrp)
-    {
-      compMeshGrp->reallocateTo(viewToStandardAllocator);
-    }
   }
   AXOM_ANNOTATE_END("shaping");
-
-  if(params.useBlueprintSidre() || params.useBlueprintConduit())
-  {
-    // The shaper created some blueprint nodes that we need to move to the host.
-    auto hostAllocForScalarAndStringViews = [](const axom::sidre::View& v) {
-      return (v.isScalar() || v.isString()) ? hostAllocId : axom::INVALID_ALLOCATOR_ID;
-    };
-
-    if(compMeshGrp->getDefaultAllocatorID() != hostAllocId)
-    {
-      compMeshGrp->reallocateTo(hostAllocForScalarAndStringViews);
-      compMeshNode = std::make_shared<conduit::Node>();
-      compMeshGrp->createNativeLayout(*compMeshNode);
-    }
-  }
 
   //---------------------------------------------------------------------------
   // After shaping in all shapes, generate/adjust the material volume fractions
