@@ -54,7 +54,7 @@ std::string SIMPLE_DOCUMENT = R"(
     {
       "type": "run",
       "application": "test",
-      "id": "bar1",
+      "local_id": "bar1",
       "data": {
         "int": {
           "value": 500,
@@ -102,7 +102,9 @@ std::string SIMPLE_DOCUMENT = R"(
         }
       }
     }
-  ]
+  ],
+  "relationships": [{"local_subject": "bar1", "predicate": "knows", "object": "something"},
+                    {"local_subject": "bar1", "predicate": "this_is", "object": "unique"}]
 }
 )";
 
@@ -115,7 +117,7 @@ std::string MULTI_REC_DOCUMENT = R"(
                        "int": {"value": 20}},
               "type": "run",
               "application": "test",
-              "id": "bar1",
+              "local_id": "bar1",
               "user_defined":{"hello": "and",
                               "foo": "notbar"},
               "curve_sets": {
@@ -148,7 +150,9 @@ std::string MULTI_REC_DOCUMENT = R"(
                   }
               }
           }
-      ]
+      ],
+      "relationships": [{"local_subject": "bar1", "predicate": "knows", "object": "something"},
+                        {"local_subject": "bar2", "predicate": "sees", "object": "bar1"}]
   })";
 
 // Full-featured multi-record document to test appending into.
@@ -299,51 +303,6 @@ std::vector<double> node_to_double_vector(const conduit::Node &node)
     }
   }
   return result;
-}
-
-// We need to call these asserts multiple times for the append failures
-void ValidateRecordsUnchanged(const conduit::Node &root, const std::string &context = "")
-{
-  std::vector<double> expected, actual;
-  SCOPED_TRACE("Validation context: " + context);
-
-  ASSERT_EQ(root["records"].number_of_children(), 2);
-
-  const conduit::Node &rec0 = root["records"].child(0);
-  ASSERT_EQ(rec0["id"].as_string(), "bar1");
-  ASSERT_EQ(rec0["type"].as_string(), "foo1");
-  ASSERT_EQ(rec0["data"]["scal1"]["value"].as_string(), "hello!");
-  ASSERT_FALSE(rec0["data"].has_child("scal2"));
-  ASSERT_EQ(rec0["user_defined"]["hello"].as_string(), "and");
-  expected = {1.0, 2.0};
-  actual = node_to_double_vector(rec0["curve_sets"]["1"]["dependent"]["0"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {10.0, 20.0};
-  actual = node_to_double_vector(rec0["curve_sets"]["1"]["dependent"]["1"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {4.0, 5.0};
-  actual = node_to_double_vector(rec0["curve_sets"]["1"]["independent"]["0"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {7.0, 8.0};
-  actual = node_to_double_vector(rec0["curve_sets"]["1"]["independent"]["1"]["value"]);
-  ASSERT_EQ(actual, expected);
-  ASSERT_FALSE(rec0["curve_sets"].has_child("2"));
-
-  const conduit::Node &rec1 = root["records"].child(1);
-  ASSERT_EQ(rec1["id"].as_string(), "bar2");
-  ASSERT_EQ(rec1["type"].as_string(), "foo2");
-  expected = {1.0, 2.0};
-  actual = node_to_double_vector(rec1["curve_sets"]["1"]["dependent"]["0"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {10.0, 20.0};
-  actual = node_to_double_vector(rec1["curve_sets"]["1"]["dependent"]["1"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {4.0, 5.0};
-  actual = node_to_double_vector(rec1["curve_sets"]["1"]["independent"]["0"]["value"]);
-  ASSERT_EQ(actual, expected);
-  expected = {7.0, 8.0};
-  actual = node_to_double_vector(rec1["curve_sets"]["1"]["independent"]["1"]["value"]);
-  ASSERT_EQ(actual, expected);
 }
 
 // Tests
@@ -557,7 +516,7 @@ TEST(Document, create_fromJson_full_json)
 TEST(Document, create_fromJson_value_check_json)
 {
   axom::sina::Document myDocument = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
-  EXPECT_EQ(0, myDocument.getRelationships().size());
+  EXPECT_EQ(2, myDocument.getRelationships().size());
   auto &records1 = myDocument.getRecords();
   EXPECT_EQ(1, records1.size());
   EXPECT_EQ(records1[0]->getType(), "run");
@@ -645,30 +604,6 @@ TEST(Document, load_defaultRecordLoaders)
   EXPECT_NE(nullptr, loadedRun);
 }
 
-// Get us a file handle for a basic document.
-conduit::relay::io::IOHandle setup_basic_file()
-{
-  std::string jsonFilePath = "simple_sina_doc.json";
-  std::ofstream testFile(jsonFilePath);
-  testFile << SIMPLE_DOCUMENT;
-  testFile.close();
-  conduit::relay::io::IOHandle simpleDoc;
-  simpleDoc.open(jsonFilePath);
-  return simpleDoc;
-}
-
-//Figure out where the librarydata is going
-conduit::relay::io::IOHandle do_hideous_print_append(const std::string &json_value)
-{
-  std::string jsonFilePath = "simple_sina_doc.json";
-  std::ofstream testFile(jsonFilePath);
-  testFile << SIMPLE_DOCUMENT;
-  testFile.close();
-  conduit::relay::io::IOHandle simpleDoc;
-  simpleDoc.open(jsonFilePath);
-  return simpleDoc;
-}
-
 TEST(Document, test_validate_append_typeclash)
 {
   conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
@@ -685,7 +620,7 @@ TEST(Document, test_validate_append_protocol_clash)
   conduit::Node appendTo = parseJsonValue(SIMPLE_DOCUMENT);
   // Note lack of id or type--could be a librarydata for all the method should care
   conduit::Node appendFrom =
-    parseJsonValue(R"({"id": "rec_1", "type": "run", "data": { "int": {"value": 20}}})");
+    parseJsonValue(R"({"data": { "int": {"value": 20}}})");
   conduit::Node msgNode = validateAppendDocument(appendTo, appendFrom, "", 3, 0);
   ASSERT_EQ(msgNode.number_of_children(), 1);
   ASSERT_EQ(msgNode.child(0).to_string(),
@@ -792,7 +727,6 @@ void doEveryErrorTest(const std::string &protocol,
   // Make sure no data changed
   conduit::Node root;
   conduit::relay::io::load(append_to_file, root);
-  std::cerr << resultMsg.to_string() << std::endl;
   conduit::Node expect_root = parseJsonValue(SIMPLE_DOCUMENT);
   EXPECT_EQ(expect_root["records"].child(0)["id"].to_string(),
             root["records"].child(0)["id"].to_string());
@@ -833,13 +767,12 @@ TEST(Document, test_simpleAppendDocumentToJson)
   doSimpleAppendTest("json", appendDocumentToJson);
 }
 
-// TODO: re-enable with better logging
-/*#ifdef AXOM_USE_HDF5
+#ifdef AXOM_USE_HDF5
 TEST(Document, test_simpleAppendDocumentToHDF5)
 {
   doSimpleAppendTest("hdf5", appendDocumentToHDF5);
 }
-#endif*/
+#endif
 
 void doFullAppendTest(const std::string &protocol,
                       std::function<conduit::Node(const std::string&, const sina::Document&, int)> appendDocumentFunc){
@@ -885,6 +818,11 @@ void doFullAppendTest(const std::string &protocol,
   expected = {7, 8, 9, -4, -5, -6};
   actual = node_to_double_vector(rec0["curve_sets"]["set_1"]["independent"]["1"]["value"]);
   EXPECT_EQ(expected, actual);
+  EXPECT_EQ(expected, actual);
+  // Relationships are easy, we just need the union (no duplicates)
+  const conduit::Node &rels = root["relationships"];
+  EXPECT_EQ(rels.number_of_children(), 3);
+  EXPECT_EQ(rels.to_string(), "\n- \n  predicate: \"knows\"\n  local_subject: \"bar1\"\n  object: \"something\"\n- \n  predicate: \"sees\"\n  local_subject: \"bar2\"\n  object: \"bar1\"\n- \n  predicate: \"this_is\"\n  local_subject: \"bar1\"\n  object: \"unique\"\n");
   return;
 }
 
@@ -931,7 +869,7 @@ TEST(Document, create_fromJson_value_check_hdf5)
   std::vector<std::string> expected_string_vals = {"z", "o", "o"};
   saveDocument(myDocument, "data_json.hdf5", Protocol::HDF5);
   Document loadedDocument = loadDocument("data_json.hdf5", Protocol::HDF5);
-  EXPECT_EQ(0, loadedDocument.getRelationships().size());
+  EXPECT_EQ(2, loadedDocument.getRelationships().size());
   auto &records2 = loadedDocument.getRecords();
   EXPECT_EQ(1, records2.size());
   EXPECT_EQ(records2[0]->getType(), "run");

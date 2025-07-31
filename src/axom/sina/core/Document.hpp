@@ -207,9 +207,11 @@ public:
   /**
    *  \brief Convert this document to the HDF5 format (escaped slashes)
    * 
+   *  \param writeTo an empty conduit node to write the new node into
+   * 
    *  \return This node with slashes escaped for HDF5.
    */
-  conduit::Node toHDF5Node() const;
+  conduit::Node &toHDF5Node(conduit::Node &writeTo) const;
 
   /**
    *  \brief Dump this document as an HDF5 File
