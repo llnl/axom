@@ -100,7 +100,7 @@ public:
   friend class Group;
   friend class Buffer;
 
-  //@{
+  ///@{
   //!  @name View query and accessor methods
 
   /*!
@@ -340,9 +340,9 @@ public:
    */
   bool isUpdateableFrom(const View* other) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View allocation methods
 
   /*!
@@ -430,7 +430,7 @@ public:
    */
   View* deallocate();
 
-  //@}
+  ///@}
 
   /*!
    * \brief Reshape the array without changing its size.
@@ -520,7 +520,7 @@ public:
    */
   void clear();
 
-  //@{
+  ///@{
   //!  @name Methods to apply View description to data.
 
   /*!
@@ -595,9 +595,9 @@ public:
    */
   View* apply(const DataType& dtype);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to set data in the view (scalar, string, tuple or external data).
 
   /*!
@@ -834,7 +834,7 @@ public:
     return this;
   }
 
-  //@}
+  ///@}
 
   /*!
  * \brief Update the data in this View with the data in other
@@ -844,7 +844,7 @@ public:
  */
   View* updateFrom(const View* other);
 
-  //@{
+  ///@{
   //! @name Methods to retrieve data in a view.
 
   /*!
@@ -963,9 +963,9 @@ public:
    */
   void* getVoidPtr() const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View print methods.
 
   /*!
@@ -985,7 +985,7 @@ public:
    */
   void hostPrint(std::ostream& os = std::cout) const;
 
-  //@}
+  ///@}
 
   /*!
    * \brief Copy data view description to given Conduit node.
@@ -1033,7 +1033,7 @@ public:
    */
   bool rename(const std::string& new_name);
 
-  //@{
+  ///@{
   //!  @name Attribute Value query and accessor methods
 
   /*!
@@ -1365,13 +1365,13 @@ public:
     return m_attr_values.getNextValidAttrValueIndex(idx);
   }
 
-  //@}
+  ///@}
 
 private:
   DISABLE_DEFAULT_CTOR(View);
   DISABLE_MOVE_AND_ASSIGNMENT(View);
 
-  //@{
+  ///@{
   //!  @name Private View ctor and dtor
   //!        (callable only by Group and View methods).
 
@@ -1391,9 +1391,9 @@ private:
    */
   ~View();
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Private View declaration methods.
   //!        (callable only by Group and View methods).
 
@@ -1535,9 +1535,9 @@ private:
     unapply();
   }
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Private methods that indicate when certain view operations are valid.
 
   /*!
@@ -1552,7 +1552,7 @@ private:
    */
   bool isApplyValid() const;
 
-  //@}
+  ///@}
 
   ///
   /// Enum with constants that identify the state of a view.

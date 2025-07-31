@@ -114,6 +114,20 @@ AXOM_TYPED_TEST(core_flatmap, default_init)
   EXPECT_EQ(true, test_map.empty());
 }
 
+AXOM_TYPED_TEST(core_flatmap, prealloc_buckets)
+{
+  using MapType = typename TestFixture::MapType;
+
+  const std::vector<int> sizes = {100, 400, 1000, 4000, 10000};
+
+  for(int size : sizes)
+  {
+    MapType test_map(size);
+    EXPECT_EQ(0, test_map.size());
+    EXPECT_LE(size, test_map.bucket_count() * test_map.max_load_factor());
+  }
+}
+
 AXOM_TYPED_TEST(core_flatmap, insert_only)
 {
   using MapType = typename TestFixture::MapType;
@@ -743,3 +757,70 @@ AXOM_TYPED_TEST(core_flatmap, copy_host_device)
 }
 
 #endif
+
+AXOM_TYPED_TEST(core_flatmap, empty_view)
+{
+  using MapType = typename TestFixture::MapType;
+  MapType test_map;
+
+  const int EMPTY_CHECKS = 100;
+
+  // Create a read-only view from the FlatMap
+  auto view = test_map.view();
+
+  EXPECT_EQ(view.empty(), test_map.empty());
+  EXPECT_EQ(view.size(), test_map.size());
+  EXPECT_EQ(view.bucket_count(), test_map.bucket_count());
+
+  for(int i = 0; i < EMPTY_CHECKS; i++)
+  {
+    auto key = this->getKey(i);
+
+    EXPECT_EQ(view.contains(key), false);
+    EXPECT_EQ(view.count(key), 0);
+    EXPECT_EQ(view.find(key), view.end());
+  }
+}
+
+AXOM_TYPED_TEST(core_flatmap, init_view)
+{
+  using MapType = typename TestFixture::MapType;
+  MapType test_map;
+
+  const int NUM_ELEMS = 100;
+  const int EMPTY_CHECKS = 100;
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    test_map.insert({key, value});
+  }
+
+  // Create a read-only view from the FlatMap
+  auto view = test_map.view();
+
+  EXPECT_EQ(view.empty(), test_map.empty());
+  EXPECT_EQ(view.size(), test_map.size());
+  EXPECT_EQ(view.bucket_count(), test_map.bucket_count());
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+
+    EXPECT_EQ(view.contains(key), true);
+    EXPECT_EQ(view.count(key), 1);
+    EXPECT_EQ(view.find(key)->first, test_map.find(key)->first);
+    EXPECT_EQ(view.find(key)->second, test_map.find(key)->second);
+  }
+
+  for(int i = NUM_ELEMS; i < NUM_ELEMS + EMPTY_CHECKS; i++)
+  {
+    auto key = this->getKey(i);
+
+    EXPECT_EQ(view.contains(key), false);
+    EXPECT_EQ(view.count(key), 0);
+    EXPECT_EQ(view.find(key), view.end());
+  }
+}

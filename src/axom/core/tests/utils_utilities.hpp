@@ -298,19 +298,19 @@ TEST(utils_utilities, lerp)
 
 //------------------------------------------------------------------------------
 template <typename T>
-std::vector<T> make_vector(int index, int repeats, int size)
+axom::Array<T> make_array(int index, int repeats, int size)
 {
-  std::vector<T> vec;
-  vec.reserve(size + repeats - 1);
+  axom::Array<T> arr;
+  arr.reserve(size + repeats - 1);
   for(int i = 0; i < size; i++)
   {
     int n = (i == index) ? repeats : 1;
     for(int j = 0; j < n; j++)
     {
-      vec.push_back(i);
+      arr.push_back(i);
     }
   }
-  return vec;
+  return arr;
 }
 
 TEST(core_Utilities, binary_search)
@@ -329,9 +329,9 @@ TEST(core_Utilities, binary_search)
           const int searchValue = index;
           const int notFoundValue = SIZE + 1;
 
-          const auto vec = make_vector<int>(index, repeats, size);
-          const auto foundIndex = axom::utilities::binary_search(vec, searchValue);
-          const auto notFoundIndex = axom::utilities::binary_search(vec, notFoundValue);
+          const auto arr = make_array<int>(index, repeats, size);
+          const auto foundIndex = axom::utilities::binary_search(arr, searchValue);
+          const auto notFoundIndex = axom::utilities::binary_search(arr, notFoundValue);
           EXPECT_EQ(foundIndex, index);
           EXPECT_EQ(notFoundIndex, -1);
         }
@@ -340,9 +340,9 @@ TEST(core_Utilities, binary_search)
           const double searchValue = index;
           const double notFoundValue = SIZE + 1;
 
-          const auto vec = make_vector<double>(index, repeats, size);
-          const auto foundIndex = axom::utilities::binary_search(vec, searchValue);
-          const auto notFoundIndex = axom::utilities::binary_search(vec, notFoundValue);
+          const auto arr = make_array<double>(index, repeats, size);
+          const auto foundIndex = axom::utilities::binary_search(arr, searchValue);
+          const auto notFoundIndex = axom::utilities::binary_search(arr, notFoundValue);
           EXPECT_EQ(foundIndex, index);
           EXPECT_EQ(notFoundIndex, -1);
         }

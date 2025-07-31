@@ -40,6 +40,18 @@ tioga-rocmcc_6_2_1_hip-src:
     HOST_CONFIG: "tioga-toss_4_x86_64_ib_cray-${COMPILER}.cmake"
   extends: .src_build_on_tioga
 
+# TODO: Translate this job to tuolumne to accomodate node requirements
+# tioga-rocmcc_6_3_1_hip-gpu-aware-src:
+#   variables:
+#     COMPILER: "rocmcc@6.3.1_hip"
+#     HOST_CONFIG: "tioga-toss_4_x86_64_ib_cray-${COMPILER}.cmake"
+#     ALLOC_TIME: "60"
+#     NUM_NODES: "2"
+#   extends: .src_build_on_tioga
+#   before_script:
+#     - module load cmake/3.21.1
+#     - export MPICH_GPU_SUPPORT_ENABLED=1
+
 ####
 # Full Build jobs
 tioga-rocmcc_6_2_1_hip-full:

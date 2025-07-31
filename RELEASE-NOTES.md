@@ -38,13 +38,25 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   compile and run. These constructs are templated on the `ExecSpace` _(execution space)_ so it
   is not necessary to query RAJA policies via the `execution_space` type traits classes.
 - 2D and 3D implementations for `axom::for_all` were added.
+- Adds `axom::FlatMapView`, a helper class associated with `axom::FlatMap` to support queries from
+  within a GPU kernel.
+- Adds an `axom::FlatMap::create()` method to support constructing a hash map over a batch of keys
+  and values on the GPU or with OpenMP.
 - Adds support for custom allocators to `axom::FlatMap`.
 - Primal: Adds ability to perform sample-based shaping on tetrahedral shapes.
 - Improves efficiency of volume fraction computation from quadrature samples during sample-based shaping.
 - Adds a `axom::DeviceHash` type as a GPU-enabled version of the `std::hash` interface.
 - Added a new `quest::STLWriter` class that writes mint meshes to STL format.
+- Adds `assign` methods to `axom::Array`.
+- Adds `assign`, `fill`, `set` methods to `axom::ArrayView`.
+- Core: Adds a `TempFile` class to Axom's FileUtilities to help with generating temp files with unique file
+  names that can be automatically removed when the instance goes out of scope.
+- Klee: We now support optional specification of a per-shape `dimensions` field for the 
+  geometry of a shape. These can be used to override the global `dimensions` 
+  of a Klee input file.
 
 ###  Changed
+- Axom now requires `C++17` and will default to that if not specified via `BLT_CXX_STD`.
 - Fixed `Timer::elapsed*()` methods so they properly report the sum of all start/stop cycles
   since the last `reset()`.
 - Adds support for allocations using `malloc` and `free` even when Axom is configured with Umpire support.
@@ -55,10 +67,24 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   nothing when called on invalid bounding boxes.
 - Updates to [MFEM version 4.8.0][https://github.com/mfem/mfem/releases/tag/v4.8]
 - Readers in Quest were moved from a `quest/readers` directory to `quest/io`.
+- Sina: Renames a Fortran module to `sina_hdf5_config` (from `hdf5_config`)
+- Spin: Uses `axom::FlatMap` in `SparseOctreeLevel` implementation. We have observed a performance regression
+  of about 20% during InOutOctree construction and queries over STL surface meshes relative to the previous sparsehash
+  implementation. Please reach out to Axom developers if this affects you while we work on fixes for these.
+- Klee: Moves source files related to IO into a new `io` subdirectory in the Klee component
+- Primal: Consolidates construction logic for `BezierCurve`, `BezierPatch`, `KnotVector`,
+  `NURBSCurve` and `NURBSPatch` classes and add overloads from `axom::ArrayView`
 
 ###  Fixed
 - Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
   with GPU support. Instances where this occurs will now trigger a static assertion during compile time.
+- Fixes build with `ninja` generator
+- Primal: Fixes a `BoundingBox` constructor with zero (or fewer) points
+- Sina: Fixes configuration variables related to inclusion of `AdiakWriter.hpp` and to hdf5 support in `sina_fortran_interface.f`
+- Spin: Fixes undefined behavior in BVH tree construction associated with using signed indexes
+- Spin: Fixes undefined behavior in UniformGrid construction associated with invalid geometry bounding boxes
+- Core: Fixes undefined behavior in MapCollection when searching empty collections
+- Core: Fixes some edge cases in the `joinPath` file utility
 
 ###  Deprecated
 - Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.

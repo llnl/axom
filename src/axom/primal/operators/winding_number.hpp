@@ -254,7 +254,7 @@ double winding_number(const Point<T, 2>& q,
   return ret_val;
 }
 
-//@{
+///@{
 //! @name Winding number operations between 3D points and primitives
 
 /*!
@@ -648,7 +648,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
   return ret_val;
 }
 #endif
-//@}
+///@}
 
 }  // namespace primal
 }  // namespace axom

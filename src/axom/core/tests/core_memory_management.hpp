@@ -556,3 +556,45 @@ TEST(core_memory_management, interspace_reallocation)
   axom::deallocate(origOnHost);
   axom::deallocate(tempOnHost);
 }
+
+//------------------------------------------------------------------------------
+TEST(core_memory_management, test_fill)
+{
+  // Allocator ids to test.
+  std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
+#ifdef AXOM_USE_UMPIRE
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
+  #ifdef AXOM_USE_GPU
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
+    // Does it make sense to check Pinned and Constant memory spaces?
+  #endif
+#endif
+
+  constexpr std::size_t N = 500;
+  int* hostData = axom::allocate<int>(N, axom::MALLOC_ALLOCATOR_ID);
+  int iteration = 0;
+  for(auto allocId : allocIds)
+  {
+    std::cout << "Testing allocator id " << allocId << std::endl;
+
+    // Allocate buffer using allocId and fill it.
+    int* buffer = axom::allocate<int>(N, allocId);
+    const int fillValue = 12345 + iteration;
+    axom::fill(buffer, N, fillValue);
+
+    // Copy back to host
+    axom::copy(hostData, buffer, N * sizeof(int));
+
+    // Make sure elements have the right fill value.
+    for(std::size_t i = 0; i < N; i++)
+    {
+      EXPECT_EQ(hostData[i], fillValue);
+    }
+
+    axom::deallocate(buffer);
+    iteration++;
+  }
+
+  axom::deallocate(hostData);
+}

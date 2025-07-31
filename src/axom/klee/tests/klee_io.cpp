@@ -3,17 +3,18 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/klee/IO.hpp"
+#include "axom/klee/io/IO.hpp"
+#include "axom/klee/GeometryOperators.hpp"
+#include "axom/klee/KleeError.hpp"
 
-#include <fstream>
-#include <sstream>
+#include "axom/slic.hpp"
+
+#include "KleeMatchers.hpp"
 
 #include "gtest/gtest.h"
 
-#include "axom/klee/GeometryOperators.hpp"
-#include "axom/klee/KleeError.hpp"
-#include "axom/slic/core/SimpleLogger.hpp"
-#include "KleeMatchers.hpp"
+#include <fstream>
+#include <sstream>
 
 namespace axom
 {
@@ -41,6 +42,7 @@ TEST(IOTest, readShapeSet_noShapes)
   EXPECT_TRUE(shapeSet.getShapes().empty());
   EXPECT_EQ(Dimensions::Two, shapeSet.getDimensions());
   EXPECT_NE(Dimensions::Three, shapeSet.getDimensions());
+  EXPECT_NE(Dimensions::Unspecified, shapeSet.getDimensions());
 }
 
 TEST(IOTest, readShapeSet_invalidDimensions)
@@ -72,15 +74,20 @@ TEST(IOTest, readShapeSet_shapeWithNoReplacementLists)
 
   auto &shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
+
   auto &shape = shapes[0];
   EXPECT_TRUE(shape.replaces("mat1"));
   EXPECT_TRUE(shape.replaces("mat2"));
   EXPECT_EQ("wheel", shape.getName());
   EXPECT_EQ("steel", shape.getMaterial());
+
   auto &geometry = shape.getGeometry();
   EXPECT_EQ("test_format", geometry.getFormat());
   EXPECT_EQ("path/to/file.format", geometry.getPath());
   EXPECT_FALSE(geometry.getGeometryOperator());
+
+  EXPECT_EQ(geometry.getInputDimensions(), Dimensions::Two);
+  EXPECT_EQ(geometry.getOutputDimensions(), Dimensions::Two);
 }
 
 TEST(IOTest, readShapeSet_shapeWithReplacesList)
@@ -98,6 +105,7 @@ TEST(IOTest, readShapeSet_shapeWithReplacesList)
 
   auto &shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
+
   auto &shape = shapes[0];
   EXPECT_TRUE(shape.replaces("mat1"));
   EXPECT_TRUE(shape.replaces("mat2"));
@@ -119,6 +127,7 @@ TEST(IOTest, readShapeSet_shapeWithDoesNotReplaceList)
 
   auto &shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
+
   auto &shape = shapes[0];
   EXPECT_FALSE(shape.replaces("mat1"));
   EXPECT_FALSE(shape.replaces("mat2"));
@@ -314,7 +323,13 @@ TEST(IOTest, readShapeSet_geometryOperators)
   ASSERT_TRUE(geometryOperator);
   auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
+
   EXPECT_EQ(2u, composite->getOperators().size());
+
+  auto rotation = dynamic_cast<const Rotation *>(composite->getOperators()[0].get());
+  ASSERT_NE(rotation, nullptr);
+  EXPECT_EQ(rotation->getAngle(), 90);
+
   auto translation = dynamic_cast<const Translation *>(composite->getOperators()[1].get());
   ASSERT_NE(translation, nullptr);
   EXPECT_THAT(translation->getOffset(), AlmostEqVector(Vector3D {10, 20, 0}));
@@ -364,11 +379,13 @@ TEST(IOTest, readShapeSet_geometryOperatorsWithUnits)
     )");
   auto &shapes = shapeSet.getShapes();
   ASSERT_EQ(1u, shapes.size());
-  auto &shape = shapes[0];
-  auto &geometryOperator = shape.getGeometry().getGeometryOperator();
+
+  auto &geometryOperator = shapes[0].getGeometry().getGeometryOperator();
   ASSERT_TRUE(geometryOperator);
+
   auto composite = std::dynamic_pointer_cast<const CompositeOperator>(geometryOperator);
   ASSERT_TRUE(composite);
+
   EXPECT_EQ(2u, composite->getOperators().size());
   auto translation = dynamic_cast<const Translation *>(composite->getOperators()[1].get());
   ASSERT_NE(translation, nullptr);
@@ -407,6 +424,173 @@ TEST(IOTest, readShapeSet_differentDimensions)
   EXPECT_EQ(1u, composite->getOperators().size());
   auto slice = std::dynamic_pointer_cast<const SliceOperator>(composite->getOperators()[0]);
   EXPECT_TRUE(slice);
+}
+
+TEST(IOTest, readShapeSet_explicitDimensions)
+{
+  // let's start w/ a global dimension of 2
+  {
+    auto shapeSet = readShapeSetFromString(R"(
+      dimensions: 2
+      shapes:
+        - name: no_explicit_dims
+          material: mat0
+          geometry:
+            format: test_format
+            path: path/to/file0.format
+            units: cm
+        - name: explicit_dims_same_as_global
+          material: mat1
+          geometry:
+            format: test_format
+            path: path/to/file1.format
+            units: cm
+            dimensions: 2
+        - name: explicit_dims_different_from_global
+          material: mat2
+          geometry:
+            format: test_format
+            path: path/to/file2.format
+            units: cm
+            dimensions: 3
+        - name: explicit_dims_with_start_dim
+          material: mat3
+          geometry:
+            format: test_format
+            path: path/to/file3.format
+            units: cm
+            start_dimensions: 3
+            dimensions: 2
+            operators:
+              - slice:
+                 x: 10
+    )");
+
+    auto &shapes = shapeSet.getShapes();
+    ASSERT_EQ(4u, shapes.size());
+
+    const Dimensions exp_global_dims {Dimensions::Two};
+    EXPECT_EQ(shapeSet.getDimensions(), exp_global_dims);
+
+    // no_explicit_dims -- should be same as global dims
+    {
+      auto &geometry = shapes[0].getGeometry();
+      const Dimensions exp_start_dims {Dimensions::Two};
+      const Dimensions exp_end_dims {Dimensions::Two};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
+      EXPECT_EQ(geometry.getOutputDimensions(), exp_global_dims);
+    }
+
+    // explicit_dims_same_as_global -- should be same as global dims
+    {
+      auto &geometry = shapes[1].getGeometry();
+      const Dimensions exp_start_dims {Dimensions::Two};
+      const Dimensions exp_end_dims {Dimensions::Two};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
+    }
+
+    // explicit_dims_different_from_global -- differs from global dims
+    {
+      auto &geometry = shapes[2].getGeometry();
+      const Dimensions exp_start_dims {Dimensions::Three};
+      const Dimensions exp_end_dims {Dimensions::Three};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
+    }
+
+    // explicit_dims_with_start_dim -- changes dimension
+    {
+      auto &geometry = shapes[3].getGeometry();
+      const Dimensions exp_start_dims {Dimensions::Three};
+      const Dimensions exp_end_dims {Dimensions::Two};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
+    }
+  }
+
+  // next, we'll test a global dimension of 3
+  {
+    auto shapeSet = readShapeSetFromString(R"(
+      dimensions: 3
+      shapes:
+        - name: no_explicit_dims
+          material: mat0
+          geometry:
+            format: test_format
+            path: path/to/file0.format
+            units: cm
+        - name: explicit_dims_same_as_global
+          material: mat1
+          geometry:
+            format: test_format
+            path: path/to/file1.format
+            units: cm
+            dimensions: 3
+        - name: explicit_dims_different_from_global
+          material: mat2
+          geometry:
+            format: test_format
+            path: path/to/file2.format
+            units: cm
+            dimensions: 2
+        - name: explicit_dims_with_start_dim
+          material: mat3
+          geometry:
+            format: test_format
+            path: path/to/file3.format
+            units: cm
+            start_dimensions: 3
+            dimensions: 2
+            operators:
+              - slice:
+                 x: 10
+    )");
+
+    auto &shapes = shapeSet.getShapes();
+    ASSERT_EQ(4u, shapes.size());
+
+    const Dimensions exp_global_dims {Dimensions::Three};
+    EXPECT_EQ(shapeSet.getDimensions(), exp_global_dims);
+
+    // no_explicit_dims -- should be same as global dims
+    {
+      auto &geometry = shapes[0].getGeometry();
+      const Dimensions exp_start_dims {Dimensions::Three};
+      const Dimensions exp_end_dims {Dimensions::Three};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
+      EXPECT_EQ(geometry.getOutputDimensions(), exp_global_dims);
+    }
+
+    // explicit_dims_same_as_global -- should be same as global dims
+    {
+      auto &geometry = shapes[1].getGeometry();
+      const Dimensions exp_start_dims {Dimensions::Three};
+      const Dimensions exp_end_dims {Dimensions::Three};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
+    }
+
+    // explicit_dims_different_from_global -- differs from global dims
+    {
+      auto &geometry = shapes[2].getGeometry();
+      const Dimensions exp_start_dims {Dimensions::Two};
+      const Dimensions exp_end_dims {Dimensions::Two};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
+    }
+
+    // explicit_dims_with_start_dim -- changes dimension
+    {
+      auto &geometry = shapes[3].getGeometry();
+      const Dimensions exp_start_dims {Dimensions::Three};
+      const Dimensions exp_end_dims {Dimensions::Two};
+      EXPECT_EQ(exp_start_dims, geometry.getInputDimensions());
+      EXPECT_EQ(exp_end_dims, geometry.getOutputDimensions());
+    }
+  }
 }
 
 TEST(IOTest, readShapeSet_wrongEndDimensions)
