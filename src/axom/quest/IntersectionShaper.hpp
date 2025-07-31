@@ -2599,10 +2599,10 @@ private:
           // valuesView = fieldGrp->createView("values");
           valuesView =
             fieldGrp->createViewWithShape("values", axom::sidre::DataTypeId::FLOAT64_ID, 2, shape);
-          fieldGrp->createView("association")->setString("element", hostAllocId);
-          fieldGrp->createView("topology")->setString(m_bpTopo, hostAllocId);
+          fieldGrp->createView("association")->setString("element");
+          fieldGrp->createView("topology")->setString(m_bpTopo);
           fieldGrp->createView("volume_dependent")
-            ->setString(std::string(volumeDependent ? "true" : "false"), hostAllocId);
+            ->setString(std::string(volumeDependent ? "true" : "false"));
           valuesView->allocate();
         }
       }

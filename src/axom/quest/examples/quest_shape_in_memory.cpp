@@ -1217,9 +1217,9 @@ axom::sidre::View* getElementVolumes(
 
       // Allocate and populate cell volumes.
       axom::sidre::Group* fieldGrp = meshGrp->createGroup(fieldPath);
-      fieldGrp->createViewString("topology", topoName, hostAllocId);
-      fieldGrp->createViewString("association", "element", hostAllocId);
-      fieldGrp->createViewString("volume_dependent", "true", hostAllocId);
+      fieldGrp->createViewString("topology", topoName);
+      fieldGrp->createViewString("association", "element");
+      fieldGrp->createViewString("volume_dependent", "true");
       volSidreView =
         fieldGrp->createViewAndAllocate("values", axom::sidre::detail::SidreTT<double>::id, cellCount);
       axom::IndexType shape2d[] = {cellCount, 1};
@@ -1315,9 +1315,9 @@ axom::sidre::View* getElementVolumes(
 
       // Allocate and populate cell volumes.
       axom::sidre::Group* fieldGrp = meshGrp->createGroup(fieldPath);
-      fieldGrp->createViewString("topology", topoName, hostAllocId);
-      fieldGrp->createViewString("association", "element", hostAllocId);
-      fieldGrp->createViewString("volume_dependent", "true", hostAllocId);
+      fieldGrp->createViewString("topology", topoName);
+      fieldGrp->createViewString("association", "element");
+      fieldGrp->createViewString("volume_dependent", "true");
       volSidreView =
         fieldGrp->createViewAndAllocate("values", axom::sidre::detail::SidreTT<double>::id, cellCount);
       axom::IndexType shape2d[] = {cellCount, 1};
@@ -1729,9 +1729,9 @@ int main(int argc, char** argv)
       auto makeField = [&](const std::string& fieldName, double initValue) {
         auto fieldGrp = compMeshGrp->createGroup("fields/" + fieldName);
         axom::IndexType shape[] = {params.getBoxCellCount(), 1};
-        fieldGrp->createViewString("association", "element", hostAllocId);
-        fieldGrp->createViewString("topology", topoName, hostAllocId);
-        fieldGrp->createViewString("volume_dependent", "true", hostAllocId);
+        fieldGrp->createViewString("association", "element");
+        fieldGrp->createViewString("topology", topoName);
+        fieldGrp->createViewString("volume_dependent", "true");
         axom::sidre::View* valuesView =
           fieldGrp->createViewWithShapeAndAllocate("values",
                                                    axom::sidre::detail::SidreTT<double>::id,
