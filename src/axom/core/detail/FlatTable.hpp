@@ -38,12 +38,15 @@ struct QuadraticProbing
  *  Uses the "mxmxm" function described here:
  *  https://jonkagstrom.com/bit-mixer-construction/index.html
  */
-template <typename KeyType, typename HashFunc>
+template <typename KeyType, template <typename> class HashFunc>
 struct HashMixer64
 {
+  using argument_type = typename HashFunc<KeyType>::argument_type;
+  using result_type = typename HashFunc<KeyType>::result_type;
+
   uint64_t operator()(const KeyType& key) const
   {
-    uint64_t hash = HashFunc {}(key);
+    uint64_t hash = HashFunc<KeyType> {}(key);
     hash *= 0xbf58476d1ce4e5b9ULL;
     hash ^= hash >> 32;
     hash *= 0x94d049bb133111ebULL;

@@ -162,6 +162,20 @@ void check_fill(axom::Array<T, DIM, SPACE>& v)
   {
     EXPECT_EQ(v_host[i], MAGIC_NUM_1);
   }
+
+  //--------------------------------------------------------
+  // Test view fill. All elements contain MAGIC_NUM_1 now.
+
+  /* Fill the Array View with MAGIC_NUM_0. */
+  v.view().fill(MAGIC_NUM_0);
+
+  v_host = axom::Array<T, DIM>(v, host_alloc_id);
+
+  /* Check that the entries are all MAGIC_NUM_0. */
+  for(axom::IndexType i = 0; i < size; ++i)
+  {
+    EXPECT_EQ(v_host[i], MAGIC_NUM_0);
+  }
 }
 
 /*!
