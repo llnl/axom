@@ -382,7 +382,7 @@ public:
    * \param [in] knots_v A 1D C-style array of npts_v + deg_v + 1 knots
    * \param [in] nkts_v The number of knots in the v direction
    * 
-   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires valid pointers and knot vectors
    */
   NURBSPatch(const PointType* pts,
@@ -409,7 +409,7 @@ public:
    * \param [in] knots_v A 1D C-style array of npts_v + deg_v + 1 knots
    * \param [in] nkts_v The number of knots in the v direction
    * 
-   * For clamped and continuous curves, npts and the knot vector  uniquely determine the degree
+   * For clamped and continuous patch axes, npts and the knot vector  uniquely determine the degree
    * \pre Requires valid pointers and knot vectors
    */
   NURBSPatch(const PointType* pts,
@@ -434,7 +434,7 @@ public:
    * \param [in] knots_u An axom::Array of npts_u + deg_u + 1 knots
    * \param [in] knots_v An axom::Array of npts_v + deg_v + 1 knots
    * 
-   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
@@ -457,7 +457,7 @@ public:
    * \param [in] knots_u An axom::Array of npts_u + deg_u + 1 knots
    * \param [in] knots_v An axom::Array of npts_v + deg_v + 1 knots
    * 
-   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
@@ -479,7 +479,7 @@ public:
    * \param [in] npts_u, npts_v The number of control points on the first and second axis
    * \param [in] knotvec_u, knotvec_v  KnotVector objects for the first and second axis
    * 
-   * For clamped and continuous curves, npts and the knot vectoruniquely determine the degree
+   * For clamped and continuous patch axes, npts and the knot vectoruniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
@@ -501,7 +501,7 @@ public:
    * \param [in] npts_u, npts_v The number of control points on the first and second axis
    * \param [in] knotvec_u, knotvec_v KnotVector objects for the first and second axis
    * 
-   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
@@ -523,7 +523,7 @@ public:
    * \param [in] knots_u An axom::Array of npts_u + deg_u + 1 knots
    * \param [in] knots_v An axom::Array of npts_v + deg_v + 1 knots
    * 
-   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts, const axom::Array<T>& knots_u, const axom::Array<T>& knots_v)
@@ -541,7 +541,7 @@ public:
    * \param [in] knots_u An axom::Array of npts_u + deg_u + 1 knots
    * \param [in] knots_v An axom::Array of npts_v + deg_v + 1 knots
    * 
-   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts,
@@ -560,7 +560,7 @@ public:
    * \param [in] pts A 2D axom::Array of (ord_u+1, ord_v+1) control points
    * \param [in] knotvec_u, knotvec_v KnotVector objects for the first and second axis
    * 
-   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts, const KnotVectorType& knotvec_u, const KnotVectorType& knotvec_v)
@@ -574,7 +574,7 @@ public:
    * \param [in] weights A 2D axom::Array of (ord_u+1, ord_v+1) positive weights
    * \param [in] knotvec_u, knotvec_v KnotVector objects for the first and second axis
    * 
-   * For clamped and continuous curves, npts and the knot vector uniquely determine the degree
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts,
@@ -831,7 +831,7 @@ public:
   ///@}
 
   ///@{
-  /// \name Query/modify curve's geometry (control points, weights, bounding box, ...)
+  /// \name Query/modify patch's geometry (control points, weights, bounding box, ...)
 
   /// Retrieves the control point at index \a (idx_p, idx_q)
   PointType& operator()(int ui, int vi) { return m_controlPoints(ui, vi); }
