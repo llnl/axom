@@ -2534,7 +2534,6 @@ private:
   axom::ArrayView<double> getScalarCellData(const std::string& fieldName, bool volumeDependent = false)
   {
     axom::ArrayView<double> rval;
-    const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
 #if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
