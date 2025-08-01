@@ -544,7 +544,7 @@ void DiscreteShape::createRepresentationOfSOR()
 
   // Rotate to the SOR axis direction and translate to the base location.
   numerics::Matrix<double> rotate = sorAxisRotMatrix(sorGeom.getSorDirection());
-  const auto& translate = sorGeom.getSorBaseCoords();
+  const auto& translate = sorGeom.getSorOriginCoords();
   auto octsView = octs.view();
   axom::for_all<axom::SEQ_EXEC>(
     octCount,
