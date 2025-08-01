@@ -29,11 +29,11 @@ spack:
       modules: []
       operating_system: rhel7
       paths:
-        cc:  /usr/tce/packages/gcc/gcc-8.3.1/bin/gcc
-        cxx: /usr/tce/packages/gcc/gcc-8.3.1/bin/g++
-        f77: /usr/tce/packages/gcc/gcc-8.3.1/bin/gfortran
-        fc:  /usr/tce/packages/gcc/gcc-8.3.1/bin/gfortran
-      spec: gcc@8.3.1.1
+        cc:  /usr/tce/packages/gcc/gcc-11.2.1/bin/gcc
+        cxx: /usr/tce/packages/gcc/gcc-11.2.1/bin/g++
+        f77: /usr/tce/packages/gcc/gcc-11.2.1/bin/gfortran
+        fc:  /usr/tce/packages/gcc/gcc-11.2.1/bin/gfortran
+      spec: gcc@11.2.1.1
       target: ppc64le
   - compiler:
       environment: {}
@@ -42,11 +42,11 @@ spack:
       modules: []
       operating_system: rhel7
       paths:
-        cc:  /usr/tce/packages/gcc/gcc-8.3.1/bin/gcc
-        cxx: /usr/tce/packages/gcc/gcc-8.3.1/bin/g++
-        f77: /usr/tce/packages/gcc/gcc-8.3.1/bin/gfortran
-        fc:  /usr/tce/packages/gcc/gcc-8.3.1/bin/gfortran
-      spec: gcc@8.3.1.2
+        cc:  /usr/tce/packages/gcc/gcc-11.2.1/bin/gcc
+        cxx: /usr/tce/packages/gcc/gcc-11.2.1/bin/g++
+        f77: /usr/tce/packages/gcc/gcc-11.2.1/bin/gfortran
+        fc:  /usr/tce/packages/gcc/gcc-11.2.1/bin/gfortran
+      spec: gcc@11.2.1.2
       target: ppc64le
   - compiler:
       environment: {}
@@ -57,11 +57,11 @@ spack:
       modules: []
       operating_system: rhel7
       paths:
-        cc:  /usr/tce/packages/clang/clang-ibm-10.0.1-gcc-8.3.1/bin/clang
-        cxx: /usr/tce/packages/clang/clang-ibm-10.0.1-gcc-8.3.1/bin/clang++
-        f77: /usr/tce/packages/gcc/gcc-8.3.1/bin/gfortran
-        fc:  /usr/tce/packages/gcc/gcc-8.3.1/bin/gfortran
-      spec: clang@10.0.1.1
+        cc:  /usr/tce/packages/clang/clang-ibm-16.0.6-gcc-11.2.1/bin/clang
+        cxx: /usr/tce/packages/clang/clang-ibm-16.0.6-gcc-11.2.1/bin/clang++
+        f77: /usr/tce/packages/gcc/gcc-11.2.1/bin/gfortran
+        fc:  /usr/tce/packages/gcc/gcc-11.2.1/bin/gfortran
+      spec: clang@16.0.6.1
       target: ppc64le
   - compiler:
       environment: {}
@@ -72,11 +72,11 @@ spack:
       modules: []
       operating_system: rhel7
       paths:
-        cc:  /usr/tce/packages/clang/clang-ibm-10.0.1-gcc-8.3.1/bin/clang
-        cxx: /usr/tce/packages/clang/clang-ibm-10.0.1-gcc-8.3.1/bin/clang++
-        f77: /usr/tce/packages/gcc/gcc-8.3.1/bin/gfortran
-        fc:  /usr/tce/packages/gcc/gcc-8.3.1/bin/gfortran
-      spec: clang@10.0.1.2
+        cc:  /usr/tce/packages/clang/clang-ibm-16.0.6-cuda-11.8.0-gcc-11.2.1/bin/clang
+        cxx: /usr/tce/packages/clang/clang-ibm-16.0.6-cuda-11.8.0-gcc-11.2.1/bin/clang++
+        f77: /usr/tce/packages/gcc/gcc-11.2.1/bin/gfortran
+        fc:  /usr/tce/packages/gcc/gcc-11.2.1/bin/gfortran
+      spec: clang@16.0.6.2
       target: ppc64le
 
   packages:
@@ -92,8 +92,8 @@ spack:
     cuda:
       buildable: false
       externals:
-      - spec: cuda@11.2.0
-        prefix: /usr/tce/packages/cuda/cuda-11.2.0
+      - spec: cuda@11.8.0
+        prefix: /usr/tce/packages/cuda/cuda-11.8.0
 
     # LLNL blueos mpi
     mpi:
@@ -101,14 +101,14 @@ spack:
     spectrum-mpi:
       buildable: false
       externals:
-      - spec: spectrum-mpi@release%gcc@8.3.1.1
-        prefix: /usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-gcc-8.3.1/
-      - spec: spectrum-mpi@release%gcc@8.3.1.2
-        prefix: /usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-gcc-8.3.1/
-      - spec: spectrum-mpi@release%clang@10.0.1.1
-        prefix: /usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-clang-10.0.1-gcc-8.3.1/
-      - spec: spectrum-mpi@release%clang@10.0.1.2
-        prefix: /usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-clang-10.0.1-gcc-8.3.1/
+      - spec: spectrum-mpi@release%gcc@11.2.1.1
+        prefix: /usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-gcc-11.2.1/
+      - spec: spectrum-mpi@release%gcc@11.2.1.2
+        prefix: /usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-gcc-11.2.1/
+      - spec: spectrum-mpi@release%clang@16.0.6.1
+        prefix: /usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-clang-16.0.6-gcc-11.2.1/
+      - spec: spectrum-mpi@release%clang@16.0.6.2
+        prefix: /usr/tce/packages/spectrum-mpi/spectrum-mpi-rolling-release-clang-16.0.6-cuda-11.8.0-gcc-11.2.1/
 
     # blas is a bit more complicated because its a virtual package so fake it with
     # the following per spack docs
@@ -116,14 +116,14 @@ spack:
       buildable: false
       externals:
       # These have trailing underscores in their symbols
-      - spec: netlib-lapack@3.9.0%gcc@8.3.1.1
-        prefix: /usr/tcetmp/packages/lapack/lapack-3.9.0-P9-gcc-7.3.1/
-      - spec: netlib-lapack@3.9.0%gcc@8.3.1.2
-        prefix: /usr/tcetmp/packages/lapack/lapack-3.9.0-P9-gcc-7.3.1/
-      - spec: netlib-lapack@3.9.0%clang@10.0.1.1
-        prefix: /usr/tcetmp/packages/lapack/lapack-3.9.0-P9-gcc-7.3.1/
-      - spec: netlib-lapack@3.9.0%clang@10.0.1.2
-        prefix: /usr/tcetmp/packages/lapack/lapack-3.9.0-P9-gcc-7.3.1/
+      - spec: netlib-lapack@3.9.0%gcc@11.2.1.1
+        prefix: /usr/tcetmp/packages/lapack/lapack-3.11.0-P9-gcc-11.2.1
+      - spec: netlib-lapack@3.9.0%gcc@11.2.1.2
+        prefix: /usr/tcetmp/packages/lapack/lapack-3.11.0-P9-gcc-11.2.1
+      - spec: netlib-lapack@3.9.0%clang@16.0.6.1
+        prefix: /usr/tcetmp/packages/lapack/lapack-3.11.0-P9-gcc-11.2.1/
+      - spec: netlib-lapack@3.9.0%clang@16.0.6.2
+        prefix: /usr/tcetmp/packages/lapack/lapack-3.11.0-P9-gcc-11.2.1/
 
     # System level packages to not build
     autoconf:

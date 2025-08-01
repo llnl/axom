@@ -30,10 +30,10 @@
 
     "__comment__":"# Note: clang-ibm + raja+openmp causes runtime failures, turning it off until there is an alternative",
     "blueos_3_ppc64le_ib_p9":
-    [ "clang@10.0.1.1+devtools+mfem+c2c+profiling",
-      "clang@10.0.1.2+devtools+mfem+c2c+profiling+cuda cuda_arch=70 ^raja+openmp+cuda ^umpire+openmp+cuda",
-      "gcc@8.3.1.1+devtools~mfem+c2c+profiling",
-      "gcc@8.3.1.2+devtools~mfem+c2c+profiling+cuda cuda_arch=70 ^raja+openmp+cuda ^umpire+openmp+cuda" ],
+    [ "clang@16.0.6.1+devtools+mfem+c2c+profiling",
+      "clang@16.0.6.2+devtools+mfem+c2c+profiling+cuda cuda_arch=70 ^cuda+allow-unsupported-compilers ^raja+openmp+cuda ^umpire+openmp+cuda",
+      "gcc@11.2.1.1+devtools~mfem+c2c+profiling",
+      "gcc@11.2.1.2+devtools~mfem+c2c+profiling+cuda cuda_arch=70 ^cuda+allow-unsupported-compilers ^raja+openmp+cuda ^umpire+openmp+cuda" ],
 
     "darwin-x86_64":
     [ "clang@9.0.0+devtools+mfem" ]
