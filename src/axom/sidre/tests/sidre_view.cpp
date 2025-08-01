@@ -291,8 +291,8 @@ static void checkScalarValues(View* view,
 
 TEST(sidre_view, tuple_view)
 {
-  DataStore* ds = new DataStore();
-  Group* root = ds->getRoot();
+  DataStore ds;
+  Group* root = ds.getRoot();
 
   constexpr size_t N = 5;
 
