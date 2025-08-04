@@ -1,0 +1,27 @@
+diff --git a/src/thirdparty/axom/fmt/format.h b/src/thirdparty/axom/fmt/format.h
+index 8fdbee451..9b76ba52c 100644
+--- a/src/thirdparty/axom/fmt/format.h
++++ b/src/thirdparty/axom/fmt/format.h
+@@ -4169,7 +4169,7 @@ template <detail_exported::fixed_string Str> constexpr auto operator""_a() {
+   return detail::udl_arg<char_t, sizeof(Str.data) / sizeof(char_t), Str>();
+ }
+ #  else
+-constexpr auto operator"" _a(const char* s, size_t) -> detail::udl_arg<char> {
++constexpr auto operator""_a(const char* s, size_t) -> detail::udl_arg<char> {
+   return {s};
+ }
+ #  endif
+diff --git a/src/thirdparty/axom/fmt/xchar.h b/src/thirdparty/axom/fmt/xchar.h
+index 8ce4839a6..60f8775b5 100644
+--- a/src/thirdparty/axom/fmt/xchar.h
++++ b/src/thirdparty/axom/fmt/xchar.h
+@@ -49,7 +49,7 @@ constexpr format_arg_store<wformat_context, Args...> make_wformat_args(
+ 
+ inline namespace literals {
+ #if AXOM_FMT_USE_USER_DEFINED_LITERALS && !AXOM_FMT_USE_NONTYPE_TEMPLATE_ARGS
+-constexpr detail::udl_arg<wchar_t> operator"" _a(const wchar_t* s, size_t) {
++constexpr detail::udl_arg<wchar_t> operator""_a(const wchar_t* s, size_t) {
+   return {s};
+ }
+ #endif
+

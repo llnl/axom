@@ -855,8 +855,7 @@ axom::klee::Shape createShape_Plane()
                                                   prop);
   }
 
-  // Create a plane crossing center of mesh.  No matter the normal,
-  // it cuts the mesh in half.
+  // Create a plane crossing center of mesh.  No matter the normal, it cuts the mesh in half.
   Point3D center {0.5 *
                   (axom::NumericArray<double, 3>(params.boxMins.data()) +
                    axom::NumericArray<double, 3>(params.boxMaxs.data()))};
@@ -933,13 +932,13 @@ double areaOfTriMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE
 
 #if defined(AXOM_USE_MFEM)
 /*!
-  @brief Return the element volumes as a sidre::View.
-
-  If it doesn't exist, allocate and compute it.
-  \post The volume data is in \c dc->GetNamedBuffer(volFieldName).
-
-  Most of this is lifted from IntersectionShaper::runShapeQueryImpl.
-*/
+ *  @brief Return the element volumes as a sidre::View.
+ *
+ *  If it doesn't exist, allocate and compute it.
+ *  \post The volume data is in \c dc->GetNamedBuffer(volFieldName).
+ *
+ *  Most of this is lifted from IntersectionShaper::runShapeQueryImpl.
+ */
 template <typename ExecSpace>
 axom::sidre::View* getElementVolumes(
   sidre::MFEMSidreDataCollection* dc,
@@ -1076,14 +1075,13 @@ axom::sidre::View* getElementVolumes(
 #endif
 
 /*!
-  @brief Return the element volumes as a sidre::View containing
-  the volumes in an array.
-
-  If it doesn't exist, allocate and compute it.
-  \post The volume data is in the blueprint field \c volFieldName.
-
-  Most of this is lifted from IntersectionShaper::runShapeQueryImpl.
-*/
+ *  @brief Return the element volumes as a sidre::View containing the volumes in an array
+ *
+ *  If it doesn't exist, allocate and compute it.
+ *  \post The volume data is in the blueprint field \c volFieldName.
+ *
+ *  Most of this is lifted from IntersectionShaper::runShapeQueryImpl.
+ */
 template <typename ExecSpace>
 axom::sidre::View* getElementVolumes(
   sidre::Group* meshGrp,

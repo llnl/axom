@@ -11,6 +11,7 @@
 #include "gtest/gtest.h"
 
 #include "axom/slic.hpp"
+#include "axom/fmt.hpp"
 
 #include "axom/primal/geometry/BezierCurve.hpp"
 #include "axom/primal/geometry/BezierPatch.hpp"
@@ -22,29 +23,447 @@
 namespace primal = axom::primal;
 
 //------------------------------------------------------------------------------
-TEST(primal_nurbspatch, constructor)
+TEST(primal_nurbspatch, sizing_constructors)
 {
-  const int DIM = 3;
+  constexpr int DIM = 3;
   using CoordType = double;
   using NURBSPatchType = primal::NURBSPatch<CoordType, DIM>;
 
-  SLIC_INFO("Testing default NURBS Patch constructor ");
-  NURBSPatchType nPatch;
+  auto check_patch =
+    [=](const NURBSPatchType& nPatch, int deg_u, int deg_v, int npts_u, int npts_v, bool expect_empty) {
+      EXPECT_EQ(!expect_empty, nPatch.getKnots_u().isValid());
+      EXPECT_EQ(!expect_empty, nPatch.getKnots_v().isValid());
+      EXPECT_EQ(!expect_empty, nPatch.isValidNURBS());
 
-  int expDegree_u = -1, expDegree_v = -1;
-  EXPECT_EQ(expDegree_u, nPatch.getDegree_u());
-  EXPECT_EQ(expDegree_v, nPatch.getDegree_v());
+      EXPECT_EQ(deg_u, nPatch.getDegree_u());
+      EXPECT_EQ(deg_v, nPatch.getDegree_v());
 
-  EXPECT_EQ(expDegree_u + 1, nPatch.getOrder_u());
-  EXPECT_EQ(expDegree_v + 1, nPatch.getOrder_v());
+      EXPECT_EQ(deg_u + 1, nPatch.getOrder_u());
+      EXPECT_EQ(deg_v + 1, nPatch.getOrder_v());
 
-  EXPECT_EQ(expDegree_u + 1, nPatch.getControlPoints().shape()[0]);
-  EXPECT_EQ(expDegree_v + 1, nPatch.getControlPoints().shape()[1]);
+      EXPECT_EQ(npts_u, nPatch.getControlPoints().shape()[0]);
+      EXPECT_EQ(npts_v, nPatch.getControlPoints().shape()[1]);
+      EXPECT_EQ(npts_u * npts_v, nPatch.getControlPoints().size());
 
-  EXPECT_EQ(expDegree_u + 1, nPatch.getKnotsArray_u().size());
-  EXPECT_EQ(expDegree_v + 1, nPatch.getKnotsArray_v().size());
+      EXPECT_EQ(npts_u + deg_u + 1, nPatch.getKnotsArray_u().size());
+      EXPECT_EQ(npts_v + deg_v + 1, nPatch.getKnotsArray_v().size());
 
-  EXPECT_FALSE(nPatch.isRational());
+      EXPECT_FALSE(nPatch.isRational());
+    };
+
+  {
+    SCOPED_TRACE("Default NURBS Patch constructor ");
+    NURBSPatchType nPatch;
+    check_patch(nPatch, -1, -1, 0, 0, true);
+  }
+
+  {
+    SCOPED_TRACE("Empty NURBS Patch constructor ");
+    NURBSPatchType nPatch(-1, -1);
+    check_patch(nPatch, -1, -1, 0, 0, true);
+  }
+
+  for(int deg_u = 0; deg_u < 5; ++deg_u)
+  {
+    for(int deg_v = 0; deg_v < 5; ++deg_v)
+    {
+      {
+        SCOPED_TRACE(
+          axom::fmt::format("NURBS Patch constructor with deg_u={}, deg_v={}", deg_u, deg_v));
+        NURBSPatchType patch = NURBSPatchType(deg_u, deg_v);
+        check_patch(patch, deg_u, deg_v, deg_u + 1, deg_v + 1, false);
+      }
+
+      for(int npts_u = deg_u + 1; npts_u < deg_u + 5; ++npts_u)
+      {
+        for(int npts_v = deg_v + 1; npts_v < deg_v + 5; ++npts_v)
+        {
+          SCOPED_TRACE(axom::fmt::format(
+            "NURBS Patch constructor with npts_u={}, npts_v={}, deg_u={}, deg_v={}",
+            npts_u,
+            npts_v,
+            deg_u,
+            deg_v));
+          NURBSPatchType nPatch(npts_u, npts_v, deg_u, deg_v);
+          check_patch(nPatch, deg_u, deg_v, npts_u, npts_v, false);
+        }
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbspatch, bezier_constructors)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSPatchType = primal::NURBSPatch<CoordType, DIM>;
+
+  constexpr int ord_u = 2;
+  constexpr int ord_v = 3;
+
+  // clang-format off
+  axom::Array<PointType> controlPoints {
+    PointType {0.0, 0.0, 0.0}, PointType {0.0, 1.0,  1.0}, PointType {0.0, 2.0,  2.0},
+    PointType {1.0, 0.0, 3.0}, PointType {1.0, 1.0,  4.0}, PointType {1.0, 2.0,  5.0},
+    PointType {2.0, 0.0, 6.0}, PointType {2.0, 1.0,  7.0}, PointType {2.0, 2.0,  8.0},
+    PointType {3.0, 0.0, 9.0}, PointType {3.0, 1.0, 10.0}, PointType {3.0, 2.0, 11.0}};
+
+  axom::Array<double> weights { 0.009,  1.019,  2.029, 
+                                3.109,  4.119,  5.129, 
+                                6.209,  7.219,  8.229, 
+                                9.309, 10.319, 11.329};
+  // clang-format on
+
+  primal::BezierPatch<double, DIM> nBez(controlPoints, ord_u, ord_v);
+  EXPECT_FALSE(nBez.isRational());
+
+  primal::BezierPatch<double, DIM> rBez(controlPoints, weights, ord_u, ord_v);
+  EXPECT_TRUE(rBez.isRational());
+
+  for(const auto& bez : {nBez, rBez})
+  {
+    NURBSPatchType patch(bez);
+    EXPECT_TRUE(patch.isValidNURBS());
+    EXPECT_EQ(patch.isRational(), bez.isRational());
+
+    EXPECT_EQ(ord_u, patch.getDegree_u());
+    EXPECT_EQ(ord_v, patch.getDegree_v());
+    EXPECT_EQ(ord_u + 1, patch.getOrder_u());
+    EXPECT_EQ(ord_v + 1, patch.getOrder_v());
+    EXPECT_EQ(ord_u + 1, patch.getNumControlPoints_u());
+    EXPECT_EQ(ord_v + 1, patch.getNumControlPoints_v());
+    EXPECT_EQ(controlPoints.size(), patch.getControlPoints().size());
+    EXPECT_EQ(bez.getControlPoints().size(), patch.getControlPoints().size());
+
+    for(int p = 0; p < ord_u + 1; ++p)
+    {
+      for(int q = 0; q < ord_v + 1; ++q)
+      {
+        EXPECT_EQ(patch(p, q), bez(p, q));
+        if(patch.isRational())
+        {
+          EXPECT_EQ(patch.getWeight(p, q), bez.getWeight(p, q));
+        }
+      }
+    }
+
+    constexpr int nkts_u = 2 * (ord_u + 1);
+    constexpr int nkts_v = 2 * (ord_v + 1);
+
+    EXPECT_EQ(nkts_u, patch.getNumKnots_u());
+    EXPECT_EQ(nkts_v, patch.getNumKnots_v());
+
+    for(int k_u = 0; k_u < ord_u + 1; ++k_u)
+    {
+      patch.getKnots_u()[k_u] = 0.;
+      patch.getKnots_u()[nkts_u - k_u - 1] = 1.;
+    }
+
+    for(int k_v = 0; k_v < ord_v + 1; ++k_v)
+    {
+      patch.getKnots_v()[k_v] = 0.;
+      patch.getKnots_v()[nkts_v - k_v - 1] = 1.;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbspatch, knotless_array_constructors)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSPatchType = primal::NURBSPatch<CoordType, DIM>;
+
+  SLIC_INFO("Testing point array constructor");
+
+  constexpr int degree_u = 2;
+  constexpr int degree_v = 1;
+
+  constexpr int npts_u = 3;
+  constexpr int npts_v = 4;
+
+  // clang-format off
+  // Construct from C-style arrays
+  PointType controlPoints[12] = {
+    PointType {0.0, 0.0, 0.0}, PointType {0.0, 1.0,  1.0}, PointType {0.0, 2.0, 2.0},
+    PointType {1.0, 0.0, 3.0}, PointType {1.0, 1.0,  4.0}, PointType {1.0, 2.0, 5.0},
+    PointType {2.0, 0.0, 6.0}, PointType {2.0, 1.0,  7.0}, PointType {2.0, 2.0, 8.0},
+    PointType {3.0, 0.0, 9.0}, PointType {3.0, 1.0, 10.0}, PointType {3.0, 2.0, 11.0}};
+
+  CoordType weights[12] = { 0.009,  1.019,  2.029, 
+                            3.109,  4.119,  5.129, 
+                            6.209,  7.219,  8.229, 
+                            9.309, 10.319, 11.329};
+  // clang-format on
+
+  auto check_patch =
+    [=](const NURBSPatchType& patch, int deg_u, int deg_v, int npts_u, int npts_v, bool expect_rational) {
+      EXPECT_EQ(deg_u, patch.getDegree_u());
+      EXPECT_EQ(deg_v, patch.getDegree_v());
+
+      EXPECT_EQ(npts_u, patch.getControlPoints().shape()[0]);
+      EXPECT_EQ(npts_v, patch.getControlPoints().shape()[1]);
+      EXPECT_EQ(npts_u * npts_v, patch.getControlPoints().size());
+
+      EXPECT_EQ(npts_u + deg_u + 1, patch.getKnotsArray_u().size());
+      EXPECT_EQ(npts_v + deg_v + 1, patch.getKnotsArray_v().size());
+
+      if(expect_rational)
+      {
+        EXPECT_EQ(npts_u, patch.getWeights().shape()[0]);
+        EXPECT_EQ(npts_v, patch.getWeights().shape()[1]);
+        EXPECT_EQ(npts_u * npts_v, patch.getWeights().size());
+      }
+      else
+      {
+        EXPECT_TRUE(patch.getWeights().empty());
+      }
+
+      int idx = 0;
+      for(int u = 0; u < npts_u; ++u)
+      {
+        for(int v = 0; v < npts_v; ++v, ++idx)
+        {
+          EXPECT_EQ(patch(u, v), controlPoints[idx]);
+          if(expect_rational)
+          {
+            EXPECT_EQ(patch.getWeight(u, v), weights[idx]);
+          }
+        }
+      }
+    };
+
+  // test C-array constructors
+  {
+    NURBSPatchType nPatch(controlPoints, npts_u, npts_v, degree_u, degree_v);
+    check_patch(nPatch, degree_u, degree_v, npts_u, npts_v, false);
+
+    NURBSPatchType wPatch(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
+    check_patch(wPatch, degree_u, degree_v, npts_u, npts_v, true);
+  }
+
+  // test 1D axom::Array constructors
+  {
+    axom::Array<PointType> cp;
+    cp.assign(std::begin(controlPoints), std::end(controlPoints));
+
+    axom::Array<double> w;
+    w.assign(std::begin(weights), std::end(weights));
+
+    NURBSPatchType nPatch(cp, npts_u, npts_v, degree_u, degree_v);
+    check_patch(nPatch, degree_u, degree_v, npts_u, npts_v, false);
+
+    NURBSPatchType wPatch(cp, w, npts_u, npts_v, degree_u, degree_v);
+    check_patch(wPatch, degree_u, degree_v, npts_u, npts_v, true);
+  }
+
+  // test 2D axom::Array constructors
+  {
+    axom::Array<PointType, 2> controlPointsArray2D(npts_u, npts_v);
+    axom::Array<double, 2> weightsArray2D(npts_u, npts_v);
+
+    int idx = 0;
+    for(int p = 0; p < npts_u; ++p)
+    {
+      for(int q = 0; q < npts_v; ++q, ++idx)
+      {
+        controlPointsArray2D(p, q) = controlPoints[idx];
+        weightsArray2D(p, q) = weights[idx];
+      }
+    }
+
+    NURBSPatchType nPatch(controlPointsArray2D, degree_u, degree_v);
+    check_patch(nPatch, degree_u, degree_v, npts_u, npts_v, false);
+
+    NURBSPatchType wPatch(controlPointsArray2D, weightsArray2D, degree_u, degree_v);
+    check_patch(wPatch, degree_u, degree_v, npts_u, npts_v, true);
+
+    NURBSPatchType nPatch_vw(controlPointsArray2D.view(), degree_u, degree_v);
+    check_patch(nPatch_vw, degree_u, degree_v, npts_u, npts_v, false);
+
+    NURBSPatchType wPatch_vw(controlPointsArray2D.view(), weightsArray2D.view(), degree_u, degree_v);
+    check_patch(wPatch_vw, degree_u, degree_v, npts_u, npts_v, true);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbspatch, knot_array_constructor)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSPatchType = primal::NURBSPatch<CoordType, DIM>;
+  using KnotVectorType = primal::KnotVector<CoordType>;
+
+  SLIC_INFO("Testing knot array constructor");
+
+  constexpr int degree_u = 1;
+  constexpr int degree_v = 1;
+
+  constexpr int npts_u = 3;
+  constexpr int npts_v = 3;
+
+  // clang-format off
+  PointType controlPoints[npts_u * npts_v] = {
+    PointType {0.0, 0.0, 1.0}, PointType {0.0, 1.0,  0.0}, PointType {0.0, 2.0, 0.0},
+    PointType {1.0, 0.0, 0.0}, PointType {1.0, 1.0, -1.0}, PointType {1.0, 2.0, 0.0},
+    PointType {2.0, 0.0, 0.0}, PointType {2.0, 1.0,  0.0}, PointType {2.0, 2.0, 1.0}};
+
+  CoordType weights[npts_u * npts_v] = {1.0, 2.0, 3.0, 
+                                        2.0, 3.0, 4.0, 
+                                        3.0, 4.0, 5.0};
+  // clang-format on
+
+  double knots_u[npts_u + degree_u + 1] = {0.0, 0.0, 0.5, 1.0, 1.0};
+  double knots_v[npts_v + degree_v + 1] = {0.0, 0.0, 0.5, 1.0, 1.0};
+
+  auto check_patch =
+    [=](const NURBSPatchType& patch, int deg_u, int deg_v, int npts_u, int npts_v, bool expect_rational) {
+      EXPECT_EQ(deg_u, patch.getDegree_u());
+      EXPECT_EQ(deg_v, patch.getDegree_v());
+
+      EXPECT_EQ(npts_u, patch.getControlPoints().shape()[0]);
+      EXPECT_EQ(npts_v, patch.getControlPoints().shape()[1]);
+      EXPECT_EQ(npts_u * npts_v, patch.getControlPoints().size());
+
+      EXPECT_EQ(npts_u + deg_u + 1, patch.getKnotsArray_u().size());
+      EXPECT_EQ(npts_v + deg_v + 1, patch.getKnotsArray_v().size());
+
+      if(expect_rational)
+      {
+        EXPECT_EQ(npts_u, patch.getWeights().shape()[0]);
+        EXPECT_EQ(npts_v, patch.getWeights().shape()[1]);
+        EXPECT_EQ(npts_u * npts_v, patch.getWeights().size());
+      }
+      else
+      {
+        EXPECT_TRUE(patch.getWeights().empty());
+      }
+
+      int idx = 0;
+      for(int u = 0; u < npts_u; ++u)
+      {
+        for(int v = 0; v < npts_v; ++v, ++idx)
+        {
+          EXPECT_EQ(patch(u, v), controlPoints[idx]);
+          if(expect_rational)
+          {
+            EXPECT_EQ(patch.getWeight(u, v), weights[idx]);
+          }
+        }
+      }
+    };
+
+  // test from C-style arrays
+  {
+    NURBSPatchType nPatch(controlPoints,
+                          npts_u,
+                          npts_v,
+                          knots_u,
+                          npts_u + degree_u + 1,
+                          knots_v,
+                          npts_v + degree_v + 1);
+    check_patch(nPatch, degree_u, degree_v, npts_u, npts_v, false);
+
+    NURBSPatchType wPatch(controlPoints,
+                          weights,
+                          npts_u,
+                          npts_v,
+                          knots_u,
+                          npts_u + degree_u + 1,
+                          knots_v,
+                          npts_v + degree_v + 1);
+    check_patch(wPatch, degree_u, degree_v, npts_u, npts_v, true);
+  }
+
+  // test with 1D axom::Arrays
+  {
+    axom::Array<PointType> cp_arr;
+    cp_arr.assign(std::begin(controlPoints), std::end(controlPoints));
+    axom::Array<double> w_arr;
+    w_arr.assign(std::begin(weights), std::end(weights));
+
+    axom::Array<double> knot_arr_u;
+    knot_arr_u.assign(std::begin(knots_u), std::end(knots_u));
+    axom::Array<double> knot_arr_v;
+    knot_arr_v.assign(std::begin(knots_v), std::end(knots_v));
+
+    KnotVectorType knotvec_u(knot_arr_u, degree_u);
+    KnotVectorType knotvec_v(knot_arr_v, degree_v);
+
+    {
+      SCOPED_TRACE("Testing 1D array constructors with 1D array of knots");
+
+      NURBSPatchType nPatch(cp_arr, npts_u, npts_v, knot_arr_u, knot_arr_v);
+      check_patch(nPatch, degree_u, degree_v, npts_u, npts_v, false);
+
+      NURBSPatchType wPatch(cp_arr, w_arr, npts_u, npts_v, knot_arr_u, knot_arr_v);
+      check_patch(wPatch, degree_u, degree_v, npts_u, npts_v, true);
+    }
+    {
+      SCOPED_TRACE("Testing 1D array constructors with KnotVectors");
+
+      NURBSPatchType nPatch(cp_arr, npts_u, npts_v, knotvec_u, knotvec_v);
+      check_patch(nPatch, degree_u, degree_v, npts_u, npts_v, false);
+
+      NURBSPatchType wPatch(cp_arr, w_arr, npts_u, npts_v, knotvec_u, knotvec_v);
+      check_patch(wPatch, degree_u, degree_v, npts_u, npts_v, true);
+    }
+  }
+
+  // test with 2D axom::Arrays
+  {
+    axom::Array<PointType, 2> cp_arr_2D(npts_u, npts_v);
+    axom::Array<double, 2> w_arr_2D(npts_u, npts_v);
+
+    int idx = 0;
+    for(int p = 0; p < npts_u; ++p)
+    {
+      for(int q = 0; q < npts_v; ++q, ++idx)
+      {
+        cp_arr_2D(p, q) = controlPoints[idx];
+        w_arr_2D(p, q) = weights[idx];
+      }
+    }
+
+    axom::Array<double> knot_arr_u;
+    knot_arr_u.assign(std::begin(knots_u), std::end(knots_u));
+    axom::Array<double> knot_arr_v;
+    knot_arr_v.assign(std::begin(knots_v), std::end(knots_v));
+
+    KnotVectorType knotvec_u(knot_arr_u, degree_u);
+    KnotVectorType knotvec_v(knot_arr_v, degree_v);
+
+    {
+      SCOPED_TRACE("Testing 2D array constructors with 1D array of knots");
+      NURBSPatchType nPatch(cp_arr_2D, knot_arr_u, knot_arr_v);
+      check_patch(nPatch, degree_u, degree_v, npts_u, npts_v, false);
+
+      NURBSPatchType wPatch(cp_arr_2D, w_arr_2D, knot_arr_u, knot_arr_v);
+      check_patch(wPatch, degree_u, degree_v, npts_u, npts_v, true);
+    }
+
+    {
+      SCOPED_TRACE("Testing 2D array constructors with KnotVector");
+      NURBSPatchType nPatch(cp_arr_2D, knotvec_u, knotvec_v);
+      check_patch(nPatch, degree_u, degree_v, npts_u, npts_v, false);
+
+      NURBSPatchType wPatch(cp_arr_2D, w_arr_2D, knotvec_u, knotvec_v);
+      check_patch(wPatch, degree_u, degree_v, npts_u, npts_v, true);
+    }
+
+    {
+      SCOPED_TRACE("Testing 2D ArrayView constructors with KnotVector");
+      NURBSPatchType nPatch(cp_arr_2D.view(), knotvec_u, knotvec_v);
+      check_patch(nPatch, degree_u, degree_v, npts_u, npts_v, false);
+
+      NURBSPatchType wPatch(cp_arr_2D.view(), w_arr_2D.view(), knotvec_u, knotvec_v);
+      check_patch(wPatch, degree_u, degree_v, npts_u, npts_v, true);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -79,25 +498,16 @@ TEST(primal_nurbspatch, set_degree)
   EXPECT_EQ(nPatch.getNumKnots_u(), degree_u + npts_u + 1);
   EXPECT_EQ(nPatch.getNumKnots_v(), degree_v + npts_v + 1);
 
-  PointType controlPoints[9] = {PointType {0.0, 0.0, 1.0},
-                                PointType {0.0, 1.0, 0.0},
-                                PointType {0.0, 2.0, 0.0},
-                                PointType {1.0, 0.0, 0.0},
-                                PointType {1.0, 1.0, -1.0},
-                                PointType {1.0, 2.0, 0.0},
-                                PointType {2.0, 0.0, 0.0},
-                                PointType {2.0, 1.0, 0.0},
-                                PointType {2.0, 2.0, 1.0}};
+  // clang-format off
+  PointType controlPoints[9] = {
+    PointType {0.0, 0.0, 1.0}, PointType {0.0, 1.0,  0.0}, PointType {0.0, 2.0, 0.0},
+    PointType {1.0, 0.0, 0.0}, PointType {1.0, 1.0, -1.0}, PointType {1.0, 2.0, 0.0},
+    PointType {2.0, 0.0, 0.0}, PointType {2.0, 1.0,  0.0}, PointType {2.0, 2.0, 1.0}};
 
-  nPatch(0, 0) = controlPoints[0];
-  nPatch(0, 1) = controlPoints[1];
-  nPatch(0, 2) = controlPoints[2];
-  nPatch(1, 0) = controlPoints[3];
-  nPatch(1, 1) = controlPoints[4];
-  nPatch(1, 2) = controlPoints[5];
-  nPatch(2, 0) = controlPoints[6];
-  nPatch(2, 1) = controlPoints[7];
-  nPatch(2, 2) = controlPoints[8];
+  nPatch(0, 0) = controlPoints[0]; nPatch(0, 1) = controlPoints[1]; nPatch(0, 2) = controlPoints[2];
+  nPatch(1, 0) = controlPoints[3]; nPatch(1, 1) = controlPoints[4]; nPatch(1, 2) = controlPoints[5];
+  nPatch(2, 0) = controlPoints[6]; nPatch(2, 1) = controlPoints[7]; nPatch(2, 2) = controlPoints[8];
+  // clang-format on
 
   for(int p = 0; p < npts_u; ++p)
   {
@@ -122,324 +532,6 @@ TEST(primal_nurbspatch, set_degree)
 
   nPatch.setWeight(0, 0, 2.0);
   EXPECT_DOUBLE_EQ(2.0, nPatch.getWeight(0, 0));
-}
-
-//------------------------------------------------------------------------------
-TEST(primal_nurbspatch, point_array_constructors)
-{
-  const int DIM = 3;
-  using CoordType = double;
-  using PointType = primal::Point<CoordType, DIM>;
-  using NURBSPatchType = primal::NURBSPatch<CoordType, DIM>;
-
-  SLIC_INFO("Testing point array constructor");
-
-  const int degree_u = 1;
-  const int degree_v = 1;
-
-  const int npts_u = 3;
-  const int npts_v = 3;
-
-  // Construct from C-style arrays
-  PointType controlPoints[9] = {PointType {0.0, 0.0, 1.0},
-                                PointType {0.0, 1.0, 0.0},
-                                PointType {0.0, 2.0, 0.0},
-                                PointType {1.0, 0.0, 0.0},
-                                PointType {1.0, 1.0, -1.0},
-                                PointType {1.0, 2.0, 0.0},
-                                PointType {2.0, 0.0, 0.0},
-                                PointType {2.0, 1.0, 0.0},
-                                PointType {2.0, 2.0, 1.0}};
-
-  CoordType weights[9] = {1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0};
-
-  NURBSPatchType nPatch(controlPoints, npts_u, npts_v, degree_u, degree_v);
-  NURBSPatchType wPatch(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
-
-  EXPECT_EQ(nPatch.getDegree_u(), degree_u);
-  EXPECT_EQ(nPatch.getDegree_v(), degree_v);
-
-  for(int p = 0; p < npts_u; ++p)
-  {
-    for(int q = 0; q < npts_v; ++q)
-    {
-      auto& pt1 = nPatch(p, q);
-      auto& pt2 = wPatch(p, q);
-      double w = wPatch.getWeight(p, q);
-
-      EXPECT_DOUBLE_EQ(weights[p * npts_u + q], w);
-      for(int i = 0; i < DIM; ++i)
-      {
-        EXPECT_DOUBLE_EQ(controlPoints[p * npts_u + q][i], pt1[i]);
-        EXPECT_DOUBLE_EQ(controlPoints[p * npts_u + q][i], pt2[i]);
-      }
-    }
-  }
-
-  // Construct from 1D axom::Array
-  axom::Array<PointType> controlPointsArray({PointType {0.0, 0.0, 1.0},
-                                             PointType {0.0, 1.0, 0.0},
-                                             PointType {0.0, 2.0, 0.0},
-                                             PointType {1.0, 0.0, 0.0},
-                                             PointType {1.0, 1.0, -1.0},
-                                             PointType {1.0, 2.0, 0.0},
-                                             PointType {2.0, 0.0, 0.0},
-                                             PointType {2.0, 1.0, 0.0},
-                                             PointType {2.0, 2.0, 1.0}});
-  axom::Array<CoordType> weightsArray({1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0});
-
-  NURBSPatchType nPatchArray(controlPointsArray, npts_u, npts_v, degree_u, degree_v);
-  NURBSPatchType wPatchArray(controlPointsArray, weightsArray, npts_u, npts_v, degree_u, degree_v);
-
-  EXPECT_EQ(nPatchArray.getDegree_u(), degree_u);
-  EXPECT_EQ(nPatchArray.getDegree_v(), degree_v);
-
-  for(int p = 0; p < npts_u; ++p)
-  {
-    for(int q = 0; q < npts_v; ++q)
-    {
-      auto& pt1 = nPatchArray(p, q);
-      auto& pt2 = wPatchArray(p, q);
-      double w = wPatchArray.getWeight(p, q);
-
-      EXPECT_DOUBLE_EQ(weightsArray[p * npts_u + q], w);
-      for(int i = 0; i < DIM; ++i)
-      {
-        EXPECT_DOUBLE_EQ(controlPointsArray[p * npts_u + q][i], pt1[i]);
-        EXPECT_DOUBLE_EQ(controlPointsArray[p * npts_u + q][i], pt2[i]);
-      }
-    }
-  }
-
-  // Construct from 2D axom::Array
-  axom::Array<PointType, 2> controlPointsArray2D(3, 3);
-  axom::Array<double, 2> weightsArray2D(3, 3);
-
-  for(int p = 0; p < npts_u; ++p)
-  {
-    for(int q = 0; q < npts_v; ++q)
-    {
-      controlPointsArray2D(p, q) = controlPoints[p * npts_u + q];
-      weightsArray2D(p, q) = weights[p * npts_u + q];
-    }
-  }
-
-  NURBSPatchType nPatchArray2D(controlPointsArray2D, degree_u, degree_v);
-  NURBSPatchType wPatchArray2D(controlPointsArray2D, weightsArray2D, degree_u, degree_v);
-
-  EXPECT_EQ(nPatchArray2D.getDegree_u(), degree_u);
-  EXPECT_EQ(nPatchArray2D.getDegree_v(), degree_v);
-
-  for(int p = 0; p < npts_u; ++p)
-  {
-    for(int q = 0; q < npts_v; ++q)
-    {
-      auto& pt1 = nPatchArray2D(p, q);
-      auto& pt2 = wPatchArray2D(p, q);
-      double w = wPatchArray2D.getWeight(p, q);
-
-      EXPECT_DOUBLE_EQ(weightsArray2D(p, q), w);
-      for(int i = 0; i < DIM; ++i)
-      {
-        EXPECT_DOUBLE_EQ(controlPointsArray2D(p, q)[i], pt1[i]);
-        EXPECT_DOUBLE_EQ(controlPointsArray2D(p, q)[i], pt2[i]);
-      }
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-TEST(primal_nurbspatch, knot_array_constructor)
-{
-  const int DIM = 3;
-  using CoordType = double;
-  using PointType = primal::Point<CoordType, DIM>;
-  using NURBSPatchType = primal::NURBSPatch<CoordType, DIM>;
-
-  SLIC_INFO("Testing knot array constructor");
-
-  const int degree_u = 1;
-  const int degree_v = 1;
-
-  const int npts_u = 3;
-  const int npts_v = 3;
-
-  // Construct from C-style arrays
-  PointType controlPoints[npts_u * npts_v] = {PointType {0.0, 0.0, 1.0},
-                                              PointType {0.0, 1.0, 0.0},
-                                              PointType {0.0, 2.0, 0.0},
-                                              PointType {1.0, 0.0, 0.0},
-                                              PointType {1.0, 1.0, -1.0},
-                                              PointType {1.0, 2.0, 0.0},
-                                              PointType {2.0, 0.0, 0.0},
-                                              PointType {2.0, 1.0, 0.0},
-                                              PointType {2.0, 2.0, 1.0}};
-
-  CoordType weights[npts_u * npts_v] = {1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0};
-
-  double knots_u[npts_u + degree_u + 1] = {0.0, 0.0, 0.5, 1.0, 1.0};
-  double knots_v[npts_v + degree_v + 1] = {0.0, 0.0, 0.5, 1.0, 1.0};
-
-  NURBSPatchType nPatch(controlPoints,
-                        npts_u,
-                        npts_v,
-                        knots_u,
-                        npts_u + degree_u + 1,
-                        knots_v,
-                        npts_v + degree_v + 1);
-  NURBSPatchType wPatch(controlPoints,
-                        weights,
-                        npts_u,
-                        npts_v,
-                        knots_u,
-                        npts_u + degree_u + 1,
-                        knots_v,
-                        npts_v + degree_v + 1);
-
-  EXPECT_EQ(nPatch.getDegree_u(), degree_u);
-  EXPECT_EQ(nPatch.getDegree_v(), degree_v);
-  for(int p = 0; p < npts_u; ++p)
-  {
-    for(int q = 0; q < npts_v; ++q)
-    {
-      auto& pt1 = nPatch(p, q);
-      auto& pt2 = wPatch(p, q);
-      double w = wPatch.getWeight(p, q);
-
-      EXPECT_DOUBLE_EQ(weights[p * npts_u + q], w);
-      for(int i = 0; i < DIM; ++i)
-      {
-        EXPECT_DOUBLE_EQ(controlPoints[p * npts_u + q][i], pt1[i]);
-        EXPECT_DOUBLE_EQ(controlPoints[p * npts_u + q][i], pt2[i]);
-      }
-    }
-  }
-
-  // Construct from 1D axom::Array
-  axom::Array<PointType> controlPointsArray({PointType {0.0, 0.0, 1.0},
-                                             PointType {0.0, 1.0, 0.0},
-                                             PointType {0.0, 2.0, 0.0},
-                                             PointType {1.0, 0.0, 0.0},
-                                             PointType {1.0, 1.0, -1.0},
-                                             PointType {1.0, 2.0, 0.0},
-                                             PointType {2.0, 0.0, 0.0},
-                                             PointType {2.0, 1.0, 0.0},
-                                             PointType {2.0, 2.0, 1.0}});
-  axom::Array<CoordType> weightsArray({1.0, 2.0, 3.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0});
-
-  axom::Array<double> knots_uArray({0.0, 0.0, 0.5, 1.0, 1.0});
-  axom::Array<double> knots_vArray({0.0, 0.0, 0.5, 1.0, 1.0});
-
-  NURBSPatchType nPatchArray(controlPointsArray, npts_u, npts_v, knots_uArray, knots_vArray);
-  NURBSPatchType wPatchArray(controlPointsArray, weightsArray, npts_u, npts_v, knots_uArray, knots_vArray);
-
-  EXPECT_EQ(nPatchArray.getDegree_u(), degree_u);
-  EXPECT_EQ(nPatchArray.getDegree_v(), degree_v);
-  for(int p = 0; p < npts_u; ++p)
-  {
-    for(int q = 0; q < npts_v; ++q)
-    {
-      auto& pt1 = nPatchArray(p, q);
-      auto& pt2 = wPatchArray(p, q);
-      double w = wPatchArray.getWeight(p, q);
-
-      EXPECT_DOUBLE_EQ(weightsArray[p * npts_u + q], w);
-      for(int i = 0; i < DIM; ++i)
-      {
-        EXPECT_DOUBLE_EQ(controlPointsArray[p * npts_u + q][i], pt1[i]);
-        EXPECT_DOUBLE_EQ(controlPointsArray[p * npts_u + q][i], pt2[i]);
-      }
-    }
-  }
-
-  // Construct from 2D axom::Array
-  axom::Array<PointType, 2> controlPointsArray2D(3, 3);
-  axom::Array<double, 2> weightsArray2D(3, 3);
-
-  for(int p = 0; p < npts_u; ++p)
-  {
-    for(int q = 0; q < npts_v; ++q)
-    {
-      controlPointsArray2D(p, q) = controlPoints[p * npts_u + q];
-      weightsArray2D(p, q) = weights[p * npts_u + q];
-    }
-  }
-
-  NURBSPatchType nPatchArray2D(controlPointsArray2D, knots_uArray, knots_vArray);
-  NURBSPatchType wPatchArray2D(controlPointsArray2D, weightsArray2D, knots_uArray, knots_vArray);
-
-  EXPECT_EQ(nPatchArray2D.getDegree_u(), degree_u);
-  EXPECT_EQ(nPatchArray2D.getDegree_v(), degree_v);
-  for(int p = 0; p < npts_u; ++p)
-  {
-    for(int q = 0; q < npts_v; ++q)
-    {
-      auto& pt1 = nPatchArray2D(p, q);
-      auto& pt2 = wPatchArray2D(p, q);
-      double w = wPatchArray2D.getWeight(p, q);
-
-      EXPECT_DOUBLE_EQ(weightsArray2D(p, q), w);
-      for(int i = 0; i < DIM; ++i)
-      {
-        EXPECT_DOUBLE_EQ(controlPointsArray2D(p, q)[i], pt1[i]);
-        EXPECT_DOUBLE_EQ(controlPointsArray2D(p, q)[i], pt2[i]);
-      }
-    }
-  }
-
-  // Construct from 1D axom::Array and KnotVector object
-  primal::KnotVector<CoordType> knotVector_u(npts_u, degree_u);
-  primal::KnotVector<CoordType> knotVector_v(npts_v, degree_v);
-
-  NURBSPatchType nPatchKnotVector(controlPointsArray, npts_u, npts_v, knotVector_u, knotVector_v);
-  NURBSPatchType wPatchKnotVector(controlPointsArray,
-                                  weightsArray,
-                                  npts_u,
-                                  npts_v,
-                                  knotVector_u,
-                                  knotVector_v);
-
-  EXPECT_EQ(nPatchKnotVector.getDegree_u(), degree_u);
-  EXPECT_EQ(nPatchKnotVector.getDegree_v(), degree_v);
-  for(int p = 0; p < npts_u; ++p)
-  {
-    for(int q = 0; q < npts_v; ++q)
-    {
-      auto& pt1 = nPatchKnotVector(p, q);
-      auto& pt2 = wPatchKnotVector(p, q);
-      double w = wPatchKnotVector.getWeight(p, q);
-
-      EXPECT_DOUBLE_EQ(weightsArray[p * npts_u + q], w);
-      for(int i = 0; i < DIM; ++i)
-      {
-        EXPECT_DOUBLE_EQ(controlPointsArray[p * npts_u + q][i], pt1[i]);
-        EXPECT_DOUBLE_EQ(controlPointsArray[p * npts_u + q][i], pt2[i]);
-      }
-    }
-  }
-
-  // Construct from 2D axom::Array and KnotVector object
-  NURBSPatchType nPatchKnotVector2D(controlPointsArray2D, knotVector_u, knotVector_v);
-  NURBSPatchType wPatchKnotVector2D(controlPointsArray2D, weightsArray2D, knotVector_u, knotVector_v);
-
-  EXPECT_EQ(nPatchKnotVector2D.getDegree_u(), degree_u);
-  EXPECT_EQ(nPatchKnotVector2D.getDegree_v(), degree_v);
-  for(int p = 0; p < npts_u; ++p)
-  {
-    for(int q = 0; q < npts_v; ++q)
-    {
-      auto& pt1 = nPatchKnotVector2D(p, q);
-      auto& pt2 = wPatchKnotVector2D(p, q);
-      double w = wPatchKnotVector2D.getWeight(p, q);
-
-      EXPECT_DOUBLE_EQ(weightsArray2D(p, q), w);
-      for(int i = 0; i < DIM; ++i)
-      {
-        EXPECT_DOUBLE_EQ(controlPointsArray2D(p, q)[i], pt1[i]);
-        EXPECT_DOUBLE_EQ(controlPointsArray2D(p, q)[i], pt2[i]);
-      }
-    }
-  }
 }
 
 //------------------------------------------------------------------------------

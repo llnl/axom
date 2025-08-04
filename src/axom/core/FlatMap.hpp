@@ -602,7 +602,7 @@ public:
    *
    * \param count the number of elements to fit without a rehash
    */
-  void reserve(IndexType count) { rehash(std::ceil(count / MAX_LOAD_FACTOR)); }
+  void reserve(IndexType count) { rehash(count); }
 
   /*!
    * \brief Returns a read-only view of the FlatMap.
@@ -612,6 +612,30 @@ public:
   View view();
   ConstView view() const;
   /// }@
+
+  /*!
+   * \brief Constructs and returns a FlatMap given a set of key-value pairs.
+   *
+   *  Duplicate keys are handled by selecting the last value in the values
+   *  array corresponding to the equivalent key.
+   *
+   * \param keys   [in] array of keys for the pairs to insert
+   * \param values [in] array of values for the pairs to insert
+   * \param allocator [in] allocator to use for the constructed FlatMap
+   *
+   * \tparam ExecSpace the execution space in which to perform the batched
+   *                   construction
+   *
+   * \return the constructed FlatMap
+   *
+   * \pre keys.size() == values.size()
+   * \pre {keys, values}.getAllocatorID() is accessible from ExecSpace
+   * \pre allocator is accessible from ExecSpace
+   */
+  template <typename ExecSpace>
+  static FlatMap create(axom::ArrayView<KeyType> keys,
+                        axom::ArrayView<ValueType> values,
+                        Allocator allocator = Allocator {});
 
 private:
   friend class FlatMapView<KeyType, ValueType, false, Hash>;
@@ -715,13 +739,13 @@ FlatMap<KeyType, ValueType, Hash>::FlatMap(IndexType bucket_count, Allocator all
   , m_loadCount(0)
 {
   IndexType minBuckets = MIN_NUM_BUCKETS;
-  bucket_count = axom::utilities::max(minBuckets, bucket_count);
+  bucket_count = axom::utilities::max<IndexType>(minBuckets, bucket_count / MAX_LOAD_FACTOR);
   // Get the smallest power-of-two number of groups satisfying:
   // N * GroupSize - 1 >= minBuckets
   // TODO: we should add a countl_zero overload for 64-bit integers
   {
     std::int32_t numGroups = std::ceil((bucket_count + 1) / (double)BucketsPerGroup);
-    m_numGroups2 = 31 - (axom::utilities::countl_zero(numGroups));
+    m_numGroups2 = 32 - (axom::utilities::countl_zero(numGroups - 1));
   }
 
   IndexType numGroupsRounded = 1 << m_numGroups2;
@@ -859,5 +883,7 @@ auto FlatMap<KeyType, ValueType, Hash>::erase(const_iterator pos) -> iterator
 }
 
 }  // namespace axom
+
+#include "FlatMapUtil.hpp"
 
 #endif  // Axom_Core_FlatMap_HPP
