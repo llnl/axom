@@ -1345,6 +1345,7 @@ Group* Group::copyGroup(Group* group)
  */
 Group* Group::deepCopyGroup(const Group* srcGroup, int arrayAllocId, int tupleAllocId)
 {
+  SLIC_ASSERT(srcGroup != this);
   if(srcGroup == nullptr || hasChildGroup(srcGroup->getName()))
   {
     SLIC_CHECK_MSG(srcGroup != nullptr,
@@ -1390,6 +1391,7 @@ Group* Group::deepCopyGroup(const Group* srcGroup, int arrayAllocId, int tupleAl
  */
 Group* Group::deepCopyGroupToSelf(const Group* srcGroup)
 {
+  SLIC_ASSERT(srcGroup != this);
   SLIC_ERROR_IF(m_is_list && !srcGroup->m_is_list,
                 "Group::deepCopyToSelf cannot copy from a list Group '" + srcGroup->getPath() +
                   "' to a non-list Group '" + getPath() + "'");

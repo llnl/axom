@@ -1203,7 +1203,7 @@ public:
   /*!
    * \brief Create a child Group within this Group with given name or path.
    *
-   * If name is an empty string, method is a no-op.
+   * If path is an empty string, method is a no-op.
    *
    * If Group already has a child Group with given name or path
    * and accept_existing is false, method is a no-op.
@@ -1419,8 +1419,6 @@ public:
     * in a way that won't crash for non-host data.
     *
     * If data is not host-accessible, print the pointer and a comment.
-    *
-    * This is a recursive method.
     */
   void hostPrint(const std::string& indent = "", std::ostream& os = std::cout) const;
 

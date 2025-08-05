@@ -1864,22 +1864,26 @@ TEST(sidre_view, deep_copy_shape)
   delete ds;
 }
 
-//------------------------------------------------------------------------------
-
-TEST(sidre_view, deep_copy_to_conduit)
+// Return vector of known allocator ids.
+std::vector<int> getKnownAllocIds()
 {
-  // Allocator ids to test.
-  std::vector<int> allocIds;
+  std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
 #ifdef AXOM_USE_UMPIRE
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
   #ifdef AXOM_USE_GPU
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
-    // Does it make sense to check Pinned and Constant memory spaces?
+  // Does it make sense to check Pinned and Constant memory spaces?
   #endif
-#else
-  allocIds.push_back(axom::MALLOC_ALLOCATOR_ID);
 #endif
+  return allocIds;
+}
+
+//------------------------------------------------------------------------------
+
+TEST(sidre_view, deep_copy_to_conduit)
+{
+  std::vector<int> allocIds = getKnownAllocIds();
 
   DataStore ds;
 

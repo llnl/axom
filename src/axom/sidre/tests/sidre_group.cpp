@@ -1473,19 +1473,25 @@ TEST(sidre_group, groups_move_copy)
   delete ds;
 }
 
-//------------------------------------------------------------------------------
-TEST(sidre_group, scalar_memory_allocator)
+// Return vector of known allocator ids.
+std::vector<int> getKnownAllocIds()
 {
-  // Allocator ids to test.
   std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
 #ifdef AXOM_USE_UMPIRE
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
   #ifdef AXOM_USE_GPU
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
-    // Does it make sense to check Pinned and Constant memory spaces?
+  // Does it make sense to check Pinned and Constant memory spaces?
   #endif
 #endif
+  return allocIds;
+}
+
+//------------------------------------------------------------------------------
+TEST(sidre_group, scalar_memory_allocator)
+{
+  std::vector<int> allocIds = getKnownAllocIds();
 
   DataStore ds;
   Group* grp = ds.getRoot()->createGroup("grp");
@@ -1639,18 +1645,7 @@ TEST(sidre_group, deep_copy_interspace)
 {
   // Test deep copies with a change in memory space.
 
-  // Allocator ids to test.
-  std::vector<int> allocIds;
-#ifdef AXOM_USE_UMPIRE
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
-  #ifdef AXOM_USE_GPU
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
-    // Does it make sense to check Pinned and Constant memory spaces?
-  #endif
-#else
-  allocIds.push_back(axom::MALLOC_ALLOCATOR_ID);
-#endif
+  std::vector<int> allocIds = getKnownAllocIds();
 
   DataStore ds;
 
@@ -1708,7 +1703,8 @@ TEST(sidre_group, deep_copy_interspace)
     EXPECT_EQ(axom::getAllocatorIDFromPointer(srcArrayPtr), srcArrayAllocId);
     axom::copy(srcArrayPtr, intArray.data(), N * sizeof(std::int32_t));
 
-    if(axom::execution_space<axom::SEQ_EXEC>::usesAllocId(srcArrayAllocId))
+    if(axom::execution_space<axom::SEQ_EXEC>::usesAllocId(srcArrayAllocId) &&
+       axom::execution_space<axom::SEQ_EXEC>::usesAllocId(srcTupleAllocId))
     {
       std::cout << "srcGrandparent group:" << std::endl;
       srcGrandparent->print();
