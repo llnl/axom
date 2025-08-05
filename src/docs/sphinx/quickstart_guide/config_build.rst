@@ -29,6 +29,7 @@ Basic requirements:
   * CMake with a minimum required version of 3.14 for CPU-only and CUDA builds,
     and a minimum version of 3.21 when building with HIP support
   * Fortran Compiler (optional)
+  * Python 3.8 at a minimum for python bindings (optional)
 
 Supported Compilers
 ~~~~~~~~~~~~~~~~~~~

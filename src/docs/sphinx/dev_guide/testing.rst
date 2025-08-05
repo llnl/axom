@@ -82,8 +82,8 @@ Unit Tests
 
 In Axom, we use the 
 `Google Test framework <https://github.com/google/googletest>`_
-for C and C++ unit tests and we use the 
-`Fortran Unit Test Framework (FRUIT) <https://sourceforge.net/projects/fortranxunit/>`_ for Fortran unit tests. 
+for C and C++ unit tests, we use the 
+`Fortran Unit Test Framework (FRUIT) <https://sourceforge.net/projects/fortranxunit/>`_ for Fortran unit tests, and we use the `pytest framework <https://docs.pytest.org/en/stable/>`_ for Python unit tests.
 
 Organization of tests in either language/framework are similar should 
 follow the principles summarized in the guidelines above. Each Google Test or 
@@ -251,6 +251,30 @@ program is defined at the end of the test file and is organized as follows::
   end program fortran_test
 
 Please refer to the `FRUIT documentation <https://sourceforge.net/projects/fortranxunit/>`_ for more information.
+
+pytest (Python Tests)
+--------------------------
+
+Python unit tests use the pytest framework.
+
+The contents of a typical pytest test file look like this::
+
+  def test_name_1():
+    #  Test 1 code here...
+    #  call assert foo1 == bar1
+
+  def test_name_2():
+    #  Test 2 code here...
+    #  call assert foo2 == bar2
+
+  # etc.
+
+The tests in a pytest test file are functions with the prefix ``test_``.
+Within each unit test, logical assertions are defined using
+``assert`` methods. Failure of expected values will cause the test to stop
+at the point of failure.
+
+Please refer to the `pytest documentation <https://docs.pytest.org/en/stable/>`_ for more information.
 
 =======================================
 CMake Files and Variables for Tests
