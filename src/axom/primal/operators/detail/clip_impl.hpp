@@ -191,8 +191,8 @@ void clipAxisPlane(const Polygon<T, NDIMS>* prevPoly, Polygon<T, NDIMS>* current
   }
 }
 
-template <typename T, int NDIMS>
-AXOM_HOST_DEVICE void poly_clip_vertices(Polyhedron<T, NDIMS>& poly,
+template <typename T, int NDIMS, int MAX_VERTS = 32, int MAX_NBRS_PER_VERT = 8>
+AXOM_HOST_DEVICE void poly_clip_vertices(Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>& poly,
                                          const Plane<T, NDIMS>& plane,
                                          const double eps,
                                          unsigned int& out_clipped)
@@ -250,16 +250,16 @@ AXOM_HOST_DEVICE void poly_clip_vertices(Polyhedron<T, NDIMS>& poly,
   }  // end of loop over Polyhedron vertices
 }
 
-template <typename T, int NDIMS>
-AXOM_HOST_DEVICE void poly_clip_fix_nbrs(Polyhedron<T, NDIMS>& poly,
+template <typename T, int NDIMS, int MAX_VERTS = 32, int MAX_NBRS_PER_VERT = 8>
+AXOM_HOST_DEVICE void poly_clip_fix_nbrs(Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>& poly,
                                          const Plane<T, NDIMS>& plane,
                                          const int oldVerts,
                                          const double eps,
                                          const unsigned int clipped)
 {
-  NeighborCollection& poly_nbrs = poly.getNeighbors();
+  auto& poly_nbrs = poly.getNeighbors();
   // Keep copy of old connectivity
-  NeighborCollection old_nbrs = poly.getNeighbors();
+  auto old_nbrs = poly.getNeighbors();
   for(int i = 0; i < poly.numVertices(); i++)
   {
     // Check clipped created vertices first, then vertices on the plane
@@ -346,8 +346,8 @@ AXOM_HOST_DEVICE void poly_clip_fix_nbrs(Polyhedron<T, NDIMS>& poly,
   poly.getNeighbors().pruneNeighbors();
 }
 
-template <typename T, int NDIMS>
-AXOM_HOST_DEVICE void poly_clip_reindex(Polyhedron<T, NDIMS>& poly, const unsigned int clipped)
+template <typename T, int NDIMS, int MAX_VERTS = 32, int MAX_NBRS_PER_VERT = 8>
+AXOM_HOST_DEVICE void poly_clip_reindex(Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>& poly, const unsigned int clipped)
 {
   // Dictionary for old indices to new indices positions
   std::int8_t newIndices[Polyhedron<T, NDIMS>::MAX_VERTS] = {0};
@@ -397,8 +397,8 @@ AXOM_HOST_DEVICE void poly_clip_reindex(Polyhedron<T, NDIMS>& poly, const unsign
  * \param [in] plane The plane defining the half-space used to clip the polyhedron
  * \param [in] eps The tolerance for plane point orientation
  */
-template <typename T, int NDIMS>
-AXOM_HOST_DEVICE void clipPolyhedron(Polyhedron<T, NDIMS>& poly,
+template <typename T, int NDIMS, int MAX_VERTS = 32, int MAX_NBRS_PER_VERT = 8>
+AXOM_HOST_DEVICE void clipPolyhedron(Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>& poly,
                                      const Plane<T, NDIMS>& plane,
                                      double eps)
 {
@@ -456,8 +456,8 @@ AXOM_HOST_DEVICE void clipPolyhedron(Polyhedron<T, NDIMS>& poly,
  * \param [in] planes The array of planes
  * \param [in] eps The tolerance for plane point orientation
  */
-template <typename T, int NDIMS>
-AXOM_HOST_DEVICE void clipPolyhedron(Polyhedron<T, NDIMS>& poly,
+template <typename T, int NDIMS, int MAX_VERTS = 32, int MAX_NBRS_PER_VERT = 8>
+AXOM_HOST_DEVICE void clipPolyhedron(Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>& poly,
                                      axom::ArrayView<Plane<T, NDIMS>> planes,
                                      double eps)
 {
@@ -743,14 +743,14 @@ AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipHexahedron(const Hexahedron<T, NDIMS>&
  * \return The Polyhedron formed from clipping the octahedron with a tetrahedron.
  *
  */
-template <typename T, int NDIMS>
-AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipOctahedron(const Octahedron<T, NDIMS>& oct,
+template <typename T, int NDIMS, int MAX_VERTS = 32, int MAX_NBRS_PER_VERT = 8>
+AXOM_HOST_DEVICE Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT> clipOctahedron(const Octahedron<T, NDIMS>& oct,
                                                      const Tetrahedron<T, NDIMS>& tet,
                                                      double eps,
                                                      bool tryFixOrientation)
 {
   using PlaneType = Plane<T, NDIMS>;
-  using PolyhedronType = Polyhedron<T, NDIMS>;
+  using PolyhedronType = Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>;
 
   // Initialize our polyhedron to return
   PolyhedronType poly = PolyhedronType::from_primitive(oct, tryFixOrientation);
@@ -790,14 +790,15 @@ AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipOctahedron(const Octahedron<T, NDIMS>&
  * \return The Polyhedron formed from clipping the tetrahedron with a tetrahedron.
  *
  */
-template <typename T, int NDIMS>
-AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipTetrahedron(const Tetrahedron<T, NDIMS>& tet1,
-                                                      const Tetrahedron<T, NDIMS>& tet2,
-                                                      double eps,
-                                                      bool tryFixOrientation)
+template <typename T, int NDIMS, int MAX_VERTS, int MAX_NBRS_PER_VERT>
+AXOM_HOST_DEVICE Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>
+clipTetrahedron(const Tetrahedron<T, NDIMS>& tet1,
+                const Tetrahedron<T, NDIMS>& tet2,
+                double eps,
+                bool tryFixOrientation)
 {
   using PlaneType = Plane<T, NDIMS>;
-  using PolyhedronType = Polyhedron<T, NDIMS>;
+  using PolyhedronType = Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>;
 
   // Initialize our polyhedron to return
   PolyhedronType poly = PolyhedronType::from_primitive(tet1, tryFixOrientation);

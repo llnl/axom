@@ -281,8 +281,6 @@ public:
       SLIC_ASSERT(tetCandidatesCount == candidateCount*NUM_TETS_PER_HEX);
 #endif
 
-      using PolyhedronType = primal::Polyhedron<double, 3>;
-
       if(useTets)
       {
         axom::for_all<ExecSpace>(
@@ -292,10 +290,10 @@ public:
             const int shapeIndex = shapeCandidatesView[i];
             const int tetIndex = tetIndicesView[i];
 
-            const PolyhedronType poly = primal::clip(geomTetsView[shapeIndex],
-                                                     cellsAsTets[tetIndex],
-                                                     EPS,
-                                                     tryFixOrientation);
+            const auto poly = primal::clip<double, MAX_VERTS_FOR_TET_CLIPPING, MAX_NBRS_PER_VERT_FOR_TET_CLIPPING>(geomTetsView[shapeIndex],
+                                                          cellsAsTets[tetIndex],
+                                                          EPS,
+                                                          tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -317,10 +315,10 @@ public:
             const int shapeIndex = shapeCandidatesView[i];
             const int tetIndex = tetIndicesView[i];
 
-            const PolyhedronType poly = primal::clip(geomOctsView[shapeIndex],
-                                                     cellsAsTets[tetIndex],
-                                                     EPS,
-                                                     tryFixOrientation);
+            const auto poly = primal::clip<double, MAX_VERTS_FOR_OCT_CLIPPING, MAX_NBRS_PER_VERT_FOR_OCT_CLIPPING>(geomOctsView[shapeIndex],
+                                           cellsAsTets[tetIndex],
+                                           EPS,
+                                           tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -516,8 +514,6 @@ public:
       SLIC_ASSERT(tetCandidatesCount == candidateCount*NUM_TETS_PER_HEX);
 #endif
 
-      using PolyhedronType = primal::Polyhedron<double, 3>;
-
       if(useTets)
       {
         axom::for_all<ExecSpace>(
@@ -532,10 +528,10 @@ public:
             int tetIndex2 = tetIndex%NUM_TETS_PER_HEX;
             tetIndex = cellIndices[tetIndex1]*NUM_TETS_PER_HEX + tetIndex2; // Now it indexes into the full tets-from-hexes array.
 
-            const PolyhedronType poly = primal::clip(geomTetsView[shapeIndex],
-                                                     cellsAsTets[tetIndex],
-                                                     EPS,
-                                                     tryFixOrientation);
+            const auto poly = primal::clip<double, MAX_VERTS_FOR_TET_CLIPPING, MAX_NBRS_PER_VERT_FOR_TET_CLIPPING>(geomTetsView[shapeIndex],
+                                                          cellsAsTets[tetIndex],
+                                                          EPS,
+                                                          tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -562,10 +558,10 @@ public:
             int tetIndex2 = tetIndex%NUM_TETS_PER_HEX;
             tetIndex = cellIndices[tetIndex1]*NUM_TETS_PER_HEX + tetIndex2; // Now it indexes into the full tets-from-hexes array.
 
-            const PolyhedronType poly = primal::clip(geomOctsView[shapeIndex],
-                                                     cellsAsTets[tetIndex],
-                                                     EPS,
-                                                     tryFixOrientation);
+            const auto poly = primal::clip<double, MAX_VERTS_FOR_OCT_CLIPPING, MAX_NBRS_PER_VERT_FOR_OCT_CLIPPING>(geomOctsView[shapeIndex],
+                                           cellsAsTets[tetIndex],
+                                           EPS,
+                                           tryFixOrientation);
 
             // Poly is valid
             if(poly.numVertices() >= 4)
@@ -617,6 +613,11 @@ public:
     onCount = static_cast<axom::IndexType>(onSum.get());
     outCount = static_cast<axom::IndexType>(outSum.get());
   }
+private:
+  static constexpr int MAX_VERTS_FOR_TET_CLIPPING = 32;
+  static constexpr int MAX_NBRS_PER_VERT_FOR_TET_CLIPPING = 8;
+  static constexpr int MAX_VERTS_FOR_OCT_CLIPPING = 32;
+  static constexpr int MAX_NBRS_PER_VERT_FOR_OCT_CLIPPING = 8;
 };
 
 }  // end namespace detail

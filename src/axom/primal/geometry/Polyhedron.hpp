@@ -28,7 +28,7 @@ namespace axom
 namespace primal
 {
 // Forward declare the templated classes and operator functions
-template <typename T, int NDIMS>
+template <typename T, int NDIMS = 3, int MAXVERTS = 32, int MAXNBRS_PER_VERT = 8>
 class Polyhedron;
 
 /*! \brief Overloaded output operator for polyhedrons */
@@ -39,12 +39,16 @@ std::ostream& operator<<(std::ostream& os, const Polyhedron<T, NDIMS>& poly);
  * \class NeighborCollection
  *
  * \brief Represents a collection of neighbor relations between vertices.
+ *
+ * \tparam MAXVERTS Max number of vertices in collection
+ * \tparam MAXNBRS_PER_VERT Max number of neighbors per vertex in collection
  */
+template<int MAXVERTS = 32, int MAXNBRS_PER_VERT = 8>
 class NeighborCollection
 {
 public:
-  static constexpr int MAX_VERTS = 32;
-  static constexpr int MAX_NBRS_PER_VERT = 8;
+  static constexpr int MAX_VERTS = MAXVERTS;
+  static constexpr int MAX_NBRS_PER_VERT = MAXNBRS_PER_VERT;
 
   using VertexNbrs = axom::StackArray<std::int8_t, MAX_NBRS_PER_VERT>;
 
@@ -229,6 +233,8 @@ private:
  *
  * \tparam T the coordinate type, e.g., double, float, etc.
  * \tparam NDIMS the number of dimensions
+ * \tparam MAXVERTS Max number of vertices per polyhedron.
+ * \tparam MAXNBRS_PER_VERT Max number of neighbors per vertex in polyhedron.
  *
  * \note The Polyhedron functions do not check that points defining a face are
  *       coplanar. It is the responsibility of the caller to pass a
@@ -258,11 +264,12 @@ private:
  *       counter clockwise. It is the responsibility of the caller to pass a
  *       valid neighbors ordering.
  */
-template <typename T, int NDIMS = 3>
+template <typename T, int NDIMS, int MAXVERTS, int MAXNBRS_PER_VERT>
 class Polyhedron
 {
 public:
-  constexpr static int MAX_VERTS = NeighborCollection::MAX_VERTS;
+  constexpr static int MAX_VERTS = MAXVERTS;
+  constexpr static int MAX_NBRS_PER_VERT = MAXNBRS_PER_VERT;
   constexpr static int MAX_PLANES = MAX_VERTS;
 
   using PointType = Point<T, NDIMS>;
@@ -270,10 +277,10 @@ public:
   using NumArrayType = axom::NumericArray<T, NDIMS>;
   using PlaneType = Plane<T, NDIMS>;
   using PlaneArrayType = StackArray<PlaneType, MAX_PLANES>;
+  using Neighbors = NeighborCollection<MAX_VERTS, MAX_NBRS_PER_VERT>;
 
 private:
   using Coords = StackArray<PointType, MAX_VERTS>;
-  using Neighbors = NeighborCollection;
 
 public:
   /*! Default constructor for an empty polyhedron   */
@@ -844,7 +851,7 @@ public:
   static Polyhedron from_primitive(const Hexahedron<T, NDIMS>& hex, bool tryFixOrientation = false)
   {
     // Initialize our polyhedron to return
-    Polyhedron<T, NDIMS> poly;
+    Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT> poly;
 
     poly.addVertex(hex[0]);
     poly.addVertex(hex[1]);
@@ -923,7 +930,7 @@ public:
   static Polyhedron from_primitive(const Octahedron<T, NDIMS>& oct, bool tryFixOrientation = false)
   {
     // Initialize our polyhedron to return
-    Polyhedron<T, NDIMS> poly;
+    Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT> poly;
 
     poly.addVertex(oct[0]);
     poly.addVertex(oct[1]);
@@ -997,7 +1004,7 @@ public:
   static Polyhedron from_primitive(const Tetrahedron<T, NDIMS>& tet, bool tryFixOrientation = false)
   {
     // Initialize our polyhedron to return
-    Polyhedron<T, NDIMS> poly;
+    Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT> poly;
 
     poly.addVertex(tet[0]);
     poly.addVertex(tet[1]);
@@ -1023,13 +1030,7 @@ public:
 
 private:
   int m_num_vertices {0};
-  Coords m_vertices {PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}, PointType {}, PointType {}, PointType {},
-                     PointType {}, PointType {}};
+  Coords m_vertices;
   Neighbors m_neighbors {};
 };
 
