@@ -22,19 +22,19 @@ namespace axom
 namespace primal
 {
 /*!
-  \class Cone
-
-  \brief Represents a cone defined by a base radius,
-  a top radius, the length from base to top along its axis,
-  the orientation of the axis and a translation.
-  \tparam T the coordinate type, e.g., double, float, etc.
-  \tparam NDIMS the number of spatial dimensions
-
-  A negative length is allowed and results in a negative volume.
-  Radii must be non-negative.
-
-  A cylinder can be represented using equal base and top radii.
-*/
+ * \class Cone
+ *
+ * \brief Represents a cone defined by a base radius,
+ * a top radius, the length from base to top along its axis,
+ * the orientation of the axis and a translation.
+ * \tparam T the coordinate type, e.g., double, float, etc.
+ * \tparam NDIMS the number of spatial dimensions
+ *
+ * A negative length is allowed and results in a negative volume.
+ * Radii must be non-negative.
+ *
+ * A cylinder can be represented using equal base and top radii.
+ */
 template <typename T, int NDIMS>
 class Cone
 {
@@ -44,9 +44,9 @@ public:
 
 public:
   /*!
-    \brief Default constructor constructs a degenerate cone,
-    oriented along the first axis.
-  */
+   * \brief Default constructor constructs a degenerate cone,
+   * oriented along the first axis.
+   */
   AXOM_HOST_DEVICE Cone()
     : m_baseZ(0.0)
     , m_baseRad(0.0)
@@ -59,13 +59,13 @@ public:
   }
 
   /*!
-    \brief Construct a cone with a base at the origin,
-    oriented along the first axis.
-    \param [in] baseRadius
-    \param [in] topRadius
-    \param [in] length Negative value is allowed and leads
-      to negative volume.
-  */
+   * \brief Construct a cone with a base at the origin,
+   * oriented along the first axis.
+   * \param [in] baseRadius
+   * \param [in] topRadius
+   * \param [in] length Negative value is allowed and leads
+   *   to negative volume.
+   */
   AXOM_HOST_DEVICE Cone(T baseRadius, T topRadius, T length)
     : m_baseZ(0.0)
     , m_baseRad(baseRadius)
@@ -78,15 +78,15 @@ public:
   }
 
   /*!
-    \brief Construct a cone at an arbitrary position and orientation.
-    \param [in] baseZ
-    \param [in] baseRadius
-    \param [in] topZ
-    \param [in] topRadius
-    \param [in] direction Direction of axis, from base to top.
-    \param [in] origin Coordinates of the z=0 point
-
-    topZ < baseZ is allowed and leads to negative length and volume.
+   * \brief Construct a cone at an arbitrary position and orientation.
+   * \param [in] baseZ
+   * \param [in] baseRadius
+   * \param [in] topZ
+   * \param [in] topRadius
+   * \param [in] direction Direction of axis, from base to top.
+   * \param [in] origin Coordinates of the z=0 point
+   *
+   * topZ < baseZ is allowed and leads to negative length and volume.
    */
   AXOM_HOST_DEVICE Cone(T baseZ,
                         T baseRadius,
@@ -132,10 +132,10 @@ public:
   }
 
   /*!
-    \brief Simple formatted print of a cone instance
-   \param os The output stream to write to
-   \return A reference to the modified ostream
-  */
+   * \brief Simple formatted print of a cone instance
+   * \param os The output stream to write to
+   * \return A reference to the modified ostream
+   */
   std::ostream& print(std::ostream& os) const
   {
     os << "Cone{ base(" << m_baseZ << ',' << m_baseRad << "), top(" << m_topZ << ',' << m_topRad << ", axis at " << m_origin << " along " << m_direction << '}';
@@ -144,19 +144,18 @@ public:
   }
 
   /*!
-   \brief Returns the algebraic volume of the cone
-
-   The volume returned is positive when the top-z coordinate is larger
-   than the base-z coordinate.  Otherwise, it's non-positive.
-
-   Volume is only defined when NDIMS == 3.
-  */
+   * \brief Returns the algebraic volume of the cone
+   *
+   * The volume returned is positive when the top-z coordinate is larger
+   * than the base-z coordinate.  Otherwise, it's non-positive.
+   *
+   * Volume is only defined when NDIMS == 3.
+   */
   template <int TDIM = NDIMS>
   AXOM_HOST_DEVICE
   typename std::enable_if<TDIM == 3, T>::type volume() const
   {
-    T vol = (m_baseRad * m_baseRad + m_baseRad * m_topRad + m_topRad * m_topRad) *
-      1 / 3.0 * M_PI * (m_topZ - m_baseZ);
+    T vol = (m_baseRad * m_baseRad + m_baseRad * m_topRad + m_topRad * m_topRad) / 3.0 * M_PI * (m_topZ - m_baseZ);
     return vol;
   }
 

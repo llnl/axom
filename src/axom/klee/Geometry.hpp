@@ -290,10 +290,10 @@ public:
   /// \brief Return the sphere geometry, when the Geometry represents an analytical sphere.
   const axom::primal::Sphere<double, 3> &getSphere() const { return m_sphere; }
 
-  /// !brief Return the cone geometry, when the Geometry represents an alalytical cone.
+  /// \brief Return the cone geometry, when the Geometry represents an alalytical cone.
   const axom::primal::Cone<double, 3> &getCone() const { return m_cone; }
 
-  /// @brief Return the plane geometry, when the Geometry represents a plane.
+  /// \brief Return the plane geometry, when the Geometry represents a plane.
   const axom::primal::Plane<double, 3> &getPlane() const { return m_plane; }
 
   /// \brief Get the discrete function used in surfaces of revolution.
@@ -347,12 +347,12 @@ private:
   std::shared_ptr<const GeometryOperator> m_operator;
 
   /*!
-    @brief Populate m_geomInfo with the geometry definition.
-
-    This helps transition away from geometry-specific constructors and
-    methods like @c getTet(), @c getHex() and @c getSphere() and
-    toward a uniform interface for providing geometry info.
-  */
+   * @brief Populate m_geomInfo with the geometry definition.
+   *
+   * This helps transition away from geometry-specific constructors and
+   * methods like @c getTet(), @c getHex() and @c getSphere() and
+   * toward a uniform interface for providing geometry info.
+   */
   void populateGeomInfo();
 };
 

@@ -30,10 +30,10 @@ void ConduitMemory::privateRegisterAllocator()
   m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
 #else
   /*
-    Note: conduit-0.9.4 allows the callbacks as std::function types.
-    Once we are there, we can use a single allocator, eliminating
-    the need for these if-else blocks.
-  */
+   * Note: conduit-0.9.4 allows the callbacks as std::function types.
+   * Once we are there, we can use a single allocator, eliminating
+   * the need for these if-else blocks.
+   */
   if(m_axomId == MALLOC_ALLOCATOR_ID)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
