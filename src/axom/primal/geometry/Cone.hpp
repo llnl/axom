@@ -128,7 +128,7 @@ public:
   //! \brief Return the interpolated/extrapolated radius at a given z.
   AXOM_HOST_DEVICE double getRadiusAt(double z) const
   {
-    return m_baseRad + (m_topRad - m_baseRad)/(m_topZ - m_baseZ) * (z - m_baseZ);
+    return m_baseRad + (m_topRad - m_baseRad) / (m_topZ - m_baseZ) * (z - m_baseZ);
   }
 
   /*!
@@ -138,7 +138,8 @@ public:
    */
   std::ostream& print(std::ostream& os) const
   {
-    os << "Cone{ base(" << m_baseZ << ',' << m_baseRad << "), top(" << m_topZ << ',' << m_topRad << ", axis at " << m_origin << " along " << m_direction << '}';
+    os << "Cone{ base(" << m_baseZ << ',' << m_baseRad << "), top(" << m_topZ << ',' << m_topRad
+       << ", axis at " << m_origin << " along " << m_direction << '}';
 
     return os;
   }
@@ -152,10 +153,10 @@ public:
    * Volume is only defined when NDIMS == 3.
    */
   template <int TDIM = NDIMS>
-  AXOM_HOST_DEVICE
-  typename std::enable_if<TDIM == 3, T>::type volume() const
+  AXOM_HOST_DEVICE typename std::enable_if<TDIM == 3, T>::type volume() const
   {
-    T vol = (m_baseRad * m_baseRad + m_baseRad * m_topRad + m_topRad * m_topRad) / 3.0 * M_PI * (m_topZ - m_baseZ);
+    T vol = (m_baseRad * m_baseRad + m_baseRad * m_topRad + m_topRad * m_topRad) / 3.0 * M_PI *
+      (m_topZ - m_baseZ);
     return vol;
   }
 

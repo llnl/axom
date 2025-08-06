@@ -297,7 +297,10 @@ TEST(sidre_view, tuple_view)
   constexpr size_t N = 5;
 
   axom::Array<int> iArray(N, N);
-  for(int i = 0; i < iArray.size(); ++i) { iArray[i] = i + 100; }
+  for(int i = 0; i < iArray.size(); ++i)
+  {
+    iArray[i] = i + 100;
+  }
 
   View* iView = root->createView("i")->setTuple(iArray.view());
   EXPECT_EQ(iView->getNumElements(), iArray.size());
@@ -1955,7 +1958,8 @@ TEST(sidre_view, deep_copy_to_conduit)
     {
       int dstAllocId = allocIds[di];
 
-      std::cout << "Testing copying allocator ids " << srcArrayAllocId << " and " << srcTupleAllocId << " to " << dstAllocId << std::endl;
+      std::cout << "Testing copying allocator ids " << srcArrayAllocId << " and " << srcTupleAllocId
+                << " to " << dstAllocId << std::endl;
 
       const auto& idConverter = axom::sidre::ConduitMemory::instanceForAxomId(dstAllocId);
       auto dstAllocIdConduit = idConverter.conduitId();
@@ -1970,7 +1974,8 @@ TEST(sidre_view, deep_copy_to_conduit)
       //
       int checkAllocId;
 
-      double* dstScalarPtr = static_cast<double*>(dst.fetch_existing(srcScalar->getName()).data_ptr());
+      double* dstScalarPtr =
+        static_cast<double*>(dst.fetch_existing(srcScalar->getName()).data_ptr());
       EXPECT_NE(dstScalarPtr, nullptr);
       EXPECT_NE(dstScalarPtr, srcScalarPtr);
       checkAllocId = axom::getAllocatorIDFromPointer(dstScalarPtr);
@@ -1978,7 +1983,8 @@ TEST(sidre_view, deep_copy_to_conduit)
       axom::copy(&tmpDoubleValue, dstScalarPtr, sizeof(double));
       EXPECT_EQ(tmpDoubleValue, doubleValue);
 
-      std::int32_t* dstArrayPtr = static_cast<std::int32_t*>(dst.fetch_existing(srcArray->getName()).data_ptr());
+      std::int32_t* dstArrayPtr =
+        static_cast<std::int32_t*>(dst.fetch_existing(srcArray->getName()).data_ptr());
       EXPECT_NE(dstArrayPtr, nullptr);
       EXPECT_NE(dstArrayPtr, srcArrayPtr);
       checkAllocId = axom::getAllocatorIDFromPointer(dstArrayPtr);

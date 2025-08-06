@@ -274,8 +274,6 @@ public:
    */
   bool isRoot() const { return m_parent == this; }
 
-
-
   //! \brief Return the ID of the default array allocator id associated with this Group.
   int getDefaultArrayAllocatorID() const { return m_default_array_alloc_id; }
 
@@ -309,8 +307,6 @@ public:
     return this;
   }
 
-
-
   //! \brief Return the ID of the default scalar/tuple allocator id associated with this Group.
   int getDefaultTupleAllocatorID() const { return m_default_tuple_alloc_id; }
 
@@ -341,21 +337,16 @@ public:
   {
     SLIC_ASSERT(allocId != axom::INVALID_ALLOCATOR_ID);
     m_default_tuple_alloc_id = allocId;
-      ConduitMemory::instanceForAxomId(m_default_tuple_alloc_id).conduitId();
+    ConduitMemory::instanceForAxomId(m_default_tuple_alloc_id).conduitId();
     return this;
   }
-
-
 
   //! \brief For backward compatibility, same as getDefaultArrayAllocatorID().
   int getDefaultAllocatorID() const { return getDefaultArrayAllocatorID(); }
 
 #if defined(AXOM_USE_UMPIRE)
   //! \brief For backward compatibility, same as getDefaultArrayAllocator().
-  umpire::Allocator getDefaultAllocator() const
-  {
-    return getDefaultArrayAllocator();
-  }
+  umpire::Allocator getDefaultAllocator() const { return getDefaultArrayAllocator(); }
 
   //! \brief For backward compatibility, same as setDefaultArrayAllocator().
   Group* setDefaultAllocator(umpire::Allocator alloc)
@@ -365,10 +356,7 @@ public:
 #endif
 
   //! \brief For backward compatibility, same as setDefaultArrayAllocator().
-  Group* setDefaultAllocator(int allocId)
-  {
-    return setDefaultArrayAllocator(allocId);
-  }
+  Group* setDefaultAllocator(int allocId) { return setDefaultArrayAllocator(allocId); }
 
   /*!
    * \brief Insert information about data associated with Group subtree with

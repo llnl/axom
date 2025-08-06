@@ -1719,7 +1719,8 @@ TEST(sidre_group, deep_copy_interspace)
       int dstArrayAllocId = allocIds[di];
       int dstTupleAllocId = allocIds[allocIds.size() - 1 - di];
 
-      std::cout << "Testing copying allocator id " << srcArrayAllocId << " and " << srcTupleAllocId << " to " << dstArrayAllocId << " and " << dstTupleAllocId << std::endl;
+      std::cout << "Testing copying allocator id " << srcArrayAllocId << " and " << srcTupleAllocId
+                << " to " << dstArrayAllocId << " and " << dstTupleAllocId << std::endl;
 
       dstGrandparent->setDefaultArrayAllocator(dstArrayAllocId);
       dstGrandparent->setDefaultTupleAllocator(dstTupleAllocId);
@@ -1739,7 +1740,8 @@ TEST(sidre_group, deep_copy_interspace)
       axom::copy(&tmpDoubleValue, dstScalarPtr, sizeof(double));
       EXPECT_EQ(tmpDoubleValue, doubleValue);
 
-      std::int32_t* dstArrayPtr = static_cast<std::int32_t*>(dst->getView(srcArray->getName())->getVoidPtr());
+      std::int32_t* dstArrayPtr =
+        static_cast<std::int32_t*>(dst->getView(srcArray->getName())->getVoidPtr());
       EXPECT_NE(dstArrayPtr, nullptr);
       EXPECT_NE(dstArrayPtr, srcArrayPtr);
       EXPECT_EQ(axom::getAllocatorIDFromPointer(dstArrayPtr), dstArrayAllocId);

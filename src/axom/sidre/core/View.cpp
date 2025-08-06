@@ -2039,11 +2039,11 @@ int View::getValidAllocatorId(int allocId)
   {
     return allocId;
   }
-  if (m_state == BUFFER || m_state == EXTERNAL)
+  if(m_state == BUFFER || m_state == EXTERNAL)
   {
     return getOwningGroup()->getValidArrayAllocatorId(allocId);
   }
-  if (m_state == TUPLE || m_state == STRING)
+  if(m_state == TUPLE || m_state == STRING)
   {
     return getOwningGroup()->getValidTupleAllocatorId(allocId);
   }

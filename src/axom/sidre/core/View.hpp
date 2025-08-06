@@ -1569,7 +1569,7 @@ private:
                //    applied may be true or false
     EXTERNAL,  // View holds pointer to external data (no buffer) :
                //    applied may be true or false
-    TUPLE,    // View holds tuple (including scalar) data (via setScalar() or setTuple()):
+    TUPLE,     // View holds tuple (including scalar) data (via setScalar() or setTuple()):
                //    applied is true
     STRING     // View holds string data (via setString()):
                //    applied is true
@@ -1643,8 +1643,8 @@ private:
       }
       else
       {
-        auto a = start + maxPrintItems/2;
-        auto b = end - maxPrintItems/2;
+        auto a = start + maxPrintItems / 2;
+        auto b = end - maxPrintItems / 2;
         for(auto i = start; i < a; ++i)
         {
           os << *i << ", ";
@@ -1664,7 +1664,9 @@ private:
       getShape(shape.size(), shape.data());
       os << ' ' << getVoidPtr() << " # non-host " << typeid(T).name() << " array of (" << shape[0];
       for(axom::IndexType i = 1; i < shape.size(); ++i)
-        { os << " x " << shape[i]; }
+      {
+        os << " x " << shape[i];
+      }
       os << ") elements";
     }
   }

@@ -1474,10 +1474,7 @@ bool Group::createNativeLayout(Node& n, const Attribute* attr) const
  *
  *************************************************************************
  */
-bool Group::deepCopyToConduit(Node& dst,
-                              int tupleAllocId,
-                              int arrayAllocId,
-                              const Attribute* attr) const
+bool Group::deepCopyToConduit(Node& dst, int tupleAllocId, int arrayAllocId, const Attribute* attr) const
 {
   dst.set(DataType::object());
   bool hasSavedViews = false;
@@ -2837,7 +2834,10 @@ bool Group::importConduitTreeExternal(conduit::Node& node, bool preserve_content
           //create string view
           // createViewString(cld_name, cld_node.data_ptr());
           int allocId = ConduitMemory::conduitAllocIdToAxom(cld_node.allocator());
-          if (allocId == axom::INVALID_ALLOCATOR_ID) { allocId = axom::MALLOC_ALLOCATOR_ID; }
+          if(allocId == axom::INVALID_ALLOCATOR_ID)
+          {
+            allocId = axom::MALLOC_ALLOCATOR_ID;
+          }
           createViewString(cld_name, cld_node.as_string(), allocId);
         }
       }
@@ -2847,7 +2847,10 @@ bool Group::importConduitTreeExternal(conduit::Node& node, bool preserve_content
         {
           // create scalar view
           int allocId = ConduitMemory::conduitAllocIdToAxom(cld_node.allocator());
-          if (allocId == axom::INVALID_ALLOCATOR_ID) { allocId = axom::MALLOC_ALLOCATOR_ID; }
+          if(allocId == axom::INVALID_ALLOCATOR_ID)
+          {
+            allocId = axom::MALLOC_ALLOCATOR_ID;
+          }
           View* view = createView(cld_name);
           view->setScalar(cld_node, allocId);
         }

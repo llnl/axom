@@ -79,8 +79,8 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
   populateGeomInfo();
 }
 
-Geometry::Geometry(const TransformableGeometryProperties &startProperties,
-                   const axom::primal::Cone<double, 3> &cone,
+Geometry::Geometry(const TransformableGeometryProperties& startProperties,
+                   const axom::primal::Cone<double, 3>& cone,
                    axom::IndexType levelOfRefinement,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
@@ -152,10 +152,10 @@ void Geometry::populateGeomInfo()
   {
     const Cone3D& cone = getCone();
     m_discreteFunction = axom::Array<double, 2>(2, 2);
-    m_discreteFunction(0,0) = cone.getBaseZ();
-    m_discreteFunction(0,1) = cone.getBaseRadius();
-    m_discreteFunction(1,1) = cone.getTopZ();
-    m_discreteFunction(1,1) = cone.getTopRadius();
+    m_discreteFunction(0, 0) = cone.getBaseZ();
+    m_discreteFunction(0, 1) = cone.getBaseRadius();
+    m_discreteFunction(1, 1) = cone.getTopZ();
+    m_discreteFunction(1, 1) = cone.getTopRadius();
     m_geomInfo["discreteFunction"].set(m_discreteFunction.data(), m_discreteFunction.size());
     m_geomInfo["sorOrigin"].set(cone.getOrigin().data(), 3);
     m_geomInfo["sorDirection"].set(cone.getDirection().data(), 3);
@@ -195,9 +195,8 @@ void Geometry::populateGeomInfo()
 
 bool Geometry::hasGeometry() const
 {
-  bool isInMemory = (m_format == "blueprint-tets" || m_format == "sphere3D" ||
-                     m_format == "tet3D" || m_format == "hex3D" || m_format == "plane3D" ||
-                     m_format == "cone3D");
+  bool isInMemory = (m_format == "blueprint-tets" || m_format == "sphere3D" || m_format == "tet3D" ||
+                     m_format == "hex3D" || m_format == "plane3D" || m_format == "cone3D");
   if(isInMemory)
   {
     return true;

@@ -108,10 +108,7 @@ struct ConduitMemory
   static const ConduitMemory& instanceForConduitId(conduit::index_t conduitAllocId);
 
   //!@brief Return the default conduit allocator id.
-  static conduit::index_t defaultConduitId()
-  {
-    return s_defaultConduitId;
-  }
+  static conduit::index_t defaultConduitId() { return s_defaultConduitId; }
 
   ~ConduitMemory() { }
 
@@ -158,10 +155,7 @@ private:
    * @brief Constructor creates allocator/deallocator function and registers
    * them with Conduit.
    */
-  explicit ConduitMemory(int axomAllocId) : m_axomId(axomAllocId)
-  {
-    privateRegisterAllocator();
-  }
+  explicit ConduitMemory(int axomAllocId) : m_axomId(axomAllocId) { privateRegisterAllocator(); }
 
   void privateRegisterAllocator();
 };

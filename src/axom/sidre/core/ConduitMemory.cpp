@@ -18,15 +18,15 @@ void ConduitMemory::privateRegisterAllocator()
 {
   using conduit::utils::register_allocator;
   auto deallocator = [](void* ptr) -> void {
-                       char* cPtr = (char*)(ptr);
-                       axom::deallocate<char>(cPtr);
-                     };
+    char* cPtr = (char*)(ptr);
+    axom::deallocate<char>(cPtr);
+  };
   m_deallocCallback = deallocator;
 #if defined(AXOM_USE_CONDUIT_STD_FUNCTION)
   m_allocCallback = [=](size_t itemCount, size_t itemByteSize) -> void* {
-                      void* ptr = axom::allocate<char>(itemCount * itemByteSize, m_axomId);
-                      return ptr;
-                    };
+    void* ptr = axom::allocate<char>(itemCount * itemByteSize, m_axomId);
+    return ptr;
+  };
   m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
 #else
   /*
@@ -37,9 +37,9 @@ void ConduitMemory::privateRegisterAllocator()
   if(m_axomId == MALLOC_ALLOCATOR_ID)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, MALLOC_ALLOCATOR_ID);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, MALLOC_ALLOCATOR_ID);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == axom::INVALID_ALLOCATOR_ID)
@@ -50,176 +50,176 @@ void ConduitMemory::privateRegisterAllocator()
   else if(m_axomId == 0)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 0);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 0);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 1)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 1);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 1);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 2)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 2);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 2);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 3)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 3);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 3);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 4)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 4);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 4);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 5)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 5);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 5);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 6)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 6);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 6);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 7)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 7);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 7);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 8)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 8);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 8);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 9)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 9);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 9);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 10)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 10);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 10);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 11)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 11);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 11);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 12)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 12);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 12);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 13)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 13);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 13);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 14)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 14);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 14);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 15)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 15);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 15);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 15)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 15);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 15);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 17)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 17);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 17);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 18)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 18);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 18);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 19)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 19);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 19);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else if(m_axomId == 20)
   {
     m_allocCallback = [](size_t itemCount, size_t itemByteSize) {
-                        void* ptr = axom::allocate<char>(itemCount * itemByteSize, 20);
-                        return ptr;
-                      };
+      void* ptr = axom::allocate<char>(itemCount * itemByteSize, 20);
+      return ptr;
+    };
     m_conduitId = register_allocator(m_allocCallback, m_deallocCallback);
   }
   else
   {
     std::cerr << "*** Work-around for conduit::utils::register_allocator "
-      "needs case for "
-      "m_axomId = "
+                 "needs case for "
+                 "m_axomId = "
               << std::to_string(m_axomId) << ".  Please add it to ConduitMemory.hpp.";
     axom::utilities::processAbort();
   }
