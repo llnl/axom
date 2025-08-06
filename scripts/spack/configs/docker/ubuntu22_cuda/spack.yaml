@@ -134,10 +134,6 @@ spack:
     mfem:
       require: 
       - spec: "+shared~static"
-    # Umpire must be shared when building Axom as a shared library. See PR #1271 for more details.
-    umpire:
-     require:
-     - spec: "+shared"
 
     # Globally lock in version of devtools
     cmake:
