@@ -25,10 +25,9 @@ spack:
   - compiler:
       environment: {}
       extra_rpaths: []
-      # CUDA Link-time optimization causing problems
       flags:
-        cflags: -pthread -fno-lto
-        cxxflags: -pthread -fno-lto
+        cflags: -pthread
+        cxxflags: -pthread
       modules: []
       operating_system: ubuntu22.04
       paths:
@@ -136,9 +135,9 @@ spack:
       require: 
       - spec: "+shared~static"
     # Umpire must be shared when building Axom as a shared library. See PR #1271 for more details.
-    #umpire:
-    #  require:
-    #  - spec: "+shared"
+    umpire:
+     require:
+     - spec: "+shared"
 
     # Globally lock in version of devtools
     cmake:
