@@ -124,8 +124,9 @@ void Lumberjack::queueMessage(const std::string& text,
                               double creationTime,
                               const std::string& tag)
 {
+  const double elapsedTime = creationTime - m_communicator->startTime();
   Message* mi =
-    new Message(text, m_communicator->rank(), fileName, lineNumber, level, creationTime, tag);
+    new Message(text, m_communicator->rank(), fileName, lineNumber, level, elapsedTime, tag);
   m_messages.push_back(mi);
 }
 
@@ -138,8 +139,9 @@ void Lumberjack::queueMessage(const std::string& text,
                               double creationTime,
                               const std::string& tag)
 {
+  const double elapsedTime = creationTime - m_communicator->startTime();
   Message* mi =
-    new Message(text, ranks, count, m_ranksLimit, fileName, lineNumber, level, creationTime, tag);
+    new Message(text, ranks, count, m_ranksLimit, fileName, lineNumber, level, elapsedTime, tag);
   m_messages.push_back(mi);
 }
 

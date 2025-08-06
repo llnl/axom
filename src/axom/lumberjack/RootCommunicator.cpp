@@ -26,6 +26,10 @@ namespace lumberjack
 void RootCommunicator::initialize(MPI_Comm comm, int ranksLimit)
 {
   m_mpiComm = comm;
+
+  MPI_Barrier(m_mpiComm);
+  m_startTime = MPI_Wtime();
+
   MPI_Comm_rank(m_mpiComm, &m_mpiCommRank);
   MPI_Comm_size(m_mpiComm, &m_mpiCommSize);
   m_ranksLimit = ranksLimit;
@@ -87,6 +91,11 @@ bool RootCommunicator::isOutputNode()
     return true;
   }
   return false;
+}
+
+double RootCommunicator::startTime()
+{
+  return m_startTime;
 }
 
 }  // end namespace lumberjack
