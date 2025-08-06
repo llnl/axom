@@ -194,7 +194,9 @@ public:
 
     auto dc = std::unique_ptr<sidre::MFEMSidreDataCollection>(
       new sidre::MFEMSidreDataCollection(name, mesh, dc_owns_data));
+  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
     dc->SetComm(MPI_COMM_WORLD);
+  #endif
 
     return dc;
   }
@@ -1651,10 +1653,14 @@ int main(int argc, char** argv)
     {
       shapingDC->SetMeshNodesName("positions");
 
-      // With MPI, loadComputationalMesh returns a parallel mesh.
+  // With MPI, loadComputationalMesh returns a parallel mesh.
+  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
       mfem::ParMesh* parallelMesh = dynamic_cast<mfem::ParMesh*>(originalMeshDC->GetMesh());
       shapingMesh = (parallelMesh != nullptr) ? new mfem::ParMesh(*parallelMesh)
                                               : new mfem::Mesh(*originalMeshDC->GetMesh());
+  #else
+      shapingMesh = new mfem::Mesh(*originalMeshDC->GetMesh());
+  #endif
       shapingDC->SetMesh(shapingMesh);
     }
     AXOM_ANNOTATE_END("load mesh");
