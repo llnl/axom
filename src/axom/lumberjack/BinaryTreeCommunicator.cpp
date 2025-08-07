@@ -118,10 +118,7 @@ bool BinaryTreeCommunicator::isOutputNode()
   return false;
 }
 
-double BinaryTreeCommunicator::startTime()
-{
-  return m_startTime;
-}
+double BinaryTreeCommunicator::startTime() { return m_startTime; }
 
 }  // end namespace lumberjack
 }  // end namespace axom

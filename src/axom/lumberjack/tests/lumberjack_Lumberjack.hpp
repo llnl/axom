@@ -400,7 +400,7 @@ TEST(lumberjack_Lumberjack, combineMixedMessages03)
     std::string s = "Should not be combined " + std::to_string(i + 1) + ".";
     EXPECT_EQ(messages[i]->text(), s);
     EXPECT_EQ(messages[i]->count(), 1);
-    EXPECT_EQ(messages[i]->creationTime(), static_cast<double>(i+1));
+    EXPECT_EQ(messages[i]->creationTime(), static_cast<double>(i + 1));
   }
 
   EXPECT_EQ(messages[3]->text(), "Should be combined.");

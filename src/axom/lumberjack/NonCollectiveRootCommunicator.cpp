@@ -98,10 +98,7 @@ bool NonCollectiveRootCommunicator::isOutputNode()
   return false;
 }
 
-double NonCollectiveRootCommunicator::startTime()
-{
-  return m_startTime;
-}
+double NonCollectiveRootCommunicator::startTime() { return m_startTime; }
 
 }  // end namespace lumberjack
 }  // end namespace axom

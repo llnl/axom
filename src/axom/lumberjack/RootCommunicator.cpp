@@ -93,10 +93,7 @@ bool RootCommunicator::isOutputNode()
   return false;
 }
 
-double RootCommunicator::startTime()
-{
-  return m_startTime;
-}
+double RootCommunicator::startTime() { return m_startTime; }
 
 }  // end namespace lumberjack
 }  // end namespace axom
