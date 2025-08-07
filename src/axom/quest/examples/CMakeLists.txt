@@ -326,8 +326,12 @@ if((CONDUIT_FOUND OR
         )
 
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
-        # 3D shaping tests.  No 2D shaping in this feature, at least for now.
-        set(_nranks 1)
+
+        if(AXOM_ENABLE_MPI)     # this test requires MPI when available
+            set(_nranks 1)      # (but only 1 rank)
+        else()                  # but can otherwise be run without MPI
+            unset(_nranks)
+        endif()
 
         # Run the in-memory shaping example on with each enabled policy
         set(_policies "seq")
