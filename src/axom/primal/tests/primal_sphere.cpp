@@ -152,6 +152,31 @@ void check_sphere_intersection()
 
 //------------------------------------------------------------------------------
 template <int NDIMS>
+void check_sphere_containment()
+{
+  using PointType = primal::Point<double, NDIMS>;
+  using SphereType = primal::Sphere<double, NDIMS>;
+
+  PointType center {0.0, 0.0, 0.0};
+  double tol = 1e-12;
+
+  // STEP 0: test fully containing
+  SphereType S0;
+  EXPECT_TRUE(S0.contains(S0, -tol));
+
+  // STEP 1: test barely not containing.
+  center[0] = tol;
+  SphereType S1(center);
+  EXPECT_FALSE(S0.contains(S1));
+
+  // STEP 2: test partial containment.
+  center[0] = 0.5;
+  SphereType S3(center);
+  EXPECT_FALSE(S0.contains(S3));
+}
+
+//------------------------------------------------------------------------------
+template <int NDIMS>
 void check_copy_constructor()
 {
   using PointType = primal::Point<double, NDIMS>;
@@ -242,6 +267,13 @@ TEST(primal_sphere, sphere_sphere_intersection)
 {
   check_sphere_intersection<2>();
   check_sphere_intersection<3>();
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_sphere, sphere_sphere_containment)
+{
+  check_sphere_containment<2>();
+  check_sphere_containment<3>();
 }
 
 //------------------------------------------------------------------------------
