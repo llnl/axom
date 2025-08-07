@@ -75,6 +75,8 @@ public:
    *
    * The only things truly combined in this Combiner are the ranks from combinee
    * to combined and the creation time, since text is already equal.
+   * The creation time of the first message (lowest creation time) will be saved
+   * to the combined message.
    *
    * \param [in,out] combined the Message that will be modified.
    * \param [in] combinee the Message that is combined into the other.
