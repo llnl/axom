@@ -57,6 +57,8 @@ private:
 
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+  template <typename ExecSpace>
+  void labelInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
   void extractClipperInfo();
 

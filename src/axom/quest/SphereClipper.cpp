@@ -53,7 +53,7 @@ bool SphereClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelT
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void SphereClipper::labelInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
 
@@ -180,6 +180,81 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
         }
       });
   }
+
+  return;
+}
+
+template <typename ExecSpace>
+void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+{
+  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
+
+  constexpr int NUM_VERTS_PER_CELL = 8;
+
+  int allocId = shapeeMesh.getAllocatorID();
+  auto cellCount = shapeeMesh.getCellCount();
+  auto vertCount = shapeeMesh.getVertexCount();
+
+  const auto& vertCoords = shapeeMesh.getVertexCoords3D();
+  const auto& vX = vertCoords[0];
+  const auto& vY = vertCoords[1];
+  const auto& vZ = vertCoords[2];
+
+  /*
+    Compute whether vertices are inside shape.
+  */
+  axom::Array<double> vertDist {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
+  auto vertDistView = vertDist.view();
+  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vX.getAllocatorID()));
+  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
+  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vZ.getAllocatorID()));
+  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertDistView.getAllocatorID()));
+
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  {
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
+  }
+
+  auto labelsView = labels.view();
+
+  /*
+    Label cell by whether its bounding sphere touches the sphere geometry.
+  */
+
+  auto cellBbs = shapeeMesh.getCellBoundingBoxes();
+
+  auto sphere = m_sphere;
+  auto sphereRad = sphere.getRadius();
+  auto sphereRadSq = sphereRad * sphereRad;
+
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType cellId) {
+      LabelType& cellLabel = labelsView[cellId];
+      // Use bounding box's containing sphere as a fast conservative
+      // approximation to the cell's bounding sphere.
+      const auto& bb = cellBbs[cellId];
+      const SphereType boundingSphere(bb.getCentroid(), bb.range().norm()/2);
+      if(sphere.intersectsWith(boundingSphere))
+      {
+        // Checking containment of corner points would be the right
+        // way to differentiate between IN and ON cells.  But checking
+        // containment of boundingSphere is convenient here and
+        // misclassifies about 4% of the cells conservatively.
+        if(sphere.contains(boundingSphere))
+        {
+          cellLabel = LABEL_IN;
+        }
+        else
+        {
+          cellLabel = LABEL_ON;
+        }
+      }
+      else
+      {
+        cellLabel = LABEL_OUT;
+      }
+    });
 
   return;
 }
