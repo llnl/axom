@@ -336,7 +336,10 @@ if((CONDUIT_FOUND OR
         # Run the in-memory shaping example on with each enabled policy
         set(_policies "seq")
         if(RAJA_FOUND)
-            blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
+            # Hanging issue on Windows
+            if(NOT WIN32)
+                blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
+            endif()
             blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
             blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
         endif()
