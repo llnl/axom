@@ -55,12 +55,12 @@ RUN cd ${HOME}/axom_repo && python3 config-build.py -hc *cuda.cmake \
 # Larger STL meshes for testing (optional)
 # Note: These meshes are large, copied from local directory instead of
 #        downloaded from Github.
-COPY boxedSphere.stl car.stl porsche.stl ${HOME}/axom_repo/data/quest
+# COPY boxedSphere.stl car.stl porsche.stl ${HOME}/axom_repo/data/quest
 
 
 # Create symlinks for easy access to tutorial material (optional)
-RUN ln -s ${HOME}/axom_repo/install-release/examples/axom/radiuss_tutorial/ ${HOME}/radiuss_tutorial \
-    && ln -s ${HOME}/axom_repo/data/quest ${HOME}/radiuss_tutorial/stl_meshes
+# RUN ln -s ${HOME}/axom_repo/install-release/examples/axom/radiuss_tutorial/ ${HOME}/radiuss_tutorial \
+# && ln -s ${HOME}/axom_repo/data/quest ${HOME}/radiuss_tutorial/stl_meshes
 
 USER root
 ADD ./scripts/docker/supervisord.conf /etc/supervisord.conf
