@@ -130,6 +130,11 @@ public:
     GeometryClipper& m_delegator;
   };
 
+  //! @brief For assessments, not general use.
+  void getClippingStats( axom::IndexType& localCellInCount,
+                         axom::IndexType& globalCellInCount,
+                         axom::IndexType& maxLocalCellInCount) const;
+
 private:
   friend Delegate;
 
@@ -146,6 +151,11 @@ private:
      for multiple execution spaces.
      TODO: Change delegate term to policy.
   */
+
+  ///@{
+  //! @name Statistics
+  axom::IndexType m_localCellInCount{0};
+  ///@}
 
   bool m_verbose;
 

@@ -80,7 +80,7 @@ bool SorClipper::specializedClip(quest::ShapeeMesh& shapeeMesh,
   {
     tmpOvlap.fill(0.0);
     GeometryClipper clipper(shapeeMesh, fsorStrategy);
-    clipper.setVerbose(true);
+    clipper.setVerbose(false);
     clipper.clip(tmpOvlap);
     auto sorCurve = fsorStrategy->getSorCurve();
     int sign = axom::utilities::sign_of(sorCurve[sorCurve.size()-1][0] - sorCurve[0][0], 0.0);

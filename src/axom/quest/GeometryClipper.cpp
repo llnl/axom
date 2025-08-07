@@ -82,7 +82,7 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
       MPI_Reduce(countsa, countsb, 4, axom::mpi_traits<axom::IndexType>::type, MPI_SUM, 0, MPI_COMM_WORLD);
 #endif
       std::string msg = axom::fmt::format(
-        "GeometryClipper strategy '{}' labeled cells {} inside, {} on and {} outside, out of {} "
+        "GeometryClipper strategy '{}' globally labeled cells {} inside, {} on and {} outside, out of {} "
         "cells\n",
         m_strategy->name(),
         countsb[0],
@@ -106,6 +106,8 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
       AXOM_ANNOTATE_SCOPE("GeometryClipper::clip3D_limited");
       m_delegate->computeClipVolumes3D(unlabeledCells.view(), ovlap);
     }
+
+    m_localCellInCount = unlabeledCells.size();
   }
   else  // !withInOut
   {
@@ -121,6 +123,8 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
       AXOM_ANNOTATE_SCOPE("GeometryClipper::clip3D");
       m_delegate->computeClipVolumes3D(ovlap);
     }
+
+    m_localCellInCount = cellCount;
   }
 }
 
@@ -162,6 +166,21 @@ std::unique_ptr<GeometryClipper::Delegate> GeometryClipper::newDelegate()
       axom::fmt::format("GeometryClipper has no delegate for runtime policy {}", runtimePolicy));
   }
   return delegate;
+}
+
+void GeometryClipper::getClippingStats(
+  axom::IndexType& localCellInCount,
+  axom::IndexType& globalCellInCount,
+  axom::IndexType& maxLocalCellInCount) const
+{
+  localCellInCount = m_localCellInCount;
+#ifdef AXOM_USE_MPI
+  MPI_Reduce(&localCellInCount, &globalCellInCount, 1, axom::mpi_traits<axom::IndexType>::type, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&localCellInCount, &maxLocalCellInCount, 1, axom::mpi_traits<axom::IndexType>::type, MPI_MAX, 0, MPI_COMM_WORLD);
+#else
+  maxLocalCellInCount = localCellInCount;
+  globalCellInCount = localCellInCount;
+#endif
 }
 
 }  // end namespace quest
