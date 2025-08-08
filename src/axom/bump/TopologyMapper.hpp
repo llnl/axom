@@ -58,7 +58,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::primal::Polygon<T, 2, ARRAY_TYP
  * \param shape2 The clip shape.
  * \return The volume of the overlap between the shapes.
  */
-// @{
+///@{
 
 // Tetrahedron first
 template <typename T>
@@ -236,7 +236,7 @@ AXOM_HOST_DEVICE double shapeOverlap(const axom::bump::PolyhedralFaces<T> &shape
   return clipped.volume();
 }
 
-// @}
+///@}
 
 // VariableShape helpers
 

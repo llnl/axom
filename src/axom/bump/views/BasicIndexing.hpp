@@ -24,12 +24,12 @@ class BasicIndexing
 {
 public:
   /// Constructors
-  // @{
+  ///@{
   AXOM_HOST_DEVICE
   BasicIndexing() : m_size(0) { }
   AXOM_HOST_DEVICE
   BasicIndexing(axom::IndexType size) : m_size(size) { }
-  // @}
+  ///@}
 
   /*!
    * \brief Return the size

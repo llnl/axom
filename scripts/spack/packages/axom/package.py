@@ -206,12 +206,12 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("python")
         depends_on("py-sphinx")
         depends_on("py-shroud")
+        depends_on("py-pytest")
         depends_on("py-jsonschema")
 
         # Need clang@14 for clang-format
         # (ENABLE_CLANGFORMAT will be OFF if not the exact version)
-        depends_on("llvm+clang@14", type="build", when="~rocm")
-        depends_on("llvm", type="build", when="+rocm")
+        depends_on("llvm+clang@14", type="build")
 
     # -----------------------------------------------------------------------
     # Conflicts
@@ -583,10 +583,8 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
             entries.append(cmake_cache_option("ENABLE_CLANGFORMAT", False))
 
         if spec.satisfies("+python") or spec.satisfies("+devtools"):
-            python_path = os.path.realpath(spec["python"].command.path)
-            for key in path_replacements:
-                python_path = python_path.replace(key, path_replacements[key])
-            entries.append(cmake_cache_path("PYTHON_EXECUTABLE", python_path))
+            python_bin_dir = get_spec_path(spec, "python", path_replacements, use_bin=True)
+            entries.append(cmake_cache_path("Python_EXECUTABLE", pjoin(python_bin_dir, "python3")))
 
         if spec.satisfies("^py-jsonschema"):
             jsonschema_dir = get_spec_path(spec, "py-jsonschema", path_replacements, use_bin=True)

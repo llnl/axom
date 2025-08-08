@@ -82,7 +82,7 @@ public:
    */
   const Group* getRoot() const { return m_RootGroup; };
 
-  //@{
+  ///@{
   /*!  @name Methods to query and clear Conduit I/O flags and exception messages.
    *
    * If an error occurs, the load(), save(), and loadExternalData() methods of
@@ -106,10 +106,10 @@ public:
     m_conduit_errors = m_conduit_errors + "\n" + mesg;
   };
 
-  //@}
+  ///@}
 
 public:
-  //@{
+  ///@{
   //!  @name Methods to query, access, create, and destroy Buffers.
 
   /// \brief Return number of Buffers in the DataStore.
@@ -128,16 +128,13 @@ public:
   bool hasBuffer(IndexType idx) const;
 
   /*!
-   * \brief Insert information about DataStore Buffers in fields of given
-   *        Conduit Node.
+   * \brief Insert information about DataStore Buffers in fields of given Conduit Node.
    *
-   *        Fields in Conduit Node will be named:
-   * 
-   *          - "num_buffers" : number of Buffer objects owned by DataStore
-   *          - "num_buffers_referenced" : number of Buffers with View attached
-   *          - "num_buffers_detached" : number of Buffers with no View attached
-   *          - "num_bytes_allocated" : total number of allocated bytes over
-   *                                    all buffers
+   * Fields in Conduit Node will be named:
+   *  - "num_buffers" : number of Buffer objects owned by DataStore
+   *  - "num_buffers_referenced" : number of Buffers with View attached
+   *  - "num_buffers_detached" : number of Buffers with no View attached
+   *  - "num_bytes_allocated" : total number of allocated bytes over all buffers
    *
    * Numeric values associated with these fields may be accessed as type 
    * axom::IndexType, which is defined at compile-time. For example,
@@ -195,31 +192,32 @@ public:
   void destroyBuffer(IndexType idx);
 
   /*!
-   * \brief Remove all Buffers from the DataStore and destroy them
-   *        and their data.
+   * \brief Remove all Buffers from the DataStore and destroy them and their data.
    *
    *        Note that Buffer destruction detaches it from all Views to
    *        which it is attached.
    */
   void destroyAllBuffers();
 
-  //@}
+  ///@}
 
-  //@{
-  //!  @name Methods for iterating over Buffers in the DataStore.
-  //!
-  //! Using these methods, a code can get the first Buffer index and each
-  //! succeeding index.  This allows Buffer iteration using the same
-  //! constructs in C++, C, and Fortran.  Example:
-  //!
-  //!      for (sidre::IndexType idx = ds->getFirstValidBufferIndex();
-  //!           sidre::indexIsValid(idx);
-  //!           idx = ds->getNextValidBufferIndex(idx))
-  //!      {
-  //!          Buffer * buf = ds->getBuffer(idx);
-  //!
-  //!          /// code here using buf
-  //!      }
+  ///@{
+  /**
+   * @name Methods for iterating over Buffers in the DataStore.
+   *
+   * Using these methods, a code can get the first Buffer index and each
+   * succeeding index.  This allows Buffer iteration using the same
+   * constructs in C++, C, and Fortran.  Example:
+   *
+   *      for (sidre::IndexType idx = ds->getFirstValidBufferIndex();
+   *           sidre::indexIsValid(idx);
+   *           idx = ds->getNextValidBufferIndex(idx))
+   *      {
+   *          Buffer * buf = ds->getBuffer(idx);
+   *
+   *          /// code here using buf
+   *      }
+   */
 
   /*!
    * \brief Return first valid Buffer index.
@@ -239,37 +237,33 @@ public:
    */
   IndexType getNextValidBufferIndex(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
-  //!  @name Accessors for iterating buffer collections.
-  //!
-  //! These methods can be used to iterate over the collection of buffers
-  //! Example:
-  //!      for (auto& buffer : ds->buffers())
-  //!      {
-  //!          /// code here using buffers
-  //!      }
-
-  /*!
-   * \brief Returns an adaptor to support iterating the collection of buffers
+  ///@{
+  /*!  
+   * @name Accessors for iterating buffer collections.
+   *
+   * These methods can be used to iterate over the collection of buffers
+   * Example:
+   *     for (auto& buffer : ds->buffers())
+   *     {
+   *         /// code here using buffers
+   *     }
    */
+
+  /// \brief Returns an adaptor to support iterating the collection of buffers
   typename BufferCollection::iterator_adaptor buffers();
 
-  /*!
-   * \brief Returns a const adaptor to support iterating the collection of buffers
-   */
+  /// \brief Returns a const adaptor to support iterating the collection of buffers
   typename BufferCollection::const_iterator_adaptor buffers() const;
 
-  //@}
+  ///@}
 
 public:
-  //@{
+  ///@{
   //!  @name Methods to query, access, create, and destroy Attributes.
 
-  /*!
-   * \brief Return number of Attributes in the DataStore.
-   */
+  /// \brief Return number of Attributes in the DataStore.
   IndexType getNumAttributes() const;
 
   /*!
@@ -344,9 +338,9 @@ public:
    */
   void destroyAllAttributes();
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Attribute access methods.
 
   /*!
@@ -386,23 +380,25 @@ public:
   /// \brief Create attributes from name/value pairs in node["attribute"].
   void loadAttributeLayout(Node& node);
 
-  //@}
+  ///@}
 
-  //@{
-  //!  @name Methods for iterating over Attributes in the DataStore.
-  //!
-  //! Using these methods, a code can get the first Attribute index and each
-  //! succeeding index.  This allows Attribute iteration using the same
-  //! constructs in C++, C, and Fortran.  Example:
-  //!
-  //!      for (sidre::IndexType idx = ds->getFirstValidAttributeIndex();
-  //!           sidre::indexIsValid(idx);
-  //!           idx = ds->getNextValidAttributeIndex(idx))
-  //!      {
-  //!          Attribute * attr = ds->getAttribute(idx);
-  //!
-  //!          /// code here using attr
-  //!      }
+  ///@{
+  /*!
+   * @name Methods for iterating over Attributes in the DataStore.
+   *
+   * Using these methods, a code can get the first Attribute index and each
+   * succeeding index.  This allows Attribute iteration using the same
+   * constructs in C++, C, and Fortran.  Example:
+   *
+   *      for (sidre::IndexType idx = ds->getFirstValidAttributeIndex();
+   *           sidre::indexIsValid(idx);
+   *           idx = ds->getNextValidAttributeIndex(idx))
+   *      {
+   *          Attribute * attr = ds->getAttribute(idx);
+   *
+   *          /// code here using attr
+   *      }
+   */
 
   /*!
    * \brief Return first valid Attribute index in DataStore object
@@ -425,29 +421,27 @@ public:
    */
   IndexType getNextValidAttributeIndex(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
-  //!  @name Accessors for iterating attribute collections.
-  //!
-  //! These methods can be used to iterate over the collection of attributes
-  //! Example:
-  //!      for (auto& attr : ds->attributes())
-  //!      {
-  //!          /// code here using attribute
-  //!      }
-
+  ///@{
   /*!
-   * \brief Returns an adaptor to support iterating the collection of attributes
+   *  @name Accessors for iterating attribute collections.
+   *
+   * These methods can be used to iterate over the collection of attributes
+   * Example:
+   *      for (auto& attr : ds->attributes())
+   *      {
+   *          /// code here using attribute
+   *      }
    */
+
+  /// \brief Returns an adaptor to support iterating the collection of attributes
   typename AttributeCollection::iterator_adaptor attributes();
 
-  /*!
-   * \brief Returns a const adaptor to support iterating the collection of attributes
-   */
+  /// \brief Returns a const adaptor to support iterating the collection of attributes
   typename AttributeCollection::const_iterator_adaptor attributes() const;
 
-  //@}
+  ///@}
 
 public:
   /*!
@@ -523,9 +517,8 @@ private:
   DISABLE_COPY_AND_ASSIGNMENT(DataStore);
   DISABLE_MOVE_AND_ASSIGNMENT(DataStore);
 
-  //@{
-  //!  @name Private View declaration methods.
-  //!        (callable only by Group and View methods).
+  ///@{
+  //!  @name Private View declaration methods (callable only by Group and View methods).
 
   /*!
    * \brief Create an Attribute and insert it into the DataStore.
@@ -533,7 +526,7 @@ private:
    */
   Attribute* createAttributeEmpty(const std::string& name);
 
-  //@}
+  ///@}
 
 private:
   /// Root Group, created when DataStore object is created.

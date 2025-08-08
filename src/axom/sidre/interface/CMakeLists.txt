@@ -20,6 +20,6 @@ add_shroud(
 add_custom_command(
     OUTPUT  ${CMAKE_CURRENT_BINARY_DIR}/genfsidresplicer.f
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/c_fortran/genfsidresplicer.py
-    COMMAND ${PYTHON_EXECUTABLE}
+    COMMAND ${Python_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/c_fortran/genfsidresplicer.py fortran > 
             ${CMAKE_CURRENT_BINARY_DIR}/genfsidresplicer.f )

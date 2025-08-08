@@ -4,13 +4,13 @@
 # CMake executable path: /usr/tce/bin/cmake
 #------------------------------------------------------------------------------
 
-set(CMAKE_PREFIX_PATH "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/blt-0.7.0-oydqozf6f52v73erfogi35xey7ouzx4y;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/c2c-1.8.0-qf5ioz5kkt2ypo2gcewazzvji2jf2zyh;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/caliper-2.12.1-retxdfnjbk7p6inh2sh2m3zxzzu5tffu;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/conduit-git.2eec1ad9548cf6d629e2145181ff7b8cef0a38fa_0.9.3-34a66komu7u2fn7ts3njbtr7vxz4mvw6;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/lua-5.4.6-niwscoooxnh7w2mc6tgnqrrrca6krhau;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/mfem-4.7.0-tihjfvc5awek2pfwqwjq6j32ub3ztakh;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/py-jsonschema-4.17.3-salkwda5klmvzyj6o64p6htv2paiksyd;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/raja-2025.03.0-yimbrrwcyxgmlwg5jio7qoafxo733n4q;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/umpire-2025.03.0-6xtwaenqiuxkrm4upaieeb5jfvh4mno4;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/adiak-0.4.0-y47zrvln5uleekjqziw3bqf7ctvnwxs2;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/hdf5-1.8.23-vteancaxzzbwsesnwrfqxeurcoiliiuk;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/parmetis-4.0.3-aqy77irwgr4rxqk2u4bhgzimpmuz4wqm;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/hypre-2.24.0-wl4yn4op4isxzrc5qvxxmwgvnptbfpyv;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/camp-2025.03.0-m5berqz2cox3hrn6ifoinopsk7uifwhh;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/fmt-11.0.2-icpxwud7q3d57y76n3tqloqyj3e26q7h;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/zlib-1.3.1-re5czkmvusfwwi35b22ycvc64a2l4pah;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/metis-5.1.0-tfql2r5ckb6kbbstlq4atg5qjhzxqkvx;/collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.13.0;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/latest/python-3.12.5;/usr/tce;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/latest/cppcheck-2.9;/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.32-rocmcc-6.3.1-cce-19.0.0;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/latest/doxygen-1.11.0;/opt/rocm-6.3.1;/opt/rocm-6.3.1;/usr/tce/packages/rocmcc/rocmcc-6.3.1-magic/llvm;/opt/rocm-6.3.1/llvm;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/latest/python-3.12.5;/opt/rocm-6.3.1;/opt/rocm-6.3.1" CACHE STRING "")
+set(CMAKE_PREFIX_PATH "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/blt-0.7.0-oydqozf6f52v73erfogi35xey7ouzx4y;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/c2c-1.8.0-qf5ioz5kkt2ypo2gcewazzvji2jf2zyh;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/caliper-2.12.1-pegkbudirtzvlk32yklt3qcaf3ibci7g;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/conduit-0.9.3-bjncrgxdmgeox3v3nuctto5wzf6n245k;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/lua-5.4.6-niwscoooxnh7w2mc6tgnqrrrca6krhau;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/mfem-4.8.0-uzqiskaezekwrlg46u5g53othwkewl7j;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/py-jsonschema-4.17.3-i45idkx7tpsxqhdo3xps5iuvmzklebcz;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/py-pytest-8.2.1-ewtjt356g2ayucoeer6z7nshtdoaojp5;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/adiak-0.4.0-y47zrvln5uleekjqziw3bqf7ctvnwxs2;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/hdf5-1.8.23-vteancaxzzbwsesnwrfqxeurcoiliiuk;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/parmetis-4.0.3-aqy77irwgr4rxqk2u4bhgzimpmuz4wqm;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/hypre-2.24.0-wl4yn4op4isxzrc5qvxxmwgvnptbfpyv;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/libceed-0.12.0-firhffylbrxq6vdbffykxovbtdygcsku;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/raja-2025.03.0-yimbrrwcyxgmlwg5jio7qoafxo733n4q;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/umpire-2025.03.0-6xtwaenqiuxkrm4upaieeb5jfvh4mno4;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/zlib-1.3.1-re5czkmvusfwwi35b22ycvc64a2l4pah;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/metis-5.1.0-tfql2r5ckb6kbbstlq4atg5qjhzxqkvx;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/camp-2025.03.0-m5berqz2cox3hrn6ifoinopsk7uifwhh;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/fmt-11.0.2-icpxwud7q3d57y76n3tqloqyj3e26q7h;/collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.13.0;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_20_15_42_31/view/python-3.13.2;/usr/tce;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_20_15_42_31/view/cppcheck-2.9;/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.32-rocmcc-6.3.1-cce-19.0.0;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_20_15_42_31/view/doxygen-1.13.2;/opt/rocm-6.3.1;/opt/rocm-6.3.1;/usr/tce/packages/rocmcc/rocmcc-6.3.1-magic/llvm;/opt/rocm-6.3.1/llvm;/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_06_20_15_42_31/view/python-3.13.2;/opt/rocm-6.3.1;/opt/rocm-6.3.1;/opt/rocm-6.3.1" CACHE STRING "")
 
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH "ON" CACHE STRING "")
 
-set(CMAKE_BUILD_RPATH "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/axom-develop-nc374aauyjjkm6pgz4hfwgnp2ruxdfbd/lib;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/axom-develop-nc374aauyjjkm6pgz4hfwgnp2ruxdfbd/lib64;;/opt/rh/gcc-toolset-13/root/usr/lib/gcc/x86_64-redhat-linux/13" CACHE STRING "")
+set(CMAKE_BUILD_RPATH "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/axom-develop-zrigy5pyhdlt662rao3zjjgfl4u6gmuv/lib;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/axom-develop-zrigy5pyhdlt662rao3zjjgfl4u6gmuv/lib64;;/opt/rh/gcc-toolset-13/root/usr/lib/gcc/x86_64-redhat-linux/13" CACHE STRING "")
 
-set(CMAKE_INSTALL_RPATH "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/axom-develop-nc374aauyjjkm6pgz4hfwgnp2ruxdfbd/lib;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0/axom-develop-nc374aauyjjkm6pgz4hfwgnp2ruxdfbd/lib64;;/opt/rh/gcc-toolset-13/root/usr/lib/gcc/x86_64-redhat-linux/13" CACHE STRING "")
+set(CMAKE_INSTALL_RPATH "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/axom-develop-zrigy5pyhdlt662rao3zjjgfl4u6gmuv/lib;/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0/axom-develop-zrigy5pyhdlt662rao3zjjgfl4u6gmuv/lib64;;/opt/rh/gcc-toolset-13/root/usr/lib/gcc/x86_64-redhat-linux/13" CACHE STRING "")
 
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "")
 
@@ -21,11 +21,11 @@ set(CMAKE_BUILD_TYPE "Release" CACHE STRING "")
 #------------------------------------------------------------------------------
 if(DEFINED ENV{SPACK_CC})
 
-  set(CMAKE_C_COMPILER "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/spack/lib/spack/env/cce/craycc" CACHE PATH "")
+  set(CMAKE_C_COMPILER "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/spack/lib/spack/env/cce/craycc" CACHE PATH "")
 
-  set(CMAKE_CXX_COMPILER "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/spack/lib/spack/env/cce/case-insensitive/crayCC" CACHE PATH "")
+  set(CMAKE_CXX_COMPILER "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/spack/lib/spack/env/cce/case-insensitive/crayCC" CACHE PATH "")
 
-  set(CMAKE_Fortran_COMPILER "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/spack/lib/spack/env/cce/crayftn" CACHE PATH "")
+  set(CMAKE_Fortran_COMPILER "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/spack/lib/spack/env/cce/crayftn" CACHE PATH "")
 
 else()
 
@@ -52,6 +52,8 @@ set(MPI_C_COMPILER "/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.32-rocmcc-6.
 set(MPI_CXX_COMPILER "/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.32-rocmcc-6.3.1-cce-19.0.0/bin/mpicxx" CACHE PATH "")
 
 set(MPI_Fortran_COMPILER "/usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.32-rocmcc-6.3.1-cce-19.0.0/bin/mpif90" CACHE PATH "")
+
+# Unable to determine MPIEXEC, axom tests may fail
 
 set(MPIEXEC_NUMPROC_FLAG "-n" CACHE STRING "")
 
@@ -104,13 +106,13 @@ set(ENABLE_GTEST_DEATH_TESTS ON CACHE BOOL "")
 # TPLs
 #------------------------------------------------------------------------------
 
-set(TPL_ROOT "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_04_01_13_38_21/cce-19.0.0" CACHE PATH "")
+set(TPL_ROOT "/usr/WS1/axom/libs/toss_4_x86_64_ib_cray/2025_06_23_10_18_10/cce-19.0.0" CACHE PATH "")
 
-set(CONDUIT_DIR "${TPL_ROOT}/conduit-git.2eec1ad9548cf6d629e2145181ff7b8cef0a38fa_0.9.3-34a66komu7u2fn7ts3njbtr7vxz4mvw6" CACHE PATH "")
+set(CONDUIT_DIR "${TPL_ROOT}/conduit-0.9.3-bjncrgxdmgeox3v3nuctto5wzf6n245k" CACHE PATH "")
 
 set(C2C_DIR "${TPL_ROOT}/c2c-1.8.0-qf5ioz5kkt2ypo2gcewazzvji2jf2zyh" CACHE PATH "")
 
-set(MFEM_DIR "${TPL_ROOT}/mfem-4.7.0-tihjfvc5awek2pfwqwjq6j32ub3ztakh" CACHE PATH "")
+set(MFEM_DIR "${TPL_ROOT}/mfem-4.8.0-uzqiskaezekwrlg46u5g53othwkewl7j" CACHE PATH "")
 
 set(HDF5_DIR "${TPL_ROOT}/hdf5-1.8.23-vteancaxzzbwsesnwrfqxeurcoiliiuk" CACHE PATH "")
 
@@ -124,7 +126,7 @@ set(UMPIRE_DIR "${TPL_ROOT}/umpire-2025.03.0-6xtwaenqiuxkrm4upaieeb5jfvh4mno4" C
 
 set(ADIAK_DIR "${TPL_ROOT}/adiak-0.4.0-y47zrvln5uleekjqziw3bqf7ctvnwxs2" CACHE PATH "")
 
-set(CALIPER_DIR "${TPL_ROOT}/caliper-2.12.1-retxdfnjbk7p6inh2sh2m3zxzzu5tffu" CACHE PATH "")
+set(CALIPER_DIR "${TPL_ROOT}/caliper-2.12.1-pegkbudirtzvlk32yklt3qcaf3ibci7g" CACHE PATH "")
 
 set(CAMP_DIR "${TPL_ROOT}/camp-2025.03.0-m5berqz2cox3hrn6ifoinopsk7uifwhh" CACHE PATH "")
 
@@ -134,24 +136,22 @@ set(CAMP_DIR "${TPL_ROOT}/camp-2025.03.0-m5berqz2cox3hrn6ifoinopsk7uifwhh" CACHE
 # Devtools
 #------------------------------------------------------------------------------
 
-set(DEVTOOLS_ROOT "/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2024_10_28_13_16_23/._view/duoudtvvq736czrjvwlncemhjhg3agix" CACHE PATH "")
+set(DEVTOOLS_ROOT "/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_07_14_14_40_58/._view/urpbkvctljzlaw4lss5tjxd3joepi2n2" CACHE PATH "")
 
-# ClangFormat disabled due to llvm@14 and devtools not in spec
+set(CLANGFORMAT_EXECUTABLE "/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_07_14_14_40_58/view/llvm-14.0.6/bin/clang-format" CACHE PATH "")
 
-set(ENABLE_CLANGFORMAT OFF CACHE BOOL "")
+set(Python_EXECUTABLE "${DEVTOOLS_ROOT}/python-3.11.11/bin/python3" CACHE PATH "")
 
-set(PYTHON_EXECUTABLE "/collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2024_10_28_13_16_23/gcc-10.3.1/python-3.12.5-khbdgeaypdfyrrvyywvvqt47x66jd5ol/bin/python3.12" CACHE PATH "")
-
-set(JSONSCHEMA_EXECUTABLE "${TPL_ROOT}/py-jsonschema-4.17.3-salkwda5klmvzyj6o64p6htv2paiksyd/bin/jsonschema" CACHE PATH "")
+set(JSONSCHEMA_EXECUTABLE "${TPL_ROOT}/py-jsonschema-4.17.3-i45idkx7tpsxqhdo3xps5iuvmzklebcz/bin/jsonschema" CACHE PATH "")
 
 set(ENABLE_DOCS ON CACHE BOOL "")
 
-set(SPHINX_EXECUTABLE "${DEVTOOLS_ROOT}/python-3.12.5/bin/sphinx-build" CACHE PATH "")
+set(SPHINX_EXECUTABLE "${DEVTOOLS_ROOT}/python-3.11.11/bin/sphinx-build" CACHE PATH "")
 
 set(SHROUD_EXECUTABLE "/collab/usr/gapps/shroud/public/toss_4_x86_64_ib_cray/shroud-0.13.0/bin/shroud" CACHE PATH "")
 
 set(CPPCHECK_EXECUTABLE "${DEVTOOLS_ROOT}/cppcheck-2.9/bin/cppcheck" CACHE PATH "")
 
-set(DOXYGEN_EXECUTABLE "${DEVTOOLS_ROOT}/doxygen-1.11.0/bin/doxygen" CACHE PATH "")
+set(DOXYGEN_EXECUTABLE "${DEVTOOLS_ROOT}/doxygen-1.13.2/bin/doxygen" CACHE PATH "")
 
 

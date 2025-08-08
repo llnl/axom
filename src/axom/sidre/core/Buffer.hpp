@@ -67,7 +67,7 @@ public:
   friend class Group;
   friend class View;
 
-  //@{
+  ///@{
   //!  @name Basic query and accessor methods
 
   /*!
@@ -84,9 +84,9 @@ public:
     return static_cast<IndexType>(m_views.size());
   }
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to query and access Buffer data
 
   /*!
@@ -144,9 +144,9 @@ public:
    */
   bool isDescribed() const { return !m_node.dtype().is_empty(); }
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Data description and allocation methods
 
   /*!
@@ -211,7 +211,7 @@ public:
    */
   Buffer* deallocate();
 
-  //@}
+  ///@}
 
   /*!
    * \brief Copy given number of bytes of data from src into Buffer.
