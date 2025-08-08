@@ -326,13 +326,20 @@ if((CONDUIT_FOUND OR
         )
 
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
-        # 3D shaping tests.  No 2D shaping in this feature, at least for now.
-        set(_nranks 1)
+
+        if(AXOM_ENABLE_MPI)     # this test requires MPI when available
+            set(_nranks 1)      # (but only 1 rank)
+        else()                  # but can otherwise be run without MPI
+            unset(_nranks)
+        endif()
 
         # Run the in-memory shaping example on with each enabled policy
         set(_policies "seq")
         if(RAJA_FOUND)
-            blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
+            # Hanging issue on Windows
+            if(NOT WIN32)
+                blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
+            endif()
             blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
             blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
         endif()
