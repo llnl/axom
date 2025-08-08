@@ -55,8 +55,8 @@ set(bump_headers
     CoordsetBlender.hpp
     CoordsetExtents.hpp
     CoordsetSlicer.hpp
-    ExtractZonesAndMatsetPolyhedral.hpp
     ExtractZones.hpp
+    ExtractZonesAndMatsetPolyhedral.hpp
     ExtrudeMesh.hpp
     FieldBlender.hpp
     FieldSlicer.hpp
