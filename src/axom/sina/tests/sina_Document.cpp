@@ -711,7 +711,8 @@ TEST(Document, test_validate_append_valid)
 }
 
 void doEveryErrorTest(const std::string &protocol,
-                      std::function<conduit::Node(const std::string&, const sina::Document&, int)> appendDocumentFunc)
+                      std::function<conduit::Node(const std::string&, const sina::Document&, int, bool)> appendDocumentFunc,
+                      bool skipValidation=false)
 {
   std::string append_to_file = "test." + protocol;
   axom::sina::Document append_to_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
@@ -723,19 +724,25 @@ void doEveryErrorTest(const std::string &protocol,
      "curve_sets": {"set_1": {"independent": {"0": {"value": [4, 5, 6]}}}},
      "library_data": {"my_lib": {"library_data": {"my_inner_lib": {"user_defined": {"foo/bar": "baz/qux"}}}}}}]})");
   axom::sina::Document new_doc = Document(appendFrom, createRecordLoaderWithAllKnownTypes());
-  conduit::Node resultMsg = appendDocumentFunc(append_to_file, new_doc, 3);
+  conduit::Node resultMsg = appendDocumentFunc(append_to_file, new_doc, 3, skipValidation);
   // Make sure no data changed
   conduit::Node root;
   conduit::relay::io::load(append_to_file, root);
   conduit::Node expect_root = parseJsonValue(SIMPLE_DOCUMENT);
   EXPECT_EQ(expect_root["records"].child(0)["id"].to_string(),
             root["records"].child(0)["id"].to_string());
-  EXPECT_EQ(resultMsg.number_of_children(), 5);
+  int expected = skipValidation? 0 : 5;
+  EXPECT_EQ(resultMsg.number_of_children(), expected);
 }
 
 TEST(Document, test_appendErrorCodepathsJSON)
 {
   doEveryErrorTest("json", appendDocumentToJson);
+}
+
+TEST(Document, test_ignoreEveryError)
+{
+  doEveryErrorTest("json", appendDocumentToJson, true);
 }
 
 #ifdef AXOM_USE_HDF5
@@ -745,15 +752,16 @@ TEST(Document, test_appendErrorCodepathsHDF5)
 }
 #endif
 
+// Appending into an empty document
 void doSimpleAppendTest(const std::string &protocol,
-                        std::function<conduit::Node(const std::string&, const sina::Document&, int)> appendDocumentFunc)
+                        std::function<conduit::Node(const std::string&, const sina::Document&, int, bool)> appendDocumentFunc)
 {
   std::string empty_file = "test." + protocol;
   axom::sina::Document empty_doc = Document(R"({"records": [], "relationships": []})", createRecordLoaderWithAllKnownTypes());
   Protocol enum_protocol = (protocol == "hdf5") ? Protocol::HDF5 : Protocol::JSON;
   saveDocument(empty_doc, empty_file, enum_protocol);
   axom::sina::Document new_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
-  conduit::Node resultMsg = appendDocumentFunc(empty_file, new_doc, 3);
+  conduit::Node resultMsg = appendDocumentFunc(empty_file, new_doc, 3, true);  // skip validation
   EXPECT_EQ(resultMsg.number_of_children(), 0);
   conduit::Node root;
   conduit::relay::io::load(empty_file, root);
@@ -774,15 +782,16 @@ TEST(Document, test_simpleAppendDocumentToHDF5)
 }
 #endif
 
+// One unchanged, one merged
 void doFullAppendTest(const std::string &protocol,
-                      std::function<conduit::Node(const std::string&, const sina::Document&, int)> appendDocumentFunc){
+                      std::function<conduit::Node(const std::string&, const sina::Document&, int, bool)> appendDocumentFunc){
   std::string filePath = "test." + protocol;
   sina::Document testDoc = Document(MULTI_REC_DOCUMENT, createRecordLoaderWithAllKnownTypes());
   Protocol enum_protocol = (protocol == "hdf5") ? Protocol::HDF5 : Protocol::JSON;
   saveDocument(testDoc, filePath, enum_protocol);
 
   axom::sina::Document new_doc = Document(SIMPLE_DOCUMENT, createRecordLoaderWithAllKnownTypes());
-  conduit::Node resultMsg = appendDocumentFunc(filePath, new_doc, 1);
+  conduit::Node resultMsg = appendDocumentFunc(filePath, new_doc, 1, false);
   EXPECT_EQ(resultMsg.number_of_children(), 0);
 
   conduit::Node root;

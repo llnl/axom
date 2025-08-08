@@ -939,6 +939,7 @@ conduit::Node append(ConduitRelayLike &appendTo,
                      conduit::Node &appendFrom,
                      const int mergeProtocol,
                      bool isHDF5,
+                     bool skipValidation,
                      const std::string &original_file_path)
 {
   conduit::Node msgNode = conduit::Node(conduit::DataType::list());
@@ -947,27 +948,29 @@ conduit::Node append(ConduitRelayLike &appendTo,
   std::unordered_map<std::string, int> rec_order = relayLikeRecordOrderMap(appendTo);
   // We do all of our validation up-front, including/especially library data.
   // There's no validation to perform on things like relationships (right..?)
-  auto recordsIter = appendFrom["records"].children();
-  while(recordsIter.has_next())
-  {
-    conduit::Node &n = recordsIter.next();
-    std::string target = n.has_child("id")? "id": "local_id";
-    auto rec_num = rec_order.find(n[target].to_string());
-    // We only validate records we're appending (not just adding). This does mean someone could insert a malformed record,
-    // but that's always been the case; validation is meant to assist with catching bad curves, mostly
-    if(rec_num != rec_order.end()){
-      std::string endpoint = isHDF5 ? "records/" + std::to_string(rec_num->second): "";
-      concat_list_node(msgNode, validateAppendDocument(appendTo, n, endpoint, mergeProtocol, rec_num->second, original_file_path));
+  if(!skipValidation){
+    auto recordsIter = appendFrom["records"].children();
+    while(recordsIter.has_next())
+    {
+      conduit::Node &n = recordsIter.next();
+      std::string target = n.has_child("id")? "id": "local_id";
+      auto rec_num = rec_order.find(n[target].to_string());
+      // We only validate records we're appending (not just adding). This does mean someone could insert a malformed record,
+      // but that's always been the case; validation is meant to assist with catching bad curves, mostly
+      if(rec_num != rec_order.end()){
+        std::string endpoint = isHDF5 ? "records/" + std::to_string(rec_num->second): "";
+        concat_list_node(msgNode, validateAppendDocument(appendTo, n, endpoint, mergeProtocol, rec_num->second, original_file_path));
+      }
     }
-  }
-  // Return with our error list if we errored.
-  if(msgNode.number_of_children() > 0)
-  {
-    return msgNode;
+    // Return with our error list if we errored.
+    if(msgNode.number_of_children() > 0)
+    {
+      return msgNode;
+    }
   }
 
   // Our validation passed, time to throw it all in!
-  recordsIter = appendFrom["records"].children();
+  auto recordsIter = appendFrom["records"].children();
   int offset = rec_order.size();
   // A very special case: the HDF5 has no existing records and needs to be formatted (somehow?)
   // Don't fully understand how this is a problem but I'm a bit lean on time.
@@ -994,25 +997,27 @@ conduit::Node append(ConduitRelayLike &appendTo,
 
 conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
                     const Document &newData,
-                    const int mergeProtocol){
+                    const int mergeProtocol,
+                    const bool skipValidation){
   conduit::Node appendTo;
   appendTo.load(jsonFilePath, "json");
   conduit::Node appendFrom = newData.toNode();
-  conduit::Node msgNode = append(appendTo, appendFrom, mergeProtocol, false, jsonFilePath);
+  conduit::Node msgNode = append(appendTo, appendFrom, mergeProtocol, false, skipValidation, jsonFilePath);
   conduit::relay::io::save(appendTo, jsonFilePath);
   return msgNode;
 }
 
 conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
                                    const Document &newData,
-                                   const int mergeProtocol)
+                                   const int mergeProtocol,
+                                   const bool skipValidation)
 {
 #ifdef AXOM_USE_HDF5
   conduit::relay::io::IOHandle appendTo;
   appendTo.open(hdf5FilePath);
   conduit::Node appendFrom;
   newData.toHDF5Node(appendFrom);
-  conduit::Node msgNode = append(appendTo, appendFrom, mergeProtocol, true, hdf5FilePath);
+  conduit::Node msgNode = append(appendTo, appendFrom, mergeProtocol, true, skipValidation, hdf5FilePath);
   appendTo.close();
   return msgNode;
 #endif
