@@ -48,8 +48,9 @@ set(mir_future_sources
 
 set(mir_headers
     ${mir_reference_headers}
-    detail/elvira_impl.hpp
     detail/elvira_detail.hpp
+    detail/elvira_impl.hpp
+    detail/equiz_detail.hpp
     ElviraAlgorithm.hpp
     EquiZAlgorithm.hpp
     MIRAlgorithm.hpp

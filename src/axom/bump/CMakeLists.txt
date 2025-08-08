@@ -29,6 +29,7 @@ set(bump_headers
     utilities/conduit_memory.hpp
     utilities/conduit_traits.hpp
     utilities/utilities.hpp
+    views/BasicIndexing.hpp
     views/dispatch_coordset.hpp
     views/dispatch_material.hpp
     views/dispatch_rectilinear_topology.hpp
@@ -59,6 +60,7 @@ set(bump_headers
     ExtrudeMesh.hpp
     FieldBlender.hpp
     FieldSlicer.hpp
+    HashNaming.hpp
     IndexingPolicies.hpp
     MakePointMesh.hpp
     MakePolyhedralTopology.hpp
