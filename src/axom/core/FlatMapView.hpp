@@ -45,6 +45,8 @@ public:
   using FlatMapType =
     std::conditional_t<IsConst, const FlatMap<KeyType, ValueType, Hash>, FlatMap<KeyType, ValueType, Hash>>;
 
+  AXOM_HOST_DEVICE FlatMapView() = default;
+
   FlatMapView(FlatMapType& other)
     : m_numGroups2(other.m_numGroups2)
     , m_size(other.m_size)
@@ -156,8 +158,20 @@ public:
   AXOM_HOST_DEVICE IndexType bucket_count() const { return m_buckets.size(); }
 
 private:
-  IndexType m_numGroups2;
-  IndexType m_size;
+  /*!
+   * \brief Returns whether another FlatMapView points to the same base FlatMap
+   *  instance as this FlatMapView.
+   *
+   *  This is intended as a helper function for iterator comparisons.
+   */
+  AXOM_HOST_DEVICE bool viewToSameMap(const FlatMapView& other) const
+  {
+    return (m_metadata.data() == other.m_metadata.data() &&
+            m_buckets.data() == other.m_buckets.data());
+  }
+
+  IndexType m_numGroups2 {-1};
+  IndexType m_size {0};
   axom::ArrayView<const detail::flat_map::GroupBucket> m_metadata;
 
   // Storage details:
@@ -192,6 +206,8 @@ public:
   using reference = DataType&;
 
 public:
+  AXOM_HOST_DEVICE IteratorImpl() = default;
+
   AXOM_HOST_DEVICE IteratorImpl(const MapType& map, IndexType internalIdx)
     : m_map(map)
     , m_internalIdx(internalIdx)
@@ -201,12 +217,12 @@ public:
 
   AXOM_HOST_DEVICE friend bool operator==(const IteratorImpl& lhs, const IteratorImpl& rhs)
   {
-    return lhs.m_internalIdx == rhs.m_internalIdx;
+    return (lhs.m_map.viewToSameMap(rhs.m_map) && lhs.m_internalIdx == rhs.m_internalIdx);
   }
 
   AXOM_HOST_DEVICE friend bool operator!=(const IteratorImpl& lhs, const IteratorImpl& rhs)
   {
-    return lhs.m_internalIdx != rhs.m_internalIdx;
+    return (!lhs.m_map.viewToSameMap(rhs.m_map) || lhs.m_internalIdx != rhs.m_internalIdx);
   }
 
   AXOM_HOST_DEVICE IteratorImpl& operator++()
@@ -228,7 +244,7 @@ public:
 
 private:
   MapType m_map;
-  IndexType m_internalIdx;
+  IndexType m_internalIdx {0};
 };
 
 template <typename KeyType, typename ValueType, bool IsConst, typename Hash>
