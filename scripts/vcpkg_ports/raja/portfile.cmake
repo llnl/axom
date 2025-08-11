@@ -1,8 +1,8 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO llnl/raja
-    REF task/rhornung67/atomics-shortints
-    SHA512 debee645bc2b47bc77a068bea7e74ef81f8dbf5eaed9862fefcb2c55485332834e869f801e8adf4ba1740b0d110a7af4eacd269d742d1076f27ca82288dc4d3f
+    REF 7c754441be9a3ef0d0c2772bd9abe8e1f8aacec0
+    SHA512 0afbc4541e3fe37f3a5846a81247e711e707475257e156d02763a0317a649f3c6b8cd2a2769eab3e73355c51ccbe657d51ee642189f40b3a3ff885f383d0d15f
 )
 
 set(_is_shared TRUE)
