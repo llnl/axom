@@ -25,10 +25,11 @@ Requirements, Dependencies, and Supported Compilers
 Basic requirements:
 ~~~~~~~~~~~~~~~~~~~
 
-  * C++ compiler with C++14 support at a minimum
+  * C++ compiler with C++17 support at a minimum
   * CMake with a minimum required version of 3.14 for CPU-only and CUDA builds,
     and a minimum version of 3.21 when building with HIP support
   * Fortran Compiler (optional)
+  * Python 3.8 at a minimum for python bindings (optional)
 
 Supported Compilers
 ~~~~~~~~~~~~~~~~~~~
@@ -444,8 +445,8 @@ options to be provided, which are summarized in the following table.
 +------------------------------+------------------------------------------+
 
 .. note :: To configure the version of the C++ standard, you can supply one of the
-           following values for **BLT_CXX_STD**:  'c++11' or 'c++14'.
-           Axom requires at least 'c++14', the  default value.
+           following values for **BLT_CXX_STD**:  'c++17' or 'c++20'.
+           Axom requires at least 'c++17', the  default value.
 
 
 Tools and features primarily intended for developers

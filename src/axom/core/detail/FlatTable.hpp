@@ -12,6 +12,21 @@
 #include "axom/core/ArrayView.hpp"
 #include "axom/core/utilities/BitUtilities.hpp"
 
+#if defined(_MSC_VER)
+  // MSVC does *not* define __SSE2__ to indicate SSE2 intrinsic support.
+  #if defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)
+    // Either:
+    //  - We're building for x86_64 (SSE2 is always available), or...
+    //  - We're building for a 32-bit platform with SSE2 support.
+    #define _AXOM_CORE_HAVE_SSE2
+    #include <intrin.h>
+  #endif
+#elif defined(__SSE2__)
+  // GCC, Clang, ICC all define the __SSE2__ macro.
+  #define _AXOM_CORE_HAVE_SSE2
+  #include <emmintrin.h>
+#endif
+
 namespace axom
 {
 namespace detail
@@ -29,7 +44,7 @@ struct QuadraticProbing
    *
    *  We return the offset from H(i) to H(i+1), which is i+1.
    */
-  int getNext(int iter) const { return iter + 1; }
+  AXOM_HOST_DEVICE int getNext(int iter) const { return iter + 1; }
 };
 
 /*!
@@ -44,7 +59,7 @@ struct HashMixer64
   using argument_type = typename HashFunc<KeyType>::argument_type;
   using result_type = typename HashFunc<KeyType>::result_type;
 
-  uint64_t operator()(const KeyType& key) const
+  AXOM_HOST_DEVICE uint64_t operator()(const KeyType& key) const
   {
     uint64_t hash = HashFunc<KeyType> {}(key);
     hash *= 0xbf58476d1ce4e5b9ULL;
@@ -76,10 +91,27 @@ struct GroupBucket
 
   constexpr static int Size = 15;
 
-  GroupBucket() : data {0ULL, 0ULL} { }
+  // We load the metadata into an SSE register as a 128-bit integer. Since
+  // x86_64 is little endian, the expected order of bytes are reversed, and
+  // the overflow byte is the LSB of the register.
+  constexpr static int SSEBucketMask = ~(0x1);
 
-  int getEmptyBucket() const
+  AXOM_HOST_DEVICE GroupBucket() : data {0ULL, 0ULL} { }
+
+  AXOM_HOST_DEVICE int getEmptyBucket() const
   {
+#if !defined(AXOM_DEVICE_CODE) && defined(_AXOM_CORE_HAVE_SSE2)
+    auto match_simd = _mm_set1_epi8(Empty);
+    auto metadata_simd = _mm_load_si128(reinterpret_cast<const __m128i*>(&metadata));
+    match_simd = _mm_cmpeq_epi8(match_simd, metadata_simd);
+
+    int mask_match = _mm_movemask_epi8(match_simd) & SSEBucketMask;
+    // Little endian: count zeroes from right, bytes reversed from perspective
+    // of SSE register
+    int empty_bucket = axom::utilities::countr_zero(mask_match) - 1;
+
+    return mask_match == 0 ? InvalidSlot : empty_bucket;
+#else
     for(int i = 0; i < Size; i++)
     {
       if(metadata.buckets[i] == GroupBucket::Empty)
@@ -87,11 +119,12 @@ struct GroupBucket
         return i;
       }
     }
+#endif
     // Bucket not found.
     return InvalidSlot;
   }
 
-  int nextFilledBucket(int start_index) const
+  AXOM_HOST_DEVICE int nextFilledBucket(int start_index) const
   {
     for(int i = start_index + 1; i < Size; i++)
     {
@@ -107,7 +140,56 @@ struct GroupBucket
   }
 
   template <typename Func>
-  int visitHashBucket(std::uint8_t hash, Func&& visitor) const
+  AXOM_HOST_DEVICE int visitHashBucket(std::uint8_t hash, Func&& visitor) const
+  {
+    std::uint8_t reducedHash = reduceHash(hash);
+#if !defined(AXOM_DEVICE_CODE) && defined(_AXOM_CORE_HAVE_SSE2)
+    // Broadcast reduced hash across SIMD register
+    auto hash_simd = _mm_set1_epi8(reducedHash);
+    auto metadata_simd = _mm_load_si128(reinterpret_cast<const __m128i*>(&metadata));
+    auto match_simd = _mm_cmpeq_epi8(hash_simd, metadata_simd);
+
+    int mask_match = _mm_movemask_epi8(match_simd) & SSEBucketMask;
+    while(mask_match != 0)
+    {
+      // Little endian: count zeroes from right, bytes reversed from perspective
+      // of SSE register
+      int bucket = axom::utilities::countr_zero(mask_match) - 1;
+      if(!visitor(bucket))
+      {
+        // Found a match - break
+        break;
+      }
+      mask_match ^= 1 << (bucket + 1);
+    }
+
+#else
+    for(int i = 0; i < Size; i++)
+    {
+      if(metadata.buckets[i] == reducedHash)
+      {
+        visitor(i);
+      }
+    }
+#endif
+    return InvalidSlot;
+  }
+
+  /*!
+   * \brief Visits matching hash buckets until an empty bucket is encountered.
+   *
+   *  This is used when performing batched insertion: since elements are only
+   *  inserted, not deleted, an empty bucket will always be encountered only at
+   *  the very end of a given probe sequence.
+   *  The visitor function is used to allow for detecting duplicate keys.
+   *
+   * \param [in] hash reduced hash to search for
+   * \param [in] visitor functor to call for each matching bucket slot
+   *
+   * \return the first empty slot found, or InvalidSlot
+   */
+  template <typename Func>
+  AXOM_HOST_DEVICE int visitHashOrEmptyBucket(std::uint8_t hash, Func&& visitor) const
   {
     std::uint8_t reducedHash = reduceHash(hash);
     for(int i = 0; i < Size; i++)
@@ -116,24 +198,78 @@ struct GroupBucket
       {
         visitor(i);
       }
+      else if(metadata.buckets[i] == GroupBucket::Empty)
+      {
+        return i;
+      }
     }
     return InvalidSlot;
   }
 
-  void setBucket(int index, std::uint8_t hash) { metadata.buckets[index] = reduceHash(hash); }
+  template <bool Atomic = false>
+  AXOM_HOST_DEVICE void setBucket(int index, std::uint8_t hash)
+  {
+    std::uint8_t reduced_hash = reduceHash(hash);
+    if(Atomic)  // TODO: should be constexpr
+    {
+#if defined(AXOM_USE_CUDA)
+      // CUDA workaround for lack of 8-bit atomicStore.
+      volatile std::uint8_t* bucket = &(metadata.buckets[index]);
+      *bucket = reduced_hash;
+#else
+      axom::atomicStore<axom::auto_atomic>(&(metadata.buckets[index]), reduced_hash);
+#endif
+      return;
+    }
+    else
+    {
+      metadata.buckets[index] = reduced_hash;
+    }
+  }
 
   void clearBucket(int index) { metadata.buckets[index] = Empty; }
 
-  void setOverflow(std::uint8_t hash)
+  template <bool Atomic = false>
+  AXOM_HOST_DEVICE void setOverflow(std::uint8_t hash)
   {
     std::uint8_t hashOfwBit = 1 << (hash % 8);
-    metadata.ofw |= hashOfwBit;
+    if(Atomic)  // TODO: should be constexpr
+    {
+#if defined(AXOM_USE_HIP) || defined(AXOM_USE_CUDA)
+      // Workaround for a lack of an atomicOr builtin for uint8_t.
+      GroupBucket pack_data {};
+      pack_data.metadata.ofw = hashOfwBit;
+      axom::atomicOr<axom::auto_atomic>(&data[0], pack_data.data[0]);
+#else
+      axom::atomicOr<axom::auto_atomic>(&(metadata.ofw), hashOfwBit);
+#endif
+    }
+    else
+    {
+      metadata.ofw |= hashOfwBit;
+    }
   }
 
-  bool getMaybeOverflowed(std::uint8_t hash) const
+  template <bool Atomic = false>
+  AXOM_HOST_DEVICE bool getMaybeOverflowed(std::uint8_t hash) const
   {
     std::uint8_t hashOfwBit = 1 << (hash % 8);
-    return (metadata.ofw & hashOfwBit);
+    std::uint8_t curr_ofw;
+    if(Atomic)  // TODO: should be constexpr
+    {
+#if defined(AXOM_USE_CUDA)
+      // CUDA workaround for lack of 8-bit atomicLoad.
+      curr_ofw = *const_cast<const volatile std::uint8_t*>(&(metadata.ofw));
+#else
+      // TODO: why is the const_cast required? (RAJA issue?)
+      curr_ofw = axom::atomicLoad<axom::auto_atomic>(const_cast<std::uint8_t*>(&(metadata.ofw)));
+#endif
+    }
+    else
+    {
+      curr_ofw = metadata.ofw;
+    }
+    return (curr_ofw & hashOfwBit);
   }
 
   bool hasSentinel() const { return metadata.buckets[Size - 1] == Sentinel; }
@@ -142,7 +278,10 @@ struct GroupBucket
 
   // We need to map hashes in the range [0, 255] to [2, 255], since 0 and 1
   // are taken by the "empty" and "sentinel" values respectively.
-  static std::uint8_t reduceHash(std::uint8_t hash) { return (hash < 2) ? (hash + 8) : hash; }
+  AXOM_HOST_DEVICE static std::uint8_t reduceHash(std::uint8_t hash)
+  {
+    return (hash < 2) ? (hash + 8) : hash;
+  }
 
   union alignas(16)
   {
@@ -227,10 +366,10 @@ struct SequentialLookupPolicy : ProbePolicy
    *  matching hash
    */
   template <typename FoundIndex>
-  void probeIndex(int ngroups_pow_2,
-                  ArrayView<const GroupBucket> metadata,
-                  HashType hash,
-                  FoundIndex&& on_hash_found) const
+  AXOM_HOST_DEVICE void probeIndex(int ngroups_pow_2,
+                                   ArrayView<const GroupBucket> metadata,
+                                   HashType hash,
+                                   FoundIndex&& on_hash_found) const
   {
     // We use the k MSBs of the hash as the initial group probe point,
     // where ngroups = 2^k.
@@ -242,8 +381,9 @@ struct SequentialLookupPolicy : ProbePolicy
     bool keep_going = true;
     for(int iteration = 0; iteration < metadata.size(); iteration++)
     {
-      metadata[curr_group].visitHashBucket(hash_8, [&](IndexType bucket_index) {
+      metadata[curr_group].visitHashBucket(hash_8, [&](IndexType bucket_index) -> bool {
         keep_going = on_hash_found(curr_group * GroupBucket::Size + bucket_index);
+        return keep_going;
       });
 
       if(!metadata[curr_group].getMaybeOverflowed(hash_8))
@@ -281,7 +421,7 @@ struct SequentialLookupPolicy : ProbePolicy
     return metadata[group_index].getMaybeOverflowed(hash);
   }
 
-  IndexType nextValidIndex(ArrayView<const GroupBucket> metadata, int last_bucket) const
+  AXOM_HOST_DEVICE IndexType nextValidIndex(ArrayView<const GroupBucket> metadata, int last_bucket) const
   {
     if(last_bucket >= metadata.size() * GroupBucket::Size - 1)
     {
@@ -309,13 +449,15 @@ struct alignas(T) TypeErasedStorage
 {
   unsigned char data[sizeof(T)];
 
-  const T& get() const { return *(reinterpret_cast<const T*>(&data)); }
+  AXOM_HOST_DEVICE const T& get() const { return *(reinterpret_cast<const T*>(&data)); }
 
-  T& get() { return *(reinterpret_cast<T*>(&data)); }
+  AXOM_HOST_DEVICE T& get() { return *(reinterpret_cast<T*>(&data)); }
 };
 
 }  // namespace flat_map
 }  // namespace detail
 }  // namespace axom
+
+#undef _AXOM_CORE_HAVE_SSE2
 
 #endif  // Axom_Core_Detail_FlatTable_Hpp

@@ -530,7 +530,8 @@ bool compare_views(const Container1 &a, const Container2 &b)
   }
   if(!eq)
   {
-    axom::fmt::format("a={{{}}}\nb={{{}}}", axom::fmt::join(a, ","), axom::fmt::join(b, ","));
+    SLIC_INFO(
+      axom::fmt::format("a={{{}}}\nb={{{}}}", axom::fmt::join(a, ","), axom::fmt::join(b, ",")));
   }
   return eq;
 }

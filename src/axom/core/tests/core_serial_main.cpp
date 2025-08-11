@@ -18,6 +18,7 @@
 #include "core_execution_space.hpp"
 #include "core_map.hpp"
 #include "core_flatmap.hpp"
+#include "core_flatmap_for_all.hpp"
 #include "core_memory_management.hpp"
 #include "core_numeric_limits.hpp"
 #include "core_Path.hpp"

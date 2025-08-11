@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/klee/IOUtil.hpp"
+#include "IOUtil.hpp"
 
 #include "axom/inlet.hpp"
 #include "axom/klee/KleeError.hpp"

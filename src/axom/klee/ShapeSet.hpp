@@ -3,22 +3,20 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_SHAPE_SET_HPP
-#define AXOM_KLEE_SHAPE_SET_HPP
-
-#include <string>
-#include <vector>
+#ifndef AXOM_KLEE_SHAPESET_HPP_
+#define AXOM_KLEE_SHAPESET_HPP_
 
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Shape.hpp"
+
+#include <string>
+#include <vector>
 
 namespace axom
 {
 namespace klee
 {
-/**
- * A ShapeSet represents a document in the common shape format.
- */
+/// A ShapeSet represents a document in the common shape format.
 class ShapeSet
 {
 public:
@@ -70,11 +68,10 @@ public:
 private:
   std::vector<Shape> m_shapes;
   std::string m_path;
-  bool m_dimensionsHaveBeenSet {false};
-  Dimensions m_dimensions;
+  Dimensions m_dimensions {Dimensions::Unspecified};
 };
 
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_KLEE_SHAPE_SET_HPP
+#endif  // AXOM_KLEE_SHAPESET_HPP_

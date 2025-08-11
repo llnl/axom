@@ -5,7 +5,7 @@
 
 /*!
  * \file containment_driver.cpp
- * \brief Basic demo of point containment acceleration structure over surfaces.
+ * \brief Demo of InOutOctree point containment acceleration structure over surfaces.
  */
 
 // Axom includes
@@ -401,10 +401,7 @@ public:
                                 nVerts,
                                 nCells));
 
-    if(dimension() == 3)
-    {
-      SLIC_INFO("Edge length range: " << meshEdgeLenRange);
-    }
+    SLIC_INFO_IF(dimension() == 3, "Edge length range: " << meshEdgeLenRange);
     SLIC_INFO("Cell area range is: " << meshCellAreaRange);
 
     if(dimension() == 3)

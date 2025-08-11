@@ -396,9 +396,7 @@ TEST(slam_generic_range_set, concrete_parent_set)
     EXPECT_EQ(parentSet[pos], childParSet[pos]);
   }
 
-  // Note: Equality is based on Base class Set
-  //-- it does not differentiate based on whether a set is a subset of another
-  // set
+  // Note: Equality is based on Base class Set -- it does not differentiate based on whether a set is a subset of another set
   EXPECT_EQ(childSet, nonChildSet);
 }
 

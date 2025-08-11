@@ -141,8 +141,8 @@
  *  when compiling and linking with -fsanitize=undefined
  */
 #if defined(__has_attribute)
-  #if __has_attribute(no_sanitize_undefined)
-    #define AXOM_SUPPRESS_UBSAN __attribute__((no_sanitize_undefined))
+  #if __has_attribute(no_sanitize)
+    #define AXOM_SUPPRESS_UBSAN __attribute__((no_sanitize("undefined")))
   #else
     #define AXOM_SUPPRESS_UBSAN
   #endif
@@ -311,7 +311,7 @@
     typedef gtest_TypeParam_ TypeParam;                                                           \
     void TestBody() override;                                                                     \
   };                                                                                              \
-  static bool gtest_##CaseName##_##TestName##_registered_ GTEST_ATTRIBUTE_UNUSED_ =               \
+  GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED static bool gtest_##CaseName##_##TestName##_registered_ = \
     ::testing::internal::TypeParameterizedTest<                                                   \
       CaseName,                                                                                   \
       ::testing::internal::TemplateSel<GTEST_TEST_CLASS_NAME_(CaseName, TestName)>,               \

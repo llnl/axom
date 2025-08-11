@@ -17,7 +17,7 @@ set(example_sources
 
 if(AXOM_ENABLE_MPI)
     set (example_parallel_sources
-         sidre_array.cpp
+         sidre_mcarray.cpp
          sidre_createdatastore.cpp
          sidre_external_array.cpp
          sidre_generateindex.cpp)
@@ -27,6 +27,10 @@ endif()
 
 set(F_example_sources
     sidre_shocktube_F.f
+)
+
+set(Py_example_sources
+    sidre_createdatastore_Py.py
 )
 
 if(APPLE)
@@ -142,6 +146,27 @@ if(ENABLE_FORTRAN)
             axom_add_test(
                 NAME ${exe_name}
                 COMMAND ${exe_name}_ex )
+        endif()
+    endforeach()
+endif()
+
+#------------------------------------------------------------------------------
+# Add targets and tests for python examples
+#------------------------------------------------------------------------------
+if(NANOBIND_FOUND)
+    foreach(example_source ${Py_example_sources})
+        get_filename_component(exe_name ${example_source} NAME_WE)
+
+        if(AXOM_ENABLE_PYTHON_TESTS)
+            add_test (
+                NAME    ${exe_name}
+                COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/${example_source}
+            )
+
+            # Add pysidre to search path
+            set_tests_properties(${exe_name} PROPERTIES
+                ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/lib:$ENV{PYTHONPATH}"
+            )
         endif()
     endforeach()
 endif()

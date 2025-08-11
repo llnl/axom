@@ -47,9 +47,10 @@ set( quest_headers
     detail/PointFinder.hpp
     detail/PointInCellMeshWrapper_mfem.hpp
 
-    ## File readers
-    readers/STLReader.hpp
-    readers/ProEReader.hpp
+    ## File I/O
+    io/STLReader.hpp
+    io/STLWriter.hpp
+    io/ProEReader.hpp
 
     ## quest interface
     interface/internal/mpicomm_wrapper.hpp
@@ -75,9 +76,10 @@ set( quest_sources
     ## Mesh tester
     MeshTester.cpp
 
-    ## File readers
-    readers/STLReader.cpp
-    readers/ProEReader.cpp
+    ## File I/O
+    io/STLReader.cpp
+    io/STLWriter.cpp
+    io/ProEReader.cpp
 
     ## quest interface
     interface/internal/QuestHelpers.cpp
@@ -150,19 +152,19 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
 endif()
 
 if(C2C_FOUND)
-    list(APPEND quest_headers readers/C2CReader.hpp)
-    list(APPEND quest_sources readers/C2CReader.cpp)
+    list(APPEND quest_headers io/C2CReader.hpp)
+    list(APPEND quest_sources io/C2CReader.cpp)
     list(APPEND quest_depends_on c2c)
 endif()
 
 if (AXOM_ENABLE_MPI)
-    list(APPEND quest_headers readers/PSTLReader.hpp
-                              readers/PProEReader.hpp)
-    blt_list_append(TO quest_headers IF C2C_FOUND ELEMENTS readers/PC2CReader.hpp)
+    list(APPEND quest_headers io/PSTLReader.hpp
+                              io/PProEReader.hpp)
+    blt_list_append(TO quest_headers IF C2C_FOUND ELEMENTS io/PC2CReader.hpp)
 
-    list(APPEND quest_sources readers/PSTLReader.cpp
-                              readers/PProEReader.cpp)
-    blt_list_append(TO quest_sources IF C2C_FOUND ELEMENTS readers/PC2CReader.cpp)
+    list(APPEND quest_sources io/PSTLReader.cpp
+                              io/PProEReader.cpp)
+    blt_list_append(TO quest_sources IF C2C_FOUND ELEMENTS io/PC2CReader.cpp)
 endif()
 
 if (SHROUD_FOUND)

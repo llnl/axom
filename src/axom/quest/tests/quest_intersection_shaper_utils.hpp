@@ -167,8 +167,7 @@ void loadVisIt(mfem::VisItDataCollection &vdc, sidre::MFEMSidreDataCollection &d
   }
 }
 
-// Turn a MFEMSidreDataCollection's fields into a simple Conduit node so
-// I/O is not so problematic.
+// Turn a MFEMSidreDataCollection's fields into a simple Conduit node so I/O is not so problematic.
 void dcToConduit(sidre::MFEMSidreDataCollection &dc, conduit::Node &n)
 {
   for(auto it : dc.GetFieldMap())
@@ -231,8 +230,7 @@ bool loadBaseline(const std::string &filename, conduit::Node &n)
   bool loaded = false;
   std::string file_with_ext(filename + ".yaml");
   SLIC_INFO(axom::fmt::format("Load baseline {}", file_with_ext));
-  // Check before we read because Sidre installs a conduit error handler
-  // that terminates.
+  // Check before we read because Sidre installs a conduit error handler that terminates.
   if(axom::utilities::filesystem::pathExists(file_with_ext))
   {
     conduit::relay::io::load(file_with_ext, "yaml", n);
@@ -248,8 +246,7 @@ void replacementRuleTest(const std::string &shapeFile,
                          bool initialMats = false)
 {
   // Make potential baseline filenames for this test. Make a policy-specific
-  // baseline that we can check first. If it is not present, the next baseline
-  // is tried.
+  // baseline that we can check first. If it is not present, the next baseline is tried.
   std::string baselineName(yamlRoot(shapeFile));
   if(initialMats)
   {
@@ -276,8 +273,7 @@ void replacementRuleTest(const std::string &shapeFile,
 #ifdef AXOM_USE_MPI
   // This has to happen here because the shaper gets its communicator from it.
   // If we do it before the mfem mesh is added to the data collection then the
-  // data collection communicator gets set to MPI_COMM_NULL, which is bad for
-  // the C2C reader.
+  // data collection communicator gets set to MPI_COMM_NULL, which is bad for the C2C reader.
   dc.SetComm(MPI_COMM_WORLD);
 #endif
   quest::IntersectionShaper shaper(policy, axom::INVALID_ALLOCATOR_ID, shapeSet, &dc);
@@ -408,8 +404,7 @@ void IntersectionWithErrorTolerances(const std::string &filebase,
 #ifdef AXOM_USE_MPI
   // This has to happen here because the shaper gets its communicator from it.
   // If we do it before the mfem mesh is added to the data collection then the
-  // data collection communicator gets set to MPI_COMM_NULL, which is bad for
-  // the C2C reader.
+  // data collection communicator gets set to MPI_COMM_NULL, which is bad for the C2C reader.
   dc.SetComm(MPI_COMM_WORLD);
 #endif
   quest::IntersectionShaper shaper(policy, axom::INVALID_ALLOCATOR_ID, shapeSet, &dc);
@@ -432,8 +427,7 @@ void IntersectionWithErrorTolerances(const std::string &filebase,
     slic::flushStreams();
 
     // NOTE: We do not actually run the query. We're mainly interested
-    //       in how the shape was refined and whether we hit the percent
-    //       error.
+    //       in how the shape was refined and whether we hit the percent error.
 
     // Now check the analytical revolved volume vs the value we expect. This makes
     // sure the quadrature-computed value is "close enough".
@@ -462,23 +456,17 @@ class ShapingTestApplication
 {
 public:
   static constexpr int AnyCase = 0;
-  /*!
-   * \brief Constructor.
-   */
+  /// \brief Constructor
   ShapingTestApplication()
     : m_app()
     , m_annotationMode("none")
     , m_policy()
     , m_caseNumber(AnyCase) { }
 
-  /*!
-   * \brief Destructor
-   */
+  /// \brief Destructor
   ~ShapingTestApplication() { }
 
-  /*!
-   * \brief Parse the command line and run the tests.
-   */
+  /// \brief Parse the command line and run the tests
   int execute(int argc, char *argv[])
   {
     int result = 0;

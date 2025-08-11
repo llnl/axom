@@ -294,11 +294,11 @@ spack:
       - spec: cmake@3.24.2
         prefix: /usr/tce
 
-    # Lie to spack, say this is llvm@10 when it's actually llvm@14
-    # to allow concretization and prevent spack from building
-    llvm:
-      version: [10.0.0]
-      buildable: false
-      externals:
-      - spec: llvm@10.0.0%gcc@10.3.1
-        prefix: /usr/tce/packages/rocmcc/rocmcc-5.2.3-magic/llvm
+    # This path is not stable - have spack build llvm
+    # until we can move to llvm@19
+    # llvm:
+    #   version: [14.0.0]
+    #   buildable: false
+    #   externals:
+    #   - spec: llvm@14.0.0%gcc@10.3.1
+    #     prefix: /usr/tce/packages/rocmcc/rocmcc-5.2.3-magic/llvm

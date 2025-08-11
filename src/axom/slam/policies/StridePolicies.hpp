@@ -15,8 +15,7 @@
  *   * DEFAULT_VALUE is a public static const IntType
  *   * IS_COMPILE_TIME is a public static const bool
  *   * stride() : IntType  -- returns the stride
- *   * isValid() : bool -- indicates whether the Stride policy of the set is
- *     valid
+ *   * isValid() : bool -- indicates whether the Stride policy of the set is valid
  *   * [optional]
  *   * operator(): IntType -- alternate accessor for the stride value
  *

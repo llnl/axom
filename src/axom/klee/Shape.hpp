@@ -3,13 +3,13 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_SHAPE_HPP
-#define AXOM_KLEE_SHAPE_HPP
+#ifndef AXOM_KLEE_SHAPE_HPP_
+#define AXOM_KLEE_SHAPE_HPP_
+
+#include "axom/klee/Geometry.hpp"
 
 #include <string>
 #include <vector>
-
-#include "axom/klee/Geometry.hpp"
 
 namespace axom
 {
@@ -32,8 +32,7 @@ public:
    * \param materialsNotReplaced the materials which cannot be replaced. If
    * empty, all materials can be replaced unless materialsReplaced is set.
    * \param geometry the geometric properties of this shape
-   * \throws std::logic_error if both materialsReplaced and
-   * materialsNotReplaced have entries.
+   * \throws std::logic_error if both materialsReplaced and materialsNotReplaced have entries.
    */
   Shape(std::string name,
         std::string material,
@@ -92,4 +91,4 @@ private:
 }  // namespace klee
 }  // namespace axom
 
-#endif
+#endif  // AXOM_KLEE_SHAPE_HPP_

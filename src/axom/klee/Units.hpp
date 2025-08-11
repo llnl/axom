@@ -2,8 +2,8 @@
 // other Axom Project Developers. See the top-level COPYRIGHT file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#ifndef AXOM_UNITS_HPP
-#define AXOM_UNITS_HPP
+#ifndef AXOM_KLEE_UNITS_HPP
+#define AXOM_KLEE_UNITS_HPP
 
 #include <string>
 
@@ -53,14 +53,12 @@ LengthUnit parseLengthUnits(const std::string &unitsAsString, const std::string 
  *
  * \param unitsAsProxy the units as a proxy
  * \return the parsed units
- * \throws KleeError if the string does not represent known
- * units
+ * \throws KleeError if the string does not represent known units
  */
 LengthUnit parseLengthUnits(const inlet::Proxy &unitsAsProxy);
 
 /**
- * Get the conversion factor to convert from the given source units to the
- * target units.
+ * Get the conversion factor to convert from the given source units to the target units.
  *
  * \param sourceUnits the original units
  * \param targetUnits the units to convert to
@@ -100,4 +98,4 @@ void convertAll(T &values, LengthUnit sourceUnits, LengthUnit targetUnits)
 
 }  // namespace klee
 }  // namespace axom
-#endif  //AXOM_UNITS_HPP
+#endif  // AXOM_KLEE_UNITS_HPP

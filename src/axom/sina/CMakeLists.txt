@@ -45,33 +45,28 @@ set(sina_sources
     core/Run.cpp
     )
 
-
 # Add Adiak header and source
-blt_list_append( TO sina_headers ELEMENTS core/AdiakWriter.hpp IF AXOM_USE_ADIAK )
-blt_list_append( TO sina_sources ELEMENTS core/AdiakWriter.cpp IF AXOM_USE_ADIAK )
+blt_list_append( TO sina_headers ELEMENTS core/AdiakWriter.hpp IF ADIAK_FOUND )
+blt_list_append( TO sina_sources ELEMENTS core/AdiakWriter.cpp IF ADIAK_FOUND )
 
 # Add fortran interface for Sina
-if(AXOM_USE_HDF5 AND ENABLE_FORTRAN)
-  set(AXOM_USE_HDF5_FORTRAN ".true.")
-else()
-  set(AXOM_USE_HDF5_FORTRAN ".false.")
-endif()
-
 if (ENABLE_FORTRAN)
-  configure_file(interface/sina_fortran_interface.f.in 
-                 interface/sina_fortran_interface.f 
-                 @ONLY)
+  if(HDF5_FOUND)
+    set(AXOM_USE_HDF5_FORTRAN ".true.")
+  else()
+    set(AXOM_USE_HDF5_FORTRAN ".false.")
+  endif()
+
+  axom_configure_file(
+      interface/sina_fortran_interface.f.in
+      ${CMAKE_CURRENT_BINARY_DIR}/interface/sina_fortran_interface.f)
 
   blt_list_append(TO sina_headers 
                   ELEMENTS interface/sina_fortran_interface.h)
   blt_list_append(TO sina_sources 
                   ELEMENTS interface/sina_fortran_interface.cpp
                            ${CMAKE_CURRENT_BINARY_DIR}/interface/sina_fortran_interface.f)
-  
-  install(FILES ${CMAKE_Fortran_MODULE_DIRECTORY}/sina_functions.mod
-                ${CMAKE_Fortran_MODULE_DIRECTORY}/hdf5_config.mod
-          DESTINATION interface)
-endif()
+  endif()
 
 #------------------------------------------------------------------------------
 # Build and install the library
@@ -81,7 +76,7 @@ set(sina_depends
     conduit::conduit
     )
 
-blt_list_append( TO sina_depends ELEMENTS adiak::adiak IF AXOM_USE_ADIAK )
+blt_list_append( TO sina_depends ELEMENTS adiak::adiak IF ADIAK_FOUND )
 
 axom_add_library(NAME       sina
                  SOURCES    ${sina_sources}
@@ -94,6 +89,11 @@ axom_write_unified_header(NAME    sina
 
 axom_install_component(NAME    sina
                        HEADERS ${sina_headers})
+if (ENABLE_FORTRAN)
+  install(FILES ${CMAKE_Fortran_MODULE_DIRECTORY}/sina_functions.mod
+                ${CMAKE_Fortran_MODULE_DIRECTORY}/sina_hdf5_config.mod
+          DESTINATION lib/fortran)
+endif()
 
 #------------------------------------------------------------------------------
 # Add tests and examples

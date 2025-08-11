@@ -3,7 +3,6 @@
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
-=======================
 BUMP User Documentation
 =======================
 
@@ -17,7 +16,6 @@ API Documentation
 -----------------
 
 Doxygen generated API documentation can be found here: `API documentation <../../../../doxygen/html/coretop.html>`_
-
 
 .. toctree::
    :caption: Contents
