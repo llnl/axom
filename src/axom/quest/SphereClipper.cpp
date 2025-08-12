@@ -195,6 +195,8 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
   auto cellCount = shapeeMesh.getCellCount();
   auto vertCount = shapeeMesh.getVertexCount();
 
+  auto sphere = m_sphere;
+
   const auto& vertCoords = shapeeMesh.getVertexCoords3D();
   const auto& vX = vertCoords[0];
   const auto& vY = vertCoords[1];
@@ -203,12 +205,29 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
   /*
     Compute whether vertices are inside shape.
   */
-  axom::Array<double> vertDist {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
-  auto vertDistView = vertDist.view();
+
+  axom::Array<bool> vertIsOutside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
+  auto vertIsOutsideView = vertIsOutside.view();
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vX.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vZ.getAllocatorID()));
-  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertDistView.getAllocatorID()));
+  SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vertIsOutsideView.getAllocatorID()));
+
+  axom::for_all<ExecSpace>(
+    vertCount,
+    AXOM_LAMBDA(axom::IndexType vertId) {
+      primal::Point3D vert {vX[vertId], vY[vertId], vZ[vertId]};
+      int orientation = sphere.getOrientation(vert, 0.0);
+      vertIsOutsideView[vertId] = orientation == primal::ON_POSITIVE_SIDE;
+    });
+
+  /*
+    Compute cell labels.
+  */
+
+  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getCellNodeConnectivity();
+  SLIC_ASSERT(connView.shape() ==
+              (axom::StackArray<axom::IndexType, 2> {cellCount, NUM_VERTS_PER_CELL}));
 
   if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
   {
@@ -218,37 +237,34 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
   auto labelsView = labels.view();
 
   /*
-    Label cell by whether its bounding sphere touches the sphere geometry.
+    Label cell:
+    - Compute cell's bounding sphere.  Use bounding box's
+      bounding sphere as a fast conservative approximation.
+    - If bounding sphere doesn't intersect the geometry, cell is LABEL_OUT.
+    - If all cell vertices are inside geometry, cell is LABEL_IN.
+      This is true because geometry is convex.
+    - If spheres intersect and not all vertices are inside,
+      some parts of the cell may intersect boundary, so it's LABEL_ON.
   */
 
   auto cellBbs = shapeeMesh.getCellBoundingBoxes();
-
-  auto sphere = m_sphere;
-  auto sphereRad = sphere.getRadius();
-  auto sphereRadSq = sphereRad * sphereRad;
 
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
       LabelType& cellLabel = labelsView[cellId];
-      // Use bounding box's containing sphere as a fast conservative
-      // approximation to the cell's bounding sphere.
       const auto& bb = cellBbs[cellId];
       const SphereType boundingSphere(bb.getCentroid(), bb.range().norm()/2);
-      if(sphere.intersectsWith(boundingSphere))
+      if(sphere.intersectsWith(boundingSphere, 0.0))
       {
-        // Checking containment of corner points would be the right
-        // way to differentiate between IN and ON cells.  But checking
-        // containment of boundingSphere is convenient here and
-        // misclassifies about 4% of the cells conservatively.
-        if(sphere.contains(boundingSphere))
+        auto cellVertIds = connView[cellId];
+        bool hasOut = vertIsOutsideView[cellVertIds[0]];
+        for(int vi = 1; vi < NUM_VERTS_PER_CELL; ++vi)
         {
-          cellLabel = LABEL_IN;
+          int vertId = cellVertIds[vi];
+          hasOut |= vertIsOutsideView[vertId];
         }
-        else
-        {
-          cellLabel = LABEL_ON;
-        }
+        cellLabel = hasOut ? LABEL_ON : LABEL_IN;
       }
       else
       {
