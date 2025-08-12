@@ -2558,7 +2558,7 @@ public:
   /// \brief Get number of trimming curves
   int getNumTrimmingCurves() const { return m_trimmingCurves.size(); }
 
-  /// \brief use array size as flag for trimmed-ness
+  /// \brief use boolean flag for trimmed-ness
   bool isTrimmed() const { return m_isTrimmed; }
 
   /// \brief Mark as trimmed

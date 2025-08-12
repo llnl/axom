@@ -450,7 +450,7 @@ public:
    *
    * \param [in] tol Threshold for sum of squared distances
    * \param [in] EPS Threshold for nearness to zero
-   * \return True if c1 is planar-polygonal up to tolerance \a sq_tol
+   * \return True if the patch is a planar polygon, up to the desired tolerances
    */
   bool isPolygonal(double sq_tol = 1e-8, double EPS = 1e-8) const
   {

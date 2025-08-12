@@ -310,7 +310,7 @@ public:
    *
    * \param [in] tol Threshold for sum of squared distances
    * \param [in] useStrictLinear If true, checks that the control points are
-   *   evenly spaced along the line
+   *   evenly spaced along the line and not too far from the line
    * \return True if curve is near-linear
    */
   bool isLinear(double tol = 1e-8, bool useStrictLinear = false) const
