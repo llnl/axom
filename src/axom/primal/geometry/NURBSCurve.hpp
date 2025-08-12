@@ -354,8 +354,6 @@ public:
     : NURBSCurve(pts.view(), weights.view(), knotVector)
   { }
 
-  ///@}
-
   /*!
    * \brief Construct a multi-span, rational, degree 2 NURBS curve from the angles of a circular arc
    *
@@ -459,6 +457,447 @@ public:
 
     return line;
   }
+
+  ///@}
+
+  ///@{
+  /// \name Query/modify curve properties (degree, rationality, ...)
+
+  /*!
+   * \brief Reset the degree and resize arrays of points (and weights)
+   *
+   * \param [in] npts The target number of control points
+   * \param [in] degree The target degree
+   * 
+   * \warning This method will replace existing knot vector with a uniform one.
+   */
+  void setParameters(int npts, int degree)
+  {
+    SLIC_ASSERT(npts > degree);
+    SLIC_ASSERT(degree >= 0);
+
+    m_controlPoints.resize(npts);
+
+    if(isRational())
+    {
+      m_weights.resize(npts);
+    }
+
+    m_knotvec.makeUniform(npts, degree);
+  }
+
+  /*!
+   * \brief Reset the knot vector
+   *
+   * \param [in] degree The target degree
+   * 
+   * \warning This method does NOT change the existing control points, 
+   *  i.e. does not perform degree elevation/reduction. 
+   *  Will replace existing knot vector with a uniform one.
+   *  
+   * \pre Requires target degree < npts and degree >= 0
+   */
+  void setDegree(int degree)
+  {
+    SLIC_ASSERT(0 <= degree && degree < getNumControlPoints());
+
+    m_knotvec.makeUniform(getNumControlPoints(), degree);
+  }
+
+  /// \brief Returns the degree of the NURBS Curve
+  int getDegree() const { return static_cast<int>(m_knotvec.getDegree()); }
+
+  /// \brief Returns the order of the NURBS Curve
+  int getOrder() const { return static_cast<int>(m_knotvec.getDegree() + 1); }
+
+  /// \brief Returns the number of control points in the NURBS Curve
+  int getNumControlPoints() const { return static_cast<int>(m_controlPoints.size()); }
+
+  /*!
+   * \brief Set the number control points
+   *
+   * \param [in] npts The target number of control points
+   * 
+   * \warning This method does NOT change the existing control points, 
+   *  i.e. does not perform degree elevation/reduction. 
+   *  Will replace existing knot vector with a uniform one.
+   */
+  void setNumControlPoints(int npts)
+  {
+    const int deg = m_knotvec.getDegree();
+    SLIC_ASSERT(npts > deg);
+
+    m_controlPoints.resize(npts);
+    if(isRational())
+    {
+      m_weights.resize(npts);
+    }
+
+    m_knotvec.makeUniform(npts, deg);
+  }
+
+  /// \brief Clears the list of control points, make nonrational
+  void clear()
+  {
+    m_controlPoints.clear();
+    m_knotvec.clear();
+    makeNonrational();
+  }
+
+  /// \brief Use array size as flag for rationality
+  bool isRational() const { return !m_weights.empty(); }
+
+  /// \brief Make trivially rational. If already rational, do nothing
+  void makeRational()
+  {
+    if(!isRational())
+    {
+      m_weights.resize(m_controlPoints.size());
+      m_weights.fill(1.0);
+    }
+  }
+
+  /// \brief Make nonrational. If already rational, do nothing
+  void makeNonrational() { m_weights.resize(0); }
+
+  /// \brief Function to check if the NURBS curve is valid
+  bool isValidNURBS() const
+  {
+    // Check monotonicity, open-ness, continuity
+    if(!m_knotvec.isValid())
+    {
+      return false;
+    }
+
+    // Number of knots must match the number of control points
+    int p = m_knotvec.getDegree();
+    if(m_knotvec.getNumKnots() != m_controlPoints.size() + p + 1)
+    {
+      return false;
+    }
+
+    if(isRational())
+    {
+      if(m_weights.size() != m_controlPoints.size())
+      {
+        // Weights must match the number of control points
+        return false;
+      }
+
+      for(int i = 0; i < m_weights.size(); ++i)
+      {
+        if(m_weights[i] <= 0)
+        {
+          // Weights must be positive
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  ///@}
+
+  ///@{
+  /// \name Query/modify curve's geometry (control points, weights, bounding box, ...)
+
+  /*!
+   * \brief Retrieve the control point at index \a idx
+   *
+   * \param [in] idx The index of the control point
+   * 
+   * \return A reference to the control point at index \a idx
+   */
+  PointType& operator[](int idx) { return m_controlPoints[idx]; }
+
+  /*!
+   * \brief Retrieve the control point at index \a idx
+   *
+   * \param [in] idx The index of the control point
+   * 
+   * \return A const reference to the control point at index \a idx
+   */
+  const PointType& operator[](int idx) const { return m_controlPoints[idx]; }
+
+  /// \brief Returns a copy of the NURBS curve's control points
+  CoordsVec getControlPoints() const { return m_controlPoints; }
+
+  /*!
+   * \brief Get a specific weight
+   *
+   * \param [in] idx The index of the weight
+   * \pre Requires that the curve be rational
+   * 
+   * \return The weight at index \a idx
+   */
+  const T& getWeight(int idx) const
+  {
+    SLIC_ASSERT(isRational());
+    return m_weights[idx];
+  }
+
+  /*!
+   * \brief Set the weight at a specific index
+   *
+   * \param [in] idx The index of the weight
+   * \param [in] weight The updated value of the weight
+   * 
+   * \pre Requires that the curve be rational, and the weight be rational
+   */
+  void setWeight(int idx, T weight)
+  {
+    SLIC_ASSERT(isRational());
+    SLIC_ASSERT(weight > 0);
+
+    m_weights[idx] = weight;
+  }
+
+  /// \brief Returns a copy of the NURBS curve's control points
+  WeightsVec getWeights() const { return m_weights; }
+
+  /// \brief Returns an axis-aligned bounding box containing the NURBS curve
+  BoundingBoxType boundingBox() const
+  {
+    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
+  }
+
+  /// \brief Returns an oriented bounding box containing the NURBS curve
+  OrientedBoundingBoxType orientedBoundingBox() const
+  {
+    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
+  }
+
+  ///@}
+
+  ///@{
+  /// \name Query/modify curve parametrization
+
+  /// \brief Returns the number of knots in the NURBS Curve
+  axom::IndexType getNumKnots() const { return m_knotvec.getNumKnots(); }
+
+  /// \brief Normalize the knot vector to the span of [0, 1]
+  void normalize() { m_knotvec.normalize(); }
+
+  /*!
+   * \brief Rescale the knot vector to the span of [a, b]
+   * 
+   * \param [in] a The lower bound of the new knot vector
+   * \param [in] b The upper bound of the new knot vector
+   * 
+   * \pre Requires a < b
+   */
+  void rescale(T a, T b)
+  {
+    SLIC_ASSERT(a < b);
+    m_knotvec.rescale(a, b);
+  }
+
+  /*!
+   * \brief Get a specific knot value
+   *
+   * \param [in] idx The index of the knot
+   * 
+   * \return The knot value at index \a idx
+   */
+  const T& getKnot(int idx) const { return m_knotvec[idx]; }
+
+  /*!
+   * \brief Set the knot value at a specific index
+   *
+   * \param [in] idx The index of the knot
+   * \param [in] knot The updated value of the knot
+   */
+  void setKnot(int idx, T knot) { m_knotvec[idx] = knot; }
+
+  /*! 
+   * \brief Set the knot vector by an axom::Array
+   *
+   * \param [in] knots The new knot vector
+   */
+  void setKnots(const axom::Array<T>& knots, int degree)
+  {
+    m_knotvec = KnotVectorType(knots, degree);
+  }
+
+  /*! 
+   * \brief Set the knot vector by a KnotVector object
+   *
+   * \param [in] knotVector The new knot vector
+   */
+  void setKnots(const KnotVectorType& knotVector) { m_knotvec = knotVector; }
+
+  /// \brief Return a copy of the knot vector
+  KnotVectorType getKnots() const { return m_knotvec; }
+
+  /// \brief Return a copy of the knot vector as an array
+  axom::Array<T> getKnotsArray() const { return m_knotvec.getArray(); }
+
+  /// \brief Get minimum knot
+  T getMinKnot() const { return m_knotvec[0]; }
+
+  /// \brief Get maximum knot
+  T getMaxKnot() const { return m_knotvec[m_knotvec.getNumKnots() - 1]; }
+
+  /// \brief Reverses the order of the NURBS curve's control points and weights
+  void reverseOrientation()
+  {
+    const int npts = getNumControlPoints();
+    const int npts_mid = (npts + 1) / 2;
+    for(int i = 0; i < npts_mid; ++i)
+    {
+      axom::utilities::swap(m_controlPoints[i], m_controlPoints[npts - i - 1]);
+    }
+
+    if(isRational())
+    {
+      for(int i = 0; i < npts_mid; ++i)
+      {
+        axom::utilities::swap(m_weights[i], m_weights[npts - i - 1]);
+      }
+    }
+
+    // Reverse the orientation of the knots
+    m_knotvec.reverse();
+  }
+
+  /*! 
+   * \brief Insert a knot with given multiplicity
+   *
+   * \param [in] t The parameter value of the knot to insert
+   * \param [in] target_multiplicity The multiplicity of the knot to insert
+   * \return The index of the new knot
+   * 
+   * Algorithm A5.1 on p. 151 of "The NURBS Book"
+   * 
+   * \note If the knot is already present, it will be inserted
+   *  up to the given multiplicity, or the maximum permitted by the degree
+   * 
+   * \pre Requires \a t in the span of the knots (up to a small tolerance)
+   * 
+   * \note If t is outside the knot span up to this tolerance, it is clamped to the span
+   * 
+   * \return The (maximum) index of the new knot
+   */
+  axom::IndexType insertKnot(T t, int target_multiplicity = 1)
+  {
+    SLIC_ASSERT(m_knotvec.isValidParameter(t));
+    t = axom::utilities::clampVal(t, getMinKnot(), getMaxKnot());
+
+    SLIC_ASSERT(target_multiplicity > 0);
+
+    const bool isRational = this->isRational();
+
+    const int n = getNumControlPoints() - 1;
+    const int p = m_knotvec.getDegree();
+
+    // Find the span and multiplicity of the knot
+    int s = 0;
+    const auto span = m_knotvec.findSpan(t, s);
+
+    // Fix the maximum multiplicity of the knot
+    int r = std::min(target_multiplicity - s, p - s);
+    if(r <= 0)
+    {
+      return span;  // Early exit if no knots to add
+    }
+
+    // Save unaltered control points
+    CoordsVec newControlPoints(m_controlPoints.size() + r);
+    WeightsVec newWeights(isRational ? m_weights.size() + r : 0);
+    for(int i = 0; i <= span - p; ++i)
+    {
+      newControlPoints[i] = m_controlPoints[i];
+      if(isRational)
+      {
+        newWeights[i] = m_weights[i];
+      }
+    }
+
+    for(auto i = span - s; i <= n; ++i)
+    {
+      newControlPoints[i + r] = m_controlPoints[i];
+      if(isRational)
+      {
+        newWeights[i + r] = m_weights[i];
+      }
+    }
+
+    // Insert the new control points
+    CoordsVec tempControlPoints(p + 1);
+    WeightsVec tempWeights(isRational ? p + 1 : 0);
+    for(int i = 0; i <= p - s; ++i)
+    {
+      for(int N = 0; N < NDIMS; ++N)
+      {
+        tempControlPoints[i][N] =
+          m_controlPoints[span - p + i][N] * (isRational ? m_weights[span - p + i] : 1.0);
+      }
+
+      if(isRational)
+      {
+        tempWeights[i] = m_weights[span - p + i];
+      }
+    }
+
+    // Insert the knot r times
+    axom::IndexType L;
+    for(int j = 1; j <= r; ++j)
+    {
+      L = span - p + j;
+      for(int i = 0; i <= p - j - s; ++i)
+      {
+        T alpha = (t - m_knotvec[L + i]) / (m_knotvec[i + span + 1] - m_knotvec[L + i]);
+
+        tempControlPoints[i].array() =
+          (1.0 - alpha) * tempControlPoints[i].array() + alpha * tempControlPoints[i + 1].array();
+
+        if(isRational)
+        {
+          tempWeights[i] = (1.0 - alpha) * tempWeights[i] + alpha * tempWeights[i + 1];
+        }
+      }
+
+      for(int N = 0; N < NDIMS; ++N)
+      {
+        newControlPoints[L][N] = tempControlPoints[0][N] / (isRational ? tempWeights[0] : 1.0);
+        newControlPoints[span + r - j - s][N] =
+          tempControlPoints[p - j - s][N] / (isRational ? tempWeights[p - j - s] : 1.0);
+      }
+
+      if(isRational)
+      {
+        newWeights[L] = tempWeights[0];
+        newWeights[span + r - j - s] = tempWeights[p - j - s];
+      }
+    }
+
+    for(auto i = L + 1; i < span - s; ++i)
+    {
+      for(int N = 0; N < NDIMS; ++N)
+      {
+        newControlPoints[i][N] =
+          tempControlPoints[i - L][N] / (isRational ? tempWeights[i - L] : 1.0);
+      }
+
+      if(isRational)
+      {
+        newWeights[i] = tempWeights[i - L];
+      }
+    }
+
+    // Update the knot vector and control points
+    m_knotvec.insertKnotBySpan(span, t, r);
+    m_controlPoints = newControlPoints;
+    m_weights = newWeights;
+
+    return span + r;
+  }
+
+  ///@}
+
+  ///@{
+  /// \name Functions to evaluate curve and its derivatives and normals
 
   /*!
    * \brief Evaluate a NURBS Curve at a particular parameter value \a t
@@ -705,138 +1144,10 @@ public:
     }
   }
 
-  /*! 
-   * \brief Insert a knot with given multiplicity
-   *
-   * \param [in] t The parameter value of the knot to insert
-   * \param [in] target_multiplicity The multiplicity of the knot to insert
-   * \return The index of the new knot
-   * 
-   * Algorithm A5.1 on p. 151 of "The NURBS Book"
-   * 
-   * \note If the knot is already present, it will be inserted
-   *  up to the given multiplicity, or the maximum permitted by the degree
-   * 
-   * \pre Requires \a t in the span of the knots (up to a small tolerance)
-   * 
-   * \note If t is outside the knot span up to this tolerance, it is clamped to the span
-   * 
-   * \return The (maximum) index of the new knot
-   */
-  axom::IndexType insertKnot(T t, int target_multiplicity = 1)
-  {
-    SLIC_ASSERT(m_knotvec.isValidParameter(t));
-    t = axom::utilities::clampVal(t, getMinKnot(), getMaxKnot());
+  ///@}
 
-    SLIC_ASSERT(target_multiplicity > 0);
-
-    const bool isRational = this->isRational();
-
-    const int n = getNumControlPoints() - 1;
-    const int p = m_knotvec.getDegree();
-
-    // Find the span and multiplicity of the knot
-    int s = 0;
-    const auto span = m_knotvec.findSpan(t, s);
-
-    // Fix the maximum multiplicity of the knot
-    int r = std::min(target_multiplicity - s, p - s);
-    if(r <= 0)
-    {
-      return span;  // Early exit if no knots to add
-    }
-
-    // Save unaltered control points
-    CoordsVec newControlPoints(m_controlPoints.size() + r);
-    WeightsVec newWeights(isRational ? m_weights.size() + r : 0);
-    for(int i = 0; i <= span - p; ++i)
-    {
-      newControlPoints[i] = m_controlPoints[i];
-      if(isRational)
-      {
-        newWeights[i] = m_weights[i];
-      }
-    }
-
-    for(auto i = span - s; i <= n; ++i)
-    {
-      newControlPoints[i + r] = m_controlPoints[i];
-      if(isRational)
-      {
-        newWeights[i + r] = m_weights[i];
-      }
-    }
-
-    // Insert the new control points
-    CoordsVec tempControlPoints(p + 1);
-    WeightsVec tempWeights(isRational ? p + 1 : 0);
-    for(int i = 0; i <= p - s; ++i)
-    {
-      for(int N = 0; N < NDIMS; ++N)
-      {
-        tempControlPoints[i][N] =
-          m_controlPoints[span - p + i][N] * (isRational ? m_weights[span - p + i] : 1.0);
-      }
-
-      if(isRational)
-      {
-        tempWeights[i] = m_weights[span - p + i];
-      }
-    }
-
-    // Insert the knot r times
-    axom::IndexType L;
-    for(int j = 1; j <= r; ++j)
-    {
-      L = span - p + j;
-      for(int i = 0; i <= p - j - s; ++i)
-      {
-        T alpha = (t - m_knotvec[L + i]) / (m_knotvec[i + span + 1] - m_knotvec[L + i]);
-
-        tempControlPoints[i].array() =
-          (1.0 - alpha) * tempControlPoints[i].array() + alpha * tempControlPoints[i + 1].array();
-
-        if(isRational)
-        {
-          tempWeights[i] = (1.0 - alpha) * tempWeights[i] + alpha * tempWeights[i + 1];
-        }
-      }
-
-      for(int N = 0; N < NDIMS; ++N)
-      {
-        newControlPoints[L][N] = tempControlPoints[0][N] / (isRational ? tempWeights[0] : 1.0);
-        newControlPoints[span + r - j - s][N] =
-          tempControlPoints[p - j - s][N] / (isRational ? tempWeights[p - j - s] : 1.0);
-      }
-
-      if(isRational)
-      {
-        newWeights[L] = tempWeights[0];
-        newWeights[span + r - j - s] = tempWeights[p - j - s];
-      }
-    }
-
-    for(auto i = L + 1; i < span - s; ++i)
-    {
-      for(int N = 0; N < NDIMS; ++N)
-      {
-        newControlPoints[i][N] =
-          tempControlPoints[i - L][N] / (isRational ? tempWeights[i - L] : 1.0);
-      }
-
-      if(isRational)
-      {
-        newWeights[i] = tempWeights[i - L];
-      }
-    }
-
-    // Update the knot vector and control points
-    m_knotvec.insertKnotBySpan(span, t, r);
-    m_controlPoints = newControlPoints;
-    m_weights = newWeights;
-
-    return span + r;
-  }
+  ///@{
+  /// \name Functions dealing with curve subdivision
 
   /*!
    * \brief Splits a NURBS curve into two curves at a given parameter value
@@ -924,23 +1235,6 @@ public:
     }
 
     return true;
-  }
-
-  /// \brief Normalize the knot vector to the span of [0, 1]
-  void normalize() { m_knotvec.normalize(); }
-
-  /*!
-   * \brief Rescale the knot vector to the span of [a, b]
-   * 
-   * \param [in] a The lower bound of the new knot vector
-   * \param [in] b The upper bound of the new knot vector
-   * 
-   * \pre Requires a < b
-   */
-  void rescale(T a, T b)
-  {
-    SLIC_ASSERT(a < b);
-    m_knotvec.rescale(a, b);
   }
 
   /*!
@@ -1076,187 +1370,7 @@ public:
     return beziers;
   }
 
-  /*!
-   * \brief Reset the degree and resize arrays of points (and weights)
-   *
-   * \param [in] npts The target number of control points
-   * \param [in] degree The target degree
-   * 
-   * \warning This method will replace existing knot vector with a uniform one.
-   */
-  void setParameters(int npts, int degree)
-  {
-    SLIC_ASSERT(npts > degree);
-    SLIC_ASSERT(degree >= 0);
-
-    m_controlPoints.resize(npts);
-
-    if(isRational())
-    {
-      m_weights.resize(npts);
-    }
-
-    m_knotvec.makeUniform(npts, degree);
-  }
-
-  /*!
-   * \brief Reset the knot vector
-   *
-   * \param [in] degree The target degree
-   * 
-   * \warning This method does NOT change the existing control points, 
-   *  i.e. does not perform degree elevation/reduction. 
-   *  Will replace existing knot vector with a uniform one.
-   *  
-   * \pre Requires target degree < npts and degree >= 0
-   */
-  void setDegree(int degree)
-  {
-    SLIC_ASSERT(0 <= degree && degree < getNumControlPoints());
-
-    m_knotvec.makeUniform(getNumControlPoints(), degree);
-  }
-
-  /// \brief Returns the degree of the NURBS Curve
-  int getDegree() const { return static_cast<int>(m_knotvec.getDegree()); }
-
-  /// \brief Returns the order of the NURBS Curve
-  int getOrder() const { return static_cast<int>(m_knotvec.getDegree() + 1); }
-
-  /// \brief Returns the number of control poitns in the NURBS Curve
-  int getNumControlPoints() const { return static_cast<int>(m_controlPoints.size()); }
-
-  /*!
-   * \brief Set the number control points
-   *
-   * \param [in] npts The target number of control points
-   * 
-   * \warning This method does NOT change the existing control points, 
-   *  i.e. does not perform degree elevation/reduction. 
-   *  Will replace existing knot vector with a uniform one.
-   */
-  void setNumControlPoints(int npts)
-  {
-    const int deg = m_knotvec.getDegree();
-    SLIC_ASSERT(npts > deg);
-
-    m_controlPoints.resize(npts);
-    if(isRational())
-    {
-      m_weights.resize(npts);
-    }
-
-    m_knotvec.makeUniform(npts, deg);
-  }
-
-  /// \brief Returns the number of knots in the NURBS Curve
-  axom::IndexType getNumKnots() const { return m_knotvec.getNumKnots(); }
-
-  /// \brief Make nonrational. If already rational, do nothing
-  void makeNonrational() { m_weights.resize(0); }
-
-  /// \brief Make trivially rational. If already rational, do nothing
-  void makeRational()
-  {
-    if(!isRational())
-    {
-      m_weights.resize(m_controlPoints.size());
-      m_weights.fill(1.0);
-    }
-  }
-
-  /// \brief Use array size as flag for rationality
-  bool isRational() const { return !m_weights.empty(); }
-
-  /// \brief Clears the list of control points, make nonrational
-  void clear()
-  {
-    m_controlPoints.clear();
-    m_knotvec.clear();
-    makeNonrational();
-  }
-
-  /*!
-   * \brief Retrieve the control point at index \a idx
-   *
-   * \param [in] idx The index of the control point
-   * 
-   * \return A reference to the control point at index \a idx
-   */
-  PointType& operator[](int idx) { return m_controlPoints[idx]; }
-
-  /*!
-   * \brief Retrieve the control point at index \a idx
-   *
-   * \param [in] idx The index of the control point
-   * 
-   * \return A const reference to the control point at index \a idx
-   */
-  const PointType& operator[](int idx) const { return m_controlPoints[idx]; }
-
-  /*!
-   * \brief Get a specific weight
-   *
-   * \param [in] idx The index of the weight
-   * \pre Requires that the curve be rational
-   * 
-   * \return The weight at index \a idx
-   */
-  const T& getWeight(int idx) const
-  {
-    SLIC_ASSERT(isRational());
-    return m_weights[idx];
-  }
-
-  /*!
-   * \brief Set the weight at a specific index
-   *
-   * \param [in] idx The index of the weight
-   * \param [in] weight The updated value of the weight
-   * 
-   * \pre Requires that the curve be rational, and the weight be rational
-   */
-  void setWeight(int idx, T weight)
-  {
-    SLIC_ASSERT(isRational());
-    SLIC_ASSERT(weight > 0);
-
-    m_weights[idx] = weight;
-  }
-
-  /*!
-   * \brief Get a specific knot value
-   *
-   * \param [in] idx The index of the knot
-   * 
-   * \return The knot value at index \a idx
-   */
-  const T& getKnot(int idx) const { return m_knotvec[idx]; }
-
-  /*!
-   * \brief Set the knot value at a specific index
-   *
-   * \param [in] idx The index of the knot
-   * \param [in] knot The updated value of the knot
-   */
-  void setKnot(int idx, T knot) { m_knotvec[idx] = knot; }
-
-  /*! 
-   * \brief Set the knot vector by an axom::Array
-   *
-   * \param [in] knots The new knot vector
-   */
-  void setKnots(const axom::Array<T>& knots, int degree)
-  {
-    m_knotvec = KnotVectorType(knots, degree);
-  }
-
-  /*! 
-   * \brief Set the knot vector by a KnotVector object
-   *
-   * \param [in] knotVector The new knot vector
-   */
-  void setKnots(const KnotVectorType& knotVector) { m_knotvec = knotVector; }
+  ///@}
 
   /*!
    * \brief Equality operator for NURBS Curves
@@ -1283,58 +1397,6 @@ public:
   friend inline bool operator!=(const NURBSCurve<T, NDIMS>& lhs, const NURBSCurve<T, NDIMS>& rhs)
   {
     return !(lhs == rhs);
-  }
-
-  /// \brief Returns a copy of the NURBS curve's control points
-  CoordsVec getControlPoints() const { return m_controlPoints; }
-
-  /// \brief Returns a copy of the NURBS curve's control points
-  WeightsVec getWeights() const { return m_weights; }
-
-  /// \brief Return a copy of the knot vector
-  KnotVectorType getKnots() const { return m_knotvec; }
-
-  /// \brief Return a copy of the knot vector as an array
-  axom::Array<T> getKnotsArray() const { return m_knotvec.getArray(); }
-
-  /// \brief Get minimum knot
-  T getMinKnot() const { return m_knotvec[0]; }
-
-  /// \brief Get maximum knot
-  T getMaxKnot() const { return m_knotvec[m_knotvec.getNumKnots() - 1]; }
-
-  /// \brief Reverses the order of the NURBS curve's control points and weights
-  void reverseOrientation()
-  {
-    const int npts = getNumControlPoints();
-    const int npts_mid = (npts + 1) / 2;
-    for(int i = 0; i < npts_mid; ++i)
-    {
-      axom::utilities::swap(m_controlPoints[i], m_controlPoints[npts - i - 1]);
-    }
-
-    if(isRational())
-    {
-      for(int i = 0; i < npts_mid; ++i)
-      {
-        axom::utilities::swap(m_weights[i], m_weights[npts - i - 1]);
-      }
-    }
-
-    // Reverse the orientation of the knots
-    m_knotvec.reverse();
-  }
-
-  /// \brief Returns an axis-aligned bounding box containing the NURBS curve
-  BoundingBoxType boundingBox() const
-  {
-    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
-  }
-
-  /// \brief Returns an oriented bounding box containing the NURBS curve
-  OrientedBoundingBoxType orientedBoundingBox() const
-  {
-    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
   }
 
   /*!
@@ -1373,43 +1435,6 @@ public:
     os << "}";
 
     return os;
-  }
-
-  /// \brief Function to check if the NURBS curve is valid
-  bool isValidNURBS() const
-  {
-    // Check monotonicity, open-ness, continuity
-    if(!m_knotvec.isValid())
-    {
-      return false;
-    }
-
-    // Number of knots must match the number of control points
-    int p = m_knotvec.getDegree();
-    if(m_knotvec.getNumKnots() != m_controlPoints.size() + p + 1)
-    {
-      return false;
-    }
-
-    if(isRational())
-    {
-      if(m_weights.size() != m_controlPoints.size())
-      {
-        // Weights must match the number of control points
-        return false;
-      }
-
-      for(int i = 0; i < m_weights.size(); ++i)
-      {
-        if(m_weights[i] <= 0)
-        {
-          // Weights must be positive
-          return false;
-        }
-      }
-    }
-
-    return true;
   }
 
 private:
