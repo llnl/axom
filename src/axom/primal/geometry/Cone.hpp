@@ -138,7 +138,7 @@ public:
   */
   std::ostream& print(std::ostream& os) const
   {
-    os << "Cone{ base(" << m_baseZ << ',' << m_baseRad << "), top(" << m_topZ << ',' << m_topRad << ", axis at " << m_origin << " along " << m_direction << '}';
+    os << "Cone{ base(" << m_baseZ << ',' << m_baseRad << "), top(" << m_topZ << ',' << m_topRad << "), axis at " << m_origin << " along " << m_direction << '}';
 
     return os;
   }
