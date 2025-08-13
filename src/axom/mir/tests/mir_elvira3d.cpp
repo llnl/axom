@@ -313,6 +313,7 @@ struct test_Elvira3D
         for(axom::IndexType i = 0; i < ids.size(); i++)
         {
           auto index = axom::utilities::binary_search(sortedIdsView, ids[i]);
+          // RelWithDebInfo workaround - "sortedIdsView.size()" substitutes lambda capture device failure for "nmats"
           SLIC_ASSERT(index >= 0 && index < sortedIdsView.size());
 
           // Use an atomic to sum the value.

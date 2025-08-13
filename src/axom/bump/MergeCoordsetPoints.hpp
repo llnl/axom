@@ -187,6 +187,7 @@ public:
         AXOM_LAMBDA(axom::IndexType index) {
           const auto newNodeId =
             axom::utilities::binary_search(uniqueNamesView, coordNamesView[index]);
+          // RelWithDebInfo workaround - "old2newView.size() substitutes lambda capture device failure for "nnodes"
           SLIC_ASSERT(newNodeId >= 0 && newNodeId < old2newView.size());
           old2newView[index] = newNodeId;
         });

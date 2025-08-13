@@ -97,7 +97,7 @@ public:
       AXOM_LAMBDA(axom::IndexType faceIndex) {
         // Get size for current face.
         const auto faceSize = static_cast<int>(se_sizes[faceIndex]);
-        // MaxPointsPerFace is 16
+        // RelWithDebInfo workaround - "16" substitutes lambda capture device failure for "MaxPointsPerFace"
         SLIC_ASSERT(faceSize <= 16);
 
         KeyType faceName {};
