@@ -105,7 +105,7 @@ public:
       auto res = axom::NumericArray<int, 2>(boxResolution.data());
       auto bbox = BBox2D(Pt2D(boxMins.data()), Pt2D(boxMaxs.data()));
 
-      SLIC_INFO(
+      SLIC_INFO_ROOT(
         axom::fmt::format("Creating inline box mesh of resolution {} and bounding box {}", res, bbox));
 
       mesh = quest::util::make_cartesian_mfem_mesh_2D(bbox, res, outputOrder);
@@ -118,14 +118,14 @@ public:
       auto res = axom::NumericArray<int, 3>(boxResolution.data());
       auto bbox = BBox3D(Pt3D(boxMins.data()), Pt3D(boxMaxs.data()));
 
-      SLIC_INFO(
+      SLIC_INFO_ROOT(
         axom::fmt::format("Creating inline box mesh of resolution {} and bounding box {}", res, bbox));
 
       mesh = quest::util::make_cartesian_mfem_mesh_3D(bbox, res, outputOrder);
     }
     break;
     default:
-      SLIC_ERROR("Only 2D and 3D meshes are currently supported.");
+      SLIC_ERROR_ROOT("Only 2D and 3D meshes are currently supported.");
       break;
     }
 
@@ -456,7 +456,6 @@ int main(int argc, char** argv)
 
 #ifdef AXOM_USE_MPI
     MPI_Bcast(&retval, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Finalize();
 #endif
     exit(retval);
   }

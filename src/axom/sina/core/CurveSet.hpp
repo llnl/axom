@@ -48,6 +48,26 @@ public:
   using CurveMap = std::unordered_map<std::string, Curve>;
 
   /**
+    * An enum representing supported orderings for curves within a CurveSet.
+    */
+  enum class CurveOrder
+  {
+    REGISTRATION_OLDEST_FIRST,
+    REGISTRATION_NEWEST_FIRST,
+    ALPHABETIC,
+    REVERSE_ALPHABETIC
+  };
+
+  /**
+    * A struct used to return ordered names from a Conduit node.
+    */
+  struct curveNodeInfo
+  {
+    CurveSet::CurveMap curveMap;
+    std::vector<std::string> orderedCurveNames;
+  };
+
+  /**
      * \brief Create a CurveSet with the given name
      *
      * \param name the name of the CurveSet
@@ -68,6 +88,44 @@ public:
      * \return the curve set's name
      */
   std::string const &getName() const { return name; }
+
+  /**
+   * Get the insertion order of this curveset's independents.
+   *
+   * @return a vector of curve names in the order of insertion.
+   */
+  std::vector<std::string> const &getOrderedIndependentCurveNames()
+  {
+    return orderedIndependentCurveNames;
+  }
+
+  /**
+   * Get the insertion order of this curveset's dependents.
+   *
+   * @return a vector of curve names in the order of insertion.
+   */
+  std::vector<std::string> const &getOrderedDependentCurveNames()
+  {
+    return orderedDependentCurveNames;
+  }
+
+  /**
+   * Set the insertion order of this curveset's independents.
+   *
+   * Note that this overwrites the INSERTION ORDER, meaning this is treated as the new "oldest first".
+   *
+   * @return a bool for whether the reorder went through. Name lists must match exactly 
+   */
+  bool applyCustomIndependentCurveOrder(const std::vector<std::string> newOrderedCurveNames);
+
+  /**
+   * Set the insertion order of this curveset's independents.
+   *
+   * Note that this overwrites the INSERTION ORDER, meaning this is treated as the new "oldest first".
+   *
+   * @return a bool for whether the reorder went through. Name lists must match exactly 
+   */
+  bool applyCustomDependentCurveOrder(const std::vector<std::string> newOrderedCurveNames);
 
   /**
      * \brief Add an independent curve.
@@ -98,16 +156,20 @@ public:
   CurveMap const &getDependentCurves() const { return dependentCurves; }
 
   /**
-     * \brief Convert his CurveSet to a Conduit node.
+     * \brief Convert this CurveSet to a Conduit node.
      *
+     * \param curveOrder The order to add curves to the node in. Ex: registration vs alphabetic
+    *
      * \return the Node representation of this CurveSet
      */
-  conduit::Node toNode() const;
+  conduit::Node toNode(CurveOrder curveOrder) const;
 
 private:
   std::string name;
   CurveMap independentCurves;
   CurveMap dependentCurves;
+  std::vector<std::string> orderedIndependentCurveNames;
+  std::vector<std::string> orderedDependentCurveNames;
 };
 
 }  // namespace sina

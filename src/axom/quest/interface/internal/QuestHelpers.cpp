@@ -11,15 +11,15 @@
 
 // Quest includes
 #ifdef AXOM_USE_MPI
-  #include "axom/quest/readers/PSTLReader.hpp"
-  #include "axom/quest/readers/PProEReader.hpp"
+  #include "axom/quest/io/PSTLReader.hpp"
+  #include "axom/quest/io/PProEReader.hpp"
 #endif
 
 #if defined(AXOM_USE_C2C)
   #if defined(AXOM_USE_MPI)
-    #include "axom/quest/readers/PC2CReader.hpp"
+    #include "axom/quest/io/PC2CReader.hpp"
   #else
-    #include "axom/quest/readers/C2CReader.hpp"
+    #include "axom/quest/io/C2CReader.hpp"
   #endif
 #endif
 

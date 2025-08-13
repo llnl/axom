@@ -3,11 +3,11 @@
 .. ##
 .. ## SPDX-License-Identifier: (BSD-3-Clause)
 
-.. _curvesets-label:
+.. _output-format-label:
 
-=========
+=============
 HDF5 and JSON
-=========
+=============
 
 Sina's C++ and Python Code supports loading both JSON and HDF5 files as Documents,
 and saving Documents to either file type.
@@ -21,7 +21,7 @@ Why You Should Use JSON
 ------------------------------
 
 * JSON is more universally parsable
-* JSON code is human readable allowing you more, easier flexibility with searching for relevent data.  This is most applicable with smaller files since large amounts of data or curve sets quickly become more efficient to navigate digitally
+* JSON code is human readable allowing you more, easier flexibility with searching for relevant data.  This is most applicable with smaller files since large amounts of data or curve sets quickly become more efficient to navigate digitally
 * JSON outperforms HDF5 in speed and size efficiency when dealing with non-curve set data and outperforms at smaller curve set sizes (just before :math:`10^2` Curve Sets for Size and around :math:`10^3.25` for Speed)
 
 ------------------------------

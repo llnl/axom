@@ -13,7 +13,7 @@
 #endif
 
 #include "axom/core/Macros.hpp"
-#include "axom/quest/readers/C2CReader.hpp"  // base class
+#include "axom/quest/io/C2CReader.hpp"  // base class
 
 #include "mpi.h"
 

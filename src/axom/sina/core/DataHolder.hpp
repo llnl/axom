@@ -184,9 +184,12 @@ public:
   /**
      * \brief Convert this DataHolder to its conduit Node representation.
      *
+     * \param curveOrder the order in which curves within curvesets should be written.
+     *                   A default is set in Record.
+     *
      * \return the Node representation of this DataHolder.
      */
-  virtual conduit::Node toNode() const;
+  virtual conduit::Node toNode(CurveSet::CurveOrder curveOrder) const;
 
 private:
   CurveSetMap curveSets;

@@ -6,7 +6,7 @@
 #include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/core/NumericLimits.hpp"
 #include "axom/mint/utils/vtk_utils.hpp"  // for write_vtk
-#include "axom/quest/readers/ProEReader.hpp"
+#include "axom/quest/io/ProEReader.hpp"
 #include "axom/slic.hpp"
 
 // gtest includes

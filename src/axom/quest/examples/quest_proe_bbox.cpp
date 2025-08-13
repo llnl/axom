@@ -25,7 +25,7 @@
 // _read_proe_include2_end
 
 // _read_proe_include1_start
-#include "axom/quest/readers/ProEReader.hpp"
+#include "axom/quest/io/ProEReader.hpp"
 // _read_proe_include1_end
 
 // _read_proe_typealiases_start

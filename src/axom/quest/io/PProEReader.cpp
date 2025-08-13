@@ -3,7 +3,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#include "axom/quest/readers/PProEReader.hpp"
+#include "axom/quest/io/PProEReader.hpp"
 
 namespace axom
 {

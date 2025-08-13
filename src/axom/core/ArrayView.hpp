@@ -216,7 +216,68 @@ public:
    *
    * \param value The value to be used for filling the ArrayView.
    */
-  AXOM_HOST void fill(const T& value);
+  void fill(const T& value);
+
+  /*!
+   * \brief Set a range of elements to a given value.
+   *
+   * \param [in] value the value to set to.
+   * \param [in] n the number of elements to write.
+   * \param [in] pos the position at which to begin the fill operation.
+   *
+   * \note The size is unchanged by calls to fill.
+   *
+   * \pre pos + n <= m_num_elements.
+   */
+  void fill(const T& value, IndexType n, IndexType pos);
+
+  /*!
+   * \brief Modify the values of existing elements.
+   *
+   * \param [in] elements the new elements to use in the set operation.
+   * \param [in] n the number of elements in the set operation.
+   * \param [in] pos the position at which to begin replacing values.
+   *
+   * \note It's assumed that elements is of length n.
+   * \note The size is unchanged by calls to set.
+   *
+   * \pre pos + n <= m_num_elements.
+   */
+  void set(const T* elements, IndexType n, IndexType pos);
+
+  /*!
+   * \brief Set the array view contents.
+   *
+   * \param [in] count The new number of elements.
+   * \param [in] value The value to store in the elements.
+   *
+   * \note It's assumed that it is safe to store \a count elements.
+   * \note The size is set to \a count by calls to assign.
+   */
+  void assign(axom::IndexType count, const T& value);
+
+  /*!
+   * \brief Replaces contents with copies of objects in the range [first, last).
+   *
+   * \param [in] first The iterator that begins the range used for assignment.
+   * \param [in] last The iterator that ends the range used for assignment.
+   *                  The value at this iterator is not assigned into to the view.
+   *
+   * \post Size of ArrayView is changed to the number of items in the iterator
+   *       range, and values values referenced by the iterator range are copied
+   *       into the Array.
+   */
+  template <class InputIt>
+  void assign(InputIt first, InputIt last);
+
+  /*!
+   * \brief Set the array contents using an initializer list.
+   *
+   * \param [in] elems An initializer list containing the new array values.
+   *
+   * \post The ArrayView contains copies of the initializer list elements.
+   */
+  void assign(std::initializer_list<T> elems);
 
 private:
   T* m_data = nullptr;
@@ -428,11 +489,73 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE> ArrayView<T, DIM, SPACE>::subspan(
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE>
-AXOM_HOST void ArrayView<T, DIM, SPACE>::fill(const T& value)
+void ArrayView<T, DIM, SPACE>::fill(const T& value)
 {
   using OpHelper = detail::ArrayOps<T, SPACE>;
   const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
   OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, 0, m_num_elements, value);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+void ArrayView<T, DIM, SPACE>::fill(const T& value, IndexType n, IndexType pos)
+{
+  assert(pos >= 0);
+  assert(pos + n <= m_num_elements);
+
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, pos, n);
+  OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, pos, n, value);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+void ArrayView<T, DIM, SPACE>::set(const T* elements, IndexType n, IndexType pos)
+{
+  assert(pos >= 0);
+  assert(pos + n <= m_num_elements);
+
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, pos, n);
+  OpHelper {m_allocator_id, executeOnGPU}.fill_range(m_data, pos, n, elements, MemorySpace::Dynamic);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+void ArrayView<T, DIM, SPACE>::assign(axom::IndexType count, const T& value)
+{
+  assert(count >= 0);
+
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
+  OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, 0, count, value);
+  m_num_elements = count;
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+template <class InputIt>
+void ArrayView<T, DIM, SPACE>::assign(InputIt first, InputIt last)
+{
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
+  m_num_elements = 0;
+  for(auto it = first; it != last; it++)
+  {
+    OpHelper {m_allocator_id, executeOnGPU}.emplace(m_data, m_num_elements++, *it);
+  }
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+void ArrayView<T, DIM, SPACE>::assign(std::initializer_list<T> elems)
+{
+  assign(elems.begin(), elems.end());
 }
 
 } /* namespace axom */
