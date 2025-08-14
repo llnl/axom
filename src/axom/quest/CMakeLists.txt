@@ -20,6 +20,7 @@ axom_component_requires(NAME       QUEST
 set( quest_headers
 
     Delaunay.hpp
+    LinearizeCurves.hpp
     SignedDistance.hpp
 
     ## All-nearest-neighbors query
@@ -72,6 +73,8 @@ set( quest_sources
 
     ## Discretize shapes
     Discretize.cpp
+
+    LinearizeCurves.cpp
 
     ## Mesh tester
     MeshTester.cpp

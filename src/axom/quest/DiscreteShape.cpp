@@ -199,29 +199,19 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     // as a single concatenated matrix.
     auto transform = getTransforms();
 
-    // Pass in the transform so any transformations can figure into
-    // computing the revolved volume.
+    // Pass in the transform so any transformations can figure into computing the revolved volume.
     axom::mint::Mesh* meshRep = nullptr;
-    if(m_refinementType == DiscreteShape::RefinementDynamic && m_percentError > MINIMUM_PERCENT_ERROR)
-    {
-      quest::internal::read_c2c_mesh_non_uniform(shapePath,
-                                                 transform,
-                                                 m_percentError,
-                                                 m_vertexWeldThreshold,
-                                                 meshRep,
-                                                 m_revolvedVolume,  // output arg
-                                                 m_comm);
-    }
-    else
-    {
-      quest::internal::read_c2c_mesh_uniform(shapePath,
-                                             transform,
-                                             m_samplesPerKnotSpan,
-                                             m_vertexWeldThreshold,
-                                             meshRep,
-                                             m_revolvedVolume,  // output arg
-                                             m_comm);
-    }
+    const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic && m_percentError > MINIMUM_PERCENT_ERROR);
+    quest::internal::read_c2c_mesh(shapePath,
+                                   uniform,
+                                   transform,
+                                   m_samplesPerKnotSpan,
+                                   m_vertexWeldThreshold,
+                                   m_percentError,
+                                   meshRep,
+                                   m_revolvedVolume,  // output arg
+                                   m_comm);
+
     m_meshRep.reset(meshRep);
 
     // Transform the coordinates of the linearized mesh.

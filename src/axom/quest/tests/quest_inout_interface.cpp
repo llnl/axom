@@ -147,11 +147,15 @@ TYPED_TEST(InOutInterfaceTest, initialize_from_mesh)
     int segmentsPerKnotSpan = 10;
     double weldThreshold = 1E-9;
     double revolvedVolume = 0.;
+    const bool uniform = true;
+    const double percentError = 0.;
     auto identity = axom::numerics::Matrix<double>::identity(4);
-    rc = axom::quest::internal::read_c2c_mesh_uniform(this->meshfile,
+    rc = axom::quest::internal::read_c2c_mesh(this->meshfile,
+                                              uniform,
                                                       identity,
                                                       segmentsPerKnotSpan,
                                                       weldThreshold,
+                                              percentError,
                                                       tmpMeshPtr,
                                                       revolvedVolume);
 #endif  // AXOM_USE_C2C

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/quest/interface/internal/QuestHelpers.hpp"
+#include "axom/quest/LinearizeCurves.hpp"
 
 #include "axom/core.hpp"
 #include "axom/core/NumericLimits.hpp"
@@ -334,28 +335,27 @@ int read_stl_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
 /*
  * Reads in the contour mesh from the specified file.
  */
-int read_c2c_mesh_uniform(const std::string& file,
-                          const numerics::Matrix<double>& transform,
-                          int segmentsPerPiece,
-                          double vertexWeldThreshold,
-                          mint::Mesh*& m,
-                          double& revolvedVolume,
-                          MPI_Comm comm)
+int read_c2c_mesh(const std::string& file,
+                  bool uniform,
+                  const numerics::Matrix<double>& transform,
+                  int segmentsPerPiece,
+                  double vertexWeldThreshold,
+                  double percentError,
+                  mint::Mesh*& m,
+                  double& revolvedVolume,
+                  MPI_Comm comm)
 {
   // NOTE: C2C meshes are always 2D
   constexpr int DIMENSION = 2;
   using SegmentMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
 
-  // STEP 0: check input mesh pointer
+  // STEP 1: check input mesh pointer
   revolvedVolume = 0.;
   if(m != nullptr)
   {
     SLIC_WARNING("supplied mesh pointer is not null!");
     return READ_FAILED;
   }
-
-  // STEP 1: allocate output mesh object
-  m = new SegmentMesh(DIMENSION, mint::SEGMENT);
 
   // STEP 2: construct C2C reader
   #if defined(AXOM_USE_MPI) && defined(AXOM_USE_C2C)
@@ -367,77 +367,33 @@ int read_c2c_mesh_uniform(const std::string& file,
 
   // STEP 3: read the mesh from the input file
   reader.setFileName(file);
-  reader.setVertexWeldingThreshold(vertexWeldThreshold);
   int rc = reader.read();
   if(rc == READ_SUCCESS)
   {
-    reader.getLinearMeshUniform(static_cast<SegmentMesh*>(m), segmentsPerPiece);
-    revolvedVolume = reader.getRevolvedVolume(transform);
+    m = new SegmentMesh(DIMENSION, mint::SEGMENT);
+
+    // STEP 4: Make the linear segments.
+    LinearizeCurves lin;
+    lin.setVertexWeldingThreshold(vertexWeldThreshold);
+    if(uniform)
+    {
+      lin.getLinearMeshUniform(reader.getCurvesView(), static_cast<SegmentMesh*>(m), segmentsPerPiece);
+    }
+    else
+    {
+      lin.getLinearMeshNonUniform(reader.getCurvesView(), static_cast<SegmentMesh*>(m), percentError);
+    }
+    revolvedVolume = lin.getRevolvedVolume(reader.getCurvesView(), transform);
   }
   else
   {
     SLIC_WARNING("reading C2C file failed, setting mesh to NULL");
-    delete m;
     m = nullptr;
   }
 
   return rc;
 }
 
-/*
- * Reads in the contour mesh from the specified file and refines it according
- * to an error tolerance.
- */
-int read_c2c_mesh_non_uniform(const std::string& file,
-                              const numerics::Matrix<double>& transform,
-                              double percentError,
-                              double vertexWeldThreshold,
-                              mint::Mesh*& m,
-                              double& revolvedVolume,
-                              MPI_Comm comm)
-{
-  // NOTE: C2C meshes are always 2D
-  constexpr int DIMENSION = 2;
-  using SegmentMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
-
-  // STEP 0: check input mesh pointer
-  revolvedVolume = 0.;
-  if(m != nullptr)
-  {
-    SLIC_WARNING("supplied mesh pointer is not null!");
-    return READ_FAILED;
-  }
-
-  // STEP 1: allocate output mesh object
-  m = new SegmentMesh(DIMENSION, mint::SEGMENT);
-
-  // STEP 2: construct C2C reader
-  #if defined(AXOM_USE_MPI) && defined(AXOM_USE_C2C)
-  quest::PC2CReader reader(comm);
-  #else
-  AXOM_UNUSED_VAR(comm);
-  quest::C2CReader reader;
-  #endif
-
-  // STEP 3: read the mesh from the input file
-  reader.setFileName(file);
-  reader.setVertexWeldingThreshold(vertexWeldThreshold);
-  int rc = reader.read();
-  if(rc == READ_SUCCESS)
-  {
-    reader.getLinearMeshNonUniform(static_cast<SegmentMesh*>(m), percentError);
-    revolvedVolume = reader.getRevolvedVolume(transform);
-  }
-  else
-  {
-    SLIC_WARNING("reading C2C file failed, setting mesh to NULL");
-    delete m;
-    m = nullptr;
-    revolvedVolume = 0.;
-  }
-
-  return rc;
-}
 #endif  // AXOM_USE_C2C
 
 /*
