@@ -25,6 +25,7 @@
 #endif
 
 #if defined(AXOM_USE_MFEM)
+  #include "axom/quest/io/MFEMReader.hpp"
   #include <mfem.hpp>
   #include <map>
 #endif
@@ -441,59 +442,60 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
 
 #if defined(AXOM_USE_MFEM)
 /*
- * Reads in the MFEM contours from the specified file.
+ * Reads in the contour mesh from the specified file.
  */
-int read_mfem_contours(const std::string& file,
-                       axom::Array<axom::primal::CurvedPolygon<double, 2>>& contours)
+int read_mfem_mesh(const std::string& file,
+                  bool uniform,
+                  const numerics::Matrix<double>& transform,
+                  int segmentsPerPiece,
+                  double vertexWeldThreshold,
+                  double percentError,
+                  mint::Mesh*& m,
+                  double& revolvedVolume)
 {
-  int retval = READ_FAILED;
+  // NOTE: MFEM meshes we are dealing with are always 2D
+  constexpr int DIMENSION = 2;
+  using SegmentMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
 
-  // Load the MFEM file
-  mfem::Mesh* mesh = nullptr;
-  try
+  // STEP 1: check input mesh pointer
+  revolvedVolume = 0.;
+  if(m != nullptr)
   {
-    mesh = new mfem::Mesh(file, 1, 1, true);
+    SLIC_WARNING("supplied mesh pointer is not null!");
+    return READ_FAILED;
+  }
 
-    // This code is only supporting 1D meshes in 2D space.
-    if(mesh->Dimension() == 1 && mesh->SpaceDimension() == 2)
+  // STEP 2: construct MFEM reader
+  quest::MFEMReader reader;
+
+  // STEP 3: read the curves from the input file
+  axom::Array<axom::primal::NURBSCurve<double, 2>> curves;
+  reader.setFileName(file);
+  int rc = reader.read(curves);
+  if(rc == READ_SUCCESS)
+  {
+    m = new SegmentMesh(DIMENSION, mint::SEGMENT);
+
+    // STEP 4: Make the linear segments.
+    LinearizeCurves lin;
+    lin.setVertexWeldingThreshold(vertexWeldThreshold);
+    if(uniform)
     {
-      // Examine the mesh attributes and group all of the related zones that are
-      // edges of the same contour.
-      std::map<int, axom::Array<int>> contourZones;
-      for(int zoneId = 0; zoneId < mesh->GetNE(); zoneId++)
-      {
-        // Get element attribute and make it zero-origin.
-        const int contourId = mesh->GetAttribute(zoneId) - 1;
-        contourZones[contourId].push_back(zoneId);
-      }
-
-      contours.clear();
-      contours.resize(contourZones.size());
-      for(size_t c = 0; c < contourZones.size(); c++)
-      {
-        auto& poly = contours[c];
-        for(axom::IndexType i = 0; i < contourZones[c].size(); i++)
-        {
-          const int zoneId = contourZones[c][i];
-          auto curve = axom::quest::internal::segment_to_curve(mesh, zoneId);
-          poly.addEdge(std::move(curve));
-        }
-      }
-
-      retval = READ_SUCCESS;
+      lin.getLinearMeshUniform(curves.view(), static_cast<SegmentMesh*>(m), segmentsPerPiece);
     }
     else
     {
-      SLIC_INFO("Mesh must have dimension 1 and spatial dimension 2.");
+      lin.getLinearMeshNonUniform(curves.view(), static_cast<SegmentMesh*>(m), percentError);
     }
-
-    delete mesh;
+    revolvedVolume = lin.getRevolvedVolume(curves.view(), transform);
   }
-  catch(std::exception& e)
+  else
   {
-    delete mesh;
+    SLIC_WARNING("reading MFEM file failed, setting mesh to NULL");
+    m = nullptr;
   }
-  return retval;
+
+  return rc;
 }
 #endif
 
@@ -559,6 +561,69 @@ primal::BezierCurve<double, 2> segment_to_curve(const mfem::Mesh* mesh, int elem
     axom::Array<double> weights {dvec[0], dvec[1], dvec[2], dvec[3]};
 
     return BezierCurve2D(points, weights, fec->GetOrder());
+  }
+}
+
+primal::NURBSCurve<double, 2> segment_to_nurbs(const mfem::Mesh* mesh, int elem_id)
+{
+  using Point2D = axom::primal::Point<double, 2>;
+  using NURBSCurve2D = primal::NURBSCurve<double, 2>;
+
+  const auto* fes = mesh->GetNodes()->FESpace();
+  const auto* fec = fes->FEColl();
+
+  const bool isBernstein = dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
+  const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
+
+  SLIC_ERROR_IF(!(isBernstein || isNURBS),
+                "MFEM mesh elements must be in either the Bernstein or NURBS basis");
+
+  const int NE = isBernstein ? mesh->GetNE() : fes->GetNURBSext()->GetNP();
+  SLIC_ERROR_IF(NE < elem_id, axom::fmt::format("Mesh does not have {} elements", elem_id));
+
+  const int order = isBernstein ? fes->GetOrder(elem_id) : mesh->NURBSext->GetOrders()[elem_id];
+/*
+  SLIC_ERROR_IF(order != 3,
+                axom::fmt::format("This example currently requires the input mfem mesh to "
+                                  "contain cubic elements, but the order of element {} is {}",
+                                  elem_id,
+                                  order));
+*/
+  mfem::Array<int> dofs;
+  mfem::Array<int> vdofs;
+
+  mfem::Vector weights;
+  mfem::Vector v;
+
+  fes->GetElementDofs(elem_id, dofs);
+  fes->GetElementVDofs(elem_id, vdofs);
+  mesh->GetNodes()->GetSubVector(vdofs, v);
+
+  const int p = order + 1;
+  axom::Array<Point2D> points(p, p);
+  if(isBernstein)
+  {
+    points[0] = Point2D {v[0], v[0 + p]};
+    for(int i = 2; i < order; i++)
+    {
+      points[i - 1] = Point2D {v[i], v[i + p]};
+    }
+    points[order] = Point2D {v[1], v[1 + p]};
+
+    return NURBSCurve2D(points, fec->GetOrder());
+  }
+  else  // isNURBS
+  {
+    // temporary assumption is that there are no interior knots
+    // i.e. the NURBS curve is essentially a rational Bezier curve
+
+    for(int i = 0; i < p; i++)
+    {
+      points[i] = Point2D {v[i], v[i + p]};
+    }
+
+    fes->GetNURBSext()->GetWeights().GetSubVector(dofs, weights);
+    return NURBSCurve2D(points.data(), weights.GetData(), p, order);
   }
 }
 #endif

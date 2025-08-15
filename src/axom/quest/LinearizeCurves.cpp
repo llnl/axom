@@ -6,8 +6,8 @@
 #include "axom/quest/LinearizeCurves.hpp"
 
 // These macros enable some debugging utilities for linearization.
-#define AXOM_DEBUG_LINEARIZE_VERBOSE
-#define AXOM_DEBUG_WRITE_LINES
+// #define AXOM_DEBUG_LINEARIZE_VERBOSE
+// #define AXOM_DEBUG_WRITE_LINES
 
 using PointType = axom::primal::Point<double, 2>;
 

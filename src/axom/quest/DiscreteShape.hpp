@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "axom/config.hpp"
 #include "axom/klee/Shape.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 

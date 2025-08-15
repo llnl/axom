@@ -218,6 +218,33 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
     applyTransforms();
   }
 #endif
+#ifdef AXOM_USE_MFEM
+  else if(utilities::string::endsWith(shapePath, ".mfem"))
+  {
+    SLIC_ERROR_ROOT_IF(file_format != "mfem",
+                       axom::fmt::format(" '{}' format requires .mfem file type", file_format));
+    // Get the transforms that are being applied to the mesh. Get them
+    // as a single concatenated matrix.
+    auto transform = getTransforms();
+
+    // Pass in the transform so any transformations can figure into computing the revolved volume.
+    axom::mint::Mesh* meshRep = nullptr;
+    const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic && m_percentError > MINIMUM_PERCENT_ERROR);
+    quest::internal::read_mfem_mesh(shapePath,
+                                    uniform,
+                                    transform,
+                                    m_samplesPerKnotSpan,
+                                    m_vertexWeldThreshold,
+                                    m_percentError,
+                                    meshRep,
+                                    m_revolvedVolume);  // output arg
+
+    m_meshRep.reset(meshRep);
+
+    // Transform the coordinates of the linearized mesh.
+    applyTransforms();
+  }
+#endif
   else
   {
     SLIC_ERROR_ROOT(

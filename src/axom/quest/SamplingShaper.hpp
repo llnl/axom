@@ -32,6 +32,7 @@
 #include "axom/quest/detail/shaping/InOutSampler.hpp"
 #include "axom/quest/detail/shaping/PrimitiveSampler.hpp"
 #include "axom/quest/detail/shaping/WindingNumberSampler.hpp"
+#include "axom/quest/io/MFEMReader.hpp"
 
 #include "mfem.hpp"
 #include "mfem/linalg/dtensor.hpp"
@@ -48,6 +49,14 @@ namespace quest
 /// \brief Concrete class for sample based shaping
 class SamplingShaper : public Shaper
 {
+public:
+  /// Struct to help choose sampler method: InOut or WindingNumber.
+  enum class SamplingMethod : int
+  {
+    InOut,
+    WindingNumber
+  };
+
 public:
   SamplingShaper(RuntimePolicy execPolicy,
                  int allocatorId,
@@ -75,6 +84,8 @@ public:
   //!  @name Functions to get and set shaping parameters related to sampling; supplements parameters in base class
 
   void setSamplingType(shaping::VolFracSampling vfSampling) { m_vfSampling = vfSampling; }
+
+  void setSamplingMethod(SamplingMethod samplingMethod) { m_samplingMethod = samplingMethod; }
 
   void setQuadratureOrder(int quadratureOrder) { m_quadratureOrder = quadratureOrder; }
 
@@ -141,6 +152,11 @@ private:
     return count2D > 0 ? klee::Dimensions::Two : klee::Dimensions::Three;
   }
 
+  /// Determine whether it is appropriate to use the winding number sampler.
+  bool useWindingNumberSampler(const klee::Shape& shape) const
+  {
+    return this->shapeFormat(shape) == "mfem" && this->m_samplingMethod == SamplingMethod::WindingNumber;
+  }
 public:
   //@{
   //!  @name Functions related to the stages for a given shape
@@ -154,12 +170,15 @@ public:
    */
   void loadShape(const klee::Shape& shape) override
   {
-    if(this->shapeFormat(shape) == "mfem")
+    if(useWindingNumberSampler(shape))
     {
       const std::string shapePath =
         axom::utilities::filesystem::prefixRelativePath(shape.getGeometry().getPath(), m_prefixPath);
       SLIC_INFO_ROOT("Reading file: " << shapePath << "...");
-      quest::internal::read_mfem_contours(shapePath, m_contours);
+      // Read the MFEM file as curved polygon contours for winding number intersection.
+      quest::MFEMReader reader;
+      reader.setFileName(shapePath);
+      reader.read(m_contours);
     }
     else
     {
@@ -187,18 +206,18 @@ public:
     // note: ignoring the global shapeDimension for now since it's causing problems
     // reading c2c when the dimension is Three
     AXOM_UNUSED_VAR(shapeDimension);
-    if(this->shapeFormat(shape) == "c2c")
-    {
-      m_inoutSampler2D = std::make_unique<shaping::InOutSampler<2>>(shapeName, m_surfaceMesh);
-      m_inoutSampler2D->computeBounds();
-      m_inoutSampler2D->initSpatialIndex(this->m_vertexWeldThreshold);
-    }
-    else if(this->shapeFormat(shape) == "mfem")
+    if(useWindingNumberSampler(shape))
     {
       m_inoutSamplerWN =
         std::make_unique<shaping::WindingNumberSampler<2>>(shapeName, m_contours.view());
       m_inoutSamplerWN->computeBounds();
       m_inoutSamplerWN->initSpatialIndex(this->m_vertexWeldThreshold);
+    }
+    else if(this->shapeFormat(shape) == "c2c" || this->shapeFormat(shape) == "mfem")
+    {
+      m_inoutSampler2D = std::make_unique<shaping::InOutSampler<2>>(shapeName, m_surfaceMesh);
+      m_inoutSampler2D->computeBounds();
+      m_inoutSampler2D->initSpatialIndex(this->m_vertexWeldThreshold);
     }
     else if(this->shapeFormat(shape) == "stl")
     {
@@ -287,7 +306,7 @@ public:
     switch(getShapeDimension())
     {
     case klee::Dimensions::Two:
-      if(this->shapeFormat(shape) == "mfem")
+      if(useWindingNumberSampler(shape))
       {
         runShapeQueryImpl(m_inoutSamplerWN.get());
       }
@@ -918,6 +937,7 @@ private:
   shaping::VolFracSampling m_vfSampling {shaping::VolFracSampling::SAMPLE_AT_QPTS};
   int m_quadratureOrder {5};
   int m_volfracOrder {2};
+  SamplingMethod m_samplingMethod {SamplingMethod::InOut};
 };
 
 }  // namespace quest

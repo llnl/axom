@@ -151,7 +151,9 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
         list(APPEND quest_headers SamplingShaper.hpp 
                                   detail/shaping/InOutSampler.hpp
                                   detail/shaping/PrimitiveSampler.hpp
-                                  detail/shaping/WindingNumberSampler.hpp)
+                                  detail/shaping/WindingNumberSampler.hpp
+                                  io/MFEMReader.hpp)
+        list(APPEND quest_sources io/MFEMReader.cpp)
     endif()
 endif()
 
