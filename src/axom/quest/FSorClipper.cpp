@@ -9,7 +9,6 @@
 #include "axom/primal/operators/squared_distance.hpp"
 #include "axom/quest/Discretize.hpp"
 #include "axom/quest/FSorClipper.hpp"
-#include "axom/spin/BVH.hpp"
 #include "axom/fmt.hpp"
 
 #include <limits>
@@ -55,8 +54,6 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
   {
     m_curveBb.addPoint(pt);
   }
-
-  clusterSorFunction();
 }
 
 FSorClipper::FSorClipper(const klee::Geometry& kGeom,
@@ -102,8 +99,6 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   {
     m_curveBb.addPoint(pt);
   }
-
-  clusterSorFunction();
 }
 
 bool FSorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
@@ -151,12 +146,58 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
   auto inverseTransformer = m_inverseTransformer;
   auto transformer = m_transformer;
 
-  axom::Array<BoundingBox2DType> bbOn(m_bbOn, allocId);
-  axom::Array<BoundingBox2DType> bbUnder(m_bbUnder, allocId);
+  axom::ArrayView<const double> cellLengths = shapeeMesh.getCellLengths();
+
+  using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
+  using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
+  RAJA::ReduceSum<ReducePolicy, double> sumCharLength(0.0);
+  RAJA::forall<LoopPolicy>(
+    RAJA::RangeSegment(0, cellCount),
+      AXOM_LAMBDA(axom::IndexType cellId) {
+      sumCharLength += cellLengths[cellId];
+    });
+  double avgCharLength = sumCharLength.get()/cellCount;
+
+  // Subdivide the SOR curve and place in the right allocator.
+  axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve, avgCharLength);
+  sorCurve = axom::Array<Point2DType>(sorCurve, shapeeMesh.getAllocatorID());
+  auto sorCurveView = sorCurve.view();
+
+  /*
+   * Compute bounding boxes bbOn, which cover the curve segments, and
+   * bbUnder, which cover the space between bbOn and the z axis.  bbOn
+   * includes end caps, the segments that join the curve to the
+   * z-axis.
+   */
+  auto segCount = sorCurve.size() - 1;
+  axom::Array<BoundingBox2DType> bbOn(segCount + 2,
+                                      segCount + 2,
+                                      allocId);
+  axom::Array<BoundingBox2DType> bbUnder(segCount,
+                                         segCount,
+                                         allocId);
   auto bbOnView = bbOn.view();
   auto bbUnderView = bbUnder.view();
+  axom::for_all<ExecSpace>(
+    segCount,
+    AXOM_LAMBDA(axom::IndexType i) {
+      BoundingBox2DType& on = bbOnView[i];
+      BoundingBox2DType& under = bbUnderView[i];
+      // on = BoundingBox2DType{&sorCurve[i], 2};
+      on.addPoint(sorCurveView[i]);
+      on.addPoint(sorCurveView[i+1]);
+      Point2DType underMin{on.getMin()[0], 0.0};
+      Point2DType underMax{on.getMax()[0], on.getMin()[1]};
+      under = BoundingBox2DType(underMin, underMax);
+    });
 
-  auto cellLengths = shapeeMesh.getCellLengths();
+  axom::Array<BoundingBox2DType> endCaps(2, 2);
+  endCaps[0].addPoint(m_sorCurve.front());
+  endCaps[0].addPoint(Point2DType{m_sorCurve.front()[0], 0.0});
+  endCaps[1].addPoint(m_sorCurve.back());
+  endCaps[1].addPoint(Point2DType{m_sorCurve.back()[0], 0.0});
+  axom::copy(&bbOn[segCount], endCaps.data(), endCaps.size()*sizeof(BoundingBox2DType));
+
   const double lenFactor = 0.5;
 
   auto cellBbs = shapeeMesh.getCellBoundingBoxes();
@@ -171,7 +212,7 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
 
   /*
     Compute cell bounding boxes in rz plane, to be checked against
-    m_bbOn and m_bbUnder.
+    bbOn and bbUnder.
   */
   axom::Array<BoundingBox2DType> cellBbsInRz(cellBbs.size(),
                                              cellBbs.size(),
@@ -201,11 +242,14 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
       const auto& cellBb = cellBbsInRzView[cellId];
 
       /*
-        - If cellBb is close to any m_bbOn, label it ON.
-        - Else if cellBb touches any m_bbUnder, label it IN.
+        - If cellBb is close to any bbOn, label it ON.
+        - Else if cellBb touches any bbUnder, label it IN.
           It cannot possibly be partially outside, because it
-          doesn't cross the boundary or even touch any m_bbOn.
+          doesn't cross the boundary or even touch any bbOn.
         - Else, label cellBb OUT.
+
+        We expect bbOn and bbUnder to be small arrays, so we use
+        linear searches.  If that's too slow, we can use a BVH.
       */
 
       auto& cellLabel = labelsView[cellId];
@@ -235,42 +279,59 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
 }
 
 /*
-  Compute m_bbOn and m_bbUnder, the boxes that block off areas
-  on and under the curve.  The clustering is rough but conservative.
+  Reduce large segments, which have bounding boxes that
+  overlap much more than the segments actually overlap.
 
-  Currently, we have just 1 box under the curve, but we code for
-  future arrays of boxes to be more discriminating.
-  - m_bbOn has 3 boxes.  One for the base plane, one for the top
-    plane and one for the m_sorCurve.
-  - m_bbUnder has only the boxes under m_sorCurve.
-  - TODO: Improve clustering efficiency by dividing large m_bbOn boxes.
-    Try limiting x-component of segment size to about ~3-5x cell
-    characterictic length.
+  Use harmonic mean because it works better than dz to prevent
+  dividing segments that are cylindrical or nearly cylindrical.
 */
-void FSorClipper::clusterSorFunction()
+Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(
+  const Array<Point2DType>& sorCurveIn,
+  double cellCharacteristicLength)
 {
-  const axom::IndexType topI = m_sorCurve.size() - 1;
-  const Point2DType basePt = m_sorCurve[0];
-  const Point2DType topPt = m_sorCurve[topI];
+  Array<Point2DType> sorCurveOut;
 
-  m_bbOn.resize(3);
-  m_bbOn[0].addPoint(Point2DType{basePt[0], m_minRadius});
-  m_bbOn[0].addPoint(Point2DType{topPt[0], m_maxRadius});
-  m_bbOn[1].addPoint(Point2DType{basePt[0], 0.0});
-  m_bbOn[1].addPoint(basePt);
-  m_bbOn[2].addPoint(Point2DType{topPt[0], 0.0});
-  m_bbOn[2].addPoint(topPt);
+  if(sorCurveIn.empty())
+  {
+    return sorCurveOut;
+  }
 
-  m_bbUnder.resize(m_bbOn.size() - 2);
-  axom::for_all<axom::SEQ_EXEC>(m_bbUnder.size(),
-                                AXOM_LAMBDA(axom::IndexType i) {
-                                  // Set bbUnder to the box from the z-axis to the bottom of bbOn.
-                                  auto minPt = m_bbOn[i].getMin();
-                                  auto maxPt = m_bbOn[i].getMax();
-                                  maxPt[1] = minPt[1];
-                                  minPt[1] = 0.0;
-                                  m_bbUnder[i] = BoundingBox2DType(minPt, maxPt, false);
-                                });
+  const double maxMean = 3 * cellCharacteristicLength;
+  const double minDz = 2 * cellCharacteristicLength;
+
+  // Reserve estimated total number of points needed
+  sorCurveOut.reserve(sorCurveIn.size() * 1.2 + 10);
+  sorCurveOut.push_back(sorCurveIn[0]);
+
+  for(IndexType i = 1; i < sorCurveIn.size(); ++i)
+  {
+    const Point2DType& segStart = sorCurveIn[i-1];
+    const Point2DType& segEnd = sorCurveIn[i];
+
+    const auto delta = segEnd.array() - segStart.array();
+    const auto absDelta = axom::abs(delta);
+    const double segDz = absDelta[0];
+    const double segDr = absDelta[1];
+
+    // To drive harmonic mean below maxMean.
+    double segMean = 2 * segDz * segDr / (segDz + segDr);
+    int numSplitsByMean = static_cast<int>(std::ceil(segMean / maxMean));
+
+    // To prevent dz from falling below minDz
+    int numSplitsByMinDz = static_cast<int>(std::ceil(segDz / minDz));
+
+    int numSplits = std::min(numSplitsByMean, numSplitsByMinDz);
+
+    for(int j = 1; j < numSplits; ++j)
+    {
+      double t = static_cast<double>(j) / numSplits;
+      Point2DType newPt(segStart.array() + t * delta);
+      sorCurveOut.push_back(newPt);
+    }
+    sorCurveOut.push_back(segEnd);
+  }
+
+  return sorCurveOut;
 }
 
 bool FSorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)

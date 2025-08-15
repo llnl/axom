@@ -153,7 +153,17 @@ private:
   // Extract clipper info from GeometryClipperStrategy::m_info.
   void extractClipperInfo();
 
-  void clusterSorFunction();
+  /*!
+    @brief Subdivide large segments of the SOR curve to make
+    screening more precise.
+
+    @param sorCurveIn [in] Un-divided SOR curve
+    @param characteristicLength [in] Characteristic length
+      of cells near the curve.
+  */
+  axom::Array<Point2DType> subdivideCurve(
+    const Array<Point2DType>& sorCurveIn,
+    double cellsCharacteristicLength);
 
   //!@brief Compute geometry as octs, by policy.
   template <typename ExecSpace>
