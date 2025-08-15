@@ -219,10 +219,10 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
   }
 #endif
 #ifdef AXOM_USE_MFEM
-  else if(utilities::string::endsWith(shapePath, ".mfem"))
+  else if(utilities::string::endsWith(shapePath, ".mfem") || utilities::string::endsWith(shapePath, ".mesh"))
   {
     SLIC_ERROR_ROOT_IF(file_format != "mfem",
-                       axom::fmt::format(" '{}' format requires .mfem file type", file_format));
+                       axom::fmt::format(" '{}' format requires .mfem/.mesh file extension", file_format));
     // Get the transforms that are being applied to the mesh. Get them
     // as a single concatenated matrix.
     auto transform = getTransforms();
