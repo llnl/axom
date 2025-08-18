@@ -164,7 +164,7 @@ private:
    *
    *  This is intended as a helper function for iterator comparisons.
    */
-  AXOM_HOST_DEVICE bool viewToSameMap(const FlatMapView& other) const
+  AXOM_HOST_DEVICE bool isViewOfSameMap(const FlatMapView& other) const
   {
     return (m_metadata.data() == other.m_metadata.data() &&
             m_buckets.data() == other.m_buckets.data());
@@ -217,12 +217,12 @@ public:
 
   AXOM_HOST_DEVICE friend bool operator==(const IteratorImpl& lhs, const IteratorImpl& rhs)
   {
-    return (lhs.m_map.viewToSameMap(rhs.m_map) && lhs.m_internalIdx == rhs.m_internalIdx);
+    return (lhs.m_map.isViewOfSameMap(rhs.m_map) && lhs.m_internalIdx == rhs.m_internalIdx);
   }
 
   AXOM_HOST_DEVICE friend bool operator!=(const IteratorImpl& lhs, const IteratorImpl& rhs)
   {
-    return (!lhs.m_map.viewToSameMap(rhs.m_map) || lhs.m_internalIdx != rhs.m_internalIdx);
+    return !(lhs == rhs);
   }
 
   AXOM_HOST_DEVICE IteratorImpl& operator++()
