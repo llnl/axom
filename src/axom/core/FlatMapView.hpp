@@ -217,7 +217,7 @@ public:
 
   AXOM_HOST_DEVICE friend bool operator==(const IteratorImpl& lhs, const IteratorImpl& rhs)
   {
-    return (lhs.m_map.isViewOfSameMap(rhs.m_map) && lhs.m_internalIdx == rhs.m_internalIdx);
+    return (lhs.isViewOfSameMap(rhs) && lhs.m_internalIdx == rhs.m_internalIdx);
   }
 
   AXOM_HOST_DEVICE friend bool operator!=(const IteratorImpl& lhs, const IteratorImpl& rhs)
@@ -243,6 +243,17 @@ public:
   AXOM_HOST_DEVICE pointer operator->() const { return &(m_map.m_buckets[m_internalIdx].get()); }
 
 private:
+  /*!
+   * Wrapper function to call FlatMapView::isViewOfSameMap().
+   *
+   * This is a workaround for the following issue with friending:
+   * https://www.open-std.org/jtc1/sc22/wg21/docs/cwg_active.html#1699
+   */
+  AXOM_HOST_DEVICE bool isViewOfSameMap(const IteratorImpl& other) const
+  {
+      return this->m_map.isViewOfSameMap(other.m_map);
+  }
+
   MapType m_map;
   IndexType m_internalIdx {0};
 };
