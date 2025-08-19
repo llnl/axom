@@ -582,13 +582,7 @@ primal::NURBSCurve<double, 2> segment_to_nurbs(const mfem::Mesh* mesh, int elem_
   SLIC_ERROR_IF(NE < elem_id, axom::fmt::format("Mesh does not have {} elements", elem_id));
 
   const int order = isBernstein ? fes->GetOrder(elem_id) : mesh->NURBSext->GetOrders()[elem_id];
-  /*
-  SLIC_ERROR_IF(order != 3,
-                axom::fmt::format("This example currently requires the input mfem mesh to "
-                                  "contain cubic elements, but the order of element {} is {}",
-                                  elem_id,
-                                  order));
-*/
+
   mfem::Array<int> dofs;
   mfem::Array<int> vdofs;
 
