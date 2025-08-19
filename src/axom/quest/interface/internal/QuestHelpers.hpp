@@ -341,13 +341,13 @@ int read_c2c_mesh(const std::string& file,
  * \see LinearizeCurves
  */
 int read_mfem_mesh(const std::string& file,
-                  bool uniform,
-                  const numerics::Matrix<double>& transform,
-                  int segmentsPerPiece,
-                  double vertexWeldThreshold,
-                  double percentError,
-                  mint::Mesh*& m,
-                  double& revolvedVolume);
+                   bool uniform,
+                   const numerics::Matrix<double>& transform,
+                   int segmentsPerPiece,
+                   double vertexWeldThreshold,
+                   double percentError,
+                   mint::Mesh*& m,
+                   double& revolvedVolume);
 #endif  // AXOM_USE_MFEM
 
 /*!

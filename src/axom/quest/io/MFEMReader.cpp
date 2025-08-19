@@ -40,7 +40,7 @@ int read_mfem(const std::string &fileName, Func &&func)
   int retval = READ_FAILED;
 
   // Load the MFEM file
-  mfem::Mesh* mesh = nullptr;
+  mfem::Mesh *mesh = nullptr;
   try
   {
     mesh = new mfem::Mesh(fileName, 1, 1, true);
@@ -70,56 +70,56 @@ int read_mfem(const std::string &fileName, Func &&func)
 
     delete mesh;
   }
-  catch(std::exception& e)
+  catch(std::exception &e)
   {
     delete mesh;
   }
   return retval;
 }
 
-} // end namespace internal
+}  // end namespace internal
 
 int MFEMReader::read(CurveArray &curves)
 {
   SLIC_WARNING_IF(m_fileName.empty(), "Missing a filename in MFEMReader::read()");
 
-  return internal::read_mfem(m_fileName,
-    [&](mfem::Mesh *mesh, const std::map<int, axom::Array<int>> &contourZones)
-  {
-    // Build NURBSCurves from the MFEM zones.
-    for(auto &[contourId, zoneIds] : contourZones)
-    {
-      for(int zoneId : zoneIds)
+  return internal::read_mfem(
+    m_fileName,
+    [&](mfem::Mesh *mesh, const std::map<int, axom::Array<int>> &contourZones) {
+      // Build NURBSCurves from the MFEM zones.
+      for(auto &[contourId, zoneIds] : contourZones)
       {
-        curves.push_back(axom::quest::internal::segment_to_nurbs(mesh, zoneId));
+        for(int zoneId : zoneIds)
+        {
+          curves.push_back(axom::quest::internal::segment_to_nurbs(mesh, zoneId));
+        }
       }
-    }
-  });
+    });
 }
 
 int MFEMReader::read(CurvedPolygonArray &curvedPolygons)
 {
   SLIC_WARNING_IF(m_fileName.empty(), "Missing a filename in MFEMReader::read()");
 
-  return internal::read_mfem(m_fileName,
-    [&](mfem::Mesh *mesh, const std::map<int, axom::Array<int>> &contourZones)
-  {
-    // Build CurvedPolygons from the MFEM zones.
+  return internal::read_mfem(
+    m_fileName,
+    [&](mfem::Mesh *mesh, const std::map<int, axom::Array<int>> &contourZones) {
+      // Build CurvedPolygons from the MFEM zones.
 
-    // Resize the array.
-    curvedPolygons.clear();
-    curvedPolygons.resize(contourZones.size());
+      // Resize the array.
+      curvedPolygons.clear();
+      curvedPolygons.resize(contourZones.size());
 
-    for(auto &[contourId, zoneIds] : contourZones)
-    {
-      auto& poly = curvedPolygons[contourId];
-      for(int zoneId : zoneIds)
+      for(auto &[contourId, zoneIds] : contourZones)
       {
-        auto curve = axom::quest::internal::segment_to_curve(mesh, zoneId);
-        poly.addEdge(std::move(curve));
+        auto &poly = curvedPolygons[contourId];
+        for(int zoneId : zoneIds)
+        {
+          auto curve = axom::quest::internal::segment_to_curve(mesh, zoneId);
+          poly.addEdge(std::move(curve));
+        }
       }
-    }
-  });
+    });
 }
 
 }  // end namespace quest

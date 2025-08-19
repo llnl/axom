@@ -30,8 +30,7 @@ namespace internal
  * \return The transformed 2D point.
  */
 template <typename InputPointType>
-inline PointType transformPoint(const numerics::Matrix<double>& transform,
-                                const InputPointType& pt)
+inline PointType transformPoint(const numerics::Matrix<double>& transform, const InputPointType& pt)
 {
   // Turn the point2 into a vec4.
   double pt4[] = {pt[0], pt[1], 0., 1.};
@@ -89,9 +88,7 @@ axom::IndexType nextLongest(const SegmentArray& segments)
  * \param S The segments to write.
  * \param EPS_SQ The squared distance for point matching.
  */
-static void appendPoints(LinearizeCurves::SegmentMesh* mesh,
-                         SegmentArray& S,
-                         double EPS_SQ)
+static void appendPoints(LinearizeCurves::SegmentMesh* mesh, SegmentArray& S, double EPS_SQ)
 {
   // Check for simple vertex welding opportunities at endpoints of newly interpolated points
   {
@@ -235,12 +232,12 @@ TIME 1 1 double
 }
 #endif
 
-} // end namespace internal
+}  // end namespace internal
 
 //---------------------------------------------------------------------------
 void LinearizeCurves::getLinearMeshUniform(LinearizeCurves::CurveArrayView curves,
-                                             LinearizeCurves::SegmentMesh* mesh,
-                                             int segmentsPerKnotSpan) const
+                                           LinearizeCurves::SegmentMesh* mesh,
+                                           int segmentsPerKnotSpan) const
 {
   using axom::utilities::lerp;
 
@@ -324,8 +321,8 @@ void LinearizeCurves::getLinearMeshUniform(LinearizeCurves::CurveArrayView curve
 
 //---------------------------------------------------------------------------
 void LinearizeCurves::getLinearMeshNonUniform(LinearizeCurves::CurveArrayView curves,
-                                                LinearizeCurves::SegmentMesh* mesh,
-                                                double percentError) const
+                                              LinearizeCurves::SegmentMesh* mesh,
+                                              double percentError) const
 {
   // Sanity checks
   SLIC_ERROR_IF(mesh == nullptr, "supplied mesh is null!");
@@ -514,7 +511,7 @@ void LinearizeCurves::getLinearMeshNonUniform(LinearizeCurves::CurveArrayView cu
 
 //---------------------------------------------------------------------------
 double LinearizeCurves::revolvedVolume(const LinearizeCurves::NURBSCurve& nurbs,
-                      const numerics::Matrix<double>& transform) const
+                                       const numerics::Matrix<double>& transform) const
 {
   using PointType = axom::primal::Point<double, 2>;
   using VectorType = axom::primal::Vector<double, 2>;
@@ -586,7 +583,8 @@ double LinearizeCurves::revolvedVolume(const LinearizeCurves::NURBSCurve& nurbs,
 }
 
 //---------------------------------------------------------------------------
-double LinearizeCurves::getRevolvedVolume(const LinearizeCurves::CurveArrayView curves, const numerics::Matrix<double>& transform) const
+double LinearizeCurves::getRevolvedVolume(const LinearizeCurves::CurveArrayView curves,
+                                          const numerics::Matrix<double>& transform) const
 {
   double vol = 0.;
   for(const auto& nurbs : curves)
@@ -596,5 +594,5 @@ double LinearizeCurves::getRevolvedVolume(const LinearizeCurves::CurveArrayView 
   return vol;
 }
 
-} // end namespace quest
-} // end namespace axom
+}  // end namespace quest
+}  // end namespace axom

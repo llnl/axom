@@ -201,7 +201,8 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 
     // Pass in the transform so any transformations can figure into computing the revolved volume.
     axom::mint::Mesh* meshRep = nullptr;
-    const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic && m_percentError > MINIMUM_PERCENT_ERROR);
+    const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic &&
+                           m_percentError > MINIMUM_PERCENT_ERROR);
     quest::internal::read_c2c_mesh(shapePath,
                                    uniform,
                                    transform,
@@ -219,17 +220,20 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
   }
 #endif
 #ifdef AXOM_USE_MFEM
-  else if(utilities::string::endsWith(shapePath, ".mfem") || utilities::string::endsWith(shapePath, ".mesh"))
+  else if(utilities::string::endsWith(shapePath, ".mfem") ||
+          utilities::string::endsWith(shapePath, ".mesh"))
   {
-    SLIC_ERROR_ROOT_IF(file_format != "mfem",
-                       axom::fmt::format(" '{}' format requires .mfem/.mesh file extension", file_format));
+    SLIC_ERROR_ROOT_IF(
+      file_format != "mfem",
+      axom::fmt::format(" '{}' format requires .mfem/.mesh file extension", file_format));
     // Get the transforms that are being applied to the mesh. Get them
     // as a single concatenated matrix.
     auto transform = getTransforms();
 
     // Pass in the transform so any transformations can figure into computing the revolved volume.
     axom::mint::Mesh* meshRep = nullptr;
-    const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic && m_percentError > MINIMUM_PERCENT_ERROR);
+    const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic &&
+                           m_percentError > MINIMUM_PERCENT_ERROR);
     quest::internal::read_mfem_mesh(shapePath,
                                     uniform,
                                     transform,

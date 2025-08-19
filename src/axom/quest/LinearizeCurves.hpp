@@ -43,9 +43,7 @@ public:
    * \param[in] mesh The mesh object that will contain the linearized line segments.
    * \param[in] segmentsPerKnotSpan The number of segments to make per knot span.
    */
-  void getLinearMeshUniform(CurveArrayView curves,
-                            SegmentMesh *mesh,
-                            int segmentsPerKnotSpan) const;
+  void getLinearMeshUniform(CurveArrayView curves, SegmentMesh *mesh, int segmentsPerKnotSpan) const;
 
   /*!
    * \brief Projects high-order NURBS contours onto a linear mesh using \a percentError 
@@ -55,9 +53,7 @@ public:
    * \param[in] mesh The mesh object that will contain the linearized line segments.
    * \param[in] percentError A percent of error that is acceptable to stop refinement.
    */
-  void getLinearMeshNonUniform(CurveArrayView curves,
-                               SegmentMesh *mesh,
-                               double percentError) const;
+  void getLinearMeshNonUniform(CurveArrayView curves, SegmentMesh *mesh, double percentError) const;
 
   /*!
    * \brief Compute the revolved volume of the curves using quadrature.
@@ -74,8 +70,7 @@ public:
    *
    * \return The revolved volume.
    */
-  double getRevolvedVolume(CurveArrayView curves,
-                           const numerics::Matrix<double> &transform) const;
+  double getRevolvedVolume(CurveArrayView curves, const numerics::Matrix<double> &transform) const;
 
 protected:
   /*!
@@ -87,14 +82,13 @@ protected:
    *
    * \return The revolved volume.
    */
-  double revolvedVolume(const NURBSCurve& nurbs,
-                        const numerics::Matrix<double>& transform) const;
+  double revolvedVolume(const NURBSCurve &nurbs, const numerics::Matrix<double> &transform) const;
 
 protected:
   double m_vertexWeldThreshold {1E-9};
 };
 
-} // end namespace quest
-} // end namespace axom
+}  // end namespace quest
+}  // end namespace axom
 
 #endif

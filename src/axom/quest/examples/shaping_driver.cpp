@@ -211,10 +211,12 @@ public:
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(methodMap, axom::CLI::ignore_case));
 
-    std::map<std::string, SamplingMethod> sMethodMap {{"inout", SamplingMethod::InOut},
-                                                    {"windingnumber", SamplingMethod::WindingNumber}};
+    std::map<std::string, SamplingMethod> sMethodMap {
+      {"inout", SamplingMethod::InOut},
+      {"windingnumber", SamplingMethod::WindingNumber}};
     app.add_option("--sampling", samplingMethod)
-      ->description("Determines the sampling method for the sampling shaper -- either inout or windingnumber")
+      ->description(
+        "Determines the sampling method for the sampling shaper -- either inout or windingnumber")
       ->capture_default_str()
       ->transform(axom::CLI::CheckedTransformer(sMethodMap, axom::CLI::ignore_case));
 

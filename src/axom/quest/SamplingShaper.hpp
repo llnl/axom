@@ -155,8 +155,10 @@ private:
   /// Determine whether it is appropriate to use the winding number sampler.
   bool useWindingNumberSampler(const klee::Shape& shape) const
   {
-    return this->shapeFormat(shape) == "mfem" && this->m_samplingMethod == SamplingMethod::WindingNumber;
+    return this->shapeFormat(shape) == "mfem" &&
+      this->m_samplingMethod == SamplingMethod::WindingNumber;
   }
+
 public:
   //@{
   //!  @name Functions related to the stages for a given shape

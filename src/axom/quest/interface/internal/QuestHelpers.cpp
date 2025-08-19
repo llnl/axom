@@ -445,13 +445,13 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm)
  * Reads in the contour mesh from the specified file.
  */
 int read_mfem_mesh(const std::string& file,
-                  bool uniform,
-                  const numerics::Matrix<double>& transform,
-                  int segmentsPerPiece,
-                  double vertexWeldThreshold,
-                  double percentError,
-                  mint::Mesh*& m,
-                  double& revolvedVolume)
+                   bool uniform,
+                   const numerics::Matrix<double>& transform,
+                   int segmentsPerPiece,
+                   double vertexWeldThreshold,
+                   double percentError,
+                   mint::Mesh*& m,
+                   double& revolvedVolume)
 {
   // NOTE: MFEM meshes we are dealing with are always 2D
   constexpr int DIMENSION = 2;
@@ -582,7 +582,7 @@ primal::NURBSCurve<double, 2> segment_to_nurbs(const mfem::Mesh* mesh, int elem_
   SLIC_ERROR_IF(NE < elem_id, axom::fmt::format("Mesh does not have {} elements", elem_id));
 
   const int order = isBernstein ? fes->GetOrder(elem_id) : mesh->NURBSext->GetOrders()[elem_id];
-/*
+  /*
   SLIC_ERROR_IF(order != 3,
                 axom::fmt::format("This example currently requires the input mfem mesh to "
                                   "contain cubic elements, but the order of element {} is {}",

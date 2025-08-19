@@ -39,6 +39,7 @@ public:
 
   using CurvedPolygon = axom::primal::CurvedPolygon<double, 2>;
   using CurvedPolygonArray = axom::Array<CurvedPolygon>;
+
 public:
   MFEMReader() = default;
 

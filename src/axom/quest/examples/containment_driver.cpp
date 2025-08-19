@@ -78,7 +78,9 @@ public:
     // Create surface mesh
     m_surfaceMesh.reset(new UMesh(2, mint::SEGMENT));
     quest::LinearizeCurves lin;
-    lin.getLinearMeshUniform(reader.getCurvesView(), static_cast<UMesh*>(m_surfaceMesh.get()), segmentsPerKnotSpan);
+    lin.getLinearMeshUniform(reader.getCurvesView(),
+                             static_cast<UMesh*>(m_surfaceMesh.get()),
+                             segmentsPerKnotSpan);
   }
 #else
   void loadContourMesh(const std::string& inputFile, int segmentsPerKnotSpan)
