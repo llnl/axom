@@ -87,27 +87,33 @@ endif()
 #------------------------------------------------------------------------------
 
 if(MFEM_FOUND)
-    set(test_name quest_point_in_cell_mfem)
-    axom_add_executable(
-        NAME       ${test_name}
-        SOURCES    ${test_name}.cpp
-        OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
-        DEPENDS_ON ${quest_tests_depends} mfem
-        FOLDER      axom/quest/tests
-        )
+    function(add_quest_mfem_test test_name)
+        axom_add_executable(
+            NAME       ${test_name}
+            SOURCES    ${test_name}.cpp
+            OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+            DEPENDS_ON ${quest_tests_depends} mfem
+            FOLDER      axom/quest/tests
+            )
 
-    string(STRIP "${AXOM_DISABLE_UNUSED_PARAMETER_WARNINGS}" MFEM_COMPILE_FLAGS)
+        string(STRIP "${AXOM_DISABLE_UNUSED_PARAMETER_WARNINGS}" MFEM_COMPILE_FLAGS)
 
-    if (AXOM_ENABLE_CUDA)
-        set(MFEM_COMPILE_FLAGS "-Xcompiler=${MFEM_COMPILE_FLAGS}")
+        if (AXOM_ENABLE_CUDA)
+            set(MFEM_COMPILE_FLAGS "-Xcompiler=${MFEM_COMPILE_FLAGS}")
+        endif()
+
+        blt_add_target_compile_flags( TO ${test_name} FLAGS "${MFEM_COMPILE_FLAGS}" )
+
+        axom_add_test(
+            NAME ${test_name}
+            COMMAND ${test_name}
+            )
+    endfunction()
+
+    add_quest_mfem_test(quest_point_in_cell_mfem)
+    if(AXOM_DATA_DIR)
+        add_quest_mfem_test(quest_mfem_reader)
     endif()
-
-    blt_add_target_compile_flags( TO ${test_name} FLAGS "${MFEM_COMPILE_FLAGS}" )
-
-    axom_add_test(
-        NAME ${test_name}
-        COMMAND ${test_name}
-        )
 endif()
 
 
