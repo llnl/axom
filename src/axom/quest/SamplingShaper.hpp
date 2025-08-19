@@ -80,7 +80,7 @@ public:
     m_inoutArrays.clear();
   }
 
-  //@{
+  ///@{
   //!  @name Functions to get and set shaping parameters related to sampling; supplements parameters in base class
 
   void setSamplingType(shaping::VolFracSampling vfSampling) { m_vfSampling = vfSampling; }
@@ -103,7 +103,7 @@ public:
   /// Registers a function to project from 3D input points to 3D query points
   void setPointProjector33(shaping::PointProjector<3, 3> projector) { m_projector33 = projector; }
 
-  //@}
+  ///@}
 
   /// Returns a pointer to the quadrature function associated with shape \a name if it exists, else nullptr
   mfem::QuadratureFunction* getShapeQFunction(const std::string& name) const
@@ -160,7 +160,7 @@ private:
   }
 
 public:
-  //@{
+  ///@{
   //!  @name Functions related to the stages for a given shape
 
   /*!
@@ -464,7 +464,7 @@ public:
     m_surfaceMesh.reset();
   }
 
-  //@}
+  ///@}
 
 public:
   /**

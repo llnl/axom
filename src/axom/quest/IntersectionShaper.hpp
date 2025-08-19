@@ -565,7 +565,7 @@ public:
     AXOM_ANNOTATE_END("allocate m_overlap_volumes");
   }
 
-  //@{
+  ///@{
   //!  @name Functions to get and set shaping parameters related to intersection; supplements parameters in base class
 
   void setLevel(int level) { m_level = level; }
@@ -588,7 +588,7 @@ public:
     }
     m_free_mat_name = name;
   }
-  //@}
+  ///@}
 
   /*!
    * \brief Return the revolved volume that was computed during dynamic refinement.
@@ -624,7 +624,7 @@ public:
 private:
 #endif
 
-  //@{
+  ///@{
   //!  @name Private functions related to the stages for a given shape
 
   template <typename ExecSpace>
@@ -1733,7 +1733,7 @@ public:
     m_surfaceMesh.reset();
   }
 
-  //@}
+  ///@}
 
 public:
   /*!

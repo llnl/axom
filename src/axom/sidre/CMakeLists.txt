@@ -132,6 +132,21 @@ if(ENABLE_FORTRAN AND AXOM_ENABLE_MPI)
     install(FILES ${CMAKE_Fortran_MODULE_DIRECTORY}/axom_spio.mod DESTINATION lib/fortran)
 endif()
 
+
+if(NANOBIND_FOUND)
+    nanobind_add_module(pysidre nanobind_sidre.cpp)
+    target_link_libraries(pysidre PRIVATE sidre)
+
+    # Use HIP executable linker flags for the python module
+    # (CMake treats modules separately from executables,
+    # executable flags not automatically applied)
+    if(AXOM_ENABLE_HIP)
+        string (REPLACE " " ";" MODULE_LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+        target_link_options(pysidre PRIVATE ${MODULE_LINK_FLAGS})
+    endif()
+endif()
+
+
 #------------------------------------------------------------------------------
 # Add tests and examples
 #------------------------------------------------------------------------------

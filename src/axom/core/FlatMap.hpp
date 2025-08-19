@@ -689,8 +689,11 @@ public:
   using reference = DataType&;
 
 public:
+  IteratorImpl() = default;
+
   IteratorImpl(MapConstType* map, IndexType internalIdx) : m_map(map), m_internalIdx(internalIdx)
   {
+    assert(m_map != nullptr);
     assert(m_internalIdx >= 0 && m_internalIdx <= m_map->bucket_count());
   }
 
@@ -702,12 +705,12 @@ public:
 
   friend bool operator==(const IteratorImpl& lhs, const IteratorImpl& rhs)
   {
-    return lhs.m_internalIdx == rhs.m_internalIdx;
+    return (lhs.m_map == rhs.m_map && lhs.m_internalIdx == rhs.m_internalIdx);
   }
 
   friend bool operator!=(const IteratorImpl& lhs, const IteratorImpl& rhs)
   {
-    return lhs.m_internalIdx != rhs.m_internalIdx;
+    return !(lhs == rhs);
   }
 
   IteratorImpl& operator++()
@@ -728,8 +731,8 @@ public:
   pointer operator->() const { return &(m_map->m_buckets[m_internalIdx].get()); }
 
 private:
-  MapConstType* m_map;
-  IndexType m_internalIdx;
+  MapConstType* m_map {nullptr};
+  IndexType m_internalIdx {0};
 };
 
 template <typename KeyType, typename ValueType, typename Hash>

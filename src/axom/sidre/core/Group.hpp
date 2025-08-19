@@ -139,7 +139,7 @@ public:
   using ViewCollection = ItemCollection<View>;
   using GroupCollection = ItemCollection<Group>;
 
-  //@{
+  ///@{
   //!  @name Basic query and accessor methods.
 
   /*!
@@ -375,9 +375,9 @@ public:
    */
   void getDataInfo(Node& n, bool recursive = true) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View query methods.
 
   /*!
@@ -414,9 +414,9 @@ public:
    */
   const std::string& getViewName(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View access methods.
 
   /*!
@@ -452,9 +452,9 @@ public:
    */
   const View* getView(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View iteration methods.
   //!
   //! Using these methods, a code can get the first View index and each
@@ -494,9 +494,9 @@ public:
    */
   IndexType getNextValidViewIndex(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to create a View that has no associated data.
   //!
   //! \attention These methods do not allocate data or associate a View
@@ -552,9 +552,9 @@ public:
    */
   View* createView(const std::string& path, const DataType& dtype);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to create a View with a Buffer attached.
   //!
   //! \attention The Buffer passed to each of these methods may or may not
@@ -645,9 +645,9 @@ public:
    */
   View* createView(const std::string& path, const DataType& dtype, Buffer* buff);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to create a View with externally-owned data attached.
   //!
   //! \attention To do anything useful with a View created by one of these
@@ -734,9 +734,9 @@ public:
    */
   View* createView(const std::string& path, const DataType& dtype, void* external_ptr);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to create a View and allocate data for it.
   //!
   //! Each of these methods is a no-op if the given View name is an
@@ -842,9 +842,9 @@ public:
    */
   View* createViewString(const std::string& path, const std::string& value);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View destruction methods.
   //!
   //! Each of these methods is a no-op if the specified View does not exist.
@@ -886,9 +886,9 @@ public:
    */
   void destroyViewsAndData();
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View move and copy methods.
 
   /*!
@@ -941,9 +941,9 @@ public:
    */
   View* deepCopyView(const View* view, int allocID = INVALID_ALLOCATOR_ID);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Child Group query methods.
 
   /*!
@@ -981,9 +981,9 @@ public:
    */
   const std::string& getGroupName(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Group access and iteration methods.
 
   /*!
@@ -1018,9 +1018,9 @@ public:
    */
   const Group* getGroup(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Accessors for iterating the group and view collections.
   //!
   //! These methods can be used to iterate over the collection of groups and views
@@ -1054,7 +1054,7 @@ public:
    */
   typename GroupCollection::const_iterator_adaptor groups() const;
 
-  //@}
+  ///@}
 private:
   /*!
    * \brief Casts the views ItemCollection to a (named) MapCollection
@@ -1107,7 +1107,7 @@ private:
   void getDataInfoHelper(Node& n, std::set<IndexType>& buffer_ids, bool recursive) const;
 
 public:
-  //@{
+  ///@{
   //!  @name Group iteration methods.
   //!
   //! Using these methods, a code can get the first Group index and each
@@ -1144,9 +1144,9 @@ public:
    */
   IndexType getNextValidGroupIndex(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Child Group creation and destruction methods.
 
   /*!
@@ -1245,9 +1245,9 @@ public:
    */
   void destroyGroups();
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Group move and copy methods.
 
   /*!
@@ -1308,9 +1308,9 @@ public:
    */
   Group* deepCopyGroup(const Group* srcGroup, int allocID = INVALID_ALLOCATOR_ID);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Group print methods.
 
   /*!
@@ -1335,7 +1335,7 @@ public:
    */
   void printTree(const int nlevels, std::ostream& os = std::cout) const;
 
-  //@}
+  ///@}
 
   /*!
    * \brief Copy description of Group hierarchy rooted at this Group to
@@ -1413,37 +1413,37 @@ public:
    */
   bool isUsingList() const { return m_is_list; }
 
-  //@{
+  ///@{
   /*!
- * @name    Group I/O methods
- *   These methods save and load Group trees to and from files.
- *   This includes the views and buffers used in by groups in the tree.
- *   We provide several "protocol" options:
- *
- *   protocols:
- *    sidre_hdf5 (default when Axom is configured with hdf5)
- *    sidre_conduit_json (default otherwise)
- *    sidre_json
- *
- *    conduit_hdf5
- *    conduit_bin
- *    conduit_json
- *    json
- *
- *   \note The sidre_hdf5 and conduit_hdf5 protocols are only available
- *   when Axom is configured with hdf5.
- *
- *   There are two overloaded versions for each of save, load, and
- *   loadExternalData.  The first of each takes a file path and is intended
- *   for use in a serial context and can be called directly using any
- *   of the supported protocols.  The second takes an hdf5 handle that
- *   has previously been created by the calling code.  These mainly exist
- *   to handle parallel I/O calls from the SPIO component.  They can only
- *   take the sidre_hdf5 or conduit_hdf5 protocols.
- *
- *   \note The hdf5 overloads are only available when Axom is configured
- *   with hdf5.
- */
+   * @name    Group I/O methods
+   *   These methods save and load Group trees to and from files.
+   *   This includes the views and buffers used in by groups in the tree.
+   *   We provide several "protocol" options:
+   *
+   *   protocols:
+   *    sidre_hdf5 (default when Axom is configured with hdf5)
+   *    sidre_conduit_json (default otherwise)
+   *    sidre_json
+   *
+   *    conduit_hdf5
+   *    conduit_bin
+   *    conduit_json
+   *    json
+   *
+   *   \note The sidre_hdf5 and conduit_hdf5 protocols are only available
+   *   when Axom is configured with hdf5.
+   *
+   *   There are two overloaded versions for each of save, load, and
+   *   loadExternalData.  The first of each takes a file path and is intended
+   *   for use in a serial context and can be called directly using any
+   *   of the supported protocols.  The second takes an hdf5 handle that
+   *   has previously been created by the calling code.  These mainly exist
+   *   to handle parallel I/O calls from the SPIO component.  They can only
+   *   take the sidre_hdf5 or conduit_hdf5 protocols.
+   *
+   *   \note The hdf5 overloads are only available when Axom is configured
+   *   with hdf5.
+   */
 
   /*!
    * \brief Save the Group to a file.
@@ -1664,7 +1664,7 @@ public:
 
 #endif /* AXOM_USE_HDF5 */
 
-  //@}
+  ///@}
 
   /*!
    * \brief Change the name of this Group.
@@ -1740,7 +1740,7 @@ private:
   DISABLE_COPY_AND_ASSIGNMENT(Group);
   DISABLE_MOVE_AND_ASSIGNMENT(Group);
 
-  //@{
+  ///@{
   //!  @name Private Group ctors and dtors
   //!        (callable only by DataStore and Group methods).
 
@@ -1763,9 +1763,9 @@ private:
    */
   ~Group();
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View attach and detach methods.
 
   /*!
@@ -1788,9 +1788,9 @@ private:
    */
   View* detachView(IndexType idx);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Group attach and detach methods.
 
   /*!
@@ -1810,9 +1810,9 @@ private:
    */
   Group* detachGroup(IndexType idx);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Private Group View manipulation methods.
 
   /*!
@@ -1826,9 +1826,9 @@ private:
    */
   void destroyViewAndData(View* view);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Private Group methods for interacting with Conduit Nodes.
 
   /*!
@@ -1880,7 +1880,7 @@ private:
    */
   void importFrom(conduit::Node& node, const std::map<IndexType, IndexType>& buffer_id_map);
 
-  //@}
+  ///@}
 
   /*!
    * \brief Private method that returns the Group that is the next-to-last

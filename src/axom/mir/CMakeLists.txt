@@ -19,14 +19,14 @@ axom_component_requires(NAME       MIR
 
 # A serial reference implementation (remove eventually)
 set(mir_reference_headers
+    reference/CellClipper.hpp
+    reference/CellData.hpp
+    reference/CellGenerator.hpp
+    reference/InterfaceReconstructor.hpp
     reference/MIRMesh.hpp
     reference/MIRMeshTypes.hpp
-    reference/ZooClippingTables.hpp
-    reference/InterfaceReconstructor.hpp
-    reference/CellData.hpp
-    reference/CellClipper.hpp
     reference/MIRUtilities.hpp
-    reference/CellGenerator.hpp
+    reference/ZooClippingTables.hpp
     )
 set(mir_reference_sources
     reference/MIRMesh.cpp
@@ -39,8 +39,8 @@ set(mir_reference_sources
 
 # Future classes (evaluate whether to keep them)
 set(mir_future_headers
-    future/ClipFieldFilterDevice.hpp
     future/ClipFieldFilter.hpp
+    future/ClipFieldFilterDevice.hpp
     )
 set(mir_future_sources
     future/ClipFieldFilter.cpp
@@ -48,8 +48,9 @@ set(mir_future_sources
 
 set(mir_headers
     ${mir_reference_headers}
-    detail/elvira_impl.hpp
     detail/elvira_detail.hpp
+    detail/elvira_impl.hpp
+    detail/equiz_detail.hpp
     ElviraAlgorithm.hpp
     EquiZAlgorithm.hpp
     MIRAlgorithm.hpp

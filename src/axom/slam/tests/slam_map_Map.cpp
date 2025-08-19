@@ -182,7 +182,7 @@ void constructAndTestMapWithStride(int stride)
   {
     for(auto idx2 = 0; idx2 < stride; ++idx2)
     {
-      EXPECT_EQ(m(idx, idx2), static_cast<T>(idx * multFac + idx2 * multFac2));
+      EXPECT_DOUBLE_EQ(m(idx, idx2), static_cast<T>(idx * multFac + idx2 * multFac2));
     }
   }
 
