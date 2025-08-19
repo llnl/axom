@@ -199,7 +199,7 @@ public:
     const int knot_deg_v = m_knotvec_v.getDegree();
     SLIC_ASSERT(knot_deg_u >= -1 && knot_deg_v >= -1);
 
-    if(const bool is_empty = (knot_deg_u == -1 && knot_deg_u == -1); is_empty)
+    if(const bool is_empty = (knot_deg_u == -1 && knot_deg_v == -1); is_empty)
     {
       SLIC_ASSERT(controlPoints.empty());
       SLIC_ASSERT(weights.empty());
@@ -207,9 +207,10 @@ public:
     else
     {
       SLIC_ASSERT(knot_deg_u >= 0 && knot_deg_v >= 0);
+#if defined(AXOM_DEBUG)
       const int deg_u = utilities::max(0, knot_deg_u);
       const int deg_v = utilities::max(0, knot_deg_v);
-
+#endif
       const int npts_u = knotVector_u.getNumControlPoints();
       const int npts_v = knotVector_v.getNumControlPoints();
       SLIC_ASSERT(npts_u > deg_u && npts_v > deg_v);
