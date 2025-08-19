@@ -27,6 +27,7 @@ namespace internal
 /*!
  * \brief Read the MFEM file and build the desired type of geometry from it using a supplied function.
  *
+ * \param fileName The name of the file to read.
  * \param func The function/lambda that generates the geometry using the map of zones to curves.
  *
  * \return 0 on success; non-zero on failure.
@@ -83,6 +84,7 @@ int MFEMReader::read(CurveArray &curves)
 {
   SLIC_WARNING_IF(m_fileName.empty(), "Missing a filename in MFEMReader::read()");
 
+  curves.clear();
   return internal::read_mfem(
     m_fileName,
     [&](mfem::Mesh *mesh, const std::map<int, axom::Array<int>> &contourZones) {

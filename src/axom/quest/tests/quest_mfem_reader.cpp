@@ -40,7 +40,8 @@ std::string pjoin(const char *str, Args... args)
 
 TEST(quest_mfem_reader, read_nurbs_curves)
 {
-  const std::string fileName = pjoin(AXOM_DATA_DIR, "contours", "heroic_roses", "mfem", "blue0.mesh");
+  const std::string fileName =
+    pjoin(AXOM_DATA_DIR, "contours", "heroic_roses", "mfem", "blue0.mesh");
 
   quest::MFEMReader reader;
   reader.setFileName(fileName);
@@ -53,7 +54,8 @@ TEST(quest_mfem_reader, read_nurbs_curves)
 
 TEST(quest_mfem_reader, read_curved_polygon)
 {
-  const std::string fileName = pjoin(AXOM_DATA_DIR, "contours", "heroic_roses", "mfem", "blue0.mesh");
+  const std::string fileName =
+    pjoin(AXOM_DATA_DIR, "contours", "heroic_roses", "mfem", "blue0.mesh");
 
   quest::MFEMReader reader;
   reader.setFileName(fileName);
@@ -66,7 +68,8 @@ TEST(quest_mfem_reader, read_curved_polygon)
 
   // Read as CurvedPolygon
   polys.clear();
-  const std::string fileNameB = pjoin(AXOM_DATA_DIR, "contours", "heroic_roses", "mfem_cp", "black.mesh");
+  const std::string fileNameB =
+    pjoin(AXOM_DATA_DIR, "contours", "heroic_roses", "mfem_cp", "black.mesh");
   reader.setFileName(fileNameB);
   EXPECT_EQ(reader.read(polys), 0);
   EXPECT_EQ(polys.size(), 73);
@@ -79,7 +82,7 @@ TEST(quest_mfem_reader, read_curved_polygon)
 
 //------------------------------------------------------------------------------
 
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   axom::slic::SimpleLogger logger;
