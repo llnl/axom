@@ -438,6 +438,24 @@ public:
   void insert(InputIt first, InputIt last);
 
   /*!
+   * \brief Inserts a range of key-value pairs into the FlatMap.
+   *
+   *  If the key already exists in the FlatMap, insertion is skipped.
+   *  Otherwise, the key-value mapping is inserted into the FlatMap.
+   *
+   * \param [in] first the beginning of the range of pairs
+   * \param [in] last the end of the range of pairs
+   *
+   * \tparam ExecSpace the execution space in which to perform the batched
+   *                   construction
+   *
+   * \pre InputIt is a random-access iterator
+   * \pre allocator is accessible from ExecSpace
+   */
+  template <typename ExecSpace, typename InputIt>
+  void insert(InputIt first, InputIt last);
+
+  /*!
    * \brief Inserts a key-value pair into the FlatMap.
    *
    *  If the key already exists, assigns the value to the existing key in the

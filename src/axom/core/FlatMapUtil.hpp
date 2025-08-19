@@ -52,6 +52,56 @@ struct SpinLock
   }
 };
 
+/*!
+ * \class KVPairIterator
+ * \brief Implements a zip-iterator concept for a key-value pair.
+ */
+template <typename KeyType, typename ValueType>
+class KVPairIterator : public IteratorBase<KVPairIterator<KeyType, ValueType>, IndexType>
+{
+private:
+  using BaseType = IteratorBase<KVPairIterator<KeyType, ValueType>, IndexType>;
+  using KeyIterator = const KeyType*;
+  using ValueIterator = ValueType*;
+
+public:
+  // Iterator traits required to satisfy LegacyRandomAccessIterator concept
+  // before C++20
+  // See: https://en.cppreference.com/w/cpp/iterator/iterator_traits
+  using difference_type = IndexType;
+  using value_type = std::pair<const KeyType, ValueType>;
+  using reference = ValueType&;
+  using pointer = ValueType*;
+  using iterator_category = std::random_access_iterator_tag;
+
+  KVPairIterator() = default;
+
+  AXOM_HOST_DEVICE KVPairIterator(KeyIterator keyIter, ValueIterator valueIter)
+    : m_keyIter {keyIter}
+    , m_valueIter {valueIter}
+  { }
+
+  /**
+   * \brief Returns the current iterator value
+   */
+  AXOM_HOST_DEVICE value_type operator*() const { return {*m_keyIter, *m_valueIter}; }
+
+  AXOM_HOST_DEVICE value_type operator[](IndexType idx) const { return *(*this + idx); }
+
+protected:
+  /** Implementation of advance() as required by IteratorBase */
+  AXOM_HOST_DEVICE void advance(IndexType n)
+  {
+    BaseType::m_pos += n;
+    m_keyIter += n;
+    m_valueIter += n;
+  }
+
+private:
+  KeyIterator m_keyIter {nullptr};
+  ValueIterator m_valueIter {nullptr};
+};
+
 }  // namespace detail
 
 template <typename KeyType, typename ValueType, typename Hash>
@@ -63,42 +113,58 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   assert(keys.size() == values.size());
 
   const IndexType num_elems = keys.size();
+  detail::KVPairIterator zip_iterator {keys.data(), values.data()};
 
   FlatMap new_map(allocator);
-  new_map.reserve(num_elems);
+  new_map.insert<ExecSpace>(zip_iterator, zip_iterator + num_elems);
+
+  return new_map;
+}
+
+template <typename KeyType, typename ValueType, typename Hash>
+template <typename ExecSpace, typename InputIt>
+void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
+{
+  static_assert(std::is_base_of<std::random_access_iterator_tag,
+                                typename std::iterator_traits<InputIt>::iterator_category>::value,
+                "InputIt must be a random-access iterator for batched construction");
 
   using HashResult = typename Hash::result_type;
   using GroupBucket = detail::flat_map::GroupBucket;
 
+  // Assume that all elements will be inserted into an empty slot.
+  IndexType num_elems = std::distance(kv_begin, kv_end);
+  this->reserve(this->size() + num_elems);
+
   // Grab some needed internal fields from the flat map.
   // We're going to be constructing metadata and the K-V pairs directly
   // in-place.
-  const int ngroups_pow_2 = new_map.m_numGroups2;
-  const auto meta_group = new_map.m_metadata.view();
-  const auto buckets = new_map.m_buckets.view();
+  const int ngroups_pow_2 = this->m_numGroups2;
+  const auto meta_group = this->m_metadata.view();
+  const auto buckets = this->m_buckets.view();
 
   // Construct an array of locks per-group. This guards metadata updates for
   // each insertion.
   const IndexType num_groups = 1 << ngroups_pow_2;
-  Array<detail::SpinLock> lock_vec(num_groups, num_groups, allocator.getID());
+  Array<detail::SpinLock> lock_vec(num_groups, num_groups, this->m_allocator.getID());
   const auto group_locks = lock_vec.view();
 
   // Map bucket slots to k-v pair indices. This is used to deduplicate pairs
   // with the same key value.
-  Array<IndexType> key_index_dedup_vec(0, 0, allocator.getID());
+  Array<IndexType> key_index_dedup_vec(0, 0, this->m_allocator.getID());
   key_index_dedup_vec.resize(num_groups * GroupBucket::Size, -1);
   const auto key_index_dedup = key_index_dedup_vec.view();
 
   // Map k-v pair indices to bucket slots. This is essentially the inverse of
   // the above mapping.
-  Array<IndexType> key_index_to_bucket_vec(num_elems, num_elems, allocator.getID());
+  Array<IndexType> key_index_to_bucket_vec(num_elems, num_elems, this->m_allocator.getID());
   const auto key_index_to_bucket = key_index_to_bucket_vec.view();
 
   for_all<ExecSpace>(
     num_elems,
     AXOM_LAMBDA(IndexType idx) {
       // Hash keys.
-      auto hash = Hash {}(keys[idx]);
+      auto hash = Hash {}(kv_begin[idx].first);
 
       // We use the k MSBs of the hash as the initial group probe point,
       // where ngroups = 2^k.
@@ -125,7 +191,7 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
             meta_group[curr_group].visitHashOrEmptyBucket(hash_8, [&](int matching_slot) {
               IndexType bucket_index = curr_group * GroupBucket::Size + matching_slot;
 
-              if(keys[key_index_dedup[bucket_index]] == keys[idx])
+              if(kv_begin[key_index_dedup[bucket_index]].first == kv_begin[idx].first)
               {
                 // Highest-indexed kv pair wins.
                 axom::atomicMax<ExecSpace>(&key_index_dedup[bucket_index], idx);
@@ -190,19 +256,17 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
         // individually.
         KeyType& key_dst = const_cast<KeyType&>(buckets[bucket_idx].get().first);
         ValueType& value_dst = buckets[bucket_idx].get().second;
-        new(&key_dst) KeyType {keys[kv_idx]};
-        new(&value_dst) ValueType {values[kv_idx]};
+        new(&key_dst) KeyType {kv_begin[kv_idx].first};
+        new(&value_dst) ValueType {kv_begin[kv_idx].second};
 #else
-        new(&buckets[bucket_idx]) KeyValuePair(keys[kv_idx], values[kv_idx]);
+        new(&buckets[bucket_idx]) KeyValuePair(kv_begin[kv_idx]);
 #endif
         total_inserts += 1;
       }
     });
 
-  new_map.m_size = total_inserts.get();
-  new_map.m_loadCount = total_inserts.get();
-
-  return new_map;
+  this->m_size += total_inserts.get();
+  this->m_loadCount += total_inserts.get();
 }
 
 }  // namespace axom
