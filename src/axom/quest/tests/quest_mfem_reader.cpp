@@ -63,6 +63,18 @@ TEST(quest_mfem_reader, read_curved_polygon)
   EXPECT_EQ(reader.read(polys), 0);
   EXPECT_EQ(polys.size(), 1);
   EXPECT_EQ(polys[0].numEdges(), 9);
+
+  // Read as CurvedPolygon
+  polys.clear();
+  const std::string fileNameB = pjoin(AXOM_DATA_DIR, "contours", "heroic_roses", "mfem_cp", "black.mesh");
+  reader.setFileName(fileNameB);
+  EXPECT_EQ(reader.read(polys), 0);
+  EXPECT_EQ(polys.size(), 73);
+  // Pick some curved polygons and check lengths.
+  EXPECT_EQ(polys[0].numEdges(), 11);
+  EXPECT_EQ(polys[20].numEdges(), 20);
+  EXPECT_EQ(polys[40].numEdges(), 4);
+  EXPECT_EQ(polys[72].numEdges(), 2);
 }
 
 //------------------------------------------------------------------------------
