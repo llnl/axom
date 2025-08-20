@@ -502,69 +502,8 @@ int read_mfem_mesh(const std::string& file,
 /// Mesh Helper Methods
 
 #if defined(AXOM_USE_MFEM)
-primal::BezierCurve<double, 2> segment_to_curve(const mfem::Mesh* mesh, int elem_id)
-{
-  using Point2D = axom::primal::Point<double, 2>;
-  using BezierCurve2D = primal::BezierCurve<double, 2>;
-
-  const auto* fes = mesh->GetNodes()->FESpace();
-  const auto* fec = fes->FEColl();
-
-  const bool isBernstein = dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
-  const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
-
-  SLIC_ERROR_IF(!(isBernstein || isNURBS),
-                "MFEM mesh elements must be in either the Bernstein or NURBS basis");
-
-  const int NE = isBernstein ? mesh->GetNE() : fes->GetNURBSext()->GetNP();
-  SLIC_ERROR_IF(NE < elem_id, axom::fmt::format("Mesh does not have {} elements", elem_id));
-
-  const int order = isBernstein ? fes->GetOrder(elem_id) : mesh->NURBSext->GetOrders()[elem_id];
-  SLIC_ERROR_IF(order != 3,
-                axom::fmt::format("This example currently requires the input mfem mesh to "
-                                  "contain cubic elements, but the order of element {} is {}",
-                                  elem_id,
-                                  order));
-
-  mfem::Array<int> dofs;
-  mfem::Array<int> vdofs;
-
-  mfem::Vector dvec;
-  mfem::Vector v;
-
-  fes->GetElementDofs(elem_id, dofs);
-  fes->GetElementVDofs(elem_id, vdofs);
-  mesh->GetNodes()->GetSubVector(vdofs, v);
-
-  // Currently hard-coded for 3rd order. This can easily be extended to arbitrary order
-  axom::Array<Point2D> points(4, 4);
-  if(isBernstein)
-  {
-    points[0] = Point2D {v[0], v[0 + 4]};
-    points[1] = Point2D {v[2], v[2 + 4]};
-    points[2] = Point2D {v[3], v[3 + 4]};
-    points[3] = Point2D {v[1], v[1 + 4]};
-
-    return BezierCurve2D(points, fec->GetOrder());
-  }
-  else  // isNURBS
-  {
-    // temporary assumption is that there are no interior knots
-    // i.e. the NURBS curve is essentially a rational Bezier curve
-
-    points[0] = Point2D {v[0], v[0 + 4]};
-    points[1] = Point2D {v[1], v[1 + 4]};
-    points[2] = Point2D {v[2], v[2 + 4]};
-    points[3] = Point2D {v[3], v[3 + 4]};
-
-    fes->GetNURBSext()->GetWeights().GetSubVector(dofs, dvec);
-    axom::Array<double> weights {dvec[0], dvec[1], dvec[2], dvec[3]};
-
-    return BezierCurve2D(points, weights, fec->GetOrder());
-  }
-}
-
-primal::NURBSCurve<double, 2> segment_to_nurbs(const mfem::Mesh* mesh, int elem_id)
+template <typename CurveType, typename CreateFunc1, typename CreateFunc2>
+CurveType segment_to_curve_impl(const mfem::Mesh* mesh, int elem_id, CreateFunc1 &&create1, CreateFunc2 &&create2)
 {
   using Point2D = axom::primal::Point<double, 2>;
   using NURBSCurve2D = primal::NURBSCurve<double, 2>;
@@ -604,7 +543,7 @@ primal::NURBSCurve<double, 2> segment_to_nurbs(const mfem::Mesh* mesh, int elem_
     }
     points[order] = Point2D {v[1], v[1 + p]};
 
-    return NURBSCurve2D(points, fec->GetOrder());
+    return create1(points.data(), p, order);
   }
   else  // isNURBS
   {
@@ -617,9 +556,38 @@ primal::NURBSCurve<double, 2> segment_to_nurbs(const mfem::Mesh* mesh, int elem_
     }
 
     fes->GetNURBSext()->GetWeights().GetSubVector(dofs, weights);
-    return NURBSCurve2D(points.data(), weights.GetData(), p, order);
+    return create2(points.data(), weights.GetData(), p, order);
   }
 }
+
+primal::BezierCurve<double, 2> segment_to_curve(const mfem::Mesh* mesh, int elem_id)
+{
+  using BezierCurve2D = primal::BezierCurve<double, 2>;
+  return segment_to_curve_impl<BezierCurve2D>(mesh, elem_id,
+   [](const auto *points, int AXOM_UNUSED_PARAM(npts), int order)
+   {
+     return BezierCurve2D(points, order);
+   },
+   [](const auto *points, const double *weights, int AXOM_UNUSED_PARAM(npts), int order)
+   {
+     return BezierCurve2D(points, weights, order);
+   });
+}
+
+primal::NURBSCurve<double, 2> segment_to_nurbs(const mfem::Mesh* mesh, int elem_id)
+{
+  using NURBSCurve2D = primal::NURBSCurve<double, 2>;
+  return segment_to_curve_impl<NURBSCurve2D>(mesh, elem_id,
+   [](const auto *points, int npts, int order)
+   {
+     return NURBSCurve2D(points, npts, order);
+   },
+   [](const auto *points, const double *weights, int npts, int order)
+   {
+     return NURBSCurve2D(points, weights, npts, order);
+   });
+}
+
 #endif
 
 /*
