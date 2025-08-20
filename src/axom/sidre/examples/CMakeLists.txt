@@ -157,15 +157,11 @@ if(NANOBIND_FOUND)
     foreach(example_source ${Py_example_sources})
         get_filename_component(exe_name ${example_source} NAME_WE)
 
+        # Use convenience script to run python examples
         if(AXOM_ENABLE_PYTHON_TESTS)
-            add_test (
+            axom_add_test (
                 NAME    ${exe_name}
-                COMMAND ${Python_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/${example_source}
-            )
-
-            # Add pysidre to search path
-            set_tests_properties(${exe_name} PROPERTIES
-                ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/lib:$ENV{PYTHONPATH}"
+                COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh ${CMAKE_CURRENT_SOURCE_DIR}/${example_source}
             )
         endif()
     endforeach()
