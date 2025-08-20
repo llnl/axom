@@ -326,6 +326,86 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_dups)
   }
 }
 
+AXOM_TYPED_TEST(core_flatmap_forall, insert_multiple_batch_with_dups)
+{
+  using MapType = typename TestFixture::MapType;
+  using ExecSpace = typename TestFixture::ExecSpace;
+
+  const int NUM_ELEMS = 100;
+
+  axom::Array<int> keys_vec(NUM_ELEMS);
+  axom::Array<double> values_vec(NUM_ELEMS);
+  // Create batch of array elements
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    keys_vec[i] = key;
+    values_vec[i] = value;
+  }
+
+  // Copy keys and values to GPU space.
+  axom::Array<int> keys_gpu(keys_vec, this->getKernelAllocatorID());
+  axom::Array<double> values_gpu(values_vec, this->getKernelAllocatorID());
+
+  // Construct a flat map with the key-value pairs.
+  MapType test_map_gpu =
+    MapType::template create<ExecSpace>(keys_gpu,
+                                        values_gpu,
+                                        axom::Allocator {this->getKernelAllocatorID()});
+
+  axom::Array<std::pair<int, double>> second_batch_pairs(NUM_ELEMS);
+  // Add some duplicate key values through the batched interface.
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 7.0);
+
+    second_batch_pairs[i] = {key, value};
+  }
+  // Copy pairs to GPU space.
+  axom::Array<std::pair<int, double>> second_batch_gpu(second_batch_pairs,
+                                                       this->getKernelAllocatorID());
+
+  test_map_gpu.template insert<ExecSpace>(second_batch_gpu.data(),
+                                          second_batch_gpu.data() + NUM_ELEMS);
+
+  // Copy back flat map to host for testing.
+  MapType test_map(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
+
+  // Check contents on the host. Only one of the duplicate keys should remain.
+  EXPECT_EQ(NUM_ELEMS, test_map.size());
+
+  // Check that every element we inserted is in the map
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto expected_key = this->getKey(i);
+    auto expected_val1 = this->getValue(i * 10.0 + 5.0);
+    auto expected_val2 = this->getValue(i * 10.0 + 7.0);
+    EXPECT_EQ(1, test_map.count(expected_key));
+    // Second key-value pair in batch-order should overwrite first pair with
+    // same key.
+    EXPECT_EQ(expected_val2, test_map.at(expected_key));
+    EXPECT_NE(expected_val1, test_map.at(expected_key));
+  }
+
+  // Check that we only have one instance of every key in the map
+  axom::Array<int> dedup_keys(NUM_ELEMS);
+  for(auto &pair : test_map)
+  {
+    // Check that we haven't seen another K-V pair with the same key.
+    EXPECT_EQ(dedup_keys[pair.first], 0);
+    dedup_keys[pair.first]++;
+
+    // Check that we got the second KV pair, not the first.
+    auto expected_val1 = this->getValue(pair.first * 10.0 + 5.0);
+    auto expected_val2 = this->getValue(pair.first * 10.0 + 7.0);
+    EXPECT_EQ(expected_val2, pair.second);
+    EXPECT_NE(expected_val1, pair.second);
+  }
+}
+
 template <typename KeyType>
 struct ConstantHash
 {
