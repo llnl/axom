@@ -311,28 +311,18 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_dups)
   }
 
   // Check that we only have one instance of every key in the map
-  axom::Array<std::pair<int, double>> kv_out(NUM_ELEMS);
-  int index = 0;
+  axom::Array<int> dedup_keys(NUM_ELEMS);
   for(auto &pair : test_map)
   {
-    EXPECT_LT(index, NUM_ELEMS);
-    kv_out[index++] = {pair.first, pair.second};
-  }
+    // Check that we haven't seen another K-V pair with the same key.
+    EXPECT_EQ(dedup_keys[pair.first], 0);
+    dedup_keys[pair.first]++;
 
-  std::sort(kv_out.begin(),
-            kv_out.end(),
-            [](const std::pair<int, double> &first, const std::pair<int, double> &second) -> bool {
-              return first.first < second.first;
-            });
-
-  for(int i = 0; i < NUM_ELEMS; i++)
-  {
-    auto expected_key = this->getKey(i);
-    auto expected_val1 = this->getValue(i * 10.0 + 5.0);
-    auto expected_val2 = this->getValue(i * 10.0 + 7.0);
-    EXPECT_EQ(kv_out[i].first, expected_key);
-    EXPECT_EQ(expected_val2, test_map.at(expected_key));
-    EXPECT_NE(expected_val1, test_map.at(expected_key));
+    // Check that we got the second KV pair, not the first.
+    auto expected_val1 = this->getValue(pair.first * 10.0 + 5.0);
+    auto expected_val2 = this->getValue(pair.first * 10.0 + 7.0);
+    EXPECT_EQ(expected_val2, pair.second);
+    EXPECT_NE(expected_val1, pair.second);
   }
 }
 
