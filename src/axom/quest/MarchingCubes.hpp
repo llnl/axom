@@ -78,8 +78,9 @@ enum class MarchingCubesDataParallelism
  *             double contourValue )
  *   {
  *     MarchingCubes mc(axom::runtime_policy::Policy::seq,
- *                      MarchingCubesDataParallelism::byPolicy,
- *                      meshNode, topologyName);
+ *                      axom::getDefaultAllocatorID(),
+ *                      MarchingCubesDataParallelism::byPolicy);
+ *     mc.setMesh(meshNode, topologyName);
  *     mc.setFunctionField(functionName);
  *     mc.computeIsocontour(contourValue);
  *     axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>
