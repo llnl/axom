@@ -251,7 +251,7 @@ private:
    */
   AXOM_HOST_DEVICE bool isViewOfSameMap(const IteratorImpl& other) const
   {
-      return this->m_map.isViewOfSameMap(other.m_map);
+    return this->m_map.isViewOfSameMap(other.m_map);
   }
 
   MapType m_map;
