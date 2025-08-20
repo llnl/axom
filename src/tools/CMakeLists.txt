@@ -203,14 +203,14 @@ if(NANOBIND_FOUND)
     # gen python helper to build directory
     set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/lib)
 
-    configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
-                    "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh" @ONLY)
+    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
+                         "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh" @ONLY)
 
     # gen python helper to install directory
     set(_PYEXT_DIR ${CMAKE_INSTALL_PREFIX}/lib)
 
-    configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
-                    "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.sh" @ONLY)
+    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
+                         "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.sh" @ONLY)
 
     unset(_PYEXT_DIR)
 
