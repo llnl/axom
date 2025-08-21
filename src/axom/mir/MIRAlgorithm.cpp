@@ -135,7 +135,7 @@ void MIRAlgorithm::saveMesh(const conduit::Node &n_mesh, const std::string &file
 std::string MIRAlgorithm::localPath(const conduit::Node &obj) const
 {
   std::string path(obj.path());
-  const auto dpos = path.find("dom");
+  const auto dpos = path.find("domain");
   const auto spos = path.find("/");
   if(dpos == 0 && spos > dpos && obj.parent() != nullptr)
   {

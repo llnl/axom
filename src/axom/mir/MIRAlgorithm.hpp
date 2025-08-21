@@ -125,7 +125,9 @@ protected:
   void saveMesh(const conduit::Node &n_mesh, const std::string &filebase) const;
 
   /*!
-   * \brief Return the local path name, stripping off a domain path prefix.
+   * \brief Return the local path name, stripping off a domain path prefix. Blueprint domains
+   *        are typically written under top level nodes with names like "domain_{:05}" or "domain_{:07}".
+   *        This method will strip off any path prefix beginning with "domain".
    *
    * \param[in] obj The object whose local path we want.
    *
