@@ -160,11 +160,16 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
   Array<IndexType> key_index_to_bucket_vec(num_elems, num_elems, this->m_allocator.getID());
   const auto key_index_to_bucket = key_index_to_bucket_vec.view();
 
+  axom::ReduceSum<ExecSpace, IndexType> total_overwrites(0);
+
   for_all<ExecSpace>(
     num_elems,
     AXOM_LAMBDA(IndexType idx) {
+      // Construct pair.
+      KeyValuePair kv_pair {*(kv_begin + idx)};
+
       // Hash keys.
-      auto hash = Hash {}(kv_begin[idx].first);
+      auto hash = Hash {}(kv_pair.first);
 
       // We use the k MSBs of the hash as the initial group probe point,
       // where ngroups = 2^k.
@@ -191,8 +196,15 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
             meta_group[curr_group].visitHashOrEmptyBucket(hash_8, [&](int matching_slot) {
               IndexType bucket_index = curr_group * GroupBucket::Size + matching_slot;
 
-              if(kv_begin[key_index_dedup[bucket_index]].first == kv_begin[idx].first)
+              if(buckets[bucket_index].get().first == kv_pair.first)
               {
+                if(key_index_dedup[bucket_index] == -1)
+                {
+                  // The k-v pair matches an already-existing pair in the map.
+                  // Keep track of the number of overwrites so that we don't
+                  // double-count them when incrementing the size.
+                  total_overwrites += 1;
+                }
                 // Highest-indexed kv pair wins.
                 axom::atomicMax<ExecSpace>(&key_index_dedup[bucket_index], idx);
                 key_index_to_bucket[idx] = bucket_index;
@@ -212,9 +224,13 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
               // Got to end of probe sequence without a duplicate.
               // Update empty bucket index.
               empty_bucket_index = curr_group * GroupBucket::Size + empty_slot_index;
-              meta_group[curr_group].template setBucket<true>(empty_slot_index, hash_8);
               key_index_dedup[empty_bucket_index] = idx;
               key_index_to_bucket[idx] = empty_bucket_index;
+
+              // Insert initial element, this will be updated with the value of
+              // the "winning" key-value pair.
+              meta_group[curr_group].template setBucket<true>(empty_slot_index, hash_8);
+              new(&buckets[empty_bucket_index]) KeyValuePair(kv_pair);
             }
           }
           // Unlock group once we're done.
@@ -259,14 +275,14 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
         new(&key_dst) KeyType {kv_begin[kv_idx].first};
         new(&value_dst) ValueType {kv_begin[kv_idx].second};
 #else
-        new(&buckets[bucket_idx]) KeyValuePair(kv_begin[kv_idx]);
+        new(&buckets[bucket_idx]) KeyValuePair(*(kv_begin + kv_idx));
 #endif
         total_inserts += 1;
       }
     });
 
-  this->m_size += total_inserts.get();
-  this->m_loadCount += total_inserts.get();
+  this->m_size += total_inserts.get() - total_overwrites.get();
+  this->m_loadCount += total_inserts.get() - total_overwrites.get();
 }
 
 }  // namespace axom
