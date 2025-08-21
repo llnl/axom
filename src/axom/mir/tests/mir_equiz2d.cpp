@@ -50,7 +50,10 @@ TEST(mir_equiz, materialinformation)
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
-void braid2d_mat_test(const std::string &type, const std::string &mattype, const std::string &name, int nDomains = 1)
+void braid2d_mat_test(const std::string &type,
+                      const std::string &mattype,
+                      const std::string &name,
+                      int nDomains = 1)
 {
   axom::StackArray<axom::IndexType, 2> dims {10, 10};
   axom::StackArray<axom::IndexType, 2> zoneDims {dims[0] - 1, dims[1] - 1};
