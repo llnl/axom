@@ -137,7 +137,7 @@ std::string MIRAlgorithm::localPath(const conduit::Node &obj) const
   std::string path(obj.path());
   const auto dpos = path.find("domain");
   const auto spos = path.find("/");
-  if(dpos == 0 && spos > dpos && obj.parent() != nullptr)
+  if(dpos == 0 && spos != std::string::npos && spos > dpos && obj.parent() != nullptr)
   {
     path = path.substr(spos + 1, path.size() - spos - 1);
   }
