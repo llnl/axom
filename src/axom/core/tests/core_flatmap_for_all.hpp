@@ -62,24 +62,47 @@ public:
   }
 };
 
+/**
+ * Hash that returns the same value for all elements.
+ * Even with worst-case hash collision behavior, the FlatMap should
+ * nevertheless be correctly constructible and queryable.
+ */
+template <typename KeyType>
+struct ConstantHash
+{
+  using argument_type = KeyType;
+  using result_type = axom::IndexType;
+
+  AXOM_HOST_DEVICE axom::IndexType operator()(KeyType) const { return 0; }
+};
+
 using ViewTypes = ::testing::Types<
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
   FlatMapTestParams<axom::FlatMap<int, double>, axom::OMP_EXEC>,
+  FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::OMP_EXEC>,
 #endif
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
   FlatMapTestParams<axom::FlatMap<int, double>, axom::CUDA_EXEC<256>, axom::MemorySpace::Device>,
   FlatMapTestParams<axom::FlatMap<int, double>, axom::CUDA_EXEC<256>, axom::MemorySpace::Unified>,
   FlatMapTestParams<axom::FlatMap<int, double>, axom::CUDA_EXEC<256>, axom::MemorySpace::Pinned>,
+  FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::CUDA_EXEC<256>, axom::MemorySpace::Device>,
+  FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::CUDA_EXEC<256>, axom::MemorySpace::Unified>,
+  FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::CUDA_EXEC<256>, axom::MemorySpace::Pinned>,
 #endif
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
   FlatMapTestParams<axom::FlatMap<int, double>, axom::HIP_EXEC<256>, axom::MemorySpace::Device>,
   FlatMapTestParams<axom::FlatMap<int, double>, axom::HIP_EXEC<256>, axom::MemorySpace::Unified>,
   FlatMapTestParams<axom::FlatMap<int, double>, axom::HIP_EXEC<256>, axom::MemorySpace::Pinned>,
+  FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::HIP_EXEC<256>, axom::MemorySpace::Device>,
+  FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::HIP_EXEC<256>, axom::MemorySpace::Unified>,
+  FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::HIP_EXEC<256>, axom::MemorySpace::Pinned>,
 #endif
 #if defined(AXOM_USE_UMPIRE)
   FlatMapTestParams<axom::FlatMap<int, double>, axom::SEQ_EXEC, axom::MemorySpace::Host>,
+  FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::SEQ_EXEC, axom::MemorySpace::Host>,
 #endif
-  FlatMapTestParams<axom::FlatMap<int, double>, axom::SEQ_EXEC>>;
+  FlatMapTestParams<axom::FlatMap<int, double>, axom::SEQ_EXEC>,
+  FlatMapTestParams<axom::FlatMap<int, double, ConstantHash<int>>, axom::SEQ_EXEC>>;
 
 TYPED_TEST_SUITE(core_flatmap_forall, ViewTypes);
 
@@ -469,68 +492,6 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_multiple_batch_with_dups)
     auto expected_val2 = this->getValue(pair.first * 10.0 + 7.0);
     EXPECT_EQ(expected_val2, pair.second);
     EXPECT_NE(expected_val1, pair.second);
-  }
-}
-
-template <typename KeyType>
-struct ConstantHash
-{
-  using argument_type = KeyType;
-  using result_type = axom::IndexType;
-
-  AXOM_HOST_DEVICE axom::IndexType operator()(KeyType) const { return 0; }
-};
-
-/**
- * Test hash map with a hash that returns the same value for all elements.
- * Even with worst-case hash collision behavior, the FlatMap should
- * nevertheless be correctly constructible and queryable.
- */
-AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_constant_hash)
-{
-  using ExecSpace = typename TestFixture::ExecSpace;
-  using KeyType = typename TestFixture::KeyType;
-  using ValueType = typename TestFixture::ValueType;
-
-  using MapType = axom::FlatMap<KeyType, ValueType, ConstantHash<KeyType>>;
-
-  const int NUM_ELEMS = 100;
-
-  axom::Array<int> keys_vec(NUM_ELEMS);
-  axom::Array<double> values_vec(NUM_ELEMS);
-  // Create batch of array elements
-  for(int i = 0; i < NUM_ELEMS; i++)
-  {
-    auto key = this->getKey(i);
-    auto value = this->getValue(i * 10.0 + 5.0);
-
-    keys_vec[i] = key;
-    values_vec[i] = value;
-  }
-
-  // Copy keys and values to GPU space.
-  axom::Array<int> keys_gpu(keys_vec, this->getKernelAllocatorID());
-  axom::Array<double> values_gpu(values_vec, this->getKernelAllocatorID());
-
-  // Construct a flat map with the key-value pairs.
-  MapType test_map_gpu =
-    MapType::template create<ExecSpace>(keys_gpu,
-                                        values_gpu,
-                                        axom::Allocator {this->getKernelAllocatorID()});
-
-  // Copy back flat map to host for testing.
-  MapType test_map(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
-
-  // Check contents on the host
-  EXPECT_EQ(NUM_ELEMS, test_map.size());
-
-  // Check that every element we inserted is in the map
-  for(int i = 0; i < NUM_ELEMS; i++)
-  {
-    auto expected_key = this->getKey(i);
-    auto expected_val = this->getValue(i * 10.0 + 5.0);
-    EXPECT_EQ(1, test_map.count(expected_key));
-    EXPECT_EQ(expected_val, test_map.at(expected_key));
   }
 }
 
