@@ -29,6 +29,10 @@ set(F_example_sources
     sidre_shocktube_F.f
 )
 
+set(Py_example_sources
+    sidre_createdatastore_Py.py
+)
+
 if(APPLE)
     set(EXTRA_LIBS "")
 elseif(UNIX)
@@ -142,6 +146,23 @@ if(ENABLE_FORTRAN)
             axom_add_test(
                 NAME ${exe_name}
                 COMMAND ${exe_name}_ex )
+        endif()
+    endforeach()
+endif()
+
+#------------------------------------------------------------------------------
+# Add targets and tests for python examples
+#------------------------------------------------------------------------------
+if(NANOBIND_FOUND)
+    foreach(example_source ${Py_example_sources})
+        get_filename_component(exe_name ${example_source} NAME_WE)
+
+        # Use convenience script to run python examples
+        if(AXOM_ENABLE_PYTHON_TESTS)
+            axom_add_test (
+                NAME    ${exe_name}
+                COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh ${CMAKE_CURRENT_SOURCE_DIR}/${example_source}
+            )
         endif()
     endforeach()
 endif()

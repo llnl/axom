@@ -41,7 +41,7 @@ command line option. Supported compiler specs can be found in the Spack compiler
 We currently regularly test the following Spack configuration files:
 
 * Linux Ubuntu 22.04 (via Windows WSL 2)
-* TOSS 4 (On Ruby at LC)
+* TOSS 4 (On Dane at LC)
 * TOSS 4 Cray (On Tioga at LC)
 * BlueOS (On Lassen at LC)
 

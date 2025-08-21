@@ -93,64 +93,70 @@ public:
                          "A NURBS Patch must be defined using an arithmetic type");
 
 public:
+  ///@{
+  /**
+   * @name Constructors for NURBSPatch
+   *
+   * The NURBSPatch class provides a variety of constructors to support flexible initialization.
+   * The default constructor creates an empty, invalid patch. Other constructors allow you to specify
+   * degrees, control point counts, knot vectors, and weights, either using C-style arrays or axom::Array
+   * containers, in both 1D and 2D forms. You can also construct a NURBSPatch from a BezierPatch.
+   *
+   * Depending on the constructor used, the resulting instance will have:
+   * - Control points and weights arrays sized according to the provided parameters.
+   * - Knot vectors initialized either as uniform (for degree/size-based constructors) or from provided arrays/objects.
+   * - Rationality determined by the presence of weights (patches are rational if weights are provided, nonrational otherwise).
+   * - Trimming curves are always empty and the patch is untrimmed by default.
+   *
+   * For 1D arrays, the mapping of control points and weights to the patch is lexicographical, i.e.
+     \verbatim
+      pts[0]                 -> nodes[0, 0],      ..., pts[npts_v]        -> nodes[0, npts_v]
+      pts[npts_v+1]          -> nodes[1, 0],      ..., pts[2*npts_v]      -> nodes[1, npts_v]
+                                                  ...
+      pts[npts_u*(npts_v-1)] -> nodes[npts_u, 0], ..., pts[npts_u*npts_v] -> nodes[npts_u, npts_v]
+     \endverbatim
+   * 
+   * All constructors ensure that the patch is internally consistent and valid, provided the input parameters are valid.
+   */
+
   /*! 
    * \brief Default constructor for an empty (invalid) NURBS patch
    *
    * \note An empty NURBS patch is not valid
    */
-  NURBSPatch()
-  {
-    m_controlPoints.resize(0, 0);
-    m_knotvec_u = KnotVectorType();
-    m_knotvec_v = KnotVectorType();
-
-    makeNonrational();
-    makeUntrimmed();
-  }
+  NURBSPatch() : NURBSPatch(0, 0, -1, -1) { }
 
   /*!
    * \brief Constructor for a simple NURBS surface that reserves space for
    *  the minimum (sensible) number of points for the given degrees
-   *
-   * Constructs an empty patch by default (no nodes/weights on either axis)
    * 
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
-   * \pre deg_u, deg_v greater than or equal to 0.
+   * \param [in] deg_u, deg_v The patch's degrees on the first and second axis
+   * \pre deg_u, deg_v both greater than or equal to 0, or both -1
    */
-  NURBSPatch(int deg_u, int deg_v)
-  {
-    SLIC_ASSERT(deg_u >= 0 && deg_v >= 0);
-
-    m_controlPoints.resize(deg_u + 1, deg_v + 1);
-    m_knotvec_u = KnotVectorType(deg_u + 1, deg_u);
-    m_knotvec_v = KnotVectorType(deg_v + 1, deg_v);
-
-    makeNonrational();
-    makeUntrimmed();
-  }
+  NURBSPatch(int deg_u, int deg_v) : NURBSPatch(deg_u + 1, deg_v + 1, deg_u, deg_v) { }
 
   /*!
-   * \brief Constructor for an empty NURBS surface from its size
+   * \brief Constructor for a simple NURBS surface that reserves space for
+   *   \a npts_u * npts_v control points
    *
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
-   * 
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] deg_u, deg_v The patch's degrees on the first and second axis
    * \pre Requires npts_d > deg_d and deg_d >= 0 for d = u, v 
    */
   NURBSPatch(int npts_u, int npts_v, int deg_u, int deg_v)
+    : m_knotvec_u(npts_u, deg_u)
+    , m_knotvec_v(npts_v, deg_v)
   {
-    SLIC_ASSERT(npts_u > deg_u && npts_v > deg_v);
-    SLIC_ASSERT(deg_u >= 0 && deg_v >= 0);
-
-    m_controlPoints.resize(npts_u, npts_v);
-    m_knotvec_u = KnotVectorType(npts_u, deg_u);
-    m_knotvec_v = KnotVectorType(npts_v, deg_v);
-
-    makeNonrational();
-    makeUntrimmed();
+    if(const bool is_empty = (deg_u == -1 && deg_v == -1); is_empty)
+    {
+      SLIC_ASSERT(npts_u == 0 && npts_v == 0);
+    }
+    else
+    {
+      SLIC_ASSERT(deg_u >= 0 && deg_v >= 0);
+      SLIC_ASSERT(npts_u > deg_u && npts_v > deg_v);
+      m_controlPoints.resize(npts_u, npts_v);
+    }
   }
 
   /*!
@@ -159,243 +165,224 @@ public:
    * \param [in] bezierPatch the Bezier patch to convert to a NURBS patch 
    */
   explicit NURBSPatch(const BezierPatch<T, NDIMS>& bezierPatch)
+    : NURBSPatch(bezierPatch.getControlPoints(),
+                 bezierPatch.getWeights(),
+                 KnotVectorType(bezierPatch.getOrder_u() + 1, bezierPatch.getOrder_u()),
+                 KnotVectorType(bezierPatch.getOrder_v() + 1, bezierPatch.getOrder_v()))
+  { }
+
+  /*!
+   * \brief Constructor for a NURBSPatch from 2D ArrayViews of control points and weights 
+   *        and KnotVectors for the u- and v- directions
+   *
+   * \param [in] controlPoints 2D ArrayView of control points
+   * \param [in] weights 2D ArrayView of weights
+   * \param [in] knotVector_u, knotVector_v The knot vectors in the u- and v- directions
+   *
+   * \pre If controlPoints is not empty, its sizes must match the number of control points 
+   * implied by the knot vectors: knotVector_u.getNumControlPoints() * knotVector_v.getNumberControlPoints()
+   * \pre If weights is not empty, its dimensions must match that of the controlPoints
+   * \pre The KnotVector degrees must be valid: \a knotVector_u.getDegree() >= -1 
+   * and \a knotVector_v.getDegree() >= -1. 
+   * \pre If the degrees are not both -1 (i.e., not empty), then:
+   * They must both be non-negative and the number of control points must be
+   * greature than the degree for both axes.
+   */
+  NURBSPatch(ArrayView<const PointType, 2> controlPoints,
+             ArrayView<const T, 2> weights,
+             const KnotVectorType& knotVector_u,
+             const KnotVectorType& knotVector_v)
+    : m_knotvec_u(knotVector_u)
+    , m_knotvec_v(knotVector_v)
   {
-    m_controlPoints = bezierPatch.getControlPoints();
-    m_weights = bezierPatch.getWeights();
+    const int knot_deg_u = m_knotvec_u.getDegree();
+    const int knot_deg_v = m_knotvec_v.getDegree();
+    SLIC_ASSERT(knot_deg_u >= -1 && knot_deg_v >= -1);
 
-    int deg_u = bezierPatch.getOrder_u();
-    int deg_v = bezierPatch.getOrder_v();
+    if(const bool is_empty = (knot_deg_u == -1 && knot_deg_u == -1); is_empty)
+    {
+      SLIC_ASSERT(controlPoints.empty());
+      SLIC_ASSERT(weights.empty());
+    }
+    else
+    {
+      SLIC_ASSERT(knot_deg_u >= 0 && knot_deg_v >= 0);
+      const int deg_u = utilities::max(0, knot_deg_u);
+      const int deg_v = utilities::max(0, knot_deg_v);
 
-    m_knotvec_u = KnotVectorType(deg_u + 1, deg_u);
-    m_knotvec_v = KnotVectorType(deg_v + 1, deg_v);
+      const int npts_u = knotVector_u.getNumControlPoints();
+      const int npts_v = knotVector_v.getNumControlPoints();
+      SLIC_ASSERT(npts_u > deg_u && npts_v > deg_v);
 
-    makeUntrimmed();
+      if(controlPoints.empty())
+      {
+        m_controlPoints.resize(npts_u, npts_v);
+      }
+      else
+      {
+        SLIC_ASSERT(controlPoints.data() != nullptr);
+        SLIC_ASSERT(controlPoints.shape()[0] == npts_u);
+        SLIC_ASSERT(controlPoints.shape()[1] == npts_v);
+        m_controlPoints = controlPoints;
+      }
+
+      if(!weights.empty())
+      {
+        SLIC_ASSERT(weights.data() != nullptr);
+        SLIC_ASSERT(weights.shape()[0] == npts_u);
+        SLIC_ASSERT(weights.shape()[1] == npts_v);
+        m_weights = weights;
+      }
+
+      SLIC_ASSERT(isValidNURBS());
+    }
   }
+
+  /*!
+   * \brief Constructor for a NURBSPatch from 2D ArrayViews of control points
+   *        and KnotVectors for the u- and v- directions
+   *
+   * \param [in] controlPoints 2D ArrayView of control points
+   * \param [in] weights 2D ArrayView of weights
+   * \param [in] knotVector_u, knotVector_v The knot vectors in the u- and v- directions
+   */
+  NURBSPatch(ArrayView<const PointType, 2> controlPoints,
+             const KnotVectorType& knotVector_u,
+             const KnotVectorType& knotVector_v)
+    : NURBSPatch(controlPoints, axom::ArrayView<const T, 2>(nullptr, {{0, 0}}), knotVector_u, knotVector_v)
+  { }
+
+  /*!
+   * \brief Constructor for a NURBSPatch from 2D ArrayViews of control points
+   *        and KnotVectors for the u- and v- directions
+   * \overload Overload for non-const PointType
+   */
+  NURBSPatch(ArrayView<PointType, 2> controlPoints,
+             const KnotVectorType& knotVector_u,
+             const KnotVectorType& knotVector_v)
+    : NURBSPatch(axom::ArrayView<const PointType, 2>(controlPoints.data(), controlPoints.shape()),
+                 axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
+                 knotVector_u,
+                 knotVector_v)
+  { }
+
+  /*!
+   * \brief Constructor for a NURBSPatch from 2D ArrayViews of control points and weights
+   *        and KnotVectors for the u- and v- directions
+   * \overload Overload for non-const PointType and weights
+   */
+  NURBSPatch(ArrayView<PointType, 2> controlPoints,
+             ArrayView<T, 2> weights,
+             const KnotVectorType& knotVector_u,
+             const KnotVectorType& knotVector_v)
+    : NURBSPatch(axom::ArrayView<const PointType, 2>(controlPoints.data(), controlPoints.shape()),
+                 axom::ArrayView<const T, 2>(weights.data(), weights.shape()),
+                 knotVector_u,
+                 knotVector_v)
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from an array of coordinates and degrees
    *
    * \param [in] pts A 1D C-style array of npts_u*npts_v control points
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
-   *
-   * The knot vectors are constructed such that the patch is uniform
-   * 
-   * Elements of pts[k] are mapped to control nodes (p, q) lexicographically, i.e.
-   * pts[k] = nodes[ k // (npts_u + 1), k % npts_v ]
    */
   NURBSPatch(const PointType* pts, int npts_u, int npts_v, int deg_u, int deg_v)
-  {
-    SLIC_ASSERT(pts != nullptr);
-    SLIC_ASSERT(npts_u >= deg_u + 1 && npts_v >= deg_v + 1);
-    SLIC_ASSERT(deg_u >= 0 && deg_v >= 0);
-
-    m_controlPoints.resize(npts_u, npts_v);
-    for(int t = 0; t < npts_u * npts_v; ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts[t];
-    }
-
-    makeNonrational();
-    makeUntrimmed();
-
-    m_knotvec_u = KnotVectorType(npts_u, deg_u);
-    m_knotvec_v = KnotVectorType(npts_v, deg_v);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
+                 axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
+                 KnotVectorType(npts_u, deg_u),
+                 KnotVectorType(npts_v, deg_v))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from arrays of coordinates and weights
    *
    * \param [in] pts A 1D C-style array of (ord_u+1)*(ord_v+1) control points
    * \param [in] weights A 1D C-style array of (ord_u+1)*(ord_v+1) positive weights
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
-   *
-   * The knot vectors are constructed such that the patch is uniform
-   * 
-   * Elements of pts[k] are mapped to control nodes (p, q) lexicographically, i.e.
-   * pts[k] = nodes[ k // (npts_u + 1), k % npts_v ]
    */
   NURBSPatch(const PointType* pts, const T* weights, int npts_u, int npts_v, int deg_u, int deg_v)
-  {
-    SLIC_ASSERT(pts != nullptr);
-    SLIC_ASSERT(weights != nullptr);
-    SLIC_ASSERT(npts_u >= deg_u + 1 && npts_v >= deg_v + 1);
-    SLIC_ASSERT(deg_u >= 0 && deg_v >= 0);
-
-    m_controlPoints.resize(npts_u, npts_v);
-    for(int t = 0; t < npts_u * npts_v; ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts[t];
-    }
-
-    m_weights.resize(npts_u, npts_v);
-    for(int t = 0; t < npts_u * npts_v; ++t)
-    {
-      m_weights.flatIndex(t) = weights[t];
-    }
-
-    m_knotvec_u = KnotVectorType(npts_u, deg_u);
-    m_knotvec_v = KnotVectorType(npts_v, deg_v);
-
-    makeUntrimmed();
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
+                 axom::ArrayView<const T, 2>(weights, {{weights ? npts_u : 0, weights ? npts_v : 0}}),
+                 KnotVectorType(npts_u, deg_u),
+                 KnotVectorType(npts_v, deg_v))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from 1D arrays of coordinates and degrees
    *
    * \param [in] pts A 1D axom::Array of npts_u*npts_v control points
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
-   *
-   * The knot vectors are constructed such that the patch is uniform
-   * 
-   * Elements of pts[k] are mapped to control nodes (p, q) lexicographically, i.e.
-   * pts[k] = nodes[ k // (npts_u + 1), k % npts_v ]
    */
   NURBSPatch(const CoordsVec& pts, int npts_u, int npts_v, int deg_u, int deg_v)
-  {
-    SLIC_ASSERT(npts_u >= deg_u + 1 && npts_v >= deg_v + 1);
-    SLIC_ASSERT(deg_u >= 0 && deg_v >= 0);
-
-    m_controlPoints.resize(npts_u, npts_v);
-    for(int t = 0; t < pts.size(); ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts[t];
-    }
-
-    makeNonrational();
-    makeUntrimmed();
-
-    m_knotvec_u = KnotVectorType(npts_u, deg_u);
-    m_knotvec_v = KnotVectorType(npts_v, deg_v);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
+                 axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
+                 KnotVectorType(npts_u, deg_u),
+                 KnotVectorType(npts_v, deg_v))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from 1D arrays of coordinates and weights
    *
    * \param [in] pts A 1D axom::Array of (ord_u+1)*(ord_v+1) control points
    * \param [in] weights A 1D axom::Array of (ord_u+1)*(ord_v+1) positive weights
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
-   *
-   * The knot vectors are constructed such that the patch is uniform
-   * 
-   * Elements of pts[k] are mapped to control nodes (p, q) lexicographically, i.e.
-   * pts[k] = nodes[ k // (npts_u + 1), k % npts_v ]
    */
   NURBSPatch(const CoordsVec& pts, const WeightsVec& weights, int npts_u, int npts_v, int deg_u, int deg_v)
-  {
-    SLIC_ASSERT(npts_u > deg_u && npts_v > deg_v);
-    SLIC_ASSERT(deg_u >= 0 && deg_v >= 0);
-
-    m_controlPoints.resize(npts_u, npts_v);
-    for(int t = 0; t < pts.size(); ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts[t];
-    }
-
-    m_weights.resize(npts_u, npts_v);
-    for(int t = 0; t < weights.size(); ++t)
-    {
-      m_weights.flatIndex(t) = weights[t];
-    }
-
-    m_knotvec_u = KnotVectorType(npts_u, deg_u);
-    m_knotvec_v = KnotVectorType(npts_v, deg_v);
-
-    makeUntrimmed();
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
+                 axom::ArrayView<const T, 2>(weights.data(), {{npts_u, npts_v}}),
+                 KnotVectorType(npts_u, deg_u),
+                 KnotVectorType(npts_v, deg_v))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from 2D arrays of coordinates and degrees
    *
    * \param [in] pts A 2D axom::Array of (npts_u, npts_v) control points
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
-   *
-   * The knot vectors are constructed such that the patch is uniform
    */
-  NURBSPatch(const CoordsMat& pts, int deg_u, int deg_v) : m_controlPoints(pts)
-  {
-    const auto pts_shape = pts.shape();
-
-    SLIC_ASSERT(pts_shape[0] >= deg_u + 1 && pts_shape[1] >= deg_v + 1);
-    SLIC_ASSERT(deg_u >= 0 && deg_v >= 0);
-
-    makeNonrational();
-    makeUntrimmed();
-
-    m_knotvec_u = KnotVectorType(pts_shape[0], deg_u);
-    m_knotvec_v = KnotVectorType(pts_shape[1], deg_v);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+  NURBSPatch(const CoordsMat& pts, int deg_u, int deg_v)
+    : NURBSPatch(pts.view(),
+                 axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
+                 KnotVectorType(pts.shape()[0], deg_u),
+                 KnotVectorType(pts.shape()[1], deg_v))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from 2D arrays of coordinates and weights
    *
    * \param [in] pts A 2D axom::Array of (ord_u+1, ord_v+1) control points
    * \param [in] weights A 2D axom::Array of (ord_u+1, ord_v+1) positive weights
-   * \param [in] deg_u The patch's degree on the first axis
-   * \param [in] deg_v The patch's degree on the second axis
+   * \param [in] deg_u, deg_v The patch's degree on the first and second axis
    * \pre Requires that npts_d >= deg_d + 1 and deg_d >= 0 for d = u, v
-   *
-   * The knot vectors are constructed such that the patch is uniform
    */
   NURBSPatch(const CoordsMat& pts, const WeightsMat& weights, int deg_u, int deg_v)
-    : m_controlPoints(pts)
-    , m_weights(weights)
-  {
-    const auto pts_shape = pts.shape();
-
-    SLIC_ASSERT(deg_u >= 0 && deg_v >= 0);
-    SLIC_ASSERT(pts_shape[0] >= deg_u + 1 && pts_shape[1] >= deg_v + 1);
-    SLIC_ASSERT(pts_shape == weights.shape());
-
-    m_knotvec_u = KnotVectorType(pts_shape[0], deg_u);
-    m_knotvec_v = KnotVectorType(pts_shape[1], deg_v);
-
-    makeUntrimmed();
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(pts.view(),
+                 weights.view(),
+                 KnotVectorType(pts.shape()[0], deg_u),
+                 KnotVectorType(pts.shape()[1], deg_v))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from C-style arrays of coordinates and knot vectors
    *
    * \param [in] pts A 1D C-style array of npts_u*npts_v control points
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
    * \param [in] knots_u A 1D C-style array of npts_u + deg_u + 1 knots
    * \param [in] nkts_u The number of knots in the u direction
    * \param [in] knots_v A 1D C-style array of npts_v + deg_v + 1 knots
    * \param [in] nkts_v The number of knots in the v direction
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires valid pointers and knot vectors
    */
   NURBSPatch(const PointType* pts,
@@ -405,41 +392,24 @@ public:
              int nkts_u,
              const T* knots_v,
              int nkts_v)
-  {
-    SLIC_ASSERT(pts != nullptr && knots_u != nullptr && knots_v != nullptr);
-    SLIC_ASSERT(npts_u >= 0 && npts_v >= 0);
-    SLIC_ASSERT(nkts_u >= 0 && nkts_v >= 0);
-
-    m_controlPoints.resize(npts_u, npts_v);
-    for(int t = 0; t < npts_u * npts_v; ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts[t];
-    }
-
-    makeNonrational();
-    makeUntrimmed();
-
-    m_knotvec_u = KnotVectorType(knots_u, nkts_u, nkts_u - npts_u - 1);
-    m_knotvec_v = KnotVectorType(knots_v, nkts_v, nkts_v - npts_v - 1);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
+                 axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
+                 KnotVectorType(axom::ArrayView(knots_u, nkts_u), nkts_u - npts_u - 1),
+                 KnotVectorType(axom::ArrayView(knots_v, nkts_v), nkts_v - npts_v - 1))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from C-style arrays of coordinates and weights
    *
    * \param [in] pts A 1D C-style array of npts_u*npts_v control points
    * \param [in] weights A 1D C-style array of npts_u*npts_v positive weights
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
    * \param [in] knots_u A 1D C-style array of npts_u + deg_u + 1 knots
    * \param [in] nkts_u The number of knots in the u direction
    * \param [in] knots_v A 1D C-style array of npts_v + deg_v + 1 knots
    * \param [in] nkts_v The number of knots in the v direction
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous patch axes, npts and the knot vector  uniquely determine the degree
    * \pre Requires valid pointers and knot vectors
    */
   NURBSPatch(const PointType* pts,
@@ -450,43 +420,21 @@ public:
              int nkts_u,
              const T* knots_v,
              int nkts_v)
-  {
-    SLIC_ASSERT(pts != nullptr && weights != nullptr && knots_u != nullptr && knots_v != nullptr);
-    SLIC_ASSERT(npts_u >= 0 && npts_v >= 0);
-    SLIC_ASSERT(nkts_u >= 0 && nkts_v >= 0);
-
-    m_controlPoints.resize(npts_u, npts_v);
-    for(int t = 0; t < npts_u * npts_v; ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts[t];
-    }
-
-    m_weights.resize(npts_u, npts_v);
-    for(int t = 0; t < npts_u * npts_v; ++t)
-    {
-      m_weights.flatIndex(t) = weights[t];
-    }
-
-    m_knotvec_u = KnotVectorType(knots_u, nkts_u, nkts_u - npts_u - 1);
-    m_knotvec_v = KnotVectorType(knots_v, nkts_v, nkts_v - npts_v - 1);
-
-    makeUntrimmed();
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
+                 axom::ArrayView<const T, 2>(weights, {{weights ? npts_u : 0, weights ? npts_v : 0}}),
+                 KnotVectorType(axom::ArrayView(knots_u, nkts_u), nkts_u - npts_u - 1),
+                 KnotVectorType(axom::ArrayView(knots_v, nkts_v), nkts_v - npts_v - 1))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from 1D axom::Array arrays of coordinates and knots
    *
    * \param [in] pts A 1D axom::Array of npts_u*npts_v control points
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
    * \param [in] knots_u An axom::Array of npts_u + deg_u + 1 knots
    * \param [in] knots_v An axom::Array of npts_v + deg_v + 1 knots
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
@@ -494,37 +442,22 @@ public:
              int npts_v,
              const axom::Array<T>& knots_u,
              const axom::Array<T>& knots_v)
-  {
-    SLIC_ASSERT(npts_u >= 0 && npts_v >= 0);
-
-    m_controlPoints.resize(npts_u, npts_v);
-    for(int t = 0; t < pts.size(); ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts[t];
-    }
-
-    makeNonrational();
-    makeUntrimmed();
-
-    m_knotvec_u = KnotVectorType(knots_u, knots_u.size() - npts_u - 1);
-    m_knotvec_v = KnotVectorType(knots_v, knots_v.size() - npts_v - 1);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
+                 axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
+                 KnotVectorType(knots_u.view(), knots_u.size() - npts_u - 1),
+                 KnotVectorType(knots_v.view(), knots_v.size() - npts_v - 1))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from 1D axom::Array arrays of coordinates, weights, and knots
    *
    * \param [in] pts A 1D axom::Array of npts_u*npts_v control points
    * \param [in] weights A 1D axom::Array of npts_u*npts_v positive weights
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
    * \param [in] knots_u An axom::Array of npts_u + deg_u + 1 knots
    * \param [in] knots_v An axom::Array of npts_v + deg_v + 1 knots
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
@@ -533,41 +466,20 @@ public:
              int npts_v,
              const axom::Array<T>& knots_u,
              const axom::Array<T>& knots_v)
-  {
-    SLIC_ASSERT(npts_u >= 0 && npts_v >= 0);
-
-    m_controlPoints.resize(npts_u, npts_v);
-    for(int t = 0; t < pts.size(); ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts[t];
-    }
-
-    m_weights.resize(npts_u, npts_v);
-    for(int t = 0; t < weights.size(); ++t)
-    {
-      m_weights.flatIndex(t) = weights[t];
-    }
-
-    m_knotvec_u = KnotVectorType(knots_u, knots_u.size() - npts_u - 1);
-    m_knotvec_v = KnotVectorType(knots_v, knots_v.size() - npts_v - 1);
-
-    makeUntrimmed();
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
+                 axom::ArrayView<const T, 2>(weights.data(), {{npts_u, npts_v}}),
+                 KnotVectorType(knots_u.view(), knots_u.size() - npts_u - 1),
+                 KnotVectorType(knots_v.view(), knots_v.size() - npts_v - 1))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from 1D axom::Array arrays of coordinates and KnotVectors
    *
    * \param [in] pts A 1D axom::Array of npts_u*npts_v control points
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] knotvec_u An KnotVector object for the first axis
-   * \param [in] knotvec_v An KnotVector object for the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] knotvec_u, knotvec_v  KnotVector objects for the first and second axis
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous patch axes, npts and the knot vectoruniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
@@ -575,36 +487,21 @@ public:
              int npts_v,
              const KnotVectorType& knotvec_u,
              const KnotVectorType& knotvec_v)
-    : m_knotvec_u(knotvec_u)
-    , m_knotvec_v(knotvec_v)
-  {
-    SLIC_ASSERT(npts_u >= 0 && npts_v >= 0);
-
-    m_controlPoints.resize(npts_u, npts_v);
-    for(int t = 0; t < pts.size(); ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts[t];
-    }
-
-    makeNonrational();
-    makeUntrimmed();
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
+                 axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
+                 knotvec_u,
+                 knotvec_v)
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from 1D axom::Array arrays of coordinates, weights, and KnotVectors
    *
    * \param [in] pts A 1D axom::Array of npts_u*npts_v control points
    * \param [in] weights A 1D axom::Array of npts_u*npts_v positive weights
-   * \param [in] npts_u The number of control points on the first axis
-   * \param [in] npts_v The number of control points on the second axis
-   * \param [in] knotvec_u An KnotVector object for the first axis
-   * \param [in] knotvec_v An KnotVector object for the second axis
+   * \param [in] npts_u, npts_v The number of control points on the first and second axis
+   * \param [in] knotvec_u, knotvec_v KnotVector objects for the first and second axis
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsVec& pts,
@@ -613,27 +510,11 @@ public:
              int npts_v,
              const KnotVectorType& knotvec_u,
              const KnotVectorType& knotvec_v)
-    : m_knotvec_u(knotvec_u)
-    , m_knotvec_v(knotvec_v)
-  {
-    SLIC_ASSERT(npts_u >= 0 && npts_v >= 0);
-
-    m_controlPoints.resize(npts_u, npts_v);
-    for(int t = 0; t < pts.size(); ++t)
-    {
-      m_controlPoints.flatIndex(t) = pts[t];
-    }
-
-    m_weights.resize(npts_u, npts_v);
-    for(int t = 0; t < weights.size(); ++t)
-    {
-      m_weights.flatIndex(t) = weights[t];
-    }
-
-    makeUntrimmed();
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(axom::ArrayView<const PointType, 2>(pts.data(), {{npts_u, npts_v}}),
+                 axom::ArrayView<const T, 2>(weights.data(), {{npts_u, npts_v}}),
+                 knotvec_u,
+                 knotvec_v)
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from 2D axom::Array array of coordinates and array of knots
@@ -642,26 +523,15 @@ public:
    * \param [in] knots_u An axom::Array of npts_u + deg_u + 1 knots
    * \param [in] knots_v An axom::Array of npts_v + deg_v + 1 knots
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts, const axom::Array<T>& knots_u, const axom::Array<T>& knots_v)
-    : m_controlPoints(pts)
-  {
-    auto pts_shape = pts.shape();
-
-    SLIC_ASSERT(pts_shape[0] >= 0 && pts_shape[1] >= 0);
-
-    makeNonrational();
-    makeUntrimmed();
-
-    m_knotvec_u = KnotVectorType(knots_u, knots_u.size() - pts_shape[0] - 1);
-    m_knotvec_v = KnotVectorType(knots_v, knots_v.size() - pts_shape[1] - 1);
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(pts.view(),
+                 axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
+                 KnotVectorType(knots_u.view(), knots_u.size() - pts.shape()[0] - 1),
+                 KnotVectorType(knots_v.view(), knots_v.size() - pts.shape()[1] - 1))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from 2D axom::Array array of coordinates, weights, and array of knots
@@ -671,87 +541,59 @@ public:
    * \param [in] knots_u An axom::Array of npts_u + deg_u + 1 knots
    * \param [in] knots_v An axom::Array of npts_v + deg_v + 1 knots
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts,
              const WeightsMat& weights,
              const axom::Array<T>& knots_u,
              const axom::Array<T>& knots_v)
-    : m_controlPoints(pts)
-    , m_weights(weights)
-  {
-    auto pts_shape = pts.shape();
-
-    SLIC_ASSERT(pts_shape[0] >= 0 && pts_shape[1] >= 0);
-
-    m_knotvec_u = KnotVectorType(knots_u, knots_u.size() - pts_shape[0] - 1);
-    m_knotvec_v = KnotVectorType(knots_v, knots_v.size() - pts_shape[1] - 1);
-
-    makeUntrimmed();
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(pts.view(),
+                 weights.view(),
+                 KnotVectorType(knots_u.view(), knots_u.size() - pts.shape()[0] - 1),
+                 KnotVectorType(knots_v.view(), knots_v.size() - pts.shape()[1] - 1))
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from 1D axom::Array array of coordinates and KnotVector objects
    *
    * \param [in] pts A 2D axom::Array of (ord_u+1, ord_v+1) control points
-   * \param [in] knotvec_u A KnotVector object for the first axis
-   * \param [in] knotvec_v A KnotVector object for the second axis
+   * \param [in] knotvec_u, knotvec_v KnotVector objects for the first and second axis
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts, const KnotVectorType& knotvec_u, const KnotVectorType& knotvec_v)
-    : m_controlPoints(pts)
-    , m_knotvec_u(knotvec_u)
-    , m_knotvec_v(knotvec_v)
-  {
-    makeNonrational();
-    makeUntrimmed();
-
-    SLIC_ASSERT(isValidNURBS());
-  }
+    : NURBSPatch(pts.view(), axom::ArrayView<const T, 2>(nullptr, {{0, 0}}), knotvec_u, knotvec_v)
+  { }
 
   /*!
    * \brief Constructor for a NURBS Patch from 2D axom::Array array of coordinates, weights, and KnotVector objects
    *
    * \param [in] pts A 2D axom::Array of (ord_u+1, ord_v+1) control points
    * \param [in] weights A 2D axom::Array of (ord_u+1, ord_v+1) positive weights
-   * \param [in] knotvec_u A KnotVector object for the first axis
-   * \param [in] knotvec_v A KnotVector object for the second axis
+   * \param [in] knotvec_u, knotvec_v KnotVector objects for the first and second axis
    * 
-   * For clamped and continuous curves, npts and the knot vector 
-   *   uniquely determine the degree
-   * 
+   * For clamped and continuous patch axes, npts and the knot vector uniquely determine the degree
    * \pre Requires a valid knot vector and npts_d > deg_d
    */
   NURBSPatch(const CoordsMat& pts,
              const WeightsMat& weights,
              const KnotVectorType& knotvec_u,
              const KnotVectorType& knotvec_v)
-    : m_controlPoints(pts)
-    , m_weights(weights)
-    , m_knotvec_u(knotvec_u)
-    , m_knotvec_v(knotvec_v)
-  {
-    makeUntrimmed();
+    : NURBSPatch(pts.view(), weights.view(), knotvec_u, knotvec_v)
+  { }
 
-    SLIC_ASSERT(isValidNURBS());
-  }
+  ///@}
+
+  ///@{
+  /// \name Query/modify patch properties (degree, rationality, ...)
 
   /*!
    * \brief Reset the degree and resize arrays of points (and weights)
    * 
-   * \param [in] npts_u The target number of control points on the first axis
-   * \param [in] npts_v The target number of control points on the second axis
-   * \param [in] deg_u The target degree on the first axis
-   * \param [in] deg_v The target degree on the second axis
+   * \param [in] npts_u, npts_v The target number of control points on the first and second axis
+   * \param [in] deg_u, deg_v The target degrees on the first and second axis
    * 
    * \warning This method will replace existing knot vectors with a uniform one.
    */
@@ -825,6 +667,18 @@ public:
     setDegree_v(deg_v);
   }
 
+  /// \brief Returns the degree of the NURBS Patch on the first axis
+  int getDegree_u() const { return m_knotvec_u.getDegree(); }
+
+  /// \brief Returns the degree of the NURBS Patch on the second axis
+  int getDegree_v() const { return m_knotvec_v.getDegree(); }
+
+  /// \brief Returns the order (degree + 1) of the NURBS Patch on the first axis
+  int getOrder_u() const { return m_knotvec_u.getDegree() + 1; }
+
+  /// \brief Returns the order of the NURBS Patch on the second axis
+  int getOrder_v() const { return m_knotvec_v.getDegree() + 1; }
+
   /*!
    * \brief Set the number control points in u
    *
@@ -849,6 +703,12 @@ public:
     m_knotvec_u.makeUniform(npts_u, getDegree_u());
     m_knotvec_v.makeUniform(npts_v, getDegree_v());
   }
+
+  /// \brief Returns the number of control points in the NURBS Patch on the first axis
+  int getNumControlPoints_u() const { return static_cast<int>(m_controlPoints.shape()[0]); }
+
+  /// \brief Returns the number of control points in the NURBS Patch on the second axis
+  int getNumControlPoints_v() const { return static_cast<int>(m_controlPoints.shape()[1]); }
 
   /*!
    * \brief Set the number control points in u
@@ -893,6 +753,146 @@ public:
 
     m_knotvec_v.makeUniform(npts, getDegree_v());
   }
+
+  /// Clears the list of control points, make nonrational
+  void clear()
+  {
+    m_controlPoints.clear();
+    m_knotvec_u.clear();
+    m_knotvec_v.clear();
+    m_trimmingCurves.clear();
+    makeNonrational();
+    makeUntrimmed();
+  }
+
+  /// \brief Use array size as flag for rationality
+  bool isRational() const { return !m_weights.empty(); }
+
+  /// \brief Make trivially rational. If already rational, do nothing
+  void makeRational()
+  {
+    if(!isRational())
+    {
+      auto patch_shape = m_controlPoints.shape();
+      m_weights.resize(patch_shape[0], patch_shape[1]);
+      m_weights.fill(1.0);
+    }
+  }
+
+  /// \brief Make nonrational by shrinking array of weights
+  void makeNonrational() { m_weights.clear(); }
+
+  /// \brief Function to check if the NURBS surface is valid
+  bool isValidNURBS() const
+  {
+    // Check monotonicity, open-ness, continuity of each knot vector
+    if(!m_knotvec_u.isValid() || !m_knotvec_v.isValid())
+    {
+      return false;
+    }
+
+    // Number of knots must match the number of control points
+    int deg_u = m_knotvec_u.getDegree();
+    int deg_v = m_knotvec_v.getDegree();
+
+    // Number of knots must match the number of control points
+    auto patch_shape = m_controlPoints.shape();
+    if(m_knotvec_u.getNumKnots() != patch_shape[0] + deg_u + 1 ||
+       m_knotvec_v.getNumKnots() != patch_shape[1] + deg_v + 1)
+    {
+      return false;
+    }
+
+    if(isRational())
+    {
+      // Number of control points must match number of weights
+      auto weights_shape = m_weights.shape();
+      if(weights_shape[0] != patch_shape[0] || weights_shape[1] != patch_shape[1])
+      {
+        return false;
+      }
+
+      // Weights must be positive
+      for(int i = 0; i < weights_shape[0]; ++i)
+      {
+        for(int j = 0; j < weights_shape[1]; ++j)
+        {
+          if(m_weights(i, j) <= 0.0)
+          {
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  }
+
+  ///@}
+
+  ///@{
+  /// \name Query/modify patch's geometry (control points, weights, bounding box, ...)
+
+  /// Retrieves the control point at index \a (idx_p, idx_q)
+  PointType& operator()(int ui, int vi) { return m_controlPoints(ui, vi); }
+
+  /// Retrieves the vector of control points at index \a idx
+  const PointType& operator()(int ui, int vi) const { return m_controlPoints(ui, vi); }
+
+  /// Returns a copy of the NURBS patch's control points
+  CoordsMat getControlPoints() const { return m_controlPoints; }
+
+  /*!
+   * \brief Get a specific weight
+   *
+   * \param [in] ui The index of the weight on the first axis
+   * \param [in] vi The index of the weight on the second axis
+   * \pre Requires that the surface be rational
+   */
+  const T& getWeight(int ui, int vi) const
+  {
+    SLIC_ASSERT(isRational());
+    return m_weights(ui, vi);
+  }
+
+  /*!
+   * \brief Set the weight at a specific index
+   *
+   * \param [in] ui The index of the weight in on the first axis
+   * \param [in] vi The index of the weight in on the second axis
+   * \param [in] weight The updated value of the weight
+   * \pre Requires that the surface be rational
+   * \pre Requires that the weight be positive
+   */
+  void setWeight(int ui, int vi, T weight)
+  {
+    SLIC_ASSERT(isRational());
+    SLIC_ASSERT(weight > 0);
+
+    m_weights(ui, vi) = weight;
+  }
+
+  /// Returns a copy of the NURBS patch's weights
+  WeightsMat getWeights() const { return m_weights; }
+
+  /// \brief Returns an axis-aligned bounding box containing the patch
+  BoundingBoxType boundingBox() const
+  {
+    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
+  }
+
+  /// \brief Returns an oriented bounding box containing the patch
+  OrientedBoundingBoxType orientedBoundingBox() const
+  {
+    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
+  }
+
+  ///@}
+
+  ///@{
+  //!  @name Methods for (untrimmed) Patch Parameterization.
+  //!
+  //! These methods operate on the parameterization of the patch leaving the geometry unchanged.
 
   /*!
    * \brief Set the knot value in the u vector at a specific index
@@ -944,18 +944,6 @@ public:
    */
   void setKnots_v(const KnotVectorType& knotVector) { m_knotvec_v = knotVector; }
 
-  /// \brief Returns the degree of the NURBS Patch on the first axis
-  int getDegree_u() const { return m_knotvec_u.getDegree(); }
-
-  /// \brief Returns the degree of the NURBS Patch on the second axis
-  int getDegree_v() const { return m_knotvec_v.getDegree(); }
-
-  /// \brief Returns the order (degree + 1) of the NURBS Patch on the first axis
-  int getOrder_u() const { return m_knotvec_u.getDegree() + 1; }
-
-  /// \brief Returns the order of the NURBS Patch on the second axis
-  int getOrder_v() const { return m_knotvec_v.getDegree() + 1; }
-
   /// \brief Return a copy of the KnotVector instance on the first axis
   KnotVectorType getKnots_u() const { return m_knotvec_u; }
 
@@ -989,116 +977,11 @@ public:
   /// \brief Get the maximum knot value in the v-axis
   T getMaxKnot_v() const { return m_knotvec_v[m_knotvec_v.getNumKnots() - 1]; }
 
-  /// \brief Returns the number of control points in the NURBS Patch on the first axis
-  int getNumControlPoints_u() const { return static_cast<int>(m_controlPoints.shape()[0]); }
-
-  /// \brief Returns the number of control points in the NURBS Patch on the second axis
-  int getNumControlPoints_v() const { return static_cast<int>(m_controlPoints.shape()[1]); }
-
   /// \brief Return the length of the knot vector on the first axis
   int getNumKnots_u() const { return m_knotvec_u.getNumKnots(); }
 
   /// \brief Return the length of the knot vector on the second axis
   int getNumKnots_v() const { return m_knotvec_v.getNumKnots(); }
-
-  /// Clears the list of control points, make nonrational
-  void clear()
-  {
-    m_controlPoints.clear();
-    m_knotvec_u.clear();
-    m_knotvec_v.clear();
-    m_trimmingCurves.clear();
-    makeNonrational();
-    makeUntrimmed();
-  }
-
-  /// Retrieves the control point at index \a (idx_p, idx_q)
-  PointType& operator()(int ui, int vi) { return m_controlPoints(ui, vi); }
-
-  /// Retrieves the vector of control points at index \a idx
-  const PointType& operator()(int ui, int vi) const { return m_controlPoints(ui, vi); }
-
-  /*!
-   * \brief Get a specific weight
-   *
-   * \param [in] ui The index of the weight on the first axis
-   * \param [in] vi The index of the weight on the second axis
-   * \pre Requires that the surface be rational
-   */
-  const T& getWeight(int ui, int vi) const
-  {
-    SLIC_ASSERT(isRational());
-    return m_weights(ui, vi);
-  }
-
-  /*!
-   * \brief Set the weight at a specific index
-   *
-   * \param [in] ui The index of the weight in on the first axis
-   * \param [in] vi The index of the weight in on the second axis
-   * \param [in] weight The updated value of the weight
-   * \pre Requires that the surface be rational
-   * \pre Requires that the weight be positive
-   */
-  void setWeight(int ui, int vi, T weight)
-  {
-    SLIC_ASSERT(isRational());
-    SLIC_ASSERT(weight > 0);
-
-    m_weights(ui, vi) = weight;
-  }
-
-  /*!
-   * \brief Equality operator for NURBS patches
-   * 
-   * \param [in] lhs The left-hand side NURBS patch
-   * \param [in] rhs The right-hand side NURBS patch
-   * 
-   * \return True if the two patches are equal, false otherwise
-   */
-  friend inline bool operator==(const NURBSPatch<T, NDIMS>& lhs, const NURBSPatch<T, NDIMS>& rhs)
-  {
-    return (lhs.m_controlPoints == rhs.m_controlPoints) && (lhs.m_weights == rhs.m_weights) &&
-      (lhs.m_knotvec_u == rhs.m_knotvec_u) && (lhs.m_knotvec_v == rhs.m_knotvec_v) &&
-      (lhs.m_isTrimmed == rhs.m_isTrimmed) && (lhs.m_trimmingCurves == rhs.m_trimmingCurves);
-  }
-
-  /*!
-   * \brief Inequality operator for NURBS patches
-   * 
-   * \param [in] lhs The left-hand side NURBS patch
-   * \param [in] rhs The right-hand side NURBS patch
-   * 
-   * \return True if the two patches are not equal, false otherwise
-   */
-  friend inline bool operator!=(const NURBSPatch<T, NDIMS>& lhs, const NURBSPatch<T, NDIMS>& rhs)
-  {
-    return !(lhs == rhs);
-  }
-
-  /// Returns a copy of the NURBS patch's control points
-  CoordsMat getControlPoints() const { return m_controlPoints; }
-
-  /// Returns a copy of the NURBS patch's weights
-  WeightsMat getWeights() const { return m_weights; }
-
-  /// \brief Returns an axis-aligned bounding box containing the patch
-  BoundingBoxType boundingBox() const
-  {
-    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
-  }
-
-  /// \brief Returns an oriented bounding box containing the patch
-  OrientedBoundingBoxType orientedBoundingBox() const
-  {
-    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
-  }
-
-  //@{
-  //!  @name Methods for (untrimmed) Patch Parameterization.
-  //!
-  //! These methods operate on the parameterization of the patch
-  //!  via its trimming curves, leaving the geometry unchanged.
 
   /*! 
    * \brief Insert a knot to the u knot vector to have the given multiplicity
@@ -1646,31 +1529,311 @@ public:
 
     m_knotvec_v.rescale(a, b);
   }
-  //@}
 
-  //@{
-  //!  @name Methods for (untrimmed) Patch Geometry.
+  /// \brief Function to check if the u parameter is within the knot span
+  bool isValidParameter_u(T u, T EPS = 1e-8) const
+  {
+    return u >= m_knotvec_u[0] - EPS && u <= m_knotvec_u[m_knotvec_u.getNumKnots() - 1] + EPS;
+  }
+
+  /// \brief Function to check if the v parameter is within the knot span
+  bool isValidParameter_v(T v, T EPS = 1e-8) const
+  {
+    return v >= m_knotvec_v[0] - EPS && v <= m_knotvec_v[m_knotvec_v.getNumKnots() - 1] + EPS;
+  }
+
+  /// \brief Checks if given u parameter is *interior* to the knot span
+  bool isValidInteriorParameter(T t) const { return m_knotvec_u.isValidInteriorParameter(t); }
+
+  /*!
+   * \brief Scale the parameter space of the NURBS patch geometry 
+   *         linearly (by tangents) in all directions
+   *
+   * \param [in] scaleFactor The multiplicative factor to expand each knot vector by
+   * \param [in] removeTrimmingCurves If true, the resulting patch has no trimming curves
+   *
+   * Algorithm from Wolters, Hans J., "Extensions: Extrapolation Methods for CAD", 1999
+   * 
+   * \note This function only affects the geometry of the untrimmed NURBS patch, 
+   *       and does not affect any existing trimming curves (unless explicitly removed)
+   * 
+   * \post If removeTrimmingCurves is false, the resulting patch will be trimmed.
+   * 
+   * \warning Method becomes numerically unstable for large values of scaleFactor,
+   *           or for rational patches with a large range of weights.
+   */
+  void scaleParameterSpace(double scaleFactor, bool removeTrimmingCurves = false)
+  {
+    SLIC_ASSERT(scaleFactor >= 1.0);
+    SLIC_WARNING_IF(scaleFactor > 1.15,
+                    "Expanding patch parameter space is numerically unstable "
+                    "for large values of scaleFactor.");
+
+    if(removeTrimmingCurves)
+    {
+      m_trimmingCurves.clear();
+    }
+    else if(!isTrimmed())
+    {
+      // If the patch is untrimmed, we need to create new trimming curves
+      //  to match the original parameter space
+      makeTriviallyTrimmed();
+    }
+
+    double expansionAmount_u = (getMaxKnot_u() - getMinKnot_u()) * (scaleFactor - 1.0);
+    double expansionAmount_v = (getMaxKnot_v() - getMinKnot_v()) * (scaleFactor - 1.0);
+
+    auto n = getNumControlPoints_u();
+    auto m = getNumControlPoints_v();
+
+    if(n <= 1 || m <= 1)
+    {
+      return;
+    }
+
+    // When the patch is expanded in homogeneous space,
+    //  weights may become negative.
+    // We gurantee no negative weights by restricting this expansion
+    //  to w > min_weight in homogeous space
+    double min_weight = 0.0;
+    if(isRational())
+    {
+      min_weight = m_weights(0, 0);
+
+      for(int i = 0; i < n; ++i)
+      {
+        for(int j = 0; j < m; ++j)
+        {
+          min_weight = std::min(min_weight, m_weights(i, j));
+        }
+      }
+
+      min_weight *= 0.5;
+    }
+
+    auto deg_u = getDegree_u();
+    auto deg_v = getDegree_v();
+
+    CoordsMat newControlPoints(n + 2 * deg_u, m + 2 * deg_v);
+    WeightsMat newWeights(0, 0);
+    if(isRational())
+    {
+      newWeights.resize(n + 2 * deg_u, m + 2 * deg_v);
+      newWeights.fill(1.0);
+    }
+
+    axom::Array<T> newKnotVec_u, newKnotVec_v;
+
+    // Copy the original control points
+    for(int i = 0; i < n; ++i)
+    {
+      for(int j = 0; j < m; ++j)
+      {
+        newControlPoints(i + deg_u, j + deg_v) = m_controlPoints(i, j);
+        if(isRational())
+        {
+          newWeights(i + deg_u, j + deg_v) = m_weights(i, j);
+        }
+      }
+    }
+
+    int nkts_v = m_knotvec_v.getNumKnots();
+    int nkts_u = m_knotvec_u.getNumKnots();
+
+    // Add the control points on the v direction
+    for(int i = 0; i < n; ++i)
+    {
+      if(!isRational())
+      {
+        Vector<T, 3> v(m_controlPoints(i, 1), m_controlPoints(i, 0));
+        double alpha = deg_v * expansionAmount_v / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
+
+        for(int j = 0; j < deg_v; ++j)
+        {
+          newControlPoints(i + deg_u, j).array() =
+            m_controlPoints(i, 0).array() + static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array();
+        }
+
+        v = Vector<T, 3>(m_controlPoints(i, m - 2), m_controlPoints(i, m - 1));
+        alpha =
+          deg_v * expansionAmount_v / (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
+
+        for(int j = 0; j < deg_v; ++j)
+        {
+          newControlPoints(i + deg_u, m + deg_v + j).array() =
+            m_controlPoints(i, m - 1).array() + static_cast<T>(j + 1) / (deg_v)*alpha * v.array();
+        }
+      }
+      else
+      {
+        Vector<T, 3> v(Point<T, 3>(m_controlPoints(i, 1).array() * m_weights(i, 1)),
+                       Point<T, 3>(m_controlPoints(i, 0).array() * m_weights(i, 0)));
+        double d_weight = m_weights(i, 0) - m_weights(i, 1);
+        double alpha = deg_v * expansionAmount_v / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
+
+        // New weights can't be less than min_weight
+        if(d_weight != 0 && (m_weights(i, 0) - alpha * d_weight < min_weight))
+        {
+          alpha = (m_weights(i, 0) - min_weight) / d_weight;
+        }
+
+        for(int j = 0; j < deg_v; ++j)
+        {
+          newWeights(i + deg_u, j) =
+            m_weights(i, 0) + static_cast<T>(j - deg_v) / (deg_v)*alpha * d_weight;
+
+          newControlPoints(i + deg_u, j).array() =
+            (m_controlPoints(i, 0).array() * m_weights(i, 0) +
+             static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array()) /
+            newWeights(i + deg_u, j);
+        }
+
+        v = Vector<T, 3>(Point<T, 3>(m_controlPoints(i, m - 2).array() * m_weights(i, m - 2)),
+                         Point<T, 3>(m_controlPoints(i, m - 1).array() * m_weights(i, m - 1)));
+        d_weight = m_weights(i, m - 1) - m_weights(i, m - 2);
+        alpha =
+          deg_v * expansionAmount_v / (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
+
+        // New weights can't be less than min_weight
+        if(d_weight != 0 && (m_weights(i, m - 1) + alpha * d_weight < min_weight))
+        {
+          alpha = (min_weight - m_weights(i, m - 1)) / d_weight;
+        }
+
+        for(int j = 0; j < deg_v; ++j)
+        {
+          newWeights(i + deg_u, m + deg_v + j) =
+            m_weights(i, m - 1) + static_cast<T>(j + 1) / (deg_v)*alpha * d_weight;
+
+          newControlPoints(i + deg_u, m + deg_v + j).array() =
+            (m_controlPoints(i, m - 1).array() * m_weights(i, m - 1) +
+             static_cast<T>(j + 1) / (deg_v)*alpha * v.array()) /
+            newWeights(i + deg_u, m + deg_v + j);
+        }
+      }
+    }
+
+    // Add the control points on the u direction
+    //  Note that this method uses values added in the v direction,
+    //  making it slightly anisotropic at the corners
+    for(int j = 0; j < m + 2 * deg_v; ++j)
+    {
+      if(!isRational())
+      {
+        Vector<T, 3> v(newControlPoints(deg_u + 1, j), newControlPoints(deg_u, j));
+        double alpha = deg_u * expansionAmount_v / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
+        for(int i = 0; i < deg_u; ++i)
+        {
+          newControlPoints(i, j).array() = newControlPoints(deg_u, j).array() +
+            static_cast<T>(i - deg_u) / (deg_u)*alpha * v.array();
+        }
+
+        v = Vector<T, 3>(newControlPoints(n - 2 + deg_u, j), newControlPoints(n + deg_u - 1, j));
+        alpha =
+          deg_u * expansionAmount_v / (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
+        for(int i = 0; i < deg_u; ++i)
+        {
+          newControlPoints(n + deg_u + i, j).array() = newControlPoints(n + deg_u - 1, j).array() +
+            static_cast<T>(i + 1) / (deg_u)*alpha * v.array();
+        }
+      }
+      else
+      {
+        Vector<T, 3> v(Point<T, 3>(newControlPoints(deg_u + 1, j).array() * newWeights(deg_u + 1, j)),
+                       Point<T, 3>(newControlPoints(deg_u, j).array() * newWeights(deg_u, j)));
+        double d_weight = newWeights(deg_u, j) - newWeights(deg_u + 1, j);
+        double alpha = deg_u * expansionAmount_v / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
+
+        // New weights can't be less than min_weight
+        if(d_weight != 0 && (newWeights(deg_u, j) - alpha * d_weight < min_weight))
+        {
+          alpha = (newWeights(deg_u, j) - min_weight) / d_weight;
+        }
+
+        for(int i = 0; i < deg_u; ++i)
+        {
+          newWeights(i, j) =
+            newWeights(deg_u, j) + static_cast<T>(i - deg_u) / (deg_u)*alpha * d_weight;
+
+          newControlPoints(i, j).array() =
+            (newControlPoints(deg_u, j).array() * newWeights(deg_u, j) +
+             static_cast<T>(i - deg_u) / (deg_u)*alpha * v.array()) /
+            newWeights(i, j);
+        }
+
+        v = Vector<T, 3>(
+          Point<T, 3>(newControlPoints(n - 2 + deg_u, j).array() * newWeights(n - 2 + deg_u, j)),
+          Point<T, 3>(newControlPoints(n + deg_u - 1, j).array() * newWeights(n + deg_u - 1, j)));
+        d_weight = newWeights(n + deg_u - 1, j) - newWeights(n - 2 + deg_u, j);
+        alpha =
+          deg_u * expansionAmount_v / (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
+
+        // New weights can't be less than min_weight
+        if(d_weight != 0 && (newWeights(n + deg_u - 1, j) + alpha * d_weight < min_weight))
+        {
+          alpha = (min_weight - newWeights(n + deg_u - 1, j)) / d_weight;
+        }
+
+        for(int i = 0; i < deg_u; ++i)
+        {
+          newWeights(n + deg_u + i, j) =
+            newWeights(n + deg_u - 1, j) + static_cast<T>(i + 1) / (deg_u)*d_weight * alpha;
+
+          newControlPoints(n + deg_u + i, j).array() =
+            (newControlPoints(n + deg_u - 1, j).array() * newWeights(n + deg_u - 1, j) +
+             static_cast<T>(i + 1) / (deg_u)*alpha * v.array()) /
+            newWeights(n + deg_u + i, j);
+        }
+      }
+    }
+
+    // Fix the u knot vector
+    newKnotVec_u.resize(m_knotvec_u.getNumKnots() + 2 * m_knotvec_u.getDegree());
+    for(int i = 0; i <= deg_u; ++i)
+    {
+      newKnotVec_u[i] = m_knotvec_u[0] - expansionAmount_u;
+    }
+    for(int i = 0; i < m_knotvec_u.getNumKnots() - 2; ++i)
+    {
+      newKnotVec_u[i + deg_u + 1] = m_knotvec_u[i + 1];
+    }
+    for(int i = 0; i <= deg_u; ++i)
+    {
+      newKnotVec_u[i + deg_u + m_knotvec_u.getNumKnots() - 1] =
+        m_knotvec_u[m_knotvec_u.getNumKnots() - 1] + expansionAmount_u;
+    }
+
+    // Fix the v knot vector
+    newKnotVec_v.resize(m_knotvec_v.getNumKnots() + 2 * m_knotvec_v.getDegree());
+    for(int i = 0; i <= deg_v; ++i)
+    {
+      newKnotVec_v[i] = m_knotvec_v[0] - expansionAmount_v;
+    }
+    for(int i = 0; i < m_knotvec_v.getNumKnots() - 2; ++i)
+    {
+      newKnotVec_v[i + deg_v + 1] = m_knotvec_v[i + 1];
+    }
+    for(int i = 0; i <= deg_v; ++i)
+    {
+      newKnotVec_v[i + deg_v + m_knotvec_v.getNumKnots() - 1] =
+        m_knotvec_v[m_knotvec_v.getNumKnots() - 1] + expansionAmount_v;
+    }
+
+    m_controlPoints = newControlPoints;
+    m_weights = newWeights;
+
+    m_knotvec_u = KnotVectorType(newKnotVec_u, deg_u);
+    m_knotvec_v = KnotVectorType(newKnotVec_v, deg_v);
+  }
+
+  ///@}
+
+  ///@{
+  //! \name Functions to evaluate (untrimmed) patch and its derivatives and normals along points or lines
   //!
   //! These methods operate only on the geometry of the patch
   //!  as defined by the control points and weights.
   //! They do not modify nor interact with the trimming curves.
-
-  /// \brief Make trivially rational. If already rational, do nothing
-  void makeRational()
-  {
-    if(!isRational())
-    {
-      auto patch_shape = m_controlPoints.shape();
-      m_weights.resize(patch_shape[0], patch_shape[1]);
-      m_weights.fill(1.0);
-    }
-  }
-
-  /// \brief Make nonrational by shrinking array of weights
-  void makeNonrational() { m_weights.clear(); }
-
-  /// \brief Use array size as flag for rationality
-  bool isRational() const { return !m_weights.empty(); }
 
   /*!
    * \brief Evaluate the NURBS patch geometry at a particular parameter value \a t
@@ -2251,6 +2414,282 @@ public:
     return VectorType::cross_product(Du, Dv);
   }
 
+#ifdef AXOM_USE_MFEM
+  /*!
+   * \brief Calculate the average normal for the (untrimmed) patch
+   * 
+   * \param [in] npts The number of quadrature nodes used in each component integral
+   *
+   * Algorithm from "Mean normal vector to a surface bounded by Bézier curves"
+   *  by Kenji Ueda, 1996
+   * 
+   * Projects the 4 boundary curves of the patch along each coordinate axis, 
+   *  then computes the 2D area of that projection to get the corresponding
+   *  component of the average surface normal.
+   *  
+   * \note This requires the MFEM third-party library
+   * 
+   * \return The calculated mean surface normal
+   */
+  VectorType calculateUntrimmedPatchNormal(int npts = 20) const
+  {
+    SLIC_ASSERT(NDIMS == 3);
+
+    VectorType ret_vec;
+    auto const_integrand = [](Point2D /*x*/) -> double { return 1.0; };
+
+    // Set up the correct sizes and weights of the bounding curves
+    axom::Array<NURBSCurve<T, 2>> boundingPoly(4);
+
+    const int npts_u = getNumControlPoints_u();
+    const int npts_v = getNumControlPoints_v();
+
+    boundingPoly[0].setParameters(npts_v, getDegree_v());
+    boundingPoly[0].setKnots(getKnots_v());
+
+    boundingPoly[1].setParameters(npts_u, getDegree_u());
+    boundingPoly[1].setKnots(getKnots_u());
+
+    boundingPoly[2].setParameters(npts_v, getDegree_v());
+    boundingPoly[2].setKnots(getKnots_v());
+
+    boundingPoly[3].setParameters(npts_u, getDegree_u());
+    boundingPoly[3].setKnots(getKnots_u());
+
+    if(isRational())
+    {
+      for(int i = 0; i < 4; ++i)
+      {
+        boundingPoly[i].makeRational();
+      }
+
+      for(int m = 0; m < npts_v; ++m)
+      {
+        boundingPoly[0].setWeight(m, m_weights(0, npts_v - 1 - m));
+        boundingPoly[2].setWeight(m, m_weights(npts_u - 1, m));
+      }
+
+      for(int n = 0; n < npts_u; ++n)
+      {
+        boundingPoly[1].setWeight(n, m_weights(npts_u - 1 - n, npts_v - 1));
+        boundingPoly[3].setWeight(n, m_weights(n, 0));
+      }
+    }
+
+    // Get each component by projecting boundaries onto the other coordinate axes
+    for(int N = 0; N < 3; ++N)
+    {
+      int ind_3d = 0;
+      for(int i = 0; i < 2; ++i, ++ind_3d)
+      {
+        // Skip the corresponding coordinate used to access the 3D point
+        if(ind_3d == N)
+        {
+          --i;
+          continue;
+        }
+
+        for(int m = 0; m < npts_v; ++m)
+        {
+          boundingPoly[0][m][i] = m_controlPoints(0, npts_v - 1 - m)[ind_3d];
+          boundingPoly[2][m][i] = m_controlPoints(npts_u - 1, m)[ind_3d];
+        }
+
+        for(int n = 0; n < npts_u; ++n)
+        {
+          boundingPoly[1][n][i] = m_controlPoints(npts_u - 1 - n, npts_v - 1)[ind_3d];
+          boundingPoly[3][n][i] = m_controlPoints(n, 0)[ind_3d];
+        }
+      }
+
+      // Find the area of the resulting projection
+      ret_vec[N] = evaluate_area_integral(boundingPoly, const_integrand, npts);
+    }
+
+    // Need to flip the y-component to account for the flipped projection
+    ret_vec[1] = -ret_vec[1];
+    return ret_vec;
+  }
+#endif
+  ///@}
+
+  ///@{
+  //!  @name Methods for (trimmed) Surface Geometry.
+  //!
+  //! These methods operate on the visible geometry of the NURBS surface
+  //!  as defined by the patch geometry and the trimming curves
+  //!  which define visibility.
+
+  /*!
+   * \brief Get array of trimming curves
+   */
+  const TrimmingCurveVec& getTrimmingCurves() const { return m_trimmingCurves; }
+
+  /// \brief Get mutable array of trimming curves
+  TrimmingCurveVec& getTrimmingCurves() { return m_trimmingCurves; }
+
+  /// \brief Get a trimming curve by index
+  const TrimmingCurveType& getTrimmingCurve(int idx) const
+  {
+    SLIC_ASSERT(idx >= 0 && idx < m_trimmingCurves.size());
+    return m_trimmingCurves[idx];
+  }
+
+  /// \brief Add a trimming curve
+  void addTrimmingCurve(const TrimmingCurveType& curve)
+  {
+    m_isTrimmed = true;
+    m_trimmingCurves.push_back(curve);
+  }
+
+  /// \brief Add array of trimming curves
+  void addTrimmingCurves(const TrimmingCurveVec& curves)
+  {
+    m_isTrimmed = true;
+    for(int i = 0; i < curves.size(); ++i)
+    {
+      m_trimmingCurves.push_back(curves[i]);
+    }
+  }
+
+  /// \brief Clear trimming curves, but DON'T mark as untrimmed
+  void clearTrimmingCurves() { m_trimmingCurves.clear(); }
+
+  /// \brief Get number of trimming curves
+  int getNumTrimmingCurves() const { return m_trimmingCurves.size(); }
+
+  /// \brief use boolean flag for trimmed-ness
+  bool isTrimmed() const { return m_isTrimmed; }
+
+  /// \brief Mark as trimmed
+  void markAsTrimmed() { m_isTrimmed = true; }
+
+  /// \brief Delete all trimming curves
+  void makeUntrimmed()
+  {
+    m_isTrimmed = false;
+    m_trimmingCurves.clear();
+  }
+
+  /// \brief Make trivially trimmed by adding trimming curves at each boundary
+  void makeTriviallyTrimmed()
+  {
+    if(isTrimmed())
+    {
+      m_trimmingCurves.clear();
+    }
+
+    const double min_u = m_knotvec_u[0];
+    const double max_u = m_knotvec_u[m_knotvec_u.getNumKnots() - 1];
+
+    const double min_v = m_knotvec_v[0];
+    const double max_v = m_knotvec_v[m_knotvec_v.getNumKnots() - 1];
+
+    // For each min/max u/v, add a straight trimming curve along the boundary
+
+    // Bottom
+    addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({min_u, min_v}, {max_u, min_v}));
+
+    // Top
+    addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({max_u, max_v}, {min_u, max_v}));
+
+    // Left
+    addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({min_u, max_v}, {min_u, min_v}));
+
+    // Right
+    addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({max_u, min_v}, {max_u, max_v}));
+
+    markAsTrimmed();
+  }
+
+  /*!
+   * \brief Check if a parameter point is visible on the NURBS patch via a trim test
+   *
+   * \param [in] u The parameter value on the first axis
+   * \param [in] v The parameter value on the second axis
+   * 
+   * Checks for containment of the parameter point in 
+   *  the collection of trimming curves via an even-odd rule.
+   * 
+   * If the collection of trimming curves does not form closed loops, 
+   *  then the (now fractional) generalized winding number is rounded to the
+   *  nearest integer before the even-odd rule is applied.
+   */
+  bool isVisible(T u, T v) const
+  {
+    if(!isTrimmed())
+    {
+      return (m_knotvec_u.isValidParameter(u) && m_knotvec_v.isValidParameter(v));
+    }
+
+    ParameterPointType uv = {u, v};
+
+    double gwn = 0.0;
+    for(const auto& curve : m_trimmingCurves)
+    {
+      bool isOnThisCurve = false;
+      gwn += detail::nurbs_winding_number(uv, curve, isOnThisCurve);
+
+      if(isOnThisCurve)
+      {
+        return true;
+      }
+    }
+
+    return std::lround(gwn) % 2 != 0;
+  }
+
+  /*!
+   * \brief Restrict the edges of a NURBS surface to the given parameter values, if necessary
+   *
+   * \param [in] min_u The minimum value of the u parameter
+   * \param [in] max_u The maximum value of the u parameter
+   * \param [in] min_v The minimum value of the v parameter
+   * \param [in] max_v The maximum value of the v parameter
+   * \param [in] normalize If true, normalize the patch to the range [0, 1]^2
+   * 
+   * If a given parameter is less/greater than the minimum/maximum knot value,
+   *  then the patch is not changed along that direction and axis
+   * 
+   * \pre Requires that min_u < max_u and min_v < max_v  
+   * \post A patch whose parameter space is a subset of [min_u, max_u] x [min_v, max_v]
+   * 
+   * \sa NURBSPatch::split()
+   */
+  void clip(T min_u, T max_u, T min_v, T max_v, bool normalizeParameters = false)
+  {
+    SLIC_ASSERT(min_u < max_u);
+    SLIC_ASSERT(min_v < max_v);
+    NURBSPatch dummy_patch;
+
+    if(min_u > getMinKnot_u())
+    {
+      this->split_u(min_u, dummy_patch, *this);
+    }
+    if(min_v > getMinKnot_v())
+    {
+      this->split_v(min_v, dummy_patch, *this);
+    }
+    if(max_u < getMaxKnot_u())
+    {
+      this->split_u(max_u, *this, dummy_patch);
+    }
+    if(max_v < getMaxKnot_v())
+    {
+      this->split_v(max_v, *this, dummy_patch);
+    }
+
+    if(normalizeParameters)
+    {
+      normalize();
+    }
+  }
+
+  ///@}
+
+  ///@{
+  /// \name Functions dealing with (untrimmed) patch subdivision
+
   /*!
    * \brief Splits the NURBS patch geometry (at each internal knot) into several Bezier patches
    * 
@@ -2542,276 +2981,10 @@ public:
     return beziers;
   }
 
-#ifdef AXOM_USE_MFEM
-  /*!
-   * \brief Calculate the average normal for the (untrimmed) patch
-   * 
-   * \param [in] npts The number of quadrature nodes used in each component integral
-   *
-   * Algorithm from "Mean normal vector to a surface bounded by Bézier curves"
-   *  by Kenji Ueda, 1996
-   * 
-   * Projects the 4 boundary curves of the patch along each coordinate axis, 
-   *  then computes the 2D area of that projection to get the corresponding
-   *  component of the average surface normal.
-   *  
-   * \note This requires the MFEM third-party library
-   * 
-   * \return The calculated mean surface normal
-   */
-  VectorType calculateUntrimmedPatchNormal(int npts = 20) const
-  {
-    SLIC_ASSERT(NDIMS == 3);
+  ///@}
 
-    VectorType ret_vec;
-    auto const_integrand = [](Point2D /*x*/) -> double { return 1.0; };
-
-    // Set up the correct sizes and weights of the bounding curves
-    axom::Array<NURBSCurve<T, 2>> boundingPoly(4);
-
-    const int npts_u = getNumControlPoints_u();
-    const int npts_v = getNumControlPoints_v();
-
-    boundingPoly[0].setParameters(npts_v, getDegree_v());
-    boundingPoly[0].setKnots(getKnots_v());
-
-    boundingPoly[1].setParameters(npts_u, getDegree_u());
-    boundingPoly[1].setKnots(getKnots_u());
-
-    boundingPoly[2].setParameters(npts_v, getDegree_v());
-    boundingPoly[2].setKnots(getKnots_v());
-
-    boundingPoly[3].setParameters(npts_u, getDegree_u());
-    boundingPoly[3].setKnots(getKnots_u());
-
-    if(isRational())
-    {
-      for(int i = 0; i < 4; ++i)
-      {
-        boundingPoly[i].makeRational();
-      }
-
-      for(int m = 0; m < npts_v; ++m)
-      {
-        boundingPoly[0].setWeight(m, m_weights(0, npts_v - 1 - m));
-        boundingPoly[2].setWeight(m, m_weights(npts_u - 1, m));
-      }
-
-      for(int n = 0; n < npts_u; ++n)
-      {
-        boundingPoly[1].setWeight(n, m_weights(npts_u - 1 - n, npts_v - 1));
-        boundingPoly[3].setWeight(n, m_weights(n, 0));
-      }
-    }
-
-    // Get each component by projecting boundaries onto the other coordinate axes
-    for(int N = 0; N < 3; ++N)
-    {
-      int ind_3d = 0;
-      for(int i = 0; i < 2; ++i, ++ind_3d)
-      {
-        // Skip the corresponding coordinate used to access the 3D point
-        if(ind_3d == N)
-        {
-          --i;
-          continue;
-        }
-
-        for(int m = 0; m < npts_v; ++m)
-        {
-          boundingPoly[0][m][i] = m_controlPoints(0, npts_v - 1 - m)[ind_3d];
-          boundingPoly[2][m][i] = m_controlPoints(npts_u - 1, m)[ind_3d];
-        }
-
-        for(int n = 0; n < npts_u; ++n)
-        {
-          boundingPoly[1][n][i] = m_controlPoints(npts_u - 1 - n, npts_v - 1)[ind_3d];
-          boundingPoly[3][n][i] = m_controlPoints(n, 0)[ind_3d];
-        }
-      }
-
-      // Find the area of the resulting projection
-      ret_vec[N] = evaluate_area_integral(boundingPoly, const_integrand, npts);
-    }
-
-    // Need to flip the y-component to account for the flipped projection
-    ret_vec[1] = -ret_vec[1];
-    return ret_vec;
-  }
-#endif
-  //@}
-
-  //@{
-  //!  @name Methods for (trimmed) Surface Geometry.
-  //!
-  //! These methods operate on the visible geometry of the NURBS surface
-  //!  as defined by the patch geometry and the trimming curves
-  //!  which define visibility.
-
-  /*!
-   * \brief Get array of trimming curves
-   */
-  const TrimmingCurveVec& getTrimmingCurves() const { return m_trimmingCurves; }
-
-  /// \brief Get mutable array of trimming curves
-  TrimmingCurveVec& getTrimmingCurves() { return m_trimmingCurves; }
-
-  /// \brief Get a trimming curve by index
-  const TrimmingCurveType& getTrimmingCurve(int idx) const
-  {
-    SLIC_ASSERT(idx >= 0 && idx < m_trimmingCurves.size());
-    return m_trimmingCurves[idx];
-  }
-
-  /// \brief Add a trimming curve
-  void addTrimmingCurve(const TrimmingCurveType& curve)
-  {
-    m_isTrimmed = true;
-    m_trimmingCurves.push_back(curve);
-  }
-
-  /// \brief Add array of trimming curves
-  void addTrimmingCurves(const TrimmingCurveVec& curves)
-  {
-    m_isTrimmed = true;
-    for(int i = 0; i < curves.size(); ++i)
-    {
-      m_trimmingCurves.push_back(curves[i]);
-    }
-  }
-
-  /// \brief Clear trimming curves, but DON'T mark as untrimmed
-  void clearTrimmingCurves() { m_trimmingCurves.clear(); }
-
-  /// \brief Get number of trimming curves
-  int getNumTrimmingCurves() const { return m_trimmingCurves.size(); }
-
-  /// \brief use array size as flag for trimmed-ness
-  bool isTrimmed() const { return m_isTrimmed; }
-
-  /// \brief Mark as trimmed
-  void markAsTrimmed() { m_isTrimmed = true; }
-
-  /// \brief Delete all trimming curves
-  void makeUntrimmed()
-  {
-    m_isTrimmed = false;
-    m_trimmingCurves.clear();
-  }
-
-  /// \brief Make trivially trimmed by adding trimming curves at each boundary
-  void makeTriviallyTrimmed()
-  {
-    if(isTrimmed())
-    {
-      m_trimmingCurves.clear();
-    }
-
-    const double min_u = m_knotvec_u[0];
-    const double max_u = m_knotvec_u[m_knotvec_u.getNumKnots() - 1];
-
-    const double min_v = m_knotvec_v[0];
-    const double max_v = m_knotvec_v[m_knotvec_v.getNumKnots() - 1];
-
-    // For each min/max u/v, add a straight trimming curve along the boundary
-
-    // Bottom
-    addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({min_u, min_v}, {max_u, min_v}));
-
-    // Top
-    addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({max_u, max_v}, {min_u, max_v}));
-
-    // Left
-    addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({min_u, max_v}, {min_u, min_v}));
-
-    // Right
-    addTrimmingCurve(TrimmingCurveType::make_linear_segment_nurbs({max_u, min_v}, {max_u, max_v}));
-
-    markAsTrimmed();
-  }
-
-  /*!
-   * \brief Check if a parameter point is visible on the NURBS patch via a trim test
-   *
-   * \param [in] u The parameter value on the first axis
-   * \param [in] v The parameter value on the second axis
-   * 
-   * Checks for containment of the parameter point in 
-   *  the collection of trimming curves via an even-odd rule.
-   * 
-   * If the collection of trimming curves does not form closed loops, 
-   *  then the (now fractional) generalized winding number is rounded to the
-   *  nearest integer before the even-odd rule is applied.
-   */
-  bool isVisible(T u, T v) const
-  {
-    if(!isTrimmed())
-    {
-      return (m_knotvec_u.isValidParameter(u) && m_knotvec_v.isValidParameter(v));
-    }
-
-    ParameterPointType uv = {u, v};
-
-    double gwn = 0.0;
-    for(const auto& curve : m_trimmingCurves)
-    {
-      bool isOnThisCurve = false;
-      gwn += detail::nurbs_winding_number(uv, curve, isOnThisCurve);
-
-      if(isOnThisCurve)
-      {
-        return true;
-      }
-    }
-
-    return std::lround(gwn) % 2 != 0;
-  }
-
-  /*!
-   * \brief Restrict the edges of a NURBS surface to the given parameter values, if necessary
-   *
-   * \param [in] min_u The minimum value of the u parameter
-   * \param [in] max_u The maximum value of the u parameter
-   * \param [in] min_v The minimum value of the v parameter
-   * \param [in] max_v The maximum value of the v parameter
-   * \param [in] normalize If true, normalize the patch to the range [0, 1]^2
-   * 
-   * If a given parameter is less/greater than the minimum/maximum knot value,
-   *  then the patch is not changed along that direction and axis
-   * 
-   * \pre Requires that min_u < max_u and min_v < max_v  
-   * \post A patch whose parameter space is a subset of [min_u, max_u] x [min_v, max_v]
-   * 
-   * \sa NURBSPatch::split()
-   */
-  void clip(T min_u, T max_u, T min_v, T max_v, bool normalizeParameters = false)
-  {
-    SLIC_ASSERT(min_u < max_u);
-    SLIC_ASSERT(min_v < max_v);
-    NURBSPatch dummy_patch;
-
-    if(min_u > getMinKnot_u())
-    {
-      this->split_u(min_u, dummy_patch, *this);
-    }
-    if(min_v > getMinKnot_v())
-    {
-      this->split_v(min_v, dummy_patch, *this);
-    }
-    if(max_u < getMaxKnot_u())
-    {
-      this->split_u(max_u, *this, dummy_patch);
-    }
-    if(max_v < getMaxKnot_v())
-    {
-      this->split_v(max_v, *this, dummy_patch);
-    }
-
-    if(normalizeParameters)
-    {
-      normalize();
-    }
-  }
+  ///@{
+  /// \name Functions dealing with trimmed patch subdivision
 
   /*!
     * \brief Splits a NURBS surface into four NURBS patches
@@ -3240,287 +3413,7 @@ public:
     }
   }
 
-  /*!
-   * \brief Scale the parameter space of the NURBS patch geometry 
-   *         linearly (by tangents) in all directions
-   *
-   * \param [in] scaleFactor The multiplicative factor to expand each knot vector by
-   * \param [in] removeTrimmingCurves If true, the resulting patch has no trimming curves
-   *
-   * Algorithm from Wolters, Hans J., "Extensions: Extrapolation Methods for CAD", 1999
-   * 
-   * \note This function only affects the geometry of the untrimmed NURBS patch, 
-   *       and does not affect any existing trimming curves (unless explicitly removed)
-   * 
-   * \post If removeTrimmingCurves is false, the resulting patch will be trimmed.
-   * 
-   * \warning Method becomes numerically unstable for large values of scaleFactor,
-   *           or for rational patches with a large range of weights.
-   */
-  void scaleParameterSpace(double scaleFactor, bool removeTrimmingCurves = false)
-  {
-    SLIC_ASSERT(scaleFactor >= 1.0);
-    SLIC_WARNING_IF(scaleFactor > 1.15,
-                    "Expanding patch parameter space is numerically unstable "
-                    "for large values of scaleFactor.");
-
-    if(removeTrimmingCurves)
-    {
-      m_trimmingCurves.clear();
-    }
-    else if(!isTrimmed())
-    {
-      // If the patch is untrimmed, we need to create new trimming curves
-      //  to match the original parameter space
-      makeTriviallyTrimmed();
-    }
-
-    double expansionAmount_u = (getMaxKnot_u() - getMinKnot_u()) * (scaleFactor - 1.0);
-    double expansionAmount_v = (getMaxKnot_v() - getMinKnot_v()) * (scaleFactor - 1.0);
-
-    auto n = getNumControlPoints_u();
-    auto m = getNumControlPoints_v();
-
-    if(n <= 1 || m <= 1)
-    {
-      return;
-    }
-
-    // When the patch is expanded in homogeneous space,
-    //  weights may become negative.
-    // We gurantee no negative weights by restricting this expansion
-    //  to w > min_weight in homogeous space
-    double min_weight = 0.0;
-    if(isRational())
-    {
-      min_weight = m_weights(0, 0);
-
-      for(int i = 0; i < n; ++i)
-      {
-        for(int j = 0; j < m; ++j)
-        {
-          min_weight = std::min(min_weight, m_weights(i, j));
-        }
-      }
-
-      min_weight *= 0.5;
-    }
-
-    auto deg_u = getDegree_u();
-    auto deg_v = getDegree_v();
-
-    CoordsMat newControlPoints(n + 2 * deg_u, m + 2 * deg_v);
-    WeightsMat newWeights(0, 0);
-    if(isRational())
-    {
-      newWeights.resize(n + 2 * deg_u, m + 2 * deg_v);
-      newWeights.fill(1.0);
-    }
-
-    axom::Array<T> newKnotVec_u, newKnotVec_v;
-
-    // Copy the original control points
-    for(int i = 0; i < n; ++i)
-    {
-      for(int j = 0; j < m; ++j)
-      {
-        newControlPoints(i + deg_u, j + deg_v) = m_controlPoints(i, j);
-        if(isRational())
-        {
-          newWeights(i + deg_u, j + deg_v) = m_weights(i, j);
-        }
-      }
-    }
-
-    int nkts_v = m_knotvec_v.getNumKnots();
-    int nkts_u = m_knotvec_u.getNumKnots();
-
-    // Add the control points on the v direction
-    for(int i = 0; i < n; ++i)
-    {
-      if(!isRational())
-      {
-        Vector<T, 3> v(m_controlPoints(i, 1), m_controlPoints(i, 0));
-        double alpha = deg_v * expansionAmount_v / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
-
-        for(int j = 0; j < deg_v; ++j)
-        {
-          newControlPoints(i + deg_u, j).array() =
-            m_controlPoints(i, 0).array() + static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array();
-        }
-
-        v = Vector<T, 3>(m_controlPoints(i, m - 2), m_controlPoints(i, m - 1));
-        alpha =
-          deg_v * expansionAmount_v / (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
-
-        for(int j = 0; j < deg_v; ++j)
-        {
-          newControlPoints(i + deg_u, m + deg_v + j).array() =
-            m_controlPoints(i, m - 1).array() + static_cast<T>(j + 1) / (deg_v)*alpha * v.array();
-        }
-      }
-      else
-      {
-        Vector<T, 3> v(Point<T, 3>(m_controlPoints(i, 1).array() * m_weights(i, 1)),
-                       Point<T, 3>(m_controlPoints(i, 0).array() * m_weights(i, 0)));
-        double d_weight = m_weights(i, 0) - m_weights(i, 1);
-        double alpha = deg_v * expansionAmount_v / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
-
-        // New weights can't be less than min_weight
-        if(d_weight != 0 && (m_weights(i, 0) - alpha * d_weight < min_weight))
-        {
-          alpha = (m_weights(i, 0) - min_weight) / d_weight;
-        }
-
-        for(int j = 0; j < deg_v; ++j)
-        {
-          newWeights(i + deg_u, j) =
-            m_weights(i, 0) + static_cast<T>(j - deg_v) / (deg_v)*alpha * d_weight;
-
-          newControlPoints(i + deg_u, j).array() =
-            (m_controlPoints(i, 0).array() * m_weights(i, 0) +
-             static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array()) /
-            newWeights(i + deg_u, j);
-        }
-
-        v = Vector<T, 3>(Point<T, 3>(m_controlPoints(i, m - 2).array() * m_weights(i, m - 2)),
-                         Point<T, 3>(m_controlPoints(i, m - 1).array() * m_weights(i, m - 1)));
-        d_weight = m_weights(i, m - 1) - m_weights(i, m - 2);
-        alpha =
-          deg_v * expansionAmount_v / (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
-
-        // New weights can't be less than min_weight
-        if(d_weight != 0 && (m_weights(i, m - 1) + alpha * d_weight < min_weight))
-        {
-          alpha = (min_weight - m_weights(i, m - 1)) / d_weight;
-        }
-
-        for(int j = 0; j < deg_v; ++j)
-        {
-          newWeights(i + deg_u, m + deg_v + j) =
-            m_weights(i, m - 1) + static_cast<T>(j + 1) / (deg_v)*alpha * d_weight;
-
-          newControlPoints(i + deg_u, m + deg_v + j).array() =
-            (m_controlPoints(i, m - 1).array() * m_weights(i, m - 1) +
-             static_cast<T>(j + 1) / (deg_v)*alpha * v.array()) /
-            newWeights(i + deg_u, m + deg_v + j);
-        }
-      }
-    }
-
-    // Add the control points on the u direction
-    //  Note that this method uses values added in the v direction,
-    //  making it slightly anisotropic at the corners
-    for(int j = 0; j < m + 2 * deg_v; ++j)
-    {
-      if(!isRational())
-      {
-        Vector<T, 3> v(newControlPoints(deg_u + 1, j), newControlPoints(deg_u, j));
-        double alpha = deg_u * expansionAmount_v / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
-        for(int i = 0; i < deg_u; ++i)
-        {
-          newControlPoints(i, j).array() = newControlPoints(deg_u, j).array() +
-            static_cast<T>(i - deg_u) / (deg_u)*alpha * v.array();
-        }
-
-        v = Vector<T, 3>(newControlPoints(n - 2 + deg_u, j), newControlPoints(n + deg_u - 1, j));
-        alpha =
-          deg_u * expansionAmount_v / (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
-        for(int i = 0; i < deg_u; ++i)
-        {
-          newControlPoints(n + deg_u + i, j).array() = newControlPoints(n + deg_u - 1, j).array() +
-            static_cast<T>(i + 1) / (deg_u)*alpha * v.array();
-        }
-      }
-      else
-      {
-        Vector<T, 3> v(Point<T, 3>(newControlPoints(deg_u + 1, j).array() * newWeights(deg_u + 1, j)),
-                       Point<T, 3>(newControlPoints(deg_u, j).array() * newWeights(deg_u, j)));
-        double d_weight = newWeights(deg_u, j) - newWeights(deg_u + 1, j);
-        double alpha = deg_u * expansionAmount_v / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
-
-        // New weights can't be less than min_weight
-        if(d_weight != 0 && (newWeights(deg_u, j) - alpha * d_weight < min_weight))
-        {
-          alpha = (newWeights(deg_u, j) - min_weight) / d_weight;
-        }
-
-        for(int i = 0; i < deg_u; ++i)
-        {
-          newWeights(i, j) =
-            newWeights(deg_u, j) + static_cast<T>(i - deg_u) / (deg_u)*alpha * d_weight;
-
-          newControlPoints(i, j).array() =
-            (newControlPoints(deg_u, j).array() * newWeights(deg_u, j) +
-             static_cast<T>(i - deg_u) / (deg_u)*alpha * v.array()) /
-            newWeights(i, j);
-        }
-
-        v = Vector<T, 3>(
-          Point<T, 3>(newControlPoints(n - 2 + deg_u, j).array() * newWeights(n - 2 + deg_u, j)),
-          Point<T, 3>(newControlPoints(n + deg_u - 1, j).array() * newWeights(n + deg_u - 1, j)));
-        d_weight = newWeights(n + deg_u - 1, j) - newWeights(n - 2 + deg_u, j);
-        alpha =
-          deg_u * expansionAmount_v / (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
-
-        // New weights can't be less than min_weight
-        if(d_weight != 0 && (newWeights(n + deg_u - 1, j) + alpha * d_weight < min_weight))
-        {
-          alpha = (min_weight - newWeights(n + deg_u - 1, j)) / d_weight;
-        }
-
-        for(int i = 0; i < deg_u; ++i)
-        {
-          newWeights(n + deg_u + i, j) =
-            newWeights(n + deg_u - 1, j) + static_cast<T>(i + 1) / (deg_u)*d_weight * alpha;
-
-          newControlPoints(n + deg_u + i, j).array() =
-            (newControlPoints(n + deg_u - 1, j).array() * newWeights(n + deg_u - 1, j) +
-             static_cast<T>(i + 1) / (deg_u)*alpha * v.array()) /
-            newWeights(n + deg_u + i, j);
-        }
-      }
-    }
-
-    // Fix the u knot vector
-    newKnotVec_u.resize(m_knotvec_u.getNumKnots() + 2 * m_knotvec_u.getDegree());
-    for(int i = 0; i <= deg_u; ++i)
-    {
-      newKnotVec_u[i] = m_knotvec_u[0] - expansionAmount_u;
-    }
-    for(int i = 0; i < m_knotvec_u.getNumKnots() - 2; ++i)
-    {
-      newKnotVec_u[i + deg_u + 1] = m_knotvec_u[i + 1];
-    }
-    for(int i = 0; i <= deg_u; ++i)
-    {
-      newKnotVec_u[i + deg_u + m_knotvec_u.getNumKnots() - 1] =
-        m_knotvec_u[m_knotvec_u.getNumKnots() - 1] + expansionAmount_u;
-    }
-
-    // Fix the v knot vector
-    newKnotVec_v.resize(m_knotvec_v.getNumKnots() + 2 * m_knotvec_v.getDegree());
-    for(int i = 0; i <= deg_v; ++i)
-    {
-      newKnotVec_v[i] = m_knotvec_v[0] - expansionAmount_v;
-    }
-    for(int i = 0; i < m_knotvec_v.getNumKnots() - 2; ++i)
-    {
-      newKnotVec_v[i + deg_v + 1] = m_knotvec_v[i + 1];
-    }
-    for(int i = 0; i <= deg_v; ++i)
-    {
-      newKnotVec_v[i + deg_v + m_knotvec_v.getNumKnots() - 1] =
-        m_knotvec_v[m_knotvec_v.getNumKnots() - 1] + expansionAmount_v;
-    }
-
-    m_controlPoints = newControlPoints;
-    m_weights = newWeights;
-
-    m_knotvec_u = KnotVectorType(newKnotVec_u, deg_u);
-    m_knotvec_v = KnotVectorType(newKnotVec_v, deg_v);
-  }
-  //@}
+  ///@}
 
   /*!
      * \brief Simple formatted print of a NURBS Patch instance
@@ -3590,75 +3483,7 @@ public:
     return os;
   }
 
-  /// \brief Function to check if the NURBS surface is valid
-  bool isValidNURBS() const
-  {
-    // Check monotonicity, open-ness, continuity of each knot vector
-    if(!m_knotvec_u.isValid() || !m_knotvec_v.isValid())
-    {
-      return false;
-    }
-
-    // Number of knots must match the number of control points
-    int deg_u = m_knotvec_u.getDegree();
-    int deg_v = m_knotvec_v.getDegree();
-
-    // Number of knots must match the number of control points
-    auto patch_shape = m_controlPoints.shape();
-    if(m_knotvec_u.getNumKnots() != patch_shape[0] + deg_u + 1 ||
-       m_knotvec_v.getNumKnots() != patch_shape[1] + deg_v + 1)
-    {
-      return false;
-    }
-
-    if(isRational())
-    {
-      // Number of control points must match number of weights
-      auto weights_shape = m_weights.shape();
-      if(weights_shape[0] != patch_shape[0] || weights_shape[1] != patch_shape[1])
-      {
-        return false;
-      }
-
-      // Weights must be positive
-      for(int i = 0; i < weights_shape[0]; ++i)
-      {
-        for(int j = 0; j < weights_shape[1]; ++j)
-        {
-          if(m_weights(i, j) <= 0.0)
-          {
-            return false;
-          }
-        }
-      }
-    }
-
-    return true;
-  }
-
-  /// \brief Function to check if the u parameter is within the knot span
-  bool isValidParameter_u(T u, T EPS = 1e-8) const
-  {
-    return u >= m_knotvec_u[0] - EPS && u <= m_knotvec_u[m_knotvec_u.getNumKnots() - 1] + EPS;
-  }
-
-  /// \brief Function to check if the v parameter is within the knot span
-  bool isValidParameter_v(T v, T EPS = 1e-8) const
-  {
-    return v >= m_knotvec_v[0] - EPS && v <= m_knotvec_v[m_knotvec_v.getNumKnots() - 1] + EPS;
-  }
-
-  /// \brief Checks if given u parameter is *interior* to the knot span
-  bool isValidInteriorParameter(T t) const { return m_knotvec_u.isValidInteriorParameter(t); }
-
 private:
-  CoordsMat m_controlPoints;
-  WeightsMat m_weights;
-  KnotVectorType m_knotvec_u, m_knotvec_v;
-
-  bool m_isTrimmed;
-  TrimmingCurveVec m_trimmingCurves;
-
   /// \brief Private function to rescale trimming curves from (a, b) to (c, d) in x
   /// \warning Does not check that the resulting curves are valid
   void rescaleTrimmingCurves_u(T a, T b, T c, T d)
@@ -3998,6 +3823,42 @@ private:
       outCurvesSecond.push_back(line);
     }
   }
+
+  /*!
+   * \brief Equality operator for NURBS patches
+   * 
+   * \param [in] lhs The left-hand side NURBS patch
+   * \param [in] rhs The right-hand side NURBS patch
+   * 
+   * \return True if the two patches are equal, false otherwise
+   */
+  friend inline bool operator==(const NURBSPatch<T, NDIMS>& lhs, const NURBSPatch<T, NDIMS>& rhs)
+  {
+    return (lhs.m_controlPoints == rhs.m_controlPoints) && (lhs.m_weights == rhs.m_weights) &&
+      (lhs.m_knotvec_u == rhs.m_knotvec_u) && (lhs.m_knotvec_v == rhs.m_knotvec_v) &&
+      (lhs.m_isTrimmed == rhs.m_isTrimmed) && (lhs.m_trimmingCurves == rhs.m_trimmingCurves);
+  }
+
+  /*!
+   * \brief Inequality operator for NURBS patches
+   * 
+   * \param [in] lhs The left-hand side NURBS patch
+   * \param [in] rhs The right-hand side NURBS patch
+   * 
+   * \return True if the two patches are not equal, false otherwise
+   */
+  friend inline bool operator!=(const NURBSPatch<T, NDIMS>& lhs, const NURBSPatch<T, NDIMS>& rhs)
+  {
+    return !(lhs == rhs);
+  }
+
+private:
+  CoordsMat m_controlPoints;
+  WeightsMat m_weights;
+  KnotVectorType m_knotvec_u, m_knotvec_v;
+
+  bool m_isTrimmed {false};
+  TrimmingCurveVec m_trimmingCurves;
 };
 
 //------------------------------------------------------------------------------

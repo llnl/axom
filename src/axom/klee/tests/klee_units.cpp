@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/klee/Units.hpp"
-
 #include "axom/klee/KleeError.hpp"
 
 #include "gtest/gtest.h"

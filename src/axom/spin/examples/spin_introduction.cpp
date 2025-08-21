@@ -159,8 +159,7 @@ void demoMorton()
   // Make the map from grid point to DataContainer
   MapType map;
 
-  // For several query points, create a DataContainer if necessary and register
-  // the point.
+  // For several query points, create a DataContainer if necessary and register the point.
   std::vector<RLSpacePt> pts = generatePoints();
   for(RLSpacePt p : pts)
   {
@@ -317,8 +316,7 @@ void findNeighborCandidates(TriangleType& t1, int i, UniformGridType* ugrid, std
   const std::vector<int> bToCheck = ugrid->getBinsForBbox(bbox);
   size_t checkcount = bToCheck.size();
 
-  // Load all the triangles in these bins whose indices are
-  // greater than i into a vector.
+  // Load all the triangles in these bins whose indices are greater than i into a vector.
   for(size_t curb = 0; curb < checkcount; ++curb)
   {
     axom::ArrayView<int> ntlist = ugrid->getBinContents(bToCheck[curb]);
@@ -389,8 +387,7 @@ void showImplicitGrid()
   const int numElts = static_cast<int>(tris.size());
   IGridT grid(bbox, &res, numElts);
 
-  // load the bounding box of each triangle, along with its index,
-  // into the ImplicitGrid.
+  // load the bounding box of each triangle, along with its index, into the ImplicitGrid.
   for(int i = 0; i < numElts; ++i)
   {
     grid.insert(findBbox(tris[i]), i);
@@ -599,7 +596,7 @@ void driveBVHTree()
 {
   std::vector<Triangle2DType> tris;
   makeTreeTriangles(tris);
-  Point2DType ppoint = Point2DType::make_point(0.45, 0.25);
+  Point2DType ppoint {0.45, 0.25};
   std::vector<int> intersections, candidates;
 
   BVH2DType* tree = buildBVHTree(tris);

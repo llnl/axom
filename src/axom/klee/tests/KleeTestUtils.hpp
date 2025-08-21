@@ -3,17 +3,18 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEETESTUTILS_HPP
-#define AXOM_KLEETESTUTILS_HPP
+#ifndef AXOM_KLEE_TESTUTILS_HPP_
+#define AXOM_KLEE_TESTUTILS_HPP_
 
-#include <array>
+#include "axom/klee/GeometryOperators.hpp"
 
 #include "axom/core/numerics/Matrix.hpp"
-#include "axom/klee/GeometryOperators.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 
 #include "gmock/gmock.h"
+
+#include <array>
 
 namespace axom
 {
@@ -45,4 +46,4 @@ public:
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_KLEETESTUTILS_HPP
+#endif  // AXOM_KLEE_TESTUTILS_HPP_

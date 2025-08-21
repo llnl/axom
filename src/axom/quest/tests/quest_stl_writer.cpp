@@ -9,6 +9,8 @@
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/mint/mesh/RectilinearMesh.hpp"
 #include "axom/mint/mesh/CurvilinearMesh.hpp"
+
+#include "axom/core/utilities/FileUtilities.hpp"
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
 

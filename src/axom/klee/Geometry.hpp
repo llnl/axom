@@ -3,16 +3,17 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_KLEE_GEOMETRY_HPP
-#define AXOM_KLEE_GEOMETRY_HPP
-
-#include <memory>
-#include <string>
+#ifndef AXOM_KLEE_GEOMETRY_HPP_
+#define AXOM_KLEE_GEOMETRY_HPP_
 
 #include "axom/klee/Dimensions.hpp"
 #include "axom/klee/Units.hpp"
+
 #include "axom/primal.hpp"
 #include "axom/sidre.hpp"
+
+#include <memory>
+#include <string>
 
 namespace axom
 {
@@ -20,9 +21,7 @@ namespace klee
 {
 class GeometryOperator;
 
-/**
- * Properties of a geometric object which can be transformed by operators
- */
+/// Properties of a geometric object which can be transformed by operators
 struct TransformableGeometryProperties
 {
   Dimensions dimensions;
@@ -50,9 +49,7 @@ inline bool operator!=(const TransformableGeometryProperties &lhs,
   return !(lhs == rhs);
 }
 
-/**
- * Represents the geometry specified in a Shape.
- */
+/// Represents the geometry specified in a Shape.
 class Geometry
 {
 public:
@@ -66,8 +63,7 @@ public:
   /**
    * Create a Geometry object based on a file representation.
    *
-   * \param startProperties the transformable properties before any
-   * operators are applied
+   * \param startProperties the transformable properties before any operators are applied
    * \param format the format of the file
    * \param path the path of the file
    * \param operator_ a possibly null operator to apply to the geometry.
@@ -80,8 +76,7 @@ public:
   /**
    * Create a Geometry object based on a blueprint tetrahedral mesh.
    *
-   * \param startProperties the transformable properties before any
-   * operators are applied
+   * \param startProperties the transformable properties before any operators are applied
    * \param simplexMeshGroup the geometry in blueprint format.
    *   The elements should be segments, triangles or tetrahedra.
    * \param topology The blueprint topology to use.
@@ -95,8 +90,7 @@ public:
   /**
    * Create a tetrahedron Geometry object.
    *
-   * \param startProperties the transformable properties before any
-   * operators are applied
+   * \param startProperties the transformable properties before any operators are applied
    * \param tet Tetrahedron
    * \param operator_ a possibly null operator to apply to the geometry.
    */
@@ -107,8 +101,7 @@ public:
   /**
    * Create a hexahedron Geometry object.
    *
-   * \param startProperties the transformable properties before any
-   * operators are applied
+   * \param startProperties the transformable properties before any operators are applied
    * \param hex Hexahedron
    * \param operator_ a possibly null operator to apply to the geometry.
    */
@@ -119,11 +112,9 @@ public:
   /**
    * Create a sphere Geometry object.
    *
-   * \param startProperties the transformable properties before any
-   * operators are applied
+   * \param startProperties the transformable properties before any operators are applied
    * \param sphere Analytical sphere specifications
-   * \param levelOfRefinement Number of refinement levels to use for
-   *        discretizing the sphere.
+   * \param levelOfRefinement Number of refinement levels to use for discretizing the sphere.
    * \param operator_ a possibly null operator to apply to the geometry.
    */
   Geometry(const TransformableGeometryProperties &startProperties,
@@ -134,14 +125,11 @@ public:
   /**
    * Create a surface-of-revolution (SOR) Geometry object.
    *
-   * \param startProperties the transformable properties before any
-   * operators are applied
-   * \param discreteFunction Discrete function describing the surface
-   *        of revolution.
+   * \param startProperties the transformable properties before any operators are applied
+   * \param discreteFunction Discrete function describing the surface of revolution.
    * \param sorBase Coordinates of the base of the SOR.
    * \param sorDirection SOR axis, in the direction of increasing z.
-   * \param levelOfRefinement Number of refinement levels to use for
-   *        discretizing the SOR.
+   * \param levelOfRefinement Number of refinement levels to use for discretizing the SOR.
    * \param operator_ a possibly null operator to apply to the geometry.
    *
    * The \c discreteFunction should be an Nx2 array, interpreted as
@@ -159,20 +147,18 @@ public:
   /**
    * Create a planar Geometry object.
    *
-   * \param startProperties the transformable properties before any
-   * operators are applied
+   * \param startProperties the transformable properties before any operators are applied
    * \param tet Tetrahedron
    * \param operator_ a possibly null operator to apply to the geometry.
    *
-   * The space on the positive normal side of the plane is considered
-   * "inside the shape".
+   * The space on the positive normal side of the plane is considered "inside the shape".
    */
   Geometry(const TransformableGeometryProperties &startProperties,
            const axom::primal::Plane<double, 3> &plane,
            std::shared_ptr<GeometryOperator const> operator_);
 
   /**
-   * @brief Get the format in which the geometry was specified.
+   * \brief Get the format in which the geometry was specified.
    *
    * The format is determined by the constructor used.
    * Values are:
@@ -190,8 +176,7 @@ public:
    * \return the format of the shape
    *
    * TODO: Depending on the specified geometry, some members are not
-   * used.  It may clarify if we make each supported geometry a
-   * subclass.
+   * used.  It may clarify if we make each supported geometry a subclass.
    */
   const std::string &getFormat() const { return m_format; }
 
@@ -204,36 +189,42 @@ public:
   const std::string &getPath() const { return m_path; }
 
   /**
-   * @brief Return the blueprint mesh, for formats that are specified
+   * Returns the dimensions of the geometry before applying operators
+   * 
+   * For file-based inputs, this is the dimension of the input mesh
+   */
+  Dimensions getInputDimensions() const { return getStartProperties().dimensions; }
+
+  /// Returns the dimensions of the geometry after applying operators
+  Dimensions getOutputDimensions() const { return getEndProperties().dimensions; }
+
+  /**
+   * \brief Return the blueprint mesh, for formats that are specified
    * by a blueprint mesh or have been converted to a blueprint mesh.
    */
   const axom::sidre::Group *getBlueprintMesh() const;
 
   /**
-   * @brief Return the blueprint mesh topology, for formats that are specified
+   * \brief Return the blueprint mesh topology, for formats that are specified
    * by a blueprint mesh or have been converted to a blueprint mesh.
    */
   const std::string &getBlueprintTopology() const;
 
-  /**
-     @brief Return the SOR axis direction.
-  */
+  /// \brief Return the SOR axis direction.
   const Vector3D getSorDirection() const { return m_sorDirection; }
 
-  /**
-     @brief Return the 3D coordinates of the SOR base.
-  */
+  /// \brief Return the 3D coordinates of the SOR base.
   const Point3D getSorBaseCoords() const { return m_sorBase; }
 
-  /*! @brief Predicate that returns true when the shape has an associated geometry
-
-    A false means that this is set up to determine volume fractions without
-    computing on the geometry.
-
-    TODO: We should just create a new format to represent getting
-    volume fractions without geometries.  Or move this logic into
-    Shape, because it's confusing to have a Geometry that has no
-    geometry.
+  /**
+   *  \brief Predicate that returns true when the shape has an associated geometry
+   *
+   *  A false means that this is set up to determine volume fractions without
+   *  computing on the geometry.
+   *
+   *  TODO: We should just create a new format to represent getting
+   *  volume fractions without geometries.  Or move this logic into
+   *  Shape, because it's confusing to have a Geometry that has no geometry.
   */
   bool hasGeometry() const;
 
@@ -252,90 +243,72 @@ public:
   const TransformableGeometryProperties &getStartProperties() const { return m_startProperties; }
 
   /**
-   * Get the final transformable properties of this geometry after
-   * operators are applied
+   * Get the final transformable properties of this geometry after operators are applied
    *
    * \return the initial transformable properties of this geometry
    */
   TransformableGeometryProperties getEndProperties() const;
 
   /**
-   @brief Return the number of levels of refinement for discretization
-   of analytical curves.
-
-   This number is unused for geometries that are specified in discrete
-   form.
-  */
+   * \brief Return the number of levels of refinement for discretization of analytical curves.
+   * 
+   * This number is unused for geometries that are specified in discrete form.
+   */
   axom::IndexType getLevelOfRefinement() const { return m_levelOfRefinement; }
 
-  /**
-   @brief Return the tet geometry, when the Geometry
-   represents a tetrahedron.
-  */
+  /// \brief Return the tet geometry, when the Geometry represents a tetrahedron.
   const axom::primal::Tetrahedron<double, 3> &getTet() const { return m_tet; }
 
-  /**
-   @brief Return the hex geometry, when the Geometry
-   represents a hexahedron.
-  */
+  /// \brief Return the hex geometry, when the Geometry represents a hexahedron
   const axom::primal::Hexahedron<double, 3> &getHex() const { return m_hex; }
 
-  /**
-   @brief Return the sphere geometry, when the Geometry
-   represents an alalytical sphere.
-  */
+  /// \brief Return the sphere geometry, when the Geometry represents an analytical sphere.
   const axom::primal::Sphere<double, 3> &getSphere() const { return m_sphere; }
 
-  /**
-   @brief Return the plane geometry, when the Geometry
-   represents a plane.
-  */
+  /// \brief Return the plane geometry, when the Geometry represents a plane.
   const axom::primal::Plane<double, 3> &getPlane() const { return m_plane; }
 
-  /**
-   @brief Get the discrete function used in surfaces of revolution.
-  */
+  /// \brief Get the discrete function used in surfaces of revolution.
   axom::ArrayView<const double, 2> getDiscreteFunction() const { return m_discreteFunction.view(); }
 
 private:
   TransformableGeometryProperties m_startProperties;
 
-  //!@brief Geometry format.
+  /// \brief Geometry format.
   std::string m_format;
 
-  //!@brief Geometry file path, if it's file-based.
+  /// \brief Geometry file path, if it's file-based.
   std::string m_path;
 
-  //!@brief Geometry blueprint simplex mesh, when/if it's in memory.
-  const axom::sidre::Group *m_meshGroup;
+  /// \brief Geometry blueprint simplex mesh, when/if it's in memory.
+  const axom::sidre::Group *m_meshGroup {nullptr};
 
-  //!@brief Topology of the blueprint simplex mesh, if it's in memory.
+  /// \brief Topology of the blueprint simplex mesh, if it's in memory.
   std::string m_topology;
 
-  //!@brief The tetrahedron, if used.
+  /// \brief The tetrahedron, if used.
   Tet3D m_tet;
 
-  //!@brief The hexahedron, if used.
+  /// \brief The hexahedron, if used.
   Hex3D m_hex;
 
-  //!@brief The plane, if used.
+  /// \brief The plane, if used.
   Plane3D m_plane;
 
-  //!@brief The analytical sphere, if used.
+  /// \brief The analytical sphere, if used.
   Sphere3D m_sphere;
 
-  //! @brief The discrete 2D function, as an Nx2 array, if used.
+  /// \brief The discrete 2D function, as an Nx2 array, if used.
   axom::Array<double, 2> m_discreteFunction;
 
-  //!@brief The point corresponding to z=0 on the SOR axis.
+  /// \brief The point corresponding to z=0 on the SOR axis.
   Point3D m_sorBase;
 
-  //!@brief SOR axis in the direction of increasing z.
+  /// \brief SOR axis in the direction of increasing z.
   Vector3D m_sorDirection;
 
-  //!@brief Level of refinement for discretizing curved
-  // analytical shapes and surfaces of revolutions.
-  axom::IndexType m_levelOfRefinement = 0;
+  /// \brief Level of refinement for discretizing curved analytical shapes and surfaces of revolutions.
+  axom::IndexType m_levelOfRefinement {0};
 
   std::shared_ptr<const GeometryOperator> m_operator;
 };
@@ -343,4 +316,4 @@ private:
 }  // namespace klee
 }  // namespace axom
 
-#endif  //AXOM_KLEE_GEOMETRY_HPP
+#endif  // AXOM_KLEE_GEOMETRY_HPP_

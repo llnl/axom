@@ -92,7 +92,7 @@ void findTriMeshIntersections(detail::UMesh* surface_mesh,
       triBboxes[i] = compute_bounding_box(t1);
     }
   }
-  detail::UniformGrid3 ugrid(resolutions, triBboxes, triIdxs);
+  detail::UniformGrid3 ugrid(resolutions, triBboxes.view(), triIdxs.view());
 
   // Iterate through triangle indices *idx.
   // Check against each other triangle with index greater than the index *idx that also shares a UniformGrid bin.

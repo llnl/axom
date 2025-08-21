@@ -42,43 +42,42 @@ namespace internal
 namespace linear_bvh
 {
 //------------------------------------------------------------------------------
-//Returns 30 bit morton code for coordinates for
-// x, y, and z are expecting to be between [0,1]
+//Returns 30 bit morton code for coordinates point is expected to be between [0,1]
 template <typename FloatType, int Dims>
-static inline AXOM_HOST_DEVICE std::int32_t morton32_encode(const primal::Vector<FloatType, Dims>& point)
+static inline AXOM_HOST_DEVICE std::uint32_t morton32_encode(const primal::Vector<FloatType, Dims>& point)
 {
+  using PointType = primal::Point<std::int32_t, Dims>;
+  using axom::utilities::clampVal;
+
   //for a float, take the first 10 bits. Note, 2^10 = 1024
   constexpr int NUM_BITS_PER_DIM = 32 / Dims;
   constexpr FloatType FLOAT_TO_INT = 1 << NUM_BITS_PER_DIM;
   constexpr FloatType FLOAT_CEILING = FLOAT_TO_INT - 1;
+  constexpr FloatType FLOAT_ZERO {0.};
 
   std::int32_t int_coords[Dims];
   for(int i = 0; i < Dims; i++)
   {
-    int_coords[i] = fmin(fmax(point[i] * FLOAT_TO_INT, (FloatType)0), FLOAT_CEILING);
+    int_coords[i] =
+      static_cast<std::int32_t>(clampVal(point[i] * FLOAT_TO_INT, FLOAT_ZERO, FLOAT_CEILING));
   }
 
-  primal::Point<std::int32_t, Dims> integer_pt(int_coords);
-
-  return convertPointToMorton<std::int32_t>(integer_pt);
+  return convertPointToMorton<std::uint32_t>(PointType(int_coords));
 }
 
 //------------------------------------------------------------------------------
-//Returns 30 bit morton code for coordinates for
-//coordinates in the unit cude
-static inline AXOM_HOST_DEVICE std::int64_t morton64_encode(axom::float32 x,
-                                                            axom::float32 y,
-                                                            axom::float32 z = 0.0)
+//Returns 63 bit morton code for a 3D point with coordinates in the unit cube
+static inline AXOM_HOST_DEVICE std::uint64_t morton64_encode(float x, float y, float z = 0.0)
 {
+  using PointType = primal::Point<std::int64_t, 3>;
+  using axom::utilities::clampVal;
+
   //take the first 21 bits. Note, 2^21= 2097152.0f
-  x = fmin(fmax(x * 2097152.0f, 0.0f), 2097151.0f);
-  y = fmin(fmax(y * 2097152.0f, 0.0f), 2097151.0f);
-  z = fmin(fmax(z * 2097152.0f, 0.0f), 2097151.0f);
-
-  primal::Point<std::int64_t, 3> integer_pt =
-    primal::Point<std::int64_t, 3>::make_point((std::int64_t)x, (std::int64_t)y, (std::int64_t)z);
-
-  return convertPointToMorton<std::int64_t>(integer_pt);
+  constexpr float F_21 = 2097152.0f;
+  return convertPointToMorton<std::uint64_t>(
+    PointType {static_cast<std::int64_t>(clampVal(x * F_21, 0.f, F_21)),
+               static_cast<std::int64_t>(clampVal(y * F_21, 0.f, F_21)),
+               static_cast<std::int64_t>(clampVal(z * F_21, 0.f, F_21))});
 }
 
 template <typename ExecSpace, typename BoxIndexable, typename FloatType, int NDIMS>
@@ -292,7 +291,7 @@ void build_tree(RadixTree<FloatType, NDIMS>& data)
   // http://research.nvidia.com/sites/default/files/publications/karras2012hpg_paper.pdf
 
   // Pointers and vars are redeclared because I have a faint memory
-  // of a huge amount of pain and suffering due so cuda
+  // of a huge amount of pain and suffering due to cuda
   // lambda captures of pointers inside a struct. Bad memories
   // of random segfaults ........ be warned
   const std::int32_t inner_size = data.m_inner_size;
