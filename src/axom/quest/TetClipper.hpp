@@ -51,21 +51,16 @@ private:
 
   axom::primal::BoundingBox<double, 3> m_bb;
 
-  //!@brief 4 planes per Tet, each oriented to the interior of the tet.
+  //!@brief 4 planes of the Tet, oriented to the interior of the tet.
   axom::StackArray<Plane3DType, 4> m_planes;
 
-  //!@brief 4 triangular facets of Tet, each oriented to the interior of the tet.
-  axom::StackArray<Triangle3DType, 4> m_facets;
+  //!@brief Height of the tet when resting on each facet.
+  axom::StackArray<double, 4> m_heights;
 
   axom::primal::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
-
-  template <typename ExecSpace>
-  void vertexSignedDistToLabel(quest::ShapeeMesh& shapeeMesh,
-                               axom::ArrayView<const double> vertexSignedDists,
-                               axom::Array<LabelType>& labels);
 
   // Extract clipper info from GeometryClipperStrategy::m_info.
   void extractClipperInfo();
