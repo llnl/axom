@@ -252,6 +252,70 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched)
   }
 }
 
+AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_existing)
+{
+  using MapType = typename TestFixture::MapType;
+  using ExecSpace = typename TestFixture::ExecSpace;
+
+  const int NUM_ELEMS_INIT = 100;
+  const int NUM_ELEMS_INSERT = 100;
+  const int NUM_ELEMS = NUM_ELEMS_INIT + NUM_ELEMS_INSERT;
+
+  axom::Array<int> keys_vec(NUM_ELEMS_INIT);
+  axom::Array<double> values_vec(NUM_ELEMS_INIT);
+  // Create batch of array elements
+  for(int i = 0; i < NUM_ELEMS_INIT; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    keys_vec[i] = key;
+    values_vec[i] = value;
+  }
+
+  // Copy keys and values to GPU space.
+  axom::Array<int> keys_gpu(keys_vec, this->getKernelAllocatorID());
+  axom::Array<double> values_gpu(values_vec, this->getKernelAllocatorID());
+
+  // Construct a flat map with the key-value pairs.
+  MapType test_map_gpu =
+    MapType::template create<ExecSpace>(keys_gpu,
+                                        values_gpu,
+                                        axom::Allocator {this->getKernelAllocatorID()});
+
+  // Create batch of pairs.
+  axom::Array<std::pair<int, double>> kv_insert_vec(NUM_ELEMS_INSERT);
+  for(int i = 0; i < NUM_ELEMS_INSERT; i++)
+  {
+    int offset_i = i + NUM_ELEMS_INIT;
+    auto key = this->getKey(offset_i);
+    auto value = this->getValue(offset_i * 10.0 + 5.0);
+
+    kv_insert_vec[i] = {key, value};
+  }
+
+  // Copy pairs to GPU space.
+  axom::Array<std::pair<int, double>> kv_insert_gpu(kv_insert_vec, this->getKernelAllocatorID());
+
+  // Insert pairs into existing flatmap.
+  test_map_gpu.insert(kv_insert_vec.begin(), kv_insert_vec.end());
+
+  // Copy back flat map to host for testing.
+  MapType test_map(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
+
+  // Check contents on the host
+  EXPECT_EQ(NUM_ELEMS, test_map.size());
+
+  // Check that every element we inserted is in the map
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto expected_key = this->getKey(i);
+    auto expected_val = this->getValue(i * 10.0 + 5.0);
+    EXPECT_EQ(1, test_map.count(expected_key));
+    EXPECT_EQ(expected_val, test_map.at(expected_key));
+  }
+}
+
 AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_dups)
 {
   using MapType = typename TestFixture::MapType;
