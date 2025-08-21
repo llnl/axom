@@ -24,14 +24,7 @@ void MIRAlgorithm::execute(const conduit::Node &n_input,
   const auto domains = conduit::blueprint::mesh::domains(n_input);
   if(domains.size() > 1)
   {
-    // Handle multiple domains
-    for(const auto &dom_ptr : domains)
-    {
-      const conduit::Node &n_domain = *dom_ptr;
-      conduit::Node &n_newDomain = n_output.append();
-
-      executeSetup(n_domain, n_options, n_newDomain);
-    }
+    SLIC_ERROR("The input node contains multiple domains. Pass a single domain at a time instead.");
   }
   else if(domains.size() > 0)
   {
@@ -73,6 +66,7 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   newTopo["coordset"] = newCoordsetName;
   conduit::Node &newMatset = n_newDomain["matsets/" + newMatsetName];
   newMatset["topology"] = newTopoName;
+  conduit::Node &newFields = n_newDomain["fields"];
 
   // Execute the algorithm on the domain.
   if(n_domain.has_path("state"))
@@ -81,7 +75,6 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   }
   if(n_domain.has_path("fields"))
   {
-    conduit::Node &newFields = n_newDomain["fields"];
     executeDomain(*n_topo,
                   *n_coordset,
                   n_domain["fields"],
@@ -97,8 +90,6 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
     // There are no input fields, but make sure n_fields has a name.
     conduit::Node tmp;
     conduit::Node &n_fields = tmp["fields"];
-    // MIR is likely to output some created fields.
-    conduit::Node &newFields = n_newDomain["fields"];
     executeDomain(*n_topo,
                   *n_coordset,
                   n_fields,

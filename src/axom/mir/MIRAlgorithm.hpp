@@ -29,12 +29,10 @@ public:
   virtual ~MIRAlgorithm() = default;
 
   /*!
-    \brief Perform material interface reconstruction on the meshes supplied in the
-           root node. Root can either be a mesh domain or a node that contains multiple
-           domains.
+    \brief Perform material interface reconstruction on the mesh supplied by \a n_input.
 
-    \param[in] n_input The root node that contains either a mesh or list of mesh
-                       domains that contain a topology and matset to be used for MIR.
+    \param[in] n_input The node that contains a mesh domain with the topology and matset
+                       to be used for MIR.
     \param[in] n_options A node that contains options that help govern MIR execution.
 
 \code{.yaml}
