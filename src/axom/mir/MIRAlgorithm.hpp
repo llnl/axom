@@ -123,6 +123,15 @@ protected:
    * \param filebase The base filename to use when writing files. Extensions may be added.
    */
   void saveMesh(const conduit::Node &n_mesh, const std::string &filebase) const;
+
+  /*!
+   * \brief Return the local path name, stripping off a domain path prefix.
+   *
+   * \param[in] obj The object whose local path we want.
+   *
+   * \return The path without the domain prefix.
+   */
+  std::string localPath(const conduit::Node &obj) const;
 };
 
 }  // end namespace mir

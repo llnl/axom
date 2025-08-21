@@ -50,53 +50,67 @@ TEST(mir_equiz, materialinformation)
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
-void braid2d_mat_test(const std::string &type, const std::string &mattype, const std::string &name)
+void braid2d_mat_test(const std::string &type, const std::string &mattype, const std::string &name, int nDomains = 1)
 {
   axom::StackArray<axom::IndexType, 2> dims {10, 10};
   axom::StackArray<axom::IndexType, 2> zoneDims {dims[0] - 1, dims[1] - 1};
 
-  // Create the data
+  // Create the data (make 1+ domains of the same thing)
   conduit::Node hostMesh, deviceMesh;
-  axom::blueprint::testing::data::braid(type, dims, hostMesh);
-  axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, hostMesh);
-  utils::copy<ExecSpace>(deviceMesh, hostMesh);
-  TestApp.saveVisualization(name + "_orig", hostMesh);
-
-  // Make views.
-  auto coordsetView = views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);
-  auto topologyView = views::make_uniform_topology<2>::view(deviceMesh["topologies/mesh"]);
-  using CoordsetView = decltype(coordsetView);
-  using TopologyView = decltype(topologyView);
-
-  conduit::Node deviceMIRMesh;
-  if(mattype == "unibuffer")
+  for(int dom = 0; dom < nDomains; dom++)
   {
-    // clang-format off
-    using MatsetView = views::UnibufferMaterialView<int, float, 3>;
-    MatsetView matsetView;
-    matsetView.set(utils::make_array_view<int>(deviceMesh["matsets/mat/material_ids"]),
-                   utils::make_array_view<float>(deviceMesh["matsets/mat/volume_fractions"]),
-                   utils::make_array_view<int>(deviceMesh["matsets/mat/sizes"]),
-                   utils::make_array_view<int>(deviceMesh["matsets/mat/offsets"]),
-                   utils::make_array_view<int>(deviceMesh["matsets/mat/indices"]));
-    // clang-format on
+    const std::string domainName = axom::fmt::format("domain_{:07}", dom);
+    conduit::Node &hostDomain = (nDomains > 1) ? hostMesh[domainName] : hostMesh;
 
-    using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
-    MIR m(topologyView, coordsetView, matsetView);
-    conduit::Node options;
-    options["matset"] = "mat";
-    m.execute(deviceMesh, options, deviceMIRMesh);
+    axom::blueprint::testing::data::braid(type, dims, hostDomain);
+    axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, hostDomain);
+    TestApp.saveVisualization(name + "_orig", hostDomain);
   }
 
-  // device->host
-  conduit::Node hostMIRMesh;
-  utils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
+  // host->device
+  utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
-  TestApp.saveVisualization(name, hostMIRMesh);
+  for(int dom = 0; dom < nDomains; dom++)
+  {
+    const std::string domainName = axom::fmt::format("domain_{:07}", dom);
+    conduit::Node &deviceDomain = (nDomains > 1) ? deviceMesh[domainName] : deviceMesh;
 
-  // Handle baseline comparison.
-  constexpr double tolerance = 2.6e-06;
-  EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostMIRMesh, tolerance));
+    // Make views.
+    auto coordsetView = views::make_uniform_coordset<2>::view(deviceDomain["coordsets/coords"]);
+    auto topologyView = views::make_uniform_topology<2>::view(deviceDomain["topologies/mesh"]);
+    using CoordsetView = decltype(coordsetView);
+    using TopologyView = decltype(topologyView);
+
+    conduit::Node deviceMIRDomain;
+    if(mattype == "unibuffer")
+    {
+      // clang-format off
+      using MatsetView = views::UnibufferMaterialView<int, float, 3>;
+      MatsetView matsetView;
+      matsetView.set(utils::make_array_view<int>(deviceDomain["matsets/mat/material_ids"]),
+                     utils::make_array_view<float>(deviceDomain["matsets/mat/volume_fractions"]),
+                     utils::make_array_view<int>(deviceDomain["matsets/mat/sizes"]),
+                     utils::make_array_view<int>(deviceDomain["matsets/mat/offsets"]),
+                     utils::make_array_view<int>(deviceDomain["matsets/mat/indices"]));
+      // clang-format on
+
+      using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
+      MIR m(topologyView, coordsetView, matsetView);
+      conduit::Node options;
+      options["matset"] = "mat";
+      m.execute(deviceDomain, options, deviceMIRDomain);
+    }
+
+    // device->host for the current domain
+    conduit::Node hostMIRDomain;
+    utils::copy<seq_exec>(hostMIRDomain, deviceMIRDomain);
+
+    TestApp.saveVisualization(name, hostMIRDomain);
+
+    // Handle baseline comparison.
+    constexpr double tolerance = 2.6e-06;
+    EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostMIRDomain, tolerance));
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -104,6 +118,7 @@ TEST(mir_equiz, equiz_uniform_unibuffer_seq)
 {
   AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_seq");
   braid2d_mat_test<seq_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer");
+  braid2d_mat_test<seq_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer", 2);
 }
 
 #if defined(AXOM_USE_OPENMP)
@@ -111,6 +126,7 @@ TEST(mir_equiz, equiz_uniform_unibuffer_omp)
 {
   AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_omp");
   braid2d_mat_test<omp_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer");
+  braid2d_mat_test<omp_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer", 2);
 }
 #endif
 
@@ -119,6 +135,7 @@ TEST(mir_equiz, equiz_uniform_unibuffer_cuda)
 {
   AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_cuda");
   braid2d_mat_test<cuda_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer");
+  braid2d_mat_test<cuda_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer", 2);
 }
 #endif
 
@@ -127,6 +144,7 @@ TEST(mir_equiz, equiz_uniform_unibuffer_hip)
 {
   AXOM_ANNOTATE_SCOPE("equiz_uniform_unibuffer_hip");
   braid2d_mat_test<hip_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer");
+  braid2d_mat_test<hip_exec>("uniform", "unibuffer", "equiz_uniform_unibuffer", 2);
 }
 #endif
 

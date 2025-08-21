@@ -132,5 +132,17 @@ void MIRAlgorithm::saveMesh(const conduit::Node &n_mesh, const std::string &file
 #endif
 }
 
+std::string MIRAlgorithm::localPath(const conduit::Node &obj) const
+{
+  std::string path(obj.path());
+  const auto dpos = path.find("dom");
+  const auto spos = path.find("/");
+  if(dpos == 0 && spos > dpos && obj.parent() != nullptr)
+  {
+    path = path.substr(spos + 1, path.size() - spos - 1);
+  }
+  return path;
+}
+
 }  // namespace mir
 }  // namespace axom
