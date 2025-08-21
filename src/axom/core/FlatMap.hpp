@@ -620,7 +620,13 @@ public:
    *
    * \param count the number of elements to fit without a rehash
    */
-  void reserve(IndexType count) { rehash(count); }
+  void reserve(IndexType count)
+  {
+    if(count >= max_load_factor() * bucket_count())
+    {
+      rehash(count);
+    }
+  }
 
   /*!
    * \brief Returns a read-only view of the FlatMap.
