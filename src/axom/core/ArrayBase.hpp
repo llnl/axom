@@ -853,41 +853,22 @@ struct ArrayOpsBase;
 template <typename T>
 struct ArrayOpsBase<T, OperationSpace::Host>
 {
-  using DefaultCtorTag = std::is_default_constructible<T>;
-
-  /*!
-   * \brief Helper for default-initializing the "new" segment of an array
-   *
-   * \param [inout] data The data to initialize
-   * \param [in] begin The beginning of the subset of \a data that should be initialized
-   * \param [in] nelems the number of elements to initialize
-   * \note Specialization for when T is default-constructible.
-   */
-  static void init_impl(T* data, IndexType begin, IndexType nelems, std::true_type)
-  {
-    for(IndexType i = 0; i < nelems; ++i)
-    {
-      new(data + i + begin) T();
-    }
-  }
-
-  /*!
-   * \overload
-   * \note Specialization for when T is not default-constructible.
-   */
-  static void init_impl(T*, IndexType, IndexType, std::false_type) { }
-
   /*!
    * \brief Default-initializes the "new" segment of an array
    *
    * \param [inout] data The data to initialize
    * \param [in] begin The beginning of the subset of \a data that should be initialized
    * \param [in] nelems the number of elements to initialize
-   * \note Specialization for when T is default-constructible.
    */
   static void init(T* data, IndexType begin, IndexType nelems)
   {
-    init_impl(data, begin, nelems, DefaultCtorTag {});
+    if constexpr(std::is_default_constructible_v<T>)
+    {
+      for(IndexType i = 0; i < nelems; ++i)
+      {
+        new(data + i + begin) T();
+      }
+    }
   }
 
   /*!
@@ -1021,59 +1002,6 @@ struct ArrayOpsBase<T, OperationSpace::Host>
 };
 
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_UMPIRE)
-/*!
- * \name Tag types for device initialization
- */
-/// @{
-
-/*!
- * \brief Tag type representing that a type can be initialized on the device.
- *
- *  This only applies to types which are trivially device-constructible.
- */
-struct InitTypeOnDevice
-{ };
-/*!
- * \brief Tag type representing that a type can be initialized on the device.
- *
- *  This applies to types which are not trivially default-constructible, but are
- *  trivially-copyable; we can construct a default value on the host and copy-
- *  construct values with it on the device.
- */
-struct InitTypeOnDeviceWithCopy
-{ };
-/*!
- * \brief Tag type representing that a type cannot be initialized on the device.
- */
-struct InitTypeOnHost
-{ };
-
-/*!
- * \brief Selector type which matches a type to its corresponding initialization
- *  tag type.
- */
-template <typename T, typename Enable = void>
-struct DeviceInitTag
-{
-  using Type = InitTypeOnHost;
-};
-
-template <typename T>
-struct DeviceInitTag<T, std::enable_if_t<std::is_trivially_default_constructible<T>::value>>
-{
-  using Type = InitTypeOnDevice;
-};
-
-template <typename T>
-struct DeviceInitTag<
-  T,
-  std::enable_if_t<!std::is_trivially_default_constructible<T>::value &&
-                   std::is_default_constructible<T>::value && std::is_trivially_copyable<T>::value>>
-{
-  using Type = InitTypeOnDeviceWithCopy;
-};
-/// @}
-
 template <typename T, OperationSpace SPACE>
 struct DeviceStagingBuffer;
 
@@ -1170,51 +1098,6 @@ struct ArrayOpsBase
   using StagingBuffer = DeviceStagingBuffer<T, SPACE>;
 
   /*!
-   * \brief Helper for default-initialization of a range of elements.
-   *
-   * \param [inout] data The data to initialize
-   * \param [in] begin The beginning of the subset of \a data that should be initialized
-   * \param [in] nelems the number of elements to initialize
-   * \note Specialization for when T is only initializable on the host.
-   */
-  static void init_impl(T* data, IndexType begin, IndexType nelems, InitTypeOnHost)
-  {
-    if(std::is_default_constructible<T>::value)
-    {
-      // If we instantiated a fill kernel here it would require
-      // that T's default ctor is device-annotated which is too
-      // strict of a requirement, so we copy a buffer instead.
-      StagingBuffer tmp_buf(data, begin, nelems);
-      HostOp::init(tmp_buf.getStagingBuffer(), 0, nelems);
-    }
-  }
-
-  /*!
-   * \overload
-   * \note Specialization for when T is trivially default-constructible.
-   */
-  static void init_impl(T* data, IndexType begin, IndexType nelems, InitTypeOnDevice)
-  {
-    for_all<ExecSpace>(
-      begin,
-      begin + nelems,
-      AXOM_LAMBDA(IndexType i) { new(&data[i]) T(); });
-  }
-
-  /*!
-   * \overload
-   * \note Specialization for when T is trivially copyable.
-   */
-  static void init_impl(T* data, IndexType begin, IndexType nelems, InitTypeOnDeviceWithCopy)
-  {
-    T object {};
-    for_all<ExecSpace>(
-      begin,
-      begin + nelems,
-      AXOM_LAMBDA(IndexType i) { new(&data[i]) T(object); });
-  }
-
-  /*!
    * \brief Default-initializes the "new" segment of an array
    *
    * \param [inout] data The data to initialize
@@ -1223,7 +1106,37 @@ struct ArrayOpsBase
    */
   static void init(T* data, IndexType begin, IndexType nelems)
   {
-    init_impl(data, begin, nelems, typename DeviceInitTag<T>::Type {});
+    if constexpr(std::is_trivially_default_constructible_v<T>)
+    {
+      // Trivially default-constructible: can initialize from the GPU.
+      for_all<ExecSpace>(
+        begin,
+        begin + nelems,
+        AXOM_LAMBDA(IndexType i) { new(&data[i]) T(); });
+    }
+    else if constexpr(std::is_default_constructible_v<T> && std::is_trivially_copyable_v<T>)
+    {
+      // Trivially copyable, but not default-constructible:
+      // Create single instance on the host, then copy-construct on the GPU.
+      T object {};
+      for_all<ExecSpace>(
+        begin,
+        begin + nelems,
+        AXOM_LAMBDA(IndexType i) { new(&data[i]) T(object); });
+    }
+    else
+    {
+      // Not trivially default-constructible:
+      // Construct entirely on the host.
+      if constexpr(std::is_default_constructible<T>::value)
+      {
+        // If we instantiated a fill kernel here it would require
+        // that T's default ctor is device-annotated which is too
+        // strict of a requirement, so we copy a buffer instead.
+        StagingBuffer tmp_buf(data, begin, nelems);
+        HostOp::init(tmp_buf.getStagingBuffer(), 0, nelems);
+      }
+    }
   }
 
   /*!
