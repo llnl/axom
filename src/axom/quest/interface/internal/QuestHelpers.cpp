@@ -521,8 +521,8 @@ int read_mfem_mesh(const std::string& file,
 template <typename CurveType, typename PolynomialConstructor, typename RationalConstructor>
 CurveType segment_to_curve_impl(const mfem::Mesh* mesh,
                                 int elem_id,
-                                PolynomialConstructor &&polynomialConstructor,
-                                RationalConstructor &&rationalConstructor)
+                                PolynomialConstructor&& polynomialConstructor,
+                                RationalConstructor&& rationalConstructor)
 {
   using Point2D = axom::primal::Point<double, 2>;
 
@@ -581,29 +581,27 @@ CurveType segment_to_curve_impl(const mfem::Mesh* mesh,
 primal::BezierCurve<double, 2> segment_to_curve(const mfem::Mesh* mesh, int elem_id)
 {
   using BezierCurve2D = primal::BezierCurve<double, 2>;
-  return segment_to_curve_impl<BezierCurve2D>(mesh, elem_id,
-   [](const auto *points, int AXOM_UNUSED_PARAM(npts), int order)
-   {
-     return BezierCurve2D(points, order);
-   },
-   [](const auto *points, const double *weights, int AXOM_UNUSED_PARAM(npts), int order)
-   {
-     return BezierCurve2D(points, weights, order);
-   });
+  return segment_to_curve_impl<BezierCurve2D>(
+    mesh,
+    elem_id,
+    [](const auto* points, int AXOM_UNUSED_PARAM(npts), int order) {
+      return BezierCurve2D(points, order);
+    },
+    [](const auto* points, const double* weights, int AXOM_UNUSED_PARAM(npts), int order) {
+      return BezierCurve2D(points, weights, order);
+    });
 }
 
 primal::NURBSCurve<double, 2> segment_to_nurbs(const mfem::Mesh* mesh, int elem_id)
 {
   using NURBSCurve2D = primal::NURBSCurve<double, 2>;
-  return segment_to_curve_impl<NURBSCurve2D>(mesh, elem_id,
-   [](const auto *points, int npts, int order)
-   {
-     return NURBSCurve2D(points, npts, order);
-   },
-   [](const auto *points, const double *weights, int npts, int order)
-   {
-     return NURBSCurve2D(points, weights, npts, order);
-   });
+  return segment_to_curve_impl<NURBSCurve2D>(
+    mesh,
+    elem_id,
+    [](const auto* points, int npts, int order) { return NURBSCurve2D(points, npts, order); },
+    [](const auto* points, const double* weights, int npts, int order) {
+      return NURBSCurve2D(points, weights, npts, order);
+    });
 }
 
 #endif

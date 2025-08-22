@@ -235,10 +235,10 @@
  * \endcode
  */
 #if __cplusplus >= 201703L
-// C++17 and later.
-#define AXOM_MAYBE_UNUSED [[maybe_unused]]
+  // C++17 and later.
+  #define AXOM_MAYBE_UNUSED [[maybe_unused]]
 #else
-#define AXOM_MAYBE_UNUSED
+  #define AXOM_MAYBE_UNUSED
 #endif
 
 /*!

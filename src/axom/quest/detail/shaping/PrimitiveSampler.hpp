@@ -306,7 +306,10 @@ public:
    * \warning Not yet implemented
    */
   template <int FromDim, int ToDim = DIM>
-  void computeVolumeFractionsBaseline(mfem::DataCollection* AXOM_UNUSED_PARAM(dc), int AXOM_UNUSED_PARAM(sampleRes), int AXOM_UNUSED_PARAM(outputOrder), PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
+  void computeVolumeFractionsBaseline(mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
+                                      int AXOM_UNUSED_PARAM(sampleRes),
+                                      int AXOM_UNUSED_PARAM(outputOrder),
+                                      PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
     AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
     SLIC_WARNING_ROOT("computeVolumeFractionsBaseline() not implemented yet");

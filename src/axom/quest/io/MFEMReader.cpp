@@ -72,7 +72,11 @@ int read_mfem(const std::string &fileName, BuildGeometry &&build)
     }
     else
     {
-      SLIC_WARNING(axom::fmt::format("Mesh must have dimension 1 and spatial dimension 2. The supplied mesh is dimension {} with spatial dimension {}.", mesh->Dimension(), mesh->SpaceDimension()));
+      SLIC_WARNING(
+        axom::fmt::format("Mesh must have dimension 1 and spatial dimension 2. The supplied mesh "
+                          "is dimension {} with spatial dimension {}.",
+                          mesh->Dimension(),
+                          mesh->SpaceDimension()));
     }
 
     delete mesh;

@@ -150,12 +150,21 @@ public:
    * (instead of at quadrature points)
    */
   template <int FromDim, int ToDim = DIM>
-  std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(mfem::DataCollection* dc, int sampleRes, int outputOrder, PointProjector<FromDim, ToDim> projector = {})
+  std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
+    mfem::DataCollection* dc,
+    int sampleRes,
+    int outputOrder,
+    PointProjector<FromDim, ToDim> projector = {})
   {
     using PointType = primal::Point<double, DIM>;
     const InOutOctreeType* octree = m_octree;
     auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
-    shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName, dc, sampleRes, outputOrder, checkInside, projector);
+    shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName,
+                                                            dc,
+                                                            sampleRes,
+                                                            outputOrder,
+                                                            checkInside,
+                                                            projector);
   }
 
   /*!
@@ -163,7 +172,11 @@ public:
    * defined to support various callback specializations for the \a PointProjector.
    */
   template <int FromDim, int ToDim>
-  std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(mfem::DataCollection* AXOM_UNUSED_PARAM(dc), int AXOM_UNUSED_PARAM(sampleRes), int AXOM_UNUSED_PARAM(outputOrder), PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
+  std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
+    mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
+    int AXOM_UNUSED_PARAM(sampleRes),
+    int AXOM_UNUSED_PARAM(outputOrder),
+    PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
     static_assert(ToDim != DIM,
                   "Do not call this function -- it only exists to appease the compiler!"

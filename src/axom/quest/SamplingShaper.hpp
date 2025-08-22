@@ -599,33 +599,33 @@ private:
       case 2:
         if(meshDim == 2)
         {
-          shaper->template sampleInOutField<2,2>(m_dc,
-                                               m_inoutShapeQFuncs,
-                                               m_quadratureOrder,
-                                               m_projector22);
+          shaper->template sampleInOutField<2, 2>(m_dc,
+                                                  m_inoutShapeQFuncs,
+                                                  m_quadratureOrder,
+                                                  m_projector22);
         }
         else if(meshDim == 3)
         {
-          shaper->template sampleInOutField<3,2>(m_dc,
-                                               m_inoutShapeQFuncs,
-                                               m_quadratureOrder,
-                                               m_projector32);
+          shaper->template sampleInOutField<3, 2>(m_dc,
+                                                  m_inoutShapeQFuncs,
+                                                  m_quadratureOrder,
+                                                  m_projector32);
         }
         break;
       case 3:
         if(meshDim == 2)
         {
-          shaper->template sampleInOutField<2,3>(m_dc,
-                                               m_inoutShapeQFuncs,
-                                               m_quadratureOrder,
-                                               m_projector23);
+          shaper->template sampleInOutField<2, 3>(m_dc,
+                                                  m_inoutShapeQFuncs,
+                                                  m_quadratureOrder,
+                                                  m_projector23);
         }
         else if(meshDim == 3)
         {
-          shaper->template sampleInOutField<3,3>(m_dc,
-                                               m_inoutShapeQFuncs,
-                                               m_quadratureOrder,
-                                               m_projector33);
+          shaper->template sampleInOutField<3, 3>(m_dc,
+                                                  m_inoutShapeQFuncs,
+                                                  m_quadratureOrder,
+                                                  m_projector33);
         }
         break;
       }
@@ -636,33 +636,33 @@ private:
       case 2:
         if(meshDim == 2)
         {
-          shaper->template computeVolumeFractionsBaseline<2,2>(m_dc,
-                                               m_quadratureOrder,
-                                               m_volfracOrder,
-                                               m_projector22);
+          shaper->template computeVolumeFractionsBaseline<2, 2>(m_dc,
+                                                                m_quadratureOrder,
+                                                                m_volfracOrder,
+                                                                m_projector22);
         }
         else if(meshDim == 3)
         {
-          shaper->template computeVolumeFractionsBaseline<3,2>(m_dc,
-                                               m_quadratureOrder,
-                                               m_volfracOrder,
-                                               m_projector32);
+          shaper->template computeVolumeFractionsBaseline<3, 2>(m_dc,
+                                                                m_quadratureOrder,
+                                                                m_volfracOrder,
+                                                                m_projector32);
         }
         break;
       case 3:
         if(meshDim == 2)
         {
-          shaper->template computeVolumeFractionsBaseline<2,3>(m_dc,
-                                               m_quadratureOrder,
-                                               m_volfracOrder,
-                                               m_projector23);
+          shaper->template computeVolumeFractionsBaseline<2, 3>(m_dc,
+                                                                m_quadratureOrder,
+                                                                m_volfracOrder,
+                                                                m_projector23);
         }
         else if(meshDim == 3)
         {
-          shaper->template computeVolumeFractionsBaseline<3,3>(m_dc,
-                                               m_quadratureOrder,
-                                               m_volfracOrder,
-                                               m_projector33);
+          shaper->template computeVolumeFractionsBaseline<3, 3>(m_dc,
+                                                                m_quadratureOrder,
+                                                                m_volfracOrder,
+                                                                m_projector33);
         }
         break;
       }
@@ -701,17 +701,17 @@ private:
       case 3:
         if(meshDim == 2)
         {
-          shaper->template sampleInOutField<2,3>(m_dc,
-                                               m_inoutShapeQFuncs,
-                                               m_quadratureOrder,
-                                               m_projector23);
+          shaper->template sampleInOutField<2, 3>(m_dc,
+                                                  m_inoutShapeQFuncs,
+                                                  m_quadratureOrder,
+                                                  m_projector23);
         }
         else if(meshDim == 3)
         {
-          shaper->template sampleInOutField<3,3>(m_dc,
-                                               m_inoutShapeQFuncs,
-                                               m_quadratureOrder,
-                                               m_projector33);
+          shaper->template sampleInOutField<3, 3>(m_dc,
+                                                  m_inoutShapeQFuncs,
+                                                  m_quadratureOrder,
+                                                  m_projector33);
         }
         break;
       }

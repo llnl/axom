@@ -708,10 +708,7 @@ public:
     return (lhs.m_map == rhs.m_map && lhs.m_internalIdx == rhs.m_internalIdx);
   }
 
-  friend bool operator!=(const IteratorImpl& lhs, const IteratorImpl& rhs)
-  {
-    return !(lhs == rhs);
-  }
+  friend bool operator!=(const IteratorImpl& lhs, const IteratorImpl& rhs) { return !(lhs == rhs); }
 
   IteratorImpl& operator++()
   {

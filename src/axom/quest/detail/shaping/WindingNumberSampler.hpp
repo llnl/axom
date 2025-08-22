@@ -284,7 +284,11 @@ public:
    * (instead of at quadrature points)
    */
   template <int FromDim, int ToDim>
-  std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(mfem::DataCollection* dc, int sampleRes, int outputOrder, PointProjector<FromDim, ToDim> projector = {})
+  std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
+    mfem::DataCollection* dc,
+    int sampleRes,
+    int outputOrder,
+    PointProjector<FromDim, ToDim> projector = {})
   {
     AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
     const auto geometryView = m_geometryView;
@@ -299,7 +303,12 @@ public:
       }
       return inside;
     };
-    shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName, dc, sampleRes, outputOrder, checkInside, projector);
+    shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName,
+                                                            dc,
+                                                            sampleRes,
+                                                            outputOrder,
+                                                            checkInside,
+                                                            projector);
   }
 
   /*!
@@ -307,12 +316,17 @@ public:
    * defined to support various callback specializations for the \a PointProjector.
    */
   template <int FromDim, int ToDim>
-  std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(mfem::DataCollection* AXOM_UNUSED_PARAM(dc), int AXOM_UNUSED_PARAM(sampleRes), int AXOM_UNUSED_PARAM(outputOrder), PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
+  std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
+    mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
+    int AXOM_UNUSED_PARAM(sampleRes),
+    int AXOM_UNUSED_PARAM(outputOrder),
+    PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
   {
     static_assert(ToDim != DIM,
                   "Do not call this function -- it only exists to appease the compiler!"
                   "Projector's return dimension (ToDim), must match class dimension (DIM)");
   }
+
 private:
   DISABLE_COPY_AND_ASSIGNMENT(WindingNumberSampler);
   DISABLE_MOVE_AND_ASSIGNMENT(WindingNumberSampler);
