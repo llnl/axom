@@ -502,11 +502,29 @@ int read_mfem_mesh(const std::string& file,
 /// Mesh Helper Methods
 
 #if defined(AXOM_USE_MFEM)
-template <typename CurveType, typename CreateFunc1, typename CreateFunc2>
-CurveType segment_to_curve_impl(const mfem::Mesh* mesh, int elem_id, CreateFunc1 &&create1, CreateFunc2 &&create2)
+/*!
+ * \brief Convert an MFEM zone (containing a 1D contour) to an appropriate primal curve type.
+ *
+ * \tparam CurveType The type of primal curve to create/return.
+ * \tparam PolynomialConstructor A function that constructs CurveType using polynomial arguments.
+ * \tparam RationalConstructor A function that constructs CurveType using rational arguments.
+ *
+ * \param mesh A pointer to the MFEM mesh that contains contours.
+ * \param elem_id The id of the element that we want returned as a curve.
+ * \param polynomialConstructor A function that will construct the curve as CurveType,
+ *                              given polynomial arguments (points, npts, order).
+ * \param rationalConstructor A function that will construct the curve as CurveType,
+ *                            given rational arguments (points, weights, npts, order).
+ *
+ * \return An instance of CurveType that represents the MFEM element.
+ */
+template <typename CurveType, typename PolynomialConstructor, typename RationalConstructor>
+CurveType segment_to_curve_impl(const mfem::Mesh* mesh,
+                                int elem_id,
+                                PolynomialConstructor &&polynomialConstructor,
+                                RationalConstructor &&rationalConstructor)
 {
   using Point2D = axom::primal::Point<double, 2>;
-  using NURBSCurve2D = primal::NURBSCurve<double, 2>;
 
   const auto* fes = mesh->GetNodes()->FESpace();
   const auto* fec = fes->FEColl();
@@ -543,7 +561,7 @@ CurveType segment_to_curve_impl(const mfem::Mesh* mesh, int elem_id, CreateFunc1
     }
     points[order] = Point2D {v[1], v[1 + p]};
 
-    return create1(points.data(), p, order);
+    return polynomialConstructor(points.data(), p, order);
   }
   else  // isNURBS
   {
@@ -556,7 +574,7 @@ CurveType segment_to_curve_impl(const mfem::Mesh* mesh, int elem_id, CreateFunc1
     }
 
     fes->GetNURBSext()->GetWeights().GetSubVector(dofs, weights);
-    return create2(points.data(), weights.GetData(), p, order);
+    return rationalConstructor(points.data(), weights.GetData(), p, order);
   }
 }
 
