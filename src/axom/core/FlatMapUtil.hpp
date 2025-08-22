@@ -132,8 +132,16 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
   using HashResult = typename Hash::result_type;
   using GroupBucket = detail::flat_map::GroupBucket;
 
-  // Assume that all elements will be inserted into an empty slot.
   IndexType num_elems = std::distance(kv_begin, kv_end);
+
+  // Every probing sequence within a flat map is free of gaps if no erasure
+  // operations have taken place.
+  // For now, just assume this to be the case if the map is empty or if a rehash
+  // has to take place to accomodate the new elements.
+  bool is_gap_free =
+    (this->size() == 0 || (num_elems + this->size() >= max_load_factor() * bucket_count()));
+
+  // Assume that all elements will be inserted into an empty slot.
   this->reserve(this->size() + num_elems);
 
   // Grab some needed internal fields from the flat map.
@@ -192,28 +200,22 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
         {
           // Every bucket visit - check prior filled buckets for duplicate
           // keys.
-          int empty_slot_index =
-            meta_group[curr_group].visitHashOrEmptyBucket(hash_8, [&](int matching_slot) {
-              IndexType bucket_index = curr_group * GroupBucket::Size + matching_slot;
+          meta_group[curr_group].visitHashBucket(hash_8, [&](int matching_slot) -> bool {
+            IndexType bucket_index = curr_group * GroupBucket::Size + matching_slot;
 
-              if(buckets[bucket_index].get().first == kv_pair.first)
-              {
-                if(key_index_dedup[bucket_index] == -1)
-                {
-                  // The k-v pair matches an already-existing pair in the map.
-                  // Keep track of the number of overwrites so that we don't
-                  // double-count them when incrementing the size.
-                  total_overwrites += 1;
-                }
-                // Highest-indexed kv pair wins.
-                axom::atomicMax<ExecSpace>(&key_index_dedup[bucket_index], idx);
-                key_index_to_bucket[idx] = bucket_index;
-                duplicate_bucket_index = bucket_index;
-              }
-            });
+            if(buckets[bucket_index].get().first == kv_pair.first)
+            {
+              duplicate_bucket_index = bucket_index;
+              return false;  // Don't need to search other buckets.
+            }
+            return true;
+          });
+          int empty_slot_index = meta_group[curr_group].getEmptyBucket();
 
-          if(duplicate_bucket_index == -1)
+          if(duplicate_bucket_index == -1 && empty_bucket_index == -1)
           {
+            // Default probing behavior: no duplicate found yet, and no empty
+            // bucket found prior.
             if(empty_slot_index == GroupBucket::InvalidSlot)
             {
               // Group is full. Set overflow bit for the group.
@@ -221,8 +223,7 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
             }
             else
             {
-              // Got to end of probe sequence without a duplicate.
-              // Update empty bucket index.
+              // Update empty bucket index with first empty slot we encounter.
               empty_bucket_index = curr_group * GroupBucket::Size + empty_slot_index;
               key_index_dedup[empty_bucket_index] = idx;
               key_index_to_bucket[idx] = empty_bucket_index;
@@ -233,14 +234,50 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
               new(&buckets[empty_bucket_index]) KeyValuePair(kv_pair);
             }
           }
+          else if(duplicate_bucket_index != -1)
+          {
+            // Found a duplicate bucket.
+            if(!is_gap_free && empty_bucket_index != -1)
+            {
+              // We've already encountered an empty bucket earlier to place a
+              // k-v pair. This may occur if a probing sequence contains gaps
+              // (insertions followed by erasures).
+              //
+              // Just erase this element.
+              total_overwrites += 1;
+
+              int slot_index = duplicate_bucket_index - curr_group * GroupBucket::Size;
+              buckets[duplicate_bucket_index].get().~KeyValuePair();
+              meta_group[curr_group].clearBucket(slot_index);
+            }
+            else
+            {
+              if(key_index_dedup[duplicate_bucket_index] == -1)
+              {
+                // The k-v pair matches an already-existing pair in the map.
+                // Keep track of the number of overwrites so that we don't
+                // double-count them when incrementing the size.
+                total_overwrites += 1;
+              }
+              // Highest-indexed kv pair wins.
+              axom::atomicMax<ExecSpace>(&key_index_dedup[duplicate_bucket_index], idx);
+              key_index_to_bucket[idx] = duplicate_bucket_index;
+            }
+          }
           // Unlock group once we're done.
           group_locks[curr_group].unlock();
 
-          if(duplicate_bucket_index != -1 || empty_bucket_index != -1)
+          if(duplicate_bucket_index != -1)
           {
-            // We've found an empty slot or a duplicate key to place the
-            // value at. Empty slots should only occur at the end of the
-            // probe sequence, since we're only inserting.
+            // We've found a duplicate key to overwrite.
+            break;
+          }
+          else if(empty_bucket_index != -1 &&
+                  (is_gap_free || !meta_group[curr_group].getMaybeOverflowed(hash_8)))
+          {
+            // If we're inserting into a gap-free map, empty bucket signals the
+            // end of the probing sequence.
+            // Otherwise, we need to check the overflow mask to continue probing.
             break;
           }
           else
