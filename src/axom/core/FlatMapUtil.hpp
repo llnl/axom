@@ -86,8 +86,6 @@ public:
    */
   AXOM_HOST_DEVICE value_type operator*() const { return {*m_keyIter, *m_valueIter}; }
 
-  AXOM_HOST_DEVICE value_type operator[](IndexType idx) const { return *(*this + idx); }
-
 protected:
   /** Implementation of advance() as required by IteratorBase */
   AXOM_HOST_DEVICE void advance(IndexType n)
@@ -309,8 +307,8 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
         // individually.
         KeyType& key_dst = const_cast<KeyType&>(buckets[bucket_idx].get().first);
         ValueType& value_dst = buckets[bucket_idx].get().second;
-        new(&key_dst) KeyType {kv_begin[kv_idx].first};
-        new(&value_dst) ValueType {kv_begin[kv_idx].second};
+        new(&key_dst) KeyType {(*(kv_begin + kv_idx)).first};
+        new(&value_dst) ValueType {(*(kv_begin + kv_idx)).second};
 #else
         new(&buckets[bucket_idx]) KeyValuePair(*(kv_begin + kv_idx));
 #endif
