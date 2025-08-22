@@ -323,7 +323,8 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batched_with_existing)
   axom::Array<std::pair<int, double>> kv_insert_gpu(kv_insert_vec, this->getKernelAllocatorID());
 
   // Insert pairs into existing flatmap.
-  test_map_gpu.insert(kv_insert_vec.begin(), kv_insert_vec.end());
+  test_map_gpu.template insert<ExecSpace>(kv_insert_gpu.data(),
+                                          kv_insert_gpu.data() + NUM_ELEMS_INSERT);
 
   // Copy back flat map to host for testing.
   MapType test_map(test_map_gpu, axom::Allocator {this->getHostAllocatorID()});
