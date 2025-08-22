@@ -27,9 +27,7 @@ namespace quest
 /*
  * \class MFEMReader
  *
- * \brief A class to help with reading C2C contour files.
- *
- * We treat all contours as NURBS curves.
+ * \brief A class to help with reading MFEM files that contain contours.
  */
 class MFEMReader
 {
@@ -41,8 +39,10 @@ public:
   using CurvedPolygonArray = axom::Array<CurvedPolygon>;
 
 public:
+  /// Constructor
   MFEMReader() = default;
 
+  /// Destructor
   ~MFEMReader() = default;
 
   /// Sets the name of the contour file to load. Must be called before \a read()
@@ -50,7 +50,9 @@ public:
 
   /*!
    * \brief Read the contour file provided by \a setFileName()
-   * 
+   *
+   * \param[out] curves The curve array that will contain curves read from the MFEM file.
+   *
    * \return 0 for a successful read; non-zero otherwise
    */
   int read(CurveArray &curves);
@@ -58,9 +60,12 @@ public:
   /*!
    * \brief Read the contour file provided by \a setFileName()
    * 
+   * \param[out] curvedPolygons The curved polygon array that will contain curved polygons created from reading
+   *                            the MFEM file.
+   *
    * \return 0 for a successful read; non-zero otherwise
    */
-  int read(CurvedPolygonArray &curves);
+  int read(CurvedPolygonArray &curvedPolygons);
 
 protected:
   std::string m_fileName;

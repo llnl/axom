@@ -26,14 +26,20 @@ namespace internal
 {
 /*!
  * \brief Read the MFEM file and build the desired type of geometry from it using a supplied function.
+ *        The MFEM files must contain only 1D curves in 2D space.
+ *
+ * \tparam BuildGeometry A function/lambda that will be used to build geometry from the MFEM mesh.
  *
  * \param fileName The name of the file to read.
- * \param func The function/lambda that generates the geometry using the map of zones to curves.
+ * \param build The function/lambda that generates the geometry using the map of zones to curves.
+ *              The function must take 2 parameters, an MFEM mesh pointer, and a reference to
+ *              std::map<int, axom::Array<int>>. The latter map contains contourId:zoneIdList mapping, which
+ *              can be used to group related MFEM zones/contours as edges in a shape.
  *
  * \return 0 on success; non-zero on failure.
  */
-template <typename Func>
-int read_mfem(const std::string &fileName, Func &&func)
+template <typename BuildGeometry>
+int read_mfem(const std::string &fileName, BuildGeometry &&build)
 {
   constexpr int READ_FAILED = 1;
   constexpr int READ_SUCCESS = 0;
@@ -60,13 +66,13 @@ int read_mfem(const std::string &fileName, Func &&func)
       }
 
       // Use the map to build the geometry.
-      func(mesh, contourZones);
+      build(mesh, contourZones);
 
       retval = READ_SUCCESS;
     }
     else
     {
-      SLIC_INFO("Mesh must have dimension 1 and spatial dimension 2.");
+      SLIC_WARNING(axom::fmt::format("Mesh must have dimension 1 and spatial dimension 2. The supplied mesh is dimension {} with spatial dimension {}.", mesh->Dimension(), mesh->SpaceDimension()));
     }
 
     delete mesh;
