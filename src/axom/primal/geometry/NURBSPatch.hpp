@@ -207,10 +207,8 @@ public:
     else
     {
       SLIC_ASSERT(knot_deg_u >= 0 && knot_deg_v >= 0);
-#if defined(AXOM_DEBUG)
-      const int deg_u = utilities::max(0, knot_deg_u);
-      const int deg_v = utilities::max(0, knot_deg_v);
-#endif
+      AXOM_MAYBE_UNUSED const int deg_u = utilities::max(0, knot_deg_u);
+      AXOM_MAYBE_UNUSED const int deg_v = utilities::max(0, knot_deg_v);
       const int npts_u = knotVector_u.getNumControlPoints();
       const int npts_v = knotVector_v.getNumControlPoints();
       SLIC_ASSERT(npts_u > deg_u && npts_v > deg_v);
