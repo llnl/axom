@@ -897,6 +897,7 @@ auto FlatMap<KeyType, ValueType, Hash>::erase(const_iterator pos) -> iterator
   {
     m_loadCount--;
   }
+  m_size--;
   return ++iterator(this, pos.m_internalIdx);
 }
 

@@ -531,6 +531,7 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batch_with_gaps_and_dups)
 
   // Delete every third element.
   // This is intended to creates gaps in probing sequences.
+  int num_erases = 0;
   for(int i = 0; i < NUM_ELEMS / 3; i++)
   {
     int index = i * 3 + 2;
@@ -538,7 +539,10 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batch_with_gaps_and_dups)
 
     auto it = test_map.find(key);
     test_map.erase(it);
+    num_erases++;
   }
+
+  EXPECT_EQ(test_map.size(), NUM_ELEMS - num_erases);
 
   MapType test_map_gpu(test_map, axom::Allocator {this->getKernelAllocatorID()});
 
