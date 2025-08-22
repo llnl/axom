@@ -428,11 +428,16 @@ public:
   /*!
    * \brief Inserts a range of key-value pairs into the FlatMap.
    *
-   *  If the key already exists in the FlatMap, insertion is skipped.
-   *  Otherwise, the key-value mapping is inserted into the FlatMap.
+   *  If a key in the range already exists, assigns the value to the existing
+   *  key in the FlatMap. Otherwise, a new key-value pair is inserted into the
+   *  FlatMap.
    *
    * \param [in] first the beginning of the range of pairs
    * \param [in] last the end of the range of pairs
+   *
+   * \note If duplicate keys are present in the range, the key which appears
+   *  later in the range is updated or inserted. This is equivalent to a
+   *  sequential for-loop of insertions over the input range.
    */
   template <typename InputIt>
   void insert(InputIt first, InputIt last);
@@ -440,8 +445,9 @@ public:
   /*!
    * \brief Inserts a range of key-value pairs into the FlatMap.
    *
-   *  If the key already exists in the FlatMap, insertion is skipped.
-   *  Otherwise, the key-value mapping is inserted into the FlatMap.
+   *  If a key in the range already exists, assigns the value to the existing
+   *  key in the FlatMap. Otherwise, a new key-value pair is inserted into the
+   *  FlatMap.
    *
    * \param [in] first the beginning of the range of pairs
    * \param [in] last the end of the range of pairs
@@ -451,6 +457,10 @@ public:
    *
    * \pre InputIt is a random-access iterator
    * \pre allocator is accessible from ExecSpace
+   *
+   * \note If duplicate keys are present in the range, the key which appears
+   *  later in the range is updated or inserted. This is equivalent to a
+   *  sequential for-loop of insertions over the input range.
    */
   template <typename ExecSpace, typename InputIt>
   void insert(InputIt first, InputIt last);
