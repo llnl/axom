@@ -35,6 +35,8 @@ namespace detail
 /*!
  * \brief Check whether point \a pt is inside \a shape.
  *
+ * \note This function is using the non-zero rule to determine containment.
+ *
  * \param shape The shape being checked for inside/outside.
  * \param pt The point being checked against the shape.
  *
@@ -43,16 +45,13 @@ namespace detail
 template <typename ShapeType, typename PointType>
 bool AXOM_HOST_DEVICE checkInside(const ShapeType& shape, const PointType& pt)
 {
-  bool inside = false;
   double wn {};
   for(int c = 0; c < shape.numEdges(); c++)
   {
     wn += axom::primal::winding_number(pt, shape[c]);
   }
   // A point inside the polygon should have non-zero winding number.
-  inside |= (std::round(wn) != 0);
-
-  return inside;
+  return (round(wn) != 0);
 }
 
 }  // end namespace detail
@@ -75,7 +74,7 @@ public:
   using BVH = typename axom::spin::BVH<NDIMS, ExecSpace, double>;
 
 public:
-  /**
+  /*!
    * \brief Constructor for a WindingNumberSampler
    *
    * \param shapeName The name of the shape; will be used for the field for the associated samples
@@ -117,7 +116,7 @@ public:
     m_bvh.initialize(aabbs, aabbs.size());
   }
 
-  /**
+  /*!
    * \brief Samples the inout field over the indexed geometry, possibly using a
    * callback function to project the input points (from the computational mesh)
    * to query points on the spatial index
@@ -265,7 +264,7 @@ public:
       static_cast<int>((NE * nq) / timer.elapsed())));
   }
 
-  /** 
+  /*!
    * \warning Do not call this overload with \a ToDim != \a DIM. The compiler needs it to be
    * defined to support various callback specializations for the \a PointProjector.
    */
@@ -280,35 +279,40 @@ public:
                   "Projector's return dimension (ToDim), must match class dimension (DIM)");
   }
 
-  /**
+  /*!
    * Compute "baseline" volume fractions by sampling at grid function degrees of freedom
    * (instead of at quadrature points)
-  */
-  void computeVolumeFractionsBaseline(mfem::DataCollection* dc, int sampleRes, int outputOrder)
+   */
+  template <int FromDim, int ToDim>
+  std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(mfem::DataCollection* dc, int sampleRes, int outputOrder, PointProjector<FromDim, ToDim> projector = {})
   {
     AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
     const auto geometryView = m_geometryView;
     auto checkInside = [=](const PointType& pt) -> bool {
-      // TODO: figure out curved polygons that might contain point from index.
+      // TODO: Use m_bvh to limit which curved polygons might contain point.
 
       // Check each candidate
       bool inside = false;
       for(axom::IndexType i = 0; i < geometryView.size() && !inside; i++)
       {
-        const auto& shapeGeom = geometryView[i];
-        double wn {};
-        for(int c = 0; c < shapeGeom.numEdges(); c++)
-        {
-          wn += axom::primal::winding_number(pt, shapeGeom[c]);
-        }
-        // A point inside the polygon should have non-zero winding number.
-        inside |= (std::round(wn) != 0);
+        inside |= detail::checkInside(geometryView[i], pt);
       }
       return inside;
     };
-    shaping::computeVolumeFractionsBaseline<DIM>(m_shapeName, dc, sampleRes, outputOrder, checkInside);
+    shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName, dc, sampleRes, outputOrder, checkInside, projector);
   }
 
+  /*!
+   * \warning Do not call this overload with \a ToDim != \a DIM. The compiler needs it to be
+   * defined to support various callback specializations for the \a PointProjector.
+   */
+  template <int FromDim, int ToDim>
+  std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(mfem::DataCollection* AXOM_UNUSED_PARAM(dc), int AXOM_UNUSED_PARAM(sampleRes), int AXOM_UNUSED_PARAM(outputOrder), PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
+  {
+    static_assert(ToDim != DIM,
+                  "Do not call this function -- it only exists to appease the compiler!"
+                  "Projector's return dimension (ToDim), must match class dimension (DIM)");
+  }
 private:
   DISABLE_COPY_AND_ASSIGNMENT(WindingNumberSampler);
   DISABLE_MOVE_AND_ASSIGNMENT(WindingNumberSampler);

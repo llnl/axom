@@ -224,28 +224,28 @@ void computeVolumeFractionsIdentity(mfem::DataCollection* dc,
                                     mfem::QuadratureFunction* inout,
                                     const std::string& name);
 
-/**
-   * \brief Samples the inout field over the indexed geometry, possibly using a
-   * callback function to project the input points (from the computational mesh)
-   * to query points on the spatial index
-   *
-   * \tparam FromDim The dimension of points from the input mesh
-   * \tparam ToDim The dimension of points on the indexed shape
-   * \tparam InsideFunc The function that will be used to check whether a point is inside.
-   *
-   * \param [in] shapeName The name of the shape used in making data array names.
-   * \param [in] dc The data collection containing the mesh and associated query points
-   * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
-   * inout samples
-   * \param [in] sampleRes The quadrature order at which to sample the inout field
-   * \param [in] checkInside The function that determines whether a point is inside.
-   * \param [in] projector A callback function to apply to points from the input mesh
-   * before querying them on the spatial index
-   *
-   * \note A projector callback must be supplied when \a FromDim is not equal
-   * to \a ToDim, the projector
-   * \note \a ToDim must be equal to \a DIM, the dimension of the spatial index
-   */
+/*!
+  * \brief Samples the inout field over the indexed geometry, possibly using a
+  * callback function to project the input points (from the computational mesh)
+  * to query points on the spatial index
+  *
+  * \tparam FromDim The dimension of points from the input mesh
+  * \tparam ToDim The dimension of points on the indexed shape
+  * \tparam InsideFunc A function that takes a point and returns a bool indicating whether the
+  *                    point is inside or outside of relevant shapes.
+  *
+  * \param [in] shapeName The name of the shape used in making data array names.
+  * \param [in] dc The data collection containing the mesh and associated query points
+  * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
+  * inout samples
+  * \param [in] sampleRes The quadrature order at which to sample the inout field
+  * \param [in] checkInside The function that determines whether a point is inside.
+  * \param [in] projector A callback function to apply to points from the input mesh
+  * before querying them on the spatial index
+  *
+  * \note A projector callback must be supplied when \a FromDim is not equal
+  *       to \a ToDim.
+  */
 template <int FromDim, int ToDim, typename InsideFunc>
 void sampleInOutField(const std::string shapeName,
                       mfem::DataCollection* dc,
@@ -288,27 +288,29 @@ void sampleInOutField(const std::string shapeName,
   mfem::Vector res;
 
   axom::utilities::Timer timer(true);
-  for(int i = 0; i < NE; ++i)
+  if(projector)
   {
-    pos_coef->GetValues(i, m);
-    inout->GetValues(i, res);
-
-    if(projector)
+    for(int i = 0; i < NE; ++i)
     {
+      pos_coef->GetValues(i, m);
+      inout->GetValues(i, res);
       for(int p = 0; p < nq; ++p)
       {
         const ToPoint pt = projector(FromPoint(m.GetColumn(p), dim));
-        const bool in = checkInside(pt);
-        res(p) = in ? 1. : 0.;
+        res(p) = checkInside(pt) ? 1. : 0.;
       }
     }
-    else
+  }
+  else
+  {
+    for(int i = 0; i < NE; ++i)
     {
+      pos_coef->GetValues(i, m);
+      inout->GetValues(i, res);
       for(int p = 0; p < nq; ++p)
       {
         const ToPoint pt(m.GetColumn(p), dim);
-        const bool in = checkInside(pt);
-        res(p) = in ? 1. : 0.;
+        res(p) = checkInside(pt) ? 1. : 0.;
       }
     }
   }
@@ -323,31 +325,37 @@ void sampleInOutField(const std::string shapeName,
     static_cast<int>((NE * nq) / timer.elapsed())));
 }
 
-/**
-   * \brief Samples the inout field over the indexed geometry, possibly using a
-   * callback function to project the input points (from the computational mesh)
-   * to query points on the spatial index
-   *
-   * \tparam FromDim The dimension of points from the input mesh
-   * \tparam ToDim The dimension of points on the indexed shape
-   * \param [in] dc The data collection containing the mesh and associated query points
-   * \param [inout] inoutQFuncs A collection of quadrature functions for the shape and material
-   * inout samples
-   * \param [in] sampleRes The quadrature order at which to sample the inout field
-   * \param [in] projector A callback function to apply to points from the input mesh
-   * before querying them on the spatial index
-   *
-   * \note A projector callback must be supplied when \a FromDim is not equal
-   * to \a ToDim, the projector
-   * \note \a ToDim must be equal to \a DIM, the dimension of the spatial index
-   */
-template <int NDIMS, typename InsideFunc>
+/*!
+  * \brief Samples the inout field over the indexed geometry, possibly using a
+  * callback function to project the input points (from the computational mesh)
+  * to query points on the spatial index
+  *
+  * \tparam FromDim The dimension of points from the input mesh
+  * \tparam ToDim The dimension of points on the indexed shape
+  * \tparam InsideFunc A function that takes a point and returns a bool indicating whether the
+  *                    point is inside or outside of relevant shapes.
+  *
+  * \param [in] shapeName The name of the shape used in making data array names.
+  * \param [in] dc The data collection containing the mesh and associated query points
+  * \param [in] sampleRes The quadrature order at which to sample the inout field
+  * \param [in] outputOrder The order of the output inout field
+  * \param [in] checkInside The function that determines whether a point is inside.
+  * \param [in] projector A callback function to apply to points from the input mesh
+  *             before querying them on the spatial index
+  *
+  * \note A projector callback must be supplied when \a FromDim is not equal
+  *       to \a ToDim.
+  */
+template <int FromDim, int ToDim, typename InsideFunc>
 void computeVolumeFractionsBaseline(const std::string& shapeName,
                                     mfem::DataCollection* dc,
                                     int AXOM_UNUSED_PARAM(sampleRes),
                                     int outputOrder,
-                                    InsideFunc&& checkInside)
+                                    InsideFunc&& checkInside,
+                                    PointProjector<FromDim, ToDim> projector = {})
 {
+  using FromPoint = primal::Point<double, FromDim>;
+  using ToPoint = primal::Point<double, ToDim>;
   AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
 
   // Step 1 -- generate a QField w/ the spatial coordinates
@@ -392,18 +400,35 @@ void computeVolumeFractionsBaseline(const std::string& shapeName,
   // Step 2 -- sample the in/out field at each point -- store directly in volFrac grid function
   mfem::Vector res(nq);
   mfem::Array<int> dofs;
-  for(int i = 0; i < NE; ++i)
+  if(projector)
   {
-    mfem::DenseMatrix& m = pos_coef(i);
-    for(int p = 0; p < nq; ++p)
+    for(int i = 0; i < NE; ++i)
     {
-      const primal::Point<double, NDIMS> pt(m.GetColumn(p), dim);
-      const bool in = checkInside(pt);
-      res(p) = in ? 1. : 0.;
-    }
+      const mfem::DenseMatrix& m = pos_coef(i);
+      for(int p = 0; p < nq; ++p)
+      {
+        const ToPoint pt = projector(FromPoint(m.GetColumn(p), dim));
+        res(p) = checkInside(pt) ? 1. : 0.;
+      }
 
-    fes->GetElementDofs(i, dofs);
-    volFrac->SetSubVector(dofs, res);
+      fes->GetElementDofs(i, dofs);
+      volFrac->SetSubVector(dofs, res);
+    }
+  }
+  else
+  {
+    for(int i = 0; i < NE; ++i)
+    {
+      const mfem::DenseMatrix& m = pos_coef(i);
+      for(int p = 0; p < nq; ++p)
+      {
+        const ToPoint pt(m.GetColumn(p), dim);
+        res(p) = checkInside(pt) ? 1. : 0.;
+      }
+
+      fes->GetElementDofs(i, dofs);
+      volFrac->SetSubVector(dofs, res);
+    }
   }
 }
 #endif  // defined(AXOM_USE_MFEM)
