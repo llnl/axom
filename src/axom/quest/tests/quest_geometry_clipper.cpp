@@ -1074,12 +1074,29 @@ int main(int argc, char** argv)
 
   axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(params.annotationMode);
 
+  /*
+    Host allocator is for metadata and arrays that must be on host.
+    Data allocator uses host or device, depending on the runtime policy.
+  */
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-  const int allocId = axom::policyToDefaultAllocatorID(params.policy);
+  int dataAllocId = axom::policyToDefaultAllocatorID(params.policy);
+
 #if defined(AXOM_USE_UMPIRE)
-  const std::string allocatorName =
-    umpire::ResourceManager::getInstance().getAllocator(allocId).getName();
-  SLIC_INFO(axom::fmt::format("Using allocator id {}, '{}'", allocId, allocatorName));
+  if(dataAllocId != axom::MALLOC_ALLOCATOR_ID)
+  {
+    // Use Umpire pool for performance benchmarking.
+    constexpr size_t bytesPerCell = 100*sizeof(double);
+    size_t poolSize = params.getBoxCellCount() * bytesPerCell;
+    umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+    const umpire::Allocator dataAllocator = rm.getAllocator(dataAllocId);
+    const umpire::Allocator dataPoolAllocator =
+      rm.makeAllocator<umpire::strategy::QuickPool>(
+        "data_pool", dataAllocator, poolSize);
+    dataAllocId = dataPoolAllocator.getId();
+    const std::string poolName = dataAllocator.getName() + "_pool";
+    SLIC_INFO(axom::fmt::format("Using allocator pool id {}, '{}' with size {}",
+                                dataAllocId, poolName, poolSize));
+  }
 #endif
 
   AXOM_ANNOTATE_BEGIN("quest clipping test");
@@ -1138,12 +1155,12 @@ int main(int argc, char** argv)
   }
 
   {
+    SLIC_INFO(axom::fmt::format("{:-^80}", "Generating Blueprint mesh"));
     compMeshGrp = ds.getRoot()->createGroup("compMesh");
-    compMeshGrp->setDefaultAllocator(allocId);
+    compMeshGrp->setDefaultAllocator(dataAllocId);
 
     createBoxMesh(compMeshGrp);
 
-    SLIC_INFO(axom::fmt::format("{:-^80}", "Generated Blueprint mesh"));
     cellCount = params.getBoxCellCount();
   }
 
@@ -1155,31 +1172,25 @@ int main(int argc, char** argv)
   if(params.useBlueprintSidre())
   {
     sMeshPtr =
-      std::make_shared<quest::ShapeeMesh>(params.policy, allocId, compMeshGrp, topoName, matsetName);
+      std::make_shared<quest::ShapeeMesh>(params.policy, dataAllocId, compMeshGrp, topoName, matsetName);
   }
   if(params.useBlueprintConduit())
   {
     compMeshNode.reset(new conduit::Node);
-    compMeshNode->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(allocId));
+    compMeshNode->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(dataAllocId));
     compMeshGrp->createNativeLayout(*compMeshNode);
-    compMeshNode->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(allocId));
+    compMeshNode->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(dataAllocId));
 
     sMeshPtr =
-      std::make_shared<quest::ShapeeMesh>(params.policy, allocId, *compMeshNode, topoName, matsetName);
+      std::make_shared<quest::ShapeeMesh>(params.policy, dataAllocId, *compMeshNode, topoName, matsetName);
   }
   quest::ShapeeMesh& sMesh = *sMeshPtr;
 
   AXOM_ANNOTATE_END("setup shaping problem");
 
-  AXOM_ANNOTATE_BEGIN("ShapeeMesh::precomputes");
   // Compute and cache shared data so they are not associated with the first geometry.
-  sMesh.getCellVolumes();
-  sMesh.getCellsAsTets();
-  sMesh.getCellsAsHexes();
-  sMesh.getCellBoundingBoxes();
-  sMesh.getCellNodeConnectivity();
-  sMesh.getVertexCoords3D();
-  AXOM_ANNOTATE_END("ShapeeMesh::precomputes");
+  SLIC_INFO(axom::fmt::format("{:-^80}", "Precomputing mesh data"));
+  sMesh.precomputeMeshData();
 
   AXOM_ANNOTATE_END("init");
 
