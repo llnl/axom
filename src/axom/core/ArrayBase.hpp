@@ -1140,35 +1140,6 @@ struct ArrayOpsBase
   }
 
   /*!
-   * \brief Helper for filling an uninitialized array with objects of type T.
-   *
-   * \param [inout] array the array to fill
-   * \param [in] begin the index in the array to begin filling elements at
-   * \param [in] nelems the number of elements to fill the array with
-   * \param [in] value the value to set each array element to
-   * \note Specialization for when T is not trivially-copyable.
-   */
-  static void fill_impl(T* array, IndexType begin, IndexType nelems, const T& value, std::false_type)
-  {
-    // If we instantiated a fill kernel here it would require
-    // that T's copy ctor is device-annotated which is too
-    // strict of a requirement, so we copy a buffer instead.
-    StagingBuffer tmp_buf(array, begin, nelems);
-    HostOp::fill(tmp_buf.getStagingBuffer(), 0, nelems, value);
-  }
-
-  /*!
-   * \overload
-   * \note Specialization for when T is trivially-copyable.
-   */
-  static void fill_impl(T* array, IndexType begin, IndexType nelems, const T& value, std::true_type)
-  {
-    for_all<ExecSpace>(
-      nelems,
-      AXOM_LAMBDA(IndexType i) { new(&array[i + begin]) T(value); });
-  }
-
-  /*!
    * \brief Fills an uninitialized array with objects of type T.
    *
    * \param [inout] array the array to fill
@@ -1178,7 +1149,20 @@ struct ArrayOpsBase
    */
   static void fill(T* array, IndexType begin, IndexType nelems, const T& value)
   {
-    fill_impl(array, begin, nelems, value, std::is_trivially_copyable<T> {});
+    if constexpr(std::is_trivially_copyable_v<T>)
+    {
+      for_all<ExecSpace>(
+        nelems,
+        AXOM_LAMBDA(IndexType i) { new(&array[i + begin]) T(value); });
+    }
+    else
+    {
+      // If we instantiated a fill kernel here it would require
+      // that T's copy ctor is device-annotated which is too
+      // strict of a requirement, so we copy a buffer instead.
+      StagingBuffer tmp_buf(array, begin, nelems);
+      HostOp::fill(tmp_buf.getStagingBuffer(), 0, nelems, value);
+    }
   }
 
   /*!
