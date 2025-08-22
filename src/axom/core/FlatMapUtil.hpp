@@ -52,6 +52,23 @@ struct SpinLock
   }
 };
 
+#if defined(AXOM_USE_CUDA)
+template <typename KeyType, typename ValueType>
+AXOM_DEVICE void constructPairInPlace(std::pair<const KeyType, ValueType>& pair,
+                                      KeyType key,
+                                      ValueType value)
+{
+  // HACK: std::pair constructor is not host-device annotated, but CUDA
+  // requires passing in --expt-relaxed-constexpr for it to work.
+  // Instead of requiring this flag, construct each member of the pair
+  // individually.
+  KeyType& key_dst = const_cast<KeyType&>(pair.first);
+  ValueType& value_dst = pair.second;
+  new(&key_dst) KeyType {key};
+  new(&value_dst) ValueType {value};
+}
+#endif
+
 /*!
  * \class KVPairIterator
  * \brief Implements a zip-iterator concept for a key-value pair.
@@ -84,7 +101,16 @@ public:
   /**
    * \brief Returns the current iterator value
    */
-  AXOM_HOST_DEVICE value_type operator*() const { return {*m_keyIter, *m_valueIter}; }
+  AXOM_HOST_DEVICE value_type operator*() const
+  {
+#if defined(__CUDA_ARCH__)
+    value_type kv_pair;
+    constructPairInPlace(kv_pair, *m_keyIter, *m_valueIter);
+    return kv_pair;
+#else
+    return {*m_keyIter, *m_valueIter};
+#endif
+  }
 
 protected:
   /** Implementation of advance() as required by IteratorBase */
@@ -171,11 +197,11 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
   for_all<ExecSpace>(
     num_elems,
     AXOM_LAMBDA(IndexType idx) {
-      // Construct pair.
-      KeyValuePair kv_pair {*(kv_begin + idx)};
+      // Construct key.
+      KeyType key = (*(kv_begin + idx)).first;
 
       // Hash keys.
-      auto hash = Hash {}(kv_pair.first);
+      auto hash = Hash {}(key);
 
       // We use the k MSBs of the hash as the initial group probe point,
       // where ngroups = 2^k.
@@ -201,7 +227,7 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
           meta_group[curr_group].visitHashBucket(hash_8, [&](int matching_slot) -> bool {
             IndexType bucket_index = curr_group * GroupBucket::Size + matching_slot;
 
-            if(buckets[bucket_index].get().first == kv_pair.first)
+            if(buckets[bucket_index].get().first == key)
             {
               duplicate_bucket_index = bucket_index;
               return false;  // Don't need to search other buckets.
@@ -229,7 +255,13 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
               // Insert initial element, this will be updated with the value of
               // the "winning" key-value pair.
               meta_group[curr_group].template setBucket<true>(empty_slot_index, hash_8);
-              new(&buckets[empty_bucket_index]) KeyValuePair(kv_pair);
+#if defined(__CUDA_ARCH__)
+              detail::constructPairInPlace(buckets[empty_bucket_index].get(),
+                                           key,
+                                           (*(kv_begin + idx)).second);
+#else
+              new(&buckets[empty_bucket_index]) KeyValuePair(*(kv_begin + idx));
+#endif
             }
           }
           else if(duplicate_bucket_index != -1)
@@ -301,14 +333,9 @@ void FlatMap<KeyType, ValueType, Hash>::insert(InputIt kv_begin, InputIt kv_end)
       if(kv_idx == winning_idx)
       {
 #if defined(__CUDA_ARCH__)
-        // HACK: std::pair constructor is not host-device annotated, but CUDA
-        // requires passing in --expt-relaxed-constexpr for it to work.
-        // Instead of requiring this flag, construct each member of the pair
-        // individually.
-        KeyType& key_dst = const_cast<KeyType&>(buckets[bucket_idx].get().first);
-        ValueType& value_dst = buckets[bucket_idx].get().second;
-        new(&key_dst) KeyType {(*(kv_begin + kv_idx)).first};
-        new(&value_dst) ValueType {(*(kv_begin + kv_idx)).second};
+        detail::constructPairInPlace(buckets[bucket_idx].get(),
+                                     (*(kv_begin + kv_idx)).first,
+                                     (*(kv_begin + kv_idx)).second);
 #else
         new(&buckets[bucket_idx]) KeyValuePair(*(kv_begin + kv_idx));
 #endif
