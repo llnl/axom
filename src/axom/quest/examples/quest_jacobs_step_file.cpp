@@ -2880,136 +2880,136 @@ void discretized_curve_gwn()
   simple_grid_test(curves2, bbox, 750, 750, wn_out2);
 }
 
-void discretized_surface_gwn()
-{
-  std::string prefix = "E:\\Code\\winding_number_code\\siggraph25\\wn_comparison\\";
-
-  auto floppySurfaceStepProcessor = import_step_file(prefix, "fixed_floppy_surface");
-  auto discretizedSurfaceStepProcessor = import_step_file(prefix, "fixed_discretized_mesh");
-  auto semidiscretizedTriangles = axom::primal::processSTL(prefix + "mid_resolution0.stl");
-
-  constexpr double quad_tol = 1e-16;
-  constexpr double EPS = 1e-10;
-  constexpr double edge_tol = 1e-6;
-  constexpr double ls_tol = 1e-8;
-  constexpr double disk_size = 0.01;
-
-  // (!bBox, !oBox, casting, noCache)
-  int case_code = -1;
-  auto wn_field_floppy_surface =
-    [&floppySurfaceStepProcessor, &disk_size, &edge_tol, &quad_tol, &ls_tol, &EPS, &case_code](
-      axom::primal::Point<double, 3> query) -> double {
-    double wn = 0.0;
-    for(const auto& kv : floppySurfaceStepProcessor.getPatchDataMap())
-    {
-      int integrated_trimming_curves;
-      double the_val = axom::primal::winding_number(query,
-                                                    kv.second.nurbsPatchData,
-                                                    case_code,
-                                                    integrated_trimming_curves,
-                                                    edge_tol,
-                                                    ls_tol,
-                                                    quad_tol,
-                                                    disk_size,
-                                                    EPS);
-      wn += the_val;
-    }
-
-    return wn;
-  };
-
-  auto wn_field_discretized_surface =
-    [&discretizedSurfaceStepProcessor, &disk_size, &edge_tol, &quad_tol, &ls_tol, &EPS, &case_code](
-      axom::primal::Point<double, 3> query) -> double {
-    double wn = 0.0;
-    for(const auto& kv : discretizedSurfaceStepProcessor.getPatchDataMap())
-    {
-      int integrated_trimming_curves;
-      double the_val = axom::primal::winding_number(query,
-                                                    kv.second.nurbsPatchData,
-                                                    case_code,
-                                                    integrated_trimming_curves,
-                                                    edge_tol,
-                                                    ls_tol,
-                                                    quad_tol,
-                                                    disk_size,
-                                                    EPS);
-      wn += the_val;
-    }
-
-    return wn;
-  };
-
-  auto wn_field_semidiscretized_surface =
-    [&semidiscretizedTriangles, &disk_size, &edge_tol, &quad_tol, &ls_tol, &EPS, &case_code](
-      axom::primal::Point<double, 3> query) -> double {
-    double wn = 0.0;
-    for(const auto& tri : semidiscretizedTriangles)
-    {
-      wn += axom::primal::winding_number(query, tri, 0.0, 0.0);
-    }
-
-    return wn;
-  };
-
-  double the_range = 0.0055;
-
-  auto the_origin = axom::primal::Point<double, 3> {-5.87929e-05, -0.000626707, 0.000275838};
-
-  auto normal =
-    axom::primal::Vector<double, 3> {0.8957064706371034, -0.5110493685379921, -0.02576440399799165};
-  axom::primal::Vector<double, 3> v1 {0.00077283, 0.00125551, 0.00196403};
-  axom::primal::Vector<double, 3> v2 {-0.383437, -0.702282, 0.599813};
-  auto v3 = axom::primal::Vector<double, 3>::cross_product(v1, v2).unitVector();
-
-  std::cout << the_range << std::endl;
-  std::cout << v1 << std::endl;
-  std::cout << v2 << std::endl;
-  int npts = 750;
-
-  double dists[] = {0.0};
-
-  //return;
-
-  for(int i = 0; i < 1; ++i)
-  {
-    axom::primal::Point<double, 3> the_origin_i = the_origin;
-    the_origin_i.array() += dists[i] * v3.array();
-
-    axom::primal::exportSliceScalarFieldToVTK<double>(
-      prefix + "extra_slices/fixed_floppy_surface_slice_" + std::to_string(i) + ".vtk ",
-      wn_field_floppy_surface,
-      the_origin_i,
-      v1,
-      v2,
-      the_range,
-      the_range,
-      npts,
-      npts);
-
-    axom::primal::exportSliceScalarFieldToVTK<double>(
-      prefix + "extra_slices/fixed_discretized_surface_slice_" + std::to_string(i) + ".vtk ",
-      wn_field_discretized_surface,
-      the_origin_i,
-      v1,
-      v2,
-      the_range,
-      the_range,
-      npts,
-      npts);
-
-    //axom::primal::exportSliceScalarFieldToVTK<double>(
-    //  prefix + "extra_slices/semidiscretized_surface_slice_" + std::to_string(i) + ".vtk ",
-    //  wn_field_semidiscretized_surface,
-    //  the_origin_i,
-    //  v1,
-    //  v2,
-    //  the_range,
-    //  the_range,
-    //  npts,
-    //  npts);
-  }
-}
+//void discretized_surface_gwn()
+//{
+//  std::string prefix = "E:\\Code\\winding_number_code\\siggraph25\\wn_comparison\\";
+//
+//  auto floppySurfaceStepProcessor = import_step_file(prefix, "fixed_floppy_surface");
+//  auto discretizedSurfaceStepProcessor = import_step_file(prefix, "fixed_discretized_mesh");
+//  auto semidiscretizedTriangles = axom::primal::processSTL(prefix + "mid_resolution0.stl");
+//
+//  constexpr double quad_tol = 1e-16;
+//  constexpr double EPS = 1e-10;
+//  constexpr double edge_tol = 1e-6;
+//  constexpr double ls_tol = 1e-8;
+//  constexpr double disk_size = 0.01;
+//
+//  // (!bBox, !oBox, casting, noCache)
+//  int case_code = -1;
+//  auto wn_field_floppy_surface =
+//    [&floppySurfaceStepProcessor, &disk_size, &edge_tol, &quad_tol, &ls_tol, &EPS, &case_code](
+//      axom::primal::Point<double, 3> query) -> double {
+//    double wn = 0.0;
+//    for(const auto& kv : floppySurfaceStepProcessor.getPatchDataMap())
+//    {
+//      int integrated_trimming_curves;
+//      double the_val = axom::primal::winding_number(query,
+//                                                    kv.second.nurbsPatchData,
+//                                                    case_code,
+//                                                    integrated_trimming_curves,
+//                                                    edge_tol,
+//                                                    ls_tol,
+//                                                    quad_tol,
+//                                                    disk_size,
+//                                                    EPS);
+//      wn += the_val;
+//    }
+//
+//    return wn;
+//  };
+//
+//  auto wn_field_discretized_surface =
+//    [&discretizedSurfaceStepProcessor, &disk_size, &edge_tol, &quad_tol, &ls_tol, &EPS, &case_code](
+//      axom::primal::Point<double, 3> query) -> double {
+//    double wn = 0.0;
+//    for(const auto& kv : discretizedSurfaceStepProcessor.getPatchDataMap())
+//    {
+//      int integrated_trimming_curves;
+//      double the_val = axom::primal::winding_number(query,
+//                                                    kv.second.nurbsPatchData,
+//                                                    case_code,
+//                                                    integrated_trimming_curves,
+//                                                    edge_tol,
+//                                                    ls_tol,
+//                                                    quad_tol,
+//                                                    disk_size,
+//                                                    EPS);
+//      wn += the_val;
+//    }
+//
+//    return wn;
+//  };
+//
+//  auto wn_field_semidiscretized_surface =
+//    [&semidiscretizedTriangles, &disk_size, &edge_tol, &quad_tol, &ls_tol, &EPS, &case_code](
+//      axom::primal::Point<double, 3> query) -> double {
+//    double wn = 0.0;
+//    for(const auto& tri : semidiscretizedTriangles)
+//    {
+//      wn += axom::primal::winding_number(query, tri, 0.0, 0.0);
+//    }
+//
+//    return wn;
+//  };
+//
+//  double the_range = 0.0055;
+//
+//  auto the_origin = axom::primal::Point<double, 3> {-5.87929e-05, -0.000626707, 0.000275838};
+//
+//  auto normal =
+//    axom::primal::Vector<double, 3> {0.8957064706371034, -0.5110493685379921, -0.02576440399799165};
+//  axom::primal::Vector<double, 3> v1 {0.00077283, 0.00125551, 0.00196403};
+//  axom::primal::Vector<double, 3> v2 {-0.383437, -0.702282, 0.599813};
+//  auto v3 = axom::primal::Vector<double, 3>::cross_product(v1, v2).unitVector();
+//
+//  std::cout << the_range << std::endl;
+//  std::cout << v1 << std::endl;
+//  std::cout << v2 << std::endl;
+//  int npts = 750;
+//
+//  double dists[] = {0.0};
+//
+//  //return;
+//
+//  for(int i = 0; i < 1; ++i)
+//  {
+//    axom::primal::Point<double, 3> the_origin_i = the_origin;
+//    the_origin_i.array() += dists[i] * v3.array();
+//
+//    axom::primal::exportSliceScalarFieldToVTK<double>(
+//      prefix + "extra_slices/fixed_floppy_surface_slice_" + std::to_string(i) + ".vtk ",
+//      wn_field_floppy_surface,
+//      the_origin_i,
+//      v1,
+//      v2,
+//      the_range,
+//      the_range,
+//      npts,
+//      npts);
+//
+//    axom::primal::exportSliceScalarFieldToVTK<double>(
+//      prefix + "extra_slices/fixed_discretized_surface_slice_" + std::to_string(i) + ".vtk ",
+//      wn_field_discretized_surface,
+//      the_origin_i,
+//      v1,
+//      v2,
+//      the_range,
+//      the_range,
+//      npts,
+//      npts);
+//
+//    //axom::primal::exportSliceScalarFieldToVTK<double>(
+//    //  prefix + "extra_slices/semidiscretized_surface_slice_" + std::to_string(i) + ".vtk ",
+//    //  wn_field_semidiscretized_surface,
+//    //  the_origin_i,
+//    //  v1,
+//    //  v2,
+//    //  the_range,
+//    //  the_range,
+//    //  npts,
+//    //  npts);
+//  }
+//}
 
 // void quadrature_is_bad()
 // {
@@ -3985,131 +3985,157 @@ void generic_slice_test(std::string prefix,
 
 void trimming_curve_robustness_test()
 {
-  std::string prefix = "E:\\Code\\winding_number_code\\siggraph25\\trimming_curve_robustness\\";
+  std::string prefix = "C:\\Users\\spainhour1\\source\\my_axom_data\\trimming_curve_robustness\\";
 
-  auto stepProcessor = import_step_file(prefix, "slide", true);
-  auto stepProcessorPunctured = import_step_file(prefix, "slide", true);
-  auto stepProcessorWiggled = import_step_file(prefix, "slide", true);
+  auto stepProcessor = import_step_file(prefix, "slide", false);
+  //auto stepProcessorPunctured = import_step_file(prefix, "slide", false);
+  //auto stepProcessorWiggled = import_step_file(prefix, "slide", false);
 
   axom::Array<axom::primal::NURBSCurve<double, 2>> specific_curves;
+  axom::primal::NURBSPatchData<double> original_data, wiggled_data, punctured_data;
   for(const auto& kv : stepProcessor.getPatchDataMap())
   {
     if(kv.first == 1)
     {
       kv.second.nurbsPatchData.patch.printTrimmingCurves(prefix + "original_trimming_curves.txt");
 
-      specific_curves = kv.second.nurbsPatchData.patch.getTrimmingCurves();
+      original_data = kv.second.nurbsPatchData;
     }
   }
 
-  for(auto& kv : stepProcessorWiggled.getMutablePatchDataMap())
+  wiggled_data = original_data;
   {
-    if(kv.first == 1)
+    axom::Array<axom::primal::NURBSCurve<double, 2>>& the_curves =
+      wiggled_data.patch.getTrimmingCurves();
+
+    // For each trimming curve, perform knot insertion until there are 10 control points
+    int the_seed = 0;
+    for(auto& curve : the_curves)
     {
-      axom::Array<axom::primal::NURBSCurve<double, 2>>& the_curves =
-        kv.second.nurbsPatchData.patch.getTrimmingCurves();
+      int num_control_points = curve.getNumControlPoints();
 
-      the_curves.clear();
+      auto min_t = curve.getMinKnot();
+      auto max_t = curve.getMaxKnot();
 
-      // For each trimming curve, perform knot insertion until there are 10 control points
-      for(const auto& this_curve : specific_curves)
+      auto max_u = wiggled_data.patch.getMaxKnot_u();
+      auto min_u = wiggled_data.patch.getMinKnot_u();
+      auto mid_u = 0.5 * (max_u + min_u);
+
+      auto max_v = wiggled_data.patch.getMaxKnot_v();
+      auto min_v = wiggled_data.patch.getMinKnot_v();
+      auto mid_v = 0.5 * (max_v + min_v);
+
+      if(num_control_points < 5)
       {
-        auto curve = this_curve;
-
-        int num_control_points = curve.getNumControlPoints();
-
-        auto min_t = curve.getMinKnot();
-        auto max_t = curve.getMaxKnot();
-
-        auto max_u = kv.second.nurbsPatchData.patch.getMaxKnot_u();
-        auto min_u = kv.second.nurbsPatchData.patch.getMinKnot_u();
-        auto mid_u = 0.5 * (max_u + min_u);
-
-        auto max_v = kv.second.nurbsPatchData.patch.getMaxKnot_v();
-        auto min_v = kv.second.nurbsPatchData.patch.getMinKnot_v();
-        auto mid_v = 0.5 * (max_v + min_v);
-
-        if(num_control_points < 5)
+        // Insert knots until we have 5 control points
+        while(num_control_points < 5)
         {
-          // Insert knots until we have 5 control points
-          while(num_control_points < 5)
-          {
-            auto random_t = axom::utilities::random_real(min_t, max_t);
-            curve.insertKnot(random_t, 1);
-            num_control_points = curve.getNumControlPoints();
-          }
+          auto random_t = axom::utilities::random_real(min_t, max_t, the_seed++);
+          curve.insertKnot(random_t, 1);
+          num_control_points = curve.getNumControlPoints();
         }
-
-        // Take all non-endpoint control points, and jitter them a bit
-        for(int i = 1; i < curve.getNumControlPoints() - 1; ++i)
-        {
-          curve[i][0] = axom::utilities::clampVal(
-            (curve[i][0] + axom::utilities::random_real(-0.01, 0.01)),
-            min_u,
-            max_u);
-          curve[i][1] = axom::utilities::clampVal(
-            (curve[i][1] + axom::utilities::random_real(-0.01, 0.01)),
-            min_v,
-            max_v);
-        }
-
-        the_curves.push_back(curve);
       }
 
-      kv.second.nurbsPatchData.curve_quadrature_maps.resize(the_curves.size());
-      kv.second.nurbsPatchData.patch.printTrimmingCurves(prefix + "wiggled_trimming_curves.txt");
-    }
-  }
-
-  for(auto& kv : stepProcessorPunctured.getMutablePatchDataMap())
-  {
-    if(kv.first == 1)
-    {
-      axom::Array<axom::primal::NURBSCurve<double, 2>>& the_curves =
-        kv.second.nurbsPatchData.patch.getTrimmingCurves();
-
-      the_curves.clear();
-
-      axom::primal::NURBSCurve<double, 2> c1, c2, c3;
-      for(auto& curve : specific_curves)
+      // Take all non-endpoint control points, and jitter them a bit
+      for(int i = 1; i < curve.getNumControlPoints() - 1; ++i)
       {
-        auto min_t = curve.getMinKnot();
-        auto max_t = curve.getMaxKnot();
-
-        // Cut out the middle 5th of each curve
-        double cut_start = min_t + 0.2 * (max_t - min_t);
-        double cut_end = min_t + 0.8 * (max_t - min_t);
-
-        curve.split(cut_start, c1, c2);
-        c2.split(cut_end, c2, c3);
-
-        the_curves.push_back(c1);
-        the_curves.push_back(c2);
+        curve[i][0] = axom::utilities::clampVal(
+          (curve[i][0] + axom::utilities::random_real(-0.01, 0.01, the_seed++)),
+          min_u,
+          max_u);
+        curve[i][1] = axom::utilities::clampVal(
+          (curve[i][1] + axom::utilities::random_real(-0.01, 0.01, the_seed++)),
+          min_v,
+          max_v);
       }
 
-      kv.second.nurbsPatchData.curve_quadrature_maps.resize(the_curves.size());
-      kv.second.nurbsPatchData.patch.printTrimmingCurves(prefix + "punctured_trimming_curves.txt");
+      //the_curves.push_back(curve);
     }
+
+    wiggled_data.patch.printTrimmingCurves(prefix + "wiggled_trimming_curves.txt");
   }
 
-  // 152 is the important one
+  //for(auto& kv : stepProcessorPunctured.getMutablePatchDataMap())
+  //{
+  //  if(kv.first == 1)
+  //  {
+  //    axom::Array<axom::primal::NURBSCurve<double, 2>>& the_curves =
+  //      kv.second.nurbsPatchData.patch.getTrimmingCurves();
 
-  constexpr double quad_tol = 1e-6;
+  //    the_curves.clear();
+
+  //    axom::primal::NURBSCurve<double, 2> c1, c2, c3;
+  //    for(auto& curve : specific_curves)
+  //    {
+  //      auto min_t = curve.getMinKnot();
+  //      auto max_t = curve.getMaxKnot();
+
+  //      // Cut out the middle 5th of each curve
+  //      double cut_start = min_t + 0.2 * (max_t - min_t);
+  //      double cut_end = min_t + 0.8 * (max_t - min_t);
+
+  //      curve.split(cut_start, c1, c2);
+  //      c2.split(cut_end, c2, c3);
+
+  //      the_curves.push_back(c1);
+  //      the_curves.push_back(c2);
+  //    }
+
+  //    kv.second.nurbsPatchData.curve_quadrature_maps.resize(the_curves.size());
+  //    kv.second.nurbsPatchData.patch.printTrimmingCurves(prefix + "punctured_trimming_curves.txt");
+  //  }
+  //}
+
+  // 1 is the important one
+
+  auto interesting_query_0 = axom::primal::Point<double, 3> {-0.0162287, -0.0661681, 0.0500215};
+
+  constexpr double quad_tol = 1e-8;
   constexpr double ls_tol = 1e-6;
-  constexpr double disk_size = 0.01;
+  constexpr double disk_size = 0.001;
   constexpr double EPS = 1e-10;
   constexpr double edge_tol = 1e-12;
 
+  // -0.037768, -0.0403439, -0.0432037
+  int this_case_code;
+  int this_integrated_trimming_curves;
+  std::cout << axom::primal::winding_number(interesting_query_0,
+                                            wiggled_data,
+                                            this_case_code,
+                                            this_integrated_trimming_curves,
+                                            edge_tol,
+                                            ls_tol,
+                                            quad_tol,
+                                            disk_size,
+                                            EPS)
+            << std::endl;
+
+  //return;
   int case_code = -1;
-  auto wn_field_wiggled =
-    [&stepProcessorWiggled, &edge_tol, &disk_size, &quad_tol, &ls_tol, &EPS, &case_code](
-      axom::primal::Point<double, 3> query) -> std::pair<double, double> {
+  auto wn_field =
+    [&stepProcessor, &wiggled_data, &edge_tol, &disk_size, &quad_tol, &ls_tol, &EPS, &case_code](
+      axom::primal::Point<double, 3> query) -> double {
     double wn = 0.0;
     axom::utilities::Timer timer;
     timer.start();
-    for(const auto& kv : stepProcessorWiggled.getPatchDataMap())
+    for(const auto& kv : stepProcessor.getPatchDataMap())
     {
       int integrated_trimming_curves;
+      if(kv.first == 1)
+      {
+        return axom::primal::winding_number(query,
+                                          wiggled_data,
+                                          case_code,
+                                          integrated_trimming_curves,
+                                          edge_tol,
+                                          ls_tol,
+                                          quad_tol,
+                                          disk_size,
+                                          EPS);
+      }
+      else
+        continue;
+
       double the_val = axom::primal::winding_number(query,
                                                     kv.second.nurbsPatchData,
                                                     case_code,
@@ -4123,51 +4149,17 @@ void trimming_curve_robustness_test()
     }
     timer.stop();
 
-    return std::make_pair(wn, timer.elapsedTimeInSec());
-  };
-
-  auto wn_field_punctured =
-    [&stepProcessorPunctured, &edge_tol, &disk_size, &quad_tol, &ls_tol, &EPS, &case_code](
-      axom::primal::Point<double, 3> query) -> std::pair<double, double> {
-    double wn = 0.0;
-    axom::utilities::Timer timer;
-    timer.start();
-    for(const auto& kv : stepProcessorPunctured.getPatchDataMap())
-    {
-      int integrated_trimming_curves;
-      double the_val = axom::primal::winding_number(query,
-                                                    kv.second.nurbsPatchData,
-                                                    case_code,
-                                                    integrated_trimming_curves,
-                                                    edge_tol,
-                                                    ls_tol,
-                                                    quad_tol,
-                                                    disk_size,
-                                                    EPS);
-      wn += the_val;
-    }
-    timer.stop();
-
-    return std::make_pair(wn, timer.elapsedTimeInSec());
+    //return std::make_pair(wn, timer.elapsedTimeInSec());
+    return wn;
   };
 
   // 500 * 500 = 250,000
-  // 300 * 600 = 180,000
-  int npts = 350;
-  axom::primal::exportSplitScalarSliceFieldToVTK<double>(
-    prefix + "punctured_scalar_field.vtk",
-    wn_field_punctured,
-    axom::primal::Point<double, 3> {0, -0.025, 0.05},
-    axom::primal::Vector<double, 3> {1.0, 0.05, -0.25},
-    axom::primal::Vector<double, 3> {0.0, 1.0, 0.1},
-    0.07,
-    0.14,
-    npts,
-    2 * npts);
-
-  axom::primal::exportSplitScalarSliceFieldToVTK<double>(
-    prefix + "wiggled_scalar_field.vtk",
-    wn_field_wiggled,
+  // 350 * 700 = 245,000ish
+  int npts = 250;
+  axom::primal::exportSliceScalarFieldToVTK<double>(
+    prefix + "wiggled_faster.vtk",
+    wn_field,
+    //interesting_query_0,
     axom::primal::Point<double, 3> {0, -0.025, 0.05},
     axom::primal::Vector<double, 3> {1.0, 0.05, -0.25},
     axom::primal::Vector<double, 3> {0.0, 1.0, 0.1},
