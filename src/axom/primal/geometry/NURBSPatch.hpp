@@ -158,11 +158,20 @@ struct NURBSPatchData
           continue;  // Skip patches with no trimming curves
         }
 
-        auto the_patch = BezierPatch<T, 3>(
-          split_patches(i, j).getControlPoints(),
-          split_patches(i, j).getWeights(),
-          split_patches(i, j).getDegree_u(),
-          split_patches(i, j).getDegree_v());
+        BezierPatch<T, 3> the_patch;
+        if(patch.isRational())
+        {
+          the_patch = BezierPatch<T, 3>(split_patches(i, j).getControlPoints(),
+                                             split_patches(i, j).getWeights(),
+                                             split_patches(i, j).getDegree_u(),
+                                             split_patches(i, j).getDegree_v());
+        }
+        else
+        {
+          the_patch = BezierPatch<T, 3>(split_patches(i, j).getControlPoints(),
+                                        split_patches(i, j).getDegree_u(),
+                                        split_patches(i, j).getDegree_v());
+        }
           
         BezierPatch<T, 3> p1, p2, p3, p4;
         the_patch.split(0.5, 0.5, p1, p2, p3, p4);
@@ -1790,8 +1799,8 @@ public:
     auto n = m_knotvec_u.getNumKnotSpans();
     auto m = m_knotvec_v.getNumKnotSpans();
 
-    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, n);
-    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, m);
+    rescaleTrimmingCurves_u(min_u, max_u, 0.0, n);
+    rescaleTrimmingCurves_v(min_v, max_v, 0.0, m);
 
     m_knotvec_u.rescale(0, n);
     m_knotvec_v.rescale(0, m);

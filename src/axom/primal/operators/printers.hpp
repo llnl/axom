@@ -37,6 +37,20 @@ namespace primal
 {
 
 template <typename T>
+inline void printLoadingBar(T progress, int total, std::string label = "")
+{
+  int barWidth = 40; // Width of the loading bar
+  float percentage = static_cast<float>(progress) / total;
+  int progressWidth = static_cast<int>(percentage * barWidth);
+
+  std::cout << label << (label.empty() ? "" : ": " ) << "[";
+  for(int i = 0; i < progressWidth; ++i) std::cout << "=";
+  for(int i = progressWidth; i < barWidth; ++i) std::cout << "-";
+  std::cout << "] " << std::setw(3) << static_cast<int>(percentage * 100.0) << "%\r";
+  std::cout.flush();
+}
+
+template <typename T>
 void python_print(const Point<T, 3>& point, const char* plot_lines = nullptr)
 {
   printf("plot_query( fig, ax, (%.17f, %.17f, %.17f), ", point[0], point[1], point[2]);
@@ -772,7 +786,7 @@ void simple_grid_test(axom::Array<BezierCurve<T, 2>>& curves,
       double y = bb.getMin()[1] + yi * (bb.getMax()[1] - bb.getMin()[1]) / npts_y;
       primal::Point<double, 2> query({x, y});
 
-      int nevals = 0;
+      // int nevals = 0;
 
       double wn = 0.0;
       for(int i = 0; i < curves.size(); ++i)
@@ -849,20 +863,6 @@ void simple_timing_test(axom::Array<BezierCurve<T, 2>>& curves,
       wn_out << x << "," << y << "," << wn << std::endl;
     }
   }
-}
-
-template <typename T>
-inline void printLoadingBar(T progress, int total, std::string label = "")
-{
-  int barWidth = 40; // Width of the loading bar
-  float percentage = static_cast<float>(progress) / total;
-  int progressWidth = static_cast<int>(percentage * barWidth);
-
-  std::cout << label << (label.empty() ? "" : ": " ) << "[";
-  for(int i = 0; i < progressWidth; ++i) std::cout << "=";
-  for(int i = progressWidth; i < barWidth; ++i) std::cout << "-";
-  std::cout << "] " << std::setw(3) << static_cast<int>(percentage * 100.0) << "%\r";
-  std::cout.flush();
 }
 
 template <typename T>
@@ -965,8 +965,8 @@ void exportScalarFieldToVTK(const std::string& filename,
   file << "SCALARS scalars float\n";
   file << "LOOKUP_TABLE default\n";
 
-  int case_count[4] = {0, 0, 0, 0};
-  double case_time[4] = {0.0, 0.0, 0.0, 0.0};
+  // int case_count[4] = {0, 0, 0, 0};
+  // double case_time[4] = {0.0, 0.0, 0.0, 0.0};
 
   // Write scalar field data
   for(int k = 0; k < zSteps; ++k)
@@ -1287,8 +1287,8 @@ template <typename T>
 void exportSplitScalarSliceFieldToVTK(const std::string& filename,
                                       std::function<std::pair<double, double>(Point3D)> scalarField,
                                       const Point3D& origin,
-                                      Vector<T, 3>& u,
-                                      Vector<T, 3>& v,
+                                      Vector<T, 3> u,
+                                      Vector<T, 3> v,
                                       double planeWidth,
                                       double planeHeight,
                                       int uSteps,

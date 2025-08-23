@@ -386,8 +386,8 @@ TEST(primal_integral, evaluate_nurbs_surface_normal)
   const int DIM = 3;
   using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
-  using Vector2D = primal::Vector<double, 2>;
-  using Vector3D = primal::Vector<double, 3>;
+  // using Vector2D = primal::Vector<double, 2>;
+  // using Vector3D = primal::Vector<double, 3>;
   using NURBSPatchType = primal::NURBSPatch<double, DIM>;
 
   const int npts_u = 5;
@@ -452,10 +452,10 @@ TEST(primal_integral, evaluate_nurbs_surface_normal)
 TEST(primal_integral, evaluate_nurbs_surface_area)
 {
   const int DIM = 3;
-  using Point2D = primal::Point<double, 2>;
+  // using Point2D = primal::Point<double, 2>;
   using Point3D = primal::Point<double, 3>;
-  using Vector2D = primal::Vector<double, 2>;
-  using Vector3D = primal::Vector<double, 3>;
+  // using Vector2D = primal::Vector<double, 2>;
+  // using Vector3D = primal::Vector<double, 3>;
   using NURBSPatchType = primal::NURBSPatch<double, DIM>;
 
   const int npts_u = 5;
@@ -483,8 +483,7 @@ TEST(primal_integral, evaluate_nurbs_surface_area)
   NURBSPatchType nPatch(controlPoints, weights, npts_u, npts_v, degree_u, degree_v);
   nPatch.makeTriviallyTrimmed();
 
-  std::cout << std::setprecision(15);
-  std::cout << nPatch.calculateTrimmedPatchArea() << std::endl;
+
 }
 
 

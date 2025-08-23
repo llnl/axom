@@ -8,7 +8,7 @@
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 #include "axom/mint.hpp"
-#include "axom/primal/operators/detail/winding_number_3d_debug.hpp"
+// #include "axom/primal/operators/detail/winding_number_3d_debug.hpp"
 #include "axom/CLI11.hpp"
 #include "axom/fmt.hpp"
 
@@ -1350,7 +1350,7 @@ public:
         // printPatchBoundaries( patchData.nurbsPatch );
         // std::cout << "Patch Normal: " << patchData.nurbsPatch.calculateUntrimmedPatchNormal() << std::endl;
 
-        int yyy = 0;
+        // int yyy = 0;
       }
     }
   }
@@ -2132,6 +2132,8 @@ StepFileProcessor import_step_file(std::string prefix,
                                    double angular_deflection = 0.5,
                                    bool export_vtk = true)
 {
+  std::cout << export_vtk << std::endl;
+
   std::cout << prefix + filename + ".step" << std::endl;
   StepFileProcessor stepProcessor(prefix + filename + ".step", false);
   if(!stepProcessor.isLoaded())
@@ -3217,10 +3219,11 @@ void quadrature_on_sphere()
     double wn = 0.0;
     for(int k = 0; k < 1; ++k)
     {
-      double the_val = axom::primal::detail::nurbs_winding_number_surface_debug(query,
-                                                                                sphere_faces[k],
-                                                                                node_count,
-                                                                                -1.0);
+      double the_val = 0.0; 
+      // axom::primal::detail::nurbs_winding_number_surface_debug(query,
+      //                                                                           sphere_faces[k],
+      //                                                                           node_count,
+      //                                                                           -1.0);
       wn += the_val;
     }
 
@@ -3235,10 +3238,11 @@ void quadrature_on_sphere()
     double wn = 0.0;
     for(int k = 0; k < 1; ++k)
     {
-      double the_val = axom::primal::detail::nurbs_winding_number_surface_debug(query,
-                                                                                sphere_faces[k],
-                                                                                node_count,
-                                                                                1e-6);
+      double the_val = 0.0;
+      // axom::primal::detail::nurbs_winding_number_surface_debug(query,
+      //                                                                           sphere_faces[k],
+      //                                                                           node_count,
+      //                                                                           1e-6);
       wn += the_val;
     }
 
@@ -3255,17 +3259,17 @@ void quadrature_on_sphere()
 
     for(int k = 0; k < 1; ++k)
     {
-      auto the_val =
-        axom::primal::detail::nurbs_data_winding_number_debug(query,
-                                                              nurbs_faces_data[k],
-                                                              nurbs_faces_data[k].average_normal,
-                                                              node_count,
-                                                              case_code,
-                                                              integrated_trimming_curves,
-                                                              edge_tol,
-                                                              ls_tol,
-                                                              -1.0,
-                                                              EPS);
+      auto the_val = 0.0;
+        // axom::primal::detail::nurbs_data_winding_number_debug(query,
+        //                                                       nurbs_faces_data[k],
+        //                                                       nurbs_faces_data[k].average_normal,
+        //                                                       node_count,
+        //                                                       case_code,
+        //                                                       integrated_trimming_curves,
+        //                                                       edge_tol,
+        //                                                       ls_tol,
+        //                                                       -1.0,
+        //                                                       EPS);
       wn += the_val;
     }
 
@@ -3281,17 +3285,17 @@ void quadrature_on_sphere()
 
     for(int k = 0; k < 1; ++k)
     {
-      auto the_val =
-        axom::primal::detail::nurbs_data_winding_number_debug(query,
-                                                              nurbs_faces_data[k],
-                                                              nurbs_faces_data[k].average_normal,
-                                                              node_count,
-                                                              case_code,
-                                                              integrated_trimming_curves,
-                                                              edge_tol,
-                                                              ls_tol,
-                                                              1e-6,
-                                                              EPS);
+      auto the_val = 0.0;
+        // axom::primal::detail::nurbs_data_winding_number_debug(query,
+        //                                                       nurbs_faces_data[k],
+        //                                                       nurbs_faces_data[k].average_normal,
+        //                                                       node_count,
+        //                                                       case_code,
+        //                                                       integrated_trimming_curves,
+        //                                                       edge_tol,
+        //                                                       ls_tol,
+        //                                                       1e-6,
+        //                                                       EPS);
       wn += the_val;
     }
 
@@ -3985,7 +3989,8 @@ void generic_slice_test(std::string prefix,
 
 void trimming_curve_robustness_test()
 {
-  std::string prefix = "C:\\Users\\spainhour1\\source\\my_axom_data\\trimming_curve_robustness\\";
+  // std::string prefix = "C:\\Users\\spainhour1\\source\\my_axom_data\\trimming_curve_robustness\\";
+  std::string prefix = "/usr/workspace/spainhou/axom/src/axom/quest/examples/all_step_files/";
 
   auto stepProcessor = import_step_file(prefix, "slide", false);
   //auto stepProcessorPunctured = import_step_file(prefix, "slide", false);
@@ -4155,7 +4160,7 @@ void trimming_curve_robustness_test()
 
   // 500 * 500 = 250,000
   // 350 * 700 = 245,000ish
-  int npts = 250;
+  int npts = 350;
   axom::primal::exportSliceScalarFieldToVTK<double>(
     prefix + "wiggled_faster.vtk",
     wn_field,
@@ -4855,6 +4860,7 @@ void generic_direction_timing_test(std::string prefix,
                                    axom::primal::Vector<double, 3> direction,
                                    axom::primal::BoundingBox<double, 3> bbox)
 {
+  std::cout << direction << std::endl;
   auto stepProcessor = import_step_file(prefix, filename);
 
   std::ofstream results(prefix + filename + "_timing_results_" + file_tag + ".csv");
@@ -7323,7 +7329,7 @@ void oneshot_comparison_example(std::string prefix, std::string svg_filename_pre
   {
     bbox.addBox(patch.boundingBox());
   }
-  axom::primal::Point<double, 3> origin = bbox.getCentroid();
+  // axom::primal::Point<double, 3> origin = bbox.getCentroid();
 
   // Track the time
   axom::utilities::Timer timer;
@@ -7721,22 +7727,22 @@ int main()
   //   axom::slic::SimpleLogger logger;
   //   std::string annotationMode {"none"};
 
-  if(false)
-  {
-    double fixed_ls_tol = 1e-6;
-    double fixed_quad_tol = 1e-6;
-    double fixed_disk_size = 0.01;
+  // if(false)
+  // {
+  //   double fixed_ls_tol = 1e-6;
+  //   double fixed_quad_tol = 1e-6;
+  //   double fixed_disk_size = 0.01;
 
-    // std::string test_prefix = axom::fmt::format("1em{}", i);
-    for(int j = 1; j < 8; ++j)
-    {
-      for(int i = 0; i < 10; ++i)
-      {
-        double quad_tol = std::pow(10, -j);
-        double ls_tol = std::pow(10, -j);
+  //   // std::string test_prefix = axom::fmt::format("1em{}", i);
+  //   for(int j = 1; j < 8; ++j)
+  //   {
+  //     for(int i = 0; i < 10; ++i)
+  //     {
+  //       double quad_tol = std::pow(10, -j);
+  //       double ls_tol = std::pow(10, -j);
 
-        std::string test_prefix = axom::fmt::format("1em{}", j);
-        std::string test_suffix = axom::fmt::format("{}", i);
+  //       std::string test_prefix = axom::fmt::format("1em{}", j);
+  //       std::string test_suffix = axom::fmt::format("{}", i);
 
         // strict_tear_parameter_ls_tol_test(test_prefix, out_prefix, ls_tol, fixed_quad_tol, test_suffix);
 
@@ -7758,14 +7764,14 @@ int main()
         // 0.01,
         // test_suffix);
 
-        std::string out_prefix =
-          "C:\\Users\\Fireh\\Code\\winding_number_code\\parameter_accuracy_tests\\quad_1em3\\";
-        strict_tear_parameter_quad_tol_test(test_prefix,
-                                            out_prefix,
-                                            fixed_ls_tol,
-                                            quad_tol,
-                                            0.001,
-                                            test_suffix);
+        // std::string out_prefix =
+        //   "C:\\Users\\Fireh\\Code\\winding_number_code\\parameter_accuracy_tests\\quad_1em3\\";
+        // strict_tear_parameter_quad_tol_test(test_prefix,
+        //                                     out_prefix,
+        //                                     fixed_ls_tol,
+        //                                     quad_tol,
+        //                                     0.001,
+        //                                     test_suffix);
 
         // out_prefix = "C:\\Users\\Fireh\\Code\\winding_number_code\\parameter_accuracy_tests\\ls\\";
         // strict_tear_parameter_ls_tol_test(test_prefix,
@@ -7774,9 +7780,9 @@ int main()
         // fixed_quad_tol,
         // fixed_disk_size,
         // test_suffix);
-      }
-    }
-  }
+  //     }
+  //   }
+  // }
 
   // for(int i = 1; i < 2; ++i)
   // {
