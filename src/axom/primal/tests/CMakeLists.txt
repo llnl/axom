@@ -46,6 +46,8 @@ set( primal_tests
     primal_vector.cpp
     primal_winding_number.cpp
     primal_zip.cpp
+
+    primal_clip_perf.cpp
    )
 
 blt_list_append(
