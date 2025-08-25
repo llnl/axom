@@ -19,6 +19,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
+- Added a new Python interface for sidre, using nanobind to generate Python bindings.
 - Added a new "BUMP" (Blueprint Utilities for Mesh Processing) component in Axom, which includes
   utilities that were formerly included in the Axom MIR component. BUMP is useful for writing
   algorithms that process Blueprint meshes.

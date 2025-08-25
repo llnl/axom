@@ -605,31 +605,27 @@ spack:
       buildable: false
       externals:
       - spec: cppcheck@2.9
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/latest/cppcheck-2.9
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_07_14_14_40_58/view/cppcheck-2.9
     doxygen:
-      version: [1.11.0]
+      version: [1.13.2]
       buildable: false
       externals:
-      - spec: doxygen@1.11.0
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/latest/doxygen-1.11.0
+      - spec: doxygen@1.13.2
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_07_14_14_40_58/view/doxygen-1.13.2
     llvm:
-      version: [18.0.0]
+      version: [14.0.0]
       buildable: false
       externals:
-      - spec: llvm@18.0.0+clang+python %rocmcc@6.2.1
-        prefix: /usr/tce/packages/rocmcc/rocmcc-6.2.1-magic/llvm
-      - spec: llvm@18.0.0+clang+python %rocmcc@6.3.1
-        prefix: /usr/tce/packages/rocmcc/rocmcc-6.3.1-magic/llvm
-      - spec: llvm@18.0.0+clang+python %cce@19.0.0
-        prefix: /usr/tce/packages/rocmcc/rocmcc-6.3.1-magic/llvm
+      - spec: llvm@14.0.0+clang+python
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_07_14_14_40_58/view/llvm-14.0.6
     py-sphinx:
       version: [8.0.2]
       buildable: false
       externals:
       - spec: py-sphinx@8.0.2
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/latest/python-3.12.5
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_07_14_14_40_58/view/python-3.11.11
     python:
       buildable: false
       externals:
-      - spec: python@3.12.5
-        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/latest/python-3.12.5
+      - spec: python@3.11.11
+        prefix: /collab/usr/gapps/axom/devtools/toss_4_x86_64_ib_cray/2025_07_14_14_40_58/view/python-3.11.11
