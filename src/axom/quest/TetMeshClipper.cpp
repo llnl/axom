@@ -105,13 +105,16 @@ void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
   /*
     Compute surface triangles of the tet mesh.
   */
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::compute_surface");
   axom::Array<Triangle3DType> surfTris = computeGeometrySurface(shapeeMesh.getRuntimePolicy(), allocId);
+  AXOM_ANNOTATE_END("TetMeshClipper::compute_surface");
 // writeTrianglesToVTK(surfTris, "surfaceTris.vtk");
   auto surfTrisView = surfTris.view();
 
   /*
     Surface triangles (as bounding boxes) in BVH.
   */
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::make_surf_bvh");
   axom::Array<BoundingBox3DType> surfTrisAsBbs(surfTris.size(), 0, allocId);
   auto surfTrisAsBbsView = surfTrisAsBbs.view();
 
@@ -123,11 +126,13 @@ void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
 
   spin::BVH<3, ExecSpace, double> bvh;
   bvh.initialize(surfTrisAsBbsView, surfTrisAsBbsView.size());
+  AXOM_ANNOTATE_END("TetMeshClipper::make_surf_bvh");
 
   /*
     Compute rays.  Each ray originates from its hex center and point
     away from the center of the tet mesh.
   */
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::make_rays");
   Point3DType geomCenter = m_tetMeshBb.getCentroid(); // Estimate of tet mesh center.
   axom::ArrayView<const BoundingBox3DType> hexBbs = shapeeMesh.getCellBoundingBoxes();
   axom::ArrayView<const HexahedronType> hexes = shapeeMesh.getCellsAsHexes();
@@ -141,19 +146,24 @@ void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
       Vector3DType direction(geomCenter, hexCenter);
       hexRaysView[cellIdx] = Ray3DType(hexCenter, direction);
     });
+  AXOM_ANNOTATE_END("TetMeshClipper::make_rays");
 
   /*
     Find candidate surface triangles near the cells' bounding boxes and rays.
   */
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_bbs");
   axom::Array<IndexType> bbOffsets(cellCount, 0, allocId);
   axom::Array<IndexType> bbCounts(cellCount, 0, allocId);
   axom::Array<IndexType> bbCandidates;
   bvh.findBoundingBoxes(bbOffsets, bbCounts, bbCandidates, hexBbs.size(), hexBbs);
+  AXOM_ANNOTATE_END("TetMeshClipper::get_surf_near_bbs");
 
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_rays");
   axom::Array<IndexType> rayOffsets(cellCount, 0, allocId);
   axom::Array<IndexType> rayCounts(cellCount, 0, allocId);
   axom::Array<IndexType> rayCandidates;
   bvh.findRays(rayOffsets, rayCounts, rayCandidates, hexRaysView.size(), hexRaysView);
+  AXOM_ANNOTATE_END("TetMeshClipper::get_surf_near_rays");
 
   auto bbCountsView = bbCounts.view();
   auto bbOffsetsView = bbOffsets.view();
@@ -165,6 +175,7 @@ void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
 
   const double eps = 1e-12;
 
+  AXOM_ANNOTATE_BEGIN("TetMeshClipper::compute_labels");
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
@@ -230,6 +241,7 @@ void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
         label = surfaceCrossingCount%2 == 0 ? LABEL_OUT : LABEL_IN;
       }
     });
+  AXOM_ANNOTATE_END("TetMeshClipper::compute_labels");
 }
 #else
 /*

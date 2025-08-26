@@ -104,8 +104,8 @@ public:
       axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Collect unlabeled cells indices into an index list.
-    virtual void collectUnlabeledCellIndices(const axom::ArrayView<LabelType>& labels,
-                                             axom::Array<axom::IndexType>& unlabeledCells) = 0;
+    virtual void collectUnlabeledIndices(const axom::ArrayView<LabelType>& labels,
+                                         axom::Array<axom::IndexType>& unlabeledIndices) = 0;
 
     //!@brief Compute clip volumes for every cell.
     virtual void computeClipVolumes3D(axom::ArrayView<double> ovlap) = 0;

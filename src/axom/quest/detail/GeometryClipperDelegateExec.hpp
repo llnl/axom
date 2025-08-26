@@ -55,18 +55,18 @@ public:
 
   void initVolumeOverlaps(axom::ArrayView<double> ovlap) override
   {
-    const axom::IndexType cellCount = getShapeeMesh().getCellCount();
-    SLIC_ASSERT(ovlap.size() == cellCount);
+    SLIC_ASSERT(ovlap.size() == getShapeeMesh().getCellCount());
     ovlap.fill(0.0);
     return;
   }
 
   //! @brief Make an list of indices where labels have value LABEL_ON.
-  void collectUnlabeledCellIndices(const axom::ArrayView<LabelType>& labels,
-                                   axom::Array<axom::IndexType>& unlabeledCells) override
+  void collectUnlabeledIndices(const axom::ArrayView<LabelType>& labels,
+                               axom::Array<axom::IndexType>& unlabeledIndices) override
   {
+    AXOM_ANNOTATE_SCOPE("GeometryClipper::collect_unlabeleds");
     /*!
-      1. Generate tmpLabels, having a value of 1 for cells marked LABEL_ON and zero elsewhere.
+      1. Generate tmpLabels, having a value of 1 where labels is LABEL_ON and zero elsewhere.
       2. Inclusive scan on tmpLabels to generate values that step up at unlabeled cells.
       3. Find unlabeled cells by seeing where tmpLabels changes values.
          (Handle first cell separately, then loop from second cell on.)
@@ -88,22 +88,22 @@ public:
     axom::copy(&unlabeledCount, &tmpLabels.back(), sizeof(unlabeledCount));
 
     // Re-allocate output if it's too small or has wrong allocator.
-    if(unlabeledCells.size() < unlabeledCount ||
-       unlabeledCells.getAllocatorID() != labels.getAllocatorID())
+    if(unlabeledIndices.size() < unlabeledCount ||
+       unlabeledIndices.getAllocatorID() != labels.getAllocatorID())
     {
-      unlabeledCells = axom::Array<axom::IndexType> {axom::ArrayOptions::Uninitialized(),
+      unlabeledIndices = axom::Array<axom::IndexType> {axom::ArrayOptions::Uninitialized(),
                                                      unlabeledCount,
                                                      unlabeledCount,
                                                      labels.getAllocatorID()};
     }
-    auto unlabeledCellsView = unlabeledCells.view();
+    auto unlabeledIndicesView = unlabeledIndices.view();
 
-    LabelType firstCellLabel = '\0';
-    axom::copy(&firstCellLabel, &labels[0], sizeof(firstCellLabel));
-    if(firstCellLabel == 1)
+    LabelType firstLabel = '\0';
+    axom::copy(&firstLabel, &labels[0], sizeof(firstLabel));
+    if(firstLabel == 1)
     {
       axom::IndexType zero = 0;
-      axom::copy(&unlabeledCells[0], &zero, sizeof(zero));
+      axom::copy(&unlabeledIndices[0], &zero, sizeof(zero));
     }
 
     axom::for_all<ExecSpace>(
@@ -112,7 +112,7 @@ public:
       AXOM_LAMBDA(axom::IndexType i) {
         if(tmpLabelsView[i] != tmpLabelsView[i - 1])
         {
-          unlabeledCellsView[tmpLabelsView[i - 1]] = i;
+          unlabeledIndicesView[tmpLabelsView[i - 1]] = i;
         }
       });
   }
@@ -587,6 +587,7 @@ public:
                       axom::IndexType& onCount,
                       axom::IndexType& outCount) override
   {
+    AXOM_ANNOTATE_SCOPE("GeometryClipper::getLabelCounts");
     using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
     using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
     RAJA::ReduceSum<ReducePolicy, axom::IndexType> inSum(0);

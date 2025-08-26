@@ -96,7 +96,7 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
     m_delegate->initVolumeOverlaps(labels.view(), ovlap);
 
     axom::Array<axom::IndexType> unlabeledCells;
-    m_delegate->collectUnlabeledCellIndices(labels.view(), unlabeledCells);
+    m_delegate->collectUnlabeledIndices(labels.view(), unlabeledCells);
     AXOM_ANNOTATE_END("GeometryClipper::processInOut");
 
     done = m_strategy->specializedClip(m_shapeeMesh, ovlap, unlabeledCells);
