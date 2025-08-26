@@ -16,13 +16,13 @@
       when: never
     - when: on_success
   before_script:
-    - module load cmake/3.21.1
+    - module load cmake/3.29
 
 ####
 # Template
 .src_build_on_tuolumne:
   variables:
-    ALLOC_TIME: "60"
+    ALLOC_TIME: "40"
     NUM_NODES: "1"
   extends: [.src_build_script, .on_tuolumne, .src_workflow]
   needs: []
@@ -35,16 +35,11 @@
 
 ####
 # PR Build jobs
-# Test GPU-aware MPI
-tuolumne-rocmcc_6_3_1_hip-gpu-aware-src:
+tuolumne-rocmcc_6_3_1_hip-src:
   variables:
     COMPILER: "rocmcc@6.3.1_hip"
     HOST_CONFIG: "tuolumne-toss_4_x86_64_ib_cray-${COMPILER}.cmake"
-    NUM_NODES: "2"
   extends: .src_build_on_tuolumne
-  before_script:
-    - module load cmake/3.29
-    - export MPICH_GPU_SUPPORT_ENABLED=1
 
 ####
 # Full Build jobs
