@@ -428,13 +428,41 @@ public:
   /*!
    * \brief Inserts a range of key-value pairs into the FlatMap.
    *
-   *  If the key already exists in the FlatMap, insertion is skipped.
-   *  Otherwise, the key-value mapping is inserted into the FlatMap.
+   *  If a key in the range already exists, assigns the value to the existing
+   *  key in the FlatMap. Otherwise, a new key-value pair is inserted into the
+   *  FlatMap.
    *
    * \param [in] first the beginning of the range of pairs
    * \param [in] last the end of the range of pairs
+   *
+   * \note If duplicate keys are present in the range, the key which appears
+   *  later in the range is updated or inserted. This is equivalent to a
+   *  sequential for-loop of insertions over the input range.
    */
   template <typename InputIt>
+  void insert(InputIt first, InputIt last);
+
+  /*!
+   * \brief Inserts a range of key-value pairs into the FlatMap.
+   *
+   *  If a key in the range already exists, assigns the value to the existing
+   *  key in the FlatMap. Otherwise, a new key-value pair is inserted into the
+   *  FlatMap.
+   *
+   * \param [in] first the beginning of the range of pairs
+   * \param [in] last the end of the range of pairs
+   *
+   * \tparam ExecSpace the execution space in which to perform the batched
+   *                   construction
+   *
+   * \pre InputIt is a random-access iterator
+   * \pre allocator is accessible from ExecSpace
+   *
+   * \note If duplicate keys are present in the range, the key which appears
+   *  later in the range is updated or inserted. This is equivalent to a
+   *  sequential for-loop of insertions over the input range.
+   */
+  template <typename ExecSpace, typename InputIt>
   void insert(InputIt first, InputIt last);
 
   /*!
@@ -587,6 +615,28 @@ public:
     }
     else
     {
+      // TODO: replace this with a device-aware rehash method
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
+      if constexpr(std::is_trivially_copyable_v<KeyValuePair>)
+      {
+        // If the FlatMap is constructed in device-only memory, we need to copy
+        // the FlatMap to the host first.
+        MemorySpace space = detail::getAllocatorSpace(m_allocator.getID());
+        FlatMap host_map;
+        if(space == MemorySpace::Device)
+        {
+          int host_allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+          // Rehash on the host.
+          host_map = FlatMap(*this, axom::Allocator {host_allocator_id});
+          host_map.rehash(count);
+
+          // Copy back to original map.
+          FlatMap rehashed_device(host_map, m_allocator);
+          this->swap(rehashed_device);
+          return;
+        }
+      }
+#endif
       FlatMap rehashed(m_size,
                        std::make_move_iterator(begin()),
                        std::make_move_iterator(end()),
@@ -602,7 +652,13 @@ public:
    *
    * \param count the number of elements to fit without a rehash
    */
-  void reserve(IndexType count) { rehash(count); }
+  void reserve(IndexType count)
+  {
+    if(count >= max_load_factor() * bucket_count())
+    {
+      rehash(count);
+    }
+  }
 
   /*!
    * \brief Returns a read-only view of the FlatMap.
@@ -879,6 +935,7 @@ auto FlatMap<KeyType, ValueType, Hash>::erase(const_iterator pos) -> iterator
   {
     m_loadCount--;
   }
+  m_size--;
   return ++iterator(this, pos.m_internalIdx);
 }
 
