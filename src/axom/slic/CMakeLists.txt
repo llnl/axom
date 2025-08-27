@@ -12,6 +12,7 @@
 set(slic_headers
     core/Logger.hpp
     core/LogStream.hpp
+    core/LogStreamStatusMonitor.hpp
     core/MessageLevel.hpp
     core/SimpleLogger.hpp
 
@@ -26,6 +27,7 @@ set(slic_headers
 set(slic_sources
     core/Logger.cpp
     core/LogStream.cpp
+    core/LogStreamStatusMonitor.cpp    
 
     interface/slic.cpp
 
@@ -36,7 +38,9 @@ set(slic_sources
 
 if (AXOM_ENABLE_MPI)
     list(APPEND slic_headers streams/SynchronizedStream.hpp)
+    list(APPEND slic_headers core/LogStreamStatusMonitorMPI.hpp)
     list(APPEND slic_sources streams/SynchronizedStream.cpp)
+    list(APPEND slic_sources core/LogStreamStatusMonitorMPI.cpp)
     if (AXOM_ENABLE_LUMBERJACK)
         list(APPEND slic_headers streams/LumberjackStream.hpp)
         list(APPEND slic_sources streams/LumberjackStream.cpp)

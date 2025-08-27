@@ -6,6 +6,8 @@
 #include "axom/slic/core/Logger.hpp"
 #include "axom/slic/core/LogStream.hpp"
 #include "axom/core/utilities/Utilities.hpp"
+#include "axom/slic/core/LogStreamStatusMonitor.hpp"
+#include "axom/slic/core/LogStreamStatusMonitorMPI.hpp"
 
 // C/C++ includes
 #include <iostream>
@@ -30,6 +32,22 @@ Logger*& getLogger()
 {
   static Logger* s_Logger = nullptr;
   return s_Logger;
+}
+
+//------------------------------------------------------------------------------
+// This is a singleton, scope-limited to this file.
+LogStreamStatusMonitor*& getLogStreamStatusMonitor()
+{
+  static LogStreamStatusMonitor* s_logStreamStatusMonitor = nullptr;
+  if (!s_logStreamStatusMonitor)
+  {
+#ifdef AXOM_USE_MPI
+    s_logStreamStatusMonitor = new LogStreamStatusMonitorMPI();
+#else
+    s_logStreamMonitor = new LogStreamStatusMonitor();
+#endif
+  }
+  return s_logStreamStatusMonitor;
 }
 
 //------------------------------------------------------------------------------
@@ -138,7 +156,7 @@ void Logger::addStreamToMsgLevel(LogStream* ls, message::Level level, bool pass_
     m_streamObjectsManager[ls] = ls;
   }
 
-  m_logStreamStatusMonitor.addStream(ls);
+  getLogStreamStatusMonitor()->addStream(ls);
 }
 
 //------------------------------------------------------------------------------
@@ -164,7 +182,7 @@ void Logger::addStreamToTag(LogStream* ls, const std::string& tag, bool pass_own
     m_streamObjectsManager[ls] = ls;
   }
 
-  m_logStreamStatusMonitor.addStream(ls);
+  getLogStreamStatusMonitor()->addStream(ls);
 }
 
 //------------------------------------------------------------------------------
@@ -344,7 +362,7 @@ void Logger::logMessage(message::Level level,
 //------------------------------------------------------------------------------
 void Logger::outputLocalMessages()
 {
-  const bool has_pending_messages = m_logStreamStatusMonitor.hasPendingMessages();
+  const bool has_pending_messages = getLogStreamStatusMonitor()->hasPendingMessages();
 
   //Output for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
@@ -381,7 +399,7 @@ void Logger::outputLocalMessages()
 void Logger::flushStreams()
 {
 
-  const bool has_pending_messages = m_logStreamStatusMonitor.hasPendingMessages();
+  const bool has_pending_messages = getLogStreamStatusMonitor()->hasPendingMessages();
 
   //Flush for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
@@ -532,6 +550,14 @@ void Logger::finalize()
   loggers.clear();
 
   getLogger() = nullptr;
+
+  LogStreamStatusMonitor* logStreamMonitor = getLogStreamStatusMonitor();
+
+  logStreamMonitor->finalize();
+
+  delete logStreamMonitor;
+  logStreamMonitor = nullptr;
+
 }
 
 //------------------------------------------------------------------------------
