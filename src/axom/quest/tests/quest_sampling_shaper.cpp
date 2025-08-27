@@ -1243,6 +1243,144 @@ shapes:
 
 //-----------------------------------------------------------------------------
 
+TEST_F(SamplingShaperTest2D, contour_and_mfem_2D)
+{
+  using Point2D = primal::Point<double, 2>;
+
+  const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
+
+  // Shape file
+  const std::string shape_template = R"(
+dimensions: 2
+
+shapes:
+# shape in a square using mfem
+- name: square1
+  material: square
+  geometry:
+    format: mfem
+    path: {0}
+    units: cm
+)";
+
+  // MFEM file
+  const std::string mfem_square_contour = R"(
+MFEM NURBS mesh v1.0
+
+# MFEM Geometry Types (see fem/geom.hpp):
+#
+# SEGMENT = 1 | SQUARE = 3 | CUBE = 5
+#
+# element: <attr> 1 <v0> <v1>
+# edge: <idx++> 0 1  <-- idx increases by one each time
+# knotvector: <order> <num_ctrl_pts> [knots]; sizeof(knots) is 1+order+num_ctrl_pts
+# weights: array of weights corresponding to the NURBS element
+# FES: list of control points; vertex control points at top, then interior control points
+
+dimension
+1
+
+elements
+4
+1 1 0 1
+1 1 2 3
+1 1 4 5
+1 1 6 7
+
+boundary
+0
+
+edges
+4
+0 0 1
+1 0 1
+2 0 1
+3 0 1
+
+vertices
+8
+
+knotvectors
+4
+3 4 0 0 0 0 1 1 1 1
+3 4 0 0 0 0 1 1 1 1
+3 4 0 0 0 0 1 1 1 1
+3 4 0 0 0 0 1 1 1 1
+
+weights
+1 1
+1 1
+1 1
+1 1
+1 1
+1 1
+1 1
+1 1
+
+FiniteElementSpace
+FiniteElementCollection: NURBS
+VDim: 2
+Ordering: 1
+-1.0 -1.0 1.0 -1.0
+1.0 -1.0 1.0 1.0
+1.0 1.0 -1.0 1.0
+-1.0 1.0 -1.0 -1.0
+0.6 -1.0 -0.4 -1.0
+1.0 0.6 1.0 -0.4
+-0.4 1.0 0.6 1.0
+-1.0 -0.4 -1.0 0.6
+)";
+
+  const std::string background_material = "luminiferous_ether";
+  const std::string square_material = "square";
+
+  fs::TempFile contour_file(testname, ".mfem");
+  contour_file.write(mfem_square_contour);
+
+  fs::TempFile shape_file(testname, ".yaml");
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
+                                     contour_file.getPath()));
+
+  if(very_verbose_output)
+  {
+    SLIC_INFO("Contour file: \n" << contour_file.getFileContents());
+    SLIC_INFO("Shape file: \n" << shape_file.getFileContents());
+  }
+
+  // Create an initial background material set to 1 everywhere
+  std::map<std::string, mfem::GridFunction*> initialGridFunctions;
+  {
+    auto* vf = this->registerVolFracGridFunction("init_vf_bg");
+    this->initializeVolFracGridFunction<2>(vf, [](int, const Point2D&, int) -> double { return 1.; });
+    initialGridFunctions[background_material] = vf;
+  }
+
+  this->validateShapeFile(shape_file.getPath());
+  this->initializeShaping(shape_file.getPath(), initialGridFunctions);
+  // Use WindingNumber shaping!
+  this->m_shaper->setSamplingMethod(quest::SamplingShaper::SamplingMethod::WindingNumber);
+
+  this->m_shaper->setQuadratureOrder(8);
+  this->runShaping();
+
+  // Check that the result has a volume fraction field associated with square materials
+  constexpr double exp_volume_square = 4.;
+  this->checkExpectedVolumeFractions(square_material, exp_volume_square, 1.e-4);
+
+  for(const auto& vf_name : {background_material, square_material})
+  {
+    EXPECT_TRUE(this->getDC().HasField(axom::fmt::format("vol_frac_{}", vf_name)));
+  }
+
+  // Save meshes and fields
+  if(very_verbose_output)
+  {
+    this->getDC().Save(testname, axom::sidre::Group::getDefaultIOProtocol());
+  }
+}
+
+//-----------------------------------------------------------------------------
+
 TEST_F(SamplingShaperTest3D, basic_tet_boundary)
 {
   const auto& testname = ::testing::UnitTest::GetInstance()->current_test_info()->name();
