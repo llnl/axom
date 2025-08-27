@@ -1338,8 +1338,7 @@ Ordering: 1
   contour_file.write(mfem_square_contour);
 
   fs::TempFile shape_file(testname, ".yaml");
-  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template),
-                                     contour_file.getPath()));
+  shape_file.write(axom::fmt::format(axom::fmt::runtime(shape_template), contour_file.getPath()));
 
   if(very_verbose_output)
   {
