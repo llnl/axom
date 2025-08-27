@@ -143,6 +143,9 @@ if(NANOBIND_FOUND)
     # (CMake treats modules separately from executables,
     # executable flags not automatically applied)
     if(AXOM_ENABLE_HIP)
+        # Make CMake compile the pysidre file with the HIP compiler.
+        set_source_files_properties(nanobind_sidre.cpp PROPERTIES LANGUAGE HIP)
+
         string (REPLACE " " ";" MODULE_LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
         target_link_options(pysidre PRIVATE ${MODULE_LINK_FLAGS})
     endif()
