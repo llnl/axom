@@ -59,6 +59,8 @@ void BinaryTreeCommunicator::initialize(MPI_Comm comm, int ranksLimit)
 
 void BinaryTreeCommunicator::finalize() { }
 
+MPI_Comm BinaryTreeCommunicator::comm() { return m_mpiComm; }
+
 int BinaryTreeCommunicator::rank() { return m_mpiCommRank; }
 
 void BinaryTreeCommunicator::ranksLimit(int value) { m_ranksLimit = value; }

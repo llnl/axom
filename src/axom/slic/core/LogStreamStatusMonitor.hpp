@@ -22,12 +22,8 @@ namespace slic
 /*!
  * \class LogStreamStatusMonitor
  *
- * \brief Abstract base class defining the interface of all LogStreamStatusMonitors.
+ * \brief Add a description later
  *
- *  Concrete instances implement the append() method accordingly, e.g., to
- *  append the message to a file, write it to stdout, etc.
- *
- * \see Logger Console
  */
 class LogStreamStatusMonitor
 {
@@ -48,7 +44,7 @@ public:
    *
    * \note Something something something add later
    */
-  bool streamsHaveMessages() const;
+  bool hasPendingMessages() const;
 
   /*!
    * \brief ADD DESCRIPTION HERE. Free MPI comm and that's it.
@@ -63,8 +59,7 @@ private:
   bool m_useMPI;
 
   // might have a single merged MPI comm later.  For now use vector of them
-  //MPI_Comm m_mpiComm;
-  std::vector<MPI_Comm> m_mpiComms;
+  MPI_Comm m_mpiComm;
 
 };
 

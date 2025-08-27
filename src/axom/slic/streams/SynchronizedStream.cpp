@@ -228,5 +228,23 @@ void SynchronizedStream::flush()
   }
 }
 
+//------------------------------------------------------------------------------
+bool SynchronizedStream::hasPendingMessages()
+{
+  return m_cache->messages.size() > 0;
+}
+
+//------------------------------------------------------------------------------
+bool SynchronizedStream::isUsingMPI()
+{
+  return true;
+}
+
+//------------------------------------------------------------------------------
+int SynchronizedStream::comm()
+{
+  return m_comm;
+}
+
 } /* namespace slic */
 } /* namespace axom */

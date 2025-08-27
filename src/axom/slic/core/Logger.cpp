@@ -137,6 +137,8 @@ void Logger::addStreamToMsgLevel(LogStream* ls, message::Level level, bool pass_
   {
     m_streamObjectsManager[ls] = ls;
   }
+
+  m_logStreamStatusMonitor.addStream(ls);
 }
 
 //------------------------------------------------------------------------------
@@ -161,6 +163,8 @@ void Logger::addStreamToTag(LogStream* ls, const std::string& tag, bool pass_own
   {
     m_streamObjectsManager[ls] = ls;
   }
+
+  m_logStreamStatusMonitor.addStream(ls);
 }
 
 //------------------------------------------------------------------------------
@@ -340,13 +344,18 @@ void Logger::logMessage(message::Level level,
 //------------------------------------------------------------------------------
 void Logger::outputLocalMessages()
 {
+  const bool has_pending_messages = m_logStreamStatusMonitor.hasPendingMessages();
+
   //Output for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
   {
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      m_logStreams[level][istream]->outputLocal();
+      if (m_logStreams[level][istream]->isUsingMPI() == false || has_pending_messages)
+      {
+        m_logStreams[level][istream]->outputLocal();
+      }
 
     }  // END for all streams
 
@@ -359,7 +368,11 @@ void Logger::outputLocalMessages()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      it->second[i]->outputLocal();
+
+      if (it->second[i]->isUsingMPI() == false || has_pending_messages)
+      {
+        it->second[i]->outputLocal();
+      }
     }
   }
 }
@@ -367,13 +380,19 @@ void Logger::outputLocalMessages()
 //------------------------------------------------------------------------------
 void Logger::flushStreams()
 {
+
+  const bool has_pending_messages = m_logStreamStatusMonitor.hasPendingMessages();
+
   //Flush for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
   {
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      m_logStreams[level][istream]->flush();
+      if (m_logStreams[level][istream]->isUsingMPI() == false || has_pending_messages)
+      {
+        m_logStreams[level][istream]->flush();
+      }
 
     }  // END for all streams
 
@@ -386,7 +405,10 @@ void Logger::flushStreams()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      it->second[i]->flush();
+      if (it->second[i]->isUsingMPI() == false || has_pending_messages)
+      {
+        it->second[i]->flush();
+      }
     }
   }
 }
