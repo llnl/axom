@@ -232,6 +232,27 @@ public:
    */
   virtual void write(bool local = false);
 
+  /*!
+   * \brief Tests whether there are any pending messages that need to be flushed
+   *
+   * \return Returns true if there are pending messages that need to be flushed
+   */
+  virtual bool hasPendingMessages();
+
+  /*!
+   * \brief Tests whether this class relies on MPI
+   *
+   * \return Returns true if this class relies on MPI
+   */
+  virtual bool isUsingMPI();
+
+  /*!
+   * \brief Get the communicator
+   *
+   * \return Returns the communicator ID if it exists, or -1 otherwise
+   */
+  virtual int comm();
+
 private:
   void initializeLumberjack(MPI_Comm comm, int ranksLimit);
   void finalizeLumberjack();

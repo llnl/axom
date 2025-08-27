@@ -10,6 +10,7 @@
 #ifndef LOGGER_HPP_
 #define LOGGER_HPP_
 
+#include "axom/slic/core/LogStreamStatusMonitor.hpp"
 #include "axom/slic/core/MessageLevel.hpp"
 
 // C/C++ includes
@@ -449,6 +450,8 @@ private:
   bool m_isEnabled[message::Num_Levels];
   std::map<LogStream*, LogStream*> m_streamObjectsManager;
   std::vector<LogStream*> m_logStreams[message::Num_Levels];
+
+  LogStreamStatusMonitor m_logStreamStatusMonitor;
 
   ///@}
 

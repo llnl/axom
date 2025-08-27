@@ -144,6 +144,27 @@ public:
    */
   virtual void push() {};
 
+  /*!
+   * \brief Tests whether there are any pending messages that need to be flushed
+   *
+   * \return Returns true if there are pending messages that need to be flushed
+   */
+  virtual bool hasPendingMessages() = 0;
+
+  /*!
+   * \brief Tests whether this class relies on MPI
+   *
+   * \return Returns true if this class relies on MPI
+   */
+  virtual bool isUsingMPI() { return false; }
+
+  /*!
+   * \brief Get the communicator
+   *
+   * \return Returns the communicator ID if it exists, or -1 otherwise
+   */
+  virtual int comm() { return -1; }
+
 protected:
   /*!
    * \brief Returns the formatted message as a single string.

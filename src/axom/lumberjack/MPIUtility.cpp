@@ -80,5 +80,24 @@ void mpiNonBlockingSendMessages(MPI_Comm comm, int destinationRank, const char* 
   MPI_Request_free(&mpiRequest);
 }
 
+void addGroupToComm(MPI_Comm *comm, MPI_Group new_group) {
+    MPI_Group current_group, combined_group;
+    MPI_Comm new_comm;
+
+    MPI_Comm_group(*comm, &current_group);
+    MPI_Group_union(current_group, new_group, &combined_group);
+    MPI_Comm_create_group(MPI_COMM_WORLD, combined_group, LJ_TAG, &new_comm);
+
+    if (new_comm != MPI_COMM_NULL) {
+        if (*comm != MPI_COMM_WORLD) {
+            MPI_Comm_free(comm);
+        }
+        *comm = new_comm;
+    }
+
+    MPI_Group_free(&current_group);
+    MPI_Group_free(&combined_group);
+}
+
 }  // end namespace lumberjack
 }  // end namespace axom

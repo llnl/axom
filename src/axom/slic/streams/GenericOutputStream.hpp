@@ -105,6 +105,13 @@ public:
    */
   virtual void flush();
 
+  /*!
+   * \brief Tests whether there are any pending messages that need to be flushed
+   *
+   * \return Returns true if there are pending messages that need to be flushed
+   */
+  virtual bool hasPendingMessages();
+
 private:
   std::ostream* m_stream;
   std::string m_file_name;

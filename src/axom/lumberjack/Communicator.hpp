@@ -15,6 +15,7 @@
 #ifndef COMMUNICATOR_HPP
 #define COMMUNICATOR_HPP
 
+#include <mpi.h>
 #include <vector>
 
 #include "axom/lumberjack/Combiner.hpp"
@@ -72,6 +73,13 @@ public:
    *****************************************************************************
    */
   virtual void finalize() = 0;
+
+  /*!
+   *****************************************************************************
+   * \brief Returns the MPI communicator
+   *****************************************************************************
+   */
+  virtual MPI_Comm comm() = 0;
 
   /*!
    *****************************************************************************
