@@ -42,7 +42,7 @@ double array_sum(axom::ArrayView<double> v)
 
 constexpr double EPS = 1e-10;
 constexpr bool tryFixOrientation = false;
-constexpr axom::IndexType repCount = 1000000;
+constexpr axom::IndexType repCount = 10000; // For reliable timings, try 1e6.
 
 template<typename ExecSpace>
 void time_repeat_clips(const Primal3D::TetrahedronType &a,
