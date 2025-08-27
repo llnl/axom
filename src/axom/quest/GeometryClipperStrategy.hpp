@@ -30,7 +30,7 @@ namespace quest
   -# @c getBoundingBox2D or @c getBoundingBox3D: Axis-alligned
      bounding box for the geometry.
 
-  -# @c labelInOut: Label whether the cells in a mesh is inside,
+  -# @c labelInOutCells: Label whether the cells in a mesh is inside,
      outside or on the shape boundary.  If a cell cannot be
      determined, you can conservatively label it as on the boundary.
 
@@ -40,21 +40,21 @@ namespace quest
   -# @c getShapesAsOcts: Build an array of octahedra to approximate
      the shape.
 
-  -# @c specializedClip: Use a fast clipping algorithm (if one is
+  -# @c specializedClipCells: Use a fast clipping algorithm (if one is
      available) to clip the cells in a mesh.  Implementation should
      use special knowledge of the geometry.  One version of this
      method clips all cells in the mesh and the other clips only
      cells in a provided index list.  The latter works in
-     conjunction with @c labelInOut.
+     conjunction with @c labelInOutCells.
 
   Every method returns true if it fulfilled the request, or
   false if it was a no-op.
 
   Implementations of this strategy must provide either
-  - a @c specializedClip method or
+  - a @c specializedClipCells method or
   - one of the @c getShapesAs...() methods.
   The former is prefered if the use of geometry-specific information
-  can make it faster.  @c labelInOut is optional but if provided,
+  can make it faster.  @c labelInOutCells is optional but if provided,
   it can improve performance by limiting the slower clipping steps
   to a subset of cells.  @c getBoundingBox2D or @c getBoundingBox3D
   can also improve performance by reducing computation.
@@ -93,6 +93,10 @@ public:
   using Plane2DType = axom::primal::Plane<double, 2>;
   using Ray2DType = axom::primal::Ray<double, 2>;
   using Segment2DType = axom::primal::Segment<double, 2>;
+
+  //!@brief Number of tetrahedra per hexahedron decomposes into
+  // @internal We could use a more efficient 18-tet decomposition in the future.
+  static constexpr axom::IndexType TETS_PER_HEXAHEDRON = HexahedronType::NUM_TRIANGULATE;
 
   /*!
     @brief Construct a shape clipper
@@ -160,11 +164,42 @@ public:
     @post labels.size() == shapeeMesh.getCellCount()
     @post labels.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool labelInOut(quest::ShapeeMesh& shapeeMesh,
-                          axom::Array<LabelType>& labels)
+  virtual bool labelInOutCells(quest::ShapeeMesh& shapeeMesh,
+                               axom::Array<LabelType>& cellLabels)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
-    AXOM_UNUSED_VAR(labels);
+    AXOM_UNUSED_VAR(cellLabels);
+    return false;
+  }
+
+  /*!
+    @brief Label the tetrahedra in the cells labeled as ON
+    the boundary, if possible.
+
+    @param [in] shapeeMesh Blueprint mesh to shape into.
+    @param [in] cellIds Indices of cells whose constituent
+      tets should be labeled.
+    @param [out] tetLabels Output
+
+    Only the cells labeled as ON the boundary are subjected to
+    this labeling.
+
+    If implemenation returns true, it should ensure these
+    post-conditions hold:
+    @post tetLabels.size() == cellIds.size()
+    @post labels.getAllocatorID() == shapeeMesh.getAllocatorId()
+    @post tetLabels output should
+    have the length of cellIds times the number of tets per cell.
+    @post \c tetLabels[i] should be set to the label of the
+    (i%N)-th tet of the cell indexed \c cellIds[i/N]
+  */
+  virtual bool labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
+                              axom::ArrayView<const axom::IndexType> cellIds,
+                              axom::Array<LabelType>& tetLabels)
+  {
+    AXOM_UNUSED_VAR(shapeeMesh);
+    AXOM_UNUSED_VAR(cellIds);
+    AXOM_UNUSED_VAR(tetLabels);
     return false;
   }
 
@@ -184,7 +219,7 @@ public:
 
     @return True if clipping was done and false if a no-op.
 
-    This method need not be implemented if labelInOut()
+    This method need not be implemented if labelInOutCells()
     returns true.
 
     @pre @c ovlap is pre-initialized for the implementation
@@ -195,8 +230,8 @@ public:
     @post ovlap.size() == shapeeMesh.getCellCount()
     @post ovlap.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool specializedClip(quest::ShapeeMesh&
-                               shapeeMesh, axom::ArrayView<double> ovlap)
+  virtual bool specializedClipCells(quest::ShapeeMesh&
+                                    shapeeMesh, axom::ArrayView<double> ovlap)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(ovlap);
@@ -220,7 +255,7 @@ public:
 
     @return True if clipping was done and false if a no-op.
 
-    This method need not be implemented if labelInOut()
+    This method need not be implemented if labelInOutCells()
     returns false.
 
     @pre @c ovlap is pre-initialized for the implementation
@@ -231,13 +266,28 @@ public:
     @post ovlap.size() == shapeeMesh.getCellCount()
     @post ovlap.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool specializedClip(quest::ShapeeMesh& shapeeMesh,
-                               axom::ArrayView<double> ovlap,
-                               const axom::ArrayView<IndexType>& cellIds)
+  virtual bool specializedClipCells(quest::ShapeeMesh& shapeeMesh,
+                                    axom::ArrayView<double> ovlap,
+                                    const axom::ArrayView<IndexType>& cellIds)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(cellIds);
+    return false;
+  }
+
+  /*!
+    Clip the tets listed in tetIds.  tetIds[i] is the (tetIds[i]%N)-th
+    tetrahedron of cell id tetIds[i]/N.  Its overlap volume should be
+    added to that cell.
+  */
+  virtual bool specializedClipTets(quest::ShapeeMesh& shapeeMesh,
+                                   axom::ArrayView<double> ovlap,
+                                   const axom::ArrayView<IndexType>& tetIds)
+  {
+    AXOM_UNUSED_VAR(shapeeMesh);
+    AXOM_UNUSED_VAR(ovlap);
+    AXOM_UNUSED_VAR(tetIds);
     return false;
   }
 

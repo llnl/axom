@@ -19,9 +19,9 @@ Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom, const std::string& n
   extractClipperInfo();
 }
 
-bool Plane3DClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool Plane3DClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_SCOPE("Plane3DClipper::labelInOut");
+  AXOM_ANNOTATE_SCOPE("Plane3DClipper::labelInOutCells");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -48,11 +48,11 @@ bool Plane3DClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   return true;
 }
 
-bool Plane3DClipper::specializedClip(quest::ShapeeMesh& shapeeMesh,
-                                     axom::ArrayView<double> ovlap,
-                                     const axom::ArrayView<IndexType>& cellIds)
+bool Plane3DClipper::specializedClipCells(quest::ShapeeMesh& shapeeMesh,
+                                          axom::ArrayView<double> ovlap,
+                                          const axom::ArrayView<IndexType>& cellIds)
 {
-  AXOM_ANNOTATE_SCOPE("Plane3DClipper::specializedClip");
+  AXOM_ANNOTATE_SCOPE("Plane3DClipper::specializedClipCells");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:

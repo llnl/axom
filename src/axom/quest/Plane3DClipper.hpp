@@ -36,11 +36,11 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelInOutCells(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
-  bool specializedClip(quest::ShapeeMesh& shappeMesh,
-                       axom::ArrayView<double> ovlap,
-                       const axom::ArrayView<IndexType>& cellIds) override;
+  bool specializedClipCells(quest::ShapeeMesh& shappeMesh,
+                            axom::ArrayView<double> ovlap,
+                            const axom::ArrayView<IndexType>& cellIds) override;
 
 #if !defined(__CUDACC__)
 private:

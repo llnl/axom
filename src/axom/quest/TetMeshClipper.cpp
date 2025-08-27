@@ -35,14 +35,14 @@ TetMeshClipper::TetMeshClipper(const klee::Geometry& kGeom, const std::string& n
   computeTets();
 }
 
-bool TetMeshClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool TetMeshClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_UNUSED_VAR(shapeeMesh);
   AXOM_UNUSED_VAR(labels);
 
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "TetMeshClipper requires a 3D mesh.");
 
-  AXOM_ANNOTATE_SCOPE("TetMeshClipper::labelInOut");
+  AXOM_ANNOTATE_SCOPE("TetMeshClipper::labelInOutCells");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:

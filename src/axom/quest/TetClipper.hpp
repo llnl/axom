@@ -34,7 +34,11 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelInOutCells(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+
+  bool labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
+                      axom::ArrayView<const axom::IndexType> cellsOnBdry,
+                      axom::Array<LabelType>& tetLabels) override;
 
   bool getGeometryAsTets(quest::ShapeeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
 
@@ -61,6 +65,11 @@ private:
 
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+
+  template <typename ExecSpace>
+  void labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
+                          axom::ArrayView<const axom::IndexType> cellsOnBdry,
+                          axom::Array<LabelType>& tetLabels);
 
   // Extract clipper info from GeometryClipperStrategy::m_info.
   void extractClipperInfo();

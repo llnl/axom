@@ -101,9 +101,9 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   }
 }
 
-bool FSorClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool FSorClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_SCOPE("FSorClipper::labelInOut");
+  AXOM_ANNOTATE_SCOPE("FSorClipper::labelInOutCells");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:

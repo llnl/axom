@@ -34,9 +34,9 @@ HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
   computeSurface();
 }
 
-bool HexClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool HexClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_SCOPE("HexClipper::labelInOut");
+  AXOM_ANNOTATE_SCOPE("HexClipper::labelInOutCells");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:

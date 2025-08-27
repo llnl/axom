@@ -43,7 +43,7 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool specializedClip(quest::ShapeeMesh& shapeeMesh,
+  bool specializedClipCells(quest::ShapeeMesh& shapeeMesh,
                        axom::ArrayView<double> ovlap) override;
 
 #if !defined(__CUDACC__)

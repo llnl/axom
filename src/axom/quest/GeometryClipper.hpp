@@ -35,6 +35,8 @@ public:
   //!@brief Whether an element as in, out or on shape boundary.
   using LabelType = GeometryClipperStrategy::LabelType;
 
+  static constexpr axom::IndexType TETS_PER_HEXAHEDRON = GeometryClipperStrategy::TETS_PER_HEXAHEDRON;
+
   /*!
     @brief Construct a shape clipper
 
@@ -91,6 +93,8 @@ public:
     Delegate(GeometryClipper& delegator) : m_delegator(delegator) { }
     virtual ~Delegate() = default;
 
+    static constexpr axom::IndexType TETS_PER_HEXAHEDRON = GeometryClipperStrategy::TETS_PER_HEXAHEDRON;
+
     /*!
       @brief Initialize overlap volumes to full for cells completely
       inside the shape and zero for cells outside or on shape boundary.
@@ -103,9 +107,18 @@ public:
     virtual void initVolumeOverlaps(
       axom::ArrayView<double> ovlap) = 0;
 
-    //!@brief Collect unlabeled cells indices into an index list.
-    virtual void collectUnlabeledIndices(const axom::ArrayView<LabelType>& labels,
-                                         axom::Array<axom::IndexType>& unlabeledIndices) = 0;
+    //!@brief Collect unlabeled LABEL_ON indices into an index list.
+    virtual void collectOnIndices(const axom::ArrayView<LabelType>& labels,
+                                  axom::Array<axom::IndexType>& onIndices) = 0;
+
+    //!@brief Change tet indices from sparse-set values to full-set values.
+    virtual void remapTetIndices(axom::ArrayView<axom::IndexType> tetsOnBdry,
+                                 axom::ArrayView<const axom::IndexType> cellsOnBdry) = 0;
+
+    //!@brief Add volumes of tets inside the geometry to the volume data.
+    virtual void addVolumesOfInteriorTets(axom::ArrayView<const axom::IndexType> cellsOnBdry,
+                                          axom::ArrayView<const LabelType> tetLabels,
+                                          axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Compute clip volumes for every cell.
     virtual void computeClipVolumes3D(axom::ArrayView<double> ovlap) = 0;
@@ -113,6 +126,10 @@ public:
     //!@brief Compute clip volumes for cell in an index list.
     virtual void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
                                       axom::ArrayView<double> ovlap) = 0;
+
+    //!@brief Compute clip volumes for cell in an index list.
+    virtual void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
+                                          axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Delegate for getLabelCounts.
     virtual void getLabelCounts(axom::ArrayView<const LabelType> labels,
@@ -174,6 +191,10 @@ public:
   {
     m_delegate->getLabelCounts(labels, inCount, onCount, outCount);
   }
+
+  void logLabelStats(
+    axom::ArrayView<const LabelType> labels,
+    const std::string& labelType);
   //@}
 };
 

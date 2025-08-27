@@ -23,9 +23,9 @@ SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& nam
   transformSphere();
 }
 
-bool SphereClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool SphereClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_SCOPE("SphereClipper::labelInOut");
+  AXOM_ANNOTATE_SCOPE("SphereClipper::labelInOutCells");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:

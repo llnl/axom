@@ -34,7 +34,7 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelInOutCells(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
   bool getGeometryAsOcts(quest::ShapeeMesh& shappeMesh,
                          axom::Array<axom::primal::Octahedron<double, 3>>& octs) override;

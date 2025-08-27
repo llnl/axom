@@ -47,6 +47,10 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
   clip(ovlap.view());
 }
 
+/*
+  Orchestrates the entire geometry clipping by using the
+  capabilities of the GeometryClipperStrategy implementation.
+*/
 void GeometryClipper::clip(axom::ArrayView<double> ovlap)
 {
   const int allocId = m_shapeeMesh.getAllocatorID();
@@ -54,69 +58,87 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
   SLIC_ASSERT(ovlap.size() == cellCount);
 
   // Try to label cells as inside, outside or on shape boundary
-  axom::Array<char> labels;
-  bool withInOut = m_strategy->labelInOut(m_shapeeMesh, labels);
+  axom::Array<char> cellLabels;
+  bool withCellInOut = m_strategy->labelInOutCells(m_shapeeMesh, cellLabels);
 
   bool done = false;
 
-  if(withInOut)
+  if(withCellInOut)
   {
     SLIC_ERROR_IF(
-      labels.size() != m_shapeeMesh.getCellCount(),
+      cellLabels.size() != m_shapeeMesh.getCellCount(),
       axom::fmt::format("GeometryClipperStrategy '{}' did not return the correct array size of {}",
                         m_strategy->name(),
                         m_shapeeMesh.getCellCount()));
-    SLIC_ERROR_IF(labels.getAllocatorID() != allocId,
-                  axom::fmt::format("GeometryClipperStrategy '{}' failed to provide labels data "
+    SLIC_ERROR_IF(cellLabels.getAllocatorID() != allocId,
+                  axom::fmt::format("GeometryClipperStrategy '{}' failed to provide cellLabels data "
                                     "with the required allocator id {}",
                                     m_strategy->name(),
                                     allocId));
 
-    if(m_verbose)
-    {
-      axom::IndexType countsa[4];
-      axom::IndexType countsb[4];
-      getLabelCounts(labels.view(), countsa[0], countsa[1], countsa[2]);
-      countsa[3] = m_shapeeMesh.getCellCount();
-#ifdef AXOM_USE_MPI
-      MPI_Reduce(countsa, countsb, 4, axom::mpi_traits<axom::IndexType>::type, MPI_SUM, 0, MPI_COMM_WORLD);
-#endif
-      std::string msg = axom::fmt::format(
-        "GeometryClipper strategy '{}' globally labeled cells {} inside, {} on and {} outside, out of {} "
-        "cells\n",
-        m_strategy->name(),
-        countsb[0],
-        countsb[1],
-        countsb[2],
-        countsb[3]);
-      SLIC_INFO(msg);
-    }
+    if(m_verbose) { logLabelStats(cellLabels, "cells"); }
 
     AXOM_ANNOTATE_BEGIN("GeometryClipper::processInOut");
-    m_delegate->initVolumeOverlaps(labels.view(), ovlap);
 
-    axom::Array<axom::IndexType> unlabeledCells;
-    m_delegate->collectUnlabeledIndices(labels.view(), unlabeledCells);
+    m_delegate->initVolumeOverlaps(cellLabels.view(), ovlap);
+
+    axom::Array<axom::IndexType> cellsOnBdry;
+    m_delegate->collectOnIndices(cellLabels.view(), cellsOnBdry);
+
+    axom::Array<char> tetLabels;
+    bool withTetInOut = m_strategy->labelTetsInOut(m_shapeeMesh, cellsOnBdry.view(), tetLabels);
+
+    axom::Array<axom::IndexType> tetsOnBdry;
+
+    if(withTetInOut)
+    {
+      if(m_verbose) { logLabelStats(tetLabels, "tets"); }
+      m_delegate->collectOnIndices(tetLabels.view(), tetsOnBdry);
+      m_delegate->remapTetIndices(tetsOnBdry, cellsOnBdry);
+
+      SLIC_ASSERT(tetsOnBdry.getAllocatorID() == m_shapeeMesh.getAllocatorID());
+      SLIC_ASSERT(tetsOnBdry.size() <= cellsOnBdry.size() * TETS_PER_HEXAHEDRON);
+
+      m_delegate->addVolumesOfInteriorTets(cellsOnBdry.view(), tetLabels.view(), ovlap);
+    }
+
     AXOM_ANNOTATE_END("GeometryClipper::processInOut");
 
-    done = m_strategy->specializedClip(m_shapeeMesh, ovlap, unlabeledCells);
+    //
+    // If implementation has a specialized clip, use it.
+    //
+    if(withTetInOut)
+    {
+      done = m_strategy->specializedClipTets(m_shapeeMesh, ovlap, tetsOnBdry);
+    }
+    else
+    {
+      done = m_strategy->specializedClipCells(m_shapeeMesh, ovlap, cellsOnBdry);
+    }
 
     if(!done)
     {
       AXOM_ANNOTATE_SCOPE("GeometryClipper::clip3D_limited");
-      m_delegate->computeClipVolumes3D(unlabeledCells.view(), ovlap);
+      if(withTetInOut)
+      {
+        m_delegate->computeClipVolumes3DTets(tetsOnBdry.view(), ovlap);
+      }
+      else
+      {
+        m_delegate->computeClipVolumes3D(cellsOnBdry.view(), ovlap);
+      }
     }
 
-    m_localCellInCount = unlabeledCells.size();
+    m_localCellInCount = cellsOnBdry.size();
   }
-  else  // !withInOut
+  else  // !withCellInOut
   {
     std::string msg = axom::fmt::format(
       "GeometryClipper strategy '{}' did not provide in/out cell labels.\n",
       m_strategy->name());
     SLIC_INFO(msg);
     m_delegate->initVolumeOverlaps(ovlap);
-    done = m_strategy->specializedClip(m_shapeeMesh, ovlap);
+    done = m_strategy->specializedClipCells(m_shapeeMesh, ovlap);
 
     if(!done)
     {
@@ -166,6 +188,29 @@ std::unique_ptr<GeometryClipper::Delegate> GeometryClipper::newDelegate()
       axom::fmt::format("GeometryClipper has no delegate for runtime policy {}", runtimePolicy));
   }
   return delegate;
+}
+
+void GeometryClipper::logLabelStats(
+  axom::ArrayView<const LabelType> labels,
+  const std::string& labelType)
+{
+  axom::IndexType countsa[4];
+  axom::IndexType countsb[4];
+  getLabelCounts(labels, countsa[0], countsa[1], countsa[2]);
+  countsa[3] = m_shapeeMesh.getCellCount();
+#ifdef AXOM_USE_MPI
+  MPI_Reduce(countsa, countsb, 4, axom::mpi_traits<axom::IndexType>::type, MPI_SUM, 0, MPI_COMM_WORLD);
+#endif
+  std::string msg = axom::fmt::format(
+    "GeometryClipper strategy '{}' globally labeled {} {} inside, {} on and {} outside, for mesh with {} cells ({} tets)\n",
+    m_strategy->name(),
+    labelType,
+    countsb[0],
+    countsb[1],
+    countsb[2],
+    countsb[3],
+    countsb[3]*TETS_PER_HEXAHEDRON);
+  SLIC_INFO(msg);
 }
 
 void GeometryClipper::getClippingStats(

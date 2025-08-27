@@ -47,9 +47,9 @@ TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
 
 }
 
-bool TetClipper::labelInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool TetClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_SCOPE("TetClipper::labelInOut");
+  AXOM_ANNOTATE_SCOPE("TetClipper::labelInOutCells");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -139,7 +139,10 @@ void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
 
   if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
   {
-    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, shapeeMesh.getAllocatorID());
+    labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
+                                    cellCount,
+                                    cellCount,
+                                    shapeeMesh.getAllocatorID());
   }
   auto labelsView = labels.view();
 
@@ -173,6 +176,127 @@ void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
       if(cellLabel != LABEL_OUT && vertsAreOnTetSideOfAllPlanes)
       {
         cellLabel = LABEL_IN;
+      }
+    });
+
+  return;
+}
+
+bool TetClipper::labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
+                                axom::ArrayView<const axom::IndexType> cellsOnBdry,
+                                axom::Array<LabelType>& tetLabels)
+{
+  AXOM_ANNOTATE_SCOPE("TetClipper::labelTetsInOut");
+  switch(shapeeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    labelTetsInOutImpl<axom::SEQ_EXEC>(shapeeMesh, cellsOnBdry, tetLabels);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    labelTetsInOutImpl<axom::OMP_EXEC>(shapeeMesh, cellsOnBdry, tetLabels);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    labelTetsInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, cellsOnBdry, tetLabels);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    labelTetsInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, cellsOnBdry, tetLabels);
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return true;
+}
+
+template <typename ExecSpace>
+void TetClipper::labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
+                                    axom::ArrayView<const axom::IndexType> cellsOnBdry,
+                                    axom::Array<LabelType>& tetLabels)
+{
+  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
+  /*
+    Compute whether the tets in hexes listed in cellsOnBdry
+    as in, out or on the boundary.
+    the tet rests on its 4 facets.
+
+    - For any facet the tet rests on, if all cell vertices are
+      above the tet or all are below, cell is OUT.
+
+    - If all cell vertices are on the tet side of all facets,
+      the cell is IN.
+
+    - Otherwise, cell is ON.
+  */
+
+  int allocId = shapeeMesh.getAllocatorID();
+
+  auto meshTets = shapeeMesh.getCellsAsTets();
+
+  const axom::IndexType cellCount = cellsOnBdry.size();
+
+  if(tetLabels.size() < cellCount || tetLabels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  {
+    tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
+                                       cellCount * TETS_PER_HEXAHEDRON,
+                                       cellCount * TETS_PER_HEXAHEDRON,
+                                       allocId);
+  }
+// auto labelOn = LABEL_ON; tetLabels.fill(labelOn); return;
+  auto tetLabelsView = tetLabels.view();
+
+  const auto geomHeights = m_heights;
+  auto planes = m_planes;
+
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType ci) {
+      axom::IndexType cellId = cellsOnBdry[ci];
+
+      const TetrahedronType* tetsForCell = &meshTets[cellId * TETS_PER_HEXAHEDRON];
+
+      for(IndexType ti = 0; ti < TETS_PER_HEXAHEDRON; ++ti)
+      {
+        const TetrahedronType& tet = tetsForCell[ti];
+        LabelType& tetLabel = tetLabelsView[ci * TETS_PER_HEXAHEDRON + ti];
+
+        tetLabel = LABEL_ON;
+        bool vertsAreOnTetSideOfAllPlanes = true;
+
+        bool allVertsBelow = true;
+        bool allVertsAbove = true;
+
+        for(IndexType p = 0; p < 4; ++p)
+        {
+          const auto& plane = planes[p];
+
+          for(IndexType vi = 0; vi < 4; ++vi)
+          {
+            const auto& vert = tet[vi];
+            double vertHeight = plane.signedDistance(vert);
+            bool vertIsBelow = vertHeight < 0;
+            bool vertIsAbove = vertHeight > geomHeights[p];
+
+            allVertsBelow &= vertIsBelow;
+            allVertsAbove &= vertIsAbove;
+            vertsAreOnTetSideOfAllPlanes &= !vertIsBelow;
+          }
+
+          if(allVertsBelow || allVertsAbove)
+          {
+            tetLabel = LABEL_OUT;
+            break;
+          }
+        }
+
+        if(tetLabel != LABEL_OUT && vertsAreOnTetSideOfAllPlanes)
+        {
+          tetLabel = LABEL_IN;
+        }
       }
     });
 
