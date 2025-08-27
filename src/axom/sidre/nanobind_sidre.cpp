@@ -365,8 +365,10 @@ NB_MODULE(pysidre, m_sidre)
          "Set the View to hold a scalar value (python float, C++ double).",
          nb::arg("value").noconvert(),
          nb::arg("allocID") = INVALID_ALLOCATOR_ID)
-
-    .def("setString", &View::setString, "Set the View to hold a string value.")
+    .def("setString", &View::setString,
+         "Set the View to hold a string value.",
+         nb::arg("value").noconvert(),
+         nb::arg("allocID") = INVALID_ALLOCATOR_ID)
     .def(
       "setExternalData",
       [](View& self, const nb::ndarray<>& external_ptr) {
@@ -564,7 +566,10 @@ NB_MODULE(pysidre, m_sidre)
     .def("createViewString",
          &Group::createViewString,
          nb::rv_policy::reference,
-         "Create View object with given name or path in this Group set its data to given string.")
+         "Create View object with given name or path in this Group set its data to given string.",
+         nb::arg("path"),
+         nb::arg("value").noconvert(),
+         nb::arg("allocID") = INVALID_ALLOCATOR_ID)
 
     .def("destroyView",
          nb::overload_cast<const std::string&>(&Group::destroyView),
