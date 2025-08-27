@@ -4,31 +4,32 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 /*!
- * \file LogStreamStatusMonitor.hpp
+ * \file LogStreamStatusMonitorMPI.hpp
  *
  */
 
-#ifndef LOGSTREAMSTATUS_MONITOR_HPP_
-#define LOGSTREAMSTATUS_MONITOR_HPP_
+#ifndef LOGSTREAMSTATUSMPI_MONITOR_HPP_
+#define LOGSTREAMSTATUSMPI_MONITOR_HPP_
 
 
+#include <mpi.h>
 #include <vector>
-#include "axom/slic/core/LogStream.hpp"
+#include "axom/slic/core/LogStreamStatusMonitor.hpp"
+
 namespace axom
 {
 namespace slic
 {
 /*!
- * \class LogStreamStatusMonitor
+ * \class LogStreamStatusMonitorMPI
  *
  * \brief Add a description later
  *
  */
-class LogStreamStatusMonitor
+class LogStreamStatusMonitorMPI : public LogStreamStatusMonitor
 {
 public:
-  LogStreamStatusMonitor();
-  virtual ~LogStreamStatusMonitor();
+  LogStreamStatusMonitorMPI();
 
   /*!
    * \brief ADD DESCRIPTION HERE.  This is where we add to m_streamVec and combine its communicator with the current m_mpiComm.
@@ -37,25 +38,26 @@ public:
    *
    * \note Something something something add later
    */
-  virtual void addStream(LogStream* ls);
+  void addStream(LogStream* ls) override;
 
   /*!
    * \brief ADD DESCRIPTION HERE.  This is the main point of this class!
    *
    * \note Something something something add later
    */
-  virtual bool hasPendingMessages() const;
+  bool hasPendingMessages() const override;
 
   /*!
    * \brief ADD DESCRIPTION HERE. Free MPI comm and that's it.
    *
    * \note Something something something add later
    */
-  virtual void finalize();
+  void finalize() override;
 
-protected:
+private:
 
-  std::vector<LogStream*> m_streamVec;
+  bool m_useMPI;
+  MPI_Comm m_mpiComm;
 
 };
 
@@ -63,4 +65,4 @@ protected:
 
 } /* namespace axom */
 
-#endif /* LOGSTREAMStatusMonitor_HPP_ */
+#endif /* LOGSTREAMStatusMonitorMPI_HPP_ */

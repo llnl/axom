@@ -35,6 +35,7 @@ endforeach()
 #
 if (AXOM_ENABLE_MPI AND AXOM_ENABLE_LUMBERJACK)
     set(parallel_slic_tests
+        slic_perf.cpp
         slic_macros_parallel.cpp )
 
     foreach(test ${parallel_slic_tests})

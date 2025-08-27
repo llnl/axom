@@ -14,6 +14,7 @@
 #include "axom/slic/core/MessageLevel.hpp"
 
 // C/C++ includes
+#include <memory>  // for STL unique_ptr
 #include <string>  // for STL string
 #include <vector>  // for STL vector
 #include <map>     // for STL map
@@ -26,6 +27,8 @@ namespace slic
 {
 // Forward declarations
 class LogStream;
+
+class LogStreamStatusMonitorMPI;
 
 // Type alias for readability
 using AbortFunctionPtr = void (*)();
@@ -450,8 +453,6 @@ private:
   bool m_isEnabled[message::Num_Levels];
   std::map<LogStream*, LogStream*> m_streamObjectsManager;
   std::vector<LogStream*> m_logStreams[message::Num_Levels];
-
-  LogStreamStatusMonitor m_logStreamStatusMonitor;
 
   ///@}
 
