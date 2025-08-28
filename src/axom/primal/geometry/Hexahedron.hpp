@@ -254,9 +254,13 @@ public:
    * \param tets [out] The tetrahedrons
    *
    * \note Assumes tets is pre-allocated
+   *
+   * \tparam TetIndexable An indexable container of NUM_TRIANGULATE
+   * TetrahedronType objects.
    */
+  template <typename TetIndexable>
   AXOM_HOST_DEVICE
-  void triangulate(axom::StackArray<TetrahedronType, NUM_TRIANGULATE>& tets) const
+  void triangulate(TetIndexable& tets) const
   {
     // Hex center (hc)
     PointType hc = vertexMean();

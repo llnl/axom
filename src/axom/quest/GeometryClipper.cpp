@@ -59,7 +59,7 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
 
   // Try to label cells as inside, outside or on shape boundary
   axom::Array<char> cellLabels;
-  bool withCellInOut = m_strategy->labelInOutCells(m_shapeeMesh, cellLabels);
+  bool withCellInOut = m_strategy->labelCellsInOut(m_shapeeMesh, cellLabels);
 
   bool done = false;
 

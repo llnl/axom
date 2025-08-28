@@ -763,8 +763,6 @@ void ShapeeMesh::computeCellsAsTetsImpl()
 
   SLIC_ASSERT(m_dim == 3);  // or we shouldn't be here.
 
-  using TetsInHex = axom::StackArray<TetrahedronType, NUM_TETS_PER_HEX>;
-
   m_cellsAsTets = axom::Array<TetrahedronType>(ArrayOptions::Uninitialized(),
                                                NUM_TETS_PER_HEX * m_cellCount,
                                                NUM_TETS_PER_HEX * m_cellCount,
@@ -777,15 +775,8 @@ void ShapeeMesh::computeCellsAsTetsImpl()
     m_cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
       const auto& hex = cellsAsHexesView[cellId];
-
-      TetsInHex tetsInHex;
-      hex.triangulate(tetsInHex);
-
-      for(int vi = 0; vi < NUM_TETS_PER_HEX; ++vi)
-      {
-        axom::IndexType tetId = vi + cellId * NUM_TETS_PER_HEX;
-        cellsAsTetsView[tetId] = tetsInHex[vi];
-      }
+      auto* firstTetPtr = &cellsAsTetsView[cellId*NUM_TETS_PER_HEX];
+      hex.triangulate(firstTetPtr);
     });
 }
 

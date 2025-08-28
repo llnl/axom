@@ -34,7 +34,11 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelInOutCells(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelCellsInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+
+  bool labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
+                      axom::ArrayView<const axom::IndexType> cellIds,
+                      axom::Array<LabelType>& tetLabels) override;
 
   bool getGeometryAsOcts(quest::ShapeeMesh& shappeMesh,
                          axom::Array<axom::primal::Octahedron<double, 3>>& octs) override;
@@ -56,9 +60,14 @@ private:
   int m_levelOfRefinement;
 
   template <typename ExecSpace>
-  void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+  void labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
   template <typename ExecSpace>
-  void labelInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+  void labelCellsInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+
+  template <typename ExecSpace>
+  void labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
+                          axom::ArrayView<const axom::IndexType> cellIds,
+                          axom::Array<LabelType>& tetLabels);
 
   void extractClipperInfo();
 

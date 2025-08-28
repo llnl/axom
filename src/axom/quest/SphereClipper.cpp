@@ -23,27 +23,27 @@ SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& nam
   transformSphere();
 }
 
-bool SphereClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool SphereClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_SCOPE("SphereClipper::labelInOutCells");
+  AXOM_ANNOTATE_SCOPE("SphereClipper::labelCellsInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelInOutImpl<axom::SEQ_EXEC>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeeMesh, labels);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelInOutImpl<axom::OMP_EXEC>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::OMP_EXEC>(shapeeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, labels);
     break;
 #endif
   default:
@@ -53,7 +53,7 @@ bool SphereClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<L
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void SphereClipper::labelCellsInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
 
@@ -185,7 +185,7 @@ void SphereClipper::labelInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::Array
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void SphereClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
 
@@ -269,6 +269,118 @@ void SphereClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<La
       else
       {
         cellLabel = LABEL_OUT;
+      }
+    });
+
+  return;
+}
+
+bool SphereClipper::labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
+                                   axom::ArrayView<const axom::IndexType> cellIds,
+                                   axom::Array<LabelType>& tetLabels)
+{
+  AXOM_ANNOTATE_SCOPE("SphereClipper::labelTetsInOut");
+  switch(shapeeMesh.getRuntimePolicy())
+  {
+  case axom::runtime_policy::Policy::seq:
+    labelTetsInOutImpl<axom::SEQ_EXEC>(shapeeMesh, cellIds, tetLabels);
+    break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+  case axom::runtime_policy::Policy::omp:
+    labelTetsInOutImpl<axom::OMP_EXEC>(shapeeMesh, cellIds, tetLabels);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+  case axom::runtime_policy::Policy::cuda:
+    labelTetsInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, cellIds, tetLabels);
+    break;
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+  case axom::runtime_policy::Policy::hip:
+    labelTetsInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, cellIds, tetLabels);
+    break;
+#endif
+  default:
+    SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+  }
+  return true;
+}
+
+template <typename ExecSpace>
+void SphereClipper::labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
+                                       axom::ArrayView<const axom::IndexType> cellIds,
+                                       axom::Array<LabelType>& tetLabels)
+{
+  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
+
+  constexpr int NUM_VERTS_PER_TET = 4;
+
+  const axom::IndexType cellCount = cellIds.size();
+
+  int allocId = shapeeMesh.getAllocatorID();
+
+  if(tetLabels.size() < cellCount * TETS_PER_HEXAHEDRON ||
+     tetLabels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  {
+    tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
+                                       cellCount * TETS_PER_HEXAHEDRON,
+                                       cellCount * TETS_PER_HEXAHEDRON,
+                                       allocId);
+  }
+  auto tetLabelsView = tetLabels.view();
+
+  /*
+    Label tets:
+    - Compute tets's bounding sphere.  Use bounding box's
+      bounding sphere as a fast conservative approximation.
+    - If bounding sphere doesn't intersect sphere geometry,
+      cell is LABEL_OUT.
+    - If all cell vertices are inside sphere geometry,
+      cell is LABEL_IN.  This is true because geometry is convex.
+    - If spheres intersect and not all vertices are inside,
+      some parts of the cell may intersect boundary, so it's LABEL_ON.
+  */
+
+  auto meshHexes = shapeeMesh.getCellsAsHexes();
+
+  auto sphere = m_sphere;
+  const double squaredRad = sphere.getRadius() * sphere.getRadius();
+
+  axom::for_all<ExecSpace>(
+    cellCount,
+    AXOM_LAMBDA(axom::IndexType ci) {
+
+      axom::IndexType cellId = cellIds[ci];
+      const HexahedronType& hex = meshHexes[cellId];
+
+      TetrahedronType cellTets[TETS_PER_HEXAHEDRON];
+      hex.triangulate(cellTets);
+
+      for(IndexType ti = 0; ti < TETS_PER_HEXAHEDRON; ++ti)
+      {
+        const TetrahedronType& tet = cellTets[ti];
+        LabelType& tetLabel = tetLabelsView[ci * TETS_PER_HEXAHEDRON + ti];
+
+        BoundingBox3DType bb(tet[0]);
+        bb.addPoint(tet[1]);
+        bb.addPoint(tet[2]);
+        bb.addPoint(tet[3]);
+        const SphereType boundingSphere(bb.getCentroid(), bb.range().norm()/2);
+
+        if(sphere.intersectsWith(boundingSphere, 0.0))
+        {
+          bool hasOut = false;
+          for(int vi = 0; vi < NUM_VERTS_PER_TET; ++vi)
+          {
+            double sqDistance = axom::primal::squared_distance(sphere.getCenter(), tet[vi]);
+            hasOut |= sqDistance > squaredRad;
+          }
+          tetLabel = hasOut ? LABEL_ON : LABEL_IN;
+        }
+        else
+        {
+          tetLabel = LABEL_OUT;
+        }
       }
     });
 

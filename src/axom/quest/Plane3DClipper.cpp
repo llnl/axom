@@ -19,9 +19,9 @@ Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom, const std::string& n
   extractClipperInfo();
 }
 
-bool Plane3DClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool Plane3DClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_SCOPE("Plane3DClipper::labelInOutCells");
+  AXOM_ANNOTATE_SCOPE("Plane3DClipper::labelCellsInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:

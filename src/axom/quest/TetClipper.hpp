@@ -34,7 +34,7 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelInOutCells(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelCellsInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
   bool labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
                       axom::ArrayView<const axom::IndexType> cellsOnBdry,

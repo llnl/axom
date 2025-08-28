@@ -34,27 +34,27 @@ HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
   computeSurface();
 }
 
-bool HexClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool HexClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_SCOPE("HexClipper::labelInOutCells");
+  AXOM_ANNOTATE_SCOPE("HexClipper::labelCellsInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelInOutImpl<axom::SEQ_EXEC>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeeMesh, labels);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelInOutImpl<axom::OMP_EXEC>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::OMP_EXEC>(shapeeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, labels);
     break;
 #endif
   default:
@@ -64,7 +64,7 @@ bool HexClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
 }
 
 template <typename ExecSpace>
-void HexClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void HexClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "HexClipper requires a 3D mesh.");
 

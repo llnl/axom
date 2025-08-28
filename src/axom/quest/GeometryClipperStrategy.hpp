@@ -30,7 +30,7 @@ namespace quest
   -# @c getBoundingBox2D or @c getBoundingBox3D: Axis-alligned
      bounding box for the geometry.
 
-  -# @c labelInOutCells: Label whether the cells in a mesh is inside,
+  -# @c labelCellsInOut: Label whether the cells in a mesh is inside,
      outside or on the shape boundary.  If a cell cannot be
      determined, you can conservatively label it as on the boundary.
 
@@ -45,7 +45,7 @@ namespace quest
      use special knowledge of the geometry.  One version of this
      method clips all cells in the mesh and the other clips only
      cells in a provided index list.  The latter works in
-     conjunction with @c labelInOutCells.
+     conjunction with @c labelCellsInOut.
 
   Every method returns true if it fulfilled the request, or
   false if it was a no-op.
@@ -54,7 +54,7 @@ namespace quest
   - a @c specializedClipCells method or
   - one of the @c getShapesAs...() methods.
   The former is prefered if the use of geometry-specific information
-  can make it faster.  @c labelInOutCells is optional but if provided,
+  can make it faster.  @c labelCellsInOut is optional but if provided,
   it can improve performance by limiting the slower clipping steps
   to a subset of cells.  @c getBoundingBox2D or @c getBoundingBox3D
   can also improve performance by reducing computation.
@@ -164,7 +164,7 @@ public:
     @post labels.size() == shapeeMesh.getCellCount()
     @post labels.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool labelInOutCells(quest::ShapeeMesh& shapeeMesh,
+  virtual bool labelCellsInOut(quest::ShapeeMesh& shapeeMesh,
                                axom::Array<LabelType>& cellLabels)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
@@ -219,7 +219,7 @@ public:
 
     @return True if clipping was done and false if a no-op.
 
-    This method need not be implemented if labelInOutCells()
+    This method need not be implemented if labelCellsInOut()
     returns true.
 
     @pre @c ovlap is pre-initialized for the implementation
@@ -255,7 +255,7 @@ public:
 
     @return True if clipping was done and false if a no-op.
 
-    This method need not be implemented if labelInOutCells()
+    This method need not be implemented if labelCellsInOut()
     returns false.
 
     @pre @c ovlap is pre-initialized for the implementation

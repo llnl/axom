@@ -47,9 +47,9 @@ TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
 
 }
 
-bool TetClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool TetClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
-  AXOM_ANNOTATE_SCOPE("TetClipper::labelInOutCells");
+  AXOM_ANNOTATE_SCOPE("TetClipper::labelCellsInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
@@ -239,14 +239,15 @@ void TetClipper::labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
 
   const axom::IndexType cellCount = cellsOnBdry.size();
 
-  if(tetLabels.size() < cellCount || tetLabels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  if(tetLabels.size() < cellCount * TETS_PER_HEXAHEDRON ||
+     tetLabels.getAllocatorID() != shapeeMesh.getAllocatorID())
   {
     tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
                                        cellCount * TETS_PER_HEXAHEDRON,
                                        cellCount * TETS_PER_HEXAHEDRON,
                                        allocId);
   }
-// auto labelOn = LABEL_ON; tetLabels.fill(labelOn); return;
+
   auto tetLabelsView = tetLabels.view();
 
   const auto geomHeights = m_heights;

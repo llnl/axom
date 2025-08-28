@@ -36,7 +36,7 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelInOutCells(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelCellsInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
   bool specializedClipCells(quest::ShapeeMesh& shappeMesh,
                             axom::ArrayView<double> ovlap,

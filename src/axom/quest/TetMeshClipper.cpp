@@ -35,32 +35,32 @@ TetMeshClipper::TetMeshClipper(const klee::Geometry& kGeom, const std::string& n
   computeTets();
 }
 
-bool TetMeshClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool TetMeshClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_UNUSED_VAR(shapeeMesh);
   AXOM_UNUSED_VAR(labels);
 
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "TetMeshClipper requires a 3D mesh.");
 
-  AXOM_ANNOTATE_SCOPE("TetMeshClipper::labelInOutCells");
+  AXOM_ANNOTATE_SCOPE("TetMeshClipper::labelCellsInOut");
   switch(shapeeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelInOutImpl<axom::SEQ_EXEC>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeeMesh, labels);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelInOutImpl<axom::OMP_EXEC>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::OMP_EXEC>(shapeeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, labels);
     break;
 #endif
   default:
@@ -88,7 +88,7 @@ bool TetMeshClipper::labelInOutCells(quest::ShapeeMesh& shapeeMesh, axom::Array<
       If count is odd, hex is IN, if even, OUT.
 */
 template <typename ExecSpace>
-void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   int allocId = shapeeMesh.getAllocatorID();
   auto cellCount = shapeeMesh.getCellCount();
@@ -256,7 +256,7 @@ void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
   If needed, we can implement edge-tet detection for TetMeshClipper.
 */
 template <typename ExecSpace>
-void TetMeshClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
 
   int allocId = shapeeMesh.getAllocatorID();
