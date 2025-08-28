@@ -13,7 +13,6 @@
 
 
 #include <mpi.h>
-#include <vector>
 #include "axom/slic/core/LogStreamStatusMonitor.hpp"
 
 namespace axom
@@ -58,6 +57,7 @@ private:
 
   bool m_useMPI;
   MPI_Comm m_mpiComm;
+  //std::vector<MPI_Comm> m_mpiComm;
 
 };
 

@@ -82,32 +82,29 @@ void mpiNonBlockingSendMessages(MPI_Comm comm, int destinationRank, const char* 
 }
 
 void addGroupToComm(MPI_Comm *comm, MPI_Group new_group) {
-    MPI_Group base_group, combined_group;
-    MPI_Comm new_comm;
+  MPI_Group base_group, combined_group;
+  MPI_Comm new_comm;
 
-    MPI_Comm base_comm = (*comm == MPI_COMM_NULL) ? MPI_COMM_WORLD : *comm;
+  MPI_Comm base_comm = (*comm == MPI_COMM_NULL) ? MPI_COMM_WORLD : *comm;
 
-    MPI_Comm_group(base_comm, &base_group);
+  MPI_Comm_group(base_comm, &base_group);
+  if (*comm == MPI_COMM_NULL)
+  {
+    combined_group = new_group;
+  } 
+  else 
+  {
+    MPI_Group_union(base_group, new_group, &combined_group);
+  }
 
-    if (*comm == MPI_COMM_NULL)
-    {
-      combined_group = new_group;
-    } 
-    else 
-    {
-      MPI_Group_union(base_group, new_group, &combined_group);
-    }
-
-    MPI_Comm_create_group(base_comm, combined_group, LJ_TAG, &new_comm);
-
-    if (*comm != MPI_COMM_WORLD && *comm != MPI_COMM_NULL)
-    {
-      MPI_Comm_free(comm);
-    }
-    *comm = new_comm;
-
-    MPI_Group_free(&base_group);
-    MPI_Group_free(&combined_group);
+  MPI_Comm_create_group(base_comm, combined_group, LJ_TAG, &new_comm);
+  if (*comm != MPI_COMM_WORLD && *comm != MPI_COMM_NULL)
+  {
+    MPI_Comm_free(comm);
+  }
+  *comm = new_comm;
+  MPI_Group_free(&base_group);
+  MPI_Group_free(&combined_group);
 }
 
 }  // end namespace lumberjack
