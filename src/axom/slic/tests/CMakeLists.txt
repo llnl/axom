@@ -35,7 +35,7 @@ endforeach()
 #
 if (AXOM_ENABLE_MPI AND AXOM_ENABLE_LUMBERJACK)
     set(parallel_slic_tests
-        slic_perf.cpp
+        slic_log_stream_status_monitor.cpp
         slic_macros_parallel.cpp )
 
     foreach(test ${parallel_slic_tests})
@@ -48,6 +48,27 @@ if (AXOM_ENABLE_MPI AND AXOM_ENABLE_LUMBERJACK)
         axom_add_test(NAME          ${test_name}
                       COMMAND       ${test_name}_test 
                       NUM_MPI_TASKS 4)
+    endforeach()
+endif()
+
+
+#
+# Performance Tests
+#
+if (AXOM_ENABLE_MPI AND AXOM_ENABLE_LUMBERJACK)
+    set(perf_slic_tests
+        slic_perf.cpp )
+
+    foreach(test ${perf_slic_tests})
+        get_filename_component( test_name ${test} NAME_WE )
+        axom_add_executable(NAME       ${test_name}_test
+                            SOURCES    ${test}
+                            OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                            DEPENDS_ON ${slic_tests_depends}
+                            FOLDER     axom/slic/tests )
+        axom_add_test(NAME          ${test_name}
+                      COMMAND       ${test_name}_test 
+                      NUM_MPI_TASKS 32)
     endforeach()
 endif()
 

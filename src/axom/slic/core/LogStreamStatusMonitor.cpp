@@ -22,32 +22,31 @@ namespace slic
 
 //------------------------------------------------------------------------------
 LogStreamStatusMonitor::LogStreamStatusMonitor()
-    : m_streamVec()
+  : m_streamVec()
 {
 }
 
 //------------------------------------------------------------------------------
 LogStreamStatusMonitor::~LogStreamStatusMonitor()
 {
-    finalize();
+  finalize();
 }
 
 //------------------------------------------------------------------------------
 void LogStreamStatusMonitor::addStream(LogStream* ls)
 {
-    m_streamVec.push_back(ls);
-
+  m_streamVec.push_back(ls);
 }
 
 //------------------------------------------------------------------------------
 bool LogStreamStatusMonitor::hasPendingMessages() const
 {
-    int has_pending_messages = 0;
-    for (auto& stream : m_streamVec) {
-        has_pending_messages += static_cast<int>(stream->hasPendingMessages());
-    }
-
-    return has_pending_messages > 0;
+  int has_pending_messages = 0;
+  for (auto& stream : m_streamVec)
+  {
+    has_pending_messages += static_cast<int>(stream->hasPendingMessages());
+  }
+  return has_pending_messages > 0;
 }
 
 //------------------------------------------------------------------------------

@@ -14,6 +14,7 @@
 
 #include <vector>
 #include "axom/slic/core/LogStream.hpp"
+
 namespace axom
 {
 namespace slic
