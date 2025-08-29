@@ -55,18 +55,13 @@ TEST_P(LogStreamStatusMonitorParamTest, test_has_pending_messages)
 
   stream->append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
 
-  if(GetParam() == StreamType::Generic)
+  if(stream->canTestHasPendingMessages() == true)
   {
-    /* 
-      hasPendingMessages will not probe for unflushed messages in 
-      GenericOutputStream because this stream logs messages to an ostream, 
-      which cannot generally cannot be inspected for unflushed messages.
-    */
-    EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
+    EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), true);
   }
   else
   {
-    EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), true);
+    EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
   }
 
   stream->flush();
