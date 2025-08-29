@@ -22,7 +22,7 @@ namespace slic
 /*!
  * \class LogStreamStatusMonitor
  *
- * \brief Add a description later
+ * \brief Monitor log streams to see if there are any pending messages
  *
  */
 class LogStreamStatusMonitor
@@ -32,27 +32,16 @@ public:
   virtual ~LogStreamStatusMonitor();
 
   /*!
-   * \brief ADD DESCRIPTION HERE.  This is where we add to m_streamVec and combine its communicator with the current m_mpiComm.
-   *
+   * \brief Add LogStream pointer to vector stored in LogStreamStatusMonitor.
    * \param [in] ls pointer to the user-supplied LogStream object.
    *
-   * \note Something something something add later
    */
   virtual void addStream(LogStream* ls);
 
   /*!
-   * \brief ADD DESCRIPTION HERE.  This is the main point of this class!
-   *
-   * \note Something something something add later
+   * \brief Checks to see if any pending messages exist on the current MPI communicator
    */
   virtual bool hasPendingMessages() const;
-
-  /*!
-   * \brief ADD DESCRIPTION HERE. Free MPI comm and that's it.
-   *
-   * \note Something something something add later
-   */
-  virtual void finalize();
 
 protected:
 

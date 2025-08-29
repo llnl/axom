@@ -29,7 +29,6 @@ LogStreamStatusMonitor::LogStreamStatusMonitor()
 //------------------------------------------------------------------------------
 LogStreamStatusMonitor::~LogStreamStatusMonitor()
 {
-  finalize();
 }
 
 //------------------------------------------------------------------------------
@@ -47,11 +46,6 @@ bool LogStreamStatusMonitor::hasPendingMessages() const
     has_pending_messages += static_cast<int>(stream->hasPendingMessages());
   }
   return has_pending_messages > 0;
-}
-
-//------------------------------------------------------------------------------
-void LogStreamStatusMonitor::finalize()
-{
 }
 
 }

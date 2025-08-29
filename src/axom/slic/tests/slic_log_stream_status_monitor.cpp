@@ -66,14 +66,16 @@ TEST(SlicLogStreamMonitorTest, test_has_pending_messages)
 
   lj_stream.flush();
 
-  logStreamStatusMonitor.finalize();
-  logStreamStatusMonitorMPI.finalize();
-
 }
 
 //------------------------------------------------------------------------------
-TEST(SlicLogStreamMonitorTest, test_add_streams_multiple_comms)
+TEST(SlicLogStreamMonitorTest, test_add_streams_different_comms)
 {
+
+  /*
+    This test checks hasPendingMessages when different 
+    ranks have different MPI communicators.
+  */
 
   MPI_Group world_group, group;
   MPI_Comm comm = MPI_COMM_NULL;
@@ -83,6 +85,8 @@ TEST(SlicLogStreamMonitorTest, test_add_streams_multiple_comms)
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   MPI_Comm_group(MPI_COMM_WORLD, &world_group);
+
+  bool rank_is_even = (rank % 2 == 0);
 
   // Split ranks into even and odd
   std::vector<int> ranks;
@@ -94,12 +98,7 @@ TEST(SlicLogStreamMonitorTest, test_add_streams_multiple_comms)
   {
     for(int i = 0; i < size; ++i)
     {
-      if(i % 2 == 0 && rank % 2 == 0)
-      {
-        ranks.push_back(i);
-      }
-
-      if (i % 2 != 0 && rank % 2 != 0)
+      if((i % 2 == 0) == rank_is_even)
       {
         ranks.push_back(i);
       }
@@ -124,78 +123,27 @@ TEST(SlicLogStreamMonitorTest, test_add_streams_multiple_comms)
 
   axom::slic::LogStreamStatusMonitorMPI logStreamStatusMonitor;
 
-  if(rank % 2 == 0)
-  {
-    logStreamStatusMonitor.addStream(&ljstream);
-  }
-
-  MPI_Barrier(comm);
-
-  /* test that no messages should exist */
   EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
 
-  if(rank % 2 == 0)
-  {
-    ljstream.append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
-  }
+  logStreamStatusMonitor.addStream(&ljstream);
 
-  /*
-    test that pending messages should only exist on even ranks
-    when logging messages from a stream whose communicator contains
-    only even ranks
-   */
-  if(rank % 2 == 0)
-  {
-    EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), true);
-  }
-  else
-  {
-    EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
-  }
-
-  if(rank % 2 != 0)
-  {
-    logStreamStatusMonitor.addStream(&ljstream);
-  }
-  
-  MPI_Barrier(comm);
-
-  /*
-    test that pending messages should only exist on even ranks
-    when logging messages from a stream whose communicator contains
-    only even ranks
-   */
-  if(rank % 2 == 0)
-  {
-    EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), true);
-  }
-  else
-  {
-    EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
-  }
+  EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
 
   ljstream.append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
 
-  MPI_Barrier(comm);
-
-  /*
-    Test that pending messages exist on all ranks
-   */
   EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), true);
 
   ljstream.flush();
 
-  /*
-    Test that no pending messages exist on all ranks
-   */
   EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
+
+  lj.finalize();
+  lj_comm.finalize();
 
   if(comm != MPI_COMM_NULL)
   {
     MPI_Comm_free(&comm);
   }
-
-  logStreamStatusMonitor.finalize();
 
 }
 

@@ -42,18 +42,14 @@ void LogStreamStatusMonitorMPI::addStream(LogStream* ls)
   if (ls->isUsingMPI() == true)
   {
     m_useMPI = true;
-
-    MPI_Group mpi_group;
-    MPI_Comm_group(ls->comm(), &mpi_group);
-
-    // auto it = std::find(m_mpiComm.begin(), m_mpiComm.end(), ls->comm());
-
-    // if (it != m_mpiComm.end())
-    // {
-    //   m_mpiComm.push_back(ls->comm());
-    // }
-
-    lumberjack::addGroupToComm(&m_mpiComm, mpi_group);
+    if (m_mpiComm == MPI_COMM_NULL && 
+      ls->comm() != MPI_COMM_NULL)
+    {
+      m_mpiComm = ls->comm();
+    }
+    else if (m_mpiComm != MPI_COMM_NULL && m_mpiComm != ls->comm()) {
+      std::cerr << "ERROR: multiple MPI communicators passed to LogStreamStatusMonitor" << std::endl;
+    }
   }
 }
 
@@ -64,28 +60,16 @@ bool LogStreamStatusMonitorMPI::hasPendingMessages() const
 
   if (m_useMPI)
   {
-    // for (auto& comm : m_mpiComm)
-    // {
-      int rank, size;
-      MPI_Comm_rank(m_mpiComm, &rank);
-      MPI_Comm_size(m_mpiComm, &size);
+    int rank, size;
+    MPI_Comm_rank(m_mpiComm, &rank);
+    MPI_Comm_size(m_mpiComm, &size);
 
-      int local_has_pending_messages = has_pending_messages;
+    int local_has_pending_messages = has_pending_messages;
 
-      MPI_Allreduce(&local_has_pending_messages, &has_pending_messages, 1, MPI_INT, MPI_MAX, m_mpiComm);
-    // }
+    MPI_Allreduce(&local_has_pending_messages, &has_pending_messages, 1, MPI_INT, MPI_MAX, m_mpiComm);
   }
 
   return has_pending_messages > 0;
-}
-
-//------------------------------------------------------------------------------
-void LogStreamStatusMonitorMPI::finalize()
-{
-  if (m_mpiComm != MPI_COMM_WORLD && m_mpiComm != MPI_COMM_NULL)
-  {
-    MPI_Comm_free(&m_mpiComm);
-  }
 }
 
 }

@@ -60,16 +60,6 @@ const char* mpiBlockingReceiveIfMessagesExist(MPI_Comm comm);
  */
 void mpiNonBlockingSendMessages(MPI_Comm comm, int destinationRank, const char* packedMessagesToBeSent);
 
-/*!
- *****************************************************************************
- * \brief Adds an MPI group to an existing MPI communicator and returns
- * a new MPI communicator that includes the input group
- *
- * \param [in] comm The MPI Communicator.
- * \param [in] new_group new MPI group to be added
- *****************************************************************************
- */
-void addGroupToComm(MPI_Comm *comm, MPI_Group new_group);
 }  // end namespace lumberjack
 }  // end namespace axom
 
