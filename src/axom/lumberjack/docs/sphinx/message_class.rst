@@ -12,17 +12,18 @@ Information
 The Message class contains the following information. All fields have their respective 
 getters and setters.
 
-=========== ===================
-Name        Description
-=========== ===================
-text        Contents of the message
-ranks       Truncated list of where the message originated
-count       Total count of how many individual messages occurred
-fileName    File name that generated the message
-lineNumber  Line number that generated the message
-level       Message severity (error, warning, debug, etc.)
-tag         Tag for showing what part of the code generated the message
-=========== ===================
+============  ===================
+Name          Description
+============  ===================
+text          Contents of the message
+ranks         Truncated list of where the message originated
+count         Total count of how many individual messages occurred
+fileName      File name that generated the message
+lineNumber    Line number that generated the message
+level         Message severity (error, warning, debug, etc.)
+creationTime  Creation time of this message
+tag           Tag for showing what part of the code generated the message
+============  ===================
 
 Functions
 ---------
