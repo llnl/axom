@@ -56,4 +56,4 @@ private:
 
 } /* namespace axom */
 
-#endif /* LOGSTREAMStatusMonitorMPI_HPP_ */
+#endif /* LOGSTREAMSTATUSMONITORMPI_HPP_ */

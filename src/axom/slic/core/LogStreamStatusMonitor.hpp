@@ -53,4 +53,4 @@ protected:
 
 } /* namespace axom */
 
-#endif /* LOGSTREAMStatusMonitor_HPP_ */
+#endif /* LOGSTREAMSTATUSMONITOR_HPP_ */

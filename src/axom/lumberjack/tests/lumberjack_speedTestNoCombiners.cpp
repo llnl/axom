@@ -21,6 +21,8 @@ public:
 
   void finalize() { }
 
+  MPI_Comm comm() { return m_mpiComm; }
+
   int rank() { return 0; }
 
   void ranksLimit(int value) { m_ranksLimit = value; }
