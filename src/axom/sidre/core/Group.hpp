@@ -121,12 +121,21 @@ class DataStore;
  * while unnamed Views should be created by passing an empty string as the
  * path argument to any of the createView methods.
  *
- *
  * \attention when Views or Groups are created, destroyed, copied, or moved,
  * indices of other Views and Groups in associated Group objects may
  * become invalid. This is analogous to iterator invalidation for STL
  * containers when the container contents change.
  *
+ * A Group has two allocators for managing memory in its hierarchy.
+ * An array allocator is intended for computational data, typically
+ * large arrays but it could be any size.  Another allocator is intended
+ * for metadata such as strings, scalars and tuples (typically small
+ * arrays, although it could be any size).  These allocators are the
+ * defaults for the hierarchy's Views and Groups, unless specifically
+ * overridden.  @see setDefaultArrayAllocator() @setDefaultTupleAllocator()
+ * Moreover only arrays (buffers and external data) are subject to
+ * shallow-copying.  Strings, scalars and tuples are always deep-copied
+ * even for hierarchy shallow-copies.
  */
 class Group
 {
@@ -294,11 +303,11 @@ public:
 #endif
 
   /*!
-    \brief Set the default array allocator id associated with this Group.
-
-    This allocator is the default for array data, even if the array is
-    length 1.  (Note, tuples are not arrays in this specific sense.  @see
-    setDefaultTupleAllocator(int).)
+   * \brief Set the default array allocator id associated with this Group.
+   *
+   * This allocator is the default for array data, even if the array is
+   * length 1.  (Note, tuples are not arrays in this specific sense.  @see
+   * setDefaultTupleAllocator(int).)
   */
   Group* setDefaultArrayAllocator(int allocId)
   {
@@ -327,11 +336,11 @@ public:
 #endif
 
   /*!
-    \brief Set the default scalar/tuple allocator id associated with this Group.
-
-    This allocator is the default for tuple data, including strings
-    and scalars.  (Arrays are not tuples in this sense.  @see
-    setDefaultArrayAllocator(int).)
+   * \brief Set the default scalar/tuple allocator id associated with this Group.
+   *
+   * This allocator is the default for tuple data, including strings
+   * and scalars.  (Arrays are not tuples in this sense.  @see
+   * setDefaultArrayAllocator(int).)
   */
   Group* setDefaultTupleAllocator(int allocId)
   {
@@ -455,7 +464,6 @@ public:
   //!  @name View access methods.
 
   /*!
-
    * \brief Return pointer to non-const View with given name or path.
    *
    * This method requires that all groups in the path exist if a path is given.

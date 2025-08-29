@@ -1044,10 +1044,6 @@ void View::deepCopyToConduit(Node& dst) const
   // TODO: Need to handle cases where the view is not allocated
   // TODO: Need to handle cases where the view is not applied
 
-  // Note: We are using conduit's pointer rather than the View pointer
-  //    since the conduit pointer handles offsetting
-  // Note: const_cast the pointer to satisfy conduit's interface
-
   const conduit::DataType& srcDtype = m_node.dtype();
   dst.set(srcDtype);
   if(isAllocated())

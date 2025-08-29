@@ -525,7 +525,7 @@ public:
   /*!
    * \brief Apply view description to data.
    *
-   * If view holds a scalar or a string, the method does nothing.
+   * If view holds a scalar, tuple or a string, the method does nothing.
    *
    * \return pointer to this View object.
    */
@@ -622,7 +622,7 @@ public:
 #endif
 
     // Note: most of these calls that set the view class members are
-    //       unnecessary if the view already holds a scalar.  May be
+    //       unnecessary if the view already holds a tuple.  May be
     //       a future optimization opportunity to split the
     if(m_state == EMPTY || m_state == TUPLE)
     {
