@@ -553,8 +553,6 @@ void Logger::finalize()
 
   LogStreamStatusMonitor* logStreamMonitor = getLogStreamStatusMonitor();
 
-  logStreamMonitor->finalize();
-
   delete logStreamMonitor;
   logStreamMonitor = nullptr;
 
