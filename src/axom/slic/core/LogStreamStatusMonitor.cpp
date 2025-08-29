@@ -85,6 +85,7 @@ void LogStreamStatusMonitor::finalize()
 {
   m_streamVec.clear();
   m_useMPI = false;
+  m_mpiComm = MPI_COMM_NULL;
 }
 
 }
