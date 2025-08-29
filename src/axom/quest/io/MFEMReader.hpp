@@ -39,12 +39,6 @@ public:
   using CurvedPolygonArray = axom::Array<CurvedPolygon>;
 
 public:
-  /// Constructor
-  MFEMReader() = default;
-
-  /// Destructor
-  ~MFEMReader() = default;
-
   /// Sets the name of the contour file to load. Must be called before \a read()
   void setFileName(const std::string &fileName) { m_fileName = fileName; }
 

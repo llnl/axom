@@ -105,7 +105,7 @@ TEST(quest_linearize_curves, linearize_nonuniform)
   axom::Array<NURBSCurveType> curves;
   makeCurves(curves, false);
 
-  // Linearize the curves uniformly.
+  // Linearize the curves non-uniformly.
   const double expectedLength = M_PI * 3. / 4.;
   const double percentError = 0.01;
   axom::quest::LinearizeCurves lin;
