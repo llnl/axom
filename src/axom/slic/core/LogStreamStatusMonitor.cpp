@@ -30,8 +30,9 @@ namespace slic
 
 //------------------------------------------------------------------------------
 LogStreamStatusMonitor::LogStreamStatusMonitor()
-  : m_streamVec(),
+  : m_streamVec()
 #if defined(AXOM_USE_MPI)
+    ,
     m_useMPI(false),
     m_mpiComm(MPI_COMM_NULL)
 #endif
