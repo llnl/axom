@@ -13,8 +13,6 @@
  ******************************************************************************
  */
 
-#include <mpi.h>
-
 #include "LogStreamStatusMonitor.hpp"
 
 #if defined(AXOM_USE_MPI)
@@ -49,12 +47,13 @@ void LogStreamStatusMonitor::addStream(LogStream* ls)
   {
     m_useMPI = true;
     if (m_mpiComm == MPI_COMM_NULL && 
-      ls->comm() != MPI_COMM_NULL)
+        ls->comm() != MPI_COMM_NULL)
     {
       m_mpiComm = ls->comm();
     }
     else if (m_mpiComm != MPI_COMM_NULL && m_mpiComm != ls->comm()) {
-      std::cerr << "ERROR: multiple MPI communicators passed to LogStreamStatusMonitor" << std::endl;
+      std::cerr << "ERROR: attempting to register a logstream with an incompatible "
+                   "MPI communicator to LogStreamStatusMonitor's existing communicator" << std::endl;
     }
   }
 #endif
@@ -79,6 +78,13 @@ bool LogStreamStatusMonitor::hasPendingMessages() const
 #endif
 
   return has_pending_messages > 0;
+}
+
+//------------------------------------------------------------------------------
+void LogStreamStatusMonitor::finalize()
+{
+  m_streamVec.clear();
+  m_useMPI = false;
 }
 
 }

@@ -138,7 +138,7 @@ void GenericOutputStream::flush()
 }
 
 //------------------------------------------------------------------------------
-bool GenericOutputStream::hasPendingMessages()
+bool GenericOutputStream::canTestHasPendingMessages()
 {
   return false;
 }

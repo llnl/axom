@@ -124,7 +124,7 @@ public:
                       const std::string& fileName,
                       int line,
                       bool filter_duplicates,
-                      bool tag_stream_only);
+                      bool tag_stream_only) override;
 
   /*!
    * \brief Dumps the messages from the current rank directly to the
@@ -132,7 +132,7 @@ public:
    *
    * \warning This method is being called before slic aborts.
    */
-  virtual void outputLocal();
+  virtual void outputLocal() override;
 
   /*!
    * \brief Dumps the messages to the console in rank-order for all ranks.
@@ -141,28 +141,35 @@ public:
    * \note This method is a collective operation
    *  intended for a synchronization checkpoint.
    */
-  virtual void flush();
+  virtual void flush() override;
+
+  /*!
+   * \brief Determines whether it is possible to reliably check if pending messages exist
+   *
+   * \return Returns True when it is possible to reliably check whether pending messages exist
+   */
+  virtual bool canTestHasPendingMessages() override;
 
   /*!
    * \brief Tests whether there are any pending messages that need to be flushed
    *
    * \return Returns true if there are pending messages that need to be flushed
    */
-  virtual bool hasPendingMessages();
+  virtual bool hasPendingMessages() override;
 
   /*!
    * \brief Tests whether this class relies on MPI
    *
    * \return Returns true if this class relies on MPI
    */
-  virtual bool isUsingMPI();
+  virtual bool isUsingMPI() override;
 
   /*!
    * \brief Get the communicator
    *
    * \return Returns the communicator ID if it exists, or -1 otherwise
    */
-  virtual int comm();
+  virtual int comm() override;
 
 private:
   /// Forward declarations

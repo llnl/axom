@@ -14,7 +14,6 @@
 #include "axom/slic/core/MessageLevel.hpp"
 
 // C/C++ includes
-#include <memory>  // for STL unique_ptr
 #include <string>  // for STL string
 #include <vector>  // for STL vector
 #include <map>     // for STL map

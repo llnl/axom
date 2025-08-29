@@ -42,9 +42,16 @@ public:
   void addStream(LogStream* ls);
 
   /*!
-   * \brief Checks to see if any pending messages exist on the current MPI communicator
+   * \brief Checks to see if any pending messages exist on the current MPI communicator.
+   * This call is collective.  All ranks in m_mpiComm must call this function.
    */
   bool hasPendingMessages() const;
+
+  /*!
+   * \brief Finalize/clear member data
+   */
+  void finalize();
+
 
 protected:
 
