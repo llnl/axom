@@ -221,11 +221,13 @@ void iterate_datastore(sidre::DataStore* ds)
                                    attr.getDefaultNodeRef().to_yaml());
   }
 
+
   std::cout << fill_line << std::endl;
 
   // iterate through the buffers in ds
   std::cout << "The datastore has the following buffers:\n";
-  for(auto& buff : ds->buffers())
+  auto buffy = ds->buffers();
+  for(auto& buff : buffy)
   {
     std::cout << axom::fmt::format("  * [{}] {} buffer with {} elements of type {} with {} views\n",
                                    buff.getIndex(),
@@ -234,9 +236,18 @@ void iterate_datastore(sidre::DataStore* ds)
                                    conduit::DataType::id_to_name(buff.getTypeID()),
                                    buff.getNumViews());
   }
+  sidre::Buffer* buff = ds->createBuffer(sidre::DOUBLE_ID, 420)->allocate();
 
   std::cout << fill_line << std::endl;
-
+  for(auto& buff : buffy)
+  {
+    std::cout << axom::fmt::format("  * [{}] {} buffer with {} elements of type {} with {} views\n",
+                                   buff.getIndex(),
+                                   buff.isAllocated() ? "Allocated" : "Unallocated",
+                                   buff.getNumElements(),
+                                   conduit::DataType::id_to_name(buff.getTypeID()),
+                                   buff.getNumViews());
+  }
   // iterate through the groups of the root group
   std::cout << "The root group has the following groups:\n";
   for(auto& grp : ds->getRoot()->groups())
