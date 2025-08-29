@@ -7,7 +7,10 @@
 #include "axom/slic/core/LogStream.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/slic/core/LogStreamStatusMonitor.hpp"
+
+#ifdef AXOM_USE_MPI
 #include "axom/slic/core/LogStreamStatusMonitorMPI.hpp"
+#endif
 
 // C/C++ includes
 #include <iostream>

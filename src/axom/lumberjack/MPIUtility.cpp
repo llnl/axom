@@ -15,7 +15,6 @@
 
 #include "axom/lumberjack/MPIUtility.hpp"
 #include <cstring>
-#include <iostream>
 
 namespace axom
 {
