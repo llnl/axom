@@ -519,6 +519,7 @@ AXOM_TYPED_TEST(core_flatmap, insert_then_delete)
   EXPECT_EQ(test_map.size(), NUM_INSERTS);
   EXPECT_GE(test_map.bucket_count(), NUM_INSERTS);
 
+  int num_deletions = 0;
   for(int i = 0; i < NUM_INSERTS; i += 3)
   {
     auto key = this->getKey(i);
@@ -531,7 +532,10 @@ AXOM_TYPED_TEST(core_flatmap, insert_then_delete)
     auto deleted_iterator = test_map.erase(iterator_to_remove);
 
     EXPECT_EQ(deleted_iterator, one_after_elem);
+    num_deletions++;
   }
+
+  EXPECT_EQ(test_map.size(), NUM_INSERTS - num_deletions);
 
   // Check consistency of values.
   for(int i = 0; i < NUM_INSERTS; i++)
