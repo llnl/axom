@@ -15,6 +15,10 @@
 #include <vector>
 #include "axom/slic/core/LogStream.hpp"
 
+#if defined(AXOM_USE_MPI)
+#include <mpi.h>
+#endif
+
 namespace axom
 {
 namespace slic
@@ -29,23 +33,27 @@ class LogStreamStatusMonitor
 {
 public:
   LogStreamStatusMonitor();
-  virtual ~LogStreamStatusMonitor();
 
   /*!
    * \brief Add LogStream pointer to vector stored in LogStreamStatusMonitor.
    * \param [in] ls pointer to the user-supplied LogStream object.
    *
    */
-  virtual void addStream(LogStream* ls);
+  void addStream(LogStream* ls);
 
   /*!
    * \brief Checks to see if any pending messages exist on the current MPI communicator
    */
-  virtual bool hasPendingMessages() const;
+  bool hasPendingMessages() const;
 
 protected:
 
   std::vector<LogStream*> m_streamVec;
+#if defined(AXOM_USE_MPI)
+  bool m_useMPI;
+  MPI_Comm m_mpiComm;
+#endif
+
 
 };
 

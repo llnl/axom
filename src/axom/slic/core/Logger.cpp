@@ -8,10 +8,6 @@
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/slic/core/LogStreamStatusMonitor.hpp"
 
-#ifdef AXOM_USE_MPI
-#include "axom/slic/core/LogStreamStatusMonitorMPI.hpp"
-#endif
-
 // C/C++ includes
 #include <iostream>
 
@@ -44,11 +40,7 @@ LogStreamStatusMonitor*& getLogStreamStatusMonitor()
   static LogStreamStatusMonitor* s_logStreamStatusMonitor = nullptr;
   if (!s_logStreamStatusMonitor)
   {
-#ifdef AXOM_USE_MPI
-    s_logStreamStatusMonitor = new LogStreamStatusMonitorMPI();
-#else
-    s_logStreamMonitor = new LogStreamStatusMonitor();
-#endif
+    s_logStreamStatusMonitor = new LogStreamStatusMonitor();
   }
   return s_logStreamStatusMonitor;
 }
@@ -554,10 +546,10 @@ void Logger::finalize()
 
   getLogger() = nullptr;
 
-  LogStreamStatusMonitor* logStreamMonitor = getLogStreamStatusMonitor();
+  LogStreamStatusMonitor* logStreamStatusMonitor = getLogStreamStatusMonitor();
 
-  delete logStreamMonitor;
-  logStreamMonitor = nullptr;
+  delete logStreamStatusMonitor;
+  logStreamStatusMonitor = nullptr;
 
 }
 
