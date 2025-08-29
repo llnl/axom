@@ -38,9 +38,7 @@ set(slic_sources
 
 if (AXOM_ENABLE_MPI)
     list(APPEND slic_headers streams/SynchronizedStream.hpp)
-    list(APPEND slic_headers core/LogStreamStatusMonitorMPI.hpp)
     list(APPEND slic_sources streams/SynchronizedStream.cpp)
-    list(APPEND slic_sources core/LogStreamStatusMonitorMPI.cpp)
     if (AXOM_ENABLE_LUMBERJACK)
         list(APPEND slic_headers streams/LumberjackStream.hpp)
         list(APPEND slic_sources streams/LumberjackStream.cpp)

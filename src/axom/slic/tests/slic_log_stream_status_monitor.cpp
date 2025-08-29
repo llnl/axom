@@ -5,7 +5,7 @@
 
 #include "axom/lumberjack/Lumberjack.hpp"
 #include "axom/lumberjack/RootCommunicator.hpp"
-#include "axom/slic/core/LogStreamStatusMonitorMPI.hpp"
+#include "axom/slic/core/LogStreamStatusMonitor.hpp"
 #include "axom/slic/streams/GenericOutputStream.hpp"
 #include "axom/slic/streams/LumberjackStream.hpp"
 #include "axom/slic/streams/SynchronizedStream.hpp"
@@ -24,13 +24,10 @@ TEST(SlicLogStreamMonitorTest, test_has_pending_messages)
   auto generic_stream = slic::GenericOutputStream(&test_stream);
 
   axom::slic::LogStreamStatusMonitor logStreamStatusMonitor;
-  axom::slic::LogStreamStatusMonitorMPI logStreamStatusMonitorMPI;
 
   logStreamStatusMonitor.addStream(&generic_stream);
-  logStreamStatusMonitorMPI.addStream(&generic_stream);
 
   EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
-  EXPECT_EQ(logStreamStatusMonitorMPI.hasPendingMessages(), false);
 
   generic_stream.append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
 
@@ -38,31 +35,30 @@ TEST(SlicLogStreamMonitorTest, test_has_pending_messages)
      GenericOutputStream because it relies on ofstream for flushing rather than MPI 
    */
   EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
-  EXPECT_EQ(logStreamStatusMonitorMPI.hasPendingMessages(), false);
 
   generic_stream.flush();
 
   auto synchronized_stream = slic::SynchronizedStream(&test_stream, MPI_COMM_WORLD);
 
-  logStreamStatusMonitorMPI.addStream(&synchronized_stream);
+  logStreamStatusMonitor.addStream(&synchronized_stream);
 
-  EXPECT_EQ(logStreamStatusMonitorMPI.hasPendingMessages(), false);
+  EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
 
   synchronized_stream.append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
 
-  EXPECT_EQ(logStreamStatusMonitorMPI.hasPendingMessages(), true);
+  EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), true);
 
   synchronized_stream.flush();
 
   auto lj_stream = slic::LumberjackStream(&test_stream, MPI_COMM_WORLD, 1);
 
-  logStreamStatusMonitorMPI.addStream(&lj_stream);
+  logStreamStatusMonitor.addStream(&lj_stream);
 
-  EXPECT_EQ(logStreamStatusMonitorMPI.hasPendingMessages(), false);
+  EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
 
   lj_stream.append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
 
-  EXPECT_EQ(logStreamStatusMonitorMPI.hasPendingMessages(), true);
+  EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), true);
 
   lj_stream.flush();
 
@@ -121,7 +117,7 @@ TEST(SlicLogStreamMonitorTest, test_add_streams_different_comms)
 
   auto ljstream = slic::LumberjackStream(&test_stream, &lj);
 
-  axom::slic::LogStreamStatusMonitorMPI logStreamStatusMonitor;
+  axom::slic::LogStreamStatusMonitor logStreamStatusMonitor;
 
   EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
 
