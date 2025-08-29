@@ -101,8 +101,57 @@ def access_datastore(ds):
 
 	return ds
 
+def iterate_datastore(ds):
+	fill_line = "=" * 80
+	print(fill_line)
+
+	# TODO implement attributes
+	# iterate through the attributes in ds
+	print("The datastore has the following attributes:")
+	# for attr in ds.attributes():
+	# std::cout << axom::fmt::format("  * [{}] '{}' of type {} and default value: {}\n",
+	#                                attr.getIndex(),
+	#                                attr.getName(),
+	#                                conduit::DataType::id_to_name(attr.getTypeID()),
+	#                                attr.getDefaultNodeRef().to_yaml());
+
+	print(fill_line)
+
+	# iterate through the buffers in ds
+	print("The datastore has the following buffers:")
+	buffy = ds.buffers()
+	for buff in buffy:
+		print(f"  * [{buff.getIndex()}] "
+			f"{"Allocated" if buff.isAllocated() else "Unallocated"} buffer with "
+			f"{buff.getNumElements()} elements of type {buff.getTypeID()} with "
+			f"{buff.getNumViews()} views")
+
+	print(fill_line)
+	ds.createBuffer(pysidre.TypeID.DOUBLE_ID, 420).allocate()
+	for buff in buffy:
+		print(f"  * [{buff.getIndex()}] "
+			f"{"Allocated" if buff.isAllocated() else "Unallocated"} buffer with "
+			f"{buff.getNumElements()} elements of type {buff.getTypeID()} with "
+			f"{buff.getNumViews()} views")
+
+	# iterate through the groups of the root group
+	print("The root group has the following groups:")
+	for grp in ds.getRoot().groups():
+		print(f"""  * [{grp.getIndex()}] '{grp.getName()}' with
+			{grp.getNumGroups()} groups and {grp.getNumViews()} views""")
+	print(fill_line)
+
+	# iterate through the views of the 'state' group
+	print("The 'state' group has the following views:")
+	for view in ds.getRoot().getGroup("state").views():
+		print(f"""  * [{view.getIndex()}] '{view.getName()}' -- 
+			{"Allocated" if view.isAllocated() else "Unallocated"} view of type
+			{view.getTypeID()} and {view.getNumElements()} elements""")
+	print(fill_line)
+
 
 if __name__=="__main__":
 	region = np.zeros(3375, dtype = int)
 	ds = create_datastore(region)
 	access_datastore(ds)
+	iterate_datastore(ds)
