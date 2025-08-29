@@ -13,56 +13,77 @@
 
 #include <mpi.h>
 
+enum class StreamType
+{
+    Generic,
+    Synchronized,
+    Lumberjack
+};
+
+class LogStreamStatusMonitorParamTest : public ::testing::TestWithParam<StreamType>
+{
+protected:
+    std::ostringstream test_stream;
+    std::unique_ptr<axom::slic::LogStream> stream;
+    axom::slic::LogStreamStatusMonitor logStreamStatusMonitor;
+
+    void SetUp() override
+    {
+      switch(GetParam())
+      {
+        case StreamType::Generic:
+          stream = std::make_unique<axom::slic::GenericOutputStream>(&test_stream);
+          break;
+        case StreamType::Synchronized:
+          stream = std::make_unique<axom::slic::SynchronizedStream>(&test_stream, MPI_COMM_WORLD);
+          break;
+        case StreamType::Lumberjack:
+          stream = std::make_unique<axom::slic::LumberjackStream>(&test_stream, MPI_COMM_WORLD, 1);
+          break;
+      }
+    }
+};
+
 // namespace alias
 namespace slic = axom::slic;
 
-TEST(SlicLogStreamMonitorTest, test_has_pending_messages)
+TEST_P(LogStreamStatusMonitorParamTest, test_has_pending_messages)
 {
-
-  std::ostringstream test_stream;
-
-  auto generic_stream = slic::GenericOutputStream(&test_stream);
-
-  axom::slic::LogStreamStatusMonitor logStreamStatusMonitor;
-
-  logStreamStatusMonitor.addStream(&generic_stream);
+  logStreamStatusMonitor.addStream(stream.get());
 
   EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
 
-  generic_stream.append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
+  stream->append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
 
-  /* hasPendingMessages will not probe for unflushed messages in 
-     GenericOutputStream because it relies on ofstream for flushing rather than MPI 
-   */
-  EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
+  if(GetParam() == StreamType::Generic)
+  {
+    /* 
+      hasPendingMessages will not probe for unflushed messages in 
+      GenericOutputStream because this stream logs messages to an ostream, 
+      which cannot generally cannot be inspected for unflushed messages.
+    */
+    EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
+  }
+  else
+  {
+    EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), true);
+  }
 
-  generic_stream.flush();
-
-  auto synchronized_stream = slic::SynchronizedStream(&test_stream, MPI_COMM_WORLD);
-
-  logStreamStatusMonitor.addStream(&synchronized_stream);
-
-  EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
-
-  synchronized_stream.append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
-
-  EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), true);
-
-  synchronized_stream.flush();
-
-  auto lj_stream = slic::LumberjackStream(&test_stream, MPI_COMM_WORLD, 1);
-
-  logStreamStatusMonitor.addStream(&lj_stream);
+  stream->flush();
 
   EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
-
-  lj_stream.append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
-
-  EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), true);
-
-  lj_stream.flush();
 
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    StreamTypes,
+    LogStreamStatusMonitorParamTest,
+    ::testing::Values(
+        StreamType::Generic,
+        StreamType::Synchronized,
+        StreamType::Lumberjack
+    )
+);
 
 //------------------------------------------------------------------------------
 TEST(SlicLogStreamMonitorTest, test_add_streams_different_comms)

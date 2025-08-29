@@ -35,13 +35,9 @@ Logger*& getLogger()
 
 //------------------------------------------------------------------------------
 // This is a singleton, scope-limited to this file.
-LogStreamStatusMonitor*& getLogStreamStatusMonitor()
+LogStreamStatusMonitor& getLogStreamStatusMonitor()
 {
-  static LogStreamStatusMonitor* s_logStreamStatusMonitor = nullptr;
-  if (!s_logStreamStatusMonitor)
-  {
-    s_logStreamStatusMonitor = new LogStreamStatusMonitor();
-  }
+  static LogStreamStatusMonitor s_logStreamStatusMonitor;
   return s_logStreamStatusMonitor;
 }
 
@@ -151,7 +147,7 @@ void Logger::addStreamToMsgLevel(LogStream* ls, message::Level level, bool pass_
     m_streamObjectsManager[ls] = ls;
   }
 
-  getLogStreamStatusMonitor()->addStream(ls);
+  getLogStreamStatusMonitor().addStream(ls);
 }
 
 //------------------------------------------------------------------------------
@@ -177,7 +173,7 @@ void Logger::addStreamToTag(LogStream* ls, const std::string& tag, bool pass_own
     m_streamObjectsManager[ls] = ls;
   }
 
-  getLogStreamStatusMonitor()->addStream(ls);
+  getLogStreamStatusMonitor().addStream(ls);
 }
 
 //------------------------------------------------------------------------------
@@ -357,7 +353,7 @@ void Logger::logMessage(message::Level level,
 //------------------------------------------------------------------------------
 void Logger::outputLocalMessages()
 {
-  const bool has_pending_messages = getLogStreamStatusMonitor()->hasPendingMessages();
+  const bool has_pending_messages = getLogStreamStatusMonitor().hasPendingMessages();
 
   //Output for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
@@ -365,7 +361,9 @@ void Logger::outputLocalMessages()
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      if (m_logStreams[level][istream]->isUsingMPI() == false || has_pending_messages)
+      const bool can_test_has_pending_messages = m_logStreams[level][istream]->canTestHasPendingMessages();
+      if ((can_test_has_pending_messages == true && has_pending_messages) || 
+           can_test_has_pending_messages == false)
       {
         m_logStreams[level][istream]->outputLocal();
       }
@@ -381,8 +379,9 @@ void Logger::outputLocalMessages()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-
-      if (it->second[i]->isUsingMPI() == false || has_pending_messages)
+      const bool can_test_has_pending_messages = it->second[i]->canTestHasPendingMessages();
+      if ((can_test_has_pending_messages == true && has_pending_messages) || 
+           can_test_has_pending_messages == false)
       {
         it->second[i]->outputLocal();
       }
@@ -394,7 +393,7 @@ void Logger::outputLocalMessages()
 void Logger::flushStreams()
 {
 
-  const bool has_pending_messages = getLogStreamStatusMonitor()->hasPendingMessages();
+  const bool has_pending_messages = getLogStreamStatusMonitor().hasPendingMessages();
 
   //Flush for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
@@ -402,7 +401,9 @@ void Logger::flushStreams()
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      if (m_logStreams[level][istream]->isUsingMPI() == false || has_pending_messages)
+      const bool can_test_has_pending_messages = m_logStreams[level][istream]->canTestHasPendingMessages();
+      if ((can_test_has_pending_messages == true && has_pending_messages) || 
+           can_test_has_pending_messages == false)
       {
         m_logStreams[level][istream]->flush();
       }
@@ -418,7 +419,9 @@ void Logger::flushStreams()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      if (it->second[i]->isUsingMPI() == false || has_pending_messages)
+      const bool can_test_has_pending_messages = it->second[i]->canTestHasPendingMessages();
+      if ((can_test_has_pending_messages == true && has_pending_messages) || 
+           can_test_has_pending_messages == false)
       {
         it->second[i]->flush();
       }
@@ -429,13 +432,19 @@ void Logger::flushStreams()
 //------------------------------------------------------------------------------
 void Logger::pushStreams()
 {
+  const bool has_pending_messages = getLogStreamStatusMonitor().hasPendingMessages();
   //Push for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
   {
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      m_logStreams[level][istream]->push();
+      const bool can_test_has_pending_messages = m_logStreams[level][istream]->canTestHasPendingMessages();
+      if ((can_test_has_pending_messages == true && has_pending_messages) || 
+           can_test_has_pending_messages == false)
+      {
+        m_logStreams[level][istream]->push();
+      }
 
     }  // END for all streams
 
@@ -448,7 +457,12 @@ void Logger::pushStreams()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      it->second[i]->push();
+      const bool can_test_has_pending_messages = it->second[i]->canTestHasPendingMessages();
+      if ((can_test_has_pending_messages == true && has_pending_messages) || 
+           can_test_has_pending_messages == false)
+      {
+        it->second[i]->push();
+      }
     }
   }
 }
@@ -546,10 +560,9 @@ void Logger::finalize()
 
   getLogger() = nullptr;
 
-  LogStreamStatusMonitor* logStreamStatusMonitor = getLogStreamStatusMonitor();
+  LogStreamStatusMonitor& logStreamStatusMonitor = getLogStreamStatusMonitor();
 
-  delete logStreamStatusMonitor;
-  logStreamStatusMonitor = nullptr;
+  logStreamStatusMonitor.finalize();
 
 }
 

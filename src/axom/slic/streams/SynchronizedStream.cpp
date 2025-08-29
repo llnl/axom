@@ -229,6 +229,12 @@ void SynchronizedStream::flush()
 }
 
 //------------------------------------------------------------------------------
+bool SynchronizedStream::canTestHasPendingMessages()
+{
+  return true;
+}
+
+//------------------------------------------------------------------------------
 bool SynchronizedStream::hasPendingMessages()
 {
   return m_cache->messages.size() > 0;
