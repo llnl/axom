@@ -270,7 +270,7 @@ void LumberjackStream::write(bool local)
 }
 
 //------------------------------------------------------------------------------
-bool LumberjackStream::canTestHasPendingMessages()
+bool LumberjackStream::canHavePendingMessages()
 {
   return true;
 }
@@ -287,7 +287,7 @@ bool LumberjackStream::isUsingMPI()
   return true;
 }
 
-int LumberjackStream::comm() { return m_lj->getCommunicator()->comm(); }
+MPI_Comm LumberjackStream::comm() { return m_lj->getCommunicator()->comm(); }
 
 //------------------------------------------------------------------------------
 void LumberjackStream::initializeLumberjack(MPI_Comm comm, int ranksLimit)

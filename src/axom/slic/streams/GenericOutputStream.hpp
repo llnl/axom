@@ -110,7 +110,7 @@ public:
    *
    * \return Returns True when it is possible to reliably check whether pending messages exist
    */
-  virtual bool canTestHasPendingMessages() override;
+  virtual bool canHavePendingMessages() override;
 
 private:
   std::ostream* m_stream;

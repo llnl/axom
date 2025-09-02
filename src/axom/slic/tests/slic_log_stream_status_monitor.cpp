@@ -44,9 +44,7 @@ protected:
     }
 };
 
-// namespace alias
-namespace slic = axom::slic;
-
+//------------------------------------------------------------------------------
 TEST_P(LogStreamStatusMonitorParamTest, test_has_pending_messages)
 {
   logStreamStatusMonitor.addStream(stream.get());
@@ -55,13 +53,13 @@ TEST_P(LogStreamStatusMonitorParamTest, test_has_pending_messages)
 
   stream->append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
 
-  if(stream->canTestHasPendingMessages() == true)
+  if(stream->canHavePendingMessages() == true)
   {
-    EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), true);
+    EXPECT_TRUE(logStreamStatusMonitor.hasPendingMessages());
   }
   else
   {
-    EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
+    EXPECT_FALSE(logStreamStatusMonitor.hasPendingMessages());
   }
 
   stream->flush();
@@ -131,7 +129,7 @@ TEST(SlicLogStreamMonitorTest, test_add_streams_different_comms)
   lj_comm.initialize(comm, 1);
   lj.initialize(&lj_comm, 1);
 
-  auto ljstream = slic::LumberjackStream(&test_stream, &lj);
+  auto ljstream = axom::slic::LumberjackStream(&test_stream, &lj);
 
   axom::slic::LogStreamStatusMonitor logStreamStatusMonitor;
 
