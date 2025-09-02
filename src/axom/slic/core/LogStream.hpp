@@ -11,8 +11,13 @@
 #ifndef LOGSTREAM_HPP_
 #define LOGSTREAM_HPP_
 
+#include <memory>
 #include "axom/slic/core/MessageLevel.hpp"
 #include "axom/core/Macros.hpp"
+
+#if defined(AXOM_USE_MPI)
+#include <mpi.h>
+#endif
 
 /// \name Wildcards
 /// @{
@@ -149,7 +154,7 @@ public:
    *
    * \return Returns True when it is possible to reliably check whether pending messages exist
    */
-  virtual bool canTestHasPendingMessages() = 0;
+  virtual bool canHavePendingMessages() = 0;
 
   /*!
    * \brief Tests whether there are any pending messages that need to be flushed.
@@ -170,11 +175,14 @@ public:
   /*!
    * \brief Get the communicator
    *
-   * \return Returns the communicator ID if it exists, or -1 otherwise
+   * \return Returns the communicator if it exists, or MPI_COMM_NULL otherwise
    */
-  virtual int comm() { return -1; }
+#if defined(AXOM_USE_MPI)
+  virtual MPI_Comm comm() { return MPI_COMM_NULL; };
+#endif
 
 protected:
+
   /*!
    * \brief Returns the formatted message as a single string.
    *

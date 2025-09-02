@@ -148,7 +148,7 @@ public:
    *
    * \return Returns True when it is possible to reliably check whether pending messages exist
    */
-  virtual bool canTestHasPendingMessages() override;
+  virtual bool canHavePendingMessages() override;
 
   /*!
    * \brief Tests whether there are any pending messages that need to be flushed
@@ -167,9 +167,9 @@ public:
   /*!
    * \brief Get the communicator
    *
-   * \return Returns the communicator ID if it exists, or -1 otherwise
+   * \return Returns the communicator if it exists, or MPI_COMM_NULL otherwise
    */
-  virtual int comm() override;
+  virtual MPI_Comm comm() override;
 
 private:
   /// Forward declarations

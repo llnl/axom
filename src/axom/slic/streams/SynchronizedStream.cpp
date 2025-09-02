@@ -229,7 +229,7 @@ void SynchronizedStream::flush()
 }
 
 //------------------------------------------------------------------------------
-bool SynchronizedStream::canTestHasPendingMessages()
+bool SynchronizedStream::canHavePendingMessages()
 {
   return true;
 }
@@ -247,7 +247,7 @@ bool SynchronizedStream::isUsingMPI()
 }
 
 //------------------------------------------------------------------------------
-int SynchronizedStream::comm()
+MPI_Comm SynchronizedStream::comm()
 {
   return m_comm;
 }

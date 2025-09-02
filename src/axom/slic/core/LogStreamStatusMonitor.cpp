@@ -67,7 +67,10 @@ bool LogStreamStatusMonitor::hasPendingMessages() const
 
   for (auto& stream : m_streamVec)
   {
-    has_pending_messages += static_cast<int>(stream->hasPendingMessages());
+    if (stream->canHavePendingMessages())
+    {
+      has_pending_messages += static_cast<int>(stream->hasPendingMessages());
+    }
   }
 
 #if defined(AXOM_USE_MPI)
@@ -85,8 +88,10 @@ bool LogStreamStatusMonitor::hasPendingMessages() const
 void LogStreamStatusMonitor::finalize()
 {
   m_streamVec.clear();
+#if defined(AXOM_USE_MPI)
   m_useMPI = false;
   m_mpiComm = MPI_COMM_NULL;
+#endif
 }
 
 }
