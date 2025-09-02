@@ -361,9 +361,9 @@ void Logger::outputLocalMessages()
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      const bool can_test_has_pending_messages = m_logStreams[level][istream]->canHavePendingMessages();
-      if ((can_test_has_pending_messages == true && has_pending_messages) || 
-           can_test_has_pending_messages == false)
+      const bool can_have_pending_messages = m_logStreams[level][istream]->canHavePendingMessages();
+      if ((can_have_pending_messages == true && has_pending_messages) || 
+           can_have_pending_messages == false)
       {
         m_logStreams[level][istream]->outputLocal();
       }
@@ -379,9 +379,9 @@ void Logger::outputLocalMessages()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      const bool can_test_has_pending_messages = it->second[i]->canHavePendingMessages();
-      if ((can_test_has_pending_messages == true && has_pending_messages) || 
-           can_test_has_pending_messages == false)
+      const bool can_have_pending_messages = it->second[i]->canHavePendingMessages();
+      if ((can_have_pending_messages == true && has_pending_messages) || 
+           can_have_pending_messages == false)
       {
         it->second[i]->outputLocal();
       }
@@ -401,9 +401,9 @@ void Logger::flushStreams()
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      const bool can_test_has_pending_messages = m_logStreams[level][istream]->canHavePendingMessages();
-      if ((can_test_has_pending_messages == true && has_pending_messages) || 
-           can_test_has_pending_messages == false)
+      const bool can_have_pending_messages = m_logStreams[level][istream]->canHavePendingMessages();
+      if ((can_have_pending_messages == true && has_pending_messages) || 
+           can_have_pending_messages == false)
       {
         m_logStreams[level][istream]->flush();
       }
@@ -419,9 +419,9 @@ void Logger::flushStreams()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      const bool can_test_has_pending_messages = it->second[i]->canHavePendingMessages();
-      if ((can_test_has_pending_messages == true && has_pending_messages) || 
-           can_test_has_pending_messages == false)
+      const bool can_have_pending_messages = it->second[i]->canHavePendingMessages();
+      if ((can_have_pending_messages == true && has_pending_messages) || 
+           can_have_pending_messages == false)
       {
         it->second[i]->flush();
       }
@@ -439,9 +439,9 @@ void Logger::pushStreams()
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      const bool can_test_has_pending_messages = m_logStreams[level][istream]->canHavePendingMessages();
-      if ((can_test_has_pending_messages == true && has_pending_messages) || 
-           can_test_has_pending_messages == false)
+      const bool can_have_pending_messages = m_logStreams[level][istream]->canHavePendingMessages();
+      if ((can_have_pending_messages == true && has_pending_messages) || 
+           can_have_pending_messages == false)
       {
         m_logStreams[level][istream]->push();
       }
@@ -457,9 +457,9 @@ void Logger::pushStreams()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      const bool can_test_has_pending_messages = it->second[i]->canHavePendingMessages();
-      if ((can_test_has_pending_messages == true && has_pending_messages) || 
-           can_test_has_pending_messages == false)
+      const bool can_have_pending_messages = it->second[i]->canHavePendingMessages();
+      if ((can_have_pending_messages == true && has_pending_messages) || 
+           can_have_pending_messages == false)
       {
         it->second[i]->push();
       }

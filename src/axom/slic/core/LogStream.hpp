@@ -11,7 +11,6 @@
 #ifndef LOGSTREAM_HPP_
 #define LOGSTREAM_HPP_
 
-#include <memory>
 #include "axom/slic/core/MessageLevel.hpp"
 #include "axom/core/Macros.hpp"
 
