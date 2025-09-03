@@ -126,6 +126,48 @@ private:
   ValueIterator m_valueIter {nullptr};
 };
 
+/*!
+ * \class FlatMapOffsetIterator
+ * \brief Iterator helper for iterating over filled buckets given an array of
+ *  bucket indices.
+ */
+template <typename KeyType, typename ValueType>
+class FlatMapOffsetIterator
+  : public IteratorBase<FlatMapOffsetIterator<KeyType, ValueType>, IndexType>
+{
+private:
+  using BaseType = IteratorBase<FlatMapOffsetIterator<KeyType, ValueType>, IndexType>;
+  using KeyValuePair = std::pair<const KeyType, ValueType>;
+  using PairStorage = detail::flat_map::TypeErasedStorage<KeyValuePair>;
+
+public:
+  // Iterator traits required to satisfy LegacyRandomAccessIterator concept
+  // before C++20
+  // See: https://en.cppreference.com/w/cpp/iterator/iterator_traits
+  using difference_type = IndexType;
+  using value_type = std::pair<const KeyType, ValueType>;
+  using reference = value_type&;
+  using pointer = value_type*;
+  using iterator_category = std::random_access_iterator_tag;
+
+  FlatMapOffsetIterator() = default;
+
+  AXOM_HOST_DEVICE FlatMapOffsetIterator(PairStorage* buckets, IndexType* offsets)
+    : m_buckets {buckets}
+    , m_offsets {offsets}
+  { }
+
+  AXOM_HOST_DEVICE reference operator*() const { return m_buckets[m_offsets[this->m_pos]].get(); }
+
+protected:
+  /** Implementation of advance() as required by IteratorBase */
+  AXOM_HOST_DEVICE void advance(IndexType n) { BaseType::m_pos += n; }
+
+private:
+  PairStorage* m_buckets {nullptr};
+  IndexType* m_offsets {nullptr};
+};
+
 }  // namespace detail
 
 template <typename KeyType, typename ValueType, typename Hash>
@@ -143,6 +185,46 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   new_map.insert<ExecSpace>(zip_iterator, zip_iterator + num_elems);
 
   return new_map;
+}
+
+template <typename KeyType, typename ValueType, typename Hash>
+template <typename ExecSpace>
+void FlatMap<KeyType, ValueType, Hash>::parallelRehash(IndexType count)
+{
+  using detail::FlatMapOffsetIterator;
+  using detail::flat_map::GroupBucket;
+
+  // If the FlatMap is constructed in device-only memory, construct in
+  // parallel on the device.
+  axom::Array<IndexType> filled_bucket_idx_vec(m_size, m_size, m_allocator.getID());
+
+  IndexType* counter = axom::allocate<IndexType>(1, m_allocator.getID());
+  *counter = 0;
+
+  const auto metadata_view = m_metadata.view();
+  const auto filled_bucket_idxs = filled_bucket_idx_vec.view();
+
+  for_all<ExecSpace>(
+    m_buckets.size(),
+    AXOM_LAMBDA(IndexType bucket_idx) {
+      IndexType group_idx = bucket_idx / GroupBucket::Size;
+      int slot_idx = bucket_idx % GroupBucket::Size;
+      if(metadata_view[group_idx].metadata.buckets[slot_idx] > GroupBucket::Sentinel)
+      {
+        // Bucket contains an element.
+        IndexType dest = axom::atomicAdd<ExecSpace>(counter, 1);
+        filled_bucket_idxs[dest] = bucket_idx;
+      }
+    });
+
+  FlatMapOffsetIterator bucket_begin {m_buckets.data(), filled_bucket_idx_vec.data()};
+
+  FlatMap new_map(count, m_allocator);
+  new_map.template insert<ExecSpace>(bucket_begin, bucket_begin + m_size);
+
+  this->swap(new_map);
+
+  axom::deallocate(counter);
 }
 
 template <typename KeyType, typename ValueType, typename Hash>

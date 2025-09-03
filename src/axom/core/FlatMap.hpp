@@ -705,6 +705,9 @@ private:
   template <typename... Args>
   void emplaceImpl(const std::pair<iterator, bool>& pos, bool assign_on_existence, Args&&... args);
 
+  template <typename ExecSpace>
+  void parallelRehash(IndexType count);
+
   constexpr static IndexType MIN_NUM_BUCKETS {29};
 
   Allocator m_allocator;
