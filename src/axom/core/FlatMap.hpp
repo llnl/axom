@@ -615,28 +615,22 @@ public:
     }
     else
     {
-      // TODO: replace this with a device-aware rehash method
-#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
       if constexpr(std::is_trivially_copyable_v<KeyValuePair>)
       {
-        // If the FlatMap is constructed in device-only memory, we need to copy
-        // the FlatMap to the host first.
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU)
         MemorySpace space = detail::getAllocatorSpace(m_allocator.getID());
-        FlatMap host_map;
-        if(space == MemorySpace::Device)
+        if(space == MemorySpace::Device || space == MemorySpace::Unified)
         {
-          int host_allocator_id = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-          // Rehash on the host.
-          host_map = FlatMap(*this, axom::Allocator {host_allocator_id});
-          host_map.rehash(count);
-
-          // Copy back to original map.
-          FlatMap rehashed_device(host_map, m_allocator);
-          this->swap(rehashed_device);
+  #if defined(AXOM_USE_CUDA)
+          using ExecSpace = axom::CUDA_EXEC<256>;
+  #elif defined(AXOM_USE_HIP)
+          using ExecSpace = axom::HIP_EXEC<256>;
+  #endif
+          this->parallelRehash<ExecSpace>(count);
           return;
         }
-      }
 #endif
+      }
       FlatMap rehashed(m_size,
                        std::make_move_iterator(begin()),
                        std::make_move_iterator(end()),
