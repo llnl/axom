@@ -92,6 +92,8 @@ public:
   void collectOnIndices(const axom::ArrayView<LabelType>& labels,
                         axom::Array<axom::IndexType>& onIndices) override
   {
+    if(labels.empty()) {return;};
+
     AXOM_ANNOTATE_SCOPE("GeometryClipper::collect_unlabeleds");
     /*!
       1. Generate tmpLabels, having a value of 1 where labels is LABEL_ON and zero elsewhere.
@@ -160,6 +162,8 @@ public:
       Use the indices in cellsOnBdry to map tetsOnBdry values to the
       indices of the full set of tets.
     */
+    if(tetsOnBdry.empty()) { return; }
+
     axom::for_all<ExecSpace>(
       tetsOnBdry.size(),
       AXOM_LAMBDA(axom::IndexType i) {
