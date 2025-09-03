@@ -144,6 +144,8 @@ if(NANOBIND_FOUND)
         string (REPLACE " " ";" MODULE_LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
         target_link_options(pysidre PRIVATE ${MODULE_LINK_FLAGS})
     endif()
+
+    install(TARGETS pysidre LIBRARY DESTINATION lib)
 endif()
 
 
