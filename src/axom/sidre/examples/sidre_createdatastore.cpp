@@ -221,7 +221,6 @@ void iterate_datastore(sidre::DataStore* ds)
                                    attr.getDefaultNodeRef().to_yaml());
   }
 
-
   std::cout << fill_line << std::endl;
 
   // iterate through the buffers in ds

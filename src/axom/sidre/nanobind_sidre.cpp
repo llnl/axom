@@ -6,6 +6,7 @@
 #include <nanobind/nanobind.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
+#include <nanobind/make_iterator.h>
 
 #include <nanobind/ndarray.h>
 
@@ -161,6 +162,24 @@ NB_MODULE(pysidre, m_sidre)
     .value("DOUBLE_ID", DOUBLE_ID)
     .export_values();
 
+#include <typeinfo>
+  using BufferIterator = axom::IndexedCollection<Buffer>::iterator_adaptor;
+  nb::class_<BufferIterator>(m_sidre, "BufferIterator")
+    .def(
+      "__iter__",
+      [](BufferIterator& self) {
+        printf("The type of begin() is %s\n", typeid(self.begin()).name());
+        printf("The decltype of begin() is %s\n", typeid(decltype(*self.begin())).name());
+        fflush(stdout);
+        return nb::make_iterator(nb::type<BufferIterator>(),
+                                 "iterator",
+                                 self.begin(),
+                                 self.end(),
+                                 nb::rv_policy::reference_internal);
+      },
+      nb::rv_policy::reference_internal,
+      nb::keep_alive<0, 1>());
+
   // Bindings for the DataStore class
   nb::class_<DataStore>(m_sidre, "DataStore")
     .def(nb::init<>())
@@ -191,18 +210,22 @@ NB_MODULE(pysidre, m_sidre)
            &DataStore::generateBlueprintIndex),
          "Generate a Conduit Blueprint index based on a mesh in stored in this DataStore.")
 
-    .def(
-      "buffers",
-      [](DataStore& self) {
-        std::vector<Buffer*> buffer_list;
-        for(int i = 0; i < self.getNumBuffers(); i++)
-        {
-          buffer_list.push_back(self.getBuffer(i));
-        }
-        return buffer_list;
-      },
-      nb::rv_policy::reference,
-      "Return a python list of buffers that can be iterated over")
+    .def("buffers",
+         nb::overload_cast<>(&DataStore::buffers),
+         nb::rv_policy::reference,
+         "Return a python list of buffers that can be iterated over")
+    // .def(
+    //   "buffers",
+    //   [](DataStore& self) {
+    //     std::vector<Buffer*> buffer_list;
+    //     for(int i = 0; i < self.getNumBuffers(); i++)
+    //     {
+    //       buffer_list.push_back(self.getBuffer(i));
+    //     }
+    //     return buffer_list;
+    //   },
+    //   nb::rv_policy::reference,
+    //   "Return a python list of buffers that can be iterated over")
 
     // Nanobind fails compilation on blueos
     // #ifdef AXOM_USE_MPI
