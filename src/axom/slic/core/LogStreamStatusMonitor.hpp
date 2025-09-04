@@ -38,12 +38,15 @@ public:
    * \brief Add LogStream pointer to vector stored in LogStreamStatusMonitor.
    * \param [in] ls pointer to the user-supplied LogStream object.
    *
+   * \note All ranks must call this function with the same set of MPI communicators 
+   * in the same order.
    */
   void addStream(LogStream* ls);
 
   /*!
    * \brief Checks to see if any pending messages exist on the current MPI communicator.
-   * This call is collective.  All ranks in m_mpiComm must call this function.
+   * 
+   * \note This call is collective.  All ranks in m_mpiComm must call this function.
    */
   bool hasPendingMessages() const;
 
@@ -58,7 +61,7 @@ protected:
   std::vector<LogStream*> m_streamVec;
 #if defined(AXOM_USE_MPI)
   bool m_useMPI;
-  MPI_Comm m_mpiComm;
+  std::vector<MPI_Comm> m_mpiComm;
 #endif
 
 

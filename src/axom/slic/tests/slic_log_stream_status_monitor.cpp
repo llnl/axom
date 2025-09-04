@@ -87,8 +87,8 @@ TEST(SlicLogStreamMonitorTest, test_add_streams_different_comms)
     ranks have different MPI communicators.
   */
 
-  MPI_Group world_group, group;
-  MPI_Comm comm = MPI_COMM_NULL;
+  MPI_Group world_group;
+  MPI_Comm comm0 = MPI_COMM_NULL, comm1 = MPI_COMM_NULL;
 
   int size, rank;
   MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -96,63 +96,53 @@ TEST(SlicLogStreamMonitorTest, test_add_streams_different_comms)
 
   MPI_Comm_group(MPI_COMM_WORLD, &world_group);
 
-  bool rank_is_even = (rank % 2 == 0);
+  const bool rank_is_even = (rank % 2 == 0);
 
-  // Split ranks into even and odd
-  std::vector<int> ranks;
-  if (size == 1)
+  int color = (rank_is_even) ? 0 : 1;
+  MPI_Comm_split(MPI_COMM_WORLD, color, rank, &comm0);
+
+  // To create communicator asymmetry, rank 0 is included in both even and odd communicators.
+  if (rank == 0)
   {
-    ranks.push_back(0);
-  }
-  else
-  {
-    for(int i = 0; i < size; ++i)
-    {
-      if((i % 2 == 0) == rank_is_even)
-      {
-        ranks.push_back(i);
-      }
-    }
+    color = 1;
   }
 
-  MPI_Group_incl(world_group, ranks.size(), ranks.data(), &group);
-  MPI_Comm_create(MPI_COMM_WORLD, group, &comm);
-
-  MPI_Group_free(&world_group);
-  MPI_Group_free(&group);
+  MPI_Comm_split(MPI_COMM_WORLD, color, rank, &comm1);
 
   std::ostringstream test_stream;
 
-  auto lj_comm = axom::lumberjack::RootCommunicator();
-
-  auto lj = axom::lumberjack::Lumberjack();
-  lj_comm.initialize(comm, 1);
-  lj.initialize(&lj_comm, 1);
-
-  auto ljstream = axom::slic::LumberjackStream(&test_stream, &lj);
-
   axom::slic::LogStreamStatusMonitor logStreamStatusMonitor;
 
-  EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
+  auto ljstream0 = axom::slic::LumberjackStream(&test_stream, comm0, 1);
+  logStreamStatusMonitor.addStream(&ljstream0);
 
-  logStreamStatusMonitor.addStream(&ljstream);
+  auto ljstream1 = axom::slic::LumberjackStream(&test_stream, comm1, 1);
+  logStreamStatusMonitor.addStream(&ljstream1);
 
-  EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
+  if (rank_is_even)
+  {
+    ljstream0.append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
+  }
 
-  ljstream.append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
-
+  /*
+    All ranks should have pending messages because logStreamStatusMonitor
+    calls MPI_Allreduce on all MPI communicators
+  */
   EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), true);
 
-  ljstream.flush();
+  ljstream0.flush();
+  ljstream1.flush();
 
   EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
 
-  lj.finalize();
-  lj_comm.finalize();
-
-  if(comm != MPI_COMM_NULL)
+  if(comm0 != MPI_COMM_NULL)
   {
-    MPI_Comm_free(&comm);
+    MPI_Comm_free(&comm0);
+  }
+
+  if(comm1 != MPI_COMM_NULL)
+  {
+    MPI_Comm_free(&comm1);
   }
 
 }

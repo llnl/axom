@@ -16,11 +16,9 @@
 #include "LogStreamStatusMonitor.hpp"
 
 #if defined(AXOM_USE_MPI)
-#include "axom/lumberjack/MPIUtility.hpp"
 #include "axom/slic/core/LogStreamStatusMonitor.hpp"
 #endif
 
-#include <iostream>
 #include <algorithm>
 
 namespace axom
@@ -34,7 +32,7 @@ LogStreamStatusMonitor::LogStreamStatusMonitor()
 #if defined(AXOM_USE_MPI)
     ,
     m_useMPI(false),
-    m_mpiComm(MPI_COMM_NULL)
+    m_mpiComm()
 #endif
 {
 }
@@ -47,14 +45,26 @@ void LogStreamStatusMonitor::addStream(LogStream* ls)
   if (ls->isUsingMPI() == true)
   {
     m_useMPI = true;
-    if (m_mpiComm == MPI_COMM_NULL && 
-        ls->comm() != MPI_COMM_NULL)
+
+    auto commCompareFunc = 
+      [&](MPI_Comm& comm) {
+        MPI_Group groupCommA, groupCommB;
+        MPI_Comm_group(comm, &groupCommA);
+        MPI_Comm_group(ls->comm(), &groupCommB);
+
+        int result;
+        MPI_Group_compare(groupCommA, groupCommB, &result);
+
+        MPI_Group_free(&groupCommA);
+        MPI_Group_free(&groupCommB);
+        return result == MPI_IDENT;
+      };
+
+    auto it = std::find_if(m_mpiComm.begin(), m_mpiComm.end(), commCompareFunc);
+
+    if (it == m_mpiComm.end())
     {
-      m_mpiComm = ls->comm();
-    }
-    else if (m_mpiComm != MPI_COMM_NULL && m_mpiComm != ls->comm()) {
-      std::cerr << "ERROR: attempting to register a logstream with an incompatible "
-                   "MPI communicator to LogStreamStatusMonitor's existing communicator" << std::endl;
+      m_mpiComm.push_back(ls->comm());
     }
   }
 #endif
@@ -77,7 +87,13 @@ bool LogStreamStatusMonitor::hasPendingMessages() const
   if (m_useMPI)
   {
     int local_has_pending_messages = has_pending_messages;
-    MPI_Allreduce(&local_has_pending_messages, &has_pending_messages, 1, MPI_INT, MPI_MAX, m_mpiComm);
+    for (auto& comm : m_mpiComm)
+    {
+      if (comm != MPI_COMM_NULL)
+      {
+        MPI_Allreduce(&local_has_pending_messages, &has_pending_messages, 1, MPI_INT, MPI_MAX, comm);
+      }
+    }
   }
 #endif
 
@@ -90,7 +106,7 @@ void LogStreamStatusMonitor::finalize()
   m_streamVec.clear();
 #if defined(AXOM_USE_MPI)
   m_useMPI = false;
-  m_mpiComm = MPI_COMM_NULL;
+  m_mpiComm.clear();
 #endif
 }
 
