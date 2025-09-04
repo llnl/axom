@@ -2880,6 +2880,55 @@ void discretized_curve_gwn()
   simple_grid_test(curves2, bbox, 750, 750, wn_out2);
 }
 
+void brad_example()
+{
+  std::string prefix = "C:\\Users\\spainhour1\\source\\my_axom_data\\demo_2d\\";
+
+  std::string filename = "brad_comparison";
+  axom::Array<axom::primal::BezierCurve<double, 2>> curves;
+  convert_from_svg(prefix + filename + ".svg", curves);
+  auto bbox = curves_bbox(curves);
+
+  filename = "brad_comparison_2";
+  curves.clear();
+  convert_from_svg(prefix + filename + ".svg", curves);
+
+  std::ofstream curve_out(prefix + filename + "_curves.txt");
+  for(auto& curve : curves)
+  {
+    curve_out << curve << std::endl;
+  }
+
+  std::ofstream wn_out(prefix + filename + "_wn.csv");
+
+
+  axom::Array<axom::primal::NURBSCurve<double, 2>> nurbs_curves;
+  for(auto & curve : curves )
+    nurbs_curves.push_back( axom::primal::NURBSCurve<double, 2>(curve) );
+
+  int case_code = -1;
+  auto wn_field = [&nurbs_curves](axom::primal::Point<double, 3> query) -> double {
+    auto point_2d = axom::primal::Point<double, 2> {query[0], query[1]};
+    return axom::primal::winding_number(point_2d, nurbs_curves);
+  };
+
+  axom::primal::Point<double, 3> origin;
+  origin[0] = bbox.getCentroid()[0];
+  origin[1] = bbox.getCentroid()[1];
+  origin[2] = 0.0;
+
+  axom::primal::exportSliceScalarFieldToVTK<double>(
+    prefix + filename + "_gwn_slice_2.vtk",
+    wn_field,
+    origin,
+    axom::primal::Vector<double, 3> {1.0, 0.0, 0.0},
+    axom::primal::Vector<double, 3> {0.0, 1.0, 0.0},
+    (bbox.getMax()[0] - bbox.getMin()[0]) * 1.2,
+    (bbox.getMax()[1] - bbox.getMin()[1]) * 1.2,
+    1000,
+    1000);
+}
+
 //void discretized_surface_gwn()
 //{
 //  std::string prefix = "E:\\Code\\winding_number_code\\siggraph25\\wn_comparison\\";
@@ -4025,10 +4074,10 @@ void trimming_curve_robustness_test()
       auto min_v = wiggled_data.patch.getMinKnot_v();
       auto mid_v = 0.5 * (max_v + min_v);
 
-      if(num_control_points < 5)
+      if(num_control_points < 3)
       {
         // Insert knots until we have 5 control points
-        while(num_control_points < 5)
+        while(num_control_points < 3)
         {
           auto random_t = axom::utilities::random_real(min_t, max_t, the_seed++);
           curve.insertKnot(random_t, 1);
@@ -4052,40 +4101,51 @@ void trimming_curve_robustness_test()
       //the_curves.push_back(curve);
     }
 
-    wiggled_data.patch.printTrimmingCurves(prefix + "wiggled_trimming_curves.txt");
+    wiggled_data.patch.printTrimmingCurves(prefix + "less_wiggled_trimming_curves.txt");
   }
 
-  //for(auto& kv : stepProcessorPunctured.getMutablePatchDataMap())
-  //{
-  //  if(kv.first == 1)
-  //  {
-  //    axom::Array<axom::primal::NURBSCurve<double, 2>>& the_curves =
-  //      kv.second.nurbsPatchData.patch.getTrimmingCurves();
+  original_data.patch.printTrimmingCurves(prefix + "original_trimming_curves.txt");
 
-  //    the_curves.clear();
+  punctured_data = original_data;
+  {
+    axom::Array<axom::primal::NURBSCurve<double, 2>> original_curves =
+      punctured_data.patch.getTrimmingCurves();
 
-  //    axom::primal::NURBSCurve<double, 2> c1, c2, c3;
-  //    for(auto& curve : specific_curves)
-  //    {
-  //      auto min_t = curve.getMinKnot();
-  //      auto max_t = curve.getMaxKnot();
+    axom::Array<axom::primal::NURBSCurve<double, 2>>& the_curves =
+      punctured_data.patch.getTrimmingCurves();
 
-  //      // Cut out the middle 5th of each curve
-  //      double cut_start = min_t + 0.2 * (max_t - min_t);
-  //      double cut_end = min_t + 0.8 * (max_t - min_t);
+    the_curves.clear();
 
-  //      curve.split(cut_start, c1, c2);
-  //      c2.split(cut_end, c2, c3);
+    axom::primal::NURBSCurve<double, 2> c1, c2, c3;
+    int i = 0;
+    for(auto& curve : original_curves)
+    {
+      auto min_t = curve.getMinKnot();
+      auto max_t = curve.getMaxKnot();
 
-  //      the_curves.push_back(c1);
-  //      the_curves.push_back(c2);
-  //    }
+      // Cut out the middle 5th of each curve
+      double cut_start = min_t + 0.2 * (max_t - min_t);
+      double cut_end = min_t + 0.8 * (max_t - min_t);
 
-  //    kv.second.nurbsPatchData.curve_quadrature_maps.resize(the_curves.size());
-  //    kv.second.nurbsPatchData.patch.printTrimmingCurves(prefix + "punctured_trimming_curves.txt");
-  //  }
-  //}
+      curve.split(cut_start, c1, c2);
+      c2.split(cut_end, c2, c3);
 
+      //if(i == 92 || i == 142 || i == 168 || i == 218 )
+      //{
+      the_curves.push_back(c1);
+      the_curves.push_back(c2);
+      //}
+      //else
+        //the_curves.push_back(curve);
+    
+      i++;
+    }
+
+    punctured_data.curve_quadrature_maps.resize(the_curves.size());
+    punctured_data.patch.printTrimmingCurves(prefix + "very_punctured_trimming_curves.txt");
+  }
+
+  return;
   // 1 is the important one
 
   auto interesting_query_0 = axom::primal::Point<double, 3> {-0.0162287, -0.0661681, 0.0500215};
@@ -4113,7 +4173,7 @@ void trimming_curve_robustness_test()
   //return;
   int case_code = -1;
   auto wn_field =
-    [&stepProcessor, &wiggled_data, &edge_tol, &disk_size, &quad_tol, &ls_tol, &EPS, &case_code](
+    [&stepProcessor, &punctured_data, &edge_tol, &disk_size, &quad_tol, &ls_tol, &EPS, &case_code](
       axom::primal::Point<double, 3> query) -> double {
     double wn = 0.0;
     axom::utilities::Timer timer;
@@ -4124,14 +4184,14 @@ void trimming_curve_robustness_test()
       if(kv.first == 1)
       {
         return axom::primal::winding_number(query,
-                                          wiggled_data,
-                                          case_code,
-                                          integrated_trimming_curves,
-                                          edge_tol,
-                                          ls_tol,
-                                          quad_tol,
-                                          disk_size,
-                                          EPS);
+                                            punctured_data,
+                                            case_code,
+                                            integrated_trimming_curves,
+                                            edge_tol,
+                                            ls_tol,
+                                            quad_tol,
+                                            disk_size,
+                                            EPS);
       }
       else
         continue;
@@ -4155,14 +4215,14 @@ void trimming_curve_robustness_test()
 
   // 500 * 500 = 250,000
   // 350 * 700 = 245,000ish
-  int npts = 250;
+  int npts = 350;
   axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + "wiggled_faster.vtk",
+    prefix + "less_punctured_small_radius.vtk",
     wn_field,
     //interesting_query_0,
     axom::primal::Point<double, 3> {0, -0.025, 0.05},
     axom::primal::Vector<double, 3> {1.0, 0.05, -0.25},
-    axom::primal::Vector<double, 3> {0.0, 1.0, 0.1},
+    axom::primal::Vector<double, 3> {0.0,  1.0,   0.1},
     0.07,
     0.14,
     npts,
@@ -7644,7 +7704,8 @@ int main()
 {
   //save_vase_and_teapot();
   //save_teardrop_and_biquintic();
-  trimming_curve_robustness_test();
+  //trimming_curve_robustness_test();
+  brad_example();
   // Van is at least 771KB
   //complex_gear_example_bonus();
   // quadrature_on_sphere();

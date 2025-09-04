@@ -100,30 +100,28 @@ struct NURBSPatchData
     // Calculate the average normal for the untrimmed patch
     if(!patch.isTrimmed())
     {
-      average_normal = patch.calculateUntrimmedPatchNormal(20);
+      //average_normal = patch.calculateUntrimmedPatchNormal(20);
       patch.makeTriviallyTrimmed();
-      surface_area = patch.calculateTrimmedSurfaceArea();
+      //surface_area = patch.calculateTrimmedSurfaceArea();
     }
     else
     {
       patch.simplifyParameterSpace();
-      patch.calculateTrimmedSurfaceData(average_normal, surface_area, centroid);
+      //patch.calculateTrimmedSurfaceData(average_normal, surface_area, centroid);
     }
 
     pbox_diag = patch.getParameterSpaceDiagonal();
 
-    // std::string filename =
-    //   "C:\\Users\\Fireh\\Code\\winding_number_code\\siggraph25\\full_gear_example\\patch_"
-    //   "normals\\patch_" +
-    //   std::to_string(idx) + "_normal.csv";
-    // std::ifstream file(filename);
+    std::string filename =
+      "C:\\Users\\spainhour1\\source\\my_axom_data\\trimming_curve_robustness\\slide_output\\patch" + std::to_string(idx) + "_data.csv";
+    std::ifstream file(filename);
 
-    // file << std::setprecision(20);
-    // file << average_normal[0] << " " << average_normal[1] << " " << average_normal[2] << " " << surface_area << " " << centroid[0] << " " << centroid[1] << " " << centroid[2] << "\n";
+     //file << std::setprecision(20);
+     //file << average_normal[0] << " " << average_normal[1] << " " << average_normal[2] << " " << surface_area << " " << centroid[0] << " " << centroid[1] << " " << centroid[2] << "\n";
 
-    // file >> average_normal[0] >> average_normal[1] >> average_normal[2] >> surface_area >> centroid[0] >> centroid[1] >> centroid[2];
+     file >> average_normal[0] >> average_normal[1] >> average_normal[2] >> surface_area >> centroid[0] >> centroid[1] >> centroid[2];
 
-    // file.close();
+     file.close();
 
     // Make a bounding box by doing bezier extraction, then splitting the resulting bezier patches in 4,
     //  and taking a union of those bounding boxes    
@@ -158,11 +156,20 @@ struct NURBSPatchData
           continue;  // Skip patches with no trimming curves
         }
 
-        auto the_patch = BezierPatch<T, 3>(
-          split_patches(i, j).getControlPoints(),
-          split_patches(i, j).getWeights(),
-          split_patches(i, j).getDegree_u(),
-          split_patches(i, j).getDegree_v());
+        BezierPatch<T, 3> the_patch;
+        if(patch.isRational())
+        {
+          the_patch = BezierPatch<T, 3>(split_patches(i, j).getControlPoints(),
+                                             split_patches(i, j).getWeights(),
+                                             split_patches(i, j).getDegree_u(),
+                                             split_patches(i, j).getDegree_v());
+        }
+        else
+        {
+          the_patch = BezierPatch<T, 3>(split_patches(i, j).getControlPoints(),
+                                        split_patches(i, j).getDegree_u(),
+                                        split_patches(i, j).getDegree_v());
+        }
           
         BezierPatch<T, 3> p1, p2, p3, p4;
         the_patch.split(0.5, 0.5, p1, p2, p3, p4);

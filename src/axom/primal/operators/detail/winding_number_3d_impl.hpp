@@ -564,21 +564,63 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
     case_code = 0;
     integrated_curves = nPatchWithBoundaries.getNumTrimmingCurves();
 
-    const bool exterior_x = bBox.getMin()[0] > query[0] || query[0] > bBox.getMax()[0];
-    const bool exterior_y = bBox.getMin()[1] > query[1] || query[1] > bBox.getMax()[1];
-    const bool exterior_z = bBox.getMin()[2] > query[2] || query[2] > bBox.getMax()[2];
+    double bestDist = -1.0;
 
-    if(exterior_x || exterior_y)
+    if(query[0] < bBox.getMin()[0])
     {
-      field_direction = DiscontinuityAxis::z;
+      double d = bBox.getMin()[0] - query[0];
+      if(d > bestDist)
+      {
+        bestDist = d;
+        field_direction = DiscontinuityAxis::y;
+      }
     }
-    else if(exterior_y || exterior_z)
+    else if(query[0] > bBox.getMax()[0])
     {
-      field_direction = DiscontinuityAxis::x;
+      double d = query[0] - bBox.getMax()[0];
+      if(d > bestDist)
+      {
+        bestDist = d;
+        field_direction = DiscontinuityAxis::y;
+      }
     }
-    else if(exterior_x || exterior_z)
+
+    if(query[1] < bBox.getMin()[1])
     {
-      field_direction = DiscontinuityAxis::y;
+      double d = bBox.getMin()[1] - query[1];
+      if(d > bestDist)
+      {
+        bestDist = d;
+        field_direction = DiscontinuityAxis::z;
+      }
+    }
+    else if(query[1] > bBox.getMax()[1])
+    {
+      double d = query[1] - bBox.getMax()[0];
+      if(d > bestDist)
+      {
+        bestDist = d;
+        field_direction = DiscontinuityAxis::z;
+      }
+    }
+
+    if(query[2] < bBox.getMin()[2])
+    {
+      double d = bBox.getMin()[2] - query[2];
+      if(d > bestDist)
+      {
+        bestDist = d;
+        field_direction = DiscontinuityAxis::y;
+      }
+    }
+    else if(query[2] > bBox.getMax()[2])
+    {
+      double d = query[2] - bBox.getMax()[2];
+      if(d > bestDist)
+      {
+        bestDist = d;
+        field_direction = DiscontinuityAxis::x;
+      }
     }
   }
   // Case 1.5: Exterior with rotation
@@ -770,12 +812,12 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
 
       if(extraTrimming)
       {
-        if(depth < 1 )
+        if(depth < 1)
         {
           double cone_angle = 20 * M_PI / 180.0;  // 20 degrees
           auto new_cast_direction =
             (cast_direction + tan(cone_angle) * random_orthogonal(cast_direction)).unitVector();
-            
+
           return nurbs_data_winding_number(query,
                                            nPatchData,
                                            new_cast_direction,
