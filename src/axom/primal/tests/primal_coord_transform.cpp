@@ -167,6 +167,48 @@ TEST(primal_coord_transform, translate_rotate)
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
+void check_to_dst_pts()
+{
+  const int DIM = 3;
+  using PointType = primal::Point<double, DIM>;
+  using VectorType = primal::Vector<double, DIM>;
+
+  PointType Ps[4] = {{1,2,3}, {2,2,3}, {1,4,3}, {1,2,6}};
+  // PointType Ps[4] = {{0,0,0}, {1,0,0}, {0,1,0}, {0,0,1}};
+  PointType Qs[4] = {{0,0,0}, {1,0,0}, {0,1,0}, {0,0,1}};
+
+  primal::CoordinateTransformer<double> transformer;
+  transformer.setByTerminusPts( Ps, Qs );
+  for(int i = 0; i < 4; ++i)
+  {
+    PointType result = Ps[i];
+    transformer.transform(result.array());
+    const auto& correct = Qs[i];
+    VectorType diff(result.array() - Qs[i].array());
+    std::cout << Ps[i] << ' ' << result << ' ' << correct << ' ' << diff << std::endl;
+    EXPECT_TRUE(axom::utilities::isNearlyEqual(diff.norm(), 1e-12));
+  };
+
+  auto invTran = transformer.getInverse();
+  for(int i = 0; i < 4; ++i)
+  {
+    PointType result = Qs[i];
+    invTran.transform(result.array());
+    const auto& correct = Ps[i];
+    VectorType diff(result.array() - Ps[i].array());
+    std::cout << Qs[i] << ' ' << result << ' ' << correct << ' ' << diff << std::endl;
+    EXPECT_TRUE(axom::utilities::isNearlyEqual(diff.norm(), 1e-12));
+  };
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_coord_transform, to_dest_pts)
+{
+  check_to_dst_pts<axom::SEQ_EXEC>();
+}
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
 void check_inverse()
 {
   const int DIM = 3;

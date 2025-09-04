@@ -15,13 +15,17 @@ namespace axom
 namespace primal
 {
 /*!
-  @brief Coordinate transformation facilitating the placement of
+  @brief 3D Coordinate transformation facilitating the placement of
   geometries whose parameters can't easily describe it.
 
   The transformations may be described as translations, rotations
   and arbitrary operators transforms on homogeneous coordinates.
   These matrices should be 4x4 and have the last row values
   [0, 0, 0, 1].
+
+  To efficiently allow for large numbers of CoordinateTransformer
+  objects, this class is a POD.  Hence we don't use axom::Matrix
+  to store the matrix.
 
   Only supporting 3D coordinates presently.
   This class is a new utility.  It is subject to change.
@@ -34,7 +38,7 @@ public:
     @brief Default constructor sets an identity transformer.
   */
   CoordinateTransformer()
-  : m_P{ {1., 0., 0.}, {0., 1., 0.}, {0., 0., 1.} }
+  : m_P{ Vectr{1., 0., 0.}, Vectr{0., 1., 0.}, Vectr{0., 0., 1.} }
   , m_v{0., 0., 0.}
   { }
 
@@ -56,8 +60,10 @@ public:
     @brief Constructor sets the 4x4 transformation matrix.
     @param matrix [in] The transformation matrix for homogeneous
     coordinates.
+
+    The last row of \c matrix is presumed without checking to be \c [0,0,0,1].
   */
-  CoordinateTransformer(const numerics::Matrix<double>& matrix)
+  CoordinateTransformer(const numerics::Matrix<T>& matrix)
   {
     setMatrix(matrix);
   }
@@ -67,7 +73,7 @@ public:
     @param matrix [in] The transformation matrix for homogeneous
     coordinates.
   */
-  void setMatrix(const numerics::Matrix<double>& matrix)
+  void setMatrix(const numerics::Matrix<T>& matrix)
   {
     // Assert that matrix is a transformation in homogeneous coordinates.
     SLIC_ASSERT(matrix.getNumRows() == 4);
@@ -90,11 +96,68 @@ public:
   }
 
   /*!
+    @brief Compute the 4x4 matrix to transform
+    4 points to 4 specified destinations.
+    @param [in] startPts Four starting points.
+    @param [in] destPts Four destination points.
+
+    The four starting points each must define a non-degenerate volume.
+    Else the transformation is ill-defined and the transformer
+    is set to invalid.
+  */
+  AXOM_HOST_DEVICE void setByTerminusPts(
+    const primal::Point<T, 3>* startPts,
+    const primal::Point<T, 3>* destPts)
+    {
+      // Compute last 3 points relative to first points.
+      Vectr sPts[3];
+      Vectr dPts[3];
+      for( int p = 0; p < 3; ++p)
+      {
+        sPts[p] = startPts[p+1].array() - startPts[0].array();
+        dPts[p] = destPts[p+1].array() - destPts[0].array();
+      }
+
+      Matrx pMat;
+      Matrx qMat;
+      for( int r = 0; r < 3; ++r )
+      {
+        for( int c = 0; c < 3; ++c)
+        {
+          pMat[r][c] = sPts[c][r];
+          qMat[r][c] = dPts[c][r];
+        }
+      }
+
+      invertMatrx(pMat);
+      if(std::isnan(pMat[0][0]))
+      {
+        setInvalid();
+      }
+      else
+      {
+        multMatrx(qMat, pMat, m_P);
+        multMatrxVectr(m_P, startPts[0].array(), m_v);
+        m_v = destPts[0].array() - m_v;
+      }
+  }
+
+  /*!
+    @brief Set to invalid value.
+
+    Invalid transformers can be checked with isInvalid().
+  */
+  AXOM_HOST_DEVICE void setInvalid()
+  {
+    m_P[0][0] = std::numeric_limits<T>::quiet_NaN();
+  }
+
+  /*!
     @brief Get the matrix for the transformation.
   */
-  numerics::Matrix<double> getMatrix()
+  numerics::Matrix<T> getMatrix()
   {
-    numerics::Matrix<double> rval(4, 4, 0.0);
+    numerics::Matrix<T> rval(4, 4, 0.0);
     for (int c = 0; c < 3; ++c )
     {
       for (int r = 0; r < 3; ++r )
@@ -115,10 +178,10 @@ public:
     @param matrix [in] The transformation matrix for homogeneous
     coordinates.
   */
-  void addMatrix(const numerics::Matrix<double>& matrix)
+  void addMatrix(const numerics::Matrix<T>& matrix)
   {
-    numerics::Matrix<double> current = getMatrix();
-    numerics::Matrix<double> updated(4, 4);
+    numerics::Matrix<T> current = getMatrix();
+    numerics::Matrix<T> updated(4, 4);
     axom::numerics::matrix_multiply(matrix, current, updated);
     setMatrix(updated);
   }
@@ -154,10 +217,10 @@ public:
     Vector<T, 3> e = end.unitVector();
     Vector<T, 3> u;  // Rotation vector, the cross product of start and end.
     numerics::cross_product(s.data(), e.data(), u.data());
-    T sinT = u.norm();
-    T cosT = numerics::dot_product(s.data(), e.data(), 3);
+    const T sinT = u.norm();
+    const T cosT = numerics::dot_product(s.data(), e.data(), 3);
 
-    // Degenerate: end parallel to start, angle near 0 or pi.
+    // Degenerate: end is parallel to start, angle near 0 or pi.
     if(utilities::isNearlyEqual(sinT, 0.0))
     {
       if(cosT < 0)
@@ -175,7 +238,8 @@ public:
       return;
     }
 
-    u = u.unitVector();
+    u.array() /= sinT; // Make u a unit vector.
+    // u = u.unitVector();
     privateAddRotation(u, sinT, cosT);
   }
 
@@ -199,9 +263,9 @@ public:
   //!@brief Add rotation, given unit vector and angle as sine and cosine.
   void privateAddRotation(const axom::primal::Vector<T, 3>& u, T sinT, T cosT)
   {
-  double ccosT = 1 - cosT;
+  T ccosT = 1 - cosT;
 
-  double P[3][3]; // 3D rotation matrix.
+  Matrx P; // 3D rotation matrix.
   P[0][0] = u[0] * u[0] * ccosT + cosT;
   P[0][1] = u[0] * u[1] * ccosT - u[2] * sinT;
   P[0][2] = u[0] * u[2] * ccosT + u[1] * sinT;
@@ -213,7 +277,7 @@ public:
   P[2][2] = u[2] * u[2] * ccosT + cosT;
 
   // Multiply P*m_P, saving in pNew, then copy back to m_P.
-  double pNew[3][3] = {{0,0,0},{0,0,0},{0,0,0}};
+  Matrx pNew = {{0,0,0},{0,0,0},{0,0,0}};
   for(int r=0; r<3; ++r)
   {
     for(int c=0; c<3; ++c)
@@ -233,10 +297,8 @@ public:
   }
 
   // Change to m_v.
-  T vOld[3] = {m_v[0], m_v[1], m_v[2]};
-  m_v[0] = P[0][0]*vOld[0] + P[0][1]*vOld[1] + P[0][2]*vOld[2];
-  m_v[1] = P[1][0]*vOld[0] + P[1][1]*vOld[1] + P[1][2]*vOld[2];
-  m_v[2] = P[2][0]*vOld[0] + P[2][1]*vOld[1] + P[2][2]*vOld[2];
+  Vectr vOld = m_v;
+  multMatrxVectr(P, vOld, m_v);
   }
 
   //! @brief Get a trransformed 3D Point.
@@ -263,6 +325,12 @@ public:
     return rval;
   }
 
+  //! @brief Whether transformer is valid.
+  AXOM_HOST_DEVICE void isValid()
+  {
+    return std::isnan(m_P[0][0]);
+  }
+
   //! @brief Transform a 3D coordinate in place.
   AXOM_HOST_DEVICE void transform(axom::NumericArray<T, 3>& pt) const
   {
@@ -272,7 +340,7 @@ public:
   //! @brief Transform a 3D coordinate in place.
   AXOM_HOST_DEVICE void transform(T& x, T& y, T& z) const
   {
-    double tmpPt[3] = {x, y, z};
+    Vectr tmpPt = {x, y, z};
     const auto& P(m_P); // shorthand
     x = P[0][0]*tmpPt[0] + P[0][1]*tmpPt[1] + P[0][2]*tmpPt[2] + m_v[0];
     y = P[1][0]*tmpPt[0] + P[1][1]*tmpPt[1] + P[1][2]*tmpPt[2] + m_v[1];
@@ -282,7 +350,7 @@ public:
   /*!
     @brief Invert the transformation in place.
 
-    We use a special inverse formula for 4x4 matrices with last row [0,0,0,1].
+    Using a special inverse formula for 4x4 matrices with last row [0,0,0,1].
     @verbatim
     Minv = [ Pinv - Pinv*v ]
            [  0       1    ]
@@ -290,32 +358,9 @@ public:
   */
   AXOM_HOST_DEVICE void invert()
   {
-    double a = m_P[0][0];
-    double b = m_P[0][1];
-    double c = m_P[0][2];
-    double d = m_P[1][0];
-    double e = m_P[1][1];
-    double f = m_P[1][2];
-    double g = m_P[2][0];
-    double h = m_P[2][1];
-    double i = m_P[2][2];
-    double detP = a*(e*i - f*h) - b*(d*i - f*g) + c*(d*h - e*g);
-    double detPInv = 1/detP;
-    m_P[0][0] =  detPInv * (e*i - f*h);
-    m_P[0][1] = -detPInv * (b*i - c*h);
-    m_P[0][2] =  detPInv * (b*f - c*e);
-    m_P[1][0] = -detPInv * (d*i - f*g);
-    m_P[1][1] =  detPInv * (a*i - c*g);
-    m_P[1][2] = -detPInv * (a*f - c*d);
-    m_P[2][0] =  detPInv * (d*h - e*g);
-    m_P[2][1] = -detPInv * (a*h - b*g);
-    m_P[2][2] =  detPInv * (a*e - b*d);
-    double v0 = m_v[0];
-    double v1 = m_v[1];
-    double v2 = m_v[2];
-    m_v[0] = -(m_P[0][0] * v0 + m_P[0][1] * v1 + m_P[0][2] * v2);
-    m_v[1] = -(m_P[1][0] * v0 + m_P[1][1] * v1 + m_P[1][2] * v2);
-    m_v[2] = -(m_P[2][0] * v0 + m_P[2][1] * v1 + m_P[2][2] * v2);
+    invertMatrx(m_P);
+    auto negV = -m_v;
+    multMatrxVectr(m_P, negV, m_v);
   }
 
   //! brief Get the inverse transformer.
@@ -327,24 +372,87 @@ public:
   }
 
 private:
+  //!@brief 3-vector or 3D coordinates, depending on context.
+  using Vectr = axom::NumericArray<T, 3>;
+
+  //!@brief 3x3 transformation matrix with row-major storage.
+  using Matrx = Vectr[3];
+
   /*
-    The 4x4 matrix is saved as a 3x3 matrix P and a 3x1 vector V.
+    The 4x4 matrix is saved as a 3x3 matrix P and a 3x1 vector v.
     Last row is not stored because it's always [0,0,0,1].
     M = [ P v ]
         [ 0 1 ]
   */
-  double m_P[3][3];
-  double m_v[3];
+  Matrx m_P;
+  Vectr m_v;
 
-  AXOM_HOST_DEVICE void copyIn(const CoordinateTransformer& other)
+  // Invert a Matrx, or set first value to NaN if not invertible.
+  AXOM_HOST_DEVICE void invertMatrx(Matrx& m)
+  {
+    T a = m[0][0];
+    T b = m[0][1];
+    T c = m[0][2];
+    T d = m[1][0];
+    T e = m[1][1];
+    T f = m[1][2];
+    T g = m[2][0];
+    T h = m[2][1];
+    T i = m[2][2];
+    T det = axom::numerics::determinant(a, b, c, d, e, f, g, h, i);
+    if(det != 0.0)
+    {
+      T detInv = 1/det;
+      m[0][0] =  detInv * (e*i - f*h);
+      m[0][1] = -detInv * (b*i - c*h);
+      m[0][2] =  detInv * (b*f - c*e);
+      m[1][0] = -detInv * (d*i - f*g);
+      m[1][1] =  detInv * (a*i - c*g);
+      m[1][2] = -detInv * (a*f - c*d);
+      m[2][0] =  detInv * (d*h - e*g);
+      m[2][1] = -detInv * (a*h - b*g);
+      m[2][2] =  detInv * (a*e - b*d);
+    }
+    else
+    {
+      m[0][0] = std::numeric_limits<T>::quiet_NaN();
+    }
+  }
+
+  AXOM_HOST_DEVICE void multMatrx(const Matrx& A, const Matrx& B, Matrx& prod)
   {
     for(int r = 0; r < 3; ++r)
     {
-      m_v[r] = other.m_v[r];
       for(int c = 0; c < 3; ++c)
       {
-        m_P[r][c] = other.m_P[r][c];
+        prod[r][c] = 0.0;
+        for(int k = 0; k < 3; ++k)
+        {
+          prod[r][c] += A[r][k] * B[k][c];
+        }
       }
+    }
+  }
+
+  AXOM_HOST_DEVICE void multMatrxVectr(const Matrx& A, const Vectr& b, Vectr& prod)
+  {
+    for(int r = 0; r < 3; ++r)
+    {
+      prod[r] = dotProd(A[r], b);
+    }
+  }
+
+  AXOM_HOST_DEVICE T dotProd(const Vectr& u, const Vectr& v)
+  {
+    return u[0]*v[0] + u[1]*v[1] + u[2]*v[2];
+  }
+
+  AXOM_HOST_DEVICE void copyIn(const CoordinateTransformer& other)
+  {
+    m_v = other.m_v;
+    for(int r = 0; r < 3; ++r)
+    {
+      m_P[r] = other.m_P[r];
     }
   }
 };
