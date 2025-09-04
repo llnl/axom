@@ -353,21 +353,13 @@ void Logger::logMessage(message::Level level,
 //------------------------------------------------------------------------------
 void Logger::outputLocalMessages()
 {
-  const bool has_pending_messages = getLogStreamStatusMonitor().hasPendingMessages();
-
   //Output for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
   {
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      const bool can_have_pending_messages = m_logStreams[level][istream]->canHavePendingMessages();
-      if ((can_have_pending_messages == true && has_pending_messages) || 
-           can_have_pending_messages == false)
-      {
-        m_logStreams[level][istream]->outputLocal();
-      }
-
+      m_logStreams[level][istream]->outputLocal();
     }  // END for all streams
 
   }  // END for all levels
@@ -379,12 +371,7 @@ void Logger::outputLocalMessages()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      const bool can_have_pending_messages = it->second[i]->canHavePendingMessages();
-      if ((can_have_pending_messages == true && has_pending_messages) || 
-           can_have_pending_messages == false)
-      {
-        it->second[i]->outputLocal();
-      }
+      it->second[i]->outputLocal();
     }
   }
 }
