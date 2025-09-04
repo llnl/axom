@@ -27,8 +27,6 @@ namespace slic
 // Forward declarations
 class LogStream;
 
-class LogStreamStatusMonitorMPI;
-
 // Type alias for readability
 using AbortFunctionPtr = void (*)();
 
