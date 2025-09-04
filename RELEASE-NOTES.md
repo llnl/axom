@@ -58,6 +58,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds `quest::MFEMReader` for reading 1D MFEM contours in 2D space.
 - Adds an option to `quest::SamplingShaper` to allow in/out tests based on winding numbers for MFEM contours.
 - The `shaping_driver` example program can select `--sampling inout` to do the default In/Out sampling and `--sampling windingnumber` to select winding number in/out tests for MFEM data.
+- Lumberjack: Added sorting of log messages by creation time.  This is now the default.
+- Slic: Added check for pending messages which is done by default when calling flushStreams() and pushStreams().
 
 ###  Changed
 - Axom now requires `C++17` and will default to that if not specified via `BLT_CXX_STD`.
