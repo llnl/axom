@@ -55,6 +55,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: We now support optional specification of a per-shape `dimensions` field for the 
   geometry of a shape. These can be used to override the global `dimensions` 
   of a Klee input file.
+- Lumberjack: Added sorting of log messages by creation time.  This is now the default.
+- Slic: Added check for pending messages which is done by default when calling flushStreams() and pushStreams().
 
 ###  Changed
 - Axom now requires `C++17` and will default to that if not specified via `BLT_CXX_STD`.
