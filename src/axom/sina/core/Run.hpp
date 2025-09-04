@@ -27,7 +27,7 @@ namespace sina
 
 /**
  * \brief A sub-type of Record representing a single run of an applicaiton
- * 
+ *
  * A Run is a subtype of Record corresponding to a single run of an application, as
  * specified in the Sina schema. A Run has a few additional fields required in addition
  * to the id required by a Record (type is automatically set to "run"):
@@ -84,7 +84,7 @@ public:
      */
   std::string const &getUser() const { return user; }
 
-  conduit::Node toNode() const override;
+  conduit::Node toNode(CurveSet::CurveOrder curveOrder = defaultCurveOrder) const override;
 
 private:
   std::string application;
