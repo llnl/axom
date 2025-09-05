@@ -621,7 +621,20 @@ public:
         MemorySpace space = detail::getAllocatorSpace(m_allocator.getID());
         if(space == MemorySpace::Device || space == MemorySpace::Unified)
         {
-  #if defined(AXOM_USE_CUDA)
+  #if !defined(AXOM_GPUCC)
+          // Similar to the issue in ArrayBase (PR #1582), using FlatMap from
+          // a GPU-enabled Axom library but with a host-only compiler results
+          // in an ODR violation.
+
+          // HACK: this looks ugly, but is the best we can do pending a DR:
+          // https://stackoverflow.com/questions/44059557/whats-the-right-way-to-call-static-assertfalse
+          // https://cplusplus.github.io/CWG/issues/2518.html
+          static_assert(std::is_pod_v<KeyType> && !std::is_pod_v<KeyType>,
+                        "Cannot instantiate device-aware FlatMap operations when file is compiled "
+                        "with a host-only compiler. Axom was built with GPU support, so you should "
+                        "build all source files using FlatMap with a CUDA/HIP compiler.");
+          using ExecSpace = axom::SEQ_EXEC;
+  #elif defined(AXOM_USE_CUDA)
           using ExecSpace = axom::CUDA_EXEC<256>;
   #elif defined(AXOM_USE_HIP)
           using ExecSpace = axom::HIP_EXEC<256>;
