@@ -60,137 +60,10 @@ private:
   slic::message::Level m_previousLevel {slic::message::Level::Debug};
 };
 
-/// \name MPI Helper/Wrapper Methods
-/// @{
-#ifdef AXOM_USE_MPI
-
-/*!
- * \brief Deallocates the specified MPI window object.
- * \param [in] window handle to the MPI window.
- * \note All buffers attached to the window are also deallocated.
- */
-void mpi_win_free(MPI_Win* window);
-
-/*!
- * \brief Deallocates the specified MPI communicator object.
- * \param [in] comm handle to the MPI communicator object.
- */
-void mpi_comm_free(MPI_Comm* comm);
-
-/*!
- * \brief Reads the mesh on rank 0 and exchanges the mesh metadata, i.e., the
- *  number of nodes and faces with all other ranks.
- *
- * \param [in] global_rank_id MPI rank w.r.t. the global communicator
- * \param [in] global_comm handle to the global communicator
- * \param [in,out] reader the corresponding STL reader
- * \param [out] mesh_metadata an array consisting of the mesh metadata.
- *
- * \note This method calls read() on the reader on rank 0.
- *
- * \pre global_comm != MPI_COMM_NULL
- * \pre mesh_metadata != nullptr
- */
-int read_and_exchange_mesh_metadata(int global_rank_id,
-                                    MPI_Comm global_comm,
-                                    quest::STLReader& reader,
-                                    axom::IndexType mesh_metadata[2]);
-
-#endif /* AXOM_USE_MPI */
-
-#ifdef AXOM_USE_MPI3
-/*!
- * \brief Creates inter-node and intra-node communicators from the given global
- *  MPI communicator handle.
- *
- *  The intra-node communicator groups the ranks within the same compute node.
- *  Consequently, all ranks have a global rank ID, w.r.t. the global
- *  communicator, and a corresponding local rank ID, w.r.t. the intra-node
- *  communicator. The global rank ID can span and is unique across multiple
- *  compute nodes, while the local rank ID, is only uniquely defined within the
- *  same compute node and is generally different from the global rank ID.
- *
- *  In contrast, the inter-node communicator groups only a subset of the ranks
- *  defined by the global communicator. Specifically, ranks that have a
- *  local rank ID of zero are included in the inter-node commuinicator and
- *  have a corresponding inter-comm rank ID, w.r.t., the inter-node
- *  communicator. For all other ranks, that are not included in the inter-node
- *  communicator, the inter-comm rank ID is set to "-1".
- *
- * \param [in]  global_comm handle to the global MPI communicator.
- * \param [out] intra_node_comm handle to the intra-node communicator object.
- * \param [out] inter_node_comm handle to the inter-node communicator object.
- * \param [out] global_rank_id rank ID w.r.t. the global communicator
- * \param [out] local_rank_id rank ID within the a compute node
- * \param [out] intercom_rank_id rank ID w.r.t. the inter-node communicator
-
- * \note The caller must call `MPI_Comm_free` on the corresponding communicator
- *  handles, namely, `intra_node_comm` and `inter_node_comm` which are created
- *  by this routine.
- *
- * \pre global_comm != MPI_COMM_NULL
- * \pre intra_node_comm == MPI_COMM_NULL
- * \pre inter_node_comm == MPI_COMM_NULL
- * \post intra_node_comm != MPI_COMM_NULL
- * \post inter_node_comm != MPI_COMM_NULL
- */
-void create_communicators(MPI_Comm global_comm,
-                          MPI_Comm& intra_node_comm,
-                          MPI_Comm& inter_node_comm,
-                          int& global_rank_id,
-                          int& local_rank_id,
-                          int& intercom_rank_id);
-#endif
-
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
-/*!
- * \brief Allocates a shared memory buffer for the mesh that is shared among
- *  all the ranks within the same compute node.
- *
- * \param [in] intra_node_comm intra-node communicator within a node.
- * \param [in] mesh_metada tuple with the number of nodes/faces on the mesh
- * \param [out] x pointer into the buffer where the x--coordinates are stored.
- * \param [out] y pointer into the buffer where the y--coordinates are stored.
- * \param [out] z pointer into the buffer where the z--coordinates are stored.
- * \param [out] conn pointer into the buffer consisting the cell-connectivity.
- * \param [out] mesh_buffer raw buffer consisting of all the mesh data.
- * \param [out] shared_window MPI window to which the shared buffer is attached.
- *
- * \return bytesize the number of bytes in the raw buffer.
- *
- * \pre intra_node_comm != MPI_COMM_NULL
- * \pre mesh_metadata != nullptr
- * \pre x == nullptr
- * \pre y == nullptr
- * \pre z == nullptr
- * \pre conn == nullptr
- * \pre mesh_buffer == nullptr
- * \pre shared_window == MPI_WIN_NULL
- *
- * \post x != nullptr
- * \post y != nullptr
- * \post z != nullptr
- * \post coon != nullptr
- * \post mesh_buffer != nullptr
- * \post shared_window != MPI_WIN_NULL
- */
-MPI_Aint allocate_shared_buffer(int local_rank_id,
-                                MPI_Comm intra_node_comm,
-                                const axom::IndexType mesh_metadata[2],
-                                double*& x,
-                                double*& y,
-                                double*& z,
-                                axom::IndexType*& conn,
-                                unsigned char*& mesh_buffer,
-                                MPI_Win& shared_window);
-#endif
-
-/// @}
-
 /// \name Mesh I/O methods
 /// @{
 
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
+#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE) && (defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY))
 
 /*!
  * \brief Reads in the surface mesh from the specified file into a shared
@@ -198,10 +71,9 @@ MPI_Aint allocate_shared_buffer(int local_rank_id,
  *
  * \param [in] file the file consisting of the surface mesh
  * \param [in] global_comm handle to the global MPI communicator
+ * \param [in] allocatorID An UMPIRE allocator ID that can allocate shared memory.
  * \param [out] mesh_buffer pointer to the raw mesh buffer
  * \param [out] m pointer to the mesh object
- * \param [out] intra_node_comm handle to the shared MPI communicator.
- * \param [out] shared_window handle to the MPI shared window.
  *
  * \return status set to READ_SUCCESS, or READ_FAILED on error.
  *
@@ -224,10 +96,9 @@ MPI_Aint allocate_shared_buffer(int local_rank_id,
  */
 int read_stl_mesh_shared(const std::string& file,
                          MPI_Comm global_comm,
+                         int allocatorID,
                          unsigned char*& mesh_buffer,
-                         mint::Mesh*& m,
-                         MPI_Comm& intra_node_comm,
-                         MPI_Win& shared_window);
+                         mint::Mesh*& m);
 #endif
 
 /*!

@@ -23,6 +23,11 @@
   #endif
 #endif
 
+#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE) && (defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY))
+  #include "umpire/Umpire.hpp"
+  #define AXOM_USE_UMPIRE_SHARED_MEMORY
+#endif
+
 #include <limits>
 
 namespace axom
@@ -31,40 +36,84 @@ namespace quest
 {
 namespace internal
 {
-/// MPI Helper/Wrapper Methods
+/// Mesh I/O methods
 
-#ifdef AXOM_USE_MPI
-
-/*
- * Deallocates the specified MPI window object.
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+/*!
+ * \brief Allocates a shared memory buffer for the mesh that is shared among
+ *  all the ranks within the same compute node.
+ *
+ * \param [in] allocatorID A valid Umpire allocator id that can allocate shared memory.
+ * \param [in] mesh_metada tuple with the number of nodes/faces on the mesh
+ * \param [out] x pointer into the buffer where the x--coordinates are stored.
+ * \param [out] y pointer into the buffer where the y--coordinates are stored.
+ * \param [out] z pointer into the buffer where the z--coordinates are stored.
+ * \param [out] conn pointer into the buffer consisting the cell-connectivity.
+ * \param [out] mesh_buffer raw buffer consisting of all the mesh data.
+ *
+ * \return bytesize the number of bytes in the raw buffer.
+ *
+ * \pre allocatorID is a valid shared memory allocator.
+ * \pre mesh_metadata != nullptr
+ * \pre x == nullptr
+ * \pre y == nullptr
+ * \pre z == nullptr
+ * \pre conn == nullptr
+ * \pre mesh_buffer == nullptr
+ *
+ * \post x != nullptr
+ * \post y != nullptr
+ * \post z != nullptr
+ * \post coon != nullptr
+ * \post mesh_buffer != nullptr
  */
-void mpi_win_free(MPI_Win* window)
+static size_t allocate_shared_buffer(int allocatorID,
+                              const axom::IndexType mesh_metadata[2],
+                              double*& x,
+                              double*& y,
+                              double*& z,
+                              axom::IndexType*& conn,
+                              unsigned char*& mesh_buffer)
 {
-  if(*window != MPI_WIN_NULL)
-  {
-    MPI_Win_free(window);
-  }
+  // Allocate the buffer.
+  const axom::IndexType nnodes = mesh_metadata[0];
+  const axom::IndexType nfaces = mesh_metadata[1];
+  const size_t bytesize = nnodes * 3 * sizeof(double) + nfaces * 3 * sizeof(axom::IndexType);
+  mesh_buffer = allocate<unsigned char>(bytesize, allocatorID);
+
+  // calculate offset to the coordinates & cell connectivity in the buffer
+  int baseOffset = nnodes * sizeof(double);
+  int x_offset = 0;
+  int y_offset = baseOffset;
+  int z_offset = y_offset + baseOffset;
+  int conn_offset = z_offset + baseOffset;
+
+  x = reinterpret_cast<double*>(&mesh_buffer[x_offset]);
+  y = reinterpret_cast<double*>(&mesh_buffer[y_offset]);
+  z = reinterpret_cast<double*>(&mesh_buffer[z_offset]);
+  conn = reinterpret_cast<axom::IndexType*>(&mesh_buffer[conn_offset]);
+
+  return (bytesize);
 }
 
-/*
- * Deallocates the specified MPI communicator object.
+/*!
+ * \brief Reads the mesh on rank 0 and exchanges the mesh metadata, i.e., the
+ *  number of nodes and faces with all other ranks.
+ *
+ * \param [in] global_rank_id MPI rank w.r.t. the global communicator
+ * \param [in] global_comm handle to the global communicator
+ * \param [in,out] reader the corresponding STL reader
+ * \param [out] mesh_metadata an array consisting of the mesh metadata.
+ *
+ * \note This method calls read() on the reader on rank 0.
+ *
+ * \pre global_comm != MPI_COMM_NULL
+ * \pre mesh_metadata != nullptr
  */
-void mpi_comm_free(MPI_Comm* comm)
-{
-  if(*comm != MPI_COMM_NULL)
-  {
-    MPI_Comm_free(comm);
-  }
-}
-
-/*
- * Reads the mesh on rank 0 and exchanges the mesh metadata, i.e., the
- * number of nodes and faces with all other ranks.
- */
-int read_and_exchange_mesh_metadata(int global_rank_id,
-                                    MPI_Comm global_comm,
-                                    quest::STLReader& reader,
-                                    axom::IndexType mesh_metadata[2])
+static int read_and_exchange_mesh_metadata(int global_rank_id,
+                                           MPI_Comm global_comm,
+                                           quest::STLReader& reader,
+                                           axom::IndexType mesh_metadata[2])
 {
   constexpr int NUM_NODES = 0;
   constexpr int NUM_FACES = 1;
@@ -94,108 +143,18 @@ int read_and_exchange_mesh_metadata(int global_rank_id,
   return rc;
 }
 
-#endif /* AXOM_USE_MPI */
-
-#ifdef AXOM_USE_MPI3
-/*
- * Creates inter-node and intra-node communicators from the given global
- * MPI communicator handle.
- */
-void create_communicators(MPI_Comm global_comm,
-                          MPI_Comm& intra_node_comm,
-                          MPI_Comm& inter_node_comm,
-                          int& global_rank_id,
-                          int& local_rank_id,
-                          int& intercom_rank_id)
-{
-  // Sanity checks
-  SLIC_ASSERT(global_comm != MPI_COMM_NULL);
-  SLIC_ASSERT(intra_node_comm == MPI_COMM_NULL);
-  SLIC_ASSERT(inter_node_comm == MPI_COMM_NULL);
-
-  constexpr int IGNORE_KEY = 0;
-
-  // STEP 0: get global rank, used to order ranks in the inter-node comm.
-  MPI_Comm_rank(global_comm, &global_rank_id);
-
-  // STEP 1: create the intra-node communicator
-  MPI_Comm_split_type(global_comm, MPI_COMM_TYPE_SHARED, IGNORE_KEY, MPI_INFO_NULL, &intra_node_comm);
-  MPI_Comm_rank(intra_node_comm, &local_rank_id);
-  SLIC_ASSERT(local_rank_id >= 0);
-
-  // STEP 2: create inter-node communicator
-  const int color = (local_rank_id == 0) ? 1 : MPI_UNDEFINED;
-  MPI_Comm_split(global_comm, color, global_rank_id, &inter_node_comm);
-
-  if(color == 1)
-  {
-    MPI_Comm_rank(inter_node_comm, &intercom_rank_id);
-  }
-
-  SLIC_ASSERT(intra_node_comm != MPI_COMM_NULL);
-}
-#endif
-
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
-/*
- * Allocates a shared memory buffer for the mesh that is shared among
- * all the ranks within the same compute node.
- */
-MPI_Aint allocate_shared_buffer(int local_rank_id,
-                                MPI_Comm intra_node_comm,
-                                const axom::IndexType mesh_metadata[2],
-                                double*& x,
-                                double*& y,
-                                double*& z,
-                                axom::IndexType*& conn,
-                                unsigned char*& mesh_buffer,
-                                MPI_Win& shared_window)
-{
-  constexpr int ROOT_RANK = 0;
-
-  const int nnodes = mesh_metadata[0];
-  const int nfaces = mesh_metadata[1];
-
-  int disp = sizeof(unsigned char);
-  MPI_Aint bytesize = nnodes * 3 * sizeof(double) + nfaces * 3 * sizeof(axom::IndexType);
-  MPI_Aint window_size = (local_rank_id != ROOT_RANK) ? 0 : bytesize;
-
-  MPI_Win_allocate_shared(window_size, disp, MPI_INFO_NULL, intra_node_comm, &mesh_buffer, &shared_window);
-  MPI_Win_shared_query(shared_window, ROOT_RANK, &bytesize, &disp, &mesh_buffer);
-
-  // calculate offset to the coordinates & cell connectivity in the buffer
-  int baseOffset = nnodes * sizeof(double);
-  int x_offset = 0;
-  int y_offset = baseOffset;
-  int z_offset = y_offset + baseOffset;
-  int conn_offset = z_offset + baseOffset;
-
-  x = reinterpret_cast<double*>(&mesh_buffer[x_offset]);
-  y = reinterpret_cast<double*>(&mesh_buffer[y_offset]);
-  z = reinterpret_cast<double*>(&mesh_buffer[z_offset]);
-  conn = reinterpret_cast<axom::IndexType*>(&mesh_buffer[conn_offset]);
-
-  return (bytesize);
-}
-#endif
-
-/// Mesh I/O methods
-
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
 /*
  * Reads in the surface mesh from the specified file into a shared
  * memory buffer that is attached to the given MPI shared window.
  */
 int read_stl_mesh_shared(const std::string& file,
                          MPI_Comm global_comm,
+                         int allocatorID,
                          unsigned char*& mesh_buffer,
-                         mint::Mesh*& m,
-                         MPI_Comm& intra_node_comm,
-                         MPI_Win& shared_window)
+                         mint::Mesh*& m)
 {
   SLIC_ASSERT(global_comm != MPI_COMM_NULL);
-  SLIC_ASSERT(intra_node_comm == MPI_COMM_NULL);
-  SLIC_ASSERT(shared_window == MPI_WIN_NULL);
+  SLIC_ASSERT(allocatorID != INVALID_ALLOCATOR_ID);
 
   // NOTE: STL meshes are always 3D mesh consisting of triangles.
   using TriangleMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
@@ -213,17 +172,23 @@ int read_stl_mesh_shared(const std::string& file,
     return READ_FAILED;
   }
 
-  // STEP 1: create intra-node and inter-node MPI communicators
+  // STEP 1: Get the communicator from the Umpire allocator.
   int global_rank_id = -1;
-  int local_rank_id = -1;
   int intercom_rank_id = -1;
+  MPI_Comm_rank(global_comm, &global_rank_id);
   MPI_Comm inter_node_comm = MPI_COMM_NULL;
-  create_communicators(global_comm,
-                       intra_node_comm,
-                       inter_node_comm,
-                       global_rank_id,
-                       local_rank_id,
-                       intercom_rank_id);
+  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
+  if(rm.isAllocator(allocatorID))
+  {
+    umpire::Allocator allocator = rm.getAllocator(allocatorID);
+    inter_node_comm = umpire::get_communicator_for_allocator(allocator, global_comm);
+    MPI_Comm_rank(inter_node_comm, &intercom_rank_id);
+std::cout << "Rank " << global_rank_id << ": intercom_rank_id=" << intercom_rank_id << std::endl;
+  }
+  else
+  {
+    SLIC_ERROR(axom::fmt::format("An invalid allocatorID {} was provided.", allocatorID));
+  }
 
   // STEP 2: Exchange mesh metadata
   constexpr int NUM_NODES = 0;
@@ -243,15 +208,13 @@ int read_stl_mesh_shared(const std::string& file,
   double* y = nullptr;
   double* z = nullptr;
   axom::IndexType* conn = nullptr;
-  MPI_Aint numBytes = allocate_shared_buffer(local_rank_id,
-                                             intra_node_comm,
-                                             mesh_metadata,
-                                             x,
-                                             y,
-                                             z,
-                                             conn,
-                                             mesh_buffer,
-                                             shared_window);
+  const size_t numBytes = allocate_shared_buffer(allocatorID,
+                                                 mesh_metadata,
+                                                 x,
+                                                 y,
+                                                 z,
+                                                 conn,
+                                                 mesh_buffer);
   SLIC_ASSERT(x != nullptr);
   SLIC_ASSERT(y != nullptr);
   SLIC_ASSERT(z != nullptr);
@@ -267,16 +230,14 @@ int read_stl_mesh_shared(const std::string& file,
     reader.getMesh(static_cast<TriangleMesh*>(m));
   }
 
-  // STEP 5: inter-node communication
+  // STEP 5: inter-node communication (broadcast mesh_buffer to shared_memory on other nodes)
   if(intercom_rank_id >= 0)
   {
     MPI_Bcast(mesh_buffer, numBytes, MPI_UNSIGNED_CHAR, 0, inter_node_comm);
   }
 
-  // STEP 6 free communicators
+  // NOTE: Communicators are associated with Umpire allocators and Umpire will free them.
 
-  MPI_Barrier(global_comm);
-  mpi_comm_free(&inter_node_comm);
   return READ_SUCCESS;
 }
 #endif

@@ -46,8 +46,11 @@ using UnstructuredMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
 //------------------------------------------------------------------------------
 namespace
 {
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
-constexpr bool USE_MPI3_SHARED_MEMORY = true;
+#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE) && (defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY))
+#define AXOM_USE_UMPIRE_SHARED_MEMORY
+constexpr bool USE_SHARED_MEMORY = true;
+#else
+constexpr bool USE_SHARED_MEMORY = false;
 #endif
 
 /*!
@@ -410,17 +413,17 @@ TEST(quest_signed_distance_interface, analytic_plane)
 {
   check_analytic_plane();
 
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
-  check_analytic_plane(USE_MPI3_SHARED_MEMORY);
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+  check_analytic_plane(USE_SHARED_MEMORY);
 #endif
 }
 
 //------------------------------------------------------------------------------
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_MPI3)
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
 TEST(quest_signed_distance_interface, call_twice_using_shared_memory)
 {
-  check_analytic_plane(USE_MPI3_SHARED_MEMORY);
-  check_analytic_plane(USE_MPI3_SHARED_MEMORY);
+  check_analytic_plane(USE_SHARED_MEMORY);
+  check_analytic_plane(USE_SHARED_MEMORY);
 }
 #endif
 
@@ -653,6 +656,8 @@ int main(int argc, char* argv[])
   // add this line to avoid a warning in the output about thread safety
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   axom::slic::SimpleLogger logger;
+
+  SLIC_INFO(axom::fmt::format("USE_SHARED_MEMORY: {}", USE_SHARED_MEMORY));
 
   result = RUN_ALL_TESTS();
 
