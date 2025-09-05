@@ -168,6 +168,52 @@ private:
   IndexType* m_offsets {nullptr};
 };
 
+/**
+ * \brief Helper function to gather filled buckets within a FlatMap.
+ *
+ *  Workaround for a limitation within CUDA where a lambda cannot be defined in
+ *  a protected or private member function.
+ */
+template <typename ExecSpace>
+void gatherFilledBuckets(ArrayView<flat_map::GroupBucket> group_metadata,
+                         ArrayView<IndexType> filled_bucket_indexes,
+                         IndexType num_buckets,
+                         int allocator_id)
+{
+  using flat_map::GroupBucket;
+
+  IndexType* counter = axom::allocate<IndexType>(1, allocator_id);
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA)
+  if(detail::getAllocatorSpace(allocator_id) == MemorySpace::Device)
+  {
+    for_all<ExecSpace>(
+      1,
+      AXOM_LAMBDA(IndexType) { *counter = 0; });
+  }
+  else
+  {
+    *counter = 0;
+  }
+#else
+  *counter = 0;
+#endif
+
+  for_all<ExecSpace>(
+    num_buckets,
+    AXOM_LAMBDA(IndexType bucket_idx) {
+      IndexType group_idx = bucket_idx / GroupBucket::Size;
+      int slot_idx = bucket_idx % GroupBucket::Size;
+      if(group_metadata[group_idx].metadata.buckets[slot_idx] > GroupBucket::Sentinel)
+      {
+        // Bucket contains an element.
+        IndexType dest = axom::atomicAdd<ExecSpace>(counter, 1);
+        filled_bucket_indexes[dest] = bucket_idx;
+      }
+    });
+
+  axom::deallocate(counter);
+}
+
 }  // namespace detail
 
 template <typename KeyType, typename ValueType, typename Hash>
@@ -192,30 +238,15 @@ template <typename ExecSpace>
 void FlatMap<KeyType, ValueType, Hash>::parallelRehash(IndexType count)
 {
   using detail::FlatMapOffsetIterator;
-  using detail::flat_map::GroupBucket;
 
   // If the FlatMap is constructed in device-only memory, construct in
   // parallel on the device.
   axom::Array<IndexType> filled_bucket_idx_vec(m_size, m_size, m_allocator.getID());
 
-  IndexType* counter = axom::allocate<IndexType>(1, m_allocator.getID());
-  *counter = 0;
-
-  const auto metadata_view = m_metadata.view();
-  const auto filled_bucket_idxs = filled_bucket_idx_vec.view();
-
-  for_all<ExecSpace>(
-    m_buckets.size(),
-    AXOM_LAMBDA(IndexType bucket_idx) {
-      IndexType group_idx = bucket_idx / GroupBucket::Size;
-      int slot_idx = bucket_idx % GroupBucket::Size;
-      if(metadata_view[group_idx].metadata.buckets[slot_idx] > GroupBucket::Sentinel)
-      {
-        // Bucket contains an element.
-        IndexType dest = axom::atomicAdd<ExecSpace>(counter, 1);
-        filled_bucket_idxs[dest] = bucket_idx;
-      }
-    });
+  detail::gatherFilledBuckets<ExecSpace>(m_metadata.view(),
+                                         filled_bucket_idx_vec.view(),
+                                         m_buckets.size(),
+                                         m_allocator.getID());
 
   FlatMapOffsetIterator bucket_begin {m_buckets.data(), filled_bucket_idx_vec.data()};
 
@@ -223,8 +254,6 @@ void FlatMap<KeyType, ValueType, Hash>::parallelRehash(IndexType count)
   new_map.template insert<ExecSpace>(bucket_begin, bucket_begin + m_size);
 
   this->swap(new_map);
-
-  axom::deallocate(counter);
 }
 
 template <typename KeyType, typename ValueType, typename Hash>
