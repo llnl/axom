@@ -87,3 +87,23 @@ foreach(_lesson lesson_00 lesson_01 lesson_02 lesson_03 lesson_04 patch figs)
             DESTINATION examples/axom/radiuss_tutorial)
 endforeach()
 
+
+#------------------------------------------------------------------------------
+# configure and install 'shaping_tutorial' example
+#------------------------------------------------------------------------------
+configure_file(
+    shaping_tutorial/host-config.cmake.in
+    ${PROJECT_BINARY_DIR}/examples/shaping_tutorial/host-config.cmake)
+
+install(
+    FILES
+        shaping_tutorial/CMakeLists.txt
+        ${PROJECT_BINARY_DIR}/examples/shaping_tutorial/host-config.cmake
+    DESTINATION
+        examples/axom/shaping_tutorial
+)
+
+foreach(_lesson lesson_01)
+    install(DIRECTORY shaping_tutorial/${_lesson}
+            DESTINATION examples/axom/shaping_tutorial)
+endforeach()
