@@ -46,8 +46,9 @@ using UnstructuredMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
 //------------------------------------------------------------------------------
 namespace
 {
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE) && (defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY))
-#define AXOM_USE_UMPIRE_SHARED_MEMORY
+#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE) && \
+  (defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY))
+  #define AXOM_USE_UMPIRE_SHARED_MEMORY
 constexpr bool USE_SHARED_MEMORY = true;
 #else
 constexpr bool USE_SHARED_MEMORY = false;
@@ -160,7 +161,7 @@ void generate_stl_file(const std::string& file, MPI_Comm comm = MPI_COMM_SELF)
  *
  * \return 0 on success; non-zero otherwise.
  */
-int removeFile(const std::string &fileName, MPI_Comm comm = MPI_COMM_WORLD)
+int removeFile(const std::string& fileName, MPI_Comm comm = MPI_COMM_WORLD)
 {
   int rank = 0, retval = 0;
   MPI_Comm_rank(comm, &rank);
@@ -223,7 +224,9 @@ void getUniformMesh(const UnstructuredMesh* mesh, mint::UniformMesh*& umesh)
  * \param [in] use_shared indicates whether to use shared memory or not.
  * \param [in] comm The MPI communicator to use.
  */
-void check_analytic_plane(const std::string &file, bool use_shared = false, MPI_Comm comm = MPI_COMM_SELF)
+void check_analytic_plane(const std::string& file,
+                          bool use_shared = false,
+                          MPI_Comm comm = MPI_COMM_SELF)
 {
   // STEP 0: construct uniform box mesh
   constexpr int NDIMS = 3;

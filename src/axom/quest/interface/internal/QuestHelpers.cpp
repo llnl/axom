@@ -23,7 +23,8 @@
   #endif
 #endif
 
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE) && (defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY))
+#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE) && \
+  (defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY))
   #include "umpire/Umpire.hpp"
   #define AXOM_USE_UMPIRE_SHARED_MEMORY
 #endif
@@ -55,11 +56,11 @@ static void mpi_comm_free(MPI_Comm* comm)
  * MPI communicator handle.
  */
 static void create_communicators(MPI_Comm global_comm,
-                          MPI_Comm& intra_node_comm,
-                          MPI_Comm& inter_node_comm,
-                          int& global_rank_id,
-                          int& local_rank_id,
-                          int& intercom_rank_id)
+                                 MPI_Comm& intra_node_comm,
+                                 MPI_Comm& inter_node_comm,
+                                 int& global_rank_id,
+                                 int& local_rank_id,
+                                 int& intercom_rank_id)
 {
   // Sanity checks
   SLIC_ASSERT(global_comm != MPI_COMM_NULL);
@@ -117,12 +118,12 @@ static void create_communicators(MPI_Comm global_comm,
  * \post mesh_buffer != nullptr
  */
 static size_t allocate_shared_buffer(int allocatorID,
-                              const axom::IndexType mesh_metadata[2],
-                              double*& x,
-                              double*& y,
-                              double*& z,
-                              axom::IndexType*& conn,
-                              unsigned char*& mesh_buffer)
+                                     const axom::IndexType mesh_metadata[2],
+                                     double*& x,
+                                     double*& y,
+                                     double*& z,
+                                     axom::IndexType*& conn,
+                                     unsigned char*& mesh_buffer)
 {
   // Allocate the buffer.
   const axom::IndexType nnodes = mesh_metadata[0];
@@ -254,13 +255,8 @@ int read_stl_mesh_shared(const std::string& file,
   double* y = nullptr;
   double* z = nullptr;
   axom::IndexType* conn = nullptr;
-  const size_t numBytes = allocate_shared_buffer(allocatorID,
-                                                 mesh_metadata,
-                                                 x,
-                                                 y,
-                                                 z,
-                                                 conn,
-                                                 mesh_buffer);
+  const size_t numBytes =
+    allocate_shared_buffer(allocatorID, mesh_metadata, x, y, z, conn, mesh_buffer);
   SLIC_ASSERT(x != nullptr);
   SLIC_ASSERT(y != nullptr);
   SLIC_ASSERT(z != nullptr);
