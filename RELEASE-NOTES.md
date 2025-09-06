@@ -77,6 +77,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   `NURBSCurve` and `NURBSPatch` classes and add overloads from `axom::ArrayView`
 - Core: Updates behavior of `FlatMap::reserve()` to only trigger a rehash if maximum load factor
   would be exceeded.
+- Quest: The signed_distance functions were modified so they use Umpire's shared memory mechanisms instead of using MPI3 directly.
 
 ###  Fixed
 - Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled

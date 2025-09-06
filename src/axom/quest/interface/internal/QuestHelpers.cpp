@@ -39,6 +39,55 @@ namespace internal
 /// Mesh I/O methods
 
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+/*
+ * Deallocates the specified MPI communicator object.
+ */
+static void mpi_comm_free(MPI_Comm* comm)
+{
+  if(*comm != MPI_COMM_NULL)
+  {
+    MPI_Comm_free(comm);
+  }
+}
+
+/*
+ * Creates inter-node and intra-node communicators from the given global
+ * MPI communicator handle.
+ */
+static void create_communicators(MPI_Comm global_comm,
+                          MPI_Comm& intra_node_comm,
+                          MPI_Comm& inter_node_comm,
+                          int& global_rank_id,
+                          int& local_rank_id,
+                          int& intercom_rank_id)
+{
+  // Sanity checks
+  SLIC_ASSERT(global_comm != MPI_COMM_NULL);
+  SLIC_ASSERT(intra_node_comm == MPI_COMM_NULL);
+  SLIC_ASSERT(inter_node_comm == MPI_COMM_NULL);
+
+  constexpr int IGNORE_KEY = 0;
+
+  // STEP 0: get global rank, used to order ranks in the inter-node comm.
+  MPI_Comm_rank(global_comm, &global_rank_id);
+
+  // STEP 1: create the intra-node communicator
+  MPI_Comm_split_type(global_comm, MPI_COMM_TYPE_SHARED, IGNORE_KEY, MPI_INFO_NULL, &intra_node_comm);
+  MPI_Comm_rank(intra_node_comm, &local_rank_id);
+  SLIC_ASSERT(local_rank_id >= 0);
+
+  // STEP 2: create inter-node communicator
+  const int color = (local_rank_id == 0) ? 1 : MPI_UNDEFINED;
+  MPI_Comm_split(global_comm, color, global_rank_id, &inter_node_comm);
+
+  if(color == 1)
+  {
+    MPI_Comm_rank(inter_node_comm, &intercom_rank_id);
+  }
+
+  SLIC_ASSERT(intra_node_comm != MPI_COMM_NULL);
+}
+
 /*!
  * \brief Allocates a shared memory buffer for the mesh that is shared among
  *  all the ranks within the same compute node.
@@ -172,23 +221,18 @@ int read_stl_mesh_shared(const std::string& file,
     return READ_FAILED;
   }
 
-  // STEP 1: Get the communicator from the Umpire allocator.
+  // STEP 1: Create communicators
   int global_rank_id = -1;
+  int local_rank_id = -1;
   int intercom_rank_id = -1;
-  MPI_Comm_rank(global_comm, &global_rank_id);
+  MPI_Comm intra_node_comm = MPI_COMM_NULL;
   MPI_Comm inter_node_comm = MPI_COMM_NULL;
-  umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
-  if(rm.isAllocator(allocatorID))
-  {
-    umpire::Allocator allocator = rm.getAllocator(allocatorID);
-    inter_node_comm = umpire::get_communicator_for_allocator(allocator, global_comm);
-    MPI_Comm_rank(inter_node_comm, &intercom_rank_id);
-std::cout << "Rank " << global_rank_id << ": intercom_rank_id=" << intercom_rank_id << std::endl;
-  }
-  else
-  {
-    SLIC_ERROR(axom::fmt::format("An invalid allocatorID {} was provided.", allocatorID));
-  }
+  create_communicators(global_comm,
+                       intra_node_comm,
+                       inter_node_comm,
+                       global_rank_id,
+                       local_rank_id,
+                       intercom_rank_id);
 
   // STEP 2: Exchange mesh metadata
   constexpr int NUM_NODES = 0;
@@ -200,6 +244,8 @@ std::cout << "Rank " << global_rank_id << ": intercom_rank_id=" << intercom_rank
   int rc = read_and_exchange_mesh_metadata(global_rank_id, global_comm, reader, mesh_metadata);
   if(rc != READ_SUCCESS)
   {
+    mpi_comm_free(&inter_node_comm);
+    mpi_comm_free(&intra_node_comm);
     return READ_FAILED;
   }
 
@@ -236,7 +282,10 @@ std::cout << "Rank " << global_rank_id << ": intercom_rank_id=" << intercom_rank
     MPI_Bcast(mesh_buffer, numBytes, MPI_UNSIGNED_CHAR, 0, inter_node_comm);
   }
 
-  // NOTE: Communicators are associated with Umpire allocators and Umpire will free them.
+  // STEP 6 free communicators
+  MPI_Barrier(global_comm);
+  mpi_comm_free(&inter_node_comm);
+  mpi_comm_free(&intra_node_comm);
 
   return READ_SUCCESS;
 }

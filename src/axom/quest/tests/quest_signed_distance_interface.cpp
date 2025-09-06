@@ -219,10 +219,11 @@ void getUniformMesh(const UnstructuredMesh* mesh, mint::UniformMesh*& umesh)
 
 /*!
  * \brief Tests the signed against an anlytic surface mesh input.
+ * \param [in] file The name of the STL file to write.
  * \param [in] use_shared indicates whether to use shared memory or not.
  * \param [in] comm The MPI communicator to use.
  */
-void check_analytic_plane(bool use_shared = false, MPI_Comm comm = MPI_COMM_SELF)
+void check_analytic_plane(const std::string &file, bool use_shared = false, MPI_Comm comm = MPI_COMM_SELF)
 {
   // STEP 0: construct uniform box mesh
   constexpr int NDIMS = 3;
@@ -234,7 +235,6 @@ void check_analytic_plane(bool use_shared = false, MPI_Comm comm = MPI_COMM_SELF
   double* err = mesh.createField<double>("err", mint::NODE_CENTERED);
 
   // STEP 1: generate planar STL mesh file
-  const std::string file = "plane.stl";
   generate_planar_mesh_stl_file(file, comm);
 
   // STEP 2: define analytic plane corresponding to the planar mesh;
@@ -447,19 +447,17 @@ TEST(quest_signed_distance_interface, get_mesh_bounds)
 //------------------------------------------------------------------------------
 TEST(quest_signed_distance_interface, analytic_plane)
 {
-  // Serial test - Only call on 1 rank since the test creates/removes a file with
-  //               a fixed name.
+  // Serial test - called independently on each rank. In order to avoid problems
+  //               writing/reading the STL file, we pass a unique name for each
+  //               rank.
   int rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  if(rank == 0)
-  {
-    check_analytic_plane();
-  }
+  check_analytic_plane(axom::fmt::format("plane{}.stl", rank));
 
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
   // We are using shared memory that we want to coordinate among ranks in
   // MPI_COMM_WORLD so pass that communicator.
-  check_analytic_plane(USE_SHARED_MEMORY, MPI_COMM_WORLD);
+  check_analytic_plane("plane.stl", USE_SHARED_MEMORY, MPI_COMM_WORLD);
 #endif
 }
 
@@ -469,8 +467,8 @@ TEST(quest_signed_distance_interface, call_twice_using_shared_memory)
 {
   // We are using shared memory that we want to coordinate among ranks in
   // MPI_COMM_WORLD so pass that communicator.
-  check_analytic_plane(USE_SHARED_MEMORY, MPI_COMM_WORLD);
-  check_analytic_plane(USE_SHARED_MEMORY, MPI_COMM_WORLD);
+  check_analytic_plane("plane.stl", USE_SHARED_MEMORY, MPI_COMM_WORLD);
+  check_analytic_plane("plane.stl", USE_SHARED_MEMORY, MPI_COMM_WORLD);
 }
 #endif
 
