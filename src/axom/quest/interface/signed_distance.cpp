@@ -109,8 +109,7 @@ static int s_allocator_id = INVALID_ALLOCATOR_ID;
 static unsigned char* s_shared_mesh_buffer = nullptr;
 #else
 static std::string s_shared_memory_requirements(
-  "Shared memory requires MPI and an Umpire library built with "
-  "UMPIRE_ENABLE_IPC_SHARED_MEMORY set to ON");
+  "Shared memory requires MPI and an Umpire library built with shared memory support");
 #endif
 
 }  // end anonymous namespace
