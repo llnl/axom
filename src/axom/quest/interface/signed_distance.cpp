@@ -162,7 +162,7 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
   }
 #else
 
-    SLIC_WARNING_IF(Parameters.use_shared_memory, s_shared_memory_requirements_message);
+    SLIC_WARNING_IF(Parameters.use_shared_memory, s_shared_memory_requirements);
 
     rc = internal::read_stl_mesh(file, s_surface_mesh, comm);
 #endif
