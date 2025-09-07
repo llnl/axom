@@ -55,18 +55,18 @@ struct MeshMetadata
   // Define schema for MeshMetadata
   static void defineSchema(inlet::Container& mesh_schema)
   {
-    auto& bb = mesh_schema.addStruct("bounding_box", "Mesh bounding box");
-    auto& min = bb.addStruct("min", "Minimum coordinates");
-    min.addDouble("x", "Minimum x coordinate").defaultValue(0.0);
-    min.addDouble("y", "Minimum y coordinate").defaultValue(0.0);
+    auto& bb = mesh_schema.addStruct("bounding_box", "Mesh bounding box").required();
+    auto& min = bb.addStruct("min", "Minimum coordinates").required();
+    min.addDouble("x", "Minimum x coordinate").required();
+    min.addDouble("y", "Minimum y coordinate").required();
 
-    auto& max = bb.addStruct("max", "Maximum coordinates");
-    max.addDouble("x", "Maximum x coordinate").defaultValue(1.0);
-    max.addDouble("y", "Maximum y coordinate").defaultValue(1.0);
+    auto& max = bb.addStruct("max", "Maximum coordinates").required();
+    max.addDouble("x", "Maximum x coordinate").required();
+    max.addDouble("y", "Maximum y coordinate").required();
 
-    auto& res = mesh_schema.addStruct("resolution", "Mesh resolution");
-    res.addInt("x", "Resolution in x direction").defaultValue(10);
-    res.addInt("y", "Resolution in y direction").defaultValue(20);
+    auto& res = mesh_schema.addStruct("resolution", "Mesh resolution").required();
+    res.addInt("x", "Resolution in x direction").required();
+    res.addInt("y", "Resolution in y direction").required();
   }
 };
 
@@ -112,12 +112,16 @@ int main(int argc, char** argv)
   reader->parseFile(inputFilename);
   Inlet inlet(std::move(reader));
 
-  auto& mesh_schema = inlet.addStruct("mesh", "Mesh metadata");
+  // Define schema at top level
+  auto& mesh_schema = inlet.addStruct("mesh", "Mesh metadata").required();
   MeshMetadata::defineSchema(mesh_schema);
 
+  // Validate the input
   if(!inlet.verify())
   {
-    SLIC_ERROR("badness");
+    fmt::print(stderr, "Error: Input validation failed.\n");
+    fmt::print(stderr, "Missing required fields or invalid data.\n");
+    return 1;
   }
 
   MeshMetadata metadata = inlet["mesh"].get<MeshMetadata>();
