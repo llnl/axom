@@ -6,6 +6,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <vector>
 
 using axom::inlet::Inlet;
@@ -52,10 +53,12 @@ struct MeshMetadata
   BoundingBox bounding_box;
   Resolution resolution;
 
-  // Define schema for MeshMetadata
+  // Define schema for MeshMetadata with validation
   static void defineSchema(inlet::Container& mesh_schema)
   {
+    // setup bounding box info. min values must be less than max values.
     auto& bb = mesh_schema.addStruct("bounding_box", "Mesh bounding box").required();
+
     auto& min = bb.addStruct("min", "Minimum coordinates").required();
     min.addDouble("x", "Minimum x coordinate").required();
     min.addDouble("y", "Minimum y coordinate").required();
@@ -64,13 +67,30 @@ struct MeshMetadata
     max.addDouble("x", "Maximum x coordinate").required();
     max.addDouble("y", "Maximum y coordinate").required();
 
+    // each resolution value must be positive
     auto& res = mesh_schema.addStruct("resolution", "Mesh resolution").required();
-    res.addInt("x", "Resolution in x direction").required();
-    res.addInt("y", "Resolution in y direction").required();
+    res.addInt("x", "Resolution in x direction").required().range(1, std::numeric_limits<int>::max());
+    res.addInt("y", "Resolution in y direction").required().range(1, std::numeric_limits<int>::max());
+
+    // Add constraints to ensure min < max for each coordinate
+    bb.registerVerifier([](const inlet::Container& input) {
+      const double min_x = input["min/x"];
+      const double max_x = input["max/x"];
+      const double min_y = input["min/y"];
+      const double max_y = input["max/y"];
+
+      SLIC_WARNING_IF(
+        min_x >= max_x,
+        axom::fmt::format("Invalid bounding box range for x-coordinate: {} >= {}", min_x, max_x));
+      SLIC_WARNING_IF(
+        min_y >= max_y,
+        axom::fmt::format("Invalid bounding box range for y-coordinate: {} >= {}", min_y, max_y));
+      return (min_x < max_x) && (min_y < max_y);
+    });
   }
 };
 
-// Specialization of FromInlet for MeshMetadata
+// Initialize a MeshMetadata from inlet
 template <>
 struct FromInlet<MeshMetadata>
 {
@@ -101,6 +121,7 @@ void print_metadata(const MeshMetadata& metadata)
 
 int main(int argc, char** argv)
 {
+  axom::slic::SimpleLogger logger;
   axom::CLI::App app {"Inlet Metadata Setup"};
 
   std::string inputFilename;
@@ -119,11 +140,12 @@ int main(int argc, char** argv)
   // Validate the input
   if(!inlet.verify())
   {
-    fmt::print(stderr, "Error: Input validation failed.\n");
-    fmt::print(stderr, "Missing required fields or invalid data.\n");
+    SLIC_WARNING("Error: Input validation failed.");
+    SLIC_WARNING("Missing required fields or invalid data.");
     return 1;
   }
 
+  // Initialize a MeshMetadata from inlet and print its values
   MeshMetadata metadata = inlet["mesh"].get<MeshMetadata>();
   print_metadata(metadata);
 
