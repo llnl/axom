@@ -38,3 +38,43 @@ Sidre allows flexible and efficient memory management, making it ideal to store 
 
 In the following sections, we will create groups and views within a Sidre DataStore to store the bounding box and resolution data for a Cartesian mesh.
 
+
+## Defining Mesh Metadata with Sidre
+
+Now, let's set up the Sidre groups and views to store the mesh metadata for a 2D Cartesian mesh. We'll create a root group called `"mesh"` and add two subgroups: `"bounding_box"` and `"resolution"`.
+
+```cpp
+#include "axom/sidre.hpp"
+
+void setup_mesh(axom::sidre::DataStore* datastore)
+{
+  // Create a root group for the mesh metadata
+  axom::sidre::Group* meshGroup = datastore.getRoot()->createGroup("mesh");
+
+  // Create bounding box groups and views
+  axom::sidre::Group* minGroup = meshGroup->createGroup("bounding_box/min");
+  minGroup->createViewScalar("x", input.min_x);
+  minGroup->createViewScalar("y", input.min_y);
+
+  axom::sidre::Group* maxGroup = meshGroup->createGroup("bounding_box/max");
+  maxGroup->createViewScalar("x", input.max_x);
+  maxGroup->createViewScalar("y", input.max_y);
+
+  // Create resolution group and views
+  axom::sidre::Group* resGroup = meshGroup->createGroup("resolution");
+  resGroup->createViewScalar("x", input.res_x);
+  resGroup->createViewScalar("y", input.res_y);
+}
+```
+
+The hierarchy looks as follows:
+
+<figure style="text-align: center;">
+  <img src="hierarchy_diagram.svg" alt="Sidre Group and View Hierarchy" style="display: inline-block;" />
+  <figcaption>Figure: Sidre hierarchical structure showing the mesh metadata groups and views.</figcaption>
+</figure>
+
+
+> :clapper: You can try running this example code in the [mesh_metadata_sidre](https://github.com/LLNL/axom/tree/develop/examples/mesh_metadata_sidre) example provided in Axom's GitHub repository to see how Sidre manages mesh metadata in practice. This example allows you to enter the bounding box and resolution parameters.
+
+
