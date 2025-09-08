@@ -127,7 +127,12 @@ public:
     virtual void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
                                       axom::ArrayView<double> ovlap) = 0;
 
-    //!@brief Compute clip volumes for cell in an index list.
+    /*!
+      @brief Compute clip volumes for cell tets in an index list.
+
+      The tets are the results from decomposing a cell hex into
+      a fix number of tets and stored consecutively.
+    */
     virtual void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
                                           axom::ArrayView<double> ovlap) = 0;
 

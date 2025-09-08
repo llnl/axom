@@ -646,7 +646,10 @@ public:
   {
     AXOM_ANNOTATE_SCOPE("GeometryClipper::computeClipVolumes3D:limited");
 
+    using Point3DType = primal::Point<double, 3>;
     using BoundingBoxType = primal::BoundingBox<double, 3>;
+    using TetrahedronType = primal::Tetrahedron<double, 3>;
+    using OctahedronType = primal::Octahedron<double, 3>;
 
     ShapeeMesh& shapeeMesh = getDelegator().getShapeeMesh();
     auto meshTets = getShapeeMesh().getCellsAsTets();
@@ -658,8 +661,8 @@ public:
       getStrategy().name()));
 
     auto& strategy = getStrategy();
-    axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
-    axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
+    axom::Array<TetrahedronType> geomAsTets;
+    axom::Array<OctahedronType> geomAsOcts;
     const bool useOcts = strategy.getGeometryAsOcts(shapeeMesh, geomAsOcts);
     const bool useTets = strategy.getGeometryAsTets(shapeeMesh, geomAsTets);
     SLIC_ASSERT(useOcts || geomAsOcts.empty());
@@ -712,7 +715,7 @@ public:
     // containing only those listed in tetIndices.
     const axom::IndexType tetCount = tetIndices.size();
     axom::Array<BoundingBoxType> tetBbs(tetCount, tetCount, allocId);
-    auto tetBbsView = tetBbs.view();
+    axom::ArrayView<BoundingBoxType> tetBbsView = tetBbs.view();
     axom::for_all<ExecSpace>(tetCount,
                              AXOM_LAMBDA(axom::IndexType i) {
                                auto& tetBb = tetBbsView[i];
@@ -723,15 +726,17 @@ public:
                                });
 
 
-    axom::Array<IndexType> offsets(tetCount, tetCount, allocId);
     axom::Array<IndexType> counts(tetCount, tetCount, allocId);
-    axom::Array<IndexType> candidates;
-    AXOM_ANNOTATE_BEGIN("bvh.findBoundingBoxes");
-    bvh.findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
-    AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
-    auto offsetsView = offsets.view();
+    axom::Array<IndexType> offsets(tetCount, tetCount, allocId);
+
     auto countsView = counts.view();
+    auto offsetsView = offsets.view();
+
+    AXOM_ANNOTATE_BEGIN("bvh.findBoundingBoxes");
+    axom::Array<IndexType> candidates;
+    bvh.findBoundingBoxes(offsets, counts, candidates, tetBbsView.size(), tetBbsView);
     auto candidatesView = candidates.view();
+    AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
 
     axom::Array<IndexType> candToTetIdId(candidates.size(), candidates.size(), allocId);
     auto candToTetIdIdView = candToTetIdId.view();
@@ -757,7 +762,7 @@ public:
         candidates.size(),
         AXOM_LAMBDA(axom::IndexType iCand) {
           auto pieceId = candidatesView[iCand];
-          const auto& geomPiece = geomTetsView[pieceId];
+          const axom::primal::Tetrahedron<double, 3>& geomPiece = geomTetsView[pieceId];
 
           auto tetIdId = candToTetIdIdView[iCand];
           auto tetId = tetIndices[tetIdId];
@@ -787,7 +792,7 @@ public:
         candidates.size(),
         AXOM_LAMBDA(axom::IndexType iCand) {
           auto pieceId = candidatesView[iCand];
-          const auto& geomPiece = geomOctsView[pieceId];
+          const axom::primal::Octahedron<double, 3>& geomPiece = geomOctsView[pieceId];
 
           auto tetIdId = candToTetIdIdView[iCand];
           auto tetId = tetIndices[tetIdId];

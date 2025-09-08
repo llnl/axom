@@ -339,6 +339,12 @@ void SphereClipper::labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
       cell is LABEL_IN.  This is true because geometry is convex.
     - If spheres intersect and not all vertices are inside,
       some parts of the cell may intersect boundary, so it's LABEL_ON.
+
+    TODO: It shouldn't be hard to compute the closest point
+    of a BoundingBox to another point.  It would be less
+    conservative than using the BoundingBox circumsphere.
+    Worth doing because too many tets are unnecessarily
+    labeled ON.
   */
 
   auto meshHexes = shapeeMesh.getCellsAsHexes();
