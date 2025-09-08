@@ -54,6 +54,33 @@ constexpr bool USE_SHARED_MEMORY = true;
 constexpr bool USE_SHARED_MEMORY = false;
 #endif
 
+// NOTE: This test can actually be built in serial so we provide parallel and
+//       serial versions of these functions.
+#ifdef AXOM_USE_UMPIRE_SHARED_MEMORY
+// Parallel versions
+int comm_rank(MPI_Comm comm)
+{
+  int rank = 0;
+  MPI_Comm_rank(comm, &rank);
+  return rank;
+}
+void barrier(MPI_Comm comm) { MPI_Barrier(comm); }
+void bcast_int(int& value, MPI_Comm comm) { MPI_Bcast(&value, 1, MPI_INT, 0, comm); }
+#else
+// Serial versions
+constexpr int MPI_COMM_WORLD = -1;
+
+int comm_rank(MPI_Comm comm) { return 0; }
+void barrier(MPI_Comm)
+{
+  // no-op
+}
+void bcast_int(int&)
+{
+  // no-op
+}
+#endif
+
 /*!
  * \brief Generate a mesh of 4 triangles along the XY plane.
  *
@@ -65,8 +92,7 @@ constexpr bool USE_SHARED_MEMORY = false;
  */
 void generate_planar_mesh_stl_file(const std::string& file, MPI_Comm comm = MPI_COMM_SELF)
 {
-  int rank = 0;
-  MPI_Comm_rank(comm, &rank);
+  int rank = comm_rank(comm);
   if(rank == 0)
   {
     EXPECT_FALSE(file.empty());
@@ -115,7 +141,7 @@ void generate_planar_mesh_stl_file(const std::string& file, MPI_Comm comm = MPI_
     ofs << "endsolid" << std::endl;
     ofs.close();
   }
-  MPI_Barrier(comm);
+  barrier(comm);
 }
 
 /*!
@@ -129,8 +155,7 @@ void generate_planar_mesh_stl_file(const std::string& file, MPI_Comm comm = MPI_
  */
 void generate_stl_file(const std::string& file, MPI_Comm comm = MPI_COMM_SELF)
 {
-  int rank = 0;
-  MPI_Comm_rank(comm, &rank);
+  int rank = comm_rank(comm);
   if(rank == 0)
   {
     EXPECT_FALSE(file.empty());
@@ -150,7 +175,7 @@ void generate_stl_file(const std::string& file, MPI_Comm comm = MPI_COMM_SELF)
 
     ofs.close();
   }
-  MPI_Barrier(comm);
+  barrier(comm);
 }
 
 /*!
@@ -163,14 +188,14 @@ void generate_stl_file(const std::string& file, MPI_Comm comm = MPI_COMM_SELF)
  */
 int removeFile(const std::string& fileName, MPI_Comm comm = MPI_COMM_WORLD)
 {
-  int rank = 0, retval = 0;
-  MPI_Comm_rank(comm, &rank);
-  MPI_Barrier(comm);
+  int retval = 0;
+  int rank = comm_rank(comm);
+  barrier(comm);
   if(rank == 0)
   {
     retval = axom::utilities::filesystem::removeFile(fileName);
   }
-  MPI_Bcast(&retval, 1, MPI_INT, 0, comm);
+  bcast_int(retval, comm);
   return retval;
 }
 
@@ -453,8 +478,7 @@ TEST(quest_signed_distance_interface, analytic_plane)
   // Serial test - called independently on each rank. In order to avoid problems
   //               writing/reading the STL file, we pass a unique name for each
   //               rank.
-  int rank = 0;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  int rank = comm_rank(MPI_COMM_WORLD);
   check_analytic_plane(axom::fmt::format("plane{}.stl", rank));
 
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
