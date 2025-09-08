@@ -1,4 +1,6 @@
 #include "axom/config.hpp"
+#include "axom/core.hpp"
+#include "axom/primal.hpp"
 #include "axom/inlet.hpp"
 #include "axom/sidre.hpp"
 #include "axom/fmt.hpp"
@@ -59,13 +61,33 @@ struct MeshMetadata
 {
   struct BoundingBox
   {
-    std::vector<double> min;
-    std::vector<double> max;
+    axom::Array<double> min;
+    axom::Array<double> max;
   };
 
   int dim;
   BoundingBox bounding_box;
-  std::vector<int> resolution;
+  axom::Array<int> resolution;
+
+  // Convert MeshMetadata to axom::primal::BoundingBox
+  template <int DIM>
+  axom::primal::BoundingBox<double, DIM> getBoundingBox() const
+  {
+    static_assert(DIM == 2 || DIM == 3, "Invalid dimension");
+    SLIC_ASSERT_MSG(DIM == dim, "Template dimension must match MeshMetadata dimension");
+
+    if constexpr(DIM == 2)
+    {
+      return axom::primal::BoundingBox<double, DIM>({bounding_box.min[0], bounding_box.min[1]},
+                                                    {bounding_box.max[0], bounding_box.max[1]});
+    }
+    else  // DIM == 3
+    {
+      return axom::primal::BoundingBox<double, DIM>(
+        {bounding_box.min[0], bounding_box.min[1], bounding_box.min[2]},
+        {bounding_box.max[0], bounding_box.max[1], bounding_box.max[2]});
+    }
+  }
 
   // Define schema for MeshMetadata with validation
   static void defineSchema(inlet::Container& mesh_schema)
@@ -73,7 +95,7 @@ struct MeshMetadata
     // Add dimension (either 2 or 3)
     mesh_schema.addInt("dim", "Dimension (2 or 3)").required().range(2, 3);
 
-    // setup bounding box info. min values must be less than max values.
+    // set up bounding box info. min values must be less than max values.
     auto& bb = mesh_schema.addStruct("bounding_box", "Mesh bounding box").required();
 
     auto& min = bb.addStruct("min", "Minimum coordinates").required();
@@ -190,33 +212,15 @@ struct FromInlet<MeshMetadata>
 
 void print_metadata(const MeshMetadata& metadata)
 {
-  fmt::print("Dimension: {}\n", metadata.dim);
-
-  if(metadata.dim == 2)
-  {
-    fmt::print("Bounding Box Min: ({}, {})\n",
-               metadata.bounding_box.min[0],
-               metadata.bounding_box.min[1]);
-    fmt::print("Bounding Box Max: ({}, {})\n",
-               metadata.bounding_box.max[0],
-               metadata.bounding_box.max[1]);
-    fmt::print("Resolution: ({}, {})\n", metadata.resolution[0], metadata.resolution[1]);
-  }
-  else
-  {
-    fmt::print("Bounding Box Min: ({}, {}, {})\n",
-               metadata.bounding_box.min[0],
-               metadata.bounding_box.min[1],
-               metadata.bounding_box.min[2]);
-    fmt::print("Bounding Box Max: ({}, {}, {})\n",
-               metadata.bounding_box.max[0],
-               metadata.bounding_box.max[1],
-               metadata.bounding_box.max[2]);
-    fmt::print("Resolution: ({}, {}, {})\n",
-               metadata.resolution[0],
-               metadata.resolution[1],
-               metadata.resolution[2]);
-  }
+  SLIC_INFO(
+    axom::fmt::format("Parsed mesh metadata:"
+                      "\n  - dimension: {}"
+                      "\n  - bounding Box: {}"
+                      "\n  - resolution: {}",
+                      metadata.dim,
+                      metadata.dim == 2 ? axom::fmt::format("{}", metadata.getBoundingBox<2>())
+                                        : axom::fmt::format("{}", metadata.getBoundingBox<3>()),
+                      metadata.resolution));
 }
 
 int main(int argc, char** argv)
