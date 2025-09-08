@@ -94,7 +94,7 @@ static void create_communicators(MPI_Comm global_comm,
  *  all the ranks within the same compute node.
  *
  * \param [in] allocatorID A valid Umpire allocator id that can allocate shared memory.
- * \param [in] mesh_metada tuple with the number of nodes/faces on the mesh
+ * \param [in] mesh_metadata tuple with the number of nodes/faces on the mesh
  * \param [out] x pointer into the buffer where the x--coordinates are stored.
  * \param [out] y pointer into the buffer where the y--coordinates are stored.
  * \param [out] z pointer into the buffer where the z--coordinates are stored.
