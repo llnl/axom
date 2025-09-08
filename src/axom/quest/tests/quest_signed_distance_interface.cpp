@@ -75,7 +75,7 @@ void barrier(MPI_Comm)
 {
   // no-op
 }
-void bcast_int(int&)
+void bcast_int(int&, MPI_Comm)
 {
   // no-op
 }
