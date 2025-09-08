@@ -135,9 +135,9 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
   // STEP 0: read the STL mesh
   int rc = INIT_FAILED;
 
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
   if(Parameters.use_shared_memory)
   {
-#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
     if(s_allocator_id == INVALID_ALLOCATOR_ID)
     {
       // Make a shared memory allocator if we have not made it before. We'll reuse
@@ -160,10 +160,9 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
     rc = internal::read_stl_mesh(file, s_surface_mesh, comm);
   }
 #else
+  SLIC_WARNING_IF(Parameters.use_shared_memory, s_shared_memory_requirements);
 
-    SLIC_WARNING_IF(Parameters.use_shared_memory, s_shared_memory_requirements);
-
-    rc = internal::read_stl_mesh(file, s_surface_mesh, comm);
+  rc = internal::read_stl_mesh(file, s_surface_mesh, comm);
 #endif
 
   if(rc != 0)
