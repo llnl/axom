@@ -45,54 +45,68 @@ struct braid2d_mat_test
                    const std::string &mattype,
                    const std::string &name,
                    bool selectedZones = false,
-                   bool pointMesh = false)
+                   bool pointMesh = false,
+                   int nDomains = 1)
   {
-    // Create the data
+    // Create the data (1+ domains)
     conduit::Node hostMesh, deviceMesh;
-    initialize(type, mattype, hostMesh);
-    utils::copy<ExecSpace>(deviceMesh, hostMesh);
-    TestApp.saveVisualization(name + "_orig", hostMesh);
-
-    // _elvira_mir_start
-    namespace views = axom::bump::views;
-    // Make views.
-    auto coordsetView = views::make_uniform_coordset<2>::view(deviceMesh["coordsets/coords"]);
-    auto topologyView = views::make_uniform_topology<2>::view(deviceMesh["topologies/mesh"]);
-    using CoordsetView = decltype(coordsetView);
-    using TopologyView = decltype(topologyView);
-    using IndexingPolicy = typename TopologyView::IndexingPolicy;
-
-    conduit::Node deviceMIRMesh;
-    if(mattype == "unibuffer")
+    for(int dom = 0; dom < nDomains; dom++)
     {
-      auto matsetView =
-        views::make_unibuffer_matset<int, float, 3>::view(deviceMesh["matsets/mat"]);
-      using MatsetView = decltype(matsetView);
+      const std::string domainName = axom::fmt::format("domain_{:07}", dom);
+      conduit::Node &hostDomain = (nDomains > 1) ? hostMesh[domainName] : hostMesh;
 
-      using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
-      MIR m(topologyView, coordsetView, matsetView);
-      conduit::Node options;
-      options["matset"] = "mat";
-      options["plane"] = 1;
-      options["pointmesh"] = pointMesh ? 1 : 0;
-
-      if(selectedZones)
-      {
-        selectZones(options);
-      }
-      m.execute(deviceMesh, options, deviceMIRMesh);
+      initialize(type, mattype, hostDomain);
+      TestApp.saveVisualization(name + "_orig", hostDomain);
     }
-    // _elvira_mir_end
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
-    // device->host
-    conduit::Node hostMIRMesh;
-    utils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
+    // Do MIR on all domains.
+    for(int dom = 0; dom < nDomains; dom++)
+    {
+      const std::string domainName = axom::fmt::format("domain_{:07}", dom);
+      conduit::Node &deviceDomain = (nDomains > 1) ? deviceMesh[domainName] : deviceMesh;
 
-    TestApp.saveVisualization(name, hostMIRMesh);
+      // _elvira_mir_start
+      namespace views = axom::bump::views;
+      // Make views.
+      auto coordsetView = views::make_uniform_coordset<2>::view(deviceDomain["coordsets/coords"]);
+      auto topologyView = views::make_uniform_topology<2>::view(deviceDomain["topologies/mesh"]);
+      using CoordsetView = decltype(coordsetView);
+      using TopologyView = decltype(topologyView);
+      using IndexingPolicy = typename TopologyView::IndexingPolicy;
 
-    // Handle baseline comparison.
-    constexpr double tolerance = 2.6e-06;
-    EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostMIRMesh, tolerance));
+      conduit::Node deviceMIRMesh;
+      if(mattype == "unibuffer")
+      {
+        auto matsetView =
+          views::make_unibuffer_matset<int, float, 3>::view(deviceDomain["matsets/mat"]);
+        using MatsetView = decltype(matsetView);
+
+        using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
+        MIR m(topologyView, coordsetView, matsetView);
+        conduit::Node options;
+        options["matset"] = "mat";
+        options["plane"] = 1;
+        options["pointmesh"] = pointMesh ? 1 : 0;
+
+        if(selectedZones)
+        {
+          selectZones(options);
+        }
+        m.execute(deviceDomain, options, deviceMIRMesh);
+      }
+      // _elvira_mir_end
+
+      // device->host
+      conduit::Node hostMIRMesh;
+      utils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
+
+      TestApp.saveVisualization(name, hostMIRMesh);
+
+      // Handle baseline comparison.
+      constexpr double tolerance = 2.6e-06;
+      EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostMIRMesh, tolerance));
+    }
   }
 
   /// Function to run a simple kernel. This is a workaround for HIP tests, which
@@ -135,6 +149,14 @@ TEST(mir_elvira, elvira_uniform_unibuffer_seq)
                                    "elvira_uniform_unibuffer",
                                    selectZones,
                                    pointMesh);
+  // Run 2 domain example
+  const int nDomains = 2;
+  braid2d_mat_test<seq_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer",
+                                   selectZones,
+                                   pointMesh,
+                                   nDomains);
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_seq)
@@ -184,6 +206,14 @@ TEST(mir_elvira, elvira_uniform_unibuffer_omp)
                                    "elvira_uniform_unibuffer",
                                    selectZones,
                                    pointMesh);
+  // Run 2 domain example
+  const int nDomains = 2;
+  braid2d_mat_test<omp_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer",
+                                   selectZones,
+                                   pointMesh,
+                                   nDomains);
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_omp)
@@ -234,6 +264,14 @@ TEST(mir_elvira, elvira_uniform_unibuffer_cuda)
                                     "elvira_uniform_unibuffer",
                                     selectZones,
                                     pointMesh);
+  // Run 2 domain example
+  const int nDomains = 2;
+  braid2d_mat_test<cuda_exec>::test("uniform",
+                                    "unibuffer",
+                                    "elvira_uniform_unibuffer",
+                                    selectZones,
+                                    pointMesh,
+                                    nDomains);
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_cuda)
@@ -284,6 +322,14 @@ TEST(mir_elvira, elvira_uniform_unibuffer_hip)
                                    "elvira_uniform_unibuffer",
                                    selectZones,
                                    pointMesh);
+  // Run 2 domain example
+  const int nDomains = 2;
+  braid2d_mat_test<hip_exec>::test("uniform",
+                                   "unibuffer",
+                                   "elvira_uniform_unibuffer",
+                                   selectZones,
+                                   pointMesh,
+                                   nDomains);
 }
 
 TEST(mir_elvira, elvira_uniform_unibuffer_sel_hip)

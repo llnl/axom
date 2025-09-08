@@ -307,6 +307,10 @@ from a *cpp* file that describes C++ functions and their interfaces.
 
 Please refer to the `nanobind documentation <https://nanobind.readthedocs.io/en/latest/>`_ for more information.
 
+The python interpreter can be launched with Axom extension(s) in the PYTHONPATH
+by running the convenience script::
+
+  ./bin/run_python_with_axom.sh <optional .py to run>
 
 .. note:: The Python interface requires Axom to be configured with nanobind
           to build and use the interface. This requirement is different from shroud,
