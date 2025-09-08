@@ -103,7 +103,29 @@ install(
         examples/axom/shaping_tutorial
 )
 
-foreach(_lesson lesson_01)
+foreach(_lesson lesson_00 lesson_01 lesson_02)
     install(DIRECTORY shaping_tutorial/${_lesson}
             DESTINATION examples/axom/shaping_tutorial)
 endforeach()
+
+set(AXOM_BUILD_TUTORIALS ON)
+if(AXOM_BUILD_TUTORIALS)
+    set(shaping_tutorial_deps axom fmt cli11)
+    blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::openmp IF ENABLE_OPENMP)
+    blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::cuda IF ENABLE_CUDA)
+    blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::hip IF ENABLE_HIP)
+
+    foreach(lesson_and_file lesson_01:mesh_metadata_sidre.cpp 
+                            lesson_02:validated_inlet_metadata.cpp)
+        string(REPLACE ":" ";" _parts "${lesson_and_file}")
+        list(GET _parts 0 _lesson)
+        list(GET _parts 1 _file_with_ext)
+        get_filename_component( _file_no_ext ${_file_with_ext} NAME_WE )
+
+        blt_add_executable(NAME       shaping_tutorial_${_lesson}_${_file_no_ext}
+                           SOURCES    shaping_tutorial/${_lesson}/${_file_with_ext}
+                           DEPENDS_ON ${shaping_tutorial_deps})
+
+    endforeach()
+    
+endif()

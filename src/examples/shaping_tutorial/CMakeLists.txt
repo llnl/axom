@@ -61,6 +61,11 @@ blt_add_executable(NAME       lesson_01_mesh_metadata_sidre
                    DEPENDS_ON ${tutorial_deps})
 
 
+blt_add_executable(NAME       lesson_02_validated_inlet_metadata
+                   SOURCES    lesson_02/validated_inlet_metadata.cpp
+                   DEPENDS_ON ${tutorial_deps})
+
+
 #------------------------------------------------------------------------------
 # Optionally, print out information about imported targets
 #------------------------------------------------------------------------------
