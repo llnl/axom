@@ -56,7 +56,7 @@ constexpr bool USE_SHARED_MEMORY = false;
 
 // NOTE: This test can actually be built in serial so we provide parallel and
 //       serial versions of these functions.
-#ifdef AXOM_USE_UMPIRE_SHARED_MEMORY
+#if defined(AXOM_USE_MPI)
 // Parallel versions
 int comm_rank(MPI_Comm comm)
 {
