@@ -40,8 +40,8 @@ namespace internal
 /// Mesh I/O methods
 
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
-/*
- * Deallocates the specified MPI communicator object.
+/*!
+ * \brief Deallocates the specified MPI communicator object.
  */
 static void mpi_comm_free(MPI_Comm* comm)
 {
@@ -51,9 +51,56 @@ static void mpi_comm_free(MPI_Comm* comm)
   }
 }
 
-/*
- * Creates inter-node and intra-node communicators from the given global
- * MPI communicator handle.
+/*!
+ * \brief Reads the mesh on rank 0 and exchanges the mesh metadata, i.e., the
+ *        number of nodes and faces with all other ranks.
+ *
+ * \param [in] global_rank_id MPI rank w.r.t. the global communicator
+ * \param [in] global_comm handle to the global communicator
+ * \param [in,out] reader the corresponding STL reader
+ * \param [out] mesh_metadata an array consisting of the mesh metadata.
+ *
+ * \note This method calls read() on the reader on rank 0.
+ *
+ * \pre global_comm != MPI_COMM_NULL
+ * \pre mesh_metadata != nullptr
+ */
+static int read_and_exchange_mesh_metadata(int global_rank_id,
+                                           MPI_Comm global_comm,
+                                           quest::STLReader& reader,
+                                           axom::IndexType mesh_metadata[2])
+{
+  constexpr int NUM_NODES = 0;
+  constexpr int NUM_FACES = 1;
+  constexpr int ROOT_RANK = 0;
+
+  switch(global_rank_id)
+  {
+  case 0:
+    if(reader.read() == READ_SUCCESS)
+    {
+      mesh_metadata[NUM_NODES] = reader.getNumNodes();
+      mesh_metadata[NUM_FACES] = reader.getNumFaces();
+    }
+    else
+    {
+      SLIC_WARNING("reading STL file failed, setting mesh to NULL");
+      mesh_metadata[NUM_NODES] = READ_FAILED;
+      mesh_metadata[NUM_FACES] = READ_FAILED;
+    }
+    MPI_Bcast(mesh_metadata, 2, axom::mpi_traits<axom::IndexType>::type, ROOT_RANK, global_comm);
+    break;
+  default:
+    MPI_Bcast(mesh_metadata, 2, axom::mpi_traits<axom::IndexType>::type, ROOT_RANK, global_comm);
+  }
+
+  int rc = (mesh_metadata[NUM_NODES] == READ_FAILED) ? READ_FAILED : READ_SUCCESS;
+  return rc;
+}
+
+/*!
+ * \brief Creates inter-node and intra-node communicators from the given global
+ *        MPI communicator handle.
  */
 static void create_communicators(MPI_Comm global_comm,
                                  MPI_Comm& intra_node_comm,
@@ -146,53 +193,6 @@ static size_t allocate_shared_buffer(int allocatorID,
   return (bytesize);
 }
 
-/*!
- * \brief Reads the mesh on rank 0 and exchanges the mesh metadata, i.e., the
- *  number of nodes and faces with all other ranks.
- *
- * \param [in] global_rank_id MPI rank w.r.t. the global communicator
- * \param [in] global_comm handle to the global communicator
- * \param [in,out] reader the corresponding STL reader
- * \param [out] mesh_metadata an array consisting of the mesh metadata.
- *
- * \note This method calls read() on the reader on rank 0.
- *
- * \pre global_comm != MPI_COMM_NULL
- * \pre mesh_metadata != nullptr
- */
-static int read_and_exchange_mesh_metadata(int global_rank_id,
-                                           MPI_Comm global_comm,
-                                           quest::STLReader& reader,
-                                           axom::IndexType mesh_metadata[2])
-{
-  constexpr int NUM_NODES = 0;
-  constexpr int NUM_FACES = 1;
-  constexpr int ROOT_RANK = 0;
-
-  switch(global_rank_id)
-  {
-  case 0:
-    if(reader.read() == READ_SUCCESS)
-    {
-      mesh_metadata[NUM_NODES] = reader.getNumNodes();
-      mesh_metadata[NUM_FACES] = reader.getNumFaces();
-    }
-    else
-    {
-      SLIC_WARNING("reading STL file failed, setting mesh to NULL");
-      mesh_metadata[NUM_NODES] = READ_FAILED;
-      mesh_metadata[NUM_FACES] = READ_FAILED;
-    }
-    MPI_Bcast(mesh_metadata, 2, axom::mpi_traits<axom::IndexType>::type, ROOT_RANK, global_comm);
-    break;
-  default:
-    MPI_Bcast(mesh_metadata, 2, axom::mpi_traits<axom::IndexType>::type, ROOT_RANK, global_comm);
-  }
-
-  int rc = (mesh_metadata[NUM_NODES] == READ_FAILED) ? READ_FAILED : READ_SUCCESS;
-  return rc;
-}
-
 /*
  * Reads in the surface mesh from the specified file into a shared
  * memory buffer that is attached to the given MPI shared window.
@@ -222,7 +222,7 @@ int read_stl_mesh_shared(const std::string& file,
     return READ_FAILED;
   }
 
-  // STEP 1: Create communicators
+  // STEP 1: Create intra-node and inter-node MPI communicators
   int global_rank_id = -1;
   int local_rank_id = -1;
   int intercom_rank_id = -1;
