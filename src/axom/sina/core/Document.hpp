@@ -272,7 +272,6 @@ inline std::string getSinaFileFormatVersion()
     std::to_string(SINA_FILE_FORMAT_VERSION_MINOR);
 }
 
-// just need to get something working...
 void restoreSlashes(const conduit::Node &modifiedNode, conduit::Node &restoredNode);
 
 /**
@@ -368,7 +367,8 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
                                      const std::string &endpoint,
                                      const int mergeProtocol,
                                      int record_num,
-                                     const std::string &original_file_path="");  // default'd because it might go away
+                                     // default'd because it might go away with a conduit update
+                                     const std::string &original_file_path="");  
 
 }  // namespace sina
 }  // namespace axom

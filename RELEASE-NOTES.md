@@ -55,6 +55,10 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: We now support optional specification of a per-shape `dimensions` field for the 
   geometry of a shape. These can be used to override the global `dimensions` 
   of a Klee input file.
+- Sina: Records can now be provided with a curve ordering to use when writing to file. By default, all records will now use
+  oldest-first ordering (ULTRA-like)
+- Sina: Documents can optionally be written as HDF5 instead of JSON. HDF5 should provide better performance for large, curve-rich sets
+- Sina: Written documents can now be appended to. This is a flexible system with a few different uses, ex: continuous writing of timeseries, overwriting values that change over the course of a simulation, and snapshot handling. See documentation for details.
 
 ###  Changed
 - Axom now requires `C++17` and will default to that if not specified via `BLT_CXX_STD`.

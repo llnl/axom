@@ -275,55 +275,6 @@ std::string long_json = R"(
 }
 )";
 
-// String of a new Doc to use for appending
-std::string new_data =
-  "{\"records\": ["
-  "   {"
-  "       \"type\": \"foo1\","
-  "       \"id\": \"bar1\","
-  "       \"data\": {\"scal1\": {\"value\": \"goodbye!\"}, \"scal2\": {\"value\": \"goodbye!\"}},"
-  "       \"user_defined\":{\"hello\": \"goodbye\"},"
-  "       \"curve_sets\": {"
-  "           \"1\": {"
-  "               \"dependent\": {"
-  "                   \"0\": {\"value\": [1, 1]},"
-  "                   \"1\": {\"value\": [8, 9]}"
-  "               },"
-  "               \"independent\": {"
-  "                   \"0\": {\"value\": [4, 5]},"
-  "                   \"1\": {\"value\": [7, 9]}"
-  "               }"
-  "           },"
-  "           \"2\": {"
-  "               \"dependent\": {"
-  "                   \"0\": {\"value\": [1, 1]},"
-  "                   \"1\": {\"value\": [10, 10]}"
-  "               },"
-  "               \"independent\": {"
-  "                   \"0\": {\"value\": [4, 4]},"
-  "                   \"1\": {\"value\": [7, 7]}"
-  "               }"
-  "           }"
-  "       }"
-  "   },"
-  "   {"
-  "       \"type\": \"foo2\","
-  "       \"id\": \"bar3\","
-  "       \"curve_sets\": {"
-  "           \"1\": {"
-  "               \"dependent\": {"
-  "                   \"0\": {\"value\": [1, 1]},"
-  "                   \"1\": {\"value\": [10, 10]}"
-  "               },"
-  "               \"independent\": {"
-  "                   \"0\": {\"value\": [4, 4]},"
-  "                   \"1\": {\"value\": [7, 7]}"
-  "               }"
-  "           }"
-  "       }"
-  "   }"
-  "]}";
-
 // Helper function to convert Conduit Node array to std::vector<double> for HDF5 assertion
 std::vector<double> node_to_double_vector(const conduit::Node &node)
 {
