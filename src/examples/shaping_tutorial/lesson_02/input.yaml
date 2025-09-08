@@ -1,4 +1,5 @@
 mesh:
+  dim: 2
   bounding_box:
     min:
       x: 1.1

@@ -116,7 +116,8 @@ if(AXOM_BUILD_TUTORIALS)
     blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::hip IF ENABLE_HIP)
 
     foreach(lesson_and_file lesson_01:mesh_metadata_sidre.cpp 
-                            lesson_02:validated_inlet_metadata.cpp)
+                            lesson_02:validated_inlet_metadata.cpp
+                            lesson_02:improved_inlet_metadata.cpp)
         string(REPLACE ":" ";" _parts "${lesson_and_file}")
         list(GET _parts 0 _lesson)
         list(GET _parts 1 _file_with_ext)
