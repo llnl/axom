@@ -219,7 +219,7 @@ private:
    */
   IndexType getNextValidAttrValueIndex(IndexType idx) const;
 
-  //@{
+  ///@{
   //!  @name Private AttrValues ctor and dtor
   //!        (callable only by DataStore methods).
 
@@ -228,20 +228,15 @@ private:
    */
   AttrValues();
 
-  /*!
-   * \brief Private copy ctor.
-   */
+  /// \brief Private copy ctor.
   AttrValues(const AttrValues& source);
 
-  /*!
-   * \brief Private dtor.
-   */
+  /// \brief Private dtor.
   ~AttrValues();
 
-  //@}
+  ///@}
 
   ///////////////////////////////////////////////////////////////////
-  //
   using Values = std::vector<Node>;
   ///////////////////////////////////////////////////////////////////
 

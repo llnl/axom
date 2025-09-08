@@ -173,7 +173,7 @@ PolygonType showClip()
 
     "// bounding box\n"
     "draw(box({5}, {6}));\n",
-    axom::fmt::format(asyheader, fname, ifname),
+    axom::fmt::format(axom::fmt::runtime(asyheader), fname, ifname),
     polygon,
     printPoint(tri[0]),
     printPoint(tri[1]),
@@ -254,7 +254,7 @@ void showClosestPoint()
     "dot(cpta, yellow);\n"
     "label(\"$a'$\", cpta, align=NE);\n"
     "draw(cpta--pcpta, dotted);\n",
-    axom::fmt::format(asyheader, fname, ifname),
+    axom::fmt::format(axom::fmt::runtime(asyheader), fname, ifname),
     printPoint(tri[0]),
     printPoint(tri[1]),
     printPoint(tri[2]),
@@ -351,7 +351,7 @@ void showBoundingBoxes()
     "     ^^ obpts[0]--obpts[4] ^^ obpts[1]--obpts[5]\n"
     "     ^^ obpts[2]--obpts[6] ^^ obpts[3]--obpts[7];\n"
     "draw(obboxpath, orange);\n\n",
-    axom::fmt::format(asyheader, fname, ifname),
+    axom::fmt::format(axom::fmt::runtime(asyheader), fname, ifname),
     pointses,
     printPoint(bbox.getMin()),
     printPoint(bbox.getMax()),
@@ -486,7 +486,7 @@ void showIntersect()
     "  draw(tri1);\n  draw(tri2, blue);\n"
     "draw({15}--{16}, deepblue);\n"
     "draw({17}--{18}, dotted);\n",
-    axom::fmt::format(asyheader, fname, ifname),
+    axom::fmt::format(axom::fmt::runtime(asyheader), fname, ifname),
     printPoint(tri1[0]),
     printPoint(tri1[1]),
     printPoint(tri1[2]),
@@ -572,7 +572,7 @@ void showOrientation()
     "dot({6}, blue);\n"
     "label(\"$P$\", {6}, align=E);\n"
     "draw({6}--{7}, dotted);\n",
-    axom::fmt::format(asyheader, fname, ifname),
+    axom::fmt::format(axom::fmt::runtime(asyheader), fname, ifname),
     printPoint(tri[0]),
     printPoint(tri[1]),
     printPoint(tri[2]),
@@ -659,7 +659,7 @@ void showDistance()
     "draw({5}--{17}, dotted);\n"
     "draw({7}--{18}, dotted);\n"
     "draw(boxpt--{19}, dotted);\n",
-    axom::fmt::format(asyheader, fname, ifname),
+    axom::fmt::format(axom::fmt::runtime(asyheader), fname, ifname),
     printPoint(q),
     printPoint(boxpt),
     printPoint(p),

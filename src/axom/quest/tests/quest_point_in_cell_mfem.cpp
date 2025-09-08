@@ -678,19 +678,22 @@ public:
     case FLAT_MESH:
       feCollName = "Linear";
       meshDescSstr << "flat";
-      sstr << axom::fmt::format(m_lowOrderVertsStr, vertVal);
+      sstr << axom::fmt::format(axom::fmt::runtime(m_lowOrderVertsStr), vertVal);
       break;
     case QUADRATIC_MESH:
       feCollName = "Quadratic";
       meshDescSstr << "curved";
 
-      sstr << axom::fmt::format(m_highOrderNodesStr, vertVal, vertVal * std::sqrt(2.) / 2., feCollName);
+      sstr << axom::fmt::format(axom::fmt::runtime(m_highOrderNodesStr),
+                                vertVal,
+                                vertVal * std::sqrt(2.) / 2.,
+                                feCollName);
       break;
     case QUADRATIC_POS_MESH:
       feCollName = "QuadraticPos";
       meshDescSstr << "curved_pos";
 
-      sstr << axom::fmt::format(m_highOrderNodesStr,
+      sstr << axom::fmt::format(axom::fmt::runtime(m_highOrderNodesStr),
                                 vertVal,
                                 vertVal * (std::sqrt(2.) - 0.5),
                                 feCollName);
@@ -699,7 +702,7 @@ public:
       feCollName = "Quadratic";
       meshDescSstr << "c_shaped";
 
-      sstr << axom::fmt::format(m_CShapedNodesStr, feCollName);
+      sstr << axom::fmt::format(axom::fmt::runtime(m_CShapedNodesStr), feCollName);
       break;
     default:
       FAIL() << "Did not provide a valid MeshType.";
@@ -901,13 +904,13 @@ public:
     case FLAT_MESH:
       feCollName = "Linear";
       meshDescSstr << "flat";
-      sstr << axom::fmt::format(m_lowOrderVertsStr, vertVal);
+      sstr << axom::fmt::format(axom::fmt::runtime(m_lowOrderVertsStr), vertVal);
       break;
     case QUADRATIC_MESH:
       feCollName = "H1_3D_P2";  //"Quadratic";
       meshDescSstr << "curved";
 
-      sstr << axom::fmt::format(m_highOrderNodesStr,
+      sstr << axom::fmt::format(axom::fmt::runtime(m_highOrderNodesStr),
                                 vertVal,
                                 vertVal * std::sqrt(1.5),
                                 vertVal * std::sqrt(3.),

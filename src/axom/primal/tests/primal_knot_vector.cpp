@@ -17,11 +17,26 @@
 namespace primal = axom::primal;
 
 //------------------------------------------------------------------------------
+TEST(primal_knotvector, default_constructor)
+{
+  primal::KnotVector<double> kvector;
+
+  constexpr axom::IndexType zero {0};
+
+  EXPECT_EQ(-1, kvector.getDegree());
+  EXPECT_EQ(zero, kvector.getNumControlPoints());
+  EXPECT_EQ(zero, kvector.getNumKnots());
+  EXPECT_EQ(zero, kvector.getNumKnotSpans());
+  EXPECT_FALSE(kvector.isValid());
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_knotvector, degree_constructor)
 {
-  const int degree = 2;
-  const int npts = 5;
+  constexpr int degree = 2;
+  constexpr int npts = 5;
   primal::KnotVector<double> kvector(npts, degree);
+  EXPECT_TRUE(kvector.isValid());
 
   // Check size of knot vector
   EXPECT_EQ(degree, kvector.getDegree());
@@ -43,56 +58,59 @@ TEST(primal_knotvector, degree_constructor)
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_knotvector, array_constructor)
+TEST(primal_knotvector, array_constructors)
 {
-  const int degree = 2;
+  constexpr int degree = 2;
 
-  const int nkts = 9;
+  constexpr int nkts = 9;
   double knots[] = {0.0, 0.0, 0.0, 0.2, 0.5, 0.8, 1.0, 1.0, 1.0};
+  constexpr int npts = nkts - degree - 1;
+  constexpr int nspans = 4;
 
-  const int npts = nkts - degree - 1;
+  axom::Array<double> knot_arr;
+  knot_arr.assign(std::begin(knots), std::end(knots));
 
-  primal::KnotVector<double> kvector(knots, nkts, degree);
+  // lambda to check validity of KnotVector instances
+  auto check_knot_vector = [=](const primal::KnotVector<double>& kv) {
+    EXPECT_TRUE(kv.isValid());
 
-  // Check size of knot vector
-  EXPECT_EQ(degree, kvector.getDegree());
-  EXPECT_EQ(npts, kvector.getNumControlPoints());
-  EXPECT_EQ(npts + degree + 1, kvector.getNumKnots());
-  EXPECT_EQ(4, kvector.getNumKnotSpans());
+    // Check sizeof knot vector
+    EXPECT_EQ(degree, kv.getDegree());
+    EXPECT_EQ(npts, kv.getNumControlPoints());
+    EXPECT_EQ(npts + degree + 1, kv.getNumKnots());
+    EXPECT_EQ(nspans, kv.getNumKnotSpans());
 
-  EXPECT_TRUE(kvector.isValid());
+    // Check for array access
+    for(int i = 0; i < degree; ++i)
+    {
+      EXPECT_DOUBLE_EQ(kv[i], knots[i]);
+      EXPECT_DOUBLE_EQ(kv.getArray()[i], knots[i]);
+    }
+  };
 
-  // Check for array access
-  for(int i = 0; i < 9; ++i)
+  // test C-array constructor
   {
-    EXPECT_DOUBLE_EQ(kvector[i], knots[i]);
-    EXPECT_DOUBLE_EQ(kvector.getArray()[i], knots[i]);
+    primal::KnotVector<double> kvector(knots, nkts, degree);
+    check_knot_vector(kvector);
   }
-}
 
-//------------------------------------------------------------------------------
-TEST(primal_knotvector, axom_array_constructor)
-{
-  const int degree = 2;
-  axom::Array<double> knots {0.0, 0.0, 0.0, 0.2, 0.5, 0.8, 1.0, 1.0, 1.0};
-
-  const int npts = knots.size() - degree - 1;
-
-  primal::KnotVector<double> kvector(knots, degree);
-
-  // Check size of knot vector
-  EXPECT_EQ(degree, kvector.getDegree());
-  EXPECT_EQ(npts, kvector.getNumControlPoints());
-  EXPECT_EQ(npts + degree + 1, kvector.getNumKnots());
-  EXPECT_EQ(4, kvector.getNumKnotSpans());
-
-  EXPECT_TRUE(kvector.isValid());
-
-  // Check for array access
-  for(int i = 0; i < 9; ++i)
+  // test ArrayView from C-array constructor
   {
-    EXPECT_DOUBLE_EQ(kvector[i], knots[i]);
-    EXPECT_DOUBLE_EQ(kvector.getArray()[i], knots[i]);
+    axom::ArrayView<double> knots_v(knots, nkts);
+    primal::KnotVector<double> kvector(knots_v, degree);
+    check_knot_vector(kvector);
+  }
+
+  // test Array constructor
+  {
+    primal::KnotVector<double> kvector(knot_arr, degree);
+    check_knot_vector(kvector);
+  }
+
+  // test ArrayView from axom::Array
+  {
+    primal::KnotVector<double> kvector(knot_arr.view(), degree);
+    check_knot_vector(kvector);
   }
 }
 

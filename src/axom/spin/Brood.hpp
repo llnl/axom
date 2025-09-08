@@ -15,16 +15,13 @@ namespace spin
 {
 /**
  * \class
- * \brief Helper class to handle subindexing of block data within octree
- *  siblings
+ * \brief Helper class to handle subindexing of block data within octree siblings
  *
  * \note A brood is a collection of siblings that are generated simultaneously.
- * \note This class converts a grid point at the given level into a brood index
- *  of the point.
+ * \note This class converts a grid point at the given level into a brood index of the point.
  *
- * The base brood is the MortonIndex of the grid point's octree parent
- * and its offset index is obtained by interleaving the least significant
- * bit of its coordinates.
+ * The base brood is the MortonIndex of the grid point's octree parent and its offset index
+ *  is obtained by interleaving the least significant bit of its coordinates.
  */
 template <typename GridPt, typename MortonIndexType>
 struct Brood
@@ -59,8 +56,7 @@ struct Brood
   /** \brief Accessor for the offset of the point within the brood */
   const int& offset() const { return m_offset; }
 
-  /** \brief Reconstruct a grid point from a brood's Morton index and an offset
-   */
+  /// \brief Reconstruct a grid point from a brood's Morton index and an offset
   static GridPt reconstructGridPt(MortonIndexType morton, int offset)
   {
     return static_cast<GridPt>(
@@ -68,10 +64,8 @@ struct Brood
   }
 
 private:
-  MortonIndexType m_broodIdx; /** MortonIndex of the base point of all
-                                           blocks within the brood */
-  int m_offset;               /** Index of the block within the brood.
-                                           Value is in [0, 2^DIM) */
+  MortonIndexType m_broodIdx;  /// MortonIndex of the base point of all blocks within the brood
+  int m_offset;                /// Index of the block within the brood. Value is in [0, 2^DIM)
 };
 
 /**
@@ -98,18 +92,17 @@ struct Brood<GridPt, GridPt>
   {
     for(int i = 0; i < GridPt::DIMENSION; ++i)
     {
-      m_offset |= (pt[i] & 1) << i;  // interleave the least significant
-                                     // bits
+      m_offset |= (pt[i] & 1) << i;  // interleave the least significant bits
     }
   }
 
-  /** \brief Accessor for the base point of the entire brood */
+  /// \brief Accessor for the base point of the entire brood
   const GridPt& base() const { return m_broodPt; }
 
-  /** \brief Accessor for the index of the point within the brood */
+  /// \brief Accessor for the index of the point within the brood
   const int& offset() const { return m_offset; }
 
-  /** \brief Reconstruct a grid point from a brood's base point and an offset */
+  /// \brief Reconstruct a grid point from a brood's base point and an offset
   static GridPt reconstructGridPt(const GridPt& pt, int offset)
   {
     // shift and add offset to each coordinate
@@ -123,9 +116,8 @@ struct Brood<GridPt, GridPt>
   }
 
 private:
-  GridPt m_broodPt; /** Base point of all blocks within the brood */
-  int m_offset;     /** Index of the block within the brood. Value is in
-                              [0, 2^DIM) */
+  GridPt m_broodPt;  /// Base point of all blocks within the brood
+  int m_offset;      /// Index of the block within the brood. Value is in [0, 2^DIM)
 };
 
 }  // end namespace spin

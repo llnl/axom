@@ -66,7 +66,7 @@ public:
 
   virtual ~DiscreteShape() { clearInternalData(); }
 
-  //@{
+  ///@{
   //! @name Functions to get and set shaping parameters
 
   //! @brief Set prefix for shape files specified as relative path.
@@ -88,7 +88,7 @@ public:
   */
   void setPercentError(double percent);
 
-  //@}
+  ///@}
 
 #if defined(AXOM_USE_MPI)
   /**
@@ -145,14 +145,14 @@ private:
   //!@brief Prefix for disc files with relative path.
   std::string m_prefixPath;
 
-  //@{
+  ///@{
   //!@name Various parameters for discretization of analytical shapes.
   RefinementType m_refinementType;
   double m_percentError {MINIMUM_PERCENT_ERROR};
   int m_samplesPerKnotSpan {DEFAULT_SAMPLES_PER_KNOT_SPAN};
   double m_vertexWeldThreshold {DEFAULT_VERTEX_WELD_THRESHOLD};
   double m_revolvedVolume {0.0};
-  //@}
+  ///@}
 
 #if defined(AXOM_USE_MPI)
   MPI_Comm m_comm {MPI_COMM_WORLD};

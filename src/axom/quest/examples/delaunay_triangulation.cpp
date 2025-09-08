@@ -172,6 +172,7 @@ void run_delaunay(const Input& params)
   // Check that the Delaunay complex is valid
   SLIC_INFO("Checking validity of Delaunay complex and underlying mesh...");
   {
+    timer.reset();
     timer.start();
     dt.getMeshData()->isValid(true);
     dt.isValid(true);

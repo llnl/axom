@@ -1772,9 +1772,9 @@ public:
         int n1, n2, n3;
         triangle.Get(n1, n2, n3);
         axom::fmt::format_to(std::back_inserter(stlContent),
-                             triangleAsSTLString(triangulation->Node(n1),
-                                                 triangulation->Node(n2),
-                                                 triangulation->Node(n3)));
+                             axom::fmt::runtime(triangleAsSTLString(triangulation->Node(n1),
+                                                                    triangulation->Node(n2),
+                                                                    triangulation->Node(n3))));
       }
 
       axom::fmt::format_to(std::back_inserter(stlContent), "endsolid patch_{}\n", patchIndex);
@@ -1841,9 +1841,9 @@ public:
         triangle.Get(n1, n2, n3);
 
         axom::fmt::format_to(std::back_inserter(stlContent),
-                             triangleAsSTLString(triangulation->Node(n1),
-                                                 triangulation->Node(n2),
-                                                 triangulation->Node(n3)));
+                             axom::fmt::runtime(triangleAsSTLString(triangulation->Node(n1),
+                                                                    triangulation->Node(n2),
+                                                                    triangulation->Node(n3))));
       }
 
       axom::fmt::format_to(std::back_inserter(stlContent), "endsolid patch_{}\n", patchIndex);

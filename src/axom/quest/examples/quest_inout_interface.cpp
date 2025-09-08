@@ -288,6 +288,7 @@ int main(int argc, char** argv)
   // -- Run the queries (the z-coordinate is ignored for 2D queries)
   int numInside = 0;
   SLIC_INFO(axom::fmt::format("Querying mesh with {} query points...", nQueryPoints));
+  timer.reset();
   timer.start();
   for(auto& pt : queryPoints)
   {

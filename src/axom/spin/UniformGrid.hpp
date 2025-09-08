@@ -447,7 +447,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize_grid()
   StoragePolicy::setNumBins(numBins);
 
   // scale the bounding box by a little to account for boundaries
-  const double EPS = 1e-12;
+  constexpr double EPS = 1e-12;
   m_boundingBox.scale(1. + EPS);
 
   // set up the bounding box and lattice for point conversions
@@ -501,12 +501,11 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(axom::ArrayView
   // rectangular lattice and uniform grid storage.
   initialize_grid();
 
-  const IndexType numBins = getNumBins();
   // 1. Get number of elements to insert into each bin
+  const IndexType numBins = getNumBins();
   axom::Array<IndexType> binCounts(numBins, numBins, StoragePolicy::getAllocatorID());
-  // TODO: There's an error on operator[] if this isn't const and it only
-  // happens for GCC 8.1.0
-  const axom::ArrayView<IndexType> binCountsView = binCounts;
+  // TODO: There's an error on operator[] if this isn't const and it only happens for GCC 8.1.0
+  const axom::ArrayView<IndexType> binCountsView = binCounts.view();
 
   NumericArray<int, NDIMS> strides = m_strides;
   NumericArray<int, NDIMS> resolution = m_resolution;
@@ -515,9 +514,15 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(axom::ArrayView
   axom::for_all<ExecSpace>(
     bboxes.size(),
     AXOM_LAMBDA(IndexType idx) {
-      const BoxType bbox = bboxes[idx];
+      const BoxType& bbox = bboxes[idx];
+      if(!bbox.isValid())
+      {
+        return;
+      }
+
       const GridCell lowerCell = getClampedGridCell(lattice, resolution, bbox.getMin());
       const GridCell upperCell = getClampedGridCell(lattice, resolution, bbox.getMax());
+
       const int kLower = (NDIMS == 2) ? 0 : lowerCell[2];
       const int kUpper = (NDIMS == 2) ? 0 : upperCell[2];
       const int kStride = (NDIMS == 2) ? 1 : strides[2];
@@ -548,7 +553,12 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::initialize(axom::ArrayView
   axom::for_all<ExecSpace>(
     bboxes.size(),
     AXOM_LAMBDA(IndexType idx) {
-      const BoxType bbox = bboxes[idx];
+      const BoxType& bbox = bboxes[idx];
+      if(!bbox.isValid())
+      {
+        return;
+      }
+
       const GridCell lowerCell = getClampedGridCell(lattice, resolution, bbox.getMin());
       const GridCell upperCell = getClampedGridCell(lattice, resolution, bbox.getMax());
       const int kLower = (NDIMS == 2) ? 0 : lowerCell[2];
