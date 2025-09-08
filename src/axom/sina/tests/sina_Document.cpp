@@ -108,6 +108,42 @@ std::string SIMPLE_DOCUMENT = R"(
 }
 )";
 
+std::string CURVE_ORDERED_DOCUMENT = R"(
+{
+  "records": [
+    {
+      "type": "run",
+      "application": "test",
+      "local_id": "bar1",
+      "curve_sets": {
+        "set_1": {
+          "dependent": {
+            "i_am_first": {"value": [1.4, 2.6, 3.2]},
+            "must_be_second": {"value": [-1.4, -2.0, -3.7]},
+            "ordered_third": {"value": [70.0, 80.1125, 90.0]}
+          },
+          "independent": {
+            "time": {"value": [4, 5, 6]}
+          }
+        }
+      }
+    }
+  ],
+  "relationships": []
+}
+)";
+
+std::string CURVE_ORDERED_DOCUMENT_APPEND = R"(
+{
+  "records": [{
+      "type": "run",  "application": "test", "local_id": "bar1",
+      "curve_sets": {
+        "set_1": {
+          "dependent": {
+            "am_i_fourth": {"value": [-100.25, -110.18, -120.4]}
+    }}}}], "relationships": []}
+)";
+
 std::string MULTI_REC_DOCUMENT = R"(
 {
       "records": [
@@ -844,6 +880,44 @@ TEST(Document, test_appendDocumentToJson)
 TEST(Document, test_appendDocumentToHDF5)
 {
   doFullAppendTest("hdf5", appendDocumentToHDF5);
+}
+#endif
+
+// Making sure we respect curve order (Records are in charge of ordering their curves, not documents)
+void doAppendOrderedCurveTest(const std::string &protocol,
+                              std::function<conduit::Node(const std::string&, const sina::Document&, int, bool)> appendDocumentFunc)
+{
+  std::string curvedump_file = "test." + protocol;
+  axom::sina::Document ordered_curves = Document(CURVE_ORDERED_DOCUMENT, createRecordLoaderWithAllKnownTypes());
+  axom::sina::Document additional_curve = Document(CURVE_ORDERED_DOCUMENT_APPEND, createRecordLoaderWithAllKnownTypes());
+  Protocol enum_protocol = (protocol == "hdf5") ? Protocol::HDF5 : Protocol::JSON;
+  saveDocument(ordered_curves, curvedump_file, enum_protocol);
+  conduit::Node resultMsg = appendDocumentFunc(curvedump_file, additional_curve, 3, false);
+  EXPECT_EQ(resultMsg.number_of_children(), 0);
+  conduit::Node root;
+  conduit::relay::io::load(curvedump_file, root);
+  conduit::Node expected_dependents = parseJsonValue(CURVE_ORDERED_DOCUMENT)["records"].child(0)["curve_sets"]["set_1"]["dependent"];
+  conduit::Node actual_dependents = root["records"].child(0)["curve_sets"]["set_1"]["dependent"];
+  auto curveIter = actual_dependents.children();
+  for(int i=0; i<expected_dependents.number_of_children(); i++){
+    EXPECT_EQ(actual_dependents.child(i).name(), expected_dependents.child(i).name());
+    EXPECT_EQ(node_to_double_vector(actual_dependents.child(i)["value"]),
+              node_to_double_vector(expected_dependents.child(i)["value"])); 
+  }
+  EXPECT_EQ(actual_dependents.child(3).name(), "am_i_fourth");
+  std::vector<double> expected = { -100.25, -110.18, -120.4 };
+  EXPECT_EQ(node_to_double_vector(actual_dependents.child(3)["value"]), expected);
+}
+
+TEST(Document, test_appendOrderedCurvesToJson)
+{
+  doAppendOrderedCurveTest("json", appendDocumentToJson);
+}
+
+#ifdef AXOM_USE_HDF5
+TEST(Document, test_appendOrderedCurvesToHDF5)
+{
+  doAppendOrderedCurveTest("hdf5", appendDocumentToHDF5);
 }
 #endif
 
