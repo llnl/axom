@@ -139,7 +139,7 @@ public:
    * operators are applied
    * \param discreteFunction Discrete function describing the surface
    *        of revolution.
-   * \param sorOrigin Coordinates of the base of the SOR.
+   * \param sorOrigin Coordinates of (z=0, r=0) point of the SOR.
    * \param sorDirection SOR axis, in the direction of increasing z.
    * \param levelOfRefinement Number of refinement levels to use for
    *        discretizing the SOR.
@@ -216,9 +216,9 @@ public:
    *
    * \return the format of the shape
    *
-   * TODO: Depending on the specified geometry, some members are not
-   * used.  It may clarify if we make each supported geometry a
-   * subclass.
+   * TODO: Put all geometry-specific parameters in m_geomInfo, and
+   * deprecate geometry-specific interfaces, so new shapes can be added
+   * without modifying this code.
    */
   const std::string &getFormat() const { return m_format; }
 
@@ -243,25 +243,25 @@ public:
   const std::string &getBlueprintTopology() const;
 
   /**
-     @brief Return the SOR axis direction.
-  */
+   * @brief Return the SOR axis direction.
+   */
   const Vector3D getSorDirection() const { return m_sorDirection; }
 
   /**
-     @brief Return the 3D coordinates of the SOR base.
-  */
+   * @brief Return the 3D coordinates of the SOR base.
+   */
   const Point3D getSorBaseCoords() const { return m_sorOrigin; }
 
   /*! @brief Predicate that returns true when the shape has an associated geometry
-
-    A false means that this is set up to determine volume fractions without
-    computing on the geometry.
-
-    TODO: We should just create a new format to represent getting
-    volume fractions without geometries.  Or move this logic into
-    Shape, because it's confusing to have a Geometry that has no
-    geometry.
-  */
+   *
+   * A false means that this is set up to determine volume fractions without
+   * computing on the geometry.
+   *
+   * TODO: We should just create a new format to represent getting
+   * volume fractions without geometries.  Or move this logic into
+   * Shape, because it's confusing to have a Geometry that has no
+   * geometry.
+   */
   bool hasGeometry() const;
 
   /**
@@ -287,47 +287,47 @@ public:
   TransformableGeometryProperties getEndProperties() const;
 
   /**
-   @brief Return the number of levels of refinement for discretization
-   of analytical curves.
-
-   This number is unused for geometries that are specified in discrete
-   form.
-  */
+   * @brief Return the number of levels of refinement for discretization
+   * of analytical curves.
+   *
+   * This number is unused for geometries that are specified in discrete
+   * form.
+   */
   axom::IndexType getLevelOfRefinement() const { return m_levelOfRefinement; }
 
   /**
-   @brief Return the tet geometry, when the Geometry
-   represents a tetrahedron.
-  */
+   * @brief Return the tet geometry, when the Geometry
+   * represents a tetrahedron.
+   */
   const axom::primal::Tetrahedron<double, 3> &getTet() const { return m_tet; }
 
   /**
-   @brief Return the hex geometry, when the Geometry
-   represents a hexahedron.
-  */
+   * @brief Return the hex geometry, when the Geometry
+   * represents a hexahedron.
+   */
   const axom::primal::Hexahedron<double, 3> &getHex() const { return m_hex; }
 
   /**
-   @brief Return the sphere geometry, when the Geometry
-   represents an alalytical sphere.
-  */
+   * @brief Return the sphere geometry, when the Geometry
+   * represents an alalytical sphere.
+   */
   const axom::primal::Sphere<double, 3> &getSphere() const { return m_sphere; }
 
   /**
-   @brief Return the cone geometry, when the Geometry
-   represents an alalytical cone.
-  */
+   * @brief Return the cone geometry, when the Geometry
+   * represents an alalytical cone.
+   */
   const axom::primal::Cone<double, 3> &getCone() const { return m_cone; }
 
   /**
-   @brief Return the plane geometry, when the Geometry
-   represents a plane.
-  */
+   * @brief Return the plane geometry, when the Geometry
+   * represents a plane.
+   */
   const axom::primal::Plane<double, 3> &getPlane() const { return m_plane; }
 
   /**
-   @brief Get the discrete function used in surfaces of revolution.
-  */
+   * @brief Get the discrete function used in surfaces of revolution.
+   */
   axom::ArrayView<const double, 2> getDiscreteFunction() const { return m_discreteFunction.view(); }
 
 private:
@@ -366,7 +366,7 @@ private:
   //! @brief The discrete r(z) function, as an Nx2 array, if used.
   axom::Array<double, 2> m_discreteFunction;
 
-  //!@brief The point corresponding to z=0 on the SOR axis.
+  //!@brief The point corresponding to (z=0, r=0) on the SOR axis.
   Point3D m_sorOrigin;
 
   //!@brief SOR axis in the direction of increasing z.
@@ -379,12 +379,12 @@ private:
   std::shared_ptr<const GeometryOperator> m_operator;
 
   /*!
-    @brief Populate m_geomInfo with the geometry definition.
-
-    This helps transition away from geometry-specific constructors and
-    methods like @c getTet(), @c getHex() and @c getSphere() and
-    toward a uniform interface for providing geometry info.
-  */
+   * @brief Populate m_geomInfo with the geometry definition.
+   *
+   * This helps transition away from geometry-specific constructors and
+   * methods like @c getTet(), @c getHex() and @c getSphere() and
+   * toward a uniform interface for providing geometry info.
+   */
   void populateGeomInfo();
 };
 

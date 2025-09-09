@@ -16,17 +16,17 @@ namespace quest
 {
 
 /*!
-  @brief Geometry clipping operations for sphere geometries.
+ * @brief Geometry clipping operations for sphere geometries.
 */
 class HexClipper : public GeometryClipperStrategy
 {
 public:
   /*!
-    @brief Constructor.
+   * @brief Constructor.
 
-    @param [in] kGeom Describes the shape to place
-      into the mesh.
-    @param [in] name To override the default strategy name
+   * @param [in] kGeom Describes the shape to place
+   *   into the mesh.
+   * @param [in] name To override the default strategy name
   */
   HexClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
@@ -35,8 +35,8 @@ public:
   const std::string& name() const override { return m_name; }
 
   /*!
-    If a mesh cell has all vertices outside the geometry, it labeled outside.
-    This will miss cases where an edge of the cell passes through the geometry.
+   * If a mesh cell has all vertices outside the geometry, it labeled outside.
+   * This will miss cases where an edge of the cell passes through the geometry.
   */
   bool labelCellsInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 

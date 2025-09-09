@@ -71,21 +71,21 @@ bool TetMeshClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<
 
 #if 1
 /*
-  Alternative way:
-  - Put surface triangles in BVH.
-  - Create a bounding box and a ray for every hex.  The ray
-    originates from the bounding box center and points away from
-    the center of m_tetMeshBb.
-  - Use BVH::findBoundingBoxes and BVH::findRay to get surface
-    triangle near the bounding boxes and rays.  We won't need
-    both for most of the hexes, but it may be faster than building
-    index lists of where we need them.
-  - Loop through the hexes.
-    - If hex bb intersects any surface triangle bb, hex is ON.
-    - Else, the hex is either IN or OUT.  It can't possibly by ON.
-      Count number of surface triangles the hex's ray intersects.
-      use bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray)
-      If count is odd, hex is IN, if even, OUT.
+ * Alternative way:
+ * - Put surface triangles in BVH.
+ * - Create a bounding box and a ray for every hex.  The ray
+ *   originates from the bounding box center and points away from
+ *   the center of m_tetMeshBb.
+ * - Use BVH::findBoundingBoxes and BVH::findRay to get surface
+ *   triangle near the bounding boxes and rays.  We won't need
+ *   both for most of the hexes, but it may be faster than building
+ *   index lists of where we need them.
+ * - Loop through the hexes.
+ *   - If hex bb intersects any surface triangle bb, hex is ON.
+ *   - Else, the hex is either IN or OUT.  It can't possibly by ON.
+ *     Count number of surface triangles the hex's ray intersects.
+ *     use bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray)
+ *     If count is odd, hex is IN, if even, OUT.
 */
 template <typename ExecSpace>
 void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
@@ -108,7 +108,6 @@ void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Ar
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::compute_surface");
   axom::Array<Triangle3DType> surfTris = computeGeometrySurface(shapeeMesh.getRuntimePolicy(), allocId);
   AXOM_ANNOTATE_END("TetMeshClipper::compute_surface");
-// writeTrianglesToVTK(surfTris, "surfaceTris.vtk");
   auto surfTrisView = surfTris.view();
 
   /*
@@ -149,7 +148,7 @@ void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Ar
   AXOM_ANNOTATE_END("TetMeshClipper::make_rays");
 
   /*
-    Find candidate surface triangles near the cells' bounding boxes and rays.
+   * Find candidate surface triangles near the cells' bounding boxes and rays.
   */
   AXOM_ANNOTATE_BEGIN("TetMeshClipper::get_surf_near_bbs");
   axom::Array<IndexType> bbOffsets(cellCount, 0, allocId);
@@ -201,8 +200,8 @@ void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Ar
       }
 
       /*
-        At this point, the cell must be IN or OUT.  No need to account
-        for the possibility that it's ON.
+       * At this point, the cell must be IN or OUT.  No need to account
+       * for the possibility that it's ON.
       */
 
       {
@@ -221,10 +220,10 @@ void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Ar
           if (touches)
           {
             /*
-              Grazing contact requires more logic and computation to
-              determine if the ray crosses the boundary.  Label the
-              hex as ON the boundary and to the clipping computation
-              handle it this edge case.
+             * Grazing contact requires more logic and computation to
+             * determine if the ray crosses the boundary.  Label the
+             * hex as ON the boundary and to the clipping computation
+             * handle it this edge case.
             */
             contactPt.array() /= contactPt[0] + contactPt[1] + contactPt[2]; // Normalize
             bool grazing = axom::utilities::isNearlyEqual(contactPt[0], eps) ||
@@ -245,15 +244,15 @@ void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Ar
 }
 #else
 /*
-  This is an old version, kept around until performance evaluation
-  determines which is better.
+ * This is an old version, kept around until performance evaluation
+ * determines which is better.
 
-  1. Compute whether vertices are in or out of the tet mesh.
-  2. Determine whether cells are in, out or on the tet mesh
-     boundary.
-  Unlike the TetClipper, this doesn't check edge-tet intersections,
-  so it has errors.  These errors should shrink with mesh resolution.
-  If needed, we can implement edge-tet detection for TetMeshClipper.
+ * 1. Compute whether vertices are in or out of the tet mesh.
+ * 2. Determine whether cells are in, out or on the tet mesh
+ *    boundary.
+ * Unlike the TetClipper, this doesn't check edge-tet intersections,
+ * so it has errors.  These errors should shrink with mesh resolution.
+ * If needed, we can implement edge-tet detection for TetMeshClipper.
 */
 template <typename ExecSpace>
 void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
@@ -263,7 +262,7 @@ void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Ar
   auto vertCount = shapeeMesh.getVertexCount();
 
   /*
-    Tets (as bounding boxes) in BVH.
+   * Tets (as bounding boxes) in BVH.
   */
   axom::Array<BoundingBox3DType> tetsAsBbs(m_tets.size(), m_tets.size(), allocId);
   auto tetsAsBbsView = tetsAsBbs.view();
@@ -285,8 +284,8 @@ void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Ar
   bvh.initialize(tetsAsBbsView, tetsAsBbsView.size());
 
   /*
-    Compute whether vertices are inside tet mesh.
-    (Use BVH to narrow the search to nearby candidate tets.)
+   * Compute whether vertices are inside tet mesh.
+   * (Use BVH to narrow the search to nearby candidate tets.)
   */
   axom::Array<bool> vertIsInside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
   vertIsInside.fill(false);
@@ -325,8 +324,8 @@ void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Ar
 #endif
 
 /*
-  Label cell outside if no vertex is in the bounding box.
-  Otherwise, label it on boundary, because we don't know.
+ * Label cell outside if no vertex is in the bounding box.
+ * Otherwise, label it on boundary, because we don't know.
 */
 template <typename ExecSpace>
 void TetMeshClipper::vertexInsideToCellLabel(
@@ -379,9 +378,9 @@ void TetMeshClipper::computeTets()
   m_tets = axom::Array<TetrahedronType>(m_tetCount, m_tetCount, hostAllocId);
 
   /*
-    1. Initialize a mint Mesh intermediary from the blueprint mesh.
-       mint::getMesh() utility for this saves some coding.
-    2. Populate a tet array on the host (because mint data works only for host).
+   * 1. Initialize a mint Mesh intermediary from the blueprint mesh.
+   *    mint::getMesh() utility for this saves some coding.
+   * 2. Populate a tet array on the host (because mint data works only for host).
   */
 
   axom::sidre::DataStore ds;
@@ -392,18 +391,18 @@ void TetMeshClipper::computeTets()
   if(addExtraDataForMint)
   {
     /*
-      Constructing a mint mesh from meshGrp fails unless we add some
-      extra data.  Blueprint doesn't require this extra data.  (The mesh
-      passes conduit's Blueprint verification.)  This should be fixed,
-      or we should write better blueprint support utilities.
+     * Constructing a mint mesh from meshGrp fails unless we add some
+     * extra data.  Blueprint doesn't require this extra data.  (The mesh
+     * passes conduit's Blueprint verification.)  This should be fixed,
+     * or we should write better blueprint support utilities.
     */
     auto* topoGrp = tetMeshGrp->getGroup("topologies")->getGroup(m_topoName);
     auto* coordValuesGrp =
       tetMeshGrp->getGroup("coordsets")->getGroup(m_coordsetName)->getGroup("values");
     /*
-      Make the coordinate arrays 2D to use mint::Mesh.
-      For some reason, mint::Mesh requires the arrays to be
-      2D, even though the second dimension is always 1.
+     * Make the coordinate arrays 2D to use mint::Mesh.
+     * For some reason, mint::Mesh requires the arrays to be
+     * 2D, even though the second dimension is always 1.
     */
     axom::IndexType curShape[2];
     int curDim;
@@ -569,11 +568,11 @@ template <typename ExecSpace>
 axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurface(int allocId)
 {
   /*
-    Make a view of the tet mesh topology.
-
-    Note: Using axom::IndexType for integers.  Users should configure
-    Axom with the type that they plan to use.  Mixing different
-    IndexTypes in the same Axom build is not supported.
+   * Make a view of the tet mesh topology.
+   *
+   * Note: Using axom::IndexType for integers.  Users should configure
+   * Axom with the type that they plan to use.  Mixing different
+   * IndexTypes in the same Axom build is not supported.
   */
   namespace bumpViews = axom::bump::views;
   namespace bumpUtils = axom::bump::utilities;
@@ -607,8 +606,8 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
   auto zs = bumpUtils::make_array_view<double>(coordsNode["values/z"]);
 
   /*
-    Compute tet faces as triangles.
-    Compute rays from triangle centroid, in normal direction.
+   * Compute tet faces as triangles.
+   * Compute rays from triangle centroid, in normal direction.
   */
   axom::Array<Triangle3DType> faceTris(faceCount, faceCount, allocId);
   axom::Array<Ray3DType> faceRays(faceCount, faceCount, allocId);
@@ -628,14 +627,13 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
                              faceRaysView[faceIdx] = Ray3DType(faceTri.centroid(),
                                                                faceTri.normal());
                            });
-// writeTrianglesToVTK(faceTris, "allCellFaces.vtk");
 
   const auto tetFaceConn = polyTopo["elements/connectivity"];
   const auto tetFacesView = bumpUtils::make_array_view<axom::IndexType>(tetFaceConn);
   SLIC_ASSERT(tetFacesView.size() == 4*m_tetCount);
 
   /*
-    Compute whether faces have tets on each side.
+   * Compute whether faces have tets on each side.
   */
   axom::Array<bool> hasCellOnFrontSide(faceCount, 0, allocId);
   axom::Array<bool> hasCellOnBackSide(faceCount, 0, allocId);
@@ -671,7 +669,7 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
     });
 
   /*
-    Mark faces touching only 1 cell.
+   * Mark faces touching only 1 cell.
   */
   axom::Array<axom::IndexType> hasCellOnOneSide(ArrayOptions::Uninitialized(), faceCount, 0, allocId);
   auto hasCellOnOneSideView = hasCellOnOneSide.view();
@@ -683,8 +681,8 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
     });
 
   /*
-    Get running total of surface triangle count using prefix-sum scan.
-    Then use the results to populate array of those faces.
+   * Get running total of surface triangle count using prefix-sum scan.
+   * Then use the results to populate array of those faces.
   */
   axom::Array<axom::IndexType> prefixSum(faceCount + 1, 0, allocId);
   prefixSum.fill(0);
@@ -713,10 +711,6 @@ axom::Array<TetMeshClipper::Triangle3DType> TetMeshClipper::computeGeometrySurfa
         surfTrisView[runningTotal] = faceTrisView[faceIdx];
       }
     });
-
-#if 0
-  if(tetMesh != m_tetMesh) { delete tetMesh; } // Delete temporary.
-#endif
 
   return surfTris;
 }
@@ -760,11 +754,6 @@ void TetMeshClipper::writeTrianglesToVTK(
   ofs.close();
 }
 
-/*
-  @param tetMesh Input unstructured tet mesh, single domain.
-  @param polyTopo Output unstructured polyhedral topology.
-*/
-
 template<typename ExecSpace>
 void TetMeshClipper::make_polyhedral_topology(
   conduit::Node& tetTopo,
@@ -786,7 +775,7 @@ void TetMeshClipper::make_polyhedral_topology(
 }
 
 /*
-  Copy a conduit Node, with special allocator ids for new arrays.
+ * Copy a conduit Node, with special allocator ids for new arrays.
 */
 void TetMeshClipper::copy_node_with_array_allocator(conduit::Node& src,
                                                     conduit::Node& dst,
@@ -830,10 +819,10 @@ void TetMeshClipper::copy_hierarchy_with_array_allocator(conduit::Node& hierarch
 }
 
 /*
-  Copy m_tetMesh array data into allocId if it's not there yet.
-  (Copy only the arrays this object uses: coordset and connectivity.)
-  We give new array data keys "<oldKey>.<allocId>".
-  If the new array exists, no need to redo it.
+ * Copy m_tetMesh array data into allocId if it's not there yet.
+ * (Copy only the arrays this object uses: coordset and connectivity.)
+ * We give new array data keys "<oldKey>.<allocId>".
+ * If the new array exists, no need to redo it.
 */
 void TetMeshClipper::copy_tetmesh_arrays_to(int allocId)
 {

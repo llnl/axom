@@ -19,20 +19,20 @@ namespace quest
 {
 
 /*!
-  @brief Geometry clipping operations for tetrahedral mesh geometries.
+ * @brief Geometry clipping operations for tetrahedral mesh geometries.
 
-  @internal TODO: Implement load balancing.  The 1D array of shapee hexes
-  should be load balanced for better performance.
+ * @internal TODO: Implement load balancing.  The 1D array of shapee hexes
+ * should be load balanced for better performance.
 */
 class TetMeshClipper : public GeometryClipperStrategy
 {
 public:
   /*!
-    @brief Constructor.
-
-    @param [in] kGeom Describes the shape to place
-      into the mesh.
-    @param [in] name To override the default strategy name
+   * @brief Constructor.
+   *
+   * @param [in] kGeom Describes the shape to place
+   *   into the mesh.
+   * @param [in] name To override the default strategy name
   */
   TetMeshClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
@@ -91,17 +91,22 @@ private:
   //@{
   //!@name For computing surface of m_tetMesh.
   /*!
-    @brief Entry point for computing geometry surface.
-
-    This computation is independent of the shapee mesh, except that we
-    need the policy and allocator id.
+   * @brief Entry point for computing geometry surface.
+   *
+   * This computation is independent of the shapee mesh, except that we
+   * need the policy and allocator id.
   */
   axom::Array<Triangle3DType> computeGeometrySurface(axom::runtime_policy::Policy policy, int allocId);
   template <typename ExecSpace>
 
   axom::Array<Triangle3DType> computeGeometrySurface(int allocId);
 
-  //!@brief Add a polyhedral topology to an unstructured tet mesh.
+  /*!
+   * @brief Add a polyhedral topology to an unstructured tet mesh.
+   * @param tetMesh Input unstructured tet mesh, single domain.
+   * @param polyTopo Output unstructured polyhedral topology.
+   */
+
   template <typename ExecSpace>
   void make_polyhedral_topology(conduit::Node& tetTopo,
                                 conduit::Node& polyTopo);

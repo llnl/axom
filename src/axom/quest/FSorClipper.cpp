@@ -131,9 +131,9 @@ bool FSorClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<Lab
 }
 
 /*
-  Implementation: (reverse) transform the mesh vertices to the r-z
-  frame where the curve is defined as a r(z) function.  It's easier to
-  determine whether the point is in the sor that way.
+ * Implementation: (reverse) transform the mesh vertices to the r-z
+ * frame where the curve is defined as a r(z) function.  It's easier to
+ * determine whether the point is in the sor that way.
 */
 template <typename ExecSpace>
 void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)

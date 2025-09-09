@@ -63,16 +63,16 @@ bool SorClipper::specializedClipCells(quest::ShapeeMesh& shapeeMesh,
 {
   AXOM_ANNOTATE_SCOPE("SorClipper::specializedClipCells");
   /*
-    The SOR curve has been split into SOR functions that do not double
-    back on itself.  We compute the overlaps for each section and
-    accumulate them with the correct sign.  (Functions going backward
-    remove stuff from the functions above them, so they contribute a
-    negative volume.)
-
-    By convention, backward curves should generate negative volume,
-    but for some reason, the cone discretization functionality always
-    generates positive volumes.  We correct this by manually applying
-    the correct sign.
+   * The SOR curve has been split into SOR functions that do not double
+   * back on itself.  We compute the overlaps for each section and
+   * accumulate them with the correct sign.  (Functions going backward
+   * remove stuff from the functions above them, so they contribute a
+   * negative volume.)
+   *
+   * By convention, backward curves should generate negative volume,
+   * but for some reason, the cone discretization functionality always
+   * generates positive volumes.  We correct this by manually applying
+   * the correct sign.
   */
   const axom::IndexType cellCount = ovlap.size();
   axom::Array<double> tmpOvlap(cellCount, cellCount, ovlap.getAllocatorID());
@@ -91,13 +91,13 @@ bool SorClipper::specializedClipCells(quest::ShapeeMesh& shapeeMesh,
 }
 
 /*
-  Split curve into sections that goes monotonically up or down the
-  axis of symmetry.  If x changes directions at a radial segment,
-  split at the end with greater y value.  A radial segment is one with
-  constant x (or z), pointing in the y (or radial) direction.
-
-  This method assumes there are no consecutive radial segments
-  (combineRadialSegments has been called on pts).
+ * Split curve into sections that goes monotonically up or down the
+ * axis of symmetry.  If x changes directions at a radial segment,
+ * split at the end with greater y value.  A radial segment is one with
+ * constant x (or z), pointing in the y (or radial) direction.
+ *
+ * This method assumes there are no consecutive radial segments
+ * (combineRadialSegments has been called on pts).
 */
 void SorClipper::splitIntoMonotonicSections(axom::ArrayView<const Point2DType> pts,
                                             axom::Array<axom::Array<Point2DType>>& sections)

@@ -185,7 +185,7 @@ public:
    * \param [in] margin Amount that this sphere must contain the other sphere by.
    *   Positive means that the other sphere is "more inside".
    *
-   * \return status true if this sphere contains the other, false otherwise.
+   * \return true if this sphere contains the other, false otherwise.
    */
   AXOM_HOST_DEVICE
   inline bool contains(const Sphere<T, NDIMS>& other, double margin = 0.0) const;

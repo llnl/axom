@@ -17,25 +17,25 @@ namespace quest
 {
 
 /*!
-  @brief Geometry clipping operations for 3D
-  surface-of-revolution geometries.
-
-  This implementation allows the SOR function to have non-monotonic
-  axial coordinates.  For SOR curves that don't, the less complex
-  FSorClipper is sufficient.
-
-  The SOR specification may include rotation and translation
-  internally, in addition to any external transformation.
+ * @brief Geometry clipping operations for 3D
+ * surface-of-revolution geometries.
+ *
+ * This implementation allows the SOR function to have non-monotonic
+ * axial coordinates.  For SOR curves that don't, the less complex
+ * FSorClipper is sufficient.
+ *
+ * The SOR specification may include rotation and translation
+ * internally, in addition to any external transformation.
 */
 class SorClipper : public GeometryClipperStrategy
 {
 public:
   /*!
-    @brief Constructor.
-
-    @param [in] kGeom Describes the shape to place
-      into the mesh.
-    @param [in] name To override the default strategy name
+   * @brief Constructor.
+   *
+   * @param [in] kGeom Describes the shape to place
+   *   into the mesh.
+   * @param [in] name To override the default strategy name
   */
   SorClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
@@ -54,11 +54,11 @@ private:
   axom::Array<std::shared_ptr<FSorClipper>> m_fsorStrategies;
 
   /*!
-    @brief The discrete r(z) curve as an array of y(x) points.
-
-    This data is before internal or external transformations.
-    It may include points on each end to connect the curve to
-    the axis of rotation.
+   * @brief The discrete r(z) curve as an array of y(x) points.
+   *
+   * This data is before internal or external transformations.
+   * It may include points on each end to connect the curve to
+   * the axis of rotation.
   */
   axom::Array<Point2DType> m_sorCurve;
 

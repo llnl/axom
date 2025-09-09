@@ -16,17 +16,17 @@ namespace quest
 {
 
 /*!
-  @brief Geometry clipping operations for sphere geometries.
+ * @brief Geometry clipping operations for sphere geometries.
 */
 class TetClipper : public GeometryClipperStrategy
 {
 public:
   /*!
-    @brief Constructor.
-
-    @param [in] kGeom Describes the shape to place
-      into the mesh.
-    @param [in] name To override the default strategy name
+   * @brief Constructor.
+   *
+   * @param [in] kGeom Describes the shape to place
+   *   into the mesh.
+   * @param [in] name To override the default strategy name
   */
   TetClipper(const klee::Geometry& kGeom, const std::string& name = "");
 

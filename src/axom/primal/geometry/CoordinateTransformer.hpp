@@ -15,36 +15,36 @@ namespace axom
 namespace primal
 {
 /*!
-  @brief 3D Coordinate transformation facilitating the placement of
-  geometries whose parameters can't easily describe it.
-
-  The transformations may be described as translations, rotations
-  and arbitrary operators transforms on homogeneous coordinates.
-  These matrices should be 4x4 and have the last row values
-  [0, 0, 0, 1].
-
-  To efficiently allow for large numbers of CoordinateTransformer
-  objects, this class is a POD.  Hence we don't use axom::Matrix
-  to store the matrix.
-
-  Only supporting 3D coordinates presently.
-  This class is a new utility.  It is subject to change.
+ * @brief 3D Coordinate transformation facilitating the placement of
+ * geometries whose parameters can't easily describe it.
+ *
+ * The transformations may be described as translations, rotations
+ * and arbitrary operators transforms on homogeneous coordinates.
+ * These matrices should be 4x4 and have the last row values
+ * [0, 0, 0, 1].
+ *
+ * To efficiently allow for large numbers of CoordinateTransformer
+ * objects, this class is a POD.  Hence we don't use axom::Matrix
+ * to store the matrix.
+ *
+ * Only supporting 3D coordinates presently.
+ * This class is a new utility.  It is subject to change.
 */
 template<typename T = double>
 class CoordinateTransformer
 {
 public:
   /*!
-    @brief Default constructor sets an identity transformer.
-  */
+   * @brief Default constructor sets an identity transformer.
+   */
   CoordinateTransformer()
   : m_P{ Vectr{1., 0., 0.}, Vectr{0., 1., 0.}, Vectr{0., 0., 1.} }
   , m_v{0., 0., 0.}
   { }
 
   /*!
-    @brief Copy constructor.
-  */
+   * @brief Copy constructor.
+   */
   AXOM_HOST_DEVICE CoordinateTransformer(const CoordinateTransformer& other)
   {
     copyIn(other);
@@ -57,22 +57,22 @@ public:
   }
 
   /*!
-    @brief Constructor sets the 4x4 transformation matrix.
-    @param matrix [in] The transformation matrix for homogeneous
-    coordinates.
-
-    The last row of \c matrix is presumed without checking to be \c [0,0,0,1].
-  */
+   * @brief Constructor sets the 4x4 transformation matrix.
+   * @param matrix [in] The transformation matrix for homogeneous
+   * coordinates.
+   *
+   * The last row of \c matrix is presumed without checking to be \c [0,0,0,1].
+   */
   CoordinateTransformer(const numerics::Matrix<T>& matrix)
   {
     setMatrix(matrix);
   }
 
   /*!
-    @brief Set the matrix, discarding the current transformation.
-    @param matrix [in] The transformation matrix for homogeneous
-    coordinates.
-  */
+   * @brief Set the matrix, discarding the current transformation.
+   * @param matrix [in] The transformation matrix for homogeneous
+   * coordinates.
+   */
   void setMatrix(const numerics::Matrix<T>& matrix)
   {
     // Assert that matrix is a transformation in homogeneous coordinates.
@@ -96,15 +96,15 @@ public:
   }
 
   /*!
-    @brief Compute the 4x4 matrix to transform
-    4 points to 4 specified destinations.
-    @param [in] startPts Four starting points.
-    @param [in] destPts Four destination points.
-
-    The four starting points each must define a non-degenerate volume.
-    Else the transformation is ill-defined and the transformer
-    is set to invalid.
-  */
+   * @brief Compute the 4x4 matrix to transform
+   * 4 points to 4 specified destinations.
+   * @param [in] startPts Four starting points.
+   * @param [in] destPts Four destination points.
+   *
+   * The four starting points each must define a non-degenerate volume.
+   * Else the transformation is ill-defined and the transformer
+   * is set to invalid.
+   */
   AXOM_HOST_DEVICE void setByTerminusPts(
     const primal::Point<T, 3>* startPts,
     const primal::Point<T, 3>* destPts)
@@ -143,18 +143,18 @@ public:
   }
 
   /*!
-    @brief Set to invalid value.
-
-    Invalid transformers can be checked with isInvalid().
-  */
+   * @brief Set to invalid value.
+   *
+   * Invalid transformers can be checked with isInvalid().
+   */
   AXOM_HOST_DEVICE void setInvalid()
   {
     m_P[0][0] = std::numeric_limits<T>::quiet_NaN();
   }
 
   /*!
-    @brief Get the matrix for the transformation.
-  */
+   * @brief Get the matrix for the transformation.
+   */
   numerics::Matrix<T> getMatrix()
   {
     numerics::Matrix<T> rval(4, 4, 0.0);
@@ -174,10 +174,10 @@ public:
   }
 
   /*!
-    @brief Add a matrix transform to the current transformation.
-    @param matrix [in] The transformation matrix for homogeneous
-    coordinates.
-  */
+   * @brief Add a matrix transform to the current transformation.
+   * @param matrix [in] The transformation matrix for homogeneous
+   * coordinates.
+   */
   void addMatrix(const numerics::Matrix<T>& matrix)
   {
     numerics::Matrix<T> current = getMatrix();
@@ -201,14 +201,14 @@ public:
   }
 
   /*!
-    @brief Add a 3D rotation to the current transformation.
-
-    The rotation is not unique.  The chosen rotation axis is the
-    direction perpendicular to the start and end vectors.
-
-    @param start [in] Starting direction
-    @param end [in] Ending direction
-  */
+   * @brief Add a 3D rotation to the current transformation.
+   *
+   * The rotation is not unique.  The chosen rotation axis is the
+   * direction perpendicular to the start and end vectors.
+   *
+   * @param start [in] Starting direction
+   * @param end [in] Ending direction
+   */
   void addRotation(const axom::primal::Vector<T, 3>& start,
                    const axom::primal::Vector<T, 3>& end)
   {
@@ -239,17 +239,16 @@ public:
     }
 
     u.array() /= sinT; // Make u a unit vector.
-    // u = u.unitVector();
     privateAddRotation(u, sinT, cosT);
   }
 
   /*!
-    @brief Add a 3D rotation to the current transformation.
-    The rotation is given as a rotation axis and an angle.
-
-    @param axisDir [in]
-    @param angle [in]
-  */
+   * @brief Add a 3D rotation to the current transformation.
+   * The rotation is given as a rotation axis and an angle.
+   *
+   * @param axisDir [in]
+   * @param angle [in]
+   */
   void addRotation(const axom::primal::Vector<T, 3>& axisDir,
                    T angle)
   {
@@ -348,14 +347,14 @@ public:
   }
 
   /*!
-    @brief Invert the transformation in place.
-
-    Using a special inverse formula for 4x4 matrices with last row [0,0,0,1].
-    @verbatim
-    Minv = [ Pinv - Pinv*v ]
-           [  0       1    ]
-    @endverbatim
-  */
+   * @brief Invert the transformation in place.
+   *
+   * Using a special inverse formula for 4x4 matrices with last row [0,0,0,1].
+   * @verbatim
+   * Minv = [ Pinv - Pinv*v ]
+   *        [  0       1    ]
+   * @endverbatim
+   */
   AXOM_HOST_DEVICE void invert()
   {
     invertMatrx(m_P);
@@ -379,16 +378,16 @@ private:
   using Matrx = Vectr[3];
 
   /*
-    The 4x4 matrix is saved as a 3x3 matrix P and a 3x1 vector v.
-    Last row is not stored because it's always [0,0,0,1].
-    M = [ P v ]
-        [ 0 1 ]
-  */
+   * The 4x4 matrix is saved as a 3x3 matrix P and a 3x1 vector v.
+   * Last row is not stored because it's always [0,0,0,1].
+   * M = [ P v ]
+   *     [ 0 1 ]
+   */
   Matrx m_P;
   Vectr m_v;
 
   // Invert a Matrx, or set first value to NaN if not invertible.
-  AXOM_HOST_DEVICE void invertMatrx(Matrx& m)
+  AXOM_HOST_DEVICE static void invertMatrx(Matrx& m)
   {
     T a = m[0][0];
     T b = m[0][1];
@@ -419,7 +418,7 @@ private:
     }
   }
 
-  AXOM_HOST_DEVICE void multMatrx(const Matrx& A, const Matrx& B, Matrx& prod)
+  AXOM_HOST_DEVICE static void multMatrx(const Matrx& A, const Matrx& B, Matrx& prod)
   {
     for(int r = 0; r < 3; ++r)
     {
@@ -434,7 +433,7 @@ private:
     }
   }
 
-  AXOM_HOST_DEVICE void multMatrxVectr(const Matrx& A, const Vectr& b, Vectr& prod)
+  AXOM_HOST_DEVICE static void multMatrxVectr(const Matrx& A, const Vectr& b, Vectr& prod)
   {
     for(int r = 0; r < 3; ++r)
     {
@@ -442,7 +441,7 @@ private:
     }
   }
 
-  AXOM_HOST_DEVICE T dotProd(const Vectr& u, const Vectr& v)
+  AXOM_HOST_DEVICE T static dotProd(const Vectr& u, const Vectr& v)
   {
     return u[0]*v[0] + u[1]*v[1] + u[2]*v[2];
   }

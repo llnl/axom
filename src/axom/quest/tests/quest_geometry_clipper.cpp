@@ -436,8 +436,8 @@ double volumeOfTetMesh(const axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHA
 }
 
 /*
-  For the test shapes, try to get good volume with compact shape
-  that stays in domain when rotated (else volume check is invalid).
+ * For the test shapes, try to get good volume with compact shape
+ * that stays in domain when rotated (else volume check is invalid).
 */
 
 axom::klee::Geometry createGeom_Sphere(const std::string& geomName)

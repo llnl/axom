@@ -120,7 +120,7 @@ void Plane3DClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
   }
 
   /*
-    Label cell by whether it has vertices inside, outside or both.
+   * Label cell by whether it has vertices inside, outside or both.
   */
   axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getCellNodeConnectivity();
   SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL);

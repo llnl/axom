@@ -93,15 +93,15 @@ void SphereClipper::labelCellsInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::
   }
 
   /*
-    Label cell by whether it has vertices inside, outside or both.
-    Sphere may intersect cell between its vertices, so we classify
-    the cells conservatively.
-    - If cell has vertex less than a small distance outside the
-      sphere, the cell is classified as having a vertex inside.
-    - We don't need to do the same for vertices a small distance
-      inside the sphere, because the sphere is convex.  There's no
-      cell with all vertices inside the sphere and intersects the
-      sphere.
+   * Label cell by whether it has vertices inside, outside or both.
+   * Sphere may intersect cell between its vertices, so we classify
+   * the cells conservatively.
+   * - If cell has vertex less than a small distance outside the
+   *   sphere, the cell is classified as having a vertex inside.
+   * - We don't need to do the same for vertices a small distance
+   *   inside the sphere, because the sphere is convex.  There's no
+   *   cell with all vertices inside the sphere and intersects the
+   *   sphere.
   */
   auto cellLengths = shapeeMesh.getCellLengths();
   const double lenFactor = 0.5;
@@ -135,10 +135,10 @@ void SphereClipper::labelCellsInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::
   if(checkEdges)
   {
     /*
-      The vertices are all outside, Check if any edge crosses the
-      geometry.  This check rarely makes a difference.  Any errors
-      corrected is probably O(h^3) and much smaller than the error
-      from discretizing the sphere.  It's probably not worth the cost.
+     * The vertices are all outside, Check if any edge crosses the
+     * geometry.  This check rarely makes a difference.  Any errors
+     * corrected is probably O(h^3) and much smaller than the error
+     * from discretizing the sphere.  It's probably not worth the cost.
     */
     axom::ArrayView<const TetrahedronType> cellsAsTets = shapeeMesh.getCellsAsTets();
     axom::for_all<ExecSpace>(
@@ -203,7 +203,7 @@ void SphereClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Arr
   const auto& vZ = vertCoords[2];
 
   /*
-    Compute whether vertices are inside shape.
+   * Compute whether vertices are inside shape.
   */
 
   axom::Array<bool> vertIsOutside {ArrayOptions::Uninitialized(), vertCount, vertCount, allocId};
@@ -222,7 +222,7 @@ void SphereClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Arr
     });
 
   /*
-    Compute cell labels.
+   * Compute cell labels.
   */
 
   axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getCellNodeConnectivity();
@@ -237,14 +237,14 @@ void SphereClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Arr
   auto labelsView = labels.view();
 
   /*
-    Label cell:
-    - Compute cell's bounding sphere.  Use bounding box's
-      bounding sphere as a fast conservative approximation.
-    - If bounding sphere doesn't intersect the geometry, cell is LABEL_OUT.
-    - If all cell vertices are inside geometry, cell is LABEL_IN.
-      This is true because geometry is convex.
-    - If spheres intersect and not all vertices are inside,
-      some parts of the cell may intersect boundary, so it's LABEL_ON.
+   * Label cell:
+   * - Compute cell's bounding sphere.  Use bounding box's
+   *   bounding sphere as a fast conservative approximation.
+   * - If bounding sphere doesn't intersect the geometry, cell is LABEL_OUT.
+   * - If all cell vertices are inside geometry, cell is LABEL_IN.
+   *   This is true because geometry is convex.
+   * - If spheres intersect and not all vertices are inside,
+   *   some parts of the cell may intersect boundary, so it's LABEL_ON.
   */
 
   auto cellBbs = shapeeMesh.getCellBoundingBoxes();
@@ -330,21 +330,21 @@ void SphereClipper::labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
   auto tetLabelsView = tetLabels.view();
 
   /*
-    Label tets:
-    - Compute tets's bounding sphere.  Use bounding box's
-      bounding sphere as a fast conservative approximation.
-    - If bounding sphere doesn't intersect sphere geometry,
-      cell is LABEL_OUT.
-    - If all cell vertices are inside sphere geometry,
-      cell is LABEL_IN.  This is true because geometry is convex.
-    - If spheres intersect and not all vertices are inside,
-      some parts of the cell may intersect boundary, so it's LABEL_ON.
-
-    TODO: It shouldn't be hard to compute the closest point
-    of a BoundingBox to another point.  It would be less
-    conservative than using the BoundingBox circumsphere.
-    Worth doing because too many tets are unnecessarily
-    labeled ON.
+   * Label tets:
+   * - Compute tets's bounding sphere.  Use bounding box's
+   *   bounding sphere as a fast conservative approximation.
+   * - If bounding sphere doesn't intersect sphere geometry,
+   *   cell is LABEL_OUT.
+   * - If all cell vertices are inside sphere geometry,
+   *   cell is LABEL_IN.  This is true because geometry is convex.
+   * - If spheres intersect and not all vertices are inside,
+   *   some parts of the cell may intersect boundary, so it's LABEL_ON.
+   *
+   * TODO: It shouldn't be hard to compute the closest point
+   * of a BoundingBox to another point.  It would be less
+   * conservative than using the BoundingBox circumsphere.
+   * Worth doing because too many tets are unnecessarily
+   * labeled ON.
   */
 
   auto meshHexes = shapeeMesh.getCellsAsHexes();

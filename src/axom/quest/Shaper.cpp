@@ -111,10 +111,10 @@ Shaper::Shaper(RuntimePolicy execPolicy,
 
   m_bpGrp->importConduitTreeExternal(bpNode);
   /*
-    Whether View data should live on host or another allocator (like device data).
-    Return the "right" choice based on View type, using a heuristic.
-    as determined by heuristics.
-    Ordered by likeliest to be correct.
+   * Whether View data should live on host or another allocator (like device data).
+   * Return the "right" choice based on View type, using a heuristic.
+   * as determined by heuristics.
+   * Ordered by likeliest to be correct.
   */
   const auto hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
   auto viewToStandardAllocator = [&](const axom::sidre::View& v) {

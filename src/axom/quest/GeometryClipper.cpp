@@ -26,12 +26,12 @@ GeometryClipper::GeometryClipper(quest::ShapeeMesh& shapeeMesh,
 { }
 
 /*
-  If the strategy can label cells as inside/on/outside geometry
-  boundary, use that to reduce the use of expensive clipping methods.
+ * If the strategy can label cells as inside/on/outside geometry
+ * boundary, use that to reduce the use of expensive clipping methods.
 
-  Regardless of labling, try to use specialized clipping first.
-  If specialized methods aren't implemented, resort to discretizing
-  geomety into tets or octs for brute-force clipping.
+ * Regardless of labling, try to use specialized clipping first.
+ * If specialized methods aren't implemented, resort to discretizing
+ * geomety into tets or octs for brute-force clipping.
 */
 void GeometryClipper::clip(axom::Array<double>& ovlap)
 {
@@ -48,8 +48,8 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
 }
 
 /*
-  Orchestrates the entire geometry clipping by using the
-  capabilities of the GeometryClipperStrategy implementation.
+ * Orchestrates the entire geometry clipping by using the
+ * capabilities of the GeometryClipperStrategy implementation.
 */
 void GeometryClipper::clip(axom::ArrayView<double> ovlap)
 {
@@ -151,7 +151,7 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
 }
 
 /*!
-  @brief Allocate a Delegate for the runtime policy of m_shapeeMesh.
+ * @brief Allocate a Delegate for the runtime policy of m_shapeeMesh.
 */
 std::unique_ptr<GeometryClipper::Delegate> GeometryClipper::newDelegate()
 {

@@ -15,20 +15,20 @@ namespace quest
 {
 
 /*!
-  @brief Geometry clipping operations for plane geometries.
+ * @brief Geometry clipping operations for plane geometries.
 */
 class Plane3DClipper : public GeometryClipperStrategy
 {
 public:
   /*!
-    @brief Constructor.
+   * @brief Constructor.
 
-    @param [in] kGeom Describes the shape to place
-      into the mesh.
-    @param [in] name To override the default strategy name
+   * @param [in] kGeom Describes the shape to place
+   *   into the mesh.
+   * @param [in] name To override the default strategy name
 
-    Clipping operations for a semi-infinite half-space
-    on the positive normal direction of a plane.
+   * Clipping operations for a semi-infinite half-space
+   * on the positive normal direction of a plane.
   */
   Plane3DClipper(const klee::Geometry& kGeom, const std::string& name = "");
 

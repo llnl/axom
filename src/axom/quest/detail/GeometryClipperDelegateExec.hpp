@@ -40,9 +40,9 @@ public:
     auto cellVolumes = getShapeeMesh().getCellVolumes();
 
     /*
-      Overlap volumes is cell volume for cells inside geometry.
-      Cells outside the geometry should be zero as are cells.
-      Cells on boundary to be zeroed for accumulating by clipping remainder.
+     * Overlap volumes is cell volume for cells inside geometry.
+     * Cells outside the geometry should be zero as are cells.
+     * Cells on boundary to be zeroed for accumulating by clipping remainder.
     */
     axom::for_all<ExecSpace>(
       cellCount,
@@ -96,10 +96,10 @@ public:
 
     AXOM_ANNOTATE_SCOPE("GeometryClipper::collect_unlabeleds");
     /*!
-      1. Generate tmpLabels, having a value of 1 where labels is LABEL_ON and zero elsewhere.
-      2. Inclusive scan on tmpLabels to generate values that step up at unlabeled cells.
-      3. Find unlabeled cells by seeing where tmpLabels changes values.
-         (Handle first cell separately, then loop from second cell on.)
+     * 1. Generate tmpLabels, having a value of 1 where labels is LABEL_ON and zero elsewhere.
+     * 2. Inclusive scan on tmpLabels to generate values that step up at unlabeled cells.
+     * 3. Find unlabeled cells by seeing where tmpLabels changes values.
+     *    (Handle first cell separately, then loop from second cell on.)
     */
     using ScanPolicy = typename axom::execution_space<ExecSpace>::loop_policy;
 
@@ -151,16 +151,16 @@ public:
                        axom::ArrayView<const axom::IndexType> cellsOnBdry) override
   {
     /*
-      cellsOnBdry is a list of cell indices.
+     * cellsOnBdry is a list of cell indices.
 
-      Each cell has N = 24 tets.
+     * Each cell has N = 24 tets.
 
-      tetsOnBdry are a list of indices referring to the tets in those
-      cells.  N tets for each cell.  So the values in tetsOnBDry are
-      in [0, cellsOnBdry.size()*24).
+     * tetsOnBdry are a list of indices referring to the tets in those
+     * cells.  N tets for each cell.  So the values in tetsOnBDry are
+     * in [0, cellsOnBdry.size()*24).
 
-      Use the indices in cellsOnBdry to map tetsOnBdry values to the
-      indices of the full set of tets.
+     * Use the indices in cellsOnBdry to map tetsOnBdry values to the
+     * indices of the full set of tets.
     */
     if(tetsOnBdry.empty()) { return; }
 

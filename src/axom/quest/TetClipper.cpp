@@ -81,16 +81,16 @@ void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
   /*
-    Compute whether the mesh vertices are above the tet or below as
-    the tet rests on its 4 facets.
-
-    - For any facet the tet rests on, if all cell vertices are
-      above the tet or all are below, cell is OUT.
-
-    - If all cell vertices are on the tet side of all facets,
-      the cell is IN.
-
-    - Otherwise, cell is ON.
+   * Compute whether the mesh vertices are above the tet or below as
+   * the tet rests on its 4 facets.
+   *
+   * - For any facet the tet rests on, if all cell vertices are
+   *   above the tet or all are below, cell is OUT.
+   *
+   * - If all cell vertices are on the tet side of all facets,
+   *   the cell is IN.
+   *
+   * - Otherwise, cell is ON.
   */
 
   int allocId = shapeeMesh.getAllocatorID();
@@ -220,17 +220,17 @@ void TetClipper::labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
   /*
-    Compute whether the tets in hexes listed in cellsOnBdry
-    as in, out or on the boundary.
-    the tet rests on its 4 facets.
-
-    - For any facet the tet rests on, if all cell vertices are
-      above the tet or all are below, cell is OUT.
-
-    - If all cell vertices are on the tet side of all facets,
-      the cell is IN.
-
-    - Otherwise, cell is ON.
+   * Compute whether the tets in hexes listed in cellsOnBdry
+   * as in, out or on the boundary.
+   * the tet rests on its 4 facets.
+   *
+   * - For any facet the tet rests on, if all cell vertices are
+   *   above the tet or all are below, cell is OUT.
+   *
+   * - If all cell vertices are on the tet side of all facets,
+   *   the cell is IN.
+   *
+   * - Otherwise, cell is ON.
   */
 
   int allocId = shapeeMesh.getAllocatorID();

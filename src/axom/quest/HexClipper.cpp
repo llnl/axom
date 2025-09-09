@@ -81,14 +81,14 @@ void HexClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<
   auto labelsView = labels.view();
 
   /*
-    Label cell by eliminating where it can be w.r.t. the hex.
-    The cell is conservatively represented by its bounding box, cellBb.
-    - If cellBb doens't intersect hexBb, cell is OUT.
-    - Else if cellBb intersects any of the hex's 24 surface triangles,
-      the cell is ON the boundary.
-    - Else if any cell vertex is in the hex (in any of the 24 tets),
-      the cell is IN.  Otherwise OUT, since we've eliminated
-      the possibility that it's ON the boundary.
+   * Label cell by eliminating where it can be w.r.t. the hex.
+   * The cell is conservatively represented by its bounding box, cellBb.
+   * - If cellBb doens't intersect hexBb, cell is OUT.
+   * - Else if cellBb intersects any of the hex's 24 surface triangles,
+   *   the cell is ON the boundary.
+   * - Else if any cell vertex is in the hex (in any of the 24 tets),
+   *   the cell is IN.  Otherwise OUT, since we've eliminated
+   *   the possibility that it's ON the boundary.
   */
   const auto hexBb = m_hexBb;
   axom::Array<TetrahedronType> tets(m_tets.size(), m_tets.size(), allocId);

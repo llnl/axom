@@ -395,15 +395,15 @@ void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::
   {
     AXOM_ANNOTATE_BEGIN("add_extra");
     /*
-      Constructing a mint mesh from meshGrp fails unless we add some
-      extra data.  Blueprint doesn't require this extra data.  (The mesh
-      passes conduit's Blueprint verification.)  This should be fixed,
-      or we should write better blueprint support utilities.
+     * Constructing a mint mesh from meshGrp fails unless we add some
+     * extra data.  Blueprint doesn't require this extra data.  (The mesh
+     * passes conduit's Blueprint verification.)  This should be fixed,
+     * or we should write better blueprint support utilities.
     */
     /*
-      Make the coordinate arrays 2D to use mint::Mesh.
-      For some reason, mint::Mesh requires the arrays to be
-      2D, even though the second dimension is always 1.
+     * Make the coordinate arrays 2D to use mint::Mesh.
+     * For some reason, mint::Mesh requires the arrays to be
+     * 2D, even though the second dimension is always 1.
     */
     axom::IndexType curShape[2];
     int curDim;
@@ -521,15 +521,15 @@ void convert_blueprint_structured_explicit_to_unstructured_2d_impl(axom::sidre::
   {
     AXOM_ANNOTATE_SCOPE("add_extra");
     /*
-      Constructing a mint mesh from meshGrp fails unless we add some
-      extra data.  Blueprint doesn't require this extra data.  (The mesh
-      passes conduit's Blueprint verification.)  This should be fixed,
-      or we should write better blueprint support utilities.
+     * Constructing a mint mesh from meshGrp fails unless we add some
+     * extra data.  Blueprint doesn't require this extra data.  (The mesh
+     * passes conduit's Blueprint verification.)  This should be fixed,
+     * or we should write better blueprint support utilities.
     */
     /*
-      Make the coordinate arrays 2D to use mint::Mesh.
-      For some reason, mint::Mesh requires the arrays to be
-      2D, even though the second dimension is always 1.
+     * Make the coordinate arrays 2D to use mint::Mesh.
+     * For some reason, mint::Mesh requires the arrays to be
+     * 2D, even though the second dimension is always 1.
     */
     axom::IndexType curShape[2] = {};
     auto* valuesGrp = coordsetGrp->getGroup("values");

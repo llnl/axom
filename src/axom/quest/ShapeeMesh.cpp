@@ -258,10 +258,10 @@ bool ShapeeMesh::isValidForShaping(std::string& whyNot) const
   const conduit::Node& bpMesh = m_bpNodeExt ? *m_bpNodeExt : m_bpNodeInt;
 
   /*
-    Check Blueprint-validity.
-    Conduit's verify should work even if m_bpNodeExt has array data on
-    devices.  The verification doesn't dereference array data.
-    If this changes in the future, this code must adapt.
+   * Check Blueprint-validity.
+   *  Conduit's verify should work even if m_bpNodeExt has array data on
+   *  devices.  The verification doesn't dereference array data.
+   *  If this changes in the future, this code must adapt.
   */
   conduit::Node info;
   rval = conduit::blueprint::mesh::verify(bpMesh, info);

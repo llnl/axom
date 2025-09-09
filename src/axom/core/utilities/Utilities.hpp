@@ -349,8 +349,8 @@ inline AXOM_HOST_DEVICE bool isNearlyEqualRelative(RealType a,
 }
 
 /*!
- * \brief Sign of a value of any type with comparison and negation
- * operators.
+ * \brief Sign of a value of any type that supports comparison and
+ * negation operators.
  */
 template <typename T>
 inline int sign_of(const T& v, const T& eps={0})

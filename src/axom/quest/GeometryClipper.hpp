@@ -18,16 +18,16 @@ namespace quest
 {
 
 /*!
-  @brief Abstract base class encapsulating the clipping task in
-  intersection shaping, to be specialized for geometry-specific
-  implementations.
+ * @brief Abstract base class encapsulating the clipping task in
+ * intersection shaping, to be specialized for geometry-specific
+ * implementations.
 
-  Each object operates is associated with a single klee::Geometry object.
+ * Each object operates is associated with a single klee::Geometry object.
 
-  This class defines the interfaces for specializing computations
-  that can run fast on specific geometries.  This allows for
-  geometry-specific optimizations.  If no such specialization
-  is provided, default methods are used.
+ * This class defines the interfaces for specializing computations
+ * that can run fast on specific geometries.  This allows for
+ * geometry-specific optimizations.  If no such specialization
+ * is provided, default methods are used.
 */
 class GeometryClipper
 {
@@ -38,15 +38,15 @@ public:
   static constexpr axom::IndexType TETS_PER_HEXAHEDRON = GeometryClipperStrategy::TETS_PER_HEXAHEDRON;
 
   /*!
-    @brief Construct a shape clipper
+   * @brief Construct a shape clipper
 
-    @param [in/out] bpMesh Single-domain Blueprint mesh
-      to shape into.
-    @param [in] strategy Strategy where external
-      shape-dependent operations are implemented.
+   * @param [in/out] bpMesh Single-domain Blueprint mesh
+   *   to shape into.
+   * @param [in] strategy Strategy where external
+   *   shape-dependent operations are implemented.
 
-    @c bpMesh must be an unstructured hex mesh.
-    That is the only type currently supported.
+   * @c bpMesh must be an unstructured hex mesh.
+   * That is the only type currently supported.
   */
   GeometryClipper(quest::ShapeeMesh& shapeeMesh,
                   const std::shared_ptr<GeometryClipperStrategy>& strategy);
@@ -60,18 +60,18 @@ public:
   void setVerbose(bool verbose) { m_verbose = verbose; }
 
   /*!
-    @brief Clip
+   * @brief Clip
 
-    @param ovlap [out] Shape overlap volume of each cell
-      in the shapee mesh.
+   * @param ovlap [out] Shape overlap volume of each cell
+   *   in the shapee mesh.
   */
   void clip(axom::Array<double>& ovlap);
 
   /*!
-    @brief Clip
+   * @brief Clip
 
-    @param ovlap [out] Shape overlap volume of each cell
-      in the shapee mesh.
+   * @param ovlap [out] Shape overlap volume of each cell
+   *   in the shapee mesh.
   */
   void clip(axom::ArrayView<double> ovlap);
 
@@ -79,14 +79,14 @@ public:
   int dimension() const { return m_shapeeMesh.dimension(); }
 
   /*!
-    @brief Single interface for some methods delegated out of
-    GeometryClipper
+   * @brief Single interface for some methods delegated out of
+   * GeometryClipper
 
-    Delegated methods are those requiring messy instantiation of
-    execution spaces and their runtime selection.
+   * Delegated methods are those requiring messy instantiation of
+   * execution spaces and their runtime selection.
 
-    The implementations are in class detail::GeometryClipperDelegateExec,
-    which is templated on execution space.
+   * The implementations are in class detail::GeometryClipperDelegateExec,
+   * which is templated on execution space.
   */
   struct Delegate
   {
@@ -96,8 +96,8 @@ public:
     static constexpr axom::IndexType TETS_PER_HEXAHEDRON = GeometryClipperStrategy::TETS_PER_HEXAHEDRON;
 
     /*!
-      @brief Initialize overlap volumes to full for cells completely
-      inside the shape and zero for cells outside or on shape boundary.
+     * @brief Initialize overlap volumes to full for cells completely
+     * inside the shape and zero for cells outside or on shape boundary.
     */
     virtual void initVolumeOverlaps(
       const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
@@ -128,10 +128,10 @@ public:
                                       axom::ArrayView<double> ovlap) = 0;
 
     /*!
-      @brief Compute clip volumes for cell tets in an index list.
+     * @brief Compute clip volumes for cell tets in an index list.
 
-      The tets are the results from decomposing a cell hex into
-      a fix number of tets and stored consecutively.
+     * The tets are the results from decomposing a cell hex into
+     * a fix number of tets and stored consecutively.
     */
     virtual void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
                                           axom::ArrayView<double> ovlap) = 0;
@@ -169,9 +169,8 @@ private:
   std::unique_ptr<Delegate> m_delegate;
 
   /* NOTE: GeometryClipperStrategy is for shape-specific functions,
-     implemented externally.  Delegate implements internal algorithms
-     for multiple execution spaces.
-     TODO: Change delegate term to policy.
+   * implemented externally.  Delegate implements internal algorithms
+   * for multiple execution spaces.
   */
 
   ///@{
