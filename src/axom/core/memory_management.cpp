@@ -36,7 +36,7 @@ int getSharedMemoryAllocatorID()
 {
   int allocator_id = INVALID_ALLOCATOR_ID;
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
-  const std::string allocatorName("axom_named_allocator");
+  const std::string allocatorName("axom_shared_allocator");
   auto& rm = umpire::ResourceManager::getInstance();
   if(!rm.isAllocator(allocatorName))
   {
@@ -44,9 +44,9 @@ int getSharedMemoryAllocatorID()
     auto traits {umpire::get_default_resource_traits("SHARED")};
     traits.scope = umpire::MemoryResourceTraits::shared_scope::node;
     auto axom_node_allocator {rm.makeResource("SHARED::axom_node_allocator", traits)};
-    auto axom_named_allocator {
+    auto axom_shared_allocator {
       rm.makeAllocator<umpire::strategy::NamedAllocationStrategy>(allocatorName, axom_node_allocator)};
-    allocator_id = axom_named_allocator.getId();
+    allocator_id = axom_shared_allocator.getId();
   }
   else
   {

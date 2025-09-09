@@ -22,10 +22,10 @@ TEST(core_shared_memory, shared_memory_allocator)
   int rank = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  // Allocate shared memory
-  constexpr int sizes[] = {1024, 4096, 1000000};
+  const int sizes[] = {1024, 4096, 1000000};
   for(int si = 0; si < 3; si++)
   {
+    // Allocate shared memory
     const int N = sizes[si];
     int *buffer = axom::allocate<int>(N, axom::getSharedMemoryAllocatorID());
 
