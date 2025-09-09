@@ -134,8 +134,7 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
   if(Parameters.use_shared_memory)
   {
-    rc =
-      internal::read_stl_mesh_shared(file, comm, s_shared_mesh_buffer, s_surface_mesh);
+    rc = internal::read_stl_mesh_shared(file, comm, s_shared_mesh_buffer, s_surface_mesh);
   }
   else
   {

@@ -244,8 +244,7 @@ int read_stl_mesh_shared(const std::string& file,
   double* y = nullptr;
   double* z = nullptr;
   axom::IndexType* conn = nullptr;
-  const size_t numBytes =
-    allocate_shared_buffer(mesh_metadata, x, y, z, conn, mesh_buffer);
+  const size_t numBytes = allocate_shared_buffer(mesh_metadata, x, y, z, conn, mesh_buffer);
   SLIC_ASSERT(x != nullptr);
   SLIC_ASSERT(y != nullptr);
   SLIC_ASSERT(z != nullptr);

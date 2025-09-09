@@ -24,7 +24,7 @@ bool isSharedMemoryAllocator(int allocID)
     umpire::Allocator allocator = rm.getAllocator(allocID);
 
     isShared = allocator.getAllocationStrategy()->getTraits().resource ==
-                 umpire::MemoryResourceTraits::resource_type::shared;
+      umpire::MemoryResourceTraits::resource_type::shared;
   }
 #endif
   return isShared;
@@ -43,8 +43,7 @@ int getSharedMemoryAllocatorID()
     traits.scope = umpire::MemoryResourceTraits::shared_scope::node;
     auto axom_node_allocator {rm.makeResource("SHARED::axom_node_allocator", traits)};
     auto axom_named_allocator {
-          rm.makeAllocator<umpire::strategy::NamedAllocationStrategy>(allocatorName,
-                                                                      axom_node_allocator)};
+      rm.makeAllocator<umpire::strategy::NamedAllocationStrategy>(allocatorName, axom_node_allocator)};
     allocator_id = axom_named_allocator.getId();
   }
   else
@@ -55,4 +54,4 @@ int getSharedMemoryAllocatorID()
   return allocator_id;
 }
 
-} // end namespace axom
+}  // end namespace axom
