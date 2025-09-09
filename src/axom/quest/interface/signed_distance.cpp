@@ -13,13 +13,10 @@
 
 #include "axom/slic/interface/slic.hpp"
 
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
   #include "umpire/Umpire.hpp"
-  #if defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY)
-    #include "umpire/strategy/NamedAllocationStrategy.hpp"
-    #include "umpire/util/MemoryResourceTraits.hpp"
-    #define AXOM_USE_UMPIRE_SHARED_MEMORY
-  #endif
+  #include "umpire/strategy/NamedAllocationStrategy.hpp"
+  #include "umpire/util/MemoryResourceTraits.hpp"
 #endif
 
 #ifdef AXOM_USE_MPI

@@ -57,6 +57,25 @@ if (UMPIRE_DIR)
     set(UMPIRE_FOUND TRUE)
 
     blt_convert_to_system_includes(TARGET umpire)
+
+    # Check whether the Umpire defines symbols for shared memory
+    blt_check_code_compiles(CODE_COMPILES UMPIRE_SHARED_MEMORY
+                            VERBOSE_OUTPUT OFF
+                            DEPENDS_ON umpire
+                            SOURCE_STRING "
+    #include <umpire/config.hpp>
+    #if defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY)
+    int main() { return 0; }
+    #else
+    #error Macros not defined
+    #endif
+    ")
+    if (AXOM_ENABLE_MPI AND UMPIRE_SHARED_MEMORY)
+        set(AXOM_USE_UMPIRE_SHARED_MEMORY TRUE)
+    else()
+        set(AXOM_USE_UMPIRE_SHARED_MEMORY FALSE)
+    endif()
+    message(STATUS "Umpire supports shared memory: ${AXOM_USE_UMPIRE_SHARED_MEMORY}")
 else()
     message(STATUS "Umpire support is OFF")
     set(UMPIRE_FOUND FALSE)

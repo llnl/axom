@@ -23,12 +23,6 @@
   #endif
 #endif
 
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE) && \
-  (defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY))
-  #include "umpire/Umpire.hpp"
-  #define AXOM_USE_UMPIRE_SHARED_MEMORY
-#endif
-
 #include <limits>
 
 namespace axom

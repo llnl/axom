@@ -63,12 +63,11 @@ private:
 /// \name Mesh I/O methods
 /// @{
 
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE) && \
-  (defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY))
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
 
 /*!
  * \brief Reads in the surface mesh from the specified file into a shared
- *  memory buffer that is attached to the given MPI shared window.
+ *  memory buffer.
  *
  * \param [in] file the file consisting of the surface mesh
  * \param [in] global_comm handle to the global MPI communicator

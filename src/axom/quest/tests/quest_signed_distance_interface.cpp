@@ -46,9 +46,7 @@ using UnstructuredMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
 //------------------------------------------------------------------------------
 namespace
 {
-#if defined(AXOM_USE_MPI) && defined(AXOM_USE_UMPIRE) && \
-  (defined(UMPIRE_ENABLE_IPC_SHARED_MEMORY) || defined(UMPIRE_ENABLE_MPI3_SHARED_MEMORY))
-  #define AXOM_USE_UMPIRE_SHARED_MEMORY
+#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
 constexpr bool USE_SHARED_MEMORY = true;
 #else
 constexpr bool USE_SHARED_MEMORY = false;
