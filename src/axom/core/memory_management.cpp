@@ -5,10 +5,12 @@
 
 #include "axom/core/memory_management.hpp"
 
-#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+#if defined(AXOM_USE_UMPIRE)
   #include "umpire/Umpire.hpp"
-  #include "umpire/strategy/NamedAllocationStrategy.hpp"
   #include "umpire/util/MemoryResourceTraits.hpp"
+  #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
+    #include "umpire/strategy/NamedAllocationStrategy.hpp"
+  #endif
 #endif
 
 namespace axom
