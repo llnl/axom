@@ -102,7 +102,6 @@ static bool s_must_finalize_logger = false;
 static bool s_logger_is_initialized = false;
 
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
-static int s_allocator_id = INVALID_ALLOCATOR_ID;
 static unsigned char* s_shared_mesh_buffer = nullptr;
 #else
 static std::string s_shared_memory_requirements(
@@ -135,22 +134,8 @@ int signed_distance_init(const std::string& file, MPI_Comm comm)
 #if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
   if(Parameters.use_shared_memory)
   {
-    if(s_allocator_id == INVALID_ALLOCATOR_ID)
-    {
-      // Make a shared memory allocator if we have not made it before. We'll reuse
-      // the allocator to allocate different buffers (1 at a time).
-      auto& rm = umpire::ResourceManager::getInstance();
-      auto traits {umpire::get_default_resource_traits("SHARED")};
-      traits.scope = umpire::MemoryResourceTraits::shared_scope::node;
-      auto node_allocator {rm.makeResource("SHARED::node_allocator", traits)};
-      auto signed_distance_allocator {
-        rm.makeAllocator<umpire::strategy::NamedAllocationStrategy>("signed_distance_allocator",
-                                                                    node_allocator)};
-      s_allocator_id = signed_distance_allocator.getId();
-    }
-
     rc =
-      internal::read_stl_mesh_shared(file, comm, s_allocator_id, s_shared_mesh_buffer, s_surface_mesh);
+      internal::read_stl_mesh_shared(file, comm, s_shared_mesh_buffer, s_surface_mesh);
   }
   else
   {

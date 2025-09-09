@@ -71,7 +71,6 @@ private:
  *
  * \param [in] file the file consisting of the surface mesh
  * \param [in] global_comm handle to the global MPI communicator
- * \param [in] allocatorID An UMPIRE allocator ID that can allocate shared memory.
  * \param [out] mesh_buffer pointer to the raw mesh buffer
  * \param [out] m pointer to the mesh object
  *
@@ -96,7 +95,6 @@ private:
  */
 int read_stl_mesh_shared(const std::string& file,
                          MPI_Comm global_comm,
-                         int allocatorID,
                          unsigned char*& mesh_buffer,
                          mint::Mesh*& m);
 #endif

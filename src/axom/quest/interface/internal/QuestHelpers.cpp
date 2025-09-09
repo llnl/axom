@@ -134,7 +134,6 @@ static void create_communicators(MPI_Comm global_comm,
  * \brief Allocates a shared memory buffer for the mesh that is shared among
  *  all the ranks within the same compute node.
  *
- * \param [in] allocatorID A valid Umpire allocator id that can allocate shared memory.
  * \param [in] mesh_metadata tuple with the number of nodes/faces on the mesh
  * \param [out] x pointer into the buffer where the x-coordinates are stored.
  * \param [out] y pointer into the buffer where the y-coordinates are stored.
@@ -144,7 +143,6 @@ static void create_communicators(MPI_Comm global_comm,
  *
  * \return bytesize the number of bytes in the raw buffer.
  *
- * \pre allocatorID is a valid shared memory allocator.
  * \pre mesh_metadata != nullptr
  * \pre x == nullptr
  * \pre y == nullptr
@@ -158,8 +156,7 @@ static void create_communicators(MPI_Comm global_comm,
  * \post coon != nullptr
  * \post mesh_buffer != nullptr
  */
-static size_t allocate_shared_buffer(int allocatorID,
-                                     const axom::IndexType mesh_metadata[2],
+static size_t allocate_shared_buffer(const axom::IndexType mesh_metadata[2],
                                      double*& x,
                                      double*& y,
                                      double*& z,
@@ -170,7 +167,7 @@ static size_t allocate_shared_buffer(int allocatorID,
   const axom::IndexType nnodes = mesh_metadata[0];
   const axom::IndexType nfaces = mesh_metadata[1];
   const size_t bytesize = nnodes * 3 * sizeof(double) + nfaces * 3 * sizeof(axom::IndexType);
-  mesh_buffer = allocate<unsigned char>(bytesize, allocatorID);
+  mesh_buffer = allocate<unsigned char>(bytesize, getSharedMemoryAllocatorID());
 
   // calculate offset to the coordinates & cell connectivity in the buffer
   int baseOffset = nnodes * sizeof(double);
@@ -193,12 +190,10 @@ static size_t allocate_shared_buffer(int allocatorID,
  */
 int read_stl_mesh_shared(const std::string& file,
                          MPI_Comm global_comm,
-                         int allocatorID,
                          unsigned char*& mesh_buffer,
                          mint::Mesh*& m)
 {
   SLIC_ASSERT(global_comm != MPI_COMM_NULL);
-  SLIC_ASSERT(allocatorID != INVALID_ALLOCATOR_ID);
 
   // NOTE: STL meshes are always 3D mesh consisting of triangles.
   using TriangleMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
@@ -250,7 +245,7 @@ int read_stl_mesh_shared(const std::string& file,
   double* z = nullptr;
   axom::IndexType* conn = nullptr;
   const size_t numBytes =
-    allocate_shared_buffer(allocatorID, mesh_metadata, x, y, z, conn, mesh_buffer);
+    allocate_shared_buffer(mesh_metadata, x, y, z, conn, mesh_buffer);
   SLIC_ASSERT(x != nullptr);
   SLIC_ASSERT(y != nullptr);
   SLIC_ASSERT(z != nullptr);
