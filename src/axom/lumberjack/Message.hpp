@@ -73,6 +73,7 @@ public:
     , m_fileName("")
     , m_lineNumber(0)
     , m_level(0)
+    , m_creationTime(0)
     , m_tag("")
   { }
 
@@ -94,6 +95,7 @@ public:
           const std::string& fileName,
           int lineNumber,
           int level,
+          double creationTime,
           const std::string& tag)
     : m_text(text)
     , m_ranks(1, rank)
@@ -102,6 +104,7 @@ public:
     , m_fileName(fileName)
     , m_lineNumber(lineNumber)
     , m_level(level)
+    , m_creationTime(creationTime)
     , m_tag(tag)
   { }
 
@@ -128,6 +131,7 @@ public:
           const std::string& fileName,
           int lineNumber,
           int level,
+          double creationTime,
           const std::string& tag)
     : m_text(text)
     , m_ranks()
@@ -136,6 +140,7 @@ public:
     , m_fileName(fileName)
     , m_lineNumber(lineNumber)
     , m_level(level)
+    , m_creationTime(creationTime)
     , m_tag(tag)
   {
     addRanks(ranks, count, ranksLimit);
@@ -197,6 +202,13 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Returns the creation time of the Message.
+   *****************************************************************************
+   */
+  double creationTime() const;
+
+  /*!
+   *****************************************************************************
    * \brief Returns the tag of where the Message originated.
    *****************************************************************************
    */
@@ -239,6 +251,13 @@ public:
    *****************************************************************************
    */
   void level(int newLevel);
+
+  /*!
+   *****************************************************************************
+   * \brief Sets the creation time of the Message.
+   *****************************************************************************
+   */
+  void creationTime(double newCreationTime);
 
   /*!
    *****************************************************************************
@@ -310,6 +329,7 @@ private:
   std::string m_fileName;
   int m_lineNumber;
   int m_level;
+  double m_creationTime;
   std::string m_tag;
 };
 
