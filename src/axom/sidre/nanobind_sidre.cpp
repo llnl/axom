@@ -123,6 +123,36 @@ nb::ndarray<nb::numpy> bufferToNumpyArray(Buffer& self)
     /* dtype = */ typeIDToDtype(id));
 }
 
+/*!
+ * \brief Helper function to bind iterator types
+ *
+ * \tparam IteratorType The type of the iterator
+ */
+template <typename IteratorType>
+void bindIterator(nb::module_& m, const char* iterator_name)
+{
+  nb::class_<IteratorType>(m, iterator_name)
+    .def(
+      "__iter__",
+      [](IteratorType& self) { return self; },
+      nb::rv_policy::reference,
+      "Return iterator")
+    .def(
+      "__next__",
+      [](IteratorType& self) {
+        if(self.getCounter() < self.size())
+        {
+          // Get a pointer to the item (no copy constructor)
+          auto result = &(*(self.begin() + self.getCounter()));
+          self.incrementCounter();
+          return result;
+        }
+        throw nb::stop_iteration();
+      },
+      nb::rv_policy::reference,
+      "Return next item from iterator");
+}
+
 // TODO determine return value policy (nb::rv_policy::reference or not) for ownership between C++ and Python:
 // https://nanobind.readthedocs.io/en/latest/ownership.html#return-value-policies
 NB_MODULE(pysidre, m_sidre)
@@ -162,71 +192,14 @@ NB_MODULE(pysidre, m_sidre)
     .value("DOUBLE_ID", DOUBLE_ID)
     .export_values();
 
-  // Bindings for Buffer iterator type used by DataStore::buffers()
+  // Bindings to support iterating collections
   using BufferIterator = axom::IndexedCollection<Buffer>::iterator_adaptor;
-  nb::class_<BufferIterator>(m_sidre, "BufferIterator")
-    .def(
-      "__iter__",
-      [](BufferIterator& self) { return self; },
-      nb::rv_policy::reference,
-      "Return iterator for Buffer")
-    .def(
-      "__next__",
-      [](BufferIterator& self) {
-        if(self.getCounter() < self.size())
-        {
-          Buffer* result = &(*(self.begin() + self.getCounter()));
-          self.incrementCounter();
-          return result;
-        }
-        throw nb::stop_iteration();
-      },
-      nb::rv_policy::reference,
-      "Return next Buffer from iterator");
-
-  // Bindings for Group iterator type used by Group::groups()
   using GroupIterator = axom::IndexedCollection<Group>::iterator_adaptor;
-  nb::class_<GroupIterator>(m_sidre, "GroupIterator")
-    .def(
-      "__iter__",
-      [](GroupIterator& self) { return self; },
-      nb::rv_policy::reference,
-      "Return iterator for Group")
-    .def(
-      "__next__",
-      [](GroupIterator& self) {
-        if(self.getCounter() < self.size())
-        {
-          Group* result = &(*(self.begin() + self.getCounter()));
-          self.incrementCounter();
-          return result;
-        }
-        throw nb::stop_iteration();
-      },
-      nb::rv_policy::reference,
-      "Return next Group from iterator");
-
-  // Bindings for View iterator type used by Group::views()
   using ViewIterator = axom::IndexedCollection<View>::iterator_adaptor;
-  nb::class_<ViewIterator>(m_sidre, "ViewIterator")
-    .def(
-      "__iter__",
-      [](ViewIterator& self) { return self; },
-      nb::rv_policy::reference,
-      "Return iterator for View")
-    .def(
-      "__next__",
-      [](ViewIterator& self) {
-        if(self.getCounter() < self.size())
-        {
-          View* result = &(*(self.begin() + self.getCounter()));
-          self.incrementCounter();
-          return result;
-        }
-        throw nb::stop_iteration();
-      },
-      nb::rv_policy::reference,
-      "Return next View from iterator");
+
+  bindIterator<BufferIterator>(m_sidre, "BufferIterator");
+  bindIterator<GroupIterator>(m_sidre, "GroupIterator");
+  bindIterator<ViewIterator>(m_sidre, "ViewIterator");
 
   // Bindings for the DataStore class
   nb::class_<DataStore>(m_sidre, "DataStore")
