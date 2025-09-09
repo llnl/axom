@@ -191,10 +191,12 @@ NB_MODULE(pysidre, m_sidre)
     .export_values();
 
   // Bindings to support iterating collections
+  using AttributeIterator = axom::IndexedCollection<Attribute>::iterator_adaptor;
   using BufferIterator = axom::IndexedCollection<Buffer>::iterator_adaptor;
   using GroupIterator = axom::IndexedCollection<Group>::iterator_adaptor;
   using ViewIterator = axom::IndexedCollection<View>::iterator_adaptor;
 
+  bindIterator<AttributeIterator>(m_sidre, "AttributeIterator");
   bindIterator<BufferIterator>(m_sidre, "BufferIterator");
   bindIterator<GroupIterator>(m_sidre, "GroupIterator");
   bindIterator<ViewIterator>(m_sidre, "ViewIterator");
@@ -232,6 +234,73 @@ NB_MODULE(pysidre, m_sidre)
          nb::overload_cast<>(&DataStore::buffers),
          nb::rv_policy::reference,
          "Return an iterator over Buffers")
+
+    .def("getNumAttributes",
+         &DataStore::getNumAttributes,
+         "Return number of Attributes in the DataStore")
+    .def("createAttributeScalar",
+         &DataStore::createAttributeScalar<int>,
+         nb::rv_policy::reference,
+         "Create an Attribute object with a default int scalar value",
+         nb::arg("name"),
+         nb::arg("default_value").noconvert())
+    .def("createAttributeScalar",
+         &DataStore::createAttributeScalar<double>,
+         nb::rv_policy::reference,
+         "Create an Attribute object with a default float (C++ double) scalar value",
+         nb::arg("name"),
+         nb::arg("default_value").noconvert())
+    .def("createAttributeString",
+         &DataStore::createAttributeString,
+         nb::rv_policy::reference,
+         "Create an Attribute object with a default string value")
+    .def("hasAttribute",
+         nb::overload_cast<const std::string&>(&DataStore::hasAttribute, nb::const_),
+         "Return true if DataStore has created attribute name, else false")
+    .def("hasAttribute",
+         nb::overload_cast<IndexType>(&DataStore::hasAttribute, nb::const_),
+         "Return true if DataStore has created attribute with index, else false")
+    .def("destroyAttribute",
+         nb::overload_cast<const std::string&>(&DataStore::destroyAttribute),
+         "Remove Attribute from the DataStore and destroy it and its data")
+    .def("destroyAttribute",
+         nb::overload_cast<IndexType>(&DataStore::destroyAttribute),
+         "Remove Attribute with given index from the DataStore and destroy it and its data")
+    .def("destroyAttribute",
+         nb::overload_cast<Attribute*>(&DataStore::destroyAttribute),
+         "Remove Attribute from the DataStore and destroy it and its data")
+    .def("destroyAllAttributes",
+         &DataStore::destroyAllAttributes,
+         "Remove all Attributes from the DataStore and destroy them and their data")
+    .def("getAttribute",
+         nb::overload_cast<IndexType>(&DataStore::getAttribute),
+         nb::rv_policy::reference,
+         "Return pointer to non-const Attribute with given index")
+    .def("getAttribute",
+         nb::overload_cast<const std::string&>(&DataStore::getAttribute),
+         nb::rv_policy::reference,
+         "Return pointer to non-const Attribute with given name")
+
+    // Requires conduit::Node information
+    // .def("saveAttributeLayout",
+    //      &DataStore::saveAttributeLayout,
+    //      "Copy Attribute and default value to Conduit node. Return true if attributes were copied.")
+    // .def("loadAttributeLayout",
+    //      &DataStore::loadAttributeLayout,
+    //      "Create attributes from name/value pairs in node['attribute'].")
+
+    .def("getFirstValidAttributeIndex",
+         &DataStore::getFirstValidAttributeIndex,
+         "Return first valid Attribute index in DataStore object "
+         "(i.e., smallest index over all Attributes)")
+    .def("getNextValidAttributeIndex",
+         &DataStore::getNextValidAttributeIndex,
+         "Return next valid Attribute index in DataStore object after given index"
+         "(i.e., smallest index over all Attribute indices larger than given one)")
+    .def("attributes",
+         nb::overload_cast<>(&DataStore::attributes),
+         nb::rv_policy::reference,
+         "Return an iterator over Attributes")
 
     // Nanobind fails compilation on blueos
     // #ifdef AXOM_USE_MPI
@@ -715,6 +784,33 @@ NB_MODULE(pysidre, m_sidre)
          nb::overload_cast<const std::string&>(&Group::loadExternalData),
          "Load data into the Group's external views from a file.")
     .def("rename", &Group::rename, "Change the name of this Group.");
+
+  // Bindings for the Attribute class
+  nb::class_<Attribute>(m_sidre, "Attribute")
+    .def("getName", &Attribute::getName, "Return the name of the Attribute object.")
+    .def("getIndex", &Attribute::getIndex, "Return the unique index of this Attribute object.")
+    .def("setDefaultScalar",
+         &Attribute::setDefaultScalar<int>,
+         "Set default value of Attribute as int. Return true if successfully changed.",
+         nb::arg("value").noconvert())
+    .def(
+      "setDefaultScalar",
+      &Attribute::setDefaultScalar<double>,
+      "Set default value of Attribute as float (C++ double). Return true if successfully changed.",
+      nb::arg("value").noconvert())
+    .def("setDefaultString",
+         &Attribute::setDefaultString,
+         "Set default value of Attribute as string. Return true if successfully changed.")
+
+    // Requires conduit::Node information
+    // .def("setDefaultNodeRef",
+    //      &Attribute::setDefaultNodeRef,
+    //      "Set default value of Attribute as a Node reference.")
+    .def("getDefaultNodeRef",
+         &Attribute::getDefaultNodeRef,
+         nb::rv_policy::reference,
+         "Return default value of Attribute as Node reference.")
+    .def("getTypeID", &Attribute::getTypeID, "Return type of Attribute.");
 }
 
 } /* end namespace sidre */

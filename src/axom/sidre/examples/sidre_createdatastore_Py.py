@@ -14,8 +14,9 @@ def create_datastore(region):
 	ds = pysidre.DataStore()
 	root = ds.getRoot()
 
-	# TODO - Implement Attributes for python
 	# Create two attributes
+	ds.createAttributeScalar("vis", 0)
+	ds.createAttributeScalar("restart", 1)
 
 	# Create group children of root group
 	state = root.createGroup("state")
@@ -55,6 +56,10 @@ def create_datastore(region):
 	"""
 	temp = fields.createViewAndAllocate("temp", pysidre.TypeID.DOUBLE_ID, eltcount)
 	rho = fields.createViewAndAllocate("rho", pysidre.TypeID.DOUBLE_ID, eltcount)
+
+	# Explicitly set values for the "vis" Attribute on the "temp" and "rho" buffers.
+	temp.setAttributeScalar("vis", 1)
+	rho.setAttributeScalar("vis", 1)
 
 	# The "fields" Group also contains a child Group "ext" which holds a pointer
 	# to an externally owned integer array.  Although Sidre does not own the
@@ -105,21 +110,21 @@ def iterate_datastore(ds):
 	fill_line = "=" * 80
 	print(fill_line)
 
-	# TODO implement attributes
 	# iterate through the attributes in ds
 	print("The datastore has the following attributes:")
-	# for attr in ds.attributes():
-	# std::cout << axom::fmt::format("  * [{}] '{}' of type {} and default value: {}\n",
-	#                                attr.getIndex(),
-	#                                attr.getName(),
-	#                                conduit::DataType::id_to_name(attr.getTypeID()),
-	#                                attr.getDefaultNodeRef().to_yaml());
+	for attr in ds.attributes():
+		print(f"* [{attr.getIndex()}] '{attr.getName()}' of type "
+			  f"{attr.getTypeID()} "
+
+			  # Requires conduit::Node information
+			  # f"and default value: {attr.getDefaultNodeRef().to_yaml()}\n"
+			  )
 
 	# iterate through the buffers in ds
 	print(fill_line)
 	print("The datastore has the following buffers:")
 	for buff in ds.buffers():
-		print(f"  * [{buff.getIndex()}] "
+		print(f"* [{buff.getIndex()}] "
 			  f"{"Allocated" if buff.isAllocated() else "Unallocated"} buffer with "
 			  f"{buff.getNumElements()} elements of type {buff.getTypeID()} with "
 			  f"{buff.getNumViews()} views")
