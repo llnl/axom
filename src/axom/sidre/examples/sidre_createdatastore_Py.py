@@ -115,24 +115,17 @@ def iterate_datastore(ds):
 	#                                conduit::DataType::id_to_name(attr.getTypeID()),
 	#                                attr.getDefaultNodeRef().to_yaml());
 
-	print(fill_line)
-
 	# iterate through the buffers in ds
-	print("The datastore has the following buffers:")
-	buffy = ds.buffers()
-	for buff in buffy:
-		print(f"  * [{buff.getIndex()}] "
-			f"{"Allocated" if buff.isAllocated() else "Unallocated"} buffer with "
-			f"{buff.getNumElements()} elements of type {buff.getTypeID()} with "
-			f"{buff.getNumViews()} views")
-
 	print(fill_line)
-	ds.createBuffer(pysidre.TypeID.DOUBLE_ID, 420).allocate()
-	for buff in buffy:
+	print("The datastore has the following buffers:")
+	buffers = ds.buffers()
+
+	for buff in buffers:
 		print(f"  * [{buff.getIndex()}] "
 			f"{"Allocated" if buff.isAllocated() else "Unallocated"} buffer with "
 			f"{buff.getNumElements()} elements of type {buff.getTypeID()} with "
 			f"{buff.getNumViews()} views")
+	print(fill_line)
 
 	# iterate through the groups of the root group
 	print("The root group has the following groups:")

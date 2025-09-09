@@ -284,6 +284,9 @@ public:
 
   std::size_t size() const { return m_collection ? m_collection->getNumItems() : 0; }
 
+  std::size_t getCounter() { return counter; }
+  void incrementCounter() { counter++; }
+
   iterator begin() { return iterator(m_collection, true); }
   iterator end() { return iterator(m_collection, false); }
 
@@ -294,6 +297,7 @@ public:
 
 private:
   CollectionType* m_collection {nullptr};
+  std::size_t counter {0};
 };
 
 /*!
@@ -308,6 +312,9 @@ public:
 public:
   const_iterator_adaptor(const CollectionType* coll) : m_collection(coll) { }
 
+  std::size_t getCounter() { return counter; }
+  void incrementCounter() { counter++; }
+
   std::size_t size() const { return m_collection ? m_collection->getNumItems() : 0; }
 
   const_iterator begin() { return const_iterator(m_collection, true); }
@@ -318,6 +325,7 @@ public:
 
 private:
   const CollectionType* m_collection {nullptr};
+  std::size_t counter {0};
 };
 
 } /* end namespace axom */

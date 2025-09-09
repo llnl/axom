@@ -162,23 +162,28 @@ NB_MODULE(pysidre, m_sidre)
     .value("DOUBLE_ID", DOUBLE_ID)
     .export_values();
 
-#include <typeinfo>
+  // Bindings for Buffer iterator type used by DataStore::buffers()
   using BufferIterator = axom::IndexedCollection<Buffer>::iterator_adaptor;
   nb::class_<BufferIterator>(m_sidre, "BufferIterator")
     .def(
       "__iter__",
+      [](BufferIterator& self) { return self; },
+      nb::rv_policy::reference,
+      "Return iterator for Buffer")
+    .def(
+      "__next__",
       [](BufferIterator& self) {
-        printf("The type of begin() is %s\n", typeid(self.begin()).name());
-        printf("The decltype of begin() is %s\n", typeid(decltype(*self.begin())).name());
-        fflush(stdout);
-        return nb::make_iterator(nb::type<BufferIterator>(),
-                                 "iterator",
-                                 self.begin(),
-                                 self.end(),
-                                 nb::rv_policy::reference_internal);
+        if(self.getCounter() < self.size())
+        {
+          Buffer* result = &(*(self.begin() + self.getCounter()));
+          self.incrementCounter();
+          return result;
+        }
+        throw nb::stop_iteration();
       },
-      nb::rv_policy::reference_internal,
-      nb::keep_alive<0, 1>());
+      nb::rv_policy::reference,
+      "Return next Buffer from iterator");
+
 
   // Bindings for the DataStore class
   nb::class_<DataStore>(m_sidre, "DataStore")
