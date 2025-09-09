@@ -100,7 +100,7 @@ int main(int argc, char** argv)
   int linesSize = (int)lines.size();
   for(int i = 0; i < linesSize; ++i)
   {
-    lj.queueMessage(lines[i]);
+    lj.queueMessage(lines[i], static_cast<double>(i));
     ++cycleCount;
     if(cycleCount > cycleLimit)
     {

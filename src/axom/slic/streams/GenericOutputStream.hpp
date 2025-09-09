@@ -119,7 +119,7 @@ private:
     : m_stream(static_cast<std::ostream*>(nullptr))
     , m_file_name()
     , m_opened(false)
-    , m_isOstreamOwnedBySLIC(false) {};
+    , m_isOstreamOwnedBySLIC(false) { };
 
   /*!
    * \brief Opens a file before flushing stream when GenericOutputStream
