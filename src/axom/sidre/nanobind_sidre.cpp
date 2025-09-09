@@ -230,23 +230,10 @@ NB_MODULE(pysidre, m_sidre)
          nb::overload_cast<const std::string&, const std::string&, const std::string&, int>(
            &DataStore::generateBlueprintIndex),
          "Generate a Conduit Blueprint index based on a mesh in stored in this DataStore.")
-
     .def("buffers",
          nb::overload_cast<>(&DataStore::buffers),
          nb::rv_policy::reference,
          "Return an iterator over Buffers")
-    // .def(
-    //   "buffers",
-    //   [](DataStore& self) {
-    //     std::vector<Buffer*> buffer_list;
-    //     for(int i = 0; i < self.getNumBuffers(); i++)
-    //     {
-    //       buffer_list.push_back(self.getBuffer(i));
-    //     }
-    //     return buffer_list;
-    //   },
-    //   nb::rv_policy::reference,
-    //   "Return a python list of buffers that can be iterated over")
 
     // Nanobind fails compilation on blueos
     // #ifdef AXOM_USE_MPI
