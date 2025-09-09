@@ -42,9 +42,10 @@ Communicating Messages between nodes in an intelligent way is how Lumberjack sca
 logging Messages.  The :ref:`Communicator <communicator_class_label>`
 class instance handles the specifics on how the communication is implemented.  For
 example, it handles where a specific node passes its Messages and which nodes
-are allowed to output messages.  As of now, there are two implemented Communicators:
-:ref:`BinaryTreeCommunicator <binarytreecommunicator_class_label>` and
-:ref:`RootCommunicator <rootcommunicator_class_label>`.
+are allowed to output messages.  As of now, there are three implemented Communicators:
+:ref:`BinaryTreeCommunicator <binarytreecommunicator_class_label>`,
+:ref:`RootCommunicator <rootcommunicator_class_label>`, and
+:ref:`NonCollectiveRootCommunicator <noncollectiverootcommunicator_class_label>`.
 
 BinaryTreeCommunicator, as the name implies, utilizes a standard Binary Tree
 algorithm to define how the nodes are connected.  Children pass their
@@ -53,6 +54,9 @@ Messages to their parent and the root node is the only node allowed to output Me
 RootCommunicator has a very simple communication scheme that does not scale well
 but is useful in some cases for its simplicity.  All nodes connect directly
 to the root node which is also the only node allowed to output Messages.
+
+NonCollectiveRootCommunicator is similar to the RootCommunicator, but messages are
+pushed by individual ranks rather than collectively by all ranks.
 
 .. _push_label:
 
