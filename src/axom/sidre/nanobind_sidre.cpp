@@ -184,6 +184,49 @@ NB_MODULE(pysidre, m_sidre)
       nb::rv_policy::reference,
       "Return next Buffer from iterator");
 
+  // Bindings for Group iterator type used by Group::groups()
+  using GroupIterator = axom::IndexedCollection<Group>::iterator_adaptor;
+  nb::class_<GroupIterator>(m_sidre, "GroupIterator")
+    .def(
+      "__iter__",
+      [](GroupIterator& self) { return self; },
+      nb::rv_policy::reference,
+      "Return iterator for Group")
+    .def(
+      "__next__",
+      [](GroupIterator& self) {
+        if(self.getCounter() < self.size())
+        {
+          Group* result = &(*(self.begin() + self.getCounter()));
+          self.incrementCounter();
+          return result;
+        }
+        throw nb::stop_iteration();
+      },
+      nb::rv_policy::reference,
+      "Return next Group from iterator");
+
+  // Bindings for View iterator type used by Group::views()
+  using ViewIterator = axom::IndexedCollection<View>::iterator_adaptor;
+  nb::class_<ViewIterator>(m_sidre, "ViewIterator")
+    .def(
+      "__iter__",
+      [](ViewIterator& self) { return self; },
+      nb::rv_policy::reference,
+      "Return iterator for View")
+    .def(
+      "__next__",
+      [](ViewIterator& self) {
+        if(self.getCounter() < self.size())
+        {
+          View* result = &(*(self.begin() + self.getCounter()));
+          self.incrementCounter();
+          return result;
+        }
+        throw nb::stop_iteration();
+      },
+      nb::rv_policy::reference,
+      "Return next View from iterator");
 
   // Bindings for the DataStore class
   nb::class_<DataStore>(m_sidre, "DataStore")
@@ -218,7 +261,7 @@ NB_MODULE(pysidre, m_sidre)
     .def("buffers",
          nb::overload_cast<>(&DataStore::buffers),
          nb::rv_policy::reference,
-         "Return a python list of buffers that can be iterated over")
+         "Return an iterator over Buffers")
     // .def(
     //   "buffers",
     //   [](DataStore& self) {
@@ -657,6 +700,14 @@ NB_MODULE(pysidre, m_sidre)
          nb::overload_cast<IndexType>(&Group::getGroup),
          nb::rv_policy::reference,
          "Return pointer to non-const immediate child Group with given index.")
+    .def("views",
+         nb::overload_cast<>(&Group::views),
+         nb::rv_policy::reference,
+         "Return an iterator over Views")
+    .def("groups",
+         nb::overload_cast<>(&Group::groups),
+         nb::rv_policy::reference,
+         "Return an iterator over Groups")
     .def("getFirstValidGroupIndex",
          &Group::getFirstValidGroupIndex,
          "Return first valid child Group index (i.e., smallest index over all child Groups).")

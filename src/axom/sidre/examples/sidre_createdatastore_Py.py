@@ -118,28 +118,26 @@ def iterate_datastore(ds):
 	# iterate through the buffers in ds
 	print(fill_line)
 	print("The datastore has the following buffers:")
-	buffers = ds.buffers()
-
-	for buff in buffers:
+	for buff in ds.buffers():
 		print(f"  * [{buff.getIndex()}] "
-			f"{"Allocated" if buff.isAllocated() else "Unallocated"} buffer with "
-			f"{buff.getNumElements()} elements of type {buff.getTypeID()} with "
-			f"{buff.getNumViews()} views")
+			  f"{"Allocated" if buff.isAllocated() else "Unallocated"} buffer with "
+			  f"{buff.getNumElements()} elements of type {buff.getTypeID()} with "
+			  f"{buff.getNumViews()} views")
 	print(fill_line)
 
 	# iterate through the groups of the root group
 	print("The root group has the following groups:")
 	for grp in ds.getRoot().groups():
-		print(f"""  * [{grp.getIndex()}] '{grp.getName()}' with
-			{grp.getNumGroups()} groups and {grp.getNumViews()} views""")
+		print(f"* [{grp.getIndex()}] '{grp.getName()}' with "
+			  f"{grp.getNumGroups()} groups and {grp.getNumViews()} views")
 	print(fill_line)
 
 	# iterate through the views of the 'state' group
 	print("The 'state' group has the following views:")
 	for view in ds.getRoot().getGroup("state").views():
-		print(f"""  * [{view.getIndex()}] '{view.getName()}' -- 
-			{"Allocated" if view.isAllocated() else "Unallocated"} view of type
-			{view.getTypeID()} and {view.getNumElements()} elements""")
+		print(f"* [{view.getIndex()}] '{view.getName()}' -- "
+			  f"{"Allocated" if view.isAllocated() else "Unallocated"} view of type "
+			  f"{view.getTypeID()} and {view.getNumElements()} elements")
 	print(fill_line)
 
 
