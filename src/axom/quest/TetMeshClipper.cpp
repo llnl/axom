@@ -813,7 +813,7 @@ void TetMeshClipper::copy_hierarchy_with_array_allocator(conduit::Node& hierarch
   conduit::Node& src = hierarchy.fetch_existing(srcPath);
   conduit::Node& dst = hierarchy[dstPath];
 
-  const conduit::index_t conduitArrayAllocId = axom::ConduitMemory::axomAllocIdToConduit(allocId);
+  const conduit::index_t conduitArrayAllocId = sidre::ConduitMemory::axomAllocIdToConduit(allocId);
   copy_node_with_array_allocator(src, dst, conduitArrayAllocId);
   return;
 }

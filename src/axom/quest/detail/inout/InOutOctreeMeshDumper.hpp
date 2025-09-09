@@ -23,6 +23,8 @@
 
 #include "axom/fmt.hpp"
 
+#include <unordered_map>
+
 namespace axom
 {
 namespace quest

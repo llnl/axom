@@ -63,6 +63,43 @@ TEST(primal_boundingBox, bb_default_constructor)
 }
 
 //------------------------------------------------------------------------------
+TEST(primal_boundingBox, bb_ctor_from_no_points)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using QPoint = primal::Point<CoordType, DIM>;
+  using QBBox = primal::BoundingBox<CoordType, DIM>;
+
+  const QBBox empty_bbox;
+
+  // Test on nullptr and zero points
+  {
+    QBBox bbox(nullptr, 0);
+
+    EXPECT_FALSE(bbox.isValid());
+    EXPECT_EQ(bbox, empty_bbox);
+  }
+
+  // Test with valid pointer and a size of zero
+  {
+    QPoint pt(2.);
+    QBBox bbox(&pt, 0);
+
+    EXPECT_FALSE(bbox.isValid());
+    EXPECT_EQ(bbox, empty_bbox);
+  }
+
+  // Test with valid pointer and a size less than zero
+  {
+    QPoint pt(2.);
+    QBBox bbox(&pt, -3);
+
+    EXPECT_FALSE(bbox.isValid());
+    EXPECT_EQ(bbox, empty_bbox);
+  }
+}
+
+//------------------------------------------------------------------------------
 TEST(primal_boundingBox, bb_ctor_from_singlePt)
 {
   constexpr int DIM = 3;

@@ -39,25 +39,15 @@ endif()
 foreach(src ${sina_example_sources})
     get_filename_component(exe_name ${src} NAME_WE)
 
-    if (exe_name STREQUAL "sina_fortran")
-        set(sina_mod_src ${CMAKE_CURRENT_BINARY_DIR}/../interface/sina_fortran_interface.f)
-    else()
-        set(sina_mod_src "")
-    endif()
-
     axom_add_executable(
         NAME       ${exe_name}_ex
-        SOURCES    ${src} ${sina_mod_src}
+        SOURCES    ${src}
         OUTPUT_DIR ${EXAMPLE_OUTPUT_DIRECTORY}
         DEPENDS_ON ${sina_example_depends}
         FOLDER     axom/sina/examples
     )
 
-    if (exe_name STREQUAL "sina_fortran")
-        target_include_directories(${exe_name}_ex PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../interface)
-    endif()
-
-    if (${exe_name}_ex STREQUAL "sina_fortran_ex" AND CMAKE_Fortran_COMPILER_ID STREQUAL "XL")
+    if (${exe_name} STREQUAL "sina_fortran" AND CMAKE_Fortran_COMPILER_ID STREQUAL "XL")
         target_compile_options(${exe_name}_ex PRIVATE -qextname)
     endif()
 endforeach()

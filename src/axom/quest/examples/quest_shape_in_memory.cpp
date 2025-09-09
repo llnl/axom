@@ -492,41 +492,6 @@ void printMfemMeshInfo(mfem::Mesh* mesh, const std::string& prefixMessage = "")
  * Shared variables.
  ************************************************************/
 
-/*
-  Whether View data should live on host or another allocator (like device data).
-  Return the "right" choice based on View type, using a heuristic.
-  as determined by heuristics.
-  Ordered by likeliest to be correct.
-*/
-auto viewToStandardAllocator = [](const axom::sidre::View& v) {
-  if(v.isString() || (v.isExternal() && v.getNumElements() == 1))
-  {
-    // String or likely external string
-    return hostAllocId;
-  }
-  if((v.hasBuffer() || v.isExternal()) && (v.getName() == "offsets" || v.getName() == "strides") &&
-     (v.getNumElements() <= 3))
-  {
-    // Likely Blueprint specification of array offsets or strides.
-    return hostAllocId;
-  }
-  if(v.hasBuffer() && v.getPath().find("/values/") == std::string::npos)
-  {
-    // Likely Blueprint mesh data or coordinate values.
-    return arrayAllocId;
-  }
-  if(v.isScalar() || (v.isExternal() && v.getNumElements() == 1))
-  {
-    // Scalar or likely external scalar
-    return hostAllocId;
-  }
-  if(v.hasBuffer() && v.getNumElements() <= 3)
-  {
-    return hostAllocId;
-  }
-  return arrayAllocId;
-};
-
 axom::sidre::Group* createBoxMesh(axom::sidre::Group* meshGrp)
 {
   switch(params.getBoxDim())
@@ -574,11 +539,6 @@ axom::sidre::Group* createBoxMesh(axom::sidre::Group* meshGrp)
 
   // State group is optional to blueprint, and we don't use it, but mint checks for it.
   meshGrp->createGroup("state");
-
-  auto hostAllocForScalarAndStringViews = [](const axom::sidre::View& v) {
-    return (v.isScalar() || v.isString()) ? hostAllocId : axom::INVALID_ALLOCATOR_ID;
-  };
-  meshGrp->reallocateTo(hostAllocForScalarAndStringViews);
 
   return meshGrp;
 }
@@ -913,8 +873,7 @@ axom::klee::Shape createShape_Plane(const std::string& shapeName)
                                                   prop);
   }
 
-  // Create a plane crossing center of mesh.  No matter the normal,
-  // it cuts the mesh in half.
+  // Create a plane crossing center of mesh.  No matter the normal, it cuts the mesh in half.
   Point3D center {0.5 *
                   (axom::NumericArray<double, 3>(params.boxMins.data()) +
                    axom::NumericArray<double, 3>(params.boxMaxs.data()))};
@@ -1123,13 +1082,13 @@ axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds, const std::string& s
 
 #if defined(AXOM_USE_MFEM)
 /*!
-  @brief Return the element volumes as a sidre::View.
-
-  If it doesn't exist, allocate and compute it.
-  \post The volume data is in \c dc->GetNamedBuffer(volFieldName).
-
-  Most of this is lifted from IntersectionShaper::runShapeQueryImpl.
-*/
+ *  @brief Return the element volumes as a sidre::View.
+ *
+ *  If it doesn't exist, allocate and compute it.
+ *  \post The volume data is in \c dc->GetNamedBuffer(volFieldName).
+ *
+ *  Most of this is lifted from IntersectionShaper::runShapeQueryImpl.
+ */
 template <typename ExecSpace>
 axom::sidre::View* getElementVolumes(
   sidre::MFEMSidreDataCollection* dc,
@@ -1266,14 +1225,13 @@ axom::sidre::View* getElementVolumes(
 #endif
 
 /*!
-  @brief Return the element volumes as a sidre::View containing
-  the volumes in an array.
-
-  If it doesn't exist, allocate and compute it.
-  \post The volume data is in the blueprint field \c volFieldName.
-
-  Most of this is lifted from IntersectionShaper::runShapeQueryImpl.
-*/
+ *  @brief Return the element volumes as a sidre::View containing the volumes in an array
+ *
+ *  If it doesn't exist, allocate and compute it.
+ *  \post The volume data is in the blueprint field \c volFieldName.
+ *
+ *  Most of this is lifted from IntersectionShaper::runShapeQueryImpl.
+ */
 template <typename ExecSpace>
 axom::sidre::View* getElementVolumesImpl(
   sidre::Group* meshGrp,
@@ -1366,9 +1324,9 @@ axom::sidre::View* getElementVolumesImpl(
 
       // Allocate and populate cell volumes.
       axom::sidre::Group* fieldGrp = meshGrp->createGroup(fieldPath);
-      fieldGrp->createViewString("topology", topoName, hostAllocId);
-      fieldGrp->createViewString("association", "element", hostAllocId);
-      fieldGrp->createViewString("volume_dependent", "true", hostAllocId);
+      fieldGrp->createViewString("topology", topoName);
+      fieldGrp->createViewString("association", "element");
+      fieldGrp->createViewString("volume_dependent", "true");
       volSidreView =
         fieldGrp->createViewAndAllocate("values", axom::sidre::detail::SidreTT<double>::id, cellCount);
       axom::IndexType shape2d[] = {cellCount, 1};
@@ -1464,9 +1422,9 @@ axom::sidre::View* getElementVolumesImpl(
 
       // Allocate and populate cell volumes.
       axom::sidre::Group* fieldGrp = meshGrp->createGroup(fieldPath);
-      fieldGrp->createViewString("topology", topoName, hostAllocId);
-      fieldGrp->createViewString("association", "element", hostAllocId);
-      fieldGrp->createViewString("volume_dependent", "true", hostAllocId);
+      fieldGrp->createViewString("topology", topoName);
+      fieldGrp->createViewString("association", "element");
+      fieldGrp->createViewString("volume_dependent", "true");
       volSidreView =
         fieldGrp->createViewAndAllocate("values", axom::sidre::detail::SidreTT<double>::id, cellCount);
       axom::IndexType shape2d[] = {cellCount, 1};
@@ -1910,12 +1868,9 @@ int main(int argc, char** argv)
   if(params.useBlueprintSidre() || params.useBlueprintConduit())
   {
     compMeshGrp = ds.getRoot()->createGroup("compMesh");
-    compMeshGrp->setDefaultAllocator(arrayAllocId);
+    compMeshGrp->setDefaultArrayAllocator(arrayAllocId);
 
     createBoxMesh(compMeshGrp);
-
-    // Move memory to standard allocators.
-    compMeshGrp->reallocateTo(viewToStandardAllocator);
 
     if(params.useBlueprintConduit())
     {
@@ -1923,9 +1878,9 @@ int main(int argc, char** argv)
       auto makeField = [&](const std::string& fieldName, double initValue) {
         auto fieldGrp = compMeshGrp->createGroup("fields/" + fieldName);
         axom::IndexType shape[] = {params.getBoxCellCount(), 1};
-        fieldGrp->createViewString("association", "element", hostAllocId);
-        fieldGrp->createViewString("topology", topoName, hostAllocId);
-        fieldGrp->createViewString("volume_dependent", "true", hostAllocId);
+        fieldGrp->createViewString("association", "element");
+        fieldGrp->createViewString("topology", topoName);
+        fieldGrp->createViewString("volume_dependent", "true");
         axom::sidre::View* valuesView =
           fieldGrp->createViewWithShapeAndAllocate("values",
                                                    axom::sidre::detail::SidreTT<double>::id,
@@ -2050,28 +2005,8 @@ int main(int argc, char** argv)
     // Finalize data structures associated with this shape and spatial index
     shaper->finalizeShapeQuery();
     slic::flushStreams();
-
-    if(compMeshGrp)
-    {
-      compMeshGrp->reallocateTo(viewToStandardAllocator);
-    }
   }
   AXOM_ANNOTATE_END("shaping");
-
-  if(params.useBlueprintSidre() || params.useBlueprintConduit())
-  {
-    // The shaper created some blueprint nodes that we need to move to the host.
-    auto hostAllocForScalarAndStringViews = [](const axom::sidre::View& v) {
-      return (v.isScalar() || v.isString()) ? hostAllocId : axom::INVALID_ALLOCATOR_ID;
-    };
-
-    if(compMeshGrp->getDefaultAllocatorID() != hostAllocId)
-    {
-      compMeshGrp->reallocateTo(hostAllocForScalarAndStringViews);
-      compMeshNode = std::make_shared<conduit::Node>();
-      compMeshGrp->createNativeLayout(*compMeshNode);
-    }
-  }
 
   //---------------------------------------------------------------------------
   // After shaping in all shapes, generate/adjust the material volume fractions

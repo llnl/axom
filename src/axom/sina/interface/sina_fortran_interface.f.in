@@ -144,9 +144,9 @@ contains
     call write_sina_document_noprotocol(fname)
   end subroutine save_without_protocol
 
-end module 
+end module sina_functions
 
-module hdf5_config
+module sina_hdf5_config
   implicit none
   logical, parameter :: use_hdf5 = @AXOM_USE_HDF5_FORTRAN@
-end module hdf5_config
+end module sina_hdf5_config

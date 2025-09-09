@@ -67,6 +67,8 @@ set(core_headers
     Map.hpp
     MapCollection.hpp
     FlatMap.hpp
+    FlatMapView.hpp
+    FlatMapUtil.hpp
     DeviceHash.hpp
     NumericArray.hpp
     NumericLimits.hpp
@@ -108,11 +110,6 @@ set(core_sources
     Path.cpp
     Types.cpp
     )
-
-if (CONDUIT_FOUND)
-  blt_list_append( TO core_headers ELEMENTS ConduitMemory.hpp )
-  blt_list_append( TO core_sources ELEMENTS ConduitMemory.cpp )
-endif()
 
 #------------------------------------------------------------------------------
 # Set library dependencies

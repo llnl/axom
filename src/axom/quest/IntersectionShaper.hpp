@@ -565,7 +565,7 @@ public:
     AXOM_ANNOTATE_END("allocate m_overlap_volumes");
   }
 
-  //@{
+  ///@{
   //!  @name Functions to get and set shaping parameters related to intersection; supplements parameters in base class
 
   void setLevel(int level) { m_level = level; }
@@ -588,7 +588,7 @@ public:
     }
     m_free_mat_name = name;
   }
-  //@}
+  ///@}
 
   /*!
    * \brief Return the revolved volume that was computed during dynamic refinement.
@@ -624,7 +624,7 @@ public:
 private:
 #endif
 
-  //@{
+  ///@{
   //!  @name Private functions related to the stages for a given shape
 
   template <typename ExecSpace>
@@ -1734,7 +1734,7 @@ public:
     m_surfaceMesh.reset();
   }
 
-  //@}
+  ///@}
 
 public:
   /*!
@@ -2535,7 +2535,6 @@ private:
   axom::ArrayView<double> getScalarCellData(const std::string& fieldName, bool volumeDependent = false)
   {
     axom::ArrayView<double> rval;
-    const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
 #if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
@@ -2600,10 +2599,10 @@ private:
           // valuesView = fieldGrp->createView("values");
           valuesView =
             fieldGrp->createViewWithShape("values", axom::sidre::DataTypeId::FLOAT64_ID, 2, shape);
-          fieldGrp->createView("association")->setString("element", hostAllocId);
-          fieldGrp->createView("topology")->setString(m_bpTopo, hostAllocId);
+          fieldGrp->createView("association")->setString("element");
+          fieldGrp->createView("topology")->setString(m_bpTopo);
           fieldGrp->createView("volume_dependent")
-            ->setString(std::string(volumeDependent ? "true" : "false"), hostAllocId);
+            ->setString(std::string(volumeDependent ? "true" : "false"));
           valuesView->allocate();
         }
       }

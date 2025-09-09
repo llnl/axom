@@ -111,7 +111,8 @@ language = 'English'
 # directories to ignore when looking for source files.
 exclude_patterns = [ '_build',
                      'cmake/blt/docs',
-                     'thirdparty']
+                     'thirdparty',
+                     'tools']
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.

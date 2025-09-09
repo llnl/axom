@@ -19,7 +19,6 @@
 // axom headers
 #include "axom/config.hpp"
 #include "axom/core/Array.hpp"
-#include "axom/core/ConduitMemory.hpp"
 #include "axom/core/ItemCollection.hpp"
 #include "axom/core/Macros.hpp"
 #include "axom/core/MapCollection.hpp"
@@ -44,6 +43,7 @@
 // Sidre headers
 #include "SidreTypes.hpp"
 #include "View.hpp"
+#include "ConduitMemory.hpp"
 
 namespace axom
 {
@@ -121,12 +121,21 @@ class DataStore;
  * while unnamed Views should be created by passing an empty string as the
  * path argument to any of the createView methods.
  *
- *
  * \attention when Views or Groups are created, destroyed, copied, or moved,
  * indices of other Views and Groups in associated Group objects may
  * become invalid. This is analogous to iterator invalidation for STL
  * containers when the container contents change.
  *
+ * A Group has two allocators for managing memory in its hierarchy.
+ * An array allocator is intended for computational data, typically
+ * large arrays but it could be any size.  Another allocator is intended
+ * for metadata such as strings, scalars and tuples (typically small
+ * arrays, although it could be any size).  These allocators are the
+ * defaults for the hierarchy's Views and Groups, unless specifically
+ * overridden.  @see setDefaultArrayAllocator() @setDefaultTupleAllocator()
+ * Moreover only arrays (buffers and external data) are subject to
+ * shallow-copying.  Strings, scalars and tuples are always deep-copied
+ * even for hierarchy shallow-copies.
  */
 class Group
 {
@@ -141,7 +150,7 @@ public:
   using ViewCollection = ItemCollection<View>;
   using GroupCollection = ItemCollection<Group>;
 
-  //@{
+  ///@{
   //!  @name Basic query and accessor methods.
 
   /*!
@@ -274,8 +283,6 @@ public:
    */
   bool isRoot() const { return m_parent == this; }
 
-
-
   //! \brief Return the ID of the default array allocator id associated with this Group.
   int getDefaultArrayAllocatorID() const { return m_default_array_alloc_id; }
 
@@ -296,23 +303,18 @@ public:
 #endif
 
   /*!
-    \brief Set the default array allocator id associated with this Group.
-
-    This allocator is the default for array data, even if the array is
-    length 1.  (Note, tuples are not arrays in this specific sense.  @see
-    setDefaultTupleAllocator(int).)
+   * \brief Set the default array allocator id associated with this Group.
+   *
+   * This allocator is the default for array data, even if the array is
+   * length 1.  (Note, tuples are not arrays in this specific sense.  @see
+   * setDefaultTupleAllocator(int).)
   */
   Group* setDefaultArrayAllocator(int allocId)
   {
-#if !defined(AXOM_USE_UMPIRE)
-    SLIC_ASSERT(allocId == axom::MALLOC_ALLOCATOR_ID);
-#endif
+    SLIC_ASSERT(allocId != axom::INVALID_ALLOCATOR_ID);
     m_default_array_alloc_id = allocId;
-      axom::ConduitMemory::instanceForAxomId(m_default_array_alloc_id).conduitId();
     return this;
   }
-
-
 
   //! \brief Return the ID of the default scalar/tuple allocator id associated with this Group.
   int getDefaultTupleAllocatorID() const { return m_default_tuple_alloc_id; }
@@ -334,33 +336,26 @@ public:
 #endif
 
   /*!
-    \brief Set the default scalar/tuple allocator id associated with this Group.
-
-    This allocator is the default for tuple data, including strings
-    and scalars.  (Arrays are not tuples in this sense.  @see
-    setDefaultArrayAllocator(int).)
+   * \brief Set the default scalar/tuple allocator id associated with this Group.
+   *
+   * This allocator is the default for tuple data, including strings
+   * and scalars.  (Arrays are not tuples in this sense.  @see
+   * setDefaultArrayAllocator(int).)
   */
   Group* setDefaultTupleAllocator(int allocId)
   {
-#if !defined(AXOM_USE_UMPIRE)
-    SLIC_ASSERT(allocId == axom::MALLOC_ALLOCATOR_ID);
-#endif
+    SLIC_ASSERT(allocId != axom::INVALID_ALLOCATOR_ID);
     m_default_tuple_alloc_id = allocId;
-      axom::ConduitMemory::instanceForAxomId(m_default_tuple_alloc_id).conduitId();
+    ConduitMemory::instanceForAxomId(m_default_tuple_alloc_id).conduitId();
     return this;
   }
-
-
 
   //! \brief For backward compatibility, same as getDefaultArrayAllocatorID().
   int getDefaultAllocatorID() const { return getDefaultArrayAllocatorID(); }
 
 #if defined(AXOM_USE_UMPIRE)
   //! \brief For backward compatibility, same as getDefaultArrayAllocator().
-  umpire::Allocator getDefaultAllocator() const
-  {
-    return getDefaultArrayAllocator();
-  }
+  umpire::Allocator getDefaultAllocator() const { return getDefaultArrayAllocator(); }
 
   //! \brief For backward compatibility, same as setDefaultArrayAllocator().
   Group* setDefaultAllocator(umpire::Allocator alloc)
@@ -370,24 +365,7 @@ public:
 #endif
 
   //! \brief For backward compatibility, same as setDefaultArrayAllocator().
-  Group* setDefaultAllocator(int allocId)
-  {
-    return setDefaultArrayAllocator(allocId);
-  }
-
-  /*!
-   * \brief Reallocate data to View-specific allocators.
-   *
-   * \param [i] viewToAllocatorId A function that returns the allocator
-   *   id to reallocate the View's data to.  Where it returns
-   *   the View's current allocator or axom::INVALID_ALLOCATOR_ID,
-   *   the View is unchanged.
-   *
-   * \return pointer to this Group object.
-   *
-   * This does NOT change any Group's default allocator.
-   */
-  Group* reallocateTo(const std::function<int(const View&)>& viewToAllocatorId);
+  Group* setDefaultAllocator(int allocId) { return setDefaultArrayAllocator(allocId); }
 
   /*!
    * \brief Insert information about data associated with Group subtree with
@@ -441,9 +419,9 @@ public:
    */
   void getDataInfo(Node& n, bool recursive = true) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View query methods.
 
   /*!
@@ -480,13 +458,12 @@ public:
    */
   const std::string& getViewName(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View access methods.
 
   /*!
-
    * \brief Return pointer to non-const View with given name or path.
    *
    * This method requires that all groups in the path exist if a path is given.
@@ -518,9 +495,9 @@ public:
    */
   const View* getView(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View iteration methods.
   //!
   //! Using these methods, a code can get the first View index and each
@@ -560,9 +537,9 @@ public:
    */
   IndexType getNextValidViewIndex(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to create a View that has no associated data.
   //!
   //! \attention These methods do not allocate data or associate a View
@@ -618,9 +595,9 @@ public:
    */
   View* createView(const std::string& path, const DataType& dtype);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to create a View with a Buffer attached.
   //!
   //! \attention The Buffer passed to each of these methods may or may not
@@ -711,9 +688,9 @@ public:
    */
   View* createView(const std::string& path, const DataType& dtype, Buffer* buff);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to create a View with externally-owned data attached.
   //!
   //! \attention To do anything useful with a View created by one of these
@@ -800,9 +777,9 @@ public:
    */
   View* createView(const std::string& path, const DataType& dtype, void* external_ptr);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to create a View and allocate data for it.
   //!
   //! Each of these methods is a no-op if the given View name is an
@@ -910,9 +887,9 @@ public:
                          const std::string& value,
                          int allocID = INVALID_ALLOCATOR_ID);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View destruction methods.
   //!
   //! Each of these methods is a no-op if the specified View does not exist.
@@ -954,9 +931,9 @@ public:
    */
   void destroyViewsAndData();
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View move and copy methods.
 
   /*!
@@ -1011,9 +988,9 @@ public:
                      int arrayAllocID = INVALID_ALLOCATOR_ID,
                      int tupleAllocID = INVALID_ALLOCATOR_ID);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Child Group query methods.
 
   /*!
@@ -1051,9 +1028,9 @@ public:
    */
   const std::string& getGroupName(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Group access and iteration methods.
 
   /*!
@@ -1088,9 +1065,9 @@ public:
    */
   const Group* getGroup(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Accessors for iterating the group and view collections.
   //!
   //! These methods can be used to iterate over the collection of groups and views
@@ -1124,7 +1101,7 @@ public:
    */
   typename GroupCollection::const_iterator_adaptor groups() const;
 
-  //@}
+  ///@}
 private:
   /*!
    * \brief Casts the views ItemCollection to a (named) MapCollection
@@ -1177,7 +1154,7 @@ private:
   void getDataInfoHelper(Node& n, std::set<IndexType>& buffer_ids, bool recursive) const;
 
 public:
-  //@{
+  ///@{
   //!  @name Group iteration methods.
   //!
   //! Using these methods, a code can get the first Group index and each
@@ -1214,15 +1191,15 @@ public:
    */
   IndexType getNextValidGroupIndex(IndexType idx) const;
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Child Group creation and destruction methods.
 
   /*!
    * \brief Create a child Group within this Group with given name or path.
    *
-   * If name is an empty string, method is a no-op.
+   * If path is an empty string, method is a no-op.
    *
    * If Group already has a child Group with given name or path
    * and accept_existing is false, method is a no-op.
@@ -1317,9 +1294,9 @@ public:
    */
   void destroyGroups();
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Group move and copy methods.
 
   /*!
@@ -1406,9 +1383,9 @@ public:
    */
   Group* deepCopyGroupToSelf(const Group* srcGroup);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Group print methods.
 
   /*!
@@ -1434,13 +1411,14 @@ public:
   void printTree(const int nlevels, std::ostream& os = std::cout) const;
 
   /*!
-    * \brief Print in a way that won't crash for non-host data.
+    * \brief Print Groups and Views in the hierarchy rooted at this group,
+    * in a way that won't crash for non-host data.
     *
     * If data is not host-accessible, print the pointer and a comment.
     */
   void hostPrint(const std::string& indent = "", std::ostream& os = std::cout) const;
 
-  //@}
+  ///@}
 
   /*!
    * \brief Copy description of Group hierarchy rooted at this Group to
@@ -1468,7 +1446,9 @@ public:
    *
    * \param [out] dst
    * \param [in] tupleAllocId overriding allocator for tuples, scalars and strings.
+   *   If equal to INVALID_ALLOCATOR_ID, don't override destination's allocator.
    * \param [in] arrayAllocId overriding allocator for arrays.
+   *   If equal to INVALID_ALLOCATOR_ID, don't override destination's allocator.
    * \param [in] attr copy Views that have Attribute set.
    *
    * This is similar to createNativeLayout, except for the leaves being
@@ -1544,37 +1524,37 @@ public:
    */
   bool isUsingList() const { return m_is_list; }
 
-  //@{
+  ///@{
   /*!
- * @name    Group I/O methods
- *   These methods save and load Group trees to and from files.
- *   This includes the views and buffers used in by groups in the tree.
- *   We provide several "protocol" options:
- *
- *   protocols:
- *    sidre_hdf5 (default when Axom is configured with hdf5)
- *    sidre_conduit_json (default otherwise)
- *    sidre_json
- *
- *    conduit_hdf5
- *    conduit_bin
- *    conduit_json
- *    json
- *
- *   \note The sidre_hdf5 and conduit_hdf5 protocols are only available
- *   when Axom is configured with hdf5.
- *
- *   There are two overloaded versions for each of save, load, and
- *   loadExternalData.  The first of each takes a file path and is intended
- *   for use in a serial context and can be called directly using any
- *   of the supported protocols.  The second takes an hdf5 handle that
- *   has previously been created by the calling code.  These mainly exist
- *   to handle parallel I/O calls from the SPIO component.  They can only
- *   take the sidre_hdf5 or conduit_hdf5 protocols.
- *
- *   \note The hdf5 overloads are only available when Axom is configured
- *   with hdf5.
- */
+   * @name    Group I/O methods
+   *   These methods save and load Group trees to and from files.
+   *   This includes the views and buffers used in by groups in the tree.
+   *   We provide several "protocol" options:
+   *
+   *   protocols:
+   *    sidre_hdf5 (default when Axom is configured with hdf5)
+   *    sidre_conduit_json (default otherwise)
+   *    sidre_json
+   *
+   *    conduit_hdf5
+   *    conduit_bin
+   *    conduit_json
+   *    json
+   *
+   *   \note The sidre_hdf5 and conduit_hdf5 protocols are only available
+   *   when Axom is configured with hdf5.
+   *
+   *   There are two overloaded versions for each of save, load, and
+   *   loadExternalData.  The first of each takes a file path and is intended
+   *   for use in a serial context and can be called directly using any
+   *   of the supported protocols.  The second takes an hdf5 handle that
+   *   has previously been created by the calling code.  These mainly exist
+   *   to handle parallel I/O calls from the SPIO component.  They can only
+   *   take the sidre_hdf5 or conduit_hdf5 protocols.
+   *
+   *   \note The hdf5 overloads are only available when Axom is configured
+   *   with hdf5.
+   */
 
   /*!
    * \brief Save the Group to a file.
@@ -1795,7 +1775,7 @@ public:
 
 #endif /* AXOM_USE_HDF5 */
 
-  //@}
+  ///@}
 
   /*!
    * \brief Change the name of this Group.
@@ -1872,7 +1852,7 @@ private:
   DISABLE_COPY_AND_ASSIGNMENT(Group);
   DISABLE_MOVE_AND_ASSIGNMENT(Group);
 
-  //@{
+  ///@{
   //!  @name Private Group ctors and dtors
   //!        (callable only by DataStore and Group methods).
 
@@ -1895,9 +1875,9 @@ private:
    */
   ~Group();
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name View attach and detach methods.
 
   /*!
@@ -1920,9 +1900,9 @@ private:
    */
   View* detachView(IndexType idx);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Group attach and detach methods.
 
   /*!
@@ -1942,9 +1922,9 @@ private:
    */
   Group* detachGroup(IndexType idx);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Private Group View manipulation methods.
 
   /*!
@@ -1958,9 +1938,9 @@ private:
    */
   void destroyViewAndData(View* view);
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Private Group methods for interacting with Conduit Nodes.
 
   /*!
@@ -2012,7 +1992,7 @@ private:
    */
   void importFrom(conduit::Node& node, const std::map<IndexType, IndexType>& buffer_id_map);
 
-  //@}
+  ///@}
 
   /*!
    * \brief Private method that returns the Group that is the next-to-last

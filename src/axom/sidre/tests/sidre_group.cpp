@@ -1473,19 +1473,25 @@ TEST(sidre_group, groups_move_copy)
   delete ds;
 }
 
-//------------------------------------------------------------------------------
-TEST(sidre_group, scalar_memory_allocator)
+// Return vector of known allocator ids.
+std::vector<int> getKnownAllocIds()
 {
-  // Allocator ids to test.
   std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
 #ifdef AXOM_USE_UMPIRE
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
   #ifdef AXOM_USE_GPU
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
   allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
-    // Does it make sense to check Pinned and Constant memory spaces?
+  // Does it make sense to check Pinned and Constant memory spaces?
   #endif
 #endif
+  return allocIds;
+}
+
+//------------------------------------------------------------------------------
+TEST(sidre_group, scalar_memory_allocator)
+{
+  std::vector<int> allocIds = getKnownAllocIds();
 
   DataStore ds;
   Group* grp = ds.getRoot()->createGroup("grp");
@@ -1497,7 +1503,7 @@ TEST(sidre_group, scalar_memory_allocator)
     std::int32_t scalarInt = 12345;
     grp->createViewScalar("scalarInt", scalarInt);
 
-    std::int32_t* scalarIntPtr = (std::int32_t*)grp->getView("scalarInt")->getVoidPtr();
+    std::int32_t* scalarIntPtr = static_cast<std::int32_t*>(grp->getView("scalarInt")->getVoidPtr());
     auto allocIdScalarInt = axom::getAllocatorIDFromPointer(scalarIntPtr);
     EXPECT_EQ(allocIdScalarInt, allocId);
 
@@ -1639,18 +1645,7 @@ TEST(sidre_group, deep_copy_interspace)
 {
   // Test deep copies with a change in memory space.
 
-  // Allocator ids to test.
-  std::vector<int> allocIds;
-#ifdef AXOM_USE_UMPIRE
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
-  #ifdef AXOM_USE_GPU
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
-  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
-    // Does it make sense to check Pinned and Constant memory spaces?
-  #endif
-#else
-  allocIds.push_back(axom::MALLOC_ALLOCATOR_ID);
-#endif
+  std::vector<int> allocIds = getKnownAllocIds();
 
   DataStore ds;
 
@@ -1695,20 +1690,21 @@ TEST(sidre_group, deep_copy_interspace)
     //
 
     View* srcString = src->createViewString("aString", stringValue);
-    const char* srcStringPtr = (char*)srcString->getNode().data_ptr();
+    const char* srcStringPtr = static_cast<char*>(srcString->getNode().data_ptr());
     EXPECT_EQ(axom::getAllocatorIDFromPointer(srcStringPtr), srcTupleAllocId);
 
     View* srcScalar = src->createViewScalar("aDouble", doubleValue);
-    double* srcScalarPtr = (double*)srcScalar->getNode().data_ptr();
+    double* srcScalarPtr = static_cast<double*>(srcScalar->getNode().data_ptr());
     EXPECT_EQ(axom::getAllocatorIDFromPointer(srcScalarPtr), srcTupleAllocId);
     axom::copy(srcScalarPtr, &doubleValue, sizeof(double));
 
     View* srcArray = src->createViewAndAllocate("aIntArray", dtypeIntArray);
-    std::int32_t* srcArrayPtr = (std::int32_t*)srcArray->getNode().data_ptr();
+    std::int32_t* srcArrayPtr = static_cast<std::int32_t*>(srcArray->getNode().data_ptr());
     EXPECT_EQ(axom::getAllocatorIDFromPointer(srcArrayPtr), srcArrayAllocId);
     axom::copy(srcArrayPtr, intArray.data(), N * sizeof(std::int32_t));
 
-    if(axom::execution_space<axom::SEQ_EXEC>::usesAllocId(srcArrayAllocId))
+    if(axom::execution_space<axom::SEQ_EXEC>::usesAllocId(srcArrayAllocId) &&
+       axom::execution_space<axom::SEQ_EXEC>::usesAllocId(srcTupleAllocId))
     {
       std::cout << "srcGrandparent group:" << std::endl;
       srcGrandparent->print();
@@ -1723,7 +1719,8 @@ TEST(sidre_group, deep_copy_interspace)
       int dstArrayAllocId = allocIds[di];
       int dstTupleAllocId = allocIds[allocIds.size() - 1 - di];
 
-      std::cout << "Testing copying allocator id " << srcArrayAllocId << " and " << srcTupleAllocId << " to " << dstArrayAllocId << " and " << dstTupleAllocId << std::endl;
+      std::cout << "Testing copying allocator id " << srcArrayAllocId << " and " << srcTupleAllocId
+                << " to " << dstArrayAllocId << " and " << dstTupleAllocId << std::endl;
 
       dstGrandparent->setDefaultArrayAllocator(dstArrayAllocId);
       dstGrandparent->setDefaultTupleAllocator(dstTupleAllocId);
@@ -1736,14 +1733,15 @@ TEST(sidre_group, deep_copy_interspace)
       // Check pointers.  Copy data to temporary host buffers and check.
       //
 
-      double* dstScalarPtr = (double*)dst->getView(srcScalar->getName())->getVoidPtr();
+      double* dstScalarPtr = static_cast<double*>(dst->getView(srcScalar->getName())->getVoidPtr());
       EXPECT_NE(dstScalarPtr, nullptr);
       EXPECT_NE(dstScalarPtr, srcScalarPtr);
       EXPECT_EQ(axom::getAllocatorIDFromPointer(dstScalarPtr), dstTupleAllocId);
       axom::copy(&tmpDoubleValue, dstScalarPtr, sizeof(double));
       EXPECT_EQ(tmpDoubleValue, doubleValue);
 
-      std::int32_t* dstArrayPtr = (std::int32_t*)dst->getView(srcArray->getName())->getVoidPtr();
+      std::int32_t* dstArrayPtr =
+        static_cast<std::int32_t*>(dst->getView(srcArray->getName())->getVoidPtr());
       EXPECT_NE(dstArrayPtr, nullptr);
       EXPECT_NE(dstArrayPtr, srcArrayPtr);
       EXPECT_EQ(axom::getAllocatorIDFromPointer(dstArrayPtr), dstArrayAllocId);
@@ -1753,7 +1751,7 @@ TEST(sidre_group, deep_copy_interspace)
         EXPECT_EQ(tmpIntArray[i], intArray[i]);
       }
 
-      char* dstStringPtr = (char*)dst->getView(srcString->getName())->getVoidPtr();
+      char* dstStringPtr = static_cast<char*>(dst->getView(srcString->getName())->getVoidPtr());
       EXPECT_NE(dstStringPtr, nullptr);
       EXPECT_NE(dstStringPtr, srcStringPtr);
       EXPECT_EQ(axom::getAllocatorIDFromPointer(dstStringPtr), dstTupleAllocId);

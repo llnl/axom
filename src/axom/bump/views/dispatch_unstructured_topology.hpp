@@ -118,7 +118,7 @@ struct make_unstructured_polyhedral_topology
  * \param topo The node that contains the topology.
  * \param func The function/lambda to call with the topology view.
  */
-// @{
+///@{
 template <typename FuncType>
 void dispatch_unstructured_polyhedral_topology(const conduit::Node &topo, FuncType &&func)
 {
@@ -161,7 +161,7 @@ void typed_dispatch_unstructured_polyhedral_topology(const conduit::Node &topo, 
     func(shape, ugView);
   }
 }
-// @}
+///@}
 
 /*!
  * \brief This function dispatches a Conduit mixed unstructured topology.
@@ -175,7 +175,7 @@ void typed_dispatch_unstructured_polyhedral_topology(const conduit::Node &topo, 
  *       the shape_map within the topology so we can build our own shape map
  *       later in the for_all_zones method.
  */
-// @{
+///@{
 template <typename FuncType>
 void dispatch_unstructured_mixed_topology(const conduit::Node &topo, FuncType &&func)
 {
@@ -238,7 +238,7 @@ void typed_dispatch_unstructured_mixed_topology(const conduit::Node &topo, FuncT
     func(shape, ugView);
   }
 }
-// @}
+///@}
 
 #if __cplusplus >= 201703L
 // C++17 and later.

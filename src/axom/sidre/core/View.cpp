@@ -15,7 +15,7 @@
 
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/Macros.hpp"
-#include "axom/core/ConduitMemory.hpp"
+#include "axom/sidre/core/ConduitMemory.hpp"
 
 namespace axom
 {
@@ -275,71 +275,6 @@ View* View::reallocate(const DataType& dtype)
   IndexType num_elems = dtype.number_of_elements();
   m_data_buffer->reallocate(num_elems);
   apply();
-
-  return this;
-}
-
-/*
- *************************************************************************
- *
- * Reallocate data to a different allocator.
- *
- *************************************************************************
- */
-View* View::reallocateTo(int newAllocId)
-{
-  if(newAllocId == axom::INVALID_ALLOCATOR_ID)
-  {
-    return this;
-  }
-
-  if(m_state == EMPTY)
-  {
-    return this;
-  }
-
-  if(m_state == STRING || m_state == TUPLE)
-  {
-    // Data is stored in m_node.
-    conduit::index_t conduitAllocId = m_node.allocator();
-    const auto& currentMemOp = axom::ConduitMemory::instanceForConduitId(conduitAllocId);
-    int currentAllocId = currentMemOp.axomId();
-
-    if(currentAllocId != newAllocId)
-    {
-      const auto& newMemOp = axom::ConduitMemory::instanceForAxomId(newAllocId);
-      conduit::Node tmpNode;
-      m_node.swap(tmpNode);
-      m_node.set_allocator(newMemOp.conduitId());
-      m_node.set_node(tmpNode);
-    }
-  }
-  else if(m_state == BUFFER)
-  {
-    // Data is stored in m_data_buffer.
-    void* currentData = m_data_buffer->getVoidPtr();
-    int currentAllocId = axom::getAllocatorIDFromPointer(currentData);
-    if(currentAllocId != newAllocId)
-    {
-      Buffer* currentBuffer = detachBuffer();
-      allocate(newAllocId);
-      m_data_buffer->copyBytesIntoBuffer(currentBuffer->getVoidPtr(), currentBuffer->getTotalBytes());
-      m_data_buffer->attachToView(this);
-      apply();
-      // Destroy the buffer only if it is attached to no other Views.
-      if(currentBuffer->getNumViews() == 0)
-      {
-        getOwningGroup()->getDataStore()->destroyBuffer(currentBuffer);
-      }
-    }
-    else if(m_state == EXTERNAL)
-    {
-      SLIC_ERROR(
-        "reallocating EXTERNAL View data is not supported,"
-        " because we haven't had a use case yet and haven't"
-        " determined what the desired behavior should be.");
-    }
-  }
 
   return this;
 }
@@ -1039,18 +974,19 @@ void View::hostPrint(std::ostream& os) const
       hostPrintArray<std::int64_t>();
       break;
     default:
-      os << ' ' << getVoidPtr() << " # non-host unknown scalar data";
+      os << ' ' << getVoidPtr() << " # " << (isHostAccessible() ? "" : "non-")
+         << "host data of unrecognized type id " << getTypeID();
     }
   }
   else if(isOpaque())
   {
     if(isHostAccessible())
     {
-      os << ' ' << " # opaque host data";
+      os << ' ' << getVoidPtr() << " # opaque host data";
     }
     else
     {
-      os << ' ' << " # opaque non-host data";
+      os << ' ' << getVoidPtr() << " # opaque non-host data";
     }
   }
 }
@@ -1107,10 +1043,6 @@ void View::deepCopyToConduit(Node& dst, int allocId) const
   // TODO: Need to handle cases where the view is not described
   // TODO: Need to handle cases where the view is not allocated
   // TODO: Need to handle cases where the view is not applied
-
-  // Note: We are using conduit's pointer rather than the View pointer
-  //    since the conduit pointer handles offsetting
-  // Note: const_cast the pointer to satisfy conduit's interface
 
   const conduit::DataType& srcDtype = m_node.dtype();
   dst.set(srcDtype);
@@ -1353,7 +1285,7 @@ void View::deepCopyView(View* copy, int arrayAllocId, int tupleAllocId) const
     break;
   case STRING:
   case TUPLE:
-    copy->m_node.set_allocator(axom::ConduitMemory::axomAllocIdToConduit(tupleAllocId));
+    copy->m_node.set_allocator(ConduitMemory::axomAllocIdToConduit(tupleAllocId));
     copy->m_node.set_node(m_node);
     copy->m_state = m_state;
     copy->m_is_applied = true;
@@ -2100,11 +2032,21 @@ int View::getValidTupleAllocatorId(int allocId)
 
 int View::getValidAllocatorId(int allocId)
 {
-  if(allocId != axom::INVALID_ALLOCATOR_ID) { return allocId; }
-  auto semId = getSemanticId();
-  if(semId == REFERENCE) { return getOwningGroup()->getValidArrayAllocatorId(allocId); }
-  if(semId == VALUE) { return getOwningGroup()->getValidTupleAllocatorId(allocId); }
-  SLIC_ASSERT_MSG(false, "Axom internal error: Cannot determine semantic valid allocator id"); // Should never get here.
+  if(allocId != axom::INVALID_ALLOCATOR_ID)
+  {
+    return allocId;
+  }
+  if(m_state == BUFFER || m_state == EXTERNAL)
+  {
+    return getOwningGroup()->getValidArrayAllocatorId(allocId);
+  }
+  if(m_state == TUPLE || m_state == STRING)
+  {
+    return getOwningGroup()->getValidTupleAllocatorId(allocId);
+  }
+  SLIC_ASSERT_MSG(
+    false,
+    "Axom internal error: Cannot determine semantic valid allocator id");  // Should never get here.
   return axom::INVALID_ALLOCATOR_ID;
 }
 

@@ -1235,9 +1235,9 @@ int main(int argc, char** argv)
   if(params.useBlueprintConduit())
   {
     compMeshNode.reset(new conduit::Node);
-    compMeshNode->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(dataAllocId));
+    compMeshNode->set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(dataAllocId));
     compMeshGrp->createNativeLayout(*compMeshNode);
-    compMeshNode->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(dataAllocId));
+    compMeshNode->set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(dataAllocId));
 
     sMeshPtr =
       std::make_shared<quest::ShapeeMesh>(params.policy, dataAllocId, *compMeshNode, topoName, matsetName);

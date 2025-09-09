@@ -107,45 +107,8 @@ Shaper::Shaper(RuntimePolicy execPolicy,
 {
   AXOM_ANNOTATE_SCOPE("Shaper::Shaper_Node");
   m_bpGrp = m_dataStore.getRoot()->createGroup("internalGrp");
-  m_bpGrp->setDefaultAllocator(m_allocatorId);
-
+  m_bpGrp->setDefaultArrayAllocator(m_allocatorId);
   m_bpGrp->importConduitTreeExternal(bpNode);
-  /*
-   * Whether View data should live on host or another allocator (like device data).
-   * Return the "right" choice based on View type, using a heuristic.
-   * as determined by heuristics.
-   * Ordered by likeliest to be correct.
-  */
-  const auto hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
-  auto viewToStandardAllocator = [&](const axom::sidre::View& v) {
-    if(v.isString() || (v.isExternal() && v.getNumElements() == 1))
-    {
-      // String or likely external string
-      return hostAllocId;
-    }
-    if((v.hasBuffer() || v.isExternal()) &&
-       (v.getName() == "offsets" || v.getName() == "strides") && (v.getNumElements() <= 3))
-    {
-      // Likely Blueprint specification of array offsets or strides.
-      return hostAllocId;
-    }
-    if(v.hasBuffer() && v.getPath().find("/values/") == std::string::npos)
-    {
-      // Likely Blueprint mesh data or coordinate values.
-      return axom::INVALID_ALLOCATOR_ID;
-    }
-    if(v.isScalar() || (v.isExternal() && v.getNumElements() == 1))
-    {
-      // Scalar or likely external scalar
-      return hostAllocId;
-    }
-    if(v.hasBuffer() && v.getNumElements() <= 3)
-    {
-      return hostAllocId;
-    }
-    return axom::INVALID_ALLOCATOR_ID;
-  };
-  m_bpGrp->reallocateTo(viewToStandardAllocator);
 
   // We want unstructured topo but can accomodate structured.
   const std::string topoType =
@@ -199,7 +162,7 @@ void Shaper::setFilePath(const std::string& filePath)
 void Shaper::setSamplesPerKnotSpan(int nSamples)
 {
   using axom::utilities::clampLower;
-  SLIC_WARNING_IF(
+  SLIC_WARNING_ROOT_IF(
     nSamples < 1,
     axom::fmt::format("Samples per knot span must be at least 1. Provided value was {}", nSamples));
 
@@ -208,7 +171,7 @@ void Shaper::setSamplesPerKnotSpan(int nSamples)
 
 void Shaper::setVertexWeldThreshold(double threshold)
 {
-  SLIC_WARNING_IF(
+  SLIC_WARNING_ROOT_IF(
     threshold <= 0.,
     axom::fmt::format("Vertex weld threshold should be positive Provided value was {}", threshold));
 
@@ -218,15 +181,16 @@ void Shaper::setVertexWeldThreshold(double threshold)
 void Shaper::setPercentError(double percent)
 {
   using axom::utilities::clampVal;
-  SLIC_WARNING_IF(percent <= MINIMUM_PERCENT_ERROR,
-                  axom::fmt::format("Percent error must be greater than {}. Provided value "
-                                    "was {}. Dynamic refinement will not be used.",
-                                    MINIMUM_PERCENT_ERROR,
-                                    percent));
-  SLIC_WARNING_IF(percent > MAXIMUM_PERCENT_ERROR,
-                  axom::fmt::format("Percent error must be less than {}. Provided value was {}",
-                                    MAXIMUM_PERCENT_ERROR,
-                                    percent));
+  SLIC_WARNING_ROOT_IF(percent <= MINIMUM_PERCENT_ERROR,
+                       axom::fmt::format("Percent error must be greater than {}. Provided value "
+                                         "was {}. Dynamic refinement will not be used.",
+                                         MINIMUM_PERCENT_ERROR,
+                                         percent));
+  SLIC_WARNING_ROOT_IF(
+    percent > MAXIMUM_PERCENT_ERROR,
+    axom::fmt::format("Percent error must be less than {}. Provided value was {}",
+                      MAXIMUM_PERCENT_ERROR,
+                      percent));
   if(percent <= MINIMUM_PERCENT_ERROR)
   {
     m_refinementType = DiscreteShape::RefinementUniformSegments;
@@ -261,8 +225,9 @@ void Shaper::loadShapeInternal(const klee::Shape& shape, double percentError, do
   SLIC_INFO_ROOT(
     axom::fmt::format("{:-^80}", axom::fmt::format(" Loading shape '{}' ", shape.getName())));
 
-  SLIC_ASSERT_MSG(this->isValidFormat(this->shapeFormat(shape)),
-                  axom::fmt::format("Shape has unsupported format: '{}", this->shapeFormat(shape)));
+  SLIC_ERROR_ROOT_IF(
+    !this->isValidFormat(this->shapeFormat(shape)),
+    axom::fmt::format("Shape has unsupported format: '{}", this->shapeFormat(shape)));
 
   // Code for discretizing shapes has been factored into DiscreteShape class.
   DiscreteShape discreteShape(shape, m_dataStore.getRoot(), m_prefixPath);

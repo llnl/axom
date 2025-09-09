@@ -66,7 +66,7 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
     // If matsetName was given, but not data isn't set up yet, set it up.
     if(!matsetNode.has_child("topology"))
     {
-      matsetNode.set_allocator(axom::ConduitMemory::axomAllocIdToConduit(hostAllocId));
+      matsetNode.set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(hostAllocId));
       matsetNode.fetch("topology").set_string(m_topoName);
     }
 
@@ -873,12 +873,12 @@ conduit::Node& ShapeeMesh::getMeshConduitPath(conduit::Node& node,
   }
   else
   {
-    node.set_allocator(axom::ConduitMemory::axomAllocIdToConduit(m_allocId));
+    node.set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(m_allocId));
     rval = &node.fetch(path);
     // Surprisingly, this fails:
     // SLIC_ASSERT(rval->allocator() == node.allocator());
     // We therefore have to set rval's allocator manually.
-    rval->set_allocator(axom::ConduitMemory::axomAllocIdToConduit(m_allocId));
+    rval->set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(m_allocId));
     rval->set(dtype);
   }
 

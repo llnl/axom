@@ -24,10 +24,10 @@ namespace lumberjack
 {
 /*!
  *****************************************************************************
- * \brief Message to indicate no messages need to be sent from child node.
+ * \brief Message indicating no messages need to be sent from child node.
  *****************************************************************************
  */
-const char* const zeroMessage = "0";
+extern const char* const zeroMessage;
 
 /*!
  *****************************************************************************

@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/klee/Geometry.hpp"
-
 #include "axom/klee/GeometryOperators.hpp"
+
 #include "conduit_blueprint_mesh.hpp"
 
 #include <utility>
@@ -26,7 +26,6 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
   : m_startProperties(startProperties)
   , m_format(std::move(format))
   , m_path(std::move(path))
-  , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
 {
   populateGeomInfo();
@@ -38,10 +37,8 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
   , m_format("blueprint-tets")
-  , m_path()
   , m_meshGroup(simplexMeshGroup)
   , m_topology(topology)
-  , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
 {
   populateGeomInfo();
@@ -52,11 +49,7 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
   , m_format("tet3D")
-  , m_path()
-  , m_meshGroup(nullptr)
-  , m_topology()
   , m_tet(tet)
-  , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
 {
   populateGeomInfo();
@@ -67,11 +60,7 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
   , m_format("hex3D")
-  , m_path()
-  , m_meshGroup(nullptr)
-  , m_topology()
   , m_hex(hex)
-  , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
 {
   populateGeomInfo();
@@ -83,9 +72,6 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
   , m_format("sphere3D")
-  , m_path()
-  , m_meshGroup(nullptr)
-  , m_topology()
   , m_sphere(sphere)
   , m_levelOfRefinement(levelOfRefinement)
   , m_operator(std::move(operator_))
@@ -117,10 +103,6 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
   , m_format("sor3D")
-  , m_path()
-  , m_meshGroup(nullptr)
-  , m_topology()
-  , m_sphere()
   , m_discreteFunction(discreteFunction)
   , m_sorOrigin(sorOrigin)
   , m_sorDirection(sorDirection)
@@ -135,11 +117,7 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)
   , m_format("plane3D")
-  , m_path()
-  , m_meshGroup(nullptr)
-  , m_topology()
   , m_plane(plane)
-  , m_levelOfRefinement(0)
   , m_operator(std::move(operator_))
 {
   populateGeomInfo();
@@ -174,10 +152,10 @@ void Geometry::populateGeomInfo()
   {
     const Cone3D& cone = getCone();
     m_discreteFunction = axom::Array<double, 2>(2, 2);
-    m_discreteFunction(0,0) = cone.getBaseZ();
-    m_discreteFunction(0,1) = cone.getBaseRadius();
-    m_discreteFunction(1,0) = cone.getTopZ();
-    m_discreteFunction(1,1) = cone.getTopRadius();
+    m_discreteFunction(0, 0) = cone.getBaseZ();
+    m_discreteFunction(0, 1) = cone.getBaseRadius();
+    m_discreteFunction(1, 1) = cone.getTopZ();
+    m_discreteFunction(1, 1) = cone.getTopRadius();
     m_geomInfo["discreteFunction"].set(m_discreteFunction.data(), m_discreteFunction.size());
     m_geomInfo["sorOrigin"].set(cone.getOrigin().data(), 3);
     m_geomInfo["sorDirection"].set(cone.getDirection().data(), 3);
@@ -217,8 +195,8 @@ void Geometry::populateGeomInfo()
 
 bool Geometry::hasGeometry() const
 {
-  bool isInMemory = m_format == "blueprint-tets" || m_format == "sphere3D" || m_format == "tet3D" ||
-    m_format == "hex3D" || m_format == "plane3D" || m_format == "cone3D";
+  bool isInMemory = (m_format == "blueprint-tets" || m_format == "sphere3D" || m_format == "tet3D" ||
+                     m_format == "hex3D" || m_format == "plane3D" || m_format == "cone3D");
   if(isInMemory)
   {
     return true;
@@ -228,11 +206,7 @@ bool Geometry::hasGeometry() const
 
 TransformableGeometryProperties Geometry::getEndProperties() const
 {
-  if(m_operator)
-  {
-    return m_operator->getEndProperties();
-  }
-  return m_startProperties;
+  return m_operator ? m_operator->getEndProperties() : m_startProperties;
 }
 
 const axom::sidre::Group* Geometry::getBlueprintMesh() const
