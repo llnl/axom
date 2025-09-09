@@ -13,12 +13,6 @@
 
 #include "axom/slic/interface/slic.hpp"
 
-#if defined(AXOM_USE_UMPIRE_SHARED_MEMORY)
-  #include "umpire/Umpire.hpp"
-  #include "umpire/strategy/NamedAllocationStrategy.hpp"
-  #include "umpire/util/MemoryResourceTraits.hpp"
-#endif
-
 #ifdef AXOM_USE_MPI
   #include <mpi.h>
 #endif
