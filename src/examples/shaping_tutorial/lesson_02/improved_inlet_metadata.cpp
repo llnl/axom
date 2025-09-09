@@ -225,15 +225,55 @@ void print_metadata(const MeshMetadata& metadata)
 
 int main(int argc, char** argv)
 {
-  axom::slic::SimpleLogger logger;
-  axom::CLI::App app {"Inlet Metadata Setup"};
+  // define the list of supported extensions
+  const std::vector<std::string> supported_extensions = [](){
+    std::vector<std::string> vec = {".yaml", ".yml"};
+  #ifdef AXOM_USE_LUA
+    vec.push_back(".lua");
+  #endif
+    return vec;
+  }();
 
+  axom::slic::SimpleLogger logger;
+
+  // parse and validate input
+  axom::CLI::App app {"Inlet Metadata Setup"};
   std::string inputFilename;
-  app.add_option("input_file", inputFilename, "YAML input file with inlet metadata")->required();
+  app.add_option("input_file", inputFilename)
+    ->description(axom::fmt::format("input file containing inlet metadata, supported formats: {}",
+                                    supported_extensions))
+    ->required()
+    ->check(axom::CLI::ExistingFile)
+    ->check([&supported_extensions](const std::string& filename) {
+      for(auto& ext : supported_extensions)
+      {
+        if(axom::utilities::string::endsWith(filename, ext))
+        {
+          return std::string();
+        }
+      }
+      return axom::fmt::format("Invalid extension for file '{}'; supported extensions: {}",
+                               filename,
+                               supported_extensions);
+    });
+
   CLI11_PARSE(app, argc, argv);
 
-  // Parse YAML directly to MeshMetadata
-  auto reader = std::make_unique<YAMLReader>();
+  // Create appropriate reader based on file extension
+  std::unique_ptr<axom::inlet::Reader> reader;
+
+  if(axom::utilities::string::endsWith(inputFilename, ".yaml") ||
+     axom::utilities::string::endsWith(inputFilename, ".yml"))
+  {
+    reader = std::make_unique<axom::inlet::YAMLReader>();
+  }
+#ifdef AXOM_USE_LUA
+  else if(axom::utilities::string::endsWith(inputFilename, ".lua"))
+  {
+    reader = std::make_unique<axom::inlet::LuaReader>();
+  }
+#endif
+
   reader->parseFile(inputFilename);
   Inlet inlet(std::move(reader));
 
