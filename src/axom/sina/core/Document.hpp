@@ -368,7 +368,7 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
                                      const int mergeProtocol,
                                      int record_num,
                                      // default'd because it might go away with a conduit update
-                                     const std::string &original_file_path="");  
+                                     const std::string &original_file_path = "");
 
 }  // namespace sina
 }  // namespace axom
