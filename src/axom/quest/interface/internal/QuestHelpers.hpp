@@ -84,14 +84,10 @@ private:
  * \pre global_comm != MPI_COMM_NULL
  * \pre mesh_buffer == nullptr
  * \pre m == nullptr
- * \pre intra_node_comm == MPI_COMM_NULL
- * \pre shared_window == MPI_WIN_NULL
  *
  * \post m != nullptr
  * \post m->isExternal() == true
  * \post mesh_buffer != nullptr
- * \post intra_node_comm != MPI_COMM_NULL
- * \post shared_window != MPI_WIN_NULL
  */
 int read_stl_mesh_shared(const std::string& file,
                          MPI_Comm global_comm,
