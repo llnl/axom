@@ -38,8 +38,7 @@ namespace quest
  * The mesh must have an unstructured 3D hex topology.  That is the only
  * topology currently supported.  It can be extended to support 2D.
 
- * TODO: Support sidre::Group blueprint and MFEM mesh.  First pass only
- * supports Conduit blueprint.
+ * TODO: Support MFEM mesh.  First pass only supports blueprint.
 */
 class ShapeeMesh
 {
