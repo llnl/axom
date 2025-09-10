@@ -49,6 +49,7 @@ set(fruit_sidre_tests
 
 set(python_sidre_tests
    sidre_smoke_Py.py
+   sidre_datastore_unit_Py.py
    sidre_group_Py.py
    sidre_buffer_Py.py
    sidre_view_Py.py

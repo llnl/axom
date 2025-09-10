@@ -160,6 +160,7 @@ NB_MODULE(pysidre, m_sidre)
   m_sidre.attr("InvalidIndex") = axom::InvalidIndex;
   m_sidre.attr("InvalidName") = axom::utilities::string::InvalidName;
 
+  m_sidre.def("indexIsValid", &indexIsValid, "Returns true if idx is valid, else false.");
   m_sidre.def("nameIsValid", &nameIsValid, "Returns true if name is valid, else false.");
 
 #if defined(AXOM_USE_HDF5)
@@ -209,6 +210,9 @@ NB_MODULE(pysidre, m_sidre)
          nb::rv_policy::reference,
          "Return pointer to the root Group")
     .def("getNumBuffers", &DataStore::getNumBuffers, "Return number of Buffers in the DataStore")
+    .def("hasBuffer",
+         &DataStore::hasBuffer,
+         "Return true if DataStore owns a Buffer with given index; else false")
     .def("getBuffer",
          &DataStore::getBuffer,
          nb::rv_policy::reference,
@@ -223,8 +227,20 @@ NB_MODULE(pysidre, m_sidre)
          nb::rv_policy::reference,
          "Create a Buffer object with specified type and number of elements")
     .def("destroyBuffer",
+         nb::overload_cast<Buffer*>(&DataStore::destroyBuffer),
+         "Remove Buffer from the DataStore and destroy it and its data")
+    .def("destroyBuffer",
          nb::overload_cast<IndexType>(&DataStore::destroyBuffer),
-         "Destroy a Buffer object by index")
+         "Remove Buffer with given index from the DataStore and destroy it and its data.")
+    .def("destroyAllBuffers",
+         &DataStore::destroyAllBuffers,
+         "Remove all Buffers from the DataStore and destroy them and their data")
+    .def("getFirstValidBufferIndex",
+         &DataStore::getFirstValidBufferIndex,
+         "Return first valid Buffer index")
+    .def("getNextValidBufferIndex",
+         &DataStore::getNextValidBufferIndex,
+         "Return next valid Buffer index after given index")
 
     .def("generateBlueprintIndex",
          nb::overload_cast<const std::string&, const std::string&, const std::string&, int>(
@@ -699,6 +715,9 @@ NB_MODULE(pysidre, m_sidre)
     .def("hasView",
          nb::overload_cast<const std::string&>(&Group::hasView, nb::const_),
          "Return true if Group includes a descendant View with given name or path; else false.")
+    .def("hasView",
+         nb::overload_cast<IndexType>(&Group::hasView, nb::const_),
+         "Return true if this Group owns a View with given index; else false")
     .def("hasChildView",
          &Group::hasChildView,
          "Return true if this Group owns a View with given name (not path); else false.")
@@ -859,6 +878,9 @@ NB_MODULE(pysidre, m_sidre)
     .def("hasGroup",
          nb::overload_cast<const std::string&>(&Group::hasGroup, nb::const_),
          "Return true if this Group has a descendant Group with given name or path; else false.")
+    .def("hasGroup",
+         nb::overload_cast<IndexType>(&Group::hasGroup, nb::const_),
+         "Return true if Group has an immediate child Group with given index; else false.")
     .def("hasChildGroup",
          &Group::hasChildGroup,
          "Return true if this Group has a child Group with given name; else false.")
