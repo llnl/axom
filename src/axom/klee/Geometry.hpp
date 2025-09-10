@@ -10,8 +10,7 @@
 #include "axom/klee/Units.hpp"
 
 #include "axom/primal.hpp"
-#include "axom/primal/geometry/Cone.hpp"
-#include "axom/sidre.hpp"
+#include "axom/sidre/core/Group.hpp"
 
 #include <memory>
 #include <string>

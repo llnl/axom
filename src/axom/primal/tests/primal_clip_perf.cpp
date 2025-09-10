@@ -292,7 +292,7 @@ int main(int argc, char* argv[])
   std::string caliAnnotationMode = "report";
   axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(caliAnnotationMode);
 #else
-  SLIC_INFO("No timer report.  Enable Caliper to get it.")
+  SLIC_INFO("No timer report.  Enable Caliper to get it.");
 #endif
 
   int result = RUN_ALL_TESTS();

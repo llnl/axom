@@ -14,6 +14,7 @@
 #include "axom/primal/geometry/Point.hpp"
 
 #include <array>
+#include <math.h>
 
 namespace primal = axom::primal;
 

@@ -30,6 +30,8 @@
 #include "conduit_relay_io_blueprint.hpp"
 #include "conduit_utils.hpp"
 
+#include <math.h>
+
 #ifdef AXOM_USE_MPI
   #include "mpi.h"
 #endif
