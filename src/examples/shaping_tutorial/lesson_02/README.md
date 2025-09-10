@@ -6,7 +6,7 @@ This lesson demonstrates how to use Axom's Inlet library to define, parse, and v
 
 In the previous lesson, we provided input for our mesh metadata on the command line
 ```bash
-> ./basic_sidre_example --min_x 0.0 --min_y 0.0 --max_x 1.0 --max_y 1.5 --res_x 15 --res_y 25
+> ./mesh_metadata_sidre --min_x 0.0 --min_y 0.0 --max_x 1.0 --max_y 1.5 --res_x 15 --res_y 25
 ```
 This can be tedious and error prone!
 
@@ -29,6 +29,55 @@ mesh:
 
 ## Inlet: Structured Input Processing
 
+<div style="text-align: center;">
+
+```mermaid
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "primaryColor": "#e6f0ff",
+    "primaryBorderColor": "#3366cc",
+    "primaryTextColor": "#000000",
+    "lineColor": "#3366cc",
+    "background": "#ffffff",
+    "fontFamily": "Verdana"
+  }
+}}%%
+graph LR
+  classDef highlight fill: #ffe082, stroke: #e65100, stroke-width: 3px;
+
+  bump --> spin
+  inlet:::highlight --> primal
+  inlet --> sidre
+  klee --> inlet
+  lumberjack --> core
+  mint --> slam
+  mir --> bump
+  multimat --> slam
+  sidre --> slic
+  primal --> slic
+  quest --> spin
+  quest --> mint
+  sina --> core
+  slam --> core
+  spin --> slam
+  spin --> primal
+
+  %% dashed (soft deps)
+  mint -.-> sidre
+  quest -.-> klee
+  slic -.-> lumberjack
+
+  primal --> core
+  sidre --> core
+  slam --> slic
+
+  %% links can be highlighted as follows:
+  %% linkStyle 5 stroke: #d32f2f,color: #d32f2f, stroke-width:3px;
+```
+<figurecaption>Figure: Axom components, highlighting Inlet</figurecaption>
+</div>
+
 Inlet provides a powerful way to define input schemas with validation:
 
 - Define required parameters and optional parameters with defaults
@@ -43,12 +92,14 @@ Inlet offers a powerful abstraction for input processing with the following key 
 
 #### Containers and Fields
 
-- **Container**: The core class that represents a hierarchical group of fields
+**Container**
+: The core class that represents a hierarchical group of fields
   - Can hold nested containers to represent complex data structures
   - Supports path-based access (like `container["path/to/field"]`)
   - Enables validation of entire data structures
 
-- **Fields**: Individual data elements within containers
+**Field**
+: Individual data elements within containers
   - Supports primitive types: int, double, bool, string
   - Array types for sequences of values
   - Each field can have metadata like description, default values, etc.
@@ -137,7 +188,7 @@ In this example, we're also logging a warning message to give more context about
 
 ### Initialization with FromInlet
 
-The `FromInlet` utility maps Container data directly to C++ structs.
+The `FromInlet` template maps Container data directly to C++ structs.
 
 Here is a struct for the mesh metadata for our 2D Cartesian mesh from the last example:
 ```cpp
@@ -334,7 +385,7 @@ mesh:
 </details>
 
 <details>
-  <summary>3D LUA example</summary>
+  <summary>3D Lua example</summary>
 
 ```lua
 mesh = {

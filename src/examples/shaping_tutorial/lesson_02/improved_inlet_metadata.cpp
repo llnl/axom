@@ -59,14 +59,9 @@ namespace inlet = axom::inlet;
 // Definition of the MeshMetadata struct
 struct MeshMetadata
 {
-  struct BoundingBox
-  {
-    axom::Array<double> min;
-    axom::Array<double> max;
-  };
-
   int dim;
-  BoundingBox bounding_box;
+  axom::Array<double> bb_min;
+  axom::Array<double> bb_max;
   axom::Array<int> resolution;
 
   // Convert MeshMetadata to axom::primal::BoundingBox
@@ -78,14 +73,12 @@ struct MeshMetadata
 
     if constexpr(DIM == 2)
     {
-      return axom::primal::BoundingBox<double, DIM>({bounding_box.min[0], bounding_box.min[1]},
-                                                    {bounding_box.max[0], bounding_box.max[1]});
+      return axom::primal::BoundingBox<double, DIM>({bb_min[0], bb_min[1]}, {bb_max[0], bb_max[1]});
     }
     else  // DIM == 3
     {
-      return axom::primal::BoundingBox<double, DIM>(
-        {bounding_box.min[0], bounding_box.min[1], bounding_box.min[2]},
-        {bounding_box.max[0], bounding_box.max[1], bounding_box.max[2]});
+      return axom::primal::BoundingBox<double, DIM>({bb_min[0], bb_min[1], bb_min[2]},
+                                                    {bb_max[0], bb_max[1], bb_max[2]});
     }
   }
 
@@ -122,7 +115,7 @@ struct MeshMetadata
       {
         const std::string min_str = axom::fmt::format("min/{}", axis);
         const std::string max_str = axom::fmt::format("max/{}", axis);
-        if(axis == "z" && (!input.contains(min_str) && !input.contains(max_str)))  // skip for 2d inputs
+        if(axis == "z" && (!input.contains(min_str) && !input.contains(max_str)))  // skip z for 2d inputs
         {
           continue;
         }
@@ -183,16 +176,16 @@ struct FromInlet<MeshMetadata>
     result.dim = input_data["dim"];
 
     // Initialize vectors with appropriate size based on dimension
-    result.bounding_box.min.resize(result.dim);
-    result.bounding_box.max.resize(result.dim);
+    result.bb_min.resize(result.dim);
+    result.bb_max.resize(result.dim);
     result.resolution.resize(result.dim);
 
     auto bb = input_data["bounding_box"];
-    result.bounding_box.min[0] = bb["min/x"];
-    result.bounding_box.min[1] = bb["min/y"];
+    result.bb_min[0] = bb["min/x"];
+    result.bb_min[1] = bb["min/y"];
 
-    result.bounding_box.max[0] = bb["max/x"];
-    result.bounding_box.max[1] = bb["max/y"];
+    result.bb_max[0] = bb["max/x"];
+    result.bb_max[1] = bb["max/y"];
 
     auto res = input_data["resolution"];
     result.resolution[0] = res["x"];
@@ -201,8 +194,8 @@ struct FromInlet<MeshMetadata>
     // Only grab z values when dimension is 3
     if(result.dim == 3)
     {
-      result.bounding_box.min[2] = bb["min/z"];
-      result.bounding_box.max[2] = bb["max/z"];
+      result.bb_min[2] = bb["min/z"];
+      result.bb_max[2] = bb["max/z"];
       result.resolution[2] = res["z"];
     }
 
@@ -226,11 +219,11 @@ void print_metadata(const MeshMetadata& metadata)
 int main(int argc, char** argv)
 {
   // define the list of supported extensions
-  const std::vector<std::string> supported_extensions = [](){
+  const std::vector<std::string> supported_extensions = []() {
     std::vector<std::string> vec = {".yaml", ".yml"};
-  #ifdef AXOM_USE_LUA
+#ifdef AXOM_USE_LUA
     vec.push_back(".lua");
-  #endif
+#endif
     return vec;
   }();
 
