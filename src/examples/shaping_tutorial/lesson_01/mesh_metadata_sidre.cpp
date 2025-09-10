@@ -4,10 +4,15 @@
 #include "axom/CLI11.hpp"
 #include "axom/fmt.hpp"
 
-#include "conduit.hpp"
-#include "conduit_blueprint.hpp"
-#include "conduit_relay.hpp"
-#include "conduit_relay_io_blueprint.hpp"
+// Axom's config.hpp has defines for the dependencies it was configured against
+#if defined(AXOM_USE_CONDUIT)
+  #include "conduit.hpp"
+  #include "conduit_blueprint.hpp"
+  #include "conduit_relay.hpp"
+  #include "conduit_relay_io_blueprint.hpp"
+#else
+  #error Bad configuration: Conduit is a hard dependency for Sidre
+#endif
 
 #include <iostream>
 
@@ -51,7 +56,7 @@ struct Input
  * \param datastore Reference to the Sidre DataStore to populate.
  * \param input Struct containing bounding box coordinates and resolution data.
  */
-void setup_mesh(axom::sidre::DataStore& datastore, const Input& input)
+void setup_mesh_metadata(axom::sidre::DataStore& datastore, const Input& input)
 {
   // Create a root group for the mesh metadata
   axom::sidre::Group* meshGroup = datastore.getRoot()->createGroup("mesh");
@@ -69,6 +74,67 @@ void setup_mesh(axom::sidre::DataStore& datastore, const Input& input)
   axom::sidre::Group* resGroup = meshGroup->createGroup("resolution");
   resGroup->createViewScalar("x", input.res_x);
   resGroup->createViewScalar("y", input.res_y);
+}
+
+/*!
+
+ * \brief Verifies mesh metadata stored in Sidre DataStore
+ *
+ * This function accesses the mesh group and verifies that all required metadata
+ * (bounding box coordinates and resolution) exists.
+ *
+ * \param meshGroup Pointer to the Sidre Group representing the mesh metadata.
+ * \return True if all metadata is present and valid, false otherwise.
+ */
+bool verify_mesh_metadata(axom::sidre::Group* meshGroup)
+{
+  if(!meshGroup)
+  {
+    SLIC_WARNING("Missing mesh group");
+    return false;
+  }
+
+  bool valid = true;
+
+  // check bounding_box group
+  if(meshGroup->hasGroup("bounding_box"))
+  {
+    axom::sidre::Group* bbGroup = meshGroup->getGroup("bounding_box");
+    for(const std::string& path : {"min/x", "min/y", "max/x", "max/y"})
+    {
+      if(!bbGroup->hasView(path))
+      {
+        SLIC_WARNING(axom::fmt::format("Missing '{}' view in 'bounding_box' group", path));
+        valid = false;
+      }
+    }
+  }
+  else
+  {
+    valid = true;
+    SLIC_WARNING("Missing 'bounding_box' group in mesh metadata");
+  }
+
+  // check resolution group
+  if(meshGroup->hasGroup("resolution"))
+  {
+    axom::sidre::Group* resGroup = meshGroup->getGroup("resolution");
+    for(const std::string& path : {"x", "y"})
+    {
+      if(!resGroup->hasView("x"))
+      {
+        SLIC_WARNING(axom::fmt::format("Missing '{}' view in 'resolution' group", path));
+        valid = false;
+      }
+    }
+  }
+  else
+  {
+    SLIC_WARNING("Missing 'resolution' group in mesh metadata");
+    return false;
+  }
+
+  return valid;
 }
 
 /*!
@@ -187,8 +253,7 @@ bool save_blueprint(const conduit::Node& blueprint,
     }
     else
     {
-      SLIC_ERROR("Blueprint verification failed");
-      SLIC_INFO(info.to_string());
+      SLIC_ERROR("Blueprint verification failed \n" << info.to_string());
       return false;
     }
   }
@@ -203,7 +268,8 @@ int main(int argc, char** argv)
 {
   // initialize SLIC logger
   axom::slic::SimpleLogger logger;
-  // parse input
+
+  // parse input using CLI11
   Input input;
   bool output_blueprint = false;
   axom::CLI::App app {"Mesh Metadata Setup"};
@@ -218,19 +284,31 @@ int main(int argc, char** argv)
 
   // load parsed data into sidre datastore
   axom::sidre::DataStore datastore;
-  setup_mesh(datastore, input);
+  setup_mesh_metadata(datastore, input);
 
-  // print results
+  // validate and print results
   auto* root = datastore.getRoot();
   SLIC_ASSERT_MSG(root->hasGroup("mesh"), "Missing expected 'mesh' group");
-  print_mesh_metadata(root->getGroup("mesh"));
+  const bool is_valid = verify_mesh_metadata(root->getGroup("mesh"));
+  if(is_valid)
+  {
+    SLIC_INFO("Sidre hierarchy was properly set up");
+    print_mesh_metadata(root->getGroup("mesh"));
+  }
+  else
+  {
+    SLIC_WARNING("Sidre hierarchy was not properly set up");
+    std::stringstream sstr;
+    root->printTree(0, sstr);
+    SLIC_INFO("Sidre hierarchy: \n" << sstr.str());
+  }
 
-  // Create mesh blueprint and save as a yaml file
+  // Optionally, create mesh blueprint and save as a yaml file
   if(output_blueprint)
   {
     conduit::Node blueprint = create_mesh_blueprint(root->getGroup("mesh"));
     save_blueprint(blueprint, "uniform_bp");
   }
 
-  return 0;
+  return is_valid ? 0 : 1;
 }

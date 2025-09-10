@@ -4,8 +4,6 @@
 
 This tutorial introduces how to use Axom's Sidre component to set up and manage metadata for a simple 2D Cartesian mesh. Sidre provides an efficient way to store hierarchical mesh metadata. We will focus on defining the spatial bounding box and resolution of the mesh, and show how this can be used to create a mesh following the  [Conduit mesh blueprint](https://llnl-conduit.readthedocs.io/en/latest/mesh.html) conventions.
 
-A basic understanding of mesh concepts and the Conduit mesh blueprint is helpful for this tutorial.
-
 Mesh metadata defines key properties that describe the geometry and discretization of a mesh. For Cartesian meshes, two main pieces of metadata are essential:
 
 - **Bounding Box:** Defines the spatial extent of the mesh, described by minimum and maximum coordinates in each dimension.
@@ -68,7 +66,7 @@ graph LR
 <figurecaption>Figure: Axom components, highlighting Sidre</figurecaption>
 </div>
 
-Sidre, a core component of Axom, was specifically designed for efficiently storing and organizing simulation data in memory using hierarchical structures. It manages a tree-like organization through a central `DataStore`, which contains a hierarchy of directories (`Group`) and files (`View`).
+Sidre, a core component of Axom, was designed for efficiently storing and organizing simulation data in memory using hierarchical structures. It manages a tree-like organization through a central `DataStore`, which contains a hierarchy of directories (`Group`) and files (`View`).
 
 ### Key Concepts in Sidre
 
@@ -116,7 +114,7 @@ Next, we'll create a root group called `"mesh"` and add two subgroups: `"boundin
 ```cpp
 #include "axom/sidre.hpp"
 
-void setup_mesh(axom::sidre::DataStore* datastore)
+void setup_mesh_metadata(axom::sidre::DataStore& datastore, const Input& input)
 {
   // Create a root group for the mesh metadata
   axom::sidre::Group* meshGroup = datastore.getRoot()->createGroup("mesh");
@@ -189,7 +187,7 @@ We can map our user-provided bounding box and resolution to a basic "uniform" 2D
    n["coordsets/coords/dims/i"] = res_x + 1;
    n["coordsets/coords/dims/j"] = res_y + 1;
 ```
-3. Compute the uniform spacing from the bounding box extent and resolution: 
+3. Finally, compute the uniform spacing from the bounding box extent and resolution: 
 ```cpp
    n["coordsets/coords/spacing/dx"] = (x_max - x_min) / res_x;
    n["coordsets/coords/spacing/dy"] = (y_max - y_min) / res_y;
