@@ -12,7 +12,6 @@
 #include "axom/bump.hpp"
 #include "axom/core/execution/for_all.hpp"
 #include "axom/core/execution/scans.hpp"
-#include "axom/core/WhereMacro.hpp"
 
 namespace axom
 {

@@ -18,7 +18,6 @@
 #include "axom/sidre.hpp"
 #include "axom/klee.hpp"
 #include "axom/quest.hpp"
-#include "axom/core/WhereMacro.hpp"
 
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"

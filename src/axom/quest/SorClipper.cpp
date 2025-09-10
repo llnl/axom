@@ -10,7 +10,6 @@
 #include "axom/quest/GeometryClipper.hpp"
 #include "axom/spin/BVH.hpp"
 #include "axom/fmt.hpp"
-#include "axom/core/WhereMacro.hpp"
 
 #include <limits>
 
