@@ -114,6 +114,46 @@ AXOM_TYPED_TEST(core_flatmap, default_init)
   EXPECT_EQ(true, test_map.empty());
 }
 
+AXOM_TYPED_TEST(core_flatmap, iterators)
+{
+  using MapType = typename TestFixture::MapType;
+  using MapIterType = typename MapType::iterator;
+
+  MapIterType empty_iterator;
+  MapIterType empty_iterator_2;
+
+  // Default-constructed iterators should all be equivalent.
+  EXPECT_EQ(empty_iterator, empty_iterator_2);
+
+  MapType test_map;
+
+  const int NUM_ELEMS = 100;
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    auto it = test_map.emplace(key, value);
+
+    // Default-constructed iterators should not be equivalent to an actual map's
+    // iterators.
+    EXPECT_NE(empty_iterator, it.first);
+  }
+
+  MapType test_map_2 = test_map;
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+
+    auto it = test_map.find(key);
+    auto it2 = test_map_2.find(key);
+
+    // Iterators between two different maps should not be equivalent.
+    EXPECT_NE(it, it2);
+  }
+}
+
 AXOM_TYPED_TEST(core_flatmap, prealloc_buckets)
 {
   using MapType = typename TestFixture::MapType;
@@ -479,6 +519,7 @@ AXOM_TYPED_TEST(core_flatmap, insert_then_delete)
   EXPECT_EQ(test_map.size(), NUM_INSERTS);
   EXPECT_GE(test_map.bucket_count(), NUM_INSERTS);
 
+  int num_deletions = 0;
   for(int i = 0; i < NUM_INSERTS; i += 3)
   {
     auto key = this->getKey(i);
@@ -491,7 +532,10 @@ AXOM_TYPED_TEST(core_flatmap, insert_then_delete)
     auto deleted_iterator = test_map.erase(iterator_to_remove);
 
     EXPECT_EQ(deleted_iterator, one_after_elem);
+    num_deletions++;
   }
+
+  EXPECT_EQ(test_map.size(), NUM_INSERTS - num_deletions);
 
   // Check consistency of values.
   for(int i = 0; i < NUM_INSERTS; i++)
@@ -779,6 +823,60 @@ AXOM_TYPED_TEST(core_flatmap, empty_view)
     EXPECT_EQ(view.contains(key), false);
     EXPECT_EQ(view.count(key), 0);
     EXPECT_EQ(view.find(key), view.end());
+  }
+}
+
+AXOM_TYPED_TEST(core_flatmap, view_iterators)
+{
+  using MapType = typename TestFixture::MapType;
+  using MapViewType = typename MapType::View;
+  using MapIterType = typename MapViewType::iterator;
+
+  MapIterType empty_iterator;
+  MapIterType empty_iterator_2;
+
+  // Default-constructed iterators should all be equivalent.
+  EXPECT_EQ(empty_iterator, empty_iterator_2);
+
+  MapType test_map;
+
+  const int NUM_ELEMS = 100;
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+    auto value = this->getValue(i * 10.0 + 5.0);
+
+    test_map.emplace(key, value);
+  }
+
+  // Get a view over the test map.
+  auto test_map_view = test_map.view();
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+
+    auto it = test_map_view.find(key);
+
+    // Default-constructed iterators should not be equivalent to an actual map's
+    // iterators.
+    EXPECT_NE(it, empty_iterator);
+  }
+
+  // Get a second map view over the same test map.
+  auto test_map_view_2 = test_map.view();
+
+  for(int i = 0; i < NUM_ELEMS; i++)
+  {
+    auto key = this->getKey(i);
+
+    auto it = test_map_view.find(key);
+    auto it2 = test_map_view_2.find(key);
+
+    // Iterators between two view instances should compare equal if the two views
+    // point to the same underlying FlatMap.
+    EXPECT_EQ(it, it2);
   }
 }
 

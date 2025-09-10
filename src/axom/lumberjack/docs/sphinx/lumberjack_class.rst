@@ -45,8 +45,8 @@ Name               Description
 clearMessages      Delete all Messages currently held by this node.
 getMessages        Get all Messages currently held by this node.
 queueMessage       Adds a Message to Lumberjack
-pushMessagesOnce   Moves Messages up the communication scheme once
-pushMessagesFully  Moves all Messages through the communication scheme to the output node.
+pushMessagesOnce   Sorts Messages by creation time and moves Messages up the communication scheme once.
+pushMessagesFully  Sorts Messages by creation time and moves all Messages through the communication scheme to the output node.
 ================== ===================
 
 Communicators
