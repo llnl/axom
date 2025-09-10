@@ -923,12 +923,34 @@ NB_MODULE(pysidre, m_sidre)
          nb::arg("path"),
          nb::arg("is_list") = false,
          nb::arg("accept_existing") = false)
+    .def("createUnnamedGroup",
+         &Group::createUnnamedGroup,
+         nb::rv_policy::reference,
+         "Create a child Group within this Group with no name.",
+         nb::arg("is_list") = false)
     .def("destroyGroup",
          nb::overload_cast<const std::string&>(&Group::destroyGroup),
          "Destroy child Group in this Group with given name or path.")
     .def("destroyGroup",
          nb::overload_cast<IndexType>(&Group::destroyGroup),
          "Destroy child Group within this Group with given index.")
+    .def("destroyGroupAndData",
+         nb::overload_cast<const std::string&>(&Group::destroyGroupAndData),
+         "Destroy child Group at the given path, and destroy data that is "
+         "not shared elsewhere.")
+    .def("destroyGroupAndData",
+         nb::overload_cast<IndexType>(&Group::destroyGroupAndData),
+         "Destroy child Group with the given index, and destroy data that "
+         "is not shared elsewhere.")
+    .def("destroyGroupsAndData",
+         &Group::destroyGroupsAndData,
+         "Destroy all child Groups held by this Group, and destroy data that "
+         "is not shared elsewhere.")
+    .def("destroyGroupSubtreeAndData",
+         &Group::destroyGroupSubtreeAndData,
+         "Destroy the entire subtree of Groups and Views held by this Group, "
+         "and destroy data that is not shared elsewhere.")
+    .def("destroyGroups", &Group::destroyGroups, "Destroy all child Groups in this Group.")
     .def("moveGroup",
          &Group::moveGroup,
          "Remove given Group object from its parent Group and make it a child of this Group.")
@@ -941,6 +963,8 @@ NB_MODULE(pysidre, m_sidre)
          "Return true if this Group is equivalent to given Group; else false.",
          nb::arg("other"),
          nb::arg("checkName") = true)
+    .def("isUsingMap", &Group::isUsingMap, "Return true if this Group holds items in map format.")
+    .def("isUsingList", &Group::isUsingList, "Return true if this Group holds items in list format.")
     .def("save",
          nb::overload_cast<const std::string&, const std::string&, const Attribute*>(&Group::save,
                                                                                      nb::const_),
