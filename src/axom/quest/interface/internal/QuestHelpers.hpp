@@ -8,11 +8,16 @@
 
 // Axom includes
 #include "axom/config.hpp"
+#include "axom/primal.hpp"
 #include "axom/slic.hpp"
 #include "axom/mint/mesh/Mesh.hpp"
 #include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
 #include "axom/quest/io/STLReader.hpp"
 #include "axom/quest/io/ProEReader.hpp"
+
+#if defined(AXOM_USE_MFEM)
+  #include <mfem.hpp>
+#endif
 
 // C/C++ includes
 #include <string>
@@ -124,12 +129,15 @@ int read_stl_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm = MPI_C
 
 #ifdef AXOM_USE_C2C
 /*!
- * \brief Reads in the contour mesh from the specified file
+ * \brief Reads in the contour mesh from the specified file and linearize it.
  *
  * \param [in] file the file consisting of a C2C contour defined by one or more c2c::Piece
+ * \param [in] uniform If true, the curves will be linearized uniformly, according to segmentsPerPiece.
+ *                     Otherwise, the linearization will be non-uniform based on \a percentError.
  * \param [in] transform A 4x4 matrix that contains a transform to be applied to points.
  * \param [in] segmentsPerPiece number of segments to sample per contour Piece
  * \param [in] vertexWeldThreshold threshold for welding vertices of adjacent curves
+ * \param [in] percentError An error tolerance (percent of lgneth) used in non-uniform curve linearization.
  * \param [out] m user-supplied pointer to point to the mesh object
  * \param [out] revolvedVolume An approximation of the revolved volume of the contour
  *                             or 0 if it could not be computed.
@@ -151,27 +159,34 @@ int read_stl_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm = MPI_C
  *
  * \see C2CReader
  * \see PC2CReader
+ * \see LinearizeCurves
  */
-int read_c2c_mesh_uniform(const std::string& file,
-                          const numerics::Matrix<double>& transform,
-                          int segmentsPerPiece,
-                          double vertexWeldThreshold,
-                          mint::Mesh*& m,
-                          double& revolvedVolume,
-                          MPI_Comm comm = MPI_COMM_SELF);
+int read_c2c_mesh(const std::string& file,
+                  bool uniform,
+                  const numerics::Matrix<double>& transform,
+                  int segmentsPerPiece,
+                  double vertexWeldThreshold,
+                  double percentError,
+                  mint::Mesh*& m,
+                  double& revolvedVolume,
+                  MPI_Comm comm = MPI_COMM_SELF);
 
+#endif  // AXOM_USE_C2C
+
+#ifdef AXOM_USE_MFEM
 /*!
- * \brief Reads in the contour mesh from the specified file and refines it
- *        according to a percent error.
+ * \brief Reads in the contour mesh from the specified file and linearize it.
  *
- * \param [in] file the file consisting of a C2C contour defined by one or more c2c::Piece
+ * \param [in] file the file consisting of a contour defined by one or more bezier or NURBS zones.
+ * \param [in] uniform If true, the curves will be linearized uniformly, according to segmentsPerPiece.
+ *                     Otherwise, the linearization will be non-uniform based on \a percentError.
  * \param [in] transform A 4x4 matrix that contains a transform to be applied to points.
- * \param [in] percentError An acceptable percent error in the arc length of the curve.
+ * \param [in] segmentsPerPiece number of segments to sample per contour Piece
  * \param [in] vertexWeldThreshold threshold for welding vertices of adjacent curves
- * \param [out] m user-supplied pointer to the mesh object
+ * \param [in] percentError An error tolerance (percent of lgneth) used in non-uniform curve linearization.
+ * \param [out] m user-supplied pointer to point to the mesh object
  * \param [out] revolvedVolume An approximation of the revolved volume of the contour
  *                             or 0 if it could not be computed.
- * \param [in] comm the MPI communicator, only applicable when MPI is available
  *
  * \note The caller is responsible for properly de-allocating the mesh object
  *  that is returned by this function
@@ -180,7 +195,6 @@ int read_c2c_mesh_uniform(const std::string& file,
  *
  * \pre m == nullptr
  * \pre !file.empty()
- * \pre percentError should be in the range (0,1) non-inclusive.
  *
  * \post m != nullptr
  * \post m->getMeshType() == mint::UNSTRUCTURED_MESH
@@ -188,17 +202,18 @@ int read_c2c_mesh_uniform(const std::string& file,
  * \post m->getCellType() == mint::SEGMENT
  * \post revolvedVolume > 0 if it could be computed.
  *
- * \see C2CReader
- * \see PC2CReader
+ * \see MFEMReader
+ * \see LinearizeCurves
  */
-int read_c2c_mesh_non_uniform(const std::string& file,
-                              const numerics::Matrix<double>& transform,
-                              double percentError,
-                              double vertexWeldThreshold,
-                              mint::Mesh*& m,
-                              double& revolvedVolume,
-                              MPI_Comm comm = MPI_COMM_SELF);
-#endif  // AXOM_USE_C2C
+int read_mfem_mesh(const std::string& file,
+                   bool uniform,
+                   const numerics::Matrix<double>& transform,
+                   int segmentsPerPiece,
+                   double vertexWeldThreshold,
+                   double percentError,
+                   mint::Mesh*& m,
+                   double& revolvedVolume);
+#endif  // AXOM_USE_MFEM
 
 /*!
  * \brief Reads in the Pro/E tetrahedral mesh from the specified file.
@@ -229,6 +244,28 @@ int read_pro_e_mesh(const std::string& file, mint::Mesh*& m, MPI_Comm comm = MPI
 
 /// \name Mesh Helper Methods
 /// @{
+
+#if defined(AXOM_USE_MFEM)
+/*!
+ * \brief Returns an MFEM mesh's zone as a 2D BezierCurve.
+ *
+ * \param mesh The MFEM mesh being queried.
+ * \param elem_id The mesh element id to turn into a BezierCurve.
+ *
+ * \return A BezierCurve that represents the mesh segment.
+ */
+primal::BezierCurve<double, 2> segment_to_curve(const mfem::Mesh* mesh, int elem_id);
+
+/*!
+ * \brief Returns an MFEM mesh's zone as a 2D NURBSCurve.
+ *
+ * \param mesh The MFEM mesh being queried.
+ * \param elem_id The mesh element id to turn into a NURBSCurve.
+ *
+ * \return A NURBSCurve that represents the mesh segment.
+ */
+primal::NURBSCurve<double, 2> segment_to_nurbs(const mfem::Mesh* mesh, int elem_id);
+#endif
 
 /*!
  * \brief Computes the bounds of the given mesh.
