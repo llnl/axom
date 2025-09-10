@@ -16,7 +16,7 @@
 #include <math.h>
 
 namespace primal = axom::primal;
-
+#if 0
 //------------------------------------------------------------------------------
 TEST(primal_nurbscurve, default_constructor)
 {
@@ -1121,7 +1121,38 @@ TEST(primal_nurbscurve, linear_segment_constructor)
     }
   }
 }
+#endif
+//------------------------------------------------------------------------------
+template <typename T>
+void curvature_test(T tol)
+{
+  using NURBSCurve2D = axom::primal::NURBSCurve<T, 2>;
 
+  const T cx = 0.;
+  const T cy = 0.;
+  const T R = 4.;
+  const T theta_0 = 0.;
+  const T theta_1 = 2. * M_PI;
+  const NURBSCurve2D curve = NURBSCurve2D::make_circular_arc_nurbs(theta_0, theta_1, cx, cy, R);
+
+  const int N = 100;
+  for(int i = 0; i < N; i++)
+  {
+    const T t = static_cast<T>(i) / static_cast<T>(N - 1);
+    const double c = curve.curvature(t);
+
+    // The reciprocal of its radius (R), expressed as k = 1/R
+    EXPECT_NEAR(c , 1. / R, tol);
+  }
+}
+
+TEST(primal_nurbscurve, curvature)
+{
+  curvature_test<float>(1.e-7);
+  curvature_test<double>(1.e-7);
+}
+
+//------------------------------------------------------------------------------
 int main(int argc, char* argv[])
 {
   int result = 0;

@@ -48,6 +48,7 @@ set( primal_headers
     ## operators
     operators/clip.hpp
     operators/closest_point.hpp
+    operators/curvature.hpp
     operators/intersect.hpp
     operators/intersection_volume.hpp
     operators/orientation.hpp
