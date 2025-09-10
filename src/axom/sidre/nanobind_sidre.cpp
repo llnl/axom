@@ -564,6 +564,7 @@ NB_MODULE(pysidre, m_sidre)
          "Return true if the attribute (by name) has been explicitly set; else false.")
     .def("hasAttributeValue",
          nb::overload_cast<const Attribute*>(&View::hasAttributeValue, nb::const_),
+         nb::arg("attr").none(),
          "Return true if the attribute (by pointer) has been explicitly set; else false.")
 
     .def("setAttributeToDefault",
@@ -574,6 +575,7 @@ NB_MODULE(pysidre, m_sidre)
          "Set Attribute (by name) to its default value")
     .def("setAttributeToDefault",
          nb::overload_cast<const Attribute*>(&View::setAttributeToDefault),
+         nb::arg("attr").none(),
          "Set Attribute (by pointer) to its default value")
 
     // Scalar setters for int and python float (C++ double)
@@ -653,10 +655,12 @@ NB_MODULE(pysidre, m_sidre)
     .def(
       "getAttributeScalarInt",
       [](View& self, const Attribute* attr) { return self.getAttributeScalar<int>(attr); },
+      nb::arg("attr").none(),
       "Return scalar Attribute value (by pointer) as int")
     .def(
       "getAttributeScalarFloat",
       [](View& self, const Attribute* attr) { return self.getAttributeScalar<double>(attr); },
+      nb::arg("attr").none(),
       "Return scalar Attribute value (by pointer) as float (C++ double)")
 
     // String getters

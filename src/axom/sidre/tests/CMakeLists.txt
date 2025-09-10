@@ -54,6 +54,7 @@ set(python_sidre_tests
    sidre_buffer_Py.py
    sidre_view_Py.py
    sidre_external_Py.py
+   sidre_attribute_Py.py
    )
 
 set(sidre_gtests_depends_on sidre fmt gtest)
