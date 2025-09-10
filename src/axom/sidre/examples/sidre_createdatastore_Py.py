@@ -125,7 +125,7 @@ def iterate_datastore(ds):
 	print("The datastore has the following buffers:")
 	for buff in ds.buffers():
 		print(f"* [{buff.getIndex()}] "
-			  f"{"Allocated" if buff.isAllocated() else "Unallocated"} buffer with "
+			  f"{'Allocated' if buff.isAllocated() else 'Unallocated'} buffer with "
 			  f"{buff.getNumElements()} elements of type {buff.getTypeID()} with "
 			  f"{buff.getNumViews()} views")
 	print(fill_line)
@@ -141,7 +141,7 @@ def iterate_datastore(ds):
 	print("The 'state' group has the following views:")
 	for view in ds.getRoot().getGroup("state").views():
 		print(f"* [{view.getIndex()}] '{view.getName()}' -- "
-			  f"{"Allocated" if view.isAllocated() else "Unallocated"} view of type "
+			  f"{'Allocated' if view.isAllocated() else 'Unallocated'} view of type "
 			  f"{view.getTypeID()} and {view.getNumElements()} elements")
 	print(fill_line)
 

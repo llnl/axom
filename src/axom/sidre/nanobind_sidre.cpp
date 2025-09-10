@@ -528,7 +528,156 @@ NB_MODULE(pysidre, m_sidre)
     .def("print",
          nb::overload_cast<>(&View::print, nb::const_),
          "Print JSON description of the View.")
-    .def("rename", &View::rename, "Change the name of the View.");
+    .def("rename", &View::rename, "Change the name of the View.")
+
+    // Attribute accessors
+    .def("getAttribute",
+         nb::overload_cast<IndexType>(&View::getAttribute),
+         nb::rv_policy::reference,
+         "Get Attribute by index")
+    .def("getAttribute",
+         nb::overload_cast<const std::string&>(&View::getAttribute),
+         nb::rv_policy::reference,
+         "Get Attribute by name")
+
+    .def("hasAttributeValue",
+         nb::overload_cast<IndexType>(&View::hasAttributeValue, nb::const_),
+         "Return true if the attribute (by index) has been explicitly set; else false.")
+    .def("hasAttributeValue",
+         nb::overload_cast<const std::string&>(&View::hasAttributeValue, nb::const_),
+         "Return true if the attribute (by name) has been explicitly set; else false.")
+    .def("hasAttributeValue",
+         nb::overload_cast<const Attribute*>(&View::hasAttributeValue, nb::const_),
+         "Return true if the attribute (by pointer) has been explicitly set; else false.")
+
+    .def("setAttributeToDefault",
+         nb::overload_cast<IndexType>(&View::setAttributeToDefault),
+         "Set Attribute (by index) to its default value")
+    .def("setAttributeToDefault",
+         nb::overload_cast<const std::string&>(&View::setAttributeToDefault),
+         "Set Attribute (by name) to its default value")
+    .def("setAttributeToDefault",
+         nb::overload_cast<const Attribute*>(&View::setAttributeToDefault),
+         "Set Attribute (by pointer) to its default value")
+
+    // Scalar setters for int and python float (C++ double)
+    .def(
+      "setAttributeScalar",
+      [](View& self, IndexType idx, int value) { return self.setAttributeScalar(idx, value); },
+      "Set Attribute (by index) to int value")
+    .def(
+      "setAttributeScalar",
+      [](View& self, IndexType idx, double value) { return self.setAttributeScalar(idx, value); },
+      "Set Attribute (by index) to float (C++ double) value")
+    .def(
+      "setAttributeScalar",
+      [](View& self, const std::string& name, int value) {
+        return self.setAttributeScalar(name, value);
+      },
+      "Set Attribute (by name) to int value")
+    .def(
+      "setAttributeScalar",
+      [](View& self, const std::string& name, double value) {
+        return self.setAttributeScalar(name, value);
+      },
+      "Set Attribute (by name) to float (C++ double) value")
+    .def(
+      "setAttributeScalar",
+      [](View& self, const Attribute* attr, int value) {
+        return self.setAttributeScalar(attr, value);
+      },
+      "Set Attribute (by pointer) to int value")
+    .def(
+      "setAttributeScalar",
+      [](View& self, const Attribute* attr, double value) {
+        return self.setAttributeScalar(attr, value);
+      },
+      "Set Attribute (by pointer) to float (C++ double) value")
+
+    // String setters
+    .def("setAttributeString",
+         nb::overload_cast<IndexType, const std::string&>(&View::setAttributeString),
+         "Set Attribute (by index) to string value")
+    .def("setAttributeString",
+         nb::overload_cast<const std::string&, const std::string&>(&View::setAttributeString),
+         "Set Attribute (by name) to string value")
+    .def("setAttributeString",
+         nb::overload_cast<const Attribute*, const std::string&>(&View::setAttributeString),
+         "Set Attribute (by pointer) to string value")
+
+    // Requires conduit::Node information
+    // Scalar getters (Node::ConstValue version)
+    // .def("getAttributeScalar",
+    //      nb::overload_cast<IndexType>(&View::getAttributeScalar, nb::const_),
+    //      "Return scalar Attribute value (by index) as Node::ConstValue")
+    // .def("getAttributeScalar",
+    //      nb::overload_cast<const std::string&>(&View::getAttributeScalar, nb::const_),
+    //      "Return scalar Attribute value (by name) as Node::ConstValue")
+    // .def("getAttributeScalar",
+    //      nb::overload_cast<const Attribute*>(&View::getAttributeScalar, nb::const_),
+    //      "Return scalar Attribute value (by pointer) as Node::ConstValue")
+
+    // Scalar getters (templated, explicit for int and float)
+    .def(
+      "getAttributeScalarInt",
+      [](View& self, IndexType idx) { return self.getAttributeScalar<int>(idx); },
+      "Return scalar Attribute value (by index) as int")
+    .def(
+      "getAttributeScalarFloat",
+      [](View& self, IndexType idx) { return self.getAttributeScalar<double>(idx); },
+      "Return scalar Attribute value (by index) as float (C++ double)")
+    .def(
+      "getAttributeScalarInt",
+      [](View& self, const std::string& name) { return self.getAttributeScalar<int>(name); },
+      "Return scalar Attribute value (by name) as int")
+    .def(
+      "getAttributeScalarFloat",
+      [](View& self, const std::string& name) { return self.getAttributeScalar<double>(name); },
+      "Return scalar Attribute value (by name) as float (C++ double)")
+    .def(
+      "getAttributeScalarInt",
+      [](View& self, const Attribute* attr) { return self.getAttributeScalar<int>(attr); },
+      "Return scalar Attribute value (by pointer) as int")
+    .def(
+      "getAttributeScalarFloat",
+      [](View& self, const Attribute* attr) { return self.getAttributeScalar<double>(attr); },
+      "Return scalar Attribute value (by pointer) as float (C++ double)")
+
+    // String getters
+    .def("getAttributeString",
+         nb::overload_cast<IndexType>(&View::getAttributeString, nb::const_),
+         "Return string Attribute value (by index)")
+    .def("getAttributeString",
+         nb::overload_cast<const std::string&>(&View::getAttributeString, nb::const_),
+         "Return string Attribute value (by name)")
+    .def("getAttributeString",
+         nb::overload_cast<const Attribute*>(&View::getAttributeString, nb::const_),
+         "Return string Attribute value (by pointer)")
+
+    // Requires conduit::Node information
+    // Node reference getters
+    // .def("getAttributeNodeRef",
+    //      nb::overload_cast<IndexType>(&View::getAttributeNodeRef),
+    //      nb::rv_policy::reference,
+    //      "Return reference to Attribute Node (by index)")
+    // .def("getAttributeNodeRef",
+    //      nb::overload_cast<const std::string&>(&View::getAttributeNodeRef),
+    //      nb::rv_policy::reference,
+    //      "Return reference to Attribute Node (by name)")
+    // .def("getAttributeNodeRef",
+    //      nb::overload_cast<const Attribute*>(&View::getAttributeNodeRef),
+    //      nb::rv_policy::reference,
+    //      "Return reference to Attribute Node (by pointer)")
+
+    // Attribute index iteration
+    .def("getFirstValidAttrValueIndex",
+         &View::getFirstValidAttrValueIndex,
+         "Return first valid Attribute index for a set Attribute in View object"
+         "(i.e., smallest index over all Attributes)")
+    .def("getNextValidAttrValueIndex",
+         &View::getNextValidAttrValueIndex,
+         "Return next valid Attribute index for a set Attribute in View object after given index"
+         "(i.e., smallest index over all Attribute indices larger than given one)");
 
   // Bindings for the Group class
   nb::class_<Group>(m_sidre, "Group")
