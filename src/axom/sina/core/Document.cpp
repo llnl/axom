@@ -546,7 +546,11 @@ void relayLikeWipeRecords(conduit::relay::io::IOHandle &appendTo)
   appendTo.remove("/records");
 }
 
-void relayLikeWipeRecords(conduit::Node &appendTo) { AXOM_UNUSED_VAR(appendTo); }  // Should never be called.
+void relayLikeWipeRecords(conduit::Node &appendTo)
+{
+  // Should never be called.
+  AXOM_UNUSED_VAR(appendTo);
+}
 
 void relayLikeWriteEtc(conduit::Node &appendTo, conduit::Node &appendFrom, const std::string &endpoint)
 {
