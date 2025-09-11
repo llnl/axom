@@ -142,7 +142,8 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
                           double EPS,
                           int order,
                           double c_offset,
-                          double c_scale);
+                          double c_scale,
+                          bool isHalfOpen = true);
 
 /*!
  * \brief Recursive function to find intersections between a 2D sphere (circle)
@@ -326,20 +327,20 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
                           double EPS,
                           int order,
                           double c_offset,
-                          double c_scale)
+                          double c_scale,
+                          bool isHalfOpen)
 {
   using BCurve = BezierCurve<T, 2>;
 
   // Check bounding box to short-circuit the intersection
   T r0, s0;
-  constexpr T factor = 1e-8;
 
   // Need to expand the bounding box, since this ray-bb intersection routine
   //  only parameterizes the ray on (0, inf)
   T tmin = axom::numerics::floating_point_limits<T>::min();
   T tmax = axom::numerics::floating_point_limits<T>::max();
 
-  if(!detail::intersect_ray(r, c.boundingBox().expand(factor), tmin, tmax, EPS))
+  if(!detail::intersect_ray(r, c.boundingBox().expand(10 * EPS), tmin, tmax, EPS))
   {
     return false;
   }
@@ -354,7 +355,7 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
     // Need to check intersection with zero tolerance
     //  to handle cases where `intersect` treats the ray as collinear
     bool foundIntersection = detail::intersect_ray(r, seg, r0, s0, EPS);
-    if(foundIntersection && s0 < 1.0 - EPS)
+    if(foundIntersection && (!isHalfOpen || s0 < 1.0 - EPS))
     {
       rp.push_back(r0);
       cp.push_back(c_offset + c_scale * s0);
@@ -373,11 +374,11 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
     c_scale *= scaleFac;
 
     // Note: we want to find all intersections, so don't short-circuit
-    if(intersect_ray_bezier(r, c1, rp, cp, sq_tol, EPS, order, c_offset, c_scale))
+    if(intersect_ray_bezier(r, c1, rp, cp, sq_tol, EPS, order, c_offset, c_scale, isHalfOpen))
     {
       foundIntersection = true;
     }
-    if(intersect_ray_bezier(r, c2, rp, cp, sq_tol, EPS, order, c_offset + c_scale, c_scale))
+    if(intersect_ray_bezier(r, c2, rp, cp, sq_tol, EPS, order, c_offset + c_scale, c_scale, isHalfOpen))
     {
       foundIntersection = true;
     }
@@ -408,7 +409,7 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
 
   bool foundIntersection = false;
 
-  if(curve.isLinear(sq_tol))
+  if(curve.isLinear(sq_tol, true))
   {
     T c1, c2, t1, t2;
     if(intersect_2d_circle_line(circle, curve[0], curve[order], c1, c2, t1, t2, EPS))

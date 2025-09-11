@@ -126,6 +126,94 @@ private:
   ValueIterator m_valueIter {nullptr};
 };
 
+/*!
+ * \class FlatMapOffsetIterator
+ * \brief Iterator helper for iterating over filled buckets given an array of
+ *  bucket indices.
+ */
+template <typename KeyType, typename ValueType>
+class FlatMapOffsetIterator
+  : public IteratorBase<FlatMapOffsetIterator<KeyType, ValueType>, IndexType>
+{
+private:
+  using BaseType = IteratorBase<FlatMapOffsetIterator<KeyType, ValueType>, IndexType>;
+  using KeyValuePair = std::pair<const KeyType, ValueType>;
+  using PairStorage = detail::flat_map::TypeErasedStorage<KeyValuePair>;
+
+public:
+  // Iterator traits required to satisfy LegacyRandomAccessIterator concept
+  // before C++20
+  // See: https://en.cppreference.com/w/cpp/iterator/iterator_traits
+  using difference_type = IndexType;
+  using value_type = std::pair<const KeyType, ValueType>;
+  using reference = value_type&;
+  using pointer = value_type*;
+  using iterator_category = std::random_access_iterator_tag;
+
+  FlatMapOffsetIterator() = default;
+
+  AXOM_HOST_DEVICE FlatMapOffsetIterator(PairStorage* buckets, IndexType* offsets)
+    : m_buckets {buckets}
+    , m_offsets {offsets}
+  { }
+
+  AXOM_HOST_DEVICE reference operator*() const { return m_buckets[m_offsets[this->m_pos]].get(); }
+
+protected:
+  /** Implementation of advance() as required by IteratorBase */
+  AXOM_HOST_DEVICE void advance(IndexType n) { BaseType::m_pos += n; }
+
+private:
+  PairStorage* m_buckets {nullptr};
+  IndexType* m_offsets {nullptr};
+};
+
+/**
+ * \brief Helper function to gather filled buckets within a FlatMap.
+ *
+ *  Workaround for a limitation within CUDA where a lambda cannot be defined in
+ *  a protected or private member function.
+ */
+template <typename ExecSpace>
+void gatherFilledBuckets(ArrayView<flat_map::GroupBucket> group_metadata,
+                         ArrayView<IndexType> filled_bucket_indexes,
+                         IndexType num_buckets,
+                         int allocator_id)
+{
+  using flat_map::GroupBucket;
+
+  IndexType* counter = axom::allocate<IndexType>(1, allocator_id);
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA)
+  if(detail::getAllocatorSpace(allocator_id) == MemorySpace::Device)
+  {
+    for_all<ExecSpace>(
+      1,
+      AXOM_LAMBDA(IndexType) { *counter = 0; });
+  }
+  else
+  {
+    *counter = 0;
+  }
+#else
+  *counter = 0;
+#endif
+
+  for_all<ExecSpace>(
+    num_buckets,
+    AXOM_LAMBDA(IndexType bucket_idx) {
+      IndexType group_idx = bucket_idx / GroupBucket::Size;
+      int slot_idx = bucket_idx % GroupBucket::Size;
+      if(group_metadata[group_idx].metadata.buckets[slot_idx] > GroupBucket::Sentinel)
+      {
+        // Bucket contains an element.
+        IndexType dest = axom::atomicAdd<ExecSpace>(counter, 1);
+        filled_bucket_indexes[dest] = bucket_idx;
+      }
+    });
+
+  axom::deallocate(counter);
+}
+
 }  // namespace detail
 
 template <typename KeyType, typename ValueType, typename Hash>
@@ -143,6 +231,29 @@ auto FlatMap<KeyType, ValueType, Hash>::create(ArrayView<KeyType> keys,
   new_map.insert<ExecSpace>(zip_iterator, zip_iterator + num_elems);
 
   return new_map;
+}
+
+template <typename KeyType, typename ValueType, typename Hash>
+template <typename ExecSpace>
+void FlatMap<KeyType, ValueType, Hash>::parallelRehash(IndexType count)
+{
+  using detail::FlatMapOffsetIterator;
+
+  // If the FlatMap is constructed in device-only memory, construct in
+  // parallel on the device.
+  axom::Array<IndexType> filled_bucket_idx_vec(m_size, m_size, m_allocator.getID());
+
+  detail::gatherFilledBuckets<ExecSpace>(m_metadata.view(),
+                                         filled_bucket_idx_vec.view(),
+                                         m_buckets.size(),
+                                         m_allocator.getID());
+
+  FlatMapOffsetIterator bucket_begin {m_buckets.data(), filled_bucket_idx_vec.data()};
+
+  FlatMap new_map(count, m_allocator);
+  new_map.template insert<ExecSpace>(bucket_begin, bucket_begin + m_size);
+
+  this->swap(new_map);
 }
 
 template <typename KeyType, typename ValueType, typename Hash>

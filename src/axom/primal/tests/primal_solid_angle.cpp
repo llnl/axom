@@ -496,7 +496,7 @@ TEST(primal_solid_angle, planar_bezierpatch)
   }
 }
 
-axom::Array<primal::NURBSPatch<double, 3>> make_sphere_biquintic()
+axom::Array<primal::NURBSPatch<double, 3>> make_sphere_biquartic()
 {
   using Point3D = primal::Point<double, 3>;
   using NPatch = primal::NURBSPatch<double, 3>;
@@ -670,10 +670,10 @@ TEST(primal_integral, nurbspatch_sphere)
   axom::Array<Point3D> inner_points(2 * N), outer_points(2 * N), coincident_points(N);
 
   // Iterate over points of interest, i.e. axis/edge/vertex aligned
-  Vector3D query_directions[12] = {Vector3D({0.0, 0.0, 1.0}).unitVector(),      
-                                   Vector3D({0.0, 1.0, 0.0}).unitVector(),      
-                                   Vector3D({1.0, 0.0, 0.0}).unitVector(),      
-                                   Vector3D({0.0, 1.0, 1.0}).unitVector(),      
+  Vector3D query_directions[12] = {Vector3D({0.0, 0.0, 1.0}).unitVector(),
+                                   Vector3D({0.0, 1.0, 0.0}).unitVector(), 
+                                   Vector3D({1.0, 0.0, 0.0}).unitVector(),     
+                                   Vector3D({0.0, 1.0, 1.0}).unitVector(), 
                                    Vector3D({1.0, 0.0, 1.0}).unitVector(),      
                                    Vector3D({1.0, 1.0, 0.0}).unitVector(),      
                                    Vector3D({1.0, 1.0, 1.0}).unitVector(),      
@@ -701,15 +701,16 @@ TEST(primal_integral, nurbspatch_sphere)
   const double edge_tol = 1e-6;
   const double ls_tol = 1e-10;
   const double quad_tol = 1e-5;
+  const double disk_size = 0.01;
   const double EPS = 1e-11;
   
-  // Test the points on the biquintic patches
-  auto sphere_faces = make_sphere_biquintic();
+  // Test the points on the biquartic patches
+  auto sphere_faces = make_sphere_biquartic();
 
-  auto inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
-  auto outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+  auto inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
+  auto outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
   auto coincident_gwn =
-    winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+    winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
 
   // Check the resulting winding number
   for(int i = 0; i < N; ++i)
@@ -719,7 +720,7 @@ TEST(primal_integral, nurbspatch_sphere)
     EXPECT_NEAR(coincident_gwn[i], 0.5, 6 * quad_tol);
   }
 
-  // Test points near degenerate edges of the biquintic patches
+  // Test points near degenerate edges of the biquartic patches
   sphere_faces = make_sphere_bicubic();
   axom::Array<Point3D> difficult_points(0, 5);
   
@@ -735,7 +736,7 @@ TEST(primal_integral, nurbspatch_sphere)
   difficult_points.emplace_back(Point3D(query_directions[0].array()));
 
   auto difficult_gwn =
-    winding_number(difficult_points, sphere_faces, edge_tol, ls_tol, quad_tol, EPS);
+    winding_number(difficult_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
 
   EXPECT_NEAR(difficult_gwn[0], 1.0, 8 * quad_tol); // Inner point
   EXPECT_NEAR(difficult_gwn[1], 1.0, 8 * quad_tol); // Inner point
