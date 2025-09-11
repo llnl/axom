@@ -55,6 +55,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: We now support optional specification of a per-shape `dimensions` field for the 
   geometry of a shape. These can be used to override the global `dimensions` 
   of a Klee input file.
+- Adds `quest::MFEMReader` for reading 1D MFEM contours in 2D space.
+- Adds an option to `quest::SamplingShaper` to allow in/out tests based on winding numbers for MFEM contours.
+- The `shaping_driver` example program can select `--sampling inout` to do the default In/Out sampling and `--sampling windingnumber` to select winding number in/out tests for MFEM data.
 
 ###  Changed
 - Axom now requires `C++17` and will default to that if not specified via `BLT_CXX_STD`.
@@ -77,6 +80,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
   `NURBSCurve` and `NURBSPatch` classes and add overloads from `axom::ArrayView`
 - Core: Updates behavior of `FlatMap::reserve()` to only trigger a rehash if maximum load factor
   would be exceeded.
+- Quest: Moves curve linearization from the `quest::C2CReader` into `quest::LinearizeCurves` so the logic can be used with other curve data.
 
 ###  Fixed
 - Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
