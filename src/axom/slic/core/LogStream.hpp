@@ -153,7 +153,7 @@ public:
    *
    * \return Returns True when it is possible to reliably check whether pending messages exist
    */
-  virtual bool canHavePendingMessages() = 0;
+  virtual bool canHavePendingMessages() { return false; };
 
   /*!
    * \brief Tests whether there are any pending messages that need to be flushed.

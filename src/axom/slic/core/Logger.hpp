@@ -348,6 +348,14 @@ public:
    */
   void pushStreams();
 
+  /*!
+   * \brief Checks to see if there are pending messages
+   * 
+   * \return Returns true if there are pending messages
+   * \collective
+   */
+  bool hasPendingMessages();
+
   ///@}
 
   /// \name Static Methods
