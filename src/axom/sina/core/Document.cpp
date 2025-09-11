@@ -82,8 +82,6 @@ static const std::map<std::string, AppendFields> appendFieldStrings {
 }  // namespace
 
 std::vector<std::string> const CURVE_CATEGORIES = {"dependent", "independent"};
-#define UNUSED(x) \
-  (void)(x)  // TODO: axom likely has a better preference on how to suppress the warning
 
 void protocolWarn(std::string const protocol, std::string const &name)
 {
@@ -412,7 +410,7 @@ Document loadDocument(std::string const &path, RecordLoader const &recordLoader,
 // something "relay-like" instead for the JSON case (a Node). This can go away cleanly if we swap over to dicts in JSON.
 conduit::Node &relayLikeRead(conduit::Node &appendTo, const std::string &endpoint, conduit::Node &readInto, int record_num)
 {
-  UNUSED(readInto);
+  AXOM_UNUSED_VAR(readInto);
   return appendTo["records"].child(record_num)[endpoint];
 }
 
@@ -421,13 +419,13 @@ conduit::Node &relayLikeRead(conduit::relay::io::IOHandle &appendTo,
                             conduit::Node &readInto,
                             int record_num)
 {
-  UNUSED(record_num);
+  AXOM_UNUSED_VAR(record_num);
   appendTo.read(endpoint, readInto);
   return readInto;
 }
 
 conduit::Node &relayLikeReadEtc(conduit::Node &appendTo, const std::string &endpoint, conduit::Node &readInto){
-  UNUSED(readInto);
+  AXOM_UNUSED_VAR(readInto);
   return appendTo[endpoint];
 }
 conduit::Node &relayLikeReadEtc(conduit::relay::io::IOHandle &appendTo,  const std::string &endpoint, conduit::Node &readInto){
@@ -444,7 +442,7 @@ bool relayLikeHasPath(conduit::relay::io::IOHandle &appendTo,
                       const std::string &endpoint,
                       int record_num)
 {
-  UNUSED(record_num);
+  AXOM_UNUSED_VAR(record_num);
   return appendTo.has_path(endpoint);
 }
 
@@ -462,8 +460,8 @@ bool nodeWorkaroundHasChildSlashes(conduit::relay::io::IOHandle &appendTo,
                                    const std::string &child_name,
                                    int record_num)
 {
-  UNUSED(record_num);
-  UNUSED(child_name);
+  AXOM_UNUSED_VAR(record_num);
+  AXOM_UNUSED_VAR(child_name);
   return appendTo.has_path(endpoint);
 }
 
@@ -478,7 +476,7 @@ std::vector<std::string> relayLikeListChildNames(conduit::relay::io::IOHandle &a
                                                  const std::string &endpoint,
                                                  int record_num)
 {
-  UNUSED(record_num);
+  AXOM_UNUSED_VAR(record_num);
   std::vector<std::string> nameHolder;
   appendTo.list_child_names(endpoint, nameHolder);
   return nameHolder;
@@ -493,14 +491,14 @@ int relayLikeNumChildren(conduit::relay::io::IOHandle &appendTo,
                          const std::string &endpoint,
                          int record_num)
 {
-  UNUSED(record_num);
+  AXOM_UNUSED_VAR(record_num);
   std::vector<std::string> child_name_holder;
   appendTo.list_child_names(endpoint, child_name_holder);
   return child_name_holder.size();
 }
 
 void relayLikeWrite(conduit::relay::io::IOHandle &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num){
-  UNUSED(record_num);
+  AXOM_UNUSED_VAR(record_num);
   if(relayLikeHasPath(appendTo, endpoint, record_num)){
     appendTo.remove(endpoint);
   }
@@ -525,7 +523,7 @@ void relayLikeWipeRecords(conduit::relay::io::IOHandle &appendTo){
    appendTo.remove("/records");
 }
 
-void relayLikeWipeRecords(conduit::Node &appendTo){UNUSED(appendTo);} // Should never be called.
+void relayLikeWipeRecords(conduit::Node &appendTo){AXOM_UNUSED_VAR(appendTo);} // Should never be called.
 
 void relayLikeWriteEtc(conduit::Node &appendTo, conduit::Node &appendFrom, const std::string &endpoint){
     appendTo[endpoint].update(appendFrom);
@@ -540,13 +538,13 @@ void relayLikeAddNewRecord(conduit::relay::io::IOHandle &appendTo,
 
 void relayLikeAddNewRecord(conduit::Node &appendTo, conduit::Node &new_record, int new_record_num)
 {
-  UNUSED(new_record_num);
+  AXOM_UNUSED_VAR(new_record_num);
   appendTo["records"].append() = new_record;
 }
 
 uint64_t relayLikeArrayNumElements(conduit::Node &appendTo, const std::string &endpoint, int record_num, const std::string &original_file_path)
 {
-  UNUSED(original_file_path);
+  AXOM_UNUSED_VAR(original_file_path);
   return appendTo["records"].child(record_num)[endpoint].dtype().number_of_elements();
 }
 
@@ -557,8 +555,8 @@ uint64_t relayLikeArrayNumElements(conduit::relay::io::IOHandle &appendTo,
 {
   // This is the only reason why original_file_path has to be passed all the way down from append()
   // If access to it's added to IOHandle, we can clean this up. 
-  UNUSED(appendTo);
-  UNUSED(record_num);
+  AXOM_UNUSED_VAR(appendTo);
+  AXOM_UNUSED_VAR(record_num);
   conduit::Node metadata_only;
   conduit::relay::io::hdf5_read_info(original_file_path, endpoint, metadata_only);
   return metadata_only["num_elements"].value();
@@ -566,7 +564,7 @@ uint64_t relayLikeArrayNumElements(conduit::relay::io::IOHandle &appendTo,
 
 void relayLikeAppendCurve(conduit::relay::io::IOHandle &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num,
         const std::string &original_file_path){
-  UNUSED(record_num);
+  AXOM_UNUSED_VAR(record_num);
   conduit::Node OPTS_NODE;  // Keep an eye out for static defaults that might be helpful to set as we learn more here
   OPTS_NODE["offset"] = relayLikeArrayNumElements(appendTo, endpoint, record_num, original_file_path);
   appendTo.write(appendFrom, endpoint, OPTS_NODE);
@@ -574,7 +572,7 @@ void relayLikeAppendCurve(conduit::relay::io::IOHandle &appendTo, conduit::Node 
 
 void relayLikeAppendCurve(conduit::Node &appendTo, conduit::Node &appendFrom, const std::string &endpoint, int record_num,
     const std::string &original_file_path){
-  UNUSED(original_file_path);
+  AXOM_UNUSED_VAR(original_file_path);
   conduit::Node &append_at = appendTo["records"].child(record_num)[endpoint];
   std::vector<double> merged_values(append_at.as_double_ptr(), append_at.as_double_ptr() + append_at.dtype().number_of_elements());
   merged_values.insert(merged_values.end(), appendFrom.as_double_ptr(), appendFrom.as_double_ptr() + appendFrom.dtype().number_of_elements());

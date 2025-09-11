@@ -301,7 +301,7 @@ Document loadDocument(std::string const &path,
 /**
  * \brief Append the new records or, per-record, new data, user defined content, curves/curve sets,
  *        and library data of a Sina Document to an existing JSON file. For a full explanation of behavior,
- *        see append_to_hdf5. Note that a JSON file must be entirely re-written for an append to function;
+ *        see appendDocumentToHDF5. Note that a JSON file must be entirely re-written for an append to function;
  *        it's more efficient for shorter files, but prefer HDF5 for large files (many timeseries/long timeseries)
  *
  * \param jsonFilePath the path to the JSON file
@@ -353,12 +353,15 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
 
 /**
  * \brief Check a node against some file handle and return a Conduit node populated with any errors that
- *        would prevent appending. Primarily useful for testing out what may be going wrong with an append.
+ *        would prevent appending. Primarily useful for dry run testing of what may be going wrong with an append.
  * 
  * \param appendTo Either a conduit node or a conduit relay filehandle (prefer the latter for HDF5) representing
  *                 the data on disk
  * \param appendFrom A conduit node representing the document being appended to the file on disk
+ * \param endpoint The endpoint within the record at which the node should be checked. This is primarily useful for library_data
  * \param mergeProtocol protocol for handling duplicate data/files/user_defined/etc. See append methods above.
+ * \param record_num The offset of the record within appendFrom, i.e. if you'd like to test the append against the first record, pass 0 
+ * \param original_file_path The path to the appendFrom document on disk, required for fast lookup of some HDF5 info
  * \return a conduit Node containing a list of any errors encountered in appending. If empty, success.
  */
 template <typename ConduitRelayLike>
