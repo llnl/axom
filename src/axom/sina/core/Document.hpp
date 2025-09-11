@@ -360,7 +360,7 @@ conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
  * \param appendFrom A conduit node representing the document being appended to the file on disk
  * \param endpoint The endpoint within the record at which the node should be checked. This is primarily useful for library_data
  * \param mergeProtocol protocol for handling duplicate data/files/user_defined/etc. See append methods above.
- * \param record_num The offset of the record within appendFrom, i.e. if you'd like to test the append against the first record, pass 0 
+ * \param record_num The offset of the record within appendFrom, i.e. if you'd like to test the append against the first record, pass 0
  * \param original_file_path The path to the appendFrom document on disk, required for fast lookup of some HDF5 info
  * \return a conduit Node containing a list of any errors encountered in appending. If empty, success.
  */
@@ -371,7 +371,7 @@ conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
                                      const int mergeProtocol,
                                      int record_num,
                                      // default'd because it might go away with a conduit update
-                                     const std::string &original_file_path="");  
+                                     const std::string &original_file_path = "");
 
 }  // namespace sina
 }  // namespace axom
