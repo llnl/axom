@@ -12,6 +12,8 @@
 #include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
+#include <cstdlib>
+
 std::string baselineDirectory()
 {
   return pjoin(dataDirectory(), "mir", "regression", "mir_elvira");
@@ -113,12 +115,19 @@ struct braid2d_mat_test
   /// on tioga appear to have intermittent failures related to normals.
   static void reset()
   {
-    const axom::IndexType N = 10000;
-    axom::Array<double> arr(N, N, axom::execution_space<ExecSpace>::allocatorID());
-    auto arrView = arr.view();
-    axom::for_all<ExecSpace>(
-      N,
-      AXOM_LAMBDA(axom::IndexType index) { arrView[index] = index * index; });
+    if(getenv("NO_RESET") == nullptr)
+    {
+      const axom::IndexType N = 10000;
+      axom::Array<double> arr(N, N, axom::execution_space<ExecSpace>::allocatorID());
+      auto arrView = arr.view();
+      for(int i = 0; i < 2; i++)
+      {
+        axom::for_all<ExecSpace>(
+          N,
+          AXOM_LAMBDA(axom::IndexType index) { arrView[index] = index * index; });
+      }
+      axom::synchronize<ExecSpace>();
+    }
   }
 };
 
@@ -317,6 +326,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_hip)
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_hip");
   const bool selectZones = false;
   const bool pointMesh = false;
+  braid2d_mat_test<hip_exec>::reset();
   braid2d_mat_test<hip_exec>::test("uniform",
                                    "unibuffer",
                                    "elvira_uniform_unibuffer",
@@ -324,6 +334,7 @@ TEST(mir_elvira, elvira_uniform_unibuffer_hip)
                                    pointMesh);
   // Run 2 domain example
   const int nDomains = 2;
+  braid2d_mat_test<hip_exec>::reset();
   braid2d_mat_test<hip_exec>::test("uniform",
                                    "unibuffer",
                                    "elvira_uniform_unibuffer",

@@ -336,6 +336,7 @@ protected:
     axom::for_all<ExecSpace>(
       nvalues,
       AXOM_LAMBDA(axom::IndexType index) { view[index] = selectedZonesView[index]; });
+    reportErrors(__LINE__);
   }
 
   /*!
@@ -527,6 +528,7 @@ protected:
         // The number of times we cut a zone is the number of materials in the zone minus one.
         reduce_maxcuts.max(nmats - 1);
       });
+    reportErrors(__LINE__);
     const auto numFragments = num_reduce.get();
     const auto maxCuts = reduce_maxcuts.get();
     SLIC_ASSERT(numFragments > 0);
@@ -697,6 +699,7 @@ protected:
           zcStencilView[coordIndex] = zview.empty() ? 1. : zview[neighborIndex];
         }
       });
+    reportErrors(__LINE__);
     // We're done with the zone centers.
     n_zcfield.reset();
     AXOM_ANNOTATE_END("stencil");
@@ -772,6 +775,7 @@ protected:
 #endif
         }
       });
+    reportErrors(__LINE__);
     AXOM_ANNOTATE_END("vectors");
 
     //--------------------------------------------------------------------------
@@ -995,6 +999,21 @@ protected:
         }
         buildView.addShape(zoneIndex, fragmentIndex, remaining, matId, pt, -planeOffset, lastNormal);
       });
+      reportErrors(__LINE__);
+  }
+
+  void reportErrors(int srcLine) const
+  {
+#if defined(AXOM_USE_HIP)
+    if constexpr(axom::execution_space<ExecSpace>::onDevice())
+    {
+      hipError_t err = hipGetLastError();
+      if (err != hipSuccess)
+      {
+        SLIC_ERROR(axom::fmt::format("ElviraAlgorithm.hpp:{}: HIP error: {}", srcLine, hipGetErrorString(err)));
+      }
+    }
+#endif
   }
 
 private:
