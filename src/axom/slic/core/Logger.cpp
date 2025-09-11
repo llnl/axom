@@ -380,7 +380,7 @@ void Logger::outputLocalMessages()
 void Logger::flushStreams()
 {
 
-  const bool has_pending_messages = getLogStreamStatusMonitor().hasPendingMessages();
+  const bool has_pending_messages = hasPendingMessages();
 
   //Flush for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
@@ -419,7 +419,7 @@ void Logger::flushStreams()
 //------------------------------------------------------------------------------
 void Logger::pushStreams()
 {
-  const bool has_pending_messages = getLogStreamStatusMonitor().hasPendingMessages();
+  const bool has_pending_messages = hasPendingMessages();
   //Push for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
   {
@@ -452,6 +452,12 @@ void Logger::pushStreams()
       }
     }
   }
+}
+
+//------------------------------------------------------------------------------
+bool Logger::hasPendingMessages()
+{
+  return getLogStreamStatusMonitor().hasPendingMessages();
 }
 
 //------------------------------------------------------------------------------
