@@ -55,11 +55,9 @@ public:
 
   bool labelCellsInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
-  bool getGeometryAsOcts(quest::ShapeeMesh& shappeMesh,
-                         axom::Array<OctahedronType>& octs) override;
+  bool getGeometryAsOcts(quest::ShapeeMesh& shappeMesh, axom::Array<OctahedronType>& octs) override;
 
-  axom::ArrayView<const Point2DType> getSorCurve() const
-    { return m_sorCurve.view(); }
+  axom::ArrayView<const Point2DType> getSorCurve() const { return m_sorCurve.view(); }
 
   //@{
   //! @name Utilities shared with SorClipper for handling SOR.
@@ -72,8 +70,7 @@ public:
 
    * @return Indices of switchbacks, plus the first and last indices.
   */
-  static axom::Array<axom::IndexType> findZSwitchbacks(
-    axom::ArrayView<const Point2DType> pts);
+  static axom::Array<axom::IndexType> findZSwitchbacks(axom::ArrayView<const Point2DType> pts);
 
   /*
    * @brief Combine consecutive radial segments of the curve into a
@@ -161,14 +158,12 @@ private:
    * @param characteristicLength [in] Characteristic length
    *   of cells near the curve.
   */
-  axom::Array<Point2DType> subdivideCurve(
-    const Array<Point2DType>& sorCurveIn,
-    double cellsCharacteristicLength);
+  axom::Array<Point2DType> subdivideCurve(const Array<Point2DType>& sorCurveIn,
+                                          double cellsCharacteristicLength);
 
   //!@brief Compute geometry as octs, by policy.
   template <typename ExecSpace>
-  bool getGeometryAsOctsImpl(quest::ShapeeMesh& shappeMesh,
-                             axom::Array<OctahedronType>& octs);
+  bool getGeometryAsOctsImpl(quest::ShapeeMesh& shappeMesh, axom::Array<OctahedronType>& octs);
 };
 
 }  // namespace quest

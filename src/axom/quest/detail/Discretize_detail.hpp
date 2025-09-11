@@ -269,7 +269,8 @@ bool discretize(const axom::ArrayView<Point2D> &polyline,
 {
   SLIC_ERROR_IF(!axom::execution_space<ExecSpace>::usesAllocId(out.getAllocatorID()),
                 axom::fmt::format("Execution space {} cannot access allocator ed {}",
-                                  axom::execution_space<ExecSpace>::name(), out.getAllocatorID()));
+                                  axom::execution_space<ExecSpace>::name(),
+                                  out.getAllocatorID()));
 
   // Check for invalid input.  If any segment is invalid, exit returning false.
   bool stillValid = true;

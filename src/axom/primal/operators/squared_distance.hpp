@@ -155,7 +155,8 @@ AXOM_HOST_DEVICE inline double squared_distance(const Point<T, NDIMS>& P, const 
  * \return the squared distance from P to the closest point on the triangle T.
  */
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE inline double squared_distance(const Point<T, NDIMS>& P, const Triangle<T, NDIMS>& tri)
+AXOM_HOST_DEVICE inline double squared_distance(const Point<T, NDIMS>& P,
+                                                const Triangle<T, NDIMS>& tri)
 {
   return squared_distance(P, closest_point(P, tri));
 }

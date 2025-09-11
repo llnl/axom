@@ -490,7 +490,10 @@ inline MemorySpace getAllocatorSpace(int allocatorId)
     }
   }
 #endif
-  if(allocatorId == MALLOC_ALLOCATOR_ID) { return MemorySpace::Malloc; }
+  if(allocatorId == MALLOC_ALLOCATOR_ID)
+  {
+    return MemorySpace::Malloc;
+  }
 
   std::cerr << "*** Unrecognized allocator id " << allocatorId << "." << std::endl;
   axom::utilities::processAbort();

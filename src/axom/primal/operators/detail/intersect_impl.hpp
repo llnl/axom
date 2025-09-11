@@ -609,7 +609,8 @@ AXOM_HOST_DEVICE bool crossEdgesDisjoint(double d0, double d1, double r);
  * \return true iff tri intersects with bb, otherwise, false.
  */
 template <typename T>
-AXOM_HOST_DEVICE bool intersect_tri_bbox(const primal::Triangle<T, 3>& tri, const primal::BoundingBox<T, 3>& bb)
+AXOM_HOST_DEVICE bool intersect_tri_bbox(const primal::Triangle<T, 3>& tri,
+                                         const primal::BoundingBox<T, 3>& bb)
 {
   // Note: Algorithm is derived from the one presented in chapter 5.2.9 of
   //   Real Time Collision Detection book by Christer Ericson
@@ -733,8 +734,10 @@ AXOM_HOST_DEVICE inline bool crossEdgesDisjoint(double d0, double d1, double r)
  * no. 1, 65–82, 2013  http://jcgt.org/published/0002/01/05/
  */
 template <typename T>
-AXOM_HOST_DEVICE
-bool intersect_tri_ray(const Triangle<T, 3>& tri, const Ray<T, 3>& R, T& t, Point<double, 3>& p)
+AXOM_HOST_DEVICE bool intersect_tri_ray(const Triangle<T, 3>& tri,
+                                        const Ray<T, 3>& R,
+                                        T& t,
+                                        Point<double, 3>& p)
 {
   // Ray origins inside of the triangle are considered a miss.
   // This is a good thing, as pointed out by Matt Larsen in January 2017,
@@ -853,8 +856,10 @@ bool intersect_tri_ray(const Triangle<T, 3>& tri, const Ray<T, 3>& R, T& t, Poin
  * This routine uses intersect_tri_ray(), which see.
  */
 template <typename T>
-AXOM_HOST_DEVICE
-bool intersect_tri_segment(const Triangle<T, 3>& tri, const Segment<T, 3>& S, T& t, Point<double, 3>& p)
+AXOM_HOST_DEVICE bool intersect_tri_segment(const Triangle<T, 3>& tri,
+                                            const Segment<T, 3>& S,
+                                            T& t,
+                                            Point<double, 3>& p)
 {
   Ray<T, 3> r(S.source(), Vector3(S.source(), S.target()));
 

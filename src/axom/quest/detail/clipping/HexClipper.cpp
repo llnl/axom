@@ -187,14 +187,14 @@ void HexClipper::computeSurface()
   const auto& w = m_hex[7];
 
   // 6 face centers, right handed, oriented inward.
-  Point3DType pswt(axom::NumericArray<double, 3>{ p.array() + s.array() + w.array() + t.array() }/4);
-  Point3DType quvr(axom::NumericArray<double, 3>{ q.array() + u.array() + v.array() + r.array() }/4);
+  Point3DType pswt(axom::NumericArray<double, 3> {p.array() + s.array() + w.array() + t.array()} / 4);
+  Point3DType quvr(axom::NumericArray<double, 3> {q.array() + u.array() + v.array() + r.array()} / 4);
 
-  Point3DType ptuq(axom::NumericArray<double, 3>{ p.array() + t.array() + u.array() + q.array() }/4);
-  Point3DType srvw(axom::NumericArray<double, 3>{ s.array() + r.array() + v.array() + w.array() }/4);
+  Point3DType ptuq(axom::NumericArray<double, 3> {p.array() + t.array() + u.array() + q.array()} / 4);
+  Point3DType srvw(axom::NumericArray<double, 3> {s.array() + r.array() + v.array() + w.array()} / 4);
 
-  Point3DType pqrs(axom::NumericArray<double, 3>{ p.array() + q.array() + r.array() + s.array() }/4);
-  Point3DType twvu(axom::NumericArray<double, 3>{ t.array() + w.array() + v.array() + u.array() }/4);
+  Point3DType pqrs(axom::NumericArray<double, 3> {p.array() + q.array() + r.array() + s.array()} / 4);
+  Point3DType twvu(axom::NumericArray<double, 3> {t.array() + w.array() + v.array() + u.array()} / 4);
 
   m_surfaceTriangles[0] = Triangle3DType(pswt, p, s);
   m_surfaceTriangles[1] = Triangle3DType(pswt, s, w);

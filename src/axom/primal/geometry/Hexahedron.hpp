@@ -259,8 +259,7 @@ public:
    * TetrahedronType objects.
    */
   template <typename TetIndexable>
-  AXOM_HOST_DEVICE
-  void triangulate(TetIndexable& tets) const
+  AXOM_HOST_DEVICE void triangulate(TetIndexable& tets) const
   {
     // Hex center (hc)
     PointType hc = vertexMean();

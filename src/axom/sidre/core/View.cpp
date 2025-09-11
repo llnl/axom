@@ -1046,7 +1046,10 @@ void View::deepCopyToConduit(Node& dst, int allocId) const
 
   const conduit::DataType& srcDtype = m_node.dtype();
   dst.set(srcDtype);
-  if(allocId != INVALID_ALLOCATOR_ID) {dst.set_allocator(ConduitMemory::axomAllocIdToConduit(allocId));}
+  if(allocId != INVALID_ALLOCATOR_ID)
+  {
+    dst.set_allocator(ConduitMemory::axomAllocIdToConduit(allocId));
+  }
   if(isAllocated())
   {
     // Using set_node to set dst: would reset dst's allocator id to

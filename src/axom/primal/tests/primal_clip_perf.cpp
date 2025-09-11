@@ -7,7 +7,7 @@
 #include "axom/slic.hpp"
 
 #ifdef AXOM_USE_CALIPER
-#include <caliper/cali.h>
+  #include <caliper/cali.h>
 #endif
 
 #include "axom/core/Types.hpp"
@@ -29,7 +29,7 @@ using PointType = axom::primal::Point<double, 3>;
 using TetrahedronType = axom::primal::Tetrahedron<double, 3>;
 }  // namespace Primal3D
 
-template<typename ExecSpace>
+template <typename ExecSpace>
 double array_sum(axom::ArrayView<double> v)
 {
   axom::ReduceSum<ExecSpace, double> sum(0);
@@ -42,21 +42,20 @@ double array_sum(axom::ArrayView<double> v)
 
 constexpr double EPS = 1e-10;
 constexpr bool tryFixOrientation = false;
-constexpr axom::IndexType repCount = 10000; // For reliable timings, try 1e6.
+constexpr axom::IndexType repCount = 10000;  // For reliable timings, try 1e6.
 
-template<typename ExecSpace>
+template <typename ExecSpace>
 void time_repeat_clips(const Primal3D::TetrahedronType &a,
                        const Primal3D::TetrahedronType &b,
                        axom::IndexType count,
-                       const std::string& caseName)
+                       const std::string &caseName)
 {
   using namespace Primal3D;
   const std::string timerName = caseName + axom::execution_space<ExecSpace>::name();
   auto poly = axom::primal::clip(a, b, EPS, tryFixOrientation);
   const double singleVol = poly.volume();
 
-  SLIC_INFO(axom::fmt::format("{} with {} repetitions, volume {}",
-                              caseName, count, singleVol));
+  SLIC_INFO(axom::fmt::format("{} with {} repetitions, volume {}", caseName, count, singleVol));
 
   const int allocId = axom::execution_space<ExecSpace>::allocatorID();
   axom::Array<double> vols(axom::ArrayOptions::Uninitialized(), count, count, allocId);
@@ -74,22 +73,21 @@ void time_repeat_clips(const Primal3D::TetrahedronType &a,
   AXOM_ANNOTATE_BEGIN(timerName);
   axom::for_all<ExecSpace>(
     count,
-    AXOM_LAMBDA(axom::IndexType i)
-    {
+    AXOM_LAMBDA(axom::IndexType i) {
       auto poly = axom::primal::clip(asView[i], bsView[i], EPS, tryFixOrientation);
       volsView[i] = poly.volume();
     });
   AXOM_ANNOTATE_END(timerName);
 
   // Verify correctness.
-  double avgVol = array_sum<ExecSpace>(vols.view())/count;
+  double avgVol = array_sum<ExecSpace>(vols.view()) / count;
   EXPECT_NEAR(avgVol, singleVol, EPS);
 }
 
 void time_repeat_clips_all(const Primal3D::TetrahedronType &a,
                            const Primal3D::TetrahedronType &b,
                            axom::IndexType count,
-                           const std::string& caseName)
+                           const std::string &caseName)
 {
   time_repeat_clips<axom::SEQ_EXEC>(a, b, count, caseName);
 
@@ -122,8 +120,8 @@ TEST(primal_clip, fast_miss)
     backward and forward don't intersect and no plane from one intersects the other.
     so their clipping should be as fast as possible.
   */
-  Primal3D::TetrahedronType backward({1,-1,-1}, {-1,-1,-1}, {0,1,-1}, {0,0,-2});
-  Primal3D::TetrahedronType forward({1,-1,1}, {0,1,1}, {-1,-1,1}, {0,0,2});
+  Primal3D::TetrahedronType backward({1, -1, -1}, {-1, -1, -1}, {0, 1, -1}, {0, 0, -2});
+  Primal3D::TetrahedronType forward({1, -1, 1}, {0, 1, 1}, {-1, -1, 1}, {0, 0, 2});
   time_repeat_clips_all(backward, forward, repCount, name);
 }
 
@@ -133,8 +131,8 @@ TEST(primal_clip, fast_miss)
 TEST(primal_clip, outside)
 {
   std::string name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-  Primal3D::TetrahedronType in({1,-1,0}, {0,1,0}, {-1,-1,0}, {0,0,1});
-  Primal3D::TetrahedronType out({2,-2,0}, {0,2,0}, {-2,-2,0}, {0,0,2});
+  Primal3D::TetrahedronType in({1, -1, 0}, {0, 1, 0}, {-1, -1, 0}, {0, 0, 1});
+  Primal3D::TetrahedronType out({2, -2, 0}, {0, 2, 0}, {-2, -2, 0}, {0, 0, 2});
   time_repeat_clips_all(in, out, repCount, name);
 }
 
@@ -144,8 +142,8 @@ TEST(primal_clip, outside)
 TEST(primal_clip, inside)
 {
   std::string name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-  Primal3D::TetrahedronType in({1,-1,0}, {0,1,0}, {-1,-1,0}, {0,0,1});
-  Primal3D::TetrahedronType out({2,-2,0}, {0,2,0}, {-2,-2,0}, {0,0,2});
+  Primal3D::TetrahedronType in({1, -1, 0}, {0, 1, 0}, {-1, -1, 0}, {0, 0, 1});
+  Primal3D::TetrahedronType out({2, -2, 0}, {0, 2, 0}, {-2, -2, 0}, {0, 0, 2});
   time_repeat_clips_all(out, in, repCount, name);
 }
 
@@ -155,8 +153,8 @@ TEST(primal_clip, inside)
 TEST(primal_clip, poked_side)
 {
   std::string name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-  Primal3D::TetrahedronType sharp({1,-1,0}, {0,1,0}, {-1,-1,0}, {0,0,1});
-  Primal3D::TetrahedronType poked({1,-1,0.5}, {0,1,0.5}, {-1,-1,0.5}, {0,0,1.5});
+  Primal3D::TetrahedronType sharp({1, -1, 0}, {0, 1, 0}, {-1, -1, 0}, {0, 0, 1});
+  Primal3D::TetrahedronType poked({1, -1, 0.5}, {0, 1, 0.5}, {-1, -1, 0.5}, {0, 0, 1.5});
   time_repeat_clips_all(sharp, poked, repCount, name);
 }
 
@@ -166,8 +164,8 @@ TEST(primal_clip, poked_side)
 TEST(primal_clip, impaled_side)
 {
   std::string name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-  Primal3D::TetrahedronType sharp({1,-1,0}, {0,1,0}, {-1,-1,0}, {0,0,2});
-  Primal3D::TetrahedronType impaled({1,-1,0.5}, {0,1,0.5}, {-1,-1,0.5}, {0,0,1.5});
+  Primal3D::TetrahedronType sharp({1, -1, 0}, {0, 1, 0}, {-1, -1, 0}, {0, 0, 2});
+  Primal3D::TetrahedronType impaled({1, -1, 0.5}, {0, 1, 0.5}, {-1, -1, 0.5}, {0, 0, 1.5});
   time_repeat_clips_all(sharp, impaled, repCount, name);
 }
 
@@ -177,8 +175,8 @@ TEST(primal_clip, impaled_side)
 TEST(primal_clip, edge_through)
 {
   std::string name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-  Primal3D::TetrahedronType high({1,0,-0.5}, {-1,0,-0.5}, {0,-1,1}, {0,1,1});
-  Primal3D::TetrahedronType low({0,1,0.5}, {0,-1,0.5}, {-1,0,-1}, {1,0,-1});
+  Primal3D::TetrahedronType high({1, 0, -0.5}, {-1, 0, -0.5}, {0, -1, 1}, {0, 1, 1});
+  Primal3D::TetrahedronType low({0, 1, 0.5}, {0, -1, 0.5}, {-1, 0, -1}, {1, 0, -1});
   time_repeat_clips_all(high, low, repCount, name);
 }
 
@@ -188,8 +186,8 @@ TEST(primal_clip, edge_through)
 TEST(primal_clip, head_on)
 {
   std::string name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-  Primal3D::TetrahedronType backward({1,-1,0.5}, {-1,-1,0.5}, {0,1,0.5}, {0,0,-0.5});
-  Primal3D::TetrahedronType forward({1,-1,-0.5}, {0,1,-0.5}, {-1,-1,-0.5}, {0,0,0.5});
+  Primal3D::TetrahedronType backward({1, -1, 0.5}, {-1, -1, 0.5}, {0, 1, 0.5}, {0, 0, -0.5});
+  Primal3D::TetrahedronType forward({1, -1, -0.5}, {0, 1, -0.5}, {-1, -1, -0.5}, {0, 0, 0.5});
   time_repeat_clips_all(backward, forward, repCount, name);
 }
 
@@ -204,8 +202,8 @@ TEST(primal_clip, head_on2)
     backward and forward don't intersect and no plane from one intersects the other.
     so their clipping should be as fast as possible.
   */
-  Primal3D::TetrahedronType backward({1,-1,0.5}, {-1,-1,0.5}, {0,1,0.5}, {0,0,-0.5});
-  Primal3D::TetrahedronType forward({1,-1,-0.5}, {0,1,-0.5}, {-1,-1,-0.5}, {0,0,1.5});
+  Primal3D::TetrahedronType backward({1, -1, 0.5}, {-1, -1, 0.5}, {0, 1, 0.5}, {0, 0, -0.5});
+  Primal3D::TetrahedronType forward({1, -1, -0.5}, {0, 1, -0.5}, {-1, -1, -0.5}, {0, 0, 1.5});
   time_repeat_clips_all(backward, forward, repCount, name);
 }
 
@@ -220,8 +218,8 @@ TEST(primal_clip, head_on3)
     backward and forward don't intersect and no plane from one intersects the other.
     so their clipping should be as fast as possible.
   */
-  Primal3D::TetrahedronType backward({1,-1,0.5}, {-1,-1,0.5}, {0,1,0.5}, {0,0,-1.5});
-  Primal3D::TetrahedronType forward({1,-1,-0.5}, {0,1,-0.5}, {-1,-1,-0.5}, {0,0,1.5});
+  Primal3D::TetrahedronType backward({1, -1, 0.5}, {-1, -1, 0.5}, {0, 1, 0.5}, {0, 0, -1.5});
+  Primal3D::TetrahedronType forward({1, -1, -0.5}, {0, 1, -0.5}, {-1, -1, -0.5}, {0, 0, 1.5});
   time_repeat_clips_all(backward, forward, repCount, name);
 }
 
@@ -233,8 +231,8 @@ TEST(primal_clip, head_on3)
 TEST(primal_clip, eight_point)
 {
   std::string name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-  Primal3D::TetrahedronType a({1,0,0}, {-1,0,0}, {0,-1,1}, {0,1,1});
-  Primal3D::TetrahedronType b({1,0,1}, {0,-1,0}, {-1,0,1}, {0,1,0});
+  Primal3D::TetrahedronType a({1, 0, 0}, {-1, 0, 0}, {0, -1, 1}, {0, 1, 1});
+  Primal3D::TetrahedronType b({1, 0, 1}, {0, -1, 0}, {-1, 0, 1}, {0, 1, 0});
   time_repeat_clips_all(a, b, repCount, name);
 }
 
@@ -244,8 +242,8 @@ TEST(primal_clip, eight_point)
 TEST(primal_clip, eight_point2)
 {
   std::string name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-  Primal3D::TetrahedronType a({1,0,0.2}, {-1,0,0.2}, {0,-1,1.2}, {0,1,1.2});
-  Primal3D::TetrahedronType b({1,0,1}, {0,-1,0}, {-1,0,1}, {0,1,0});
+  Primal3D::TetrahedronType a({1, 0, 0.2}, {-1, 0, 0.2}, {0, -1, 1.2}, {0, 1, 1.2});
+  Primal3D::TetrahedronType b({1, 0, 1}, {0, -1, 0}, {-1, 0, 1}, {0, 1, 0});
   time_repeat_clips_all(a, b, repCount, name);
 }
 
@@ -255,8 +253,8 @@ TEST(primal_clip, eight_point2)
 TEST(primal_clip, eight_point3)
 {
   std::string name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-  Primal3D::TetrahedronType a({1,0,0.5}, {-1,0,0.5}, {0,-1,1.5}, {0,1,1.5});
-  Primal3D::TetrahedronType b({1,0,1}, {0,-1,0}, {-1,0,1}, {0,1,0});
+  Primal3D::TetrahedronType a({1, 0, 0.5}, {-1, 0, 0.5}, {0, -1, 1.5}, {0, 1, 1.5});
+  Primal3D::TetrahedronType b({1, 0, 1}, {0, -1, 0}, {-1, 0, 1}, {0, 1, 0});
   time_repeat_clips_all(a, b, repCount, name);
 }
 
@@ -266,8 +264,8 @@ TEST(primal_clip, eight_point3)
 TEST(primal_clip, eight_point4)
 {
   std::string name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-  Primal3D::TetrahedronType a({1,0,0.8}, {-1,0,0.8}, {0,-1,1.8}, {0,1,1.8});
-  Primal3D::TetrahedronType b({1,0,1}, {0,-1,0}, {-1,0,1}, {0,1,0});
+  Primal3D::TetrahedronType a({1, 0, 0.8}, {-1, 0, 0.8}, {0, -1, 1.8}, {0, 1, 1.8});
+  Primal3D::TetrahedronType b({1, 0, 1}, {0, -1, 0}, {-1, 0, 1}, {0, 1, 0});
   time_repeat_clips_all(a, b, repCount, name);
 }
 
@@ -277,13 +275,13 @@ TEST(primal_clip, eight_point4)
 TEST(primal_clip, eight_point5)
 {
   std::string name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
-  Primal3D::TetrahedronType a({1,0,1.5}, {-1,0,1.5}, {0,-1,2.5}, {0,1,2.5});
-  Primal3D::TetrahedronType b({1,0,1}, {0,-1,0}, {-1,0,1}, {0,1,0});
+  Primal3D::TetrahedronType a({1, 0, 1.5}, {-1, 0, 1.5}, {0, -1, 2.5}, {0, 1, 2.5});
+  Primal3D::TetrahedronType b({1, 0, 1}, {0, -1, 0}, {-1, 0, 1}, {0, 1, 0});
   time_repeat_clips_all(a, b, repCount, name);
 }
 
 //------------------------------------------------------------------------------
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);
   axom::slic::SimpleLogger logger;

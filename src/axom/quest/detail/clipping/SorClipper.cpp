@@ -47,18 +47,16 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   {
     axom::ArrayView<const Point2DType> section = sections[i].view();
     std::string sectionName = axom::fmt::format("{}.{}", m_name, i);
-    m_fsorStrategies.push_back(
-      std::make_shared<FSorClipper>(kGeom,
-                                    sectionName,
-                                    section,
-                                    m_sorOrigin,
-                                    m_sorDirection,
-                                    m_levelOfRefinement));
+    m_fsorStrategies.push_back(std::make_shared<FSorClipper>(kGeom,
+                                                             sectionName,
+                                                             section,
+                                                             m_sorOrigin,
+                                                             m_sorDirection,
+                                                             m_levelOfRefinement));
   }
 }
 
-bool SorClipper::specializedClipCells(quest::ShapeeMesh& shapeeMesh,
-                                      axom::ArrayView<double> ovlap)
+bool SorClipper::specializedClipCells(quest::ShapeeMesh& shapeeMesh, axom::ArrayView<double> ovlap)
 {
   AXOM_ANNOTATE_SCOPE("SorClipper::specializedClipCells");
   /*
@@ -82,9 +80,8 @@ bool SorClipper::specializedClipCells(quest::ShapeeMesh& shapeeMesh,
     clipper.setVerbose(false);
     clipper.clip(tmpOvlap);
     auto sorCurve = fsorStrategy->getSorCurve();
-    int sign = axom::utilities::sign_of(sorCurve[sorCurve.size()-1][0] - sorCurve[0][0], 0.0);
-    accumulateData( ovlap, tmpOvlap.view(), double(sign),
-                    shapeeMesh.getRuntimePolicy() );
+    int sign = axom::utilities::sign_of(sorCurve[sorCurve.size() - 1][0] - sorCurve[0][0], 0.0);
+    accumulateData(ovlap, tmpOvlap.view(), double(sign), shapeeMesh.getRuntimePolicy());
   }
   return true;
 }
@@ -102,8 +99,7 @@ void SorClipper::splitIntoMonotonicSections(axom::ArrayView<const Point2DType> p
                                             axom::Array<axom::Array<Point2DType>>& sections)
 {
   AXOM_ANNOTATE_SCOPE("SorClipper::splitIntoMonotonicSections");
-  axom::Array<axom::IndexType> splitIdx =
-    FSorClipper::findZSwitchbacks(pts);
+  axom::Array<axom::IndexType> splitIdx = FSorClipper::findZSwitchbacks(pts);
 
   const axom::IndexType sectionCount = splitIdx.size() - 1;
   sections.clear();
@@ -123,9 +119,7 @@ void SorClipper::splitIntoMonotonicSections(axom::ArrayView<const Point2DType> p
 
 // Compute a += b.
 template <typename ExecSpace>
-void accumulateDataImpl(axom::ArrayView<double> a,
-                        axom::ArrayView<const double> b,
-                        double scale)
+void accumulateDataImpl(axom::ArrayView<double> a, axom::ArrayView<const double> b, double scale)
 {
   SLIC_ASSERT(a.size() == b.size());
   axom::for_all<ExecSpace>(
@@ -163,8 +157,7 @@ void SorClipper::accumulateData(axom::ArrayView<double> a,
 #endif
   else
   {
-    SLIC_ERROR(
-      axom::fmt::format("Unrecognized runtime policy {}", runtimePolicy));
+    SLIC_ERROR(axom::fmt::format("Unrecognized runtime policy {}", runtimePolicy));
   }
   return;
 }
@@ -189,9 +182,9 @@ void SorClipper::extractClipperInfo()
       n));
 
   m_sorCurve.resize(axom::ArrayOptions::Uninitialized(), n / 2);
-  for(int i = 0; i < n/2; ++i)
+  for(int i = 0; i < n / 2; ++i)
   {
-    m_sorCurve[i] = Point2DType{discreteFunctionArray[i*2], discreteFunctionArray[i*2 + 1]};
+    m_sorCurve[i] = Point2DType {discreteFunctionArray[i * 2], discreteFunctionArray[i * 2 + 1]};
   }
 
   m_levelOfRefinement = m_info.fetch_existing("levelOfRefinement").to_double();

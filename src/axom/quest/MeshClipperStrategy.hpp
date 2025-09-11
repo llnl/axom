@@ -118,10 +118,7 @@ public:
 
    * The exact information depends on the implementation.
   */
-  const conduit::Node info() const
-  {
-    return m_info;
-  }
+  const conduit::Node info() const { return m_info; }
 
   //@{
   //!@name Geometry-specialized methods
@@ -164,8 +161,7 @@ public:
    * @post labels.size() == shapeeMesh.getCellCount()
    * @post labels.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool labelCellsInOut(quest::ShapeeMesh& shapeeMesh,
-                               axom::Array<LabelType>& cellLabels)
+  virtual bool labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& cellLabels)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(cellLabels);
@@ -230,8 +226,7 @@ public:
    * @post ovlap.size() == shapeeMesh.getCellCount()
    * @post ovlap.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool specializedClipCells(quest::ShapeeMesh&
-                                    shapeeMesh, axom::ArrayView<double> ovlap)
+  virtual bool specializedClipCells(quest::ShapeeMesh& shapeeMesh, axom::ArrayView<double> ovlap)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(ovlap);
@@ -306,8 +301,7 @@ public:
    * @post tets.size() == shapeeMesh.getCellCount()
    * @post tets.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool getGeometryAsTets(quest::ShapeeMesh& shapeeMesh,
-                                 axom::Array<TetrahedronType>& tets)
+  virtual bool getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
 
   {
     AXOM_UNUSED_VAR(shapeeMesh);
@@ -329,8 +323,7 @@ public:
    * @post octs.size() == shapeeMesh.getCellCount()
    * @post octs.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh,
-                                 axom::Array<OctahedronType>& octs)
+  virtual bool getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(octs);

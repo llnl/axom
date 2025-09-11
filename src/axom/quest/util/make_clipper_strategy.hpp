@@ -28,9 +28,8 @@ namespace util
  * klee geometry formats.  It throws an error for unrecognized
  * formats.
 */
-std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(
-  const axom::klee::Geometry& kleeGeometry,
-  const std::string& name="");
+std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geometry& kleeGeometry,
+                                                           const std::string& name = "");
 
 }  // namespace util
 }  // namespace quest

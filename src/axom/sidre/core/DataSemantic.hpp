@@ -20,7 +20,7 @@ namespace axom
 {
 namespace sidre
 {
-  /*!
+/*!
     The term semantic is borrowed from "copy semantics."  Here, it affects
     how the data stored for usage as well as how it may be copied.
 
@@ -37,12 +37,12 @@ namespace sidre
     The allocators can be overridden individually for each node in the
     hierarchy.
   */
-  enum DataSemantic
-  {
-    UNKNOWN,   // Semantic is unknown for empty Views
-    VALUE,     // For scalars, tuples and strings
-    REFERENCE, // For BUFFER and EXTERNAL states.
-  };
+enum DataSemantic
+{
+  UNKNOWN,    // Semantic is unknown for empty Views
+  VALUE,      // For scalars, tuples and strings
+  REFERENCE,  // For BUFFER and EXTERNAL states.
+};
 
 } /* end namespace sidre */
 } /* end namespace axom */

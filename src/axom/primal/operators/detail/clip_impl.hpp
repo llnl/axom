@@ -347,7 +347,8 @@ AXOM_HOST_DEVICE void poly_clip_fix_nbrs(Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBR
 }
 
 template <typename T, int NDIMS, int MAX_VERTS = 32, int MAX_NBRS_PER_VERT = 8>
-AXOM_HOST_DEVICE void poly_clip_reindex(Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>& poly, const unsigned int clipped)
+AXOM_HOST_DEVICE void poly_clip_reindex(Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>& poly,
+                                        const unsigned int clipped)
 {
   // Dictionary for old indices to new indices positions
   std::int8_t newIndices[Polyhedron<T, NDIMS>::MAX_VERTS] = {0};
@@ -744,10 +745,11 @@ AXOM_HOST_DEVICE Polyhedron<T, NDIMS> clipHexahedron(const Hexahedron<T, NDIMS>&
  *
  */
 template <typename T, int NDIMS, int MAX_VERTS = 32, int MAX_NBRS_PER_VERT = 8>
-AXOM_HOST_DEVICE Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT> clipOctahedron(const Octahedron<T, NDIMS>& oct,
-                                                     const Tetrahedron<T, NDIMS>& tet,
-                                                     double eps,
-                                                     bool tryFixOrientation)
+AXOM_HOST_DEVICE Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT> clipOctahedron(
+  const Octahedron<T, NDIMS>& oct,
+  const Tetrahedron<T, NDIMS>& tet,
+  double eps,
+  bool tryFixOrientation)
 {
   using PlaneType = Plane<T, NDIMS>;
   using PolyhedronType = Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>;
@@ -791,11 +793,11 @@ AXOM_HOST_DEVICE Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT> clipOctahedr
  *
  */
 template <typename T, int NDIMS, int MAX_VERTS, int MAX_NBRS_PER_VERT>
-AXOM_HOST_DEVICE Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>
-clipTetrahedron(const Tetrahedron<T, NDIMS>& tet1,
-                const Tetrahedron<T, NDIMS>& tet2,
-                double eps,
-                bool tryFixOrientation)
+AXOM_HOST_DEVICE Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT> clipTetrahedron(
+  const Tetrahedron<T, NDIMS>& tet1,
+  const Tetrahedron<T, NDIMS>& tet2,
+  double eps,
+  bool tryFixOrientation)
 {
   using PlaneType = Plane<T, NDIMS>;
   using PolyhedronType = Polyhedron<T, NDIMS, MAX_VERTS, MAX_NBRS_PER_VERT>;

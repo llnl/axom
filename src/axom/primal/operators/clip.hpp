@@ -221,11 +221,10 @@ AXOM_HOST_DEVICE Polygon<T, 2, ARRAY_TYPE, MAX_VERTS> clip(
  *
  */
 template <typename T, int MAX_VERTS = 32, int MAX_NBRS_PER_VERT = 8>
-AXOM_HOST_DEVICE Polyhedron<T, 3, MAX_VERTS, MAX_NBRS_PER_VERT> clip(
-  const Hexahedron<T, 3>& hex,
-  const Tetrahedron<T, 3>& tet,
-  double eps = 1.e-10,
-  bool tryFixOrientation = false)
+AXOM_HOST_DEVICE Polyhedron<T, 3, MAX_VERTS, MAX_NBRS_PER_VERT> clip(const Hexahedron<T, 3>& hex,
+                                                                     const Tetrahedron<T, 3>& tet,
+                                                                     double eps = 1.e-10,
+                                                                     bool tryFixOrientation = false)
 {
   return detail::clipHexahedron(hex, tet, eps, tryFixOrientation);
 }
@@ -365,11 +364,10 @@ AXOM_HOST_DEVICE Polyhedron<T, 3> clip(const Hexahedron<T, 3>& hex1,
  *
  */
 template <typename T, int MAX_VERTS = 32, int MAX_NBRS_PER_VERT = 8>
-AXOM_HOST_DEVICE Polyhedron<T, 3, MAX_VERTS, MAX_NBRS_PER_VERT> clip(
-  const Octahedron<T, 3>& oct,
-  const Tetrahedron<T, 3>& tet,
-  double eps = 1.e-10,
-  bool tryFixOrientation = false)
+AXOM_HOST_DEVICE Polyhedron<T, 3, MAX_VERTS, MAX_NBRS_PER_VERT> clip(const Octahedron<T, 3>& oct,
+                                                                     const Tetrahedron<T, 3>& tet,
+                                                                     double eps = 1.e-10,
+                                                                     bool tryFixOrientation = false)
 {
   return detail::clipOctahedron<T, 3, MAX_VERTS, MAX_NBRS_PER_VERT>(oct, tet, eps, tryFixOrientation);
 }
@@ -461,11 +459,10 @@ AXOM_HOST_DEVICE Polyhedron<T, 3> clip(const Tetrahedron<T, 3>& tet,
  *
  */
 template <typename T, int MAX_VERTS = 32, int MAX_NBRS_PER_VERT = 8>
-AXOM_HOST_DEVICE Polyhedron<T, 3, MAX_VERTS, MAX_NBRS_PER_VERT> clip(
-  const Tetrahedron<T, 3>& tet1,
-  const Tetrahedron<T, 3>& tet2,
-  double eps = 1.e-10,
-  bool tryFixOrientation = false)
+AXOM_HOST_DEVICE Polyhedron<T, 3, MAX_VERTS, MAX_NBRS_PER_VERT> clip(const Tetrahedron<T, 3>& tet1,
+                                                                     const Tetrahedron<T, 3>& tet2,
+                                                                     double eps = 1.e-10,
+                                                                     bool tryFixOrientation = false)
 {
   return detail::clipTetrahedron<T, 3, MAX_VERTS, MAX_NBRS_PER_VERT>(tet1, tet2, eps, tryFixOrientation);
 }

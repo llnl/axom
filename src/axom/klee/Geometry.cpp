@@ -79,8 +79,8 @@ Geometry::Geometry(const TransformableGeometryProperties& startProperties,
   populateGeomInfo();
 }
 
-Geometry::Geometry(const TransformableGeometryProperties &startProperties,
-                   const axom::primal::Cone<double, 3> &cone,
+Geometry::Geometry(const TransformableGeometryProperties& startProperties,
+                   const axom::primal::Cone<double, 3>& cone,
                    axom::IndexType levelOfRefinement,
                    std::shared_ptr<GeometryOperator const> operator_)
   : m_startProperties(startProperties)

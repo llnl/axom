@@ -44,7 +44,6 @@ TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
     m_heights[iPlane] = m_planes[iPlane].signedDistance(apex);
     SLIC_ASSERT(m_heights[iPlane] >= 0);
   }
-
 }
 
 bool TetClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)

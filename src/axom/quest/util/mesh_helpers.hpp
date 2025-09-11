@@ -163,7 +163,7 @@ axom::sidre::Group* make_unstructured_blueprint_box_mesh_2d(
 void convert_blueprint_structured_explicit_to_unstructured_3d(axom::sidre::Group* meshGrp,
                                                               const std::string& topoName,
                                                               axom::runtime_policy::Policy runtimePolicy,
-                                                              const std::string& ugTopoName="");
+                                                              const std::string& ugTopoName = "");
 
 template <typename ExecSpace>
 void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::Group* meshGrp,

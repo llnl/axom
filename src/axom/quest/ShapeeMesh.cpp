@@ -47,8 +47,8 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
   const int hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
   // We want unstructured topo but can accomodate structured.
-  const auto& typeNode = m_bpNodeExt->fetch_existing("topologies")
-    .fetch_existing(m_topoName).fetch_existing("type");
+  const auto& typeNode =
+    m_bpNodeExt->fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("type");
   const std::string topoType = typeNode.as_string();
   SLIC_ERROR_IF(topoType != "unstructured",
                 "ShapeeMesh currently only works with unstructured mesh, not " + topoType + ".");
@@ -290,7 +290,8 @@ void ShapeeMesh::setMatsetFromVolume(const std::string& materialName,
                                      bool isFraction)
 {
   SLIC_ERROR_IF(m_matsetName.empty(),
-                "Cannot use material set in ShapeeMesh: Matset name was not provided, and no default matset was found.");
+                "Cannot use material set in ShapeeMesh: Matset name was not provided, and no "
+                "default matset was found.");
 
   double* vfPtr = nullptr;
 
@@ -315,8 +316,9 @@ void ShapeeMesh::setMatsetFromVolume(const std::string& materialName,
   {
     SLIC_ASSERT(m_bpGrpExt != nullptr);
     std::string viewPath = "matsets/" + m_matsetName + "/volume_fractions/" + materialName;
-    sidre::View* vfValues = m_bpGrpExt->hasView(viewPath) ? m_bpGrpExt->getView(viewPath) :
-      m_bpGrpExt->createView("matsets/" + m_matsetName + "/volume_fractions/" + materialName);
+    sidre::View* vfValues = m_bpGrpExt->hasView(viewPath)
+      ? m_bpGrpExt->getView(viewPath)
+      : m_bpGrpExt->createView("matsets/" + m_matsetName + "/volume_fractions/" + materialName);
     if(!vfValues->isAllocated())
     {
       vfValues->allocate(dataType, m_allocId);
@@ -362,7 +364,8 @@ void ShapeeMesh::setMatsetFromVolume(const std::string& materialName,
 void ShapeeMesh::setFreeVolumeFractions(const std::string& freeName)
 {
   SLIC_ERROR_IF(m_matsetName.empty(),
-                "Cannot use material set in ShapeeMesh: Matset name was not provided, and no default matset was found.");
+                "Cannot use material set in ShapeeMesh: Matset name was not provided, and no "
+                "default matset was found.");
 
   auto dataType = conduit::DataType::float64(m_cellCount);
 
@@ -740,7 +743,8 @@ void ShapeeMesh::computeCellsAsHexesImpl()
       for(int vi = 0; vi < NUM_VERTS_PER_HEX; ++vi)
       {
         axom::IndexType vertIndex = connView(cellId, vi);
-        primal::Point3D vCoords(axom::NumericArray<double, NDIM>{vX[vertIndex], vY[vertIndex], vZ[vertIndex]});
+        primal::Point3D vCoords(
+          axom::NumericArray<double, NDIM> {vX[vertIndex], vY[vertIndex], vZ[vertIndex]});
 
         // Snap coordinates to zero.
         for(int d = 0; d < NDIM; ++d)
@@ -775,7 +779,7 @@ void ShapeeMesh::computeCellsAsTetsImpl()
     m_cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
       const auto& hex = cellsAsHexesView[cellId];
-      auto* firstTetPtr = &cellsAsTetsView[cellId*NUM_TETS_PER_HEX];
+      auto* firstTetPtr = &cellsAsTetsView[cellId * NUM_TETS_PER_HEX];
       hex.triangulate(firstTetPtr);
     });
 }
@@ -810,27 +814,24 @@ void ShapeeMesh::computeHexBbsImpl()
     });
 }
 
-template<typename ExecSpace>
+template <typename ExecSpace>
 void ShapeeMesh::computeCellLengthsImpl()
 {
-  m_cellLengths = axom::Array<double>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
+  m_cellLengths =
+    axom::Array<double>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
 
   auto cellBbs = getCellBoundingBoxes();
 
   auto lengthsView = m_cellLengths.view();
   axom::for_all<ExecSpace>(
     m_cellCount,
-    AXOM_LAMBDA(axom::IndexType cellId)
-    {
-      lengthsView[cellId] = cellBbs[cellId].range().norm();
-    });
+    AXOM_LAMBDA(axom::IndexType cellId) { lengthsView[cellId] = cellBbs[cellId].range().norm(); });
 }
 
 template <typename ExecSpace>
 void ShapeeMesh::computeVertPointsImpl()
 {
-  m_vertPoints3D =
-    axom::Array<Point3DType>(m_vertexCount, m_vertexCount, m_allocId);
+  m_vertPoints3D = axom::Array<Point3DType>(m_vertexCount, m_vertexCount, m_allocId);
 
   auto& vertCoords = getVertexCoords3D();
   const auto& vX = vertCoords[0];
@@ -838,10 +839,11 @@ void ShapeeMesh::computeVertPointsImpl()
   const auto& vZ = vertCoords[2];
 
   auto vertPointsView = m_vertPoints3D.view();
-  axom::for_all<ExecSpace>(m_vertexCount,
-                           AXOM_LAMBDA(axom::IndexType vi) {
-                             vertPointsView[vi] = Point3DType{vX[vi], vY[vi], vZ[vi]};
-                             });
+  axom::for_all<ExecSpace>(
+    m_vertexCount,
+    AXOM_LAMBDA(axom::IndexType vi) {
+      vertPointsView[vi] = Point3DType {vX[vi], vY[vi], vZ[vi]};
+    });
 }
 
 template <typename ExecSpace, typename T>

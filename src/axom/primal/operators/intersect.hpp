@@ -145,7 +145,10 @@ bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray, T& t)
  * \note \a t and \a p only valid when function returns true
  */
 template <typename T>
-AXOM_HOST_DEVICE bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray, T& t, Point<double, 3>& p)
+AXOM_HOST_DEVICE bool intersect(const Triangle<T, 3>& tri,
+                                const Ray<T, 3>& ray,
+                                T& t,
+                                Point<double, 3>& p)
 {
   bool retval = detail::intersect_tri_ray(tri, ray, t, p);
 
@@ -166,8 +169,7 @@ AXOM_HOST_DEVICE bool intersect(const Triangle<T, 3>& tri, const Ray<T, 3>& ray,
  * \return true iff tri intersects with seg, otherwise, false.
  */
 template <typename T>
-AXOM_HOST_DEVICE
-bool intersect(const Triangle<T, 3>& tri, const Segment<T, 3>& seg)
+AXOM_HOST_DEVICE bool intersect(const Triangle<T, 3>& tri, const Segment<T, 3>& seg)
 {
   T t = T();
   Point<double, 3> p;
@@ -237,7 +239,11 @@ bool intersect(const Triangle<T, 3>& tri, const Segment<T, 3>& seg, T& t, Point<
  * \see primal::Segment
  */
 template <typename T>
-AXOM_HOST_DEVICE bool intersect(const Ray<T, 2>& R, const Segment<T, 2>& S, T& ray_param, T& seg_param, const T EPS = 1e-8)
+AXOM_HOST_DEVICE bool intersect(const Ray<T, 2>& R,
+                                const Segment<T, 2>& S,
+                                T& ray_param,
+                                T& seg_param,
+                                const T EPS = 1e-8)
 {
   return detail::intersect_ray(R, S, ray_param, seg_param, EPS);
 }
@@ -437,10 +443,10 @@ AXOM_HOST_DEVICE bool intersect(const Line<T, DIM>& L, const BoundingBox<T, DIM>
 /// This variant returns the two parametric coordinates of the intersection segment as OUT parameters
 template <typename T, int DIM>
 AXOM_HOST_DEVICE bool intersect(const Segment<T, DIM>& S,
-               const BoundingBox<T, DIM>& bb,
-               T& tmin,
-               T& tmax,
-               const double& EPS = 1e-8)
+                                const BoundingBox<T, DIM>& bb,
+                                T& tmin,
+                                T& tmax,
+                                const double& EPS = 1e-8)
 {
   const T segLength = S.length();
   tmin = static_cast<T>(0);

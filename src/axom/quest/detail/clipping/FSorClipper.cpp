@@ -28,12 +28,12 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
   extractClipperInfo();
 
   combineRadialSegments(m_sorCurve);
-  axom::Array<axom::IndexType> turnIndices =
-    findZSwitchbacks(m_sorCurve.view());
+  axom::Array<axom::IndexType> turnIndices = findZSwitchbacks(m_sorCurve.view());
   if(turnIndices.size() > 2)
   {
-    SLIC_ERROR("FSorClipper does not work when a curve doubles back"
-               " in the axial direction.  Use SorClipper instead.");
+    SLIC_ERROR(
+      "FSorClipper does not work when a curve doubles back"
+      " in the axial direction.  Use SorClipper instead.");
   }
 
   for(auto& pt : m_sorCurve)
@@ -45,7 +45,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
                 axom::fmt::format("FSorClipper '{}' has a negative radius", m_name));
 
   // Combine internal and external rotations into m_transformer.
-  m_transformer.addRotation(Vector3DType({1,0,0}), m_sorDirection);
+  m_transformer.addRotation(Vector3DType({1, 0, 0}), m_sorDirection);
   m_transformer.addTranslation(m_sorOrigin.array());
   m_transformer.addMatrix(m_extTrans);
   m_inverseTransformer = m_transformer.getInverse();
@@ -73,12 +73,12 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   , m_transformer()
 {
   combineRadialSegments(m_sorCurve);
-  axom::Array<axom::IndexType> turnIndices =
-    findZSwitchbacks(m_sorCurve.view());
+  axom::Array<axom::IndexType> turnIndices = findZSwitchbacks(m_sorCurve.view());
   if(turnIndices.size() > 2)
   {
-    SLIC_ERROR("FSorClipper does not work when a curve doubles back"
-               " in the axial direction.  Use SorClipper instead.");
+    SLIC_ERROR(
+      "FSorClipper does not work when a curve doubles back"
+      " in the axial direction.  Use SorClipper instead.");
   }
 
   for(auto& pt : m_sorCurve)
@@ -90,7 +90,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
                 axom::fmt::format("FSorClipper '{}' has a negative radius", m_name));
 
   // Combine internal and external rotations into m_transformer.
-  m_transformer.addRotation(Vector3DType({1,0,0}), m_sorDirection);
+  m_transformer.addRotation(Vector3DType({1, 0, 0}), m_sorDirection);
   m_transformer.addTranslation(m_sorOrigin.array());
   m_transformer.addMatrix(m_extTrans);
   m_inverseTransformer = m_transformer.getInverse();
@@ -152,10 +152,8 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
   RAJA::ReduceSum<ReducePolicy, double> sumCharLength(0.0);
   RAJA::forall<LoopPolicy>(
     RAJA::RangeSegment(0, cellCount),
-      AXOM_LAMBDA(axom::IndexType cellId) {
-      sumCharLength += cellLengths[cellId];
-    });
-  double avgCharLength = sumCharLength.get()/cellCount;
+    AXOM_LAMBDA(axom::IndexType cellId) { sumCharLength += cellLengths[cellId]; });
+  double avgCharLength = sumCharLength.get() / cellCount;
 
   // Subdivide the SOR curve and place in the right allocator.
   axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve, avgCharLength);
@@ -169,12 +167,8 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
    * z-axis.
    */
   auto segCount = sorCurve.size() - 1;
-  axom::Array<BoundingBox2DType> bbOn(segCount + 2,
-                                      segCount + 2,
-                                      allocId);
-  axom::Array<BoundingBox2DType> bbUnder(segCount,
-                                         segCount,
-                                         allocId);
+  axom::Array<BoundingBox2DType> bbOn(segCount + 2, segCount + 2, allocId);
+  axom::Array<BoundingBox2DType> bbUnder(segCount, segCount, allocId);
   auto bbOnView = bbOn.view();
   auto bbUnderView = bbUnder.view();
   axom::for_all<ExecSpace>(
@@ -184,18 +178,18 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
       BoundingBox2DType& under = bbUnderView[i];
       // on = BoundingBox2DType{&sorCurve[i], 2};
       on.addPoint(sorCurveView[i]);
-      on.addPoint(sorCurveView[i+1]);
-      Point2DType underMin{on.getMin()[0], 0.0};
-      Point2DType underMax{on.getMax()[0], on.getMin()[1]};
+      on.addPoint(sorCurveView[i + 1]);
+      Point2DType underMin {on.getMin()[0], 0.0};
+      Point2DType underMax {on.getMax()[0], on.getMin()[1]};
       under = BoundingBox2DType(underMin, underMax);
     });
 
   axom::Array<BoundingBox2DType> endCaps(2, 2);
   endCaps[0].addPoint(m_sorCurve.front());
-  endCaps[0].addPoint(Point2DType{m_sorCurve.front()[0], 0.0});
+  endCaps[0].addPoint(Point2DType {m_sorCurve.front()[0], 0.0});
   endCaps[1].addPoint(m_sorCurve.back());
-  endCaps[1].addPoint(Point2DType{m_sorCurve.back()[0], 0.0});
-  axom::copy(&bbOn[segCount], endCaps.data(), endCaps.size()*sizeof(BoundingBox2DType));
+  endCaps[1].addPoint(Point2DType {m_sorCurve.back()[0], 0.0});
+  axom::copy(&bbOn[segCount], endCaps.data(), endCaps.size() * sizeof(BoundingBox2DType));
 
   const double lenFactor = 0.5;
 
@@ -230,7 +224,7 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
                             (vi & 2) ? boxMax[1] : boxMin[1],
                             (vi & 4) ? boxMax[2] : boxMin[2]});
         Point3DType vert3Dt = inverseTransformer.getTransformed(vert3D);
-        Point2DType vertRz({vert3Dt[0], sqrt(vert3Dt[1]*vert3Dt[1] + vert3Dt[2]*vert3Dt[2])});
+        Point2DType vertRz({vert3Dt[0], sqrt(vert3Dt[1] * vert3Dt[1] + vert3Dt[2] * vert3Dt[2])});
         cellBbInRz.addPoint(vertRz);
       }
     });
@@ -253,11 +247,11 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
 
       auto& cellLabel = labelsView[cellId];
       double sqDistThreshold = lenFactor * cellLengths[cellId];
-      sqDistThreshold = sqDistThreshold*sqDistThreshold;
+      sqDistThreshold = sqDistThreshold * sqDistThreshold;
       for(const auto& bbOn : bbOnView)
       {
         double sqDist = axom::primal::squared_distance(cellBb, bbOn);
-        if (sqDist <= sqDistThreshold)
+        if(sqDist <= sqDistThreshold)
         {
           cellLabel = LABEL_ON;
           return;
@@ -284,9 +278,8 @@ void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
   Use harmonic mean because it works better than dz to prevent
   dividing segments that are cylindrical or nearly cylindrical.
 */
-Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(
-  const Array<Point2DType>& sorCurveIn,
-  double cellCharacteristicLength)
+Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DType>& sorCurveIn,
+                                                            double cellCharacteristicLength)
 {
   Array<Point2DType> sorCurveOut;
 
@@ -304,7 +297,7 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(
 
   for(IndexType i = 1; i < sorCurveIn.size(); ++i)
   {
-    const Point2DType& segStart = sorCurveIn[i-1];
+    const Point2DType& segStart = sorCurveIn[i - 1];
     const Point2DType& segEnd = sorCurveIn[i];
 
     const auto delta = segEnd.array() - segStart.array();
@@ -368,8 +361,9 @@ bool FSorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<O
   Side effect: m_sorCurve data is reallocated to the shapeeMesh allocator,
   if it's not there yet.
 */
-template<typename ExecSpace>
-bool FSorClipper::getGeometryAsOctsImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
+template <typename ExecSpace>
+bool FSorClipper::getGeometryAsOctsImpl(quest::ShapeeMesh& shapeeMesh,
+                                        axom::Array<OctahedronType>& octs)
 {
   const int allocId = shapeeMesh.getAllocatorID();
   octs = axom::Array<OctahedronType>(0, 0, allocId);
@@ -407,7 +401,10 @@ bool FSorClipper::getGeometryAsOctsImpl(quest::ShapeeMesh& shapeeMesh, axom::Arr
 void FSorClipper::combineRadialSegments(axom::Array<Point2DType>& sorCurve)
 {
   int ptCount = sorCurve.size();
-  if(ptCount < 3) { return; }
+  if(ptCount < 3)
+  {
+    return;
+  }
 
   constexpr double eps = 1e-14;
 
@@ -415,17 +412,20 @@ void FSorClipper::combineRadialSegments(axom::Array<Point2DType>& sorCurve)
   // joining consecutive radial segments.
 
   int j = 1;
-  bool prevIsRadial = axom::utilities::isNearlyEqual(sorCurve[j][0] - sorCurve[j-1][0], eps);
+  bool prevIsRadial = axom::utilities::isNearlyEqual(sorCurve[j][0] - sorCurve[j - 1][0], eps);
   bool curIsRadial = false;
-  for (int i = 2; i < ptCount; ++i)
+  for(int i = 2; i < ptCount; ++i)
   {
-    curIsRadial = axom::utilities::isNearlyEqual(sorCurve[i][0] - sorCurve[i-1][0], eps);
+    curIsRadial = axom::utilities::isNearlyEqual(sorCurve[i][0] - sorCurve[i - 1][0], eps);
     /*
       Current and previous segments share point j.  If both are
       consecutive radial segments, discard point j by overwriting it
       with point i.  Else, copy point i to a new point j.
     */
-    if (!(curIsRadial && prevIsRadial)) { ++j; }
+    if(!(curIsRadial && prevIsRadial))
+    {
+      ++j;
+    }
     sorCurve[j] = sorCurve[i];
     prevIsRadial = curIsRadial;
   }
@@ -457,8 +457,7 @@ void FSorClipper::combineRadialSegments(axom::Array<Point2DType>& sorCurve)
          |    /             /             \
          +-------------------------------------> z (or x)
 */
-axom::Array<axom::IndexType> FSorClipper::findZSwitchbacks(
-  axom::ArrayView<const Point2DType> pts)
+axom::Array<axom::IndexType> FSorClipper::findZSwitchbacks(axom::ArrayView<const Point2DType> pts)
 {
   const axom::IndexType segCount = pts.size() - 1;
   SLIC_ASSERT(segCount > 0);
@@ -475,21 +474,25 @@ axom::Array<axom::IndexType> FSorClipper::findZSwitchbacks(
     // curDir is the current direction, ignoring radial segments,
     // which don't change z.
     int curDir = axom::utilities::sign_of(pts[1][0] - pts[0][0], eps);
-    if (curDir == 0) { curDir = axom::utilities::sign_of(pts[2][0] - pts[1][0], eps); }
+    if(curDir == 0)
+    {
+      curDir = axom::utilities::sign_of(pts[2][0] - pts[1][0], eps);
+    }
 
     // Detect where z changes direction, and note those indices.
     for(axom::IndexType i = 1; i < segCount; ++i)
     {
-      int segDir = axom::utilities::sign_of(pts[i+1][0] - pts[i][0], eps);
-      if (segDir == 0) {
+      int segDir = axom::utilities::sign_of(pts[i + 1][0] - pts[i][0], eps);
+      if(segDir == 0)
+      {
         // Radial segment may or may not indicate change. Decide with next segment.
         continue;
       }
-      if (segDir != curDir)
+      if(segDir != curDir)
       {
         // Direction change
-        int prevSegDir = axom::utilities::sign_of(pts[i][0] - pts[i-1][0], eps);
-        if (prevSegDir != 0)
+        int prevSegDir = axom::utilities::sign_of(pts[i][0] - pts[i - 1][0], eps);
+        if(prevSegDir != 0)
         {
           // Case 1, a clear turn not involving a radial segment.
           boundaryIdx.push_back(i);
@@ -498,11 +501,11 @@ axom::Array<axom::IndexType> FSorClipper::findZSwitchbacks(
         {
           // Case 2, involving a radial segment.
           // Use the radially-closer point of the segment.
-          int splitI = pts[i][1] < pts[i-1][1] ? i : i - 1;
+          int splitI = pts[i][1] < pts[i - 1][1] ? i : i - 1;
           boundaryIdx.push_back(splitI);
         }
         curDir = segDir;
-        SLIC_ASSERT( curDir != 0 ); // curDir ignores radial segments.
+        SLIC_ASSERT(curDir != 0);  // curDir ignores radial segments.
       }
     }
   }
@@ -530,9 +533,9 @@ void FSorClipper::extractClipperInfo()
       n));
 
   m_sorCurve.resize(axom::ArrayOptions::Uninitialized(), n / 2);
-  for(int i = 0; i < n/2; ++i)
+  for(int i = 0; i < n / 2; ++i)
   {
-    m_sorCurve[i] = Point2DType{discreteFunctionArray[i*2], discreteFunctionArray[i*2 + 1]};
+    m_sorCurve[i] = Point2DType {discreteFunctionArray[i * 2], discreteFunctionArray[i * 2 + 1]};
   }
 
   m_levelOfRefinement = m_info.fetch_existing("levelOfRefinement").to_double();

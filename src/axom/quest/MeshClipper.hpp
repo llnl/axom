@@ -48,8 +48,7 @@ public:
    * @c bpMesh must be an unstructured hex mesh.
    * That is the only type currently supported.
    */
-  MeshClipper(quest::ShapeeMesh& shapeeMesh,
-                  const std::shared_ptr<MeshClipperStrategy>& strategy);
+  MeshClipper(quest::ShapeeMesh& shapeeMesh, const std::shared_ptr<MeshClipperStrategy>& strategy);
 
   //!@brief The mesh.
   ShapeeMesh& getShapeeMesh() { return m_shapeeMesh; }
@@ -99,13 +98,11 @@ public:
      * @brief Initialize overlap volumes to full for cells completely
      * inside the shape and zero for cells outside or on shape boundary.
      */
-    virtual void initVolumeOverlaps(
-      const axom::ArrayView<MeshClipperStrategy::LabelType>& labels,
-      axom::ArrayView<double> ovlap) = 0;
+    virtual void initVolumeOverlaps(const axom::ArrayView<MeshClipperStrategy::LabelType>& labels,
+                                    axom::ArrayView<double> ovlap) = 0;
 
     //! @brief Initialize overlap volumes to zero.
-    virtual void initVolumeOverlaps(
-      axom::ArrayView<double> ovlap) = 0;
+    virtual void initVolumeOverlaps(axom::ArrayView<double> ovlap) = 0;
 
     //!@brief Collect unlabeled LABEL_ON indices into an index list.
     virtual void collectOnIndices(const axom::ArrayView<LabelType>& labels,
@@ -151,9 +148,9 @@ public:
   };
 
   //! @brief For assessments, not general use.
-  void getClippingStats( axom::IndexType& localCellInCount,
-                         axom::IndexType& globalCellInCount,
-                         axom::IndexType& maxLocalCellInCount) const;
+  void getClippingStats(axom::IndexType& localCellInCount,
+                        axom::IndexType& globalCellInCount,
+                        axom::IndexType& maxLocalCellInCount) const;
 
 private:
   friend Impl;
@@ -173,7 +170,7 @@ private:
 
   ///@{
   //! @name Statistics
-  axom::IndexType m_localCellInCount{0};
+  axom::IndexType m_localCellInCount {0};
   ///@}
 
   bool m_verbose;
@@ -194,9 +191,7 @@ public:
     m_impl->getLabelCounts(labels, inCount, onCount, outCount);
   }
 
-  void logLabelStats(
-    axom::ArrayView<const LabelType> labels,
-    const std::string& labelType);
+  void logLabelStats(axom::ArrayView<const LabelType> labels, const std::string& labelType);
   //@}
 };
 

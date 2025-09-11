@@ -73,10 +73,9 @@ private:
   void labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
   template <typename ExecSpace>
-  void vertexInsideToCellLabel(
-    quest::ShapeeMesh& shapeeMesh,
-    axom::ArrayView<bool>& vertIsInside,
-    axom::Array<LabelType>& labels);
+  void vertexInsideToCellLabel(quest::ShapeeMesh& shapeeMesh,
+                               axom::ArrayView<bool>& vertIsInside,
+                               axom::Array<LabelType>& labels);
 
   // Extract clipper info from MeshClipperStrategy::m_info.
   void extractClipperInfo();
@@ -96,7 +95,8 @@ private:
    * This computation is independent of the shapee mesh, except that we
    * need the policy and allocator id.
   */
-  axom::Array<Triangle3DType> computeGeometrySurface(axom::runtime_policy::Policy policy, int allocId);
+  axom::Array<Triangle3DType> computeGeometrySurface(axom::runtime_policy::Policy policy,
+                                                     int allocId);
   template <typename ExecSpace>
 
   axom::Array<Triangle3DType> computeGeometrySurface(int allocId);
@@ -108,13 +108,10 @@ private:
    */
 
   template <typename ExecSpace>
-  void make_polyhedral_topology(conduit::Node& tetTopo,
-                                conduit::Node& polyTopo);
+  void make_polyhedral_topology(conduit::Node& tetTopo, conduit::Node& polyTopo);
 
   //!@brief Write out for debugging
-  void writeTrianglesToVTK(
-    const axom::Array<Triangle3DType>& triangles,
-    const std::string& filename);
+  void writeTrianglesToVTK(const axom::Array<Triangle3DType>& triangles, const std::string& filename);
   //@}
 
   void copy_node_with_array_allocator(conduit::Node& src,

@@ -36,10 +36,10 @@ namespace detail
  */
 template <typename T>
 AXOM_HOST_DEVICE inline bool intersect_ray(const primal::Ray<T, 2>& R,
-                          const primal::Segment<T, 2>& S,
-                          T& ray_param,
-                          T& seg_param,
-                          const double EPS)
+                                           const primal::Segment<T, 2>& S,
+                                           T& ray_param,
+                                           T& seg_param,
+                                           const double EPS)
 {
   AXOM_STATIC_ASSERT(std::is_floating_point<T>::value);
 

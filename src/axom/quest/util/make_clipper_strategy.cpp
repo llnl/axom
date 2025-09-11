@@ -22,9 +22,8 @@ namespace quest
 namespace util
 {
 
-std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(
-  const axom::klee::Geometry& kleeGeometry,
-  const std::string& name)
+std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geometry& kleeGeometry,
+                                                           const std::string& name)
 {
   std::shared_ptr<MeshClipperStrategy> strategy;
 

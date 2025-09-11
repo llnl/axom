@@ -30,7 +30,7 @@ namespace primal
  * Only supporting 3D coordinates presently.
  * This class is a new utility.  It is subject to change.
 */
-template<typename T = double>
+template <typename T = double>
 class CoordinateTransformer
 {
 public:
@@ -38,17 +38,14 @@ public:
    * @brief Default constructor sets an identity transformer.
    */
   CoordinateTransformer()
-  : m_P{ Vectr{1., 0., 0.}, Vectr{0., 1., 0.}, Vectr{0., 0., 1.} }
-  , m_v{0., 0., 0.}
+    : m_P {Vectr {1., 0., 0.}, Vectr {0., 1., 0.}, Vectr {0., 0., 1.}}
+    , m_v {0., 0., 0.}
   { }
 
   /*!
    * @brief Copy constructor.
    */
-  AXOM_HOST_DEVICE CoordinateTransformer(const CoordinateTransformer& other)
-  {
-    copyIn(other);
-  }
+  AXOM_HOST_DEVICE CoordinateTransformer(const CoordinateTransformer& other) { copyIn(other); }
 
   CoordinateTransformer& operator=(const CoordinateTransformer& other)
   {
@@ -63,10 +60,7 @@ public:
    *
    * The last row of \c matrix is presumed without checking to be \c [0,0,0,1].
    */
-  CoordinateTransformer(const numerics::Matrix<T>& matrix)
-  {
-    setMatrix(matrix);
-  }
+  CoordinateTransformer(const numerics::Matrix<T>& matrix) { setMatrix(matrix); }
 
   /*!
    * @brief Set the matrix, discarding the current transformation.
@@ -78,20 +72,20 @@ public:
     // Assert that matrix is a transformation in homogeneous coordinates.
     SLIC_ASSERT(matrix.getNumRows() == 4);
     SLIC_ASSERT(matrix.getNumColumns() == 4);
-    SLIC_ASSERT(matrix(3,0) == 0.0);
-    SLIC_ASSERT(matrix(3,1) == 0.0);
-    SLIC_ASSERT(matrix(3,2) == 0.0);
-    SLIC_ASSERT(matrix(3,3) == 1.0);
-    for (int c = 0; c < 3; ++c )
+    SLIC_ASSERT(matrix(3, 0) == 0.0);
+    SLIC_ASSERT(matrix(3, 1) == 0.0);
+    SLIC_ASSERT(matrix(3, 2) == 0.0);
+    SLIC_ASSERT(matrix(3, 3) == 1.0);
+    for(int c = 0; c < 3; ++c)
     {
-      for (int r = 0; r < 3; ++r )
+      for(int r = 0; r < 3; ++r)
       {
         m_P[r][c] = matrix(r, c);
       }
     }
-    for (int r = 0; r < 3; ++r )
+    for(int r = 0; r < 3; ++r)
     {
-      m_v[r] = matrix(r,3);
+      m_v[r] = matrix(r, 3);
     }
   }
 
@@ -105,41 +99,40 @@ public:
    * Else the transformation is ill-defined and the transformer
    * is set to invalid.
    */
-  AXOM_HOST_DEVICE void setByTerminusPts(
-    const primal::Point<T, 3>* startPts,
-    const primal::Point<T, 3>* destPts)
+  AXOM_HOST_DEVICE void setByTerminusPts(const primal::Point<T, 3>* startPts,
+                                         const primal::Point<T, 3>* destPts)
+  {
+    // Compute last 3 points relative to first points.
+    Vectr sPts[3];
+    Vectr dPts[3];
+    for(int p = 0; p < 3; ++p)
     {
-      // Compute last 3 points relative to first points.
-      Vectr sPts[3];
-      Vectr dPts[3];
-      for( int p = 0; p < 3; ++p)
-      {
-        sPts[p] = startPts[p+1].array() - startPts[0].array();
-        dPts[p] = destPts[p+1].array() - destPts[0].array();
-      }
+      sPts[p] = startPts[p + 1].array() - startPts[0].array();
+      dPts[p] = destPts[p + 1].array() - destPts[0].array();
+    }
 
-      Matrx pMat;
-      Matrx qMat;
-      for( int r = 0; r < 3; ++r )
+    Matrx pMat;
+    Matrx qMat;
+    for(int r = 0; r < 3; ++r)
+    {
+      for(int c = 0; c < 3; ++c)
       {
-        for( int c = 0; c < 3; ++c)
-        {
-          pMat[r][c] = sPts[c][r];
-          qMat[r][c] = dPts[c][r];
-        }
+        pMat[r][c] = sPts[c][r];
+        qMat[r][c] = dPts[c][r];
       }
+    }
 
-      invertMatrx(pMat);
-      if(std::isnan(pMat[0][0]))
-      {
-        setInvalid();
-      }
-      else
-      {
-        multMatrx(qMat, pMat, m_P);
-        multMatrxVectr(m_P, startPts[0].array(), m_v);
-        m_v = destPts[0].array() - m_v;
-      }
+    invertMatrx(pMat);
+    if(std::isnan(pMat[0][0]))
+    {
+      setInvalid();
+    }
+    else
+    {
+      multMatrx(qMat, pMat, m_P);
+      multMatrxVectr(m_P, startPts[0].array(), m_v);
+      m_v = destPts[0].array() - m_v;
+    }
   }
 
   /*!
@@ -147,10 +140,7 @@ public:
    *
    * Invalid transformers can be checked with isInvalid().
    */
-  AXOM_HOST_DEVICE void setInvalid()
-  {
-    m_P[0][0] = std::numeric_limits<T>::quiet_NaN();
-  }
+  AXOM_HOST_DEVICE void setInvalid() { m_P[0][0] = std::numeric_limits<T>::quiet_NaN(); }
 
   /*!
    * @brief Get the matrix for the transformation.
@@ -158,18 +148,18 @@ public:
   numerics::Matrix<T> getMatrix()
   {
     numerics::Matrix<T> rval(4, 4, 0.0);
-    for (int c = 0; c < 3; ++c )
+    for(int c = 0; c < 3; ++c)
     {
-      for (int r = 0; r < 3; ++r )
+      for(int r = 0; r < 3; ++r)
       {
         rval(r, c) = m_P[r][c];
       }
     }
-    for (int r = 0; r < 3; ++r )
+    for(int r = 0; r < 3; ++r)
     {
-      rval(r,3) = m_v[r];
+      rval(r, 3) = m_v[r];
     }
-    rval(3,3) = 1.0;
+    rval(3, 3) = 1.0;
     return rval;
   }
 
@@ -187,10 +177,7 @@ public:
   }
 
   //! @brief Add a 3D translation to the current transformation.
-  void addTranslation(const axom::primal::Vector<T, 3>& d)
-  {
-    addTranslation(d.array());
-  }
+  void addTranslation(const axom::primal::Vector<T, 3>& d) { addTranslation(d.array()); }
 
   //! @brief Add a 3D translation to the current transformation.
   void addTranslation(const axom::NumericArray<T, 3>& d)
@@ -209,8 +196,7 @@ public:
    * @param start [in] Starting direction
    * @param end [in] Ending direction
    */
-  void addRotation(const axom::primal::Vector<T, 3>& start,
-                   const axom::primal::Vector<T, 3>& end)
+  void addRotation(const axom::primal::Vector<T, 3>& start, const axom::primal::Vector<T, 3>& end)
   {
     // Note that the rotation matrix is not unique.
     Vector<T, 3> s = start.unitVector();
@@ -226,10 +212,10 @@ public:
       if(cosT < 0)
       {
         // Negative identity transform.  Change signs.
-        for(int r=0; r<3; ++r)
+        for(int r = 0; r < 3; ++r)
         {
           m_v[r] = -m_v[r];
-          for(int c=0; c<3; ++c)
+          for(int c = 0; c < 3; ++c)
           {
             m_P[r][c] = -m_P[r][c];
           }
@@ -238,7 +224,7 @@ public:
       return;
     }
 
-    u.array() /= sinT; // Make u a unit vector.
+    u.array() /= sinT;  // Make u a unit vector.
     privateAddRotation(u, sinT, cosT);
   }
 
@@ -249,8 +235,7 @@ public:
    * @param axisDir [in]
    * @param angle [in]
    */
-  void addRotation(const axom::primal::Vector<T, 3>& axisDir,
-                   T angle)
+  void addRotation(const axom::primal::Vector<T, 3>& axisDir, T angle)
   {
     SLIC_ASSERT(axisDir.squared_norm() > 1e-20);
     auto unitDir = axisDir.unitVector();
@@ -262,42 +247,42 @@ public:
   //!@brief Add rotation, given unit vector and angle as sine and cosine.
   void privateAddRotation(const axom::primal::Vector<T, 3>& u, T sinT, T cosT)
   {
-  T ccosT = 1 - cosT;
+    T ccosT = 1 - cosT;
 
-  Matrx P; // 3D rotation matrix.
-  P[0][0] = u[0] * u[0] * ccosT + cosT;
-  P[0][1] = u[0] * u[1] * ccosT - u[2] * sinT;
-  P[0][2] = u[0] * u[2] * ccosT + u[1] * sinT;
-  P[1][0] = u[1] * u[0] * ccosT + u[2] * sinT;
-  P[1][1] = u[1] * u[1] * ccosT + cosT;
-  P[1][2] = u[1] * u[2] * ccosT - u[0] * sinT;
-  P[2][0] = u[2] * u[0] * ccosT - u[1] * sinT;
-  P[2][1] = u[2] * u[1] * ccosT + u[0] * sinT;
-  P[2][2] = u[2] * u[2] * ccosT + cosT;
+    Matrx P;  // 3D rotation matrix.
+    P[0][0] = u[0] * u[0] * ccosT + cosT;
+    P[0][1] = u[0] * u[1] * ccosT - u[2] * sinT;
+    P[0][2] = u[0] * u[2] * ccosT + u[1] * sinT;
+    P[1][0] = u[1] * u[0] * ccosT + u[2] * sinT;
+    P[1][1] = u[1] * u[1] * ccosT + cosT;
+    P[1][2] = u[1] * u[2] * ccosT - u[0] * sinT;
+    P[2][0] = u[2] * u[0] * ccosT - u[1] * sinT;
+    P[2][1] = u[2] * u[1] * ccosT + u[0] * sinT;
+    P[2][2] = u[2] * u[2] * ccosT + cosT;
 
-  // Multiply P*m_P, saving in pNew, then copy back to m_P.
-  Matrx pNew = {{0,0,0},{0,0,0},{0,0,0}};
-  for(int r=0; r<3; ++r)
-  {
-    for(int c=0; c<3; ++c)
+    // Multiply P*m_P, saving in pNew, then copy back to m_P.
+    Matrx pNew = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+    for(int r = 0; r < 3; ++r)
     {
-      for(int k=0; k<3; ++k)
+      for(int c = 0; c < 3; ++c)
       {
-        pNew[r][c] += P[r][k] * m_P[k][c];
+        for(int k = 0; k < 3; ++k)
+        {
+          pNew[r][c] += P[r][k] * m_P[k][c];
+        }
       }
     }
-  }
-  for(int r=0; r<3; ++r)
-  {
-    for(int c=0; c<3; ++c)
+    for(int r = 0; r < 3; ++r)
     {
-      m_P[r][c] = pNew[r][c];
+      for(int c = 0; c < 3; ++c)
+      {
+        m_P[r][c] = pNew[r][c];
+      }
     }
-  }
 
-  // Change to m_v.
-  Vectr vOld = m_v;
-  multMatrxVectr(P, vOld, m_v);
+    // Change to m_v.
+    Vectr vOld = m_v;
+    multMatrxVectr(P, vOld, m_v);
   }
 
   //! @brief Get a trransformed 3D Point.
@@ -325,10 +310,7 @@ public:
   }
 
   //! @brief Whether transformer is valid.
-  AXOM_HOST_DEVICE void isValid()
-  {
-    return std::isnan(m_P[0][0]);
-  }
+  AXOM_HOST_DEVICE void isValid() { return std::isnan(m_P[0][0]); }
 
   //! @brief Transform a 3D coordinate in place.
   AXOM_HOST_DEVICE void transform(axom::NumericArray<T, 3>& pt) const
@@ -340,10 +322,10 @@ public:
   AXOM_HOST_DEVICE void transform(T& x, T& y, T& z) const
   {
     Vectr tmpPt = {x, y, z};
-    const auto& P(m_P); // shorthand
-    x = P[0][0]*tmpPt[0] + P[0][1]*tmpPt[1] + P[0][2]*tmpPt[2] + m_v[0];
-    y = P[1][0]*tmpPt[0] + P[1][1]*tmpPt[1] + P[1][2]*tmpPt[2] + m_v[1];
-    z = P[2][0]*tmpPt[0] + P[2][1]*tmpPt[1] + P[2][2]*tmpPt[2] + m_v[2];
+    const auto& P(m_P);  // shorthand
+    x = P[0][0] * tmpPt[0] + P[0][1] * tmpPt[1] + P[0][2] * tmpPt[2] + m_v[0];
+    y = P[1][0] * tmpPt[0] + P[1][1] * tmpPt[1] + P[1][2] * tmpPt[2] + m_v[1];
+    z = P[2][0] * tmpPt[0] + P[2][1] * tmpPt[1] + P[2][2] * tmpPt[2] + m_v[2];
   }
 
   /*!
@@ -401,16 +383,16 @@ private:
     T det = axom::numerics::determinant(a, b, c, d, e, f, g, h, i);
     if(det != 0.0)
     {
-      T detInv = 1/det;
-      m[0][0] =  detInv * (e*i - f*h);
-      m[0][1] = -detInv * (b*i - c*h);
-      m[0][2] =  detInv * (b*f - c*e);
-      m[1][0] = -detInv * (d*i - f*g);
-      m[1][1] =  detInv * (a*i - c*g);
-      m[1][2] = -detInv * (a*f - c*d);
-      m[2][0] =  detInv * (d*h - e*g);
-      m[2][1] = -detInv * (a*h - b*g);
-      m[2][2] =  detInv * (a*e - b*d);
+      T detInv = 1 / det;
+      m[0][0] = detInv * (e * i - f * h);
+      m[0][1] = -detInv * (b * i - c * h);
+      m[0][2] = detInv * (b * f - c * e);
+      m[1][0] = -detInv * (d * i - f * g);
+      m[1][1] = detInv * (a * i - c * g);
+      m[1][2] = -detInv * (a * f - c * d);
+      m[2][0] = detInv * (d * h - e * g);
+      m[2][1] = -detInv * (a * h - b * g);
+      m[2][2] = detInv * (a * e - b * d);
     }
     else
     {
@@ -443,7 +425,7 @@ private:
 
   AXOM_HOST_DEVICE T static dotProd(const Vectr& u, const Vectr& v)
   {
-    return u[0]*v[0] + u[1]*v[1] + u[2]*v[2];
+    return u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
   }
 
   AXOM_HOST_DEVICE void copyIn(const CoordinateTransformer& other)

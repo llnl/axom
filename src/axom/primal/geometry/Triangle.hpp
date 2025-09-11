@@ -102,7 +102,7 @@ public:
    */
   AXOM_HOST_DEVICE PointType centroid() const
   {
-    PointType c{ (m_points[0].array() + m_points[1].array() + m_points[2].array())/NUM_TRI_VERTS };
+    PointType c {(m_points[0].array() + m_points[1].array() + m_points[2].array()) / NUM_TRI_VERTS};
     return c;
   }
 

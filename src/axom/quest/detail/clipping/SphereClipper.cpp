@@ -53,7 +53,8 @@ bool SphereClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<L
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelCellsInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void SphereClipper::labelCellsInOutImplOld(quest::ShapeeMesh& shapeeMesh,
+                                           axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
 
@@ -117,7 +118,7 @@ void SphereClipper::labelCellsInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::
     AXOM_LAMBDA(axom::IndexType cellId) {
       LabelType& cellLabel = labelsView[cellId];
       auto cellVertIds = connView[cellId];
-      const double proximityThreshold = cellLengths[cellId]*lenFactor;
+      const double proximityThreshold = cellLengths[cellId] * lenFactor;
       bool hasIn = vertDistView[cellVertIds[0]] < proximityThreshold;
       bool hasOut = vertDistView[cellVertIds[0]] > 0;
       for(int vi = 1; vi < NUM_VERTS_PER_CELL; ++vi)
@@ -145,7 +146,7 @@ void SphereClipper::labelCellsInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::
       cellCount,
       AXOM_LAMBDA(axom::IndexType cellId) {
         LabelType& cellLabel = labelsView[cellId];
-        if (cellLabel == LABEL_OUT)
+        if(cellLabel == LABEL_OUT)
         {
           constexpr int NUM_TETS_PER_HEX = primal::Hexahedron<double, 3>::NUM_TRIANGULATE;
           const double sqRadius = sphere.getRadius() * sphere.getRadius();
@@ -157,19 +158,19 @@ void SphereClipper::labelCellsInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::
             const TetrahedronType& tet = cellsAsTets[ti];
             for(int vA = 0; vA < 4 && cellLabel == LABEL_OUT; ++vA)
             {
-              for(int vB=vA + 1; vB < 4 && cellLabel == LABEL_OUT; ++vB)
+              for(int vB = vA + 1; vB < 4 && cellLabel == LABEL_OUT; ++vB)
               {
                 const Segment3DType seg(tet[vA], tet[vB]);
                 const Vector3DType vec(tet[vA], tet[vB]);
                 const Plane3DType plane(vec, sphere.getCenter());
                 double t;
                 bool intersects = axom::primal::intersect(plane, seg, t);
-                if (intersects)
+                if(intersects)
                 {
                   Point3DType intersectionPt = seg.at(t);
                   Vector3DType centerToIntersection(sphere.getCenter(), intersectionPt);
                   double sqNorm = centerToIntersection.squared_norm();
-                  if (sqNorm < sqRadius)
+                  if(sqNorm < sqRadius)
                   {
                     cellLabel = LABEL_ON;
                   }
@@ -254,7 +255,7 @@ void SphereClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Arr
     AXOM_LAMBDA(axom::IndexType cellId) {
       LabelType& cellLabel = labelsView[cellId];
       const auto& bb = cellBbs[cellId];
-      const SphereType boundingSphere(bb.getCentroid(), bb.range().norm()/2);
+      const SphereType boundingSphere(bb.getCentroid(), bb.range().norm() / 2);
       if(sphere.intersectsWith(boundingSphere, 0.0))
       {
         auto cellVertIds = connView[cellId];
@@ -355,7 +356,6 @@ void SphereClipper::labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
   axom::for_all<ExecSpace>(
     cellCount,
     AXOM_LAMBDA(axom::IndexType ci) {
-
       axom::IndexType cellId = cellIds[ci];
       const HexahedronType& hex = meshHexes[cellId];
 
@@ -371,7 +371,7 @@ void SphereClipper::labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
         bb.addPoint(tet[1]);
         bb.addPoint(tet[2]);
         bb.addPoint(tet[3]);
-        const SphereType boundingSphere(bb.getCentroid(), bb.range().norm()/2);
+        const SphereType boundingSphere(bb.getCentroid(), bb.range().norm() / 2);
 
         if(sphere.intersectsWith(boundingSphere, 0.0))
         {
@@ -443,8 +443,8 @@ void SphereClipper::transformSphere()
 {
   const auto& centerBeforeTrans = m_sphereBeforeTrans.getCenter();
   const double radiusBeforeTrans = m_sphereBeforeTrans.getRadius();
-  Point3DType surfacePtBeforeTrans { centerBeforeTrans.array() +
-                                     Point3DType::NumericArray{radiusBeforeTrans, 0, 0} };
+  Point3DType surfacePtBeforeTrans {centerBeforeTrans.array() +
+                                    Point3DType::NumericArray {radiusBeforeTrans, 0, 0}};
 
   auto center = m_transformer.getTransformed(centerBeforeTrans);
   Point3DType surfacePoint = m_transformer.getTransformed(surfacePtBeforeTrans);

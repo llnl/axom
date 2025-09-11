@@ -102,8 +102,16 @@ public:
   // The shape to run.
   std::vector<std::string> testGeom;
   // The shapes this example is set up to run.
-  const std::set<std::string>
-    availableShapes {"tetmesh", "sphere", "cyl", "cone", "sor", "tet", "hex", "plane", "tet2", "hex2"};
+  const std::set<std::string> availableShapes {"tetmesh",
+                                               "sphere",
+                                               "cyl",
+                                               "cone",
+                                               "sor",
+                                               "tet",
+                                               "hex",
+                                               "plane",
+                                               "tet2",
+                                               "hex2"};
 
   RuntimePolicy policy {RuntimePolicy::seq};
   int refinementLevel {7};
@@ -156,7 +164,9 @@ public:
       ->capture_default_str();
 
     app.add_option("-s,--testGeom", testGeom)
-      ->description("The geometry(s) to run.  Specifying multiple shapes will override scaling and translations to shrink shapes and shift them to individual octants of the mesh.")
+      ->description(
+        "The geometry(s) to run.  Specifying multiple shapes will override scaling and "
+        "translations to shrink shapes and shift them to individual octants of the mesh.")
       ->check(axom::CLI::IsMember(availableShapes))
       ->delimiter(',')
       ->expected(1, 60);
@@ -271,23 +281,21 @@ const std::string coordsetName = "coords";
 int cellCount = -1;
 // Translation to individual octants (override) when running multiple shapes.
 // Except that the plane is never moved.
-std::vector<axom::NumericArray<double, 3>> translations
-{ {1, 1, -1}
-, {-1, 1, -1}
-, {-1, -1, -1}
-, {1, -1, -1}
-, {1, 1, 1}
-, {-1, 1, 1}
-, {-1, -1, 1}
-, {1, -1, 1}
-};
-int translationIdx = 0; // To track what translations have been used.
+std::vector<axom::NumericArray<double, 3>> translations {{1, 1, -1},
+                                                         {-1, 1, -1},
+                                                         {-1, -1, -1},
+                                                         {1, -1, -1},
+                                                         {1, 1, 1},
+                                                         {-1, 1, 1},
+                                                         {-1, -1, 1},
+                                                         {1, -1, 1}};
+int translationIdx = 0;  // To track what translations have been used.
 
-std::map<std::string, int> geomReps; // Repetitions of the geometry.
+std::map<std::string, int> geomReps;  // Repetitions of the geometry.
 std::map<std::string, double> exactGeomVols;
-std::map<std::string, double> errorToleranceRel; // Relative error tolerance.
-std::map<std::string, double> errorToleranceAbs; // Absolute error tolerance.
-double vScale = 1.0; // Volume scale due to geometry scale.
+std::map<std::string, double> errorToleranceRel;  // Relative error tolerance.
+std::map<std::string, double> errorToleranceAbs;  // Absolute error tolerance.
+double vScale = 1.0;                              // Volume scale due to geometry scale.
 
 // Start property for all 3D shapes.
 axom::klee::TransformableGeometryProperties startProp {axom::klee::Dimensions::Three,
@@ -313,7 +321,8 @@ void addTranslateOperator(axom::klee::CompositeOperator& compositeOp)
 {
   if(params.testGeom.size() > 1)
   {
-    const axom::NumericArray<double, 3>& shifts = translations[(translationIdx++)%translations.size()];
+    const axom::NumericArray<double, 3>& shifts =
+      translations[(translationIdx++) % translations.size()];
     primal::Vector3D shift({shifts[0], shifts[1], shifts[2]});
     auto translateOp = std::make_shared<axom::klee::Translation>(shift, startProp);
     compositeOp.addOperator(translateOp);
@@ -468,7 +477,7 @@ axom::klee::Geometry createGeom_Sphere(const std::string& geomName)
   errorToleranceRel[geomName] = 1e-3;
   // Tolerance should account for discretization errors.
   errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.0015 : 0.0001;
-  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
 
   return sphereGeometry;
 }
@@ -520,7 +529,7 @@ axom::klee::Geometry createGeom_TetMesh(sidre::DataStore& ds, const std::string&
 
   exactGeomVols[geomName] = vScale * volumeOfTetMesh(tetMesh);
   errorToleranceRel[geomName] = 0.005;
-  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
 
   return tetMeshGeometry;
 }
@@ -567,32 +576,34 @@ axom::klee::Geometry createGeom_Sor(const std::string& geomName)
   // discreteFunction is discrete z-r pairs describing the function
   // to be rotated around the z axis.
   using Point2DType = axom::primal::Point<double, 2>;
-  double zLen = 0.5 * (params.length < 0 ? 2.40: params.length);
+  double zLen = 0.5 * (params.length < 0 ? 2.40 : params.length);
   double maxR = params.radius < 0 ? 1.10 : params.radius;
   axom::Array<Point2DType> discretePts(0, 10);
 #if 1
-  discretePts.push_back(Point2DType({-1.0*zLen, 1.0*maxR}));
-  discretePts.push_back(Point2DType({ 0.4*zLen, 1.0*maxR}));
-  discretePts.push_back(Point2DType({ 0.4*zLen, 0.7*maxR}));
-  discretePts.push_back(Point2DType({ 1.0*zLen, 0.7*maxR}));
-  discretePts.push_back(Point2DType({ 1.0*zLen, 0.4*maxR}));
-  discretePts.push_back(Point2DType({ 0.5*zLen, 0.4*maxR}));
-  discretePts.push_back(Point2DType({ 0.5*zLen, 0.3*maxR}));
-  discretePts.push_back(Point2DType({ 0.0*zLen, 0.3*maxR}));
-  discretePts.push_back(Point2DType({ 0.0*zLen, 0.5*maxR}));
-  discretePts.push_back(Point2DType({ 0.2*zLen, 0.5*maxR}));
-  discretePts.push_back(Point2DType({ 0.2*zLen, 0.7*maxR}));
-  discretePts.push_back(Point2DType({-1.0*zLen, 0.7*maxR}));
+  discretePts.push_back(Point2DType({-1.0 * zLen, 1.0 * maxR}));
+  discretePts.push_back(Point2DType({0.4 * zLen, 1.0 * maxR}));
+  discretePts.push_back(Point2DType({0.4 * zLen, 0.7 * maxR}));
+  discretePts.push_back(Point2DType({1.0 * zLen, 0.7 * maxR}));
+  discretePts.push_back(Point2DType({1.0 * zLen, 0.4 * maxR}));
+  discretePts.push_back(Point2DType({0.5 * zLen, 0.4 * maxR}));
+  discretePts.push_back(Point2DType({0.5 * zLen, 0.3 * maxR}));
+  discretePts.push_back(Point2DType({0.0 * zLen, 0.3 * maxR}));
+  discretePts.push_back(Point2DType({0.0 * zLen, 0.5 * maxR}));
+  discretePts.push_back(Point2DType({0.2 * zLen, 0.5 * maxR}));
+  discretePts.push_back(Point2DType({0.2 * zLen, 0.7 * maxR}));
+  discretePts.push_back(Point2DType({-1.0 * zLen, 0.7 * maxR}));
 #else
-  discretePts.push_back(Point2DType({-1.0*zLen, 0.4*maxR}));
-  discretePts.push_back(Point2DType({ 0.0*zLen, 1.0*maxR}));
-  discretePts.push_back(Point2DType({ 0.6*zLen, 1.0*maxR}));
-  discretePts.push_back(Point2DType({ 1.0*zLen, 0.8*maxR}));
-  discretePts.push_back(Point2DType({ 1.0*zLen, 0.6*maxR}));
-  discretePts.push_back(Point2DType({ 0.2*zLen, 0.4*maxR}));
-  discretePts.push_back(Point2DType({ 0.0*zLen, 0.0*maxR}));
+  discretePts.push_back(Point2DType({-1.0 * zLen, 0.4 * maxR}));
+  discretePts.push_back(Point2DType({0.0 * zLen, 1.0 * maxR}));
+  discretePts.push_back(Point2DType({0.6 * zLen, 1.0 * maxR}));
+  discretePts.push_back(Point2DType({1.0 * zLen, 0.8 * maxR}));
+  discretePts.push_back(Point2DType({1.0 * zLen, 0.6 * maxR}));
+  discretePts.push_back(Point2DType({0.2 * zLen, 0.4 * maxR}));
+  discretePts.push_back(Point2DType({0.0 * zLen, 0.0 * maxR}));
 #endif
-  axom::ArrayView<const double, 2> discreteFunction((const double*)discretePts.data(), discretePts.size(), 2);
+  axom::ArrayView<const double, 2> discreteFunction((const double*)discretePts.data(),
+                                                    discretePts.size(),
+                                                    2);
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
@@ -604,7 +615,7 @@ axom::klee::Geometry createGeom_Sor(const std::string& geomName)
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
   // Tolerance should account for discretization errors.
   errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.007 : 0.0063;
-  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
 
   return sorGeometry;
 }
@@ -635,7 +646,7 @@ axom::klee::Geometry createGeom_Cylinder(const std::string& geomName)
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
   // Tolerance should account for discretization errors.
   errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.00005;
-  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
 
   return sorGeometry;
 }
@@ -667,7 +678,7 @@ axom::klee::Geometry createGeom_Cone(const std::string& geomName)
   exactGeomVols[geomName] = vScale * computeVolume_Sor(discreteFunction);
   // Tolerance should account for discretization errors.
   errorToleranceRel[geomName] = params.refinementLevel <= 5 ? 0.00075 : 0.00005;
-  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
 
   return sorGeometry;
 }
@@ -679,10 +690,10 @@ axom::klee::Geometry createGeom_Tet(const std::string& geomName)
 
   // Tetrahedron at origin.
   const double len = params.length < 0 ? 1.55 : params.length;
-  const Point3D a { Point3D::NumericArray{1., 0., -1.} * len };
-  const Point3D b { Point3D::NumericArray{-.8, 1, -1.} * len };
-  const Point3D c { Point3D::NumericArray{-.8, -1, -1.} * len };
-  const Point3D d { Point3D::NumericArray{0., 0., +1.} * len };
+  const Point3D a {Point3D::NumericArray {1., 0., -1.} * len};
+  const Point3D b {Point3D::NumericArray {-.8, 1, -1.} * len};
+  const Point3D c {Point3D::NumericArray {-.8, -1, -1.} * len};
+  const Point3D d {Point3D::NumericArray {0., 0., +1.} * len};
   const primal::Tetrahedron<double, 3> tet {a, b, c, d};
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
@@ -691,7 +702,7 @@ axom::klee::Geometry createGeom_Tet(const std::string& geomName)
   addTranslateOperator(*compositeOp);
   exactGeomVols[geomName] = vScale * tet.volume();
   errorToleranceRel[geomName] = 1e-12;
-  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
 
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
 
@@ -705,16 +716,16 @@ axom::klee::Geometry createGeom_Tet2(const std::string& geomName)
 
   // Tetrahedron at origin.
   const double len = 1.0;
-  const Point3D a { Point3D::NumericArray{0., 40., 0.} * len };
-  const Point3D b { Point3D::NumericArray{0., 0., 0.} * len };
-  const Point3D c { Point3D::NumericArray{40., 0., 0.} * len };
-  const Point3D d { Point3D::NumericArray{40., 0., 40.} * len };
+  const Point3D a {Point3D::NumericArray {0., 40., 0.} * len};
+  const Point3D b {Point3D::NumericArray {0., 0., 0.} * len};
+  const Point3D c {Point3D::NumericArray {40., 0., 0.} * len};
+  const Point3D d {Point3D::NumericArray {40., 0., 40.} * len};
   const primal::Tetrahedron<double, 3> tet {a, b, c, d};
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   exactGeomVols[geomName] = tet.volume();
   errorToleranceRel[geomName] = 1e-12;
-  errorToleranceAbs[geomName] = errorToleranceRel[geomName]*exactGeomVols[geomName];
+  errorToleranceAbs[geomName] = errorToleranceRel[geomName] * exactGeomVols[geomName];
 
   axom::klee::Geometry tetGeometry(prop, tet, compositeOp);
 
@@ -1120,14 +1131,18 @@ int main(int argc, char** argv)
 
   if(params.testGeom.size() > 1)
   {
-    SLIC_WARNING("Multiple test configurations specified.\n"
-                 "Scaling by half to shrink the geometries\n"
-                 "and move them to individual octants so they don't overlap\n"
-                 "with each other.");
+    SLIC_WARNING(
+      "Multiple test configurations specified.\n"
+      "Scaling by half to shrink the geometries\n"
+      "and move them to individual octants so they don't overlap\n"
+      "with each other.");
     params.scaleFactors.resize(3, 1.0);
-    for( auto& f : params.scaleFactors ) f *= 0.5;
+    for(auto& f : params.scaleFactors) f *= 0.5;
   }
-  for(auto sf : params.scaleFactors) { vScale *= sf; }
+  for(auto sf : params.scaleFactors)
+  {
+    vScale *= sf;
+  }
 
   axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(params.annotationMode);
 
@@ -1142,17 +1157,18 @@ int main(int argc, char** argv)
   if(dataAllocId != axom::MALLOC_ALLOCATOR_ID)
   {
     // Use Umpire pool for performance benchmarking.
-    constexpr size_t bytesPerCell = 100*sizeof(double);
+    constexpr size_t bytesPerCell = 100 * sizeof(double);
     size_t poolSize = params.getBoxCellCount() * bytesPerCell;
     umpire::ResourceManager& rm = umpire::ResourceManager::getInstance();
     const umpire::Allocator dataAllocator = rm.getAllocator(dataAllocId);
     const umpire::Allocator dataPoolAllocator =
-      rm.makeAllocator<umpire::strategy::QuickPool>(
-        "data_pool", dataAllocator, poolSize);
+      rm.makeAllocator<umpire::strategy::QuickPool>("data_pool", dataAllocator, poolSize);
     dataAllocId = dataPoolAllocator.getId();
     const std::string poolName = dataAllocator.getName() + "_pool";
     SLIC_INFO(axom::fmt::format("Using allocator pool id {}, '{}' with size {}",
-                                dataAllocId, poolName, poolSize));
+                                dataAllocId,
+                                poolName,
+                                poolSize));
   }
 #endif
 
@@ -1178,7 +1194,8 @@ int main(int argc, char** argv)
 
     if(tg == "plane")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(name), name));
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(name), name));
     }
     else if(tg == "hex")
     {
@@ -1186,7 +1203,8 @@ int main(int argc, char** argv)
     }
     else if(tg == "sphere")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::SphereClipper>(createGeom_Sphere(name), name));
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::SphereClipper>(createGeom_Sphere(name), name));
     }
     else if(tg == "tetmesh")
     {
@@ -1199,11 +1217,13 @@ int main(int argc, char** argv)
     }
     else if(tg == "cyl")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::FSorClipper>(createGeom_Cylinder(name), name));
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::FSorClipper>(createGeom_Cylinder(name), name));
     }
     else if(tg == "cone")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::FSorClipper>(createGeom_Cone(name), name));
+      geomStrategies.push_back(
+        std::make_shared<axom::quest::FSorClipper>(createGeom_Cone(name), name));
     }
     else if(tg == "sor")
     {
@@ -1247,8 +1267,11 @@ int main(int argc, char** argv)
     compMeshGrp->createNativeLayout(*compMeshNode);
     compMeshNode->set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(dataAllocId));
 
-    sMeshPtr =
-      std::make_shared<quest::ShapeeMesh>(params.policy, dataAllocId, *compMeshNode, topoName, matsetName);
+    sMeshPtr = std::make_shared<quest::ShapeeMesh>(params.policy,
+                                                   dataAllocId,
+                                                   *compMeshNode,
+                                                   topoName,
+                                                   matsetName);
   }
   quest::ShapeeMesh& sMesh = *sMeshPtr;
 

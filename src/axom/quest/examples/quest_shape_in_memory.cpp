@@ -228,7 +228,9 @@ public:
       ->capture_default_str();
 
     app.add_option("-s,--testShape", testShape)
-      ->description("The shape(s) to run.  Specifying multiple shapes will override scaling and translations to shrink shapes and shift them to individual octants of the mesh.")
+      ->description(
+        "The shape(s) to run.  Specifying multiple shapes will override scaling and translations "
+        "to shrink shapes and shift them to individual octants of the mesh.")
       ->check(axom::CLI::IsMember(availableShapes))
       ->delimiter(',')
       ->expected(1, 60);
@@ -342,22 +344,20 @@ const std::string coordsetName = "coords";
 int cellCount = -1;
 // Translation to individual octants (override) when running multiple shapes.
 // Except that the plane is never moved.
-std::vector<axom::NumericArray<double, 3>> translations
-{ {1, 1, -1}
-, {-1, 1, -1}
-, {-1, -1, -1}
-, {1, -1, -1}
-, {1, 1, 1}
-, {-1, 1, 1}
-, {-1, -1, 1}
-, {1, -1, 1}
-};
-int translationIdx = 0; // To track what translations have been used.
-std::map<std::string, int> shapeReps; // Repetitions of the geometry.
+std::vector<axom::NumericArray<double, 3>> translations {{1, 1, -1},
+                                                         {-1, 1, -1},
+                                                         {-1, -1, -1},
+                                                         {1, -1, -1},
+                                                         {1, 1, 1},
+                                                         {-1, 1, 1},
+                                                         {-1, -1, 1},
+                                                         {1, -1, 1}};
+int translationIdx = 0;                // To track what translations have been used.
+std::map<std::string, int> shapeReps;  // Repetitions of the geometry.
 std::map<std::string, double> exactOverlapVols;
-std::map<std::string, double> errorToleranceRel; // Relative error tolerance.
-std::map<std::string, double> errorToleranceAbs; // Absolute error tolerance.
-double vScale = 1.0; // Volume scale due to geometry scale.
+std::map<std::string, double> errorToleranceRel;  // Relative error tolerance.
+std::map<std::string, double> errorToleranceAbs;  // Absolute error tolerance.
+double vScale = 1.0;                              // Volume scale due to geometry scale.
 
 const auto hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 int arrayAllocId = axom::INVALID_ALLOCATOR_ID;
@@ -393,7 +393,8 @@ void addTranslateOperator(axom::klee::CompositeOperator& compositeOp)
 {
   if(params.testShape.size() > 1)
   {
-    const axom::NumericArray<double, 3>& shifts = translations[(translationIdx++)%translations.size()];
+    const axom::NumericArray<double, 3>& shifts =
+      translations[(translationIdx++) % translations.size()];
     primal::Vector3D shift({shifts[0], shifts[1], shifts[2]});
     auto translateOp = std::make_shared<axom::klee::Translation>(shift, startProp);
     compositeOp.addOperator(translateOp);
@@ -722,7 +723,7 @@ axom::klee::Shape createShape_Sor(const std::string& shapeName)
 
   axom::klee::Shape sorShape(shapeName, shapeName + ".mat", {}, {}, sorGeometry);
 
-  exactOverlapVols[shapeName] = vScale *computeVolume_Sor(discreteFunction);
+  exactOverlapVols[shapeName] = vScale * computeVolume_Sor(discreteFunction);
   errorToleranceRel[shapeName] = 0.04;
   errorToleranceAbs[shapeName] = 0.15;
 
@@ -754,7 +755,7 @@ axom::klee::Shape createShape_Cylinder(const std::string& shapeName)
 
   axom::klee::Shape sorShape(shapeName, shapeName + ".mat", {}, {}, sorGeometry);
 
-  exactOverlapVols[shapeName] = vScale *computeVolume_Sor(discreteFunction);
+  exactOverlapVols[shapeName] = vScale * computeVolume_Sor(discreteFunction);
   // error tolerance for 2 levels of refinement
   errorToleranceRel[shapeName] = 0.05;
   errorToleranceAbs[shapeName] = 0.2;
@@ -788,7 +789,7 @@ axom::klee::Shape createShape_Cone(const std::string& shapeName)
 
   axom::klee::Shape sorShape(shapeName, shapeName + ".mat", {}, {}, sorGeometry);
 
-  exactOverlapVols[shapeName] = vScale *computeVolume_Sor(discreteFunction);
+  exactOverlapVols[shapeName] = vScale * computeVolume_Sor(discreteFunction);
   errorToleranceRel[shapeName] = 0.05;
   errorToleranceAbs[shapeName] = 0.2;
 
@@ -804,17 +805,17 @@ axom::klee::Shape createShape_Tet(const std::string& shapeName)
 
   // Tetrahedron at origin.
   const double len = params.length < 0 ? 1.55 : params.length;
-  const Point3D a { Point3D::NumericArray{1., 0., -1.} * len };
-  const Point3D b { Point3D::NumericArray{-.8, 1, -1.} * len };
-  const Point3D c { Point3D::NumericArray{-.8, -1, -1.} * len };
-  const Point3D d { Point3D::NumericArray{0., 0., +1.} * len };
+  const Point3D a {Point3D::NumericArray {1., 0., -1.} * len};
+  const Point3D b {Point3D::NumericArray {-.8, 1, -1.} * len};
+  const Point3D c {Point3D::NumericArray {-.8, -1, -1.} * len};
+  const Point3D d {Point3D::NumericArray {0., 0., +1.} * len};
   const primal::Tetrahedron<double, 3> tet {a, b, c, d};
 
   auto compositeOp = std::make_shared<axom::klee::CompositeOperator>(startProp);
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
   addTranslateOperator(*compositeOp);
-  exactOverlapVols[shapeName] = vScale *tet.volume();
+  exactOverlapVols[shapeName] = vScale * tet.volume();
   errorToleranceRel[shapeName] = 1e-6;
   errorToleranceAbs[shapeName] = 1e-8;
 
@@ -848,7 +849,7 @@ axom::klee::Shape createShape_Hex(const std::string& shapeName)
   addScaleOperator(*compositeOp);
   addRotateOperator(*compositeOp);
   addTranslateOperator(*compositeOp);
-  exactOverlapVols[shapeName] = vScale *hex.volume();
+  exactOverlapVols[shapeName] = vScale * hex.volume();
   errorToleranceRel[shapeName] = 1e-6;
   errorToleranceAbs[shapeName] = 1e-8;
 
@@ -1024,7 +1025,7 @@ axom::klee::Shape createShape_Sphere(const std::string& shapeName)
   const axom::IndexType levelOfRefinement = params.refinementLevel;
   axom::klee::Geometry sphereGeometry(prop, sphere, levelOfRefinement, compositeOp);
   axom::klee::Shape sphereShape(shapeName, shapeName + ".mat", {}, {}, sphereGeometry);
-  exactOverlapVols[shapeName] = vScale *4. / 3 * M_PI * radius * radius * radius;
+  exactOverlapVols[shapeName] = vScale * 4. / 3 * M_PI * radius * radius * radius;
   errorToleranceRel[shapeName] = 0.1;
   errorToleranceAbs[shapeName] = 0.38;
 
@@ -1073,7 +1074,7 @@ axom::klee::Shape createShape_TetMesh(sidre::DataStore& ds, const std::string& s
   axom::klee::Geometry tetMeshGeometry(prop, tetMesh.getSidreGroup(), topo, compositeOp);
   axom::klee::Shape tetShape(shapeName, shapeName + ".mat", {}, {}, tetMeshGeometry);
 
-  exactOverlapVols[shapeName] = vScale *volumeOfTetMesh(tetMesh);
+  exactOverlapVols[shapeName] = vScale * volumeOfTetMesh(tetMesh);
   errorToleranceRel[shapeName] = 1e-6;
   errorToleranceAbs[shapeName] = 1e-8;
 
@@ -1451,26 +1452,22 @@ axom::sidre::View* getElementVolumes(
   {
 #if defined(AXOM_USE_CUDA)
   case RuntimePolicy::cuda:
-    return getElementVolumesImpl<axom::CUDA_EXEC<256>>(
-      meshGrp, volFieldName);
+    return getElementVolumesImpl<axom::CUDA_EXEC<256>>(meshGrp, volFieldName);
     break;
 #endif
 #if defined(AXOM_USE_HIP)
   case RuntimePolicy::hip:
-    return getElementVolumesImpl<axom::HIP_EXEC<256>>(
-      meshGrp, volFieldName);
+    return getElementVolumesImpl<axom::HIP_EXEC<256>>(meshGrp, volFieldName);
     break;
 #endif
 #if defined(AXOM_USE_OMP)
   case RuntimePolicy::omp:
-    return getElementVolumesImpl<axom::OMP_EXEC>(
-      meshGrp, volFieldName);
+    return getElementVolumesImpl<axom::OMP_EXEC>(meshGrp, volFieldName);
     break;
 #endif
   case RuntimePolicy::seq:
   default:
-    return getElementVolumesImpl<axom::SEQ_EXEC>(
-      meshGrp, volFieldName);
+    return getElementVolumesImpl<axom::SEQ_EXEC>(meshGrp, volFieldName);
     break;
   }
   return nullptr;
@@ -1540,9 +1537,7 @@ double sumMaterialVolumesImpl(sidre::Group* meshGrp, const std::string& material
   axom::ReduceSum<ExecSpace, double> localVol(0);
   axom::for_all<ExecSpace>(
     cellCount,
-    AXOM_LAMBDA(axom::IndexType i) {
-      localVol += volFracView[i] * elementVolsView[i];
-    });
+    AXOM_LAMBDA(axom::IndexType i) { localVol += volFracView[i] * elementVolsView[i]; });
 
   double globalVol = localVol.get();
 #ifdef AXOM_USE_MPI
@@ -1723,12 +1718,13 @@ int main(int argc, char** argv)
 
   if(params.testShape.size() > 1)
   {
-    SLIC_WARNING("Multiple test configurations specified.\n"
-                 "Scaling by half to shrink the geometries\n"
-                 "and move them to individual octants so they don't overlap\n"
-                 "with each other.");
+    SLIC_WARNING(
+      "Multiple test configurations specified.\n"
+      "Scaling by half to shrink the geometries\n"
+      "and move them to individual octants so they don't overlap\n"
+      "with each other.");
     params.scaleFactors.resize(3, 1.0);
-    for( auto& f : params.scaleFactors ) f *= 0.5;
+    for(auto& f : params.scaleFactors) f *= 0.5;
   }
   vScale = params.scaleFactors[0] * params.scaleFactors[1] * params.scaleFactors[2];
 
@@ -1795,9 +1791,8 @@ int main(int argc, char** argv)
   axom::klee::ShapeSet shapeSet;
 
   shapeSet.setShapes(shapesVec);
-  shapeSet.setDimensions(params.getBoxDim() == 2 ?
-                         axom::klee::Dimensions::Two :
-                         axom::klee::Dimensions::Three);
+  shapeSet.setDimensions(params.getBoxDim() == 2 ? axom::klee::Dimensions::Two
+                                                 : axom::klee::Dimensions::Three);
 
   // Save the discrete shapes for viz and testing.
   auto* shapeMeshGroup = ds.getRoot()->createGroup("shapeMeshGroup");
@@ -2156,7 +2151,8 @@ int main(int argc, char** argv)
 #else
     elementVolsVu = getElementVolumes(compMeshGrp, "elementVolumes");
 #endif
-    axom::ArrayView<double> elementVolsView(elementVolsVu->getData(), elementVolsVu->getNumElements());
+    axom::ArrayView<double> elementVolsView(elementVolsVu->getData(),
+                                            elementVolsVu->getNumElements());
     axom::Array<double> elementVols(elementVolsView, hostAllocId);
     elementVolsView = elementVols.view();
     using ReducePolicy = typename axom::execution_space<axom::SEQ_EXEC>::reduce_policy;

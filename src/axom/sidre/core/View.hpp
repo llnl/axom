@@ -1005,8 +1005,7 @@ public:
   /*!
    * \brief Deep copy View into the given conduit::Node.
    */
-  void deepCopyToConduit(Node& dst,
-                         int allocId = INVALID_ALLOCATOR_ID) const;
+  void deepCopyToConduit(Node& dst, int allocId = INVALID_ALLOCATOR_ID) const;
 
   /*!
    * \brief Copy metadata of the View to the given Conduit node

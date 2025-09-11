@@ -116,7 +116,7 @@ public:
    * \brief Returns the volume of the Sphere.
    */
   AXOM_HOST_DEVICE
-  inline T getVolume() const { return 4.0/3*M_PI*m_radius*m_radius*m_radius; };
+  inline T getVolume() const { return 4.0 / 3 * M_PI * m_radius * m_radius * m_radius; };
 
   /*!
    * \brief Computes the signed distance of a point to the Sphere's boundary.
@@ -247,8 +247,7 @@ AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::intersectsWith(const Sphere<T, ND
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::contains(const Sphere<T, NDIMS>& sphere,
-                                                        double TOL) const
+AXOM_HOST_DEVICE inline bool Sphere<T, NDIMS>::contains(const Sphere<T, NDIMS>& sphere, double TOL) const
 {
   const T center_sep = VectorType(sphere.getCenter(), m_center).norm();
   return (m_radius > center_sep + sphere.getRadius() + TOL);

@@ -43,7 +43,7 @@ std::ostream& operator<<(std::ostream& os, const Polyhedron<T, NDIMS>& poly);
  * \tparam MAXVERTS Max number of vertices in collection
  * \tparam MAXNBRS_PER_VERT Max number of neighbors per vertex in collection
  */
-template<int MAXVERTS = 32, int MAXNBRS_PER_VERT = 8>
+template <int MAXVERTS = 32, int MAXNBRS_PER_VERT = 8>
 class NeighborCollection
 {
 public:

@@ -365,7 +365,8 @@ NB_MODULE(pysidre, m_sidre)
          "Set the View to hold a scalar value (python float, C++ double).",
          nb::arg("value").noconvert(),
          nb::arg("allocID") = INVALID_ALLOCATOR_ID)
-    .def("setString", &View::setString,
+    .def("setString",
+         &View::setString,
          "Set the View to hold a string value.",
          nb::arg("value").noconvert(),
          nb::arg("allocID") = INVALID_ALLOCATOR_ID)

@@ -18,7 +18,7 @@ namespace quest
 {
 
 MeshClipper::MeshClipper(quest::ShapeeMesh& shapeeMesh,
-                                 const std::shared_ptr<quest::MeshClipperStrategy>& strategy)
+                         const std::shared_ptr<quest::MeshClipperStrategy>& strategy)
   : m_shapeeMesh(shapeeMesh)
   , m_strategy(strategy)
   , m_impl(newImpl())
@@ -75,7 +75,10 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
                                     m_strategy->name(),
                                     allocId));
 
-    if(m_verbose) { logLabelStats(cellLabels, "cells"); }
+    if(m_verbose)
+    {
+      logLabelStats(cellLabels, "cells");
+    }
 
     AXOM_ANNOTATE_BEGIN("MeshClipper::processInOut");
 
@@ -91,7 +94,10 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
 
     if(withTetInOut)
     {
-      if(m_verbose) { logLabelStats(tetLabels, "tets"); }
+      if(m_verbose)
+      {
+        logLabelStats(tetLabels, "tets");
+      }
       m_impl->collectOnIndices(tetLabels.view(), tetsOnBdry);
       m_impl->remapTetIndices(tetsOnBdry, cellsOnBdry);
 
@@ -132,9 +138,9 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
   }
   else  // !withCellInOut
   {
-    std::string msg = axom::fmt::format(
-      "MeshClipper strategy '{}' did not provide in/out cell labels.\n",
-      m_strategy->name());
+    std::string msg =
+      axom::fmt::format("MeshClipper strategy '{}' did not provide in/out cell labels.\n",
+                        m_strategy->name());
     SLIC_INFO(msg);
     m_impl->initVolumeOverlaps(ovlap);
     done = m_strategy->specializedClipCells(m_shapeeMesh, ovlap);
@@ -184,15 +190,12 @@ std::unique_ptr<MeshClipper::Impl> MeshClipper::newImpl()
 #endif
   else
   {
-    SLIC_ERROR(
-      axom::fmt::format("MeshClipper has no impl for runtime policy {}", runtimePolicy));
+    SLIC_ERROR(axom::fmt::format("MeshClipper has no impl for runtime policy {}", runtimePolicy));
   }
   return impl;
 }
 
-void MeshClipper::logLabelStats(
-  axom::ArrayView<const LabelType> labels,
-  const std::string& labelType)
+void MeshClipper::logLabelStats(axom::ArrayView<const LabelType> labels, const std::string& labelType)
 {
   axom::IndexType countsa[4];
   axom::IndexType countsb[4];
@@ -202,26 +205,38 @@ void MeshClipper::logLabelStats(
   MPI_Reduce(countsa, countsb, 4, axom::mpi_traits<axom::IndexType>::type, MPI_SUM, 0, MPI_COMM_WORLD);
 #endif
   std::string msg = axom::fmt::format(
-    "MeshClipper strategy '{}' globally labeled {} {} inside, {} on and {} outside, for mesh with {} cells ({} tets)\n",
+    "MeshClipper strategy '{}' globally labeled {} {} inside, {} on and {} outside, for mesh with "
+    "{} cells ({} tets)\n",
     m_strategy->name(),
     labelType,
     countsb[0],
     countsb[1],
     countsb[2],
     countsb[3],
-    countsb[3]*TETS_PER_HEXAHEDRON);
+    countsb[3] * TETS_PER_HEXAHEDRON);
   SLIC_INFO(msg);
 }
 
-void MeshClipper::getClippingStats(
-  axom::IndexType& localCellInCount,
-  axom::IndexType& globalCellInCount,
-  axom::IndexType& maxLocalCellInCount) const
+void MeshClipper::getClippingStats(axom::IndexType& localCellInCount,
+                                   axom::IndexType& globalCellInCount,
+                                   axom::IndexType& maxLocalCellInCount) const
 {
   localCellInCount = m_localCellInCount;
 #ifdef AXOM_USE_MPI
-  MPI_Reduce(&localCellInCount, &globalCellInCount, 1, axom::mpi_traits<axom::IndexType>::type, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&localCellInCount, &maxLocalCellInCount, 1, axom::mpi_traits<axom::IndexType>::type, MPI_MAX, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&localCellInCount,
+             &globalCellInCount,
+             1,
+             axom::mpi_traits<axom::IndexType>::type,
+             MPI_SUM,
+             0,
+             MPI_COMM_WORLD);
+  MPI_Reduce(&localCellInCount,
+             &maxLocalCellInCount,
+             1,
+             axom::mpi_traits<axom::IndexType>::type,
+             MPI_MAX,
+             0,
+             MPI_COMM_WORLD);
 #else
   maxLocalCellInCount = localCellInCount;
   globalCellInCount = localCellInCount;
