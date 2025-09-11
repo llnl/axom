@@ -3,15 +3,15 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_GEOMETRYCLIPPERDELEGATEEXEC_HPP_
-#define AXOM_GEOMETRYCLIPPERDELEGATEEXEC_HPP_
+#ifndef AXOM_GEOMETRYCLIPPERIMPL_HPP_
+#define AXOM_GEOMETRYCLIPPERIMPL_HPP_
 
 #ifndef AXOM_USE_RAJA
-  #error "quest::GeometryClipper requires RAJA."
+  #error "quest::MeshClipper requires RAJA."
 #endif
 
-#include "axom/quest/GeometryClipperStrategy.hpp"
-#include "axom/quest/GeometryClipper.hpp"
+#include "axom/quest/MeshClipperStrategy.hpp"
+#include "axom/quest/MeshClipper.hpp"
 #include "axom/spin/BVH.hpp"
 #include "RAJA/RAJA.hpp"
 
@@ -23,14 +23,14 @@ namespace detail
 {
 
 template <typename ExecSpace>
-class GeometryClipperDelegateExec : public GeometryClipper::Delegate
+class MeshClipperImpl : public MeshClipper::Impl
 {
 public:
-  using LabelType = GeometryClipper::LabelType;
+  using LabelType = MeshClipper::LabelType;
 
-  GeometryClipperDelegateExec(GeometryClipper& delegator) : GeometryClipper::Delegate(delegator) { }
+  MeshClipperImpl(MeshClipper& clipper) : MeshClipper::Impl(clipper) { }
 
-  void initVolumeOverlaps(const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
+  void initVolumeOverlaps(const axom::ArrayView<MeshClipperStrategy::LabelType>& labels,
                           axom::ArrayView<double> ovlap) override
   {
     const axom::IndexType cellCount = getShapeeMesh().getCellCount();
@@ -48,7 +48,7 @@ public:
       cellCount,
       AXOM_LAMBDA(axom::IndexType i) {
         auto& l = labels[i];
-        ovlap[i] = l == GeometryClipperStrategy::LABEL_IN ? cellVolumes[i] : 0.0;
+        ovlap[i] = l == MeshClipperStrategy::LABEL_IN ? cellVolumes[i] : 0.0;
       });
 
     return;
@@ -78,7 +78,7 @@ public:
         const LabelType* tetLabelsAtHex = &tetLabels[TETS_PER_HEXAHEDRON * ih];
         for(int it = 0; it < TETS_PER_HEXAHEDRON; ++it)
         {
-          if(tetLabelsAtHex[it] == GeometryClipperStrategy::LABEL_IN)
+          if(tetLabelsAtHex[it] == MeshClipperStrategy::LABEL_IN)
           {
             const axom::IndexType tetId = hexId * TETS_PER_HEXAHEDRON + it;
             const auto& tet = meshTets[tetId];
@@ -94,7 +94,7 @@ public:
   {
     if(labels.empty()) {return;};
 
-    AXOM_ANNOTATE_SCOPE("GeometryClipper::collect_unlabeleds");
+    AXOM_ANNOTATE_SCOPE("MeshClipper::collect_unlabeleds");
     /*!
      * 1. Generate tmpLabels, having a value of 1 where labels is LABEL_ON and zero elsewhere.
      * 2. Inclusive scan on tmpLabels to generate values that step up at unlabeled cells.
@@ -109,7 +109,7 @@ public:
     auto tmpLabelsView = tmpLabels.view();
     axom::for_all<ExecSpace>(
       labelCount,
-      AXOM_LAMBDA(axom::IndexType ci) { tmpLabelsView[ci] = labels[ci] == GeometryClipperStrategy::LABEL_ON; });
+      AXOM_LAMBDA(axom::IndexType ci) { tmpLabelsView[ci] = labels[ci] == MeshClipperStrategy::LABEL_ON; });
 
     RAJA::inclusive_scan_inplace<ScanPolicy>(RAJA::make_span(tmpLabels.data(), tmpLabels.size()),
                                              RAJA::operators::plus<axom::IndexType> {});
@@ -152,16 +152,16 @@ public:
   {
     /*
      * cellsOnBdry is a list of cell indices.
-
+     *
      * Each cell has N = 24 tets.
-
+     *
      * tetsOnBdry are a list of indices referring to the tets in those
      * cells.  N tets for each cell.  So the values in tetsOnBDry are
      * in [0, cellsOnBdry.size()*24).
-
+     *
      * Use the indices in cellsOnBdry to map tetsOnBdry values to the
      * indices of the full set of tets.
-    */
+     */
     if(tetsOnBdry.empty()) { return; }
 
     axom::for_all<ExecSpace>(
@@ -178,18 +178,18 @@ public:
 
   void computeClipVolumes3D(axom::ArrayView<double> ovlap) override
   {
-    AXOM_ANNOTATE_SCOPE("GeometryClipper::computeClipVolumes3D");
+    AXOM_ANNOTATE_SCOPE("MeshClipper::computeClipVolumes3D");
 
     using BoundingBoxType = primal::BoundingBox<double, 3>;
 
-    ShapeeMesh& shapeeMesh = getDelegator().getShapeeMesh();
+    ShapeeMesh& shapeeMesh = getShapeeMesh();
 
     const int allocId = shapeeMesh.getAllocatorID();
 
     const IndexType cellCount = shapeeMesh.getCellCount();
 
     SLIC_INFO(axom::fmt::format(
-      "GeometryClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
+      "MeshClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
       getStrategy().name()));
 
     //
@@ -204,7 +204,7 @@ public:
     SLIC_ASSERT(useTets || geomAsTets.empty());
     if(useTets == useOcts)
     {
-      SLIC_ERROR(axom::fmt::format("Problem with GeometryClipperStrategy implementation '{}'."
+      SLIC_ERROR(axom::fmt::format("Problem with MeshClipperStrategy implementation '{}'."
                                    "  Implementations that don't provide a specializedClip function"
                                    " must provide exactly one getGeometryAsOcts() or getGeometryAsTets()."
                                    "  This implementation provides {}.", strategy.name(),
@@ -331,7 +331,7 @@ public:
 
     {
       tetCandidatesCount = TETS_PER_HEXAHEDRON*candidates.size();
-      AXOM_ANNOTATE_SCOPE("GeometryClipper::clipLoop");
+      AXOM_ANNOTATE_SCOPE("MeshClipper::clipLoop");
 #if defined(AXOM_DEBUG)
       // Verifying: this should always pass.
       if(tetCandidatesCountPtr != &tetCandidatesCount)
@@ -403,18 +403,18 @@ public:
                             axom::ArrayView<double> ovlap) override
 
   {
-    AXOM_ANNOTATE_SCOPE("GeometryClipper::computeClipVolumes3D:limited");
+    AXOM_ANNOTATE_SCOPE("MeshClipper::computeClipVolumes3D:limited");
 
     using BoundingBoxType = primal::BoundingBox<double, 3>;
 
-    ShapeeMesh& shapeeMesh = getDelegator().getShapeeMesh();
+    ShapeeMesh& shapeeMesh = getShapeeMesh();
 
     const int allocId = shapeeMesh.getAllocatorID();
 
     const IndexType cellCount = shapeeMesh.getCellCount();
 
     SLIC_INFO(axom::fmt::format(
-      "GeometryClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
+      "MeshClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
       getStrategy().name()));
 
     auto& strategy = getStrategy();
@@ -426,7 +426,7 @@ public:
     SLIC_ASSERT(useTets || geomAsTets.empty());
     if(useTets == useOcts)
     {
-      SLIC_ERROR(axom::fmt::format("Problem with GeometryClipperStrategy implementation '{}'."
+      SLIC_ERROR(axom::fmt::format("Problem with MeshClipperStrategy implementation '{}'."
                                    "  Implementations that don't provide a specializedClip function"
                                    " must provide exactly one getGeometryAsOcts() or getGeometryAsTets()."
                                    "  This implementation provides {}.", strategy.name(),
@@ -562,7 +562,7 @@ public:
 
     {
       tetCandidatesCount = TETS_PER_HEXAHEDRON*candidates.size();
-      AXOM_ANNOTATE_SCOPE("GeometryClipper::clipLoop_limited");
+      AXOM_ANNOTATE_SCOPE("MeshClipper::clipLoop_limited");
 #if defined(AXOM_DEBUG)
       // Verifying: this should always pass.
       if(tetCandidatesCountPtr != &tetCandidatesCount)
@@ -644,20 +644,19 @@ public:
                                 axom::ArrayView<double> ovlap) override
 
   {
-    AXOM_ANNOTATE_SCOPE("GeometryClipper::computeClipVolumes3D:limited");
+    AXOM_ANNOTATE_SCOPE("MeshClipper::computeClipVolumes3D:limited");
 
-    using Point3DType = primal::Point<double, 3>;
     using BoundingBoxType = primal::BoundingBox<double, 3>;
     using TetrahedronType = primal::Tetrahedron<double, 3>;
     using OctahedronType = primal::Octahedron<double, 3>;
 
-    ShapeeMesh& shapeeMesh = getDelegator().getShapeeMesh();
+    ShapeeMesh& shapeeMesh = getShapeeMesh();
     auto meshTets = getShapeeMesh().getCellsAsTets();
 
     const int allocId = shapeeMesh.getAllocatorID();
 
     SLIC_INFO(axom::fmt::format(
-      "GeometryClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
+      "MeshClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
       getStrategy().name()));
 
     auto& strategy = getStrategy();
@@ -669,7 +668,7 @@ public:
     SLIC_ASSERT(useTets || geomAsTets.empty());
     if(useTets == useOcts)
     {
-      SLIC_ERROR(axom::fmt::format("Problem with GeometryClipperStrategy implementation '{}'."
+      SLIC_ERROR(axom::fmt::format("Problem with MeshClipperStrategy implementation '{}'."
                                    "  Implementations that don't provide a specializedClip function"
                                    " must provide exactly one getGeometryAsOcts() or getGeometryAsTets()."
                                    "  This implementation provides {}.", strategy.name(),
@@ -824,7 +823,7 @@ public:
                       axom::IndexType& onCount,
                       axom::IndexType& outCount) override
   {
-    AXOM_ANNOTATE_SCOPE("GeometryClipper::getLabelCounts");
+    AXOM_ANNOTATE_SCOPE("MeshClipper::getLabelCounts");
     using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
     using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
     RAJA::ReduceSum<ReducePolicy, axom::IndexType> inSum(0);
@@ -834,11 +833,11 @@ public:
       RAJA::RangeSegment(0, labels.size()),
       AXOM_LAMBDA(axom::IndexType cellId) {
         const auto& label = labels[cellId];
-        if(label == GeometryClipperStrategy::LABEL_OUT)
+        if(label == MeshClipperStrategy::LABEL_OUT)
         {
           outSum += 1;
         }
-        else if(label == GeometryClipperStrategy::LABEL_IN)
+        else if(label == MeshClipperStrategy::LABEL_IN)
         {
           inSum += 1;
         }
@@ -862,4 +861,4 @@ private:
 }  // end namespace quest
 }  // end namespace axom
 
-#endif  // AXOM_GEOMETRYCLIPPERDELEGATEEXEC_HPP_
+#endif  // AXOM_GEOMETRYCLIPPERIMPL_HPP_

@@ -7,7 +7,7 @@
 #define AXOM_QUEST_HEXCLIPPER_HPP
 
 #include "axom/klee/Geometry.hpp"
-#include "axom/quest/GeometryClipperStrategy.hpp"
+#include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/primal/geometry/CoordinateTransformer.hpp"
 
 namespace axom
@@ -18,7 +18,7 @@ namespace quest
 /*!
  * @brief Geometry clipping operations for sphere geometries.
 */
-class HexClipper : public GeometryClipperStrategy
+class HexClipper : public MeshClipperStrategy
 {
 public:
   /*!

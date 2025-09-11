@@ -6,13 +6,13 @@
 #include "axom/config.hpp"
 
 #include "axom/quest/util/make_clipper_strategy.hpp"
-#include "axom/quest/Plane3DClipper.hpp"
-#include "axom/quest/TetClipper.hpp"
-#include "axom/quest/TetMeshClipper.hpp"
-#include "axom/quest/HexClipper.hpp"
-#include "axom/quest/SphereClipper.hpp"
-#include "axom/quest/FSorClipper.hpp"
-#include "axom/quest/SorClipper.hpp"
+#include "axom/quest/detail/clipping/Plane3DClipper.hpp"
+#include "axom/quest/detail/clipping/TetClipper.hpp"
+#include "axom/quest/detail/clipping/TetMeshClipper.hpp"
+#include "axom/quest/detail/clipping/HexClipper.hpp"
+#include "axom/quest/detail/clipping/SphereClipper.hpp"
+#include "axom/quest/detail/clipping/FSorClipper.hpp"
+#include "axom/quest/detail/clipping/SorClipper.hpp"
 #include "axom/slic/interface/slic_macros.hpp"
 
 namespace axom
@@ -22,11 +22,11 @@ namespace quest
 namespace util
 {
 
-std::shared_ptr<GeometryClipperStrategy> make_clipper_strategy(
+std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(
   const axom::klee::Geometry& kleeGeometry,
   const std::string& name)
 {
-  std::shared_ptr<GeometryClipperStrategy> strategy;
+  std::shared_ptr<MeshClipperStrategy> strategy;
 
   const std::string& format = kleeGeometry.getFormat();
   const std::string& instanceName = !name.empty() ? name : kleeGeometry.getFormat();

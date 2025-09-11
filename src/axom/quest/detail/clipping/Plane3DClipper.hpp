@@ -7,7 +7,7 @@
 #define AXOM_QUEST_PLANE3DCLIPPER_HPP
 
 #include "axom/klee/Geometry.hpp"
-#include "axom/quest/GeometryClipperStrategy.hpp"
+#include "axom/quest/MeshClipperStrategy.hpp"
 
 namespace axom
 {
@@ -17,7 +17,7 @@ namespace quest
 /*!
  * @brief Geometry clipping operations for plane geometries.
 */
-class Plane3DClipper : public GeometryClipperStrategy
+class Plane3DClipper : public MeshClipperStrategy
 {
 public:
   /*!

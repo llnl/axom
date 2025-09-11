@@ -9,7 +9,7 @@
 #include "axom/config.hpp"
 
 #include "axom/klee/Geometry.hpp"
-#include "axom/quest/GeometryClipperStrategy.hpp"
+#include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/quest/ShapeeMesh.hpp"
 
 namespace axom
@@ -21,35 +21,35 @@ namespace quest
  * @brief Abstract base class encapsulating the clipping task in
  * intersection shaping, to be specialized for geometry-specific
  * implementations.
-
- * Each object operates is associated with a single klee::Geometry object.
-
+ *
+ * Each object operates is associated with a single klee::Geometry object.*
+ *
  * This class defines the interfaces for specializing computations
  * that can run fast on specific geometries.  This allows for
  * geometry-specific optimizations.  If no such specialization
  * is provided, default methods are used.
-*/
-class GeometryClipper
+ */
+class MeshClipper
 {
 public:
   //!@brief Whether an element as in, out or on shape boundary.
-  using LabelType = GeometryClipperStrategy::LabelType;
+  using LabelType = MeshClipperStrategy::LabelType;
 
-  static constexpr axom::IndexType TETS_PER_HEXAHEDRON = GeometryClipperStrategy::TETS_PER_HEXAHEDRON;
+  static constexpr axom::IndexType TETS_PER_HEXAHEDRON = MeshClipperStrategy::TETS_PER_HEXAHEDRON;
 
   /*!
    * @brief Construct a shape clipper
-
+   *
    * @param [in/out] bpMesh Single-domain Blueprint mesh
    *   to shape into.
    * @param [in] strategy Strategy where external
    *   shape-dependent operations are implemented.
-
+   *
    * @c bpMesh must be an unstructured hex mesh.
    * That is the only type currently supported.
-  */
-  GeometryClipper(quest::ShapeeMesh& shapeeMesh,
-                  const std::shared_ptr<GeometryClipperStrategy>& strategy);
+   */
+  MeshClipper(quest::ShapeeMesh& shapeeMesh,
+                  const std::shared_ptr<MeshClipperStrategy>& strategy);
 
   //!@brief The mesh.
   ShapeeMesh& getShapeeMesh() { return m_shapeeMesh; }
@@ -61,46 +61,46 @@ public:
 
   /*!
    * @brief Clip
-
+   *
    * @param ovlap [out] Shape overlap volume of each cell
    *   in the shapee mesh.
-  */
+   */
   void clip(axom::Array<double>& ovlap);
 
   /*!
    * @brief Clip
-
+   *
    * @param ovlap [out] Shape overlap volume of each cell
    *   in the shapee mesh.
-  */
+   */
   void clip(axom::ArrayView<double> ovlap);
 
   //!@brief Dimension of the shape (2 or 3)
   int dimension() const { return m_shapeeMesh.dimension(); }
 
   /*!
-   * @brief Single interface for some methods delegated out of
-   * GeometryClipper
-
-   * Delegated methods are those requiring messy instantiation of
+   * @brief Single interface for methods implemented with
+   * execution space templates.
+   *
+   * These methods require messy instantiation of
    * execution spaces and their runtime selection.
-
-   * The implementations are in class detail::GeometryClipperDelegateExec,
+   *
+   * The implementations are in class detail::MeshClipperImpl,
    * which is templated on execution space.
-  */
-  struct Delegate
+   */
+  struct Impl
   {
-    Delegate(GeometryClipper& delegator) : m_delegator(delegator) { }
-    virtual ~Delegate() = default;
+    Impl(MeshClipper& impl) : m_myClipper(impl) { }
+    virtual ~Impl() = default;
 
-    static constexpr axom::IndexType TETS_PER_HEXAHEDRON = GeometryClipperStrategy::TETS_PER_HEXAHEDRON;
+    static constexpr axom::IndexType TETS_PER_HEXAHEDRON = MeshClipperStrategy::TETS_PER_HEXAHEDRON;
 
     /*!
      * @brief Initialize overlap volumes to full for cells completely
      * inside the shape and zero for cells outside or on shape boundary.
-    */
+     */
     virtual void initVolumeOverlaps(
-      const axom::ArrayView<GeometryClipperStrategy::LabelType>& labels,
+      const axom::ArrayView<MeshClipperStrategy::LabelType>& labels,
       axom::ArrayView<double> ovlap) = 0;
 
     //! @brief Initialize overlap volumes to zero.
@@ -129,27 +129,25 @@ public:
 
     /*!
      * @brief Compute clip volumes for cell tets in an index list.
-
+     *
      * The tets are the results from decomposing a cell hex into
      * a fix number of tets and stored consecutively.
-    */
+     */
     virtual void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
                                           axom::ArrayView<double> ovlap) = 0;
 
-    //!@brief Delegate for getLabelCounts.
+    //!@brief Impl for getLabelCounts.
     virtual void getLabelCounts(axom::ArrayView<const LabelType> labels,
                                 axom::IndexType& inCount,
                                 axom::IndexType& onCount,
                                 axom::IndexType& outCount) = 0;
 
-    ShapeeMesh& getShapeeMesh() { return m_delegator.m_shapeeMesh; }
+    ShapeeMesh& getShapeeMesh() { return m_myClipper.m_shapeeMesh; }
 
-    GeometryClipperStrategy& getStrategy() { return *m_delegator.m_strategy; }
-
-    GeometryClipper& getDelegator() { return m_delegator; }
+    MeshClipperStrategy& getStrategy() { return *m_myClipper.m_strategy; }
 
   private:
-    GeometryClipper& m_delegator;
+    MeshClipper& m_myClipper;
   };
 
   //! @brief For assessments, not general use.
@@ -158,20 +156,20 @@ public:
                          axom::IndexType& maxLocalCellInCount) const;
 
 private:
-  friend Delegate;
+  friend Impl;
 
   quest::ShapeeMesh& m_shapeeMesh;
 
   //! @brief Shape-specific operations in clipping.
-  std::shared_ptr<quest::GeometryClipperStrategy> m_strategy;
+  std::shared_ptr<quest::MeshClipperStrategy> m_strategy;
 
-  //! @brief Delegate object handling execution space templates.
-  std::unique_ptr<Delegate> m_delegate;
+  //! @brief Object where execution space code is instantiated.
+  std::unique_ptr<Impl> m_impl;
 
-  /* NOTE: GeometryClipperStrategy is for shape-specific functions,
-   * implemented externally.  Delegate implements internal algorithms
+  /* NOTE: MeshClipperStrategy is for shape-specific functions,
+   * implemented externally.  Impl implements internal algorithms
    * for multiple execution spaces.
-  */
+   */
 
   ///@{
   //! @name Statistics
@@ -184,7 +182,7 @@ private:
 public:
 #endif
   //!@brief Allocate a delegate for m_shapeeMesh's runtime policy.
-  std::unique_ptr<Delegate> newDelegate();
+  std::unique_ptr<Impl> newImpl();
 
   //@{
   //!@name Convenience methods
@@ -193,7 +191,7 @@ public:
                       axom::IndexType& onCount,
                       axom::IndexType& outCount)
   {
-    m_delegate->getLabelCounts(labels, inCount, onCount, outCount);
+    m_impl->getLabelCounts(labels, inCount, onCount, outCount);
   }
 
   void logLabelStats(

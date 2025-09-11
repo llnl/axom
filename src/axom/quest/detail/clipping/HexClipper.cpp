@@ -5,7 +5,7 @@
 
 #include "axom/config.hpp"
 
-#include "axom/quest/HexClipper.hpp"
+#include "axom/quest/detail/clipping/HexClipper.hpp"
 
 namespace axom
 {
@@ -13,7 +13,7 @@ namespace quest
 {
 
 HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
-  : GeometryClipperStrategy(kGeom)
+  : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Hex") : name)
   , m_transformer(m_extTrans)
 {

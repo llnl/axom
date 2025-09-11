@@ -7,8 +7,8 @@
 #define AXOM_QUEST_SORCLIPPER_HPP
 
 #include "axom/klee/Geometry.hpp"
-#include "axom/quest/GeometryClipperStrategy.hpp"
-#include "axom/quest/FSorClipper.hpp"
+#include "axom/quest/MeshClipperStrategy.hpp"
+#include "axom/quest/detail/clipping/FSorClipper.hpp"
 #include "axom/primal/geometry/CoordinateTransformer.hpp"
 
 namespace axom
@@ -27,7 +27,7 @@ namespace quest
  * The SOR specification may include rotation and translation
  * internally, in addition to any external transformation.
 */
-class SorClipper : public GeometryClipperStrategy
+class SorClipper : public MeshClipperStrategy
 {
 public:
   /*!
@@ -87,7 +87,7 @@ private:
                       double scale,
                       axom::runtime_policy::Policy runtimePolicy);
 
-  // Extract clipper info from GeometryClipperStrategy::m_info.
+  // Extract clipper info from MeshClipperStrategy::m_info.
   void extractClipperInfo();
 
   void splitIntoMonotonicSections(axom::ArrayView<const Point2DType> pts,

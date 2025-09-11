@@ -9,8 +9,7 @@
 #include "axom/config.hpp"
 
 #include "axom/klee/Geometry.hpp"
-#include "axom/quest/GeometryClipperStrategy.hpp"
-#include "axom/quest/ShapeeMesh.hpp"
+#include "axom/quest/MeshClipperStrategy.hpp"
 
 namespace axom
 {
@@ -20,7 +19,7 @@ namespace util
 {
 
 /*!
- * @brief Return a new GeometryClipperStrategy implementation
+ * @brief Return a new MeshClipperStrategy implementation
  * to clip the specified klee Geometry.
  * @param [in] kleeGeometry
  * @param [in] name Name of strategy instance
@@ -29,7 +28,7 @@ namespace util
  * klee geometry formats.  It throws an error for unrecognized
  * formats.
 */
-std::shared_ptr<GeometryClipperStrategy> make_clipper_strategy(
+std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(
   const axom::klee::Geometry& kleeGeometry,
   const std::string& name="");
 

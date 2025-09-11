@@ -6,8 +6,8 @@
 #include "axom/config.hpp"
 
 #include "axom/quest/Discretize.hpp"
-#include "axom/quest/SorClipper.hpp"
-#include "axom/quest/GeometryClipper.hpp"
+#include "axom/quest/detail/clipping/SorClipper.hpp"
+#include "axom/quest/MeshClipper.hpp"
 #include "axom/spin/BVH.hpp"
 #include "axom/fmt.hpp"
 
@@ -19,7 +19,7 @@ namespace quest
 {
 
 SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
-  : GeometryClipperStrategy(kGeom)
+  : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Sor") : name)
   , m_maxRadius(0.0)
   , m_minRadius(std::numeric_limits<double>::max())
@@ -78,7 +78,7 @@ bool SorClipper::specializedClipCells(quest::ShapeeMesh& shapeeMesh,
   for(auto& fsorStrategy : m_fsorStrategies)
   {
     tmpOvlap.fill(0.0);
-    GeometryClipper clipper(shapeeMesh, fsorStrategy);
+    MeshClipper clipper(shapeeMesh, fsorStrategy);
     clipper.setVerbose(false);
     clipper.clip(tmpOvlap);
     auto sorCurve = fsorStrategy->getSorCurve();

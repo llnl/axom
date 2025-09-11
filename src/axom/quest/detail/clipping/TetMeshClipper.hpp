@@ -7,7 +7,7 @@
 #define AXOM_QUEST_TETMESHCLIPPER_HPP
 
 #include "axom/klee/Geometry.hpp"
-#include "axom/quest/GeometryClipperStrategy.hpp"
+#include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/primal/geometry/CoordinateTransformer.hpp"
 
 // Implementation requires Conduit.
@@ -24,7 +24,7 @@ namespace quest
  * @internal TODO: Implement load balancing.  The 1D array of shapee hexes
  * should be load balanced for better performance.
 */
-class TetMeshClipper : public GeometryClipperStrategy
+class TetMeshClipper : public MeshClipperStrategy
 {
 public:
   /*!
@@ -78,7 +78,7 @@ private:
     axom::ArrayView<bool>& vertIsInside,
     axom::Array<LabelType>& labels);
 
-  // Extract clipper info from GeometryClipperStrategy::m_info.
+  // Extract clipper info from MeshClipperStrategy::m_info.
   void extractClipperInfo();
 
   // Check validity of tetMesh for our purposes.

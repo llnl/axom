@@ -6,7 +6,7 @@
 #include "axom/config.hpp"
 
 #include "axom/quest/Discretize.hpp"
-#include "axom/quest/SphereClipper.hpp"
+#include "axom/quest/detail/clipping/SphereClipper.hpp"
 
 namespace axom
 {
@@ -14,7 +14,7 @@ namespace quest
 {
 
 SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& name)
-  : GeometryClipperStrategy(kGeom)
+  : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Sphere") : name)
   , m_transformer(m_extTrans)
 {

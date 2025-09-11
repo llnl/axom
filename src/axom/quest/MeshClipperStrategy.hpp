@@ -59,7 +59,7 @@ namespace quest
  * to a subset of cells.  @c getBoundingBox2D or @c getBoundingBox3D
  * can also improve performance by reducing computation.
 */
-class GeometryClipperStrategy
+class MeshClipperStrategy
 {
 public:
   /*!
@@ -104,7 +104,7 @@ public:
    * @param [in] kGeom Describes the shape to place
    *   into the mesh.
   */
-  GeometryClipperStrategy(const klee::Geometry& kGeom);
+  MeshClipperStrategy(const klee::Geometry& kGeom);
 
   /*!
    * @brief Optional name for strategy.

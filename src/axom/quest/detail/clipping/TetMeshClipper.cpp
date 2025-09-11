@@ -8,7 +8,7 @@
 #include "axom/mint/mesh/Mesh.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 #include "axom/spin/BVH.hpp"
-#include "axom/quest/TetMeshClipper.hpp"
+#include "axom/quest/detail/clipping/TetMeshClipper.hpp"
 #include "axom/bump.hpp"
 #include "axom/core/execution/for_all.hpp"
 #include "axom/core/execution/scans.hpp"
@@ -19,7 +19,7 @@ namespace quest
 {
 
 TetMeshClipper::TetMeshClipper(const klee::Geometry& kGeom, const std::string& name)
-  : GeometryClipperStrategy(kGeom)
+  : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("TetMesh") : name)
   , m_topoName(kGeom.getBlueprintTopology())
   , m_tetCount(0)

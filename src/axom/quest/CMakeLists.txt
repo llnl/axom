@@ -142,29 +142,29 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                   IntersectionShaper.hpp
                                   detail/shaping/shaping_helpers.hpp
                                   ShapeeMesh.hpp
-                                  GeometryClipper.hpp
-                                  GeometryClipperStrategy.hpp
-                                  Plane3DClipper.hpp
-                                  TetClipper.hpp
-                                  HexClipper.hpp
-                                  SphereClipper.hpp
-                                  TetMeshClipper.hpp
-                                  FSorClipper.hpp
-                                  SorClipper.hpp
-                                  detail/GeometryClipperDelegateExec.hpp)
+                                  MeshClipper.hpp
+                                  MeshClipperStrategy.hpp
+                                  detail/clipping/Plane3DClipper.hpp
+                                  detail/clipping/TetClipper.hpp
+                                  detail/clipping/HexClipper.hpp
+                                  detail/clipping/SphereClipper.hpp
+                                  detail/clipping/TetMeshClipper.hpp
+                                  detail/clipping/FSorClipper.hpp
+                                  detail/clipping/SorClipper.hpp
+                                  detail/clipping/MeshClipperImpl.hpp)
         list(APPEND quest_sources Shaper.cpp
                                   DiscreteShape.cpp
                                   detail/shaping/shaping_helpers.cpp
                                   ShapeeMesh.cpp
-                                  GeometryClipper.cpp
-                                  GeometryClipperStrategy.cpp
-                                  Plane3DClipper.cpp
-                                  TetClipper.cpp
-                                  HexClipper.cpp
-                                  SphereClipper.cpp
-                                  TetMeshClipper.cpp
-                                  FSorClipper.cpp
-                                  SorClipper.cpp)
+                                  MeshClipper.cpp
+                                  MeshClipperStrategy.cpp
+                                  detail/clipping/Plane3DClipper.cpp
+                                  detail/clipping/TetClipper.cpp
+                                  detail/clipping/HexClipper.cpp
+                                  detail/clipping/SphereClipper.cpp
+                                  detail/clipping/TetMeshClipper.cpp
+                                  detail/clipping/FSorClipper.cpp
+                                  detail/clipping/SorClipper.cpp)
         list(APPEND quest_depends_on klee)
     endif()
 

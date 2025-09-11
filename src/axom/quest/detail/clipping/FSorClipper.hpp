@@ -7,7 +7,7 @@
 #define AXOM_QUEST_FSORCLIPPER_HPP
 
 #include "axom/klee/Geometry.hpp"
-#include "axom/quest/GeometryClipperStrategy.hpp"
+#include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/primal/geometry/CoordinateTransformer.hpp"
 
 namespace axom
@@ -27,7 +27,7 @@ namespace quest
  * The SOR specification may include axis orientation and location
  * in addition to any external transformation.
 */
-class FSorClipper : public GeometryClipperStrategy
+class FSorClipper : public MeshClipperStrategy
 {
 public:
   /*!
@@ -150,7 +150,7 @@ private:
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
-  // Extract clipper info from GeometryClipperStrategy::m_info.
+  // Extract clipper info from MeshClipperStrategy::m_info.
   void extractClipperInfo();
 
   /*!

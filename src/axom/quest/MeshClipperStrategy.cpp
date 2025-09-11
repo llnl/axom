@@ -5,7 +5,7 @@
 
 #include "axom/config.hpp"
 
-#include "axom/quest/GeometryClipperStrategy.hpp"
+#include "axom/quest/MeshClipperStrategy.hpp"
 #include "axom/klee/GeometryOperators.hpp"
 
 namespace axom
@@ -67,30 +67,30 @@ private:
 
 }  // end namespace internal
 
-GeometryClipperStrategy::GeometryClipperStrategy(const klee::Geometry& kGeom)
+MeshClipperStrategy::MeshClipperStrategy(const klee::Geometry& kGeom)
   : m_info(kGeom.asHierarchy())
   , m_extTrans(computeTransformationMatrix(kGeom.getGeometryOperator()))
 { }
 
-const std::string& GeometryClipperStrategy::name() const
+const std::string& MeshClipperStrategy::name() const
 {
   static const std::string n = "UNNAMED";
   return n;
 }
 
-const axom::primal::BoundingBox<double, 2>& GeometryClipperStrategy::getBoundingBox2D() const
+const axom::primal::BoundingBox<double, 2>& MeshClipperStrategy::getBoundingBox2D() const
 {
   static const axom::primal::BoundingBox<double, 2> invalidBb2d;
   return invalidBb2d;
 }
 
-const axom::primal::BoundingBox<double, 3>& GeometryClipperStrategy::getBoundingBox3D() const
+const axom::primal::BoundingBox<double, 3>& MeshClipperStrategy::getBoundingBox3D() const
 {
   static const axom::primal::BoundingBox<double, 3> invalidBb3d;
   return invalidBb3d;
 }
 
-numerics::Matrix<double> GeometryClipperStrategy::computeTransformationMatrix(
+numerics::Matrix<double> MeshClipperStrategy::computeTransformationMatrix(
   const std::shared_ptr<const axom::klee::GeometryOperator>& op) const
 {
   const auto identity4x4 = numerics::Matrix<double>::identity(4);

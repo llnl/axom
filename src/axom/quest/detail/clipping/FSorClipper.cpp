@@ -8,7 +8,7 @@
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/primal/operators/squared_distance.hpp"
 #include "axom/quest/Discretize.hpp"
-#include "axom/quest/FSorClipper.hpp"
+#include "axom/quest/detail/clipping/FSorClipper.hpp"
 #include "axom/fmt.hpp"
 
 #include <limits>
@@ -19,7 +19,7 @@ namespace quest
 {
 
 FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
-  : GeometryClipperStrategy(kGeom)
+  : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("FSor") : name)
   , m_maxRadius(0.0)
   , m_minRadius(std::numeric_limits<double>::max())
@@ -62,7 +62,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
                          const Point3DType& sorOrigin,
                          const Vector3DType& sorDirection,
                          axom::IndexType levelOfRefinement)
-  : GeometryClipperStrategy(kGeom)
+  : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("FSor") : name)
   , m_sorCurve(sorCurve, axom::execution_space<axom::SEQ_EXEC>::allocatorID())
   , m_maxRadius(0.0)

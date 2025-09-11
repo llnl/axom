@@ -5,7 +5,7 @@
 
 #include "axom/config.hpp"
 
-#include "axom/quest/Plane3DClipper.hpp"
+#include "axom/quest/detail/clipping/Plane3DClipper.hpp"
 
 namespace axom
 {
@@ -13,7 +13,7 @@ namespace quest
 {
 
 Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom, const std::string& name)
-  : GeometryClipperStrategy(kGeom)
+  : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Plane3D") : name)
 {
   extractClipperInfo();

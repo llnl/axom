@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 /*!
- * \file quest_shape_clipper.cpp
- * \brief Test clipping codes built around GeometryClipper class.
+ * \file quest_mesh_clipper.cpp
+ * \brief Test clipping codes built around MeshClipper class.
  * 3D only.  Extensible to 2D when we have 2D clipping.
  */
 
@@ -18,6 +18,13 @@
 #include "axom/sidre.hpp"
 #include "axom/klee.hpp"
 #include "axom/quest.hpp"
+#include "axom/quest/detail/clipping/HexClipper.hpp"
+#include "axom/quest/detail/clipping/Plane3DClipper.hpp"
+#include "axom/quest/detail/clipping/FSorClipper.hpp"
+#include "axom/quest/detail/clipping/SorClipper.hpp"
+#include "axom/quest/detail/clipping/SphereClipper.hpp"
+#include "axom/quest/detail/clipping/TetClipper.hpp"
+#include "axom/quest/detail/clipping/TetMeshClipper.hpp"
 
 #include "axom/fmt.hpp"
 #include "axom/CLI11.hpp"
@@ -38,7 +45,7 @@
 
 // RAJA
 #if !defined(AXOM_USE_RAJA)
-  #error quest_shape_clipper example require RAJA
+  #error quest_mesh_clipper example require RAJA
 #endif
 #include "RAJA/RAJA.hpp"
 
@@ -1158,7 +1165,7 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Create shapes for the test
   //---------------------------------------------------------------------------
-  axom::Array<std::shared_ptr<axom::quest::GeometryClipperStrategy>> geomStrategies;
+  axom::Array<std::shared_ptr<axom::quest::MeshClipperStrategy>> geomStrategies;
   geomStrategies.reserve(params.testGeom.size());
   SLIC_ERROR_IF(params.getBoxDim() != 3, "This example is only in 3D.");
   for(const auto& tg : params.testGeom)
@@ -1274,7 +1281,7 @@ int main(int argc, char** argv)
       geomStrategies[i]->info().print();
     }
 
-    quest::GeometryClipper clipper(sMesh, geomStrategies[i]);
+    quest::MeshClipper clipper(sMesh, geomStrategies[i]);
     clipper.setVerbose(params.isVerbose());
     axom::Array<double> ovlap;
     AXOM_ANNOTATE_BEGIN(annotationName);

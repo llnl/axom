@@ -5,7 +5,7 @@
 
 #include "axom/config.hpp"
 
-#include "axom/quest/TetClipper.hpp"
+#include "axom/quest/detail/clipping/TetClipper.hpp"
 
 namespace axom
 {
@@ -13,7 +13,7 @@ namespace quest
 {
 
 TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
-  : GeometryClipperStrategy(kGeom)
+  : MeshClipperStrategy(kGeom)
   , m_name(name.empty() ? std::string("Tet") : name)
   , m_transformer(m_extTrans)
 {

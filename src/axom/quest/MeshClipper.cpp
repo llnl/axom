@@ -5,8 +5,8 @@
 
 #include "axom/config.hpp"
 
-#include "axom/quest/GeometryClipper.hpp"
-#include "axom/quest/detail/GeometryClipperDelegateExec.hpp"
+#include "axom/quest/MeshClipper.hpp"
+#include "axom/quest/detail/clipping/MeshClipperImpl.hpp"
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/core/execution/runtime_policy.hpp"
 #include "axom/slic/interface/slic_macros.hpp"
@@ -17,23 +17,15 @@ namespace axom
 namespace quest
 {
 
-GeometryClipper::GeometryClipper(quest::ShapeeMesh& shapeeMesh,
-                                 const std::shared_ptr<quest::GeometryClipperStrategy>& strategy)
+MeshClipper::MeshClipper(quest::ShapeeMesh& shapeeMesh,
+                                 const std::shared_ptr<quest::MeshClipperStrategy>& strategy)
   : m_shapeeMesh(shapeeMesh)
   , m_strategy(strategy)
-  , m_delegate(newDelegate())
+  , m_impl(newImpl())
   , m_verbose(false)
 { }
 
-/*
- * If the strategy can label cells as inside/on/outside geometry
- * boundary, use that to reduce the use of expensive clipping methods.
-
- * Regardless of labling, try to use specialized clipping first.
- * If specialized methods aren't implemented, resort to discretizing
- * geomety into tets or octs for brute-force clipping.
-*/
-void GeometryClipper::clip(axom::Array<double>& ovlap)
+void MeshClipper::clip(axom::Array<double>& ovlap)
 {
   const int allocId = m_shapeeMesh.getAllocatorID();
   const axom::IndexType cellCount = m_shapeeMesh.getCellCount();
@@ -41,17 +33,24 @@ void GeometryClipper::clip(axom::Array<double>& ovlap)
   // Resize output array and use appropriate allocator.
   if(ovlap.size() < cellCount || ovlap.getAllocatorID() != allocId)
   {
-    AXOM_ANNOTATE_SCOPE("GeometryClipper::clip_alloc");
+    AXOM_ANNOTATE_SCOPE("MeshClipper::clip_alloc");
     ovlap = axom::Array<double>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
   clip(ovlap.view());
 }
 
 /*
- * Orchestrates the entire geometry clipping by using the
- * capabilities of the GeometryClipperStrategy implementation.
-*/
-void GeometryClipper::clip(axom::ArrayView<double> ovlap)
+ * Orchestrates the geometry clipping by using the capabilities of the
+ * MeshClipperStrategy implementation.
+ *
+ * If the strategy can label cells as inside/on/outside geometry
+ * boundary, use that to reduce reliance on expensive clipping methods.
+ *
+ * Regardless of labling, try to use specialized clipping first.
+ * If specialized methods aren't implemented, resort to discretizing
+ * geomety into tets or octs for brute-force clipping.
+ */
+void MeshClipper::clip(axom::ArrayView<double> ovlap)
 {
   const int allocId = m_shapeeMesh.getAllocatorID();
   const axom::IndexType cellCount = m_shapeeMesh.getCellCount();
@@ -67,23 +66,23 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
   {
     SLIC_ERROR_IF(
       cellLabels.size() != m_shapeeMesh.getCellCount(),
-      axom::fmt::format("GeometryClipperStrategy '{}' did not return the correct array size of {}",
+      axom::fmt::format("MeshClipperStrategy '{}' did not return the correct array size of {}",
                         m_strategy->name(),
                         m_shapeeMesh.getCellCount()));
     SLIC_ERROR_IF(cellLabels.getAllocatorID() != allocId,
-                  axom::fmt::format("GeometryClipperStrategy '{}' failed to provide cellLabels data "
+                  axom::fmt::format("MeshClipperStrategy '{}' failed to provide cellLabels data "
                                     "with the required allocator id {}",
                                     m_strategy->name(),
                                     allocId));
 
     if(m_verbose) { logLabelStats(cellLabels, "cells"); }
 
-    AXOM_ANNOTATE_BEGIN("GeometryClipper::processInOut");
+    AXOM_ANNOTATE_BEGIN("MeshClipper::processInOut");
 
-    m_delegate->initVolumeOverlaps(cellLabels.view(), ovlap);
+    m_impl->initVolumeOverlaps(cellLabels.view(), ovlap);
 
     axom::Array<axom::IndexType> cellsOnBdry;
-    m_delegate->collectOnIndices(cellLabels.view(), cellsOnBdry);
+    m_impl->collectOnIndices(cellLabels.view(), cellsOnBdry);
 
     axom::Array<char> tetLabels;
     bool withTetInOut = m_strategy->labelTetsInOut(m_shapeeMesh, cellsOnBdry.view(), tetLabels);
@@ -93,16 +92,16 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
     if(withTetInOut)
     {
       if(m_verbose) { logLabelStats(tetLabels, "tets"); }
-      m_delegate->collectOnIndices(tetLabels.view(), tetsOnBdry);
-      m_delegate->remapTetIndices(tetsOnBdry, cellsOnBdry);
+      m_impl->collectOnIndices(tetLabels.view(), tetsOnBdry);
+      m_impl->remapTetIndices(tetsOnBdry, cellsOnBdry);
 
       SLIC_ASSERT(tetsOnBdry.getAllocatorID() == m_shapeeMesh.getAllocatorID());
       SLIC_ASSERT(tetsOnBdry.size() <= cellsOnBdry.size() * TETS_PER_HEXAHEDRON);
 
-      m_delegate->addVolumesOfInteriorTets(cellsOnBdry.view(), tetLabels.view(), ovlap);
+      m_impl->addVolumesOfInteriorTets(cellsOnBdry.view(), tetLabels.view(), ovlap);
     }
 
-    AXOM_ANNOTATE_END("GeometryClipper::processInOut");
+    AXOM_ANNOTATE_END("MeshClipper::processInOut");
 
     //
     // If implementation has a specialized clip, use it.
@@ -118,14 +117,14 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
 
     if(!done)
     {
-      AXOM_ANNOTATE_SCOPE("GeometryClipper::clip3D_limited");
+      AXOM_ANNOTATE_SCOPE("MeshClipper::clip3D_limited");
       if(withTetInOut)
       {
-        m_delegate->computeClipVolumes3DTets(tetsOnBdry.view(), ovlap);
+        m_impl->computeClipVolumes3DTets(tetsOnBdry.view(), ovlap);
       }
       else
       {
-        m_delegate->computeClipVolumes3D(cellsOnBdry.view(), ovlap);
+        m_impl->computeClipVolumes3D(cellsOnBdry.view(), ovlap);
       }
     }
 
@@ -134,16 +133,16 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
   else  // !withCellInOut
   {
     std::string msg = axom::fmt::format(
-      "GeometryClipper strategy '{}' did not provide in/out cell labels.\n",
+      "MeshClipper strategy '{}' did not provide in/out cell labels.\n",
       m_strategy->name());
     SLIC_INFO(msg);
-    m_delegate->initVolumeOverlaps(ovlap);
+    m_impl->initVolumeOverlaps(ovlap);
     done = m_strategy->specializedClipCells(m_shapeeMesh, ovlap);
 
     if(!done)
     {
-      AXOM_ANNOTATE_SCOPE("GeometryClipper::clip3D");
-      m_delegate->computeClipVolumes3D(ovlap);
+      AXOM_ANNOTATE_SCOPE("MeshClipper::clip3D");
+      m_impl->computeClipVolumes3D(ovlap);
     }
 
     m_localCellInCount = cellCount;
@@ -151,46 +150,47 @@ void GeometryClipper::clip(axom::ArrayView<double> ovlap)
 }
 
 /*!
- * @brief Allocate a Delegate for the runtime policy of m_shapeeMesh.
-*/
-std::unique_ptr<GeometryClipper::Delegate> GeometryClipper::newDelegate()
+ * @brief Allocate a Impl for the execution-space computations
+ * of this clipper.
+ */
+std::unique_ptr<MeshClipper::Impl> MeshClipper::newImpl()
 {
   using RuntimePolicy = axom::runtime_policy::Policy;
 
   auto runtimePolicy = m_shapeeMesh.getRuntimePolicy();
 
-  std::unique_ptr<Delegate> delegate;
+  std::unique_ptr<Impl> impl;
   if(runtimePolicy == RuntimePolicy::seq)
   {
-    delegate.reset(new detail::GeometryClipperDelegateExec<axom::SEQ_EXEC>(*this));
+    impl.reset(new detail::MeshClipperImpl<axom::SEQ_EXEC>(*this));
   }
 #ifdef AXOM_RUNTIME_POLICY_USE_OPENMP
   else if(runtimePolicy == RuntimePolicy::omp)
   {
-    delegate.reset(new detail::GeometryClipperDelegateExec<axom::OMP_EXEC>(*this));
+    impl.reset(new detail::MeshClipperImpl<axom::OMP_EXEC>(*this));
   }
 #endif
 #ifdef AXOM_RUNTIME_POLICY_USE_CUDA
   else if(runtimePolicy == RuntimePolicy::cuda)
   {
-    delegate.reset(new detail::GeometryClipperDelegateExec<axom::CUDA_EXEC<256>>(*this));
+    impl.reset(new detail::MeshClipperImpl<axom::CUDA_EXEC<256>>(*this));
   }
 #endif
 #ifdef AXOM_RUNTIME_POLICY_USE_HIP
   else if(runtimePolicy == RuntimePolicy::hip)
   {
-    delegate.reset(new detail::GeometryClipperDelegateExec<axom::HIP_EXEC<256>>(*this));
+    impl.reset(new detail::MeshClipperImpl<axom::HIP_EXEC<256>>(*this));
   }
 #endif
   else
   {
     SLIC_ERROR(
-      axom::fmt::format("GeometryClipper has no delegate for runtime policy {}", runtimePolicy));
+      axom::fmt::format("MeshClipper has no impl for runtime policy {}", runtimePolicy));
   }
-  return delegate;
+  return impl;
 }
 
-void GeometryClipper::logLabelStats(
+void MeshClipper::logLabelStats(
   axom::ArrayView<const LabelType> labels,
   const std::string& labelType)
 {
@@ -202,7 +202,7 @@ void GeometryClipper::logLabelStats(
   MPI_Reduce(countsa, countsb, 4, axom::mpi_traits<axom::IndexType>::type, MPI_SUM, 0, MPI_COMM_WORLD);
 #endif
   std::string msg = axom::fmt::format(
-    "GeometryClipper strategy '{}' globally labeled {} {} inside, {} on and {} outside, for mesh with {} cells ({} tets)\n",
+    "MeshClipper strategy '{}' globally labeled {} {} inside, {} on and {} outside, for mesh with {} cells ({} tets)\n",
     m_strategy->name(),
     labelType,
     countsb[0],
@@ -213,7 +213,7 @@ void GeometryClipper::logLabelStats(
   SLIC_INFO(msg);
 }
 
-void GeometryClipper::getClippingStats(
+void MeshClipper::getClippingStats(
   axom::IndexType& localCellInCount,
   axom::IndexType& globalCellInCount,
   axom::IndexType& maxLocalCellInCount) const

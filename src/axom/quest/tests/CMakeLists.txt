@@ -232,8 +232,8 @@ endif()
 #------------------------------------------------------------------------------
 if(CONDUIT_FOUND AND RAJA_FOUND)
     axom_add_executable(
-        NAME        quest_geometry_clipper_test
-        SOURCES     quest_geometry_clipper.cpp
+        NAME        quest_mesh_clipper_test
+        SOURCES     quest_mesh_clipper.cpp
         OUTPUT_DIR  ${TEST_OUTPUT_DIRECTORY}
         DEPENDS_ON  ${quest_tests_depends}
         FOLDER      axom/quest/tests
@@ -256,10 +256,10 @@ if(CONDUIT_FOUND AND RAJA_FOUND)
     foreach(_meshType ${_meshTypes})
       foreach(_policy ${_policies})
         foreach(_testgeom ${_testgeoms})
-          set(_testname "quest_geometry_clipper_${_meshType}_${_policy}_${_testgeom}")
+          set(_testname "quest_mesh_clipper_${_meshType}_${_policy}_${_testgeom}")
           axom_add_test(
             NAME ${_testname}
-            COMMAND quest_geometry_clipper_test
+            COMMAND quest_mesh_clipper_test
             --policy ${_policy}
             --verbose
             --testGeom ${_testgeom}
