@@ -141,31 +141,33 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                   DiscreteShape.hpp
                                   IntersectionShaper.hpp
                                   detail/shaping/shaping_helpers.hpp
-                                  ShapeeMesh.hpp
-                                  MeshClipper.hpp
-                                  MeshClipperStrategy.hpp
-                                  detail/clipping/Plane3DClipper.hpp
-                                  detail/clipping/TetClipper.hpp
-                                  detail/clipping/HexClipper.hpp
-                                  detail/clipping/SphereClipper.hpp
-                                  detail/clipping/TetMeshClipper.hpp
-                                  detail/clipping/FSorClipper.hpp
-                                  detail/clipping/SorClipper.hpp
-                                  detail/clipping/MeshClipperImpl.hpp)
+                                  ShapeeMesh.hpp)
         list(APPEND quest_sources Shaper.cpp
                                   DiscreteShape.cpp
                                   detail/shaping/shaping_helpers.cpp
-                                  ShapeeMesh.cpp
-                                  MeshClipper.cpp
-                                  MeshClipperStrategy.cpp
-                                  detail/clipping/Plane3DClipper.cpp
-                                  detail/clipping/TetClipper.cpp
-                                  detail/clipping/HexClipper.cpp
-                                  detail/clipping/SphereClipper.cpp
-                                  detail/clipping/TetMeshClipper.cpp
-                                  detail/clipping/FSorClipper.cpp
-                                  detail/clipping/SorClipper.cpp)
+                                  ShapeeMesh.cpp)
         list(APPEND quest_depends_on klee)
+        if(RAJA_FOUND)
+            list(APPEND quest_headers MeshClipper.hpp
+                                      MeshClipperStrategy.hpp
+                                      detail/clipping/Plane3DClipper.hpp
+                                      detail/clipping/TetClipper.hpp
+                                      detail/clipping/TetMeshClipper.hpp
+                                      detail/clipping/HexClipper.hpp
+                                      detail/clipping/SphereClipper.hpp
+                                      detail/clipping/FSorClipper.hpp
+                                      detail/clipping/SorClipper.hpp
+                                      detail/clipping/MeshClipperImpl.hpp)
+            list(APPEND quest_sources MeshClipper.cpp
+                                      MeshClipperStrategy.cpp
+                                      detail/clipping/Plane3DClipper.cpp
+                                      detail/clipping/TetClipper.cpp
+                                      detail/clipping/TetMeshClipper.cpp
+                                      detail/clipping/HexClipper.cpp
+                                      detail/clipping/SphereClipper.cpp
+                                      detail/clipping/FSorClipper.cpp
+                                      detail/clipping/SorClipper.cpp)
+        endif()
     endif()
 
     if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)

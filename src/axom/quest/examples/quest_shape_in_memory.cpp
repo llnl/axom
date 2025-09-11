@@ -27,6 +27,10 @@
   #error Shaping functionality requires Axom to be configured with Conduit
 #endif
 
+#if !defined(AXOM_USE_RAJA)
+  #error Shaping test requires Axom to be configured with RAJA
+#endif
+
 #include "conduit_relay_io_blueprint.hpp"
 
 #if defined(AXOM_USE_MFEM)
