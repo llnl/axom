@@ -1748,7 +1748,6 @@ public:
   void triangulateTrimmedPatches()
   {
     int patchIndex = 0;
-    // Take out this for loop
     for(TopExp_Explorer faceExp(m_shape, TopAbs_FACE); faceExp.More(); faceExp.Next(), ++patchIndex)
     {
       TopoDS_Face face = TopoDS::Face(faceExp.Current());
@@ -2010,7 +2009,6 @@ int main(int argc, char** argv)
       }
       return std::string();
     });
-  std::string annotationMode {"none"};
 
   CLI11_PARSE(app, argc, argv);
 

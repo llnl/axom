@@ -368,7 +368,7 @@ double evaluate_area_integral(const axom::Array<primal::NURBSCurve<T, 2>> narray
     npts_P = npts_Q;
   }
 
-  if( narray.empty() )
+  if(narray.empty())
   {
     return 0.0;
   }
