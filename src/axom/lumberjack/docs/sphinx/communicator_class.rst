@@ -22,6 +22,7 @@ ranksLimit                Getter/Setter for the limit on individually stored ran
 numPushesToFlush          Returns the number of individual pushes to completely flush all Messages.
 push                      Pushes all currently held Messages once up structure.
 isOutputNode              Returns whether this node should output messages.
+startTime                 Returns the time of initialization of this communicator.
 ========================= ===================
 
 Concrete Instances

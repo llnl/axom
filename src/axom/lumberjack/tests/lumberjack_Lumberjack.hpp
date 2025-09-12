@@ -10,6 +10,7 @@
 #include "axom/lumberjack/Communicator.hpp"
 #include "axom/lumberjack/Message.hpp"
 
+#include <mpi.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -19,6 +20,9 @@ public:
   void initialize(MPI_Comm comm, int ranksLimit)
   {
     m_mpiComm = comm;
+
+    m_startTime = 0.0;
+
     m_ranksLimit = ranksLimit;
     m_isOutputNode = true;
     srand(time(nullptr));
@@ -44,10 +48,13 @@ public:
 
   void outputNode(bool value) { m_isOutputNode = value; }
 
+  double startTime() { return m_startTime; }
+
 private:
   MPI_Comm m_mpiComm;
   int m_ranksLimit;
   bool m_isOutputNode;
+  double m_startTime;
 };
 
 TEST(lumberjack_Lumberjack, combineMessagesNoCombiners)
@@ -118,12 +125,12 @@ TEST(lumberjack_Lumberjack, combineMessagesPushOnce02)
   axom::lumberjack::Lumberjack lumberjack;
   lumberjack.initialize(&communicator, ranksLimit);
 
-  lumberjack.queueMessage("");
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("Should be combined.");
+  lumberjack.queueMessage("", 0.0);
+  lumberjack.queueMessage("Should be combined.", 1.0);
+  lumberjack.queueMessage("Should be combined.", 1.0);
+  lumberjack.queueMessage("Should be combined.", 1.0);
+  lumberjack.queueMessage("Should be combined.", 1.0);
+  lumberjack.queueMessage("Should be combined.", 1.0);
 
   lumberjack.pushMessagesOnce();
 
@@ -236,12 +243,12 @@ TEST(lumberjack_Lumberjack, combineMessages02)
   axom::lumberjack::Lumberjack lumberjack;
   lumberjack.initialize(&communicator, ranksLimit);
 
-  lumberjack.queueMessage("Should be combined 1.");
-  lumberjack.queueMessage("Should be combined 1.");
-  lumberjack.queueMessage("Should be combined 1.");
-  lumberjack.queueMessage("Should be combined 2.");
-  lumberjack.queueMessage("Should be combined 2.");
-  lumberjack.queueMessage("Should be combined 2.");
+  lumberjack.queueMessage("Should be combined 1.", 1.0);
+  lumberjack.queueMessage("Should be combined 1.", 1.0);
+  lumberjack.queueMessage("Should be combined 1.", 1.0);
+  lumberjack.queueMessage("Should be combined 2.", 2.0);
+  lumberjack.queueMessage("Should be combined 2.", 2.0);
+  lumberjack.queueMessage("Should be combined 2.", 2.0);
 
   lumberjack.pushMessagesFully();
 
@@ -265,12 +272,12 @@ TEST(lumberjack_Lumberjack, combineMessages03)
   axom::lumberjack::Lumberjack lumberjack;
   lumberjack.initialize(&communicator, ranksLimit);
 
-  lumberjack.queueMessage("Should not be combined 1.");
-  lumberjack.queueMessage("Should not be combined 2.");
-  lumberjack.queueMessage("Should not be combined 3.");
-  lumberjack.queueMessage("Should not be combined 4.");
-  lumberjack.queueMessage("Should not be combined 5.");
-  lumberjack.queueMessage("Should not be combined 6.");
+  lumberjack.queueMessage("Should not be combined 1.", 1.0);
+  lumberjack.queueMessage("Should not be combined 2.", 2.0);
+  lumberjack.queueMessage("Should not be combined 3.", 3.0);
+  lumberjack.queueMessage("Should not be combined 4.", 4.0);
+  lumberjack.queueMessage("Should not be combined 5.", 5.0);
+  lumberjack.queueMessage("Should not be combined 6.", 6.0);
 
   lumberjack.pushMessagesFully();
 
@@ -296,12 +303,12 @@ TEST(lumberjack_Lumberjack, combineMixedMessages01)
   axom::lumberjack::Lumberjack lumberjack;
   lumberjack.initialize(&communicator, ranksLimit);
 
-  lumberjack.queueMessage("Should not be combined 1.");
-  lumberjack.queueMessage("Should not be combined 2.");
-  lumberjack.queueMessage("");
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("Should be combined.");
+  lumberjack.queueMessage("Should not be combined 1.", 1.0);
+  lumberjack.queueMessage("Should not be combined 2.", 2.0);
+  lumberjack.queueMessage("", 3.0);
+  lumberjack.queueMessage("Should be combined.", 4.0);
+  lumberjack.queueMessage("Should be combined.", 5.0);
+  lumberjack.queueMessage("Should be combined.", 6.0);
 
   lumberjack.pushMessagesFully();
 
@@ -334,12 +341,12 @@ TEST(lumberjack_Lumberjack, combineMixedMessages02)
   axom::lumberjack::Lumberjack lumberjack;
   lumberjack.initialize(&communicator, ranksLimit);
 
-  lumberjack.queueMessage("Should not be combined 1.");
-  lumberjack.queueMessage("Should not be combined 2.");
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("");
+  lumberjack.queueMessage("Should not be combined 1.", 1.0);
+  lumberjack.queueMessage("Should not be combined 2.", 2.0);
+  lumberjack.queueMessage("Should be combined.", 3.0);
+  lumberjack.queueMessage("Should be combined.", 4.0);
+  lumberjack.queueMessage("Should be combined.", 5.0);
+  lumberjack.queueMessage("", 6.0);
 
   lumberjack.pushMessagesFully();
 
@@ -372,12 +379,12 @@ TEST(lumberjack_Lumberjack, combineMixedMessages03)
   axom::lumberjack::Lumberjack lumberjack;
   lumberjack.initialize(&communicator, ranksLimit);
 
-  lumberjack.queueMessage("");
-  lumberjack.queueMessage("Should not be combined 2.");
-  lumberjack.queueMessage("Should not be combined 3.");
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("Should be combined.");
-  lumberjack.queueMessage("Should be combined.");
+  lumberjack.queueMessage("", 1.0);
+  lumberjack.queueMessage("Should not be combined 2.", 2.0);
+  lumberjack.queueMessage("Should not be combined 3.", 3.0);
+  lumberjack.queueMessage("Should be combined.", 4.0);
+  lumberjack.queueMessage("Should be combined.", 5.0);
+  lumberjack.queueMessage("Should be combined.", 6.0);
 
   lumberjack.pushMessagesFully();
 
@@ -388,16 +395,19 @@ TEST(lumberjack_Lumberjack, combineMixedMessages03)
 
   EXPECT_EQ(messages[0]->text(), "");
   EXPECT_EQ(messages[0]->count(), 1);
+  EXPECT_EQ(messages[0]->creationTime(), 1.0);
 
   for(int i = 1; i < 3; ++i)
   {
     std::string s = "Should not be combined " + std::to_string(i + 1) + ".";
     EXPECT_EQ(messages[i]->text(), s);
     EXPECT_EQ(messages[i]->count(), 1);
+    EXPECT_EQ(messages[i]->creationTime(), static_cast<double>(i + 1));
   }
 
   EXPECT_EQ(messages[3]->text(), "Should be combined.");
   EXPECT_EQ(messages[3]->count(), 3);
+  EXPECT_EQ(messages[3]->creationTime(), 4.0);
 
   lumberjack.finalize();
   communicator.finalize();
@@ -416,7 +426,7 @@ TEST(lumberjack_Lumberjack, combineMessagesManyMessages)
   for(int i = 0; i < loopCount; ++i)
   {
     std::string s = "Should not be combined " + std::to_string(i) + ".";
-    lumberjack.queueMessage(s);
+    lumberjack.queueMessage(s, static_cast<double>(i));
   }
 
   lumberjack.pushMessagesFully();
@@ -454,7 +464,7 @@ TEST(lumberjack_Lumberjack, combineMessagesLargeMessages)
   for(int i = 0; i < loopCount; ++i)
   {
     std::string s = std::to_string(i) + ":" + padding;
-    lumberjack.queueMessage(s);
+    lumberjack.queueMessage(s, static_cast<double>(i));
   }
 
   lumberjack.pushMessagesFully();

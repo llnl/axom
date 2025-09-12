@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/slic/streams/LumberjackStream.hpp"
+#include <mpi.h>
 
 #include <vector>
 
@@ -184,7 +185,7 @@ void LumberjackStream::append(message::Level msgLevel,
     return;
   }
 
-  m_lj->queueMessage(message, fileName, line, msgLevel, tagName);
+  m_lj->queueMessage(message, fileName, line, msgLevel, MPI_Wtime(), tagName);
 }
 
 //------------------------------------------------------------------------------
