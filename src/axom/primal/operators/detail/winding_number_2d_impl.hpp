@@ -541,6 +541,48 @@ double nurbs_winding_number(const Point<T, 2>& q,
   return gwn;
 }
 
+template <typename T>
+double nurbs_winding_number_component(const Point<T, 2>& q,
+                                      const NURBSCurveGWNCache<T>& nurbs,
+                                      int bezier_idx,
+                                      int refinement_level,
+                                      int refinement_index,
+                                      bool& isOnEdge,
+                                      double edge_tol = 1e-8,
+                                      double EPS = 1e-8)
+{
+  const BezierCurve<T, 2>& the_bezier =
+    nurbs.getSubdivisionData(bezier_idx, refinement_level, refinement_index);
+
+  if(!the_bezier.boundingBox().contains(q))
+  {
+    return detail::linear_winding_number(q,
+                                         the_bezier[0],
+                                         the_bezier[the_bezier.getOrder()],
+                                         isOnEdge,
+                                         edge_tol);
+  }
+  else
+  {
+    return detail::nurbs_winding_number_component(q,
+                                                  nurbs,
+                                                  bezier_idx,
+                                                  refinement_level + 1,
+                                                  2 * refinement_index,
+                                                  isOnEdge,
+                                                  edge_tol,
+                                                  EPS) +
+      detail::nurbs_winding_number_component(q,
+                                             nurbs,
+                                             bezier_idx,
+                                             refinement_level + 1,
+                                             2 * refinement_index + 1,
+                                             isOnEdge,
+                                             edge_tol,
+                                             EPS);
+  }
+}
+
 }  // end namespace detail
 }  // end namespace primal
 }  // end namespace axom

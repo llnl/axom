@@ -24,6 +24,7 @@
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 
 #include "axom/primal/operators/squared_distance.hpp"
+#include "axom/primal/operators/is_convex.hpp"
 
 #include <vector>
 #include <ostream>
@@ -38,6 +39,71 @@ namespace primal
 // Forward declare the templated classes and operator functions
 template <typename T, int NDIMS>
 class NURBSCurve;
+
+/*!
+ * \class NURBSCurveGWNCache
+ *
+ * \brief Represents a NURBS curve and associated data for GWN evaluation
+ * \tparam T the coordinate type, e.g., double, float, etc.
+ *
+ * Stores subdivision NURBS curves, and a flag that maintains if the control polygon is convex
+ * 
+ * \pre Assumes a 2D NURBS curve
+ */
+template <typename T>
+class NURBSCurveGWNCache
+{
+public:
+  NURBSCurveGWNCache() = default;
+
+  /// \brief Initialize the cache with the data for the original curve
+  NURBSCurveGWNCache(const NURBSCurve<T, 2>& a_curve) : curve( a_curve )
+  {
+    auto num_spans = a_curve.getNumKnotSpans();
+
+    bezier_subdivision_maps.resize(num_spans);
+    auto beziers = a_curve.extractBezier();
+
+    for(int idx = 0; idx < num_spans; ++idx)
+    {
+      bezier_subdivision_maps[idx][std::make_pair(0, 0)] = beziers[idx];
+    }
+  }
+
+  /// \brief Query the map. If curve is not found, add it and it's pair from subdivision
+  const BezierCurve<T, 2>& getSubdivisionData(int idx, int refinementLevel, int refinementIndex) const
+  {
+    auto hash_key = std::make_pair(refinementLevel, refinementIndex);
+
+    if(bezier_subdivision_maps[idx].find(hash_key) == bezier_subdivision_maps[idx].end())
+    {
+      const BezierCurve<T, 2>& supercurve_data =
+        bezier_subdivision_maps[idx][std::make_pair(refinementLevel - 1, refinementIndex / 2)];
+
+      BezierCurve<T, 2> sub1, sub2;
+      supercurve_data.split(0.5, sub1, sub2);
+
+      // Technically refinementIndex / 2 * 2 does the same thing in fewer characters, but is slightly less readable
+      // (so does refinementIndex >> 1 << 1, but even funnier)
+      bezier_subdivision_maps[idx][std::make_pair(refinementLevel,
+                                                  refinementIndex + refinementIndex % 2)] = sub1;
+      bezier_subdivision_maps[idx][std::make_pair(refinementLevel,
+                                                  refinementIndex + refinementIndex % 2 + 1)] = sub2;
+    }
+
+    return bezier_subdivision_maps[idx][hash_key];
+  }
+
+  auto getNumKnotSpans() const { return bezier_subdivision_maps.size(); }
+  auto boundingBox() const { return curve.boundingBox(); }
+  auto operator[](int idx) const { return curve[idx]; }
+  auto getNumControlPoints() const { return curve.getNumControlPoints(); }
+
+private:
+  NURBSCurve<T, 2> curve;
+
+  mutable axom::Array<std::map<std::pair<int, int>, BezierCurve<T, 2>>> bezier_subdivision_maps;
+};
 
 /*! \brief Overloaded output operator for NURBS Curves*/
 template <typename T, int NDIMS>
@@ -676,6 +742,8 @@ public:
   /// \brief Returns the number of knots in the NURBS Curve
   axom::IndexType getNumKnots() const { return m_knotvec.getNumKnots(); }
 
+  auto getNumKnotSpans() const { return m_knotvec.getNumKnotSpans(); }
+
   /// \brief Normalize the knot vector to the span of [0, 1]
   void normalize() { m_knotvec.normalize(); }
 
@@ -1235,6 +1303,19 @@ public:
     }
 
     return true;
+  }
+
+  /*!
+   * \brief Splits a NURBS curve into two curves at the middle parameter value
+   *
+   * \param [out] n1 First output NURBS curve
+   * \param [out] n2 Second output NURBS curve
+   * \param [in] normalizeParameters Whether to normalize the output curves
+   */
+  void bisect(NURBSCurve<T, NDIMS>& n1, NURBSCurve<T, NDIMS>& n2, bool normalizeParameters = false) const
+  {
+    auto mid_t = 0.5 * (getMinKnot() + getMaxKnot());
+    split(mid_t, n1, n2, normalizeParameters);
   }
 
   /*!
