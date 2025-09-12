@@ -1,8 +1,8 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO llnl/camp
-    REF b39c95b22043a9b955c0f2b45b1fdbd6daca56c2
-    SHA512 ab8bde714a4369eb03a48ac98aa23abb6ac8cc417c3a3e0f87d9c7bb2bc07c7ebee7c4b11a83f6cf968d243a88ac501381ffaa23322592b07fcef092db2af59f
+    REF v2025.09.2
+    SHA512 46e8f63965ead06d22ce69f27039fcdb84d93da3d71d43a4a588a8cabae2fdbafd9613702955bba3755f49ec8d173b51747e9e32a5d3e67e006e6f4f3f368c0
 )
 
 set(_is_shared TRUE)
