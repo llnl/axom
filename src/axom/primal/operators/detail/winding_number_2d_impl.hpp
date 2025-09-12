@@ -552,7 +552,7 @@ double nurbs_winding_number_component(const Point<T, 2>& q,
                                       double EPS = 1e-8)
 {
   const BezierCurve<T, 2>& the_bezier =
-    nurbs.getSubdivisionData(bezier_idx, refinement_level, refinement_index);
+    nurbs.getSubdivision(bezier_idx, refinement_level, refinement_index);
 
   if(!the_bezier.boundingBox().contains(q))
   {
@@ -580,6 +580,50 @@ double nurbs_winding_number_component(const Point<T, 2>& q,
                                              isOnEdge,
                                              edge_tol,
                                              EPS);
+  }
+}
+
+template <typename T>
+void nurbs_make_approxogon(Polygon<T, 2>& approxogon,
+                           const Point<T, 2>& q,
+                           const NURBSCurveGWNCache<T>& nurbs_cache,
+                           int bezier_idx,
+                           int refinement_level,
+                           int refinement_index,
+                           bool& isOnEdge,
+                           double edge_tol = 1e-8,
+                           double EPS = 1e-8)
+{
+  const BezierCurve<T, 2>& the_bezier =
+    nurbs_cache.getSubdivision(bezier_idx, refinement_level, refinement_index);
+
+  if(!the_bezier.boundingBox().contains(q))
+  {
+    return;
+  }
+  else
+  {
+    detail::nurbs_make_approxogon(approxogon,
+                                  q,
+                                  nurbs_cache,
+                                  bezier_idx,
+                                  refinement_level + 1,
+                                  2 * refinement_index,
+                                  isOnEdge,
+                                  edge_tol,
+                                  EPS);
+    approxogon.addVertex(
+      nurbs_cache.getSubdivisionMidpoint(bezier_idx, refinement_level, refinement_index));
+    detail::nurbs_make_approxogon(approxogon,
+                                  q,
+                                  nurbs_cache,
+                                  bezier_idx,
+                                  refinement_level + 1,
+                                  2 * refinement_index + 1,
+                                  isOnEdge,
+                                  edge_tol,
+                                  EPS);
+    return;
   }
 }
 

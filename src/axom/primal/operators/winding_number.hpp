@@ -176,6 +176,44 @@ double winding_number(const Point<T, 2>& q,
 
   return gwn;
 }
+
+template <typename T>
+double winding_number_polygon(const Point<T, 2>& q,
+                              const NURBSCurveGWNCache<T>& nurbs_cache,
+                              Polygon<T, 2>& approxogon,
+                              double edge_tol = 1e-8,
+                              double EPS = 1e-8)
+{
+  bool isOnEdge = false;
+
+  double closure_wn =
+    detail::linear_winding_number(q,
+                                  nurbs_cache[0],
+                                  nurbs_cache[nurbs_cache.getNumControlPoints() - 1],
+                                  isOnEdge,
+                                  edge_tol);
+
+  // Early return is possible for most points + curves
+  if(!nurbs_cache.boundingBox().expand(edge_tol).contains(q))
+  {
+    return 0.0 - closure_wn;
+  }
+
+  approxogon.clear();
+  approxogon.addVertex(nurbs_cache[0]);
+
+  for(int n = 0; n < nurbs_cache.getNumKnotSpans(); ++n)
+  {
+    detail::nurbs_make_approxogon(approxogon, q, nurbs_cache, n, 0, 0, isOnEdge, edge_tol, EPS);
+    approxogon.addVertex(nurbs_cache.getBezierControlPoint(n, nurbs_cache.getDegree()));
+  }
+
+  bool isOnPolygonEdge = false;
+  double closed_curve_wn =
+    detail::polygon_winding_number(q, approxogon, isOnPolygonEdge, false, edge_tol);
+
+  return closed_curve_wn - closure_wn;
+}
 /*!
  * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
  *

@@ -57,7 +57,7 @@ public:
   NURBSCurveGWNCache() = default;
 
   /// \brief Initialize the cache with the data for the original curve
-  NURBSCurveGWNCache(const NURBSCurve<T, 2>& a_curve) : curve( a_curve )
+  NURBSCurveGWNCache(const NURBSCurve<T, 2>& a_curve) : curve(a_curve)
   {
     auto num_spans = a_curve.getNumKnotSpans();
 
@@ -71,7 +71,7 @@ public:
   }
 
   /// \brief Query the map. If curve is not found, add it and it's pair from subdivision
-  const BezierCurve<T, 2>& getSubdivisionData(int idx, int refinementLevel, int refinementIndex) const
+  const BezierCurve<T, 2>& getSubdivision(int idx, int refinementLevel, int refinementIndex) const
   {
     auto hash_key = std::make_pair(refinementLevel, refinementIndex);
 
@@ -94,10 +94,20 @@ public:
     return bezier_subdivision_maps[idx][hash_key];
   }
 
+  Point<T, 2> getSubdivisionMidpoint(int idx, int refinementLevel, int refinementIndex) const
+  {
+    return getSubdivision(idx, refinementLevel + 1, 2 * refinementIndex + 1)[0];
+  }
+
   auto getNumKnotSpans() const { return bezier_subdivision_maps.size(); }
   auto boundingBox() const { return curve.boundingBox(); }
   auto operator[](int idx) const { return curve[idx]; }
   auto getNumControlPoints() const { return curve.getNumControlPoints(); }
+  auto getDegree() const { return curve.getDegree(); }
+  auto getBezierControlPoint(int bezier_idx, int ctrlpt_idx) const
+  {
+    return bezier_subdivision_maps[bezier_idx][std::make_pair(0, 0)][ctrlpt_idx];
+  }
 
 private:
   NURBSCurve<T, 2> curve;
