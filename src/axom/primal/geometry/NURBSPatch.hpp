@@ -41,12 +41,26 @@ namespace primal
 template <typename T, int NDIMS>
 class NURBSPatch;
 
-// Define a struct that holds the quadrature points and weight scaling factor for some subdivision of a NURBS curve
+/*!
+ * \structTrimmingCurveQuadratureData
+ *
+ * \brief Stores quadrature points and tangents for a trimming curve on a patch
+ * for a Gaussian quadrature rule of a given number of nodes
+ */
 template <typename T>
 struct TrimmingCurveQuadratureData
 {
   TrimmingCurveQuadratureData() = default;
 
+  /*!
+   * \brief Constructor for quadrature data from a single trimming curve on a patch
+   * 
+   * \param [in] quad_npts The number of Gaussian nodes
+   * \param [in] a_curve The 2D parameter space NURBS curve on \a a_patch
+   * \param [in] a_patch The 3D NURBS surface
+   * \param [in] a_refinementLevel How mnay subdivisions for the curve
+   * \param [in] a_refinementSection Which subdivision for a given level
+   */
   TrimmingCurveQuadratureData(int quad_npts,
                               const NURBSCurve<T, 2>& a_curve,
                               const NURBSPatch<T, 3>& a_patch,
@@ -104,6 +118,19 @@ private:
   int m_quad_npts;
 };
 
+/*!
+ * \class NURBSPatchGWNCache
+ *
+ * \brief Represents a NURBS patch and associated data for GWN evaluation
+ * \tparam T the coordinate type, e.g., double, float, etc.
+ *
+ * Stores an array of maps that associates subdivisions of each trimming
+ * curve with quadrature data, i.e., nodes and surface tangents.
+ * 
+ * Once the cache is initialized, the patch and its trimming curves are const
+ * 
+ * \pre Assumes a 3D NURBS patch
+ */
 template <typename T>
 struct NURBSPatchGWNCache
 {
@@ -192,9 +219,8 @@ struct NURBSPatchGWNCache
     curve_quadrature_maps.resize(patch.getNumTrimmingCurves());
   }
 
-  // Pretend to inherit some functions from NURBSPatch.
-  //  The advantage of doing things like this is that once a NURBSPatchGWNCache class is initialized,
-  //  the patch inside can't be changed, so the memoized information is always accurate
+  // Mirror the functionality of NURBSPatch so signatures match in GWN evaluation.
+  // Allowing only access ensures the memoized information is always accurate
   auto getControlPoints() const { return patch.getControlPoints(); }
   auto getNumControlPoints_u() const { return patch.getNumControlPoints_u(); }
   auto getNumControlPoints_v() const { return patch.getNumControlPoints_v(); }
@@ -214,6 +240,7 @@ struct NURBSPatchGWNCache
   auto boundingBox() const { return bbox; }
   auto orientedBoundingBox() const { return obox; }
 
+  /// \brief Creates or accesses the quadrature nodes for a given trimming curve
   TrimmingCurveQuadratureData<T>& getTrimmingCurveQuadratureData(int curveIndex,
                                                                  int quadNPts,
                                                                  int refinementLevel,
@@ -236,9 +263,11 @@ struct NURBSPatchGWNCache
   }
 
 private:
+  // The patch is private to present dirtying the cachce by changing the patch,
+  //  and because the stored internal patch is altered from the original input
   NURBSPatch<T, 3> patch;
 
-  // Per patch stuff
+  // Per patch data
   BoundingBox<T, 3> bbox;
   OrientedBoundingBox<T, 3> obox;
   axom::primal::Vector<T, 3> average_normal;
@@ -246,8 +275,7 @@ private:
   axom::primal::Point<T, 3> centroid;
   double pbox_diag;
 
-  // Per trimming curve stuff
-  // Keyed by (whichRefinementLevel, whichRefinementIndex)
+  // Per trimming curve data, keyed by (whichRefinementLevel, whichRefinementIndex)
   mutable axom::Array<std::map<std::pair<int, int>, TrimmingCurveQuadratureData<T>>> curve_quadrature_maps;
 };
 

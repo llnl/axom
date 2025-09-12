@@ -149,6 +149,33 @@ double winding_number(const Point<T, 2>& q,
   return detail::nurbs_winding_number(q, n, dummy_isOnCurve, edge_tol, EPS);
 }
 
+template <typename T>
+double winding_number(const Point<T, 2>& q,
+                      const NURBSCurveGWNCache<T>& nurbs_cache,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  bool isOnEdge = false;
+
+  // Early return is possible for most points + curves
+  if(!nurbs_cache.boundingBox().expand(edge_tol).contains(q))
+  {
+    return detail::linear_winding_number(q,
+                                         nurbs_cache[0],
+                                         nurbs_cache[nurbs_cache.getNumControlPoints() - 1],
+                                         isOnEdge,
+                                         edge_tol);
+  }
+
+  double gwn = 0.0;
+
+  for(int n = 0; n < nurbs_cache.getNumKnotSpans(); ++n)
+  {
+    gwn += detail::nurbs_winding_number_component(q, nurbs_cache, n, 0, 0, isOnEdge, edge_tol, EPS);
+  }
+
+  return gwn;
+}
 /*!
  * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
  *
@@ -473,29 +500,32 @@ int winding_number(const Point<T, 3>& q,
 #ifdef AXOM_USE_MFEM
 
 /*
- * \brief Computes the GWN for a 3D point wrt a 3D Bezier patch
+ * \brief Computes the GWN for a 3D point wrt a 3D surface patch object
  *
+ * \tparam SurfaceType The BezierPatch or NURBSPatch which represents the surface
  * \param [in] q The query point to test
- * \param [in] bPatch The Bezier patch object
+ * \param [in] surface The patch object
  * \param [in] edge_tol The physical distance level at which objects are 
  *                      considered indistinguishable
  * \param [in] quad_tol The maximum relative error allowed in the quadrature
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  * \param [in] depth The current recursive depth
  * 
- * Computes the generalized winding number for a Bezier patch using Stokes theorem.
+ * Computes the generalized winding number for the surface patch using Stokes theorem.
+ * BezierPatches are first promoted to NURBSPatches for processing.
  * 
  * \return The GWN.
  */
-template <typename T>
+template <typename T, typename SurfaceType>
 double winding_number(const Point<T, 3>& query,
-                      const BezierPatch<T, 3>& bPatch,
+                      const SurfaceType& surf,
                       const double edge_tol = 1e-8,
                       const double ls_tol = 1e-8,
                       const double quad_tol = 1e-8,
+                      const double disk_size = 0.01,
                       const double EPS = 1e-8)
 {
-  NURBSPatch<T, 3> nPatch_tested(bPatch);
+  NURBSPatch<T, 3> nPatch_tested(surf);
   auto cast_direction = nPatch_tested.calculateUntrimmedPatchNormal();
 
   nPatch_tested.makeTriviallyTrimmed();
@@ -520,6 +550,7 @@ double winding_number(const Point<T, 3>& query,
                                       edge_tol,
                                       ls_tol,
                                       quad_tol,
+                                      disk_size,
                                       EPS);
 }
 
@@ -572,8 +603,9 @@ double winding_number(const Point<T, 3>& query,
 }
 
 /*
- * \brief Computes the GWN for an array of 3D point wrt an array of 3D NURBS patches
+ * \brief Computes the GWN for a 3D point array wrt an array of 3D surface patches
  *
+ * \tparam SurfaceType The BezierPatch or NURBSPatch which represents the surface
  * \param [in] query_arr The query point to test
  * \param [in] nPatch_arr The NURBS patch object
  * \param [in] edge_tol The physical distance level at which objects are 
@@ -583,7 +615,75 @@ double winding_number(const Point<T, 3>& query,
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  * 
  * Computes the generalized winding number for a NURBS patch using Stokes theorem.
- * Saves on computation time by precomputing and storing intermediates for each patch
+ * Decreases computation time by precomputing and storing intermediates for each patch
+ * 
+ * \return The GWN.
+ */
+template <typename T, typename SurfaceType>
+axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
+                                   const axom::Array<SurfaceType>& surf_arr,
+                                   const double edge_tol = 1e-8,
+                                   const double ls_tol = 1e-8,
+                                   const double quad_tol = 1e-8,
+                                   const double disk_size = 0.01,
+                                   const double EPS = 1e-8)
+{
+  // Precompute the expansions and cast directions for each patch
+  axom::Array<NURBSPatchGWNCache<T>> nurbs_cache_arr(0, surf_arr.size());
+  axom::Array<Vector<T, 3>> cast_direction_arr(0, surf_arr.size());
+  for(int i = 0; i < surf_arr.size(); ++i)
+  {
+    // Select the cast direction as an average normal of the untrimmed surface
+    nurbs_cache_arr.emplace_back(NURBSPatchGWNCache<T>(surf_arr[i]));
+    cast_direction_arr.emplace_back(nurbs_cache_arr[i].getAverageNormal());
+    if(cast_direction_arr[i].norm() < 1e-10)
+    {
+      // ...unless the average direction is zero
+      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
+      double u = axom::utilities::random_real(-1.0, 1.0);
+      cast_direction_arr[i] =
+        Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
+    }
+    else
+    {
+      cast_direction_arr[i] = cast_direction_arr[i].unitVector();
+    }
+  }
+
+  axom::Array<double> ret_val(query_arr.size());
+  for(int n = 0; n < query_arr.size(); ++n)
+  {
+    ret_val[n] = 0.0;
+
+    for(int i = 0; i < surf_arr.size(); ++i)
+    {
+      ret_val[n] += detail::nurbs_winding_number(query_arr[n],
+                                                 nurbs_cache_arr[i],
+                                                 cast_direction_arr[i],
+                                                 edge_tol,
+                                                 ls_tol,
+                                                 quad_tol,
+                                                 disk_size,
+                                                 EPS);
+    }
+  }
+
+  return ret_val;
+}
+
+/*
+ * \brief Computes the GWN for an array of 3D point wrt an array of NURBS patch cache data
+ *
+ * \param [in] query_arr The query point to test
+ * \param [in] nurbs_arr Array of NURBSPatchGWNCache object containing intermediate values
+ * \param [in] edge_tol The physical distance level at which objects are 
+ *                      considered indistinguishable
+ * \param [in] ls_tol The tolerance for the line-surface intersection routine
+ * \param [in] quad_tol The maximum relative error allowed in the quadrature
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ * 
+ * Computes the generalized winding number for a NURBS patch using Stokes theorem.
+ * Decreases computation time by precomputing and storing intermediates for each patch
  * 
  * \return The GWN.
  */
@@ -625,124 +725,6 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
     {
       ret_val[n] += detail::nurbs_winding_number(query_arr[n],
                                                  nurbs_arr[i],
-                                                 cast_direction_arr[i],
-                                                 edge_tol,
-                                                 ls_tol,
-                                                 quad_tol,
-                                                 disk_size,
-                                                 EPS);
-    }
-  }
-
-  return ret_val;
-}
-
-/*
- * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch
- *
- * \param [in] query The query point to test
- * \param [in] nPatch The NURBS patch object
- * \param [in] edge_tol The physical distance level at which objects are 
- *                      considered indistinguishable
- * \param [in] ls_tol The tolerance for the line-surface intersection routine
- * \param [in] quad_tol The maximum relative error allowed in the quadrature
- * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
- * 
- * Computes the generalized winding number for a NURBS patch using Stokes theorem.
- *
- * \return The GWN.
- */
-template <typename T>
-double winding_number(const Point<T, 3>& query,
-                      const NURBSPatch<T, 3>& nurbs,
-                      const double edge_tol = 1e-8,
-                      const double ls_tol = 1e-8,
-                      const double quad_tol = 1e-8,
-                      const double disk_size = 0.01,
-                      const double EPS = 1e-8)
-{
-  NURBSPatchGWNCache<T> nurbs_cache(nurbs);
-
-  // Select the cast direction as an average normal of the untrimmed surface
-  auto cast_direction = nurbs_cache.getAverageNormal();
-  if(cast_direction.norm() < 1e-10)
-  {
-    // ...unless the average direction is zero
-    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-    double u = axom::utilities::random_real(-1.0, 1.0);
-    cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-  }
-  else
-  {
-    cast_direction = cast_direction.unitVector();
-  }
-
-  return detail::nurbs_winding_number(query,
-                                      nurbs_cache,
-                                      cast_direction,
-                                      edge_tol,
-                                      ls_tol,
-                                      quad_tol,
-                                      disk_size,
-                                      EPS);
-}
-
-/*
- * \brief Computes the GWN for an array of 3D point wrt an array of 3D NURBS patches
- *
- * \param [in] query_arr The query point to test
- * \param [in] nPatch_arr The NURBS patch object
- * \param [in] edge_tol The physical distance level at which objects are 
- *                      considered indistinguishable
- * \param [in] ls_tol The tolerance for the line-surface intersection routine
- * \param [in] quad_tol The maximum relative error allowed in the quadrature
- * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
- * 
- * Computes the generalized winding number for a NURBS patch using Stokes theorem.
- * Saves on computation time by precomputing and storing intermediates for each patch
- * 
- * \return The GWN.
- */
-template <typename T>
-axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
-                                   const axom::Array<NURBSPatch<T, 3>>& nurbs_arr,
-                                   const double edge_tol = 1e-8,
-                                   const double ls_tol = 1e-8,
-                                   const double quad_tol = 1e-8,
-                                   const double disk_size = 0.01,
-                                   const double EPS = 1e-8)
-{
-  // Precompute the expansions and cast directions for each patch
-  axom::Array<NURBSPatchGWNCache<T>> nurbs_cache_arr(0, nurbs_arr.size());
-  axom::Array<Vector<T, 3>> cast_direction_arr(0, nurbs_arr.size());
-  for(int i = 0; i < nurbs_arr.size(); ++i)
-  {
-    // Select the cast direction as an average normal of the untrimmed surface
-    nurbs_cache_arr.emplace_back(NURBSPatchGWNCache<T>(nurbs_arr[i]));
-    cast_direction_arr.emplace_back(nurbs_cache_arr[i].getAverageNormal());
-    if(cast_direction_arr[i].norm() < 1e-10)
-    {
-      // ...unless the average direction is zero
-      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-      double u = axom::utilities::random_real(-1.0, 1.0);
-      cast_direction_arr[i] =
-        Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-    }
-    else
-    {
-      cast_direction_arr[i] = cast_direction_arr[i].unitVector();
-    }
-  }
-
-  axom::Array<double> ret_val(query_arr.size());
-  for(int n = 0; n < query_arr.size(); ++n)
-  {
-    ret_val[n] = 0.0;
-
-    for(int i = 0; i < nurbs_arr.size(); ++i)
-    {
-      ret_val[n] += detail::nurbs_winding_number(query_arr[n],
-                                                 nurbs_cache_arr[i],
                                                  cast_direction_arr[i],
                                                  edge_tol,
                                                  ls_tol,

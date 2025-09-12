@@ -707,8 +707,13 @@ TEST(primal_integral, nurbspatch_sphere)
   // Test the points on the biquartic patches
   auto sphere_faces = make_sphere_biquartic();
 
+  SLIC_INFO("Evaluating GWN for inner points");
   auto inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
+  
+  SLIC_INFO("Evaluating GWN for outer points");
   auto outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
+  
+  SLIC_INFO("Evaluating GWN for coincident points");
   auto coincident_gwn =
     winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
 
@@ -716,8 +721,25 @@ TEST(primal_integral, nurbspatch_sphere)
   for(int i = 0; i < N; ++i)
   {
     EXPECT_NEAR(inner_gwn[i], 1.0, 6 * quad_tol);
+    EXPECT_NEAR(inner_gwn[i + N], 1.0, 6 * quad_tol);
+
     EXPECT_NEAR(outer_gwn[i], 0.0, 6 * quad_tol);
+    EXPECT_NEAR(outer_gwn[i + N], 0.0, 6 * quad_tol);
+    
     EXPECT_NEAR(coincident_gwn[i], 0.5, 6 * quad_tol);
+  }
+
+  // Test non-memoized version by iterating over points and surfaces 
+  SLIC_INFO("Evaluating GWN for inner points, non-memoized");
+  for (auto& pt : inner_points)
+  {
+    double the_gwn = 0.0;
+    for( auto & surf : sphere_faces )
+    {
+      the_gwn += winding_number( pt, surf, edge_tol, ls_tol, quad_tol, disk_size, EPS );
+    }
+
+    EXPECT_NEAR(the_gwn, 1.0, 6 * quad_tol);
   }
 
   // Test points near degenerate edges of the biquartic patches
@@ -735,6 +757,7 @@ TEST(primal_integral, nurbspatch_sphere)
   // Coincident point
   difficult_points.emplace_back(Point3D(query_directions[0].array()));
 
+  SLIC_INFO("Evaluating GWN for difficult edge-cases");
   auto difficult_gwn =
     winding_number(difficult_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
 
