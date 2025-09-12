@@ -8,6 +8,9 @@
 
 #include "axom/config.hpp"
 
+// MeshClipper depends on sidre
+#ifdef AXOM_ENABLE_SIDRE
+
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
 
@@ -35,4 +38,5 @@ std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geo
 }  // namespace quest
 }  // namespace axom
 
+#endif  // AXOM_ENABLE_SIDRE
 #endif  // AXOM_MAKE_CLIPPER_STRATEGY_HPP
