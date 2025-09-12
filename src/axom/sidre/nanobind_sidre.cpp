@@ -869,6 +869,10 @@ NB_MODULE(pysidre, m_sidre)
          nb::overload_cast<IndexType>(&Group::destroyViewAndData),
          "Destroy View with given index owned by this Group and deallocate its data if it's the "
          "only View associated with that data.")
+    .def("destroyViewsAndData",
+         &Group::destroyViewsAndData,
+         "Destroy all Views owned by this Group and deallocate "
+         "data for each View when it's the only View associated with that data.")
 
     .def("moveView",
          &Group::moveView,
@@ -954,6 +958,18 @@ NB_MODULE(pysidre, m_sidre)
     .def("moveGroup",
          &Group::moveGroup,
          "Remove given Group object from its parent Group and make it a child of this Group.")
+    .def("copyGroup",
+         &Group::copyGroup,
+         nb::rv_policy::reference,
+         "Create a (shallow) copy of Group hierarchy rooted at given "
+         "Group and make the copy a child of this Group.")
+    .def("deepCopyGroup",
+         &Group::deepCopyGroup,
+         nb::rv_policy::reference,
+         "Create a deep copy of Group hierarchy rooted at given Group and "
+         "make the copy a child of this Group.",
+         nb::arg("srcGroup"),
+         nb::arg("allocID") = INVALID_ALLOCATOR_ID)
 
     .def("print",
          nb::overload_cast<>(&Group::print, nb::const_),
