@@ -203,6 +203,9 @@ public:
   ///@}
 
 public:
+  ///@{
+  /// \name Query/modify curve properties (order, rationality, ...)
+
   /// Sets the order of the Bezier Curve
   void setOrder(int ord)
   {
@@ -218,6 +221,16 @@ public:
   /// Returns the order of the Bezier Curve
   int getOrder() const { return static_cast<int>(m_controlPoints.size()) - 1; }
 
+  /// Clears the list of control points, make nonrational
+  void clear()
+  {
+    m_controlPoints.clear();
+    makeNonrational();
+  }
+
+  /// Use array size as flag for rationality
+  bool isRational() const { return !m_weights.empty(); }
+
   /// Make trivially rational. If already rational, do nothing
   void makeRational()
   {
@@ -232,21 +245,19 @@ public:
   /// Make nonrational by shrinking array of weights
   void makeNonrational() { m_weights.resize(0); }
 
-  /// Use array size as flag for rationality
-  bool isRational() const { return !m_weights.empty(); }
+  ///@}
 
-  /// Clears the list of control points, make nonrational
-  void clear()
-  {
-    m_controlPoints.clear();
-    makeNonrational();
-  }
+  ///@{
+  /// \name Query/modify curve's geometry (control points, weights, bounding box, ...)
 
   /// Retrieves the control point at index \a idx
   PointType& operator[](int idx) { return m_controlPoints[idx]; }
 
   /// Retrieves the control point at index \a idx
   const PointType& operator[](int idx) const { return m_controlPoints[idx]; }
+
+  /// Returns a copy of the Bezier curve's control points
+  CoordsVec getControlPoints() const { return m_controlPoints; }
 
   /*!
    * \brief Get a specific weight
@@ -276,22 +287,76 @@ public:
     m_weights[idx] = weight;
   };
 
-  /// Checks equality of two Bezier Curve
-  friend inline bool operator==(const BezierCurve<T, NDIMS>& lhs, const BezierCurve<T, NDIMS>& rhs)
-  {
-    return (lhs.m_controlPoints == rhs.m_controlPoints) && (lhs.m_weights == rhs.m_weights);
-  }
-
-  friend inline bool operator!=(const BezierCurve<T, NDIMS>& lhs, const BezierCurve<T, NDIMS>& rhs)
-  {
-    return !(lhs == rhs);
-  }
-
-  /// Returns a copy of the Bezier curve's control points
-  CoordsVec getControlPoints() const { return m_controlPoints; }
-
   /// Returns a copy of the Bezier curve's weights
   WeightsVec getWeights() const { return m_weights; }
+
+  /// Returns an axis-aligned bounding box containing the Bezier curve
+  BoundingBoxType boundingBox() const
+  {
+    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
+  }
+
+  /// Returns an oriented bounding box containing the Bezier curve
+  OrientedBoundingBoxType orientedBoundingBox() const
+  {
+    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
+  }
+
+  /*!
+   * \brief Predicate to check if the Bezier curve is approximately linear
+   *
+   * This function checks if the internal control points of the BezierCurve
+   * are approximately on the line defined by its two endpoints
+   *
+   * \param [in] tol Threshold for sum of squared distances
+   * \param [in] useStrictLinear If true, checks that the control points are
+   *   evenly spaced along the line and not too far from the line
+   * \return True if curve is near-linear
+   */
+  bool isLinear(double tol = 1e-8, bool useStrictLinear = false) const
+  {
+    const int ord = getOrder();
+    if(ord <= 1)
+    {
+      return true;
+    }
+
+    if(useStrictLinear)
+    {
+      // Check that the control points are not too far away from the line,
+      //  AND that they are evenly spaced along the line
+      for(int p = 1; p < ord; ++p)
+      {
+        double t = p / static_cast<T>(ord);
+        PointType the_pt = PointType::lerp(m_controlPoints[0], m_controlPoints[ord], t);
+
+        if(squared_distance(m_controlPoints[p], the_pt) > tol)
+        {
+          return false;
+        }
+      }
+    }
+    else
+    {
+      // Check that the control points are not too far away from the line between control points
+      SegmentType seg(m_controlPoints[0], m_controlPoints[ord]);
+
+      for(int p = 1; p < ord; ++p)  // check interior control points
+      {
+        if(squared_distance(m_controlPoints[p], seg) > tol)
+        {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  ///@}
+
+  ///@{
+  /// \name Query/modify curve parametrization
 
   /// Reverses the order of the Bezier curve's control points and weights
   void reverseOrientation()
@@ -312,17 +377,10 @@ public:
     }
   }
 
-  /// Returns an axis-aligned bounding box containing the Bezier curve
-  BoundingBoxType boundingBox() const
-  {
-    return BoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
-  }
+  ///@}
 
-  /// Returns an oriented bounding box containing the Bezier curve
-  OrientedBoundingBoxType orientedBoundingBox() const
-  {
-    return OrientedBoundingBoxType(m_controlPoints.data(), static_cast<int>(m_controlPoints.size()));
-  }
+  ///@{
+  /// \name Functions to evaluate curve and its derivatives and normals
 
   /*!
    * \brief Evaluates a Bezier curve at a particular parameter value \a t
@@ -743,6 +801,11 @@ public:
     }
   }
 
+  ///@}
+
+  ///@{
+  /// \name Functions dealing with curve subdivision
+
   /*!
    * \brief Splits a Bezier curve into two Bezier curves at a given parameter value
    *
@@ -811,56 +874,7 @@ public:
     return;
   }
 
-  /*!
-   * \brief Predicate to check if the Bezier curve is approximately linear
-   *
-   * This function checks if the internal control points of the BezierCurve
-   * are approximately on the line defined by its two endpoints
-   *
-   * \param [in] tol Threshold for sum of squared distances
-   * \param [in] useStrictLinear If true, checks that the control points are
-   *   evenly spaced along the line
-   * \return True if curve is near-linear
-   */
-  bool isLinear(double tol = 1e-8, bool useStrictLinear = false) const
-  {
-    const int ord = getOrder();
-    if(ord <= 1)
-    {
-      return true;
-    }
-
-    if(useStrictLinear)
-    {
-      // Check that the control points are not too far away from the line,
-      //  AND that they are evenly spaced along the line
-      for(int p = 1; p < ord; ++p)
-      {
-        double t = p / static_cast<T>(ord);
-        PointType the_pt = PointType::lerp(m_controlPoints[0], m_controlPoints[ord], t);
-
-        if(squared_distance(m_controlPoints[p], the_pt) > tol)
-        {
-          return false;
-        }
-      }
-    }
-    else
-    {
-      // Check that the control points are not too far away from the line between control points
-      SegmentType seg(m_controlPoints[0], m_controlPoints[ord]);
-
-      for(int p = 1; p < ord; ++p)  // check interior control points
-      {
-        if(squared_distance(m_controlPoints[p], seg) > tol)
-        {
-          return false;
-        }
-      }
-    }
-
-    return true;
-  }
+  ///@}
 
   /*!
    * \brief Simple formatted print of a Bezier Curve instance
@@ -889,6 +903,17 @@ public:
     os << "}";
 
     return os;
+  }
+
+  /// Checks equality of two Bezier Curve
+  friend inline bool operator==(const BezierCurve<T, NDIMS>& lhs, const BezierCurve<T, NDIMS>& rhs)
+  {
+    return (lhs.m_controlPoints == rhs.m_controlPoints) && (lhs.m_weights == rhs.m_weights);
+  }
+
+  friend inline bool operator!=(const BezierCurve<T, NDIMS>& lhs, const BezierCurve<T, NDIMS>& rhs)
+  {
+    return !(lhs == rhs);
   }
 
 private:

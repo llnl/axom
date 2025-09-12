@@ -227,7 +227,7 @@ struct GroupBucket
     }
   }
 
-  void clearBucket(int index) { metadata.buckets[index] = Empty; }
+  AXOM_HOST_DEVICE void clearBucket(int index) { metadata.buckets[index] = Empty; }
 
   template <bool Atomic = false>
   AXOM_HOST_DEVICE void setOverflow(std::uint8_t hash)

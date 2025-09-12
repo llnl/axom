@@ -176,12 +176,12 @@ protected:
       // Gather the inputs into a single root but replace the fields with
       // a new node to which we can add additional fields.
       conduit::Node n_root;
-      n_root[n_coordset.path()].set_external(n_coordset);
-      n_root[n_topo.path()].set_external(n_topo);
-      n_root[n_matset.path()].set_external(n_matset);
-      conduit::Node &n_root_coordset = n_root[n_coordset.path()];
-      conduit::Node &n_root_topo = n_root[n_topo.path()];
-      conduit::Node &n_root_matset = n_root[n_matset.path()];
+      n_root[localPath(n_coordset)].set_external(n_coordset);
+      n_root[localPath(n_topo)].set_external(n_topo);
+      n_root[localPath(n_matset)].set_external(n_matset);
+      conduit::Node &n_root_coordset = n_root[localPath(n_coordset)];
+      conduit::Node &n_root_topo = n_root[localPath(n_topo)];
+      conduit::Node &n_root_matset = n_root[localPath(n_matset)];
       conduit::Node n_root_fields = n_root["fields"];
 
       // Make the clean mesh.
@@ -208,10 +208,10 @@ protected:
 
       // Gather the MIR output into a single node.
       conduit::Node n_mirOutput;
-      n_mirOutput[n_newTopo.path()].set_external(n_newTopo);
-      n_mirOutput[n_newCoordset.path()].set_external(n_newCoordset);
-      n_mirOutput[n_newFields.path()].set_external(n_newFields);
-      n_mirOutput[n_newMatset.path()].set_external(n_newMatset);
+      n_mirOutput[localPath(n_newTopo)].set_external(n_newTopo);
+      n_mirOutput[localPath(n_newCoordset)].set_external(n_newCoordset);
+      n_mirOutput[localPath(n_newFields)].set_external(n_newFields);
+      n_mirOutput[localPath(n_newMatset)].set_external(n_newMatset);
 #if defined(AXOM_ELVIRA_DEBUG)
       saveMesh(n_mirOutput, "debug_elvira_mir");
       SLIC_DEBUG("--- clean ---");
@@ -232,10 +232,10 @@ protected:
 #endif
 
       // Move the merged output into the output variables.
-      n_newCoordset.move(n_merged[n_newCoordset.path()]);
-      n_newTopo.move(n_merged[n_newTopo.path()]);
-      n_newFields.move(n_merged[n_newFields.path()]);
-      n_newMatset.move(n_merged[n_newMatset.path()]);
+      n_newCoordset.move(n_merged[localPath(n_newCoordset)]);
+      n_newTopo.move(n_merged[localPath(n_newTopo)]);
+      n_newFields.move(n_merged[localPath(n_newFields)]);
+      n_newMatset.move(n_merged[localPath(n_newMatset)]);
     }
     else if(cleanZones.size() == 0 && mixedZones.size() > 0)
     {
@@ -336,6 +336,7 @@ protected:
     axom::for_all<ExecSpace>(
       nvalues,
       AXOM_LAMBDA(axom::IndexType index) { view[index] = selectedZonesView[index]; });
+    reportErrors(__LINE__);
   }
 
   /*!
@@ -527,6 +528,7 @@ protected:
         // The number of times we cut a zone is the number of materials in the zone minus one.
         reduce_maxcuts.max(nmats - 1);
       });
+    reportErrors(__LINE__);
     const auto numFragments = num_reduce.get();
     const auto maxCuts = reduce_maxcuts.get();
     SLIC_ASSERT(numFragments > 0);
@@ -697,6 +699,7 @@ protected:
           zcStencilView[coordIndex] = zview.empty() ? 1. : zview[neighborIndex];
         }
       });
+    reportErrors(__LINE__);
     // We're done with the zone centers.
     n_zcfield.reset();
     AXOM_ANNOTATE_END("stencil");
@@ -772,6 +775,7 @@ protected:
 #endif
         }
       });
+    reportErrors(__LINE__);
     AXOM_ANNOTATE_END("vectors");
 
     //--------------------------------------------------------------------------
@@ -823,10 +827,10 @@ protected:
     {
       AXOM_ANNOTATE_SCOPE("verify");
       conduit::Node n_mesh;
-      n_mesh[n_newCoordset.path()].set_external(n_newCoordset);
-      n_mesh[n_newTopo.path()].set_external(n_newTopo);
-      n_mesh[n_newFields.path()].set_external(n_newFields);
-      n_mesh[n_newMatset.path()].set_external(n_newMatset);
+      n_mesh[localPath(n_newCoordset)].set_external(n_newCoordset);
+      n_mesh[localPath(n_newTopo)].set_external(n_newTopo);
+      n_mesh[localPath(n_newFields)].set_external(n_newFields);
+      n_mesh[localPath(n_newMatset)].set_external(n_newMatset);
 
       // Verify the MIR output.
       conduit::Node info;
@@ -995,6 +999,22 @@ protected:
         }
         buildView.addShape(zoneIndex, fragmentIndex, remaining, matId, pt, -planeOffset, lastNormal);
       });
+      reportErrors(__LINE__);
+  }
+
+  void reportErrors(int srcLine) const
+  {
+#if defined(AXOM_USE_HIP)
+    // TODO: Replace direct HIP calls with upcoming Camp+RAJA error reporting.
+    if constexpr(axom::execution_space<ExecSpace>::onDevice())
+    {
+      hipError_t err = hipGetLastError();
+      if (err != hipSuccess)
+      {
+        SLIC_ERROR(axom::fmt::format("ElviraAlgorithm.hpp:{}: HIP error: {}", srcLine, hipGetErrorString(err)));
+      }
+    }
+#endif
   }
 
 private:

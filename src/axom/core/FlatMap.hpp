@@ -428,13 +428,41 @@ public:
   /*!
    * \brief Inserts a range of key-value pairs into the FlatMap.
    *
-   *  If the key already exists in the FlatMap, insertion is skipped.
-   *  Otherwise, the key-value mapping is inserted into the FlatMap.
+   *  If a key in the range already exists, assigns the value to the existing
+   *  key in the FlatMap. Otherwise, a new key-value pair is inserted into the
+   *  FlatMap.
    *
    * \param [in] first the beginning of the range of pairs
    * \param [in] last the end of the range of pairs
+   *
+   * \note If duplicate keys are present in the range, the key which appears
+   *  later in the range is updated or inserted. This is equivalent to a
+   *  sequential for-loop of insertions over the input range.
    */
   template <typename InputIt>
+  void insert(InputIt first, InputIt last);
+
+  /*!
+   * \brief Inserts a range of key-value pairs into the FlatMap.
+   *
+   *  If a key in the range already exists, assigns the value to the existing
+   *  key in the FlatMap. Otherwise, a new key-value pair is inserted into the
+   *  FlatMap.
+   *
+   * \param [in] first the beginning of the range of pairs
+   * \param [in] last the end of the range of pairs
+   *
+   * \tparam ExecSpace the execution space in which to perform the batched
+   *                   construction
+   *
+   * \pre InputIt is a random-access iterator
+   * \pre allocator is accessible from ExecSpace
+   *
+   * \note If duplicate keys are present in the range, the key which appears
+   *  later in the range is updated or inserted. This is equivalent to a
+   *  sequential for-loop of insertions over the input range.
+   */
+  template <typename ExecSpace, typename InputIt>
   void insert(InputIt first, InputIt last);
 
   /*!
@@ -587,6 +615,35 @@ public:
     }
     else
     {
+      if constexpr(std::is_trivially_copyable_v<KeyValuePair>)
+      {
+#if defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_GPU)
+        MemorySpace space = detail::getAllocatorSpace(m_allocator.getID());
+        if(space == MemorySpace::Device || space == MemorySpace::Unified)
+        {
+  #if !defined(AXOM_GPUCC)
+          // Similar to the issue in ArrayBase (PR #1582), using FlatMap from
+          // a GPU-enabled Axom library but with a host-only compiler results
+          // in an ODR violation.
+
+          // HACK: this looks ugly, but is the best we can do pending a DR:
+          // https://stackoverflow.com/questions/44059557/whats-the-right-way-to-call-static-assertfalse
+          // https://cplusplus.github.io/CWG/issues/2518.html
+          static_assert(std::is_pod_v<KeyType> && !std::is_pod_v<KeyType>,
+                        "Cannot instantiate device-aware FlatMap operations when file is compiled "
+                        "with a host-only compiler. Axom was built with GPU support, so you should "
+                        "build all source files using FlatMap with a CUDA/HIP compiler.");
+          using ExecSpace = axom::SEQ_EXEC;
+  #elif defined(AXOM_USE_CUDA)
+          using ExecSpace = axom::CUDA_EXEC<256>;
+  #elif defined(AXOM_USE_HIP)
+          using ExecSpace = axom::HIP_EXEC<256>;
+  #endif
+          this->parallelRehash<ExecSpace>(count);
+          return;
+        }
+#endif
+      }
       FlatMap rehashed(m_size,
                        std::make_move_iterator(begin()),
                        std::make_move_iterator(end()),
@@ -602,7 +659,13 @@ public:
    *
    * \param count the number of elements to fit without a rehash
    */
-  void reserve(IndexType count) { rehash(count); }
+  void reserve(IndexType count)
+  {
+    if(count >= max_load_factor() * bucket_count())
+    {
+      rehash(count);
+    }
+  }
 
   /*!
    * \brief Returns a read-only view of the FlatMap.
@@ -649,6 +712,9 @@ private:
   template <typename... Args>
   void emplaceImpl(const std::pair<iterator, bool>& pos, bool assign_on_existence, Args&&... args);
 
+  template <typename ExecSpace>
+  void parallelRehash(IndexType count);
+
   constexpr static IndexType MIN_NUM_BUCKETS {29};
 
   Allocator m_allocator;
@@ -689,8 +755,11 @@ public:
   using reference = DataType&;
 
 public:
+  IteratorImpl() = default;
+
   IteratorImpl(MapConstType* map, IndexType internalIdx) : m_map(map), m_internalIdx(internalIdx)
   {
+    assert(m_map != nullptr);
     assert(m_internalIdx >= 0 && m_internalIdx <= m_map->bucket_count());
   }
 
@@ -702,13 +771,10 @@ public:
 
   friend bool operator==(const IteratorImpl& lhs, const IteratorImpl& rhs)
   {
-    return lhs.m_internalIdx == rhs.m_internalIdx;
+    return (lhs.m_map == rhs.m_map && lhs.m_internalIdx == rhs.m_internalIdx);
   }
 
-  friend bool operator!=(const IteratorImpl& lhs, const IteratorImpl& rhs)
-  {
-    return lhs.m_internalIdx != rhs.m_internalIdx;
-  }
+  friend bool operator!=(const IteratorImpl& lhs, const IteratorImpl& rhs) { return !(lhs == rhs); }
 
   IteratorImpl& operator++()
   {
@@ -728,8 +794,8 @@ public:
   pointer operator->() const { return &(m_map->m_buckets[m_internalIdx].get()); }
 
 private:
-  MapConstType* m_map;
-  IndexType m_internalIdx;
+  MapConstType* m_map {nullptr};
+  IndexType m_internalIdx {0};
 };
 
 template <typename KeyType, typename ValueType, typename Hash>
@@ -879,6 +945,7 @@ auto FlatMap<KeyType, ValueType, Hash>::erase(const_iterator pos) -> iterator
   {
     m_loadCount--;
   }
+  m_size--;
   return ++iterator(this, pos.m_internalIdx);
 }
 

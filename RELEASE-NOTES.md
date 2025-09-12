@@ -41,8 +41,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - 2D and 3D implementations for `axom::for_all` were added.
 - Adds `axom::FlatMapView`, a helper class associated with `axom::FlatMap` to support queries from
   within a GPU kernel.
-- Adds an `axom::FlatMap::create()` method to support constructing a hash map over a batch of keys
-  and values on the GPU or with OpenMP.
+- Adds `axom::FlatMap::create<ExecSpace>()` and `axom::FlatMap::insert<ExecSpace>()` to support
+  constructing or inserting a hash map over a batch of keys and values on the GPU or with OpenMP.
 - Adds support for custom allocators to `axom::FlatMap`.
 - Primal: Adds ability to perform sample-based shaping on tetrahedral shapes.
 - Improves efficiency of volume fraction computation from quadrature samples during sample-based shaping.
@@ -55,6 +55,13 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: We now support optional specification of a per-shape `dimensions` field for the 
   geometry of a shape. These can be used to override the global `dimensions` 
   of a Klee input file.
+- Sina: Records can now be provided with a curve ordering to use when writing to file. By default, all records will now use
+  oldest-first ordering (ULTRA-like)
+- Sina: Documents can optionally be written as HDF5 instead of JSON. HDF5 should provide better performance for large, curve-rich sets
+- Sina: Written documents can now be appended to. This is a flexible system with a few different uses, ex: continuous writing of timeseries, overwriting values that change over the course of a simulation, and snapshot handling. See documentation for details.
+- Adds `quest::MFEMReader` for reading 1D MFEM contours in 2D space.
+- Adds an option to `quest::SamplingShaper` to allow in/out tests based on winding numbers for MFEM contours.
+- The `shaping_driver` example program can select `--sampling inout` to do the default In/Out sampling and `--sampling windingnumber` to select winding number in/out tests for MFEM data.
 
 ###  Changed
 - Axom now requires `C++17` and will default to that if not specified via `BLT_CXX_STD`.
@@ -75,6 +82,9 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: Moves source files related to IO into a new `io` subdirectory in the Klee component
 - Primal: Consolidates construction logic for `BezierCurve`, `BezierPatch`, `KnotVector`,
   `NURBSCurve` and `NURBSPatch` classes and add overloads from `axom::ArrayView`
+- Core: Updates behavior of `FlatMap::reserve()` to only trigger a rehash if maximum load factor
+  would be exceeded.
+- Quest: Moves curve linearization from the `quest::C2CReader` into `quest::LinearizeCurves` so the logic can be used with other curve data.
 
 ###  Fixed
 - Core: prevent incorrect instantiations of `axom::Array` from a host-only compile, when Axom is compiled
@@ -86,6 +96,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Spin: Fixes undefined behavior in UniformGrid construction associated with invalid geometry bounding boxes
 - Core: Fixes undefined behavior in MapCollection when searching empty collections
 - Core: Fixes some edge cases in the `joinPath` file utility
+- Core: Fixes `FlatMap::erase()` to update reported size.
+- Core: Fixes `FlatMap::rehash()` when allocated in device-only memory.
 
 ###  Deprecated
 - Primal: Deprecates `Triangle::checkInTriangle(pt)`. Use `Triangle::contains(pt)` instead.
