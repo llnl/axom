@@ -1,4 +1,4 @@
-# Setting up a 2D Cartesian Mesh with Axom Sidre
+# Setting up a 2D Cartesian mesh with Axom Sidre
 
 ## Introduction
 
@@ -16,7 +16,7 @@ Mesh metadata defines key properties that describe the geometry and discretizati
 
 In this tutorial, we will demonstrate how to represent these metadata elements using Sidre data structures.
 
-## Sidre Basics
+## Sidre basics
 <div style="text-align: center;">
 
 ```mermaid
@@ -68,7 +68,7 @@ graph LR
 
 Sidre, a core component of Axom, was designed for efficiently storing and organizing simulation data in memory using hierarchical structures. It manages a tree-like organization through a central `DataStore`, which contains a hierarchy of directories (`Group`) and files (`View`).
 
-### Key Concepts in Sidre
+### Key concepts in Sidre
 
 **DataStore**
 : The top-level container that owns the entire hierarchical data structure. All groups and views ultimately belong to a DataStore instance.
@@ -92,7 +92,7 @@ In the following sections, we will create groups and views within a Sidre DataSt
 > :information_source: **Note:** Sidre has a hard dependency on [Conduit](https://github.com/LLNL/conduit) for its core data structures and a soft dependency on [HDF5](https://www.hdfgroup.org/solutions/hdf5/) for optional serialization capabilities.
 
 
-## Defining Mesh Metadata with Sidre
+## Defining mesh metadata with Sidre
 
 Now, let's set up the Sidre groups and views to store the mesh metadata for a 2D Cartesian mesh. 
 
@@ -135,7 +135,7 @@ void setup_mesh_metadata(axom::sidre::DataStore& datastore, const Input& input)
 }
 ```
 
-The sidre hierarchy can be visualized as:
+The Sidre hierarchy can be visualized as:
 
 <figure style="text-align: center;">
   <img src="hierarchy_diagram.svg" alt="Sidre Group and View Hierarchy" style="display: inline-block;" />
@@ -287,7 +287,7 @@ conduit::Node create_mesh_blueprint(axom::sidre::Group* meshGroup)
 ```
 </details>
 
-## Summary and Next Steps
+## Summary and next steps
 
 In this lesson, we learned how to use Axom's Sidre component to set up metadata for a 2D Cartesian mesh. 
 

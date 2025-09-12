@@ -1,4 +1,4 @@
-# Lesson 02: Input Validation with Inlet
+# Lesson 02: Input validation with Inlet
 
 This lesson demonstrates how to use Axom's Inlet library to define, parse, and validate structured mesh metadata from configuration files. We'll show how to create robust input parsing with validation rules.
 
@@ -27,7 +27,7 @@ mesh:
     y: 25
 ```
 
-## Inlet: Structured Input Processing
+## Inlet: Structured input processing
 
 <div style="text-align: center;">
 
@@ -86,7 +86,7 @@ Inlet provides a powerful way to define input schemas with validation:
 - Clear error reporting for invalid inputs
 - Simplified documentation for your input
 
-### Key Components of Inlet
+### Key components of Inlet
 
 Inlet offers a powerful abstraction for input processing with the following key components:
 
@@ -107,7 +107,7 @@ Inlet offers a powerful abstraction for input processing with the following key 
 
 
 
-## Schema Definition for Mesh Metadata
+## Schema definition for mesh metadata
 
 Here is a basic schema definition for our mesh metadata example:
 
@@ -186,7 +186,7 @@ Verifier callbacks return a `bool` indicating if all test pass.
 In this example, we're also logging a warning message to give more context about the problem.
 
 
-### Initialization with FromInlet
+### Initialization with `FromInlet`
 
 The `FromInlet` template maps Container data directly to C++ structs.
 
@@ -257,7 +257,7 @@ This approach cleanly separates input definition, validation, and consumption, m
 > :clapper: We can try running this example code in the [validated_inlet_metadata](https://github.com/LLNL/axom/tree/develop/examples/validated_inlet_metadata) example provided in Axom's GitHub repository to see different runs with valud and invalid YAML inputs.
 
 
-## Enhanced Features Example
+## Enhanced features example
 
 The `improved_inlet_metadata.cpp` extends the basic example with:
 
@@ -404,7 +404,7 @@ mesh = {
 > :clapper: We can try running this example code in the [improved_inlet_metadata](https://github.com/LLNL/axom/tree/develop/examples/improved_inlet_metadata) example provided in Axom's GitHub repository to see how it handles both 2D and 3D configurations in different input formats (YAML and Lua), and demonstrates dimension-specific validation.
 
 
-## Building and Running
+## Building and running
 
 Build the examples using your build system, then run with a YAML input file:
 
@@ -415,3 +415,9 @@ Build the examples using your build system, then run with a YAML input file:
 # Enhanced example with dimension support
 ./improved_inlet_metadata input.yaml
 ```
+
+## Summary and next steps
+
+In this lesson, we introduced Axom's Inlet component as a way of defining and validating structured input for simulations. And demonstrated how we can use this to read in mesh metadata for our Cartesian meshes. We also extended the example to work with 2D or 3D input in different format (YAML or Lua).
+
+In the next lesson, we will introduce Axom's Klee component which is built on top of Inlet and allows users to specify geometric input for multimaterial simulations.
