@@ -472,6 +472,7 @@ std::vector<std::string> baselinePaths()
 bool compareBaseline(const std::vector<std::string> &baselinePaths,
                      const std::string &baselineName,
                      const conduit::Node &current,
+                     conduit::Node &info,
                      double tolerance = 1.5e-6)
 {
   bool success = false;
@@ -481,7 +482,7 @@ bool compareBaseline(const std::vector<std::string> &baselinePaths,
     try
     {
       // Load the baseline file.
-      conduit::Node info, baselineNode;
+      conduit::Node baselineNode;
       std::string filename(pjoin(path, baselineName));
       if(loadBaseline(filename, baselineNode))
       {
@@ -491,8 +492,6 @@ bool compareBaseline(const std::vector<std::string> &baselinePaths,
         count++;
         if(!success)
         {
-          info.print();
-
           std::string errFile(filename + "_err");
 #if defined(AXOM_USE_HDF5)
           conduit::relay::io::blueprint::save_mesh(current, errFile, "hdf5");
@@ -559,6 +558,7 @@ public:
     , m_annotationMode("none")
     , m_handler(false)
     , m_visualize(false)
+    , m_verbose(true)
     , m_rebaseline_raw()
     , m_rebaseline()
   {
@@ -670,10 +670,18 @@ public:
     }
     else
     {
-      retval = compareBaseline(paths, baselineName, currentMesh, tolerance);
+      conduit::Node info;
+      retval = compareBaseline(paths, baselineName, currentMesh, info, tolerance);
+      if(!retval && m_verbose)
+      {
+        info.print();
+      }
     }
     return retval;
   }
+
+  void setVerbose(bool value) { m_verbose = value; }
+  bool getVerbose() const { return m_verbose; }
 
 protected:
   /*!
@@ -737,6 +745,7 @@ protected:
   std::string m_annotationMode;
   bool m_handler;
   bool m_visualize;
+  bool m_verbose;
   std::string m_rebaseline_raw;
   std::vector<std::string> m_rebaseline;
 };
