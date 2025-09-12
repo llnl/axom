@@ -709,10 +709,10 @@ TEST(primal_integral, nurbspatch_sphere)
 
   SLIC_INFO("Evaluating GWN for inner points");
   auto inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
-  
+
   SLIC_INFO("Evaluating GWN for outer points");
   auto outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
-  
+
   SLIC_INFO("Evaluating GWN for coincident points");
   auto coincident_gwn =
     winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
