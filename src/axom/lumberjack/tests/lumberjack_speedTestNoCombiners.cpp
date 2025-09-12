@@ -17,6 +17,7 @@ public:
     m_ranksLimit = ranksLimit;
     m_isOutputNode = true;
     srand(time(nullptr));
+    m_startTime = 0.0;
   }
 
   void finalize() { }
@@ -37,10 +38,13 @@ public:
 
   void outputNode(bool value) { m_isOutputNode = value; }
 
+  double startTime() { return m_startTime; }
+
 private:
   MPI_Comm m_mpiComm;
   int m_ranksLimit;
   bool m_isOutputNode;
+  double m_startTime;
 };
 
 //------------------------------------------------------------------------------
@@ -53,11 +57,11 @@ int main()
   lumberjack.initialize(&communicator, ranksLimit);
 
   // Remove default combiner (no combiners now)
-  lumberjack.removeCombiner("TextTagCombiner");
+  lumberjack.removeCombiner("TextTagCreationTimeCombiner");
 
   for(int i = 0; i < 100000; i++)
   {
-    lumberjack.queueMessage("Should not be combined.");
+    lumberjack.queueMessage("Should not be combined.", static_cast<double>(i));
   }
 
   std::clock_t begin = clock();

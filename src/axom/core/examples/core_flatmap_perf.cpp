@@ -87,6 +87,7 @@ void test_flatmap_init_and_query(axom::IndexType num_elems, axom::IndexType rep_
 
   axom::utilities::Timer initTimer(false);
   axom::utilities::Timer findTimer(false);
+  axom::utilities::Timer rehashTimer(false);
   std::random_device rnd_dev {};
   for(int i = 0; i < rep_count; i++)
   {
@@ -130,12 +131,20 @@ void test_flatmap_init_and_query(axom::IndexType num_elems, axom::IndexType rep_
         }
       });
     findTimer.stop();
+
+    rehashTimer.start();
+    new_map.rehash(num_elems);
+    rehashTimer.stop();
   }
 
   axom::fmt::print(" - Average construction time: {:.8f} seconds\n",
                    initTimer.elapsedTimeInSec() / rep_count);
   axom::fmt::print(" - Average construction throughput: {:.3f} keys/s\n",
                    (num_elems * rep_count) / initTimer.elapsedTimeInSec());
+  axom::fmt::print(" - Average rehash time: {:.8f} seconds\n",
+                   rehashTimer.elapsedTimeInSec() / rep_count);
+  axom::fmt::print(" - Average rehash throughput: {:.3f} keys/s\n",
+                   (num_elems * rep_count) / rehashTimer.elapsedTimeInSec());
   axom::fmt::print(" - Average query time: {:.8f} seconds\n",
                    findTimer.elapsedTimeInSec() / rep_count);
   axom::fmt::print(" - Average query throughput: {:.3f} keys/s\n",
