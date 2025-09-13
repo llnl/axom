@@ -551,80 +551,42 @@ double nurbs_winding_number_component(const Point<T, 2>& q,
                                       double edge_tol = 1e-8,
                                       double EPS = 1e-8)
 {
-  const BezierCurve<T, 2>& the_bezier =
-    nurbs.getSubdivision(bezier_idx, refinement_level, refinement_index);
+  auto& bezier_data = nurbs.getSubdivisionData(bezier_idx, refinement_level, refinement_index);
+  auto& bezier_curve = bezier_data.curve;
 
-  if(!the_bezier.boundingBox().contains(q))
+  if(!bezier_curve.boundingBox().expand(edge_tol).contains(q) || bezier_curve.isLinear(EPS))
   {
     return detail::linear_winding_number(q,
-                                         the_bezier[0],
-                                         the_bezier[the_bezier.getOrder()],
+                                         bezier_curve[0],
+                                         bezier_curve[bezier_curve.getOrder()],
                                          isOnEdge,
                                          edge_tol);
   }
-  else
-  {
-    return detail::nurbs_winding_number_component(q,
-                                                  nurbs,
-                                                  bezier_idx,
-                                                  refinement_level + 1,
-                                                  2 * refinement_index,
-                                                  isOnEdge,
-                                                  edge_tol,
-                                                  EPS) +
-      detail::nurbs_winding_number_component(q,
-                                             nurbs,
-                                             bezier_idx,
-                                             refinement_level + 1,
-                                             2 * refinement_index + 1,
-                                             isOnEdge,
-                                             edge_tol,
-                                             EPS);
-  }
-}
 
-template <typename T>
-void nurbs_make_approxogon(Polygon<T, 2>& approxogon,
-                           const Point<T, 2>& q,
-                           const NURBSCurveGWNCache<T>& nurbs_cache,
-                           int bezier_idx,
-                           int refinement_level,
-                           int refinement_index,
-                           bool& isOnEdge,
-                           double edge_tol = 1e-8,
-                           double EPS = 1e-8)
-{
-  const BezierCurve<T, 2>& the_bezier =
-    nurbs_cache.getSubdivision(bezier_idx, refinement_level, refinement_index);
+  if(bezier_data.isConvexControlPolygon &&
+     (squared_distance(q, bezier_curve[0]) <= edge_tol * edge_tol ||
+      squared_distance(q, bezier_curve[bezier_curve.getOrder()]) <= edge_tol * edge_tol))
+  {
+    isOnEdge = true;
+    return convex_endpoint_winding_number(q, bezier_curve, edge_tol, EPS);
+  }
 
-  if(!the_bezier.boundingBox().contains(q))
-  {
-    return;
-  }
-  else
-  {
-    detail::nurbs_make_approxogon(approxogon,
-                                  q,
-                                  nurbs_cache,
-                                  bezier_idx,
-                                  refinement_level + 1,
-                                  2 * refinement_index,
-                                  isOnEdge,
-                                  edge_tol,
-                                  EPS);
-    approxogon.addVertex(
-      nurbs_cache.getSubdivisionMidpoint(bezier_idx, refinement_level, refinement_index));
-    detail::nurbs_make_approxogon(approxogon,
-                                  q,
-                                  nurbs_cache,
-                                  bezier_idx,
-                                  refinement_level + 1,
-                                  2 * refinement_index + 1,
-                                  isOnEdge,
-                                  edge_tol,
-                                  EPS);
-    return;
-  }
+  return detail::nurbs_winding_number_component(q,
+                                                nurbs,
+                                                bezier_idx,
+                                                refinement_level + 1,
+                                                2 * refinement_index,
+                                                isOnEdge,
+                                                edge_tol,
+                                                EPS) +
+    detail::nurbs_winding_number_component(q,
+                                           nurbs,
+                                           bezier_idx,
+                                           refinement_level + 1,
+                                           2 * refinement_index + 1,
+                                           isOnEdge,
+                                           edge_tol,
+                                           EPS);
 }
 
 }  // end namespace detail

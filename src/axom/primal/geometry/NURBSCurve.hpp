@@ -41,6 +41,24 @@ template <typename T, int NDIMS>
 class NURBSCurve;
 
 /*!
+ * \struct SubdivisionData
+ *
+ * \brief Stores BezierCurves and relevant data/flags
+ */
+template <typename T>
+struct SubdivisionData
+{
+  SubdivisionData() = default;
+
+  SubdivisionData(const BezierCurve<T, 2>& curve, bool isConvexControlPolygon)
+    : curve(curve)
+    , isConvexControlPolygon(isConvexControlPolygon) { };
+
+  BezierCurve<T, 2> curve;
+  bool isConvexControlPolygon;
+};
+
+/*!
  * \class NURBSCurveGWNCache
  *
  * \brief Represents a NURBS curve and associated data for GWN evaluation
@@ -57,62 +75,103 @@ public:
   NURBSCurveGWNCache() = default;
 
   /// \brief Initialize the cache with the data for the original curve
-  NURBSCurveGWNCache(const NURBSCurve<T, 2>& a_curve) : curve(a_curve)
+  NURBSCurveGWNCache(const NURBSCurve<T, 2>& a_curve)
+    : m_numControlPoints(a_curve.getNumControlPoints())
+    , m_degree(a_curve.getDegree())
+    , m_boundingBox(a_curve.boundingBox())
   {
-    auto num_spans = a_curve.getNumKnotSpans();
+    m_numSpans = a_curve.getNumKnotSpans();
 
-    bezier_subdivision_maps.resize(num_spans);
+    m_bezierSubdivisionMaps.resize(m_numSpans);
     auto beziers = a_curve.extractBezier();
 
-    for(int idx = 0; idx < num_spans; ++idx)
+    for(int idx = 0; idx < m_numSpans; ++idx)
     {
-      bezier_subdivision_maps[idx][std::make_pair(0, 0)] = beziers[idx];
+      m_bezierSubdivisionMaps[idx][std::make_pair(0, 0)] =
+        SubdivisionData<T>(beziers[idx], is_convex(Polygon<T, 2>(beziers[idx].getControlPoints())));
+    }
+
+    m_initPoint = a_curve[0];
+    m_endPoint = a_curve[m_numControlPoints - 1];
+  }
+
+  /// \brief Initialize the cache with the data for a single Bezier curve
+  NURBSCurveGWNCache(const BezierCurve<T, 2>& a_curve)
+    : m_numControlPoints(a_curve.getOrder() + 1)
+    , m_degree(a_curve.getOrder())
+    , m_boundingBox(a_curve.boundingBox())
+  {
+    if(a_curve.getOrder() <= 0)
+    {
+      m_numSpans = 0;
+      m_bezierSubdivisionMaps.clear();
+
+      m_initPoint = m_endPoint = Point<T, 2> {0.0, 0.0};
+    }
+    else
+    {
+      m_numSpans = 1;
+      m_bezierSubdivisionMaps.resize(1);
+
+      m_initPoint = a_curve[0];
+      m_endPoint = a_curve[m_degree];
+
+      m_bezierSubdivisionMaps[0][std::make_pair(0, 0)] =
+        SubdivisionData<T>(a_curve, is_convex(Polygon<T, 2>(a_curve.getControlPoints())));
     }
   }
 
   /// \brief Query the map. If curve is not found, add it and it's pair from subdivision
-  const BezierCurve<T, 2>& getSubdivision(int idx, int refinementLevel, int refinementIndex) const
+  const SubdivisionData<T>& getSubdivisionData(int idx, int refinementLevel, int refinementIndex) const
   {
     auto hash_key = std::make_pair(refinementLevel, refinementIndex);
 
-    if(bezier_subdivision_maps[idx].find(hash_key) == bezier_subdivision_maps[idx].end())
+    if(m_bezierSubdivisionMaps[idx].find(hash_key) == m_bezierSubdivisionMaps[idx].end())
     {
-      const BezierCurve<T, 2>& supercurve_data =
-        bezier_subdivision_maps[idx][std::make_pair(refinementLevel - 1, refinementIndex / 2)];
+      const SubdivisionData<T>& supercurve_data =
+        m_bezierSubdivisionMaps[idx][std::make_pair(refinementLevel - 1, refinementIndex / 2)];
 
-      BezierCurve<T, 2> sub1, sub2;
-      supercurve_data.split(0.5, sub1, sub2);
+      SubdivisionData<T> sub1, sub2;
+      supercurve_data.curve.split(0.5, sub1.curve, sub2.curve);
+
+      if(supercurve_data.isConvexControlPolygon == true)
+      {
+        sub1.isConvexControlPolygon = sub2.isConvexControlPolygon = true;
+      }
+      else
+      {
+        sub1.isConvexControlPolygon = is_convex(Polygon<T, 2>(sub1.curve.getControlPoints()));
+        sub2.isConvexControlPolygon = is_convex(Polygon<T, 2>(sub2.curve.getControlPoints()));
+      }
 
       // Technically refinementIndex / 2 * 2 does the same thing in fewer characters, but is slightly less readable
       // (so does refinementIndex >> 1 << 1, but even funnier)
-      bezier_subdivision_maps[idx][std::make_pair(refinementLevel,
+      m_bezierSubdivisionMaps[idx][std::make_pair(refinementLevel,
                                                   refinementIndex + refinementIndex % 2)] = sub1;
-      bezier_subdivision_maps[idx][std::make_pair(refinementLevel,
+      m_bezierSubdivisionMaps[idx][std::make_pair(refinementLevel,
                                                   refinementIndex + refinementIndex % 2 + 1)] = sub2;
     }
 
-    return bezier_subdivision_maps[idx][hash_key];
+    return m_bezierSubdivisionMaps[idx][hash_key];
   }
 
-  Point<T, 2> getSubdivisionMidpoint(int idx, int refinementLevel, int refinementIndex) const
-  {
-    return getSubdivision(idx, refinementLevel + 1, 2 * refinementIndex + 1)[0];
-  }
+  auto getNumKnotSpans() const { return m_numSpans; }
+  auto boundingBox() const { return m_boundingBox; }
+  auto getNumControlPoints() const { return m_numControlPoints; }
+  auto getDegree() const { return m_degree; }
 
-  auto getNumKnotSpans() const { return bezier_subdivision_maps.size(); }
-  auto boundingBox() const { return curve.boundingBox(); }
-  auto operator[](int idx) const { return curve[idx]; }
-  auto getNumControlPoints() const { return curve.getNumControlPoints(); }
-  auto getDegree() const { return curve.getDegree(); }
-  auto getBezierControlPoint(int bezier_idx, int ctrlpt_idx) const
-  {
-    return bezier_subdivision_maps[bezier_idx][std::make_pair(0, 0)][ctrlpt_idx];
-  }
+  auto getInitPoint() const { return m_initPoint; }
+  auto getEndPoint() const { return m_endPoint; }
 
 private:
-  NURBSCurve<T, 2> curve;
+  BoundingBox<T, 2> m_boundingBox;
+  int m_numControlPoints;
+  int m_degree;
+  int m_numSpans;
 
-  mutable axom::Array<std::map<std::pair<int, int>, BezierCurve<T, 2>>> bezier_subdivision_maps;
+  Point<T, 2> m_initPoint, m_endPoint;
+
+  mutable axom::Array<std::map<std::pair<int, int>, SubdivisionData<T>>> m_bezierSubdivisionMaps;
 };
 
 /*! \brief Overloaded output operator for NURBS Curves*/

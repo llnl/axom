@@ -377,12 +377,14 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
 /*
  * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch with precomputed data
  *
+ * \tparam NURBSType The memoized (NURBSPatchGWNCache) or un-memoized (NURBSPatch) surface type
  * \param [in] query The query point to test
  * \param [in] nPatch The NURBS patch object with precomputed data
  * \param [in] edge_tol The physical distance level at which objects are 
  *                      considered indistinguishable
  * \param [in] ls_tol The tolerance for the line-surface intersection routine
  * \param [in] quad_tol The maximum relative error allowed in the quadrature
+ * \param [in] disk_size The size of extracted disks as a percent of parameter bbox diagonal
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  * \param [in] depth The current recursive depth
  * 

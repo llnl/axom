@@ -42,7 +42,7 @@ template <typename T, int NDIMS>
 class NURBSPatch;
 
 /*!
- * \structTrimmingCurveQuadratureData
+ * \struct TrimmingCurveQuadratureData
  *
  * \brief Stores quadrature points and tangents for a trimming curve on a patch
  * for a Gaussian quadrature rule of a given number of nodes
@@ -136,33 +136,33 @@ struct NURBSPatchGWNCache
 {
   NURBSPatchGWNCache() = default;
 
-  NURBSPatchGWNCache(const NURBSPatch<T, 3>& a_patch) : patch(a_patch)
+  NURBSPatchGWNCache(const NURBSPatch<T, 3>& a_patch) : m_alteredPatch(a_patch)
   {
-    patch.normalizeBySpan();
+    m_alteredPatch.normalizeBySpan();
 
     // Calculate the average normal for the untrimmed patch
-    if(!patch.isTrimmed())
+    if(!m_alteredPatch.isTrimmed())
     {
-      average_normal = patch.calculateUntrimmedPatchNormal();
-      patch.makeTriviallyTrimmed();
+      m_averageNormal = m_alteredPatch.calculateUntrimmedPatchNormal();
+      m_alteredPatch.makeTriviallyTrimmed();
     }
     else
     {
-      average_normal = patch.calculateTrimmedPatchNormal();
+      m_averageNormal = m_alteredPatch.calculateTrimmedPatchNormal();
     }
 
-    pbox_diag = patch.getParameterSpaceDiagonal();
+    m_pboxDiag = m_alteredPatch.getParameterSpaceDiagonal();
 
     // Make a bounding box by doing bezier extraction, then splitting the resulting bezier patches in 4,
     //  and taking a union of those bounding boxes
-    axom::Array<T> knot_vals_u = patch.getKnots_u().getUniqueKnots();
-    axom::Array<T> knot_vals_v = patch.getKnots_v().getUniqueKnots();
+    axom::Array<T> knot_vals_u = m_alteredPatch.getKnots_u().getUniqueKnots();
+    axom::Array<T> knot_vals_v = m_alteredPatch.getKnots_v().getUniqueKnots();
 
     const auto num_knot_span_u = knot_vals_u.size() - 1;
     const auto num_knot_span_v = knot_vals_v.size() - 1;
 
     axom::Array<NURBSPatch<T, 3>, 2> split_patches(num_knot_span_u, num_knot_span_v);
-    split_patches(0, 0) = patch;
+    split_patches(0, 0) = m_alteredPatch;
     for(int i = 0; i < num_knot_span_u - 1; ++i)
     {
       split_patches(i, 0).split_u(knot_vals_u[i + 1], split_patches(i, 0), split_patches(i + 1, 0));
@@ -178,8 +178,8 @@ struct NURBSPatchGWNCache
 
     // Bounding boxes should be defined according to the *pre-expanded* surface,
     //  since the expanded portions are never visibile
-    obox = patch.orientedBoundingBox();
-    bbox.clear();
+    m_oBox = m_alteredPatch.orientedBoundingBox();
+    m_bBox.clear();
     for(int i = 0; i < num_knot_span_u; ++i)
     {
       for(int j = 0; j < num_knot_span_v; ++j)
@@ -207,38 +207,44 @@ struct NURBSPatchGWNCache
         BezierPatch<T, 3> p1, p2, p3, p4;
         the_patch.split(0.5, 0.5, p1, p2, p3, p4);
 
-        bbox.addBox(p1.boundingBox());
-        bbox.addBox(p2.boundingBox());
-        bbox.addBox(p3.boundingBox());
-        bbox.addBox(p4.boundingBox());
+        m_bBox.addBox(p1.boundingBox());
+        m_bBox.addBox(p2.boundingBox());
+        m_bBox.addBox(p3.boundingBox());
+        m_bBox.addBox(p4.boundingBox());
       }
     }
 
-    patch.expandParameterSpace(0.05, 0.05);
+    m_alteredPatch.expandParameterSpace(0.05, 0.05);
 
-    curve_quadrature_maps.resize(patch.getNumTrimmingCurves());
+    m_curveQuadratureMaps.resize(m_alteredPatch.getNumTrimmingCurves());
+  }
+
+  NURBSPatchGWNCache(const BezierPatch<T, 3> a_patch)
+  {
+    NURBSPatch<T, 3> nurbs_patch(a_patch);
+    NURBSPatchGWNCache(nurbs_patch);
   }
 
   // Mirror the functionality of NURBSPatch so signatures match in GWN evaluation.
   // Allowing only access ensures the memoized information is always accurate
-  auto getControlPoints() const { return patch.getControlPoints(); }
-  auto getNumControlPoints_u() const { return patch.getNumControlPoints_u(); }
-  auto getNumControlPoints_v() const { return patch.getNumControlPoints_v(); }
-  auto getWeights() const { return patch.getWeights(); }
-  auto getKnots_u() const { return patch.getKnots_u(); }
-  auto getKnots_v() const { return patch.getKnots_v(); }
-  auto getMinKnot_u() const { return patch.getMinKnot_u(); }
-  auto getMaxKnot_u() const { return patch.getMaxKnot_u(); }
-  auto getMinKnot_v() const { return patch.getMinKnot_v(); }
-  auto getMaxKnot_v() const { return patch.getMaxKnot_v(); }
-  auto getTrimmingCurves() const { return patch.getTrimmingCurves(); };
-  auto getNumTrimmingCurves() const { return patch.getNumTrimmingCurves(); }
-  auto getParameterSpaceDiagonal() const { return pbox_diag; }
+  auto getControlPoints() const { return m_alteredPatch.getControlPoints(); }
+  auto getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
+  auto getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
+  auto getWeights() const { return m_alteredPatch.getWeights(); }
+  auto getKnots_u() const { return m_alteredPatch.getKnots_u(); }
+  auto getKnots_v() const { return m_alteredPatch.getKnots_v(); }
+  auto getMinKnot_u() const { return m_alteredPatch.getMinKnot_u(); }
+  auto getMaxKnot_u() const { return m_alteredPatch.getMaxKnot_u(); }
+  auto getMinKnot_v() const { return m_alteredPatch.getMinKnot_v(); }
+  auto getMaxKnot_v() const { return m_alteredPatch.getMaxKnot_v(); }
+  auto getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
+  auto getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
+  auto getParameterSpaceDiagonal() const { return m_pboxDiag; }
 
   // Access precomputed data
-  auto getAverageNormal() const { return average_normal; }
-  auto boundingBox() const { return bbox; }
-  auto orientedBoundingBox() const { return obox; }
+  auto getAverageNormal() const { return m_average_normal; }
+  auto boundingBox() const { return m_bbox; }
+  auto orientedBoundingBox() const { return m_obox; }
 
   /// \brief Creates or accesses the quadrature nodes for a given trimming curve
   TrimmingCurveQuadratureData<T>& getTrimmingCurveQuadratureData(int curveIndex,
@@ -249,34 +255,32 @@ struct NURBSPatchGWNCache
     // Check to see if we have already computed the quadrature data for this curve
     auto hash_key = std::make_pair(refinementLevel, refinementIndex);
 
-    if(curve_quadrature_maps[curveIndex].find(hash_key) == curve_quadrature_maps[curveIndex].end())
+    if(m_curveQuadratureMaps[curveIndex].find(hash_key) == m_curveQuadratureMaps[curveIndex].end())
     {
-      curve_quadrature_maps[curveIndex][hash_key] =
+      m_curveQuadratureMaps[curveIndex][hash_key] =
         TrimmingCurveQuadratureData<T>(quadNPts,
-                                       patch.getTrimmingCurves()[curveIndex],
-                                       patch,
+                                       m_alteredPatch.getTrimmingCurves()[curveIndex],
+                                       m_alteredPatch,
                                        refinementLevel,
                                        refinementIndex);
     }
 
-    return curve_quadrature_maps[curveIndex][hash_key];
+    return m_curveQuadratureMaps[curveIndex][hash_key];
   }
 
 private:
   // The patch is private to present dirtying the cachce by changing the patch,
   //  and because the stored internal patch is altered from the original input
-  NURBSPatch<T, 3> patch;
+  NURBSPatch<T, 3> m_alteredPatch;
 
   // Per patch data
-  BoundingBox<T, 3> bbox;
-  OrientedBoundingBox<T, 3> obox;
-  axom::primal::Vector<T, 3> average_normal;
-  double surface_area;
-  axom::primal::Point<T, 3> centroid;
-  double pbox_diag;
+  BoundingBox<T, 3> m_bBox;
+  OrientedBoundingBox<T, 3> m_oBox;
+  axom::primal::Vector<T, 3> m_averageNormal;
+  double m_pboxDiag;
 
   // Per trimming curve data, keyed by (whichRefinementLevel, whichRefinementIndex)
-  mutable axom::Array<std::map<std::pair<int, int>, TrimmingCurveQuadratureData<T>>> curve_quadrature_maps;
+  mutable axom::Array<std::map<std::pair<int, int>, TrimmingCurveQuadratureData<T>>> m_curveQuadratureMaps;
 };
 
 /*! \brief Overloaded output operator for NURBS Patches*/

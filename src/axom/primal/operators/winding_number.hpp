@@ -130,10 +130,11 @@ int winding_number(const Point<T, 2>& R,
 }
 
 /*!
- * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
+ * \brief Computes the GWN for a 2D point wrt cached data for a 2D NURBS curve 
  *
  * \param [in] q The query point to test
  * \param [in] n The NURBS curve object 
+ * \param [in] isOnCurve Set to true is the query point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  * 
@@ -141,17 +142,8 @@ int winding_number(const Point<T, 2>& R,
  */
 template <typename T>
 double winding_number(const Point<T, 2>& q,
-                      const NURBSCurve<T, 2>& n,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
-{
-  bool dummy_isOnCurve = false;
-  return detail::nurbs_winding_number(q, n, dummy_isOnCurve, edge_tol, EPS);
-}
-
-template <typename T>
-double winding_number(const Point<T, 2>& q,
                       const NURBSCurveGWNCache<T>& nurbs_cache,
+                      bool& isOnCurve,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
@@ -161,8 +153,8 @@ double winding_number(const Point<T, 2>& q,
   if(!nurbs_cache.boundingBox().expand(edge_tol).contains(q))
   {
     return detail::linear_winding_number(q,
-                                         nurbs_cache[0],
-                                         nurbs_cache[nurbs_cache.getNumControlPoints() - 1],
+                                         nurbs_cache.getInitPoint(),
+                                         nurbs_cache.getEndPoint(),
                                          isOnEdge,
                                          edge_tol);
   }
@@ -177,48 +169,56 @@ double winding_number(const Point<T, 2>& q,
   return gwn;
 }
 
+//! \brief Overload without optional return parameter
 template <typename T>
-double winding_number_polygon(const Point<T, 2>& q,
-                              const NURBSCurveGWNCache<T>& nurbs_cache,
-                              Polygon<T, 2>& approxogon,
-                              double edge_tol = 1e-8,
-                              double EPS = 1e-8)
+double winding_number(const Point<T, 2>& q,
+                      const NURBSCurveGWNCache<T>& nurbs_cache,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
 {
-  bool isOnEdge = false;
-
-  double closure_wn =
-    detail::linear_winding_number(q,
-                                  nurbs_cache[0],
-                                  nurbs_cache[nurbs_cache.getNumControlPoints() - 1],
-                                  isOnEdge,
-                                  edge_tol);
-
-  // Early return is possible for most points + curves
-  if(!nurbs_cache.boundingBox().expand(edge_tol).contains(q))
-  {
-    return 0.0 - closure_wn;
-  }
-
-  approxogon.clear();
-  approxogon.addVertex(nurbs_cache[0]);
-
-  for(int n = 0; n < nurbs_cache.getNumKnotSpans(); ++n)
-  {
-    detail::nurbs_make_approxogon(approxogon, q, nurbs_cache, n, 0, 0, isOnEdge, edge_tol, EPS);
-    approxogon.addVertex(nurbs_cache.getBezierControlPoint(n, nurbs_cache.getDegree()));
-  }
-
-  bool isOnPolygonEdge = false;
-  double closed_curve_wn =
-    detail::polygon_winding_number(q, approxogon, isOnPolygonEdge, false, edge_tol);
-
-  return closed_curve_wn - closure_wn;
+  bool dummy_isOnCurve;
+  winding_number(q, nurbs_cache, dummy_isOnCurve, edge_tol, EPS);
 }
+
 /*!
- * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
+ * \brief Computes the GWN for a 2D point wrt a generic 2D curve
+ *
+ * \tparam CurveType The BezierCurve or NURBSCurve which represents the curve
+ * \param [in] q The query point to test
+ * \param [in] c The curve object 
+ * \param [in] isOnCurve Set to true is the query point is on the curve
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ * 
+ * \warning Because the cache is discarded immediately after computation,
+ *  this method is not accelerated by memoization
+ * 
+ * \return The GWN.
+ */
+template <typename T, typename CurveType>
+double winding_number(const Point<T, 2>& q,
+                      const CurveType& c,
+                      bool& isOnCurve,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  return winding_number(q, NURBSCurveGWNCache<T>(c), isOnCurve, edge_tol, EPS);
+}
+
+//! \brief Overload without optional return parameter
+template <typename T, typename CurveType>
+double winding_number(const Point<T, 2>& q, const CurveType& c, double edge_tol = 1e-8, double EPS = 1e-8)
+{
+  bool dummy_isOnCurve = false;
+  return winding_number(q, NURBSCurveGWNCache<T>(c), dummy_isOnCurve, edge_tol, EPS);
+}
+
+/*!
+ * \brief Computes the GWN for a 2D point wrt an array of cached data for 2D NURBS curves
  *
  * \param [in] q The query point to test
- * \param [in] bezier The Bezier curve object 
+ * \param [in] c_arr The array of curve objects
+ * \param [in] isOnCurve Set to true is the query point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  * 
@@ -226,12 +226,84 @@ double winding_number_polygon(const Point<T, 2>& q,
  */
 template <typename T>
 double winding_number(const Point<T, 2>& q,
-                      const BezierCurve<T, 2>& bezier,
+                      const axom::Array<NURBSCurveGWNCache<T>>& c_arr,
+                      bool& isOnCurve,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  bool dummy_isOnCurve = false;
-  return detail::bezier_winding_number(q, bezier, dummy_isOnCurve, edge_tol, EPS);
+  double gwn = 0;
+  isOnCurve = false;
+  for(int i = 0; i < c_arr.size(); ++i)
+  {
+    bool isOnThisCurve = false;
+    gwn += winding_number(q, c_arr[i], isOnThisCurve, edge_tol, EPS);
+    isOnCurve = isOnCurve || isOnThisCurve;
+  }
+
+  return gwn;
+}
+
+//! \brief Overload without optional return parameter
+template <typename T>
+double winding_number(const Point<T, 2>& q,
+                      const axom::Array<NURBSCurveGWNCache<T>>& c_arr,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  bool dummy_isOnThisCurve = false;
+
+  double gwn = 0;
+  for(int i = 0; i < c_arr.size(); ++i)
+  {
+    gwn += winding_number(q, c_arr[i], dummy_isOnThisCurve, edge_tol, EPS);
+  }
+
+  return gwn;
+}
+
+/*!
+ * \brief Computes the GWN for a 2D point wrt an array of generic 2D curves
+ *
+ * \tparam CurveType The BezierCurve or NURBSCurve which represents the curve
+ * \param [in] q The query point to test
+ * \param [in] c_arr The array of curve objects
+ * \param [in] isOnCurve Set to true is the query point is on the curve
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ * 
+ * \warning Because the cache isKdiscarded immediately after computation,
+ *  this method is not accelerated by memoization
+ * 
+ * \return The GWN.
+ */
+template <typename T, typename CurveType>
+double winding_number(const Point<T, 2>& q,
+                      const axom::Array<CurveType>& c_arr,
+                      bool& isOnCurve,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  double gwn = 0;
+  isOnCurve = false;
+  for(int i = 0; i < c_arr.size(); ++i)
+  {
+    bool isOnThisCurve = false;
+    gwn += winding_number(q, NURBSCurveGWNCache<T>(c_arr[i]), isOnThisCurve, edge_tol, EPS);
+    isOnCurve = isOnCurve || isOnThisCurve;
+  }
+
+  return gwn;
+}
+
+//! \brief Overload without optional return parameter
+template <typename T, typename CurveType>
+double winding_number(const Point<T, 2>& q,
+                      const axom::Array<CurveType>& c_arr,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  bool dummy_isOnCurve;
+  return winding_number(q, c_arr, dummy_isOnCurve, edge_tol, EPS);
 }
 
 /*!
@@ -243,6 +315,9 @@ double winding_number(const Point<T, 2>& q,
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
  * Computes the GWN for the curved polygon by summing the GWN for each curved edge
+ * 
+ * \warning Because the cache isKdiscarded immediately after computation,
+ *  this method is not accelerated by memoization
  * 
  * \return The GWN.
  */
@@ -257,68 +332,106 @@ double winding_number(const Point<T, 2>& q,
   double ret_val = 0.0;
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
-    ret_val += detail::bezier_winding_number(q, cpoly[i], dummy_isOnCurve, edge_tol, EPS);
+    ret_val += winding_number(q, cpoly[i], dummy_isOnCurve, edge_tol, EPS);
   }
 
   return ret_val;
 }
 
 /*!
- * \brief Computes the GWN for a 2D point wrt to a collection of 2D Bezier curves
+ * \brief Computes the GWN for an array of 2D points wrt an array of cached data for 2D NURBS curves
  *
- * \param [in] q The query point to test
- * \param [in] carray The array of Bezier curves
+ * \param [in] q_arr The array of query point to test
+ * \param [in] c_arr The array of curve objects
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
- *
- * Sums the GWN at `query` for each curved edge
  * 
- * \return The GWN.
+ * \return The array of GWN values.
  */
 template <typename T>
-double winding_number(const Point<T, 2>& q,
-                      const axom::Array<BezierCurve<T, 2>>& carray,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
+axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
+                                   const axom::Array<NURBSCurveGWNCache<T>>& c_arr,
+                                   double edge_tol = 1e-8,
+                                   double EPS = 1e-8)
 {
-  bool dummy_isOnCurve = false;
-  double ret_val = 0.0;
-  for(int i = 0; i < carray.size(); i++)
+  bool dummy_isOnCurve;
+  axom::Array<double> ret_val(q_arr.size());
+  for(int n = 0; n < q_arr.size(); ++n)
   {
-    ret_val += detail::bezier_winding_number(q, carray[i], dummy_isOnCurve, edge_tol, EPS);
+    ret_val[n] = 0.0;
+
+    for(int i = 0; i < c_arr.size(); ++i)
+    {
+      ret_val[n] += detail::nurbs_winding_number(q_arr[n], c_arr[i], dummy_isOnCurve, edge_tol, EPS);
+    }
   }
 
   return ret_val;
 }
 
 /*!
- * \brief Computes the GWN for a 2D point wrt to a collection of 2D NURBS curves
+ * \brief Computes the GWN for an array of 2D points wrt an array of generic 2D curves
  *
- * \param [in] q The query point to test
- * \param [in] narray The array of NURBS curves
+ * \tparam CurveType The BezierCurve or NURBSCurve which represents the curve
+ * \param [in] q_arr The array of query point to test
+ * \param [in] c_arr The array of curve objects
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ * 
+ * \return The array of GWN values.
+ */
+template <typename T, typename CurveType>
+axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
+                                   const axom::Array<CurveType>& c_arr,
+                                   double edge_tol = 1e-8,
+                                   double EPS = 1e-8)
+{
+  axom::Array<NURBSCurveGWNCache<T>> cache_arr(0, c_arr.size());
+
+  for(int i = 0; i < c_arr.size(); ++i);
+  {
+    cache_arr.emplace_back(NURBSCurveGWNCache<T>(c_arr[i]));
+  }
+
+  return winding_number(q_arr, cache_arr, edge_tol, EPS);
+}
+
+/*!
+ * \brief Computes the GWN for an array of 2D points wrt to a 2D curved polygon
+ *
+ * \param [in] q_arr The query point to test
+ * \param [in] cpoly The CurvedPolygon object
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
- * Sums the GWN at `query` for each curved edge
+ * Computes the GWN for the curved polygon by summing the GWN for each curved edge
+ * 
+ * \warning Because the cache isKdiscarded immediately after computation,
+ *  this method is not accelerated by memoization
  * 
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 2>& q,
-                      const axom::Array<NURBSCurve<T, 2>>& narray,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
+axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
+                                   const CurvedPolygon<T, 2>& cpoly,
+                                   double edge_tol = 1e-8,
+                                   double EPS = 1e-8)
 {
-  bool dummy_isOnCurve = false;
-  double ret_val = 0.0;
-  for(int i = 0; i < narray.size(); i++)
+  axom::Array<NURBSCurveGWNCache<T>> cache_arr(0, cpoly.numEdges());
+
+  for(int i = 0; i < cpoly.numEdges(); ++i)
   {
-    ret_val += detail::nurbs_winding_number(q, narray[i], dummy_isOnCurve, edge_tol, EPS);
+    cache_arr.emplace_back(NURBSCurveGWNCache<T>(cpoly[i]));
+  }
+
+  axom::Array<double> ret_val(q_arr.size());
+  for(int n = 0; n < q_arr.size(); ++n)
+  {
+    ret_val[n] = winding_number(q_arr[n], cache_arr, edge_tol, EPS);
   }
 
   return ret_val;
 }
-
 ///@{
 //! @name Winding number operations between 3D points and primitives
 
@@ -538,61 +651,6 @@ int winding_number(const Point<T, 3>& q,
 #ifdef AXOM_USE_MFEM
 
 /*
- * \brief Computes the GWN for a 3D point wrt a 3D surface patch object
- *
- * \tparam SurfaceType The BezierPatch or NURBSPatch which represents the surface
- * \param [in] q The query point to test
- * \param [in] surface The patch object
- * \param [in] edge_tol The physical distance level at which objects are 
- *                      considered indistinguishable
- * \param [in] quad_tol The maximum relative error allowed in the quadrature
- * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
- * \param [in] depth The current recursive depth
- * 
- * Computes the generalized winding number for the surface patch using Stokes theorem.
- * BezierPatches are first promoted to NURBSPatches for processing.
- * 
- * \return The GWN.
- */
-template <typename T, typename SurfaceType>
-double winding_number(const Point<T, 3>& query,
-                      const SurfaceType& surf,
-                      const double edge_tol = 1e-8,
-                      const double ls_tol = 1e-8,
-                      const double quad_tol = 1e-8,
-                      const double disk_size = 0.01,
-                      const double EPS = 1e-8)
-{
-  NURBSPatch<T, 3> nPatch_tested(surf);
-  auto cast_direction = nPatch_tested.calculateUntrimmedPatchNormal();
-
-  nPatch_tested.makeTriviallyTrimmed();
-  nPatch_tested.scaleParameterSpace(1.0 + 0.05 * nPatch_tested.getParameterSpaceDiagonal());
-
-  // Select the cast direction as an average normal of the untrimmed surface
-  if(cast_direction.norm() < 1e-10)
-  {
-    // ...unless the average direction is zero
-    double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-    double u = axom::utilities::random_real(-1.0, 1.0);
-    cast_direction = Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-  }
-  else
-  {
-    cast_direction = cast_direction.unitVector();
-  }
-
-  return detail::nurbs_winding_number(query,
-                                      nPatch_tested,
-                                      cast_direction,
-                                      edge_tol,
-                                      ls_tol,
-                                      quad_tol,
-                                      disk_size,
-                                      EPS);
-}
-
-/*
   * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch with precomputed data
   *
   * \param [in] query The query point to test
@@ -641,72 +699,25 @@ double winding_number(const Point<T, 3>& query,
 }
 
 /*
- * \brief Computes the GWN for a 3D point array wrt an array of 3D surface patches
+ * \brief Computes the GWN for a 3D point wrt a generic 3D surface object
  *
  * \tparam SurfaceType The BezierPatch or NURBSPatch which represents the surface
- * \param [in] query_arr The query point to test
- * \param [in] nPatch_arr The NURBS patch object
- * \param [in] edge_tol The physical distance level at which objects are 
- *                      considered indistinguishable
- * \param [in] ls_tol The tolerance for the line-surface intersection routine
- * \param [in] quad_tol The maximum relative error allowed in the quadrature
- * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  * 
- * Computes the generalized winding number for a NURBS patch using Stokes theorem.
- * Decreases computation time by precomputing and storing intermediates for each patch
+ * \warning Because the constructed cache object is discarded after gwn evaluation,
+ *  this method is not accelerated via memoization
  * 
  * \return The GWN.
  */
 template <typename T, typename SurfaceType>
-axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
-                                   const axom::Array<SurfaceType>& surf_arr,
-                                   const double edge_tol = 1e-8,
-                                   const double ls_tol = 1e-8,
-                                   const double quad_tol = 1e-8,
-                                   const double disk_size = 0.01,
-                                   const double EPS = 1e-8)
+double winding_number(const Point<T, 3>& query,
+                      const SurfaceType& surf,
+                      const double edge_tol = 1e-8,
+                      const double ls_tol = 1e-8,
+                      const double quad_tol = 1e-8,
+                      const double disk_size = 0.01,
+                      const double EPS = 1e-8)
 {
-  // Precompute the expansions and cast directions for each patch
-  axom::Array<NURBSPatchGWNCache<T>> nurbs_cache_arr(0, surf_arr.size());
-  axom::Array<Vector<T, 3>> cast_direction_arr(0, surf_arr.size());
-  for(int i = 0; i < surf_arr.size(); ++i)
-  {
-    // Select the cast direction as an average normal of the untrimmed surface
-    nurbs_cache_arr.emplace_back(NURBSPatchGWNCache<T>(surf_arr[i]));
-    cast_direction_arr.emplace_back(nurbs_cache_arr[i].getAverageNormal());
-    if(cast_direction_arr[i].norm() < 1e-10)
-    {
-      // ...unless the average direction is zero
-      double theta = axom::utilities::random_real(0.0, 2 * M_PI);
-      double u = axom::utilities::random_real(-1.0, 1.0);
-      cast_direction_arr[i] =
-        Vector<T, 3> {sin(theta) * sqrt(1 - u * u), cos(theta) * sqrt(1 - u * u), u};
-    }
-    else
-    {
-      cast_direction_arr[i] = cast_direction_arr[i].unitVector();
-    }
-  }
-
-  axom::Array<double> ret_val(query_arr.size());
-  for(int n = 0; n < query_arr.size(); ++n)
-  {
-    ret_val[n] = 0.0;
-
-    for(int i = 0; i < surf_arr.size(); ++i)
-    {
-      ret_val[n] += detail::nurbs_winding_number(query_arr[n],
-                                                 nurbs_cache_arr[i],
-                                                 cast_direction_arr[i],
-                                                 edge_tol,
-                                                 ls_tol,
-                                                 quad_tol,
-                                                 disk_size,
-                                                 EPS);
-    }
-  }
-
-  return ret_val;
+  return winding_number(query, NURBSPatchGWNCache<T>(surf), edge_tol, ls_tol, quad_tol, disk_size, EPS);
 }
 
 /*
@@ -723,7 +734,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
  * Computes the generalized winding number for a NURBS patch using Stokes theorem.
  * Decreases computation time by precomputing and storing intermediates for each patch
  * 
- * \return The GWN.
+ * \return The array of GWN values.
  */
 template <typename T>
 axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
@@ -773,6 +784,32 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
   }
 
   return ret_val;
+}
+
+/*
+ * \brief Computes the GWN for a 3D point array wrt a 3D surface patch array
+ *
+ * \tparam SurfaceType The BezierPatch or NURBSPatch which represents the surface
+ * 
+ * \return The array of GWN values.
+ */
+template <typename T, typename SurfaceType>
+axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
+                                   const axom::Array<SurfaceType>& surf_arr,
+                                   const double edge_tol = 1e-8,
+                                   const double ls_tol = 1e-8,
+                                   const double quad_tol = 1e-8,
+                                   const double disk_size = 0.01,
+                                   const double EPS = 1e-8)
+{
+  // Precompute the expansions and cast directions for each patch
+  axom::Array<NURBSPatchGWNCache<T>> nurbs_cache_arr(0, surf_arr.size());
+  for(int i = 0; i < surf_arr.size(); ++i)
+  {
+    nurbs_cache_arr.emplace_back(NURBSPatchGWNCache<T>(surf_arr[i]));
+  }
+
+  return winding_number(query_arr, nurbs_cache_arr, edge_tol, ls_tol, quad_tol, disk_size, EPS);
 }
 #endif
 ///@}
