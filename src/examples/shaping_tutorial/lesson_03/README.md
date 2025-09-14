@@ -373,7 +373,7 @@ Next, we loop through the shapes and print out information about each shape. We'
 
 ## Challenge
 
-Let's create a setup for an ice cream cone, which will consist of a cone, and ice cream scoop and a bunch of sprinkes.
+Let's create a setup for an ice cream cone, which will consist of a cone, and ice cream scoop and a bunch of sprinkles.
 
 <div style="text-align: center;">
 <p>
@@ -401,7 +401,7 @@ shapes:
     material: ice_cream
     geometry:
       format: mfem
-      path: ice_cream_scoop.mfem
+      path: ice_cream_scoop.mesh
       units: cm
       operators:
         - scale: 1.1
@@ -412,7 +412,7 @@ shapes:
     material: sprinkles
     geometry:
       format: mfem
-      path: ice_cream_sprinkles.mfem
+      path: ice_cream_sprinkles.mesh
       units: cm
       operators:
         - rotate: 15
@@ -423,7 +423,7 @@ shapes:
     material: batter
     geometry:
       format: mfem
-      path: ice_cream_cone.mfem
+      path: ice_cream_cone.mesh
       units: cm
       operators:
         - rotate: -5
@@ -431,6 +431,46 @@ shapes:
     does_not_replace: [ice_cream, sprinkles]
 
 ```
+
+<details>
+  <summary>Sidebar: Converting SVG to MFEM format</summary>
+
+  Axom has an `svg2contours` python script to convert SVG files to the [MFEM NURBS format](https://mfem.org/mesh-format-v1.0/#nurbs-meshes) using the [svgpathtools](https://github.com/mathandy/svgpathtools) python package.
+
+  ```bash
+  # create a virtual environment with svgpathtools and dependencies
+  > cd <axom>/src/tools/svg2contours/
+  > python3 -m venv venv
+  > source venv/bin/activate
+
+  (venv)> pip3 install -r requirements.txt
+  # Note: We apply a small patch that hasn't yet been upstreamed
+  (venv)> patch  -p1 venv/lib/python3.9/site-packages/svgpathtools/path.py -i svgpathtools-1.7.1-eigenvec-fix.patch --verbose
+
+  # run the script on our svg images: sprinkles.svg, scoop.svg and cone.svg
+  (venv)> cd <build_directory>
+  (venv)> python3 ../src/tools/svg2contours/svg2contours.py -i ../src/examples/shaping_tutorial/lesson_03/sprinkles.svg -o sprinkles.mesh
+
+    SVG dimensions: width='416.53091' height='506.883' viewBox='0 0 416.53091 506.88299'
+    Wrote 'sprinkles.mesh' with 608 vertices and NURBS 304 elements
+  
+  (venv)> python3 ../src/tools/svg2contours/svg2contours.py -i ../src/examples/shaping_tutorial/lesson_03/cone.svg -o cone2.mesh
+
+    SVG dimensions: width='416.53091' height='506.883' viewBox='0 0 416.53091 506.88299'
+    Wrote 'cone2.mesh' with 12 vertices and NURBS 6 elements
+  
+  (venv)> python3 ../src/tools/svg2contours/svg2contours.py -i ../src/examples/shaping_tutorial/lesson_03/scoop.svg -o scoop2.mesh
+
+    SVG dimensions: width='416.53091' height='506.883' viewBox='0 0 416.53091 506.88299'
+    Wrote 'scoop2.mesh' with 22 vertices and NURBS 11 elements
+  ```
+
+  <div style="text-align: center;">
+    <img src="ice_cream_visit.png" width="60%" alt="Viewing the generated MFEM files for the ice cream cone in VisIt using the MultiresControl">
+    <figcaption>Figure: Generated MFEM meshes containing the contours for our ice cream example (cone, scoop, sprinkles) visualized in VisIt. We use the `MultiresControl` operator to see the curvature of the contoours.</figcaption>
+  </div>
+
+</details>
 
 ## Summary and Next Steps
 
