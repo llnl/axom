@@ -42,7 +42,12 @@ public:
   axom::Array<double> bb_min;
   axom::Array<double> bb_max;
   axom::Array<int> resolution;
+
   std::string background_material;
+  int volume_fraction_order {2};
+  int mesh_order {1};
+  int quadrature_order {5};
+  quest::SamplingShaper::SamplingMethod sampling_method {quest::SamplingShaper::SamplingMethod::InOut};
 
 public:
   template <int DIM>
@@ -85,6 +90,15 @@ public:
       .range(1, std::numeric_limits<int>::max());
 
     mesh_schema.addString("background_material", "Optional background material");
+    mesh_schema.addInt("volume_fraction_order", "Order for volume fraction fields (>= 1)")
+      .range(1, std::numeric_limits<int>::max());
+    mesh_schema.addInt("mesh_order", "Order for mesh nodes (>= 1)")
+      .range(1, std::numeric_limits<int>::max());
+    mesh_schema.addInt("quadrature_order", "Order for quadrature (>= 1)")
+      .range(1, std::numeric_limits<int>::max());
+
+    mesh_schema.addString("sampling_method", "Sampling method ('inout' or 'winding')")
+      .validValues({"inout", "winding"});
 
     // Validate bounding box min/max
     bb.registerVerifier([](const inlet::Container& input) {
@@ -179,11 +193,34 @@ struct FromInlet<MeshMetadata>
       result.background_material = static_cast<std::string>(input_data["background_material"]);
     }
 
+    if(input_data.contains("volume_fraction_order"))
+    {
+      result.volume_fraction_order = static_cast<int>(input_data["volume_fraction_order"]);
+    }
+
+    if(input_data.contains("quadrature_order"))
+    {
+      result.quadrature_order = static_cast<int>(input_data["quadrature_order"]);
+    }
+
+    if(input_data.contains("sampling_method"))
+    {
+      const auto str = static_cast<std::string>(input_data["sampling_method"]);
+      if(str == "inout")
+      {
+        result.sampling_method = quest::SamplingShaper::SamplingMethod::InOut;
+      }
+      else if(str == "winding")
+      {
+        result.sampling_method = quest::SamplingShaper::SamplingMethod::WindingNumber;
+      }
+    }
+
     return result;
   }
 };
 
-mfem::Mesh* createCartesianMesh(const MeshMetadata& meta, int outputOrder = 1)
+mfem::Mesh* createCartesianMesh(const MeshMetadata& meta, int nodal_order)
 {
   mfem::Mesh* mesh = nullptr;
 
@@ -194,8 +231,8 @@ mfem::Mesh* createCartesianMesh(const MeshMetadata& meta, int outputOrder = 1)
     const axom::NumericArray<int, 2> res {meta.resolution[0], meta.resolution[1]};
     const auto bbox = meta.getBoundingBox<2>();
 
-    SLIC_INFO(axom::fmt::format("Creating 2D Cartesian mesh of res {} and bbox {}", res, bbox));
-    mesh = quest::util::make_cartesian_mfem_mesh_2D(bbox, res, outputOrder);
+    SLIC_INFO_ROOT(axom::fmt::format("Creating 2D Cartesian mesh of res {} and bbox {}", res, bbox));
+    mesh = quest::util::make_cartesian_mfem_mesh_2D(bbox, res, nodal_order);
   }
   break;
   case 3:
@@ -203,8 +240,8 @@ mfem::Mesh* createCartesianMesh(const MeshMetadata& meta, int outputOrder = 1)
     const axom::NumericArray<int, 3> res {meta.resolution[0], meta.resolution[1], meta.resolution[2]};
     const auto bbox = meta.getBoundingBox<3>();
 
-    SLIC_INFO(axom::fmt::format("Creating 3D Cartesian mesh of res {} and bbox {}", res, bbox));
-    mesh = quest::util::make_cartesian_mfem_mesh_3D(bbox, res, outputOrder);
+    SLIC_INFO_ROOT(axom::fmt::format("Creating 3D Cartesian mesh of res {} and bbox {}", res, bbox));
+    mesh = quest::util::make_cartesian_mfem_mesh_3D(bbox, res, nodal_order);
   }
   break;
   default:
@@ -230,6 +267,7 @@ int main(int argc, char** argv)
 {
   axom::utilities::raii::MPIWrapper mpi_raii_wrapper(argc, argv);
   axom::slic::SimpleLogger raii_logger;
+  axom::slic::setIsRoot(mpi_raii_wrapper.my_rank() == 0);
 
   // --------------------------------------------------------------------------
   // CLI for input files
@@ -238,7 +276,6 @@ int main(int argc, char** argv)
   std::string inputFilename;  // Mesh metadata Inlet Lua
   std::string kleeFilename;   // Klee shape set YAML
   bool verbose = false;
-  int outputOrder = 1;
 
   app.add_option("-m,--mesh_file", inputFilename)
     ->description("Mesh metadata Inlet Lua file")
@@ -263,7 +300,6 @@ int main(int argc, char** argv)
     return retval;
   }
 
-  slic::setAbortOnWarning(true);
   slic::setLoggingMsgLevel(verbose ? slic::message::Debug : slic::message::Info);
 
   // --------------------------------------------------------------------------
@@ -286,7 +322,7 @@ int main(int argc, char** argv)
   // --------------------------------------------------------------------------
   // Set up computational mesh from MeshMetadata
   // --------------------------------------------------------------------------
-  mfem::Mesh* mesh = createCartesianMesh(meta, outputOrder);
+  mfem::Mesh* mesh = createCartesianMesh(meta, meta.mesh_order);
   constexpr bool dc_owns_data = true;  // Note: dc takes ownership of mesh
   sidre::MFEMSidreDataCollection dc("shaping", nullptr, dc_owns_data);
 #ifdef AXOM_USE_MPI
@@ -331,11 +367,15 @@ int main(int argc, char** argv)
                                                         axom::policyToDefaultAllocatorID(policy),
                                                         shapeSet,
                                                         &dc);
-  // TODO: Set some additional parameters....
   shaper->setVerbosity(verbose);
-  //shaper->setQuadratureOrder(outputOrder);
-  shaper->setVolumeFractionOrder(outputOrder);
-  //shaper->setSamplingMethod(params.samplingMethod);
+  shaper->setQuadratureOrder(meta.quadrature_order);
+  shaper->setVolumeFractionOrder(meta.volume_fraction_order);
+
+  shaper->setSamplingMethod(meta.sampling_method);
+  if(meta.sampling_method == quest::SamplingShaper::SamplingMethod::InOut)
+  {
+    shaper->setSamplesPerKnotSpan(50);
+  }
 
   // Project initial volume fractions, if applicable
   if(!meta.background_material.empty())
@@ -346,7 +386,7 @@ int main(int argc, char** argv)
     auto material = meta.background_material;
     auto name = axom::fmt::format("vol_frac_{}", material);
 
-    const int order = outputOrder;
+    const int order = meta.volume_fraction_order;
     const int dim = meta.dim;
     const auto basis = mfem::BasisType::Positive;
 
@@ -370,7 +410,7 @@ int main(int argc, char** argv)
   // --------------------------------------------------------------------------
   // Run pipeline
   // --------------------------------------------------------------------------
-  SLIC_INFO(axom::fmt::format("{:=^80}", "Shaping"));
+  SLIC_INFO_ROOT(axom::fmt::format("{:=^80}", "Shaping"));
   for(const auto& shape : shapeSet.getShapes())
   {
     const std::string shapeFormat = shape.getGeometry().getFormat();
@@ -394,7 +434,7 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // After shaping in all shapes, generate/adjust the material volume fractions
   //---------------------------------------------------------------------------
-  SLIC_INFO(axom::fmt::format("{:=^80}", "Generating volume fraction fields for materials"));
+  SLIC_INFO_ROOT(axom::fmt::format("{:=^80}", "Generating volume fraction fields for materials"));
 
   shaper->adjustVolumeFractions();
 
