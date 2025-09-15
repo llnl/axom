@@ -563,7 +563,7 @@ This example uses contours stored in MFEM files to approximate the shapes in Pau
 
 <table style="border-collapse: collapse; border: none;">
   <tr style="border: none;">
-  <td style="width:10%; border: none;">
+  <td style="width:10%; border: none;" valign="top">
   <ul>
     <li><i>Heroic Roses</i> <a href="https://github.com/LLNL/axom_data/blob/main/shaping/heroic_roses_mfem.yaml">heroic_roses_mfem.yaml</a> example input file.</li>
     <li><i>Heroic Roses</i> <a href="https://github.com/LLNL/axom_data/tree/main/contours/heroic_roses/mfem">MFEM shape files</a>.</li>
@@ -587,10 +587,10 @@ This example uses contours stored in MFEM files to approximate the shapes in Pau
     sampling_method = "inout",
   }
 ```
-<figcaption style="text-align: center;">Figure: Mesh metadata schema (heroic_roses.lua).</figcaption>
+<figcaption style="text-align: center;">Figure: Mesh metadata schema (heroic_roses.lua).</figcaption><bg>
 
 <figure style="text-align: center;">
-  <img src="heroic_roses.png" width="450" height="600" alt="Shaped in paint colors" style="display: inline-block;" />
+  <img src="heroic_roses.png" width="450" height="600" alt="Shaped in paint colors" style="display: inline-block;" /><br>
   <figcaption>Figure: Shaped-in Heroic Roses example rendered in VisIt.</figcaption>
 </figure>
 
