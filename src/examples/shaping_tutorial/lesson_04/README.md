@@ -559,7 +559,44 @@ shapes:
 
 ### Example: Klee's heroic roses
 
-\<TODO>
+This example uses contours stored in MFEM files to approximate the shapes in Paul Klee's *Heroic Roses* painting.
+
+<table style="border-collapse: collapse; border: none;">
+  <tr style="border: none;">
+  <td style="width:10%; border: none;">
+  <ul>
+    <li><i>Heroic Roses</i> <a href="https://github.com/LLNL/axom_data/blob/main/shaping/heroic_roses_mfem.yaml">heroic_roses_mfem.yaml</a> example input file.</li>
+    <li><i>Heroic Roses</i> <a href="https://github.com/LLNL/axom_data/tree/main/contours/heroic_roses/mfem">MFEM shape files</a>.</li>
+    <li><a href="https://github.com/LLNL/axom/blob/develop/scripts/plotting/visit_heroic_roses.py">VisIt script</a> for plotting Heroic Roses shaping output.</li>
+  </ul>
+</td>
+<td style="width:20%; border: none;">
+
+```lua
+  mesh = {
+    dim = 2,
+    bounding_box = {
+      min = { x = 0, y = 0},
+      max = { x =  300, y = 400 }
+    },
+    resolution = { x = 300, y = 400 },
+    background_material = "canvas",
+    volume_fraction_order = 2,
+    mesh_order = 2,
+    quadrature_order = 5,
+    sampling_method = "inout",
+  }
+```
+<figcaption style="text-align: center;">Figure: Mesh metadata schema (heroic_roses.lua).</figcaption>
+
+<figure style="text-align: center;">
+  <img src="heroic_roses.png" alt="Shaped in paint colors" style="display: inline-block;" />
+  <figcaption>Figure: Shaped-in Heroic Roses example rendered in VisIt.</figcaption>
+</figure>
+
+</td>
+</tr>
+</table>
 
 ### Example: Klee's senecio
 
