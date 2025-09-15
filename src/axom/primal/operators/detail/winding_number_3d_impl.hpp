@@ -695,9 +695,11 @@ double nurbs_winding_number(const Point<T, 3>& query,
       else if(!isDiskInside && !isDiskOutside)
       {
         // If the disk overlapped with the trimming curves, evaluate the winding number for the disk
+        //  with a cast ray that is mostly in the direction of the normal (assuming it's non-zero)
         Vector<T, 3> new_cast_direction = the_disk.normal(up[i], vp[i]);
-        new_cast_direction =
-          (new_cast_direction.norm() < EPS) ? random_unit() : new_cast_direction.unitVector();
+        new_cast_direction = (new_cast_direction.norm() < EPS)
+          ? random_unit()
+          : (new_cast_direction.unitVector() + 0.1 * random_unit()).unitVector();
 
         the_gwn += nurbs_winding_number(query,
                                         the_disk,

@@ -775,7 +775,6 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
 
     for(int i = 0; i < nurbs_arr.size(); ++i)
     {
-      std::cout << n << " " << i << std::endl;
       ret_val[n] += detail::nurbs_winding_number(query_arr[n],
                                                  nurbs_arr[i],
                                                  cast_direction_arr[i],

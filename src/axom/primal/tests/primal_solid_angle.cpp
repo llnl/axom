@@ -671,17 +671,17 @@ TEST(primal_integral, nurbspatch_sphere)
 
   // Iterate over points of interest, i.e. axis/edge/vertex aligned
   Vector3D query_directions[12] = {Vector3D({0.0, 0.0, 1.0}).unitVector(),
-                                   Vector3D({0.0, 1.0, 0.0}).unitVector(), 
-                                   Vector3D({1.0, 0.0, 0.0}).unitVector(),     
-                                   Vector3D({0.0, 1.0, 1.0}).unitVector(), 
-                                   Vector3D({1.0, 0.0, 1.0}).unitVector(),      
-                                   Vector3D({1.0, 1.0, 0.0}).unitVector(),      
-                                   Vector3D({1.0, 1.0, 1.0}).unitVector(),      
-                                   Vector3D({0.0, 0.1, 1.0}).unitVector(),      
-                                   Vector3D({0.1, 1.0, 0.0}).unitVector(),      
-                                   Vector3D({1.0, 0.0, 0.1}).unitVector(),      
-                                   Vector3D({ 0.126623,-0.701415,-0.701415}).unitVector(),  
-                                   Vector3D({-0.701415, 0.126623,-0.701415}).unitVector()}; 
+                                    Vector3D({0.0, 1.0, 0.0}).unitVector(), 
+                                    Vector3D({1.0, 0.0, 0.0}).unitVector(),     
+                                    Vector3D({0.0, 1.0, 1.0}).unitVector(), 
+                                    Vector3D({1.0, 0.0, 1.0}).unitVector(),      
+                                    Vector3D({1.0, 1.0, 0.0}).unitVector(),      
+                                    Vector3D({1.0, 1.0, 1.0}).unitVector(),      
+                                    Vector3D({0.0, 0.1, 1.0}).unitVector(),      
+                                    Vector3D({0.1, 1.0, 0.0}).unitVector(),      
+                                    Vector3D({1.0, 0.0, 0.1}).unitVector(),      
+                                    Vector3D({ 0.126623,-0.701415,-0.701415}).unitVector(),  
+                                    Vector3D({-0.701415, 0.126623,-0.701415}).unitVector()}; 
 
   const double edge_offset = 1e-5;
   for(int i = 0; i < N; ++i)
@@ -709,23 +709,25 @@ TEST(primal_integral, nurbspatch_sphere)
 
   SLIC_INFO("Evaluating GWN for inner points");
   auto inner_gwn = winding_number(inner_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
+  for (int i = 0; i < N; ++i)
+  {
+    EXPECT_NEAR(inner_gwn[i], 1.0, 6 * quad_tol);
+    EXPECT_NEAR(inner_gwn[i + N], 1.0, 6 * quad_tol);
+  }
 
   SLIC_INFO("Evaluating GWN for outer points");
   auto outer_gwn = winding_number(outer_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
+  for (int i = 0; i < N; ++i)
+  {
+    EXPECT_NEAR(outer_gwn[i], 0.0, 6 * quad_tol);
+    EXPECT_NEAR(outer_gwn[i + N], 0.0, 6 * quad_tol);
+  }
 
   SLIC_INFO("Evaluating GWN for coincident points");
   auto coincident_gwn =
     winding_number(coincident_points, sphere_faces, edge_tol, ls_tol, quad_tol, disk_size, EPS);
-
-  // Check the resulting winding number
   for(int i = 0; i < N; ++i)
   {
-    EXPECT_NEAR(inner_gwn[i], 1.0, 6 * quad_tol);
-    EXPECT_NEAR(inner_gwn[i + N], 1.0, 6 * quad_tol);
-
-    EXPECT_NEAR(outer_gwn[i], 0.0, 6 * quad_tol);
-    EXPECT_NEAR(outer_gwn[i + N], 0.0, 6 * quad_tol);
-    
     EXPECT_NEAR(coincident_gwn[i], 0.5, 6 * quad_tol);
   }
 
