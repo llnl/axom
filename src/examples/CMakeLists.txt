@@ -114,11 +114,13 @@ if(AXOM_BUILD_TUTORIALS)
     blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::openmp IF ENABLE_OPENMP)
     blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::cuda IF ENABLE_CUDA)
     blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::hip IF ENABLE_HIP)
-
+    blt_list_append(TO shaping_tutorial_deps ELEMENTS mfem IF MFEM_FOUND)
+    
     foreach(lesson_and_file lesson_01:mesh_metadata_sidre.cpp 
                             lesson_02:validated_inlet_metadata.cpp
                             lesson_02:improved_inlet_metadata.cpp
-                            lesson_03:klee_operators_and_validation.cpp)
+                            lesson_03:klee_operators_and_validation.cpp
+                            lesson_04:quest_sampling_shaper.cpp)
         string(REPLACE ":" ";" _parts "${lesson_and_file}")
         list(GET _parts 0 _lesson)
         list(GET _parts 1 _file_with_ext)
