@@ -37,11 +37,14 @@ namespace sidre = axom::sidre;
 // Mesh metadata (from examples, adapted)
 struct MeshMetadata
 {
+public:
   int dim;
   axom::Array<double> bb_min;
   axom::Array<double> bb_max;
   axom::Array<int> resolution;
+  std::string background_material;
 
+public:
   template <int DIM>
   axom::primal::BoundingBox<double, DIM> getBoundingBox() const
   {
@@ -80,6 +83,8 @@ struct MeshMetadata
     res.addInt("y", "Resolution in y direction").required().range(1, std::numeric_limits<int>::max());
     res.addInt("z", "Resolution in z direction (only specify when dim is 3)")
       .range(1, std::numeric_limits<int>::max());
+
+    mesh_schema.addString("background_material", "Optional background material");
 
     // Validate bounding box min/max
     bb.registerVerifier([](const inlet::Container& input) {
@@ -167,6 +172,11 @@ struct FromInlet<MeshMetadata>
       result.bb_min[2] = bb["min/z"];
       result.bb_max[2] = bb["max/z"];
       result.resolution[2] = res["z"];
+    }
+
+    if(input_data.contains("background_material"))
+    {
+      result.background_material = static_cast<std::string>(input_data["background_material"]);
     }
 
     return result;
@@ -286,6 +296,10 @@ int main(int argc, char** argv)
 #endif
   dc.SetMeshNodesName("positions");
 
+  // Associate any fields that begin with "vol_frac" with "material" so when
+  // the data collection is written, a matset will be created.
+  dc.AssociateMaterialSet("vol_frac", "material");
+
   // --------------------------------------------------------------------------
   // Load and validate Klee shape set
   // --------------------------------------------------------------------------
@@ -318,6 +332,36 @@ int main(int argc, char** argv)
                                                         shapeSet,
                                                         &dc);
   // TODO: Set some additional parameters....
+
+  // Project initial volume fractions, if applicable
+  if(!meta.background_material.empty())
+  {
+    std::map<std::string, mfem::GridFunction*> initial_grid_functions;
+
+    // Generate a background material (volume fraction set to 1) if provided
+    auto material = meta.background_material;
+    auto name = axom::fmt::format("vol_frac_{}", material);
+
+    const int order = outputOrder;
+    const int dim = meta.dim;
+    const auto basis = mfem::BasisType::Positive;
+
+    auto* coll = new mfem::L2_FECollection(order, dim, basis);
+    auto* fes = new mfem::FiniteElementSpace(dc.GetMesh(), coll);
+    const int sz = fes->GetVSize();
+
+    auto* view = dc.AllocNamedBuffer(name, sz);
+    auto* volFrac = new mfem::GridFunction(fes, view->getArray());
+    volFrac->MakeOwner(coll);
+
+    (*volFrac) = 1.0;
+
+    dc.RegisterField(name, volFrac);
+
+    initial_grid_functions[material] = dc.GetField(name);
+    // Inform the shaper about any initial volume fraction fields
+    shaper->importInitialVolumeFractions(initial_grid_functions);
+  }
 
   // --------------------------------------------------------------------------
   // Run pipeline
