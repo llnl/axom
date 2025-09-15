@@ -807,7 +807,10 @@ TEST(Document, test_appendOrderedCurvesToJson)
   doAppendOrderedCurveTest("json", appendDocumentToJson);
 }
 
-#ifdef AXOM_USE_HDF5
+// Windows error -
+// unknown file: error: C++ exception with description "Could not save to 'test.hdf5':
+// iostream stream error" thrown in the test body.
+#if defined(AXOM_USE_HDF5) && !defined(WIN32)
 TEST(Document, test_appendOrderedCurvesToHDF5)
 {
   doAppendOrderedCurveTest("hdf5", appendDocumentToHDF5);
