@@ -328,7 +328,15 @@ void convert_blueprint_structured_explicit_to_unstructured_3d_impl(axom::sidre::
   sidre::Group* coordsetGrp = meshGrp->getGroup("coordsets")->getGroup(coordsetName);
   SLIC_ASSERT(std::string(coordsetGrp->getView("type")->getString()) == "explicit");
 
-  ugTopoGrp->createViewString("coordset", coordsetName);
+  if(!ugTopoGrp->hasView("coordset"))
+  {
+    ugTopoGrp->createViewString("coordset", coordsetName);
+  }
+  else
+  {
+    SLIC_ASSERT(ugTopoGrp->getView("coordset")->isString());
+    SLIC_ASSERT(std::string(ugTopoGrp->getView("coordset")->getString()) == coordsetName);
+  }
 
   SLIC_ASSERT(std::string(topoGrp->getView("type")->getString()) == "structured");
   axom::sidre::View* ugTopoTypeView =
