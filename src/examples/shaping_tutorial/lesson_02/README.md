@@ -8,10 +8,11 @@ In the previous lesson, we provided input for our mesh metadata on the command l
 ```bash
 > ./mesh_metadata_sidre --min_x 0.0 --min_y 0.0 --max_x 1.0 --max_y 1.5 --res_x 15 --res_y 25
 ```
-This can be tedious and error prone!
+This can be tedious and error prone, especially as we add more input parameters!
 
 In this lesson, we'd like to extend this by providing our input parameters in a convenient format, and we'd also like to define constraints on the input that can be validated when loading the file.
-E.g. we'd like our input to look more like this YAML snippet:
+
+That is, we'd like our input to look more like this YAML snippet:
 
 ```yaml
 mesh:
@@ -337,10 +338,11 @@ Inlet inlet(std::move(reader));
 // between input formats (YAML, Lua, etc.)
 ```
 
-> :bulb: **Note:** Lua support is only available when Axom is configured with Lua support. 
+> :bulb: **Note:** Lua is an optional dependency of Axom, and is available when Axom is configured with a `LUA_DIR` path. When available, `axom/config.hpp` will have a `AXOM_USE_LUA` compiler define.
+
 > :bulb: **Note:** Inlet also support JSON, through the `JSONReader`, but we haven't added it to this example.
 
-### Example inputs -- 2D vs. 3D; YAML vs. Lua
+### Example inputs: 2D vs. 3D; YAML vs. Lua
 
 Supporting both 2D and 3D input formats:
 <details open>

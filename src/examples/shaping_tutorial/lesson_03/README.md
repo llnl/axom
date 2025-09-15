@@ -285,11 +285,11 @@ shapes:
     material: composite
     geometry:
       format: stl
-      path: ../cad/blade.stl
+      path: ../meshes/blade.stl
       operators:
-        - rotate:
+        - rotate: 45
             axis: [0, 1, 0]
-            angle: 30
+           angle: 30
         - translate: [2.0, 0.0, 0.0]
 ```
 </details>
@@ -429,7 +429,6 @@ shapes:
         - rotate: -5
         - translate: [0.0, -2.0]
     does_not_replace: [ice_cream, sprinkles]
-
 ```
 
 <details>
@@ -454,12 +453,12 @@ shapes:
     SVG dimensions: width='416.53091' height='506.883' viewBox='0 0 416.53091 506.88299'
     Wrote 'sprinkles.mesh' with 608 vertices and NURBS 304 elements
   
-  (venv)> python3 ../src/tools/svg2contours/svg2contours.py -i ../src/examples/shaping_tutorial/lesson_03/cone.svg -o cone2.mesh
+  (venv)> python3 ../src/tools/svg2contours/svg2contours.py -i ../src/examples/shaping_tutorial/lesson_03/cone.svg -o cone.mesh
 
     SVG dimensions: width='416.53091' height='506.883' viewBox='0 0 416.53091 506.88299'
     Wrote 'cone2.mesh' with 12 vertices and NURBS 6 elements
   
-  (venv)> python3 ../src/tools/svg2contours/svg2contours.py -i ../src/examples/shaping_tutorial/lesson_03/scoop.svg -o scoop2.mesh
+  (venv)> python3 ../src/tools/svg2contours/svg2contours.py -i ../src/examples/shaping_tutorial/lesson_03/scoop.svg -o scoop.mesh
 
     SVG dimensions: width='416.53091' height='506.883' viewBox='0 0 416.53091 506.88299'
     Wrote 'scoop2.mesh' with 22 vertices and NURBS 11 elements
@@ -472,6 +471,12 @@ shapes:
 
 </details>
 
-## Summary and Next Steps
+<br />
 
-In this lesson, we learned about geometric setup through Klee. In the next lesson, we'll explore Axom's shaping algorithms, which will generate the volume fractions on a computational mesh associated with a user-provided Klee input.
+  > :crystal_ball: We'll revisit what this will look like when "shaped-in" to a computational mesh in the next lesson
+
+## Summary and next steps
+
+In this lesson, we learned about geometric setup through Klee. 
+
+In the next lesson, we'll explore Axom's shaping algorithms, which will generate the volume fractions on a computational mesh associated with a user-provided Klee input.
