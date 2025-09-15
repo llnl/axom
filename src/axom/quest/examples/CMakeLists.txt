@@ -375,7 +375,7 @@ if((CONDUIT_FOUND OR
                            --scale .99 .99 .99
                            --dir 8 4 2
                            --meshType bpSidre
-                           inline_mesh --min -2 -2 -2 --max 2 2 2 --res 30 30 30
+                           inline_mesh --min -2 -2 -2 --max 2 2 2 --res 16 16 16
                 NUM_MPI_TASKS ${_nranks})
             endforeach()
         endforeach()
