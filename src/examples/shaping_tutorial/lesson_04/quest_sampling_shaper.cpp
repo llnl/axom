@@ -332,6 +332,10 @@ int main(int argc, char** argv)
                                                         shapeSet,
                                                         &dc);
   // TODO: Set some additional parameters....
+  shaper->setVerbosity(verbose);
+  //shaper->setQuadratureOrder(outputOrder);
+  shaper->setVolumeFractionOrder(outputOrder);
+  //shaper->setSamplingMethod(params.samplingMethod);
 
   // Project initial volume fractions, if applicable
   if(!meta.background_material.empty())
@@ -366,7 +370,6 @@ int main(int argc, char** argv)
   // --------------------------------------------------------------------------
   // Run pipeline
   // --------------------------------------------------------------------------
-  // Process each shape
   SLIC_INFO(axom::fmt::format("{:=^80}", "Shaping"));
   for(const auto& shape : shapeSet.getShapes())
   {
@@ -378,13 +381,31 @@ int main(int argc, char** argv)
                                           shape.getMaterial(),
                                           shapeFormat)));
 
+    const klee::Dimensions shapeDim = shape.getGeometry().getInputDimensions();
+
     shaper->loadShape(shape);
-    shaper->prepareShapeQuery(shape.getGeometry().getInputDimensions(), shape);
+    shaper->prepareShapeQuery(shapeDim, shape);
     shaper->runShapeQuery(shape);
     shaper->applyReplacementRules(shape);
     shaper->finalizeShapeQuery();
     slic::flushStreams();
   }
+
+  //---------------------------------------------------------------------------
+  // After shaping in all shapes, generate/adjust the material volume fractions
+  //---------------------------------------------------------------------------
+  SLIC_INFO(axom::fmt::format("{:=^80}", "Generating volume fraction fields for materials"));
+
+  shaper->adjustVolumeFractions();
+
+  // --------------------------------------------------------------------------
+  // Write data collection to disk
+  // --------------------------------------------------------------------------
+#ifdef MFEM_USE_MPI
+  {
+    dc.Save();
+  }
+#endif
 
   return 0;
 }
