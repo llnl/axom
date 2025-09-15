@@ -147,23 +147,26 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  bool isOnEdge = false;
-
   // Early return is possible for most points + curves
   if(!nurbs_cache.boundingBox().expand(edge_tol).contains(q))
   {
     return detail::linear_winding_number(q,
                                          nurbs_cache.getInitPoint(),
                                          nurbs_cache.getEndPoint(),
-                                         isOnEdge,
+                                         isOnCurve,
                                          edge_tol);
   }
 
   double gwn = 0.0;
 
+  bool isOnThisCurve = false;
+  isOnCurve = false;
+
   for(int n = 0; n < nurbs_cache.getNumKnotSpans(); ++n)
   {
-    gwn += detail::nurbs_winding_number_component(q, nurbs_cache, n, 0, 0, isOnEdge, edge_tol, EPS);
+    gwn +=
+      detail::nurbs_winding_number_component(q, nurbs_cache, n, 0, 0, isOnThisCurve, edge_tol, EPS);
+    isOnCurve = isOnCurve || isOnThisCurve;
   }
 
   return gwn;
@@ -388,7 +391,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
 {
   axom::Array<NURBSCurveGWNCache<T>> cache_arr(0, c_arr.size());
 
-  for(int i = 0; i < c_arr.size(); ++i);
+  for(int i = 0; i < c_arr.size(); ++i)
   {
     cache_arr.emplace_back(NURBSCurveGWNCache<T>(c_arr[i]));
   }
@@ -772,6 +775,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
 
     for(int i = 0; i < nurbs_arr.size(); ++i)
     {
+      std::cout << n << " " << i << std::endl;
       ret_val[n] += detail::nurbs_winding_number(query_arr[n],
                                                  nurbs_arr[i],
                                                  cast_direction_arr[i],

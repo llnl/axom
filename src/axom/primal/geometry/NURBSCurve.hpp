@@ -76,10 +76,10 @@ public:
 
   /// \brief Initialize the cache with the data for the original curve
   NURBSCurveGWNCache(const NURBSCurve<T, 2>& a_curve)
-    : m_numControlPoints(a_curve.getNumControlPoints())
-    , m_degree(a_curve.getDegree())
-    , m_boundingBox(a_curve.boundingBox())
   {
+    m_boundingBox = a_curve.boundingBox();
+    m_degree = a_curve.getDegree();
+    m_numControlPoints = a_curve.getNumControlPoints();
     m_numSpans = a_curve.getNumKnotSpans();
 
     m_bezierSubdivisionMaps.resize(m_numSpans);
@@ -97,10 +97,11 @@ public:
 
   /// \brief Initialize the cache with the data for a single Bezier curve
   NURBSCurveGWNCache(const BezierCurve<T, 2>& a_curve)
-    : m_numControlPoints(a_curve.getOrder() + 1)
-    , m_degree(a_curve.getOrder())
-    , m_boundingBox(a_curve.boundingBox())
   {
+    m_boundingBox = a_curve.boundingBox();
+    m_degree = a_curve.getOrder();
+    m_numControlPoints = a_curve.getOrder() + 1;
+
     if(a_curve.getOrder() <= 0)
     {
       m_numSpans = 0;

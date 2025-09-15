@@ -547,7 +547,7 @@ double nurbs_winding_number_component(const Point<T, 2>& q,
                                       int bezier_idx,
                                       int refinement_level,
                                       int refinement_index,
-                                      bool& isOnEdge,
+                                      bool& isOnCurve,
                                       double edge_tol = 1e-8,
                                       double EPS = 1e-8)
 {
@@ -559,7 +559,7 @@ double nurbs_winding_number_component(const Point<T, 2>& q,
     return detail::linear_winding_number(q,
                                          bezier_curve[0],
                                          bezier_curve[bezier_curve.getOrder()],
-                                         isOnEdge,
+                                         isOnCurve,
                                          edge_tol);
   }
 
@@ -567,7 +567,7 @@ double nurbs_winding_number_component(const Point<T, 2>& q,
      (squared_distance(q, bezier_curve[0]) <= edge_tol * edge_tol ||
       squared_distance(q, bezier_curve[bezier_curve.getOrder()]) <= edge_tol * edge_tol))
   {
-    isOnEdge = true;
+    isOnCurve = true;
     return convex_endpoint_winding_number(q, bezier_curve, edge_tol, EPS);
   }
 
@@ -576,7 +576,7 @@ double nurbs_winding_number_component(const Point<T, 2>& q,
                                                 bezier_idx,
                                                 refinement_level + 1,
                                                 2 * refinement_index,
-                                                isOnEdge,
+                                                isOnCurve,
                                                 edge_tol,
                                                 EPS) +
     detail::nurbs_winding_number_component(q,
@@ -584,7 +584,7 @@ double nurbs_winding_number_component(const Point<T, 2>& q,
                                            bezier_idx,
                                            refinement_level + 1,
                                            2 * refinement_index + 1,
-                                           isOnEdge,
+                                           isOnCurve,
                                            edge_tol,
                                            EPS);
 }

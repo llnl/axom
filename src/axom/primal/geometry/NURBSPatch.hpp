@@ -135,6 +135,7 @@ private:
 template <typename T>
 class NURBSPatchGWNCache
 {
+public:
   NURBSPatchGWNCache() = default;
 
   NURBSPatchGWNCache(const NURBSPatch<T, 3>& a_patch) : m_alteredPatch(a_patch)
@@ -191,7 +192,7 @@ class NURBSPatchGWNCache
         }
 
         BezierPatch<T, 3> the_patch;
-        if(patch.isRational())
+        if(m_alteredPatch.isRational())
         {
           the_patch = BezierPatch<T, 3>(split_patches(i, j).getControlPoints(),
                                         split_patches(i, j).getWeights(),
@@ -221,10 +222,8 @@ class NURBSPatchGWNCache
   }
 
   NURBSPatchGWNCache(const BezierPatch<T, 3> a_patch)
-  {
-    NURBSPatch<T, 3> nurbs_patch(a_patch);
-    NURBSPatchGWNCache(nurbs_patch);
-  }
+    : NURBSPatchGWNCache(NURBSPatch<T, 3>(a_patch))
+  { }
 
   // Mirror the functionality of NURBSPatch so signatures match in GWN evaluation.
   // Allowing only access ensures the memoized information is always accurate
@@ -243,9 +242,9 @@ class NURBSPatchGWNCache
   auto getParameterSpaceDiagonal() const { return m_pboxDiag; }
 
   // Access precomputed data
-  auto getAverageNormal() const { return m_average_normal; }
-  auto boundingBox() const { return m_bbox; }
-  auto orientedBoundingBox() const { return m_obox; }
+  auto getAverageNormal() const { return m_averageNormal; }
+  auto boundingBox() const { return m_bBox; }
+  auto orientedBoundingBox() const { return m_oBox; }
 
   /// \brief Creates or accesses the quadrature nodes for a given trimming curve
   TrimmingCurveQuadratureData<T>& getTrimmingCurveQuadratureData(int curveIndex,
