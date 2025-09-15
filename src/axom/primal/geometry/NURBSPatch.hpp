@@ -41,6 +41,7 @@ namespace primal
 template <typename T, int NDIMS>
 class NURBSPatch;
 
+#ifdef AXOM_USE_MFEM
 /*!
  * \struct TrimmingCurveQuadratureData
  *
@@ -282,6 +283,7 @@ private:
   // Per trimming curve data, keyed by (whichRefinementLevel, whichRefinementIndex)
   mutable axom::Array<std::map<std::pair<int, int>, TrimmingCurveQuadratureData<T>>> m_curveQuadratureMaps;
 };
+#endif
 
 /*! \brief Overloaded output operator for NURBS Patches*/
 template <typename T, int NDIMS>
@@ -1727,9 +1729,6 @@ public:
     rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, 1.0);
     rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, 1.0);
 
-    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, 1.0);
-    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, 1.0);
-
     m_knotvec_u.normalize();
     m_knotvec_v.normalize();
   }
@@ -1739,16 +1738,12 @@ public:
   {
     rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, 1.0);
 
-    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, 1.0);
-
     m_knotvec_u.normalize();
   }
 
   /// \brief Normalize the knot vector in v to the span [0, 1]
   void normalize_v()
   {
-    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, 1.0);
-
     rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, 1.0);
 
     m_knotvec_v.normalize();
@@ -1782,9 +1777,6 @@ public:
     rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), a, b);
     rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), a, b);
 
-    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), a, b);
-    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), a, b);
-
     m_knotvec_u.rescale(a, b);
     m_knotvec_v.rescale(a, b);
   }
@@ -1802,6 +1794,8 @@ public:
     SLIC_ASSERT(a < b);
 
     rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), a, b);
+
+    m_knotvec_u.rescale(a, b);
   }
 
   /*!
@@ -1863,6 +1857,40 @@ public:
                     "Expanding patch parameter space is numerically unstable "
                     "for large values of scaleFactor.");
 
+    double expansionAmount_u = (getMaxKnot_u() - getMinKnot_u()) * (scaleFactor - 1.0);
+    double expansionAmount_v = (getMaxKnot_v() - getMinKnot_v()) * (scaleFactor - 1.0);
+
+    expandParameterSpace(expansionAmount_u, expansionAmount_v, removeTrimmingCurves);
+  }
+
+  /*!
+   * \brief Expand the parameter space of the NURBS patch geometry 
+   *         linearly (by tangents) in all directions
+   *
+   * \param [in] expansionAmount_u The additive factor to expand the u knot vector by
+   * \param [in] expansionAmount_v The additive factor to expand the v knot vector by
+   * \param [in] removeTrimmingCurves If true, the resulting patch has no trimming curves
+   *
+   * Algorithm from Wolters, Hans J., "Extensions: Extrapolation Methods for CAD", 1999
+   * 
+   * \note This function only affects the geometry of the untrimmed NURBS patch, 
+   *       and does not affect any existing trimming curves (unless explicitly removed)
+   * 
+   * \post If removeTrimmingCurves is false, the resulting patch will be trimmed.
+   * 
+   * \warning Method becomes numerically unstable for large values of expansionAmount,
+   *           or for rational patches with a large range of weights.
+   */
+  void expandParameterSpace(double expansionAmount_u,
+                            double expansionAmount_v,
+                            bool removeTrimmingCurves = false)
+  {
+    SLIC_ASSERT(expansionAmount_u > 0.0 && expansionAmount_v > 0.0);
+    SLIC_WARNING_IF(expansionAmount_u > 1.15 * (getMaxKnot_u() - getMinKnot_u()) ||
+                      expansionAmount_v > 1.15 * (getMaxKnot_v() - getMinKnot_v()),
+                    "Expanding patch parameter space is numerically unstable "
+                    "for large values of expansionAmount.");
+
     if(removeTrimmingCurves)
     {
       m_trimmingCurves.clear();
@@ -1873,9 +1901,6 @@ public:
       //  to match the original parameter space
       makeTriviallyTrimmed();
     }
-
-    double expansionAmount_u = (getMaxKnot_u() - getMinKnot_u()) * (scaleFactor - 1.0);
-    double expansionAmount_v = (getMaxKnot_v() - getMinKnot_v()) * (scaleFactor - 1.0);
 
     auto n = getNumControlPoints_u();
     auto m = getNumControlPoints_v();
@@ -2119,7 +2144,6 @@ public:
     m_knotvec_u = KnotVectorType(newKnotVec_u, deg_u);
     m_knotvec_v = KnotVectorType(newKnotVec_v, deg_v);
   }
-
   ///@}
 
   ///@{
@@ -3295,8 +3319,8 @@ public:
    * 
    * \param [in] npts The number of quadrature nodes used in each component integral
    *
-   * Algorithm from "Mean normal vector to a surface bounded by Bézier curves"
-   *  by Kenji Ueda, 1996
+   * Decomposes the NURBS surface into trimmed Bezier components (to ensure differentiability of the integrand) 
+   *  and evaluates the integral numerically on each component using trimming curves
    * 
    * \note This requires the MFEM third-party library
    * 
@@ -3323,8 +3347,6 @@ public:
       split_patches(i, 0).split_u(knot_vals_u[i + 1], split_patches(i, 0), split_patches(i + 1, 0));
     }
 
-    // It would be marginally more efficient to use real bezier extraction,
-    //   but probably not by much
     for(int i = 0; i < num_knot_span_u; ++i)
     {
       for(int j = 0; j < num_knot_span_v - 1; ++j)
@@ -3781,287 +3803,6 @@ public:
       the_disk.uncheckedClip(u - 2 * r, u + 2 * r, v - 2 * r, v + 2 * r);
     }
   }
-
-  /*!
-   * \brief Scale the parameter space of the NURBS patch geometry 
-   *         linearly (by tangents) in all directions
-   *
-   * \param [in] scaleFactor The multiplicative factor to expand each knot vector by
-   * \param [in] removeTrimmingCurves If true, the resulting patch has no trimming curves
-   *
-   * Algorithm from Wolters, Hans J., "Extensions: Extrapolation Methods for CAD", 1999
-   * 
-   * \note This function only affects the geometry of the untrimmed NURBS patch, 
-   *       and does not affect any existing trimming curves (unless explicitly removed)
-   * 
-   * \post If removeTrimmingCurves is false, the resulting patch will be trimmed.
-   * 
-   * \warning Method becomes numerically unstable for large values of scaleFactor,
-   *           or for rational patches with a large range of weights.
-   */
-  void expandParameterSpace(double expansionAmount_u,
-                            double expansionAmount_v,
-                            bool removeTrimmingCurves = false)
-  {
-    SLIC_ASSERT(expansionAmount_u > 0.0 && expansionAmount_v > 0.0);
-    SLIC_WARNING_IF(expansionAmount_u > 1.15 * (getMaxKnot_u() - getMinKnot_u()) ||
-                      expansionAmount_v > 1.15 * (getMaxKnot_v() - getMinKnot_v()),
-                    "Expanding patch parameter space is numerically unstable "
-                    "for large values of expansionAmount.");
-
-    if(removeTrimmingCurves)
-    {
-      m_trimmingCurves.clear();
-    }
-    else if(!isTrimmed())
-    {
-      // If the patch is untrimmed, we need to create new trimming curves
-      //  to match the original parameter space
-      makeTriviallyTrimmed();
-    }
-
-    auto n = getNumControlPoints_u();
-    auto m = getNumControlPoints_v();
-
-    if(n <= 1 || m <= 1)
-    {
-      return;
-    }
-
-    // When the patch is expanded in homogeneous space,
-    //  weights may become negative.
-    // We gurantee no negative weights by restricting this expansion
-    //  to w > min_weight in homogeous space
-    double min_weight = 0.0;
-    if(isRational())
-    {
-      min_weight = m_weights(0, 0);
-
-      for(int i = 0; i < n; ++i)
-      {
-        for(int j = 0; j < m; ++j)
-        {
-          min_weight = std::min(min_weight, m_weights(i, j));
-        }
-      }
-
-      min_weight *= 0.5;
-    }
-
-    auto deg_u = getDegree_u();
-    auto deg_v = getDegree_v();
-
-    CoordsMat newControlPoints(n + 2 * deg_u, m + 2 * deg_v);
-    WeightsMat newWeights(0, 0);
-    if(isRational())
-    {
-      newWeights.resize(n + 2 * deg_u, m + 2 * deg_v);
-      newWeights.fill(1.0);
-    }
-
-    axom::Array<T> newKnotVec_u, newKnotVec_v;
-
-    // Copy the original control points
-    for(int i = 0; i < n; ++i)
-    {
-      for(int j = 0; j < m; ++j)
-      {
-        newControlPoints(i + deg_u, j + deg_v) = m_controlPoints(i, j);
-        if(isRational())
-        {
-          newWeights(i + deg_u, j + deg_v) = m_weights(i, j);
-        }
-      }
-    }
-
-    int nkts_v = m_knotvec_v.getNumKnots();
-    int nkts_u = m_knotvec_u.getNumKnots();
-
-    // Add the control points on the v direction
-    for(int i = 0; i < n; ++i)
-    {
-      if(!isRational())
-      {
-        Vector<T, 3> v(m_controlPoints(i, 1), m_controlPoints(i, 0));
-        double alpha = deg_v * expansionAmount_v / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
-
-        for(int j = 0; j < deg_v; ++j)
-        {
-          newControlPoints(i + deg_u, j).array() =
-            m_controlPoints(i, 0).array() + static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array();
-        }
-
-        v = Vector<T, 3>(m_controlPoints(i, m - 2), m_controlPoints(i, m - 1));
-        alpha =
-          deg_v * expansionAmount_v / (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
-
-        for(int j = 0; j < deg_v; ++j)
-        {
-          newControlPoints(i + deg_u, m + deg_v + j).array() =
-            m_controlPoints(i, m - 1).array() + static_cast<T>(j + 1) / (deg_v)*alpha * v.array();
-        }
-      }
-      else
-      {
-        Vector<T, 3> v(Point<T, 3>(m_controlPoints(i, 1).array() * m_weights(i, 1)),
-                       Point<T, 3>(m_controlPoints(i, 0).array() * m_weights(i, 0)));
-        double d_weight = m_weights(i, 0) - m_weights(i, 1);
-        double alpha = deg_v * expansionAmount_v / (m_knotvec_v[0] - m_knotvec_v[deg_v + 1]);
-
-        // New weights can't be less than min_weight
-        if(d_weight != 0 && (m_weights(i, 0) - alpha * d_weight < min_weight))
-        {
-          alpha = (m_weights(i, 0) - min_weight) / d_weight;
-        }
-
-        for(int j = 0; j < deg_v; ++j)
-        {
-          newWeights(i + deg_u, j) =
-            m_weights(i, 0) + static_cast<T>(j - deg_v) / (deg_v)*alpha * d_weight;
-
-          newControlPoints(i + deg_u, j).array() =
-            (m_controlPoints(i, 0).array() * m_weights(i, 0) +
-             static_cast<T>(j - deg_v) / (deg_v)*alpha * v.array()) /
-            newWeights(i + deg_u, j);
-        }
-
-        v = Vector<T, 3>(Point<T, 3>(m_controlPoints(i, m - 2).array() * m_weights(i, m - 2)),
-                         Point<T, 3>(m_controlPoints(i, m - 1).array() * m_weights(i, m - 1)));
-        d_weight = m_weights(i, m - 1) - m_weights(i, m - 2);
-        alpha =
-          deg_v * expansionAmount_v / (m_knotvec_v[nkts_v - 1] - m_knotvec_v[nkts_v - deg_v - 2]);
-
-        // New weights can't be less than min_weight
-        if(d_weight != 0 && (m_weights(i, m - 1) + alpha * d_weight < min_weight))
-        {
-          alpha = (min_weight - m_weights(i, m - 1)) / d_weight;
-        }
-
-        for(int j = 0; j < deg_v; ++j)
-        {
-          newWeights(i + deg_u, m + deg_v + j) =
-            m_weights(i, m - 1) + static_cast<T>(j + 1) / (deg_v)*alpha * d_weight;
-
-          newControlPoints(i + deg_u, m + deg_v + j).array() =
-            (m_controlPoints(i, m - 1).array() * m_weights(i, m - 1) +
-             static_cast<T>(j + 1) / (deg_v)*alpha * v.array()) /
-            newWeights(i + deg_u, m + deg_v + j);
-        }
-      }
-    }
-
-    // Add the control points on the u direction
-    //  Note that this method uses values added in the v direction,
-    //  making it slightly anisotropic at the corners
-    for(int j = 0; j < m + 2 * deg_v; ++j)
-    {
-      if(!isRational())
-      {
-        Vector<T, 3> v(newControlPoints(deg_u + 1, j), newControlPoints(deg_u, j));
-        double alpha = deg_u * expansionAmount_v / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
-        for(int i = 0; i < deg_u; ++i)
-        {
-          newControlPoints(i, j).array() = newControlPoints(deg_u, j).array() +
-            static_cast<T>(i - deg_u) / (deg_u)*alpha * v.array();
-        }
-
-        v = Vector<T, 3>(newControlPoints(n - 2 + deg_u, j), newControlPoints(n + deg_u - 1, j));
-        alpha =
-          deg_u * expansionAmount_v / (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
-        for(int i = 0; i < deg_u; ++i)
-        {
-          newControlPoints(n + deg_u + i, j).array() = newControlPoints(n + deg_u - 1, j).array() +
-            static_cast<T>(i + 1) / (deg_u)*alpha * v.array();
-        }
-      }
-      else
-      {
-        Vector<T, 3> v(Point<T, 3>(newControlPoints(deg_u + 1, j).array() * newWeights(deg_u + 1, j)),
-                       Point<T, 3>(newControlPoints(deg_u, j).array() * newWeights(deg_u, j)));
-        double d_weight = newWeights(deg_u, j) - newWeights(deg_u + 1, j);
-        double alpha = deg_u * expansionAmount_v / (m_knotvec_u[0] - m_knotvec_u[deg_u + 1]);
-
-        // New weights can't be less than min_weight
-        if(d_weight != 0 && (newWeights(deg_u, j) - alpha * d_weight < min_weight))
-        {
-          alpha = (newWeights(deg_u, j) - min_weight) / d_weight;
-        }
-
-        for(int i = 0; i < deg_u; ++i)
-        {
-          newWeights(i, j) =
-            newWeights(deg_u, j) + static_cast<T>(i - deg_u) / (deg_u)*alpha * d_weight;
-
-          newControlPoints(i, j).array() =
-            (newControlPoints(deg_u, j).array() * newWeights(deg_u, j) +
-             static_cast<T>(i - deg_u) / (deg_u)*alpha * v.array()) /
-            newWeights(i, j);
-        }
-
-        v = Vector<T, 3>(
-          Point<T, 3>(newControlPoints(n - 2 + deg_u, j).array() * newWeights(n - 2 + deg_u, j)),
-          Point<T, 3>(newControlPoints(n + deg_u - 1, j).array() * newWeights(n + deg_u - 1, j)));
-        d_weight = newWeights(n + deg_u - 1, j) - newWeights(n - 2 + deg_u, j);
-        alpha =
-          deg_u * expansionAmount_v / (m_knotvec_u[nkts_u - 1] - m_knotvec_u[nkts_u - deg_u - 2]);
-
-        // New weights can't be less than min_weight
-        if(d_weight != 0 && (newWeights(n + deg_u - 1, j) + alpha * d_weight < min_weight))
-        {
-          alpha = (min_weight - newWeights(n + deg_u - 1, j)) / d_weight;
-        }
-
-        for(int i = 0; i < deg_u; ++i)
-        {
-          newWeights(n + deg_u + i, j) =
-            newWeights(n + deg_u - 1, j) + static_cast<T>(i + 1) / (deg_u)*d_weight * alpha;
-
-          newControlPoints(n + deg_u + i, j).array() =
-            (newControlPoints(n + deg_u - 1, j).array() * newWeights(n + deg_u - 1, j) +
-             static_cast<T>(i + 1) / (deg_u)*alpha * v.array()) /
-            newWeights(n + deg_u + i, j);
-        }
-      }
-    }
-
-    // Fix the u knot vector
-    newKnotVec_u.resize(m_knotvec_u.getNumKnots() + 2 * m_knotvec_u.getDegree());
-    for(int i = 0; i <= deg_u; ++i)
-    {
-      newKnotVec_u[i] = m_knotvec_u[0] - expansionAmount_u;
-    }
-    for(int i = 0; i < m_knotvec_u.getNumKnots() - 2; ++i)
-    {
-      newKnotVec_u[i + deg_u + 1] = m_knotvec_u[i + 1];
-    }
-    for(int i = 0; i <= deg_u; ++i)
-    {
-      newKnotVec_u[i + deg_u + m_knotvec_u.getNumKnots() - 1] =
-        m_knotvec_u[m_knotvec_u.getNumKnots() - 1] + expansionAmount_u;
-    }
-
-    // Fix the v knot vector
-    newKnotVec_v.resize(m_knotvec_v.getNumKnots() + 2 * m_knotvec_v.getDegree());
-    for(int i = 0; i <= deg_v; ++i)
-    {
-      newKnotVec_v[i] = m_knotvec_v[0] - expansionAmount_v;
-    }
-    for(int i = 0; i < m_knotvec_v.getNumKnots() - 2; ++i)
-    {
-      newKnotVec_v[i + deg_v + 1] = m_knotvec_v[i + 1];
-    }
-    for(int i = 0; i <= deg_v; ++i)
-    {
-      newKnotVec_v[i + deg_v + m_knotvec_v.getNumKnots() - 1] =
-        m_knotvec_v[m_knotvec_v.getNumKnots() - 1] + expansionAmount_v;
-    }
-
-    m_controlPoints = newControlPoints;
-    m_weights = newWeights;
-
-    m_knotvec_u = KnotVectorType(newKnotVec_u, deg_u);
-    m_knotvec_v = KnotVectorType(newKnotVec_v, deg_v);
-  }
   //@}
 
   /*!
@@ -4145,7 +3886,6 @@ private:
       for(int i = 0; i < curve.getNumControlPoints(); ++i)
       {
         curve[i][0] = c + (d - c) * (curve[i][0] - a) / (b - a);
-        curve[i][0] = c + (curve[i][0] - a) * (d - c) / (b - a);
       }
     }
   }
@@ -4161,7 +3901,7 @@ private:
     {
       for(int i = 0; i < curve.getNumControlPoints(); ++i)
       {
-        curve[i][1] = c + (curve[i][1] - a) * (d - c) / (b - a);
+        curve[i][1] = c + (d - c) * (curve[i][1] - a) / (b - a);
       }
     }
   }
