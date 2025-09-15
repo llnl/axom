@@ -590,7 +590,7 @@ This example uses contours stored in MFEM files to approximate the shapes in Pau
 <figcaption style="text-align: center;">Figure: Mesh metadata schema (heroic_roses.lua).</figcaption>
 
 <figure style="text-align: center;">
-  <img src="heroic_roses.png" alt="Shaped in paint colors" style="display: inline-block;" />
+  <img src="heroic_roses.png" width="450" height="600" alt="Shaped in paint colors" style="display: inline-block;" />
   <figcaption>Figure: Shaped-in Heroic Roses example rendered in VisIt.</figcaption>
 </figure>
 
