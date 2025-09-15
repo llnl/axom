@@ -441,7 +441,6 @@ TEST(primal_winding_number, rational_bezier_winding_number)
 
 TEST(primal_winding_number, nurbs_winding_numbers)
 {
-  return;
   // Define a nurbs curve that represents a circle
   const int DIM = 2;
   using CoordType = double;
