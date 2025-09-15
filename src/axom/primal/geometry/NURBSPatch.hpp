@@ -133,7 +133,7 @@ private:
  * \pre Assumes a 3D NURBS patch
  */
 template <typename T>
-struct NURBSPatchGWNCache
+class NURBSPatchGWNCache
 {
   NURBSPatchGWNCache() = default;
 
