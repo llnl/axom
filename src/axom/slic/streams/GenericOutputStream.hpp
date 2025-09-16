@@ -105,13 +105,6 @@ public:
    */
   virtual void flush() override;
 
-  /*!
-   * \brief Determines whether it is possible to reliably check if pending messages exist
-   *
-   * \return Returns True when it is possible to reliably check whether pending messages exist
-   */
-  virtual bool canHavePendingMessages() override;
-
 private:
   std::ostream* m_stream;
   std::string m_file_name;

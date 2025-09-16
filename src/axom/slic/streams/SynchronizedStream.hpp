@@ -144,13 +144,6 @@ public:
   virtual void flush() override;
 
   /*!
-   * \brief Determines whether it is possible to reliably check if pending messages exist
-   *
-   * \return Returns True when it is possible to reliably check whether pending messages exist
-   */
-  virtual bool canHavePendingMessages() override;
-
-  /*!
    * \brief Tests whether there are any pending messages that need to be flushed
    *
    * \return Returns true if there are pending messages that need to be flushed

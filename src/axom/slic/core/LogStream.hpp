@@ -149,13 +149,6 @@ public:
   virtual void push() {};
 
   /*!
-   * \brief Determines whether it is possible to reliably check if pending messages exist
-   *
-   * \return Returns True when it is possible to reliably check whether pending messages exist
-   */
-  virtual bool canHavePendingMessages() { return false; };
-
-  /*!
    * \brief Tests whether there are any pending messages that need to be flushed.
    * This method should only be overriden for LogStream inherited classes that can
    * reliably test whether pending messages exist.

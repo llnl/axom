@@ -137,12 +137,6 @@ void GenericOutputStream::flush()
   m_stream->flush();
 }
 
-//------------------------------------------------------------------------------
-bool GenericOutputStream::canHavePendingMessages()
-{
-  return false;
-}
-
 } /* namespace slic */
 
 } /* namespace axom */

@@ -53,7 +53,7 @@ TEST_P(LogStreamStatusMonitorParamTest, test_has_pending_messages)
 
   stream->append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
 
-  if(stream->canHavePendingMessages() == true)
+  if(stream->isUsingMPI() == true)
   {
     EXPECT_TRUE(logStreamStatusMonitor.hasPendingMessages());
   }
