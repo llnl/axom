@@ -130,10 +130,135 @@ int winding_number(const Point<T, 2>& R,
 }
 
 /*!
- * \brief Computes the GWN for a 2D point wrt cached data for a 2D NURBS curve 
+ * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
  *
  * \param [in] q The query point to test
  * \param [in] n The NURBS curve object 
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ * 
+ * \return The GWN.
+ */
+template <typename T>
+double winding_number(const Point<T, 2>& q,
+                      const NURBSCurve<T, 2>& n,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  bool dummy_isOnCurve = false;
+  return detail::nurbs_winding_number(q, n, dummy_isOnCurve, edge_tol, EPS);
+}
+
+/*!
+ * \brief Computes the GWN for a 2D point wrt a 2D NURBS curve
+ *
+ * \param [in] q The query point to test
+ * \param [in] bezier The Bezier curve object 
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ * 
+ * \return The GWN.
+ */
+template <typename T>
+double winding_number(const Point<T, 2>& q,
+                      const BezierCurve<T, 2>& bezier,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  bool dummy_isOnCurve = false;
+  return detail::bezier_winding_number(q, bezier, false, dummy_isOnCurve, edge_tol, EPS);
+}
+
+/*!
+ * \brief Computes the GWN for a 2D point wrt to a 2D curved polygon
+ *
+ * \param [in] q The query point to test
+ * \param [in] cpoly The CurvedPolygon object
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ *
+ * Computes the GWN for the curved polygon by summing the GWN for each curved edge
+ * 
+ * \return The GWN.
+ */
+template <typename T>
+double winding_number(const Point<T, 2>& q,
+                      const CurvedPolygon<T, 2>& cpoly,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  bool dummy_isOnCurve = false;
+
+  double ret_val = 0.0;
+  for(int i = 0; i < cpoly.numEdges(); i++)
+  {
+    ret_val += detail::bezier_winding_number(q, cpoly[i], false, dummy_isOnCurve, edge_tol, EPS);
+  }
+
+  return ret_val;
+}
+
+/*!
+ * \brief Computes the GWN for a 2D point wrt to a collection of 2D Bezier curves
+ *
+ * \param [in] q The query point to test
+ * \param [in] carray The array of Bezier curves
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ *
+ * Sums the GWN at `query` for each curved edge
+ * 
+ * \return The GWN.
+ */
+template <typename T>
+double winding_number(const Point<T, 2>& q,
+                      const axom::Array<BezierCurve<T, 2>>& carray,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  bool dummy_isOnCurve = false;
+  double ret_val = 0.0;
+  for(int i = 0; i < carray.size(); i++)
+  {
+    ret_val += detail::bezier_winding_number(q, carray[i], false, dummy_isOnCurve, edge_tol, EPS);
+  }
+
+  return ret_val;
+}
+
+/*!
+ * \brief Computes the GWN for a 2D point wrt to a collection of 2D NURBS curves
+ *
+ * \param [in] q The query point to test
+ * \param [in] narray The array of NURBS curves
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ *
+ * Sums the GWN at `query` for each curved edge
+ * 
+ * \return The GWN.
+ */
+template <typename T>
+double winding_number(const Point<T, 2>& q,
+                      const axom::Array<NURBSCurve<T, 2>>& narray,
+                      double edge_tol = 1e-8,
+                      double EPS = 1e-8)
+{
+  bool dummy_isOnCurve = false;
+  double ret_val = 0.0;
+  for(int i = 0; i < narray.size(); i++)
+  {
+    ret_val += detail::nurbs_winding_number(q, narray[i], dummy_isOnCurve, edge_tol, EPS);
+  }
+
+  return ret_val;
+}
+
+/*!
+ * \brief Computes the GWN for a 2D point wrt cached data for a 2D NURBS curve 
+ *
+ * \param [in] q The query point to test
+ * \param [in] n The NURBS curve cache data object 
  * \param [in] isOnCurve Set to true is the query point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
@@ -165,7 +290,7 @@ double winding_number(const Point<T, 2>& q,
   for(int n = 0; n < nurbs_cache.getNumKnotSpans(); ++n)
   {
     gwn +=
-      detail::nurbs_winding_number_component(q, nurbs_cache, n, 0, 0, isOnThisCurve, edge_tol, EPS);
+      detail::bezier_winding_number_memoized(q, nurbs_cache, n, 0, 0, isOnThisCurve, edge_tol, EPS);
     isOnCurve = isOnCurve || isOnThisCurve;
   }
 
@@ -181,39 +306,6 @@ double winding_number(const Point<T, 2>& q,
 {
   bool dummy_isOnCurve;
   winding_number(q, nurbs_cache, dummy_isOnCurve, edge_tol, EPS);
-}
-
-/*!
- * \brief Computes the GWN for a 2D point wrt a generic 2D curve
- *
- * \tparam CurveType The BezierCurve or NURBSCurve which represents the curve
- * \param [in] q The query point to test
- * \param [in] c The curve object 
- * \param [in] isOnCurve Set to true is the query point is on the curve
- * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
- * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
- * 
- * \warning Because the cache is discarded immediately after computation,
- *  this method is not accelerated by memoization
- * 
- * \return The GWN.
- */
-template <typename T, typename CurveType>
-double winding_number(const Point<T, 2>& q,
-                      const CurveType& c,
-                      bool& isOnCurve,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
-{
-  return winding_number(q, NURBSCurveGWNCache<T>(c), isOnCurve, edge_tol, EPS);
-}
-
-//! \brief Overload without optional return parameter
-template <typename T, typename CurveType>
-double winding_number(const Point<T, 2>& q, const CurveType& c, double edge_tol = 1e-8, double EPS = 1e-8)
-{
-  bool dummy_isOnCurve = false;
-  return winding_number(q, NURBSCurveGWNCache<T>(c), dummy_isOnCurve, edge_tol, EPS);
 }
 
 /*!
@@ -265,83 +357,6 @@ double winding_number(const Point<T, 2>& q,
 }
 
 /*!
- * \brief Computes the GWN for a 2D point wrt an array of generic 2D curves
- *
- * \tparam CurveType The BezierCurve or NURBSCurve which represents the curve
- * \param [in] q The query point to test
- * \param [in] c_arr The array of curve objects
- * \param [in] isOnCurve Set to true is the query point is on the curve
- * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
- * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
- * 
- * \warning Because the cache isKdiscarded immediately after computation,
- *  this method is not accelerated by memoization
- * 
- * \return The GWN.
- */
-template <typename T, typename CurveType>
-double winding_number(const Point<T, 2>& q,
-                      const axom::Array<CurveType>& c_arr,
-                      bool& isOnCurve,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
-{
-  double gwn = 0;
-  isOnCurve = false;
-  for(int i = 0; i < c_arr.size(); ++i)
-  {
-    bool isOnThisCurve = false;
-    gwn += winding_number(q, NURBSCurveGWNCache<T>(c_arr[i]), isOnThisCurve, edge_tol, EPS);
-    isOnCurve = isOnCurve || isOnThisCurve;
-  }
-
-  return gwn;
-}
-
-//! \brief Overload without optional return parameter
-template <typename T, typename CurveType>
-double winding_number(const Point<T, 2>& q,
-                      const axom::Array<CurveType>& c_arr,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
-{
-  bool dummy_isOnCurve;
-  return winding_number(q, c_arr, dummy_isOnCurve, edge_tol, EPS);
-}
-
-/*!
- * \brief Computes the GWN for a 2D point wrt to a 2D curved polygon
- *
- * \param [in] q The query point to test
- * \param [in] cpoly The CurvedPolygon object
- * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
- * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
- *
- * Computes the GWN for the curved polygon by summing the GWN for each curved edge
- * 
- * \warning Because the cache isKdiscarded immediately after computation,
- *  this method is not accelerated by memoization
- * 
- * \return The GWN.
- */
-template <typename T>
-double winding_number(const Point<T, 2>& q,
-                      const CurvedPolygon<T, 2>& cpoly,
-                      double edge_tol = 1e-8,
-                      double EPS = 1e-8)
-{
-  bool dummy_isOnCurve = false;
-
-  double ret_val = 0.0;
-  for(int i = 0; i < cpoly.numEdges(); i++)
-  {
-    ret_val += winding_number(q, cpoly[i], dummy_isOnCurve, edge_tol, EPS);
-  }
-
-  return ret_val;
-}
-
-/*!
  * \brief Computes the GWN for an array of 2D points wrt an array of cached data for 2D NURBS curves
  *
  * \param [in] q_arr The array of query point to test
@@ -365,7 +380,8 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
 
     for(int i = 0; i < c_arr.size(); ++i)
     {
-      ret_val[n] += detail::nurbs_winding_number(q_arr[n], c_arr[i], dummy_isOnCurve, edge_tol, EPS);
+      ret_val[n] +=
+        detail::bezier_winding_number_memoized(q_arr[n], c_arr[i], dummy_isOnCurve, edge_tol, EPS);
     }
   }
 
