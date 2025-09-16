@@ -89,15 +89,21 @@ For each mesh cell (or sampled location), the algorithm evaluates how each shape
 
 Axom's shaping application supports two types of shaping: 
 - Intersection-based shaping, in which the volume fractions are determined by finding the intersection volume between each cell of the computational mesh and the shapes
-- Sample-based shaping, in which we sample the shape at various locations within each cell to determine whether that point lies inside or outside of the shape and then reconstruct the volume fractions from the those samples.
+- Sample-based shaping, in which we sample the shape at various locations within each cell to determine whether that point lies within the shape and then reconstruct the volume fractions from the those samples.
 
-For this lesson, we will focus on the sampling-based shaper and discuss two methods for determining whether points are inside or outside of the shape:
+For this lesson, we will focus on the sampling-based shaper and discuss two methods for determining whether points are inside or outside the shape:
 
 **InOutOctree**
 :  The first approach constructs an octree over the cells of the shape, and labels each octree block as "inside", "outside" or on the "surface". The former two cases immediately yield the in/out determination, while the "surface" case requires some additional computational geometry to settle the case. This case requires the shape to be discretized into line segments (2D) or planar triangles (3D), and requires the collection of facets to be watertight.
 
 **Winding number**
 :  The [winding number](https://doi.org/10.1145/3658228) approach is more computationally intensive, but is tolerant to geometric defects such as gaps in the surface as well as self-intersections. It considers the number of times the surface wraps around the query point and then rounds to the closest integer.
+
+<figure style="text-align: center;">
+  <img src="inout_octree.png" alt="InOutOctree visualization" style="max-width: 80%; height: auto;" />
+  <figcaption>Figure: Visualization of the InOutOctree. The octree blocks are colored as "inside" (dark gray), "outside" (white), or "surface" (light gray). The surface elements are shown in red.</figcaption>
+</figure>
+
 
 ## Shaping Pipeline
 

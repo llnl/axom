@@ -23,6 +23,13 @@ In Axom, "shaping" (sometimes referred to as "mesh overlay" or "painting") refer
 
 Shaping produces "volume fraction" fields defined on mesh cells, representing the percentage of each cell occupied by different materials. In high-order finite element meshes, these volume fractions are polynomial functions describing material distribution throughout the cells. Volume fractions maintain a partition of unity property, meaning they always sum to one at any location in the mesh, ensuring complete and consistent material representation.
 
+<br />
+
+<figure style="text-align: center;">
+  <img src="shaping_workflow.png" alt="Shaping workflow in Axom" style="display: inline-block;" />
+  <figcaption>Figure: Overview of the shaping workflow in this tutorial. Geometric regions are combined with a computational mesh to produce volume fractions</figcaption>
+</figure>
+
 ## Key Axom components in this tutorial
 
 - **Klee**: Plays a critical role in flexible geometric setup for multimaterial simulations. It utilizes **Inlet** (a parameterized input library) and **Sidre** (a data management interface), allowing users to define their problem settup effectively.
@@ -98,6 +105,7 @@ Let's get our feet wet with a first example that uses an installed version of Ax
 >   > ./config-build.py -ecc -bp build-axom -ip shaping-tutorial -hc buildkitsandbox-linux-ubuntu22.04-x86_64-gcc@12.3.0_cuda.cmake -DAXOM_ENABLE_TESTS=OFF -DCMAKE_EXE_LINKER_FLAGS="-fno-lto"
 >   > cd build-axom
 >   > make -j16 install
+>   > cd ../shaping-tutorial
 >   ```
 
 ### Configuring our application
