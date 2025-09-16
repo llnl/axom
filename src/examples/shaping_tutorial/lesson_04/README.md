@@ -1,3 +1,11 @@
+[comment]: # (#################################################################)
+[comment]: # (Copyright 2017-2025, Lawrence Livermore National Security, LLC)
+[comment]: # (and Axom Project Developers. See the top-level LICENSE file)
+[comment]: # (for details.)
+[comment]: #
+[comment]: # (# SPDX-License-Identifier: BSD-3-Clause)
+[comment]: # (#################################################################)
+
 # Lesson: Axom Quest — Shaping Application
 
 In this lesson, we will consider Axom's shaping application, which takes a Klee input file describing a geometric setup and "shape" it onto a computational mesh, resulting in a `volume_fraction` scalar field for each material.

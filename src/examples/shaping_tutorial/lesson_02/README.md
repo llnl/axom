@@ -1,6 +1,14 @@
+[comment]: # (#################################################################)
+[comment]: # (Copyright 2017-2025, Lawrence Livermore National Security, LLC)
+[comment]: # (and Axom Project Developers. See the top-level LICENSE file)
+[comment]: # (for details.)
+[comment]: #
+[comment]: # (# SPDX-License-Identifier: BSD-3-Clause)
+[comment]: # (#################################################################)
+
 # Lesson 02: Input validation with Inlet
 
-This lesson demonstrates how to use Axom's Inlet library to define, parse, and validate structured mesh metadata from configuration files. We'll show how to create robust input parsing with validation rules.
+This lesson demonstrates how to use Axom's `Inlet` library to define, parse, and validate structured mesh metadata from configuration files. We'll show how to create robust input parsing with validation rules.
 
 ## Motivation
 

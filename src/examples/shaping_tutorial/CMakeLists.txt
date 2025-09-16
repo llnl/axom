@@ -49,22 +49,28 @@ find_dependency(axom REQUIRED
                 PATHS ${AXOM_DIR}/lib/cmake)
 
 #------------------------------------------------------------------------------
-# Set up target executables for the tutorial
+# Set up target executables for tutorial lesson examples
 #------------------------------------------------------------------------------
 set(tutorial_deps axom axom::fmt axom::cli11)
 blt_list_append(TO tutorial_deps ELEMENTS blt::openmp IF ENABLE_OPENMP)
 blt_list_append(TO tutorial_deps ELEMENTS blt::cuda IF ENABLE_CUDA)
 blt_list_append(TO tutorial_deps ELEMENTS blt::hip IF ENABLE_HIP)
 
-blt_add_executable(NAME       lesson_01_mesh_metadata_sidre 
-                   SOURCES    lesson_01/mesh_metadata_sidre.cpp
-                   DEPENDS_ON ${tutorial_deps})
+foreach(lesson_and_file lesson_00:check_axom_configuration.cpp
+                        lesson_01:mesh_metadata_sidre.cpp 
+                        lesson_02:validated_inlet_metadata.cpp
+                        lesson_02:improved_inlet_metadata.cpp
+                        lesson_03:klee_operators_and_validation.cpp
+                        lesson_04:quest_sampling_shaper.cpp)
+    string(REPLACE ":" ";" _parts "${lesson_and_file}")
+    list(GET _parts 0 _lesson)
+    list(GET _parts 1 _file_with_ext)
+    get_filename_component( _file_no_ext ${_file_with_ext} NAME_WE )
 
-
-blt_add_executable(NAME       lesson_02_validated_inlet_metadata
-                   SOURCES    lesson_02/validated_inlet_metadata.cpp
-                   DEPENDS_ON ${tutorial_deps})
-
+    blt_add_executable(NAME        ${_lesson}_${_file_no_ext}
+                        SOURCES    ${_lesson}/${_file_with_ext}
+                        DEPENDS_ON ${tutorial_deps})
+endforeach()                   
 
 #------------------------------------------------------------------------------
 # Optionally, print out information about imported targets

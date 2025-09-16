@@ -103,7 +103,7 @@ install(
         examples/axom/shaping_tutorial
 )
 
-foreach(_lesson lesson_00 lesson_01 lesson_02)
+foreach(_lesson lesson_00 lesson_01 lesson_02 lesson_03 lesson_04)
     install(DIRECTORY shaping_tutorial/${_lesson}
             DESTINATION examples/axom/shaping_tutorial)
 endforeach()
@@ -116,11 +116,12 @@ if(AXOM_BUILD_TUTORIALS)
     blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::hip IF ENABLE_HIP)
     blt_list_append(TO shaping_tutorial_deps ELEMENTS mfem IF MFEM_FOUND)
     
-    foreach(lesson_and_file lesson_01:mesh_metadata_sidre.cpp 
-                            lesson_02:validated_inlet_metadata.cpp
-                            lesson_02:improved_inlet_metadata.cpp
-                            lesson_03:klee_operators_and_validation.cpp
-                            lesson_04:quest_sampling_shaper.cpp)
+foreach(lesson_and_file lesson_00:check_axom_configuration.cpp
+                        lesson_01:mesh_metadata_sidre.cpp 
+                        lesson_02:validated_inlet_metadata.cpp
+                        lesson_02:improved_inlet_metadata.cpp
+                        lesson_03:klee_operators_and_validation.cpp
+                        lesson_04:quest_sampling_shaper.cpp)
         string(REPLACE ":" ";" _parts "${lesson_and_file}")
         list(GET _parts 0 _lesson)
         list(GET _parts 1 _file_with_ext)

@@ -1,8 +1,16 @@
+[comment]: # (#################################################################)
+[comment]: # (Copyright 2017-2025, Lawrence Livermore National Security, LLC)
+[comment]: # (and Axom Project Developers. See the top-level LICENSE file)
+[comment]: # (for details.)
+[comment]: #
+[comment]: # (# SPDX-License-Identifier: BSD-3-Clause)
+[comment]: # (#################################################################)
+
 # Setting up a 2D Cartesian mesh with Axom Sidre
 
 ## Introduction
 
-This tutorial introduces how to use Axom's Sidre component to set up and manage metadata for a simple 2D Cartesian mesh. Sidre provides an efficient way to store hierarchical mesh metadata. We will focus on defining the spatial bounding box and resolution of the mesh, and show how this can be used to create a mesh following the  [Conduit mesh blueprint](https://llnl-conduit.readthedocs.io/en/latest/mesh.html) conventions.
+This tutorial introduces how to use Axom's `Sidre` component to set up and manage metadata for a simple 2D Cartesian mesh. Sidre (*Simulation Data Repository*)  provides an efficient way to store hierarchical mesh metadata. We will focus on defining the spatial bounding box and resolution of the mesh, and show how this can be used to create a mesh following the  [Conduit mesh blueprint](https://llnl-conduit.readthedocs.io/en/latest/mesh.html) conventions.
 
 Mesh metadata defines key properties that describe the geometry and discretization of a mesh. For Cartesian meshes, two main pieces of metadata are essential:
 
@@ -71,19 +79,19 @@ Sidre, a core component of Axom, was designed for efficiently storing and organi
 ### Key concepts in Sidre
 
 **DataStore**
-: The top-level container that owns the entire hierarchical data structure. All groups and views ultimately belong to a DataStore instance.
+:  The top-level container that owns the entire hierarchical data structure. All groups and views ultimately belong to a DataStore instance.
 
 **Groups**
-: Nodes in the hierarchy that act like directories or folders. Groups can contain other groups or views, helping to organize data logically.
+:  Nodes in the hierarchy that act like directories or folders. Groups can contain other groups or views, helping to organize data logically.
 
 **Views**
-: Leaf nodes containing metadata or raw data. Views provide access to scalar data or bulk data stored internally using Buffers or external.
+:  Leaf nodes containing metadata or raw data. Views provide access to scalar data or bulk data stored internally using Buffers or external.
 
 **Buffers**
-: Memory blocks allocated to hold bulk (array) data referenced by views. Views use buffers to read and write actual data values.
+:  Memory blocks allocated to hold bulk (array) data referenced by views. Views use buffers to read and write actual data values.
 
 **Attributes**
-: Metadata about views, such as type information or external identifiers, which provide additional context.
+:  Metadata about views, such as type information or external identifiers, which provide additional context.
 
 Sidre allows flexible and efficient memory management, making it ideal to pass around within a simulation.
 

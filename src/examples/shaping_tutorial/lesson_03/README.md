@@ -1,8 +1,16 @@
+[comment]: # (#################################################################)
+[comment]: # (Copyright 2017-2025, Lawrence Livermore National Security, LLC)
+[comment]: # (and Axom Project Developers. See the top-level LICENSE file)
+[comment]: # (for details.)
+[comment]: #
+[comment]: # (# SPDX-License-Identifier: BSD-3-Clause)
+[comment]: # (#################################################################)
+
 # Lesson 03: Defining Geometry Setup with Klee
 
-In this lesson, we will use Axom's Klee component to define the geometric setup for a multimaterial simulation. 
+In this lesson, we will use Axom's `Klee` component to define the geometric setup for a multimaterial simulation. 
 
-Klee is built on top of Inlet to define the schema for geometry setup. A Klee input consists of a list of shapes; each shape specifies its material and geometry, and may optionally include *replacement rules* that describe which previously "shaped in" materials the current shape will replace or preserve.
+`Klee` is built on top of `Inlet` to define the schema for geometry setup. A Klee input consists of a list of shapes; each shape specifies its material and geometry, and may optionally include *replacement rules* that describe which previously "shaped in" materials the current shape will replace or preserve.
 
 ## Introduction to Klee
 
