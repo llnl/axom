@@ -165,8 +165,8 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  bool dummy_isOnCurve = false;
-  return detail::bezier_winding_number(q, bezier, false, dummy_isOnCurve, edge_tol, EPS);
+  bool dummy_isOnCurve = false, isConvexControlPolygon = false;
+  return detail::bezier_winding_number(q, bezier, isConvexControlPolygon, dummy_isOnCurve, edge_tol, EPS);
 }
 
 /*!
@@ -187,12 +187,13 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  bool dummy_isOnCurve = false;
+  bool dummy_isOnCurve = false, isConvexControlPolygon = false;
 
   double ret_val = 0.0;
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
-    ret_val += detail::bezier_winding_number(q, cpoly[i], false, dummy_isOnCurve, edge_tol, EPS);
+    ret_val +=
+      detail::bezier_winding_number(q, cpoly[i], isConvexControlPolygon, dummy_isOnCurve, edge_tol, EPS);
   }
 
   return ret_val;
@@ -216,11 +217,12 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  bool dummy_isOnCurve = false;
+  bool dummy_isOnCurve = false, isConvexControlPolygon = false;
   double ret_val = 0.0;
   for(int i = 0; i < carray.size(); i++)
   {
-    ret_val += detail::bezier_winding_number(q, carray[i], false, dummy_isOnCurve, edge_tol, EPS);
+    ret_val +=
+      detail::bezier_winding_number(q, carray[i], isConvexControlPolygon, dummy_isOnCurve, edge_tol, EPS);
   }
 
   return ret_val;
@@ -346,14 +348,7 @@ double winding_number(const Point<T, 2>& q,
                       double EPS = 1e-8)
 {
   bool dummy_isOnThisCurve = false;
-
-  double gwn = 0;
-  for(int i = 0; i < c_arr.size(); ++i)
-  {
-    gwn += winding_number(q, c_arr[i], dummy_isOnThisCurve, edge_tol, EPS);
-  }
-
-  return gwn;
+  return winding_number(q, c_arr, dummy_isOnThisCurve, edge_tol, EPS);
 }
 
 /*!
