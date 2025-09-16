@@ -366,7 +366,7 @@ We run our shaping application with the following Klee input and mesh metadata.
 
 <table style="border-collapse: collapse; border: none;">
   <tr style="border: none;">
-  <td style="width:10%; border: none;">
+  <td style="width:10%; border: none;" valign="top">
 
 ```yaml
 dimensions: 2
@@ -402,7 +402,10 @@ shapes:
 
 
 ```
-<figcaption style="text-align: center;">Figure: Klee input for circles example (circles.yaml).</figcaption>
+<figcaption style="text-align: center;">Figure: Klee input for circles example (circles.yaml).</figcaption></br>
+<ul>
+    <li><a href="visit_plot_circle.py">VisIt script</a> for plotting circles shaping output.</li>
+</ul>
 
 </td>
 <td style="width:20%; border: none;">
@@ -460,7 +463,7 @@ Recall we wanted to generate a mesh with a cone, ice cream and sprinkles, such t
 
 <table style="border-collapse: collapse; border: none;">
   <tr style="border: none;">
-  <td style="width:10%; border: none;">
+  <td style="width:10%; border: none;" valign="top">
 
 ```yaml
 dimensions: 2
@@ -497,7 +500,10 @@ shapes:
 
 
 ```
-<figcaption style="text-align: center;">Figure: Klee input for ice cream example (ice_cream.yaml).</figcaption>
+<figcaption style="text-align: center;">Figure: Klee input for ice cream example (ice_cream.yaml).</figcaption><br>
+<ul>
+    <li><a href="visit_plot_ice_cream.py">VisIt script</a> for plotting ice cream shaping output.</li>
+</ul>
 
 </td>
 <td style="width:20%; border: none;">
