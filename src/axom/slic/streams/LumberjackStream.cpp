@@ -271,12 +271,6 @@ void LumberjackStream::write(bool local)
 }
 
 //------------------------------------------------------------------------------
-bool LumberjackStream::canHavePendingMessages()
-{
-  return true;
-}
-
-//------------------------------------------------------------------------------
 bool LumberjackStream::hasPendingMessages()
 {
   return m_lj->getMessages().size() > 0;

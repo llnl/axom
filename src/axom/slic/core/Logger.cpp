@@ -380,7 +380,7 @@ void Logger::outputLocalMessages()
 void Logger::flushStreams()
 {
 
-  const bool has_pending_messages = hasPendingMessages();
+  const bool pendingMessages = hasPendingMessages();
 
   //Flush for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
@@ -388,9 +388,9 @@ void Logger::flushStreams()
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      const bool can_have_pending_messages = m_logStreams[level][istream]->canHavePendingMessages();
-      if ((can_have_pending_messages == true && has_pending_messages) || 
-           can_have_pending_messages == false)
+      const bool streamUsesMPI = m_logStreams[level][istream]->isUsingMPI();
+      if ((streamUsesMPI == true && pendingMessages) || 
+           streamUsesMPI == false)
       {
         m_logStreams[level][istream]->flush();
       }
@@ -406,9 +406,9 @@ void Logger::flushStreams()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      const bool can_have_pending_messages = it->second[i]->canHavePendingMessages();
-      if ((can_have_pending_messages == true && has_pending_messages) || 
-           can_have_pending_messages == false)
+      const bool streamUsesMPI = it->second[i]->isUsingMPI();
+      if ((streamUsesMPI == true && pendingMessages) || 
+           streamUsesMPI == false)
       {
         it->second[i]->flush();
       }
@@ -419,16 +419,16 @@ void Logger::flushStreams()
 //------------------------------------------------------------------------------
 void Logger::pushStreams()
 {
-  const bool has_pending_messages = hasPendingMessages();
+  const bool pendingMessages = hasPendingMessages();
   //Push for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
   {
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      const bool can_have_pending_messages = m_logStreams[level][istream]->canHavePendingMessages();
-      if ((can_have_pending_messages == true && has_pending_messages) || 
-           can_have_pending_messages == false)
+      const bool streamUsesMPI = m_logStreams[level][istream]->isUsingMPI();
+      if ((streamUsesMPI == true && pendingMessages) || 
+           streamUsesMPI == false)
       {
         m_logStreams[level][istream]->push();
       }
@@ -444,9 +444,9 @@ void Logger::pushStreams()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      const bool can_have_pending_messages = it->second[i]->canHavePendingMessages();
-      if ((can_have_pending_messages == true && has_pending_messages) || 
-           can_have_pending_messages == false)
+      const bool streamUsesMPI = it->second[i]->isUsingMPI();
+      if ((streamUsesMPI == true && pendingMessages) || 
+           streamUsesMPI == false)
       {
         it->second[i]->push();
       }

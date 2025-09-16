@@ -73,31 +73,36 @@ void LogStreamStatusMonitor::addStream(LogStream* ls)
 //------------------------------------------------------------------------------
 bool LogStreamStatusMonitor::hasPendingMessages() const
 {
+#if defined(AXOM_USE_MPI)
+
+  if (!m_useMPI)
+  { 
+    return false; 
+  }
+
   int has_pending_messages = 0;
 
   for (auto& stream : m_streamVec)
   {
-    if (stream->canHavePendingMessages())
+    if (stream->isUsingMPI())
     {
       has_pending_messages += static_cast<int>(stream->hasPendingMessages());
     }
   }
 
-#if defined(AXOM_USE_MPI)
-  if (m_useMPI)
+  int local_has_pending_messages = has_pending_messages;
+  for (auto& comm : m_mpiComm)
   {
-    int local_has_pending_messages = has_pending_messages;
-    for (auto& comm : m_mpiComm)
+    if (comm != MPI_COMM_NULL)
     {
-      if (comm != MPI_COMM_NULL)
-      {
-        MPI_Allreduce(&local_has_pending_messages, &has_pending_messages, 1, MPI_INT, MPI_MAX, comm);
-      }
+      MPI_Allreduce(&local_has_pending_messages, &has_pending_messages, 1, MPI_INT, MPI_MAX, comm);
     }
   }
-#endif
 
   return has_pending_messages > 0;
+#else
+  return false;
+#endif
 }
 
 //------------------------------------------------------------------------------
