@@ -8,10 +8,9 @@
 
 # Lesson: Axom Quest — Shaping Application
 
-In this lesson, we will consider Axom's shaping application, which takes a Klee input file describing a geometric setup and "shape" it onto a computational mesh, resulting in a `volume_fraction` scalar field for each material.
+In this lesson, we will consider Axom's shaping application, which takes a Klee input file describing a geometric setup and "shapes" it onto a computational mesh, resulting in a `volume_fraction` scalar field for each material.
 
-The shaping application lives inside the Quest component of Axom, so we begin by first describing Quest and then focus on the details of the Shaping application.
-
+The shaping application lives inside the `Quest` component of Axom, so we begin by first describing Quest and then focus on the details of the Shaping application.
 
 ## Introduction to Quest
 
@@ -68,17 +67,17 @@ graph LR
 Quest is a component of Axom that deals with specify high level geometric queries over computational meshes. 
 Some examples:
     
-In/Out queries
-: Given a point and a surface bounding a volumetric region of space, is the point inside or outside that surface.
+**In/Out queries**
+:  Given a point and a surface bounding a volumetric region of space, is the point inside or outside that surface.
 
-Point location
-: Given a point and a volumetric mesh (in 2D or 3D), which element of the mesh contains the point. If such an element exists, we also find the isoparametric coordinates of the point within that element.
+**Point location**
+:  Given a point and a volumetric mesh (in 2D or 3D), which element of the mesh contains the point. If such an element exists, we also find the isoparametric coordinates of the point within that element.
 
-Isosurface extraction
-: Given a volumetric mesh and a scalar field defined at the mesh vertices and a field value, extract the isosurface for a given field value (e.g. using Marching Cubes).
+**Isosurface extraction**
+:  Given a volumetric mesh and a scalar field defined at the mesh vertices and a field value, extract the isosurface for a given field value (e.g. using [Marching Cubes](https://en.wikipedia.org/wiki/Marching_cubes)).
 
-Distributed closest point
-: Given two collection of primitives, e.g. two point clouds, each distributed across the problem's MPI ranks, for each primitive from the first collection, find the closest primitive in the second collection.
+**Distributed closest point**
+:  Given two collection of primitives, e.g. two point clouds, each distributed across the problem's MPI ranks, for each primitive from the first collection, find the closest primitive in the second collection.
 
 Quest applications are designed to be robust to geometric and numerical tolerances. They are defined in terms of the computational geometry primitives and operators in Axom's Primal component and often utilize a spatial index from Axom's Spin component. Furthermore, to achieve good performance on CPU-based and GPU-based platforms, they are built on top of our performance portability abstractions based on [RAJA](https://github.com/LLNL/RAJA) and [Umpire](https://github.com/LLNL/Umpire)
 
@@ -94,11 +93,11 @@ Axom's shaping application supports two types of shaping:
 
 For this lesson, we will focus on the sampling-based shaper and discuss two methods for determining whether points are inside or outside of the shape:
 
-InOutOctree
-: The first approach constructs an octree over the cells of the shape, and labels each octree block as "inside", "outside" or on the "surface". The former two cases immediately yield the in/out determination, while the "surface" case requires some additional computational geometry to settle the case. This case requires the shape to be discretized into line segments (2D) or planar triangles (3D), and requires the collection of facets to be watertight.
+**InOutOctree**
+:  The first approach constructs an octree over the cells of the shape, and labels each octree block as "inside", "outside" or on the "surface". The former two cases immediately yield the in/out determination, while the "surface" case requires some additional computational geometry to settle the case. This case requires the shape to be discretized into line segments (2D) or planar triangles (3D), and requires the collection of facets to be watertight.
 
-Winding number
-: The [winding number](https://doi.org/10.1145/3658228) approach is more computationally intensive, but is tolerant to geometric defects such as gaps in the surface as well as self-intersections. It considers the number of times the surface wraps around the query point and then rounds to the closest integer.
+**Winding number**
+:  The [winding number](https://doi.org/10.1145/3658228) approach is more computationally intensive, but is tolerant to geometric defects such as gaps in the surface as well as self-intersections. It considers the number of times the surface wraps around the query point and then rounds to the closest integer.
 
 ## Shaping Pipeline
 
@@ -118,27 +117,27 @@ We apply the same pipeline to each shape in our Klee input:
   shaper->adjustVolumeFractions();
 ```
 
-loadShape()
-: We resolve the file path relative to the Klee input file, apply any transforms specified in the shape's `operators` and discretize/linearize the shape, as necessary.
+**loadShape()**
+:  We resolve the file path relative to the Klee input file, apply any transforms specified in the shape's `operators` and discretize/linearize the shape, as necessary.
 
-prepareShapeQuery()
-: In this stage, we compute the bounding box of the shape, and generate a spatial index (e.g. a BVH tree or an Octree) over the shape's cells.
+**prepareShapeQuery()**
+:  In this stage, we compute the bounding box of the shape, and generate a spatial index (e.g. a BVH tree or an Octree) over the shape's cells.
 
-runShapeQuer()
-: In this stage, we query the spatial index to find candidates for each cell of the computational mesh. We then apply computational geometry operations on each pair of candidates. For sample-based shaping, this determines whether samples from each cell are contained within the shape. For intersection-based shaping, we find the overlap volume between each computational cell and the (discretized) shape.
+**runShapeQuery()**
+:  In this stage, we query the spatial index to find candidates for each cell of the computational mesh. We then apply computational geometry operations on each pair of candidates. For sample-based shaping, this determines whether samples from each cell are contained within the shape. For intersection-based shaping, we find the overlap volume between each computational cell and the (discretized) shape.
 
-applyReplacementRules()
-: In this stage, we apply the replacement rules to update the volume fractions for the current shape's material and for the other materials that have already been shaped in.
+**applyReplacementRules()**
+:  In this stage, we apply the replacement rules to update the volume fractions for the current shape's material and for the other materials that have already been shaped in.
 
-finalizeShapeQuery()
-: Finally, we release temporary memory associated with the current shape.
+**finalizeShapeQuery()**
+:  Finally, we release temporary memory associated with the current shape.
 
-adjustVolumeFractions()
-: After all shapes have been processed, we have one more chance to update the volume fractions. For sample-based shaping, we convert from samples (at quadrature points of high order cells) to a (high order) volume fraction field for each material.
+**adjustVolumeFractions()**
+:  After all shapes have been processed, we have one more chance to update the volume fractions. For sample-based shaping, we convert from samples (at quadrature points of high order cells) to a (high order) volume fraction field for each material.
   
 ## Setting up the computational mesh
 
-Returning to our running example from `lesson_02`, we extend our inlet-based mesh metadata schema to handle some additional parameters necessary for our shaping application.
+Returning to our running example from `lesson_02`, we extend our Inlet-based mesh metadata schema to handle some additional parameters necessary for our shaping application.
 
 ```cpp
 struct MeshMetadata
@@ -161,7 +160,7 @@ This allows the user to set the polynomial order of the volume fraction function
 
 We also allow the user to specify a "background_material". When specified, a volume fraction field, initialized to 1 will be added. Users can incorporate this into their input with a special "geometry/format" of "none".
 
-> :information_source: This feature is more powerful than implied above. Our shaping application allows the user to supply an initial volume fraction field for each of the materials, which they can incorporated into their geometric setups using the `geometry/format: none` field.
+> :information_source: This feature is more powerful than implied above. Our shaping application allows the user to supply an initial volume fraction field for each of the materials, which they can incorporate into their geometric setups using the `geometry/format: none` field.
 
 
 <details>
@@ -193,7 +192,6 @@ struct FromInlet<MeshMetadata>
   MeshMetadata operator()(const inlet::Container& input_data)
   {
     MeshMetadata result;
-
     ...
 
     if(input_data.contains("background_material"))
@@ -223,7 +221,6 @@ struct FromInlet<MeshMetadata>
         result.sampling_method = quest::SamplingShaper::SamplingMethod::WindingNumber;
       }
     }
-
     ...
 
     return result;
@@ -583,6 +580,11 @@ This example uses contours stored in MFEM files to approximate the shapes in Pau
     <li><i>Heroic Roses</i> <a href="https://github.com/LLNL/axom_data/tree/main/contours/heroic_roses/mfem">MFEM shape files</a>.</li>
     <li><a href="https://github.com/LLNL/axom/blob/develop/scripts/plotting/visit_heroic_roses.py">VisIt script</a> for plotting Heroic Roses shaping output.</li>
   </ul>
+
+<figure style="text-align: center;">
+  <img src="heroic_roses_painting.png" alt="Paul Klee's Heroic Roses (1938)" />
+  <figcaption>Figure: Paul Klee's "Heroic Roses" (1938), the inspiration for our example.</figcaption>
+</figure>
 </td>
 <td style="width:20%; border: none;">
 
@@ -612,24 +614,24 @@ This example uses contours stored in MFEM files to approximate the shapes in Pau
 </tr>
 </table>
 
-### Example: Klee's senecio
 
 ## Wrap up
 
-- We covered both shaping, focusing on InOutOctree and Winding Number containment tests.
-- We defined mesh metadata (orders, quadrature, sampling method) and created high-order MFEM meshes.
-- We used background materials, replacement rules, and produced matset-aware outputs suitable for MIR in VisIt.
-- We demonstrated the workflow with several examples. 
-- Although we didn't focus on it, everything transparently works with MPI, and much of the workflow is GPU ready (or work is planned to port it).
+In this lesson, we covered shaping in Axom, focusing on the `InOutOctree` and `Winding Number` containment tests. We defined mesh metadata (orders, quadrature, sampling method) and created high-order MFEM meshes. We used background materials, replacement rules, and produced matset-aware outputs suitable for MIR in VisIt. We demonstrated the workflow with several examples. Although we didn't focus on it, everything transparently works with MPI, and much of the workflow is GPU ready (or work is planned to port it).
 
-Along the way, we used a broad cross-section of Axom components:
-- Inlet: to declare, validate, and ingest user-configurable mesh and shaping options.
-- Klee: to describe shapes, units, and operator pipelines (e.g., scaling, unit conversion).
-- Quest: to perform shaping (SamplingShaper), including spatial indexing and robust point-in-shape tests.
-- Spin: to accelerate geometric queries with spatial indices (e.g., BVH/Octree).
-- Primal: for core computational geometry primitives and operations.
-- Sidre: to organize mesh/field data and write Blueprint-compliant outputs (via MFEMSidreDataCollection).
-- SLIC: for diagnostics and structured logging.
-- Core: utilities, memory, and foundational infrastructure used throughout.
+## Technologies Used
+
+This tutorial showcases Axom's ecosystem of interconnected components:
+
+- **Inlet**: Schema-based configuration with validation for simulation input parameters
+- **Klee**: Geometric description language for defining material arrangements
+- **Quest**: High-level geometric operations including SamplingShaper with robust containment tests
+- **Spin**: Accelerated spatial indexing with BVH trees and Octrees for efficient queries
+- **Primal**: Fundamental computational geometry primitives and operations
+- **Sidre**: Data organization and Blueprint-compliant I/O via MFEMSidreDataCollection
+- **Slic**: Structured logging, diagnostics, and error handling
+- **Core**: Foundation libraries including memory management and parallel abstractions
+
+The integration of these components demonstrates Axom's composability for complex HPC applications.
 
 Thank you for your attention. Please reach out with questions, share feedback and code contributions, and let us know how you’re using Axom in your workflows!

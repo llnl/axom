@@ -8,7 +8,7 @@
 
 # Lesson 03: Defining Geometry Setup with Klee
 
-In this lesson, we will use Axom's `Klee` component to define the geometric setup for a multimaterial simulation. 
+In this lesson, we temporarily set aside our mesh metadata example and use Axom's `Klee` component to define the geometric setup for a multimaterial simulation.  (Don't worry, we'll return to the mesh metadata in the next lesson).
 
 `Klee` is built on top of `Inlet` to define the schema for geometry setup. A Klee input consists of a list of shapes; each shape specifies its material and geometry, and may optionally include *replacement rules* that describe which previously "shaped in" materials the current shape will replace or preserve.
 
@@ -132,9 +132,52 @@ This separation provides several key benefits:
 
 <div style="text-align: center;">
 
-  | STL Code (with line numbers) | Rendered Model |
-  | ---------------------------- | -------------- |
-  | [View full file ↗](https://github.com/LLNL/axom_data/blob/main/quest/tetrahedron.stl?short_path=21f5eaf) | [Open interactive 3D viewer on GitHub ↗](https://github.com/LLNL/axom_data/blob/main/quest/tetrahedron.stl) |
+<div style="text-align: center;">
+<table style="margin: auto;">
+  <tr>
+    <td style="text-align: left; vertical-align: top;">
+
+```stl
+solid Mesh
+facet normal 0.0 0.0 -1.0
+  outer loop
+    vertex 0.0 0.0 0.0
+    vertex 1.0 0.0 0.0
+    vertex 0.0 1.0 0.0
+  endloop
+endfacet
+facet normal -1.0 0.0 0.0
+  outer loop
+    vertex 0.0 0.0 0.0
+    vertex 0.0 1.0 0.0
+    vertex 0.0 0.0 1.0
+  endloop
+endfacet
+facet normal 0.0 -1.0 0.0
+  outer loop
+    vertex 0.0 0.0 0.0
+    vertex 0.0 0.0 1.0
+    vertex 1.0 0.0 0.0
+  endloop
+endfacet
+facet normal 0.577 0.577 0.577
+  outer loop
+    vertex 1.0 0.0 0.0
+    vertex 0.0 0.0 1.0
+    vertex 0.0 1.0 0.0
+  endloop
+endfacet
+endsolid Mesh
+```
+</td>
+<td>
+
+[Open interactive 3D viewer on GitHub ↗](https://github.com/LLNL/axom_data/blob/main/quest/tetrahedron.stl)
+
+</td>
+</tr>
+</table>
+</div>
 
 </div>
 </details>
@@ -210,21 +253,21 @@ shapes:
 Replacement rules give users some extra control in how shapes get overlaid. By default, a new shape of a given material will replace all other shapes.
 
 <div style="text-align: center;">
-  <img src="klee_replacement_use_cases.png" width="40%" alt="Several use cases for replacement rules">
+  <img src="klee_replacement_use_cases.png" width="50%" alt="Several use cases for replacement rules" />
   <figcaption>Figure: Replacement rules have many uses, including when there are overlapping parts (top), when we need to expand a shape to close a gap (middle), or when we need to fill a void (bottom).</figcaption>
 </div>
 
 If desired, users can either add an explicit list of materials to replace via the `replaces` entry, or an explicit list of materials to preserve via the `does_not_replace` entry (but not both).
 
 <div style="text-align: center;">
-  <img src="klee_replacement_rules.png" width="70%" alt="Visualization of Klee replacement rules">
+  <img src="klee_replacement_rules.png" width="75%" alt="Visualization of Klee replacement rules">
   <figcaption>Figure: Illustration of Klee replacement rules (default, explicit "replaces" list, and explicit "does_not_replace" list) and how later shapes interact with earlier materials when shaping "wood" boats on a mesh with "water", "mud" and "grass".</figcaption>
 </div>
 
-
+<br />
 
 <details>
-<summary>Input Structure</summary>
+<summary>More details on input structure</summary>
 
 - Top-level
   - dimensions: 2 | 3
@@ -233,7 +276,7 @@ If desired, users can either add an explicit list of materials to replace via th
   - name: unique string
   - material: string
   - geometry
-    - format: non | stl | c2c | mfem | proe
+    - format: none | stl | c2c | mfem | proe
     - path: relative path to geometry file
     - start_units/end_units/units: unit metadata
     - operators: ordered list of transforms/conversions
@@ -243,8 +286,8 @@ If desired, users can either add an explicit list of materials to replace via th
         center: val
       - scale: scalar or [sx, sy, sz]
       - convert_units_to: target_unit
-  - replaces: <list>
-  - does_not_replace: <list>
+  - replaces: \<list of material names>
+  - does_not_replace: \<list of material names>
 </details>
 
 ## Examples: 
@@ -304,14 +347,15 @@ shapes:
 
 ## Let's see some code!
 
-The code example for this lesson loads an Klee file, performs some validation and then prints out details about the geometric setup
+The code example for this lesson loads a Klee file, performs some validation and then prints out details about the geometric setup
 
 ### Load and validate the Klee input
 
 ```cpp
+axom::klee::ShapeSet shapeset
 try
 {
-  auto shapeSet = axom::klee::readShapeSet(inputFilename);
+  shapeSet = axom::klee::readShapeSet(inputFilename);
 }
 catch(axom::klee::KleeError& error)
 {
@@ -329,7 +373,7 @@ catch(axom::klee::KleeError& error)
 }
 ```
 
-Next, we loop through the shapes and print out information about each shape. We're using an fmt memory_buffer (similar to a stringstream) to write everything in a single log statement:
+Next, we loop through the shapes and print out information about each shape. We're using an `fmt::memory_buffer` (similar to a `std::stringstream`) to write everything in a single log statement:
 ```cpp
   axom::fmt::memory_buffer buffer;
   axom::fmt::format_to(std::back_inserter(buffer), "Klee ShapeSet Information:\n");
@@ -379,7 +423,7 @@ Next, we loop through the shapes and print out information about each shape. We'
   SLIC_INFO(axom::fmt::to_string(buffer));
 ```
 
-## Challenge
+## Ice cream challenge
 
 Let's create a setup for an ice cream cone, which will consist of a cone, and ice cream scoop and a bunch of sprinkles.
 
@@ -392,10 +436,14 @@ Let's create a setup for an ice cream cone, which will consist of a cone, and ic
   <figcaption>Figure: Ice cream cone geometry for the challenge.</figcaption>
 </div>
 
+<br />
 
-- Task: convert a 2D mfem contour from inches to cm, scale by 3, rotate 45 degrees, then overwrite only air while preserving steel
-- Expected input fragment:
+**Task:** Given the "cone", "scoop" and "sprinkle" geometry, create a Klee setup such that
+* The cone covers the background
+* The scoop covers the cone
+* The sprinkles cover the ice cream scoop, but not the cone or the background
 
+**Solution:**
 ```yaml
 dimensions: 2
 
@@ -406,15 +454,11 @@ shapes:
       format: none
 
   - name: vanilla_scoop
-    material: ice_cream
+    material: icecream
     geometry:
       format: mfem
       path: ice_cream_scoop.mesh
       units: cm
-      operators:
-        - scale: 1.1
-        - rotate: 5
-        - translate: [0.0, 2.0]
 
   - name: colorful_sprinkles
     material: sprinkles
@@ -422,10 +466,7 @@ shapes:
       format: mfem
       path: ice_cream_sprinkles.mesh
       units: cm
-      operators:
-        - rotate: 15
-        - translate: [0.0, 3.0]
-    replaces: [ice_cream]
+    replaces: [icecream]
 
   - name: cone
     material: batter
@@ -433,16 +474,13 @@ shapes:
       format: mfem
       path: ice_cream_cone.mesh
       units: cm
-      operators:
-        - rotate: -5
-        - translate: [0.0, -2.0]
-    does_not_replace: [ice_cream, sprinkles]
+    does_not_replace: [icecream, sprinkles]
 ```
 
 <details>
   <summary>Sidebar: Converting SVG to MFEM format</summary>
 
-  Axom has an `svg2contours` python script to convert SVG files to the [MFEM NURBS format](https://mfem.org/mesh-format-v1.0/#nurbs-meshes) using the [svgpathtools](https://github.com/mathandy/svgpathtools) python package.
+  Axom has an `svg2contours` python script to convert SVG files to the [MFEM NURBS format](https://mfem.org/mesh-format-v1.0/#nurbs-meshes) using the [svgpathtools](https://github.com/mathandy/svgpathtools) python package. We use a virtual environment to set up the proper dependencies (and add a small patch for svgpathtools):
 
   ```bash
   # create a virtual environment with svgpathtools and dependencies
@@ -474,10 +512,56 @@ shapes:
 
   <div style="text-align: center;">
     <img src="ice_cream_visit.png" width="60%" alt="Viewing the generated MFEM files for the ice cream cone in VisIt using the MultiresControl">
-    <figcaption>Figure: Generated MFEM meshes containing the contours for our ice cream example (cone, scoop, sprinkles) visualized in VisIt. We use the `MultiresControl` operator to see the curvature of the contoours.</figcaption>
+    <figcaption>Figure: Generated MFEM meshes containing the contours for our ice cream example (cone, scoop, sprinkles) visualized in VisIt. We use the `MultiresControl` operator to see the curvature of the contours.</figcaption>
   </div>
 
 </details>
+
+> :clapper: Let's run this example:
+>
+> ```bash
+> > ./bin/lesson_03_klee_operators_and_validation ../lesson_03/ice_cream.yaml
+>```
+> <details>
+> <summary> Output </summary>
+> 
+> ```bash
+> [INFO] Klee ShapeSet Information:
+>   Overall dimensions: 2D
+> 
+>   Unique materials (4): ["background", "batter", "ice_cream", "sprinkles"]
+> 
+>   Details for the 4 shapes:
+>   - name: 'background'
+>     material: 'background'
+>     format: 'none'
+>     units: '<unspecified>'
+>     dimensions: 2D
+>     replaces materials: ["background", "batter", "ice_cream", "sprinkles"]
+> 
+>   - name: 'vanilla_scoop'
+>     material: 'ice_cream'
+>     format: 'mfem'
+>     units: 'cm'
+>     dimensions: 2D
+>     replaces materials: ["background", "batter", "ice_cream", "sprinkles"]
+> 
+>   - name: 'colorful_sprinkles'
+>     material: 'sprinkles'
+>     format: 'mfem'
+>     units: 'cm'
+>     dimensions: 2D
+>     replaces materials: ["ice_cream"]
+> 
+>   - name: 'cone'
+>     material: 'batter'
+>     format: 'mfem'
+>     units: 'cm'
+>     dimensions: 2D
+>     replaces materials: ["background", "batter"]
+> ```
+> </details>
+
 
 <br />
 

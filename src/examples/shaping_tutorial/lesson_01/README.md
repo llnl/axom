@@ -10,7 +10,7 @@
 
 ## Introduction
 
-This tutorial introduces how to use Axom's `Sidre` component to set up and manage metadata for a simple 2D Cartesian mesh. Sidre (*Simulation Data Repository*)  provides an efficient way to store hierarchical mesh metadata. We will focus on defining the spatial bounding box and resolution of the mesh, and show how this can be used to create a mesh following the  [Conduit mesh blueprint](https://llnl-conduit.readthedocs.io/en/latest/mesh.html) conventions.
+This lesson introduces how to use Axom's `Sidre` component to set up and manage basic metadata for a 2D Cartesian mesh. Sidre (*Simulation Data Repository*) provides an efficient way to store hierarchical mesh metadata. We will focus on defining the spatial bounding box and resolution of the mesh, and show how this can be used to create a mesh following the  [Conduit mesh blueprint](https://llnl-conduit.readthedocs.io/en/latest/mesh.html) conventions.
 
 Mesh metadata defines key properties that describe the geometry and discretization of a mesh. For Cartesian meshes, two main pieces of metadata are essential:
 
@@ -143,7 +143,7 @@ void setup_mesh_metadata(axom::sidre::DataStore& datastore, const Input& input)
 }
 ```
 
-The Sidre hierarchy can be visualized as:
+The above Sidre hierarchy can be visualized as:
 
 <figure style="text-align: center;">
   <img src="hierarchy_diagram.svg" alt="Sidre Group and View Hierarchy" style="display: inline-block;" />
@@ -152,6 +152,30 @@ The Sidre hierarchy can be visualized as:
 
 
 > :clapper: You can try running this example code in lesson_01's `mesh_metadata_sidre` example to see how Sidre manages mesh metadata in practice. This example allows you to enter the bounding box and resolution parameters on the command line.
+> <details>
+> <summary> Some example runs </summary>
+>
+> ```bash
+>  > ./bin/lesson_01_mesh_metadata_sidre -h
+>   Mesh Metadata Setup
+>   Usage: ./bin/lesson_01_mesh_metadata_sidre [OPTIONS]
+> 
+>   Options:
+>     -h,--help                   Print this help message and exit
+>     --min_x FLOAT               Minimum x coordinate of bounding box
+>     --min_y FLOAT               Minimum y coordinate of bounding box
+>     --max_x FLOAT               Maximum x coordinate of bounding box
+>     --max_y FLOAT               Maximum y coordinate of bounding box
+>     --res_x INT                 Resolution in x direction
+>     --res_y INT                 Resolution in y direction
+>
+>  > ./bin/lesson_01_mesh_metadata_sidre --min_x 50 --max_x 350 --min_y 50 --max_y 350 --res_x 8 --res_y 8
+>  [INFO] Sidre hierarchy was properly set up 
+>  [INFO] Bounding Box Min: (50, 50) 
+>  [INFO] Bounding Box Max: (350, 350) 
+>  [INFO] Resolution: (8, 8) 
+> ```
+> </details>
 
 > :computer: **Challenge**
 >  What might this look like if we used arrays backed by `sidre::Buffer` for the bounding box and resolution instead of scalars?

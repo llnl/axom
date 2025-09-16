@@ -8,13 +8,20 @@
 
 
 
-# Axom Shaping Tutorial: Shaping Application Overview and Introduction
+# Axom overview and introduction
 
-Axom is a modular collection of C++ libraries that provide the infrastructure needed to develop large-scale, multi-physics simulation software. It offers reusable capabilities for data and I/O management (Sidre and Sina with [Conduit](https://github.com/LLNL/conduit) and optional [HDF5](https://www.hdfgroup.org/solutions/hdf5/); Bump, Multimat), parameterized input (Inlet), geometry, meshing, and analysis (Primal, Mint, Mir, Quest, Spin, Slam), along with robust logging and diagnostics (Slic, Lumberjack).
+Axom is a modular collection of C++ library "components" that provide the infrastructure needed to develop large-scale, multi-physics simulation software. It offers reusable capabilities for data and I/O management (Sidre and Sina with [Conduit](https://github.com/LLNL/conduit) and optional [HDF5](https://www.hdfgroup.org/solutions/hdf5/); Bump, Multimat), parameterized input (Inlet), geometry, meshing, and analysis (Primal, Mint, Mir, Quest, Spin, Slam), along with robust logging and diagnostics (Slic, Lumberjack).
 
 Axom targets modern HPC platforms with performance portability across CPUs and GPUs, and interoperates with [RAJA](https://github.com/LLNL/RAJA) and [Umpire](https://github.com/LLNL/Umpire) to manage execution and memory when those backends are enabled. It features a [BLT](https://github.com/llnl/blt)-based CMake build system and integrates smoothly with [Spack](https://spack.io)-based and [vcpkg](https://vcpkg.io)-based dependency management through [uberenv](https://github.com/llnl/uberenv).
 
 Axom is distributed under a BSD-3-Clause license; see the [user documentation](https://axom.readthedocs.io/en/develop/) for installation, examples, and API details and the [source repository](https://github.com/LLNL/axom).
+
+
+## What is "Shaping" in Axom?
+
+In Axom, "shaping" (sometimes referred to as "mesh overlay" or "painting") refers to the process of defining complex geometric regions and determining how they overlap with a computational mesh. This is crucial for setting up multi-material physics simulations where different materials occupy different regions of space. 
+
+Shaping produces "volume fraction" fields defined on mesh cells, representing the percentage of each cell occupied by different materials. In high-order finite element meshes, these volume fractions are polynomial functions describing material distribution throughout the cells. Volume fractions maintain a partition of unity property, meaning they always sum to one at any location in the mesh, ensuring complete and consistent material representation.
 
 ## Key Axom components in this tutorial
 
@@ -77,6 +84,22 @@ Let's get our feet wet with a first example that uses an installed version of Ax
 
 > :information_source: Our examples use the ``C++17`` standard since that's Axom's current version.
 
+
+> :memo: Note for HPCIC tutorial on <time datetime="2025-09-16">16 Sep 2025</time>: This tutorial currently lives on the `feature/shaping-tutorial` branch of Axom. To use it, check out that branch, then build and install Axom. 
+>
+>   ```shell
+>   # 1) Get Axom and switch to the tutorial branch
+>   > cd /home/axomdev
+>   > git fetch
+>   > git checkout develop && git submodule init && git submodule update  # optional
+>   > git checkout feature/shaping-tutorial
+>
+>   # 2) Configure, build, and install Axom
+>   > ./config-build.py -ecc -bp build-axom -ip shaping-tutorial -hc buildkit*.cmake -DAXOM_ENABLE_TESTS=OFF -DCMAKE_EXE_LINKER_FLAGS="-fno-lto"
+>   > cd build-axom
+>   > make -j16 install
+>   ```
+
 ### Configuring our application
 
 We will be using CMake to configure our examples against a pre-installed copy of Axom configured with several third-party libraries (TPLs) including the following RADIUSS libraries:
@@ -91,7 +114,7 @@ Since Axom users typically develop HPC applications that need to run on several 
 
 Our application can be configured and built using the following commands:
 ```shell
-> cd <path/to/tutorial/files>
+> cd <path/to/installed/tutorial/files>
 > mkdir build
 > cd build
 > cmake -C ../host-config.cmake ..
@@ -200,7 +223,4 @@ Active external dependencies: { adiak;c2c;caliper;conduit;hdf5;lua;
 ```
 
 > :clapper: Run the example for this lesson
-
-
-Enjoy your journey in exploring Axom through the shaping application!
 

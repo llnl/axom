@@ -14,7 +14,7 @@ This lesson demonstrates how to use Axom's `Inlet` library to define, parse, and
 
 In the previous lesson, we provided input for our mesh metadata on the command line
 ```bash
-> ./mesh_metadata_sidre --min_x 0.0 --min_y 0.0 --max_x 1.0 --max_y 1.5 --res_x 15 --res_y 25
+> ./bin/lesson_01_mesh_metadata_sidre --min_x 0.0 --min_y 0.0 --max_x 1.0 --max_y 1.5 --res_x 15 --res_y 25
 ```
 This can be tedious and error prone, especially as we add more input parameters!
 
@@ -97,23 +97,25 @@ Inlet provides a powerful way to define input schemas with validation:
 
 ### Key components of Inlet
 
-Inlet offers a powerful abstraction for input processing with the following key components:
-
-#### Containers and Fields
+Inlet offers a powerful abstraction for input processing with the following key concepts:
 
 **Container**
-: The core class that represents a hierarchical group of fields
+:  The core class that represents a hierarchical group of fields
   - Can hold nested containers to represent complex data structures
   - Supports path-based access (like `container["path/to/field"]`)
   - Enables validation of entire data structures
 
 **Field**
-: Individual data elements within containers
+:  Individual data elements within containers
   - Supports primitive types: int, double, bool, string
   - Array types for sequences of values
   - Each field can have metadata like description, default values, etc.
 
-
+**Verifiers**
+:  Function objects that validate container constraints
+   - Used to enforce complex rules between fields
+   - Can define custom validation logic beyond simple range checking
+   - Register directly with containers to ensure data integrity
 
 
 ## Schema definition for mesh metadata
@@ -191,8 +193,7 @@ bb.registerVerifier([](const inlet::Container& input) -> bool {
   return (min_x < max_x) && (min_y < max_y);
 });
 ```
-Verifier callbacks return a `bool` indicating if all test pass.
-In this example, we're also logging a warning message to give more context about the problem.
+Verifier callbacks return a `bool` indicating if all test pass. In this example, we're also logging a warning message to give more context about the problem.
 
 
 ### Initialization with `FromInlet`
@@ -263,21 +264,26 @@ MeshMetadata metadata = validated["mesh"].get<MeshMetadata>();
 
 This approach cleanly separates input definition, validation, and consumption, making your code more robust against malformed inputs.
 
-> :clapper: We can try running this example code in the [validated_inlet_metadata](https://github.com/LLNL/axom/tree/develop/examples/validated_inlet_metadata) example provided in Axom's GitHub repository to see different runs with valud and invalid YAML inputs.
-
+> :clapper: Let's try running this example code to see different runs with valid and invalid YAML inputs. We have included some yaml files with lesson_02
+>
+> ```bash
+> > ./bin/lesson_02_validated_inlet_metadata ../lesson_02/input2D.yaml
+> ```
 
 ## Enhanced features example
 
-The `improved_inlet_metadata.cpp` extends the basic example with:
+The `improved_inlet_metadata` example extends the basic example with:
 
 1. Support for both 2D and 3D meshes
 2. Multiple input formats (YAML and Lua)
 3. Dimension-specific validation
-4. Integration with Axom's BoundingBox type
+4. Integration with Axom's `primal::BoundingBox` type
 
 ### Support for 2D and 3D
 For example, we can now update our top-level verifier for the mesh schema to ensure
-that 2D meshes only have `x` and `y` fields, while 3D meshes always have `z` fields
+that 2D meshes only have `x` and `y` fields, while 3D meshes always have `z` fields.
+Note that we have also added a `dim` field for the mesh's dimension.
+
 ```cpp
 // Add constraint to ensure z values are only provided when dim is 3
 mesh_schema.registerVerifier([](const inlet::Container& input) {
@@ -313,7 +319,7 @@ mesh_schema.registerVerifier([](const inlet::Container& input) {
 
 ### Support for YAML and Lua
 
-We can easily support reading in YAML or LUA inputs with our `YAMLReader` and `LuaReader` classes:
+We can easily support reading in YAML or LUA inputs with Inlet's built-in `YAMLReader` and `LuaReader` classes:
 
 ```cpp
 // Define appropriate reader based on file extension
@@ -348,7 +354,7 @@ Inlet inlet(std::move(reader));
 
 > :bulb: **Note:** Lua is an optional dependency of Axom, and is available when Axom is configured with a `LUA_DIR` path. When available, `axom/config.hpp` will have a `AXOM_USE_LUA` compiler define.
 
-> :bulb: **Note:** Inlet also support JSON, through the `JSONReader`, but we haven't added it to this example.
+> :bulb: **Note:** Inlet also support JSON, through the `JSONReader`, but this is not demonstrated in this example.
 
 ### Example inputs: 2D vs. 3D; YAML vs. Lua
 
@@ -412,19 +418,12 @@ mesh = {
 <br />
 
 > :clapper: We can try running this example code in the [improved_inlet_metadata](https://github.com/LLNL/axom/tree/develop/examples/improved_inlet_metadata) example provided in Axom's GitHub repository to see how it handles both 2D and 3D configurations in different input formats (YAML and Lua), and demonstrates dimension-specific validation.
+> e.g.:
+>
+> ```bash
+> > ./bin/lesson_02_improved_inlet_metadata ../lesson_02/input3D.lua
+> ```
 
-
-## Building and running
-
-Build the examples using your build system, then run with a YAML input file:
-
-```bash
-# Basic example
-./validated_inlet_metadata input.yaml
-
-# Enhanced example with dimension support
-./improved_inlet_metadata input.yaml
-```
 
 ## Summary and next steps
 

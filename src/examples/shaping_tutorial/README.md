@@ -9,9 +9,8 @@
 # <img src="/share/axom/logo/axom_logo_transparent.png?raw=true" width="250" valign="middle" alt="Axom"/>
 
 # Axom shaping tutorial
-This tutorial introduces features of **Axom**, a Computer Science infrastructure framework designed to facilitate the development of multi-physics applications and computational tools.
+This tutorial introduces features of **Axom**, an open source Computer Science infrastructure framework designed to facilitate the development of multi-physics applications and computational tools.
 
-## Shaping application overview and introduction
 Our focus application in this tutorial is a **"Shaping"** application, which pertains to volume fraction initialization in multimaterial simulations. This use case is representative of Axom’s broad capabilities, as it spans several key components and subsystems within Axom.
 
 ## Tutorial roadmap
@@ -23,3 +22,5 @@ This tutorial showcases several features of Axom by incrementally building up an
 * [Lesson 02](lesson_02/README.md) focuses on Axom's `Inlet` component to define, parse, and validate simulation input for mesh metadata.
 * [Lesson 03](lesson_03/README.md) describes geometry setup for multimaterial simulation using Axom's `Klee` component.
 * [Lesson 04](lesson_04/README.md) "shapes" Klee-based geometry onto a computational mesh to compute per-material volume fractions using Axom's `Quest` component.
+
+We hope you enjoy your journey in exploring Axom through the shaping application!
