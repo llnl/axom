@@ -40,6 +40,13 @@ namespace primal
 template <typename T, int NDIMS>
 class NURBSCurve;
 
+template <typename T>
+class NURBSCurveGWNCache;
+
+/*! \brief Overloaded output operator for NURBS Curves*/
+template <typename T, int NDIMS>
+std::ostream& operator<<(std::ostream& os, const NURBSCurve<T, NDIMS>& bCurve);
+
 /*!
  * \struct SubdivisionData
  *
@@ -174,10 +181,6 @@ private:
 
   mutable axom::Array<std::map<std::pair<int, int>, SubdivisionData<T>>> m_bezierSubdivisionMaps;
 };
-
-/*! \brief Overloaded output operator for NURBS Curves*/
-template <typename T, int NDIMS>
-std::ostream& operator<<(std::ostream& os, const NURBSCurve<T, NDIMS>& bCurve);
 
 /*!
  * \class NURBSCurve

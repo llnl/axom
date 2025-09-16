@@ -41,6 +41,13 @@ namespace primal
 template <typename T, int NDIMS>
 class NURBSPatch;
 
+template <typename T>
+class NURBSPatchGWNCache;
+
+/*! \brief Overloaded output operator for NURBS Patches*/
+template <typename T, int NDIMS>
+std::ostream& operator<<(std::ostream& os, const NURBSPatch<T, NDIMS>& nPatch);
+
 #ifdef AXOM_USE_MFEM
 /*!
  * \struct TrimmingCurveQuadratureData
@@ -283,10 +290,6 @@ private:
   mutable axom::Array<std::map<std::pair<int, int>, TrimmingCurveQuadratureData<T>>> m_curveQuadratureMaps;
 };
 #endif
-
-/*! \brief Overloaded output operator for NURBS Patches*/
-template <typename T, int NDIMS>
-std::ostream& operator<<(std::ostream& os, const NURBSPatch<T, NDIMS>& nPatch);
 
 /*!
  * \class NURBSPatch
