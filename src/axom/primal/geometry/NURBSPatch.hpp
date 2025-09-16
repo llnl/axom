@@ -1628,8 +1628,6 @@ public:
       }
 
       curve.reverseOrientation();
-
-      curve.reverseOrientation();
     }
   }
 
@@ -3580,7 +3578,8 @@ public:
     bool isDiskInside = false;
     bool isDiskOutside = false;
     bool ignoreInteriorDisk = false;
-    diskSplit(u, v, r, the_disk, the_rest, isDiskInside, isDiskOutside, ignoreInteriorDisk, clipDisk);
+    double disk_padding = clipDisk ? 0.0 : getParameterSpaceDiagonal();
+    diskSplit(u, v, r, the_disk, the_rest, isDiskInside, isDiskOutside, ignoreInteriorDisk, disk_padding);
   }
 
   /*!
@@ -3594,7 +3593,7 @@ public:
    * \param [out] isDiskInside True if the disk is entirely inside the trimming curves
    * \param [out] isDiskOutside True if the disk is entirely outside the trimming curves
    * \param [in] ignoreInteriorDisk If true, don't perform subdivision if disk is entirely inside the trimming curves
-   * \param [in] clipDisk If true, the returned disk is clipped to the disk boundary
+   * \param [in] disk_padding How much space is retained around the disk in each direction after clipping
    * 
    * \note Function arguments suited for use in GWN evaluation
    */
@@ -3606,7 +3605,7 @@ public:
                  bool& isDiskInside,
                  bool& isDiskOutside,
                  bool ignoreInteriorDisk,
-                 bool clipDisk) const
+                 bool disk_padding) const
   {
     ParameterPointType uv_param({u, v});
 
@@ -3721,10 +3720,12 @@ public:
 
         the_disk.m_trimmingCurves.clear();
         the_disk.addTrimmingCurve(c1);
-        if(clipDisk)
-        {
-          the_disk.uncheckedClip(u - 2 * r, u + 2 * r, v - 2 * r, v + 2 * r);
-        }
+
+        // Clip the_disk according to the width of the disk and the padding parameter
+        the_disk.uncheckedClip(u - r - disk_padding,
+                               u + r + disk_padding,
+                               v - r - disk_padding,
+                               v + r + disk_padding);
 
         c1.reverseOrientation();
         the_rest.addTrimmingCurve(c1);
@@ -3796,11 +3797,11 @@ public:
       the_rest.addTrimmingCurve(curve);
     }
 
-    // Clip the_disk according to the width of the disk
-    if(clipDisk)
-    {
-      the_disk.uncheckedClip(u - 2 * r, u + 2 * r, v - 2 * r, v + 2 * r);
-    }
+    // Clip the_disk according to the width of the disk and the padding parameter
+    the_disk.uncheckedClip(u - r - disk_padding,
+                           u + r + disk_padding,
+                           v - r - disk_padding,
+                           v + r + disk_padding);
   }
   //@}
 

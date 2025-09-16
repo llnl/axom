@@ -669,7 +669,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
       // Consider a disk around the intersection point via NURBSPatch::diskSplit.
       //   If the disk intersects any trimming curves, need to do disk subdivision.
       //   If not, we can compute the winding number without changing the trimming curvse
-      const bool ignoreInteriorDisk = true, clipDisk = true;
+      const bool ignoreInteriorDisk = true;
       bool isDiskInside, isDiskOutside;
       NURBSPatch<T, 3> the_disk;
 
@@ -681,7 +681,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
                                isDiskInside,
                                isDiskOutside,
                                ignoreInteriorDisk,
-                               clipDisk);
+                               disk_radius);
 
       extraTrimming =
         extraTrimming || (!isDiskInside && !isDiskOutside) || (isDiskInside && !ignoreInteriorDisk);
