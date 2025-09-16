@@ -961,7 +961,7 @@ private:
   std::unique_ptr<shaping::PrimitiveSampler<3, hip_exec>> m_primitiveSampler3D_hip;
 
   std::unique_ptr<shaping::WindingNumberSampler<2>> m_inoutSamplerWN;
-  axom::Array<axom::primal::CurvedPolygon<double, 2>> m_contours;
+  axom::Array<axom::primal::CurvedPolygon<axom::primal::NURBSCurveGWNCache<double>>> m_contours;
 
   std::set<std::string> m_knownMaterials;
 

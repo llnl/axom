@@ -181,19 +181,16 @@ double winding_number(const Point<T, 2>& q,
  * 
  * \return The GWN.
  */
-template <typename T>
+template <typename T, typename CurveType>
 double winding_number(const Point<T, 2>& q,
-                      const CurvedPolygon<T, 2>& cpoly,
+                      const CurvedPolygon<CurveType>& cpoly,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  bool dummy_isOnCurve = false, isConvexControlPolygon = false;
-
   double ret_val = 0.0;
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
-    ret_val +=
-      detail::bezier_winding_number(q, cpoly[i], isConvexControlPolygon, dummy_isOnCurve, edge_tol, EPS);
+    ret_val += winding_number(q, cpoly[i], edge_tol, EPS);
   }
 
   return ret_val;
@@ -425,9 +422,9 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
  * 
  * \return The GWN.
  */
-template <typename T>
+template <typename T, typename CurveType>
 axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
-                                   const CurvedPolygon<T, 2>& cpoly,
+                                   const CurvedPolygon<CurveType>& cpoly,
                                    double edge_tol = 1e-8,
                                    double EPS = 1e-8)
 {
@@ -446,6 +443,37 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
 
   return ret_val;
 }
+
+/*!
+ * \brief Computes the GWN for an array of 2D points wrt to a 2D curved polygon
+ *
+ * \param [in] q_arr The query point to test
+ * \param [in] cpoly The CurvedPolygon object
+ * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ *
+ * Computes the GWN for the curved polygon by summing the GWN for each curved edge
+ * 
+ * \warning Because the cache isKdiscarded immediately after computation,
+ *  this method is not accelerated by memoization
+ * 
+ * \return The GWN.
+ */
+template <typename T>
+axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
+                                   const CurvedPolygon<NURBSCurveGWNCache<T>>& cpoly,
+                                   double edge_tol = 1e-8,
+                                   double EPS = 1e-8)
+{
+  axom::Array<double> ret_val(q_arr.size());
+  for(int n = 0; n < q_arr.size(); ++n)
+  {
+    ret_val[n] = winding_number(q_arr[n], cache_arr, edge_tol, EPS);
+  }
+
+  return ret_val;
+}
+
 ///@{
 //! @name Winding number operations between 3D points and primitives
 

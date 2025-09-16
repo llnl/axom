@@ -48,7 +48,7 @@ namespace primal
  */
 template <typename T>
 bool in_curved_polygon(const Point<T, 2>& query,
-                       const CurvedPolygon<T, 2>& cpoly,
+                       const CurvedPolygon<BezierCurve<T, 2>>& cpoly,
                        bool useNonzeroRule = true,
                        double edge_tol = 1e-8,
                        double EPS = 1e-8)

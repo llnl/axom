@@ -45,13 +45,8 @@ namespace detail
 template <typename ShapeType, typename PointType>
 bool AXOM_HOST_DEVICE checkInside(const ShapeType& shape, const PointType& pt)
 {
-  double wn {};
-  for(int c = 0; c < shape.numEdges(); c++)
-  {
-    wn += axom::primal::winding_number(pt, shape[c]);
-  }
   // A point inside the polygon should have non-zero winding number.
-  return (round(wn) != 0);
+  return (round(axom::primal::winding_number(pt, shape)) != 0);
 }
 
 }  // end namespace detail
@@ -68,7 +63,8 @@ public:
   // For now.
   using ExecSpace = axom::SEQ_EXEC;
 
-  using GeometryView = typename axom::ArrayView<axom::primal::CurvedPolygon<double, DIM>>;
+  using CurvedPolygonType = primal::CurvedPolygon<NURBSCurveGWNCache<double>>;
+  using GeometryView = typename axom::ArrayView<CurvedPolygonType>;
   using PointType = primal::Point<double, DIM>;
   using GeometricBoundingBox = axom::primal::BoundingBox<double, DIM>;
   using BVH = typename axom::spin::BVH<NDIMS, ExecSpace, double>;

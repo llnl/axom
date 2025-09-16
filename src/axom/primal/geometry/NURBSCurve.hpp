@@ -79,6 +79,11 @@ template <typename T>
 class NURBSCurveGWNCache
 {
 public:
+  using PointType = typename NURBSCurve<T, 2>::PointType;
+  using VectorType = typename NURBSCurve<T, 2>::VectorType;
+  using BoundingBoxType = typename NURBSCurve<T, 2>::BoundingBoxType;
+
+public:
   NURBSCurveGWNCache() = default;
 
   /// \brief Initialize the cache with the data for the original curve
@@ -758,6 +763,9 @@ public:
    * \return A const reference to the control point at index \a idx
    */
   const PointType& operator[](int idx) const { return m_controlPoints[idx]; }
+
+  PointType getInitPoint() const { return m_controlPoints[0]; }
+  PointType getEndPoint() const { return m_controlPoints[m_controlPoints.size() - 1]; }
 
   /// \brief Returns a copy of the NURBS curve's control points
   CoordsVec getControlPoints() const { return m_controlPoints; }
