@@ -89,7 +89,7 @@ Let's get our feet wet with a first example that uses an installed version of Ax
 >
 >   ```shell
 >   # 1) Get Axom and switch to the tutorial branch
->   > cd /home/axomdev
+>   > cd /home/axomdev/axom_repo
 >   > git fetch
 >   > git checkout develop && git submodule init && git submodule update  # optional
 >   > git checkout feature/shaping-tutorial
