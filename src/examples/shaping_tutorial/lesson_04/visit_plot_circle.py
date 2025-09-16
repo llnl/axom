@@ -27,8 +27,7 @@ m.meshColor = (0, 0, 0, 255)
 m.opacity = 0.258824
 SetPlotOptions(m)
 
-# Plot 3 - The inner circle
-
+# Plot 3 - The outer circle
 OpenDatabase("unit_circle.mesh")
 AddPlot("Mesh", "main")
 m2 = MeshAttributes()
@@ -49,8 +48,6 @@ mrc2.resolution = 15
 SetOperatorOptions(mrc2)
 
 # Plot 4 - The inner circle
-
-OpenDatabase("unit_circle.mesh")
 AddPlot("Mesh", "main")
 m3 = MeshAttributes()
 m3.legendFlag = 0
