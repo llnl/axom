@@ -102,7 +102,7 @@ Let's get our feet wet with a first example that uses an installed version of Ax
 >   > git checkout feature/shaping-tutorial
 >
 >   # 2) Configure, build, and install Axom
->   > ./config-build.py -ecc -bp build-axom -ip shaping-tutorial -hc buildkitsandbox-linux-ubuntu22.04-x86_64-gcc@12.3.0_cuda.cmake -DAXOM_ENABLE_TESTS=OFF -DCMAKE_EXE_LINKER_FLAGS="-fno-lto"
+>   > ./config-build.py -ecc -bp build-axom -ip shaping-tutorial -hc buildkitsandbox-linux-ubuntu22.04-x86_64-gcc@12.3.0_cuda.cmake -DAXOM_ENABLE_TESTS=OFF -DXOM_ENABLE_EXAMPLES=OFF -DCMAKE_EXE_LINKER_FLAGS="-fno-lto"
 >   > cd build-axom
 >   > make -j16 install
 >   > cd ../shaping-tutorial
