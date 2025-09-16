@@ -284,183 +284,72 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
   return 0.5 * M_1_PI * acos(dotprod) * ((tri_area > 0) ? 1 : -1);
 }
 
-template <typename T>
-void construct_approximating_polygon(const Point<T, 2>& q,
-                                     const BezierCurve<T, 2>& c,
-                                     bool isConvexControlPolygon,
-                                     double edge_tol,
-                                     double EPS,
-                                     Polygon<T, 2>& approximating_polygon,
-                                     double& endpoint_gwn,
-                                     bool& isOnPolygonEndpoint)
-{
-  const int ord = c.getOrder();
-
-  // Simplest convex shape containing c is its bounding box
-  if(!c.boundingBox().expand(edge_tol).contains(q))
-  {
-    return;
-  }
-
-  // Use linearity as base case for recursion
-  if(c.isLinear(EPS))
-  {
-    return;
-  }
-
-  // Check if our control polygon is convex.
-  //  If so, all subsequent control polygons will be convex as well
-  Polygon<T, 2> controlPolygon(c.getControlPoints());
-  const bool includeBoundary = true;
-  bool isOnEdge = false;
-
-  if(!isConvexControlPolygon)
-  {
-    isConvexControlPolygon = is_convex(controlPolygon, EPS);
-  }
-
-  // Formulas for winding number only work if shape is convex
-  if(isConvexControlPolygon)
-  {
-    // Bezier curves are always contained in their convex control polygon
-    if(polygon_winding_number(q, controlPolygon, isOnEdge, includeBoundary, edge_tol) == 0)
-    {
-      return;
-    }
-
-    // If the query point is at either endpoint...
-    if(squared_distance(q, c[0]) <= edge_tol * edge_tol ||
-       squared_distance(q, c[ord]) <= edge_tol * edge_tol)
-    {
-      // ...we can use a direct formula for the GWN at the endpoint
-      endpoint_gwn += convex_endpoint_winding_number(q, c, edge_tol, EPS);
-      isOnPolygonEndpoint = true;
-
-      return;
-    }
-  }
-
-  // Recursively split curve until query is outside some known convex region
-  BezierCurve<T, 2> c1, c2;
-  c.split(0.5, c1, c2);
-
-  construct_approximating_polygon(q,
-                                  c1,
-                                  isConvexControlPolygon,
-                                  edge_tol,
-                                  EPS,
-                                  approximating_polygon,
-                                  endpoint_gwn,
-                                  isOnPolygonEndpoint);
-  approximating_polygon.addVertex(c2[0]);
-  construct_approximating_polygon(q,
-                                  c2,
-                                  isConvexControlPolygon,
-                                  edge_tol,
-                                  EPS,
-                                  approximating_polygon,
-                                  endpoint_gwn,
-                                  isOnPolygonEndpoint);
-
-  return;
-}
-
 /*!
- * \brief Computes the GWN for a 2D point wrt a 2D Bezier curve
+ * \brief Computes the GWN for a 2D point wrt cached data for a 2D NURBS curve
  *
  * \param [in] q The query point to test
- * \param [in] c The Bezier curve object 
- * \param [in] isOnCurve An returned flag if the point is on the curve
+ * \param [in] nurbs_cache The NURBS curve cached data object 
+ * \param [in] isOnEdge An returned flag if the point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
- * Computes the GWN using a recursive, bisection algorithm
- * that constructs a polygon with the same *integer* WN as 
- * the curve closed with a linear segment. The *generalized* WN 
- * of the closing line is then subtracted from the integer WN to
- * return the GWN of the original curve.
- *  
- * Nearly-linear Bezier curves are the base case for recursion.
- * 
- * See Algorithm 2 in
- *  Jacob Spainhour, David Gunderman, and Kenneth Weiss. 2024. 
- *  Robust Containment Queries over Collections of Rational Parametric Curves via Generalized Winding Numbers. 
- *  ACM Trans. Graph. 43, 4, Article 38 (July 2024)
+ * Computes the GWN by decomposing into rational Bezier curves
+ *  and summing the resulting GWNs. Far-away curves can be evaluated
+ *  without decomposition using direct formula.
  * 
  * \return The GWN.
  */
 template <typename T>
-double bezier_winding_number(const Point<T, 2>& q,
-                             const BezierCurve<T, 2>& c,
-                             bool& isOnCurve,
-                             double edge_tol = 1e-8,
-                             double EPS = 1e-8)
+double bezier_winding_number_memoized(const Point<T, 2>& q,
+                                      const NURBSCurveGWNCache<T>& nurbs_cache,
+                                      int bezier_idx,
+                                      int refinement_level,
+                                      int refinement_index,
+                                      bool& isOnCurve,
+                                      double edge_tol = 1e-8,
+                                      double EPS = 1e-8)
 {
-  const int ord = c.getOrder();
-  if(ord <= 0)
+  // Early exit for degenerate curves
+  const int deg = nurbs_cache.getDegree();
+  if(deg <= 0)
   {
     return 0.0;
   }
 
-  // Early return is possible for most points + curves
-  if(!c.boundingBox().expand(edge_tol).contains(q) || c.isLinear(EPS))
+  auto& bezier_data = nurbs_cache.getSubdivisionData(bezier_idx, refinement_level, refinement_index);
+  auto& bezier_curve = bezier_data.curve;
+
+  // If outside a bounding box, the curve can be treated as linear between its endpoints
+  if(!bezier_curve.boundingBox().expand(edge_tol).contains(q) || bezier_curve.isLinear(EPS))
   {
-    return detail::linear_winding_number(q, c[0], c[ord], isOnCurve, edge_tol);
+    return detail::linear_winding_number(q, bezier_curve[0], bezier_curve[deg], isOnCurve, edge_tol);
   }
 
-  // The first vertex of the polygon is the t=0 point of the curve
-  Polygon<T, 2> approximating_polygon(1);
-  approximating_polygon.addVertex(c[0]);
-
-  // Need to keep a running total of the GWN to account for
-  //  the winding number of coincident points
-  double gwn = 0.0;
-  bool isOnPolygonEndpoint = false;  // Indicates coincidence with curve
-  detail::construct_approximating_polygon(q,
-                                          c,
-                                          false,
-                                          edge_tol,
-                                          EPS,
-                                          approximating_polygon,
-                                          gwn,
-                                          isOnPolygonEndpoint);
-
-  // The last vertex of the polygon is the t=1 point of the curve
-  approximating_polygon.addVertex(c[ord]);
-
-  // Compute the integer winding number of the closed curve
-  bool isOnPolygonEdge = false;
-  double closed_curve_wn =
-    detail::polygon_winding_number(q, approximating_polygon, isOnPolygonEdge, false, edge_tol);
-
-  // Compute the fractional value of the closed curve
-  bool isOnClosure = false;
-  const int n = approximating_polygon.numVertices();
-  const double closure_wn = detail::linear_winding_number(q,
-                                                          approximating_polygon[n - 1],
-                                                          approximating_polygon[0],
-                                                          isOnClosure,
-                                                          edge_tol);
-
-  // If the point is on the boundary of the approximating polygon,
-  //  or coincident with the curve (isOnPolygonEndpoint), then winding_number<polygon>
-  //  doesn't return the right half-integer. Have to go edge-by-edge.
-  if(isOnPolygonEndpoint || isOnPolygonEdge)
+  // If the control polygon is convex, we can handle coincidence with a direct formula
+  if(bezier_data.isConvexControlPolygon &&
+     (squared_distance(q, bezier_curve[0]) <= edge_tol * edge_tol ||
+      squared_distance(q, bezier_curve[deg]) <= edge_tol * edge_tol))
   {
-    closed_curve_wn = closure_wn;
-    for(int i = 1; i < n; ++i)
-    {
-      bool isOnThisEdge = false;
-      closed_curve_wn += detail::linear_winding_number(q,
-                                                       approximating_polygon[i - 1],
-                                                       approximating_polygon[i],
-                                                       isOnThisEdge,
-                                                       edge_tol);
-    }
+    isOnCurve = true;
+    return convex_endpoint_winding_number(q, bezier_curve, edge_tol, EPS);
   }
 
-  isOnCurve = isOnPolygonEndpoint;
-  return gwn + closed_curve_wn - closure_wn;
+  return detail::bezier_winding_number_memoized(q,
+                                                nurbs_cache,
+                                                bezier_idx,
+                                                refinement_level + 1,
+                                                2 * refinement_index,
+                                                isOnCurve,
+                                                edge_tol,
+                                                EPS) +
+    detail::bezier_winding_number_memoized(q,
+                                           nurbs_cache,
+                                           bezier_idx,
+                                           refinement_level + 1,
+                                           2 * refinement_index + 1,
+                                           isOnCurve,
+                                           edge_tol,
+                                           EPS);
 }
 
 /*!
@@ -473,41 +362,55 @@ double bezier_winding_number(const Point<T, 2>& q,
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
  * Evaluates the GWN through recursive subdivision of the curve until each component is "far-away"
- *  i.e. the query it outside its bounding box, at which point a direct formula for the GWN 
+ *  i.e. the query it outside its bounding box or convex control polygon, at which point a direct formula for the GWN 
  *  of that component can be used.
  *  
  * \return The GWN.
  */
 template <typename T>
-double bezier_winding_number_old(const Point<T, 2>& q,
-                                 const BezierCurve<T, 2>& bezier,
-                                 bool isConvexControlPolygon,
-                                 bool& isOnCurve,
-                                 double edge_tol = 1e-8,
-                                 double EPS = 1e-8)
+double bezier_winding_number(const Point<T, 2>& q,
+                             const BezierCurve<T, 2>& bezier,
+                             bool isConvexControlPolygon,
+                             bool& isOnCurve,
+                             double edge_tol = 1e-8,
+                             double EPS = 1e-8)
 {
+  // Early exit for degenerate curves
   const int ord = bezier.getOrder();
   if(ord <= 0)
   {
     return 0.0;
   }
 
+  // If outside a bounding box, the curve can be treated as linear between its endpoints
   if(!bezier.boundingBox().expand(edge_tol).contains(q) || bezier.isLinear(EPS))
   {
     return detail::linear_winding_number(q, bezier[0], bezier[ord], isOnCurve, edge_tol);
   }
 
+  // If the control polygon isn't convex, we need to subdivide regardless
+  auto controlPolygon = Polygon<T, 2>(bezier.getControlPoints());
   if(!isConvexControlPolygon)
   {
-    isConvexControlPolygon = is_convex(Polygon<T, 2>(bezier.getControlPoints()), EPS);
+    isConvexControlPolygon = is_convex(controlPolygon, EPS);
   }
-
-  if(isConvexControlPolygon &&
-     (squared_distance(q, bezier[0]) <= edge_tol * edge_tol ||
-      squared_distance(q, bezier[ord]) <= edge_tol * edge_tol))
+  // Otherwise, we can check that we're outside the convex control polygon
+  //  and handle coincidence with a direct formula
+  else
   {
-    isOnCurve = true;
-    return convex_endpoint_winding_number(q, bezier, edge_tol, EPS);
+    constexpr bool includeBoundary = true;
+    bool isOnEdge = false;
+    if(polygon_winding_number(q, controlPolygon, isOnEdge, includeBoundary, edge_tol) == 0)
+    {
+      return detail::linear_winding_number(q, bezier[0], bezier[ord], isOnCurve, edge_tol);
+    }
+
+    if(squared_distance(q, bezier[0]) <= edge_tol * edge_tol ||
+       squared_distance(q, bezier[ord]) <= edge_tol * edge_tol)
+    {
+      isOnCurve = true;
+      return convex_endpoint_winding_number(q, bezier, edge_tol, EPS);
+    }
   }
 
   BezierCurve<T, 2> b1, b2;
@@ -568,71 +471,6 @@ double nurbs_winding_number(const Point<T, 2>& q,
   }
 
   return gwn;
-}
-
-/*!
- * \brief Computes the GWN for a 2D point wrt cached data for a 2D NURBS curve
- *
- * \param [in] q The query point to test
- * \param [in] nurbs_cache The NURBS curve cached data object 
- * \param [in] isOnEdge An returned flag if the point is on the curve
- * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
- * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
- *
- * Computes the GWN by decomposing into rational Bezier curves
- *  and summing the resulting GWNs. Far-away curves can be evaluated
- *  without decomposition using direct formula.
- * 
- * \return The GWN.
- */
-template <typename T>
-double bezier_winding_number_memoized(const Point<T, 2>& q,
-                                      const NURBSCurveGWNCache<T>& nurbs_cache,
-                                      int bezier_idx,
-                                      int refinement_level,
-                                      int refinement_index,
-                                      bool& isOnCurve,
-                                      double edge_tol = 1e-8,
-                                      double EPS = 1e-8)
-{
-  const int deg = nurbs_cache.getDegree();
-  if(deg <= 0)
-  {
-    return 0.0;
-  }
-
-  auto& bezier_data = nurbs_cache.getSubdivisionData(bezier_idx, refinement_level, refinement_index);
-  auto& bezier_curve = bezier_data.curve;
-
-  if(!bezier_curve.boundingBox().expand(edge_tol).contains(q) || bezier_curve.isLinear(EPS))
-  {
-    return detail::linear_winding_number(q, bezier_curve[0], bezier_curve[deg], isOnCurve, edge_tol);
-  }
-
-  if(bezier_data.isConvexControlPolygon &&
-     (squared_distance(q, bezier_curve[0]) <= edge_tol * edge_tol ||
-      squared_distance(q, bezier_curve[deg]) <= edge_tol * edge_tol))
-  {
-    isOnCurve = true;
-    return convex_endpoint_winding_number(q, bezier_curve, edge_tol, EPS);
-  }
-
-  return detail::bezier_winding_number_memoized(q,
-                                                nurbs_cache,
-                                                bezier_idx,
-                                                refinement_level + 1,
-                                                2 * refinement_index,
-                                                isOnCurve,
-                                                edge_tol,
-                                                EPS) +
-    detail::bezier_winding_number_memoized(q,
-                                           nurbs_cache,
-                                           bezier_idx,
-                                           refinement_level + 1,
-                                           2 * refinement_index + 1,
-                                           isOnCurve,
-                                           edge_tol,
-                                           EPS);
 }
 
 }  // end namespace detail
