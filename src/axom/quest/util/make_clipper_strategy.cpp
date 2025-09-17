@@ -5,6 +5,7 @@
 
 #include "axom/config.hpp"
 
+#ifdef AXOM_ENABLE_SIDRE
 #include "axom/quest/util/make_clipper_strategy.hpp"
 #include "axom/quest/detail/clipping/Plane3DClipper.hpp"
 #include "axom/quest/detail/clipping/TetClipper.hpp"
@@ -73,3 +74,4 @@ std::shared_ptr<MeshClipperStrategy> make_clipper_strategy(const axom::klee::Geo
 }  // namespace util
 }  // namespace quest
 }  // namespace axom
+#endif  // AXOM_ENABLE_SIDRE

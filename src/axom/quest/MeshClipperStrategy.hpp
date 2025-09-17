@@ -47,7 +47,7 @@ namespace quest
  *    cells in a provided index list.  The latter works in
  *    conjunction with @c labelCellsInOut.
 
- * Every method returns true if it fulfilled the request, or
+ * Every method should return true if it fulfilled the request, or
  * false if it was a no-op.
 
  * Implementations of this strategy must provide either
