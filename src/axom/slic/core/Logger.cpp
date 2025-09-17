@@ -380,6 +380,11 @@ void Logger::outputLocalMessages()
 void Logger::flushStreams()
 {
 
+  /*
+    check if any MPI-based stream has pending messages on any rank.
+    This is needed to avoid unecessary pushes or flushes when there are no
+    pending messages.
+   */
   const bool pendingMessages = hasPendingMessages();
 
   //Flush for all message levels
@@ -417,6 +422,12 @@ void Logger::flushStreams()
 //------------------------------------------------------------------------------
 void Logger::pushStreams()
 {
+
+  /*
+    check if any MPI-based stream has pending messages on any rank.
+    This is needed to avoid unecessary pushes or flushes when there are no
+    pending messages.
+   */
   const bool pendingMessages = hasPendingMessages();
   //Push for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
