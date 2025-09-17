@@ -389,8 +389,7 @@ void Logger::flushStreams()
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
       const bool streamUsesMPI = m_logStreams[level][istream]->isUsingMPI();
-      if ((streamUsesMPI == true && pendingMessages) || 
-           streamUsesMPI == false)
+      if (shouldPushMessages(pendingMessages, streamUsesMPI))
       {
         m_logStreams[level][istream]->flush();
       }
@@ -407,8 +406,7 @@ void Logger::flushStreams()
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
       const bool streamUsesMPI = it->second[i]->isUsingMPI();
-      if ((streamUsesMPI == true && pendingMessages) || 
-           streamUsesMPI == false)
+      if (shouldPushMessages(pendingMessages, streamUsesMPI))
       {
         it->second[i]->flush();
       }
@@ -427,8 +425,7 @@ void Logger::pushStreams()
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
       const bool streamUsesMPI = m_logStreams[level][istream]->isUsingMPI();
-      if ((streamUsesMPI == true && pendingMessages) || 
-           streamUsesMPI == false)
+      if (shouldPushMessages(pendingMessages, streamUsesMPI))
       {
         m_logStreams[level][istream]->push();
       }
@@ -445,8 +442,7 @@ void Logger::pushStreams()
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
       const bool streamUsesMPI = it->second[i]->isUsingMPI();
-      if ((streamUsesMPI == true && pendingMessages) || 
-           streamUsesMPI == false)
+      if (shouldPushMessages(pendingMessages, streamUsesMPI))
       {
         it->second[i]->push();
       }
@@ -576,6 +572,12 @@ Logger* Logger::getRootLogger()
   }
 
   return (loggers["root"]);
+}
+
+bool Logger::shouldPushMessages(const bool hasPendingMessages, 
+                                const bool streamUsesMPI) const
+{
+  return (!streamUsesMPI || hasPendingMessages);
 }
 
 } /* namespace slic */

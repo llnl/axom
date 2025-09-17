@@ -61,7 +61,7 @@ protected:
   std::vector<LogStream*> m_streamVec;
 #if defined(AXOM_USE_MPI)
   bool m_useMPI;
-  std::vector<MPI_Comm> m_mpiComm;
+  std::vector<MPI_Comm> m_mpiComms;
 #endif
 
 

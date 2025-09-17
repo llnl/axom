@@ -446,6 +446,19 @@ private:
    */
   ~Logger();
 
+  /*!
+   * \brief Determines whether to push or flush messages.
+   * Returns true if the current stream does not use MPI, 
+   * or if pending messages exist on any stream.
+   *
+   * \param [in] hasPendingMessages flag that indicates if there are pending 
+   *                                messages on any stream
+   * \param [in] streamUsesMPI flag that indicates if the current stream 
+   *                           uses MPI
+   */
+  bool shouldPushMessages(const bool hasPendingMessages, 
+                          const bool streamUsesMPI) const;
+
   /// \name Private class members
   ///@{
 

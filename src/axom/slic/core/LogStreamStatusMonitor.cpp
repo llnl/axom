@@ -32,7 +32,7 @@ LogStreamStatusMonitor::LogStreamStatusMonitor()
 #if defined(AXOM_USE_MPI)
     ,
     m_useMPI(false),
-    m_mpiComm()
+    m_mpiComms()
 #endif
 {
 }
@@ -46,6 +46,10 @@ void LogStreamStatusMonitor::addStream(LogStream* ls)
   {
     m_useMPI = true;
 
+    /* 
+      Lambda returns true if ranks participating in input MPI communicator are 
+      identical to those of the current log stream's MPI commmunicator
+    */
     auto commCompareFunc = 
       [&](MPI_Comm& comm) {
         MPI_Group groupCommA, groupCommB;
@@ -60,11 +64,15 @@ void LogStreamStatusMonitor::addStream(LogStream* ls)
         return result == MPI_IDENT;
       };
 
-    auto it = std::find_if(m_mpiComm.begin(), m_mpiComm.end(), commCompareFunc);
+    auto it = std::find_if(m_mpiComms.begin(), m_mpiComms.end(), commCompareFunc);
 
-    if (it == m_mpiComm.end())
+    /* 
+      Add the stream's MPI communicator only if its participating ranks differ
+      from those of all existing communicators in m_mpiComms.
+    */
+    if (it == m_mpiComms.end())
     {
-      m_mpiComm.push_back(ls->comm());
+      m_mpiComms.push_back(ls->comm());
     }
   }
 #endif
@@ -91,7 +99,7 @@ bool LogStreamStatusMonitor::hasPendingMessages() const
   }
 
   int local_has_pending_messages = has_pending_messages;
-  for (auto& comm : m_mpiComm)
+  for (auto& comm : m_mpiComms)
   {
     if (comm != MPI_COMM_NULL)
     {
@@ -111,7 +119,7 @@ void LogStreamStatusMonitor::finalize()
   m_streamVec.clear();
 #if defined(AXOM_USE_MPI)
   m_useMPI = false;
-  m_mpiComm.clear();
+  m_mpiComms.clear();
 #endif
 }
 
