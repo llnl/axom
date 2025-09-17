@@ -132,6 +132,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("conduit+{0}".format(_var), when="+{0}".format(_var))
         depends_on("conduit~{0}".format(_var), when="~{0}".format(_var))
 
+    depends_on("conduit+python", when="+devtools")
+    depends_on("conduit~python", when="~devtools")
+
     depends_on("hdf5", when="+hdf5")
 
     depends_on("lua", when="+lua")
