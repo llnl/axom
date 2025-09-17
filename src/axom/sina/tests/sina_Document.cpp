@@ -776,7 +776,7 @@ void doAppendOrderedCurveTest(
   const std::string &protocol,
   std::function<conduit::Node(const std::string &, const sina::Document &, int, bool)> appendDocumentFunc)
 {
-  std::string curvedump_file = "test." + protocol;
+  std::string curvedump_file = "test_curve." + protocol;
   axom::sina::Document ordered_curves =
     Document(CURVE_ORDERED_DOCUMENT, createRecordLoaderWithAllKnownTypes());
   axom::sina::Document additional_curve =
@@ -807,10 +807,7 @@ TEST(Document, test_appendOrderedCurvesToJson)
   doAppendOrderedCurveTest("json", appendDocumentToJson);
 }
 
-// Windows error -
-// unknown file: error: C++ exception with description "Could not save to 'test.hdf5':
-// iostream stream error" thrown in the test body.
-#if defined(AXOM_USE_HDF5) && !defined(WIN32)
+#ifdef AXOM_USE_HDF5
 TEST(Document, test_appendOrderedCurvesToHDF5)
 {
   doAppendOrderedCurveTest("hdf5", appendDocumentToHDF5);
