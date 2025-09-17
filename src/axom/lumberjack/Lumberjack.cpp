@@ -14,6 +14,7 @@
  */
 
 #include "axom/lumberjack/Lumberjack.hpp"
+#include <algorithm>
 #include <iostream>
 
 namespace axom
@@ -111,15 +112,36 @@ void Lumberjack::clearMessages()
   m_messages.clear();
 }
 
-void Lumberjack::queueMessage(const std::string& text) { queueMessage(text, "", -1, 0, ""); }
+void Lumberjack::queueMessage(const std::string& text, double creationTime)
+{
+  queueMessage(text, "", -1, 0, creationTime, "");
+}
 
 void Lumberjack::queueMessage(const std::string& text,
                               const std::string& fileName,
                               const int lineNumber,
                               int level,
+                              double creationTime,
                               const std::string& tag)
 {
-  Message* mi = new Message(text, m_communicator->rank(), fileName, lineNumber, level, tag);
+  const double elapsedTime = creationTime - m_communicator->startTime();
+  Message* mi =
+    new Message(text, m_communicator->rank(), fileName, lineNumber, level, elapsedTime, tag);
+  m_messages.push_back(mi);
+}
+
+void Lumberjack::queueMessage(const std::string& text,
+                              const std::vector<int>& ranks,
+                              const int count,
+                              const std::string& fileName,
+                              const int lineNumber,
+                              int level,
+                              double creationTime,
+                              const std::string& tag)
+{
+  const double elapsedTime = creationTime - m_communicator->startTime();
+  Message* mi =
+    new Message(text, ranks, count, m_ranksLimit, fileName, lineNumber, level, elapsedTime, tag);
   m_messages.push_back(mi);
 }
 
@@ -149,6 +171,10 @@ void Lumberjack::pushMessagesOnce()
   receivedPackedMessages.clear();
 
   combineMessages();
+
+  std::sort(m_messages.begin(), m_messages.end(), [](Message* const a, Message* const b) {
+    return a->creationTime() < b->creationTime();
+  });
 }
 
 void Lumberjack::pushMessagesFully()
@@ -181,6 +207,10 @@ void Lumberjack::pushMessagesFully()
   }
 
   combineMessages();
+
+  std::sort(m_messages.begin(), m_messages.end(), [](Message* const a, Message* const b) {
+    return a->creationTime() < b->creationTime();
+  });
 }
 
 bool Lumberjack::isOutputNode() { return m_communicator->isOutputNode(); }

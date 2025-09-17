@@ -35,6 +35,15 @@ int main(void)
   // since we gave saveDocument no optional protocol parameter, it will default to JSON
   axom::sina::saveDocument(document, "MySinaData.json");
 
+  // You can also add a document's contents to an already-dumped one, useful for capturing
+  // snapshots from a code. Appending has quite a bit of functionality, see the documentation
+  // for documents for more info.
+  axom::sina::Document document2;
+  axom::sina::ID studyID2 {"study2", axom::sina::IDType::Local};
+  std::unique_ptr<axom::sina::Record> study2 {new axom::sina::Record {studyID2, "UQ study"}};
+  document2.add(std::move(study2));
+  axom::sina::appendDocumentToJson("MySinaData.json", document2, 1, false);
+
 #ifdef AXOM_USE_HDF5
   // We will also save a copy of the document as an HDF5 file
   // which can be done by passing the protocol as HDF5

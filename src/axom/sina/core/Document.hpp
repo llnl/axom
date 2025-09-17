@@ -21,6 +21,8 @@
 #include "axom/sina/core/Relationship.hpp"
 
 #include "conduit.hpp"
+#include "conduit_relay.hpp"
+#include "conduit_relay_io.hpp"
 
 #include <memory>
 #include <vector>
@@ -201,6 +203,16 @@ public:
   conduit::Node toNode() const;
 
 #ifdef AXOM_USE_HDF5
+
+  /**
+   *  \brief Convert this document to the HDF5 format (escaped slashes)
+   * 
+   *  \param writeTo an empty conduit node to write the new node into
+   * 
+   *  \return This node with slashes escaped for HDF5.
+   */
+  conduit::Node &toHDF5Node(conduit::Node &writeTo) const;
+
   /**
    *  \brief Dump this document as an HDF5 File
    * 
@@ -260,6 +272,8 @@ inline std::string getSinaFileFormatVersion()
     std::to_string(SINA_FILE_FORMAT_VERSION_MINOR);
 }
 
+void restoreSlashes(const conduit::Node &modifiedNode, conduit::Node &restoredNode);
+
 /**
  * \brief Load a document from the given path. Only records which this library
  *        knows about will be able to be loaded.
@@ -283,6 +297,81 @@ Document loadDocument(std::string const &path, Protocol protocol = Protocol::JSO
 Document loadDocument(std::string const &path,
                       RecordLoader const &recordLoader,
                       Protocol protocol = Protocol::JSON);
+
+/**
+ * \brief Append the new records or, per-record, new data, user defined content, curves/curve sets,
+ *        and library data of a Sina Document to an existing JSON file. For a full explanation of behavior,
+ *        see appendDocumentToHDF5. Note that a JSON file must be entirely re-written for an append to function;
+ *        it's more efficient for shorter files, but prefer HDF5 for large files (many timeseries/long timeseries)
+ *
+ * \param jsonFilePath the path to the JSON file
+ * \param newData a Sina Document containing the new data to append
+ * \param mergeProtocol protocol for handling duplicate data/files/user_defined/etc
+ *                            1 = take the new value. 2 = keep the old value. 3/Other = Cancel the append.
+ *                     Protocol 1 is the conduit default behavior. Ignored entirely when skipping validation.
+ * \param skipValidation whether to skip the validation step entirely. Most useful for well-controlled cases,
+ *                       ex: a code is appending values to every timeseries every N cycles.
+ * \return a conduit Node containing a list of any errors encountered in appending. If empty, success.
+ */
+conduit::Node appendDocumentToJson(const std::string &jsonFilePath,
+                                   const Document &newData,
+                                   const int mergeProtocol = 1,
+                                   const bool skipValidation = false);
+
+/**
+ * \brief Append the new records or, per-record, new data, user defined content, curves/curve sets,
+ *        and library data of a Sina Document to an existing HDF5 file. Appending is meant to allow a
+ *        Sina document to grow as a simulation continues, i.e. by appending new snapshots into the same
+ *        file, or by writing additional points of a timeseries to disk as they become available. HDF5 is
+ *        the preferred filetype for heavy appending into, as it does not require being entirely re-written
+ *        to file each time, unlike JSON.
+ * 
+ *        When appending a new Document to one already written on disk, it will first find any records that
+ *        don't exist in the file on disk and add them. Then, for any file it finds that does exist, it will
+ *        go through its various fields and compare them. New data/curve sets/etc. will simply be added in.
+ *        For fields that already exist:
+ *         - For curves in curve sets, new values will be appended onto the end. This is useful for ex: codes that
+ *           don't store curves in memory, appending the new set of curve values each cycle will allow the file on
+ *           disk to grow as the simulation continues.
+ *        - For everything else (data, files, user_defined...), behavior depends on mergeProtocol, with the default
+ *        behavior being to overwrite the old (on-disk) field with the new value.
+ *
+ * \param hdf5FilePath the path to the HDF5 file
+ * \param new_data a vector of the new data to append
+ * \param mergeProtocol protocol for handling duplicate data/files/user_defined/etc
+ *                            1 = take the new value. 2 = keep the old value. 3 = Cancel the append.
+ *                     Protocol 1 is the conduit default behavior. Ignored entirely when skipping validation.
+ * \param skipValidation whether to skip the validation step entirely. Most useful for well-controlled cases,
+ *                       ex: a code is appending values to every timeseries every N cycles.
+ * 
+ * \return a conduit Node containing a list of any errors encountered in appending. If empty, success!
+ */
+conduit::Node appendDocumentToHDF5(const std::string &hdf5FilePath,
+                                   Document const &newData,
+                                   const int mergeProtocol = 1,
+                                   const bool skipValidation = false);
+
+/**
+ * \brief Check a node against some file handle and return a Conduit node populated with any errors that
+ *        would prevent appending. Primarily useful for dry run testing of what may be going wrong with an append.
+ * 
+ * \param appendTo Either a conduit node or a conduit relay filehandle (prefer the latter for HDF5) representing
+ *                 the data on disk
+ * \param appendFrom A conduit node representing the document being appended to the file on disk
+ * \param endpoint The endpoint within the record at which the node should be checked. This is primarily useful for library_data
+ * \param mergeProtocol protocol for handling duplicate data/files/user_defined/etc. See append methods above.
+ * \param record_num The offset of the record within appendFrom, i.e. if you'd like to test the append against the first record, pass 0
+ * \param original_file_path The path to the appendFrom document on disk, required for fast lookup of some HDF5 info
+ * \return a conduit Node containing a list of any errors encountered in appending. If empty, success.
+ */
+template <typename ConduitRelayLike>
+conduit::Node validateAppendDocument(ConduitRelayLike &appendTo,
+                                     const conduit::Node &appendFrom,
+                                     const std::string &endpoint,
+                                     const int mergeProtocol,
+                                     int record_num,
+                                     // default'd because it might go away with a conduit update
+                                     const std::string &original_file_path = "");
 
 }  // namespace sina
 }  // namespace axom

@@ -12,6 +12,8 @@
 #include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
 #include "axom/bump/tests/blueprint_testing_helpers.hpp"
 
+#include <cstdlib>
+
 std::string baselineDirectory()
 {
   return pjoin(dataDirectory(), "mir", "regression", "mir_elvira");
@@ -22,6 +24,20 @@ namespace utils = axom::bump::utilities;
 //------------------------------------------------------------------------------
 // Global test application object.
 axom::blueprint::testing::TestApplication TestApp;
+
+//------------------------------------------------------------------------------
+template <typename ExecSpace>
+constexpr int maxAttempts()
+{
+  int n = 1;
+#if defined(AXOM_USE_HIP)
+  if constexpr(axom::execution_space<ExecSpace>::onDevice())
+  {
+    n = 2;
+  }
+#endif
+  return n;
+}
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
@@ -60,65 +76,97 @@ struct braid2d_mat_test
     }
     utils::copy<ExecSpace>(deviceMesh, hostMesh);
 
-    // Do MIR on all domains.
-    for(int dom = 0; dom < nDomains; dom++)
+    // NOTE: As a workaround on HIP, we can attempt the test more than once.
+    bool pass = false;
+    for(int attempt = 0; attempt < maxAttempts<ExecSpace>(); attempt++)
     {
-      const std::string domainName = axom::fmt::format("domain_{:07}", dom);
-      conduit::Node &deviceDomain = (nDomains > 1) ? deviceMesh[domainName] : deviceMesh;
-
-      // _elvira_mir_start
-      namespace views = axom::bump::views;
-      // Make views.
-      auto coordsetView = views::make_uniform_coordset<2>::view(deviceDomain["coordsets/coords"]);
-      auto topologyView = views::make_uniform_topology<2>::view(deviceDomain["topologies/mesh"]);
-      using CoordsetView = decltype(coordsetView);
-      using TopologyView = decltype(topologyView);
-      using IndexingPolicy = typename TopologyView::IndexingPolicy;
-
-      conduit::Node deviceMIRMesh;
-      if(mattype == "unibuffer")
+      // Do MIR on all domains.
+      bool thisAttempt = true;
+      for(int dom = 0; dom < nDomains; dom++)
       {
-        auto matsetView =
-          views::make_unibuffer_matset<int, float, 3>::view(deviceDomain["matsets/mat"]);
-        using MatsetView = decltype(matsetView);
+        const std::string domainName = axom::fmt::format("domain_{:07}", dom);
+        conduit::Node &deviceDomain = (nDomains > 1) ? deviceMesh[domainName] : deviceMesh;
 
-        using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
-        MIR m(topologyView, coordsetView, matsetView);
-        conduit::Node options;
-        options["matset"] = "mat";
-        options["plane"] = 1;
-        options["pointmesh"] = pointMesh ? 1 : 0;
+        // _elvira_mir_start
+        namespace views = axom::bump::views;
+        // Make views.
+        auto coordsetView = views::make_uniform_coordset<2>::view(deviceDomain["coordsets/coords"]);
+        auto topologyView = views::make_uniform_topology<2>::view(deviceDomain["topologies/mesh"]);
+        using CoordsetView = decltype(coordsetView);
+        using TopologyView = decltype(topologyView);
+        using IndexingPolicy = typename TopologyView::IndexingPolicy;
 
-        if(selectedZones)
+        conduit::Node deviceMIRMesh;
+        if(mattype == "unibuffer")
         {
-          selectZones(options);
+          auto matsetView =
+            views::make_unibuffer_matset<int, float, 3>::view(deviceDomain["matsets/mat"]);
+          using MatsetView = decltype(matsetView);
+
+          using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
+          MIR m(topologyView, coordsetView, matsetView);
+          conduit::Node options;
+          options["matset"] = "mat";
+          options["plane"] = 1;
+          options["pointmesh"] = pointMesh ? 1 : 0;
+
+          if(selectedZones)
+          {
+            selectZones(options);
+          }
+          m.execute(deviceDomain, options, deviceMIRMesh);
         }
-        m.execute(deviceDomain, options, deviceMIRMesh);
+        // _elvira_mir_end
+
+        // device->host
+        conduit::Node hostMIRMesh;
+        utils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
+
+        TestApp.saveVisualization(name, hostMIRMesh);
+
+        // Handle baseline comparison.
+        constexpr double tolerance = 2.6e-06;
+        TestApp.setVerbose(attempt >= maxAttempts<ExecSpace>() - 1);
+        thisAttempt &= TestApp.test<ExecSpace>(name, hostMIRMesh, tolerance);
       }
-      // _elvira_mir_end
 
-      // device->host
-      conduit::Node hostMIRMesh;
-      utils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
-
-      TestApp.saveVisualization(name, hostMIRMesh);
-
-      // Handle baseline comparison.
-      constexpr double tolerance = 2.6e-06;
-      EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostMIRMesh, tolerance));
+      // See whether this attempt worked.
+      pass = thisAttempt;
+      if(thisAttempt)
+      {
+        break;
+      }
+      else if(attempt + 1 < maxAttempts<ExecSpace>())
+      {
+        SLIC_WARNING(axom::fmt::format("Attempting test {} again!", name));
+      }
     }
+    EXPECT_TRUE(pass);
+    TestApp.setVerbose(true);
+
+    reset();
   }
 
-  /// Function to run a simple kernel. This is a workaround for HIP tests, which
-  /// on tioga appear to have intermittent failures related to normals.
+  /*
+   * \brief This function runs a simple kernel and synchronizes, both of which seem
+   *        to be needed to work around intermittent failures on HIP platforms.
+   *        Users can set the "NO_RESET" environment variable to skip this workaround.
+   */
   static void reset()
   {
-    const axom::IndexType N = 10000;
-    axom::Array<double> arr(N, N, axom::execution_space<ExecSpace>::allocatorID());
-    auto arrView = arr.view();
-    axom::for_all<ExecSpace>(
-      N,
-      AXOM_LAMBDA(axom::IndexType index) { arrView[index] = index * index; });
+    if(getenv("NO_RESET") == nullptr)
+    {
+      const axom::IndexType N = 10000;
+      axom::Array<double> arr(N, N, axom::execution_space<ExecSpace>::allocatorID());
+      auto arrView = arr.view();
+      for(int i = 0; i < 2; i++)
+      {
+        axom::for_all<ExecSpace>(
+          N,
+          AXOM_LAMBDA(axom::IndexType index) { arrView[index] = index * index; });
+      }
+      axom::synchronize<ExecSpace>();
+    }
   }
 };
 
@@ -337,7 +385,6 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_hip)
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_hip");
   const bool selectZones = true;
   const bool pointMesh = false;
-  braid2d_mat_test<hip_exec>::reset();
   braid2d_mat_test<hip_exec>::test("uniform",
                                    "unibuffer",
                                    "elvira_uniform_unibuffer_sel",
@@ -350,7 +397,6 @@ TEST(mir_elvira, elvira_uniform_unibuffer_pm_hip)
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_pm_hip");
   const bool selectZones = false;
   const bool pointMesh = true;
-  braid2d_mat_test<hip_exec>::reset();
   braid2d_mat_test<hip_exec>::test("uniform",
                                    "unibuffer",
                                    "elvira_uniform_unibuffer_pm",
@@ -363,7 +409,6 @@ TEST(mir_elvira, elvira_uniform_unibuffer_sel_pm_hip)
   AXOM_ANNOTATE_SCOPE("elvira_uniform_unibuffer_sel_pm_hip");
   const bool selectZones = true;
   const bool pointMesh = true;
-  braid2d_mat_test<hip_exec>::reset();
   braid2d_mat_test<hip_exec>::test("uniform",
                                    "unibuffer",
                                    "elvira_uniform_unibuffer_sel_pm",

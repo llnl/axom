@@ -142,6 +142,16 @@ public:
    *****************************************************************************
    */
   virtual bool isOutputNode() = 0;
+
+  /*!
+   *****************************************************************************
+   * \brief This function returns a start time that is consistent across ranks.
+   * This time corresponds to the time that the Communicator is initialized
+   *
+   * \return Double value that corresponds to a global start time
+   *****************************************************************************
+   */
+  virtual double startTime() = 0;
 };
 
 }  // end namespace lumberjack
