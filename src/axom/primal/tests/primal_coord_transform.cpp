@@ -93,20 +93,24 @@ void check_rotate_about_bisector()
 
   double angle = 2 * M_PI / 3;  // 1/3 full rotation goes from axis to axis.
 
-  const int n = 8;  // Number of octants and 7-tuples in vectors.
-  // The 7-tuples in vectors are the octant bisectors and 3 start-end pairs.
-  VectorType vectors[7 * n] = {oct1, x,  y,  y,  z,  z,  x,  oct2, y, -x, -x, z,  z,  y,
-                               oct3, z,  -x, -x, -y, -y, z,  oct4, x, z,  z,  -y, -y, x,
-                               oct5, x,  -z, -z, y,  y,  x,  oct6, y, -z, -z, -x, -x, y,
-                               oct7, -x, -z, -z, -y, -y, -x, oct8, x, -y, -y, -z, -z, x};
+  const int n = 8;  // Number of octants
+  // Test in 8 octants.  Do 3 rotations per octant.  Each rotation has a {start, end} pair.
+  VectorType rotAxes[8] = {oct1, oct2, oct3, oct4, oct5, oct6, oct7, oct8};
+  VectorType startEnds[8][3][2] = { { {x, y}, {y, z}, {z, x} },
+                                    { {y, -x}, {-x, z}, {z, y} },
+                                    { {z, -x}, {-x, -y}, {-y, z} },
+                                    { {x, z}, {z, -y}, {-y, x} },
+                                    { {x, -z}, {-z, y}, {y, x} },
+                                    { {y, -z}, {-z, -x}, {-x, y} },
+                                    { {-x, -z}, {-z, -y}, {-y, -x} },
+                                    { {x, -y}, {-y, -z}, {-z, x} } };
   for(int i = 0; i < n; ++i)
   {
-    int j = 7 * i;
-    VectorType rotAxis = vectors[j];
+    VectorType rotAxis = rotAxes[i];
     for(int k = 0; k < 3; ++k)
     {
-      auto startDir = vectors[j + 2 * k + 1];
-      auto endDir = vectors[j + 2 * k + 2];
+      auto startDir = startEnds[i][k][0];
+      auto endDir = startEnds[i][k][1];
       primal::CoordinateTransformer<double> rotation;
       rotation.addRotation(rotAxis.unitVector(), angle);
       VectorType result(rotation.getTransformed(startDir.array()));
@@ -160,7 +164,6 @@ void check_to_dst_pts()
   using VectorType = primal::Vector<double, DIM>;
 
   PointType Ps[4] = {{1, 2, 3}, {2, 2, 3}, {1, 4, 3}, {1, 2, 6}};
-  // PointType Ps[4] = {{0,0,0}, {1,0,0}, {0,1,0}, {0,0,1}};
   PointType Qs[4] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
 
   primal::CoordinateTransformer<double> transformer;
