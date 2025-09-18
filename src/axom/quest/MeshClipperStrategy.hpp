@@ -118,7 +118,7 @@ public:
 
    * The exact information depends on the implementation.
   */
-  const conduit::Node info() const { return m_info; }
+  const conduit::Node& info() const { return m_info; }
 
   //@{
   //!@name Geometry-specialized methods

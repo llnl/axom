@@ -138,9 +138,12 @@ public:
   /*!
    * @brief Set to invalid value.
    *
-   * Invalid transformers can be checked with isInvalid().
+   * Validity can be checked with isValid().
    */
   AXOM_HOST_DEVICE void setInvalid() { m_P[0][0] = std::numeric_limits<T>::quiet_NaN(); }
+
+  //! @brief Whether transformer is valid.
+  AXOM_HOST_DEVICE void isValid() { return std::isnan(m_P[0][0]); }
 
   /*!
    * @brief Get the matrix for the transformation.
@@ -190,8 +193,9 @@ public:
   /*!
    * @brief Add a 3D rotation to the current transformation.
    *
-   * The rotation is not unique.  The chosen rotation axis is the
-   * direction perpendicular to the start and end vectors.
+   * The rotation is defined by 2 vectors, start and end, and is not
+   * unique.  The chosen rotation axis is the direction perpendicular
+   * to the start and end vectors.
    *
    * @param start [in] Starting direction
    * @param end [in] Ending direction
@@ -225,27 +229,33 @@ public:
     }
 
     u.array() /= sinT;  // Make u a unit vector.
-    privateAddRotation(u, sinT, cosT);
+    addRotation(u, sinT, cosT);
   }
 
   /*!
-   * @brief Add a 3D rotation to the current transformation.
-   * The rotation is given as a rotation axis and an angle.
+   * @brief Add a 3D rotation to the current transformation.  The
+   * rotation is given as a rotation axis (unit vector) and an angle.
    *
-   * @param axisDir [in]
-   * @param angle [in]
+   * @param u [in] Rotation axis, a unit vector
+   * @param angle [in] Rotation angle
    */
-  void addRotation(const axom::primal::Vector<T, 3>& axisDir, T angle)
+  void addRotation(const axom::primal::Vector<T, 3>& u, T angle)
   {
-    SLIC_ASSERT(axisDir.squared_norm() > 1e-20);
-    auto unitDir = axisDir.unitVector();
     T sinT = sin(angle);
     T cosT = cos(angle);
-    privateAddRotation(unitDir, sinT, cosT);
+    addRotation(u, sinT, cosT);
   }
 
-  //!@brief Add rotation, given unit vector and angle as sine and cosine.
-  void privateAddRotation(const axom::primal::Vector<T, 3>& u, T sinT, T cosT)
+  /*!
+   * @brief Add a 3D rotation to the current transformation.  The
+   * rotation is given as a rotation axis (unit vector) and angle as
+   * sine and cosine.
+   *
+   * @param u [in] Rotation axis, a unit vector
+   * @param sinT [in] Sine of rotation angle
+   * @param cosT [in] Cosine of rotation angle
+   */
+  void addRotation(const axom::primal::Vector<T, 3>& u, T sinT, T cosT)
   {
     T ccosT = 1 - cosT;
 
@@ -285,7 +295,7 @@ public:
     multMatrxVectr(P, vOld, m_v);
   }
 
-  //! @brief Get a trransformed 3D Point.
+  //! @brief Get a transformed 3D Point.
   AXOM_HOST_DEVICE axom::primal::Point<T, 3> getTransformed(const axom::primal::Point<T, 3>& pt) const
   {
     axom::primal::Point<T, 3> rval = pt;
@@ -293,7 +303,7 @@ public:
     return rval;
   }
 
-  //! @brief Get a trransformed 3D Vector.
+  //! @brief Get a transformed 3D Vector.
   AXOM_HOST_DEVICE axom::primal::Vector<T, 3> getTransformed(const axom::primal::Vector<T, 3>& pt) const
   {
     axom::primal::Vector<T, 3> rval = pt;
@@ -301,16 +311,13 @@ public:
     return rval;
   }
 
-  //! @brief Get a trransformed 3D coordinate.
+  //! @brief Get a transformed 3D coordinate.
   AXOM_HOST_DEVICE axom::NumericArray<T, 3> getTransformed(const axom::NumericArray<T, 3>& pt) const
   {
     axom::NumericArray<T, 3> rval = pt;
     transform(rval[0], rval[1], rval[2]);
     return rval;
   }
-
-  //! @brief Whether transformer is valid.
-  AXOM_HOST_DEVICE void isValid() { return std::isnan(m_P[0][0]); }
 
   //! @brief Transform a 3D coordinate in place.
   AXOM_HOST_DEVICE void transform(axom::NumericArray<T, 3>& pt) const
