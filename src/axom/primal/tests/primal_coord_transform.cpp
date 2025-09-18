@@ -94,7 +94,7 @@ void check_rotate_about_bisector()
   double angle = 2 * M_PI / 3;  // 1/3 full rotation goes from axis to axis.
 
   const int n = 8;  // Number of octants and 7-tuples in vectors.
-  // The 7-tuples in vectors are the octant bisector and 3 start-end pairs.
+  // The 7-tuples in vectors are the octant bisectors and 3 start-end pairs.
   VectorType vectors[7 * n] = {oct1, x,  y,  y,  z,  z,  x,  oct2, y, -x, -x, z,  z,  y,
                                oct3, z,  -x, -x, -y, -y, z,  oct4, x, z,  z,  -y, -y, x,
                                oct5, x,  -z, -z, y,  y,  x,  oct6, y, -z, -z, -x, -x, y,
@@ -108,7 +108,7 @@ void check_rotate_about_bisector()
       auto startDir = vectors[j + 2 * k + 1];
       auto endDir = vectors[j + 2 * k + 2];
       primal::CoordinateTransformer<double> rotation;
-      rotation.addRotation(rotAxis, angle);
+      rotation.addRotation(rotAxis.unitVector(), angle);
       VectorType result(rotation.getTransformed(startDir.array()));
       VectorType diff(result.array() - endDir.array());
       std::cout << rotAxis << ' ' << startDir << ' ' << endDir << ' ' << result << ' ' << diff
@@ -218,7 +218,7 @@ void check_inverse()
     VectorType axis({1, .5, .2});
     double angle = M_PI / 180 * 10;
     primal::CoordinateTransformer<double> transformer;
-    transformer.addRotation(axis, angle);
+    transformer.addRotation(axis.unitVector(), angle);
     primal::CoordinateTransformer<double> inverse = transformer.getInverse();
     PointType changed = transformer.getTransformed(start);
     PointType undone = inverse.getTransformed(changed);
@@ -246,7 +246,7 @@ void check_inverse()
 
       primal::CoordinateTransformer<double> transformer;
       transformer.addTranslation(shift);
-      transformer.addRotation(axis, angle);
+      transformer.addRotation(axis.unitVector(), angle);
       primal::CoordinateTransformer<double> inverse = transformer.getInverse();
       VectorType endPt = transformer.getTransformed(startPt);
       VectorType result = inverse.getTransformed(endPt);

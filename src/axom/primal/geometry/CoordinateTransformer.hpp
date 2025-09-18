@@ -7,6 +7,8 @@
 #define AXOM_PRIMAL_COORDINATE_TRANSFORMER_HPP
 
 #include "axom/core/numerics/Matrix.hpp"
+#include "axom/core/utilities/Utilities.hpp"
+#include "axom/core/numerics/floating_point_limits.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 
@@ -257,6 +259,8 @@ public:
    */
   void addRotation(const axom::primal::Vector<T, 3>& u, T sinT, T cosT)
   {
+    const T EPS = 10*axom::numerics::floating_point_limits<T>::epsilon();
+    SLIC_ASSERT(axom::utilities::isNearlyEqual(u.squared_norm(), 1.0, EPS));
     T ccosT = 1 - cosT;
 
     Matrx P;  // 3D rotation matrix.
