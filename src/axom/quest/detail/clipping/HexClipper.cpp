@@ -11,6 +11,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
@@ -227,5 +229,6 @@ void HexClipper::computeSurface()
   m_surfaceTriangles[23] = Triangle3DType(twvu, u, t);
 }
 
+}  // namespace experimental
 }  // end namespace quest
 }  // end namespace axom

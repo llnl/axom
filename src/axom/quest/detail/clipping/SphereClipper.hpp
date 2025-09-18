@@ -14,6 +14,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 /*!
  * @brief Geometry clipping operations for sphere geometries.
@@ -55,7 +57,7 @@ private:
   axom::primal::Sphere<double, 3> m_sphere;
 
   //!@brief External transformations, equivalent to m_transMat.
-  axom::primal::CoordinateTransformer<double> m_transformer;
+  axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   int m_levelOfRefinement;
 
@@ -74,6 +76,7 @@ private:
   void transformSphere();
 };
 
+}  // namespace experimental
 }  // namespace quest
 }  // namespace axom
 

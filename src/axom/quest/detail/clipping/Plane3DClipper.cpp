@@ -11,6 +11,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
@@ -208,5 +210,6 @@ void Plane3DClipper::extractClipperInfo()
   m_plane = Plane3DType(nVec, offset);
 }
 
+}  // namespace experimental
 }  // end namespace quest
 }  // end namespace axom

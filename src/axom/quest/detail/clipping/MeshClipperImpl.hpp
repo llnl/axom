@@ -19,6 +19,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 namespace detail
 {
 
@@ -880,6 +882,7 @@ private:
 };
 
 }  // end namespace detail
+}  // namespace experimental
 }  // end namespace quest
 }  // end namespace axom
 

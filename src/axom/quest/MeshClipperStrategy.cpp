@@ -12,6 +12,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 namespace internal
 {
 /*!
@@ -133,5 +135,6 @@ numerics::Matrix<double> MeshClipperStrategy::computeTransformationMatrix(
   return transformation;
 }
 
+}  // namespace experimental
 }  // end namespace quest
 }  // end namespace axom

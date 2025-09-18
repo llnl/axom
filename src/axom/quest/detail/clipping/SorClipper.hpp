@@ -15,6 +15,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 /*!
  * @brief Geometry clipping operations for 3D
@@ -95,6 +97,7 @@ private:
   void initializeFSorClippers();
 };
 
+}  // namespace experimental
 }  // namespace quest
 }  // namespace axom
 

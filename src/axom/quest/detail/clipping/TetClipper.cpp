@@ -11,6 +11,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
@@ -330,5 +332,6 @@ void TetClipper::extractClipperInfo()
   }
 }
 
+}  // namespace experimental
 }  // end namespace quest
 }  // end namespace axom

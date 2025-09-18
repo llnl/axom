@@ -14,6 +14,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 /*!
  * @brief Geometry clipping operations for sphere geometries.
@@ -62,7 +64,7 @@ private:
   //!@brief Triangles on the discretized hex surface, oriented inward.
   axom::StackArray<Triangle3DType, 24> m_surfaceTriangles;
 
-  axom::primal::CoordinateTransformer<double> m_transformer;
+  axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
   void labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
@@ -72,6 +74,7 @@ private:
   void computeSurface();
 };
 
+}  // namespace experimental
 }  // namespace quest
 }  // namespace axom
 

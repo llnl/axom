@@ -20,6 +20,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 /*!
  * @brief Strategy base class for clipping operations for specific
@@ -371,6 +373,7 @@ private:
     const std::shared_ptr<const axom::klee::GeometryOperator>& op) const;
 };
 
+}  // namespace experimental
 }  // namespace quest
 }  // namespace axom
 

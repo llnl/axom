@@ -16,6 +16,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 /*!
  * @brief Abstract base class encapsulating the clipping task in
@@ -158,7 +160,7 @@ private:
   quest::ShapeeMesh& m_shapeeMesh;
 
   //! @brief Shape-specific operations in clipping.
-  std::shared_ptr<quest::MeshClipperStrategy> m_strategy;
+  std::shared_ptr<quest::experimental::MeshClipperStrategy> m_strategy;
 
   //! @brief Object where execution space code is instantiated.
   std::unique_ptr<Impl> m_impl;
@@ -195,6 +197,7 @@ public:
   //@}
 };
 
+}  // namespace experimental
 }  // namespace quest
 }  // namespace axom
 

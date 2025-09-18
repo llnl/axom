@@ -17,6 +17,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 TetMeshClipper::TetMeshClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
@@ -854,5 +856,6 @@ void TetMeshClipper::copy_tetmesh_arrays_to(int allocId)
 // Run cellKernel through a cell loop.
 // Run faceKernel through a face loop.
 
+}  // namespace experimental
 }  // end namespace quest
 }  // end namespace axom

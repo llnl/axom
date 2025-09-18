@@ -12,6 +12,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
@@ -452,5 +454,6 @@ void SphereClipper::transformSphere()
   m_sphere = SphereType(center, radius);
 }
 
+}  // namespace experimental
 }  // end namespace quest
 }  // end namespace axom

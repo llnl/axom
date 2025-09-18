@@ -17,6 +17,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 /*!
  * @brief Geometry clipping operations for tetrahedral mesh geometries.
@@ -67,7 +69,7 @@ private:
   //! @brief Geometry as tetrahedra.
   axom::Array<TetrahedronType> m_tets;
 
-  axom::primal::CoordinateTransformer<double> m_transformer;
+  axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
   void labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
@@ -124,6 +126,7 @@ private:
   void copy_tetmesh_arrays_to(int allocId);
 };
 
+}  // namespace experimental
 }  // namespace quest
 }  // namespace axom
 

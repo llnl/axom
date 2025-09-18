@@ -28,7 +28,7 @@ void check_translation()
 
   PointType a({1, 2, 3});
   VectorType d({15, 16, 17});
-  primal::CoordinateTransformer<double> dt;
+  primal::experimental::CoordinateTransformer<double> dt;
   dt.addTranslation(d);
   PointType b(dt.getTransformed(a.array()));
   VectorType diff(b.array() - a.array() - d.array());
@@ -59,7 +59,7 @@ void check_rotate_to_axis()
   {
     VectorType startDir = startsAndEnds[2 * i];
     VectorType endDir = startsAndEnds[2 * i + 1];
-    primal::CoordinateTransformer<double> rotation;
+    primal::experimental::CoordinateTransformer<double> rotation;
     rotation.addRotation(startDir, endDir);
     VectorType result(rotation.getTransformed(startDir.array()));
     VectorType diff(result.array() - endDir.array());
@@ -111,7 +111,7 @@ void check_rotate_about_bisector()
     {
       auto startDir = startEnds[i][k][0];
       auto endDir = startEnds[i][k][1];
-      primal::CoordinateTransformer<double> rotation;
+      primal::experimental::CoordinateTransformer<double> rotation;
       rotation.addRotation(rotAxis.unitVector(), angle);
       VectorType result(rotation.getTransformed(startDir.array()));
       VectorType diff(result.array() - endDir.array());
@@ -141,7 +141,7 @@ void check_translate_rotate()
 
   {
     VectorType pt({1, 1, 1});
-    primal::CoordinateTransformer<double> transformer;
+    primal::experimental::CoordinateTransformer<double> transformer;
     transformer.addTranslation(VectorType {0, 1, 0});
     transformer.addRotation(x, y);
     VectorType correct({-2, 1, 1});
@@ -166,7 +166,7 @@ void check_to_dst_pts()
   PointType Ps[4] = {{1, 2, 3}, {2, 2, 3}, {1, 4, 3}, {1, 2, 6}};
   PointType Qs[4] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
 
-  primal::CoordinateTransformer<double> transformer;
+  primal::experimental::CoordinateTransformer<double> transformer;
   transformer.setByTerminusPts(Ps, Qs);
   for(int i = 0; i < 4; ++i)
   {
@@ -205,9 +205,9 @@ void check_inverse()
     // Simple shift
     PointType start({1, 2, 3});
     VectorType shift({10, 20, 30});
-    primal::CoordinateTransformer<double> transformer;
+    primal::experimental::CoordinateTransformer<double> transformer;
     transformer.addTranslation(shift);
-    primal::CoordinateTransformer<double> inverse = transformer.getInverse();
+    primal::experimental::CoordinateTransformer<double> inverse = transformer.getInverse();
     PointType changed = transformer.getTransformed(start);
     PointType undone = inverse.getTransformed(changed);
     VectorType diff(start.array() - undone.array());
@@ -220,9 +220,9 @@ void check_inverse()
     PointType start({1, 2, 30});
     VectorType axis({1, .5, .2});
     double angle = M_PI / 180 * 10;
-    primal::CoordinateTransformer<double> transformer;
+    primal::experimental::CoordinateTransformer<double> transformer;
     transformer.addRotation(axis.unitVector(), angle);
-    primal::CoordinateTransformer<double> inverse = transformer.getInverse();
+    primal::experimental::CoordinateTransformer<double> inverse = transformer.getInverse();
     PointType changed = transformer.getTransformed(start);
     PointType undone = inverse.getTransformed(changed);
     VectorType diff(start.array() - undone.array());
@@ -247,10 +247,10 @@ void check_inverse()
                        axom::utilities::random_real(-100., 100.)});
       double angle = axom::utilities::random_real(-2 * M_PI, 2 * M_PI);
 
-      primal::CoordinateTransformer<double> transformer;
+      primal::experimental::CoordinateTransformer<double> transformer;
       transformer.addTranslation(shift);
       transformer.addRotation(axis.unitVector(), angle);
-      primal::CoordinateTransformer<double> inverse = transformer.getInverse();
+      primal::experimental::CoordinateTransformer<double> inverse = transformer.getInverse();
       VectorType endPt = transformer.getTransformed(startPt);
       VectorType result = inverse.getTransformed(endPt);
       VectorType diff(result.array() - startPt.array());

@@ -14,6 +14,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 /*!
  * @brief Geometry clipping operations for 3D
@@ -132,7 +134,7 @@ private:
   axom::Array<BoundingBox2DType> m_bbUnder;
 
   //!@brief Internal and external transforms (includes m_sorDirection and m_sorOrigin).
-  axom::primal::CoordinateTransformer<double> m_transformer;
+  axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   /*!
    * @brief Inverse of m_transformer.
@@ -142,7 +144,7 @@ private:
    * Therefore, we don't transform the shape until after it's discretized.
    * When needed, we will inverse-transform the mesh.
   */
-  axom::primal::CoordinateTransformer<double> m_inverseTransformer;
+  axom::primal::experimental::CoordinateTransformer<double> m_inverseTransformer;
 
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
@@ -166,6 +168,7 @@ private:
   bool getGeometryAsOctsImpl(quest::ShapeeMesh& shappeMesh, axom::Array<OctahedronType>& octs);
 };
 
+}  // namespace experimental
 }  // namespace quest
 }  // namespace axom
 

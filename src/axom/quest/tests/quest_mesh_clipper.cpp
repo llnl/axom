@@ -1181,7 +1181,7 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Create shapes for the test
   //---------------------------------------------------------------------------
-  axom::Array<std::shared_ptr<axom::quest::MeshClipperStrategy>> geomStrategies;
+  axom::Array<std::shared_ptr<axom::quest::experimental::MeshClipperStrategy>> geomStrategies;
   geomStrategies.reserve(params.testGeom.size());
   SLIC_ERROR_IF(params.getBoxDim() != 3, "This example is only in 3D.");
   for(const auto& tg : params.testGeom)
@@ -1195,48 +1195,48 @@ int main(int argc, char** argv)
     if(tg == "plane")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::Plane3DClipper>(createGeom_Plane(name), name));
+        std::make_shared<axom::quest::experimental::Plane3DClipper>(createGeom_Plane(name), name));
     }
     else if(tg == "hex")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::HexClipper>(createGeom_Hex(name), name));
+      geomStrategies.push_back(std::make_shared<axom::quest::experimental::HexClipper>(createGeom_Hex(name), name));
     }
     else if(tg == "sphere")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::SphereClipper>(createGeom_Sphere(name), name));
+        std::make_shared<axom::quest::experimental::SphereClipper>(createGeom_Sphere(name), name));
     }
     else if(tg == "tetmesh")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::TetMeshClipper>(createGeom_TetMesh(ds, name), name));
+        std::make_shared<axom::quest::experimental::TetMeshClipper>(createGeom_TetMesh(ds, name), name));
     }
     else if(tg == "tet")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::TetClipper>(createGeom_Tet(name), name));
+      geomStrategies.push_back(std::make_shared<axom::quest::experimental::TetClipper>(createGeom_Tet(name), name));
     }
     else if(tg == "cyl")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::FSorClipper>(createGeom_Cylinder(name), name));
+        std::make_shared<axom::quest::experimental::FSorClipper>(createGeom_Cylinder(name), name));
     }
     else if(tg == "cone")
     {
       geomStrategies.push_back(
-        std::make_shared<axom::quest::FSorClipper>(createGeom_Cone(name), name));
+        std::make_shared<axom::quest::experimental::FSorClipper>(createGeom_Cone(name), name));
     }
     else if(tg == "sor")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::SorClipper>(createGeom_Sor(name), name));
+      geomStrategies.push_back(std::make_shared<axom::quest::experimental::SorClipper>(createGeom_Sor(name), name));
     }
 
     else if(tg == "tet2")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::TetClipper>(createGeom_Tet2(name), name));
+      geomStrategies.push_back(std::make_shared<axom::quest::experimental::TetClipper>(createGeom_Tet2(name), name));
     }
     else if(tg == "hex2")
     {
-      geomStrategies.push_back(std::make_shared<axom::quest::HexClipper>(createGeom_Hex2(name), name));
+      geomStrategies.push_back(std::make_shared<axom::quest::experimental::HexClipper>(createGeom_Hex2(name), name));
     }
   }
 
@@ -1304,7 +1304,7 @@ int main(int argc, char** argv)
       geomStrategies[i]->info().print();
     }
 
-    quest::MeshClipper clipper(sMesh, geomStrategies[i]);
+    quest::experimental::MeshClipper clipper(sMesh, geomStrategies[i]);
     clipper.setVerbose(params.isVerbose());
     axom::Array<double> ovlap;
     AXOM_ANNOTATE_BEGIN(annotationName);

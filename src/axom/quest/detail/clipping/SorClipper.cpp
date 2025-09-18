@@ -17,6 +17,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   : MeshClipperStrategy(kGeom)
@@ -190,5 +192,6 @@ void SorClipper::extractClipperInfo()
   m_levelOfRefinement = m_info.fetch_existing("levelOfRefinement").to_double();
 }
 
+}  // namespace experimental
 }  // end namespace quest
 }  // end namespace axom

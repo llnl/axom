@@ -14,6 +14,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 /*!
  * @brief Geometry clipping operations for sphere geometries.
@@ -61,7 +63,7 @@ private:
   //!@brief Height of the tet when resting on each facet.
   axom::StackArray<double, 4> m_heights;
 
-  axom::primal::CoordinateTransformer<double> m_transformer;
+  axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
   void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
@@ -75,6 +77,7 @@ private:
   void extractClipperInfo();
 };
 
+}  // namespace experimental
 }  // namespace quest
 }  // namespace axom
 

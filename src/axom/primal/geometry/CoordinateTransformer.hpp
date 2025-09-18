@@ -16,6 +16,8 @@ namespace axom
 {
 namespace primal
 {
+namespace experimental
+{
 /*!
  * @brief 3D Coordinate transformation facilitating the placement of
  * geometries whose parameters can't easily describe it.
@@ -449,6 +451,7 @@ private:
   }
 };
 
+}  // namespace experimental
 }  // namespace primal
 }  // namespace axom
 

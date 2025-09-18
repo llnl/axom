@@ -16,9 +16,11 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 MeshClipper::MeshClipper(quest::ShapeeMesh& shapeeMesh,
-                         const std::shared_ptr<quest::MeshClipperStrategy>& strategy)
+                         const std::shared_ptr<quest::experimental::MeshClipperStrategy>& strategy)
   : m_shapeeMesh(shapeeMesh)
   , m_strategy(strategy)
   , m_impl(newImpl())
@@ -243,5 +245,6 @@ void MeshClipper::getClippingStats(axom::IndexType& localCellInCount,
 #endif
 }
 
+}  // namespace experimental
 }  // end namespace quest
 }  // end namespace axom

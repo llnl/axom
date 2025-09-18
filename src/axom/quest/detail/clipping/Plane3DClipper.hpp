@@ -13,6 +13,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 /*!
  * @brief Geometry clipping operations for plane geometries.
@@ -60,6 +62,7 @@ private:
   void extractClipperInfo();
 };
 
+}  // namespace experimental
 }  // namespace quest
 }  // namespace axom
 
