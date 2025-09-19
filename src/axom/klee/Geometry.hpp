@@ -291,7 +291,7 @@ public:
   /// \brief Return the sphere geometry, when the Geometry represents an analytical sphere.
   const axom::primal::Sphere<double, 3> &getSphere() const { return m_sphere; }
 
-  /// \brief Return the cone geometry, when the Geometry represents an alalytical cone.
+  /// \brief Return the cone geometry, when the Geometry represents an analytical cone.
   const axom::primal::Cone<double, 3> &getCone() const { return m_cone; }
 
   /// \brief Return the plane geometry, when the Geometry represents a plane.
