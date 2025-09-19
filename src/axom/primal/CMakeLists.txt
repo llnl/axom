@@ -71,7 +71,9 @@ set( primal_headers
     operators/detail/intersect_impl.hpp
     operators/detail/intersect_ray_impl.hpp
     operators/detail/winding_number_2d_impl.hpp
+    operators/detail/winding_number_2d_memoization.hpp
     operators/detail/winding_number_3d_impl.hpp
+    operators/detail/winding_number_3d_memoization.hpp
      
     ## utils
     utils/ZipIndexable.hpp

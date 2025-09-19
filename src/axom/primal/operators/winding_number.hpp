@@ -33,6 +33,9 @@
 #include "axom/primal/operators/detail/winding_number_2d_impl.hpp"
 #include "axom/primal/operators/detail/winding_number_3d_impl.hpp"
 
+#include "axom/primal/operators/detail/winding_number_2d_memoization.hpp"
+#include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
+
 // C++ includes
 #include <cmath>
 
@@ -165,8 +168,8 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  bool dummy_isOnCurve = false, isConvexControlPolygon = false;
-  return detail::bezier_winding_number(q, bezier, isConvexControlPolygon, dummy_isOnCurve, edge_tol, EPS);
+  bool dummy_isOnCurve = false;
+  return detail::bezier_winding_number(q, bezier, dummy_isOnCurve, edge_tol, EPS);
 }
 
 /*!
@@ -187,13 +190,12 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  bool dummy_isOnCurve = false, isConvexControlPolygon = false;
+  bool dummy_isOnCurve = false;
 
   double ret_val = 0.0;
   for(int i = 0; i < cpoly.numEdges(); i++)
   {
-    ret_val +=
-      detail::bezier_winding_number(q, cpoly[i], isConvexControlPolygon, dummy_isOnCurve, edge_tol, EPS);
+    ret_val += detail::bezier_winding_number(q, cpoly[i], dummy_isOnCurve, edge_tol, EPS);
   }
 
   return ret_val;
@@ -217,12 +219,11 @@ double winding_number(const Point<T, 2>& q,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
-  bool dummy_isOnCurve = false, isConvexControlPolygon = false;
+  bool dummy_isOnCurve = false;
   double ret_val = 0.0;
   for(int i = 0; i < carray.size(); i++)
   {
-    ret_val +=
-      detail::bezier_winding_number(q, carray[i], isConvexControlPolygon, dummy_isOnCurve, edge_tol, EPS);
+    ret_val += detail::bezier_winding_number(q, carray[i], dummy_isOnCurve, edge_tol, EPS);
   }
 
   return ret_val;
@@ -269,7 +270,7 @@ double winding_number(const Point<T, 2>& q,
  */
 template <typename T>
 double winding_number(const Point<T, 2>& q,
-                      const NURBSCurveGWNCache<T>& nurbs_cache,
+                      const detail::NURBSCurveGWNCache<T>& nurbs_cache,
                       bool& isOnCurve,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
@@ -302,7 +303,7 @@ double winding_number(const Point<T, 2>& q,
 //! \brief Overload without optional return parameter
 template <typename T>
 double winding_number(const Point<T, 2>& q,
-                      const NURBSCurveGWNCache<T>& nurbs_cache,
+                      const detail::NURBSCurveGWNCache<T>& nurbs_cache,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
@@ -323,7 +324,7 @@ double winding_number(const Point<T, 2>& q,
  */
 template <typename T>
 double winding_number(const Point<T, 2>& q,
-                      const axom::Array<NURBSCurveGWNCache<T>>& c_arr,
+                      const axom::Array<detail::NURBSCurveGWNCache<T>>& c_arr,
                       bool& isOnCurve,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
@@ -343,7 +344,7 @@ double winding_number(const Point<T, 2>& q,
 //! \brief Overload without optional return parameter
 template <typename T>
 double winding_number(const Point<T, 2>& q,
-                      const axom::Array<NURBSCurveGWNCache<T>>& c_arr,
+                      const axom::Array<detail::NURBSCurveGWNCache<T>>& c_arr,
                       double edge_tol = 1e-8,
                       double EPS = 1e-8)
 {
@@ -363,7 +364,7 @@ double winding_number(const Point<T, 2>& q,
  */
 template <typename T>
 axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
-                                   const axom::Array<NURBSCurveGWNCache<T>>& c_arr,
+                                   const axom::Array<detail::NURBSCurveGWNCache<T>>& c_arr,
                                    double edge_tol = 1e-8,
                                    double EPS = 1e-8)
 {
@@ -400,11 +401,11 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
                                    double edge_tol = 1e-8,
                                    double EPS = 1e-8)
 {
-  axom::Array<NURBSCurveGWNCache<T>> cache_arr(0, c_arr.size());
+  axom::Array<detail::NURBSCurveGWNCache<T>> cache_arr(0, c_arr.size());
 
   for(int i = 0; i < c_arr.size(); ++i)
   {
-    cache_arr.emplace_back(NURBSCurveGWNCache<T>(c_arr[i]));
+    cache_arr.emplace_back(detail::NURBSCurveGWNCache<T>(c_arr[i]));
   }
 
   return winding_number(q_arr, cache_arr, edge_tol, EPS);
@@ -431,11 +432,11 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
                                    double edge_tol = 1e-8,
                                    double EPS = 1e-8)
 {
-  axom::Array<NURBSCurveGWNCache<T>> cache_arr(0, cpoly.numEdges());
+  axom::Array<detail::NURBSCurveGWNCache<T>> cache_arr(0, cpoly.numEdges());
 
   for(int i = 0; i < cpoly.numEdges(); ++i)
   {
-    cache_arr.emplace_back(NURBSCurveGWNCache<T>(cpoly[i]));
+    cache_arr.emplace_back(detail::NURBSCurveGWNCache<T>(cpoly[i]));
   }
 
   axom::Array<double> ret_val(q_arr.size());
@@ -681,7 +682,7 @@ int winding_number(const Point<T, 3>& q,
   */
 template <typename T>
 double winding_number(const Point<T, 3>& query,
-                      const NURBSPatchGWNCache<T>& nurbs,
+                      const detail::NURBSPatchGWNCache<T>& nurbs,
                       const double edge_tol = 1e-8,
                       const double ls_tol = 1e-8,
                       const double quad_tol = 1e-8,
@@ -731,7 +732,13 @@ double winding_number(const Point<T, 3>& query,
                       const double disk_size = 0.01,
                       const double EPS = 1e-8)
 {
-  return winding_number(query, NURBSPatchGWNCache<T>(surf), edge_tol, ls_tol, quad_tol, disk_size, EPS);
+  return winding_number(query,
+                        detail::NURBSPatchGWNCache<T>(surf),
+                        edge_tol,
+                        ls_tol,
+                        quad_tol,
+                        disk_size,
+                        EPS);
 }
 
 /*
@@ -752,7 +759,7 @@ double winding_number(const Point<T, 3>& query,
  */
 template <typename T>
 axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
-                                   const axom::Array<NURBSPatchGWNCache<T>>& nurbs_arr,
+                                   const axom::Array<detail::NURBSPatchGWNCache<T>>& nurbs_arr,
                                    const double edge_tol = 1e-8,
                                    const double ls_tol = 1e-8,
                                    const double quad_tol = 1e-8,
@@ -817,10 +824,10 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
                                    const double EPS = 1e-8)
 {
   // Precompute the expansions and cast directions for each patch
-  axom::Array<NURBSPatchGWNCache<T>> nurbs_cache_arr(0, surf_arr.size());
+  axom::Array<detail::NURBSPatchGWNCache<T>> nurbs_cache_arr(0, surf_arr.size());
   for(int i = 0; i < surf_arr.size(); ++i)
   {
-    nurbs_cache_arr.emplace_back(NURBSPatchGWNCache<T>(surf_arr[i]));
+    nurbs_cache_arr.emplace_back(detail::NURBSPatchGWNCache<T>(surf_arr[i]));
   }
 
   return winding_number(query_arr, nurbs_cache_arr, edge_tol, ls_tol, quad_tol, disk_size, EPS);

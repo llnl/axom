@@ -17,6 +17,8 @@
 
 #include "axom/core/numerics/transforms.hpp"
 
+#include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
+
 // C++ includes
 #include <math.h>
 
@@ -153,7 +155,7 @@ Vector<T, 3> rotate_vector_origin(const numerics::Matrix<T>& matx, const Vector<
  * \brief Adaptively evaluate the integral of the "anti-curl" of the GWN integrand
  *
  * \param [in] query The query point
- * \param [in] nurbs The NURBSPatch or NURBSPatchGWNCache object contianing the trimming curves
+ * \param [in] nurbs The NURBSPatchGWNCache object contianing the trimming curves
  * \param [in] ax The axis (relative to query) denoting which anti-curl we use
  * \param [in] rotator This is the rotation matrix to use if ax == DiscontinuityAxis::rotated
  * \param [in] curve_index The curve on the patch which we want to integrate
@@ -165,9 +167,9 @@ Vector<T, 3> rotate_vector_origin(const numerics::Matrix<T>& matx, const Vector<
  * 
  * \return The value of the integral
  */
-template <typename NURBSType, typename T>
+template <typename T>
 double stokes_gwn_adaptive(const Point<T, 3>& query,
-                           const NURBSType& nurbs,
+                           const NURBSPatchGWNCache<T>& nurbs,
                            const DiscontinuityAxis ax,
                            const numerics::Matrix<T>& rotator,
                            const int curve_index,
@@ -185,6 +187,75 @@ double stokes_gwn_adaptive(const Point<T, 3>& query,
                                                                     quad_npts,
                                                                     refinement_level + 1,
                                                                     2 * refinement_index + 1);
+
+  double quad_fine_1 = stokes_gwn_component(query, ax, rotator, trimming_curve_data_1);
+  double quad_fine_2 = stokes_gwn_component(query, ax, rotator, trimming_curve_data_2);
+
+  if(refinement_level >= 25 ||
+     axom::utilities::isNearlyEqualRelative(quad_fine_1 + quad_fine_2, quad_coarse, quad_tol, 1e-10))
+  {
+    return quad_fine_1 + quad_fine_2;
+  }
+
+  quad_fine_1 = stokes_gwn_adaptive(query,
+                                    nurbs,
+                                    ax,
+                                    rotator,
+                                    curve_index,
+                                    quad_npts,
+                                    refinement_level + 1,
+                                    2 * refinement_index,
+                                    quad_fine_1,
+                                    quad_tol);
+
+  quad_fine_2 = stokes_gwn_adaptive(query,
+                                    nurbs,
+                                    ax,
+                                    rotator,
+                                    curve_index,
+                                    quad_npts,
+                                    refinement_level + 1,
+                                    2 * refinement_index + 1,
+                                    quad_fine_2,
+                                    quad_tol);
+
+  return quad_fine_1 + quad_fine_2;
+}
+
+/*!
+ * \brief Adaptively evaluate the integral of the "anti-curl" of the GWN integrand
+ *
+ * \param [in] query The query point
+ * \param [in] nurbs The NURBSPatch object contianing the trimming curves
+ * \param [in] ax The axis (relative to query) denoting which anti-curl we use
+ * \param [in] rotator This is the rotation matrix to use if ax == DiscontinuityAxis::rotated
+ * \param [in] curve_index The curve on the patch which we want to integrate
+ * \param [in] quad_npts The number of quadrature points at each level
+ * \param [in] refinement_level The current subdivision levels 
+ * \param [in] refinement_index Which subdivision in the level
+ * \param [in] npts The number of points used in each Gaussian quadrature
+ * \param [in] quad_tol The maximum relative error allowed in each quadrature
+ * 
+ * \return The value of the integral
+ */
+template <typename T>
+double stokes_gwn_adaptive(const Point<T, 3>& query,
+                           const NURBSPatch<T, 3>& nurbs,
+                           const DiscontinuityAxis ax,
+                           const numerics::Matrix<T>& rotator,
+                           const int curve_index,
+                           const int quad_npts,
+                           const int refinement_level,
+                           const int refinement_index,
+                           const double quad_coarse,
+                           const double quad_tol)
+{
+  auto trimming_curve_data_1 =
+    TrimmingCurveQuadratureData<T>(curve_index, quad_npts, refinement_level + 1, 2 * refinement_index);
+  auto trimming_curve_data_2 = TrimmingCurveQuadratureData<T>(curve_index,
+                                                              quad_npts,
+                                                              refinement_level + 1,
+                                                              2 * refinement_index + 1);
 
   double quad_fine_1 = stokes_gwn_component(query, ax, rotator, trimming_curve_data_1);
   double quad_fine_2 = stokes_gwn_component(query, ax, rotator, trimming_curve_data_2);
@@ -364,7 +435,7 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
   for(int n = 0; n < nurbs.getNumTrimmingCurves(); ++n)
   {
     // Get the quadrature points for the curve on the *rotated* patch without any refinement
-    auto trimming_curve_data = nurbs_rotated.getTrimmingCurveQuadratureData(n, quad_npts, 0, 0);
+    auto trimming_curve_data = TrimmingCurveQuadratureData<T>(n, quad_npts, nurbs_rotated, 0, 0);
     double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
 
     quad += 0.25 * M_1_PI *
@@ -443,7 +514,11 @@ double nurbs_winding_number(const Point<T, 3>& query,
 
   // Allocate space for the patch which contains all surface boundaries,
   //  and any extra trimming curves added by disk extraction
-  NURBSPatch<T, 3> nurbs_modified(nurbs), the_disk;
+  NURBSPatch<T, 3> nurbs_modified(nurbs.getControlPoints(),
+                                  nurbs.getWeights(),
+                                  nurbs.getKnots_u(),
+                                  nurbs.getKnots_v());
+  nurbs_modified.setTrimmingCurves(nurbs.getTrimmingCurves());
 
   // Define vector fields whose curl gives us the winding number
   DiscontinuityAxis field_direction;
