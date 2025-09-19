@@ -531,7 +531,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
   nurbs_modified.setTrimmingCurves(nurbs.getTrimmingCurves());
 
   // Define vector fields whose curl gives us the winding number
-  DiscontinuityAxis field_direction;
+  DiscontinuityAxis field_direction = DiscontinuityAxis::rotated;
   bool extraTrimming = false;
 
   // Generate slightly expanded bounding boxes
@@ -548,7 +548,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
   {
     double bestDist = -1.0;
 
-    if(query[0] < bBox.getMin()[0])
+    if(query[0] <= bBox.getMin()[0])
     {
       double d = bBox.getMin()[0] - query[0];
       if(d > bestDist)
@@ -557,7 +557,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
         field_direction = DiscontinuityAxis::y;
       }
     }
-    else if(query[0] > bBox.getMax()[0])
+    else if(query[0] >= bBox.getMax()[0])
     {
       double d = query[0] - bBox.getMax()[0];
       if(d > bestDist)
@@ -567,7 +567,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
       }
     }
 
-    if(query[1] < bBox.getMin()[1])
+    if(query[1] <= bBox.getMin()[1])
     {
       double d = bBox.getMin()[1] - query[1];
       if(d > bestDist)
@@ -576,9 +576,9 @@ double nurbs_winding_number(const Point<T, 3>& query,
         field_direction = DiscontinuityAxis::z;
       }
     }
-    else if(query[1] > bBox.getMax()[1])
+    else if(query[1] >= bBox.getMax()[1])
     {
-      double d = query[1] - bBox.getMax()[0];
+      double d = query[1] - bBox.getMax()[1];
       if(d > bestDist)
       {
         bestDist = d;
@@ -586,7 +586,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
       }
     }
 
-    if(query[2] < bBox.getMin()[2])
+    if(query[2] <= bBox.getMin()[2])
     {
       double d = bBox.getMin()[2] - query[2];
       if(d > bestDist)
@@ -595,7 +595,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
         field_direction = DiscontinuityAxis::y;
       }
     }
-    else if(query[2] > bBox.getMax()[2])
+    else if(query[2] >= bBox.getMax()[2])
     {
       double d = query[2] - bBox.getMax()[2];
       if(d > bestDist)
