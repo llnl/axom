@@ -62,14 +62,14 @@ struct TrimmingCurveQuadratureData
    * \brief Constructor for quadrature data from a single trimming curve on a patch
    * 
    * \param [in] quad_npts The number of Gaussian nodes
-   * \param [in] a_curve The 2D parameter space NURBS curve on \a a_patch
    * \param [in] a_patch The 3D NURBS surface
+   * \param [in] a_curve_index The index of the trimming curve
    * \param [in] a_refinementLevel How mnay subdivisions for the curve
    * \param [in] a_refinementSection Which subdivision for a given level
    */
-  TrimmingCurveQuadratureData(int quad_npts,
-                              const NURBSCurve<T, 2>& a_curve,
-                              const NURBSPatch<T, 3>& a_patch,
+  TrimmingCurveQuadratureData(const NURBSPatch<T, 3> a_patch,
+                              int a_curve_index,
+                              int quad_npts,
                               int a_refinementLevel,
                               int a_refinementSection)
     : m_quad_npts(quad_npts)
@@ -79,8 +79,10 @@ struct TrimmingCurveQuadratureData
     const mfem::IntegrationRule& quad_rule =
       my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * quad_npts - 1);
 
-    const T curve_min_knot = a_curve.getMinKnot();
-    const T curve_max_knot = a_curve.getMaxKnot();
+    auto& the_curve = a_patch.getTrimmingCurve(a_curve_index);
+
+    const T curve_min_knot = the_curve.getMinKnot();
+    const T curve_max_knot = the_curve.getMaxKnot();
 
     // Find the right knot span based on the refinement level
     m_span_length = (curve_max_knot - curve_min_knot) / std::pow(2, a_refinementLevel);
@@ -94,7 +96,7 @@ struct TrimmingCurveQuadratureData
 
       Point<T, 2> c_eval;
       Vector<T, 2> c_Dt;
-      a_curve.evaluateFirstDerivative(quad_x, c_eval, c_Dt);
+      the_curve.evaluateFirstDerivative(quad_x, c_eval, c_Dt);
 
       Point<T, 3> s_eval;
       Vector<T, 3> s_Du, s_Dv;
@@ -262,12 +264,11 @@ public:
 
     if(m_curveQuadratureMaps[curveIndex].find(hash_key) == m_curveQuadratureMaps[curveIndex].end())
     {
-      m_curveQuadratureMaps[curveIndex][hash_key] =
-        TrimmingCurveQuadratureData<T>(quadNPts,
-                                       m_alteredPatch.getTrimmingCurves()[curveIndex],
-                                       m_alteredPatch,
-                                       refinementLevel,
-                                       refinementIndex);
+      m_curveQuadratureMaps[curveIndex][hash_key] = TrimmingCurveQuadratureData<T>(m_alteredPatch,
+                                                                                   curveIndex,
+                                                                                   quadNPts,
+                                                                                   refinementLevel,
+                                                                                   refinementIndex);
     }
 
     return m_curveQuadratureMaps[curveIndex][hash_key];

@@ -84,7 +84,11 @@ void degenerate_surface_processing(const NURBSType& nurbs,
     var_v = new_var_v;
   }
 
-  NURBSPatch<T, 3> dummy_patch(nurbs);
+  NURBSPatch<T, 3> dummy_patch(nurbs.getControlPoints(),
+                               nurbs.getWeights(),
+                               nurbs.getKnots_u(),
+                               nurbs.getKnots_v());
+  dummy_patch.setTrimmingCurves(nurbs.getTrimmingCurves());
 
   // Indicates a u isocurve
   if(var_u < var_v)
@@ -156,13 +160,14 @@ Vector<T, 3> rotate_vector_origin(const numerics::Matrix<T>& matx, const Vector<
  *
  * \param [in] query The query point
  * \param [in] nurbs The NURBSPatchGWNCache object contianing the trimming curves
- * \param [in] ax The axis (relative to query) denoting which anti-curl we use
- * \param [in] rotator This is the rotation matrix to use if ax == DiscontinuityAxis::rotated
  * \param [in] curve_index The curve on the patch which we want to integrate
  * \param [in] quad_npts The number of quadrature points at each level
  * \param [in] refinement_level The current subdivision levels 
  * \param [in] refinement_index Which subdivision in the level
- * \param [in] npts The number of points used in each Gaussian quadrature
+ * \param [in] ax The axis (relative to query) denoting which anti-curl we use
+ * \param [in] rotator This is the rotation matrix to use if ax == DiscontinuityAxis::rotated
+ * \param [in] quad_coarse The approximate integral of the curve, 
+ *              which should match the sum of the integral over each half
  * \param [in] quad_tol The maximum relative error allowed in each quadrature
  * 
  * \return The value of the integral
@@ -170,12 +175,12 @@ Vector<T, 3> rotate_vector_origin(const numerics::Matrix<T>& matx, const Vector<
 template <typename T>
 double stokes_gwn_adaptive(const Point<T, 3>& query,
                            const NURBSPatchGWNCache<T>& nurbs,
-                           const DiscontinuityAxis ax,
-                           const numerics::Matrix<T>& rotator,
                            const int curve_index,
                            const int quad_npts,
                            const int refinement_level,
                            const int refinement_index,
+                           const DiscontinuityAxis ax,
+                           const numerics::Matrix<T>& rotator,
                            const double quad_coarse,
                            const double quad_tol)
 {
@@ -199,23 +204,23 @@ double stokes_gwn_adaptive(const Point<T, 3>& query,
 
   quad_fine_1 = stokes_gwn_adaptive(query,
                                     nurbs,
-                                    ax,
-                                    rotator,
                                     curve_index,
                                     quad_npts,
                                     refinement_level + 1,
                                     2 * refinement_index,
+                                    ax,
+                                    rotator,
                                     quad_fine_1,
                                     quad_tol);
 
   quad_fine_2 = stokes_gwn_adaptive(query,
                                     nurbs,
-                                    ax,
-                                    rotator,
                                     curve_index,
                                     quad_npts,
                                     refinement_level + 1,
                                     2 * refinement_index + 1,
+                                    ax,
+                                    rotator,
                                     quad_fine_2,
                                     quad_tol);
 
@@ -227,13 +232,14 @@ double stokes_gwn_adaptive(const Point<T, 3>& query,
  *
  * \param [in] query The query point
  * \param [in] nurbs The NURBSPatch object contianing the trimming curves
- * \param [in] ax The axis (relative to query) denoting which anti-curl we use
- * \param [in] rotator This is the rotation matrix to use if ax == DiscontinuityAxis::rotated
  * \param [in] curve_index The curve on the patch which we want to integrate
  * \param [in] quad_npts The number of quadrature points at each level
  * \param [in] refinement_level The current subdivision levels 
  * \param [in] refinement_index Which subdivision in the level
- * \param [in] npts The number of points used in each Gaussian quadrature
+ * \param [in] ax The axis (relative to query) denoting which anti-curl we use
+ * \param [in] rotator This is the rotation matrix to use if ax == DiscontinuityAxis::rotated
+ * \param [in] quad_coarse The approximate integral of the curve, 
+ *              which should match the sum of the integral over each half
  * \param [in] quad_tol The maximum relative error allowed in each quadrature
  * 
  * \return The value of the integral
@@ -241,18 +247,22 @@ double stokes_gwn_adaptive(const Point<T, 3>& query,
 template <typename T>
 double stokes_gwn_adaptive(const Point<T, 3>& query,
                            const NURBSPatch<T, 3>& nurbs,
-                           const DiscontinuityAxis ax,
-                           const numerics::Matrix<T>& rotator,
                            const int curve_index,
                            const int quad_npts,
                            const int refinement_level,
                            const int refinement_index,
+                           const DiscontinuityAxis ax,
+                           const numerics::Matrix<T>& rotator,
                            const double quad_coarse,
                            const double quad_tol)
 {
-  auto trimming_curve_data_1 =
-    TrimmingCurveQuadratureData<T>(curve_index, quad_npts, refinement_level + 1, 2 * refinement_index);
-  auto trimming_curve_data_2 = TrimmingCurveQuadratureData<T>(curve_index,
+  auto trimming_curve_data_1 = TrimmingCurveQuadratureData<T>(nurbs,
+                                                              curve_index,
+                                                              quad_npts,
+                                                              refinement_level + 1,
+                                                              2 * refinement_index);
+  auto trimming_curve_data_2 = TrimmingCurveQuadratureData<T>(nurbs,
+                                                              curve_index,
                                                               quad_npts,
                                                               refinement_level + 1,
                                                               2 * refinement_index + 1);
@@ -268,23 +278,23 @@ double stokes_gwn_adaptive(const Point<T, 3>& query,
 
   quad_fine_1 = stokes_gwn_adaptive(query,
                                     nurbs,
-                                    ax,
-                                    rotator,
                                     curve_index,
                                     quad_npts,
                                     refinement_level + 1,
                                     2 * refinement_index,
+                                    ax,
+                                    rotator,
                                     quad_fine_1,
                                     quad_tol);
 
   quad_fine_2 = stokes_gwn_adaptive(query,
                                     nurbs,
-                                    ax,
-                                    rotator,
                                     curve_index,
                                     quad_npts,
                                     refinement_level + 1,
                                     2 * refinement_index + 1,
+                                    ax,
+                                    rotator,
                                     quad_fine_2,
                                     quad_tol);
 
@@ -358,9 +368,9 @@ double stokes_gwn_component(const Point<T, 3>& query,
  *
  * \param [in] query The query point
  * \param [in] nurbs The NURBSPatchGWNCache object contianing the trimming curves
+ * \param [in] quad_npts The number of points used in each Gaussian quadrature
  * \param [in] ax The axis (relative to query) denoting which anti-curl we use
  * \param [in] rotator This is the rotation matrix to use if ax == DiscontinuityAxis::rotated
- * \param [in] npts The number of points used in each Gaussian quadrature
  * \param [in] quad_tol The maximum relative error allowed in each quadrature
  * 
  * Applies a non-adaptive quadrature to the trimming curves of a NURBS patch using one of three possible
@@ -371,9 +381,9 @@ double stokes_gwn_component(const Point<T, 3>& query,
 template <typename T>
 double stokes_gwn_evaluate(const Point<T, 3>& query,
                            const NURBSPatchGWNCache<T>& nurbs,
+                           const int quad_npts,
                            DiscontinuityAxis ax,
                            const numerics::Matrix<T>& rotator,
-                           const int quad_npts,
                            const double quad_tol)
 {
   // Can't rotate the patch as pre-processing if working with cached data
@@ -385,7 +395,7 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
     double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
 
     quad += 0.25 * M_1_PI *
-      stokes_gwn_adaptive(query, nurbs, ax, rotator, n, quad_npts, 0, 0, quad_coarse, quad_tol);
+      stokes_gwn_adaptive(query, nurbs, n, quad_npts, 0, 0, ax, rotator, quad_coarse, quad_tol);
   }
 
   return quad;
@@ -396,9 +406,9 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
  *
  * \param [in] query The query point
  * \param [in] nurbs The NURBSPatch object contianing the trimming curves
+ * \param [in] quad_npts The number of points used in each Gaussian quadrature
  * \param [in] ax The axis (relative to query) denoting which anti-curl we use
  * \param [in] rotator This is the rotation matrix to use if ax == DiscontinuityAxis::rotated
- * \param [in] npts The number of points used in each Gaussian quadrature
  * \param [in] quad_tol The maximum relative error allowed in each quadrature
  * 
  * If quadrature nodes are not memoized, then we can rotate the patch by its control points
@@ -409,9 +419,9 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
 template <typename T>
 double stokes_gwn_evaluate(const Point<T, 3>& query,
                            const NURBSPatch<T, 3>& nurbs,
+                           const int quad_npts,
                            DiscontinuityAxis ax,
                            const numerics::Matrix<T>& rotator,
-                           const int quad_npts,
                            const double quad_tol)
 {
   auto nurbs_rotated(nurbs);
@@ -435,11 +445,11 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
   for(int n = 0; n < nurbs.getNumTrimmingCurves(); ++n)
   {
     // Get the quadrature points for the curve on the *rotated* patch without any refinement
-    auto trimming_curve_data = TrimmingCurveQuadratureData<T>(n, quad_npts, nurbs_rotated, 0, 0);
+    auto trimming_curve_data = TrimmingCurveQuadratureData<T>(nurbs_rotated, n, quad_npts, 0, 0);
     double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
 
     quad += 0.25 * M_1_PI *
-      stokes_gwn_adaptive(query, nurbs_rotated, ax, rotator, n, quad_npts, 0, 0, quad_coarse, quad_tol);
+      stokes_gwn_adaptive(query, nurbs_rotated, n, quad_npts, 0, 0, ax, rotator, quad_coarse, quad_tol);
   }
 
   return quad;
@@ -808,11 +818,11 @@ double nurbs_winding_number(const Point<T, 3>& query,
   if(extraTrimming)
   {
     the_gwn +=
-      stokes_gwn_evaluate(query, nurbs_modified, field_direction, rotator, quad_npts, quad_tol);
+      stokes_gwn_evaluate(query, nurbs_modified, quad_npts, field_direction, rotator, quad_tol);
   }
   else
   {
-    the_gwn += stokes_gwn_evaluate(query, nurbs, field_direction, rotator, quad_npts, quad_tol);
+    the_gwn += stokes_gwn_evaluate(query, nurbs, quad_npts, field_direction, rotator, quad_tol);
   }
 
   return the_gwn;
