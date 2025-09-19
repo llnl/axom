@@ -10,7 +10,6 @@
 #include "axom/klee/Units.hpp"
 
 #include "axom/primal.hpp"
-#include "axom/primal/geometry/Cone.hpp"
 #include "axom/sidre.hpp"
 
 #include <memory>
@@ -57,7 +56,6 @@ public:
   using Point3D = axom::primal::Point<double, 3>;
   using Vector3D = axom::primal::Vector<double, 3>;
   using Sphere3D = axom::primal::Sphere<double, 3>;
-  using Cone3D = axom::primal::Cone<double, 3>;
   using Tet3D = axom::primal::Tetrahedron<double, 3>;
   using Hex3D = axom::primal::Hexahedron<double, 3>;
   using Plane3D = axom::primal::Plane<double, 3>;
@@ -129,33 +127,20 @@ public:
    *
    * \param startProperties the transformable properties before any operators are applied
    * \param discreteFunction Discrete function describing the surface of revolution.
-   * \param sorOrigin 3D coordinates of the point (z=0, r=0).
+   * \param sorBase Coordinates of the base of the SOR.
    * \param sorDirection SOR axis, in the direction of increasing z.
    * \param levelOfRefinement Number of refinement levels to use for discretizing the SOR.
    * \param operator_ a possibly null operator to apply to the geometry.
    *
    * The \c discreteFunction should be an Nx2 array, interpreted as
    * (z,r) pairs, where z is the axial distance and r is the radius.
+   * The \c sorBase coordinates corresponds to z=0.
+   * \c sorAxis should point in the direction of increasing z.
    */
   Geometry(const TransformableGeometryProperties &startProperties,
-           axom::ArrayView<const double, 2> discreteFunction,
-           const Point3D &sorOrigin,
+           const axom::Array<double, 2> &discreteFunction,
+           const Point3D &sorBase,
            const Vector3D &sorDirection,
-           axom::IndexType levelOfRefinement,
-           std::shared_ptr<GeometryOperator const> operator_);
-
-  /**
-   * Create a cone Geometry object.
-   *
-   * \param startProperties the transformable properties before any
-   * operators are applied
-   * \param sphere Analytical sphere specifications
-   * \param levelOfRefinement Number of refinement levels to use for
-   *        discretizing the sphere.
-   * \param operator_ a possibly null operator to apply to the geometry.
-   */
-  Geometry(const TransformableGeometryProperties &startProperties,
-           const axom::primal::Cone<double, 3> &cone,
            axom::IndexType levelOfRefinement,
            std::shared_ptr<GeometryOperator const> operator_);
 
@@ -172,17 +157,6 @@ public:
            const axom::primal::Plane<double, 3> &plane,
            std::shared_ptr<GeometryOperator const> operator_);
 
-  /*!
-    @brief Geometry definition in hierarchical format.
-
-    This hierarchy should be reproducible from its Geometry object,
-    and an identical Geometry should be reconstructible from this
-    hierarchy.
-  */
-  const conduit::Node &asHierarchy() const { return m_geomInfo; }
-
-  conduit::Node &asHierarchy() { return m_geomInfo; }
-
   /**
    * \brief Get the format in which the geometry was specified.
    *
@@ -196,6 +170,7 @@ public:
    * - "sphere3D" = 3D sphere, as \c primal::Sphere<double,3>
    * - "sor3D" = 3D surface of revolution.
    * - "cone3D" = 3D cone, as \c primal::Cone<double,3>
+   * - "cylinder3D" = 3D cylinder, as \c primal::Cylinder<double,3>
    * - "hex3D" = 3D hexahedron (8 points)
    * - "plane3D" = 3D plane
    *
@@ -239,8 +214,8 @@ public:
   /// \brief Return the SOR axis direction.
   const Vector3D getSorDirection() const { return m_sorDirection; }
 
-  /// \brief Return the 3D coordinates of the point (z=0, r=0)
-  const Point3D getSorOriginCoords() const { return m_sorOrigin; }
+  /// \brief Return the 3D coordinates of the SOR base.
+  const Point3D getSorBaseCoords() const { return m_sorBase; }
 
   /**
    *  \brief Predicate that returns true when the shape has an associated geometry
@@ -291,9 +266,6 @@ public:
   /// \brief Return the sphere geometry, when the Geometry represents an analytical sphere.
   const axom::primal::Sphere<double, 3> &getSphere() const { return m_sphere; }
 
-  /// \brief Return the cone geometry, when the Geometry represents an analytical cone.
-  const axom::primal::Cone<double, 3> &getCone() const { return m_cone; }
-
   /// \brief Return the plane geometry, when the Geometry represents a plane.
   const axom::primal::Plane<double, 3> &getPlane() const { return m_plane; }
 
@@ -302,9 +274,6 @@ public:
 
 private:
   TransformableGeometryProperties m_startProperties;
-
-  /// \brief Geometry info in hierarchical format.
-  conduit::Node m_geomInfo;
 
   /// \brief Geometry format.
   std::string m_format;
@@ -330,14 +299,11 @@ private:
   /// \brief The analytical sphere, if used.
   Sphere3D m_sphere;
 
-  /// @brief The analytical cone (or cylinder), if used.
-  Cone3D m_cone;
-
   /// \brief The discrete 2D function, as an Nx2 array, if used.
   axom::Array<double, 2> m_discreteFunction;
 
   /// \brief The point corresponding to z=0 on the SOR axis.
-  Point3D m_sorOrigin;
+  Point3D m_sorBase;
 
   /// \brief SOR axis in the direction of increasing z.
   Vector3D m_sorDirection;
@@ -346,15 +312,6 @@ private:
   axom::IndexType m_levelOfRefinement {0};
 
   std::shared_ptr<const GeometryOperator> m_operator;
-
-  /*!
-   * @brief Populate m_geomInfo with the geometry definition.
-   *
-   * This helps transition away from geometry-specific constructors and
-   * methods like @c getTet(), @c getHex() and @c getSphere() and
-   * toward a uniform interface for providing geometry info.
-   */
-  void populateGeomInfo();
 };
 
 }  // namespace klee
