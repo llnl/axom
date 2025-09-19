@@ -114,7 +114,7 @@ def make_columns(params):
     return avg
 
   # Measure just the MIR algorithm
-  searchKey = "EquiZAlgorithm"
+  searchKey = "EquizAlgorithm"
   if params["method"] == "elvira":
     searchKey = "ElviraAlgorithm"
 
@@ -157,6 +157,9 @@ def make_columns(params):
       else:
         name = f"{buildname} {policy.upper()}"
         data = [name]
+        # Check if this name is selected
+        if not is_selected(params["selections"], name):
+           continue
         for s in params["sizes"]:
           filename = os.path.join(r, f"result_{policy}_s{s}.txt")
           value = read_timings(filename, searchKey)
@@ -180,6 +183,38 @@ def make_csv(params, outputfile):
     line = ",".join(rowdata)
     f.write(f"{line}\n")
   f.close()
+
+def seriesName(name):
+  policies = {"SEQ" : "Serial", "OMP": "OpenMP", "CUDA" : "CUDA", "HIP" : "HIP"}
+  newName = name[:name.find("-")]
+  for p in policies.keys():
+    if name[-len(p) - 1:] == " " + p:
+      newName = newName + " " + policies[p]
+      break
+  print(f"seriesName: name={name}, newName={newName}")
+  return newName
+
+def lineProps(name):
+  """
+  Make line properties when given a series name.
+  """
+  hostColor = {"rzansel" : "g", "rzwhippet" : "r", "rzvernal" : "o", "rzadams" : "b"}
+  policyStyle = {"seq" : "--", "omp": ":", "cuda" : "-", "hip" : "-"}
+  policyMark = {"seq" : "o", "omp": "s", "cuda" : "^", "hip" : "^"}
+  color = "b"
+  style = "-"
+  mark = "o"
+  for h in hostColor.keys():
+     if name.find(h) != -1:
+       color = hostColor[h]
+       for p in policyStyle.keys():
+         if name[-len(p) - 1:].lower() == " " + p:
+           style = policyStyle[p]
+           mark = policyMark[p]
+           break
+       break
+  print(f"lineProps: name={name}, color={color}, style={style}, mark={mark}")
+  return color, style, mark
 
 def plot(params):
   """
@@ -206,18 +241,19 @@ def plot(params):
   for c in range(1, len(columns)):
     x, y = make_series(columns[0][1:], columns[c][1:])
     if len(x) > 0:
-      plt.plot(x, y, marker='o', linestyle='-', label=columns[c][0])
+      color, style, mark = lineProps(columns[c][0])
+      plt.plot(x, y, marker=mark, linestyle=style, color=color, linewidth=2., label=seriesName(columns[c][0]))
 
   dimension = params["dimension"]
   method = params["method"]
 
   # Add labels and title
-  plt.xlabel('Number of Zones', fontSize=18)
-  plt.ylabel('Time (s)', fontSize=18)
-  plt.title(f'{dimension}D MIR Timings ({method})', fontSize=24)
+  plt.xlabel('Number of Zones', fontsize=24)
+  plt.ylabel('Time (s)', fontsize=24)
+  plt.title(f'{dimension}D MIR Timings ({method})', fontsize=28)
   xlabels = make_series(columns[0][1:], columns[0][1:])[0]
-  plt.xticks(ticks=xlabels, labels=xlabels, fontsize=14) 
-  plt.yticks(fontsize=14) 
+  plt.xticks(ticks=xlabels, labels=xlabels, fontsize=18)
+  plt.yticks(fontsize=18)
 
   # Set x-axis to logarithmic scale
   plt.xscale('log')
@@ -226,9 +262,13 @@ def plot(params):
   plt.yscale('log')
 
   # Add a legend
-  plt.legend()
+  plt.legend(fontsize=18)
 
-  plt.tight_layout()
+  try:
+    plt.tight_layout()
+  except ValueError:
+    print(f"There was an error, probably because the benchmark is still running. {columns}")
+    raise
 
   # Show the plot
   plt.grid(True)
