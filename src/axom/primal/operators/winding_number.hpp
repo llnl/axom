@@ -31,10 +31,7 @@
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 
 #include "axom/primal/operators/detail/winding_number_2d_impl.hpp"
-#include "axom/primal/operators/detail/winding_number_3d_impl.hpp"
-
 #include "axom/primal/operators/detail/winding_number_2d_memoization.hpp"
-#include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
 
 // C++ includes
 #include <cmath>
@@ -42,6 +39,8 @@
 // MFEM includes
 #ifdef AXOM_USE_MFEM
   #include "mfem.hpp"
+  #include "axom/primal/operators/detail/winding_number_3d_impl.hpp"
+  #include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
 #endif
 
 namespace axom

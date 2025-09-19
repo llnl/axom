@@ -42,7 +42,6 @@ enum class DiscontinuityAxis
   rotated
 };
 
-#ifdef AXOM_USE_MFEM
 /*!
  * \brief Identify the u/v isoline on which all degenerate intersections occur, 
  *         and "clip out" patches that do not contain this line
@@ -827,7 +826,6 @@ double nurbs_winding_number(const Point<T, 3>& query,
 
   return the_gwn;
 }
-#endif
 
 }  // end namespace detail
 }  // end namespace primal
