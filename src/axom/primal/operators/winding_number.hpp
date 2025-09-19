@@ -308,7 +308,7 @@ double winding_number(const Point<T, 2>& q,
                       double EPS = 1e-8)
 {
   bool dummy_isOnCurve;
-  winding_number(q, nurbs_cache, dummy_isOnCurve, edge_tol, EPS);
+  return winding_number(q, nurbs_cache, dummy_isOnCurve, edge_tol, EPS);
 }
 
 /*!

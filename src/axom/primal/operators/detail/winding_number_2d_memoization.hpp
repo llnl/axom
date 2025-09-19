@@ -46,7 +46,7 @@ struct SubdivisionData
 {
   SubdivisionData() = default;
 
-  SubdivisionData(const BezierCurve<T, 2>& curve, bool knownConvex) : curve(curve)
+  SubdivisionData(const BezierCurve<T, 2>& a_curve, bool knownConvex) : curve(a_curve)
   {
     isConvexControlPolygon = knownConvex ? true : is_convex(Polygon<T, 2>(curve.getControlPoints()));
     boundingBox = curve.boundingBox();
@@ -133,8 +133,8 @@ public:
       supercurve_data.curve.split(0.5, sub1, sub2);
 
       // Make keys for the requested curve and its "sibling" in the heirarchy
-      const auto key1 = std::make_pair(refinementLevel, refinementIndex + refinementIndex % 2);
-      const auto key2 = std::make_pair(refinementLevel, refinementIndex + refinementIndex % 2 + 1);
+      const auto key1 = std::make_pair(refinementLevel, refinementIndex - refinementIndex % 2);
+      const auto key2 = std::make_pair(refinementLevel, refinementIndex - refinementIndex % 2 + 1);
 
       // Populate the map
       m_bezierSubdivisionMaps[idx][key1] =
