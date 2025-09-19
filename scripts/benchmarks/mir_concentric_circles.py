@@ -191,7 +191,6 @@ def seriesName(name):
     if name[-len(p) - 1:] == " " + p:
       newName = newName + " " + policies[p]
       break
-  print(f"seriesName: name={name}, newName={newName}")
   return newName
 
 def lineProps(name):
@@ -213,7 +212,6 @@ def lineProps(name):
            mark = policyMark[p]
            break
        break
-  print(f"lineProps: name={name}, color={color}, style={style}, mark={mark}")
   return color, style, mark
 
 def plot(params):
