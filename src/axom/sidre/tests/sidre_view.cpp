@@ -30,7 +30,7 @@ enum State
   EMPTY,
   BUFFER,
   EXTERNAL,
-  SCALAR,
+  TUPLE,
   STRING,
   NOTYPE
 };
@@ -53,7 +53,11 @@ static State getState(View* view)
   }
   else if(view->isScalar())
   {
-    return SCALAR;
+    return TUPLE;
+  }
+  else if(view->isTuple())
+  {
+    return TUPLE;
   }
   else if(view->isString())
   {
@@ -326,12 +330,12 @@ TEST(sidre_view, scalar_view)
   const char* s;
 
   View* i0view = root->createView("i0")->setScalar(1);
-  checkScalarValues(i0view, SCALAR, true, true, true, INT_ID, 1);
+  checkScalarValues(i0view, TUPLE, true, true, true, INT_ID, 1);
   i = i0view->getScalar();
   EXPECT_EQ(1, i);
 
   View* i1view = root->createViewScalar("i1", 2);
-  checkScalarValues(i1view, SCALAR, true, true, true, INT_ID, 1);
+  checkScalarValues(i1view, TUPLE, true, true, true, INT_ID, 1);
   i = i1view->getScalar();
   EXPECT_EQ(2, i);
 
@@ -1767,7 +1771,7 @@ TEST(sidre_view, clear_view)
   // scalar view.
   {
     View* view = root->createViewScalar("v_scalar", 1);
-    EXPECT_TRUE(checkViewValues(view, SCALAR, true, true, true, 1));
+    EXPECT_TRUE(checkViewValues(view, TUPLE, true, true, true, 1));
     view->clear();
     EXPECT_TRUE(checkViewValues(view, EMPTY, false, false, false, 0));
   }
