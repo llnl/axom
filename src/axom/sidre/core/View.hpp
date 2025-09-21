@@ -890,8 +890,8 @@ public:
    */
   Node::ConstValue getScalar() const
   {
-    SLIC_CHECK_MSG(m_state == TUPLE,
-                   SIDRE_VIEW_LOG_PREPEND << "View::getScalar() called on non-scalar view.");
+    SLIC_CHECK_MSG(isScalar(),
+                   SIDRE_VIEW_LOG_PREPEND << "View::getScalar() called on non-tuple view.");
     return getData();
   }
 
