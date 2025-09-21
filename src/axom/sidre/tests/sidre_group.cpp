@@ -6,6 +6,7 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"
 #include "axom/sidre.hpp"
+#include "axom/sidre/core/SidreTypes.hpp"
 
 #include "gtest/gtest.h"
 
@@ -1472,6 +1473,48 @@ TEST(sidre_group, groups_move_copy)
   delete ds;
 }
 
+// Return vector of known allocator ids.
+std::vector<int> getKnownAllocIds()
+{
+  std::vector<int> allocIds(1, axom::MALLOC_ALLOCATOR_ID);
+#ifdef AXOM_USE_UMPIRE
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Host>());
+  #ifdef AXOM_USE_GPU
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Device>());
+  allocIds.push_back(axom::detail::getAllocatorID<axom::MemorySpace::Unified>());
+  // Does it make sense to check Pinned and Constant memory spaces?
+  #endif
+#endif
+  return allocIds;
+}
+
+//------------------------------------------------------------------------------
+TEST(sidre_group, scalar_memory_allocator)
+{
+  std::vector<int> allocIds = getKnownAllocIds();
+
+  DataStore ds;
+  Group* grp = ds.getRoot()->createGroup("grp");
+
+  for(auto allocId : allocIds)
+  {
+    grp->setDefaultTupleAllocator(allocId);
+
+    std::int32_t scalarInt = 12345;
+    grp->createViewScalar("scalarInt", scalarInt);
+
+    std::int32_t* scalarIntPtr = static_cast<std::int32_t*>(grp->getView("scalarInt")->getVoidPtr());
+    auto allocIdScalarInt = axom::getAllocatorIDFromPointer(scalarIntPtr);
+    EXPECT_EQ(allocIdScalarInt, allocId);
+
+    std::int32_t scalarIntTmp;
+    axom::copy(&scalarIntTmp, scalarIntPtr, sizeof(scalarInt));
+    EXPECT_EQ(scalarIntTmp, scalarInt);
+
+    grp->destroyViewsAndData();
+  }
+}
+
 //------------------------------------------------------------------------------
 TEST(sidre_group, group_deep_copy)
 {
@@ -1595,6 +1638,135 @@ TEST(sidre_group, group_deep_copy)
   }
 
   delete ds;
+}
+
+//------------------------------------------------------------------------------
+TEST(sidre_group, deep_copy_interspace)
+{
+  // Test deep copies with a change in memory space.
+
+  std::vector<int> allocIds = getKnownAllocIds();
+
+  DataStore ds;
+
+  constexpr int N = 5;
+  auto dtypeDouble = conduit::DataType::float64(1);
+  auto dtypeIntArray = conduit::DataType::int32(N);
+
+  // Original values on host
+  const double doubleValue = 10.13456;
+  axom::Array<std::int32_t> intArray(N, N);
+  for(int i = 0; i < N; ++i)
+  {
+    intArray[i] = 1001.5 + i;
+  }
+  std::string stringValue = "a string";
+
+  // Temporary space for correctness checks
+  double tmpDoubleValue = doubleValue;
+  axom::Array<std::int32_t> tmpIntArray(N, N);
+  axom::Array<char> tmpCharArray;
+
+  Group* srcGrandparent = ds.getRoot()->createGroup("srcGrandparent");
+  Group* dstGrandparent = ds.getRoot()->createGroup("dstGrandparent");
+
+  // For each combination of source and destination alloc ids,
+  // allocate src and copy to dst.
+
+  for(size_t si = 0; si < allocIds.size(); ++si)
+  {
+    int srcArrayAllocId = allocIds[si];
+    int srcTupleAllocId = allocIds[allocIds.size() - 1 - si];
+
+    Group* srcParent = srcGrandparent->createGroup("testParent");
+    srcParent->setDefaultArrayAllocator(srcArrayAllocId);
+    srcParent->setDefaultTupleAllocator(srcTupleAllocId);
+    Group* src = srcParent->createGroup("testGrp");
+    EXPECT_EQ(srcParent->getDefaultAllocatorID(), srcArrayAllocId);
+    EXPECT_EQ(src->getDefaultAllocatorID(), srcArrayAllocId);
+
+    //
+    // Create, initialize and sanity-check src objects to test.
+    //
+
+    View* srcString = src->createViewString("aString", stringValue);
+    const char* srcStringPtr = static_cast<char*>(srcString->getNode().data_ptr());
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(srcStringPtr), srcTupleAllocId);
+
+    View* srcScalar = src->createViewScalar("aDouble", doubleValue);
+    double* srcScalarPtr = static_cast<double*>(srcScalar->getNode().data_ptr());
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(srcScalarPtr), srcTupleAllocId);
+    axom::copy(srcScalarPtr, &doubleValue, sizeof(double));
+
+    View* srcArray = src->createViewAndAllocate("aIntArray", dtypeIntArray);
+    std::int32_t* srcArrayPtr = static_cast<std::int32_t*>(srcArray->getNode().data_ptr());
+    EXPECT_EQ(axom::getAllocatorIDFromPointer(srcArrayPtr), srcArrayAllocId);
+    axom::copy(srcArrayPtr, intArray.data(), N * sizeof(std::int32_t));
+
+    if(axom::execution_space<axom::SEQ_EXEC>::usesAllocId(srcArrayAllocId) &&
+       axom::execution_space<axom::SEQ_EXEC>::usesAllocId(srcTupleAllocId))
+    {
+      std::cout << "srcGrandparent group:" << std::endl;
+      srcGrandparent->print();
+    }
+
+    //
+    // Copy the source into destinations of different alloc ids
+    //
+
+    for(size_t di = 0; di < allocIds.size(); ++di)
+    {
+      int dstArrayAllocId = allocIds[di];
+      int dstTupleAllocId = allocIds[allocIds.size() - 1 - di];
+
+      std::cout << "Testing copying allocator id " << srcArrayAllocId << " and " << srcTupleAllocId
+                << " to " << dstArrayAllocId << " and " << dstTupleAllocId << std::endl;
+
+      dstGrandparent->setDefaultArrayAllocator(dstArrayAllocId);
+      dstGrandparent->setDefaultTupleAllocator(dstTupleAllocId);
+      dstGrandparent->deepCopyGroup(srcParent);
+
+      axom::sidre::Group* dstParent = dstGrandparent->getGroup(srcParent->getName());
+      Group* dst = dstParent->getGroup(src->getName());
+
+      //
+      // Check pointers.  Copy data to temporary host buffers and check.
+      //
+
+      double* dstScalarPtr = static_cast<double*>(dst->getView(srcScalar->getName())->getVoidPtr());
+      EXPECT_NE(dstScalarPtr, nullptr);
+      EXPECT_NE(dstScalarPtr, srcScalarPtr);
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(dstScalarPtr), dstTupleAllocId);
+      axom::copy(&tmpDoubleValue, dstScalarPtr, sizeof(double));
+      EXPECT_EQ(tmpDoubleValue, doubleValue);
+
+      std::int32_t* dstArrayPtr =
+        static_cast<std::int32_t*>(dst->getView(srcArray->getName())->getVoidPtr());
+      EXPECT_NE(dstArrayPtr, nullptr);
+      EXPECT_NE(dstArrayPtr, srcArrayPtr);
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(dstArrayPtr), dstArrayAllocId);
+      axom::copy(tmpIntArray.data(), srcArrayPtr, N * sizeof(std::int32_t));
+      for(int i = 0; i < N; ++i)
+      {
+        EXPECT_EQ(tmpIntArray[i], intArray[i]);
+      }
+
+      char* dstStringPtr = static_cast<char*>(dst->getView(srcString->getName())->getVoidPtr());
+      EXPECT_NE(dstStringPtr, nullptr);
+      EXPECT_NE(dstStringPtr, srcStringPtr);
+      EXPECT_EQ(axom::getAllocatorIDFromPointer(dstStringPtr), dstTupleAllocId);
+      tmpCharArray.resize(srcString->getNumElements());
+      axom::copy(tmpCharArray.data(), srcStringPtr, srcString->getNumElements());
+      for(int i = 0; i < N; ++i)
+      {
+        EXPECT_EQ(tmpCharArray[i], stringValue[i]);
+      }
+
+      dstGrandparent->destroyGroupAndData(srcParent->getName());
+    }
+
+    srcGrandparent->destroyGroupAndData(srcParent->getName());
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -1779,6 +1951,77 @@ TEST(sidre_group, copy_to_conduit_node)
 
   delete ds1;
 }
+
+//------------------------------------------------------------------------------
+TEST(sidre_group, copy_array_to_conduit_node)
+{
+  DataStore ds1;
+
+  const axom::IndexType count = 5;
+
+  // group_a uses map format, group_b uses list format.
+  Group* group_a = ds1.getRoot()->createGroup("group_a", false);
+  Group* group_b = ds1.getRoot()->createGroup("group_b", true);
+
+  // add child groups and views to group_a
+  View* view_a =
+    group_a->createViewAndAllocate("i0", axom::sidre::detail::SidreTT<std::int32_t>::id, count);
+  View* view_b =
+    group_b->createViewAndAllocate("d0", axom::sidre::detail::SidreTT<axom::float64>::id, count);
+
+  std::int32_t* v_a = view_a->getArray();
+  axom::float64* v_b = view_b->getArray();
+
+  for(IndexType i = 0; i < count; ++i)
+  {
+    v_a[i] = 100 + i;
+    v_b[i] = 10 + i;
+  }
+  EXPECT_NE(v_a, nullptr);
+  EXPECT_NE(v_b, nullptr);
+
+  conduit::Node shallowDst;
+  ds1.getRoot()->createNativeLayout(shallowDst);
+  EXPECT_TRUE(shallowDst.has_path("group_a/i0"));
+  EXPECT_TRUE(shallowDst.has_path("group_b"));
+  EXPECT_TRUE(shallowDst.fetch_existing("group_b").number_of_children() == 1);
+
+  {
+    std::int32_t* n_a = shallowDst.fetch_existing("group_a/i0").value();
+    axom::float64* n_b = shallowDst.fetch_existing("group_b").child(0).value();
+    EXPECT_NE(n_a, nullptr);
+    EXPECT_NE(n_b, nullptr);
+    EXPECT_EQ(n_a, v_a);
+    EXPECT_EQ(n_b, v_b);
+  }
+
+  conduit::Node deepDst;
+  ds1.getRoot()->deepCopyToConduit(deepDst);
+  EXPECT_TRUE(deepDst.has_path("group_a/i0"));
+  EXPECT_TRUE(deepDst.has_path("group_b"));
+  EXPECT_TRUE(deepDst.fetch_existing("group_b").number_of_children() == 1);
+
+  {
+    std::int32_t* n_a = deepDst.fetch_existing("group_a/i0").value();
+    axom::float64* n_b = deepDst.fetch_existing("group_b").child(0).value();
+    EXPECT_NE(n_a, nullptr);
+    EXPECT_NE(n_b, nullptr);
+    EXPECT_NE(n_a, v_a);
+    EXPECT_NE(n_b, v_b);
+    // Verify correct deep-copy values
+    const int hostAllocId = axom::MALLOC_ALLOCATOR_ID;
+    axom::Array<std::int32_t> n_a_host {axom::ArrayView<std::int32_t> {n_a, {count}}, hostAllocId};
+    axom::Array<axom::float64> n_b_host {axom::ArrayView<axom::float64> {n_b, {count}}, hostAllocId};
+    axom::IndexType errCount = 0;
+    for(IndexType i = 0; i < count; ++i)
+    {
+      errCount += n_a_host[i] != v_a[i];
+      errCount += n_b_host[i] != v_b[i];
+    }
+    EXPECT_EQ(errCount, 0);
+  }
+}
+
 //------------------------------------------------------------------------------
 TEST(sidre_group, save_restore_empty_datastore)
 {
