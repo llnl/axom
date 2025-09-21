@@ -622,8 +622,7 @@ public:
 #endif
 
     // Note: most of these calls that set the view class members are
-    //       unnecessary if the view already holds a tuple.  May be
-    //       a future optimization opportunity to split the
+    //       unnecessary if the view already holds a tuple.
     if(m_state == EMPTY || m_state == TUPLE)
     {
       auto conduitAllocId = ConduitMemory::axomAllocIdToConduit(getValidTupleAllocatorId(allocID));
@@ -667,8 +666,7 @@ public:
 #endif
 
     // Note: most of these calls that set the view class members are
-    //       unnecessary if the view already holds a scalar.  May be
-    //       a future optimization opportunity to split the
+    //       unnecessary if the view already holds a scalar.
     if(m_state == EMPTY || m_state == TUPLE)
     {
       auto conduitAllocId = ConduitMemory::axomAllocIdToConduit(getValidTupleAllocatorId(allocID));
@@ -710,8 +708,7 @@ public:
 #endif
 
     // Note: most of these calls that set the view class members are
-    //       unnecessary if the view already holds a scalar.  May be
-    //       a future optimization opportunity to split the
+    //       unnecessary if the view already holds a scalar.
     if(m_state == EMPTY || m_state == TUPLE)
     {
       auto conduitAllocId = ConduitMemory::axomAllocIdToConduit(getValidAllocatorId(allocID));
@@ -761,8 +758,7 @@ public:
   View* setString(const std::string& value, int allocID = INVALID_ALLOCATOR_ID)
   {
     // Note: most of these calls that set the view class members are
-    //       unnecessary if the view already holds a string.  May be
-    //       a future optimization opportunity to split the
+    //       unnecessary if the view already holds a string.
     if(m_state == EMPTY || m_state == STRING)
     {
       m_state = STRING;
