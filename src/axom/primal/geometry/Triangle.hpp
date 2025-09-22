@@ -209,6 +209,7 @@ private:
    * \note If the volume is approx. zero, all four points are (nearly) coplanar.
    * \return vol the volume or 0.0 iff NDIMS < 3
    */
+  AXOM_HOST_DEVICE
   double ppedVolume(const PointType& p) const
   {
     /* This method returns double (instead of T) and explicitly specializes
@@ -246,6 +247,7 @@ public:
    *
    * Algorithm adapted from Real Time Collision Detection by Christer Ericson.
    */
+  AXOM_HOST_DEVICE
   Point<double, 3> physToBarycentric(const PointType& p, bool skipNormalization = false) const
   {
     // Query point needs to be in triangle's plane
@@ -362,7 +364,7 @@ public:
    *
    * \return true if \a p is in the triangle
    */
-  bool contains(const PointType& p, double eps = 1e-8) const
+  AXOM_HOST_DEVICE bool contains(const PointType& p, double eps = 1e-8) const
   {
     if(!axom::utilities::isNearlyEqual(ppedVolume(p), 0., eps))
     {
