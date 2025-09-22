@@ -66,7 +66,7 @@ struct execution_space<OMP_EXEC>
   }
   static bool usesMemorySpace(axom::MemorySpace m) noexcept
   {
-    return m == MemorySpace::Dynamic
+    return m == MemorySpace::Dynamic || m == MemorySpace::Malloc
 #ifdef AXOM_USE_UMPIRE
       || m == MemorySpace::Host || m == MemorySpace::Unified
 #endif
