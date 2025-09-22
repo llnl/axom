@@ -458,7 +458,7 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
   return quad;
 }
 
-/*
+/*!
  * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch with precomputed data
  *
  * \tparam NURBSType The memoized (NURBSPatchGWNCache) or un-memoized (NURBSPatch) surface type

@@ -4,9 +4,10 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 /*!
- * \file NURBSCurve.hpp
+ * \file winding_number_3d_memoization.hpp
  *
- * \brief A NURBS curve primitive
+ * \brief Consists of data structures that accelerate GWN queries through "memoization," i.e.
+ *  dynamically caching and reusing patch surface evaluations and tangents at quadrature points.
  */
 
 #ifndef AXOM_PRIMAL_WINDING_NUMBER_3D_MEMOIZATION_HPP_
