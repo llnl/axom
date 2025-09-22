@@ -162,28 +162,10 @@ public:
 
     m_pboxDiag = m_alteredPatch.getParameterSpaceDiagonal();
 
-    // Make a bounding box by doing bezier extraction, then splitting the resulting bezier patches in 4,
+    // Make a bounding box by doing (trimmed) bezier extraction,
+    //  splitting the resulting bezier patches in 4,
     //  and taking a union of those bounding boxes
-    axom::Array<T> knot_vals_u = m_alteredPatch.getKnots_u().getUniqueKnots();
-    axom::Array<T> knot_vals_v = m_alteredPatch.getKnots_v().getUniqueKnots();
-
-    const auto num_knot_span_u = knot_vals_u.size() - 1;
-    const auto num_knot_span_v = knot_vals_v.size() - 1;
-
-    axom::Array<NURBSPatch<T, 3>, 2> split_patches(num_knot_span_u, num_knot_span_v);
-    split_patches(0, 0) = m_alteredPatch;
-    for(int i = 0; i < num_knot_span_u - 1; ++i)
-    {
-      split_patches(i, 0).split_u(knot_vals_u[i + 1], split_patches(i, 0), split_patches(i + 1, 0));
-    }
-
-    for(int i = 0; i < num_knot_span_u; ++i)
-    {
-      for(int j = 0; j < num_knot_span_v - 1; ++j)
-      {
-        split_patches(i, j).split_v(knot_vals_v[j + 1], split_patches(i, j), split_patches(i, j + 1));
-      }
-    }
+    auto split_patches = extractTrimmedBezier();
 
     // Bounding boxes should be defined according to the *pre-expanded* surface,
     //  since the expanded portions are never visible
@@ -229,7 +211,8 @@ public:
   }
 
   NURBSPatchGWNCache(const BezierPatch<T, 3> a_patch)
-    : NURBSPatchGWNCache(NURBSPatch<T, 3>(a_patch)) { }
+    : NURBSPatchGWNCache(NURBSPatch<T, 3>(a_patch))
+  { }
 
   // Mirror the functionality of NURBSPatch so signatures match in GWN evaluation.
   // Allowing only access ensures the memoized information is always accurate

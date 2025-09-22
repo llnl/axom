@@ -3050,6 +3050,48 @@ public:
     return beziers;
   }
 
+  /*!
+   * \brief Splits the NURBS patch geometry into several one-span trimmed NURBS surfaces
+   *  
+   * \return An array of Bezier patches ordered lexicographically (in v, then u)
+   * 
+   * \sa extractBezier
+   */
+  axom::Array<NURBSPatch<T, NDIMS>> extractTrimmedBezier() const
+  {
+    // Loop over the original set of trimming curves and split them over the knot vectors
+    axom::Array<T> knot_vals_u = m_alteredPatch.getKnots_u().getUniqueKnots();
+    axom::Array<T> knot_vals_v = m_alteredPatch.getKnots_v().getUniqueKnots();
+
+    const auto num_knot_span_u = knot_vals_u.size() - 1;
+    const auto num_knot_span_v = knot_vals_v.size() - 1;
+
+    axom::Array<NURBSPatch<T, 3>> split_patches(num_knot_span_u * num_knot_span_v);
+
+    // This method is nominally faster if the Bezier extraction routine is called separately,
+    //  as this avoids a handful of repeated calculations
+    split_patches[0] = *this;
+    for(int i = 0; i < num_knot_span_u - 1; ++i)
+    {
+      split_patches[i * num_knot_span_v].split_u(knot_vals_u[i + 1],
+                                                 split_patches[i * num_knot_span_v],
+                                                 split_patches[(i + 1) * num_knot_span_v]);
+    }
+
+    for(int i = 0; i < num_knot_span_u; ++i)
+    {
+      for(int j = 0; j < num_knot_span_v - 1; ++j)
+      {
+        split_patches[i * num_knot_span_v + j].split_v(
+          knot_vals_v[i + 1],
+          split_patches[i * num_knot_span_v + j],
+          split_patches[(i + 1) * num_knot_span_v + j + 1]);
+      }
+    }
+
+    return split_patches;
+  }
+
 #ifdef AXOM_USE_MFEM
   /*!
    * \brief Calculate the average normal for the trimmed patch
@@ -3067,30 +3109,8 @@ public:
   {
     SLIC_ASSERT(NDIMS == 3);
 
-    // Split the patch along the unique knot values to improve numerical stability
-    axom::Array<T> knot_vals_u = getKnots_u().getUniqueKnots();
-    axom::Array<T> knot_vals_v = getKnots_v().getUniqueKnots();
-
-    const auto num_knot_span_u = knot_vals_u.size() - 1;
-    const auto num_knot_span_v = knot_vals_v.size() - 1;
-
-    axom::Array<NURBSPatch<T, NDIMS>, 2> split_patches(num_knot_span_u, num_knot_span_v);
-    split_patches(0, 0) = *this;
-
-    // Use the split routines instead of Bezier extraction,
-    //  since it already accounts for trimming curves
-    for(int i = 0; i < num_knot_span_u - 1; ++i)
-    {
-      split_patches(i, 0).split_u(knot_vals_u[i + 1], split_patches(i, 0), split_patches(i + 1, 0));
-    }
-
-    for(int i = 0; i < num_knot_span_u; ++i)
-    {
-      for(int j = 0; j < num_knot_span_v - 1; ++j)
-      {
-        split_patches(i, j).split_v(knot_vals_v[j + 1], split_patches(i, j), split_patches(i, j + 1));
-      }
-    }
+    // Split the patch along the unique knot values to improve convergence
+    auto split_patches = extractTrimmedBezier();
 
     VectorType ret_vec;
     for(int i = 0; i < num_knot_span_u; ++i)
