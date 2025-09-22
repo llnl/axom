@@ -214,9 +214,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         depends_on("py-pytest")
         depends_on("py-jsonschema")
 
-        # Need clang@14 for clang-format
+        # Need clang@19 for clang-format
         # (ENABLE_CLANGFORMAT will be OFF if not the exact version)
-        depends_on("llvm+clang@14", type="build")
+        depends_on("llvm+clang@19", type="build")
 
     # -----------------------------------------------------------------------
     # Conflicts

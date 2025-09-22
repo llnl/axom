@@ -14,9 +14,9 @@
     "__comment__":"##############################################################################",
 
     "toss_4_x86_64_ib":
-    [ "gcc@10.3.1+devtools+hdf5+mfem+c2c+scr+profiling",
-      "clang@14.0.6+devtools+hdf5+mfem+c2c+scr+profiling+opencascade",
-      "intel@2022.1.0+devtools+hdf5+mfem+c2c+profiling" ],
+    [ "gcc@13.3.1+devtools+hdf5+mfem+c2c+scr+profiling",
+      "clang@19.1.3+devtools+hdf5+mfem+c2c+scr+profiling+opencascade",
+      "intel@2025.2.0+devtools+hdf5+mfem+c2c+profiling" ],
 
     "__comment__":"# Use amdgpu_target=gfx942 for rzadams",
     "__comment__":"# Use amdgpu_target=gfx90a for tioga/rzvernal",
