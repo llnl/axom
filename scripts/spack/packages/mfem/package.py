@@ -114,18 +114,23 @@ class Mfem(BuiltinMfem):
 
         # Determine C++ standard to use:
         cxxstd = None
-        if self.spec.satisfies("@4.0.0:"):
+        if self.spec.satisfies("^raja@2025.09.0:"):
+            cxxstd = "17"
+        elif self.spec.satisfies("^umpire@2025.09.0:"):
+            cxxstd = "17"
+        elif self.spec.satisfies("^raja@2022.03.0:"):
+            cxxstd = "14"
+        elif self.spec.satisfies("^umpire@2022.03.0:"):
+            cxxstd = "14"
+        elif self.spec.satisfies("^sundials@6.4.0:"):
+            cxxstd = "14"
+        elif self.spec.satisfies("^ginkgo"):
+            cxxstd = "14"
+        elif self.spec.satisfies("@4.0.0:"):
             cxxstd = "11"
-        if self.spec.satisfies("^raja@2022.03.0:"):
-            cxxstd = "14"
-        if self.spec.satisfies("^umpire@2022.03.0:"):
-            cxxstd = "14"
-        if self.spec.satisfies("^sundials@6.4.0:"):
-            cxxstd = "14"
-        if self.spec.satisfies("^ginkgo"):
-            cxxstd = "14"
+
         # When rocPRIM is used (e.g. by PETSc + ROCm) we need C++14:
-        if self.spec.satisfies("^rocprim@5.5.0:"):
+        elif self.spec.satisfies("^rocprim@5.5.0:"):
             cxxstd = "14"
         cxxstd_req = spec.variants["cxxstd"].value
         if cxxstd_req != "auto":

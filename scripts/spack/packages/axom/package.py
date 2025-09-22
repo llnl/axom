@@ -141,6 +141,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     with when("+umpire"):
         depends_on("umpire")
+        depends_on("umpire@2025.09.0:", when="@0.10:")
         depends_on("umpire@2024.02.0:", when="@0.9:")
         depends_on("umpire@2022.03.0:2023.06", when="@0.7.0:0.8")
         depends_on("umpire@6.0.0", when="@0.6.0")
@@ -149,6 +150,7 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
     with when("+raja"):
         depends_on("raja")
+        depends_on("raja@2025.09.0:", when="@0.10:")
         depends_on("raja@2024.02.0:", when="@0.9:")
         depends_on("raja@2022.03.0:2023.06", when="@0.7.0:0.8")
         depends_on("raja@0.14.0", when="@0.6.0")
