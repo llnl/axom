@@ -143,12 +143,9 @@ template <typename T>
 class NURBSPatchGWNCache
 {
 public:
-  using NURBSPatchType = NURBSPatchType<T, 3>;
-  using BezierPatchType = BezierPatchType<T, 3>;
-
   NURBSPatchGWNCache() = default;
 
-  NURBSPatchGWNCache(const NURBSPatchType& a_patch) : m_alteredPatch(a_patch)
+  NURBSPatchGWNCache(const NURBSPatch<T, 3>& a_patch) : m_alteredPatch(a_patch)
   {
     m_alteredPatch.normalizeBySpan();
 
@@ -231,8 +228,8 @@ public:
     m_curveQuadratureMaps.resize(m_alteredPatch.getNumTrimmingCurves());
   }
 
-  NURBSPatchGWNCache(const BezierPatchType a_patch)
-    : NURBSPatchGWNCache(NURBSPatchType(a_patch)) { }
+  NURBSPatchGWNCache(const BezierPatch<T, 3> a_patch)
+    : NURBSPatchGWNCache(NURBSPatch<T, 3>(a_patch)) { }
 
   // Mirror the functionality of NURBSPatch so signatures match in GWN evaluation.
   // Allowing only access ensures the memoized information is always accurate
@@ -251,9 +248,9 @@ public:
   auto getParameterSpaceDiagonal() const { return m_pboxDiag; }
 
   // Access precomputed data
-  NURBSPatchType::VectorType getAverageNormal() const { return m_averageNormal; }
-  NURBSPatchType::BoundingBoxType boundingBox() const { return m_bBox; }
-  NURBSPatchType::OrientedBoundingBoxType orientedBoundingBox() const { return m_oBox; }
+  BoundingBox<T, 3> getAverageNormal() const { return m_averageNormal; }
+  OrientedBoundingBox<T, 3> boundingBox() const { return m_bBox; }
+  Vector<T, 3> orientedBoundingBox() const { return m_oBox; }
 
   /// \brief Creates or accesses the quadrature nodes for a given trimming curve
   TrimmingCurveQuadratureData<T>& getTrimmingCurveQuadratureData(int curveIndex,
@@ -279,12 +276,12 @@ public:
 private:
   // The patch is private to prevent dirtying the cache by changing the patch,
   //  and because the stored internal patch is altered from the original input
-  NURBSPatchType m_alteredPatch;
+  NURBSPatch<T, 3> m_alteredPatch;
 
   // Per patch data
-  NURBSPatchType::BoundingBoxType m_bBox;
-  NURBSPatchType::OrientedBoundingBoxType m_oBox;
-  NURBSPatchType::VectorType m_averageNormal;
+  BoundingBox<T, 3> m_bBox;
+  OrientedBoundingBox<T, 3> m_oBox;
+  Vector<T, 3> m_averageNormal;
   double m_pboxDiag;
 
   // Per trimming curve data, keyed by (whichRefinementLevel, whichRefinementIndex)

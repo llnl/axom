@@ -47,20 +47,21 @@ struct BezierCurveData
   BezierCurveData() = default;
 
   BezierCurveData(const BezierCurve<T, 2>& a_curve, bool knownConvex, double bbExpansionAmount = 0.0)
-    : curve(a_curve)
+    : m_curve(a_curve)
   {
-    isConvexControlPolygon = knownConvex ? true : is_convex(Polygon<T, 2>(curve.getControlPoints()));
-    boundingBox = curve.boundingBox().expand(bbExpansionAmount);
+    m_isConvexControlPolygon =
+      knownConvex ? true : is_convex(Polygon<T, 2>(m_curve.getControlPoints()));
+    m_boundingBox = m_curve.boundingBox().expand(bbExpansionAmount);
   }
 
-  auto getCurve() const { return curve; }
-  auto isConvexControlPolygon() const { return isConvexControlPolygon; }
-  auto getBoundingBox() const { return boundingBox; }
+  const auto& getCurve() const { return m_curve; }
+  auto isConvexControlPolygon() const { return m_isConvexControlPolygon; }
+  auto getBoundingBox() const { return m_boundingBox; }
 
 private:
-  BezierCurve<T, 2> curve;
-  bool isConvexControlPolygon;
-  BoundingBox<T, 2> boundingBox;
+  BezierCurve<T, 2> m_curve;
+  bool m_isConvexControlPolygon;
+  BoundingBox<T, 2> m_boundingBox;
 };
 
 /*!
@@ -141,7 +142,7 @@ public:
         m_bezierSubdivisionMaps[idx][std::make_pair(refinementLevel - 1, refinementIndex / 2)];
 
       BezierCurve<T, 2> sub1, sub2;
-      supercurve_data.curve().split(0.5, sub1, sub2);
+      supercurve_data.getCurve().split(0.5, sub1, sub2);
 
       // Make keys for the requested curve and its "sibling" in the heirarchy
       const auto key1 = std::make_pair(refinementLevel, refinementIndex - refinementIndex % 2);
