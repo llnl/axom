@@ -37,21 +37,27 @@ namespace primal
 namespace detail
 {
 /*!
- * \struct SubdivisionData
+ * \struct BezierCurveData
  *
  * \brief Stores BezierCurves and relevant data/flags
  */
 template <typename T>
-struct SubdivisionData
+struct BezierCurveData
 {
-  SubdivisionData() = default;
+  BezierCurveData() = default;
 
-  SubdivisionData(const BezierCurve<T, 2>& a_curve, bool knownConvex) : curve(a_curve)
+  BezierCurveData(const BezierCurve<T, 2>& a_curve, bool knownConvex, double bbExpansionAmount = 0.0)
+    : curve(a_curve)
   {
     isConvexControlPolygon = knownConvex ? true : is_convex(Polygon<T, 2>(curve.getControlPoints()));
-    boundingBox = curve.boundingBox();
+    boundingBox = curve.boundingBox().expand(bbExpansionAmount);
   }
 
+  auto getCurve() const { return curve; }
+  auto isConvexControlPolygon() const { return isConvexControlPolygon; }
+  auto getBoundingBox() const { return boundingBox; }
+
+private:
   BezierCurve<T, 2> curve;
   bool isConvexControlPolygon;
   BoundingBox<T, 2> boundingBox;
@@ -74,7 +80,7 @@ public:
   NURBSCurveGWNCache() = default;
 
   /// \brief Initialize the cache with the data for the original curve
-  NURBSCurveGWNCache(const NURBSCurve<T, 2>& a_curve)
+  NURBSCurveGWNCache(const NURBSCurve<T, 2>& a_curve, double bbExpansionAmount = 0.0)
   {
     m_boundingBox = a_curve.boundingBox();
     m_degree = a_curve.getDegree();
@@ -86,7 +92,8 @@ public:
 
     for(int idx = 0; idx < m_numSpans; ++idx)
     {
-      m_bezierSubdivisionMaps[idx][std::make_pair(0, 0)] = SubdivisionData<T>(beziers[idx], false);
+      m_bezierSubdivisionMaps[idx][std::make_pair(0, 0)] =
+        BezierCurveData<T>(beziers[idx], false, bbExpansionAmount);
     }
 
     m_initPoint = a_curve[0];
@@ -94,7 +101,7 @@ public:
   }
 
   /// \brief Initialize the cache with the data for a single Bezier curve
-  NURBSCurveGWNCache(const BezierCurve<T, 2>& a_curve)
+  NURBSCurveGWNCache(const BezierCurve<T, 2>& a_curve, double bbExpansionAmount = 0.0)
   {
     m_boundingBox = a_curve.boundingBox();
     m_degree = a_curve.getOrder();
@@ -115,22 +122,26 @@ public:
       m_initPoint = a_curve[0];
       m_endPoint = a_curve[m_degree];
 
-      m_bezierSubdivisionMaps[0][std::make_pair(0, 0)] = SubdivisionData<T>(a_curve, false);
+      m_bezierSubdivisionMaps[0][std::make_pair(0, 0)] =
+        BezierCurveData<T>(a_curve, false, bbExpansionAmount);
     }
   }
 
   /// \brief Query the map. If curve is not found, add it and it's pair from subdivision
-  const SubdivisionData<T>& getSubdivisionData(int idx, int refinementLevel, int refinementIndex) const
+  const BezierCurveData<T>& getSubdivisionData(int idx,
+                                               int refinementLevel,
+                                               int refinementIndex,
+                                               double bbExpansionAmount = 0.0) const
   {
     auto hash_key = std::make_pair(refinementLevel, refinementIndex);
 
     if(m_bezierSubdivisionMaps[idx].find(hash_key) == m_bezierSubdivisionMaps[idx].end())
     {
-      const SubdivisionData<T>& supercurve_data =
+      const BezierCurveData<T>& supercurve_data =
         m_bezierSubdivisionMaps[idx][std::make_pair(refinementLevel - 1, refinementIndex / 2)];
 
       BezierCurve<T, 2> sub1, sub2;
-      supercurve_data.curve.split(0.5, sub1, sub2);
+      supercurve_data.curve().split(0.5, sub1, sub2);
 
       // Make keys for the requested curve and its "sibling" in the heirarchy
       const auto key1 = std::make_pair(refinementLevel, refinementIndex - refinementIndex % 2);
@@ -138,9 +149,9 @@ public:
 
       // Populate the map
       m_bezierSubdivisionMaps[idx][key1] =
-        SubdivisionData<T>(sub1, supercurve_data.isConvexControlPolygon);
+        BezierCurveData<T>(sub1, supercurve_data.isConvexControlPolygon(), bbExpansionAmount);
       m_bezierSubdivisionMaps[idx][key2] =
-        SubdivisionData<T>(sub2, supercurve_data.isConvexControlPolygon);
+        BezierCurveData<T>(sub2, supercurve_data.isConvexControlPolygon(), bbExpansionAmount);
     }
 
     return m_bezierSubdivisionMaps[idx][hash_key];
@@ -162,7 +173,7 @@ private:
 
   Point<T, 2> m_initPoint, m_endPoint;
 
-  mutable axom::Array<std::map<std::pair<int, int>, SubdivisionData<T>>> m_bezierSubdivisionMaps;
+  mutable axom::Array<std::map<std::pair<int, int>, BezierCurveData<T>>> m_bezierSubdivisionMaps;
 };
 
 }  // namespace detail

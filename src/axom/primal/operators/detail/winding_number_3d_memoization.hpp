@@ -64,7 +64,7 @@ struct TrimmingCurveQuadratureData
    * \param [in] quad_npts The number of Gaussian nodes
    * \param [in] a_patch The 3D NURBS surface
    * \param [in] a_curve_index The index of the trimming curve
-   * \param [in] a_refinementLevel How mnay subdivisions for the curve
+   * \param [in] a_refinementLevel How many subdivisions for the curve
    * \param [in] a_refinementSection Which subdivision for a given level
    */
   TrimmingCurveQuadratureData(const NURBSPatch<T, 3> a_patch,
@@ -143,9 +143,12 @@ template <typename T>
 class NURBSPatchGWNCache
 {
 public:
+  using NURBSPatchType = NURBSPatchType<T, 3>;
+  using BezierPatchType = BezierPatchType<T, 3>;
+
   NURBSPatchGWNCache() = default;
 
-  NURBSPatchGWNCache(const NURBSPatch<T, 3>& a_patch) : m_alteredPatch(a_patch)
+  NURBSPatchGWNCache(const NURBSPatchType& a_patch) : m_alteredPatch(a_patch)
   {
     m_alteredPatch.normalizeBySpan();
 
@@ -186,7 +189,7 @@ public:
     }
 
     // Bounding boxes should be defined according to the *pre-expanded* surface,
-    //  since the expanded portions are never visibile
+    //  since the expanded portions are never visible
     m_oBox = m_alteredPatch.orientedBoundingBox();
     m_bBox.clear();
     for(int i = 0; i < num_knot_span_u; ++i)
@@ -228,30 +231,29 @@ public:
     m_curveQuadratureMaps.resize(m_alteredPatch.getNumTrimmingCurves());
   }
 
-  NURBSPatchGWNCache(const BezierPatch<T, 3> a_patch)
-    : NURBSPatchGWNCache(NURBSPatch<T, 3>(a_patch))
-  { }
+  NURBSPatchGWNCache(const BezierPatchType a_patch)
+    : NURBSPatchGWNCache(NURBSPatchType(a_patch)) { }
 
   // Mirror the functionality of NURBSPatch so signatures match in GWN evaluation.
   // Allowing only access ensures the memoized information is always accurate
-  auto getControlPoints() const { return m_alteredPatch.getControlPoints(); }
+  const auto& getControlPoints() const { return m_alteredPatch.getControlPoints(); }
   auto getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
   auto getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
-  auto getWeights() const { return m_alteredPatch.getWeights(); }
-  auto getKnots_u() const { return m_alteredPatch.getKnots_u(); }
-  auto getKnots_v() const { return m_alteredPatch.getKnots_v(); }
+  const auto& getWeights() const { return m_alteredPatch.getWeights(); }
+  const auto& getKnots_u() const { return m_alteredPatch.getKnots_u(); }
+  const auto& getKnots_v() const { return m_alteredPatch.getKnots_v(); }
   auto getMinKnot_u() const { return m_alteredPatch.getMinKnot_u(); }
   auto getMaxKnot_u() const { return m_alteredPatch.getMaxKnot_u(); }
   auto getMinKnot_v() const { return m_alteredPatch.getMinKnot_v(); }
   auto getMaxKnot_v() const { return m_alteredPatch.getMaxKnot_v(); }
-  auto getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
+  const auto& getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
   auto getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
   auto getParameterSpaceDiagonal() const { return m_pboxDiag; }
 
   // Access precomputed data
-  auto getAverageNormal() const { return m_averageNormal; }
-  auto boundingBox() const { return m_bBox; }
-  auto orientedBoundingBox() const { return m_oBox; }
+  NURBSPatchType::VectorType getAverageNormal() const { return m_averageNormal; }
+  NURBSPatchType::BoundingBoxType boundingBox() const { return m_bBox; }
+  NURBSPatchType::OrientedBoundingBoxType orientedBoundingBox() const { return m_oBox; }
 
   /// \brief Creates or accesses the quadrature nodes for a given trimming curve
   TrimmingCurveQuadratureData<T>& getTrimmingCurveQuadratureData(int curveIndex,
@@ -275,14 +277,14 @@ public:
   }
 
 private:
-  // The patch is private to present dirtying the cachce by changing the patch,
+  // The patch is private to prevent dirtying the cache by changing the patch,
   //  and because the stored internal patch is altered from the original input
-  NURBSPatch<T, 3> m_alteredPatch;
+  NURBSPatchType m_alteredPatch;
 
   // Per patch data
-  BoundingBox<T, 3> m_bBox;
-  OrientedBoundingBox<T, 3> m_oBox;
-  axom::primal::Vector<T, 3> m_averageNormal;
+  NURBSPatchType::BoundingBoxType m_bBox;
+  NURBSPatchType::OrientedBoundingBoxType m_oBox;
+  NURBSPatchType::VectorType m_averageNormal;
   double m_pboxDiag;
 
   // Per trimming curve data, keyed by (whichRefinementLevel, whichRefinementIndex)

@@ -385,6 +385,8 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
                            const numerics::Matrix<T>& rotator,
                            const double quad_tol)
 {
+  constexpr double gwn_modulo = 0.25 * M_1_PI;
+
   // Can't rotate the patch as pre-processing if working with cached data
   double quad = 0;
   for(int n = 0; n < nurbs.getNumTrimmingCurves(); ++n)
@@ -393,7 +395,7 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
     auto trimming_curve_data = nurbs.getTrimmingCurveQuadratureData(n, quad_npts, 0, 0);
     double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
 
-    quad += 0.25 * M_1_PI *
+    quad += gwn_modulo *
       stokes_gwn_adaptive(query, nurbs, n, quad_npts, 0, 0, ax, rotator, quad_coarse, quad_tol);
   }
 
@@ -440,6 +442,8 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
     ax = DiscontinuityAxis::z;
   }
 
+  constexpr double gwn_modulo = 0.25 * M_1_PI;
+
   double quad = 0;
   for(int n = 0; n < nurbs.getNumTrimmingCurves(); ++n)
   {
@@ -447,7 +451,7 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
     auto trimming_curve_data = TrimmingCurveQuadratureData<T>(nurbs_rotated, n, quad_npts, 0, 0);
     double quad_coarse = stokes_gwn_component(query, ax, rotator, trimming_curve_data);
 
-    quad += 0.25 * M_1_PI *
+    quad += gwn_modulo *
       stokes_gwn_adaptive(query, nurbs_rotated, n, quad_npts, 0, 0, ax, rotator, quad_coarse, quad_tol);
   }
 

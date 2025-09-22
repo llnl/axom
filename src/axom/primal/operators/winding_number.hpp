@@ -275,7 +275,7 @@ double winding_number(const Point<T, 2>& q,
                       double EPS = 1e-8)
 {
   // Early return is possible for most points + curves
-  if(!nurbs_cache.boundingBox().expand(edge_tol).contains(q))
+  if(!nurbs_cache.boundingBox().contains(q))
   {
     return detail::linear_winding_number(q,
                                          nurbs_cache.getInitPoint(),
@@ -404,7 +404,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
 
   for(int i = 0; i < c_arr.size(); ++i)
   {
-    cache_arr.emplace_back(detail::NURBSCurveGWNCache<T>(c_arr[i]));
+    cache_arr.emplace_back(detail::NURBSCurveGWNCache<T>(c_arr[i], edge_tol));
   }
 
   return winding_number(q_arr, cache_arr, edge_tol, EPS);
@@ -420,9 +420,6 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
  *
  * Computes the GWN for the curved polygon by summing the GWN for each curved edge
  * 
- * \warning Because the cache isKdiscarded immediately after computation,
- *  this method is not accelerated by memoization
- * 
  * \return The GWN.
  */
 template <typename T>
@@ -435,7 +432,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
 
   for(int i = 0; i < cpoly.numEdges(); ++i)
   {
-    cache_arr.emplace_back(detail::NURBSCurveGWNCache<T>(cpoly[i]));
+    cache_arr.emplace_back(detail::NURBSCurveGWNCache<T>(cpoly[i], edge_tol));
   }
 
   axom::Array<double> ret_val(q_arr.size());
@@ -472,6 +469,8 @@ double winding_number(const Point<T, 3>& q,
                       const double edge_tol = 1e-8,
                       const double EPS = 1e-8)
 {
+  constexpr double gwn_modulo = 0.5 * M_1_PI;
+
   using Vec3 = Vector<T, 3>;
 
   if(tri.area() == 0)
@@ -512,12 +511,11 @@ double winding_number(const Point<T, 3>& q,
   // Note: denom==0 and num==0 handled above
   if(denom > 0)
   {
-    return 0.5 * M_1_PI * atan(num / denom);
+    return gwn_modulo * atan(num / denom);
   }
   else
   {
-    return (num > 0) ? 0.5 * M_1_PI * atan(num / denom) + 0.5
-                     : 0.5 * M_1_PI * atan(num / denom) - 0.5;
+    return (num > 0) ? gwn_modulo * atan(num / denom) + 0.5 : gwn_modulo * atan(num / denom) - 0.5;
   }
 }
 
@@ -664,21 +662,22 @@ int winding_number(const Point<T, 3>& q,
 
 #ifdef AXOM_USE_MFEM
 
-/*
-  * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch with precomputed data
-  *
-  * \param [in] query The query point to test
-  * \param [in] nurbs The NURBS patch object with data
-  * \param [in] edge_tol The physical distance level at which objects are 
-  *                      considered indistinguishable
-  * \param [in] ls_tol The tolerance for the line-surface intersection routine
-  * \param [in] quad_tol The maximum relative error allowed in the quadrature
-  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
-  * 
-  * Computes the generalized winding number for a NURBS patch using Stokes theorem.
-  *
-  * \return The GWN.
-  */
+/*!
+ * \brief Computes the GWN for a 3D point wrt a 3D NURBS patch with precomputed data
+ *
+ * \param [in] query The query point to test
+ * \param [in] nurbs The NURBS patch object with data
+ * \param [in] edge_tol The physical distance level at which objects are 
+ *                      considered indistinguishable
+ * \param [in] ls_tol The tolerance for the line-surface intersection routine
+ * \param [in] quad_tol The maximum relative error allowed in the quadrature
+ * \param [in] disk_size The size of extracted disks as a percent of parameter bbox diagonal
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ * 
+ * Computes the generalized winding number for a NURBS patch using Stokes theorem.
+ *
+ * \return The GWN.
+ */
 template <typename T>
 double winding_number(const Point<T, 3>& query,
                       const detail::NURBSPatchGWNCache<T>& nurbs,
@@ -712,11 +711,19 @@ double winding_number(const Point<T, 3>& query,
                                       EPS);
 }
 
-/*
+/*!
  * \brief Computes the GWN for a 3D point wrt a generic 3D surface object
  *
  * \tparam SurfaceType The BezierPatch or NURBSPatch which represents the surface
- * 
+ * \param [in] query The query point to test
+ * \param [in] surf The BezierPatch or NURBSPatch object
+ * \param [in] edge_tol The physical distance level at which objects are 
+ *                      considered indistinguishable
+ * \param [in] ls_tol The tolerance for the line-surface intersection routine
+ * \param [in] quad_tol The maximum relative error allowed in the quadrature
+ * \param [in] disk_size The size of extracted disks as a percent of parameter bbox diagonal
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ *
  * \warning Because the constructed cache object is discarded after gwn evaluation,
  *  this method is not accelerated via memoization
  * 
@@ -740,7 +747,7 @@ double winding_number(const Point<T, 3>& query,
                         EPS);
 }
 
-/*
+/*!
  * \brief Computes the GWN for an array of 3D point wrt an array of NURBS patch cache data
  *
  * \param [in] query_arr The query point to test
@@ -749,6 +756,7 @@ double winding_number(const Point<T, 3>& query,
  *                      considered indistinguishable
  * \param [in] ls_tol The tolerance for the line-surface intersection routine
  * \param [in] quad_tol The maximum relative error allowed in the quadrature
+ * \param [in] disk_size The size of extracted disks as a percent of parameter bbox diagonal
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  * 
  * Computes the generalized winding number for a NURBS patch using Stokes theorem.
@@ -806,10 +814,21 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 3>>& query_arr,
   return ret_val;
 }
 
-/*
- * \brief Computes the GWN for a 3D point array wrt a 3D surface patch array
+/*!
+ * \brief Computes the GWN for an array an array of 3D points wrt an array of generic surfaces
  *
  * \tparam SurfaceType The BezierPatch or NURBSPatch which represents the surface
+ * \param [in] query_arr The query point to test
+ * \param [in] surf_arr Array of NURBSPatch or BezierPatch objects
+ * \param [in] edge_tol The physical distance level at which objects are 
+ *                      considered indistinguishable
+ * \param [in] ls_tol The tolerance for the line-surface intersection routine
+ * \param [in] quad_tol The maximum relative error allowed in the quadrature
+ * \param [in] disk_size The size of extracted disks as a percent of parameter bbox diagonal
+ * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
+ * 
+ * Computes the generalized winding number for a NURBS patch using Stokes theorem.
+ * Decreases computation time by precomputing and storing intermediates for each patch
  * 
  * \return The array of GWN values.
  */

@@ -1607,10 +1607,10 @@ public:
 
   /*!
    * \brief Expand the parameter space of the NURBS patch geometry 
-   *         linearly (by tangents) in all directions
+   *         linearly (by tangents) in all directions by a fixed amount
    *
-   * \param [in] expansionAmount_u The additive factor to expand the u knot vector by
-   * \param [in] expansionAmount_v The additive factor to expand the v knot vector by
+   * \param [in] expansionAmount_u The absolute additive amount by which the u is expanded
+   * \param [in] expansionAmount_v The absolute additive amount by which the v is expanded
    * \param [in] removeTrimmingCurves If true, the resulting patch has no trimming curves
    *
    * Algorithm from Wolters, Hans J., "Extensions: Extrapolation Methods for CAD", 1999
@@ -1620,8 +1620,9 @@ public:
    * 
    * \post If removeTrimmingCurves is false, the resulting patch will be trimmed.
    * 
-   * \warning Method becomes numerically unstable for large values of expansionAmount,
-   *           or for rational patches with a large range of weights.
+   * \warning Method becomes numerically unstable for values of expansionAmount that are
+   *           a large fraction of the existing parameter size, or for rational patches 
+   *           with a large range of weights.
    */
   void expandParameterSpace(double expansionAmount_u,
                             double expansionAmount_v,
@@ -1631,7 +1632,8 @@ public:
     SLIC_WARNING_IF(expansionAmount_u > 1.15 * (getMaxKnot_u() - getMinKnot_u()) ||
                       expansionAmount_v > 1.15 * (getMaxKnot_v() - getMinKnot_v()),
                     "Expanding patch parameter space is numerically unstable "
-                    "for large values of expansionAmount.");
+                    "for values of expansionAmount that are a large fraction of "
+                    "the patch's length in parameter space.");
 
     if(removeTrimmingCurves)
     {
