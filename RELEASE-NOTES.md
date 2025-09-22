@@ -55,6 +55,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: We now support optional specification of a per-shape `dimensions` field for the 
   geometry of a shape. These can be used to override the global `dimensions` 
   of a Klee input file.
+- Lumberjack: Added sorting of log messages by creation time.  This is now the default.
+- Slic: Added check for pending messages which is done by default when calling flushStreams() and pushStreams().
 - Sina: Records can now be provided with a curve ordering to use when writing to file. By default, all records will now use
   oldest-first ordering (ULTRA-like)
 - Sina: Documents can optionally be written as HDF5 instead of JSON. HDF5 should provide better performance for large, curve-rich sets
