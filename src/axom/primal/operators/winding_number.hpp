@@ -475,7 +475,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
  * \return The GWN.
  */
 template <typename T>
-double winding_number(const Point<T, 3>& query,
+double winding_number(const Point<T, 3>& q,
                       const Triangle<T, 3>& tri,
                       bool& isOnFace,
                       const double edge_tol = 1e-8,

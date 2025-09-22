@@ -3060,8 +3060,8 @@ public:
   axom::Array<NURBSPatch<T, NDIMS>> extractTrimmedBezier() const
   {
     // Loop over the original set of trimming curves and split them over the knot vectors
-    axom::Array<T> knot_vals_u = m_alteredPatch.getKnots_u().getUniqueKnots();
-    axom::Array<T> knot_vals_v = m_alteredPatch.getKnots_v().getUniqueKnots();
+    axom::Array<T> knot_vals_u = getKnots_u().getUniqueKnots();
+    axom::Array<T> knot_vals_v = getKnots_v().getUniqueKnots();
 
     const auto num_knot_span_u = knot_vals_u.size() - 1;
     const auto num_knot_span_v = knot_vals_v.size() - 1;
