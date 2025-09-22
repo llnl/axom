@@ -166,7 +166,7 @@ public:
     // Make a bounding box by doing (trimmed) bezier extraction,
     //  splitting the resulting bezier patches in 4,
     //  and taking a union of those bounding boxes
-    auto split_patches = extractTrimmedBezier();
+    auto split_patches = m_alteredPatch.extractTrimmedBezier();
 
     // Bounding boxes should be defined according to the *pre-expanded* surface,
     //  since the expanded portions are never visible
