@@ -37,6 +37,8 @@ void RootCommunicator::initialize(MPI_Comm comm, int ranksLimit)
 
 void RootCommunicator::finalize() { }
 
+MPI_Comm RootCommunicator::comm() { return m_mpiComm; }
+
 int RootCommunicator::rank() { return m_mpiCommRank; }
 
 void RootCommunicator::ranksLimit(int value) { m_ranksLimit = value; }

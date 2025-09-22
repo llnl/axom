@@ -16,6 +16,7 @@ Name                      Description
 ========================= ===================
 initialize                Starts up the Communicator. Must be called before anything else.
 finalize                  Cleans up the Communicator. Must be called when finished.
+comm                      Returns the MPI Communicator object stored in this class.
 rank                      Returns the rank of the current node.
 ranksLimit                Getter/Setter for the limit on individually stored ranks.
 numPushesToFlush          Returns the number of individual pushes to completely flush all Messages.
