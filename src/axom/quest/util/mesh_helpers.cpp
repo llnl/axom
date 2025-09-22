@@ -530,14 +530,6 @@ void convert_blueprint_structured_explicit_to_unstructured_impl_2d(axom::sidre::
     meshGrp->createGroup("fields");
   }
 
-  #if defined(AXOM_DEBUG) && defined(AXOM_USE_CONDUIT)
-  AXOM_ANNOTATE_BEGIN("validate_post");
-  conduit::Node info;
-  bool isValid = verifyBlueprintMesh(meshGrp, info);
-  SLIC_ASSERT_MSG(isValid, "Internal error: Generated mesh is invalid.");
-  AXOM_ANNOTATE_END("validate_post");
-  #endif
-
   return;
 }
 

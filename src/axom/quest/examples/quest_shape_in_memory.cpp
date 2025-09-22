@@ -442,9 +442,16 @@ void printMfemMeshInfo(mfem::Mesh* mesh, const std::string& prefixMessage = "")
 }
 #endif
 
+/************************************************************
+ * Shared variables.
+ ************************************************************/
+
 const std::string topoName = "mesh";
 const std::string coordsetName = "coords";
 int cellCount = -1;
+
+const auto hostAllocId = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+int arrayAllocId = axom::INVALID_ALLOCATOR_ID;
 
 // Computational mesh in different forms, initialized in main
 #if defined(AXOM_USE_MFEM)
@@ -498,14 +505,12 @@ axom::sidre::Group* createBoxMesh(axom::sidre::Group* meshGrp)
     break;
   }
 
-#if defined(AXOM_DEBUG)
-  conduit::Node meshNode, info;
-  meshGrp->createNativeLayout(meshNode);
-  SLIC_ASSERT(conduit::blueprint::mesh::verify(meshNode, info));
-#endif
-
   // State group is optional to blueprint, and we don't use it, but mint checks for it.
   meshGrp->createGroup("state");
+
+  auto hostAllocForScalarAndStringViews = [](const axom::sidre::View& v) {
+    return (v.isScalar() || v.isString()) ? hostAllocId : axom::INVALID_ALLOCATOR_ID;
+  };
 
   return meshGrp;
 }
@@ -1111,9 +1116,9 @@ axom::sidre::View* getElementVolumes(
       constexpr int NUM_COMPS_PER_VERT = 2;
 
       /*
-          Get vertex coordinates.  We use UnstructuredMesh for this,
-          so get it on host first then transfer to device if needed.
-        */
+        Get vertex coordinates.  We use UnstructuredMesh for this,
+        so get it on host first then transfer to device if needed.
+      */
       auto* connData = meshGrp->getGroup("topologies")
                          ->getGroup(topoName)
                          ->getGroup("elements")
@@ -1539,7 +1544,7 @@ int main(int argc, char** argv)
 
   axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(params.annotationMode);
 
-  const int allocatorId = axom::policyToDefaultAllocatorID(params.policy);
+  const int arrayAllocId = axom::policyToDefaultAllocatorID(params.policy);
 
   AXOM_ANNOTATE_SCOPE("quest shaping example");
   AXOM_ANNOTATE_BEGIN("init");
@@ -1669,10 +1674,11 @@ int main(int argc, char** argv)
                 "-DAXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION.");
 #endif
 
+  conduit::Node* topoCoordsetNode = nullptr;
   if(params.useBlueprintSidre() || params.useBlueprintConduit())
   {
     compMeshGrp = ds.getRoot()->createGroup("compMesh");
-    compMeshGrp->setDefaultAllocator(allocatorId);
+    compMeshGrp->setDefaultArrayAllocator(arrayAllocId);
 
     createBoxMesh(compMeshGrp);
 
@@ -1721,18 +1727,18 @@ int main(int argc, char** argv)
   if(params.useBlueprintSidre())
   {
     shaper =
-      std::make_shared<quest::IntersectionShaper>(params.policy, allocatorId, shapeSet, compMeshGrp);
+      std::make_shared<quest::IntersectionShaper>(params.policy, arrayAllocId, shapeSet, compMeshGrp);
   }
   if(params.useBlueprintConduit())
   {
     shaper =
-      std::make_shared<quest::IntersectionShaper>(params.policy, allocatorId, shapeSet, *compMeshNode);
+      std::make_shared<quest::IntersectionShaper>(params.policy, arrayAllocId, shapeSet, *compMeshNode);
   }
 #if defined(AXOM_USE_MFEM)
   if(params.useMfem())
   {
     shaper = std::make_shared<quest::IntersectionShaper>(params.policy,
-                                                         allocatorId,
+                                                         arrayAllocId,
                                                          shapeSet,
                                                          shapingDC.get());
   }

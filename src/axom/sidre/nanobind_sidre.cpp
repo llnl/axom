@@ -357,14 +357,18 @@ NB_MODULE(pysidre, m_sidre)
          &View::setScalar<int>,
          nb::rv_policy::reference,
          "Set the View to hold a scalar value (int).",
-         nb::arg("value").noconvert())
+         nb::arg("value").noconvert(),
+         nb::arg("allocID") = INVALID_ALLOCATOR_ID)
     .def("setScalar",
          &View::setScalar<double>,
          nb::rv_policy::reference,
          "Set the View to hold a scalar value (python float, C++ double).",
-         nb::arg("value").noconvert())
-
-    .def("setString", &View::setString, "Set the View to hold a string value.")
+         nb::arg("value").noconvert(),
+         nb::arg("allocID") = INVALID_ALLOCATOR_ID)
+    .def("setString", &View::setString,
+         "Set the View to hold a string value.",
+         nb::arg("value").noconvert(),
+         nb::arg("allocID") = INVALID_ALLOCATOR_ID)
     .def(
       "setExternalData",
       [](View& self, const nb::ndarray<>& external_ptr) {
@@ -549,18 +553,23 @@ NB_MODULE(pysidre, m_sidre)
          "Create View object with given name or path in this Group set its data to given scalar "
          "value (int).",
          nb::arg("path"),
-         nb::arg("value").noconvert())
+         nb::arg("value").noconvert(),
+         nb::arg("allocID") = INVALID_ALLOCATOR_ID)
     .def("createViewScalar",
          &Group::createViewScalar<double>,
          nb::rv_policy::reference,
          "Create View object with given name or path in this Group set its data to given scalar "
          "value (C++ double, python float).",
          nb::arg("path"),
-         nb::arg("value").noconvert())
+         nb::arg("value").noconvert(),
+         nb::arg("allocID") = INVALID_ALLOCATOR_ID)
     .def("createViewString",
          &Group::createViewString,
          nb::rv_policy::reference,
-         "Create View object with given name or path in this Group set its data to given string.")
+         "Create View object with given name or path in this Group set its data to given string.",
+         nb::arg("path"),
+         nb::arg("value").noconvert(),
+         nb::arg("allocID") = INVALID_ALLOCATOR_ID)
 
     .def("destroyView",
          nb::overload_cast<const std::string&>(&Group::destroyView),
@@ -613,7 +622,8 @@ NB_MODULE(pysidre, m_sidre)
          nb::rv_policy::reference,
          "Create a child Group within this Group with given name or path.",
          nb::arg("path"),
-         nb::arg("is_list") = false)
+         nb::arg("is_list") = false,
+         nb::arg("accept_existing") = false)
     .def("destroyGroup",
          nb::overload_cast<const std::string&>(&Group::destroyGroup),
          "Destroy child Group in this Group with given name or path.")
