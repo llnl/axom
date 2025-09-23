@@ -6,6 +6,7 @@
 #include "axom/slic/core/Logger.hpp"
 #include "axom/slic/core/LogStream.hpp"
 #include "axom/core/utilities/Utilities.hpp"
+#include "axom/slic/core/LogStreamStatusMonitor.hpp"
 
 // C/C++ includes
 #include <iostream>
@@ -30,6 +31,14 @@ Logger*& getLogger()
 {
   static Logger* s_Logger = nullptr;
   return s_Logger;
+}
+
+//------------------------------------------------------------------------------
+// This is a singleton, scope-limited to this file.
+LogStreamStatusMonitor& getLogStreamStatusMonitor()
+{
+  static LogStreamStatusMonitor s_logStreamStatusMonitor;
+  return s_logStreamStatusMonitor;
 }
 
 //------------------------------------------------------------------------------
@@ -137,6 +146,8 @@ void Logger::addStreamToMsgLevel(LogStream* ls, message::Level level, bool pass_
   {
     m_streamObjectsManager[ls] = ls;
   }
+
+  getLogStreamStatusMonitor().addStream(ls);
 }
 
 //------------------------------------------------------------------------------
@@ -161,6 +172,8 @@ void Logger::addStreamToTag(LogStream* ls, const std::string& tag, bool pass_own
   {
     m_streamObjectsManager[ls] = ls;
   }
+
+  getLogStreamStatusMonitor().addStream(ls);
 }
 
 //------------------------------------------------------------------------------
@@ -347,7 +360,6 @@ void Logger::outputLocalMessages()
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
       m_logStreams[level][istream]->outputLocal();
-
     }  // END for all streams
 
   }  // END for all levels
@@ -367,13 +379,25 @@ void Logger::outputLocalMessages()
 //------------------------------------------------------------------------------
 void Logger::flushStreams()
 {
+
+  /*
+    check if any MPI-based stream has pending messages on any rank.
+    This is needed to avoid unecessary pushes or flushes when there are no
+    pending messages.
+   */
+  const bool pendingMessages = hasPendingMessages();
+
   //Flush for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
   {
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      m_logStreams[level][istream]->flush();
+      const bool streamUsesMPI = m_logStreams[level][istream]->isUsingMPI();
+      if (shouldPushMessages(pendingMessages, streamUsesMPI))
+      {
+        m_logStreams[level][istream]->flush();
+      }
 
     }  // END for all streams
 
@@ -386,7 +410,11 @@ void Logger::flushStreams()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      it->second[i]->flush();
+      const bool streamUsesMPI = it->second[i]->isUsingMPI();
+      if (shouldPushMessages(pendingMessages, streamUsesMPI))
+      {
+        it->second[i]->flush();
+      }
     }
   }
 }
@@ -394,13 +422,24 @@ void Logger::flushStreams()
 //------------------------------------------------------------------------------
 void Logger::pushStreams()
 {
+
+  /*
+    check if any MPI-based stream has pending messages on any rank.
+    This is needed to avoid unecessary pushes or flushes when there are no
+    pending messages.
+   */
+  const bool pendingMessages = hasPendingMessages();
   //Push for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
   {
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      m_logStreams[level][istream]->push();
+      const bool streamUsesMPI = m_logStreams[level][istream]->isUsingMPI();
+      if (shouldPushMessages(pendingMessages, streamUsesMPI))
+      {
+        m_logStreams[level][istream]->push();
+      }
 
     }  // END for all streams
 
@@ -413,9 +452,19 @@ void Logger::pushStreams()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      it->second[i]->push();
+      const bool streamUsesMPI = it->second[i]->isUsingMPI();
+      if (shouldPushMessages(pendingMessages, streamUsesMPI))
+      {
+        it->second[i]->push();
+      }
     }
   }
+}
+
+//------------------------------------------------------------------------------
+bool Logger::hasPendingMessages()
+{
+  return getLogStreamStatusMonitor().hasPendingMessages();
 }
 
 //------------------------------------------------------------------------------
@@ -510,6 +559,11 @@ void Logger::finalize()
   loggers.clear();
 
   getLogger() = nullptr;
+
+  LogStreamStatusMonitor& logStreamStatusMonitor = getLogStreamStatusMonitor();
+
+  logStreamStatusMonitor.finalize();
+
 }
 
 //------------------------------------------------------------------------------
@@ -529,6 +583,12 @@ Logger* Logger::getRootLogger()
   }
 
   return (loggers["root"]);
+}
+
+bool Logger::shouldPushMessages(const bool hasPendingMessages, 
+                                const bool streamUsesMPI) const
+{
+  return (!streamUsesMPI || hasPendingMessages);
 }
 
 } /* namespace slic */
