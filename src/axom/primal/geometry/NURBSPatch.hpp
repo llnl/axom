@@ -3113,23 +3113,20 @@ public:
     auto split_patches = extractTrimmedBezier();
 
     VectorType ret_vec;
-    for(int i = 0; i < num_knot_span_u; ++i)
+    for(int n = 0; n < split_patches.size(); ++n)
     {
-      for(int j = 0; j < num_knot_span_v; ++j)
+      // Integrand for the surface area integral
+      auto& nPatch = split_patches[n];
+
+      for(int N = 0; N < 3; ++N)
       {
-        // Integrand for the surface area integral
-        auto& nPatch = split_patches(i, j);
+        auto avg_surface_normal_integrand = [&nPatch, &N](Point2D x) -> double {
+          return nPatch.normal(x[0], x[1])[N];
+        };
 
-        for(int N = 0; N < 3; ++N)
-        {
-          auto avg_surface_normal_integrand = [&nPatch, &N](Point2D x) -> double {
-            return nPatch.normal(x[0], x[1])[N];
-          };
-
-          // Find the area of the resulting projection
-          ret_vec[N] +=
-            evaluate_area_integral(nPatch.getTrimmingCurves(), avg_surface_normal_integrand, npts);
-        }
+        // Find the area of the resulting projection
+        ret_vec[N] +=
+          evaluate_area_integral(nPatch.getTrimmingCurves(), avg_surface_normal_integrand, npts);
       }
     }
 

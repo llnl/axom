@@ -172,38 +172,35 @@ public:
     //  since the expanded portions are never visible
     m_oBox = m_alteredPatch.orientedBoundingBox();
     m_bBox.clear();
-    for(int i = 0; i < num_knot_span_u; ++i)
+    for(int n = 0; n < split_patches.size(); ++n)
     {
-      for(int j = 0; j < num_knot_span_v; ++j)
+      if(split_patches[n].getNumTrimmingCurves() == 0)
       {
-        if(split_patches(i, j).getNumTrimmingCurves() == 0)
-        {
-          continue;  // Skip patches with no trimming curves
-        }
-
-        BezierPatch<T, 3> the_patch;
-        if(m_alteredPatch.isRational())
-        {
-          the_patch = BezierPatch<T, 3>(split_patches(i, j).getControlPoints(),
-                                        split_patches(i, j).getWeights(),
-                                        split_patches(i, j).getDegree_u(),
-                                        split_patches(i, j).getDegree_v());
-        }
-        else
-        {
-          the_patch = BezierPatch<T, 3>(split_patches(i, j).getControlPoints(),
-                                        split_patches(i, j).getDegree_u(),
-                                        split_patches(i, j).getDegree_v());
-        }
-
-        BezierPatch<T, 3> p1, p2, p3, p4;
-        the_patch.split(0.5, 0.5, p1, p2, p3, p4);
-
-        m_bBox.addBox(p1.boundingBox());
-        m_bBox.addBox(p2.boundingBox());
-        m_bBox.addBox(p3.boundingBox());
-        m_bBox.addBox(p4.boundingBox());
+        continue;  // Skip patches with no trimming curves
       }
+
+      BezierPatch<T, 3> the_patch;
+      if(m_alteredPatch.isRational())
+      {
+        the_patch = BezierPatch<T, 3>(split_patches[n].getControlPoints(),
+                                      split_patches[n].getWeights(),
+                                      split_patches[n].getDegree_u(),
+                                      split_patches[n].getDegree_v());
+      }
+      else
+      {
+        the_patch = BezierPatch<T, 3>(split_patches[n].getControlPoints(),
+                                      split_patches[n].getDegree_u(),
+                                      split_patches[n].getDegree_v());
+      }
+
+      BezierPatch<T, 3> p1, p2, p3, p4;
+      the_patch.split(0.5, 0.5, p1, p2, p3, p4);
+
+      m_bBox.addBox(p1.boundingBox());
+      m_bBox.addBox(p2.boundingBox());
+      m_bBox.addBox(p3.boundingBox());
+      m_bBox.addBox(p4.boundingBox());
     }
 
     m_alteredPatch.expandParameterSpace(0.05, 0.05);
@@ -232,9 +229,9 @@ public:
   auto getParameterSpaceDiagonal() const { return m_pboxDiag; }
 
   // Access precomputed data
-  BoundingBox<T, 3> getAverageNormal() const { return m_averageNormal; }
-  OrientedBoundingBox<T, 3> boundingBox() const { return m_bBox; }
-  Vector<T, 3> orientedBoundingBox() const { return m_oBox; }
+  Vector<T, 3> getAverageNormal() const { return m_averageNormal; }
+  BoundingBox<T, 3> boundingBox() const { return m_bBox; }
+  OrientedBoundingBox<T, 3> orientedBoundingBox() const { return m_oBox; }
 
   /// \brief Creates or accesses the quadrature nodes for a given trimming curve
   TrimmingCurveQuadratureData<T>& getTrimmingCurveQuadratureData(int curveIndex,
