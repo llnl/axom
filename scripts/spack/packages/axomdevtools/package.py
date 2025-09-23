@@ -13,9 +13,15 @@ class Axomdevtools(BundlePackage):
 
     maintainers = ['white238']
 
-    depends_on("python@3.11")
+    depends_on("c")
+    depends_on("cxx")
+    depends_on("fortran")
+    depends_on("mpi")
+
+    # 3.13 is bugfix/stable release
+    depends_on("python@3.13")
     depends_on("doxygen")
-    depends_on("cppcheck+rules+htmlreport")
+    depends_on("cppcheck+rules")
     depends_on("graphviz")
     depends_on("py-sphinx")
     depends_on("py-shroud")
@@ -27,4 +33,4 @@ class Axomdevtools(BundlePackage):
     depends_on("py-pytest")
     depends_on("py-numpy")
 
-    depends_on("llvm+clang@14")
+    depends_on("llvm+clang@19")
