@@ -3362,7 +3362,7 @@ public:
                  bool& isDiskInside,
                  bool& isDiskOutside,
                  bool ignoreInteriorDisk,
-                 bool disk_padding) const
+                 double disk_padding) const
   {
     ParameterPointType uv_param({u, v});
 
