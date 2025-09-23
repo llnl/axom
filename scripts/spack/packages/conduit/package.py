@@ -1,8 +1,7 @@
 import os
 
 from spack.package import *
-from spack.pkg.builtin.conduit import Conduit as BuiltinConduit
-
+from spack_repo.builtin.packages.conduit.package import Conduit as BuiltinConduit
 
 class Conduit(BuiltinConduit):
     version("0.9.5", sha256="d93294efbf0936da5a27941e13486aa1a04a74a59285786a2303eed19a24265a")

@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 from spack.package import *
+from spack_repo.builtin.build_systems.bundle import BundlePackage
 
 class Axomdevtools(BundlePackage):
     """This is a set of tools necessary for the developers of Axom"""

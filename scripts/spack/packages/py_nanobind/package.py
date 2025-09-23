@@ -1,7 +1,7 @@
 import os
 
 from spack.package import *
-from spack.pkg.builtin.py_nanobind import PyNanobind as BuiltinNanobind
+from spack_repo.builtin.packages.py_nanobind.package import PyNanobind as BuiltinNanobind
 
 class PyNanobind(BuiltinNanobind):
 

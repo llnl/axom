@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 from spack.package import *
-
+from spack_repo.builtin.build_systems.python import PythonPackage
 
 class PyShroud(PythonPackage):
     """Create Fortran wrappers for a C++ library."""
