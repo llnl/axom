@@ -776,7 +776,7 @@ void doAppendOrderedCurveTest(
   const std::string &protocol,
   std::function<conduit::Node(const std::string &, const sina::Document &, int, bool)> appendDocumentFunc)
 {
-  std::string curvedump_file = "test." + protocol;
+  std::string curvedump_file = "test_curve." + protocol;
   axom::sina::Document ordered_curves =
     Document(CURVE_ORDERED_DOCUMENT, createRecordLoaderWithAllKnownTypes());
   axom::sina::Document additional_curve =

@@ -687,8 +687,8 @@ conduit::Node validateCurveSets(ConduitRelayLike &appendTo,
   conduit::Node msgNode = conduit::Node(conduit::DataType::list());
   // First, we need to make sure we didn't "forget" an existing curve: make sure either EVERY
   // curve in the HDF5 is being appended to, or NONE of them are (all curves are new).
-  u_int curves_written = 0;
-  u_int existing_curves = 0;
+  unsigned int curves_written = 0;
+  unsigned int existing_curves = 0;
   int unappended_baseline = -1;  // Find length of anything we don't append to, for later.
   for(const std::string &curve_cat : CURVE_CATEGORIES)
   {

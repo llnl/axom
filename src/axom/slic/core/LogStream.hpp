@@ -14,6 +14,10 @@
 #include "axom/slic/core/MessageLevel.hpp"
 #include "axom/core/Macros.hpp"
 
+#if defined(AXOM_USE_MPI)
+#include <mpi.h>
+#endif
+
 /// \name Wildcards
 /// @{
 
@@ -144,7 +148,33 @@ public:
    */
   virtual void push() {};
 
+  /*!
+   * \brief Tests whether there are any pending messages that need to be flushed.
+   * This method should only be overriden for LogStream inherited classes that can
+   * reliably test whether pending messages exist.
+   *
+   * \return Returns true if there are pending messages that need to be flushed
+   */
+  virtual bool hasPendingMessages() { return false; };
+
+  /*!
+   * \brief Tests whether this class relies on MPI
+   *
+   * \return Returns true if this class relies on MPI
+   */
+  virtual bool isUsingMPI() { return false; }
+
+  /*!
+   * \brief Get the communicator
+   *
+   * \return Returns the communicator if it exists, or MPI_COMM_NULL otherwise
+   */
+#if defined(AXOM_USE_MPI)
+  virtual MPI_Comm comm() { return MPI_COMM_NULL; };
+#endif
+
 protected:
+
   /*!
    * \brief Returns the formatted message as a single string.
    *
