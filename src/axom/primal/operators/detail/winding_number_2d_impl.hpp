@@ -342,22 +342,23 @@ double bezier_winding_number_memoized(const Point<T, 2>& q,
     return convex_endpoint_winding_number(q, bezier_curve, edge_tol, EPS);
   }
 
-  return detail::bezier_winding_number_memoized(q,
-                                                nurbs_cache,
-                                                bezier_idx,
-                                                refinement_level + 1,
-                                                2 * refinement_index,
-                                                isOnCurve,
-                                                edge_tol,
-                                                EPS) +
-    detail::bezier_winding_number_memoized(q,
-                                           nurbs_cache,
-                                           bezier_idx,
-                                           refinement_level + 1,
-                                           2 * refinement_index + 1,
-                                           isOnCurve,
-                                           edge_tol,
-                                           EPS);
+  const auto gwn_half_1 = detail::bezier_winding_number_memoized(q,
+                                                                 nurbs_cache,
+                                                                 bezier_idx,
+                                                                 refinement_level + 1,
+                                                                 2 * refinement_index,
+                                                                 isOnCurve,
+                                                                 edge_tol,
+                                                                 EPS);
+  const auto gwn_half_2 = detail::bezier_winding_number_memoized(q,
+                                                                 nurbs_cache,
+                                                                 bezier_idx,
+                                                                 refinement_level + 1,
+                                                                 2 * refinement_index + 1,
+                                                                 isOnCurve,
+                                                                 edge_tol,
+                                                                 EPS);
+  return gwn_half_1 + gwn_half_2;
 }
 
 /*!

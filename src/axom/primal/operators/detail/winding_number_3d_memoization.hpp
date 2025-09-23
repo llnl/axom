@@ -214,17 +214,17 @@ public:
 
   // Mirror the functionality of NURBSPatch so signatures match in GWN evaluation.
   // Allowing only access ensures the memoized information is always accurate
-  const auto& getControlPoints() const { return m_alteredPatch.getControlPoints(); }
+  auto getControlPoints() const { return m_alteredPatch.getControlPoints(); }
   auto getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
   auto getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
-  const auto& getWeights() const { return m_alteredPatch.getWeights(); }
-  const auto& getKnots_u() const { return m_alteredPatch.getKnots_u(); }
-  const auto& getKnots_v() const { return m_alteredPatch.getKnots_v(); }
+  auto getWeights() const { return m_alteredPatch.getWeights(); }
+  auto getKnots_u() const { return m_alteredPatch.getKnots_u(); }
+  auto getKnots_v() const { return m_alteredPatch.getKnots_v(); }
   auto getMinKnot_u() const { return m_alteredPatch.getMinKnot_u(); }
   auto getMaxKnot_u() const { return m_alteredPatch.getMaxKnot_u(); }
   auto getMinKnot_v() const { return m_alteredPatch.getMinKnot_v(); }
   auto getMaxKnot_v() const { return m_alteredPatch.getMaxKnot_v(); }
-  const auto& getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
+  auto getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
   auto getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
   auto getParameterSpaceDiagonal() const { return m_pboxDiag; }
 
