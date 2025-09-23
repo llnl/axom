@@ -111,26 +111,27 @@ bool intersect_2d_linear(const Point<T, 2> &a,
  *
  * \param [in] r The input ray
  * \param [in] c The input curve
- * \param [out] cp Parametric coordinates of intersections in \a c [0, 1)
  * \param [out] rp Parametric coordinates of intersections in \a r [0, inf)
+ * \param [out] cp Parametric coordinates of intersections in \a c [0, 1)
  * \param [in] sq_tol The squared tolerance parameter for distances in physical space
  * \param [in] EPS The tolerance parameter for distances in parameter space
  * \param [in] order The order of \a c
  * \param c_offset The offset in parameter space for \a c
  * \param c_scale The scale in parameter space for \a c
+ * \param isHalfOpen If true, ignore intersections at t=1 in the parameter space of the curve
  *
  * A ray can only intersect a Bezier curve if it intersects its bounding box
  * The base case of the recursion is when we can approximate the curves parametrically with
  * line segments, where we directly find their intersection with the ray. Otherwise,
  * check for intersections recursively after bisecting the curve.
  *
- * \note A BezierCurve is parametrized in [0,1). The scale and offset parameters
- * are used to track the local curve parameters during subdivisions
+ * \note A BezierCurve is parametrized in [0,1] if isHalfOpen is false, and [0, 1) if true.
+ * The scale and offset parameters are used to track the local curve parameters during subdivisions
  *
  * \note This function can't be used to identify tangents at local a min/max
  *   of Bezier curves.
  * 
- * \return True if the two curves intersect, False otherwise
+ * \return True if the ray and curve intersect, False otherwise
  * \sa intersect_bezier
  */
 template <typename T>
