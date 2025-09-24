@@ -101,8 +101,8 @@ public:
   static constexpr axom::IndexType TETS_PER_HEXAHEDRON = HexahedronType::NUM_TRIANGULATE;
 
   /*!
-   * @brief Construct a shape clipper
-
+   * @brief Construct a strategy for the given klee::Geometry object.
+   *
    * @param [in] kGeom Describes the shape to place
    *   into the mesh.
   */
@@ -110,15 +110,16 @@ public:
 
   /*!
    * @brief Optional name for strategy.
-
+   *
    * The base implementation returns "UNNAMED".
   */
   virtual const std::string& name() const;
 
   /*!
-   * @brief Free-form representation of geometry.
-
-   * The exact information depends on the implementation.
+   * @brief Free-form information on the geometry.
+   *
+   * The exact information is provided by the klee::Geometry
+   * and should be sufficient to define the geometry.
   */
   const conduit::Node& info() const { return m_info; }
 
@@ -140,24 +141,24 @@ public:
   /*!
    * @brief Label the cells in the mesh as inside, outside or
    * both/undetermined, if possible.
-
-   * @param [in] shapeeMesh Blueprint mesh to shape into.
+   *
+   * @param [in] shapeeMesh Mesh to shape into.
    * @param [out] labels Output
-
+   *
    * The cell labels should be set to
    * - @c labelIn if the cell is completely inside the shape,
    * - @c labelOut if the cell is completely outside, and
    * - @c labelOn if the cell is both inside and outside (or
    *   cannot be easily determined).
-
+   *
    * The output labels are used in optimizing the clipping algorithm.
    * Subclasses should implementation this if it's cost-effective, and
    * skip if it's not.  It's safe to label cells as on the boundary if
    * it can't be possitively determined as inside or outside.
-
+   *
    * @return Whether the operation was done.  (A false means
    * not done.)
-
+   *
    * If implemenation returns true, it should ensure these
    * post-conditions hold:
    * @post labels.size() == shapeeMesh.getCellCount()
@@ -171,25 +172,24 @@ public:
   }
 
   /*!
-   * @brief Label the tetrahedra in the cells labeled as ON
-   * the boundary, if possible.
-
+   * @brief Label the tetrahedra in certain cells, if possible.
+   *
    * @param [in] shapeeMesh Blueprint mesh to shape into.
    * @param [in] cellIds Indices of cells whose constituent
    *   tets should be labeled.
    * @param [out] tetLabels Output
-
+   *
    * Only the cells labeled as ON the boundary are subjected to
    * this labeling.
-
+   *
+   * Tet indices refer to the @c shapeeMesh.getCellsAsTets() array.
+   *
    * If implemenation returns true, it should ensure these
    * post-conditions hold:
-   * @post tetLabels.size() == cellIds.size()
+   * @post tetLabels.size() == TETS_PER_HEXAHEDRON * cellIds.size()
    * @post labels.getAllocatorID() == shapeeMesh.getAllocatorId()
-   * @post tetLabels output should
-   * have the length of cellIds times the number of tets per cell.
-   * @post \c tetLabels[i] should be set to the label of the
-   * (i%N)-th tet of the cell indexed \c cellIds[i/N]
+   * @post \c tetLabels should have \c TETS_PER_HEXAHEDRON labels
+   * for each index in \c cellIds.
   */
   virtual bool labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
                               axom::ArrayView<const axom::IndexType> cellIds,
@@ -204,25 +204,22 @@ public:
   /*!
    * @brief Clip with a fast geometry-specialized method if
    * possible.
-
+   *
    * @param [in] shapeeMesh Blueprint mesh to shape into.
    * @param ovlap [out] Shape overlap volume of each cell
-   *   in the shapee mesh.
-
+   *   in the shapee mesh.  It's initialized to zeros.
+   *
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
-
+   *
    * If this method returns false, then exactly one of the
    * @c getShapesAs...() methods must be provided.
-
+   *
    * @return True if clipping was done and false if a no-op.
-
+   *
    * This method need not be implemented if labelCellsInOut()
    * returns true.
-
-   * @pre @c ovlap is pre-initialized for the implementation
-   * to add or subtract partial volumes to individual cells.
-
+   *
    * If implemenation returns true, it should ensure these
    * post-conditions hold:
    * @post ovlap.size() == shapeeMesh.getCellCount()
@@ -238,26 +235,27 @@ public:
   /*!
    * @brief Clip with a fast geometry-specialized method if
    * possible.
-
+   *
    * @param [in] shapeeMesh Blueprint mesh to shape into.
    * @param [out] ovlap Shape overlap volume of each cell
-   *   in the shapee mesh.
+   *   in the shapee mesh, initialized to the cell volumes
+   *   for cell inside the shape and zero for other cells.
    * @param [in] cellIds Limit computation to these cell ids.
-
+   *
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
-
+   *
    * If this method returns false, then exactly one of the
    * shape discretization methods must be provided.
-
+   *
    * @return True if clipping was done and false if a no-op.
-
+   *
    * This method need not be implemented if labelCellsInOut()
    * returns false.
-
+   *
    * @pre @c ovlap is pre-initialized for the implementation
    * to add or subtract partial volumes to individual cells.
-
+   *
    * If implemenation returns true, it should ensure these
    * post-conditions hold:
    * @post ovlap.size() == shapeeMesh.getCellCount()
@@ -274,10 +272,17 @@ public:
   }
 
   /*!
-    Clip the tets listed in tetIds.  tetIds[i] is the (tetIds[i]%N)-th
-    tetrahedron of cell id tetIds[i]/N.  Its overlap volume should be
-    added to that cell.
-  */
+   * Clip the tets listed in tetIds.
+   * @param [in] shapeeMesh Blueprint mesh to shape into.
+   * @param [out] ovlap Shape overlap volume of each cell
+   *   in the shapee mesh, initialized to the cell volumes
+   *   for cell inside the shape and zero for other cells.
+   * @param [in] tetIds Indices of tets to clip, referring to the
+   * shapeeMesh.getCellsAsTets() array.  tetIds[i] is the
+   * \c (tetIds[i]%TETS_PER_HEXAHEDRON)-th tetrahedron of cell
+   * \c tetIds[i]/TETS_PER_HEXAHEDRON.  Its overlap volume should be added
+   * to that cell.
+   */
   virtual bool specializedClipTets(quest::ShapeeMesh& shapeeMesh,
                                    axom::ArrayView<double> ovlap,
                                    const axom::ArrayView<IndexType>& tetIds)
@@ -289,21 +294,22 @@ public:
   }
 
   /*!
-   * @brief Get the fully transformed geometry as discrete tetrahedra,
-   * or return false.
+   * @brief Get the geometry as discrete tetrahedra, or return false.
+   *
    * @param [in] shapeeMesh Blueprint mesh to shape into.
-   * @param [out] tets Array of tetrahedra filling the space of the shape.
-
+   * @param [out] tets Array of tetrahedra filling the space of the shape,
+   * fully transformed.
+   *
    * All vertex coordinates close to zero should be snapped to zero.
-
+   *
    * @return Whether the shape can be represented as tetrahedra.
-
+   *
    * If implemenation returns true, it should ensure these
    * post-conditions hold:
-   * @post tets.size() == shapeeMesh.getCellCount()
    * @post tets.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
+  virtual bool getGeometryAsTets(quest::ShapeeMesh& shapeeMesh,
+                                 axom::Array<TetrahedronType>& tets)
 
   {
     AXOM_UNUSED_VAR(shapeeMesh);
@@ -312,56 +318,47 @@ public:
   }
 
   /*!
-   * @brief Get the fully transformed geometry as discrete octahedra,
-   * or return false.
+   * @brief Get the geometry as discrete octahedra, or return false.
+   *
    * @param [in] shapeeMesh Blueprint mesh to shape into.
-   * @param [out] octs Array of octahedra filling the space of the shape.
-
+   * @param [out] octs Array of octahedra filling the space of the shape,
+   * fully transformed.
+   *
    * All vertex coordinates close to zero should be snapped to zero.
-
+   *
    * @return Whether the shape can be represented as octahedra.
-
-   * Post-conditions only apply if method returns true.
-   * @post octs.size() == shapeeMesh.getCellCount()
+   *
+   * If implemenation returns true, it should ensure these
+   * post-conditions hold:
    * @post octs.getAllocatorID() == shapeeMesh.getAllocatorId()
-  */
-  virtual bool getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
+   */
+  virtual bool getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh,
+                                 axom::Array<OctahedronType>& octs)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(octs);
     return false;
   }
 
-  // Note: in 2D, we should have a getGeometryAsSegments().
   //@}
 
 protected:
   /*!
    * @brief Free-form representation of the concrete object.
-
+   *
    * The constructor initializes this as a deep copy of the source
    * klee::Geometry hierarchy data.  Subclasses may use and change this
    * data as needed.
-
-   * The base class owns this hierachy, but subclasses use it
-   * for their specific data.
-
-   * Use cases:
-   * - Construct object from Klee input in the form of hierarchy
-   *   data.
-   * - Print the object.
-
-   * Most if not all data should be in host memory.
-  */
+   */
   conduit::Node m_info;
 
   /*!
    * @brief External transformation due to the GeometryOperator.
-
+   *
    * This is a direct result of the klee::Geometry::getGeometryOperator().
    * Not to be confused with any geometry's internal transformation
    * (such as a cylinder's orientation and a sphere's center translation),
-   * which applies before m_extTrans.
+   * which apply before m_extTrans.
   */
   numerics::Matrix<double> m_extTrans;
 

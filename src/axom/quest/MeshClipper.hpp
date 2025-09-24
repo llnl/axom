@@ -34,7 +34,7 @@ namespace experimental
 class MeshClipper
 {
 public:
-  //!@brief Whether an element as in, out or on shape boundary.
+  //!@brief Whether an element is in, out or on shape boundary.
   using LabelType = MeshClipperStrategy::LabelType;
 
   static constexpr axom::IndexType TETS_PER_HEXAHEDRON = MeshClipperStrategy::TETS_PER_HEXAHEDRON;
@@ -129,13 +129,13 @@ public:
     /*!
      * @brief Compute clip volumes for cell tets in an index list.
      *
-     * The tets are the results from decomposing a cell hex into
-     * a fix number of tets and stored consecutively.
+     * The tets are the results from decomposing each cell hex into
+     * TETS_PER_HEXAHEDRON tets and stored consecutively.
      */
     virtual void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
                                           axom::ArrayView<double> ovlap) = 0;
 
-    //!@brief Impl for getLabelCounts.
+    //!@brief Count the number of labels of each type.
     virtual void getLabelCounts(axom::ArrayView<const LabelType> labels,
                                 axom::IndexType& inCount,
                                 axom::IndexType& onCount,
@@ -146,6 +146,7 @@ public:
     MeshClipperStrategy& getStrategy() { return *m_myClipper.m_strategy; }
 
   private:
+    //!@brief The MeshClipper that owns this Impl.
     MeshClipper& m_myClipper;
   };
 
@@ -185,6 +186,7 @@ public:
 
   //@{
   //!@name Convenience methods
+  //!@brief Count the number of labels of each type.
   void getLabelCounts(const axom::Array<LabelType>& labels,
                       axom::IndexType& inCount,
                       axom::IndexType& onCount,

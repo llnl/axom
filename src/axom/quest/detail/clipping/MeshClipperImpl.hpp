@@ -43,8 +43,8 @@ public:
 
     /*
      * Overlap volumes is cell volume for cells inside geometry.
-     * Cells outside the geometry should be zero as are cells.
-     * Cells on boundary to be zeroed for accumulating by clipping remainder.
+     * and zero for cells outside geometry.
+     * Cells on boundary are zeroed for accumulating by clipping process.
     */
     axom::for_all<ExecSpace>(
       cellCount,
@@ -185,6 +185,12 @@ public:
       });
   }
 
+  /*
+   * Clip tets of from the mesh with tets or octs from the clipping
+   * geomnetry.  This implemenation was lifted from IntersectionShaper
+   * and modified to work both tet and oct representations of the
+   * geometry.
+   */
   void computeClipVolumes3D(axom::ArrayView<double> ovlap) override
   {
     AXOM_ANNOTATE_SCOPE("MeshClipper::computeClipVolumes3D");
@@ -414,6 +420,12 @@ public:
     }
   }  // end of computeClipVolumes3D() function
 
+  /*
+   * Clip tets of from the mesh with tets or octs from the clipping
+   * geomnetry.  This implemenation is like the above except that it
+   * limits clipping to a subset of mesh cells labeled as potentially
+   * on the boundary.
+   */
   void computeClipVolumes3D(const axom::ArrayView<axom::IndexType>& cellIndices,
                             axom::ArrayView<double> ovlap) override
 
@@ -665,6 +677,12 @@ public:
     }
   }  // end of computeClipVolumes3D() function
 
+  /*
+   * Clip tets of from the mesh with tets or octs from the clipping
+   * geomnetry.  This implemenation is like the two above except that
+   * it limits clipping to a subset of mesh tets labeled as
+   * potentially on the boundary.
+   */
   void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
                                 axom::ArrayView<double> ovlap) override
 
