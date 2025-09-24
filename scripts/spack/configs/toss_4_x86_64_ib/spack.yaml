@@ -41,11 +41,11 @@ spack:
     - spec: '%mvapich2@2.3.7.gcc_13'
       when: '%mpi'
     intel_25:
-    - spec: '%c=intel-oneapi-compilers'
+    - spec: '%c=intel-oneapi-compilers@2025.2.0'
       when: '%c'
-    - spec: '%cxx=intel-oneapi-compilers'
+    - spec: '%cxx=intel-oneapi-compilers@2025.2.0'
       when: '%cxx'
-    - spec: '%fortran=intel-oneapi-compilers'
+    - spec: '%fortran=intel-oneapi-compilers@2025.2.0'
       when: '%fortran'
     - spec: '%mvapich2@2.3.7.intel_25'
       when: '%mpi'
@@ -89,9 +89,9 @@ spack:
         prefix: /usr/tce/packages/intel/intel-2025.2.0
         extra_attributes:
           compilers:
-            c: /usr/tce/packages/intel/intel-2025.2.0/compiler/2025.2.0/linux/bin/icx
-            cxx: /usr/tce/packages/intel/intel-2025.2.0/compiler/2025.2.0/linux/bin/icpx
-            fortran: /usr/tce/packages/intel/intel-2025.2.0/compiler/2025.2.0/linux/bin/ifx
+            c: /usr/tce/packages/intel/intel-2025.2.0-magic/bin/icx
+            cxx: /usr/tce/packages/intel/intel-2025.2.0-magic/bin/icpx
+            fortran: /usr/tce/packages/intel/intel-2025.2.0-magic/bin/ifx
           flags: {}
           environment: {}
           extra_rpaths: []

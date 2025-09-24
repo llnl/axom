@@ -316,6 +316,13 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         if spec.satisfies("%cce"):
             entries.append(cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-O1 -g"))
 
+        # Disable intrusive warning:
+        #   icpx: remark: note that use of '-g' without any optimization-level
+        #   option will turn off most compiler optimizations similar to use of
+        #   '-O0'; use '-Rno-debug-disables-optimization' to disable this remark
+        if spec.satisfies("%oneapi"):
+            entries.append(cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-g -Rno-debug-disables-optimization"))
+
         return entries
 
     def initconfig_hardware_entries(self):

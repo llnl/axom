@@ -13,20 +13,20 @@
     "__comment__":"#                                                                             ",
     "__comment__":"##############################################################################",
 
+    "__comment__":"# mfem disabled for intel (icpx compiler error)",
     "toss_4_x86_64_ib":
     [ "+devtools+hdf5+mfem+c2c+scr+profiling %gcc_13",
       "+devtools+hdf5+mfem+c2c+scr+profiling+opencascade %clang_19",
-      "+devtools+hdf5+mfem+c2c+profiling %intel_25" ],
+      "+devtools+hdf5~mfem+c2c+profiling %intel_25" ],
 
     "__comment__":"# Use amdgpu_target=gfx942 for rzadams",
     "__comment__":"# Use amdgpu_target=gfx90a for tioga/rzvernal",
     "__comment__":"# Use amdgpu_target=gfx908 for rznevada",
     "__comment__":"# -Wno-int-conversion flag needed for building HDF5",
     "toss_4_x86_64_ib_cray":
-    [ "rocmcc@6.4.2+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a ^hip@6.4.2 ^hipblas@6.4.2 ^hipsparse@6.4.2 ^hsa-rocr-dev@6.4.2 ^llvm-amdgpu@6.4.2 ^rocprim@6.4.2 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
-      "rocmcc@6.3.1+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a ^hip@6.3.1 ^hipblas@6.3.1 ^hipsparse@6.3.1 ^hsa-rocr-dev@6.3.1 ^llvm-amdgpu@6.3.1 ^rocprim@6.3.1 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
-      "rocmcc@6.2.1+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a ^hip@6.2.1 ^hipblas@6.2.1 ^hipsparse@6.2.1 ^hsa-rocr-dev@6.2.1 ^llvm-amdgpu@6.2.1 ^rocprim@6.2.1 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
-      "cce@20.0.0+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a ^hip@6.4.2 ^hipblas@6.4.2 ^hipsparse@6.4.2 ^hsa-rocr-dev@6.4.2 ^llvm-amdgpu@6.4.2 ^rocprim@6.4.2 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion" ],
+    [ "+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a %rocm_6_4_2 ^hip@6.4.2 ^hipblas@6.4.2 ^hipsparse@6.4.2 ^hsa-rocr-dev@6.4.2 ^llvm-amdgpu@6.4.2 ^rocprim@6.4.2 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
+      "+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a %rocm_6_3_1 ^hip@6.3.1 ^hipblas@6.3.1 ^hipsparse@6.3.1 ^hsa-rocr-dev@6.3.1 ^llvm-amdgpu@6.3.1 ^rocprim@6.3.1 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion",
+      "+devtools~openmp+mfem+c2c+profiling+rocm amdgpu_target=gfx942,gfx90a %cce_20 ^hip@6.4.2 ^hipblas@6.4.2 ^hipsparse@6.4.2 ^hsa-rocr-dev@6.4.2 ^llvm-amdgpu@6.4.2 ^rocprim@6.4.2 ^mfem+raja+umpire ^raja~openmp+rocm ^umpire~openmp+rocm ^hdf5 cflags=-Wno-int-conversion" ],
 
     "__comment__":"# Note: clang-ibm + raja+openmp causes runtime failures, turning it off until there is an alternative",
     "blueos_3_ppc64le_ib_p9":
