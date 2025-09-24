@@ -54,8 +54,8 @@ namespace primal
  *                  on each edge of the CurvedPolygon
  * \return the value of the integral
  */
-template <typename Lambda, typename T, int NDIMS>
-double evaluate_scalar_line_integral(const primal::CurvedPolygon<T, NDIMS> cpoly,
+template <typename Lambda, typename CurveType>
+double evaluate_scalar_line_integral(const primal::CurvedPolygon<CurveType> cpoly,
                                      Lambda&& scalar_integrand,
                                      int npts)
 {
@@ -176,8 +176,8 @@ double evaluate_scalar_line_integral(const axom::Array<primal::NURBSCurve<T, NDI
  *                  on each edge of the CurvedPolygon
  * \return the value of the integral
  */
-template <typename Lambda, typename T, int NDIMS>
-double evaluate_vector_line_integral(const primal::CurvedPolygon<T, NDIMS> cpoly,
+template <typename Lambda, typename CurveType>
+double evaluate_vector_line_integral(const primal::CurvedPolygon<CurveType> cpoly,
                                      Lambda&& vector_integrand,
                                      int npts)
 {
@@ -294,8 +294,8 @@ double evaluate_vector_line_integral(const axom::Array<primal::NURBSCurve<T, NDI
  * \param [in] npts_P the number of quadrature points to evaluate the antiderivative
  * \return the value of the integral
  */
-template <class Lambda, typename T>
-double evaluate_area_integral(const primal::CurvedPolygon<T, 2> cpoly,
+template <class Lambda, typename CurveType>
+double evaluate_area_integral(const primal::CurvedPolygon<CurveType> cpoly,
                               Lambda&& integrand,
                               int npts_Q,
                               int npts_P = 0)

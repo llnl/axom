@@ -25,7 +25,7 @@ TEST(primal_winding_number, simple_cases)
   using Point2D = primal::Point<double, 2>;
   using Triangle = primal::Triangle<double, 2>;
   using Bezier = primal::BezierCurve<double, 2>;
-  using CPolygon = primal::CurvedPolygon<double, 2>;
+  using CPolygon = primal::CurvedPolygon<Bezier>;
 
   double abs_tol = 1e-8;
   double edge_tol = 1e-8;
@@ -392,7 +392,7 @@ TEST(primal_winding_number, rational_bezier_winding_number)
 {
   using Point2D = primal::Point<double, 2>;
   using Bezier = primal::BezierCurve<double, 2>;
-  using CPolygon = primal::CurvedPolygon<double, 2>;
+  using CPolygon = primal::CurvedPolygon<Bezier>;
 
   double abs_tol = 1e-8;
   double edge_tol = 0;

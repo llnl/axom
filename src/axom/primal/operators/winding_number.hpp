@@ -471,7 +471,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
  */
 template <typename T>
 axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
-                                   const CurvedPolygon<NURBSCurveGWNCache<T>>& cpoly,
+                                   const CurvedPolygon<detail::NURBSCurveGWNCache<T>>& cpoly,
                                    double edge_tol = 1e-8,
                                    double EPS = 1e-8)
 {
