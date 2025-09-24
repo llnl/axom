@@ -12,14 +12,7 @@
 
 #include "axom/config.hpp"
 #include "axom/slic.hpp"
-#include "axom/primal/geometry/Point.hpp"
-#include "axom/primal/geometry/Segment.hpp"
-#include "axom/primal/geometry/CurvedPolygon.hpp"
-#include "axom/primal/geometry/OrientationResult.hpp"
-#include "axom/primal/operators/intersect.hpp"
-#include "axom/primal/operators/compute_moments.hpp"
-#include "axom/primal/operators/in_curved_polygon.hpp"
-#include "axom/primal/operators/orientation.hpp"
+#include "axom/primal.hpp"
 
 #include <numeric>
 #include <math.h>
@@ -27,7 +20,7 @@
 namespace primal = axom::primal;
 
 /*!
- * Helper function to compute the area and centroid of a curved polygon and to check that they match expectations,
+ * Helper function to compute the area and centroid of a Bezier CurvedPolygon and to check that they match expectations,
  * stored in \a expArea and \a expCentroid. Areas and Moments are computed within tolerance \a eps and checks use \a test_eps.
  */
 template <typename CoordType>
@@ -88,160 +81,140 @@ primal::CurvedPolygon<primal::BezierCurve<CoordType, DIM>> createBezierPolygon(
   return bPolygon;
 }
 
-//------------------------------------------------------------------------------
-TEST(primal_curvedpolygon, constructor)
+///! Helper function to convert a Bezier curved polygon into a NURBS curved polygon
+template <typename CoordType, int DIM>
+primal::CurvedPolygon<primal::NURBSCurve<CoordType, DIM>> createNURBSPolygon(
+  const primal::CurvedPolygon<primal::BezierCurve<CoordType, DIM>>& bPoly)
 {
-  const int DIM = 3;
-  using CoordType = double;
-  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
-  using CurvedPolygonType = primal::CurvedPolygon<BezierCurveType>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+  using NURBSPolygonType = primal::CurvedPolygon<NURBSCurveType>;
+
+  NURBSPolygonType nPoly;
+
+  for(int i = 0; i < bPoly.numEdges(); ++i)
+  {
+    nPoly.addEdge(NURBSCurveType(bPoly[i]));
+  }
+
+  return nPoly;
+}
+
+///! Helper function to convert a Bezier curved polygon into a curved polygon of GWN caches
+template <typename CoordType, int DIM>
+primal::CurvedPolygon<primal::detail::NURBSCurveGWNCache<CoordType>> createNURBSCachePolygon(
+  const primal::CurvedPolygon<primal::BezierCurve<CoordType, DIM>>& bPoly)
+{
+  using NURBSCacheType = primal::detail::NURBSCurveGWNCache<CoordType>;
+  using NURBSPolygonType = primal::CurvedPolygon<NURBSCacheType>;
+
+  NURBSPolygonType ncPoly;
+
+  for(int i = 0; i < bPoly.numEdges(); ++i)
+  {
+    ncPoly.addEdge(NURBSCacheType(bPoly[i]));
+  }
+
+  return ncPoly;
+}
+
+template <typename CurveType>
+void test_constructor()
+{
+  using CurvedPolygon = primal::CurvedPolygon<CurveType>;
 
   {
-    SLIC_INFO("Testing default CurvedPolygon constructor ");
-    CurvedPolygonType bPolygon;
-
+    CurvedPolygon cPolygon;
     const int expNumEdges = 0;
-    EXPECT_EQ(expNumEdges, bPolygon.numEdges());
-    EXPECT_EQ(expNumEdges, bPolygon.getEdges().size());
-    EXPECT_EQ(axom::Array<BezierCurveType>(), bPolygon.getEdges());
+    EXPECT_EQ(expNumEdges, cPolygon.numEdges());
+    EXPECT_EQ(expNumEdges, cPolygon.getEdges().size());
+    EXPECT_EQ(axom::Array<CurveType>(), cPolygon.getEdges());
   }
 
   {
-    SLIC_INFO("Testing CurvedPolygon numEdges constructor ");
-
-    CurvedPolygonType bPolygon(1);
+    CurvedPolygon cPolygon(1);
     const int expNumEdges = 1;
-    EXPECT_EQ(expNumEdges, bPolygon.numEdges());
-    EXPECT_EQ(expNumEdges, static_cast<int>(bPolygon.getEdges().size()));
+    EXPECT_EQ(expNumEdges, cPolygon.numEdges());
+    EXPECT_EQ(expNumEdges, static_cast<int>(cPolygon.getEdges().size()));
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_curvedpolygon, constructor)
+{
+  using BezierCurveType = primal::BezierCurve<double, 3>;
+  using NURBSCurveType = primal::NURBSCurve<double, 3>;
+  using NURBSCacheType = primal::detail::NURBSCurveGWNCache<double>;
+
+  SLIC_INFO("Testing default and numEdges CurvedPolygon constructors");
+  test_constructor<BezierCurveType>();
+  test_constructor<NURBSCurveType>();
+  test_constructor<NURBSCacheType>();
+}
+
+template <typename CurveType>
+void test_add_edges(primal::Point<double, 2>* controlPoints, const CurveType& added_curve)
+{
+  using CurvedPolygon = primal::CurvedPolygon<CurveType>;
+
+  CurvedPolygon cPolygon;
+  EXPECT_EQ(0, cPolygon.numEdges());
+
+  cPolygon.addEdge(added_curve);
+  cPolygon.addEdge(added_curve);
+
+  EXPECT_EQ(2, cPolygon.numEdges());
+  for(int p = 0; p < cPolygon.numEdges(); ++p)
+  {
+    CurveType& curv = cPolygon[p];
+    auto& init_pt = curv.getInitPoint();
+    EXPECT_DOUBLE_EQ(controlPoints[0][0], init_pt[0]);
+    EXPECT_DOUBLE_EQ(controlPoints[0][1], init_pt[1]);
+
+    auto& end_pt = curv.getEndPoint();
+    EXPECT_DOUBLE_EQ(controlPoints[1][0], end_pt[0]);
+    EXPECT_DOUBLE_EQ(controlPoints[1][1], end_pt[1]);
   }
 }
 
 //----------------------------------------------------------------------------------
 TEST(primal_curvedpolygon, add_edges)
 {
-  const int DIM = 2;
-  using CoordType = double;
-  using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
-  using CurvedPolygonType = primal::CurvedPolygon<BezierCurveType>;
-  using PointType = primal::Point<CoordType, DIM>;
+  using PointType = primal::Point<double, 2>;
+  using BezierCurveType = primal::BezierCurve<double, 2>;
+  using NURBSCurveType = primal::NURBSCurve<double, 2>;
+  using NURBSCacheType = primal::detail::NURBSCurveGWNCache<double>;
 
-  SLIC_INFO("Test adding edges to empty CurvedPolygon");
-
-  CurvedPolygonType bPolygon;
-  EXPECT_EQ(0, bPolygon.numEdges());
+  SLIC_INFO("Test adding empty edges to empty CurvedPolygons");
 
   PointType controlPoints[2] = {PointType {0.6, 1.2}, PointType {0.0, 1.6}};
 
-  BezierCurveType bCurve(controlPoints, 1);
-
-  bPolygon.addEdge(bCurve);
-  bPolygon.addEdge(bCurve);
-
-  EXPECT_EQ(2, bPolygon.numEdges());
-  for(int p = 0; p < bPolygon.numEdges(); ++p)
-  {
-    BezierCurveType& bc = bPolygon[p];
-    for(int sz = 0; sz <= bc.getOrder(); ++sz)
-    {
-      auto& pt = bc[sz];
-      for(int i = 0; i < DIM; ++i)
-      {
-        EXPECT_DOUBLE_EQ(controlPoints[sz][i], pt[i]);
-      }
-    }
-  }
-}
-
-//----------------------------------------------------------------------------------
-TEST(primal_curvedpolygon, add_edges_nurbs)
-{
-  const int DIM = 2;
-  using CoordType = double;
-  using CurveType = primal::NURBSCurve<CoordType, DIM>;
-  using CurvedPolygonType = primal::CurvedPolygon<CurveType>;
-  using PointType = primal::Point<CoordType, DIM>;
-
-  SLIC_INFO("Test adding edges to empty CurvedPolygon");
-
-  CurvedPolygonType nPolygon;
-  EXPECT_EQ(0, nPolygon.numEdges());
-
-  PointType controlPoints[2] = {PointType {0.6, 1.2}, PointType {0.0, 1.6}};
-
-  CurveType nCurve(controlPoints, 2, 1);
-
-  nPolygon.addEdge(nCurve);
-  nPolygon.addEdge(nCurve);
-
-  EXPECT_EQ(2, nPolygon.numEdges());
-  for(int p = 0; p < nPolygon.numEdges(); ++p)
-  {
-    CurveType& nc = nPolygon[p];
-    for(int sz = 0; sz <= nc.getDegree(); ++sz)
-    {
-      auto& pt = nc[sz];
-      for(int i = 0; i < DIM; ++i)
-      {
-        EXPECT_DOUBLE_EQ(controlPoints[sz][i], pt[i]);
-      }
-    }
-  }
-}
-
-//----------------------------------------------------------------------------------
-TEST(primal_curvedpolygon, add_edges_nurbs_cache)
-{
-  const int DIM = 2;
-  using CoordType = double;
-  using CurveType = primal::NURBSCurveGWNCache<CoordType>;
-  using CurvedPolygonType = primal::CurvedPolygon<CurveType>;
-  using PointType = primal::Point<CoordType, DIM>;
-
-  SLIC_INFO("Test adding edges to empty CurvedPolygon");
-
-  CurvedPolygonType nPolygon;
-  EXPECT_EQ(0, nPolygon.numEdges());
-
-  PointType controlPoints[2] = {PointType {0.6, 1.2}, PointType {0.0, 1.6}};
-
-  CurveType nCurve(primal::NURBSCurve(controlPoints, 2, 1));
-
-  nPolygon.addEdge(nCurve);
-  nPolygon.addEdge(nCurve);
-
-  EXPECT_EQ(2, nPolygon.numEdges());
-  for(int p = 0; p < nPolygon.numEdges(); ++p)
-  {
-    CurveType& nc = nPolygon[p];
-    auto& init_pt = nc.getInitPoint();
-    for(int i = 0; i < DIM; ++i)
-    {
-      EXPECT_DOUBLE_EQ(controlPoints[0][i], init_pt[i]);
-    }
-
-    auto& end_pt = nc.getEndPoint();
-    for(int i = 0; i < DIM; ++i)
-    {
-      EXPECT_DOUBLE_EQ(controlPoints[1][i], end_pt[i]);
-    }
-  }
+  test_add_edges(controlPoints, BezierCurveType(controlPoints, 1));
+  test_add_edges(controlPoints, NURBSCurveType(controlPoints, 2, 1));
+  test_add_edges(controlPoints, NURBSCacheType(BezierCurveType(controlPoints, 1)));
 }
 
 //----------------------------------------------------------------------------------
 TEST(primal_curvedpolygon, isClosed)
 {
-  const int DIM = 2;
-  using CoordType = double;
-  using CurveType = primal::BezierCurve<CoordType, DIM>;
-  using CurvedPolygonType = primal::CurvedPolygon<CurveType>;
-  using PointType = primal::Point<CoordType, DIM>;
+  using PointType = primal::Point<double, 2>;
+  using BezierPolygon = primal::CurvedPolygon<primal::BezierCurve<double, 2>>;
+  using NURBSPolygon = primal::CurvedPolygon<primal::NURBSCurve<double, 2>>;
+  using NURBSCachePolygon = primal::CurvedPolygon<primal::detail::NURBSCurveGWNCache<double>>;
 
   SLIC_INFO("Test checking if CurvedPolygon is closed.");
 
   {
-    CurvedPolygonType bPolygon;
+    BezierPolygon bPolygon;
     EXPECT_EQ(0, bPolygon.numEdges());
     EXPECT_FALSE(bPolygon.isClosed());
+
+    NURBSPolygon nPolygon;
+    EXPECT_EQ(0, nPolygon.numEdges());
+    EXPECT_FALSE(nPolygon.isClosed());
+
+    NURBSCachePolygon ncPolygon;
+    EXPECT_EQ(0, ncPolygon.numEdges());
+    EXPECT_FALSE(ncPolygon.isClosed());
   }
 
   axom::Array<PointType> CP = {PointType {0.6, 1.2},
@@ -253,65 +226,110 @@ TEST(primal_curvedpolygon, isClosed)
   {
     axom::Array<PointType> subCP = {PointType {0.6, 1.2}, PointType {0.3, 2.0}};
     axom::Array<int> suborders = {1};
-    CurvedPolygonType subPolygon = createBezierPolygon(subCP, suborders);
-    EXPECT_FALSE(subPolygon.isClosed());
+
+    BezierPolygon subBezierPolygon = createBezierPolygon(subCP, suborders);
+    EXPECT_FALSE(subBezierPolygon.isClosed());
+    EXPECT_FALSE(createNURBSPolygon(subBezierPolygon).isClosed());
+    EXPECT_FALSE(createNURBSCachePolygon(subBezierPolygon).isClosed());
   }
 
   {
-    CurvedPolygonType bPolygon = createBezierPolygon(CP, orders);
+    BezierPolygon bPolygon = createBezierPolygon(CP, orders);
     EXPECT_EQ(3, bPolygon.numEdges());
     EXPECT_TRUE(bPolygon.isClosed());
 
+    NURBSPolygon nPolygon = createNURBSPolygon(bPolygon);
+    EXPECT_EQ(3, nPolygon.numEdges());
+    EXPECT_TRUE(nPolygon.isClosed());
+
+    NURBSCachePolygon ncPolygon = createNURBSCachePolygon(bPolygon);
+    EXPECT_EQ(3, ncPolygon.numEdges());
+    EXPECT_TRUE(ncPolygon.isClosed());
+
+    // Manipulate one vertex
     bPolygon[2][1][0] -= 2e-15;
     EXPECT_FALSE(bPolygon.isClosed(1e-15));
-  }
 
-  {
-    CurvedPolygonType bPolygon = createBezierPolygon(CP, orders);
+    nPolygon[2][1][0] -= 2e-15;
+    EXPECT_FALSE(nPolygon.isClosed(1e-15));
 
-    bPolygon[1][0][0] = 5;
-    EXPECT_FALSE(bPolygon.isClosed(1e-15));
+    // Note: Can't access the vertices of NURBSCurveGWNCache objects directly
+    //nPolygon[2][1][0] -= 2e-15; // Not allowed
+    ncPolygon = createNURBSCachePolygon(bPolygon);
+    EXPECT_FALSE(ncPolygon.isClosed(1e-15));
   }
 }
 
 //----------------------------------------------------------------------------------
-//TEST(primal_curvedpolygon, isClosed_BiGon)
-//{
-//  const int DIM = 2;
-//  using CoordType = double;
-//  using CurvedPolygonType = primal::CurvedPolygon<CoordType, DIM>;
-//  using PointType = primal::Point<CoordType, DIM>;
-//
-//  SLIC_INFO("Test checking if CurvedPolygon is closed for a Bi-Gon");
-//
-//  CurvedPolygonType bPolygon;
-//  EXPECT_EQ(0, bPolygon.numEdges());
-//  EXPECT_FALSE(bPolygon.isClosed());
-//
-//  // Bi-gon defined by a quadratic edge and a straight line
-//  axom::Array<PointType> CP = {PointType {0.8, .25},
-//                               PointType {2.0, .50},
-//                               PointType {0.8, .75},
-//                               PointType {0.8, .25}};
-//  axom::Array<int> orders = {2, 1};
-//
-//  CurvedPolygonType poly = createBezierPolygon(CP, orders);
-//  EXPECT_TRUE(poly.isClosed());
-//
-//  // modify a vertex of the quadratic and check again
-//  CurvedPolygonType poly2 = poly;
-//  poly2[0][2] = PointType {0.8, 1.0};
-//  EXPECT_FALSE(poly2.isClosed());
-//}
+TEST(primal_curvedpolygon, isClosed_BiGon)
+{
+  using PointType = primal::Point<double, 2>;
+  using BezierPolygon = primal::CurvedPolygon<primal::BezierCurve<double, 2>>;
+  using NURBSPolygon = primal::CurvedPolygon<primal::NURBSCurve<double, 2>>;
+  using NURBSCachePolygon = primal::CurvedPolygon<primal::detail::NURBSCurveGWNCache<double>>;
+
+  SLIC_INFO("Test checking if CurvedPolygon is closed for a Bi-Gon");
+
+  BezierPolygon bPolygon;
+  EXPECT_EQ(0, bPolygon.numEdges());
+  EXPECT_FALSE(bPolygon.isClosed());
+
+  // Bi-gon defined by a quadratic edge and a straight line
+  axom::Array<PointType> CP = {PointType {0.8, .25},
+                               PointType {2.0, .50},
+                               PointType {0.8, .75},
+                               PointType {0.8, .25}};
+  axom::Array<int> orders = {2, 1};
+
+  BezierPolygon bPoly = createBezierPolygon(CP, orders);
+  EXPECT_TRUE(bPoly.isClosed());
+  EXPECT_TRUE(createNURBSPolygon(bPoly).isClosed());
+  EXPECT_TRUE(createNURBSCachePolygon(bPoly).isClosed());
+
+  // modify a vertex of the quadratic and check again
+  BezierPolygon bPoly2 = bPoly;
+  bPoly2[0][2] = PointType {0.8, 1.0};
+
+  EXPECT_FALSE(bPoly2.isClosed());
+  EXPECT_FALSE(createNURBSPolygon(bPoly2).isClosed());
+  EXPECT_FALSE(createNURBSCachePolygon(bPoly2).isClosed());
+}
+
+template <typename CurveType>
+void test_split_edge(primal::CurvedPolygon<CurveType>& curved_polygon)
+{
+  using PointType = primal::Point<double, 2>;
+  
+  // Needs to be std::vector to use .assign
+  axom::Array<PointType> subCP = {PointType {0.6, 1.2}, PointType {0.3, 2.0}};
+
+  CurveType nCurve(subCP, 1);
+  curved_polygon.splitEdge(0, .5);
+
+  CurveType nCurve2;
+  CurveType nCurve3;
+  nCurve.split(.5, nCurve2, nCurve3);
+
+  EXPECT_EQ(curved_polygon.numEdges(), 4);
+  for(int i = 0; i < curved_polygon[0].getNumControlPoints(); ++i)
+  {
+    for(int dimi = 0; dimi < 2; ++dimi)
+    {
+      EXPECT_EQ(curved_polygon[0][i][dimi], nCurve2[i][dimi]);
+      EXPECT_EQ(curved_polygon[1][i][dimi], nCurve3[i][dimi]);
+    }
+  }
+}
 
 //----------------------------------------------------------------------------------
 TEST(primal_curvedpolygon, split_edge)
 {
-  const int DIM = 2;
-  using CoordType = double;
-  using CurveType = primal::BezierCurve<CoordType, DIM>;
-  using CurvedPolygonType = primal::CurvedPolygon<CurveType>;
-  using PointType = primal::Point<CoordType, DIM>;
+  using PointType = primal::Point<double, 2>;
+  using BezierType = primal::BezierCurve<double, 2>;
+  using BezierPolygon = primal::CurvedPolygon<BezierType>;
+
+  using NURBSType = primal::NURBSCurve<double, 2>;
+  using NURBSPolygon = primal::CurvedPolygon<NURBSType>;
 
   SLIC_INFO("Test checking CurvedPolygon edge split.");
 
@@ -321,29 +339,14 @@ TEST(primal_curvedpolygon, split_edge)
                                PointType {0.6, 1.2}};
 
   axom::Array<int> orders32 = {1, 1, 1};
-  CurvedPolygonType bPolygon32 = createBezierPolygon(CP, orders32);
+  BezierPolygon bPolygon32 = createBezierPolygon(CP, orders32);
+  NURBSPolygon nPolygon32 = createNURBSPolygon(bPolygon32);
 
-  // Needs to be std::vector to use .assign
-  axom::Array<PointType> subCP = {PointType {0.6, 1.2}, PointType {0.3, 2.0}};
+  test_split_edge(bPolygon32);
+  test_split_edge(nPolygon32);
 
-  CurveType bCurve(subCP, 1);
-  //std::cout << "Got here!! " << std::endl;
-  //std::cout << bPolygon32 << std::endl;
-  bPolygon32.splitEdge(0, .5);
-
-  CurveType bCurve2;
-  CurveType bCurve3;
-  bCurve.split(.5, bCurve2, bCurve3);
-
-  EXPECT_EQ(bPolygon32.numEdges(), 4);
-  for(int i = 0; i < bPolygon32[0].getOrder(); ++i)
-  {
-    for(int dimi = 0; dimi < DIM; ++dimi)
-    {
-      EXPECT_EQ(bPolygon32[0][i][dimi], bCurve2[i][dimi]);
-      EXPECT_EQ(bPolygon32[1][i][dimi], bCurve3[i][dimi]);
-    }
-  }
+  // Not allowed, since cached objects cannot be changed
+  //test_split_edge(createNURBSCachePolygon(bPolygon32));
 }
 
 //----------------------------------------------------------------------------------
