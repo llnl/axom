@@ -23,6 +23,10 @@
 
 #include "gtest/gtest.h"
 
+/*
+ * Clip various combinations of primitives and report time taken.
+ */
+
 namespace Primal3D
 {
 using PointType = axom::primal::Point<double, 3>;
