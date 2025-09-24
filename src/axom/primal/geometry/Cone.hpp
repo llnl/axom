@@ -12,6 +12,7 @@
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/primal/geometry/Vector.hpp"
 
+#include "axom/core/NumericLimits.hpp"
 #include "axom/slic/interface/slic.hpp"
 #include "axom/fmt.hpp"
 
@@ -50,8 +51,8 @@ public:
   AXOM_HOST_DEVICE Cone()
     : m_baseZ(0.0)
     , m_baseRad(0.0)
-    , m_topZ(0.0)
-    , m_topRad(0.0)
+    , m_topZ(1.0)
+    , m_topRad(1.0)
     , m_direction(0.0, NDIMS)
     , m_origin(0.0, NDIMS)
   {
@@ -72,6 +73,7 @@ public:
     , m_topZ(length)
     , m_topRad(topRadius)
     , m_direction(0.0, NDIMS)
+    , m_origin(0.0, NDIMS)
   {
     m_direction[0] = 1.0;
     assertValid();
@@ -128,7 +130,12 @@ public:
   //! \brief Return the interpolated/extrapolated radius at a given z.
   AXOM_HOST_DEVICE double getRadiusAt(double z) const
   {
-    return m_baseRad + (m_topRad - m_baseRad) / (m_topZ - m_baseZ) * (z - m_baseZ);
+    double length = m_topZ - m_baseZ;
+    if( std::abs(length) < axom::numeric_limits<double>::min() )
+    {
+      return numeric_limits<T>::quiet_NaN();
+    }
+    return m_baseRad + (m_topRad - m_baseRad) / length * (z - m_baseZ);
   }
 
   /*!
