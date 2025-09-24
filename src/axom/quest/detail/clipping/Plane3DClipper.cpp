@@ -21,27 +21,27 @@ Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom, const std::string& n
   extractClipperInfo();
 }
 
-bool Plane3DClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool Plane3DClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_ANNOTATE_SCOPE("Plane3DClipper::labelCellsInOut");
-  switch(shapeeMesh.getRuntimePolicy())
+  switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelInOutImpl<axom::SEQ_EXEC>(shapeeMesh, labels);
+    labelInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelInOutImpl<axom::OMP_EXEC>(shapeeMesh, labels);
+    labelInOutImpl<axom::OMP_EXEC>(shapeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, labels);
+    labelInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, labels);
+    labelInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels);
     break;
 #endif
   default:
@@ -50,29 +50,29 @@ bool Plane3DClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh
   return true;
 }
 
-bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeeMesh& shapeeMesh,
+bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                           axom::ArrayView<double> ovlap,
                                           const axom::ArrayView<IndexType>& cellIds)
 {
   AXOM_ANNOTATE_SCOPE("Plane3DClipper::specializedClipCells");
-  switch(shapeeMesh.getRuntimePolicy())
+  switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    specializedClipImpl<axom::SEQ_EXEC>(shapeeMesh, ovlap, cellIds);
+    specializedClipImpl<axom::SEQ_EXEC>(shapeMesh, ovlap, cellIds);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    specializedClipImpl<axom::OMP_EXEC>(shapeeMesh, ovlap, cellIds);
+    specializedClipImpl<axom::OMP_EXEC>(shapeMesh, ovlap, cellIds);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    specializedClipImpl<axom::CUDA_EXEC<256>>(shapeeMesh, ovlap, cellIds);
+    specializedClipImpl<axom::CUDA_EXEC<256>>(shapeMesh, ovlap, cellIds);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    specializedClipImpl<axom::HIP_EXEC<256>>(shapeeMesh, ovlap, cellIds);
+    specializedClipImpl<axom::HIP_EXEC<256>>(shapeMesh, ovlap, cellIds);
     break;
 #endif
   default:
@@ -82,17 +82,17 @@ bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeeMesh& shape
 }
 
 template <typename ExecSpace>
-void Plane3DClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void Plane3DClipper::labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "Plane3DClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "Plane3DClipper requires a 3D mesh.");
 
   constexpr int NUM_VERTS_PER_CELL = 8;
 
-  int allocId = shapeeMesh.getAllocatorID();
-  auto cellCount = shapeeMesh.getCellCount();
-  auto vertCount = shapeeMesh.getVertexCount();
+  int allocId = shapeMesh.getAllocatorID();
+  auto cellCount = shapeMesh.getCellCount();
+  auto vertCount = shapeMesh.getVertexCount();
 
-  const auto& vertCoords = shapeeMesh.getVertexCoords3D();
+  const auto& vertCoords = shapeMesh.getVertexCoords3D();
   const auto& vX = vertCoords[0];
   const auto& vY = vertCoords[1];
   const auto& vZ = vertCoords[2];
@@ -116,7 +116,7 @@ void Plane3DClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh,
       vertIsInsideView[vertId] = signedDist > 0;
     });
 
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
     labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
@@ -124,7 +124,7 @@ void Plane3DClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh,
   /*
    * Label cell by whether it has vertices inside, outside or both.
   */
-  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getCellNodeConnectivity();
+  axom::ArrayView<const axom::IndexType, 2> connView = shapeMesh.getCellNodeConnectivity();
   SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL);
 
   auto labelsView = labels.view();
@@ -149,7 +149,7 @@ void Plane3DClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh,
 }
 
 template <typename ExecSpace>
-void Plane3DClipper::specializedClipImpl(quest::experimental::ShapeeMesh& shapeeMesh,
+void Plane3DClipper::specializedClipImpl(quest::experimental::ShapeMesh& shapeMesh,
                                          axom::ArrayView<double>& ovlap,
                                          const axom::ArrayView<IndexType>& cellIds)
 {
@@ -157,10 +157,10 @@ void Plane3DClipper::specializedClipImpl(quest::experimental::ShapeeMesh& shapee
   constexpr int NUM_TETS_PER_HEX = 24;
   constexpr double EPS = 1e-10;
 
-  const axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getCellNodeConnectivity();
+  const axom::ArrayView<const axom::IndexType, 2> connView = shapeMesh.getCellNodeConnectivity();
   SLIC_ASSERT(connView.shape()[1] == NUM_VERTS_PER_CELL);
 
-  auto& vertCoords = shapeeMesh.getVertexCoords3D();
+  auto& vertCoords = shapeMesh.getVertexCoords3D();
   const auto& x = vertCoords[0];
   const auto& y = vertCoords[1];
   const auto& z = vertCoords[2];

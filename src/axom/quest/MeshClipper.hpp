@@ -10,7 +10,7 @@
 
 #include "axom/klee/Geometry.hpp"
 #include "axom/quest/MeshClipperStrategy.hpp"
-#include "axom/quest/ShapeeMesh.hpp"
+#include "axom/quest/ShapeMesh.hpp"
 
 namespace axom
 {
@@ -50,13 +50,13 @@ public:
    * @c bpMesh must be an unstructured hex mesh.
    * That is the only type currently supported.
    */
-  MeshClipper(quest::experimental::ShapeeMesh& shapeeMesh, const std::shared_ptr<MeshClipperStrategy>& strategy);
+  MeshClipper(quest::experimental::ShapeMesh& shapeMesh, const std::shared_ptr<MeshClipperStrategy>& strategy);
 
   //!@brief The mesh.
-  ShapeeMesh& getShapeeMesh() { return m_shapeeMesh; }
+  ShapeMesh& getShapeMesh() { return m_shapeMesh; }
 
   //!@brief Allocator id to be used for all array data.
-  int getAllocatorID() const { return m_shapeeMesh.getAllocatorID(); }
+  int getAllocatorID() const { return m_shapeMesh.getAllocatorID(); }
 
   void setVerbose(bool verbose) { m_verbose = verbose; }
 
@@ -77,7 +77,7 @@ public:
   void clip(axom::ArrayView<double> ovlap);
 
   //!@brief Dimension of the shape (2 or 3)
-  int dimension() const { return m_shapeeMesh.dimension(); }
+  int dimension() const { return m_shapeMesh.dimension(); }
 
   /*!
    * @brief Single interface for methods implemented with
@@ -141,7 +141,7 @@ public:
                                 axom::IndexType& onCount,
                                 axom::IndexType& outCount) = 0;
 
-    ShapeeMesh& getShapeeMesh() { return m_myClipper.m_shapeeMesh; }
+    ShapeMesh& getShapeMesh() { return m_myClipper.m_shapeMesh; }
 
     MeshClipperStrategy& getStrategy() { return *m_myClipper.m_strategy; }
 
@@ -158,7 +158,7 @@ public:
 private:
   friend Impl;
 
-  quest::experimental::ShapeeMesh& m_shapeeMesh;
+  quest::experimental::ShapeMesh& m_shapeMesh;
 
   //! @brief Shape-specific operations in clipping.
   std::shared_ptr<quest::experimental::MeshClipperStrategy> m_strategy;
@@ -181,7 +181,7 @@ private:
 #if defined(__CUDACC__)
 public:
 #endif
-  //!@brief Allocate a delegate for m_shapeeMesh's runtime policy.
+  //!@brief Allocate a delegate for m_shapeMesh's runtime policy.
   std::unique_ptr<Impl> newImpl();
 
   //@{

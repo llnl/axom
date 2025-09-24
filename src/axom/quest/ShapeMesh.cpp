@@ -6,7 +6,7 @@
 #include "axom/config.hpp"
 
 #include "axom/primal.hpp"
-#include "axom/quest/ShapeeMesh.hpp"
+#include "axom/quest/ShapeMesh.hpp"
 #include "axom/core/execution/execution_space.hpp"
 #include "axom/fmt.hpp"
 
@@ -26,11 +26,11 @@ static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = condui
 
 constexpr int NUM_TETS_PER_HEX = 24;
 
-ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
-                       int allocatorId,
-                       conduit::Node& bpMesh,
-                       const std::string& topoName,
-                       const std::string& matsetName)
+ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
+                     int allocatorId,
+                     conduit::Node& bpMesh,
+                     const std::string& topoName,
+                     const std::string& matsetName)
   : m_runtimePolicy(runtimePolicy)
   , m_allocId(allocatorId != axom::INVALID_ALLOCATOR_ID
                 ? allocatorId
@@ -53,7 +53,7 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
     m_bpNodeExt->fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("type");
   const std::string topoType = typeNode.as_string();
   SLIC_ERROR_IF(topoType != "unstructured",
-                "ShapeeMesh currently only works with unstructured mesh, not " + topoType + ".");
+                "ShapeMesh currently only works with unstructured mesh, not " + topoType + ".");
 
   const conduit::Node& topoNode =
     m_bpNodeExt->fetch_existing("topologies").fetch_existing(m_topoName);
@@ -101,11 +101,11 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
 }
 
 #ifdef AXOM_USE_SIDRE
-ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
-                       int allocatorId,
-                       sidre::Group* bpMesh,
-                       const std::string& topoName,
-                       const std::string& matsetName)
+ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
+                     int allocatorId,
+                     sidre::Group* bpMesh,
+                     const std::string& topoName,
+                     const std::string& matsetName)
   : m_runtimePolicy(runtimePolicy)
   , m_allocId(allocatorId != axom::INVALID_ALLOCATOR_ID
                 ? allocatorId
@@ -131,7 +131,7 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
   const std::string topoType =
     m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_topoName).fetch_existing("type").as_string();
   SLIC_ERROR_IF(topoType != "unstructured",
-                "ShapeeMesh currently only works with unstructured mesh, not " + topoType + ".");
+                "ShapeMesh currently only works with unstructured mesh, not " + topoType + ".");
 
   const conduit::Node& topoNode = m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_topoName);
   const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
@@ -177,9 +177,9 @@ ShapeeMesh::ShapeeMesh(RuntimePolicy runtimePolicy,
 }
 #endif
 
-void ShapeeMesh::precomputeMeshData()
+void ShapeMesh::precomputeMeshData()
 {
-  AXOM_ANNOTATE_SCOPE("ShapeeMesh::precomputeMeshData");
+  AXOM_ANNOTATE_SCOPE("ShapeMesh::precomputeMeshData");
   getCellsAsHexes();
   getCellsAsTets();
   getCellVolumes();
@@ -189,7 +189,7 @@ void ShapeeMesh::precomputeMeshData()
   getVertexPoints();
 }
 
-axom::ArrayView<const ShapeeMesh::TetrahedronType> ShapeeMesh::getCellsAsTets()
+axom::ArrayView<const ShapeMesh::TetrahedronType> ShapeMesh::getCellsAsTets()
 {
   if(m_cellsAsTets.size() != m_cellCount * NUM_TETS_PER_HEX)
   {
@@ -198,7 +198,7 @@ axom::ArrayView<const ShapeeMesh::TetrahedronType> ShapeeMesh::getCellsAsTets()
   return m_cellsAsTets;
 }
 
-axom::ArrayView<const ShapeeMesh::HexahedronType> ShapeeMesh::getCellsAsHexes()
+axom::ArrayView<const ShapeMesh::HexahedronType> ShapeMesh::getCellsAsHexes()
 {
   if(m_cellsAsHexes.size() != m_cellCount)
   {
@@ -207,7 +207,7 @@ axom::ArrayView<const ShapeeMesh::HexahedronType> ShapeeMesh::getCellsAsHexes()
   return m_cellsAsHexes;
 }
 
-axom::ArrayView<const double> ShapeeMesh::getCellVolumes()
+axom::ArrayView<const double> ShapeMesh::getCellVolumes()
 {
   if(m_hexVolumes.size() != m_cellCount)
   {
@@ -216,7 +216,7 @@ axom::ArrayView<const double> ShapeeMesh::getCellVolumes()
   return m_hexVolumes.view();
 }
 
-axom::ArrayView<const ShapeeMesh::BoundingBox3DType> ShapeeMesh::getCellBoundingBoxes()
+axom::ArrayView<const ShapeMesh::BoundingBox3DType> ShapeMesh::getCellBoundingBoxes()
 {
   if(m_hexBbs.size() != m_cellCount)
   {
@@ -225,7 +225,7 @@ axom::ArrayView<const ShapeeMesh::BoundingBox3DType> ShapeeMesh::getCellBounding
   return m_hexBbs.view();
 }
 
-axom::ArrayView<const double> ShapeeMesh::getCellLengths()
+axom::ArrayView<const double> ShapeMesh::getCellLengths()
 {
   if(m_cellLengths.size() != m_cellCount)
   {
@@ -234,7 +234,7 @@ axom::ArrayView<const double> ShapeeMesh::getCellLengths()
   return m_cellLengths.view();
 }
 
-axom::ArrayView<const ShapeeMesh::Point3DType> ShapeeMesh::getVertexPoints()
+axom::ArrayView<const ShapeMesh::Point3DType> ShapeMesh::getVertexPoints()
 {
   if(m_vertPoints3D.size() != m_vertexCount)
   {
@@ -243,7 +243,7 @@ axom::ArrayView<const ShapeeMesh::Point3DType> ShapeeMesh::getVertexPoints()
   return m_vertPoints3D.view();
 }
 
-axom::ArrayView<const axom::IndexType, 2> ShapeeMesh::getCellNodeConnectivity()
+axom::ArrayView<const axom::IndexType, 2> ShapeMesh::getCellNodeConnectivity()
 {
   if(m_connectivity.size() != m_cellCount)
   {
@@ -252,7 +252,7 @@ axom::ArrayView<const axom::IndexType, 2> ShapeeMesh::getCellNodeConnectivity()
   return m_connectivity;
 }
 
-bool ShapeeMesh::isValidForShaping(std::string& whyNot) const
+bool ShapeMesh::isValidForShaping(std::string& whyNot) const
 {
   bool rval = true;
 
@@ -287,12 +287,12 @@ bool ShapeeMesh::isValidForShaping(std::string& whyNot) const
   return rval;
 }
 
-void ShapeeMesh::setMatsetFromVolume(const std::string& materialName,
-                                     const axom::ArrayView<double>& volumes,
-                                     bool isFraction)
+void ShapeMesh::setMatsetFromVolume(const std::string& materialName,
+                                    const axom::ArrayView<double>& volumes,
+                                    bool isFraction)
 {
   SLIC_ERROR_IF(m_matsetName.empty(),
-                "Cannot use material set in ShapeeMesh: Matset name was not provided, and no "
+                "Cannot use material set in ShapeMesh: Matset name was not provided, and no "
                 "default matset was found.");
 
   double* vfPtr = nullptr;
@@ -358,15 +358,15 @@ void ShapeeMesh::setMatsetFromVolume(const std::string& materialName,
       break;
 #endif
     default:
-      SLIC_ERROR("ShapeeMesh internal error: Unhandled execution policy.");
+      SLIC_ERROR("ShapeMesh internal error: Unhandled execution policy.");
     }
   }
 }
 
-void ShapeeMesh::setFreeVolumeFractions(const std::string& freeName)
+void ShapeMesh::setFreeVolumeFractions(const std::string& freeName)
 {
   SLIC_ERROR_IF(m_matsetName.empty(),
-                "Cannot use material set in ShapeeMesh: Matset name was not provided, and no "
+                "Cannot use material set in ShapeMesh: Matset name was not provided, and no "
                 "default matset was found.");
 
   auto dataType = conduit::DataType::float64(m_cellCount);
@@ -435,7 +435,7 @@ void ShapeeMesh::setFreeVolumeFractions(const std::string& freeName)
 }
 
 template <typename T>
-void ShapeeMesh::fillNImpl(axom::ArrayView<T> a, const T& val) const
+void ShapeMesh::fillNImpl(axom::ArrayView<T> a, const T& val) const
 {
   auto kern = AXOM_LAMBDA(axom::IndexType i) { a[i] = val; };
 
@@ -461,14 +461,14 @@ void ShapeeMesh::fillNImpl(axom::ArrayView<T> a, const T& val) const
     break;
 #endif
   default:
-    SLIC_ERROR("ShapeeMesh internal error: Unhandled execution policy.");
+    SLIC_ERROR("ShapeMesh internal error: Unhandled execution policy.");
   }
 }
 
 template <typename T>
-void ShapeeMesh::elementwiseAddImpl(const axom::ArrayView<T> a,
-                                    const axom::ArrayView<T> b,
-                                    axom::ArrayView<T> result) const
+void ShapeMesh::elementwiseAddImpl(const axom::ArrayView<T> a,
+                                   const axom::ArrayView<T> b,
+                                   axom::ArrayView<T> result) const
 {
   auto kern = AXOM_LAMBDA(axom::IndexType i) { result[i] = a[i] + b[i]; };
 
@@ -493,14 +493,14 @@ void ShapeeMesh::elementwiseAddImpl(const axom::ArrayView<T> a,
     break;
 #endif
   default:
-    SLIC_ERROR("ShapeeMesh internal error: Unhandled execution policy.");
+    SLIC_ERROR("ShapeMesh internal error: Unhandled execution policy.");
   }
 }
 
 template <typename T>
-void ShapeeMesh::elementwiseComplementImpl(const axom::ArrayView<T> a,
-                                           const T& val,
-                                           axom::ArrayView<T> results) const
+void ShapeMesh::elementwiseComplementImpl(const axom::ArrayView<T> a,
+                                          const T& val,
+                                          axom::ArrayView<T> results) const
 {
   auto kern = AXOM_LAMBDA(axom::IndexType i) { results[i] = val >= a[i] ? val - a[i] : 0.0; };
 
@@ -525,13 +525,13 @@ void ShapeeMesh::elementwiseComplementImpl(const axom::ArrayView<T> a,
     break;
 #endif
   default:
-    SLIC_ERROR("ShapeeMesh internal error: Unhandled execution policy.");
+    SLIC_ERROR("ShapeMesh internal error: Unhandled execution policy.");
   }
 }
 
-void ShapeeMesh::computeCellsAsHexes()
+void ShapeMesh::computeCellsAsHexes()
 {
-  AXOM_ANNOTATE_SCOPE("ShapeeMesh::computeCellsAsHexes");
+  AXOM_ANNOTATE_SCOPE("ShapeMesh::computeCellsAsHexes");
   switch(m_runtimePolicy)
   {
   case RuntimePolicy::seq:
@@ -557,9 +557,9 @@ void ShapeeMesh::computeCellsAsHexes()
   }
 }
 
-void ShapeeMesh::computeCellsAsTets()
+void ShapeMesh::computeCellsAsTets()
 {
-  AXOM_ANNOTATE_SCOPE("ShapeeMesh::computeCellsAsTets");
+  AXOM_ANNOTATE_SCOPE("ShapeMesh::computeCellsAsTets");
   switch(m_runtimePolicy)
   {
   case RuntimePolicy::seq:
@@ -585,9 +585,9 @@ void ShapeeMesh::computeCellsAsTets()
   }
 }
 
-void ShapeeMesh::computeHexVolumes()
+void ShapeMesh::computeHexVolumes()
 {
-  AXOM_ANNOTATE_SCOPE("ShapeeMesh::computeHexVolumes");
+  AXOM_ANNOTATE_SCOPE("ShapeMesh::computeHexVolumes");
   switch(m_runtimePolicy)
   {
   case RuntimePolicy::seq:
@@ -613,9 +613,9 @@ void ShapeeMesh::computeHexVolumes()
   }
 }
 
-void ShapeeMesh::computeHexBbs()
+void ShapeMesh::computeHexBbs()
 {
-  AXOM_ANNOTATE_SCOPE("ShapeeMesh::computeHexBoundingBoxes");
+  AXOM_ANNOTATE_SCOPE("ShapeMesh::computeHexBoundingBoxes");
   switch(m_runtimePolicy)
   {
   case RuntimePolicy::seq:
@@ -641,9 +641,9 @@ void ShapeeMesh::computeHexBbs()
   }
 }
 
-void ShapeeMesh::computeVertPoints()
+void ShapeMesh::computeVertPoints()
 {
-  AXOM_ANNOTATE_SCOPE("ShapeeMesh::computeVertPoints(");
+  AXOM_ANNOTATE_SCOPE("ShapeMesh::computeVertPoints(");
   switch(m_runtimePolicy)
   {
   case RuntimePolicy::seq:
@@ -669,9 +669,9 @@ void ShapeeMesh::computeVertPoints()
   }
 }
 
-void ShapeeMesh::computeCellLengths()
+void ShapeMesh::computeCellLengths()
 {
-  AXOM_ANNOTATE_SCOPE("ShapeeMesh::computeCellLengths");
+  AXOM_ANNOTATE_SCOPE("ShapeMesh::computeCellLengths");
   switch(m_runtimePolicy)
   {
   case axom::runtime_policy::Policy::seq:
@@ -697,7 +697,7 @@ void ShapeeMesh::computeCellLengths()
   }
 }
 
-void ShapeeMesh::computeConnectivity()
+void ShapeMesh::computeConnectivity()
 {
   SLIC_ASSERT(m_dim == 3);  // 2D support not done yet.
 
@@ -716,7 +716,7 @@ void ShapeeMesh::computeConnectivity()
 }
 
 template <typename ExecSpace>
-void ShapeeMesh::computeCellsAsHexesImpl()
+void ShapeMesh::computeCellsAsHexesImpl()
 {
   constexpr int NUM_VERTS_PER_HEX = 8;
   constexpr int NDIM = 3;
@@ -763,7 +763,7 @@ void ShapeeMesh::computeCellsAsHexesImpl()
 }
 
 template <typename ExecSpace>
-void ShapeeMesh::computeCellsAsTetsImpl()
+void ShapeMesh::computeCellsAsTetsImpl()
 {
   constexpr int NUM_TETS_PER_HEX = primal::Hexahedron<double, 3>::NUM_TRIANGULATE;
 
@@ -787,7 +787,7 @@ void ShapeeMesh::computeCellsAsTetsImpl()
 }
 
 template <typename ExecSpace>
-void ShapeeMesh::computeHexVolumesImpl()
+void ShapeMesh::computeHexVolumesImpl()
 {
   m_hexVolumes =
     axom::Array<double>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
@@ -801,7 +801,7 @@ void ShapeeMesh::computeHexVolumesImpl()
 }
 
 template <typename ExecSpace>
-void ShapeeMesh::computeHexBbsImpl()
+void ShapeMesh::computeHexBbsImpl()
 {
   m_hexBbs =
     axom::Array<BoundingBox3DType>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
@@ -817,7 +817,7 @@ void ShapeeMesh::computeHexBbsImpl()
 }
 
 template <typename ExecSpace>
-void ShapeeMesh::computeCellLengthsImpl()
+void ShapeMesh::computeCellLengthsImpl()
 {
   m_cellLengths =
     axom::Array<double>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
@@ -831,7 +831,7 @@ void ShapeeMesh::computeCellLengthsImpl()
 }
 
 template <typename ExecSpace>
-void ShapeeMesh::computeVertPointsImpl()
+void ShapeMesh::computeVertPointsImpl()
 {
   m_vertPoints3D = axom::Array<Point3DType>(m_vertexCount, m_vertexCount, m_allocId);
 
@@ -849,19 +849,19 @@ void ShapeeMesh::computeVertPointsImpl()
 }
 
 template <typename ExecSpace, typename T>
-void ShapeeMesh::elementwiseDivideImpl(const T* numerator,
-                                       const T* denominator,
-                                       T* quotient,
-                                       axom::IndexType n)
+void ShapeMesh::elementwiseDivideImpl(const T* numerator,
+                                      const T* denominator,
+                                      T* quotient,
+                                      axom::IndexType n)
 {
   axom::for_all<ExecSpace>(
     n,
     AXOM_LAMBDA(axom::IndexType i) { quotient[i] = numerator[i] / denominator[i]; });
 }
 
-conduit::Node& ShapeeMesh::getMeshConduitPath(conduit::Node& node,
-                                              const std::string& path,
-                                              const conduit::DataType& dtype)
+conduit::Node& ShapeMesh::getMeshConduitPath(conduit::Node& node,
+                                             const std::string& path,
+                                             const conduit::DataType& dtype)
 {
   conduit::Node* rval = nullptr;
 

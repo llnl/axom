@@ -7,7 +7,7 @@
 #define AXOM_QUEST_SHAPEEMESH_HPP
 
 #ifndef AXOM_USE_CONDUIT
-  #error "ShapeeMesh requires Conduit"
+  #error "ShapeMesh requires Conduit"
 // TODO: Support MFEM as well.
 #endif
 
@@ -45,7 +45,7 @@ namespace experimental
  *
  * TODO: Support MFEM mesh.  First pass only supports blueprint.
 */
-class ShapeeMesh
+class ShapeMesh
 {
 public:
   using RuntimePolicy = axom::runtime_policy::Policy;
@@ -74,11 +74,11 @@ public:
    * runtime policy, or an error will result.  (However the data need
    * not correspond to the allocator id.)
    */
-  ShapeeMesh(RuntimePolicy runtimePolicy,
-             int allocatorId,
-             conduit::Node& bpMesh,
-             const std::string& topoName = {},
-             const std::string& matsetName = {});
+  ShapeMesh(RuntimePolicy runtimePolicy,
+            int allocatorId,
+            conduit::Node& bpMesh,
+            const std::string& topoName = {},
+            const std::string& matsetName = {});
 
 #ifdef AXOM_USE_SIDRE
   /*!
@@ -101,11 +101,11 @@ public:
    * runtime policy, or an error will result.  (However the data need
    * not correspond to the allocator id.)
   */
-  ShapeeMesh(RuntimePolicy runtimePolicy,
-             int allocatorId,
-             sidre::Group* bpMesh,
-             const std::string& topoName = {},
-             const std::string& matsetName = {});
+  ShapeMesh(RuntimePolicy runtimePolicy,
+            int allocatorId,
+            sidre::Group* bpMesh,
+            const std::string& topoName = {},
+            const std::string& matsetName = {});
 #endif
 
   /*!

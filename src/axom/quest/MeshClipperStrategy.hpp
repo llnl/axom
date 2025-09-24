@@ -10,7 +10,7 @@
 
 #include "axom/core/Array.hpp"
 #include "axom/klee/Geometry.hpp"
-#include "axom/quest/ShapeeMesh.hpp"
+#include "axom/quest/ShapeMesh.hpp"
 #include "axom/primal.hpp"
 
 // Requires Conduit for storing hierarchy-form data.
@@ -142,7 +142,7 @@ public:
    * @brief Label the cells in the mesh as inside, outside or
    * both/undetermined, if possible.
    *
-   * @param [in] shapeeMesh Mesh to shape into.
+   * @param [in] shapeMesh Mesh to shape into.
    * @param [out] labels Output
    *
    * The cell labels should be set to
@@ -161,12 +161,12 @@ public:
    *
    * If implemenation returns true, it should ensure these
    * post-conditions hold:
-   * @post labels.size() == shapeeMesh.getCellCount()
-   * @post labels.getAllocatorID() == shapeeMesh.getAllocatorId()
+   * @post labels.size() == shapeMesh.getCellCount()
+   * @post labels.getAllocatorID() == shapeMesh.getAllocatorId()
   */
-  virtual bool labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& cellLabels)
+  virtual bool labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& cellLabels)
   {
-    AXOM_UNUSED_VAR(shapeeMesh);
+    AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(cellLabels);
     return false;
   }
@@ -174,7 +174,7 @@ public:
   /*!
    * @brief Label the tetrahedra in certain cells, if possible.
    *
-   * @param [in] shapeeMesh Blueprint mesh to shape into.
+   * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [in] cellIds Indices of cells whose constituent
    *   tets should be labeled.
    * @param [out] tetLabels Output
@@ -182,20 +182,20 @@ public:
    * Only the cells labeled as ON the boundary are subjected to
    * this labeling.
    *
-   * Tet indices refer to the @c shapeeMesh.getCellsAsTets() array.
+   * Tet indices refer to the @c shapeMesh.getCellsAsTets() array.
    *
    * If implemenation returns true, it should ensure these
    * post-conditions hold:
    * @post tetLabels.size() == TETS_PER_HEXAHEDRON * cellIds.size()
-   * @post labels.getAllocatorID() == shapeeMesh.getAllocatorId()
+   * @post labels.getAllocatorID() == shapeMesh.getAllocatorId()
    * @post \c tetLabels should have \c TETS_PER_HEXAHEDRON labels
    * for each index in \c cellIds.
   */
-  virtual bool labelTetsInOut(quest::experimental::ShapeeMesh& shapeeMesh,
+  virtual bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
                               axom::ArrayView<const axom::IndexType> cellIds,
                               axom::Array<LabelType>& tetLabels)
   {
-    AXOM_UNUSED_VAR(shapeeMesh);
+    AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(cellIds);
     AXOM_UNUSED_VAR(tetLabels);
     return false;
@@ -205,7 +205,7 @@ public:
    * @brief Clip with a fast geometry-specialized method if
    * possible.
    *
-   * @param [in] shapeeMesh Blueprint mesh to shape into.
+   * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param ovlap [out] Shape overlap volume of each cell
    *   in the shapee mesh.  It's initialized to zeros.
    *
@@ -222,12 +222,12 @@ public:
    *
    * If implemenation returns true, it should ensure these
    * post-conditions hold:
-   * @post ovlap.size() == shapeeMesh.getCellCount()
-   * @post ovlap.getAllocatorID() == shapeeMesh.getAllocatorId()
+   * @post ovlap.size() == shapeMesh.getCellCount()
+   * @post ovlap.getAllocatorID() == shapeMesh.getAllocatorId()
   */
-  virtual bool specializedClipCells(quest::experimental::ShapeeMesh& shapeeMesh, axom::ArrayView<double> ovlap)
+  virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh, axom::ArrayView<double> ovlap)
   {
-    AXOM_UNUSED_VAR(shapeeMesh);
+    AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     return false;
   }
@@ -236,7 +236,7 @@ public:
    * @brief Clip with a fast geometry-specialized method if
    * possible.
    *
-   * @param [in] shapeeMesh Blueprint mesh to shape into.
+   * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [out] ovlap Shape overlap volume of each cell
    *   in the shapee mesh, initialized to the cell volumes
    *   for cell inside the shape and zero for other cells.
@@ -258,14 +258,14 @@ public:
    *
    * If implemenation returns true, it should ensure these
    * post-conditions hold:
-   * @post ovlap.size() == shapeeMesh.getCellCount()
-   * @post ovlap.getAllocatorID() == shapeeMesh.getAllocatorId()
+   * @post ovlap.size() == shapeMesh.getCellCount()
+   * @post ovlap.getAllocatorID() == shapeMesh.getAllocatorId()
   */
-  virtual bool specializedClipCells(quest::experimental::ShapeeMesh& shapeeMesh,
+  virtual bool specializedClipCells(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::ArrayView<double> ovlap,
                                     const axom::ArrayView<IndexType>& cellIds)
   {
-    AXOM_UNUSED_VAR(shapeeMesh);
+    AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(cellIds);
     return false;
@@ -273,21 +273,21 @@ public:
 
   /*!
    * Clip the tets listed in tetIds.
-   * @param [in] shapeeMesh Blueprint mesh to shape into.
+   * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [out] ovlap Shape overlap volume of each cell
    *   in the shapee mesh, initialized to the cell volumes
    *   for cell inside the shape and zero for other cells.
    * @param [in] tetIds Indices of tets to clip, referring to the
-   * shapeeMesh.getCellsAsTets() array.  tetIds[i] is the
+   * shapeMesh.getCellsAsTets() array.  tetIds[i] is the
    * \c (tetIds[i]%TETS_PER_HEXAHEDRON)-th tetrahedron of cell
    * \c tetIds[i]/TETS_PER_HEXAHEDRON.  Its overlap volume should be added
    * to that cell.
    */
-  virtual bool specializedClipTets(quest::experimental::ShapeeMesh& shapeeMesh,
+  virtual bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::ArrayView<double> ovlap,
                                    const axom::ArrayView<IndexType>& tetIds)
   {
-    AXOM_UNUSED_VAR(shapeeMesh);
+    AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(ovlap);
     AXOM_UNUSED_VAR(tetIds);
     return false;
@@ -296,7 +296,7 @@ public:
   /*!
    * @brief Get the geometry as discrete tetrahedra, or return false.
    *
-   * @param [in] shapeeMesh Blueprint mesh to shape into.
+   * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [out] tets Array of tetrahedra filling the space of the shape,
    * fully transformed.
    *
@@ -306,13 +306,13 @@ public:
    *
    * If implemenation returns true, it should ensure these
    * post-conditions hold:
-   * @post tets.getAllocatorID() == shapeeMesh.getAllocatorId()
+   * @post tets.getAllocatorID() == shapeMesh.getAllocatorId()
   */
-  virtual bool getGeometryAsTets(quest::experimental::ShapeeMesh& shapeeMesh,
+  virtual bool getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh,
                                  axom::Array<TetrahedronType>& tets)
 
   {
-    AXOM_UNUSED_VAR(shapeeMesh);
+    AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(tets);
     return false;
   }
@@ -320,7 +320,7 @@ public:
   /*!
    * @brief Get the geometry as discrete octahedra, or return false.
    *
-   * @param [in] shapeeMesh Blueprint mesh to shape into.
+   * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [out] octs Array of octahedra filling the space of the shape,
    * fully transformed.
    *
@@ -330,12 +330,12 @@ public:
    *
    * If implemenation returns true, it should ensure these
    * post-conditions hold:
-   * @post octs.getAllocatorID() == shapeeMesh.getAllocatorId()
+   * @post octs.getAllocatorID() == shapeMesh.getAllocatorId()
    */
-  virtual bool getGeometryAsOcts(quest::experimental::ShapeeMesh& shapeeMesh,
+  virtual bool getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
                                  axom::Array<OctahedronType>& octs)
   {
-    AXOM_UNUSED_VAR(shapeeMesh);
+    AXOM_UNUSED_VAR(shapeMesh);
     AXOM_UNUSED_VAR(octs);
     return false;
   }

@@ -40,9 +40,9 @@ public:
    * If a mesh cell has all vertices outside the geometry, it labeled outside.
    * This will miss cases where an edge of the cell passes through the geometry.
   */
-  bool labelCellsInOut(quest::experimental::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeMesh& shappeMesh, axom::Array<char>& label) override;
 
-  bool getGeometryAsTets(quest::experimental::ShapeeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
+  bool getGeometryAsTets(quest::experimental::ShapeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
 
 #if !defined(__CUDACC__)
 private:
@@ -67,7 +67,7 @@ private:
   axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
-  void labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+  void labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<char>& label);
 
   void extractClipperInfo();
 

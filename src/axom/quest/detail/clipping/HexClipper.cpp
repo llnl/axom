@@ -36,27 +36,27 @@ HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
   computeSurface();
 }
 
-bool HexClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool HexClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_ANNOTATE_SCOPE("HexClipper::labelCellsInOut");
-  switch(shapeeMesh.getRuntimePolicy())
+  switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelCellsInOutImpl<axom::OMP_EXEC>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::OMP_EXEC>(shapeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels);
     break;
 #endif
   default:
@@ -66,17 +66,17 @@ bool HexClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, ax
 }
 
 template <typename ExecSpace>
-void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "HexClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "HexClipper requires a 3D mesh.");
 
-  int allocId = shapeeMesh.getAllocatorID();
-  auto cellCount = shapeeMesh.getCellCount();
+  int allocId = shapeMesh.getAllocatorID();
+  auto cellCount = shapeMesh.getCellCount();
 
-  axom::ArrayView<const BoundingBox3DType> cellBbs = shapeeMesh.getCellBoundingBoxes();
-  axom::ArrayView<const HexahedronType> cellsAsHexes = shapeeMesh.getCellsAsHexes();
+  axom::ArrayView<const BoundingBox3DType> cellBbs = shapeMesh.getCellBoundingBoxes();
+  axom::ArrayView<const HexahedronType> cellsAsHexes = shapeMesh.getCellsAsHexes();
 
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
     labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
@@ -140,10 +140,10 @@ void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh
   return;
 }
 
-bool HexClipper::getGeometryAsTets(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
+bool HexClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh, axom::Array<TetrahedronType>& tets)
 {
   AXOM_ANNOTATE_SCOPE("HexClipper::getGeometryAsTets");
-  int allocId = shapeeMesh.getAllocatorID();
+  int allocId = shapeMesh.getAllocatorID();
   if(tets.getAllocatorID() != allocId || tets.size() != m_tets.size())
   {
     tets = axom::Array<TetrahedronType>(m_tets.size(), m_tets.size(), allocId);

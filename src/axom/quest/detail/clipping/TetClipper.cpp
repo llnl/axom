@@ -48,27 +48,27 @@ TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
   }
 }
 
-bool TetClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool TetClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_ANNOTATE_SCOPE("TetClipper::labelCellsInOut");
-  switch(shapeeMesh.getRuntimePolicy())
+  switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelInOutImpl<axom::SEQ_EXEC>(shapeeMesh, labels);
+    labelInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelInOutImpl<axom::OMP_EXEC>(shapeeMesh, labels);
+    labelInOutImpl<axom::OMP_EXEC>(shapeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, labels);
+    labelInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, labels);
+    labelInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels);
     break;
 #endif
   default:
@@ -78,9 +78,9 @@ bool TetClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, ax
 }
 
 template <typename ExecSpace>
-void TetClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void TetClipper::labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
   /*
    * Compute whether the mesh vertices are above the tet or below as
    * the tet rests on its 4 facets.
@@ -94,11 +94,11 @@ void TetClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axo
    * - Otherwise, cell is ON.
   */
 
-  int allocId = shapeeMesh.getAllocatorID();
-  auto vertCount = shapeeMesh.getVertexCount();
-  auto cellCount = shapeeMesh.getCellCount();
+  int allocId = shapeMesh.getAllocatorID();
+  auto vertCount = shapeMesh.getVertexCount();
+  auto cellCount = shapeMesh.getCellCount();
 
-  const auto& vertCoords = shapeeMesh.getVertexCoords3D();
+  const auto& vertCoords = shapeMesh.getVertexCoords3D();
   const auto& vX = vertCoords[0];
   const auto& vY = vertCoords[1];
   const auto& vZ = vertCoords[2];
@@ -106,7 +106,7 @@ void TetClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axo
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vY.getAllocatorID()));
   SLIC_ASSERT(axom::execution_space<ExecSpace>::usesAllocId(vZ.getAllocatorID()));
 
-  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getCellNodeConnectivity();
+  axom::ArrayView<const axom::IndexType, 2> connView = shapeMesh.getCellNodeConnectivity();
   SLIC_ASSERT(connView.shape() ==
               (axom::StackArray<axom::IndexType, 2> {cellCount, HexahedronType::NUM_HEX_VERTS}));
 
@@ -138,12 +138,12 @@ void TetClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axo
       }
     });
 
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
     labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
                                     cellCount,
                                     cellCount,
-                                    shapeeMesh.getAllocatorID());
+                                    shapeMesh.getAllocatorID());
   }
   auto labelsView = labels.view();
 
@@ -183,29 +183,29 @@ void TetClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axo
   return;
 }
 
-bool TetClipper::labelTetsInOut(quest::experimental::ShapeeMesh& shapeeMesh,
+bool TetClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
                                 axom::ArrayView<const axom::IndexType> cellsOnBdry,
                                 axom::Array<LabelType>& tetLabels)
 {
   AXOM_ANNOTATE_SCOPE("TetClipper::labelTetsInOut");
-  switch(shapeeMesh.getRuntimePolicy())
+  switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelTetsInOutImpl<axom::SEQ_EXEC>(shapeeMesh, cellsOnBdry, tetLabels);
+    labelTetsInOutImpl<axom::SEQ_EXEC>(shapeMesh, cellsOnBdry, tetLabels);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelTetsInOutImpl<axom::OMP_EXEC>(shapeeMesh, cellsOnBdry, tetLabels);
+    labelTetsInOutImpl<axom::OMP_EXEC>(shapeMesh, cellsOnBdry, tetLabels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelTetsInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, cellsOnBdry, tetLabels);
+    labelTetsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, cellsOnBdry, tetLabels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelTetsInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, cellsOnBdry, tetLabels);
+    labelTetsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, cellsOnBdry, tetLabels);
     break;
 #endif
   default:
@@ -215,11 +215,11 @@ bool TetClipper::labelTetsInOut(quest::experimental::ShapeeMesh& shapeeMesh,
 }
 
 template <typename ExecSpace>
-void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh,
+void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                     axom::ArrayView<const axom::IndexType> cellsOnBdry,
                                     axom::Array<LabelType>& tetLabels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
   /*
    * Compute whether the tets in hexes listed in cellsOnBdry
    * as in, out or on the boundary.
@@ -234,14 +234,14 @@ void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh,
    * - Otherwise, cell is ON.
   */
 
-  int allocId = shapeeMesh.getAllocatorID();
+  int allocId = shapeMesh.getAllocatorID();
 
-  auto meshTets = shapeeMesh.getCellsAsTets();
+  auto meshTets = shapeMesh.getCellsAsTets();
 
   const axom::IndexType cellCount = cellsOnBdry.size();
 
   if(tetLabels.size() < cellCount * TETS_PER_HEXAHEDRON ||
-     tetLabels.getAllocatorID() != shapeeMesh.getAllocatorID())
+     tetLabels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
     tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
                                        cellCount * TETS_PER_HEXAHEDRON,
@@ -305,10 +305,10 @@ void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh,
   return;
 }
 
-bool TetClipper::getGeometryAsTets(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
+bool TetClipper::getGeometryAsTets(quest::experimental::ShapeMesh& shapeMesh, axom::Array<TetrahedronType>& tets)
 {
   AXOM_ANNOTATE_SCOPE("TetClipper::getGeometryAsTets");
-  int allocId = shapeeMesh.getAllocatorID();
+  int allocId = shapeMesh.getAllocatorID();
   if(tets.getAllocatorID() != allocId || tets.size() != 1)
   {
     tets = axom::Array<TetrahedronType>(1, 1, allocId);

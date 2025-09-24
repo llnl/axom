@@ -58,7 +58,7 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   }
 }
 
-bool SorClipper::specializedClipCells(quest::experimental::ShapeeMesh& shapeeMesh, axom::ArrayView<double> ovlap)
+bool SorClipper::specializedClipCells(quest::experimental::ShapeMesh& shapeMesh, axom::ArrayView<double> ovlap)
 {
   AXOM_ANNOTATE_SCOPE("SorClipper::specializedClipCells");
   /*
@@ -78,12 +78,12 @@ bool SorClipper::specializedClipCells(quest::experimental::ShapeeMesh& shapeeMes
   for(auto& fsorStrategy : m_fsorStrategies)
   {
     tmpOvlap.fill(0.0);
-    MeshClipper clipper(shapeeMesh, fsorStrategy);
+    MeshClipper clipper(shapeMesh, fsorStrategy);
     clipper.setVerbose(false);
     clipper.clip(tmpOvlap);
     auto sorCurve = fsorStrategy->getSorCurve();
     int sign = axom::utilities::sign_of(sorCurve[sorCurve.size() - 1][0] - sorCurve[0][0], 0.0);
-    accumulateData(ovlap, tmpOvlap.view(), double(sign), shapeeMesh.getRuntimePolicy());
+    accumulateData(ovlap, tmpOvlap.view(), double(sign), shapeMesh.getRuntimePolicy());
   }
   return true;
 }

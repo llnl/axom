@@ -1253,12 +1253,12 @@ int main(int argc, char** argv)
   //---------------------------------------------------------------------------
   // Initialize computational mesh.
   //---------------------------------------------------------------------------
-  std::shared_ptr<quest::experimental::ShapeeMesh> sMeshPtr;
+  std::shared_ptr<quest::experimental::ShapeMesh> sMeshPtr;
   AXOM_ANNOTATE_BEGIN("setup shaping problem");
   if(params.useBlueprintSidre())
   {
     sMeshPtr =
-      std::make_shared<quest::experimental::ShapeeMesh>(params.policy, dataAllocId, compMeshGrp, topoName, matsetName);
+      std::make_shared<quest::experimental::ShapeMesh>(params.policy, dataAllocId, compMeshGrp, topoName, matsetName);
   }
   if(params.useBlueprintConduit())
   {
@@ -1267,13 +1267,13 @@ int main(int argc, char** argv)
     compMeshGrp->createNativeLayout(*compMeshNode);
     compMeshNode->set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(dataAllocId));
 
-    sMeshPtr = std::make_shared<quest::experimental::ShapeeMesh>(params.policy,
+    sMeshPtr = std::make_shared<quest::experimental::ShapeMesh>(params.policy,
                                                    dataAllocId,
                                                    *compMeshNode,
                                                    topoName,
                                                    matsetName);
   }
-  quest::experimental::ShapeeMesh& sMesh = *sMeshPtr;
+  quest::experimental::ShapeMesh& sMesh = *sMeshPtr;
 
   AXOM_ANNOTATE_END("setup shaping problem");
 

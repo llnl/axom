@@ -144,11 +144,11 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                   DiscreteShape.hpp
                                   IntersectionShaper.hpp
                                   detail/shaping/shaping_helpers.hpp
-                                  ShapeeMesh.hpp)
+                                  ShapeMesh.hpp)
         list(APPEND quest_sources Shaper.cpp
                                   DiscreteShape.cpp
                                   detail/shaping/shaping_helpers.cpp
-                                  ShapeeMesh.cpp)
+                                  ShapeMesh.cpp)
         list(APPEND quest_depends_on klee)
         if(RAJA_FOUND)
             list(APPEND quest_headers MeshClipper.hpp

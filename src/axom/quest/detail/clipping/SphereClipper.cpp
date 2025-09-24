@@ -25,27 +25,27 @@ SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& nam
   transformSphere();
 }
 
-bool SphereClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool SphereClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_ANNOTATE_SCOPE("SphereClipper::labelCellsInOut");
-  switch(shapeeMesh.getRuntimePolicy())
+  switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelCellsInOutImpl<axom::OMP_EXEC>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::OMP_EXEC>(shapeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, labels);
+    labelCellsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels);
     break;
 #endif
   default:
@@ -55,18 +55,18 @@ bool SphereClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh,
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelCellsInOutImplOld(quest::experimental::ShapeeMesh& shapeeMesh,
+void SphereClipper::labelCellsInOutImplOld(quest::experimental::ShapeMesh& shapeMesh,
                                            axom::Array<LabelType>& labels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
 
   constexpr int NUM_VERTS_PER_CELL = 8;
 
-  int allocId = shapeeMesh.getAllocatorID();
-  auto cellCount = shapeeMesh.getCellCount();
-  auto vertCount = shapeeMesh.getVertexCount();
+  int allocId = shapeMesh.getAllocatorID();
+  auto cellCount = shapeMesh.getCellCount();
+  auto vertCount = shapeMesh.getVertexCount();
 
-  const auto& vertCoords = shapeeMesh.getVertexCoords3D();
+  const auto& vertCoords = shapeMesh.getVertexCoords3D();
   const auto& vX = vertCoords[0];
   const auto& vY = vertCoords[1];
   const auto& vZ = vertCoords[2];
@@ -90,7 +90,7 @@ void SphereClipper::labelCellsInOutImplOld(quest::experimental::ShapeeMesh& shap
       vertDistView[vertId] = signedDist;
     });
 
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
     labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
@@ -106,10 +106,10 @@ void SphereClipper::labelCellsInOutImplOld(quest::experimental::ShapeeMesh& shap
    *   cell with all vertices inside the sphere and intersects the
    *   sphere.
   */
-  auto cellLengths = shapeeMesh.getCellLengths();
+  auto cellLengths = shapeMesh.getCellLengths();
   const double lenFactor = 0.5;
 
-  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getCellNodeConnectivity();
+  axom::ArrayView<const axom::IndexType, 2> connView = shapeMesh.getCellNodeConnectivity();
   SLIC_ASSERT(connView.shape() ==
               (axom::StackArray<axom::IndexType, 2> {cellCount, NUM_VERTS_PER_CELL}));
 
@@ -143,7 +143,7 @@ void SphereClipper::labelCellsInOutImplOld(quest::experimental::ShapeeMesh& shap
      * corrected is probably O(h^3) and much smaller than the error
      * from discretizing the sphere.  It's probably not worth the cost.
     */
-    axom::ArrayView<const TetrahedronType> cellsAsTets = shapeeMesh.getCellsAsTets();
+    axom::ArrayView<const TetrahedronType> cellsAsTets = shapeMesh.getCellsAsTets();
     axom::for_all<ExecSpace>(
       cellCount,
       AXOM_LAMBDA(axom::IndexType cellId) {
@@ -188,19 +188,19 @@ void SphereClipper::labelCellsInOutImplOld(quest::experimental::ShapeeMesh& shap
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
 
   constexpr int NUM_VERTS_PER_CELL = 8;
 
-  int allocId = shapeeMesh.getAllocatorID();
-  auto cellCount = shapeeMesh.getCellCount();
-  auto vertCount = shapeeMesh.getVertexCount();
+  int allocId = shapeMesh.getAllocatorID();
+  auto cellCount = shapeMesh.getCellCount();
+  auto vertCount = shapeMesh.getVertexCount();
 
   auto sphere = m_sphere;
 
-  const auto& vertCoords = shapeeMesh.getVertexCoords3D();
+  const auto& vertCoords = shapeMesh.getVertexCoords3D();
   const auto& vX = vertCoords[0];
   const auto& vY = vertCoords[1];
   const auto& vZ = vertCoords[2];
@@ -228,11 +228,11 @@ void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeM
    * Compute cell labels.
   */
 
-  axom::ArrayView<const axom::IndexType, 2> connView = shapeeMesh.getCellNodeConnectivity();
+  axom::ArrayView<const axom::IndexType, 2> connView = shapeMesh.getCellNodeConnectivity();
   SLIC_ASSERT(connView.shape() ==
               (axom::StackArray<axom::IndexType, 2> {cellCount, NUM_VERTS_PER_CELL}));
 
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
     labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
@@ -250,7 +250,7 @@ void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeM
    *   some parts of the cell may intersect boundary, so it's LABEL_ON.
   */
 
-  auto cellBbs = shapeeMesh.getCellBoundingBoxes();
+  auto cellBbs = shapeMesh.getCellBoundingBoxes();
 
   axom::for_all<ExecSpace>(
     cellCount,
@@ -278,29 +278,29 @@ void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeM
   return;
 }
 
-bool SphereClipper::labelTetsInOut(quest::experimental::ShapeeMesh& shapeeMesh,
+bool SphereClipper::labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::ArrayView<const axom::IndexType> cellIds,
                                    axom::Array<LabelType>& tetLabels)
 {
   AXOM_ANNOTATE_SCOPE("SphereClipper::labelTetsInOut");
-  switch(shapeeMesh.getRuntimePolicy())
+  switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelTetsInOutImpl<axom::SEQ_EXEC>(shapeeMesh, cellIds, tetLabels);
+    labelTetsInOutImpl<axom::SEQ_EXEC>(shapeMesh, cellIds, tetLabels);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelTetsInOutImpl<axom::OMP_EXEC>(shapeeMesh, cellIds, tetLabels);
+    labelTetsInOutImpl<axom::OMP_EXEC>(shapeMesh, cellIds, tetLabels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelTetsInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, cellIds, tetLabels);
+    labelTetsInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, cellIds, tetLabels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelTetsInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, cellIds, tetLabels);
+    labelTetsInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, cellIds, tetLabels);
     break;
 #endif
   default:
@@ -310,20 +310,20 @@ bool SphereClipper::labelTetsInOut(quest::experimental::ShapeeMesh& shapeeMesh,
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh,
+void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh,
                                        axom::ArrayView<const axom::IndexType> cellIds,
                                        axom::Array<LabelType>& tetLabels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
 
   constexpr int NUM_VERTS_PER_TET = 4;
 
   const axom::IndexType cellCount = cellIds.size();
 
-  int allocId = shapeeMesh.getAllocatorID();
+  int allocId = shapeMesh.getAllocatorID();
 
   if(tetLabels.size() < cellCount * TETS_PER_HEXAHEDRON ||
-     tetLabels.getAllocatorID() != shapeeMesh.getAllocatorID())
+     tetLabels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
     tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
                                        cellCount * TETS_PER_HEXAHEDRON,
@@ -350,7 +350,7 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeeMesh& shapeeMe
    * labeled ON.
   */
 
-  auto meshHexes = shapeeMesh.getCellsAsHexes();
+  auto meshHexes = shapeMesh.getCellsAsHexes();
 
   auto sphere = m_sphere;
   const double squaredRad = sphere.getRadius() * sphere.getRadius();
@@ -398,7 +398,7 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeeMesh& shapeeMe
 /*
   TODO: If possible: Port to GPU.  Will need to rewrite quest/Discretize.[ch]pp.
 */
-bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeeMesh& shapeeMesh,
+bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh,
                                       axom::Array<axom::primal::Octahedron<double, 3>>& octs)
 {
   AXOM_ANNOTATE_SCOPE("SphereClipper::getGeometryAsOcts");
@@ -407,7 +407,7 @@ bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeeMesh& shapeeMes
 
   auto octsView = octs.view();
   auto transformer = m_transformer;
-  int allocId = shapeeMesh.getAllocatorID();
+  int allocId = shapeMesh.getAllocatorID();
   axom::for_all<axom::SEQ_EXEC>(
     octCount,
     AXOM_LAMBDA(axom::IndexType iOct) {

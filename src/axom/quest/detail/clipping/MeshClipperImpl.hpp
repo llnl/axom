@@ -35,11 +35,11 @@ public:
   void initVolumeOverlaps(const axom::ArrayView<MeshClipperStrategy::LabelType>& labels,
                           axom::ArrayView<double> ovlap) override
   {
-    const axom::IndexType cellCount = getShapeeMesh().getCellCount();
+    const axom::IndexType cellCount = getShapeMesh().getCellCount();
     SLIC_ASSERT(labels.size() == cellCount);
     SLIC_ASSERT(ovlap.size() == cellCount);
 
-    auto cellVolumes = getShapeeMesh().getCellVolumes();
+    auto cellVolumes = getShapeMesh().getCellVolumes();
 
     /*
      * Overlap volumes is cell volume for cells inside geometry.
@@ -58,7 +58,7 @@ public:
 
   void initVolumeOverlaps(axom::ArrayView<double> ovlap) override
   {
-    SLIC_ASSERT(ovlap.size() == getShapeeMesh().getCellCount());
+    SLIC_ASSERT(ovlap.size() == getShapeMesh().getCellCount());
     ovlap.fill(0.0);
     return;
   }
@@ -67,7 +67,7 @@ public:
                                 axom::ArrayView<const LabelType> tetLabels,
                                 axom::ArrayView<double> ovlap) override
   {
-    auto meshTets = getShapeeMesh().getCellsAsTets();
+    auto meshTets = getShapeMesh().getCellsAsTets();
 
     const axom::IndexType hexCount = cellsOnBdry.size();
 
@@ -196,11 +196,11 @@ public:
 
     using BoundingBoxType = primal::BoundingBox<double, 3>;
 
-    ShapeeMesh& shapeeMesh = getShapeeMesh();
+    ShapeMesh& shapeMesh = getShapeMesh();
 
-    const int allocId = shapeeMesh.getAllocatorID();
+    const int allocId = shapeMesh.getAllocatorID();
 
-    const IndexType cellCount = shapeeMesh.getCellCount();
+    const IndexType cellCount = shapeMesh.getCellCount();
 
     SLIC_INFO(axom::fmt::format(
       "MeshClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
@@ -212,8 +212,8 @@ public:
     auto& strategy = getStrategy();
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    const bool useOcts = strategy.getGeometryAsOcts(shapeeMesh, geomAsOcts);
-    const bool useTets = strategy.getGeometryAsTets(shapeeMesh, geomAsTets);
+    const bool useOcts = strategy.getGeometryAsOcts(shapeMesh, geomAsOcts);
+    const bool useTets = strategy.getGeometryAsTets(shapeMesh, geomAsTets);
     SLIC_ASSERT(useOcts || geomAsOcts.empty());
     SLIC_ASSERT(useTets || geomAsTets.empty());
     if(useTets == useOcts)
@@ -262,7 +262,7 @@ public:
 
     SLIC_INFO(axom::fmt::format("{:-^80}", " Querying the BVH tree "));
 
-    axom::ArrayView<const BoundingBoxType> cellBbsView = shapeeMesh.getCellBoundingBoxes();
+    axom::ArrayView<const BoundingBoxType> cellBbsView = shapeMesh.getCellBoundingBoxes();
 
     // Find which shape bounding boxes intersect hexahedron bounding boxes
     SLIC_INFO(
@@ -294,7 +294,7 @@ public:
     auto shapeCandidatesView = shapeCandidates.view();
 
     // Tetrahedrons from hexes (24 for each hex)
-    auto cellsAsTets = shapeeMesh.getCellsAsTets();
+    auto cellsAsTets = shapeMesh.getCellsAsTets();
 
     // Index into 'tets'
     axom::Array<IndexType> tetIndices(candidateCount * TETS_PER_HEXAHEDRON,
@@ -433,11 +433,11 @@ public:
 
     using BoundingBoxType = primal::BoundingBox<double, 3>;
 
-    ShapeeMesh& shapeeMesh = getShapeeMesh();
+    ShapeMesh& shapeMesh = getShapeMesh();
 
-    const int allocId = shapeeMesh.getAllocatorID();
+    const int allocId = shapeMesh.getAllocatorID();
 
-    const IndexType cellCount = shapeeMesh.getCellCount();
+    const IndexType cellCount = shapeMesh.getCellCount();
 
     SLIC_INFO(axom::fmt::format(
       "MeshClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
@@ -446,8 +446,8 @@ public:
     auto& strategy = getStrategy();
     axom::Array<axom::primal::Tetrahedron<double, 3>> geomAsTets;
     axom::Array<axom::primal::Octahedron<double, 3>> geomAsOcts;
-    const bool useOcts = strategy.getGeometryAsOcts(shapeeMesh, geomAsOcts);
-    const bool useTets = strategy.getGeometryAsTets(shapeeMesh, geomAsTets);
+    const bool useOcts = strategy.getGeometryAsOcts(shapeMesh, geomAsOcts);
+    const bool useTets = strategy.getGeometryAsTets(shapeMesh, geomAsTets);
     SLIC_ASSERT(useOcts || geomAsOcts.empty());
     SLIC_ASSERT(useTets || geomAsTets.empty());
     if(useTets == useOcts)
@@ -499,7 +499,7 @@ public:
     // Create a temporary subset of cell bounding boxes,
     // containing only those listed in cellIndices.
     const axom::IndexType limitedCellCount = cellIndices.size();
-    axom::ArrayView<const BoundingBoxType> cellBbsView = shapeeMesh.getCellBoundingBoxes();
+    axom::ArrayView<const BoundingBoxType> cellBbsView = shapeMesh.getCellBoundingBoxes();
     axom::Array<BoundingBoxType> limitedCellBbs(limitedCellCount, limitedCellCount, allocId);
     axom::ArrayView<BoundingBoxType> limitedCellBbsView = limitedCellBbs.view();
     axom::for_all<ExecSpace>(
@@ -536,7 +536,7 @@ public:
     auto shapeCandidatesView = shapeCandidates.view();
 
     // Tetrahedrons from hexes (24 for each hex)
-    auto cellsAsTets = shapeeMesh.getCellsAsTets();
+    auto cellsAsTets = shapeMesh.getCellsAsTets();
 
     // Index into 'tets'
     axom::Array<IndexType> tetIndices(candidateCount * TETS_PER_HEXAHEDRON,
@@ -692,10 +692,10 @@ public:
     using TetrahedronType = primal::Tetrahedron<double, 3>;
     using OctahedronType = primal::Octahedron<double, 3>;
 
-    ShapeeMesh& shapeeMesh = getShapeeMesh();
-    auto meshTets = getShapeeMesh().getCellsAsTets();
+    ShapeMesh& shapeMesh = getShapeMesh();
+    auto meshTets = getShapeMesh().getCellsAsTets();
 
-    const int allocId = shapeeMesh.getAllocatorID();
+    const int allocId = shapeMesh.getAllocatorID();
 
     SLIC_INFO(axom::fmt::format(
       "MeshClipper::computeClipVolumes3D: Getting discrete geometry for shape '{}'",
@@ -704,8 +704,8 @@ public:
     auto& strategy = getStrategy();
     axom::Array<TetrahedronType> geomAsTets;
     axom::Array<OctahedronType> geomAsOcts;
-    const bool useOcts = strategy.getGeometryAsOcts(shapeeMesh, geomAsOcts);
-    const bool useTets = strategy.getGeometryAsTets(shapeeMesh, geomAsTets);
+    const bool useOcts = strategy.getGeometryAsOcts(shapeMesh, geomAsOcts);
+    const bool useTets = strategy.getGeometryAsTets(shapeMesh, geomAsTets);
     SLIC_ASSERT(useOcts || geomAsOcts.empty());
     SLIC_ASSERT(useTets || geomAsTets.empty());
     if(useTets == useOcts)

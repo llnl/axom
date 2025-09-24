@@ -103,27 +103,27 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   }
 }
 
-bool FSorClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool FSorClipper::labelCellsInOut(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_ANNOTATE_SCOPE("FSorClipper::labelCellsInOut");
-  switch(shapeeMesh.getRuntimePolicy())
+  switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    labelInOutImpl<axom::SEQ_EXEC>(shapeeMesh, labels);
+    labelInOutImpl<axom::SEQ_EXEC>(shapeMesh, labels);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    labelInOutImpl<axom::OMP_EXEC>(shapeeMesh, labels);
+    labelInOutImpl<axom::OMP_EXEC>(shapeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    labelInOutImpl<axom::CUDA_EXEC<256>>(shapeeMesh, labels);
+    labelInOutImpl<axom::CUDA_EXEC<256>>(shapeMesh, labels);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    labelInOutImpl<axom::HIP_EXEC<256>>(shapeeMesh, labels);
+    labelInOutImpl<axom::HIP_EXEC<256>>(shapeMesh, labels);
     break;
 #endif
   default:
@@ -138,16 +138,16 @@ bool FSorClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, a
  * determine whether the point is in the sor that way.
 */
 template <typename ExecSpace>
-void FSorClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void FSorClipper::labelInOutImpl(quest::experimental::ShapeMesh& shapeMesh, axom::Array<LabelType>& labels)
 {
-  SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
+  SLIC_ERROR_IF(shapeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
 
-  const int allocId = shapeeMesh.getAllocatorID();
-  const auto cellCount = shapeeMesh.getCellCount();
+  const int allocId = shapeMesh.getAllocatorID();
+  const auto cellCount = shapeMesh.getCellCount();
 
   auto inverseTransformer = m_inverseTransformer;
 
-  axom::ArrayView<const double> cellLengths = shapeeMesh.getCellLengths();
+  axom::ArrayView<const double> cellLengths = shapeMesh.getCellLengths();
 
   using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
   using LoopPolicy = typename execution_space<ExecSpace>::loop_policy;
@@ -159,7 +159,7 @@ void FSorClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, ax
 
   // Subdivide the SOR curve and place in the right allocator.
   axom::Array<Point2DType> sorCurve = subdivideCurve(m_sorCurve, avgCharLength);
-  sorCurve = axom::Array<Point2DType>(sorCurve, shapeeMesh.getAllocatorID());
+  sorCurve = axom::Array<Point2DType>(sorCurve, shapeMesh.getAllocatorID());
   auto sorCurveView = sorCurve.view();
 
   /*
@@ -195,10 +195,10 @@ void FSorClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, ax
 
   const double lenFactor = 0.5;
 
-  auto cellBbs = shapeeMesh.getCellBoundingBoxes();
+  auto cellBbs = shapeMesh.getCellBoundingBoxes();
   constexpr int NUM_BB_VERTS = 8;
 
-  if(labels.size() < cellCount || labels.getAllocatorID() != shapeeMesh.getAllocatorID())
+  if(labels.size() < cellCount || labels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
     labels = axom::Array<LabelType>(ArrayOptions::Uninitialized(), cellCount, cellCount, allocId);
   }
@@ -211,7 +211,7 @@ void FSorClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, ax
   */
   axom::Array<BoundingBox2DType> cellBbsInRz(cellBbs.size(),
                                              cellBbs.size(),
-                                             shapeeMesh.getAllocatorID());
+                                             shapeMesh.getAllocatorID());
   auto cellBbsInRzView = cellBbsInRz.view();
   axom::for_all<ExecSpace>(
     cellCount,
@@ -328,27 +328,27 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DT
   return sorCurveOut;
 }
 
-bool FSorClipper::getGeometryAsOcts(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
+bool FSorClipper::getGeometryAsOcts(quest::experimental::ShapeMesh& shapeMesh, axom::Array<OctahedronType>& octs)
 {
   AXOM_ANNOTATE_SCOPE("FSorClipper::getGeometryAsOcts");
-  switch(shapeeMesh.getRuntimePolicy())
+  switch(shapeMesh.getRuntimePolicy())
   {
   case axom::runtime_policy::Policy::seq:
-    getGeometryAsOctsImpl<axom::SEQ_EXEC>(shapeeMesh, octs);
+    getGeometryAsOctsImpl<axom::SEQ_EXEC>(shapeMesh, octs);
     break;
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case axom::runtime_policy::Policy::omp:
-    getGeometryAsOctsImpl<axom::OMP_EXEC>(shapeeMesh, octs);
+    getGeometryAsOctsImpl<axom::OMP_EXEC>(shapeMesh, octs);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case axom::runtime_policy::Policy::cuda:
-    getGeometryAsOctsImpl<axom::CUDA_EXEC<256>>(shapeeMesh, octs);
+    getGeometryAsOctsImpl<axom::CUDA_EXEC<256>>(shapeMesh, octs);
     break;
 #endif
 #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   case axom::runtime_policy::Policy::hip:
-    getGeometryAsOctsImpl<axom::HIP_EXEC<256>>(shapeeMesh, octs);
+    getGeometryAsOctsImpl<axom::HIP_EXEC<256>>(shapeMesh, octs);
     break;
 #endif
   default:
@@ -360,14 +360,14 @@ bool FSorClipper::getGeometryAsOcts(quest::experimental::ShapeeMesh& shapeeMesh,
 /*
   Compute octahedral geometry representation, with an execution policy.
 
-  Side effect: m_sorCurve data is reallocated to the shapeeMesh allocator,
+  Side effect: m_sorCurve data is reallocated to the shapeMesh allocator,
   if it's not there yet.
 */
 template <typename ExecSpace>
-bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeeMesh& shapeeMesh,
+bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeMesh& shapeMesh,
                                         axom::Array<OctahedronType>& octs)
 {
-  const int allocId = shapeeMesh.getAllocatorID();
+  const int allocId = shapeMesh.getAllocatorID();
   octs = axom::Array<OctahedronType>(0, 0, allocId);
 
   // Generate the Octahedra

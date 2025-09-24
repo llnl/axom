@@ -19,9 +19,9 @@ namespace quest
 namespace experimental
 {
 
-MeshClipper::MeshClipper(quest::experimental::ShapeeMesh& shapeeMesh,
+MeshClipper::MeshClipper(quest::experimental::ShapeMesh& shapeMesh,
                          const std::shared_ptr<quest::experimental::MeshClipperStrategy>& strategy)
-  : m_shapeeMesh(shapeeMesh)
+  : m_shapeMesh(shapeMesh)
   , m_strategy(strategy)
   , m_impl(newImpl())
   , m_verbose(false)
@@ -29,8 +29,8 @@ MeshClipper::MeshClipper(quest::experimental::ShapeeMesh& shapeeMesh,
 
 void MeshClipper::clip(axom::Array<double>& ovlap)
 {
-  const int allocId = m_shapeeMesh.getAllocatorID();
-  const axom::IndexType cellCount = m_shapeeMesh.getCellCount();
+  const int allocId = m_shapeMesh.getAllocatorID();
+  const axom::IndexType cellCount = m_shapeMesh.getCellCount();
 
   // Resize output array and use appropriate allocator.
   if(ovlap.size() < cellCount || ovlap.getAllocatorID() != allocId)
@@ -54,23 +54,23 @@ void MeshClipper::clip(axom::Array<double>& ovlap)
  */
 void MeshClipper::clip(axom::ArrayView<double> ovlap)
 {
-  const int allocId = m_shapeeMesh.getAllocatorID();
-  const axom::IndexType cellCount = m_shapeeMesh.getCellCount();
+  const int allocId = m_shapeMesh.getAllocatorID();
+  const axom::IndexType cellCount = m_shapeMesh.getCellCount();
   SLIC_ASSERT(ovlap.size() == cellCount);
 
   // Try to label cells as inside, outside or on shape boundary
   axom::Array<char> cellLabels;
-  bool withCellInOut = m_strategy->labelCellsInOut(m_shapeeMesh, cellLabels);
+  bool withCellInOut = m_strategy->labelCellsInOut(m_shapeMesh, cellLabels);
 
   bool done = false;
 
   if(withCellInOut)
   {
     SLIC_ERROR_IF(
-      cellLabels.size() != m_shapeeMesh.getCellCount(),
+      cellLabels.size() != m_shapeMesh.getCellCount(),
       axom::fmt::format("MeshClipperStrategy '{}' did not return the correct array size of {}",
                         m_strategy->name(),
-                        m_shapeeMesh.getCellCount()));
+                        m_shapeMesh.getCellCount()));
     SLIC_ERROR_IF(cellLabels.getAllocatorID() != allocId,
                   axom::fmt::format("MeshClipperStrategy '{}' failed to provide cellLabels data "
                                     "with the required allocator id {}",
@@ -90,7 +90,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
     m_impl->collectOnIndices(cellLabels.view(), cellsOnBdry);
 
     axom::Array<char> tetLabels;
-    bool withTetInOut = m_strategy->labelTetsInOut(m_shapeeMesh, cellsOnBdry.view(), tetLabels);
+    bool withTetInOut = m_strategy->labelTetsInOut(m_shapeMesh, cellsOnBdry.view(), tetLabels);
 
     axom::Array<axom::IndexType> tetsOnBdry;
 
@@ -103,7 +103,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
       m_impl->collectOnIndices(tetLabels.view(), tetsOnBdry);
       m_impl->remapTetIndices(tetsOnBdry, cellsOnBdry);
 
-      SLIC_ASSERT(tetsOnBdry.getAllocatorID() == m_shapeeMesh.getAllocatorID());
+      SLIC_ASSERT(tetsOnBdry.getAllocatorID() == m_shapeMesh.getAllocatorID());
       SLIC_ASSERT(tetsOnBdry.size() <= cellsOnBdry.size() * TETS_PER_HEXAHEDRON);
 
       m_impl->addVolumesOfInteriorTets(cellsOnBdry.view(), tetLabels.view(), ovlap);
@@ -116,11 +116,11 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
     //
     if(withTetInOut)
     {
-      done = m_strategy->specializedClipTets(m_shapeeMesh, ovlap, tetsOnBdry);
+      done = m_strategy->specializedClipTets(m_shapeMesh, ovlap, tetsOnBdry);
     }
     else
     {
-      done = m_strategy->specializedClipCells(m_shapeeMesh, ovlap, cellsOnBdry);
+      done = m_strategy->specializedClipCells(m_shapeMesh, ovlap, cellsOnBdry);
     }
 
     if(!done)
@@ -145,7 +145,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
                         m_strategy->name());
     SLIC_INFO(msg);
     m_impl->initVolumeOverlaps(ovlap);
-    done = m_strategy->specializedClipCells(m_shapeeMesh, ovlap);
+    done = m_strategy->specializedClipCells(m_shapeMesh, ovlap);
 
     if(!done)
     {
@@ -165,7 +165,7 @@ std::unique_ptr<MeshClipper::Impl> MeshClipper::newImpl()
 {
   using RuntimePolicy = axom::runtime_policy::Policy;
 
-  auto runtimePolicy = m_shapeeMesh.getRuntimePolicy();
+  auto runtimePolicy = m_shapeMesh.getRuntimePolicy();
 
   std::unique_ptr<Impl> impl;
   if(runtimePolicy == RuntimePolicy::seq)
@@ -202,7 +202,7 @@ void MeshClipper::logLabelStats(axom::ArrayView<const LabelType> labels, const s
   axom::IndexType countsa[4];
   axom::IndexType countsb[4];
   getLabelCounts(labels, countsa[0], countsa[1], countsa[2]);
-  countsa[3] = m_shapeeMesh.getCellCount();
+  countsa[3] = m_shapeMesh.getCellCount();
 #ifdef AXOM_USE_MPI
   MPI_Reduce(countsa, countsb, 4, axom::mpi_traits<axom::IndexType>::type, MPI_SUM, 0, MPI_COMM_WORLD);
 #endif
