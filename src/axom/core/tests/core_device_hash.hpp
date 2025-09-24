@@ -206,7 +206,9 @@ struct DeviceHash<axom_testing::UserVector<T>>
     // Copy byte representation over
     constexpr int NWORDS = sizeof(axom_testing::UserVector<T>) / sizeof(int);
     alignas(axom_testing::UserVector<T>) int bytes[NWORDS];
-    *reinterpret_cast<axom_testing::UserVector<T> *>(bytes) = value;
+    // NOTE: separating these statements fixes a warning about strict-aliasing.
+    auto ptr = reinterpret_cast<axom_testing::UserVector<T> *>(bytes);
+    *ptr = value;
 
     axom::IndexType hash_result {};
     for(int i = 0; i < NWORDS; i++)

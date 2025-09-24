@@ -1002,7 +1002,7 @@ protected:
       reportErrors(__LINE__);
   }
 
-  void reportErrors(int srcLine) const
+  void reportErrors([[maybe_unused]] int srcLine) const
   {
 #if defined(AXOM_USE_HIP)
     // TODO: Replace direct HIP calls with upcoming Camp+RAJA error reporting.
