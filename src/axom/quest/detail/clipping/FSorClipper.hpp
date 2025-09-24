@@ -55,9 +55,9 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelCellsInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
-  bool getGeometryAsOcts(quest::ShapeeMesh& shappeMesh, axom::Array<OctahedronType>& octs) override;
+  bool getGeometryAsOcts(quest::experimental::ShapeeMesh& shappeMesh, axom::Array<OctahedronType>& octs) override;
 
   axom::ArrayView<const Point2DType> getSorCurve() const { return m_sorCurve.view(); }
 
@@ -147,7 +147,7 @@ private:
   axom::primal::experimental::CoordinateTransformer<double> m_inverseTransformer;
 
   template <typename ExecSpace>
-  void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+  void labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
   // Extract clipper info from MeshClipperStrategy::m_info.
   void extractClipperInfo();
@@ -165,7 +165,7 @@ private:
 
   //!@brief Compute geometry as octs, by policy.
   template <typename ExecSpace>
-  bool getGeometryAsOctsImpl(quest::ShapeeMesh& shappeMesh, axom::Array<OctahedronType>& octs);
+  bool getGeometryAsOctsImpl(quest::experimental::ShapeeMesh& shappeMesh, axom::Array<OctahedronType>& octs);
 };
 
 }  // namespace experimental

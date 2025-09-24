@@ -36,7 +36,7 @@ TetMeshClipper::TetMeshClipper(const klee::Geometry& kGeom, const std::string& n
   computeTets();
 }
 
-bool TetMeshClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool TetMeshClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_UNUSED_VAR(shapeeMesh);
   AXOM_UNUSED_VAR(labels);
@@ -89,7 +89,7 @@ bool TetMeshClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<
  *     If count is odd, hex is IN, if even, OUT.
 */
 template <typename ExecSpace>
-void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   int allocId = shapeeMesh.getAllocatorID();
   auto cellCount = shapeeMesh.getCellCount();
@@ -257,7 +257,7 @@ void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Ar
  * If needed, we can implement edge-tet detection for TetMeshClipper.
 */
 template <typename ExecSpace>
-void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void TetMeshClipper::labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   int allocId = shapeeMesh.getAllocatorID();
   auto vertCount = shapeeMesh.getVertexCount();
@@ -330,7 +330,7 @@ void TetMeshClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Ar
  * Otherwise, label it on boundary, because we don't know.
 */
 template <typename ExecSpace>
-void TetMeshClipper::vertexInsideToCellLabel(quest::ShapeeMesh& shapeeMesh,
+void TetMeshClipper::vertexInsideToCellLabel(quest::experimental::ShapeeMesh& shapeeMesh,
                                              axom::ArrayView<bool>& vertIsInside,
                                              axom::Array<LabelType>& labels)
 {
@@ -368,7 +368,7 @@ void TetMeshClipper::vertexInsideToCellLabel(quest::ShapeeMesh& shapeeMesh,
   return;
 }
 
-bool TetMeshClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh,
+bool TetMeshClipper::getGeometryAsTets(quest::experimental::ShapeeMesh& shapeeMesh,
                                        axom::Array<TetrahedronType>& tets)
 {
   AXOM_ANNOTATE_SCOPE("TetMeshClipper::getGeometryAsTets");

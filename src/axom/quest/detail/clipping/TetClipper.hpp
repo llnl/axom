@@ -36,13 +36,13 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelCellsInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
-  bool labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
+  bool labelTetsInOut(quest::experimental::ShapeeMesh& shapeeMesh,
                       axom::ArrayView<const axom::IndexType> cellsOnBdry,
                       axom::Array<LabelType>& tetLabels) override;
 
-  bool getGeometryAsTets(quest::ShapeeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
+  bool getGeometryAsTets(quest::experimental::ShapeeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
 
 #if !defined(__CUDACC__)
 private:
@@ -66,10 +66,10 @@ private:
   axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
-  void labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+  void labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
   template <typename ExecSpace>
-  void labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
+  void labelTetsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh,
                           axom::ArrayView<const axom::IndexType> cellsOnBdry,
                           axom::Array<LabelType>& tetLabels);
 

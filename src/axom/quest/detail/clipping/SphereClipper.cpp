@@ -25,7 +25,7 @@ SphereClipper::SphereClipper(const klee::Geometry& kGeom, const std::string& nam
   transformSphere();
 }
 
-bool SphereClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool SphereClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_ANNOTATE_SCOPE("SphereClipper::labelCellsInOut");
   switch(shapeeMesh.getRuntimePolicy())
@@ -55,7 +55,7 @@ bool SphereClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<L
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelCellsInOutImplOld(quest::ShapeeMesh& shapeeMesh,
+void SphereClipper::labelCellsInOutImplOld(quest::experimental::ShapeeMesh& shapeeMesh,
                                            axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
@@ -188,7 +188,7 @@ void SphereClipper::labelCellsInOutImplOld(quest::ShapeeMesh& shapeeMesh,
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void SphereClipper::labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "SphereClipper requires a 3D mesh.");
 
@@ -278,7 +278,7 @@ void SphereClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Arr
   return;
 }
 
-bool SphereClipper::labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
+bool SphereClipper::labelTetsInOut(quest::experimental::ShapeeMesh& shapeeMesh,
                                    axom::ArrayView<const axom::IndexType> cellIds,
                                    axom::Array<LabelType>& tetLabels)
 {
@@ -310,7 +310,7 @@ bool SphereClipper::labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
 }
 
 template <typename ExecSpace>
-void SphereClipper::labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
+void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh,
                                        axom::ArrayView<const axom::IndexType> cellIds,
                                        axom::Array<LabelType>& tetLabels)
 {
@@ -398,7 +398,7 @@ void SphereClipper::labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
 /*
   TODO: If possible: Port to GPU.  Will need to rewrite quest/Discretize.[ch]pp.
 */
-bool SphereClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh,
+bool SphereClipper::getGeometryAsOcts(quest::experimental::ShapeeMesh& shapeeMesh,
                                       axom::Array<axom::primal::Octahedron<double, 3>>& octs)
 {
   AXOM_ANNOTATE_SCOPE("SphereClipper::getGeometryAsOcts");

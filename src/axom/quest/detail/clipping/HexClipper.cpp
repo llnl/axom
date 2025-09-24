@@ -36,7 +36,7 @@ HexClipper::HexClipper(const klee::Geometry& kGeom, const std::string& name)
   computeSurface();
 }
 
-bool HexClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool HexClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_ANNOTATE_SCOPE("HexClipper::labelCellsInOut");
   switch(shapeeMesh.getRuntimePolicy())
@@ -66,7 +66,7 @@ bool HexClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
 }
 
 template <typename ExecSpace>
-void HexClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void HexClipper::labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "HexClipper requires a 3D mesh.");
 
@@ -140,7 +140,7 @@ void HexClipper::labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<
   return;
 }
 
-bool HexClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
+bool HexClipper::getGeometryAsTets(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
 {
   AXOM_ANNOTATE_SCOPE("HexClipper::getGeometryAsTets");
   int allocId = shapeeMesh.getAllocatorID();

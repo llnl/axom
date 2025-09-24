@@ -164,7 +164,7 @@ public:
    * @post labels.size() == shapeeMesh.getCellCount()
    * @post labels.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& cellLabels)
+  virtual bool labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& cellLabels)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(cellLabels);
@@ -191,7 +191,7 @@ public:
    * @post \c tetLabels should have \c TETS_PER_HEXAHEDRON labels
    * for each index in \c cellIds.
   */
-  virtual bool labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
+  virtual bool labelTetsInOut(quest::experimental::ShapeeMesh& shapeeMesh,
                               axom::ArrayView<const axom::IndexType> cellIds,
                               axom::Array<LabelType>& tetLabels)
   {
@@ -225,7 +225,7 @@ public:
    * @post ovlap.size() == shapeeMesh.getCellCount()
    * @post ovlap.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool specializedClipCells(quest::ShapeeMesh& shapeeMesh, axom::ArrayView<double> ovlap)
+  virtual bool specializedClipCells(quest::experimental::ShapeeMesh& shapeeMesh, axom::ArrayView<double> ovlap)
   {
     AXOM_UNUSED_VAR(shapeeMesh);
     AXOM_UNUSED_VAR(ovlap);
@@ -261,7 +261,7 @@ public:
    * @post ovlap.size() == shapeeMesh.getCellCount()
    * @post ovlap.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool specializedClipCells(quest::ShapeeMesh& shapeeMesh,
+  virtual bool specializedClipCells(quest::experimental::ShapeeMesh& shapeeMesh,
                                     axom::ArrayView<double> ovlap,
                                     const axom::ArrayView<IndexType>& cellIds)
   {
@@ -283,7 +283,7 @@ public:
    * \c tetIds[i]/TETS_PER_HEXAHEDRON.  Its overlap volume should be added
    * to that cell.
    */
-  virtual bool specializedClipTets(quest::ShapeeMesh& shapeeMesh,
+  virtual bool specializedClipTets(quest::experimental::ShapeeMesh& shapeeMesh,
                                    axom::ArrayView<double> ovlap,
                                    const axom::ArrayView<IndexType>& tetIds)
   {
@@ -308,7 +308,7 @@ public:
    * post-conditions hold:
    * @post tets.getAllocatorID() == shapeeMesh.getAllocatorId()
   */
-  virtual bool getGeometryAsTets(quest::ShapeeMesh& shapeeMesh,
+  virtual bool getGeometryAsTets(quest::experimental::ShapeeMesh& shapeeMesh,
                                  axom::Array<TetrahedronType>& tets)
 
   {
@@ -332,7 +332,7 @@ public:
    * post-conditions hold:
    * @post octs.getAllocatorID() == shapeeMesh.getAllocatorId()
    */
-  virtual bool getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh,
+  virtual bool getGeometryAsOcts(quest::experimental::ShapeeMesh& shapeeMesh,
                                  axom::Array<OctahedronType>& octs)
   {
     AXOM_UNUSED_VAR(shapeeMesh);

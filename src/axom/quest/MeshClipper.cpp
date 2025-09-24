@@ -19,7 +19,7 @@ namespace quest
 namespace experimental
 {
 
-MeshClipper::MeshClipper(quest::ShapeeMesh& shapeeMesh,
+MeshClipper::MeshClipper(quest::experimental::ShapeeMesh& shapeeMesh,
                          const std::shared_ptr<quest::experimental::MeshClipperStrategy>& strategy)
   : m_shapeeMesh(shapeeMesh)
   , m_strategy(strategy)

@@ -36,13 +36,13 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelCellsInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
-  bool labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
+  bool labelTetsInOut(quest::experimental::ShapeeMesh& shapeeMesh,
                       axom::ArrayView<const axom::IndexType> cellIds,
                       axom::Array<LabelType>& tetLabels) override;
 
-  bool getGeometryAsOcts(quest::ShapeeMesh& shappeMesh,
+  bool getGeometryAsOcts(quest::experimental::ShapeeMesh& shappeMesh,
                          axom::Array<axom::primal::Octahedron<double, 3>>& octs) override;
 
 #if !defined(__CUDACC__)
@@ -62,12 +62,12 @@ private:
   int m_levelOfRefinement;
 
   template <typename ExecSpace>
-  void labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+  void labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
   template <typename ExecSpace>
-  void labelCellsInOutImplOld(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+  void labelCellsInOutImplOld(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
   template <typename ExecSpace>
-  void labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
+  void labelTetsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh,
                           axom::ArrayView<const axom::IndexType> cellIds,
                           axom::Array<LabelType>& tetLabels);
 

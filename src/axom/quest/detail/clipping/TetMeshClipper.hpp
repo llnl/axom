@@ -42,9 +42,9 @@ public:
 
   const std::string& name() const override { return m_name; }
 
-  bool labelCellsInOut(quest::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
+  bool labelCellsInOut(quest::experimental::ShapeeMesh& shappeMesh, axom::Array<char>& label) override;
 
-  bool getGeometryAsTets(quest::ShapeeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
+  bool getGeometryAsTets(quest::experimental::ShapeeMesh& shappeMesh, axom::Array<TetrahedronType>& tets) override;
 
 #if !defined(__CUDACC__)
 private:
@@ -72,10 +72,10 @@ private:
   axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   template <typename ExecSpace>
-  void labelCellsInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
+  void labelCellsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<char>& label);
 
   template <typename ExecSpace>
-  void vertexInsideToCellLabel(quest::ShapeeMesh& shapeeMesh,
+  void vertexInsideToCellLabel(quest::experimental::ShapeeMesh& shapeeMesh,
                                axom::ArrayView<bool>& vertIsInside,
                                axom::Array<LabelType>& labels);
 

@@ -58,7 +58,7 @@ SorClipper::SorClipper(const klee::Geometry& kGeom, const std::string& name)
   }
 }
 
-bool SorClipper::specializedClipCells(quest::ShapeeMesh& shapeeMesh, axom::ArrayView<double> ovlap)
+bool SorClipper::specializedClipCells(quest::experimental::ShapeeMesh& shapeeMesh, axom::ArrayView<double> ovlap)
 {
   AXOM_ANNOTATE_SCOPE("SorClipper::specializedClipCells");
   /*

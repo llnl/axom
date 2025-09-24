@@ -21,7 +21,7 @@ Plane3DClipper::Plane3DClipper(const klee::Geometry& kGeom, const std::string& n
   extractClipperInfo();
 }
 
-bool Plane3DClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool Plane3DClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_ANNOTATE_SCOPE("Plane3DClipper::labelCellsInOut");
   switch(shapeeMesh.getRuntimePolicy())
@@ -50,7 +50,7 @@ bool Plane3DClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<
   return true;
 }
 
-bool Plane3DClipper::specializedClipCells(quest::ShapeeMesh& shapeeMesh,
+bool Plane3DClipper::specializedClipCells(quest::experimental::ShapeeMesh& shapeeMesh,
                                           axom::ArrayView<double> ovlap,
                                           const axom::ArrayView<IndexType>& cellIds)
 {
@@ -82,7 +82,7 @@ bool Plane3DClipper::specializedClipCells(quest::ShapeeMesh& shapeeMesh,
 }
 
 template <typename ExecSpace>
-void Plane3DClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void Plane3DClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "Plane3DClipper requires a 3D mesh.");
 
@@ -149,7 +149,7 @@ void Plane3DClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<L
 }
 
 template <typename ExecSpace>
-void Plane3DClipper::specializedClipImpl(quest::ShapeeMesh& shapeeMesh,
+void Plane3DClipper::specializedClipImpl(quest::experimental::ShapeeMesh& shapeeMesh,
                                          axom::ArrayView<double>& ovlap,
                                          const axom::ArrayView<IndexType>& cellIds)
 {

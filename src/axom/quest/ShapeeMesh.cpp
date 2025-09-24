@@ -16,6 +16,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
 static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT64_ID;
 #else
@@ -911,5 +913,6 @@ conduit::Node& ShapeeMesh::getMeshConduitPath(conduit::Node& node,
   return *rval;
 }
 
+}  // end namespace experimental
 }  // end namespace quest
 }  // end namespace axom

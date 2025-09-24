@@ -50,7 +50,7 @@ public:
    * @c bpMesh must be an unstructured hex mesh.
    * That is the only type currently supported.
    */
-  MeshClipper(quest::ShapeeMesh& shapeeMesh, const std::shared_ptr<MeshClipperStrategy>& strategy);
+  MeshClipper(quest::experimental::ShapeeMesh& shapeeMesh, const std::shared_ptr<MeshClipperStrategy>& strategy);
 
   //!@brief The mesh.
   ShapeeMesh& getShapeeMesh() { return m_shapeeMesh; }
@@ -158,7 +158,7 @@ public:
 private:
   friend Impl;
 
-  quest::ShapeeMesh& m_shapeeMesh;
+  quest::experimental::ShapeeMesh& m_shapeeMesh;
 
   //! @brief Shape-specific operations in clipping.
   std::shared_ptr<quest::experimental::MeshClipperStrategy> m_strategy;

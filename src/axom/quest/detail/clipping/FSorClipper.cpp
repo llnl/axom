@@ -103,7 +103,7 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
   }
 }
 
-bool FSorClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool FSorClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_ANNOTATE_SCOPE("FSorClipper::labelCellsInOut");
   switch(shapeeMesh.getRuntimePolicy())
@@ -138,7 +138,7 @@ bool FSorClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<Lab
  * determine whether the point is in the sor that way.
 */
 template <typename ExecSpace>
-void FSorClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void FSorClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "FSorClipper requires a 3D mesh.");
 
@@ -328,7 +328,7 @@ Array<FSorClipper::Point2DType> FSorClipper::subdivideCurve(const Array<Point2DT
   return sorCurveOut;
 }
 
-bool FSorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
+bool FSorClipper::getGeometryAsOcts(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<OctahedronType>& octs)
 {
   AXOM_ANNOTATE_SCOPE("FSorClipper::getGeometryAsOcts");
   switch(shapeeMesh.getRuntimePolicy())
@@ -364,7 +364,7 @@ bool FSorClipper::getGeometryAsOcts(quest::ShapeeMesh& shapeeMesh, axom::Array<O
   if it's not there yet.
 */
 template <typename ExecSpace>
-bool FSorClipper::getGeometryAsOctsImpl(quest::ShapeeMesh& shapeeMesh,
+bool FSorClipper::getGeometryAsOctsImpl(quest::experimental::ShapeeMesh& shapeeMesh,
                                         axom::Array<OctahedronType>& octs)
 {
   const int allocId = shapeeMesh.getAllocatorID();

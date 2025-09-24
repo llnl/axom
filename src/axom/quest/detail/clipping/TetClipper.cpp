@@ -48,7 +48,7 @@ TetClipper::TetClipper(const klee::Geometry& kGeom, const std::string& name)
   }
 }
 
-bool TetClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+bool TetClipper::labelCellsInOut(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   AXOM_ANNOTATE_SCOPE("TetClipper::labelCellsInOut");
   switch(shapeeMesh.getRuntimePolicy())
@@ -78,7 +78,7 @@ bool TetClipper::labelCellsInOut(quest::ShapeeMesh& shapeeMesh, axom::Array<Labe
 }
 
 template <typename ExecSpace>
-void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
+void TetClipper::labelInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<LabelType>& labels)
 {
   SLIC_ERROR_IF(shapeeMesh.dimension() != 3, "TetClipper requires a 3D mesh.");
   /*
@@ -183,7 +183,7 @@ void TetClipper::labelInOutImpl(quest::ShapeeMesh& shapeeMesh, axom::Array<Label
   return;
 }
 
-bool TetClipper::labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
+bool TetClipper::labelTetsInOut(quest::experimental::ShapeeMesh& shapeeMesh,
                                 axom::ArrayView<const axom::IndexType> cellsOnBdry,
                                 axom::Array<LabelType>& tetLabels)
 {
@@ -215,7 +215,7 @@ bool TetClipper::labelTetsInOut(quest::ShapeeMesh& shapeeMesh,
 }
 
 template <typename ExecSpace>
-void TetClipper::labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
+void TetClipper::labelTetsInOutImpl(quest::experimental::ShapeeMesh& shapeeMesh,
                                     axom::ArrayView<const axom::IndexType> cellsOnBdry,
                                     axom::Array<LabelType>& tetLabels)
 {
@@ -305,7 +305,7 @@ void TetClipper::labelTetsInOutImpl(quest::ShapeeMesh& shapeeMesh,
   return;
 }
 
-bool TetClipper::getGeometryAsTets(quest::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
+bool TetClipper::getGeometryAsTets(quest::experimental::ShapeeMesh& shapeeMesh, axom::Array<TetrahedronType>& tets)
 {
   AXOM_ANNOTATE_SCOPE("TetClipper::getGeometryAsTets");
   int allocId = shapeeMesh.getAllocatorID();

@@ -27,6 +27,8 @@ namespace axom
 {
 namespace quest
 {
+namespace experimental
+{
 
 /*!
  * @brief Computational mesh and intermediate data typically used in shaping.
@@ -316,6 +318,7 @@ public:
                                     const conduit::DataType& dtype);
 };
 
+}  // namespace experimental
 }  // namespace quest
 }  // namespace axom
 
