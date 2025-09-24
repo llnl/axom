@@ -259,10 +259,10 @@ bool ShapeeMesh::isValidForShaping(std::string& whyNot) const
 
   /*
    * Check Blueprint-validity.
-   *  Conduit's verify should work even if m_bpNodeExt has array data on
-   *  devices.  The verification doesn't dereference array data.
-   *  If this changes in the future, this code must adapt.
-  */
+   * Conduit's verify should work even if m_bpNodeExt has array data on
+   * devices.  The verification doesn't dereference array data.
+   * If this changes in the future, this code must adapt.
+   */
   conduit::Node info;
   rval = conduit::blueprint::mesh::verify(bpMesh, info);
 
@@ -877,9 +877,6 @@ conduit::Node& ShapeeMesh::getMeshConduitPath(conduit::Node& node,
   {
     node.set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(m_allocId));
     rval = &node.fetch(path);
-    // Surprisingly, this fails:
-    // SLIC_ASSERT(rval->allocator() == node.allocator());
-    // We therefore have to set rval's allocator manually.
     rval->set_allocator(sidre::ConduitMemory::axomAllocIdToConduit(m_allocId));
     rval->set(dtype);
   }

@@ -30,14 +30,17 @@ namespace quest
 
 /*!
  * @brief Computational mesh and intermediate data typically used in shaping.
-
- * The purpose of this class is to encapsulate mesh-dependent data and
- * avoid redundant work.  Also to provide some convenience tools typically
- * used in shaping.
-
- * The mesh must have an unstructured 3D hex topology.  That is the only
- * topology currently supported.  It can be extended to support 2D.
-
+ *
+ * This wrapper class:
+ * - encapsulate mesh-dependent data
+ * - provide a common interface to mesh data regardless of the mesh format
+ * - avoid redundant work
+ * - provides some convenience tools typically used in shaping
+ *
+ * The wrapped mesh must have an unstructured 3D hex topology.  That
+ * is the only topology currently supported.  It can be extended to
+ * support 2D.
+ *
  * TODO: Support MFEM mesh.  First pass only supports blueprint.
 */
 class ShapeeMesh
@@ -51,32 +54,24 @@ public:
 
   /*!
    * @brief Constructor with computational mesh in a conduit::Node.
-
-   * @param [in] runtimePolicy
+   *
+   * @param [in] runtimePolicy The run-time policy used for computations
    * @param [in] allocatorId Allocator id for internal and scratch space.
    *   It should be compatible with @c runtimePolicy.
    *   If axom::INVALID_ALLOCATOR_ID is specified, it will be
    *   replaced with the default allocator for @c runtimePolicy.
+   *   For good performance, especially on GPUs, fast memory pools
+   *   should be used.
    * @param [in/out] bpMesh Blueprint mesh to shape into.
    * @param [in] topoName Name of the Blueprint topology.  If empty,
    *   use the first topology in @c bpMesh.
    * @param [in] matsetName Name of the Blueprint material set.
    *   If empty, use the first material set in @c bpMesh.
-
-   * It is an error if allocator id is not usable with the runtime policy.
-   * If @c allocatorId is axom::INVALID_ALLOCATOR_ID, the default
-   * allocator for the runtime policy will be used.  For performant
-   * results, especially on GPUs, fast memory pools should be used.
-
+   *
    * Incoming mesh array data are assumed to be accessible by the
    * runtime policy, or an error will result.  (However the data need
    * not correspond to the allocator id.)
-
-   * Because @c conduit::Node doesn't support application-specified
-   * allocator id for (only) arrays, the incoming @c bpNode must have
-   * all arrays pre-allocated in a space accessible by the runtime
-   * policy.  Any needed-but-missing space would lead to an exception.
-  */
+   */
   ShapeeMesh(RuntimePolicy runtimePolicy,
              int allocatorId,
              conduit::Node& bpMesh,
@@ -87,20 +82,22 @@ public:
   /*!
    * @brief Constructor with computational mesh in a sidre::Group.
 
-   * @param [in] runtimePolicy
+   * @param [in] runtimePolicy The run-time policy used for computations
    * @param [in] allocatorId Allocator id for internal and scratch space.
+   *   It should be compatible with @c runtimePolicy.
+   *   If axom::INVALID_ALLOCATOR_ID is specified, it will be
+   *   replaced with the default allocator for @c runtimePolicy.
+   *   For good performance, especially on GPUs, fast memory pools
+   *   should be used.
    * @param [in/out] bpMesh Blueprint mesh to shape into.
    * @param [in] topoName Name of the Blueprint topology.  If empty,
    *   use the first topology in @c bpMesh.
    * @param [in] matsetName Name of the Blueprint material set.
    *   If empty, use the first material set in @c bpMesh.
-
-   * It is an error if allocator id is not usable with the runtime policy.
-   * If @c allocatorId is axom::INVALID_ALLOCATOR_ID, the default
-   * allocator for the runtime policy will be used.
-
-   * Mesh array data are assumed to be accessible by the runtime policy,
-   * but they need not correspond to the allocator id.
+   *
+   * Incoming mesh array data are assumed to be accessible by the
+   * runtime policy, or an error will result.  (However the data need
+   * not correspond to the allocator id.)
   */
   ShapeeMesh(RuntimePolicy runtimePolicy,
              int allocatorId,
@@ -109,22 +106,14 @@ public:
              const std::string& matsetName = {});
 #endif
 
-  // TODO: Support other mesh forms: Blueprint Group, MFEM.
-
   /*!
    * @brief Runtime policy set in constructor.
-
-   * getAllocatorID() and getRuntimePolicy() are guaranteed to be
-   * compatible.
-  */
+   */
   RuntimePolicy getRuntimePolicy() const { return m_runtimePolicy; }
 
   /*!
    * @brief Allocator id set in constructor.
-
-   * getAllocatorID() and getRuntimePolicy() are guaranteed to be
-   * compatible.
-  */
+   */
   int getAllocatorID() const { return m_allocId; }
 
   /*
@@ -158,10 +147,10 @@ public:
    * This data is dynamically generated as needed, and cached for use
    * by multiple geometry clippers.  The idea is to eliminate redundant
    * code and computations.
-  */
+   */
   /*!
    * @brief Tetrahedral version of mesh cells with cell i having tet ids
-   * [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX].
+   * [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX).
   */
   axom::ArrayView<const TetrahedronType> getCellsAsTets();
   axom::ArrayView<const HexahedronType> getCellsAsHexes();
@@ -179,7 +168,7 @@ public:
   /*!
    * @brief Precompute (and cache) mesh-dependent intermediate data
    * that may be used in clipping.
-
+   *
    * Mesh-dependent data are computed as needed and cached, but this
    * computes them all at once.
   */
@@ -189,10 +178,7 @@ public:
   /*!
    * @brief Check whether mesh meets requirements for shaping.
    * @param whyNot [out] Diagnostic message if mesh is invalid.
-
-   * Note: The check is only performed on Blueprint meshes, not
-   * on MFEM meshes.
-  */
+   */
   bool isValidForShaping(std::string& whyNot) const;
 
   //@{
@@ -202,12 +188,12 @@ public:
    * @param volumes [in] Cell-centered volumes
    * @param isFraction [in] Whether @c volumes is actually
    *   volume fractions.
-
+   *
    * @pre volumes.size() == getCellCount()
    * @pre Mesh's matsets is multi-buffer, material-dominant
    * form (see https://llnl-conduit.readthedocs.io/en/latest/blueprint_mesh.html#material-sets).
    * Currently not supporting other matset forms.
-  */
+   */
   void setMatsetFromVolume(const std::string& materialName,
                            const axom::ArrayView<double>& volumes,
                            bool isFraction = false);
@@ -227,14 +213,14 @@ private:
   const std::string m_matsetName;
 
 #if defined(AXOM_USE_SIDRE)
-  //! @brief External computational mesh, when provided as a Group.
+  //! @brief External computational mesh, when mesh is provided as a Group.
   axom::sidre::Group* m_bpGrpExt;
 
   //! @brief Initial shallow copy of m_bpGrp in an internal Node storage.
   conduit::Node m_bpNodeInt;
 #endif
 
-  //! @brief External computational mesh, when provided as a Node.
+  //! @brief External computational mesh, when mesh is provided as a Node.
   conduit::Node* m_bpNodeExt {nullptr};
 
   //!@brief Dimension of mesh (2 or 3)
@@ -267,7 +253,7 @@ private:
   //!@brief Bounding boxes for m_cellsAsHexes.
   axom::Array<BoundingBox3DType> m_hexBbs;
 
-  //!@brief m_cellsAsHexes, of length 24*m_cellCount.
+  //!@brief Cells as TETS_PER_HEXAHEDRON*m_cellCount tets.
   axom::Array<TetrahedronType> m_cellsAsTets;
 
   void computeCellsAsHexes();
@@ -324,7 +310,7 @@ public:
    *
    * If the node holds array data, verify that the data is compatible
    * with m_runtimePolicy.
-  */
+   */
   conduit::Node& getMeshConduitPath(conduit::Node& node,
                                     const std::string& path,
                                     const conduit::DataType& dtype);

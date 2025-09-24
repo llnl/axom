@@ -19,7 +19,8 @@ namespace internal
 /*!
  * \brief Implementation of a GeometryOperatorVisitor for processing klee shape operators
  *
- * This class extracts the matrix form of supported operators and marks the operator as unvalid otherwise
+ * This class extracts the matrix form of supported operators.
+ * For other operators, it sets the valid flag to false.
  * To use, check the \a isValid() function after visiting and then call the \a getMatrix() function.
  */
 class AffineMatrixVisitor : public klee::GeometryOperatorVisitor
