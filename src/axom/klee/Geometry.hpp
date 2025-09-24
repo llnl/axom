@@ -174,12 +174,8 @@ public:
            std::shared_ptr<GeometryOperator const> operator_);
 
   /*!
-    @brief Geometry definition in hierarchical format.
-
-    This hierarchy should be reproducible from its Geometry object,
-    and an identical Geometry should be reconstructible from this
-    hierarchy.
-  */
+   * @brief Geometry definition in hierarchical format.
+   */
   const conduit::Node &asHierarchy() const { return m_geomInfo; }
 
   conduit::Node &asHierarchy() { return m_geomInfo; }
@@ -202,7 +198,7 @@ public:
    *
    * \return the format of the shape
    *
-   * TODO: Put all geometry-specific parameters in m_geomInfo, and
+   * \internal TODO: Put all geometry-specific parameters in m_geomInfo, and
    * deprecate geometry-specific interfaces, so new shapes can be added
    * without modifying this code.
    */
@@ -371,9 +367,10 @@ private:
   /*!
    * @brief Populate m_geomInfo with the geometry definition.
    *
-   * This helps transition away from geometry-specific constructors and
-   * methods like @c getTet(), @c getHex() and @c getSphere() and
-   * toward a uniform interface for providing geometry info.
+   * Representing geometries in m_geomInfo is a step away from
+   * geometry-specific constructors and methods like @c getTet(), @c
+   * getHex() and @c getSphere() and toward a uniform interface for
+   * providing geometry info.
    */
   void populateGeomInfo();
 };
