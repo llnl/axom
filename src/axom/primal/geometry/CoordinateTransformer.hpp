@@ -62,7 +62,7 @@ public:
    * @param matrix [in] The transformation matrix for homogeneous
    * coordinates.
    *
-   * The last row of \c matrix is presumed without checking to be \c [0,0,0,1].
+   * The last row of \c matrix must be be \c [0,0,0,1].
    */
   CoordinateTransformer(const numerics::Matrix<T>& matrix) { setMatrix(matrix); }
 
@@ -147,7 +147,7 @@ public:
   AXOM_HOST_DEVICE void setInvalid() { m_P[0][0] = std::numeric_limits<T>::quiet_NaN(); }
 
   //! @brief Whether transformer is valid.
-  AXOM_HOST_DEVICE void isValid() { return std::isnan(m_P[0][0]); }
+  AXOM_HOST_DEVICE void isValid() { return !std::isnan(m_P[0][0]); }
 
   /*!
    * @brief Get the matrix for the transformation.
