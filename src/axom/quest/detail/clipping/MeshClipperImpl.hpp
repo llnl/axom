@@ -77,10 +77,10 @@ public:
       hexCount,
       AXOM_LAMBDA(axom::IndexType ih) {
         const axom::IndexType hexId = cellsOnBdry[ih];
-        const LabelType* tetLabelsAtHex = &tetLabels[TETS_PER_HEXAHEDRON * ih];
+        const LabelType* tetLabelsForHex = &tetLabels[TETS_PER_HEXAHEDRON * ih];
         for(int it = 0; it < TETS_PER_HEXAHEDRON; ++it)
         {
-          if(tetLabelsAtHex[it] == MeshClipperStrategy::LABEL_IN)
+          if(tetLabelsForHex[it] == MeshClipperStrategy::LABEL_IN)
           {
             const axom::IndexType tetId = hexId * TETS_PER_HEXAHEDRON + it;
             const auto& tet = meshTets[tetId];
@@ -121,15 +121,14 @@ public:
     RAJA::inclusive_scan_inplace<ScanPolicy>(RAJA::make_span(tmpLabels.data(), tmpLabels.size()),
                                              RAJA::operators::plus<axom::IndexType> {});
 
-    axom::IndexType unlabeledCount;
-    axom::copy(&unlabeledCount, &tmpLabels.back(), sizeof(unlabeledCount));
+    axom::IndexType onCount; // Count of tets labeled ON.
+    axom::copy(&onCount, &tmpLabels.back(), sizeof(onCount));
 
-    // Re-allocate output if it's too small or has wrong allocator.
-    if(onIndices.size() < unlabeledCount || onIndices.getAllocatorID() != labels.getAllocatorID())
+    if(onIndices.size() < onCount || onIndices.getAllocatorID() != labels.getAllocatorID())
     {
       onIndices = axom::Array<axom::IndexType> {axom::ArrayOptions::Uninitialized(),
-                                                unlabeledCount,
-                                                unlabeledCount,
+                                                onCount,
+                                                onCount,
                                                 labels.getAllocatorID()};
     }
     auto onIndicesView = onIndices.view();
@@ -159,7 +158,7 @@ public:
     /*
      * cellsOnBdry is a list of cell indices.
      *
-     * Each cell has N = 24 tets.
+     * Each cell has TETS_PER_HEXAHEDRON.
      *
      * tetsOnBdry are a list of indices referring to the tets in those
      * cells.  N tets for each cell.  So the values in tetsOnBDry are
@@ -177,10 +176,10 @@ public:
       tetsOnBdry.size(),
       AXOM_LAMBDA(axom::IndexType i) {
         auto tetIdId = tetsOnBdry[i];
-        auto cellIdId = tetIdId / 24;
+        auto cellIdId = tetIdId / TETS_PER_HEXAHEDRON;
         auto cellId = cellsOnBdry[cellIdId];
-        auto tetIdInCell = tetIdId % 24;
-        auto tetId = cellId * 24 + tetIdInCell;
+        auto tetIdInCell = tetIdId % TETS_PER_HEXAHEDRON;
+        auto tetId = cellId * TETS_PER_HEXAHEDRON + tetIdInCell;
         tetsOnBdry[i] = tetId;
       });
   }
