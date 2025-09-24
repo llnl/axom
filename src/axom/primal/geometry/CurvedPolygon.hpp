@@ -21,6 +21,9 @@
 #include "axom/primal/geometry/NURBSCurve.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 
+// For NURBSCurveGWNCache objects
+#include "axom/primal/operators/detail/winding_number_3d_memoization.hpp"
+
 #include <vector>
 #include <ostream>
 
@@ -28,7 +31,9 @@ namespace axom
 {
 namespace primal
 {
-// Boilerplate to make the containers work as expected
+
+///@{
+/// \name Boilerplate to deduce the numeric type from the curve object
 template <typename U>
 struct get_numeric_type;
 
@@ -45,18 +50,22 @@ struct get_numeric_type<NURBSCurve<T, NDIMS>>
 };
 
 template <typename T>
-struct get_numeric_type<NURBSCurveGWNCache<T>>
+struct get_numeric_type<detail::NURBSCurveGWNCache<T>>
 {
   using type = T;
 };
+///@}
 
+///@{
+/// \name Boilerplate for a compile-time flag for the cached object
 template <typename U>
 struct has_cached_data : std::false_type
 { };
 
 template <typename T>
-struct has_cached_data<NURBSCurveGWNCache<T>> : std::true_type
+struct has_cached_data<detail::NURBSCurveGWNCache<T>> : std::true_type
 { };
+///@}
 
 // Forward declare the templated classes and operator functions
 template <typename CurveType>
@@ -152,7 +161,6 @@ public:
   }
 
   axom::Array<CurveType> getEdges() const { return m_edges; }
-
   /// @}
 
   /*! Retrieves the curve at index idx */
@@ -212,7 +220,7 @@ public:
     const int nEdges = numEdges();
 
     // initial basic check: no edges, or one edge or linear or quadratic order cannot be closed
-    if(nEdges < 1 || (nEdges == 1 && m_edges[0].getOrder() <= 2))
+    if(nEdges < 1 || (nEdges == 1 && m_edges[0].getNumControlPoints() <= 2))
     {
       return false;
     }
@@ -234,8 +242,9 @@ public:
   /// \brief Reverses orientation of a CurvedPolygon
   void reverseOrientation()
   {
-    AXOM_STATIC_ASSERT_MSG(!has_cached_data<CurveType>::value,
-                           "reverseOrientation cannot be called on objects with associated cache data");
+    AXOM_STATIC_ASSERT_MSG(
+      !has_cached_data<CurveType>::value,
+      "reverseOrientation cannot be called on objects with associated cache data");
 
     const int ngon = numEdges();
     const int mid = ngon >> 1;

@@ -221,6 +221,9 @@ public:
   /// Returns the order of the Bezier Curve
   int getOrder() const { return static_cast<int>(m_controlPoints.size()) - 1; }
 
+  /// Returns the number of control points of the Bezier Curve
+  int getNumControlPoints() const { return static_cast<int>(m_controlPoints.size()); }
+
   /// Clears the list of control points, make nonrational
   void clear()
   {

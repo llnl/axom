@@ -59,11 +59,31 @@ struct BezierCurveData
   auto isConvexControlPolygon() const { return m_isConvexControlPolygon; }
   auto getBoundingBox() const { return m_boundingBox; }
 
+  friend bool operator==(const BezierCurveData<T>& lhs, const BezierCurveData<T>& rhs)
+  {
+    // isConvexControlPolygon will be equal if the curves are
+    return (lhs.m_curve == rhs.m_curve) && (lhs.m_boundingBox == rhs.m_boundingBox) &&
+      (lhs.m_isConvexControlPolygon == rhs.m_isConvexControlPolygon);
+  }
+
+  friend bool operator!=(const BezierCurveData<T>& lhs, const BezierCurveData<T>& rhs)
+  {
+    return !(lhs == rhs);
+  }
+
 private:
   BezierCurve<T, 2> m_curve;
   bool m_isConvexControlPolygon;
   BoundingBox<T, 2> m_boundingBox;
 };
+
+// Forward declare the templated classes and operator functions
+template <typename T>
+class NURBSCurveGWNCache;
+
+/// \brief Overloaded output operator for Cached Curves
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const NURBSCurveGWNCache<T>& nCurveCache);
 
 /*!
  * \class NURBSCurveGWNCache
@@ -78,6 +98,11 @@ private:
 template <typename T>
 class NURBSCurveGWNCache
 {
+public:
+  using PointType = typename NURBSCurve<T, 2>::PointType;
+  using VectorType = typename NURBSCurve<T, 2>::VectorType;
+  using BoundingBoxType = typename NURBSCurve<T, 2>::BoundingBoxType;
+
 public:
   NURBSCurveGWNCache() = default;
 
@@ -167,6 +192,35 @@ public:
   auto getInitPoint() const { return m_initPoint; }
   auto getEndPoint() const { return m_endPoint; }
 
+  friend bool operator==(const NURBSCurveGWNCache<T>& lhs, const NURBSCurveGWNCache<T>& rhs)
+  {
+    // numControlPoints, degree, and numSpans will be equal if the subdivision maps are
+    return (lhs.m_bezierSubdivisionMaps == rhs.m_bezierSubdivisionMaps) &&
+      (lhs.m_boundingBox == rhs.m_boundingBox);
+  }
+
+  friend bool operator!=(const NURBSCurveGWNCache<T>& lhs, const NURBSCurveGWNCache<T>& rhs)
+  {
+    return !(lhs == rhs);
+  }
+
+  std::ostream& print(std::ostream& os) const
+  {
+    os << "{ NURBSCurveGWNCache object with " << m_numSpans << " extracted bezier curves: ";
+
+    if(m_numSpans >= 1)
+    {
+      os << m_bezierSubdivisionMaps[0][std::make_pair(0, 0)].getCurve();
+    }
+    for(int i = 1; i < m_numSpans; ++i)
+    {
+      os << ", " << m_bezierSubdivisionMaps[i][std::make_pair(0, 0)].getCurve();
+    }
+    os << "}";
+
+    return os;
+  }
+
 private:
   BoundingBox<T, 2> m_boundingBox;
   int m_numControlPoints;
@@ -177,6 +231,13 @@ private:
 
   mutable axom::Array<std::map<std::pair<int, int>, BezierCurveData<T>>> m_bezierSubdivisionMaps;
 };
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const NURBSCurveGWNCache<T>& nCurveCache)
+{
+  nCurveCache.print(os);
+  return os;
+}
 
 }  // namespace detail
 }  // namespace primal
