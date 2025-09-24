@@ -659,8 +659,6 @@ def get_specs_for_current_machine():
     else:
         specs = specs_json[sys_type]
 
-    specs = ['%' + spec for spec in specs]
-
     return specs
 
 
