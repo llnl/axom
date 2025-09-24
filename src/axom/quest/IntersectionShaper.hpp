@@ -2799,7 +2799,8 @@ public:
     // m_bpGrp->createNativeLayout(m_bpNodeInt);
 
     const conduit::Node& topoNode = m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_bpTopo);
-    const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
+    const conduit::Node& topoCoordsetNode = topoNode.fetch_existing("coordset");
+    const std::string coordsetName = topoCoordsetNode.as_string();
 
     // Assume unstructured and hexahedral
     SLIC_ERROR_IF(topoNode["type"].as_string() != "unstructured",
