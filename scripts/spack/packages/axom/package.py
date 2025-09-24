@@ -365,9 +365,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
 
             # Recommended MPI flags
             hip_link_flags += "-lxpmem "
-            hip_link_flags += "-L/opt/cray/pe/mpich/{0}/gtl/lib ".format(spec["mpi"].version)
+            hip_link_flags += "-L/opt/cray/pe/mpich/{0}/gtl/lib ".format(spec["mpi"].version.up_to(3))
             hip_link_flags += "-Wl,-rpath,/opt/cray/pe/mpich/{0}/gtl/lib ".format(
-                spec["mpi"].version
+                spec["mpi"].version.up_to(3)
             )
             hip_link_flags += "-lmpi_gtl_hsa "
 
