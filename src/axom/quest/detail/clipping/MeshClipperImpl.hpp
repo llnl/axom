@@ -3,8 +3,8 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
-#ifndef AXOM_GEOMETRYCLIPPERIMPL_HPP_
-#define AXOM_GEOMETRYCLIPPERIMPL_HPP_
+#ifndef AXOM_MESHCLIPPERIMPL_HPP_
+#define AXOM_MESHCLIPPERIMPL_HPP_
 
 #ifndef AXOM_USE_RAJA
   #error "quest::MeshClipper requires RAJA."
@@ -886,4 +886,4 @@ private:
 }  // end namespace quest
 }  // end namespace axom
 
-#endif  // AXOM_GEOMETRYCLIPPERIMPL_HPP_
+#endif  // AXOM_MESHCLIPPERIMPL_HPP_

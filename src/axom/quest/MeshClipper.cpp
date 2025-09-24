@@ -50,7 +50,7 @@ void MeshClipper::clip(axom::Array<double>& ovlap)
  *
  * Regardless of labling, try to use specialized clipping first.
  * If specialized methods aren't implemented, resort to discretizing
- * geomety into tets or octs for brute-force clipping.
+ * geomety into tets or octs for clipping against mesh cells.
  */
 void MeshClipper::clip(axom::ArrayView<double> ovlap)
 {
