@@ -14,38 +14,25 @@ spack:
     build_stage::
     - $spack/../build_stage
 
-  compilers::
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      # Axom example sidre_shocktube_F_ex doesn't link otherwise
-      flags:
-        cflags: -fPIC -pthread
-        cxxflags: -fPIC -pthread
-      modules: []
-      operating_system: ubuntu22.04
-      paths:
-        cc: /usr/bin/clang
-        cxx: /usr/bin/clang++
-        f77: /usr/bin/gfortran-11
-        fc: /usr/bin/gfortran-11
-      spec: clang@14.0.0
-      target: x86_64
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      flags:
-        cflags: -pthread
-        cxxflags: -pthread
-      modules: []
-      operating_system: ubuntu22.04
-      paths:
-        cc: /usr/bin/gcc
-        cxx: /usr/bin/g++
-        f77: /usr/bin/gfortran-13
-        fc: /usr/bin/gfortran-13
-      spec: gcc@13.1.0
-      target: x86_64
+  toolchains:
+    clang_19:
+    - spec: '%c=llvm'
+      when: '%c'
+    - spec: '%cxx=llvm'
+      when: '%cxx'
+    - spec: '%fortran=gcc'
+      when: '%fortran'
+    - spec: '%mpich'
+      when: '%mpi'
+    gcc_13:
+    - spec: '%c=gcc'
+      when: '%c'
+    - spec: '%cxx=gcc'
+      when: '%cxx'
+    - spec: '%fortran=gcc'
+      when: '%fortran'
+    - spec: '%mpich'
+      when: '%mpi'
 
   # Regular TPLs do not need views
   view: false
@@ -57,7 +44,6 @@ spack:
   packages:
     all:
       target: [x86_64]
-      compiler: [gcc, intel, pgi, clang, xl, nag]
       providers:
         awk: [gawk]
         blas: [openblas]
@@ -77,6 +63,32 @@ spack:
         szip: [libszip, libaec]
         tbb: [intel-tbb]
         jpeg: [libjpeg-turbo, libjpeg]
+
+    #Compiler packages
+    gcc:
+      externals:
+      - spec: gcc@13.3.1 languages:=c,c++,fortran
+        prefix: /usr/bin
+        extra_attributes:
+          compilers:
+            c: /usr/bin/gcc
+            cxx: /usr/bin/g++
+            fortran: /usr/bin/gfortran-13
+        flags:
+          cflags: -pthread
+          cxxflags: -pthread
+    llvm:
+      externals:
+      - spec: llvm@19.1.1+clang~lld~lldb
+        prefix: /usr/lib/llvm-19
+        extra_attributes:
+          compilers:
+            c: /usr/lib/llvm-19/bin/clang
+            cxx: /usr/lib/llvm-19/bin/clang++
+          # Axom example sidre_shocktube_F_ex doesn't link otherwise
+          flags:
+            cflags: -fPIC -pthread
+            cxxflags: -fPIC -pthread
 
     # Spack may grab for mpi & we don't want to use them
     mpi:

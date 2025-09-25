@@ -1,7 +1,7 @@
 # This script can be run with the following command:
-# docker build --build-arg branch=<your branch here, defaults to develop> -t "axom/tpls:clang-14" - < dockerfile_clang-14
+# docker build --build-arg branch=<your branch here, defaults to develop> -t "axom/tpls:clang-19" - < dockerfile_clang-19
 
-FROM ghcr.io/llnl/radiuss:clang-14-ubuntu-22.04
+FROM ghcr.io/llnl/radiuss:clang-19-ubuntu-24.04
 ARG branch=develop
 
 SHELL ["/bin/bash", "-c"]
@@ -33,7 +33,7 @@ RUN git clone --recursive --branch $branch --single-branch --depth 1 https://git
 # Build/install TPLs via spack and then remove the temporary build directory on success
 RUN cd axom_repo && python3 ./scripts/uberenv/uberenv.py --spack-env-file=./scripts/spack/configs/docker/ubuntu22/spack.yaml \
                                                          --project-json=.uberenv_config.json \
-                                                         --spec=%clang@14.0.0+mfem+raja+umpire+profiling --prefix=/home/axom/axom_tpls -k \
+                                                         --spec="+mfem+raja+umpire+profiling %clang_19" --prefix=/home/axom/axom_tpls -k \
                  && rm -rf /home/axom/axom_tpls/build_stage /home/axom/axom_tpls/spack
 
 RUN mkdir -p /home/axom/export_hostconfig

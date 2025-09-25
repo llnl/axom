@@ -1,7 +1,7 @@
 # This script can be run with the following command:
 # docker build --build-arg branch=<your branch here, defaults to develop> -t "axom/tpls:gcc-13" - < dockerfile_gcc-13
 
-FROM ghcr.io/llnl/radiuss:gcc-13-ubuntu-22.04
+FROM ghcr.io/llnl/radiuss:gcc-13-ubuntu-24.04
 ARG branch=develop
 
 SHELL ["/bin/bash", "-c"]
@@ -33,7 +33,7 @@ RUN git clone --recursive --branch $branch --single-branch --depth 1 https://git
 # Build/install TPLs via spack and then remove the temporary build directory on success
 RUN cd axom_repo && python3 ./scripts/uberenv/uberenv.py --spack-env-file=./scripts/spack/configs/docker/ubuntu22/spack.yaml \
                                                          --project-json=.uberenv_config.json \
-                                                         --spec=%gcc@13.1.0+mfem+raja+umpire+profiling --prefix=/home/axom/axom_tpls -k \
+                                                         --spec="+mfem+raja+umpire+profiling %gcc_13"--prefix=/home/axom/axom_tpls -k \
                  && rm -rf /home/axom/axom_tpls/build_stage /home/axom/axom_tpls/spack
 
 RUN mkdir -p /home/axom/export_hostconfig
