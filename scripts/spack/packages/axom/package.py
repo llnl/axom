@@ -316,6 +316,9 @@ class Axom(CachedCMakePackage, CudaPackage, ROCmPackage):
         if spec.satisfies("%cce"):
             entries.append(cmake_cache_string("CMAKE_CXX_FLAGS_DEBUG", "-O1 -g"))
 
+            # Remove unusable -Mfreeform flag injected by spack
+            entries = [entry.replace("-Mfreeform", "") for entry in entries]
+
         # Disable intrusive warning:
         #   icpx: remark: note that use of '-g' without any optimization-level
         #   option will turn off most compiler optimizations similar to use of
