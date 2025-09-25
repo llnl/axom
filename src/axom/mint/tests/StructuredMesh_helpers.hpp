@@ -359,11 +359,7 @@ inline void check_topology2D(const StructuredMesh* m)
     }
   }
 
-  /* Check the face to node map.
-   * NOTE: 2/4 elements are used for faceNodes, faceNodesDir. We make it 4 elements
-   *       because in getFaceNodeIds, it would need 4 slots if the mesh was 3D,
-   *       even though it is not 3D here.
-   */
+  /* Check the face to node map. */
   IndexType faceNodes[MAX_FACE_NODES];
   IndexType faceNodesDir[MAX_FACE_NODES];
 
