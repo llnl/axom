@@ -2880,6 +2880,85 @@ void discretized_curve_gwn()
   simple_grid_test(curves2, bbox, 750, 750, wn_out2);
 }
 
+void agglomeration_example()
+{
+  std::string prefix = "C:\\Users\\spainhour1\\source\\my_axom_data\\agglomeration_2d\\";
+
+  std::string filename = "slip";
+  axom::Array<axom::primal::BezierCurve<double, 2>> curves;
+  convert_from_svg(prefix + filename + ".svg", curves);
+  auto bbox = curves_bbox(curves, 1.0, true);
+
+  std::ofstream curve_out(prefix + filename + "_curves.txt");
+  for(auto& curve : curves)
+  {
+    curve_out << curve << std::endl;
+  }
+
+  std::ofstream wn_out(prefix + filename + "_wn.csv");
+
+  axom::Array<axom::primal::NURBSCurve<double, 2>> nurbs_curves;
+  for(auto& curve : curves) nurbs_curves.push_back(axom::primal::NURBSCurve<double, 2>(curve));
+
+  int case_code = -1;
+  auto wn_field = [&nurbs_curves](axom::primal::Point<double, 3> query) -> double {
+    auto point_2d = axom::primal::Point<double, 2> {query[0], query[1]};
+    return axom::primal::winding_number(point_2d, nurbs_curves);
+  };
+
+  int num_curves = nurbs_curves.size();
+
+  axom::primal::Point<double, 2> t0 {0.0, 0.0};
+  axom::primal::Point<double, 2> t1 {0.0, 0.0};
+  for(int i = 0; i < num_curves; ++i)
+  {
+    t0[0] += nurbs_curves[i][0][0];
+    t0[1] += nurbs_curves[i][0][1];
+
+    t1[0] += nurbs_curves[i][nurbs_curves[i].getNumControlPoints() - 1][0];
+    t1[1] += nurbs_curves[i][nurbs_curves[i].getNumControlPoints() - 1][1];
+  }
+
+  t0[0] /= num_curves;
+  t0[1] /= num_curves;
+
+  t1[0] /= num_curves;
+  t1[1] /= num_curves;
+
+  axom::primal::Segment<double, 2> agglomerated_segment(t0, t1);
+
+  auto agglomerated_field = [&agglomerated_segment,
+                             &num_curves](axom::primal::Point<double, 3> query) -> double {
+    auto point_2d = axom::primal::Point<double, 2> {query[0], query[1]};
+    return num_curves * axom::primal::winding_number(point_2d, agglomerated_segment);
+  };
+
+  axom::primal::Point<double, 3> origin;
+  origin[0] = bbox.getCentroid()[0];
+  origin[1] = bbox.getCentroid()[1];
+  origin[2] = 0.0;
+
+  axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_original.vtk",
+                                                    wn_field,
+                                                    origin,
+                                                    axom::primal::Vector<double, 3> {1.0, 0.0, 0.0},
+                                                    axom::primal::Vector<double, 3> {0.0, 1.0, 0.0},
+                                                    (bbox.getMax()[0] - bbox.getMin()[0]) * 10.0,
+                                                    (bbox.getMax()[1] - bbox.getMin()[1]) * 10.0,
+                                                    1000,
+                                                    1000);
+
+  axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_agglomerated.vtk",
+                                                    agglomerated_field,
+                                                    origin,
+                                                    axom::primal::Vector<double, 3> {1.0, 0.0, 0.0},
+                                                    axom::primal::Vector<double, 3> {0.0, 1.0, 0.0},
+                                                    (bbox.getMax()[0] - bbox.getMin()[0]) * 10.0,
+                                                    (bbox.getMax()[1] - bbox.getMin()[1]) * 10.0,
+                                                    1000,
+                                                    1000);
+}
+
 void brad_example()
 {
   std::string prefix = "C:\\Users\\spainhour1\\source\\my_axom_data\\demo_2d\\";
@@ -2901,10 +2980,8 @@ void brad_example()
 
   std::ofstream wn_out(prefix + filename + "_wn.csv");
 
-
   axom::Array<axom::primal::NURBSCurve<double, 2>> nurbs_curves;
-  for(auto & curve : curves )
-    nurbs_curves.push_back( axom::primal::NURBSCurve<double, 2>(curve) );
+  for(auto& curve : curves) nurbs_curves.push_back(axom::primal::NURBSCurve<double, 2>(curve));
 
   int case_code = -1;
   auto wn_field = [&nurbs_curves](axom::primal::Point<double, 3> query) -> double {
@@ -2917,16 +2994,15 @@ void brad_example()
   origin[1] = bbox.getCentroid()[1];
   origin[2] = 0.0;
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(
-    prefix + filename + "_gwn_slice_2.vtk",
-    wn_field,
-    origin,
-    axom::primal::Vector<double, 3> {1.0, 0.0, 0.0},
-    axom::primal::Vector<double, 3> {0.0, 1.0, 0.0},
-    (bbox.getMax()[0] - bbox.getMin()[0]) * 1.2,
-    (bbox.getMax()[1] - bbox.getMin()[1]) * 1.2,
-    1000,
-    1000);
+  axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_gwn_slice_2.vtk",
+                                                    wn_field,
+                                                    origin,
+                                                    axom::primal::Vector<double, 3> {1.0, 0.0, 0.0},
+                                                    axom::primal::Vector<double, 3> {0.0, 1.0, 0.0},
+                                                    (bbox.getMax()[0] - bbox.getMin()[0]) * 1.2,
+                                                    (bbox.getMax()[1] - bbox.getMin()[1]) * 1.2,
+                                                    1000,
+                                                    1000);
 }
 
 //void discretized_surface_gwn()
@@ -4136,8 +4212,8 @@ void trimming_curve_robustness_test()
       the_curves.push_back(c2);
       //}
       //else
-        //the_curves.push_back(curve);
-    
+      //the_curves.push_back(curve);
+
       i++;
     }
 
@@ -4222,7 +4298,7 @@ void trimming_curve_robustness_test()
     //interesting_query_0,
     axom::primal::Point<double, 3> {0, -0.025, 0.05},
     axom::primal::Vector<double, 3> {1.0, 0.05, -0.25},
-    axom::primal::Vector<double, 3> {0.0,  1.0,   0.1},
+    axom::primal::Vector<double, 3> {0.0, 1.0, 0.1},
     0.07,
     0.14,
     npts,
@@ -7705,7 +7781,7 @@ int main()
   //save_vase_and_teapot();
   //save_teardrop_and_biquintic();
   //trimming_curve_robustness_test();
-  brad_example();
+  agglomeration_example();
   // Van is at least 771KB
   //complex_gear_example_bonus();
   // quadrature_on_sphere();
