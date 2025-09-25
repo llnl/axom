@@ -142,7 +142,7 @@ inline bool shapeIsSelected(unsigned char color, int selection)
 }
 
 AXOM_HOST_DEVICE
-inline IndexType maxPointForDimension(int dim)
+constexpr IndexType maxPointForDimension(int dim)
 {
   return (dim == 3)
     ? axom::bump::clipping::tables::P7
@@ -150,7 +150,7 @@ inline IndexType maxPointForDimension(int dim)
 }
 
 AXOM_HOST_DEVICE
-inline IndexType maxEdgeForDimension(int dim)
+constexpr IndexType maxEdgeForDimension(int dim)
 {
   return (dim == 3)
     ? axom::bump::clipping::tables::EL
