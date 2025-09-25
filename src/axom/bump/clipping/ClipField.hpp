@@ -144,13 +144,17 @@ inline bool shapeIsSelected(unsigned char color, int selection)
 AXOM_HOST_DEVICE
 inline IndexType maxPointForDimension(int dim)
 {
-  return (dim == 3) ? axom::bump::clipping::tables::P7 : ((dim == 2) ? axom::bump::clipping::tables::P3 : axom::bump::clipping::tables::P1);
+  return (dim == 3)
+    ? axom::bump::clipping::tables::P7
+    : ((dim == 2) ? axom::bump::clipping::tables::P3 : axom::bump::clipping::tables::P1);
 }
 
 AXOM_HOST_DEVICE
 inline IndexType maxEdgeForDimension(int dim)
 {
-  return (dim == 3) ? axom::bump::clipping::tables::EL : ((dim == 2) ? axom::bump::clipping::tables::ED : axom::bump::clipping::tables::EB);
+  return (dim == 3)
+    ? axom::bump::clipping::tables::EL
+    : ((dim == 2) ? axom::bump::clipping::tables::ED : axom::bump::clipping::tables::EB);
 }
 
 template <typename IdType, int MAXSIZE>

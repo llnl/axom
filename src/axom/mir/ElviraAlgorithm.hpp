@@ -999,7 +999,7 @@ protected:
         }
         buildView.addShape(zoneIndex, fragmentIndex, remaining, matId, pt, -planeOffset, lastNormal);
       });
-      reportErrors(__LINE__);
+    reportErrors(__LINE__);
   }
 
   void reportErrors([[maybe_unused]] int srcLine) const
@@ -1009,9 +1009,10 @@ protected:
     if constexpr(axom::execution_space<ExecSpace>::onDevice())
     {
       hipError_t err = hipGetLastError();
-      if (err != hipSuccess)
+      if(err != hipSuccess)
       {
-        SLIC_ERROR(axom::fmt::format("ElviraAlgorithm.hpp:{}: HIP error: {}", srcLine, hipGetErrorString(err)));
+        SLIC_ERROR(
+          axom::fmt::format("ElviraAlgorithm.hpp:{}: HIP error: {}", srcLine, hipGetErrorString(err)));
       }
     }
 #endif
