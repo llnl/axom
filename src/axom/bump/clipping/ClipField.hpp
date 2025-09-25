@@ -141,6 +141,18 @@ inline bool shapeIsSelected(unsigned char color, int selection)
     (color1Selected(selection) && color == axom::bump::clipping::tables::COLOR1);
 }
 
+AXOM_HOST_DEVICE
+inline IndexType maxPointForDimension(int dim)
+{
+  return (dim == 3) ? axom::bump::clipping::tables::P7 : ((dim == 2) ? axom::bump::clipping::tables::P3 : axom::bump::clipping::tables::P1);
+}
+
+AXOM_HOST_DEVICE
+inline IndexType maxEdgeForDimension(int dim)
+{
+  return (dim == 3) ? axom::bump::clipping::tables::EL : ((dim == 2) ? axom::bump::clipping::tables::ED : axom::bump::clipping::tables::EB);
+}
+
 template <typename IdType, int MAXSIZE>
 inline AXOM_HOST_DEVICE int unique_count(const IdType *values, int n)
 {
@@ -1303,22 +1315,25 @@ private:
         // Save the flags for the points that were used in this zone
         zoneData.m_pointsUsedView[szIndex] = ptused;
 
+        const auto PMAX = detail::maxPointForDimension(zone.dimension());
+        const auto EMAX = detail::maxEdgeForDimension(zone.dimension());
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
         // NOTE: We are not going to emit blend groups for P0..P7 points.
 
         // If the zone uses a node, set that node in nodeUsedView.
-        for(IndexType pid = P0; pid <= P7; pid++)
+        for(IndexType pid = P0; pid <= PMAX; pid++)
         {
           if(axom::utilities::bitIsSet(ptused, pid))
           {
             const auto nodeId = zone.getId(pid);
+
             // NOTE: Multiple threads may write to this node but they all write the same value.
             nodeData.m_nodeUsedView[nodeId] = 1;
           }
         }
 #else
         // Count which points in the original cell are used.
-        for(IndexType pid = P0; pid <= P7; pid++)
+        for(IndexType pid = P0; pid <= PMAX; pid++)
         {
           const int incr = axom::utilities::bitIsSet(ptused, pid) ? 1 : 0;
 
@@ -1328,7 +1343,7 @@ private:
 #endif
 
         // Count edges that are used.
-        for(IndexType pid = EA; pid <= EL; pid++)
+        for(IndexType pid = EA; pid <= EMAX; pid++)
         {
           const int incr = axom::utilities::bitIsSet(ptused, pid) ? 1 : 0;
 
@@ -1558,10 +1573,12 @@ private:
             }
           }
         }
+
 #if !defined(AXOM_REDUCE_BLEND_GROUPS)
         // Add blend group for each original point that was used.
         // NOTE - this can add a lot of blend groups with 1 node.
-        for(IndexType pid = P0; pid <= P7; pid++)
+        const auto PMAX = detail::maxPointForDimension(zone.dimension());
+        for(IndexType pid = P0; pid <= PMAX; pid++)
         {
           if(axom::utilities::bitIsSet(ptused, pid))
           {
@@ -1572,7 +1589,8 @@ private:
         }
 #endif
         // Add blend group for each edge point that was used.
-        for(IndexType pid = EA; pid <= EL; pid++)
+        const auto EMAX = detail::maxEdgeForDimension(zone.dimension());
+        for(IndexType pid = EA; pid <= EMAX; pid++)
         {
           if(axom::utilities::bitIsSet(ptused, pid))
           {
@@ -1747,10 +1765,13 @@ private:
               groups++;
             }
           }
+
+          const BitSet PMAX = detail::maxPointForDimension(zone.dimension());
+          const BitSet EMAX = detail::maxEdgeForDimension(zone.dimension());
 #if defined(AXOM_REDUCE_BLEND_GROUPS)
           // For single nodes, we did not make a blend group. We look up the new
           // node id from nodeData.m_oldNodeToNewNodeView.
-          for(BitSet pid = P0; pid <= P7; pid++)
+          for(BitSet pid = P0; pid <= PMAX; pid++)
           {
             if(axom::utilities::bitIsSet(ptused, pid))
             {
@@ -1759,7 +1780,7 @@ private:
             }
           }
 #else
-          for(BitSet pid = P0; pid <= P7; pid++)
+          for(BitSet pid = P0; pid <= PMAX; pid++)
           {
             if(axom::utilities::bitIsSet(ptused, pid))
             {
@@ -1768,7 +1789,7 @@ private:
             }
           }
 #endif
-          for(BitSet pid = EA; pid <= EL; pid++)
+          for(BitSet pid = EA; pid <= EMAX; pid++)
           {
             if(axom::utilities::bitIsSet(ptused, pid))
             {
