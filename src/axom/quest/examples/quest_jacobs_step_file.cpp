@@ -2927,10 +2927,72 @@ void agglomeration_example()
 
   axom::primal::Segment<double, 2> agglomerated_segment(t0, t1);
 
-  auto agglomerated_field = [&agglomerated_segment,
-                             &num_curves](axom::primal::Point<double, 3> query) -> double {
+  auto agglomerated_line = [&agglomerated_segment,
+                            &num_curves](axom::primal::Point<double, 3> query) -> double {
     auto point_2d = axom::primal::Point<double, 2> {query[0], query[1]};
     return num_curves * axom::primal::winding_number(point_2d, agglomerated_segment);
+  };
+
+  auto agglomerated_line_point = [&agglomerated_segment,
+                                  &num_curves](axom::primal::Point<double, 3> query) -> double {
+    auto point_2d = axom::primal::Point<double, 2> {query[0], query[1]};
+    auto p = agglomerated_segment.at(0.5);
+    auto dir =
+      axom::primal::Vector<double, 2> {agglomerated_segment.source(), agglomerated_segment.target()};
+    auto n = axom::primal::Vector<double, 2> {-dir[1], dir[0]};
+    auto pq = axom::primal::Vector<double, 2>(point_2d, p);
+
+    return num_curves * -pq.dot(n) / (std::pow(pq.norm(), 2) * 2 * M_PI);
+  };
+
+  auto point_from_line = [&nurbs_curves,
+                          &num_curves](const axom::primal::Point<double, 3>& query) -> double {
+    auto point_2d = axom::primal::Point<double, 2> {query[0], query[1]};
+
+    double gwn = 0.0;
+    for(int i = 0; i < num_curves; ++i)
+    {
+      axom::primal::Segment<double, 2> line(
+        nurbs_curves[i][0],
+        nurbs_curves[i][nurbs_curves[i].getNumControlPoints() - 1]);
+
+      auto p = line.at(0.5);
+      auto dir = axom::primal::Vector<double, 2> {line.source(), line.target()};
+      auto n = axom::primal::Vector<double, 2> {-dir[1], dir[0]};
+      //auto a = line.length();
+
+      auto pq = axom::primal::Vector<double, 2>(point_2d, p);
+
+      gwn += -pq.dot(n) / (std::pow(pq.norm(), 2) * 2 * M_PI);
+    }
+
+    return gwn;
+  };
+
+  auto agglomerated_points = [&nurbs_curves,
+                              &num_curves](const axom::primal::Point<double, 3>& query) -> double {
+    auto point_2d = axom::primal::Point<double, 2> {query[0], query[1]};
+    axom::primal::Point<double, 2> rep_point {0.0, 0.0};
+    axom::primal::Vector<double, 2> rep_normal {0.0, 0.0};
+    double sum_length = 0.0;
+
+    for(int i = 0; i < num_curves; ++i)
+    {
+      axom::primal::Segment<double, 2> line(
+        nurbs_curves[i][0],
+        nurbs_curves[i][nurbs_curves[i].getNumControlPoints() - 1]);
+
+      rep_point.array() += line.at(0.5).array() * line.length();
+      sum_length += line.length();
+
+      auto dir = axom::primal::Vector<double, 2> {line.source(), line.target()};
+      rep_normal += axom::primal::Vector<double, 2> {-dir[1], dir[0]};
+    }
+
+    rep_point.array() /= sum_length;
+
+    auto pq = axom::primal::Vector<double, 2>(point_2d, rep_point);
+    return -pq.dot(rep_normal) / (std::pow(pq.norm(), 2) * 2 * M_PI);
   };
 
   axom::primal::Point<double, 3> origin;
@@ -2945,18 +3007,47 @@ void agglomeration_example()
                                                     axom::primal::Vector<double, 3> {0.0, 1.0, 0.0},
                                                     (bbox.getMax()[0] - bbox.getMin()[0]) * 10.0,
                                                     (bbox.getMax()[1] - bbox.getMin()[1]) * 10.0,
-                                                    1000,
-                                                    1000);
+                                                    500,
+                                                    500);
 
-  axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_agglomerated.vtk",
-                                                    agglomerated_field,
+  axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_line_agglomerated.vtk",
+                                                    agglomerated_line,
                                                     origin,
                                                     axom::primal::Vector<double, 3> {1.0, 0.0, 0.0},
                                                     axom::primal::Vector<double, 3> {0.0, 1.0, 0.0},
                                                     (bbox.getMax()[0] - bbox.getMin()[0]) * 10.0,
                                                     (bbox.getMax()[1] - bbox.getMin()[1]) * 10.0,
-                                                    1000,
-                                                    1000);
+                                                    500,
+                                                    500);
+
+    axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_line_agglomerated_point.vtk",
+                                                    agglomerated_line_point,
+                                                    origin,
+                                                    axom::primal::Vector<double, 3> {1.0, 0.0, 0.0},
+                                                    axom::primal::Vector<double, 3> {0.0, 1.0, 0.0},
+                                                    (bbox.getMax()[0] - bbox.getMin()[0]) * 10.0,
+                                                    (bbox.getMax()[1] - bbox.getMin()[1]) * 10.0,
+                                                    500,
+                                                    500);
+
+  axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_dipole.vtk",
+                                                    point_from_line,
+                                                    origin,
+                                                    axom::primal::Vector<double, 3> {1.0, 0.0, 0.0},
+                                                    axom::primal::Vector<double, 3> {0.0, 1.0, 0.0},
+                                                    (bbox.getMax()[0] - bbox.getMin()[0]) * 10.0,
+                                                    (bbox.getMax()[1] - bbox.getMin()[1]) * 10.0,
+                                                    500,
+                                                    500);
+  axom::primal::exportSliceScalarFieldToVTK<double>(prefix + filename + "_dipole_agglomerated.vtk",
+                                                    agglomerated_points,
+                                                    origin,
+                                                    axom::primal::Vector<double, 3> {1.0, 0.0, 0.0},
+                                                    axom::primal::Vector<double, 3> {0.0, 1.0, 0.0},
+                                                    (bbox.getMax()[0] - bbox.getMin()[0]) * 10.0,
+                                                    (bbox.getMax()[1] - bbox.getMin()[1]) * 10.0,
+                                                    500,
+                                                    500);
 }
 
 void brad_example()
