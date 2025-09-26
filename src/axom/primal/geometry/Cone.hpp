@@ -31,7 +31,8 @@ namespace primal
  * \tparam T the coordinate type, e.g., double, float, etc.
  * \tparam NDIMS the number of spatial dimensions
  *
- * A negative length is allowed and results in a negative volume.
+ * The axial direction is refered to as the z-direction.
+ * If (top z < base z), the length and volume will be negative.
  * Radii must be non-negative.
  *
  * A cylinder can be represented using equal base and top radii.
@@ -42,17 +43,19 @@ class Cone
 public:
   using PointType = Point<T, NDIMS>;
   using VectorType = Vector<T, NDIMS>;
+  static_assert(NDIMS >= 1);
 
 public:
   /*!
-   * \brief Default constructor constructs a degenerate cone,
-   * oriented along the first axis.
+   * \brief Default constructor constructs a cone with lengh 1,
+   * base radius 1 and top radius 0, at the origin,
+   * oriented along the first spatial direction.
    */
   AXOM_HOST_DEVICE Cone()
     : m_baseZ(0.0)
-    , m_baseRad(0.0)
+    , m_baseRad(1.0)
     , m_topZ(1.0)
-    , m_topRad(1.0)
+    , m_topRad(0.0)
     , m_direction(0.0, NDIMS)
     , m_origin(0.0, NDIMS)
   {
@@ -62,8 +65,8 @@ public:
   /*!
    * \brief Construct a cone with a base at the origin,
    * oriented along the first axis.
-   * \param [in] baseRadius
-   * \param [in] topRadius
+   * \param [in] baseRadius base radius
+   * \param [in] topRadius top radius
    * \param [in] length Negative value is allowed and leads
    *   to negative volume.
    */
@@ -81,10 +84,10 @@ public:
 
   /*!
    * \brief Construct a cone at an arbitrary position and orientation.
-   * \param [in] baseZ
-   * \param [in] baseRadius
-   * \param [in] topZ
-   * \param [in] topRadius
+   * \param [in] baseZ base z-coordinate
+   * \param [in] baseRadius base radius
+   * \param [in] topZ top z-coordinate
+   * \param [in] topRadius top radius
    * \param [in] direction Direction of axis, from base to top.
    * \param [in] origin Coordinates of the z=0 point
    *
