@@ -19,7 +19,7 @@
 namespace primal = axom::primal;
 
 //------------------------------------------------------------------------------
-void check_matrix_consistency()
+TEST(primal_coord_transform, matrix_consistency)
 {
   axom::numerics::Matrix<double> m(4, 4);
   for(int r = 0; r < 3; ++r)
@@ -40,10 +40,7 @@ void check_matrix_consistency()
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_coord_transform, matrix_consistency) { check_matrix_consistency(); }
-
-//------------------------------------------------------------------------------
-void check_translation()
+TEST(primal_coord_transform, translation)
 {
   const int DIM = 3;
   using PointType = primal::Point<double, DIM>;
@@ -60,10 +57,7 @@ void check_translation()
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_coord_transform, translation) { check_translation(); }
-
-//------------------------------------------------------------------------------
-void check_rotate_to_axis()
+TEST(primal_coord_transform, rotate_to_axis)
 {
   // Check rotations from axis to axis.
   const int DIM = 3;
@@ -98,10 +92,7 @@ void check_rotate_to_axis()
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_coord_transform, rotate_to_axis) { check_rotate_to_axis(); }
-
-//------------------------------------------------------------------------------
-void check_rotate_about_bisector()
+TEST(primal_coord_transform, rotate_about_bisector)
 {
   // Check rotations about octant bisectors.
   const int DIM = 3;
@@ -158,13 +149,7 @@ void check_rotate_about_bisector()
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_coord_transform, rotate_about_bisector)
-{
-  check_rotate_about_bisector();
-}
-
-//------------------------------------------------------------------------------
-void check_translate_rotate()
+TEST(primal_coord_transform, translate_rotate)
 {
   const int DIM = 3;
   using VectorType = primal::Vector<double, DIM>;
@@ -187,10 +172,7 @@ void check_translate_rotate()
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_coord_transform, translate_rotate) { check_translate_rotate(); }
-
-//------------------------------------------------------------------------------
-void check_to_dst_pts()
+TEST(primal_coord_transform, to_dest_pts)
 {
   const int DIM = 3;
   using PointType = primal::Point<double, DIM>;
@@ -224,10 +206,7 @@ void check_to_dst_pts()
 }
 
 //------------------------------------------------------------------------------
-TEST(primal_coord_transform, to_dest_pts) { check_to_dst_pts(); }
-
-//------------------------------------------------------------------------------
-void check_inverse()
+TEST(primal_coord_transform, inverse)
 {
   const int DIM = 3;
   using PointType = primal::Point<double, DIM>;
@@ -291,9 +270,6 @@ void check_inverse()
     }
   }
 }
-
-//------------------------------------------------------------------------------
-TEST(primal_coord_transform, inverse) { check_inverse(); }
 
 //----------------------------------------------------------------------
 
