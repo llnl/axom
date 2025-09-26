@@ -147,7 +147,7 @@ public:
   AXOM_HOST_DEVICE void setInvalid() { m_P[0][0] = std::numeric_limits<T>::quiet_NaN(); }
 
   //! @brief Whether transformer is valid.
-  AXOM_HOST_DEVICE void isValid() { return !std::isnan(m_P[0][0]); }
+  AXOM_HOST_DEVICE bool isValid() { return !std::isnan(m_P[0][0]); }
 
   /*!
    * @brief Get the matrix for the transformation.
@@ -198,8 +198,8 @@ public:
    * @brief Apply a 3D rotation to the current transformation.
    *
    * The rotation is defined by 2 vectors, start and end, and is not
-   * unique.  The chosen rotation axis is the direction perpendicular
-   * to the start and end vectors.
+   * unique.  The chosen rotation axis is the cross product of the
+   * start and end vectors.
    *
    * @param start [in] Starting direction
    * @param end [in] Ending direction
@@ -214,20 +214,13 @@ public:
     const T sinT = u.norm();
     const T cosT = numerics::dot_product(s.data(), e.data(), 3);
 
-    // Degenerate: end is parallel to start, angle near 0 or pi.
+    // Degenerate: end is parallel to start.
+    // angle near 0 (identity transform) or pi.
     if(utilities::isNearlyEqual(sinT, 0.0))
     {
       if(cosT < 0)
       {
-        // Negative identity transform.  Change signs.
-        for(int r = 0; r < 3; ++r)
-        {
-          m_v[r] = -m_v[r];
-          for(int c = 0; c < 3; ++c)
-          {
-            m_P[r][c] = -m_P[r][c];
-          }
-        }
+        setInvalid(); // Transformation is ill-defined
       }
       return;
     }
@@ -369,6 +362,9 @@ private:
    * Last row is not stored because it's always [0,0,0,1].
    * M = [ P v ]
    *     [ 0 1 ]
+   *
+   * Store m_P[0][0] = std::numeric_limits<T>::quiet_NaN() to set this
+   * CoordinateTransformer as invalid.  See \a setInvalid()
    */
   Matrx m_P;
   Vectr m_v;

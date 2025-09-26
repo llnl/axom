@@ -71,8 +71,6 @@ TEST(primal_coord_transform, rotate_to_axis)
   NumArrayType z({0, 0, 1});
 
   const int n = 15;  // Number of pairs in startsAndEnds
-  // VectorType startsAndEnds[2 * n] = {x,  x, y,  y, z,  z, x,  y, y,  z, z,  x, x,  -x, x,
-                                     // -y, x, -z, y, -x, y, -y, y, -z, z, -x, z, -y, z,  -z};
   NumArrayType startsAndEnds[n][2] = {{x,  x}, {y,  y}, {z,  z},
                                       {x,  y}, {y,  z}, {z,  x},
                                       {x,  -x}, {x, -y}, {x, -z},
@@ -84,6 +82,12 @@ TEST(primal_coord_transform, rotate_to_axis)
     VectorType endDir(startsAndEnds[i][1]);
     primal::experimental::CoordinateTransformer<double> rotation;
     rotation.applyRotation(startDir, endDir);
+    if(startDir == -endDir)
+    {
+      // Ill-defined rotation: check for invalid transformer.
+      EXPECT_FALSE(rotation.isValid());
+      continue;
+    }
     PointType result(rotation.getTransformed(startDir.array()));
     VectorType diff(result.array() - endDir.array());
     std::cout << startDir << ' ' << endDir << ' ' << diff << std::endl;
