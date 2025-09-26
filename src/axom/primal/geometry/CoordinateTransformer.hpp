@@ -99,7 +99,7 @@ public:
    * @param [in] startPts Four starting points.
    * @param [in] destPts Four destination points.
    *
-   * The four starting points each must define a non-degenerate volume.
+   * The four starting points must define a non-degenerate volume.
    * Else the transformation is ill-defined and the transformer
    * is set to invalid.
    */
@@ -171,11 +171,11 @@ public:
   }
 
   /*!
-   * @brief Add a matrix transform to the current transformation.
+   * @brief Apply a matrix transform to the current transformation.
    * @param matrix [in] The transformation matrix for homogeneous
    * coordinates.
    */
-  void addMatrix(const numerics::Matrix<T>& matrix)
+  void applyMatrix(const numerics::Matrix<T>& matrix)
   {
     numerics::Matrix<T> current = getMatrix();
     numerics::Matrix<T> updated(4, 4);
@@ -183,11 +183,11 @@ public:
     setMatrix(updated);
   }
 
-  //! @brief Add a 3D translation to the current transformation.
-  void addTranslation(const axom::primal::Vector<T, 3>& d) { addTranslation(d.array()); }
+  //! @brief Apply a 3D translation to the current transformation.
+  void applyTranslation(const axom::primal::Vector<T, 3>& d) { applyTranslation(d.array()); }
 
   //! @brief Add a 3D translation to the current transformation.
-  void addTranslation(const axom::NumericArray<T, 3>& d)
+  void applyTranslation(const axom::NumericArray<T, 3>& d)
   {
     m_v[0] += d[0];
     m_v[1] += d[1];
@@ -195,7 +195,7 @@ public:
   }
 
   /*!
-   * @brief Add a 3D rotation to the current transformation.
+   * @brief Apply a 3D rotation to the current transformation.
    *
    * The rotation is defined by 2 vectors, start and end, and is not
    * unique.  The chosen rotation axis is the direction perpendicular
@@ -204,7 +204,7 @@ public:
    * @param start [in] Starting direction
    * @param end [in] Ending direction
    */
-  void addRotation(const axom::primal::Vector<T, 3>& start, const axom::primal::Vector<T, 3>& end)
+  void applyRotation(const axom::primal::Vector<T, 3>& start, const axom::primal::Vector<T, 3>& end)
   {
     // Note that the rotation matrix is not unique.
     Vector<T, 3> s = start.unitVector();
@@ -233,7 +233,7 @@ public:
     }
 
     u.array() /= sinT;  // Make u a unit vector.
-    addRotation(u, sinT, cosT);
+    applyRotation(u, sinT, cosT);
   }
 
   /*!
@@ -243,11 +243,11 @@ public:
    * @param u [in] Rotation axis, a unit vector
    * @param angle [in] Rotation angle
    */
-  void addRotation(const axom::primal::Vector<T, 3>& u, T angle)
+  void applyRotation(const axom::primal::Vector<T, 3>& u, T angle)
   {
     T sinT = sin(angle);
     T cosT = cos(angle);
-    addRotation(u, sinT, cosT);
+    applyRotation(u, sinT, cosT);
   }
 
   /*!
@@ -259,7 +259,7 @@ public:
    * @param sinT [in] Sine of rotation angle
    * @param cosT [in] Cosine of rotation angle
    */
-  void addRotation(const axom::primal::Vector<T, 3>& u, T sinT, T cosT)
+  void applyRotation(const axom::primal::Vector<T, 3>& u, T sinT, T cosT)
   {
     const T EPS = 10*axom::numerics::floating_point_limits<T>::epsilon();
     SLIC_ASSERT(axom::utilities::isNearlyEqual(u.squared_norm(), 1.0, EPS));
@@ -305,14 +305,6 @@ public:
   AXOM_HOST_DEVICE axom::primal::Point<T, 3> getTransformed(const axom::primal::Point<T, 3>& pt) const
   {
     axom::primal::Point<T, 3> rval = pt;
-    transform(rval[0], rval[1], rval[2]);
-    return rval;
-  }
-
-  //! @brief Get a transformed 3D Vector.
-  AXOM_HOST_DEVICE axom::primal::Vector<T, 3> getTransformed(const axom::primal::Vector<T, 3>& pt) const
-  {
-    axom::primal::Vector<T, 3> rval = pt;
     transform(rval[0], rval[1], rval[2]);
     return rval;
   }
