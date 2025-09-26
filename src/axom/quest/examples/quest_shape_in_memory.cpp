@@ -194,7 +194,9 @@ public:
 
     auto dc = std::unique_ptr<sidre::MFEMSidreDataCollection>(
       new sidre::MFEMSidreDataCollection(name, mesh, dc_owns_data));
+  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
     dc->SetComm(MPI_COMM_WORLD);
+  #endif
 
     return dc;
   }
@@ -507,10 +509,6 @@ axom::sidre::Group* createBoxMesh(axom::sidre::Group* meshGrp)
 
   // State group is optional to blueprint, and we don't use it, but mint checks for it.
   meshGrp->createGroup("state");
-
-  auto hostAllocForScalarAndStringViews = [](const axom::sidre::View& v) {
-    return (v.isScalar() || v.isString()) ? hostAllocId : axom::INVALID_ALLOCATOR_ID;
-  };
 
   return meshGrp;
 }
@@ -1656,10 +1654,14 @@ int main(int argc, char** argv)
     {
       shapingDC->SetMeshNodesName("positions");
 
-      // With MPI, loadComputationalMesh returns a parallel mesh.
+  // With MPI, loadComputationalMesh returns a parallel mesh.
+  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
       mfem::ParMesh* parallelMesh = dynamic_cast<mfem::ParMesh*>(originalMeshDC->GetMesh());
       shapingMesh = (parallelMesh != nullptr) ? new mfem::ParMesh(*parallelMesh)
                                               : new mfem::Mesh(*originalMeshDC->GetMesh());
+  #else
+      shapingMesh = new mfem::Mesh(*originalMeshDC->GetMesh());
+  #endif
       shapingDC->SetMesh(shapingMesh);
     }
     AXOM_ANNOTATE_END("load mesh");
@@ -1674,7 +1676,6 @@ int main(int argc, char** argv)
                 "-DAXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION.");
 #endif
 
-  conduit::Node* topoCoordsetNode = nullptr;
   if(params.useBlueprintSidre() || params.useBlueprintConduit())
   {
     compMeshGrp = ds.getRoot()->createGroup("compMesh");

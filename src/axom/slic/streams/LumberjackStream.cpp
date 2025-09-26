@@ -271,6 +271,20 @@ void LumberjackStream::write(bool local)
 }
 
 //------------------------------------------------------------------------------
+bool LumberjackStream::hasPendingMessages()
+{
+  return m_lj->getMessages().size() > 0;
+}
+
+//------------------------------------------------------------------------------
+bool LumberjackStream::isUsingMPI()
+{
+  return true;
+}
+
+MPI_Comm LumberjackStream::comm() { return m_lj->getCommunicator()->comm(); }
+
+//------------------------------------------------------------------------------
 void LumberjackStream::initializeLumberjack(MPI_Comm comm, int ranksLimit)
 {
   m_ljComm = new axom::lumberjack::BinaryTreeCommunicator;

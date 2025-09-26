@@ -458,10 +458,10 @@ inline int getAllocatorID<MemorySpace::Malloc>()
 /**
  * @brief Return the Axom MemorySpace for the given Axom allocator id.
  *
- *  For Umpire allocator ids, the MemorySpace is the Umpire memory
- *  space.  For MALLOC_ALLOCATOR_ID, the MemorySpace is
- *  MemorySpace::Malloc.  Other values have no corresponding MemorySpace
- *  and will cause an unrecoverable exception.
+ * For Umpire allocator ids, the MemorySpace is the corresponding Axom
+ * memory space.  For MALLOC_ALLOCATOR_ID, the MemorySpace is
+ * MemorySpace::Malloc.  Other values have no corresponding MemorySpace
+ * and will cause an abort.
  */
 inline MemorySpace getAllocatorSpace(int allocatorId)
 {
