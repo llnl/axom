@@ -64,6 +64,7 @@ public:
    * \brief Constructs a ray object from a directed segment.
    * \param [in] S user-supplied segment.
    */
+  AXOM_HOST_DEVICE
   explicit Ray(const SegmentType& S);
 
   /*!
@@ -129,7 +130,7 @@ AXOM_HOST_DEVICE Ray<T, NDIMS>::Ray(const PointType& origin, const VectorType& d
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-Ray<T, NDIMS>::Ray(const SegmentType& S)
+AXOM_HOST_DEVICE Ray<T, NDIMS>::Ray(const SegmentType& S)
   : m_origin(S.source())
   , m_direction(VectorType(S.source(), S.target()).unitVector())
 {
