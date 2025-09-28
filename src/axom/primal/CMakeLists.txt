@@ -23,6 +23,8 @@ set( primal_headers
     geometry/BezierCurve.hpp
     geometry/BezierPatch.hpp
     geometry/BoundingBox.hpp
+    geometry/CoordinateTransformer.hpp
+    geometry/Cone.hpp
     geometry/CurvedPolygon.hpp
     geometry/Hexahedron.hpp
     geometry/KnotVector.hpp

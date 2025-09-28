@@ -253,11 +253,11 @@ public:
    */
   virtual MPI_Comm comm() override;
 
-private:
+protected:
   void initializeLumberjack(MPI_Comm comm, int ranksLimit);
   void finalizeLumberjack();
 
-  /// \name Private Members
+  /// \name Protected Members
   /// @{
 
   axom::lumberjack::Lumberjack* m_lj;
@@ -270,6 +270,7 @@ private:
 
   /// @}
 
+private:
   /*!
    * \brief Default constructor. Made private to prevent applications from
    *  using it. Instead the constructor that passes the underlying Lumberjack
