@@ -1097,7 +1097,7 @@ private:
    *****************************************************************************
    */
   template <typename T>
-  static std::unordered_map<std::string, std::unique_ptr<T>> Container::*getChildren();
+  static std::unordered_map<std::string, std::unique_ptr<T>> Container::* getChildren();
 
   /*!
    *****************************************************************************

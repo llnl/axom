@@ -395,8 +395,7 @@ Array<T, DIM>::Array(View* view) : axom::Array<T, 1>()
 
   this->m_data = static_cast<T*>(m_view->getVoidPtr());
   SLIC_ERROR_IF(this->m_data == nullptr && this->m_capacity > 0,
-                "View returned a null pointer when the capacity "
-                  << "is greater than zero.");
+                "View returned a null pointer when the capacity " << "is greater than zero.");
 }
 
 template <typename T, int DIM>
@@ -439,8 +438,7 @@ Array<T, DIM>::Array(View* view) : axom::Array<T, 2>()
 
   this->m_data = static_cast<T*>(m_view->getVoidPtr());
   SLIC_ERROR_IF(this->m_data == nullptr && this->m_capacity > 0,
-                "View returned a null pointer when the capacity "
-                  << "is greater than zero.");
+                "View returned a null pointer when the capacity " << "is greater than zero.");
 }
 
 //------------------------------------------------------------------------------

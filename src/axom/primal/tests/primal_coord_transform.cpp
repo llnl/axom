@@ -26,7 +26,7 @@ TEST(primal_coord_transform, matrix_consistency)
   {
     for(int c = 0; c < 4; ++c)
     {
-      m(r, c) = 10*r + c;
+      m(r, c) = 10 * r + c;
     }
   }
   m(3, 0) = m(3, 1) = m(3, 2) = 0.0;
@@ -71,11 +71,21 @@ TEST(primal_coord_transform, rotate_to_axis)
   NumArrayType z({0, 0, 1});
 
   const int n = 15;  // Number of pairs in startsAndEnds
-  NumArrayType startsAndEnds[n][2] = {{x,  x}, {y,  y}, {z,  z},
-                                      {x,  y}, {y,  z}, {z,  x},
-                                      {x,  -x}, {x, -y}, {x, -z},
-                                      {y, -x}, {y, -y}, {y, -z},
-                                      {z, -x}, {z, -y}, {z,  -z}};
+  NumArrayType startsAndEnds[n][2] = {{x, x},
+                                      {y, y},
+                                      {z, z},
+                                      {x, y},
+                                      {y, z},
+                                      {z, x},
+                                      {x, -x},
+                                      {x, -y},
+                                      {x, -z},
+                                      {y, -x},
+                                      {y, -y},
+                                      {y, -z},
+                                      {z, -x},
+                                      {z, -y},
+                                      {z, -z}};
   for(int i = 0; i < n; ++i)
   {
     VectorType startDir(startsAndEnds[i][0]);
@@ -122,18 +132,22 @@ TEST(primal_coord_transform, rotate_about_bisector)
   double angle = 2 * M_PI / 3;  // 1/3 full rotation about bisectors goes from axis to axis.
 
   // Test in 8 octants.  Do 3 rotations per octant.  Each rotation has a {start, end} pair.
-  VectorType rotAxes[nOct] = {oct1.unitVector(), oct2.unitVector(),
-                              oct3.unitVector(), oct4.unitVector(),
-                              oct5.unitVector(), oct6.unitVector(),
-                              oct7.unitVector(), oct8.unitVector()};
-  NumArrayType startEnds[nOct][3][2] = { { {x, y}, {y, z}, {z, x} },
-                                         { {y, -x}, {-x, z}, {z, y} },
-                                         { {z, -x}, {-x, -y}, {-y, z} },
-                                         { {x, z}, {z, -y}, {-y, x} },
-                                         { {x, -z}, {-z, y}, {y, x} },
-                                         { {y, -z}, {-z, -x}, {-x, y} },
-                                         { {-x, -z}, {-z, -y}, {-y, -x} },
-                                         { {x, -y}, {-y, -z}, {-z, x} } };
+  VectorType rotAxes[nOct] = {oct1.unitVector(),
+                              oct2.unitVector(),
+                              oct3.unitVector(),
+                              oct4.unitVector(),
+                              oct5.unitVector(),
+                              oct6.unitVector(),
+                              oct7.unitVector(),
+                              oct8.unitVector()};
+  NumArrayType startEnds[nOct][3][2] = {{{x, y}, {y, z}, {z, x}},
+                                        {{y, -x}, {-x, z}, {z, y}},
+                                        {{z, -x}, {-x, -y}, {-y, z}},
+                                        {{x, z}, {z, -y}, {-y, x}},
+                                        {{x, -z}, {-z, y}, {y, x}},
+                                        {{y, -z}, {-z, -x}, {-x, y}},
+                                        {{-x, -z}, {-z, -y}, {-y, -x}},
+                                        {{x, -y}, {-y, -z}, {-z, x}}};
   for(int i = 0; i < nOct; ++i)
   {
     const VectorType& rotAxis = rotAxes[i];

@@ -37,9 +37,7 @@ void raja_basic_usage_test()
     });
 
   // add vectors
-  RAJA::forall<execution_policy>(
-    RAJA::RangeSegment(0, N),
-    AXOM_LAMBDA(int i) { c[i] = a[i] + b[i]; });
+  RAJA::forall<execution_policy>(RAJA::RangeSegment(0, N), AXOM_LAMBDA(int i) { c[i] = a[i] + b[i]; });
 
   // check result in serial
   for(int i = 0; i < N; ++i)
