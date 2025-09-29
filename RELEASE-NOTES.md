@@ -84,6 +84,8 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Klee: Moves source files related to IO into a new `io` subdirectory in the Klee component
 - Primal: Consolidates construction logic for `BezierCurve`, `BezierPatch`, `KnotVector`,
   `NURBSCurve` and `NURBSPatch` classes and add overloads from `axom::ArrayView`
+- Primal: 2D and 3D winding number methods are now accelerated via memoization (dynamic caching + reuse) when supplied
+  arrays of query points
 - Core: Updates behavior of `FlatMap::reserve()` to only trigger a rehash if maximum load factor
   would be exceeded.
 - Quest: Moves curve linearization from the `quest::C2CReader` into `quest::LinearizeCurves` so the logic can be used with other curve data.
