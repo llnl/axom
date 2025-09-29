@@ -11,7 +11,7 @@ jobs:
     name: Builds a docker image and extracts generated hostconfigs
     strategy:
       matrix:
-        compiler: [clang-19, gcc-13]
+        compiler: [clang-14, gcc-13]
     env:
       REPO: axom/tpls
       HOSTCONFIG_LOC: /home/axom/export_hostconfig
