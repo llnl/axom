@@ -510,10 +510,6 @@ axom::sidre::Group* createBoxMesh(axom::sidre::Group* meshGrp)
   // State group is optional to blueprint, and we don't use it, but mint checks for it.
   meshGrp->createGroup("state");
 
-  auto hostAllocForScalarAndStringViews = [](const axom::sidre::View& v) {
-    return (v.isScalar() || v.isString()) ? hostAllocId : axom::INVALID_ALLOCATOR_ID;
-  };
-
   return meshGrp;
 }
 
@@ -1680,7 +1676,6 @@ int main(int argc, char** argv)
                 "-DAXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION.");
 #endif
 
-  conduit::Node* topoCoordsetNode = nullptr;
   if(params.useBlueprintSidre() || params.useBlueprintConduit())
   {
     compMeshGrp = ds.getRoot()->createGroup("compMesh");

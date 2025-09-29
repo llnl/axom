@@ -16,6 +16,8 @@ set( primal_tests
     primal_closest_point.cpp
     primal_compute_bounding_box.cpp
     primal_compute_moments.cpp
+    primal_cone.cpp
+    primal_coord_transform.cpp
     primal_curved_polygon.cpp
     primal_hexahedron.cpp
     primal_in_sphere.cpp
@@ -45,6 +47,8 @@ set( primal_tests
     primal_vector.cpp
     primal_winding_number.cpp
     primal_zip.cpp
+
+    primal_clip_perf.cpp
    )
 
 blt_list_append(
