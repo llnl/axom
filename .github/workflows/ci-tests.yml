@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/develop' }}
 
 env:
-  CLANG_DOCKER_IMAGE: axom/tpls:clang-14_05-14-25_19h-24m
-  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_05-14-25_19h-24m
+  CLANG_DOCKER_IMAGE: axom/tpls:clang-14_09-29-25_18h-36m
+  GCC_DOCKER_IMAGE: axom/tpls:gcc-13_09-29-25_18h-26m
  
 jobs:
   # Hacky solution to reference env variables outside of `run` steps https://stackoverflow.com/a/74217028
