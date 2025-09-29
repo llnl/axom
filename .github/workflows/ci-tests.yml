@@ -35,19 +35,19 @@ jobs:
         build_type: [ Debug, Release ]
         config:
         - job_name: gcc@13.1.0, shared, benchmarks
-          host_config: gcc@13.1.0.cmake
+          host_config: gcc@13.3.1.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.gcc_docker_image }}
           cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION:BOOL=ON -DENABLE_BENCHMARKS:BOOL=ON'
           do_build: 'yes'
           do_benchmarks: 'yes'
         - job_name: gcc@13.1.0, shared, 64bit
-          host_config: gcc@13.1.0.cmake
+          host_config: gcc@13.3.1.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.gcc_docker_image }}
           cmake_opts: '-DBUILD_SHARED_LIBS=ON -DBLT_CXX_STD=c++20 -DAXOM_USE_64BIT_INDEXTYPE:BOOL=ON'
           do_build: 'yes'
           do_benchmarks: 'no'
         - job_name: clang@14.0.0, shared, benchmarks, quest regression
-          host_config: clang@14.0.0.cmake
+          host_config: llvm@14.0.0.cmake
           compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
           cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DENABLE_BENCHMARKS:BOOL=ON'
           do_build: 'yes'
@@ -56,7 +56,7 @@ jobs:
         - build_type: Debug
           config:
             job_name: clang@14.0.0, shared, no raja
-            host_config: clang@14.0.0.cmake
+            host_config: llvm@14.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR'
             do_build: 'yes'
@@ -64,7 +64,7 @@ jobs:
         - build_type: Debug
           config:
             job_name: clang@14.0.0, shared, no umpire
-            host_config: clang@14.0.0.cmake
+            host_config: llvm@14.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -U UMPIRE_DIR'
             do_build: 'yes'
@@ -72,7 +72,7 @@ jobs:
         - build_type: Debug
           config:
             job_name: clang@14.0.0, shared, no raja and umpire
-            host_config: clang@14.0.0.cmake
+            host_config: llvm@14.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -DAXOM_ENABLE_MIR:BOOL=OFF -DAXOM_ENABLE_BUMP:BOOL=OFF -U RAJA_DIR -U UMPIRE_DIR'
             do_build: 'yes'
@@ -80,7 +80,7 @@ jobs:
         - build_type: Debug
           config:
             job_name: clang@14.0.0, shared, no profiling
-            host_config: clang@14.0.0.cmake
+            host_config: llvm@14.0.0.cmake
             compiler_image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
             cmake_opts: '-DBUILD_SHARED_LIBS=ON -DAXOM_QUEST_ENABLE_EXTRA_REGRESSION_TESTS:BOOL=ON -U CALIPER_DIR -U ADIAK_DIR'
             do_build: 'yes'
@@ -180,7 +180,7 @@ jobs:
       - /home/axom/axom
       env:
         CHECK_TYPE: ${{ matrix.check_type }}
-        HOST_CONFIG: clang@14.0.0.cmake
+        HOST_CONFIG: llvm@14.0.0.cmake
     steps:
     - name: Checkout Axom
       uses: actions/checkout@v4
