@@ -37,9 +37,7 @@ template <typename ExecSpace>
 double array_sum(axom::ArrayView<double> v)
 {
   axom::ReduceSum<ExecSpace, double> sum(0);
-  axom::for_all<ExecSpace>(
-    v.size(),
-    AXOM_LAMBDA(axom::IndexType i) { sum += v[i]; });
+  axom::for_all<ExecSpace>(v.size(), AXOM_LAMBDA(axom::IndexType i) { sum += v[i]; });
   double rval = sum.get();
   return rval;
 }

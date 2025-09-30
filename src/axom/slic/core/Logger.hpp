@@ -456,8 +456,7 @@ private:
    * \param [in] streamUsesMPI flag that indicates if the current stream 
    *                           uses MPI
    */
-  bool shouldPushMessages(const bool hasPendingMessages, 
-                          const bool streamUsesMPI) const;
+  bool shouldPushMessages(const bool hasPendingMessages, const bool streamUsesMPI) const;
 
   /// \name Private class members
   ///@{

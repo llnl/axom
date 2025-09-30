@@ -695,8 +695,8 @@ private:
     {
       const int numFaces = facet_set.size();
 
-      IndexType vlist[VERT_PER_ELEMENT]{};
-      IndexType neighbors[VERT_PER_ELEMENT]{};
+      IndexType vlist[VERT_PER_ELEMENT] {};
+      IndexType neighbors[VERT_PER_ELEMENT] {};
       for(int i = 0; i < numFaces; ++i)
       {
         // Create a new element from the face and the inserted point

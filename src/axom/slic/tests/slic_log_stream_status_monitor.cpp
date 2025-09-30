@@ -15,33 +15,33 @@
 
 enum class StreamType
 {
-    Generic,
-    Synchronized,
-    Lumberjack
+  Generic,
+  Synchronized,
+  Lumberjack
 };
 
 class LogStreamStatusMonitorParamTest : public ::testing::TestWithParam<StreamType>
 {
 protected:
-    std::ostringstream test_stream;
-    std::unique_ptr<axom::slic::LogStream> stream;
-    axom::slic::LogStreamStatusMonitor logStreamStatusMonitor;
+  std::ostringstream test_stream;
+  std::unique_ptr<axom::slic::LogStream> stream;
+  axom::slic::LogStreamStatusMonitor logStreamStatusMonitor;
 
-    void SetUp() override
+  void SetUp() override
+  {
+    switch(GetParam())
     {
-      switch(GetParam())
-      {
-        case StreamType::Generic:
-          stream = std::make_unique<axom::slic::GenericOutputStream>(&test_stream);
-          break;
-        case StreamType::Synchronized:
-          stream = std::make_unique<axom::slic::SynchronizedStream>(&test_stream, MPI_COMM_WORLD);
-          break;
-        case StreamType::Lumberjack:
-          stream = std::make_unique<axom::slic::LumberjackStream>(&test_stream, MPI_COMM_WORLD, 1);
-          break;
-      }
+    case StreamType::Generic:
+      stream = std::make_unique<axom::slic::GenericOutputStream>(&test_stream);
+      break;
+    case StreamType::Synchronized:
+      stream = std::make_unique<axom::slic::SynchronizedStream>(&test_stream, MPI_COMM_WORLD);
+      break;
+    case StreamType::Lumberjack:
+      stream = std::make_unique<axom::slic::LumberjackStream>(&test_stream, MPI_COMM_WORLD, 1);
+      break;
     }
+  }
 };
 
 //------------------------------------------------------------------------------
@@ -65,23 +65,17 @@ TEST_P(LogStreamStatusMonitorParamTest, test_has_pending_messages)
   stream->flush();
 
   EXPECT_EQ(logStreamStatusMonitor.hasPendingMessages(), false);
-
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    StreamTypes,
-    LogStreamStatusMonitorParamTest,
-    ::testing::Values(
-        StreamType::Generic,
-        StreamType::Synchronized,
-        StreamType::Lumberjack
-    )
-);
+INSTANTIATE_TEST_SUITE_P(StreamTypes,
+                         LogStreamStatusMonitorParamTest,
+                         ::testing::Values(StreamType::Generic,
+                                           StreamType::Synchronized,
+                                           StreamType::Lumberjack));
 
 //------------------------------------------------------------------------------
 TEST(SlicLogStreamMonitorTest, test_add_streams_different_comms)
 {
-
   /*
     This test checks hasPendingMessages when different 
     ranks have different MPI communicators.
@@ -102,7 +96,7 @@ TEST(SlicLogStreamMonitorTest, test_add_streams_different_comms)
   MPI_Comm_split(MPI_COMM_WORLD, color, rank, &comm0);
 
   // To create communicator asymmetry, rank 0 is included in both even and odd communicators.
-  if (rank == 0)
+  if(rank == 0)
   {
     color = 1;
   }
@@ -119,9 +113,15 @@ TEST(SlicLogStreamMonitorTest, test_add_streams_different_comms)
   auto ljstream1 = axom::slic::LumberjackStream(&test_stream, comm1, 1);
   logStreamStatusMonitor.addStream(&ljstream1);
 
-  if (rank_is_even)
+  if(rank_is_even)
   {
-    ljstream0.append(axom::slic::message::Debug, "test message", "test tag", "test file name", 1, false, false);
+    ljstream0.append(axom::slic::message::Debug,
+                     "test message",
+                     "test tag",
+                     "test file name",
+                     1,
+                     false,
+                     false);
   }
 
   /*
@@ -144,7 +144,6 @@ TEST(SlicLogStreamMonitorTest, test_add_streams_different_comms)
   {
     MPI_Comm_free(&comm1);
   }
-
 }
 
 int main(int argc, char* argv[])

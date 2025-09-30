@@ -16,7 +16,7 @@
 #include "LogStreamStatusMonitor.hpp"
 
 #if defined(AXOM_USE_MPI)
-#include "axom/slic/core/LogStreamStatusMonitor.hpp"
+  #include "axom/slic/core/LogStreamStatusMonitor.hpp"
 #endif
 
 #include <algorithm>
@@ -30,19 +30,17 @@ namespace slic
 LogStreamStatusMonitor::LogStreamStatusMonitor()
   : m_streamVec()
 #if defined(AXOM_USE_MPI)
-    ,
-    m_useMPI(false),
-    m_mpiComms()
+  , m_useMPI(false)
+  , m_mpiComms()
 #endif
-{
-}
+{ }
 
 //------------------------------------------------------------------------------
 void LogStreamStatusMonitor::addStream(LogStream* ls)
 {
   m_streamVec.push_back(ls);
 #if defined(AXOM_USE_MPI)
-  if (ls->isUsingMPI() == true)
+  if(ls->isUsingMPI() == true)
   {
     m_useMPI = true;
 
@@ -50,19 +48,18 @@ void LogStreamStatusMonitor::addStream(LogStream* ls)
       Lambda returns true if ranks participating in input MPI communicator are 
       identical to those of the current log stream's MPI commmunicator
     */
-    auto commCompareFunc = 
-      [&](MPI_Comm& comm) {
-        MPI_Group groupCommA, groupCommB;
-        MPI_Comm_group(comm, &groupCommA);
-        MPI_Comm_group(ls->comm(), &groupCommB);
+    auto commCompareFunc = [&](MPI_Comm& comm) {
+      MPI_Group groupCommA, groupCommB;
+      MPI_Comm_group(comm, &groupCommA);
+      MPI_Comm_group(ls->comm(), &groupCommB);
 
-        int result;
-        MPI_Group_compare(groupCommA, groupCommB, &result);
+      int result;
+      MPI_Group_compare(groupCommA, groupCommB, &result);
 
-        MPI_Group_free(&groupCommA);
-        MPI_Group_free(&groupCommB);
-        return result == MPI_IDENT;
-      };
+      MPI_Group_free(&groupCommA);
+      MPI_Group_free(&groupCommB);
+      return result == MPI_IDENT;
+    };
 
     auto it = std::find_if(m_mpiComms.begin(), m_mpiComms.end(), commCompareFunc);
 
@@ -70,7 +67,7 @@ void LogStreamStatusMonitor::addStream(LogStream* ls)
       Add the stream's MPI communicator only if its participating ranks differ
       from those of all existing communicators in m_mpiComms.
     */
-    if (it == m_mpiComms.end())
+    if(it == m_mpiComms.end())
     {
       m_mpiComms.push_back(ls->comm());
     }
@@ -83,25 +80,25 @@ bool LogStreamStatusMonitor::hasPendingMessages() const
 {
 #if defined(AXOM_USE_MPI)
 
-  if (!m_useMPI)
-  { 
-    return false; 
+  if(!m_useMPI)
+  {
+    return false;
   }
 
   int has_pending_messages = 0;
 
-  for (auto& stream : m_streamVec)
+  for(auto& stream : m_streamVec)
   {
-    if (stream->isUsingMPI())
+    if(stream->isUsingMPI())
     {
       has_pending_messages += static_cast<int>(stream->hasPendingMessages());
     }
   }
 
   int local_has_pending_messages = has_pending_messages;
-  for (auto& comm : m_mpiComms)
+  for(auto& comm : m_mpiComms)
   {
-    if (comm != MPI_COMM_NULL)
+    if(comm != MPI_COMM_NULL)
     {
       MPI_Allreduce(&local_has_pending_messages, &has_pending_messages, 1, MPI_INT, MPI_MAX, comm);
     }
@@ -123,5 +120,5 @@ void LogStreamStatusMonitor::finalize()
 #endif
 }
 
-}
-}
+}  // namespace slic
+}  // namespace axom

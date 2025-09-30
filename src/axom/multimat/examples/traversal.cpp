@@ -389,9 +389,8 @@ void various_traversal_methods(int nmats, int ncells, int ncomp, bool use_sparse
 
 void usage()
 {
-  SLIC_WARNING("Usage: ./multimat_traversal_ex "
-               << "<num_cells> <num_mats> <num_comp> "
-               << "<bool use_sparse> <fill percentage>");
+  SLIC_WARNING("Usage: ./multimat_traversal_ex " << "<num_cells> <num_mats> <num_comp> "
+                                                 << "<bool use_sparse> <fill percentage>");
   SLIC_WARNING("  example: ./multimat_traversal_ex 10000 50 3 1 0.2");
 }
 

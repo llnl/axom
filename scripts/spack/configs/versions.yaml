@@ -11,10 +11,10 @@ packages:
       - spec: "@2.12.1"
   camp:
     require:
-      - spec: "@2025.03.0"
+      - spec: "@2025.09.2"
   conduit:
     require:
-      - spec: "@0.9.3"
+      - spec: "@0.9.5"
   hypre:
     require:
       - spec: "@2.24.0"
@@ -29,10 +29,10 @@ packages:
       - spec: "@:4.17" #Anything after this requires py-rpds which requires rust and adds 40 minutes
   raja:
     require:
-      - spec: "@2025.03.0"
+      - spec: "@2025.09.0"
   scr:
     require:
       - spec: "@3.0.1"
   umpire:
     require:
-      - spec: "@2025.03.0"
+      - spec: "@2025.09.0"

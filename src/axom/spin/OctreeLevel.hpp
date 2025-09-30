@@ -130,7 +130,7 @@ public:
   OctreeLevel(int level = -1) : m_level(level) { }
 
   /// \brief Virtual destructor of an OctreeLevel
-  virtual ~OctreeLevel() {};
+  virtual ~OctreeLevel() { };
 
   /**
    * \brief Returns the maximum coordinate value in the level
