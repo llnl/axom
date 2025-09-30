@@ -37,7 +37,7 @@ namespace detail
  *
  * \param [in] R The query point to test
  * \param [in] P The Polygon object to test for containment
- * \param [in] isOnEdge An optional return parameter if the point is on the boundary
+ * \param [out] isOnEdge An optional return parameter if the point is on the boundary
  * \param [in] includeBoundary If true, points on the boundary are considered interior
  * \param [in] edge_tol The distance at which a point is considered on the boundary
  * 
@@ -121,7 +121,7 @@ int polygon_winding_number(const Point<T, 2>& R,
   return winding_num;
 }
 
-/*
+/*!
  * \brief Compute the GWN at a 2D point wrt a 2D line segment
  *
  * \param [in] q The query point to test
@@ -295,7 +295,7 @@ double convex_endpoint_winding_number(const Point<T, 2>& q,
  * \param [in] bezier_idx The index of the bezier curve in the extracted NURBS curve
  * \param [in] refinement_level The current subdivision level for the Bezier curve
  * \param [in] refinement_index The index of the specific subdivision at the specified level
- * \param [in] isOnCurve An returned flag if the point is on the curve
+ * \param [out] isOnCurve An returned flag if the point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
@@ -476,7 +476,7 @@ void construct_approximating_polygon(const Point<T, 2>& q,
  *
  * \param [in] q The query point to test
  * \param [in] c The Bezier curve object 
- * \param [in] isOnCurve An returned flag if the point is on the curve
+ * \param [out] isOnCurve An returned flag if the point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
@@ -574,7 +574,7 @@ double bezier_winding_number(const Point<T, 2>& q,
  *
  * \param [in] q The query point to test
  * \param [in] n The NURBS curve object 
- * \param [in] isOnCurve An returned flag if the point is on the curve
+ * \param [out] isOnCurve An returned flag if the point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *

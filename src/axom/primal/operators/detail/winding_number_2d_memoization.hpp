@@ -71,7 +71,8 @@ private:
  * \brief Represents a NURBS curve and associated data for GWN evaluation
  * \tparam T the coordinate type, e.g., double, float, etc.
  *
- * Stores subdivision NURBS curves, and a flag that maintains if the control polygon is convex
+ * Stores subdivision Bezier curves, bounding boxes for each, and flags that track
+ *  if the control polygon is known to be convex
  * 
  * \pre Assumes a 2D NURBS curve
  */
@@ -129,7 +130,7 @@ public:
     }
   }
 
-  /// \brief Query the map. If curve is not found, add it and it's pair from subdivision
+  /// \brief Query the map. If curve is not found, add it and its pair from subdivision
   const BezierCurveData<T>& getSubdivisionData(int idx,
                                                int refinementLevel,
                                                int refinementIndex,
@@ -159,6 +160,10 @@ public:
     return m_bezierSubdivisionMaps[idx][hash_key];
   }
 
+  ///@{
+  //! \name Functions that mirror functionality of NURBSCurve and BezierCurve so signatures match in GWN evaluation.
+  //!
+  //! By limiting access to these functions, we ensure memoized information is always accurate
   auto getNumKnotSpans() const { return m_numSpans; }
   auto boundingBox() const { return m_boundingBox; }
   auto getNumControlPoints() const { return m_numControlPoints; }
@@ -166,6 +171,7 @@ public:
 
   auto getInitPoint() const { return m_initPoint; }
   auto getEndPoint() const { return m_endPoint; }
+  //@}
 
 private:
   BoundingBox<T, 2> m_boundingBox;

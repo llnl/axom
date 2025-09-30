@@ -463,16 +463,17 @@ double stokes_gwn_evaluate(const Point<T, 3>& query,
  *
  * \tparam NURBSType The memoized (NURBSPatchGWNCache) or un-memoized (NURBSPatch) surface type
  * \param [in] query The query point to test
- * \param [in] nPatch The NURBS patch object with precomputed data
+ * \param [in] nurbs The NURBS patch object with precomputed data
+ * \param [in] cast_direction The vector which defines the discrete correction term
  * \param [in] edge_tol The physical distance level at which objects are 
  *                      considered indistinguishable
  * \param [in] ls_tol The tolerance for the line-surface intersection routine
  * \param [in] quad_tol The maximum relative error allowed in the quadrature
  * \param [in] disk_size The size of extracted disks as a percent of parameter bbox diagonal
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
- * \param [in] depth The current recursive depth
  * 
- * Computes the generalized winding number for a NURBS patch using Stokes theorem.
+ * Computes the generalized winding number for a NURBS patch using Stokes theorem,
+ *  along with a correction term determined by a line-surface intersection test
  *
  * \pre Assumes that the NURBS patch is trimmed, and has been slightly extended in 
  *       parameter space so that trimming curves arent't on the boundary of the untrimmed patch
@@ -486,8 +487,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
                             const double ls_tol = 1e-8,
                             const double quad_tol = 1e-8,
                             const double disk_size = 0.01,
-                            const double EPS = 1e-8,
-                            const int depth = 0)
+                            const double EPS = 1e-8)
 {
   // Skip processing of degenerate surfaces
   if(nurbs.getNumControlPoints_u() <= 1 || nurbs.getNumControlPoints_v() <= 1)
@@ -676,8 +676,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
                                       ls_tol,
                                       quad_tol * 1e-5,
                                       disk_size,
-                                      EPS,
-                                      depth + 1) +
+                                      EPS) +
             nurbs_winding_number(query,
                                  clipped_patch2,
                                  cast_direction,
@@ -685,8 +684,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
                                  ls_tol,
                                  quad_tol * 1e-5,
                                  disk_size,
-                                 EPS,
-                                 depth + 1);
+                                 EPS);
         }
         else
         {
@@ -707,8 +705,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
                                       ls_tol,
                                       quad_tol,
                                       disk_size,
-                                      EPS,
-                                      depth + 1);
+                                      EPS);
         }
       }
     }
@@ -743,8 +740,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
                                     ls_tol,
                                     quad_tol,
                                     disk_size,
-                                    EPS,
-                                    depth + 1);
+                                    EPS);
       }
 
       if(isOnSurface)
@@ -796,8 +792,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
                                         ls_tol,
                                         quad_tol,
                                         disk_size,
-                                        EPS,
-                                        depth + 1);
+                                        EPS);
       }
       else if(isDiskOutside)
       {

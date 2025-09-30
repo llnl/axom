@@ -112,7 +112,8 @@ struct TrimmingCurveQuadratureData
   Vector<T, 3> getQuadratureTangent(size_t idx) const { return m_quadrature_tangents[idx]; }
   double getQuadratureWeight(size_t idx) const
   {
-    // Is this efficient because it's cached? More or less efficient than storing a bunch of duplicated weights for each curve?
+    // Because the quadrature weights are identical for each trimming curve (up to a scaling factor),
+    //  we query the static rule instead of storing redundant weights
     static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
     const mfem::IntegrationRule& quad_rule =
       my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * m_quad_npts - 1);
@@ -146,6 +147,7 @@ class NURBSPatchGWNCache
 public:
   NURBSPatchGWNCache() = default;
 
+  /// \brief Initialize the cache with the data for a single NURBS patch
   NURBSPatchGWNCache(const NURBSPatch<T, 3>& a_patch) : m_alteredPatch(a_patch)
   {
     m_alteredPatch.normalizeBySpan();
@@ -208,12 +210,15 @@ public:
     m_curveQuadratureMaps.resize(m_alteredPatch.getNumTrimmingCurves());
   }
 
+  /// \brief Initialize the cache with the data for a single Bezier patch
   NURBSPatchGWNCache(const BezierPatch<T, 3> a_patch)
     : NURBSPatchGWNCache(NURBSPatch<T, 3>(a_patch))
   { }
 
-  // Mirror the functionality of NURBSPatch so signatures match in GWN evaluation.
-  // Allowing only access ensures the memoized information is always accurate
+  ///@{
+  //! \name Functions that mirror functionality of NURBSPatch so signatures match in GWN evaluation.
+  //!
+  //! By limiting access to these functions, we ensure memoized information is always accurate
   auto getControlPoints() const { return m_alteredPatch.getControlPoints(); }
   auto getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
   auto getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
@@ -227,11 +232,14 @@ public:
   auto getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
   auto getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
   auto getParameterSpaceDiagonal() const { return m_pboxDiag; }
+  //@}
 
-  // Access precomputed data
+  ///@{
+  //! \name Accessors for precomputed data
   Vector<T, 3> getAverageNormal() const { return m_averageNormal; }
   BoundingBox<T, 3> boundingBox() const { return m_bBox; }
   OrientedBoundingBox<T, 3> orientedBoundingBox() const { return m_oBox; }
+  //@}
 
   /// \brief Creates or accesses the quadrature nodes for a given trimming curve
   TrimmingCurveQuadratureData<T>& getTrimmingCurveQuadratureData(int curveIndex,

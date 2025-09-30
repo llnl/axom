@@ -47,7 +47,7 @@ namespace axom
 {
 namespace primal
 {
-/*
+/*!
  * \brief Compute the GWN for a 2D point wrt a 2D line segment
  *
  * \param [in] q The query point to test
@@ -63,7 +63,7 @@ double winding_number(const Point<T, 2>& q, const Segment<T, 2>& s, double edge_
   return detail::linear_winding_number(q, s[0], s[1], dummy_isOnEdge, edge_tol);
 }
 
-/*
+/*!
  * \brief Compute the winding number for a 2D point wrt a 2D triangle
  *
  * \param [in] q The query point to test
@@ -208,7 +208,7 @@ double winding_number(const Point<T, 2>& q,
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
- * Sums the GWN at `query` for each curved edge
+ * Sums the GWN at `q` for each curved edge
  * 
  * \return The GWN.
  */
@@ -236,7 +236,7 @@ double winding_number(const Point<T, 2>& q,
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
- * Sums the GWN at `query` for each curved edge
+ * Sums the GWN at `q` for each curved edge
  * 
  * \return The GWN.
  */
@@ -261,7 +261,7 @@ double winding_number(const Point<T, 2>& q,
  *
  * \param [in] query The query point to test
  * \param [in] nurbs_cache The NURBS curve cache data object containing memoized values
- * \param [in] isOnCurve Set to true is the query point is on the curve
+ * \param [out] isOnCurve Set to true is the query point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  * 
@@ -315,7 +315,7 @@ double winding_number(const Point<T, 2>& q,
  *
  * \param [in] query The query point to test
  * \param [in] nurbs_curve_arr The array of memoized curve objects
- * \param [in] isOnCurve Set to true is the query point is on the curve
+ * \param [out] isOnCurve Set to true is the query point is on the curve
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  * 
@@ -463,7 +463,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& query_arr,
  *
  * \param [in] q The query point to test
  * \param [in] tri The 3D Triangle object
- * \param [in] isOnFace An optional return parameter if the point is on the triangle
+ * \param [out] isOnFace An optional return parameter if the point is on the triangle
  * \param [in] edge_tol The physical distance level at which objects are considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances
  *
@@ -558,7 +558,7 @@ double winding_number(const Point<T, 3>& q,
  *
  * \param [in] q The query point to test
  * \param [in] poly The Polygon object
- * \param [in] isOnFace Return variable to show if the point is on the polygon
+ * \param [out] isOnFace Return variable to show if the point is on the polygon
  * \param [in] edge_tol The physical distance level at which objects are 
  *                      considered indistinguishable
  * \param [in] EPS Miscellaneous numerical tolerance level for nonphysical distances

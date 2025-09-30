@@ -697,7 +697,6 @@ bool intersect(const BezierCurve<T, 2>& c1,
  * \param [in] c The input curve
  * \param [out] rp Parametric coordinates of intersections in \a r [0, inf)
  * \param [out] cp Parametric coordinates of intersections in \a c [0, 1)
- * Bezier curve is linear
  * \param [in] tol Tolerance parameter for physical distances
  * \param [in] EPS Tolerance parameter for parameter-space distances
  * 
