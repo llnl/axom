@@ -1238,25 +1238,24 @@ TEST(core_array, checkSwap)
 //------------------------------------------------------------------------------
 TEST(core_array, checkAlloc)
 {
-  std::vector<int> memory_locations
-  {
+  std::vector<int> memory_locations {
 #if defined(AXOM_USE_UMPIRE)
     axom::getUmpireResourceAllocatorID(umpire::resource::Host)
   #if defined(UMPIRE_ENABLE_DEVICE)
       ,
-      axom::getUmpireResourceAllocatorID(umpire::resource::Device)
+    axom::getUmpireResourceAllocatorID(umpire::resource::Device)
   #endif
   #if defined(UMPIRE_ENABLE_UM)
-        ,
-      axom::getUmpireResourceAllocatorID(umpire::resource::Unified)
+      ,
+    axom::getUmpireResourceAllocatorID(umpire::resource::Unified)
   #endif
   #if defined(UMPIRE_ENABLE_CONST)
-        ,
-      axom::getUmpireResourceAllocatorID(umpire::resource::Constant)
+      ,
+    axom::getUmpireResourceAllocatorID(umpire::resource::Constant)
   #endif
   #if defined(UMPIRE_ENABLE_PINNED)
-        ,
-      axom::getUmpireResourceAllocatorID(umpire::resource::Pinned)
+      ,
+    axom::getUmpireResourceAllocatorID(umpire::resource::Pinned)
   #endif
 #endif
   };

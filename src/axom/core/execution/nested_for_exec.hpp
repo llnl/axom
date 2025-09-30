@@ -13,7 +13,7 @@
   #include "RAJA/RAJA.hpp"
 
   // NOTE: add RAJA alias for older versions of RAJA prior to RAJA-v0.11.0
-  #if(RAJA_VERSION_MAJOR == 0) && (RAJA_VERSION_MINOR < 11)
+  #if (RAJA_VERSION_MAJOR == 0) && (RAJA_VERSION_MINOR < 11)
 
 /* clang-format off */
 

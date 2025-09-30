@@ -59,6 +59,7 @@ const char* mpiBlockingReceiveIfMessagesExist(MPI_Comm comm);
  *****************************************************************************
  */
 void mpiNonBlockingSendMessages(MPI_Comm comm, int destinationRank, const char* packedMessagesToBeSent);
+
 }  // end namespace lumberjack
 }  // end namespace axom
 

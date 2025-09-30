@@ -413,6 +413,13 @@ void flushStreams();
 void pushStreams();
 
 /*!
+ * \brief Checks if there are any pending messages in the active logger
+ * 
+ * \return Return true if there are pending messages in the active logger
+ */
+bool hasPendingMessages();
+
+/*!
  * \brief Finalizes the slic logging environment.
  *
  * \collective

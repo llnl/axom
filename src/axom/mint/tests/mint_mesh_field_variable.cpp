@@ -41,7 +41,7 @@ void populate_array(axom::deprecated::MCArray<T>& data)
     {
       data(i, j) = offset + j;
     }  // END for all j
-  }    // END for all i
+  }  // END for all i
 }
 
 //------------------------------------------------------------------------------
@@ -59,7 +59,7 @@ void check_array(axom::deprecated::MCArray<T>& data)
       const double expected_value = offset + j;
       EXPECT_DOUBLE_EQ(data(i, j), expected_value);
     }  // END for all j
-  }    // END for all i
+  }  // END for all i
 }
 
 //------------------------------------------------------------------------------
@@ -80,7 +80,7 @@ void populate_field_variable(mint::FieldVariable<T>& fv)
       const int idx = static_cast<int>(offset) + j;
       data[idx] = expected_value;
     }  // END for all components
-  }    // END for all tuples
+  }  // END for all tuples
 }
 
 //------------------------------------------------------------------------------
@@ -102,7 +102,7 @@ void check_field_variable(mint::FieldVariable<T>& fv)
       const int idx = static_cast<int>(offset) + j;
       EXPECT_DOUBLE_EQ(data[idx], expected_value);
     }  // END for all jj
-  }    // END for all ii
+  }  // END for all ii
 }
 
 //------------------------------------------------------------------------------
@@ -323,7 +323,7 @@ TEST(mint_mesh_field_variable, field_array_access)
     {
       A(j, i) = base + j;
     }  // END for all components
-  }    // END for all tuples
+  }  // END for all tuples
 
   // check the data
   for(int i = 0; i < TOTAL_SIZE; ++i)

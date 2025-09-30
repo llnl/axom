@@ -53,8 +53,7 @@ TEST(quest_vertex_weld, emptyMesh)
 //------------------------------------------------------------------------------
 TEST(quest_vertex_weld, onlyVertices)
 {
-  SLIC_INFO("*** Tests welding function on a triangle mesh"
-            << " with vertices but no triangles.");
+  SLIC_INFO("*** Tests welding function on a triangle mesh" << " with vertices but no triangles.");
 
   UMesh* mesh = new UMesh(DIM, axom::mint::TRIANGLE);
   insertVertex(mesh, 1, 0, 0);

@@ -221,6 +221,27 @@
 #endif
 
 /*!
+ * \def AXOM_MAYBE_UNUSED
+ * \brief Macro that is used to silence compiler warnings about variables that
+ *        might be unused in some build configurations.
+ *
+ * \note This macro can be used for the same purpose as AXOM_UNUSED_VAR and AXOM_DEBUG_PARAM but it
+ *       is applied before the variable type declaration.
+ * \code
+ *
+ *  AXOM_MAYBE_UNUSED double myVar = ...
+ *  SLIC_ASSERT(myVar > 0)
+ *
+ * \endcode
+ */
+#if __cplusplus >= 201703L
+  // C++17 and later.
+  #define AXOM_MAYBE_UNUSED [[maybe_unused]]
+#else
+  #define AXOM_MAYBE_UNUSED
+#endif
+
+/*!
  * \def DISABLE_DEFAULT_CTOR(className)
  * \brief Macro to disable default constructor for the given class.
  * \note This macro should only be used within the private section of a class,

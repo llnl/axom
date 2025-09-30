@@ -59,9 +59,7 @@ void check_for_all_cells_idx(int dimension)
 
   auto field_v = field_d.view();
 
-  for_all_cells<ExecPolicy>(
-    test_mesh,
-    AXOM_LAMBDA(IndexType cellID) { field_v[cellID] = cellID; });
+  for_all_cells<ExecPolicy>(test_mesh, AXOM_LAMBDA(IndexType cellID) { field_v[cellID] = cellID; });
 
   // Copy field back to host
   axom::Array<IndexType> field_h = axom::Array<IndexType>(field_d, host_allocator);
@@ -132,7 +130,7 @@ void check_for_all_cells_ij()
       EXPECT_EQ(j_field[icell], j);
       ++icell;
     }  // END for all i
-  }    // END for all j
+  }  // END for all j
 
   delete test_mesh;
   test_mesh = nullptr;
@@ -202,8 +200,8 @@ void check_for_all_cells_ijk()
         EXPECT_EQ(k_field[icell], k);
         ++icell;
       }  // END for all i
-    }    // END for all j
-  }      // END for all k
+    }  // END for all j
+  }  // END for all k
 
   delete test_mesh;
   test_mesh = nullptr;

@@ -268,6 +268,7 @@ public:
     // Step 5: Check each candidate
     // TODO: This only supports sequential execution right now, because we
     // don't build MFEM in a thread-safe manner.
+    const MeshWrapperType* meshWrapperPtr = m_meshWrapper;
     for_all<SEQ_EXEC>(
       npts,
       AXOM_HOST_LAMBDA(IndexType i) {
@@ -278,7 +279,7 @@ public:
         {
           const int cellIdx = candidatesHostPtr[icell + offsetsHostPtr[i]];
           // if isopar is in the proper range
-          if(m_meshWrapper->locatePointInCell(cellIdx, pt.data(), isopar.data()))
+          if(meshWrapperPtr->locatePointInCell(cellIdx, pt.data(), isopar.data()))
           {
             // then we have found the cellID
             outCellIdsPtr[i] = cellIdx;

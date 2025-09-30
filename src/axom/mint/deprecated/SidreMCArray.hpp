@@ -274,8 +274,7 @@ MCArray<T>::MCArray(View* view) : axom::deprecated::MCArray<T>()
 
   this->m_data = static_cast<T*>(m_view->getVoidPtr());
   SLIC_ERROR_IF(this->m_data == nullptr && this->m_capacity > 0,
-                "View returned a null pointer when the capacity "
-                  << "is greater than zero.");
+                "View returned a null pointer when the capacity " << "is greater than zero.");
 }
 
 //------------------------------------------------------------------------------

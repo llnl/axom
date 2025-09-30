@@ -79,7 +79,7 @@ TEST(numerics_lu, lu_decompose)
     {
       EXPECT_EQ(PA(i, j), LU(i, j));
     }  // END for all colummns
-  }    // END for all rows
+  }  // END for all rows
 }
 //------------------------------------------------------------------------------
 TEST(numerics_lu, lu_solve)

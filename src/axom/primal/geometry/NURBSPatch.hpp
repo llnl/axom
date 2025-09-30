@@ -199,7 +199,7 @@ public:
     const int knot_deg_v = m_knotvec_v.getDegree();
     SLIC_ASSERT(knot_deg_u >= -1 && knot_deg_v >= -1);
 
-    if(const bool is_empty = (knot_deg_u == -1 && knot_deg_u == -1); is_empty)
+    if(const bool is_empty = (knot_deg_u == -1 && knot_deg_v == -1); is_empty)
     {
       SLIC_ASSERT(controlPoints.empty());
       SLIC_ASSERT(weights.empty());
@@ -207,9 +207,8 @@ public:
     else
     {
       SLIC_ASSERT(knot_deg_u >= 0 && knot_deg_v >= 0);
-      const int deg_u = utilities::max(0, knot_deg_u);
-      const int deg_v = utilities::max(0, knot_deg_v);
-
+      AXOM_MAYBE_UNUSED const int deg_u = utilities::max(0, knot_deg_u);
+      AXOM_MAYBE_UNUSED const int deg_v = utilities::max(0, knot_deg_v);
       const int npts_u = knotVector_u.getNumControlPoints();
       const int npts_v = knotVector_v.getNumControlPoints();
       SLIC_ASSERT(npts_u > deg_u && npts_v > deg_v);
@@ -394,8 +393,8 @@ public:
              int nkts_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
                  axom::ArrayView<const T, 2>(nullptr, {{0, 0}}),
-                 KnotVectorType(axom::ArrayView(knots_u, nkts_u), nkts_u - npts_u - 1),
-                 KnotVectorType(axom::ArrayView(knots_v, nkts_v), nkts_v - npts_v - 1))
+                 KnotVectorType(axom::ArrayView<const T>(knots_u, nkts_u), nkts_u - npts_u - 1),
+                 KnotVectorType(axom::ArrayView<const T>(knots_v, nkts_v), nkts_v - npts_v - 1))
   { }
 
   /*!
@@ -422,8 +421,8 @@ public:
              int nkts_v)
     : NURBSPatch(axom::ArrayView<const PointType, 2>(pts, {{npts_u, npts_v}}),
                  axom::ArrayView<const T, 2>(weights, {{weights ? npts_u : 0, weights ? npts_v : 0}}),
-                 KnotVectorType(axom::ArrayView(knots_u, nkts_u), nkts_u - npts_u - 1),
-                 KnotVectorType(axom::ArrayView(knots_v, nkts_v), nkts_v - npts_v - 1))
+                 KnotVectorType(axom::ArrayView<const T>(knots_u, nkts_u), nkts_u - npts_u - 1),
+                 KnotVectorType(axom::ArrayView<const T>(knots_v, nkts_v), nkts_v - npts_v - 1))
   { }
 
   /*!

@@ -806,9 +806,7 @@ void UniformGrid<T, NDIMS, ExecSpace, StoragePolicy>::getCandidatesAsArray(
   const auto dedup_cand_view = dedupedCandidates.view();
 
   // Reset counts counter for counting unique candidates per query box.
-  for_all<ExecSpace>(
-    qsize,
-    AXOM_LAMBDA(IndexType i) { counts_view[i] = 0; });
+  for_all<ExecSpace>(qsize, AXOM_LAMBDA(IndexType i) { counts_view[i] = 0; });
 
   // Store unique candidates in the deduplicated array, and count the number of
   // unique candidates for each query.

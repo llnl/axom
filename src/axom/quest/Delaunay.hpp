@@ -695,10 +695,11 @@ private:
     {
       const int numFaces = facet_set.size();
 
+      IndexType vlist[VERT_PER_ELEMENT] {};
+      IndexType neighbors[VERT_PER_ELEMENT] {};
       for(int i = 0; i < numFaces; ++i)
       {
         // Create a new element from the face and the inserted point
-        IndexType vlist[VERT_PER_ELEMENT];
         for(int d = 0; d < VERTS_PER_FACET; ++d)
         {
           vlist[d] = fv_rel[i][d];
@@ -706,7 +707,6 @@ private:
         vlist[VERTS_PER_FACET] = new_pt_i;
 
         // set all neighbors to nID; they'll be fixed in the fixVertexNeighborhood function below
-        IndexType neighbors[VERT_PER_ELEMENT];
         const auto nID = fc_rel[i][0];
         for(int d = 0; d < VERTS_PER_FACET; ++d)
         {

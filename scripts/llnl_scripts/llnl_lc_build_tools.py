@@ -593,7 +593,7 @@ def build_devtools(builds_dir, timestamp):
     project_file = "scripts/spack/devtools.json"
 
     if "toss_4" in sys_type:
-        compiler_spec = "%gcc@10.3.1"
+        compiler_spec = "%gcc_13"
     elif "blueos" in sys_type:
         compiler_spec = "%gcc@8.3.1"
 
@@ -658,8 +658,6 @@ def get_specs_for_current_machine():
         specs = specs_json[machine_name]
     else:
         specs = specs_json[sys_type]
-
-    specs = ['%' + spec for spec in specs]
 
     return specs
 

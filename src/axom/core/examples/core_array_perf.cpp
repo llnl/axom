@@ -227,10 +227,7 @@ public:
     m_testAccumulation += testAdd;
     auto count = array.size();
     auto* ptr = array.data();
-    axom::for_all<ExecSpace>(
-      0,
-      count,
-      AXOM_LAMBDA(axom::IndexType i) { ptr[i] += testAdd; });
+    axom::for_all<ExecSpace>(0, count, AXOM_LAMBDA(axom::IndexType i) { ptr[i] += testAdd; });
   }
 
   /*!

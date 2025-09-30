@@ -48,7 +48,7 @@ public:
   using BlockIndex = typename InOutOctreeType::BlockIndex;
 
 public:
-  /**
+  /*!
    * \brief Constructor for a InOutSampler
    *
    * \param shapeName The name of the shape; will be used for the field for the associated samples
@@ -94,7 +94,7 @@ public:
     m_octree->generateIndex();
   }
 
-  /**
+  /*!
    * \brief Samples the inout field over the indexed geometry, possibly using a
    * callback function to project the input points (from the computational mesh)
    * to query points on the spatial index
@@ -118,76 +118,19 @@ public:
                                                         int sampleRes,
                                                         PointProjector<FromDim, ToDim> projector = {})
   {
-    using FromPoint = primal::Point<double, FromDim>;
-    using ToPoint = primal::Point<double, ToDim>;
-    AXOM_ANNOTATE_SCOPE("sample InOutOctree");
+    using PointType = primal::Point<double, DIM>;
 
-    SLIC_ERROR_IF(FromDim != ToDim && !projector,
-                  "A projector callback function is required when FromDim != ToDim");
-
-    auto* mesh = dc->GetMesh();
-    SLIC_ASSERT(mesh != nullptr);
-    const int NE = mesh->GetNE();
-    const int dim = mesh->Dimension();
-
-    // Generate a Quadrature Function with the geometric positions, if not already available
-    if(!inoutQFuncs.Has("positions"))
-    {
-      shaping::generatePositionsQFunction(mesh, inoutQFuncs, sampleRes);
-    }
-
-    // Access the positions QFunc and associated QuadratureSpace
-    mfem::QuadratureFunction* pos_coef = inoutQFuncs.Get("positions");
-    auto* sp = pos_coef->GetSpace();
-    const int nq = sp->GetIntRule(0).GetNPoints();
-
-    // Sample the in/out field at each point
-    // store in QField which we register with the QFunc collection
-    const std::string inoutName = axom::fmt::format("inout_{}", m_shapeName);
-    const int vdim = 1;
-    auto* inout = new mfem::QuadratureFunction(sp, vdim);
-    inoutQFuncs.Register(inoutName, inout, true);
-
-    mfem::DenseMatrix m;
-    mfem::Vector res;
-
-    axom::utilities::Timer timer(true);
-    for(int i = 0; i < NE; ++i)
-    {
-      pos_coef->GetValues(i, m);
-      inout->GetValues(i, res);
-
-      if(projector)
-      {
-        for(int p = 0; p < nq; ++p)
-        {
-          const ToPoint pt = projector(FromPoint(m.GetColumn(p), dim));
-          const bool in = m_octree->within(pt);
-          res(p) = in ? 1. : 0.;
-        }
-      }
-      else
-      {
-        for(int p = 0; p < nq; ++p)
-        {
-          const ToPoint pt(m.GetColumn(p), dim);
-          const bool in = m_octree->within(pt);
-          res(p) = in ? 1. : 0.;
-        }
-      }
-    }
-    timer.stop();
-
-    // print stats for rank 0
-    SLIC_INFO_ROOT(axom::fmt::format(
-      axom::utilities::locale(),
-      "\t Sampling inout field '{}' took {:.3Lf} seconds (@ {:L} queries per second)",
-      inoutName,
-      timer.elapsed(),
-      static_cast<int>((NE * nq) / timer.elapsed())));
+    const InOutOctreeType* octree = m_octree;
+    auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
+    shaping::sampleInOutField<FromDim, ToDim>(m_shapeName,
+                                              dc,
+                                              inoutQFuncs,
+                                              sampleRes,
+                                              checkInside,
+                                              projector);
   }
 
-  /** 
+  /*!
    * \warning Do not call this overload with \a ToDim != \a DIM. The compiler needs it to be
    * defined to support various callback specializations for the \a PointProjector.
    */
@@ -202,71 +145,42 @@ public:
                   "Projector's return dimension (ToDim), must match class dimension (DIM)");
   }
 
-  /**
+  /*!
    * Compute "baseline" volume fractions by sampling at grid function degrees of freedom
    * (instead of at quadrature points)
-  */
-  void computeVolumeFractionsBaseline(mfem::DataCollection* dc,
-                                      int AXOM_UNUSED_PARAM(sampleRes),
-                                      int outputOrder)
+   */
+  template <int FromDim, int ToDim = DIM>
+  std::enable_if_t<ToDim == DIM, void> computeVolumeFractionsBaseline(
+    mfem::DataCollection* dc,
+    int sampleRes,
+    int outputOrder,
+    PointProjector<FromDim, ToDim> projector = {})
   {
-    AXOM_ANNOTATE_SCOPE("computeVolumeFractionsBaseline");
+    using PointType = primal::Point<double, DIM>;
+    const InOutOctreeType* octree = m_octree;
+    auto checkInside = [=](const PointType& pt) -> bool { return octree->within(pt); };
+    shaping::computeVolumeFractionsBaseline<FromDim, ToDim>(m_shapeName,
+                                                            dc,
+                                                            sampleRes,
+                                                            outputOrder,
+                                                            checkInside,
+                                                            projector);
+  }
 
-    // Step 1 -- generate a QField w/ the spatial coordinates
-    mfem::Mesh* mesh = dc->GetMesh();
-    const int NE = mesh->GetNE();
-    const int dim = mesh->Dimension();
-
-    if(NE < 1)
-    {
-      SLIC_WARNING("Mesh has no elements!");
-      return;
-    }
-
-    const auto volFracName = axom::fmt::format("vol_frac_{}", m_shapeName);
-    mfem::GridFunction* volFrac =
-      shaping::getOrAllocateL2GridFunction(dc, volFracName, outputOrder, dim, mfem::BasisType::Positive);
-    const mfem::FiniteElementSpace* fes = volFrac->FESpace();
-
-    auto* fe = fes->GetFE(0);
-    auto& ir = fe->GetNodes();
-
-    // Assume all elements have the same integration rule
-    const int nq = ir.GetNPoints();
-    const auto* geomFactors = mesh->GetGeometricFactors(ir, mfem::GeometricFactors::COORDINATES);
-
-    mfem::DenseTensor pos_coef(dim, nq, NE);
-
-    // Rearrange positions into quadrature function
-    {
-      for(int i = 0; i < NE; ++i)
-      {
-        for(int j = 0; j < dim; ++j)
-        {
-          for(int k = 0; k < nq; ++k)
-          {
-            pos_coef(j, k, i) = geomFactors->X((i * nq * dim) + (j * nq) + k);
-          }
-        }
-      }
-    }
-
-    // Step 2 -- sample the in/out field at each point -- store directly in volFrac grid function
-    mfem::Vector res(nq);
-    mfem::Array<int> dofs;
-    for(int i = 0; i < NE; ++i)
-    {
-      mfem::DenseMatrix& m = pos_coef(i);
-      for(int p = 0; p < nq; ++p)
-      {
-        const SpacePt pt(m.GetColumn(p), dim);
-        const bool in = m_octree->within(pt);
-        res(p) = in ? 1. : 0.;
-      }
-
-      fes->GetElementDofs(i, dofs);
-      volFrac->SetSubVector(dofs, res);
-    }
+  /*!
+   * \warning Do not call this overload with \a ToDim != \a DIM. The compiler needs it to be
+   * defined to support various callback specializations for the \a PointProjector.
+   */
+  template <int FromDim, int ToDim>
+  std::enable_if_t<ToDim != DIM, void> computeVolumeFractionsBaseline(
+    mfem::DataCollection* AXOM_UNUSED_PARAM(dc),
+    int AXOM_UNUSED_PARAM(sampleRes),
+    int AXOM_UNUSED_PARAM(outputOrder),
+    PointProjector<FromDim, ToDim> AXOM_UNUSED_PARAM(projector))
+  {
+    static_assert(ToDim != DIM,
+                  "Do not call this function -- it only exists to appease the compiler!"
+                  "Projector's return dimension (ToDim), must match class dimension (DIM)");
   }
 
 private:

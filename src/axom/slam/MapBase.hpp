@@ -40,7 +40,7 @@ public:
 
 public:
   AXOM_HOST_DEVICE
-  virtual ~MapBase() {};
+  virtual ~MapBase() { };
 
   /**
    * \brief Get the number of entities in the set used by this map

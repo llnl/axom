@@ -65,7 +65,7 @@ TEST(numerics_matvecops, matrix_add)
       int expected = (i == j) ? 2 : 0;
       EXPECT_EQ(expected, A(i, j));
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 }
 
 //------------------------------------------------------------------------------
@@ -105,7 +105,7 @@ TEST(numerics_matvecops, matrix_subtract)
     {
       EXPECT_EQ(A(i, j), ZERO);
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 }
 
 //------------------------------------------------------------------------------

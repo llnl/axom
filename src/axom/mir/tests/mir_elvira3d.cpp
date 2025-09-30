@@ -259,9 +259,7 @@ struct test_Elvira3D
   static double variableSum(axom::ArrayView<double> var)
   {
     axom::ReduceSum<ExecSpace, double> reduceVar(0.);
-    axom::for_all<ExecSpace>(
-      var.size(),
-      AXOM_LAMBDA(axom::IndexType i) { reduceVar += var[i]; });
+    axom::for_all<ExecSpace>(var.size(), AXOM_LAMBDA(axom::IndexType i) { reduceVar += var[i]; });
     return reduceVar.get();
   }
 
@@ -298,9 +296,7 @@ struct test_Elvira3D
     // Compute the total volumes for each material.
     axom::Array<double> totalVolume(nmats, nmats, allocatorID);
     auto totalVolumeView = totalVolume.view();
-    axom::for_all<ExecSpace>(
-      nmats,
-      AXOM_LAMBDA(axom::IndexType i) { totalVolumeView[i] = 0.; });
+    axom::for_all<ExecSpace>(nmats, AXOM_LAMBDA(axom::IndexType i) { totalVolumeView[i] = 0.; });
     axom::for_all<ExecSpace>(
       matsetView.numberOfZones(),
       AXOM_LAMBDA(axom::IndexType zi) {

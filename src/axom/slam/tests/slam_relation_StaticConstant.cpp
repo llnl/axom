@@ -304,8 +304,7 @@ TEST(slam_relation_static_constant, construct_builder)
 
 TEST(slam_relation_static_constant, out_of_bounds_empty)
 {
-  SLIC_INFO("Testing access on empty relation "
-            << "-- code is expected to assert and die.");
+  SLIC_INFO("Testing access on empty relation " << "-- code is expected to assert and die.");
 
   RangeSetType fromSet(FROMSET_SIZE);
   RangeSetType toSet(TOSET_SIZE);
@@ -409,8 +408,7 @@ TEST(slam_relation_static_constant, runtime_stride_STLIndirection)
 
 TEST(slam_relation_static_constant, runtime_stride_CArrayIndirection)
 {
-  SLIC_INFO("Tests for Static Relation "
-            << " with runtime stride and C-array Indirection");
+  SLIC_INFO("Tests for Static Relation " << " with runtime stride and C-array Indirection");
 
   using StaticConstantRelation_RT_Array =
     slam::StaticRelation<SetPosition, SetElement, ConstantCardinalityRT, CArrayIndirection, RangeSetType, RangeSetType>;
@@ -463,8 +461,7 @@ TEST(slam_relation_static_constant, runtime_stride_CArrayIndirection)
 
 TEST(slam_relation_static_constant, compileTime_stride_CArrayIndirection)
 {
-  SLIC_INFO("Tests for Static Relation with "
-            << " runtime stride and C-array Indirection");
+  SLIC_INFO("Tests for Static Relation with " << " runtime stride and C-array Indirection");
 
   using StaticConstantRelation_CT_Array =
     slam::StaticRelation<SetPosition, SetElement, ConstantCardinalityCT, CArrayIndirection, RangeSetType, RangeSetType>;

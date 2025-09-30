@@ -1,0 +1,173 @@
+# Copyright (c) 2017-2025, Lawrence Livermore National Security, LLC and
+# Axom Project Developers. See the top-level LICENSE file for details.
+#
+# SPDX-License-Identifier: (BSD-3-Clause)
+
+spack:
+  config:
+    install_tree:
+      root: $spack/..
+      projections:
+        all: '{compiler.name}-{compiler.version}/{name}-{version}-{hash}'
+    misc_cache: $spack/../misc_cache
+    test_stage: $spack/../test_stage
+    build_stage::
+    - $spack/../build_stage
+
+  # Regular TPLs do not need views
+  view: false
+
+  include:
+  - ../defaults.yaml
+  - ../versions.yaml
+
+  compilers::
+  - compiler:
+      environment: {}
+      extra_rpaths: []
+      flags:
+        cflags: -pthread
+        cxxflags: -pthread
+      modules: []
+      operating_system: ubuntu22.04
+      paths:
+        cc: /usr/bin/gcc
+        cxx: /usr/bin/g++
+        f77: /usr/bin/gfortran
+        fc: /usr/bin/gfortran
+      spec: gcc@12.3.0
+      target: x86_64
+
+  packages:
+    all:
+      # This defaults us to machine specific flags of ivybridge which allows
+      # us to run on broadwell as well
+      target: [x86_64]
+      compiler: [gcc, intel, pgi, clang, xl, nag]
+      providers:
+        awk: [gawk]
+        blas: [openblas]
+        lapack: [openblas]
+        daal: [intel-daal]
+        elf: [elfutils]
+        golang: [gcc]
+        ipp: [intel-ipp]
+        java: [jdk]
+        mkl: [intel-mkl]
+        mpe: [mpe2]
+        mpi: [mpich]
+        opencl: [pocl]
+        openfoam: [openfoam-com, openfoam-org, foam-extend]
+        pil: [py-pillow]
+        scalapack: [netlib-scalapack]
+        szip: [libszip, libaec]
+        tbb: [intel-tbb]
+        jpeg: [libjpeg-turbo, libjpeg]
+
+    # Spack may grab for mpi & we don't want to use them
+    mpi:
+      buildable: false
+    mpich:
+      externals:
+      - spec: mpich@4.0
+        prefix: /usr
+
+    # System level packages to not build
+    autotools:
+      buildable: false
+      externals:
+      - spec: autotools@2.69
+        prefix: /usr
+    bzip2:
+      buildable: false
+      externals:
+      - spec: bzip2@1.0.6
+        prefix: /usr
+    cuda:
+      buildable: false
+      externals:
+      - spec: cuda@12.3.0
+        prefix: /usr/local/cuda
+    elfutils:
+      buildable: false
+      externals:
+      - spec: elfutils@0.187
+        prefix: /usr
+    gettext:
+      buildable: false
+      externals:
+      - spec: gettext@0.19.8.1
+        prefix: /usr
+    m4:
+      buildable: false
+      externals:
+      - spec: m4@1.4.18
+        prefix: /usr
+    perl:
+      buildable: false
+      externals:
+      - spec: perl@5.26.1
+        prefix: /usr
+    pkg-config:
+      buildable: false
+      externals:
+      - spec: pkg-config@0.29.1
+        prefix: /usr
+    tar:
+      buildable: false
+      externals:
+      - spec: tar@1.29
+        prefix: /usr
+    graphviz:
+      buildable: false
+      externals:
+      - spec: graphviz@2.40.1
+        prefix: /usr
+    openblas:
+      buildable: false
+      externals:
+      - spec: openblas@0.2.20
+        prefix: /usr
+
+    # Add some additional contraints to third party libraries
+    # do shared mfem to allow PIC flag in mfem
+    mfem:
+      require: 
+      - spec: "+shared~static"
+
+    # Globally lock in version of devtools
+    cmake:
+      version: [3.23.1]
+      buildable: false
+      externals:
+      - spec: cmake@3.23.1
+        prefix: /usr/local
+    doxygen:
+      version: [1.8.17]
+      buildable: false
+      externals:
+      - spec: doxygen@1.8.17
+        prefix: /usr
+    llvm:
+      version: [10.0.0]
+      buildable: false
+      externals:
+      - spec: llvm@10.0.0+clang
+        prefix: /usr
+    py-sphinx:
+      version: [1.8.5]
+      buildable: false
+      externals:
+      - spec: py-sphinx@1.8.5
+        prefix: /usr
+    unzip:
+      buildable: false
+      externals:
+      - spec: unzip@6.0
+        prefix: /usr
+    python:
+      version: [3.10.12]
+      buildable: false
+      externals:
+      - spec: python@3.10.12
+        prefix: /usr

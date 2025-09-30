@@ -351,8 +351,8 @@ TEST(mint_mesh_rectilinear_mesh, get_node)
         EXPECT_DOUBLE_EQ(zz[k], node[Z_COORDINATE]);
 
       }  // END for all i
-    }    // END for all j
-  }      // END for all k
+    }  // END for all j
+  }  // END for all k
 }
 
 //------------------------------------------------------------------------------

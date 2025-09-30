@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "axom/config.hpp"
 #include "axom/klee/Shape.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 
@@ -147,7 +148,7 @@ private:
 
   ///@{
   //!@name Various parameters for discretization of analytical shapes.
-  RefinementType m_refinementType;
+  RefinementType m_refinementType {RefinementUniformSegments};
   double m_percentError {MINIMUM_PERCENT_ERROR};
   int m_samplesPerKnotSpan {DEFAULT_SAMPLES_PER_KNOT_SPAN};
   double m_vertexWeldThreshold {DEFAULT_VERTEX_WELD_THRESHOLD};

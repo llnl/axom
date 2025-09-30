@@ -1418,8 +1418,7 @@ TYPED_TEST(PointInCell2DTest, pic_curved_quad_c_shaped_output_mesh)
   using SpacePt = typename TestFixture::SpacePt;
   constexpr int DIM = TestFixture::DIM;
 
-  SLIC_INFO("Generating diagnostic mesh for"
-            << " C-shaped biquadratic element");
+  SLIC_INFO("Generating diagnostic mesh for" << " C-shaped biquadratic element");
 
   this->setupTestMesh(C_SHAPED_MESH);
 

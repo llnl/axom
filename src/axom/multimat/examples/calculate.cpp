@@ -2388,8 +2388,7 @@ void average_density_over_nbr_cell_dom_compact_mm_idxarray(MultiMat& mm, Robey_d
 //      MultiMat - Compact - Iter
 void average_density_over_nbr_cell_dom_compact_mm_iter(MultiMat& mm, Robey_data& data)
 {
-  SLIC_INFO("-- Average Density over Neighbors, Cell-Dominant Compact,"
-            << " Multimat Iter --");
+  SLIC_INFO("-- Average Density over Neighbors, Cell-Dominant Compact," << " Multimat Iter --");
   mm.convertLayoutToCellDominant();
   SLIC_INFO("MultiMat layout: " << mm.getFieldDataLayoutAsString(0) << " & "
                                 << mm.getFieldSparsityLayoutAsString(0));

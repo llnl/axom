@@ -35,7 +35,9 @@ endforeach()
 #
 if (AXOM_ENABLE_MPI AND AXOM_ENABLE_LUMBERJACK)
     set(parallel_slic_tests
-        slic_macros_parallel.cpp )
+        slic_log_stream_status_monitor.cpp
+        slic_macros_parallel.cpp
+        slic_flush_perf.cpp)
 
     foreach(test ${parallel_slic_tests})
         get_filename_component( test_name ${test} NAME_WE )
@@ -49,7 +51,6 @@ if (AXOM_ENABLE_MPI AND AXOM_ENABLE_LUMBERJACK)
                       NUM_MPI_TASKS 4)
     endforeach()
 endif()
-
 
 #
 # Benchmarks

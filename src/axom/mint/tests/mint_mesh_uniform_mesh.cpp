@@ -277,7 +277,7 @@ TEST(mint_mesh_uniform_mesh, check_evaluate_coordinate)
           EXPECT_DOUBLE_EQ(expected_x, x);
           EXPECT_DOUBLE_EQ(expected_y, y);
         }  // END for all i
-      }    // END for all j
+      }  // END for all j
 
     }  // END 2D
     break;
@@ -313,8 +313,8 @@ TEST(mint_mesh_uniform_mesh, check_evaluate_coordinate)
               EXPECT_DOUBLE_EQ(expected_y, y);
               EXPECT_DOUBLE_EQ(expected_z, z);
             }  // END for all i
-          }    // END for all j
-        }      // END for all k
+          }  // END for all j
+        }  // END for all k
 
       }  // END 3D
 

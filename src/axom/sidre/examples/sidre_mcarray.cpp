@@ -54,7 +54,7 @@ int main(int argc, char** argv)
       nodes_1(i, j) = value;
       ++value;
     }  // END for all components
-  }    // END for all nodes
+  }  // END for all nodes
 
   // DEBUG
   // STEP 1b: Print contents of data store showing that array data is in View
@@ -102,7 +102,7 @@ int main(int argc, char** argv)
       SLIC_ASSERT(nodes_2(i, j) == expected_value);
       ++expected_value;
     }  // END for all components
-  }    // END for all nodes
+  }  // END for all nodes
 
   // STEP 5: Delete both data stores (and associated data).
   delete dataStore2;

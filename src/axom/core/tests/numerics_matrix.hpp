@@ -31,7 +31,7 @@ void testConstAccess(const axom::numerics::Matrix<double>& A)
       double expval = static_cast<double>(irow * NCOLS + jcol);
       EXPECT_EQ(expval, A(irow, jcol));
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 }
 
 //------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ void testCopyConstructor(axom::numerics::Matrix<double> A)
       double expval = static_cast<double>(irow * NCOLS + jcol);
       EXPECT_EQ(expval, A(irow, jcol));
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 }
 
 //------------------------------------------------------------------------------
@@ -69,7 +69,7 @@ void testExternalBufferPassByValue(axom::numerics::Matrix<int> A)
     {
       EXPECT_EQ(FILL_VAL, A(i, j));
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 }
 
 } /* end unnamed namespace */
@@ -157,7 +157,7 @@ TEST(numerics_matrix, array_constructor_with_external_buffer)
       {
         EXPECT_EQ(i + 1, col[j]);
       }  // END for all rows
-    }    // END for all cols
+    }  // END for all cols
 
     A.swapColumns(0, 1);
   }
@@ -212,7 +212,7 @@ TEST(numerics_matrix, array_constructor_with_external_buffer)
       {
         EXPECT_EQ(i + 1, col[j]);
       }  // END for all rows
-    }    // END for all cols
+    }  // END for all cols
   }
   // END SCOPE
 
@@ -231,7 +231,7 @@ TEST(numerics_matrix, array_constructor_with_external_buffer)
       {
         EXPECT_EQ(i + 1, col[j]);
       }  // END for all rows
-    }    // END for all cols
+    }  // END for all cols
   }
   // END SCOPE
 }
@@ -341,7 +341,7 @@ TEST(numerics_matrix, random_access_operators)
       A(irow, jcol) = val;
       EXPECT_EQ(val, A(irow, jcol));
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 
   testConstAccess(A);
 }
@@ -362,7 +362,7 @@ TEST(numerics_matrix, copy_constructor)
       A(irow, jcol) = val;
       EXPECT_EQ(val, A(irow, jcol));
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 
   testCopyConstructor(A);
 }
@@ -410,7 +410,7 @@ TEST(numerics_matrix, getColumn)
     {
       EXPECT_EQ(expected[j * N + i], column[i]);
     }  // END for all i
-  }    // END for all j
+  }  // END for all j
 }
 
 //------------------------------------------------------------------------------

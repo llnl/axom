@@ -21,6 +21,7 @@ axom_component_requires(NAME       Sidre
 set(sidre_headers
     core/Array.hpp
     core/Buffer.hpp
+    core/ConduitMemory.hpp
     core/Group.hpp
     core/DataStore.hpp
     core/View.hpp
@@ -31,6 +32,7 @@ set(sidre_headers
 
 set(sidre_sources
     core/Buffer.cpp
+    core/ConduitMemory.cpp
     core/Group.cpp
     core/DataStore.cpp
     core/View.cpp
@@ -141,6 +143,9 @@ if(NANOBIND_FOUND)
     # (CMake treats modules separately from executables,
     # executable flags not automatically applied)
     if(AXOM_ENABLE_HIP)
+        # Make CMake compile the pysidre file with the HIP compiler.
+        set_source_files_properties(nanobind_sidre.cpp PROPERTIES LANGUAGE HIP)
+
         string (REPLACE " " ";" MODULE_LINK_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
         target_link_options(pysidre PRIVATE ${MODULE_LINK_FLAGS})
     endif()

@@ -74,7 +74,7 @@ public:
    * \param A user-supplied source point
    * \param B user-supplied target point
    */
-  AXOM_HOST_DEVICE Segment(const PointType& A, const PointType& B) : m_source(A), m_target(B) {};
+  AXOM_HOST_DEVICE Segment(const PointType& A, const PointType& B) : m_source(A), m_target(B) { };
 
   /*!
    * \brief Returns the source point of the segment.

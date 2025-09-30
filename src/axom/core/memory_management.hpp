@@ -29,7 +29,7 @@
 namespace axom
 {
 // To co-exist with Umpire allocator ids, use negative values here.
-constexpr int INVALID_ALLOCATOR_ID = -1;  //!< Place holder for no allocator
+constexpr int INVALID_ALLOCATOR_ID = -1;  //!< Place holder for no/unknown allocator
 constexpr int MALLOC_ALLOCATOR_ID = -3;   //!< Refers to MemorySpace::Malloc
 
 // _memory_space_start
@@ -124,9 +124,10 @@ inline int getDefaultAllocatorID()
 
 /*!
  * \brief Get the allocator id from which data has been allocated.
- * \return Allocator id.  If Umpire doesn't have an allocator for
- * the pointer, or if Axom wasn't configured with Umpire, assume the
- * pointer is from a malloc and return \c axom::MALLOC_ALLOCATOR_ID.
+ * \return Allocator id.  If Umpire doesn't have an allocator for the
+ * pointer, or if Axom wasn't configured with Umpire, assume the
+ * non-null pointers are from a malloc and return \c
+ * axom::MALLOC_ALLOCATOR_ID.
  *
  * \pre ptr has a valid pointer value.
  */
@@ -140,8 +141,7 @@ inline int getAllocatorIDFromPointer(const void* ptr)
     return allocator.getId();
   }
 #endif
-  AXOM_UNUSED_VAR(ptr);
-  return MALLOC_ALLOCATOR_ID;
+  return ptr == nullptr ? INVALID_ALLOCATOR_ID : MALLOC_ALLOCATOR_ID;
 }
 
 /*!
@@ -320,12 +320,12 @@ inline T* reallocate(T* pointer, std::size_t n, int allocID) noexcept
       else
       {
         /*
-          Reallocate from non-Umpire to Umpire, manually, using
-          allocate, copy and deallocate.  Because we don't know the
-          current size, we first do a (extra) reallocate within the
-          current space just so we have the size for the copy.
-          Is there a better way?
-        */
+         * Reallocate from non-Umpire to Umpire, manually, using
+         * allocate, copy and deallocate.  Because we don't know the
+         * current size, we first do a (extra) reallocate within the
+         * current space just so we have the size for the copy.
+         * Is there a better way?
+         */
         auto tmpPointer = std::realloc(pointer, numbytes);
         pointer = axom::allocate<T>(n, allocID);
         copy(pointer, tmpPointer, numbytes);
@@ -455,6 +455,14 @@ inline int getAllocatorID<MemorySpace::Malloc>()
   return axom::MALLOC_ALLOCATOR_ID;
 }
 
+/**
+ * @brief Return the Axom MemorySpace for the given Axom allocator id.
+ *
+ * For Umpire allocator ids, the MemorySpace is the corresponding Axom
+ * memory space.  For MALLOC_ALLOCATOR_ID, the MemorySpace is
+ * MemorySpace::Malloc.  Other values have no corresponding MemorySpace
+ * and will cause an abort.
+ */
 inline MemorySpace getAllocatorSpace(int allocatorId)
 {
 #ifdef AXOM_USE_UMPIRE
@@ -482,7 +490,10 @@ inline MemorySpace getAllocatorSpace(int allocatorId)
     }
   }
 #endif
-  if(allocatorId == MALLOC_ALLOCATOR_ID) return MemorySpace::Malloc;
+  if(allocatorId == MALLOC_ALLOCATOR_ID)
+  {
+    return MemorySpace::Malloc;
+  }
 
   std::cerr << "*** Unrecognized allocator id " << allocatorId << "." << std::endl;
   axom::utilities::processAbort();

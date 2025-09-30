@@ -428,9 +428,7 @@ protected:
   {
     using value_type = typename ViewType::value_type;
     axom::ReduceSum<ExecSpace, value_type> sum(0);
-    axom::for_all<ExecSpace>(
-      view.size(),
-      AXOM_LAMBDA(axom::IndexType index) { sum += view[index]; });
+    axom::for_all<ExecSpace>(view.size(), AXOM_LAMBDA(axom::IndexType index) { sum += view[index]; });
     return static_cast<axom::IndexType>(sum.get());
   }
 

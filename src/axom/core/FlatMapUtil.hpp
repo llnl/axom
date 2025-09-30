@@ -186,9 +186,7 @@ void gatherFilledBuckets(ArrayView<flat_map::GroupBucket> group_metadata,
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA)
   if(detail::getAllocatorSpace(allocator_id) == MemorySpace::Device)
   {
-    for_all<ExecSpace>(
-      1,
-      AXOM_LAMBDA(IndexType) { *counter = 0; });
+    for_all<ExecSpace>(1, AXOM_LAMBDA(IndexType) { *counter = 0; });
   }
   else
   {

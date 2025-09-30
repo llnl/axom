@@ -380,8 +380,7 @@ void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int
 {
   std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
   // This is on purpose.
-  while(1)
-    ;
+  while(1);
 }
 
 //------------------------------------------------------------------------------

@@ -364,11 +364,12 @@ public:
 
     // lambda to create a strided view into the buffer
     // uses workaround for empty meshes since apply() requires size > 0
+    const auto dimension = m_dimension;
     auto createAndApplyView =
       [=](sidre::Group* grp, const std::string& path, sidre::Buffer* buf, int dim, int sz) {
         if(sz > 0)
         {
-          grp->createView(path)->attachBuffer(buf)->apply(sz, dim, m_dimension);
+          grp->createView(path)->attachBuffer(buf)->apply(sz, dim, dimension);
         }
         else
         {

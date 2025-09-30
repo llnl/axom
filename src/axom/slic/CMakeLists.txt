@@ -12,6 +12,7 @@
 set(slic_headers
     core/Logger.hpp
     core/LogStream.hpp
+    core/LogStreamStatusMonitor.hpp
     core/MessageLevel.hpp
     core/SimpleLogger.hpp
 
@@ -26,6 +27,7 @@ set(slic_headers
 set(slic_sources
     core/Logger.cpp
     core/LogStream.cpp
+    core/LogStreamStatusMonitor.cpp    
 
     interface/slic.cpp
 

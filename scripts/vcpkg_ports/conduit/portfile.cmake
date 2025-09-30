@@ -1,8 +1,8 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO llnl/conduit
-    REF v0.9.3
-    SHA512 06297daaca3c96eb4584fde1c256daeb6e82789181a95123f5c21dfa89d6aa14e5d8bdda5dfb13301211d517cbb4c4e896393d8bbbeb3cfd1d42ca69269ef8d4
+    REF v0.9.5
+    SHA512 c0b8e92e6eb3c42a2efc8656c488b62c2fbacbe015df7820d8eae8752deea8271db65f2d129df251a7eb97402352ff2260e3ac8e38a3c37c8606ab1096511757
     HEAD_REF develop
     PATCHES 
         "./setup_deps_vcpkg_triplet.patch"

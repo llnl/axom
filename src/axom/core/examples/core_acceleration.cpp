@@ -107,10 +107,7 @@ void demoAxomExecution()
   }
 
   //Axom provides an API for the most basic usage of RAJA, the for_all loop.
-  axom::for_all<axom::SEQ_EXEC>(
-    0,
-    N,
-    AXOM_LAMBDA(axom::IndexType i) { C[i] = A[i] + B[i]; });
+  axom::for_all<axom::SEQ_EXEC>(0, N, AXOM_LAMBDA(axom::IndexType i) { C[i] = A[i] + B[i]; });
 
   std::cout << "Sums: " << std::endl;
   for(int i = 0; i < N; i++)
@@ -151,10 +148,7 @@ void demoAxomExecution()
   using ExecSpace = axom::SEQ_EXEC;
   #endif
 
-  axom::for_all<ExecSpace>(
-    0,
-    N,
-    AXOM_LAMBDA(axom::IndexType i) { C[i] = A[i] + B[i]; });
+  axom::for_all<ExecSpace>(0, N, AXOM_LAMBDA(axom::IndexType i) { C[i] = A[i] + B[i]; });
 
   std::cout << "\nSums (" << axom::execution_space<ExecSpace>::name() << ") :" << std::endl;
   for(int i = 0; i < N; i++)
@@ -172,9 +166,7 @@ void demoAxomExecution()
   axom::ReduceSum<ExecSpace, axom::IndexType> totalSum(0);
 
   // Sum integers [0,99]
-  axom::for_all<ExecSpace>(
-    100,
-    AXOM_LAMBDA(axom::IndexType i) { totalSum += i; });
+  axom::for_all<ExecSpace>(100, AXOM_LAMBDA(axom::IndexType i) { totalSum += i; });
 
   std::cout << "\nTotal Reduction Sum (" << axom::execution_space<ExecSpace>::name()
             << ") :" << totalSum.get() << std::endl;
@@ -186,9 +178,7 @@ void demoAxomExecution()
   *sum = 0;
 
   // Increment sum 100 times
-  axom::for_all<ExecSpace>(
-    100,
-    AXOM_LAMBDA(axom::IndexType) { axom::atomicAdd<ExecSpace>(sum, 1); });
+  axom::for_all<ExecSpace>(100, AXOM_LAMBDA(axom::IndexType) { axom::atomicAdd<ExecSpace>(sum, 1); });
 
   std::cout << "\nTotal Atomic Sum (" << axom::execution_space<ExecSpace>::name() << ") :" << sum[0]
             << std::endl;

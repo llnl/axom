@@ -42,6 +42,8 @@ void NonCollectiveRootCommunicator::initialize(MPI_Comm comm, int ranksLimit)
 
 void NonCollectiveRootCommunicator::finalize() { MPI_Comm_free(&m_mpiComm); }
 
+MPI_Comm NonCollectiveRootCommunicator::comm() { return m_mpiComm; }
+
 int NonCollectiveRootCommunicator::rank() { return m_mpiCommRank; }
 
 void NonCollectiveRootCommunicator::ranksLimit(int value) { m_ranksLimit = value; }

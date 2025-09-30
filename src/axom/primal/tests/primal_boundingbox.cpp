@@ -149,8 +149,7 @@ TEST(primal_boundingBox, bb_ctor_from_twoPoints)
   EXPECT_FALSE(bbox1.contains(outPt));
 
   //
-  SLIC_INFO("\n** Testing from pairs of points that are "
-            << "max and min of the bounding box");
+  SLIC_INFO("\n** Testing from pairs of points that are " << "max and min of the bounding box");
 
   QBBox bbox2(pt2, pt1);
 
