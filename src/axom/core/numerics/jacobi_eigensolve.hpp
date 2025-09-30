@@ -212,8 +212,8 @@ int jacobi_eigensolve(Matrix<T> A, Matrix<T>& V, T* lambdas, int maxIterations, 
           }
 
         }  // END else if
-      }    // END for all q
-    }      // END for all p
+      }  // END for all q
+    }  // END for all p
 
     for(int i = 0; i < n; ++i)
     {

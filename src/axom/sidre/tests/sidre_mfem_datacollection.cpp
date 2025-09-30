@@ -1182,7 +1182,7 @@ TEST(sidre_datacollection, dc_par_reload_mesh_2D_large)
 }
 
   // The following test requires a function from mfem@4.3
-  #if(MFEM_VERSION >= 40300)
+  #if (MFEM_VERSION >= 40300)
 TEST(sidre_datacollection, dc_par_reload_mesh_2D_periodic)
 {
     #ifndef AXOM_USE_HDF5

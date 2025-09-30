@@ -443,9 +443,7 @@ struct CandidateFinder<AccelType::UniformGrid, ExecSpace, FloatType>
 
     axom::Array<IndexType, 1, Space> indices(this->m_aabbs.size());
     const auto indices_v = indices.view();
-    for_all<ExecSpace>(
-      this->m_aabbs.size(),
-      AXOM_LAMBDA(IndexType idx) { indices_v[idx] = idx; });
+    for_all<ExecSpace>(this->m_aabbs.size(), AXOM_LAMBDA(IndexType idx) { indices_v[idx] = idx; });
 
     using FlatStorage = spin::policy::FlatGridStorage<IndexType>;
 

@@ -149,7 +149,7 @@ private:
    */
   AXOM_HOST_DEVICE void finalize() { m_deviceData = nullptr; }
 
-#if(defined(AXOM_RUNTIME_POLICY_USE_CUDA) || defined(AXOM_RUNTIME_POLICY_USE_HIP))
+#if (defined(AXOM_RUNTIME_POLICY_USE_CUDA) || defined(AXOM_RUNTIME_POLICY_USE_HIP))
   /*!
    * \brief Initializes members using data from the grid function. This method
    *        is called on the host and it copies data to the device.
@@ -900,7 +900,7 @@ private:
         delete tetmesh;
 
       }  // end of verbose output for contour
-    }    // end of 3D case
+    }  // end of 3D case
 
     // Produce triangles for contour bounded by x-axis (2D)
     else
@@ -1428,9 +1428,7 @@ public:
       int dataSize = cfgf.size();
       TempArrayView<ExecSpace> cfView(cfgf, true);
 
-      axom::for_all<ExecSpace>(
-        dataSize,
-        AXOM_LAMBDA(axom::IndexType i) { cfView[i] = 1.; });
+      axom::for_all<ExecSpace>(dataSize, AXOM_LAMBDA(axom::IndexType i) { cfView[i] = 1.; });
 
       // Iterate over all materials and subtract off their VFs from cfgf.
       for(axom::ArrayView<double>& gf : m_vf_grid_functions)
@@ -1607,9 +1605,7 @@ public:
     {
       // Replaces - We'll sum up the VFs that we can replace in a zone.
       AXOM_ANNOTATE_SCOPE("compute_vf_writable");
-      axom::for_all<ExecSpace>(
-        dataSize,
-        AXOM_LAMBDA(axom::IndexType i) { vf_writable[i] = 0.; });
+      axom::for_all<ExecSpace>(dataSize, AXOM_LAMBDA(axom::IndexType i) { vf_writable[i] = 0.; });
 
       for(const auto& name : shape.getMaterialsReplaced())
       {
@@ -1627,9 +1623,7 @@ public:
     {
       // Does not replace. We can replace all except for listed mats.
       AXOM_ANNOTATE_SCOPE("compute_vf_writable");
-      axom::for_all<ExecSpace>(
-        dataSize,
-        AXOM_LAMBDA(axom::IndexType i) { vf_writable[i] = 1.; });
+      axom::for_all<ExecSpace>(dataSize, AXOM_LAMBDA(axom::IndexType i) { vf_writable[i] = 1.; });
 
       for(auto& gf : excludeVFs)
       {
@@ -1943,9 +1937,7 @@ public:
   Summable sumArray(const Summable* a, axom::IndexType count) const
   {
     axom::ReduceSum<ExecSpace, Summable> vsum {0};
-    axom::for_all<ExecSpace>(
-      count,
-      AXOM_LAMBDA(axom::IndexType i) { vsum += a[i]; });
+    axom::for_all<ExecSpace>(count, AXOM_LAMBDA(axom::IndexType i) { vsum += a[i]; });
     Summable sum = static_cast<Summable>(vsum.get());
     return sum;
   }
