@@ -8,11 +8,12 @@
  * \brief This file tests primal's NURBS curve functionality
  */
 
+#include "axom/config.hpp"
+#include "axom/slic.hpp"
+#include "axom/primal/geometry/NURBSCurve.hpp"
+
 #include "gtest/gtest.h"
 
-#include "axom/slic.hpp"
-
-#include "axom/primal/geometry/NURBSCurve.hpp"
 #include <math.h>
 
 namespace primal = axom::primal;
@@ -1123,10 +1124,172 @@ TEST(primal_nurbscurve, linear_segment_constructor)
 }
 #endif
 //------------------------------------------------------------------------------
+
+/*!
+ * \brief Promote a 2D curve to a 3D curve defined using 2 vectors as the XY axes.
+ *
+ * \param input The input 2D curve.
+ * \param xvec The X axis of the 3D coordinate system.
+ * \param yvec The Y axis of the 3D coordinate system.
+ */
+template <typename NURBS2D, typename NURBS3D, typename VectorType = typename NURBS3D::VectorType>
+NURBS3D promoteTo3D(const NURBS2D &input, const VectorType &xvec, const VectorType &yvec)
+{
+  SLIC_ASSERT(NURBS2D::PointType::DIMENSION == 2);
+  SLIC_ASSERT(NURBS3D::PointType::DIMENSION == 3);
+  using PointType = typename NURBS3D::PointType;
+
+  NURBS3D output(input.getNumControlPoints(), input.getDegree());
+  for(int i = 0; i < input.getNumControlPoints(); i++)
+  {
+    const auto &p2 = input[i];
+    output[i] = PointType((xvec * p2[0] + yvec * p2[1]).data(), NURBS3D::PointType::DIMENSION);
+  }
+  output.setKnots(input.getKnots());
+
+  if(input.isRational())
+  {
+    output.makeRational();
+    for(int i = 0; i < input.getNumControlPoints(); i++)
+    {
+      output.setWeight(i, input.getWeight(i));
+    }
+  }
+
+  return output;
+}
+
+template <typename NURBSCurveType>
+NURBSCurveType makeCurve()
+{
+  using PointType = typename NURBSCurveType::PointType;
+  using T = typename PointType::CoordType;
+#if 0
+  PointType data[] = {PointType {1.4, 0.8, 0.5},
+                      PointType {0.6, 1.2, 1.0},
+                       PointType {0.8/*1.3*/, 1.6, 1.8},
+                       PointType {2.9, 2.4, 2.3},
+                       PointType {2., 3., 2.},
+                       PointType {1.2, 3.3, 1.4}};//3.2, 3.5, 3.0}};
+
+  T weights[] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+
+  return NURBSCurveType(data, weights, 6, 3);
+#endif
+  const int N = 10;
+  axom::Array<PointType> data;
+  axom::Array<T> weights;
+  data.resize(N);
+  weights.resize(N, T{1});
+  T x0 = 0.;
+  T x1 = 2 * M_PI;
+
+  for(int i = 0; i < N; i++)
+  {
+    const double t = static_cast<double>(i) / static_cast<double>(N - 1);
+    const T angle = x0 + t * (x1 - x0);
+    PointType &p = data[i];
+    p[0] = angle;
+    p[1] = sin(angle);
+  }
+  return NURBSCurveType(data.data(), weights.data(), N, 3);
+}
+
+/// Write a NURBSCurve to a Point3D file for VisIt.
+template <typename NURBSCurveType>
+void writeNURBS(const std::string &filename, const NURBSCurveType &curve, bool writeCurvature = false, int N = 100)
+{
+  FILE *f = fopen(filename.c_str(), "wt");
+  fprintf(f, "X Y Z t\n");
+  for(int i = 0; i < N; i++)
+  {
+    const double t = static_cast<double>(i) / static_cast<double>(N - 1);
+    const auto p = curve.evaluate(t);
+    double data = writeCurvature ? curve.curvature(t) : t;
+    if constexpr(NURBSCurveType::PointType::DIMENSION == 2)
+    {
+      fprintf(f, "%lg %lg 0. %lg\n", p[0], p[1], data);
+    }
+    else
+    {
+      fprintf(f, "%lg %lg %lg %lg\n", p[0], p[1], p[2], data);
+    }
+  }
+  fclose(f);
+}
+
+template <typename NURBSCurveType>
+void writeNURBSCurve(const std::string &filename, const NURBSCurveType &curve, int N = 100)
+{
+  using PointType = typename NURBSCurveType::PointType;
+  using T = typename PointType::CoordType;
+
+  FILE *f = fopen(filename.c_str(), "wt");
+  const char *axes[] = {"X", "Y", "Z"};
+  for(int d = 0; d < NURBSCurveType::PointType::DIMENSION; d++)
+  {
+    fprintf(f, "# %s\n", axes[d]);
+    for(int i = 0; i < N; i++)
+    {
+      const double t = static_cast<double>(i) / static_cast<double>(N - 1);
+      const auto p = curve.evaluate(t);
+      fprintf(f, "%lg %lg\n", p[0], p[d]);
+    }
+  }
+  fprintf(f, "# dt\n");
+  for(int i = 0; i < N; i++)
+  {
+    const T t = static_cast<double>(i) / static_cast<double>(N - 1);
+    const auto p = curve.evaluate(t);
+    const auto data = curve.dt(t);
+    fprintf(f, "%lg %lg\n", p[0], data[1] / data[0]);
+  }
+  fprintf(f, "# dtdt\n");
+  for(int i = 0; i < N; i++)
+  {
+    const T t = static_cast<double>(i) / static_cast<double>(N - 1);
+    const auto p = curve.evaluate(t);
+    const auto dt = curve.dt(t);
+    const auto data = curve.dtdt(t);
+    T dtdt = dt[0] * data[1] / data[0];
+    if(dtdt > 200) dtdt = 200;
+    if(dtdt < -200) dtdt = -200;
+    fprintf(f, "%lg %lg\n", p[0], dtdt);
+  }
+  fprintf(f, "# curvature\n");
+  for(int i = 0; i < N; i++)
+  {
+    const double t = static_cast<double>(i) / static_cast<double>(N - 1);
+    const auto p = curve.evaluate(t);
+    double data = curve.curvature(t);
+    fprintf(f, "%lg %lg\n", p[0], data);
+  }
+  fprintf(f, "# Dcurvature\n");
+  for(int i = 0; i < N; i++)
+  {
+    const double t = static_cast<double>(i) / static_cast<double>(N - 1);
+    axom::Array<T> ders;
+    const auto p = curve.evaluate(t);
+    curve.curvatureDerivatives(t, 1, ders);
+    fprintf(f, "%lg %lg\n", p[0], ders[0]);
+  }
+  fprintf(f, "# D2curvature\n");
+  for(int i = 0; i < N; i++)
+  {
+    const double t = static_cast<double>(i) / static_cast<double>(N - 1);
+    axom::Array<T> ders;
+    const auto p = curve.evaluate(t);
+    curve.curvatureDerivatives(t, 2, ders);
+    fprintf(f, "%lg %lg\n", p[0], ders[1]);
+  }
+  fclose(f);
+}
+
 template <typename T>
-void curvature_test(T tol)
+void curvature2d_test(T tol)
 {
   using NURBSCurve2D = axom::primal::NURBSCurve<T, 2>;
+  using VectorType = typename NURBSCurve2D::VectorType;
 
   const T cx = 0.;
   const T cy = 0.;
@@ -1144,12 +1307,50 @@ void curvature_test(T tol)
     // The reciprocal of its radius (R), expressed as k = 1/R
     EXPECT_NEAR(c , 1. / R, tol);
   }
+
+  const auto ecurve = makeCurve<NURBSCurve2D>();
+  writeNURBS("expCurve.3D", ecurve, true);
+  writeNURBSCurve("nurbs.curve", ecurve);
 }
 
-TEST(primal_nurbscurve, curvature)
+template <typename T>
+void curvature3d_test(T tol)
 {
-  curvature_test<float>(1.e-7);
-  curvature_test<double>(1.e-7);
+  using NURBSCurve2D = axom::primal::NURBSCurve<T, 2>;
+  using NURBSCurve3D = axom::primal::NURBSCurve<T, 3>;
+  using Vector3D = axom::primal::Vector<T, 3>;
+
+  const T R = 4.;
+  const T theta_0 = 0.;
+  const T theta_1 = 2. * M_PI;
+  const NURBSCurve2D curve2d = NURBSCurve2D::make_circular_arc_nurbs(theta_0, theta_1, 0., 0., R);
+  // Make a 3D version of the arc
+  const T angle = M_PI / 4.;
+  Vector3D uvec{cos(angle), 0., -sin(angle)};
+  Vector3D vvec{0., 1., 0.};
+  auto curve3d = promoteTo3D<NURBSCurve2D, NURBSCurve3D>(curve2d, uvec, vvec);
+
+  const int N = 100;
+  for(int i = 0; i < N; i++)
+  {
+    const T t = static_cast<T>(i) / static_cast<T>(N - 1);
+    const double c = curve3d.curvature(t);
+
+    // The reciprocal of its radius (R), expressed as k = 1/R
+    EXPECT_NEAR(c , 1. / R, tol);
+  }
+}
+
+TEST(primal_nurbscurve, curvature2d)
+{
+  curvature2d_test<float>(1.e-7);
+  curvature2d_test<double>(1.e-7);
+}
+
+TEST(primal_nurbscurve, curvature3d)
+{
+  curvature3d_test<float>(1.e-7);
+  curvature3d_test<double>(1.e-7);
 }
 
 //------------------------------------------------------------------------------

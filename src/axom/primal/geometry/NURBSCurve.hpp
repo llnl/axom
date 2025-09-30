@@ -1406,7 +1406,7 @@ public:
     PointType eval;
     axom::Array<VectorType> curveDers;
     // Evaluate d+1 curve derivatives at u. 
-    evaluateDerivatives(t, d + 1, eval, curveDers);
+    evaluateDerivatives(t, 3, eval, curveDers);
     axom::primal::curvatureDerivatives(d, curveDers, ders);
   }
   ///@}

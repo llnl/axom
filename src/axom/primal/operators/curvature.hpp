@@ -70,7 +70,7 @@ void curvatureDerivatives(int d,
                           axom::Array<T> &ders)
 {
   SLIC_ASSERT(d == 1 || d == 2);
-  SLIC_ASSERT(curveDerivs.size() == d + 1);
+  SLIC_ASSERT(curveDerivs.size() == 3);
 
   ders.resize(d);
 
@@ -119,7 +119,7 @@ void curvatureDerivatives(int d,
   const T D1D3Norm = VectorType::cross_product(D1, D3).norm();
 
   // 1st derivative of curvature. 
-  const T A = -3. * D1D2Norm * 2. * (D1 * D2);
+  const T A = -3. * D1D2Norm * 2. * D1.dot(D2);
   const T B = 2. * D1Norm5;
   const T C = D1D3Norm;
   const T D = D1Norm3;
@@ -128,11 +128,11 @@ void curvatureDerivatives(int d,
   if(d >= 2) 
   { 
     // 2nd derivative of curvature. 
-    const T E = 15. * D1D2Norm * pow(2. * (D1 * D2), 2.) / (4. * pow(D1Norm, 7.));
+    const T E = 15. * D1D2Norm * pow(2. * D1.dot(D2), 2.) / (4. * pow(D1Norm, 7.));
 
-    const T F = 3. * (2. * (D1 * D2)) * D1D3Norm / D1Norm5;
+    const T F = 3. * (2. * D1.dot(D2)) * D1D3Norm / D1Norm5;
 
-    const T G = 3. * D1D2Norm * (D2.squared_norm() * (D1 * D3)) / D1Norm5;
+    const T G = 3. * D1D2Norm * (D2.squared_norm() * D1.dot(D3)) / D1Norm5;
 
     const T H = VectorType::cross_product(D2, D3).norm() / D1Norm3;
 
