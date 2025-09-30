@@ -273,11 +273,12 @@ spack:
       externals:
       - spec: libtool@2.4.2
         prefix: /usr
-    libunwind:
-      buildable: false
-      externals:
-      - spec: libunwind@8.0.1
-        prefix: /usr
+    # NOTE: disabled since fails to link inside caliper
+    # libunwind:
+    #   buildable: false
+    #   externals:
+    #   - spec: libunwind@8.0.1
+    #     prefix: /usr
     libx11:
       buildable: false
       externals:
