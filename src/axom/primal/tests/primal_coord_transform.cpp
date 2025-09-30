@@ -71,21 +71,14 @@ TEST(primal_coord_transform, rotate_to_axis)
   NumArrayType z({0, 0, 1});
 
   const int n = 15;  // Number of pairs in startsAndEnds
-  NumArrayType startsAndEnds[n][2] = {{x, x},
-                                      {y, y},
-                                      {z, z},
-                                      {x, y},
-                                      {y, z},
-                                      {z, x},
-                                      {x, -x},
-                                      {x, -y},
-                                      {x, -z},
-                                      {y, -x},
-                                      {y, -y},
-                                      {y, -z},
-                                      {z, -x},
-                                      {z, -y},
-                                      {z, -z}};
+  // clang-format off
+  NumArrayType startsAndEnds[n][2] = {{x,  x}, {y,  y}, {z,  z},
+                                      {x,  y}, {y,  z}, {z,  x},
+                                      {x, -x}, {x, -y}, {x, -z},
+                                      {y, -x}, {y, -y}, {y, -z},
+                                      {z, -x}, {z, -y}, {z,  -z}};
+  // clang-format on
+
   for(int i = 0; i < n; ++i)
   {
     VectorType startDir(startsAndEnds[i][0]);
