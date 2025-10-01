@@ -146,7 +146,7 @@ inline T matrix_frobenious_norm(const Matrix<T>& A)
       const T abs_a_ij = utilities::abs(A(i, j));
       norm += abs_a_ij * abs_a_ij;
     }  // END for all columns
-  }    // END for all rows
+  }  // END for all rows
 
   norm = sqrt(norm);
   return norm;

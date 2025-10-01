@@ -1195,10 +1195,7 @@ struct ArrayOpsBase
    */
   static void init_impl(T* data, IndexType begin, IndexType nelems, InitTypeOnDevice)
   {
-    for_all<ExecSpace>(
-      begin,
-      begin + nelems,
-      AXOM_LAMBDA(IndexType i) { new(&data[i]) T(); });
+    for_all<ExecSpace>(begin, begin + nelems, AXOM_LAMBDA(IndexType i) { new(&data[i]) T(); });
   }
 
   /*!
@@ -1208,10 +1205,7 @@ struct ArrayOpsBase
   static void init_impl(T* data, IndexType begin, IndexType nelems, InitTypeOnDeviceWithCopy)
   {
     T object {};
-    for_all<ExecSpace>(
-      begin,
-      begin + nelems,
-      AXOM_LAMBDA(IndexType i) { new(&data[i]) T(object); });
+    for_all<ExecSpace>(begin, begin + nelems, AXOM_LAMBDA(IndexType i) { new(&data[i]) T(object); });
   }
 
   /*!
@@ -1250,9 +1244,7 @@ struct ArrayOpsBase
    */
   static void fill_impl(T* array, IndexType begin, IndexType nelems, const T& value, std::true_type)
   {
-    for_all<ExecSpace>(
-      nelems,
-      AXOM_LAMBDA(IndexType i) { new(&array[i + begin]) T(value); });
+    for_all<ExecSpace>(nelems, AXOM_LAMBDA(IndexType i) { new(&array[i + begin]) T(value); });
   }
 
   /*!

@@ -571,8 +571,8 @@ AXOM_TYPED_TEST(core_flatmap_forall, insert_batch_with_gaps_and_dups)
   for(int i = 0; i < NUM_ELEMS; i++)
   {
     int shuf_i = shuffled_indexes[i];
-    auto key = this->getKey(i);
-    auto value = this->getValue(i * 10.0 + 7.0);
+    auto key = this->getKey(shuf_i);
+    auto value = this->getValue(shuf_i * 10.0 + 7.0);
 
     second_batch_pairs[i + NUM_ELEMS] = {key, value};
   }

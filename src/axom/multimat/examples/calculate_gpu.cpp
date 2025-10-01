@@ -98,8 +98,7 @@ void Input::parse(int argc, char** argv, axom::CLI::App& app)
   app.parse(argc, argv);
 
   // Output parsed information
-  SLIC_INFO("Using parameter values: "
-            << "\n  execution policy = "s << policy_strs[(int)policy]);
+  SLIC_INFO("Using parameter values: " << "\n  execution policy = "s << policy_strs[(int)policy]);
 }
 
 int allocator_id;
@@ -279,8 +278,7 @@ int main(int argc, char** argv)
   slic::setLoggingMsgLevel(slic::message::Info);
   slic::addStreamToAllMsgLevels(new slic::GenericOutputStream(&std::cout));
 
-  SLIC_INFO("Axom Version:"
-            << " [" << axom::getVersion() << "]");
+  SLIC_INFO("Axom Version:" << " [" << axom::getVersion() << "]");
 
   // Parse the command line arguments
   Input params;

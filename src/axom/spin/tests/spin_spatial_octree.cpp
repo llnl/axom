@@ -11,8 +11,7 @@
 
 TEST(spin_spatial_octree, spatial_octree_point_location)
 {
-  SLIC_INFO("*** This test verifies that a query point falls into "
-            << " a child block.");
+  SLIC_INFO("*** This test verifies that a query point falls into " << " a child block.");
 
   static const int DIM = 3;
   using LeafNodeType = axom::spin::BlockData;

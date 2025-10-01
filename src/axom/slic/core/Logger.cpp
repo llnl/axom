@@ -379,7 +379,6 @@ void Logger::outputLocalMessages()
 //------------------------------------------------------------------------------
 void Logger::flushStreams()
 {
-
   /*
     check if any MPI-based stream has pending messages on any rank.
     This is needed to avoid unecessary pushes or flushes when there are no
@@ -394,7 +393,7 @@ void Logger::flushStreams()
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
       const bool streamUsesMPI = m_logStreams[level][istream]->isUsingMPI();
-      if (shouldPushMessages(pendingMessages, streamUsesMPI))
+      if(shouldPushMessages(pendingMessages, streamUsesMPI))
       {
         m_logStreams[level][istream]->flush();
       }
@@ -411,7 +410,7 @@ void Logger::flushStreams()
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
       const bool streamUsesMPI = it->second[i]->isUsingMPI();
-      if (shouldPushMessages(pendingMessages, streamUsesMPI))
+      if(shouldPushMessages(pendingMessages, streamUsesMPI))
       {
         it->second[i]->flush();
       }
@@ -422,7 +421,6 @@ void Logger::flushStreams()
 //------------------------------------------------------------------------------
 void Logger::pushStreams()
 {
-
   /*
     check if any MPI-based stream has pending messages on any rank.
     This is needed to avoid unecessary pushes or flushes when there are no
@@ -436,7 +434,7 @@ void Logger::pushStreams()
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
       const bool streamUsesMPI = m_logStreams[level][istream]->isUsingMPI();
-      if (shouldPushMessages(pendingMessages, streamUsesMPI))
+      if(shouldPushMessages(pendingMessages, streamUsesMPI))
       {
         m_logStreams[level][istream]->push();
       }
@@ -453,7 +451,7 @@ void Logger::pushStreams()
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
       const bool streamUsesMPI = it->second[i]->isUsingMPI();
-      if (shouldPushMessages(pendingMessages, streamUsesMPI))
+      if(shouldPushMessages(pendingMessages, streamUsesMPI))
       {
         it->second[i]->push();
       }
@@ -462,10 +460,7 @@ void Logger::pushStreams()
 }
 
 //------------------------------------------------------------------------------
-bool Logger::hasPendingMessages()
-{
-  return getLogStreamStatusMonitor().hasPendingMessages();
-}
+bool Logger::hasPendingMessages() { return getLogStreamStatusMonitor().hasPendingMessages(); }
 
 //------------------------------------------------------------------------------
 //                Static Method Implementations
@@ -563,7 +558,6 @@ void Logger::finalize()
   LogStreamStatusMonitor& logStreamStatusMonitor = getLogStreamStatusMonitor();
 
   logStreamStatusMonitor.finalize();
-
 }
 
 //------------------------------------------------------------------------------
@@ -585,8 +579,7 @@ Logger* Logger::getRootLogger()
   return (loggers["root"]);
 }
 
-bool Logger::shouldPushMessages(const bool hasPendingMessages, 
-                                const bool streamUsesMPI) const
+bool Logger::shouldPushMessages(const bool hasPendingMessages, const bool streamUsesMPI) const
 {
   return (!streamUsesMPI || hasPendingMessages);
 }
