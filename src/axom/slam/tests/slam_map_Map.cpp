@@ -102,8 +102,7 @@ TEST(slam_map, out_of_bounds)
   }
 
   // Test out of bounds
-  SLIC_INFO("Testing Map element access "
-            << "-- out of bounds access; Expecting the test to fail");
+  SLIC_INFO("Testing Map element access " << "-- out of bounds access; Expecting the test to fail");
 #ifdef AXOM_DEBUG
   EXPECT_DEATH_IF_SUPPORTED(m[-1], "") << " Accessed element -1 of Map -- out of bounds";
   EXPECT_DEATH_IF_SUPPORTED(m[m.size()], "")
@@ -538,9 +537,7 @@ AXOM_TYPED_TEST(slam_map_templated, constructAndTestStride1)
 
   SLIC_INFO("\nSetting the elements.");
   const double multFac = 100.0001;
-  axom::for_all<ExecSpace>(
-    this->m_set.size(),
-    AXOM_LAMBDA(int index) { m(index) = index * multFac; });
+  axom::for_all<ExecSpace>(this->m_set.size(), AXOM_LAMBDA(int index) { m(index) = index * multFac; });
 
   SLIC_INFO("\nChecking the elements.");
   int totalSize = this->m_set.size() * stride;

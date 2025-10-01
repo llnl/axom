@@ -220,7 +220,7 @@ public:
     {
       if(cosT < 0)
       {
-        setInvalid(); // Transformation is ill-defined
+        setInvalid();  // Transformation is ill-defined
       }
       return;
     }
@@ -254,7 +254,7 @@ public:
    */
   void applyRotation(const axom::primal::Vector<T, 3>& u, T sinT, T cosT)
   {
-    const T EPS = 10*axom::numerics::floating_point_limits<T>::epsilon();
+    const T EPS = 10 * axom::numerics::floating_point_limits<T>::epsilon();
     SLIC_ASSERT(axom::utilities::isNearlyEqual(u.squared_norm(), 1.0, EPS));
     T ccosT = 1 - cosT;
 

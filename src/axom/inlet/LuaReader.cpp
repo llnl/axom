@@ -117,15 +117,10 @@ LuaReader::LuaReader()
     // Use lambdas for 2D and "default" cases - default arguments cannot be
     // propagated automatically
     "new",
-    axom::sol::factories(
-      [](double x, double y, double z) {
-        return FunctionType::Vector {x, y, z};
-      },
-      [](double x, double y) {
-        return FunctionType::Vector {x, y};
-      },
-      // Assume three for a default constructor
-      [] { return FunctionType::Vector {}; }),
+    axom::sol::factories([](double x, double y, double z) { return FunctionType::Vector {x, y, z}; },
+                         [](double x, double y) { return FunctionType::Vector {x, y}; },
+                         // Assume three for a default constructor
+                         [] { return FunctionType::Vector {}; }),
     // Add vector addition operation
     axom::sol::meta_function::addition,
     [](const FunctionType::Vector& u, const FunctionType::Vector& v) {
@@ -142,19 +137,15 @@ LuaReader::LuaReader()
     },
     // Needs to be resolved in the same way as operator+
     axom::sol::meta_function::unary_minus,
-    [](const FunctionType::Vector& u) {
-      return FunctionType::Vector {-u.vec, u.dim};
-    },
+    [](const FunctionType::Vector& u) { return FunctionType::Vector {-u.vec, u.dim}; },
     // To allow both "directions" of a scalar multiplication, the overloads
     // have to be manually specified + resolved
     axom::sol::meta_function::multiplication,
-    axom::sol::overload(
-      [](const FunctionType::Vector& u, const double a) {
-        return FunctionType::Vector {a * u.vec, u.dim};
-      },
-      [](const double a, const FunctionType::Vector& u) {
-        return FunctionType::Vector {a * u.vec, u.dim};
-      }),
+    axom::sol::overload([](const FunctionType::Vector& u,
+                           const double a) { return FunctionType::Vector {a * u.vec, u.dim}; },
+                        [](const double a, const FunctionType::Vector& u) {
+                          return FunctionType::Vector {a * u.vec, u.dim};
+                        }),
     // Separate functions from get/set via index - subtract 1 as lua is 1-indexed
     axom::sol::meta_function::index,
     [](const FunctionType::Vector& vec, const int key) { return vec[key - 1]; },
@@ -167,9 +158,7 @@ LuaReader::LuaReader()
     "squared_norm",
     [](const FunctionType::Vector& u) { return u.vec.squared_norm(); },
     "unitVector",
-    [](const FunctionType::Vector& u) {
-      return FunctionType::Vector {u.vec.unitVector(), u.dim};
-    },
+    [](const FunctionType::Vector& u) { return FunctionType::Vector {u.vec.unitVector(), u.dim}; },
     "dot",
     [](const FunctionType::Vector& u, const FunctionType::Vector& v) {
       SLIC_ASSERT_MSG(u.dim == v.dim,

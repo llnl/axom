@@ -697,7 +697,6 @@ bool intersect(const BezierCurve<T, 2>& c1,
  * \param [in] c The input curve
  * \param [out] rp Parametric coordinates of intersections in \a r [0, inf)
  * \param [out] cp Parametric coordinates of intersections in \a c [0, 1)
- * Bezier curve is linear
  * \param [in] tol Tolerance parameter for physical distances
  * \param [in] EPS Tolerance parameter for parameter-space distances
  * 
@@ -719,8 +718,9 @@ bool intersect(const Ray<T, 2>& r,
 
   // for efficiency, linearity check actually uses a squared tolerance
   const double sq_tol = tol * tol;
+  const bool isHalfOpen = true;
 
-  return detail::intersect_ray_bezier(r, c, rp, cp, sq_tol, EPS, c.getOrder(), offset, scale);
+  return detail::intersect_ray_bezier(r, c, rp, cp, sq_tol, EPS, c.getOrder(), offset, scale, isHalfOpen);
 }
 
 /*!
@@ -1220,6 +1220,7 @@ bool intersect(const Ray<T, 3>& ray,
   double max_u_knot = patch.getKnots_u()[patch.getKnots_u().getNumKnots() - 1];
   double max_v_knot = patch.getKnots_v()[patch.getKnots_v().getNumKnots() - 1];
 
+  // Don't de-duplicate if we're in a failure state
   for(int i = 0; i < tc.size(); ++i)
   {
     // Also remove any intersections on the half-interval boundaries
@@ -1315,7 +1316,7 @@ bool intersect(const Line<T, 3>& line,
 
   // Check a bounding box of the entire NURBS first
   Point<T, 3> ip;
-  if(!intersect(line, patch.boundingBox(), ip))
+  if(!intersect(line, patch.boundingBox().expand(10 * tol), ip))
   {
     return false;
   }

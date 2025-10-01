@@ -28,7 +28,7 @@ public:
   using BiVarSetType = typename Field2DType::BiVarSetType;
 
   // Default Constructor
-  MMSubField2D() : SubMapType(), m_superfield(nullptr), firstSetIndex(-1) {};
+  MMSubField2D() : SubMapType(), m_superfield(nullptr), firstSetIndex(-1) { };
 
   // Constructor
   AXOM_SUPPRESS_HD_WARN

@@ -269,8 +269,7 @@ void loadBaselineData(sidre::Group* grp, Input& args)
   {
     if(!grp->hasView("bvh_distance"))
     {
-      SLIC_ERROR("Requested distance, but baseline "
-                 << "does not have a 'bvh_distance' view");
+      SLIC_ERROR("Requested distance, but baseline " << "does not have a 'bvh_distance' view");
     }
     else
     {
@@ -280,8 +279,7 @@ void loadBaselineData(sidre::Group* grp, Input& args)
 
     if(!grp->hasView("bvh_containment"))
     {
-      SLIC_ERROR("Requested distance, but baseline does not "
-                 << " have a 'bvh_containment' view");
+      SLIC_ERROR("Requested distance, but baseline does not " << " have a 'bvh_containment' view");
     }
     else
     {

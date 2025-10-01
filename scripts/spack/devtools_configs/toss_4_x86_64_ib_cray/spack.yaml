@@ -23,31 +23,36 @@ spack:
 
   # Devtools are built on rzvernal for compatibility with both
   # rzvernal and rzadams.
-  compilers::
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      flags: {}
-      modules:
-      - gcc/10.3.1
-      operating_system: rhel8
-      paths:
-        cc: /usr/tce/packages/gcc/gcc-10.3.1/bin/gcc
-        cxx: /usr/tce/packages/gcc/gcc-10.3.1/bin/g++
-        f77: /usr/tce/packages/gcc/gcc-10.3.1/bin/gfortran
-        fc: /usr/tce/packages/gcc/gcc-10.3.1/bin/gfortran
-      spec: gcc@10.3.1
-      target: x86_64
+  toolchains:
+    gcc_13:
+    - spec: '%c=gcc'
+      when: '%c'
+    - spec: '%cxx=gcc'
+      when: '%cxx'
+    - spec: '%fortran=gcc'
+      when: '%fortran'
+    - spec: '%cray-mpich@8.1.29'
+      when: '%mpi'
 
   packages:
     all:
-      compiler: [gcc, intel, pgi, clang, xl, nag]
       providers:
         blas: [netlib-lapack]
         lapack: [netlib-lapack]
         mpi: [cray-mpich]
         gl: [opengl]
         glu: [openglu]
+
+    #Compiler packages
+    gcc:
+      externals:
+      - spec: gcc@13.3.1 languages:=c,c++,fortran
+        prefix: /usr/tce/packages/gcc/gcc-13.3.1
+        extra_attributes:
+          compilers:
+            c: /usr/tce/packages/gcc/gcc-13.3.1/bin/gcc
+            cxx: /usr/tce/packages/gcc/gcc-13.3.1/bin/g++
+            fortran: /usr/tce/packages/gcc/gcc-13.3.1/bin/gfortran
 
     hip:
       version: [6.1.2]
@@ -104,8 +109,8 @@ spack:
     cray-mpich:
       buildable: false
       externals:
-      - spec: cray-mpich@8.1.29+slurm %gcc@10.3.1
-        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-gcc-10.3.1/
+      - spec: cray-mpich@8.1.29
+        prefix: /usr/tce/packages/cray-mpich-tce/cray-mpich-8.1.29-gcc-13.3.1/
 
     # blas is a bit more complicated because its a virtual package so fake it with
     # the following per spack docs
@@ -294,11 +299,9 @@ spack:
       - spec: cmake@3.24.2
         prefix: /usr/tce
 
-    # This path is not stable - have spack build llvm
-    # until we can move to llvm@19
-    # llvm:
-    #   version: [14.0.0]
-    #   buildable: false
-    #   externals:
-    #   - spec: llvm@14.0.0%gcc@10.3.1
-    #     prefix: /usr/tce/packages/rocmcc/rocmcc-5.2.3-magic/llvm
+    llvm:
+      version: [19.0.0]
+      buildable: false
+      externals:
+      - spec: llvm@19.0.0
+        prefix: /usr/tce/packages/rocmcc/rocmcc-6.4.2-magic/llvm

@@ -279,7 +279,7 @@ private:
    */
   LumberjackStream()
     : m_lj(static_cast<axom::lumberjack::Lumberjack*>(nullptr))
-    , m_stream(static_cast<std::ostream*>(nullptr)) {};
+    , m_stream(static_cast<std::ostream*>(nullptr)) { };
 
   DISABLE_COPY_AND_ASSIGNMENT(LumberjackStream);
   DISABLE_MOVE_AND_ASSIGNMENT(LumberjackStream);
