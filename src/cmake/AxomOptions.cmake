@@ -44,7 +44,7 @@ cmake_dependent_option(AXOM_ENABLE_DOCS "Enables Axom Docs" ON "ENABLE_DOCS" OFF
 cmake_dependent_option(AXOM_ENABLE_EXAMPLES "Enables Axom Examples" ON "ENABLE_EXAMPLES" OFF)
 option(AXOM_ENABLE_TOOLS "Enables Axom Tools" ON)
 
-option(AXOM_ENABLE_TUTORIALS "Builds Axom tutorials as part of the Axom build" OFF)
+option(AXOM_ENABLE_TUTORIALS "Builds Axom tutorials as part of the Axom build" ON)
 mark_as_advanced(AXOM_ENABLE_TUTORIALS)
 
 #--------------------------------------------------------------------------
