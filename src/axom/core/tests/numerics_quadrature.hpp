@@ -5,22 +5,18 @@
 
 #include "gtest/gtest.h"
 
-#include "axom/core/numerics/gauss_legendre.hpp"
+#include "axom/core/numerics/quadrature.hpp"
 #include <iomanip>
 
 TEST(numerics_quadrature, generate_rules)
 {
   const int N = 50;
 
-  double nodes[N];
-  double weights[N];
-
   // Define a collection of random coefficients for a polynomial
   double coeffs[2 * N - 1];
   for(int j = 0; j < 2 * N - 1; ++j)
   {
     coeffs[j] = axom::utilities::random_real(-5.0, 5.0);
-    std::cout << coeffs[j] << std::endl;
   }
 
   // Test that the rules provide exact integration for polynomials of degree 2n - 1
@@ -36,7 +32,7 @@ TEST(numerics_quadrature, generate_rules)
     }
 
     // Evaluate using the quadrature rule
-    axom::numerics::compute_rule(npts, nodes, weights);
+    auto rule = axom::numerics::compute_gauss_legendre(npts);
 
     // Evaluate the polynomial using Horner's rule
     auto eval_polynomial = [&degree, &coeffs](double x) {
@@ -50,8 +46,8 @@ TEST(numerics_quadrature, generate_rules)
 
     double quadrature_result = 0.0;
     for(int j = 0; j < npts; ++j)
-    {      
-      quadrature_result += weights[j] * eval_polynomial(nodes[j]);
+    {
+      quadrature_result += rule.weight(j) * eval_polynomial(rule.node(j));
     }
 
     std::cout << std::setprecision(20);
