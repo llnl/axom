@@ -367,7 +367,7 @@ public:
             const int tetIndex = tetIndicesView[i];
 
             const auto poly =
-              primal::clip<double, MAX_VERTS_FOR_TET_CLIPPING, MAX_NBRS_PER_VERT_FOR_TET_CLIPPING>(
+              primal::clip<double>(
                 geomTetsView[shapeIndex],
                 cellsAsTets[tetIndex],
                 EPS,
@@ -394,7 +394,7 @@ public:
             const int tetIndex = tetIndicesView[i];
 
             const auto poly =
-              primal::clip<double, MAX_VERTS_FOR_OCT_CLIPPING, MAX_NBRS_PER_VERT_FOR_OCT_CLIPPING>(
+              primal::clip<double>(
                 geomOctsView[shapeIndex],
                 cellsAsTets[tetIndex],
                 EPS,
@@ -617,7 +617,7 @@ public:
               tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
             const auto poly =
-              primal::clip<double, MAX_VERTS_FOR_TET_CLIPPING, MAX_NBRS_PER_VERT_FOR_TET_CLIPPING>(
+              primal::clip<double>(
                 geomTetsView[shapeIndex],
                 cellsAsTets[tetIndex],
                 EPS,
@@ -651,7 +651,7 @@ public:
               tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
             const auto poly =
-              primal::clip<double, MAX_VERTS_FOR_OCT_CLIPPING, MAX_NBRS_PER_VERT_FOR_OCT_CLIPPING>(
+              primal::clip<double>(
                 geomOctsView[shapeIndex],
                 cellsAsTets[tetIndex],
                 EPS,
@@ -810,7 +810,7 @@ public:
           const auto& tet = meshTets[tetId];
 
           const auto poly =
-            primal::clip<double, MAX_VERTS_FOR_TET_CLIPPING, MAX_NBRS_PER_VERT_FOR_TET_CLIPPING>(
+            primal::clip<double>(
               tet,
               geomPiece,
               EPS,
@@ -839,7 +839,7 @@ public:
           const auto& tet = meshTets[tetId];
 
           const auto poly =
-            primal::clip<double, MAX_VERTS_FOR_TET_CLIPPING, MAX_NBRS_PER_VERT_FOR_TET_CLIPPING>(
+            primal::clip<double>(
               tet,
               geomPiece,
               EPS,
