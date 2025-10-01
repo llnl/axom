@@ -14,7 +14,14 @@
 #------------------------------------------------------------------------------
 # Create a link line string that has all the component libraries in the proper order
 # This list is ordered by hand, then we only add components that are enabled
-set(_ordered_component_list quest multimat slam mint klee inlet sidre slic lumberjack core)
+#------------------------------------------------------------------------------
+set(_ordered_component_list quest mir
+                            bump  klee
+                            inlet mint  multimat
+                            sidre slam
+                            slic 
+                            sina  lumberjack
+                            core)
 set(AXOM_ORDERED_LIBS)
 foreach(_component ${_ordered_component_list})
   if(_component IN_LIST AXOM_COMPONENTS_ENABLED)
@@ -87,6 +94,30 @@ foreach(_lesson lesson_00 lesson_01 lesson_02 lesson_03 lesson_04 patch figs)
             DESTINATION examples/axom/radiuss_tutorial)
 endforeach()
 
+if(AXOM_DEVELOP_TUTORIALS)
+    set(radiuss_tutorial_deps axom fmt cli11)
+    blt_list_append(TO radiuss_tutorial_deps ELEMENTS blt::openmp IF ENABLE_OPENMP)
+    blt_list_append(TO radiuss_tutorial_deps ELEMENTS blt::cuda IF ENABLE_CUDA)
+    blt_list_append(TO radiuss_tutorial_deps ELEMENTS blt::hip IF ENABLE_HIP)
+    blt_list_append(TO radiuss_tutorial_deps ELEMENTS RAJA IF RAJA_FOUND)
+    blt_list_append(TO radiuss_tutorial_deps ELEMENTS umpire IF umpire_FOUND)
+
+    foreach(lesson_and_file lesson_00:check_axom_configuration.cpp
+                            lesson_01:load_stl_mesh.cpp
+                            lesson_02:naive_self_intersections.cpp
+                            lesson_03:device_self_intersections.cpp
+                            lesson_04:device_spatial_indexes.cpp)
+        string(REPLACE ":" ";" _parts "${lesson_and_file}")
+        list(GET _parts 0 _lesson)
+        list(GET _parts 1 _file_with_ext)
+        get_filename_component( _file_no_ext ${_file_with_ext} NAME_WE )
+
+        blt_add_executable(NAME       radiuss_tutorial_${_lesson}_${_file_no_ext}
+                           SOURCES    radiuss_tutorial/${_lesson}/${_file_with_ext}
+                           DEPENDS_ON ${radiuss_tutorial_deps})
+    endforeach()    
+
+endif()
 
 #------------------------------------------------------------------------------
 # configure and install 'shaping_tutorial' example
@@ -108,20 +139,19 @@ foreach(_lesson lesson_00 lesson_01 lesson_02 lesson_03 lesson_04)
             DESTINATION examples/axom/shaping_tutorial)
 endforeach()
 
-set(AXOM_BUILD_TUTORIALS ON)
-if(AXOM_BUILD_TUTORIALS)
+if(AXOM_DEVELOP_TUTORIALS)
     set(shaping_tutorial_deps axom fmt cli11)
     blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::openmp IF ENABLE_OPENMP)
     blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::cuda IF ENABLE_CUDA)
     blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::hip IF ENABLE_HIP)
     blt_list_append(TO shaping_tutorial_deps ELEMENTS mfem IF MFEM_FOUND)
     
-foreach(lesson_and_file lesson_00:check_axom_configuration.cpp
-                        lesson_01:mesh_metadata_sidre.cpp 
-                        lesson_02:validated_inlet_metadata.cpp
-                        lesson_02:improved_inlet_metadata.cpp
-                        lesson_03:klee_operators_and_validation.cpp
-                        lesson_04:quest_sampling_shaper.cpp)
+    foreach(lesson_and_file lesson_00:check_axom_configuration.cpp
+                            lesson_01:mesh_metadata_sidre.cpp 
+                            lesson_02:validated_inlet_metadata.cpp
+                            lesson_02:improved_inlet_metadata.cpp
+                            lesson_03:klee_operators_and_validation.cpp
+                            lesson_04:quest_sampling_shaper.cpp)
         string(REPLACE ":" ";" _parts "${lesson_and_file}")
         list(GET _parts 0 _lesson)
         list(GET _parts 1 _file_with_ext)
@@ -130,7 +160,6 @@ foreach(lesson_and_file lesson_00:check_axom_configuration.cpp
         blt_add_executable(NAME       shaping_tutorial_${_lesson}_${_file_no_ext}
                            SOURCES    shaping_tutorial/${_lesson}/${_file_with_ext}
                            DEPENDS_ON ${shaping_tutorial_deps})
-
     endforeach()
     
 endif()

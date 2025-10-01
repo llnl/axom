@@ -45,6 +45,15 @@ cmake_dependent_option(AXOM_ENABLE_EXAMPLES "Enables Axom Examples" ON "ENABLE_E
 option(AXOM_ENABLE_TOOLS "Enables Axom Tools" ON)
 
 #--------------------------------------------------------------------------
+# Enable the following to build the Axom tutorials within Axom builds.
+# Otherwise, the tutorials will only be available in axom installations 
+# (when AXOM_ENABLE_EXAMPLES is TRUE)
+# This option is mostly helpful when developing the tutorials.
+#--------------------------------------------------------------------------
+option(AXOM_DEVELOP_TUTORIALS "Builds the Axom tutorials with Axom (mostly helpful when developing the tutorials)" OFF)
+mark_as_advanced(AXOM_DEVELOP_TUTORIALS)
+
+#--------------------------------------------------------------------------
 # Option to control whether AXOM_DEFINE compiler define is enabled
 #
 # Possible values are: "ON", "OFF" and "DEFAULT"
