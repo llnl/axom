@@ -99,7 +99,7 @@ if(AXOM_ENABLE_TUTORIALS)
                 DESTINATION examples/axom/radiuss_tutorial)
     endforeach()
 
-    # Also build the tutorial examples
+    # Also build the tutorial examples; some require RAJA and Umpire
     set(radiuss_tutorial_deps axom fmt cli11)
     blt_list_append(TO radiuss_tutorial_deps ELEMENTS blt::openmp IF ENABLE_OPENMP)
     blt_list_append(TO radiuss_tutorial_deps ELEMENTS blt::cuda IF ENABLE_CUDA)
@@ -107,11 +107,15 @@ if(AXOM_ENABLE_TUTORIALS)
     blt_list_append(TO radiuss_tutorial_deps ELEMENTS RAJA IF RAJA_FOUND)
     blt_list_append(TO radiuss_tutorial_deps ELEMENTS umpire IF umpire_FOUND)
 
-    foreach(lesson_and_file lesson_00:check_axom_configuration.cpp
-                            lesson_01:load_stl_mesh.cpp
-                            lesson_02:naive_self_intersections.cpp
-                            lesson_03:device_self_intersections.cpp
-                            lesson_04:device_spatial_indexes.cpp)
+    set(_examples lesson_00:check_axom_configuration.cpp
+                  lesson_01:load_stl_mesh.cpp
+                  lesson_02:naive_self_intersections.cpp)
+    if(RAJA_FOUND AND umpire_FOUND)
+        blt_list_append(TO _examples ELEMENTS lesson_03:device_self_intersections.cpp
+                                              lesson_04:device_spatial_indexes.cpp)
+    endif()
+
+    foreach(lesson_and_file ${_examples})
         string(REPLACE ":" ";" _parts "${lesson_and_file}")
         list(GET _parts 0 _lesson)
         list(GET _parts 1 _file_with_ext)
