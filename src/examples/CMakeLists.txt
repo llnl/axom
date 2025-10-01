@@ -15,86 +15,91 @@
 # Create a link line string that has all the component libraries in the proper order
 # This list is ordered by hand, then we only add components that are enabled
 #------------------------------------------------------------------------------
-set(_ordered_component_list quest mir
-                            bump  klee
-                            inlet mint  multimat
-                            sidre slam
-                            slic 
-                            sina  lumberjack
-                            core)
-set(AXOM_ORDERED_LIBS)
-foreach(_component ${_ordered_component_list})
-  if(_component IN_LIST AXOM_COMPONENTS_ENABLED)
-    set(AXOM_ORDERED_LIBS "${AXOM_ORDERED_LIBS} -laxom_${_component}")
-  endif()
-endforeach()
+if (AXOM_ENABLE_EXAMPLES)
+    set(_ordered_component_list quest mir
+                                bump  klee
+                                inlet mint  multimat
+                                sidre slam
+                                slic 
+                                sina  lumberjack
+                                core)
+    set(AXOM_ORDERED_LIBS)
+    foreach(_component ${_ordered_component_list})
+    if(_component IN_LIST AXOM_COMPONENTS_ENABLED)
+        set(AXOM_ORDERED_LIBS "${AXOM_ORDERED_LIBS} -laxom_${_component}")
+    endif()
+    endforeach()
 
-configure_file(
-    using-with-make/Makefile.in
-    ${PROJECT_BINARY_DIR}/examples/using-with-make/Makefile)
+    configure_file(
+        using-with-make/Makefile.in
+        ${PROJECT_BINARY_DIR}/examples/using-with-make/Makefile)
 
-install(
-    FILES
-        ${PROJECT_BINARY_DIR}/examples/using-with-make/Makefile
-        using-with-make/example.cpp
-    DESTINATION 
-        examples/axom/using-with-make
-)
-
+    install(
+        FILES
+            ${PROJECT_BINARY_DIR}/examples/using-with-make/Makefile
+            using-with-make/example.cpp
+        DESTINATION 
+            examples/axom/using-with-make
+    )
+endif()
 #------------------------------------------------------------------------------
 # configure and install 'using-with-cmake' example
 #------------------------------------------------------------------------------
-configure_file(
-    using-with-cmake/host-config.cmake.in
-    ${PROJECT_BINARY_DIR}/examples/using-with-cmake/host-config.cmake)
+if (AXOM_ENABLE_EXAMPLES)
+    configure_file(
+        using-with-cmake/host-config.cmake.in
+        ${PROJECT_BINARY_DIR}/examples/using-with-cmake/host-config.cmake)
 
-install(
-    FILES
-        using-with-cmake/CMakeLists.txt
-        using-with-cmake/example.cpp
-        ${PROJECT_BINARY_DIR}/examples/using-with-cmake/host-config.cmake
-    DESTINATION
-        examples/axom/using-with-cmake
-)
+    install(
+        FILES
+            using-with-cmake/CMakeLists.txt
+            using-with-cmake/example.cpp
+            ${PROJECT_BINARY_DIR}/examples/using-with-cmake/host-config.cmake
+        DESTINATION
+            examples/axom/using-with-cmake
+    )
+endif()    
 
 #------------------------------------------------------------------------------
 # configure and install 'using-with-blt' example
 #------------------------------------------------------------------------------
-configure_file(
-    using-with-blt/host-config.cmake.in
-    ${PROJECT_BINARY_DIR}/examples/using-with-blt/host-config.cmake)
+if (AXOM_ENABLE_EXAMPLES)
+    configure_file(
+        using-with-blt/host-config.cmake.in
+        ${PROJECT_BINARY_DIR}/examples/using-with-blt/host-config.cmake)
 
-install(
-    FILES
-        using-with-blt/CMakeLists.txt
-        using-with-blt/example.cpp
-        ${PROJECT_BINARY_DIR}/examples/using-with-blt/host-config.cmake
-    DESTINATION
-        examples/axom/using-with-blt
-)
-
+    install(
+        FILES
+            using-with-blt/CMakeLists.txt
+            using-with-blt/example.cpp
+            ${PROJECT_BINARY_DIR}/examples/using-with-blt/host-config.cmake
+        DESTINATION
+            examples/axom/using-with-blt
+    )
+endif()
 
 #------------------------------------------------------------------------------
 # configure and install 'radiuss_tutorial' example
 #------------------------------------------------------------------------------
-configure_file(
-    radiuss_tutorial/host-config.cmake.in
-    ${PROJECT_BINARY_DIR}/examples/radiuss_tutorial/host-config.cmake)
+if(AXOM_ENABLE_TUTORIALS)
+    configure_file(
+        radiuss_tutorial/host-config.cmake.in
+        ${PROJECT_BINARY_DIR}/examples/radiuss_tutorial/host-config.cmake)
 
-install(
-    FILES
-        radiuss_tutorial/CMakeLists.txt
-        ${PROJECT_BINARY_DIR}/examples/radiuss_tutorial/host-config.cmake
-    DESTINATION
-        examples/axom/radiuss_tutorial
-)
+    install(
+        FILES
+            radiuss_tutorial/CMakeLists.txt
+            ${PROJECT_BINARY_DIR}/examples/radiuss_tutorial/host-config.cmake
+        DESTINATION
+            examples/axom/radiuss_tutorial
+    )
 
-foreach(_lesson lesson_00 lesson_01 lesson_02 lesson_03 lesson_04 patch figs)
-    install(DIRECTORY radiuss_tutorial/${_lesson}
-            DESTINATION examples/axom/radiuss_tutorial)
-endforeach()
+    foreach(_lesson lesson_00 lesson_01 lesson_02 lesson_03 lesson_04 patch figs)
+        install(DIRECTORY radiuss_tutorial/${_lesson}
+                DESTINATION examples/axom/radiuss_tutorial)
+    endforeach()
 
-if(AXOM_DEVELOP_TUTORIALS)
+    # Also build the tutorial examples
     set(radiuss_tutorial_deps axom fmt cli11)
     blt_list_append(TO radiuss_tutorial_deps ELEMENTS blt::openmp IF ENABLE_OPENMP)
     blt_list_append(TO radiuss_tutorial_deps ELEMENTS blt::cuda IF ENABLE_CUDA)
@@ -114,6 +119,7 @@ if(AXOM_DEVELOP_TUTORIALS)
 
         blt_add_executable(NAME       radiuss_tutorial_${_lesson}_${_file_no_ext}
                            SOURCES    radiuss_tutorial/${_lesson}/${_file_with_ext}
+                           OUTPUT_DIR ${PROJECT_BINARY_DIR}/tutorials
                            DEPENDS_ON ${radiuss_tutorial_deps})
     endforeach()    
 
@@ -122,24 +128,25 @@ endif()
 #------------------------------------------------------------------------------
 # configure and install 'shaping_tutorial' example
 #------------------------------------------------------------------------------
-configure_file(
-    shaping_tutorial/host-config.cmake.in
-    ${PROJECT_BINARY_DIR}/examples/shaping_tutorial/host-config.cmake)
+if(AXOM_ENABLE_TUTORIALS)
+    configure_file(
+        shaping_tutorial/host-config.cmake.in
+        ${PROJECT_BINARY_DIR}/examples/shaping_tutorial/host-config.cmake)
 
-install(
-    FILES
-        shaping_tutorial/CMakeLists.txt
-        ${PROJECT_BINARY_DIR}/examples/shaping_tutorial/host-config.cmake
-    DESTINATION
-        examples/axom/shaping_tutorial
-)
+    install(
+        FILES
+            shaping_tutorial/CMakeLists.txt
+            ${PROJECT_BINARY_DIR}/examples/shaping_tutorial/host-config.cmake
+        DESTINATION
+            examples/axom/shaping_tutorial
+    )
 
-foreach(_lesson lesson_00 lesson_01 lesson_02 lesson_03 lesson_04)
-    install(DIRECTORY shaping_tutorial/${_lesson}
-            DESTINATION examples/axom/shaping_tutorial)
-endforeach()
+    foreach(_lesson lesson_00 lesson_01 lesson_02 lesson_03 lesson_04)
+        install(DIRECTORY shaping_tutorial/${_lesson}
+                DESTINATION examples/axom/shaping_tutorial)
+    endforeach()
 
-if(AXOM_DEVELOP_TUTORIALS)
+    # Also build the tutorial examples
     set(shaping_tutorial_deps axom fmt cli11)
     blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::openmp IF ENABLE_OPENMP)
     blt_list_append(TO shaping_tutorial_deps ELEMENTS blt::cuda IF ENABLE_CUDA)
@@ -159,6 +166,7 @@ if(AXOM_DEVELOP_TUTORIALS)
 
         blt_add_executable(NAME       shaping_tutorial_${_lesson}_${_file_no_ext}
                            SOURCES    shaping_tutorial/${_lesson}/${_file_with_ext}
+                           OUTPUT_DIR ${PROJECT_BINARY_DIR}/tutorials
                            DEPENDS_ON ${shaping_tutorial_deps})
     endforeach()
     

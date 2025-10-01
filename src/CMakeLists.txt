@@ -145,7 +145,7 @@ if(AXOM_ENABLE_TOOLS)
 endif()
 
 # Installation examples ('Using Axom') and tutorials
-if (AXOM_ENABLE_EXAMPLES OR AXOM_DEVELOP_TUTORIALS)
+if (AXOM_ENABLE_EXAMPLES OR AXOM_ENABLE_TUTORIALS)
     add_subdirectory(examples)
 endif()
 
