@@ -26,6 +26,7 @@
 namespace primal = axom::primal;
 using Point2D = primal::Point<double, 2>;
 using BezierCurve2D = primal::BezierCurve<double, 2>;
+using CurveGWNCache = primal::detail::NURBSCurveGWNCache<double>;
 using BoundingBox2D = primal::BoundingBox<double, 2>;
 
 bool check_mesh_valid(const mfem::Mesh* mesh)
@@ -153,7 +154,7 @@ int main(int argc, char** argv)
   }
 
   axom::Array<int> segments;
-  axom::Array<BezierCurve2D> curves;
+  axom::Array<CurveGWNCache> curves;
 
   // Loop through mesh elements, retaining the (curved) 1D segments
   for(int i = 0; i < mesh.GetNE(); ++i)
@@ -174,7 +175,9 @@ int main(int argc, char** argv)
 
     bbox.addBox(curve.boundingBox());
 
-    curves.emplace_back(std::move(curve));
+    // Add curves to GWN Cache objects that dynamically store intermediate
+    //  curve subdivisions to be reused across query points
+    curves.emplace_back(CurveGWNCache(std::move(curve)));
   }
 
   SLIC_INFO(axom::fmt::format("Curve mesh bounding box: {}", bbox));
@@ -198,9 +201,7 @@ int main(int argc, char** argv)
   auto nodes_fes = query_mesh->GetNodalFESpace();
 
   // Query the winding numbers at each degree of freedom (DoF) of the query mesh.
-  // The loop below independently checks (and adaptively refines) every curve for each query points.
-  // A more efficient algorithm can de defined that caches the refined curves to avoid
-  // extra refinements. We will add this in a follow-up PR.
+  // The loop below independently checks (and adaptively refines) every curve for each query point.
   for(int nidx = 0; nidx < nodes_fes->GetNDofs(); ++nidx)
   {
     Point2D q;

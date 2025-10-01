@@ -176,7 +176,7 @@ FieldData::FieldData(int association, sidre::Group* fields_group, const std::str
 
       m_fields[name] = field;
     }  // END if centering
-  }    // END for all fields
+  }  // END for all fields
 }
 #endif
 

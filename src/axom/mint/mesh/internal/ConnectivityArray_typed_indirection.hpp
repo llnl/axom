@@ -118,9 +118,9 @@ public:
     {
       (*m_offsets)[0] = 0;
     }
-    SLIC_ERROR_IF((*m_offsets)[0] != 0,
-                  "Invalid offsets array. "
-                    << "Expected item 0 to be 0 not " << (*m_offsets)[0] << ".");
+    SLIC_ERROR_IF(
+      (*m_offsets)[0] != 0,
+      "Invalid offsets array. " << "Expected item 0 to be 0 not " << (*m_offsets)[0] << ".");
 
     IndexType n_values = (*m_offsets)[n_IDs];
     m_values = std::make_unique<ExternalArray<IndexType>>(values, n_values, value_capacity);

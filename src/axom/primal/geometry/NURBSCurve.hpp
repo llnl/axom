@@ -24,6 +24,7 @@
 #include "axom/primal/geometry/OrientedBoundingBox.hpp"
 
 #include "axom/primal/operators/squared_distance.hpp"
+#include "axom/primal/operators/is_convex.hpp"
 
 #include <vector>
 #include <ostream>
@@ -676,6 +677,8 @@ public:
   /// \brief Returns the number of knots in the NURBS Curve
   axom::IndexType getNumKnots() const { return m_knotvec.getNumKnots(); }
 
+  auto getNumKnotSpans() const { return m_knotvec.getNumKnotSpans(); }
+
   /// \brief Normalize the knot vector to the span of [0, 1]
   void normalize() { m_knotvec.normalize(); }
 
@@ -1235,6 +1238,19 @@ public:
     }
 
     return true;
+  }
+
+  /*!
+   * \brief Splits a NURBS curve into two curves at the middle parameter value
+   *
+   * \param [out] n1 First output NURBS curve
+   * \param [out] n2 Second output NURBS curve
+   * \param [in] normalizeParameters Whether to normalize the output curves
+   */
+  void bisect(NURBSCurve<T, NDIMS>& n1, NURBSCurve<T, NDIMS>& n2, bool normalizeParameters = false) const
+  {
+    auto mid_t = 0.5 * (getMinKnot() + getMaxKnot());
+    split(mid_t, n1, n2, normalizeParameters);
   }
 
   /*!
