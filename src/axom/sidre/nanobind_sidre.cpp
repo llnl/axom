@@ -969,7 +969,8 @@ NB_MODULE(pysidre, m_sidre)
          "Create a deep copy of Group hierarchy rooted at given Group and "
          "make the copy a child of this Group.",
          nb::arg("srcGroup"),
-         nb::arg("allocID") = INVALID_ALLOCATOR_ID)
+         nb::arg("arrayAllocID") = INVALID_ALLOCATOR_ID,
+         nb::arg("tupleAllocID") = INVALID_ALLOCATOR_ID)
 
     .def("print",
          nb::overload_cast<>(&Group::print, nb::const_),
