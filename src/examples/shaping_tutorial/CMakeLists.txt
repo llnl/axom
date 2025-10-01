@@ -73,6 +73,41 @@ foreach(lesson_and_file lesson_00:check_axom_configuration.cpp
 endforeach()                   
 
 #------------------------------------------------------------------------------
+# Optionally, add tests to run the tutorial lessons
+#------------------------------------------------------------------------------
+if(ENABLE_TESTS)
+    blt_add_test(NAME    lesson_00_check_axom_configuration
+                 COMMAND lesson_00_check_axom_configuration)
+
+    blt_add_test(NAME    lesson_01_mesh_metadata_sidre
+                 COMMAND lesson_01_mesh_metadata_sidre  --min_x 50 --min_y 350 
+                                                        --max_x 50 --max_y 350 
+                                                        --res_x  8 --res_y   8 
+                                                        --output_blueprint)
+
+    blt_add_test(NAME    lesson_02_validated_inlet_metadata
+                 COMMAND lesson_02_validated_inlet_metadata ../lesson_02/input2D.yaml)
+
+    blt_add_test(NAME    lesson_02_improved_inlet_metadata_yaml
+                COMMAND lesson_02_improved_inlet_metadata ../lesson_02/input3D.yaml)
+
+    if(AXOM_USE_LUA)
+      blt_add_test(NAME    lesson_02_improved_inlet_metadata_lua
+                   COMMAND lesson_02_improved_inlet_metadata ../lesson_02/input3D.lua)
+    endif()
+
+    blt_add_test(NAME   lesson_03_klee_operators_and_validation
+                COMMAND lesson_03_klee_operators_and_validation ../lesson_03/ice_cream.yaml)
+
+    if(AXOM_USE_LUA)
+      blt_add_test(NAME    lesson_04_quest_sampling_shaper
+                   COMMAND lesson_04_quest_sampling_shaper -m ../lesson_04/circle_input.lua 
+                                                           -k ../lesson_04/circles.yaml -v)                   
+    endif()
+
+endif()
+
+#------------------------------------------------------------------------------
 # Optionally, print out information about imported targets
 #------------------------------------------------------------------------------
 if(EXAMPLE_VERBOSE_OUTPUT)

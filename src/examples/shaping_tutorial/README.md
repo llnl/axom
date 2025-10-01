@@ -22,5 +22,3 @@ This tutorial showcases several features of Axom by incrementally building up an
 * [Lesson 02](lesson_02/README.md) focuses on Axom's `Inlet` component to define, parse, and validate simulation input for mesh metadata.
 * [Lesson 03](lesson_03/README.md) describes geometry setup for multimaterial simulation using Axom's `Klee` component.
 * [Lesson 04](lesson_04/README.md) "shapes" Klee-based geometry onto a computational mesh to compute per-material volume fractions using Axom's `Quest` component.
-
-We hope you enjoy your journey in exploring Axom through the shaping application!
