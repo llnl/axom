@@ -114,9 +114,13 @@ struct FromInlet<MeshMetadata>
 
 void print_metadata(const MeshMetadata& metadata)
 {
-  fmt::print("Bounding Box Min: ({}, {})\n", metadata.bounding_box.min_x, metadata.bounding_box.min_y);
-  fmt::print("Bounding Box Max: ({}, {})\n", metadata.bounding_box.max_x, metadata.bounding_box.max_y);
-  fmt::print("Resolution: ({}, {})\n", metadata.resolution.x, metadata.resolution.y);
+  axom::fmt::print("Bounding Box Min: ({}, {})\n",
+                   metadata.bounding_box.min_x,
+                   metadata.bounding_box.min_y);
+  axom::fmt::print("Bounding Box Max: ({}, {})\n",
+                   metadata.bounding_box.max_x,
+                   metadata.bounding_box.max_y);
+  axom::fmt::print("Resolution: ({}, {})\n", metadata.resolution.x, metadata.resolution.y);
 }
 
 int main(int argc, char** argv)

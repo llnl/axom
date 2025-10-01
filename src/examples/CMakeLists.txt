@@ -84,12 +84,12 @@ endif()
 if(AXOM_ENABLE_TUTORIALS)
     configure_file(
         radiuss_tutorial/host-config.cmake.in
-        ${PROJECT_BINARY_DIR}/examples/radiuss_tutorial/host-config.cmake)
+        ${PROJECT_BINARY_DIR}/tutorials/radiuss_tutorial/host-config.cmake)
 
     install(
         FILES
             radiuss_tutorial/CMakeLists.txt
-            ${PROJECT_BINARY_DIR}/examples/radiuss_tutorial/host-config.cmake
+            ${PROJECT_BINARY_DIR}/tutorials/radiuss_tutorial/host-config.cmake
         DESTINATION
             examples/axom/radiuss_tutorial
     )
@@ -127,16 +127,17 @@ endif()
 
 #------------------------------------------------------------------------------
 # configure and install 'shaping_tutorial' example
+# This example requires Klee (which requires Inlet, Sidre and Conduit)
 #------------------------------------------------------------------------------
-if(AXOM_ENABLE_TUTORIALS)
+if(AXOM_ENABLE_TUTORIALS AND AXOM_ENABLE_KLEE)
     configure_file(
         shaping_tutorial/host-config.cmake.in
-        ${PROJECT_BINARY_DIR}/examples/shaping_tutorial/host-config.cmake)
+        ${PROJECT_BINARY_DIR}/tutorials/shaping_tutorial/host-config.cmake)
 
     install(
         FILES
             shaping_tutorial/CMakeLists.txt
-            ${PROJECT_BINARY_DIR}/examples/shaping_tutorial/host-config.cmake
+            ${PROJECT_BINARY_DIR}/tutorials/shaping_tutorial/host-config.cmake
         DESTINATION
             examples/axom/shaping_tutorial
     )
