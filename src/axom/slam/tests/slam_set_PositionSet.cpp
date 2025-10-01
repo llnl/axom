@@ -194,8 +194,7 @@ TEST(slam_set_positionset, iterate)
 
 TEST(slam_set_positionset, out_of_bounds_at)
 {
-  SLIC_INFO("Testing out of bounds access using at() "
-            << "-- code is expected to assert and die.");
+  SLIC_INFO("Testing out of bounds access using at() " << "-- code is expected to assert and die.");
   SetType s(MAX_SET_SIZE);
 
 #ifdef AXOM_DEBUG

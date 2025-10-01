@@ -215,8 +215,7 @@ bool Shaper::isValidFormat(const std::string& format) const
     "plane3D",
     "sphere3D",
     "sor3D",
-    "none"
-  };
+    "none"};
   constexpr auto numFormats = sizeof(formats) / sizeof(const char*);
   const auto formats_end = formats + numFormats;
   return std::find(formats, formats + numFormats, format) != formats_end;

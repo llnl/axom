@@ -26,7 +26,7 @@ namespace
 {
 double cone_volume(double baseRad, double topRad, double len)
 {
-  return M_PI / 3 * len * (baseRad*baseRad + baseRad*topRad + topRad*topRad);
+  return M_PI / 3 * len * (baseRad * baseRad + baseRad * topRad + topRad * topRad);
 }
 
 //------------------------------------------------------------------------------
@@ -48,7 +48,7 @@ TEST(primal_cone, default_constructor)
 
   const double a = .643245324;
   const double b = 1 - a;
-  EXPECT_EQ(defaultCone.getRadiusAt(b*defaultLength), a*defaultBaseRad + b*defaultTopRad);
+  EXPECT_EQ(defaultCone.getRadiusAt(b * defaultLength), a * defaultBaseRad + b * defaultTopRad);
 }
 
 //------------------------------------------------------------------------------
@@ -70,7 +70,7 @@ TEST(primal_cone, full_constructor)
 
   const double a = .643245324;
   const double b = 1 - a;
-  EXPECT_EQ(coneA.getRadiusAt(b*aLength), a*aBaseRad + b*aTopRad);
+  EXPECT_EQ(coneA.getRadiusAt(b * aLength), a * aBaseRad + b * aTopRad);
 }
 
 //------------------------------------------------------------------------------

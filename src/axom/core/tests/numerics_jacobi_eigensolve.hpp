@@ -48,7 +48,7 @@ void random_symmetric_matrix_init(axom::numerics::Matrix<T>& A, T lo, T hi)
       A(i, j) = axom::utilities::random_real(lo, hi, seed);
       A(j, i) = A(i, j);
     }  // END for all j
-  }    // END for all i
+  }  // END for all i
 }
 
 //------------------------------------------------------------------------------

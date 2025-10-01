@@ -11,12 +11,11 @@
 #ifndef LOGSTREAMSTATUS_MONITOR_HPP_
 #define LOGSTREAMSTATUS_MONITOR_HPP_
 
-
 #include <vector>
 #include "axom/slic/core/LogStream.hpp"
 
 #if defined(AXOM_USE_MPI)
-#include <mpi.h>
+  #include <mpi.h>
 #endif
 
 namespace axom
@@ -55,16 +54,12 @@ public:
    */
   void finalize();
 
-
 protected:
-
   std::vector<LogStream*> m_streamVec;
 #if defined(AXOM_USE_MPI)
   bool m_useMPI;
   std::vector<MPI_Comm> m_mpiComms;
 #endif
-
-
 };
 
 } /* namespace slic */

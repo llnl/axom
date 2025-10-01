@@ -57,9 +57,7 @@ void check_for_all_faces(int dimension)
 
   auto field_v = field_d.view();
 
-  for_all_faces<ExecPolicy>(
-    test_mesh,
-    AXOM_LAMBDA(IndexType faceID) { field_v[faceID] = faceID; });
+  for_all_faces<ExecPolicy>(test_mesh, AXOM_LAMBDA(IndexType faceID) { field_v[faceID] = faceID; });
 
   // Copy field back to host
   axom::Array<IndexType> field_h = axom::Array<IndexType>(field_d, host_allocator);
