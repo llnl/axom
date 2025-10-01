@@ -10,6 +10,7 @@
 #ifndef LOGGER_HPP_
 #define LOGGER_HPP_
 
+#include "axom/slic/core/LogStreamStatusMonitor.hpp"
 #include "axom/slic/core/MessageLevel.hpp"
 
 // C/C++ includes
@@ -347,6 +348,14 @@ public:
    */
   void pushStreams();
 
+  /*!
+   * \brief Checks to see if there are pending messages
+   * 
+   * \return Returns true if there are pending messages
+   * \collective
+   */
+  bool hasPendingMessages();
+
   ///@}
 
   /// \name Static Methods
@@ -436,6 +445,18 @@ private:
    * \brief Destructor.
    */
   ~Logger();
+
+  /*!
+   * \brief Determines whether to push or flush messages.
+   * Returns true if the current stream does not use MPI, 
+   * or if pending messages exist on any stream.
+   *
+   * \param [in] hasPendingMessages flag that indicates if there are pending 
+   *                                messages on any stream
+   * \param [in] streamUsesMPI flag that indicates if the current stream 
+   *                           uses MPI
+   */
+  bool shouldPushMessages(const bool hasPendingMessages, const bool streamUsesMPI) const;
 
   /// \name Private class members
   ///@{

@@ -250,9 +250,9 @@ bool signed_distance_initialized()
 //------------------------------------------------------------------------------
 void signed_distance_get_mesh_bounds(double* lo, double* hi)
 {
-  SLIC_ERROR_IF(!signed_distance_initialized(),
-                "signed distance query must be initialized prior to"
-                  << "calling get_mesh_bounds()");
+  SLIC_ERROR_IF(
+    !signed_distance_initialized(),
+    "signed distance query must be initialized prior to" << "calling get_mesh_bounds()");
   SLIC_ERROR_IF(lo == nullptr, "supplied buffer is null");
   SLIC_ERROR_IF(hi == nullptr, "supplied buffer is null");
 

@@ -273,7 +273,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                      inline_mesh --min 0 0 --max 300 400 --res 300 400 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,637.")
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?637.")
 
         # Test 2D MFEM mesh (winding number)
         set(_testname quest_shaping_driver_ex_heroic_roses_mfem_cp)
@@ -285,7 +285,7 @@ if(AXOM_ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
                      inline_mesh --min 0 0 --max 300 400 --res 300 400 -d 2
             NUM_MPI_TASKS ${_nranks})
         set_tests_properties(${_testname} PROPERTIES
-            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,645.")
+            PASS_REGULAR_EXPRESSION  "Volume of material 'black' is 36,?645.")
 
         # 3D shaping tests
         set(_nranks 3)
@@ -350,13 +350,20 @@ if((CONDUIT_FOUND OR
         )
 
     if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
-        # 3D shaping tests.  No 2D shaping in this feature, at least for now.
-        set(_nranks 1)
+
+        if(AXOM_ENABLE_MPI)     # this test requires MPI when available
+            set(_nranks 1)      # (but only 1 rank)
+        else()                  # but can otherwise be run without MPI
+            unset(_nranks)
+        endif()
 
         # Run the in-memory shaping example on with each enabled policy
         set(_policies "seq")
         if(RAJA_FOUND)
-            blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
+            # Hanging issue on Windows
+            if(NOT WIN32)
+                blt_list_append(TO _policies ELEMENTS "omp"  IF AXOM_ENABLE_OPENMP)
+            endif()
             blt_list_append(TO _policies ELEMENTS "cuda" IF AXOM_ENABLE_CUDA)
             blt_list_append(TO _policies ELEMENTS "hip"  IF AXOM_ENABLE_HIP)
         endif()

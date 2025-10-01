@@ -43,10 +43,10 @@ namespace detail
  * Bezier curve is linear
  * \param [in] order1 The order of \a c1
  * \param [in] order2 The order of \a c2
- * \param s_offset The offset in parameter space for \a c1
- * \param s_scale The scale in parameter space for \a c1
- * \param t_offset The offset in parameter space for \a c2
- * \param t_scale The scale in parameter space for \a c2
+ * \param [in] s_offset The offset in parameter space for \a c1
+ * \param [in] s_scale The scale in parameter space for \a c1
+ * \param [in] t_offset The offset in parameter space for \a c2
+ * \param [in] t_scale The scale in parameter space for \a c2
  *
  * Bezier curves can only intersect when their bounding boxes intersect.
  * The base case of the recursion is when we can approximate the curves as
@@ -77,7 +77,7 @@ bool intersect_bezier_curves(const BezierCurve<T, 2> &c1,
  * their end points (a,b) and (c,d)
  *
  * \param [in] a,d,c,b the endpoints of the segments
- * \param [out] The parametrized s and t values at which intersection occurs
+ * \param [out] s,t The parametrized s and t values at which intersection occurs
  * Range of output values for \a s and \a t is [0,1).
  *
  * \return True, if the two line segments intersect, false otherwise.
@@ -111,26 +111,27 @@ bool intersect_2d_linear(const Point<T, 2> &a,
  *
  * \param [in] r The input ray
  * \param [in] c The input curve
- * \param [out] cp Parametric coordinates of intersections in \a c [0, 1)
  * \param [out] rp Parametric coordinates of intersections in \a r [0, inf)
+ * \param [out] cp Parametric coordinates of intersections in \a c [0, 1)
  * \param [in] sq_tol The squared tolerance parameter for distances in physical space
  * \param [in] EPS The tolerance parameter for distances in parameter space
  * \param [in] order The order of \a c
- * \param c_offset The offset in parameter space for \a c
- * \param c_scale The scale in parameter space for \a c
+ * \param [in] c_offset The offset in parameter space for \a c
+ * \param [in] c_scale The scale in parameter space for \a c
+ * \param [in] isHalfOpen If true, ignore intersections at t=1 in the parameter space of the curve
  *
  * A ray can only intersect a Bezier curve if it intersects its bounding box
  * The base case of the recursion is when we can approximate the curves parametrically with
  * line segments, where we directly find their intersection with the ray. Otherwise,
  * check for intersections recursively after bisecting the curve.
  *
- * \note A BezierCurve is parametrized in [0,1). The scale and offset parameters
- * are used to track the local curve parameters during subdivisions
+ * \note A BezierCurve is parametrized in [0,1] if isHalfOpen is false, and [0, 1) if true.
+ * The scale and offset parameters are used to track the local curve parameters during subdivisions
  *
  * \note This function can't be used to identify tangents at local a min/max
  *   of Bezier curves.
  * 
- * \return True if the two curves intersect, False otherwise
+ * \return True if the ray and curve intersect, False otherwise
  * \sa intersect_bezier
  */
 template <typename T>
@@ -142,7 +143,8 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
                           double EPS,
                           int order,
                           double c_offset,
-                          double c_scale);
+                          double c_scale,
+                          bool isHalfOpen = true);
 
 /*!
  * \brief Recursive function to find intersections between a 2D sphere (circle)
@@ -155,8 +157,8 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
  * \param [in] sq_tol The squared tolerance parameter for distances in physical space
  * \param [in] EPS The tolerance parameter for distances in parameter space
  * \param [in] order The order of \a c
- * \param c_offset The offset in parameter space for \a c
- * \param c_scale The scale in parameter space for \a c
+ * \param [in] c_offset The offset in parameter space for \a c
+ * \param [in] c_scale The scale in parameter space for \a c
  *
  * A circle can only intersect a Bezier curve if it intersects its bounding box
  * The base case of the recursion is when we can approximate the curve parametrically with
@@ -326,20 +328,20 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
                           double EPS,
                           int order,
                           double c_offset,
-                          double c_scale)
+                          double c_scale,
+                          bool isHalfOpen)
 {
   using BCurve = BezierCurve<T, 2>;
 
   // Check bounding box to short-circuit the intersection
   T r0, s0;
-  constexpr T factor = 1e-8;
 
   // Need to expand the bounding box, since this ray-bb intersection routine
   //  only parameterizes the ray on (0, inf)
   T tmin = axom::numerics::floating_point_limits<T>::min();
   T tmax = axom::numerics::floating_point_limits<T>::max();
 
-  if(!detail::intersect_ray(r, c.boundingBox().expand(factor), tmin, tmax, EPS))
+  if(!detail::intersect_ray(r, c.boundingBox().expand(10 * EPS), tmin, tmax, EPS))
   {
     return false;
   }
@@ -354,7 +356,7 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
     // Need to check intersection with zero tolerance
     //  to handle cases where `intersect` treats the ray as collinear
     bool foundIntersection = detail::intersect_ray(r, seg, r0, s0, EPS);
-    if(foundIntersection && s0 < 1.0 - EPS)
+    if(foundIntersection && (!isHalfOpen || s0 < 1.0 - EPS))
     {
       rp.push_back(r0);
       cp.push_back(c_offset + c_scale * s0);
@@ -373,11 +375,11 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
     c_scale *= scaleFac;
 
     // Note: we want to find all intersections, so don't short-circuit
-    if(intersect_ray_bezier(r, c1, rp, cp, sq_tol, EPS, order, c_offset, c_scale))
+    if(intersect_ray_bezier(r, c1, rp, cp, sq_tol, EPS, order, c_offset, c_scale, isHalfOpen))
     {
       foundIntersection = true;
     }
-    if(intersect_ray_bezier(r, c2, rp, cp, sq_tol, EPS, order, c_offset + c_scale, c_scale))
+    if(intersect_ray_bezier(r, c2, rp, cp, sq_tol, EPS, order, c_offset + c_scale, c_scale, isHalfOpen))
     {
       foundIntersection = true;
     }
@@ -408,7 +410,7 @@ bool intersect_circle_bezier(const Sphere<T, 2> &circle,
 
   bool foundIntersection = false;
 
-  if(curve.isLinear(sq_tol))
+  if(curve.isLinear(sq_tol, true))
   {
     T c1, c2, t1, t2;
     if(intersect_2d_circle_line(circle, curve[0], curve[order], c1, c2, t1, t2, EPS))

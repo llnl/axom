@@ -364,7 +364,7 @@ void check_find_bounding_boxes3d()
       IndexType idx = candidates[offset + j];
       iblank[idx] = i;
     }  // END for all cells the bounding box intersects
-  }    // END for all bounding boxes
+  }  // END for all bounding boxes
 
   // check answer with results verified manually by inspection
   constexpr int INTERSECTS_BB = 0;
@@ -492,7 +492,7 @@ void check_find_bounding_boxes2d()
       IndexType idx = candidates[offset + j];
       iblank[idx] = i;
     }  // END for all cells the bounding boxes intersects with
-  }    // END for all bounding boxes
+  }  // END for all bounding boxes
 
   // check answer with results verified manually by inspection
   constexpr int INTERSECTS_BB = 0;
@@ -605,7 +605,7 @@ void check_find_rays3d()
       IndexType idx = candidates[offset + j];
       iblank[idx] = i;
     }  // END for all cells the ray hits
-  }    // END for all rays
+  }  // END for all rays
 
 #ifdef VTK_DEBUG
   mint::write_vtk(&mesh, "uniform_mesh.vtk");
@@ -746,7 +746,7 @@ void check_find_rays2d()
       IndexType idx = candidates[offset + j];
       iblank[idx] = i;
     }  // END for all cells the ray hits
-  }    // END for all rays
+  }  // END for all rays
 
 #ifdef VTK_DEBUG
   mint::write_vtk(&mesh, "uniform_mesh.vtk");
@@ -2003,9 +2003,7 @@ AXOM_CUDA_TEST(spin_bvh, use_pool_allocator)
   axom::for_all<exec>(
     0,
     1,
-    AXOM_LAMBDA(axom::IndexType idx) {
-      boxes[idx] = BoxType {PointType(0.), PointType(1.)};
-    });
+    AXOM_LAMBDA(axom::IndexType idx) { boxes[idx] = BoxType {PointType(0.), PointType(1.)}; });
 
   // construct a BVH with a single box
   spin::BVH<NDIMS, exec, FloatType> bvh;
@@ -2022,9 +2020,7 @@ AXOM_CUDA_TEST(spin_bvh, use_pool_allocator)
   axom::for_all<exec>(
     0,
     1,
-    AXOM_LAMBDA(axom::IndexType idx) {
-      centroid[idx] = PointType {0.5, 0.5, 0.5};
-    });
+    AXOM_LAMBDA(axom::IndexType idx) { centroid[idx] = PointType {0.5, 0.5, 0.5}; });
 
   axom::Array<IndexType> offsets(NUM_BOXES, NUM_BOXES, allocID);
   axom::Array<IndexType> counts(NUM_BOXES, NUM_BOXES, allocID);

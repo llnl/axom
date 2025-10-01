@@ -808,8 +808,7 @@ public:
   // clang-format off
   [[deprecated("No significance. Will be removed in a later release.")]]
   // clang-format on
-  virtual IndexType
-  getFaceCapacity() const final override
+  virtual IndexType getFaceCapacity() const final override
   {
     return m_faces.size();
   }
@@ -1103,8 +1102,7 @@ public:
   // clang-format off
   [[deprecated("No significance. Will be removed in a later release.")]]
   // clang-format on
-  IndexType
-  getFaceNodesCapacity() const
+  IndexType getFaceNodesCapacity() const
   {
     return m_face_node_rel.relationData().size();
   }
