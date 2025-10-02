@@ -14,12 +14,12 @@ Axom is a modular collection of C++ library "components" that provide the infras
 
 Axom targets modern HPC platforms with performance portability across CPUs and GPUs, and interoperates with [RAJA](https://github.com/LLNL/RAJA) and [Umpire](https://github.com/LLNL/Umpire) to manage execution and memory when those backends are enabled. It features a [BLT](https://github.com/llnl/blt)-based CMake build system and integrates smoothly with [Spack](https://spack.io)-based and [vcpkg](https://vcpkg.io)-based dependency management through [uberenv](https://github.com/llnl/uberenv).
 
-Axom is distributed under a BSD-3-Clause license; see the [user documentation](https://axom.readthedocs.io/en/develop/) for installation, examples, and API details and the [source repository](https://github.com/LLNL/axom).
+Axom is distributed under a BSD-3-Clause license and is available on [GitHub](https://github.com/LLNL/axom). For installation instructions, usage examples, and comprehensive API documentation, see the [Axom documentation site](https://axom.readthedocs.io/en/develop/).
 
 
-## What is "Shaping" in Axom?
+## What is "Shaping"?
 
-In Axom, "shaping" (sometimes referred to as "mesh overlay" or "painting") refers to the process of defining complex geometric regions and determining how they overlap with a computational mesh. This is crucial for setting up multi-material physics simulations where different materials occupy different regions of space. 
+"Shaping" (sometimes referred to as "mesh overlay" or "painting") refers to the process of defining how complex geometric regions overlap with a computational mesh. This is crucial for setting up multi-material physics simulations where different materials occupy different regions of space. 
 
 Shaping produces "volume fraction" fields defined on mesh cells, representing the percentage of each cell occupied by different materials. In high-order finite element meshes, these volume fractions are polynomial functions describing material distribution throughout the cells. Volume fractions maintain a partition of unity property, meaning they always sum to one at any location in the mesh, ensuring complete and consistent material representation.
 
