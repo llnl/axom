@@ -118,9 +118,9 @@ void printShapeSetInfo(const axom::klee::ShapeSet& shapeSet)
                        materials);
 
   // Print information about each shape
-  fmt::format_to(std::back_inserter(buffer),
-                 "\n  Details for the {} shapes:\n",
-                 shapeSet.getShapes().size());
+  axom::fmt::format_to(std::back_inserter(buffer),
+                       "\n  Details for the {} shapes:\n",
+                       shapeSet.getShapes().size());
   for(const auto& shape : shapeSet.getShapes())
   {
     const auto& geom = shape.getGeometry();
