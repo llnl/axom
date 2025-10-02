@@ -16,7 +16,7 @@
       when: never
     - when: on_success
   before_script:
-    - module load cmake/3.21.1
+    - module load cmake/3.24.2
 
 ####
 # Template
