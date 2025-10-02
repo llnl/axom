@@ -368,8 +368,7 @@ TEST(slic_macros, test_assert_macros)
 #if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
   EXPECT_FALSE(slic::internal::is_stream_empty());
   check_level(slic::internal::test_stream.str(), "ERROR");
-  check_msg(slic::internal::test_stream.str(),
-            "Failed Assert: val < 0\nval should be negative!");
+  check_msg(slic::internal::test_stream.str(), "Failed Assert: val < 0\nval should be negative!");
   check_file(slic::internal::test_stream.str());
   check_line(slic::internal::test_stream.str(), expected_line_number);
   slic::internal::clear();
@@ -412,8 +411,7 @@ TEST(slic_macros, test_check_macros)
 #if defined(AXOM_DEBUG) && !defined(AXOM_DEVICE_CODE)
   EXPECT_FALSE(slic::internal::is_stream_empty());
   check_level(slic::internal::test_stream.str(), "WARNING");
-  check_msg(slic::internal::test_stream.str(),
-            "Failed Check: val < 0\nval should be negative!");
+  check_msg(slic::internal::test_stream.str(), "Failed Check: val < 0\nval should be negative!");
   check_file(slic::internal::test_stream.str());
   check_line(slic::internal::test_stream.str(), expected_line_number);
   slic::internal::clear();
@@ -532,14 +530,11 @@ int main(int argc, char* argv[])
 
   std::string msgfmt = "[<LEVEL>]:;;<MESSAGE>;;\n@@<FILE>\n@@<LINE>";
 
-  slic::addStreamToAllMsgLevels(
-    new slic::GenericOutputStream(&slic::internal::test_stream, msgfmt));
+  slic::addStreamToAllMsgLevels(new slic::GenericOutputStream(&slic::internal::test_stream, msgfmt));
 
-  std::string msgtagfmt =
-    "[<LEVEL>]:;;<MESSAGE>;;\n##<TAG>\n@@<FILE>\n@@<LINE>";
-  slic::addStreamToTag(
-    new slic::GenericOutputStream(&slic::internal::test_stream, msgtagfmt),
-    "myTag");
+  std::string msgtagfmt = "[<LEVEL>]:;;<MESSAGE>;;\n##<TAG>\n@@<FILE>\n@@<LINE>";
+  slic::addStreamToTag(new slic::GenericOutputStream(&slic::internal::test_stream, msgtagfmt),
+                       "myTag");
 
   // finalized when exiting main scope
   result = RUN_ALL_TESTS();

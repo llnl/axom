@@ -157,9 +157,7 @@ void test_rehash(TestMap& test, int num, int fact)
 }
 
 template <typename Key, typename T>
-experimental::axom_map::Node<Key, T> init_node(axom::IndexType next = -1,
-                                               Key key = 5,
-                                               T value = 15)
+experimental::axom_map::Node<Key, T> init_node(axom::IndexType next = -1, Key key = 5, T value = 15)
 {
   axom::experimental::axom_map::Node<Key, T> n;
   n.next = next;
@@ -170,9 +168,8 @@ experimental::axom_map::Node<Key, T> init_node(axom::IndexType next = -1,
 }
 
 template <typename Key, typename T>
-experimental::axom_map::Pair<Key, T> init_pair(
-  experimental::axom_map::Node<Key, T>* node = nullptr,
-  bool status = false)
+experimental::axom_map::Pair<Key, T> init_pair(experimental::axom_map::Node<Key, T>* node = nullptr,
+                                               bool status = false)
 {
   axom::experimental::axom_map::Pair<Key, T> p(node, status);
 
@@ -190,8 +187,7 @@ experimental::axom_map::Bucket<Key, T> init_bucket(int length)
 // The first parameter is the number of buckets;
 // the second is a lambda to fill the buckets
 template <typename Key, typename T>
-experimental::axom_map::Bucket<Key, T> init_filled_bucket(int length,
-                                                          std::function<T(Key)>&& fn)
+experimental::axom_map::Bucket<Key, T> init_filled_bucket(int length, std::function<T(Key)>&& fn)
 {
   axom::experimental::axom_map::Bucket<Key, T> b(length);
 
@@ -204,10 +200,9 @@ experimental::axom_map::Bucket<Key, T> init_filled_bucket(int length,
 }
 
 template <typename MapType>
-MapType init_filled_map(
-  int numBucket,
-  int bucketLength,
-  std::function<typename MapType::mapped_type(typename MapType::key_type)>&& fn)
+MapType init_filled_map(int numBucket,
+                        int bucketLength,
+                        std::function<typename MapType::mapped_type(typename MapType::key_type)>&& fn)
 {
   using T = typename MapType::mapped_type;
 
@@ -464,8 +459,7 @@ TEST(core_map, hashmap_return_value)
     // Use a map with the compiler's default std::hash function
     {
       using DefaultHasherMap = experimental::Map<TestKey, TestVal>;
-      auto map =
-        ::init_filled_map<DefaultHasherMap>(buckets_num, buckets_len, fn);
+      auto map = ::init_filled_map<DefaultHasherMap>(buckets_num, buckets_len, fn);
 
       // Check that all expected values are present
       const int sz = buckets_num;

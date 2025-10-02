@@ -22,12 +22,10 @@ namespace axom
  * \tparam ValueType The type of the array's elements
  */
 template <typename ArrayType, typename ValueType>
-class ArrayIteratorBase
-  : public IteratorBase<ArrayIteratorBase<ArrayType, ValueType>, IndexType>
+class ArrayIteratorBase : public IteratorBase<ArrayIteratorBase<ArrayType, ValueType>, IndexType>
 {
 private:
-  using BaseType =
-    IteratorBase<ArrayIteratorBase<ArrayType, ValueType>, IndexType>;
+  using BaseType = IteratorBase<ArrayIteratorBase<ArrayType, ValueType>, IndexType>;
 
 public:
   // Iterator traits required to satisfy LegacyRandomAccessIterator concept
@@ -45,19 +43,13 @@ public:
   ArrayIteratorBase() : BaseType(0) { }
 
   AXOM_HOST_DEVICE
-  ArrayIteratorBase(IndexType pos, ArrayPointerType arr)
-    : BaseType(pos)
-    , m_arrayPtr(arr)
-  { }
+  ArrayIteratorBase(IndexType pos, ArrayPointerType arr) : BaseType(pos), m_arrayPtr(arr) { }
 
   /**
    * \brief Returns the current iterator value
    */
   AXOM_HOST_DEVICE
-  ValueType& operator*() const
-  {
-    return m_arrayPtr->flatIndex(BaseType::m_pos);
-  }
+  ValueType& operator*() const { return m_arrayPtr->flatIndex(BaseType::m_pos); }
 
 protected:
   /** Implementation of advance() as required by IteratorBase */

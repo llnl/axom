@@ -17,8 +17,7 @@ void check_numeric_array_policy()
   constexpr int DIM = 3;
   using NumericArrayType = axom::NumericArray<double, DIM>;
 
-  double* coords =
-    axom::allocate<double>(DIM, axom::execution_space<ExecSpace>::allocatorID());
+  double* coords = axom::allocate<double>(DIM, axom::execution_space<ExecSpace>::allocatorID());
 
   double coords_host[DIM];
 
@@ -274,8 +273,7 @@ TEST(primal_numeric_array, clamping)
 #ifdef AXOM_DEBUG
   // NOTE: AXOM_DEBUG is disabled in release mode, so this test will only fail
   // in debug mode
-  std::cout << "Checking that clamping with ill-formed range throws an assert."
-            << std::endl;
+  std::cout << "Checking that clamping with ill-formed range throws an assert." << std::endl;
 
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_DEATH_IF_SUPPORTED(QArray(seq).clamp(7, 3), "");
@@ -289,24 +287,23 @@ AXOM_CUDA_TEST(primal_numeric_array, numeric_array_check_policies)
   using seq_exec = axom::SEQ_EXEC;
   check_numeric_array_policy<seq_exec>();
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
 
   using omp_exec = axom::OMP_EXEC;
   check_numeric_array_policy<omp_exec>();
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
+  defined(AXOM_USE_UMPIRE)
 
   using cuda_exec = axom::CUDA_EXEC<512>;
 
   check_numeric_array_policy<cuda_exec>();
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
+  defined(AXOM_USE_UMPIRE)
 
   using hip_exec = axom::HIP_EXEC<512>;
 

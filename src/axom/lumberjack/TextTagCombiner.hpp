@@ -63,8 +63,7 @@ public:
    * \param [in] rightMessage One of the Messages to be compared.
    *****************************************************************************
    */
-  bool shouldMessagesBeCombined(const Message& leftMessage,
-                                const Message& rightMessage)
+  bool shouldMessagesBeCombined(const Message& leftMessage, const Message& rightMessage)
   {
     return (leftMessage.text().compare(rightMessage.text()) == 0 &&
             leftMessage.tag().compare(rightMessage.tag()) == 0);
@@ -74,8 +73,10 @@ public:
    *****************************************************************************
    * \brief Combines the combinee into the combined Message.
    *
-   * The only thing truly combined in this Combiner is the ranks from combinee
-   * to combined, since text is already equal.
+   * The only things truly combined in this Combiner are the ranks from combinee
+   * to combined and the creation time, since text is already equal.
+   * The creation time of the first message (lowest creation time) will be saved
+   * to the combined message.
    *
    * \param [in,out] combined the Message that will be modified.
    * \param [in] combinee the Message that is combined into the other.
@@ -88,6 +89,10 @@ public:
   void combine(Message& combined, const Message& combinee, const int ranksLimit)
   {
     combined.addRanks(combinee.ranks(), combinee.count(), ranksLimit);
+    if(combinee.creationTime() < combined.creationTime())
+    {
+      combined.creationTime(combinee.creationTime());
+    }
   }
 
 private:

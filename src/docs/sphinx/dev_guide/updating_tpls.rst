@@ -243,11 +243,9 @@ instructions on how to update a built-in TPL are:
 
 #. Follow the normal pull request work flow. For more information, please see :ref:`pullrequest-label`.
 
-.. _local-tpls-label:
-
 
 CLI11
-^^^^^^
+^^^^^
 
 CLI11 is a 3rd party builtin library that Axom uses to handle command
 line processing. Axom packages the library in a header-only format. The CLI11.hpp
@@ -260,6 +258,8 @@ many small changes that can be summarized as follows:
 #. Move "#pragma once" from below the copyright to the top of the file.
 #. Replace "CLI::" with "axom::CLI::".
 #. Replace "Success" with "CLI11_Success". This avoids a symbol collision with X11.
+
+.. _local-tpls-label:
 
 Local Third-party Library Installation
 --------------------------------------
@@ -368,11 +368,15 @@ other Axom developers to use during development, in Axom GitLab CI testing, etc.
 
    Run the corresponding command for the system you are on::
 
-     # blueos
+     # blueos_3_ppc64le_ib_p9 (default cmake is 3.14, need >=3.21 for using-with-cmake example)
+     $ module load cmake/3.29.2
      $ lalloc 1 -W 240 scripts/llnl_scripts/build_tpls.py
      
-     # toss_4
-     $ srun -N1 --interactive -t 180 scripts/llnl_scripts/build_tpls.py
+     # toss_4_x86_64_ib
+     $ srun -N1 -n 36 --interactive -t 180 scripts/llnl_scripts/build_tpls.py
+
+     # toss_4_x86_64_ib_cray
+     $ flux run -N 1 -t 240 scripts/llnl_scripts/build_tpls.py
 
    .. note:: You may have to adjust the allocation times you ask for the script to complete.
 
@@ -391,11 +395,21 @@ other Axom developers to use during development, in Axom GitLab CI testing, etc.
              If you forget to do this, it will eventually be deleted when it is past a certain
              age and no longer needed.
 
+#. **Update and test new Windows builds.**
+   We use uberenv with Vcpkg to manage dependencies for our Windows TPL builds.
+   The third-party package files, ``portfile.cmake`` and ``vcpkg.json``, may need to be updated
+   to reflect the new dependencies.
+   To test the Windows updates, go to our
+   `Manual Windows TPL builds <https://github.com/LLNL/axom/actions/workflows/test_windows_tpls.yml>`_
+   GitHub Actions page. Click on "Actions" and then on "Manual test for Axom's TPLs on Windows" in the "Workflows" menu.
+   Find the "Run Workflow" drop-down menu, select your branch, and click on the "Run workflow"
+   button. This will launch the tests for Windows.
+
 #. **Build new Docker images.**
    We use pre-built Docker images containing TPLs in our GitHub CI checks.
    To build these, go to our
-   `GitHub Actions <https://github.com/LLNL/axom/actions/workflows/docker_build_tpls.yml>`_
-   page. Click on "Actions" and then on "Docker TPL build" in the "Workflows" menu.
+   `Docker TPL build <https://github.com/LLNL/axom/actions/workflows/docker_build_tpls.yml>`_
+   GitHub Actions page. Click on "Actions" and then on "Docker TPL build" in the "Workflows" menu.
    Find the "Run Workflow" drop-down menu, select your branch, and click on the "Run workflow"
    button. This will launch the build of the docker images.
 
@@ -405,16 +419,16 @@ other Axom developers to use during development, in Axom GitLab CI testing, etc.
    ``axom/host-configs/docker`` subdirectory. Rename them to match the corresponding
    host-config.
 
-#. **Update Azure Pipelines to the new Docker images.**
+#. **Update GitHub Actions to the new Docker images.**
    To complete the setup of the new docker images, the ``Compiler_ImageName``
-   entries in ``azure-pipelines.yaml`` at the top-level directory must be updated
+   entries in ``.github/workflows/ci-tests.yml`` at the top-level directory must be updated
    with the timestamped names of the new images. The new names can be found in
    the log files from the successful GitHub action. On the left of the page for
    the successful action is a "Jobs" menu. Click on each job and then find
    the "Get dockerhub repo name" section of the log. The second line of the
    section there should be an entry of the form ``axom/tpls:clang-10_12-18-20_00h-10m``.
    Copy the name beginning with ``axom/tpls`` to the appropriate locations
-   in the ``axom/azure-pipelines.yaml`` file. Repeat this with the names from each compiler
+   in the ``.github/workflows/ci-tests.yml`` file. Repeat this with the names from each compiler
    job used in the GitHub action. 
    Axom's docker images are hosted on our `DockerHub <https://hub.docker.com/r/axom/tpls/tags>`_ page.
 

@@ -67,8 +67,7 @@ struct Operator
       const bool is_slice = container.contains("slice");
 
       // There can be only one
-      if((is_translate && is_rotate) || (is_translate && is_slice) ||
-         (is_rotate && is_slice))
+      if((is_translate && is_rotate) || (is_translate && is_slice) || (is_rotate && is_slice))
       {
         return false;
       }
@@ -168,18 +167,13 @@ struct Geometry
     container.addString("format", "File format for the shape").required();
     container.addString("path", "Path to the shape file").required();
     // A string is used to represent the enumeration
-    container.addString("units", "Units for length")
-      .defaultValue("cm")
-      .validValues({"cm", "m"});
-    container
-      .addInt("start_dimensions",
-              "Dimension in which to begin applying operations")
+    container.addString("units", "Units for length").defaultValue("cm").validValues({"cm", "m"});
+    container.addInt("start_dimensions", "Dimension in which to begin applying operations")
       .defaultValue(3);
     // addStructArray is used to represent std::vector<T> where
     // T is any non-primitive type
     auto& ops_schema =
-      container.addStructArray("operators", "List of shape operations to apply")
-        .required();
+      container.addStructArray("operators", "List of shape operations to apply").required();
     Operator::defineSchema(ops_schema);
   }
 };
@@ -238,8 +232,7 @@ struct Shape
       .required();
     // addStruct is used for a single instance of a user-defined type
     auto& geom_schema =
-      container.addStruct("geometry", "Geometric information on the shape")
-        .required();
+      container.addStruct("geometry", "Geometric information on the shape").required();
     Geometry::defineSchema(geom_schema);
   }
 };
@@ -311,14 +304,11 @@ int main(int argc, char** argv)
   // Inlet requires a SLIC logger to be initialized to output runtime information
   axom::slic::SimpleLogger logger;
 
-  axom::CLI::App app {
-    "Example of Axom's Inlet component for nested structures"};
+  axom::CLI::App app {"Example of Axom's Inlet component for nested structures"};
   bool docsEnabled {false};
   app.add_flag("--docs", docsEnabled, "Enables documentation generation");
   bool strictVerification {false};
-  app.add_flag("--strict",
-               strictVerification,
-               "Warns if any unexpected fields are provided");
+  app.add_flag("--strict", strictVerification, "Warns if any unexpected fields are provided");
   CLI11_PARSE(app, argc, argv);
 
   auto reader = std::unique_ptr<inlet::YAMLReader>(new inlet::YAMLReader());
@@ -356,7 +346,6 @@ int main(int argc, char** argv)
     const std::string docFileName = "nested_structs";
     inlet.write(inlet::SphinxWriter(docFileName + ".rst"));
     inlet.write(inlet::JSONSchemaWriter(docFileName + ".json"));
-    SLIC_INFO("Documentation was written to " << docFileName
-                                              << " (rst and json)");
+    SLIC_INFO("Documentation was written to " << docFileName << " (rst and json)");
   }
 }

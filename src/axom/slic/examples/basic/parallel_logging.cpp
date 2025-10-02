@@ -32,16 +32,15 @@ int main(int argc, char** argv)
   int rank = -1;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  std::string format = std::string("[<RANK>]: <MESSAGE>\n") +
-    std::string("\t<TIMESTAMP>\n") + std::string("\tLEVEL=<LEVEL>\n") +
-    std::string("\tFILE=<FILE>\n") + std::string("\tLINE=<LINE>\n");
+  std::string format = std::string("[<RANK>]: <MESSAGE>\n") + std::string("\t<TIMESTAMP>\n") +
+    std::string("\tLEVEL=<LEVEL>\n") + std::string("\tFILE=<FILE>\n") +
+    std::string("\tLINE=<LINE>\n");
 
   slic::initialize();
 
   slic::setLoggingMsgLevel(slic::message::Debug);
   slic::disableAbortOnError();
-  slic::addStreamToAllMsgLevels(
-    new slic::SynchronizedStream(&std::cout, MPI_COMM_WORLD, format));
+  slic::addStreamToAllMsgLevels(new slic::SynchronizedStream(&std::cout, MPI_COMM_WORLD, format));
 
   // STEP 3: loop N times and generate a random logging event
   for(int i = 0; i < N; ++i)
@@ -49,10 +48,7 @@ int main(int argc, char** argv)
     std::ostringstream oss;
     oss << "message " << i << "/" << N - 1;
 
-    slic::logMessage(getRandomEvent(0, slic::message::Num_Levels),
-                     oss.str(),
-                     __FILE__,
-                     __LINE__);
+    slic::logMessage(getRandomEvent(0, slic::message::Num_Levels), oss.str(), __FILE__, __LINE__);
 
     // Flush every 5 cycles
     if((i % 5) == 0)

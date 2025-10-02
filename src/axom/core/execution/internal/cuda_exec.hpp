@@ -75,7 +75,9 @@ struct execution_space<CUDA_EXEC<BLOCK_SIZE, SYNCHRONOUS>>
   }
   static bool usesAllocId(int allocId) noexcept
   {
-    return usesMemorySpace(axom::detail::getAllocatorSpace(allocId));
+    return allocId == axom::INVALID_ALLOCATOR_ID
+      ? false
+      : usesMemorySpace(axom::detail::getAllocatorSpace(allocId));
   }
 };
 
@@ -99,10 +101,7 @@ struct execution_space<CUDA_EXEC<BLOCK_SIZE, ASYNC>>
   static constexpr bool async() noexcept { return true; }
   static constexpr bool valid() noexcept { return true; }
   static constexpr bool onDevice() noexcept { return true; }
-  static constexpr char* name() noexcept
-  {
-    return (char*)"[CUDA_EXEC] (async)";
-  }
+  static constexpr char* name() noexcept { return (char*)"[CUDA_EXEC] (async)"; }
   static int allocatorID() noexcept
   {
     return axom::getUmpireResourceAllocatorID(umpire::resource::Device);
@@ -117,7 +116,9 @@ struct execution_space<CUDA_EXEC<BLOCK_SIZE, ASYNC>>
   }
   static bool usesAllocId(int allocId) noexcept
   {
-    return usesMemorySpace(axom::detail::getAllocatorSpace(allocId));
+    return allocId == axom::INVALID_ALLOCATOR_ID
+      ? false
+      : usesMemorySpace(axom::detail::getAllocatorSpace(allocId));
   }
 };
 }  // namespace axom

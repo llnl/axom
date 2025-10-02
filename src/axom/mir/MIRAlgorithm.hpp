@@ -29,21 +29,19 @@ public:
   virtual ~MIRAlgorithm() = default;
 
   /*!
-    \brief Perform material interface reconstruction on the meshes supplied in the
-           root node. Root can either be a mesh domain or a node that contains multiple
-           domains.
+    \brief Perform material interface reconstruction on the mesh supplied by \a n_input.
 
-    \param[in] n_input The root node that contains either a mesh or list of mesh
-                       domains that contain a topology and matset to be used for MIR.
+    \param[in] n_input The node that contains a mesh domain with the topology and matset
+                       to be used for MIR.
     \param[in] n_options A node that contains options that help govern MIR execution.
 
 \code{.yaml}
 options:
   topology: main
   matset: matset
-  new_topology: mirtopo
-  new_coordset: mircoords
-  new_matset: cleanmat
+  topologyName: mirtopo
+  coordsetName: mircoords
+  matsetName: cleanmat
   fields:
     - temperature
     - pressure
@@ -125,6 +123,17 @@ protected:
    * \param filebase The base filename to use when writing files. Extensions may be added.
    */
   void saveMesh(const conduit::Node &n_mesh, const std::string &filebase) const;
+
+  /*!
+   * \brief Return the local path name, stripping off a domain path prefix. Blueprint domains
+   *        are typically written under top level nodes with names like "domain_{:05}" or "domain_{:07}".
+   *        This method will strip off any path prefix beginning with "domain".
+   *
+   * \param[in] obj The object whose local path we want.
+   *
+   * \return The path without the domain prefix.
+   */
+  std::string localPath(const conduit::Node &obj) const;
 };
 
 }  // end namespace mir

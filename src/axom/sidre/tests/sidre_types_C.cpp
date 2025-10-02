@@ -36,8 +36,7 @@ void testTypesForEquality()
   EXPECT_EQ(sizeof(CommonType), sizeof(SidreType));
 
   // check that both have same number of digits
-  EXPECT_EQ(axom::numeric_limits<CommonType>::digits,
-            axom::numeric_limits<SidreType>::digits);
+  EXPECT_EQ(axom::numeric_limits<CommonType>::digits, axom::numeric_limits<SidreType>::digits);
 }
 
 }  // namespace

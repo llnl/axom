@@ -58,10 +58,9 @@ public:
     static bool override_once = true;
     if(override_once)
     {
-      std::cout
-        << "*** Note: cannot use slic macros in fixture constructors since "
-           "they're called before main (i.e. before slic::initialize()) ***"
-        << std::endl;
+      std::cout << "*** Note: cannot use slic macros in fixture constructors since "
+                   "they're called before main (i.e. before slic::initialize()) ***"
+                << std::endl;
       override_once = false;
     }
 
@@ -95,10 +94,9 @@ public:
     static bool override_once = true;
     if(override_once)
     {
-      std::cout
-        << "*** Note: cannot use slic macros in fixture destructors since "
-           "they're called after main (i.e. after slic::finalize()) ***"
-        << std::endl;
+      std::cout << "*** Note: cannot use slic macros in fixture destructors since "
+                   "they're called after main (i.e. after slic::finalize()) ***"
+                << std::endl;
       override_once = false;
     }
 
@@ -110,14 +108,8 @@ class SetFixtureOutput : public ::benchmark::Fixture
 {
 public:
   SetFixtureOutput() { printMsg("  fixure .ctor (called before main)"); }
-  void SetUp(const ::benchmark::State& /*state*/) override
-  {
-    printMsg("  fixure SetUp");
-  }
-  void TearDown(const ::benchmark::State& /*state*/) override
-  {
-    printMsg("  fixure TearDown");
-  }
+  void SetUp(const ::benchmark::State& /*state*/) override { printMsg("  fixure SetUp"); }
+  void TearDown(const ::benchmark::State& /*state*/) override { printMsg("  fixure TearDown"); }
   ~SetFixtureOutput() { printMsg("  fixure ~.dtor (called after main)"); }
 };
 

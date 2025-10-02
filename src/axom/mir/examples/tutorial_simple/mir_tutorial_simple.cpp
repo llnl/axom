@@ -6,6 +6,7 @@
 #include "axom/core.hpp"
 #include "axom/slic.hpp"
 #include "axom/slam.hpp"
+#include "axom/bump.hpp"
 #include "axom/mir.hpp"
 
 #include "runMIR.hpp"
@@ -20,7 +21,6 @@ namespace numerics = axom::numerics;
 namespace slam = axom::slam;
 namespace mir = axom::mir;
 namespace fs = axom::utilities::filesystem;
-namespace bputils = axom::mir::utilities::blueprint;
 
 using RuntimePolicy = axom::runtime_policy::Policy;
 
@@ -143,13 +143,12 @@ int main(int argc, char **argv)
     return retval;
   }
 #if defined(AXOM_USE_CALIPER)
-  axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(
-    params.m_annotationMode);
+  axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(params.m_annotationMode);
 #endif
 
   // Make the mesh
   conduit::Node mesh;
-  mir::MeshTester tester;
+  axom::bump::data::MeshTester tester;
   auto timer = axom::utilities::Timer(true);
   switch(params.m_test_case)
   {
@@ -193,8 +192,7 @@ int main(int argc, char **argv)
   if(params.writeFiles())
   {
     std::string filepath, filename("inputMesh");
-    filepath =
-      axom::utilities::filesystem::joinPath(params.m_output_dir, filename);
+    filepath = axom::utilities::filesystem::joinPath(params.m_output_dir, filename);
     conduit::relay::io::blueprint::save_mesh(mesh, filepath, protocol);
   }
   if(params.m_verbose)
@@ -254,8 +252,7 @@ int main(int argc, char **argv)
   if(retval == 0 && params.writeFiles())
   {
     std::string filepath, filename("processedMesh");
-    filepath =
-      axom::utilities::filesystem::joinPath(params.m_output_dir, filename);
+    filepath = axom::utilities::filesystem::joinPath(params.m_output_dir, filename);
     conduit::relay::io::blueprint::save_mesh(resultMesh, filepath, protocol);
   }
 

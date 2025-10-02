@@ -4,9 +4,19 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 #include "runMIR.hpp"
 
-int runMIR_seq(const conduit::Node &mesh,
+int runMIR_seq(int dimension,
+               const conduit::Node &mesh,
                const conduit::Node &options,
                conduit::Node &result)
 {
-  return runMIR<axom::SEQ_EXEC>(mesh, options, result);
+  int retval = 0;
+  if(dimension == 3)
+  {
+    retval = runMIR<axom::SEQ_EXEC, 3>(mesh, options, result);
+  }
+  else
+  {
+    retval = runMIR<axom::SEQ_EXEC, 2>(mesh, options, result);
+  }
+  return retval;
 }

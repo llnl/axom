@@ -44,8 +44,7 @@ class SimulationState
 public:
   // Initializes the simulation, using an existing file with specified cycle if
   // cycle_to_load is specified (>= 0)
-  SimulationState(axom::sidre::MFEMSidreDataCollection& dc,
-                  const int cycle_to_load)
+  SimulationState(axom::sidre::MFEMSidreDataCollection& dc, const int cycle_to_load)
     : m_datacoll(dc)
   {
 #ifdef EXAMPLE_USES_MPI
@@ -103,8 +102,7 @@ private:
     m_owns_data = true;
 
     // Build a 2D mesh with 100 square elements
-    m_mesh = new mfem::Mesh(
-      mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::QUADRILATERAL));
+    m_mesh = new mfem::Mesh(mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::QUADRILATERAL));
 
 #ifdef EXAMPLE_USES_MPI
     mfem::Mesh* tmp_mesh = m_mesh;
@@ -130,8 +128,7 @@ private:
     // its own managed data (needed for a restart)
 #ifdef EXAMPLE_USES_MPI
     auto par_fespace = dynamic_cast<mfem::ParFiniteElementSpace*>(m_fespace);
-    m_soln_field =
-      new mfem::ParGridFunction(par_fespace, static_cast<double*>(nullptr));
+    m_soln_field = new mfem::ParGridFunction(par_fespace, static_cast<double*>(nullptr));
 #else
     m_soln_field = new mfem::GridFunction(m_fespace, nullptr);
 #endif
@@ -160,8 +157,7 @@ private:
     m_datacoll.Load(cycle_to_load);
     SLIC_INFO_IF(m_rank == 0,
                  "Reading in existing data and restarting from iteration "
-                   << m_datacoll.GetCycle() << " at time "
-                   << m_datacoll.GetTime());
+                   << m_datacoll.GetCycle() << " at time " << m_datacoll.GetTime());
     // The Mesh, GridFunction, etc, objects already exist and can be accessed
     m_mesh = m_datacoll.GetMesh();
     m_soln_field = m_datacoll.GetField("solution");
@@ -199,9 +195,7 @@ int main(int argc, char* argv[])
 
   // Initialize the datacollection
   const bool owns_mesh_data = false;
-  axom::sidre::MFEMSidreDataCollection dc("sidre_mfem_datacoll_restart_ex",
-                                          nullptr,
-                                          owns_mesh_data);
+  axom::sidre::MFEMSidreDataCollection dc("sidre_mfem_datacoll_restart_ex", nullptr, owns_mesh_data);
 #ifdef EXAMPLE_USES_MPI
   dc.SetComm(MPI_COMM_WORLD);
 #endif

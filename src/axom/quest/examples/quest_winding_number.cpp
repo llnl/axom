@@ -16,6 +16,7 @@
 #include "axom/slic.hpp"
 #include "axom/primal.hpp"
 #include "axom/quest.hpp"
+#include "axom/quest/interface/internal/QuestHelpers.hpp"
 
 #include "axom/CLI11.hpp"
 #include "axom/fmt.hpp"
@@ -25,77 +26,8 @@
 namespace primal = axom::primal;
 using Point2D = primal::Point<double, 2>;
 using BezierCurve2D = primal::BezierCurve<double, 2>;
+using CurveGWNCache = primal::detail::NURBSCurveGWNCache<double>;
 using BoundingBox2D = primal::BoundingBox<double, 2>;
-
-/*!
- * Given an mfem mesh, convert element with id \a elem_id to a (rational) BezierCurve
- * \pre Assumes the elements of the mfem mesh are in the positive (Bernstein)
- * basis, or in the NURBS basis
- */
-BezierCurve2D segment_to_curve(const mfem::Mesh* mesh, int elem_id)
-{
-  const auto* fes = mesh->GetNodes()->FESpace();
-  const auto* fec = fes->FEColl();
-
-  const bool isBernstein =
-    dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
-  const bool isNURBS =
-    dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
-
-  SLIC_ERROR_IF(
-    !(isBernstein || isNURBS),
-    "MFEM mesh elements must be in either the Bernstein or NURBS basis");
-
-  const int NE = isBernstein ? mesh->GetNE() : fes->GetNURBSext()->GetNP();
-  SLIC_ERROR_IF(NE < elem_id,
-                axom::fmt::format("Mesh does not have {} elements", elem_id));
-
-  const int order =
-    isBernstein ? fes->GetOrder(elem_id) : mesh->NURBSext->GetOrders()[elem_id];
-  SLIC_ERROR_IF(order != 3,
-                axom::fmt::format(
-                  "This example currently requires the input mfem mesh to "
-                  "contain cubic elements, but the order of element {} is {}",
-                  elem_id,
-                  order));
-
-  mfem::Array<int> dofs;
-  mfem::Array<int> vdofs;
-
-  mfem::Vector dvec;
-  mfem::Vector v;
-
-  fes->GetElementDofs(elem_id, dofs);
-  fes->GetElementVDofs(elem_id, vdofs);
-  mesh->GetNodes()->GetSubVector(vdofs, v);
-
-  // Currently hard-coded for 3rd order. This can easily be extended to arbitrary order
-  axom::Array<Point2D> points(4, 4);
-  if(isBernstein)
-  {
-    points[0] = Point2D {v[0], v[0 + 4]};
-    points[1] = Point2D {v[2], v[2 + 4]};
-    points[2] = Point2D {v[3], v[3 + 4]};
-    points[3] = Point2D {v[1], v[1 + 4]};
-
-    return BezierCurve2D(points, fec->GetOrder());
-  }
-  else  // isNURBS
-  {
-    // temporary assumption is that there are no interior knots
-    // i.e. the NURBS curve is essentially a rational Bezier curve
-
-    points[0] = Point2D {v[0], v[0 + 4]};
-    points[1] = Point2D {v[1], v[1 + 4]};
-    points[2] = Point2D {v[2], v[2 + 4]};
-    points[3] = Point2D {v[3], v[3 + 4]};
-
-    fes->GetNURBSext()->GetWeights().GetSubVector(dofs, dvec);
-    axom::Array<double> weights {dvec[0], dvec[1], dvec[2], dvec[3]};
-
-    return BezierCurve2D(points, weights, fec->GetOrder());
-  }
-}
 
 bool check_mesh_valid(const mfem::Mesh* mesh)
 {
@@ -113,10 +45,8 @@ bool check_mesh_valid(const mfem::Mesh* mesh)
     return false;
   }
 
-  const bool isBernstein =
-    dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
-  const bool isNURBS =
-    dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
+  const bool isBernstein = dynamic_cast<const mfem::H1Pos_FECollection*>(fec) != nullptr;
+  const bool isNURBS = dynamic_cast<const mfem::NURBSFECollection*>(fec) != nullptr;
   const bool isValidFEC = isBernstein || isNURBS;
 
   // TODO: Convert from Lagrange to Bernstein, if/when necessary
@@ -148,10 +78,10 @@ bool check_mesh_valid(const mfem::Mesh* mesh)
 
   if(order != 3)
   {
-    SLIC_WARNING(axom::fmt::format(
-      "This example currently requires the input mfem mesh to contain cubic "
-      "elements, but the provided mesh has order {}",
-      order));
+    SLIC_WARNING(
+      axom::fmt::format("This example currently requires the input mfem mesh to contain cubic "
+                        "elements, but the provided mesh has order {}",
+                        order));
     return false;
   }
 
@@ -191,9 +121,7 @@ int main(int argc, char** argv)
   app.add_flag("-v,--verbose", verbose, "verbose output")->capture_default_str();
 
   auto* query_mesh_subcommand =
-    app.add_subcommand("query_mesh")
-      ->description("Options for setting up a query mesh")
-      ->fallthrough();
+    app.add_subcommand("query_mesh")->description("Options for setting up a query mesh")->fallthrough();
   query_mesh_subcommand->add_option("--min", boxMins)
     ->description("Min bounds for box mesh (x,y)")
     ->expected(2)
@@ -226,7 +154,7 @@ int main(int argc, char** argv)
   }
 
   axom::Array<int> segments;
-  axom::Array<BezierCurve2D> curves;
+  axom::Array<CurveGWNCache> curves;
 
   // Loop through mesh elements, retaining the (curved) 1D segments
   for(int i = 0; i < mesh.GetNE(); ++i)
@@ -242,12 +170,14 @@ int main(int argc, char** argv)
   BoundingBox2D bbox;
   for(int i = 0; i < segments.size(); ++i)
   {
-    auto curve = segment_to_curve(&mesh, i);
+    auto curve = axom::quest::internal::segment_to_curve(&mesh, i);
     SLIC_INFO_IF(verbose, axom::fmt::format("Element {}: {}", i, curve));
 
     bbox.addBox(curve.boundingBox());
 
-    curves.emplace_back(std::move(curve));
+    // Add curves to GWN Cache objects that dynamically store intermediate
+    //  curve subdivisions to be reused across query points
+    curves.emplace_back(CurveGWNCache(std::move(curve)));
   }
 
   SLIC_INFO(axom::fmt::format("Curve mesh bounding box: {}", bbox));
@@ -260,13 +190,10 @@ int main(int argc, char** argv)
 
   // Generate a Cartesian (high order) mesh for the query points
   const auto query_res = axom::NumericArray<int, 2>(boxResolution.data());
-  const auto query_box =
-    BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()));
+  const auto query_box = BoundingBox2D(Point2D(boxMins.data()), Point2D(boxMaxs.data()));
 
   auto query_mesh = std::unique_ptr<mfem::Mesh>(
-    axom::quest::util::make_cartesian_mfem_mesh_2D(query_box,
-                                                   query_res,
-                                                   queryOrder));
+    axom::quest::util::make_cartesian_mfem_mesh_2D(query_box, query_res, queryOrder));
   auto fec = mfem::H1_FECollection(queryOrder, 2);
   auto fes = mfem::FiniteElementSpace(query_mesh.get(), &fec, 1);
   auto winding = mfem::GridFunction(&fes);
@@ -274,9 +201,7 @@ int main(int argc, char** argv)
   auto nodes_fes = query_mesh->GetNodalFESpace();
 
   // Query the winding numbers at each degree of freedom (DoF) of the query mesh.
-  // The loop below independently checks (and adaptively refines) every curve for each query points.
-  // A more efficient algorithm can de defined that caches the refined curves to avoid
-  // extra refinements. We will add this in a follow-up PR.
+  // The loop below independently checks (and adaptively refines) every curve for each query point.
   for(int nidx = 0; nidx < nodes_fes->GetNDofs(); ++nidx)
   {
     Point2D q;

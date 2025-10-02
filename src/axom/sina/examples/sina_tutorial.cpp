@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#include "axom/config.hpp"
 #include "axom/sina.hpp"
 
 #include <utility>
@@ -15,8 +16,7 @@ namespace
 void createRecord()
 {
   axom::sina::ID id {"some_record_id", axom::sina::IDType::Local};
-  std::unique_ptr<axom::sina::Record> record {
-    new axom::sina::Record {id, "my_record_type"}};
+  std::unique_ptr<axom::sina::Record> record {new axom::sina::Record {id, "my_record_type"}};
 
   // Add the record to a document
   axom::sina::Document doc;
@@ -28,8 +28,7 @@ void createRecord()
 void createRun()
 {
   axom::sina::ID id {"some_run_id", axom::sina::IDType::Local};
-  std::unique_ptr<axom::sina::Record> run {
-    new axom::sina::Run {id, "My Sim Code", "1.2.3", "jdoe"}};
+  std::unique_ptr<axom::sina::Record> run {new axom::sina::Run {id, "My Sim Code", "1.2.3", "jdoe"}};
 
   // Add the record to a document
   axom::sina::Document doc;
@@ -66,11 +65,9 @@ void addCurveSets(axom::sina::Record &record)
 
   // Add some dependent variables.
   // The length of each must be the same as the length of the independent.
-  timePlots.addDependentCurve(
-    axom::sina::Curve {"temperature", {300.0, 310.0, 350.0, 400.0}});
+  timePlots.addDependentCurve(axom::sina::Curve {"temperature", {300.0, 310.0, 350.0, 400.0}});
 
-  timePlots.addDependentCurve(
-    axom::sina::Curve {"energy", {0.0, 10.0, 20.0, 30.0}});
+  timePlots.addDependentCurve(axom::sina::Curve {"energy", {0.0, 10.0, 20.0, 30.0}});
 
   // Associate the curve sets with the record
   record.add(timePlots);
@@ -130,14 +127,21 @@ void gatherAllData(axom::sina::Record &record)
 void save(axom::sina::Document const &doc)
 {
   axom::sina::saveDocument(doc, "my_output.json");
+#ifdef AXOM_USE_HDF5
+  axom::sina::saveDocument(doc, "my_output.hdf5", axom::sina::Protocol::HDF5);
+#endif
 }
 //! [end io write]
 
 //! [begin io read]
 void load()
 {
-  axom::sina::Document doc = axom::sina::loadDocument("my_output.json");
+  axom::sina::Document doc1 = axom::sina::loadDocument("my_output.json");
+#ifdef AXOM_USE_HDF5
+  axom::sina::Document doc2 = axom::sina::loadDocument("my_output.hdf5", axom::sina::Protocol::HDF5);
+#endif
 }
+
 //! [end io read]
 
 //! [begin user defined]
@@ -159,11 +163,9 @@ void addUserDefined(axom::sina::Record &record)
 int main()
 {
   // Call everything to keep the compiler from complaining about unused functions
-  axom::sina::Record run {
-    axom::sina::ID {"my_record", axom::sina::IDType::Global},
-    "my_record_type"};
-  axom::sina::Record study {axom::sina::ID {"my_run", axom::sina::IDType::Global},
-                            "UQ study"};
+  axom::sina::Record run {axom::sina::ID {"my_record", axom::sina::IDType::Global},
+                          "my_record_type"};
+  axom::sina::Record study {axom::sina::ID {"my_run", axom::sina::IDType::Global}, "UQ study"};
   axom::sina::Document doc;
   addData(run);
   createRecord();

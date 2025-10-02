@@ -39,8 +39,7 @@ void LogStream::replaceKey(std::string& msg,
 
   if(pos != std::string::npos)
   {
-    msg = msg.substr(0, pos) + value +
-      msg.substr(pos + key.length(), msg.length() - 1);
+    msg = msg.substr(0, pos) + value + msg.substr(pos + key.length(), msg.length() - 1);
 
   }  // END if
 }

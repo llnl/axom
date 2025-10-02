@@ -72,9 +72,8 @@ int main(int argc, char** argv)
     for(int i = 0; i < (int)(messages.size()); ++i)
     {
       // Output a single Message at a time to screen
-      std::cout << "(" << messages[i]->stringOfRanks() << ") "
-                << messages[i]->count() << " '" << messages[i]->text() << "'"
-                << std::endl;
+      std::cout << "(" << messages[i]->stringOfRanks() << ") " << messages[i]->count() << " '"
+                << messages[i]->text() << "'" << std::endl;
     }
     lj.clearMessages();
   }

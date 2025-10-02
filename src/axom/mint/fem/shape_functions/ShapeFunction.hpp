@@ -101,10 +101,7 @@ public:
    * \pre nc != nullptr
    * \pre phi != nullptr
    */
-  static void evaluate(const double* nc, double* phi)
-  {
-    ShapeType::computeShape(nc, phi);
-  }
+  static void evaluate(const double* nc, double* phi) { ShapeType::computeShape(nc, phi); }
 
   /*!
    * \brief Evaluates the first derivatives of the shape function at the given

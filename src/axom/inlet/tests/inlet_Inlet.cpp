@@ -471,8 +471,7 @@ TYPED_TEST(inlet_Inlet_basic, getTopLevelStrings)
 
 TYPED_TEST(inlet_Inlet_basic, getNestedStrings)
 {
-  std::string testString =
-    "foo = { bar = 'yet another string'; baz = 'string 2' }";
+  std::string testString = "foo = { bar = 'yet another string'; baz = 'string 2' }";
   Inlet inlet = createBasicInlet<TypeParam>(testString);
 
   //
@@ -511,8 +510,7 @@ TYPED_TEST(inlet_Inlet_basic, getNestedValuesAddedUsingContainer)
   double doubleVal = 0;
   bool boolVal = false;
 
-  std::string testString =
-    "foo = { bar = 'yet another string'; so = 3.5; re = 9; mi = true }";
+  std::string testString = "foo = { bar = 'yet another string'; so = 3.5; re = 9; mi = true }";
   Inlet inlet = createBasicInlet<TypeParam>(testString);
 
   // Check for existing fields
@@ -607,8 +605,7 @@ TYPED_TEST(inlet_Inlet_views, NestedContainerViewCheck2)
   EXPECT_TRUE(sidreGroup->hasView("foo/description"));
   EXPECT_TRUE(sidreGroup->hasView("bar/description"));
   EXPECT_TRUE(sidreGroup->hasView("Container1/float1/description"));
-  EXPECT_TRUE(
-    sidreGroup->hasView("Container1/Container11/Container111/x/description"));
+  EXPECT_TRUE(sidreGroup->hasView("Container1/Container11/Container111/x/description"));
 }
 
 TYPED_TEST(inlet_Inlet_views, NestedContainerViewCheck3)
@@ -749,8 +746,7 @@ TYPED_TEST(inlet_Inlet_classes, defaultValuesDocsEnabled)
   inlet.addInt("Container1/Container2/int1").defaultValue(100);
   inlet.addBool("Container3/bool1").defaultValue(false);
   inlet.addDouble("Container1/float1").defaultValue(3.14);
-  inlet.addString("Container1/Container2/Container4/str1")
-    .defaultValue("default for old string");
+  inlet.addString("Container1/Container2/Container4/str1").defaultValue("default for old string");
 
   axom::sidre::Group* sidreGroup = inlet.sidreGroup();
 
@@ -759,23 +755,19 @@ TYPED_TEST(inlet_Inlet_classes, defaultValuesDocsEnabled)
   EXPECT_EQ(doubleVal, 2.0);
 
   EXPECT_TRUE(sidreGroup->hasView("Container1/Container2/field2/defaultValue"));
-  int intVal =
-    sidreGroup->getView("Container1/Container2/field2/defaultValue")->getScalar();
+  int intVal = sidreGroup->getView("Container1/Container2/field2/defaultValue")->getScalar();
   EXPECT_EQ(intVal, 5);
 
   EXPECT_TRUE(sidreGroup->hasView("Container1/field3/defaultValue"));
-  int8_t boolVal =
-    sidreGroup->getView("Container1/field3/defaultValue")->getScalar();
+  int8_t boolVal = sidreGroup->getView("Container1/field3/defaultValue")->getScalar();
   EXPECT_EQ(boolVal, 1);
 
   EXPECT_TRUE(sidreGroup->hasView("Container3/field4/defaultValue"));
-  std::string strVal =
-    sidreGroup->getView("Container3/field4/defaultValue")->getString();
+  std::string strVal = sidreGroup->getView("Container3/field4/defaultValue")->getString();
   EXPECT_EQ(strVal, "default for new string");
 
   EXPECT_TRUE(sidreGroup->hasView("Container1/Container2/int1/defaultValue"));
-  intVal =
-    sidreGroup->getView("Container1/Container2/int1/defaultValue")->getScalar();
+  intVal = sidreGroup->getView("Container1/Container2/int1/defaultValue")->getScalar();
   EXPECT_EQ(intVal, 100);
 
   EXPECT_TRUE(sidreGroup->hasView("Container3/bool1/defaultValue"));
@@ -786,11 +778,8 @@ TYPED_TEST(inlet_Inlet_classes, defaultValuesDocsEnabled)
   doubleVal = sidreGroup->getView("Container1/float1/defaultValue")->getScalar();
   EXPECT_EQ(doubleVal, 3.14);
 
-  EXPECT_TRUE(
-    sidreGroup->hasView("Container1/Container2/Container4/str1/defaultValue"));
-  strVal =
-    sidreGroup->getView("Container1/Container2/Container4/str1/defaultValue")
-      ->getString();
+  EXPECT_TRUE(sidreGroup->hasView("Container1/Container2/Container4/str1/defaultValue"));
+  strVal = sidreGroup->getView("Container1/Container2/Container4/str1/defaultValue")->getString();
   EXPECT_EQ(strVal, "default for old string");
 
   doubleVal = sidreGroup->getView("field1/value")->getScalar();
@@ -814,8 +803,7 @@ TYPED_TEST(inlet_Inlet_classes, defaultValuesDocsEnabled)
   doubleVal = sidreGroup->getView("Container1/float1/value")->getScalar();
   EXPECT_EQ(doubleVal, 5.6);
 
-  strVal =
-    sidreGroup->getView("Container1/Container2/Container4/str1/value")->getString();
+  strVal = sidreGroup->getView("Container1/Container2/Container4/str1/value")->getString();
   EXPECT_EQ(strVal, "hi");
 }
 
@@ -838,34 +826,29 @@ TYPED_TEST(inlet_Inlet_classes, defaultValuesDocsDisabled)
   inlet.addInt("Container1/Container2/int1").defaultValue(100);
   inlet.addBool("Container3/bool1").defaultValue(false);
   inlet.addDouble("Container1/float1").defaultValue(3.14);
-  inlet.addString("Container1/Container2/Container4/str1")
-    .defaultValue("default for old string");
+  inlet.addString("Container1/Container2/Container4/str1").defaultValue("default for old string");
 
   axom::sidre::Group* sidreGroup = inlet.sidreGroup();
 
   EXPECT_FALSE(sidreGroup->hasView("field1/defaultValue"));
-  EXPECT_FALSE(
-    sidreGroup->hasView("Container1/Container2/field2/defaultValue"));
+  EXPECT_FALSE(sidreGroup->hasView("Container1/Container2/field2/defaultValue"));
   EXPECT_FALSE(sidreGroup->hasView("Container1/field3/defaultValue"));
   EXPECT_FALSE(sidreGroup->hasView("Container3/field4/defaultValue"));
   EXPECT_FALSE(sidreGroup->hasView("Container1/Container2/int1/defaultValue"));
   EXPECT_FALSE(sidreGroup->hasView("Container3/bool1/defaultValue"));
   EXPECT_FALSE(sidreGroup->hasView("Container1/float1/defaultValue"));
-  EXPECT_FALSE(
-    sidreGroup->hasView("Container1/Container2/Container4/str1/defaultValue"));
+  EXPECT_FALSE(sidreGroup->hasView("Container1/Container2/Container4/str1/defaultValue"));
 
   double doubleVal = sidreGroup->getView("field1/value")->getScalar();
   EXPECT_EQ(doubleVal, 2.0);
 
-  int intVal =
-    sidreGroup->getView("Container1/Container2/field2/value")->getScalar();
+  int intVal = sidreGroup->getView("Container1/Container2/field2/value")->getScalar();
   EXPECT_EQ(intVal, 5);
 
   int8_t boolVal = sidreGroup->getView("Container1/field3/value")->getScalar();
   EXPECT_EQ(boolVal, 1);
 
-  std::string strVal =
-    sidreGroup->getView("Container3/field4/value")->getString();
+  std::string strVal = sidreGroup->getView("Container3/field4/value")->getString();
   EXPECT_EQ(strVal, "default for new string");
 
   intVal = sidreGroup->getView("Container1/Container2/int1/value")->getScalar();
@@ -877,8 +860,7 @@ TYPED_TEST(inlet_Inlet_classes, defaultValuesDocsDisabled)
   doubleVal = sidreGroup->getView("Container1/float1/value")->getScalar();
   EXPECT_EQ(doubleVal, 5.6);
 
-  strVal =
-    sidreGroup->getView("Container1/Container2/Container4/str1/value")->getString();
+  strVal = sidreGroup->getView("Container1/Container2/Container4/str1/value")->getString();
   EXPECT_EQ(strVal, "hi");
 }
 
@@ -896,35 +878,27 @@ TYPED_TEST(inlet_Inlet_classes, ranges)
   EXPECT_TRUE(sidreGroup->hasView("Container1/set/validValues"));
   int* bufferArr1 = sidreGroup->getView("Container1/set/validValues")->getArray();
   EXPECT_TRUE(bufferArr1);
-  EXPECT_EQ(
-    sidreGroup->getView("Container1/set/validValues")->getBuffer()->getNumElements(),
-    3);
+  EXPECT_EQ(sidreGroup->getView("Container1/set/validValues")->getBuffer()->getNumElements(), 3);
   EXPECT_EQ(bufferArr1[0], 2);
   EXPECT_EQ(bufferArr1[1], 4);
   EXPECT_EQ(bufferArr1[2], 6);
 
   inlet.addDouble("Container1/Container2/Container4/double1").range(2.0, 5.0);
-  EXPECT_TRUE(
-    sidreGroup->hasView("Container1/Container2/Container4/double1/range"));
+  EXPECT_TRUE(sidreGroup->hasView("Container1/Container2/Container4/double1/range"));
   double* bufferArr2 =
     sidreGroup->getView("Container1/Container2/Container4/double1/range")->getArray();
   EXPECT_TRUE(bufferArr2);
   EXPECT_EQ(
-    sidreGroup->getView("Container1/Container2/Container4/double1/range")
-      ->getBuffer()
-      ->getNumElements(),
+    sidreGroup->getView("Container1/Container2/Container4/double1/range")->getBuffer()->getNumElements(),
     2);
   EXPECT_EQ(bufferArr2[0], 2.0);
   EXPECT_EQ(bufferArr2[1], 5.0);
 
   inlet.addInt("Container1/Container2/int1").range(1, 50);
   EXPECT_TRUE(sidreGroup->hasView("Container1/Container2/int1/range"));
-  int* bufferArr3 =
-    sidreGroup->getView("Container1/Container2/int1/range")->getArray();
+  int* bufferArr3 = sidreGroup->getView("Container1/Container2/int1/range")->getArray();
   EXPECT_TRUE(bufferArr3);
-  EXPECT_EQ(sidreGroup->getView("Container1/Container2/int1/range")
-              ->getBuffer()
-              ->getNumElements(),
+  EXPECT_EQ(sidreGroup->getView("Container1/Container2/int1/range")->getBuffer()->getNumElements(),
             2);
   EXPECT_EQ(bufferArr3[0], 1);
   EXPECT_EQ(bufferArr3[1], 50);
@@ -979,9 +953,8 @@ TYPED_TEST(inlet_Inlet_verify, verifyDoubleRange)
     "}";
   Inlet inlet1 = createBasicInlet<TypeParam>(testString1);
 
-  inlet1.addDouble("field2").defaultValue(5).range(
-    0,
-    60);  // ints will get casted to double
+  inlet1.addDouble("field2").defaultValue(5).range(0,
+                                                   60);  // ints will get casted to double
   EXPECT_TRUE(inlet1.verify());
 
   inlet1.addDouble("field3").defaultValue(-12).range(-10.5, 13.23);
@@ -1096,9 +1069,7 @@ TYPED_TEST(inlet_Inlet_verify, verifyValidDoubleValues)
   inlet1.addDouble("field3").validValues(nums).defaultValue(21);
   EXPECT_TRUE(inlet1.verify());
 
-  inlet1.addDouble("NewContainer/field4")
-    .validValues({44.05, 40.13, 48.28, 22.})
-    .defaultValue(48.28);
+  inlet1.addDouble("NewContainer/field4").validValues({44.05, 40.13, 48.28, 22.}).defaultValue(48.28);
   EXPECT_TRUE(inlet1.verify());
 
   inlet1.addDouble("NewContainer/field5").validValues(nums).defaultValue(90.1);
@@ -1131,9 +1102,7 @@ TYPED_TEST(inlet_Inlet_verify, verifyValidStringValues)
   std::string testString1 = "field1 = true; NewContainer = { field5 = 'nop' }";
   Inlet inlet1 = createBasicInlet<TypeParam>(testString1);
 
-  inlet1.addString("field2")
-    .validValues({"abc", "defg", "hijk", "lm"})
-    .defaultValue("defg");
+  inlet1.addString("field2").validValues({"abc", "defg", "hijk", "lm"}).defaultValue("defg");
   EXPECT_TRUE(inlet1.verify());
 
   inlet1.addString("field3").validValues(strs).defaultValue("wx");
@@ -1177,9 +1146,9 @@ TYPED_TEST(inlet_Inlet_verify, verifyFieldLambda)
   });
   std::vector<VerificationError> errors;
   EXPECT_FALSE(inlet.verify(&errors));
-  EXPECT_THAT(errors, Contains(Truly([](const VerificationError& error) {
-                return error.message == "bad thing";
-              })));
+  EXPECT_THAT(
+    errors,
+    Contains(Truly([](const VerificationError& error) { return error.message == "bad thing"; })));
 }
 
 TYPED_TEST(inlet_Inlet_verify, verifyContainerLambda1)
@@ -1208,8 +1177,7 @@ TYPED_TEST(inlet_Inlet_verify, verifyContainerLambda1)
 
   EXPECT_TRUE(container1.contains("field3"));
 
-  container1.registerVerifier(
-    [](const Container& container) { return container.contains("field3"); });
+  container1.registerVerifier([](const Container& container) { return container.contains("field3"); });
   EXPECT_TRUE(inlet.verify());
 
   container1.registerVerifier(
@@ -1227,12 +1195,9 @@ TYPED_TEST(inlet_Inlet_verify, verifyContainerLambda3)
 
   v.registerVerifier([&myInlet](const Container& container) {
     int dim = myInlet["dimensions"];
-    bool x_present =
-      container.contains("x") && (container["x"].type() == InletType::Integer);
-    bool y_present =
-      container.contains("y") && (container["y"].type() == InletType::Integer);
-    bool z_present =
-      container.contains("z") && (container["z"].type() == InletType::Integer);
+    bool x_present = container.contains("x") && (container["x"].type() == InletType::Integer);
+    bool y_present = container.contains("y") && (container["y"].type() == InletType::Integer);
+    bool z_present = container.contains("z") && (container["z"].type() == InletType::Integer);
     if(dim == 1 && x_present)
     {
       return true;
@@ -1460,13 +1425,11 @@ TEST(inlet_Inlet_verify_lua, verifyContainerLambda2)
 
   globalContainer.registerVerifier([](const Container& container) {
     bool verifySuccess = true;
-    if(container.contains("thermal_solver") &&
-       !container["material"].contains("thermalview"))
+    if(container.contains("thermal_solver") && !container["material"].contains("thermalview"))
     {
       verifySuccess = false;
     }
-    if(container.contains("solid_solver") &&
-       !container["material"].contains("solidview"))
+    if(container.contains("solid_solver") && !container["material"].contains("solidview"))
     {
       verifySuccess = false;
     }

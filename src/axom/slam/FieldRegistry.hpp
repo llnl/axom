@@ -39,15 +39,9 @@ public:
   using DataAttrMap = std::map<KeyType, DataType>;
 
 public:
-  bool hasField(const KeyType& key) const
-  {
-    return m_maps.find(key) != m_maps.end();
-  }
+  bool hasField(const KeyType& key) const { return m_maps.find(key) != m_maps.end(); }
 
-  MapType& addField(KeyType key, const SetType* theSet)
-  {
-    return m_maps[key] = MapType(theSet);
-  }
+  MapType& addField(KeyType key, const SetType* theSet) { return m_maps[key] = MapType(theSet); }
 
   MapType& addNamelessField(const SetType* theSet)
   {
@@ -70,15 +64,9 @@ public:
     return m_maps[key];
   }
 
-  bool hasBuffer(const KeyType& key) const
-  {
-    return m_buff.find(key) != m_buff.end();
-  }
+  bool hasBuffer(const KeyType& key) const { return m_buff.find(key) != m_buff.end(); }
 
-  BufferType& addBuffer(KeyType key, int size = 0)
-  {
-    return m_buff[key] = BufferType(size);
-  }
+  BufferType& addBuffer(KeyType key, int size = 0) { return m_buff[key] = BufferType(size); }
 
   BufferType& addNamelessBuffer(int size = 0)
   {
@@ -100,10 +88,7 @@ public:
     return m_buff[key];
   }
 
-  bool hasScalar(const KeyType& key) const
-  {
-    return m_scal.find(key) != m_scal.end();
-  }
+  bool hasScalar(const KeyType& key) const { return m_scal.find(key) != m_scal.end(); }
 
   DataType& addScalar(KeyType key, DataType val) { return m_scal[key] = val; }
 
@@ -127,22 +112,17 @@ private:
 
   inline void verifyFieldsKey(const KeyType& AXOM_DEBUG_PARAM(key)) const
   {
-    SLIC_ASSERT_MSG(hasField(key),
-                    "Didn't find " << dataTypeString() << " field named " << key);
+    SLIC_ASSERT_MSG(hasField(key), "Didn't find " << dataTypeString() << " field named " << key);
   }
 
   inline void verifyBufferKey(const KeyType& AXOM_DEBUG_PARAM(key)) const
   {
-    SLIC_ASSERT_MSG(
-      hasBuffer(key),
-      "Didn't find " << dataTypeString() << " buffer named " << key);
+    SLIC_ASSERT_MSG(hasBuffer(key), "Didn't find " << dataTypeString() << " buffer named " << key);
   }
 
   inline void verifyScalarKey(const KeyType& AXOM_DEBUG_PARAM(key)) const
   {
-    SLIC_ASSERT_MSG(
-      hasScalar(key),
-      "Didn't find " << dataTypeString() << " scalar named " << key);
+    SLIC_ASSERT_MSG(hasScalar(key), "Didn't find " << dataTypeString() << " scalar named " << key);
   }
 
 private:

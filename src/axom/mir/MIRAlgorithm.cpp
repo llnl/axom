@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/mir/MIRAlgorithm.hpp"
-#include "axom/mir/MIROptions.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/Options.hpp"
 #include "axom/slic.hpp"
 
 #include <conduit_blueprint_mesh.hpp>
@@ -24,14 +24,7 @@ void MIRAlgorithm::execute(const conduit::Node &n_input,
   const auto domains = conduit::blueprint::mesh::domains(n_input);
   if(domains.size() > 1)
   {
-    // Handle multiple domains
-    for(const auto &dom_ptr : domains)
-    {
-      const conduit::Node &n_domain = *dom_ptr;
-      conduit::Node &n_newDomain = n_output.append();
-
-      executeSetup(n_domain, n_options, n_newDomain);
-    }
+    SLIC_ERROR("The input node contains multiple domains. Pass a single domain at a time instead.");
   }
   else if(domains.size() > 0)
   {
@@ -45,7 +38,7 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
                                 const conduit::Node &n_options,
                                 conduit::Node &n_newDomain)
 {
-  MIROptions options(n_options);
+  axom::bump::Options options(n_options);
 
   // Get the matset that we'll operate on.
   const std::string matset = options.matset();
@@ -73,13 +66,15 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   newTopo["coordset"] = newCoordsetName;
   conduit::Node &newMatset = n_newDomain["matsets/" + newMatsetName];
   newMatset["topology"] = newTopoName;
+  conduit::Node &newFields = n_newDomain["fields"];
 
   // Execute the algorithm on the domain.
   if(n_domain.has_path("state"))
+  {
     copyState(n_domain["state"], n_newDomain["state"]);
+  }
   if(n_domain.has_path("fields"))
   {
-    conduit::Node &newFields = n_newDomain["fields"];
     executeDomain(*n_topo,
                   *n_coordset,
                   n_domain["fields"],
@@ -95,8 +90,6 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
     // There are no input fields, but make sure n_fields has a name.
     conduit::Node tmp;
     conduit::Node &n_fields = tmp["fields"];
-    // MIR is likely to output some created fields.
-    conduit::Node &newFields = n_newDomain["fields"];
     executeDomain(*n_topo,
                   *n_coordset,
                   n_fields,
@@ -109,8 +102,7 @@ void MIRAlgorithm::executeSetup(const conduit::Node &n_domain,
   }
 }
 
-void MIRAlgorithm::copyState(const conduit::Node &srcState,
-                             conduit::Node &destState) const
+void MIRAlgorithm::copyState(const conduit::Node &srcState, conduit::Node &destState) const
 {
   for(conduit::index_t i = 0; i < srcState.number_of_children(); i++)
     destState[srcState[i].name()].set(srcState[i]);
@@ -124,21 +116,32 @@ void MIRAlgorithm::printNode(const conduit::Node &n) const
 
   // Make sure data are on host.
   conduit::Node n_host;
-  axom::mir::utilities::blueprint::copy<axom::SEQ_EXEC>(n_host, n);
+  axom::bump::utilities::copy<axom::SEQ_EXEC>(n_host, n);
   n_host.to_summary_string_stream(std::cout, options);
 }
 
-void MIRAlgorithm::saveMesh(const conduit::Node &n_mesh,
-                            const std::string &filebase) const
+void MIRAlgorithm::saveMesh(const conduit::Node &n_mesh, const std::string &filebase) const
 {
   // Make sure data are on host.
   conduit::Node n_mesh_host;
-  axom::mir::utilities::blueprint::copy<axom::SEQ_EXEC>(n_mesh_host, n_mesh);
+  axom::bump::utilities::copy<axom::SEQ_EXEC>(n_mesh_host, n_mesh);
 
   conduit::relay::io::save(n_mesh_host, filebase + ".yaml", "yaml");
 #if defined(AXOM_USE_HDF5)
   conduit::relay::io::blueprint::save_mesh(n_mesh_host, filebase, "hdf5");
 #endif
+}
+
+std::string MIRAlgorithm::localPath(const conduit::Node &obj) const
+{
+  std::string path(obj.path());
+  const auto dpos = path.find("domain");
+  const auto spos = path.find("/");
+  if(dpos == 0 && spos != std::string::npos && spos > dpos && obj.parent() != nullptr)
+  {
+    path = path.substr(spos + 1, path.size() - spos - 1);
+  }
+  return path;
 }
 
 }  // namespace mir

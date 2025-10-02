@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "axom/config.hpp"
 #include "axom/klee/Shape.hpp"
 #include "axom/mint/mesh/UnstructuredMesh.hpp"
 
@@ -39,8 +40,7 @@ public:
   using HexType = axom::primal::Hexahedron<double, 3>;
 
   // Common type for the mesh approximation of the shape.
-  using TetMesh =
-    axom::mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>;
+  using TetMesh = axom::mint::UnstructuredMesh<axom::mint::Topology::SINGLE_SHAPE>;
 
   static constexpr int DEFAULT_SAMPLES_PER_KNOT_SPAN {25};
   static constexpr double MINIMUM_PERCENT_ERROR {0.};
@@ -67,7 +67,7 @@ public:
 
   virtual ~DiscreteShape() { clearInternalData(); }
 
-  //@{
+  ///@{
   //! @name Functions to get and set shaping parameters
 
   //! @brief Set prefix for shape files specified as relative path.
@@ -77,10 +77,7 @@ public:
     @brief Set the refinement type.
     Refinement type is used for shaping with C2C contours.
   */
-  void setRefinementType(RefinementType refinementType)
-  {
-    m_refinementType = refinementType;
-  }
+  void setRefinementType(RefinementType refinementType) { m_refinementType = refinementType; }
 
   void setSamplesPerKnotSpan(int nSamples);
   void setVertexWeldThreshold(double threshold);
@@ -92,7 +89,7 @@ public:
   */
   void setPercentError(double percent);
 
-  //@}
+  ///@}
 
 #if defined(AXOM_USE_MPI)
   /**
@@ -119,10 +116,7 @@ public:
   std::shared_ptr<mint::Mesh> createMeshRepresentation();
 
   //!@brief Get the discrete mesh representation.
-  std::shared_ptr<mint::Mesh> getMeshRepresentation() const
-  {
-    return m_meshRep;
-  }
+  std::shared_ptr<mint::Mesh> getMeshRepresentation() const { return m_meshRep; }
 
   /*!
      \brief Get the revolved volume for volumes of revolution,
@@ -152,14 +146,14 @@ private:
   //!@brief Prefix for disc files with relative path.
   std::string m_prefixPath;
 
-  //@{
+  ///@{
   //!@name Various parameters for discretization of analytical shapes.
-  RefinementType m_refinementType;
+  RefinementType m_refinementType {RefinementUniformSegments};
   double m_percentError {MINIMUM_PERCENT_ERROR};
   int m_samplesPerKnotSpan {DEFAULT_SAMPLES_PER_KNOT_SPAN};
   double m_vertexWeldThreshold {DEFAULT_VERTEX_WELD_THRESHOLD};
   double m_revolvedVolume {0.0};
-  //@}
+  ///@}
 
 #if defined(AXOM_USE_MPI)
   MPI_Comm m_comm {MPI_COMM_WORLD};

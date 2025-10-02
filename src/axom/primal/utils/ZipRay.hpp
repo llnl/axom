@@ -50,8 +50,7 @@ struct ZipBase<Ray<T, NDIMS>>
    * \pre Size2 >= NDIMS
    */
   template <size_t Size1, size_t Size2>
-  ZipBase(const T* const (&orig_arrays)[Size1],
-          const T* const (&dir_arrays)[Size2])
+  ZipBase(const T* const (&orig_arrays)[Size1], const T* const (&dir_arrays)[Size2])
   {
     AXOM_STATIC_ASSERT_MSG(Size1 >= NDIMS, "Must provide at least NDIMS arrays");
     AXOM_STATIC_ASSERT_MSG(Size2 >= NDIMS, "Must provide at least NDIMS arrays");

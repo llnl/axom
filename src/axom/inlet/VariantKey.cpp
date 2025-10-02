@@ -41,8 +41,7 @@ VariantKey::operator int() const
 {
   if(m_type != VariantKeyType::Integer)
   {
-    SLIC_ERROR(
-      "[Inlet] Attempted to retrieve an integer from a non-integer key");
+    SLIC_ERROR("[Inlet] Attempted to retrieve an integer from a non-integer key");
   }
   return m_int;
 }

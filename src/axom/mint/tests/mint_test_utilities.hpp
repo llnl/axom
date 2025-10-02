@@ -54,10 +54,7 @@ template <>
 struct mesh_type<STRUCTURED_CURVILINEAR_MESH, SINGLE_SHAPE>
 {
   using MeshType = CurvilinearMesh;
-  static constexpr char* name()
-  {
-    return (char*)"STRUCTURED_CURVILINEAR_MESH";
-  };
+  static constexpr char* name() { return (char*)"STRUCTURED_CURVILINEAR_MESH"; };
 };
 
 //------------------------------------------------------------------------------
@@ -65,10 +62,7 @@ template <>
 struct mesh_type<STRUCTURED_RECTILINEAR_MESH, SINGLE_SHAPE>
 {
   using MeshType = RectilinearMesh;
-  static constexpr char* name()
-  {
-    return (char*)"STRUCTURED_RECTILINEAR_MESH";
-  };
+  static constexpr char* name() { return (char*)"STRUCTURED_RECTILINEAR_MESH"; };
 };
 
 //------------------------------------------------------------------------------
@@ -133,8 +127,7 @@ Mesh* create_mesh(const UniformMesh& uniform_mesh)
 
 //------------------------------------------------------------------------------
 template <>
-Mesh* create_mesh<STRUCTURED_CURVILINEAR_MESH, SINGLE_SHAPE>(
-  const UniformMesh& uniform_mesh)
+Mesh* create_mesh<STRUCTURED_CURVILINEAR_MESH, SINGLE_SHAPE>(const UniformMesh& uniform_mesh)
 {
   const int dimension = uniform_mesh.getDimension();
   IndexType node_dims[] = {-1, -1, -1};
@@ -144,9 +137,8 @@ Mesh* create_mesh<STRUCTURED_CURVILINEAR_MESH, SINGLE_SHAPE>(
     node_dims[i] = uniform_mesh.getNodeResolution(i);
   }
 
-  CurvilinearMesh* output_mesh = new CurvilinearMesh(node_dims[I_DIRECTION],
-                                                     node_dims[J_DIRECTION],
-                                                     node_dims[K_DIRECTION]);
+  CurvilinearMesh* output_mesh =
+    new CurvilinearMesh(node_dims[I_DIRECTION], node_dims[J_DIRECTION], node_dims[K_DIRECTION]);
 
   const IndexType numNodes = uniform_mesh.getNumberOfNodes();
   for(IndexType inode = 0; inode < numNodes; ++inode)
@@ -174,8 +166,7 @@ Mesh* create_mesh<STRUCTURED_CURVILINEAR_MESH, SINGLE_SHAPE>(
 
 //------------------------------------------------------------------------------
 template <>
-Mesh* create_mesh<STRUCTURED_RECTILINEAR_MESH, SINGLE_SHAPE>(
-  const UniformMesh& uniform_mesh)
+Mesh* create_mesh<STRUCTURED_RECTILINEAR_MESH, SINGLE_SHAPE>(const UniformMesh& uniform_mesh)
 {
   const int dimension = uniform_mesh.getDimension();
   SLIC_ASSERT(dimension >= 1);
@@ -186,9 +177,8 @@ Mesh* create_mesh<STRUCTURED_RECTILINEAR_MESH, SINGLE_SHAPE>(
     node_dims[i] = uniform_mesh.getNodeResolution(i);
   }
 
-  RectilinearMesh* output_mesh = new RectilinearMesh(node_dims[I_DIRECTION],
-                                                     node_dims[J_DIRECTION],
-                                                     node_dims[K_DIRECTION]);
+  RectilinearMesh* output_mesh =
+    new RectilinearMesh(node_dims[I_DIRECTION], node_dims[J_DIRECTION], node_dims[K_DIRECTION]);
 
   IndexType Ni = uniform_mesh.getNodeResolution(I_DIRECTION);
   double* x = output_mesh->getCoordinateArray(X_COORDINATE);
@@ -274,8 +264,7 @@ Mesh* create_mesh<UNSTRUCTURED_MESH, SINGLE_SHAPE>(const UniformMesh& uniform_me
   const IndexType numCells = uniform_mesh.getNumberOfCells();
 
   using UnstructuredMeshType = UnstructuredMesh<SINGLE_SHAPE>;
-  CellType cell_type =
-    (dimension == 3) ? HEX : ((dimension == 2) ? QUAD : SEGMENT);
+  CellType cell_type = (dimension == 3) ? HEX : ((dimension == 2) ? QUAD : SEGMENT);
 
   UnstructuredMeshType* output_mesh =
     new UnstructuredMeshType(dimension, cell_type, numNodes, numCells);

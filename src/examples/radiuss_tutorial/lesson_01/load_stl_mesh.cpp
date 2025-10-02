@@ -42,14 +42,11 @@ struct BasicLogger
     // Customize logging levels and formatting
     const std::string slicFormatStr = "[lesson_01: <LEVEL>] <MESSAGE> \n";
 
-    slic::addStreamToMsgLevel(new slic::GenericOutputStream(&std::cerr),
-                              slic::message::Error);
-    slic::addStreamToMsgLevel(
-      new slic::GenericOutputStream(&std::cerr, slicFormatStr),
-      slic::message::Warning);
+    slic::addStreamToMsgLevel(new slic::GenericOutputStream(&std::cerr), slic::message::Error);
+    slic::addStreamToMsgLevel(new slic::GenericOutputStream(&std::cerr, slicFormatStr),
+                              slic::message::Warning);
 
-    auto* compactStream =
-      new slic::GenericOutputStream(&std::cout, slicFormatStr);
+    auto* compactStream = new slic::GenericOutputStream(&std::cout, slicFormatStr);
     slic::addStreamToMsgLevel(compactStream, slic::message::Info);
     slic::addStreamToMsgLevel(compactStream, slic::message::Debug);
   }
@@ -115,9 +112,7 @@ TriangleMesh makeTriangleMesh(const std::string& stl_mesh_path)
 
   // load STL mesh into a mint unstructured mesh
   auto surface_mesh =
-    std::make_unique<axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>>(
-      3,
-      axom::mint::TRIANGLE);
+    std::make_unique<axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>>(3, axom::mint::TRIANGLE);
   {
     auto reader = std::make_unique<axom::quest::STLReader>();
     reader->setFileName(stl_mesh_path);

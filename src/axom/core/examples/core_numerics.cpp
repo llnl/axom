@@ -57,8 +57,7 @@ void demoVectorOps()
 
   std::cout << "Originally, u and v are" << std::endl
             << "u = [" << u[0] << ", " << u[1] << ", " << u[2] << "]" << std::endl
-            << "v = [" << v[0] << ", " << v[1] << ", " << v[2] << "]"
-            << std::endl;
+            << "v = [" << v[0] << ", " << v[1] << ", " << v[2] << "]" << std::endl;
 
   std::cout << std::endl;
 
@@ -66,8 +65,7 @@ void demoVectorOps()
   double dotprod = numerics::dot_product(u, v, 3);
   numerics::cross_product(u, v, w);
 
-  std::cout << "The dot product is " << dotprod << " and the cross product is"
-            << std::endl
+  std::cout << "The dot product is " << dotprod << " and the cross product is" << std::endl
             << "[" << w[0] << ", " << w[1] << ", " << w[2] << "]" << std::endl;
 
   std::cout << std::endl;
@@ -78,8 +76,7 @@ void demoVectorOps()
 
   std::cout << "Now orthogonal u and normalized v are" << std::endl
             << "u = [" << u[0] << ", " << u[1] << ", " << u[2] << "]" << std::endl
-            << "v = [" << v[0] << ", " << v[1] << ", " << v[2] << "]"
-            << std::endl;
+            << "v = [" << v[0] << ", " << v[1] << ", " << v[2] << "]" << std::endl;
 
   std::cout << std::endl;
 
@@ -108,8 +105,7 @@ void demoVectorOps()
 void display_eigs(double* eigvec, double* eigval, int nrows, int i)
 {
   // display eigen vectors and values
-  std::cout << "Eigenvalue " << i << " = " << eigval[i] << " Eigenvector " << i
-            << " = [";
+  std::cout << "Eigenvalue " << i << " = " << eigval[i] << " Eigenvector " << i << " = [";
   for(int j = 0; j < nrows; ++j)
   {
     if(j > 0)
@@ -160,11 +156,9 @@ void demoMatrix()
 
   double x1[3] = {1., 2., -.5};
   double b1[3];
-  std::cout << "Vector x1 = [" << x1[0] << ", " << x1[1] << ", " << x1[2] << "]"
-            << std::endl;
+  std::cout << "Vector x1 = [" << x1[0] << ", " << x1[1] << ", " << x1[2] << "]" << std::endl;
   numerics::matrix_vector_multiply(A, x1, b1);
-  std::cout << "A * x1 = [" << b1[0] << ", " << b1[1] << ", " << b1[2] << "]"
-            << std::endl;
+  std::cout << "A * x1 = [" << b1[0] << ", " << b1[1] << ", " << b1[2] << "]" << std::endl;
 
   std::cout << std::endl;
 
@@ -183,8 +177,8 @@ void demoMatrix()
 
   // Get a column from the matrix.
   double* col1 = A.getColumn(1);
-  std::cout << "A's column 1 is [" << col1[0] << ", " << col1[1] << ", "
-            << col1[2] << "]" << std::endl;
+  std::cout << "A's column 1 is [" << col1[0] << ", " << col1[1] << ", " << col1[2] << "]"
+            << std::endl;
   // _matops_end
 
   std::cout << std::endl;
@@ -220,8 +214,8 @@ void demoMatrix()
                "eigenvalues of matrix "
             << std::endl
             << A << std::endl
-            << "and the result code was " << res << " ("
-            << numerics::JACOBI_EIGENSOLVE_SUCCESS << " = success)." << std::endl
+            << "and the result code was " << res << " (" << numerics::JACOBI_EIGENSOLVE_SUCCESS
+            << " = success)." << std::endl
             << std::endl;
   if(res == numerics::JACOBI_EIGENSOLVE_SUCCESS)
   {
@@ -254,14 +248,12 @@ void demoMatrix()
 
     std::cout << "Solved for x in the linear system Ax = b, where" << std::endl
               << "A = " << std::endl
-              << A << " and b = [" << b[0] << ", " << b[1] << ", " << b[2]
-              << "]." << std::endl
+              << A << " and b = [" << b[0] << ", " << b[1] << ", " << b[2] << "]." << std::endl
               << std::endl
               << "Result code is " << rc << " (0 = success)" << std::endl;
     if(rc == 0)
     {
-      std::cout << "Found x = [" << x[0] << ", " << x[1] << ", " << x[2] << "]"
-                << std::endl;
+      std::cout << "Found x = [" << x[0] << ", " << x[1] << ", " << x[2] << "]" << std::endl;
     }
   }
 
@@ -286,16 +278,14 @@ void demoMatrix()
     int rc = numerics::lu_decompose(A, pivots);
 
     std::cout << "Decomposed to " << std::endl
-              << A << " with pivots [" << pivots[0] << ", " << pivots[1] << ", "
-              << pivots[2] << "]"
-              << " with result " << rc << " (" << numerics::LU_SUCCESS
-              << " is success)" << std::endl;
+              << A << " with pivots [" << pivots[0] << ", " << pivots[1] << ", " << pivots[2] << "]"
+              << " with result " << rc << " (" << numerics::LU_SUCCESS << " is success)"
+              << std::endl;
 
     rc = numerics::lu_solve(A, pivots, b, x);
     if(rc == numerics::LU_SUCCESS)
     {
-      std::cout << "Found x = [" << x[0] << ", " << x[1] << ", " << x[2] << "]"
-                << std::endl;
+      std::cout << "Found x = [" << x[0] << ", " << x[1] << ", " << x[2] << "]" << std::endl;
     }
   }
   // _solve_end
@@ -313,8 +303,7 @@ int main(int AXOM_UNUSED_PARAM(argc), char** AXOM_UNUSED_PARAM(argv))
 
   t.stop();
 
-  std::cout << "The tests took " << t.elapsedTimeInMilliSec() << " ms."
-            << std::endl;
+  std::cout << "The tests took " << t.elapsedTimeInMilliSec() << " ms." << std::endl;
   // _timer_end
 
   return 0;

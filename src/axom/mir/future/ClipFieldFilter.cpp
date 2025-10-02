@@ -43,8 +43,7 @@ void ClipFieldFilter::execute(const conduit::Node &n_input,
   const std::string &topoName = n_clipField["topology"].as_string();
   const conduit::Node &n_topo = n_input.fetch_existing("topologies/" + topoName);
   const std::string &coordsetName = n_topo["coordset"].as_string();
-  const conduit::Node &n_coordset =
-    n_input.fetch_existing("coordsets/" + coordsetName);
+  const conduit::Node &n_coordset = n_input.fetch_existing("coordsets/" + coordsetName);
 
   execute(n_topo,
           n_coordset,
@@ -67,13 +66,7 @@ void ClipFieldFilter::execute(const conduit::Node &n_topo,
   if(m_runtime == axom::runtime_policy::Policy::seq)
   {
     ClipFieldFilterDevice<seq_exec> clipper;
-    clipper.execute(n_topo,
-                    n_coordset,
-                    n_fields,
-                    n_options,
-                    n_newTopo,
-                    n_newCoordset,
-                    n_newFields);
+    clipper.execute(n_topo, n_coordset, n_fields, n_options, n_newTopo, n_newCoordset, n_newFields);
   }
 #if 0
   #if defined(AXOM_USE_OPENMP)

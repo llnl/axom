@@ -68,32 +68,18 @@ public:
         bool reconstruct = false)
     : m_reader(std::move(reader))
     , m_sidreRootGroup(sidreRootGroup)
-    , m_globalContainer("",
-                        "",
-                        *m_reader,
-                        m_sidreRootGroup,
-                        m_unexpectedNames,
-                        docEnabled,
-                        reconstruct)
+    , m_globalContainer("", "", *m_reader, m_sidreRootGroup, m_unexpectedNames, docEnabled, reconstruct)
     , m_docEnabled(docEnabled)
   {
     m_unexpectedNames = m_reader->getAllNames();
   }
 
   /// \overload
-  Inlet(std::unique_ptr<Reader> reader,
-        bool docEnabled = true,
-        bool reconstruct = false)
+  Inlet(std::unique_ptr<Reader> reader, bool docEnabled = true, bool reconstruct = false)
     : m_reader(std::move(reader))
     , m_datastore(new sidre::DataStore)
     , m_sidreRootGroup(m_datastore->getRoot())
-    , m_globalContainer("",
-                        "",
-                        *m_reader,
-                        m_sidreRootGroup,
-                        m_unexpectedNames,
-                        docEnabled,
-                        reconstruct)
+    , m_globalContainer("", "", *m_reader, m_sidreRootGroup, m_unexpectedNames, docEnabled, reconstruct)
     , m_docEnabled(docEnabled)
   {
     m_unexpectedNames = m_reader->getAllNames();
@@ -147,8 +133,7 @@ public:
    * \return Reference to the created struct, as a Container
    *****************************************************************************
    */
-  Container& addStruct(const std::string& name,
-                       const std::string& description = "");
+  Container& addStruct(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -165,8 +150,7 @@ public:
    * \return Reference to the created Field
    *****************************************************************************
    */
-  VerifiableScalar& addBool(const std::string& name,
-                            const std::string& description = "");
+  VerifiableScalar& addBool(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -183,8 +167,7 @@ public:
    * \return Reference to the created Field
    *****************************************************************************
    */
-  VerifiableScalar& addDouble(const std::string& name,
-                              const std::string& description = "");
+  VerifiableScalar& addDouble(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -201,8 +184,7 @@ public:
    * \return Reference to the created Field
    *****************************************************************************
    */
-  VerifiableScalar& addInt(const std::string& name,
-                           const std::string& description = "");
+  VerifiableScalar& addInt(const std::string& name, const std::string& description = "");
 
   /*!
    *****************************************************************************
@@ -219,8 +201,7 @@ public:
    * \return Reference to the created Field
    *****************************************************************************
    */
-  VerifiableScalar& addString(const std::string& name,
-                              const std::string& description = "");
+  VerifiableScalar& addString(const std::string& name, const std::string& description = "");
 
   //
   // Functions that get the values out of the datastore
@@ -255,10 +236,7 @@ public:
    * \see Container::contains
    *****************************************************************************
    */
-  bool contains(const std::string& name) const
-  {
-    return m_globalContainer.contains(name);
-  }
+  bool contains(const std::string& name) const { return m_globalContainer.contains(name); }
 
   /*!
    *****************************************************************************
@@ -279,10 +257,7 @@ public:
    * \see Container::operator[]
    *******************************************************************************
    */
-  Proxy operator[](const std::string& name) const
-  {
-    return m_globalContainer[name];
-  }
+  Proxy operator[](const std::string& name) const { return m_globalContainer[name]; }
 
   /*!
    *****************************************************************************
@@ -336,8 +311,7 @@ public:
    * \return Reference to the created array
    *****************************************************************************
    */
-  Verifiable<Container>& addBoolArray(const std::string& name,
-                                      const std::string& description = "")
+  Verifiable<Container>& addBoolArray(const std::string& name, const std::string& description = "")
   {
     return m_globalContainer.addBoolArray(name, description);
   }
@@ -352,8 +326,7 @@ public:
    * \return Reference to the created array
    *****************************************************************************
    */
-  Verifiable<Container>& addIntArray(const std::string& name,
-                                     const std::string& description = "")
+  Verifiable<Container>& addIntArray(const std::string& name, const std::string& description = "")
   {
     return m_globalContainer.addIntArray(name, description);
   }
@@ -368,8 +341,7 @@ public:
    * \return Reference to the created array
    *****************************************************************************
    */
-  Verifiable<Container>& addDoubleArray(const std::string& name,
-                                        const std::string& description = "")
+  Verifiable<Container>& addDoubleArray(const std::string& name, const std::string& description = "")
   {
     return m_globalContainer.addDoubleArray(name, description);
   }
@@ -384,8 +356,7 @@ public:
    * \return Reference to the created array
    *****************************************************************************
    */
-  Verifiable<Container>& addStringArray(const std::string& name,
-                                        const std::string& description = "")
+  Verifiable<Container>& addStringArray(const std::string& name, const std::string& description = "")
   {
     return m_globalContainer.addStringArray(name, description);
   }
@@ -400,8 +371,7 @@ public:
    * \return Reference to the created array
    *****************************************************************************
    */
-  Container& addStructArray(const std::string& name,
-                            const std::string& description = "")
+  Container& addStructArray(const std::string& name, const std::string& description = "")
   {
     return m_globalContainer.addStructArray(name, description);
   }
@@ -499,8 +469,7 @@ public:
    * \return Reference to the created dictionary
    *****************************************************************************
    */
-  Container& addStructDictionary(const std::string& name,
-                                 const std::string& description = "")
+  Container& addStructDictionary(const std::string& name, const std::string& description = "")
   {
     return m_globalContainer.addStructDictionary(name, description);
   }
@@ -511,10 +480,7 @@ public:
    * in the input file that were not added via an add* call
    *****************************************************************************
    */
-  const std::vector<std::string>& unexpectedNames() const
-  {
-    return m_unexpectedNames;
-  }
+  const std::vector<std::string>& unexpectedNames() const { return m_unexpectedNames; }
 
   // TODO add update value functions
 private:

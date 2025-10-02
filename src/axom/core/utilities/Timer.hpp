@@ -72,7 +72,7 @@ public:
    * \param startRunning Indicates whether to start the timer
    *        during construction (default is false)
    */
-  Timer(bool startRunning = false) : m_running(startRunning)
+  Timer(bool startRunning = false) : m_running(startRunning), m_summedTime(0), m_cycleCount(0)
   {
     if(m_running)
     {
@@ -96,16 +96,18 @@ public:
   {
     m_stopTime = ClockType::now();
     m_running = false;
+    m_summedTime += m_stopTime - m_startTime;
+    ++m_cycleCount;
   }
 
   /*!
-   * \brief Returns the elapsed time in seconds.
+   * \brief Returns the elapsed time in seconds of all cycles since the last reset.
    * \return t the elapsed time in seconds.
    */
   double elapsed() { return elapsedTimeInSec(); };
 
   /*!
-   * \brief Returns the elapsed time in seconds.
+   * \brief Returns the elapsed time in seconds of all cycles since the last reset.
    * \return t the elapsed time in seconds.
    */
   double elapsedTimeInSec()
@@ -114,11 +116,11 @@ public:
     {
       stop();
     }
-    return clockDiff().count();
+    return m_summedTime.count();
   }
 
   /*!
-   * \brief Returns the elapsed time in milliseconds.
+   * \brief Returns the elapsed time in milliseconds of all cycles since the last reset.
    * \return t the elapsed time in milliseconds.
    */
   double elapsedTimeInMilliSec()
@@ -127,11 +129,11 @@ public:
     {
       stop();
     }
-    return std::chrono::duration_cast<MilliTimeDiff>(clockDiff()).count();
+    return std::chrono::duration_cast<MilliTimeDiff>(m_summedTime).count();
   }
 
   /*!
-   * \brief Returns the elapsed time in microseconds.
+   * \brief Returns the elapsed time in microseconds of all cycles since the last reset.
    * \return t the elapsed time in microseconds.
    */
   double elapsedTimeInMicroSec()
@@ -140,26 +142,35 @@ public:
     {
       stop();
     }
-    return std::chrono::duration_cast<MicroTimeDiff>(clockDiff()).count();
+    return std::chrono::duration_cast<MicroTimeDiff>(m_summedTime).count();
   }
+
+  /*!
+   * @brief Returns number of start/stop cycles since the last reset().
+   * \return the number of start-stop cycles.
+   */
+  size_t cycleCount() { return m_cycleCount; }
 
   /*!
    * \brief Resets the timer.
    * \post this->elapsed()==0.0
+   * \post this->elapsedTimeInSec()==0.0
+   * \post this->cycleCount()==0
    */
   void reset()
   {
     m_running = false;
     m_startTime = m_stopTime = TimeStruct();
+    m_summedTime = TimeDiff(0);
+    m_cycleCount = 0;
   }
 
 private:
-  /*! \brief Computes the difference between start() and stop() */
-  TimeDiff clockDiff() const { return m_stopTime - m_startTime; }
-
   TimeStruct m_startTime;
   TimeStruct m_stopTime;
   bool m_running;
+  TimeDiff m_summedTime;
+  size_t m_cycleCount;
 };
 
 }  // namespace utilities

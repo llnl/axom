@@ -62,8 +62,7 @@ void create_scalar_data(Mesh* mesh)
   double* double_ptr = nullptr;
   int* int_ptr = nullptr;
 
-  double_ptr =
-    mesh->createField<double>("node_scalars_double", mint::NODE_CENTERED);
+  double_ptr = mesh->createField<double>("node_scalars_double", mint::NODE_CENTERED);
   int_ptr = mesh->createField<int>("node_scalars_int", mint::NODE_CENTERED);
 
   for(int idx = 0; idx < mesh_num_nodes; ++idx)
@@ -88,8 +87,7 @@ void create_scalar_data(Mesh* mesh)
     return;
   }
 
-  double_ptr =
-    mesh->createField<double>("cell_scalars_double", mint::CELL_CENTERED);
+  double_ptr = mesh->createField<double>("cell_scalars_double", mint::CELL_CENTERED);
 
   int_ptr = mesh->createField<int>("cell_scalars_int", mint::CELL_CENTERED);
 
@@ -115,11 +113,9 @@ void create_vector_data(Mesh* mesh)
   int* int_ptr3 = nullptr;
   int* int_ptr2 = nullptr;
 
-  double_ptr3 =
-    mesh->createField<double>("node_vectors_3double", mint::NODE_CENTERED, 3);
+  double_ptr3 = mesh->createField<double>("node_vectors_3double", mint::NODE_CENTERED, 3);
   int_ptr3 = mesh->createField<int>("node_vectors_3int", mint::NODE_CENTERED, 3);
-  double_ptr2 =
-    mesh->createField<double>("node_vectors_2double", mint::NODE_CENTERED, 2);
+  double_ptr2 = mesh->createField<double>("node_vectors_2double", mint::NODE_CENTERED, 2);
   int_ptr2 = mesh->createField<int>("node_vectors_2int", mint::NODE_CENTERED, 2);
 
   for(int idx = 0; idx < num_nodes; ++idx)
@@ -158,11 +154,9 @@ void create_vector_data(Mesh* mesh)
     return;
   }
 
-  double_ptr3 =
-    mesh->createField<double>("cell_vectors_3double", mint::CELL_CENTERED, 3);
+  double_ptr3 = mesh->createField<double>("cell_vectors_3double", mint::CELL_CENTERED, 3);
   int_ptr3 = mesh->createField<int>("cell_vectors_3int", mint::CELL_CENTERED, 3);
-  double_ptr2 =
-    mesh->createField<double>("cell_vectors_2double", mint::CELL_CENTERED, 2);
+  double_ptr2 = mesh->createField<double>("cell_vectors_2double", mint::CELL_CENTERED, 2);
   int_ptr2 = mesh->createField<int>("cell_vectors_2int", mint::CELL_CENTERED, 2);
 
   for(int idx = 0; idx < num_cells; ++idx)
@@ -196,8 +190,7 @@ void create_multidim_data(Mesh* mesh)
   double* double_ptr = nullptr;
   int* int_ptr = nullptr;
 
-  double_ptr =
-    mesh->createField<double>("node_multidim_double", mint::NODE_CENTERED, 4);
+  double_ptr = mesh->createField<double>("node_multidim_double", mint::NODE_CENTERED, 4);
   int_ptr = mesh->createField<int>("node_multidim_int", mint::NODE_CENTERED, 4);
 
   for(int idx = 0; idx < num_nodes; ++idx)
@@ -233,8 +226,7 @@ void create_multidim_data(Mesh* mesh)
     return;
   }
 
-  double_ptr =
-    mesh->createField<double>("cell_multidim_double", mint::CELL_CENTERED, 4);
+  double_ptr = mesh->createField<double>("cell_multidim_double", mint::CELL_CENTERED, 4);
   int_ptr = mesh->createField<int>("cell_multidim_int", mint::CELL_CENTERED, 4);
 
   for(int idx = 0; idx < num_cells; ++idx)
@@ -453,8 +445,7 @@ void check_fieldData(const FieldData* field_data, std::ifstream& file)
       }
       else if(type == "VECTORS")
       {
-        EXPECT_TRUE(field->getNumComponents() == 2 ||
-                    field->getNumComponents() == 3);
+        EXPECT_TRUE(field->getNumComponents() == 2 || field->getNumComponents() == 3);
         check_vector_data(field, file);
       }
     }
@@ -495,9 +486,7 @@ void check_fieldData(const FieldData* field_data, std::ifstream& file)
   }
 
   EXPECT_EQ(static_cast<int>(fields_read.size()), field_data->getNumFields());
-  for(std::set<std::string>::iterator it = fields_read.begin();
-      it != fields_read.end();
-      ++it)
+  for(std::set<std::string>::iterator it = fields_read.begin(); it != fields_read.end(); ++it)
   {
     EXPECT_TRUE(field_data->hasField(*it));
   }
@@ -738,9 +727,7 @@ void check_mesh(const RectilinearMesh* r_mesh, std::ifstream& file)
 
   check_dimensions(r_mesh, file);
 
-  std::string coord_names[3] = {"X_COORDINATES",
-                                "Y_COORDINATES",
-                                "Z_COORDINATES"};
+  std::string coord_names[3] = {"X_COORDINATES", "Y_COORDINATES", "Z_COORDINATES"};
   std::string extracted_name, extracted_type;
   IndexType extracted_size;
   double extracted_coord;
@@ -839,8 +826,7 @@ TEST(mint_util_write_vtk, UniformMesh)
   for(int dim = 1; dim <= 3; ++dim)
   {
     const std::string path = "uniformMesh" + std::to_string(dim) + "D.vtk";
-    UniformMesh* mesh = static_cast<UniformMesh*>(
-      internal::build_mesh<STRUCTURED_UNIFORM_MESH>(dim));
+    UniformMesh* mesh = static_cast<UniformMesh*>(internal::build_mesh<STRUCTURED_UNIFORM_MESH>(dim));
 
     internal::test_mesh(mesh, path);
   }
@@ -855,8 +841,8 @@ TEST(mint_util_write_vtk, RectilinearMesh)
   for(int dim = 1; dim <= 3; ++dim)
   {
     const std::string path = "rectilinearMesh" + std::to_string(dim) + "D.vtk";
-    RectilinearMesh* mesh = static_cast<RectilinearMesh*>(
-      internal::build_mesh<STRUCTURED_RECTILINEAR_MESH>(dim));
+    RectilinearMesh* mesh =
+      static_cast<RectilinearMesh*>(internal::build_mesh<STRUCTURED_RECTILINEAR_MESH>(dim));
 
     internal::test_mesh(mesh, path);
   }
@@ -871,8 +857,8 @@ TEST(mint_util_write_vtk, CurvilinearMesh)
   for(int dim = 1; dim <= 3; ++dim)
   {
     const std::string path = "curvilinearMesh" + std::to_string(dim) + "D.vtk";
-    CurvilinearMesh* mesh = static_cast<CurvilinearMesh*>(
-      internal::build_mesh<STRUCTURED_CURVILINEAR_MESH>(dim));
+    CurvilinearMesh* mesh =
+      static_cast<CurvilinearMesh*>(internal::build_mesh<STRUCTURED_CURVILINEAR_MESH>(dim));
 
     internal::test_mesh(mesh, path);
   }
@@ -887,9 +873,8 @@ TEST(mint_util_write_vtk, UnstructuredMesh)
   for(int dim = 1; dim <= 3; ++dim)
   {
     const std::string path = "unstructuredMesh" + std::to_string(dim) + "D.vtk";
-    UnstructuredMesh<SINGLE_SHAPE>* mesh =
-      static_cast<UnstructuredMesh<SINGLE_SHAPE>*>(
-        internal::build_mesh<UNSTRUCTURED_MESH, SINGLE_SHAPE>(dim));
+    UnstructuredMesh<SINGLE_SHAPE>* mesh = static_cast<UnstructuredMesh<SINGLE_SHAPE>*>(
+      internal::build_mesh<UNSTRUCTURED_MESH, SINGLE_SHAPE>(dim));
 
     internal::test_mesh(mesh, path);
   }
@@ -905,11 +890,9 @@ TEST(mint_util_write_vtk, UnstructuredMixedMesh)
 {
   for(int dim = 1; dim <= 3; ++dim)
   {
-    const std::string path =
-      "unstructuredMixedMesh" + std::to_string(dim) + "D.vtk";
-    UnstructuredMesh<MIXED_SHAPE>* mesh =
-      static_cast<UnstructuredMesh<MIXED_SHAPE>*>(
-        internal::build_mesh<UNSTRUCTURED_MESH, MIXED_SHAPE>(dim));
+    const std::string path = "unstructuredMixedMesh" + std::to_string(dim) + "D.vtk";
+    UnstructuredMesh<MIXED_SHAPE>* mesh = static_cast<UnstructuredMesh<MIXED_SHAPE>*>(
+      internal::build_mesh<UNSTRUCTURED_MESH, MIXED_SHAPE>(dim));
 
     internal::test_mesh(mesh, path);
   }
@@ -924,8 +907,7 @@ TEST(mint_util_write_vtk, ParticleMesh)
   for(int dim = 1; dim <= 3; ++dim)
   {
     const std::string path = "particleMesh" + std::to_string(dim) + "D.vtk";
-    ParticleMesh* mesh =
-      static_cast<ParticleMesh*>(internal::build_mesh<PARTICLE_MESH>(dim));
+    ParticleMesh* mesh = static_cast<ParticleMesh*>(internal::build_mesh<PARTICLE_MESH>(dim));
 
     internal::test_mesh(mesh, path);
   }

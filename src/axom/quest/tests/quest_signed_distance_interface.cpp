@@ -249,8 +249,7 @@ TEST(quest_signed_distance_interface_DeathTest, get_mesh_bounds_invalid_calls)
 #if !_DEATH_TESTS_LOCALLY_DISABLED
   double lo[3];
   double hi[3];
-  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_get_mesh_bounds(lo, hi),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_get_mesh_bounds(lo, hi), IGNORE_OUTPUT);
 #endif
 
   constexpr int NDIMS = 3;
@@ -269,11 +268,9 @@ TEST(quest_signed_distance_interface_DeathTest, get_mesh_bounds_invalid_calls)
   quest::signed_distance_init(surface_mesh);
 
 #if !_DEATH_TESTS_LOCALLY_DISABLED
-  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_get_mesh_bounds(nullptr, hi),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_get_mesh_bounds(nullptr, hi), IGNORE_OUTPUT);
 
-  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_get_mesh_bounds(lo, nullptr),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_get_mesh_bounds(lo, nullptr), IGNORE_OUTPUT);
 #endif
 
   quest::signed_distance_finalize();
@@ -287,15 +284,13 @@ TEST(quest_signed_distance_interface_DeathTest, call_evaluate_before_init)
   EXPECT_FALSE(quest::signed_distance_initialized());
 
 #if !_DEATH_TESTS_LOCALLY_DISABLED
-  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_evaluate(0.0, 0.0),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_evaluate(0.0, 0.0), IGNORE_OUTPUT);
   double x[2];
   double y[2];
   double z[2];
   double phi[2];
 
-  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_evaluate(x, y, z, 2, phi),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_evaluate(x, y, z, 2, phi), IGNORE_OUTPUT);
 #endif
 }
 
@@ -323,17 +318,13 @@ TEST(quest_signed_distance_interface_DeathTest, set_params_after_init)
   // STEP 1: setting parameters after init() should fail
 #if !_DEATH_TESTS_LOCALLY_DISABLED
 
-  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_set_dimension(3),
-                            IGNORE_OUTPUT);
-  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_set_closed_surface(true),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_set_dimension(3), IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_set_closed_surface(true), IGNORE_OUTPUT);
 
-  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_set_verbose(true),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_set_verbose(true), IGNORE_OUTPUT);
 
-  EXPECT_DEATH_IF_SUPPORTED(
-    quest::signed_distance_set_execution_space(quest::SignedDistExec::CPU),
-    IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(quest::signed_distance_set_execution_space(quest::SignedDistExec::CPU),
+                            IGNORE_OUTPUT);
 #endif
 
   // STEP 2: finalize
@@ -466,10 +457,8 @@ TEST(quest_signed_distance_interface, analytic_sphere)
 
   // STEP 2: create node-centered fields on the uniform mesh to store
   //         the signed distance etc.
-  double* phi_computed =
-    umesh->createField<double>("phi_computed", mint::NODE_CENTERED);
-  double* phi_expected =
-    umesh->createField<double>("phi_expected", mint::NODE_CENTERED);
+  double* phi_computed = umesh->createField<double>("phi_computed", mint::NODE_CENTERED);
+  double* phi_expected = umesh->createField<double>("phi_expected", mint::NODE_CENTERED);
   double* phi_diff = umesh->createField<double>("phi_diff", mint::NODE_CENTERED);
   double* phi_err = umesh->createField<double>("phi_err", mint::NODE_CENTERED);
 
@@ -563,10 +552,8 @@ TEST(quest_signed_distance_interface, analytic_sphere_with_closest_pt_and_normal
 
   // STEP 2: create node-centered fields on the uniform mesh to store
   //         the signed distance etc.
-  double* phi_computed =
-    umesh->createField<double>("phi_computed", mint::NODE_CENTERED);
-  double* phi_expected =
-    umesh->createField<double>("phi_expected", mint::NODE_CENTERED);
+  double* phi_computed = umesh->createField<double>("phi_computed", mint::NODE_CENTERED);
+  double* phi_expected = umesh->createField<double>("phi_expected", mint::NODE_CENTERED);
   double* phi_diff = umesh->createField<double>("phi_diff", mint::NODE_CENTERED);
   double* phi_err = umesh->createField<double>("phi_err", mint::NODE_CENTERED);
 

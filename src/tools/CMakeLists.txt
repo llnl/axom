@@ -160,3 +160,64 @@ if( AXOM_ENABLE_SIDRE AND AXOM_ENABLE_PRIMAL AND
             )
 
 endif()
+
+#------------------------------------------------------------------------------
+# mesh_converter is a utility that converts between mesh formats
+#------------------------------------------------------------------------------
+if(AXOM_ENABLE_QUEST)
+    set(mesh_converter_sources
+        mesh_converter.cpp
+    )
+    set(mesh_converter_depends
+        axom
+        )
+
+    axom_add_executable(
+        NAME        mesh_converter
+        SOURCES     ${mesh_converter_sources}
+        OUTPUT_DIR  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+        DEPENDS_ON  ${mesh_converter_depends}
+        FOLDER      axom/examples
+        )
+    install(TARGETS              mesh_converter
+            DESTINATION          bin
+            )
+
+    # Add unit tests
+    if(AXOM_ENABLE_TESTS AND AXOM_DATA_DIR)
+        axom_add_test(
+            NAME    mesh_converter_cup
+            COMMAND mesh_converter -i "${AXOM_DATA_DIR}/quest/cup.proe" -o cup.stl)
+        set_tests_properties(mesh_converter_cup 
+            PROPERTIES PASS_REGULAR_EXPRESSION  "Retained 272 boundary faces")
+    endif()
+endif()
+
+#------------------------------------------------------------------------------
+# run_python_with_axom.sh.in is a utility that allows running python with
+# nanobind-generated extensions in the PYTHONPATH.
+# Based on Conduit's run_python_with_conduit.sh.in script.
+#------------------------------------------------------------------------------
+if(NANOBIND_FOUND)
+
+    # gen python helper to build directory
+    set(_PYEXT_DIR ${PROJECT_BINARY_DIR}/lib)
+
+    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
+                         "${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh" @ONLY)
+
+    # gen python helper to install directory
+    set(_PYEXT_DIR ${CMAKE_INSTALL_PREFIX}/lib)
+
+    axom_configure_file ("${CMAKE_CURRENT_SOURCE_DIR}/run_python_with_axom.sh.in"
+                         "${CMAKE_INSTALL_PREFIX}/bin/run_python_with_axom.sh" @ONLY)
+
+    unset(_PYEXT_DIR)
+
+    # Add unit test to check script
+    if(AXOM_ENABLE_TESTS AND AXOM_ENABLE_SIDRE)
+        axom_add_test(
+            NAME    run_python_with_axom_build
+            COMMAND ${PROJECT_BINARY_DIR}/bin/run_python_with_axom.sh -c "import pysidre")
+    endif()
+endif()

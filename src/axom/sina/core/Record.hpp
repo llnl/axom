@@ -55,10 +55,7 @@ struct FileEqualByURI
  */
 struct FileHashByURI
 {
-  size_t operator()(const File &file) const
-  {
-    return std::hash<std::string>()(file.getUri());
-  }
+  size_t operator()(const File &file) const { return std::hash<std::string>()(file.getUri()); }
 };
 
 /**
@@ -95,6 +92,11 @@ public:
   using FileSet = std::unordered_set<File, FileHashByURI, FileEqualByURI>;
 
   /**
+    * An enum member representing the default ordering of Curves within CurveSets.
+    */
+  static const CurveSet::CurveOrder defaultCurveOrder =
+    CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST;
+  /**
      * \brief Construct a new Record.
      *
      * \param id the ID of the record
@@ -104,6 +106,9 @@ public:
 
   /**
      * \brief Construct a Record from its conduit Node representation.
+     *
+     * For the purpose of the order in which curves are written, Nodes are
+     * assumed to be ordered OLDEST FIRST. This should be consistent within codes.
      *
      * \param asNode the Record as a Node
      */
@@ -158,9 +163,12 @@ public:
   /**
      * \brief Convert this record to its conduit Node representation.
      *
+     * \param curveOrder Optionally, specify an order that CurveSets should be written in. Options
+     *                   are enumerated in CurveSets; REGISTRATION_OLDEST_FIRST is "ULTRA style".
+     *
      * \return the Node representation of this record.
      */
-  conduit::Node toNode() const override;
+  conduit::Node toNode(CurveSet::CurveOrder curveOrder = defaultCurveOrder) const override;
 
   /**
     * \brief Add another record to this one as library data.
@@ -168,6 +176,8 @@ public:
     * Useful for libraries that can run in standalone mode; the host
     * simply calls this method on the record the library produces.
     * Merges file lists.
+    *
+    * \param name The host code's name for the library
     */
   void addRecordAsLibraryData(Record const &childRecord, std::string const &name);
 
@@ -196,8 +206,7 @@ public:
      * A TypeLoader is a function which converts records of a specific type
      * to their corresponding sub classes.
      */
-  using TypeLoader =
-    std::function<std::unique_ptr<Record>(conduit::Node const &)>;
+  using TypeLoader = std::function<std::unique_ptr<Record>(conduit::Node const &)>;
 
   /**
      * \brief Add a function for loading records of the specified type.

@@ -134,8 +134,7 @@ void recordFieldSchema(const Field& field, conduit::Node& node)
 
   if(sidreGroup->hasView("description"))
   {
-    node["description"] =
-      std::string(sidreGroup->getView("description")->getString());
+    node["description"] = std::string(sidreGroup->getView("description")->getString());
   }
 
   if(sidreGroup->hasView("range"))
@@ -247,8 +246,7 @@ void pruneEmptyNodes(conduit::Node& parent)
 
 }  // namespace detail
 
-JSONSchemaWriter::JSONSchemaWriter(const std::string& fileName)
-  : m_fileName(fileName)
+JSONSchemaWriter::JSONSchemaWriter(const std::string& fileName) : m_fileName(fileName)
 {
   m_schemaRoot["$schema"] = "https://json-schema.org/draft/2020-12/schema#";
   m_schemaRoot["title"] = "Input File Options";
@@ -275,16 +273,10 @@ void JSONSchemaWriter::documentContainer(const Container& container)
   // Note: additionalItems is **not** analogous to additionalProperties
   static const auto arrayElementSchema = "items";
   static const auto dictionaryElementSchema = "additionalProperties";
-  detail::augmentCollectionPaths(filteredPathName,
-                                 m_ArrayPaths,
-                                 arrayElementSchema);
-  detail::augmentCollectionPaths(filteredPathName,
-                                 m_DictionaryPaths,
-                                 dictionaryElementSchema);
-  std::vector<std::string> tokens =
-    utilities::string::split(filteredPathName, '/');
-  auto iter =
-    std::find(tokens.begin(), tokens.end(), detail::COLLECTION_GROUP_NAME);
+  detail::augmentCollectionPaths(filteredPathName, m_ArrayPaths, arrayElementSchema);
+  detail::augmentCollectionPaths(filteredPathName, m_DictionaryPaths, dictionaryElementSchema);
+  std::vector<std::string> tokens = utilities::string::split(filteredPathName, '/');
+  auto iter = std::find(tokens.begin(), tokens.end(), detail::COLLECTION_GROUP_NAME);
   // Replace collection group annotations with a token corresponding to the correct path
   while(iter != tokens.end())
   {
@@ -297,14 +289,12 @@ void JSONSchemaWriter::documentContainer(const Container& container)
       // so after removing the GROUP_NAME we prepend to the "baz" element and remove
       // the "foo" element
       // in practice "baz" will always be "items" or "additionalProperties"
-      *afterRemoved =
-        utilities::string::appendPrefix(*(afterRemoved - 1), *afterRemoved);
+      *afterRemoved = utilities::string::appendPrefix(*(afterRemoved - 1), *afterRemoved);
       tokens.erase(afterRemoved - 1);
     }
     iter = std::find(tokens.begin(), tokens.end(), detail::COLLECTION_GROUP_NAME);
   }
-  std::string containerPath =
-    fmt::format("properties/{}", fmt::join(tokens, "/properties/"));
+  std::string containerPath = fmt::format("properties/{}", fmt::join(tokens, "/properties/"));
 
   conduit::Node& containerNode =
     container.name().empty() ? m_schemaRoot : m_schemaRoot[containerPath];
@@ -337,28 +327,23 @@ void JSONSchemaWriter::documentContainer(const Container& container)
 
   if(sidreGroup->getName() != "" && sidreGroup->hasView("description"))
   {
-    containerNode["description"] =
-      std::string(sidreGroup->getView("description")->getString());
+    containerNode["description"] = std::string(sidreGroup->getView("description")->getString());
   }
 
   // If this is the collection container for a primitive array, we need to treat it specially
   // (by only visiting one element to get the type info), otherwise, visit each sub-field
-  if(isCollectionGroup(container.name()) &&
-     !sidreGroup->hasView(detail::STRUCT_COLLECTION_FLAG) &&
+  if(isCollectionGroup(container.name()) && !sidreGroup->hasView(detail::STRUCT_COLLECTION_FLAG) &&
      !container.getChildFields().empty())
   {
-    const auto& location = (containerNode["type"].as_string() == "array")
-      ? arrayElementSchema
-      : dictionaryElementSchema;
-    detail::recordFieldSchema(*container.getChildFields().begin()->second,
-                              containerNode[location]);
+    const auto& location =
+      (containerNode["type"].as_string() == "array") ? arrayElementSchema : dictionaryElementSchema;
+    detail::recordFieldSchema(*container.getChildFields().begin()->second, containerNode[location]);
   }
   else
   {
     for(const auto& fieldEntry : container.getChildFields())
     {
-      const auto name =
-        utilities::string::removeBeforeDelimiter(fieldEntry.first);
+      const auto name = utilities::string::removeBeforeDelimiter(fieldEntry.first);
       auto& childNode = containerNode["properties"][name];
       detail::recordFieldSchema(*fieldEntry.second, childNode);
       if(fieldEntry.second->isRequired())

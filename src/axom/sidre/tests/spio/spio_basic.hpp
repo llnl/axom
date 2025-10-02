@@ -35,8 +35,7 @@ TEST(spio_basic, root_name)
     const std::string& sidreProtocol = kv.first;
     const std::string& expRelayProtocol = kv.second;
 
-    const std::string relayProtocol =
-      IOManager::correspondingRelayProtocol(sidreProtocol);
+    const std::string relayProtocol = IOManager::correspondingRelayProtocol(sidreProtocol);
 
     EXPECT_EQ(expRelayProtocol, relayProtocol);
   }
@@ -117,9 +116,7 @@ TEST(spio_basic, baton)
   // Test baton for different numbers of files
   for(int nFiles = 1; nFiles <= num_ranks; ++nFiles)
   {
-    SCOPED_TRACE(axom::fmt::format("Checking baton for {} files with {} ranks",
-                                   nFiles,
-                                   num_ranks));
+    SCOPED_TRACE(axom::fmt::format("Checking baton for {} files with {} ranks", nFiles, num_ranks));
     checkBaton(nFiles, num_ranks, my_rank);
   }
 }

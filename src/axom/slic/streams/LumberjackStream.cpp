@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/slic/streams/LumberjackStream.hpp"
+#include <mpi.h>
 
 #include <vector>
 
@@ -19,9 +20,7 @@ namespace axom
 namespace slic
 {
 //------------------------------------------------------------------------------
-LumberjackStream::LumberjackStream(std::ostream* stream,
-                                   MPI_Comm comm,
-                                   int ranksLimit)
+LumberjackStream::LumberjackStream(std::ostream* stream, MPI_Comm comm, int ranksLimit)
   : m_isLJOwnedBySLIC(false)
   , m_isOstreamOwnedBySLIC(false)
   , m_stream(stream)
@@ -47,8 +46,7 @@ LumberjackStream::LumberjackStream(std::ostream* stream,
 }
 
 //------------------------------------------------------------------------------
-LumberjackStream::LumberjackStream(std::ostream* stream,
-                                   axom::lumberjack::Lumberjack* lj)
+LumberjackStream::LumberjackStream(std::ostream* stream, axom::lumberjack::Lumberjack* lj)
   : m_lj(lj)
   , m_isLJOwnedBySLIC(false)
   , m_isOstreamOwnedBySLIC(false)
@@ -72,9 +70,7 @@ LumberjackStream::LumberjackStream(std::ostream* stream,
 }
 
 //------------------------------------------------------------------------------
-LumberjackStream::LumberjackStream(const std::string stream,
-                                   MPI_Comm comm,
-                                   int ranksLimit)
+LumberjackStream::LumberjackStream(const std::string stream, MPI_Comm comm, int ranksLimit)
 {
   this->initializeLumberjack(comm, ranksLimit);
 
@@ -117,8 +113,7 @@ LumberjackStream::LumberjackStream(const std::string stream,
 }
 
 //------------------------------------------------------------------------------
-LumberjackStream::LumberjackStream(const std::string stream,
-                                   axom::lumberjack::Lumberjack* lj)
+LumberjackStream::LumberjackStream(const std::string stream, axom::lumberjack::Lumberjack* lj)
 {
   m_lj = lj;
   m_isLJOwnedBySLIC = false;
@@ -186,12 +181,11 @@ void LumberjackStream::append(message::Level msgLevel,
 {
   if(m_lj == nullptr)
   {
-    std::cerr
-      << "ERROR: NULL Lumberjack instance in LumberjackStream::append!\n";
+    std::cerr << "ERROR: NULL Lumberjack instance in LumberjackStream::append!\n";
     return;
   }
 
-  m_lj->queueMessage(message, fileName, line, msgLevel, tagName);
+  m_lj->queueMessage(message, fileName, line, msgLevel, MPI_Wtime(), tagName);
 }
 
 //------------------------------------------------------------------------------
@@ -199,8 +193,7 @@ void LumberjackStream::outputLocal()
 {
   if(m_lj == nullptr)
   {
-    std::cerr
-      << "ERROR: NULL Lumberjack instance in LumberjackStream::flush!\n";
+    std::cerr << "ERROR: NULL Lumberjack instance in LumberjackStream::flush!\n";
     return;
   }
 
@@ -213,8 +206,7 @@ void LumberjackStream::flush()
 {
   if(m_lj == nullptr)
   {
-    std::cerr
-      << "ERROR: NULL Lumberjack instance in LumberjackStream::flush!\n";
+    std::cerr << "ERROR: NULL Lumberjack instance in LumberjackStream::flush!\n";
     return;
   }
 
@@ -240,8 +232,7 @@ void LumberjackStream::write(bool local)
 {
   if(m_lj == nullptr)
   {
-    std::cerr
-      << "ERROR: NULL Lumberjack instance in LumberjackStream::write!\n";
+    std::cerr << "ERROR: NULL Lumberjack instance in LumberjackStream::write!\n";
     return;
   }
 
@@ -265,8 +256,7 @@ void LumberjackStream::write(bool local)
       }
 
       (*m_stream) << this->getFormatedMessage(
-        message::getLevelAsString(
-          static_cast<message::Level>(curr_message->level())),
+        message::getLevelAsString(static_cast<message::Level>(curr_message->level())),
         curr_message->text(),
         curr_message->tag(),
         curr_message->stringOfRanks(),
@@ -279,6 +269,14 @@ void LumberjackStream::write(bool local)
     m_lj->clearMessages();
   }
 }
+
+//------------------------------------------------------------------------------
+bool LumberjackStream::hasPendingMessages() { return m_lj->getMessages().size() > 0; }
+
+//------------------------------------------------------------------------------
+bool LumberjackStream::isUsingMPI() { return true; }
+
+MPI_Comm LumberjackStream::comm() { return m_lj->getCommunicator()->comm(); }
 
 //------------------------------------------------------------------------------
 void LumberjackStream::initializeLumberjack(MPI_Comm comm, int ranksLimit)

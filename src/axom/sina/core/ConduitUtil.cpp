@@ -47,9 +47,8 @@ std::string getExpectedString(conduit::Node const &field,
   if(!field.dtype().is_string())
   {
     std::ostringstream message;
-    message << "The field '" << fieldName << "' for objects of type '"
-            << parentType << "' must be a string, was '" << field.dtype().name()
-            << "'";
+    message << "The field '" << fieldName << "' for objects of type '" << parentType
+            << "' must be a string, was '" << field.dtype().name() << "'";
     throw std::invalid_argument(message.str());
   }
   return field.as_string();
@@ -63,8 +62,8 @@ conduit::Node const &getRequiredField(std::string const &fieldName,
   if(!parent.has_child(fieldName))
   {
     std::ostringstream message;
-    message << "The field '" << fieldName
-            << "' is required for objects of type '" << parentType << "'";
+    message << "The field '" << fieldName << "' is required for objects of type '" << parentType
+            << "'";
     throw std::invalid_argument(message.str());
   }
   return parent.child(fieldName);
@@ -97,8 +96,8 @@ double getRequiredDouble(std::string const &fieldName,
   if(!ref.dtype().is_number())
   {
     std::ostringstream message;
-    message << "The field '" << fieldName << "' for objects of type '"
-            << parentType << "' must be a double";
+    message << "The field '" << fieldName << "' for objects of type '" << parentType
+            << "' must be a double";
     throw std::invalid_argument(message.str());
   }
   return ref.as_double();
@@ -125,8 +124,7 @@ void addStringsToNode(conduit::Node &parent,
   }
 }
 
-std::vector<double> toDoubleVector(conduit::Node const &node,
-                                   std::string const &name)
+std::vector<double> toDoubleVector(conduit::Node const &node, std::string const &name)
 {
   if(node.dtype().is_list() && node.dtype().number_of_elements() == 0)
   {
@@ -140,26 +138,23 @@ std::vector<double> toDoubleVector(conduit::Node const &node,
   catch(conduit::Error const &err)
   {
     std::ostringstream errStream;
-    errStream << "Error trying to convert node \"" << name
-              << "\" into a list of doubles" << err.what();
+    errStream << "Error trying to convert node \"" << name << "\" into a list of doubles"
+              << err.what();
     throw std::invalid_argument(errStream.str());
   }
   double const *start = asDoubles.as_double_ptr();
-  auto count = static_cast<std::vector<double>::size_type>(
-    asDoubles.dtype().number_of_elements());
+  auto count = static_cast<std::vector<double>::size_type>(asDoubles.dtype().number_of_elements());
   return std::vector<double> {start, start + count};
 }
 
-std::vector<std::string> toStringVector(conduit::Node const &node,
-                                        std::string const &name)
+std::vector<std::string> toStringVector(conduit::Node const &node, std::string const &name)
 {
   std::vector<std::string> converted;
   if(!node.dtype().is_list())
   {
     std::ostringstream errStream;
     errStream << "Error trying to convert node \"" << name
-              << "\" into a list of strings. It is not a list. "
-              << node.to_json_default();
+              << "\" into a list of strings. It is not a list. " << node.to_json_default();
     throw std::invalid_argument(errStream.str());
   }
   for(auto iter = node.children(); iter.has_next();)
@@ -173,8 +168,7 @@ std::vector<std::string> toStringVector(conduit::Node const &node,
     {
       std::ostringstream errStream;
       errStream << "Error trying to convert node \"" << name
-                << "\" into a list of strings. A value is not a string. "
-                << node.to_json_default();
+                << "\" into a list of strings. A value is not a string. " << node.to_json_default();
       throw std::invalid_argument(errStream.str());
     }
   }

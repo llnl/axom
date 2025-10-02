@@ -38,44 +38,28 @@ template <typename P = slam::DefaultPositionType,
           typename IndirectionPolicy = policies::NoIndirection<P, E>,
           typename SubsettingPolicy = policies::NoSubset,
           typename InterfacePolicy = policies::VirtualInterface>
-class GenericRangeSet : public OrderedSet<P,
-                                          E,
-                                          policies::RuntimeSize<P>,
-                                          OffsetPolicy,
-                                          StridingPolicy,
-                                          IndirectionPolicy,
-                                          SubsettingPolicy,
-                                          InterfacePolicy>
+class GenericRangeSet
+  : public OrderedSet<P, E, policies::RuntimeSize<P>, OffsetPolicy, StridingPolicy, IndirectionPolicy, SubsettingPolicy, InterfacePolicy>
 {
 public:
   using PositionType = P;
   using ElementType = E;
 
 private:
-  using OrderedSetType = OrderedSet<P,
-                                    E,
-                                    policies::RuntimeSize<P>,
-                                    OffsetPolicy,
-                                    StridingPolicy,
-                                    IndirectionPolicy,
-                                    SubsettingPolicy,
-                                    InterfacePolicy>;
+  using OrderedSetType =
+    OrderedSet<P, E, policies::RuntimeSize<P>, OffsetPolicy, StridingPolicy, IndirectionPolicy, SubsettingPolicy, InterfacePolicy>;
 
   template <typename OtherIndirectionPolicy, typename OtherInterfaceType>
   using ConvertibleRangeSet =
     GenericRangeSet<P, E, OffsetPolicy, StridingPolicy, OtherIndirectionPolicy, SubsettingPolicy, OtherInterfaceType>;
 
 public:
-  using ConcreteSet =
-    ConvertibleRangeSet<IndirectionPolicy, policies::ConcreteInterface>;
+  using ConcreteSet = ConvertibleRangeSet<IndirectionPolicy, policies::ConcreteInterface>;
 
-  using VirtualSet =
-    ConvertibleRangeSet<IndirectionPolicy, policies::VirtualInterface>;
+  using VirtualSet = ConvertibleRangeSet<IndirectionPolicy, policies::VirtualInterface>;
 
   using OtherIfaceSet =
-    std::conditional_t<std::is_same<InterfacePolicy, policies::VirtualInterface>::value,
-                       ConcreteSet,
-                       VirtualSet>;
+    std::conditional_t<std::is_same<InterfacePolicy, policies::VirtualInterface>::value, ConcreteSet, VirtualSet>;
 
   GenericRangeSet(const OtherIfaceSet& otherSet) : OrderedSetType(otherSet) { }
 

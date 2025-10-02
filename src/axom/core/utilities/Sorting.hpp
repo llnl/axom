@@ -142,8 +142,7 @@ AXOM_HOST_DEVICE static void qsortMultiple(Predicate &&predicate,
 
     if(low < high)
     {
-      const auto pivot_index =
-        partitionMultiple(predicate, low, high, values, args...);
+      const auto pivot_index = partitionMultiple(predicate, low, high, values, args...);
 
       stack[stack_count][0] = low;
       stack[stack_count][1] = pivot_index - 1;
@@ -245,10 +244,7 @@ AXOM_HOST_DEVICE inline static void sort_multiple_internal(Predicate &&predicate
 template <typename T>
 struct less_than
 {
-  AXOM_HOST_DEVICE inline bool operator()(const T &a, const T &b) const
-  {
-    return a < b;
-  }
+  AXOM_HOST_DEVICE inline bool operator()(const T &a, const T &b) const { return a < b; }
 };
 
 /*!
@@ -257,10 +253,7 @@ struct less_than
 template <typename T>
 struct greater_than
 {
-  AXOM_HOST_DEVICE inline bool operator()(const T &a, const T &b) const
-  {
-    return a > b;
-  }
+  AXOM_HOST_DEVICE inline bool operator()(const T &a, const T &b) const { return a > b; }
 };
 
 }  // end namespace detail
@@ -337,9 +330,13 @@ struct Sorting
   inline static void sort(T *values, int n)
   {
     if(n < SORT_SIZE_CUTOFF)
+    {
       insertionSort(values, n);
+    }
     else
+    {
       qsort(values, n);
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -355,7 +352,10 @@ struct Sorting
   AXOM_HOST_DEVICE
   static void qsort(T *values, int n)
   {
-    if(n <= 1) return;
+    if(n <= 1)
+    {
+      return;
+    }
     int stack[detail::stack_size(N)][2];
     int stack_count = 1;
     stack[0][0] = 0;
@@ -455,7 +455,7 @@ struct Sorting<T, 3>
    * \param[inout] values The array to be sorted.
    */
   AXOM_HOST_DEVICE
-  inline static void sort(T *values)
+  inline static void sort(T *values, int AXOM_UNUSED_PARAM(n))
   {
     detail::ifswap(values[0], values[1]);
     detail::ifswap(values[1], values[2]);
@@ -476,7 +476,7 @@ struct Sorting<T, 4>
    * \param[inout] values The array to be sorted.
    */
   AXOM_HOST_DEVICE
-  inline static void sort(T *values)
+  inline static void sort(T *values, int AXOM_UNUSED_PARAM(n))
   {
     detail::ifswap(values[0], values[1]);
     detail::ifswap(values[2], values[3]);

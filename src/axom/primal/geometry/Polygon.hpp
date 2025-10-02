@@ -43,8 +43,7 @@ class Polygon;
 
 /// \brief Overloaded output operator for polygons
 template <typename T, int NDIMS, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
-std::ostream& operator<<(std::ostream& os,
-                         const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>& poly);
+std::ostream& operator<<(std::ostream& os, const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>& poly);
 
 /*!
  * \class Polygon
@@ -61,10 +60,7 @@ std::ostream& operator<<(std::ostream& os,
  * \note The polygon vertices should be ordered in a counter clockwise
  *       orientation with respect to the polygon's desired normal vector
  */
-template <typename T,
-          int NDIMS,
-          PolygonArray ARRAY_TYPE = PolygonArray::Dynamic,
-          int MAX_VERTS = DEFAULT_MAX_NUM_VERTICES>
+template <typename T, int NDIMS, PolygonArray ARRAY_TYPE = PolygonArray::Dynamic, int MAX_VERTS = DEFAULT_MAX_NUM_VERTICES>
 class Polygon
 {
 public:
@@ -347,8 +343,7 @@ public:
     const auto O = vertexMean();  // 'O' for (local) origin
     for(int curr = 0, prev = nVerts - 1; curr < nVerts; prev = curr++)
     {
-      sum +=
-        VectorType::cross_product(m_vertices[prev] - O, m_vertices[curr] - O);
+      sum += VectorType::cross_product(m_vertices[prev] - O, m_vertices[curr] - O);
     }
 
     return 0.5 * axom::utilities::abs(sum.norm());
@@ -438,8 +433,7 @@ private:
 /// Free functions implementing Polygon's operators
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
-std::ostream& operator<<(std::ostream& os,
-                         const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>& poly)
+std::ostream& operator<<(std::ostream& os, const Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>& poly)
 {
   poly.print(os);
   return os;
@@ -450,8 +444,7 @@ std::ostream& operator<<(std::ostream& os,
 
 /// Overload to format a primal::Polygon using fmt
 template <typename T, int NDIMS, axom::primal::PolygonArray ARRAY_TYPE, int MAX_VERTS>
-struct axom::fmt::formatter<axom::primal::Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>>
-  : ostream_formatter
+struct axom::fmt::formatter<axom::primal::Polygon<T, NDIMS, ARRAY_TYPE, MAX_VERTS>> : ostream_formatter
 { };
 
 #endif  // AXOM_PRIMAL_POLYGON_HPP_

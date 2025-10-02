@@ -56,18 +56,15 @@ struct TestParams
 };
 
 // Parameterized Test Fixture
-class LumberjackLineFileTagCombinerTest
-  : public ::testing::TestWithParam<TestParams>
+class LumberjackLineFileTagCombinerTest : public ::testing::TestWithParam<TestParams>
 { };
 
 TEST_P(LumberjackLineFileTagCombinerTest, CombineMessages)
 {
   // Arrange
   TestParams params = GetParam();
-  std::string text1 =
-    "This message does not matter because we do not filter by text";
-  std::string text2 =
-    "This message ALSO does not matter because we do not filter by text";
+  std::string text1 = "This message does not matter because we do not filter by text";
+  std::string text2 = "This message ALSO does not matter because we do not filter by text";
 
   axom::lumberjack::Message m1 =
     createMessage(text1, 13, 5, params.fileName1, params.lineNumber1, params.tag1);
@@ -87,43 +84,18 @@ TEST_P(LumberjackLineFileTagCombinerTest, CombineMessages)
   EXPECT_EQ(shouldMessagesBeCombined, params.shouldCombine);
   if(params.shouldCombine)
   {
-    verifyMessage(m1,
-                  text1,
-                  params.lineNumber1,
-                  params.fileName1,
-                  2,
-                  {13, 14},
-                  params.tag1);
-    verifyMessage(m2,
-                  text2,
-                  params.lineNumber2,
-                  params.fileName2,
-                  1,
-                  {14},
-                  params.tag2);
+    verifyMessage(m1, text1, params.lineNumber1, params.fileName1, 2, {13, 14}, params.tag1);
+    verifyMessage(m2, text2, params.lineNumber2, params.fileName2, 1, {14}, params.tag2);
   }
   else
   {
-    verifyMessage(m1,
-                  text1,
-                  params.lineNumber1,
-                  params.fileName1,
-                  1,
-                  {13},
-                  params.tag1);
-    verifyMessage(m2,
-                  text2,
-                  params.lineNumber2,
-                  params.fileName2,
-                  1,
-                  {14},
-                  params.tag2);
+    verifyMessage(m1, text1, params.lineNumber1, params.fileName1, 1, {13}, params.tag1);
+    verifyMessage(m2, text2, params.lineNumber2, params.fileName2, 1, {14}, params.tag2);
   }
 }
 
 // Custom Name Generator for Parameterized Tests
-inline std::string CustomNameGenerator(
-  const ::testing::TestParamInfo<TestParams>& info)
+inline std::string CustomNameGenerator(const ::testing::TestParamInfo<TestParams>& info)
 {
   const TestParams& params = info.param;
   return params.caseName;

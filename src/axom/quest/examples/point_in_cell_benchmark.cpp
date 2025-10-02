@@ -27,9 +27,9 @@ namespace utilities = axom::utilities;
 namespace
 {
 #ifdef AXOM_USE_GPU
-  #ifdef AXOM_USE_HIP
+  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 using GPUExec = axom::HIP_EXEC<256>;
-  #else
+  #elif defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 using GPUExec = axom::CUDA_EXEC<256>;
   #endif
 #endif
@@ -45,10 +45,10 @@ enum class ExecPolicy
 const std::map<std::string, ExecPolicy> validExecPolicies
 {
     {"seq", ExecPolicy::CPU}
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   , {"omp", ExecPolicy::OpenMP}
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_GPU)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP) || defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   , {"gpu", ExecPolicy::GPU}
 #endif
 };
@@ -79,22 +79,20 @@ struct Arguments
   int verbosity {-1};
   int init_guess_type {mfem::InverseElementTransformation::ClosestPhysNode};
   int init_guess_order {-1};
-  int solver_projection_type {
-    mfem::InverseElementTransformation::NewtonElementProject};
+  int solver_projection_type {mfem::InverseElementTransformation::NewtonElementProject};
 
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
     std::string pol_info = "Sets execution space of the PointInCell query.\n";
     pol_info += "Set to 'seq' to use sequential execution policy.";
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     pol_info += "\nSet to 'omp' to use an OpenMP execution policy.";
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_GPU)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP) || defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     pol_info += "\nSet to 'gpu' to use a GPU execution policy.";
 #endif
 
-    app
-      .add_option("-f,--file", this->file_name, "specifies the input mesh file")
+    app.add_option("-f,--file", this->file_name, "specifies the input mesh file")
       ->check(axom::CLI::ExistingFile)
       ->required();
 
@@ -162,8 +160,7 @@ struct Arguments
 }  // namespace
 
 template <int NDIMS>
-primal::Point<double, NDIMS> get_rand_pt(
-  const primal::BoundingBox<double, NDIMS>& bbox)
+primal::Point<double, NDIMS> get_rand_pt(const primal::BoundingBox<double, NDIMS>& bbox)
 {
   primal::Point<double, NDIMS> rnd_pt;
   for(int i = 0; i < NDIMS; i++)
@@ -223,8 +220,7 @@ void benchmark_point_in_cell(mfem::Mesh& mesh, const Arguments& args)
   query.setInitialGridOrder(args.init_guess_order);
   query.setSolverProjectionType(args.solver_projection_type);
 
-  SLIC_INFO(axom::fmt::format("Initialized point-in-cell query in {} s.",
-                              timer.elapsed()));
+  SLIC_INFO(axom::fmt::format("Initialized point-in-cell query in {} s.", timer.elapsed()));
 
   // Run query
   axom::Array<IndexType> outCellIds_d(npts, npts, device_allocator);
@@ -238,20 +234,17 @@ void benchmark_point_in_cell(mfem::Mesh& mesh, const Arguments& args)
   timer.start();
   query.locatePoints(pts_d.view(), outCellIds_v.data(), outIsoParams_v.data());
   double time = timer.elapsed();
-  SLIC_INFO(
-    axom::fmt::format(axom::utilities::locale(),
-                      "Ran query on {:L} points in {} s -- rate: {:L} q/s",
-                      npts,
-                      time,
-                      npts / time));
+  SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                              "Ran query on {:L} points in {} s -- rate: {:L} q/s",
+                              npts,
+                              time,
+                              npts / time));
 
   // Copy back to host
-  axom::Array<IndexType> outCellIds_h = on_device
-    ? axom::Array<IndexType>(outCellIds_d, host_allocator)
-    : std::move(outCellIds_d);
-  axom::Array<PointType> outIsoParams_h = on_device
-    ? axom::Array<PointType>(outIsoParams_d, host_allocator)
-    : std::move(outIsoParams_d);
+  axom::Array<IndexType> outCellIds_h =
+    on_device ? axom::Array<IndexType>(outCellIds_d, host_allocator) : std::move(outCellIds_d);
+  axom::Array<PointType> outIsoParams_h =
+    on_device ? axom::Array<PointType>(outIsoParams_d, host_allocator) : std::move(outIsoParams_d);
 
   // Verify the results by reconstructing physical points from refrerence coordinates
   if(verifyPoints)
@@ -266,21 +259,19 @@ void benchmark_point_in_cell(mfem::Mesh& mesh, const Arguments& args)
       if(outCellIds_h[i] != NO_CELL)
       {
         PointType reconstructed;
-        query.reconstructPoint(outCellIds_h[i],
-                               outIsoParams_h[i].data(),
-                               reconstructed.data());
+        query.reconstructPoint(outCellIds_h[i], outIsoParams_h[i].data(), reconstructed.data());
         if(primal::squared_distance(pts_h[i], reconstructed) > EPS)
         {
           ++num_wrong;
-          SLIC_DEBUG(axom::fmt::format(
-            "Incorrect reconstruction: Original point {}; "
-            "reconstructed point {} found in cell {} w/ isoparametric "
-            "coordinates {}; distance between these is {}",
-            pts_h[i],
-            reconstructed[i],
-            outCellIds_h[i],
-            outIsoParams_h[i],
-            sqrt(primal::squared_distance(pts_h[i], reconstructed))));
+          SLIC_DEBUG(
+            axom::fmt::format("Incorrect reconstruction: Original point {}; "
+                              "reconstructed point {} found in cell {} w/ isoparametric "
+                              "coordinates {}; distance between these is {}",
+                              pts_h[i],
+                              reconstructed[i],
+                              outCellIds_h[i],
+                              outIsoParams_h[i],
+                              sqrt(primal::squared_distance(pts_h[i], reconstructed))));
         }
         else
         {
@@ -294,16 +285,15 @@ void benchmark_point_in_cell(mfem::Mesh& mesh, const Arguments& args)
       }
     }
 
-    SLIC_INFO(axom::fmt::format(
-      axom::utilities::locale(),
-      "Correctly reconstructed {:L} of {:L} points ({:.3f}%).\n"
-      "\t{:L} points were not reconstructed; "
-      "{:L} points were incorrectly reconstructed",
-      num_found,
-      npts,
-      num_found * 100. / npts,
-      num_not_found,
-      num_wrong));
+    SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                "Correctly reconstructed {:L} of {:L} points ({:.3f}%).\n"
+                                "\t{:L} points were not reconstructed; "
+                                "{:L} points were incorrectly reconstructed",
+                                num_found,
+                                npts,
+                                num_found * 100. / npts,
+                                num_not_found,
+                                num_wrong));
   }
 }
 
@@ -366,12 +356,12 @@ int main(int argc, char** argv)
   case ExecPolicy::CPU:
     benchmark_point_in_cell<axom::SEQ_EXEC>(testMesh, args);
     break;
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   case ExecPolicy::OpenMP:
     benchmark_point_in_cell<axom::OMP_EXEC>(testMesh, args);
     break;
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_GPU)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP) || defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   case ExecPolicy::GPU:
     benchmark_point_in_cell<GPUExec>(testMesh, args);
     break;

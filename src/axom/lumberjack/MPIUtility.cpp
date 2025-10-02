@@ -37,13 +37,7 @@ const char* mpiBlockingReceiveMessages(MPI_Comm comm)
   charArray[messageSize] = '\0';
 
   // Receive packed Message
-  MPI_Recv(charArray,
-           messageSize,
-           MPI_CHAR,
-           mpiStatus.MPI_SOURCE,
-           LJ_TAG,
-           comm,
-           &mpiStatus);
+  MPI_Recv(charArray, messageSize, MPI_CHAR, mpiStatus.MPI_SOURCE, LJ_TAG, comm, &mpiStatus);
 
   return charArray;
 }
@@ -67,21 +61,13 @@ const char* mpiBlockingReceiveIfMessagesExist(MPI_Comm comm)
     charArray[messageSize] = '\0';
 
     // Receive packed Message
-    MPI_Recv(charArray,
-             messageSize,
-             MPI_CHAR,
-             mpiStatus.MPI_SOURCE,
-             LJ_TAG,
-             comm,
-             &mpiStatus);
+    MPI_Recv(charArray, messageSize, MPI_CHAR, mpiStatus.MPI_SOURCE, LJ_TAG, comm, &mpiStatus);
   }
 
   return charArray;
 }
 
-void mpiNonBlockingSendMessages(MPI_Comm comm,
-                                int destinationRank,
-                                const char* packedMessagesToBeSent)
+void mpiNonBlockingSendMessages(MPI_Comm comm, int destinationRank, const char* packedMessagesToBeSent)
 {
   MPI_Request mpiRequest;
   MPI_Isend(const_cast<char*>(packedMessagesToBeSent),

@@ -133,10 +133,8 @@ void testMortonizer()
 
   using GridPoint = Point<CoordType, DIM>;
 
-  int maxBits =
-    axom::spin::Mortonizer<CoordType, MortonIndexType, DIM>::maxBitsPerCoord();
-  SLIC_INFO(
-    "\tMax bits per dimension: " << axom::numeric_limits<CoordType>::digits);
+  int maxBits = axom::spin::Mortonizer<CoordType, MortonIndexType, DIM>::maxBitsPerCoord();
+  SLIC_INFO("\tMax bits per dimension: " << axom::numeric_limits<CoordType>::digits);
   SLIC_INFO("\tMax unique bits per dimension: " << maxBits);
 
   int maxIter = std::min(1 << (maxBits - 1), MAX_ITER);
@@ -155,8 +153,7 @@ void testMortonizer()
 
     EXPECT_EQ(origPt, convertedPt);
 
-    MortonIndexType convertedMortonIdx =
-      convertPointToMorton<MortonIndexType>(convertedPt);
+    MortonIndexType convertedMortonIdx = convertPointToMorton<MortonIndexType>(convertedPt);
     EXPECT_EQ(mortonIdx, convertedMortonIdx);
   }
 }

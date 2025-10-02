@@ -71,10 +71,8 @@ void all_nearest_neighbors(const double* x,
   {
     // 3. For each other bin B less than limit distance away from a, for each
     // point b in B,
-    PointType qmin =
-      PointType::make_point(x[i] - limit, y[i] - limit, z[i] - limit);
-    PointType qmax =
-      PointType::make_point(x[i] + limit, y[i] + limit, z[i] + limit);
+    PointType qmin = PointType::make_point(x[i] - limit, y[i] - limit, z[i] - limit);
+    PointType qmax = PointType::make_point(x[i] + limit, y[i] + limit, z[i] + limit);
     BoxType qbox(qmin, qmax);
     const std::vector<int> qbins = ugrid.getBinsForBbox(qbox);
     const size_t querybincount = qbins.size();
@@ -88,8 +86,7 @@ void all_nearest_neighbors(const double* x,
         int j = bs[bj];
         if(region[i] != region[j])
         {
-          double sqdist =
-            detail::squared_distance(x[i], y[i], z[i], x[j], y[j], z[j]);
+          double sqdist = detail::squared_distance(x[i], y[i], z[i], x[j], y[j], z[j]);
           if(sqdist < sqdistance[i] && sqdist < sqlimit)
           {
             sqdistance[i] = sqdist;

@@ -145,8 +145,7 @@ void MIRMesh::constructMeshRelations()
 
 //--------------------------------------------------------------------------------
 
-void MIRMesh::constructMeshVolumeFractionsMaps(
-  const std::vector<std::vector<axom::float64>>& elementVF)
+void MIRMesh::constructMeshVolumeFractionsMaps(const std::vector<std::vector<axom::float64>>& elementVF)
 {
   // Clear the old maps
   m_materialVolumeFractionsElement.clear();
@@ -197,8 +196,7 @@ void MIRMesh::constructMeshVolumeFractionsMaps(
 
 //--------------------------------------------------------------------------------
 
-void MIRMesh::constructMeshVolumeFractionsVertex(
-  const std::vector<std::vector<axom::float64>>& vertexVF)
+void MIRMesh::constructMeshVolumeFractionsVertex(const std::vector<std::vector<axom::float64>>& vertexVF)
 {
   m_materialVolumeFractionsVertex.clear();
 
@@ -226,8 +224,7 @@ void MIRMesh::constructVertexPositionMap(const std::vector<Point2>& data)
   // construct the position map on the vertices
   m_vertexPositions = PointMap(&m_verts);
 
-  for(int vID = 0; vID < m_verts.size(); ++vID)
-    m_vertexPositions[vID] = data[vID];
+  for(int vID = 0; vID < m_verts.size(); ++vID) m_vertexPositions[vID] = data[vID];
 
   SLIC_ASSERT_MSG(m_vertexPositions.isValid(), "Position map is not valid.");
 }
@@ -240,17 +237,14 @@ void MIRMesh::constructElementParentMap(const std::vector<int>& elementParents)
   m_elementParentIDs = IntMap(&m_elems);
 
   // Copy the data for the elements
-  for(int eID = 0; eID < m_elems.size(); ++eID)
-    m_elementParentIDs[eID] = elementParents[eID];
+  for(int eID = 0; eID < m_elems.size(); ++eID) m_elementParentIDs[eID] = elementParents[eID];
 
-  SLIC_ASSERT_MSG(m_elementParentIDs.isValid(),
-                  "Element parent map is not valid.");
+  SLIC_ASSERT_MSG(m_elementParentIDs.isValid(), "Element parent map is not valid.");
 }
 
 //--------------------------------------------------------------------------------
 
-void MIRMesh::constructElementDominantMaterialMap(
-  const std::vector<int>& dominantMaterials)
+void MIRMesh::constructElementDominantMaterialMap(const std::vector<int>& dominantMaterials)
 {
   // Initialize the map for the elements' dominant colors
   m_elementDominantMaterials = IntMap(&m_elems);
@@ -271,11 +265,9 @@ void MIRMesh::constructElementShapeTypesMap(const std::vector<mir::Shape>& shape
   m_shapeTypes = IntMap(&m_elems);
 
   // Copy the data for the elements
-  for(int eID = 0; eID < m_elems.size(); ++eID)
-    m_shapeTypes[eID] = shapeTypes[eID];
+  for(int eID = 0; eID < m_elems.size(); ++eID) m_shapeTypes[eID] = shapeTypes[eID];
 
-  SLIC_ASSERT_MSG(m_shapeTypes.isValid(),
-                  "Element dominant materials map is not valid.");
+  SLIC_ASSERT_MSG(m_shapeTypes.isValid(), "Element dominant materials map is not valid.");
 }
 
 //--------------------------------------------------------------------------------
@@ -379,8 +371,7 @@ void MIRMesh::print()
 
 void MIRMesh::readMeshFromFile(std::string filename)
 {
-  printf("Mesh reading functionality not implemented yet. Can't read file: %s",
-         filename.c_str());
+  printf("Mesh reading functionality not implemented yet. Can't read file: %s", filename.c_str());
 
   // Read in header
 
@@ -405,8 +396,7 @@ void MIRMesh::writeMeshToFile(const std::string& dirName,
     axom::utilities::filesystem::makeDirsForPath(dirName);
   }
 
-  std::string outputLocation =
-    axom::utilities::filesystem::joinPath(dirName, fileName, separator);
+  std::string outputLocation = axom::utilities::filesystem::joinPath(dirName, fileName, separator);
 
   std::ofstream meshfile;
   meshfile.open(outputLocation);
@@ -430,8 +420,7 @@ void MIRMesh::writeMeshToFile(const std::string& dirName,
     meshfile << "\n";
   }
 
-  meshfile << "\nCELLS " << m_elems.size() << " "
-           << m_meshTopology.m_evInds.size() + m_elems.size();
+  meshfile << "\nCELLS " << m_elems.size() << " " << m_meshTopology.m_evInds.size() + m_elems.size();
   for(int i = 0; i < m_elems.size(); ++i)
   {
     int nVerts = m_meshTopology.m_evBegins[i + 1] - m_meshTopology.m_evBegins[i];
@@ -482,17 +471,15 @@ std::vector<std::vector<axom::float64>> MIRMesh::computeOriginalElementVolumeFra
   // Compute the total area of each element of the original mesh and also the area of each new element
   for(int eID = 0; eID < m_elems.size(); ++eID)
   {
-    int numVertices =
-      m_meshTopology.m_evBegins[eID + 1] - m_meshTopology.m_evBegins[eID];
+    int numVertices = m_meshTopology.m_evBegins[eID + 1] - m_meshTopology.m_evBegins[eID];
     if(numVertices == 3)
     {
       Point2 trianglePoints[3];
       for(int i = 0; i < 3; ++i)
         trianglePoints[i] =
           m_vertexPositions[m_meshTopology.m_evInds[m_meshTopology.m_evBegins[eID] + i]];
-      newElementAreas[eID] = computeTriangleArea(trianglePoints[0],
-                                                 trianglePoints[1],
-                                                 trianglePoints[2]);
+      newElementAreas[eID] =
+        computeTriangleArea(trianglePoints[0], trianglePoints[1], trianglePoints[2]);
     }
     if(numVertices == 4)
     {
@@ -500,10 +487,8 @@ std::vector<std::vector<axom::float64>> MIRMesh::computeOriginalElementVolumeFra
       for(int i = 0; i < 4; ++i)
         trianglePoints[i] =
           m_vertexPositions[m_meshTopology.m_evInds[m_meshTopology.m_evBegins[eID] + i]];
-      newElementAreas[eID] = computeQuadArea(trianglePoints[0],
-                                             trianglePoints[1],
-                                             trianglePoints[2],
-                                             trianglePoints[3]);
+      newElementAreas[eID] =
+        computeQuadArea(trianglePoints[0], trianglePoints[1], trianglePoints[2], trianglePoints[3]);
     }
 
     totalAreaOriginalElements[m_elementParentIDs[eID]] += newElementAreas[eID];
@@ -613,8 +598,7 @@ bool MIRMesh::areVolumeFractionsValid(bool verbose) const
         SLIC_WARNING("MIRMesh invalid: Material "
                      << i << " has wrong "
                      << " number of materials in volume fraction array."
-                     << " Expected " << m_elems.size() << ", got "
-                     << mats.size() << ".");
+                     << " Expected " << m_elems.size() << ", got " << mats.size() << ".");
       }
     }
   }
@@ -666,8 +650,7 @@ bool MIRMesh::areMapsValid(bool verbose) const
     if(verbose)
     {
       SLIC_WARNING("MIRMesh invalid: Incorrect number of vertex positions."
-                   << " Expected " << m_verts.size() << ". Got "
-                   << m_vertexPositions.size());
+                   << " Expected " << m_verts.size() << ". Got " << m_vertexPositions.size());
     }
   }
 
@@ -684,8 +667,7 @@ bool MIRMesh::areMapsValid(bool verbose) const
     if(verbose)
     {
       SLIC_WARNING("MIRMesh invalid: Incorrect number of elem parent IDs."
-                   << " Expected " << m_elems.size() << ". Got "
-                   << m_elementParentIDs.size());
+                   << " Expected " << m_elems.size() << ". Got " << m_elementParentIDs.size());
     }
   }
 
@@ -706,8 +688,7 @@ bool MIRMesh::areMapsValid(bool verbose) const
     if(verbose)
     {
       SLIC_WARNING("MIRMesh invalid: Incorrect number of elem shape types."
-                   << " Expected " << m_elems.size() << ". Got "
-                   << m_shapeTypes.size());
+                   << " Expected " << m_elems.size() << ". Got " << m_shapeTypes.size());
     }
   }
 

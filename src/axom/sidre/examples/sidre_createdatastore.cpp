@@ -123,8 +123,7 @@ std::unique_ptr<sidre::DataStore> create_datastore(int* region)
   // holds 3 * nodecount doubles.  These views might describe the location of
   // each node in a 16 x 16 x 16 hexahedron mesh.  Each view is described by
   // number of elements, offset, and stride into that data.
-  sidre::Buffer* buff =
-    ds->createBuffer(sidre::DOUBLE_ID, 3 * nodecount)->allocate();
+  sidre::Buffer* buff = ds->createBuffer(sidre::DOUBLE_ID, 3 * nodecount)->allocate();
   nodes->createView("x", buff)->apply(sidre::DOUBLE_ID, nodecount, 0, 3);
   nodes->createView("y", buff)->apply(sidre::DOUBLE_ID, nodecount, 1, 3);
   nodes->createView("z", buff)->apply(sidre::DOUBLE_ID, nodecount, 2, 3);
@@ -138,10 +137,8 @@ std::unique_ptr<sidre::DataStore> create_datastore(int* region)
   // object.  Likewise with "rho."  Both Views have the default offset (0)
   // and stride (1).  These Views could point to data associated with
   // each of the 15 x 15 x 15 hexahedron elements defined by the nodes above.
-  sidre::View* temp =
-    fields->createViewAndAllocate("temp", sidre::DOUBLE_ID, eltcount);
-  sidre::View* rho =
-    fields->createViewAndAllocate("rho", sidre::DOUBLE_ID, eltcount);
+  sidre::View* temp = fields->createViewAndAllocate("temp", sidre::DOUBLE_ID, eltcount);
+  sidre::View* rho = fields->createViewAndAllocate("rho", sidre::DOUBLE_ID, eltcount);
 
   // Explicitly set values for the "vis" Attribute on the "temp" and "rho"
   // buffers.
@@ -217,12 +214,11 @@ void iterate_datastore(sidre::DataStore* ds)
   std::cout << "The datastore has the following attributes:\n";
   for(auto& attr : ds->attributes())
   {
-    std::cout << axom::fmt::format(
-      "  * [{}] '{}' of type {} and default value: {}\n",
-      attr.getIndex(),
-      attr.getName(),
-      conduit::DataType::id_to_name(attr.getTypeID()),
-      attr.getDefaultNodeRef().to_yaml());
+    std::cout << axom::fmt::format("  * [{}] '{}' of type {} and default value: {}\n",
+                                   attr.getIndex(),
+                                   attr.getName(),
+                                   conduit::DataType::id_to_name(attr.getTypeID()),
+                                   attr.getDefaultNodeRef().to_yaml());
   }
 
   std::cout << fill_line << std::endl;
@@ -231,13 +227,12 @@ void iterate_datastore(sidre::DataStore* ds)
   std::cout << "The datastore has the following buffers:\n";
   for(auto& buff : ds->buffers())
   {
-    std::cout << axom::fmt::format(
-      "  * [{}] {} buffer with {} elements of type {} with {} views\n",
-      buff.getIndex(),
-      buff.isAllocated() ? "Allocated" : "Unallocated",
-      buff.getNumElements(),
-      conduit::DataType::id_to_name(buff.getTypeID()),
-      buff.getNumViews());
+    std::cout << axom::fmt::format("  * [{}] {} buffer with {} elements of type {} with {} views\n",
+                                   buff.getIndex(),
+                                   buff.isAllocated() ? "Allocated" : "Unallocated",
+                                   buff.getNumElements(),
+                                   conduit::DataType::id_to_name(buff.getTypeID()),
+                                   buff.getNumViews());
   }
 
   std::cout << fill_line << std::endl;
@@ -246,12 +241,11 @@ void iterate_datastore(sidre::DataStore* ds)
   std::cout << "The root group has the following groups:\n";
   for(auto& grp : ds->getRoot()->groups())
   {
-    std::cout << axom::fmt::format(
-      "  * [{}] '{}' with {} groups and {} views\n",
-      grp.getIndex(),
-      grp.getName(),
-      grp.getNumGroups(),
-      grp.getNumViews());
+    std::cout << axom::fmt::format("  * [{}] '{}' with {} groups and {} views\n",
+                                   grp.getIndex(),
+                                   grp.getName(),
+                                   grp.getNumGroups(),
+                                   grp.getNumViews());
   }
 
   std::cout << fill_line << std::endl;
@@ -260,13 +254,12 @@ void iterate_datastore(sidre::DataStore* ds)
   std::cout << "The 'state' group has the following views:\n";
   for(auto& view : ds->getRoot()->getGroup("state")->views())
   {
-    std::cout << axom::fmt::format(
-      "  * [{}] '{}' -- {} view of type {} and {} elements\n",
-      view.getIndex(),
-      view.getName(),
-      view.isAllocated() ? "Allocated" : "Unallocated",
-      conduit::DataType::id_to_name(view.getTypeID()),
-      view.getNumElements());
+    std::cout << axom::fmt::format("  * [{}] '{}' -- {} view of type {} and {} elements\n",
+                                   view.getIndex(),
+                                   view.getName(),
+                                   view.isAllocated() ? "Allocated" : "Unallocated",
+                                   conduit::DataType::id_to_name(view.getTypeID()),
+                                   view.getNumElements());
   }
 
   std::cout << fill_line << std::endl;
@@ -282,18 +275,13 @@ std::unique_ptr<sidre::DataStore> create_tiny_datastore()
 
   // Create views and buffers to hold node positions and field values
   sidre::Group* nodes = ds->getRoot()->createGroup("nodes");
-  sidre::View* xs =
-    nodes->createViewAndAllocate("xs", sidre::DOUBLE_ID, nodecount);
-  sidre::View* ys =
-    nodes->createViewAndAllocate("ys", sidre::DOUBLE_ID, nodecount);
-  sidre::View* zs =
-    nodes->createViewAndAllocate("zs", sidre::DOUBLE_ID, nodecount);
+  sidre::View* xs = nodes->createViewAndAllocate("xs", sidre::DOUBLE_ID, nodecount);
+  sidre::View* ys = nodes->createViewAndAllocate("ys", sidre::DOUBLE_ID, nodecount);
+  sidre::View* zs = nodes->createViewAndAllocate("zs", sidre::DOUBLE_ID, nodecount);
 
   sidre::Group* fields = ds->getRoot()->createGroup("fields");
-  sidre::View* nodefield =
-    fields->createViewAndAllocate("nodefield", sidre::INT_ID, nodecount);
-  sidre::View* eltfield =
-    fields->createViewAndAllocate("eltfield", sidre::DOUBLE_ID, elementcount);
+  sidre::View* nodefield = fields->createViewAndAllocate("nodefield", sidre::INT_ID, nodecount);
+  sidre::View* eltfield = fields->createViewAndAllocate("eltfield", sidre::DOUBLE_ID, elementcount);
 
   // Set node position for two adjacent hexahedrons
   double* xptr = xs->getArray();
@@ -330,20 +318,11 @@ void setup_blueprint_coords(sidre::DataStore* ds, sidre::Group* coords)
   // We use prior knowledge of the layout of the original datastore
   sidre::View* origv = ds->getRoot()->getView("nodes/xs");
   sidre::Group* conduitval = coords->createGroup("values");
-  conduitval->createView("x",
-                         sidre::DOUBLE_ID,
-                         origv->getNumElements(),
-                         origv->getBuffer());
+  conduitval->createView("x", sidre::DOUBLE_ID, origv->getNumElements(), origv->getBuffer());
   origv = ds->getRoot()->getView("nodes/ys");
-  conduitval->createView("y",
-                         sidre::DOUBLE_ID,
-                         origv->getNumElements(),
-                         origv->getBuffer());
+  conduitval->createView("y", sidre::DOUBLE_ID, origv->getNumElements(), origv->getBuffer());
   origv = ds->getRoot()->getView("nodes/zs");
-  conduitval->createView("z",
-                         sidre::DOUBLE_ID,
-                         origv->getNumElements(),
-                         origv->getBuffer());
+  conduitval->createView("z", sidre::DOUBLE_ID, origv->getNumElements(), origv->getBuffer());
   // _blueprint_restructure_coords_end
 }
 
@@ -383,8 +362,7 @@ void setup_blueprint_topos(sidre::DataStore* ds, sidre::Group* topos)
   elts->createViewString("shape", "hex");
 
   // We have two eight-node hex elements, so we need 2 * 8 = 16 ints.
-  sidre::View* connectivity =
-    elts->createViewAndAllocate("connectivity", sidre::INT_ID, 16);
+  sidre::View* connectivity = elts->createViewAndAllocate("connectivity", sidre::INT_ID, 16);
 
   // The Mesh Blueprint connectivity array for a hexahedron lists four nodes on
   // one face arranged by right-hand rule to indicate a normal pointing into
@@ -431,10 +409,7 @@ void setup_blueprint_fields(sidre::DataStore* ds, sidre::Group* fields)
   nodefield->createViewString("association", "vertex");
   nodefield->createViewString("type", "scalar");
   nodefield->createViewString("topology", "mesh");
-  nodefield->createView("values",
-                        sidre::INT_ID,
-                        origv->getNumElements(),
-                        origv->getBuffer());
+  nodefield->createView("values", sidre::INT_ID, origv->getNumElements(), origv->getBuffer());
 
   // Set up the element-centered field
   // Get the original data
@@ -443,10 +418,7 @@ void setup_blueprint_fields(sidre::DataStore* ds, sidre::Group* fields)
   eltfield->createViewString("association", "element");
   eltfield->createViewString("type", "scalar");
   eltfield->createViewString("topology", "mesh");
-  eltfield->createView("values",
-                       sidre::DOUBLE_ID,
-                       origv->getNumElements(),
-                       origv->getBuffer());
+  eltfield->createView("values", sidre::DOUBLE_ID, origv->getNumElements(), origv->getBuffer());
   // _blueprint_restructure_field_end
 }
 
@@ -510,10 +482,7 @@ void save_as_blueprint(sidre::DataStore* ds)
   {
     // Generate the Conduit index
     conduit::Node& index = root_node["blueprint_index"];
-    conduit::blueprint::mesh::generate_index(mesh_node[mesh_name],
-                                             mesh_name,
-                                             1,
-                                             index[mesh_name]);
+    conduit::blueprint::mesh::generate_index(mesh_node[mesh_name], mesh_name, 1, index[mesh_name]);
 
     std::string root_output_path = mesh_name + ".root";
     std::string output_path = mesh_name + ".json";
@@ -680,10 +649,7 @@ void generate_spio_blueprint(sidre::DataStore* ds)
   conduit::Node info, mesh_node, root_node;
   ds->getRoot()->createNativeLayout(mesh_node);
   std::string bp_protocol = "mesh";
-  if(conduit::blueprint::mpi::verify(bp_protocol,
-                                     mesh_node[domain_mesh],
-                                     info,
-                                     MPI_COMM_WORLD))
+  if(conduit::blueprint::mpi::verify(bp_protocol, mesh_node[domain_mesh], info, MPI_COMM_WORLD))
   {
   #if defined(AXOM_USE_HDF5)
     std::string protocol = "sidre_hdf5";
@@ -736,10 +702,7 @@ void generate_spio_blueprint_to_path(sidre::DataStore* ds)
   conduit::Node info, mesh_node, root_node;
   ds->getRoot()->createNativeLayout(mesh_node);
   std::string bp_protocol = "mesh";
-  if(conduit::blueprint::mpi::verify(bp_protocol,
-                                     mesh_node[domain_mesh],
-                                     info,
-                                     MPI_COMM_WORLD))
+  if(conduit::blueprint::mpi::verify(bp_protocol, mesh_node[domain_mesh], info, MPI_COMM_WORLD))
   {
     std::string output_name = "pathbpspio";
     if(comm_size > 1)

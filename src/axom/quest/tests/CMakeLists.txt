@@ -10,10 +10,12 @@ set(quest_tests
     quest_all_nearest_neighbors.cpp
     quest_inout_octree.cpp
     quest_inout_quadtree.cpp
+    quest_linearize_curves.cpp
     quest_signed_distance.cpp
     quest_discretize.cpp
     quest_pro_e_reader.cpp
     quest_stl_reader.cpp
+    quest_stl_writer.cpp
     quest_vertex_weld.cpp
    )
 
@@ -86,27 +88,33 @@ endif()
 #------------------------------------------------------------------------------
 
 if(MFEM_FOUND)
-    set(test_name quest_point_in_cell_mfem)
-    axom_add_executable(
-        NAME       ${test_name}
-        SOURCES    ${test_name}.cpp
-        OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
-        DEPENDS_ON ${quest_tests_depends} mfem
-        FOLDER      axom/quest/tests
-        )
+    function(add_quest_mfem_test test_name)
+        axom_add_executable(
+            NAME       ${test_name}
+            SOURCES    ${test_name}.cpp
+            OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+            DEPENDS_ON ${quest_tests_depends} mfem
+            FOLDER      axom/quest/tests
+            )
 
-    string(STRIP "${AXOM_DISABLE_UNUSED_PARAMETER_WARNINGS}" MFEM_COMPILE_FLAGS)
+        string(STRIP "${AXOM_DISABLE_UNUSED_PARAMETER_WARNINGS}" MFEM_COMPILE_FLAGS)
 
-    if (AXOM_ENABLE_CUDA)
-        set(MFEM_COMPILE_FLAGS "-Xcompiler=${MFEM_COMPILE_FLAGS}")
+        if (AXOM_ENABLE_CUDA)
+            set(MFEM_COMPILE_FLAGS "-Xcompiler=${MFEM_COMPILE_FLAGS}")
+        endif()
+
+        blt_add_target_compile_flags( TO ${test_name} FLAGS "${MFEM_COMPILE_FLAGS}" )
+
+        axom_add_test(
+            NAME ${test_name}
+            COMMAND ${test_name}
+            )
+    endfunction()
+
+    add_quest_mfem_test(quest_point_in_cell_mfem)
+    if(AXOM_DATA_DIR)
+        add_quest_mfem_test(quest_mfem_reader)
     endif()
-
-    blt_add_target_compile_flags( TO ${test_name} FLAGS "${MFEM_COMPILE_FLAGS}" )
-
-    axom_add_test(
-        NAME ${test_name}
-        COMMAND ${test_name}
-        )
 endif()
 
 
@@ -171,6 +179,7 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
               AND C2C_FOUND)
     set(quest_mpi_mfem_c2c_data_tests
         quest_intersection_shaper.cpp
+        quest_intersection_shaper_dynamic.cpp
         quest_sampling_shaper.cpp
        )
     foreach(test ${quest_mpi_mfem_c2c_data_tests})
@@ -184,13 +193,39 @@ if(ENABLE_MPI AND MFEM_FOUND AND MFEM_USE_MPI
         )
     endforeach()
 
+    # Invoke the intersection shaper test program as many tests that run a subset of the tests.
     set(_numOMPThreads 8) # limit omp parallelism
-    axom_add_test(NAME quest_intersection_shaper
-        COMMAND quest_intersection_shaper_test
+    set(_policies seq)
+    if(RAJA_FOUND)
+      blt_list_append(TO _policies ELEMENTS omp IF AXOM_ENABLE_OPENMP)
+      if(AXOM_USE_UMPIRE)
+        blt_list_append(TO _policies ELEMENTS cuda IF AXOM_ENABLE_CUDA)
+        blt_list_append(TO _policies ELEMENTS hip IF AXOM_ENABLE_HIP)
+      endif()
+    endif()
+    foreach(shapingPolicy ${_policies})
+      # For seq, limit the cases since the tests are somewhat slow.
+      if(${shapingPolicy} STREQUAL "seq")
+        set(caseNumbers 5)
+      else()
+        set(caseNumbers 1 2 3 4 5)
+      endif()
+      foreach(caseNumber ${caseNumbers})
+        axom_add_test(NAME quest_intersection_shaper_${caseNumber}_${shapingPolicy}
+          COMMAND quest_intersection_shaper_test --casenumber ${caseNumber} --policy ${shapingPolicy}
+          NUM_MPI_TASKS 1
+          NUM_OMP_THREADS ${_numOMPThreads}
+        )
+        set_tests_properties(quest_intersection_shaper_${caseNumber}_${shapingPolicy} PROPERTIES PROCESSORS ${_numOMPThreads})
+      endforeach()
+    endforeach()
+
+    axom_add_test(NAME quest_intersection_shaper_dynamic
+        COMMAND quest_intersection_shaper_dynamic_test
         NUM_MPI_TASKS 1
         NUM_OMP_THREADS ${_numOMPThreads}
     )
-    set_tests_properties(quest_intersection_shaper PROPERTIES PROCESSORS ${_numOMPThreads})
+    set_tests_properties(quest_intersection_shaper_dynamic PROPERTIES PROCESSORS ${_numOMPThreads})
 
     axom_add_test(NAME quest_sampling_shaper
         COMMAND quest_sampling_shaper_test

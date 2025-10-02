@@ -43,10 +43,7 @@ namespace internal
  * \param [in] spacing the spacing between the nodes.
  */
 template <Topology TOPO>
-void append_nodes(UnstructuredMesh<TOPO>* mesh,
-                  IndexType x_extent,
-                  IndexType y_extent,
-                  double spacing)
+void append_nodes(UnstructuredMesh<TOPO>* mesh, IndexType x_extent, IndexType y_extent, double spacing)
 {
   for(IndexType j = 0; j < y_extent; ++j)
   {
@@ -65,10 +62,7 @@ void append_nodes(UnstructuredMesh<TOPO>* mesh,
  * \param [in] y_extent the number of nodes in the y direction.
  * \param [in] spacing the spacing between the nodes.
  */
-void check_append_nodes(const Mesh* mesh,
-                        IndexType x_extent,
-                        IndexType y_extent,
-                        double spacing)
+void check_append_nodes(const Mesh* mesh, IndexType x_extent, IndexType y_extent, double spacing)
 {
   ASSERT_EQ(x_extent * y_extent, mesh->getNumberOfNodes());
   ASSERT_EQ(mesh->getDimension(), 2);
@@ -93,9 +87,7 @@ void check_append_nodes(const Mesh* mesh,
  * \param [in] x_extent the number of nodes in the x direction.
  * \param [in] y_extent the number of nodes in the y direction.
  */
-void append_cells(UnstructuredMesh<SINGLE_SHAPE>* mesh,
-                  IndexType x_extent,
-                  IndexType y_extent)
+void append_cells(UnstructuredMesh<SINGLE_SHAPE>* mesh, IndexType x_extent, IndexType y_extent)
 {
   for(IndexType j = 0; j < y_extent - 1; ++j)
   {
@@ -118,9 +110,7 @@ void append_cells(UnstructuredMesh<SINGLE_SHAPE>* mesh,
  * \param [in] x_extent the number of nodes in the x direction.
  * \param [in] y_extent the number of nodes in the y direction.
  */
-void check_append_cells_single(const Mesh* mesh,
-                               IndexType x_extent,
-                               IndexType y_extent)
+void check_append_cells_single(const Mesh* mesh, IndexType x_extent, IndexType y_extent)
 {
   ASSERT_FALSE(mesh->hasMixedCellTypes());
   ASSERT_EQ(mesh->getNumberOfCellNodes(), 4);
@@ -163,9 +153,7 @@ inline bool appendQuad(axom::IndexType i, axom::IndexType j)
  * \param [in] x_extent the number of nodes in the x direction.
  * \param [in] y_extent the number of nodes in the y direction.
  */
-void append_cells(UnstructuredMesh<MIXED_SHAPE>* mesh,
-                  IndexType x_extent,
-                  IndexType y_extent)
+void append_cells(UnstructuredMesh<MIXED_SHAPE>* mesh, IndexType x_extent, IndexType y_extent)
 {
   for(IndexType j = 0; j < y_extent - 1; ++j)
   {
@@ -202,9 +190,7 @@ void append_cells(UnstructuredMesh<MIXED_SHAPE>* mesh,
  * \param [in] x_extent the number of nodes in the x direction.
  * \param [in] y_extent the number of nodes in the y direction.
  */
-void check_append_cells_mixed(const Mesh* mesh,
-                              IndexType x_extent,
-                              IndexType y_extent)
+void check_append_cells_mixed(const Mesh* mesh, IndexType x_extent, IndexType y_extent)
 {
   ASSERT_TRUE(mesh->hasMixedCellTypes());
 
@@ -322,8 +308,7 @@ TEST(mint_mesh_DeathTest, enforce_unique_field_names)
   mint::CurvilinearMesh m(5, 5);
   m.createField<double>("foo", mint::NODE_CENTERED);
 
-  EXPECT_DEATH_IF_SUPPORTED(m.createField<double>("foo", mint::CELL_CENTERED),
-                            IGNORE_OUTPUT);
+  EXPECT_DEATH_IF_SUPPORTED(m.createField<double>("foo", mint::CELL_CENTERED), IGNORE_OUTPUT);
 }
 
 //------------------------------------------------------------------------------
@@ -624,8 +609,7 @@ TEST(mint_mesh, get_single_topology_unstructured_from_sidre)
   internal::check_cell_fields(n_cells, p_cpy);
 
   /* STEP 7: down-cast and test the UnstructuredMesh object. */
-  const UnstructuredMesh<SINGLE_SHAPE>* M =
-    dynamic_cast<const UnstructuredMesh<SINGLE_SHAPE>*>(m);
+  const UnstructuredMesh<SINGLE_SHAPE>* M = dynamic_cast<const UnstructuredMesh<SINGLE_SHAPE>*>(m);
   EXPECT_EQ(M->getCellNodesArray(), connec);
 
   /* STEP 8: de-allocate. */
@@ -647,8 +631,7 @@ TEST(mint_mesh, get_mixed_topology_unstructured_from_sidre)
   sidre::Group* root = ds.getRoot();
 
   /* STEP 1: create the UnstructuredMesh */
-  UnstructuredMesh<MIXED_SHAPE>* mesh =
-    new UnstructuredMesh<MIXED_SHAPE>(DIMENSION, root);
+  UnstructuredMesh<MIXED_SHAPE>* mesh = new UnstructuredMesh<MIXED_SHAPE>(DIMENSION, root);
   mesh->setBlockId(BLOCKID);
   mesh->setPartitionId(PARTID);
 
@@ -713,8 +696,7 @@ TEST(mint_mesh, get_mixed_topology_unstructured_from_sidre)
   internal::check_cell_fields(n_cells, p_cpy);
 
   /* STEP 7: down-cast and test the UnstructuredMesh object. */
-  const UnstructuredMesh<MIXED_SHAPE>* M =
-    dynamic_cast<const UnstructuredMesh<MIXED_SHAPE>*>(m);
+  const UnstructuredMesh<MIXED_SHAPE>* M = dynamic_cast<const UnstructuredMesh<MIXED_SHAPE>*>(m);
   EXPECT_EQ(M->getCellNodesSize(), connec_size);
   EXPECT_EQ(M->getCellNodesCapacity(), connec_capacity);
   EXPECT_EQ(M->getCellNodesArray(), connec);
@@ -730,10 +712,9 @@ TEST(mint_mesh, immediate_ug_reserve)
 {
   axom::sidre::DataStore objectDS;
   axom::sidre::Group* meshGroup = objectDS.getRoot()->createGroup("myGroup");
-  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> contourMesh(
-    2,
-    axom::mint::CellType::SEGMENT,
-    meshGroup);
+  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE> contourMesh(2,
+                                                                     axom::mint::CellType::SEGMENT,
+                                                                     meshGroup);
   contourMesh.reserveCells(10);  // This may crash.
 }
 

@@ -61,19 +61,12 @@ public:
    */
   VariantKey(const int key) : m_int(key), m_type(VariantKeyType::Integer) { }
   /// \overload
-  VariantKey(const std::string& key)
-    : m_string(key)
-    , m_type(VariantKeyType::String)
-  { }
+  VariantKey(const std::string& key) : m_string(key), m_type(VariantKeyType::String) { }
   /// \overload
-  VariantKey(std::string&& key)
-    : m_string(std::move(key))
-    , m_type(VariantKeyType::String)
-  { }
+  VariantKey(std::string&& key) : m_string(std::move(key)), m_type(VariantKeyType::String) { }
   /// \overload
   // Explicit const char[] overload required to convert to std::string instead of ptr -> int
-  VariantKey(const char key[]) : m_string(key), m_type(VariantKeyType::String)
-  { }
+  VariantKey(const char key[]) : m_string(key), m_type(VariantKeyType::String) { }
 
   /*!
    *****************************************************************************

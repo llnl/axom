@@ -129,10 +129,7 @@ bool intersectCoplanar3DTriangles(const Point3& p1,
  * vertices from t1 and t2 permuted to ensure CCW orientation.
  */
 AXOM_HOST_DEVICE
-bool TriangleIntersection2D(const Triangle2& t1,
-                            const Triangle2& t2,
-                            bool includeBoundary,
-                            double EPS);
+bool TriangleIntersection2D(const Triangle2& t1, const Triangle2& t2, bool includeBoundary, double EPS);
 
 //------------------------------ IMPLEMENTATIONS ------------------------------
 
@@ -161,10 +158,8 @@ AXOM_HOST_DEVICE bool intersect_tri3D_tri3D(const Triangle<T, 3>& t1,
                                             bool includeBoundary,
                                             double EPS)
 {
-  SLIC_CHECK_MSG(!t1.degenerate(),
-                 "\n\n WARNING \n\n Triangle " << t1 << " is degenerate");
-  SLIC_CHECK_MSG(!t2.degenerate(),
-                 "\n\n WARNING \n\n Triangle " << t2 << " is degenerate");
+  SLIC_CHECK_MSG(!t1.degenerate(), "\n\n WARNING \n\n Triangle " << t1 << " is degenerate");
+  SLIC_CHECK_MSG(!t2.degenerate(), "\n\n WARNING \n\n Triangle " << t2 << " is degenerate");
 
   // Step 1: Check if all the vertices of triangle 1 lie on the same side of
   // the plane created by triangle 2:
@@ -181,8 +176,7 @@ AXOM_HOST_DEVICE bool intersect_tri3D_tri3D(const Triangle<T, 3>& t1,
     return false;
   }
 
-  if(!includeBoundary &&
-     (twoZeros(dp1, dq1, dr1, EPS) || oneZeroOthersMatch(dp1, dq1, dr1, EPS)))
+  if(!includeBoundary && (twoZeros(dp1, dq1, dr1, EPS) || oneZeroOthersMatch(dp1, dq1, dr1, EPS)))
   {
     return false;
   }
@@ -202,8 +196,7 @@ AXOM_HOST_DEVICE bool intersect_tri3D_tri3D(const Triangle<T, 3>& t1,
     return false;
   }
 
-  if(!includeBoundary &&
-     (twoZeros(dp2, dq2, dr2, EPS) || oneZeroOthersMatch(dp2, dq2, dr2, EPS)))
+  if(!includeBoundary && (twoZeros(dp2, dq2, dr2, EPS) || oneZeroOthersMatch(dp2, dq2, dr2, EPS)))
   {
     return false;
   }
@@ -497,10 +490,8 @@ bool intersect_tri2D_tri2D(const primal::Triangle<T, 2>& t1,
                            bool includeBoundary,
                            double EPS)
 {
-  SLIC_CHECK_MSG(!t1.degenerate(),
-                 "\n\n WARNING \n\n Triangle " << t1 << " is degenerate");
-  SLIC_CHECK_MSG(!t2.degenerate(),
-                 "\n\n WARNING \n\n Triangle " << t2 << " is degenerate");
+  SLIC_CHECK_MSG(!t1.degenerate(), "\n\n WARNING \n\n Triangle " << t1 << " is degenerate");
+  SLIC_CHECK_MSG(!t2.degenerate(), "\n\n WARNING \n\n Triangle " << t2 << " is degenerate");
 
   return TriangleIntersection2D(t1, t2, includeBoundary, EPS);
 }
@@ -557,10 +548,8 @@ AXOM_HOST_DEVICE
 inline bool nonzeroSignMatch(double x, double y, double z, double EPS)
 {
   return !(axom::utilities::isNearlyEqual(x, 0., EPS)) &&
-    !(axom::utilities::isNearlyEqual(y, 0., EPS)) &&
-    !(axom::utilities::isNearlyEqual(z, 0., EPS)) &&
-    (0 < x) - (x < 0) == (0 < y) - (y < 0) &&
-    (0 < x) - (x < 0) == (0 < z) - (z < 0);
+    !(axom::utilities::isNearlyEqual(y, 0., EPS)) && !(axom::utilities::isNearlyEqual(z, 0., EPS)) &&
+    (0 < x) - (x < 0) == (0 < y) - (y < 0) && (0 < x) - (x < 0) == (0 < z) - (z < 0);
 }
 
 /*!
@@ -607,8 +596,8 @@ inline int countZeros(double x, double y, double z, double EPS)
  * \param r Radius of projection
  * \return True of the intervals are disjoint, false otherwise
  */
-bool intervalsDisjoint(double d0, double d1, double d2, double r);
-bool crossEdgesDisjoint(double d0, double d1, double r);
+AXOM_HOST_DEVICE bool intervalsDisjoint(double d0, double d1, double d2, double r);
+AXOM_HOST_DEVICE bool crossEdgesDisjoint(double d0, double d1, double r);
 
 /*! @{ @name Triangle-bbox intersection */
 
@@ -620,8 +609,8 @@ bool crossEdgesDisjoint(double d0, double d1, double r);
  * \return true iff tri intersects with bb, otherwise, false.
  */
 template <typename T>
-bool intersect_tri_bbox(const primal::Triangle<T, 3>& tri,
-                        const primal::BoundingBox<T, 3>& bb)
+AXOM_HOST_DEVICE bool intersect_tri_bbox(const primal::Triangle<T, 3>& tri,
+                                         const primal::BoundingBox<T, 3>& bb)
 {
   // Note: Algorithm is derived from the one presented in chapter 5.2.9 of
   //   Real Time Collision Detection book by Christer Ericson
@@ -660,7 +649,7 @@ bool intersect_tri_bbox(const primal::Triangle<T, 3>& tri,
   // -- using separating axis theorem on the cross product of edges of triangle and face normals of AABB
   // Each test involves three cross products, two of which have the same value
   // The commented parameters highlights this symmetry.
-#define XEDGE_R( _0, _1, _I )      e[ _0 ] * std::abs( f[ _I ][ _1 ]) + e[ _1 ] * std::abs(f[ _I ][ _0 ])
+#define XEDGE_R( _0, _1, _I )      e[ _0 ] * axom::utilities::abs( f[ _I ][ _1 ]) + e[ _1 ] * axom::utilities::abs(f[ _I ][ _0 ])
 #define XEDGE_S( _0, _1, _V, _F ) -v[ _V ][ _0 ] * f[ _F ][ _1 ] + v[ _V ][ _1 ] * f[ _F ][ _0 ]
 
   if ( crossEdgesDisjoint(/*XEDGE_S(1,2,0,0),*/ XEDGE_S(1,2,1,0),   XEDGE_S(1,2,2,0),   XEDGE_R(1,2,0)) ||
@@ -692,12 +681,12 @@ bool intersect_tri_bbox(const primal::Triangle<T, 3>& tri,
   const VectorType planeNormal = VectorType::cross_product(f[0], f[1]);
   const double planeDist = planeNormal.dot(VectorType(tri[0]));
 
-  const double r = e[0] * std::abs(planeNormal[0])  //
-    + e[1] * std::abs(planeNormal[1])               //
-    + e[2] * std::abs(planeNormal[2]);
+  const double r = e[0] * axom::utilities::abs(planeNormal[0])  //
+    + e[1] * axom::utilities::abs(planeNormal[1])               //
+    + e[2] * axom::utilities::abs(planeNormal[2]);
   const double s = planeNormal.dot(VectorType(center)) - planeDist;
 
-  return std::abs(s) <= r;
+  return axom::utilities::abs(s) <= r;
 }
 
 // ------------------------------------------------------------------------------
@@ -705,10 +694,9 @@ bool intersect_tri_bbox(const primal::Triangle<T, 3>& tri,
 /*!
  * \brief Helper function for Triangle/BoundingBox intersection test
  */
-inline bool crossEdgesDisjoint(double d0, double d1, double r)
+AXOM_HOST_DEVICE inline bool crossEdgesDisjoint(double d0, double d1, double r)
 {
-  return axom::utilities::max(-axom::utilities::max(d0, d1),
-                              axom::utilities::min(d0, d1)) > r;
+  return axom::utilities::max(-axom::utilities::max(d0, d1), axom::utilities::min(d0, d1)) > r;
 }
 
 /*! @} */
@@ -746,10 +734,10 @@ inline bool crossEdgesDisjoint(double d0, double d1, double r)
  * no. 1, 65–82, 2013  http://jcgt.org/published/0002/01/05/
  */
 template <typename T>
-bool intersect_tri_ray(const Triangle<T, 3>& tri,
-                       const Ray<T, 3>& R,
-                       T& t,
-                       Point<double, 3>& p)
+AXOM_HOST_DEVICE bool intersect_tri_ray(const Triangle<T, 3>& tri,
+                                        const Ray<T, 3>& R,
+                                        T& t,
+                                        Point<double, 3>& p)
 {
   // Ray origins inside of the triangle are considered a miss.
   // This is a good thing, as pointed out by Matt Larsen in January 2017,
@@ -842,9 +830,8 @@ bool intersect_tri_ray(const Triangle<T, 3>& tri,
   const T Az = shear[2] * A[kz];
   const T Bz = shear[2] * B[kz];
   const T Cz = shear[2] * C[kz];
-  t = (U * Az + V * Bz +
-       W * Cz);  // save the parameter of the intersection w.r.t. ray
-                 // R
+  t = (U * Az + V * Bz + W * Cz);  // save the parameter of the intersection w.r.t. ray
+                                   // R
 
   //make sure hit is in correct direction
   if(((t < zero) && !(det < zero)) || ((det < zero) && !(t < zero)))
@@ -863,41 +850,37 @@ bool intersect_tri_ray(const Triangle<T, 3>& tri,
  * \param [in] tri The input triangle
  * \param [in] S The input segment
  * \param [out] t Intersection point of tri and S, w.r.t. parametrization of S
- * \param [out] p Intersection point of tri and S, in barycentric coordinates
- *   relative to tri
+ * \param [out] p Intersection point of tri and S, in barycentric coordinates relative to tri
  * \return status true iff tri intersects with R, otherwise, false.
  *
  * This routine uses intersect_tri_ray(), which see.
  */
 template <typename T>
-bool intersect_tri_segment(const Triangle<T, 3>& tri,
-                           const Segment<T, 3>& S,
-                           T& t,
-                           Point<double, 3>& p)
+AXOM_HOST_DEVICE bool intersect_tri_segment(const Triangle<T, 3>& tri,
+                                            const Segment<T, 3>& S,
+                                            T& t,
+                                            Point<double, 3>& p)
 {
   Ray<T, 3> r(S.source(), Vector3(S.source(), S.target()));
 
-  //Ray-triangle intersection does not check endpoints, so we explicitly check
-  // here
-  if(tri.checkInTriangle(S.source()))
+  //Ray-triangle intersection does not check endpoints, so we explicitly check here
+  if(tri.contains(S.source()))
   {
     t = 0;
     p = tri.physToBarycentric(S.source());
     return true;
   }
-  if(tri.checkInTriangle(S.target()))
+  if(tri.contains(S.target()))
   {
     t = 1;
     p = tri.physToBarycentric(S.target());
     return true;
   }
 
-  // The triangle only intersects the segment if it intersects the ray defined
-  // by one
+  // The triangle only intersects the segment if it intersects the ray defined by one
   // of its endpoints and the direction defined by its two endpoints.
   // We can parametrize the line as:  r.origin() + t * r.direction()
-  // Values of the parameter t between 0 and the length of the segment
-  // correspond
+  // Values of the parameter t between 0 and the length of the segment correspond
   // to points on the segment.
   // Note: if intersect_tri_ray() is true, t must be greater than zero
   if(intersect_tri_ray(tri, r, t, p))
@@ -915,8 +898,7 @@ bool intersect_tri_segment(const Triangle<T, 3>& tri,
  * \return true iff b1 intersects with b2, otherwise, false.
  */
 template <typename T>
-bool intersect_obb1D_obb1D(const OrientedBoundingBox<T, 1>& b1,
-                           const OrientedBoundingBox<T, 1>& b2)
+bool intersect_obb1D_obb1D(const OrientedBoundingBox<T, 1>& b1, const OrientedBoundingBox<T, 1>& b2)
 {
   T c1 = b1.getCentroid()[0];
   T c2 = b2.getCentroid()[0];
@@ -943,8 +925,7 @@ bool intersect_obb1D_obb1D(const OrientedBoundingBox<T, 1>& b1,
  * \return true iff b1 intersects with b2, otherwise, false.
  */
 template <typename T>
-bool intersect_obb2D_obb2D(const OrientedBoundingBox<T, 2>& b1,
-                           const OrientedBoundingBox<T, 2>& b2)
+bool intersect_obb2D_obb2D(const OrientedBoundingBox<T, 2>& b1, const OrientedBoundingBox<T, 2>& b2)
 {
   Vector<T, 2> c1(b1.getCentroid());
   Vector<T, 2> c2(b2.getCentroid());
@@ -959,8 +940,7 @@ bool intersect_obb2D_obb2D(const OrientedBoundingBox<T, 2>& b1,
 
   for(int i = 0; i < 2; ++i)
   {
-    if(utilities::abs<T>(d.dot(u1[i])) > e1[i] +
-         utilities::abs<T>((e2[0] * u2[0]).dot(u1[i])) +
+    if(utilities::abs<T>(d.dot(u1[i])) > e1[i] + utilities::abs<T>((e2[0] * u2[0]).dot(u1[i])) +
          utilities::abs<T>((e2[1] * u2[1]).dot(u1[i])))
     {
       return false;
@@ -969,8 +949,7 @@ bool intersect_obb2D_obb2D(const OrientedBoundingBox<T, 2>& b1,
 
   for(int i = 0; i < 2; ++i)
   {
-    if(utilities::abs<T>(d.dot(u2[i])) > e2[i] +
-         utilities::abs<T>((e1[0] * u1[0]).dot(u2[i])) +
+    if(utilities::abs<T>(d.dot(u2[i])) > e2[i] + utilities::abs<T>((e1[0] * u1[0]).dot(u2[i])) +
          utilities::abs<T>((e1[1] * u1[1]).dot(u2[i])))
     {
       return false;
@@ -992,8 +971,7 @@ bool intersect_obb3D_obb3D(const OrientedBoundingBox<T, 3>& b1,
                            const OrientedBoundingBox<T, 3>& b2,
                            double EPS)
 {
-  Vector<T, 3> d =
-    Vector<T, 3>(b1.getCentroid()) - Vector<T, 3>(b2.getCentroid());
+  Vector<T, 3> d = Vector<T, 3>(b1.getCentroid()) - Vector<T, 3>(b2.getCentroid());
 
   Vector<T, 3> e1 = b1.getExtents();
   Vector<T, 3> e2 = b2.getExtents();
@@ -1037,10 +1015,8 @@ bool intersect_obb3D_obb3D(const OrientedBoundingBox<T, 3>& b1,
     {
       T left = utilities::abs<T>(d.dot(u1[(i + 2) % 3]) * r[(i + 1) % 3][j] -
                                  (d.dot(u1[(i + 1) % 3]) * r[(i + 2) % 3][j]));
-      T right = (e1[(i + 1) % 3] * r[(i + 2) % 3][j] +
-                 e1[(i + 2) % 3] * r[(i + 1) % 3][j]);
-      right += (e2[(i + 1) % 3] * r[i][(j + 2) % 3] +
-                e2[(i + 2) % 3] * r[i][(j + 1) % 3]);
+      T right = (e1[(i + 1) % 3] * r[(i + 2) % 3][j] + e1[(i + 2) % 3] * r[(i + 1) % 3][j]);
+      right += (e2[(i + 1) % 3] * r[i][(j + 2) % 3] + e2[(i + 2) % 3] * r[i][(j + 1) % 3]);
       if(left > right + EPS)
       {
         return false;
@@ -1093,8 +1069,7 @@ AXOM_HOST_DEVICE bool intersect_plane_bbox(const Plane<T, 3>& p,
 
   const T s = p.signedDistance(centroid);
 
-  return checkOverlaps ? isLt(utilities::abs<T>(s), r, EPS)
-                       : isLeq(utilities::abs<T>(s), r, EPS);
+  return checkOverlaps ? isLt(utilities::abs<T>(s), r, EPS) : isLeq(utilities::abs<T>(s), r, EPS);
 }
 
 /*!
@@ -1117,10 +1092,35 @@ AXOM_HOST_DEVICE bool intersect_plane_seg(const Plane<T, DIM>& plane,
   VectorType ab(seg.source(), seg.target());
   VectorType normal = plane.getNormal();
 
-  t = (plane.getOffset() - normal.dot(VectorType(seg.source()))) /
-    (normal.dot(ab));
+  t = (plane.getOffset() - normal.dot(VectorType(seg.source()))) / (normal.dot(ab));
 
   if(isGeq(t, 0.0, EPS) && isLeq(t, 1.0, EPS))
+  {
+    return true;
+  }
+
+  return false;
+}
+
+/*!
+ * \brief Determines if a 2D sphere intersects a bounding box.
+ * \param [in] circle A 2D sphere
+ * \param [in] bb A 2D bounding box
+ * \param [in] EPS Tolerance for determining if intersection nearly occurs
+ * \return true iff sphere intersects a bounding box, false otherwise.
+ */
+template <typename T>
+bool intersect_circle_bbox(const Sphere<T, 2>& circle, const BoundingBox<T, 2>& bbox, double EPS = 1E-12)
+{
+  auto center = circle.getCenter();
+  auto radius = circle.getRadius();
+  T dx = axom::utilities::clampVal(center[0], bbox.getMin()[0], bbox.getMax()[0]);
+  T dy = axom::utilities::clampVal(center[1], bbox.getMin()[1], bbox.getMax()[1]);
+
+  // Find the distance from the center to the closest point on the bounding box,
+  //  and check if that distance is less than the radius (plus a tolerance)
+  if((center[0] - dx) * (center[0] - dx) + (center[1] - dy) * (center[1] - dy) <=
+     radius * radius + EPS)
   {
     return true;
   }
@@ -1180,87 +1180,37 @@ inline bool intersectOnePermutedTriangle(const Point3& p1,
     {
       if(isGeq(dr2, 0.0, EPS))
       {
-        return intersectTwoPermutedTriangles(p1,
-                                             r1,
-                                             q1,
-                                             q2,
-                                             r2,
-                                             p2,
-                                             includeBoundary,
-                                             EPS);
+        return intersectTwoPermutedTriangles(p1, r1, q1, q2, r2, p2, includeBoundary, EPS);
       }
       else
       {
-        return intersectTwoPermutedTriangles(p1,
-                                             q1,
-                                             r1,
-                                             p2,
-                                             q2,
-                                             r2,
-                                             includeBoundary,
-                                             EPS);
+        return intersectTwoPermutedTriangles(p1, q1, r1, p2, q2, r2, includeBoundary, EPS);
       }
     }
     else if(isGt(dq2, 0.0, EPS))
     {
       if(isGt(dr2, 0.0, EPS))
       {
-        return intersectTwoPermutedTriangles(p1,
-                                             r1,
-                                             q1,
-                                             p2,
-                                             q2,
-                                             r2,
-                                             includeBoundary,
-                                             EPS);
+        return intersectTwoPermutedTriangles(p1, r1, q1, p2, q2, r2, includeBoundary, EPS);
       }
       else
       {
-        return intersectTwoPermutedTriangles(p1,
-                                             q1,
-                                             r1,
-                                             q2,
-                                             r2,
-                                             p2,
-                                             includeBoundary,
-                                             EPS);
+        return intersectTwoPermutedTriangles(p1, q1, r1, q2, r2, p2, includeBoundary, EPS);
       }
     }
     else
     {
       if(isGt(dr2, 0.0, EPS))
       {
-        return intersectTwoPermutedTriangles(p1,
-                                             q1,
-                                             r1,
-                                             r2,
-                                             p2,
-                                             q2,
-                                             includeBoundary,
-                                             EPS);
+        return intersectTwoPermutedTriangles(p1, q1, r1, r2, p2, q2, includeBoundary, EPS);
       }
       else if(isLt(dr2, 0.0, EPS))
       {
-        return intersectTwoPermutedTriangles(p1,
-                                             r1,
-                                             q1,
-                                             r2,
-                                             p2,
-                                             q2,
-                                             includeBoundary,
-                                             EPS);
+        return intersectTwoPermutedTriangles(p1, r1, q1, r2, p2, q2, includeBoundary, EPS);
       }
       else
       {
-        return intersectCoplanar3DTriangles(p1,
-                                            q1,
-                                            r1,
-                                            p2,
-                                            q2,
-                                            r2,
-                                            normal,
-                                            includeBoundary,
-                                            EPS);
+        return intersectCoplanar3DTriangles(p1, q1, r1, p2, q2, r2, normal, includeBoundary, EPS);
       }
     }
   }
@@ -1284,7 +1234,7 @@ inline bool intersectCoplanar3DTriangles(const Point3& p1,
   //find triangle with maximum area:
   for(int i = 0; i < 3; i++)
   {
-    normal[i] = std::abs(normal[i]);
+    normal[i] = axom::utilities::abs(normal[i]);
   }
 
   if((isGt(normal[0], normal[2], EPS)) && (isGeq(normal[0], normal[1], EPS)))
@@ -1337,50 +1287,22 @@ inline bool TriangleIntersection2D(const Triangle2& t1,
   {
     if((isLt(twoDcross(t2[0], t2[1], t2[2]), 0.0, EPS)))
     {
-      return intersectPermuted2DTriangles(t1[0],
-                                          t1[2],
-                                          t1[1],
-                                          t2[0],
-                                          t2[2],
-                                          t2[1],
-                                          includeBoundary,
-                                          EPS);
+      return intersectPermuted2DTriangles(t1[0], t1[2], t1[1], t2[0], t2[2], t2[1], includeBoundary, EPS);
     }
     else
     {
-      return intersectPermuted2DTriangles(t1[0],
-                                          t1[2],
-                                          t1[1],
-                                          t2[0],
-                                          t2[1],
-                                          t2[2],
-                                          includeBoundary,
-                                          EPS);
+      return intersectPermuted2DTriangles(t1[0], t1[2], t1[1], t2[0], t2[1], t2[2], includeBoundary, EPS);
     }
   }
   else
   {
     if(isLt(twoDcross(t2[0], t2[1], t2[2]), 0.0, EPS))
     {
-      return intersectPermuted2DTriangles(t1[0],
-                                          t1[1],
-                                          t1[2],
-                                          t2[0],
-                                          t2[2],
-                                          t2[1],
-                                          includeBoundary,
-                                          EPS);
+      return intersectPermuted2DTriangles(t1[0], t1[1], t1[2], t2[0], t2[2], t2[1], includeBoundary, EPS);
     }
     else
     {
-      return intersectPermuted2DTriangles(t1[0],
-                                          t1[1],
-                                          t1[2],
-                                          t2[0],
-                                          t2[1],
-                                          t2[2],
-                                          includeBoundary,
-                                          EPS);
+      return intersectPermuted2DTriangles(t1[0], t1[1], t1[2], t2[0], t2[1], t2[2], includeBoundary, EPS);
     }
   }
 }
@@ -1592,19 +1514,19 @@ inline bool checkVertex(const Point2& p1,
   // clang-format on
 }
 
-inline bool intervalsDisjoint(double d0, double d1, double d2, double r)
+AXOM_HOST_DEVICE inline bool intervalsDisjoint(double d0, double d1, double d2, double r)
 {
   if(d1 < d0)
   {
-    std::swap(d1, d0);  // d0 < d1
+    axom::utilities::swap(d1, d0);  // d0 < d1
   }
   if(d2 > d1)
   {
-    std::swap(d2, d1);  // d1 is max(d0,d1,d2)
+    axom::utilities::swap(d2, d1);  // d1 is max(d0,d1,d2)
   }
   else if(d2 < d0)
   {
-    std::swap(d2, d0);  // d0 is min(d0,d1,d2)
+    axom::utilities::swap(d2, d0);  // d0 is min(d0,d1,d2)
   }
   SLIC_ASSERT(d0 <= d1 && d0 <= d2);
   SLIC_ASSERT(d1 >= d0 && d1 >= d2);
@@ -1671,9 +1593,7 @@ AXOM_HOST_DEVICE bool intersect_plane_tet3d(const Plane<T, 3>& p,
   // clang-format on
 
   // Add new vertices to the polygon according to the case.
-  const int n =
-    static_cast<int>(edges_offsets[caseNumber + 1] - edges_offsets[caseNumber]) >>
-    1;
+  const int n = static_cast<int>(edges_offsets[caseNumber + 1] - edges_offsets[caseNumber]) >> 1;
   for(int i = 0; i < n; i++)
   {
     const auto eOffset = static_cast<int>(edges_offsets[caseNumber]) + (i << 1);
@@ -1696,9 +1616,9 @@ AXOM_HOST_DEVICE bool intersect_plane_tet3d(const Plane<T, 3>& p,
  * \param [in] p1 The second corner in ccw order.
  * \param [in] p2 The third corner.
  * \param [in] p3 The fourth corner.
- * \param [out] t The t parameter(s) of the intersection point wrt the ray.
- * \param [out] u The u parameter(s) of the intersection point wrt the patch.
- * \param [out] v The v parameter(s) of the intersection point wrt the patch.
+ * \param [out] t Array to append the t parameters of intersections wrt the ray.
+ * \param [out] u Array to append the u parameters of intersections wrt the patch.
+ * \param [out] v Array to append the v parameters of intersections wrt the patch.
  * \param [in] EPS The parameter space tolerance for intersection.
  * \param [in] isRay If true, only return intersections with t >= 0.
  *
@@ -1711,7 +1631,7 @@ AXOM_HOST_DEVICE bool intersect_plane_tet3d(const Plane<T, 3>& p,
  * 
  * \note Always returns false if the line is coplanar to a planar polygon
  * 
- * \return true iff the line intersects the bilinear patch, otherwise false.
+ * \return true if the line intersects the bilinear patch, otherwise false.
  */
 AXOM_HOST_DEVICE
 inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
@@ -1719,9 +1639,9 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
                                           const Point3& p10,
                                           const Point3& p11,
                                           const Point3& p01,
-                                          axom::Array<double>& t,
-                                          axom::Array<double>& u,
-                                          axom::Array<double>& v,
+                                          axom::StaticArray<double, 2>& t,
+                                          axom::StaticArray<double, 2>& u,
+                                          axom::StaticArray<double, 2>& v,
                                           double EPS = 1e-8,
                                           bool isRay = false)
 {
@@ -1737,11 +1657,12 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
   //  that are closest to the line
   double au = Vector3::scalar_triple_product(q00, line.direction(), e00);
   double cu = Vector3::dot_product(qn, line.direction());
-  double bu =
-    Vector3::scalar_triple_product(q10, line.direction(), e11) - au - cu;
+  double bu = Vector3::scalar_triple_product(q10, line.direction(), e11) - au - cu;
 
   // Rescale the coefficients to avoid (some) numerical issues
-  double su = std::max(std::fabs(au), std::max(fabs(bu), fabs(cu)));
+  double su =
+    axom::utilities::max(axom::utilities::abs(au),
+                         axom::utilities::max(axom::utilities::abs(bu), axom::utilities::abs(cu)));
   au /= su;
   bu /= su;
   cu /= su;
@@ -1777,7 +1698,10 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
     // Find the point on the isocurve that is closest to the ray
     for(auto u0 : {u1, u2})
     {
-      if(u0 < -EPS || u0 > 1.0 + EPS) continue;
+      if(u0 < -EPS || u0 > 1.0 + EPS)
+      {
+        continue;
+      }
 
       Vector3 pa = (1 - u0) * q00 + u0 * q10;
       Vector3 pb = (1 - u0) * e00 + u0 * e11;  // actually stores pb - pa
@@ -1812,7 +1736,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
           const double t1 = Vector3::dot_product(pa, line.direction());
           const double t2 = Vector3::dot_product(pa + pb, line.direction());
 
-          if(!isRay || std::min(t1, t2) > 0.0)
+          if(!isRay || axom::utilities::min(t1, t2) > 0.0)
           {
             // Always an intersection in this case
             t.push_back(0.5 * (t1 + t2));
@@ -1864,10 +1788,11 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
     // Find the analogous coefficients for B(u, v0) isocurves
     double av = Vector3::scalar_triple_product(q00, line.direction(), e10);
     double cv = Vector3::dot_product(qm, line.direction());
-    double bv =
-      Vector3::scalar_triple_product(q01, line.direction(), e01) - av - cv;
+    double bv = Vector3::scalar_triple_product(q01, line.direction(), e01) - av - cv;
 
-    double sv = std::max(std::fabs(av), std::max(fabs(bv), fabs(cv)));
+    double sv =
+      axom::utilities::max(axom::utilities::abs(av),
+                           axom::utilities::max(axom::utilities::abs(bv), axom::utilities::abs(cv)));
     av /= sv;
     bv /= sv;
     cv /= sv;
@@ -1908,7 +1833,10 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
     // Find the point on the isocurve that is closest to the ray
     for(auto v0 : {v1, v2})
     {
-      if(v0 < -EPS || v0 > 1.0 + EPS) continue;
+      if(v0 < -EPS || v0 > 1.0 + EPS)
+      {
+        continue;
+      }
 
       Vector3 pa = (1.0 - v0) * q00 + v0 * q01;
       Vector3 pb = (1.0 - v0) * e10 + v0 * e01;  // actually stores pb - pa
@@ -1944,7 +1872,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
           const double t1 = Vector3::dot_product(pa, line.direction());
           const double t2 = Vector3::dot_product(pa + pb, line.direction());
 
-          if(!isRay || std::min(t1, t2) > 0.0)
+          if(!isRay || axom::utilities::min(t1, t2) > 0.0)
           {
             // Always an intersection in this case
             t.push_back(0.5 * (t1 + t2));
@@ -1961,7 +1889,7 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
             if(t1 == t2)
             {
               t.push_back(0.5 * t1);
-              v.push_back(0.5);
+              u.push_back(0.5);
             }
             else if(t1 < t2)
             {
@@ -1984,6 +1912,74 @@ inline bool intersect_line_bilinear_patch(const Line<double, 3>& line,
           }
         }
       }
+    }
+  }
+
+  return !t.empty();
+}
+
+/*!
+ * \brief Examine candidate (t,u,v) values and select the ones that are not
+ *        duplicates, storing them in the supplied output arrays.
+ *
+ * \param [in] tc Candidate t values of intersection points.
+ * \param [in] uc Candidate u values of intersection points.
+ * \param [in] vc Candidate v values of intersection points.
+ * \param [out] t Selected t values of intersection points.
+ * \param [out] u Selected u values of intersection points.
+ * \param [out] v Selected v values of intersection points.
+ * \param [in] EPS The tolerance for intersection (for parameter distances).
+ * \param [in] isHalfOpen True if the patch is parameterized in [0,1)^2.
+ *
+ * \note Moved from intersect for Ray/BezierPatch and templated it so it
+ *       supports different candidate and output array types.
+ */
+template <typename CandidateArrayType, typename ArrayType>
+bool select_candidates(const CandidateArrayType& tc,
+                       const CandidateArrayType& uc,
+                       const CandidateArrayType& vc,
+                       ArrayType& t,
+                       ArrayType& u,
+                       ArrayType& v,
+                       double EPS = 1e-8,
+                       bool isHalfOpen = false)
+{
+  using T = typename ArrayType::value_type;
+
+  // Remove duplicates from the (u, v) intersection points
+  //  (Note it's not possible for (u_1, v_1) == (u_2, v_2) and t_1 != t_2)
+  const double sq_EPS = EPS * EPS;
+
+  // The number of reported intersection points will be small,
+  //  so we don't need to fully sort the list
+  SLIC_WARNING_IF(tc.size() > 10,
+                  "Large number of intersections detected, eliminating "
+                  "duplicates may be slow");
+
+  for(int i = 0; i < tc.size(); ++i)
+  {
+    // Also remove any intersections on the half-interval boundaries
+    if(isHalfOpen && (uc[i] >= 1.0 - EPS || vc[i] >= 1.0 - EPS))
+    {
+      continue;
+    }
+
+    Point<T, 2> uv({uc[i], vc[i]});
+
+    bool foundDuplicate = false;
+    for(int j = i + 1; !foundDuplicate && j < tc.size(); ++j)
+    {
+      if(squared_distance(uv, Point<T, 2>({uc[j], vc[j]})) < sq_EPS)
+      {
+        foundDuplicate = true;
+      }
+    }
+
+    if(!foundDuplicate)
+    {
+      t.push_back(tc[i]);
+      u.push_back(uc[i]);
+      v.push_back(vc[i]);
     }
   }
 

@@ -46,53 +46,44 @@ namespace internal
  * \pre group != nullptr
  * \pre m_values != nullptr
  */
-inline CellType initializeFromGroup(
-  sidre::Group* group,
-  std::unique_ptr<axom::Array<IndexType>>& m_values,
-  std::unique_ptr<axom::Array<IndexType>>& m_offsets,
-  std::unique_ptr<axom::Array<CellType>>& m_types)
+inline CellType initializeFromGroup(sidre::Group* group,
+                                    std::unique_ptr<axom::Array<IndexType>>& m_values,
+                                    std::unique_ptr<axom::Array<IndexType>>& m_offsets,
+                                    std::unique_ptr<axom::Array<CellType>>& m_types)
 {
   SLIC_ERROR_IF(group == nullptr, "sidre::Group pointer must not be null.");
 
   SLIC_ERROR_IF(
     !group->hasView("coordset"),
-    "sidre::Group "
-      << group->getPathName()
-      << " does not conform to mesh blueprint. No child view 'coordset'.");
-  SLIC_ERROR_IF(
-    !group->getView("coordset")->isString(),
-    "sidre::Group "
-      << group->getPathName()
-      << " does not conform to mesh blueprint. Child view 'coordset' "
-      << "does not hold a string.");
+    "sidre::Group " << group->getPathName()
+                    << " does not conform to mesh blueprint. No child view 'coordset'.");
+  SLIC_ERROR_IF(!group->getView("coordset")->isString(),
+                "sidre::Group " << group->getPathName()
+                                << " does not conform to mesh blueprint. Child view 'coordset' "
+                                << "does not hold a string.");
 
-  SLIC_ERROR_IF(
-    !group->hasView("type"),
-    "sidre::Group "
-      << group->getPathName()
-      << " does not conform to mesh blueprint. No child view 'type'.");
+  SLIC_ERROR_IF(!group->hasView("type"),
+                "sidre::Group " << group->getPathName()
+                                << " does not conform to mesh blueprint. No child view 'type'.");
   sidre::View* type_view = group->getView("type");
   SLIC_ERROR_IF(!type_view->isString(),
-                "sidre::Group "
-                  << group->getPathName()
-                  << " does not conform to mesh blueprint. Child view 'type' "
-                  << "does not hold a string.");
-  SLIC_ERROR_IF(std::strcmp(type_view->getString(), "unstructured") != 0,
-                "Incorrect type found. Expected 'unstructured' but got '"
-                  << type_view->getString() << "'.");
+                "sidre::Group " << group->getPathName()
+                                << " does not conform to mesh blueprint. Child view 'type' "
+                                << "does not hold a string.");
+  SLIC_ERROR_IF(
+    std::strcmp(type_view->getString(), "unstructured") != 0,
+    "Incorrect type found. Expected 'unstructured' but got '" << type_view->getString() << "'.");
 
   SLIC_ERROR_IF(!group->hasGroup("elements"),
-                "sidre::Group "
-                  << group->getPathName()
-                  << " does not conform to mesh blueprint. No 'elements' group "
-                  << "found.");
+                "sidre::Group " << group->getPathName()
+                                << " does not conform to mesh blueprint. No 'elements' group "
+                                << "found.");
   sidre::Group* elems_group = group->getGroup("elements");
 
   SLIC_ERROR_IF(!elems_group->hasView("shape"),
-                "sidre::Group "
-                  << group->getPathName()
-                  << " does not conform to mesh blueprint. The elements group "
-                  << "does not have a child view 'shape'.");
+                "sidre::Group " << group->getPathName()
+                                << " does not conform to mesh blueprint. The elements group "
+                                << "does not have a child view 'shape'.");
 
   sidre::View* shape_view = elems_group->getView("shape");
   std::string bp_name = shape_view->getString();
@@ -108,18 +99,16 @@ inline CellType initializeFromGroup(
   }
 
   SLIC_ERROR_IF(!elems_group->hasView("connectivity"),
-                "sidre::Group "
-                  << group->getPathName()
-                  << " does not conform to mesh blueprint. The elements group "
-                  << "does not have a child view 'connectivity'.");
+                "sidre::Group " << group->getPathName()
+                                << " does not conform to mesh blueprint. The elements group "
+                                << "does not have a child view 'connectivity'.");
 
   sidre::View* connec_view = elems_group->getView("connectivity");
   m_values = std::make_unique<sidre::Array<IndexType>>(connec_view);
 
   {
     SLIC_ERROR_IF(!elems_group->hasView("offsets"),
-                  "sidre::Group " << group->getPathName()
-                                  << " does not conform to mesh blueprint.");
+                  "sidre::Group " << group->getPathName() << " does not conform to mesh blueprint.");
 
     sidre::View* offsets_view = elems_group->getView("offsets");
     m_offsets = std::make_unique<sidre::Array<IndexType>>(offsets_view);
@@ -134,8 +123,7 @@ inline CellType initializeFromGroup(
 
   {
     SLIC_ERROR_IF(!elems_group->hasView("types"),
-                  "sidre::Group " << group->getPathName()
-                                  << " does not conform to mesh blueprint.");
+                  "sidre::Group " << group->getPathName() << " does not conform to mesh blueprint.");
 
     sidre::View* elem_type_view = elems_group->getView("types");
     m_types = std::make_unique<sidre::Array<CellType>>(elem_type_view);
@@ -157,51 +145,42 @@ inline CellType initializeFromGroup(
  * \pre group != nullptr
  * \pre m_values != nullptr
  */
-inline CellType initializeFromGroup(
-  sidre::Group* group,
-  std::unique_ptr<axom::Array<IndexType, 2>>& m_values)
+inline CellType initializeFromGroup(sidre::Group* group,
+                                    std::unique_ptr<axom::Array<IndexType, 2>>& m_values)
 {
   SLIC_ERROR_IF(group == nullptr, "sidre::Group pointer must not be null.");
 
   SLIC_ERROR_IF(
     !group->hasView("coordset"),
-    "sidre::Group "
-      << group->getPathName()
-      << " does not conform to mesh blueprint. No child view 'coordset'.");
-  SLIC_ERROR_IF(
-    !group->getView("coordset")->isString(),
-    "sidre::Group "
-      << group->getPathName()
-      << " does not conform to mesh blueprint. Child view 'coordset' "
-      << "does not hold a string.");
+    "sidre::Group " << group->getPathName()
+                    << " does not conform to mesh blueprint. No child view 'coordset'.");
+  SLIC_ERROR_IF(!group->getView("coordset")->isString(),
+                "sidre::Group " << group->getPathName()
+                                << " does not conform to mesh blueprint. Child view 'coordset' "
+                                << "does not hold a string.");
 
-  SLIC_ERROR_IF(
-    !group->hasView("type"),
-    "sidre::Group "
-      << group->getPathName()
-      << " does not conform to mesh blueprint. No child view 'type'.");
+  SLIC_ERROR_IF(!group->hasView("type"),
+                "sidre::Group " << group->getPathName()
+                                << " does not conform to mesh blueprint. No child view 'type'.");
   sidre::View* type_view = group->getView("type");
   SLIC_ERROR_IF(!type_view->isString(),
-                "sidre::Group "
-                  << group->getPathName()
-                  << " does not conform to mesh blueprint. Child view 'type' "
-                  << "does not hold a string.");
-  SLIC_ERROR_IF(std::strcmp(type_view->getString(), "unstructured") != 0,
-                "Incorrect type found. Expected 'unstructured' but got '"
-                  << type_view->getString() << "'.");
+                "sidre::Group " << group->getPathName()
+                                << " does not conform to mesh blueprint. Child view 'type' "
+                                << "does not hold a string.");
+  SLIC_ERROR_IF(
+    std::strcmp(type_view->getString(), "unstructured") != 0,
+    "Incorrect type found. Expected 'unstructured' but got '" << type_view->getString() << "'.");
 
   SLIC_ERROR_IF(!group->hasGroup("elements"),
-                "sidre::Group "
-                  << group->getPathName()
-                  << " does not conform to mesh blueprint. No 'elements' group "
-                  << "found.");
+                "sidre::Group " << group->getPathName()
+                                << " does not conform to mesh blueprint. No 'elements' group "
+                                << "found.");
   sidre::Group* elems_group = group->getGroup("elements");
 
   SLIC_ERROR_IF(!elems_group->hasView("shape"),
-                "sidre::Group "
-                  << group->getPathName()
-                  << " does not conform to mesh blueprint. The elements group "
-                  << "does not have a child view 'shape'.");
+                "sidre::Group " << group->getPathName()
+                                << " does not conform to mesh blueprint. The elements group "
+                                << "does not have a child view 'shape'.");
 
   sidre::View* shape_view = elems_group->getView("shape");
   std::string bp_name = shape_view->getString();
@@ -217,10 +196,9 @@ inline CellType initializeFromGroup(
   }
 
   SLIC_ERROR_IF(!elems_group->hasView("connectivity"),
-                "sidre::Group "
-                  << group->getPathName()
-                  << " does not conform to mesh blueprint. The elements group "
-                  << "does not have a child view 'connectivity'.");
+                "sidre::Group " << group->getPathName()
+                                << " does not conform to mesh blueprint. The elements group "
+                                << "does not have a child view 'connectivity'.");
 
   sidre::View* connec_view = elems_group->getView("connectivity");
   m_values = std::make_unique<sidre::MCArray<IndexType>>(connec_view);
@@ -252,9 +230,8 @@ inline void initializeGroup(sidre::Group* group,
   group->createView("coordset")->setString(coordset);
   group->createView("type")->setString("unstructured");
 
-  const std::string bp_name = (cell_type == UNDEFINED_CELL)
-    ? "mixed"
-    : getCellInfo(cell_type).blueprint_name;
+  const std::string bp_name =
+    (cell_type == UNDEFINED_CELL) ? "mixed" : getCellInfo(cell_type).blueprint_name;
 
   sidre::Group* elems_group = group->createGroup("elements");
   elems_group->createView("shape")->setString(bp_name);

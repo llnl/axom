@@ -55,9 +55,7 @@ struct FaceTypeCellsNodes
 {
   FaceTypeCellsNodes() : facetype(UNDEFINED_CELL) { }
 
-  FaceTypeCellsNodes(CellType ftype,
-                     std::vector<IndexType>& fcells,
-                     std::vector<IndexType>& fnodes)
+  FaceTypeCellsNodes(CellType ftype, std::vector<IndexType>& fcells, std::vector<IndexType>& fnodes)
     : facetype(ftype)
     , facecells(fcells)
     , facenodes(fnodes)
@@ -84,9 +82,8 @@ bool initFaces(Mesh* mesh,
   facecount = 0;
 
   using IDtoKeyType = std::unordered_map<IndexType, std::vector<IndexType>>;
-  using FaceBuilderType = std::map<std::vector<IndexType>,
-                                   FaceTypeCellsNodes,
-                                   utilities::LexiComparator<IndexType>>;
+  using FaceBuilderType =
+    std::map<std::vector<IndexType>, FaceTypeCellsNodes, utilities::LexiComparator<IndexType>>;
   FaceBuilderType workface;
 
   // Iterate over each cell.
@@ -195,8 +192,7 @@ bool initFaces(Mesh* mesh,
   f2noffsets[facecount] = faceNodeOffset;
 
   // Step 4. Now that we have face IDs, record cell-to-face relation.
-  using CellFaceBuilderType =
-    std::unordered_map<IndexType, std::vector<IndexType>>;
+  using CellFaceBuilderType = std::unordered_map<IndexType, std::vector<IndexType>>;
 
   CellFaceBuilderType cell_to_face;
   int cellFaceCount = 0;

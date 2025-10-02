@@ -60,10 +60,8 @@ TEST(utils_annotations, print_adiak_metadata)
   EXPECT_TRUE(default_metadata.find("user") != default_metadata.end());
 
   // but other metadata is not present before we register it
-  EXPECT_TRUE(default_metadata.find("custom_int_metadata") ==
-              default_metadata.end());
-  EXPECT_TRUE(default_metadata.find("custom_str_metadata") ==
-              default_metadata.end());
+  EXPECT_TRUE(default_metadata.find("custom_int_metadata") == default_metadata.end());
+  EXPECT_TRUE(default_metadata.find("custom_str_metadata") == default_metadata.end());
 #endif
 
   // register some additional metadata
@@ -81,10 +79,8 @@ TEST(utils_annotations, print_adiak_metadata)
   EXPECT_TRUE(updated_metadata.find("user") != updated_metadata.end());
 
   // but other metadata is not present before we register it
-  EXPECT_TRUE(updated_metadata.find("custom_int_metadata") !=
-              updated_metadata.end());
-  EXPECT_TRUE(updated_metadata.find("custom_str_metadata") !=
-              updated_metadata.end());
+  EXPECT_TRUE(updated_metadata.find("custom_int_metadata") != updated_metadata.end());
+  EXPECT_TRUE(updated_metadata.find("custom_str_metadata") != updated_metadata.end());
 
   EXPECT_EQ(std::to_string(42), updated_metadata["custom_int_metadata"]);
   EXPECT_EQ("arbitrary string", updated_metadata["custom_str_metadata"]);
@@ -113,8 +109,7 @@ TEST(utils_annotations, check_modes)
 {
   EXPECT_TRUE(axom::utilities::annotations::detail::is_mode_valid("none"));
 
-  for(const auto &m :
-      {"counts", "file", "trace", "report", "gputx", "nvprof", "nvtx", "roctx"})
+  for(const auto &m : {"counts", "file", "trace", "report", "gputx", "nvprof", "nvtx", "roctx"})
   {
 #ifdef AXOM_USE_CALIPER
     EXPECT_TRUE(axom::utilities::annotations::detail::is_mode_valid(m));
@@ -172,8 +167,7 @@ TEST(utils_annotations, print_help)
   if(s_annotation_mode == "none" && num_ranks == 1 && my_rank == 0)
   {
     std::cout << "Caliper help string: \n"
-              << axom::utilities::annotations::detail::mode_help_string()
-              << std::endl;
+              << axom::utilities::annotations::detail::mode_help_string() << std::endl;
   }
 
   SUCCEED();
@@ -191,8 +185,7 @@ int main(int argc, char **argv)
 
   // Parse annotation mode for the current test invocation
   axom::CLI::App app {"Axom annotation tests"};
-  app.add_option("-m,--mode", s_annotation_mode, "Annotation mode")
-    ->capture_default_str();
+  app.add_option("-m,--mode", s_annotation_mode, "Annotation mode")->capture_default_str();
   CLI11_PARSE(app, argc, argv);
 
   // run tests

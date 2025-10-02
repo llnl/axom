@@ -161,8 +161,7 @@ inline void destroy_func_inst<void>(FunctionBuffer*)
 class FunctionWrapper
 {
 private:
-  using StorageType =
-    std::unique_ptr<detail::FunctionBuffer, void (*)(detail::FunctionBuffer*)>;
+  using StorageType = std::unique_ptr<detail::FunctionBuffer, void (*)(detail::FunctionBuffer*)>;
 
 public:
   /*!
@@ -179,18 +178,16 @@ public:
   template <typename FuncType>
   FunctionWrapper(std::function<FuncType>&& func)
   {
-    static_assert(
-      alignof(std::function<FuncType>) == detail::FunctionBuffer::Alignment,
-      "std::function does not have the same alignment across all instances.");
-    static_assert(
-      sizeof(std::function<FuncType>) == detail::FunctionBuffer::Size,
-      "std::function does not have the same size across all instances.");
+    static_assert(alignof(std::function<FuncType>) == detail::FunctionBuffer::Alignment,
+                  "std::function does not have the same alignment across all instances.");
+    static_assert(sizeof(std::function<FuncType>) == detail::FunctionBuffer::Size,
+                  "std::function does not have the same size across all instances.");
 
     m_function_valid = static_cast<bool>(func);
 
     // Use unique_ptr to hold the destructor for this function type
-    m_func = StorageType {new detail::FunctionBuffer,
-                          &detail::destroy_func_inst<std::function<FuncType>>};
+    m_func =
+      StorageType {new detail::FunctionBuffer, &detail::destroy_func_inst<std::function<FuncType>>};
     // Construct function object in-place in byte storage
     new(m_func.get()) std::function<FuncType>(std::move(func));
     // Store the type information of the passed-in std::function
@@ -214,44 +211,35 @@ public:
   template <typename Ret, typename... Args>
   Ret call(Args&&... args) const
   {
-    using FuncType =
-      std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)>;
-    SLIC_ERROR_IF(
-      typeid(FuncType) != m_func_type.get(),
-      fmt::format(
-        "[Inlet] Attempted to call function '{0}' with incorrect type.\n"
-        " - Stored type: {1}\n"
-        " - Expected type: {2}\n",
-        m_name,
-        m_func_type.get().name(),
-        typeid(FuncType).name()));
+    using FuncType = std::function<Ret(typename detail::inlet_function_arg_type<Args>::type...)>;
+    SLIC_ERROR_IF(typeid(FuncType) != m_func_type.get(),
+                  fmt::format("[Inlet] Attempted to call function '{0}' with incorrect type.\n"
+                              " - Stored type: {1}\n"
+                              " - Expected type: {2}\n",
+                              m_name,
+                              m_func_type.get().name(),
+                              typeid(FuncType).name()));
 
     FuncType* ptr = reinterpret_cast<FuncType*>(m_func.get());
     SLIC_ERROR_IF(
       !m_function_valid || !(*ptr),
-      fmt::format(
-        "[Inlet] No valid function '{0} assigned to function wrapper.",
-        m_name));
+      fmt::format("[Inlet] No valid function '{0} assigned to function wrapper.", m_name));
 
     const auto& func = *ptr;
-    return func(
-      std::forward<typename detail::inlet_function_arg_type<Args>::type>(args)...);
+    return func(std::forward<typename detail::inlet_function_arg_type<Args>::type>(args)...);
   }
 
   template <typename FuncType>
   std::function<FuncType> get() const
   {
-    using StoredFuncType =
-      std::function<typename detail::cleanup_function_signature<FuncType>::type>;
-    SLIC_ERROR_IF(
-      typeid(StoredFuncType) != m_func_type.get(),
-      fmt::format(
-        "[Inlet] Attempted to get function '{0}' with incorrect type.\n"
-        " - Stored type: {1}\n"
-        " - Expected type: {2}\n",
-        m_name,
-        m_func_type.get().name(),
-        typeid(StoredFuncType).name()));
+    using StoredFuncType = std::function<typename detail::cleanup_function_signature<FuncType>::type>;
+    SLIC_ERROR_IF(typeid(StoredFuncType) != m_func_type.get(),
+                  fmt::format("[Inlet] Attempted to get function '{0}' with incorrect type.\n"
+                              " - Stored type: {1}\n"
+                              " - Expected type: {2}\n",
+                              m_name,
+                              m_func_type.get().name(),
+                              typeid(StoredFuncType).name()));
 
     StoredFuncType* ptr = reinterpret_cast<StoredFuncType*>(m_func.get());
 
@@ -288,9 +276,7 @@ using FunctionVariant = FunctionWrapper;
 class Function : public Verifiable<Function>
 {
 public:
-  Function(axom::sidre::Group* sidreGroup,
-           axom::sidre::Group* root,
-           FunctionVariant&& func)
+  Function(axom::sidre::Group* sidreGroup, axom::sidre::Group* root, FunctionVariant&& func)
     : m_sidreGroup(sidreGroup)
     , m_sidreRootGroup(root)
     , m_func(std::move(func))

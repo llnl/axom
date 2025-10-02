@@ -35,10 +35,7 @@ struct BasicTriMeshData
   static const IndexType vert_to_el_num[];  // for verification purpose
   static const IndexType el_nbr_rel[];
 
-  BasicTriMeshData()
-    : points(point_arr, point_arr + 24)
-    , elem(tri_arr, tri_arr + 36)
-  { }
+  BasicTriMeshData() : points(point_arr, point_arr + 24), elem(tri_arr, tri_arr + 36) { }
 
   static int numVertices() { return 8; }
   static int numTriangles() { return 12; }
@@ -100,10 +97,7 @@ struct BasicTetMeshData
   static const IndexType vert_to_el_num[];
   static const IndexType el_nbr_rel[];
 
-  BasicTetMeshData()
-    : points(point_arr, point_arr + 24)
-    , elem(tet_arr, tet_arr + 24)
-  { }
+  BasicTetMeshData() : points(point_arr, point_arr + 24), elem(tet_arr, tet_arr + 24) { }
 
   static int numVertices() { return 8; }
   static int numTetrahedra() { return 6; }
@@ -265,8 +259,8 @@ TEST(slam_IA, basic_tri_mesh)
     for(auto nbr : neighbors)
     {
       EXPECT_TRUE(isAdjacent(ia_mesh, nbr, e))
-        << "Element adjacency relation indicates that " << nbr
-        << " should be adjacent to element " << e << " but it is not";
+        << "Element adjacency relation indicates that " << nbr << " should be adjacent to element "
+        << e << " but it is not";
     }
   }
 
@@ -345,8 +339,8 @@ TEST(slam_IA, dynamically_build_tri_mesh)
   {
     IndexType el = ia_mesh.coboundaryElement(v);
     EXPECT_TRUE(isInBoundary(ia_mesh, v, el))
-      << "Vertex co-boundary relation indicates that " << v
-      << " should be in boundary of element " << el << " but it is not";
+      << "Vertex co-boundary relation indicates that " << v << " should be in boundary of element "
+      << el << " but it is not";
   }
 
   // Check the element adjacencies are correct
@@ -357,8 +351,8 @@ TEST(slam_IA, dynamically_build_tri_mesh)
     for(auto nbr : neighbors)
     {
       EXPECT_TRUE(isAdjacent(ia_mesh, nbr, e))
-        << "Element adjacency relation indicates that " << nbr
-        << " should be adjacent to element " << e << " but it is not";
+        << "Element adjacency relation indicates that " << nbr << " should be adjacent to element "
+        << e << " but it is not";
     }
   }
 }
@@ -389,8 +383,7 @@ TEST(slam_IA, tri_mesh_remove_verts_and_elems)
   EXPECT_FALSE(ia_mesh.isEmpty());
 
   EXPECT_TRUE(ia_mesh.isValid(true));
-  EXPECT_EQ(basic_mesh_data.numTriangles() - 4,
-            ia_mesh.getNumberOfValidElements());
+  EXPECT_EQ(basic_mesh_data.numTriangles() - 4, ia_mesh.getNumberOfValidElements());
 
   //removing vertex 1, which the removed elements contain
   ia_mesh.removeVertex(1);
@@ -398,10 +391,8 @@ TEST(slam_IA, tri_mesh_remove_verts_and_elems)
   EXPECT_TRUE(ia_mesh.isValid());
   EXPECT_FALSE(ia_mesh.isEmpty());
 
-  EXPECT_EQ(basic_mesh_data.numTriangles() - 4,
-            ia_mesh.getNumberOfValidElements());
-  EXPECT_EQ(basic_mesh_data.numVertices() - 1,
-            ia_mesh.getNumberOfValidVertices());
+  EXPECT_EQ(basic_mesh_data.numTriangles() - 4, ia_mesh.getNumberOfValidElements());
+  EXPECT_EQ(basic_mesh_data.numVertices() - 1, ia_mesh.getNumberOfValidVertices());
 
   // Check the validity of the set entries
   for(auto v_i : ia_mesh.vertices().positions())
@@ -424,8 +415,7 @@ TEST(slam_IA, tri_mesh_remove_verts_and_elems)
       int orig_nbr = basic_mesh_data.el_nbr_rel[e_idx * vert_per_elem + n_idx];
       if(orig_nbr > 7 || e_idx > 7)
       {
-        EXPECT_EQ(neighbors[n_idx],
-                  IAMeshType::ElementAdjacencyRelation::INVALID_INDEX);
+        EXPECT_EQ(neighbors[n_idx], IAMeshType::ElementAdjacencyRelation::INVALID_INDEX);
       }
       else
       {
@@ -467,14 +457,12 @@ TEST(slam_IA, tri_mesh_remove_elem_and_compact)
 
   ia_mesh.removeElement(4);
   EXPECT_TRUE(ia_mesh.isValid());
-  EXPECT_EQ(basic_mesh_data.numTriangles() - 1,
-            ia_mesh.getNumberOfValidElements());
+  EXPECT_EQ(basic_mesh_data.numTriangles() - 1, ia_mesh.getNumberOfValidElements());
   EXPECT_EQ(basic_mesh_data.numVertices(), ia_mesh.getNumberOfValidVertices());
 
   ia_mesh.compact();
   EXPECT_TRUE(ia_mesh.isValid());
-  EXPECT_EQ(basic_mesh_data.numTriangles() - 1,
-            ia_mesh.getNumberOfValidElements());
+  EXPECT_EQ(basic_mesh_data.numTriangles() - 1, ia_mesh.getNumberOfValidElements());
   EXPECT_EQ(basic_mesh_data.numVertices(), ia_mesh.getNumberOfValidVertices());
 }
 
@@ -495,17 +483,13 @@ TEST(slam_IA, tri_mesh_remove_vert_and_compact)
 
   ia_mesh.removeVertex(3);
   EXPECT_TRUE(ia_mesh.isValid());
-  EXPECT_EQ(basic_mesh_data.numTriangles() - 4,
-            ia_mesh.getNumberOfValidElements());
-  EXPECT_EQ(basic_mesh_data.numVertices() - 1,
-            ia_mesh.getNumberOfValidVertices());
+  EXPECT_EQ(basic_mesh_data.numTriangles() - 4, ia_mesh.getNumberOfValidElements());
+  EXPECT_EQ(basic_mesh_data.numVertices() - 1, ia_mesh.getNumberOfValidVertices());
 
   ia_mesh.compact();
   EXPECT_TRUE(ia_mesh.isValid());
-  EXPECT_EQ(basic_mesh_data.numTriangles() - 4,
-            ia_mesh.getNumberOfValidElements());
-  EXPECT_EQ(basic_mesh_data.numVertices() - 1,
-            ia_mesh.getNumberOfValidVertices());
+  EXPECT_EQ(basic_mesh_data.numTriangles() - 4, ia_mesh.getNumberOfValidElements());
+  EXPECT_EQ(basic_mesh_data.numVertices() - 1, ia_mesh.getNumberOfValidVertices());
 }
 
 TEST(slam_IA, basic_tet_mesh)
@@ -579,8 +563,7 @@ TEST(slam_IA, dynamically_build_tet_mesh)
   //build the mesh from nothing
 
   //adding the vertices
-  for(int vert_i = 0; vert_i < (int)basic_mesh_data.points.size();
-      vert_i += coord_per_vert)
+  for(int vert_i = 0; vert_i < (int)basic_mesh_data.points.size(); vert_i += coord_per_vert)
   {
     PointType pt(&basic_mesh_data.points[vert_i]);
     ia_mesh.addVertex(pt);
@@ -588,8 +571,7 @@ TEST(slam_IA, dynamically_build_tet_mesh)
   }
 
   //adding the elements
-  for(int elem_i = 0; elem_i < (int)basic_mesh_data.elem.size();
-      elem_i += vert_per_elem)
+  for(int elem_i = 0; elem_i < (int)basic_mesh_data.elem.size(); elem_i += vert_per_elem)
   {
     ia_mesh.addElement(basic_mesh_data.elem[elem_i],
                        basic_mesh_data.elem[elem_i + 1],
@@ -630,8 +612,7 @@ TEST(slam_IA, dynamically_build_tet_mesh)
     EXPECT_EQ(vert_per_elem, neighbors.size());
     for(auto idx : neighbors.positions())
     {
-      EXPECT_EQ(neighbors[idx],
-                basic_mesh_data.el_nbr_rel[e * vert_per_elem + idx]);
+      EXPECT_EQ(neighbors[idx], basic_mesh_data.el_nbr_rel[e * vert_per_elem + idx]);
     }
   }
 
@@ -644,11 +625,9 @@ TEST(slam_IA, dynamically_build_tet_mesh)
 
   ia_mesh.isValid();
 
-  EXPECT_EQ(basic_mesh_data.numTetrahedra() - 2,
-            ia_mesh.getNumberOfValidElements());
+  EXPECT_EQ(basic_mesh_data.numTetrahedra() - 2, ia_mesh.getNumberOfValidElements());
 
-  EXPECT_EQ(basic_mesh_data.numVertices() - 1,
-            ia_mesh.getNumberOfValidVertices());
+  EXPECT_EQ(basic_mesh_data.numVertices() - 1, ia_mesh.getNumberOfValidVertices());
 
   //check the validity of the set entries
   for(auto idx : ia_mesh.elements().positions())
@@ -670,8 +649,7 @@ TEST(slam_IA, dynamically_build_tet_mesh)
       }
       else
       {
-        EXPECT_EQ(neighbors[n_idx],
-                  IAMeshType::ElementAdjacencyRelation::INVALID_INDEX);
+        EXPECT_EQ(neighbors[n_idx], IAMeshType::ElementAdjacencyRelation::INVALID_INDEX);
       }
     }
   }
@@ -746,14 +724,12 @@ TEST(slam_IA, tet_mesh_remove_elem_and_compact)
 
   ia_mesh.removeElement(4);
   EXPECT_TRUE(ia_mesh.isValid());
-  EXPECT_EQ(basic_mesh_data.numTetrahedra() - 1,
-            ia_mesh.getNumberOfValidElements());
+  EXPECT_EQ(basic_mesh_data.numTetrahedra() - 1, ia_mesh.getNumberOfValidElements());
   EXPECT_EQ(basic_mesh_data.numVertices(), ia_mesh.getNumberOfValidVertices());
 
   ia_mesh.compact();
   EXPECT_TRUE(ia_mesh.isValid());
-  EXPECT_EQ(basic_mesh_data.numTetrahedra() - 1,
-            ia_mesh.getNumberOfValidElements());
+  EXPECT_EQ(basic_mesh_data.numTetrahedra() - 1, ia_mesh.getNumberOfValidElements());
   EXPECT_EQ(basic_mesh_data.numVertices(), ia_mesh.getNumberOfValidVertices());
 }
 
@@ -774,17 +750,13 @@ TEST(slam_IA, tet_mesh_remove_vert_and_compact)
 
   ia_mesh.removeVertex(2);
   EXPECT_TRUE(ia_mesh.isValid());
-  EXPECT_EQ(basic_mesh_data.numTetrahedra() - 2,
-            ia_mesh.getNumberOfValidElements());
-  EXPECT_EQ(basic_mesh_data.numVertices() - 1,
-            ia_mesh.getNumberOfValidVertices());
+  EXPECT_EQ(basic_mesh_data.numTetrahedra() - 2, ia_mesh.getNumberOfValidElements());
+  EXPECT_EQ(basic_mesh_data.numVertices() - 1, ia_mesh.getNumberOfValidVertices());
 
   ia_mesh.compact();
   EXPECT_TRUE(ia_mesh.isValid());
-  EXPECT_EQ(basic_mesh_data.numTetrahedra() - 2,
-            ia_mesh.getNumberOfValidElements());
-  EXPECT_EQ(basic_mesh_data.numVertices() - 1,
-            ia_mesh.getNumberOfValidVertices());
+  EXPECT_EQ(basic_mesh_data.numTetrahedra() - 2, ia_mesh.getNumberOfValidElements());
+  EXPECT_EQ(basic_mesh_data.numVertices() - 1, ia_mesh.getNumberOfValidVertices());
 }
 
 //----------------------------------------------------------------------

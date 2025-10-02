@@ -63,15 +63,13 @@ Datum::Datum(conduit::Node const &asNode)
 {
   //Need to determine what type of Datum we have: Scalar (double), String,
   //or list of one of those two.
-  conduit::Node valueNode =
-    getRequiredField(VALUE_FIELD, asNode, DATA_PARENT_TYPE);
+  conduit::Node valueNode = getRequiredField(VALUE_FIELD, asNode, DATA_PARENT_TYPE);
   if(valueNode.dtype().is_string())
   {
     stringValue = valueNode.as_string();
     type = ValueType::String;
   }
-  else if(valueNode.dtype().is_number() &&
-          valueNode.dtype().number_of_elements() == 1)
+  else if(valueNode.dtype().is_number() && valueNode.dtype().number_of_elements() == 1)
   {
     scalarValue = valueNode.to_double();
     type = ValueType::Scalar;
@@ -109,8 +107,7 @@ Datum::Datum(conduit::Node const &asNode)
     {
       std::ostringstream message;
       message << "The only valid types for an array '" << VALUE_FIELD
-              << "' are strings and numbers. Got '" << valueNode.to_json()
-              << "'";
+              << "' are strings and numbers. Got '" << valueNode.to_json() << "'";
       throw std::invalid_argument(message.str());
     }
 
@@ -129,11 +126,9 @@ Datum::Datum(conduit::Node const &asNode)
       else
       {
         std::ostringstream message;
-        message
-          << "If the required field '" << VALUE_FIELD
-          << "' is an array, it must consist of only strings or only numbers, "
-          << "but got '" << entry.dtype().name() << "' (" << entry.to_json()
-          << ")";
+        message << "If the required field '" << VALUE_FIELD
+                << "' is an array, it must consist of only strings or only numbers, "
+                << "but got '" << entry.dtype().name() << "' (" << entry.to_json() << ")";
         throw std::invalid_argument(message.str());
       }
     }
@@ -141,9 +136,8 @@ Datum::Datum(conduit::Node const &asNode)
   else
   {
     std::ostringstream message;
-    message
-      << "The required field '" << VALUE_FIELD
-      << "' must be a string, double, list of strings, or list of doubles.";
+    message << "The required field '" << VALUE_FIELD
+            << "' must be a string, double, list of strings, or list of doubles.";
     throw std::invalid_argument(message.str());
   }
 
@@ -164,8 +158,7 @@ Datum::Datum(conduit::Node const &asNode)
       else
       {
         std::ostringstream message;
-        message << "The optional field '" << TAGS_FIELD
-                << "' must be an array of strings. Found '"
+        message << "The optional field '" << TAGS_FIELD << "' must be an array of strings. Found '"
                 << tag.dtype().name() << "' instead.";
         throw std::invalid_argument(message.str());
       }

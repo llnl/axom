@@ -158,6 +158,13 @@ public:
   }
 
   /*!
+   * \brief Return the number of vertices in a Hexahedron.
+   *
+   * \return The number of vertices in a Hexahedron.
+   */
+  AXOM_HOST_DEVICE static constexpr int numVertices() { return NUM_HEX_VERTS; }
+
+  /*!
    * \brief Index operator to get the i^th vertex
    * \param idx The index of the desired vertex
    * \pre idx is 0, 1, 2, 3, 4, 5, 6, or 7
@@ -215,18 +222,18 @@ public:
   {
     constexpr double scale = 1. / 12.;
     return scale *
-      (VectorType::scalar_triple_product(VectorType(m_points[6] - m_points[3]) +
-                                           VectorType(m_points[5] - m_points[0]),
-                                         VectorType(m_points[6] - m_points[4]),
-                                         VectorType(m_points[7] - m_points[0])) +
-       VectorType::scalar_triple_product(VectorType(m_points[5] - m_points[0]),
-                                         VectorType(m_points[6] - m_points[4]) +
-                                           VectorType(m_points[2] - m_points[0]),
-                                         VectorType(m_points[6] - m_points[1])) +
-       VectorType::scalar_triple_product(VectorType(m_points[6] - m_points[3]),
-                                         VectorType(m_points[2] - m_points[0]),
-                                         VectorType(m_points[6] - m_points[1]) +
-                                           VectorType(m_points[7] - m_points[0])));
+      (VectorType::scalar_triple_product(
+         VectorType(m_points[6] - m_points[3]) + VectorType(m_points[5] - m_points[0]),
+         VectorType(m_points[6] - m_points[4]),
+         VectorType(m_points[7] - m_points[0])) +
+       VectorType::scalar_triple_product(
+         VectorType(m_points[5] - m_points[0]),
+         VectorType(m_points[6] - m_points[4]) + VectorType(m_points[2] - m_points[0]),
+         VectorType(m_points[6] - m_points[1])) +
+       VectorType::scalar_triple_product(
+         VectorType(m_points[6] - m_points[3]),
+         VectorType(m_points[2] - m_points[0]),
+         VectorType(m_points[6] - m_points[1]) + VectorType(m_points[7] - m_points[0])));
   }
 
   /*!
@@ -247,37 +254,34 @@ public:
    * \param tets [out] The tetrahedrons
    *
    * \note Assumes tets is pre-allocated
+   *
+   * \tparam TetIndexable An indexable container of NUM_TRIANGULATE
+   * TetrahedronType objects.
    */
-  AXOM_HOST_DEVICE
-  void triangulate(axom::StackArray<TetrahedronType, NUM_TRIANGULATE>& tets) const
+  template <typename TetIndexable>
+  AXOM_HOST_DEVICE void triangulate(TetIndexable& tets) const
   {
     // Hex center (hc)
     PointType hc = vertexMean();
 
     //Face means (fm)
-    PointType fm1 =
-      PointType::midpoint(PointType::midpoint(m_points[0], m_points[1]),
-                          PointType::midpoint(m_points[2], m_points[3]));
+    PointType fm1 = PointType::midpoint(PointType::midpoint(m_points[0], m_points[1]),
+                                        PointType::midpoint(m_points[2], m_points[3]));
 
-    PointType fm2 =
-      PointType::midpoint(PointType::midpoint(m_points[0], m_points[1]),
-                          PointType::midpoint(m_points[4], m_points[5]));
+    PointType fm2 = PointType::midpoint(PointType::midpoint(m_points[0], m_points[1]),
+                                        PointType::midpoint(m_points[4], m_points[5]));
 
-    PointType fm3 =
-      PointType::midpoint(PointType::midpoint(m_points[0], m_points[3]),
-                          PointType::midpoint(m_points[4], m_points[7]));
+    PointType fm3 = PointType::midpoint(PointType::midpoint(m_points[0], m_points[3]),
+                                        PointType::midpoint(m_points[4], m_points[7]));
 
-    PointType fm4 =
-      PointType::midpoint(PointType::midpoint(m_points[1], m_points[2]),
-                          PointType::midpoint(m_points[5], m_points[6]));
+    PointType fm4 = PointType::midpoint(PointType::midpoint(m_points[1], m_points[2]),
+                                        PointType::midpoint(m_points[5], m_points[6]));
 
-    PointType fm5 =
-      PointType::midpoint(PointType::midpoint(m_points[2], m_points[3]),
-                          PointType::midpoint(m_points[6], m_points[7]));
+    PointType fm5 = PointType::midpoint(PointType::midpoint(m_points[2], m_points[3]),
+                                        PointType::midpoint(m_points[6], m_points[7]));
 
-    PointType fm6 =
-      PointType::midpoint(PointType::midpoint(m_points[4], m_points[5]),
-                          PointType::midpoint(m_points[6], m_points[7]));
+    PointType fm6 = PointType::midpoint(PointType::midpoint(m_points[4], m_points[5]),
+                                        PointType::midpoint(m_points[6], m_points[7]));
 
     // Initialize tets
     tets[0] = TetrahedronType(hc, m_points[1], m_points[0], fm1);
@@ -329,8 +333,7 @@ public:
     {
       for(int theirvert = 0; theirvert < NUM_HEX_VERTS; ++theirvert)
       {
-        if(!matched[theirvert] &&
-           squared_distance(m_points[ourvert], other[theirvert]) < eps)
+        if(!matched[theirvert] && squared_distance(m_points[ourvert], other[theirvert]) < eps)
         {
           matched[theirvert] = 1;
         }
@@ -352,9 +355,8 @@ public:
    */
   std::ostream& print(std::ostream& os) const
   {
-    os << "{" << m_points[0] << " " << m_points[1] << " " << m_points[2] << " "
-       << m_points[3] << " " << m_points[4] << " " << m_points[5] << " "
-       << m_points[6] << " " << m_points[7] << "}";
+    os << "{" << m_points[0] << " " << m_points[1] << " " << m_points[2] << " " << m_points[3] << " "
+       << m_points[4] << " " << m_points[5] << " " << m_points[6] << " " << m_points[7] << "}";
 
     return os;
   }

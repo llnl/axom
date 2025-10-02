@@ -14,46 +14,36 @@ spack:
     build_stage::
     - $spack/../build_stage
 
-  compilers::
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      # Axom example sidre_shocktube_F_ex doesn't link otherwise
-      flags:
-        cflags: -fPIC -pthread
-        cxxflags: -fPIC -pthread
-      modules: []
-      operating_system: ubuntu22.04
-      paths:
-        cc: /usr/bin/clang
-        cxx: /usr/bin/clang++
-        f77: /usr/bin/gfortran-11
-        fc: /usr/bin/gfortran-11
-      spec: clang@14.0.0
-      target: x86_64
-  - compiler:
-      environment: {}
-      extra_rpaths: []
-      flags:
-        cflags: -pthread
-        cxxflags: -pthread
-      modules: []
-      operating_system: ubuntu22.04
-      paths:
-        cc: /usr/bin/gcc
-        cxx: /usr/bin/g++
-        f77: /usr/bin/gfortran-13
-        fc: /usr/bin/gfortran-13
-      spec: gcc@13.1.0
-      target: x86_64
+  toolchains:
+    clang_14:
+    - spec: '%c=llvm'
+      when: '%c'
+    - spec: '%cxx=llvm'
+      when: '%cxx'
+    - spec: '%fortran=gcc@11.4.0'
+      when: '%fortran'
+    - spec: '%mpich'
+      when: '%mpi'
+    gcc_13:
+    - spec: '%c=gcc@13.3.1'
+      when: '%c'
+    - spec: '%cxx=gcc@13.3.1'
+      when: '%cxx'
+    - spec: '%fortran=gcc@13.3.1'
+      when: '%fortran'
+    - spec: '%mpich'
+      when: '%mpi'
 
   # Regular TPLs do not need views
   view: false
 
+  include:
+  - ../defaults.yaml
+  - ../versions.yaml
+
   packages:
     all:
       target: [x86_64]
-      compiler: [gcc, intel, pgi, clang, xl, nag]
       providers:
         awk: [gawk]
         blas: [openblas]
@@ -73,6 +63,42 @@ spack:
         szip: [libszip, libaec]
         tbb: [intel-tbb]
         jpeg: [libjpeg-turbo, libjpeg]
+
+    #Compiler packages
+    gcc:
+      externals:
+      - spec: gcc@13.3.1 languages:=c,c++,fortran
+        prefix: /usr/bin
+        extra_attributes:
+          compilers:
+            c: /usr/bin/gcc
+            cxx: /usr/bin/g++
+            fortran: /usr/bin/gfortran-13
+        flags:
+          cflags: -pthread
+          cxxflags: -pthread
+      - spec: gcc@11.4.0 languages:=c,c++,fortran
+        prefix: /usr/bin
+        extra_attributes:
+          compilers:
+            c: /usr/bin/gcc
+            cxx: /usr/bin/g++
+            fortran: /usr/bin/gfortran-11
+        flags:
+          cflags: -pthread
+          cxxflags: -pthread
+    llvm:
+      externals:
+      - spec: llvm@14.0.0+clang~lld~lldb
+        prefix: /usr/lib/llvm-14
+        extra_attributes:
+          compilers:
+            c: /usr/lib/llvm-14/bin/clang
+            cxx: /usr/lib/llvm-14/bin/clang++
+          # Axom example sidre_shocktube_F_ex doesn't link otherwise
+          flags:
+            cflags: -fPIC -pthread
+            cxxflags: -fPIC -pthread
 
     # Spack may grab for mpi & we don't want to use them
     mpi:
@@ -144,30 +170,15 @@ spack:
       - spec: openblas@0.3.20
         prefix: /usr
 
-    # Globally lock version of third party libraries
-    adiak:
-      require: "@0.4.0"
-    caliper:
-      require: "@2.12.1~kokkos"
-    camp:
-      require: "@2025.03.0"
-    # v0.9.3
-    conduit:
-      require: "@git.2eec1ad9548cf6d629e2145181ff7b8cef0a38fa~shared~test~examples~utilities"
-    hdf5:
-      variants: ~shared~mpi
-    hypre:
-      version: [2.24.0]
+    # Some additional platform-specific constraints for third party libraries
     # do shared mfem to allow PIC flag in mfem
     mfem:
-      require: "@4.7.0+shared~static"
-    raja:
-      require: "@2025.03.0~shared~examples~exercises"
-    scr:
-      require: "@3.0.1~shared~tests~examples"
+      require: 
+      - spec: "+shared~static"
     # Umpire must be shared when building Axom as a shared library. See PR #1271 for more details.
     umpire:
-      require: "@2025.03.0+shared~examples~werror"
+      require:
+      - spec: "+shared"
 
     # Globally lock in version of devtools
     cmake:
@@ -181,12 +192,6 @@ spack:
       buildable: false
       externals:
       - spec: doxygen@1.9.1
-        prefix: /usr
-    llvm:
-      version: [14.0.0]
-      buildable: false
-      externals:
-      - spec: llvm@14.0.0+clang
         prefix: /usr
     py-sphinx:
       version: [4.3.2]

@@ -105,20 +105,14 @@ public:
   }
 
   /// Less than operator
-  friend bool operator<(const iterator& lhs, const iterator& rhs)
-  {
-    return lhs.m_pos < rhs.m_pos;
-  }
+  friend bool operator<(const iterator& lhs, const iterator& rhs) { return lhs.m_pos < rhs.m_pos; }
   /// Less than or equal operator
   friend bool operator<=(const iterator& lhs, const iterator& rhs)
   {
     return lhs.m_pos <= rhs.m_pos;
   }
   /// Greater than operator
-  friend bool operator>(const iterator& lhs, const iterator& rhs)
-  {
-    return lhs.m_pos > rhs.m_pos;
-  }
+  friend bool operator>(const iterator& lhs, const iterator& rhs) { return lhs.m_pos > rhs.m_pos; }
   /// Greater than or equal operator
   friend bool operator>=(const iterator& lhs, const iterator& rhs)
   {
@@ -183,27 +177,15 @@ public:
     return ret;
   }
   /// Addition operator with position on left and iterator on right
-  friend IterType operator+(PosType n, const IterType& it)
-  {
-    return operator+(it, n);
-  }
+  friend IterType operator+(PosType n, const IterType& it) { return operator+(it, n); }
 
   /// Subtraction operator with iterator on left and position on right
-  friend IterType operator-(const IterType& it, PosType n)
-  {
-    return operator+(it, -n);
-  }
+  friend IterType operator-(const IterType& it, PosType n) { return operator+(it, -n); }
   /// Subtraction operator with position on left and iterator on right
-  friend IterType operator-(PosType n, const IterType& it)
-  {
-    return operator+(it, -n);
-  }
+  friend IterType operator-(PosType n, const IterType& it) { return operator+(it, -n); }
 
   /// Difference operator
-  friend PosType operator-(const IterType& a, const IterType& b)
-  {
-    return (a.m_pos - b.m_pos);
-  }
+  friend PosType operator-(const IterType& a, const IterType& b) { return (a.m_pos - b.m_pos); }
   /// \}
 
 private:
@@ -213,10 +195,7 @@ private:
 
   /// Const accessor to derived class
   AXOM_HOST_DEVICE
-  const IterType& getIter() const
-  {
-    return *static_cast<const IterType*>(this);
-  }
+  const IterType& getIter() const { return *static_cast<const IterType*>(this); }
 
 protected:
   PosType m_pos;

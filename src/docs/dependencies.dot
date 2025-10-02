@@ -4,7 +4,7 @@ digraph dependencies {
   {inlet klee mint primal quest slam spin} -> {slic core};
   mint -> slam
   mint -> sidre [style="dashed"];
-  mir -> {slic core slam primal};
+  mir -> {bump slic core slam primal};
   multimat -> {slic slam};
   spin -> {slam primal};
   sidre -> {slic core};
@@ -14,4 +14,5 @@ digraph dependencies {
   lumberjack -> core;
   inlet -> {sidre primal};
   klee -> {sidre primal inlet};
+  bump -> {core slic spin primal};
 }

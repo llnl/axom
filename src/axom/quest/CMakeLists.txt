@@ -20,6 +20,7 @@ axom_component_requires(NAME       QUEST
 set( quest_headers
 
     Delaunay.hpp
+    LinearizeCurves.hpp
     SignedDistance.hpp
 
     ## All-nearest-neighbors query
@@ -47,9 +48,10 @@ set( quest_headers
     detail/PointFinder.hpp
     detail/PointInCellMeshWrapper_mfem.hpp
 
-    ## File readers
-    readers/STLReader.hpp
-    readers/ProEReader.hpp
+    ## File I/O
+    io/STLReader.hpp
+    io/STLWriter.hpp
+    io/ProEReader.hpp
 
     ## quest interface
     interface/internal/mpicomm_wrapper.hpp
@@ -72,12 +74,15 @@ set( quest_sources
     ## Discretize shapes
     Discretize.cpp
 
+    LinearizeCurves.cpp
+
     ## Mesh tester
     MeshTester.cpp
 
-    ## File readers
-    readers/STLReader.cpp
-    readers/ProEReader.cpp
+    ## File I/O
+    io/STLReader.cpp
+    io/STLWriter.cpp
+    io/ProEReader.cpp
 
     ## quest interface
     interface/internal/QuestHelpers.cpp
@@ -130,36 +135,42 @@ blt_list_append(
 
 blt_list_append( TO quest_depends_on ELEMENTS conduit::conduit IF CONDUIT_FOUND )
 
-if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND ((MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND))
-    list(APPEND quest_headers Shaper.hpp
-                              DiscreteShape.hpp)
-    list(APPEND quest_sources Shaper.cpp
-                              DiscreteShape.cpp)
-    list(APPEND quest_depends_on klee)
-    if(RAJA_FOUND)
-        list(APPEND quest_headers IntersectionShaper.hpp)
+if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
+    if((MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION) OR CONDUIT_FOUND)
+        list(APPEND quest_headers Shaper.hpp
+                                  DiscreteShape.hpp
+                                  IntersectionShaper.hpp
+                                  detail/shaping/shaping_helpers.hpp)
+        list(APPEND quest_sources Shaper.cpp
+                                DiscreteShape.cpp
+                                detail/shaping/shaping_helpers.cpp)
+        list(APPEND quest_depends_on klee)       
+    endif()
+
+    if(MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION)
+        list(APPEND quest_headers SamplingShaper.hpp 
+                                  detail/shaping/InOutSampler.hpp
+                                  detail/shaping/PrimitiveSampler.hpp
+                                  detail/shaping/WindingNumberSampler.hpp
+                                  io/MFEMReader.hpp)
+        list(APPEND quest_sources io/MFEMReader.cpp)
     endif()
 endif()
 
-if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE AND (MFEM_FOUND AND AXOM_ENABLE_MFEM_SIDRE_DATACOLLECTION))
-    list(APPEND quest_headers SamplingShaper.hpp detail/shaping/shaping_helpers.hpp)
-    list(APPEND quest_sources detail/shaping/shaping_helpers.cpp)
-endif()
-
 if(C2C_FOUND)
-    list(APPEND quest_headers readers/C2CReader.hpp)
-    list(APPEND quest_sources readers/C2CReader.cpp)
+    list(APPEND quest_headers io/C2CReader.hpp)
+    list(APPEND quest_sources io/C2CReader.cpp)
     list(APPEND quest_depends_on c2c)
 endif()
 
 if (AXOM_ENABLE_MPI)
-    list(APPEND quest_headers readers/PSTLReader.hpp
-                              readers/PProEReader.hpp)
-    blt_list_append(TO quest_headers IF C2C_FOUND ELEMENTS readers/PC2CReader.hpp)
+    list(APPEND quest_headers io/PSTLReader.hpp
+                              io/PProEReader.hpp)
+    blt_list_append(TO quest_headers IF C2C_FOUND ELEMENTS io/PC2CReader.hpp)
 
-    list(APPEND quest_sources readers/PSTLReader.cpp
-                              readers/PProEReader.cpp)
-    blt_list_append(TO quest_sources IF C2C_FOUND ELEMENTS readers/PC2CReader.cpp)
+    list(APPEND quest_sources io/PSTLReader.cpp
+                              io/PProEReader.cpp)
+    blt_list_append(TO quest_sources IF C2C_FOUND ELEMENTS io/PC2CReader.cpp)
 endif()
 
 if (SHROUD_FOUND)

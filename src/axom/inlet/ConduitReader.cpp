@@ -39,8 +39,7 @@ bool ConduitReader::parseFile(const std::string& filePath)
 {
   if(!axom::utilities::filesystem::pathExists(filePath))
   {
-    SLIC_WARNING(
-      fmt::format("Inlet: Given input file does not exist: {0}", filePath));
+    SLIC_WARNING(fmt::format("Inlet: Given input file does not exist: {0}", filePath));
     return false;
   }
   bool success = true;
@@ -52,8 +51,7 @@ bool ConduitReader::parseFile(const std::string& filePath)
   }
   catch(const conduit::Error& e)
   {
-    SLIC_WARNING(
-      fmt::format("[Inlet]: Failed to parse {0}:\n{1}", m_protocol, e.message()));
+    SLIC_WARNING(fmt::format("[Inlet]: Failed to parse {0}:\n{1}", m_protocol, e.message()));
     success = false;
   }
   sidre::DataStore::setConduitSLICMessageHandlers();
@@ -75,8 +73,7 @@ bool ConduitReader::parseString(const std::string& stringToRead)
   }
   catch(const conduit::Error& e)
   {
-    SLIC_WARNING(
-      fmt::format("[Inlet]: Failed to parse {0}:\n{1}", m_protocol, e.message()));
+    SLIC_WARNING(fmt::format("[Inlet]: Failed to parse {0}:\n{1}", m_protocol, e.message()));
     success = false;
   }
   sidre::DataStore::setConduitSLICMessageHandlers();
@@ -109,8 +106,7 @@ const conduit::Node* traverseNode(const conduit::Node& root, const std::string& 
   }
 
   const conduit::Node* node = &root;
-  std::vector<std::string> tokens =
-    axom::utilities::string::split(id, SCOPE_DELIMITER);
+  std::vector<std::string> tokens = axom::utilities::string::split(id, SCOPE_DELIMITER);
   for(const auto& token : tokens)
   {
     // Prefer the string name, but if it doesn't exist, try converting to int
@@ -167,8 +163,7 @@ void arrayToMap(const conduit::DataArray<ConduitType>& array,
  * \param [out] names The set of paths to add to
  *******************************************************************************
  */
-void nameRetrievalHelper(const conduit::Node& node,
-                         std::vector<std::string>& names)
+void nameRetrievalHelper(const conduit::Node& node, std::vector<std::string>& names)
 {
   // Conduit paths use [0] for array indices, Inlet does not, so they need
   // to be removed - e.g., foo/[0]/bar vs foo/0/bar
@@ -198,8 +193,7 @@ ReaderResult ConduitReader::getValue(const conduit::Node* node, int& value)
     value = node->to_int();
     return ReaderResult::Success;
   }
-  return node->dtype().is_empty() ? ReaderResult::NotFound
-                                  : ReaderResult::WrongType;
+  return node->dtype().is_empty() ? ReaderResult::NotFound : ReaderResult::WrongType;
 }
 
 ReaderResult ConduitReader::getValue(const conduit::Node* node, std::string& value)
@@ -213,8 +207,7 @@ ReaderResult ConduitReader::getValue(const conduit::Node* node, std::string& val
     value = node->as_string();
     return ReaderResult::Success;
   }
-  return node->dtype().is_empty() ? ReaderResult::NotFound
-                                  : ReaderResult::WrongType;
+  return node->dtype().is_empty() ? ReaderResult::NotFound : ReaderResult::WrongType;
 }
 
 ReaderResult ConduitReader::getValue(const conduit::Node* node, double& value)
@@ -229,8 +222,7 @@ ReaderResult ConduitReader::getValue(const conduit::Node* node, double& value)
     value = node->to_double();
     return ReaderResult::Success;
   }
-  return node->dtype().is_empty() ? ReaderResult::NotFound
-                                  : ReaderResult::WrongType;
+  return node->dtype().is_empty() ? ReaderResult::NotFound : ReaderResult::WrongType;
 }
 
 ReaderResult ConduitReader::getValue(const conduit::Node* node, bool& value)
@@ -263,8 +255,7 @@ ReaderResult ConduitReader::getValue(const conduit::Node* node, bool& value)
     value = node->as_uint8();
     return ReaderResult::Success;
   }
-  return node->dtype().is_empty() ? ReaderResult::NotFound
-                                  : ReaderResult::WrongType;
+  return node->dtype().is_empty() ? ReaderResult::NotFound : ReaderResult::WrongType;
 }
 
 ReaderResult ConduitReader::getBool(const std::string& id, bool& value)
@@ -287,8 +278,7 @@ ReaderResult ConduitReader::getString(const std::string& id, std::string& value)
   return getValue(detail::traverseNode(m_root, id), value);
 }
 
-ReaderResult ConduitReader::getIntMap(const std::string& id,
-                                      std::unordered_map<int, int>& values)
+ReaderResult ConduitReader::getIntMap(const std::string& id, std::unordered_map<int, int>& values)
 {
   return getArray(id, values);
 }
@@ -299,8 +289,7 @@ ReaderResult ConduitReader::getDoubleMap(const std::string& id,
   return getArray(id, values);
 }
 
-ReaderResult ConduitReader::getBoolMap(const std::string& id,
-                                       std::unordered_map<int, bool>& values)
+ReaderResult ConduitReader::getBoolMap(const std::string& id, std::unordered_map<int, bool>& values)
 {
   return getArray(id, values);
 }
@@ -329,15 +318,13 @@ ReaderResult ConduitReader::getBoolMap(const std::string& id,
   return getDictionary(id, values);
 }
 
-ReaderResult ConduitReader::getStringMap(
-  const std::string& id,
-  std::unordered_map<VariantKey, std::string>& values)
+ReaderResult ConduitReader::getStringMap(const std::string& id,
+                                         std::unordered_map<VariantKey, std::string>& values)
 {
   return getDictionary(id, values);
 }
 
-ReaderResult ConduitReader::getIndices(const std::string& id,
-                                       std::vector<int>& indices)
+ReaderResult ConduitReader::getIndices(const std::string& id, std::vector<int>& indices)
 {
   indices.clear();
   const auto node_ptr = detail::traverseNode(m_root, id);
@@ -359,8 +346,7 @@ ReaderResult ConduitReader::getIndices(const std::string& id,
   return ReaderResult::Success;
 }
 
-ReaderResult ConduitReader::getIndices(const std::string& id,
-                                       std::vector<VariantKey>& indices)
+ReaderResult ConduitReader::getIndices(const std::string& id, std::vector<VariantKey>& indices)
 {
   indices.clear();
   const auto node_ptr = detail::traverseNode(m_root, id);
@@ -447,8 +433,7 @@ ReaderResult ConduitReader::getDictionary(const std::string& id,
 }
 
 template <typename T>
-ReaderResult ConduitReader::getArray(const std::string& id,
-                                     std::unordered_map<int, T>& values)
+ReaderResult ConduitReader::getArray(const std::string& id, std::unordered_map<int, T>& values)
 {
   values.clear();
   const auto node_ptr = detail::traverseNode(m_root, id);

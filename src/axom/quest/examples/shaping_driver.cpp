@@ -32,11 +32,6 @@
   #include "mpi.h"
 #endif
 
-// RAJA
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
-
 // C/C++ includes
 #include <string>
 #include <vector>
@@ -49,10 +44,11 @@ namespace slic = axom::slic;
 namespace sidre = axom::sidre;
 
 using VolFracSampling = quest::shaping::VolFracSampling;
+using SamplingMethod = quest::SamplingShaper::SamplingMethod;
 
 //------------------------------------------------------------------------------
 
-/// Struct to help choose if our shaping method: sampling or intersection for now
+/// Struct to help choose our shaping method: sampling or intersection for now
 enum class ShapingMethod : int
 {
   Sampling,
@@ -77,6 +73,7 @@ public:
   klee::ShapeSet shapeSet;
 
   ShapingMethod shapingMethod {ShapingMethod::Sampling};
+  SamplingMethod samplingMethod {SamplingMethod::InOut};
   RuntimePolicy policy {RuntimePolicy::seq};
   int quadratureOrder {5};
   int outputOrder {2};
@@ -110,10 +107,8 @@ public:
       auto res = axom::NumericArray<int, 2>(boxResolution.data());
       auto bbox = BBox2D(Pt2D(boxMins.data()), Pt2D(boxMaxs.data()));
 
-      SLIC_INFO(axom::fmt::format(
-        "Creating inline box mesh of resolution {} and bounding box {}",
-        res,
-        bbox));
+      SLIC_INFO_ROOT(
+        axom::fmt::format("Creating inline box mesh of resolution {} and bounding box {}", res, bbox));
 
       mesh = quest::util::make_cartesian_mfem_mesh_2D(bbox, res, outputOrder);
     }
@@ -125,16 +120,14 @@ public:
       auto res = axom::NumericArray<int, 3>(boxResolution.data());
       auto bbox = BBox3D(Pt3D(boxMins.data()), Pt3D(boxMaxs.data()));
 
-      SLIC_INFO(axom::fmt::format(
-        "Creating inline box mesh of resolution {} and bounding box {}",
-        res,
-        bbox));
+      SLIC_INFO_ROOT(
+        axom::fmt::format("Creating inline box mesh of resolution {} and bounding box {}", res, bbox));
 
       mesh = quest::util::make_cartesian_mfem_mesh_3D(bbox, res, outputOrder);
     }
     break;
     default:
-      SLIC_ERROR("Only 2D and 3D meshes are currently supported.");
+      SLIC_ERROR_ROOT("Only 2D and 3D meshes are currently supported.");
       break;
     }
 
@@ -143,8 +136,7 @@ public:
     {
       int* partitioning = nullptr;
       int part_method = 0;
-      mfem::Mesh* pmesh =
-        new mfem::ParMesh(MPI_COMM_WORLD, *mesh, partitioning, part_method);
+      mfem::Mesh* pmesh = new mfem::ParMesh(MPI_COMM_WORLD, *mesh, partitioning, part_method);
       delete[] partitioning;
       delete mesh;
       mesh = pmesh;
@@ -195,8 +187,7 @@ public:
       ->capture_default_str();
 
     app.add_option("-n,--segments-per-knot-span", samplesPerKnotSpan)
-      ->description(
-        "(2D only) Number of linear segments to generate per NURBS knot span")
+      ->description("(2D only) Number of linear segments to generate per NURBS knot span")
       ->capture_default_str()
       ->check(axom::CLI::PositiveNumber);
 
@@ -207,22 +198,27 @@ public:
 
     app.add_option("-e,--percent-error", percentError)
       ->description(
-        "Percent error used for calculating curve refinement and revolved "
-        "volume.\n"
+        "Percent error used for calculating curve refinement and revolved volume.\n"
         "If this value is provided then dynamic curve refinement will be used\n"
         "instead of segment-based curve refinement.")
       ->check(axom::CLI::PositiveNumber)
       ->capture_default_str();
 
-    std::map<std::string, ShapingMethod> methodMap {
-      {"sampling", ShapingMethod::Sampling},
-      {"intersection", ShapingMethod::Intersection}};
+    std::map<std::string, ShapingMethod> methodMap {{"sampling", ShapingMethod::Sampling},
+                                                    {"intersection", ShapingMethod::Intersection}};
     app.add_option("--method", shapingMethod)
-      ->description(
-        "Determines the shaping method -- either sampling or intersection")
+      ->description("Determines the shaping method -- either sampling or intersection")
       ->capture_default_str()
-      ->transform(
-        axom::CLI::CheckedTransformer(methodMap, axom::CLI::ignore_case));
+      ->transform(axom::CLI::CheckedTransformer(methodMap, axom::CLI::ignore_case));
+
+    std::map<std::string, SamplingMethod> sMethodMap {
+      {"inout", SamplingMethod::InOut},
+      {"windingnumber", SamplingMethod::WindingNumber}};
+    app.add_option("--sampling", samplingMethod)
+      ->description(
+        "Determines the sampling method for the sampling shaper -- either inout or windingnumber")
+      ->capture_default_str()
+      ->transform(axom::CLI::CheckedTransformer(sMethodMap, axom::CLI::ignore_case));
 
 #ifdef AXOM_USE_CALIPER
     app.add_option("--caliper", annotationMode)
@@ -235,16 +231,15 @@ public:
 
     // use either an input mesh file or a simple inline Cartesian mesh
     {
-      auto* mesh_file =
-        app.add_option("-m,--mesh-file", meshFile)
-          ->description(
-            "Path to computational mesh (generated by MFEMSidreDataCollection)")
-          ->check(axom::CLI::ExistingFile);
+      auto* mesh_file = app.add_option("-m,--mesh-file", meshFile)
+                          ->description(
+                            "Path to computational mesh. \n"
+                            "Alternatively, use the `inline_mesh` subcommand.")
+                          ->check(axom::CLI::ExistingFile);
 
-      auto* inline_mesh_subcommand =
-        app.add_subcommand("inline_mesh")
-          ->description("Options for setting up a simple inline mesh")
-          ->fallthrough();
+      auto* inline_mesh_subcommand = app.add_subcommand("inline_mesh")
+                                       ->description("Options for setting up a simple inline mesh")
+                                       ->fallthrough();
 
       inline_mesh_subcommand->add_option("--min", boxMins)
         ->description("Min bounds for box mesh (x,y[,z])")
@@ -260,11 +255,10 @@ public:
         ->expected(2, 3)
         ->required();
 
-      auto* inline_mesh_dim =
-        inline_mesh_subcommand->add_option("-d,--dimension", boxDim)
-          ->description("Dimension of the box mesh")
-          ->check(axom::CLI::PositiveNumber)
-          ->required();
+      auto* inline_mesh_dim = inline_mesh_subcommand->add_option("-d,--dimension", boxDim)
+                                ->description("Dimension of the box mesh")
+                                ->check(axom::CLI::PositiveNumber)
+                                ->required();
 
       // we want either the mesh_file or an inline mesh
       mesh_file->excludes(inline_mesh_dim);
@@ -277,8 +271,7 @@ public:
     // parameters that only apply to the sampling method
     {
       auto* sampling_options =
-        app.add_option_group("sampling",
-                             "Options related to sampling-based queries");
+        app.add_option_group("sampling", "Options related to sampling-based queries");
 
       sampling_options->add_option("-o,--order", outputOrder)
         ->description("Order of the output grid function")
@@ -288,8 +281,7 @@ public:
       sampling_options->add_option("-q,--quadrature-order", quadratureOrder)
         ->description(
           "Quadrature order for sampling the inout field. \n"
-          "Determines number of samples per element in determining "
-          "volume fraction field")
+          "Determines number of samples per element in determining volume fraction field")
         ->capture_default_str()
         ->check(axom::CLI::PositiveNumber);
 
@@ -299,51 +291,44 @@ public:
       sampling_options->add_option("-s,--sampling-type", vfSampling)
         ->description(
           "Sampling strategy. \n"
-          "Sampling either at quadrature points or collocated with "
-          "degrees of freedom")
+          "Sampling either at quadrature points or collocated with degrees of freedom")
         ->capture_default_str()
-        ->transform(
-          axom::CLI::CheckedTransformer(vfsamplingMap, axom::CLI::ignore_case));
+        ->transform(axom::CLI::CheckedTransformer(vfsamplingMap, axom::CLI::ignore_case));
     }
 
     // parameters that only apply to the intersection method
     {
       auto* intersection_options =
-        app.add_option_group("intersection",
-                             "Options related to intersection-based queries");
+        app.add_option_group("intersection", "Options related to intersection-based queries");
 
       intersection_options->add_option("-r, --refinements", refinementLevel)
-        ->description("Number of refinements to perform for revolved contour")
+        ->description("(3D only) Number of refinements to perform for revolved contour")
         ->capture_default_str()
         ->check(axom::CLI::NonNegativeNumber);
 
       std::stringstream pol_sstr;
       pol_sstr << "Set runtime policy for intersection-based sampling method.";
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-      pol_sstr << "\nSet to 'seq' or 0 to use the RAJA sequential policy.";
-  #ifdef AXOM_USE_OPENMP
+      pol_sstr << "\nSet to 'seq' or 0 to use the sequential policy.";
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
       pol_sstr << "\nSet to 'omp' or 1 to use the RAJA OpenMP policy.";
-  #endif
-  #ifdef AXOM_USE_CUDA
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
       pol_sstr << "\nSet to 'cuda' or 2 to use the RAJA CUDA policy.";
-  #endif
-  #ifdef AXOM_USE_HIP
+#endif
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_HIP)
       pol_sstr << "\nSet to 'hip' or 3 to use the RAJA HIP policy.";
-  #endif
 #endif
 
       intersection_options->add_option("-p, --policy", policy, pol_sstr.str())
         ->capture_default_str()
-        ->transform(
-          axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
+        ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
     }
     app.get_formatter()->column_width(50);
 
     // could throw an exception
     app.parse(argc, argv);
 
-    slic::setLoggingMsgLevel(m_verboseOutput ? slic::message::Debug
-                                             : slic::message::Info);
+    slic::setLoggingMsgLevel(m_verboseOutput ? slic::message::Debug : slic::message::Info);
   }
 };
 
@@ -418,13 +403,17 @@ void initializeLogger()
 #ifdef AXOM_USE_MPI
   int num_ranks = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &num_ranks);
+
+  int my_rank = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+  slic::setIsRoot(my_rank == 0);
+
   if(num_ranks > 1)
   {
     std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
   #ifdef AXOM_USE_LUMBERJACK
     const int RLIMIT = 8;
-    logStream =
-      new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, RLIMIT, fmt);
+    logStream = new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, RLIMIT, fmt);
   #else
     logStream = new slic::SynchronizedStream(&std::cout, MPI_COMM_WORLD, fmt);
   #endif
@@ -478,13 +467,11 @@ int main(int argc, char** argv)
 
 #ifdef AXOM_USE_MPI
     MPI_Bcast(&retval, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    MPI_Finalize();
 #endif
     exit(retval);
   }
 
-  axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(
-    params.annotationMode);
+  axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(params.annotationMode);
 
   AXOM_ANNOTATE_BEGIN("quest shaping example");
   AXOM_ANNOTATE_BEGIN("init");
@@ -504,15 +491,14 @@ int main(int argc, char** argv)
     std::vector<std::string> errs;
     for(auto verificationError : error.getErrors())
     {
-      errs.push_back(
-        axom::fmt::format(" - '{}': {}",
-                          static_cast<std::string>(verificationError.path),
-                          verificationError.message));
+      errs.push_back(axom::fmt::format(" - '{}': {}",
+                                       static_cast<std::string>(verificationError.path),
+                                       verificationError.message));
     }
 
-    SLIC_WARNING(axom::fmt::format(
-      "Error during parsing klee input. Found the following errors:\n{}",
-      axom::fmt::join(errs, "\n")));
+    SLIC_WARNING(
+      axom::fmt::format("Error during parsing klee input. Found the following errors:\n{}",
+                        axom::fmt::join(errs, "\n")));
 
     finalizeLogger();
 
@@ -521,15 +507,6 @@ int main(int argc, char** argv)
 #endif
     exit(1);
   }
-
-  const klee::Dimensions shapeDim = params.shapeSet.getDimensions();
-
-  // Apply error checking
-#ifndef AXOM_USE_C2C
-  SLIC_ERROR_IF(shapeDim == klee::Dimensions::Two,
-                "Shaping with contour files requires an Axom configured with "
-                "the C2C library");
-#endif
 
   AXOM_ANNOTATE_BEGIN("load mesh");
   //---------------------------------------------------------------------------
@@ -547,9 +524,8 @@ int main(int argc, char** argv)
     shapingDC.SetMeshNodesName("positions");
 
     auto* pmesh = dynamic_cast<mfem::ParMesh*>(originalMeshDC->GetMesh());
-    shapingMesh = (pmesh != nullptr)
-      ? new mfem::ParMesh(*pmesh)
-      : new mfem::Mesh(*originalMeshDC->GetMesh());
+    shapingMesh =
+      (pmesh != nullptr) ? new mfem::ParMesh(*pmesh) : new mfem::Mesh(*originalMeshDC->GetMesh());
     shapingDC.SetMesh(shapingMesh);
   }
   AXOM_ANNOTATE_END("load mesh");
@@ -563,19 +539,16 @@ int main(int argc, char** argv)
   switch(params.shapingMethod)
   {
   case ShapingMethod::Sampling:
-    shaper = new quest::SamplingShaper(params.shapeSet, &shapingDC);
+    shaper = new quest::SamplingShaper(params.policy,
+                                       axom::policyToDefaultAllocatorID(params.policy),
+                                       params.shapeSet,
+                                       &shapingDC);
     break;
   case ShapingMethod::Intersection:
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
-    shaper = new quest::IntersectionShaper(
-      params.policy,
-      axom::policyToDefaultAllocatorID(params.policy),
-      params.shapeSet,
-      &shapingDC);
-#else
-    SLIC_ERROR(
-      "IntersectionShaper requires Axom to be configured with Umpire.");
-#endif
+    shaper = new quest::IntersectionShaper(params.policy,
+                                           axom::policyToDefaultAllocatorID(params.policy),
+                                           params.shapeSet,
+                                           &shapingDC);
     break;
   }
   SLIC_ASSERT_MSG(shaper != nullptr, "Invalid shaping method selected!");
@@ -600,20 +573,28 @@ int main(int argc, char** argv)
     samplingShaper->setSamplingType(params.vfSampling);
     samplingShaper->setQuadratureOrder(params.quadratureOrder);
     samplingShaper->setVolumeFractionOrder(params.outputOrder);
+    samplingShaper->setSamplingMethod(params.samplingMethod);
 
-    // register a point projector
-    if(shapingDC.GetMesh()->Dimension() == 3 && shapeDim == klee::Dimensions::Two)
+    // register point projectors
+    if(shapingDC.GetMesh()->Dimension() == 3)
     {
-      samplingShaper->setPointProjector([](primal::Point<double, 3> pt) {
+      samplingShaper->setPointProjector32([](primal::Point<double, 3> pt) {
         const double& x = pt[0];
         const double& y = pt[1];
         const double& z = pt[2];
         return primal::Point<double, 2> {z, sqrt(x * x + y * y)};
       });
     }
+    else if(shapingDC.GetMesh()->Dimension() == 2)
+    {
+      samplingShaper->setPointProjector23([](primal::Point<double, 2> pt) {
+        const double& x = pt[0];
+        const double& y = pt[1];
+        return primal::Point<double, 3> {x, y, 0.};
+      });
+    }
   }
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
   // Set specific parameters here for IntersectionShaper
   if(auto* intersectionShaper = dynamic_cast<quest::IntersectionShaper*>(shaper))
   {
@@ -624,7 +605,6 @@ int main(int argc, char** argv)
       intersectionShaper->setFreeMaterialName(params.backgroundMaterial);
     }
   }
-#endif
 
   //---------------------------------------------------------------------------
   // Project initial volume fractions, if applicable
@@ -673,12 +653,21 @@ int main(int argc, char** argv)
   for(const auto& shape : params.shapeSet.getShapes())
   {
     const std::string shapeFormat = shape.getGeometry().getFormat();
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      axom::fmt::format("Processing shape '{}' of material '{}' (format '{}')",
-                        shape.getName(),
-                        shape.getMaterial(),
-                        shapeFormat)));
+    SLIC_INFO(
+      axom::fmt::format("{:-^80}",
+                        axom::fmt::format("Processing shape '{}' of material '{}' (format '{}')",
+                                          shape.getName(),
+                                          shape.getMaterial(),
+                                          shapeFormat)));
+
+    const klee::Dimensions shapeDim = shape.getGeometry().getInputDimensions();
+
+    // Apply error checking
+#ifndef AXOM_USE_C2C
+    SLIC_ERROR_IF(shapeDim == klee::Dimensions::Two && shapeFormat == "c2c",
+                  "Shaping with contour files requires an Axom configured with "
+                  "the C2C library");
+#endif
 
     // Load the shape from file. This also applies any transformations.
     shaper->loadShape(shape);
@@ -706,9 +695,7 @@ int main(int argc, char** argv)
   // After shaping in all shapes, generate/adjust the material volume fractions
   //---------------------------------------------------------------------------
   AXOM_ANNOTATE_BEGIN("adjust");
-  SLIC_INFO(
-    axom::fmt::format("{:=^80}",
-                      "Generating volume fraction fields for materials"));
+  SLIC_INFO(axom::fmt::format("{:=^80}", "Generating volume fraction fields for materials"));
 
   shaper->adjustVolumeFractions();
 
@@ -751,7 +738,10 @@ int main(int argc, char** argv)
   }
 
 #ifdef MFEM_USE_MPI
-  shaper->getDC()->Save();
+  {
+    AXOM_ANNOTATE_SCOPE("save shaping results");
+    shaper->getDC()->Save();
+  }
 #endif
 
   delete shaper;

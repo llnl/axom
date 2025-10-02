@@ -70,4 +70,17 @@ axom_add_test(NAME          lumberjack_speedTest_binary
               
 axom_add_test(NAME          lumberjack_speedTest_root
               COMMAND       lumberjack_speed_test r 10 ${lumberjack_sample_input_dir}/loremIpsum02
-              NUM_MPI_TASKS 4)       
+              NUM_MPI_TASKS 4)
+
+#------------------------------------------------------------------------------
+# Performance test without combiners
+#------------------------------------------------------------------------------
+axom_add_executable(NAME       lumberjack_speed_test_no_combiners
+                    SOURCES    lumberjack_speedTestNoCombiners.cpp
+                    OUTPUT_DIR ${TEST_OUTPUT_DIRECTORY}
+                    DEPENDS_ON lumberjack
+                    FOLDER     axom/lumberjack/tests )
+
+axom_add_test(NAME          lumberjack_speedTestNoCombiners
+              COMMAND       lumberjack_speed_test_no_combiners
+              NUM_MPI_TASKS 1)

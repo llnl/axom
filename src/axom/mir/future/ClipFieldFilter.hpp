@@ -45,9 +45,7 @@ public:
    *
    * \note The clipField field must currently be vertex-associated.
    */
-  void execute(const conduit::Node &n_input,
-               const conduit::Node &n_options,
-               conduit::Node &n_output);
+  void execute(const conduit::Node &n_input, const conduit::Node &n_options, conduit::Node &n_output);
 
   /**
    * \brief Execute the clipping operation using the specified options.

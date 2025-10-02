@@ -69,32 +69,28 @@ TEST(utils_stringUtilities, removeSuffix)
   {
     std::string testString = "foo.bar";
     std::string testSuffix = ".bar";
-    EXPECT_EQ("foo",
-              axom::utilities::string::removeSuffix(testString, testSuffix));
+    EXPECT_EQ("foo", axom::utilities::string::removeSuffix(testString, testSuffix));
   }
 
   // different suffix
   {
     std::string testString = "foo.bar";
     std::string testSuffix = ".baz";
-    EXPECT_EQ(testString,
-              axom::utilities::string::removeSuffix(testString, testSuffix));
+    EXPECT_EQ(testString, axom::utilities::string::removeSuffix(testString, testSuffix));
   }
 
   // repeated suffix -- only removes one copy
   {
     std::string testString = "foo.bar.bar";
     std::string testSuffix = ".bar";
-    EXPECT_EQ("foo.bar",
-              axom::utilities::string::removeSuffix(testString, testSuffix));
+    EXPECT_EQ("foo.bar", axom::utilities::string::removeSuffix(testString, testSuffix));
   }
 
   // don't remove from middle
   {
     std::string testString = "foo.bar.baz";
     std::string testSuffix = ".bar";
-    EXPECT_EQ(testString,
-              axom::utilities::string::removeSuffix(testString, testSuffix));
+    EXPECT_EQ(testString, axom::utilities::string::removeSuffix(testString, testSuffix));
   }
 }
 
@@ -297,8 +293,7 @@ TEST(utils_stringUtilities, replaceAllInstances)
   {
     std::string testString = "baz.bar";
     std::string expString = "foo.bar";
-    std::string results =
-      axom::utilities::string::replaceAllInstances(testString, "baz", "foo");
+    std::string results = axom::utilities::string::replaceAllInstances(testString, "baz", "foo");
     EXPECT_EQ(expString, results);
   }
 
@@ -306,8 +301,7 @@ TEST(utils_stringUtilities, replaceAllInstances)
   {
     std::string testString = "baz.baz.baz";
     std::string expString = "foo.foo.foo";
-    std::string results =
-      axom::utilities::string::replaceAllInstances(testString, "baz", "foo");
+    std::string results = axom::utilities::string::replaceAllInstances(testString, "baz", "foo");
     EXPECT_EQ(expString, results);
   }
 
@@ -315,8 +309,7 @@ TEST(utils_stringUtilities, replaceAllInstances)
   {
     std::string testString = "foo.bar";
     std::string expString = "foo.bar";
-    std::string results =
-      axom::utilities::string::replaceAllInstances(testString, "baz", "foo");
+    std::string results = axom::utilities::string::replaceAllInstances(testString, "baz", "foo");
     EXPECT_EQ(expString, results);
   }
 
@@ -324,8 +317,7 @@ TEST(utils_stringUtilities, replaceAllInstances)
   {
     std::string testString = "foo.bar";
     std::string expString = "foo.bar";
-    std::string results =
-      axom::utilities::string::replaceAllInstances(testString, "", "foo");
+    std::string results = axom::utilities::string::replaceAllInstances(testString, "", "foo");
     EXPECT_EQ(expString, results);
   }
 
@@ -333,8 +325,7 @@ TEST(utils_stringUtilities, replaceAllInstances)
   {
     std::string testString = "foo.bar";
     std::string expString = "foo.";
-    std::string results =
-      axom::utilities::string::replaceAllInstances(testString, "bar", "");
+    std::string results = axom::utilities::string::replaceAllInstances(testString, "bar", "");
     EXPECT_EQ(expString, results);
   }
 
@@ -342,8 +333,7 @@ TEST(utils_stringUtilities, replaceAllInstances)
   {
     std::string testString = "foo.bar";
     std::string expString = "foo.bar";
-    std::string results =
-      axom::utilities::string::replaceAllInstances(testString, "", "");
+    std::string results = axom::utilities::string::replaceAllInstances(testString, "", "");
     EXPECT_EQ(expString, results);
   }
 
@@ -351,8 +341,7 @@ TEST(utils_stringUtilities, replaceAllInstances)
   {
     std::string testString = "foo.bar";
     std::string expString = "foo.bar";
-    std::string results =
-      axom::utilities::string::replaceAllInstances(testString, "foo", "foo");
+    std::string results = axom::utilities::string::replaceAllInstances(testString, "foo", "foo");
     EXPECT_EQ(expString, results);
   }
 
@@ -360,8 +349,7 @@ TEST(utils_stringUtilities, replaceAllInstances)
   {
     std::string testString = "foo.bar";
     std::string expString = "fooStr.bar";
-    std::string results =
-      axom::utilities::string::replaceAllInstances(testString, "foo", "fooStr");
+    std::string results = axom::utilities::string::replaceAllInstances(testString, "foo", "fooStr");
     EXPECT_EQ(expString, results);
   }
 
@@ -369,8 +357,7 @@ TEST(utils_stringUtilities, replaceAllInstances)
   {
     std::string testString = "foo.foo";
     std::string expString = "foofoo.foofoo";
-    std::string results =
-      axom::utilities::string::replaceAllInstances(testString, "foo", "foofoo");
+    std::string results = axom::utilities::string::replaceAllInstances(testString, "foo", "foofoo");
     EXPECT_EQ(expString, results);
   }
 
@@ -378,8 +365,7 @@ TEST(utils_stringUtilities, replaceAllInstances)
   {
     std::string testString = "foo\\n.bar\\n";
     std::string expString = "foo\n.bar\n";
-    std::string results =
-      axom::utilities::string::replaceAllInstances(testString, "\\n", "\n");
+    std::string results = axom::utilities::string::replaceAllInstances(testString, "\\n", "\n");
     EXPECT_EQ(expString, results);
   }
 
@@ -387,8 +373,7 @@ TEST(utils_stringUtilities, replaceAllInstances)
   {
     std::string testString = "foo\n.bar\n";
     std::string expString = "foo\\n.bar\\n";
-    std::string results =
-      axom::utilities::string::replaceAllInstances(testString, "\n", "\\n");
+    std::string results = axom::utilities::string::replaceAllInstances(testString, "\n", "\\n");
     EXPECT_EQ(expString, results);
   }
 }

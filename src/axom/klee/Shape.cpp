@@ -24,13 +24,10 @@ namespace
  * \return whether the container contains the value
  */
 template <typename Container>
-bool contains(const Container &container,
-              const typename Container::value_type &value)
+bool contains(const Container &container, const typename Container::value_type &value)
 {
-  using std::begin;
-  using std::end;
-  auto endIter = end(container);
-  return std::find(begin(container), endIter, value) != endIter;
+  auto endIter = std::end(container);
+  return std::find(std::begin(container), endIter, value) != endIter;
 }
 }  // unnamed namespace
 

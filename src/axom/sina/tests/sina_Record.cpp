@@ -74,8 +74,7 @@ TEST(Record, add_curve_set_existing_key)
 
   auto &csAfterFirstInsert = record.getCurveSets();
   ASSERT_THAT(csAfterFirstInsert, Contains(Key("cs1")));
-  EXPECT_THAT(csAfterFirstInsert.at("cs1").getDependentCurves(),
-              Contains(Key("original")));
+  EXPECT_THAT(csAfterFirstInsert.at("cs1").getDependentCurves(), Contains(Key("original")));
 
   CurveSet cs2 {"cs1"};
   cs2.addDependentCurve(Curve {"new", {1, 2, 3}});
@@ -83,10 +82,8 @@ TEST(Record, add_curve_set_existing_key)
 
   auto &csAfterSecondInsert = record.getCurveSets();
   ASSERT_THAT(csAfterSecondInsert, Contains(Key("cs1")));
-  EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(),
-              Not(Contains(Key("original"))));
-  EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(),
-              Contains(Key("new")));
+  EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(), Not(Contains(Key("original"))));
+  EXPECT_THAT(csAfterSecondInsert.at("cs1").getDependentCurves(), Contains(Key("new")));
 }
 
 TEST(Record, remove_file)
@@ -133,8 +130,7 @@ TEST(Record, add_child_record_as_library_data)
   ASSERT_THAT(childLibContents, Contains(Key(LIBRARY_DATA_ID_DATUM)));
   EXPECT_EQ("child id", childLibContents.at(LIBRARY_DATA_ID_DATUM).getValue());
   ASSERT_THAT(childLibContents, Contains(Key(LIBRARY_DATA_TYPE_DATUM)));
-  EXPECT_EQ("test_record_child",
-            childLibContents.at(LIBRARY_DATA_TYPE_DATUM).getValue());
+  EXPECT_EQ("test_record_child", childLibContents.at(LIBRARY_DATA_TYPE_DATUM).getValue());
 }
 
 TEST(Record, add_child_record_as_library_data_with_data)
@@ -159,6 +155,44 @@ TEST(Record, add_child_record_as_library_data_with_files)
   parentRecord.addRecordAsLibraryData(childRecord, "child");
   EXPECT_EQ(1u, parentRecord.getFiles().size());
   EXPECT_EQ("txt", parentRecord.getFiles().find(File {path})->getMimeType());
+}
+
+TEST(Record, add_child_record_as_library_data_with_curves)
+{
+  Record parentRecord {ID {"parent id", IDType::Local}, "test_record_parent"};
+  Record childRecord {ID {"child id", IDType::Local}, "test_record_child"};
+  CurveSet cs {"name"};
+  cs.addIndependentCurve(Curve {"lime", {1.0, 2.0, 3.0}});
+  cs.addIndependentCurve(Curve {"white", {1.0, 2.0, 3.0}});
+  cs.addIndependentCurve(Curve {"black", {1.0, 2.0, 3.0}});
+  cs.addDependentCurve(Curve {"lightgrey", {4.0, 5.0, 6.0}});
+  cs.addDependentCurve(Curve {"maroon", {7.0, 8.0, 9.0}});
+  cs.addDependentCurve(Curve {"brown", {1.0, 2.0, 3.0}});
+  childRecord.add(cs);
+  parentRecord.addRecordAsLibraryData(childRecord, "child");
+  auto expected = R"({
+      "local_id": "parent id",
+      "type": "test_record_parent",
+      "library_data":  {
+        "child": {
+          "curve_sets": {
+            "name": {
+              "independent": {
+                  "black": { "value": [1.0, 2.0, 3.0]},
+                  "lime": { "value": [1.0, 2.0, 3.0]},
+                  "white": { "value": [1.0, 2.0, 3.0]}
+              },
+              "dependent": {
+                  "brown": { "value": [1.0, 2.0, 3.0]},
+                  "lightgrey": { "value": [4.0, 5.0, 6.0]},
+                  "maroon": { "value": [7.0, 8.0, 9.0]}
+              }
+          }
+      },
+      "data": { "SINA_librarydata_type": { "value": "test_record_child"},
+                "SINA_librarydata_id": { "value": "child id"}}
+   }}})";
+  EXPECT_THAT(parentRecord.toNode(CurveSet::CurveOrder::ALPHABETIC), MatchesJsonMatcher(expected));
 }
 
 TEST(Record, create_localId_fromNode)
@@ -285,9 +319,8 @@ TEST(Record, create_fromNode_userDefined)
   EXPECT_EQ("v1", userDefined["k1"].as_string());
   EXPECT_EQ(123, userDefined["k2"].as_int());
   auto int_array = userDefined["k3"].as_int_ptr();
-  std::vector<double> udef_ints(
-    int_array,
-    int_array + userDefined["k3"].dtype().number_of_elements());
+  std::vector<double> udef_ints(int_array,
+                                int_array + userDefined["k3"].dtype().number_of_elements());
   EXPECT_THAT(udef_ints, ElementsAre(1, 2, 3));
 }
 
@@ -360,9 +393,8 @@ TEST(Record, toNode_userDefined)
   EXPECT_EQ("v1", userDefined["k1"].as_string());
   EXPECT_EQ(123, userDefined["k2"].as_int());
   auto int_array = userDefined["k3"].as_int_ptr();
-  std::vector<double> udef_ints(
-    int_array,
-    int_array + userDefined["k3"].dtype().number_of_elements());
+  std::vector<double> udef_ints(int_array,
+                                int_array + userDefined["k3"].dtype().number_of_elements());
   EXPECT_THAT(udef_ints, ElementsAre(1, 2, 3));
 }
 
@@ -384,8 +416,7 @@ TEST(Record, toNode_data)
   EXPECT_EQ("some units", asNode[EXPECTED_DATA_KEY][name1]["units"].as_string());
   EXPECT_EQ("tag1", asNode[EXPECTED_DATA_KEY][name1]["tags"][0].as_string());
 
-  EXPECT_THAT(asNode[EXPECTED_DATA_KEY][name2]["value"].as_double(),
-              DoubleEq(2.));
+  EXPECT_THAT(asNode[EXPECTED_DATA_KEY][name2]["value"].as_double(), DoubleEq(2.));
   EXPECT_TRUE(asNode[EXPECTED_DATA_KEY][name2]["units"].dtype().is_empty());
   EXPECT_TRUE(asNode[EXPECTED_DATA_KEY][name2]["tags"].dtype().is_empty());
 }
@@ -400,8 +431,7 @@ TEST(Record, toNode_dataWithSlashes)
   record.add(name, datum);
   auto asNode = record.toNode();
   ASSERT_EQ(1u, asNode[EXPECTED_DATA_KEY].number_of_children());
-  EXPECT_EQ("the value",
-            asNode[EXPECTED_DATA_KEY].child(name)["value"].as_string());
+  EXPECT_EQ("the value", asNode[EXPECTED_DATA_KEY].child(name)["value"].as_string());
 }
 
 TEST(Record, toNode_files)
@@ -429,6 +459,8 @@ TEST(Record, toNode_curveSets)
   Record record {id, "my type"};
   CurveSet cs {"myCurveSet/with/slash"};
   cs.addIndependentCurve(Curve {"myCurve", {1, 2, 3}});
+  cs.addIndependentCurve(Curve {"myOtherCurve", {4, 5, 6}});
+  cs.addIndependentCurve(Curve {"myThirdCurve", {7, 8, 9}});
   record.add(cs);
   std::string expected = R"({
         "local_id": "the id",
@@ -438,6 +470,12 @@ TEST(Record, toNode_curveSets)
                 "independent": {
                      "myCurve": {
                          "value": [1.0, 2.0, 3.0]
+                     },
+                     "myOtherCurve": {
+                         "value": [4.0, 5.0, 6.0]
+                     },
+                     "myThirdCurve": {
+                         "value": [7.0, 8.0, 9.0]
                      }
                  },
                  "dependent": {}
@@ -445,6 +483,39 @@ TEST(Record, toNode_curveSets)
         }
     })";
   EXPECT_THAT(record.toNode(), MatchesJsonMatcher(expected));
+}
+
+TEST(Record, toNode_curveSets_customOrder)
+{
+  ID id {"the id", IDType::Local};
+  Record record {id, "my type"};
+  CurveSet cs {"reordered_curves"};
+  cs.addIndependentCurve(Curve {"lime", {1, 2, 3}});
+  cs.addIndependentCurve(Curve {"white", {4, 5, 6}});
+  cs.addIndependentCurve(Curve {"black", {7, 8, 9}});
+  cs.addDependentCurve(Curve {"cyan", {1, 2, 3}});
+  cs.addDependentCurve(Curve {"yellow", {1, 2, 3}});
+  cs.addDependentCurve(Curve {"pink", {1, 2, 3}});
+  record.add(cs);
+  auto expected = R"({
+        "local_id": "the id",
+        "type": "my type",
+        "curve_sets": {
+            "reordered_curves": {
+                "independent": {
+                     "black": { "value": [7.0, 8.0, 9.0] },
+                     "lime": { "value": [1.0, 2.0, 3.0] },
+                     "white": { "value": [4.0, 5.0, 6.0] }
+                 },
+                 "dependent": {
+                     "cyan": { "value": [1.0, 2.0, 3.0] },
+                     "pink": { "value": [1.0, 2.0, 3.0] },
+                     "yellow": { "value": [1.0, 2.0, 3.0] }
+                 }
+            }
+        }
+    })";
+  EXPECT_THAT(record.toNode(CurveSet::CurveOrder::REVERSE_ALPHABETIC), MatchesJsonMatcher(expected));
 }
 
 TEST(RecordLoader, load_missingLoader)
@@ -459,8 +530,7 @@ TEST(RecordLoader, load_missingLoader)
   if(loaded)
   {
     auto &loadedRef = *loaded;
-    EXPECT_EQ(typeid(Record), typeid(loadedRef))
-      << "Type was " << typeid(loadedRef).name();
+    EXPECT_EQ(typeid(Record), typeid(loadedRef)) << "Type was " << typeid(loadedRef).name();
   }
 }
 

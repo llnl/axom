@@ -52,9 +52,8 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
                             const std::string& topologyName,
                             const std::string& maskField)
 {
-  SLIC_ASSERT_MSG(
-    conduit::blueprint::mesh::is_multi_domain(bpMesh),
-    "MarchingCubes class input mesh must be in multidomain format.");
+  SLIC_ASSERT_MSG(conduit::blueprint::mesh::is_multi_domain(bpMesh),
+                  "MarchingCubes class input mesh must be in multidomain format.");
 
   m_topologyName = topologyName;
   m_maskFieldName = maskField;
@@ -74,8 +73,7 @@ void MarchingCubes::setMesh(const conduit::Node& bpMesh,
     m_singles.resize(newDomainCount);
     for(int d = tmpSize; d < newDomainCount; ++d)
     {
-      m_singles[d].reset(
-        new detail::marching_cubes::MarchingCubesSingleDomain(*this));
+      m_singles[d].reset(new detail::marching_cubes::MarchingCubesSingleDomain(*this));
     }
   }
 
@@ -143,8 +141,7 @@ void MarchingCubes::computeIsocontour(double contourVal)
   {
     const auto domainId = m_singles[d]->getDomainId(d);
     const auto domainFacetCount =
-      (d < m_domainCount - 1 ? m_facetIndexOffsets[d + 1] : m_facetCount) -
-      m_facetIndexOffsets[d];
+      (d < m_domainCount - 1 ? m_facetIndexOffsets[d + 1] : m_facetCount) - m_facetIndexOffsets[d];
     m_facetDomainIds.fill(domainId, domainFacetCount, m_facetIndexOffsets[d]);
   }
 }
@@ -165,21 +162,18 @@ void MarchingCubes::clearOutput()
   m_facetDomainIds.clear();
 }
 
-void MarchingCubes::populateContourMesh(
-  axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& mesh,
-  const std::string& cellIdField,
-  const std::string& domainIdField) const
+void MarchingCubes::populateContourMesh(axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>& mesh,
+                                        const std::string& cellIdField,
+                                        const std::string& domainIdField) const
 {
   AXOM_ANNOTATE_SCOPE("MarchingCubes::populateContourMesh");
-  if(!cellIdField.empty() &&
-     !mesh.hasField(cellIdField, axom::mint::CELL_CENTERED))
+  if(!cellIdField.empty() && !mesh.hasField(cellIdField, axom::mint::CELL_CENTERED))
   {
     // Create cellId field, currently the multidimensional index of the parent cell.
     mesh.createField<axom::IndexType>(cellIdField, axom::mint::CELL_CENTERED);
   }
 
-  if(!domainIdField.empty() &&
-     !mesh.hasField(domainIdField, axom::mint::CELL_CENTERED))
+  if(!domainIdField.empty() && !mesh.hasField(domainIdField, axom::mint::CELL_CENTERED))
   {
     mesh.createField<DomainIdType>(domainIdField, axom::mint::CELL_CENTERED);
   }
@@ -194,10 +188,8 @@ void MarchingCubes::populateContourMesh(
   {
     // Put nodes and cells into the mesh.
     // If data is not in host memory, copy to temporary host memory first.
-    axom::MemorySpace internalMemorySpace =
-      axom::detail::getAllocatorSpace(m_allocatorID);
-    const bool hostAndInternalMemoriesAreSeparate =
-      internalMemorySpace != axom::MemorySpace::Dynamic
+    axom::MemorySpace internalMemorySpace = axom::detail::getAllocatorSpace(m_allocatorID);
+    const bool hostAndInternalMemoriesAreSeparate = internalMemorySpace != axom::MemorySpace::Dynamic
 #ifdef AXOM_USE_UMPIRE
       && internalMemorySpace != axom::MemorySpace::Host
 #endif
@@ -213,10 +205,8 @@ void MarchingCubes::populateContourMesh(
 
     if(hostAndInternalMemoriesAreSeparate)
     {
-      axom::Array<double, 2> tmpfacetNodeCoords(m_facetNodeCoords,
-                                                hostAllocatorId);
-      axom::Array<axom::IndexType, 2> tmpfacetNodeIds(m_facetNodeIds,
-                                                      hostAllocatorId);
+      axom::Array<double, 2> tmpfacetNodeCoords(m_facetNodeCoords, hostAllocatorId);
+      axom::Array<axom::IndexType, 2> tmpfacetNodeIds(m_facetNodeIds, hostAllocatorId);
       mesh.appendNodes(tmpfacetNodeCoords.data(), contourNodeCount);
       mesh.appendCells(tmpfacetNodeIds.data(), contourCellCount);
     }
@@ -231,19 +221,14 @@ void MarchingCubes::populateContourMesh(
       // Put parent cell ids into the mesh.
       axom::IndexType* cellIdPtr =
         mesh.getFieldPtr<axom::IndexType>(cellIdField, axom::mint::CELL_CENTERED);
-      axom::copy(cellIdPtr,
-                 m_facetParentIds.data(),
-                 m_facetCount * sizeof(axom::IndexType));
+      axom::copy(cellIdPtr, m_facetParentIds.data(), m_facetCount * sizeof(axom::IndexType));
     }
 
     if(!domainIdField.empty())
     {
       // Put parent domain ids into the mesh.
-      auto* domainIdPtr =
-        mesh.getFieldPtr<DomainIdType>(domainIdField, axom::mint::CELL_CENTERED);
-      axom::copy(domainIdPtr,
-                 m_facetDomainIds.data(),
-                 m_facetCount * sizeof(axom::IndexType));
+      auto* domainIdPtr = mesh.getFieldPtr<DomainIdType>(domainIdField, axom::mint::CELL_CENTERED);
+      axom::copy(domainIdPtr, m_facetDomainIds.data(), m_facetCount * sizeof(axom::IndexType));
     }
   }
 }
@@ -255,16 +240,10 @@ void MarchingCubes::allocateOutputBuffers()
   {
     int ndim = m_singles[0]->spatialDimension();
     const auto nodeCount = m_facetCount * ndim;
-    m_facetNodeIds.resize(
-      axom::StackArray<axom::IndexType, 2> {m_facetCount, ndim},
-      0);
-    m_facetNodeCoords.resize(
-      axom::StackArray<axom::IndexType, 2> {nodeCount, ndim},
-      0.0);
-    m_facetParentIds.resize(axom::StackArray<axom::IndexType, 1> {m_facetCount},
-                            0);
-    m_facetDomainIds.resize(axom::StackArray<axom::IndexType, 1> {m_facetCount},
-                            0);
+    m_facetNodeIds.resize(axom::StackArray<axom::IndexType, 2> {m_facetCount, ndim}, 0);
+    m_facetNodeCoords.resize(axom::StackArray<axom::IndexType, 2> {nodeCount, ndim}, 0.0);
+    m_facetParentIds.resize(axom::StackArray<axom::IndexType, 1> {m_facetCount}, 0);
+    m_facetDomainIds.resize(axom::StackArray<axom::IndexType, 1> {m_facetCount}, 0);
   }
 }
 

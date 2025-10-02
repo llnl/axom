@@ -6,9 +6,9 @@
 
 #include "axom/core/Macros.hpp"
 
-#include "axom/mint/config.hpp"  // for compile-time type definitions
+#include "axom/mint/config.hpp"                // for compile-time type definitions
 #include "axom/mint/mesh/MeshCoordinates.hpp"  // for mint::MeshCoordinates class
-#include "axom/mint/mesh/blueprint.hpp"  // for mint::blueprint() functions
+#include "axom/mint/mesh/blueprint.hpp"        // for mint::blueprint() functions
 
 #include "axom/mint/mesh/internal/MeshHelpers.hpp"  // for internal helpers
 
@@ -57,20 +57,15 @@ ParticleMesh::ParticleMesh(int dimension,
 {
   blueprint::initializeTopologyGroup(m_group, m_topology, m_coordset, "points");
 
-  SLIC_ERROR_IF(!blueprint::isValidTopologyGroup(getTopologyGroup()),
-                "invalid topology group!");
+  SLIC_ERROR_IF(!blueprint::isValidTopologyGroup(getTopologyGroup()), "invalid topology group!");
 
-  m_positions =
-    new MeshCoordinates(getCoordsetGroup(), dimension, numParticles, capacity);
+  m_positions = new MeshCoordinates(getCoordsetGroup(), dimension, numParticles, capacity);
 
   initialize();
 }
 
 //------------------------------------------------------------------------------
-ParticleMesh::ParticleMesh(int dimension,
-                           IndexType numParticles,
-                           sidre::Group* group,
-                           IndexType capacity)
+ParticleMesh::ParticleMesh(int dimension, IndexType numParticles, sidre::Group* group, IndexType capacity)
   : ParticleMesh(dimension, numParticles, group, "", "", capacity)
 { }
 
@@ -98,8 +93,7 @@ ParticleMesh::~ParticleMesh()
 //------------------------------------------------------------------------------
 bool ParticleMesh::checkConsistency()
 {
-  return m_mesh_fields[NODE_CENTERED]->checkConsistency(getNumberOfNodes(),
-                                                        getNodeCapacity());
+  return m_mesh_fields[NODE_CENTERED]->checkConsistency(getNumberOfNodes(), getNodeCapacity());
 }
 
 } /* namespace mint */

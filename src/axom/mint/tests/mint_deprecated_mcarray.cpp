@@ -44,8 +44,7 @@ IndexType calc_new_capacity(deprecated::MCArray<T>& v, IndexType increase)
  * \return the new capacity.
  */
 template <typename T>
-void check_copy(const deprecated::MCArray<T>& lhs,
-                const deprecated::MCArray<T>& rhs)
+void check_copy(const deprecated::MCArray<T>& lhs, const deprecated::MCArray<T>& rhs)
 {
   EXPECT_EQ(lhs.size(), rhs.size());
   EXPECT_EQ(lhs.numComponents(), rhs.numComponents());

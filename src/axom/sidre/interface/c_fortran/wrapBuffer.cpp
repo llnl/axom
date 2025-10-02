@@ -19,8 +19,7 @@ extern "C" {
 
 SIDRE_IndexType SIDRE_Buffer_get_index(const SIDRE_Buffer *self)
 {
-  const axom::sidre::Buffer *SH_this =
-    static_cast<const axom::sidre::Buffer *>(self->addr);
+  const axom::sidre::Buffer *SH_this = static_cast<const axom::sidre::Buffer *>(self->addr);
   // splicer begin class.Buffer.method.getIndex
   axom::sidre::IndexType SHC_rv = SH_this->getIndex();
   return SHC_rv;
@@ -29,8 +28,7 @@ SIDRE_IndexType SIDRE_Buffer_get_index(const SIDRE_Buffer *self)
 
 size_t SIDRE_Buffer_get_num_views(const SIDRE_Buffer *self)
 {
-  const axom::sidre::Buffer *SH_this =
-    static_cast<const axom::sidre::Buffer *>(self->addr);
+  const axom::sidre::Buffer *SH_this = static_cast<const axom::sidre::Buffer *>(self->addr);
   // splicer begin class.Buffer.method.getNumViews
   size_t SHC_rv = SH_this->getNumViews();
   return SHC_rv;
@@ -48,8 +46,7 @@ void *SIDRE_Buffer_get_void_ptr(SIDRE_Buffer *self)
 
 SIDRE_TypeIDint SIDRE_Buffer_get_type_id(const SIDRE_Buffer *self)
 {
-  const axom::sidre::Buffer *SH_this =
-    static_cast<const axom::sidre::Buffer *>(self->addr);
+  const axom::sidre::Buffer *SH_this = static_cast<const axom::sidre::Buffer *>(self->addr);
   // splicer begin class.Buffer.method.getTypeID
   axom::sidre::TypeID SHCXX_rv = SH_this->getTypeID();
   SIDRE_TypeIDint SHC_rv = static_cast<SIDRE_TypeIDint>(SHCXX_rv);
@@ -59,8 +56,7 @@ SIDRE_TypeIDint SIDRE_Buffer_get_type_id(const SIDRE_Buffer *self)
 
 size_t SIDRE_Buffer_get_num_elements(const SIDRE_Buffer *self)
 {
-  const axom::sidre::Buffer *SH_this =
-    static_cast<const axom::sidre::Buffer *>(self->addr);
+  const axom::sidre::Buffer *SH_this = static_cast<const axom::sidre::Buffer *>(self->addr);
   // splicer begin class.Buffer.method.getNumElements
   size_t SHC_rv = SH_this->getNumElements();
   return SHC_rv;
@@ -69,8 +65,7 @@ size_t SIDRE_Buffer_get_num_elements(const SIDRE_Buffer *self)
 
 size_t SIDRE_Buffer_get_total_bytes(const SIDRE_Buffer *self)
 {
-  const axom::sidre::Buffer *SH_this =
-    static_cast<const axom::sidre::Buffer *>(self->addr);
+  const axom::sidre::Buffer *SH_this = static_cast<const axom::sidre::Buffer *>(self->addr);
   // splicer begin class.Buffer.method.getTotalBytes
   size_t SHC_rv = SH_this->getTotalBytes();
   return SHC_rv;
@@ -79,17 +74,14 @@ size_t SIDRE_Buffer_get_total_bytes(const SIDRE_Buffer *self)
 
 size_t SIDRE_Buffer_get_bytes_per_element(const SIDRE_Buffer *self)
 {
-  const axom::sidre::Buffer *SH_this =
-    static_cast<const axom::sidre::Buffer *>(self->addr);
+  const axom::sidre::Buffer *SH_this = static_cast<const axom::sidre::Buffer *>(self->addr);
   // splicer begin class.Buffer.method.getBytesPerElement
   size_t SHC_rv = SH_this->getBytesPerElement();
   return SHC_rv;
   // splicer end class.Buffer.method.getBytesPerElement
 }
 
-void SIDRE_Buffer_describe(SIDRE_Buffer *self,
-                           SIDRE_TypeID type,
-                           SIDRE_IndexType num_elems)
+void SIDRE_Buffer_describe(SIDRE_Buffer *self, SIDRE_TypeID type, SIDRE_IndexType num_elems)
 {
   axom::sidre::Buffer *SH_this = static_cast<axom::sidre::Buffer *>(self->addr);
   // splicer begin class.Buffer.method.describe
@@ -106,9 +98,7 @@ void SIDRE_Buffer_allocate_existing(SIDRE_Buffer *self)
   // splicer end class.Buffer.method.allocate_existing
 }
 
-void SIDRE_Buffer_allocate_from_type(SIDRE_Buffer *self,
-                                     SIDRE_TypeID type,
-                                     SIDRE_IndexType num_elems)
+void SIDRE_Buffer_allocate_from_type(SIDRE_Buffer *self, SIDRE_TypeID type, SIDRE_IndexType num_elems)
 {
   axom::sidre::Buffer *SH_this = static_cast<axom::sidre::Buffer *>(self->addr);
   // splicer begin class.Buffer.method.allocate_from_type
@@ -127,8 +117,7 @@ void SIDRE_Buffer_reallocate(SIDRE_Buffer *self, SIDRE_IndexType num_elems)
 
 void SIDRE_Buffer_print(const SIDRE_Buffer *self)
 {
-  const axom::sidre::Buffer *SH_this =
-    static_cast<const axom::sidre::Buffer *>(self->addr);
+  const axom::sidre::Buffer *SH_this = static_cast<const axom::sidre::Buffer *>(self->addr);
   // splicer begin class.Buffer.method.print
   SH_this->print();
   // splicer end class.Buffer.method.print

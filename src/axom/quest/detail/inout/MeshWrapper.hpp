@@ -61,17 +61,11 @@ public:
 
   /// Always DIM verts since we're representing a d-dimensional simplicial mesh in dimension d
   static constexpr int NUM_CELL_VERTS = DIM;
-  using STLIndirection =
-    slam::policies::STLVectorIndirection<VertexIndex, VertexIndex>;
+  using STLIndirection = slam::policies::STLVectorIndirection<VertexIndex, VertexIndex>;
   using TVStride = slam::policies::CompileTimeStride<VertexIndex, NUM_CELL_VERTS>;
-  using ConstantCardinality =
-    slam::policies::ConstantCardinality<VertexIndex, TVStride>;
-  using CellVertexRelation = slam::StaticRelation<VertexIndex,
-                                                  VertexIndex,
-                                                  ConstantCardinality,
-                                                  STLIndirection,
-                                                  MeshElementSet,
-                                                  MeshVertexSet>;
+  using ConstantCardinality = slam::policies::ConstantCardinality<VertexIndex, TVStride>;
+  using CellVertexRelation =
+    slam::StaticRelation<VertexIndex, VertexIndex, ConstantCardinality, STLIndirection, MeshElementSet, MeshVertexSet>;
   using CellVertIndices = typename CellVertexRelation::RelationSubset;
 
   // \brief A vertex index to indicate that there is no associated vertex
@@ -91,10 +85,7 @@ private:
   /// Utility functions to get a pointer to the derived type (part of CRTP pattern)
   Derived* getDerived() { return static_cast<Derived*>(this); }
   /// Utility functions to get a const pointer to the derived type (part of CRTP pattern)
-  const Derived* getDerived() const
-  {
-    return static_cast<const Derived*>(this);
-  }
+  const Derived* getDerived() const { return static_cast<const Derived*>(this); }
 
 public:
   /** Predicate to determine if the wrapped surface mesh has been reindexed */
@@ -167,10 +158,7 @@ public:
    * 
    * \note Use after mesh has been reindexed
    */
-  const SpacePt& vertexPosition(VertexIndex idx) const
-  {
-    return m_vertexPositions[idx];
-  }
+  const SpacePt& vertexPosition(VertexIndex idx) const { return m_vertexPositions[idx]; }
 
   /**
      * \brief Returns the indices of the boundary vertices of the element
@@ -178,10 +166,7 @@ public:
      *
      * \param idx The index of an element within the surface mesh
      */
-  CellVertIndices cellVertexIndices(CellIndex idx) const
-  {
-    return m_cellToVertexRelation[idx];
-  }
+  CellVertIndices cellVertexIndices(CellIndex idx) const { return m_cellToVertexRelation[idx]; }
 
   /**
    * \brief Finds the index of a vertex in cell \a c1 that is not in cell \a c0
@@ -212,9 +197,7 @@ public:
 
     SLIC_ASSERT_MSG(
       false,
-      fmt::format("There should be a vertex in cell {} that was not in cell {}",
-                  c1,
-                  c0));
+      fmt::format("There should be a vertex in cell {} that was not in cell {}", c1, c0));
     return NO_VERTEX;
   }
 
@@ -254,10 +237,7 @@ public:
    * \return true if the three cells have a vertex in common
    *  (returned in sharedVert), false otherwise
    */
-  bool haveSharedVertex(CellIndex c0,
-                        CellIndex c1,
-                        CellIndex c2,
-                        VertexIndex& sharedVert) const
+  bool haveSharedVertex(CellIndex c0, CellIndex c1, CellIndex c2, VertexIndex& sharedVert) const
   {
     CellVertIndices c0Verts = cellVertexIndices(c0);
     CellVertIndices c1Verts = cellVertexIndices(c1);
@@ -323,8 +303,7 @@ public:
   {
     // Get the ids of the verts bounding this edge
     CellVertIndices vertIds = cellVertexIndices(idx);
-    return GeometricBoundingBox(vertexPosition(vertIds[0]),
-                                vertexPosition(vertIds[1]));
+    return GeometricBoundingBox(vertexPosition(vertIds[0]), vertexPosition(vertIds[1]));
   }
 
   /**
@@ -351,9 +330,7 @@ public:
    * to 0 or 1), we compute the average normal of its incident segments
    */
   template <typename CellIndexSet>
-  SpaceVector surfaceNormal(CellIndex cidx,
-                            double segmentParameter,
-                            const CellIndexSet& otherCells) const
+  SpaceVector surfaceNormal(CellIndex cidx, double segmentParameter, const CellIndexSet& otherCells) const
   {
     SpaceVector vec = this->cellPositions(cidx).normal();
 
@@ -418,8 +395,7 @@ public:
     {
       // Grab relation from mesh
       using UMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
-      axom::IndexType* vertIds =
-        std::static_pointer_cast<UMesh>(m_surfaceMesh)->getCellNodeIDs(i);
+      axom::IndexType* vertIds = std::static_pointer_cast<UMesh>(m_surfaceMesh)->getCellNodeIDs(i);
 
       // Remap the vertex IDs
       for(int j = 0; j < NUM_EDGE_VERTS; ++j)
@@ -436,11 +412,9 @@ public:
       }
     }
 
-    m_elementSet =
-      MeshElementSet(static_cast<int>(m_cv_data.size()) / NUM_EDGE_VERTS);
+    m_elementSet = MeshElementSet(static_cast<int>(m_cv_data.size()) / NUM_EDGE_VERTS);
     m_cellToVertexRelation = CellVertexRelation(&m_elementSet, &m_vertexSet);
-    m_cellToVertexRelation.bindIndices(static_cast<int>(m_cv_data.size()),
-                                       &m_cv_data);
+    m_cellToVertexRelation.bindIndices(static_cast<int>(m_cv_data.size()), &m_cv_data);
 
     // Delete old mesh
     m_surfaceMesh.reset();
@@ -457,8 +431,7 @@ public:
     }
 
     using UMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
-    UMesh* edgeMesh =
-      new UMesh(DIM, mint::SEGMENT, m_vertexSet.size(), m_elementSet.size());
+    UMesh* edgeMesh = new UMesh(DIM, mint::SEGMENT, m_vertexSet.size(), m_elementSet.size());
 
     // Add vertices to the mesh (i.e. vertex positions)
     for(int i = 0; i < m_vertexSet.size(); ++i)
@@ -525,9 +498,7 @@ public:
   SpaceCell cellPositions(CellIndex idx) const
   {
     CellVertIndices verts = cellVertexIndices(idx);
-    return SpaceCell(vertexPosition(verts[0]),
-                     vertexPosition(verts[1]),
-                     vertexPosition(verts[2]));
+    return SpaceCell(vertexPosition(verts[0]), vertexPosition(verts[1]), vertexPosition(verts[2]));
   }
 
   /// \brief Checks whether the indexed triangle contains a reference to the given vertex
@@ -567,8 +538,7 @@ public:
     {
       // Grab relation from mesh
       using UMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
-      axom::IndexType* vertIds =
-        std::static_pointer_cast<UMesh>(m_surfaceMesh)->getCellNodeIDs(i);
+      axom::IndexType* vertIds = std::static_pointer_cast<UMesh>(m_surfaceMesh)->getCellNodeIDs(i);
 
       // Remap the vertex IDs
       for(int j = 0; j < NUM_TRI_VERTS; ++j)
@@ -578,8 +548,7 @@ public:
 
       // Add to relation if not degenerate triangles
       // (namely, we need 3 unique vertex IDs)
-      if((vertIds[0] != vertIds[1]) && (vertIds[1] != vertIds[2]) &&
-         (vertIds[2] != vertIds[0]))
+      if((vertIds[0] != vertIds[1]) && (vertIds[1] != vertIds[2]) && (vertIds[2] != vertIds[0]))
       {
         m_cv_data.push_back(vertIds[0]);
         m_cv_data.push_back(vertIds[1]);
@@ -587,11 +556,9 @@ public:
       }
     }
 
-    m_elementSet =
-      MeshElementSet(static_cast<int>(m_cv_data.size()) / NUM_TRI_VERTS);
+    m_elementSet = MeshElementSet(static_cast<int>(m_cv_data.size()) / NUM_TRI_VERTS);
     m_cellToVertexRelation = CellVertexRelation(&m_elementSet, &m_vertexSet);
-    m_cellToVertexRelation.bindIndices(static_cast<int>(m_cv_data.size()),
-                                       &m_cv_data);
+    m_cellToVertexRelation.bindIndices(static_cast<int>(m_cv_data.size()), &m_cv_data);
 
     // Delete old mesh
     m_surfaceMesh.reset();
@@ -608,8 +575,7 @@ public:
     }
 
     using UMesh = mint::UnstructuredMesh<mint::SINGLE_SHAPE>;
-    UMesh* triMesh =
-      new UMesh(DIM, mint::TRIANGLE, m_vertexSet.size(), m_elementSet.size());
+    UMesh* triMesh = new UMesh(DIM, mint::TRIANGLE, m_vertexSet.size(), m_elementSet.size());
 
     // Add vertices to the mesh (i.e. vertex positions)
     for(int i = 0; i < m_vertexSet.size(); ++i)

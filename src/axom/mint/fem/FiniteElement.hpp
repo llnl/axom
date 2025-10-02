@@ -129,9 +129,7 @@ public:
    *  that the number of rows corresponds to the dimension of the element and
    *  number of columns corresponds to the number of nodes.
    */
-  FiniteElement(numerics::Matrix<double>& M,
-                CellType cellType,
-                bool useExternal = false);
+  FiniteElement(numerics::Matrix<double>& M, CellType cellType, bool useExternal = false);
 
   /*!
    * \brief Destructor.
@@ -161,10 +159,7 @@ public:
    *
    * \param [in] N user-supplied number for
    */
-  void setMaxSolverIterations(int numIters)
-  {
-    m_maxNewtonIterations = numIters;
-  };
+  void setMaxSolverIterations(int numIters) { m_maxNewtonIterations = numIters; };
 
   /*!
    * \brief Returns the max number of iterations used for the Newton-Raphson.

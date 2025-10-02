@@ -13,8 +13,8 @@
 #endif
 
 /// Need to patch rocprim with some versions of hip when using C++14
-#if defined(AXOM_USE_HIP) && __cplusplus == 201402L && \
-  HIP_VERSION >= 50600000 && HIP_VERSION < 60100000
+#if defined(AXOM_USE_HIP) && __cplusplus == 201402L && HIP_VERSION >= 50600000 && \
+  HIP_VERSION < 60100000
 
 // Error is due to missing an out-of-class definition for `block_radix_sort<...>::radix_bits_per_pass`.
 namespace rocprim

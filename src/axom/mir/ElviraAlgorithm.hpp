@@ -10,16 +10,18 @@
 #include "axom/slic.hpp"
 
 #include "axom/mir/MIRAlgorithm.hpp"
-#include "axom/mir/utilities/ExtractZones.hpp"
-#include "axom/mir/utilities/MakeZoneCenters.hpp"
-#include "axom/mir/utilities/MergeMeshes.hpp"
-#include "axom/mir/utilities/PrimalAdaptor.hpp"
-#include "axom/mir/utilities/SelectedZones.hpp"
-#include "axom/mir/utilities/ZoneListBuilder.hpp"
-#include "axom/mir/utilities/blueprint_utilities.hpp"
-#include "axom/mir/utilities/utilities.hpp"
-#include "axom/mir/views/MaterialView.hpp"
-#include "axom/mir/views/StructuredTopologyView.hpp"
+#include "axom/bump/utilities/conduit_memory.hpp"
+#include "axom/bump/utilities/conduit_traits.hpp"
+#include "axom/bump/utilities/utilities.hpp"
+#include "axom/bump/MakePointMesh.hpp"
+#include "axom/bump/MakeZoneCenters.hpp"
+#include "axom/bump/MatsetSlicer.hpp"
+#include "axom/bump/MergeMeshes.hpp"
+#include "axom/bump/PrimalAdaptor.hpp"
+#include "axom/bump/SelectedZones.hpp"
+#include "axom/bump/ZoneListBuilder.hpp"
+#include "axom/bump/views/MaterialView.hpp"
+#include "axom/bump/views/StructuredTopologyView.hpp"
 
 #include "axom/primal/operators/compute_bounding_box.hpp"
 #include "axom/primal/operators/clip.hpp"
@@ -29,16 +31,17 @@
 
 #include <conduit/conduit.hpp>
 
-// RAJA
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
-
 #include <algorithm>
 #include <string>
 
 // Uncomment to save inputs and outputs.
 //#define AXOM_ELVIRA_DEBUG
+
+// Uncomment to debug make fragments.
+//#define AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS
+
+// Uncomment to gather ELVIRA data and save to YAML file.
+//#define AXOM_ELVIRA_GATHER_INFO
 
 #if defined(AXOM_ELVIRA_DEBUG)
   #include <conduit/conduit_relay_io.hpp>
@@ -56,36 +59,41 @@ namespace mir
 //------------------------------------------------------------------------------
 /*!
  * \brief Implements Elvira algorithm for structured meshes.
+ *
+ * \tparam ExecSpace The execution space where the algorithm will run.
+ * \tparam IndexPolicy The structured mesh indexing policy.
+ * \tparam CoordsetView The view type that describes the coordinates.
+ * \tparam MatsetView The view type that describes matset.
+ *
+ * \note We template on IndexPolicy instead of TopologyView so we can enforce a
+ *       StructuredTopologyView on the algorithm. This is done because ELVIRA
+ *       assumes a structured mesh for stencils, etc.
  */
 template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typename MatsetView>
 class ElviraAlgorithm : public axom::mir::MIRAlgorithm
 {
 public:
-  using TopologyView = axom::mir::views::StructuredTopologyView<IndexPolicy>;
+  using TopologyView = axom::bump::views::StructuredTopologyView<IndexPolicy>;
   using ConnectivityType = typename TopologyView::ConnectivityType;
 
 protected:
-  static constexpr int NDIMS = CoordsetView::dimension();
+  static constexpr int NDIMS = IndexPolicy::dimension();
   static constexpr int StencilSize = elvira::getStencilSize(NDIMS);
   static constexpr int numVectorComponents = 3;
-
-  using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-  using loop_policy = typename axom::execution_space<ExecSpace>::loop_policy;
 
   // Determine the output type from the clip operations. Those are the shape
   // types that we're emitting into the MIR output. Create the builder.
   using CoordType = typename CoordsetView::value_type;
-  using ClipResultType = typename std::conditional<
-    NDIMS == 2,
-    axom::primal::Polygon<CoordType, 2, axom::primal::PolygonArray::Static>,
-    axom::primal::Polyhedron<CoordType, 3>>::type;
+  using ClipResultType =
+    typename std::conditional<NDIMS == 2,
+                              axom::primal::Polygon<CoordType, 2, axom::primal::PolygonArray::Static>,
+                              axom::primal::Polyhedron<CoordType, 3>>::type;
 
   using VectorType = axom::primal::Vector<CoordType, NDIMS>;
   using PointType = axom::primal::Point<CoordType, NDIMS>;
   using PlaneType = axom::primal::Plane<CoordType, NDIMS>;
 
-  using ShapeView =
-    axom::mir::utilities::blueprint::PrimalAdaptor<TopologyView, CoordsetView>;
+  using ShapeView = axom::bump::PrimalAdaptor<TopologyView, CoordsetView>;
   using Builder =
     detail::TopologyBuilder<ExecSpace, CoordsetView, TopologyView, MatsetView, ClipResultType, NDIMS>;
   using BuilderView = typename Builder::View;
@@ -140,67 +148,51 @@ protected:
                              conduit::Node &n_newFields,
                              conduit::Node &n_newMatset) override
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
 
     AXOM_ANNOTATE_SCOPE("ElviraAlgorithm");
 
     // Copy the options to make sure they are in the right memory space.
     conduit::Node n_options_copy;
-    bputils::copy<ExecSpace>(n_options_copy, n_options);
+    utils::copy<ExecSpace>(n_options_copy, n_options);
     n_options_copy["topology"] = n_topo.name();
 
-    // _mir_utilities_selectedzones_begin
+    // _bump_utilities_selectedzones_begin
     // Get selected zones from the options.
-    bputils::SelectedZones<ExecSpace> selectedZones(
-      m_topologyView.numberOfZones(),
-      n_options_copy);
+    bump::SelectedZones<ExecSpace> selectedZones(m_topologyView.numberOfZones(), n_options_copy);
     const auto selectedZonesView = selectedZones.view();
-    // _mir_utilities_selectedzones_end
+    // _bump_utilities_selectedzones_end
 
     // Partition the selected zones into clean, mixed lists.
     axom::Array<axom::IndexType> cleanZones, mixedZones;
-    bputils::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(
-      m_topologyView,
-      m_matsetView);
+    bump::ZoneListBuilder<ExecSpace, TopologyView, MatsetView> zlb(m_topologyView, m_matsetView);
     zlb.execute(selectedZonesView, cleanZones, mixedZones);
-    SLIC_ASSERT((cleanZones.size() + mixedZones.size()) ==
-                selectedZonesView.size());
-    SLIC_INFO(axom::fmt::format("cleanZones: {}, mixedZones: {}",
-                                cleanZones.size(),
-                                mixedZones.size()));
+    SLIC_ASSERT((cleanZones.size() + mixedZones.size()) == selectedZonesView.size());
+    SLIC_INFO(
+      axom::fmt::format("cleanZones: {}, mixedZones: {}", cleanZones.size(), mixedZones.size()));
 
     if(cleanZones.size() > 0 && mixedZones.size() > 0)
     {
       // Gather the inputs into a single root but replace the fields with
       // a new node to which we can add additional fields.
       conduit::Node n_root;
-      n_root[n_coordset.path()].set_external(n_coordset);
-      n_root[n_topo.path()].set_external(n_topo);
-      n_root[n_matset.path()].set_external(n_matset);
-      conduit::Node &n_root_coordset = n_root[n_coordset.path()];
-      conduit::Node &n_root_topo = n_root[n_topo.path()];
-      conduit::Node &n_root_matset = n_root[n_matset.path()];
+      n_root[localPath(n_coordset)].set_external(n_coordset);
+      n_root[localPath(n_topo)].set_external(n_topo);
+      n_root[localPath(n_matset)].set_external(n_matset);
+      conduit::Node &n_root_coordset = n_root[localPath(n_coordset)];
+      conduit::Node &n_root_topo = n_root[localPath(n_topo)];
+      conduit::Node &n_root_matset = n_root[localPath(n_matset)];
       conduit::Node n_root_fields = n_root["fields"];
-#if 0
-      // NOTE: For now, do not add fields to the input that we'll operate on.
-      //       If we do then we get fields for the clean output and nothing
-      //       for the ELVIRA output since it is not handling fields because
-      //       it is using primal clip to make shapes. To do fields, we would
-      //       need to know how to blend at introduced points that arise from
-      //       clipping.
-      for(conduit::index_t i = 0; i < n_fields.number_of_children(); i++)
-      {
-        n_root_fields[n_fields[i].name()].set_external(n_fields[i]);
-      }
-#endif
 
       // Make the clean mesh.
       conduit::Node n_cleanOutput;
-      makeCleanOutput(n_root,
-                      n_topo.name(),
-                      n_options_copy,
-                      cleanZones.view(),
-                      n_cleanOutput);
+      makeCleanZones(cleanZones.view(),
+                     n_root,
+                     n_root_topo,
+                     n_root_coordset,
+                     n_root_matset,
+                     n_options_copy,
+                     n_cleanOutput);
 
       // Process the mixed part of the mesh.
       processMixedZones(mixedZones.view(),
@@ -216,15 +208,15 @@ protected:
 
       // Gather the MIR output into a single node.
       conduit::Node n_mirOutput;
-      n_mirOutput[n_newTopo.path()].set_external(n_newTopo);
-      n_mirOutput[n_newCoordset.path()].set_external(n_newCoordset);
-      n_mirOutput[n_newFields.path()].set_external(n_newFields);
-      n_mirOutput[n_newMatset.path()].set_external(n_newMatset);
+      n_mirOutput[localPath(n_newTopo)].set_external(n_newTopo);
+      n_mirOutput[localPath(n_newCoordset)].set_external(n_newCoordset);
+      n_mirOutput[localPath(n_newFields)].set_external(n_newFields);
+      n_mirOutput[localPath(n_newMatset)].set_external(n_newMatset);
 #if defined(AXOM_ELVIRA_DEBUG)
       saveMesh(n_mirOutput, "debug_elvira_mir");
-      std::cout << "--- clean ---\n";
+      SLIC_DEBUG("--- clean ---");
       printNode(n_cleanOutput);
-      std::cout << "--- MIR ---\n";
+      SLIC_DEBUG("--- MIR ---");
       printNode(n_mirOutput);
 #endif
 
@@ -232,7 +224,7 @@ protected:
       conduit::Node n_merged;
       merge(n_newTopo.name(), n_cleanOutput, n_mirOutput, n_merged);
 #if defined(AXOM_ELVIRA_DEBUG)
-      std::cout << "--- merged ---\n";
+      SLIC_DEBUG("--- merged ---");
       printNode(n_merged);
 
       // Save merged output.
@@ -240,10 +232,10 @@ protected:
 #endif
 
       // Move the merged output into the output variables.
-      n_newCoordset.move(n_merged[n_newCoordset.path()]);
-      n_newTopo.move(n_merged[n_newTopo.path()]);
-      n_newFields.move(n_merged[n_newFields.path()]);
-      n_newMatset.move(n_merged[n_newMatset.path()]);
+      n_newCoordset.move(n_merged[localPath(n_newCoordset)]);
+      n_newTopo.move(n_merged[localPath(n_newTopo)]);
+      n_newFields.move(n_merged[localPath(n_newFields)]);
+      n_newMatset.move(n_merged[localPath(n_newMatset)]);
     }
     else if(cleanZones.size() == 0 && mixedZones.size() > 0)
     {
@@ -264,17 +256,15 @@ protected:
       // There were no mixed zones. We can copy the input to the output.
       {
         AXOM_ANNOTATE_SCOPE("copy");
-        bputils::copy<ExecSpace>(n_newCoordset, n_coordset);
-        bputils::copy<ExecSpace>(n_newTopo, n_topo);
-        bputils::copy<ExecSpace>(n_newFields, n_fields);
-        bputils::copy<ExecSpace>(n_newMatset, n_matset);
+        utils::copy<ExecSpace>(n_newCoordset, n_coordset);
+        utils::copy<ExecSpace>(n_newTopo, n_topo);
+        utils::copy<ExecSpace>(n_newFields, n_fields);
+        utils::copy<ExecSpace>(n_newMatset, n_matset);
       }
 
       // Add an originalElements array.
-      addOriginal(n_newFields["originalElements"],
-                  n_topo.name(),
-                  "element",
-                  m_topologyView.numberOfZones());
+      const std::string originalElementsField(ELVIRAOptions(n_options).originalElementsField());
+      addOriginal(n_newFields[originalElementsField], n_topo.name(), "element", cleanZones);
     }
   }
 
@@ -292,7 +282,6 @@ protected:
              conduit::Node &n_merged) const
   {
     AXOM_ANNOTATE_SCOPE("merge");
-    namespace bputils = axom::mir::utilities::blueprint;
 
     // Create a MergeMeshesAndMatsets type that will operate on the material
     // inputs, which at this point will be unibuffer with known types. We can
@@ -301,16 +290,19 @@ protected:
     using FloatElement = typename MatsetView::FloatType;
     constexpr size_t MAXMATERIALS = MatsetView::MaxMaterials;
     using DispatchPolicy =
-      bputils::DispatchTypedUnibufferMatset<IntElement, FloatElement, MAXMATERIALS>;
-    using MergeMeshes = bputils::MergeMeshesAndMatsets<ExecSpace, DispatchPolicy>;
+      axom::bump::DispatchTypedUnibufferMatset<IntElement, FloatElement, MAXMATERIALS>;
+    using MergeMeshes = axom::bump::MergeMeshesAndMatsets<ExecSpace, DispatchPolicy>;
 
     // Merge clean and MIR output.
-    std::vector<bputils::MeshInput> inputs(2);
+    std::vector<axom::bump::MeshInput> inputs(2);
     inputs[0].m_input = &n_cleanOutput;
+    inputs[0].topologyName = topoName;
+
     inputs[1].m_input = &n_mirOutput;
+    inputs[1].topologyName = topoName;
 
     conduit::Node mmOpts;
-    mmOpts["topology"] = topoName;
+    mmOpts["topologyName"] = topoName;
     MergeMeshes mm;
     mm.execute(inputs, mmOpts, n_merged);
   }
@@ -321,30 +313,30 @@ protected:
    * \param n_field The new field node.
    * \param topoName The topology name for the field.
    * \param association The field association.
-   * \param nvalues The number of nodes in the field.
+   * \param selectedZonesView A view containing the values to store in the field.
    *
    */
   void addOriginal(conduit::Node &n_field,
                    const std::string &topoName,
                    const std::string &association,
-                   axom::IndexType nvalues) const
+                   axom::ArrayView<axom::IndexType> selectedZonesView) const
   {
     AXOM_ANNOTATE_SCOPE("addOriginal");
-    namespace bputils = axom::mir::utilities::blueprint;
-    bputils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+    namespace utils = axom::bump::utilities;
+    utils::ConduitAllocateThroughAxom<ExecSpace> c2a;
+
+    const auto nvalues = selectedZonesView.size();
 
     // Add a new field for the original ids.
     n_field["topology"] = topoName;
     n_field["association"] = association;
     n_field["values"].set_allocator(c2a.getConduitAllocatorID());
-    n_field["values"].set(
-      conduit::DataType(bputils::cpp2conduit<ConnectivityType>::id, nvalues));
-    auto view = bputils::make_array_view<ConnectivityType>(n_field["values"]);
+    n_field["values"].set(conduit::DataType(utils::cpp2conduit<ConnectivityType>::id, nvalues));
+    auto view = utils::make_array_view<ConnectivityType>(n_field["values"]);
     axom::for_all<ExecSpace>(
       nvalues,
-      AXOM_LAMBDA(axom::IndexType index) {
-        view[index] = static_cast<ConnectivityType>(index);
-      });
+      AXOM_LAMBDA(axom::IndexType index) { view[index] = selectedZonesView[index]; });
+    reportErrors(__LINE__);
   }
 
   /*!
@@ -352,41 +344,77 @@ protected:
    *        \a cleanZones array and store the results into the \a n_cleanOutput
    *        node.
    *
-   * \param n_root The input mesh from which zones are being extracted.
-   * \param topoName The name of the topology.
-   * \param n_options The options to inherit.
    * \param cleanZones An array of clean zone ids.
+   * \param n_root The input mesh from which zones are being extracted.
+   * \param n_topology The node that contains the topology for the input mesh.
+   * \param n_coordset The node that contains the coordset for the input mesh.
+   * \param n_matset The node that contains the matset for the input mesh.
+   * \param n_options The options to inherit.
    * \param[out] n_cleanOutput The node that will contain the clean mesh output.
    *
    * \return The number of nodes in the clean mesh output.
    */
-  void makeCleanOutput(const conduit::Node &n_root,
-                       const std::string &topoName,
-                       const conduit::Node &n_options,
-                       const axom::ArrayView<axom::IndexType> &cleanZones,
-                       conduit::Node &n_cleanOutput) const
+  void makeCleanZones(const axom::ArrayView<axom::IndexType> &cleanZones,
+                      const conduit::Node &n_root,
+                      const conduit::Node &n_topology,
+                      const conduit::Node &n_coordset,
+                      const conduit::Node &n_matset,
+                      const conduit::Node &n_options,
+                      conduit::Node &n_cleanOutput) const
   {
-    AXOM_ANNOTATE_SCOPE("makeCleanOutput");
-    namespace bputils = axom::mir::utilities::blueprint;
+    AXOM_ANNOTATE_SCOPE("makeCleanZones");
+    namespace utils = axom::bump::utilities;
 
-    // Make the clean mesh.
-    bputils::ExtractZonesAndMatset<ExecSpace, TopologyView, CoordsetView, MatsetView>
-      ez(m_topologyView, m_coordsetView, m_matsetView);
-    conduit::Node n_ezopts;
-    n_ezopts["topology"] = topoName;
-    n_ezopts["compact"] = 1;
-    // Forward some options involved in naming the objects.
-    const std::vector<std::string> keys {"topologyName",
-                                         "coordsetName",
-                                         "matsetName"};
-    for(const auto &key : keys)
+    // Make the clean mesh (it might be a point mesh).
+    ELVIRAOptions opts(n_options);
+    if(opts.pointmesh())
     {
-      if(n_options.has_path(key))
-      {
-        n_ezopts[key].set(n_options[key]);
-      }
+      // _bump_utilities_makepointmesh_begin
+      // Make a point mesh of the selected zones.
+      bump::MakePointMesh<ExecSpace, TopologyView, CoordsetView> pm(m_topologyView, m_coordsetView);
+      pm.execute(cleanZones, n_topology, n_coordset, n_options, n_cleanOutput);
+      // _bump_utilities_makepointmesh_end
+
+      // Slice the input material.
+      bump::MatsetSlicer<ExecSpace, MatsetView> mslicer(m_matsetView);
+      bump::SliceData slice;
+      slice.m_indicesView = cleanZones;
+      mslicer.execute(slice, n_matset, n_cleanOutput["matsets/" + opts.matsetName(n_matset.name())]);
+
+      // Add an originalElements array.
+      addOriginal(n_cleanOutput["fields/" + opts.originalElementsField()],
+                  n_topology.name(),
+                  "element",
+                  cleanZones);
     }
-    ez.execute(cleanZones, n_root, n_ezopts, n_cleanOutput);
+    else
+    {
+      // Make options for the ExtractZones* algorithms.
+      conduit::Node n_ezopts;
+      n_ezopts["topology"] = n_topology.name();
+      n_ezopts["compact"] = 1;
+      n_ezopts["originalElementsField"] = opts.originalElementsField();
+      // Forward some options involved in naming the objects.
+      const std::vector<std::string> keys {"topologyName", "coordsetName", "matsetName"};
+      for(const auto &key : keys)
+      {
+        if(n_options.has_path(key))
+        {
+          n_ezopts[key].set(n_options[key]);
+        }
+      }
+
+      using MakeCleanZones =
+        detail::MakeCleanZones<ExecSpace, TopologyView, CoordsetView, MatsetView, IndexPolicy::dimension()>;
+      MakeCleanZones::execute(cleanZones,
+                              n_root,
+                              n_ezopts,
+                              m_topologyView,
+                              m_coordsetView,
+                              m_matsetView,
+                              n_cleanOutput);
+    }
+
 #if defined(AXOM_ELVIRA_DEBUG)
     {
       AXOM_ANNOTATE_SCOPE("saveClean");
@@ -423,27 +451,45 @@ protected:
                          conduit::Node &n_newMatset)
   {
     AXOM_ANNOTATE_SCOPE("processMixedZones");
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     const int allocatorID = axom::execution_space<ExecSpace>::allocatorID();
-    constexpr int NDIMS = TopologyView::dimension();
+    // Note: MSVC needs constexpr lambda capture to be marked `static` even though constexpr should suffice
+    static constexpr int NDIMS = TopologyView::dimension();
 
     // Handle options.
-    constexpr double DEFAULT_TOLERANCE = 1.e-10;
+    // When coordinates have float value, we can't necessarily get beyond a
+    // certain tolerance so set the tolerance accordingly.
+    constexpr double DEFAULT_TOLERANCE = std::is_same<CoordType, float>::value
+      ? (axom::numeric_limits<float>::epsilon() * 4.f)
+      : 1.e-10;
     constexpr int DEFAULT_MAX_ITERATIONS = 50;
     double tolerance = DEFAULT_TOLERANCE;
-    if(n_options.has_child("tolerance") &&
-       n_options["tolerance"].dtype().is_number())
+    double point_tolerance = DEFAULT_TOLERANCE;
+    if(n_options.has_child("tolerance") && n_options["tolerance"].dtype().is_number())
     {
-      tolerance = n_options["tolerance"].to_double();
+      tolerance = axom::utilities::abs(n_options["tolerance"].to_double());
+      if(tolerance < axom::numeric_limits<CoordType>::epsilon())
+      {
+        tolerance = axom::numeric_limits<CoordType>::epsilon();
+      }
+      SLIC_ASSERT(tolerance > 0.);
+    }
+    if(n_options.has_child("point_tolerance") && n_options["point_tolerance"].dtype().is_number())
+    {
+      point_tolerance = axom::utilities::abs(n_options["point_tolerance"].to_double());
+      if(point_tolerance < axom::numeric_limits<CoordType>::epsilon())
+      {
+        point_tolerance = axom::numeric_limits<CoordType>::epsilon();
+      }
+      SLIC_ASSERT(point_tolerance > 0.);
     }
     int max_iterations = DEFAULT_MAX_ITERATIONS;
-    if(n_options.has_child("max_iterations") &&
-       n_options["max_iterations"].dtype().is_number())
+    if(n_options.has_child("max_iterations") && n_options["max_iterations"].dtype().is_number())
     {
-      max_iterations = n_options["max_iterations"].to_int();
+      max_iterations = axom::utilities::abs(n_options["max_iterations"].to_int());
+      max_iterations = axom::utilities::clampVal(max_iterations, 1, 100);
     }
 
-//#define AXOM_ELVIRA_GATHER_INFO
 #if defined(AXOM_ELVIRA_GATHER_INFO)
     // Let's output the normals
     conduit::Node *n_result = new conduit::Node;
@@ -452,7 +498,6 @@ protected:
     //--------------------------------------------------------------------------
     // Count the number of fragments we'll make for the mixed zones.
     AXOM_ANNOTATE_BEGIN("counting");
-    RAJA::ReduceSum<reduce_policy, axom::IndexType> num_reduce(0);
 
     const auto nzones = mixedZonesView.size();
     axom::Array<axom::IndexType> matCount(nzones, nzones, allocatorID);
@@ -463,18 +508,34 @@ protected:
     // Get the material count per zone and the zone number (in case of strided structured)
     const TopologyView deviceTopologyView(m_topologyView);
     const MatsetView deviceMatsetView(m_matsetView);
+    axom::ReduceSum<ExecSpace, axom::IndexType> num_reduce(0);
+    axom::ReduceMax<ExecSpace, axom::IndexType> reduce_maxcuts(0);
     axom::for_all<ExecSpace>(
       mixedZonesView.size(),
       AXOM_LAMBDA(axom::IndexType szIndex) {
+        // Get the material data for the zone.
         const auto zoneIndex = mixedZonesView[szIndex];
-        const auto matZoneIndex =
-          deviceTopologyView.indexing().LocalToGlobal(zoneIndex);
+        const auto matZoneIndex = deviceTopologyView.indexing().LocalToGlobal(zoneIndex);
         const auto nmats = deviceMatsetView.numberOfMaterials(matZoneIndex);
+
+        // Save some material information for later.
         matCountView[szIndex] = nmats;
         matZoneView[szIndex] = zoneIndex;
+
+        // Sum total materials
         num_reduce += nmats;
+
+        // The number of times we cut a zone is the number of materials in the zone minus one.
+        reduce_maxcuts.max(nmats - 1);
       });
+    reportErrors(__LINE__);
     const auto numFragments = num_reduce.get();
+    const auto maxCuts = reduce_maxcuts.get();
+    SLIC_ASSERT(numFragments > 0);
+    SLIC_ASSERT(maxCuts > 0);
+    SLIC_INFO(
+      axom::fmt::format("ElviraAlgorithm: numFragments: {}, maxCuts: {}", numFragments, maxCuts));
+
 #if defined(AXOM_ELVIRA_GATHER_INFO)
     if(!axom::execution_space<ExecSpace>::onDevice())
     {
@@ -491,9 +552,7 @@ protected:
     // Sort the zones by the mat count. This should make adjacent zones in the
     // list more likely to have the same number of materials.
     AXOM_ANNOTATE_BEGIN("sorting");
-    RAJA::stable_sort_pairs<loop_policy>(
-      RAJA::make_span(matCountView.data(), nzones),
-      RAJA::make_span(matZoneView.data(), nzones));
+    axom::stable_sort_pairs<ExecSpace>(matCountView, matZoneView);
     AXOM_ANNOTATE_END("sorting");
 
     //--------------------------------------------------------------------------
@@ -516,20 +575,17 @@ protected:
     // NOTE: This makes zone centers for all zones. That's okay since we use
     //       these values in making stencils.
     AXOM_ANNOTATE_BEGIN("centroids");
-    // _mir_utilities_makezonecenters_begin
-    bputils::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(
-      m_topologyView,
-      m_coordsetView);
+    // _bump_utilities_makezonecenters_begin
+    bump::MakeZoneCenters<ExecSpace, TopologyView, CoordsetView> zc(m_topologyView, m_coordsetView);
     conduit::Node n_zcfield;
     zc.execute(n_topo, n_coordset, n_zcfield);
-    // _mir_utilities_makezonecenters_end
-    using zc_value = typename CoordsetView::value_type;
-    axom::ArrayView<zc_value> xview, yview, zview;
-    xview = bputils::make_array_view<zc_value>(n_zcfield["values/x"]);
-    yview = bputils::make_array_view<zc_value>(n_zcfield["values/y"]);
+    // _bump_utilities_makezonecenters_end
+    axom::ArrayView<CoordType> xview, yview, zview;
+    xview = utils::make_array_view<CoordType>(n_zcfield["values/x"]);
+    yview = utils::make_array_view<CoordType>(n_zcfield["values/y"]);
     if(n_zcfield.has_path("values/z"))
     {
-      zview = bputils::make_array_view<zc_value>(n_zcfield["values/z"]);
+      zview = utils::make_array_view<CoordType>(n_zcfield["values/z"]);
     }
 #if defined(AXOM_ELVIRA_GATHER_INFO)
     if(!axom::execution_space<ExecSpace>::onDevice())
@@ -547,9 +603,7 @@ protected:
     AXOM_ANNOTATE_BEGIN("stencil");
     const auto numFragmentsStencil = numFragments * StencilSize;
 
-    axom::Array<double> fragmentVFStencil(numFragmentsStencil,
-                                          numFragmentsStencil,
-                                          allocatorID);
+    axom::Array<double> fragmentVFStencil(numFragmentsStencil, numFragmentsStencil, allocatorID);
     auto fragmentVFStencilView = fragmentVFStencil.view();
 
     // Sorted material ids for each zone.
@@ -575,8 +629,7 @@ protected:
         const auto zoneIndex = matZoneView[szIndex];
         const auto matCount = matCountView[szIndex];
         // The index to use for the zone's material.
-        const auto matZoneIndex =
-          deviceTopologyView.indexing().LocalToGlobal(zoneIndex);
+        const auto matZoneIndex = deviceTopologyView.indexing().LocalToGlobal(zoneIndex);
         // Where to begin writing this zone's fragment data.
         const auto offset = matOffsetView[szIndex];
 
@@ -597,17 +650,14 @@ protected:
         }
 
         // Retrieve the stencil data from neighbor zones.
-        auto logical =
-          deviceTopologyView.indexing().IndexToLogicalIndex(zoneIndex);
+        auto logical = deviceTopologyView.indexing().IndexToLogicalIndex(zoneIndex);
         for(int si = 0; si < StencilSize; si++)
         {
           // Stencil neighbor logical index.
           typename TopologyView::LogicalIndex neighbor(logical);
 
           // Neighbor offsets are in (-1, 0, 1) that get added to current zone's logical coordinate.
-          const int neighborOffset[3] = {(si % 3) - 1,
-                                         ((si % 9) / 3) - 1,
-                                         (si / 9) - 1};
+          const int neighborOffset[3] = {(si % 3) - 1, ((si % 9) / 3) - 1, (si / 9) - 1};
           for(int d = 0; d < NDIMS; d++)
           {
             neighbor[d] += neighborOffset[d];
@@ -620,11 +670,9 @@ protected:
 
           // Turn to a "global" logical index and transform it to an index to use in the material,
           // which for strided-structured can be larger than the mesh.
-          const auto matNeighbor =
-            deviceTopologyView.indexing().LocalToGlobal(neighbor);
-          const auto matNeighborIndex =
-            static_cast<typename MatsetView::ZoneIndex>(
-              deviceTopologyView.indexing().GlobalToGlobal(matNeighbor));
+          const auto matNeighbor = deviceTopologyView.indexing().LocalToGlobal(neighbor);
+          const auto matNeighborIndex = static_cast<typename MatsetView::ZoneIndex>(
+            deviceTopologyView.indexing().GlobalToGlobal(matNeighbor));
 
           // Copy material vfs into the stencil.
           for(axom::IndexType m = 0; m < matCount; m++)
@@ -633,10 +681,9 @@ protected:
             const auto fragmentIndex = offset + m;
             typename MatsetView::FloatType vf = 0;
 
-            deviceMatsetView.zoneContainsMaterial(
-              matNeighborIndex,
-              sortedMaterialIdsView[fragmentIndex],
-              vf);
+            deviceMatsetView.zoneContainsMaterial(matNeighborIndex,
+                                                  sortedMaterialIdsView[fragmentIndex],
+                                                  vf);
 
             // Store the vf into the stencil for the current material.
             const auto destIndex = fragmentIndex * StencilSize + si;
@@ -652,6 +699,7 @@ protected:
           zcStencilView[coordIndex] = zview.empty() ? 1. : zview[neighborIndex];
         }
       });
+    reportErrors(__LINE__);
     // We're done with the zone centers.
     n_zcfield.reset();
     AXOM_ANNOTATE_END("stencil");
@@ -684,17 +732,12 @@ protected:
         elvira::computeJacobian(xcStencil, ycStencil, zcStencil, NDIMS, jac);
 
         // The starting addresses for fragments in the current zone.
-        const double *fragmentVFStencilStart =
-          fragmentVFStencilView.data() + offset * StencilSize;
-        double *fragmentVectorsStart =
-          fragmentVectorsView.data() + offset * numVectorComponents;
+        const double *fragmentVFStencilStart = fragmentVFStencilView.data() + offset * StencilSize;
+        double *fragmentVectorsStart = fragmentVectorsView.data() + offset * numVectorComponents;
 
         // Produce normal for each material in this zone.
         int iskip = matCount - 1;
-        elvira::elvira<NDIMS>::execute(matCount,
-                                       fragmentVFStencilStart,
-                                       fragmentVectorsStart,
-                                       iskip);
+        elvira::elvira<NDIMS>::execute(matCount, fragmentVFStencilStart, fragmentVectorsStart, iskip);
 
 #if defined(AXOM_ELVIRA_GATHER_INFO) && !defined(AXOM_DEVICE_CODE)
         // The selected zone index in the whole mesh.
@@ -725,14 +768,14 @@ protected:
         // Transform the normals.
         for(axom::IndexType m = 0; m < matCount; m++)
         {
-          double *normal =
-            fragmentVectorsView.data() + ((offset + m) * numVectorComponents);
+          double *normal = fragmentVectorsView.data() + ((offset + m) * numVectorComponents);
           elvira::transform(normal, jac);
 #if defined(AXOM_ELVIRA_GATHER_INFO) && !defined(AXOM_DEVICE_CODE)
           n_thisZone["mats"][m]["transformed_normal"].set(normal, 3);
 #endif
         }
       });
+    reportErrors(__LINE__);
     AXOM_ANNOTATE_END("vectors");
 
     //--------------------------------------------------------------------------
@@ -755,7 +798,7 @@ protected:
 
     // Make the builder that will set up the Blueprint output.
     Builder build;
-    build.allocate(numFragments, n_newCoordset, n_newTopo, n_newFields, n_newMatset);
+    build.allocate(numFragments, maxCuts, n_newCoordset, n_newTopo, n_newFields, n_newMatset, n_options);
     if(n_matset.has_path("material_map"))
     {
       n_newMatset["material_map"].set(n_matset["material_map"]);
@@ -774,26 +817,33 @@ protected:
                   tolerance);
 
     //--------------------------------------------------------------------------
-#if defined(AXOM_ELVIRA_DEBUG)
-    AXOM_ANNOTATE_BEGIN("verify");
-    conduit::Node n_mesh;
-    n_mesh[n_newCoordset.path()].set_external(n_newCoordset);
-    n_mesh[n_newTopo.path()].set_external(n_newTopo);
-    n_mesh[n_newFields.path()].set_external(n_newFields);
-    n_mesh[n_newMatset.path()].set_external(n_newMatset);
+    // Clean up the mesh in 3D so it has merged coordinates and merged faces.
+    // This step does nothing in 2D at present.
+    axom::Array<axom::IndexType> selectedIds;
+    build.cleanMesh(n_newCoordset, point_tolerance, n_newTopo, selectedIds);
 
-    // Verify the MIR output.
-    conduit::Node info;
-    if(!conduit::blueprint::mesh::verify(n_mesh, info))
+    //--------------------------------------------------------------------------
+#if defined(AXOM_ELVIRA_DEBUG)
     {
-      info.print();
+      AXOM_ANNOTATE_SCOPE("verify");
+      conduit::Node n_mesh;
+      n_mesh[localPath(n_newCoordset)].set_external(n_newCoordset);
+      n_mesh[localPath(n_newTopo)].set_external(n_newTopo);
+      n_mesh[localPath(n_newFields)].set_external(n_newFields);
+      n_mesh[localPath(n_newMatset)].set_external(n_newMatset);
+
+      // Verify the MIR output.
+      conduit::Node info;
+      if(!conduit::blueprint::mesh::verify(n_mesh, info))
+      {
+        info.print();
+      }
     }
-    AXOM_ANNOTATE_END("verify");
 #endif
   }
 
   /*!
-   * \brief Use the normal vectors for each fragment to bulid the fragment shapes.
+   * \brief Use the normal vectors for each fragment to build the fragment shapes.
    *
    * \param buildView A view that lets us add a shape to the Blueprint output.
    * \param matZoneView A view containing zone ids sorted by material count in the zone.
@@ -805,18 +855,17 @@ protected:
    * \param max_iterations The max allowable iterations to find the fragment shape.
    * \param tolerance The volume tolerance for the fragment shape.
    */
-  void makeFragments(
-    BuilderView buildView,
-    axom::ArrayView<axom::IndexType> matZoneView,
-    axom::ArrayView<axom::IndexType> matCountView,
-    axom::ArrayView<axom::IndexType> matOffsetView,
-    axom::ArrayView<typename MatsetView::IndexType> sortedMaterialIdsView,
-    axom::ArrayView<double> fragmentVectorsView,
-    axom::ArrayView<double> fragmentVFStencilView,
-    int max_iterations,
-    double tolerance)
+  void makeFragments(BuilderView buildView,
+                     axom::ArrayView<axom::IndexType> matZoneView,
+                     axom::ArrayView<axom::IndexType> matCountView,
+                     axom::ArrayView<axom::IndexType> matOffsetView,
+                     axom::ArrayView<typename MatsetView::IndexType> sortedMaterialIdsView,
+                     axom::ArrayView<double> fragmentVectorsView,
+                     axom::ArrayView<double> fragmentVFStencilView,
+                     int max_iterations,
+                     double tolerance)
   {
-    namespace bputils = axom::mir::utilities::blueprint;
+    namespace utils = axom::bump::utilities;
     AXOM_ANNOTATE_SCOPE("fragments");
 
     const ShapeView deviceShapeView {m_topologyView, m_coordsetView};
@@ -830,12 +879,20 @@ protected:
         const auto offset = matOffsetView[szIndex];
 
         // Get the starting shape.
-        auto shape = deviceShapeView.getShape(zoneIndex);
+        const auto inputShape = deviceShapeView.getShape(zoneIndex);
 
         // Get the zone's actual volume.
-        const double zoneVol = bputils::ComputeShapeAmount<NDIMS>::execute(shape);
+        const double zoneVol = utils::ComputeShapeAmount<NDIMS>::execute(inputShape);
 
-        // Make a fragment for each material. The biggest ones come first.
+        ClipResultType remaining;
+
+      // Make a fragment for each material. The biggest ones come first.
+#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
+        SLIC_DEBUG("makeFragments: zoneIndex=" << zoneIndex << ", matCount=" << matCount);
+#endif
+        PointType pt {};
+        VectorType normal {};
+        double planeOffset = 0.;
         for(axom::IndexType m = 0; m < matCount - 1; m++)
         {
           const auto fragmentIndex = offset + m;
@@ -846,54 +903,119 @@ protected:
 
           // Compute the desired fragment volume.
           // Get current material vf from the stencil. (should be faster than material view)
-          constexpr int StencilCenter =
-            (NDIMS == 3) ? 13 : ((NDIMS == 2) ? 4 : 1);
+          constexpr int StencilCenter = (NDIMS == 3) ? 13 : ((NDIMS == 2) ? 4 : 1);
           const auto si = fragmentIndex * StencilSize + StencilCenter;
           const auto matVolume = zoneVol * fragmentVFStencilView[si];
 
           // Make the normal
-          VectorType normal;
           for(int d = 0; d < NDIMS; d++)
           {
             normal[d] = static_cast<CoordType>(normalPtr[d]);
           }
 
-          // Compute start and end points along which to move the plane origin.
+          ClipResultType clippedShape;
           PointType range[2];
-          detail::computeRange(shape, normal, range);
 
-          // Figure out the clipped shape that has the desired volume.
-          PointType pt {};
-          const auto clippedShape =
-            detail::clipToVolume<ClipResultType>(shape,
-                                                 normal,
-                                                 range,
-                                                 matVolume,
-                                                 max_iterations,
-                                                 tolerance,
-                                                 pt);
+          if(m == 0)
+          {
+            // First time through, operate on the inputShape.
+
+            // Compute start and end points along which to move the plane origin.
+            detail::computeRange(inputShape, normal, range);
+#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
+            SLIC_DEBUG("\tm=" << m << ", inputShape=" << inputShape << ", range={" << range[0]
+                              << ", " << range[1] << "}");
+#endif
+            // Figure out the clipped shape that has the desired volume.
+            clippedShape = detail::clipToVolume<ClipResultType>(inputShape,
+                                                                normal,
+                                                                range,
+                                                                matVolume,
+                                                                max_iterations,
+                                                                tolerance,
+                                                                pt);
+          }
+          else
+          {
+            // In subsequent iterations, the clippedShape is the input and it
+            // can have a different type than inputShape.
+
+            // Compute start and end points along which to move the plane origin.
+            detail::computeRange(remaining, normal, range);
+#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
+            SLIC_DEBUG("\tm=" << m << ", remaining=" << remaining << ", range={" << range[0] << ", "
+                              << range[1] << "}");
+#endif
+            // Figure out the clipped shape that has the desired volume.
+            clippedShape = detail::clipToVolume<ClipResultType>(remaining,
+                                                                normal,
+                                                                range,
+                                                                matVolume,
+                                                                max_iterations,
+                                                                tolerance,
+                                                                pt);
+          }
+
+          // Make clipping plane for remaining fragment.
+          const auto P = PlaneType(normal, pt, false);
+          planeOffset = P.getOffset();
 
           // Emit clippedShape as material matId
-          //std::cout << "zone=" << zoneIndex << ", fragmentIndex=" << fragmentIndex << ", mat=" << matId << ", iterations=" << iterations << ", pt=" << pt << ", clipped=" << clippedShape << std::endl;
-          buildView.addShape(zoneIndex,
-                             fragmentIndex,
-                             clippedShape,
-                             matId,
-                             normalPtr);
+          buildView.addShape(zoneIndex, fragmentIndex, clippedShape, matId, pt, planeOffset, normalPtr);
 
           // Clip in the other direction to get the remaining fragment for the next material.
-          const auto P = PlaneType(normal, pt, false);
-          shape = axom::primal::clip(shape, P);
+          if(m == 0)
+          {
+#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
+            SLIC_DEBUG("\tclip: P=" << P << ", before=" << inputShape);
+#endif
+            remaining = axom::primal::clip(inputShape, P);
+#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
+            SLIC_DEBUG("\tclip: after=" << clippedShape);
+#endif
+          }
+          else
+          {
+#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
+            SLIC_DEBUG("\tclip: P=" << P << ", before=" << remaining);
+#endif
+            remaining = axom::primal::clip(remaining, P);
+#if defined(AXOM_ELVIRA_DEBUG_MAKE_FRAGMENTS) && !defined(AXOM_DEVICE_CODE)
+            SLIC_DEBUG("\tclip: after=" << remaining);
+#endif
+          }
         }
 
         // Emit the last leftover fragment.
         const auto fragmentIndex = offset + matCount - 1;
         const auto matId = sortedMaterialIdsView[fragmentIndex];
-        const double *normalPtr =
-          fragmentVectorsView.data() + (fragmentIndex * numVectorComponents);
-        //std::cout << "zone=" << zoneIndex << ", fragmentIndex=" << fragmentIndex << ", mat=" << matId << ", clipped=" << shape << std::endl;
-        buildView.addShape(zoneIndex, fragmentIndex, shape, matId, normalPtr);
+        // The last fragment's normals are just (1,0,0). These are accessible at
+        // fragmentVectorsView[fragmentIndex * numVectorComponents] but it seems
+        // more useful to emit the opposite of the last fragment's normal instead.
+        double lastNormal[NDIMS];
+        for(int d = 0; d < NDIMS; d++)
+        {
+          lastNormal[d] = -normal[d];
+        }
+        buildView.addShape(zoneIndex, fragmentIndex, remaining, matId, pt, -planeOffset, lastNormal);
       });
+    reportErrors(__LINE__);
+  }
+
+  void reportErrors([[maybe_unused]] int srcLine) const
+  {
+#if defined(AXOM_USE_HIP)
+    // TODO: Replace direct HIP calls with upcoming Camp+RAJA error reporting.
+    if constexpr(axom::execution_space<ExecSpace>::onDevice())
+    {
+      hipError_t err = hipGetLastError();
+      if(err != hipSuccess)
+      {
+        SLIC_ERROR(
+          axom::fmt::format("ElviraAlgorithm.hpp:{}: HIP error: {}", srcLine, hipGetErrorString(err)));
+      }
+    }
+#endif
   }
 
 private:

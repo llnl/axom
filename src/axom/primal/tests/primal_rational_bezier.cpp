@@ -50,8 +50,7 @@ TEST(primal_rationalbezier, point_array_constructor)
   using PointType = primal::Point<CoordType, DIM>;
   using BezierCurveType = primal::BezierCurve<CoordType, DIM>;
 
-  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0},
-                                PointType {0.0, 1.6, 1.8}};
+  PointType controlPoints[2] = {PointType {0.6, 1.2, 1.0}, PointType {0.0, 1.6, 1.8}};
   double weights[2] = {0.5, 1.5};
 
   BezierCurveType bCurve(controlPoints, weights, 1);
@@ -224,11 +223,10 @@ TEST(primal_rationalbezier, split_cubic)
   BezierCurveType b4Curve;         // Checks split with default constructor
   b2Curve.split(.5, b3Curve, b4Curve);
 
-  PointType b3Nodes[order + 1] = {
-    PointType {0.6, 1.2, 1.0},
-    PointType {16.0 / 15.0, 22.0 / 15.0, 23.0 / 15.0},
-    PointType {1.8125, 1.85, 1.8875},
-    PointType {2.365, 2.32, 2.225}};
+  PointType b3Nodes[order + 1] = {PointType {0.6, 1.2, 1.0},
+                                  PointType {16.0 / 15.0, 22.0 / 15.0, 23.0 / 15.0},
+                                  PointType {1.8125, 1.85, 1.8875},
+                                  PointType {2.365, 2.32, 2.225}};
   double b3Weights[order + 1] = {1.0, 1.5, 2.0, 2.5};
 
   PointType b4Nodes[order + 1] = {PointType {2.365, 2.32, 2.225},
@@ -484,13 +482,9 @@ TEST(primal_rationalbezier, rational_intersection)
   constexpr double abs_tol = 1e-8;
 
   // Intersecting of rational, circular arc shapes
-  Point2D bot_nodes[] = {Point2D {1.0, 0.0},
-                         Point2D {1.0, 1.0},
-                         Point2D {0.0, 1.0}};
+  Point2D bot_nodes[] = {Point2D {1.0, 0.0}, Point2D {1.0, 1.0}, Point2D {0.0, 1.0}};
 
-  Point2D top_nodes[] = {Point2D {1.3, 0.3},
-                         Point2D {0.3, 0.3},
-                         Point2D {0.3, 1.3}};
+  Point2D top_nodes[] = {Point2D {1.3, 0.3}, Point2D {0.3, 0.3}, Point2D {0.3, 1.3}};
 
   double weights[] = {2.0, 1.0, 1.0};
 

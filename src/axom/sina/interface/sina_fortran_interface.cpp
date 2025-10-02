@@ -25,8 +25,7 @@ extern "C" void create_document_and_record_(char *recID)
   // Create a record of "My Sim Code" version "1.2.3", which was run by "jdoe".
   // The run has an ID of "run1", which has to be unique to this file.
   axom::sina::ID id {recID, axom::sina::IDType::Global};
-  std::unique_ptr<axom::sina::Record> myRecord {
-    new axom::sina::Record {id, "my_type"}};
+  std::unique_ptr<axom::sina::Record> myRecord {new axom::sina::Record {id, "my_type"}};
   sina_document->add(std::move(myRecord));
 }
 
@@ -34,8 +33,7 @@ extern "C" axom::sina::Record *Sina_Get_Record()
 {
   if(sina_document)
   {
-    axom::sina::Document::RecordList const &allRecords =
-      sina_document->getRecords();
+    axom::sina::Document::RecordList const &allRecords = sina_document->getRecords();
     if(allRecords.size())
     {
       std::unique_ptr<axom::sina::Record> const &myRecord = allRecords.front();
@@ -75,10 +73,7 @@ extern "C" void sina_add_logical_(char *key, bool *value, char *units, char *tag
   }
 }
 
-extern "C" void sina_add_long_(char *key,
-                               long long int *value,
-                               char *units,
-                               char *tags)
+extern "C" void sina_add_long_(char *key, long long int *value, char *units, char *tags)
 {
   if(sina_document)
   {
@@ -258,7 +253,18 @@ extern "C" void sina_add_file_(char *filename, char *mime_type)
   }
 }
 
-extern "C" void write_sina_document_(char *input_fn)
+extern "C" void write_sina_document_protocol_(char *input_fn, int *protocol)
+{
+  std::string filename(input_fn);
+  axom::sina::Protocol proto = static_cast<axom::sina::Protocol>(*protocol);
+  // Save everything
+  if(sina_document)
+  {
+    axom::sina::saveDocument(*sina_document, filename.c_str(), proto);
+  }
+}
+
+extern "C" void write_sina_document_noprotocol_(char *input_fn)
 {
   std::string filename(input_fn);
   // Save everything
@@ -292,12 +298,12 @@ extern "C" void sina_add_curve_long_(char *curveset_name,
     axom::sina::Record *sina_record = Sina_Get_Record();
     if(sina_record)
     {
-      double y[*n];
+      std::vector<double> y(*n);
       for(int i = 0; i < *n; i++)
       {
-        y[i] = values[i];
+        y[i] = values[i];  // cast to doubles
       }
-      axom::sina::Curve curve {curve_name, y, static_cast<size_t>(*n)};
+      axom::sina::Curve curve {curve_name, y};
 
       auto &curvesets = sina_record->getCurveSets();
       axom::sina::CurveSet cs = curvesets.at(curveset_name);
@@ -325,12 +331,12 @@ extern "C" void sina_add_curve_int_(char *curveset_name,
     axom::sina::Record *sina_record = Sina_Get_Record();
     if(sina_record)
     {
-      double y[*n];
+      std::vector<double> y(*n);
       for(int i = 0; i < *n; i++)
       {
         y[i] = values[i];
       }
-      axom::sina::Curve curve {curve_name, y, static_cast<size_t>(*n)};
+      axom::sina::Curve curve {curve_name, y};
 
       auto &curvesets = sina_record->getCurveSets();
       axom::sina::CurveSet cs = curvesets.at(curveset_name);
@@ -358,12 +364,12 @@ extern "C" void sina_add_curve_float_(char *curveset_name,
     axom::sina::Record *sina_record = Sina_Get_Record();
     if(sina_record)
     {
-      double y[*n];
+      std::vector<double> y(*n);
       for(int i = 0; i < *n; i++)
       {
-        y[i] = values[i];
+        y[i] = values[i];  // cast to doubles
       }
-      axom::sina::Curve curve {curve_name, y, static_cast<size_t>(*n)};
+      axom::sina::Curve curve {curve_name, y};
 
       auto &curvesets = sina_record->getCurveSets();
       axom::sina::CurveSet cs = curvesets.at(curveset_name);

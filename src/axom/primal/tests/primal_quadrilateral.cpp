@@ -39,14 +39,12 @@ TEST(primal_quadrilateral, construct_from_array_view)
   using QuadrilateralType = primal::Quadrilateral<CoordinateType, DIM>;
 
   // This is a concave quadrilateral
-  PointType quadPoints[QuadrilateralType::NUM_QUAD_VERTS] {
-    PointType {-1.0, 0.1, 0.0},
-    PointType {-0.1, 0.5, 0.0},
-    PointType {2.0, 0.0, 1.0},
-    PointType {0.0, 1.0, 1.0}};
+  PointType quadPoints[QuadrilateralType::NUM_QUAD_VERTS] {PointType {-1.0, 0.1, 0.0},
+                                                           PointType {-0.1, 0.5, 0.0},
+                                                           PointType {2.0, 0.0, 1.0},
+                                                           PointType {0.0, 1.0, 1.0}};
 
-  QuadrilateralType quad {
-    axom::ArrayView<PointType> {quadPoints, QuadrilateralType::NUM_QUAD_VERTS}};
+  QuadrilateralType quad {axom::ArrayView<PointType> {quadPoints, QuadrilateralType::NUM_QUAD_VERTS}};
 
   for(int i = 0; i < QuadrilateralType::NUM_QUAD_VERTS; ++i)
   {

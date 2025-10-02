@@ -101,8 +101,7 @@ T area(const primal::CurvedPolygon<T, 2>& poly, double tol = 1e-8)
   T A = 0.0;
   if(!poly.isClosed(1e3 * tol))
   {
-    SLIC_DEBUG(
-      "Warning! The area is 0 because the curved polygon is not closed.");
+    SLIC_DEBUG("Warning! The area is 0 because the curved polygon is not closed.");
     return A;
   }
   else
@@ -120,8 +119,7 @@ T area(const primal::CurvedPolygon<T, 2>& poly, double tol = 1e-8)
 
 /// \brief Returns the centroid of the CurvedPolygon
 template <typename T>
-primal::Point<T, 2> centroid(const primal::CurvedPolygon<T, 2>& poly,
-                             double tol = 1e-8)
+primal::Point<T, 2> centroid(const primal::CurvedPolygon<T, 2>& poly, double tol = 1e-8)
 {
   using PointType = primal::Point<T, 2>;
 
@@ -130,8 +128,7 @@ primal::Point<T, 2> centroid(const primal::CurvedPolygon<T, 2>& poly,
 
   if(!poly.isClosed(1e3 * tol))
   {
-    SLIC_DEBUG(
-      "Warning! The moments are 0 because the curved polygon is not closed.");
+    SLIC_DEBUG("Warning! The moments are 0 because the curved polygon is not closed.");
     return M;
   }
   else

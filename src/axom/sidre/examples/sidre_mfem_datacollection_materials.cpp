@@ -31,8 +31,7 @@
  * and set all values to the provided \a value
  * The data collection will deallocate these during its destuction
  */
-mfem::GridFunction* createAndInitGridFunction(mfem::FiniteElementSpace* fes,
-                                              double value)
+mfem::GridFunction* createAndInitGridFunction(mfem::FiniteElementSpace* fes, double value)
 {
 #ifdef EXAMPLE_USES_MPI
   auto* pfes = dynamic_cast<mfem::ParFiniteElementSpace*>(fes);
@@ -60,8 +59,8 @@ int main(int argc, char* argv[])
   mfem::Mesh* mesh = nullptr;
 
   // Built a 2D mesh with 100 square elements
-  auto* serial_mesh = new mfem::Mesh(
-    mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::QUADRILATERAL));
+  auto* serial_mesh =
+    new mfem::Mesh(mfem::Mesh::MakeCartesian2D(10, 10, mfem::Element::QUADRILATERAL));
   mesh = serial_mesh;
 
 #ifdef EXAMPLE_USES_MPI
@@ -76,8 +75,7 @@ int main(int argc, char* argv[])
 
 #ifdef EXAMPLE_USES_MPI
   mfem::FiniteElementSpace serial_fes(mesh, &fec);
-  mfem::FiniteElementSpace* fes =
-    new mfem::ParFiniteElementSpace(serial_fes, *parallel_mesh);
+  mfem::FiniteElementSpace* fes = new mfem::ParFiniteElementSpace(serial_fes, *parallel_mesh);
 #else
   mfem::FiniteElementSpace* fes = new mfem::FiniteElementSpace(mesh, &fec);
 #endif
@@ -86,9 +84,7 @@ int main(int argc, char* argv[])
   // Note: all fields (added with RegisterField) must be on this mesh
   // Note: the dc is responsible for deallocating the mesh and fields
   constexpr bool own_mesh_data = true;
-  axom::sidre::MFEMSidreDataCollection dc("sidre_mfem_datacoll_materials_ex",
-                                          mesh,
-                                          own_mesh_data);
+  axom::sidre::MFEMSidreDataCollection dc("sidre_mfem_datacoll_materials_ex", mesh, own_mesh_data);
 
   // _sidredc_material_matset_start
   // Inform the DataCollection that volume fraction information for a material set

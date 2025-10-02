@@ -129,8 +129,7 @@ struct multirun_timer
     std::vector<double> sorted(time_record);
     std::sort(sorted.begin(), sorted.end());
 
-    return (sz % 2) == 0 ? 0.5 * (sorted[(sz >> 1) - 1] + sorted[sz >> 1])
-                         : sorted[sz >> 1];
+    return (sz % 2) == 0 ? 0.5 * (sorted[(sz >> 1) - 1] + sorted[sz >> 1]) : sorted[sz >> 1];
   }
 
   double get_average() { return time_sum / (double)time_record.size(); }
@@ -341,9 +340,7 @@ void read_vol_frac_matrix_file(std::string filename,
   fp = fopen(filename.c_str(), "r");
   if(!fp)
   {
-    fprintf(stderr,
-            "unable to read volume fractions from file \"%s\"\n",
-            filename.c_str());
+    fprintf(stderr, "unable to read volume fractions from file \"%s\"\n", filename.c_str());
     exit(-1);
   }
 
@@ -434,11 +431,8 @@ void read_vol_frac_matrix_file(std::string filename,
 
   printf("Ratios to Full Data Structure\n");
   filled_percentage = ratio_percent(filled_count, ncells * nmats);
-  float sparsity_percentage =
-    ratio_percent(ncells * nmats - filled_count, ncells * nmats);
-  printf("Sparsity %lf percent/Filled %lf percent\n\n",
-         sparsity_percentage,
-         filled_percentage);
+  float sparsity_percentage = ratio_percent(ncells * nmats - filled_count, ncells * nmats);
+  printf("Sparsity %lf percent/Filled %lf percent\n\n", sparsity_percentage, filled_percentage);
 
   printf("Ratios to Number of Cells\n");
   float pure_cell_percentage = ratio_percent(pure_cell_count, ncells);
@@ -451,26 +445,19 @@ void read_vol_frac_matrix_file(std::string filename,
   float mixed_material_sparsity_percentage =
     ratio_percent(mixed_frac_count, mixed_cell_count * nmats);
   float mixed_material_filled_percentage =
-    ratio_percent(mixed_cell_count * nmats - mixed_frac_count,
-                  mixed_cell_count * nmats);
-  printf(
-    "Mixed material Sparsity %lf percent/Mixed material Filled %lf percent\n\n",
-    mixed_material_sparsity_percentage,
-    mixed_material_filled_percentage);
+    ratio_percent(mixed_cell_count * nmats - mixed_frac_count, mixed_cell_count * nmats);
+  printf("Mixed material Sparsity %lf percent/Mixed material Filled %lf percent\n\n",
+         mixed_material_sparsity_percentage,
+         mixed_material_filled_percentage);
 
   printf("Vol Total %lf\n", VolTotal);
-  printf("%f percent of the cells are filled\n",
-         ratio_percent(filled_count, ncells * nmats));
-  printf("%f percent of the cells are mixed\n",
-         ratio_percent(mixed_cell_count, ncells));
-  printf("%f percent of the total are mixed\n",
-         ratio_percent(mixed_frac_count, ncells * nmats));
+  printf("%f percent of the cells are filled\n", ratio_percent(filled_count, ncells * nmats));
+  printf("%f percent of the cells are mixed\n", ratio_percent(mixed_cell_count, ncells));
+  printf("%f percent of the total are mixed\n", ratio_percent(mixed_frac_count, ncells * nmats));
   printf("%f percent of the frac are mixed\n",
          ratio_percent(mixed_frac_count, mixed_cell_count * nmats));
-  printf("%f percent sparsity\n",
-         ratio_percent(ncells * nmats - mixed_frac_count, ncells * nmats));
-  printf("%f percent of the frac are pure\n",
-         ratio_percent(pure_frac_count, ncells));
+  printf("%f percent sparsity\n", ratio_percent(ncells * nmats - mixed_frac_count, ncells * nmats));
+  printf("%f percent of the frac are pure\n", ratio_percent(pure_frac_count, ncells));
   printf("1 matcell %d 2 matcell %d 3 matcell %d 4 matcell %d 5 matcell %d\n\n",
          onematcell,
          twomatcell,
@@ -478,8 +465,7 @@ void read_vol_frac_matrix_file(std::string filename,
          fourmatcell,
          fiveplusmatcell);
   printf("Total cells %d\n\n",
-         onematcell + 2 * twomatcell + 3 * threematcell + 4 * fourmatcell +
-           5 * fiveplusmatcell);
+         onematcell + 2 * twomatcell + 3 * threematcell + 4 * fourmatcell + 5 * fiveplusmatcell);
 }
 
 void get_vol_frac_matrix_rand(int& ncells,
@@ -501,8 +487,7 @@ void get_vol_frac_matrix_rand(int& ncells,
   srand(0);
   for(int ic = 0; ic < ncells; ic++)
   {
-    mf_rand[ic] =
-      (int)((float)rand() * 1000.0 / (float)((long long)RAND_MAX + 1));
+    mf_rand[ic] = (int)((float)rand() * 1000.0 / (float)((long long)RAND_MAX + 1));
   }
 
   double VolTotal = 0.0;
@@ -518,8 +503,7 @@ void get_vol_frac_matrix_rand(int& ncells,
   int fiveplusmatcell = 0;
   for(int ic = 0; ic < ncells; ic++)
   {
-    int m1 =
-      (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
+    int m1 = (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
     if(m1 > nmats - 1)
     {
       m1 = nmats - 1;
@@ -528,26 +512,20 @@ void get_vol_frac_matrix_rand(int& ncells,
     int mf = mf_rand[ic];
     if(mf < 25)
     {
-      int m2 =
-        (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
+      int m2 = (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
       while(m2 == m1)
       {
-        m2 =
-          (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
+        m2 = (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
       }
-      int m3 =
-        (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
+      int m3 = (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
       while(m3 == m2 || m3 == m1)
       {
-        m3 =
-          (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
+        m3 = (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
       }
-      int m4 =
-        (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
+      int m4 = (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
       while(m4 == m3 || m4 == m2 || m4 == m1)
       {
-        m4 =
-          (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
+        m4 = (int)((float)rand() * (float)nmats / (float)((long long)RAND_MAX + 1));
       }
       if(m2 > nmats - 1)
       {
@@ -653,9 +631,7 @@ void get_vol_frac_matrix_rand(int& ncells,
   filled_percentage = (float)filled_count * 100.0 / (float)(ncells * nmats);
   float sparsity_percentage =
     (float)(ncells * nmats - filled_count) * 100.0 / (float)(ncells * nmats);
-  printf("Sparsity %lf percent/Filled %lf percent\n\n",
-         sparsity_percentage,
-         filled_percentage);
+  printf("Sparsity %lf percent/Filled %lf percent\n\n", sparsity_percentage, filled_percentage);
 
   printf("Ratios to Number of Cells\n");
   float pure_cell_percentage = (float)pure_cell_count * 100.0 / (float)ncells;
@@ -668,27 +644,22 @@ void get_vol_frac_matrix_rand(int& ncells,
   float mixed_material_sparsity_percentage =
     (float)mixed_frac_count * 100.0 / (float)(mixed_cell_count * nmats);
   float mixed_material_filled_percentage =
-    (float)(mixed_cell_count * nmats - mixed_frac_count) * 100.0 /
-    (float)(mixed_cell_count * nmats);
-  printf(
-    "Mixed material Sparsity %lf percent/Mixed material Filled %lf percent\n\n",
-    mixed_material_sparsity_percentage,
-    mixed_material_filled_percentage);
+    (float)(mixed_cell_count * nmats - mixed_frac_count) * 100.0 / (float)(mixed_cell_count * nmats);
+  printf("Mixed material Sparsity %lf percent/Mixed material Filled %lf percent\n\n",
+         mixed_material_sparsity_percentage,
+         mixed_material_filled_percentage);
 
   printf("Vol Total %lf\n", VolTotal);
   printf("%f percent of the cells are filled\n",
          (float)filled_count * 100.0 / (float)(ncells * nmats));
-  printf("%f percent of the cells are mixed\n",
-         (float)mixed_cell_count * 100.0 / (float)ncells);
+  printf("%f percent of the cells are mixed\n", (float)mixed_cell_count * 100.0 / (float)ncells);
   printf("%f percent of the total are mixed\n",
          (float)mixed_frac_count * 100.0 / (float)(ncells * nmats));
   printf("%f percent of the frac are mixed\n",
          (float)mixed_frac_count * 100.0 / (float)(mixed_cell_count * nmats));
   printf("%f percent sparsity\n",
-         (float)(ncells * nmats - mixed_frac_count) * 100.0 /
-           (float)(ncells * nmats));
-  printf("%f percent of the frac are pure\n",
-         (float)pure_frac_count * 100.0 / (float)ncells);
+         (float)(ncells * nmats - mixed_frac_count) * 100.0 / (float)(ncells * nmats));
+  printf("%f percent of the frac are pure\n", (float)pure_frac_count * 100.0 / (float)ncells);
   printf("1 matcell %d 2 matcell %d 3 matcell %d 4 matcell %d 5 matcell %d\n\n",
          onematcell,
          twomatcell,
@@ -696,14 +667,10 @@ void get_vol_frac_matrix_rand(int& ncells,
          fourmatcell,
          fiveplusmatcell);
   printf("Total cells %d\n\n",
-         onematcell + 2 * twomatcell + 3 * threematcell + 4 * fourmatcell +
-           5 * fiveplusmatcell);
+         onematcell + 2 * twomatcell + 3 * threematcell + 4 * fourmatcell + 5 * fiveplusmatcell);
 }
 
-void get_neighbors(int ncells,
-                   int nnbrs_max,
-                   std::vector<int>& num_nbrs,
-                   std::vector<int>& nbrs)
+void get_neighbors(int ncells, int nnbrs_max, std::vector<int>& num_nbrs, std::vector<int>& nbrs)
 {
   int ncells1 = (int)sqrt(ncells);  // assumes ncells is a perfect square
   if(ncells1 * ncells1 != ncells)
@@ -800,15 +767,15 @@ struct Robey_data
 
   axom::Array<double> nmatconsts;
 
-  int nnbrs_max;           //max number of neighbor = 8 for a 2d structured mesh
-  std::vector<int> nnbrs;  //number of neighbors
-  std::vector<int> nbrs;   //neighbor element id
+  int nnbrs_max;            //max number of neighbor = 8 for a 2d structured mesh
+  std::vector<int> nnbrs;   //number of neighbors
+  std::vector<int> nbrs;    //neighbor element id
   std::vector<double> cen;  //centroids of cells
 
   std::vector<int> subset2mesh;
   std::vector<int> mesh2subset;
   std::vector<int> nmatscell;  //number of materials in a cell
-  std::vector<int> matids;  //material id in a cell, at most 4 materials per cell
+  std::vector<int> matids;     //material id in a cell, at most 4 materials per cell
   std::vector<int> ncellsmat;  //number of cells a material is in
   std::vector<int> dense2sparse_idx;
 
@@ -827,8 +794,7 @@ struct Robey_data
   using Card = slam::policies::VariableCardinality<P, Ind>;
   using NbrRel = slam::StaticRelation<P, P, Card, Ind, ElemSet, ElemSet>;
   using DataInd = slam::policies::STLVectorIndirection<P, double>;
-  using CentroidMap =
-    slam::Map<double, ElemSet, DataInd, slam::policies::CompileTimeStride<P, 2>>;
+  using CentroidMap = slam::Map<double, ElemSet, DataInd, slam::policies::CompileTimeStride<P, 2>>;
 
   std::vector<int> slam_nbr_beg;
   std::vector<int> slam_nbr_ind;
@@ -842,11 +808,7 @@ struct Robey_data
     if(filename != "")
     {
       //read from file... large and takes a long time.
-      read_vol_frac_matrix_file(filename,
-                                ncells,
-                                nmats,
-                                Volfrac_CD,
-                                filled_percentage);
+      read_vol_frac_matrix_file(filename, ncells, nmats, Volfrac_CD, filled_percentage);
     }
     else
     {
@@ -926,12 +888,11 @@ struct Robey_data
       using BuildInd = typename NBuilder::IndicesSetBuilder;
 
       // Initialize the nbrs relation
-      slam_neighbors =
-        NBuilder()
-          .fromSet(&slam_elems)
-          .toSet(&slam_elems)
-          .begins(BuildBeg().size(slam_nbr_beg.size()).data(&slam_nbr_beg))
-          .indices(BuildInd().size(slam_nbr_ind.size()).data(&slam_nbr_ind));
+      slam_neighbors = NBuilder()
+                         .fromSet(&slam_elems)
+                         .toSet(&slam_elems)
+                         .begins(BuildBeg().size(slam_nbr_beg.size()).data(&slam_nbr_beg))
+                         .indices(BuildInd().size(slam_nbr_ind.size()).data(&slam_nbr_ind));
 
       // Initialize map over centroids
       slam_centroids = CentroidMap(&slam_elems);
@@ -1041,10 +1002,7 @@ struct Result_Store
     result_vec.resize(nAlgo * nLayout * nMethod, 0.0);
   }
 
-  void init(Robey_data* robey_data_ptr_in)
-  {
-    robey_data_ptr = robey_data_ptr_in;
-  }
+  void init(Robey_data* robey_data_ptr_in) { robey_data_ptr = robey_data_ptr_in; }
 
   void add_result(Algo algo,
                   DataLayout data_layout,
@@ -1055,27 +1013,21 @@ struct Result_Store
     int data_layout_i = data_layout == DataLayout::CELL_DOM ? 0 : 1;
     int sparsity_layout_i = sparsity_layout == SparsityLayout::DENSE ? 0 : 1;
 
-    int idx = algo * (nLayout * nMethod) +
-      data_layout_i * (nLayout / 2 * nMethod) + sparsity_layout_i * (nMethod) +
-      method;
+    int idx = algo * (nLayout * nMethod) + data_layout_i * (nLayout / 2 * nMethod) +
+      sparsity_layout_i * (nMethod) + method;
 
-    std::cout << idx << ": " << get_algo_name(idx) << " - "
-              << get_method_name(idx) << std::endl;
+    std::cout << idx << ": " << get_algo_name(idx) << " - " << get_method_name(idx) << std::endl;
     result_vec[idx] = time;
   }
 
-  const char* get_method_name(int index)
-  {
-    return method_names[index % nMethod];
-  }
+  const char* get_method_name(int index) { return method_names[index % nMethod]; }
   std::string get_algo_name(int index)
   {
     int algo_i = index / (nLayout * nMethod);
     int data_layout_i = (index / (nLayout / 2 * nMethod)) % 2;
     int sparsity_layout_i = (index / (nMethod)) % 2;
-    return std::string(algo_names[algo_i]) + "|" +
-      std::string(sparsity_str[sparsity_layout_i]) + "|" +
-      std::string(data_layout_str[data_layout_i]);
+    return std::string(algo_names[algo_i]) + "|" + std::string(sparsity_str[sparsity_layout_i]) +
+      "|" + std::string(data_layout_str[data_layout_i]);
   }
 
   void save_to_csv_file(const std::string& filename)
@@ -1088,10 +1040,9 @@ struct Result_Store
       return;
     }
 
-    outputFile << "NCells: " << robey_data_ptr->ncells
-               << " NMats: " << robey_data_ptr->nmats
-               << " Sparsity: " << robey_data_ptr->filled_percentage
-               << " NRuns: " << ITERMAX << "\n\n";
+    outputFile << "NCells: " << robey_data_ptr->ncells << " NMats: " << robey_data_ptr->nmats
+               << " Sparsity: " << robey_data_ptr->filled_percentage << " NRuns: " << ITERMAX
+               << "\n\n";
 
     outputFile << "Methods";
     for(int i = 0; i < nMethod; i++)

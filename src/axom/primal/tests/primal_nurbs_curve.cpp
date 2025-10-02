@@ -13,25 +13,303 @@
 #include "axom/slic.hpp"
 
 #include "axom/primal/geometry/NURBSCurve.hpp"
+#include <math.h>
 
 namespace primal = axom::primal;
 
 //------------------------------------------------------------------------------
-TEST(primal_nurbscurve, constructor)
+TEST(primal_nurbscurve, default_constructor)
 {
-  const int DIM = 3;
+  constexpr int DIM = 3;
   using CoordType = double;
   using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
 
-  SLIC_INFO("Testing default NURBSCurve constructor");
-  NURBSCurveType nCurve;
+  auto check_curve = [](const NURBSCurveType& cur) {
+    constexpr axom::IndexType zero {0};
 
-  int expDegree = -1;
-  EXPECT_EQ(expDegree, nCurve.getDegree());
-  EXPECT_EQ(expDegree + 1, nCurve.getOrder());
-  EXPECT_EQ(expDegree + 1, nCurve.getControlPoints().size());
-  EXPECT_EQ(expDegree + 1, nCurve.getKnotsArray().size());
-  EXPECT_FALSE(nCurve.isRational());
+    EXPECT_EQ(-1, cur.getDegree());
+    EXPECT_EQ(zero, cur.getOrder());
+    EXPECT_EQ(zero, cur.getControlPoints().size());
+    EXPECT_EQ(zero, cur.getKnotsArray().size());
+    EXPECT_FALSE(cur.isValidNURBS());
+  };
+
+  // check default constructor
+  {
+    NURBSCurveType nCurve;
+    check_curve(nCurve);
+  }
+
+  // explicitly specify degree of -1
+  {
+    NURBSCurveType nCurve(-1);
+    check_curve(nCurve);
+  }
+
+  // explicitly specify degree of -1 and 0 points
+  {
+    NURBSCurveType nCurve(0, -1);
+    check_curve(nCurve);
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, sizing_constructors)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  for(int deg = 0; deg < 5; ++deg)
+  {
+    for(int npts = deg + 1; npts < 10; ++npts)
+    {
+      NURBSCurveType nCurve(npts, deg);
+
+      EXPECT_TRUE(nCurve.isValidNURBS());
+
+      EXPECT_EQ(deg, nCurve.getDegree());
+      EXPECT_EQ(deg + 1, nCurve.getOrder());
+      EXPECT_EQ(npts, nCurve.getControlPoints().size());
+      EXPECT_EQ(npts + deg + 1, nCurve.getKnotsArray().size());
+      EXPECT_FALSE(nCurve.isRational());
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, bezier_constructors)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  constexpr int order = 2;
+
+  axom::Array<PointType> controlPoints {PointType {0.6, 1.2, 1.0},
+                                        PointType {0.0, 1.6, 1.8},
+                                        PointType {0.2, 1.4, 2.0}};
+  axom::Array<double> weights {.25, .5, .75};
+
+  primal::BezierCurve<double, DIM> nBez(controlPoints, order);
+  EXPECT_FALSE(nBez.isRational());
+
+  primal::BezierCurve<double, DIM> rBez(controlPoints, weights, order);
+  EXPECT_TRUE(rBez.isRational());
+
+  for(const auto& bez : {nBez, rBez})
+  {
+    NURBSCurveType cur(bez);
+    EXPECT_TRUE(cur.isValidNURBS());
+    EXPECT_EQ(cur.isRational(), bez.isRational());
+
+    EXPECT_EQ(order, cur.getDegree());
+    EXPECT_EQ(order + 1, cur.getOrder());
+    EXPECT_EQ(controlPoints.size(), cur.getControlPoints().size());
+    EXPECT_EQ(controlPoints.size() + order + 1, cur.getKnotsArray().size());
+
+    for(int p = 0; p < controlPoints.size(); ++p)
+    {
+      EXPECT_EQ(controlPoints[p], cur[p]);
+      if(cur.isRational())
+      {
+        EXPECT_EQ(weights[p], cur.getWeight(p));
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, knotless_array_constructors)
+{
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  constexpr int npts = 3;
+  constexpr int degree = 1;
+
+  // Construct from C-Style arrays
+  PointType controlPoints[npts] = {PointType {0.6, 1.2, 1.0},
+                                   PointType {0.0, 1.6, 1.8},
+                                   PointType {0.2, 1.4, 2.0}};
+
+  double weights[npts] = {1.0, 2.0, 3.0};
+
+  auto check_curve = [&](const NURBSCurveType& cur, bool expect_rational) {
+    EXPECT_TRUE(cur.isValidNURBS());
+
+    EXPECT_EQ(degree, cur.getDegree());
+    EXPECT_EQ(degree + 1, cur.getOrder());
+    EXPECT_EQ(npts, cur.getControlPoints().size());
+    EXPECT_EQ(npts + degree + 1, cur.getKnotsArray().size());
+
+    EXPECT_EQ(cur.isRational(), expect_rational);
+
+    for(int p = 0; p < cur.getNumControlPoints(); ++p)
+    {
+      EXPECT_EQ(controlPoints[p], cur[p]);
+      if(expect_rational)
+      {
+        EXPECT_EQ(weights[p], cur.getWeight(p));
+      }
+    }
+  };
+
+  // test constructors over C-arrays
+  {
+    NURBSCurveType nCurve(controlPoints, npts, degree);
+    check_curve(nCurve, false);
+
+    NURBSCurveType wCurve(controlPoints, weights, npts, degree);
+    check_curve(wCurve, true);
+  }
+
+  // test constructors over ArrayViews over C-arrays
+  {
+    axom::ArrayView<PointType> cp(controlPoints, npts);
+    axom::ArrayView<double> wt(weights, npts);
+
+    NURBSCurveType nCurve(cp, degree);
+    check_curve(nCurve, false);
+
+    NURBSCurveType wCurve(cp, wt, degree);
+    check_curve(wCurve, true);
+  }
+
+  // test over Axom arrays
+  {
+    axom::Array<PointType> cp;
+    cp.assign(std::begin(controlPoints), std::end(controlPoints));
+
+    axom::Array<double> wt;
+    wt.assign(std::begin(weights), std::end(weights));
+
+    // test over axom::Arrays
+    {
+      NURBSCurveType nCurve(cp, degree);
+      check_curve(nCurve, false);
+
+      NURBSCurveType wCurve(cp, wt, degree);
+      check_curve(wCurve, true);
+    }
+
+    // test over ArrayViews from Arrays
+    {
+      NURBSCurveType nCurve(cp.view(), degree);
+      check_curve(nCurve, false);
+      NURBSCurveType wCurve(cp.view(), wt.view(), degree);
+      check_curve(wCurve, true);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, knotted_array_constructor)
+{
+  SLIC_INFO("Testing knot array constructor");
+
+  constexpr int DIM = 3;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  constexpr int npts = 3;
+  constexpr int degree = 1;
+  constexpr int nkts = npts + degree + 1;
+
+  // Construct from C-Style arrays
+  PointType controlPoints[npts] = {PointType {0.6, 1.2, 1.0},
+                                   PointType {0.0, 1.6, 1.8},
+                                   PointType {0.2, 1.4, 2.0}};
+
+  double weights[npts] = {1.0, 2.0, 3.0};
+  double knots[nkts] = {0.0, 0.0, 0.2, 1.0, 1.0};
+
+  auto check_curve = [&](const NURBSCurveType& cur, bool expect_rational) {
+    EXPECT_TRUE(cur.isValidNURBS());
+
+    EXPECT_EQ(degree, cur.getDegree());
+    EXPECT_EQ(degree + 1, cur.getOrder());
+    EXPECT_EQ(npts, cur.getControlPoints().size());
+    EXPECT_EQ(nkts, cur.getKnotsArray().size());
+
+    EXPECT_EQ(cur.isRational(), expect_rational);
+
+    for(int p = 0; p < cur.getNumControlPoints(); ++p)
+    {
+      EXPECT_EQ(controlPoints[p], cur[p]);
+      if(expect_rational)
+      {
+        EXPECT_EQ(weights[p], cur.getWeight(p));
+      }
+    }
+  };
+
+  // test constructors over C-arrays
+  {
+    NURBSCurveType nCurve(controlPoints, npts, knots, nkts);
+    NURBSCurveType wCurve(controlPoints, weights, npts, knots, nkts);
+
+    check_curve(nCurve, false);
+    check_curve(wCurve, true);
+  }
+
+  // test constructors over ArrayViews from C-arrays
+  {
+    axom::ArrayView<PointType> cp(controlPoints, npts);
+    axom::ArrayView<double> wt(weights, npts);
+    axom::ArrayView<double> kv(knots, nkts);
+
+    NURBSCurveType nCurve(cp, degree);
+    check_curve(nCurve, false);
+
+    NURBSCurveType wCurve(cp, wt, degree);
+    check_curve(wCurve, true);
+  }
+
+  // Construct from axom::Array
+  {
+    axom::Array<PointType> cp_arr;
+    cp_arr.assign(std::begin(controlPoints), std::end(controlPoints));
+
+    axom::Array<double> wt_arr;
+    wt_arr.assign(std::begin(weights), std::end(weights));
+
+    axom::Array<double> kt_arr;
+    kt_arr.assign(std::begin(knots), std::end(knots));
+
+    primal::KnotVector<double> knotvec(kt_arr, degree);
+
+    // test using Axom Arrays
+    {
+      NURBSCurveType nCurve(cp_arr, kt_arr);
+      check_curve(nCurve, false);
+
+      NURBSCurveType wCurve(cp_arr, wt_arr, kt_arr);
+      check_curve(wCurve, true);
+    }
+
+    // test using Axom arrays and KnotVectors
+    {
+      NURBSCurveType nCurve(cp_arr, knotvec);
+      check_curve(nCurve, false);
+
+      NURBSCurveType wCurve(cp_arr, wt_arr, knotvec);
+      check_curve(wCurve, true);
+    }
+
+    // test using ArrayViews from Arrays as well as KnotVectors
+    {
+      NURBSCurveType nCurve(cp_arr.view(), knotvec);
+      check_curve(nCurve, false);
+
+      NURBSCurveType wCurve(cp_arr.view(), wt_arr.view(), knotvec);
+      check_curve(wCurve, true);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -42,7 +320,7 @@ TEST(primal_nurbscurve, set_degree)
   using PointType = primal::Point<CoordType, DIM>;
   using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
 
-  SLIC_INFO("Test adding control points to empty Bezier curve");
+  SLIC_INFO("Test adding control points to empty NURBS curve");
 
   NURBSCurveType nCurve;
   EXPECT_EQ(-1, nCurve.getDegree());
@@ -66,11 +344,7 @@ TEST(primal_nurbscurve, set_degree)
 
   for(int p = 0; p < npts; ++p)
   {
-    auto& pt = nCurve[p];
-    for(int i = 0; i < DIM; ++i)
-    {
-      EXPECT_DOUBLE_EQ(controlPoints[p][i], pt[i]);
-    }
+    EXPECT_EQ(nCurve[p], controlPoints[p]);
   }
 
   nCurve.clear();
@@ -83,134 +357,6 @@ TEST(primal_nurbscurve, set_degree)
 
   nCurve.setWeight(0, 2.0);
   EXPECT_EQ(nCurve.getWeight(0), 2.0);
-}
-
-//------------------------------------------------------------------------------
-TEST(primal_nurbscurve, point_array_constructor)
-{
-  SLIC_INFO("Testing point array constructor");
-
-  const int DIM = 3;
-  using CoordType = double;
-  using PointType = primal::Point<CoordType, DIM>;
-  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
-
-  const int npts = 3;
-  const int degree = 1;
-
-  // Construct from C-Style arrays
-  PointType controlPoints[npts] = {PointType {0.6, 1.2, 1.0},
-                                   PointType {0.0, 1.6, 1.8},
-                                   PointType {0.2, 1.4, 2.0}};
-
-  double weights[npts] = {1.0, 2.0, 3.0};
-
-  NURBSCurveType nCurve(controlPoints, npts, degree);
-  NURBSCurveType wCurve(controlPoints, weights, npts, degree);
-
-  EXPECT_EQ(1, nCurve.getDegree());
-  for(int p = 0; p <= nCurve.getDegree(); ++p)
-  {
-    auto& pt1 = nCurve[p];
-    auto& pt2 = wCurve[p];
-    double w = wCurve.getWeight(p);
-
-    EXPECT_DOUBLE_EQ(weights[p], w);
-    for(int i = 0; i < DIM; ++i)
-    {
-      EXPECT_DOUBLE_EQ(controlPoints[p][i], pt1[i]);
-      EXPECT_DOUBLE_EQ(controlPoints[p][i], pt2[i]);
-    }
-  }
-
-  // Construct from axom::Array
-  axom::Array<PointType> controlPointsArray {PointType {0.6, 1.2, 1.0},
-                                             PointType {0.0, 1.6, 1.8},
-                                             PointType {0.2, 1.4, 2.0}};
-  axom::Array<double> weightsArray {1.0, 2.0, 3.0};
-
-  NURBSCurveType nCurveArray(controlPointsArray, degree);
-  NURBSCurveType wCurveArray(controlPointsArray, weightsArray, degree);
-
-  EXPECT_EQ(1, nCurveArray.getDegree());
-  for(int p = 0; p <= nCurveArray.getDegree(); ++p)
-  {
-    auto& pt1 = nCurveArray[p];
-    auto& pt2 = wCurveArray[p];
-    double w = wCurveArray.getWeight(p);
-
-    EXPECT_DOUBLE_EQ(weightsArray[p], w);
-    for(int i = 0; i < DIM; ++i)
-    {
-      EXPECT_DOUBLE_EQ(controlPointsArray[p][i], pt1[i]);
-      EXPECT_DOUBLE_EQ(controlPointsArray[p][i], pt2[i]);
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
-TEST(primal_nurbscurve, knot_array_constructor)
-{
-  SLIC_INFO("Testing knot array constructor");
-
-  const int DIM = 3;
-  using CoordType = double;
-  using PointType = primal::Point<CoordType, DIM>;
-  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
-
-  const int npts = 3;
-  const int degree = 1;
-
-  // Construct from C-Style arrays
-  PointType controlPoints[npts] = {PointType {0.6, 1.2, 1.0},
-                                   PointType {0.0, 1.6, 1.8},
-                                   PointType {0.2, 1.4, 2.0}};
-
-  double weights[npts] = {1.0, 2.0, 3.0};
-  double knots[npts + degree + 1] = {0.0, 0.0, 0.2, 1.0, 1.0};
-
-  NURBSCurveType nCurve(controlPoints, npts, knots, npts + degree + 1);
-  NURBSCurveType wCurve(controlPoints, weights, npts, knots, npts + degree + 1);
-
-  EXPECT_EQ(1, nCurve.getDegree());
-  for(int p = 0; p <= nCurve.getDegree(); ++p)
-  {
-    auto& pt1 = nCurve[p];
-    auto& pt2 = wCurve[p];
-    double w = wCurve.getWeight(p);
-
-    EXPECT_DOUBLE_EQ(weights[p], w);
-    for(int i = 0; i < DIM; ++i)
-    {
-      EXPECT_DOUBLE_EQ(controlPoints[p][i], pt1[i]);
-      EXPECT_DOUBLE_EQ(controlPoints[p][i], pt2[i]);
-    }
-  }
-
-  // Construct from axom::Array
-  axom::Array<PointType> controlPointsArray {PointType {0.6, 1.2, 1.0},
-                                             PointType {0.0, 1.6, 1.8},
-                                             PointType {0.2, 1.4, 2.0}};
-  axom::Array<double> weightsArray {1.0, 2.0, 3.0};
-  axom::Array<double> knotsArray {0.0, 0.0, 0.2, 1.0, 1.0};
-
-  NURBSCurveType nCurveArray(controlPointsArray, knotsArray);
-  NURBSCurveType wCurveArray(controlPointsArray, weightsArray, knotsArray);
-
-  EXPECT_EQ(1, nCurveArray.getDegree());
-  for(int p = 0; p <= nCurveArray.getDegree(); ++p)
-  {
-    auto& pt1 = nCurveArray[p];
-    auto& pt2 = wCurveArray[p];
-    double w = wCurveArray.getWeight(p);
-
-    EXPECT_DOUBLE_EQ(weightsArray[p], w);
-    for(int i = 0; i < DIM; ++i)
-    {
-      EXPECT_DOUBLE_EQ(controlPointsArray[p][i], pt1[i]);
-      EXPECT_DOUBLE_EQ(controlPointsArray[p][i], pt2[i]);
-    }
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -228,10 +374,7 @@ TEST(primal_nurbscurve, evaluate)
   using NURBSCurve3D = primal::NURBSCurve<CoordType, 3>;
 
   const int max_degree = 3;
-  Point1D data_1d[max_degree + 1] = {Point1D {0.6},
-                                     Point1D {1.3},
-                                     Point1D {2.9},
-                                     Point1D {3.2}};
+  Point1D data_1d[max_degree + 1] = {Point1D {0.6}, Point1D {1.3}, Point1D {2.9}, Point1D {3.2}};
 
   Point2D data_2d[max_degree + 1] = {Point2D {0.6, 1.2},
                                      Point2D {1.3, 1.6},
@@ -547,7 +690,7 @@ TEST(primal_nurbscurve, curve_splitting)
 
   for(int deg = 1; deg <= 3; ++deg)
   {
-    NURBSCurveType curve(data, weights, 4, deg);
+    NURBSCurveType curve(data, weights, 4, deg), dummy1, dummy2;
 
     // Do some knot insertion to make it interesting
     curve.insertKnot(0.3, 2);
@@ -857,6 +1000,124 @@ TEST(primal_nurbscurve, nurbs_knot_normalization)
     for(int i = 0; i < DIM; ++i)
     {
       EXPECT_NEAR(p[i], p_scaled[i], 1e-13);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, circular_arc_constructor)
+{
+  // Define a nurbs curve that represents a circle
+  const int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  PointType center {1.0, 2.0};
+  double radius = 2.3;
+
+  // Check trivial arc (start_theta == end_theta)
+  auto invalid_circle =
+    NURBSCurveType::make_circular_arc_nurbs(1.0, 1.0, center[0], center[1], radius);
+  EXPECT_FALSE(invalid_circle.isValidNURBS());
+
+  // clang-format off
+  double start_theta[] = {0.0,     -1.0, 1.0,            2.0,            2.0};
+  double end_theta[]   = {2.0*M_PI, 1.0, 1.0 + 2*M_PI/3, 2.0 + 4*M_PI/3, 5.0};
+  // clang-format on
+
+  constexpr int npts = 11;
+  double t_pts[npts];
+  axom::numerics::linspace(0.0, 1.0, t_pts, npts);
+
+  for(int i = 0; i < 5; ++i)
+  {
+    // Check for counter-clockwise and clockwise arcs
+    for(bool is_ccw : {true, false})
+    {
+      double start_theta_i = start_theta[i];
+      double end_theta_i = end_theta[i];
+
+      if(!is_ccw)
+      {
+        std::swap(start_theta_i, end_theta_i);
+      }
+
+      auto circle = NURBSCurveType::make_circular_arc_nurbs(start_theta_i,
+                                                            end_theta_i,
+                                                            center[0],
+                                                            center[1],
+                                                            radius);
+
+      // Check the first endpoint of the curve
+      PointType start = circle.evaluate(0.0);
+      PointType start_ex = PointType {center[0] + radius * std::cos(start_theta_i),
+                                      center[1] + radius * std::sin(start_theta_i)};
+
+      EXPECT_NEAR(start[0], start_ex[0], 1e-13);
+      EXPECT_NEAR(start[1], start_ex[1], 1e-13);
+
+      // Check the second endpoint of the curve
+      PointType end = circle.evaluate(1.0);
+      PointType end_ex = PointType {center[0] + radius * std::cos(end_theta_i),
+                                    center[1] + radius * std::sin(end_theta_i)};
+
+      EXPECT_NEAR(end[0], end_ex[0], 1e-13);
+      EXPECT_NEAR(end[1], end_ex[1], 1e-13);
+
+      // Check the magnitude of the points elsewhere along the curve
+      for(int j = 0; j < npts; ++j)
+      {
+        PointType p = circle.evaluate(t_pts[j]);
+
+        double distance = std::sqrt((p[0] - center[0]) * (p[0] - center[0]) +
+                                    (p[1] - center[1]) * (p[1] - center[1]));
+
+        EXPECT_NEAR(distance, radius, 1e-13);
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+TEST(primal_nurbscurve, linear_segment_constructor)
+{
+  // Define a nurbs curve that represents a circle
+  const int DIM = 2;
+  using CoordType = double;
+  using PointType = primal::Point<CoordType, DIM>;
+  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
+
+  constexpr int npts = 11;
+  double t_pts[npts];
+  axom::numerics::linspace(0.0, 1.0, t_pts, npts);
+
+  PointType start {1.0, 2.0};
+  PointType end {3.0, 4.0};
+  NURBSCurveType line = NURBSCurveType::make_linear_segment_nurbs(start, end);
+
+  // Check points along the curve
+  for(int j = 0; j < npts; ++j)
+  {
+    PointType p = line.evaluate(t_pts[j]);
+
+    for(int i = 0; i < DIM; ++i)
+    {
+      EXPECT_NEAR(p[i], start[i] + t_pts[j] * (end[i] - start[i]), 1e-13);
+    }
+  }
+
+  // Check a curve with start == end
+  end = start;
+  line = NURBSCurveType::make_linear_segment_nurbs(start, end);
+
+  for(int j = 0; j < npts; ++j)
+  {
+    PointType p = line.evaluate(t_pts[j]);
+
+    for(int i = 0; i < DIM; ++i)
+    {
+      EXPECT_NEAR(p[i], start[i], 1e-13);
     }
   }
 }

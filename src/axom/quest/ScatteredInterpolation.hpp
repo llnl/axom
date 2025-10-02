@@ -56,9 +56,7 @@ inline axom::ArrayView<T> ArrayView_from_Node(conduit::Node& node, int sz)
  * \warning Assumes the underlying data is an MCArray with stride 2 access
  */
 template <>
-inline axom::ArrayView<axom::primal::Point<double, 2>> ArrayView_from_Node(
-  conduit::Node& node,
-  int sz)
+inline axom::ArrayView<axom::primal::Point<double, 2>> ArrayView_from_Node(conduit::Node& node, int sz)
 {
   using PointType = axom::primal::Point<double, 2>;
 
@@ -72,9 +70,7 @@ inline axom::ArrayView<axom::primal::Point<double, 2>> ArrayView_from_Node(
  * \warning Assumes the underlying data is an MCArray with stride 3 access
  */
 template <>
-inline axom::ArrayView<axom::primal::Point<double, 3>> ArrayView_from_Node(
-  conduit::Node& node,
-  int sz)
+inline axom::ArrayView<axom::primal::Point<double, 3>> ArrayView_from_Node(conduit::Node& node, int sz)
 {
   using PointType = axom::primal::Point<double, 3>;
 
@@ -93,18 +89,14 @@ inline axom::ArrayView<axom::primal::Point<double, 3>> ArrayView_from_Node(
  * \note Only currently supports scalar fields
  */
 template <typename T>
-inline axom::ArrayView<T> getField(conduit::Node& mesh_node,
-                                   const std::string& field_name)
+inline axom::ArrayView<T> getField(conduit::Node& mesh_node, const std::string& field_name)
 {
   using axom::utilities::string::startsWith;
 
-  const std::string field_path = startsWith(field_name, "field")
-    ? field_name
-    : axom::fmt::format("fields/{}/values", field_name);
-  SLIC_ERROR_IF(
-    !mesh_node.has_path(field_path),
-    axom::fmt::format("Mesh blueprint is missing required field '{}'",
-                      field_name));
+  const std::string field_path =
+    startsWith(field_name, "field") ? field_name : axom::fmt::format("fields/{}/values", field_name);
+  SLIC_ERROR_IF(!mesh_node.has_path(field_path),
+                axom::fmt::format("Mesh blueprint is missing required field '{}'", field_name));
 
   auto& values = mesh_node[field_path];
   const auto sz = values.dtype().number_of_elements();
@@ -166,10 +158,10 @@ public:
       const int dim = ::extractDimension(values);
       SLIC_ASSERT(dim == NDIMS);
 
-      m_strided = StridedPoints {
-        {static_cast<CoordType*>(values["x"].data_ptr()),
-         dim >= 2 ? static_cast<CoordType*>(values["y"].data_ptr()) : nullptr,
-         dim >= 3 ? static_cast<CoordType*>(values["z"].data_ptr()) : nullptr}};
+      m_strided =
+        StridedPoints {{static_cast<CoordType*>(values["x"].data_ptr()),
+                        dim >= 2 ? static_cast<CoordType*>(values["y"].data_ptr()) : nullptr,
+                        dim >= 3 ? static_cast<CoordType*>(values["z"].data_ptr()) : nullptr}};
     }
   }
 
@@ -193,10 +185,10 @@ public:
       const int dim = ::extractDimension(vals);
       SLIC_ASSERT(dim == NDIMS);
 
-      m_strided = StridedPoints {
-        {static_cast<CoordType*>(vals["x"].data_ptr()),
-         dim >= 2 ? static_cast<CoordType*>(vals["y"].data_ptr()) : nullptr,
-         dim >= 3 ? static_cast<CoordType*>(vals["z"].data_ptr()) : nullptr}};
+      m_strided =
+        StridedPoints {{static_cast<CoordType*>(vals["x"].data_ptr()),
+                        dim >= 2 ? static_cast<CoordType*>(vals["y"].data_ptr()) : nullptr,
+                        dim >= 3 ? static_cast<CoordType*>(vals["z"].data_ptr()) : nullptr}};
     }
   }
 
@@ -278,8 +270,7 @@ private:
 
     friend bool operator<(const BrioComparator& lhs, const BrioComparator& rhs)
     {
-      return (lhs.m_level == rhs.m_level) ? lhs.m_morton < rhs.m_morton
-                                          : lhs.m_level < rhs.m_level;
+      return (lhs.m_level == rhs.m_level) ? lhs.m_morton < rhs.m_morton : lhs.m_level < rhs.m_level;
     }
   };
 
@@ -289,16 +280,14 @@ private:
    * \sa BrioComparator
    */
   template <typename PointArray>
-  axom::Array<axom::IndexType> computeInsertionOrder(const PointArray& pts,
-                                                     const BoundingBoxType& bb)
+  axom::Array<axom::IndexType> computeInsertionOrder(const PointArray& pts, const BoundingBoxType& bb)
   {
     // This function will compute a permutation of pts following BRIO.
     // Each point gets a level from the computeLevel() lambda
     // and a quantized Morton index from a rectangular lattice over the bounding box
 
     const int npts = pts.size();
-    const int nlevels =
-      axom::utilities::ceil(axom::utilities::log2<CoordType>(npts));
+    const int nlevels = axom::utilities::ceil(axom::utilities::log2<CoordType>(npts));
 
     // Each point has a 50% chance of being at the max level; of the remaining points
     // from the previous level, there's a 50% chance of being at the current level.
@@ -317,27 +306,20 @@ private:
     // We use a Morton index, quantized over the mesh bounding box to
     // order the points on each level
     using QuantizedCoordType = std::uint32_t;
-    using MortonizerType =
-      spin::Mortonizer<QuantizedCoordType, MortonIndexType, DIM>;
+    using MortonizerType = spin::Mortonizer<QuantizedCoordType, MortonIndexType, DIM>;
 
     // Fit as many bits as possible per dimension into an int64, i.e. floor(63/DIM)
     constexpr QuantizedCoordType shift_bits = (DIM == 2) ? 31 : 21;
-    NumericArray<QuantizedCoordType, DIM> res(static_cast<QuantizedCoordType>(1)
-                                                << shift_bits,
-                                              DIM);
+    NumericArray<QuantizedCoordType, DIM> res(static_cast<QuantizedCoordType>(1) << shift_bits, DIM);
     auto quantizer =
-      spin::rectangular_lattice_from_bounding_box<DIM, CoordType, QuantizedCoordType>(
-        bb,
-        res);
+      spin::rectangular_lattice_from_bounding_box<DIM, CoordType, QuantizedCoordType>(bb, res);
 
     // Add points and sort following BRIO
     axom::Array<BrioComparator> brio(0, npts);
     for(int idx = 0; idx < npts; ++idx)
     {
-      brio.emplace_back(BrioComparator(
-        idx,
-        computeLevel(),
-        MortonizerType::mortonize(quantizer.gridCell(pts[idx]))));
+      brio.emplace_back(
+        BrioComparator(idx, computeLevel(), MortonizerType::mortonize(quantizer.gridCell(pts[idx]))));
     }
     std::sort(brio.begin(), brio.end());
 
@@ -366,8 +348,7 @@ public:
     // Extract coordinates as ArrayView of PointType
     const auto valuesPath = fmt::format("coordsets/{}/values", coordset);
     SLIC_ASSERT(mesh_node.has_path(valuesPath));
-    auto coords =
-      detail::InterleavedOrStridedPoints<CoordType, DIM>(mesh_node[valuesPath]);
+    auto coords = detail::InterleavedOrStridedPoints<CoordType, DIM>(mesh_node[valuesPath]);
     const int npts = coords.size();
 
     // Compute the bounding box
@@ -380,8 +361,8 @@ public:
     // Reorder the points according to the Biased Random Insertion Order (BRIO) algorithm
     // and store the mapping since we'll need to apply it during interpolation
     m_brio_data = computeInsertionOrder(coords, m_bounding_box);
-    m_brio = VertexIndirectionSet(
-      typename VertexIndirectionSet::SetBuilder().size(npts).data(&m_brio_data));
+    m_brio =
+      VertexIndirectionSet(typename VertexIndirectionSet::SetBuilder().size(npts).data(&m_brio_data));
 
     // Scale the Delaunay bounding box to ensure that all input points are contained
     BoundingBoxType bb = m_bounding_box;
@@ -414,24 +395,21 @@ public:
 
     const auto valuesPath = fmt::format("coordsets/{}/values", coordset);
     SLIC_ASSERT(query_mesh.has_path(valuesPath));
-    auto coords =
-      detail::InterleavedOrStridedPoints<CoordType, DIM>(query_mesh[valuesPath]);
+    auto coords = detail::InterleavedOrStridedPoints<CoordType, DIM>(query_mesh[valuesPath]);
     const int npts = coords.size();
 
     SLIC_ERROR_IF(!query_mesh.has_path("fields/cell_idx/values"),
                   "Query mesh for ScatteredInterpolation::locatePoints() is "
                   "missing required 'cell_idx' field");
 
-    auto cell_idx = ::ArrayView_from_Node<axom::IndexType>(
-      query_mesh["fields/cell_idx/values"],
-      npts);
+    auto cell_idx =
+      ::ArrayView_from_Node<axom::IndexType>(query_mesh["fields/cell_idx/values"], npts);
 
     // we expect that some points will be outside the mesh
     constexpr bool warnOnInvalid = false;
     for(int idx = 0; idx < npts; ++idx)
     {
-      cell_idx[idx] =
-        m_delaunay.findContainingElement(coords[idx], warnOnInvalid);
+      cell_idx[idx] = m_delaunay.findContainingElement(coords[idx], warnOnInvalid);
     }
   }
 
@@ -454,8 +432,7 @@ public:
     constexpr bool warnOnInvalid = false;
     constexpr auto INVALID_INDEX = DelaunayTriangulation::INVALID_INDEX;
 
-    const auto cell_id =
-      m_delaunay.findContainingElement(query_pt, warnOnInvalid);
+    const auto cell_id = m_delaunay.findContainingElement(query_pt, warnOnInvalid);
 
     if(cell_id != INVALID_INDEX)
     {
@@ -494,13 +471,12 @@ public:
    * values of \a input_field_name from \a input_mesh for all query points that have a valid
    * \a cell_idx to a cell in the \a input_mesh.
    */
-  void interpolateField(
-    conduit::Node& query_mesh,
-    const std::string& coordset,
-    conduit::Node& input_mesh,
-    const std::string& input_field_name,
-    const std::string& output_field_name,
-    const double INVALID_VALUE = axom::numeric_limits<double>::quiet_NaN())
+  void interpolateField(conduit::Node& query_mesh,
+                        const std::string& coordset,
+                        conduit::Node& input_mesh,
+                        const std::string& input_field_name,
+                        const std::string& output_field_name,
+                        const double INVALID_VALUE = axom::numeric_limits<double>::quiet_NaN())
   {
     constexpr auto INVALID_INDEX = DelaunayTriangulation::INVALID_INDEX;
 
@@ -514,8 +490,7 @@ public:
 
     const auto valuesPath = fmt::format("coordsets/{}/values", coordset);
     SLIC_ASSERT(query_mesh.has_path(valuesPath));
-    auto coords =
-      detail::InterleavedOrStridedPoints<CoordType, DIM>(query_mesh[valuesPath]);
+    auto coords = detail::InterleavedOrStridedPoints<CoordType, DIM>(query_mesh[valuesPath]);
 
     // Interpolate field at query points
     const int npts = coords.size();
@@ -577,19 +552,16 @@ public:
       auto& node = itr.next();
       const auto& fieldName = node.name();
 
-      if(node.has_child("values") &&
-         node["values"].dtype().number_of_elements() == num_verts)
+      if(node.has_child("values") && node["values"].dtype().number_of_elements() == num_verts)
       {
-        SLIC_DEBUG(fmt::format(
-          "Processing field '{}' of type '{}' for Delaunay vtk file",
-          fieldName,
-          conduit::DataType::id_to_name(node["values"].dtype().id())));
+        SLIC_DEBUG(fmt::format("Processing field '{}' of type '{}' for Delaunay vtk file",
+                               fieldName,
+                               conduit::DataType::id_to_name(node["values"].dtype().id())));
 
         if(node["values"].dtype().is_float64())
         {
           double* vals = node["values"].as_float64_ptr();
-          auto* fld =
-            mint_mesh.createField<double>(fieldName, mint::NODE_CENTERED);
+          auto* fld = mint_mesh.createField<double>(fieldName, mint::NODE_CENTERED);
 
           for(auto idx : m_brio.positions())
           {
@@ -604,16 +576,10 @@ public:
   }
 
   /// Returns the number of vertices in the underlying Deluanay complex
-  int numVertices() const
-  {
-    return m_delaunay.getMeshData()->vertices().size();
-  }
+  int numVertices() const { return m_delaunay.getMeshData()->vertices().size(); }
 
   /// Returns the number of simplices (triangles/tetrahedra) in the underlying Deluanay complex
-  int numSimplices() const
-  {
-    return m_delaunay.getMeshData()->elements().size();
-  }
+  int numSimplices() const { return m_delaunay.getMeshData()->elements().size(); }
 
   /// Returns the bounding box of the input data points
   const BoundingBoxType& boundingBox() const { return m_bounding_box; }

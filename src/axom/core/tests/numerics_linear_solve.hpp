@@ -14,8 +14,7 @@ TEST(numerics_linear_solve, linear_solve_with_identity_matrix)
 
   for(int i = 1; i < N; ++i)
   {
-    axom::numerics::Matrix<double> A =
-      axom::numerics::Matrix<double>::identity(i);
+    axom::numerics::Matrix<double> A = axom::numerics::Matrix<double>::identity(i);
 
     // form right-hand side
     double* b = new double[i];

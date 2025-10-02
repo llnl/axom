@@ -1,7 +1,7 @@
 MIR {#mirtop}
 =============
 
-Axom's [Mir](@ref axom::mir), (M)aterial (I)interface (R)econstruction component
+Axom's [Mir](@ref axom::mir), (Material Interface Reconstruction) component
 provides classes that can process Blueprint meshes with mixed materials into new
 Blueprint meshes such that there is a single material per zone. In addition, the
 MIR component provides useful building blocks for developing algorithms using

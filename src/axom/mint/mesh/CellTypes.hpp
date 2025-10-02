@@ -110,14 +110,14 @@ constexpr int NUM_CELL_TYPES = static_cast<int>(CellType::NUM_CELL_TYPES);
  */
 struct CellInfo
 {
-  CellType cell_type;         /*!< cell type, e.g. mint::QUAD, mint::HEX */
-  const char* name;           /*!< the name associated with the cell */
-  const char* blueprint_name; /*!< corresponding mesh blueprint name */
-  int vtk_type;               /*!< corresponding vtk_type */
-  int num_nodes;              /*!< number of nodes for the given cell */
-  int num_faces;              /*!< number of faces for the given cell */
-  int face_nodecount[MAX_CELL_FACES]; /*!< number of nodes for each of cell's faces */
-  CellType face_types[MAX_CELL_FACES]; /*!< face type, e.g. mint::SEGMENT, mint::QUAD */
+  CellType cell_type;                        /*!< cell type, e.g. mint::QUAD, mint::HEX */
+  const char* name;                          /*!< the name associated with the cell */
+  const char* blueprint_name;                /*!< corresponding mesh blueprint name */
+  int vtk_type;                              /*!< corresponding vtk_type */
+  int num_nodes;                             /*!< number of nodes for the given cell */
+  int num_faces;                             /*!< number of faces for the given cell */
+  int face_nodecount[MAX_CELL_FACES];        /*!< number of nodes for each of cell's faces */
+  CellType face_types[MAX_CELL_FACES];       /*!< face type, e.g. mint::SEGMENT, mint::QUAD */
   IndexType face_nodes[MAX_ALL_FACES_NODES]; /*!< nodes for each of cell's faces */
 };
 
@@ -126,15 +126,7 @@ struct CellInfo
 #define AR(...) __VA_ARGS__
 
 // Cell Info registration
-REGISTER_CELL_INFO(VERTEX,
-                   "VERTEX",
-                   "point",
-                   1,
-                   1,
-                   0,
-                   AR({0}),
-                   AR({UNDEFINED_CELL}),
-                   AR({0}));
+REGISTER_CELL_INFO(VERTEX, "VERTEX", "point", 1, 1, 0, AR({0}), AR({UNDEFINED_CELL}), AR({0}));
 
 REGISTER_CELL_INFO(SEGMENT,
                    "SEGMENT",
@@ -338,10 +330,7 @@ static const CellInfo cell_info[NUM_CELL_TYPES] = {CELL_INFO(VERTEX),
  *
  * \param [in] type the CellType in question.
  */
-inline constexpr int cellTypeToInt(CellType type)
-{
-  return static_cast<int>(type);
-}
+inline constexpr int cellTypeToInt(CellType type) { return static_cast<int>(type); }
 
 /*!
  * \brief Return the CellInfo struct associated with the given type.

@@ -128,15 +128,13 @@ public:
   const BezierCurveType& operator[](int idx) const { return m_edges[idx]; }
 
   /// Tests equality of two CurvedPolygons
-  friend inline bool operator==(const CurvedPolygon<T, NDIMS>& lhs,
-                                const CurvedPolygon<T, NDIMS>& rhs)
+  friend inline bool operator==(const CurvedPolygon<T, NDIMS>& lhs, const CurvedPolygon<T, NDIMS>& rhs)
   {
     return lhs.m_edges == rhs.m_edges;
   }
 
   /// Tests inequality of two CurvedPolygons
-  friend inline bool operator!=(const CurvedPolygon<T, NDIMS>& lhs,
-                                const CurvedPolygon<T, NDIMS>& rhs)
+  friend inline bool operator!=(const CurvedPolygon<T, NDIMS>& lhs, const CurvedPolygon<T, NDIMS>& rhs)
   {
     return !(lhs == rhs);
   }

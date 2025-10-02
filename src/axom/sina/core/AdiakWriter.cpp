@@ -72,9 +72,7 @@ void addDatum(const std::string &name,
 * Add a axom::sina::File object to our current Record. Adiak stores paths,
 * which are essentially the same as Sina's idea of storing files.
 **/
-void addFile(const std::string &name,
-             const std::string &uri,
-             axom::sina::Record *record)
+void addFile(const std::string &name, const std::string &uri, axom::sina::Record *record)
 {
   // We don't care about type here, there's only one adiak type that acts as a file
   axom::sina::File file {uri};
@@ -135,8 +133,7 @@ double toScalar(adiak_value_t *val, adiak_datatype_t *adiak_type)
   case adiak_timeval:
   {
     struct timeval *tval = static_cast<struct timeval *>(val->v_ptr);
-    return static_cast<double>(tval->tv_sec) +
-      (static_cast<double>(tval->tv_usec) / 1000000.0);
+    return static_cast<double>(tval->tv_sec) + (static_cast<double>(tval->tv_usec) / 1000000.0);
   }
   // None of the rest of these should ever be reachable, so special error message
   case adiak_date:
@@ -150,8 +147,7 @@ double toScalar(adiak_value_t *val, adiak_datatype_t *adiak_type)
   case adiak_list:
   case adiak_type_unset:
   {
-    std::string msg(
-      "Logic error, contact maintainer: Adiak-to-Sina double converter given ");
+    std::string msg("Logic error, contact maintainer: Adiak-to-Sina double converter given ");
     char *s = adiak_type_to_string(adiak_type, 1);
     msg += s;
     free(s);
@@ -197,8 +193,7 @@ std::string toString(adiak_value_t *val, adiak_datatype_t *adiak_type)
   case adiak_list:
   case adiak_type_unset:
   {
-    std::string msg(
-      "Logic error, contact maintainer: Adiak-to-Sina string converter given ");
+    std::string msg("Logic error, contact maintainer: Adiak-to-Sina string converter given ");
     char *s = adiak_type_to_string(adiak_type, 1);
     msg += s;
     free(s);
@@ -261,8 +256,7 @@ void adiakSinaCallback(const char *name,
   {
   case sina_unknown:
     // If we don't know what it is, we can't store it, so as above...
-    throw std::runtime_error(
-      "Unknown Adiak type cannot be added to Sina record.");
+    throw std::runtime_error("Unknown Adiak type cannot be added to Sina record.");
   case sina_scalar:
   {
     char *s = adiak_type_to_string(adiak_type, 1);
@@ -317,8 +311,7 @@ void adiakSinaCallback(const char *name,
         "Lists must not be nested for list entries to be added to a Sina "
         "record");
     default:
-      throw std::runtime_error(
-        "Type must be set for list entries to be added to a Sina record");
+      throw std::runtime_error("Type must be set for list entries to be added to a Sina record");
     }
   }
   }

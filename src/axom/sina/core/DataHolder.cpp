@@ -76,9 +76,8 @@ std::shared_ptr<DataHolder> DataHolder::addLibraryData(std::string const &name)
   return libraryData.at(name);
 }
 
-std::shared_ptr<DataHolder> DataHolder::addLibraryData(
-  std::string const &name,
-  conduit::Node existingLibraryData)
+std::shared_ptr<DataHolder> DataHolder::addLibraryData(std::string const &name,
+                                                       conduit::Node existingLibraryData)
 {
   auto existing = libraryData.find(name);
   if(existing == libraryData.end())
@@ -97,7 +96,7 @@ void DataHolder::setUserDefinedContent(conduit::Node userDefined_)
   userDefined = std::move(userDefined_);
 }
 
-conduit::Node DataHolder::toNode() const
+conduit::Node DataHolder::toNode(CurveSet::CurveOrder curveOrder) const
 {
   conduit::Node asNode;
   asNode.set(conduit::DataType::object());
@@ -107,7 +106,7 @@ conduit::Node DataHolder::toNode() const
     conduit::Node libRef;
     for(auto &lib : libraryData)
     {
-      libRef.add_child(lib.first) = lib.second->toNode();
+      libRef.add_child(lib.first) = lib.second->toNode(curveOrder);
     }
     asNode[LIBRARY_DATA_FIELD] = libRef;
   }
@@ -116,7 +115,7 @@ conduit::Node DataHolder::toNode() const
     conduit::Node curveSetsNode;
     for(auto &entry : curveSets)
     {
-      curveSetsNode.add_child(entry.first) = entry.second.toNode();
+      curveSetsNode.add_child(entry.first) = entry.second.toNode(curveOrder);
     }
     asNode[CURVE_SETS_FIELD] = curveSetsNode;
   }
@@ -168,8 +167,7 @@ DataHolder::DataHolder(conduit::Node const &asNode)
       auto &libraryDataNode = libraryIter.next();
       std::string name = libraryIter.name();
       libraryData.emplace(
-        std::make_pair(std::move(name),
-                       std::make_shared<DataHolder>(libraryDataNode)));
+        std::make_pair(std::move(name), std::make_shared<DataHolder>(libraryDataNode)));
     }
   }
   if(asNode.has_child(USER_DEFINED_FIELD))

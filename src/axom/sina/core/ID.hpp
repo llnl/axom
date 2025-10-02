@@ -106,9 +106,7 @@ public:
      * \param localName the local name of the field
      * \param globalName the global name of the field
      */
-  IDField(conduit::Node const &parentObject,
-          std::string localName,
-          std::string globalName);
+  IDField(conduit::Node const &parentObject, std::string localName, std::string globalName);
 
   /**
      * \brief Get the value of this field.

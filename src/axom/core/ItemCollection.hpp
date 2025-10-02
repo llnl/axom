@@ -161,10 +161,7 @@ public:
   iterator_adaptor getIteratorAdaptor() { return iterator_adaptor(this); }
 
   /// Returns a const adaptor wrapping this collection in support of iteration
-  const_iterator_adaptor getIteratorAdaptor() const
-  {
-    return const_iterator_adaptor(this);
-  }
+  const_iterator_adaptor getIteratorAdaptor() const { return const_iterator_adaptor(this); }
 };
 
 /*!
@@ -224,8 +221,7 @@ private:
  * \brief An std-compliant forward iterator for a const ItemCollection
  */
 template <typename T>
-class ItemCollection<T>::const_iterator
-  : public IteratorBase<const_iterator, IndexType>
+class ItemCollection<T>::const_iterator : public IteratorBase<const_iterator, IndexType>
 {
 private:
   using BaseType = IteratorBase<const_iterator, IndexType>;
@@ -286,10 +282,7 @@ public:
 public:
   iterator_adaptor(CollectionType* coll) : m_collection(coll) { }
 
-  std::size_t size() const
-  {
-    return m_collection ? m_collection->getNumItems() : 0;
-  }
+  std::size_t size() const { return m_collection ? m_collection->getNumItems() : 0; }
 
   iterator begin() { return iterator(m_collection, true); }
   iterator end() { return iterator(m_collection, false); }
@@ -297,10 +290,7 @@ public:
   const_iterator cbegin() const { return const_iterator(m_collection, true); }
   const_iterator cend() const { return const_iterator(m_collection, false); }
 
-  operator const_iterator_adaptor() const
-  {
-    return const_iterator_adaptor(m_collection);
-  }
+  operator const_iterator_adaptor() const { return const_iterator_adaptor(m_collection); }
 
 private:
   CollectionType* m_collection {nullptr};
@@ -318,10 +308,7 @@ public:
 public:
   const_iterator_adaptor(const CollectionType* coll) : m_collection(coll) { }
 
-  std::size_t size() const
-  {
-    return m_collection ? m_collection->getNumItems() : 0;
-  }
+  std::size_t size() const { return m_collection ? m_collection->getNumItems() : 0; }
 
   const_iterator begin() { return const_iterator(m_collection, true); }
   const_iterator end() { return const_iterator(m_collection, false); }

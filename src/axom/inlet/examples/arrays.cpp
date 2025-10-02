@@ -41,8 +41,7 @@ int main()
   });
 
   // We expect verfication to pass since values array has 3 elements
-  inlet.verify() ? std::cout << "Verification passed\n"
-                 : std::cout << "Verification failed\n";
+  inlet.verify() ? std::cout << "Verification passed\n" : std::cout << "Verification failed\n";
 
   // Print contents of map
   std::unordered_map<int, std::string> map = inlet["values"];

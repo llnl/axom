@@ -82,8 +82,7 @@ public:
    *
    * \note The set entries will be initialized such that set[i] = i
    */
-  DynamicSet(PositionType size = SizePolicyType::DEFAULT_VALUE)
-    : SizePolicy(size)
+  DynamicSet(PositionType size = SizePolicyType::DEFAULT_VALUE) : SizePolicy(size)
   {
     fill_array_default(size);
   };
@@ -134,8 +133,7 @@ public:
    * operations based on ideas from https://stackoverflow.com/a/49425072
    */
   template <typename T, bool Const>
-  class DynamicSetIterator
-    : public IteratorBase<DynamicSetIterator<T, Const>, PositionType>
+  class DynamicSetIterator : public IteratorBase<DynamicSetIterator<T, Const>, PositionType>
   {
   public:
     using iterator_category = std::random_access_iterator_tag;
@@ -143,8 +141,7 @@ public:
     using difference_type = PositionType;
     using reference = typename std::conditional<Const, const T&, T&>::type;
     using pointer = typename std::conditional<Const, const T*, T*>::type;
-    using DynamicSetType =
-      typename std::conditional<Const, const DynamicSet, DynamicSet>::type;
+    using DynamicSetType = typename std::conditional<Const, const DynamicSet, DynamicSet>::type;
     using IterBase = IteratorBase<DynamicSetIterator<T, Const>, PositionType>;
     using IterBase::m_pos;
 
@@ -153,9 +150,7 @@ public:
     /// \{
     DynamicSetIterator() = default;
 
-    DynamicSetIterator(PositionType pos, DynamicSetType& dSet)
-      : IterBase(pos)
-      , m_dynamicSet(&dSet)
+    DynamicSetIterator(PositionType pos, DynamicSetType& dSet) : IterBase(pos), m_dynamicSet(&dSet)
     { }
 
     /// \}
@@ -336,19 +331,13 @@ public:
    * could have been deleted
    * \sa numberOfValidEntries(), isValidEntry()
    */
-  AXOM_HOST_DEVICE inline PositionType size() const
-  {
-    return SizePolicy::size();
-  };
+  AXOM_HOST_DEVICE inline PositionType size() const { return SizePolicy::size(); };
 
   /// \brief Uses \a SizePolicy::empty() to determine if the set is empty
   AXOM_HOST_DEVICE bool empty() const { return SizePolicy::empty(); };
 
   /// \brief Returns a positionset over the set elements
-  PositionSet<PositionType> positions() const
-  {
-    return PositionSet<PositionType>(size());
-  }
+  PositionSet<PositionType> positions() const { return PositionSet<PositionType>(size()); }
 
   /**
    * \brief Return the number of valid entries in the set.
@@ -448,18 +437,14 @@ public:
 
 private:
   /// \brief Debug check that the index \a pos is not out-of-range
-  inline void verifyPosition(PositionType pos) const
-  {
-    verifyPositionImpl(pos);
-  };
+  inline void verifyPosition(PositionType pos) const { verifyPositionImpl(pos); };
 
   /** \brief Debug check that the index \a pos is not out-of-range */
   inline void verifyPositionImpl(PositionType AXOM_DEBUG_PARAM(pos)) const
   {
-    SLIC_ASSERT_MSG(
-      (pos >= 0) && (pos < size()),
-      "SLAM::DynamicSet -- requested out-of-range element at position "
-        << pos << ", but set only has " << size() << " elements.");
+    SLIC_ASSERT_MSG((pos >= 0) && (pos < size()),
+                    "SLAM::DynamicSet -- requested out-of-range element at position "
+                      << pos << ", but set only has " << size() << " elements.");
   };
 
   /** Fill each entry of the set such that its value is equal to its index. */
@@ -482,8 +467,7 @@ private:
 };
 
 template <typename P, typename E, typename S>
-constexpr
-  typename DynamicSet<P, E, S>::ElementType DynamicSet<P, E, S>::INVALID_ENTRY;
+constexpr typename DynamicSet<P, E, S>::ElementType DynamicSet<P, E, S>::INVALID_ENTRY;
 
 }  // end namespace slam
 }  // end namespace axom

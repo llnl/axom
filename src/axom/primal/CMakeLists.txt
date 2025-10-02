@@ -23,6 +23,8 @@ set( primal_headers
     geometry/BezierCurve.hpp
     geometry/BezierPatch.hpp
     geometry/BoundingBox.hpp
+    geometry/CoordinateTransformer.hpp
+    geometry/Cone.hpp
     geometry/CurvedPolygon.hpp
     geometry/Hexahedron.hpp
     geometry/KnotVector.hpp
@@ -43,6 +45,7 @@ set( primal_headers
     geometry/Triangle.hpp
     geometry/Quadrilateral.hpp
     geometry/Vector.hpp
+    geometry/construct.hpp
 
     ## operators
     operators/clip.hpp
@@ -70,8 +73,8 @@ set( primal_headers
     operators/detail/intersect_impl.hpp
     operators/detail/intersect_ray_impl.hpp
     operators/detail/winding_number_2d_impl.hpp
-    operators/detail/winding_number_3d_impl.hpp
-     
+    operators/detail/winding_number_2d_memoization.hpp
+
     ## utils
     utils/ZipIndexable.hpp
     utils/ZipBoundingBox.hpp
@@ -84,6 +87,8 @@ blt_list_append(
     TO       primal_headers 
     ELEMENTS operators/evaluate_integral.hpp
              operators/detail/evaluate_integral_impl.hpp
+             operators/detail/winding_number_3d_impl.hpp
+             operators/detail/winding_number_3d_memoization.hpp
     IF       MFEM_FOUND 
                )
 

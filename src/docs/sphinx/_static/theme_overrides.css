@@ -12,6 +12,14 @@
    }
 }
 
+/* Expand the main content column width, adjusting the content wrapper to account for the sidebar */
+@media screen and (min-width: 767px) {
+   .wy-nav-content {
+      max-width: 940px;
+      width: 940px;
+   }
+}
+
 a img.logo {
     transform: scale(.75)
 }

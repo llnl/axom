@@ -85,10 +85,8 @@ int main(int argc, char* argv[])
 
   Buffer* buf1 = aview->getBuffer();
   std::cout << "\tNum buffers in datastore: " << ds->getNumBuffers() << std::endl;
-  std::cout << "\tNum views attached to buffer: " << buf1->getNumViews()
-            << std::endl;
-  std::cout << "\tNum elements in buffer array: " << buf1->getNumElements()
-            << std::endl;
+  std::cout << "\tNum views attached to buffer: " << buf1->getNumViews() << std::endl;
+  std::cout << "\tNum elements in buffer array: " << buf1->getNumElements() << std::endl;
 
   int* a_array = aview->getArray();
   for(axom::IndexType i = 0; i < nelems; ++i)
@@ -100,8 +98,7 @@ int main(int argc, char* argv[])
 
   std::cout << "After initialization of view array\n";
   int* buf1_ptr = buf1->getData();
-  std::cout << "\tValue of elt 5 in buffer array (expect 7): " << buf1_ptr[5]
-            << std::endl;
+  std::cout << "\tValue of elt 5 in buffer array (expect 7): " << buf1_ptr[5] << std::endl;
   // _ex1_oneview_onebuffer_create_end
 
   std::cout << std::endl;
@@ -115,10 +112,8 @@ int main(int argc, char* argv[])
   std::cout << "\tIs view allocated? " << aview->isAllocated() << std::endl;
   std::cout << "\tNum buffers in datastore: " << ds->getNumBuffers() << std::endl;
   std::cout << "\tIs buffer allocated? " << buf1->isAllocated() << std::endl;
-  std::cout << "\tNum views attached to buffer: " << buf1->getNumViews()
-            << std::endl;
-  std::cout << "\tNum elements in buffer array: " << buf1->getNumElements()
-            << std::endl;
+  std::cout << "\tNum views attached to buffer: " << buf1->getNumViews() << std::endl;
+  std::cout << "\tNum elements in buffer array: " << buf1->getNumElements() << std::endl;
 
   std::cout << std::endl;
 
@@ -303,20 +298,16 @@ int main(int argc, char* argv[])
   std::cout << std::endl;
 
   std::cout << "\tNum buffers in datastore: " << ds->getNumBuffers() << std::endl;
-  std::cout << "\tIs buffer allocated? " << buf_aview2->isAllocated()
-            << std::endl;
-  std::cout << "\tNum views attached to buffer: " << buf_aview2->getNumViews()
-            << std::endl;
+  std::cout << "\tIs buffer allocated? " << buf_aview2->isAllocated() << std::endl;
+  std::cout << "\tNum views attached to buffer: " << buf_aview2->getNumViews() << std::endl;
   std::cout << std::endl;
 
   root_grp->destroyGroup("B");
 
   std::cout << "\nAfter destroyGroup(B) call:\n";
   std::cout << "\tNum buffers in datastore: " << ds->getNumBuffers() << std::endl;
-  std::cout << "\tIs buffer allocated? " << buf_aview2->isAllocated()
-            << std::endl;
-  std::cout << "\tNum views attached to buffer: " << buf_aview2->getNumViews()
-            << std::endl;
+  std::cout << "\tIs buffer allocated? " << buf_aview2->isAllocated() << std::endl;
+  std::cout << "\tNum views attached to buffer: " << buf_aview2->getNumViews() << std::endl;
   // _ex3_twoviews_onebuffer_copy_end
   std::cout << std::endl;
 
@@ -364,10 +355,8 @@ int main(int argc, char* argv[])
 
   Buffer* bufa = aview->getBuffer();
   std::cout << "\tNum buffers in datastore: " << ds->getNumBuffers() << std::endl;
-  std::cout << "\tNum views attached to buffer: " << bufa->getNumViews()
-            << std::endl;
-  std::cout << "\tNum elements in buffer array: " << bufa->getNumElements()
-            << std::endl;
+  std::cout << "\tNum views attached to buffer: " << bufa->getNumViews() << std::endl;
+  std::cout << "\tNum elements in buffer array: " << bufa->getNumElements() << std::endl;
   std::cout << "\tIs buffer allocated? " << bufa->isAllocated() << std::endl;
 
   std::cout << std::endl;
@@ -376,28 +365,23 @@ int main(int argc, char* argv[])
   std::cout << "After A_grp->destroyView() call:\n";
   std::cout << "\tNum views in group A: " << A_grp->getNumViews() << std::endl;
   std::cout << "\tNum buffers in datastore: " << ds->getNumBuffers() << std::endl;
-  std::cout << "\tNum views attached to buffer: " << bufa->getNumViews()
-            << std::endl;
-  std::cout << "\tNum elements in buffer array: " << bufa->getNumElements()
-            << std::endl;
+  std::cout << "\tNum views attached to buffer: " << bufa->getNumViews() << std::endl;
+  std::cout << "\tNum elements in buffer array: " << bufa->getNumElements() << std::endl;
   std::cout << "\tIs buffer allocated? " << bufa->isAllocated() << std::endl;
 
   std::cout << std::endl;
 
   aview = A_grp->createView("aview1", bufa);
   aview->apply(INT_ID, dat_size);
-  std::cout
-    << "After recreating view, attaching buffer, and describing data:\n";
+  std::cout << "After recreating view, attaching buffer, and describing data:\n";
   std::cout << "\tNum views in group A: " << A_grp->getNumViews() << std::endl;
   nelems = aview->getNumElements();
   std::cout << "\tNum elements in view: " << nelems << std::endl;
   std::cout << "\tIs view allocated? " << aview->isAllocated() << std::endl;
 
   std::cout << "\tNum buffers in datastore: " << ds->getNumBuffers() << std::endl;
-  std::cout << "\tNum views attached to buffer: " << bufa->getNumViews()
-            << std::endl;
-  std::cout << "\tNum elements in buffer array: " << bufa->getNumElements()
-            << std::endl;
+  std::cout << "\tNum views attached to buffer: " << bufa->getNumViews() << std::endl;
+  std::cout << "\tNum elements in buffer array: " << bufa->getNumElements() << std::endl;
   std::cout << "\tIs buffer allocated? " << bufa->isAllocated() << std::endl;
 
   std::cout << std::endl;
@@ -409,10 +393,8 @@ int main(int argc, char* argv[])
   std::cout << "\tIs view allocated? " << aview->isAllocated() << std::endl;
 
   std::cout << "\tNum buffers in datastore: " << ds->getNumBuffers() << std::endl;
-  std::cout << "\tNum views attached to buffer: " << bufa->getNumViews()
-            << std::endl;
-  std::cout << "\tNum elements in buffer array: " << bufa->getNumElements()
-            << std::endl;
+  std::cout << "\tNum views attached to buffer: " << bufa->getNumViews() << std::endl;
+  std::cout << "\tNum elements in buffer array: " << bufa->getNumElements() << std::endl;
   std::cout << "\tIs buffer allocated? " << bufa->isAllocated() << std::endl;
 
   std::cout << std::endl;

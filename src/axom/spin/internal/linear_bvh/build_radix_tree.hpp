@@ -9,7 +9,10 @@
 #include "axom/config.hpp"
 
 #include "axom/core/execution/execution_space.hpp"
+#include "axom/core/execution/atomics.hpp"
 #include "axom/core/execution/for_all.hpp"
+#include "axom/core/execution/reductions.hpp"
+#include "axom/core/execution/sorts.hpp"
 #include "axom/core/AnnotationMacros.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/utilities/BitUtilities.hpp"
@@ -22,10 +25,6 @@
 
 #include "axom/spin/internal/linear_bvh/RadixTree.hpp"
 #include "axom/spin/MortonIndex.hpp"
-
-#if defined(AXOM_USE_RAJA)
-  #include "RAJA/RAJA.hpp"
-#endif
 
 #include <atomic>
 
@@ -43,47 +42,42 @@ namespace internal
 namespace linear_bvh
 {
 //------------------------------------------------------------------------------
-//Returns 30 bit morton code for coordinates for
-// x, y, and z are expecting to be between [0,1]
+//Returns 30 bit morton code for coordinates point is expected to be between [0,1]
 template <typename FloatType, int Dims>
-static inline AXOM_HOST_DEVICE std::int32_t morton32_encode(
-  const primal::Vector<FloatType, Dims>& point)
+static inline AXOM_HOST_DEVICE std::uint32_t morton32_encode(const primal::Vector<FloatType, Dims>& point)
 {
+  using PointType = primal::Point<std::int32_t, Dims>;
+  using axom::utilities::clampVal;
+
   //for a float, take the first 10 bits. Note, 2^10 = 1024
   constexpr int NUM_BITS_PER_DIM = 32 / Dims;
   constexpr FloatType FLOAT_TO_INT = 1 << NUM_BITS_PER_DIM;
   constexpr FloatType FLOAT_CEILING = FLOAT_TO_INT - 1;
+  constexpr FloatType FLOAT_ZERO {0.};
 
   std::int32_t int_coords[Dims];
   for(int i = 0; i < Dims; i++)
   {
     int_coords[i] =
-      fmin(fmax(point[i] * FLOAT_TO_INT, (FloatType)0), FLOAT_CEILING);
+      static_cast<std::int32_t>(clampVal(point[i] * FLOAT_TO_INT, FLOAT_ZERO, FLOAT_CEILING));
   }
 
-  primal::Point<std::int32_t, Dims> integer_pt(int_coords);
-
-  return convertPointToMorton<std::int32_t>(integer_pt);
+  return convertPointToMorton<std::uint32_t>(PointType(int_coords));
 }
 
 //------------------------------------------------------------------------------
-//Returns 30 bit morton code for coordinates for
-//coordinates in the unit cude
-static inline AXOM_HOST_DEVICE std::int64_t morton64_encode(axom::float32 x,
-                                                            axom::float32 y,
-                                                            axom::float32 z = 0.0)
+//Returns 63 bit morton code for a 3D point with coordinates in the unit cube
+static inline AXOM_HOST_DEVICE std::uint64_t morton64_encode(float x, float y, float z = 0.0)
 {
+  using PointType = primal::Point<std::int64_t, 3>;
+  using axom::utilities::clampVal;
+
   //take the first 21 bits. Note, 2^21= 2097152.0f
-  x = fmin(fmax(x * 2097152.0f, 0.0f), 2097151.0f);
-  y = fmin(fmax(y * 2097152.0f, 0.0f), 2097151.0f);
-  z = fmin(fmax(z * 2097152.0f, 0.0f), 2097151.0f);
-
-  primal::Point<std::int64_t, 3> integer_pt =
-    primal::Point<std::int64_t, 3>::make_point((std::int64_t)x,
-                                               (std::int64_t)y,
-                                               (std::int64_t)z);
-
-  return convertPointToMorton<std::int64_t>(integer_pt);
+  constexpr float F_21 = 2097152.0f;
+  return convertPointToMorton<std::uint64_t>(
+    PointType {static_cast<std::int64_t>(clampVal(x * F_21, 0.f, F_21)),
+               static_cast<std::int64_t>(clampVal(y * F_21, 0.f, F_21)),
+               static_cast<std::int64_t>(clampVal(z * F_21, 0.f, F_21))});
 }
 
 template <typename ExecSpace, typename BoxIndexable, typename FloatType, int NDIMS>
@@ -104,15 +98,12 @@ void transform_boxes(const BoxIndexable boxes,
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace, typename FloatType, int NDIMS>
-primal::BoundingBox<FloatType, NDIMS> reduce(
-  ArrayView<const primal::BoundingBox<FloatType, NDIMS>> aabbs,
-  std::int32_t size)
+primal::BoundingBox<FloatType, NDIMS> reduce(ArrayView<const primal::BoundingBox<FloatType, NDIMS>> aabbs,
+                                             std::int32_t size)
 {
   AXOM_ANNOTATE_SCOPE("reduce_abbs");
 
 #ifdef AXOM_USE_RAJA
-  using reduce_policy = typename axom::execution_space<ExecSpace>::reduce_policy;
-
   primal::Point<FloatType, NDIMS> min_pt, max_pt;
 
   FloatType infinity = axom::numeric_limits<FloatType>::max();
@@ -120,8 +111,8 @@ primal::BoundingBox<FloatType, NDIMS> reduce(
 
   for(int dim = 0; dim < NDIMS; dim++)
   {
-    RAJA::ReduceMin<reduce_policy, FloatType> min_coord(infinity);
-    RAJA::ReduceMax<reduce_policy, FloatType> max_coord(neg_infinity);
+    axom::ReduceMin<ExecSpace, FloatType> min_coord(infinity);
+    axom::ReduceMax<ExecSpace, FloatType> max_coord(neg_infinity);
 
     for_all<ExecSpace>(
       size,
@@ -137,13 +128,11 @@ primal::BoundingBox<FloatType, NDIMS> reduce(
 
   return primal::BoundingBox<FloatType, NDIMS>(min_pt, max_pt);
 #else
-  static_assert(std::is_same<ExecSpace, SEQ_EXEC>::value,
-                "Only SEQ_EXEC supported without RAJA");
+  static_assert(std::is_same<ExecSpace, SEQ_EXEC>::value, "Only SEQ_EXEC supported without RAJA");
 
   primal::BoundingBox<FloatType, NDIMS> global_bounds;
 
-  for_all<ExecSpace>(size,
-                     [&](std::int32_t i) { global_bounds.addBox(aabbs[i]); });
+  for_all<ExecSpace>(size, [&](std::int32_t i) { global_bounds.addBox(aabbs[i]); });
 
   return global_bounds;
 #endif
@@ -166,9 +155,7 @@ void get_mcodes(ArrayView<const primal::BoundingBox<FloatType, NDIMS>> aabbs,
 
   for(int i = 0; i < NDIMS; ++i)
   {
-    inv_extent[i] = utilities::isNearlyEqual<FloatType>(extent[i], .0f)
-      ? 0.f
-      : 1.f / extent[i];
+    inv_extent[i] = utilities::isNearlyEqual<FloatType>(extent[i], .0f) ? 0.f : 1.f / extent[i];
   }
 
   for_all<ExecSpace>(
@@ -178,8 +165,8 @@ void get_mcodes(ArrayView<const primal::BoundingBox<FloatType, NDIMS>> aabbs,
 
       // get the center and normalize it
       primal::Vector<FloatType, NDIMS> centroid(aabb.getCentroid());
-      centroid = primal::Vector<FloatType, NDIMS>(
-        (centroid - min_coord).array() * inv_extent.array());
+      centroid =
+        primal::Vector<FloatType, NDIMS>((centroid - min_coord).array() * inv_extent.array());
       mcodes[i] = morton32_encode(centroid);
     });
 }
@@ -193,9 +180,7 @@ void array_counting(ArrayView<IntType> iterator,
 {
   AXOM_ANNOTATE_SCOPE("array_counting");
 
-  for_all<ExecSpace>(
-    size,
-    AXOM_LAMBDA(std::int32_t i) { iterator[i] = start + i * step; });
+  for_all<ExecSpace>(size, AXOM_LAMBDA(std::int32_t i) { iterator[i] = start + i * step; });
 }
 
 //------------------------------------------------------------------------------
@@ -213,8 +198,7 @@ void reorder(const ArrayView<const std::int32_t> indices,
 {
   AXOM_ANNOTATE_SCOPE("reorder");
 
-  Array<T> temp =
-    Array<T>(ArrayOptions::Uninitialized {}, size, size, allocatorID);
+  Array<T> temp = Array<T>(ArrayOptions::Uninitialized {}, size, size, allocatorID);
   const auto array_v = array.view();
   const auto temp_v = temp.view();
 
@@ -229,14 +213,11 @@ void reorder(const ArrayView<const std::int32_t> indices,
 }
 
 //------------------------------------------------------------------------------
-#if defined(AXOM_USE_RAJA) &&  \
-  ((RAJA_VERSION_MAJOR > 0) || \
-   ((RAJA_VERSION_MAJOR == 0) && (RAJA_VERSION_MINOR >= 12)))
+#if defined(AXOM_USE_RAJA) && \
+  ((RAJA_VERSION_MAJOR > 0) || ((RAJA_VERSION_MAJOR == 0) && (RAJA_VERSION_MINOR >= 12)))
 
 template <typename ExecSpace>
-void sort_mcodes(ArrayView<std::uint32_t> mcodes,
-                 std::int32_t size,
-                 ArrayView<std::int32_t> iter)
+void sort_mcodes(ArrayView<std::uint32_t> mcodes, std::int32_t size, ArrayView<std::int32_t> iter)
 {
   AXOM_ANNOTATE_SCOPE("sort_mcodes");
 
@@ -244,9 +225,9 @@ void sort_mcodes(ArrayView<std::uint32_t> mcodes,
 
   {
     AXOM_ANNOTATE_SCOPE("raja_stable_sort");
-    using EXEC_POL = typename axom::execution_space<ExecSpace>::loop_policy;
-    RAJA::stable_sort_pairs<EXEC_POL>(RAJA::make_span(mcodes.data(), size),
-                                      RAJA::make_span(iter.data(), size));
+    ArrayView<std::uint32_t> mcode_view(mcodes.data(), size);
+    ArrayView<std::int32_t> iter_view(iter.data(), size);
+    axom::stable_sort_pairs<ExecSpace>(mcode_view, iter_view);
   }
 }
 
@@ -254,9 +235,7 @@ void sort_mcodes(ArrayView<std::uint32_t> mcodes,
 
 // fall back to std::stable_sort
 template <typename ExecSpace>
-void sort_mcodes(Array<std::uint32_t>& mcodes,
-                 std::int32_t size,
-                 const ArrayView<std::int32_t> iter)
+void sort_mcodes(Array<std::uint32_t>& mcodes, std::int32_t size, const ArrayView<std::int32_t> iter)
 {
   AXOM_ANNOTATE_SCOPE("sort_mcodes");
 
@@ -265,10 +244,9 @@ void sort_mcodes(Array<std::uint32_t>& mcodes,
   {
     AXOM_ANNOTATE_SCOPE("cpu_sort");
 
-    std::stable_sort(
-      iter.begin(),
-      iter.begin() + size,
-      [&](std::int32_t i1, std::int32_t i2) { return mcodes[i1] < mcodes[i2]; });
+    std::stable_sort(iter.begin(), iter.begin() + size, [&](std::int32_t i1, std::int32_t i2) {
+      return mcodes[i1] < mcodes[i2];
+    });
   }
 
   const int allocID = axom::execution_space<ExecSpace>::allocatorID();
@@ -279,10 +257,8 @@ void sort_mcodes(Array<std::uint32_t>& mcodes,
 
 //------------------------------------------------------------------------------
 template <typename IntType, typename MCType>
-AXOM_HOST_DEVICE IntType delta(const IntType& a,
-                               const IntType& b,
-                               const IntType& inner_size,
-                               axom::ArrayView<MCType> mcodes)
+AXOM_HOST_DEVICE IntType
+delta(const IntType& a, const IntType& b, const IntType& inner_size, axom::ArrayView<MCType> mcodes)
 {
   bool tie = false;
   bool out_of_range = (b < 0 || b > inner_size);
@@ -313,7 +289,7 @@ void build_tree(RadixTree<FloatType, NDIMS>& data)
   // http://research.nvidia.com/sites/default/files/publications/karras2012hpg_paper.pdf
 
   // Pointers and vars are redeclared because I have a faint memory
-  // of a huge amount of pain and suffering due so cuda
+  // of a huge amount of pain and suffering due to cuda
   // lambda captures of pointers inside a struct. Bad memories
   // of random segfaults ........ be warned
   const std::int32_t inner_size = data.m_inner_size;
@@ -326,10 +302,9 @@ void build_tree(RadixTree<FloatType, NDIMS>& data)
     inner_size,
     AXOM_LAMBDA(std::int32_t i) {
       //determine range direction
-      std::int32_t d = 0 > (delta(i, i + 1, inner_size, mcodes_ptr) -
-                            delta(i, i - 1, inner_size, mcodes_ptr))
-        ? -1
-        : 1;
+      std::int32_t d =
+        0 > (delta(i, i + 1, inner_size, mcodes_ptr) - delta(i, i - 1, inner_size, mcodes_ptr)) ? -1
+                                                                                                : 1;
 
       //find upper bound for the length of the range
       std::int32_t min_delta = delta(i, i - d, inner_size, mcodes_ptr);
@@ -450,10 +425,8 @@ AXOM_HOST_DEVICE static inline BBoxType sync_load(const BBoxType& box)
       nreads++;
     }
   #else
-    while((min_pt[dim] = min_dim) == BBoxType::InvalidMin)
-      ;
-    while((max_pt[dim] = max_dim) == BBoxType::InvalidMax)
-      ;
+    while((min_pt[dim] = min_dim) == BBoxType::InvalidMin);
+    while((max_pt[dim] = max_dim) == BBoxType::InvalidMax);
   #endif
   }
 
@@ -478,12 +451,9 @@ AXOM_HOST_DEVICE static inline BBoxType sync_load(const BBoxType& box)
 // On the GPU, this function uses atomicExch to write a value directly to the
 // L2 cache, thus avoiding potential cache coherency issues between threads.
 template <typename ExecSpace, typename BBoxType>
-AXOM_HOST_DEVICE static inline void sync_store(BBoxType& box,
-                                               const BBoxType& value)
+AXOM_HOST_DEVICE static inline void sync_store(BBoxType& box, const BBoxType& value)
 {
 #if defined(AXOM_DEVICE_CODE) && defined(AXOM_USE_RAJA)
-  using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
-
   using PointType = typename BBoxType::PointType;
 
   constexpr int NDIMS = PointType::DIMENSION;
@@ -494,8 +464,8 @@ AXOM_HOST_DEVICE static inline void sync_store(BBoxType& box,
 
   for(int dim = 0; dim < NDIMS; dim++)
   {
-    RAJA::atomicExchange<atomic_policy>(&(min_pt[dim]), value.getMin()[dim]);
-    RAJA::atomicExchange<atomic_policy>(&(max_pt[dim]), value.getMax()[dim]);
+    axom::atomicExchange<ExecSpace>(&(min_pt[dim]), value.getMin()[dim]);
+    axom::atomicExchange<ExecSpace>(&(max_pt[dim]), value.getMax()[dim]);
   }
 #else  // __CUDA_ARCH__ || __HIP_DEVICE_COMPILE__
   box = value;
@@ -508,12 +478,9 @@ template <typename ExecSpace>
 AXOM_HOST_DEVICE static inline int atomic_increment(int* addr)
 {
 #ifdef AXOM_USE_RAJA
-  using atomic_policy = typename axom::execution_space<ExecSpace>::atomic_policy;
-
-  return RAJA::atomicAdd<atomic_policy>(addr, 1);
+  return axom::atomicAdd<ExecSpace>(addr, 1);
 #else
-  static_assert(std::is_same<ExecSpace, SEQ_EXEC>::value,
-                "Only SEQ_EXEC supported without RAJA");
+  static_assert(std::is_same<ExecSpace, SEQ_EXEC>::value, "Only SEQ_EXEC supported without RAJA");
 
   // TODO: use atomic_ref?
   int old = *addr;
@@ -544,9 +511,7 @@ void propagate_aabbs(RadixTree<FloatType, NDIMS>& data, int allocatorID)
   const auto leaf_aabb_ptr = data.m_leaf_aabbs.view();
 
   const auto inner_aabb_ptr = data.m_inner_aabbs.view();
-  for_all<ExecSpace>(
-    inner_size,
-    AXOM_LAMBDA(IndexType idx) { inner_aabb_ptr[idx] = BoxType {}; });
+  for_all<ExecSpace>(inner_size, AXOM_LAMBDA(IndexType idx) { inner_aabb_ptr[idx] = BoxType {}; });
 
   Array<std::int32_t> counters(inner_size, inner_size, allocatorID);
   const auto counters_ptr = counters.view();
@@ -563,8 +528,7 @@ void propagate_aabbs(RadixTree<FloatType, NDIMS>& data, int allocatorID)
         // TODO: If RAJA atomics get memory ordering policies in the future,
         // we should look at replacing the sync_load/sync_stores by changing
         // the below atomic to an acquire/release atomic.
-        std::int32_t old =
-          atomic_increment<ExecSpace>(&(counters_ptr[current_node]));
+        std::int32_t old = atomic_increment<ExecSpace>(&(counters_ptr[current_node]));
 
         if(old == 0)
         {
@@ -614,10 +578,7 @@ void build_radix_tree(const BoxIndexable boxes,
   radix_tree.allocate(size, allocatorID);
 
   // copy so we don't reorder the input
-  transform_boxes<ExecSpace>(boxes,
-                             radix_tree.m_leaf_aabbs.view(),
-                             size,
-                             scale_factor);
+  transform_boxes<ExecSpace>(boxes, radix_tree.m_leaf_aabbs.view(), size, scale_factor);
 
   // evaluate global bounds
   bounds = reduce<ExecSpace, FloatType, NDIMS>(radix_tree.m_leaf_aabbs, size);
@@ -625,10 +586,7 @@ void build_radix_tree(const BoxIndexable boxes,
   // sort aabbs based on morton code
   // original positions of the sorted morton codes.
   // allows us to gather / sort other arrays.
-  get_mcodes<ExecSpace, FloatType, NDIMS>(radix_tree.m_leaf_aabbs,
-                                          size,
-                                          bounds,
-                                          radix_tree.m_mcodes);
+  get_mcodes<ExecSpace, FloatType, NDIMS>(radix_tree.m_leaf_aabbs, size, bounds, radix_tree.m_mcodes);
   sort_mcodes<ExecSpace>(radix_tree.m_mcodes, size, radix_tree.m_leafs);
 
   reorder<ExecSpace>(radix_tree.m_leafs, radix_tree.m_leaf_aabbs, size, allocatorID);

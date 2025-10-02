@@ -2,8 +2,8 @@
 // other Axom Project Developers. See the top-level LICENSE file for details.
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
-#include "axom/mint/config.hpp"                /* for mint defintions */
-#include "axom/mint/mesh/UnstructuredMesh.hpp" /* for mint::UnstructuredMesh */
+#include "axom/mint/config.hpp"                    /* for mint defintions */
+#include "axom/mint/mesh/UnstructuredMesh.hpp"     /* for mint::UnstructuredMesh */
 #include "axom/mint/mesh/internal/MeshHelpers.hpp" /* for mint::initFaces */
 
 #include "axom/core/utilities/Utilities.hpp"
@@ -25,12 +25,7 @@ namespace internal
 {
 struct MeshFaceTest
 {
-  MeshFaceTest()
-    : name("")
-    , mesh(nullptr)
-    , initShouldSucceed(false)
-    , totalFaceCount(-1)
-  { }
+  MeshFaceTest() : name(""), mesh(nullptr), initShouldSucceed(false), totalFaceCount(-1) { }
 
   MeshFaceTest(std::string thename,
                Mesh *themesh,
@@ -81,8 +76,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 1. tri  ===============================================================
-    UnstructuredMesh<SINGLE_SHAPE> *tri =
-      new UnstructuredMesh<SINGLE_SHAPE>(TWO_D, TRIANGLE);
+    UnstructuredMesh<SINGLE_SHAPE> *tri = new UnstructuredMesh<SINGLE_SHAPE>(TWO_D, TRIANGLE);
     double trinodes[] = {0, 0, 1, 0, 0, 1};
     IndexType tricells[] = {0, 1, 2};
 
@@ -104,8 +98,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 2. two tris  ==========================================================
-    UnstructuredMesh<SINGLE_SHAPE> *twotris =
-      new UnstructuredMesh<SINGLE_SHAPE>(TWO_D, TRIANGLE);
+    UnstructuredMesh<SINGLE_SHAPE> *twotris = new UnstructuredMesh<SINGLE_SHAPE>(TWO_D, TRIANGLE);
     double twotrisnodes[] = {0, 0, 1, 0, 0, 1, 0.8, 1.2};
     IndexType twotriscells[] = {0, 1, 2, 1, 3, 2};
 
@@ -129,8 +122,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 3. three quads and a tri  =============================================
-    UnstructuredMesh<MIXED_SHAPE> *thrqtri =
-      new UnstructuredMesh<MIXED_SHAPE>(TWO_D);
+    UnstructuredMesh<MIXED_SHAPE> *thrqtri = new UnstructuredMesh<MIXED_SHAPE>(TWO_D);
     double thrqtrixs[] = {-1, -1, -1, 0, 0, 0, 1, 1};
     double thrqtriys[] = {-1, 0, 1, -1, 0, 1, 0, 1};
     IndexType thrqtricells[] = {0,
@@ -168,25 +160,14 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
        // neighbors at each face of the cells
        {-1, 2, 1, -1, 0, 3, -1, -1, -1, 3, 0, 2, -1, -1, 1},
        // face types,
-       {SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT},
+       {SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT},
        // face nodes
        {0, 3, 3, 4, 4, 1, 1, 0, 4, 5, 5, 2, 2, 1, 3, 6, 6, 4, 6, 7, 7, 5}));
   }
 
   {
     // 4. four tris, with a hole  ============================================
-    UnstructuredMesh<SINGLE_SHAPE> *fourtris =
-      new UnstructuredMesh<SINGLE_SHAPE>(TWO_D, TRIANGLE);
+    UnstructuredMesh<SINGLE_SHAPE> *fourtris = new UnstructuredMesh<SINGLE_SHAPE>(TWO_D, TRIANGLE);
     double fourtrisxs[] = {-1, 0, 0, -.2, .2, 1};
     double fourtrisys[] = {-.1, -1, 0, 1, -.2, 0};
     IndexType fourtriscells[] = {0, 1, 2, 0, 2, 3, 1, 5, 4, 2, 5, 3};
@@ -213,8 +194,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 5. one 3D tri  ========================================================
-    UnstructuredMesh<SINGLE_SHAPE> *threeDtri =
-      new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TRIANGLE);
+    UnstructuredMesh<SINGLE_SHAPE> *threeDtri = new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TRIANGLE);
     double threeDtrinodes[] = {-1, 0, 0, 0, 1, 0.5, 1.2, -.2, 3};
     IndexType threeDtricells[] = {0, 1, 2};
 
@@ -239,8 +219,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 6. a tri not far from a quad  =========================================
-    UnstructuredMesh<MIXED_SHAPE> *qandtri =
-      new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
+    UnstructuredMesh<MIXED_SHAPE> *qandtri = new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
     double qandtrixs[] = {-1, 1, 0, 0.3, 0.9, 2, 1.4};
     double qandtriys[] = {0, 0, 0.8, 0.9, 0.2, 0.5, 1.5};
     double qandtrizs[] = {1, 0, 0, 0, 0, 0, 0};
@@ -258,28 +237,26 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
     qandtri->appendNodes(qandtrixs, qandtriys, qandtrizs, 7);
     qandtri->appendCells(qandtricells, 2, qandtrioffs, qandtritype);
-    tests.push_back(
-      new internal::MeshFaceTest
-      // test name, test pointer,
-      ("tri separated from quad",
-       qandtri,
-       // should init faces,
-       EXPECT_INIT_SUCCESS,
-       // total face count, per-cell face count,
-       7,
-       {3, 4},
-       // neighbors at each face of the cells
-       {-1, -1, -1, -1, -1, -1, -1},
-       // face types
-       {SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT},
-       // face nodes
-       {0, 1, 1, 2, 2, 0, 3, 4, 4, 5, 5, 6, 6, 3}));
+    tests.push_back(new internal::MeshFaceTest
+                    // test name, test pointer,
+                    ("tri separated from quad",
+                     qandtri,
+                     // should init faces,
+                     EXPECT_INIT_SUCCESS,
+                     // total face count, per-cell face count,
+                     7,
+                     {3, 4},
+                     // neighbors at each face of the cells
+                     {-1, -1, -1, -1, -1, -1, -1},
+                     // face types
+                     {SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT},
+                     // face nodes
+                     {0, 1, 1, 2, 2, 0, 3, 4, 4, 5, 5, 6, 6, 3}));
   }
 
   {
     // 7. tet from four tris  ================================================
-    UnstructuredMesh<SINGLE_SHAPE> *tettris =
-      new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TRIANGLE);
+    UnstructuredMesh<SINGLE_SHAPE> *tettris = new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TRIANGLE);
     double tettrisxs[] = {0, 1, 1, 1};
     double tettrisys[] = {0, 0, 1, 1};
     double tettriszs[] = {0, -.1, 0.2, 1};
@@ -306,8 +283,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 8. hex from six quads  ================================================
-    UnstructuredMesh<SINGLE_SHAPE> *hexquads =
-      new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, QUAD);
+    UnstructuredMesh<SINGLE_SHAPE> *hexquads = new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, QUAD);
     double hexquadsxs[] = {0, 1, 1, 0, 0, 1, 1, 0};
     double hexquadsys[] = {0, 0, 1, 1, 0, 0, 1, 1};
     double hexquadszs[] = {0, 0, 0, 0, 1, 1, 1, 1};
@@ -329,27 +305,14 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
        // neighbors at each face of each cell.
        {4, 3, 2, 1, 0, 2, 5, 4, 0, 3, 5, 1, 0, 4, 5, 2, 0, 1, 5, 3, 1, 2, 3, 4},
        // face types
-       {SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT,
-        SEGMENT},
+       {SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT},
        // face nodes
-       {0, 1, 1, 2, 2, 3, 3, 0, 1, 5, 5, 4,
-        4, 0, 2, 6, 6, 5, 3, 7, 7, 6, 4, 7}));
+       {0, 1, 1, 2, 2, 3, 3, 0, 1, 5, 5, 4, 4, 0, 2, 6, 6, 5, 3, 7, 7, 6, 4, 7}));
   }
 
   {
     // 9. pyramid from a quad and four tris  =================================
-    UnstructuredMesh<MIXED_SHAPE> *pyr =
-      new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
+    UnstructuredMesh<MIXED_SHAPE> *pyr = new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
     double pyrxs[] = {-1, 0, 0, 1, 0};
     double pyrys[] = {0, -1, 1, 0, 0};
     double pyrzs[] = {0, 0, 0, 0, 1};
@@ -376,27 +339,25 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
     pyr->appendNodes(pyrxs, pyrys, pyrzs, 5);
     pyr->appendCells(pyrcells, 5, pyroffs, pyrtype);
-    tests.push_back(
-      new internal::MeshFaceTest
-      // test name, test pointer, should init faces,
-      ("hollow pyramid",
-       pyr,
-       EXPECT_INIT_SUCCESS,
-       // total face count, per-cell face count,
-       8,
-       {4, 3, 3, 3, 3},
-       // neighbors at each face of the cells
-       {1, 2, 3, 4, 0, 2, 4, 0, 3, 1, 0, 4, 2, 0, 1, 3},
-       // face types
-       {SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT},
-       // face nodes
-       {0, 1, 1, 3, 3, 2, 2, 0, 1, 4, 4, 0, 3, 4, 2, 4}));
+    tests.push_back(new internal::MeshFaceTest
+                    // test name, test pointer, should init faces,
+                    ("hollow pyramid",
+                     pyr,
+                     EXPECT_INIT_SUCCESS,
+                     // total face count, per-cell face count,
+                     8,
+                     {4, 3, 3, 3, 3},
+                     // neighbors at each face of the cells
+                     {1, 2, 3, 4, 0, 2, 4, 0, 3, 1, 0, 4, 2, 0, 1, 3},
+                     // face types
+                     {SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT},
+                     // face nodes
+                     {0, 1, 1, 3, 3, 2, 2, 0, 1, 4, 4, 0, 3, 4, 2, 4}));
   }
 
   {
     // 10. two tris back to back, forming a closed surface  ==================
-    UnstructuredMesh<SINGLE_SHAPE> *b2btris =
-      new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TRIANGLE);
+    UnstructuredMesh<SINGLE_SHAPE> *b2btris = new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TRIANGLE);
     double b2btrisnodes[] = {0, 0, 0, 2, -.3, -.1, 1, 1, 1};
     IndexType b2btriscells[] = {0, 1, 2, 0, 2, 1};
 
@@ -421,8 +382,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 11. three quads (corner of a box)  ====================================
-    UnstructuredMesh<MIXED_SHAPE> *threeq =
-      new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
+    UnstructuredMesh<MIXED_SHAPE> *threeq = new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
     // for variety, you can use a MIXED_SHAPE for a homogeneous mesh---
     // it just means a little more typing.
     double threeqxs[] = {0, 1, 1, 0, 1.4, 1.4, 0.4};
@@ -455,8 +415,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 12. two quads, two tris  ==============================================
-    UnstructuredMesh<MIXED_SHAPE> *twoqtwot =
-      new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
+    UnstructuredMesh<MIXED_SHAPE> *twoqtwot = new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
     double twoqtwotxs[] = {0, 1, 1, 0, 1.4, 1.4, 0.4};
     double twoqtwotys[] = {0, 0, 1, 1, 0.4, 1.4, 1.4};
     double twoqtwotzs[] = {0, 0, 0, 0, 0.4, 0.4, 0.4};
@@ -488,8 +447,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 13. two quads, two tris forming a prism open at both ends  ============
-    UnstructuredMesh<MIXED_SHAPE> *oprism =
-      new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
+    UnstructuredMesh<MIXED_SHAPE> *oprism = new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
     double oprismxs[] = {0, 1, 2, 0, 1, 2};
     double oprismys[] = {0, -1, 1, 0, -1, 1};
     double oprismzs[] = {0, 0, 0, 1, 1, 1};
@@ -530,28 +488,26 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
     crackedtet->appendNodes(crackedtetxs, crackedtetys, crackedtetzs, 5);
     crackedtet->appendCells(crackedtetcells, 4);
-    tests.push_back(
-      new internal::MeshFaceTest
-      // test name, test pointer,
-      ("cracked tet",
-       crackedtet,
-       // should init faces,
-       EXPECT_INIT_SUCCESS,
-       // total face count, per-cell face count,
-       8,
-       {3, 3, 3, 3},
-       // neighbors at each face of each cell
-       {3, 2, 1, 0, -1, -1, 0, 3, -1, 0, -1, 2},
-       // face types,
-       {SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT},
-       // face nodes
-       {0, 2, 2, 1, 1, 0, 1, 4, 4, 0, 2, 3, 3, 1, 0, 3}));
+    tests.push_back(new internal::MeshFaceTest
+                    // test name, test pointer,
+                    ("cracked tet",
+                     crackedtet,
+                     // should init faces,
+                     EXPECT_INIT_SUCCESS,
+                     // total face count, per-cell face count,
+                     8,
+                     {3, 3, 3, 3},
+                     // neighbors at each face of each cell
+                     {3, 2, 1, 0, -1, -1, 0, 3, -1, 0, -1, 2},
+                     // face types,
+                     {SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT},
+                     // face nodes
+                     {0, 2, 2, 1, 1, 0, 1, 4, 4, 0, 2, 3, 3, 1, 0, 3}));
   }
 
   {
     // 15. cracked pyramid  ==================================================
-    UnstructuredMesh<MIXED_SHAPE> *crackedpyr =
-      new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
+    UnstructuredMesh<MIXED_SHAPE> *crackedpyr = new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
     double crackedpyrxs[] = {-1, 0, 0, 1, 0, 0.2};
     double crackedpyrys[] = {0, -1, 1, 0, 0, -0.2};
     double crackedpyrzs[] = {0, 0, 0, 0, 1, 1};
@@ -598,8 +554,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 16. not a manifold  ===================================================
-    UnstructuredMesh<SINGLE_SHAPE> *notmanf =
-      new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TRIANGLE);
+    UnstructuredMesh<SINGLE_SHAPE> *notmanf = new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TRIANGLE);
     double notmanfxs[] = {-1, 0, 0, 0.2, 1};
     double notmanfys[] = {0, 0, 0, -.6, 0};
     double notmanfzs[] = {0.6, 0, 1, 0.4, 0.4};
@@ -607,29 +562,27 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
     notmanf->appendNodes(notmanfxs, notmanfys, notmanfzs, 5);
     notmanf->appendCells(notmanfcells, 3);
-    tests.push_back(
-      new internal::MeshFaceTest
-      // test name, test pointer,
-      ("not a manifold",
-       notmanf,
-       // should NOT init faces,
-       EXPECT_INIT_FAILURE,
-       // total face count, per-cell face count,
-       7,
-       {3, 3, 3},
-       // neighbors at each face of each cell
-       // can't be properly expressed.
-       {-1, -1, -1, -1, -1, -1, -1, -1, -1},
-       // face types,
-       {SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT},
-       // face nodes
-       {0, 1, 1, 2, 2, 0, 3, 1, 2, 3, 4, 1, 2, 4}));
+    tests.push_back(new internal::MeshFaceTest
+                    // test name, test pointer,
+                    ("not a manifold",
+                     notmanf,
+                     // should NOT init faces,
+                     EXPECT_INIT_FAILURE,
+                     // total face count, per-cell face count,
+                     7,
+                     {3, 3, 3},
+                     // neighbors at each face of each cell
+                     // can't be properly expressed.
+                     {-1, -1, -1, -1, -1, -1, -1, -1, -1},
+                     // face types,
+                     {SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT, SEGMENT},
+                     // face nodes
+                     {0, 1, 1, 2, 2, 0, 3, 1, 2, 3, 4, 1, 2, 4}));
   }
 
   {
     // 17. egregiously not a manifold  =======================================
-    UnstructuredMesh<MIXED_SHAPE> *egreg =
-      new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
+    UnstructuredMesh<MIXED_SHAPE> *egreg = new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
     double egregxs[] = {0, 1, 1, 0, 0, 1, 0, 1, 1};
     double egregys[] = {0, 0, 1, 1, 0.8, 0, 0, -0.4, -0.9};
     double egregzs[] = {0, 0, 0, 0, 0.4, 1, 1, 1.2, 0.5};
@@ -669,14 +622,12 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
         SEGMENT,
         SEGMENT},
        // face nodes
-       {0, 1, 1, 2, 2, 3, 3, 4, 1, 4, 4, 0, 1,
-        5, 5, 6, 6, 0, 1, 7, 7, 0, 1, 8, 8, 0}));
+       {0, 1, 1, 2, 2, 3, 3, 4, 1, 4, 4, 0, 1, 5, 5, 6, 6, 0, 1, 7, 7, 0, 1, 8, 8, 0}));
   }
 
   {
     // 18. 3D tet  ===========================================================
-    UnstructuredMesh<SINGLE_SHAPE> *tet =
-      new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TET);
+    UnstructuredMesh<SINGLE_SHAPE> *tet = new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TET);
     double tetxs[] = {0, 1, 1, 1};
     double tetys[] = {0, 0, 1, 1};
     double tetzs[] = {0, -.1, 0.2, 1};
@@ -702,8 +653,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 19. two hexs  =========================================================
-    UnstructuredMesh<SINGLE_SHAPE> *hexs =
-      new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, HEX);
+    UnstructuredMesh<SINGLE_SHAPE> *hexs = new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, HEX);
     double hexsxs[] = {0, 1, 2, 0, 1, 3, 0, 1, 2, 0, 1, 3};
     double hexsys[] = {0, 0, 0, 1, 0.8, 1, 0, 0.2, 0, 1, 1, 1};
     double hexszs[] = {0, 0.2, 0, 0, 0, 0, 1, 1, 1, 1, 0.8, 1};
@@ -711,29 +661,26 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
     hexs->appendNodes(hexsxs, hexsys, hexszs, 12);
     hexs->appendCells(hexscells, 2);
-    tests.push_back(
-      new internal::MeshFaceTest
-      // test name, test pointer, should init faces,
-      ("two hexs",
-       hexs,
-       EXPECT_INIT_SUCCESS,
-       // total face count, per-cell face count,
-       11,
-       {6, 6},
-       // neighbors at each face of each cell.
-       {-1, -1, 1, -1, -1, -1, -1, -1, -1, -1, 0, -1},
-       // face types
-       {QUAD, QUAD, QUAD, QUAD, QUAD, QUAD, QUAD, QUAD, QUAD, QUAD, QUAD},
-       // face nodes
-       {0,  3, 4,  1, 1, 4, 10, 7,  1, 7, 6, 0, 0,  6, 9,
-        3,  9, 10, 4, 3, 6, 7,  10, 9, 1, 4, 5, 2,  2, 5,
-        11, 8, 2,  8, 7, 1, 10, 11, 5, 4, 7, 8, 11, 10}));
+    tests.push_back(new internal::MeshFaceTest
+                    // test name, test pointer, should init faces,
+                    ("two hexs",
+                     hexs,
+                     EXPECT_INIT_SUCCESS,
+                     // total face count, per-cell face count,
+                     11,
+                     {6, 6},
+                     // neighbors at each face of each cell.
+                     {-1, -1, 1, -1, -1, -1, -1, -1, -1, -1, 0, -1},
+                     // face types
+                     {QUAD, QUAD, QUAD, QUAD, QUAD, QUAD, QUAD, QUAD, QUAD, QUAD, QUAD},
+                     // face nodes
+                     {0,  3, 4, 1, 1, 4, 10, 7, 1,  7, 6, 0, 0, 6, 9,  3,  9, 10, 4, 3, 6,  7,
+                      10, 9, 1, 4, 5, 2, 2,  5, 11, 8, 2, 8, 7, 1, 10, 11, 5, 4,  7, 8, 11, 10}));
   }
 
   {
     // 20. three hexs  =======================================================
-    UnstructuredMesh<SINGLE_SHAPE> *hexs3 =
-      new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, HEX);
+    UnstructuredMesh<SINGLE_SHAPE> *hexs3 = new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, HEX);
     double hexs3xs[] = {0, 0, 1, 1, 1, 2, 2, 0, 0, 1, 1, 1, 2, 2};
     double hexs3ys[] = {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1};
     double hexs3zs[] = {0, 2, -1, 1, 3, 0, 2, 0, 2, -1, 1, 3, 0, 2};
@@ -763,8 +710,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 21. two coincident tets, one inside-out, forming a closed manifold  ===
-    UnstructuredMesh<SINGLE_SHAPE> *mtet =
-      new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TET);
+    UnstructuredMesh<SINGLE_SHAPE> *mtet = new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TET);
     double mtetxs[] = {0, 1, 1, 1};
     double mtetys[] = {0, 0, 1, 1};
     double mtetzs[] = {0, -.1, 0.2, 1};
@@ -791,8 +737,7 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
   {
     // 22. bad tet mesh (not a manifold)  ====================================
-    UnstructuredMesh<SINGLE_SHAPE> *badtets =
-      new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TET);
+    UnstructuredMesh<SINGLE_SHAPE> *badtets = new UnstructuredMesh<SINGLE_SHAPE>(THREE_D, TET);
     double badtetsxs[] = {0, 1, 1, 1, 0, 0.3};
     double badtetsys[] = {0, 0, 1, 1, 1, 1.2};
     double badtetszs[] = {0, -.1, 0.2, 1, 0.5, 0.8};
@@ -800,38 +745,28 @@ std::vector<internal::MeshFaceTest *> generateFaceTestCases()
 
     badtets->appendNodes(badtetsxs, badtetsys, badtetszs, 6);
     badtets->appendCells(badtetscells, 3);
-    tests.push_back(new internal::MeshFaceTest
-                    // test name, test pointer,
-                    ("non-manifold tet mesh",
-                     badtets,
-                     // should NOT init faces,
-                     EXPECT_INIT_FAILURE,
-                     // total face count, per-cell face count,
-                     10,
-                     {4, 4, 4},
-                     // neighbors at each face of each cell can't be properly
-                     // expressed.
-                     {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
-                     // face types
-                     {TRIANGLE,
-                      TRIANGLE,
-                      TRIANGLE,
-                      TRIANGLE,
-                      TRIANGLE,
-                      TRIANGLE,
-                      TRIANGLE,
-                      TRIANGLE,
-                      TRIANGLE,
-                      TRIANGLE},
-                     // face nodes
-                     {0, 2, 1, 0, 3, 2, 0, 1, 3, 1, 2, 3, 0, 4, 2,
-                      0, 3, 4, 3, 2, 4, 0, 5, 2, 0, 3, 5, 3, 2, 5}));
+    tests.push_back(
+      new internal::MeshFaceTest
+      // test name, test pointer,
+      ("non-manifold tet mesh",
+       badtets,
+       // should NOT init faces,
+       EXPECT_INIT_FAILURE,
+       // total face count, per-cell face count,
+       10,
+       {4, 4, 4},
+       // neighbors at each face of each cell can't be properly
+       // expressed.
+       {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
+       // face types
+       {TRIANGLE, TRIANGLE, TRIANGLE, TRIANGLE, TRIANGLE, TRIANGLE, TRIANGLE, TRIANGLE, TRIANGLE, TRIANGLE},
+       // face nodes
+       {0, 2, 1, 0, 3, 2, 0, 1, 3, 1, 2, 3, 0, 4, 2, 0, 3, 4, 3, 2, 4, 0, 5, 2, 0, 3, 5, 3, 2, 5}));
   }
 
   {
     // 23. 3D pyramid  =======================================================
-    UnstructuredMesh<MIXED_SHAPE> *pyramid =
-      new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
+    UnstructuredMesh<MIXED_SHAPE> *pyramid = new UnstructuredMesh<MIXED_SHAPE>(THREE_D);
     double pyramidxs[] = {-1, 0, 0, 1, 0};
     double pyramidys[] = {0, -1, 1, 0, 0};
     double pyramidzs[] = {0, 0, 0, 0, 1};
@@ -920,9 +855,7 @@ struct FaceTypeNodes
 {
   FaceTypeNodes() : facetype(UNDEFINED_CELL) { }
 
-  FaceTypeNodes(CellType ftype, std::vector<IndexType> &fnodes)
-    : facetype(ftype)
-    , facenodes(fnodes)
+  FaceTypeNodes(CellType ftype, std::vector<IndexType> &fnodes) : facetype(ftype), facenodes(fnodes)
   { }
 
   CellType facetype;
@@ -945,10 +878,9 @@ bool checkAndReportFaceNodes(std::map<std::string, FaceTypeNodes> &fn,
     {
       FaceTypeNodes &ftn = fit->second;
       mesg << "Type " << getCellInfo(ftn.facetype).name << " (";
-      mesg << internal::join_ints_into_string(
-        static_cast<int>(ftn.facenodes.size()),
-        ftn.facenodes.data(),
-        ' ');
+      mesg << internal::join_ints_into_string(static_cast<int>(ftn.facenodes.size()),
+                                              ftn.facenodes.data(),
+                                              ' ');
       mesg << ") " << std::endl;
     }
     success = false;
@@ -1026,12 +958,9 @@ bool verifyFaceNodesTypes(int fcount,
   for(int f = 0; f < fcount; ++f)
   {
     int nodecount = f2noffsets[f + 1] - f2noffsets[f];
-    std::string key =
-      internal::make_face_key(nodecount, &f2n[f2noffsets[f]], '.');
+    std::string key = internal::make_face_key(nodecount, &f2n[f2noffsets[f]], '.');
     std::vector<IndexType> facenodes(nodecount);
-    std::copy(f2n + f2noffsets[f],
-              f2n + f2noffsets[f] + nodecount,
-              facenodes.begin());
+    std::copy(f2n + f2noffsets[f], f2n + f2noffsets[f] + nodecount, facenodes.begin());
     testfnodes[key] = FaceTypeNodes(f2ntypes[f], facenodes);
   }
 
@@ -1040,12 +969,9 @@ bool verifyFaceNodesTypes(int fcount,
   for(int f = 0; f < stdfacecount; ++f)
   {
     int nodecount = getCellInfo(stdFaceTypes[f]).num_nodes;
-    std::string key =
-      internal::make_face_key(nodecount, &stdFaceNodes[offset], '.');
+    std::string key = internal::make_face_key(nodecount, &stdFaceNodes[offset], '.');
     std::vector<IndexType> facenodes(nodecount);
-    std::copy(stdFaceNodes + offset,
-              stdFaceNodes + offset + nodecount,
-              facenodes.begin());
+    std::copy(stdFaceNodes + offset, stdFaceNodes + offset + nodecount, facenodes.begin());
     stdfnodes[key] = FaceTypeNodes(stdFaceTypes[f], facenodes);
     offset += nodecount;
   }
@@ -1055,8 +981,7 @@ bool verifyFaceNodesTypes(int fcount,
   // and test.
   for(auto sit = stdfnodes.begin(), send = stdfnodes.end(); sit != send;)
   {
-    if(testfnodes.count(sit->first) == 1 &&
-       faceMatches(sit->second, testfnodes[sit->first]))
+    if(testfnodes.count(sit->first) == 1 && faceMatches(sit->second, testfnodes[sit->first]))
     {
       testfnodes.erase(sit->first);
       sit = stdfnodes.erase(sit);
@@ -1071,10 +996,8 @@ bool verifyFaceNodesTypes(int fcount,
   // the faces.  If anything remains in testfnodes, the code came up with at
   // least one extra face.
   std::stringstream mesg;
-  bool allthere =
-    checkAndReportFaceNodes(stdfnodes, " missed faces (from standard):", mesg);
-  bool noextra =
-    checkAndReportFaceNodes(testfnodes, " extra faces (not in standard):", mesg);
+  bool allthere = checkAndReportFaceNodes(stdfnodes, " missed faces (from standard):", mesg);
+  bool noextra = checkAndReportFaceNodes(testfnodes, " extra faces (not in standard):", mesg);
   errmesg = mesg.str();
 
   return allthere && noextra;
@@ -1112,15 +1035,8 @@ void runMeshFaceTest(internal::MeshFaceTest *t)
   Array<IndexType> f2noffsets;
   Array<CellType> f2ntypes;
 
-  bool initresult = internal::initFaces(t->mesh,
-                                        facecount,
-                                        f2c,
-                                        c2f,
-                                        c2n,
-                                        c2foffsets,
-                                        f2n,
-                                        f2noffsets,
-                                        f2ntypes);
+  bool initresult =
+    internal::initFaces(t->mesh, facecount, f2c, c2f, c2n, c2foffsets, f2n, f2noffsets, f2ntypes);
 
   if(!initresult && !t->initShouldSucceed)
   {
@@ -1129,13 +1045,11 @@ void runMeshFaceTest(internal::MeshFaceTest *t)
   }
   else if(!initresult && t->initShouldSucceed)
   {
-    FAIL() << "test mesh \"" << t->name
-           << "\" call to initFaces() failed but should have succeeded.";
+    FAIL() << "test mesh \"" << t->name << "\" call to initFaces() failed but should have succeeded.";
   }
   else if(initresult && !(t->initShouldSucceed))
   {
-    FAIL() << "test mesh \"" << t->name
-           << "\" call to initFaces() succeeded but should have failed.";
+    FAIL() << "test mesh \"" << t->name << "\" call to initFaces() succeeded but should have failed.";
   }
   else
   {
@@ -1150,9 +1064,8 @@ void runMeshFaceTest(internal::MeshFaceTest *t)
     {
       IndexType thisCellFaceCount = c2foffsets[c + 1] - c2foffsets[c];
       EXPECT_EQ(thisCellFaceCount, t->cellFaceCount[c])
-        << "thisCellFaceCount " << thisCellFaceCount
-        << " differs from t->cellFaceCount[c] " << t->cellFaceCount[c]
-        << " with c == " << c;
+        << "thisCellFaceCount " << thisCellFaceCount << " differs from t->cellFaceCount[c] "
+        << t->cellFaceCount[c] << " with c == " << c;
     }
     EXPECT_EQ(facecount, t->totalFaceCount);
 
@@ -1162,9 +1075,8 @@ void runMeshFaceTest(internal::MeshFaceTest *t)
       std::stringstream errmesg;
 
       IndexType thisCellFaceCount = c2foffsets[c + 1] - c2foffsets[c];
-      bool neighborsMatched = verifyNeighbors(thisCellFaceCount,
-                                              &c2n[c2foffsets[c]],
-                                              &(t->cellNeighbors[c2foffsets[c]]));
+      bool neighborsMatched =
+        verifyNeighbors(thisCellFaceCount, &c2n[c2foffsets[c]], &(t->cellNeighbors[c2foffsets[c]]));
       if(!neighborsMatched)
       {
         errmesg << "Cell " << c << " expected neighbors ";
@@ -1375,8 +1287,8 @@ TEST(mint_mesh_face_relation, tf_faceMatches)
   std::vector<IndexType> list3 {3, 2, 4};
   std::vector<IndexType> list4 {3, 4};
 
-  FaceTypeNodes a(SEGMENT, list1), b(TRIANGLE, list1), c(TRIANGLE, list1),
-    d(SEGMENT, list2), e(SEGMENT, list3), f(TRIANGLE, list4);
+  FaceTypeNodes a(SEGMENT, list1), b(TRIANGLE, list1), c(TRIANGLE, list1), d(SEGMENT, list2),
+    e(SEGMENT, list3), f(TRIANGLE, list4);
 
   EXPECT_FALSE(faceMatches(a, b));  // mismatched type
   EXPECT_TRUE(faceMatches(b, c));   // matching types, identical lists
@@ -1407,8 +1319,7 @@ TEST(mint_mesh_face_relation, tf_faceMatches)
  */
 TEST(mint_mesh_face_relation, correct_construction)
 {
-  std::vector<axom::mint::internal::MeshFaceTest *> tests =
-    axom::mint::generateFaceTestCases();
+  std::vector<axom::mint::internal::MeshFaceTest *> tests = axom::mint::generateFaceTestCases();
 
   for(auto t : tests)
   {

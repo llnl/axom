@@ -9,6 +9,7 @@
 
 // C/C++ includes
 #include <type_traits>
+#include <vector>
 
 //------------------------------------------------------------------------------
 // HELPER METHODS
@@ -291,6 +292,61 @@ TEST(utils_utilities, lerp)
 
       double exp = A + (B - A) * t;
       EXPECT_NEAR(exp, axom::utilities::lerp(A, B, t), 1e-12);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+template <typename T>
+axom::Array<T> make_array(int index, int repeats, int size)
+{
+  axom::Array<T> arr;
+  arr.reserve(size + repeats - 1);
+  for(int i = 0; i < size; i++)
+  {
+    int n = (i == index) ? repeats : 1;
+    for(int j = 0; j < n; j++)
+    {
+      arr.push_back(i);
+    }
+  }
+  return arr;
+}
+
+TEST(core_Utilities, binary_search)
+{
+  std::cout << "Testing binary_search function." << std::endl;
+  const int SIZE = 100;
+  const int REPEATS = 4;
+
+  for(int size = 10; size < SIZE; size++)
+  {
+    for(int repeats = 1; repeats < REPEATS; repeats++)
+    {
+      for(int index = 0; index < size; index++)
+      {
+        {
+          const int searchValue = index;
+          const int notFoundValue = SIZE + 1;
+
+          const auto arr = make_array<int>(index, repeats, size);
+          const auto foundIndex = axom::utilities::binary_search(arr, searchValue);
+          const auto notFoundIndex = axom::utilities::binary_search(arr, notFoundValue);
+          EXPECT_EQ(foundIndex, index);
+          EXPECT_EQ(notFoundIndex, -1);
+        }
+
+        {
+          const double searchValue = index;
+          const double notFoundValue = SIZE + 1;
+
+          const auto arr = make_array<double>(index, repeats, size);
+          const auto foundIndex = axom::utilities::binary_search(arr, searchValue);
+          const auto notFoundIndex = axom::utilities::binary_search(arr, notFoundValue);
+          EXPECT_EQ(foundIndex, index);
+          EXPECT_EQ(notFoundIndex, -1);
+        }
+      }
     }
   }
 }

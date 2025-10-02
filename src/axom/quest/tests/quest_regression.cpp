@@ -108,10 +108,7 @@ struct Input
   /// Parses the command line options
   void parse(int argc, char** argv, axom::CLI::App& app)
   {
-    app
-      .add_option("-m,--mesh",
-                  meshName,
-                  "Surface mesh file (STL files are currently supported)")
+    app.add_option("-m,--mesh", meshName, "Surface mesh file (STL files are currently supported)")
       ->required()
       ->check(axom::CLI::ExistingFile);
 
@@ -180,31 +177,27 @@ struct Input
     {
       if(hasRes || hasBBox)
       {
-        SLIC_INFO(
-          "Baseline mesh will override values for resolution and bounding box");
+        SLIC_INFO("Baseline mesh will override values for resolution and bounding box");
       }
     }
     else if(!hasRes || !hasBBox)
     {
-      throw axom::CLI::Error(
-        "IncorrectConstruction",
-        "Resolution and bounding box required when baseline is not supplied");
+      throw axom::CLI::Error("IncorrectConstruction",
+                             "Resolution and bounding box required when baseline is not supplied");
     }
     else
     {
       const int dim = 3;
-      queryResolution = (m_resolution.size() == 1)
-        ? GridPt(m_resolution[0])
-        : GridPt(m_resolution.data(), dim);
+      queryResolution =
+        (m_resolution.size() == 1) ? GridPt(m_resolution[0]) : GridPt(m_resolution.data(), dim);
       meshBoundingBox.addPoint(SpacePt(m_queryBoxMins.data(), dim));
       meshBoundingBox.addPoint(SpacePt(m_queryBoxMaxs.data(), dim));
     }
 
     if(!testContainment && !testDistance)
     {
-      throw axom::CLI::Error(
-        "IncorrectConstruction",
-        "At least one of {--distance; --containment} must be enabled.");
+      throw axom::CLI::Error("IncorrectConstruction",
+                             "At least one of {--distance; --containment} must be enabled.");
     }
   }
 };
@@ -236,8 +229,7 @@ void loadBaselineData(sidre::Group* grp, Input& args)
     }
 
     double* data = view->getData();
-    args.meshBoundingBox =
-      SpaceBoundingBox(SpacePt(data, 3), SpacePt(data + 3, 3));
+    args.meshBoundingBox = SpaceBoundingBox(SpacePt(data, 3), SpacePt(data + 3, 3));
   }
 
   // Check for query grid resolution, and load into the args instance
@@ -267,9 +259,8 @@ void loadBaselineData(sidre::Group* grp, Input& args)
     }
     else
     {
-      SLIC_ASSERT_MSG(
-        grp->getView("octree_containment")->getTypeID() == sidre::INT_ID,
-        "Type of 'octree_containment' view must be int (SIDRE_INT_ID)");
+      SLIC_ASSERT_MSG(grp->getView("octree_containment")->getTypeID() == sidre::INT_ID,
+                      "Type of 'octree_containment' view must be int (SIDRE_INT_ID)");
     }
   }
 
@@ -278,26 +269,22 @@ void loadBaselineData(sidre::Group* grp, Input& args)
   {
     if(!grp->hasView("bvh_distance"))
     {
-      SLIC_ERROR("Requested distance, but baseline "
-                 << "does not have a 'bvh_distance' view");
+      SLIC_ERROR("Requested distance, but baseline " << "does not have a 'bvh_distance' view");
     }
     else
     {
-      SLIC_ASSERT_MSG(
-        grp->getView("bvh_distance")->getTypeID() == sidre::DOUBLE_ID,
-        "Type of 'bvh_distance' view must be double (SIDRE_DOUBLE_ID)");
+      SLIC_ASSERT_MSG(grp->getView("bvh_distance")->getTypeID() == sidre::DOUBLE_ID,
+                      "Type of 'bvh_distance' view must be double (SIDRE_DOUBLE_ID)");
     }
 
     if(!grp->hasView("bvh_containment"))
     {
-      SLIC_ERROR("Requested distance, but baseline does not "
-                 << " have a 'bvh_containment' view");
+      SLIC_ERROR("Requested distance, but baseline does not " << " have a 'bvh_containment' view");
     }
     else
     {
-      SLIC_ASSERT_MSG(
-        grp->getView("bvh_containment")->getTypeID() == sidre::INT_ID,
-        "Type of 'bvh_containment' view must be int (SIDRE_INT_ID)");
+      SLIC_ASSERT_MSG(grp->getView("bvh_containment")->getTypeID() == sidre::INT_ID,
+                      "Type of 'bvh_containment' view must be int (SIDRE_INT_ID)");
     }
   }
 }
@@ -320,15 +307,13 @@ mint::UniformMesh* createQueryMesh(const SpaceBoundingBox& bb, const GridPt& res
  */
 void runContainmentQueries(Input& clargs)
 {
-  SLIC_INFO(axom::fmt::format("Initializing InOutOctree over mesh '{}'...",
-                              clargs.meshName));
+  SLIC_INFO(axom::fmt::format("Initializing InOutOctree over mesh '{}'...", clargs.meshName));
   utilities::Timer buildTimer(true);
 
   quest::inout_init(clargs.meshName, MPI_COMM_WORLD);
 
   buildTimer.stop();
-  SLIC_INFO(
-    axom::fmt::format("Initialization took {} seconds.", buildTimer.elapsed()));
+  SLIC_INFO(axom::fmt::format("Initialization took {} seconds.", buildTimer.elapsed()));
 
   SpacePt bbMin;
   SpacePt bbMax;
@@ -343,8 +328,7 @@ void runContainmentQueries(Input& clargs)
 
   if(!clargs.hasQueryMesh())
   {
-    clargs.queryMesh =
-      createQueryMesh(clargs.meshBoundingBox, clargs.queryResolution);
+    clargs.queryMesh = createQueryMesh(clargs.meshBoundingBox, clargs.queryResolution);
   }
 
   SLIC_INFO("Mesh bounding box is: " << SpaceBoundingBox(bbMin, bbMax));
@@ -359,9 +343,8 @@ void runContainmentQueries(Input& clargs)
                       clargs.queryResolution,
                       omp_get_num_threads()));
 #else
-  SLIC_INFO(
-    axom::fmt::format("Querying InOutOctree on uniform grid of resolution {}",
-                      clargs.queryResolution));
+  SLIC_INFO(axom::fmt::format("Querying InOutOctree on uniform grid of resolution {}",
+                              clargs.queryResolution));
 #endif
 
   // Add a scalar field for the containment queries
@@ -369,8 +352,7 @@ void runContainmentQueries(Input& clargs)
   mint::UniformMesh* umesh = clargs.queryMesh;
   const axom::IndexType nnodes = umesh->getNumberOfNodes();
 
-  int* containment =
-    umesh->createField<int>("octree_containment", mint::NODE_CENTERED);
+  int* containment = umesh->createField<int>("octree_containment", mint::NODE_CENTERED);
   SLIC_ASSERT(containment != nullptr);
 
   double* xcoords = new double[nnodes];
@@ -394,8 +376,7 @@ void runContainmentQueries(Input& clargs)
   quest::inout_evaluate(xcoords, ycoords, zcoords, nnodes, containment);
   queryTimer.stop();
 
-  SLIC_INFO(axom::fmt::format("Filling coordinates array took {} seconds",
-                              fillTimer.elapsed()));
+  SLIC_INFO(axom::fmt::format("Filling coordinates array took {} seconds", fillTimer.elapsed()));
   SLIC_INFO(
     axom::fmt::format("Querying {}^3 containment field (InOutOctree) "
                       "took {} seconds (@ {} queries per second)",
@@ -416,16 +397,14 @@ void runContainmentQueries(Input& clargs)
  */
 void runDistanceQueries(Input& clargs)
 {
-  SLIC_INFO(axom::fmt::format("Initializing linear BVH over mesh '{}'...",
-                              clargs.meshName));
+  SLIC_INFO(axom::fmt::format("Initializing linear BVH over mesh '{}'...", clargs.meshName));
   utilities::Timer buildTimer(true);
 
   quest::signed_distance_init(clargs.meshName, MPI_COMM_WORLD);
 
   buildTimer.stop();
 
-  SLIC_INFO(
-    axom::fmt::format("Initialization took {} seconds.", buildTimer.elapsed()));
+  SLIC_INFO(axom::fmt::format("Initialization took {} seconds.", buildTimer.elapsed()));
 
   SpacePt bbMin, bbMax;
   quest::signed_distance_get_mesh_bounds(bbMin.data(), bbMax.data());
@@ -438,8 +417,7 @@ void runDistanceQueries(Input& clargs)
 
   if(!clargs.hasQueryMesh())
   {
-    clargs.queryMesh =
-      createQueryMesh(clargs.meshBoundingBox, clargs.queryResolution);
+    clargs.queryMesh = createQueryMesh(clargs.meshBoundingBox, clargs.queryResolution);
   }
 
   SLIC_INFO("Mesh bounding box is: " << SpaceBoundingBox(bbMin, bbMax));
@@ -454,8 +432,8 @@ void runDistanceQueries(Input& clargs)
                       clargs.queryResolution,
                       omp_get_num_threads()));
 #else
-  SLIC_INFO(axom::fmt::format("Querying BVH on uniform grid of resolution {}",
-                              clargs.queryResolution));
+  SLIC_INFO(
+    axom::fmt::format("Querying BVH on uniform grid of resolution {}", clargs.queryResolution));
 #endif
 
   // Add a scalar field for the containment queries
@@ -463,10 +441,8 @@ void runDistanceQueries(Input& clargs)
   axom::mint::UniformMesh* umesh = clargs.queryMesh;
   const int nnodes = umesh->getNumberOfNodes();
 
-  int* containment =
-    umesh->createField<int>("bvh_containment", axom::mint::NODE_CENTERED);
-  double* distance =
-    umesh->createField<double>("bvh_distance", axom::mint::NODE_CENTERED);
+  int* containment = umesh->createField<int>("bvh_containment", axom::mint::NODE_CENTERED);
+  double* distance = umesh->createField<double>("bvh_distance", axom::mint::NODE_CENTERED);
   SLIC_ASSERT(containment != nullptr);
   SLIC_ASSERT(distance != nullptr);
 
@@ -496,8 +472,7 @@ void runDistanceQueries(Input& clargs)
     containment[inode] = (std::signbit(distance[inode]) != 0) ? 1 : 0;
   }
 
-  SLIC_INFO(axom::fmt::format("Filling coordinates array took {} seconds",
-                              fillTimer.elapsed()));
+  SLIC_INFO(axom::fmt::format("Filling coordinates array took {} seconds", fillTimer.elapsed()));
   SLIC_INFO(
     axom::fmt::format("Querying {}^3 signed distance field (BVH) "
                       "took {} seconds (@ {} queries per second)",
@@ -545,12 +520,9 @@ bool compareDistanceAndContainment(Input& clargs)
     int diffCount = 0;
     axom::fmt::memory_buffer out;
 
-    int* oct_containment =
-      umesh->getFieldPtr<int>("octree_containment", mint::NODE_CENTERED);
-    int* bvh_containment =
-      umesh->getFieldPtr<int>("bvh_containment", mint::NODE_CENTERED);
-    double* bvh_distance =
-      umesh->getFieldPtr<double>("bvh_distance", mint::NODE_CENTERED);
+    int* oct_containment = umesh->getFieldPtr<int>("octree_containment", mint::NODE_CENTERED);
+    int* bvh_containment = umesh->getFieldPtr<int>("bvh_containment", mint::NODE_CENTERED);
+    double* bvh_distance = umesh->getFieldPtr<double>("bvh_distance", mint::NODE_CENTERED);
 
     for(int inode = 0; inode < nnodes; ++inode)
     {
@@ -585,12 +557,12 @@ bool compareDistanceAndContainment(Input& clargs)
     if(diffCount != 0)
     {
       passed = false;
-      SLIC_INFO(axom::fmt::format(
-        "** Disagreement between SignedDistance and InOutOctree queries.\n"
-        "There were {} differences.\n Showing first {} results -- {}",
-        diffCount,
-        std::min(diffCount, MAX_RESULTS),
-        std::string(out.begin(), out.end())));
+      SLIC_INFO(
+        axom::fmt::format("** Disagreement between SignedDistance and InOutOctree queries.\n"
+                          "There were {} differences.\n Showing first {} results -- {}",
+                          diffCount,
+                          std::min(diffCount, MAX_RESULTS),
+                          std::string(out.begin(), out.end())));
     }
   }
 
@@ -623,19 +595,16 @@ bool compareToBaselineResults(axom::sidre::Group* grp, Input& clargs)
   if(clargs.testContainment)
   {
     base_inout_containment = grp->getView("octree_containment")->getArray();
-    exp_inout_containment =
-      umesh->getFieldPtr<int>("octree_containment", mint::NODE_CENTERED);
+    exp_inout_containment = umesh->getFieldPtr<int>("octree_containment", mint::NODE_CENTERED);
   }
 
   if(clargs.testDistance)
   {
     base_sd_containment = grp->getView("bvh_containment")->getArray();
-    exp_sd_containment =
-      umesh->getFieldPtr<int>("bvh_containment", mint::NODE_CENTERED);
+    exp_sd_containment = umesh->getFieldPtr<int>("bvh_containment", mint::NODE_CENTERED);
 
     base_sd_distance = grp->getView("bvh_distance")->getArray();
-    exp_sd_distance =
-      umesh->getFieldPtr<double>("bvh_distance", mint::NODE_CENTERED);
+    exp_sd_distance = umesh->getFieldPtr<double>("bvh_distance", mint::NODE_CENTERED);
   }
 
   if(clargs.testContainment)
@@ -654,20 +623,18 @@ bool compareToBaselineResults(axom::sidre::Group* grp, Input& clargs)
           primal::Point<double, 3> pt;
           umesh->getNode(inode, pt.data());
 
-          axom::fmt::format_to(
-            std::back_inserter(out),
-            "\n  Disagreement on sample {} @ {}.  Expected {}, got {}",
-            inode,
-            pt,
-            expected ? "inside" : "outside",
-            actual ? "inside" : "outside");
+          axom::fmt::format_to(std::back_inserter(out),
+                               "\n  Disagreement on sample {} @ {}.  Expected {}, got {}",
+                               inode,
+                               pt,
+                               expected ? "inside" : "outside",
+                               actual ? "inside" : "outside");
 
           if(clargs.testDistance)
           {
-            axom::fmt::format_to(
-              std::back_inserter(out),
-              " -- distance from query point to surface is {} ",
-              base_sd_distance[inode]);
+            axom::fmt::format_to(std::back_inserter(out),
+                                 " -- distance from query point to surface is {} ",
+                                 base_sd_distance[inode]);
           }
         }
         ++diffCount;
@@ -677,12 +644,12 @@ bool compareToBaselineResults(axom::sidre::Group* grp, Input& clargs)
     if(diffCount != 0)
     {
       passed = false;
-      SLIC_INFO(axom::fmt::format(
-        "** Containment test failed.  There were {} differences. "
-        "Showing first {} -- {}",
-        diffCount,
-        std::min(diffCount, MAX_RESULTS),
-        std::string(out.begin(), out.end())));
+      SLIC_INFO(
+        axom::fmt::format("** Containment test failed.  There were {} differences. "
+                          "Showing first {} -- {}",
+                          diffCount,
+                          std::min(diffCount, MAX_RESULTS),
+                          std::string(out.begin(), out.end())));
     }
   }
 
@@ -697,23 +664,21 @@ bool compareToBaselineResults(axom::sidre::Group* grp, Input& clargs)
       const int actual_c = exp_sd_containment[inode];
       const double expected_d = base_sd_distance[inode];
       const double actual_d = exp_sd_distance[inode];
-      if(expected_c != actual_c ||
-         !utilities::isNearlyEqual(expected_d, actual_d))
+      if(expected_c != actual_c || !utilities::isNearlyEqual(expected_d, actual_d))
       {
         if(diffCount < MAX_RESULTS)
         {
           primal::Point<double, 3> pt;
           umesh->getNode(inode, pt.data());
 
-          axom::fmt::format_to(
-            std::back_inserter(out),
-            "\n  Disagreement on sample {} @ {}. Expected {} ({}), got {} ({})",
-            inode,
-            pt,
-            expected_d,
-            expected_c ? "inside" : "outside",
-            actual_d,
-            actual_c ? "inside" : "outside");
+          axom::fmt::format_to(std::back_inserter(out),
+                               "\n  Disagreement on sample {} @ {}. Expected {} ({}), got {} ({})",
+                               inode,
+                               pt,
+                               expected_d,
+                               expected_c ? "inside" : "outside",
+                               actual_d,
+                               actual_c ? "inside" : "outside");
         }
         ++diffCount;
       }
@@ -722,12 +687,12 @@ bool compareToBaselineResults(axom::sidre::Group* grp, Input& clargs)
     if(diffCount != 0)
     {
       passed = false;
-      SLIC_INFO(axom::fmt::format(
-        "** Distance test failed.  There were {} differences. "
-        "Showing first {} -- {}",
-        diffCount,
-        std::min(diffCount, MAX_RESULTS),
-        std::string(out.begin(), out.end())));
+      SLIC_INFO(
+        axom::fmt::format("** Distance test failed.  There were {} differences. "
+                          "Showing first {} -- {}",
+                          diffCount,
+                          std::min(diffCount, MAX_RESULTS),
+                          std::string(out.begin(), out.end())));
     }
   }
 
@@ -769,24 +734,20 @@ void saveBaseline(axom::sidre::Group* grp, Input& clargs)
   const int nnodes = umesh->getNumberOfNodes();
   if(clargs.testContainment)
   {
-    int* oct_containment =
-      umesh->getFieldPtr<int>("octree_containment", mint::NODE_CENTERED);
-    view =
-      grp->createView("octree_containment", sidre::INT_ID, nnodes)->allocate();
+    int* oct_containment = umesh->getFieldPtr<int>("octree_containment", mint::NODE_CENTERED);
+    view = grp->createView("octree_containment", sidre::INT_ID, nnodes)->allocate();
     int* contData = view->getArray();
     std::copy(oct_containment, oct_containment + nnodes, contData);
   }
 
   if(clargs.testDistance)
   {
-    int* bvh_containment =
-      umesh->getFieldPtr<int>("bvh_containment", mint::NODE_CENTERED);
+    int* bvh_containment = umesh->getFieldPtr<int>("bvh_containment", mint::NODE_CENTERED);
     view = grp->createView("bvh_containment", sidre::INT_ID, nnodes)->allocate();
     int* contData = view->getArray();
     std::copy(bvh_containment, bvh_containment + nnodes, contData);
 
-    double* bvh_distance =
-      umesh->getFieldPtr<double>("bvh_distance", mint::NODE_CENTERED);
+    double* bvh_distance = umesh->getFieldPtr<double>("bvh_distance", mint::NODE_CENTERED);
     view = grp->createView("bvh_distance", sidre::DOUBLE_ID, nnodes)->allocate();
 
     double* distData = view->getArray();
@@ -795,19 +756,14 @@ void saveBaseline(axom::sidre::Group* grp, Input& clargs)
 
   const GridPt& res = clargs.queryResolution;
   bool resAllSame = (res[0] == res[1] && res[1] == res[2]);
-  std::string resStr = resAllSame
-    ? axom::fmt::format("{}", res[0])
-    : axom::fmt::format("{}_{}_{}", res[0], res[1], res[2]);
+  std::string resStr = resAllSame ? axom::fmt::format("{}", res[0])
+                                  : axom::fmt::format("{}_{}_{}", res[0], res[1], res[2]);
 
-  std::string outfile =
-    axom::fmt::format("{}_{}_{}", meshNameNoExt, resStr, "baseline");
+  std::string outfile = axom::fmt::format("{}_{}_{}", meshNameNoExt, resStr, "baseline");
   std::string protocol = "sidre_hdf5";
   sidre::IOManager writer(MPI_COMM_WORLD);
   writer.write(grp, 1, outfile, protocol);
-  SLIC_INFO(
-    axom::fmt::format("** Saved baseline file '{}' using '{}' protocol.",
-                      outfile,
-                      protocol));
+  SLIC_INFO(axom::fmt::format("** Saved baseline file '{}' using '{}' protocol.", outfile, protocol));
 }
 
 /// Runs regression test for quest containment and signed distance queries
@@ -823,8 +779,7 @@ int main(int argc, char** argv)
 
   // parse the command arguments
   Input args;
-  axom::CLI::App app {
-    "Regression tester for point containment and signed distance tests"};
+  axom::CLI::App app {"Regression tester for point containment and signed distance tests"};
 
   try
   {

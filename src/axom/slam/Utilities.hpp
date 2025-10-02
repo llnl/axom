@@ -58,20 +58,13 @@ struct TypeToString<double>
 template <typename DataType = double>
 struct Point3
 {
-  Point3(const DataType& x, const DataType& y, const DataType& z)
-    : m_x(x)
-    , m_y(y)
-    , m_z(z)
-  { }
+  Point3(const DataType& x, const DataType& y, const DataType& z) : m_x(x), m_y(y), m_z(z) { }
 
   Point3(const DataType* d) : m_x(d[0]), m_y(d[1]), m_z(d[2]) { }
   Point3() : m_x(DataType()), m_y(DataType()), m_z(DataType()) { }
 
   /// Distance from origin
-  DataType radius() const
-  {
-    return std::sqrt(m_x * m_x + m_y * m_y + m_z * m_z);
-  }
+  DataType radius() const { return std::sqrt(m_x * m_x + m_y * m_y + m_z * m_z); }
 
   Point3& operator+=(const Point3& pt)
   {

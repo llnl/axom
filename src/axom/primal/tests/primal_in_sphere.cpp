@@ -127,17 +127,16 @@ TEST(primal_in_sphere, compare_to_sphere_orientation)
 
   // define some constants for regular tetrahedron
   const double c[3] = {std::sqrt(2) / 3, std::sqrt(6) / 3, 1. / 3};
-  std::vector<TetrahedronType> tets = {
-    // A regular tetrahedron centered at the origin
-    TetrahedronType {PointType {0, 0, 1},
-                     PointType {2 * c[0], 0, -c[2]},
-                     PointType {-c[0], -c[1], -c[2]},
-                     PointType {-c[0], c[1], -c[2]}},
+  std::vector<TetrahedronType> tets = {// A regular tetrahedron centered at the origin
+                                       TetrahedronType {PointType {0, 0, 1},
+                                                        PointType {2 * c[0], 0, -c[2]},
+                                                        PointType {-c[0], -c[1], -c[2]},
+                                                        PointType {-c[0], c[1], -c[2]}},
 
-    TetrahedronType {PointType {0.942188, 0.211634, 0.395159},
-                     PointType {0.9105, 0.114406, 0.83865},
-                     PointType {0.855718, 0.660449, 0.911065},
-                     PointType {0.393771, 0.572654, 0.471824}}};
+                                       TetrahedronType {PointType {0.942188, 0.211634, 0.395159},
+                                                        PointType {0.9105, 0.114406, 0.83865},
+                                                        PointType {0.855718, 0.660449, 0.911065},
+                                                        PointType {0.393771, 0.572654, 0.471824}}};
 
   std::vector<primal::OrientationResult> orientations = {
     primal::ON_POSITIVE_SIDE,
@@ -191,16 +190,14 @@ TEST(primal_in_sphere, bounding_box_in_sphere)
 
   // Circle contains box: All 4 corners inside
   {
-    BoxType box(
-      PointType {circle.getCenter()[0] - 0.5, circle.getCenter()[1] - 0.5},
-      PointType {circle.getCenter()[0] + 0.5, circle.getCenter()[1] + 0.5});
+    BoxType box(PointType {circle.getCenter()[0] - 0.5, circle.getCenter()[1] - 0.5},
+                PointType {circle.getCenter()[0] + 0.5, circle.getCenter()[1] + 0.5});
     EXPECT_TRUE(primal::in_sphere(box, circle));
   }
 
   // One corner outside
   {
-    BoxType box(PointType {0, 1},
-                PointType {circle.getCenter()[0], circle.getCenter()[1]});
+    BoxType box(PointType {0, 1}, PointType {circle.getCenter()[0], circle.getCenter()[1]});
     EXPECT_FALSE(primal::in_sphere(box, circle));
   }
 

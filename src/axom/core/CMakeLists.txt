@@ -46,9 +46,11 @@ set(core_headers
     numerics/linear_solve.hpp
     numerics/matvecops.hpp
     numerics/polynomial_solvers.hpp
+    numerics/transforms.hpp
 
     ## detail
     detail/FlatTable.hpp
+    detail/FlatMapOps.hpp
 
     ## core
     AnnotationMacros.hpp
@@ -65,6 +67,9 @@ set(core_headers
     Map.hpp
     MapCollection.hpp
     FlatMap.hpp
+    FlatMapView.hpp
+    FlatMapUtil.hpp
+    DeviceHash.hpp
     NumericArray.hpp
     NumericLimits.hpp
     Path.hpp
@@ -75,11 +80,14 @@ set(core_headers
     memory_management.hpp
 
     ## execution
+    execution/atomics.hpp
     execution/execution_space.hpp
     execution/for_all.hpp
     execution/nested_for_exec.hpp
+    execution/reductions.hpp
     execution/runtime_policy.hpp
     execution/scans.hpp
+    execution/sorts.hpp
     execution/synchronize.hpp
 
     execution/internal/seq_exec.hpp

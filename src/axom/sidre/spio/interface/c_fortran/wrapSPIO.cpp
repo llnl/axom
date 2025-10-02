@@ -31,8 +31,7 @@ void SPIO_SHROUD_memory_destructor(SPIO_SHROUD_capsule_data* cap)
   }
   case 1:  // axom::sidre::IOManager
   {
-    axom::sidre::IOManager* cxx_ptr =
-      reinterpret_cast<axom::sidre::IOManager*>(ptr);
+    axom::sidre::IOManager* cxx_ptr = reinterpret_cast<axom::sidre::IOManager*>(ptr);
     delete cxx_ptr;
     break;
   }

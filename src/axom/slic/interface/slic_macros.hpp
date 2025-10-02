@@ -523,15 +523,12 @@
  * \endcode
  *
  */
-#define SLIC_INFO(msg)                                \
-  do                                                  \
-  {                                                   \
-    std::ostringstream __oss;                         \
-    __oss << msg;                                     \
-    axom::slic::logMessage(axom::slic::message::Info, \
-                           __oss.str(),               \
-                           __FILE__,                  \
-                           __LINE__);                 \
+#define SLIC_INFO(msg)                                                                  \
+  do                                                                                    \
+  {                                                                                     \
+    std::ostringstream __oss;                                                           \
+    __oss << msg;                                                                       \
+    axom::slic::logMessage(axom::slic::message::Info, __oss.str(), __FILE__, __LINE__); \
   } while(axom::slic::detail::false_value)
 
 /*!
@@ -549,18 +546,12 @@
  * \endcode
  *
  */
-#define SLIC_INFO_TAGGED(msg, tag)                    \
-  do                                                  \
-  {                                                   \
-    std::ostringstream __oss;                         \
-    __oss << msg;                                     \
-    axom::slic::logMessage(axom::slic::message::Info, \
-                           __oss.str(),               \
-                           tag,                       \
-                           __FILE__,                  \
-                           __LINE__,                  \
-                           false,                     \
-                           true);                     \
+#define SLIC_INFO_TAGGED(msg, tag)                                                                        \
+  do                                                                                                      \
+  {                                                                                                       \
+    std::ostringstream __oss;                                                                             \
+    __oss << msg;                                                                                         \
+    axom::slic::logMessage(axom::slic::message::Info, __oss.str(), tag, __FILE__, __LINE__, false, true); \
   } while(axom::slic::detail::false_value)
 
 /*!
@@ -578,18 +569,15 @@
  * \endcode
  *
  */
-#define SLIC_INFO_IF(EXP, msg)                          \
-  do                                                    \
-  {                                                     \
-    if(EXP)                                             \
-    {                                                   \
-      std::ostringstream __oss;                         \
-      __oss << msg;                                     \
-      axom::slic::logMessage(axom::slic::message::Info, \
-                             __oss.str(),               \
-                             __FILE__,                  \
-                             __LINE__);                 \
-    }                                                   \
+#define SLIC_INFO_IF(EXP, msg)                                                            \
+  do                                                                                      \
+  {                                                                                       \
+    if(EXP)                                                                               \
+    {                                                                                     \
+      std::ostringstream __oss;                                                           \
+      __oss << msg;                                                                       \
+      axom::slic::logMessage(axom::slic::message::Info, __oss.str(), __FILE__, __LINE__); \
+    }                                                                                     \
   } while(axom::slic::detail::false_value)
 
 /*!
@@ -623,8 +611,7 @@
  * \endcode
  *
  */
-#define SLIC_INFO_ROOT_IF(EXP, msg) \
-  SLIC_INFO_IF((EXP) && (axom::slic::isRoot()), msg)
+#define SLIC_INFO_ROOT_IF(EXP, msg) SLIC_INFO_IF((EXP) && (axom::slic::isRoot()), msg)
 
 #ifdef AXOM_DEBUG
 
@@ -642,15 +629,12 @@
  * \endcode
  *
  */
-  #define SLIC_DEBUG(msg)                                \
-    do                                                   \
-    {                                                    \
-      std::ostringstream __oss;                          \
-      __oss << msg;                                      \
-      axom::slic::logMessage(axom::slic::message::Debug, \
-                             __oss.str(),                \
-                             __FILE__,                   \
-                             __LINE__);                  \
+  #define SLIC_DEBUG(msg)                                                                  \
+    do                                                                                     \
+    {                                                                                      \
+      std::ostringstream __oss;                                                            \
+      __oss << msg;                                                                        \
+      axom::slic::logMessage(axom::slic::message::Debug, __oss.str(), __FILE__, __LINE__); \
     } while(axom::slic::detail::false_value)
 
   /*!
@@ -668,18 +652,15 @@
  * \endcode
  *
  */
-  #define SLIC_DEBUG_IF(EXP, msg)                          \
-    do                                                     \
-    {                                                      \
-      if(EXP)                                              \
-      {                                                    \
-        std::ostringstream __oss;                          \
-        __oss << msg;                                      \
-        axom::slic::logMessage(axom::slic::message::Debug, \
-                               __oss.str(),                \
-                               __FILE__,                   \
-                               __LINE__);                  \
-      }                                                    \
+  #define SLIC_DEBUG_IF(EXP, msg)                                                            \
+    do                                                                                       \
+    {                                                                                        \
+      if(EXP)                                                                                \
+      {                                                                                      \
+        std::ostringstream __oss;                                                            \
+        __oss << msg;                                                                        \
+        axom::slic::logMessage(axom::slic::message::Debug, __oss.str(), __FILE__, __LINE__); \
+      }                                                                                      \
     } while(axom::slic::detail::false_value)
 
   /*!
@@ -713,8 +694,32 @@
  * \endcode
  *
  */
-  #define SLIC_DEBUG_ROOT_IF(EXP, msg) \
-    SLIC_DEBUG_IF((EXP) && (axom::slic::isRoot()), msg)
+  #define SLIC_DEBUG_ROOT_IF(EXP, msg) SLIC_DEBUG_IF((EXP) && (axom::slic::isRoot()), msg)
+
+  /*!
+ * \def SLIC_DEBUG_PRINT_CONTAINER( name, container )
+ * \brief Logs a Debug message containing the contents of the container, moving
+ *        the contents to the host if needed.
+ *
+ * \param [in] name The name of the container in the printed message.
+ * \param [in] container The container (array, vector, view).
+ *
+ * \note The SLIC_DEBUG_PRINT_CONTAINER macro is active when AXOM_DEBUG is defined.
+ *
+ * Usage:
+ * \code
+ *   axom::ArrayView<int> dataView;
+ *   SLIC_DEBUG_PRINT_CONTAINER( "dataView", dataView );
+ * \endcode
+ *
+ */
+  #define SLIC_DEBUG_PRINT_CONTAINER(name, container)                                      \
+    do                                                                                     \
+    {                                                                                      \
+      std::ostringstream __oss;                                                            \
+      axom::slic::detail::printContainer(__oss, name, container);                          \
+      axom::slic::logMessage(axom::slic::message::Debug, __oss.str(), __FILE__, __LINE__); \
+    } while(axom::slic::detail::false_value)
 
 #else  // turn off debug macros
 
@@ -722,6 +727,7 @@
   #define SLIC_DEBUG_IF(ignore_EXP, ignore_msg) ((void)0)
   #define SLIC_DEBUG_ROOT(ignore_EXP) ((void)0)
   #define SLIC_DEBUG_ROOT_IF(ignore_EXP, ignore_msg) ((void)0)
+  #define SLIC_DEBUG_PRINT_CONTAINER(ignore_name, ignore_container) ((void)0)
 
 #endif
 

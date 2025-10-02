@@ -64,6 +64,13 @@ public:
 
   /*!
    *****************************************************************************
+   * \brief Returns the MPI communicator
+   *****************************************************************************
+   */
+  MPI_Comm comm();
+
+  /*!
+   *****************************************************************************
    * \brief Returns the MPI rank of this node
    *****************************************************************************
    */
@@ -120,8 +127,7 @@ public:
    *
    *****************************************************************************
    */
-  void push(const char* packedMessagesToBeSent,
-            std::vector<const char*>& receivedPackedMessages);
+  void push(const char* packedMessagesToBeSent, std::vector<const char*>& receivedPackedMessages);
 
   /*!
    *****************************************************************************
@@ -133,6 +139,16 @@ public:
    */
   bool isOutputNode();
 
+  /*!
+   *****************************************************************************
+   * \brief This function returns a start time that is consistent across ranks.
+   * This time corresponds to the time that the Communicator is initialized
+   *
+   * \return Double value that corresponds to a global start time
+   *****************************************************************************
+   */
+  double startTime();
+
 private:
   MPI_Comm m_mpiComm;
   int m_mpiCommRank;
@@ -143,6 +159,7 @@ private:
   int m_leftChildRank;
   int m_rightChildRank;
   int m_childCount;
+  double m_startTime;
 };
 
 }  // end namespace lumberjack

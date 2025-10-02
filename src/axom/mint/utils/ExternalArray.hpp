@@ -43,8 +43,7 @@ class ExternalArray : public axom::Array<T, DIM>
 {
 public:
   using BaseClass = axom::Array<T, DIM>;
-  static_assert(DIM <= 2,
-                "Only 1- and 2-dimensional external arrays are permitted");
+  static_assert(DIM <= 2, "Only 1- and 2-dimensional external arrays are permitted");
   /*!
    * \brief Default constructor. Disabled.
    */
@@ -54,8 +53,7 @@ public:
    * \brief Move constructor.
    * \param [in] other The array to move from
    */
-  ExternalArray(ExternalArray&& other) : axom::Array<T, DIM>(std::move(other))
-  { }
+  ExternalArray(ExternalArray&& other) : axom::Array<T, DIM>(std::move(other)) { }
 
   /// \name ExternalArray constructors
   /// @{
@@ -85,11 +83,11 @@ public:
 
     if(this->m_num_elements > capacity)
     {
-      SLIC_WARNING(fmt::format(
-        "Attempting to set number of elements greater than the available "
-        "capacity. (elements = {}, capacity = {})",
-        this->m_num_elements,
-        capacity));
+      SLIC_WARNING(
+        fmt::format("Attempting to set number of elements greater than the available "
+                    "capacity. (elements = {}, capacity = {})",
+                    this->m_num_elements,
+                    capacity));
       this->m_capacity = this->m_num_elements;
     }
 
@@ -98,8 +96,7 @@ public:
 
   /// \overload
   template <int UDIM = DIM, typename Enable = std::enable_if_t<UDIM == 1>>
-  ExternalArray(T* data, IndexType size, IndexType capacity)
-    : axom::Array<T, DIM>()
+  ExternalArray(T* data, IndexType size, IndexType capacity) : axom::Array<T, DIM>()
   {
     SLIC_ASSERT(data != nullptr);
 
@@ -108,11 +105,11 @@ public:
 
     if(this->m_num_elements > capacity)
     {
-      SLIC_WARNING(fmt::format(
-        "Attempting to set number of elements greater than the available "
-        "capacity. (elements = {}, capacity = {})",
-        this->m_num_elements,
-        capacity));
+      SLIC_WARNING(
+        fmt::format("Attempting to set number of elements greater than the available "
+                    "capacity. (elements = {}, capacity = {})",
+                    this->m_num_elements,
+                    capacity));
       this->m_capacity = this->m_num_elements;
     }
 

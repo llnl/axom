@@ -48,12 +48,12 @@ int main()
   // _inlet_workflow_verification_start
   v.registerVerifier([&myInlet](const axom::inlet::Container& container) -> bool {
     int dim = myInlet["dimensions"];
-    bool x_present = container.contains("x") &&
-      (container["x"].type() == axom::inlet::InletType::Double);
-    bool y_present = container.contains("y") &&
-      (container["y"].type() == axom::inlet::InletType::Double);
-    bool z_present = container.contains("z") &&
-      (container["z"].type() == axom::inlet::InletType::Double);
+    bool x_present =
+      container.contains("x") && (container["x"].type() == axom::inlet::InletType::Double);
+    bool y_present =
+      container.contains("y") && (container["y"].type() == axom::inlet::InletType::Double);
+    bool z_present =
+      container.contains("z") && (container["z"].type() == axom::inlet::InletType::Double);
     if(dim == 1 && x_present)
     {
       return true;
@@ -73,8 +73,7 @@ int main()
   // We expect verification to be unsuccessful since the only Field
   // in vector is x but 2 dimensions are expected
   SLIC_INFO("This should fail due to a missing dimension:");
-  myInlet.verify() ? msg = "Verification was successful\n"
-                   : msg = "Verification was unsuccessful\n";
+  myInlet.verify() ? msg = "Verification was successful\n" : msg = "Verification was unsuccessful\n";
   SLIC_INFO(msg);
 
   // Add required dimension to schema
@@ -83,8 +82,7 @@ int main()
   // We expect the verification to succeed because vector now contains
   // both x and y to match the 2 dimensions
   SLIC_INFO("After adding the required dimension:");
-  myInlet.verify() ? msg = "Verification was successful\n"
-                   : msg = "Verification was unsuccessful\n";
+  myInlet.verify() ? msg = "Verification was successful\n" : msg = "Verification was unsuccessful\n";
   SLIC_INFO(msg);
   // _inlet_workflow_verification_end
 
@@ -103,8 +101,8 @@ int main()
   bool y_found = myInlet["vector/y"].type() == axom::inlet::InletType::Double;
   if(x_found && y_found)
   {
-    msg = "Vector = " + std::to_string(myInlet["vector/x"].get<double>()) +
-      "," + std::to_string(myInlet["vector/y"].get<double>()) + "\n";
+    msg = "Vector = " + std::to_string(myInlet["vector/x"].get<double>()) + "," +
+      std::to_string(myInlet["vector/y"].get<double>()) + "\n";
     SLIC_INFO(msg);
   }
   // _inlet_workflow_accessing_data_end
@@ -120,8 +118,7 @@ int main()
   }
 
   // _inlet_verification_container_unexpected_start
-  const std::vector<std::string> vector_unexpected_names =
-    v.unexpectedNames();  // {"vector/z"}
+  const std::vector<std::string> vector_unexpected_names = v.unexpectedNames();  // {"vector/z"}
   // _inlet_verification_container_unexpected_end
 
   for(const auto& name : vector_unexpected_names)

@@ -37,39 +37,34 @@ static int ShroudLenTrim(const char *src, int nsrc)
 // splicer begin class.GenericOutputStream.C_definitions
 // splicer end class.GenericOutputStream.C_definitions
 
-SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_default(
-  const char *stream,
-  SLIC_GenericOutputStream *SHC_rv)
+SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_default(const char *stream,
+                                                                SLIC_GenericOutputStream *SHC_rv)
 {
   // splicer begin class.GenericOutputStream.method.ctor_default
   const std::string SHCXX_stream(stream);
-  axom::slic::GenericOutputStream *SHCXX_rv =
-    new axom::slic::GenericOutputStream(SHCXX_stream);
+  axom::slic::GenericOutputStream *SHCXX_rv = new axom::slic::GenericOutputStream(SHCXX_stream);
   SHC_rv->addr = static_cast<void *>(SHCXX_rv);
   SHC_rv->idtor = 1;
   return SHC_rv;
   // splicer end class.GenericOutputStream.method.ctor_default
 }
 
-SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_default_bufferify(
-  char *stream,
-  int SHT_stream_len,
-  SLIC_GenericOutputStream *SHC_rv)
+SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_default_bufferify(char *stream,
+                                                                          int SHT_stream_len,
+                                                                          SLIC_GenericOutputStream *SHC_rv)
 {
   // splicer begin class.GenericOutputStream.method.ctor_default_bufferify
   const std::string SHCXX_stream(stream, ShroudLenTrim(stream, SHT_stream_len));
-  axom::slic::GenericOutputStream *SHCXX_rv =
-    new axom::slic::GenericOutputStream(SHCXX_stream);
+  axom::slic::GenericOutputStream *SHCXX_rv = new axom::slic::GenericOutputStream(SHCXX_stream);
   SHC_rv->addr = static_cast<void *>(SHCXX_rv);
   SHC_rv->idtor = 1;
   return SHC_rv;
   // splicer end class.GenericOutputStream.method.ctor_default_bufferify
 }
 
-SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_format(
-  const char *stream,
-  const char *format,
-  SLIC_GenericOutputStream *SHC_rv)
+SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_format(const char *stream,
+                                                               const char *format,
+                                                               SLIC_GenericOutputStream *SHC_rv)
 {
   // splicer begin class.GenericOutputStream.method.ctor_format
   const std::string SHCXX_stream(stream);
@@ -82,12 +77,11 @@ SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_format(
   // splicer end class.GenericOutputStream.method.ctor_format
 }
 
-SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_format_bufferify(
-  char *stream,
-  int SHT_stream_len,
-  char *format,
-  int SHT_format_len,
-  SLIC_GenericOutputStream *SHC_rv)
+SLIC_GenericOutputStream *SLIC_GenericOutputStream_ctor_format_bufferify(char *stream,
+                                                                         int SHT_stream_len,
+                                                                         char *format,
+                                                                         int SHT_format_len,
+                                                                         SLIC_GenericOutputStream *SHC_rv)
 {
   // splicer begin class.GenericOutputStream.method.ctor_format_bufferify
   const std::string SHCXX_stream(stream, ShroudLenTrim(stream, SHT_stream_len));

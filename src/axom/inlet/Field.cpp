@@ -15,16 +15,14 @@ namespace inlet
 {
 Field& Field::required(bool isRequired)
 {
-  SLIC_ASSERT_MSG(m_sidreGroup != nullptr,
-                  "[Inlet] Field specific Sidre Datastore Group not set");
+  SLIC_ASSERT_MSG(m_sidreGroup != nullptr, "[Inlet] Field specific Sidre Datastore Group not set");
   setFlag(*m_sidreGroup, *m_sidreRootGroup, detail::REQUIRED_FLAG, isRequired);
   return *this;
 }
 
 bool Field::isRequired() const
 {
-  SLIC_ASSERT_MSG(m_sidreGroup != nullptr,
-                  "[Inlet] Field specific Sidre Datastore Group not set");
+  SLIC_ASSERT_MSG(m_sidreGroup != nullptr, "[Inlet] Field specific Sidre Datastore Group not set");
   return checkFlag(*m_sidreGroup, *m_sidreRootGroup, detail::REQUIRED_FLAG);
 }
 
@@ -146,13 +144,11 @@ void Field::setRange(T startVal, T endVal)
   if(m_sidreGroup->hasView("range"))
   {
     const std::string msg =
-      fmt::format("[Inlet] Inlet Field has already defined range: {0}",
-                  m_sidreGroup->getPathName());
+      fmt::format("[Inlet] Inlet Field has already defined range: {0}", m_sidreGroup->getPathName());
     SLIC_WARNING(msg);
     setWarningFlag(m_sidreRootGroup);
   }
-  else if(m_sidreGroup->hasView("validValues") ||
-          m_sidreGroup->hasView("validStringValues"))
+  else if(m_sidreGroup->hasView("validValues") || m_sidreGroup->hasView("validStringValues"))
   {
     const std::string msg = fmt::format(
       "[Inlet] Cannot set range for Inlet Field "
@@ -244,8 +240,7 @@ std::string Field::get<std::string>() const
   return (valueStr == nullptr) ? "" : valueStr;
 }
 
-const axom::sidre::View* Field::checkExistenceAndType(
-  const axom::sidre::DataTypeId expected) const
+const axom::sidre::View* Field::checkExistenceAndType(const axom::sidre::DataTypeId expected) const
 {
   const axom::sidre::View* valueView = m_sidreGroup->getView("value");
 
@@ -289,9 +284,9 @@ InletType Field::type() const
   case axom::sidre::DOUBLE_ID:
     return InletType::Double;
   default:
-    std::string msg = fmt::format(
-      "Type ID {0} for field not recognized, returning InletType::Nothing",
-      valueView->getTypeID());
+    std::string msg =
+      fmt::format("Type ID {0} for field not recognized, returning InletType::Nothing",
+                  valueView->getTypeID());
     SLIC_WARNING(msg);
     return InletType::Nothing;
   }
@@ -314,8 +309,7 @@ bool Field::isUserProvided() const
 template <typename T>
 void Field::setScalarValidValues(std::vector<T> set)
 {
-  if(m_sidreGroup->hasView("validValues") ||
-     m_sidreGroup->hasView("validStringValues"))
+  if(m_sidreGroup->hasView("validValues") || m_sidreGroup->hasView("validStringValues"))
   {
     std::string msg = fmt::format(
       "[Inlet] Inlet Field has already "
@@ -335,8 +329,7 @@ void Field::setScalarValidValues(std::vector<T> set)
   }
   else
   {
-    auto view =
-      m_sidreGroup->createViewAndAllocate("validValues", m_type, set.size());
+    auto view = m_sidreGroup->createViewAndAllocate("validValues", m_type, set.size());
     view->getBuffer()->copyBytesIntoBuffer(&set[0], set.size() * sizeof(T));
   }
 }
@@ -381,8 +374,7 @@ Field& Field::validValues(const std::vector<std::string>& set)
     SLIC_WARNING("[Inlet] Field value type did not match STRING");
     setWarningFlag(m_sidreRootGroup);
   }
-  if(m_sidreGroup->hasView("validValues") ||
-     m_sidreGroup->hasView("validStringValues"))
+  if(m_sidreGroup->hasView("validValues") || m_sidreGroup->hasView("validStringValues"))
   {
     std::string msg = fmt::format(
       "[Inlet] Inlet Field has already defined "
@@ -444,8 +436,7 @@ bool Field::verify(std::vector<VerificationError>* errors) const
     return false;
   }
   // Verify the provided value
-  if(m_sidreGroup->hasView("value") &&
-     !verifyValue(*m_sidreGroup->getView("value"), errors))
+  if(m_sidreGroup->hasView("value") && !verifyValue(*m_sidreGroup->getView("value"), errors))
   {
     return false;
   }
@@ -461,16 +452,14 @@ bool Field::verify(std::vector<VerificationError>* errors) const
   if(m_verifier && !m_verifier(*this, errors))
   {
     const std::string msg =
-      fmt::format("[Inlet] Field failed lambda verification: {0}",
-                  m_sidreGroup->getPathName());
+      fmt::format("[Inlet] Field failed lambda verification: {0}", m_sidreGroup->getPathName());
     INLET_VERIFICATION_WARNING(m_sidreGroup->getPathName(), msg, errors);
     return false;
   }
   return true;
 }
 
-bool Field::verifyValue(const axom::sidre::View& view,
-                        std::vector<VerificationError>* errors) const
+bool Field::verifyValue(const axom::sidre::View& view, std::vector<VerificationError>* errors) const
 {
   const auto type = view.getTypeID();
   if(m_sidreGroup->hasView("validValues"))
@@ -503,8 +492,7 @@ bool Field::verifyValue(const axom::sidre::View& view,
 }
 
 template <typename T>
-bool Field::checkRange(const axom::sidre::View& view,
-                       std::vector<VerificationError>* errors) const
+bool Field::checkRange(const axom::sidre::View& view, std::vector<VerificationError>* errors) const
 {
   const T val = view.getScalar();
   const T* range = m_sidreGroup->getView("range")->getArray();
@@ -584,10 +572,9 @@ std::string Field::name() const
 
 bool AggregateField::verify(std::vector<VerificationError>* errors) const
 {
-  return std::all_of(
-    m_fields.begin(),
-    m_fields.end(),
-    [&errors](const VerifiableScalar& field) { return field.verify(errors); });
+  return std::all_of(m_fields.begin(), m_fields.end(), [&errors](const VerifiableScalar& field) {
+    return field.verify(errors);
+  });
 }
 
 AggregateField& AggregateField::required(bool isRequired)
@@ -601,10 +588,9 @@ AggregateField& AggregateField::required(bool isRequired)
 
 bool AggregateField::isRequired() const
 {
-  return std::any_of(
-    m_fields.begin(),
-    m_fields.end(),
-    [](const VerifiableScalar& field) { return field.isRequired(); });
+  return std::any_of(m_fields.begin(), m_fields.end(), [](const VerifiableScalar& field) {
+    return field.isRequired();
+  });
 }
 
 AggregateField& AggregateField::defaultValue(const std::string& value)
@@ -697,8 +683,7 @@ AggregateField& AggregateField::validValues(const std::vector<std::string>& set)
   return *this;
 }
 
-AggregateField& AggregateField::validValues(
-  const std::initializer_list<const char*>& set)
+AggregateField& AggregateField::validValues(const std::initializer_list<const char*>& set)
 {
   for(auto& field : m_fields)
   {

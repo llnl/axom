@@ -7,23 +7,37 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slic.hpp"
+#include "axom/bump.hpp"
 #include "axom/mir.hpp"  // for Mir classes & functions
 
-template <typename ExecSpace>
-int runMIR(const conduit::Node &hostMesh,
-           const conduit::Node &options,
-           conduit::Node &hostResult)
+template <typename ExecSpace, int NDIMS>
+int runMIR(const conduit::Node &hostMesh, const conduit::Node &options, conduit::Node &hostResult)
 {
-  AXOM_ANNOTATE_BEGIN("runMIR");
+  AXOM_ANNOTATE_SCOPE("runMIR");
 
-  namespace bputils = axom::mir::utilities::blueprint;
-  using namespace axom::mir::views;
-  SLIC_INFO(axom::fmt::format("Using policy {}",
-                              axom::execution_space<ExecSpace>::name()));
+  namespace utils = axom::bump::utilities;
+
+  // Pick the method out of the options.
+  std::string method("equiz");
+  if(options.has_child("method"))
+  {
+    method = options["method"].as_string();
+  }
+  SLIC_INFO(axom::fmt::format("Using policy {} for {} {}D",
+                              axom::execution_space<ExecSpace>::name(),
+                              method,
+                              NDIMS));
+
+  // Get the number of times we want to run MIR.
+  int trials = 1;
+  if(options.has_child("trials"))
+  {
+    trials = std::max(1, options["trials"].to_int());
+  }
 
   // Check materials.
   constexpr int MAXMATERIALS = 20;
-  auto materialInfo = materials(hostMesh["matsets/mat"]);
+  auto materialInfo = axom::bump::views::materials(hostMesh["matsets/mat"]);
   if(materialInfo.size() >= MAXMATERIALS)
   {
     SLIC_WARNING(
@@ -36,86 +50,83 @@ int runMIR(const conduit::Node &hostMesh,
   conduit::Node deviceMesh;
   {
     AXOM_ANNOTATE_SCOPE("host->device");
-    bputils::copy<ExecSpace>(deviceMesh, hostMesh);
+    utils::copy<ExecSpace>(deviceMesh, hostMesh);
   }
 
   const conduit::Node &n_coordset = deviceMesh["coordsets/coords"];
   const conduit::Node &n_topology = deviceMesh["topologies/mesh"];
   const conduit::Node &n_matset = deviceMesh["matsets/mat"];
   conduit::Node deviceResult;
-
-  // Pick the method out of the options.
-  std::string method("equiz");
-  if(options.has_child("method"))
+  for(int trial = 0; trial < trials; trial++)
   {
-    method = options["method"].as_string();
-  }
+    deviceResult.reset();
+    if(method == "equiz")
+    {
+      // _equiz_mir_start
+      using namespace axom::bump::views;
+      // Make views (we know beforehand which types to make)
+      auto coordsetView = make_explicit_coordset<float, NDIMS>::view(n_coordset);
+      using CoordsetView = decltype(coordsetView);
 
-  if(method == "equiz")
-  {
-    // _equiz_mir_start
-    // Make views (we know beforehand which types to make)
-    auto coordsetView = make_explicit_coordset<float, 2>::view(n_coordset);
-    using CoordsetView = decltype(coordsetView);
+      using ShapeType = typename std::conditional<NDIMS == 3, HexShape<int>, QuadShape<int>>::type;
+      auto topologyView = make_unstructured_single_shape_topology<ShapeType>::view(n_topology);
+      using TopologyView = decltype(topologyView);
 
-    using ShapeType = QuadShape<int>;
-    auto topologyView =
-      make_unstructured_single_shape<ShapeType>::view(n_topology);
-    using TopologyView = decltype(topologyView);
+      auto matsetView = make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
+      using MatsetView = decltype(matsetView);
 
-    auto matsetView =
-      make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
-    using MatsetView = decltype(matsetView);
+      using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
+      MIR m(topologyView, coordsetView, matsetView);
+      m.execute(deviceMesh, options, deviceResult);
+      // _equiz_mir_end
+    }
+    else if(method == "elvira")
+    {
+      // Make views (we know beforehand which types to make)
+      using namespace axom::bump::views;
+      auto coordsetView = make_explicit_coordset<float, NDIMS>::view(n_coordset);
+      using CoordsetView = decltype(coordsetView);
 
-    using MIR =
-      axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
-    MIR m(topologyView, coordsetView, matsetView);
-    m.execute(deviceMesh, options, deviceResult);
-    // _equiz_mir_end
-  }
-  else if(method == "elvira")
-  {
-    // Make views (we know beforehand which types to make)
-    auto coordsetView = make_explicit_coordset<float, 2>::view(n_coordset);
-    using CoordsetView = decltype(coordsetView);
+      auto topologyView = make_structured_topology<NDIMS>::view(n_topology);
+      using TopologyView = decltype(topologyView);
+      using IndexingPolicy = typename TopologyView::IndexingPolicy;
 
-    auto topologyView = make_structured<2>::view(n_topology);
-    using TopologyView = decltype(topologyView);
-    using IndexingPolicy = typename TopologyView::IndexingPolicy;
+      auto matsetView = make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
+      using MatsetView = decltype(matsetView);
 
-    auto matsetView =
-      make_unibuffer_matset<int, float, MAXMATERIALS>::view(n_matset);
-    using MatsetView = decltype(matsetView);
-
-    using MIR =
-      axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
-    MIR m(topologyView, coordsetView, matsetView);
-    m.execute(deviceMesh, options, deviceResult);
-  }
-  else
-  {
-    SLIC_ERROR(axom::fmt::format("Unsupported MIR method {}", method));
+      using MIR = axom::mir::ElviraAlgorithm<ExecSpace, IndexingPolicy, CoordsetView, MatsetView>;
+      MIR m(topologyView, coordsetView, matsetView);
+      m.execute(deviceMesh, options, deviceResult);
+    }
+    else
+    {
+      SLIC_ERROR(axom::fmt::format("Unsupported MIR method {}", method));
+    }
   }
 
   {
     AXOM_ANNOTATE_SCOPE("device->host");
-    bputils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
+    utils::copy<axom::SEQ_EXEC>(hostResult, deviceResult);
   }
 
   return 0;
 }
 
 // Prototypes.
-int runMIR_seq(const conduit::Node &mesh,
+int runMIR_seq(int dimension,
+               const conduit::Node &mesh,
                const conduit::Node &options,
                conduit::Node &result);
-int runMIR_omp(const conduit::Node &mesh,
+int runMIR_omp(int dimension,
+               const conduit::Node &mesh,
                const conduit::Node &options,
                conduit::Node &result);
-int runMIR_cuda(const conduit::Node &mesh,
+int runMIR_cuda(int dimension,
+                const conduit::Node &mesh,
                 const conduit::Node &options,
                 conduit::Node &result);
-int runMIR_hip(const conduit::Node &mesh,
+int runMIR_hip(int dimension,
+               const conduit::Node &mesh,
                const conduit::Node &options,
                conduit::Node &result);
 

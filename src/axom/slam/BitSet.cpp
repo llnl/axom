@@ -129,8 +129,7 @@ BitSet::Index BitSet::find_next(Index idx) const
     const Word startWord = m_data[startWordIdx] >> startOffset;
     if(startWord != Word(0))
     {
-      return (startWordIdx * BitsPerWord) +
-        axom::utilities::countr_zero(startWord << startOffset);
+      return (startWordIdx * BitsPerWord) + axom::utilities::countr_zero(startWord << startOffset);
     }
 
     ++startWordIdx;

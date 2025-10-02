@@ -10,15 +10,12 @@
 #include "axom/core/Macros.hpp"
 #include "axom/core/memory_management.hpp"
 #include "axom/core/execution/execution_space.hpp"
+#include "axom/core/execution/atomics.hpp"
 #include "axom/core/Types.hpp"
 
 // C/C++ includes
 #include <functional>
 #include <iostream>
-
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
-  #include "RAJA/RAJA.hpp"
-#endif
 
 namespace axom
 {
@@ -65,8 +62,7 @@ struct Pair
   axom_map::Node<Key, T>* first;
   bool second;
 
-  Pair(axom_map::Node<Key, T>* node, bool status) : first(node), second(status)
-  { }
+  Pair(axom_map::Node<Key, T>* node, bool status) : first(node), second(status) { }
 };
 
 /*!
@@ -574,11 +570,8 @@ public:
     //Candidate to get cut out if branching becomes too much of an issue.
     if(ret.second == true)
     {
-#ifdef AXOM_USE_RAJA
-      RAJA::atomicAdd<RAJA::auto_atomic>(&m_size, IndexType {1});
-#else
-      m_size++;
-#endif
+      axom::atomicAdd<axom::auto_atomic>(&m_size, IndexType {1});
+
       if(target->get_size() == target->get_capacity())
       {
         m_bucket_fill = true;
@@ -622,11 +615,8 @@ public:
     //Candidate to get cut out if branching becomes too much of an issue.
     if(ret.second == true)
     {
-#ifdef AXOM_USE_RAJA
-      RAJA::atomicAdd<RAJA::auto_atomic>(&m_size, IndexType {1});
-#else
-      m_size++;
-#endif
+      axom::atomicAdd<axom::auto_atomic>(&m_size, IndexType {1});
+
       if(target->get_size() == target->get_capacity())
       {
         m_bucket_fill = true;
@@ -677,11 +667,7 @@ public:
     bool ret = target->remove(key);
     if(ret == true)
     {
-#ifdef AXOM_USE_RAJA
-      RAJA::atomicSub<RAJA::auto_atomic>(&m_size, IndexType {1});
-#else
-      m_size--;
-#endif
+      axom::atomicSub<axom::auto_atomic>(&m_size, IndexType {1});
     }
     bucket_unlock(index, pol);
     return ret;
@@ -806,8 +792,7 @@ private:
    */
   axom_map::Bucket<Key, T>* alloc_map(IndexType bucount, IndexType bucklen)
   {
-    axom_map::Bucket<Key, T>* tmp =
-      axom::allocate<axom_map::Bucket<Key, T>>(bucount);
+    axom_map::Bucket<Key, T>* tmp = axom::allocate<axom_map::Bucket<Key, T>>(bucount);
     for(IndexType i = 0; i < bucount; i++)
     {
       tmp[i].init(bucklen);
@@ -868,10 +853,7 @@ private:
    *
    * \param [in] overload execution space object for the sake of function overloading.
    */
-  void destroy_locks(axom::SEQ_EXEC overload) const
-  {
-    AXOM_UNUSED_VAR(overload);
-  }
+  void destroy_locks(axom::SEQ_EXEC overload) const { AXOM_UNUSED_VAR(overload); }
 
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
 
@@ -929,9 +911,9 @@ private:
   /// @{
 
   axom_map::Bucket<Key, T>* m_buckets; /*!< array of pointers to linked lists containing data */
-  IndexType m_bucket_count; /*!< the number of buckets in the Map instance */
+  IndexType m_bucket_count;            /*!< the number of buckets in the Map instance */
   IndexType m_bucket_len; /*!< the number of items that can be contained in a bucket in this Map instance */
-  IndexType m_size; /*!< the number of items currently stored in this Map instance */
+  IndexType m_size;    /*!< the number of items currently stored in this Map instance */
   float m_load_factor; /*!< currently unused value, used in STL unordered_map to determine when to resize, which we don't do internally at the moment */
   axom_map::Node<Key, T> m_end; /*!< the sentinel node enabling verification of operation success or failure */
   bool m_bucket_fill; /*!<  status of buckets in general -- if at least one is full, this is set to true, false otherwise*/

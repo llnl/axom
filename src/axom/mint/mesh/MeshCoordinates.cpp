@@ -23,9 +23,7 @@ namespace mint
 {
 constexpr IndexType DEFAULT_CAPACITY = 100;
 
-MeshCoordinates::MeshCoordinates(int dimension,
-                                 IndexType numNodes,
-                                 IndexType capacity)
+MeshCoordinates::MeshCoordinates(int dimension, IndexType numNodes, IndexType capacity)
   :
 #ifdef AXOM_MINT_USE_SIDRE
   m_group(nullptr)
@@ -39,8 +37,7 @@ MeshCoordinates::MeshCoordinates(int dimension,
   if(capacity == USE_DEFAULT)
   {
     const double ratio = axom::deprecated::MCArray<double>::DEFAULT_RESIZE_RATIO;
-    max_capacity = utilities::max(DEFAULT_CAPACITY,
-                                  static_cast<IndexType>(numNodes * ratio + 0.5));
+    max_capacity = utilities::max(DEFAULT_CAPACITY, static_cast<IndexType>(numNodes * ratio + 0.5));
   }
   else
   {
@@ -52,11 +49,7 @@ MeshCoordinates::MeshCoordinates(int dimension,
 }
 
 //------------------------------------------------------------------------------
-MeshCoordinates::MeshCoordinates(IndexType numNodes,
-                                 IndexType capacity,
-                                 double* x,
-                                 double* y,
-                                 double* z)
+MeshCoordinates::MeshCoordinates(IndexType numNodes, IndexType capacity, double* x, double* y, double* z)
   :
 #ifdef AXOM_MINT_USE_SIDRE
   m_group(nullptr)
@@ -75,11 +68,9 @@ MeshCoordinates::MeshCoordinates(IndexType numNodes,
 
   for(int i = 0; i < m_ndims; ++i)
   {
-    SLIC_ERROR_IF(ptrs[i] == nullptr,
-                  "encountered null coordinate array for i=" << i);
+    SLIC_ERROR_IF(ptrs[i] == nullptr, "encountered null coordinate array for i=" << i);
 
-    m_coordinates[i] =
-      new axom::deprecated::MCArray<double>(ptrs[i], numNodes, 1, capacity);
+    m_coordinates[i] = new axom::deprecated::MCArray<double>(ptrs[i], numNodes, 1, capacity);
   }
 
   SLIC_ASSERT(consistencyCheck());
@@ -92,17 +83,13 @@ MeshCoordinates::MeshCoordinates(IndexType numNodes, double* x, double* y, doubl
 
 #ifdef AXOM_MINT_USE_SIDRE
 //------------------------------------------------------------------------------
-MeshCoordinates::MeshCoordinates(sidre::Group* group)
-  : m_group(group)
-  , m_ndims(0)
+MeshCoordinates::MeshCoordinates(sidre::Group* group) : m_group(group), m_ndims(0)
 {
   SLIC_ERROR_IF(m_group == nullptr, "null sidre::Group");
-  SLIC_ERROR_IF(!m_group->hasChildView("type"),
-                "sidre::Group does not conform to mesh blueprint");
+  SLIC_ERROR_IF(!m_group->hasChildView("type"), "sidre::Group does not conform to mesh blueprint");
 
   sidre::View* type_view = m_group->getView("type");
-  SLIC_ERROR_IF(!type_view->isString(),
-                "sidre::Group does not conform to mesh blueprint");
+  SLIC_ERROR_IF(!type_view->isString(), "sidre::Group does not conform to mesh blueprint");
 
   SLIC_ERROR_IF(std::strcmp(type_view->getString(), "explicit") != 0,
                 "sidre::Group does not conform to mesh blueprint");
@@ -112,8 +99,7 @@ MeshCoordinates::MeshCoordinates(sidre::Group* group)
 
   // NOTE: here we should support cylindrical and spherical coordinates
   sidre::Group* values_group = m_group->getGroup("values");
-  SLIC_ERROR_IF(!values_group->hasChildView("x"),
-                "sidre::Group does not conform to mesh blueprint");
+  SLIC_ERROR_IF(!values_group->hasChildView("x"), "sidre::Group does not conform to mesh blueprint");
 
   const bool hasZ = values_group->hasChildView("z");
   const bool hasY = values_group->hasChildView("y");
@@ -129,8 +115,7 @@ MeshCoordinates::MeshCoordinates(sidre::Group* group)
 
     sidre::View* coord_view = values_group->getView(coord_name);
     SLIC_ASSERT(coord_view != nullptr);
-    SLIC_ERROR_IF(coord_view->getNumDimensions() != 2,
-                  "view has invalid dimensions");
+    SLIC_ERROR_IF(coord_view->getNumDimensions() != 2, "view has invalid dimensions");
 
     sidre::IndexType dims[2];
     coord_view->getShape(2, dims);
@@ -164,8 +149,7 @@ MeshCoordinates::MeshCoordinates(sidre::Group* group,
   {
     const char* coord_name = coord_names[dim];
     sidre::View* coord_view = values->createView(coord_name);
-    m_coordinates[dim] =
-      new sidre::deprecated::MCArray<double>(coord_view, numNodes, 1, capacity);
+    m_coordinates[dim] = new sidre::deprecated::MCArray<double>(coord_view, numNodes, 1, capacity);
   }
 }
 
@@ -207,12 +191,10 @@ bool MeshCoordinates::consistencyCheck() const
     const bool size_mismatch = (actual_size != expected_size);
     const bool component_mismatch = (actual_components != NUM_COMPONENTS);
     const bool capacity_mismatch = (actual_capacity != expected_capacity);
-    const bool ratio_mismatch =
-      !utilities::isNearlyEqual(actual_resize_ratio, expected_resize_ratio);
+    const bool ratio_mismatch = !utilities::isNearlyEqual(actual_resize_ratio, expected_resize_ratio);
 
     SLIC_WARNING_IF(size_mismatch, "coordinate array size mismatch!");
-    SLIC_WARNING_IF(component_mismatch,
-                    "coordinate array number of components != 1");
+    SLIC_WARNING_IF(component_mismatch, "coordinate array number of components != 1");
     SLIC_WARNING_IF(capacity_mismatch, "coordinate array capacity mismatch!");
     SLIC_WARNING_IF(ratio_mismatch, "coordinate array ratio mismatch!");
 

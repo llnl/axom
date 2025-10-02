@@ -49,7 +49,7 @@ struct CellMapData
   std::vector<std::vector<axom::float64>>
     m_vertexVolumeFractions;  // Data that goes into MIRMesh's materialVolumeFractionsVertex ScalarMap
   std::vector<int> m_elementDominantMaterials;  // Data that goes into MIRMesh's elementDominantColors IntMap
-  std::vector<int> m_elementParents;  // Data that goes into MIRMesh's elementParentIDs IntMap
+  std::vector<int> m_elementParents;     // Data that goes into MIRMesh's elementParentIDs IntMap
   std::vector<mir::Shape> m_shapeTypes;  // Data that goes into MIRMesh's shapeType IntMap
 };
 

@@ -213,9 +213,7 @@ TEST(core_map, rehash)
         experimental::Map<int, int, std::hash<int>, axom::OMP_EXEC> test =
           internal::init<int, int, std::hash<int>, axom::OMP_EXEC>(i, j);
         internal::test_storage<int, int, std::hash<int>, axom::OMP_EXEC>(test);
-        internal::test_rehash<int, int, std::hash<int>, axom::OMP_EXEC>(test,
-                                                                        -1,
-                                                                        k);
+        internal::test_rehash<int, int, std::hash<int>, axom::OMP_EXEC>(test, -1, k);
         EXPECT_EQ(test.max_size(), k * i * j);
         internal::test_remove<int, int, std::hash<int>, axom::OMP_EXEC>(test);
       }
@@ -230,10 +228,9 @@ TEST(core_map, rehash)
         experimental::Map<int, int, std::hash<int>, axom::OMP_EXEC> test =
           internal::init<int, int, std::hash<int>, axom::OMP_EXEC>(i, j);
         internal::test_storage<int, int, std::hash<int>, axom::OMP_EXEC>(test);
-        internal::test_rehash<int, int, std::hash<int>, axom::OMP_EXEC>(
-          test,
-          test.max_size() + 20 * k,
-          -1);
+        internal::test_rehash<int, int, std::hash<int>, axom::OMP_EXEC>(test,
+                                                                        test.max_size() + 20 * k,
+                                                                        -1);
         EXPECT_EQ((i * j + 20 * k) * j, test.max_size());
         internal::test_remove<int, int, std::hash<int>, axom::OMP_EXEC>(test);
       }

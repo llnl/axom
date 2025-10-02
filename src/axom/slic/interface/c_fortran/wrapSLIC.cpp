@@ -132,8 +132,7 @@ int SLIC_getLoggingMsgLevel(void)
 void SLIC_setLoggingMsgLevel(int level)
 {
   // splicer begin function.setLoggingMsgLevel
-  axom::slic::message::Level SHCXX_level =
-    static_cast<axom::slic::message::Level>(level);
+  axom::slic::message::Level SHCXX_level = static_cast<axom::slic::message::Level>(level);
   axom::slic::setLoggingMsgLevel(SHCXX_level);
   // splicer end function.setLoggingMsgLevel
 }
@@ -143,8 +142,7 @@ void SLIC_addStreamToMsgLevel(SLIC_GenericOutputStream *ls, int level)
   // splicer begin function.addStreamToMsgLevel
   axom::slic::GenericOutputStream *SHCXX_ls =
     static_cast<axom::slic::GenericOutputStream *>(ls->addr);
-  axom::slic::message::Level SHCXX_level =
-    static_cast<axom::slic::message::Level>(level);
+  axom::slic::message::Level SHCXX_level = static_cast<axom::slic::message::Level>(level);
   axom::slic::addStreamToMsgLevel(SHCXX_ls, SHCXX_level);
   // splicer end function.addStreamToMsgLevel
 }
@@ -216,14 +214,10 @@ bool SLIC_isAbortOnWarningsEnabled(void)
   // splicer end function.isAbortOnWarningsEnabled
 }
 
-void SLIC_logMessage_file_line(int level,
-                               const char *message,
-                               const char *fileName,
-                               int line)
+void SLIC_logMessage_file_line(int level, const char *message, const char *fileName, int line)
 {
   // splicer begin function.logMessage_file_line
-  axom::slic::message::Level SHCXX_level =
-    static_cast<axom::slic::message::Level>(level);
+  axom::slic::message::Level SHCXX_level = static_cast<axom::slic::message::Level>(level);
   const std::string SHCXX_message(message);
   const std::string SHCXX_fileName(fileName);
   axom::slic::logMessage(SHCXX_level, SHCXX_message, SHCXX_fileName, line);
@@ -238,12 +232,9 @@ void SLIC_logMessage_file_line_bufferify(int level,
                                          int line)
 {
   // splicer begin function.logMessage_file_line_bufferify
-  axom::slic::message::Level SHCXX_level =
-    static_cast<axom::slic::message::Level>(level);
-  const std::string SHCXX_message(message,
-                                  ShroudLenTrim(message, SHT_message_len));
-  const std::string SHCXX_fileName(fileName,
-                                   ShroudLenTrim(fileName, SHT_fileName_len));
+  axom::slic::message::Level SHCXX_level = static_cast<axom::slic::message::Level>(level);
+  const std::string SHCXX_message(message, ShroudLenTrim(message, SHT_message_len));
+  const std::string SHCXX_fileName(fileName, ShroudLenTrim(fileName, SHT_fileName_len));
   axom::slic::logMessage(SHCXX_level, SHCXX_message, SHCXX_fileName, line);
   // splicer end function.logMessage_file_line_bufferify
 }
@@ -255,15 +246,10 @@ void SLIC_logMessage_file_line_filter(int level,
                                       bool filter_duplicates)
 {
   // splicer begin function.logMessage_file_line_filter
-  axom::slic::message::Level SHCXX_level =
-    static_cast<axom::slic::message::Level>(level);
+  axom::slic::message::Level SHCXX_level = static_cast<axom::slic::message::Level>(level);
   const std::string SHCXX_message(message);
   const std::string SHCXX_fileName(fileName);
-  axom::slic::logMessage(SHCXX_level,
-                         SHCXX_message,
-                         SHCXX_fileName,
-                         line,
-                         filter_duplicates);
+  axom::slic::logMessage(SHCXX_level, SHCXX_message, SHCXX_fileName, line, filter_duplicates);
   // splicer end function.logMessage_file_line_filter
 }
 
@@ -276,25 +262,17 @@ void SLIC_logMessage_file_line_filter_bufferify(int level,
                                                 bool filter_duplicates)
 {
   // splicer begin function.logMessage_file_line_filter_bufferify
-  axom::slic::message::Level SHCXX_level =
-    static_cast<axom::slic::message::Level>(level);
-  const std::string SHCXX_message(message,
-                                  ShroudLenTrim(message, SHT_message_len));
-  const std::string SHCXX_fileName(fileName,
-                                   ShroudLenTrim(fileName, SHT_fileName_len));
-  axom::slic::logMessage(SHCXX_level,
-                         SHCXX_message,
-                         SHCXX_fileName,
-                         line,
-                         filter_duplicates);
+  axom::slic::message::Level SHCXX_level = static_cast<axom::slic::message::Level>(level);
+  const std::string SHCXX_message(message, ShroudLenTrim(message, SHT_message_len));
+  const std::string SHCXX_fileName(fileName, ShroudLenTrim(fileName, SHT_fileName_len));
+  axom::slic::logMessage(SHCXX_level, SHCXX_message, SHCXX_fileName, line, filter_duplicates);
   // splicer end function.logMessage_file_line_filter_bufferify
 }
 
 void SLIC_logMessage(int level, const char *message)
 {
   // splicer begin function.logMessage
-  axom::slic::message::Level SHCXX_level =
-    static_cast<axom::slic::message::Level>(level);
+  axom::slic::message::Level SHCXX_level = static_cast<axom::slic::message::Level>(level);
   const std::string SHCXX_message(message);
   axom::slic::logMessage(SHCXX_level, SHCXX_message);
   // splicer end function.logMessage
@@ -303,10 +281,8 @@ void SLIC_logMessage(int level, const char *message)
 void SLIC_logMessage_bufferify(int level, char *message, int SHT_message_len)
 {
   // splicer begin function.logMessage_bufferify
-  axom::slic::message::Level SHCXX_level =
-    static_cast<axom::slic::message::Level>(level);
-  const std::string SHCXX_message(message,
-                                  ShroudLenTrim(message, SHT_message_len));
+  axom::slic::message::Level SHCXX_level = static_cast<axom::slic::message::Level>(level);
+  const std::string SHCXX_message(message, ShroudLenTrim(message, SHT_message_len));
   axom::slic::logMessage(SHCXX_level, SHCXX_message);
   // splicer end function.logMessage_bufferify
 }
@@ -314,8 +290,7 @@ void SLIC_logMessage_bufferify(int level, char *message, int SHT_message_len)
 void SLIC_logMessage_filter(int level, const char *message, bool filter_duplicates)
 {
   // splicer begin function.logMessage_filter
-  axom::slic::message::Level SHCXX_level =
-    static_cast<axom::slic::message::Level>(level);
+  axom::slic::message::Level SHCXX_level = static_cast<axom::slic::message::Level>(level);
   const std::string SHCXX_message(message);
   axom::slic::logMessage(SHCXX_level, SHCXX_message, filter_duplicates);
   // splicer end function.logMessage_filter
@@ -327,10 +302,8 @@ void SLIC_logMessage_filter_bufferify(int level,
                                       bool filter_duplicates)
 {
   // splicer begin function.logMessage_filter_bufferify
-  axom::slic::message::Level SHCXX_level =
-    static_cast<axom::slic::message::Level>(level);
-  const std::string SHCXX_message(message,
-                                  ShroudLenTrim(message, SHT_message_len));
+  axom::slic::message::Level SHCXX_level = static_cast<axom::slic::message::Level>(level);
+  const std::string SHCXX_message(message, ShroudLenTrim(message, SHT_message_len));
   axom::slic::logMessage(SHCXX_level, SHCXX_message, filter_duplicates);
   // splicer end function.logMessage_filter_bufferify
 }

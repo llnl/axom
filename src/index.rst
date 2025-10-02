@@ -47,6 +47,7 @@ Our current collection of components is listed here. The number of
 components and their capabilities will expand over time as new needs
 are identified.
 
+   * Bump: Blueprint Utilities for Mesh Processing
    * Inlet: Input file parsing and information storage/retrieval
    * Klee: Shaping specification and implementation
    * Lumberjack: Scalable parallel message logging and filtering
@@ -76,6 +77,9 @@ User guides and source code documentation are always linked on this site.
    * - Core
      - :doc:`User Guide <axom/core/docs/sphinx/index>`
      - `Source documentation <doxygen/html/coretop.html>`__
+   * - Bump
+     - :doc:`User Guide <axom/bump/docs/sphinx/index>`
+     - `Source documentation <doxygen/html/bumptop.html>`__
    * - Inlet
      - :doc:`User Guide <axom/inlet/docs/sphinx/index>`
      - `Source documentation <doxygen/html/inlettop.html>`__
@@ -124,10 +128,11 @@ Component Level Dependencies
 Axom has the following inter-component dependencies:
 
 - Core has no dependencies and the other components depend on Core
+- Bump depends on Slic and Primal.
 - Slic optionally depends on Lumberjack
 - Slam, Spin, Primal, Mint, Quest, and Sidre depend on Slic
 - Mint depends on Slam, and optionally Sidre
-- Mir depends on Slic, Slam and Primal.
+- Mir depends on Bump, Slic, Slam, and Primal.
 - Multimat depends on Slic, and Slam
 - Inlet depends on Sidre, Slic, and Primal
 - Klee depends on Sidre, Slic, Inlet and Primal
@@ -207,6 +212,7 @@ LLNL-CODE-741217
    :caption: Component User Guides
 
    Core (Widely useful utilities) <axom/core/docs/sphinx/index>
+   Bump (Blueprint mesh utilities) <axom/bump/docs/sphinx/index>
    Inlet (Input files) <axom/inlet/docs/sphinx/index>
    Klee (Shaping specification and implementation) <axom/klee/docs/sphinx/index>
    Lumberjack (Scalable parallel message logging and filtering) <axom/lumberjack/docs/sphinx/index>

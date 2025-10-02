@@ -149,9 +149,9 @@ const char* AttrValues::getString(const Attribute* attr) const
   if(attr->getTypeID() != CHAR8_STR_ID)
   {
     SLIC_CHECK_MSG(attr->getTypeID() == CHAR8_STR_ID,
-                   "getString: Called on attribute '"
-                     << attr->getName() << "' which is type "
-                     << DataType::id_to_name(attr->getTypeID()) << ".");
+                   "getString: Called on attribute '" << attr->getName() << "' which is type "
+                                                      << DataType::id_to_name(attr->getTypeID())
+                                                      << ".");
     return nullptr;
   }
 

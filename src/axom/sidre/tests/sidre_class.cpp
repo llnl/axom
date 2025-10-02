@@ -111,8 +111,7 @@ public:
   void copyFromGroup(Group* gp)
   {
     View* iview = gp->getView("idata");
-    size_t ilen =
-      iview->getBuffer()->getTotalBytes() / sizeof(CONDUIT_NATIVE_INT);
+    size_t ilen = iview->getBuffer()->getTotalBytes() / sizeof(CONDUIT_NATIVE_INT);
     m_idata = std::vector<int>(ilen);
 
     int* g_idata = iview->getData();

@@ -20,6 +20,7 @@ set(lumberjack_headers
     NonCollectiveRootCommunicator.hpp
     TextEqualityCombiner.hpp
     TextTagCombiner.hpp
+    LineFileTagCombiner.hpp
     )
 
 set(lumberjack_sources

@@ -54,8 +54,7 @@ struct SetInterfaceSelector<VirtualInterface, PosType, ElemType>
 }  // namespace detail
 
 template <typename InterfacePolicy, typename PosType, typename ElemType>
-using SetInterface =
-  typename detail::SetInterfaceSelector<InterfacePolicy, PosType, ElemType>::Type;
+using SetInterface = typename detail::SetInterfaceSelector<InterfacePolicy, PosType, ElemType>::Type;
 
 }  // end namespace policies
 }  // end namespace slam

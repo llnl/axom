@@ -12,23 +12,17 @@
 #------------------------------------------------------------------------------
 
 set(gtest_mir_tests
-    mir_clipfield.cpp
     mir_coupling.cpp
-    mir_blueprint_utilities.cpp
-    mir_views_indexing.cpp
-    mir_views.cpp
     mir_elvira2d.cpp
+    mir_elvira3d.cpp
     mir_equiz2d.cpp
     mir_equiz3d.cpp
-    mir_slicers.cpp
-    mir_mergemeshes.cpp
-    mir_node_to_zone_relation.cpp
-    mir_topology_mapper.cpp
     )
 
 set(mir_tests_depends_on 
     slic
-    mir 
+    mir
+    bump
     gtest)
 
 #------------------------------------------------------------------------------

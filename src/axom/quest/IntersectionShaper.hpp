@@ -13,76 +13,52 @@
 #define AXOM_QUEST_INTERSECTION_SHAPER__HPP_
 
 #include "axom/config.hpp"
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
 
-  #include "axom/core.hpp"
-  #include "axom/slic.hpp"
-  #include "axom/slam.hpp"
-  #include "axom/primal.hpp"
-  #include "axom/sidre/core/Group.hpp"
-  #include "axom/sidre/core/View.hpp"
-  #include "axom/mint/mesh/UnstructuredMesh.hpp"
-  #include "axom/mint/utils/vtk_utils.hpp"
-  #include "axom/klee.hpp"
-  #include "axom/quest/Shaper.hpp"
-  #include "axom/quest/Discretize.hpp"
-  #include "axom/spin/BVH.hpp"
-  #include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
-  #include "axom/quest/interface/internal/QuestHelpers.hpp"
-  #include "axom/fmt.hpp"
+#include "axom/core.hpp"
+#include "axom/slic.hpp"
+#include "axom/slam.hpp"
+#include "axom/primal.hpp"
+#include "axom/sidre/core/Group.hpp"
+#include "axom/sidre/core/View.hpp"
+#include "axom/mint/mesh/UnstructuredMesh.hpp"
+#include "axom/mint/utils/vtk_utils.hpp"
+#include "axom/klee.hpp"
+#include "axom/spin/BVH.hpp"
 
-  #ifdef AXOM_USE_MFEM
-    #include "mfem.hpp"
-  #endif
+#include "axom/quest/detail/shaping/shaping_helpers.hpp"
+#include "axom/quest/Shaper.hpp"
+#include "axom/quest/Discretize.hpp"
+#include "axom/quest/interface/internal/mpicomm_wrapper.hpp"
+#include "axom/quest/interface/internal/QuestHelpers.hpp"
 
-  #include "axom/fmt.hpp"
+#include "axom/fmt.hpp"
 
-  #if defined(AXOM_USE_CONDUIT)
-    #include "conduit_node.hpp"
-    #include "conduit_blueprint_mesh.hpp"
-    #include "conduit_blueprint_mcarray.hpp"
-  #endif
+#ifdef AXOM_USE_MFEM
+  #include "mfem.hpp"
+#endif
 
-// clang-format off
-  using seq_exec = axom::SEQ_EXEC;
+#include "axom/fmt.hpp"
 
-  #if defined(AXOM_USE_OPENMP)
-    using omp_exec = axom::OMP_EXEC;
-  #else
-    using omp_exec = seq_exec;
-  #endif
-
-  #if defined(AXOM_USE_CUDA) && defined (AXOM_USE_UMPIRE)
-    constexpr int CUDA_BLOCK_SIZE = 256;
-    using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
-  #else
-    using cuda_exec = seq_exec;
-  #endif
-
-  #if defined(AXOM_USE_HIP) && defined (AXOM_USE_UMPIRE)
-    constexpr int HIP_BLOCK_SIZE = 64;
-    using hip_exec = axom::HIP_EXEC<HIP_BLOCK_SIZE>;
-  #else
-    using hip_exec = seq_exec;
-  #endif
-// clang-format on
+#if defined(AXOM_USE_CONDUIT)
+  #include "conduit_node.hpp"
+  #include "conduit_blueprint_mesh.hpp"
+  #include "conduit_blueprint_mcarray.hpp"
+#endif
 
 namespace axom
 {
 namespace quest
 {
 
-  #if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
-    #if defined(AXOM_USE_CONDUIT)
-static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
-  conduit::DataType::INT64_ID;
-    #endif
-  #else
-    #if defined(AXOM_USE_CONDUIT)
-static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType =
-  conduit::DataType::INT32_ID;
-    #endif
+#if defined(AXOM_USE_64BIT_INDEXTYPE) && !defined(AXOM_NO_INT64_T)
+  #if defined(AXOM_USE_CONDUIT)
+static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT64_ID;
   #endif
+#else
+  #if defined(AXOM_USE_CONDUIT)
+static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT32_ID;
+  #endif
+#endif
 
 /*!
  * \class TempArrayView
@@ -173,7 +149,7 @@ private:
    */
   AXOM_HOST_DEVICE void finalize() { m_deviceData = nullptr; }
 
-  #if defined(AXOM_USE_CUDA) || defined(AXOM_USE_HIP)
+#if (defined(AXOM_RUNTIME_POLICY_USE_CUDA) || defined(AXOM_RUNTIME_POLICY_USE_HIP))
   /*!
    * \brief Initializes members using data from the grid function. This method
    *        is called on the host and it copies data to the device.
@@ -200,7 +176,7 @@ private:
    */
   AXOM_HOST_DEVICE void finalizeDevice()
   {
-    #ifndef AXOM_DEVICE_CODE
+  #ifndef AXOM_DEVICE_CODE
     // Only the host will do this work.
     if(m_hostData != nullptr)
     {
@@ -212,9 +188,9 @@ private:
       axom::deallocate(m_deviceData);
       m_deviceData = nullptr;
     }
-    #endif
-  }
   #endif
+  }
+#endif
 
 private:
   double* m_hostData {nullptr};
@@ -223,7 +199,7 @@ private:
   bool m_needResult {false};
 };
 
-  #if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 /*!
  * \brief CUDA specialization that calls initializeDevice to copy data
  *        from the host to the device.
@@ -233,9 +209,7 @@ private:
  * \param _needResult Whether any data are copied from device.
  */
 template <>
-AXOM_HOST inline void TempArrayView<cuda_exec>::initialize(double* hostPtr,
-                                                           int nElem,
-                                                           bool _needResult)
+AXOM_HOST inline void TempArrayView<cuda_exec>::initialize(double* hostPtr, int nElem, bool _needResult)
 {
   initializeDevice(hostPtr, nElem, _needResult);
 }
@@ -249,8 +223,8 @@ AXOM_HOST_DEVICE inline void TempArrayView<cuda_exec>::finalize()
 {
   finalizeDevice();
 }
-  #endif
-  #if defined(AXOM_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 /*!
  * \brief HIP specialization that calls initializeDevice to copy data
  *        from the host to the device.
@@ -260,9 +234,7 @@ AXOM_HOST_DEVICE inline void TempArrayView<cuda_exec>::finalize()
  * \param _needResult Whether any data are copied from device.
  */
 template <>
-AXOM_HOST inline void TempArrayView<hip_exec>::initialize(double* hostPtr,
-                                                          int nElem,
-                                                          bool _needResult)
+AXOM_HOST inline void TempArrayView<hip_exec>::initialize(double* hostPtr, int nElem, bool _needResult)
 {
   initializeDevice(hostPtr, nElem, _needResult);
 }
@@ -276,7 +248,7 @@ AXOM_HOST_DEVICE inline void TempArrayView<hip_exec>::finalize()
 {
   finalizeDevice();
 }
-  #endif
+#endif
 
 //---------------------------------------------------------------------------
 /**
@@ -286,7 +258,7 @@ AXOM_HOST_DEVICE inline void TempArrayView<hip_exec>::finalize()
  *
  * The IntersectionShaper generates material volume fractions:
  *
- * - For c2c, an input set of 2D contours and replacement rules. Each contour
+ * - (3D) For c2c, an input set of 2D contours and replacement rules. Each contour
  *   covers an area from the curve down to the axis of revolution about which
  *   the area is revolved to produce a volume. Contours are refined into smaller
  *   linear spans that are revolved to produce a set of truncated cones, which
@@ -294,19 +266,28 @@ AXOM_HOST_DEVICE inline void TempArrayView<hip_exec>::finalize()
  *   intersected with the mesh. The octahedra are intersected with the input
  *   mesh to produce volume fractions.
  *
- * - For tetrahedral mesh (including Pro/E), an input mesh of 3D tetrahedra is loaded in.
+ * - (3D) For tetrahedral mesh (including Pro/E), an input mesh of 3D tetrahedra is loaded in.
  *   Each tetrahedron has its own respective volume. The tetrahedra are
  *   intersected with the input mesh to produce volume fractions.
  *
- * - For analytical geometries, the shapes are discretized into a tetrahedral
+ * - (3D) For analytical geometries, the shapes are discretized into a tetrahedral
  *   mesh first.  Sphere and surfaces-of-revolution discretization uses
  *   the refinement level specified in the \c Geometry.
+ *
+ * - (2D) For c2c, support is a work-in-progress. Initial support for a
+ *   single contour that covers an area from the curve down to the x-axis (z-axis).
+ *   The contour cannot overlap, and is expected to be entirely above the x-axis.
+ *   The contour is refined into smaller linear segments that form triangles with the
+ *   x-axis. The trianges are intersected with the input mesh to product volume fractions.
+ *
+ * - (2D) For triangle mesh, an input STL mesh is loaded in (z-coordinates must be 0).
+ *   Each triangle has its own respective area/volume. The triangles are
+ *   intersected with the input mesh to produce volume fractions.
+ *
  *
  * The input mesh can be an MFEM mesh stored as a \c
  * sidre::MFEMSidreDataCollection or be a Blueprint mesh stored as a
  * \c conduit::Node or a \c sidre::Group.
- *
- * IntersectionShaper requires Axom configured with RAJA and Umpire.
  *
  * Support for replacement rules exists for MFEM input meshes.
  * Replacement rules for Blueprint meshes is not yet supported.
@@ -344,8 +325,7 @@ public:
   // Use default for MAX_VERTS (8).
   // Assume intersection between triangles and quads,
   // max vertices for overlap is 7.
-  using PolygonStaticType =
-    primal::Polygon<double, 2, axom::primal::PolygonArray::Static>;
+  using PolygonStaticType = primal::Polygon<double, 2, axom::primal::PolygonArray::Static>;
 
   using RuntimePolicy = axom::runtime_policy::Policy;
 
@@ -353,7 +333,7 @@ public:
   static constexpr double DEFAULT_REVOLVED_VOLUME {0.};
 
 public:
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
   /*!
     \brief Construct Shaper to operate on an MFEM mesh.
   */
@@ -365,9 +345,9 @@ public:
   {
     m_free_mat_name = "free";
   }
-  #endif
+#endif
 
-  #if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT)
   /*!
     \brief Construct Shaper to operate on a blueprint-formatted mesh
     stored in a sidre Group.
@@ -398,7 +378,7 @@ public:
     : Shaper(runtimePolicy, allocatorId, shapeSet, bpNode, topo)
     , m_free_mat_name("free")
   { }
-  #endif
+#endif
 
   //!@brief Set data that depends on mesh (but not on shapes).
   template <typename ShapeType>
@@ -414,23 +394,24 @@ public:
       case RuntimePolicy::seq:
         setMeshDependentDataImpl2D<seq_exec>();
         break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         setMeshDependentDataImpl2D<omp_exec>();
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         setMeshDependentDataImpl2D<cuda_exec>();
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         setMeshDependentDataImpl2D<hip_exec>();
         break;
-  #endif
+#endif
       default:
         SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+        break;
       }
     }
     // Setup 3D mesh
@@ -441,23 +422,24 @@ public:
       case RuntimePolicy::seq:
         setMeshDependentDataImpl3D<seq_exec>();
         break;
-  #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         setMeshDependentDataImpl3D<omp_exec>();
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         setMeshDependentDataImpl3D<cuda_exec>();
         break;
-  #endif
-  #if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         setMeshDependentDataImpl3D<hip_exec>();
         break;
-  #endif
+#endif
       default:
         SLIC_ERROR("Axom Internal error: Unhandled execution policy.");
+        break;
       }
     }
   }
@@ -479,20 +461,16 @@ public:
     AXOM_ANNOTATE_END("allocate m_cell_volumes");
     m_cell_volumes.fill(0.0);
 
-    SLIC_INFO(axom::fmt::format("{:-^80}",
-                                " Calculating quadrilateral element volume "));
+    SLIC_INFO(axom::fmt::format("{:-^80}", " Calculating quadrilateral element volume "));
     auto cell_volumes_device_view = m_cell_volumes.view();
     AXOM_ANNOTATE_BEGIN("cell_volume");
     axom::for_all<ExecSpace>(
       m_cellCount,
-      AXOM_LAMBDA(axom::IndexType i) {
-        cell_volumes_device_view[i] = quads_device_view[i].area();
-      });
-    AXOM_ANNOTATE_BEGIN("cell_volume");
+      AXOM_LAMBDA(axom::IndexType i) { cell_volumes_device_view[i] = quads_device_view[i].area(); });
+    AXOM_ANNOTATE_END("cell_volume");
 
     AXOM_ANNOTATE_BEGIN("populate m_quad_bbs");
-    m_quad_bbs =
-      axom::Array<BoundingBox2D>(m_cellCount, m_cellCount, m_allocatorId);
+    m_quad_bbs = axom::Array<BoundingBox2D>(m_cellCount, m_cellCount, m_allocatorId);
     axom::ArrayView<BoundingBox2D> quad_bbs_device_view = m_quad_bbs.view();
 
     // Get bounding boxes for quadrilateral elements
@@ -512,8 +490,7 @@ public:
     AXOM_ANNOTATE_END("populate m_quad_bbs");
 
     AXOM_ANNOTATE_BEGIN("allocate m_overlap_volumes");
-    m_overlap_volumes =
-      axom::Array<double>(m_cellCount, m_cellCount, m_allocatorId);
+    m_overlap_volumes = axom::Array<double>(m_cellCount, m_cellCount, m_allocatorId);
     AXOM_ANNOTATE_END("allocate m_overlap_volumes");
   }
 
@@ -529,11 +506,10 @@ public:
     constexpr int NUM_TETS_PER_HEX = 24;
 
     AXOM_ANNOTATE_BEGIN("allocate m_tets_from_hexes_device");
-    m_tets_from_hexes_device =
-      axom::Array<TetrahedronType>(ArrayOptions::Uninitialized(),
-                                   m_cellCount * NUM_TETS_PER_HEX,
-                                   m_cellCount * NUM_TETS_PER_HEX,
-                                   m_allocatorId);
+    m_tets_from_hexes_device = axom::Array<TetrahedronType>(ArrayOptions::Uninitialized(),
+                                                            m_cellCount * NUM_TETS_PER_HEX,
+                                                            m_cellCount * NUM_TETS_PER_HEX,
+                                                            m_allocatorId);
     AXOM_ANNOTATE_END("allocate m_tets_from_hexes_device");
 
     populateHexesFromMesh<ExecSpace>();
@@ -544,24 +520,19 @@ public:
     AXOM_ANNOTATE_END("allocate m_cell_volumes");
     m_cell_volumes.fill(0.0);
 
-    SLIC_INFO(
-      axom::fmt::format("{:-^80}", " Calculating hexahedron element volume "));
+    SLIC_INFO(axom::fmt::format("{:-^80}", " Calculating hexahedron element volume "));
     auto cellVolumesView = m_cell_volumes.view();
     AXOM_ANNOTATE_BEGIN("cell_volume");
     axom::for_all<ExecSpace>(
       m_cellCount,
-      AXOM_LAMBDA(axom::IndexType i) {
-        cellVolumesView[i] = hexesView[i].volume();
-      });
+      AXOM_LAMBDA(axom::IndexType i) { cellVolumesView[i] = hexesView[i].volume(); });
     AXOM_ANNOTATE_END("cell_volume");
 
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      " Decomposing each hexahedron element into 24 tetrahedrons "));
+    SLIC_INFO(
+      axom::fmt::format("{:-^80}", " Decomposing each hexahedron element into 24 tetrahedrons "));
 
     AXOM_ANNOTATE_BEGIN("populate m_hex_bbs");
-    m_hex_bbs =
-      axom::Array<BoundingBox3D>(m_cellCount, m_cellCount, m_allocatorId);
+    m_hex_bbs = axom::Array<BoundingBox3D>(m_cellCount, m_cellCount, m_allocatorId);
 
     // Get bounding boxes for hexahedral elements
     axom::ArrayView<BoundingBox3D> hexBbsView = m_hex_bbs.view();
@@ -590,12 +561,11 @@ public:
     AXOM_ANNOTATE_END("init_tets");
 
     AXOM_ANNOTATE_BEGIN("allocate m_overlap_volumes");
-    m_overlap_volumes =
-      axom::Array<double>(m_cellCount, m_cellCount, m_allocatorId);
+    m_overlap_volumes = axom::Array<double>(m_cellCount, m_cellCount, m_allocatorId);
     AXOM_ANNOTATE_END("allocate m_overlap_volumes");
   }
 
-  //@{
+  ///@{
   //!  @name Functions to get and set shaping parameters related to intersection; supplements parameters in base class
 
   void setLevel(int level) { m_level = level; }
@@ -614,12 +584,11 @@ public:
     }
     if(m_cellCount > 0)
     {
-      SLIC_ERROR(
-        "The free material name cannot be set once shaping has occurred.");
+      SLIC_ERROR("The free material name cannot be set once shaping has occurred.");
     }
     m_free_mat_name = name;
   }
-  //@}
+  ///@}
 
   /*!
    * \brief Return the revolved volume that was computed during dynamic refinement.
@@ -632,10 +601,7 @@ public:
    * \note loadShape should have been called before this method.
    * \return The revolved volume (or zero).
    */
-  double getApproximateRevolvedVolume() const
-  {
-    return volume(m_surfaceMesh.get(), m_level);
-  }
+  double getApproximateRevolvedVolume() const { return volume(m_surfaceMesh.get(), m_level); }
 
   virtual void loadShape(const klee::Shape& shape) override
   {
@@ -643,38 +609,34 @@ public:
     loadShapeInternal(shape, m_percentError, m_revolvedVolume);
 
     // Filter the mesh, store in m_surfaceMesh.
-    if(shape.getGeometry().getFormat() == "c2c")
+    if(this->shapeFormat(shape) == "c2c")
     {
-      SegmentMesh* newm =
-        filterMesh(dynamic_cast<const SegmentMesh*>(m_surfaceMesh.get()));
+      SegmentMesh* newm = filterMesh(dynamic_cast<const SegmentMesh*>(m_surfaceMesh.get()));
       m_surfaceMesh.reset(newm);
     }
   }
 
-  // The following private methods are made public due to CUDA compilers
-  // requirements for methods that call device functions.
-  #if defined(__CUDACC__)
+// The following private methods are made public due to CUDA compilers
+// requirements for methods that call device functions.
+#if defined(__CUDACC__)
 public:
-  #else
+#else
 private:
-  #endif
+#endif
 
-  //@{
+  ///@{
   //!  @name Private functions related to the stages for a given shape
 
   template <typename ExecSpace>
   void prepareTriCells()
   {
-    const int host_allocator =
-      axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+    const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
     const int device_allocator = axom::execution_space<ExecSpace>::allocatorID();
 
     // Number of triangles in mesh
     m_tricount = m_surfaceMesh->getNumberOfCells();
 
-    axom::Array<PolygonStaticType> tris_host(m_tricount,
-                                             m_tricount,
-                                             host_allocator);
+    axom::Array<PolygonStaticType> tris_host(m_tricount, m_tricount, host_allocator);
 
     // Initialize 2D triangles from mesh (ignore z coordinate)
     axom::Array<IndexType> nodeIds(3);
@@ -694,8 +656,7 @@ private:
       // (0 for stl mesh, undefined by in-memory triangle mesh)
       if(pts[0][2] != 0 || pts[1][2] != 0 || pts[2][2] != 0)
       {
-        SLIC_ERROR(axom::fmt::format(
-          "2D triangles must have undefined or value 0 z-coordinates"));
+        SLIC_ERROR(axom::fmt::format("2D triangles must have undefined or value 0 z-coordinates"));
       }
 
       Point2D p1({pts[0][0], pts[0][1]});
@@ -715,32 +676,27 @@ private:
       for(int i = 0; i < m_tricount; i++)
       {
         // Use non-static Polygon to match template
-        axom::primal::Polygon<double, 2> tempPoly(
-          {tris_host[i][0], tris_host[i][1], tris_host[i][2]});
+        axom::primal::Polygon<double, 2> tempPoly({tris_host[i][0], tris_host[i][1], tris_host[i][2]});
         all_tris_bb.addBox(primal::compute_bounding_box(tempPoly));
       }
-      SLIC_INFO(axom::fmt::format(
-        "DEBUG: Bounding box containing all generated triangles "
-        "has dimensions:\n\t{}",
-        all_tris_bb));
+      SLIC_INFO(
+        axom::fmt::format("VERBOSE: Bounding box containing all generated triangles "
+                          "has dimensions:\n\t{}",
+                          all_tris_bb));
 
       auto tri_device_view = m_tris.view();
 
       // Print out the total volume of all the triangles
-      using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-      RAJA::ReduceSum<REDUCE_POL, double> total_tri_area(0.0);
+      axom::ReduceSum<ExecSpace, double> total_tri_area(0.0);
       axom::for_all<ExecSpace>(
         m_tricount,
-        AXOM_LAMBDA(axom::IndexType i) {
-          total_tri_area += tri_device_view[i].area();
-        });
+        AXOM_LAMBDA(axom::IndexType i) { total_tri_area += tri_device_view[i].area(); });
 
-      SLIC_INFO(
-        axom::fmt::format("DEBUG: Total area of all generated triangles is {}",
-                          total_tri_area.get()));
+      SLIC_INFO(axom::fmt::format("VERBOSE: Total area of all generated triangles is {}",
+                                  total_tri_area.get()));
 
       // Check if any Triangles are degenerate with zero area
-      RAJA::ReduceSum<REDUCE_POL, int> num_degenerate(0);
+      axom::ReduceSum<ExecSpace, int> num_degenerate(0);
       axom::for_all<ExecSpace>(
         m_tricount,
         AXOM_LAMBDA(axom::IndexType i) {
@@ -750,9 +706,8 @@ private:
           }
         });
 
-      SLIC_INFO(
-        axom::fmt::format("DEBUG: Degenerate {} triangles found with zero area",
-                          num_degenerate.get()));
+      SLIC_INFO(axom::fmt::format("VERBOSE: Degenerate {} triangles found with zero area",
+                                  num_degenerate.get()));
 
     }  // end of verbose output for triangles
 
@@ -762,8 +717,7 @@ private:
   template <typename ExecSpace>
   void prepareTetCells()
   {
-    const int host_allocator =
-      axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+    const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
     const int device_allocator = m_allocatorId;
 
     // Number of tets in mesh
@@ -798,28 +752,24 @@ private:
       {
         all_tet_bb.addBox(primal::compute_bounding_box(tets_host[i]));
       }
-      SLIC_INFO(axom::fmt::format(
-        "DEBUG: Bounding box containing all generated tetrahedra "
-        "has dimensions:\n\t{}",
-        all_tet_bb));
+      SLIC_INFO(
+        axom::fmt::format("VERBOSE: Bounding box containing all generated tetrahedra "
+                          "has dimensions:\n\t{}",
+                          all_tet_bb));
 
       auto tets_device_view = m_tets.view();
 
       // Print out the total volume of all the tetrahedra
-      using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-      RAJA::ReduceSum<REDUCE_POL, double> total_tet_vol(0.0);
+      axom::ReduceSum<ExecSpace, double> total_tet_vol(0.0);
       axom::for_all<ExecSpace>(
         m_tetcount,
-        AXOM_LAMBDA(axom::IndexType i) {
-          total_tet_vol += tets_device_view[i].volume();
-        });
+        AXOM_LAMBDA(axom::IndexType i) { total_tet_vol += tets_device_view[i].volume(); });
 
-      SLIC_INFO(axom::fmt::format(
-        "DEBUG: Total volume of all generated tetrahedra is {}",
-        total_tet_vol.get()));
+      SLIC_INFO(axom::fmt::format("VERBOSE: Total volume of all generated tetrahedra is {}",
+                                  total_tet_vol.get()));
 
       // Check if any Tetrahedron are degenerate with zero volume
-      RAJA::ReduceSum<REDUCE_POL, int> num_degenerate(0);
+      axom::ReduceSum<ExecSpace, int> num_degenerate(0);
       axom::for_all<ExecSpace>(
         m_tetcount,
         AXOM_LAMBDA(axom::IndexType i) {
@@ -829,9 +779,8 @@ private:
           }
         });
 
-      SLIC_INFO(axom::fmt::format(
-        "DEBUG: Degenerate {} tetrahedra found with zero volume",
-        num_degenerate.get()));
+      SLIC_INFO(axom::fmt::format("VERBOSE: Degenerate {} tetrahedra found with zero volume",
+                                  num_degenerate.get()));
 
       // Dump tet mesh as a vtk mesh
       axom::mint::write_vtk(m_surfaceMesh.get(), "proe_tet.vtk");
@@ -839,12 +788,13 @@ private:
     }  // end of verbose output for Pro/E
   }
 
-  // Prepares the C2C mesh cells for the spatial index
+  // Prepares the C2C mesh cells for the spatial index.
+  // Produced octahedra for the revolved contour in the 3D case,
+  // or triangles for the contour bounded by the x-axis in the 2D case.
   template <typename ExecSpace>
   void prepareC2CCells()
   {
-    const int host_allocator =
-      axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+    const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
 
     // Number of points in polyline
     int pointcount = getSurfaceMesh()->getNumberOfNodes();
@@ -853,14 +803,9 @@ private:
 
     SLIC_INFO(axom::fmt::format(
       "{:-^80}",
-      axom::fmt::format(" Refinement level set to {} ", m_level)));
-
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      axom::fmt::format(
-        axom::utilities::locale(),
-        " Checking contour with {:L} points for degenerate segments",
-        pointcount)));
+      axom::fmt::format(axom::utilities::locale(),
+                        " Checking contour with {:L} points for degenerate segments",
+                        pointcount)));
 
     // The mesh points are filtered like we want. We need only copy
     // them into the polyline array.
@@ -870,111 +815,154 @@ private:
     }
     int polyline_size = pointcount;
 
-    // Generate the Octahedra
-    // (octahedra m_octs will be on device)
-    const bool disc_status = axom::quest::discretize<ExecSpace>(polyline,
-                                                                polyline_size,
-                                                                m_level,
-                                                                m_octs,
-                                                                m_octcount);
+    int compMeshDim = getCompMeshDim();
 
-    axom::ArrayView<OctahedronType> octs_device_view = m_octs.view();
-
-    AXOM_UNUSED_VAR(disc_status);  // silence warnings in release configs
-    SLIC_ASSERT_MSG(
-      disc_status,
-      "Discretization of contour has failed. Check that contour is valid");
-
-    SLIC_INFO(
-      axom::fmt::format(axom::utilities::locale(),
-                        "Contour has been discretized into {:L} octahedra ",
-                        m_octcount));
-
-    if(this->isVerbose())
+    // Produce octahedra for revolved contour (3D)
+    if(compMeshDim == 3)
     {
-      // Print out the bounding box containing all the octahedra
-      BoundingBox3D all_oct_bb;
-      axom::Array<OctahedronType> octs_host =
-        axom::Array<OctahedronType>(m_octs, host_allocator);
-      auto octs_host_view = octs_host.view();
-
-      for(int i = 0; i < m_octcount; i++)
-      {
-        all_oct_bb.addBox(primal::compute_bounding_box(octs_host[i]));
-      }
-      SLIC_INFO(axom::fmt::format(
-        "DEBUG: Bounding box containing all generated octahedra "
-        "has dimensions:\n\t{}",
-        all_oct_bb));
-
-      // Print out the total volume of all the octahedra
-      using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-      RAJA::ReduceSum<REDUCE_POL, double> total_oct_vol(0.0);
-      axom::for_all<ExecSpace>(
-        m_octcount,
-        AXOM_LAMBDA(axom::IndexType i) {
-          // Convert Octahedron into Polyhedrom
-          PolyhedronType octPoly;
-
-          octPoly.addVertex(octs_device_view[i][0]);
-          octPoly.addVertex(octs_device_view[i][1]);
-          octPoly.addVertex(octs_device_view[i][2]);
-          octPoly.addVertex(octs_device_view[i][3]);
-          octPoly.addVertex(octs_device_view[i][4]);
-          octPoly.addVertex(octs_device_view[i][5]);
-
-          octPoly.addNeighbors(0, {1, 5, 4, 2});
-          octPoly.addNeighbors(1, {0, 2, 3, 5});
-          octPoly.addNeighbors(2, {0, 4, 3, 1});
-          octPoly.addNeighbors(3, {1, 2, 4, 5});
-          octPoly.addNeighbors(4, {0, 5, 3, 2});
-          octPoly.addNeighbors(5, {0, 1, 3, 4});
-
-          total_oct_vol += octPoly.volume();
-        });
-
-      SLIC_INFO(axom::fmt::format(
-        "DEBUG: Total volume of all generated octahedra is {}",
-        total_oct_vol.get()));
-
-      // Check if any Octahedron are degenerate with all points {0,0,0}
-      RAJA::ReduceSum<REDUCE_POL, int> num_degenerate(0);
-      axom::for_all<ExecSpace>(
-        m_octcount,
-        AXOM_LAMBDA(axom::IndexType i) {
-          OctahedronType degenerate_oct;
-          if(octs_device_view[i].equals(degenerate_oct))
-          {
-            num_degenerate += 1;
-          }
-        });
-
       SLIC_INFO(
-        axom::fmt::format("DEBUG: {} Octahedron found with all points (0,0,0)",
-                          num_degenerate.get()));
+        axom::fmt::format("{:-^80}", axom::fmt::format(" Refinement level set to {} ", m_level)));
 
-      // Dump discretized octs as a tet mesh
-      axom::mint::Mesh* tetmesh;
-      axom::quest::mesh_from_discretized_polyline(octs_host_view,
-                                                  m_octcount,
-                                                  polyline_size - 1,
-                                                  tetmesh);
-      axom::mint::write_vtk(tetmesh, "discretized_surface_of_revolution.vtk");
-      delete tetmesh;
+      // Generate the Octahedra
+      // (octahedra m_octs will be on device)
+      const bool disc_status =
+        axom::quest::discretize<ExecSpace>(polyline, polyline_size, m_level, m_octs, m_octcount);
 
-    }  // end of verbose output for contour
+      axom::ArrayView<OctahedronType> octs_device_view = m_octs.view();
+
+      AXOM_UNUSED_VAR(disc_status);  // silence warnings in release configs
+      SLIC_ASSERT_MSG(disc_status,
+                      "Discretization of contour has failed. Check that contour is valid");
+
+      SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                  "Contour has been discretized into {:L} octahedra ",
+                                  m_octcount));
+
+      if(this->isVerbose())
+      {
+        // Print out the bounding box containing all the octahedra
+        BoundingBox3D all_oct_bb;
+        axom::Array<OctahedronType> octs_host = axom::Array<OctahedronType>(m_octs, host_allocator);
+        auto octs_host_view = octs_host.view();
+
+        for(int i = 0; i < m_octcount; i++)
+        {
+          all_oct_bb.addBox(primal::compute_bounding_box(octs_host[i]));
+        }
+        SLIC_INFO(
+          axom::fmt::format("VERBOSE: Bounding box containing all generated octahedra "
+                            "has dimensions:\n\t{}",
+                            all_oct_bb));
+
+        // Print out the total volume of all the octahedra
+        axom::ReduceSum<ExecSpace, double> total_oct_vol(0.0);
+        axom::for_all<ExecSpace>(
+          m_octcount,
+          AXOM_LAMBDA(axom::IndexType i) {
+            // Convert Octahedron into Polyhedron
+            PolyhedronType octPoly = PolyhedronType::from_primitive(octs_device_view[i]);
+
+            total_oct_vol += octPoly.volume();
+          });
+
+        SLIC_INFO(axom::fmt::format("VERBOSE: Total volume of all generated octahedra is {}",
+                                    total_oct_vol.get()));
+
+        // Check if any Octahedron are degenerate with all points {0,0,0}
+        axom::ReduceSum<ExecSpace, int> num_degenerate(0);
+
+        const int device_allocator = m_allocatorId;
+        axom::Array<OctahedronType> degenerate_oct_host(1, 1, host_allocator);
+        degenerate_oct_host[0] = OctahedronType();
+        axom::Array<OctahedronType> degenerate_oct_device =
+          axom::Array<OctahedronType>(degenerate_oct_host, device_allocator);
+        auto degenerate_oct_device_view = degenerate_oct_device.view();
+
+        axom::for_all<ExecSpace>(
+          m_octcount,
+          AXOM_LAMBDA(axom::IndexType i) {
+            if(octs_device_view[i].equals(degenerate_oct_device_view[0]))
+            {
+              num_degenerate += 1;
+            }
+          });
+
+        SLIC_INFO(axom::fmt::format("VERBOSE: {} Octahedron found with all points (0,0,0)",
+                                    num_degenerate.get()));
+
+        // Dump discretized octs as a tet mesh
+        axom::mint::Mesh* tetmesh;
+        axom::quest::mesh_from_discretized_polyline(octs_host_view,
+                                                    m_octcount,
+                                                    polyline_size - 1,
+                                                    tetmesh);
+        axom::mint::write_vtk(tetmesh, "discretized_surface_of_revolution.vtk");
+        delete tetmesh;
+
+      }  // end of verbose output for contour
+    }  // end of 3D case
+
+    // Produce triangles for contour bounded by x-axis (2D)
+    else
+    {
+      SLIC_INFO(
+        axom::fmt::format("{:-^80}",
+                          axom::fmt::format(axom::utilities::locale(),
+                                            "{:L} linear segments to generate per NURBS knot span",
+                                            m_samplesPerKnotSpan)));
+
+      const int device_allocator = axom::execution_space<ExecSpace>::allocatorID();
+
+      // Number of triangles in mesh (2 triangles per segment/quad cell)
+      m_tricount = m_surfaceMesh->getNumberOfCells() * 2;
+
+      axom::Array<PolygonStaticType> tris_host(m_tricount, m_tricount, host_allocator);
+
+      // Initialize 2D triangles from segment mesh (3rd point is on the x-axis)
+      axom::Array<IndexType> nodeIds(2);
+
+      // Buffer to store 2D points
+      axom::Array<Point2D> pts(2);
+
+      for(int i = 0; i < m_tricount / 2; i++)
+      {
+        m_surfaceMesh->getCellNodeIDs(i, nodeIds.data());
+
+        m_surfaceMesh->getNode(nodeIds[0], pts[0].data());
+        m_surfaceMesh->getNode(nodeIds[1], pts[1].data());
+
+        constexpr double EPS = 1e-10;
+        if(axom::primal::detail::isLt(pts[0][1], 0.0, EPS) ||
+           axom::primal::detail::isLt(pts[1][1], 0.0, EPS))
+        {
+          SLIC_ERROR("2D: Contour with non-negative r values expected");
+        }
+
+        // Right ear of quad
+        tris_host[i * 2] = PolygonStaticType({pts[1], pts[0], Point2D {pts[0][0], 0}});
+
+        // Left ear of quad
+        tris_host[(i * 2) + 1] = PolygonStaticType({pts[1], pts[0], Point2D {pts[1][0], 0}});
+      }
+
+      // Copy triangles to device
+      m_tris = axom::Array<PolygonStaticType>(tris_host, device_allocator);
+
+      SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
+                                  "Contour has been discretized into {:L} triangles ",
+                                  m_tricount));
+
+    }  // end of 2D case
   }
 
   /// Initializes the spatial index for shaping
   template <typename ExecSpace>
-  void prepareShapeQueryImpl(klee::Dimensions shapeDimension,
-                             const klee::Shape& shape)
+  void prepareShapeQueryImpl(klee::Dimensions shapeDimension, const klee::Shape& shape)
   {
     SLIC_INFO(axom::fmt::format(
       "{:-^80}",
-      axom::fmt::format(
-        "Running intersection-based shaper in execution Space: {}",
-        axom::execution_space<ExecSpace>::name())));
+      axom::fmt::format("Running intersection-based shaper in execution Space: {}",
+                        axom::execution_space<ExecSpace>::name())));
 
     const auto& shapeName = shape.getName();
     AXOM_UNUSED_VAR(shapeDimension);
@@ -998,8 +986,7 @@ private:
     }
     else
     {
-      SLIC_ERROR(
-        axom::fmt::format("The shape format {} is unsupported", shapeFormat));
+      SLIC_ERROR(axom::fmt::format("The shape format {} is unsupported", shapeFormat));
     }
   }
 
@@ -1016,17 +1003,14 @@ private:
       setMeshDependentData<PolygonStaticType>();
     }
 
-    const int host_allocator =
-      axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+    const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
     const int device_allocator = axom::execution_space<ExecSpace>::allocatorID();
 
-    SLIC_INFO(axom::fmt::format("{:-^80}",
-                                " Inserting shapes' bounding boxes into BVH "));
+    SLIC_INFO(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
 
     // Generate the BVH tree over the shapes
     // Access-aligned bounding boxes
-    m_aabbs_2d =
-      axom::Array<BoundingBox2D>(shape_count, shape_count, device_allocator);
+    m_aabbs_2d = axom::Array<BoundingBox2D>(shape_count, shape_count, device_allocator);
 
     axom::ArrayView<PolygonStaticType> shapes_device_view = shapes.view();
 
@@ -1057,31 +1041,20 @@ private:
     auto quad_bbs_device_view = m_quad_bbs.view();
 
     // Find which shape bounding boxes intersect quadrilateral bounding boxes
-    SLIC_INFO(
-      axom::fmt::format("{:-^80}",
-                        " Finding shape candidates for each quad element "));
+    SLIC_INFO(axom::fmt::format("{:-^80}", " Finding shape candidates for each quad element "));
 
     axom::Array<IndexType> offsets(m_cellCount, m_cellCount, device_allocator);
     axom::Array<IndexType> counts(m_cellCount, m_cellCount, device_allocator);
     axom::Array<IndexType> candidates;
-    bvh.findBoundingBoxes(offsets,
-                          counts,
-                          candidates,
-                          m_cellCount,
-                          quad_bbs_device_view);
+    bvh.findBoundingBoxes(offsets, counts, candidates, m_cellCount, quad_bbs_device_view);
 
     // Get the total number of candidates
-    using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
-
     const auto counts_device_view = counts.view();
     AXOM_ANNOTATE_BEGIN("populate totalCandidates");
-    RAJA::ReduceSum<REDUCE_POL, int> totalCandidates(0);
+    axom::ReduceSum<ExecSpace, int> totalCandidates(0);
     axom::for_all<ExecSpace>(
       m_cellCount,
-      AXOM_LAMBDA(axom::IndexType i) {
-        totalCandidates += counts_device_view[i];
-      });
+      AXOM_LAMBDA(axom::IndexType i) { totalCandidates += counts_device_view[i]; });
     AXOM_ANNOTATE_END("populate totalCandidates");
 
     AXOM_ANNOTATE_BEGIN("allocate scratch space");
@@ -1113,9 +1086,7 @@ private:
     auto newTotalCandidates_device_view = newTotalCandidates_device.view();
     AXOM_ANNOTATE_END("newTotalCandidates memory");
 
-    SLIC_INFO(
-      axom::fmt::format("{:-^80}",
-                        " Creating an array of candidate pairs for shaping "));
+    SLIC_INFO(axom::fmt::format("{:-^80}", " Creating an array of candidate pairs for shaping "));
 
     const auto offsets_device_view = offsets.view();
     const auto candidates_device_view = candidates.view();
@@ -1129,8 +1100,7 @@ private:
             int shapeIdx = candidates_device_view[offsets_device_view[i] + j];
 
             IndexType idx =
-              RAJA::atomicAdd<ATOMIC_POL>(&newTotalCandidates_device_view[0],
-                                          IndexType {1});
+              axom::atomicAdd<ExecSpace>(&newTotalCandidates_device_view[0], IndexType {1});
             quad_indices_device_view[idx] = i;
             shape_candidates_device_view[idx] = shapeIdx;
           }
@@ -1139,12 +1109,10 @@ private:
 
     // Overlap volume is the area of clip(tri,quad) for stl mesh
     m_overlap_volumes.fill(0.0);
-    axom::ArrayView<double> overlap_volumes_device_view =
-      m_overlap_volumes.view();
+    axom::ArrayView<double> overlap_volumes_device_view = m_overlap_volumes.view();
 
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      " Calculating element overlap volume from each quad-shape pair "));
+    SLIC_INFO(axom::fmt::format("{:-^80}",
+                                " Calculating element overlap volume from each quad-shape pair "));
 
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = true;
@@ -1161,11 +1129,10 @@ private:
           const int index = quad_indices_device_view[i];
           const int shapeIndex = shape_candidates_device_view[i];
 
-          const PolygonStaticType poly =
-            primal::clip(shapes_device_view[shapeIndex],
-                         quads_device_view[index],
-                         EPS,
-                         tryFixOrientation);
+          const PolygonStaticType poly = primal::clip(shapes_device_view[shapeIndex],
+                                                      quads_device_view[index],
+                                                      EPS,
+                                                      tryFixOrientation);
 
           // Polygon is valid
           if(poly.numVertices() >= 3)
@@ -1173,14 +1140,13 @@ private:
             // Workaround - intermediate volume variable needed for
             // CUDA Pro/E test case correctness
             double area = poly.area();
-            RAJA::atomicAdd<ATOMIC_POL>(overlap_volumes_device_view.data() + index,
-                                        area);
+            axom::atomicAdd<ExecSpace>(overlap_volumes_device_view.data() + index, area);
           }
         });
     }
 
-    RAJA::ReduceSum<REDUCE_POL, double> totalOverlap(0);
-    RAJA::ReduceSum<REDUCE_POL, double> totalQuad(0);
+    axom::ReduceSum<ExecSpace, double> totalOverlap(0);
+    axom::ReduceSum<ExecSpace, double> totalQuad(0);
 
     auto cell_volumes_device_view = m_cell_volumes.view();
 
@@ -1193,10 +1159,10 @@ private:
 
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
                                 "Total overlap volume with shape is {:.3Lf}",
-                                this->allReduceSum(totalOverlap)));
+                                this->allReduceSum(totalOverlap.get())));
     SLIC_INFO(axom::fmt::format(axom::utilities::locale(),
                                 "Total mesh volume is {:.3Lf}",
-                                this->allReduceSum(totalQuad)));
+                                this->allReduceSum(totalQuad.get())));
 
   }  // end of runShapeQuery2DImpl() function
 
@@ -1210,9 +1176,7 @@ private:
            separately from the array.
   */
   template <typename ExecSpace, typename ShapeType>
-  void runShapeQuery3DImpl(const klee::Shape& shape,
-                           axom::Array<ShapeType>& shapes,
-                           int shape_count)
+  void runShapeQuery3DImpl(const klee::Shape& shape, axom::Array<ShapeType>& shapes, int shape_count)
 
   {
     AXOM_ANNOTATE_SCOPE("IntersectionShaper::runShapeQueryImpl");
@@ -1226,14 +1190,12 @@ private:
       setMeshDependentData<ShapeType>();
     }
 
-    const int host_allocator =
-      axom::execution_space<axom::SEQ_EXEC>::allocatorID();
+    const int host_allocator = axom::execution_space<axom::SEQ_EXEC>::allocatorID();
     const int device_allocator = m_allocatorId;
 
     constexpr int NUM_TETS_PER_HEX = 24;
 
-    SLIC_INFO(axom::fmt::format("{:-^80}",
-                                " Inserting shapes' bounding boxes into BVH "));
+    SLIC_INFO(axom::fmt::format("{:-^80}", " Inserting shapes' bounding boxes into BVH "));
 
     // Generate the BVH tree over the shapes
     // Axis-aligned bounding boxes
@@ -1247,8 +1209,7 @@ private:
     axom::for_all<ExecSpace>(
       shape_count,
       AXOM_LAMBDA(axom::IndexType i) {
-        aabbs_device_view[i] =
-          primal::compute_bounding_box<double, 3>(shapes_device_view[i]);
+        aabbs_device_view[i] = primal::compute_bounding_box<double, 3>(shapes_device_view[i]);
       });
 
     // Insert shapes' Bounding Boxes into BVH.
@@ -1260,63 +1221,49 @@ private:
     axom::ArrayView<const BoundingBox3D> hex_bbs_device_view = m_hex_bbs.view();
 
     // Find which shape bounding boxes intersect hexahedron bounding boxes
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      " Finding shape candidates for each hexahedral element "));
+    SLIC_INFO(
+      axom::fmt::format("{:-^80}", " Finding shape candidates for each hexahedral element "));
 
     axom::Array<IndexType> offsets(m_cellCount, m_cellCount, device_allocator);
     axom::Array<IndexType> counts(m_cellCount, m_cellCount, device_allocator);
     axom::Array<IndexType> candidates;
     AXOM_ANNOTATE_BEGIN("bvh.findBoundingBoxes");
-    bvh.findBoundingBoxes(offsets,
-                          counts,
-                          candidates,
-                          m_cellCount,
-                          hex_bbs_device_view);
+    bvh.findBoundingBoxes(offsets, counts, candidates, m_cellCount, hex_bbs_device_view);
     AXOM_ANNOTATE_END("bvh.findBoundingBoxes");
 
     // Get the total number of candidates
-    using REDUCE_POL = typename axom::execution_space<ExecSpace>::reduce_policy;
-    using ATOMIC_POL = typename axom::execution_space<ExecSpace>::atomic_policy;
-
     const auto counts_device_view = counts.view();
     AXOM_ANNOTATE_BEGIN("populate totalCandidates");
-    RAJA::ReduceSum<REDUCE_POL, int> totalCandidates(0);
+    axom::ReduceSum<ExecSpace, int> totalCandidates(0);
     axom::for_all<ExecSpace>(
       m_cellCount,
-      AXOM_LAMBDA(axom::IndexType i) {
-        totalCandidates += counts_device_view[i];
-      });
+      AXOM_LAMBDA(axom::IndexType i) { totalCandidates += counts_device_view[i]; });
     AXOM_ANNOTATE_END("populate totalCandidates");
 
     AXOM_ANNOTATE_BEGIN("allocate scratch space");
     // Initialize hexahedron indices and shape candidates
     AXOM_ANNOTATE_BEGIN("allocate hex_indices");
-    axom::Array<IndexType> hex_indices_device(
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      device_allocator);
+    axom::Array<IndexType> hex_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
+                                              totalCandidates.get() * NUM_TETS_PER_HEX,
+                                              device_allocator);
     AXOM_ANNOTATE_END("allocate hex_indices");
     auto hex_indices_device_view = hex_indices_device.view();
 
     AXOM_ANNOTATE_BEGIN("allocate shape_candidates");
-    axom::Array<IndexType> shape_candidates_device(
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      device_allocator);
+    axom::Array<IndexType> shape_candidates_device(totalCandidates.get() * NUM_TETS_PER_HEX,
+                                                   totalCandidates.get() * NUM_TETS_PER_HEX,
+                                                   device_allocator);
     AXOM_ANNOTATE_END("allocate shape_candidates");
     auto shape_candidates_device_view = shape_candidates_device.view();
 
     // Tetrahedrons from hexes (24 for each hex)
-    axom::ArrayView<TetrahedronType> tets_from_hexes_device_view =
-      m_tets_from_hexes_device.view();
+    axom::ArrayView<TetrahedronType> tets_from_hexes_device_view = m_tets_from_hexes_device.view();
 
     // Index into 'tets'
     AXOM_ANNOTATE_BEGIN("allocate tet_indices_device");
-    axom::Array<IndexType> tet_indices_device(
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      totalCandidates.get() * NUM_TETS_PER_HEX,
-      device_allocator);
+    axom::Array<IndexType> tet_indices_device(totalCandidates.get() * NUM_TETS_PER_HEX,
+                                              totalCandidates.get() * NUM_TETS_PER_HEX,
+                                              device_allocator);
     AXOM_ANNOTATE_END("allocate tet_indices_device");
     auto tet_indices_device_view = tet_indices_device.view();
     AXOM_ANNOTATE_END("allocate scratch space");
@@ -1330,9 +1277,7 @@ private:
     auto newTotalCandidates_device_view = newTotalCandidates_device.view();
     AXOM_ANNOTATE_END("newTotalCandidates memory");
 
-    SLIC_INFO(
-      axom::fmt::format("{:-^80}",
-                        " Creating an array of candidate pairs for shaping "));
+    SLIC_INFO(axom::fmt::format("{:-^80}", " Creating an array of candidate pairs for shaping "));
 
     const auto offsets_device_view = offsets.view();
     const auto candidates_device_view = candidates.view();
@@ -1348,8 +1293,7 @@ private:
             for(int k = 0; k < NUM_TETS_PER_HEX; k++)
             {
               IndexType idx =
-                RAJA::atomicAdd<ATOMIC_POL>(&newTotalCandidates_device_view[0],
-                                            IndexType {1});
+                axom::atomicAdd<ExecSpace>(&newTotalCandidates_device_view[0], IndexType {1});
               hex_indices_device_view[idx] = i;
               shape_candidates_device_view[idx] = shapeIdx;
               tet_indices_device_view[idx] = i * NUM_TETS_PER_HEX + k;
@@ -1362,12 +1306,10 @@ private:
     // or clip(tet,tet) for Pro/E meshes
     m_overlap_volumes.fill(0.0);
 
-    axom::ArrayView<double> overlap_volumes_device_view =
-      m_overlap_volumes.view();
+    axom::ArrayView<double> overlap_volumes_device_view = m_overlap_volumes.view();
 
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      " Calculating element overlap volume from each tet-shape pair "));
+    SLIC_INFO(axom::fmt::format("{:-^80}",
+                                " Calculating element overlap volume from each tet-shape pair "));
 
     constexpr double EPS = 1e-10;
     constexpr bool tryFixOrientation = true;
@@ -1385,11 +1327,10 @@ private:
           const int shapeIndex = shape_candidates_device_view[i];
           const int tetIndex = tet_indices_device_view[i];
 
-          const PolyhedronType poly =
-            primal::clip(shapes_device_view[shapeIndex],
-                         tets_from_hexes_device_view[tetIndex],
-                         EPS,
-                         tryFixOrientation);
+          const PolyhedronType poly = primal::clip(shapes_device_view[shapeIndex],
+                                                   tets_from_hexes_device_view[tetIndex],
+                                                   EPS,
+                                                   tryFixOrientation);
 
           // Poly is valid
           if(poly.numVertices() >= 4)
@@ -1397,8 +1338,7 @@ private:
             // Workaround - intermediate volume variable needed for
             // CUDA Pro/E test case correctness
             double volume = poly.volume();
-            RAJA::atomicAdd<ATOMIC_POL>(overlap_volumes_device_view.data() + index,
-                                        volume);
+            axom::atomicAdd<ExecSpace>(overlap_volumes_device_view.data() + index, volume);
           }
         });
     }
@@ -1415,9 +1355,7 @@ private:
    */
   std::string materialNameToFieldName(const std::string& materialName) const
   {
-    const std::string vol_frac_fmt("vol_frac_{}");
-    auto name = axom::fmt::format(vol_frac_fmt, materialName);
-    return name;
+    return axom::fmt::format("vol_frac_{}", materialName);
   }
 
   /*!
@@ -1490,9 +1428,7 @@ public:
       int dataSize = cfgf.size();
       TempArrayView<ExecSpace> cfView(cfgf, true);
 
-      axom::for_all<ExecSpace>(
-        dataSize,
-        AXOM_LAMBDA(axom::IndexType i) { cfView[i] = 1.; });
+      axom::for_all<ExecSpace>(dataSize, AXOM_LAMBDA(axom::IndexType i) { cfView[i] = 1.; });
 
       // Iterate over all materials and subtract off their VFs from cfgf.
       for(axom::ArrayView<double>& gf : m_vf_grid_functions)
@@ -1576,8 +1512,7 @@ public:
     int dataSize = matVF.first.size();
 
     // Get this shape's array.
-    auto shapeVolFracName =
-      axom::fmt::format("shape_vol_frac_{}", shape.getName());
+    auto shapeVolFracName = axom::fmt::format("shape_vol_frac_{}", shape.getName());
     // auto* shapeVolFrac = this->getDC()->GetField(shapeVolFracName);
     auto shapeVolFrac = getScalarCellData(shapeVolFracName);
     SLIC_ERROR_IF(shapeVolFrac.empty(),
@@ -1643,12 +1578,11 @@ public:
       }
     }
     // Sort eligible update materials by material number.
-    std::sort(gf_order_by_matnumber.begin(),
-              gf_order_by_matnumber.end(),
-              [&](const std::pair<axom::ArrayView<double>, int>& lhs,
-                  const std::pair<axom::ArrayView<double>, int>& rhs) {
-                return lhs.second < rhs.second;
-              });
+    std::sort(
+      gf_order_by_matnumber.begin(),
+      gf_order_by_matnumber.end(),
+      [&](const std::pair<axom::ArrayView<double>, int>& lhs,
+          const std::pair<axom::ArrayView<double>, int>& rhs) { return lhs.second < rhs.second; });
 
     // Append the completely free grid function to the materials we update
     // Add it first so it is the highest priority material. This helps us
@@ -1671,9 +1605,7 @@ public:
     {
       // Replaces - We'll sum up the VFs that we can replace in a zone.
       AXOM_ANNOTATE_SCOPE("compute_vf_writable");
-      axom::for_all<ExecSpace>(
-        dataSize,
-        AXOM_LAMBDA(axom::IndexType i) { vf_writable[i] = 0.; });
+      axom::for_all<ExecSpace>(dataSize, AXOM_LAMBDA(axom::IndexType i) { vf_writable[i] = 0.; });
 
       for(const auto& name : shape.getMaterialsReplaced())
       {
@@ -1691,9 +1623,7 @@ public:
     {
       // Does not replace. We can replace all except for listed mats.
       AXOM_ANNOTATE_SCOPE("compute_vf_writable");
-      axom::for_all<ExecSpace>(
-        dataSize,
-        AXOM_LAMBDA(axom::IndexType i) { vf_writable[i] = 1.; });
+      axom::for_all<ExecSpace>(dataSize, AXOM_LAMBDA(axom::IndexType i) { vf_writable[i] = 1.; });
 
       for(auto& gf : excludeVFs)
       {
@@ -1747,12 +1677,10 @@ public:
           dataSize,
           AXOM_LAMBDA(axom::IndexType i) {
             constexpr double INSIGNIFICANT_VOLFRAC = 1.e-14;
-            double s =
-              (matVFView[i] <= vf_subtract[i]) ? matVFView[i] : vf_subtract[i];
+            double s = (matVFView[i] <= vf_subtract[i]) ? matVFView[i] : vf_subtract[i];
             matVFView[i] -= s;
             // Turn any slight negatives or positive insignificant volume fractions to zero.
-            matVFView[i] =
-              (matVFView[i] < INSIGNIFICANT_VOLFRAC) ? 0. : matVFView[i];
+            matVFView[i] = (matVFView[i] < INSIGNIFICANT_VOLFRAC) ? 0. : matVFView[i];
             vf_subtract[i] -= s;
           });
       }
@@ -1772,21 +1700,21 @@ public:
     case RuntimePolicy::seq:
       applyReplacementRulesImpl<seq_exec>(shape);
       break;
-  #if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     case RuntimePolicy::omp:
       applyReplacementRulesImpl<omp_exec>(shape);
       break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     case RuntimePolicy::cuda:
       applyReplacementRulesImpl<cuda_exec>(shape);
       break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     case RuntimePolicy::hip:
       applyReplacementRulesImpl<hip_exec>(shape);
       break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
     }
     AXOM_UNUSED_VAR(shape);
   }
@@ -1799,7 +1727,7 @@ public:
     m_surfaceMesh.reset();
   }
 
-  //@}
+  ///@}
 
 public:
   /*!
@@ -1809,8 +1737,7 @@ public:
     \internal This method populates m_tets or m_octs from the given \c
     shape.  These arrays are used in runShapeQuery.
   */
-  void prepareShapeQuery(klee::Dimensions shapeDimension,
-                         const klee::Shape& shape) override
+  void prepareShapeQuery(klee::Dimensions shapeDimension, const klee::Shape& shape) override
   {
     AXOM_ANNOTATE_SCOPE("prepareShapeQuery");
     const std::string shapeFormat = shape.getGeometry().getFormat();
@@ -1831,21 +1758,21 @@ public:
     case RuntimePolicy::seq:
       prepareShapeQueryImpl<seq_exec>(shapeDimension, shape);
       break;
-  #if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     case RuntimePolicy::omp:
       prepareShapeQueryImpl<omp_exec>(shapeDimension, shape);
       break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     case RuntimePolicy::cuda:
       prepareShapeQueryImpl<cuda_exec>(shapeDimension, shape);
       break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     case RuntimePolicy::hip:
       prepareShapeQueryImpl<hip_exec>(shapeDimension, shape);
       break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
     }
     AXOM_UNUSED_VAR(shapeDimension);
     AXOM_UNUSED_VAR(shape);
@@ -1874,45 +1801,69 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery3DImpl<seq_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
-  #if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery3DImpl<omp_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         runShapeQuery3DImpl<cuda_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         runShapeQuery3DImpl<hip_exec, TetrahedronType>(shape, m_tets, m_tetcount);
         break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
       }
     }
-    else if(shapeFormat == "c2c")
+    else if(shapeFormat == "c2c" && getCompMeshDim() == 3)
     {
       switch(m_execPolicy)
       {
       case RuntimePolicy::seq:
         runShapeQuery3DImpl<seq_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
-  #if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery3DImpl<omp_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         runShapeQuery3DImpl<cuda_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         runShapeQuery3DImpl<hip_exec, OctahedronType>(shape, m_octs, m_octcount);
         break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
+      }
+    }
+    else if(shapeFormat == "c2c" && getCompMeshDim() == 2)
+    {
+      switch(m_execPolicy)
+      {
+      case RuntimePolicy::seq:
+        runShapeQuery2DImpl<seq_exec>(shape, m_tris, m_tricount);
+        break;
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
+      case RuntimePolicy::omp:
+        runShapeQuery2DImpl<omp_exec>(shape, m_tris, m_tricount);
+        break;
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
+      case RuntimePolicy::cuda:
+        runShapeQuery2DImpl<cuda_exec>(shape, m_tris, m_tricount);
+        break;
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
+      case RuntimePolicy::hip:
+        runShapeQuery2DImpl<hip_exec>(shape, m_tris, m_tricount);
+        break;
+#endif  // AXOM_USE_HIP
       }
     }
     else if(shapeFormat == "stl" || surfaceMeshIsTri())
@@ -1922,67 +1873,56 @@ public:
       case RuntimePolicy::seq:
         runShapeQuery2DImpl<seq_exec>(shape, m_tris, m_tricount);
         break;
-  #if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
       case RuntimePolicy::omp:
         runShapeQuery2DImpl<omp_exec>(shape, m_tris, m_tricount);
         break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
       case RuntimePolicy::cuda:
         runShapeQuery2DImpl<cuda_exec>(shape, m_tris, m_tricount);
         break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
       case RuntimePolicy::hip:
         runShapeQuery2DImpl<hip_exec>(shape, m_tris, m_tricount);
         break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
       }
     }
     else
     {
-      SLIC_ERROR(
-        axom::fmt::format("The shape format {} is unsupported", shapeFormat));
+      SLIC_ERROR(axom::fmt::format("The shape format {} is unsupported", shapeFormat));
     }
   }
 
-  axom::ArrayView<const double> getOverlapVolumes() const
-  {
-    return m_overlap_volumes.view();
-  }
+  axom::ArrayView<const double> getOverlapVolumes() const { return m_overlap_volumes.view(); }
 
-  axom::ArrayView<const double> getCellVolumes() const
-  {
-    return m_cell_volumes.view();
-  }
+  axom::ArrayView<const double> getCellVolumes() const { return m_cell_volumes.view(); }
 
   double sumOverlapVolumes(bool global = true) const
   {
     double overlapVol = 0.0;
     switch(m_execPolicy)
     {
-  #if defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
     case RuntimePolicy::omp:
-      overlapVol =
-        sumArray<omp_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
+      overlapVol = sumArray<omp_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
-  #endif  // AXOM_USE_OPENMP
-  #if defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+#endif  // AXOM_USE_OPENMP
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
     case RuntimePolicy::cuda:
-      overlapVol =
-        sumArray<cuda_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
+      overlapVol = sumArray<cuda_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
-  #endif  // AXOM_USE_CUDA
-  #if defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+#endif  // AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
     case RuntimePolicy::hip:
-      overlapVol =
-        sumArray<hip_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
+      overlapVol = sumArray<hip_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
-  #endif  // AXOM_USE_HIP
+#endif  // AXOM_USE_HIP
     case RuntimePolicy::seq:
     default:
-      overlapVol =
-        sumArray<seq_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
+      overlapVol = sumArray<seq_exec>(m_overlap_volumes.data(), m_overlap_volumes.size());
       break;
     }
 
@@ -1996,12 +1936,8 @@ public:
   template <typename ExecSpace, typename Summable>
   Summable sumArray(const Summable* a, axom::IndexType count) const
   {
-    using LoopPolicy = typename axom::execution_space<ExecSpace>::loop_policy;
-    using ReducePolicy = typename axom::execution_space<ExecSpace>::reduce_policy;
-    RAJA::ReduceSum<ReducePolicy, Summable> vsum {0};
-    RAJA::forall<LoopPolicy>(
-      RAJA::RangeSegment(0, count),
-      AXOM_LAMBDA(RAJA::Index_type i) { vsum += a[i]; });
+    axom::ReduceSum<ExecSpace, Summable> vsum {0};
+    axom::for_all<ExecSpace>(count, AXOM_LAMBDA(axom::IndexType i) { vsum += a[i]; });
     Summable sum = static_cast<Summable>(vsum.get());
     return sum;
   }
@@ -2014,7 +1950,7 @@ public:
   std::vector<std::string> getMaterialNames() const
   {
     std::vector<std::string> materialNames;
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_dc)
     {
       for(auto it : this->getDC()->GetFieldMap())
@@ -2026,13 +1962,12 @@ public:
         }
       }
     }
-  #endif
-  #if defined(AXOM_USE_CONDUIT)
+#endif
+#if defined(AXOM_USE_CONDUIT)
     if(m_bpGrp)
     {
       auto fieldsGrp = m_bpGrp->getGroup("fields");
-      SLIC_ERROR_IF(fieldsGrp == nullptr,
-                    "Input blueprint mesh lacks the 'fields' Group/Node.");
+      SLIC_ERROR_IF(fieldsGrp == nullptr, "Input blueprint mesh lacks the 'fields' Group/Node.");
       for(auto& group : fieldsGrp->groups())
       {
         std::string materialName = fieldNameToMaterialName(group.getName());
@@ -2042,7 +1977,7 @@ public:
         }
       }
     }
-  #endif
+#endif
     return materialNames;
   }
 
@@ -2074,34 +2009,33 @@ public:
     SLIC_ASSERT(!matVolFrac.empty());
     if(makeNewData)
     {
-        // Zero out the volume fractions (on host).
-  #ifdef AXOM_USE_UMPIRE
+      // Zero out the volume fractions (on host).
+#ifdef AXOM_USE_UMPIRE
       auto allocId = matVolFrac.getAllocatorID();
-      const axom::MemorySpace memorySpace =
-        axom::detail::getAllocatorSpace(allocId);
-      const bool onDevice = memorySpace == axom::MemorySpace::Device ||
-        memorySpace == axom::MemorySpace::Unified;
-  #else
+      const axom::MemorySpace memorySpace = axom::detail::getAllocatorSpace(allocId);
+      const bool onDevice =
+        memorySpace == axom::MemorySpace::Device || memorySpace == axom::MemorySpace::Unified;
+#else
       const bool onDevice = false;
-  #endif
+#endif
       if(onDevice)
       {
-  #if defined(AXOM_USE_CUDA)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
         if(m_execPolicy == RuntimePolicy::cuda)
         {
           axom::for_all<axom::CUDA_EXEC<256>>(
             matVolFrac.size(),
             AXOM_LAMBDA(axom::IndexType i) { matVolFrac[i] = 0.0; });
         }
-  #endif
-  #if defined(AXOM_USE_HIP)
+#endif
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
         if(m_execPolicy == RuntimePolicy::hip)
         {
           axom::for_all<axom::HIP_EXEC<256>>(
             matVolFrac.size(),
             AXOM_LAMBDA(axom::IndexType i) { matVolFrac[i] = 0.0; });
         }
-  #endif
+#endif
       }
       else
       {
@@ -2138,9 +2072,7 @@ private:
 
     SLIC_INFO(axom::fmt::format(
       "{:-^80}",
-      axom::fmt::format(
-        " Checking contour with {} points for degenerate segments ",
-        pointcount)));
+      axom::fmt::format(" Checking contour with {} points for degenerate segments ", pointcount)));
 
     constexpr int R = 1;
     constexpr int Z = 0;
@@ -2161,8 +2093,7 @@ private:
         using axom::utilities::isNearlyEqual;
 
         // both r are (nearly) equal to 0
-        if(isNearlyEqual(cur_point[R], 0.0, EPS) &&
-           isNearlyEqual(prev_point[R], 0.0, EPS))
+        if(isNearlyEqual(cur_point[R], 0.0, EPS) && isNearlyEqual(prev_point[R], 0.0, EPS))
         {
           continue;
         }
@@ -2204,11 +2135,10 @@ private:
       }
     }
 
-    SLIC_INFO(axom::fmt::format(
-      "{:-^80}",
-      axom::fmt::format(axom::utilities::locale(),
-                        " Discretizing contour with {:L} points ",
-                        polyline_size)));
+    SLIC_INFO(axom::fmt::format("{:-^80}",
+                                axom::fmt::format(axom::utilities::locale(),
+                                                  " Discretizing contour with {:L} points ",
+                                                  polyline_size)));
 
     // Flip point order
     if(flip)
@@ -2271,8 +2201,7 @@ private:
     pts.reserve(npts);
     for(int i = 0; i < npts; i++)
     {
-      double angle =
-        2. * M_PI * static_cast<double>(i) / static_cast<double>(npts);
+      double angle = 2. * M_PI * static_cast<double>(i) / static_cast<double>(npts);
       pts.push_back(Point2D {radius * cos(angle), radius * sin(angle)});
     }
     return area(pts);
@@ -2307,8 +2236,7 @@ private:
       /*level 14*/ 3.14159264503,  // diff=8.55645243547e-09
     };
     constexpr int MAX_LEVELS = sizeof(lut) / sizeof(double);
-    return (level < MAX_LEVELS) ? (lut[level] * radius * radius)
-                                : calcCircleArea(radius, level);
+    return (level < MAX_LEVELS) ? (lut[level] * radius * radius) : calcCircleArea(radius, level);
   }
 
   /*!
@@ -2380,8 +2308,7 @@ private:
   void refineShape(const klee::Shape& shape)
   {
     // If we are not refining dynamically, return.
-    if(m_percentError <= MINIMUM_PERCENT_ERROR ||
-       m_refinementType != DiscreteShape::RefinementDynamic)
+    if(m_percentError <= MINIMUM_PERCENT_ERROR || m_refinementType != DiscreteShape::RefinementDynamic)
     {
       return;
     }
@@ -2406,10 +2333,8 @@ private:
      *
      * \note This function assumes that history values increase.
      */
-    auto diminishing_returns = [](int iteration,
-                                  const double* history,
-                                  int nhistory,
-                                  double percentError) -> bool {
+    auto diminishing_returns =
+      [](int iteration, const double* history, int nhistory, double percentError) -> bool {
       bool dr = false;
       // We have enough history to decide if there are diminishing returns.
       if(iteration >= nhistory)
@@ -2429,9 +2354,7 @@ private:
         dr = avg_pct < percentError;
         if(dr)
         {
-          SLIC_INFO(axom::fmt::format("Dimishing returns triggered: {} < {}.",
-                                      avg_pct,
-                                      percentError));
+          SLIC_INFO(axom::fmt::format("Dimishing returns triggered: {} < {}.", avg_pct, percentError));
         }
       }
       return dr;
@@ -2547,22 +2470,19 @@ private:
           // Reload the shape using new curvePercentError. This will cause
           // a new m_surfaceMesh to be created.
           double rv = 0.;
-          SLIC_INFO(
-            axom::fmt::format("Reloading shape {} with curvePercentError = {}.",
-                              shape.getName(),
-                              curvePercentError));
+          SLIC_INFO(axom::fmt::format("Reloading shape {} with curvePercentError = {}.",
+                                      shape.getName(),
+                                      curvePercentError));
           loadShapeInternal(shape, curvePercentError, rv);
 
           // Filter the mesh, store in m_surfaceMesh.
-          SegmentMesh* newm =
-            filterMesh(dynamic_cast<const SegmentMesh*>(m_surfaceMesh.get()));
+          SegmentMesh* newm = filterMesh(dynamic_cast<const SegmentMesh*>(m_surfaceMesh.get()));
           m_surfaceMesh.reset(newm);
         }
         else
         {
-          SLIC_INFO(axom::fmt::format(
-            "Stopping refinement due to curvePercentError {} being too small.",
-            ce));
+          SLIC_INFO(
+            axom::fmt::format("Stopping refinement due to curvePercentError {} being too small.", ce));
           refine = false;
         }
       }
@@ -2576,19 +2496,19 @@ private:
   bool hasData(const std::string& fieldName)
   {
     bool has = false;
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
     {
       has = m_dc->HasField(fieldName);
     }
-  #endif
-  #if defined(AXOM_USE_CONDUIT)
+#endif
+#if defined(AXOM_USE_CONDUIT)
     if(m_bpGrp != nullptr)
     {
       std::string fieldPath = axom::fmt::format("fields/{}", fieldName);
       has = m_bpGrp->hasGroup(fieldPath);
     }
-  #endif
+#endif
     return has;
   }
 
@@ -2603,12 +2523,11 @@ private:
     We don't add fields to the external Conduit Node.
     \see Shaper::Shaper().
   */
-  axom::ArrayView<double> getScalarCellData(const std::string& fieldName,
-                                            bool volumeDependent = false)
+  axom::ArrayView<double> getScalarCellData(const std::string& fieldName, bool volumeDependent = false)
   {
     axom::ArrayView<double> rval;
 
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
     {
       mfem::GridFunction* gridFunc = nullptr;
@@ -2623,9 +2542,9 @@ private:
       }
       rval = axom::ArrayView<double>(gridFunc->GetData(), gridFunc->Size());
     }
-  #endif
+#endif
 
-  #if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT)
     if(m_bpGrp != nullptr)
     {
       std::string fieldPath = "fields/" + fieldName;
@@ -2635,8 +2554,7 @@ private:
       {
         auto* fieldGrp = m_bpGrp->getGroup(fieldPath);
         valuesView = fieldGrp->getView("values");
-        SLIC_ASSERT(fieldGrp->getView("association")->getString() ==
-                    std::string("element"));
+        SLIC_ASSERT(fieldGrp->getView("association")->getString() == std::string("element"));
         SLIC_ASSERT(fieldGrp->getView("topology")->getString() == m_bpTopo);
         SLIC_ASSERT(valuesView->getNumElements() == m_cellCount);
         SLIC_ASSERT(valuesView->getNode().dtype().id() == dtype.id());
@@ -2671,10 +2589,7 @@ private:
           auto* fieldGrp = m_bpGrp->createGroup(fieldPath);
           // valuesView = fieldGrp->createView("values");
           valuesView =
-            fieldGrp->createViewWithShape("values",
-                                          axom::sidre::DataTypeId::FLOAT64_ID,
-                                          2,
-                                          shape);
+            fieldGrp->createViewWithShape("values", axom::sidre::DataTypeId::FLOAT64_ID, 2, shape);
           fieldGrp->createView("association")->setString("element");
           fieldGrp->createView("topology")->setString(m_bpTopo);
           fieldGrp->createView("volume_dependent")
@@ -2683,18 +2598,16 @@ private:
         }
       }
 
-      rval =
-        axom::ArrayView<double>(static_cast<double*>(valuesView->getVoidPtr()),
-                                m_cellCount);
+      rval = axom::ArrayView<double>(static_cast<double*>(valuesView->getVoidPtr()), m_cellCount);
     }
-  #endif
+#endif
     return rval;
   }
 
-  #if defined(__CUDACC__)
+#if defined(__CUDACC__)
 public:
-      // These methods should be private, but NVCC complains unless they're public.
-  #endif
+    // These methods should be private, but NVCC complains unless they're public.
+#endif
 
   template <typename ExecSpace>
   void populateQuadsFromMesh()
@@ -2704,29 +2617,27 @@ public:
     constexpr int NUM_COMPS_PER_VERT = 2;
     const int allocId = m_allocatorId;
 
-    axom::Array<double> vertCoords(
-      m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
-      m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
-      allocId);
+    axom::Array<double> vertCoords(m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
+                                   m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
+                                   allocId);
 
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
     {
       populateVertCoordsFromMFEMMesh<ExecSpace>(vertCoords, 2);
     }
-  #endif
-  #if defined(AXOM_USE_CONDUIT)
+#endif
+#if defined(AXOM_USE_CONDUIT)
     if(m_bpGrp != nullptr)
     {
       populateVertCoordsFromBlueprintMesh2D<ExecSpace>(vertCoords);
     }
-  #endif
+#endif
 
     auto vertCoords_device_view = vertCoords.view();
 
     // Initialize quad elements
-    m_quads =
-      axom::Array<PolygonStaticType>(m_cellCount, m_cellCount, m_allocatorId);
+    m_quads = axom::Array<PolygonStaticType>(m_cellCount, m_cellCount, m_allocatorId);
     axom::ArrayView<PolygonStaticType> quads_device_view = m_quads.view();
 
     axom::for_all<ExecSpace>(
@@ -2736,11 +2647,9 @@ public:
         quads_device_view[i] = PolygonStaticType();
         for(int j = 0; j < NUM_VERTS_PER_QUAD; ++j)
         {
-          int vertIndex = (i * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT) +
-            j * NUM_COMPS_PER_VERT;
+          int vertIndex = (i * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT) + j * NUM_COMPS_PER_VERT;
           quads_device_view[i].addVertex(
-            Point2D({vertCoords_device_view[vertIndex],
-                     vertCoords_device_view[vertIndex + 1]}));
+            Point2D({vertCoords_device_view[vertIndex], vertCoords_device_view[vertIndex + 1]}));
         }
       });
   }  // end of populateQuadsFromMesh()
@@ -2754,23 +2663,22 @@ public:
     constexpr int NUM_COMPS_PER_VERT = 3;
     const int allocId = m_allocatorId;
 
-    axom::Array<double> vertCoords(
-      m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
-      m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
-      allocId);
+    axom::Array<double> vertCoords(m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
+                                   m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
+                                   allocId);
 
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
     if(m_dc != nullptr)
     {
       populateVertCoordsFromMFEMMesh<ExecSpace>(vertCoords, 3);
     }
-  #endif
-  #if defined(AXOM_USE_CONDUIT)
+#endif
+#if defined(AXOM_USE_CONDUIT)
     if(m_bpGrp != nullptr)
     {
       populateVertCoordsFromBlueprintMesh3D<ExecSpace>(vertCoords);
     }
-  #endif
+#endif
 
     auto vertCoords_device_view = vertCoords.view();
 
@@ -2783,17 +2691,15 @@ public:
         hexes_device_view[i] = HexahedronType();
         for(int j = 0; j < NUM_VERTS_PER_HEX; ++j)
         {
-          int vertIndex = (i * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT) +
-            j * NUM_COMPS_PER_VERT;
-          hexes_device_view[i][j] =
-            Point3D({vertCoords_device_view[vertIndex],
-                     vertCoords_device_view[vertIndex + 1],
-                     vertCoords_device_view[vertIndex + 2]});
+          int vertIndex = (i * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT) + j * NUM_COMPS_PER_VERT;
+          hexes_device_view[i][j] = Point3D({vertCoords_device_view[vertIndex],
+                                             vertCoords_device_view[vertIndex + 1],
+                                             vertCoords_device_view[vertIndex + 2]});
         }
       });  // end of loop to initialize hexahedral elements and bounding boxes
   }
 
-  #if defined(AXOM_USE_CONDUIT)
+#if defined(AXOM_USE_CONDUIT)
   template <typename ExecSpace>
   void populateVertCoordsFromBlueprintMesh2D(axom::Array<double>& vertCoords)
   {
@@ -2812,32 +2718,25 @@ public:
     // conduit::Node meshNode;
     // m_bpGrp->createNativeLayout(m_bpNodeInt);
 
-    const conduit::Node& topoNode =
-      m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_bpTopo);
-    const std::string coordsetName =
-      topoNode.fetch_existing("coordset").as_string();
+    const conduit::Node& topoNode = m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_bpTopo);
+    const std::string coordsetName = topoNode.fetch_existing("coordset").as_string();
 
     // Assume unstructured and hexahedral
     SLIC_ERROR_IF(topoNode["type"].as_string() != "unstructured",
                   "topology type must be 'unstructured'");
-    SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "quad",
-                  "element shape must be 'quad'");
+    SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "quad", "element shape must be 'quad'");
 
     const auto& connNode = topoNode["elements/connectivity"];
     SLIC_ERROR_IF(
       !XS::usesAllocId(axom::getAllocatorIDFromPointer(connNode.data_ptr())),
       std::string(XS::name()) +
-        axom::fmt::format(
-          " execution space cannot use the connectivity allocator id {}",
-          axom::getAllocatorIDFromPointer(connNode.data_ptr())));
+        axom::fmt::format(" execution space cannot use the connectivity allocator id {}",
+                          axom::getAllocatorIDFromPointer(connNode.data_ptr())));
     SLIC_ERROR_IF(connNode.dtype().id() != conduitDataIdOfAxomIndexType,
                   "IntersectionShaper error: connectivity data type must be "
                   "axom::IndexType.");
-    const auto* connPtr =
-      static_cast<const axom::IndexType*>(connNode.data_ptr());
-    axom::ArrayView<const axom::IndexType, 2> conn(connPtr,
-                                                   m_cellCount,
-                                                   NUM_VERTS_PER_QUAD);
+    const auto* connPtr = static_cast<const axom::IndexType*>(connNode.data_ptr());
+    axom::ArrayView<const axom::IndexType, 2> conn(connPtr, m_cellCount, NUM_VERTS_PER_QUAD);
 
     const conduit::Node& coordNode = m_bpNodeInt["coordsets"][coordsetName];
     const conduit::Node& coordValues = coordNode.fetch_existing("values");
@@ -2846,17 +2745,12 @@ public:
     int stride = isInterleaved ? NUM_COMPS_PER_VERT : 1;
 
     axom::StackArray<axom::ArrayView<const double>, 2> coordArrays {
-      axom::ArrayView<const double>(coordValues["x"].as_double_ptr(),
-                                    {vertexCount},
-                                    stride),
-      axom::ArrayView<const double>(coordValues["y"].as_double_ptr(),
-                                    {vertexCount},
-                                    stride)};
+      axom::ArrayView<const double>(coordValues["x"].as_double_ptr(), {vertexCount}, stride),
+      axom::ArrayView<const double>(coordValues["y"].as_double_ptr(), {vertexCount}, stride)};
 
-    vertCoords =
-      axom::Array<double>(m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
-                          m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
-                          allocId);
+    vertCoords = axom::Array<double>(m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
+                                     m_cellCount * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT,
+                                     allocId);
     auto vertCoordsView = vertCoords.view();
 
     axom::for_all<ExecSpace>(
@@ -2871,8 +2765,8 @@ public:
           auto vertId = quadVerts[j];
           for(int k = 0; k < NUM_COMPS_PER_VERT; k++)
           {
-            vertCoordsView[(i * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT) +
-                           (j * NUM_COMPS_PER_VERT) + k] = coordArrays[k][vertId];
+            vertCoordsView[(i * NUM_VERTS_PER_QUAD * NUM_COMPS_PER_VERT) + (j * NUM_COMPS_PER_VERT) + k] =
+              coordArrays[k][vertId];
           }
         }
       });
@@ -2896,32 +2790,26 @@ public:
     // conduit::Node meshNode;
     // m_bpGrp->createNativeLayout(m_bpNodeInt);
 
-    const conduit::Node& topoNode =
-      m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_bpTopo);
-    const std::string coordsetName =
-      topoNode.fetch_existing("coordset").as_string();
+    const conduit::Node& topoNode = m_bpNodeInt.fetch_existing("topologies").fetch_existing(m_bpTopo);
+    const conduit::Node& topoCoordsetNode = topoNode.fetch_existing("coordset");
+    const std::string coordsetName = topoCoordsetNode.as_string();
 
     // Assume unstructured and hexahedral
     SLIC_ERROR_IF(topoNode["type"].as_string() != "unstructured",
                   "topology type must be 'unstructured'");
-    SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "hex",
-                  "element shape must be 'hex'");
+    SLIC_ERROR_IF(topoNode["elements/shape"].as_string() != "hex", "element shape must be 'hex'");
 
     const auto& connNode = topoNode["elements/connectivity"];
     SLIC_ERROR_IF(
       !XS::usesAllocId(axom::getAllocatorIDFromPointer(connNode.data_ptr())),
       std::string(XS::name()) +
-        axom::fmt::format(
-          " execution space cannot use the connectivity allocator id {}",
-          axom::getAllocatorIDFromPointer(connNode.data_ptr())));
+        axom::fmt::format(" execution space cannot use the connectivity allocator id {}",
+                          axom::getAllocatorIDFromPointer(connNode.data_ptr())));
     SLIC_ERROR_IF(connNode.dtype().id() != conduitDataIdOfAxomIndexType,
                   "IntersectionShaper error: connectivity data type must be "
                   "axom::IndexType.");
-    const auto* connPtr =
-      static_cast<const axom::IndexType*>(connNode.data_ptr());
-    axom::ArrayView<const axom::IndexType, 2> conn(connPtr,
-                                                   m_cellCount,
-                                                   NUM_VERTS_PER_HEX);
+    const auto* connPtr = static_cast<const axom::IndexType*>(connNode.data_ptr());
+    axom::ArrayView<const axom::IndexType, 2> conn(connPtr, m_cellCount, NUM_VERTS_PER_HEX);
 
     const conduit::Node& coordNode = m_bpNodeInt["coordsets"][coordsetName];
     const conduit::Node& coordValues = coordNode.fetch_existing("values");
@@ -2930,20 +2818,13 @@ public:
     int stride = isInterleaved ? NUM_COMPS_PER_VERT : 1;
 
     axom::StackArray<axom::ArrayView<const double>, 3> coordArrays {
-      axom::ArrayView<const double>(coordValues["x"].as_double_ptr(),
-                                    {vertexCount},
-                                    stride),
-      axom::ArrayView<const double>(coordValues["y"].as_double_ptr(),
-                                    {vertexCount},
-                                    stride),
-      axom::ArrayView<const double>(coordValues["z"].as_double_ptr(),
-                                    {vertexCount},
-                                    stride)};
+      axom::ArrayView<const double>(coordValues["x"].as_double_ptr(), {vertexCount}, stride),
+      axom::ArrayView<const double>(coordValues["y"].as_double_ptr(), {vertexCount}, stride),
+      axom::ArrayView<const double>(coordValues["z"].as_double_ptr(), {vertexCount}, stride)};
 
-    vertCoords =
-      axom::Array<double>(m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
-                          m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
-                          allocId);
+    vertCoords = axom::Array<double>(m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
+                                     m_cellCount * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT,
+                                     allocId);
     auto vertCoordsView = vertCoords.view();
 
     axom::for_all<ExecSpace>(
@@ -2958,15 +2839,15 @@ public:
           auto vertId = hexVerts[j];
           for(int k = 0; k < NUM_COMPS_PER_VERT; k++)
           {
-            vertCoordsView[(i * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT) +
-                           (j * NUM_COMPS_PER_VERT) + k] = coordArrays[k][vertId];
+            vertCoordsView[(i * NUM_VERTS_PER_HEX * NUM_COMPS_PER_VERT) + (j * NUM_COMPS_PER_VERT) + k] =
+              coordArrays[k][vertId];
           }
         }
       });
   }
-  #endif  // AXOM_USE_CONDUIT
+#endif  // AXOM_USE_CONDUIT
 
-  #if defined(AXOM_USE_MFEM)
+#if defined(AXOM_USE_MFEM)
 
   template <typename ExecSpace>
   void populateVertCoordsFromMFEMMesh(axom::Array<double>& vertCoords, int dim)
@@ -2980,8 +2861,7 @@ public:
 
     if(m_cellCount > 0)
     {
-      SLIC_ASSERT(mesh->GetNodes() == nullptr ||
-                  mesh->GetNodes()->FESpace()->GetOrder(0));
+      SLIC_ASSERT(mesh->GetNodes() == nullptr || mesh->GetNodes()->FESpace()->GetOrder(0));
     }
 
     // Allocation size is:
@@ -3008,9 +2888,8 @@ public:
 
     axom::Array<double>& fillVertCoords =
       axom::execution_space<ExecSpace>::onDevice() ? tmpVertCoords : vertCoords;
-    fillVertCoords =
-      axom::Array<double>(m_cellCount * num_verts_per_cell * num_comps_per_vert,
-                          m_cellCount * num_verts_per_cell * num_comps_per_vert);
+    fillVertCoords = axom::Array<double>(m_cellCount * num_verts_per_cell * num_comps_per_vert,
+                                         m_cellCount * num_verts_per_cell * num_comps_per_vert);
 
     // Initialize vertices from mfem mesh and
     // set each shape volume fraction to 1
@@ -3029,16 +2908,13 @@ public:
         for(int k = 0; k < num_comps_per_vert; k++)
         {
           fillVertCoordsView[(i * num_verts_per_cell * num_comps_per_vert) +
-                             (j * num_comps_per_vert) + k] =
-            (mesh->GetVertex(verts[j]))[k];
+                             (j * num_comps_per_vert) + k] = (mesh->GetVertex(verts[j]))[k];
         }
       }
     }
     if(vertCoords.data() != fillVertCoords.data())
     {
-      axom::copy(vertCoords.data(),
-                 fillVertCoords.data(),
-                 sizeof(double) * vertCoords.size());
+      axom::copy(vertCoords.data(), fillVertCoords.data(), sizeof(double) * vertCoords.size());
     }
   }
 
@@ -3051,32 +2927,61 @@ private:
 
     const int vfOrder = 0;
     const int dim = mesh->Dimension();
-    mfem::L2_FECollection* coll =
-      new mfem::L2_FECollection(vfOrder, dim, mfem::BasisType::Positive);
+    mfem::L2_FECollection* coll = new mfem::L2_FECollection(vfOrder, dim, mfem::BasisType::Positive);
     mfem::FiniteElementSpace* fes = new mfem::FiniteElementSpace(mesh, coll);
     mfem::GridFunction* volFrac = new mfem::GridFunction(fes);
     volFrac->MakeOwner(coll);
 
     return volFrac;
   }
-  #endif  // AXOM_USE_MFEM
+#endif  // AXOM_USE_MFEM
 
   // Check that surface mesh is composed of 3D Tetrahedra
   bool surfaceMeshIsTet() const
   {
-    bool isTet = m_surfaceMesh != nullptr &&
-      m_surfaceMesh->getDimension() == 3 && !m_surfaceMesh->hasMixedCellTypes() &&
-      m_surfaceMesh->getCellType() == mint::TET;
+    bool isTet = m_surfaceMesh != nullptr && m_surfaceMesh->getDimension() == 3 &&
+      !m_surfaceMesh->hasMixedCellTypes() && m_surfaceMesh->getCellType() == mint::TET;
     return isTet;
   }
 
   // Check that surface mesh is composed of 2D Triangles
   bool surfaceMeshIsTri() const
   {
-    bool isTri = m_surfaceMesh != nullptr &&
-      m_surfaceMesh->getDimension() == 2 && !m_surfaceMesh->hasMixedCellTypes() &&
-      m_surfaceMesh->getCellType() == mint::TRIANGLE;
+    bool isTri = m_surfaceMesh != nullptr && m_surfaceMesh->getDimension() == 2 &&
+      !m_surfaceMesh->hasMixedCellTypes() && m_surfaceMesh->getCellType() == mint::TRIANGLE;
     return isTri;
+  }
+
+  /*!
+   * \brief Returns the dimension of the computational mesh
+   * \return dim The dimensions of the mesh (expected is 2 or 3, -1 in case of failure)
+   */
+  int getCompMeshDim()
+  {
+    int dim = -1;
+#if defined(AXOM_USE_MFEM)
+    if(m_dc != nullptr)
+    {
+      dim = this->getDC()->GetMesh()->SpaceDimension();
+    }
+#endif
+#if defined(AXOM_USE_CONDUIT)
+    if(m_bpGrp != nullptr)
+    {
+      std::string mesh_type = m_bpGrp->getView("topologies/mesh/elements/shape")->getString();
+      if(mesh_type == "hex")
+      {
+        dim = 3;
+      }
+      else if(mesh_type == "quad")
+      {
+        dim = 2;
+      }
+    }
+#endif
+
+    SLIC_ERROR_IF(!(dim == 2 || dim == 3), "Invalid computational mesh dimension");
+    return dim;
   }
 
 private:
@@ -3117,7 +3022,5 @@ private:
 
 }  // end namespace quest
 }  // end namespace axom
-
-#endif  // AXOM_USE_RAJA && AXOM_USE_UMPIRE
 
 #endif  // AXOM_QUEST_INTERSECTION_SHAPER__HPP_

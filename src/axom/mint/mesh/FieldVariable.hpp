@@ -230,10 +230,7 @@ public:
    * \post N >= 0
    * \see Field::getNumTuples()
    */
-  virtual IndexType getNumTuples() const final override
-  {
-    return m_field->size();
-  }
+  virtual IndexType getNumTuples() const final override { return m_field->size(); }
 
   /*!
    * \brief Return the number of components per tuple.
@@ -241,10 +238,7 @@ public:
    * \post N >= 1
    * \see Field::getNumComponents()
    */
-  virtual IndexType getNumComponents() const final override
-  {
-    return m_field->numComponents();
-  };
+  virtual IndexType getNumComponents() const final override { return m_field->numComponents(); };
 
   /*!
    * \brief Returns the total number of tuples this instance can hold.
@@ -252,10 +246,7 @@ public:
    * \post N >= this->getNumTuples()
    * \see Field::getCapacity()
    */
-  virtual IndexType getCapacity() const final override
-  {
-    return m_field->capacity();
-  };
+  virtual IndexType getCapacity() const final override { return m_field->capacity(); };
 
   /*!
    * \brief Resizes the Field such that it can store the given number of tuples.
@@ -263,10 +254,7 @@ public:
    * \note Reallocation is done only if the new size exceeds the capacity.
    * \see Field::resize()
    */
-  virtual void resize(IndexType newNumTuples) final override
-  {
-    m_field->resize(newNumTuples);
-  }
+  virtual void resize(IndexType newNumTuples) final override { m_field->resize(newNumTuples); }
 
   /*!
    * \brief Inserts n_tuples with the default value at the given position.
@@ -288,10 +276,7 @@ public:
    * \note if newCapacity < getCapacity() this method returns immediately.
    * \see Field::reserve()
    */
-  virtual void reserve(IndexType newCapacity) final override
-  {
-    m_field->reserve(newCapacity);
-  }
+  virtual void reserve(IndexType newCapacity) final override { m_field->reserve(newCapacity); }
 
   /*!
    * \brief Shrinks the field capacity to be equal to the number of tuples.
@@ -303,28 +288,19 @@ public:
   /*!
    * \brief Return the resize ratio of this field.
    */
-  virtual double getResizeRatio() const final override
-  {
-    return m_field->getResizeRatio();
-  }
+  virtual double getResizeRatio() const final override { return m_field->getResizeRatio(); }
 
   /*!
    * \brief Set the resize ratio of this field.
    * \param [in] ratio the new resize ratio.
    * \post getResizeRatio() == ratio
    */
-  virtual void setResizeRatio(double ratio) final override
-  {
-    m_field->setResizeRatio(ratio);
-  }
+  virtual void setResizeRatio(double ratio) final override { m_field->setResizeRatio(ratio); }
 
   /*!
    * \brief Return true iff the field is stored in an external buffer.
    */
-  virtual bool isExternal() const final override
-  {
-    return m_field->isExternal();
-  }
+  virtual bool isExternal() const final override { return m_field->isExternal(); }
 
   /*!
    * \brief Return true iff the field is stored in sidre.
@@ -369,8 +345,7 @@ FieldVariable<T>::FieldVariable(const std::string& name,
                                 IndexType capacity)
   : Field(name, field_traits<T>::type())
 {
-  m_field =
-    new axom::deprecated::MCArray<T>(num_tuples, num_components, capacity);
+  m_field = new axom::deprecated::MCArray<T>(num_tuples, num_components, capacity);
   SLIC_ASSERT(m_field != nullptr);
   SLIC_ERROR_IF(m_type == UNDEFINED_FIELD_TYPE, "Undefined field type!");
 }
@@ -384,8 +359,7 @@ FieldVariable<T>::FieldVariable(const std::string& name,
                                 IndexType capacity)
   : Field(name, field_traits<T>::type())
 {
-  m_field =
-    new axom::deprecated::MCArray<T>(data, num_tuples, num_components, capacity);
+  m_field = new axom::deprecated::MCArray<T>(data, num_tuples, num_components, capacity);
   SLIC_ASSERT(m_field != nullptr);
   SLIC_ASSERT(m_field->isExternal() == true);
   SLIC_ERROR_IF(m_type == UNDEFINED_FIELD_TYPE, "Undefined field type!");
@@ -412,10 +386,7 @@ FieldVariable<T>::FieldVariable(const std::string& name,
                                 IndexType capacity)
   : Field(name, field_traits<T>::type())
 {
-  m_field = new sidre::deprecated::MCArray<T>(field_view,
-                                              num_tuples,
-                                              num_components,
-                                              capacity);
+  m_field = new sidre::deprecated::MCArray<T>(field_view, num_tuples, num_components, capacity);
   SLIC_ASSERT(m_field != nullptr);
   SLIC_ERROR_IF(m_type == UNDEFINED_FIELD_TYPE, "Undefined field type!");
 }

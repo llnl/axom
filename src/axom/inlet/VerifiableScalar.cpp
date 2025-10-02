@@ -9,13 +9,10 @@ namespace axom
 {
 namespace inlet
 {
-VerifiableScalar& VerifiableScalar::registerVerifier(
-  std::function<bool(const Field&)> verifier)
+VerifiableScalar& VerifiableScalar::registerVerifier(std::function<bool(const Field&)> verifier)
 {
   return registerVerifier(
-    [verifier](const Field& field, std::vector<VerificationError>*) {
-      return verifier(field);
-    });
+    [verifier](const Field& field, std::vector<VerificationError>*) { return verifier(field); });
 }
 }  // namespace inlet
 }  // namespace axom

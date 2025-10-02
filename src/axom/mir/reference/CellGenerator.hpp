@@ -90,12 +90,11 @@ public:
        * 
        * \note  New vertex positions are interpolated from the original vertex volume fractions.
        */
-  void generateVertexVolumeFractions(
-    const mir::Shape shapeType,
-    const std::map<int, std::vector<int>>& newVertices,
-    const std::vector<std::vector<axom::float64>>& vertexVF,
-    axom::float64* tValues,
-    CellData& out_cellData);
+  void generateVertexVolumeFractions(const mir::Shape shapeType,
+                                     const std::map<int, std::vector<int>>& newVertices,
+                                     const std::vector<std::vector<axom::float64>>& vertexVF,
+                                     axom::float64* tValues,
+                                     CellData& out_cellData);
 
   /**
        * \brief Determines the more dominant material of the two given for the given element.
@@ -114,12 +113,11 @@ public:
        * 
        * \note It is assumed that the given cell is one that results from splitting its parent cell.
        */
-  int determineCleanCellMaterial(
-    const Shape shapeType,
-    const std::vector<int>& vertexIDs,
-    const int matOne,
-    const int matTwo,
-    const std::vector<std::vector<axom::float64>>& vertexVF);
+  int determineCleanCellMaterial(const Shape shapeType,
+                                 const std::vector<int>& vertexIDs,
+                                 const int matOne,
+                                 const int matTwo,
+                                 const std::vector<std::vector<axom::float64>>& vertexVF);
 };
 
 //--------------------------------------------------------------------------------

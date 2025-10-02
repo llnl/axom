@@ -67,9 +67,7 @@ public:
   void SetUp()
   {
 #ifdef AXOM_DEBUG
-    EXPECT_DEATH_IF_SUPPORTED(
-      SLIC_ASSERT_MSG(false, "Testing assert in fixture setup"),
-      "");
+    EXPECT_DEATH_IF_SUPPORTED(SLIC_ASSERT_MSG(false, "Testing assert in fixture setup"), "");
 #else
     SLIC_WARNING("Testing warning in fixture setup");
 #endif
@@ -85,9 +83,7 @@ public:
   void TearDown()
   {
 #ifdef AXOM_DEBUG
-    EXPECT_DEATH_IF_SUPPORTED(
-      SLIC_ASSERT_MSG(false, "Testing assert in fixture teardown"),
-      "");
+    EXPECT_DEATH_IF_SUPPORTED(SLIC_ASSERT_MSG(false, "Testing assert in fixture teardown"), "");
 #else
     SLIC_WARNING("Testing warning in fixture teardown");
 #endif
@@ -119,14 +115,11 @@ TEST(slic_usage, in_test)
 {
   SLIC_ASSERT_MSG(true, "Testing SLIC assert (true) in test body");
 #ifdef AXOM_DEBUG
-  EXPECT_DEATH_IF_SUPPORTED(
-    SLIC_ASSERT_MSG(false, "Testing SLIC assert(false) in test body"),
-    "")
+  EXPECT_DEATH_IF_SUPPORTED(SLIC_ASSERT_MSG(false, "Testing SLIC assert(false) in test body"), "")
     << "SLIC assert (false) from a test";
 #else
-  EXPECT_DEATH_IF_SUPPORTED(
-    SLIC_ERROR_IF(true, "Testing SLIC error in test body for release mode"),
-    "")
+  EXPECT_DEATH_IF_SUPPORTED(SLIC_ERROR_IF(true, "Testing SLIC error in test body for release mode"),
+                            "")
     << "SLIC_ERROR_IF(false) from a test";
 
 #endif
@@ -135,8 +128,7 @@ TEST(slic_usage, in_test)
 TEST(slic_usage, in_ctor)
 {
 #ifdef AXOM_DEBUG
-  EXPECT_DEATH_IF_SUPPORTED(AssertCtor(), "")
-    << " SLIC assert from class .ctor ";
+  EXPECT_DEATH_IF_SUPPORTED(AssertCtor(), "") << " SLIC assert from class .ctor ";
 #else
   AssertCtor();
 #endif
@@ -155,8 +147,7 @@ TEST(slic_usage, in_method)
 TEST(slic_usage, in_dtor)
 {
 #ifdef AXOM_DEBUG
-  EXPECT_DEATH_IF_SUPPORTED(AssertDtor(), "")
-    << " SLIC assert from class .ctor ";
+  EXPECT_DEATH_IF_SUPPORTED(AssertDtor(), "") << " SLIC assert from class .ctor ";
 #else
   AssertDtor();
 #endif

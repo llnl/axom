@@ -23,10 +23,10 @@ restricted.
 Portability
 --------------------------------------------------------------------
 
-Nothing beyond C++11
+Nothing beyond C++17
 ^^^^^^^^^^^^^^^^^^^^
 
-11.1 C++ language features beyond standard C++11 **must not** be used unless
+11.1 C++ language features beyond standard C++17 **must not** be used unless
 reviewed by the team and verified that the features are supported by all 
 compilers we need to support.
 

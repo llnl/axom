@@ -80,8 +80,7 @@ T getRandom()
 template <typename T>
 int eigen_solve(Matrix<T>& A, int k, T* u, T* lambdas, int numIterations)
 {
-  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value,
-                         "pre: T is a floating point type");
+  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value, "pre: T is a floating point type");
   assert("pre: input matrix must be square" && A.isSquare());
   assert("pre: can't have more eigenvectors than rows" && (k <= A.getNumRows()));
   assert("pre: eigenvectors pointer is null" && (u != nullptr));
@@ -143,7 +142,7 @@ int eigen_solve(Matrix<T>& A, int k, T* u, T* lambdas, int numIterations)
       res = normalize<T>(temp, N);
 
       if(!res)  // must be 0 eigenvalue; done in that case, since vec
-      {  // is guaranteed to be orthogonal to previous eigenvecs and normal
+      {         // is guaranteed to be orthogonal to previous eigenvecs and normal
         break;
       }
       else  // else copy it over

@@ -94,8 +94,7 @@ private:
       {
         throw axom::CLI::ValidationError(
           "box",
-          axom::fmt::format("Invalid dimension: {}. Only 2D and 3D supported",
-                            boxDim));
+          axom::fmt::format("Invalid dimension: {}. Only 2D and 3D supported", boxDim));
       }
 
       // Ensure that range and resolution have the right number of entries
@@ -116,9 +115,7 @@ private:
     // Error checking on provided range; note: accounts for previous checks on dim
     if(rangeProvided && (szMins != szMaxs))
     {
-      throw axom::CLI::ValidationError(
-        "box",
-        "Bounding box mins and maxs has different dimensions");
+      throw axom::CLI::ValidationError("box", "Bounding box mins and maxs has different dimensions");
     }
 
     // Error checking on provided range and resolution; note: accounts for previous checks on dim and range
@@ -175,23 +172,19 @@ public:
       ->capture_default_str();
 
     app.add_option("-l,--ref-level", uniformRefinements)
-      ->description(
-        "The number of uniform refinement levels to apply to the mesh")
+      ->description("The number of uniform refinement levels to apply to the mesh")
       ->capture_default_str()
       ->check(axom::CLI::NonNegativeNumber);
 
     // Parameter to determine if we're using a file or a box mesh
-    std::map<std::string, MeshForm> meshFormMap {{"box", MeshForm::Box},
-                                                 {"file", MeshForm::File}};
+    std::map<std::string, MeshForm> meshFormMap {{"box", MeshForm::Box}, {"file", MeshForm::File}};
     app.add_option("-f,--mesh-form", meshForm)
       ->description("Determines the input type -- either box or file")
       ->capture_default_str()
-      ->transform(
-        axom::CLI::CheckedTransformer(meshFormMap, axom::CLI::ignore_case));
+      ->transform(axom::CLI::CheckedTransformer(meshFormMap, axom::CLI::ignore_case));
 
     // Parameters for the box mesh option
-    auto* box_options =
-      app.add_option_group("box", "Options for setting up a box mesh");
+    auto* box_options = app.add_option_group("box", "Options for setting up a box mesh");
     auto* minbb = box_options->add_option("--min", boxMins)
                     ->description("Min bounds for box mesh (x,y[,z])")
                     ->expected(2, 3);
@@ -215,8 +208,7 @@ public:
       ->check(axom::CLI::NonNegativeNumber);
 
     // Parameters for the 'file' option
-    auto* file_options =
-      app.add_option_group("file", "Options for loading from an mfem mesh file");
+    auto* file_options = app.add_option_group("file", "Options for loading from an mfem mesh file");
 
     file_options->add_option("-m, --mfem-file", mfemFile)
       ->description("Path to a mesh file in the mfem format")
@@ -236,8 +228,7 @@ public:
     // could throw an exception
     app.parse(argc, argv);
 
-    slic::setLoggingMsgLevel(m_verboseOutput ? slic::message::Debug
-                                             : slic::message::Info);
+    slic::setLoggingMsgLevel(m_verboseOutput ? slic::message::Debug : slic::message::Info);
 
     // Fix up some parameters
     if(meshForm == MeshForm::Box)
@@ -252,9 +243,7 @@ public:
     {
       if(mfemFile.empty())
       {
-        throw axom::CLI::ValidationError(
-          "file",
-          "'mfemFile' required when `--mesh-form == File`");
+        throw axom::CLI::ValidationError("file", "'mfemFile' required when `--mesh-form == File`");
       }
 
       if(dcName.empty())
@@ -291,13 +280,10 @@ mfem::Mesh* createBoxMesh(const Input& params)
     auto res = axom::NumericArray<int, 2>(params.boxResolution.data());
     auto bbox = primal::BoundingBox<double, 2>(Pt2D(lo.data()), Pt2D(hi.data()));
 
-    SLIC_INFO(axom::fmt::format(
-      "Creating a box mesh of resolution {} and bounding box {}",
-      res,
-      bbox));
+    SLIC_INFO(
+      axom::fmt::format("Creating a box mesh of resolution {} and bounding box {}", res, bbox));
 
-    mesh =
-      quest::util::make_cartesian_mfem_mesh_2D(bbox, res, params.polynomialOrder);
+    mesh = quest::util::make_cartesian_mfem_mesh_2D(bbox, res, params.polynomialOrder);
   }
   break;
   case 3:
@@ -306,13 +292,10 @@ mfem::Mesh* createBoxMesh(const Input& params)
     auto res = axom::NumericArray<int, 3>(params.boxResolution.data());
     auto bbox = primal::BoundingBox<double, 3>(Pt3D(lo.data()), Pt3D(hi.data()));
 
-    SLIC_INFO(axom::fmt::format(
-      "Creating a box mesh of resolution {} and bounding box {}",
-      res,
-      bbox));
+    SLIC_INFO(
+      axom::fmt::format("Creating a box mesh of resolution {} and bounding box {}", res, bbox));
 
-    mesh =
-      quest::util::make_cartesian_mfem_mesh_3D(bbox, res, params.polynomialOrder);
+    mesh = quest::util::make_cartesian_mfem_mesh_3D(bbox, res, params.polynomialOrder);
   }
   break;
   default:
@@ -355,10 +338,9 @@ mfem::Mesh* loadFileMesh(const Input& params)
         break;
       default:
         SLIC_ERROR_IF(dim != numProvidedScales,
-                      axom::fmt::format(
-                        "Incorrect number of scale values. Expected {} got {}",
-                        dim,
-                        numProvidedScales));
+                      axom::fmt::format("Incorrect number of scale values. Expected {} got {}",
+                                        dim,
+                                        numProvidedScales));
         for(int d = 0; d < dim; ++d)
         {
           sc(d) = params.fileScale[d];
@@ -382,10 +364,9 @@ mfem::Mesh* loadFileMesh(const Input& params)
       default:
         SLIC_ERROR_IF(
           dim != numProvidedTranslations,
-          axom::fmt::format(
-            "Incorrect number of translations values. Expected {} got {}",
-            dim,
-            numProvidedTranslations));
+          axom::fmt::format("Incorrect number of translations values. Expected {} got {}",
+                            dim,
+                            numProvidedTranslations));
         for(int d = 0; d < dim; ++d)
         {
           tr(d) = params.fileTranslate[d];
@@ -498,8 +479,7 @@ void initializeLogger()
     std::string fmt = "[<RANK>][<LEVEL>]: <MESSAGE>\n";
   #ifdef AXOM_USE_LUMBERJACK
     const int RLIMIT = 8;
-    logStream =
-      new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, RLIMIT, fmt);
+    logStream = new slic::LumberjackStream(&std::cout, MPI_COMM_WORLD, RLIMIT, fmt);
   #else
     logStream = new slic::SynchronizedStream(&std::cout, MPI_COMM_WORLD, fmt);
   #endif
@@ -543,8 +523,7 @@ int main(int argc, char** argv)
 
   // Set up and parse command line arguments
   Input params;
-  axom::CLI::App app {
-    "Utility tool to create a blueprint compliant data store"};
+  axom::CLI::App app {"Utility tool to create a blueprint compliant data store"};
 
   try
   {
@@ -597,8 +576,7 @@ int main(int argc, char** argv)
   {
     int* partitioning = nullptr;
     int part_method = 0;
-    mfem::Mesh* pmesh =
-      new mfem::ParMesh(MPI_COMM_WORLD, *mesh, partitioning, part_method);
+    mfem::Mesh* pmesh = new mfem::ParMesh(MPI_COMM_WORLD, *mesh, partitioning, part_method);
     delete[] partitioning;
     delete mesh;
     mesh = pmesh;

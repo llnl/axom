@@ -60,25 +60,22 @@ SIDRE_Buffer *SIDRE_DataStore_get_buffer_int64_t(SIDRE_DataStore *self,
                                                  int64_t idx,
                                                  SIDRE_Buffer *SHC_rv);
 
-SIDRE_Buffer *SIDRE_DataStore_create_buffer_empty(SIDRE_DataStore *self,
-                                                  SIDRE_Buffer *SHC_rv);
+SIDRE_Buffer *SIDRE_DataStore_create_buffer_empty(SIDRE_DataStore *self, SIDRE_Buffer *SHC_rv);
 
 SIDRE_Buffer *SIDRE_DataStore_create_buffer_from_type(SIDRE_DataStore *self,
                                                       SIDRE_TypeID type,
                                                       SIDRE_IndexType num_elems,
                                                       SIDRE_Buffer *SHC_rv);
 
-SIDRE_Buffer *SIDRE_DataStore_create_buffer_from_type_int32_t(
-  SIDRE_DataStore *self,
-  SIDRE_TypeID type,
-  int32_t num_elems,
-  SIDRE_Buffer *SHC_rv);
+SIDRE_Buffer *SIDRE_DataStore_create_buffer_from_type_int32_t(SIDRE_DataStore *self,
+                                                              SIDRE_TypeID type,
+                                                              int32_t num_elems,
+                                                              SIDRE_Buffer *SHC_rv);
 
-SIDRE_Buffer *SIDRE_DataStore_create_buffer_from_type_int64_t(
-  SIDRE_DataStore *self,
-  SIDRE_TypeID type,
-  int64_t num_elems,
-  SIDRE_Buffer *SHC_rv);
+SIDRE_Buffer *SIDRE_DataStore_create_buffer_from_type_int64_t(SIDRE_DataStore *self,
+                                                              SIDRE_TypeID type,
+                                                              int64_t num_elems,
+                                                              SIDRE_Buffer *SHC_rv);
 
 void SIDRE_DataStore_destroy_buffer(SIDRE_DataStore *self, SIDRE_IndexType id);
 

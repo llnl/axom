@@ -48,8 +48,7 @@ TEST(opencascade_smoke, make_box)
   constexpr int box_width = 100;
   constexpr int box_depth = 50;
 
-  TopoDS_Shape box =
-    BRepPrimAPI_MakeBox(box_length, box_width, box_depth).Shape();
+  TopoDS_Shape box = BRepPrimAPI_MakeBox(box_length, box_width, box_depth).Shape();
   EXPECT_FALSE(box.IsNull());
 
   Bnd_Box boundingBox;

@@ -40,23 +40,13 @@ namespace internal
  *
  */
 
-template <typename ExecPolicy,
-          int NDIM,
-          int NNODES,
-          typename FOR_ALL_FUNCTOR,
-          typename MeshType,
-          typename KernelType>
-inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes,
-                           const MeshType& m,
-                           KernelType&& kernel)
+template <typename ExecPolicy, int NDIM, int NNODES, typename FOR_ALL_FUNCTOR, typename MeshType, typename KernelType>
+inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes, const MeshType& m, KernelType&& kernel)
 {
-  SLIC_ERROR_IF(m.getMeshType() == STRUCTURED_UNIFORM_MESH,
-                "Not valid for UniformMesh.");
-  SLIC_ERROR_IF(m.getMeshType() == STRUCTURED_RECTILINEAR_MESH,
-                "Not valid for RectilinearMesh.");
+  SLIC_ERROR_IF(m.getMeshType() == STRUCTURED_UNIFORM_MESH, "Not valid for UniformMesh.");
+  SLIC_ERROR_IF(m.getMeshType() == STRUCTURED_RECTILINEAR_MESH, "Not valid for RectilinearMesh.");
 
-  AXOM_STATIC_ASSERT_MSG(NDIM >= 1 && NDIM <= 3,
-                         "NDIM must be a valid dimension.");
+  AXOM_STATIC_ASSERT_MSG(NDIM >= 1 && NDIM <= 3, "NDIM must be a valid dimension.");
   AXOM_STATIC_ASSERT_MSG(NNODES > 0, "NNODES must be greater than zero.");
 
   constexpr bool valid_mesh_type = std::is_base_of<Mesh, MeshType>::value;
@@ -71,30 +61,24 @@ inline void for_all_coords(const FOR_ALL_FUNCTOR& for_all_nodes,
   IndexType coordinate_size = m.getNumberOfNodes();
 
   // Extract coordinate values into an axom::ArrayView
-  auto x_vals_h =
-    axom::ArrayView<const double>(m.getCoordinateArray(X_COORDINATE),
-                                  coordinate_size);
+  auto x_vals_h = axom::ArrayView<const double>(m.getCoordinateArray(X_COORDINATE), coordinate_size);
   auto y_vals_h = (NDIM > 1)
-    ? axom::ArrayView<const double>(m.getCoordinateArray(Y_COORDINATE),
-                                    coordinate_size)
+    ? axom::ArrayView<const double>(m.getCoordinateArray(Y_COORDINATE), coordinate_size)
     : axom::ArrayView<const double>();
   auto z_vals_h = (NDIM > 2)
-    ? axom::ArrayView<const double>(m.getCoordinateArray(Z_COORDINATE),
-                                    coordinate_size)
+    ? axom::ArrayView<const double>(m.getCoordinateArray(Z_COORDINATE), coordinate_size)
     : axom::ArrayView<const double>();
 
   // Move xyz values onto device
   axom::Array<double> x_vals_d = axom::Array<double>(x_vals_h, device_allocator);
   auto x_vals_view = x_vals_d.view();
 
-  axom::Array<double> y_vals_d = (NDIM > 1)
-    ? axom::Array<double>(y_vals_h, device_allocator)
-    : axom::Array<double>();
+  axom::Array<double> y_vals_d =
+    (NDIM > 1) ? axom::Array<double>(y_vals_h, device_allocator) : axom::Array<double>();
   auto y_vals_view = (NDIM > 1) ? y_vals_d.view() : y_vals_h;
 
-  axom::Array<double> z_vals_d = (NDIM > 2)
-    ? axom::Array<double>(z_vals_h, device_allocator)
-    : axom::Array<double>();
+  axom::Array<double> z_vals_d =
+    (NDIM > 2) ? axom::Array<double>(z_vals_h, device_allocator) : axom::Array<double>();
   auto z_vals_view = (NDIM > 2) ? z_vals_d.view() : z_vals_h;
 
   for_all_nodes(

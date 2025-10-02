@@ -169,7 +169,7 @@ AXOM_HOST_DEVICE inline int popcount(std::uint64_t word) noexcept
   // Use HIP intrinsic for popcount
   return __popcll(word);
 #elif defined(_AXOM_CORE_USE_INTRINSICS_MSVC)
-  return __popcnt64(word);
+  return static_cast<int>(__popcnt64(word));
 #elif defined(_AXOM_CORE_USE_INTRINSICS_GCC) || defined(_AXOM_CORE_USE_INTRINSICS_PPC)
   return __builtin_popcountll(word);
 #else

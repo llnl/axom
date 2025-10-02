@@ -58,8 +58,7 @@ public:
   /// This function checks that all leaf blocks in the tree were assigned a color
   void checkAllLeavesColored() const
   {
-    SLIC_DEBUG(
-      "--Checking that all leaves have a color -- black, white and gray");
+    SLIC_DEBUG("--Checking that all leaves have a color -- black, white and gray");
 
     for(int lev = 0; lev < m_octree.m_levels.size(); ++lev)
     {
@@ -79,12 +78,10 @@ public:
         continue;
       }
 
-      SLIC_ASSERT_MSG(
-        it->isColored(),
-        fmt::format(
-          "Error after coloring level {} leaf block {} was not colored.",
-          level,
-          fmt::streamed(BlockIndex(it.pt(), level))));
+      SLIC_ASSERT_MSG(it->isColored(),
+                      fmt::format("Error after coloring level {} leaf block {} was not colored.",
+                                  level,
+                                  fmt::streamed(BlockIndex(it.pt(), level))));
     }
   }
 
@@ -106,31 +103,28 @@ public:
       // Check that we can find the leaf block indexing each vertex from its position
       SLIC_ASSERT_MSG(
         leafData.hasData() && vertInBlock == i,
-        fmt::format(
-          " Vertex {} at position {} was not indexed in block {} with bounding "
-          "box {} (point {} contained in block)."
-          " \n\n *** \n Leaf data: {} \n ***",
-          i,
-          pos,
-          fmt::streamed(vertBlock),
-          m_octree.blockBoundingBox(vertBlock),
-          (m_octree.blockBoundingBox(vertBlock).contains(pos) ? "is" : "is NOT"),
-          leafData));
+        fmt::format(" Vertex {} at position {} was not indexed in block {} with bounding "
+                    "box {} (point {} contained in block)."
+                    " \n\n *** \n Leaf data: {} \n ***",
+                    i,
+                    pos,
+                    fmt::streamed(vertBlock),
+                    m_octree.blockBoundingBox(vertBlock),
+                    (m_octree.blockBoundingBox(vertBlock).contains(pos) ? "is" : "is NOT"),
+                    leafData));
 
       // Check that our cached value of the vertex's block is accurate
-      SLIC_ASSERT_MSG(
-        vertBlock == m_octree.m_vertexToBlockMap[i],
-        fmt::format(
-          "Cached block for vertex {} differs from its found block. "
-          "\n\t -- cached block {} -- is leaf? {}"
-          "\n\t -- actual block {} -- is leaf? {}"
-          "\n\t -- vertex set size: {}",
-          i,
-          fmt::streamed(m_octree.m_vertexToBlockMap[i]),
-          (m_octree[m_octree.m_vertexToBlockMap[i]].isLeaf() ? "yes" : "no"),
-          fmt::streamed(vertBlock),
-          (m_octree[vertBlock].isLeaf() ? "yes" : "no"),
-          numVertices));
+      SLIC_ASSERT_MSG(vertBlock == m_octree.m_vertexToBlockMap[i],
+                      fmt::format("Cached block for vertex {} differs from its found block. "
+                                  "\n\t -- cached block {} -- is leaf? {}"
+                                  "\n\t -- actual block {} -- is leaf? {}"
+                                  "\n\t -- vertex set size: {}",
+                                  i,
+                                  fmt::streamed(m_octree.m_vertexToBlockMap[i]),
+                                  (m_octree[m_octree.m_vertexToBlockMap[i]].isLeaf() ? "yes" : "no"),
+                                  fmt::streamed(vertBlock),
+                                  (m_octree[vertBlock].isLeaf() ? "yes" : "no"),
+                                  numVertices));
     }
   }
 
@@ -162,20 +156,19 @@ public:
           }
         }
 
-        SLIC_ASSERT_MSG(
-          foundCell,
-          fmt::format("Did not find cell with index {} and vertices [{}] "
-                      "in block {} containing vertex {}"
-                      " \n\n *** "
-                      "\n Leaf data: {} "
-                      "\n\t Cells in block? [{}] "
-                      "\n ***",
-                      cIdx,
-                      fmt::join(cvRel, ", "),
-                      fmt::streamed(vertBlock),
-                      vIdx,
-                      leafData,
-                      fmt::join(leafCells.begin(), leafCells.end(), ", ")));
+        SLIC_ASSERT_MSG(foundCell,
+                        fmt::format("Did not find cell with index {} and vertices [{}] "
+                                    "in block {} containing vertex {}"
+                                    " \n\n *** "
+                                    "\n Leaf data: {} "
+                                    "\n\t Cells in block? [{}] "
+                                    "\n ***",
+                                    cIdx,
+                                    fmt::join(cvRel, ", "),
+                                    fmt::streamed(vertBlock),
+                                    vIdx,
+                                    leafData,
+                                    fmt::join(leafCells.begin(), leafCells.end(), ", ")));
       }
     }
   }
@@ -213,41 +206,38 @@ public:
               CellIndex cIdx = blockCells[i];
 
               // Check that vIdx is one of this cell's vertices
-              CellVertIndices cvRel =
-                m_octree.m_meshWrapper.cellVertexIndices(cIdx);
+              CellVertIndices cvRel = m_octree.m_meshWrapper.cellVertexIndices(cIdx);
 
-              SLIC_ASSERT_MSG(
-                m_octree.m_meshWrapper.incidentInVertex(cvRel, vIdx),
-                fmt::format("All cells in a gray block must be incident "
-                            " in a common vertex, but cell {} with "
-                            "vertices [{}] in block {}"
-                            " is not incident in vertex {}",
-                            cIdx,
-                            fmt::join(cvRel, ", "),
-                            fmt::streamed(block),
-                            vIdx));
+              SLIC_ASSERT_MSG(m_octree.m_meshWrapper.incidentInVertex(cvRel, vIdx),
+                              fmt::format("All cells in a gray block must be incident "
+                                          " in a common vertex, but cell {} with "
+                                          "vertices [{}] in block {}"
+                                          " is not incident in vertex {}",
+                                          cIdx,
+                                          fmt::join(cvRel, ", "),
+                                          fmt::streamed(block),
+                                          vIdx));
 
               // Check that this cell intersects the bounding box of the block
               GeometricBoundingBox blockBB = m_octree.blockBoundingBox(block);
               blockBB.expand(bb_scale_factor);
-              SLIC_ASSERT_MSG(
-                m_octree.blockIndexesElementVertex(cIdx, block) ||
-                  intersect(m_octree.m_meshWrapper.cellPositions(cIdx), blockBB),
-                fmt::format("Cell {} was indexed in block {}"
-                            " but it does not intersect the block."
-                            "\n\tBlock bounding box: {}"
-                            "\n\tCell positions: {}"
-                            "\n\tCell vertex indices: [{}]"
-                            "\n\tLeaf vertex is: {}"
-                            "\n\tLeaf cells: {} ({})",
-                            cIdx,
-                            fmt::streamed(block),
-                            blockBB,
-                            m_octree.m_meshWrapper.cellPositions(cIdx),
-                            fmt::join(cvRel, ", "),
-                            vIdx,
-                            fmt::join(blockCells, ", "),
-                            blockCells.size()));
+              SLIC_ASSERT_MSG(m_octree.blockIndexesElementVertex(cIdx, block) ||
+                                intersect(m_octree.m_meshWrapper.cellPositions(cIdx), blockBB),
+                              fmt::format("Cell {} was indexed in block {}"
+                                          " but it does not intersect the block."
+                                          "\n\tBlock bounding box: {}"
+                                          "\n\tCell positions: {}"
+                                          "\n\tCell vertex indices: [{}]"
+                                          "\n\tLeaf vertex is: {}"
+                                          "\n\tLeaf cells: {} ({})",
+                                          cIdx,
+                                          fmt::streamed(block),
+                                          blockBB,
+                                          m_octree.m_meshWrapper.cellPositions(cIdx),
+                                          fmt::join(cvRel, ", "),
+                                          vIdx,
+                                          fmt::join(blockCells, ", "),
+                                          blockCells.size()));
             }
           }
         }
@@ -273,8 +263,7 @@ public:
           // When leaf is inside or outside -- face neighbors need same label
           for(int i = 0; i < block.numFaceNeighbors(); ++i)
           {
-            BlockIndex neighborBlk =
-              m_octree.coveringLeafBlock(block.faceNeighbor(i));
+            BlockIndex neighborBlk = m_octree.coveringLeafBlock(block.faceNeighbor(i));
             if(neighborBlk != BlockIndex::invalid_index())
             {
               const InOutBlockData& neighborData = m_octree[neighborBlk];

@@ -5,9 +5,9 @@
 
 #include "axom/klee/ShapeSet.hpp"
 
-#include <stdexcept>
-
 #include "gtest/gtest.h"
+
+#include <stdexcept>
 
 namespace axom
 {

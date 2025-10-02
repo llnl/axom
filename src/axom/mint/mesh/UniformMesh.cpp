@@ -39,8 +39,7 @@ UniformMesh::UniformMesh(const double* lower_bound,
 #ifdef AXOM_MINT_USE_SIDRE
 
 //------------------------------------------------------------------------------
-UniformMesh::UniformMesh(sidre::Group* group, const std::string& topo)
-  : StructuredMesh(group, topo)
+UniformMesh::UniformMesh(sidre::Group* group, const std::string& topo) : StructuredMesh(group, topo)
 {
   SLIC_ERROR_IF(m_type != STRUCTURED_UNIFORM_MESH,
                 "supplied Sidre group does not correspond to a UniformMesh!");
@@ -108,8 +107,7 @@ void UniformMesh::setSpacingAndOrigin(const double* lo, const double* hi)
   {
     m_origin[dim] = lo[dim];
     double dx = hi[dim] - lo[dim];
-    SLIC_ERROR_IF(utilities::isNearlyEqual(dx, 0.0) || dx < 0.0,
-                  "supplied invalid bounds!");
+    SLIC_ERROR_IF(utilities::isNearlyEqual(dx, 0.0) || dx < 0.0, "supplied invalid bounds!");
     m_h[dim] = dx / getCellResolution(dim);
   }
 }

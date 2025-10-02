@@ -51,8 +51,7 @@ File::File(std::string uri_, conduit::Node const &asNode)
       else
       {
         std::ostringstream message;
-        message << "The optional field '" << TAGS_KEY
-                << "' must be an array of strings. Found '"
+        message << "The optional field '" << TAGS_KEY << "' must be an array of strings. Found '"
                 << tag.dtype().name() << "' instead.";
         throw std::invalid_argument(message.str());
       }
@@ -60,15 +59,9 @@ File::File(std::string uri_, conduit::Node const &asNode)
   }
 }
 
-void File::setMimeType(std::string mimeType_)
-{
-  File::mimeType = std::move(mimeType_);
-}
+void File::setMimeType(std::string mimeType_) { File::mimeType = std::move(mimeType_); }
 
-void File::setTags(std::vector<std::string> tags_)
-{
-  File::tags = std::move(tags_);
-}
+void File::setTags(std::vector<std::string> tags_) { File::tags = std::move(tags_); }
 
 conduit::Node File::toNode() const
 {

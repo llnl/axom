@@ -46,11 +46,7 @@ protected:
   static void SetUpTestCase()
   {
     adiak::init(nullptr);
-    adiak_register_cb(1,
-                      adiak_category_all,
-                      AdiakWriterTest::callbackWrapper,
-                      0,
-                      &current_test);
+    adiak_register_cb(1, adiak_category_all, AdiakWriterTest::callbackWrapper, 0, &current_test);
   }
 
   void SetUp() override { current_test = this; }
@@ -63,17 +59,10 @@ protected:
                               void *adiakwriter)
   {
     auto test = static_cast<AdiakWriterTest **>(adiakwriter);
-    adiakSinaCallback(name,
-                      category,
-                      subcategory,
-                      val,
-                      adiak_type,
-                      &((*test)->record));
+    adiakSinaCallback(name, category, subcategory, val, adiak_type, &((*test)->record));
   }
 
-  axom::sina::Record record {
-    axom::sina::ID {"test_run", axom::sina::IDType::Local},
-    "test_type"};
+  axom::sina::Record record {axom::sina::ID {"test_run", axom::sina::IDType::Local}, "test_type"};
   static AdiakWriterTest *current_test;
 };
 
@@ -120,8 +109,7 @@ TEST_F(AdiakWriterTest, date_type)
   auto result = adiak::value(name1, adiak::date(1568397849));
   EXPECT_TRUE(result);
   auto toNode = record.toNode();
-  EXPECT_EQ("Fri, 13 Sep 2019 11:04:09 -0700",
-            toNode[EXPECTED_DATA_KEY][name1]["value"].as_string());
+  EXPECT_EQ("Fri, 13 Sep 2019 11:04:09 -0700", toNode[EXPECTED_DATA_KEY][name1]["value"].as_string());
 }
 
 TEST_F(AdiakWriterTest, list_types)
@@ -137,8 +125,7 @@ TEST_F(AdiakWriterTest, list_types)
   auto doub_array = asNode[EXPECTED_DATA_KEY][name1]["value"].as_double_ptr();
   std::vector<double> scal_child_vals(
     doub_array,
-    doub_array +
-      asNode[EXPECTED_DATA_KEY][name1]["value"].dtype().number_of_elements());
+    doub_array + asNode[EXPECTED_DATA_KEY][name1]["value"].dtype().number_of_elements());
   EXPECT_EQ(value1, scal_child_vals);
   std::set<std::string> node_vals;
   auto val_itr = asNode[EXPECTED_DATA_KEY][name2]["value"].children();
@@ -158,11 +145,8 @@ TEST_F(AdiakWriterTest, files)
   EXPECT_TRUE(result1 && result2);
   auto asNode = record.toNode();
   EXPECT_FALSE(asNode[EXPECTED_FILES_KEY].child(value1).dtype().is_empty());
-  EXPECT_EQ(
-    1,
-    asNode[EXPECTED_FILES_KEY].child(value2)["tags"].number_of_children());
-  EXPECT_EQ(tags2[0],
-            asNode[EXPECTED_FILES_KEY].child(value2)["tags"][0].as_string());
+  EXPECT_EQ(1, asNode[EXPECTED_FILES_KEY].child(value2)["tags"].number_of_children());
+  EXPECT_EQ(tags2[0], asNode[EXPECTED_FILES_KEY].child(value2)["tags"][0].as_string());
 }
 
 TEST_F(AdiakWriterTest, files_list)
@@ -170,18 +154,13 @@ TEST_F(AdiakWriterTest, files_list)
   std::string fileListName = "my_gecko_pics";
   std::string fileListVal1 = "~/pictures/spike.png";
   std::string fileListVal2 = "~/pictures/sandy.png";
-  std::vector<adiak::path> fileListAdiak {adiak::path(fileListVal1),
-                                          adiak::path(fileListVal2)};
+  std::vector<adiak::path> fileListAdiak {adiak::path(fileListVal1), adiak::path(fileListVal2)};
   std::vector<std::string> tags = {"string"};
   EXPECT_TRUE(adiak::value(fileListName, fileListAdiak));
   auto asNode = record.toNode();
   EXPECT_FALSE(asNode[EXPECTED_FILES_KEY].child(fileListVal1).dtype().is_empty());
-  EXPECT_EQ(
-    1,
-    asNode[EXPECTED_FILES_KEY].child(fileListVal2)["tags"].number_of_children());
-  EXPECT_EQ(
-    fileListName,
-    asNode[EXPECTED_FILES_KEY].child(fileListVal2)["tags"][0].as_string());
+  EXPECT_EQ(1, asNode[EXPECTED_FILES_KEY].child(fileListVal2)["tags"].number_of_children());
+  EXPECT_EQ(fileListName, asNode[EXPECTED_FILES_KEY].child(fileListVal2)["tags"][0].as_string());
 }
 
 }  // namespace

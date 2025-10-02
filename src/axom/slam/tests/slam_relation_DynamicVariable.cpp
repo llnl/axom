@@ -37,9 +37,7 @@ void printVector(StrType const& msg, VecType const& vec)
 {
   std::cout << "\n** " << msg << "\n\t";
   std::cout << "Array of size " << vec.size() << ": ";
-  std::copy(vec.begin(),
-            vec.end(),
-            std::ostream_iterator<PositionType>(std::cout, " "));
+  std::copy(vec.begin(), vec.end(), std::ostream_iterator<PositionType>(std::cout, " "));
 }
 
 template <typename DynamicRelationType>
@@ -162,12 +160,10 @@ TEST(slam_relation_dynamic_variable, iterate_relation)
   SLIC_INFO(".. access via iterators.");
   {
     using SetIter = RangeSetType::iterator;
-    using RelSetConstIter =
-      slam::DynamicVariableRelation<>::RelationVecConstIterator;
+    using RelSetConstIter = slam::DynamicVariableRelation<>::RelationVecConstIterator;
 
     SLIC_INFO("\t using iterator begin()/end() functions");
-    for(SetIter sIt = fromSet.begin(), sItEnd = fromSet.end(); sIt != sItEnd;
-        ++sIt)
+    for(SetIter sIt = fromSet.begin(), sItEnd = fromSet.end(); sIt != sItEnd; ++sIt)
     {
       PositionType fromSetEltNum = std::distance(fromSet.begin(), sIt);
 
@@ -189,10 +185,8 @@ TEST(slam_relation_dynamic_variable, iterate_relation)
     }
 
     SLIC_INFO("\t  using iterator range() function");
-    using RelSetConstIterPair =
-      slam::DynamicVariableRelation<>::RelationVecConstIteratorPair;
-    for(SetIter sIt = fromSet.begin(), sItEnd = fromSet.end(); sIt != sItEnd;
-        ++sIt)
+    using RelSetConstIterPair = slam::DynamicVariableRelation<>::RelationVecConstIteratorPair;
+    for(SetIter sIt = fromSet.begin(), sItEnd = fromSet.end(); sIt != sItEnd; ++sIt)
     {
       // PositionType fromSetEltNum = std::distance(fromSet.begin(), sIt);
 
@@ -201,8 +195,7 @@ TEST(slam_relation_dynamic_variable, iterate_relation)
       {
         PositionType toSetEltNum = std::distance(toSetItPair.first, it);
         PositionType expectedVal = toSetEltNum % TOSET_SIZE;
-        ASSERT_EQ(expectedVal, *it)
-          << "incrementing relation's value was incorrect";
+        ASSERT_EQ(expectedVal, *it) << "incrementing relation's value was incorrect";
       }
     }
   }

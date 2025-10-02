@@ -5,16 +5,27 @@
 #include "runMIR.hpp"
 
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && defined(AXOM_USE_CUDA)
-int runMIR_cuda(const conduit::Node &mesh,
+int runMIR_cuda(int dimension,
+                const conduit::Node &mesh,
                 const conduit::Node &options,
                 conduit::Node &result)
 {
   constexpr int CUDA_BLOCK_SIZE = 256;
   using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
-  return runMIR<cuda_exec>(mesh, options, result);
+  int retval = 0;
+  if(dimension == 3)
+  {
+    retval = runMIR<cuda_exec, 3>(mesh, options, result);
+  }
+  else
+  {
+    retval = runMIR<cuda_exec, 2>(mesh, options, result);
+  }
+  return retval;
 }
 #else
-int runMIR_cuda(const conduit::Node &AXOM_UNUSED_PARAM(mesh),
+int runMIR_cuda(int AXOM_UNUSED_PARAM(dimension),
+                const conduit::Node &AXOM_UNUSED_PARAM(mesh),
                 const conduit::Node &AXOM_UNUSED_PARAM(options),
                 conduit::Node &AXOM_UNUSED_PARAM(result))
 {

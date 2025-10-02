@@ -76,10 +76,7 @@ public:
    *
    * \return Number of ranks in the set.
    */
-  int setSize() const
-  {
-    return m_my_rank < m_first_regular_set_rank ? m_set_size + 1 : m_set_size;
-  }
+  int setSize() const { return m_my_rank < m_first_regular_set_rank ? m_set_size + 1 : m_set_size; }
 
   /*!
    * \brief Tells if the local rank is the first (lowest) in its set.

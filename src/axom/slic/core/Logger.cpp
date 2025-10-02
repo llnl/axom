@@ -6,6 +6,7 @@
 #include "axom/slic/core/Logger.hpp"
 #include "axom/slic/core/LogStream.hpp"
 #include "axom/core/utilities/Utilities.hpp"
+#include "axom/slic/core/LogStreamStatusMonitor.hpp"
 
 // C/C++ includes
 #include <iostream>
@@ -30,6 +31,14 @@ Logger*& getLogger()
 {
   static Logger* s_Logger = nullptr;
   return s_Logger;
+}
+
+//------------------------------------------------------------------------------
+// This is a singleton, scope-limited to this file.
+LogStreamStatusMonitor& getLogStreamStatusMonitor()
+{
+  static LogStreamStatusMonitor s_logStreamStatusMonitor;
+  return s_logStreamStatusMonitor;
 }
 
 //------------------------------------------------------------------------------
@@ -123,9 +132,7 @@ void Logger::setLoggingMsgLevel(message::Level level)
 }
 
 //------------------------------------------------------------------------------
-void Logger::addStreamToMsgLevel(LogStream* ls,
-                                 message::Level level,
-                                 bool pass_ownership)
+void Logger::addStreamToMsgLevel(LogStream* ls, message::Level level, bool pass_ownership)
 {
   if(ls == nullptr)
   {
@@ -139,12 +146,12 @@ void Logger::addStreamToMsgLevel(LogStream* ls,
   {
     m_streamObjectsManager[ls] = ls;
   }
+
+  getLogStreamStatusMonitor().addStream(ls);
 }
 
 //------------------------------------------------------------------------------
-void Logger::addStreamToTag(LogStream* ls,
-                            const std::string& tag,
-                            bool pass_ownership)
+void Logger::addStreamToTag(LogStream* ls, const std::string& tag, bool pass_ownership)
 {
   if(ls == nullptr)
   {
@@ -165,6 +172,8 @@ void Logger::addStreamToTag(LogStream* ls,
   {
     m_streamObjectsManager[ls] = ls;
   }
+
+  getLogStreamStatusMonitor().addStream(ls);
 }
 
 //------------------------------------------------------------------------------
@@ -178,9 +187,7 @@ void Logger::addStreamToAllMsgLevels(LogStream* ls, bool pass_ownership)
 
   for(int level = message::Error; level < message::Num_Levels; ++level)
   {
-    this->addStreamToMsgLevel(ls,
-                              static_cast<message::Level>(level),
-                              pass_ownership);
+    this->addStreamToMsgLevel(ls, static_cast<message::Level>(level), pass_ownership);
   }
 }
 
@@ -258,9 +265,7 @@ LogStream* Logger::getStream(const std::string& tag, int i)
 }
 
 //------------------------------------------------------------------------------
-void Logger::logMessage(message::Level level,
-                        const std::string& message,
-                        bool filter_duplicates)
+void Logger::logMessage(message::Level level, const std::string& message, bool filter_duplicates)
 {
   this->logMessage(level,
                    message,
@@ -294,13 +299,7 @@ void Logger::logMessage(message::Level level,
                         int line,
                         bool filter_duplicates)
 {
-  this->logMessage(level,
-                   message,
-                   MSG_IGNORE_TAG,
-                   fileName,
-                   line,
-                   filter_duplicates,
-                   false);
+  this->logMessage(level, message, MSG_IGNORE_TAG, fileName, line, filter_duplicates, false);
 }
 
 //------------------------------------------------------------------------------
@@ -323,8 +322,7 @@ void Logger::logMessage(message::Level level,
     return;
   }
 
-  if(tag_stream_only == true &&
-     m_taggedStreams.find(tagName) == m_taggedStreams.end())
+  if(tag_stream_only == true && m_taggedStreams.find(tagName) == m_taggedStreams.end())
   {
     std::cerr << "ERROR: tag does not exist!\n";
     return;
@@ -336,13 +334,8 @@ void Logger::logMessage(message::Level level,
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      m_logStreams[level][istream]->append(level,
-                                           message,
-                                           tagName,
-                                           fileName,
-                                           line,
-                                           filter_duplicates,
-                                           tag_stream_only);
+      m_logStreams[level][istream]
+        ->append(level, message, tagName, fileName, line, filter_duplicates, tag_stream_only);
     }
   }
 
@@ -351,13 +344,8 @@ void Logger::logMessage(message::Level level,
   {
     for(unsigned int i = 0; i < m_taggedStreams[tagName].size(); i++)
     {
-      m_taggedStreams[tagName][i]->append(level,
-                                          message,
-                                          tagName,
-                                          fileName,
-                                          line,
-                                          filter_duplicates,
-                                          tag_stream_only);
+      m_taggedStreams[tagName][i]
+        ->append(level, message, tagName, fileName, line, filter_duplicates, tag_stream_only);
     }
   }
 }
@@ -372,7 +360,6 @@ void Logger::outputLocalMessages()
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
       m_logStreams[level][istream]->outputLocal();
-
     }  // END for all streams
 
   }  // END for all levels
@@ -392,13 +379,24 @@ void Logger::outputLocalMessages()
 //------------------------------------------------------------------------------
 void Logger::flushStreams()
 {
+  /*
+    check if any MPI-based stream has pending messages on any rank.
+    This is needed to avoid unecessary pushes or flushes when there are no
+    pending messages.
+   */
+  const bool pendingMessages = hasPendingMessages();
+
   //Flush for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
   {
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      m_logStreams[level][istream]->flush();
+      const bool streamUsesMPI = m_logStreams[level][istream]->isUsingMPI();
+      if(shouldPushMessages(pendingMessages, streamUsesMPI))
+      {
+        m_logStreams[level][istream]->flush();
+      }
 
     }  // END for all streams
 
@@ -411,7 +409,11 @@ void Logger::flushStreams()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      it->second[i]->flush();
+      const bool streamUsesMPI = it->second[i]->isUsingMPI();
+      if(shouldPushMessages(pendingMessages, streamUsesMPI))
+      {
+        it->second[i]->flush();
+      }
     }
   }
 }
@@ -419,13 +421,23 @@ void Logger::flushStreams()
 //------------------------------------------------------------------------------
 void Logger::pushStreams()
 {
+  /*
+    check if any MPI-based stream has pending messages on any rank.
+    This is needed to avoid unecessary pushes or flushes when there are no
+    pending messages.
+   */
+  const bool pendingMessages = hasPendingMessages();
   //Push for all message levels
   for(int level = message::Error; level < message::Num_Levels; ++level)
   {
     unsigned nstreams = static_cast<unsigned>(m_logStreams[level].size());
     for(unsigned istream = 0; istream < nstreams; ++istream)
     {
-      m_logStreams[level][istream]->push();
+      const bool streamUsesMPI = m_logStreams[level][istream]->isUsingMPI();
+      if(shouldPushMessages(pendingMessages, streamUsesMPI))
+      {
+        m_logStreams[level][istream]->push();
+      }
 
     }  // END for all streams
 
@@ -438,10 +450,17 @@ void Logger::pushStreams()
   {
     for(unsigned int i = 0; i < it->second.size(); i++)
     {
-      it->second[i]->push();
+      const bool streamUsesMPI = it->second[i]->isUsingMPI();
+      if(shouldPushMessages(pendingMessages, streamUsesMPI))
+      {
+        it->second[i]->push();
+      }
     }
   }
 }
+
+//------------------------------------------------------------------------------
+bool Logger::hasPendingMessages() { return getLogStreamStatusMonitor().hasPendingMessages(); }
 
 //------------------------------------------------------------------------------
 //                Static Method Implementations
@@ -493,10 +512,9 @@ bool Logger::createLogger(const std::string& name, char imask)
     {
       for(int istream = 0; istream < nstreams; ++istream)
       {
-        loggers[name]->addStreamToMsgLevel(
-          rootLogger->getStream(current_level, istream),
-          current_level,
-          /* pass_ownership */ false);
+        loggers[name]->addStreamToMsgLevel(rootLogger->getStream(current_level, istream),
+                                           current_level,
+                                           /* pass_ownership */ false);
 
       }  // END for all streams at this level
 
@@ -536,6 +554,10 @@ void Logger::finalize()
   loggers.clear();
 
   getLogger() = nullptr;
+
+  LogStreamStatusMonitor& logStreamStatusMonitor = getLogStreamStatusMonitor();
+
+  logStreamStatusMonitor.finalize();
 }
 
 //------------------------------------------------------------------------------
@@ -555,6 +577,11 @@ Logger* Logger::getRootLogger()
   }
 
   return (loggers["root"]);
+}
+
+bool Logger::shouldPushMessages(const bool hasPendingMessages, const bool streamUsesMPI) const
+{
+  return (!streamUsesMPI || hasPendingMessages);
 }
 
 } /* namespace slic */

@@ -6,6 +6,7 @@
 #include "axom/config.hpp"
 #include "axom/core.hpp"  // for axom macros
 #include "axom/slic.hpp"
+#include "axom/bump.hpp"
 #include "axom/mir.hpp"  // for Mir classes & functions
 #include "runMIR.hpp"
 #include "MIRApplication.hpp"
@@ -15,10 +16,6 @@
 
 #include <string>
 
-// namespace aliases
-namespace mir = axom::mir;
-namespace bputils = axom::mir::utilities::blueprint;
-
 using RuntimePolicy = axom::runtime_policy::Policy;
 
 //--------------------------------------------------------------------------------
@@ -26,6 +23,8 @@ MIRApplication::MIRApplication()
   : handler(true)
   , gridSize(5)
   , numCircles(2)
+  , dimension(2)
+  , numTrials(1)
   , writeFiles(true)
   , outputFilePath("output")
   , method("equiz")
@@ -43,16 +42,19 @@ int MIRApplication::initialize(int argc, char **argv)
   app.add_option("--gridsize", gridSize)
     ->check(axom::CLI::PositiveNumber)
     ->description("The number of zones along an axis.");
-  app.add_option("--method", method)
-    ->description("The MIR method name (equiz, elvira)");
+  app.add_option("--method", method)->description("The MIR method name (equiz, elvira)");
   app.add_option("--numcircles", numCircles)
     ->check(axom::CLI::PositiveNumber)
     ->description("The number of circles to use for material creation.");
   app.add_option("--output", outputFilePath)
     ->description("The file path for HDF5/YAML output files");
+  app.add_option("--dimension", dimension, "Specify the dimension (2 or 3)")
+    ->check(axom::CLI::Range(2, 3));  // Restrict the value to the range [2, 3]
   bool disable_write = !writeFiles;
-  app.add_flag("--disable-write", disable_write)
-    ->description("Disable writing data files");
+  app.add_flag("--disable-write", disable_write)->description("Disable writing data files");
+  app.add_option("--trials", numTrials)
+    ->check(axom::CLI::PositiveNumber)
+    ->description("The number of MIR trials to run on the mesh.");
 
 #if defined(AXOM_USE_CALIPER)
   app.add_option("--caliper", annotationMode)
@@ -79,8 +81,7 @@ int MIRApplication::initialize(int argc, char **argv)
 #endif
   app.add_option("-p, --policy", policy, pol_sstr.str())
     ->capture_default_str()
-    ->transform(
-      axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
+    ->transform(axom::CLI::CheckedTransformer(axom::runtime_policy::s_nameToPolicy));
 
   // Parse command line options.
   int retval = 0;
@@ -113,8 +114,7 @@ int MIRApplication::execute()
     conduit::utils::set_error_handler(conduit_debug_err_handler);
   }
 #if defined(AXOM_USE_CALIPER)
-  axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(
-    annotationMode);
+  axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(annotationMode);
 #endif
   int retval = 0;
   try
@@ -145,12 +145,21 @@ int MIRApplication::runMIR()
 {
   // Initialize a mesh for testing MIR
   auto timer = axom::utilities::Timer(true);
-  mir::MeshTester tester;
+  axom::bump::data::MeshTester tester;
   conduit::Node mesh;
   {
     AXOM_ANNOTATE_SCOPE("generate");
     tester.setStructured(requiresStructuredMesh(method));
-    tester.initTestCaseFive(gridSize, numCircles, mesh);
+    if(dimension == 3)
+    {
+      SLIC_INFO("Generating 3D mesh");
+      tester.initTestCaseSix(gridSize, numCircles, mesh);
+    }
+    else
+    {
+      SLIC_INFO("Generating 2D mesh");
+      tester.initTestCaseFive(gridSize, numCircles, mesh);
+    }
     adjustMesh(mesh);
   }
   timer.stop();
@@ -167,17 +176,18 @@ int MIRApplication::runMIR()
   conduit::Node options, resultMesh;
   options["matset"] = "mat";
   options["method"] = method;  // pass method via options.
+  options["trials"] = numTrials;
 
   int retval = 0;
   if(policy == RuntimePolicy::seq)
   {
-    retval = runMIR_seq(mesh, options, resultMesh);
+    retval = runMIR_seq(dimension, mesh, options, resultMesh);
   }
 #if defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
   #if defined(AXOM_USE_OPENMP)
   else if(policy == RuntimePolicy::omp)
   {
-    retval = runMIR_omp(mesh, options, resultMesh);
+    retval = runMIR_omp(dimension, mesh, options, resultMesh);
   }
   #endif
   #if defined(AXOM_USE_CUDA)
@@ -185,13 +195,13 @@ int MIRApplication::runMIR()
   {
     constexpr int CUDA_BLOCK_SIZE = 256;
     using cuda_exec = axom::CUDA_EXEC<CUDA_BLOCK_SIZE>;
-    retval = runMIR_cuda(mesh, options, resultMesh);
+    retval = runMIR_cuda(dimension, mesh, options, resultMesh);
   }
   #endif
   #if defined(AXOM_USE_HIP)
   else if(policy == RuntimePolicy::hip)
   {
-    retval = runMIR_hip(mesh, options, resultMesh);
+    retval = runMIR_hip(dimension, mesh, options, resultMesh);
   }
   #endif
 #endif
@@ -201,8 +211,7 @@ int MIRApplication::runMIR()
     SLIC_ERROR("Unhandled policy.");
   }
   timer.stop();
-  SLIC_INFO("Material interface reconstruction time: "
-            << timer.elapsedTimeInMilliSec() << " ms.");
+  SLIC_INFO("Material interface reconstruction time: " << timer.elapsedTimeInMilliSec() << " ms.");
 
   // Output results
   if(writeFiles)
@@ -229,13 +238,9 @@ void MIRApplication::saveMesh(const conduit::Node &n_mesh, const std::string &pa
 }
 
 //--------------------------------------------------------------------------------
-void MIRApplication::conduit_debug_err_handler(const std::string &s1,
-                                               const std::string &s2,
-                                               int i1)
+void MIRApplication::conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
 {
-  SLIC_ERROR(
-    axom::fmt::format("Error from Conduit: s1={}, s2={}, i1={}", s1, s2, i1));
+  SLIC_ERROR(axom::fmt::format("Error from Conduit: s1={}, s2={}, i1={}", s1, s2, i1));
   // This is on purpose.
-  while(1)
-    ;
+  while(1);
 }

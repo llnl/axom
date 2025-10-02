@@ -69,10 +69,9 @@ public:
    *
    * \pre sizeof...(Args) == DIM
    */
-  template <
-    typename... Args,
-    typename Enable = typename std::enable_if<
-      sizeof...(Args) == DIM && detail::all_types_are_integral<Args...>::value>::type>
+  template <typename... Args,
+            typename Enable = typename std::enable_if<
+              sizeof...(Args) == DIM && detail::all_types_are_integral<Args...>::value>::type>
   AXOM_HOST_DEVICE ArrayView(T* data, Args... args);
 
   /*!
@@ -212,6 +211,74 @@ public:
   AXOM_HOST_DEVICE ArrayView subspan(const StackArray<IndexType, DIM>& offsets,
                                      const StackArray<IndexType, DIM>& counts);
 
+  /*!
+   * \brief Fill the ArrayView with a value.
+   *
+   * \param value The value to be used for filling the ArrayView.
+   */
+  void fill(const T& value);
+
+  /*!
+   * \brief Set a range of elements to a given value.
+   *
+   * \param [in] value the value to set to.
+   * \param [in] n the number of elements to write.
+   * \param [in] pos the position at which to begin the fill operation.
+   *
+   * \note The size is unchanged by calls to fill.
+   *
+   * \pre pos + n <= m_num_elements.
+   */
+  void fill(const T& value, IndexType n, IndexType pos);
+
+  /*!
+   * \brief Modify the values of existing elements.
+   *
+   * \param [in] elements the new elements to use in the set operation.
+   * \param [in] n the number of elements in the set operation.
+   * \param [in] pos the position at which to begin replacing values.
+   *
+   * \note It's assumed that elements is of length n.
+   * \note The size is unchanged by calls to set.
+   *
+   * \pre pos + n <= m_num_elements.
+   */
+  void set(const T* elements, IndexType n, IndexType pos);
+
+  /*!
+   * \brief Set the array view contents.
+   *
+   * \param [in] count The new number of elements.
+   * \param [in] value The value to store in the elements.
+   *
+   * \note It's assumed that it is safe to store \a count elements.
+   * \note The size is set to \a count by calls to assign.
+   */
+  void assign(axom::IndexType count, const T& value);
+
+  /*!
+   * \brief Replaces contents with copies of objects in the range [first, last).
+   *
+   * \param [in] first The iterator that begins the range used for assignment.
+   * \param [in] last The iterator that ends the range used for assignment.
+   *                  The value at this iterator is not assigned into to the view.
+   *
+   * \post Size of ArrayView is changed to the number of items in the iterator
+   *       range, and values values referenced by the iterator range are copied
+   *       into the Array.
+   */
+  template <class InputIt>
+  void assign(InputIt first, InputIt last);
+
+  /*!
+   * \brief Set the array contents using an initializer list.
+   *
+   * \param [in] elems An initializer list containing the new array values.
+   *
+   * \post The ArrayView contains copies of the initializer list elements.
+   */
+  void assign(std::initializer_list<T> elems);
+
 private:
   T* m_data = nullptr;
   /// \brief The full number of elements in the array
@@ -233,19 +300,16 @@ using MCArrayView = ArrayView<T, 2>;
 template <typename T, int DIM, MemorySpace SPACE>
 template <typename... Args, typename Enable>
 AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(T* data, Args... args)
-  : ArrayView(data,
-              StackArray<IndexType, DIM> {{static_cast<IndexType>(args)...}})
+  : ArrayView(data, StackArray<IndexType, DIM> {{static_cast<IndexType>(args)...}})
 {
-  static_assert(sizeof...(Args) == DIM,
-                "Array size must match number of dimensions");
+  static_assert(sizeof...(Args) == DIM, "Array size must match number of dimensions");
 }
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE>
-AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
-  T* data,
-  const StackArray<IndexType, DIM>& shape,
-  IndexType min_stride)
+AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(T* data,
+                                                     const StackArray<IndexType, DIM>& shape,
+                                                     IndexType min_stride)
   : ArrayBase<T, DIM, ArrayView<T, DIM, SPACE>>(shape, min_stride)
   , m_data(data)
 #ifndef AXOM_DEVICE_CODE
@@ -291,10 +355,9 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
 
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE>
-AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
-  T* data,
-  const StackArray<IndexType, DIM>& shape,
-  const StackArray<IndexType, DIM>& stride)
+AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(T* data,
+                                                     const StackArray<IndexType, DIM>& shape,
+                                                     const StackArray<IndexType, DIM>& stride)
   : ArrayBase<T, DIM, ArrayView<T, DIM, SPACE>>(shape, stride)
   , m_data(data)
 #ifndef AXOM_DEVICE_CODE
@@ -341,8 +404,7 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
 //------------------------------------------------------------------------------
 template <typename T, int DIM, MemorySpace SPACE>
 template <typename OtherArrayType>
-AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
-  ArrayBase<T, DIM, OtherArrayType>& other)
+AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(ArrayBase<T, DIM, OtherArrayType>& other)
   : ArrayBase<T, DIM, ArrayView<T, DIM, SPACE>>(other)
   , m_data(static_cast<OtherArrayType&>(other).data())
   , m_num_elements(static_cast<OtherArrayType&>(other).size())
@@ -351,8 +413,7 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
 #if !defined(AXOM_DEVICE_CODE) && defined(AXOM_DEBUG)
   // If it's not dynamic, the allocator ID from the argument array has to match the template param.
   // If that's not the case then things have gone horribly wrong somewhere.
-  if(SPACE != MemorySpace::Dynamic &&
-     SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
   {
     std::cerr << "Input argument allocator does not match the explicitly "
                  "provided memory space\n";
@@ -371,14 +432,12 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE>::ArrayView(
   , m_num_elements(static_cast<const OtherArrayType&>(other).size())
   , m_allocator_id(static_cast<const OtherArrayType&>(other).getAllocatorID())
 {
-  static_assert(
-    std::is_const<T>::value || detail::ArrayTraits<OtherArrayType>::is_view,
-    "Cannot create an ArrayView of non-const type from a const Array");
+  static_assert(std::is_const<T>::value || detail::ArrayTraits<OtherArrayType>::is_view,
+                "Cannot create an ArrayView of non-const type from a const Array");
 #if !defined(AXOM_DEVICE_CODE) && defined(AXOM_DEBUG)
   // If it's not dynamic, the allocator ID from the argument array has to match the template param.
   // If that's not the case then things have gone horribly wrong somewhere.
-  if(SPACE != MemorySpace::Dynamic &&
-     SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
+  if(SPACE != MemorySpace::Dynamic && SPACE != axom::detail::getAllocatorSpace(m_allocator_id))
   {
     std::cerr << "Input argument allocator does not match the explicitly "
                  "provided memory space\n";
@@ -405,8 +464,7 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE> ArrayView<T, DIM, SPACE>::subspan(
   }
 #endif
   // Compute flat offset into existing data.
-  IndexType offset =
-    numerics::dot_product(offsets.m_data, this->strides().m_data, DIM);
+  IndexType offset = numerics::dot_product(offsets.m_data, this->strides().m_data, DIM);
 
   // Setup new shape array.
   StackArray<IndexType, DIM> newShape;
@@ -427,6 +485,77 @@ AXOM_HOST_DEVICE ArrayView<T, DIM, SPACE> ArrayView<T, DIM, SPACE>::subspan(
   slice.m_num_elements = detail::packProduct(newShape.m_data);
   slice.setShapeAndStride(newShape, this->strides());
   return slice;
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+void ArrayView<T, DIM, SPACE>::fill(const T& value)
+{
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
+  OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, 0, m_num_elements, value);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+void ArrayView<T, DIM, SPACE>::fill(const T& value, IndexType n, IndexType pos)
+{
+  assert(pos >= 0);
+  assert(pos + n <= m_num_elements);
+
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, pos, n);
+  OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, pos, n, value);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+void ArrayView<T, DIM, SPACE>::set(const T* elements, IndexType n, IndexType pos)
+{
+  assert(pos >= 0);
+  assert(pos + n <= m_num_elements);
+
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, pos, n);
+  OpHelper {m_allocator_id, executeOnGPU}.fill_range(m_data, pos, n, elements, MemorySpace::Dynamic);
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+void ArrayView<T, DIM, SPACE>::assign(axom::IndexType count, const T& value)
+{
+  assert(count >= 0);
+
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
+  OpHelper {m_allocator_id, executeOnGPU}.fill(m_data, 0, count, value);
+  m_num_elements = count;
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+template <class InputIt>
+void ArrayView<T, DIM, SPACE>::assign(InputIt first, InputIt last)
+{
+  using OpHelper = detail::ArrayOps<T, SPACE>;
+  const bool executeOnGPU = axom::isDeviceAllocator(m_allocator_id);
+  OpHelper {m_allocator_id, executeOnGPU}.destroy(m_data, 0, m_num_elements);
+  m_num_elements = 0;
+  for(auto it = first; it != last; it++)
+  {
+    OpHelper {m_allocator_id, executeOnGPU}.emplace(m_data, m_num_elements++, *it);
+  }
+}
+
+//------------------------------------------------------------------------------
+template <typename T, int DIM, MemorySpace SPACE>
+void ArrayView<T, DIM, SPACE>::assign(std::initializer_list<T> elems)
+{
+  assign(elems.begin(), elems.end());
 }
 
 } /* namespace axom */

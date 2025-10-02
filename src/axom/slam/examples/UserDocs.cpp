@@ -177,9 +177,7 @@ struct SimpleQuadMesh
       // construct boundary relation from elements to vertices
       using RelationBuilder = ElemToVertRelation::RelationBuilder;
       bdry = RelationBuilder().fromSet(&elems).toSet(&verts).indices(
-        RelationBuilder::IndicesSetBuilder()
-          .size(static_cast<int>(evInds.size()))
-          .data(evInds.data()));
+        RelationBuilder::IndicesSetBuilder().size(static_cast<int>(evInds.size())).data(evInds.data()));
       // _quadmesh_example_construct_bdry_relation_end
     }
 
@@ -190,9 +188,7 @@ struct SimpleQuadMesh
       cobdry = RelationBuilder()
                  .fromSet(&verts)
                  .toSet(&elems)
-                 .begins(RelationBuilder::BeginsSetBuilder()
-                           .size(verts.size())
-                           .data(veBegins.data()))
+                 .begins(RelationBuilder::BeginsSetBuilder().size(verts.size()).data(veBegins.data()))
                  .indices(RelationBuilder::IndicesSetBuilder()
                             .size(static_cast<int>(veInds.size()))
                             .data(veInds.data()));

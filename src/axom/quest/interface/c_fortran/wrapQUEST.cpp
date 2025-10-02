@@ -50,13 +50,10 @@ int QUEST_inout_init_mpi(const char *fileName, MPI_Fint comm)
 #endif  // ifdef AXOM_USE_MPI
 
 #ifdef AXOM_USE_MPI
-int QUEST_inout_init_mpi_bufferify(char *fileName,
-                                   int SHT_fileName_len,
-                                   MPI_Fint comm)
+int QUEST_inout_init_mpi_bufferify(char *fileName, int SHT_fileName_len, MPI_Fint comm)
 {
   // splicer begin function.inout_init_mpi_bufferify
-  const std::string SHCXX_fileName(fileName,
-                                   ShroudLenTrim(fileName, SHT_fileName_len));
+  const std::string SHCXX_fileName(fileName, ShroudLenTrim(fileName, SHT_fileName_len));
   MPI_Comm SHCXX_comm = MPI_Comm_f2c(comm);
   int SHC_rv = axom::quest::inout_init(SHCXX_fileName, SHCXX_comm);
   return SHC_rv;
@@ -79,8 +76,7 @@ int QUEST_inout_init_serial(const char *fileName)
 int QUEST_inout_init_serial_bufferify(char *fileName, int SHT_fileName_len)
 {
   // splicer begin function.inout_init_serial_bufferify
-  const std::string SHCXX_fileName(fileName,
-                                   ShroudLenTrim(fileName, SHT_fileName_len));
+  const std::string SHCXX_fileName(fileName, ShroudLenTrim(fileName, SHT_fileName_len));
   int SHC_rv = axom::quest::inout_init(SHCXX_fileName);
   return SHC_rv;
   // splicer end function.inout_init_serial_bufferify
@@ -196,9 +192,7 @@ int QUEST_signed_distance_init_mpi(const char *file, MPI_Fint comm)
 #endif  // ifdef AXOM_USE_MPI
 
 #ifdef AXOM_USE_MPI
-int QUEST_signed_distance_init_mpi_bufferify(char *file,
-                                             int SHT_file_len,
-                                             MPI_Fint comm)
+int QUEST_signed_distance_init_mpi_bufferify(char *file, int SHT_file_len, MPI_Fint comm)
 {
   // splicer begin function.signed_distance_init_mpi_bufferify
   const std::string SHCXX_file(file, ShroudLenTrim(file, SHT_file_len));
@@ -291,8 +285,7 @@ void QUEST_signed_distance_use_shared_memory(bool status)
 void QUEST_signed_distance_set_execution_space(int execSpace)
 {
   // splicer begin function.signed_distance_set_execution_space
-  axom::quest::SignedDistExec SHCXX_execSpace =
-    static_cast<axom::quest::SignedDistExec>(execSpace);
+  axom::quest::SignedDistExec SHCXX_execSpace = static_cast<axom::quest::SignedDistExec>(execSpace);
   axom::quest::signed_distance_set_execution_space(SHCXX_execSpace);
   // splicer end function.signed_distance_set_execution_space
 }
@@ -316,15 +309,8 @@ double QUEST_signed_distance_evaluate_1(double x,
                                         double *n_z)
 {
   // splicer begin function.signed_distance_evaluate_1
-  double SHC_rv = axom::quest::signed_distance_evaluate(x,
-                                                        y,
-                                                        z,
-                                                        *cp_x,
-                                                        *cp_y,
-                                                        *cp_z,
-                                                        *n_x,
-                                                        *n_y,
-                                                        *n_z);
+  double SHC_rv =
+    axom::quest::signed_distance_evaluate(x, y, z, *cp_x, *cp_y, *cp_z, *n_x, *n_y, *n_z);
   return SHC_rv;
   // splicer end function.signed_distance_evaluate_1
 }

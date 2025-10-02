@@ -37,10 +37,8 @@ namespace sidre
 // used in the blueprint group
 // FIXME: These are still hardcoded in some places
 const std::string MFEMSidreDataCollection::s_mesh_topology_name = "mesh";
-const std::string MFEMSidreDataCollection::s_boundary_topology_name =
-  "boundary";
-const std::string MFEMSidreDataCollection::s_attribute_suffix =
-  "_material_attribute";
+const std::string MFEMSidreDataCollection::s_boundary_topology_name = "boundary";
+const std::string MFEMSidreDataCollection::s_attribute_suffix = "_material_attribute";
 const std::string MFEMSidreDataCollection::s_coordset_name = "coords";
 
 namespace detail
@@ -54,9 +52,7 @@ namespace detail
  * QSpaces do not contain vdim information, but it may be useful for the caller when constructing
  * the QFunc
  */
-mfem::QuadratureSpace* NewQuadratureSpace(const std::string& name,
-                                          Mesh* mesh,
-                                          int& vdim)
+mfem::QuadratureSpace* NewQuadratureSpace(const std::string& name, Mesh* mesh, int& vdim)
 {
   const auto tokens = utilities::string::rsplitN(name, 4, '_');
   // Uses raw pointers for consistency with MFEM
@@ -66,8 +62,7 @@ mfem::QuadratureSpace* NewQuadratureSpace(const std::string& name,
     // Right now only the Default type is supported
     if(tokens[1] == "Default")
     {
-      if(conduit::utils::string_is_integer(tokens[2]) &&
-         conduit::utils::string_is_integer(tokens[3]))
+      if(conduit::utils::string_is_integer(tokens[2]) && conduit::utils::string_is_integer(tokens[3]))
       {
         int order = conduit::utils::string_to_value<int>(tokens[2]);
         vdim = conduit::utils::string_to_value<int>(tokens[3]);
@@ -92,10 +87,8 @@ MFEMSidreDataCollection::MFEMSidreDataCollection(const std::string& collection_n
 {
   m_datastore_ptr = new sidre::DataStore();
 
-  sidre::Group* global_grp =
-    m_datastore_ptr->getRoot()->createGroup(collection_name + "_global");
-  sidre::Group* domain_grp =
-    m_datastore_ptr->getRoot()->createGroup(collection_name);
+  sidre::Group* global_grp = m_datastore_ptr->getRoot()->createGroup(collection_name + "_global");
+  sidre::Group* domain_grp = m_datastore_ptr->getRoot()->createGroup(collection_name);
 
   m_bp_grp = domain_grp->createGroup("blueprint");
   // Currently only rank 0 adds anything to bp_index.
@@ -172,10 +165,9 @@ void MFEMSidreDataCollection::SetNumFiles(int num_files)
 // protected method
 sidre::Group* MFEMSidreDataCollection::named_buffers_grp() const
 {
-  SLIC_ASSERT_MSG(
-    m_named_bufs_grp != nullptr,
-    "No group 'named_buffers' in data collection.  Verify that"
-    " SetMesh was called to set the mesh in the data collection.");
+  SLIC_ASSERT_MSG(m_named_bufs_grp != nullptr,
+                  "No group 'named_buffers' in data collection.  Verify that"
+                  " SetMesh was called to set the mesh in the data collection.");
   return m_named_bufs_grp;
 }
 
@@ -188,9 +180,7 @@ View* MFEMSidreDataCollection::alloc_view(Group* grp, const std::string& view_na
   if(!grp->hasView(view_name))
   {
     v = grp->createView(view_name);
-    SLIC_ASSERT_MSG(v,
-                    "error allocating View " << view_name << " in group "
-                                             << grp->getPathName());
+    SLIC_ASSERT_MSG(v, "error allocating View " << view_name << " in group " << grp->getPathName());
   }
   else
   {
@@ -211,9 +201,7 @@ View* MFEMSidreDataCollection::alloc_view(Group* grp,
   if(!grp->hasView(view_name))
   {
     v = grp->createView(view_name, dtype);
-    SLIC_ASSERT_MSG(v,
-                    "error allocating View " << view_name << " in group "
-                                             << grp->getPathName());
+    SLIC_ASSERT_MSG(v, "error allocating View " << view_name << " in group " << grp->getPathName());
   }
   else
   {
@@ -224,8 +212,7 @@ View* MFEMSidreDataCollection::alloc_view(Group* grp,
 }
 
 // protected method
-Group* MFEMSidreDataCollection::alloc_group(Group* grp,
-                                            const std::string& group_name)
+Group* MFEMSidreDataCollection::alloc_group(Group* grp, const std::string& group_name)
 {
   SLIC_ASSERT_MSG(grp, "Group pointer is nullptr");
   sidre::Group* g = nullptr;
@@ -233,9 +220,7 @@ Group* MFEMSidreDataCollection::alloc_group(Group* grp,
   if(!grp->hasGroup(group_name))
   {
     g = grp->createGroup(group_name);
-    SLIC_ASSERT_MSG(g,
-                    "error allocating Group " << group_name << " in group "
-                                              << grp->getPathName());
+    SLIC_ASSERT_MSG(g, "error allocating Group " << group_name << " in group " << grp->getPathName());
   }
   else
   {
@@ -254,8 +239,7 @@ std::string MFEMSidreDataCollection::get_file_path(const std::string& filename) 
 
   if(GetCycle() >= 0)
   {
-    fNameSstr << "_" << std::setfill('0') << std::setw(pad_digits_cycle)
-              << GetCycle();
+    fNameSstr << "_" << std::setfill('0') << std::setw(pad_digits_cycle) << GetCycle();
   }
 
   return fNameSstr.str();
@@ -378,8 +362,7 @@ void MFEMSidreDataCollection::createMeshBlueprintCoordset(bool hasBP)
     if(m_owns_mesh_data)
     {
       // Allocate buffer for coord values.
-      sidre::Buffer* coordbuf =
-        AllocNamedBuffer("vertex_coords", coordset_len)->getBuffer();
+      sidre::Buffer* coordbuf = AllocNamedBuffer("vertex_coords", coordset_len)->getBuffer();
 
       vx->attachBuffer(coordbuf);
       if(dim >= 2)
@@ -410,15 +393,13 @@ void MFEMSidreDataCollection::createMeshBlueprintCoordset(bool hasBP)
   // If rank 0, set up blueprint index for coordinate set.
   if(myid == 0)
   {
-    m_bp_index_grp->createViewString(
-      "coordsets/coords/path",
-      m_bp_grp->getPathName() + "/coordsets/coords");
+    m_bp_index_grp->createViewString("coordsets/coords/path",
+                                     m_bp_grp->getPathName() + "/coordsets/coords");
 
     m_bp_index_grp->getGroup("coordsets/coords")
       ->copyView(m_bp_grp->getView("coordsets/coords/type"));
 
-    m_bp_index_grp->createViewString("coordsets/coords/coord_system/type",
-                                     "cartesian");
+    m_bp_index_grp->createViewString("coordsets/coords/coord_system/type", "cartesian");
 
     // These are empty views, their existence in the group tree is used to
     // define the number of dims
@@ -444,9 +425,7 @@ void MFEMSidreDataCollection::createMeshBlueprintCoordset(bool hasBP)
 }
 
 // private method
-void MFEMSidreDataCollection::createMeshBlueprintTopologies(
-  bool hasBP,
-  const std::string& mesh_name)
+void MFEMSidreDataCollection::createMeshBlueprintTopologies(bool hasBP, const std::string& mesh_name)
 {
   const bool isBdry = (mesh_name == s_boundary_topology_name);
 
@@ -479,9 +458,7 @@ void MFEMSidreDataCollection::createMeshBlueprintTopologies(
 
     topology_grp->createViewString("type", "unstructured");
     topology_grp->createViewString("elements/shape", eltTypeStr);
-    topology_grp->createViewAndAllocate("elements/connectivity",
-                                        sidre::INT_ID,
-                                        num_indices);
+    topology_grp->createViewAndAllocate("elements/connectivity", sidre::INT_ID, num_indices);
     topology_grp->createViewString("coordset", "coords");
 
     // If the mesh has nodes, set the name of the GridFunction holding the
@@ -498,8 +475,7 @@ void MFEMSidreDataCollection::createMeshBlueprintTopologies(
   // Change ownership or copy the element arrays into Sidre
   if(num_elements > 0)
   {
-    sidre::View* conn_view =
-      m_bp_grp->getGroup(mesh_topo_str)->getView("elements/connectivity");
+    sidre::View* conn_view = m_bp_grp->getGroup(mesh_topo_str)->getView("elements/connectivity");
 
     // The MFEMSidreDataCollection always owns these arrays:
     mfem::Array<int> conn_array(conn_view->getData<int*>(), num_indices);
@@ -533,8 +509,7 @@ void MFEMSidreDataCollection::createMeshBlueprintTopologies(
     sidre::Group* bp_index_topo_grp = m_bp_index_grp->createGroup(mesh_topo_str);
     sidre::Group* topology_grp = m_bp_grp->getGroup(mesh_topo_str);
 
-    bp_index_topo_grp->createViewString("path",
-                                        m_bp_grp_path + "/" + mesh_topo_str);
+    bp_index_topo_grp->createViewString("path", m_bp_grp_path + "/" + mesh_topo_str);
     bp_index_topo_grp->copyView(topology_grp->getView("type"));
     bp_index_topo_grp->copyView(topology_grp->getView("coordset"));
 
@@ -614,9 +589,7 @@ void MFEMSidreDataCollection::createMeshBlueprintAdjacencies(bool hasBP)
       sidre::Group* group_grp = adjset_grp->createGroup(group_str);
 
       sidre::View* gneighbors_view =
-        group_grp->createViewAndAllocate("neighbors",
-                                         sidre::INT_ID,
-                                         num_gneighbors - 1);
+        group_grp->createViewAndAllocate("neighbors", sidre::INT_ID, num_gneighbors - 1);
       int* gneighbors_data = gneighbors_view->getData<int*>();
 
       // skip local domain when adding Blueprint neighbors
@@ -629,8 +602,7 @@ void MFEMSidreDataCollection::createMeshBlueprintAdjacencies(bool hasBP)
         }
         else
         {
-          gneighbors_data[ni - noff] =
-            pmesh->gtopo.GetNeighborRank(gneighbors[ni]);
+          gneighbors_data[ni - noff] = pmesh->gtopo.GetNeighborRank(gneighbors[ni]);
         }
       }
 
@@ -656,9 +628,7 @@ void MFEMSidreDataCollection::createMeshBlueprintAdjacencies(bool hasBP)
         if(num_gedges > 0)
         {
           sidre::View* gedges_view =
-            group_grp->createViewAndAllocate("edges",
-                                             sidre::INT_ID,
-                                             num_gedges * 2);
+            group_grp->createViewAndAllocate("edges", sidre::INT_ID, num_gedges * 2);
           int* gedges_data = gedges_view->getData<int*>();
 
           for(int ei = 0; ei < num_gedges; ++ei)
@@ -676,9 +646,7 @@ void MFEMSidreDataCollection::createMeshBlueprintAdjacencies(bool hasBP)
           if(num_gtris > 0)
           {
             sidre::View* gtris_view =
-              group_grp->createViewAndAllocate("triangles",
-                                               sidre::INT_ID,
-                                               num_gtris * 3);
+              group_grp->createViewAndAllocate("triangles", sidre::INT_ID, num_gtris * 3);
             int* gtris_data = gtris_view->getData<int*>();
             for(int ti = 0; ti < num_gtris; ++ti)
             {
@@ -691,9 +659,7 @@ void MFEMSidreDataCollection::createMeshBlueprintAdjacencies(bool hasBP)
           if(num_gquads > 0)
           {
             sidre::View* gquads_view =
-              group_grp->createViewAndAllocate("quadrilaterals",
-                                               sidre::INT_ID,
-                                               num_gquads * 4);
+              group_grp->createViewAndAllocate("quadrilaterals", sidre::INT_ID, num_gquads * 4);
             int* gquads_data = gquads_view->getData<int*>();
             for(int qi = 0; qi < num_gquads; ++qi)
             {
@@ -764,9 +730,8 @@ void MFEMSidreDataCollection::SetMesh(Mesh* new_mesh)
   if(has_bnd_elts)
   {
     // Set the "boundary_topology" of "mesh" to "boundary".
-    m_bp_grp->createViewString(
-      "topologies/" + s_mesh_topology_name + "/boundary_topology",
-      s_boundary_topology_name);
+    m_bp_grp->createViewString("topologies/" + s_mesh_topology_name + "/boundary_topology",
+                               s_boundary_topology_name);
 
     // register the "boundary" topology in the blueprint.
     createMeshBlueprintTopologies(hasBP, s_boundary_topology_name);
@@ -787,8 +752,8 @@ void MFEMSidreDataCollection::SetMesh(Mesh* new_mesh)
     if(hasBP)
     {
       // Get the bp mesh nodes name.
-      sidre::View* v_bp_nodes_name = m_bp_grp->getView(
-        "topologies/" + s_mesh_topology_name + "/grid_function");
+      sidre::View* v_bp_nodes_name =
+        m_bp_grp->getView("topologies/" + s_mesh_topology_name + "/grid_function");
       std::string bp_nodes_name(v_bp_nodes_name->getString());
 
       // Check that the names match, e.g. when loading the collection.
@@ -847,8 +812,7 @@ void MFEMSidreDataCollection::SetMesh(MPI_Comm comm, Mesh* new_mesh)
 }
   #endif
 
-void MFEMSidreDataCollection::SetGroupPointers(Group* bp_index_grp,
-                                               Group* domain_grp)
+void MFEMSidreDataCollection::SetGroupPointers(Group* bp_index_grp, Group* domain_grp)
 {
   SLIC_WARNING_IF(!domain_grp->hasGroup("blueprint"),
                   "Domain group does not contain a blueprint group.");
@@ -858,8 +822,7 @@ void MFEMSidreDataCollection::SetGroupPointers(Group* bp_index_grp,
   m_named_bufs_grp = domain_grp->getGroup("named_buffers");
 }
 
-void MFEMSidreDataCollection::Load(const std::string& path,
-                                   const std::string& protocol)
+void MFEMSidreDataCollection::Load(const std::string& path, const std::string& protocol)
 {
   DataCollection::DeleteAll();
   // Reset DataStore?
@@ -880,8 +843,7 @@ void MFEMSidreDataCollection::Load(const std::string& path,
     // Get the paths in which the global and domain groups are stored
     // This allows for a datastore structure other than the one used when this
     // class owns the DataStore
-    SLIC_ERROR_IF(!m_bp_index_grp || !m_bp_grp,
-                  "Blueprint pointers must not be null");
+    SLIC_ERROR_IF(!m_bp_index_grp || !m_bp_grp, "Blueprint pointers must not be null");
     Group* global_grp = m_bp_index_grp->getParent()->getParent();
     Group* domain_grp = m_bp_grp->getParent();
     const std::string global_path = global_grp->getPath();
@@ -889,8 +851,7 @@ void MFEMSidreDataCollection::Load(const std::string& path,
 
     // Create a temporary group to read the data into
     // This is done instead of creating a temp DataStore so the buffers are intact
-    Group* temp_root =
-      m_bp_grp->getDataStore()->getRoot()->createGroup("_sidre_tmp_load");
+    Group* temp_root = m_bp_grp->getDataStore()->getRoot()->createGroup("_sidre_tmp_load");
     reader.read(temp_root, suffixedPath);
 
     // First transfer the global group from the temp group to its correct location
@@ -937,16 +898,14 @@ void MFEMSidreDataCollection::Load(const std::string& path,
   if(m_owns_datastore)
   {
     // Use the same path format as was used to create the datastore
-    SetGroupPointers(m_datastore_ptr->getRoot()->getGroup(
-                       name + "_global/blueprint_index/" + name),
+    SetGroupPointers(m_datastore_ptr->getRoot()->getGroup(name + "_global/blueprint_index/" + name),
                      m_datastore_ptr->getRoot()->getGroup(name));
-    SLIC_ERROR_IF(
-      m_bp_grp->getNumGroups() == 0,
-      fmt::format("Loaded datastore is empty, was the datastore created on a "
-                  "different number of ranks? Current run has {} ranks, but "
-                  "dataset was created using {} ranks",
-                  numCommRanks,
-                  numInputRanks));
+    SLIC_ERROR_IF(m_bp_grp->getNumGroups() == 0,
+                  fmt::format("Loaded datastore is empty, was the datastore created on a "
+                              "different number of ranks? Current run has {} ranks, but "
+                              "dataset was created using {} ranks",
+                              numCommRanks,
+                              numInputRanks));
 
     UpdateStateFromDS();
     UpdateMeshAndFieldsFromDS();
@@ -960,19 +919,9 @@ void MFEMSidreDataCollection::LoadExternalData(const std::string& filename,
   Group* grp = m_bp_grp->getDataStore()->getRoot();
   if(!group_name.empty())
   {
-  #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-    if(m_comm != MPI_COMM_NULL)
-    {
-      SLIC_ERROR(
-        "Loading external data with a group name is not supported in "
-        "parallel.");
-    }
-  #endif
-
-    SLIC_ERROR_IF(!m_bp_grp->hasGroup(group_name),
-                  axom::fmt::format(
-                    "MFEMSidreDataCollection does not have a Sidre Group '{}'",
-                    group_name));
+    SLIC_ERROR_IF(
+      !m_bp_grp->hasGroup(group_name),
+      axom::fmt::format("MFEMSidreDataCollection does not have a Sidre Group '{}'", group_name));
     grp = m_bp_grp->getGroup(group_name);
   }
 
@@ -992,7 +941,7 @@ void MFEMSidreDataCollection::LoadExternalData(const std::string& filename,
     using axom::utilities::string::endsWith;
     std::string suffixedPath = endsWith(path, ".root") ? path : path + ".root";
     IOManager reader(m_comm);
-    reader.loadExternalData(grp, suffixedPath);
+    reader.loadExternalData(grp->getDataStore()->getRoot(), grp, suffixedPath);
   }
   else
   #endif
@@ -1017,9 +966,8 @@ void MFEMSidreDataCollection::UpdateStateFromDS()
 
 void MFEMSidreDataCollection::UpdateStateToDS()
 {
-  SLIC_ASSERT_MSG(
-    mesh != nullptr,
-    "Need to set mesh before updating state in MFEMSidreDataCollection.");
+  SLIC_ASSERT_MSG(mesh != nullptr,
+                  "Need to set mesh before updating state in MFEMSidreDataCollection.");
 
   m_bp_grp->getView("state/cycle")->setScalar(GetCycle());
   m_bp_grp->getView("state/time")->setScalar(GetTime());
@@ -1036,9 +984,7 @@ void MFEMSidreDataCollection::addMaterialSetToIndex()
 {
   if(myid == 0)
   {
-    for(auto it = m_matset_associations.begin();
-        it != m_matset_associations.end();
-        it++)
+    for(auto it = m_matset_associations.begin(); it != m_matset_associations.end(); it++)
     {
       const std::string& mat_prefix = it->first;
       const std::string& matset_name = it->second;
@@ -1068,16 +1014,13 @@ void MFEMSidreDataCollection::addMaterialSetToIndex()
       // Now we know the material names for the current matset.
       if(nmats > 0)
       {
-        Group* bp_matset_index_grp =
-          m_bp_index_grp->createGroup("matsets/" + matset_name);
+        Group* bp_matset_index_grp = m_bp_index_grp->createGroup("matsets/" + matset_name);
         bp_matset_index_grp->createViewString("topology", s_mesh_topology_name);
-        Group* bp_materials_index_grp =
-          bp_matset_index_grp->createGroup("materials");
+        Group* bp_materials_index_grp = bp_matset_index_grp->createGroup("materials");
         bp_materials_index_grp->importConduitTree(matnames);
 
         Group* bp_matset_group = m_bp_grp->getGroup("matsets/" + matset_name);
-        bp_matset_index_grp->createViewString("path",
-                                              bp_matset_group->getPathName());
+        bp_matset_index_grp->createViewString("path", bp_matset_group->getPathName());
       }
     }
   }
@@ -1091,8 +1034,7 @@ void MFEMSidreDataCollection::UpdateMeshAndFieldsFromDS()
   // 2. Set the mesh nodal grid function when present
   // QUESTION: Does this logic only apply when we own the datastore (i.e., when we know where things are)
   // or should we unconditionally run this logic whenever we Load()?
-  const std::string gfPath =
-    fmt::format("topologies/{}/grid_function", s_mesh_topology_name);
+  const std::string gfPath = fmt::format("topologies/{}/grid_function", s_mesh_topology_name);
   if(GetBPGroup()->hasView(gfPath))
   {
     const std::string nodalGFName = GetBPGroup()->getView(gfPath)->getString();
@@ -1132,8 +1074,7 @@ void MFEMSidreDataCollection::Save()
   Save(filename, protocol);
 }
 
-void MFEMSidreDataCollection::Save(const std::string& filename,
-                                   const std::string& protocol)
+void MFEMSidreDataCollection::Save(const std::string& filename, const std::string& protocol)
 {
   PrepareToSave();
 
@@ -1152,14 +1093,12 @@ void MFEMSidreDataCollection::Save(const std::string& filename,
 
     // Create a shallow mirror of the DataStore structure that only includes
     // the data relevant to the calling DataCollection
-    SLIC_ERROR_IF(!m_bp_index_grp || !m_bp_grp,
-                  "Blueprint pointers must not be null");
+    SLIC_ERROR_IF(!m_bp_index_grp || !m_bp_grp, "Blueprint pointers must not be null");
     Group* global_grp = m_bp_index_grp->getParent()->getParent();
     Group* domain_grp = m_bp_grp->getParent();
     const std::string global_path = global_grp->getPath();
     const std::string domain_path = domain_grp->getPath();
-    Group* temp_root =
-      m_bp_grp->getDataStore()->getRoot()->createGroup("_sidre_tmp_save");
+    Group* temp_root = m_bp_grp->getDataStore()->getRoot()->createGroup("_sidre_tmp_save");
 
     // First shallow copy the global group into the temporary group
     Group* temp_global_grp = temp_root;
@@ -1207,8 +1146,7 @@ void MFEMSidreDataCollection::Save(const std::string& filename,
       // one does not already exist.
       if(m_bp_index_grp->hasView("state/number_of_domains"))
       {
-        View* num_domains =
-          m_bp_index_grp->getView("state/number_of_domains")->setScalar(num_procs);
+        View* num_domains = m_bp_index_grp->getView("state/number_of_domains")->setScalar(num_procs);
 
         SLIC_ASSERT_MSG(num_domains,
                         "Failed to reset View 'state/number_of_domains' "
@@ -1293,21 +1231,19 @@ void MFEMSidreDataCollection::addScalarBasedField(const std::string& field_name,
     // create a view with the external data
     vv->setExternalDataPtr(sidre::DOUBLE_ID, num_dofs, field->GetData());
   }
-  SLIC_ASSERT_MSG((num_dofs > 0 && vv->isApplied()) ||
-                    (num_dofs == 0 && vv->isEmpty() && vv->isDescribed()),
-                  "invalid View state");
+  SLIC_ASSERT_MSG(
+    (num_dofs > 0 && vv->isApplied()) || (num_dofs == 0 && vv->isEmpty() && vv->isDescribed()),
+    "invalid View state");
   SLIC_ASSERT_MSG(num_dofs == 0 || vv->getData() == field->GetData(),
                   "View data is different from GridFunction data");
-  SLIC_ASSERT_MSG(vv->getNumElements() == num_dofs,
-                  "View size is different from GridFunction size");
+  SLIC_ASSERT_MSG(vv->getNumElements() == num_dofs, "View size is different from GridFunction size");
 }
 
 // private method
-void MFEMSidreDataCollection::addVectorBasedGridFunction(
-  const std::string& field_name,
-  GridFunction* gf,
-  const std::string& buffer_name,
-  IndexType offset)
+void MFEMSidreDataCollection::addVectorBasedGridFunction(const std::string& field_name,
+                                                         GridFunction* gf,
+                                                         const std::string& buffer_name,
+                                                         IndexType offset)
 {
   sidre::Group* grp = m_bp_grp->getGroup("fields/" + field_name);
   SLIC_ASSERT_MSG(grp != nullptr, "field " << field_name << " does not exist");
@@ -1382,13 +1318,12 @@ void MFEMSidreDataCollection::addVectorBasedGridFunction(
   {
     std::snprintf(fidxName, FLD_SZ, "x%d", d);
     sidre::View* xv = vg->getView(fidxName);
-    SLIC_ASSERT_MSG((ndof > 0 && xv->isApplied()) ||
-                      (ndof == 0 && xv->isEmpty() && xv->isDescribed()),
-                    "invalid View state");
+    SLIC_ASSERT_MSG(
+      (ndof > 0 && xv->isApplied()) || (ndof == 0 && xv->isEmpty() && xv->isDescribed()),
+      "invalid View state");
     SLIC_ASSERT_MSG(ndof == 0 || xv->getData() == gf->GetData() + d * vdim_stride,
                     "View data is different from GridFunction data");
-    SLIC_ASSERT_MSG(xv->getNumElements() == ndof,
-                    "View size is different from GridFunction size");
+    SLIC_ASSERT_MSG(xv->getNumElements() == ndof, "View size is different from GridFunction size");
   }
   #endif
 }
@@ -1399,15 +1334,13 @@ void MFEMSidreDataCollection::RegisterFieldInBPIndex(const std::string& field_na
                                                      const int number_of_components)
 {
   sidre::Group* bp_field_grp = m_bp_grp->getGroup("fields/" + field_name);
-  sidre::Group* bp_index_field_grp =
-    m_bp_index_grp->createGroup("fields/" + field_name);
+  sidre::Group* bp_index_field_grp = m_bp_index_grp->createGroup("fields/" + field_name);
 
   bp_index_field_grp->createViewString("path", bp_field_grp->getPathName());
   bp_index_field_grp->copyView(bp_field_grp->getView("topology"));
   bp_index_field_grp->copyView(bp_field_grp->getView("basis"));
 
-  bp_index_field_grp->createViewScalar("number_of_components",
-                                       number_of_components);
+  bp_index_field_grp->createViewScalar("number_of_components", number_of_components);
 }
 
 // private method
@@ -1431,17 +1364,13 @@ void MFEMSidreDataCollection::RegisterField(const std::string& field_name,
 {
   #ifdef AXOM_DEBUG
   SLIC_WARNING_IF(field_name.empty(), "Name for GridFunction was empty");
-  SLIC_WARNING_IF(buffer_name.empty(),
-                  "Name for GridFunction destination buffer was empty");
+  SLIC_WARNING_IF(buffer_name.empty(), "Name for GridFunction destination buffer was empty");
 
-  SLIC_WARNING_IF(
-    gf == nullptr || gf->FESpace() == nullptr,
-    "Field with the name '"
-      << field_name
-      << "' was provided a null GridFunction, so nothing was done.");
+  SLIC_WARNING_IF(gf == nullptr || gf->FESpace() == nullptr,
+                  "Field with the name '"
+                    << field_name << "' was provided a null GridFunction, so nothing was done.");
   #endif
-  if(field_name.empty() || buffer_name.empty() || gf == nullptr ||
-     gf->FESpace() == nullptr)
+  if(field_name.empty() || buffer_name.empty() || gf == nullptr || gf->FESpace() == nullptr)
   {
     return;
   }
@@ -1467,10 +1396,9 @@ void MFEMSidreDataCollection::RegisterField(const std::string& field_name,
       // Skip warning when re-registering the nodal grid function
       if(field_name != m_meshNodesGFName)
       {
-        SLIC_WARNING("field with the name '"
-                     << field_name
-                     << "' is already "
-                        "registered, overwriting the old field");
+        SLIC_WARNING("field with the name '" << field_name
+                                             << "' is already "
+                                                "registered, overwriting the old field");
       }
   #endif
       DeregisterField(field_name);
@@ -1500,11 +1428,7 @@ void MFEMSidreDataCollection::RegisterField(const std::string& field_name,
   if(isScalarValued)
   {
     // Set the View "<m_bp_grp>/fields/<field_name>/values"
-    addScalarBasedField(field_name,
-                        gf,
-                        buffer_name,
-                        offset,
-                        gf->FESpace()->GetVSize());
+    addScalarBasedField(field_name, gf, buffer_name, offset, gf->FESpace()->GetVSize());
   }
   else  // vector valued
   {
@@ -1537,18 +1461,15 @@ void MFEMSidreDataCollection::RegisterQField(const std::string& field_name,
 {
   #ifdef AXOM_DEBUG
   SLIC_WARNING_IF(field_name.empty(), "Name for QuadratureFunction was empty");
-  SLIC_WARNING_IF(buffer_name.empty(),
-                  "Name for QuadratureFunction destination buffer was empty");
+  SLIC_WARNING_IF(buffer_name.empty(), "Name for QuadratureFunction destination buffer was empty");
 
-  SLIC_WARNING_IF(
-    qf == nullptr || qf->GetSpace() == nullptr,
-    "QField with the name '"
-      << field_name
-      << "' was provided a null QuadratureFunction, so nothing was done.");
+  SLIC_WARNING_IF(qf == nullptr || qf->GetSpace() == nullptr,
+                  "QField with the name '"
+                    << field_name
+                    << "' was provided a null QuadratureFunction, so nothing was done.");
   #endif
 
-  if(field_name.empty() || buffer_name.empty() || qf == nullptr ||
-     qf->GetSpace() == nullptr)
+  if(field_name.empty() || buffer_name.empty() || qf == nullptr || qf->GetSpace() == nullptr)
   {
     return;
   }
@@ -1570,10 +1491,9 @@ void MFEMSidreDataCollection::RegisterQField(const std::string& field_name,
       // Skip warning when re-registering the nodal grid function
       if(field_name != m_meshNodesGFName)
       {
-        SLIC_WARNING("QField with the name '"
-                     << field_name
-                     << "' is already "
-                        "registered, overwriting the old qfield");
+        SLIC_WARNING("QField with the name '" << field_name
+                                              << "' is already "
+                                                 "registered, overwriting the old qfield");
       }
   #endif
       DeregisterQField(field_name);
@@ -1622,8 +1542,7 @@ void MFEMSidreDataCollection::DeregisterQField(const std::string& field_name)
   removeField(field_name);
 }
 
-void MFEMSidreDataCollection::RegisterAttributeField(const std::string& attr_name,
-                                                     bool is_bdry)
+void MFEMSidreDataCollection::RegisterAttributeField(const std::string& attr_name, bool is_bdry)
 {
   SLIC_ASSERT_MSG(mesh != nullptr,
                   "Need to set mesh before registering attributes in "
@@ -1663,16 +1582,13 @@ void MFEMSidreDataCollection::RegisterAttributeField(const std::string& attr_nam
   }
 
   // Register new attribute array with attr_map
-  sidre::View* a =
-    m_bp_grp->getGroup("fields")->getGroup(attr_name)->getView("values");
-  mfem::Array<int>* attr =
-    new mfem::Array<int>(a->getData<int*>(), a->getNumElements());
+  sidre::View* a = m_bp_grp->getGroup("fields")->getGroup(attr_name)->getView("values");
+  mfem::Array<int>* attr = new mfem::Array<int>(a->getData<int*>(), a->getNumElements());
 
   attr_map.Register(attr_name, attr, true);
 }
 
-void MFEMSidreDataCollection::RegisterAttributeFieldInBPIndex(
-  const std::string& attr_name)
+void MFEMSidreDataCollection::RegisterAttributeFieldInBPIndex(const std::string& attr_name)
 {
   SLIC_ASSERT_MSG(m_bp_grp->getGroup("fields") != nullptr,
                   "Mesh blueprint does not have 'fields' group");
@@ -1683,8 +1599,7 @@ void MFEMSidreDataCollection::RegisterAttributeFieldInBPIndex(
   sidre::Group* attr_grp = m_bp_grp->getGroup("fields")->getGroup(attr_name);
 
   // create blueprint index for this attribute
-  sidre::Group* bp_index_attr_grp =
-    m_bp_index_grp->getGroup("fields")->createGroup(attr_name);
+  sidre::Group* bp_index_attr_grp = m_bp_index_grp->getGroup("fields")->createGroup(attr_name);
 
   bp_index_attr_grp->createViewString("path", attr_grp->getPathName());
   bp_index_attr_grp->copyView(attr_grp->getView("association"));
@@ -1717,13 +1632,11 @@ void MFEMSidreDataCollection::DeregisterAttributeField(const std::string& attr_n
   FreeNamedBuffer(attr_name);
 }
 
-void MFEMSidreDataCollection::DeregisterAttributeFieldInBPIndex(
-  const std::string& attr_name)
+void MFEMSidreDataCollection::DeregisterAttributeFieldInBPIndex(const std::string& attr_name)
 {
   sidre::Group* fields_grp = m_bp_index_grp->getGroup("fields");
-  SLIC_WARNING_IF(
-    !fields_grp->hasGroup(attr_name),
-    "No attribute exists in blueprint index with name " << attr_name);
+  SLIC_WARNING_IF(!fields_grp->hasGroup(attr_name),
+                  "No attribute exists in blueprint index with name " << attr_name);
 
   // Note: This will destroy all orphaned views or buffer classes under this
   // group also.  If sidre owns this field data, the memory will be deleted
@@ -1731,8 +1644,7 @@ void MFEMSidreDataCollection::DeregisterAttributeFieldInBPIndex(
   fields_grp->destroyGroup(attr_name);
 }
 
-void MFEMSidreDataCollection::addIntegerAttributeField(const std::string& attr_name,
-                                                       bool is_bdry)
+void MFEMSidreDataCollection::addIntegerAttributeField(const std::string& attr_name, bool is_bdry)
 {
   sidre::Group* fld_grp = m_bp_grp->getGroup("fields");
   SLIC_ASSERT_MSG(fld_grp != nullptr, "'fields' group does not exist");
@@ -1776,17 +1688,15 @@ void MFEMSidreDataCollection::DeregisterField(const std::string& field_name)
   removeField(field_name);
 }
 
-void MFEMSidreDataCollection::AssociateMaterialSet(
-  const std::string& volume_fraction_field_name,
-  const std::string& matset_name)
+void MFEMSidreDataCollection::AssociateMaterialSet(const std::string& volume_fraction_field_name,
+                                                   const std::string& matset_name)
 {
   auto iter = m_matset_associations.find(volume_fraction_field_name);
   if(iter != m_matset_associations.end())
   {
     SLIC_WARNING("Volume fraction field "
                  << volume_fraction_field_name
-                 << " has already been associated with a material set: "
-                 << iter->second);
+                 << " has already been associated with a material set: " << iter->second);
     return;
   }
   m_matset_associations[volume_fraction_field_name] = matset_name;
@@ -1796,28 +1706,24 @@ void MFEMSidreDataCollection::AssociateMaterialSet(
   matset_group->createViewString("topology", s_mesh_topology_name);
 }
 
-void MFEMSidreDataCollection::AssociateSpeciesSet(
-  const std::string& species_field_name,
-  const std::string& specset_name,
-  const std::string& matset_name,
-  const bool volume_dependent)
+void MFEMSidreDataCollection::AssociateSpeciesSet(const std::string& species_field_name,
+                                                  const std::string& specset_name,
+                                                  const std::string& matset_name,
+                                                  const bool volume_dependent)
 {
   SLIC_WARNING_IF(!m_bp_grp->hasGroup("matsets/" + matset_name),
-                  "The material set '"
-                    << matset_name << "' has not been associated with a field");
+                  "The material set '" << matset_name << "' has not been associated with a field");
   auto iter = m_specset_associations.find(species_field_name);
   if(iter != m_specset_associations.end())
   {
-    SLIC_WARNING("Species field "
-                 << species_field_name
-                 << " has already been associated with a species set: "
-                 << iter->second);
+    SLIC_WARNING("Species field " << species_field_name
+                                  << " has already been associated with a species set: "
+                                  << iter->second);
     return;
   }
   m_specset_associations[species_field_name] = specset_name;
   Group* specset_grp = m_bp_grp->createGroup("specsets/" + specset_name);
-  specset_grp->createViewScalar("volume_dependent",
-                                static_cast<std::int8_t>(volume_dependent));
+  specset_grp->createViewScalar("volume_dependent", static_cast<std::int8_t>(volume_dependent));
   // Since we're creating the species set, associate it with a material set
   specset_grp->createViewString("matset", matset_name);
 }
@@ -1827,8 +1733,7 @@ void MFEMSidreDataCollection::AssociateMaterialDependentField(
   const std::string& matset_name)
 {
   SLIC_WARNING_IF(!m_bp_grp->hasGroup("matsets/" + matset_name),
-                  "The material set '"
-                    << matset_name << "' has not been associated with a field");
+                  "The material set '" << matset_name << "' has not been associated with a field");
   auto iter = m_material_dependent_fields.find(material_dependent_field_name);
   if(iter != m_material_dependent_fields.end())
   {
@@ -1855,8 +1760,7 @@ View* MFEMSidreDataCollection::getFieldValuesView(const std::string& field_name)
     // Vector-valued field
     values_view = m_bp_grp->getGroup(field_values_name)->getView("x0");
   }
-  SLIC_WARNING_IF(values_view == nullptr,
-                  "Field " << field_name << " was not registered");
+  SLIC_WARNING_IF(values_view == nullptr, "Field " << field_name << " was not registered");
   return values_view;
 }
 
@@ -1879,8 +1783,7 @@ void MFEMSidreDataCollection::checkForMaterialSet(const std::string& field_name)
 
   View* vol_fractions_view = getFieldValuesView(field_name);
 
-  Group* fractions_group =
-    alloc_group(m_bp_grp, "matsets/" + matset_name + "/volume_fractions");
+  Group* fractions_group = alloc_group(m_bp_grp, "matsets/" + matset_name + "/volume_fractions");
 
   View* matset_frac_view = fractions_group->copyView(vol_fractions_view);
   matset_frac_view->rename(tokens[1]);
@@ -1909,15 +1812,13 @@ void MFEMSidreDataCollection::checkForSpeciesSet(const std::string& field_name)
   View* species_values_view = getFieldValuesView(field_name);
 
   Group* specset_material_group =
-    alloc_group(m_bp_grp,
-                "specsets/" + specset_name + "/matset_values/" + tokens[1]);
+    alloc_group(m_bp_grp, "specsets/" + specset_name + "/matset_values/" + tokens[1]);
   View* specset_values = specset_material_group->copyView(species_values_view);
   specset_values->rename(tokens[2]);
   // FIXME: Do we need to add anything to the index group?
 }
 
-void MFEMSidreDataCollection::checkForMaterialDependentField(
-  const std::string& field_name)
+void MFEMSidreDataCollection::checkForMaterialDependentField(const std::string& field_name)
 {
   const auto tokens = utilities::string::rsplitN(field_name, 2, '_');
   // Expecting [base_field_name, material_id]
@@ -1977,8 +1878,7 @@ std::string MFEMSidreDataCollection::getElementName(mfem::Element::Type elementE
   return "unknown";
 }
 
-mfem::Geometry::Type MFEMSidreDataCollection::getElementTypeFromName(
-  const std::string& name)
+mfem::Geometry::Type MFEMSidreDataCollection::getElementTypeFromName(const std::string& name)
 {
   if(name == "point")
   {
@@ -2080,8 +1980,7 @@ public:
     // Can we do any better with variable naming?
     // A group can refer to a communication group or a Sidre group
 
-    auto mesh_adjset_groups =
-      bp_grp->getGroup("adjsets/" + mesh_topo_name + "/groups");
+    auto mesh_adjset_groups = bp_grp->getGroup("adjsets/" + mesh_topo_name + "/groups");
     auto num_groups = mesh_adjset_groups->getNumGroups();
 
     auto shared_geoms = GetSharedGeometries(mesh_adjset_groups);
@@ -2175,10 +2074,8 @@ public:
             shared_quads.Append({quad[0], quad[1], quad[2], quad[3]});
           }
 
-          group_stria.AddColumnsInRow(comm_group_idx - 1,
-                                      shared_geom.shared_triangles.size());
-          group_squad.AddColumnsInRow(comm_group_idx - 1,
-                                      shared_geom.shared_quadrilaterals.size());
+          group_stria.AddColumnsInRow(comm_group_idx - 1, shared_geom.shared_triangles.size());
+          group_squad.AddColumnsInRow(comm_group_idx - 1, shared_geom.shared_quadrilaterals.size());
         }
       }
 
@@ -2187,9 +2084,8 @@ public:
 
     if(dimension >= 3)
     {
-      SLIC_ERROR_IF(
-        shared_trias.Size() + shared_quads.Size() != sface_lface.Size(),
-        "incorrect number of total_shared_faces");
+      SLIC_ERROR_IF(shared_trias.Size() + shared_quads.Size() != sface_lface.Size(),
+                    "incorrect number of total_shared_faces");
       // Define the J arrays of group_stria and group_squad -- they just contain
       // consecutive numbers starting from 0 up to shared_trias.Size()-1 and
       // shared_quads.Size()-1, respectively.
@@ -2250,9 +2146,8 @@ private:
     int boundary_index_stride =
       num_boundary_elements > 0 ? mfem::Geometry::NumVerts[boundary_type] : 0;
 
-    static_assert(
-      std::is_standard_layout<mfem::Vertex>::value,
-      "mfem::Vertex must have standard layout for reinterpret_casting");
+    static_assert(std::is_standard_layout<mfem::Vertex>::value,
+                  "mfem::Vertex must have standard layout for reinterpret_casting");
     vertices.MakeRef(reinterpret_cast<mfem::Vertex*>(_vertices), num_vertices);
     NumOfVertices = num_vertices;
 
@@ -2293,9 +2188,7 @@ private:
        * @param [in] num_scalars The length of the data array
        * @param [in] num_components The number of components in each vector
        */
-    VectorSpan(const int* data,
-               const IndexType num_scalars,
-               const IndexType num_components)
+    VectorSpan(const int* data, const IndexType num_scalars, const IndexType num_components)
       : m_data(data)
       , m_num_vectors(num_scalars / num_components)
       , m_num_components(num_components)
@@ -2318,9 +2211,7 @@ private:
     class VectorSpanIterator
     {
     public:
-      VectorSpanIterator(const int* start, const IndexType stride)
-        : m_ptr(start)
-        , m_stride(stride)
+      VectorSpanIterator(const int* start, const IndexType stride) : m_ptr(start), m_stride(stride)
       { }
 
       /**
@@ -2371,8 +2262,8 @@ private:
    */
   struct SharedGeometries
   {
-    VectorSpan shared_verts;  // Indices of shared vertices
-    VectorSpan shared_edges;  // Pairs of vertex indices corresponding to shared edges
+    VectorSpan shared_verts;      // Indices of shared vertices
+    VectorSpan shared_edges;      // Pairs of vertex indices corresponding to shared edges
     VectorSpan shared_triangles;  // 3-tuples of vertex indices corresponding to shared triangular faces
     VectorSpan shared_quadrilaterals;  // 4-tuples of vertex indices corresponding to shared quadrilateral faces
     mfem::Array<int> neighbors;  // Rank IDs of the neighboring nodes/processes
@@ -2436,8 +2327,7 @@ private:
 
       // Copy the neighbors array
       const View* group_neighbors = adjset_grp->getView("neighbors");
-      shared_geom.neighbors.Append(group_neighbors->getData(),
-                                   group_neighbors->getNumElements());
+      shared_geom.neighbors.Append(group_neighbors->getData(), group_neighbors->getNumElements());
 
       // This group's shared vertices
       if(adjset_grp->hasView("values"))
@@ -2464,9 +2354,7 @@ private:
       if(adjset_grp->hasView("quadrilaterals"))
       {
         auto quads = adjset_grp->getView("quadrilaterals");
-        shared_geom.shared_quadrilaterals = {quads->getData(),
-                                             quads->getNumElements(),
-                                             4};
+        shared_geom.shared_quadrilaterals = {quads->getData(), quads->getNumElements(), 4};
       }
     }
 
@@ -2484,9 +2372,8 @@ void MFEMSidreDataCollection::reconstructMesh()
   // we need all the parameters to construct a ParMesh (the Mesh base subobject
   // is initialized manually)
 
-  SLIC_ERROR_IF(
-    !verifyMeshBlueprint(),
-    "Cannot reconstruct mesh, data does not satisfy Conduit Blueprint");
+  SLIC_ERROR_IF(!verifyMeshBlueprint(),
+                "Cannot reconstruct mesh, data does not satisfy Conduit Blueprint");
 
   SLIC_ERROR_IF(!m_bp_grp->hasView("coordsets/coords/values/x"),
                 "Cannot reconstruct a mesh without a Cartesian coordinate set");
@@ -2513,29 +2400,23 @@ void MFEMSidreDataCollection::reconstructMesh()
   // Use the x to get the number of vertices
   int num_vertices = vertex_view->getNumElements();
 
-  const std::string mesh_elements_path =
-    "topologies/" + s_mesh_topology_name + "/elements";
+  const std::string mesh_elements_path = "topologies/" + s_mesh_topology_name + "/elements";
 
   SLIC_ERROR_IF(!m_bp_grp->hasGroup(mesh_elements_path),
                 "Cannot reconstruct mesh without mesh topology");
 
-  int* element_indices =
-    m_bp_grp->getView(mesh_elements_path + "/connectivity")->getData<int*>();
+  int* element_indices = m_bp_grp->getView(mesh_elements_path + "/connectivity")->getData<int*>();
 
   // Name of the element type - convert to mfem::Geometry::Type later
-  std::string element_name =
-    m_bp_grp->getView(mesh_elements_path + "/shape")->getString();
+  std::string element_name = m_bp_grp->getView(mesh_elements_path + "/shape")->getString();
 
-  const std::string element_attribute_path =
-    "fields/" + s_mesh_topology_name + s_attribute_suffix;
-  View* element_attribute_view =
-    m_bp_grp->getView(element_attribute_path + "/values");
+  const std::string element_attribute_path = "fields/" + s_mesh_topology_name + s_attribute_suffix;
+  View* element_attribute_view = m_bp_grp->getView(element_attribute_path + "/values");
 
   int* element_attributes = element_attribute_view->getData<int*>();
   int num_elements = element_attribute_view->getNumElements();
 
-  const std::string boundary_elements_path =
-    "topologies/" + s_boundary_topology_name + "/elements";
+  const std::string boundary_elements_path = "topologies/" + s_boundary_topology_name + "/elements";
 
   SLIC_ERROR_IF(!m_bp_grp->hasGroup(boundary_elements_path),
                 "Cannot reconstruct mesh without boundary topology");
@@ -2544,13 +2425,11 @@ void MFEMSidreDataCollection::reconstructMesh()
     m_bp_grp->getView(boundary_elements_path + "/connectivity")->getData<int*>();
 
   // Name of the element type - convert to mfem::Geometry::Type later
-  std::string bdr_element_name =
-    m_bp_grp->getView(boundary_elements_path + "/shape")->getString();
+  std::string bdr_element_name = m_bp_grp->getView(boundary_elements_path + "/shape")->getString();
 
   const std::string boundary_attribute_path =
     "fields/" + s_boundary_topology_name + s_attribute_suffix;
-  View* bdr_attribute_view =
-    m_bp_grp->getView(boundary_attribute_path + "/values");
+  View* bdr_attribute_view = m_bp_grp->getView(boundary_attribute_path + "/values");
 
   int* boundary_attributes = bdr_attribute_view->getData<int*>();
   int num_boundary_elements = bdr_attribute_view->getNumElements();
@@ -2595,18 +2474,18 @@ void MFEMSidreDataCollection::reconstructMesh()
   else
   #endif
   {
-    m_owned_mesh = std::unique_ptr<mfem::Mesh>(
-      new mfem::Mesh(vertices,
-                     num_vertices,
-                     element_indices,
-                     getElementTypeFromName(element_name),
-                     element_attributes,
-                     num_elements,
-                     boundary_indices,
-                     getElementTypeFromName(bdr_element_name),
-                     boundary_attributes,
-                     num_boundary_elements,
-                     dimension));
+    m_owned_mesh =
+      std::unique_ptr<mfem::Mesh>(new mfem::Mesh(vertices,
+                                                 num_vertices,
+                                                 element_indices,
+                                                 getElementTypeFromName(element_name),
+                                                 element_attributes,
+                                                 num_elements,
+                                                 boundary_indices,
+                                                 getElementTypeFromName(bdr_element_name),
+                                                 boundary_attributes,
+                                                 num_boundary_elements,
+                                                 dimension));
   #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
     // If this is a vacuously parallel run (MPI enabled, but only one rank),
     // we don't know whether the original mesh was a ParMesh.  In case the user
@@ -2614,8 +2493,7 @@ void MFEMSidreDataCollection::reconstructMesh()
     // mfem::ParMesh is-an mfem::Mesh, this won't affect users who don't need it
     if(num_procs == 1)
     {
-      m_owned_mesh =
-        std::unique_ptr<mfem::ParMesh>(new mfem::ParMesh(m_comm, *m_owned_mesh));
+      m_owned_mesh = std::unique_ptr<mfem::ParMesh>(new mfem::ParMesh(m_comm, *m_owned_mesh));
     }
   #endif
   }
@@ -2639,8 +2517,8 @@ void MFEMSidreDataCollection::reconstructField(Group* field_grp)
     {
       // The vdim is being overwritten here with the value in the basis string so we
       // can correctly construct the QuadratureFunction
-      m_quadspaces[basis_name] = std::unique_ptr<mfem::QuadratureSpace>(
-        detail::NewQuadratureSpace(basis_name, mesh, vdim));
+      m_quadspaces[basis_name] =
+        std::unique_ptr<mfem::QuadratureSpace>(detail::NewQuadratureSpace(basis_name, mesh, vdim));
       is_gridfunc = false;
     }
     // Only need to create a new FEColl if one doesn't already exist
@@ -2691,19 +2569,13 @@ void MFEMSidreDataCollection::reconstructField(Group* field_grp)
       if(parmesh)
       {
         m_fespaces[fespace_id] = std::unique_ptr<mfem::ParFiniteElementSpace>(
-          new mfem::ParFiniteElementSpace(parmesh,
-                                          m_fecolls.at(basis_name).get(),
-                                          vdim,
-                                          ordering));
+          new mfem::ParFiniteElementSpace(parmesh, m_fecolls.at(basis_name).get(), vdim, ordering));
       }
       else
   #endif
       {
         m_fespaces[fespace_id] = std::unique_ptr<mfem::FiniteElementSpace>(
-          new mfem::FiniteElementSpace(mesh,
-                                       m_fecolls.at(basis_name).get(),
-                                       vdim,
-                                       ordering));
+          new mfem::FiniteElementSpace(mesh, m_fecolls.at(basis_name).get(), vdim, ordering));
       }
     }
 
@@ -2712,8 +2584,7 @@ void MFEMSidreDataCollection::reconstructField(Group* field_grp)
     if(is_gridfunc)
     {
   #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
-      auto parfes = dynamic_cast<mfem::ParFiniteElementSpace*>(
-        m_fespaces.at(fespace_id).get());
+      auto parfes = dynamic_cast<mfem::ParFiniteElementSpace*>(m_fespaces.at(fespace_id).get());
       if(parfes)
       {
         m_owned_gridfuncs.emplace_back(new mfem::ParGridFunction(parfes, values));
@@ -2726,8 +2597,7 @@ void MFEMSidreDataCollection::reconstructField(Group* field_grp)
       }
 
       // Register a non-owning pointer with the base subobject
-      DataCollection::RegisterField(field_grp->getName(),
-                                    m_owned_gridfuncs.back().get());
+      DataCollection::RegisterField(field_grp->getName(), m_owned_gridfuncs.back().get());
     }
     else
     {

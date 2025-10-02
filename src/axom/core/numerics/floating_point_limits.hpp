@@ -32,9 +32,8 @@ namespace numerics
 template <typename T>
 struct floating_point_limits
 {
-  AXOM_STATIC_ASSERT_MSG(
-    std::is_floating_point<T>::value,
-    "floating_point_limits< T > must be used with a floating type!");
+  AXOM_STATIC_ASSERT_MSG(std::is_floating_point<T>::value,
+                         "floating_point_limits< T > must be used with a floating type!");
 };
 
 //------------------------------------------------------------------------------

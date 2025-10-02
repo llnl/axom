@@ -599,12 +599,10 @@ inline mir::Point2 computeAveragePoint(const std::vector<mir::Point2>& points)
  * 
  * \note It is assumed that the given cell is one that results from splitting its parent cell.
  */
-inline mir::Shape determineElementShapeType(const Shape parentShapeType,
-                                            const int numVerts)
+inline mir::Shape determineElementShapeType(const Shape parentShapeType, const int numVerts)
 {
   mir::Shape newShapeType;
-  if(parentShapeType == mir::Shape::Triangle ||
-     parentShapeType == mir::Shape::Quad)
+  if(parentShapeType == mir::Shape::Triangle || parentShapeType == mir::Shape::Quad)
   {
     // Handle the two-dimensional case
     switch(numVerts)

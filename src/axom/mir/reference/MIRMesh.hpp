@@ -79,13 +79,12 @@ public:
        * \param _mapData  The data used to initialized the maps associated with the vertex and element sets.
        * \param _elementVF  The volume fractions of each element. Note that this is an optional parameter.
        */
-  void initializeMesh(
-    const VertSet _verts,
-    const ElemSet _elems,
-    const int _numMaterials,
-    const CellTopologyData& _topology,
-    const CellMapData& _mapData,
-    const std::vector<std::vector<axom::float64>>& _elementVF = {});
+  void initializeMesh(const VertSet _verts,
+                      const ElemSet _elems,
+                      const int _numMaterials,
+                      const CellTopologyData& _topology,
+                      const CellMapData& _mapData,
+                      const std::vector<std::vector<axom::float64>>& _elementVF = {});
 
   /**
        * \brief Constructs the mesh boundary and coboundary relations.
@@ -100,16 +99,14 @@ public:
        * 
        * \param elementVF  The volume fractions of each element.
        */
-  void constructMeshVolumeFractionsMaps(
-    const std::vector<std::vector<axom::float64>>& elementVF);
+  void constructMeshVolumeFractionsMaps(const std::vector<std::vector<axom::float64>>& elementVF);
 
   /**
        * \brief Constructs the vertex volume fraction map.
        * 
        * \param vertexVF  The volume fractions of each vertex.
        */
-  void constructMeshVolumeFractionsVertex(
-    const std::vector<std::vector<axom::float64>>& vertexVF);
+  void constructMeshVolumeFractionsVertex(const std::vector<std::vector<axom::float64>>& vertexVF);
 
   /**
        * \brief Prints out the data contained within this mesh in a nice format.
@@ -216,14 +213,14 @@ public:
   VertToElemRelation m_cobdry;  // Coboundary relation from vertices to elements
 
   // Mesh Map Definitions
-  PointMap m_vertexPositions;  // vertex position for each vertex
+  PointMap m_vertexPositions;                               // vertex position for each vertex
   std::vector<ScalarMap> m_materialVolumeFractionsElement;  // the volume fractions of each material for each element
   std::vector<ScalarMap> m_materialVolumeFractionsVertex;  // the volume fractions of each material for each vertex
   IntMap m_elementParentIDs;  // the ID of the parent element from the original mesh
   IntMap m_elementDominantMaterials;  // the dominant material of the cell (a processed mesh should have only one material per cell)
   IntMap m_shapeTypes;  // the int enumerator of what type of shape each element is
 
-  int m_numMaterials;  // the number of materials present in the mesh
+  int m_numMaterials;               // the number of materials present in the mesh
   CellTopologyData m_meshTopology;  // the topology/connectivity of the mesh
 };
 

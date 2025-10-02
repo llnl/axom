@@ -7,9 +7,9 @@
 #define AXOM_SPIN_BVH_H_
 
 // axom core includes
-#include "axom/config.hpp"       // for Axom compile-time definitions
-#include "axom/core/Macros.hpp"  // for Axom macros
-#include "axom/core/Types.hpp"   // for axom::IndexType
+#include "axom/config.hpp"                               // for Axom compile-time definitions
+#include "axom/core/Macros.hpp"                          // for Axom macros
+#include "axom/core/Types.hpp"                           // for axom::IndexType
 #include "axom/core/numerics/floating_point_limits.hpp"  // floating_point_limits
 
 #include "axom/core/execution/execution_space.hpp"  // for execution spaces
@@ -126,10 +126,7 @@ struct BVHPolicy<FloatType, NDIMS, ExecType, BVHType::LinearBVH>
  *  \endcode
  *  \accelerated
  */
-template <int NDIMS,
-          typename ExecSpace = axom::SEQ_EXEC,
-          typename FloatType = double,
-          BVHType BVHImpl = BVHType::LinearBVH>
+template <int NDIMS, typename ExecSpace = axom::SEQ_EXEC, typename FloatType = double, BVHType BVHImpl = BVHType::LinearBVH>
 class BVH
 {
 private:
@@ -138,12 +135,10 @@ private:
                          "The BVH class may be used only in 2D or 3D.");
   AXOM_STATIC_ASSERT_MSG(std::is_floating_point<FloatType>::value,
                          "A valid FloatingType must be used for the BVH.");
-  AXOM_STATIC_ASSERT_MSG(
-    axom::execution_space<ExecSpace>::valid(),
-    "A valid execution space must be supplied to the BVH.");
+  AXOM_STATIC_ASSERT_MSG(axom::execution_space<ExecSpace>::valid(),
+                         "A valid execution space must be supplied to the BVH.");
 
-  using ImplType =
-    typename BVHPolicy<FloatType, NDIMS, ExecSpace, BVHImpl>::ImplType;
+  using ImplType = typename BVHPolicy<FloatType, NDIMS, ExecSpace, BVHImpl>::ImplType;
 
   template <typename It>
   class IteratorTraits
@@ -153,21 +148,16 @@ private:
     static Ret array_operator_type(U AXOM_UNUSED_PARAM(obj))
     { }
 
-    static std::false_type array_operator_type(...)
-    {
-      return std::false_type {};
-    }
+    static std::false_type array_operator_type(...) { return std::false_type {}; }
 
   public:
     // The base object of the return type of a call to iter[], or std::false_type
     // if operator[] does not exist.
-    using BaseType =
-      typename std::decay<decltype(array_operator_type(std::declval<It>()))>::type;
+    using BaseType = typename std::decay<decltype(array_operator_type(std::declval<It>()))>::type;
 
     // The iterator must be an array-like type.
-    static_assert(
-      !std::is_same<BaseType, std::false_type>::value,
-      "Iterator type must be accessible with the array operator[].");
+    static_assert(!std::is_same<BaseType, std::false_type>::value,
+                  "Iterator type must be accessible with the array operator[].");
 
     // The iterator object is copy-captured in a lambda and thus needs to be
     // copy-constructible.
@@ -433,17 +423,15 @@ private:
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
 template <typename BoxIndexable>
-int BVH<NDIMS, ExecSpace, FloatType, Impl>::initialize(const BoxIndexable boxes,
-                                                       IndexType numBoxes)
+int BVH<NDIMS, ExecSpace, FloatType, Impl>::initialize(const BoxIndexable boxes, IndexType numBoxes)
 {
   AXOM_ANNOTATE_SCOPE("BVH::initialize");
 
   using IterBase = typename IteratorTraits<BoxIndexable>::BaseType;
 
   // Ensure that the iterator returns objects convertible to primal::BoundingBox.
-  static_assert(
-    std::is_convertible<IterBase, BoxType>::value,
-    "Iterator must return objects convertible to primal::BoundingBox.");
+  static_assert(std::is_convertible<IterBase, BoxType>::value,
+                "Iterator must return objects convertible to primal::BoundingBox.");
 
   // STEP 1: Allocate a BVH, potentially deleting the existing BVH if it exists
   m_bvh.reset(new ImplType);
@@ -491,12 +479,11 @@ int BVH<NDIMS, ExecSpace, FloatType, Impl>::initialize(const BoxIndexable boxes,
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
 template <typename PointIndexable>
-void BVH<NDIMS, ExecSpace, FloatType, Impl>::findPoints(
-  axom::ArrayView<IndexType> offsets,
-  axom::ArrayView<IndexType> counts,
-  axom::Array<IndexType>& candidates,
-  IndexType numPts,
-  PointIndexable pts) const
+void BVH<NDIMS, ExecSpace, FloatType, Impl>::findPoints(axom::ArrayView<IndexType> offsets,
+                                                        axom::ArrayView<IndexType> counts,
+                                                        axom::Array<IndexType>& candidates,
+                                                        IndexType numPts,
+                                                        PointIndexable pts) const
 {
   AXOM_ANNOTATE_SCOPE("BVH::findPoints");
 
@@ -509,28 +496,22 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findPoints(
   SLIC_ASSERT(m_bvh != nullptr);
 
   // Define traversal predicates
-  auto predicate = [=] AXOM_HOST_DEVICE(const PointType& p,
-                                        const BoxType& bb) -> bool {
+  auto predicate = [=] AXOM_HOST_DEVICE(const PointType& p, const BoxType& bb) -> bool {
     return bb.contains(p);
   };
 
-  candidates = m_bvh->template findCandidatesImpl<PointType>(predicate,
-                                                             offsets,
-                                                             counts,
-                                                             numPts,
-                                                             pts,
-                                                             m_AllocatorID);
+  candidates =
+    m_bvh->template findCandidatesImpl<PointType>(predicate, offsets, counts, numPts, pts, m_AllocatorID);
 }
 
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
 template <typename RayIndexable>
-void BVH<NDIMS, ExecSpace, FloatType, Impl>::findRays(
-  axom::ArrayView<IndexType> offsets,
-  axom::ArrayView<IndexType> counts,
-  axom::Array<IndexType>& candidates,
-  IndexType numRays,
-  RayIndexable rays) const
+void BVH<NDIMS, ExecSpace, FloatType, Impl>::findRays(axom::ArrayView<IndexType> offsets,
+                                                      axom::ArrayView<IndexType> counts,
+                                                      axom::Array<IndexType>& candidates,
+                                                      IndexType numRays,
+                                                      RayIndexable rays) const
 {
   AXOM_ANNOTATE_SCOPE("BVH::findRays");
 
@@ -545,44 +526,36 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findRays(
   const FloatType TOL = m_tolerance;
 
   // Define traversal predicates
-  auto predicate = [=] AXOM_HOST_DEVICE(const RayType& r,
-                                        const BoxType& bb) -> bool {
+  auto predicate = [=] AXOM_HOST_DEVICE(const RayType& r, const BoxType& bb) -> bool {
     primal::Point<FloatType, NDIMS> tmp;
     return primal::detail::intersect_ray(r, bb, tmp, TOL);
   };
 
-  candidates = m_bvh->template findCandidatesImpl<RayType>(predicate,
-                                                           offsets,
-                                                           counts,
-                                                           numRays,
-                                                           rays,
-                                                           m_AllocatorID);
+  candidates =
+    m_bvh->template findCandidatesImpl<RayType>(predicate, offsets, counts, numRays, rays, m_AllocatorID);
 }
 
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
 template <typename BoxIndexable>
-void BVH<NDIMS, ExecSpace, FloatType, Impl>::findBoundingBoxes(
-  axom::ArrayView<IndexType> offsets,
-  axom::ArrayView<IndexType> counts,
-  axom::Array<IndexType>& candidates,
-  IndexType numBoxes,
-  BoxIndexable boxes) const
+void BVH<NDIMS, ExecSpace, FloatType, Impl>::findBoundingBoxes(axom::ArrayView<IndexType> offsets,
+                                                               axom::ArrayView<IndexType> counts,
+                                                               axom::Array<IndexType>& candidates,
+                                                               IndexType numBoxes,
+                                                               BoxIndexable boxes) const
 {
   AXOM_ANNOTATE_SCOPE("BVH::findBoundingBoxes");
 
   using IterBase = typename IteratorTraits<BoxIndexable>::BaseType;
 
   // Ensure that the iterator returns objects convertible to primal::BoundingBox.
-  static_assert(
-    std::is_convertible<IterBase, BoxType>::value,
-    "Iterator must return objects convertible to primal::BoundingBox.");
+  static_assert(std::is_convertible<IterBase, BoxType>::value,
+                "Iterator must return objects convertible to primal::BoundingBox.");
 
   SLIC_ASSERT(m_bvh != nullptr);
 
   // STEP 2: define traversal predicates
-  auto predicate = [=] AXOM_HOST_DEVICE(const BoxType& bb1,
-                                        const BoxType& bb2) -> bool {
+  auto predicate = [=] AXOM_HOST_DEVICE(const BoxType& bb1, const BoxType& bb2) -> bool {
     return bb1.intersectsWith(bb2);
   };
 
@@ -596,8 +569,7 @@ void BVH<NDIMS, ExecSpace, FloatType, Impl>::findBoundingBoxes(
 
 //------------------------------------------------------------------------------
 template <int NDIMS, typename ExecSpace, typename FloatType, BVHType Impl>
-void BVH<NDIMS, ExecSpace, FloatType, Impl>::writeVtkFile(
-  const std::string& fileName) const
+void BVH<NDIMS, ExecSpace, FloatType, Impl>::writeVtkFile(const std::string& fileName) const
 {
   SLIC_ASSERT(m_bvh != nullptr);
 

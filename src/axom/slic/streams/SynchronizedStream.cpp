@@ -55,9 +55,7 @@ SynchronizedStream::SynchronizedStream(std::ostream* stream, MPI_Comm comm)
 { }
 
 //------------------------------------------------------------------------------
-SynchronizedStream::SynchronizedStream(std::ostream* stream,
-                                       MPI_Comm comm,
-                                       const std::string& format)
+SynchronizedStream::SynchronizedStream(std::ostream* stream, MPI_Comm comm, const std::string& format)
   : m_comm(comm)
   , m_cache(new MessageCache)
   , m_stream(stream)
@@ -142,14 +140,13 @@ void SynchronizedStream::append(message::Level msgLevel,
   MPI_Comm_rank(m_comm, &rank);
 
   // STEP 1: cache formatted message
-  m_cache->messages.push_back(
-    this->getFormatedMessage(message::getLevelAsString(msgLevel),
-                             message,
-                             tagName,
-                             std::to_string(rank),
-                             "1",
-                             fileName,
-                             line));
+  m_cache->messages.push_back(this->getFormatedMessage(message::getLevelAsString(msgLevel),
+                                                       message,
+                                                       tagName,
+                                                       std::to_string(rank),
+                                                       "1",
+                                                       fileName,
+                                                       line));
 }
 
 //------------------------------------------------------------------------------
@@ -230,6 +227,15 @@ void SynchronizedStream::flush()
     MPI_Request_free(&null_request);
   }
 }
+
+//------------------------------------------------------------------------------
+bool SynchronizedStream::hasPendingMessages() { return m_cache->messages.size() > 0; }
+
+//------------------------------------------------------------------------------
+bool SynchronizedStream::isUsingMPI() { return true; }
+
+//------------------------------------------------------------------------------
+MPI_Comm SynchronizedStream::comm() { return m_comm; }
 
 } /* namespace slic */
 } /* namespace axom */

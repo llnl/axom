@@ -418,8 +418,7 @@ TEST(sidre_datastore, create_delete_buffers_iterate)
   // Initially, create some buffers of varying size
   for(int i = 0; i < bufcount; ++i)
   {
-    Buffer* b =
-      ds->createBuffer(axom::sidre::FLOAT64_ID, 400 * i % 10000)->allocate();
+    Buffer* b = ds->createBuffer(axom::sidre::FLOAT64_ID, 400 * i % 10000)->allocate();
     IndexType idx = b->getIndex();
     bs[idx] = b;
   }
@@ -508,8 +507,7 @@ TEST(sidre_datastore, iterate_buffers_with_delete_iterators)
   // iterate using begin/end iterator syntax
   {
     int foundBuffers = 0;
-    for(auto it = ds->buffers().begin(), itEnd = ds->buffers().end(); it != itEnd;
-        ++it)
+    for(auto it = ds->buffers().begin(), itEnd = ds->buffers().end(); it != itEnd; ++it)
     {
       auto& buff = *it;
       const IndexType idx = buff.getIndex();
@@ -549,8 +547,7 @@ TEST(sidre_datastore, loop_create_delete_buffers_iterate)
   // Initially, create some buffers of varying size
   for(int i = 0; i < initbufcount; ++i)
   {
-    Buffer* b =
-      ds->createBuffer(axom::sidre::FLOAT64_ID, 400 * i % 10000)->allocate();
+    Buffer* b = ds->createBuffer(axom::sidre::FLOAT64_ID, 400 * i % 10000)->allocate();
     IndexType idx = b->getIndex();
     bs[idx] = b;
     idxlist.push_back(idx);
@@ -592,8 +589,7 @@ TEST(sidre_datastore, loop_create_delete_buffers_iterate)
         int addcount = delta;
         for(int i = 0; i < addcount; ++i)
         {
-          Buffer* buf =
-            ds->createBuffer(axom::sidre::FLOAT64_ID, 400)->allocate();
+          Buffer* buf = ds->createBuffer(axom::sidre::FLOAT64_ID, 400)->allocate();
           int addid = buf->getIndex();
           EXPECT_TRUE(ds->hasBuffer(addid));
           EXPECT_TRUE(bs.count(addid) < 1);

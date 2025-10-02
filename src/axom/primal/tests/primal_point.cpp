@@ -20,8 +20,7 @@ void check_point_policy()
   const int DIM = 3;
   using PointType = primal::Point<double, DIM>;
 
-  double* coords =
-    axom::allocate<double>(DIM, axom::execution_space<ExecSpace>::allocatorID());
+  double* coords = axom::allocate<double>(DIM, axom::execution_space<ExecSpace>::allocatorID());
 
   double coords_host[DIM];
 
@@ -151,10 +150,9 @@ TEST(primal_point, point_array_constructor)
   }
 
   //
-  SLIC_INFO(
-    "\nprimal: testing constructor that sets *some* values to a singleVal. "
-    << "Using explicit second parameter set less than DIM. "
-    << "Other values should be set to zero. ");
+  SLIC_INFO("\nprimal: testing constructor that sets *some* values to a singleVal. "
+            << "Using explicit second parameter set less than DIM. "
+            << "Other values should be set to zero. ");
 
   int numVals = DIM / 2;
   QPoint pt4(arr, numVals);
@@ -385,24 +383,23 @@ AXOM_CUDA_TEST(primal_point, point_check_policies)
   using seq_exec = axom::SEQ_EXEC;
   check_point_policy<seq_exec>();
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && \
-  defined(RAJA_ENABLE_OPENMP)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP) && defined(RAJA_ENABLE_OPENMP)
 
   using omp_exec = axom::OMP_EXEC;
   check_point_policy<omp_exec>();
 
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && \
-  defined(RAJA_ENABLE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(RAJA_ENABLE_CUDA) && \
+  defined(AXOM_USE_UMPIRE)
 
   using cuda_exec = axom::CUDA_EXEC<512>;
 
   check_point_policy<cuda_exec>();
 #endif
 
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && \
-  defined(RAJA_ENABLE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(RAJA_ENABLE_HIP) && \
+  defined(AXOM_USE_UMPIRE)
 
   using hip_exec = axom::HIP_EXEC<512>;
 

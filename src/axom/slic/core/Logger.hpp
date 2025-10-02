@@ -10,6 +10,7 @@
 #ifndef LOGGER_HPP_
 #define LOGGER_HPP_
 
+#include "axom/slic/core/LogStreamStatusMonitor.hpp"
 #include "axom/slic/core/MessageLevel.hpp"
 
 // C/C++ includes
@@ -148,9 +149,7 @@ public:
    * \note The Logger takes ownership of the LogStream object.
    * \pre ls != NULL.
    */
-  void addStreamToMsgLevel(LogStream* ls,
-                           message::Level level,
-                           bool pass_ownership = true);
+  void addStreamToMsgLevel(LogStream* ls, message::Level level, bool pass_ownership = true);
 
   /*!
    * \brief Binds the given stream to all the levels for this Logger instance.
@@ -199,9 +198,7 @@ public:
    * \note The Logger takes ownership of the LogStream object.
    * \pre ls != NULL.
    */
-  void addStreamToTag(LogStream* ls,
-                      const std::string& tag,
-                      bool pass_ownership = true);
+  void addStreamToTag(LogStream* ls, const std::string& tag, bool pass_ownership = true);
 
   /*!
    * \brief Binds the given stream to all the tags for this Logger instance.
@@ -248,9 +245,7 @@ public:
    * duplicate messages resulting from running in parallel will be filtered out.
    * Default is false.
    */
-  void logMessage(message::Level level,
-                  const std::string& message,
-                  bool filter_duplicates = false);
+  void logMessage(message::Level level, const std::string& message, bool filter_duplicates = false);
 
   /*!
    * \brief Logs the given message to all registered streams.
@@ -353,6 +348,14 @@ public:
    */
   void pushStreams();
 
+  /*!
+   * \brief Checks to see if there are pending messages
+   * 
+   * \return Returns true if there are pending messages
+   * \collective
+   */
+  bool hasPendingMessages();
+
   ///@}
 
   /// \name Static Methods
@@ -375,8 +378,7 @@ public:
    * \note False is returned if a logger associated with the given name
    *  already exists.
    */
-  static bool createLogger(const std::string& name,
-                           char imask = inherit::nothing);
+  static bool createLogger(const std::string& name, char imask = inherit::nothing);
 
   /*!
    * \brief Activates the logger with the associate name.
@@ -443,6 +445,18 @@ private:
    * \brief Destructor.
    */
   ~Logger();
+
+  /*!
+   * \brief Determines whether to push or flush messages.
+   * Returns true if the current stream does not use MPI, 
+   * or if pending messages exist on any stream.
+   *
+   * \param [in] hasPendingMessages flag that indicates if there are pending 
+   *                                messages on any stream
+   * \param [in] streamUsesMPI flag that indicates if the current stream 
+   *                           uses MPI
+   */
+  bool shouldPushMessages(const bool hasPendingMessages, const bool streamUsesMPI) const;
 
   /// \name Private class members
   ///@{

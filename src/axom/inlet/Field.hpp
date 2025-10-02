@@ -249,8 +249,7 @@ private:
    * emit a SLIC_ERROR accordingly
    *****************************************************************************
   */
-  const axom::sidre::View* checkExistenceAndType(
-    const axom::sidre::DataTypeId expected) const;
+  const axom::sidre::View* checkExistenceAndType(const axom::sidre::DataTypeId expected) const;
 
   // This Field's sidre group
   axom::sidre::Group* m_sidreGroup = nullptr;
@@ -274,9 +273,8 @@ template <>
 std::string Field::get<std::string>() const;
 
 template <>
-bool Field::searchValidValues<std::string>(
-  const axom::sidre::View& view,
-  std::vector<VerificationError>* errors) const;
+bool Field::searchValidValues<std::string>(const axom::sidre::View& view,
+                                           std::vector<VerificationError>* errors) const;
 
 /*!
    *****************************************************************************

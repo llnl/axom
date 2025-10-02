@@ -76,12 +76,9 @@ TEST(primal_squared_distance, point_to_point)
 TEST(primal_squared_distance, point_to_triangle)
 {
   // STEP 0: Setup triangle ABC in 3D
-  primal::Point<double, 3> A =
-    primal::Point<double, 3>::make_point(0.0, 0.0, 0.0);
-  primal::Point<double, 3> B =
-    primal::Point<double, 3>::make_point(1.5, 1.5, 0.0);
-  primal::Point<double, 3> C =
-    primal::Point<double, 3>::make_point(2.5, 0.0, 0.0);
+  primal::Point<double, 3> A = primal::Point<double, 3>::make_point(0.0, 0.0, 0.0);
+  primal::Point<double, 3> B = primal::Point<double, 3>::make_point(1.5, 1.5, 0.0);
+  primal::Point<double, 3> C = primal::Point<double, 3>::make_point(2.5, 0.0, 0.0);
   primal::Triangle<double, 3> tri(A, B, C);
 
   double dist = 0.0;
@@ -111,26 +108,22 @@ TEST(primal_squared_distance, point_to_triangle)
 
   // STEP 3: Check distance of point q, inside ABC and orthogonally
   // projected along z+
-  primal::Point<double, 3> q =
-    primal::Point<double, 3>::make_point(1.5, 0.5, 0.5);
+  primal::Point<double, 3> q = primal::Point<double, 3>::make_point(1.5, 0.5, 0.5);
   dist = primal::squared_distance(q, tri);
   EXPECT_DOUBLE_EQ(0.25f, dist);
 
   // STEP 4: Check distance of point xA, within the voronoi region of A
-  primal::Point<double, 3> xA =
-    primal::Point<double, 3>::make_point(-1.0, -1.0, 0.0);
+  primal::Point<double, 3> xA = primal::Point<double, 3>::make_point(-1.0, -1.0, 0.0);
   dist = primal::squared_distance(xA, tri);
   EXPECT_DOUBLE_EQ(primal::squared_distance(xA, A), dist);
 
   // STEP 5: Check distance of point xB, within the voronoi region B
-  primal::Point<double, 3> xB =
-    primal::Point<double, 3>::make_point(1.5, 2.0, 0.0);
+  primal::Point<double, 3> xB = primal::Point<double, 3>::make_point(1.5, 2.0, 0.0);
   dist = primal::squared_distance(xB, tri);
   EXPECT_DOUBLE_EQ(primal::squared_distance(xB, B), dist);
 
   // STEP 6: Check distance of point xC within the voronoi region C
-  primal::Point<double, 3> xC =
-    primal::Point<double, 3>::make_point(3.0, -1.0, 0.5);
+  primal::Point<double, 3> xC = primal::Point<double, 3>::make_point(3.0, -1.0, 0.5);
   dist = primal::squared_distance(xC, tri);
   EXPECT_DOUBLE_EQ(primal::squared_distance(xC, C), dist);
 }
@@ -197,13 +190,11 @@ TEST(primal_squared_distance, point_to_bbox)
         {
           // if a coordinate is outside the bounding box,
           // it adds 4 == (3-1)^2 units to the squared distance
-          const double sqsum =
-            (i == 0 ? 0 : 4) + (j == 0 ? 0 : 4) + (k == 0 ? 0 : 4);
+          const double sqsum = (i == 0 ? 0 : 4) + (j == 0 ? 0 : 4) + (k == 0 ? 0 : 4);
           EXPECT_NEAR(sqsum, primal::squared_distance(pt, cube), EPS);
         }
 
-        EXPECT_EQ(axom::numeric_limits<double>::max(),
-                  squared_distance(pt, empty));
+        EXPECT_EQ(axom::numeric_limits<double>::max(), squared_distance(pt, empty));
       }
     }
   }

@@ -80,15 +80,13 @@ struct tensor<T, m>
   constexpr auto& operator[](int i) { return data[i]; }
   constexpr const auto& operator[](int i) const { return data[i]; }
 
-  template <int last_dimension = m,
-            typename = typename std::enable_if<last_dimension == 1>::type>
+  template <int last_dimension = m, typename = typename std::enable_if<last_dimension == 1>::type>
   constexpr operator T()
   {
     return data[0];
   }
 
-  template <int last_dimension = m,
-            typename = typename std::enable_if<last_dimension == 1>::type>
+  template <int last_dimension = m, typename = typename std::enable_if<last_dimension == 1>::type>
   constexpr operator T() const
   {
     return data[0];
@@ -179,8 +177,7 @@ struct StateThree
 template <>
 bool check(const StateThree& state, double value)
 {
-  return (state.x == value) && (state.y == (value + 1)) &&
-    (state.z == (value + 2));
+  return (state.x == value) && (state.y == (value + 1)) && (state.z == (value + 2));
 }
 
 template <>
@@ -202,8 +199,7 @@ struct StateTensorSmall
 template <>
 bool check(const StateTensorSmall& state, double value)
 {
-  return (state.t(0) == value) && (state.t(1) == (value + 1)) &&
-    (state.x == (value + 4));
+  return (state.t(0) == value) && (state.t(1) == (value + 1)) && (state.x == (value + 4));
 }
 
 template <>
@@ -226,8 +222,7 @@ template <>
 bool check(const StateTensorLarge& state, double value)
 {
   return (state.t(0, 0) == value) && (state.t(0, 1) == (value + 1)) &&
-    (state.t(1, 0) == (value + 2)) && (state.t(1, 1) == (value + 3)) &&
-    (state.x == (value + 4));
+    (state.t(1, 0) == (value + 2)) && (state.t(1, 1) == (value + 3)) && (state.x == (value + 4));
 }
 
 template <>
@@ -267,8 +262,7 @@ void fill_array(axom::Array<T, DIM>& states, double fill_value, bool increment)
     }
     count++;
   }
-  SLIC_INFO(
-    axom::fmt::format("filled {} states with end value {}", count, fill_value));
+  SLIC_INFO(axom::fmt::format("filled {} states with end value {}", count, fill_value));
 }
 
 template <typename T, int DIM>
@@ -281,8 +275,7 @@ void check_array(axom::Array<T, DIM> states)
     EXPECT_TRUE(check(state, check_value++));
     count++;
   }
-  SLIC_INFO(
-    axom::fmt::format("checked {} states with end value {}", count, check_value));
+  SLIC_INFO(axom::fmt::format("checked {} states with end value {}", count, check_value));
 }
 
 //------------------------------------------------------------------------------
@@ -307,8 +300,7 @@ void test_user_defined_data()
   SLIC_INFO(axom::fmt::format("Num of States={}", num_states));
   SLIC_INFO(axom::fmt::format("State Size={}", state_size));
   SLIC_INFO(axom::fmt::format("Total Size={}", total_size));
-  SLIC_INFO(
-    axom::fmt::format("Total Size/State Size={}", total_size / state_size));
+  SLIC_INFO(axom::fmt::format("Total Size/State Size={}", total_size / state_size));
 
   // write shape
   root->createViewScalar("num_states", num_states);
@@ -316,8 +308,7 @@ void test_user_defined_data()
   root->createViewScalar("total_size", total_size);
 
   // write data to datastore as bytes
-  View* states_view =
-    root->createViewAndAllocate("states", axom::sidre::UINT8_ID, total_size);
+  View* states_view = root->createViewAndAllocate("states", axom::sidre::UINT8_ID, total_size);
   std::uint8_t* sidre_state_data = states_view->getData();
   memcpy(sidre_state_data, states.data(), static_cast<std::size_t>(total_size));
 
@@ -365,8 +356,7 @@ void test_external_user_defined_data()
     SLIC_INFO(axom::fmt::format("Num of States={}", num_states));
     SLIC_INFO(axom::fmt::format("State Size={}", state_size));
     SLIC_INFO(axom::fmt::format("Total Size={}", total_size));
-    SLIC_INFO(
-      axom::fmt::format("Total Size/State Size={}", total_size / state_size));
+    SLIC_INFO(axom::fmt::format("Total Size/State Size={}", total_size / state_size));
     SLIC_INFO(axom::fmt::format("Num of uint8={}", num_uint8s));
 
     // write shape
@@ -376,9 +366,7 @@ void test_external_user_defined_data()
 
     // Add states as an external buffer
     View* states_view = root->createView("states");
-    states_view->setExternalDataPtr(axom::sidre::UINT8_ID,
-                                    num_uint8s,
-                                    states.data());
+    states_view->setExternalDataPtr(axom::sidre::UINT8_ID, num_uint8s, states.data());
 
     // Save the array data into a file
     root->save(filename);
@@ -391,18 +379,15 @@ void test_external_user_defined_data()
 
     // Verify size correctness
     EXPECT_TRUE(loaded_group->hasView("num_states"));
-    auto loaded_num_states =
-      loaded_group->getView("num_states")->getData<axom::IndexType>();
+    auto loaded_num_states = loaded_group->getView("num_states")->getData<axom::IndexType>();
     EXPECT_EQ(num_states, loaded_num_states);
 
     EXPECT_TRUE(loaded_group->hasView("state_size"));
-    auto loaded_state_size =
-      loaded_group->getView("state_size")->getData<axom::IndexType>();
+    auto loaded_state_size = loaded_group->getView("state_size")->getData<axom::IndexType>();
     EXPECT_EQ(state_size, loaded_state_size);
 
     EXPECT_TRUE(loaded_group->hasView("total_size"));
-    auto loaded_total_size =
-      loaded_group->getView("total_size")->getData<axom::IndexType>();
+    auto loaded_total_size = loaded_group->getView("total_size")->getData<axom::IndexType>();
     EXPECT_EQ(total_size, loaded_total_size);
 
     EXPECT_TRUE(loaded_group->hasView("states"));
@@ -428,8 +413,7 @@ void test_external_user_defined_data()
 template <typename T, int DIM>
 void test_MFEMSidreDataCollection_user_defined_data()
 {
-  std::string test_name =
-    ::testing::UnitTest::GetInstance()->current_test_info()->name();
+  std::string test_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
 
   constexpr IndexType size = 10;
   IndexType num_states {0};
@@ -457,8 +441,7 @@ void test_MFEMSidreDataCollection_user_defined_data()
     SLIC_INFO(axom::fmt::format("Num of States={}", num_states));
     SLIC_INFO(axom::fmt::format("State Size={}", state_size));
     SLIC_INFO(axom::fmt::format("Total Size={}", total_size));
-    SLIC_INFO(
-      axom::fmt::format("Total Size/State Size={}", total_size / state_size));
+    SLIC_INFO(axom::fmt::format("Total Size/State Size={}", total_size / state_size));
     SLIC_INFO(axom::fmt::format("Num of uint8={}", num_uint8s));
 
     // write shape
@@ -468,9 +451,7 @@ void test_MFEMSidreDataCollection_user_defined_data()
 
     // Add states as an external buffer
     View* states_view = bp_group->createView("states");
-    states_view->setExternalDataPtr(axom::sidre::UINT8_ID,
-                                    num_uint8s,
-                                    states.data());
+    states_view->setExternalDataPtr(axom::sidre::UINT8_ID, num_uint8s, states.data());
 
   // Save the array data into a file
   #if defined(AXOM_USE_MPI) && defined(MFEM_USE_MPI)
@@ -492,23 +473,19 @@ void test_MFEMSidreDataCollection_user_defined_data()
 
     // Verify size correctness
     EXPECT_TRUE(loaded_bp_group->hasView("num_states"));
-    auto loaded_num_states =
-      loaded_bp_group->getView("num_states")->getData<axom::IndexType>();
+    auto loaded_num_states = loaded_bp_group->getView("num_states")->getData<axom::IndexType>();
     EXPECT_EQ(num_states, loaded_num_states);
 
     EXPECT_TRUE(loaded_bp_group->hasView("state_size"));
-    auto loaded_state_size =
-      loaded_bp_group->getView("state_size")->getData<axom::IndexType>();
+    auto loaded_state_size = loaded_bp_group->getView("state_size")->getData<axom::IndexType>();
     EXPECT_EQ(state_size, loaded_state_size);
 
     EXPECT_TRUE(loaded_bp_group->hasView("total_size"));
-    auto loaded_total_size =
-      loaded_bp_group->getView("total_size")->getData<axom::IndexType>();
+    auto loaded_total_size = loaded_bp_group->getView("total_size")->getData<axom::IndexType>();
     EXPECT_EQ(total_size, loaded_total_size);
 
     EXPECT_TRUE(loaded_bp_group->hasView("states"));
-    auto loaded_states_size =
-      loaded_bp_group->getView("states")->getNumElements();
+    auto loaded_states_size = loaded_bp_group->getView("states")->getNumElements();
     EXPECT_EQ(num_uint8s, loaded_states_size);
 
     // Create new array to fill with loaded data
@@ -532,76 +509,37 @@ void test_MFEMSidreDataCollection_user_defined_data()
 
 TEST(sidre, OneD_double_readandwrite) { test_user_defined_data<double, 1>(); }
 
-TEST(sidre, OneD_StateOne_readandwrite)
-{
-  test_user_defined_data<StateOne, 1>();
-}
+TEST(sidre, OneD_StateOne_readandwrite) { test_user_defined_data<StateOne, 1>(); }
 
-TEST(sidre, OneD_StateTwo_readandwrite)
-{
-  test_user_defined_data<StateTwo, 1>();
-}
+TEST(sidre, OneD_StateTwo_readandwrite) { test_user_defined_data<StateTwo, 1>(); }
 
-TEST(sidre, OneD_StateThree_readandwrite)
-{
-  test_user_defined_data<StateThree, 1>();
-}
+TEST(sidre, OneD_StateThree_readandwrite) { test_user_defined_data<StateThree, 1>(); }
 
-TEST(sidre, OneD_StateTensorSmall_readandwrite)
-{
-  test_user_defined_data<StateTensorSmall, 1>();
-}
+TEST(sidre, OneD_StateTensorSmall_readandwrite) { test_user_defined_data<StateTensorSmall, 1>(); }
 
-TEST(sidre, OneD_StateTensorLarge_readandwrite)
-{
-  test_user_defined_data<StateTensorLarge, 1>();
-}
+TEST(sidre, OneD_StateTensorLarge_readandwrite) { test_user_defined_data<StateTensorLarge, 1>(); }
 
 //-------------------------
 
 TEST(sidre, TwoD_double_readandwrite) { test_user_defined_data<double, 2>(); }
 
-TEST(sidre, TwoD_StateOne_readandwrite)
-{
-  test_user_defined_data<StateOne, 2>();
-}
+TEST(sidre, TwoD_StateOne_readandwrite) { test_user_defined_data<StateOne, 2>(); }
 
-TEST(sidre, TwoD_StateTwo_readandwrite)
-{
-  test_user_defined_data<StateTwo, 2>();
-}
+TEST(sidre, TwoD_StateTwo_readandwrite) { test_user_defined_data<StateTwo, 2>(); }
 
-TEST(sidre, TwoD_StateThree_readandwrite)
-{
-  test_user_defined_data<StateThree, 2>();
-}
+TEST(sidre, TwoD_StateThree_readandwrite) { test_user_defined_data<StateThree, 2>(); }
 
-TEST(sidre, TwoD_StateTensorSmall_readandwrite)
-{
-  test_user_defined_data<StateTensorSmall, 2>();
-}
+TEST(sidre, TwoD_StateTensorSmall_readandwrite) { test_user_defined_data<StateTensorSmall, 2>(); }
 
-TEST(sidre, TwoD_StateTensorLarge_readandwrite)
-{
-  test_user_defined_data<StateTensorLarge, 2>();
-}
+TEST(sidre, TwoD_StateTensorLarge_readandwrite) { test_user_defined_data<StateTensorLarge, 2>(); }
 
 //------------------------------------------------------------------------------
 
-TEST(sidre, OneD_double_external_readandwrite)
-{
-  test_external_user_defined_data<double, 1>();
-}
+TEST(sidre, OneD_double_external_readandwrite) { test_external_user_defined_data<double, 1>(); }
 
-TEST(sidre, OneD_StateOne_external_readandwrite)
-{
-  test_external_user_defined_data<StateOne, 1>();
-}
+TEST(sidre, OneD_StateOne_external_readandwrite) { test_external_user_defined_data<StateOne, 1>(); }
 
-TEST(sidre, OneD_StateTwo_external_readandwrite)
-{
-  test_external_user_defined_data<StateTwo, 1>();
-}
+TEST(sidre, OneD_StateTwo_external_readandwrite) { test_external_user_defined_data<StateTwo, 1>(); }
 
 TEST(sidre, OneD_StateThree_external_readandwrite)
 {
@@ -620,20 +558,11 @@ TEST(sidre, OneD_StateTensorLarge_external_readandwrite)
 
 //-------------------------
 
-TEST(sidre, TwoD_double_external_readandwrite)
-{
-  test_external_user_defined_data<double, 2>();
-}
+TEST(sidre, TwoD_double_external_readandwrite) { test_external_user_defined_data<double, 2>(); }
 
-TEST(sidre, TwoD_StateOne_external_readandwrite)
-{
-  test_external_user_defined_data<StateOne, 2>();
-}
+TEST(sidre, TwoD_StateOne_external_readandwrite) { test_external_user_defined_data<StateOne, 2>(); }
 
-TEST(sidre, TwoD_StateTwo_external_readandwrite)
-{
-  test_external_user_defined_data<StateTwo, 2>();
-}
+TEST(sidre, TwoD_StateTwo_external_readandwrite) { test_external_user_defined_data<StateTwo, 2>(); }
 
 TEST(sidre, TwoD_StateThree_external_readandwrite)
 {

@@ -14,13 +14,10 @@
 
 #include "axom/config.hpp"
 #include "axom/core/Array.hpp"
+#include "axom/core/execution/atomics.hpp"
 #include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/utilities/BitUtilities.hpp"
 #include "axom/slic.hpp"
-
-#ifdef AXOM_USE_RAJA
-  #include "RAJA/RAJA.hpp"
-#endif
 
 #include <vector>
 
@@ -115,8 +112,7 @@ class BitSet
 public:
   using Index = int;
 
-#if(defined(__x86_64__) && defined(__GNUC__)) || \
-  (defined(_WIN64) && (_MSC_VER >= 1600))
+#if (defined(__x86_64__) && defined(__GNUC__)) || (defined(_WIN64) && (_MSC_VER >= 1600))
   using Word = std::uint64_t;
 #else
   using Word = std::uint32_t;
@@ -126,12 +122,10 @@ public:
   using ArrayType = axom::Array<Word, 1>;
 
   static constexpr Index npos = -2;
-  static constexpr int BitsPerWord =
-    axom::utilities::BitTraits<Word>::BITS_PER_WORD;
+  static constexpr int BitsPerWord = axom::utilities::BitTraits<Word>::BITS_PER_WORD;
 
 private:
-  static constexpr int LG_BITS_PER_WORD =
-    axom::utilities::BitTraits<Word>::LG_BITS_PER_WORD;
+  static constexpr int LG_BITS_PER_WORD = axom::utilities::BitTraits<Word>::LG_BITS_PER_WORD;
 
 public:
   /**
@@ -142,21 +136,14 @@ public:
    * \post bset.size() == numBits
    * \post All bits will be off
    */
-  explicit BitSet(int numBits = 0,
-                  int allocatorID = axom::getDefaultAllocatorID())
+  explicit BitSet(int numBits = 0, int allocatorID = axom::getDefaultAllocatorID())
   {
-    SLIC_ASSERT_MSG(
-      numBits >= 0,
-      "slam::BitSet must be initialized with a non-zero number of bits");
+    SLIC_ASSERT_MSG(numBits >= 0, "slam::BitSet must be initialized with a non-zero number of bits");
 
     m_numBits = axom::utilities::max(numBits, 0);
-    axom::IndexType numWords =
-      (m_numBits == 0) ? 1 : 1 + (m_numBits - 1) / BitsPerWord;
+    axom::IndexType numWords = (m_numBits == 0) ? 1 : 1 + (m_numBits - 1) / BitsPerWord;
 
-    m_data = ArrayType(axom::ArrayOptions::Uninitialized {},
-                       numWords,
-                       numWords,
-                       allocatorID);
+    m_data = ArrayType(axom::ArrayOptions::Uninitialized {}, numWords, numWords, allocatorID);
     m_data.fill(0);
   }
 
@@ -327,14 +314,7 @@ public:
    *
    * \pre \a idx must be between 0 and bitset.size()
    */
-  void atomicClear(Index idx)
-  {
-#ifdef AXOM_USE_RAJA
-    RAJA::atomicAnd<RAJA::auto_atomic>(&getWord(idx), ~mask(idx));
-#else
-    clear(idx);
-#endif
-  }
+  void atomicClear(Index idx) { axom::atomicAnd<axom::auto_atomic>(&getWord(idx), ~mask(idx)); }
 
   /**
    * \brief Sets bit at index \a idx
@@ -343,11 +323,7 @@ public:
    */
   AXOM_HOST_DEVICE void atomicSet(Index idx)
   {
-#ifdef AXOM_USE_RAJA
-    RAJA::atomicOr<RAJA::auto_atomic>(&getWord(idx), mask(idx));
-#else
-    set(idx);
-#endif
+    axom::atomicOr<axom::auto_atomic>(&getWord(idx), mask(idx));
   }
 
   /**
@@ -355,14 +331,7 @@ public:
    *
    * \pre \a idx must be between 0 and bitset.size()
    */
-  void atomicFlip(Index idx)
-  {
-#ifdef AXOM_USE_RAJA
-    RAJA::atomicXor<RAJA::auto_atomic>(&getWord(idx), mask(idx));
-#else
-    flip(idx);
-#endif
-  }
+  void atomicFlip(Index idx) { axom::atomicXor<axom::auto_atomic>(&getWord(idx), mask(idx)); }
 
   /// @}
 private:
@@ -432,8 +401,8 @@ private:
   {
     AXOM_UNUSED_VAR(idx);
     SLIC_ASSERT_MSG(idx >= 0 && idx < m_numBits,
-                    "slam::Bitset attempted to out of range bit "
-                      << idx << ". Valid range is [0, " << m_numBits << ").");
+                    "slam::Bitset attempted to out of range bit " << idx << ". Valid range is [0, "
+                                                                  << m_numBits << ").");
   }
 
   /**

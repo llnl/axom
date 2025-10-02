@@ -90,8 +90,7 @@ TEST(lumberjack_BinaryCommunicator, basic)
       }
     }
     EXPECT_EQ(found, true) << "Error: Rank: " << commRank
-                           << ": Message not received: " << currMessage
-                           << std::endl;
+                           << ": Message not received: " << currMessage << std::endl;
   }
 
   if(numChildren > 0)
@@ -106,8 +105,7 @@ TEST(lumberjack_BinaryCommunicator, basic)
       }
     }
     EXPECT_EQ(found, true) << "Error: Rank: " << commRank
-                           << ": Message not received: " << currMessage
-                           << std::endl;
+                           << ": Message not received: " << currMessage << std::endl;
   }
 
   c.finalize();

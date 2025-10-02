@@ -26,8 +26,8 @@ respective objects. An example of an empty document is shown below:
 
 The ``records`` list can contain ``Record`` objects and their inheritying types,
 such as ``Run`` objects. The ``relationships`` list can contain ``Relationship``
-objects. For more information on these objects, see `Records <./records>`_
-and `Relationships <./relationships>`_.
+objects. For more information on these objects, see :doc:`Records <records>`
+and :doc:`Relationships <relationships>`.
 
 --------------------
 Assembling Documents
@@ -106,6 +106,29 @@ of the ``Document`` that way:
         std::cout << myDocument.toJson() << std::endl;
     }
 
+
+------------------------------
+Generating Documents From HDF5
+------------------------------
+
+In addition to assembling ``Document`` instances from existing JSON files, it
+is possible to generate ``Document`` objects from existing HDF5 files using
+Conduit.
+
+When Axom is configured with HDF5 support, Sina's ``saveDocument()`` and ``loadDocument()`` 
+functions support HDF5 assembly through the `Protocol::HDF5` argument.  The functions will 
+throw a runtime error with the list of available types in Axom configurations if `Protocol::HDF5` 
+is attempted without HDF5 support.
+
+.. code:: cpp
+
+    #include "axom/sina.hpp"
+
+    int main (void) {
+        axom::sina::Document myDocument = axom::sina::loadDocument("MySinaData.hdf5", axom::sina::Protocol::HDF5);
+    }
+
+
 ---------------------------------------------------------
 Obtaining Records & Relationships from Existing Documents
 ---------------------------------------------------------
@@ -126,3 +149,50 @@ properly queried:
 
     Number of Records: 2
     Number of Relationships: 1
+
+------------------------------------------
+Appending Documents to Existing Sina Files
+------------------------------------------
+
+It's normal during a simulation to need to dump data multiple times, ex: collect quantities
+at certain milestones, write timeseries once they reach a certain length, or add new sets
+of curves. The append methods such as ``appendDocumentToHDF5()`` cover this case. Simply write your
+first document to the filesystem, and when you reach a point where you would like to write another,
+use an append function matching the filetype (JSON is recommended for small files, namely anything
+not involving timeseries, and HDF5 for anything beefier). There's some nuance to how appending works:
+
+- If your new document contains records not present in the file on disk, it will add them in.
+This is generally how you'll want to do snapshots; it determines whether records match by checking the ID,
+so as long as each snapshot has a unique ID, they'll accumulate in the target file.
+
+- If your new document contains records that ARE present in the file on disk, it will attempt to merge
+the data they contain. This is most useful when you have a longer-running simulation where you want
+to accumulate timeseries values. Simply ensure that the record containing new values has the same
+ID as the one containing what you have so far.
+
+    - For data, files, user defined, and anything else that isn't curve sets or libraries: Sina will
+    go through field-by-field. If there's a field not already present (ex: runtime), then it will be added in.
+    If it IS already present, an optional argument allows you to define the behavior. By default, newest wins,
+    but you can also have oldest win or refuse the write.
+
+    - For curve sets: Sina will append new values to the existing dependents/independents. There is some
+    checking to ensure all timeseries WITHIN A CURVE SET end up the same length, so while it is possible
+    to add new dependents (or independents) to a set of curves while a simulation is running, ensure that
+    you're backfilling the required number of values (ex: you dump every 10 cycles, you've dumped 20 times, each
+    curve has 200 values. If on your next dump you also add brand_new_curve, it MUST have 210 values.) You'll
+    almost always want to define curves up front and simply add in new values.
+
+    - For library_data, append will recurse, fulfilling a and b above.
+
+In general, appending is very powerful, but a bit complicated; if Sina encounters any issues, it will
+write them to the returned conduit node for troubleshooting.
+
+
+------------------------------
+Filetype Comparisons
+------------------------------
+
+.. toctree::
+   :maxdepth: 2
+
+   hdf5_vs_json

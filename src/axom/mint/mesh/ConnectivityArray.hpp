@@ -157,10 +157,8 @@ public:
     , m_stride(-1)
     , m_storageMode(StorageMode::Native)
   {
-    SLIC_ERROR_IF(m_cell_type == UNDEFINED_CELL,
-                  "Cannot have an undefined cell type.");
-    SLIC_ERROR_IF(cellTypeToInt(m_cell_type) >= NUM_CELL_TYPES,
-                  "Unknown cell type.");
+    SLIC_ERROR_IF(m_cell_type == UNDEFINED_CELL, "Cannot have an undefined cell type.");
+    SLIC_ERROR_IF(cellTypeToInt(m_cell_type) >= NUM_CELL_TYPES, "Unknown cell type.");
 
     m_stride = getCellInfo(cell_type).num_nodes;
     m_values = std::make_unique<axom::Array<IndexType, 2>>(0, m_stride);
@@ -220,15 +218,11 @@ public:
     , m_stride(-1)
     , m_storageMode(StorageMode::External)
   {
-    SLIC_ERROR_IF(m_cell_type == UNDEFINED_CELL,
-                  "Cannot have an undefined cell type.");
-    SLIC_ERROR_IF(cellTypeToInt(m_cell_type) >= NUM_CELL_TYPES,
-                  "Unknown cell type.");
+    SLIC_ERROR_IF(m_cell_type == UNDEFINED_CELL, "Cannot have an undefined cell type.");
+    SLIC_ERROR_IF(cellTypeToInt(m_cell_type) >= NUM_CELL_TYPES, "Unknown cell type.");
 
     m_stride = getCellInfo(cell_type).num_nodes;
-    m_values.reset(new ExternalArray<IndexType, 2>(values,
-                                                   {n_IDs, m_stride},
-                                                   ID_capacity * m_stride));
+    m_values.reset(new ExternalArray<IndexType, 2>(values, {n_IDs, m_stride}, ID_capacity * m_stride));
   }
 
   /*!
@@ -258,9 +252,7 @@ public:
     , m_stride(stride)
     , m_storageMode(StorageMode::External)
   {
-    m_values.reset(new ExternalArray<IndexType, 2>(values,
-                                                   {n_IDs, m_stride},
-                                                   ID_capacity * m_stride));
+    m_values.reset(new ExternalArray<IndexType, 2>(values, {n_IDs, m_stride}, ID_capacity * m_stride));
   }
 
   /// @}
@@ -299,9 +291,9 @@ public:
 
     SLIC_ERROR_IF(m_stride <= 0, "Stride must be greater than zero.");
 
-    SLIC_ERROR_IF(m_values->shape()[1] != m_stride,
-                  "values array must have " << m_stride << " components, is "
-                                            << m_values->shape()[1] << ".");
+    SLIC_ERROR_IF(
+      m_values->shape()[1] != m_stride,
+      "values array must have " << m_stride << " components, is " << m_values->shape()[1] << ".");
   }
 
   /*!
@@ -330,8 +322,7 @@ public:
     , m_storageMode(StorageMode::Sidre)
     , m_values(nullptr)
   {
-    SLIC_ERROR_IF(m_cell_type == UNDEFINED_CELL,
-                  "Cannot have an undefined cell type.");
+    SLIC_ERROR_IF(m_cell_type == UNDEFINED_CELL, "Cannot have an undefined cell type.");
 
     internal::initializeGroup(group, coordset, m_cell_type);
     internal::setStride(group, m_stride);
@@ -342,10 +333,8 @@ public:
     sidre::View* connec_view = elems_group->getView("connectivity");
     axom::IndexType element_capacity =
       ID_capacity == USE_DEFAULT ? USE_DEFAULT : ID_capacity * m_stride;
-    m_values = std::make_unique<sidre::MCArray<IndexType>>(connec_view,
-                                                           0,
-                                                           m_stride,
-                                                           element_capacity);
+    m_values =
+      std::make_unique<sidre::MCArray<IndexType>>(connec_view, 0, m_stride, element_capacity);
     SLIC_ASSERT(m_values != nullptr);
   }
 
@@ -385,10 +374,8 @@ public:
     sidre::View* connec_view = elems_group->getView("connectivity");
     axom::IndexType element_capacity =
       ID_capacity == USE_DEFAULT ? USE_DEFAULT : ID_capacity * m_stride;
-    m_values = std::make_unique<sidre::MCArray<IndexType>>(connec_view,
-                                                           0,
-                                                           m_stride,
-                                                           element_capacity);
+    m_values =
+      std::make_unique<sidre::MCArray<IndexType>>(connec_view, 0, m_stride, element_capacity);
   }
 
 #endif
@@ -427,8 +414,7 @@ public:
    * If current getIDCapacity() >= ID_capacity, do nothing.
    * \post getIDCapacity() >= ID_capacity
    */
-  void reserve(IndexType ID_capacity,
-               IndexType AXOM_UNUSED_PARAM(value_capacity) = 0)
+  void reserve(IndexType ID_capacity, IndexType AXOM_UNUSED_PARAM(value_capacity) = 0)
   {
     SLIC_ERROR_IF(isExternal() && ID_capacity > m_values->capacity(),
                   "cannot exceed initial capacity of external buffer!");
@@ -521,20 +507,14 @@ public:
    *
    * \param [in] ID not used, does not need to be specified.
    */
-  IndexType getNumberOfValuesForID(IndexType AXOM_UNUSED_PARAM(ID) = 0) const
-  {
-    return m_stride;
-  }
+  IndexType getNumberOfValuesForID(IndexType AXOM_UNUSED_PARAM(ID) = 0) const { return m_stride; }
 
   /*!
    * \brief Returns the cell type of the given ID.
    *
    * \param [in] ID not used, does not need to be specified.
    */
-  CellType getIDType(IndexType AXOM_UNUSED_PARAM(ID) = 0) const
-  {
-    return m_cell_type;
-  }
+  CellType getIDType(IndexType AXOM_UNUSED_PARAM(ID) = 0) const { return m_cell_type; }
 
   /*!
    * \brief Access operator for the values of the given ID.
@@ -720,8 +700,7 @@ public:
     SLIC_ASSERT(start_ID >= 0);
     SLIC_ASSERT(start_ID <= getNumberOfIDs());
     SLIC_ASSERT(values != nullptr);
-    m_values->insert(start_ID * m_stride,
-                     ArrayView<const IndexType, 2>(values, {n_IDs, m_stride}));
+    m_values->insert(start_ID * m_stride, ArrayView<const IndexType, 2>(values, {n_IDs, m_stride}));
   }
 
   /// @}

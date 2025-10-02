@@ -54,12 +54,12 @@ public:
 
   void visit(const klee::CompositeOperator&) override
   {
-    SLIC_WARNING("CompositeOperator not supported for Shaper query");
+    SLIC_WARNING_ROOT("CompositeOperator not supported for Shaper query");
     m_isValid = false;
   }
   void visit(const klee::SliceOperator&) override
   {
-    SLIC_WARNING("SliceOperator not yet supported for Shaper query");
+    SLIC_WARNING_ROOT("SliceOperator not yet supported for Shaper query");
     m_isValid = false;
   }
 
@@ -85,14 +85,12 @@ DiscreteShape::DiscreteShape(const axom::klee::Shape& shape,
   : m_shape(shape)
   , m_sidreGroup(nullptr)
   , m_refinementType(DiscreteShape::RefinementUniformSegments)
-  , m_percentError(
-      utilities::clampVal(0.0, MINIMUM_PERCENT_ERROR, MAXIMUM_PERCENT_ERROR))
+  , m_percentError(utilities::clampVal(0.0, MINIMUM_PERCENT_ERROR, MAXIMUM_PERCENT_ERROR))
 {
   setPrefixPath(prefixPath);
   setParentGroup(parentGroup);
 
-  if(parentGroup == nullptr &&
-     m_shape.getGeometry().getFormat() == "blueprint-tets")
+  if(parentGroup == nullptr && m_shape.getGeometry().getFormat() == "blueprint-tets")
   {
     SLIC_ERROR(
       "DiscreteShape: Support for Blueprint-mesh shape format currently "
@@ -147,29 +145,26 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
   if(!m_shape.getGeometry().hasGeometry())
   {
     // If shape has no geometry, there's nothing to discretize.
-    SLIC_DEBUG(
-      axom::fmt::format("Current shape '{}' of material '{}' has no geometry",
-                        m_shape.getName(),
-                        m_shape.getMaterial()));
+    SLIC_DEBUG_ROOT(axom::fmt::format("Current shape '{}' of material '{}' has no geometry",
+                                      m_shape.getName(),
+                                      m_shape.getMaterial()));
     return m_meshRep;
   }
 
   // We handled all the non-file formats.  The rest are file formats.
   const std::string& file_format = geometryFormat;
 
-  std::string shapePath = axom::utilities::filesystem::prefixRelativePath(
-    m_shape.getGeometry().getPath(),
-    m_prefixPath);
-  SLIC_INFO("Reading file: " << shapePath << "...");
+  std::string shapePath =
+    axom::utilities::filesystem::prefixRelativePath(m_shape.getGeometry().getPath(), m_prefixPath);
+  SLIC_INFO_ROOT("Reading file: " << shapePath << "...");
 
   // Initialize revolved volume.
   m_revolvedVolume = 0.;
 
   if(utilities::string::endsWith(shapePath, ".stl"))
   {
-    SLIC_ASSERT_MSG(
-      file_format == "stl",
-      axom::fmt::format(" '{}' format requires .stl file type", file_format));
+    SLIC_ERROR_ROOT_IF(file_format != "stl",
+                       axom::fmt::format(" '{}' format requires .stl file type", file_format));
 
     axom::mint::Mesh* meshRep = nullptr;
 #ifdef AXOM_USE_MPI
@@ -183,9 +178,8 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
   }
   else if(utilities::string::endsWith(shapePath, ".proe"))
   {
-    SLIC_ASSERT_MSG(
-      file_format == "proe",
-      axom::fmt::format(" '{}' format requires .proe file type", file_format));
+    SLIC_ERROR_ROOT_IF(file_format != "proe",
+                       axom::fmt::format(" '{}' format requires .proe file type", file_format));
 
     axom::mint::Mesh* meshRep = nullptr;
 #ifdef AXOM_USE_MPI
@@ -198,38 +192,55 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 #ifdef AXOM_USE_C2C
   else if(utilities::string::endsWith(shapePath, ".contour"))
   {
-    SLIC_ASSERT_MSG(
-      file_format == "c2c",
-      axom::fmt::format(" '{}' format requires .contour file type", file_format));
+    SLIC_ERROR_ROOT_IF(file_format != "c2c",
+                       axom::fmt::format(" '{}' format requires .contour file type", file_format));
 
     // Get the transforms that are being applied to the mesh. Get them
     // as a single concatenated matrix.
     auto transform = getTransforms();
 
-    // Pass in the transform so any transformations can figure into
-    // computing the revolved volume.
+    // Pass in the transform so any transformations can figure into computing the revolved volume.
     axom::mint::Mesh* meshRep = nullptr;
-    if(m_refinementType == DiscreteShape::RefinementDynamic &&
-       m_percentError > MINIMUM_PERCENT_ERROR)
-    {
-      quest::internal::read_c2c_mesh_non_uniform(shapePath,
-                                                 transform,
-                                                 m_percentError,
-                                                 m_vertexWeldThreshold,
-                                                 meshRep,
-                                                 m_revolvedVolume,  // output arg
-                                                 m_comm);
-    }
-    else
-    {
-      quest::internal::read_c2c_mesh_uniform(shapePath,
-                                             transform,
-                                             m_samplesPerKnotSpan,
-                                             m_vertexWeldThreshold,
-                                             meshRep,
-                                             m_revolvedVolume,  // output arg
-                                             m_comm);
-    }
+    const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic &&
+                           m_percentError > MINIMUM_PERCENT_ERROR);
+    quest::internal::read_c2c_mesh(shapePath,
+                                   uniform,
+                                   transform,
+                                   m_samplesPerKnotSpan,
+                                   m_vertexWeldThreshold,
+                                   m_percentError,
+                                   meshRep,
+                                   m_revolvedVolume,  // output arg
+                                   m_comm);
+
+    m_meshRep.reset(meshRep);
+
+    // Transform the coordinates of the linearized mesh.
+    applyTransforms();
+  }
+#endif
+#ifdef AXOM_USE_MFEM
+  else if(utilities::string::endsWith(shapePath, ".mesh"))
+  {
+    SLIC_ERROR_ROOT_IF(file_format != "mfem",
+                       axom::fmt::format(" '{}' format requires .mesh file extension", file_format));
+    // Get the transforms that are being applied to the mesh. Get them
+    // as a single concatenated matrix.
+    auto transform = getTransforms();
+
+    // Pass in the transform so any transformations can figure into computing the revolved volume.
+    axom::mint::Mesh* meshRep = nullptr;
+    const bool uniform = !(m_refinementType == DiscreteShape::RefinementDynamic &&
+                           m_percentError > MINIMUM_PERCENT_ERROR);
+    quest::internal::read_mfem_mesh(shapePath,
+                                    uniform,
+                                    transform,
+                                    m_samplesPerKnotSpan,
+                                    m_vertexWeldThreshold,
+                                    m_percentError,
+                                    meshRep,
+                                    m_revolvedVolume);  // output arg
+
     m_meshRep.reset(meshRep);
 
     // Transform the coordinates of the linearized mesh.
@@ -238,7 +249,7 @@ std::shared_ptr<mint::Mesh> DiscreteShape::createMeshRepresentation()
 #endif
   else
   {
-    SLIC_ERROR(
+    SLIC_ERROR_ROOT(
       axom::fmt::format("Unsupported filetype for this Axom configuration. "
                         "Provided file was '{}', with format '{}'",
                         shapePath,
@@ -278,9 +289,8 @@ void DiscreteShape::createRepresentationOfBlueprintTets()
   axom::sidre::Group* modGroup = m_sidreGroup->createGroup(modName);
   modGroup->deepCopyGroup(inputGroup, allocID);
 
-  m_meshRep.reset(
-    axom::mint::getMesh(modGroup->getGroup(inputGroup->getName()),
-                        m_shape.getGeometry().getBlueprintTopology()));
+  m_meshRep.reset(axom::mint::getMesh(modGroup->getGroup(inputGroup->getName()),
+                                      m_shape.getGeometry().getBlueprintTopology()));
 
   // Transform the coordinates of the linearized mesh.
   applyTransforms();
@@ -317,10 +327,8 @@ void DiscreteShape::createRepresentationOfTet()
   }
   else
   {
-    tetMesh = new TetMesh(3,
-                          axom::mint::CellType::TET,
-                          nodeCoords.shape()[0],
-                          connectivity.shape()[0]);
+    tetMesh =
+      new TetMesh(3, axom::mint::CellType::TET, nodeCoords.shape()[0], connectivity.shape()[0]);
   }
   tetMesh->appendNodes((double*)nodeCoords.data(), nodeCoords.shape()[0]);
   tetMesh->appendCells(connectivity.data(), connectivity.shape()[0]);
@@ -369,10 +377,8 @@ void DiscreteShape::createRepresentationOfHex()
   }
   else
   {
-    tetMesh = new TetMesh(3,
-                          axom::mint::CellType::TET,
-                          nodeCoords.shape()[0],
-                          connectivity.shape()[0]);
+    tetMesh =
+      new TetMesh(3, axom::mint::CellType::TET, nodeCoords.shape()[0], connectivity.shape()[0]);
   }
   tetMesh->appendNodes((double*)nodeCoords.data(), nodeCoords.shape()[0]);
   tetMesh->appendCells(connectivity.data(), connectivity.shape()[0]);
@@ -421,9 +427,7 @@ void DiscreteShape::createRepresentationOfPlane()
   for(int i = 0; i < 8; ++i)
   {
     Point3D newCoords;
-    numerics::matrix_vector_multiply(rotate,
-                                     boundingHex[i].data(),
-                                     newCoords.data());
+    numerics::matrix_vector_multiply(rotate, boundingHex[i].data(), newCoords.data());
     newCoords.array() += translate.array();
     boundingHex[i].array() = newCoords.array();
   }
@@ -464,10 +468,8 @@ void DiscreteShape::createRepresentationOfPlane()
   }
   else
   {
-    tetMesh = new TetMesh(3,
-                          axom::mint::CellType::TET,
-                          nodeCoords.shape()[0],
-                          connectivity.shape()[0]);
+    tetMesh =
+      new TetMesh(3, axom::mint::CellType::TET, nodeCoords.shape()[0], connectivity.shape()[0]);
   }
   tetMesh->appendNodes((double*)nodeCoords.data(), nodeCoords.shape()[0]);
   tetMesh->appendCells(connectivity.data(), connectivity.shape()[0]);
@@ -527,8 +529,7 @@ void DiscreteShape::createRepresentationOfSphere()
   TetMesh* tetMesh = nullptr;
   if(m_sidreGroup != nullptr)
   {
-    tetMesh =
-      new TetMesh(3, axom::mint::CellType::TET, m_sidreGroup, nodeCount, tetCount);
+    tetMesh = new TetMesh(3, axom::mint::CellType::TET, m_sidreGroup, nodeCount, tetCount);
   }
   else
   {
@@ -550,20 +551,19 @@ void DiscreteShape::createRepresentationOfSOR()
   // Generate the Octahedra
   axom::Array<OctType> octs;
   int octCount = 0;
-  axom::ArrayView<Point2D> polyline((Point2D*)discreteFcn.data(),
-                                    discreteFcn.shape()[0]);
-  const bool good = axom::quest::discretize<axom::SEQ_EXEC>(
-    polyline,
-    int(polyline.size()),
-    m_shape.getGeometry().getLevelOfRefinement(),
-    octs,
-    octCount);
+  axom::ArrayView<Point2D> polyline((Point2D*)discreteFcn.data(), discreteFcn.shape()[0]);
+  const bool good =
+    axom::quest::discretize<axom::SEQ_EXEC>(polyline,
+                                            int(polyline.size()),
+                                            m_shape.getGeometry().getLevelOfRefinement(),
+                                            octs,
+                                            octCount);
   AXOM_UNUSED_VAR(good);
   SLIC_ASSERT(good);
 
   // Rotate to the SOR axis direction and translate to the base location.
   numerics::Matrix<double> rotate = sorAxisRotMatrix(sorGeom.getSorDirection());
-  const auto& translate = sorGeom.getSorBaseCoords();
+  const auto& translate = sorGeom.getSorOriginCoords();
   auto octsView = octs.view();
   axom::for_all<axom::SEQ_EXEC>(
     octCount,
@@ -573,9 +573,7 @@ void DiscreteShape::createRepresentationOfSOR()
       {
         auto& newCoords = oct[iVert];
         auto oldCoords = newCoords;
-        numerics::matrix_vector_multiply(rotate,
-                                         oldCoords.data(),
-                                         newCoords.data());
+        numerics::matrix_vector_multiply(rotate, oldCoords.data(), newCoords.data());
         newCoords.array() += translate.array();
       }
     });
@@ -589,30 +587,25 @@ void DiscreteShape::createRepresentationOfSOR()
   // Blueprint support octs only as polyhedra.  We can always return
   // an array of primal::Octahedron instead of a mesh.
   axom::mint::Mesh* mesh;
-  axom::quest::mesh_from_discretized_polyline(octs.view(),
-                                              octCount,
-                                              polyline.size() - 1,
-                                              mesh);
+  axom::quest::mesh_from_discretized_polyline(octs.view(), octCount, polyline.size() - 1, mesh);
 
   if(m_sidreGroup)
   {
     // If using sidre, copy the tetMesh into sidre.
     auto* tetMesh = static_cast<TetMesh*>(mesh);
     axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>* siMesh =
-      new axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>(
-        tetMesh->getDimension(),
-        tetMesh->getCellType(),
-        m_sidreGroup,
-        tetMesh->getTopologyName(),
-        tetMesh->getCoordsetName(),
-        tetMesh->getNumberOfNodes(),
-        tetMesh->getNumberOfCells());
+      new axom::mint::UnstructuredMesh<axom::mint::SINGLE_SHAPE>(tetMesh->getDimension(),
+                                                                 tetMesh->getCellType(),
+                                                                 m_sidreGroup,
+                                                                 tetMesh->getTopologyName(),
+                                                                 tetMesh->getCoordsetName(),
+                                                                 tetMesh->getNumberOfNodes(),
+                                                                 tetMesh->getNumberOfCells());
     siMesh->appendNodes(tetMesh->getCoordinateArray(0),
                         tetMesh->getCoordinateArray(1),
                         tetMesh->getCoordinateArray(2),
                         tetMesh->getNumberOfNodes());
-    siMesh->appendCells(tetMesh->getCellNodesArray(),
-                        tetMesh->getNumberOfCells());
+    siMesh->appendCells(tetMesh->getCellNodesArray(), tetMesh->getNumberOfCells());
     m_meshRep.reset(siMesh);
     delete mesh;
     mesh = nullptr;
@@ -637,8 +630,7 @@ void DiscreteShape::applyTransforms()
     const int numSurfaceVertices = m_meshRep->getNumberOfNodes();
     double* x = m_meshRep->getCoordinateArray(mint::X_COORDINATE);
     double* y = m_meshRep->getCoordinateArray(mint::Y_COORDINATE);
-    double* z = spaceDim > 2 ? m_meshRep->getCoordinateArray(mint::Z_COORDINATE)
-                             : nullptr;
+    double* z = spaceDim > 2 ? m_meshRep->getCoordinateArray(mint::Z_COORDINATE) : nullptr;
 
     double xformed[4];
     for(int i = 0; i < numSurfaceVertices; ++i)
@@ -662,8 +654,7 @@ numerics::Matrix<double> DiscreteShape::getTransforms() const
   auto& geometryOperator = m_shape.getGeometry().getGeometryOperator();
   if(geometryOperator)
   {
-    auto composite =
-      std::dynamic_pointer_cast<const klee::CompositeOperator>(geometryOperator);
+    auto composite = std::dynamic_pointer_cast<const klee::CompositeOperator>(geometryOperator);
     if(composite)
     {
       // Concatenate the transformations
@@ -744,22 +735,18 @@ numerics::Matrix<double> DiscreteShape::sorAxisRotMatrix(const Vector3D& dir)
 void DiscreteShape::setSamplesPerKnotSpan(int nSamples)
 {
   using axom::utilities::clampLower;
-  SLIC_WARNING_IF(
+  SLIC_WARNING_ROOT_IF(
     nSamples < 1,
-    axom::fmt::format(
-      "Samples per knot span must be at least 1. Provided value was {}",
-      nSamples));
+    axom::fmt::format("Samples per knot span must be at least 1. Provided value was {}", nSamples));
 
   m_samplesPerKnotSpan = clampLower(nSamples, 1);
 }
 
 void DiscreteShape::setVertexWeldThreshold(double threshold)
 {
-  SLIC_WARNING_IF(
+  SLIC_WARNING_ROOT_IF(
     threshold <= 0.,
-    axom::fmt::format(
-      "Vertex weld threshold should be positive Provided value was {}",
-      threshold));
+    axom::fmt::format("Vertex weld threshold should be positive. Provided value was {}", threshold));
 
   m_vertexWeldThreshold = threshold;
 }
@@ -767,30 +754,27 @@ void DiscreteShape::setVertexWeldThreshold(double threshold)
 void DiscreteShape::setPercentError(double percent)
 {
   using axom::utilities::clampVal;
-  SLIC_WARNING_IF(
-    percent <= MINIMUM_PERCENT_ERROR,
-    axom::fmt::format("Percent error must be greater than {}. Provided value "
-                      "was {}. Dynamic refinement will not be used.",
-                      MINIMUM_PERCENT_ERROR,
+  SLIC_WARNING_ROOT_IF(percent <= MINIMUM_PERCENT_ERROR,
+                       axom::fmt::format("Percent error must be greater than {}. Provided value "
+                                         "was {}. Dynamic refinement will not be used.",
+                                         MINIMUM_PERCENT_ERROR,
+                                         percent));
+  SLIC_WARNING_ROOT_IF(
+    percent > MAXIMUM_PERCENT_ERROR,
+    axom::fmt::format("Percent error must be less than {}. Provided value was {}",
+                      MAXIMUM_PERCENT_ERROR,
                       percent));
-  SLIC_WARNING_IF(percent > MAXIMUM_PERCENT_ERROR,
-                  axom::fmt::format(
-                    "Percent error must be less than {}. Provided value was {}",
-                    MAXIMUM_PERCENT_ERROR,
-                    percent));
   if(percent <= MINIMUM_PERCENT_ERROR)
   {
     m_refinementType = DiscreteShape::RefinementUniformSegments;
   }
-  m_percentError =
-    clampVal(percent, MINIMUM_PERCENT_ERROR, MAXIMUM_PERCENT_ERROR);
+  m_percentError = clampVal(percent, MINIMUM_PERCENT_ERROR, MAXIMUM_PERCENT_ERROR);
 }
 
 void DiscreteShape::setPrefixPath(const std::string& prefixPath)
 {
-  SLIC_ERROR_IF(
-    !prefixPath.empty() && !axom::utilities::filesystem::pathExists(prefixPath),
-    "Path '" + prefixPath + "' does not exist.");
+  SLIC_ERROR_ROOT_IF(!prefixPath.empty() && !axom::utilities::filesystem::pathExists(prefixPath),
+                     axom::fmt::format("Path '{}' does not exist.", prefixPath));
   m_prefixPath = prefixPath;
 }
 
@@ -801,16 +785,16 @@ void DiscreteShape::setParentGroup(axom::sidre::Group* parentGroup)
     // Use object address to create a unique name for sidre group under parent.
     std::string myGroupName;
     int i = 0;
-    while(myGroupName.empty())
+    do
     {
-      std::ostringstream os;
-      os << "DiscreteShapeTemp-" << i;
-      if(!parentGroup->hasGroup(os.str()))
+      const std::string str = axom::fmt::format("DiscreteShapeTemp-{}", i);
+      if(!parentGroup->hasGroup(str))
       {
-        myGroupName = os.str();
+        myGroupName = str;
       }
       ++i;
-    }
+    } while(myGroupName.empty());
+
     m_sidreGroup = parentGroup->createGroup(myGroupName);
   }
 }

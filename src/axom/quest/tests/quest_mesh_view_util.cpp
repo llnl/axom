@@ -37,10 +37,7 @@ namespace numerics = axom::numerics;
 ///////////////////////////////////////////////////////////////
 // converts the input string into an 80 character string
 // padded on both sides with '=' symbols
-std::string banner(const std::string& str)
-{
-  return axom::fmt::format("{:=^80}", str);
-}
+std::string banner(const std::string& str) { return axom::fmt::format("{:=^80}", str); }
 
 ///////////////////////////////////////////////////////////////
 /// Struct to parse and store the input parameters
@@ -63,8 +60,7 @@ public:
     // could throw an exception
     app.parse(argc, argv);
 
-    slic::setLoggingMsgLevel(_verboseOutput ? slic::message::Debug
-                                            : slic::message::Info);
+    slic::setLoggingMsgLevel(_verboseOutput ? slic::message::Debug : slic::message::Info);
   }
 };
 
@@ -84,12 +80,10 @@ void initializeLogger()
 
   slic::addStreamToAllMsgLevels(logStream);
 
-  conduit::utils::set_error_handler([](auto& msg, auto& file, int line) {
-    slic::logErrorMessage(msg, file, line);
-  });
-  conduit::utils::set_warning_handler([](auto& msg, auto& file, int line) {
-    slic::logWarningMessage(msg, file, line);
-  });
+  conduit::utils::set_error_handler(
+    [](auto& msg, auto& file, int line) { slic::logErrorMessage(msg, file, line); });
+  conduit::utils::set_warning_handler(
+    [](auto& msg, auto& file, int line) { slic::logWarningMessage(msg, file, line); });
   conduit::utils::set_info_handler([](auto& msg, auto& file, int line) {
     slic::logMessage(slic::message::Info, msg, file, line);
   });
@@ -161,11 +155,10 @@ using IndexCoords = axom::StackArray<axom::IndexType, 3>;
 //---------------------------------------------------------------------------
 // Create a mesh using a Conduit example.
 // ---------------------------------------------------------------------------
-void createConduitBlueprintDomain(
-  const axom::StackArray<std::int64_t, 3>& domainShape,
-  const axom::StackArray<std::int64_t, 3>& loPads,
-  const axom::StackArray<std::int64_t, 3>& hiPads,
-  conduit::Node& domain)
+void createConduitBlueprintDomain(const axom::StackArray<std::int64_t, 3>& domainShape,
+                                  const axom::StackArray<std::int64_t, 3>& loPads,
+                                  const axom::StackArray<std::int64_t, 3>& hiPads,
+                                  conduit::Node& domain)
 {
   // Conduit's example requires int64_t inputs.
   using Int64Coords = axom::StackArray<std::int64_t, 3>;
@@ -249,9 +242,8 @@ int testDataAccess(axom::ArrayView<T, 3>& da,
   if(!monotone)
   {
     ++errCount;
-    SLIC_INFO_IF(
-      params.isVerbose(),
-      axom::fmt::format("Failed monotone ordering for ArrayView '{}'", daName));
+    SLIC_INFO_IF(params.isVerbose(),
+                 axom::fmt::format("Failed monotone ordering for ArrayView '{}'", daName));
   }
 
   return errCount;
@@ -307,32 +299,26 @@ int testConversionMethods(const MVU3Type::MdIndices& realShape,
   if(!isEqual(loPads, loPads1))
   {
     ++errCount;
-    SLIC_INFO_IF(
-      params.isVerbose(),
-      axom::fmt::format("Mismatched loPads: {} vs {}.", loPads1, loPads));
+    SLIC_INFO_IF(params.isVerbose(),
+                 axom::fmt::format("Mismatched loPads: {} vs {}.", loPads1, loPads));
   }
   if(!isEqual(hiPads, hiPads1))
   {
     ++errCount;
-    SLIC_INFO_IF(
-      params.isVerbose(),
-      axom::fmt::format("Mismatched hiPads: {} vs {}.", hiPads1, hiPads));
+    SLIC_INFO_IF(params.isVerbose(),
+                 axom::fmt::format("Mismatched hiPads: {} vs {}.", hiPads1, hiPads));
   }
   if(paddedShape1 != paddedShape)
   {
     ++errCount;
     SLIC_INFO_IF(params.isVerbose(),
-                 axom::fmt::format("Mismatched valuesCount: {} vs {}.",
-                                   paddedShape1,
-                                   paddedShape));
+                 axom::fmt::format("Mismatched valuesCount: {} vs {}.", paddedShape1, paddedShape));
   }
   if(!isEqual(strideOrder, strideOrder1))
   {
     ++errCount;
     SLIC_INFO_IF(params.isVerbose(),
-                 axom::fmt::format("Mismatched strideOrder: {} vs {}.",
-                                   strideOrder1,
-                                   strideOrder));
+                 axom::fmt::format("Mismatched strideOrder: {} vs {}.", strideOrder1, strideOrder));
   }
 
   return errCount;
@@ -348,15 +334,14 @@ int testByConduitExample(const IndexCoords& domainShape,
                          const IndexCoords& strideOrder,
                          axom::IndexType minStride = 1)
 {
-  SLIC_INFO_IF(
-    params.isVerbose(),
-    axom::fmt::format("Check conduit mesh with domainShape={}, loPads={}, "
-                      "hiPads={}, strideOrder={}, minStride={}",
-                      domainShape,
-                      loPads,
-                      hiPads,
-                      strideOrder,
-                      minStride));
+  SLIC_INFO_IF(params.isVerbose(),
+               axom::fmt::format("Check conduit mesh with domainShape={}, loPads={}, "
+                                 "hiPads={}, strideOrder={}, minStride={}",
+                                 domainShape,
+                                 loPads,
+                                 hiPads,
+                                 strideOrder,
+                                 minStride));
   int errCount = 0;
 
   conduit::Node domain;
@@ -420,10 +405,9 @@ int testByConduitExample(const IndexCoords& domainShape,
     if(!isEqual(mview.getCellShape(), elemShape))
     {
       ++errCount;
-      SLIC_INFO_IF(params.isVerbose(),
-                   axom::fmt::format("Mismatched domain shape: {} vs {}",
-                                     mview.getCellShape(),
-                                     elemShape));
+      SLIC_INFO_IF(
+        params.isVerbose(),
+        axom::fmt::format("Mismatched domain shape: {} vs {}", mview.getCellShape(), elemShape));
     }
 
     if(!isEqual(mview.getRealShape("element"), elemShape))
@@ -465,11 +449,10 @@ int testByConduitExample(const IndexCoords& domainShape,
     if(mview.getCoordsCountWithGhosts() != vertValuesCount)
     {
       ++errCount;
-      SLIC_INFO_IF(
-        params.isVerbose(),
-        axom::fmt::format("Mismatched coords count with ghosts: {} vs {}",
-                          mview.getCoordsCountWithGhosts(),
-                          vertValuesCount));
+      SLIC_INFO_IF(params.isVerbose(),
+                   axom::fmt::format("Mismatched coords count with ghosts: {} vs {}",
+                                     mview.getCoordsCountWithGhosts(),
+                                     vertValuesCount));
     }
 
     // Check field views sizes and strides.
@@ -482,69 +465,57 @@ int testByConduitExample(const IndexCoords& domainShape,
     if(!isEqual(elemField.shape(), elemShape))
     {
       ++errCount;
-      SLIC_INFO_IF(params.isVerbose(),
-                   axom::fmt::format("Mismatched elemField shape: {} vs {}",
-                                     elemField.shape(),
-                                     elemShape));
+      SLIC_INFO_IF(
+        params.isVerbose(),
+        axom::fmt::format("Mismatched elemField shape: {} vs {}", elemField.shape(), elemShape));
     }
 
     if(!isEqual(vertField.shape(), vertShape))
     {
       ++errCount;
-      SLIC_INFO_IF(params.isVerbose(),
-                   axom::fmt::format("Mismatched vertField shape: {} vs {}",
-                                     vertField.shape(),
-                                     vertShape));
+      SLIC_INFO_IF(
+        params.isVerbose(),
+        axom::fmt::format("Mismatched vertField shape: {} vs {}", vertField.shape(), vertShape));
     }
 
     if(!isEqual(elemFieldWithGhosts.shape(), elemPaddedShape))
     {
       ++errCount;
-      SLIC_INFO_IF(
-        params.isVerbose(),
-        axom::fmt::format("Mismatched elemField padded shape: {} vs {}",
-                          elemField.shape(),
-                          elemPaddedShape));
+      SLIC_INFO_IF(params.isVerbose(),
+                   axom::fmt::format("Mismatched elemField padded shape: {} vs {}",
+                                     elemField.shape(),
+                                     elemPaddedShape));
     }
 
     if(!isEqual(elemFieldWithGhosts.strides(), elemStrides))
     {
       ++errCount;
-      SLIC_INFO_IF(
-        params.isVerbose(),
-        axom::fmt::format("Mismatched elemField padded stride: {} vs {}",
-                          elemFieldWithGhosts.strides(),
-                          elemStrides));
+      SLIC_INFO_IF(params.isVerbose(),
+                   axom::fmt::format("Mismatched elemField padded stride: {} vs {}",
+                                     elemFieldWithGhosts.strides(),
+                                     elemStrides));
     }
 
     if(!isEqual(vertFieldWithGhosts.shape(), vertPaddedShape))
     {
       ++errCount;
-      SLIC_INFO_IF(
-        params.isVerbose(),
-        axom::fmt::format("Mismatched vertField padded shape: {} vs {}",
-                          vertField.shape(),
-                          vertPaddedShape));
+      SLIC_INFO_IF(params.isVerbose(),
+                   axom::fmt::format("Mismatched vertField padded shape: {} vs {}",
+                                     vertField.shape(),
+                                     vertPaddedShape));
     }
 
     if(!isEqual(vertFieldWithGhosts.strides(), vertStrides))
     {
       ++errCount;
-      SLIC_INFO_IF(
-        params.isVerbose(),
-        axom::fmt::format("Mismatched vertField padded stride: {} vs {}",
-                          vertField.strides(),
-                          vertStrides));
+      SLIC_INFO_IF(params.isVerbose(),
+                   axom::fmt::format("Mismatched vertField padded stride: {} vs {}",
+                                     vertField.strides(),
+                                     vertStrides));
     }
 
-    errCount += testDataAccess(elemField,
-                               "elemField",
-                               conduitStrideOrder,
-                               ModifyNumber<double>());
-    errCount += testDataAccess(vertField,
-                               "vertField",
-                               conduitStrideOrder,
-                               ModifyNumber<double>());
+    errCount += testDataAccess(elemField, "elemField", conduitStrideOrder, ModifyNumber<double>());
+    errCount += testDataAccess(vertField, "vertField", conduitStrideOrder, ModifyNumber<double>());
     errCount += testDataAccess(elemFieldWithGhosts,
                                "elemFieldWithGhosts",
                                conduitStrideOrder,
@@ -608,10 +579,9 @@ int testByConduitExample(const IndexCoords& domainShape,
     if(!isEqual(inCellsView.shape(), elemShape))
     {
       ++errCount;
-      SLIC_INFO_IF(params.isVerbose(),
-                   axom::fmt::format("Mismatched vertField shape: {} vs {}",
-                                     inCellsView.shape(),
-                                     elemShape));
+      SLIC_INFO_IF(
+        params.isVerbose(),
+        axom::fmt::format("Mismatched vertField shape: {} vs {}", inCellsView.shape(), elemShape));
     }
 
     if(!isEqual(inCellsView.strides(), elemStrides))
@@ -626,21 +596,19 @@ int testByConduitExample(const IndexCoords& domainShape,
     if(!isEqual(inCellsPaddedView.shape(), elemPaddedShape))
     {
       ++errCount;
-      SLIC_INFO_IF(
-        params.isVerbose(),
-        axom::fmt::format("Mismatched vertField padded shape: {} vs {}",
-                          inCellsPaddedView.shape(),
-                          elemPaddedShape));
+      SLIC_INFO_IF(params.isVerbose(),
+                   axom::fmt::format("Mismatched vertField padded shape: {} vs {}",
+                                     inCellsPaddedView.shape(),
+                                     elemPaddedShape));
     }
 
     if(!isEqual(inCellsPaddedView.strides(), elemStrides))
     {
       ++errCount;
-      SLIC_INFO_IF(
-        params.isVerbose(),
-        axom::fmt::format("Mismatched vertField padded strides: {} vs {}",
-                          inCellsPaddedView.strides(),
-                          elemStrides));
+      SLIC_INFO_IF(params.isVerbose(),
+                   axom::fmt::format("Mismatched vertField padded strides: {} vs {}",
+                                     inCellsPaddedView.strides(),
+                                     elemStrides));
     }
 
     //---------------------------------------------------------------------------
@@ -657,10 +625,9 @@ int testByConduitExample(const IndexCoords& domainShape,
     if(!isEqual(onNodesView.shape(), vertShape))
     {
       ++errCount;
-      SLIC_INFO_IF(params.isVerbose(),
-                   axom::fmt::format("Mismatched vertField shape: {} vs {}",
-                                     onNodesView.shape(),
-                                     vertShape));
+      SLIC_INFO_IF(
+        params.isVerbose(),
+        axom::fmt::format("Mismatched vertField shape: {} vs {}", onNodesView.shape(), vertShape));
     }
 
     if(!isEqual(onNodesView.strides(), vertStrides))
@@ -675,39 +642,27 @@ int testByConduitExample(const IndexCoords& domainShape,
     if(!isEqual(onNodesPaddedView.shape(), vertPaddedShape))
     {
       ++errCount;
-      SLIC_INFO_IF(
-        params.isVerbose(),
-        axom::fmt::format("Mismatched vertField padded shape: {} vs {}",
-                          onNodesPaddedView.shape(),
-                          vertPaddedShape));
+      SLIC_INFO_IF(params.isVerbose(),
+                   axom::fmt::format("Mismatched vertField padded shape: {} vs {}",
+                                     onNodesPaddedView.shape(),
+                                     vertPaddedShape));
     }
 
     if(!isEqual(onNodesPaddedView.strides(), vertStrides))
     {
       ++errCount;
-      SLIC_INFO_IF(
-        params.isVerbose(),
-        axom::fmt::format("Mismatched vertField padded strides: {} vs {}",
-                          onNodesPaddedView.strides(),
-                          vertStrides));
+      SLIC_INFO_IF(params.isVerbose(),
+                   axom::fmt::format("Mismatched vertField padded strides: {} vs {}",
+                                     onNodesPaddedView.strides(),
+                                     vertStrides));
     }
 
-    errCount += testDataAccess(inCellsPaddedView,
-                               "inCellsPaddedView",
-                               strideOrder,
-                               ModifyNumber<std::int32_t>());
-    errCount += testDataAccess(inCellsView,
-                               "inCellsView",
-                               strideOrder,
-                               ModifyNumber<std::int32_t>());
-    errCount += testDataAccess(onNodesPaddedView,
-                               "onNodesPaddedView",
-                               strideOrder,
-                               ModifyNumber<std::int32_t>());
-    errCount += testDataAccess(onNodesView,
-                               "onNodesView",
-                               strideOrder,
-                               ModifyNumber<std::int32_t>());
+    errCount +=
+      testDataAccess(inCellsPaddedView, "inCellsPaddedView", strideOrder, ModifyNumber<std::int32_t>());
+    errCount += testDataAccess(inCellsView, "inCellsView", strideOrder, ModifyNumber<std::int32_t>());
+    errCount +=
+      testDataAccess(onNodesPaddedView, "onNodesPaddedView", strideOrder, ModifyNumber<std::int32_t>());
+    errCount += testDataAccess(onNodesView, "onNodesView", strideOrder, ModifyNumber<std::int32_t>());
   }
 
   return errCount;

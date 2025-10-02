@@ -141,8 +141,8 @@
  *  when compiling and linking with -fsanitize=undefined
  */
 #if defined(__has_attribute)
-  #if __has_attribute(no_sanitize_undefined)
-    #define AXOM_SUPPRESS_UBSAN __attribute__((no_sanitize_undefined))
+  #if __has_attribute(no_sanitize)
+    #define AXOM_SUPPRESS_UBSAN __attribute__((no_sanitize("undefined")))
   #else
     #define AXOM_SUPPRESS_UBSAN
   #endif
@@ -218,6 +218,27 @@
   #define AXOM_DEBUG_PARAM(_x) _x
 #else
   #define AXOM_DEBUG_PARAM(_x)
+#endif
+
+/*!
+ * \def AXOM_MAYBE_UNUSED
+ * \brief Macro that is used to silence compiler warnings about variables that
+ *        might be unused in some build configurations.
+ *
+ * \note This macro can be used for the same purpose as AXOM_UNUSED_VAR and AXOM_DEBUG_PARAM but it
+ *       is applied before the variable type declaration.
+ * \code
+ *
+ *  AXOM_MAYBE_UNUSED double myVar = ...
+ *  SLIC_ASSERT(myVar > 0)
+ *
+ * \endcode
+ */
+#if __cplusplus >= 201703L
+  // C++17 and later.
+  #define AXOM_MAYBE_UNUSED [[maybe_unused]]
+#else
+  #define AXOM_MAYBE_UNUSED
 #endif
 
 /*!
@@ -301,32 +322,29 @@
  * \note Can be used in test files after including `gtest/gtest.h`
  */
 // Specifically, we expose the `TestBody()` method as public instead of private
-#define AXOM_TYPED_TEST(CaseName, TestName)                                         \
-  static_assert(sizeof(GTEST_STRINGIFY_(TestName)) > 1,                             \
-                "test-name must not be empty");                                     \
-  template <typename gtest_TypeParam_>                                              \
-  class GTEST_TEST_CLASS_NAME_(CaseName, TestName)                                  \
-    : public CaseName<gtest_TypeParam_>                                             \
-  {                                                                                 \
-  public:                                                                           \
-    typedef CaseName<gtest_TypeParam_> TestFixture;                                 \
-    typedef gtest_TypeParam_ TypeParam;                                             \
-    void TestBody() override;                                                       \
-  };                                                                                \
-  static bool gtest_##CaseName##_##TestName##_registered_ GTEST_ATTRIBUTE_UNUSED_ = \
-    ::testing::internal::TypeParameterizedTest<                                     \
-      CaseName,                                                                     \
-      ::testing::internal::TemplateSel<GTEST_TEST_CLASS_NAME_(CaseName, TestName)>, \
-      GTEST_TYPE_PARAMS_(CaseName)>::                                               \
-      Register(                                                                     \
-        "",                                                                         \
-        ::testing::internal::CodeLocation(__FILE__, __LINE__),                      \
-        GTEST_STRINGIFY_(CaseName),                                                 \
-        GTEST_STRINGIFY_(TestName),                                                 \
-        0,                                                                          \
-        ::testing::internal::GenerateNames<GTEST_NAME_GENERATOR_(CaseName),         \
-                                           GTEST_TYPE_PARAMS_(CaseName)>());        \
-  template <typename gtest_TypeParam_>                                              \
+#define AXOM_TYPED_TEST(CaseName, TestName)                                                       \
+  static_assert(sizeof(GTEST_STRINGIFY_(TestName)) > 1, "test-name must not be empty");           \
+  template <typename gtest_TypeParam_>                                                            \
+  class GTEST_TEST_CLASS_NAME_(CaseName, TestName) : public CaseName<gtest_TypeParam_>            \
+  {                                                                                               \
+  public:                                                                                         \
+    typedef CaseName<gtest_TypeParam_> TestFixture;                                               \
+    typedef gtest_TypeParam_ TypeParam;                                                           \
+    void TestBody() override;                                                                     \
+  };                                                                                              \
+  GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED static bool gtest_##CaseName##_##TestName##_registered_ = \
+    ::testing::internal::TypeParameterizedTest<                                                   \
+      CaseName,                                                                                   \
+      ::testing::internal::TemplateSel<GTEST_TEST_CLASS_NAME_(CaseName, TestName)>,               \
+      GTEST_TYPE_PARAMS_(                                                                         \
+        CaseName)>::Register("",                                                                  \
+                             ::testing::internal::CodeLocation(__FILE__, __LINE__),               \
+                             GTEST_STRINGIFY_(CaseName),                                          \
+                             GTEST_STRINGIFY_(TestName),                                          \
+                             0,                                                                   \
+                             ::testing::internal::GenerateNames<GTEST_NAME_GENERATOR_(CaseName),  \
+                                                                GTEST_TYPE_PARAMS_(CaseName)>()); \
+  template <typename gtest_TypeParam_>                                                            \
   void GTEST_TEST_CLASS_NAME_(CaseName, TestName)<gtest_TypeParam_>::TestBody()
 
 #endif  // AXOM_MACROS_HPP_

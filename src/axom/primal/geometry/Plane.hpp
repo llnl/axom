@@ -43,8 +43,7 @@ std::ostream& operator<<(std::ostream& os, const Plane<T, NDIMS>& p);
  * \pre x1 should not be equal to x2
  */
 template <typename T>
-AXOM_HOST_DEVICE Plane<T, 2> make_plane(const Point<T, 2>& x1,
-                                        const Point<T, 2>& x2);
+AXOM_HOST_DEVICE Plane<T, 2> make_plane(const Point<T, 2>& x1, const Point<T, 2>& x2);
 
 /*!
  * \brief Constructs a Plane in 3D that goes through the specified points.
@@ -101,8 +100,7 @@ public:
   using VectorType = primal::Vector<T, NDIMS>;
   using PointType = primal::Point<T, NDIMS>;
 
-  static_assert(NDIMS == 2 || NDIMS == 3,
-                "A plane object may be defined in 2-D or 3-D");
+  static_assert(NDIMS == 2 || NDIMS == 3, "A plane object may be defined in 2-D or 3-D");
 
 public:
   /// \name Constructors
@@ -123,9 +121,7 @@ public:
    * \param [in] x a specified point that the plane passes through, \f$ x \f$
    * \param [in] normalize if true, normalize the given vector (default: true)
    */
-  AXOM_HOST_DEVICE Plane(const VectorType& normal,
-                         const PointType& x,
-                         bool normalize = true);
+  AXOM_HOST_DEVICE Plane(const VectorType& normal, const PointType& x, bool normalize = true);
 
   /*!
    * \brief Constructs a plane with a specified normal, \f$ \mathcal{N} \f$,
@@ -211,8 +207,7 @@ public:
    *
    * \see OrientationResult
    */
-  AXOM_HOST_DEVICE int getOrientation(const PointType& x,
-                                      double TOL = 1.e-9) const;
+  AXOM_HOST_DEVICE int getOrientation(const PointType& x, double TOL = 1.e-9) const;
 
   /*!
    * \brief Simple check for validity of a Plane
@@ -241,10 +236,9 @@ private:
    * \note The supplied buffer must be at least NDIMS long.
    * \param [in] normalize if true, normalize the given vector
    */
-  AXOM_HOST_DEVICE void setNormal(const VectorType& normal,
-                                  bool normalize = true);
+  AXOM_HOST_DEVICE void setNormal(const VectorType& normal, bool normalize = true);
 
-  VectorType m_normal; /*!< plane normal vector (defaults to the zero vector) */
+  VectorType m_normal;              /*!< plane normal vector (defaults to the zero vector) */
   T m_offset {static_cast<T>(0.0)}; /*!< offset from origin */
 };
 
@@ -259,12 +253,9 @@ namespace axom
 namespace primal
 {
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE Plane<T, NDIMS>::Plane(const VectorType& normal,
-                                        const PointType& x,
-                                        bool normalize)
+AXOM_HOST_DEVICE Plane<T, NDIMS>::Plane(const VectorType& normal, const PointType& x, bool normalize)
 {
-  SLIC_ASSERT_MSG(!normal.is_zero(),
-                  "Normal vector of a plane should be non-zero");
+  SLIC_ASSERT_MSG(!normal.is_zero(), "Normal vector of a plane should be non-zero");
 
   this->setNormal(normal, normalize);
 
@@ -273,21 +264,17 @@ AXOM_HOST_DEVICE Plane<T, NDIMS>::Plane(const VectorType& normal,
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE Plane<T, NDIMS>::Plane(const VectorType& normal,
-                                        T offset,
-                                        bool normalize)
+AXOM_HOST_DEVICE Plane<T, NDIMS>::Plane(const VectorType& normal, T offset, bool normalize)
   : m_offset(offset)
 {
-  SLIC_ASSERT_MSG(!normal.is_zero(),
-                  "Normal vector of a plane should be non-zero");
+  SLIC_ASSERT_MSG(!normal.is_zero(), "Normal vector of a plane should be non-zero");
 
   this->setNormal(normal, normalize);
 }
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE typename Plane<T, NDIMS>::PointType Plane<T, NDIMS>::projectPoint(
-  const PointType& x) const
+AXOM_HOST_DEVICE typename Plane<T, NDIMS>::PointType Plane<T, NDIMS>::projectPoint(const PointType& x) const
 {
   const T signed_distance = this->signedDistance(x);
   return x - signed_distance * m_normal;
@@ -295,8 +282,7 @@ AXOM_HOST_DEVICE typename Plane<T, NDIMS>::PointType Plane<T, NDIMS>::projectPoi
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE typename Plane<T, NDIMS>::PointType Plane<T, NDIMS>::reflectPoint(
-  const PointType& x) const
+AXOM_HOST_DEVICE typename Plane<T, NDIMS>::PointType Plane<T, NDIMS>::reflectPoint(const PointType& x) const
 {
   const T signed_distance = this->signedDistance(x);
   return x - static_cast<T>(2.0) * signed_distance * m_normal;
@@ -312,19 +298,15 @@ AXOM_HOST_DEVICE void Plane<T, NDIMS>::flip()
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE int Plane<T, NDIMS>::getOrientation(const PointType& x,
-                                                     double TOL) const
+AXOM_HOST_DEVICE int Plane<T, NDIMS>::getOrientation(const PointType& x, double TOL) const
 {
   const T signed_distance = this->signedDistance(x);
 
-  if(utilities::isNearlyEqual(signed_distance,
-                              static_cast<T>(0.0),
-                              static_cast<T>(TOL)))
+  if(utilities::isNearlyEqual(signed_distance, static_cast<T>(0.0), static_cast<T>(TOL)))
   {
     return primal::ON_BOUNDARY;
   }
-  return signed_distance < static_cast<T>(0.0) ? primal::ON_NEGATIVE_SIDE
-                                               : primal::ON_POSITIVE_SIDE;
+  return signed_distance < static_cast<T>(0.0) ? primal::ON_NEGATIVE_SIDE : primal::ON_POSITIVE_SIDE;
 }
 
 template <typename T, int NDIMS>
@@ -332,9 +314,7 @@ AXOM_HOST_DEVICE bool Plane<T, NDIMS>::isValid(double TOL) const
 {
   for(int i = 0; i < NDIMS; ++i)
   {
-    if(!utilities::isNearlyEqual(m_normal[i],
-                                 static_cast<T>(0.0),
-                                 static_cast<T>(TOL)))
+    if(!utilities::isNearlyEqual(m_normal[i], static_cast<T>(0.0), static_cast<T>(TOL)))
     {
       return true;
     }
@@ -358,8 +338,7 @@ std::ostream& Plane<T, NDIMS>::print(std::ostream& os) const
 
 //------------------------------------------------------------------------------
 template <typename T, int NDIMS>
-AXOM_HOST_DEVICE void Plane<T, NDIMS>::setNormal(const VectorType& normal,
-                                                 bool normalize)
+AXOM_HOST_DEVICE void Plane<T, NDIMS>::setNormal(const VectorType& normal, bool normalize)
 {
   if(normalize)
   {
@@ -381,8 +360,7 @@ std::ostream& operator<<(std::ostream& os, const Plane<T, NDIMS>& p)
 }
 
 template <typename T>
-AXOM_HOST_DEVICE Plane<T, 2> make_plane(const Point<T, 2>& x1,
-                                        const Point<T, 2>& x2)
+AXOM_HOST_DEVICE Plane<T, 2> make_plane(const Point<T, 2>& x1, const Point<T, 2>& x2)
 {
   Vector<T, 2> normal;
   normal[0] = x1[1] - x2[1];  // -dy
@@ -406,8 +384,7 @@ AXOM_HOST_DEVICE Plane<T, 3> make_plane(const Point<T, 3>& x1,
   Vector<T, 3> normal = Vector<T, 3>::cross_product(r1, r2);
 
   // check for degenerate line or triangle
-  SLIC_CHECK_MSG(!normal.is_zero(),
-                 "Supplied points form a degenerate triangle");
+  SLIC_CHECK_MSG(!normal.is_zero(), "Supplied points form a degenerate triangle");
 
   return Plane<T, 3>(normal, x1);
 }

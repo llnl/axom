@@ -118,11 +118,10 @@ struct CompileTimeSize
   AXOM_HOST_DEVICE CompileTimeSize(IntType val = INT_VAL)
   {
     AXOM_UNUSED_VAR(val);
-    SLIC_ASSERT_MSG(
-      val == INT_VAL,
-      "slam::CompileTimeSize -- tried to initialize a compile time size "
-        << "policy with value (" << val << " ) that differs from the "
-        << "template parameter of " << INT_VAL << ".");
+    SLIC_ASSERT_MSG(val == INT_VAL,
+                    "slam::CompileTimeSize -- tried to initialize a compile time size "
+                      << "policy with value (" << val << " ) that differs from the "
+                      << "template parameter of " << INT_VAL << ".");
   }
 
   AXOM_HOST_DEVICE inline IntType size() const { return INT_VAL; }
@@ -148,10 +147,9 @@ struct ZeroSize
   AXOM_HOST_DEVICE ZeroSize(IntType val = DEFAULT_VALUE)
   {
     AXOM_UNUSED_VAR(val);
-    SLIC_ASSERT_MSG(
-      val == DEFAULT_VALUE,
-      "slam::ZeroSize policy-- tried to initialize a NoSize set with "
-        << "value with value (" << val << " ) but should always be zero.");
+    SLIC_ASSERT_MSG(val == DEFAULT_VALUE,
+                    "slam::ZeroSize policy-- tried to initialize a NoSize set with "
+                      << "value with value (" << val << " ) but should always be zero.");
   }
 
   AXOM_HOST_DEVICE inline IntType size() const { return DEFAULT_VALUE; }

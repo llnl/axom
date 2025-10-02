@@ -54,10 +54,8 @@ TEST(numerics_lu, lu_decompose)
   EXPECT_EQ(axom::numerics::LU_SUCCESS, rc);
 
   // extract lower/upper triangular matrix
-  axom::numerics::Matrix<double> L =
-    axom::numerics::lower_triangular(A_decomposed);
-  axom::numerics::Matrix<double> U =
-    axom::numerics::upper_triangular(A_decomposed);
+  axom::numerics::Matrix<double> L = axom::numerics::lower_triangular(A_decomposed);
+  axom::numerics::Matrix<double> U = axom::numerics::upper_triangular(A_decomposed);
 
   // construct permutation matrix on lhs
   axom::numerics::Matrix<double> P = axom::numerics::Matrix<double>::identity(N);
@@ -81,7 +79,7 @@ TEST(numerics_lu, lu_decompose)
     {
       EXPECT_EQ(PA(i, j), LU(i, j));
     }  // END for all colummns
-  }    // END for all rows
+  }  // END for all rows
 }
 //------------------------------------------------------------------------------
 TEST(numerics_lu, lu_solve)

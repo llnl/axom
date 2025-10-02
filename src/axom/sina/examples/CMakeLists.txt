@@ -27,7 +27,7 @@ set(sina_example_sources
     sina_view_datum_values.cpp
 )
 
-set(sina_example_depends sina conduit slic)
+set(sina_example_depends sina conduit::conduit slic)
 
 if (ENABLE_FORTRAN)
     blt_list_append( TO sina_example_sources ELEMENTS sina_fortran.f)
@@ -38,16 +38,16 @@ endif()
 #------------------------------------------------------------------------------
 foreach(src ${sina_example_sources})
     get_filename_component(exe_name ${src} NAME_WE)
+
     axom_add_executable(
         NAME       ${exe_name}_ex
         SOURCES    ${src}
         OUTPUT_DIR ${EXAMPLE_OUTPUT_DIRECTORY}
         DEPENDS_ON ${sina_example_depends}
         FOLDER     axom/sina/examples
-        )
+    )
 
-    # Need to add this flag so XL will ignore trailing underscores in fortran function names
-    if (${exe_name}_ex STREQUAL "sina_fortran_ex" AND CMAKE_Fortran_COMPILER_ID STREQUAL "XL")
+    if (${exe_name} STREQUAL "sina_fortran" AND CMAKE_Fortran_COMPILER_ID STREQUAL "XL")
         target_compile_options(${exe_name}_ex PRIVATE -qextname)
     endif()
 endforeach()

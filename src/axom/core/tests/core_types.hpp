@@ -58,8 +58,7 @@ void check_mpi_type(std::size_t expected_num_bytes, MPI_Datatype expected_mpi_ty
 
 //------------------------------------------------------------------------------
 template <typename RealType>
-void check_real_type(std::size_t expected_num_bytes,
-                     MPI_Datatype expected_mpi_type)
+void check_real_type(std::size_t expected_num_bytes, MPI_Datatype expected_mpi_type)
 {
   EXPECT_TRUE(std::is_floating_point<RealType>::value);
   EXPECT_TRUE(axom::numeric_limits<RealType>::is_signed);
@@ -196,10 +195,7 @@ TEST(core_types, check_indextype)
 
   constexpr std::size_t EXP_BYTES = 8;
   constexpr int NUM_DIGITS = 63;
-  check_integral_type<axom::IndexType>(EXP_BYTES,
-                                       IS_SIGNED,
-                                       NUM_DIGITS,
-                                       MPI_INT64_T);
+  check_integral_type<axom::IndexType>(EXP_BYTES, IS_SIGNED, NUM_DIGITS, MPI_INT64_T);
 #else
 
   constexpr bool is_int32 = std::is_same<axom::IndexType, std::int32_t>::value;
@@ -207,10 +203,7 @@ TEST(core_types, check_indextype)
 
   constexpr std::size_t EXP_BYTES = 4;
   constexpr int NUM_DIGITS = 31;
-  check_integral_type<axom::IndexType>(EXP_BYTES,
-                                       IS_SIGNED,
-                                       NUM_DIGITS,
-                                       MPI_INT32_T);
+  check_integral_type<axom::IndexType>(EXP_BYTES, IS_SIGNED, NUM_DIGITS, MPI_INT32_T);
 
 #endif
 }

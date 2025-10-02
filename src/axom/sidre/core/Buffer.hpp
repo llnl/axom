@@ -67,7 +67,7 @@ public:
   friend class Group;
   friend class View;
 
-  //@{
+  ///@{
   //!  @name Basic query and accessor methods
 
   /*!
@@ -84,9 +84,9 @@ public:
     return static_cast<IndexType>(m_views.size());
   }
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Methods to query and access Buffer data
 
   /*!
@@ -121,10 +121,7 @@ public:
    * \brief Return total number of data elements (of its type) owned by
    *        this Buffer object.
    */
-  IndexType getNumElements() const
-  {
-    return m_node.dtype().number_of_elements();
-  }
+  IndexType getNumElements() const { return m_node.dtype().number_of_elements(); }
 
   /*!
    * \brief Return total number of bytes of data owned by this Buffer object.
@@ -134,10 +131,7 @@ public:
   /*!
    * \brief Return the number of bytes per element owned by this Buffer object.
    */
-  IndexType getBytesPerElement() const
-  {
-    return m_node.dtype().element_bytes();
-  }
+  IndexType getBytesPerElement() const { return m_node.dtype().element_bytes(); }
 
   /*!
    * \brief Return true if Buffer has been (re)allocated with length >= 0, else
@@ -150,9 +144,9 @@ public:
    */
   bool isDescribed() const { return !m_node.dtype().is_empty(); }
 
-  //@}
+  ///@}
 
-  //@{
+  ///@{
   //!  @name Data description and allocation methods
 
   /*!
@@ -185,9 +179,7 @@ public:
    *
    * \return pointer to this Buffer object.
    */
-  Buffer* allocate(TypeID type,
-                   IndexType num_elems,
-                   int allocID = INVALID_ALLOCATOR_ID);
+  Buffer* allocate(TypeID type, IndexType num_elems, int allocID = INVALID_ALLOCATOR_ID);
 
   /*!
    * \brief Reallocate data to given number of elements.
@@ -219,7 +211,7 @@ public:
    */
   Buffer* deallocate();
 
-  //@}
+  ///@}
 
   /*!
    * \brief Copy given number of bytes of data from src into Buffer.

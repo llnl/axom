@@ -60,14 +60,12 @@ bool check_generation(axom::Array<OctType>& standard,
   {
     // a little more reporting here
     std::cout << "Generation " << generation << " had " << (count - matchcount)
-              << " test octahedra not matched to standard octahedra:"
-              << std::endl;
+              << " test octahedra not matched to standard octahedra:" << std::endl;
     for(int i = 0; i < count; ++i)
     {
       if(!matched[i])
       {
-        std::cout << "Test oct " << (offset + i)
-                  << " not matched:" << test[offset + i] << std::endl;
+        std::cout << "Test oct " << (offset + i) << " not matched:" << test[offset + i] << std::endl;
       }
     }
   }
@@ -94,8 +92,7 @@ void discretized_segment(Point2D a, Point2D b, axom::Array<OctType>& out)
   constexpr int ZEROTH_GEN_COUNT = 1;
   constexpr int FIRST_GEN_COUNT = 3;
   constexpr int SECOND_GEN_COUNT = 6;
-  out =
-    axom::Array<OctType>(ZEROTH_GEN_COUNT + FIRST_GEN_COUNT + SECOND_GEN_COUNT);
+  out = axom::Array<OctType>(ZEROTH_GEN_COUNT + FIRST_GEN_COUNT + SECOND_GEN_COUNT);
 
   // The first generation puts a triangle in the end-discs of the truncated
   // cones with vertices at 12, 4, and 8 o'clock.
@@ -163,10 +160,7 @@ void discretized_segment(Point2D a, Point2D b, axom::Array<OctType>& out)
 }
 
 template <typename ExecPolicy>
-void degenerate_segment_test(const char* label,
-                             axom::Array<Point2D>& polyline,
-                             int len,
-                             bool expsuccess)
+void degenerate_segment_test(const char* label, axom::Array<Point2D>& polyline, int len, bool expsuccess)
 {
   constexpr int gens = 2;
   int octcount = 0;
@@ -176,13 +170,11 @@ void degenerate_segment_test(const char* label,
   axom::Array<OctType> generated;
   if(expsuccess)
   {
-    EXPECT_TRUE(
-      axom::quest::discretize<ExecPolicy>(polyline, len, gens, generated, octcount));
+    EXPECT_TRUE(axom::quest::discretize<ExecPolicy>(polyline, len, gens, generated, octcount));
   }
   else
   {
-    EXPECT_FALSE(
-      axom::quest::discretize<ExecPolicy>(polyline, len, gens, generated, octcount));
+    EXPECT_FALSE(axom::quest::discretize<ExecPolicy>(polyline, len, gens, generated, octcount));
   }
   EXPECT_EQ(0, octcount);
 }
@@ -260,24 +252,14 @@ void segment_test(const char* label, axom::Array<Point2D>& polyline, int len)
 
   axom::Array<OctType> generatedDevice;
   int octcount = 0;
-  axom::quest::discretize<ExecPolicy>(polyline,
-                                      len,
-                                      generations,
-                                      generatedDevice,
-                                      octcount);
+  axom::quest::discretize<ExecPolicy>(polyline, len, generations, generatedDevice, octcount);
 
   // Copy generated back to host
-  axom::Array<OctType> generated =
-    axom::Array<OctType>(generatedDevice, hostAllocID);
+  axom::Array<OctType> generated = axom::Array<OctType>(generatedDevice, hostAllocID);
 
-  EXPECT_TRUE(
-    check_generation(handcut, generated, generation, 0, ZEROTH_GEN_COUNT));
+  EXPECT_TRUE(check_generation(handcut, generated, generation, 0, ZEROTH_GEN_COUNT));
   generation += 1;
-  EXPECT_TRUE(check_generation(handcut,
-                               generated,
-                               generation,
-                               ZEROTH_GEN_COUNT,
-                               FIRST_GEN_COUNT));
+  EXPECT_TRUE(check_generation(handcut, generated, generation, ZEROTH_GEN_COUNT, FIRST_GEN_COUNT));
   generation += 1;
   EXPECT_TRUE(check_generation(handcut,
                                generated,
@@ -339,22 +321,16 @@ void multi_segment_test(const char* label, axom::Array<Point2D>& polyline, int l
   constexpr int ZEROTH_GEN_COUNT = 1;
   constexpr int FIRST_GEN_COUNT = 3;
   constexpr int SECOND_GEN_COUNT = 6;
-  constexpr int TOTAL_COUNT =
-    ZEROTH_GEN_COUNT + FIRST_GEN_COUNT + SECOND_GEN_COUNT;
+  constexpr int TOTAL_COUNT = ZEROTH_GEN_COUNT + FIRST_GEN_COUNT + SECOND_GEN_COUNT;
 
   int generation = 0;
 
   axom::Array<OctType> generatedDevice;
   int octcount = 0;
-  axom::quest::discretize<ExecPolicy>(polyline,
-                                      len,
-                                      generations,
-                                      generatedDevice,
-                                      octcount);
+  axom::quest::discretize<ExecPolicy>(polyline, len, generations, generatedDevice, octcount);
 
   // Copy generated back to host
-  axom::Array<OctType> generated =
-    axom::Array<OctType>(generatedDevice, hostAllocID);
+  axom::Array<OctType> generated = axom::Array<OctType>(generatedDevice, hostAllocID);
 
   int segcount = len - 1;
   axom::Array<OctType> handcut(segcount * TOTAL_COUNT);
@@ -372,11 +348,8 @@ void multi_segment_test(const char* label, axom::Array<Point2D>& polyline, int l
     axom::Array<OctType> octpointer;
     discretized_segment(polyline[segidx], polyline[segidx + 1], octpointer);
 
-    EXPECT_TRUE(check_generation(octpointer,
-                                 generated,
-                                 generation,
-                                 segidx * TOTAL_COUNT + 0,
-                                 ZEROTH_GEN_COUNT));
+    EXPECT_TRUE(
+      check_generation(octpointer, generated, generation, segidx * TOTAL_COUNT + 0, ZEROTH_GEN_COUNT));
     generation += 1;
     EXPECT_TRUE(check_generation(octpointer,
                                  generated,
@@ -384,12 +357,11 @@ void multi_segment_test(const char* label, axom::Array<Point2D>& polyline, int l
                                  segidx * TOTAL_COUNT + ZEROTH_GEN_COUNT,
                                  FIRST_GEN_COUNT));
     generation += 1;
-    EXPECT_TRUE(check_generation(
-      octpointer,
-      generated,
-      generation,
-      segidx * TOTAL_COUNT + ZEROTH_GEN_COUNT + FIRST_GEN_COUNT,
-      SECOND_GEN_COUNT));
+    EXPECT_TRUE(check_generation(octpointer,
+                                 generated,
+                                 generation,
+                                 segidx * TOTAL_COUNT + ZEROTH_GEN_COUNT + FIRST_GEN_COUNT,
+                                 SECOND_GEN_COUNT));
   }
 }
 
@@ -453,8 +425,7 @@ void discretized_sphere(axom::Array<OctType>& out)
   constexpr int ZEROTH_GEN_COUNT = 1;
   constexpr int FIRST_GEN_COUNT = 8;
   constexpr int SECOND_GEN_COUNT = 32;
-  out =
-    axom::Array<OctType>(ZEROTH_GEN_COUNT + FIRST_GEN_COUNT + SECOND_GEN_COUNT);
+  out = axom::Array<OctType>(ZEROTH_GEN_COUNT + FIRST_GEN_COUNT + SECOND_GEN_COUNT);
 
   // First generation: one octahedron, with vertices on the unit vectors.
   NAType ihat({1., 0., 0.});
@@ -578,14 +549,10 @@ void discretized_sphere(axom::Array<OctType>& out)
   rd0 = Z;
   rd1 = Y;
   ReflectDimension rd2 = X;
-  out[offset + 0 + octant * 4] =
-    reflect(rd2, reflect(rd1, reflect(rd0, out[offset + 0])));
-  out[offset + 1 + octant * 4] =
-    reflect(rd2, reflect(rd1, reflect(rd0, out[offset + 1])));
-  out[offset + 2 + octant * 4] =
-    reflect(rd2, reflect(rd1, reflect(rd0, out[offset + 2])));
-  out[offset + 3 + octant * 4] =
-    reflect(rd2, reflect(rd1, reflect(rd0, out[offset + 3])));
+  out[offset + 0 + octant * 4] = reflect(rd2, reflect(rd1, reflect(rd0, out[offset + 0])));
+  out[offset + 1 + octant * 4] = reflect(rd2, reflect(rd1, reflect(rd0, out[offset + 1])));
+  out[offset + 2 + octant * 4] = reflect(rd2, reflect(rd1, reflect(rd0, out[offset + 2])));
+  out[offset + 3 + octant * 4] = reflect(rd2, reflect(rd1, reflect(rd0, out[offset + 3])));
 }
 
 //------------------------------------------------------------------------------
@@ -614,14 +581,9 @@ TEST(quest_discretize, sphere_test)
   constexpr int SECOND_GEN_COUNT = 32;
   int generation = 0;
 
-  EXPECT_TRUE(
-    check_generation(handcut, generated, generation, 0, ZEROTH_GEN_COUNT));
+  EXPECT_TRUE(check_generation(handcut, generated, generation, 0, ZEROTH_GEN_COUNT));
   generation += 1;
-  EXPECT_TRUE(check_generation(handcut,
-                               generated,
-                               generation,
-                               ZEROTH_GEN_COUNT,
-                               FIRST_GEN_COUNT));
+  EXPECT_TRUE(check_generation(handcut, generated, generation, ZEROTH_GEN_COUNT, FIRST_GEN_COUNT));
   generation += 1;
   EXPECT_TRUE(check_generation(handcut,
                                generated,
@@ -669,8 +631,8 @@ TEST(quest_discretize, degenerate_segment_test)
   }
 #endif
 
-#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE) && defined(__CUDACC__)
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  defined(__CUDACC__)
   SLIC_INFO("Discretizing with CUDA");
   {
     SCOPED_TRACE("32-wide CUDA execution");
@@ -698,8 +660,8 @@ TEST(quest_discretize, degenerate_segment_test)
   }
 #endif
 
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE) && defined(__HIPCC__)
+#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  defined(__HIPCC__)
   SLIC_INFO("Discretizing with HIP");
   {
     SCOPED_TRACE("32-wide HIP execution");
@@ -745,8 +707,8 @@ TEST(quest_discretize, segment_test)
   }
 #endif
 
-#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE) && defined(__CUDACC__)
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  defined(__CUDACC__)
   SLIC_INFO("Discretizing with CUDA");
   {
     SCOPED_TRACE("32-wide CUDA execution");
@@ -774,8 +736,8 @@ TEST(quest_discretize, segment_test)
   }
 #endif
 
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE) && defined(__HIPCC__)
+#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  defined(__HIPCC__)
   SLIC_INFO("Discretizing with HIP");
   {
     SCOPED_TRACE("32-wide HIP execution");
@@ -821,8 +783,8 @@ TEST(quest_discretize, multi_segment_test)
   }
 #endif
 
-#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE) && defined(__CUDACC__)
+#if defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  defined(__CUDACC__)
   SLIC_INFO("Discretizing with CUDA");
   {
     SCOPED_TRACE("32-wide CUDA execution");
@@ -850,8 +812,8 @@ TEST(quest_discretize, multi_segment_test)
   }
 #endif
 
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE) && defined(__HIPCC__)
+#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE) && \
+  defined(__HIPCC__)
   SLIC_INFO("Discretizing with HIP");
   {
     SCOPED_TRACE("32-wide HIP execution");
@@ -896,18 +858,11 @@ TEST(quest_discretize, to_tet_mesh)
 
   axom::Array<OctType> generated;
   int octcount = 0;
-  axom::quest::discretize<axom::SEQ_EXEC>(polyline,
-                                          pointcount,
-                                          generations,
-                                          generated,
-                                          octcount);
+  axom::quest::discretize<axom::SEQ_EXEC>(polyline, pointcount, generations, generated, octcount);
 
   axom::ArrayView<OctType> generated_view = generated.view();
   axom::mint::Mesh* mesh;
-  axom::quest::mesh_from_discretized_polyline(generated_view,
-                                              octcount,
-                                              segcount,
-                                              mesh);
+  axom::quest::mesh_from_discretized_polyline(generated_view, octcount, segcount, mesh);
   axom::mint::write_vtk(mesh, "tet_mesh.vtk");
 
   delete mesh;

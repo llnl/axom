@@ -29,27 +29,22 @@ enum class ArrayFeatureBenchmarks
   All = Constructors | Insertion | Iterators
 };
 
-inline ArrayFeatureBenchmarks operator|(ArrayFeatureBenchmarks lhs,
-                                        ArrayFeatureBenchmarks rhs)
+inline ArrayFeatureBenchmarks operator|(ArrayFeatureBenchmarks lhs, ArrayFeatureBenchmarks rhs)
 {
   using T = std::underlying_type_t<ArrayFeatureBenchmarks>;
-  return static_cast<ArrayFeatureBenchmarks>(static_cast<T>(lhs) |
-                                             static_cast<T>(rhs));
+  return static_cast<ArrayFeatureBenchmarks>(static_cast<T>(lhs) | static_cast<T>(rhs));
 }
 
-inline ArrayFeatureBenchmarks& operator|=(ArrayFeatureBenchmarks& lhs,
-                                          ArrayFeatureBenchmarks rhs)
+inline ArrayFeatureBenchmarks& operator|=(ArrayFeatureBenchmarks& lhs, ArrayFeatureBenchmarks rhs)
 {
   lhs = lhs | rhs;
   return lhs;
 }
 
-inline ArrayFeatureBenchmarks operator&(ArrayFeatureBenchmarks lhs,
-                                        ArrayFeatureBenchmarks rhs)
+inline ArrayFeatureBenchmarks operator&(ArrayFeatureBenchmarks lhs, ArrayFeatureBenchmarks rhs)
 {
   using T = std::underlying_type_t<ArrayFeatureBenchmarks>;
-  return static_cast<ArrayFeatureBenchmarks>(static_cast<T>(lhs) &
-                                             static_cast<T>(rhs));
+  return static_cast<ArrayFeatureBenchmarks>(static_cast<T>(lhs) & static_cast<T>(rhs));
 }
 
 std::vector<int> args_benchmark_sizes;
@@ -260,8 +255,7 @@ void emplace_back_startEmpty(benchmark::State& state)
     assert_size_and_strict_capacity(arr, 0, 0);
     for(int i = 0; i < size; ++i)
     {
-      arr.emplace_back(
-        get_value<T>(i));  // using emplace_back on initially empty container
+      arr.emplace_back(get_value<T>(i));  // using emplace_back on initially empty container
     }
     assert_size_and_capacity(arr, size, size);
     benchmark::DoNotOptimize(arr);
@@ -299,8 +293,7 @@ void emplace_back_initialReserve(benchmark::State& state)
     assert_size_and_strict_capacity(arr, 0, size);
     for(int i = 0; i < size; ++i)
     {
-      arr.emplace_back(
-        get_value<T>(i));  // using emplace_back on container w/ reserved size
+      arr.emplace_back(get_value<T>(i));  // using emplace_back on container w/ reserved size
     }
     assert_size_and_strict_capacity(arr, size, size);
     benchmark::DoNotOptimize(arr);
@@ -427,16 +420,13 @@ template <typename Tuple, std::size_t... Is>
 void RegisterBenchmarksImpl(std::index_sequence<Is...>)
 {
   using expander = int[];
-  (void)expander {
-    0,
-    (RegisterBenchmark<typename std::tuple_element<Is, Tuple>::type>(), 0)...};
+  (void)expander {0, (RegisterBenchmark<typename std::tuple_element<Is, Tuple>::type>(), 0)...};
 }
 
 template <typename Tuple>
 void RegisterBenchmarks()
 {
-  RegisterBenchmarksImpl<Tuple>(
-    std::make_index_sequence<std::tuple_size<Tuple>::value> {});
+  RegisterBenchmarksImpl<Tuple>(std::make_index_sequence<std::tuple_size<Tuple>::value> {});
 }
 
 int main(int argc, char* argv[])
@@ -447,8 +437,7 @@ int main(int argc, char* argv[])
 
   axom::CLI::App app {"Axom array benchmarks"};
   app.add_option("-s,--custom_sizes", local_test_sizes)
-    ->description(
-      "Adds custom array sizes to benchmark (positive numbers only)")
+    ->description("Adds custom array sizes to benchmark (positive numbers only)")
     ->expected(-1)
     ->default_val(std::vector<int> {1 << 16})
     ->each([](const std::string& num_str) {
@@ -459,14 +448,13 @@ int main(int argc, char* argv[])
       }
     });
   app
-    .add_flag_callback(
-      "--use_cache_related_sizes",
-      [&local_test_sizes]() {
-        local_test_sizes.push_back(1 << 3);   // small
-        local_test_sizes.push_back(1 << 16);  // larger than  32K L1 cache
-        local_test_sizes.push_back(1 << 19);  // larger than 256K L2 cache
-        local_test_sizes.push_back(1 << 25);  // larger than  25M L3 cache
-      })
+    .add_flag_callback("--use_cache_related_sizes",
+                       [&local_test_sizes]() {
+                         local_test_sizes.push_back(1 << 3);   // small
+                         local_test_sizes.push_back(1 << 16);  // larger than  32K L1 cache
+                         local_test_sizes.push_back(1 << 19);  // larger than 256K L2 cache
+                         local_test_sizes.push_back(1 << 25);  // larger than  25M L3 cache
+                       })
     ->description("Test array sizes related to typical cache sizes");
 
   std::vector<std::string> feature_strings;
@@ -484,10 +472,7 @@ int main(int argc, char* argv[])
           {"all", ArrayFeatureBenchmarks::All}};
 
         std::string lower_feature = feature;
-        std::transform(lower_feature.begin(),
-                       lower_feature.end(),
-                       lower_feature.begin(),
-                       ::tolower);
+        std::transform(lower_feature.begin(), lower_feature.end(), lower_feature.begin(), ::tolower);
         auto it = feature_map.find(lower_feature);
         if(it == feature_map.end())
         {
@@ -506,9 +491,8 @@ int main(int argc, char* argv[])
   // process input into global variables
   {
     // copy list of Features to test into global array; by default, test everything
-    ::args_benchmark_features = feature_opt->count() > 0
-      ? local_benchmark_features
-      : ArrayFeatureBenchmarks::All;
+    ::args_benchmark_features =
+      feature_opt->count() > 0 ? local_benchmark_features : ArrayFeatureBenchmarks::All;
 
     // sort and unique-ify the input sizes and copy into the global array variable
     std::sort(local_test_sizes.begin(), local_test_sizes.end());
@@ -517,10 +501,8 @@ int main(int argc, char* argv[])
     std::swap(::args_benchmark_sizes, local_test_sizes);
 
     SLIC_INFO("Parsed and processed command line arguments:");
-    SLIC_INFO(axom::fmt::format("- Array sizes: {}",
-                                axom::fmt::join(::args_benchmark_sizes, ",")));
-    SLIC_INFO(axom::fmt::format("- Array features to test: {}",
-                                ::args_benchmark_features));
+    SLIC_INFO(axom::fmt::format("- Array sizes: {}", axom::fmt::join(::args_benchmark_sizes, ",")));
+    SLIC_INFO(axom::fmt::format("- Array features to test: {}", ::args_benchmark_features));
   }
 
   RegisterBenchmarks<Types>();

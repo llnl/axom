@@ -58,9 +58,8 @@ const char* mpiBlockingReceiveIfMessagesExist(MPI_Comm comm);
  *  MPI communication uses the default Lumberjack Tag.
  *****************************************************************************
  */
-void mpiNonBlockingSendMessages(MPI_Comm comm,
-                                int destinationRank,
-                                const char* packedMessagesToBeSent);
+void mpiNonBlockingSendMessages(MPI_Comm comm, int destinationRank, const char* packedMessagesToBeSent);
+
 }  // end namespace lumberjack
 }  // end namespace axom
 

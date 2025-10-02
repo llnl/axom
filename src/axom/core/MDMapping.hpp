@@ -98,8 +98,7 @@ public:
     clash with the more prevalent usage of constructing from the array's
     shape.
   */
-  AXOM_HOST_DEVICE MDMapping(const axom::StackArray<T, DIM>& strides)
-    : m_strides(strides)
+  AXOM_HOST_DEVICE MDMapping(const axom::StackArray<T, DIM>& strides) : m_strides(strides)
   {
     initializeStrides(strides);
   }
@@ -140,8 +139,7 @@ public:
                                                ArrayStrideOrder arrayStrideOrder,
                                                int fastestStrideLength = 1)
   {
-    assert(arrayStrideOrder == ArrayStrideOrder::COLUMN ||
-           arrayStrideOrder == ArrayStrideOrder::ROW ||
+    assert(arrayStrideOrder == ArrayStrideOrder::COLUMN || arrayStrideOrder == ArrayStrideOrder::ROW ||
            (DIM == 1 && arrayStrideOrder == ArrayStrideOrder::BOTH));
     assert(fastestStrideLength > 0);
 
@@ -181,10 +179,9 @@ public:
       fastest-changing direction.
   */
   template <typename DirType>
-  inline AXOM_HOST_DEVICE void initializeShape(
-    const axom::StackArray<T, DIM>& shape,
-    const axom::StackArray<DirType, DIM>& slowestDirs,
-    int fastestStrideLength = 1)
+  inline AXOM_HOST_DEVICE void initializeShape(const axom::StackArray<T, DIM>& shape,
+                                               const axom::StackArray<DirType, DIM>& slowestDirs,
+                                               int fastestStrideLength = 1)
   {
     assert(isPermutation(slowestDirs));
     for(int d = 0; d < DIM; ++d)
@@ -208,9 +205,8 @@ public:
     @param [in] orderSource ArrayIndex to copy stride order
       from.
   */
-  inline AXOM_HOST_DEVICE void initializeShape(
-    const axom::StackArray<T, DIM>& shape,
-    const axom::MDMapping<DIM, T>& orderSource)
+  inline AXOM_HOST_DEVICE void initializeShape(const axom::StackArray<T, DIM>& shape,
+                                               const axom::MDMapping<DIM, T>& orderSource)
   {
     initializeShape(shape, orderSource.slowestDirs());
   }
@@ -222,8 +218,7 @@ public:
       If not unique, use one of the other initializers.
   */
   AXOM_SUPPRESS_HD_WARN
-  inline AXOM_HOST_DEVICE void initializeStrides(
-    const axom::StackArray<T, DIM>& strides)
+  inline AXOM_HOST_DEVICE void initializeStrides(const axom::StackArray<T, DIM>& strides)
   {
     if(!stridesAreUnique(strides))
     {
@@ -257,18 +252,15 @@ public:
       are non-unique.
   */
   AXOM_SUPPRESS_HD_WARN
-  inline AXOM_HOST_DEVICE void initializeStrides(
-    const axom::StackArray<T, DIM>& strides,
-    ArrayStrideOrder orderPref)
+  inline AXOM_HOST_DEVICE void initializeStrides(const axom::StackArray<T, DIM>& strides,
+                                                 ArrayStrideOrder orderPref)
   {
-    assert(orderPref == axom::ArrayStrideOrder::COLUMN ||
-           orderPref == axom::ArrayStrideOrder::ROW);
+    assert(orderPref == axom::ArrayStrideOrder::COLUMN || orderPref == axom::ArrayStrideOrder::ROW);
 
     m_strides = strides;
     for(int d = 0; d < DIM; ++d)
     {
-      m_slowestDirs[d] =
-        orderPref == axom::ArrayStrideOrder::ROW ? d : DIM - 1 - d;
+      m_slowestDirs[d] = orderPref == axom::ArrayStrideOrder::ROW ? d : DIM - 1 - d;
     }
     for(int s = 0; s < DIM; ++s)
     {
@@ -320,8 +312,7 @@ public:
 
   //!@brief Whether a StackArray represents a permutation.
   template <typename DirectionType>
-  inline AXOM_HOST_DEVICE bool isPermutation(
-    const axom::StackArray<DirectionType, DIM>& v) const
+  inline AXOM_HOST_DEVICE bool isPermutation(const axom::StackArray<DirectionType, DIM>& v) const
   {
     // v is a permutation if all its values are unique and in [0, DIM).
     axom::StackArray<DirectionType, DIM> values_sorted = v;
@@ -349,9 +340,8 @@ public:
     int ord = int(ArrayStrideOrder::BOTH);
     for(int d = 0; d < DIM - 1; ++d)
     {
-      ord &= m_slowestDirs[d] < m_slowestDirs[d + 1]
-        ? int(ArrayStrideOrder::ROW)
-        : int(ArrayStrideOrder::COLUMN);
+      ord &= m_slowestDirs[d] < m_slowestDirs[d + 1] ? int(ArrayStrideOrder::ROW)
+                                                     : int(ArrayStrideOrder::COLUMN);
     }
     static ArrayStrideOrder s_intToOrder[4] = {ArrayStrideOrder::ARBITRARY,
                                                ArrayStrideOrder::ROW,

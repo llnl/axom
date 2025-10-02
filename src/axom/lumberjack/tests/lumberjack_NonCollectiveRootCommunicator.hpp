@@ -43,8 +43,7 @@ TEST(lumberjack_NonCollectiveRootCommunicator, noncollective_communication)
   }
   else
   {
-    const int numMessagesToReceive =
-      ((commSize % 2) == 0) ? ((commSize / 2) - 1) : (commSize / 2);
+    const int numMessagesToReceive = ((commSize % 2) == 0) ? ((commSize / 2) - 1) : (commSize / 2);
     EXPECT_EQ((int)receivedPackedMessages.size(), numMessagesToReceive);
     for(int i = 1; i <= numMessagesToReceive; ++i)
     {
@@ -57,8 +56,7 @@ TEST(lumberjack_NonCollectiveRootCommunicator, noncollective_communication)
           found = true;
         }
       }
-      EXPECT_EQ(found, true)
-        << "Message not received: " << currMessage << std::endl;
+      EXPECT_EQ(found, true) << "Message not received: " << currMessage << std::endl;
     }
   }
 

@@ -16,8 +16,8 @@
 #endif
 
 // Mint includes
-#include "axom/mint/config.hpp"      // for mint compile time definitions
-#include "axom/mint/mesh/Field.hpp"  // for mint::Field definition
+#include "axom/mint/config.hpp"                 // for mint compile time definitions
+#include "axom/mint/mesh/Field.hpp"             // for mint::Field definition
 #include "axom/mint/mesh/FieldVariable.hpp"     // for mint::FieldVariable
 #include "axom/mint/mesh/FieldAssociation.hpp"  // for mint::FieldAssociation
 
@@ -357,9 +357,7 @@ public:
   inline T* getFieldPtr(const std::string& name, IndexType& num_tuples);
 
   template <typename T>
-  inline T* getFieldPtr(const std::string& name,
-                        IndexType& num_tuples,
-                        IndexType& num_components);
+  inline T* getFieldPtr(const std::string& name, IndexType& num_tuples, IndexType& num_components);
   /// @}
 
   /*!
@@ -380,8 +378,7 @@ public:
   inline const T* getFieldPtr(const std::string& name) const;
 
   template <typename T>
-  inline const T* getFieldPtr(const std::string& name,
-                              IndexType& num_tuples) const;
+  inline const T* getFieldPtr(const std::string& name, IndexType& num_tuples) const;
 
   template <typename T>
   inline const T* getFieldPtr(const std::string& name,
@@ -576,8 +573,7 @@ inline T* FieldData::getFieldPtr(const std::string& name,
                                  IndexType& num_components)
 {
   const FieldData* const_this = this;
-  return const_cast<T*>(
-    const_this->getFieldPtr<T>(name, num_tuples, num_components));
+  return const_cast<T*>(const_this->getFieldPtr<T>(name, num_tuples, num_components));
 }
 
 //------------------------------------------------------------------------------
@@ -591,8 +587,7 @@ inline const T* FieldData::getFieldPtr(const std::string& name) const
 
 //------------------------------------------------------------------------------
 template <typename T>
-inline const T* FieldData::getFieldPtr(const std::string& name,
-                                       IndexType& num_tuples) const
+inline const T* FieldData::getFieldPtr(const std::string& name, IndexType& num_tuples) const
 {
   IndexType num_components = 0;
   return (getFieldPtr<T>(name, num_tuples, num_components));
@@ -648,14 +643,12 @@ inline T* FieldData::createField(const std::string& name,
     field->createView("topology")->setString(m_topology);
 
     sidre::View* values = field->createView("values");
-    newField =
-      new mint::FieldVariable<T>(name, values, num_tuples, num_components, capacity);
+    newField = new mint::FieldVariable<T>(name, values, num_tuples, num_components, capacity);
 #endif
   }  // END if
   else
   {
-    newField =
-      new mint::FieldVariable<T>(name, num_tuples, num_components, capacity);
+    newField = new mint::FieldVariable<T>(name, num_tuples, num_components, capacity);
   }  // END else
 
   SLIC_ASSERT(newField != nullptr);
@@ -681,8 +674,7 @@ inline T* FieldData::createField(const std::string& name,
     capacity = num_tuples;
   }
 
-  Field* field =
-    new mint::FieldVariable<T>(name, data, num_tuples, num_components, capacity);
+  Field* field = new mint::FieldVariable<T>(name, data, num_tuples, num_components, capacity);
   m_fields[name] = field;
 
   return (mint::Field::getDataPtr<T>(field));

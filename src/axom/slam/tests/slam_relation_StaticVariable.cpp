@@ -44,15 +44,10 @@ constexpr SetPosition TOSET_SIZE = 8;
 
 using STLIndirection = policies::STLVectorIndirection<SetPosition, SetElement>;
 
-using VariableCardinality =
-  policies::VariableCardinality<SetPosition, STLIndirection>;
+using VariableCardinality = policies::VariableCardinality<SetPosition, STLIndirection>;
 
-using StaticVariableRelationType = slam::StaticRelation<SetPosition,
-                                                        SetElement,
-                                                        VariableCardinality,
-                                                        STLIndirection,
-                                                        RangeSetType,
-                                                        RangeSetType>;
+using StaticVariableRelationType =
+  slam::StaticRelation<SetPosition, SetElement, VariableCardinality, STLIndirection, RangeSetType, RangeSetType>;
 
 // Use a slam::ModularInt type for more interesting test data
 using CTSize = policies::CompileTimeSize<int, TOSET_SIZE>;
@@ -72,9 +67,7 @@ void printVector(StrType const& msg, VecType const& vec)
 
   sstr << "\n** " << msg << "\n\t";
   sstr << "Array of size " << vec.size() << ": ";
-  std::copy(vec.begin(),
-            vec.end(),
-            std::ostream_iterator<SetPosition>(sstr, " "));
+  std::copy(vec.begin(), vec.end(), std::ostream_iterator<SetPosition>(sstr, " "));
 
   SLIC_INFO(sstr.str());
 }
@@ -165,9 +158,7 @@ void iterateRelation_begin_end(RelationType& rel)
   using RelIter = typename RelationType::RelationIterator;
 
   SLIC_INFO("Traversing relation data using iterator begin()/end() functions");
-  for(FromSetIter sIt = rel.fromSet()->begin(), sItEnd = rel.fromSet()->end();
-      sIt != sItEnd;
-      ++sIt)
+  for(FromSetIter sIt = rel.fromSet()->begin(), sItEnd = rel.fromSet()->end(); sIt != sItEnd; ++sIt)
   {
     SetPosition actualSize = rel.size(*sIt);
 
@@ -284,16 +275,15 @@ TEST(slam_static_variable_relation, construct_builder)
   generateIncrementingRelations(&offsets, &relIndices);
 
   using RelationBuilder = StaticVariableRelationType::RelationBuilder;
-  StaticVariableRelationType relation =
-    RelationBuilder()
-      .fromSet(&fromSet)
-      .toSet(&toSet)
-      .begins(RelationBuilder::BeginsSetBuilder()  //
-                .size(offsets.size())              //
-                .data(&offsets))
-      .indices(RelationBuilder::IndicesSetBuilder()  //
-                 .size(relIndices.size())            //
-                 .data(&relIndices));
+  StaticVariableRelationType relation = RelationBuilder()
+                                          .fromSet(&fromSet)
+                                          .toSet(&toSet)
+                                          .begins(RelationBuilder::BeginsSetBuilder()  //
+                                                    .size(offsets.size())              //
+                                                    .data(&offsets))
+                                          .indices(RelationBuilder::IndicesSetBuilder()  //
+                                                     .size(relIndices.size())            //
+                                                     .data(&relIndices));
   EXPECT_TRUE(relation.isValid(true));
 
   // Test traversal of the relation data

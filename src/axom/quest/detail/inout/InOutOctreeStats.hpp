@@ -108,8 +108,7 @@ public:
 
             if(m_generationState >= InOutOctreeType::INOUTOCTREE_ELEMENTS_INSERTED)
             {
-              m_levelCellRefCount[lev] +=
-                m_octree.leafCells(block, blockData).size();
+              m_levelCellRefCount[lev] += m_octree.leafCells(block, blockData).size();
 
               BlockIndex blk(it.pt(), lev);
               CellIndexSet cells = m_octree.leafCells(blk, blockData);
@@ -159,22 +158,20 @@ public:
     {
       if(m_levelBlocks[lev] > 0)
       {
-        sstr << fmt::format(
-          "\t Level {} has {} blocks -- {} internal; {} leaves ({}% w/ vert);",
-          lev,
-          m_levelBlocks[lev],
-          m_levelBlocks[lev] - m_levelLeaves[lev],
-          m_levelLeaves[lev],
-          integerPercentage(m_levelLeavesWithVert[lev], m_levelLeaves[lev]));
+        sstr << fmt::format("\t Level {} has {} blocks -- {} internal; {} leaves ({}% w/ vert);",
+                            lev,
+                            m_levelBlocks[lev],
+                            m_levelBlocks[lev] - m_levelLeaves[lev],
+                            m_levelLeaves[lev],
+                            integerPercentage(m_levelLeavesWithVert[lev], m_levelLeaves[lev]));
 
         if(m_generationState >= InOutOctreeType::INOUTOCTREE_LEAVES_COLORED)
         {
-          sstr << fmt::format(
-            " Leaf counts: {} Black, {} White, {} Gray w/ {} cell refs.",
-            m_levelBlackBlockCount[lev],
-            m_levelWhiteBlockCount[lev],
-            m_levelGrayBlockCount[lev],
-            m_levelCellRefCount[lev]);
+          sstr << fmt::format(" Leaf counts: {} Black, {} White, {} Gray w/ {} cell refs.",
+                              m_levelBlackBlockCount[lev],
+                              m_levelWhiteBlockCount[lev],
+                              m_levelGrayBlockCount[lev],
+                              m_levelCellRefCount[lev]);
         }
         //sstr <<"Hash load factor: "
         //     << this->m_leavesLevelMap[ lev ].load_factor()
@@ -291,9 +288,7 @@ public:
 
     octreeStatsStr << fmt::format(
       "*** {} octree summary *** \n",
-      (m_generationState >= InOutOctreeType::INOUTOCTREE_ELEMENTS_INSERTED
-         ? "PM"
-         : "PR"));
+      (m_generationState >= InOutOctreeType::INOUTOCTREE_ELEMENTS_INSERTED ? "PM" : "PR"));
 
     octreeStatsStr << blockDataStats() << "\n" << meshDataStats();
 
@@ -307,9 +302,7 @@ public:
 
     if(m_generationState >= InOutOctreeType::INOUTOCTREE_ELEMENTS_INSERTED)
     {
-      octreeStatsStr << "\n"
-                     << cellCountHistogram() << "\n"
-                     << vertexCardinalityHistogram();
+      octreeStatsStr << "\n" << cellCountHistogram() << "\n" << vertexCardinalityHistogram();
     }
 
     return octreeStatsStr.str();

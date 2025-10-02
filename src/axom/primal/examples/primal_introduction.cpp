@@ -106,10 +106,7 @@ std::string printPoint(PointType pt)
   return axom::fmt::format("({},{},{})", pt[0], pt[1], pt[2]);
 }
 
-std::string printPoint(double* pt)
-{
-  return axom::fmt::format("({},{},{})", pt[0], pt[1], pt[2]);
-}
+std::string printPoint(double* pt) { return axom::fmt::format("({},{},{})", pt[0], pt[1], pt[2]); }
 
 void writeToFile(std::string fname, std::string contents)
 {
@@ -127,9 +124,7 @@ void writeToFile(std::string fname, std::string contents)
 PolygonType showClip()
 {
   // _clip_start
-  TriangleType tri(PointType {1.2, 0, 0},
-                   PointType {0, 1.8, 0},
-                   PointType {0, 0, 1.4});
+  TriangleType tri(PointType {1.2, 0, 0}, PointType {0, 1.8, 0}, PointType {0, 0, 1.4});
 
   BoundingBoxType bbox(PointType {0, -0.5, 0}, PointType {1, 1, 1});
 
@@ -137,8 +132,8 @@ PolygonType showClip()
   // _clip_end
 
   std::cout << "----- showClip -----" << std::endl;
-  std::cout << "clipping triangle " << tri << " with bounding box " << bbox
-            << " gives polygon " << poly << std::endl
+  std::cout << "clipping triangle " << tri << " with bounding box " << bbox << " gives polygon "
+            << poly << std::endl
             << std::endl;
 
   // Now write out an Asymptote file showing what we did.
@@ -178,7 +173,7 @@ PolygonType showClip()
 
     "// bounding box\n"
     "draw(box({5}, {6}));\n",
-    axom::fmt::format(asyheader, fname, ifname),
+    axom::fmt::format(axom::fmt::runtime(asyheader), fname, ifname),
     polygon,
     printPoint(tri[0]),
     printPoint(tri[1]),
@@ -259,7 +254,7 @@ void showClosestPoint()
     "dot(cpta, yellow);\n"
     "label(\"$a'$\", cpta, align=NE);\n"
     "draw(cpta--pcpta, dotted);\n",
-    axom::fmt::format(asyheader, fname, ifname),
+    axom::fmt::format(axom::fmt::runtime(asyheader), fname, ifname),
     printPoint(tri[0]),
     printPoint(tri[1]),
     printPoint(tri[2]),
@@ -356,7 +351,7 @@ void showBoundingBoxes()
     "     ^^ obpts[0]--obpts[4] ^^ obpts[1]--obpts[5]\n"
     "     ^^ obpts[2]--obpts[6] ^^ obpts[3]--obpts[7];\n"
     "draw(obboxpath, orange);\n\n",
-    axom::fmt::format(asyheader, fname, ifname),
+    axom::fmt::format(axom::fmt::runtime(asyheader), fname, ifname),
     pointses,
     printPoint(bbox.getMin()),
     printPoint(bbox.getMax()),
@@ -372,13 +367,9 @@ void showIntersect()
 
   // _intersect_start
   // Two triangles
-  TriangleType tri1(PointType {1.2, 0, 0},
-                    PointType {0, 1.8, 0},
-                    PointType {0, 0, 1.4});
+  TriangleType tri1(PointType {1.2, 0, 0}, PointType {0, 1.8, 0}, PointType {0, 0, 1.4});
 
-  TriangleType tri2(PointType {0, 0, 0.5},
-                    PointType {0.8, 0.1, 1.2},
-                    PointType {0.8, 1.4, 1.2});
+  TriangleType tri2(PointType {0, 0, 0.5}, PointType {0.8, 0.1, 1.2}, PointType {0.8, 1.4, 1.2});
 
   // tri1 and tri2 should intersect
   if(intersect(tri1, tri2))
@@ -407,8 +398,7 @@ void showIntersect()
     rt1p = tri1.baryToPhysical(rt1b);
     // Retrieve the physical coordinates from ray parameter
     PointType rt1p2 = ray.at(rt1t);
-    std::cout << "Ray intersects tri1 as expected.  Parameter t: " << rt1t
-              << std::endl
+    std::cout << "Ray intersects tri1 as expected.  Parameter t: " << rt1t << std::endl
               << "  Intersection point along ray: " << rt1p2 << std::endl
               << "  Intersect barycentric coordinates: " << rt1b << std::endl
               << "  Intersect physical coordinates: " << rt1p << std::endl
@@ -424,11 +414,10 @@ void showIntersect()
 
   // The bounding box should intersect tri1 and ray but not tr2.
   PointType bbtr1;
-  if(intersect(ray, bbox, bbtr1) && intersect(tri1, bbox) &&
-     !intersect(tri2, bbox))
+  if(intersect(ray, bbox, bbtr1) && intersect(tri1, bbox) && !intersect(tri2, bbox))
   {
-    std::cout << "As hoped, bounding box intersects tri1 at " << bbtr1
-              << " and ray, but not tri2." << std::endl;
+    std::cout << "As hoped, bounding box intersects tri1 at " << bbtr1 << " and ray, but not tri2."
+              << std::endl;
   }
   else
   {
@@ -497,7 +486,7 @@ void showIntersect()
     "  draw(tri1);\n  draw(tri2, blue);\n"
     "draw({15}--{16}, deepblue);\n"
     "draw({17}--{18}, dotted);\n",
-    axom::fmt::format(asyheader, fname, ifname),
+    axom::fmt::format(axom::fmt::runtime(asyheader), fname, ifname),
     printPoint(tri1[0]),
     printPoint(tri1[1]),
     printPoint(tri1[2]),
@@ -526,16 +515,13 @@ void showOrientation()
 
   // _orient_start
   // A triangle
-  TriangleType tri(PointType {1.2, 0, 0},
-                   PointType {0, 1.8, 0},
-                   PointType {0, 0, 1.4});
+  TriangleType tri(PointType {1.2, 0, 0}, PointType {0, 1.8, 0}, PointType {0, 0, 1.4});
 
   // Three points:
   //    one on the triangle's positive side,
   PointType pos = PointType {0.45, 1.5, 1};
   //    one coplanar to the triangle, the centroid,
-  PointType cpl =
-    PointType::lerp(PointType::lerp(tri[0], tri[1], 0.5), tri[2], 1. / 3.);
+  PointType cpl = PointType::lerp(PointType::lerp(tri[0], tri[1], 0.5), tri[2], 1. / 3.);
   //    and one on the negative side
   PointType neg = PointType {0, 0, 0.7};
 
@@ -545,8 +531,7 @@ void showOrientation()
      orientation(neg, tri) == primal::ON_NEGATIVE_SIDE)
   {
     std::cout << "As expected, point pos is on the positive side," << std::endl
-              << "    point cpl is on the boundary (on the triangle),"
-              << std::endl
+              << "    point cpl is on the boundary (on the triangle)," << std::endl
               << "    and point neg is on the negative side." << std::endl;
   }
   else
@@ -587,7 +572,7 @@ void showOrientation()
     "dot({6}, blue);\n"
     "label(\"$P$\", {6}, align=E);\n"
     "draw({6}--{7}, dotted);\n",
-    axom::fmt::format(asyheader, fname, ifname),
+    axom::fmt::format(axom::fmt::runtime(asyheader), fname, ifname),
     printPoint(tri[0]),
     printPoint(tri[1]),
     printPoint(tri[2]),
@@ -674,7 +659,7 @@ void showDistance()
     "draw({5}--{17}, dotted);\n"
     "draw({7}--{18}, dotted);\n"
     "draw(boxpt--{19}, dotted);\n",
-    axom::fmt::format(asyheader, fname, ifname),
+    axom::fmt::format(axom::fmt::runtime(asyheader), fname, ifname),
     printPoint(q),
     printPoint(boxpt),
     printPoint(p),

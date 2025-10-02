@@ -46,8 +46,7 @@ public:
    * It should report any errors via INLET_VERIFICATION_WARNING, passing
    * in the given array of errors.
    */
-  using Verifier =
-    std::function<bool(const BaseType&, std::vector<VerificationError>* errors)>;
+  using Verifier = std::function<bool(const BaseType&, std::vector<VerificationError>* errors)>;
 
   virtual ~Verifiable() = default;
 
@@ -90,9 +89,7 @@ public:
   Verifiable<BaseType>& registerVerifier(std::function<bool(const BaseType&)> verifier)
   {
     return registerVerifier(
-      [verifier](const BaseType& item, std::vector<VerificationError>*) {
-        return verifier(item);
-      });
+      [verifier](const BaseType& item, std::vector<VerificationError>*) { return verifier(item); });
   };
 
   /*!
@@ -153,16 +150,14 @@ public:
 
   bool isRequired() const override
   {
-    return std::any_of(
-      m_verifiables.begin(),
-      m_verifiables.end(),
-      [](const BaseVerifiable& verifiable) { return verifiable.isRequired(); });
+    return std::any_of(m_verifiables.begin(),
+                       m_verifiables.end(),
+                       [](const BaseVerifiable& verifiable) { return verifiable.isRequired(); });
   }
 
   using Verifiable<BaseType>::registerVerifier;
 
-  AggregateVerifiable& registerVerifier(
-    typename Verifiable<BaseType>::Verifier lambda) override
+  AggregateVerifiable& registerVerifier(typename Verifiable<BaseType>::Verifier lambda) override
   {
     for(auto& verifiable : m_verifiables)
     {
@@ -173,11 +168,10 @@ public:
 
   bool verify(std::vector<VerificationError>* errors = nullptr) const override
   {
-    return std::all_of(m_verifiables.begin(),
-                       m_verifiables.end(),
-                       [&errors](const BaseVerifiable& verifiable) {
-                         return verifiable.verify(errors);
-                       });
+    return std::all_of(
+      m_verifiables.begin(),
+      m_verifiables.end(),
+      [&errors](const BaseVerifiable& verifiable) { return verifiable.verify(errors); });
   }
 
 private:

@@ -7,6 +7,7 @@
 
 #include "gtest/gtest.h"
 
+#include "axom/core/execution/runtime_policy.hpp"
 #include "axom/primal/geometry/BoundingBox.hpp"
 #include "axom/primal/geometry/Point.hpp"
 #include "axom/spin/UniformGrid.hpp"
@@ -53,10 +54,9 @@ TEST(spin_uniform_grid, indexing)
   const int resolution = 100;
   int res[DIM] = {resolution, resolution, resolution};
 
-#if defined(AXOM_USE_HIP) && defined(AXOM_USE_RAJA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   using execSpace = axom::HIP_EXEC<256>;
-#elif defined(AXOM_USE_CUDA) && defined(AXOM_USE_RAJA) && \
-  defined(AXOM_USE_UMPIRE)
+#elif defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   using execSpace = axom::CUDA_EXEC<256>;
 #else
   using execSpace = axom::SEQ_EXEC;
@@ -143,16 +143,15 @@ TEST(spin_uniform_grid, indexing)
 
 // Verify the count in each bin against the map maintained "by hand".
 template <typename T, int NDIMS>
-void checkBinCounts(axom::spin::UniformGrid<T, NDIMS>& v,
-                    std::map<int, int>& bincounts)
+void checkBinCounts(axom::spin::UniformGrid<T, NDIMS>& v, std::map<int, int>& bincounts)
 {
   int bcount = v.getNumBins();
   for(int i = 0; i < bcount; ++i)
   {
     bool binAgrees = (bincounts.count(i) < 1 && v.isBinEmpty(i)) ||
       (bincounts[i] == ((int)v.getBinContents(i).size()));
-    EXPECT_TRUE(binAgrees) << "Difference at bin " << i << ": v has "
-                           << v.getBinContents(i).size() << " and bincounts has "
+    EXPECT_TRUE(binAgrees) << "Difference at bin " << i << ": v has " << v.getBinContents(i).size()
+                           << " and bincounts has "
                            << (((int)bincounts.count(i)) < 1 ? 0 : bincounts[i]);
   }
 }
@@ -294,8 +293,7 @@ TEST(spin_uniform_grid, delete_stuff_3D)
     {
       for(int i = 0; i < 2; ++i)
       {
-        incr(check,
-             valid.getBinIndex(QPoint::make_point(i + 0.5, j + 0.5, k + 0.5)));
+        incr(check, valid.getBinIndex(QPoint::make_point(i + 0.5, j + 0.5, k + 0.5)));
       }
     }
   }
@@ -476,8 +474,7 @@ struct ExecTraits
   static int getAllocatorId()
   {
 #ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Host);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
 #else
     return axom::getDefaultAllocatorID();
 #endif
@@ -485,44 +482,39 @@ struct ExecTraits
   static int getUnifiedAllocatorId()
   {
 #ifdef AXOM_USE_UMPIRE
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Host);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Host);
 #else
     return axom::getDefaultAllocatorID();
 #endif
   }
 };
 
-#ifdef AXOM_USE_CUDA
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
 template <int BLK_SZ>
 struct ExecTraits<axom::CUDA_EXEC<BLK_SZ>>
 {
   static int getAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
   }
   static int getUnifiedAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Unified);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
   }
 };
 #endif
 
-#ifdef AXOM_USE_HIP
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
 template <int BLK_SZ>
 struct ExecTraits<axom::HIP_EXEC<BLK_SZ>>
 {
   static int getAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Device);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Device);
   }
   static int getUnifiedAllocatorId()
   {
-    return axom::getUmpireResourceAllocatorID(
-      umpire::resource::MemoryResourceType::Unified);
+    return axom::getUmpireResourceAllocatorID(umpire::resource::MemoryResourceType::Unified);
   }
 };
 #endif
@@ -539,8 +531,7 @@ public:
   using DynamicUniformGridType = axom::spin::UniformGrid<int, DIM, ExecSpace>;
 
   using FlatStorageType = axom::spin::policy::FlatGridStorage<int>;
-  using FlatUniformGridType =
-    axom::spin::UniformGrid<int, DIM, ExecSpace, FlatStorageType>;
+  using FlatUniformGridType = axom::spin::UniformGrid<int, DIM, ExecSpace, FlatStorageType>;
 
   spin_uniform_grid_templated()
     : m_allocatorID(ExecTraits<ExecSpace>::getAllocatorId())
@@ -551,10 +542,8 @@ public:
 
   void initialize()
   {
-    this->m_boundingBoxes =
-      axom::Array<BoxType>(0, this->m_numObjects, m_allocatorID);
-    this->m_iota =
-      axom::Array<int>(this->m_numObjects, this->m_numObjects, m_allocatorID);
+    this->m_boundingBoxes = axom::Array<BoxType>(0, this->m_numObjects, m_allocatorID);
+    this->m_iota = axom::Array<int>(this->m_numObjects, this->m_numObjects, m_allocatorID);
     // generate n random objects to insert into the uniform grid.
     for(int i = 0; i < this->m_numObjects; i++)
     {
@@ -574,9 +563,7 @@ public:
     }
 
     const auto iota_v = m_iota.view();
-    axom::for_all<ExecSpace>(
-      this->m_numObjects,
-      AXOM_LAMBDA(int idx) { iota_v[idx] = idx; });
+    axom::for_all<ExecSpace>(this->m_numObjects, AXOM_LAMBDA(int idx) { iota_v[idx] = idx; });
   }
 
   std::unique_ptr<DynamicUniformGridType> constructUniformGridDynamic()
@@ -615,13 +602,13 @@ template <typename ExecSpace>
 using UniformGrid3DTest = spin_uniform_grid_templated<ExecSpace, 2>;
 
 using MyTypes = ::testing::Types<
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_OPENMP)
+#if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
   axom::OMP_EXEC,
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_CUDA) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_RUNTIME_POLICY_USE_CUDA)
   axom::CUDA_EXEC<256>,
 #endif
-#if defined(AXOM_USE_RAJA) && defined(AXOM_USE_HIP) && defined(AXOM_USE_UMPIRE)
+#if defined(AXOM_RUNTIME_POLICY_USE_HIP)
   axom::HIP_EXEC<256>,
 #endif
   axom::SEQ_EXEC>;

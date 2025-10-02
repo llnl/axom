@@ -6,74 +6,59 @@
 #include "gtest/gtest.h"
 
 #include "axom/core.hpp"
+#include "axom/bump.hpp"
 #include "axom/mir.hpp"
 #include "axom/primal.hpp"
-#include "axom/mir/tests/mir_testing_data_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_data_helpers.hpp"
+#include "axom/bump/tests/blueprint_testing_helpers.hpp"
+
+namespace utils = axom::bump::utilities;
+namespace views = axom::bump::views;
+
+std::string baselineDirectory() { return pjoin(dataDirectory(), "mir", "regression", "mir_equiz"); }
 
 //------------------------------------------------------------------------------
-
-// Uncomment to generate baselines
-//#define AXOM_TESTING_GENERATE_BASELINES
-
-// Uncomment to save visualization files for debugging (when making baselines)
-//#define AXOM_TESTING_SAVE_VISUALIZATION
-
-#include "axom/mir/tests/mir_testing_helpers.hpp"
-
-std::string baselineDirectory()
-{
-  return pjoin(dataDirectory(), "mir", "regression", "mir_equiz");
-}
+// Global test application object.
+axom::blueprint::testing::TestApplication TestApp;
 
 //------------------------------------------------------------------------------
 template <typename ExecSpace>
-void braid3d_mat_test(const std::string &type,
-                      const std::string &mattype,
-                      const std::string &name)
+void braid3d_mat_test(const std::string &type, const std::string &mattype, const std::string &name)
 {
-  namespace bputils = axom::mir::utilities::blueprint;
-
   axom::StackArray<axom::IndexType, 3> dims {11, 11, 11};
-  axom::StackArray<axom::IndexType, 3> zoneDims {dims[0] - 1,
-                                                 dims[1] - 1,
-                                                 dims[2] - 1};
+  axom::StackArray<axom::IndexType, 3> zoneDims {dims[0] - 1, dims[1] - 1, dims[2] - 1};
 
   // Create the data
   conduit::Node hostMesh, deviceMesh;
-  axom::mir::testing::data::braid(type, dims, hostMesh);
-  axom::mir::testing::data::make_matset(mattype, "mesh", zoneDims, hostMesh);
-  axom::mir::utilities::blueprint::copy<ExecSpace>(deviceMesh, hostMesh);
-#if defined(AXOM_TESTING_SAVE_VISUALIZATION) && defined(AXOM_USE_HDF5)
-  conduit::relay::io::blueprint::save_mesh(hostMesh, name + "_orig", "hdf5");
-#endif
+  axom::blueprint::testing::data::braid(type, dims, hostMesh);
+  axom::blueprint::testing::data::make_matset(mattype, "mesh", zoneDims, hostMesh);
+  utils::copy<ExecSpace>(deviceMesh, hostMesh);
+  TestApp.saveVisualization(name + "_orig", hostMesh);
 
   // Make views.
-  auto coordsetView = axom::mir::views::make_explicit_coordset<double, 3>::view(
-    deviceMesh["coordsets/coords"]);
+  auto coordsetView =
+    views::make_explicit_coordset<double, 3>::view(deviceMesh["coordsets/coords"]);
   using CoordsetView = decltype(coordsetView);
 
-  using ShapeType = axom::mir::views::HexShape<int>;
-  using TopologyView =
-    axom::mir::views::UnstructuredTopologySingleShapeView<ShapeType>;
-  auto connView = bputils::make_array_view<int>(
-    deviceMesh["topologies/mesh/elements/connectivity"]);
+  using ShapeType = views::HexShape<int>;
+  using TopologyView = views::UnstructuredTopologySingleShapeView<ShapeType>;
+  auto connView = utils::make_array_view<int>(deviceMesh["topologies/mesh/elements/connectivity"]);
   TopologyView topologyView(connView);
 
   conduit::Node deviceMIRMesh;
   if(mattype == "unibuffer")
   {
     // clang-format off
-    using MatsetView = axom::mir::views::UnibufferMaterialView<int, float, 3>;
+    using MatsetView = views::UnibufferMaterialView<int, float, 3>;
     MatsetView matsetView;
-    matsetView.set(bputils::make_array_view<int>(deviceMesh["matsets/mat/material_ids"]),
-                   bputils::make_array_view<float>(deviceMesh["matsets/mat/volume_fractions"]),
-                   bputils::make_array_view<int>(deviceMesh["matsets/mat/sizes"]),
-                   bputils::make_array_view<int>(deviceMesh["matsets/mat/offsets"]),
-                   bputils::make_array_view<int>(deviceMesh["matsets/mat/indices"]));
+    matsetView.set(utils::make_array_view<int>(deviceMesh["matsets/mat/material_ids"]),
+                   utils::make_array_view<float>(deviceMesh["matsets/mat/volume_fractions"]),
+                   utils::make_array_view<int>(deviceMesh["matsets/mat/sizes"]),
+                   utils::make_array_view<int>(deviceMesh["matsets/mat/offsets"]),
+                   utils::make_array_view<int>(deviceMesh["matsets/mat/indices"]));
     // clang-format on
 
-    using MIR =
-      axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
+    using MIR = axom::mir::EquiZAlgorithm<ExecSpace, TopologyView, CoordsetView, MatsetView>;
     MIR m(topologyView, coordsetView, matsetView);
     conduit::Node options;
     options["matset"] = "mat";
@@ -82,22 +67,13 @@ void braid3d_mat_test(const std::string &type,
 
   // device->host
   conduit::Node hostMIRMesh;
-  axom::mir::utilities::blueprint::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
+  utils::copy<seq_exec>(hostMIRMesh, deviceMIRMesh);
 
-#if defined(AXOM_TESTING_SAVE_VISUALIZATION) && defined(AXOM_USE_HDF5)
-  conduit::relay::io::blueprint::save_mesh(hostMIRMesh, name, "hdf5");
-#endif
+  TestApp.saveVisualization(name, hostMIRMesh);
+
   // Handle baseline comparison.
-  {
-    std::string baselineName(yamlRoot(name));
-    const auto paths = baselinePaths<ExecSpace>();
-#if defined(AXOM_TESTING_GENERATE_BASELINES)
-    saveBaseline(paths, baselineName, hostMIRMesh);
-#else
-    constexpr double tolerance = 1.7e-6;
-    EXPECT_TRUE(compareBaseline(paths, baselineName, hostMIRMesh, tolerance));
-#endif
-  }
+  constexpr double tolerance = 1.7e-6;
+  EXPECT_TRUE(TestApp.test<ExecSpace>(name, hostMIRMesh, tolerance));
 }
 
 //------------------------------------------------------------------------------
@@ -132,62 +108,8 @@ TEST(mir_equiz, equiz_hex_unibuffer_hip)
 #endif
 
 //------------------------------------------------------------------------------
-void conduit_debug_err_handler(const std::string &s1, const std::string &s2, int i1)
-{
-  std::cout << "s1=" << s1 << ", s2=" << s2 << ", i1=" << i1 << std::endl;
-  // This is on purpose.
-  while(1)
-    ;
-}
-
-//------------------------------------------------------------------------------
 int main(int argc, char *argv[])
 {
-  int result = 0;
   ::testing::InitGoogleTest(&argc, argv);
-
-  axom::CLI::App app;
-#if defined(AXOM_USE_CALIPER)
-  std::string annotationMode("none");
-  app.add_option("--caliper", annotationMode)
-    ->description(
-      "caliper annotation mode. Valid options include 'none' and 'report'. "
-      "Use 'help' to see full list.")
-    ->capture_default_str()
-    ->check(axom::utilities::ValidCaliperMode);
-#endif
-  bool handlerEnabled = false;
-  app.add_flag("--handler", handlerEnabled, "Enable Conduit handler.");
-
-  // Parse command line options.
-  try
-  {
-    app.parse(argc, argv);
-
-#if defined(AXOM_USE_CALIPER)
-    axom::utilities::raii::AnnotationsWrapper annotations_raii_wrapper(
-      annotationMode);
-#endif
-
-    axom::slic::SimpleLogger logger;  // create & initialize test logger,
-    if(handlerEnabled)
-    {
-      conduit::utils::set_error_handler(conduit_debug_err_handler);
-    }
-
-    result = RUN_ALL_TESTS();
-  }
-  catch(axom::CLI::CallForHelp &e)
-  {
-    std::cout << app.help() << std::endl;
-    result = 0;
-  }
-  catch(axom::CLI::ParseError &e)
-  {
-    // Handle other parsing errors
-    std::cerr << e.what() << std::endl;
-    result = app.exit(e);
-  }
-
-  return result;
+  return TestApp.execute(argc, argv);
 }
