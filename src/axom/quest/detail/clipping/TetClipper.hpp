@@ -29,7 +29,11 @@ public:
    * @param [in] kGeom Describes the shape to place
    *   into the mesh.
    * @param [in] name To override the default strategy name
-  */
+   *
+   * \c kGeom.asHierarchy() must contain the following data:
+   * - v0, v1, v2, v3: each contains a 3D coordinates of the
+   *   tetrahedron vertices, in the order used by primal::Tetrahedron.
+   */
   TetClipper(const klee::Geometry& kGeom, const std::string& name = "");
 
   virtual ~TetClipper() = default;

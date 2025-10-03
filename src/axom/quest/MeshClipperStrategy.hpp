@@ -29,10 +29,10 @@ namespace experimental
 
  * Key methods to implement:  (Some combination of these is required.)
 
- * -# @c getBoundingBox2D or @c getBoundingBox3D: Axis-alligned
+ * -# @c getBoundingBox2D or @c getBoundingBox3D: Axis-aligned
  *    bounding box for the geometry.
 
- * -# @c labelCellsInOut: Label whether the cells in a mesh is inside,
+ * -# @c labelCellsInOut: Label the cells in a mesh as inside,
  *    outside or on the shape boundary.  If a cell cannot be
  *    determined, you can conservatively label it as on the boundary.
 
@@ -52,7 +52,7 @@ namespace experimental
  * Every method should return true if it fulfilled the request, or
  * false if it was a no-op.
 
- * Implementations of this strategy must provide either
+ * Subclasses of MeshClipperStrategy must implement either
  * - a @c specializedClipCells method or
  * - one of the @c getShapesAs...() methods.
  * The former is prefered if the use of geometry-specific information
@@ -105,7 +105,15 @@ public:
    *
    * @param [in] kGeom Describes the shape to place
    *   into the mesh.
-  */
+   *
+   * Note for subclasses: This class makes geometry-specific hierarchy
+   * data from \c kGeom available to subclasses via the info() method.
+   * It's up to each subclass to define the required content of the
+   * hierarchy, validate it fail fast if it's invalid.  It's the
+   * responsibility of the code that construct mesh clipper
+   * implementations to ensure a suitable hierarchy is provided
+   * by \c kGeom.asHierarchy().
+   */
   MeshClipperStrategy(const klee::Geometry& kGeom);
 
   /*!
@@ -133,13 +141,13 @@ public:
   virtual const axom::primal::BoundingBox<double, 2>& getBoundingBox2D() const;
 
   /*!
-   * @brief Get the 3D axis-alligned bounding box for the geometry,
+   * @brief Get the 3D axis-aligned bounding box for the geometry,
    * if it's applicable and available.
   */
   virtual const axom::primal::BoundingBox<double, 3>& getBoundingBox3D() const;
 
   /*!
-   * @brief Label the cells in the mesh as inside, outside or
+   * @brief Label each cell in the mesh as inside, outside or
    * both/undetermined, if possible.
    *
    * @param [in] shapeMesh Mesh to shape into.
@@ -152,14 +160,14 @@ public:
    *   cannot be easily determined).
    *
    * The output labels are used in optimizing the clipping algorithm.
-   * Subclasses should implementation this if it's cost-effective, and
+   * Subclasses should implement this if it's cost-effective, and
    * skip if it's not.  It's safe to label cells as on the boundary if
-   * it can't be possitively determined as inside or outside.
+   * it can't be positively determined as inside or outside.
    *
    * @return Whether the operation was done.  (A false means
    * not done.)
    *
-   * If implemenation returns true, it should ensure these
+   * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post labels.size() == shapeMesh.getCellCount()
    * @post labels.getAllocatorID() == shapeMesh.getAllocatorId()
@@ -172,19 +180,21 @@ public:
   }
 
   /*!
-   * @brief Label the tetrahedra in certain cells, if possible.
+   * @brief Label each tetrahedron in the given cells, as inside,
+   * outside or both/undetermined, if possible.
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [in] cellIds Indices of cells whose constituent
    *   tets should be labeled.
    * @param [out] tetLabels Output
    *
-   * Only the cells labeled as ON the boundary are subjected to
-   * this labeling.
+   * Indices [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX) in \c tetLabels
+   * correspond to parent cell index \c c = \c cellIds[i].
+   * The \c NUM_TETS_PER_HEX tets in cell \c cid have indices
+   * [c*NUM_TETS_PER_HEX, (c+1)*NUM_TETS_PER_HEX).
+   * in \c shapeMesh.getCellsAsTets().
    *
-   * Tet indices refer to the @c shapeMesh.getCellsAsTets() array.
-   *
-   * If implemenation returns true, it should ensure these
+   * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post tetLabels.size() == NUM_TETS_PER_HEX * cellIds.size()
    * @post labels.getAllocatorID() == shapeMesh.getAllocatorId()
@@ -206,8 +216,8 @@ public:
    * possible.
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
-   * @param ovlap [out] Shape overlap volume of each cell
-   *   in the shapee mesh.  It's initialized to zeros.
+   * @param [out] ovlap Shape overlap volume of each cell
+   *   in the \c shapeMesh.  It's initialized to zeros.
    *
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
@@ -220,7 +230,7 @@ public:
    * This method need not be implemented if labelCellsInOut()
    * returns true.
    *
-   * If implemenation returns true, it should ensure these
+   * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post ovlap.size() == shapeMesh.getCellCount()
    * @post ovlap.getAllocatorID() == shapeMesh.getAllocatorId()
@@ -238,7 +248,7 @@ public:
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [out] ovlap Shape overlap volume of each cell
-   *   in the shapee mesh, initialized to the cell volumes
+   *   in \c shapeMesh, initialized to the cell volumes
    *   for cell inside the shape and zero for other cells.
    * @param [in] cellIds Limit computation to these cell ids.
    *
@@ -256,7 +266,7 @@ public:
    * @pre @c ovlap is pre-initialized for the implementation
    * to add or subtract partial volumes to individual cells.
    *
-   * If implemenation returns true, it should ensure these
+   * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post ovlap.size() == shapeMesh.getCellCount()
    * @post ovlap.getAllocatorID() == shapeMesh.getAllocatorId()
@@ -275,7 +285,7 @@ public:
    * Clip the tets listed in tetIds.
    * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [out] ovlap Shape overlap volume of each cell
-   *   in the shapee mesh, initialized to the cell volumes
+   *   in \c shapeMesh, initialized to the cell volumes
    *   for cell inside the shape and zero for other cells.
    * @param [in] tetIds Indices of tets to clip, referring to the
    * shapeMesh.getCellsAsTets() array.  tetIds[i] is the
@@ -304,7 +314,7 @@ public:
    *
    * @return Whether the shape can be represented as tetrahedra.
    *
-   * If implemenation returns true, it should ensure these
+   * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post tets.getAllocatorID() == shapeMesh.getAllocatorId()
   */
@@ -328,7 +338,7 @@ public:
    *
    * @return Whether the shape can be represented as octahedra.
    *
-   * If implemenation returns true, it should ensure these
+   * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post octs.getAllocatorID() == shapeMesh.getAllocatorId()
    */
