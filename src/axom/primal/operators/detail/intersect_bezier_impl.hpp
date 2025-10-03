@@ -43,10 +43,10 @@ namespace detail
  * Bezier curve is linear
  * \param [in] order1 The order of \a c1
  * \param [in] order2 The order of \a c2
- * \param s_offset The offset in parameter space for \a c1
- * \param s_scale The scale in parameter space for \a c1
- * \param t_offset The offset in parameter space for \a c2
- * \param t_scale The scale in parameter space for \a c2
+ * \param [in] s_offset The offset in parameter space for \a c1
+ * \param [in] s_scale The scale in parameter space for \a c1
+ * \param [in] t_offset The offset in parameter space for \a c2
+ * \param [in] t_scale The scale in parameter space for \a c2
  *
  * Bezier curves can only intersect when their bounding boxes intersect.
  * The base case of the recursion is when we can approximate the curves as
@@ -77,7 +77,7 @@ bool intersect_bezier_curves(const BezierCurve<T, 2> &c1,
  * their end points (a,b) and (c,d)
  *
  * \param [in] a,d,c,b the endpoints of the segments
- * \param [out] The parametrized s and t values at which intersection occurs
+ * \param [out] s,t The parametrized s and t values at which intersection occurs
  * Range of output values for \a s and \a t is [0,1).
  *
  * \return True, if the two line segments intersect, false otherwise.
@@ -116,9 +116,9 @@ bool intersect_2d_linear(const Point<T, 2> &a,
  * \param [in] sq_tol The squared tolerance parameter for distances in physical space
  * \param [in] EPS The tolerance parameter for distances in parameter space
  * \param [in] order The order of \a c
- * \param c_offset The offset in parameter space for \a c
- * \param c_scale The scale in parameter space for \a c
- * \param isHalfOpen If true, ignore intersections at t=1 in the parameter space of the curve
+ * \param [in] c_offset The offset in parameter space for \a c
+ * \param [in] c_scale The scale in parameter space for \a c
+ * \param [in] isHalfOpen If true, ignore intersections at t=1 in the parameter space of the curve
  *
  * A ray can only intersect a Bezier curve if it intersects its bounding box
  * The base case of the recursion is when we can approximate the curves parametrically with
@@ -157,8 +157,8 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
  * \param [in] sq_tol The squared tolerance parameter for distances in physical space
  * \param [in] EPS The tolerance parameter for distances in parameter space
  * \param [in] order The order of \a c
- * \param c_offset The offset in parameter space for \a c
- * \param c_scale The scale in parameter space for \a c
+ * \param [in] c_offset The offset in parameter space for \a c
+ * \param [in] c_scale The scale in parameter space for \a c
  *
  * A circle can only intersect a Bezier curve if it intersects its bounding box
  * The base case of the recursion is when we can approximate the curve parametrically with

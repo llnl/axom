@@ -128,7 +128,7 @@ void check_for_all_nodes_ij()
       ++inode;
 
     }  // END for all i
-  }    // END for all j
+  }  // END for all j
 
   delete test_mesh;
   test_mesh = nullptr;
@@ -191,8 +191,8 @@ void check_for_all_nodes_ijk()
         ++inode;
 
       }  // END for all i
-    }    // END for all j
-  }      // END for all k
+    }  // END for all j
+  }  // END for all k
 
   delete test_mesh;
   test_mesh = nullptr;

@@ -25,18 +25,13 @@
 
 #include "axom/primal/operators/is_convex.hpp"
 
+#include "axom/core/numerics/quadrature.hpp"
+
 #include <vector>
 #include <ostream>
 #include <math.h>
 
 #include "axom/fmt.hpp"
-
-// MFEM includes
-#ifdef AXOM_USE_MFEM
-  #include "mfem.hpp"
-#else
-  #error "3D GWN evaluation requires mfem library."
-#endif
 
 namespace axom
 {
@@ -76,9 +71,7 @@ struct TrimmingCurveQuadratureData
     : m_quad_npts(quad_npts)
   {
     // Generate the (cached) quadrature rules in parameter space
-    static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
-    const mfem::IntegrationRule& quad_rule =
-      my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * quad_npts - 1);
+    const numerics::QuadratureRule& gl_rule = numerics::get_gauss_legendre(quad_npts);
 
     auto& the_curve = a_patch.getTrimmingCurve(a_curve_index);
 
@@ -93,7 +86,7 @@ struct TrimmingCurveQuadratureData
     m_quadrature_tangents.resize(m_quad_npts);
     for(int q = 0; q < m_quad_npts; ++q)
     {
-      T quad_x = quad_rule.IntPoint(q).x * m_span_length + curve_min_knot + span_offset;
+      T quad_x = gl_rule.node(q) * m_span_length + curve_min_knot + span_offset;
 
       Point<T, 2> c_eval;
       Vector<T, 2> c_Dt;
@@ -112,11 +105,10 @@ struct TrimmingCurveQuadratureData
   Vector<T, 3> getQuadratureTangent(size_t idx) const { return m_quadrature_tangents[idx]; }
   double getQuadratureWeight(size_t idx) const
   {
-    // Is this efficient because it's cached? More or less efficient than storing a bunch of duplicated weights for each curve?
-    static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
-    const mfem::IntegrationRule& quad_rule =
-      my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * m_quad_npts - 1);
-    return quad_rule.IntPoint(idx).weight * m_span_length;
+    // Because the quadrature weights are identical for each trimming curve (up to a scaling factor),
+    //  we query the static rule instead of storing redundant weights
+    const numerics::QuadratureRule& gl_rule = numerics::get_gauss_legendre(m_quad_npts);
+    return gl_rule.weight(idx) * m_span_length;
   }
   double getNumPoints() const { return m_quad_npts; }
 
@@ -146,6 +138,7 @@ class NURBSPatchGWNCache
 public:
   NURBSPatchGWNCache() = default;
 
+  /// \brief Initialize the cache with the data for a single NURBS patch
   NURBSPatchGWNCache(const NURBSPatch<T, 3>& a_patch) : m_alteredPatch(a_patch)
   {
     m_alteredPatch.normalizeBySpan();
@@ -208,12 +201,15 @@ public:
     m_curveQuadratureMaps.resize(m_alteredPatch.getNumTrimmingCurves());
   }
 
+  /// \brief Initialize the cache with the data for a single Bezier patch
   NURBSPatchGWNCache(const BezierPatch<T, 3> a_patch)
     : NURBSPatchGWNCache(NURBSPatch<T, 3>(a_patch))
   { }
 
-  // Mirror the functionality of NURBSPatch so signatures match in GWN evaluation.
-  // Allowing only access ensures the memoized information is always accurate
+  ///@{
+  //! \name Functions that mirror functionality of NURBSPatch so signatures match in GWN evaluation.
+  //!
+  //! By limiting access to these functions, we ensure memoized information is always accurate
   auto getControlPoints() const { return m_alteredPatch.getControlPoints(); }
   auto getNumControlPoints_u() const { return m_alteredPatch.getNumControlPoints_u(); }
   auto getNumControlPoints_v() const { return m_alteredPatch.getNumControlPoints_v(); }
@@ -227,11 +223,14 @@ public:
   auto getTrimmingCurves() const { return m_alteredPatch.getTrimmingCurves(); };
   auto getNumTrimmingCurves() const { return m_alteredPatch.getNumTrimmingCurves(); }
   auto getParameterSpaceDiagonal() const { return m_pboxDiag; }
+  //@}
 
-  // Access precomputed data
+  ///@{
+  //! \name Accessors for precomputed data
   Vector<T, 3> getAverageNormal() const { return m_averageNormal; }
   BoundingBox<T, 3> boundingBox() const { return m_bBox; }
   OrientedBoundingBox<T, 3> orientedBoundingBox() const { return m_oBox; }
+  //@}
 
   /// \brief Creates or accesses the quadrature nodes for a given trimming curve
   TrimmingCurveQuadratureData<T>& getTrimmingCurveQuadratureData(int curveIndex,

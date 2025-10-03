@@ -122,7 +122,7 @@ public:
    */
   AXOM_HOST_DEVICE double getRadiusAt(double z) const
   {
-    if( std::abs(m_length) < axom::numeric_limits<double>::min() )
+    if(std::abs(m_length) < axom::numeric_limits<double>::min())
     {
       return numeric_limits<T>::quiet_NaN();
     }
@@ -136,8 +136,8 @@ public:
    */
   std::ostream& print(std::ostream& os) const
   {
-    os << "Cone {base radius" << m_baseRad << ", top radius " << m_topRad
-       << ", axis at " << m_baseCenter << " along " << m_direction << '}';
+    os << "Cone {base radius" << m_baseRad << ", top radius " << m_topRad << ", axis at "
+       << m_baseCenter << " along " << m_direction << '}';
 
     return os;
   }
@@ -150,8 +150,8 @@ public:
   template <int TDIM = NDIMS>
   AXOM_HOST_DEVICE typename std::enable_if<TDIM == 3, T>::type volume() const
   {
-    T vol = (m_baseRad * m_baseRad + m_baseRad * m_topRad + m_topRad * m_topRad) / 3.0 * M_PI *
-      m_length;
+    T vol =
+      (m_baseRad * m_baseRad + m_baseRad * m_topRad + m_topRad * m_topRad) / 3.0 * M_PI * m_length;
     return vol;
   }
 

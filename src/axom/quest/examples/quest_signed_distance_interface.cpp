@@ -55,16 +55,13 @@ MPI_Comm global_comm;
 int mpirank;
 int numranks;
 
-const std::map<std::string, quest::SignedDistExec> validExecPolicies
-{
+const std::map<std::string, quest::SignedDistExec> validExecPolicies {
   {"seq", quest::SignedDistExec::CPU},
 #if defined(AXOM_USE_OPENMP) && defined(AXOM_USE_RAJA)
-    {"omp", quest::SignedDistExec::OpenMP},
+  {"omp", quest::SignedDistExec::OpenMP},
 #endif
 #if defined(AXOM_USE_GPU) && defined(AXOM_USE_RAJA)
-  {
-    "gpu", quest::SignedDistExec::GPU
-  }
+  {"gpu", quest::SignedDistExec::GPU}
 #endif
 };
 

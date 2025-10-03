@@ -15,7 +15,7 @@
 #include "axom/core/Macros.hpp"
 
 #if defined(AXOM_USE_MPI)
-#include <mpi.h>
+  #include <mpi.h>
 #endif
 
 /// \name Wildcards
@@ -125,7 +125,7 @@ public:
    *
    * \warning This method is being called before slic aborts.
    */
-  virtual void outputLocal() {};
+  virtual void outputLocal() { };
 
   /*!
    * \brief Flushes the log stream on all ranks. It's a NO-OP by default.
@@ -135,7 +135,7 @@ public:
    *  in a distributed MPI environment, where the flush is a collective
    *  operation intended for a synchronization checkpoint.
    */
-  virtual void flush() {};
+  virtual void flush() { };
 
   /*!
    * \brief Pushes messages incrementally up the log stream. NO-OP by default.
@@ -146,7 +146,7 @@ public:
    *  the push is a collective operation intended for a incrementally advancing
    *  messages through the log stream.
    */
-  virtual void push() {};
+  virtual void push() { };
 
   /*!
    * \brief Tests whether there are any pending messages that need to be flushed.
@@ -174,7 +174,6 @@ public:
 #endif
 
 protected:
-
   /*!
    * \brief Returns the formatted message as a single string.
    *
