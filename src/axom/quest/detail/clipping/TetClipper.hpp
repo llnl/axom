@@ -55,12 +55,6 @@ private:
 
   axom::primal::BoundingBox<double, 3> m_bb;
 
-  //!@brief 4 planes of the Tet, oriented to the interior of the tet.
-  axom::StackArray<Plane3DType, 4> m_planes;
-
-  //!@brief Height of the tet when resting on each facet.
-  axom::StackArray<double, 4> m_heights;
-
   axom::primal::experimental::CoordinateTransformer<double> m_transformer;
 
   // Extract clipper info from MeshClipperStrategy::m_info.
