@@ -21,7 +21,10 @@
 
 // Axom includes
 #include "axom/config.hpp"
-#include "axom/primal.hpp"
+
+#include "axom/primal/geometry/CurvedPolygon.hpp"
+#include "axom/primal/geometry/BezierCurve.hpp"
+#include "axom/primal/geometry/NURBSCurve.hpp"
 
 #include "axom/primal/operators/detail/evaluate_integral_impl.hpp"
 
