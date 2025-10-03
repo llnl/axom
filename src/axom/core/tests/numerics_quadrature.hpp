@@ -17,6 +17,8 @@ TEST(numerics_quadrature, gauss_legendre_math_check)
   // Test that the rules provide exact integration for polynomials of degree 2n - 1
   for(int npts = 1; npts < N; ++npts)
   {
+    std::cout << "Testing with " << npts << std::endl;
+
     // Evaluate using the quadrature rule
     auto rule = axom::numerics::get_gauss_legendre(npts);
     int degree = 2 * npts - 1;
@@ -92,11 +94,11 @@ TEST(numerics_quadrature, gauss_legendre_math_check)
 TEST(numerics_quadrature, gauss_legendre_cache_check)
 {
   // The first two rules are put in the cache
-  const axom::numerics::QuadratureRule& first_rule = axom::numerics::get_gauss_legendre(20);
+  //const axom::numerics::QuadratureRule& first_rule = axom::numerics::get_gauss_legendre(20);
   //const axom::numerics::QuadratureRule& second_rule = axom::numerics::get_gauss_legendre(20);
 
   // The third is not
-  const axom::numerics::QuadratureRule& third_rule = axom::numerics::compute_gauss_legendre(20);
+  //const axom::numerics::QuadratureRule& third_rule = axom::numerics::compute_gauss_legendre(20);
 
   // Check that the two rules are located in the same place in memory, and the third isn't
   //EXPECT_EQ(&first_rule, &second_rule);
