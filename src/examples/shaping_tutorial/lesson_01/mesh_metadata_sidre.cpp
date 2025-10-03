@@ -100,7 +100,7 @@ bool verify_mesh_metadata(axom::sidre::Group* meshGroup)
   if(meshGroup->hasGroup("bounding_box"))
   {
     axom::sidre::Group* bbGroup = meshGroup->getGroup("bounding_box");
-    for(const std::string& path : {"min/x", "min/y", "max/x", "max/y"})
+    for(const std::string path : {"min/x", "min/y", "max/x", "max/y"})
     {
       if(!bbGroup->hasView(path))
       {
@@ -119,7 +119,7 @@ bool verify_mesh_metadata(axom::sidre::Group* meshGroup)
   if(meshGroup->hasGroup("resolution"))
   {
     axom::sidre::Group* resGroup = meshGroup->getGroup("resolution");
-    for(const std::string& path : {"x", "y"})
+    for(const std::string path : {"x", "y"})
     {
       if(!resGroup->hasView("x"))
       {

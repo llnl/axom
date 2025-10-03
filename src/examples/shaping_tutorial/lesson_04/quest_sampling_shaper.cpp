@@ -103,7 +103,7 @@ public:
     // Validate bounding box min/max
     bb.registerVerifier([](const inlet::Container& input) {
       bool valid = true;
-      for(const std::string& axis : {"x", "y", "z"})
+      for(const std::string axis : {"x", "y", "z"})
       {
         const std::string min_str = axom::fmt::format("min/{}", axis);
         const std::string max_str = axom::fmt::format("max/{}", axis);
