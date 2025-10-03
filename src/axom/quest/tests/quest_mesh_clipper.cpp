@@ -281,14 +281,15 @@ const std::string coordsetName = "coords";
 int cellCount = -1;
 // Translation to individual octants (override) when running multiple shapes.
 // Except that the plane is never moved.
-std::vector<axom::NumericArray<double, 3>> translations {{1, 1, -1},
-                                                         {-1, 1, -1},
-                                                         {-1, -1, -1},
-                                                         {1, -1, -1},
-                                                         {1, 1, 1},
-                                                         {-1, 1, 1},
-                                                         {-1, -1, 1},
-                                                         {1, -1, 1}};
+const double tDist = 0.9; // Bias toward origin to help keep shape inside domain.
+std::vector<axom::NumericArray<double, 3>> translations {{tDist, tDist, -tDist},
+                                                         {-tDist, tDist, -tDist},
+                                                         {-tDist, -tDist, -tDist},
+                                                         {tDist, -tDist, -tDist},
+                                                         {tDist, tDist, tDist},
+                                                         {-tDist, tDist, tDist},
+                                                         {-tDist, -tDist, tDist},
+                                                         {tDist, -tDist, tDist}};
 int translationIdx = 0;  // To track what translations have been used.
 
 std::map<std::string, int> geomReps;  // Repetitions of the geometry.
@@ -690,7 +691,7 @@ axom::klee::Geometry createGeom_Tet(const std::string& geomName)
 
   // Tetrahedron at origin.
   const double len = params.length < 0 ? 1.55 : params.length;
-  const Point3D a {Point3D::NumericArray {1., 0., -1.} * len};
+  const Point3D a {Point3D::NumericArray {.8, 0., -1.} * len};
   const Point3D b {Point3D::NumericArray {-.8, 1, -1.} * len};
   const Point3D c {Point3D::NumericArray {-.8, -1, -1.} * len};
   const Point3D d {Point3D::NumericArray {0., 0., +1.} * len};
@@ -1131,13 +1132,17 @@ int main(int argc, char** argv)
 
   if(params.testGeom.size() > 1)
   {
-    SLIC_WARNING(
-      "Multiple test configurations specified.\n"
-      "Scaling by half to shrink the geometries\n"
-      "and move them to individual octants so they don't overlap\n"
-      "with each other.");
-    params.scaleFactors.resize(3, 1.0);
+    if(params.scaleFactors.empty())
+    {
+      params.scaleFactors.resize(3, 1.0);
+    }
     for(auto& f : params.scaleFactors) f *= 0.5;
+    axom::StackArray<double, 3> tmpOutput{params.scaleFactors[0], params.scaleFactors[1], params.scaleFactors[2]};
+    SLIC_WARNING(
+      axom::fmt::format("Multiple test configurations specified.\n"
+      "Adding additional 0.5 scaling to shrink the geometries\n"
+      "and move them to individual octants so they don't overlap\n"
+      "with each other.  Final scaling: {}", tmpOutput));
   }
   for(auto sf : params.scaleFactors)
   {

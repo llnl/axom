@@ -36,8 +36,7 @@ TEST(slam_set_nullset, construct)
 
 TEST(slam_set_nullset, subscript_fails)
 {
-  SLIC_INFO("Testing subscript access on NullSet"
-            << " -- code is expected to assert and die.");
+  SLIC_INFO("Testing subscript access on NullSet" << " -- code is expected to assert and die.");
 
   using SetPosition = axom::slam::DefaultPositionType;
   axom::slam::NullSet<SetPosition> n;

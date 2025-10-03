@@ -54,6 +54,10 @@ public:
   using HexahedronType = primal::Hexahedron<double, 3>;
   using BoundingBox3DType = primal::BoundingBox<double, 3>;
 
+  //!@brief Number of tetrahedra per hexahedron decomposes into
+  // @internal We could use a more efficient 18-tet decomposition in the future.
+  static constexpr axom::IndexType NUM_TETS_PER_HEX = HexahedronType::NUM_TRIANGULATE;
+
   /*!
    * @brief Constructor with computational mesh in a conduit::Node.
    *
@@ -139,6 +143,13 @@ public:
   //!@brief Number of vertices in mesh.
   IndexType getVertexCount() const { return m_vertexCount; }
 
+  //!@brief Set the threshold to snapping vertex coordinates near
+  // zero to zero.  Default threshold is 1e-10.
+  void setZeroThreshold(double threshold)
+  {
+    m_zeroThreshold = threshold;
+  }
+
   //@{
   //!@name Accessors to mesh data.
   //@}
@@ -151,9 +162,9 @@ public:
    * code and computations.
    */
   /*!
-   * @brief Tetrahedral version of mesh cells with cell i having tet ids
+   * @brief Tetrahedral version of mesh cells with cell i having tet ids in
    * [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX).
-  */
+   */
   axom::ArrayView<const TetrahedronType> getCellsAsTets();
   axom::ArrayView<const HexahedronType> getCellsAsHexes();
   //!@brief Get volume of mesh cells.
@@ -234,6 +245,9 @@ private:
   //!@brief Number of vertices in mesh.
   IndexType m_vertexCount;
 
+  //!@brief Threshold for snapping vertex coordinates to zero.
+  double m_zeroThreshold;
+
   //!@brief 3D Vertex coordinates as 1D ArrayViews.
   axom::StackArray<axom::ArrayView<const double>, 3> m_vertCoordsViews3D;
 
@@ -255,7 +269,7 @@ private:
   //!@brief Bounding boxes for m_cellsAsHexes.
   axom::Array<BoundingBox3DType> m_hexBbs;
 
-  //!@brief Cells as TETS_PER_HEXAHEDRON*m_cellCount tets.
+  //!@brief Cells as NUM_TETS_PER_HEX*m_cellCount tets.
   axom::Array<TetrahedronType> m_cellsAsTets;
 
   void computeCellsAsHexes();

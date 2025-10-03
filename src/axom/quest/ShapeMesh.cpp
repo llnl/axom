@@ -24,8 +24,6 @@ static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = condui
 static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT32_ID;
 #endif
 
-constexpr int NUM_TETS_PER_HEX = 24;
-
 ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
                      int allocatorId,
                      conduit::Node& bpMesh,
@@ -42,6 +40,7 @@ ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
                    ? bpMesh.fetch("matsets").child(0).name()
                    : matsetName)
   , m_bpNodeExt(&bpMesh)
+  , m_zeroThreshold(1e-10)
 {
   SLIC_ERROR_IF(m_topoName.empty(),
                 "Topology name was not provided, and no default topology was found.");
@@ -733,9 +732,9 @@ void ShapeMesh::computeCellsAsHexesImpl()
   m_cellsAsHexes =
     axom::Array<HexahedronType>(ArrayOptions::Uninitialized(), m_cellCount, m_cellCount, m_allocId);
   axom::ArrayView<HexahedronType> cellsAsHexesView = m_cellsAsHexes.view();
+  SLIC_ASSERT(cellsAsHexesView.data() == m_cellsAsHexes.data());
 
-  constexpr double ZERO_THRESHOLD = 1.e-10;
-
+  const auto zeroThreshold = m_zeroThreshold;
   axom::for_all<ExecSpace>(
     m_cellCount,
     AXOM_LAMBDA(axom::IndexType cellId) {
@@ -751,7 +750,7 @@ void ShapeMesh::computeCellsAsHexesImpl()
         // Snap coordinates to zero.
         for(int d = 0; d < NDIM; ++d)
         {
-          if(axom::utilities::isNearlyEqual(vCoords[d], 0.0, ZERO_THRESHOLD))
+          if(axom::utilities::isNearlyEqual(vCoords[d], 0.0, zeroThreshold))
           {
             vCoords[d] = 0;
           }

@@ -152,12 +152,12 @@ void Geometry::populateGeomInfo()
   {
     const Cone3D& cone = getCone();
     m_discreteFunction = axom::Array<double, 2>(2, 2);
-    m_discreteFunction(0, 0) = cone.getBaseZ();
+    m_discreteFunction(0, 0) = 0.0;
     m_discreteFunction(0, 1) = cone.getBaseRadius();
-    m_discreteFunction(1, 1) = cone.getTopZ();
+    m_discreteFunction(1, 1) = cone.getLength();
     m_discreteFunction(1, 1) = cone.getTopRadius();
     m_geomInfo["discreteFunction"].set(m_discreteFunction.data(), m_discreteFunction.size());
-    m_geomInfo["sorOrigin"].set(cone.getOrigin().data(), 3);
+    m_geomInfo["sorOrigin"].set(cone.getBaseCenter().data(), 3);
     m_geomInfo["sorDirection"].set(cone.getDirection().data(), 3);
     m_geomInfo["levelOfRefinement"].set(m_levelOfRefinement);
   }

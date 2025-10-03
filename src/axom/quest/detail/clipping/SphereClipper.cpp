@@ -322,12 +322,12 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
 
   int allocId = shapeMesh.getAllocatorID();
 
-  if(tetLabels.size() < cellCount * TETS_PER_HEXAHEDRON ||
+  if(tetLabels.size() < cellCount * NUM_TETS_PER_HEX ||
      tetLabels.getAllocatorID() != shapeMesh.getAllocatorID())
   {
     tetLabels = axom::Array<LabelType>(ArrayOptions::Uninitialized(),
-                                       cellCount * TETS_PER_HEXAHEDRON,
-                                       cellCount * TETS_PER_HEXAHEDRON,
+                                       cellCount * NUM_TETS_PER_HEX,
+                                       cellCount * NUM_TETS_PER_HEX,
                                        allocId);
   }
   auto tetLabelsView = tetLabels.view();
@@ -361,13 +361,13 @@ void SphereClipper::labelTetsInOutImpl(quest::experimental::ShapeMesh& shapeMesh
       axom::IndexType cellId = cellIds[ci];
       const HexahedronType& hex = meshHexes[cellId];
 
-      TetrahedronType cellTets[TETS_PER_HEXAHEDRON];
+      TetrahedronType cellTets[NUM_TETS_PER_HEX];
       hex.triangulate(cellTets);
 
-      for(IndexType ti = 0; ti < TETS_PER_HEXAHEDRON; ++ti)
+      for(IndexType ti = 0; ti < NUM_TETS_PER_HEX; ++ti)
       {
         const TetrahedronType& tet = cellTets[ti];
-        LabelType& tetLabel = tetLabelsView[ci * TETS_PER_HEXAHEDRON + ti];
+        LabelType& tetLabel = tetLabelsView[ci * NUM_TETS_PER_HEX + ti];
 
         BoundingBox3DType bb(tet[0]);
         bb.addPoint(tet[1]);

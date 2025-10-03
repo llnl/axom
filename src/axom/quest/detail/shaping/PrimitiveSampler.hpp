@@ -239,9 +239,7 @@ public:
       : axom::ArrayView<ToPoint>(reinterpret_cast<ToPoint*>(pos_coef->HostReadWrite()), nq);
 
     axom::ArrayView<double> inout_view(const_cast<double*>(inout->HostRead()), nq);
-    axom::for_all<ExecSpace>(
-      nq,
-      AXOM_LAMBDA(axom::IndexType i) { inout_view[i] = 0.; });
+    axom::for_all<ExecSpace>(nq, AXOM_LAMBDA(axom::IndexType i) { inout_view[i] = 0.; });
 
     axom::Array<IndexType> offsets(nq, nq);
     axom::Array<IndexType> counts(nq, nq);

@@ -37,7 +37,7 @@ public:
   //!@brief Whether an element is in, out or on shape boundary.
   using LabelType = MeshClipperStrategy::LabelType;
 
-  static constexpr axom::IndexType TETS_PER_HEXAHEDRON = MeshClipperStrategy::TETS_PER_HEXAHEDRON;
+  static constexpr axom::IndexType NUM_TETS_PER_HEX = MeshClipperStrategy::NUM_TETS_PER_HEX;
 
   /*!
    * @brief Construct a shape clipper
@@ -94,7 +94,7 @@ public:
     Impl(MeshClipper& impl) : m_myClipper(impl) { }
     virtual ~Impl() = default;
 
-    static constexpr axom::IndexType TETS_PER_HEXAHEDRON = MeshClipperStrategy::TETS_PER_HEXAHEDRON;
+    static constexpr axom::IndexType NUM_TETS_PER_HEX = MeshClipperStrategy::NUM_TETS_PER_HEX;
 
     /*!
      * @brief Initialize overlap volumes to full for cells completely
@@ -130,7 +130,7 @@ public:
      * @brief Compute clip volumes for cell tets in an index list.
      *
      * The tets are the results from decomposing each cell hex into
-     * TETS_PER_HEXAHEDRON tets and stored consecutively.
+     * NUM_TETS_PER_HEX tets and stored consecutively.
      */
     virtual void computeClipVolumes3DTets(const axom::ArrayView<axom::IndexType>& tetIndices,
                                           axom::ArrayView<double> ovlap) = 0;

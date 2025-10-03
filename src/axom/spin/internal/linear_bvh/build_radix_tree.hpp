@@ -180,9 +180,7 @@ void array_counting(ArrayView<IntType> iterator,
 {
   AXOM_ANNOTATE_SCOPE("array_counting");
 
-  for_all<ExecSpace>(
-    size,
-    AXOM_LAMBDA(std::int32_t i) { iterator[i] = start + i * step; });
+  for_all<ExecSpace>(size, AXOM_LAMBDA(std::int32_t i) { iterator[i] = start + i * step; });
 }
 
 //------------------------------------------------------------------------------
@@ -427,10 +425,8 @@ AXOM_HOST_DEVICE static inline BBoxType sync_load(const BBoxType& box)
       nreads++;
     }
   #else
-    while((min_pt[dim] = min_dim) == BBoxType::InvalidMin)
-      ;
-    while((max_pt[dim] = max_dim) == BBoxType::InvalidMax)
-      ;
+    while((min_pt[dim] = min_dim) == BBoxType::InvalidMin);
+    while((max_pt[dim] = max_dim) == BBoxType::InvalidMax);
   #endif
   }
 
@@ -515,9 +511,7 @@ void propagate_aabbs(RadixTree<FloatType, NDIMS>& data, int allocatorID)
   const auto leaf_aabb_ptr = data.m_leaf_aabbs.view();
 
   const auto inner_aabb_ptr = data.m_inner_aabbs.view();
-  for_all<ExecSpace>(
-    inner_size,
-    AXOM_LAMBDA(IndexType idx) { inner_aabb_ptr[idx] = BoxType {}; });
+  for_all<ExecSpace>(inner_size, AXOM_LAMBDA(IndexType idx) { inner_aabb_ptr[idx] = BoxType {}; });
 
   Array<std::int32_t> counters(inner_size, inner_size, allocatorID);
   const auto counters_ptr = counters.view();

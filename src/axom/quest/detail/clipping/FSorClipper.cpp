@@ -47,9 +47,9 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom, const std::string& name)
                 axom::fmt::format("FSorClipper '{}' has a negative radius", m_name));
 
   // Combine internal and external rotations into m_transformer.
-  m_transformer.addRotation(Vector3DType({1, 0, 0}), m_sorDirection);
-  m_transformer.addTranslation(m_sorOrigin.array());
-  m_transformer.addMatrix(m_extTrans);
+  m_transformer.applyRotation(Vector3DType({1, 0, 0}), m_sorDirection);
+  m_transformer.applyTranslation(m_sorOrigin.array());
+  m_transformer.applyMatrix(m_extTrans);
   m_inverseTransformer = m_transformer.getInverse();
 
   for(const auto& pt : m_sorCurve)
@@ -92,9 +92,9 @@ FSorClipper::FSorClipper(const klee::Geometry& kGeom,
                 axom::fmt::format("FSorClipper '{}' has a negative radius", m_name));
 
   // Combine internal and external rotations into m_transformer.
-  m_transformer.addRotation(Vector3DType({1, 0, 0}), m_sorDirection);
-  m_transformer.addTranslation(m_sorOrigin.array());
-  m_transformer.addMatrix(m_extTrans);
+  m_transformer.applyRotation(Vector3DType({1, 0, 0}), m_sorDirection);
+  m_transformer.applyTranslation(m_sorOrigin.array());
+  m_transformer.applyMatrix(m_extTrans);
   m_inverseTransformer = m_transformer.getInverse();
 
   for(const auto& pt : m_sorCurve)

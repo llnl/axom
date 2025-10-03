@@ -1058,19 +1058,19 @@ bool Container::verify(std::vector<VerificationError>* errors) const
 }
 
 template <>
-std::unordered_map<std::string, std::unique_ptr<Container>> Container::*Container::getChildren()
+std::unordered_map<std::string, std::unique_ptr<Container>> Container::* Container::getChildren()
 {
   return &Container::m_containerChildren;
 }
 
 template <>
-std::unordered_map<std::string, std::unique_ptr<Field>> Container::*Container::getChildren()
+std::unordered_map<std::string, std::unique_ptr<Field>> Container::* Container::getChildren()
 {
   return &Container::m_fieldChildren;
 }
 
 template <>
-std::unordered_map<std::string, std::unique_ptr<Function>> Container::*Container::getChildren()
+std::unordered_map<std::string, std::unique_ptr<Function>> Container::* Container::getChildren()
 {
   return &Container::m_functionChildren;
 }

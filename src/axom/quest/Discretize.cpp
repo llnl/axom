@@ -237,7 +237,7 @@ int mesh_from_discretized_polyline(const axom::ArrayView<OctType>& octs,
   //    - add the fields
   constexpr int TETS_PER_OCT = 8;
   constexpr int NODES_PER_TET = 4;
-  int level, octInLevel, maxOctIdxInLevel;
+  int level = 0, octInLevel = 1, maxOctIdxInLevel = 0;
   Array<TetType> tets;
   for(int o = 0; o < octcount; ++o)
   {

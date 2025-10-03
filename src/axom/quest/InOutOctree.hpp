@@ -208,9 +208,9 @@ public:
   {
     SLIC_WARNING_IF(thresh < 0., "Distance threshold for vertices cannot be negative.");
 
-    SLIC_WARNING_IF(m_generationState > INOUTOCTREE_UNINITIALIZED,
-                    "Can only set the vertex welding threshold "
-                      << "before initializing the InOutOctree");
+    SLIC_WARNING_IF(
+      m_generationState > INOUTOCTREE_UNINITIALIZED,
+      "Can only set the vertex welding threshold " << "before initializing the InOutOctree");
 
     m_vertexWeldThresholdSquared = thresh * thresh;
   }

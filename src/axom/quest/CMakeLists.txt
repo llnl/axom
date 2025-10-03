@@ -169,7 +169,8 @@ if(AXOM_ENABLE_KLEE AND AXOM_ENABLE_SIDRE)
                                       detail/clipping/HexClipper.cpp
                                       detail/clipping/SphereClipper.cpp
                                       detail/clipping/FSorClipper.cpp
-                                      detail/clipping/SorClipper.cpp)
+                                      detail/clipping/SorClipper.cpp
+                                      detail/clipping/MeshClipperImpl.hpp)
         endif()
     endif()
 

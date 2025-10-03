@@ -291,6 +291,9 @@ void pushStreams()
 }
 
 //------------------------------------------------------------------------------
+bool hasPendingMessages() { return Logger::getActiveLogger()->hasPendingMessages(); }
+
+//------------------------------------------------------------------------------
 void finalize() { Logger::finalize(); }
 
 } /* namespace slic */

@@ -71,7 +71,7 @@ nb::ndarray<nb::numpy> viewToNumpyArray(View& self)
   // nb::capsule owner(data, [](void* p) noexcept { delete[] static_cast<char*>(p); });
 
   // For external memory (numpy owns it), no deletion takes place
-  nb::capsule owner(data, [](void*) noexcept {});
+  nb::capsule owner(data, [](void*) noexcept { });
 
   // When stride is not default of 1, guaranteed that shape is 1D.
   int64_t* strides = nullptr;
@@ -109,7 +109,7 @@ nb::ndarray<nb::numpy> bufferToNumpyArray(Buffer& self)
   // nb::capsule owner(data, [](void* p) noexcept { delete[] static_cast<char*>(p); });
 
   // For external memory (numpy owns it), no deletion takes place
-  nb::capsule owner(data, [](void*) noexcept {});
+  nb::capsule owner(data, [](void*) noexcept { });
 
   DataTypeId id = self.getTypeID();
 

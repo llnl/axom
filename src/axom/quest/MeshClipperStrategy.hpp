@@ -29,10 +29,10 @@ namespace experimental
 
  * Key methods to implement:  (Some combination of these is required.)
 
- * -# @c getBoundingBox2D or @c getBoundingBox3D: Axis-alligned
+ * -# @c getBoundingBox2D or @c getBoundingBox3D: Axis-aligned
  *    bounding box for the geometry.
 
- * -# @c labelCellsInOut: Label whether the cells in a mesh is inside,
+ * -# @c labelCellsInOut: Label the cells in a mesh as inside,
  *    outside or on the shape boundary.  If a cell cannot be
  *    determined, you can conservatively label it as on the boundary.
 
@@ -52,7 +52,7 @@ namespace experimental
  * Every method should return true if it fulfilled the request, or
  * false if it was a no-op.
 
- * Implementations of this strategy must provide either
+ * Subclasses of MeshClipperStrategy must implement either
  * - a @c specializedClipCells method or
  * - one of the @c getShapesAs...() methods.
  * The former is prefered if the use of geometry-specific information
@@ -98,14 +98,22 @@ public:
 
   //!@brief Number of tetrahedra per hexahedron decomposes into
   // @internal We could use a more efficient 18-tet decomposition in the future.
-  static constexpr axom::IndexType TETS_PER_HEXAHEDRON = HexahedronType::NUM_TRIANGULATE;
+  static constexpr axom::IndexType NUM_TETS_PER_HEX = ShapeMesh::NUM_TETS_PER_HEX;
 
   /*!
    * @brief Construct a strategy for the given klee::Geometry object.
    *
    * @param [in] kGeom Describes the shape to place
    *   into the mesh.
-  */
+   *
+   * Note for subclasses: This class makes geometry-specific hierarchy
+   * data from \c kGeom available to subclasses via the info() method.
+   * It's up to each subclass to define the required content of the
+   * hierarchy, validate it fail fast if it's invalid.  It's the
+   * responsibility of the code that construct mesh clipper
+   * implementations to ensure a suitable hierarchy is provided
+   * by \c kGeom.asHierarchy().
+   */
   MeshClipperStrategy(const klee::Geometry& kGeom);
 
   /*!
@@ -116,11 +124,12 @@ public:
   virtual const std::string& name() const;
 
   /*!
-   * @brief Free-form information on the geometry.
+   * @brief Information on the geometry.
    *
-   * The exact information is provided by the klee::Geometry
-   * and should be sufficient to define the geometry.
-  */
+   * The exact information is determined by subclass requirements,
+   * provided by the klee::Geometry and possibly further modified
+   * by the subclass.
+   */
   const conduit::Node& info() const { return m_info; }
 
   //@{
@@ -133,13 +142,13 @@ public:
   virtual const axom::primal::BoundingBox<double, 2>& getBoundingBox2D() const;
 
   /*!
-   * @brief Get the 3D axis-alligned bounding box for the geometry,
+   * @brief Get the 3D axis-aligned bounding box for the geometry,
    * if it's applicable and available.
   */
   virtual const axom::primal::BoundingBox<double, 3>& getBoundingBox3D() const;
 
   /*!
-   * @brief Label the cells in the mesh as inside, outside or
+   * @brief Label each cell in the mesh as inside, outside or
    * both/undetermined, if possible.
    *
    * @param [in] shapeMesh Mesh to shape into.
@@ -152,14 +161,14 @@ public:
    *   cannot be easily determined).
    *
    * The output labels are used in optimizing the clipping algorithm.
-   * Subclasses should implementation this if it's cost-effective, and
+   * Subclasses should implement this if it's cost-effective, and
    * skip if it's not.  It's safe to label cells as on the boundary if
-   * it can't be possitively determined as inside or outside.
+   * it can't be positively determined as inside or outside.
    *
    * @return Whether the operation was done.  (A false means
    * not done.)
    *
-   * If implemenation returns true, it should ensure these
+   * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post labels.size() == shapeMesh.getCellCount()
    * @post labels.getAllocatorID() == shapeMesh.getAllocatorId()
@@ -172,23 +181,26 @@ public:
   }
 
   /*!
-   * @brief Label the tetrahedra in certain cells, if possible.
+   * @brief Label each tetrahedron in the given cells, as inside,
+   * outside or both/undetermined, if possible.
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [in] cellIds Indices of cells whose constituent
    *   tets should be labeled.
    * @param [out] tetLabels Output
    *
-   * Only the cells labeled as ON the boundary are subjected to
-   * this labeling.
+   * Indices [i*NUM_TETS_PER_HEX, (i+1)*NUM_TETS_PER_HEX) in \c tetLabels
+   * correspond to parent cell index \c c = \c cellIds[i].
    *
-   * Tet indices refer to the @c shapeMesh.getCellsAsTets() array.
+   * The \c NUM_TETS_PER_HEX tets in cell \c c have indices
+   * [c*NUM_TETS_PER_HEX, (c+1)*NUM_TETS_PER_HEX).
+   * in \c shapeMesh.getCellsAsTets().
    *
-   * If implemenation returns true, it should ensure these
+   * If implementation returns true, it should ensure these
    * post-conditions hold:
-   * @post tetLabels.size() == TETS_PER_HEXAHEDRON * cellIds.size()
+   * @post tetLabels.size() == NUM_TETS_PER_HEX * cellIds.size()
    * @post labels.getAllocatorID() == shapeMesh.getAllocatorId()
-   * @post \c tetLabels should have \c TETS_PER_HEXAHEDRON labels
+   * @post \c tetLabels should have \c NUM_TETS_PER_HEX labels
    * for each index in \c cellIds.
   */
   virtual bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
@@ -206,8 +218,8 @@ public:
    * possible.
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
-   * @param ovlap [out] Shape overlap volume of each cell
-   *   in the shapee mesh.  It's initialized to zeros.
+   * @param [out] ovlap Shape overlap volume of each cell
+   *   in the \c shapeMesh.  It's initialized to zeros.
    *
    * The default implementation has no specialized method,
    * so it's a no-op and returns false.
@@ -220,7 +232,7 @@ public:
    * This method need not be implemented if labelCellsInOut()
    * returns true.
    *
-   * If implemenation returns true, it should ensure these
+   * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post ovlap.size() == shapeMesh.getCellCount()
    * @post ovlap.getAllocatorID() == shapeMesh.getAllocatorId()
@@ -238,7 +250,7 @@ public:
    *
    * @param [in] shapeMesh Blueprint mesh to shape into.
    * @param [out] ovlap Shape overlap volume of each cell
-   *   in the shapee mesh, initialized to the cell volumes
+   *   in \c shapeMesh, initialized to the cell volumes
    *   for cell inside the shape and zero for other cells.
    * @param [in] cellIds Limit computation to these cell ids.
    *
@@ -256,7 +268,7 @@ public:
    * @pre @c ovlap is pre-initialized for the implementation
    * to add or subtract partial volumes to individual cells.
    *
-   * If implemenation returns true, it should ensure these
+   * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post ovlap.size() == shapeMesh.getCellCount()
    * @post ovlap.getAllocatorID() == shapeMesh.getAllocatorId()
@@ -273,15 +285,19 @@ public:
 
   /*!
    * Clip the tets listed in tetIds.
+   *
    * @param [in] shapeMesh Blueprint mesh to shape into.
-   * @param [out] ovlap Shape overlap volume of each cell
-   *   in the shapee mesh, initialized to the cell volumes
-   *   for cell inside the shape and zero for other cells.
+   *
+   * @param [in/out] ovlap Shape overlap volume of each cell
+   *   in \c shapeMesh, initialized to the clipping calculation
+   *   done so far.  Clip volumes computed by this method should
+   *   be added to the current values in this array.
+   *
    * @param [in] tetIds Indices of tets to clip, referring to the
    * shapeMesh.getCellsAsTets() array.  tetIds[i] is the
-   * \c (tetIds[i]%TETS_PER_HEXAHEDRON)-th tetrahedron of cell
-   * \c tetIds[i]/TETS_PER_HEXAHEDRON.  Its overlap volume should be added
-   * to that cell.
+   * \c (tetIds[i]%NUM_TETS_PER_HEX)-th tetrahedron of cell
+   * \c = \c tetIds[i]/NUM_TETS_PER_HEX.  Its overlap volume should
+   * be added to \c ovlap[c].
    */
   virtual bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::ArrayView<double> ovlap,
@@ -300,11 +316,12 @@ public:
    * @param [out] tets Array of tetrahedra filling the space of the shape,
    * fully transformed.
    *
-   * All vertex coordinates close to zero should be snapped to zero.
+   * Subclasses implementing this routine should snap to zero any
+   * output vertex coordinate that is close to zero.
    *
    * @return Whether the shape can be represented as tetrahedra.
    *
-   * If implemenation returns true, it should ensure these
+   * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post tets.getAllocatorID() == shapeMesh.getAllocatorId()
   */
@@ -324,11 +341,12 @@ public:
    * @param [out] octs Array of octahedra filling the space of the shape,
    * fully transformed.
    *
-   * All vertex coordinates close to zero should be snapped to zero.
+   * Subclasses implementing this routine should snap to zero any
+   * output vertex coordinate that is close to zero.
    *
    * @return Whether the shape can be represented as octahedra.
    *
-   * If implemenation returns true, it should ensure these
+   * If implementation returns true, it should ensure these
    * post-conditions hold:
    * @post octs.getAllocatorID() == shapeMesh.getAllocatorId()
    */
@@ -344,11 +362,17 @@ public:
 
 protected:
   /*!
-   * @brief Free-form representation of the concrete object.
+   * @brief Information on the geometry.
    *
-   * The constructor initializes this as a deep copy of the source
-   * klee::Geometry hierarchy data.  Subclasses may use and change this
-   * data as needed.
+   * This is initially set to a deep copy of the source klee::Geometry
+   * hierarchy data.  Subclasses may use and change this data as
+   * needed.
+   *
+   * This information should be sufficient for the subclass
+   * to implement the required and optional virtual methods.
+   * But it's up to the subclass to define the requirements,
+   * validate the data, fail fast if the data is invalid and
+   * document the requirements.
    */
   conduit::Node m_info;
 
