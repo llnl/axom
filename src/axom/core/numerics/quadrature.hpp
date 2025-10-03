@@ -54,6 +54,8 @@ private:
  * A Gauss-Legendre rule with \a npts points can exactly integrate
  *  polynomials of order 2 * npts - 1
  *
+ * Algorithm adapted from the MFEM implementation in `mfem/fem/intrules.cpp`
+ * 
  * \note This method constructs the points by scratch each time, without caching
  * \sa get_gauss_legendre(int)
  *

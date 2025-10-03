@@ -15,6 +15,21 @@ namespace axom
 namespace numerics
 {
 
+/*!
+ * \brief Computes a 1D quadrature rule of Gauss-Legendre points 
+ *
+ * \param [in] npts The number of points in the rule
+ * 
+ * A Gauss-Legendre rule with \a npts points can exactly integrate
+ *  polynomials of order 2 * npts - 1
+ *
+ * Algorithm adapted from the MFEM implementation in `mfem/fem/intrules.cpp`
+ * 
+ * \note This method constructs the points by scratch each time, without caching
+ * \sa get_gauss_legendre(int)
+ *
+ * \return The `QuadratureRule` object which contains axom::Array<double>'s of nodes and weights
+ */
 QuadratureRule compute_gauss_legendre(int npts)
 {
   QuadratureRule rule(npts);
@@ -94,6 +109,19 @@ QuadratureRule compute_gauss_legendre(int npts)
   return rule;
 }
 
+/*!
+ * \brief Computes or accesses a precomputed 1D quadrature rule of Gauss-Legendre points 
+ *
+ * \param [in] npts The number of points in the rule
+ * 
+ * A Gauss-Legendre rule with \a npts points can exactly integrate
+ *  polynomials of order 2 * npts - 1
+ *
+ * \note If this method has already been called for a given order, it will reuse the same quadrature points
+ *  without needing to recompute them
+ *
+ * \return The `QuadratureRule` object which contains axom::Array<double>'s of nodes and weights
+ */
 const QuadratureRule& get_gauss_legendre(int npts)
 {
   // Define a static map that stores the GL quadrature rule for a given order
