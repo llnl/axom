@@ -93,7 +93,7 @@ TEST(numerics_quadrature, gauss_legendre_cache_check)
 {
   // The first two rules are put in the cache
   const axom::numerics::QuadratureRule& first_rule = axom::numerics::get_gauss_legendre(20);
-  const axom::numerics::QuadratureRule& second_rule = axom::numerics::get_gauss_legendre(20);
+  //const axom::numerics::QuadratureRule& second_rule = axom::numerics::get_gauss_legendre(20);
 
   // The third is not
   const axom::numerics::QuadratureRule& third_rule = axom::numerics::compute_gauss_legendre(20);

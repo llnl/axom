@@ -14,20 +14,6 @@
 
 namespace primal = axom::primal;
 
-TEST(primal_integral, gauss_legendre_cache_check)
-{
-  // The first two rules are put in the cache
-  const axom::numerics::QuadratureRule& first_rule = axom::numerics::get_gauss_legendre(20);
-  const axom::numerics::QuadratureRule& second_rule = axom::numerics::get_gauss_legendre(20);
-
-  // The third is not
-  const axom::numerics::QuadratureRule& third_rule = axom::numerics::compute_gauss_legendre(20);
-
-  // Check that the two rules are located in the same place in memory, and the third isn't
-  //EXPECT_EQ(&first_rule, &second_rule);
-  //EXPECT_NE(&first_rule, &third_rule);
-}
-
 TEST(primal_integral, evaluate_area_integral)
 {
   using Point2D = primal::Point<double, 2>;
