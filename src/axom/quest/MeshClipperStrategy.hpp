@@ -124,11 +124,12 @@ public:
   virtual const std::string& name() const;
 
   /*!
-   * @brief Free-form information on the geometry.
+   * @brief Information on the geometry.
    *
-   * The exact information is provided by the klee::Geometry
-   * and should be sufficient to define the geometry.
-  */
+   * The exact information is determined by subclass requirements,
+   * provided by the klee::Geometry and possibly further modified
+   * by the subclass.
+   */
   const conduit::Node& info() const { return m_info; }
 
   //@{
@@ -283,15 +284,19 @@ public:
 
   /*!
    * Clip the tets listed in tetIds.
+   *
    * @param [in] shapeMesh Blueprint mesh to shape into.
-   * @param [out] ovlap Shape overlap volume of each cell
-   *   in \c shapeMesh, initialized to the cell volumes
-   *   for cell inside the shape and zero for other cells.
+   *
+   * @param [in/out] ovlap Shape overlap volume of each cell
+   *   in \c shapeMesh, initialized to the clipping calculation
+   *   done so far.  Clip volumes computed by this method should
+   *   be added to the current values in this array.
+   *
    * @param [in] tetIds Indices of tets to clip, referring to the
    * shapeMesh.getCellsAsTets() array.  tetIds[i] is the
    * \c (tetIds[i]%NUM_TETS_PER_HEX)-th tetrahedron of cell
-   * \c tetIds[i]/NUM_TETS_PER_HEX.  Its overlap volume should be added
-   * to that cell.
+   * \c = \c tetIds[i]/NUM_TETS_PER_HEX.  Its overlap volume should
+   * be added to \c ovlap[c].
    */
   virtual bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,
                                    axom::ArrayView<double> ovlap,
@@ -310,7 +315,8 @@ public:
    * @param [out] tets Array of tetrahedra filling the space of the shape,
    * fully transformed.
    *
-   * All vertex coordinates close to zero should be snapped to zero.
+   * Subclasses implementing this routine should snap to zero any
+   * output vertex coordinate that is close to zero.
    *
    * @return Whether the shape can be represented as tetrahedra.
    *
@@ -334,7 +340,8 @@ public:
    * @param [out] octs Array of octahedra filling the space of the shape,
    * fully transformed.
    *
-   * All vertex coordinates close to zero should be snapped to zero.
+   * Subclasses implementing this routine should snap to zero any
+   * output vertex coordinate that is close to zero.
    *
    * @return Whether the shape can be represented as octahedra.
    *
@@ -354,11 +361,17 @@ public:
 
 protected:
   /*!
-   * @brief Free-form representation of the concrete object.
+   * @brief Information on the geometry.
    *
-   * The constructor initializes this as a deep copy of the source
-   * klee::Geometry hierarchy data.  Subclasses may use and change this
-   * data as needed.
+   * This is initially set to a deep copy of the source klee::Geometry
+   * hierarchy data.  Subclasses may use and change this data as
+   * needed.
+   *
+   * This information should be sufficient for the subclass
+   * to implement the required and optional virtual methods.
+   * But it's up to the subclass to define the requirements,
+   * validate the data, fail fast if the data is invalid and
+   * document the requirements.
    */
   conduit::Node m_info;
 
