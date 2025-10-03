@@ -98,7 +98,7 @@ public:
 
   //!@brief Number of tetrahedra per hexahedron decomposes into
   // @internal We could use a more efficient 18-tet decomposition in the future.
-  static constexpr axom::IndexType TETS_PER_HEXAHEDRON = HexahedronType::NUM_TRIANGULATE;
+  static constexpr axom::IndexType NUM_TETS_PER_HEX = ShapeMesh::NUM_TETS_PER_HEX;
 
   /*!
    * @brief Construct a strategy for the given klee::Geometry object.
@@ -186,9 +186,9 @@ public:
    *
    * If implemenation returns true, it should ensure these
    * post-conditions hold:
-   * @post tetLabels.size() == TETS_PER_HEXAHEDRON * cellIds.size()
+   * @post tetLabels.size() == NUM_TETS_PER_HEX * cellIds.size()
    * @post labels.getAllocatorID() == shapeMesh.getAllocatorId()
-   * @post \c tetLabels should have \c TETS_PER_HEXAHEDRON labels
+   * @post \c tetLabels should have \c NUM_TETS_PER_HEX labels
    * for each index in \c cellIds.
   */
   virtual bool labelTetsInOut(quest::experimental::ShapeMesh& shapeMesh,
@@ -279,8 +279,8 @@ public:
    *   for cell inside the shape and zero for other cells.
    * @param [in] tetIds Indices of tets to clip, referring to the
    * shapeMesh.getCellsAsTets() array.  tetIds[i] is the
-   * \c (tetIds[i]%TETS_PER_HEXAHEDRON)-th tetrahedron of cell
-   * \c tetIds[i]/TETS_PER_HEXAHEDRON.  Its overlap volume should be added
+   * \c (tetIds[i]%NUM_TETS_PER_HEX)-th tetrahedron of cell
+   * \c tetIds[i]/NUM_TETS_PER_HEX.  Its overlap volume should be added
    * to that cell.
    */
   virtual bool specializedClipTets(quest::experimental::ShapeMesh& shapeMesh,

@@ -54,6 +54,10 @@ public:
   using HexahedronType = primal::Hexahedron<double, 3>;
   using BoundingBox3DType = primal::BoundingBox<double, 3>;
 
+  //!@brief Number of tetrahedra per hexahedron decomposes into
+  // @internal We could use a more efficient 18-tet decomposition in the future.
+  static constexpr axom::IndexType NUM_TETS_PER_HEX = HexahedronType::NUM_TRIANGULATE;
+
   /*!
    * @brief Constructor with computational mesh in a conduit::Node.
    *
@@ -255,7 +259,7 @@ private:
   //!@brief Bounding boxes for m_cellsAsHexes.
   axom::Array<BoundingBox3DType> m_hexBbs;
 
-  //!@brief Cells as TETS_PER_HEXAHEDRON*m_cellCount tets.
+  //!@brief Cells as NUM_TETS_PER_HEX*m_cellCount tets.
   axom::Array<TetrahedronType> m_cellsAsTets;
 
   void computeCellsAsHexes();

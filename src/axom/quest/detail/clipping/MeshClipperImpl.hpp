@@ -71,18 +71,18 @@ public:
 
     const axom::IndexType hexCount = cellsOnBdry.size();
 
-    SLIC_ASSERT(tetLabels.size() == TETS_PER_HEXAHEDRON * hexCount);
+    SLIC_ASSERT(tetLabels.size() == NUM_TETS_PER_HEX * hexCount);
 
     axom::for_all<ExecSpace>(
       hexCount,
       AXOM_LAMBDA(axom::IndexType ih) {
         const axom::IndexType hexId = cellsOnBdry[ih];
-        const LabelType* tetLabelsForHex = &tetLabels[TETS_PER_HEXAHEDRON * ih];
-        for(int it = 0; it < TETS_PER_HEXAHEDRON; ++it)
+        const LabelType* tetLabelsForHex = &tetLabels[NUM_TETS_PER_HEX * ih];
+        for(int it = 0; it < NUM_TETS_PER_HEX; ++it)
         {
           if(tetLabelsForHex[it] == MeshClipperStrategy::LABEL_IN)
           {
-            const axom::IndexType tetId = hexId * TETS_PER_HEXAHEDRON + it;
+            const axom::IndexType tetId = hexId * NUM_TETS_PER_HEX + it;
             const auto& tet = meshTets[tetId];
             ovlap[hexId] += tet.volume();
           }
@@ -158,7 +158,7 @@ public:
     /*
      * cellsOnBdry is a list of cell indices.
      *
-     * Each cell has TETS_PER_HEXAHEDRON.
+     * Each cell has NUM_TETS_PER_HEX.
      *
      * tetsOnBdry are a list of indices referring to the tets in those
      * cells.  N tets for each cell.  So the values in tetsOnBDry are
@@ -176,10 +176,10 @@ public:
       tetsOnBdry.size(),
       AXOM_LAMBDA(axom::IndexType i) {
         auto tetIdId = tetsOnBdry[i];
-        auto cellIdId = tetIdId / TETS_PER_HEXAHEDRON;
+        auto cellIdId = tetIdId / NUM_TETS_PER_HEX;
         auto cellId = cellsOnBdry[cellIdId];
-        auto tetIdInCell = tetIdId % TETS_PER_HEXAHEDRON;
-        auto tetId = cellId * TETS_PER_HEXAHEDRON + tetIdInCell;
+        auto tetIdInCell = tetIdId % NUM_TETS_PER_HEX;
+        auto tetId = cellId * NUM_TETS_PER_HEX + tetIdInCell;
         tetsOnBdry[i] = tetId;
       });
   }
@@ -283,13 +283,13 @@ public:
 
     AXOM_ANNOTATE_BEGIN("allocate scratch space");
     // Initialize hexahedron indices and shape candidates
-    axom::Array<IndexType> hexIndices(candidateCount * TETS_PER_HEXAHEDRON,
-                                      candidateCount * TETS_PER_HEXAHEDRON,
+    axom::Array<IndexType> hexIndices(candidateCount * NUM_TETS_PER_HEX,
+                                      candidateCount * NUM_TETS_PER_HEX,
                                       allocId);
     auto hexIndicesView = hexIndices.view();
 
-    axom::Array<IndexType> shapeCandidates(candidateCount * TETS_PER_HEXAHEDRON,
-                                           candidateCount * TETS_PER_HEXAHEDRON,
+    axom::Array<IndexType> shapeCandidates(candidateCount * NUM_TETS_PER_HEX,
+                                           candidateCount * NUM_TETS_PER_HEX,
                                            allocId);
     auto shapeCandidatesView = shapeCandidates.view();
 
@@ -297,8 +297,8 @@ public:
     auto cellsAsTets = shapeMesh.getCellsAsTets();
 
     // Index into 'tets'
-    axom::Array<IndexType> tetIndices(candidateCount * TETS_PER_HEXAHEDRON,
-                                      candidateCount * TETS_PER_HEXAHEDRON,
+    axom::Array<IndexType> tetIndices(candidateCount * NUM_TETS_PER_HEX,
+                                      candidateCount * NUM_TETS_PER_HEX,
                                       allocId);
     auto tetIndicesView = tetIndices.view();
     AXOM_ANNOTATE_END("allocate scratch space");
@@ -326,12 +326,12 @@ public:
           {
             int shapeIdx = candidatesView[offsetsView[i] + j];
 
-            for(int k = 0; k < TETS_PER_HEXAHEDRON; k++)
+            for(int k = 0; k < NUM_TETS_PER_HEX; k++)
             {
               IndexType idx = RAJA::atomicAdd<ATOMIC_POL>(tetCandidatesCountPtr, IndexType {1});
               hexIndicesView[idx] = i;
               shapeCandidatesView[idx] = shapeIdx;
-              tetIndicesView[idx] = i * TETS_PER_HEXAHEDRON + k;
+              tetIndicesView[idx] = i * NUM_TETS_PER_HEX + k;
             }
           }
         });
@@ -346,7 +346,7 @@ public:
     constexpr bool tryFixOrientation = false;
 
     {
-      tetCandidatesCount = TETS_PER_HEXAHEDRON * candidates.size();
+      tetCandidatesCount = NUM_TETS_PER_HEX * candidates.size();
       AXOM_ANNOTATE_SCOPE("MeshClipper::clipLoop");
 #if defined(AXOM_DEBUG)
       // Verifying: this should always pass.
@@ -354,7 +354,7 @@ public:
       {
         axom::copy(&tetCandidatesCount, tetCandidatesCountPtr, sizeof(IndexType));
       }
-      SLIC_ASSERT(tetCandidatesCount == candidateCount * TETS_PER_HEXAHEDRON);
+      SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
 
       if(useTets)
@@ -525,13 +525,13 @@ public:
 
     AXOM_ANNOTATE_BEGIN("allocate scratch space");
     // Initialize hexahedron indices and shape candidates
-    axom::Array<IndexType> hexIndices(candidateCount * TETS_PER_HEXAHEDRON,
-                                      candidateCount * TETS_PER_HEXAHEDRON,
+    axom::Array<IndexType> hexIndices(candidateCount * NUM_TETS_PER_HEX,
+                                      candidateCount * NUM_TETS_PER_HEX,
                                       allocId);
     auto hexIndicesView = hexIndices.view();
 
-    axom::Array<IndexType> shapeCandidates(candidateCount * TETS_PER_HEXAHEDRON,
-                                           candidateCount * TETS_PER_HEXAHEDRON,
+    axom::Array<IndexType> shapeCandidates(candidateCount * NUM_TETS_PER_HEX,
+                                           candidateCount * NUM_TETS_PER_HEX,
                                            allocId);
     auto shapeCandidatesView = shapeCandidates.view();
 
@@ -539,8 +539,8 @@ public:
     auto cellsAsTets = shapeMesh.getCellsAsTets();
 
     // Index into 'tets'
-    axom::Array<IndexType> tetIndices(candidateCount * TETS_PER_HEXAHEDRON,
-                                      candidateCount * TETS_PER_HEXAHEDRON,
+    axom::Array<IndexType> tetIndices(candidateCount * NUM_TETS_PER_HEX,
+                                      candidateCount * NUM_TETS_PER_HEX,
                                       allocId);
     auto tetIndicesView = tetIndices.view();
     AXOM_ANNOTATE_END("allocate scratch space");
@@ -568,12 +568,12 @@ public:
           {
             int shapeIdx = candidatesView[offsetsView[i] + j];
 
-            for(int k = 0; k < TETS_PER_HEXAHEDRON; k++)
+            for(int k = 0; k < NUM_TETS_PER_HEX; k++)
             {
               IndexType idx = RAJA::atomicAdd<ATOMIC_POL>(tetCandidatesCountPtr, IndexType {1});
               hexIndicesView[idx] = i;
               shapeCandidatesView[idx] = shapeIdx;
-              tetIndicesView[idx] = i * TETS_PER_HEXAHEDRON + k;
+              tetIndicesView[idx] = i * NUM_TETS_PER_HEX + k;
             }
           }
         });
@@ -589,7 +589,7 @@ public:
     constexpr bool tryFixOrientation = false;
 
     {
-      tetCandidatesCount = TETS_PER_HEXAHEDRON * candidates.size();
+      tetCandidatesCount = NUM_TETS_PER_HEX * candidates.size();
       AXOM_ANNOTATE_SCOPE("MeshClipper::clipLoop_limited");
 #if defined(AXOM_DEBUG)
       // Verifying: this should always pass.
@@ -597,7 +597,7 @@ public:
       {
         axom::copy(&tetCandidatesCount, tetCandidatesCountPtr, sizeof(IndexType));
       }
-      SLIC_ASSERT(tetCandidatesCount == candidateCount * TETS_PER_HEXAHEDRON);
+      SLIC_ASSERT(tetCandidatesCount == candidateCount * NUM_TETS_PER_HEX);
 #endif
 
       if(useTets)
@@ -611,9 +611,9 @@ public:
             const int shapeIndex = shapeCandidatesView[i];  // index into pieces array
             int tetIndex =
               tetIndicesView[i];  // index into BVH results, implicit because BVH results specify hexes, not tets.
-            int tetIndex1 = tetIndex / TETS_PER_HEXAHEDRON;
-            int tetIndex2 = tetIndex % TETS_PER_HEXAHEDRON;
-            tetIndex = cellIndices[tetIndex1] * TETS_PER_HEXAHEDRON +
+            int tetIndex1 = tetIndex / NUM_TETS_PER_HEX;
+            int tetIndex2 = tetIndex % NUM_TETS_PER_HEX;
+            tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
               tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
             const auto poly =
@@ -645,9 +645,9 @@ public:
             const int shapeIndex = shapeCandidatesView[i];  // index into pieces array
             int tetIndex =
               tetIndicesView[i];  // index into BVH results, implicit because BVH results specify hexes, not tets.
-            int tetIndex1 = tetIndex / TETS_PER_HEXAHEDRON;
-            int tetIndex2 = tetIndex % TETS_PER_HEXAHEDRON;
-            tetIndex = cellIndices[tetIndex1] * TETS_PER_HEXAHEDRON +
+            int tetIndex1 = tetIndex / NUM_TETS_PER_HEX;
+            int tetIndex2 = tetIndex % NUM_TETS_PER_HEX;
+            tetIndex = cellIndices[tetIndex1] * NUM_TETS_PER_HEX +
               tetIndex2;  // Now it indexes into the full tets-from-hexes array.
 
             const auto poly =
@@ -821,7 +821,7 @@ public:
             // Poly is valid
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
-            auto cellId = tetId / TETS_PER_HEXAHEDRON;
+            auto cellId = tetId / NUM_TETS_PER_HEX;
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
           }
         });
@@ -850,7 +850,7 @@ public:
             // Poly is valid
             double volume = poly.volume();
             SLIC_ASSERT(volume >= 0);
-            auto cellId = tetId / TETS_PER_HEXAHEDRON;
+            auto cellId = tetId / NUM_TETS_PER_HEX;
             RAJA::atomicAdd<ATOMIC_POL>(ovlap.data() + cellId, volume);
           }
         });

@@ -24,8 +24,6 @@ static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = condui
 static constexpr conduit::DataType::TypeID conduitDataIdOfAxomIndexType = conduit::DataType::INT32_ID;
 #endif
 
-constexpr int NUM_TETS_PER_HEX = 24;
-
 ShapeMesh::ShapeMesh(RuntimePolicy runtimePolicy,
                      int allocatorId,
                      conduit::Node& bpMesh,

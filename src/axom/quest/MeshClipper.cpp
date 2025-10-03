@@ -104,7 +104,7 @@ void MeshClipper::clip(axom::ArrayView<double> ovlap)
       m_impl->remapTetIndices(tetsOnBdry, cellsOnBdry);
 
       SLIC_ASSERT(tetsOnBdry.getAllocatorID() == m_shapeMesh.getAllocatorID());
-      SLIC_ASSERT(tetsOnBdry.size() <= cellsOnBdry.size() * TETS_PER_HEXAHEDRON);
+      SLIC_ASSERT(tetsOnBdry.size() <= cellsOnBdry.size() * NUM_TETS_PER_HEX);
 
       m_impl->addVolumesOfInteriorTets(cellsOnBdry.view(), tetLabels.view(), ovlap);
     }
@@ -215,7 +215,7 @@ void MeshClipper::logLabelStats(axom::ArrayView<const LabelType> labels, const s
     countsb[1],
     countsb[2],
     countsb[3],
-    countsb[3] * TETS_PER_HEXAHEDRON);
+    countsb[3] * NUM_TETS_PER_HEX);
   SLIC_INFO(msg);
 }
 
