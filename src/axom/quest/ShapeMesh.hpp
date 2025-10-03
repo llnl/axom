@@ -143,6 +143,13 @@ public:
   //!@brief Number of vertices in mesh.
   IndexType getVertexCount() const { return m_vertexCount; }
 
+  //!@brief Set the threshold to snapping vertex coordinates near
+  // zero to zero.  Default threshold is 1e-10.
+  void setZeroThreshold(double threshold)
+  {
+    m_zeroThreshold = threshold;
+  }
+
   //@{
   //!@name Accessors to mesh data.
   //@}
@@ -237,6 +244,9 @@ private:
 
   //!@brief Number of vertices in mesh.
   IndexType m_vertexCount;
+
+  //!@brief Threshold for snapping vertex coordinates to zero.
+  double m_zeroThreshold;
 
   //!@brief 3D Vertex coordinates as 1D ArrayViews.
   axom::StackArray<axom::ArrayView<const double>, 3> m_vertCoordsViews3D;
