@@ -151,6 +151,7 @@ protected:
     namespace utils = axom::bump::utilities;
 
     AXOM_ANNOTATE_SCOPE("ElviraAlgorithm");
+    SLIC_ERROR_IF(m_topologyView.numberOfZones() != m_matsetView.numberOfZones(), "The mesh and the material do not have the same number of zones.");
 
     // Copy the options to make sure they are in the right memory space.
     conduit::Node n_options_copy;

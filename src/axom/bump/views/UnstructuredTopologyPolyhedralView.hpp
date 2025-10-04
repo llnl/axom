@@ -48,7 +48,14 @@ public:
       , m_element_sizes(element_sizes)
       , m_element_offsets(element_offsets)
       , m_indexing(element_sizes.size())
-    { }
+    {
+#if !defined(AXOM_DEVICE_CODE)
+      SLIC_ERROR_IF(subelement_conn.empty() && !subelement_sizes.empty(), "Array views for subelements are inconsistent.");
+      SLIC_ERROR_IF(subelement_sizes.size() != subelement_offsets.size(), "Array views for subelement sizes,offsets have different sizes.");
+      SLIC_ERROR_IF(element_conn.empty() && !element_sizes.empty(), "Array views for elements are inconsistent.");
+      SLIC_ERROR_IF(element_sizes.size() != element_offsets.size(), "Array views for element sizes,offsets have different sizes.");
+#endif
+    }
 
     /// Copy Constructor
     AXOM_HOST_DEVICE
