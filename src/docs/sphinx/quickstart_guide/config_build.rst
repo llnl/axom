@@ -352,7 +352,7 @@ Axom components, tests, examples, etc.
 +------------------------------+---------+----------------------------------------+
 | AXOM_ENABLE_TESTS            | ON      | Build Axom unit tests                  |
 +------------------------------+---------+----------------------------------------+
-| AXOM_ENABLE_TUTORIALS        | ON      | Build Axom tutorials                    |
+| AXOM_ENABLE_TUTORIALS        | ON      | Build Axom tutorials                   |
 +------------------------------+---------+----------------------------------------+
 | ENABLE_BENCHMARKS            | OFF     | Build Axom benchmarks                  |
 +------------------------------+---------+----------------------------------------+

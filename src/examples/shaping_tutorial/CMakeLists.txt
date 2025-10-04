@@ -56,20 +56,24 @@ blt_list_append(TO tutorial_deps ELEMENTS blt::openmp IF ENABLE_OPENMP)
 blt_list_append(TO tutorial_deps ELEMENTS blt::cuda IF ENABLE_CUDA)
 blt_list_append(TO tutorial_deps ELEMENTS blt::hip IF ENABLE_HIP)
 
-foreach(lesson_and_file lesson_00:check_axom_configuration.cpp
-                        lesson_01:mesh_metadata_sidre.cpp 
-                        lesson_02:validated_inlet_metadata.cpp
-                        lesson_02:improved_inlet_metadata.cpp
-                        lesson_03:klee_operators_and_validation.cpp
-                        lesson_04:quest_sampling_shaper.cpp)
+set(_examples lesson_00:check_axom_configuration.cpp
+              lesson_01:mesh_metadata_sidre.cpp 
+              lesson_02:validated_inlet_metadata.cpp
+              lesson_02:improved_inlet_metadata.cpp
+              lesson_03:klee_operators_and_validation.cpp)
+if(AXOM_USE_MFEM)
+    blt_list_append(TO _examples ELEMENTS lesson_04:quest_sampling_shaper.cpp)
+endif()
+
+foreach(lesson_and_file ${_examples})
     string(REPLACE ":" ";" _parts "${lesson_and_file}")
     list(GET _parts 0 _lesson)
     list(GET _parts 1 _file_with_ext)
     get_filename_component( _file_no_ext ${_file_with_ext} NAME_WE )
 
     blt_add_executable(NAME        ${_lesson}_${_file_no_ext}
-                        SOURCES    ${_lesson}/${_file_with_ext}
-                        DEPENDS_ON ${tutorial_deps})
+                       SOURCES     ${_lesson}/${_file_with_ext}
+                       DEPENDS_ON  ${tutorial_deps})
 endforeach()                   
 
 #------------------------------------------------------------------------------
@@ -99,7 +103,7 @@ if(ENABLE_TESTS)
     blt_add_test(NAME   lesson_03_klee_operators_and_validation
                 COMMAND lesson_03_klee_operators_and_validation ../lesson_03/ice_cream.yaml)
 
-    if(AXOM_USE_LUA)
+    if(AXOM_USE_LUA AND AXOM_USE_MFEM)
       blt_add_test(NAME    lesson_04_quest_sampling_shaper
                    COMMAND lesson_04_quest_sampling_shaper -m ../lesson_04/circle_input.lua 
                                                            -k ../lesson_04/circles.yaml -v)                   
