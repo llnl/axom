@@ -81,42 +81,6 @@ primal::CurvedPolygon<primal::BezierCurve<CoordType, DIM>> createBezierPolygon(
   return bPolygon;
 }
 
-///! Helper function to convert a Bezier curved polygon into a NURBS curved polygon
-template <typename CoordType, int DIM>
-primal::CurvedPolygon<primal::NURBSCurve<CoordType, DIM>> createNURBSPolygon(
-  const primal::CurvedPolygon<primal::BezierCurve<CoordType, DIM>>& bPoly)
-{
-  using NURBSCurveType = primal::NURBSCurve<CoordType, DIM>;
-  using NURBSPolygonType = primal::CurvedPolygon<NURBSCurveType>;
-
-  NURBSPolygonType nPoly;
-
-  for(int i = 0; i < bPoly.numEdges(); ++i)
-  {
-    nPoly.addEdge(NURBSCurveType(bPoly[i]));
-  }
-
-  return nPoly;
-}
-
-///! Helper function to convert a Bezier curved polygon into a curved polygon of GWN caches
-template <typename CoordType, int DIM>
-primal::CurvedPolygon<primal::detail::NURBSCurveGWNCache<CoordType>> createNURBSCachePolygon(
-  const primal::CurvedPolygon<primal::BezierCurve<CoordType, DIM>>& bPoly)
-{
-  using NURBSCacheType = primal::detail::NURBSCurveGWNCache<CoordType>;
-  using NURBSPolygonType = primal::CurvedPolygon<NURBSCacheType>;
-
-  NURBSPolygonType ncPoly;
-
-  for(int i = 0; i < bPoly.numEdges(); ++i)
-  {
-    ncPoly.addEdge(NURBSCacheType(bPoly[i]));
-  }
-
-  return ncPoly;
-}
-
 template <typename CurveType>
 void test_constructor()
 {
@@ -229,8 +193,8 @@ TEST(primal_curvedpolygon, isClosed)
 
     BezierPolygon subBezierPolygon = createBezierPolygon(subCP, suborders);
     EXPECT_FALSE(subBezierPolygon.isClosed());
-    EXPECT_FALSE(createNURBSPolygon(subBezierPolygon).isClosed());
-    EXPECT_FALSE(createNURBSCachePolygon(subBezierPolygon).isClosed());
+    EXPECT_FALSE(NURBSPolygon(subBezierPolygon).isClosed());
+    EXPECT_FALSE(NURBSCachePolygon(subBezierPolygon).isClosed());
   }
 
   {
@@ -238,11 +202,11 @@ TEST(primal_curvedpolygon, isClosed)
     EXPECT_EQ(3, bPolygon.numEdges());
     EXPECT_TRUE(bPolygon.isClosed());
 
-    NURBSPolygon nPolygon = createNURBSPolygon(bPolygon);
+    NURBSPolygon nPolygon = NURBSPolygon(bPolygon);
     EXPECT_EQ(3, nPolygon.numEdges());
     EXPECT_TRUE(nPolygon.isClosed());
 
-    NURBSCachePolygon ncPolygon = createNURBSCachePolygon(bPolygon);
+    NURBSCachePolygon ncPolygon = NURBSCachePolygon(bPolygon);
     EXPECT_EQ(3, ncPolygon.numEdges());
     EXPECT_TRUE(ncPolygon.isClosed());
 
@@ -255,7 +219,7 @@ TEST(primal_curvedpolygon, isClosed)
 
     // Note: Can't access the vertices of NURBSCurveGWNCache objects directly
     //nPolygon[2][1][0] -= 2e-15; // Not allowed
-    ncPolygon = createNURBSCachePolygon(bPolygon);
+    ncPolygon = NURBSCachePolygon(bPolygon);
     EXPECT_FALSE(ncPolygon.isClosed(1e-15));
   }
 }
@@ -283,16 +247,16 @@ TEST(primal_curvedpolygon, isClosed_BiGon)
 
   BezierPolygon bPoly = createBezierPolygon(CP, orders);
   EXPECT_TRUE(bPoly.isClosed());
-  EXPECT_TRUE(createNURBSPolygon(bPoly).isClosed());
-  EXPECT_TRUE(createNURBSCachePolygon(bPoly).isClosed());
+  EXPECT_TRUE(NURBSPolygon(bPoly).isClosed());
+  EXPECT_TRUE(NURBSCachePolygon(bPoly).isClosed());
 
   // modify a vertex of the quadratic and check again
   BezierPolygon bPoly2 = bPoly;
   bPoly2[0][2] = PointType {0.8, 1.0};
 
   EXPECT_FALSE(bPoly2.isClosed());
-  EXPECT_FALSE(createNURBSPolygon(bPoly2).isClosed());
-  EXPECT_FALSE(createNURBSCachePolygon(bPoly2).isClosed());
+  EXPECT_FALSE(NURBSPolygon(bPoly2).isClosed());
+  EXPECT_FALSE(NURBSCachePolygon(bPoly2).isClosed());
 }
 
 template <typename CurveType>
@@ -340,11 +304,11 @@ TEST(primal_curvedpolygon, split_edge)
 
   axom::Array<int> orders32 = {1, 1, 1};
   BezierPolygon bPolygon32 = createBezierPolygon(CP, orders32);
-  NURBSPolygon nPolygon32 = createNURBSPolygon(bPolygon32);
+  NURBSPolygon nPolygon32(bPolygon32);
 
   test_split_edge(bPolygon32);
   test_split_edge(nPolygon32);
-
+  
   // Not allowed, since cached objects cannot be changed
   //test_split_edge(createNURBSCachePolygon(bPolygon32));
 }

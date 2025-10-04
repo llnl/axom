@@ -113,6 +113,20 @@ public:
     m_edges.resize(nEdges);
   }
 
+  /*!
+   * \brief Copy constructor for another curve type
+   */
+  template <typename OtherCurveType>
+  CurvedPolygon(const CurvedPolygon<OtherCurveType>& other_poly)
+  {
+    m_edges.resize(other_poly.numEdges());
+    for(int e = 0; e < other_poly.numEdges(); ++e)
+    {
+      //this->addEdge(CurveType(other_poly[e]));
+      m_edges[e] = CurveType(other_poly[e]);
+    }
+  }
+
   /// Constructor from an array of \a nEdges curves
   CurvedPolygon(CurveType* curves, int nEdges)
   {
@@ -145,8 +159,11 @@ public:
     m_edges.resize(ngon);
   }
 
-  /// Appends a BezierCurve to the list of edges
+  /// Appends a curve to the list of edges
   void addEdge(const CurveType& c1) { m_edges.push_back(c1); }
+
+  /// Consumes then appends a curve to the list of edges
+  void addEdge(CurveType&& c1) { m_edges.push_back(std::move(c1)); }
 
   /// Splits an edge "in place"
   void splitEdge(int idx, T t)
@@ -155,6 +172,7 @@ public:
     AXOM_STATIC_ASSERT_MSG(!has_cached_data<CurveType>::value,
                            "splitEdge cannot be called on objects with associated cache data");
 
+    m_edges.reserve(numEdges() + 1);
     m_edges.insert(m_edges.begin() + idx + 1, 1, m_edges[idx]);
     auto& csplit = m_edges[idx];
     csplit.split(t, m_edges[idx], m_edges[idx + 1]);
@@ -165,7 +183,7 @@ public:
 
   /*! Retrieves the curve at index idx */
   CurveType& operator[](int idx) { return m_edges[idx]; }
-  /*! Retrieves the vertex at index idx */
+  /*! Retrieves the curve at index idx */
   const CurveType& operator[](int idx) const { return m_edges[idx]; }
 
   /// Tests equality of two CurvedPolygons
