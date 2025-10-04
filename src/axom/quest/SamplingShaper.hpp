@@ -58,8 +58,8 @@ public:
   };
 
 private:
-  using Sampler2D = shaping::InOutSampler<2>;
-  using Sampler3D = shaping::InOutSampler<3>;
+  using InOutSampler2D = shaping::InOutSampler<2>;
+  using InOutSampler3D = shaping::InOutSampler<3>;
   using PrimitiveSampler3D_seq = shaping::PrimitiveSampler<3, seq_exec>;
   using PrimitiveSampler3D_omp = shaping::PrimitiveSampler<3, omp_exec>;
   using PrimitiveSampler3D_cuda = shaping::PrimitiveSampler<3, cuda_exec>;
@@ -69,7 +69,7 @@ private:
   // Type trait for any InOutSampler type
   template <typename T>
   struct is_inoutsampler
-    : std::bool_constant<std::is_same_v<T, Sampler2D> || std::is_same_v<T, Sampler3D>>
+    : std::bool_constant<std::is_same_v<T, InOutSampler2D> || std::is_same_v<T, InOutSampler3D>>
   { };
 
   template <typename T>
@@ -98,8 +98,8 @@ private:
   template <typename T>
   struct sampler_dimension
     : std::integral_constant<int,
-                             std::is_same_v<T, Sampler2D>                   ? 2
-                               : std::is_same_v<T, Sampler3D>               ? 3
+                             std::is_same_v<T, InOutSampler2D>              ? 2
+                               : std::is_same_v<T, InOutSampler3D>          ? 3
                                : std::is_same_v<T, WindingNumberSampler2D>  ? 2
                                : std::is_same_v<T, PrimitiveSampler3D_seq>  ? 3
                                : std::is_same_v<T, PrimitiveSampler3D_omp>  ? 3
@@ -112,8 +112,8 @@ private:
   inline static constexpr int sampler_dimension_v = sampler_dimension<T>::value;
 
   using SamplerVariant = std::variant<std::monostate,
-                                      std::unique_ptr<Sampler2D>,
-                                      std::unique_ptr<Sampler3D>,
+                                      std::unique_ptr<InOutSampler2D>,
+                                      std::unique_ptr<InOutSampler3D>,
                                       std::unique_ptr<WindingNumberSampler2D>,
                                       std::unique_ptr<PrimitiveSampler3D_seq>
 #if defined(AXOM_RUNTIME_POLICY_USE_OPENMP)
@@ -282,11 +282,11 @@ public:
     }
     else if(format == "c2c" || format == "mfem")
     {
-      m_sampler = std::make_unique<Sampler2D>(shapeName, m_surfaceMesh);
+      m_sampler = std::make_unique<InOutSampler2D>(shapeName, m_surfaceMesh);
     }
     else if(format == "stl")
     {
-      m_sampler = std::make_unique<Sampler3D>(shapeName, m_surfaceMesh);
+      m_sampler = std::make_unique<InOutSampler3D>(shapeName, m_surfaceMesh);
     }
     else if(format == "proe")
     {
