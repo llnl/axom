@@ -210,8 +210,14 @@ public:
     AXOM_UNUSED_VAR(shapeDimension);
     if(useWindingNumberSampler(shape))
     {
+      using CachedContourType =
+        typename axom::primal::CurvedPolygon<axom::primal::detail::NURBSCurveGWNCache<double>>;
+      axom::Array<CachedContourType> contours_cached;
+
+      for(auto& contour : m_contours) contours_cached.push_back(CachedContourType(contour));
+
       m_inoutSamplerWN =
-        std::make_unique<shaping::WindingNumberSampler<2>>(shapeName, m_contours.view());
+        std::make_unique<shaping::WindingNumberSampler<2>>(shapeName, contours_cached.view());
       m_inoutSamplerWN->computeBounds();
       m_inoutSamplerWN->initSpatialIndex(this->m_vertexWeldThreshold);
     }
@@ -961,7 +967,7 @@ private:
   std::unique_ptr<shaping::PrimitiveSampler<3, hip_exec>> m_primitiveSampler3D_hip;
 
   std::unique_ptr<shaping::WindingNumberSampler<2>> m_inoutSamplerWN;
-  axom::Array<axom::primal::CurvedPolygon<axom::primal::NURBSCurveGWNCache<double>>> m_contours;
+  axom::Array<axom::primal::CurvedPolygon<axom::primal::NURBSCurve<double, 2>>> m_contours;
 
   std::set<std::string> m_knownMaterials;
 

@@ -63,8 +63,8 @@ public:
   // For now.
   using ExecSpace = axom::SEQ_EXEC;
 
-  using CurvedPolygonType = primal::CurvedPolygon<NURBSCurveGWNCache<double>>;
-  using GeometryView = typename axom::ArrayView<CurvedPolygonType>;
+  using ContourType = primal::CurvedPolygon<NURBSCurveGWNCache<double>>;
+  using GeometryView = typename axom::ArrayView<ContourType>;
   using PointType = primal::Point<double, DIM>;
   using GeometricBoundingBox = axom::primal::BoundingBox<double, DIM>;
   using BVH = typename axom::spin::BVH<NDIMS, ExecSpace, double>;
@@ -88,6 +88,14 @@ public:
   void computeBounds()
   {
     // no-op - We do it in initSpatialIndex.
+  }
+
+  /*! 
+   * \brief Initialize the NURBSCurveGWNCache objects that store intermediate calculations for GWN evaluation
+   */
+  void initGWNCaches()
+  {
+
   }
 
   /*!

@@ -128,7 +128,7 @@ int MFEMReader::read(CurvedPolygonArray &curvedPolygons)
         for(int zoneId : zoneIds)
         {
           auto curve = axom::quest::internal::segment_to_nurbs(mesh, zoneId);
-          poly.addEdge(std::move(axom::primal::NURBSCurveGWNCache(curve)));
+          poly.addEdge(std::move(curve));
         }
       }
     });
