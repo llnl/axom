@@ -19,6 +19,17 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 ## [Unreleased] - Release date yyyy-mm-dd
 
 ### Added
+
+###  Changed
+
+###  Fixed
+
+###  Deprecated
+
+
+## [Version 0.12.0] - Release date 2025-10-03
+
+### Added
 - Added a new Python interface for sidre, using nanobind to generate Python bindings.
 - Added a new "BUMP" (Blueprint Utilities for Mesh Processing) component in Axom, which includes
   utilities that were formerly included in the Axom MIR component. BUMP is useful for writing
@@ -1278,7 +1289,8 @@ fractions for the associated materials must be supplied before shaping.
 - Use this section in case of vulnerabilities
 
 
-[Unreleased]:     https://github.com/LLNL/axom/compare/v0.11.0...develop
+[Unreleased]:     https://github.com/LLNL/axom/compare/v0.12.0...develop
+[Version 0.12.0]: https://github.com/LLNL/axom/compare/v0.11.0...v0.12.0
 [Version 0.11.0]: https://github.com/LLNL/axom/compare/v0.10.1...v0.11.0
 [Version 0.10.1]: https://github.com/LLNL/axom/compare/v0.10.0...v0.10.1
 [Version 0.10.0]: https://github.com/LLNL/axom/compare/v0.9.0...v0.10.0
