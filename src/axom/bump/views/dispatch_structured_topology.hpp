@@ -60,7 +60,10 @@ struct make_strided_structured_topology<3>
     zoneDims[2] = topo.fetch_existing("elements/dims/k").to_int();
     for(int d = 0; d < 3; d++)
     {
-      SLIC_ERROR_IF(zoneDims[d] < 1, axom::fmt::format("Dimension {} was {}. It must be greater than or equal to 1.", d, zoneDims[d]));
+      SLIC_ERROR_IF(zoneDims[d] < 1,
+                    axom::fmt::format("Dimension {} was {}. It must be greater than or equal to 1.",
+                                      d,
+                                      zoneDims[d]));
     }
     LogicalIndex offsets {{0, 0, 0}}, strides {{1, 1, 1}};
     utils::fillFromNode(topo, offsetsKey, offsets, true);
@@ -113,7 +116,10 @@ struct make_strided_structured_topology<2>
     zoneDims[1] = topo.fetch_existing("elements/dims/j").to_int();
     for(int d = 0; d < 2; d++)
     {
-      SLIC_ERROR_IF(zoneDims[d] < 1, axom::fmt::format("Dimension {} was {}. It must be greater than or equal to 1.", d, zoneDims[d]));
+      SLIC_ERROR_IF(zoneDims[d] < 1,
+                    axom::fmt::format("Dimension {} was {}. It must be greater than or equal to 1.",
+                                      d,
+                                      zoneDims[d]));
     }
 
     LogicalIndex offsets {{0, 0}}, strides {{1, 1}};
@@ -163,7 +169,9 @@ struct make_strided_structured_topology<1>
 
     LogicalIndex zoneDims;
     zoneDims[0] = topo.fetch_existing("elements/dims/i").to_int();
-    SLIC_ERROR_IF(zoneDims[0] < 1, axom::fmt::format("Dimension was {}. It must be greater than or equal to 1.", zoneDims[0]));
+    SLIC_ERROR_IF(
+      zoneDims[0] < 1,
+      axom::fmt::format("Dimension was {}. It must be greater than or equal to 1.", zoneDims[0]));
 
     LogicalIndex offsets {0}, strides {1};
     utils::fillFromNode(topo, offsetsKey, offsets, true);

@@ -38,4 +38,3 @@ void verify(const conduit::Node &obj, const std::string &protocol)
 }  // end namespace views
 }  // end namespace bump
 }  // end namespace axom
-

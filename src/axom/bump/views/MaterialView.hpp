@@ -95,8 +95,11 @@ public:
            const axom::ArrayView<IndexType> &indices)
   {
 #if !defined(AXOM_DEVICE_CODE)
-    SLIC_ERROR_IF(material_ids.size() != volume_fractions.size() || material_ids.size() != indices.size(), "Array views for material_ids, volume_fractions, indices are different sizes.");
-    SLIC_ERROR_IF(sizes.size() != offsets.size(), "Array views for sizes, offsets are different sizes.");
+    SLIC_ERROR_IF(
+      material_ids.size() != volume_fractions.size() || material_ids.size() != indices.size(),
+      "Array views for material_ids, volume_fractions, indices are different sizes.");
+    SLIC_ERROR_IF(sizes.size() != offsets.size(),
+                  "Array views for sizes, offsets are different sizes.");
 #endif
     m_material_ids = material_ids;
     m_volume_fractions = volume_fractions;
@@ -216,7 +219,8 @@ public:
 #if !defined(AXOM_DEVICE_CODE)
     const auto begin = m_matnos.data();
     const auto end = begin + m_size;
-    SLIC_ERROR_IF(std::find(begin, end, matno) != end, "Adding a duplicate material number is not allowed.");
+    SLIC_ERROR_IF(std::find(begin, end, matno) != end,
+                  "Adding a duplicate material number is not allowed.");
 #endif
     m_indices[m_size] = indices;
     m_values[m_size] = vfs;
@@ -365,7 +369,8 @@ public:
 #if !defined(AXOM_DEVICE_CODE)
     const auto begin = m_matnos.data();
     const auto end = begin + m_volume_fractions.size();
-    SLIC_ERROR_IF(std::find(begin, end, matno) != end, "Adding a duplicate material number is not allowed.");
+    SLIC_ERROR_IF(std::find(begin, end, matno) != end,
+                  "Adding a duplicate material number is not allowed.");
 #endif
     if((m_volume_fractions.size() + 1) < m_volume_fractions.capacity())
     {
@@ -375,7 +380,7 @@ public:
 #if !defined(AXOM_DEVICE_CODE)
     else
     {
-       SLIC_ERROR("Attempted to add more than the maximum number of materials.");
+      SLIC_ERROR("Attempted to add more than the maximum number of materials.");
     }
     checkSizes();
 #endif
@@ -448,7 +453,8 @@ private:
     axom::IndexType size = m_volume_fractions.empty() ? 0 : m_volume_fractions[0].size();
     for(axom::IndexType i = 1; i < m_volume_fractions.size(); i++)
     {
-      SLIC_ERROR_IF(m_volume_fractions[i].size() != size, "Volume fraction arrays have different sizes.");
+      SLIC_ERROR_IF(m_volume_fractions[i].size() != size,
+                    "Volume fraction arrays have different sizes.");
     }
   }
 #endif
@@ -523,10 +529,12 @@ public:
   {
 #if !defined(AXOM_DEVICE_CODE)
     SLIC_ERROR_IF(ids.size() != vfs.size(), "Array views for ids, vfs have different sizes.");
-    SLIC_ERROR_IF(m_size + 1 >= MaxMaterials, "Attempted to add more than the maximum number of materials.");
+    SLIC_ERROR_IF(m_size + 1 >= MaxMaterials,
+                  "Attempted to add more than the maximum number of materials.");
     const auto begin = m_matnos.data();
     const auto end = begin + m_size;
-    SLIC_ERROR_IF(std::find(begin, end, matno) != end, "Adding a duplicate material number is not allowed.");
+    SLIC_ERROR_IF(std::find(begin, end, matno) != end,
+                  "Adding a duplicate material number is not allowed.");
 #endif
     m_element_ids[m_size] = ids;
     m_volume_fractions[m_size] = vfs;

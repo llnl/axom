@@ -44,7 +44,8 @@ struct make_rectilinear_coordset<DataType, 3>
     namespace utils = axom::bump::utilities;
     verify(coordset, "coordset");
     const conduit::Node &values = coordset.fetch_existing("values");
-    SLIC_ERROR_IF(values.number_of_children() != 3, "3D rectilinear coordsets require 3 component arrays.");
+    SLIC_ERROR_IF(values.number_of_children() != 3,
+                  "3D rectilinear coordsets require 3 component arrays.");
     auto xView = utils::make_array_view<DataType>(values[0]);
     auto yView = utils::make_array_view<DataType>(values[1]);
     auto zView = utils::make_array_view<DataType>(values[2]);
@@ -70,7 +71,8 @@ struct make_rectilinear_coordset<DataType, 2>
     namespace utils = axom::bump::utilities;
     verify(coordset, "coordset");
     const conduit::Node &values = coordset.fetch_existing("values");
-    SLIC_ERROR_IF(values.number_of_children() != 2, "2D rectilinear coordsets require 2 component arrays.");
+    SLIC_ERROR_IF(values.number_of_children() != 2,
+                  "2D rectilinear coordsets require 2 component arrays.");
     auto xView = utils::make_array_view<DataType>(values[0]);
     auto yView = utils::make_array_view<DataType>(values[1]);
     return CoordsetView(xView, yView);
@@ -240,7 +242,8 @@ struct make_explicit_coordset<DataType, 3>
     namespace utils = axom::bump::utilities;
     verify(coordset, "coordset");
     const conduit::Node &values = coordset.fetch_existing("values");
-    SLIC_ERROR_IF(values.number_of_children() != 3, "3D explicit coordsets require 3 component arrays.");
+    SLIC_ERROR_IF(values.number_of_children() != 3,
+                  "3D explicit coordsets require 3 component arrays.");
     auto x = utils::make_array_view<DataType>(values[0]);
     auto y = utils::make_array_view<DataType>(values[1]);
     auto z = utils::make_array_view<DataType>(values[2]);
@@ -266,7 +269,8 @@ struct make_explicit_coordset<DataType, 2>
     namespace utils = axom::bump::utilities;
     verify(coordset, "coordset");
     const conduit::Node &values = coordset.fetch_existing("values");
-    SLIC_ERROR_IF(values.number_of_children() != 2, "2D explicit coordsets require 2 component arrays.");
+    SLIC_ERROR_IF(values.number_of_children() != 2,
+                  "2D explicit coordsets require 2 component arrays.");
     auto x = utils::make_array_view<DataType>(values[0]);
     auto y = utils::make_array_view<DataType>(values[1]);
     return CoordsetView(x, y);

@@ -66,7 +66,8 @@ struct make_unstructured_single_shape_topology
     else
     {
       // Variable-size shapes must have specified sizes, offsets.
-      SLIC_ERROR_IF(ShapeType::is_variable_size(), "A variable-size shape was provided without sizes of offsets.");
+      SLIC_ERROR_IF(ShapeType::is_variable_size(),
+                    "A variable-size shape was provided without sizes of offsets.");
     }
     return TopologyView(connView, sizesView, offsetsView);
   }

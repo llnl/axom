@@ -129,7 +129,12 @@ public:
     SLIC_ERROR_IF(m_shapes.empty(), "Array view shapes is empty.");
     SLIC_ERROR_IF(m_sizes.empty(), "Array view sizes is empty.");
     SLIC_ERROR_IF(m_offsets.empty(), "Array view offsets is empty.");
-    SLIC_ERROR_IF(m_offsets.size() != m_sizes.size() || m_offsets.size() != m_shapes.size(), axom::fmt::format("Array views are different sizes: sizes={}, offsets={}, shapes={}.", m_sizes.size(), m_offsets.size(), m_shapes.size()));
+    SLIC_ERROR_IF(
+      m_offsets.size() != m_sizes.size() || m_offsets.size() != m_shapes.size(),
+      axom::fmt::format("Array views are different sizes: sizes={}, offsets={}, shapes={}.",
+                        m_sizes.size(),
+                        m_offsets.size(),
+                        m_shapes.size()));
     SLIC_ERROR_IF(shapemap.empty(), "Shape map is empty.");
 #endif
   }

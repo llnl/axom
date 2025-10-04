@@ -66,7 +66,8 @@ public:
     , m_indexing(sizes.size())
   {
 #if !defined(AXOM_DEVICE_CODE)
-    SLIC_ERROR_IF(m_offsetsView.size() != m_sizesView.size(), "Array views for sizes,offsets are different sizes.");
+    SLIC_ERROR_IF(m_offsetsView.size() != m_sizesView.size(),
+                  "Array views for sizes,offsets are different sizes.");
 #endif
   }
 
