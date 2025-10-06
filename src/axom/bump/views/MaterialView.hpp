@@ -95,9 +95,8 @@ public:
            const axom::ArrayView<IndexType> &indices)
   {
 #if !defined(AXOM_DEVICE_CODE)
-    SLIC_ERROR_IF(
-      material_ids.size() != volume_fractions.size() || material_ids.size() != indices.size(),
-      "Array views for material_ids, volume_fractions, indices are different sizes.");
+    SLIC_ERROR_IF(material_ids.size() != volume_fractions.size(),
+                  "Array views for material_ids, volume_fractions are different sizes.");
     SLIC_ERROR_IF(sizes.size() != offsets.size(),
                   "Array views for sizes, offsets are different sizes.");
 #endif
