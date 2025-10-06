@@ -194,8 +194,8 @@ public:
   auto getNumControlPoints() const { return m_numControlPoints; }
   auto getDegree() const { return m_degree; }
 
-  auto getInitPoint() const { return m_initPoint; }
-  auto getEndPoint() const { return m_endPoint; }
+  const auto& getInitPoint() const { return m_initPoint; }
+  const auto& getEndPoint() const { return m_endPoint; }
   //@}
 
   friend bool operator==(const NURBSCurveGWNCache<T>& lhs, const NURBSCurveGWNCache<T>& rhs)

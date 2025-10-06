@@ -259,8 +259,8 @@ public:
   /// Retrieves the control point at index \a idx
   const PointType& operator[](int idx) const { return m_controlPoints[idx]; }
 
-  PointType getInitPoint() const { return m_controlPoints[0]; }
-  PointType getEndPoint() const { return m_controlPoints[m_controlPoints.size() - 1]; }
+  const PointType& getInitPoint() const { return m_controlPoints[0]; }
+  const PointType& getEndPoint() const { return m_controlPoints[m_controlPoints.size() - 1]; }
 
   /// Returns a copy of the Bezier curve's control points
   CoordsVec getControlPoints() const { return m_controlPoints; }
