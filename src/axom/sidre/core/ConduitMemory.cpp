@@ -22,7 +22,7 @@ void ConduitMemory::privateRegisterAllocator()
     axom::deallocate<char>(cPtr);
   };
   m_deallocCallback = deallocator;
-#if defined(AXOM_USE_CONDUIT_STD_FUNCTION)
+#if defined(AXOM_CONDUIT_USES_STD_FUNCTION)
   m_allocCallback = [=](size_t itemCount, size_t itemByteSize) -> void* {
     void* ptr = axom::allocate<char>(itemCount * itemByteSize, m_axomId);
     return ptr;
