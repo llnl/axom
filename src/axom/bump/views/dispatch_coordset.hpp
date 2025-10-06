@@ -109,7 +109,7 @@ struct make_uniform_coordset<3>
     for(int i = 0; i < 3; i++)
     {
       dims[i] = n_dims.fetch_existing(keys[i]).to_int();
-      SLIC_ERROR_IF(dims[i] <= 0, "A negative dimension was provided.");
+      SLIC_ERROR_IF(dims[i] <= 0, "Dimension must be greater than or equal to 1.");
       if(coordset.has_child("origin")) origin[i] = coordset["origin"][i].to_double();
       if(coordset.has_child("spacing")) spacing[i] = coordset["spacing"][i].to_double();
     }
@@ -140,7 +140,7 @@ struct make_uniform_coordset<2>
     for(int i = 0; i < 2; i++)
     {
       dims[i] = n_dims.fetch_existing(keys[i]).to_int();
-      SLIC_ERROR_IF(dims[i] <= 0, "A negative dimension was provided.");
+      SLIC_ERROR_IF(dims[i] <= 0, "Dimension must be greater than or equal to 1.");
       if(coordset.has_child("origin")) origin[i] = coordset["origin"][i].to_double();
       if(coordset.has_child("spacing")) spacing[i] = coordset["spacing"][i].to_double();
     }
