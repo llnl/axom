@@ -75,6 +75,7 @@ The Axom project release numbers follow [Semantic Versioning](http://semver.org/
 - Adds `quest::MFEMReader` for reading 1D MFEM contours in 2D space.
 - Adds an option to `quest::SamplingShaper` to allow in/out tests based on winding numbers for MFEM contours.
 - The `shaping_driver` example program can select `--sampling inout` to do the default In/Out sampling and `--sampling windingnumber` to select winding number in/out tests for MFEM data.
+- Adds Axom-native Gauss-Legendre quadrature rules that can be used without an MFEM dependency
 
 ###  Changed
 - Updates blt submodule to [BLT version 0.7.1][https://github.com/LLNL/blt/releases/tag/v0.7.1]

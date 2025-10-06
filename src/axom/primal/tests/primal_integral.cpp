@@ -445,6 +445,30 @@ TEST(primal_integral, evaluate_nurbs_surface_normal)
   }
 }
 
+#ifdef AXOM_USE_MFEM
+TEST(primal_integral, check_axom_mfem_quadrature_values)
+{
+  const int N = 200;
+
+  for(int npts = 1; npts <= N; ++npts)
+  {
+    // Generate the Axom quadrature rule
+    axom::numerics::QuadratureRule axom_rule = axom::numerics::compute_gauss_legendre(npts);
+
+    // Generate the MFEM quadrature rule
+    static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
+    const mfem::IntegrationRule& mfem_rule = my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * npts - 1);
+
+    // Check that the nodes and weights are the same between the two rules
+    for(int j = 0; j < npts; ++j)
+    {
+      EXPECT_NEAR(axom_rule.node(j), mfem_rule.IntPoint(j).x, 1e-16);
+      EXPECT_NEAR(axom_rule.weight(j), mfem_rule.IntPoint(j).weight, 1e-16);
+    }
+  }
+}
+#endif
+
 int main(int argc, char* argv[])
 {
   ::testing::InitGoogleTest(&argc, argv);

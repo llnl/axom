@@ -38,12 +38,16 @@ public:
   //! \brief Accessor for quadrature weights
   double weight(size_t idx) const { return m_weights[idx]; };
 
+  //! \brief Accessofr for the size of the quadrature rule
+  int getNumPoints() const { return m_npts; }
+
 private:
   //! \brief Private constructor for use in compute_<rule>() methods. Only allocates memory
-  QuadratureRule(int npts) : m_nodes(npts), m_weights(npts) { };
+  QuadratureRule(int npts) : m_nodes(npts), m_weights(npts), m_npts(npts) { };
 
   axom::Array<double> m_nodes;
   axom::Array<double> m_weights;
+  int m_npts;
 };
 
 /*!

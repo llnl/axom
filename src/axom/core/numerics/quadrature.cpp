@@ -48,6 +48,17 @@ QuadratureRule compute_gauss_legendre(int npts)
     rule.m_weights[0] = rule.m_weights[1] = 0.5;
     return rule;
   }
+  if(npts == 3)
+  {
+    rule.m_nodes[0] = 0.11270166537925831148207345;
+    rule.m_nodes[1] = 0.5;
+    rule.m_nodes[2] = 0.88729833462074168851792655;
+
+    rule.m_weights[0] = 0.2777777777777777777777778;
+    rule.m_weights[1] = 0.4444444444444444444444444;
+    rule.m_weights[2] = 0.2777777777777777777777778;
+    return rule;
+  }
 
   const int n = npts;
   const int m = (npts + 1) / 2;
