@@ -476,7 +476,7 @@ axom::Array<double> winding_number(const axom::Array<Point<T, 2>>& q_arr,
   axom::Array<double> ret_val(q_arr.size());
   for(int n = 0; n < q_arr.size(); ++n)
   {
-    ret_val[n] = winding_number(query_arr[n], cache_arr, edge_tol, EPS);
+    ret_val[n] = winding_number(q_arr[n], cpoly, edge_tol, EPS);
   }
 
   return ret_val;
