@@ -6,7 +6,7 @@
 #include "gtest/gtest.h"
 
 #include "axom/core/numerics/quadrature.hpp"
-#include "axom/core/utilities/Utilities.hpp" 
+#include "axom/core/utilities/Utilities.hpp"
 
 TEST(numerics_quadrature, gauss_legendre_math_check)
 {
@@ -15,7 +15,7 @@ TEST(numerics_quadrature, gauss_legendre_math_check)
   double coeffs[2 * N - 1];
 
   // Test that the rules provide exact integration for polynomials of degree 2n - 1
-  for(int npts = 1; npts < N; ++npts)
+  for(int npts = 1; npts <= N; ++npts)
   {
     // Evaluate using the quadrature rule
     auto rule = axom::numerics::get_gauss_legendre(npts);
