@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause)
 
 #include "axom/core/Array.hpp"
+#include "axom/core/FlatMap.hpp"
 #include "axom/core/numerics/quadrature.hpp"
 
 // For math constants and includes
@@ -136,7 +137,7 @@ QuadratureRule compute_gauss_legendre(int npts)
 const QuadratureRule& get_gauss_legendre(int npts)
 {
   // Define a static map that stores the GL quadrature rule for a given order
-  static std::map<int, QuadratureRule> rule_library;
+  static axom::FlatMap<int, QuadratureRule> rule_library;
   if(rule_library.find(npts) == rule_library.end())
   {
     rule_library[npts] = compute_gauss_legendre(npts);
