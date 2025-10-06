@@ -63,7 +63,7 @@ public:
   // For now.
   using ExecSpace = axom::SEQ_EXEC;
 
-  using ContourType = primal::CurvedPolygon<NURBSCurveGWNCache<double>>;
+  using ContourType = primal::CurvedPolygon<axom::primal::detail::NURBSCurveGWNCache<double>>;
   using GeometryView = typename axom::ArrayView<ContourType>;
   using PointType = primal::Point<double, DIM>;
   using GeometricBoundingBox = axom::primal::BoundingBox<double, DIM>;

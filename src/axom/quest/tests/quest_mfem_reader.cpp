@@ -61,7 +61,7 @@ TEST(quest_mfem_reader, read_curved_polygon)
   reader.setFileName(fileName);
 
   // Read as 1 CurvedPolygon with 9 edges
-  axom::Array<primal::CurvedPolygon<double, 2>> polys;
+  axom::Array<primal::CurvedPolygon<axom::primal::NURBSCurve<double, 2>>> polys;
   EXPECT_EQ(reader.read(polys), 0);
   EXPECT_EQ(polys.size(), 1);
   EXPECT_EQ(polys[0].numEdges(), 9);
