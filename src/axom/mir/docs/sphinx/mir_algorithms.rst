@@ -135,7 +135,10 @@ conservation of material volume fractions over the appearance of the resulting m
 interfaces so it is highly accurate but it can be less visually appealing. Since ELVIRA
 output is typically comprised of shapes that result from several cuts of the input zones,
 the resulting topology is not water-tight. The output topology consists of polygons for 2D
-and polyhedra for 3D.
+and polyhedra for 3D. The exception to this is when the matset consists of clean zones
+where each zone already contains a single material. In that case, MIR is not necessary
+and the algorithm will copy the input coordset, topology, and matset to the algorithm
+outputs, meaning the output types will be the same as the input types.
 
 The ELVIRA algorithm also supports a mode where instead of creating 2D polygons or 3D
 polyhedral zones for material fragments, it creates a mesh consisting solely of points.

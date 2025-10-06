@@ -68,6 +68,12 @@ namespace mir
  * \note We template on IndexPolicy instead of TopologyView so we can enforce a
  *       StructuredTopologyView on the algorithm. This is done because ELVIRA
  *       assumes a structured mesh for stencils, etc.
+ *
+ * \note This algorithm typically produces unstructured meshes of polygons or
+ *       polyhedra, depending on the mesh dimension. However, if the input matset
+ *       contains only "clean" zones consisting of 1 material per zone then the
+ *       input coordset, topology, and matset will be copied to the output. In
+ *       that case, the types will depend on the input types.
  */
 template <typename ExecSpace, typename IndexPolicy, typename CoordsetView, typename MatsetView>
 class ElviraAlgorithm : public axom::mir::MIRAlgorithm
