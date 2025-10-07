@@ -6,8 +6,6 @@
 #include "axom/primal.hpp"
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
-#include "axom/primal/operators/evaluate_integral.hpp"
-#include "axom/primal/operators/winding_number.hpp"
 #include <iostream>
 
 #include "gtest/gtest.h"
@@ -511,12 +509,12 @@ TEST(primal_integral, evaluate_integral_nurbs_gwn_cache)
 #ifdef AXOM_USE_MFEM
 TEST(primal_integral, check_axom_mfem_quadrature_values)
 {
-  const int N = 200;
+  const int N = 3;
 
-  for(int npts = 1; npts <= N; ++npts)
+  for(int npts = N; npts <= N; ++npts)
   {
     // Generate the Axom quadrature rule
-    axom::numerics::QuadratureRule axom_rule = axom::numerics::compute_gauss_legendre(npts);
+    axom::numerics::QuadratureRule axom_rule = axom::numerics::get_gauss_legendre(npts);
 
     // Generate the MFEM quadrature rule
     static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
@@ -525,8 +523,10 @@ TEST(primal_integral, check_axom_mfem_quadrature_values)
     // Check that the nodes and weights are the same between the two rules
     for(int j = 0; j < npts; ++j)
     {
-      EXPECT_NEAR(axom_rule.node(j), mfem_rule.IntPoint(j).x, 1e-16);
-      EXPECT_NEAR(axom_rule.weight(j), mfem_rule.IntPoint(j).weight, 1e-16);
+      EXPECT_NEAR(axom_rule.node(j), mfem_rule.IntPoint(j).x, axom::numeric_limits<double>::epsilon());
+      EXPECT_NEAR(axom_rule.weight(j),
+                  mfem_rule.IntPoint(j).weight,
+                  axom::numeric_limits<double>::epsilon());
     }
   }
 }

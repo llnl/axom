@@ -514,13 +514,8 @@ double LinearizeCurves::revolvedVolume(const LinearizeCurves::NURBSCurve& nurbs,
   using PointType = axom::primal::Point<double, 2>;
   using VectorType = axom::primal::Vector<double, 2>;
 
-  // Use 5-point Gauss Quadrature.
-  const double X[] = {-0.906179845938664, -0.538469310105683, 0, 0.538469310105683, 0.906179845938664};
-  const double W[] = {0.23692688505618908,
-                      0.47862867049936647,
-                      0.5688888888888889,
-                      0.47862867049936647,
-                      0.23692688505618908};
+  // Use 5-point Gauss-Legendre Quadrature.
+  numerics::QuadratureRule quad_rule = numerics::get_gauss_legendre(5);
 
   // Make a transform with no translation. We use this to transform
   // the derivative since we want to permit scaling and rotation but
@@ -545,12 +540,12 @@ double LinearizeCurves::revolvedVolume(const LinearizeCurves::NURBSCurve& nurbs,
 #endif
 
     // Approximate the integral "Int pi*x'(u)*y(u)^2du" using quadrature.
-    constexpr double scale = M_PI * ((bd - ad) / 2.);
+    constexpr double scale = M_PI * (bd - ad);
     double sum = 0.;
     for(size_t i = 0; i < 5; i++)
     {
-      // Map quad point x value [-1,1] to [a,b].
-      const double u = X[i] * ((bd - ad) / 2.) + ((bd + ad) / 2.);
+      // Map quad point x value [0,1] to [a,b].
+      const double u = quad_rule.node(i) * (bd - ad) + ad;
 
       // Compute y(u) to get radius
       PointType eval;
@@ -569,7 +564,7 @@ double LinearizeCurves::revolvedVolume(const LinearizeCurves::NURBSCurve& nurbs,
 #endif
 
       // Accumulate weight times dx*r^2.
-      sum += W[i] * xp * (r * r);
+      sum += quad_rule.weight(i) * xp * (r * r);
     }
     // Guard against volumes being negative (if the curve went the wrong way)
     vol += axom::utilities::abs(scale * sum);

@@ -26,8 +26,8 @@ namespace numerics
  */
 class QuadratureRule
 {
-  // Define friend functions so rules can only be created via compute_rule() methods
-  friend QuadratureRule compute_gauss_legendre(int npts);
+  // Define friend functions so rules can only be created via get_rule() methods
+  friend QuadratureRule get_gauss_legendre(int npts);
 
 public:
   QuadratureRule() = default;
@@ -42,17 +42,16 @@ public:
   int getNumPoints() const { return m_nodes.size(); }
 
 private:
-  //! \brief Private constructor for use in compute_<rule>() methods. Only allocates memory
-  QuadratureRule(int npts) : m_nodes(npts), m_weights(npts) { };
-
-  axom::Array<double> m_nodes;
-  axom::Array<double> m_weights;
+  axom::ArrayView<double> m_nodes;
+  axom::ArrayView<double> m_weights;
 };
 
 /*!
  * \brief Computes a 1D quadrature rule of Gauss-Legendre points 
  *
  * \param [in] npts The number of points in the rule
+ * \param [out] nodes The array of 1D nodes
+ * \param [out] weights The array of weights
  * 
  * A Gauss-Legendre rule with \a npts points can exactly integrate
  *  polynomials of order 2 * npts - 1
@@ -61,10 +60,10 @@ private:
  * 
  * \note This method constructs the points by scratch each time, without caching
  * \sa get_gauss_legendre(int)
- *
- * \return The `QuadratureRule` object which contains axom::Array<double>'s of nodes and weights
  */
-QuadratureRule compute_gauss_legendre(int npts);
+void compute_gauss_legendre_data(int npts,
+                                 axom::Array<double>& nodes,
+                                 axom::Array<double>& weights);
 
 /*!
  * \brief Computes or accesses a precomputed 1D quadrature rule of Gauss-Legendre points 
@@ -77,9 +76,9 @@ QuadratureRule compute_gauss_legendre(int npts);
  * \note If this method has already been called for a given order, it will reuse the same quadrature points
  *  without needing to recompute them
  *
- * \return The `QuadratureRule` object which contains axom::Array<double>'s of nodes and weights
+ * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */
-const QuadratureRule& get_gauss_legendre(int npts);
+QuadratureRule get_gauss_legendre(int npts);
 
 } /* end namespace numerics */
 } /* end namespace axom */
