@@ -170,7 +170,7 @@ TEST(primal_beziercurve, set_order)
 
   bCurve.setOrder(order);
   EXPECT_EQ(order, bCurve.getOrder());
-  EXPECT_EQ(order - 1, bCurve.getNumControlPoints());
+  EXPECT_EQ(order + 1, bCurve.getNumControlPoints());
 
   bCurve[0] = controlPoints[0];
   bCurve[1] = controlPoints[1];
