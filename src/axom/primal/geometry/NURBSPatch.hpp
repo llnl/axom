@@ -1797,8 +1797,8 @@ public:
     auto n = m_knotvec_u.getNumKnotSpans();
     auto m = m_knotvec_v.getNumKnotSpans();
 
-    rescaleTrimmingCurves_u(getMinKnot_u(), getMaxKnot_u(), 0.0, n);
-    rescaleTrimmingCurves_v(getMinKnot_v(), getMaxKnot_v(), 0.0, m);
+    rescaleTrimmingCurves_u(min_u, max_u, 0.0, n);
+    rescaleTrimmingCurves_v(min_v, max_v, 0.0, m);
 
     m_knotvec_u.rescale(0, n);
     m_knotvec_v.rescale(0, m);

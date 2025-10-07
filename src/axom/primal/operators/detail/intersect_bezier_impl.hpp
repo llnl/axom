@@ -142,7 +142,8 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
                           double EPS,
                           int order,
                           double c_offset,
-                          double c_scale);
+                          double c_scale,
+                          bool isHalfOpen = true);
 
 /*!
  * \brief Recursive function to find intersections between a 2D sphere (circle)
@@ -327,7 +328,7 @@ bool intersect_ray_bezier(const Ray<T, 2> &r,
                           int order,
                           double c_offset,
                           double c_scale,
-                          bool isHalfOpen = true)
+                          bool isHalfOpen)
 {
   using BCurve = BezierCurve<T, 2>;
 

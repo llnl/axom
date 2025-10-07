@@ -1180,7 +1180,7 @@ bool intersect(const Ray<T, 3>& ray,
 
   // Check a bounding box of the entire NURBS first
   Point<T, 3> ip;
-  if(!intersect(line, patch.boundingBox(), ip))
+  if(!intersect(ray, patch.boundingBox(), ip))
   {
     return false;
   }

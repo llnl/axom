@@ -208,7 +208,7 @@ double nurbs_winding_number(const Point<T, 3>& query,
   NURBSPatch<T, 3> nPatchWithBoundaries(nPatch), the_disk;
 
   // Define vector fields whose curl gives us the winding number
-  DiscontinuityAxis field_direction;
+  DiscontinuityAxis field_direction = DiscontinuityAxis::rotated;
 
   // Generate slightly expanded bounding boxes
   auto bBox = nPatch.boundingBox();
@@ -234,10 +234,10 @@ double nurbs_winding_number(const Point<T, 3>& query,
     {
       field_direction = DiscontinuityAxis::x;
     }
-    else if(exterior_x || exterior_z)
-    {
-      field_direction = DiscontinuityAxis::y;
-    }
+    // else if(exterior_x || exterior_z)
+    // {
+    //   field_direction = DiscontinuityAxis::y;
+    // }
   }
   // Case 1.5: Exterior with rotation
   else if(!oBox.contains(query))
@@ -452,6 +452,135 @@ double nurbs_winding_number(const Point<T, 3>& query,
   the_gwn += stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
 
   return the_gwn;
+}
+
+template <typename T>
+Point<T, 3> rotate_point(const numerics::Matrix<T>& matx,
+                         const Point<T, 3>& center,
+                         const Point<T, 3>& input)
+{
+  Vector<T, 3> shifted(center, input);
+  Vector<T, 3> rotated;
+  numerics::matrix_vector_multiply(matx, shifted.data(), rotated.data());
+  return Point<T, 3>({rotated[0] + center[0], rotated[1] + center[1], rotated[2] + center[2]});
+}
+
+template <typename T>
+Point<T, 3> rotate_vector(const numerics::Matrix<T>& matx,
+                          const Point<T, 3>& center,
+                          const Vector<T, 3>& input)
+{
+  Vector<T, 3> shifted {input[0] - center[0], input[1] - center[1], input[2] - center[2]};
+  Vector<T, 3> rotated;
+  numerics::matrix_vector_multiply(matx, shifted.data(), rotated.data());
+  return Point<T, 3>({rotated[0] + center[0], rotated[1] + center[1], rotated[2] + center[2]});
+}
+
+template <typename T>
+double stokes_gwn_component_cached_rotated(const Point<T, 3>& query,
+                                           const mfem::IntegrationRule& quad_rule,
+                                           const axom::numerics::Matrix<T>& rotator,
+                                           const TrimmingCurveQuadratureData<T>& trimming_curve_data)
+{
+  // Do this without refinement
+  double this_quad = 0;
+  for(int q = 0; q < quad_rule.GetNPoints(); ++q)
+  {
+    const Vector<T, 3> node(
+      query,
+      rotate_point(rotator, query, trimming_curve_data.quadrature_points[q].first));
+    const Vector<T, 3> node_dt(rotate_vector(rotator,
+                                             Point<T, 3>({0.0, 0.0, 0.0}),
+                                             trimming_curve_data.quadrature_points[q].second));
+    const double node_norm = node.norm();
+
+    const double quad_weight = quad_rule.IntPoint(q).weight * trimming_curve_data.span_length;
+
+    // This is the z-aligned axis
+    this_quad += quad_weight * (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
+      (node[0] * node[0] + node[1] * node[1]) / node_norm;
+  }
+
+  return this_quad;
+}
+
+template <typename T>
+double stokes_gwn_adaptive_cached_rotated(const Point<T, 3>& query,
+                                          const NURBSPatchData<T>& nPatchData,
+                                          const mfem::IntegrationRule& quad_rule,
+                                          const axom::numerics::Matrix<T>& rotator,
+                                          const int curve_index,
+                                          const int refinement_level,
+                                          const int refinement_index,
+                                          const double quad_coarse,
+                                          const double quad_tol)
+{
+  auto trimming_curve_data_1 =
+    nPatchData.getQuadratureData(curve_index, quad_rule, refinement_level + 1, 2 * refinement_index);
+  auto trimming_curve_data_2 = nPatchData.getQuadratureData(curve_index,
+                                                            quad_rule,
+                                                            refinement_level + 1,
+                                                            2 * refinement_index + 1);
+
+  double quad_fine_1 =
+    stokes_gwn_component_cached_rotated(query, quad_rule, rotator, trimming_curve_data_1);
+  double quad_fine_2 =
+    stokes_gwn_component_cached_rotated(query, quad_rule, rotator, trimming_curve_data_2);
+
+  if(refinement_level >= 25 ||
+     axom::utilities::isNearlyEqualRelative(quad_fine_1 + quad_fine_2, quad_coarse, quad_tol, 1e-10))
+  {
+    return quad_fine_1 + quad_fine_2;
+  }
+
+  quad_fine_1 = stokes_gwn_adaptive_cached_rotated(query,
+                                                   nPatchData,
+                                                   quad_rule,
+                                                   rotator,
+                                                   curve_index,
+                                                   refinement_level + 1,
+                                                   2 * refinement_index,
+                                                   quad_fine_1,
+                                                   quad_tol);
+
+  quad_fine_2 = stokes_gwn_adaptive_cached_rotated(query,
+                                                   nPatchData,
+                                                   quad_rule,
+                                                   rotator,
+                                                   curve_index,
+                                                   refinement_level + 1,
+                                                   2 * refinement_index + 1,
+                                                   quad_fine_2,
+                                                   quad_tol);
+
+  return quad_fine_1 + quad_fine_2;
+}
+
+template <typename T>
+double stokes_gwn_evaluate_cached_rotated(const Point<T, 3>& query,
+                                          const NURBSPatchData<T>& nPatchData,
+                                          const axom::numerics::Matrix<T>& rotator,
+                                          const int quad_npts,
+                                          const double quad_tol)
+{
+  // Generate the quadrature rules in parameter space
+  static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
+  const mfem::IntegrationRule& quad_rule =
+    my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * quad_npts - 1);
+
+  double quad = 0;
+  for(int n = 0; n < nPatchData.patch.getNumTrimmingCurves(); ++n)
+  {
+    // Get the quadrature points for the curve without any refinement
+    auto trimming_curve_data = nPatchData.getQuadratureData(n, quad_rule, 0, 0);
+    double quad_coarse =
+      stokes_gwn_component_cached_rotated(query, quad_rule, rotator, trimming_curve_data);
+
+    quad += 0.25 * M_1_PI *
+      stokes_gwn_adaptive_cached_rotated(query, nPatchData, quad_rule, rotator, n, 0, 0, quad_coarse, quad_tol);
+  }
+
+  return quad;
 }
 
 /*
@@ -909,71 +1038,6 @@ double nurbs_data_winding_number(const Point<T, 3>& query,
 }
 
 template <typename T>
-double nurbs_data_winding_number_tear(const Point<T, 3>& query,
-                                      const NURBSPatchData<T>& nPatchData,
-                                      const Vector<T, 3>& cast_direction,
-                                      int& case_code,
-                                      int& integrated_curves,
-                                      const double edge_tol = 1e-8,
-                                      const double ls_tol = 1e-8,
-                                      const double quad_tol = 1e-8,
-                                      const double EPS = 1e-8,
-                                      const int depth = 0)
-{
-  const double edge_tol_sq = edge_tol * edge_tol;
-
-  // Fix the number of quadrature points arbitrarily
-  constexpr int quad_npts = 15;
-
-  // Store the winding number
-  double the_gwn = 0.0;
-
-  /* 
-   * To use Stokes theorem, we need to identify either a line containing the
-   * query that does not intersect the surface, or one that intersects the *interior*
-   * of the surface at known locations.
-   */
-
-  // Lambda to rotate the input point using the provided rotation matrix
-  auto rotate_point = [&query](const numerics::Matrix<T>& matx,
-                               const Point<T, 3> input) -> Point<T, 3> {
-    Vector<T, 3> shifted(query, input);
-    Vector<T, 3> rotated;
-    numerics::matrix_vector_multiply(matx, shifted.data(), rotated.data());
-    return Point<T, 3>({rotated[0] + query[0], rotated[1] + query[1], rotated[2] + query[2]});
-  };
-
-  // Allocate space for the patch which contains all surface boundaries
-  NURBSPatch<T, 3> nPatchWithBoundaries(nPatchData.patch), the_disk;
-
-  // Define vector fields whose curl gives us the winding number
-  DiscontinuityAxis field_direction = DiscontinuityAxis::rotated;
-
-  // Rotate the patch so that the discontinuity is aligned with the z-axis
-  const double ang = std::acos(axom::utilities::clampVal(cast_direction[2], -1.0, 1.0));
-  numerics::Matrix<T> rotator =
-    numerics::transforms::axisRotation(ang, cast_direction[1], -cast_direction[0], 0);
-
-  if(field_direction == DiscontinuityAxis::rotated)
-  {
-    // The trimming curves for rotatedPatch have been changed as needed,
-    //  but we need to rotate the control points
-    auto patch_shape = nPatchWithBoundaries.getControlPoints().shape();
-    for(int i = 0; i < patch_shape[0]; ++i)
-    {
-      for(int j = 0; j < patch_shape[1]; ++j)
-      {
-        nPatchWithBoundaries(i, j) = rotate_point(rotator, nPatchWithBoundaries(i, j));
-      }
-    }
-  }
-
-  the_gwn += stokes_gwn_evaluate(query, nPatchWithBoundaries, field_direction, quad_npts, quad_tol);
-
-  return the_gwn;
-}
-
-template <typename T>
 bool isNearAxisBox(const Point<T, 3>& query,
                    const BoundingBox<T, 3>& bbox,
                    const DiscontinuityAxis ax,
@@ -995,6 +1059,7 @@ bool isNearAxisBox(const Point<T, 3>& query,
     bbox_radius = box_max[0] * box_max[0] + box_max[2] * box_max[2];
     return distance_to_axis <= beta * bbox_radius;
   case(DiscontinuityAxis::z):
+  case(DiscontinuityAxis::rotated):
     distance_to_axis = c_query[0] * c_query[0] + c_query[1] * c_query[1];
     bbox_radius = box_max[0] * box_max[0] + box_max[1] * box_max[1];
     return distance_to_axis <= beta * bbox_radius;
@@ -1276,6 +1341,7 @@ double stokes_gwn_component_cached(const Point<T, 3>& query,
         (node[0] * node[0] + node[2] * node[2]) / node_norm;
       break;
     case(DiscontinuityAxis::z):
+    case(DiscontinuityAxis::rotated):
       this_quad += quad_weight * (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
         (node[0] * node[0] + node[1] * node[1]) / node_norm;
       break;
@@ -1287,134 +1353,7 @@ double stokes_gwn_component_cached(const Point<T, 3>& query,
 
 // ================================ CACHED ROTATED VERSIONS ================================
 
-template <typename T>
-Point<T, 3> rotate_point(const numerics::Matrix<T>& matx,
-                         const Point<T, 3>& center,
-                         const Point<T, 3>& input)
-{
-  Vector<T, 3> shifted(center, input);
-  Vector<T, 3> rotated;
-  numerics::matrix_vector_multiply(matx, shifted.data(), rotated.data());
-  return Point<T, 3>({rotated[0] + center[0], rotated[1] + center[1], rotated[2] + center[2]});
-}
 
-template <typename T>
-Point<T, 3> rotate_vector(const numerics::Matrix<T>& matx,
-                          const Point<T, 3>& center,
-                          const Vector<T, 3>& input)
-{
-  Vector<T, 3> shifted {input[0] - center[0], input[1] - center[1], input[2] - center[2]};
-  Vector<T, 3> rotated;
-  numerics::matrix_vector_multiply(matx, shifted.data(), rotated.data());
-  return Point<T, 3>({rotated[0] + center[0], rotated[1] + center[1], rotated[2] + center[2]});
-}
-
-template <typename T>
-double stokes_gwn_evaluate_cached_rotated(const Point<T, 3>& query,
-                                          const NURBSPatchData<T>& nPatchData,
-                                          const axom::numerics::Matrix<T>& rotator,
-                                          const int quad_npts,
-                                          const double quad_tol)
-{
-  // Generate the quadrature rules in parameter space
-  static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);
-  const mfem::IntegrationRule& quad_rule =
-    my_IntRules.Get(mfem::Geometry::SEGMENT, 2 * quad_npts - 1);
-
-  double quad = 0;
-  for(int n = 0; n < nPatchData.patch.getNumTrimmingCurves(); ++n)
-  {
-    // Get the quadrature points for the curve without any refinement
-    auto trimming_curve_data = nPatchData.getQuadratureData(n, quad_rule, 0, 0);
-    double quad_coarse =
-      stokes_gwn_component_cached_rotated(query, quad_rule, rotator, trimming_curve_data);
-
-    quad += 0.25 * M_1_PI *
-      stokes_gwn_adaptive_cached_rotated(query, nPatchData, quad_rule, rotator, n, 0, 0, quad_coarse, quad_tol);
-  }
-
-  return quad;
-}
-
-template <typename T>
-double stokes_gwn_adaptive_cached_rotated(const Point<T, 3>& query,
-                                          const NURBSPatchData<T>& nPatchData,
-                                          const mfem::IntegrationRule& quad_rule,
-                                          const axom::numerics::Matrix<T>& rotator,
-                                          const int curve_index,
-                                          const int refinement_level,
-                                          const int refinement_index,
-                                          const double quad_coarse,
-                                          const double quad_tol)
-{
-  auto trimming_curve_data_1 =
-    nPatchData.getQuadratureData(curve_index, quad_rule, refinement_level + 1, 2 * refinement_index);
-  auto trimming_curve_data_2 = nPatchData.getQuadratureData(curve_index,
-                                                            quad_rule,
-                                                            refinement_level + 1,
-                                                            2 * refinement_index + 1);
-
-  double quad_fine_1 =
-    stokes_gwn_component_cached_rotated(query, quad_rule, rotator, trimming_curve_data_1);
-  double quad_fine_2 =
-    stokes_gwn_component_cached_rotated(query, quad_rule, rotator, trimming_curve_data_2);
-
-  if(refinement_level >= 25 ||
-     axom::utilities::isNearlyEqualRelative(quad_fine_1 + quad_fine_2, quad_coarse, quad_tol, 1e-10))
-  {
-    return quad_fine_1 + quad_fine_2;
-  }
-
-  quad_fine_1 = stokes_gwn_adaptive_cached_rotated(query,
-                                                   nPatchData,
-                                                   quad_rule,
-                                                   rotator,
-                                                   curve_index,
-                                                   refinement_level + 1,
-                                                   2 * refinement_index,
-                                                   quad_fine_1,
-                                                   quad_tol);
-
-  quad_fine_2 = stokes_gwn_adaptive_cached_rotated(query,
-                                                   nPatchData,
-                                                   quad_rule,
-                                                   rotator,
-                                                   curve_index,
-                                                   refinement_level + 1,
-                                                   2 * refinement_index + 1,
-                                                   quad_fine_2,
-                                                   quad_tol);
-
-  return quad_fine_1 + quad_fine_2;
-}
-
-template <typename T>
-double stokes_gwn_component_cached_rotated(const Point<T, 3>& query,
-                                           const mfem::IntegrationRule& quad_rule,
-                                           const axom::numerics::Matrix<T>& rotator,
-                                           const TrimmingCurveQuadratureData<T>& trimming_curve_data)
-{
-  // Do this without refinement
-  double this_quad = 0;
-  for(int q = 0; q < quad_rule.GetNPoints(); ++q)
-  {
-    const Vector<T, 3> node(
-      query,
-      rotate_point(rotator, query, trimming_curve_data.quadrature_points[q].first));
-    const Vector<T, 3> node_dt(rotate_vector(rotator,
-                                             Point<T, 3>({0.0, 0.0, 0.0}),
-                                             trimming_curve_data.quadrature_points[q].second));
-    const double node_norm = node.norm();
-
-    const double quad_weight = quad_rule.IntPoint(q).weight * trimming_curve_data.span_length;
-
-    // This is the z-aligned axis
-    this_quad += quad_weight * (node[1] * node[2] * node_dt[0] - node[0] * node[2] * node_dt[1]) /
-      (node[0] * node[0] + node[1] * node[1]) / node_norm;
-  }
-
-  return this_quad;
-}
 // #endif
 
 }  // end namespace detail
