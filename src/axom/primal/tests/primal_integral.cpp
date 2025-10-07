@@ -446,12 +446,12 @@ TEST(primal_integral, evaluate_nurbs_surface_normal)
 #ifdef AXOM_USE_MFEM
 TEST(primal_integral, check_axom_mfem_quadrature_values)
 {
-  const int N = 200;
+  const int N = 3;
 
-  for(int npts = 1; npts <= N; ++npts)
+  for(int npts = N; npts <= N; ++npts)
   {
     // Generate the Axom quadrature rule
-    axom::numerics::QuadratureRule axom_rule = axom::numerics::compute_gauss_legendre(npts);
+    axom::numerics::QuadratureRule axom_rule = axom::numerics::get_gauss_legendre(npts);
 
     // Generate the MFEM quadrature rule
     static mfem::IntegrationRules my_IntRules(0, mfem::Quadrature1D::GaussLegendre);

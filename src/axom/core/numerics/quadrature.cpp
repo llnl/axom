@@ -3,6 +3,7 @@
 //
 // SPDX-License-Identifier: (BSD-3-Clause)
 
+#include "axom/core/utilities/Utilities.hpp"
 #include "axom/core/Array.hpp"
 #include "axom/core/FlatMap.hpp"
 #include "axom/core/NumericLimits.hpp"
@@ -10,6 +11,7 @@
 
 // For math constants and includes
 #include "axom/config.hpp"
+
 #include <cmath>
 
 namespace axom
@@ -21,6 +23,8 @@ namespace numerics
  * \brief Computes a 1D quadrature rule of Gauss-Legendre points 
  *
  * \param [in] npts The number of points in the rule
+ * \param [out] nodes The array of 1D nodes
+ * \param [out] weights The array of weights
  * 
  * A Gauss-Legendre rule with \a npts points can exactly integrate
  *  polynomials of order 2 * npts - 1
@@ -29,39 +33,38 @@ namespace numerics
  * 
  * \note This method constructs the points by scratch each time, without caching
  * \sa get_gauss_legendre(int)
- *
- * \return The `QuadratureRule` object which contains axom::Array<double>'s of nodes and weights
  */
-QuadratureRule compute_gauss_legendre(int npts)
+void compute_gauss_legendre_data(int npts, axom::Array<double>& nodes, axom::Array<double>& weights)
 {
-  SLIC_ASSERT(npts >= 1, "Quadrature rules must have >= 1 point");
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
 
-  QuadratureRule rule(npts);
+  nodes.resize(npts);
+  weights.resize(npts);
 
   if(npts == 1)
   {
-    rule.m_nodes[0] = 0.5;
-    rule.m_weights[0] = 1.0;
-    return rule;
+    nodes[0] = 0.5;
+    weights[0] = 1.0;
+    return;
   }
   if(npts == 2)
   {
-    rule.m_nodes[0] = 0.21132486540518711775;
-    rule.m_nodes[1] = 0.78867513459481288225;
+    nodes[0] = 0.21132486540518711775;
+    nodes[1] = 0.78867513459481288225;
 
-    rule.m_weights[0] = rule.m_weights[1] = 0.5;
-    return rule;
+    weights[0] = weights[1] = 0.5;
+    return;
   }
   if(npts == 3)
   {
-    rule.m_nodes[0] = 0.11270166537925831148207345;
-    rule.m_nodes[1] = 0.5;
-    rule.m_nodes[2] = 0.88729833462074168851792655;
+    nodes[0] = 0.11270166537925831148207345;
+    nodes[1] = 0.5;
+    nodes[2] = 0.88729833462074168851792655;
 
-    rule.m_weights[0] = 0.2777777777777777777777778;
-    rule.m_weights[1] = 0.4444444444444444444444444;
-    rule.m_weights[2] = 0.2777777777777777777777778;
-    return rule;
+    weights[0] = 0.2777777777777777777777778;
+    weights[1] = 0.4444444444444444444444444;
+    weights[2] = 0.2777777777777777777777778;
+    return;
   }
 
   const int n = npts;
@@ -114,14 +117,12 @@ QuadratureRule compute_gauss_legendre(int npts)
       z -= dz;
     }
 
-    rule.m_nodes[i - 1] = xi;
-    rule.m_nodes[n - i] = 1.0 - xi;
+    nodes[i - 1] = xi;
+    nodes[n - i] = 1.0 - xi;
 
     // Evaluate the weight as w_i = 2 / (1 - z^2) / P'_n(z)^2, with z \in [-1, 1]
-    rule.m_weights[i - 1] = rule.m_weights[n - i] = 1.0 / (4.0 * xi * (1.0 - xi) * Pp_n * Pp_n);
+    weights[i - 1] = weights[n - i] = 1.0 / (4.0 * xi * (1.0 - xi) * Pp_n * Pp_n);
   }
-
-  return rule;
 }
 
 /*!
@@ -137,20 +138,25 @@ QuadratureRule compute_gauss_legendre(int npts)
  *
  * \warning The use of a static variable to store cached nodes makes this method not threadsafe.
  * 
- * \return The `QuadratureRule` object which contains axom::Array<double>'s of nodes and weights
+ * \return The `QuadratureRule` object which contains axom::ArrayView<double>'s of stored nodes and weights
  */
-const QuadratureRule& get_gauss_legendre(int npts)
+QuadratureRule get_gauss_legendre(int npts)
 {
-  SLIC_ASSERT(npts >= 1, "Quadrature rules must have >= 1 point");
+  assert("Quadrature rules must have >= 1 point" && (npts >= 1));
 
   // Define a static map that stores the GL quadrature rule for a given order
-  static axom::FlatMap<int, QuadratureRule> rule_library;
+  static axom::FlatMap<int, std::pair<axom::Array<double>, axom::Array<double>>> rule_library;
   if(rule_library.find(npts) == rule_library.end())
   {
-    rule_library[npts] = compute_gauss_legendre(npts);
+    rule_library[npts] = std::make_pair(axom::Array<double>(npts), axom::Array<double>(npts));
+    compute_gauss_legendre_data(npts, rule_library[npts].first, rule_library[npts].second);
   }
 
-  return rule_library[npts];
+  QuadratureRule rule;
+  rule.m_nodes = rule_library[npts].first.view();
+  rule.m_weights = rule_library[npts].second.view();
+
+  return rule;
 }
 
 } /* end namespace numerics */
