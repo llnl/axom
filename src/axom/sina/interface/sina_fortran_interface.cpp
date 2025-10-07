@@ -6,6 +6,11 @@
 #include <string.h>
 
 #include "axom/sina/interface/sina_fortran_interface.h"
+#include "axom/sina/core/Document.hpp"
+#include "axom/sina/core/Record.hpp"
+#include "axom/sina/core/CurveSet.hpp"
+#include <cstring>
+
 
 axom::sina::Document *sina_document;
 
@@ -19,13 +24,13 @@ extern "C" char *Get_File_Extension(char *input_fn)
   return (ext + 1);
 }
 
-extern "C" void create_document_and_record_(char *recID)
+extern "C" void create_document_and_record_(char *recID, char *recType)
 {
   sina_document = new axom::sina::Document;
   // Create a record of "My Sim Code" version "1.2.3", which was run by "jdoe".
   // The run has an ID of "run1", which has to be unique to this file.
   axom::sina::ID id {recID, axom::sina::IDType::Global};
-  std::unique_ptr<axom::sina::Record> myRecord {new axom::sina::Record {id, "my_type"}};
+  std::unique_ptr<axom::sina::Record> myRecord {new axom::sina::Record {id, recType}};
   sina_document->add(std::move(myRecord));
 }
 
@@ -413,3 +418,166 @@ extern "C" void sina_add_curve_double_(char *curveset_name,
     }
   }
 }
+
+//=============================================================================
+// Save/Output Functions (NEW)
+//=============================================================================
+
+extern "C" int sina_save_document_fortran(
+    void* document_handle,
+    const char* file_path,
+    int output_protocol)
+{
+    try {
+        axom::sina::Document* doc = static_cast<axom::sina::Document*>(document_handle);
+        if (!doc) return -1;
+        
+        axom::sina::saveDocument(*doc, std::string(file_path), static_cast<axom::sina::Protocol>(output_protocol));
+        return 0;
+    }
+    catch (const std::runtime_error& e) { return -2; }
+    catch (const std::exception& e) { return -3; }
+    catch (...) { return -4; }
+}
+
+extern "C" int sina_output_document_to_json_fortran(
+    void* document_handle,
+    const char* file_path)
+{
+    try {
+        axom::sina::Document* doc = static_cast<axom::sina::Document*>(document_handle);
+        if (!doc) return -1;
+        
+        axom::sina::saveDocument(*doc, std::string(file_path), axom::sina::Protocol::JSON);
+        return 0;
+    }
+    catch (...) { return -2; }
+}
+
+extern "C" int sina_output_document_to_hdf5_fortran(
+    void* document_handle,
+    const char* file_path)
+{
+#ifdef AXOM_USE_HDF5
+    try {
+        axom::sina::Document* doc = static_cast<axom::sina::Document*>(document_handle);
+        if (!doc) return -1;
+        
+        axom::sina::saveDocument(*doc, std::string(file_path), axom::sina::Protocol::HDF5);
+        return 0;
+    }
+    catch (...) { return -2; }
+#else
+    return -4;
+#endif
+}
+
+//=============================================================================
+// Append Functions (NEW)
+//=============================================================================
+
+extern "C" int sina_append_document_fortran(
+    void* document_handle,
+    const char* file_path,
+    int merge_protocol,
+    int output_protocol)
+{
+    try {
+        axom::sina::Document* doc = static_cast<axom::sina::Document*>(document_handle);
+        if (!doc) return -1;
+        
+        axom::sina::appendDocument(*doc, std::string(file_path), 
+                                  merge_protocol, static_cast<axom::sina::Protocol>(output_protocol));
+        return 0;
+    }
+    catch (const std::runtime_error& e) { return -2; }
+    catch (const std::exception& e) { return -3; }
+    catch (...) { return -4; }
+}
+
+extern "C" int sina_append_document_to_json_fortran(
+    void* document_handle,
+    const char* file_path,
+    int merge_protocol)
+{
+    try {
+        axom::sina::Document* doc = static_cast<axom::sina::Document*>(document_handle);
+        if (!doc) return -1;
+        
+        axom::sina::appendDocument(*doc, std::string(file_path), merge_protocol, axom::sina::Protocol::JSON);
+        return 0;
+    }
+    catch (...) { return -2; }
+}
+
+extern "C" int sina_append_document_to_hdf5_fortran(
+    void* document_handle,
+    const char* file_path,
+    int merge_protocol)
+{
+#ifdef AXOM_USE_HDF5
+    try {
+        axom::sina::Document* doc = static_cast<axom::sina::Document*>(document_handle);
+        if (!doc) return -1;
+        
+        axom::sina::appendDocument(*doc, std::string(file_path), merge_protocol, axom::sina::Protocol::HDF5);
+        return 0;
+    }
+    catch (...) { return -2; }
+#else
+    return -4;
+#endif
+}
+
+//=============================================================================
+// Curve Ordering Functions (NEW - PR #1559)
+//=============================================================================
+
+// extern "C" int sina_record_set_curve_order_fortran(void* record_handle, int curve_order)
+// {
+//     try {
+//         axom::sina::Record* record = static_cast<axom::sina::Record*>(record_handle);
+//         if (!record) return -1;
+        
+//         axom::sina::CurveSet::CurveOrder order;
+//         switch (curve_order) {
+//             case 0: order = axom::sina::CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST; break;
+//             case 1: order = axom::sina::CurveSet::CurveOrder::REGISTRATION_NEWEST_FIRST; break;
+//             case 2: order = axom::sina::CurveSet::CurveOrder::ALPHABETIC; break;
+//             case 3: order = axom::sina::CurveSet::CurveOrder::REVERSE_ALPHABETIC; break;
+//             default: return -2;
+//         }
+        
+//         record->setCurveOrder(order);
+//         return 0;
+//     }
+//     catch (...) { return -3; }
+// }
+
+// extern "C" int sina_record_get_curve_order_fortran(void* record_handle, int* curve_order)
+// {
+//     try {
+//         axom::sina::Record* record = static_cast<axom::sina::Record*>(record_handle);
+//         if (!record) return -1;
+        
+//         axom::sina::CurveSet::CurveOrder order = record->getCurveOrder();
+        
+//         switch (order) {
+//             case axom::sina::CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST:
+//                 *curve_order = 0; break;
+//             case axom::sina::CurveSet::CurveOrder::REGISTRATION_NEWEST_FIRST:
+//                 *curve_order = 1; break;
+//             case axom::sina::CurveSet::CurveOrder::ALPHABETIC:
+//                 *curve_order = 2; break;
+//             case axom::sina::CurveSet::CurveOrder::REVERSE_ALPHABETIC:
+//                 *curve_order = 3; break;
+//             default: return -2;
+//         }
+        
+//         return 0;
+//     }
+//     catch (...) { return -3; }
+// }
+
+
+

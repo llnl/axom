@@ -6,7 +6,6 @@
 #include "axom/sina.hpp"
 
 extern "C" char *Get_File_Extension(char *);
-extern "C" void create_document_and_run_(char *);
 extern "C" axom::sina::Record *Sina_Get_Run();
 extern "C" void sina_add_file_to_record_(char *);
 extern "C" void sina_add_file_with_mimetype_to_record_(char *, char *);
@@ -23,3 +22,14 @@ extern "C" void sina_add_curve_double_(char *, char *, double *, int *, bool *);
 extern "C" void sina_add_curve_float_(char *, char *, float *, int *, bool *);
 extern "C" void sina_add_curve_int_(char *, char *, int *, int *, bool *);
 extern "C" void sina_add_curve_long_(char *, char *, long long int *, int *, bool *);
+// Save/Output Functions
+extern "C" int sina_save_document_fortran(void* , const char* , int);
+extern "C" int sina_output_document_to_json_fortran(void* , const char*);
+extern "C" int sina_output_document_to_hdf5_fortran(void* , const char*);
+// Append Functions
+extern "C" int sina_append_document_fortran(void* , const char* , int , int);
+extern "C" int sina_append_document_to_json_fortran(void* , const char* , int);
+extern "C" int sina_append_document_to_hdf5_fortran(void* , const char* , int);
+// Curve Ordering Functions
+extern "C" int sina_record_set_curve_order_fortran(void* , int);
+extern "C" int sina_record_get_curve_order_fortran(void* , int*);
