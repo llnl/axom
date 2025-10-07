@@ -88,14 +88,3 @@ TEST(numerics_quadrature, gauss_legendre_math_check)
     }
   }
 }
-
-TEST(numerics_quadrature, gauss_legendre_cache_check)
-{
-  // The first two rules are put in the cache
-  axom::numerics::QuadratureRule first_rule = axom::numerics::get_gauss_legendre(20);
-  axom::numerics::QuadratureRule second_rule = axom::numerics::get_gauss_legendre(20);
-
-  // Check that the two rules are located in the same place in memory, and the third isn't
-  // EXPECT_EQ(&first_rule.node(0), &second_rule.node(0));
-  // EXPECT_EQ(&first_rule.weight(0), &second_rule.weight(0));
-}

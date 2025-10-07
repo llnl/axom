@@ -10,6 +10,10 @@
 
 #include "gtest/gtest.h"
 
+#ifdef AXOM_USE_MFEM
+  #include "mfem.hpp"
+#endif
+
 namespace primal = axom::primal;
 
 TEST(primal_integral, evaluate_area_integral)
@@ -509,9 +513,9 @@ TEST(primal_integral, evaluate_integral_nurbs_gwn_cache)
 #ifdef AXOM_USE_MFEM
 TEST(primal_integral, check_axom_mfem_quadrature_values)
 {
-  const int N = 3;
+  const int N = 200;
 
-  for(int npts = N; npts <= N; ++npts)
+  for(int npts = 1; npts <= N; ++npts)
   {
     // Generate the Axom quadrature rule
     axom::numerics::QuadratureRule axom_rule = axom::numerics::get_gauss_legendre(npts);

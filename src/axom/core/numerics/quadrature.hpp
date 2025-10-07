@@ -22,7 +22,7 @@ namespace numerics
 /*!
  * \class QuadratureRule
  *
- * \brief Stores a fixed array of 1D quadrature points and weights
+ * \brief Stores fixed views to arrays of 1D quadrature points and weights
  */
 class QuadratureRule
 {
@@ -38,7 +38,7 @@ public:
   //! \brief Accessor for quadrature weights
   double weight(size_t idx) const { return m_weights[idx]; };
 
-  //! \brief Accessofr for the size of the quadrature rule
+  //! \brief Accessor for the size of the quadrature rule
   int getNumPoints() const { return m_nodes.size(); }
 
 private:
@@ -61,9 +61,7 @@ private:
  * \note This method constructs the points by scratch each time, without caching
  * \sa get_gauss_legendre(int)
  */
-void compute_gauss_legendre_data(int npts,
-                                 axom::Array<double>& nodes,
-                                 axom::Array<double>& weights);
+void compute_gauss_legendre_data(int npts, axom::Array<double>& nodes, axom::Array<double>& weights);
 
 /*!
  * \brief Computes or accesses a precomputed 1D quadrature rule of Gauss-Legendre points 

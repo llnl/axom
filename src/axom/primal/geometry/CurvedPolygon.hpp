@@ -31,7 +31,8 @@ namespace axom
 {
 namespace primal
 {
-
+namespace internal
+{
 ///@{
 /// \name Boilerplate to deduce the numeric type from the curve object
 template <typename U>
@@ -66,6 +67,7 @@ template <typename T>
 struct has_cached_data<detail::NURBSCurveGWNCache<T>> : std::true_type
 { };
 ///@}
+}  // namespace internal
 
 // Forward declare the templated classes and operator functions
 template <typename CurveType>
@@ -88,7 +90,7 @@ template <typename CurveType>
 class CurvedPolygon
 {
 public:
-  using T = typename get_numeric_type<CurveType>::type;
+  using T = typename internal::get_numeric_type<CurveType>::type;
 
   using PointType = typename CurveType::PointType;
   using VectorType = typename CurveType::VectorType;
@@ -169,7 +171,7 @@ public:
   void splitEdge(int idx, T t)
   {
     SLIC_ASSERT(idx < static_cast<int>(m_edges.size()));
-    AXOM_STATIC_ASSERT_MSG(!has_cached_data<CurveType>::value,
+    AXOM_STATIC_ASSERT_MSG(!internal::has_cached_data<CurveType>::value,
                            "splitEdge cannot be called on objects with associated cache data");
 
     m_edges.reserve(numEdges() + 1);
@@ -261,7 +263,7 @@ public:
   void reverseOrientation()
   {
     AXOM_STATIC_ASSERT_MSG(
-      !has_cached_data<CurveType>::value,
+      !internal::has_cached_data<CurveType>::value,
       "reverseOrientation cannot be called on objects with associated cache data");
 
     const int ngon = numEdges();
