@@ -6,8 +6,6 @@
 #include "axom/primal.hpp"
 #include "axom/slic.hpp"
 #include "axom/fmt.hpp"
-#include "axom/primal/operators/evaluate_integral.hpp"
-#include "axom/primal/operators/winding_number.hpp"
 #include <iostream>
 
 #include "gtest/gtest.h"
@@ -462,8 +460,10 @@ TEST(primal_integral, check_axom_mfem_quadrature_values)
     // Check that the nodes and weights are the same between the two rules
     for(int j = 0; j < npts; ++j)
     {
-      EXPECT_NEAR(axom_rule.node(j), mfem_rule.IntPoint(j).x, 1e-16);
-      EXPECT_NEAR(axom_rule.weight(j), mfem_rule.IntPoint(j).weight, 1e-16);
+      EXPECT_NEAR(axom_rule.node(j), mfem_rule.IntPoint(j).x, axom::numeric_limits<double>::epsilon());
+      EXPECT_NEAR(axom_rule.weight(j),
+                  mfem_rule.IntPoint(j).weight,
+                  axom::numeric_limits<double>::epsilon());
     }
   }
 }

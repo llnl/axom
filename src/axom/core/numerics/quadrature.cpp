@@ -5,6 +5,7 @@
 
 #include "axom/core/Array.hpp"
 #include "axom/core/FlatMap.hpp"
+#include "axom/core/NumericLimits.hpp"
 #include "axom/core/numerics/quadrature.hpp"
 
 // For math constants and includes
@@ -33,6 +34,8 @@ namespace numerics
  */
 QuadratureRule compute_gauss_legendre(int npts)
 {
+  SLIC_ASSERT(npts >= 1, "Quadrature rules must have >= 1 point");
+
   QuadratureRule rule(npts);
 
   if(npts == 1)
@@ -68,7 +71,7 @@ QuadratureRule compute_gauss_legendre(int npts)
   for(int i = 1; i <= m; ++i)
   {
     // Each node is the root of a Legendre polynomial,
-    //  which are approximately uniformly distirbuted in arccos(xi).
+    //  which are approximately uniformly distributed in arccos(xi).
     // This makes cos a good initial guess for subsequent Newton iterations
     double z = std::cos(M_PI * (i - 0.25) / (n + 0.5));
     double Pp_n, P_n, dz, xi = 0.0;
@@ -99,7 +102,7 @@ QuadratureRule compute_gauss_legendre(int npts)
       // Compute the Newton method step size
       dz = P_n / Pp_n;
 
-      if(std::fabs(dz) < 1e-16)
+      if(std::fabs(dz) < axom::numeric_limits<double>::epsilon())
       {
         done = true;
 
@@ -132,10 +135,14 @@ QuadratureRule compute_gauss_legendre(int npts)
  * \note If this method has already been called for a given order, it will reuse the same quadrature points
  *  without needing to recompute them
  *
+ * \warning The use of a static variable to store cached nodes makes this method not threadsafe.
+ * 
  * \return The `QuadratureRule` object which contains axom::Array<double>'s of nodes and weights
  */
 const QuadratureRule& get_gauss_legendre(int npts)
 {
+  SLIC_ASSERT(npts >= 1, "Quadrature rules must have >= 1 point");
+
   // Define a static map that stores the GL quadrature rule for a given order
   static axom::FlatMap<int, QuadratureRule> rule_library;
   if(rule_library.find(npts) == rule_library.end())

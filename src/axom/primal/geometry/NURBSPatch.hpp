@@ -2488,8 +2488,7 @@ public:
    *  then computes the 2D area of that projection to get the corresponding
    *  component of the average surface normal.
    *  
-   * Evaluates line integrals with MFEM integration rules if available, 
-   *  or axom/numerics/quadrature otherwise, which are less robust for large npts (> ~100)
+   * Evaluates the integral with Gauss-Legendre quadrature on each boundary curve
    * 
    * \return The calculated mean surface normal
    */
@@ -3099,8 +3098,7 @@ public:
    * Decomposes the NURBS surface into trimmed Bezier components (to ensure differentiability of the integrand) 
    *  and evaluates the integral numerically on each component using trimming curves
    * 
-   * Evaluates line integrals with MFEM integration rules if available, 
-   *  or axom/numerics/quadrature otherwise, which are less robust for large npts (> ~100)
+   * Evaluates the integral with Gauss-Legendre quadrature on each boundary curve
    * 
    * \return The calculated mean surface normal
    */
