@@ -15,12 +15,12 @@ spack:
     - $spack/../build_stage
 
   toolchains:
-    clang_14:
+    clang_19:
     - spec: '%c=llvm'
       when: '%c'
     - spec: '%cxx=llvm'
       when: '%cxx'
-    - spec: '%fortran=gcc@11.4.0'
+    - spec: '%fortran=gcc@13.3.1'
       when: '%fortran'
     - spec: '%mpich'
       when: '%mpi'
@@ -89,12 +89,12 @@ spack:
           cxxflags: -pthread
     llvm:
       externals:
-      - spec: llvm@14.0.0+clang~lld~lldb
-        prefix: /usr/lib/llvm-14
+      - spec: llvm@19.0.0+clang~lld~lldb
+        prefix: /usr/lib/llvm-19
         extra_attributes:
           compilers:
-            c: /usr/lib/llvm-14/bin/clang
-            cxx: /usr/lib/llvm-14/bin/clang++
+            c: /usr/lib/llvm-19/bin/clang
+            cxx: /usr/lib/llvm-19/bin/clang++
           # Axom example sidre_shocktube_F_ex doesn't link otherwise
           flags:
             cflags: -fPIC -pthread
