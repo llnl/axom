@@ -100,13 +100,10 @@ spack:
             cflags: -fPIC -pthread
             cxxflags: -fPIC -pthread
 
-    # Spack may grab for mpi & we don't want to use them
+    # Use spack-built mpich.
+    # Ubuntu 24.04's mpich has unit test failures.
     mpi:
-      buildable: false
-    mpich:
-      externals:
-      - spec: mpich@4.0
-        prefix: /usr
+      require: "mpich@4.2.0"
 
     # System level packages to not build
     autotools:
