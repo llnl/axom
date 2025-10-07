@@ -103,7 +103,7 @@ double evaluate_scalar_line_integral(const axom::Array<CurveType>& carray,
   double total_integral = 0.0;
   for(int i = 0; i < carray.size(); i++)
   {
-    total_integral += evaluate_scalar_line_integral(carray[i], scalar_integrand, npts);
+    total_integral += detail::evaluate_scalar_line_integral(carray[i], scalar_integrand, npts);
   }
 
   return total_integral;
@@ -181,7 +181,7 @@ double evaluate_vector_line_integral(const axom::Array<CurveType>& carray,
   double total_integral = 0.0;
   for(int i = 0; i < carray.size(); i++)
   {
-    total_integral += evaluate_vector_line_integral(carray[i], vector_integrand, npts);
+    total_integral += detail::evaluate_vector_line_integral(carray[i], vector_integrand, npts);
   }
 
   return total_integral;

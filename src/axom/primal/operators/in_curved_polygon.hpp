@@ -31,6 +31,7 @@ namespace primal
 /*!
  * \brief Robustly determine if query point is interior to a curved polygon
  *
+ * \tparam CurveType The BezierCurve, NURBSCurve, or NURBSCurveGWNCache which represents the curve
  * \param [in] query The query point to test
  * \param [in] cpoly The CurvedPolygon object to test for containment
  * \param [in] edge_tol The physical distance level at which objects are 
@@ -46,9 +47,9 @@ namespace primal
  *
  * \return A boolean value indicating containment.
  */
-template <typename T>
+template <typename T, typename CurveType>
 bool in_curved_polygon(const Point<T, 2>& query,
-                       const CurvedPolygon<BezierCurve<T, 2>>& cpoly,
+                       const CurvedPolygon<CurveType>& cpoly,
                        bool useNonzeroRule = true,
                        double edge_tol = 1e-8,
                        double EPS = 1e-8)
