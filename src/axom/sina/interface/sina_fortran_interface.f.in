@@ -28,96 +28,108 @@ module sina_functions
   end interface
   
   interface
-    subroutine sina_add_file(file_nm, mime_type) 
+    subroutine sina_add_file(file_nm, mime_type, rec) 
       character(*) file_nm  
       character(*) mime_type
+      character(*), optional ::  rec
     end subroutine sina_add_file
     
   end interface
   
   interface sina_add
   
-    subroutine sina_add_long(key, value, units, tags)
+    subroutine sina_add_long(key, value, units, tags, rec)
       character(*) key
       integer (KIND=8) value
       character(*) units
       character(*) tags
+      character(*), optional :: rec
     end subroutine sina_add_long
     
-    subroutine sina_add_logical(key, value, units, tags)
+    subroutine sina_add_logical(key, value, units, tags, rec)
       character(*) key
       logical value
       character(*) units
       character(*) tags
+      character(*), optional ::  rec
     end subroutine sina_add_logical
     
-    subroutine sina_add_int(key, value, units, tags)
+    subroutine sina_add_int(key, value, units, tags, rec)
       character(*) key
       integer value
       character(*) units
       character(*) tags
+      character(*), optional ::  rec
     end subroutine sina_add_int
     
-    subroutine sina_add_double(key, value, units, tags)
+    subroutine sina_add_double(key, value, units, tags, rec)
       character(*) key
       double precision value
       character(*) units
       character(*) tags
+      character(*), optional ::  rec
     end subroutine sina_add_double
-    subroutine sina_add_float(key, value, units, tags)
+    subroutine sina_add_float(key, value, units, tags, rec)
       character(*) key
       real value
       character(*) units
       character(*) tags
+      character(*), optional ::  rec
     end subroutine sina_add_float
-    subroutine sina_add_string(key, value, units, tags)
+    subroutine sina_add_string(key, value, units, tags, rec)
       character(*) key
       character(*) value
       character(*) units
       character(*) tags
+      character(*), optional ::  rec
     end subroutine sina_add_string
     
   end interface
   interface sina_add_curveset
   
-    subroutine sina_add_curveset(name)
+    subroutine sina_add_curveset(name, rec)
       character(*) name
+      character(*), optional ::  rec
     end subroutine sina_add_curveset
     
   end interface
   
   interface sina_add_curve
   
-    subroutine sina_add_curve_double(name, curve, values, n, independent)
+    subroutine sina_add_curve_double(name, curve, values, n, independent, rec)
       character(*) name
       character(*) curve
       double precision values(n)
       integer n
       logical independent
+      character(*), optional ::  rec
     end subroutine sina_add_curve_double
     
-    subroutine sina_add_curve_float(name, curve, values, n, independent)
+    subroutine sina_add_curve_float(name, curve, values, n, independent, rec)
       character(*) name
       character(*) curve
       real values(n)
       integer n
       logical independent
+      character(*), optional ::  rec
     end subroutine sina_add_curve_float
     
-    subroutine sina_add_curve_int(name, curve, values, n, independent)
+    subroutine sina_add_curve_int(name, curve, values, n, independent, rec)
       character(*) name
       character(*) curve
       integer (KIND=4), dimension(n) :: values
       integer n
       logical independent
+      character(*), optional ::  rec
     end subroutine sina_add_curve_int
     
-    subroutine sina_add_curve_long(name, curve, values, n, independent)
+    subroutine sina_add_curve_long(name, curve, values, n, independent, rec)
       character(*) name
       character(*) curve
       integer (KIND=8), dimension(n) :: values
       integer n
       logical independent
+      character(*), optional ::  rec
     end subroutine sina_add_curve_long
     
   end interface

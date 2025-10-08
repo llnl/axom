@@ -24,7 +24,7 @@ program example
   character(17) :: wrk_dir
   character(29) :: full_path
   character(36) :: ofull_path
-  character(:), allocatable  :: rec_id
+  character(:), allocatable  :: rec_id, rec2_id
   character(:), allocatable :: mime_type
   character(:), allocatable :: tag
   character(:), allocatable :: units 
@@ -52,6 +52,7 @@ program example
   end do
   
   rec_id = make_cstring('my_rec_id')
+  rec2_id = make_cstring('my_rec_2_id')
   fle_nme = 'my_file.txt'
   ofle_nme = 'my_other_file.txt'
   wrk_dir = '/path/to/my/file/'
@@ -67,17 +68,20 @@ program example
   units = make_cstring('')
   tag = make_cstring('')
   
-  print *,rec_id
+  print *,rec_id, rec2_id
 
   ! ========== USAGE ==========
   
   ! create sina record and document
   print *,'Creating the document'
   call create_document_and_record(rec_id)
+  print *,'Creating the document and second record'
+  call create_document_and_record(rec2_id)
   
   ! add file to sina record
   print *,'Adding a file to the Sina record'
   call sina_add_file(full_path, mime_type)
+  call sina_add_file(full_path, mime_type, rec2_id)
   mime_type = make_cstring('png')
   print *,'Adding another file (PNG) to the Sina record'
   call sina_add_file(ofull_path, mime_type)
@@ -96,6 +100,7 @@ program example
   print *, "Adding double"
   name = make_cstring('double')
   call sina_add(name, double_val, units, tag)
+  call sina_add(name, double_val, units, tag, rec2_id)
   print *, "Adding char"
   name = make_cstring('char')
   call sina_add(name, trim(char_val)//char(0), units, tag)
@@ -134,6 +139,7 @@ program example
   curve = make_cstring('my_indep_curve_double')
   independent = .TRUE.
   call sina_add_curve(name, curve, double_arr, size(double_arr), independent)
+  call sina_add_curve(name, curve, double_arr, size(double_arr), independent, rec2_id)
   curve = make_cstring('my_indep_curve_real')
   call sina_add_curve(name, curve, real_arr, size(real_arr), independent)
   curve = make_cstring('my_indep_curve_int')

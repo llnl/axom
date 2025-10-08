@@ -44,11 +44,14 @@ class TestFortranExampleIntegrationJSON(unittest.TestCase):
 
     def setUp(self):
         """ Invoke example Fortran application to dump a sina file """
-        subprocess.run([os.path.join(self.binary_dir, "examples/sina_fortran_ex")])
+        p = subprocess.Popen([os.path.join(self.binary_dir, "examples/sina_fortran_ex")], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+        o,e = p.communicate()
+        print("DID SET THIS UP", p.returncode)
         self.dump_file = "sina_dump.json"
         
     def tearDown(self):
         """ Clean up output directory after each test. """
+        print("TEARING DOWN")
         os.remove(self.dump_file)
     
     def test_file_validity(self):
@@ -71,7 +74,10 @@ class TestFortranExampleIntegrationJSON(unittest.TestCase):
         with open(self.dump_file, "r", encoding="utf-8") as loaded_test:
             rec = json.load(loaded_test)
 
+        self.assertEqual(2,3)
+        self.assertEqual(len(rec["records"]), 20)
         record = rec["records"][0]
+        record2 = rec["records"][1]
         
         # Test the metadata in the record
         self.assertEqual("my_rec_id", record["id"])

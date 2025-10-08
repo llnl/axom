@@ -34,25 +34,37 @@ extern "C" void create_document_and_record_(char *recID, char *recType)
   sina_document->add(std::move(myRecord));
 }
 
-extern "C" axom::sina::Record *Sina_Get_Record()
+extern "C" axom::sina::Record *Sina_Get_Record(char * recId=NULL)
 {
   if(sina_document)
   {
     axom::sina::Document::RecordList const &allRecords = sina_document->getRecords();
     if(allRecords.size())
     {
-      std::unique_ptr<axom::sina::Record> const &myRecord = allRecords.front();
-      return myRecord.get();
+      if (recId == NULL) {
+        std::unique_ptr<axom::sina::Record> const &myRecord = allRecords.front();
+        return myRecord.get();
+      }
+      else {
+        axom::sina::ID id {recId, axom::sina::IDType::Global};
+        for (const std::unique_ptr<axom::sina::Record> &myRecord : allRecords) {
+          const char* current_id_str = myRecord->getId().getId().c_str();
+          // Compare the input C-string (recId) with the current record's C-string ID
+          if (strcmp(recId, current_id_str) == 0) { 
+            return myRecord.get();
+         } 
+        }
+      }
     }
   }
   return nullptr;
 }
 
-extern "C" void sina_add_logical_(char *key, bool *value, char *units, char *tags)
+extern "C" void sina_add_logical_(char *key, bool *value, char *units, char *tags, char *recId=NULL)
 {
   if(sina_document)
   {
-    axom::sina::Record *sina_record = Sina_Get_Record();
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
     std::string key_name = std::string(key);
     if(sina_record)
     {
@@ -78,11 +90,11 @@ extern "C" void sina_add_logical_(char *key, bool *value, char *units, char *tag
   }
 }
 
-extern "C" void sina_add_long_(char *key, long long int *value, char *units, char *tags)
+extern "C" void sina_add_long_(char *key, long long int *value, char *units, char *tags, char *recId=NULL)
 {
   if(sina_document)
   {
-    axom::sina::Record *sina_record = Sina_Get_Record();
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
     std::string key_name = std::string(key);
     if(sina_record)
     {
@@ -108,11 +120,11 @@ extern "C" void sina_add_long_(char *key, long long int *value, char *units, cha
   }
 }
 
-extern "C" void sina_add_int_(char *key, int *value, char *units, char *tags)
+extern "C" void sina_add_int_(char *key, int *value, char *units, char *tags, char *recId=NULL)
 {
   if(sina_document)
   {
-    axom::sina::Record *sina_record = Sina_Get_Record();
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
     std::string key_name = std::string(key);
     if(sina_record)
     {
@@ -138,11 +150,11 @@ extern "C" void sina_add_int_(char *key, int *value, char *units, char *tags)
   }
 }
 
-extern "C" void sina_add_double_(char *key, double *value, char *units, char *tags)
+extern "C" void sina_add_double_(char *key, double *value, char *units, char *tags, char *recId=NULL)
 {
   if(sina_document)
   {
-    axom::sina::Record *sina_record = Sina_Get_Record();
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
     std::string key_name = std::string(key);
     if(sina_record)
     {
@@ -168,11 +180,11 @@ extern "C" void sina_add_double_(char *key, double *value, char *units, char *ta
   }
 }
 
-extern "C" void sina_add_float_(char *key, float *value, char *units, char *tags)
+extern "C" void sina_add_float_(char *key, float *value, char *units, char *tags, char *recId=NULL)
 {
   if(sina_document)
   {
-    axom::sina::Record *sina_record = Sina_Get_Record();
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
     std::string key_name = std::string(key);
     if(sina_record)
     {
@@ -198,11 +210,11 @@ extern "C" void sina_add_float_(char *key, float *value, char *units, char *tags
   }
 }
 
-extern "C" void sina_add_string_(char *key, char *value, char *units, char *tags)
+extern "C" void sina_add_string_(char *key, char *value, char *units, char *tags, char *recId=NULL)
 {
   if(sina_document)
   {
-    axom::sina::Record *sina_record = Sina_Get_Record();
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
     std::string key_name = std::string(key);
     std::string key_value = std::string(value);
     std::string key_units = std::string(units);
@@ -230,12 +242,12 @@ extern "C" void sina_add_string_(char *key, char *value, char *units, char *tags
   }
 }
 
-extern "C" void sina_add_file_(char *filename, char *mime_type)
+extern "C" void sina_add_file_(char *filename, char *mime_type, char *recId)
 {
   std::string used_mime_type = "";
   if(sina_document)
   {
-    axom::sina::Record *sina_record = Sina_Get_Record();
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
     if(mime_type)
     {
       used_mime_type = std::string(mime_type);
@@ -279,11 +291,11 @@ extern "C" void write_sina_document_noprotocol_(char *input_fn)
   }
 }
 
-extern "C" void sina_add_curveset_(char *name)
+extern "C" void sina_add_curveset_(char *name, char *recId=NULL)
 {
   if(sina_document)
   {
-    axom::sina::Record *sina_record = Sina_Get_Record();
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
     if(sina_record)
     {
       axom::sina::CurveSet cs {name};
@@ -296,11 +308,12 @@ extern "C" void sina_add_curve_long_(char *curveset_name,
                                      char *curve_name,
                                      long long int *values,
                                      int *n,
-                                     bool *independent)
+                                     bool *independent,
+                                     char *recId=NULL)
 {
   if(sina_document)
   {
-    axom::sina::Record *sina_record = Sina_Get_Record();
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
     if(sina_record)
     {
       std::vector<double> y(*n);
@@ -329,11 +342,12 @@ extern "C" void sina_add_curve_int_(char *curveset_name,
                                     char *curve_name,
                                     int *values,
                                     int *n,
-                                    bool *independent)
+                                    bool *independent,
+                                    char *recId=NULL)
 {
   if(sina_document)
   {
-    axom::sina::Record *sina_record = Sina_Get_Record();
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
     if(sina_record)
     {
       std::vector<double> y(*n);
@@ -362,11 +376,12 @@ extern "C" void sina_add_curve_float_(char *curveset_name,
                                       char *curve_name,
                                       float *values,
                                       int *n,
-                                      bool *independent)
+                                      bool *independent,
+                                      char *recId=NULL)
 {
   if(sina_document)
   {
-    axom::sina::Record *sina_record = Sina_Get_Record();
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
     if(sina_record)
     {
       std::vector<double> y(*n);
@@ -395,11 +410,12 @@ extern "C" void sina_add_curve_double_(char *curveset_name,
                                        char *curve_name,
                                        double *values,
                                        int *n,
-                                       bool *independent)
+                                       bool *independent,
+                                       char *recId)
 {
   if(sina_document)
   {
-    axom::sina::Record *sina_record = Sina_Get_Record();
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
     if(sina_record)
     {
       axom::sina::Curve curve {curve_name, values, static_cast<size_t>(*n)};
