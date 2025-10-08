@@ -90,6 +90,8 @@ jobs:
       image: ${{ matrix.config.compiler_image }}
       volumes:
       - /home/axom/axom
+      # Required - default is set to user "axom"
+      options: --user root
     steps:
       - name: Checkout Axom
         uses: actions/checkout@v4
@@ -178,6 +180,8 @@ jobs:
       image: ${{ needs.set_image_vars.outputs.clang_docker_image }}
       volumes:
       - /home/axom/axom
+      # Required - default is set to user "axom"
+      options: --user root
       env:
         CHECK_TYPE: ${{ matrix.check_type }}
         HOST_CONFIG: llvm@19.0.0.cmake
