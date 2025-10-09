@@ -49,6 +49,14 @@ Record::Record(ID id_, std::string type_)
   , type {std::move(type_)}
 { }
 
+// Define the default curves ordering
+CurveSet::CurveOrder Record::defaultCurveOrder = CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST;
+
+void Record::setDefaultCurveOrder(CurveSet::CurveOrder order)
+{
+  defaultCurveOrder = order;
+}
+
 conduit::Node Record::toNode(CurveSet::CurveOrder curveOrder) const
 {
   conduit::Node asNode = DataHolder::toNode(curveOrder);

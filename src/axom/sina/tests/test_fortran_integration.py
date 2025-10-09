@@ -73,7 +73,7 @@ class TestFortranExampleIntegrationJSON(unittest.TestCase):
             print("jsonschema module not found. Skipping test_file_validity.")
             pass
                     
-    def test_validate_contents_of_records(self):
+    def test_validate_contents_of_records_json(self):
         """ Ensure that the  record written out matches what we expect """
         with open(self.dump_file, "r", encoding="utf-8") as loaded_test:
             rec = json.load(loaded_test)
@@ -84,7 +84,7 @@ class TestFortranExampleIntegrationJSON(unittest.TestCase):
         
         # Test the metadata in the record
         self.assertEqual("my_rec_id", record["id"])
-        self.assertEqual("my_type", record["type"])
+        self.assertEqual("fortran_code_output", record["type"])
         self.assertEqual("custom_type", record2["type"])
         
         # Test the files
@@ -130,6 +130,10 @@ class TestFortranExampleIntegrationJSON(unittest.TestCase):
         int_arr = [i*3 for i in nums]
         long_arr = [i*4 for i in nums]
         curveset = "my_curveset"
+        self.assertEqual(list(record["curve_sets"][curveset]['independent'].keys()),
+                         sorted(['my_indep_curve_double', 'my_indep_curve_real', 'my_indep_curve_int', 'my_indep_curve_long'] ))
+        self.assertEqual(list(record["curve_sets"][curveset]['dependent'].keys()),
+                         sorted(['my_dep_curve_double', 'my_dep_curve_double_2', 'my_dep_curve_real', 'my_dep_curve_int', 'my_dep_curve_long']))
         for kind, loc in (("indep", "independent"), ("dep", "dependent")):
             for val_type, target in (("real", real_arr), ("double", double_arr), ("int", int_arr), ("long", long_arr)):
                 name = "my_{}_curve_{}".format(kind, val_type)
@@ -205,16 +209,18 @@ class TestFortranExampleIntegrationHDF5(unittest.TestCase):
         # Otherwise, return the value as-is.
         return value
 
-    def test_validate_contents_of_record(self):
+    def test_validate_contents_of_records_hdf5(self):
         with h5py.File(self.dump_file, "r") as f:
-            self.assertEqual(len(f["records"]), 2)
+            self.assertEqual(len(f["records"]), 3)
             record = f["records"]["0"]
             record2 = f["records"]["1"]
+            record3 = f["records"]["2"]
 
             # Validate metadata
             self.assertEqual("my_rec_id", self.extract_hdf5_value(record["id"]))
-            self.assertEqual("my_type", self.extract_hdf5_value(record["type"]))
+            self.assertEqual("fortran_code_output", self.extract_hdf5_value(record["type"]))
             self.assertEqual("custom_type", self.extract_hdf5_value(record2["type"]))
+            self.assertEqual("fortran_test", self.extract_hdf5_value(record3["type"]))
 
             # Validate Files
             files_group = record["files"]
@@ -274,6 +280,10 @@ class TestFortranExampleIntegrationHDF5(unittest.TestCase):
             int_arr    = [i * 3 for i in nums]
             long_arr   = [i * 4 for i in nums]
 
+            self.assertEqual(list(curveset_group['independent'].keys()),
+                            sorted(['my_indep_curve_double', 'my_indep_curve_real', 'my_indep_curve_int', 'my_indep_curve_long']) )
+            self.assertEqual(list(curveset_group['dependent'].keys()),
+                            sorted(['my_dep_curve_double', 'my_dep_curve_double_2', 'my_dep_curve_real', 'my_dep_curve_int', 'my_dep_curve_long']))
             for kind, grp in (("indep", independent_group), ("dep", dependent_group)):
                 for val_type, target in (("real", real_arr),
                                          ("double", double_arr),
@@ -284,6 +294,14 @@ class TestFortranExampleIntegrationHDF5(unittest.TestCase):
                     curve_val = self.extract_hdf5_value(grp[curve_name]["value"])
                     self.assertEqual(len(curve_val), len(target))
                     self.assertEqual(curve_val, target)
+                    # Let's check group2 as well
+                    if val_type == "double":
+                        curve_val = self.extract_hdf5_value(record2["curve_sets"]["my_other_curveset"]["independent"]["my_indep_curve_double"]["value"])
+                        self.assertEqual(len(curve_val), len(target))
+                        self.assertEqual(curve_val, target)
+                        curve_val = self.extract_hdf5_value(record3["curve_sets"]["my_other_curveset"]["independent"]["my_indep_curve_double"]["value"])
+                        self.assertEqual(len(curve_val), 2 * len(target))
+
 
             double_2_name = "my_dep_curve_double_2"
             self.assertIn(double_2_name, dependent_group)

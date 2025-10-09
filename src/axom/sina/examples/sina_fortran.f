@@ -90,10 +90,11 @@ program example
   
   ! create sina record and document
   print *,'Creating the document'
-  call create_record(rec_id)
+  call sina_create_record(rec_id)
+  call sina_set_record_curves_order(rec_id, 2)
   print *,'Creating the document and second record'
   custom_type = make_cstring('custom_type')
-  call create_record(rec2_id, custom_type)
+  call sina_create_record(rec2_id, custom_type)
   
   ! add file to sina record
   print *,'Adding a file to the Sina record'
@@ -180,12 +181,29 @@ program example
   ! write out the Sina Document
   print *,'Writing out the Sina Document as json, preserve records'
   if (use_hdf5) then
-    call write_sina_document(json_fn, 0, 1)
-    print *,'Writing out the Sina Document as hdf5, yank records'
-    call write_sina_document(hdf5_fn, 1)
+    call sina_write_document(json_fn, 0, 1)
+    print *,'Writing out the Sina Document as hdf5, yank all records'
+    call sina_write_document(hdf5_fn, 1)
   else
-    call write_sina_document(json_fn)
+    call sina_write_document(json_fn)
   end if
+
+  ! set default record type
+  rec_id = make_cstring('fortran_test')
+  call sina_set_default_record_type(rec_id)
+! Let's add another record
+  rec2_id = make_cstring('my_rec_3_id')
+  call sina_create_record(rec2_id)
+  curve = make_cstring('my_indep_curve_double')
+  independent = .true.
+  print*, 'adding curve to rec3 double', independent, curve
+  call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)
+  call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)
+! And save the hdf5 only with autodetect
+  print*, 'saving to', hdf5_fn
+  call sina_write_document(hdf5_fn)
+  call sina_add_curve(name2, curve, double_arr, size(double_arr), independent, rec2_id)
+  call sina_write_document(hdf5_fn)
 
   
 contains

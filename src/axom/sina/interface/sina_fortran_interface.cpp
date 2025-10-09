@@ -14,6 +14,7 @@
 
 std::vector<std::unique_ptr<axom::sina::Record>> sinaRecordsList;
 axom::sina::Document *sina_document;
+char default_record_type[25] = "fortran_code_output";
 
 // Helper that returns empty string for invalid input
 inline const char* validate_optional_string_safe(char *str, int str_len) {
@@ -27,13 +28,17 @@ inline const char* validate_optional_string_safe(char *str, int str_len) {
 inline bool can_modify_records() {
   if (sina_document != nullptr) {
     std::cerr << "ERROR: Cannot modify records after document has been created. "
-              << "Call write_sina_document with preserve=0 first"
+              << "Call sina_write_document with preserve=0 first"
               << std::endl;
     return false;
   }
   return true;
 }
 
+extern "C" void sina_set_default_record_type_(char *record_type) 
+{
+  strcpy(default_record_type, record_type);
+}
 
 extern "C" char *Get_File_Extension(char *input_fn)
 {
@@ -45,7 +50,7 @@ extern "C" char *Get_File_Extension(char *input_fn)
   return (ext + 1);
 }
 
-extern "C" void create_record_(char *recID, char *recType, int recId_length, int recType_length)
+extern "C" void sina_create_record_(char *recID, char *recType, int recId_length, int recType_length)
 {
   // Create a record of "My Sim Code" version "1.2.3", which was run by "jdoe".
   // The run has an ID of "run1", which has to be unique to this file.
@@ -54,16 +59,13 @@ extern "C" void create_record_(char *recID, char *recType, int recId_length, int
   // std::unique_ptr<axom::sina::Record> myRecord {new axom::sina::Record {id, recType}};
   const char *validated_recType = validate_optional_string_safe(recType, recType_length);
   if (validated_recType[0] == '\0') {
-    validated_recType = "my_type";
+    validated_recType = default_record_type;
   }
   sinaRecordsList.emplace_back(std::make_unique<axom::sina::Record>(id, validated_recType));
 }
 
 extern "C" axom::sina::Record *Sina_Get_Record(char * recId=NULL)
 {
-
-    std::cout << "=== Sina_Get_Record called ===" << std::endl;
-    std::cout << "Total records in list: " << sinaRecordsList.size() << std::endl;
 
     if (recId == NULL || recId[0] == '\0') {
       std::unique_ptr<axom::sina::Record> const &myRecord = sinaRecordsList.front();
@@ -78,6 +80,9 @@ extern "C" axom::sina::Record *Sina_Get_Record(char * recId=NULL)
           return myRecord.get();
         } 
       }
+      // Didn't match we will return a new record
+      sina_create_record_(recId, "", strlen(recId), 0);
+      return sinaRecordsList.back().get();
     }
   return nullptr;
 }
@@ -267,12 +272,11 @@ extern "C" void sina_add_file_(char *filename, char *mime_type, char *recId, int
     }
 }
 
-extern "C" void write_sina_document_all_args_(char *input_fn, int *protocol, int *preserve, int *mergeProtocol=0)
+extern "C" void sina_write_document_all_args_(char *input_fn, int *protocol, int *preserve, int *mergeProtocol=0)
 {
 
   // Lets create the document if needed
   if (sina_document == nullptr) {
-    std::cout << "=== Creating new document ===" << std::endl;
     sina_document = new axom::sina::Document();
     
     // Move all records into the document
@@ -282,8 +286,6 @@ extern "C" void write_sina_document_all_args_(char *input_fn, int *protocol, int
       }
     }
     sinaRecordsList.clear();  // Clear empty pointers
-  } else {
-    std::cout << "=== Reusing existing document ===" << std::endl;
   }
 
 
@@ -294,36 +296,35 @@ extern "C" void write_sina_document_all_args_(char *input_fn, int *protocol, int
 
   // Do we want to bring it back?
   if (*preserve == 0) {
-    std::cout << "=== Deleting document ===" << std::endl;
     delete sina_document;
     sina_document = nullptr;
     sinaRecordsList.clear();
   }
 }
 
-extern "C" void write_sina_document_noprotocol_nopreserve_nomerge_(char *input_fn)
+extern "C" void sina_write_document_noprotocol_nopreserve_nomerge_(char *input_fn)
 {
     int default_protocol = static_cast<int>(axom::sina::Protocol::AUTO_DETECT);
     int default_merge_protocol = 0;
     int default_preserve = 0;
 
-    write_sina_document_all_args_(input_fn, &default_protocol, &default_preserve, &default_merge_protocol);
+    sina_write_document_all_args_(input_fn, &default_protocol, &default_preserve, &default_merge_protocol);
 
 }
-extern "C" void write_sina_document_protocol_nopreserve_nomerge_(char *input_fn, int *protocol)
+extern "C" void sina_write_document_protocol_nopreserve_nomerge_(char *input_fn, int *protocol)
 {
     int default_merge_protocol = 0;
     int default_preserve = 0;
 
-    write_sina_document_all_args_(input_fn, protocol, &default_preserve, &default_merge_protocol);
+    sina_write_document_all_args_(input_fn, protocol, &default_preserve, &default_merge_protocol);
 
 }
 
-extern "C" void write_sina_document_protocol_preserve_nomerge_(char *input_fn, int *protocol, int *preserve)
+extern "C" void sina_write_document_protocol_preserve_nomerge_(char *input_fn, int *protocol, int *preserve)
 {
     int default_merge_protocol = 0;
 
-    write_sina_document_all_args_(input_fn, protocol, preserve, &default_merge_protocol);
+    sina_write_document_all_args_(input_fn, protocol, preserve, &default_merge_protocol);
 
 }
 
@@ -331,10 +332,6 @@ extern "C" void sina_add_curveset_(char *name, char *recId, int name_len, int re
 {
     if (!can_modify_records()) return; 
     const char *validated_recId = validate_optional_string_safe(recId, recId_len);
-
-    std::cout << "=== sina_add_curveset called ===" << std::endl;
-    std::cout << "  curveset name: '" << name << "'" << std::endl;
-    std::cout << "  recId: '" << validated_recId << "'" << std::endl;
 
     axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
     if(sina_record)
@@ -367,6 +364,12 @@ extern "C" void sina_add_curve_long_(char *curveset_name,
       axom::sina::Curve curve {curve_name, y};
 
       auto &curvesets = sina_record->getCurveSets();
+      if (curvesets.find(curveset_name) == curvesets.end()) {
+        // missing curveset let's create it (useful for append mode where rec was deleted)
+        sina_add_curveset_(curveset_name, recId, strlen(curveset_name), strlen(recId));
+        auto &curvesets = sina_record->getCurveSets();
+      }
+
       axom::sina::CurveSet cs = curvesets.at(curveset_name);
       if(*independent)
       {
@@ -401,6 +404,12 @@ extern "C" void sina_add_curve_int_(char *curveset_name,
       axom::sina::Curve curve {curve_name, y};
 
       auto &curvesets = sina_record->getCurveSets();
+      if (curvesets.find(curveset_name) == curvesets.end()) {
+        // missing curveset let's create it (useful for append mode where rec was deleted)
+        sina_add_curveset_(curveset_name, recId, strlen(curveset_name), strlen(recId));
+        auto &curvesets = sina_record->getCurveSets();
+      }
+
       axom::sina::CurveSet cs = curvesets.at(curveset_name);
       if(*independent)
       {
@@ -434,6 +443,12 @@ extern "C" void sina_add_curve_float_(char *curveset_name,
       axom::sina::Curve curve {curve_name, y};
 
       auto &curvesets = sina_record->getCurveSets();
+      if (curvesets.find(curveset_name) == curvesets.end()) {
+        // missing curveset let's create it (useful for append mode where rec was deleted)
+        sina_add_curveset_(curveset_name, recId, strlen(curveset_name), strlen(recId));
+        auto &curvesets = sina_record->getCurveSets();
+      }
+
       axom::sina::CurveSet cs = curvesets.at(curveset_name);
       if(*independent)
       {
@@ -456,17 +471,19 @@ extern "C" void sina_add_curve_double_(char *curveset_name,
                                        int curvename_len,
                                        int recId_len)
 {
-    if (!can_modify_records()) return; 
-    const char *validated_recId = validate_optional_string_safe(recId, recId_len);
-    std::cout << "=== sina_add_curve_double called ===" << std::endl;
-    std::cout << "  curveset_name: '" << curveset_name << "'" << std::endl;
-    std::cout << "  curve_name: '" << curve_name << "'" << std::endl;
-    std::cout << "  recId: '" << validated_recId << "'" << std::endl;
+      if (!can_modify_records()) return; 
+      const char *validated_recId = validate_optional_string_safe(recId, recId_len);
 
       axom::sina::Record *sina_record = Sina_Get_Record(const_cast<char *>(validated_recId));
       axom::sina::Curve curve {curve_name, values, static_cast<size_t>(*n)};
 
       auto &curvesets = sina_record->getCurveSets();
+      if (curvesets.find(curveset_name) == curvesets.end()) {
+        // missing curveset let's create it (useful for append mode where rec was deleted)
+        sina_add_curveset_(curveset_name, recId, strlen(curveset_name), strlen(recId));
+        auto &curvesets = sina_record->getCurveSets();
+      }
+
       axom::sina::CurveSet cs = curvesets.at(curveset_name);
       if(*independent)
       {
@@ -480,54 +497,24 @@ extern "C" void sina_add_curve_double_(char *curveset_name,
 }
 
 //=============================================================================
-// Curve Ordering Functions (NEW - PR #1559)
+// Curve Ordering Functions 
 //=============================================================================
 
-// extern "C" int sina_record_set_curve_order_fortran(void* record_handle, int curve_order)
-// {
-//     try {
-//         axom::sina::Record* record = static_cast<axom::sina::Record*>(record_handle);
-//         if (!record) return -1;
+extern "C" void sina_set_record_curves_order_(char* recId, int* curve_order)
+{
+    axom::sina::Record *sina_record = Sina_Get_Record(recId);
+        if (!sina_record) {
+          return;
+        }
+        axom::sina::CurveSet::CurveOrder order;
+        switch (*curve_order) {
+            case 0: order = axom::sina::CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST; break;
+            case 1: order = axom::sina::CurveSet::CurveOrder::REGISTRATION_NEWEST_FIRST; break;
+            case 2: order = axom::sina::CurveSet::CurveOrder::ALPHABETIC; break;
+            case 3: order = axom::sina::CurveSet::CurveOrder::REVERSE_ALPHABETIC; break;
+            default: return;
+        }
         
-//         axom::sina::CurveSet::CurveOrder order;
-//         switch (curve_order) {
-//             case 0: order = axom::sina::CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST; break;
-//             case 1: order = axom::sina::CurveSet::CurveOrder::REGISTRATION_NEWEST_FIRST; break;
-//             case 2: order = axom::sina::CurveSet::CurveOrder::ALPHABETIC; break;
-//             case 3: order = axom::sina::CurveSet::CurveOrder::REVERSE_ALPHABETIC; break;
-//             default: return -2;
-//         }
-        
-//         record->setCurveOrder(order);
-//         return 0;
-//     }
-//     catch (...) { return -3; }
-// }
-
-// extern "C" int sina_record_get_curve_order_fortran(void* record_handle, int* curve_order)
-// {
-//     try {
-//         axom::sina::Record* record = static_cast<axom::sina::Record*>(record_handle);
-//         if (!record) return -1;
-        
-//         axom::sina::CurveSet::CurveOrder order = record->getCurveOrder();
-        
-//         switch (order) {
-//             case axom::sina::CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST:
-//                 *curve_order = 0; break;
-//             case axom::sina::CurveSet::CurveOrder::REGISTRATION_NEWEST_FIRST:
-//                 *curve_order = 1; break;
-//             case axom::sina::CurveSet::CurveOrder::ALPHABETIC:
-//                 *curve_order = 2; break;
-//             case axom::sina::CurveSet::CurveOrder::REVERSE_ALPHABETIC:
-//                 *curve_order = 3; break;
-//             default: return -2;
-//         }
-        
-//         return 0;
-//     }
-//     catch (...) { return -3; }
-// }
-
-
-
+        sina_record->setDefaultCurveOrder(order);
+        return;
+}

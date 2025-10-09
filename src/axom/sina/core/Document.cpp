@@ -1127,7 +1127,7 @@ Protocol detectOutputProtocol(const std::string& filepath)
   std::string ext = filepath.substr(dotPos);
   axom::utilities::string::toLower(ext);  // Modifies ext in-place
 
-  if (ext == ".json")
+  if (ext == ".json" || ext == ".jsn")
   {
     return Protocol::JSON;
   }

@@ -94,8 +94,15 @@ public:
   /**
     * An enum member representing the default ordering of Curves within CurveSets.
     */
-  static const CurveSet::CurveOrder defaultCurveOrder =
-    CurveSet::CurveOrder::REGISTRATION_OLDEST_FIRST;
+  static CurveSet::CurveOrder defaultCurveOrder ;
+
+  /**    
+   * \brief Set the default curve order for all Records.
+   * 
+   * \param order the new default curve order
+  */
+  static void setDefaultCurveOrder(CurveSet::CurveOrder order);
+
   /**
      * \brief Construct a new Record.
      *
